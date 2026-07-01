@@ -6,8 +6,6 @@ declare global {
       electron_app?: App
     }
   }
-
-  function createProtocol(scheme: string): void
 }
 
 export {}

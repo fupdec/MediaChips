@@ -59,8 +59,26 @@ let loading: BrowserWindowInstance | null = null
 let player: BrowserWindowInstance | null = null
 let suppressPlayerWarmup = false
 let suppressZoomChangedEvent = false
-const isDevelopment = process.env.NODE_ENV !== 'production'
+// Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
+const isDevelopment = !app.isPackaged && process.env.NODE_ENV !== 'production'
 const useViteDevServer = isDevelopment && process.env.MEDIA_CHIPS_VITE_DEV !== '0'
+
+const waitForBackend = async (port: number, timeoutMs = 30000) => {
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    if (server.listener) return
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/ping`)
+      if (response.ok) return
+    } catch {}
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
+
+  console.warn(`Backend not ready on port ${port} after ${timeoutMs}ms; loading renderer anyway`)
+}
 
 const getRendererUrl = (search = '') => {
   const port = useViteDevServer
@@ -255,10 +273,6 @@ const bindMainWindowLoadedHandler = (mainWindow: BrowserWindowInstance) => {
 }
 
 const createLoadingWindow = () => {
-  if (!isDevelopment) {
-    createProtocol('app')
-  }
-
   loading = new BrowserWindow({
     width: 320,
     height: 320,
@@ -292,8 +306,13 @@ app.on('second-instance', () => {
   }
 })
 
-app.on('ready', () => {
+app.on('ready', async () => {
   createLoadingWindow()
+
+  if (!useViteDevServer) {
+    await waitForBackend(serverConfig.port)
+  }
+
   createWindow()
   initAppUpdater({getWindow: () => win})
 })
