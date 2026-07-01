@@ -46,7 +46,7 @@
   }
   .player-body {
     display: flex;
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
     width: 100%;
     overflow: hidden;
@@ -74,11 +74,46 @@
   }
   .player-main {
     position: relative;
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+
+    .preview {
+      pointer-events: none;
+      position: absolute;
+      z-index: 6;
+      width: auto;
+      height: clamp(100px, 15vh, 180px);
+      min-height: 100px;
+      display: inline-flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-origin: bottom center;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      background-color: #000;
+
+      video {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        object-fit: contain;
+        background-color: #000;
+      }
+
+      .time {
+        position: absolute;
+        bottom: 2px;
+        left: 0;
+        right: 0;
+        margin: auto;
+      }
+    }
   }
   .remove-active {
     .v-btn {
@@ -95,13 +130,16 @@
     }
   }
   .video-wrapper {
+    position: relative;
     width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
     height: 100%;
-    min-height: 280px;
-    max-height: 80vh;
+    max-height: none;
     display: flex;
-    // align-useItemsStore: center;
+    align-items: stretch;
     justify-content: center;
+    overflow: hidden;
     background-color: #000;
     &.system-title-bar {
       max-height: 100%;
@@ -127,6 +165,15 @@
         z-index: 2;
         flex-shrink: 0;
       }
+    }
+
+    > .controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 3;
+      overflow: visible;
     }
   }
   .reg-block {
@@ -159,8 +206,11 @@
     justify-content: center;
   }
   video {
-    min-width: 100%;
-    min-height: 100%;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     object-fit: contain;
     &.audio-hidden {
       opacity: 0;
@@ -171,8 +221,11 @@
     background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     video {
       position: absolute;
+      flex: none;
       width: 0;
       height: 0;
+      min-width: 0;
+      min-height: 0;
     }
     .audio-overlay {
       position: relative;
@@ -329,10 +382,36 @@
   left: 0;
   right: 0;
   width: 100%;
+  z-index: 2;
   overflow: visible;
   background: linear-gradient(0, rgba(0, 0, 0, 0.8), transparent);
   transition: 0.3s all;
   animation: appearing 0.2s;
+
+  &.v-card {
+    position: absolute;
+    background: linear-gradient(0, rgba(0, 0, 0, 0.8), transparent);
+    box-shadow: none;
+  }
+
+  .v-btn.v-btn--variant-tonal,
+  .v-btn-group.v-btn-group--variant-tonal {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .v-btn,
+  .v-btn-group .v-btn {
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .v-btn .v-icon,
+  .v-btn .v-btn__content {
+    color: currentColor;
+  }
+
+  .v-btn-group > .v-btn {
+    background-color: transparent;
+  }
   .v-slider__thumb {
     &-container {
       z-index: 1;
@@ -389,6 +468,7 @@
   }
   .timeline {
     position: relative;
+    overflow: visible;
     &:hover {
       .mark-icon {
         opacity: 0.7;
@@ -406,32 +486,6 @@
     .v-slider__track-background,
     .v-slider__track-fill {
       transition: 0.1s all;
-    }
-    .preview {
-      pointer-events: none;
-      position: absolute;
-      z-index: 1;
-      bottom: 50px;
-      width: auto;
-      height: 15vh;
-      min-height: 100px;
-      aspect-ratio: 16 / 9; /* Современный и самый простой способ */
-      display: inline-flex;
-      overflow: hidden;
-      transform-origin: bottom center;
-      video {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        background-color: #000;
-      }
-      .time {
-        position: absolute;
-        bottom: 2px;
-        left: 0;
-        right: 0;
-        margin: auto;
-      }
     }
   }
   .v-slider-track {

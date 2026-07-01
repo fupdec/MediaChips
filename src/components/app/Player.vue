@@ -32,9 +32,17 @@ onBeforeUnmount(() => stopPlayerUiSync())
 <style lang="scss">
 .dialog-player {
   border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  width: min(2000px, 96vw) !important;
+  height: 80vh;
+  max-height: 80vh;
+  overflow: hidden;
 
   .player {
-    min-height: 50vh;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
   }
 }
 
@@ -52,8 +60,10 @@ onBeforeUnmount(() => stopPlayerUiSync())
   }
 
   .player .video-wrapper {
-    max-height: 100%;
+    flex: 1;
+    max-height: none;
     min-height: 0;
+    height: auto;
   }
 }
 

@@ -4,6 +4,7 @@
     @mouseleave="player.mouseOverControls = false"
     :class="{hidden: !player.isControlsVisible}"
     class="controls px-6"
+    variant="text"
     theme="dark"
   >
     <PlayerTimeline

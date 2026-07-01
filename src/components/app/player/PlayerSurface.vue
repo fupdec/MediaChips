@@ -115,20 +115,20 @@
             <v-icon dark start>mdi-{{ player.displayStatusIcon }}</v-icon>
             {{ player.displayStatusText }}
           </div>
-        </div>
 
-        <Controls
-          @toggleFullscreen="toggleFullscreen"
-          @togglePictureInPicture="togglePictureInPicture"
-          @play="playVideoObject($event)"
-          @changeVolume="changeVolume($event)"
-          @showControls="showControls"
-          @addMark="openAddingMark"
-          @removeMark="removeMark"
-          @close="closePlayer"
-          @updateVideo="updateItemVideo"
-          :ref="setControlsRef"
-        />
+          <Controls
+            @toggleFullscreen="toggleFullscreen"
+            @togglePictureInPicture="togglePictureInPicture"
+            @play="playVideoObject($event)"
+            @changeVolume="changeVolume($event)"
+            @showControls="showControls"
+            @addMark="openAddingMark"
+            @removeMark="removeMark"
+            @close="closePlayer"
+            @updateVideo="updateItemVideo"
+            :ref="setControlsRef"
+          />
+        </div>
       </div>
 
       <Playlist @play="playVideoObject($event)"/>
