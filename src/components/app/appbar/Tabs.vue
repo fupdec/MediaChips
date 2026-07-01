@@ -19,10 +19,14 @@
           :to="getTabUrl(element)"
           @click.middle.prevent="closeTab($event, element.id)"
           @contextmenu.prevent.stop="showContextMenu($event, element.id, index)"
+          @animationend="onTabEnterEnd(element.id)"
           :ripple="false"
           :key="element.id"
           :id="element.id"
-          :class="{'dragged': draggableTabIndex === index}"
+          :class="{
+            'dragged': draggableTabIndex === index,
+            'tab-enter': isNewlyAddedTab(element.id),
+          }"
           exact
         >
           <div class="tab-name" :title="element.name">
@@ -70,6 +74,8 @@ const tabs = ref<Tab[]>([])
 const active = ref<LocationQueryValue | LocationQueryValue[] | null>(null)
 const drag = ref(false)
 const draggableTabIndex = ref<number | null>(null)
+const knownTabIds = ref(new Set<number>())
+const newlyAddedTabIds = ref(new Set<number>())
 
 const tabsStore = computed(() => useAppStore().tabs)
 
@@ -79,16 +85,49 @@ const dragOptions = {
   ghostClass: 'ghost',
 }
 
+const syncTabs = (storeTabs: Tab[], trackNew = false) => {
+  const nextTabs = orderBy([...storeTabs], 'order')
+  const nextIds = new Set(
+    nextTabs
+      .map((tab) => tab.id)
+      .filter((id): id is number => id != null),
+  )
+
+  if (trackNew) {
+    const addedIds = [...newlyAddedTabIds.value]
+    for (const id of nextIds) {
+      if (!knownTabIds.value.has(id)) {
+        addedIds.push(id)
+      }
+    }
+    newlyAddedTabIds.value = new Set(addedIds)
+  }
+
+  knownTabIds.value = nextIds
+  tabs.value = nextTabs
+}
+
+const isNewlyAddedTab = (tabId: number | string | null | undefined): boolean => {
+  return tabId != null && newlyAddedTabIds.value.has(Number(tabId))
+}
+
+const onTabEnterEnd = (tabId: number | string | null | undefined): void => {
+  if (tabId == null) return
+  const nextIds = new Set(newlyAddedTabIds.value)
+  nextIds.delete(Number(tabId))
+  newlyAddedTabIds.value = nextIds
+}
+
 onMounted(() => {
-  tabs.value = orderBy([...tabsStore.value], "order");
+  syncTabs(tabsStore.value)
   active.value = route.query.tabId ?? null
 })
 
 watch(
   () => tabsStore.value,
-  (_val) => {
-    tabs.value = orderBy([...tabsStore.value], "order");
-  }
+  (val) => {
+    syncTabs(val, true)
+  },
 )
 
 watch(
@@ -254,5 +293,21 @@ const showContextMenu = (e: MouseEvent, tabId: number | string, index: number) =
 .tab-name {
   display: flex;
   align-items: center;
+}
+
+:deep(.tab-enter) {
+  animation: tab-enter 0.28s ease-out;
+}
+
+@keyframes tab-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 </style>

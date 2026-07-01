@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { tabs } from '../schema/tabs'
 import { nowIso } from '../utils/timestamps'
@@ -10,6 +10,17 @@ export function createTabsRepository(db: DrizzleClient) {
   return {
     create(data: Partial<TabInsert>): TabRow {
       const timestamp = nowIso()
+      const insertAtBeginning = data.order === undefined
+
+      if (insertAtBeginning) {
+        db.update(tabs)
+          .set({
+            order: sql`${tabs.order} + 1`,
+            updatedAt: timestamp,
+          })
+          .run()
+      }
+
       const result = db.insert(tabs)
         .values({
           name: data.name ?? null,
