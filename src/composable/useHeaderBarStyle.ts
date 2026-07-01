@@ -6,7 +6,7 @@ import {
   addTransparencyToGradient,
   checkColorForDarkText,
   hexToRgba,
-} from '@/services/formatUtils'
+} from '@/utils/headerColorUtils'
 
 export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
   const theme = useTheme()

@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted} from 'vue'
+import {ref, computed, onMounted, onUnmounted, defineAsyncComponent} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
@@ -43,7 +43,7 @@ import {useSystemMenuActions} from '@/composable/useSystemMenuActions'
 import {SYSTEM_MENUS} from '@/types/systemMenu'
 import type {SystemMenuAction} from '@/types/systemMenu'
 import SystemMenuDropdown from '@/components/app/SystemMenuDropdown.vue'
-import WindowControls from '@/components/ui/WindowControls.vue'
+const WindowControls = defineAsyncComponent(() => import('@/components/ui/WindowControls.vue'))
 
 defineProps<{
   disabled?: boolean

@@ -6,7 +6,7 @@
     show-arrows
     height="26"
   >
-    <draggable
+    <Draggable
       v-model="tabs"
       item-key="id"
       v-bind="dragOptions"
@@ -39,17 +39,16 @@
           </v-btn>
         </v-tab>
       </template>
-    </draggable>
+    </Draggable>
   </v-tabs>
 </template>
 
 <script setup lang="ts">
-import {ref, watch, onMounted, computed} from 'vue'
+import {ref, watch, onMounted, computed, defineAsyncComponent} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useRouter, useRoute} from 'vue-router'
-import draggable from 'vuedraggable'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useEventBus} from '@/utils/eventBus'
@@ -57,6 +56,8 @@ import {useI18n} from 'vue-i18n'
 import {getTabUrl} from '@/services/routeService'
 import type { Tab } from '@/types/stores'
 import type { LocationQueryValue } from 'vue-router'
+
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
 const router = useRouter()
 const route = useRoute()

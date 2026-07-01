@@ -4,7 +4,6 @@ import type { Handler } from 'mitt'
 import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {loadLocale} from '@/i18n/loadLocale'
-import debounce from 'lodash/debounce'
 import {typedApi} from '@/services/typedApi'
 import {getAuthToken, clearAuthToken} from '@/services/authSession'
 import {updateConfig} from '@/services/configService'
@@ -17,8 +16,6 @@ import {useWatcherStore} from '@/stores/watcher'
 import {useRegistrationStore} from '@/stores/registration'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
-import {useWatcher} from '@/composable/Watcher'
-import {useMediaAdding} from '@/composable/AddingMedia'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
 import {useAppTheme} from '@/composable/useAppTheme'
@@ -37,6 +34,14 @@ interface UseAppBootstrapOptions {
 }
 
 type AppListField = 'mediaTypes' | 'tags' | 'meta' | 'tabs' | 'playlists'
+
+function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return ((...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), ms)
+  }) as T
+}
 
 export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOptions) {
   const route = useRoute()
@@ -58,8 +63,21 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     },
   })
   const {applyTheme} = useAppTheme()
-  const {updateWatcher} = useWatcher(store.localhost)
-  const {handleAddMedia, cleanupEventListeners} = useMediaAdding()
+
+  let updateWatcher = (_folders: WatchedFolderEntry[]): void => {}
+  let handleAddMedia = async (_action?: () => void): Promise<void> => {}
+  let cleanupMediaAdding: (() => void) | null = null
+
+  async function ensureDeferredServices(): Promise<void> {
+    const [{useWatcher}, {useMediaAdding}] = await Promise.all([
+      import('@/composable/Watcher'),
+      import('@/composable/AddingMedia'),
+    ])
+    updateWatcher = useWatcher(store.localhost).updateWatcher
+    const mediaAdding = useMediaAdding()
+    handleAddMedia = mediaAdding.handleAddMedia
+    cleanupMediaAdding = mediaAdding.cleanupEventListeners
+  }
 
   const isAppReady = ref(false)
   const isShellReady = ref(false)
@@ -470,6 +488,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       await loadMainAppData()
     }
 
+    await ensureDeferredServices()
     bindMainAppEventBus()
 
     if (typeof BroadcastChannel !== 'undefined') {
@@ -511,7 +530,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     isAppReady.value = false
     isShellReady.value = false
     shellRevealSent = false
-    cleanupEventListeners()
+    cleanupMediaAdding?.()
     unbindMainAppEventBus()
     thumbBroadcastChannel?.removeEventListener('message', handleThumbBroadcast)
     thumbBroadcastChannel?.close()

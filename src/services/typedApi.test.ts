@@ -37,7 +37,7 @@ describe('typedApi', () => {
     expect(response.data[0]?.id).toBe(1)
   })
 
-  it('validates home media stats', async () => {
+  it('loads extended api modules on first extended call', async () => {
     mockGet.mockResolvedValue(mockAxiosResponse({ total: 42, filesize: 1024 }))
 
     const response = await typedApi.getMediaStats()

@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue'
+import {computed, defineAsyncComponent, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
@@ -133,19 +133,19 @@ import {scrollMainTo} from '@/utils/mainScroll'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 
 /* Components */
-import ItemsSelection from '@/components/app/appbar/elements/ItemsSelection.vue'
+const ItemsSelection = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsSelection.vue'))
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
-import ItemsFilter from '@/components/app/appbar/elements/ItemsFilter.vue'
-import TabAdd from '@/components/app/appbar/elements/TabAdd.vue'
-import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
-import DialogMediaAdding from '@/components/dialogs/DialogMediaAdding.vue'
-import ItemsEditMeta from '@/components/app/appbar/elements/ItemsEditMeta.vue'
-import Tabs from '@/components/app/appbar/Tabs.vue'
-import Feedback from '@/components/app/appbar/Feedback.vue'
-import Documentation from '@/components/app/appbar/Documentation.vue'
-import GlobalSearch from '@/components/app/appbar/GlobalSearch.vue'
-import Notifications from '@/components/app/appbar/Notifications.vue'
-import DialogTabEditing from '@/components/dialogs/DialogTabEditing.vue'
+const ItemsFilter = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsFilter.vue'))
+const TabAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TabAdd.vue'))
+const TagsAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TagsAdd.vue'))
+const DialogMediaAdding = defineAsyncComponent(() => import('@/components/dialogs/DialogMediaAdding.vue'))
+const ItemsEditMeta = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsEditMeta.vue'))
+const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))
+const Feedback = defineAsyncComponent(() => import('@/components/app/appbar/Feedback.vue'))
+const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
+const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
+const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
+const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 
 /* Stores */
 const itemsStore = useItemsStore()

@@ -62,7 +62,7 @@
           <v-divider v-if="meta_arr.length" class="my-1"/>
 
           <!-- Meta list with draggable -->
-          <draggable
+          <Draggable
             v-model="meta_arr"
             @start="drag = true"
             @end="updateMetaOrder"
@@ -97,7 +97,7 @@
                 ></v-list-item>
               </div>
             </template>
-          </draggable>
+          </Draggable>
 
           <v-divider class="my-1"/>
 
@@ -161,9 +161,8 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted} from 'vue'
+import {ref, computed, watch, onMounted, defineAsyncComponent} from 'vue'
 import {useRoute} from 'vue-router'
-import draggable from 'vuedraggable'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useAppStore} from '@/stores/app'
@@ -174,6 +173,8 @@ import {useEventBus} from "@/utils/eventBus"
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import type { Meta } from '@/types/stores'
 import type { WatcherFileChangeGroup, WatcherFilesEntry } from '@/types/watcher'
+
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
 type MetaNavItem = Meta & { hidden?: boolean; order?: number }
 type MetaNavRow = MetaNavItem | { type: 'toggler'; id: string }

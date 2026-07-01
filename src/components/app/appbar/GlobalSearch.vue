@@ -4,8 +4,6 @@ import {useRouter} from 'vue-router'
 import {useHotkey} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import debounce from 'lodash/debounce'
-import groupBy from 'lodash/groupBy'
 import {useEventBus} from '@/utils/eventBus'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {useAppStore} from '@/stores/app'
@@ -21,6 +19,27 @@ import type { MediaItem, Meta, Tag } from '@/types/stores'
 type GlobalSearchTag = Tag & {
   matchSource?: 'name' | 'synonym' | 'both'
   matchedSynonyms?: string[]
+}
+
+function groupByKey<T>(items: T[], key: keyof T): Record<string, T[]> {
+  const grouped: Record<string, T[]> = {}
+  for (const item of items) {
+    const groupKey = String(item[key])
+    ;(grouped[groupKey] ??= []).push(item)
+  }
+  return grouped
+}
+
+function debounce<T extends (...args: never[]) => void>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const debounced = (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), ms)
+  }
+  debounced.cancel = () => {
+    clearTimeout(timer)
+  }
+  return debounced
 }
 
 interface SearchGroup {
@@ -217,7 +236,7 @@ function normalizeSearchTags(
 }
 
 function buildMediaGroups(data: MediaItem[]) {
-  const grouped = groupBy(data, 'mediaTypeId')
+  const grouped = groupByKey(data, 'mediaTypeId')
 
   return Object.keys(grouped).map(id => {
     const type = mediaTypes.value.find(item => item.id === Number(id))
@@ -235,7 +254,7 @@ function buildMediaGroups(data: MediaItem[]) {
 }
 
 function buildTagGroups(data: GlobalSearchTag[]) {
-  const grouped = groupBy(data, 'metaId')
+  const grouped = groupByKey(data, 'metaId')
 
   return Object.keys(grouped).map(metaId => {
     const m = meta.value.find(item => item.id === Number(metaId))

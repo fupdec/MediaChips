@@ -78,6 +78,60 @@ export default defineConfig(async () => {
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('/shared/schemas/')) {
+            return 'api-schemas'
+          }
+          if (id.includes('/src/services/apiClient')) {
+            return 'api-client'
+          }
+          if (id.includes('/src/services/typedApi/bootstrap') || id.includes('/src/services/typedApi/auth')) {
+            return 'typed-api-core'
+          }
+          if (id.includes('/src/services/typedApi/home')) {
+            return 'typed-api-home'
+          }
+          if (id.includes('/src/services/typedApi/pages')) {
+            return 'typed-api-pages'
+          }
+          if (id.includes('/src/services/typedApi/media')) {
+            return 'typed-api-media'
+          }
+          if (id.includes('/src/services/typedApi/meta')) {
+            return 'typed-api-meta'
+          }
+          if (id.includes('/src/services/typedApi/tasks')) {
+            return 'typed-api-tasks'
+          }
+          if (id.includes('/src/services/typedApi/transcode')) {
+            return 'typed-api-transcode'
+          }
+          if (id.includes('/src/services/typedApi/')) {
+            return 'typed-api-core'
+          }
+          if (id.includes('/src/stores/items.ts')) {
+            return 'items-store'
+          }
+          if (id.includes('/src/stores/app.ts')) {
+            return 'app-store'
+          }
+          if (id.includes('stores/player.ts') || id.includes('stores/player.')) {
+            return 'player-store'
+          }
+          if (id.includes('/src/services/formatUtils')) {
+            return 'format-utils'
+          }
+          if (id.includes('WindowControls.vue')) {
+            return 'window-controls'
+          }
+          if (
+            id.includes('node_modules/vuedraggable') ||
+            id.includes('node_modules/sortablejs')
+          ) {
+            return 'draggable-vendor'
+          }
+          if (id.includes('/src/i18n/en.ts')) {
+            return 'locale-en'
+          }
           if (/\/src\/i18n\/(ru|cn|es)\.ts$/.test(id)) {
             const locale = id.match(/\/(ru|cn|es)\.ts$/)?.[1]
             return locale ? `locale-${locale}` : 'locale-extra'

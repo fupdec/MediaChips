@@ -2,7 +2,7 @@
   <v-app
     :class="{
       'not-macos': !isMac,
-      'player-active': player.active,
+      'player-active': isPlayerUiActive,
       'player-window-app': isPlayerWindow,
       'electron-win': isWin && isElectron,
       'sfw-mode': settingsStore.sfwMode === '1',
@@ -15,14 +15,13 @@
         @lock="store.isLocked = true"
       />
 
-      <AppBar/>
+      <component :is="AppBar"/>
 
-      <BottomBar v-if="useBottomBar"/>
-      <SideBar v-else/>
+      <component :is="useBottomBar ? BottomBar : SideBar"/>
     </template>
 
-    <Player/>
-    <ImageViewer v-if="isShellReady && !isPlayerWindow"/>
+    <component :is="Player" v-if="isShellReady || isPlayerWindow"/>
+    <component :is="ImageViewer" v-if="isShellReady && !isPlayerWindow"/>
 
     <v-main
       v-if="isAppReady && !isPlayerWindow"
@@ -48,14 +47,14 @@
       <div id="main-drop-target" class="main-drop-target"></div>
     </v-main>
 
-    <HoverImage v-if="isShellReady && !isPlayerWindow"/>
+    <component :is="HoverImage" v-if="isShellReady && !isPlayerWindow"/>
 
     <template v-if="isShellReady && !isPlayerWindow">
-      <NotificationsPool/>
-      <AutoUpdater/>
+      <component :is="NotificationsPool"/>
+      <component :is="AutoUpdater"/>
     </template>
 
-    <Dialogs v-if="isShellReady && !isPlayerWindow"/>
+    <component :is="Dialogs" v-if="isShellReady && !isPlayerWindow"/>
 
     <div
       v-if="!isShellReady && !isPlayerWindow"
@@ -76,7 +75,7 @@
         width="2"/>
     </v-overlay>
 
-    <ContextMenu v-if="isShellReady && !isPlayerWindow" v-show="contextMenu.show"></ContextMenu>
+    <ContextMenu v-if="isShellReady && !isPlayerWindow" v-show="contextMenu.show"/>
   </v-app>
 </template>
 
@@ -85,30 +84,29 @@ import {computed, defineAsyncComponent} from 'vue'
 import {useRoute} from 'vue-router'
 import {useNavigationLayout} from '@/composable/useNavigationLayout'
 import {useAppStore} from '@/stores/app'
-import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {useAppBootstrap} from '@/composable/useAppBootstrap'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
+import {isPlayerUiActive} from '@/utils/playerShellState'
 
 import SystemBar from '@/components/app/SystemBar.vue'
-import AppBar from '@/components/app/AppBar.vue'
-import SideBar from '@/components/app/SideBar.vue'
-import BottomBar from '@/components/app/BottomBar.vue'
-import Player from '@/components/app/Player.vue'
-import NotificationsPool from '@/components/app/NotificationsPool.vue'
-import ContextMenu from '@/components/app/ContextMenu.vue'
-import AutoUpdater from '@/components/app/AutoUpdater.vue'
 
+const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))
+const SideBar = defineAsyncComponent(() => import('@/components/app/SideBar.vue'))
+const BottomBar = defineAsyncComponent(() => import('@/components/app/BottomBar.vue'))
+const Player = defineAsyncComponent(() => import('@/components/app/Player.vue'))
 const Dialogs = defineAsyncComponent(() => import('@/components/app/Dialogs.vue'))
 const ImageViewer = defineAsyncComponent(() => import('@/components/app/ImageViewer.vue'))
 const HoverImage = defineAsyncComponent(() => import('@/components/app/HoverImage.vue'))
+const NotificationsPool = defineAsyncComponent(() => import('@/components/app/NotificationsPool.vue'))
+const ContextMenu = defineAsyncComponent(() => import('@/components/app/ContextMenu.vue'))
+const AutoUpdater = defineAsyncComponent(() => import('@/components/app/AutoUpdater.vue'))
 
 const settingsStore = useSettingsStore()
 const store = useAppStore()
-const player = usePlayerStore()
 const contextMenuStore = useContextMenu()
 const route = useRoute()
 const {useBottomBar} = useNavigationLayout()

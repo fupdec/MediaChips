@@ -1,12 +1,19 @@
 import type { App } from 'vue'
 import * as fileService from '@/services/fileService'
-import * as filterService from '@/services/filterService'
 import { updateConfig, initConfig } from '@/services/configService'
 import { showOpenDialog } from '@/services/electronDialogService'
 import { getOption, setOption } from '@/services/settingsService'
 import { setNotification } from '@/services/notificationService'
 import { openPath } from '@/services/shellService'
 import { getWatchedFolders } from '@/services/watcherService'
+
+type FilterService = typeof import('@/services/filterService')
+let filterServicePromise: Promise<FilterService> | null = null
+
+function loadFilterService(): Promise<FilterService> {
+  filterServicePromise ??= import('@/services/filterService')
+  return filterServicePromise
+}
 
 /** Legacy facade for globalThis.$operable and app.config.globalProperties.$operable */
 export function createOperableFacade() {
@@ -23,9 +30,11 @@ export function createOperableFacade() {
     setOption,
     openPath,
     getWatchedFolders,
-    getSavedFilters: filterService.getSavedFilters,
+    getSavedFilters: async (...args: Parameters<FilterService['getSavedFilters']>) =>
+      (await loadFilterService()).getSavedFilters(...args),
     setNotification,
-    getFilters: filterService.getFilters,
+    getFilters: async (...args: Parameters<FilterService['getFilters']>) =>
+      (await loadFilterService()).getFilters(...args),
   }
 }
 

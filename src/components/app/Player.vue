@@ -8,15 +8,25 @@
 </template>
 
 <script setup lang="ts">
-import {provide} from 'vue'
+import {provide, watch, onBeforeUnmount} from 'vue'
 import {VDialog} from 'vuetify/components/VDialog'
 import PlayerSurface from '@/components/app/player/PlayerSurface.vue'
 import {PLAYER_SESSION_KEY, usePlayerSession} from '@/composable/usePlayerSession'
+import {isPlayerUiActive} from '@/utils/playerShellState'
 
 const session = usePlayerSession()
 provide(PLAYER_SESSION_KEY, session)
 
-const {isPlayerWindow, playerWrapperProps} = session
+const {isPlayerWindow, playerWrapperProps, playerStore} = session
+
+const stopPlayerUiSync = watch(
+  () => playerStore.active,
+  (active) => {
+    isPlayerUiActive.value = active
+  },
+  {immediate: true},
+)
+onBeforeUnmount(() => stopPlayerUiSync())
 </script>
 
 <style lang="scss">
