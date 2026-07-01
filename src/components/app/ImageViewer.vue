@@ -584,7 +584,7 @@ const onWheel = (event: WheelEvent) => {
     return
   }
 
-  const sensitivity = pinchZoom ? 0.006 : lineWheel ? 0.14 : 0.004
+  const sensitivity = pinchZoom ? 0.015 : lineWheel ? 0.14 : 0.01
   const nextScale = clampScale(viewer.scale * Math.exp(-event.deltaY * sensitivity))
   applyZoomAtPointer(event, nextScale)
 }
