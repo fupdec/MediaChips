@@ -34,10 +34,11 @@ function createExpressApp() {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl || req.url
     const isTranscodeStream = req.method === 'GET' && /\/api\/video\/\d+\/transcode\/stream(?:\?|$)/.test(url)
+    const isQuietRoute = /^\/api\/(?:get-file|check-file|check-files|health|ping|auth\/status)(?:\?|$)/.test(url.split('?')[0])
 
     if (isTranscodeStream) {
       console.log(`${new Date().toISOString()} [transcode] ${req.method} ${url} ${req.headers.origin || 'no origin'}`)
-    } else if (!url.startsWith('/api/services/')) {
+    } else if (!isQuietRoute && !url.startsWith('/api/services/')) {
       console.log(`${new Date().toISOString()} ${req.method} ${url} ${req.headers.origin || 'no origin'}`)
     }
 

@@ -49,7 +49,6 @@
 import {ref, computed, onMounted, watch, type Ref} from "vue"
 import {typedApi} from '@/services/typedApi'
 import {getReadableFileSize} from '@/services/formatUtils'
-import {gsap} from "gsap"
 import {useAppStore} from "@/stores/app"
 import {useI18n} from 'vue-i18n'
 import type { HomeMediaStatsResponse, HomeTagCountResponse } from '@/types/widgets'
@@ -98,7 +97,8 @@ async function getStats() {
   }
 }
 
-function animate(refValue: Ref<number>, tweened: { value: number }) {
+async function animate(refValue: Ref<number>, tweened: { value: number }) {
+  const {gsap} = await import('gsap')
   gsap.to(tweened, {duration: 1, value: refValue.value, ease: "power2.out"})
 }
 

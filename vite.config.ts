@@ -66,6 +66,21 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('node_modules/lodash')) {
+            return 'lodash-vendor'
+          }
+          if (id.includes('node_modules/gsap')) {
+            return 'gsap-vendor'
+          }
+          if (id.includes('node_modules/vue-advanced-cropper')) {
+            return 'cropper-vendor'
+          }
+          if (
+            id.includes('node_modules/viewerjs') ||
+            id.includes('node_modules/v-viewer')
+          ) {
+            return 'viewer-vendor'
+          }
           if (id.includes('node_modules/vuetify')) {
             return 'vuetify-vendor'
           }

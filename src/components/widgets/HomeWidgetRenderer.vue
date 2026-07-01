@@ -89,18 +89,20 @@
 </template>
 
 <script setup lang="ts">
+import {defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
-import WidgetTopTags from '@/components/widgets/WidgetTopTags.vue'
-import WidgetTotalStats from '@/components/widgets/WidgetTotalStats.vue'
-import WidgetExtendedStats from '@/components/widgets/WidgetExtendedStats.vue'
-import WidgetQuickActions from '@/components/widgets/WidgetQuickActions.vue'
-import WidgetMediaRow from '@/components/widgets/WidgetMediaRow.vue'
-import WidgetRandomMarkers from '@/components/widgets/WidgetRandomMarkers.vue'
-import WidgetHealthAlerts from '@/components/widgets/WidgetHealthAlerts.vue'
 import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
 import { useHomeMedia } from '@/composable/useHomeMedia'
 import type { HomeWidgetLimits } from '@/types/widgets'
 import type { MediaItem } from '@/types/stores'
+
+const WidgetTopTags = defineAsyncComponent(() => import('@/components/widgets/WidgetTopTags.vue'))
+const WidgetTotalStats = defineAsyncComponent(() => import('@/components/widgets/WidgetTotalStats.vue'))
+const WidgetExtendedStats = defineAsyncComponent(() => import('@/components/widgets/WidgetExtendedStats.vue'))
+const WidgetQuickActions = defineAsyncComponent(() => import('@/components/widgets/WidgetQuickActions.vue'))
+const WidgetMediaRow = defineAsyncComponent(() => import('@/components/widgets/WidgetMediaRow.vue'))
+const WidgetRandomMarkers = defineAsyncComponent(() => import('@/components/widgets/WidgetRandomMarkers.vue'))
+const WidgetHealthAlerts = defineAsyncComponent(() => import('@/components/widgets/WidgetHealthAlerts.vue'))
 
 const props = defineProps<{
   widgetId: string

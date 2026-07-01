@@ -1,6 +1,6 @@
 import {ref, computed, nextTick} from 'vue'
 import uniqBy from 'lodash/uniqBy'
-import cloneDeep from 'lodash/cloneDeep'
+import {cloneFilters} from '@/utils/filterClone'
 import throttle from 'lodash/throttle'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
@@ -172,7 +172,7 @@ export function useItemsPage({
       query.mediaTypeId = props.mediaTypeId
     }
 
-    query.filters = cloneDeep(ITEMS.value.filters || [])
+    query.filters = cloneFilters(ITEMS.value.filters)
     query.sortBy = normalizeSortBy(
       ITEMS.value.sortBy || 'id',
       props.items_type,

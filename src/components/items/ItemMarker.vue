@@ -1,5 +1,5 @@
 <template>
-  <div class="item" :class="{ 'item--plain-card': plainCard }">
+  <div ref="rootRef" class="item" :class="{ 'item--plain-card': plainCard }">
     <v-card
       class="item-mark"
       :class="[{ 'no-file': !is_file_exists }]"
@@ -92,8 +92,9 @@ import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from '@/utils/eventBus'
-import path from 'path-browserify'
-import {checkFileExists as checkPathExists, getLocalImage} from '@/services/fileService'
+import {useLazyInView} from '@/composable/useLazyInView'
+import {loadMarkImageDisplayUrl} from '@/utils/markThumb'
+import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getReadableDuration} from '@/services/formatUtils'
 import {toPlayableMediaItem} from '@/utils/mediaItem'
 import {isAppWindowFocused} from '@/utils/windowFocus'
@@ -140,6 +141,8 @@ const {t} = useI18n()
 const eventBus = useEventBus()
 
 const video = ref<HTMLVideoElement | null>(null)
+const rootRef = ref<HTMLElement | null>(null)
+const {wasInView} = useLazyInView(rootRef)
 const thumb = ref<string | undefined>(undefined)
 const is_hovered = ref(false)
 const is_file_exists = ref(false)
@@ -217,26 +220,13 @@ watch(() => appStore.window.focused, (focused) => {
 })
 
 // Methods
-const getImg = async () => {
+const loadThumb = async () => {
   try {
-    const image_path_mark = path.join(
-      appStore.mediaPath,
-      'videos/marks',
-      `${props.mark.id}.jpg`
-    )
-
-    let thumbImg = await getLocalImage(image_path_mark)
-
-    if (thumbImg && thumbImg.includes("unavailable.png")) {
-      const image_path_thumb = path.join(
-        appStore.mediaPath,
-        'videos/thumbs',
-        `${props.mark.medium?.id || props.mark.mediumId}.jpg`
-      )
-      thumb.value = await getLocalImage(image_path_thumb)
-    } else {
-      thumb.value = thumbImg
-    }
+    thumb.value = await loadMarkImageDisplayUrl({
+      markId: props.mark.id,
+      mediaPath: appStore.mediaPath,
+      mediaId: props.mark.medium?.id || props.mark.mediumId,
+    })
   } catch (e) {
     console.log('Error loading image:', e)
   }
@@ -360,14 +350,18 @@ const play = () => {
 
 const handleUpdateMarkImage = (id: unknown) => {
   if (props.mark.id === id) {
-    getImg()
+    void loadThumb()
   }
 }
 
+watch(wasInView, (visible) => {
+  if (!visible) return
+  void loadThumb()
+  void checkMarkFileExists()
+})
+
 onMounted(() => {
   eventBus.on('updateMarkImage', handleUpdateMarkImage)
-  getImg()
-  checkMarkFileExists()
 })
 
 onUnmounted(() => {

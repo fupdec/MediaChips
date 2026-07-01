@@ -126,8 +126,8 @@ export const useItemsStore = defineStore('items', {
 
     // Геттер с параметрами - найти элемент по ID
     getItemById: (state) => (id: number) => {
-      return state.entities.find(item => item.id === id) ||
-        state.itemsOnPage.find(item => item.id === id)
+      return state.itemsOnPage.find(item => item.id === id) ||
+        state.entities.find(item => item.id === id)
     },
 
     // Получить текущую страницу для пагинации
@@ -226,22 +226,25 @@ export const useItemsStore = defineStore('items', {
     },
 
     resolveMediaById(id: number): MediaItem | null {
-      return this.navigationItems.find((item) => item.id === id)
+      return this.itemsOnPage.find((item) => item.id === id)
+        || this.navigationItems.find((item) => item.id === id)
         || this.entities.find((item) => item.id === id)
         || null
     },
 
     async findFirstPlayableVideo(videos: MediaItem[] = []): Promise<MediaItem | null> {
-      for (const item of videos) {
-        const candidate = toRaw(item)
-        if (!candidate?.path) continue
+      const candidates = videos
+        .map((item) => ensureMediaItem(toRaw(item)))
+        .filter((candidate) => candidate?.path)
 
-        if (await checkFileExists(candidate.path)) {
-          return candidate
-        }
-      }
+      if (!candidates.length) return null
 
-      return null
+      const existence = await Promise.all(
+        candidates.map((candidate) => checkFileExists(candidate.path!)),
+      )
+
+      const index = existence.findIndex(Boolean)
+      return index >= 0 ? candidates[index] : null
     },
 
     async playVideo({video, time, in_system, videos, trustPath = false}: {

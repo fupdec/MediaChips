@@ -266,6 +266,7 @@ const contextMenu = computed(() => contextMenuStore)
 const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
+const checkedFilePath = ref<string | null>(null)
 const { wasInView } = useLazyInView(itemRootRef, { rootMargin: '320px 0px' })
 
 const showPreview = computed(() => wasInView.value)
@@ -381,10 +382,23 @@ watch(
   () => [wasInView.value, mediaItem.value?.path] as const,
   ([visible, path]) => {
     if (!visible || !path) return
+    if (checkedFilePath.value === path) return
 
+    checkedFilePath.value = path
     void checkPathExists(path).then((exists) => {
+      if (mediaItem.value?.path !== path) return
       is_file_exists.value = exists
     })
+  },
+)
+
+watch(
+  () => mediaItem.value?.path ?? null,
+  (path) => {
+    if (path !== checkedFilePath.value) {
+      checkedFilePath.value = null
+      is_file_exists.value = true
+    }
   },
 )
 </script>
