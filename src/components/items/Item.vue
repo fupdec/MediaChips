@@ -181,8 +181,9 @@
       :variant="tagChipVariant"
       :color="meta?.color ? item.color || '' : ''"
       :size="getChipSize"
+      :label="meta?.chipLabel === true"
+      :rounded="meta?.chipLabel === true ? false : 'pill'"
       class="tag-chip-view"
-      rounded="pill"
     >
       <ItemPreviewTag v-if="tagItem && wasInView"
                       :tag="tagItem"

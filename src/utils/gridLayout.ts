@@ -8,6 +8,16 @@ export const CARD_WIDTH: Record<string, Record<number, number>> = {
 /** Approximate chip width for virtual row chunking in tag chip view. */
 const CHIP_WIDTH: Record<number, number> = { 1: 80, 2: 100, 3: 120, 4: 150, 5: 180, 6: 220 }
 
+/** Chip item height + bottom margin used by virtual row estimates. */
+const CHIP_ROW_HEIGHT: Record<number, number> = {
+  1: 34,
+  2: 42,
+  3: 46,
+  4: 52,
+  5: 62,
+  6: 80,
+}
+
 const GAP_SIZE: Record<string, { x: number; y: number }> = {
   xs: { x: 10, y: 15 },
   s: { x: 15, y: 20 },
@@ -330,9 +340,8 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
   }
 
   if (options.chipsGrid) {
-    const chipHeight: Record<number, number> = { 1: 28, 2: 32, 3: 36, 4: 40, 5: 44, 6: 48 }
-    const height = chipHeight[size] || 36
-    return height + gap.y + 10
+    const height = CHIP_ROW_HEIGHT[size] || CHIP_ROW_HEIGHT[3]
+    return height + gap.y
   }
 
   const cardWidth = options.containerWidth

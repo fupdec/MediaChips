@@ -157,6 +157,15 @@ describe('estimateRowHeight', () => {
 
     expect(large).toBeGreaterThan(medium)
   })
+
+  it('uses chip row height for chip layout', () => {
+    const small = estimateRowHeight({ size: 2, chipsGrid: true, gapSize: 'xs' })
+    const xlarge = estimateRowHeight({ size: 6, chipsGrid: true, gapSize: 'xs' })
+
+    expect(small).toBe(42 + 15)
+    expect(xlarge).toBe(80 + 15)
+    expect(xlarge).toBeGreaterThan(small)
+  })
 })
 
 describe('getMediaAspectRatio', () => {

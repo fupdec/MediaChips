@@ -54,7 +54,7 @@
     <!-- CHIP VIEW -->
     <v-avatar
       v-else-if="Number(ITEMS.view) === 2"
-      :rounded="meta?.chipLabel ? 'lg' : false"
+      :rounded="meta?.chipLabel ? 0 : 'circle'"
       @click="openTagPage"
     >
       <v-img :src="avatar || undefined" cover />

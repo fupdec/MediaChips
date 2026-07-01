@@ -99,7 +99,7 @@ const layoutOptions = computed(() => ({
   lineGrid: props.lineGrid ?? false,
   chipsGrid: props.chipsGrid ?? false,
   imageAspectRatio: props.imageAspectRatio,
-  lockRowHeight: props.itemsType === 'tag',
+  lockRowHeight: props.itemsType === 'tag' && !props.chipsGrid,
 }))
 
 const {
