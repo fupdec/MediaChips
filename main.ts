@@ -61,7 +61,8 @@ let suppressPlayerWarmup = false
 let suppressZoomChangedEvent = false
 // Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
 const isDevelopment = !app.isPackaged && process.env.NODE_ENV !== 'production'
-const useViteDevServer = isDevelopment && process.env.MEDIA_CHIPS_VITE_DEV !== '0'
+// Vite is opt-in so `npx electron .` serves the built UI from the embedded backend.
+const useViteDevServer = isDevelopment && process.env.MEDIA_CHIPS_VITE_DEV === '1'
 
 const waitForBackend = async (port: number, timeoutMs = 30000) => {
   const deadline = Date.now() + timeoutMs
@@ -137,6 +138,21 @@ const sendConfigToWindow = (browserWindow: BrowserWindowInstance) => {
   browserWindow.webContents.send('config', server.config)
 }
 
+const bindRendererLoadRetry = (
+  webContents: WebContents,
+  getUrl: () => string,
+) => {
+  webContents.on('did-fail-load', (_event, _code, _desc, _url, isMainFrame) => {
+    if (!isMainFrame || useViteDevServer || webContents.isDestroyed()) return
+
+    void (async () => {
+      await waitForBackend(serverConfig.port, 10000)
+      if (webContents.isDestroyed()) return
+      await webContents.loadURL(getUrl())
+    })()
+  })
+}
+
 const createWindow = () => {
   win = new BrowserWindow({
     show: false,
@@ -156,6 +172,7 @@ const createWindow = () => {
     },
   })
   const mainWindow = win!
+  bindRendererLoadRetry(mainWindow.webContents, () => getRendererUrl())
   mainWindow.loadURL(getRendererUrl())
   mainWindow.on('closed', () => {
     if (process.platform !== 'darwin') app.quit()
@@ -317,10 +334,15 @@ app.on('ready', async () => {
   initAppUpdater({getWindow: () => win})
 })
 
-app.on("activate", () => {
+app.on("activate", async () => {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (win === null) createWindow();
+  if (win === null) {
+    if (!useViteDevServer) {
+      await waitForBackend(serverConfig.port)
+    }
+    createWindow()
+  }
 });
 
 function quitApp() {
@@ -685,6 +707,7 @@ function createPlayerWindow() {
   player = new BrowserWindow(getPlayerWindowOptions() as Electron.BrowserWindowConstructorOptions)
   const playerWindow = player!
   setupPlayerWindowEvents(playerWindow)
+  bindRendererLoadRetry(playerWindow.webContents, () => getRendererUrl('?player=true'))
   playerWindow.loadURL(getRendererUrl('?player=true'))
   return playerWindow
 }

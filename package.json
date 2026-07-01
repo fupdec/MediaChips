@@ -18,6 +18,7 @@
     "server:lan": "node scripts/run-server.mjs --lan",
     "server:dev": "nodemon --watch app --watch api --watch shared --ext ts --delay 1 --exec \"node scripts/run-server.mjs --prepare && node app/server.js\"",
     "electron": "node scripts/electron-dev.mjs",
+    "electron:built": "node scripts/electron-built.mjs",
     "pack": "node scripts/dist.mjs --dir",
     "dist": "node scripts/dist.mjs",
     "dist:win": "node scripts/dist.mjs --win",
