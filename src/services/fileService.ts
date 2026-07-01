@@ -122,7 +122,7 @@ export async function getLocalImage(imgPath: string, outside?: boolean, cacheBus
     })
     return URL.createObjectURL(res.data)
   } catch {
-    return path.join('/', 'images/unavailable.png')
+    return '/images/unavailable.png'
   }
 }
 

@@ -262,7 +262,7 @@ const contextMenuStore = useContextMenu()
 
 const contextMenu = computed(() => contextMenuStore)
 
-const is_file_exists = ref(false)
+const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
 const { wasInView } = useLazyInView(itemRootRef, { rootMargin: '320px 0px' })

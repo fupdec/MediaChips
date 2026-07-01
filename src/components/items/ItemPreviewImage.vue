@@ -35,7 +35,7 @@ import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {loadImageDisplayUrl, revokeImageObjectUrl} from '@/utils/imageSource'
+import { loadImageDisplayUrl, revokeImageObjectUrl, IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
 import {getMediaAspectRatio} from '@/utils/gridLayout'
 import {getCachedThumb, isPersistentThumbUrl, mediaThumbKey} from '@/utils/thumbDisplayCache'
 import type {MediaItem} from '@/types/stores'
@@ -163,7 +163,7 @@ const loadThumb = async ({cacheBust = false} = {}) => {
     return
   }
 
-  if (src) {
+  if (!src.includes('unavailable.png')) {
     thumbObjectUrl = src.startsWith('blob:') ? src : null
     thumb.value = src
     probeImageDimensions(src)
@@ -178,15 +178,19 @@ const loadThumb = async ({cacheBust = false} = {}) => {
         revokeImageObjectUrl(regenerated?.startsWith?.('blob:') ? regenerated : null)
         return
       }
-      if (regenerated) {
+      if (!regenerated.includes('unavailable.png')) {
         thumbObjectUrl = regenerated.startsWith('blob:') ? regenerated : null
         thumb.value = regenerated
         probeImageDimensions(regenerated)
+        return
       }
     } catch (error) {
       console.error('Image thumbnail regeneration failed:', error)
     }
   }
+
+  thumbObjectUrl = null
+  thumb.value = IMAGE_UNAVAILABLE_URL
 }
 
 const scheduleThumbLoad = () => {
@@ -232,13 +236,18 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => [props.media?.id, props.isFileExists],
-  () => {
+  () => [props.media?.id, props.isFileExists] as const,
+  ([, exists]) => {
+    if (!exists) {
+      thumb.value = IMAGE_UNAVAILABLE_URL
+      return
+    }
+
     thumb.value = null
     detectedWidth.value = 0
     detectedHeight.value = 0
     requestThumb()
-  }
+  },
 )
 
 watch(() => itemsStore.thumbRefreshKeys[Number(props.media?.id)], (version) => {
