@@ -198,8 +198,13 @@ import debounce from 'lodash/debounce'
 import type {Handler} from 'mitt'
 import {buildApiUrl} from '@/services/apiClient'
 import {typedApi} from '@/services/typedApi'
-import {createThumb as createVideoThumb, getLocalImage} from '@/services/fileService'
+import {buildLocalFileUrl, createThumb as createVideoThumb} from '@/services/fileService'
 import {getCachedThumb, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
+import {
+  isThumbUnavailable,
+  resolveMediaThumbDisplayUrl,
+  resolveTimelineFrameDisplayUrl,
+} from '@/utils/thumbSource'
 import {
   getReadableDuration,
   getReadableVideoHeight,
@@ -263,9 +268,6 @@ const thumbCreateAttempted = ref(false)
 const thumbLoadStarted = ref(false)
 const bigPreviewMenuActive = ref(false)
 const isMounted = ref(false)
-
-const isThumbUnavailable = (src: string | null | undefined): boolean =>
-  !src || src.includes('unavailable.png')
 
 const getPreviewEl = (): HTMLElement | null => {
   const instance = previewRef.value
@@ -416,24 +418,23 @@ const toggleFullScreen = () => {
 }
 
 // Модифицированные методы
-const loadThumb = async (imgPath: string, {bust = false} = {}): Promise<string> => {
-  const previous = thumb.value
-  const src = await getLocalImage(imgPath, false, bust)
+const loadThumb = (subfolder: 'thumbs' | 'grids', {bust = false} = {}) => {
+  if (!props.media?.id) return
 
-  if (!isMounted.value) {
-    if (src?.startsWith?.('blob:')) {
-      URL.revokeObjectURL(src)
-    }
-    return imgPath
+  const thumbUrl = bust
+    ? buildLocalFileUrl(path.join(
+      store.mediaPath,
+      'videos',
+      subfolder,
+      `${props.media.id}.jpg`,
+    ), false, true)
+    : resolveMediaThumbDisplayUrl(store.mediaPath, 'videos', props.media.id, subfolder)
+
+  thumb.value = thumbUrl
+
+  if (thumbUrl && !isThumbUnavailable(thumbUrl)) {
+    setCachedThumb(mediaThumbKey('videos', props.media.id), thumbUrl)
   }
-
-  thumb.value = src
-
-  if (previous?.startsWith?.('blob:') && previous !== src) {
-    URL.revokeObjectURL(previous)
-  }
-
-  return imgPath
 }
 
 const maybeCreateMissingThumb = async (imgPath: string) => {
@@ -455,40 +456,24 @@ const getImg = async ({bust = false, allowCreate = true} = {}) => {
   if (!bust) {
     const cached = getCachedThumb(mediaThumbKey('videos', props.media.id))
     if (cached && !isThumbUnavailable(cached)) {
-      const previous = thumb.value
       thumb.value = cached
-      if (previous?.startsWith?.('blob:') && previous !== cached) {
-        URL.revokeObjectURL(previous)
-      }
       return
     }
   }
 
-  const getThumb = async (videos_folder: string) => {
-    const imgPath = path.join(
-      store.mediaPath,
-      videos_folder,
-      props.media.id + ".jpg"
-    )
-    await loadThumb(imgPath, {bust})
-    if (thumb.value && !isThumbUnavailable(thumb.value)) {
-      setCachedThumb(mediaThumbKey('videos', props.media.id), thumb.value)
-    }
-    return imgPath
-  }
-
   const is_grid = settingsStore.videoPreviewStatic === "grid"
+  const thumbsPath = path.join(store.mediaPath, 'videos/thumbs', `${props.media.id}.jpg`)
 
   if (is_grid && isViewCard.value) {
-    await getThumb("videos/grids")
+    loadThumb('grids', {bust})
     if (allowCreate && isThumbUnavailable(thumb.value)) {
-      const imgPath = await getThumb("videos/thumbs")
-      await maybeCreateMissingThumb(imgPath)
+      loadThumb('thumbs', {bust})
+      await maybeCreateMissingThumb(thumbsPath)
     }
   } else {
-    const imgPath = await getThumb("videos/thumbs")
+    loadThumb('thumbs', {bust})
     if (allowCreate) {
-      await maybeCreateMissingThumb(imgPath)
+      await maybeCreateMissingThumb(thumbsPath)
     }
   }
 }
@@ -499,7 +484,7 @@ const createThumb = async (imgPath: string) => {
       path: props.media.path,
       id: props.media.id,
     })
-    await loadThumb(imgPath, {bust: true})
+    await loadThumb('thumbs', {bust: true})
   } catch (e) {
     console.log(e)
   }
@@ -853,13 +838,12 @@ const handleMouseLeave = () => {
   }, 100)
 }
 
-const getFrameImg = async (progressValue: number) => {
-  const imgPath = path.join(
+const getFrameImg = (progressValue: number) => {
+  frame.value = resolveTimelineFrameDisplayUrl(
     store.mediaPath,
-    "videos/timelines",
-    `${props.media.id}_${progressValue}.jpg`
+    props.media.id,
+    progressValue,
   )
-  frame.value = await getLocalImage(imgPath)
 }
 
 const scrollStory = (e: MouseEvent) => {
@@ -881,16 +865,15 @@ const stopScrollStory = () => {
   }
 }
 
-const initFrames = async () => {
+const initFrames = () => {
   frames.value = []
   for (let i = 0; i < timelines.length; i++) {
     const progressValue = timelines[i]
-    const imgPath = path.join(
+    const img = resolveTimelineFrameDisplayUrl(
       store.mediaPath,
-      "videos/timelines",
-      `${props.media.id}_${progressValue}.jpg`
+      props.media.id,
+      progressValue,
     )
-    let img = await getLocalImage(imgPath)
     if (i == 0 && img.includes("unavailable.png")) {
       frames.value = []
       for (const j of timelines) frames.value.push(thumb.value ?? '')
@@ -983,7 +966,7 @@ onMounted(async () => {
   if (!isMounted.value) return
 
   if (isViewTimeline.value) {
-    await initFrames()
+    initFrames()
   }
 
   eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
@@ -993,10 +976,6 @@ onBeforeUnmount(() => {
   isMounted.value = false
   stopPlayingPreview({force: true})
   eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
-
-  if (thumb.value?.startsWith('blob:')) {
-    URL.revokeObjectURL(thumb.value)
-  }
 
   for (const timeout in timeouts) {
     clearTimeout(timeouts[timeout])

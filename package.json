@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
+    "build:analyze": "ANALYZE=1 npm run build",
     "build:app": "vite build",
     "server": "node scripts/run-server.mjs",
     "server:lan": "node scripts/run-server.mjs --lan",
@@ -27,6 +28,7 @@
     "portable": "node scripts/dist.mjs --win-portable",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
+    "test": "node scripts/ensure-sqlite-tests.mjs && vitest run",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "main": "main.js",
@@ -94,6 +96,7 @@
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
     "nodemon": "^3.1.14",
+    "rollup-plugin-visualizer": "^7.0.1",
     "sass-embedded": "^1.95.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",

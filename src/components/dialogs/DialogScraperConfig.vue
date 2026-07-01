@@ -117,7 +117,6 @@ import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {typedApi} from '@/services/typedApi'
-import cloneDeep from 'lodash/cloneDeep'
 import sortBy from 'lodash/sortBy'
 import {getIconDataType} from '@/services/metaTypeUtils'
 import DialogHeader from "@/components/elements/DialogHeader.vue";
@@ -201,7 +200,7 @@ async function handleDrop(field: ScraperField, index: number, event: DragEvent) 
 
 async function updateScraperFields() {
   await getPinnedMeta()
-  scraperFields.value = cloneDeep(ScraperFields) as ScraperField[]
+  scraperFields.value = (ScraperFields as ScraperFieldTemplate[]).map((field) => ({...field}))
 
   for (const field of scraperFields.value) {
     const found = pinnedMetas.value.find(i => i.scraper === field.key)

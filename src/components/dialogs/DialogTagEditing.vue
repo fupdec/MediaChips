@@ -63,7 +63,7 @@ import {useAppStore} from '@/stores/app'
 import {useScraperStore} from "@/stores/scraper"
 import {useNotificationsStore} from "@/stores/notifications"
 import {typedApi} from '@/services/typedApi'
-import {getLocalImage} from '@/services/fileService'
+import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkCurrentPage} from '@/services/routeService'
 import path from 'path-browserify'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
@@ -149,7 +149,7 @@ const initButtons = () => {
   })
 }
 
-const getImages = async () => {
+const getImages = () => {
   images.value = []
   if (!tag.value || !meta.value) return
 
@@ -166,26 +166,27 @@ const getImages = async () => {
     const fileName = `${tag.value.id}_${imgType.type}.jpg`
     const imgPath = path.join(
       store.dbPath,
-      "meta",
-      `${meta.value.id}`,
-      `${fileName}`
+      'meta',
+      String(meta.value.id),
+      fileName,
     )
+    const src = resolveTagThumbDisplayUrl({
+      dbPath: store.dbPath,
+      metaId: meta.value.id,
+      tagId: tag.value.id,
+      type: imgType.type,
+    })
 
-    try {
-      const src = await getLocalImage(imgPath)
-      if (src) {
-        images.value.push({
-          type: imgType.type,
-          path: imgPath,
-          src,
-          aspectRatio: imgType.aspectRatio,
-          width: imgType.width,
-          height: Math.floor(imgType.width / imgType.aspectRatio),
-          key: `${imgType.type}-${tag.value.id}`,
-        })
-      }
-    } catch (error) {
-      console.warn(`Image not found: ${imgPath}`)
+    if (!isThumbUnavailable(src)) {
+      images.value.push({
+        type: imgType.type,
+        path: imgPath,
+        src,
+        aspectRatio: imgType.aspectRatio,
+        width: imgType.width,
+        height: Math.floor(imgType.width / imgType.aspectRatio),
+        key: `${imgType.type}-${tag.value.id}`,
+      })
     }
   }
 

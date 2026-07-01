@@ -2,7 +2,6 @@ import {ref, computed, watch, inject} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
-import cloneDeep from 'lodash/cloneDeep'
 import path from 'path-browserify'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
@@ -315,7 +314,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const deleteVideo = async (with_file: boolean) => {
     if (!video.value) return
 
-    const video_edit = cloneDeep(video.value)
+    const video_edit = {...video.value}
 
     if (isNextDisabled.value) {
       if (!isPrevDisabled.value) {

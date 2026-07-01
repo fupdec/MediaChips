@@ -80,14 +80,22 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, watch} from 'vue'
+import {computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '@/stores/scraper'
 import {useAppStore} from '@/stores/app'
 import Countries from "@/assets/Countries"
-import cloneDeep from 'lodash/cloneDeep'
-import ScraperSelectImages from "@/components/scraper/ScraperSelectImages.vue"
 import {getMetaName} from "@/utils/metaI18n"
+
+const ScraperSelectImages = defineAsyncComponent(() =>
+  import('@/components/scraper/ScraperSelectImages.vue'),
+)
+
+function cloneTransferValue(value: unknown): unknown {
+  if (Array.isArray(value)) return [...value]
+  if (value && typeof value === 'object') return {...value as Record<string, unknown>}
+  return value
+}
 import type {
   ScraperPinnedItem,
   ScraperSelectedResult,
@@ -116,8 +124,8 @@ async function getData() {
 
   const clearVal = (value: unknown, regexp: RegExp) => {
     if (value) {
-      const val = cloneDeep(String(value).match(regexp))
-      if (val) return val[0]
+      const match = String(value).match(regexp)
+      if (match) return match[0]
     }
     return value
   }
@@ -140,7 +148,7 @@ async function getData() {
     data.push({
       dataType: 'country',
       valueCurrent: currentCountry,
-      valueReserved: cloneDeep(currentCountry),
+      valueReserved: [...currentCountry],
       valueScraper: [found_cc.name],
       isTagExists: false,
       key: 'country',
@@ -183,12 +191,12 @@ async function getData() {
 
     data.push({
       dataType: metaItem.meta.type,
-      valueCurrent: cloneDeep(val),
-      valueReserved: cloneDeep(val),
+      valueCurrent: cloneTransferValue(val),
+      valueReserved: cloneTransferValue(val),
       valueScraper,
       isTagExists,
       key: metaItem.scraper as string,
-      meta: cloneDeep(metaItem.meta),
+      meta: {...metaItem.meta},
       isTransfered: false,
       isAlreadyContain,
     })
@@ -198,7 +206,7 @@ async function getData() {
 }
 
 function restore(item: ScraperTransferField) {
-  item.valueCurrent = cloneDeep(item.valueReserved)
+  item.valueCurrent = cloneTransferValue(item.valueReserved)
   item.isTransfered = false
   scraperStore.fields = [...scraperStore.fields]
 }

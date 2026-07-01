@@ -1,6 +1,8 @@
 import path from 'path-browserify'
 import { typedApi } from '@/services/typedApi'
-import { checkFileExists, createThumb, getLocalImage } from '@/services/fileService'
+import { buildLocalFileUrl, checkFileExists, createThumb } from '@/services/fileService'
+import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
+
 export interface MarkThumbTarget {
   id?: number
   time?: number
@@ -16,10 +18,10 @@ export function getMarkImagePath(mediaPath: string | null | undefined, markId: n
 }
 
 export function isMarkThumbUnavailable(src: string | null | undefined): boolean {
-  return !src || src.includes('unavailable.png')
+  return isThumbUnavailable(src)
 }
 
-export async function loadMarkImageDisplayUrl({
+export function loadMarkImageDisplayUrl({
   markId,
   mediaPath,
   mediaId,
@@ -27,23 +29,21 @@ export async function loadMarkImageDisplayUrl({
   markId?: number | string
   mediaPath?: string | null
   mediaId?: number | string
-}): Promise<string> {
+}): string {
   if (!mediaPath || !markId) {
     return '/images/unavailable.png'
   }
 
-  const markImagePath = getMarkImagePath(mediaPath, markId)
-  const markImage = await getLocalImage(markImagePath)
+  const markImage = buildLocalFileUrl(getMarkImagePath(mediaPath, markId))
 
   if (!isMarkThumbUnavailable(markImage)) {
     return markImage
   }
 
   if (mediaId) {
-    const videoThumbPath = path.join(mediaPath, 'videos/thumbs', `${mediaId}.jpg`)
-    const videoThumb = await getLocalImage(videoThumbPath)
+    const videoThumb = resolveMediaThumbDisplayUrl(mediaPath, 'videos', mediaId)
     if (!isMarkThumbUnavailable(videoThumb)) {
-      return videoThumb
+      return videoThumb!
     }
   }
 

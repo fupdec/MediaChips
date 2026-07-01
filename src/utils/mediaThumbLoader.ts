@@ -1,28 +1,15 @@
-import path from 'path-browserify'
-import { getLocalImage } from '@/services/fileService'
 import { typedApi } from '@/services/typedApi'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
-
-const THUMB_SUBFOLDERS = ['thumbs', 'grids'] as const
-const UNAVAILABLE_MARKER = 'unavailable.png'
+import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
 const INDIVIDUAL_LOAD_CONCURRENCY = 8
 
-export async function loadMediaThumbUrl(
+export function loadMediaThumbUrl(
   mediaPath: string,
   mediaTypeFolder: string,
   id: number | string,
-): Promise<string | null> {
-  if (!mediaPath || id == null) return null
-
-  for (const subfolder of THUMB_SUBFOLDERS) {
-    const imgPath = path.join(mediaPath, mediaTypeFolder, subfolder, `${id}.jpg`)
-    const url = await getLocalImage(imgPath)
-    if (url && !url.includes(UNAVAILABLE_MARKER)) {
-      return url
-    }
-  }
-
-  return null
+): string | null {
+  const url = resolveMediaThumbDisplayUrl(mediaPath, mediaTypeFolder, id)
+  return isThumbUnavailable(url) ? null : url
 }
 
 async function loadMediaThumbUrlsIndividually(
@@ -33,7 +20,7 @@ async function loadMediaThumbUrlsIndividually(
   const thumbs: Record<number | string, string> = {}
 
   const entries = await mapWithConcurrency(ids, INDIVIDUAL_LOAD_CONCURRENCY, async (id) => {
-    const url = await loadMediaThumbUrl(mediaPath, mediaTypeFolder, id)
+    const url = loadMediaThumbUrl(mediaPath, mediaTypeFolder, id)
     return url ? [id, url] as const : null
   })
 

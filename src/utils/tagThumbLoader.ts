@@ -1,23 +1,20 @@
-import path from 'path-browserify'
-import { getLocalImage } from '@/services/fileService'
 import { typedApi } from '@/services/typedApi'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
+import { isThumbUnavailable, resolveTagThumbDisplayUrl } from '@/utils/thumbSource'
 
 const DEFAULT_TYPES = ['main', 'avatar', 'alt', 'custom1', 'custom2'] as const
 const INDIVIDUAL_LOAD_CONCURRENCY = 8
 
-export async function loadTagThumbUrl(
+export function loadTagThumbUrl(
   dbPath: string,
   metaId: number | string,
   tagId: number | string,
   type: string,
-): Promise<string | null> {
+): string | null {
   if (!dbPath || metaId == null || tagId == null || !type) return null
 
-  const imgPath = path.join(dbPath, 'meta', String(metaId), `${tagId}_${type}.jpg`)
-  const url = await getLocalImage(imgPath)
-  if (!url || url.includes('unavailable.png')) return null
-  return url
+  const url = resolveTagThumbDisplayUrl({dbPath, metaId, tagId, type})
+  return isThumbUnavailable(url) ? null : url
 }
 
 async function loadTagThumbUrlsIndividually(
@@ -32,7 +29,7 @@ async function loadTagThumbUrlsIndividually(
     const typeMap: Record<string, string> = {}
 
     for (const type of types) {
-      const url = await loadTagThumbUrl(dbPath, metaId, id, type)
+      const url = loadTagThumbUrl(dbPath, metaId, id, type)
       if (url) typeMap[type] = url
     }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 vi.mock('@/services/fileService', () => ({
-  getLocalImage: vi.fn(),
+  buildLocalFileUrl: vi.fn((path: string) => `/api/get-file?url=${encodeURIComponent(path)}`),
 }))
 
 vi.mock('@/services/typedApi', () => ({
@@ -10,7 +10,7 @@ vi.mock('@/services/typedApi', () => ({
   },
 }))
 
-import { getLocalImage } from '@/services/fileService'
+import { buildLocalFileUrl } from '@/services/fileService'
 import { typedApi } from '@/services/typedApi'
 import { loadMediaThumbUrls } from '@/utils/mediaThumbLoader'
 
@@ -34,16 +34,16 @@ describe('loadMediaThumbUrls', () => {
       1: 'data:image/jpeg;base64,abc',
       2: 'data:image/jpeg;base64,def',
     })
-    expect(getLocalImage).not.toHaveBeenCalled()
+    expect(buildLocalFileUrl).not.toHaveBeenCalled()
   })
 
   it('falls back to individual file requests when batch API fails', async () => {
     vi.mocked(typedApi.postMediaThumbs).mockRejectedValue(new Error('offline'))
-    vi.mocked(getLocalImage).mockResolvedValue('/api/get-file?url=test.jpg')
+    vi.mocked(buildLocalFileUrl).mockReturnValue('/api/get-file?url=test.jpg')
 
     const result = await loadMediaThumbUrls('/db/media', 'videos', [1])
 
-    expect(getLocalImage).toHaveBeenCalled()
+    expect(buildLocalFileUrl).toHaveBeenCalled()
     expect(result[1]).toBe('/api/get-file?url=test.jpg')
   })
 })

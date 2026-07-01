@@ -173,10 +173,9 @@ import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useRegistrationStore} from '@/stores/registration'
 import {typedApi} from '@/services/typedApi'
-import {buildLocalFileUrl} from '@/services/fileService'
 import {checkColorForDarkText} from '@/services/formatUtils'
 import {cloneFilters} from '@/utils/filterClone'
-import {getCachedThumb, isPersistentThumbUrl, tagThumbKey} from '@/utils/thumbDisplayCache'
+import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import uniq from 'lodash/uniq'
 import groupBy from 'lodash/groupBy'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
@@ -338,19 +337,13 @@ const getTag = async () => {
   }
 }
 
-const resolveTagImage = (type: 'main' | 'header' | 'avatar'): string => {
-  const metaId = meta.value.id
-  const tagId = tag.value.id
-  const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
-  if (isPersistentThumbUrl(cached)) return cached!
-
-  return buildLocalFileUrl(path.join(
-    appStore.dbPath,
-    'meta',
-    String(metaId),
-    `${tagId}_${type}.jpg`,
-  ))
-}
+const resolveTagImage = (type: 'main' | 'header' | 'avatar'): string =>
+  resolveTagThumbDisplayUrl({
+    dbPath: appStore.dbPath,
+    metaId: meta.value.id,
+    tagId: tag.value.id,
+    type,
+  })
 
 const getImages = () => {
   for (const i of ['main', 'header', 'avatar'] as const) {

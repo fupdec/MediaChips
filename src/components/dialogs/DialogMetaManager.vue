@@ -152,7 +152,6 @@ import {typedApi} from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import type {Meta} from '@/types/stores'
-import cloneDeep from 'lodash/cloneDeep'
 
 interface DialogHeaderButton {
   icon?: string
@@ -269,7 +268,7 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   ratingColor: "#ffab00",
 })
 
-const metaSettings = ref<MetaSettingsForm>(cloneDeep(metaSettingsDefault.value))
+const metaSettings = ref<MetaSettingsForm>({...metaSettingsDefault.value})
 
 function toMetaPreview(form: MetaSettingsForm): Meta {
   return {
@@ -395,7 +394,7 @@ const closeDialog = () => {
 }
 
 const resetDialogState = () => {
-  metaSettings.value = cloneDeep(metaSettingsDefault.value)
+  metaSettings.value = {...metaSettingsDefault.value}
   valid.value = false
 
   if (form.value) {
@@ -438,10 +437,10 @@ watch(() => props.dialog, (newVal) => {
   internalDialog.value = newVal
   initButtons()
 
-  metaSettings.value = cloneDeep(metaSettingsDefault.value)
+  metaSettings.value = {...metaSettingsDefault.value}
 
   if (props.meta) {
-    metaSettings.value = cloneDeep({...metaSettingsDefault.value, ...props.meta})
+    metaSettings.value = {...metaSettingsDefault.value, ...props.meta}
   }
 
   metaKey.value++

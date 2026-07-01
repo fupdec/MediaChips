@@ -67,19 +67,17 @@ import { reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CountryFlag from 'vue-country-flag-next'
 import { parseCountries, getCountryCode } from '@/utils/country'
-import path from 'path-browserify'
 
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
-import {getLocalImage} from '@/services/fileService'
 import {hideHoverImage} from '@/services/hoverService'
-import { revokeImageObjectUrl } from '@/utils/imageSource'
 import {
   getCachedThumb,
   setCachedThumb,
   tagThumbKey,
 } from '@/utils/thumbDisplayCache'
+import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import type {Meta, Tag} from '@/types/stores'
 
 type TagImageType = 'main' | 'alt' | 'custom1' | 'custom2' | 'avatar'
@@ -125,40 +123,36 @@ const applyCachedImages = () => {
   for (const type of getImageTypes()) {
     const cached = getCachedThumb(tagThumbKey(props.meta.id, props.tag.id, type))
     if (cached) {
-      images[type] = cached.includes('unavailable.png') ? null : cached
+      images[type] = isThumbUnavailable(cached) ? null : cached
     }
   }
 }
 
-const getImages = async () => {
-  const imageTypes = getImageTypes()
-
-  await Promise.all(imageTypes.map(async (type) => {
-    if (images[type]) return
+const getImages = () => {
+  for (const type of getImageTypes()) {
+    if (images[type]) continue
 
     const cacheKey = tagThumbKey(props.meta.id, props.tag.id, type)
     const cached = getCachedThumb(cacheKey)
     if (cached) {
-      images[type] = cached.includes('unavailable.png') ? null : cached
-      return
+      images[type] = isThumbUnavailable(cached) ? null : cached
+      continue
     }
 
-    const imgPath = path.join(
-      appStore.dbPath,
-      'meta',
-      String(props.meta.id),
-      `${props.tag.id}_${type}.jpg`,
-    )
-
-    const src = await getLocalImage(imgPath)
+    const src = resolveTagThumbDisplayUrl({
+      dbPath: appStore.dbPath,
+      metaId: props.meta.id,
+      tagId: props.tag.id,
+      type,
+    })
     setCachedThumb(cacheKey, src)
 
-    if (type !== 'main' && src.includes('unavailable.png')) {
+    if (type !== 'main' && isThumbUnavailable(src)) {
       images[type] = null
     } else {
       images[type] = src
     }
-  }))
+  }
 }
 
 const openTagPage = () => {
@@ -177,10 +171,6 @@ const getFlag = (name: string) => getCountryCode(name)
 
 const clearLoadedImages = () => {
   for (const type of getImageTypes()) {
-    const src = images[type]
-    if (src?.startsWith('blob:')) {
-      revokeImageObjectUrl(src)
-    }
     images[type] = null
   }
 }

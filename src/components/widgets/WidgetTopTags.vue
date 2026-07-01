@@ -81,9 +81,7 @@ import {useAppStore} from "@/stores/app"
 import {useSettingsStore} from "@/stores/settings"
 import {useI18n} from 'vue-i18n'
 import groupBy from 'lodash/groupBy'
-import path from "path-browserify"
-import {buildLocalFileUrl} from '@/services/fileService'
-import {getCachedThumb, isPersistentThumbUrl, tagThumbKey} from '@/utils/thumbDisplayCache'
+import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {getMetaName} from '@/utils/metaI18n'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {
@@ -117,15 +115,12 @@ const sortMode = computed((): MetaSortMode =>
 const subtitleKey = computed(() => getTopTagsSubtitleKey(sortMode.value))
 
 function resolveTagImageUrl(metaId: string, tagId: number): string {
-  const cached = getCachedThumb(tagThumbKey(metaId, tagId, 'main'))
-  if (isPersistentThumbUrl(cached)) return cached!
-
-  return buildLocalFileUrl(path.join(
-    store.dbPath,
-    'meta',
+  return resolveTagThumbDisplayUrl({
+    dbPath: store.dbPath,
     metaId,
-    `${tagId}_main.jpg`,
-  ))
+    tagId,
+    type: 'main',
+  })
 }
 
 function getTagsTop(activeGroup: TopTagsCategory | null = null) {

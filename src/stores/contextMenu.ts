@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import cloneDeep from 'lodash/cloneDeep'
 import { getRandomId } from '@/services/formatUtils'
+import { cloneContextMenuPayload } from '@/utils/contextMenuClone'
 import type { ContextMenuEntry, ContextMenuPayload } from '@/types/stores'
 
 export const useContextMenu = defineStore('contextMenu', {
@@ -21,7 +21,7 @@ export const useContextMenu = defineStore('contextMenu', {
         }
       }
 
-      const contextMenu = cloneDeep(contextMenuObj)
+      const contextMenu = cloneContextMenuPayload(contextMenuObj)
 
       if (contextMenu.content) {
         parseMenu(contextMenu.content)

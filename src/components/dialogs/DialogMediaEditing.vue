@@ -78,7 +78,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {typedApi} from '@/services/typedApi'
-import {getLocalImage} from '@/services/fileService'
+import {loadImageDisplayUrl} from '@/utils/imageSource'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import {useEventBus} from "@/utils/eventBus"
@@ -170,10 +170,13 @@ async function getImage() {
 
   if (isImageMediaType(mediaType)) {
     imgPath.value = path.join(appStore.mediaPath, 'images/thumbs', `${currentMedia.id}.jpg`)
-    thumb.value = await getLocalImage(imgPath.value, false, true)
+    thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {cacheBust: true})
 
     if (thumb.value?.includes('unavailable.png') && currentMedia.path) {
-      thumb.value = await getLocalImage(currentMedia.path, true, true)
+      thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {
+        preferFull: true,
+        cacheBust: true,
+      })
     }
 
     const width = Number(currentMedia.width) || 1
@@ -189,7 +192,7 @@ async function getImage() {
   }
 
   imgPath.value = path.join(appStore.mediaPath, 'videos/thumbs', `${currentMedia.id}.jpg`)
-  thumb.value = await getLocalImage(imgPath.value, false, true)
+  thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {cacheBust: true})
   cropperOps.value = {aspectRatio: 16 / 9}
 }
 

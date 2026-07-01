@@ -22,12 +22,24 @@ function invalidUrlMiddleware(): Plugin {
   }
 }
 
-export default defineConfig({
-  plugins: [
+export default defineConfig(async () => {
+  const plugins: Plugin[] = [
     vue(),
     vuetify({ autoImport: true }),
     invalidUrlMiddleware(),
-  ],
+  ]
+
+  if (process.env.ANALYZE === '1') {
+    const { visualizer } = await import('rollup-plugin-visualizer')
+    plugins.push(visualizer({
+      filename: 'dist/bundle-stats.html',
+      gzipSize: true,
+      open: false,
+    }))
+  }
+
+  return {
+  plugins,
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -66,6 +78,22 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (/\/src\/i18n\/(ru|cn|es)\.ts$/.test(id)) {
+            const locale = id.match(/\/(ru|cn|es)\.ts$/)?.[1]
+            return locale ? `locale-${locale}` : 'locale-extra'
+          }
+          if (id.includes('/src/assets/Countries')) {
+            return 'countries-data'
+          }
+          if (id.includes('/src/assets/Documentation')) {
+            return 'documentation-data'
+          }
+          if (id.includes('/src/assets/Version_Histrory')) {
+            return 'version-history-data'
+          }
+          if (id.includes('node_modules/vue-i18n')) {
+            return 'vue-i18n'
+          }
           if (id.includes('node_modules/lodash')) {
             return 'lodash-vendor'
           }
@@ -96,4 +124,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })

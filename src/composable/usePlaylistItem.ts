@@ -1,11 +1,12 @@
 import { ref, computed, watch, onMounted, type Ref } from 'vue'
-import path from 'path-browserify'
 import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
 import { useRegistrationStore } from '@/stores/registration'
 import { useItemsStore } from '@/stores/items'
-import { checkFileExists as checkPathExists, getLocalImage } from '@/services/fileService'
+import { checkFileExists as checkPathExists } from '@/services/fileService'
 import { getReadableDuration } from '@/services/formatUtils'
+import { getCachedThumb, isPersistentThumbUrl, mediaThumbKey } from '@/utils/thumbDisplayCache'
+import { resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
 import type { MediaItem } from '@/types/stores'
 
 const UNREGISTERED_PLAYLIST_LIMIT = 14
@@ -34,14 +35,18 @@ export function usePlaylistItem(
 
   const is_locked = computed(() => !reg.value && props.index > UNREGISTERED_PLAYLIST_LIMIT)
 
-  const getThumb = async () => {
-    const imgPath = path.join(
-      appStore.mediaPath,
-      'videos/thumbs',
-      `${props.video.id}.jpg`,
-    )
+  const getThumb = () => {
+    const cached = getCachedThumb(mediaThumbKey('videos', props.video.id))
+    if (isPersistentThumbUrl(cached)) {
+      thumb.value = cached ?? null
+      return
+    }
 
-    thumb.value = await getLocalImage(imgPath)
+    thumb.value = resolveMediaThumbDisplayUrl(
+      appStore.mediaPath,
+      'videos',
+      props.video.id,
+    ) ?? null
   }
 
   const getDuration = (time: number) => getReadableDuration(time)

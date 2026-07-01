@@ -127,10 +127,9 @@ import {useDisplay} from 'vuetify';
 import {storeToRefs} from 'pinia';
 import draggable from 'vuedraggable';
 import {typedApi} from '@/services/typedApi';
-import {getLocalImage} from '@/services/fileService';
+import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {validateName} from '@/services/formatUtils';
 import {setNotification} from '@/services/notificationService';
-import path from 'path-browserify';
 import {useAppStore} from '@/stores/app';
 import DialogHeader from '@/components/elements/DialogHeader.vue';
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue';
@@ -311,12 +310,11 @@ const getVideos = async () => {
     videos.value = sortBy(res.data || [], "order");
 
     for (const video of videos.value) {
-      const imgPath = path.join(
+      video.thumb = resolveMediaThumbDisplayUrl(
         mediaPath.value,
-        "videos/thumbs",
-        video.mediaId + ".jpg"
-      );
-      video.thumb = await getLocalImage(imgPath);
+        'videos',
+        video.mediaId,
+      ) ?? undefined
     }
 
     is_thumbs_loaded.value = true;
