@@ -20,11 +20,11 @@ describe('getTagFilterSqlFallbackReason', () => {
     })).toBeNull()
   })
 
-  it('returns reason for find_duplicates', () => {
+  it('ignores find_duplicates and keeps SQL path for tags', () => {
     expect(getTagFilterSqlFallbackReason({
       metaId: 17,
       find_duplicates: true,
-    })).toBe('find_duplicates requires legacy tag loader')
+    })).toBeNull()
   })
 })
 
@@ -84,5 +84,14 @@ describe('resolveTagFilterQuery', () => {
 
     expect(result.whereSql).toContain('tags.id IN (:ids)')
     expect(result.replacements.ids).toEqual([1, 2, 3])
+  })
+
+  it('ignores find_duplicates and still builds SQL', () => {
+    const result = resolveTagFilterQuery({ metaId: 17, find_duplicates: true })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toBe('tags.metaId = :metaId')
   })
 })

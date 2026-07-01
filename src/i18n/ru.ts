@@ -75,8 +75,8 @@ const ru = {
   },
   aboutApp: {
     dialog_title: 'О MediaChips',
-    version: 'MediaChips v{version}-beta',
-    beta_notice: 'Это beta-версия. Сообщайте об ошибках и предложениях до выхода stable v0.14.0 на',
+    version: 'MediaChips v{version}',
+    beta_notice: 'Сообщайте об ошибках и предложениях на',
     report_issues: 'GitHub Issues',
     contributors: 'от сообщества MediaChips',
     version_history: 'История версий',
@@ -392,6 +392,8 @@ const ru = {
     scroll_to_top: 'Прокрутить наверх',
     drop_video_or_folder: 'Перетащите видео или папку, чтобы добавить их',
     no_media_or_meta_with_tag: 'Для этого тега не закреплены типы медиа или категории тегов',
+    tag_load_failed: 'Не удалось загрузить страницу тега',
+    tag_not_found: 'Тег не найден',
     view_type: 'Тип вида',
     view: {
       card: 'Карточка',

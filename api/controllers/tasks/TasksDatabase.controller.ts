@@ -21,7 +21,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       await rmrf(dbDir)
       res.status(201).send('successfully deleted')
     } catch (err) {
-      res.status(400).send(err)
+      res.status(400).send({message: apiErrorMessage(err)})
     }
   }
 
@@ -91,7 +91,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       if (!fs.existsSync(delPath)) fs.mkdirSync(delPath, {recursive: true})
       res.sendStatus(201)
     } catch (err) {
-      res.status(400).send(err)
+      res.status(400).send({message: apiErrorMessage(err)})
     }
   }
 

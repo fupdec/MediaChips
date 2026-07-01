@@ -172,8 +172,8 @@ export default function (app: Express, db: ApiDb) {
       res.sendStatus(201)
       console.log("Successfully imported.")
     } catch (err) {
-      console.log(err)
-      res.status(400).send(err)
+      console.error(err)
+      res.status(400).send({message: apiErrorMessage(err)})
     }
   };
 

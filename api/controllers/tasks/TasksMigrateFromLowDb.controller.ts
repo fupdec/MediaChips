@@ -4,6 +4,7 @@ import type {
   OldIdMapping,
 } from '../../types/migration'
 import type { ApiRequest, ApiResponse } from '../../types/http'
+import { apiErrorMessage } from '../../types/errors'
 import fs from 'fs'
 import fse from 'fs-extra'
 import path from 'path'
@@ -59,8 +60,8 @@ export default function (db: ApiDb) {
       console.log('\x1b[36m%s\x1b[0m', 'Old data was cleared successfully.', 'color: #bada55');
       res.status(201).send('deleted')
     } catch (err) {
-      console.log(err)
-      res.status(400).send(err)
+      console.error(err)
+      res.status(400).send({message: apiErrorMessage(err)})
     }
   }
 
@@ -98,7 +99,7 @@ export default function (db: ApiDb) {
             console.log('\x1b[36m%s\x1b[0m', 'Backups copied successfully.', 'color: #bada55');
           } catch (err) {
             console.error(err)
-            res.status(400).send(err)
+            res.status(400).send({message: apiErrorMessage(err)})
           }
         }
       }
@@ -109,7 +110,7 @@ export default function (db: ApiDb) {
     });
     archive.on("error", (err: unknown) => {
       console.error(err);
-      res.status(400).send(err)
+      res.status(400).send({message: apiErrorMessage(err)})
     });
     archive.pipe(output);
     archive.directory(currentDB, "databases");

@@ -43,7 +43,6 @@ provide('currentServer', currentServer);
 onMounted(() => {
   const currentOriginServer = getCurrentOriginServer()
   if (currentOriginServer) {
-    console.log('🌐 Using current origin as server:', currentOriginServer.url);
     handleServerConnected(currentOriginServer);
     return;
   }
@@ -56,7 +55,6 @@ onMounted(() => {
 
   // If this is a player window, use simpler connection logic
   if (isPlayerWindow.value) {
-    console.log('🔵 Player window: skipping auto-connect');
     // For player, use localhost immediately
     const serverInfo = {
       url: 'http://localhost:' + (import.meta.env.VITE_PORT || 12321),
@@ -160,8 +158,6 @@ function handleServerConnected(serverInfo: ServerInfo) {
 }
 
 async function initializeApp(server: ServerInfo) {
-  console.log('🚀 Initializing app with server:', server.ip);
-
   if (isPlayerWindow.value) {
     app.localhost = resolveApiBaseUrl({}, server)
     await loadConfig()
@@ -177,13 +173,10 @@ async function initializeApp(server: ServerInfo) {
 async function loadConfig() {
   // --- Electron mode ---
   if (window.electronAPI) {
-    console.log('⏳ Loading config from Electron...');
-
     if (!electronConfigListenerBound) {
       electronConfigListenerBound = true
       window.electronAPI?.on?.("config", (config: unknown) => {
         if (!isConfigLoaded.value || isPlayerWindow.value) {
-          console.log('✅ Config received from Electron');
           applyConfig(config as ServerConfigPayload);
         }
       });
@@ -192,7 +185,6 @@ async function loadConfig() {
     try {
       const config = await window.electronAPI?.invoke?.('get-config');
       if (config) {
-        console.log('✅ Config received via get-config');
         applyConfig(config as ServerConfigPayload);
         return;
       }
@@ -211,7 +203,6 @@ async function loadConfig() {
 
     // --- Browser mode ---
   } else {
-    console.log('🌐 Browser mode: loading config from server');
     await fetchConfigFromServer();
   }
 }
@@ -222,7 +213,6 @@ async function fetchConfigFromServer() {
   }
 
   try {
-    console.log('🔄 Requesting config from server...');
     // Use current server URL or localhost for player
     const baseUrl = currentServer.value?.url || `http://localhost:${import.meta.env.VITE_PORT || 12321}`;
     const response = await fetch(`${baseUrl}/api/config`);
@@ -257,7 +247,6 @@ function applyConfig(config: ServerConfigPayload) {
   app.config = config
 
   if (!wasLoaded) {
-    console.log('✅ Config applied:', config)
     isConfigLoaded.value = true
   }
 }

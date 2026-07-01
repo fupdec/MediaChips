@@ -81,6 +81,7 @@ export const API_ROUTES = {
   taskCreateTimeline: '/api/Task/createTimeline',
   taskCreateThumbForVideo: '/api/Task/createThumbForVideo',
   taskCleanLowDb: '/api/Task/cleanLowDb',
+  taskCheckDataForMigrateFromLowDb: '/api/Task/checkDataForMigrateFromLowDb',
   taskCreateBackupLowDb: '/api/Task/createBackupLowDb',
   taskMissingMediaStatus: '/api/Task/missingMediaStatus',
   taskClipModelStatus: '/api/Task/clipModelStatus',

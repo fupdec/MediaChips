@@ -54,7 +54,7 @@
 import {ref, computed, onMounted, watch, useAttrs} from 'vue'
 import {foundByChars} from '@/services/formatUtils'
 import {useSettingsStore} from '@/stores/settings'
-import CountryFlag from 'vue-country-flag-next'
+import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
 import Countries from '@/assets/Countries'
 import type {CountryEntry} from '@/types/metaInput'
 

@@ -311,7 +311,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       res.status(201).send('success')
     } catch (error) {
-      res.status(202).send(error)
+      res.status(400).send({message: apiErrorMessage(error)})
     }
   }
 

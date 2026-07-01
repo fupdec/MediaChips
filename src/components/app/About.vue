@@ -3,23 +3,6 @@
     <div class="d-flex">
       <div>
         <div>{{ t('aboutApp.version', {version: appVersion}) }}</div>
-        <v-alert
-          v-if="isBetaVersion"
-          type="warning"
-          variant="tonal"
-          density="compact"
-          class="mt-3 mb-1"
-        >
-          {{ t('aboutApp.beta_notice') }}
-          <a
-            href="https://github.com/fupdec/MediaChips/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="about-beta-link"
-          >
-            {{ t('aboutApp.report_issues') }}
-          </a>
-        </v-alert>
         <div>{{ t('aboutApp.contributors') }}</div>
         <v-btn
           @click="dialogs.versions = true"
@@ -129,8 +112,9 @@ const dialogsStore = useDialogsStore()
 const {ensureInitialized, check, isSupported, status} = useAppUpdater()
 
 const libraries = getProjectDependencies()
-const appVersion = computed(() => appStore.appVersion)
-const isBetaVersion = computed(() => /beta/i.test(appVersion.value))
+const appVersion = computed(() =>
+  String(appStore.appVersion).replace(/(-beta)+$/i, '-beta'),
+)
 const dialogs = computed(() => dialogsStore)
 const currentYear = new Date().getFullYear()
 const isChecking = ref(false)
@@ -180,11 +164,5 @@ onMounted(async () => {
 
 .link:hover {
   color: rgb(var(--v-primary-darken-2));
-}
-
-.about-beta-link {
-  color: rgb(var(--v-theme-primary));
-  font-weight: 500;
-  text-decoration: underline;
 }
 </style>

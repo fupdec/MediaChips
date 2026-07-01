@@ -75,8 +75,8 @@ const en = {
   },
   aboutApp: {
     dialog_title: 'About MediaChips',
-    version: 'MediaChips v{version}-beta',
-    beta_notice: 'This is a beta release. Please report bugs and feedback before the stable v0.14.0 release on',
+    version: 'MediaChips v{version}',
+    beta_notice: 'Report bugs and share feedback on',
     report_issues: 'GitHub Issues',
     contributors: 'by MediaChips contributors',
     version_history: 'Show version history',
@@ -392,6 +392,8 @@ const en = {
     scroll_to_top: 'Scroll to top',
     drop_video_or_folder: 'Drop video or folder to add them',
     no_media_or_meta_with_tag: 'No linked media types or tag categories for this tag',
+    tag_load_failed: 'Failed to load tag page',
+    tag_not_found: 'Tag not found',
     view_type: 'View type',
     view: {
       card: 'Card',

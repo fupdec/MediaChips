@@ -12,6 +12,9 @@ import { FIXED_PORT } from './ports'
 import { getBindHostForServer } from './constants'
 import packageJson from '../../package.json'
 
+const isElectronRuntime = Boolean(process.versions.electron)
+const isVerboseStartup = !isElectronRuntime
+
 interface ServerStarterOptions {
   app: Express
   config: ServerConfig
@@ -76,11 +79,15 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
     }
 
     saveConfigFile(configPath, config)
-    config.appVersion = packageJson.version
+    config.appVersion = packageJson.version.replace(/(-beta)+$/i, '-beta')
     process.server_config = config
   }
 
   const logServerStarted = (actualPort: number) => {
+    if (!isVerboseStartup) {
+      return
+    }
+
     const lanEnabled = isLanAccessEnabled()
 
     console.log('\x1b[32m%s\x1b[0m', '✅ Server started successfully!')
@@ -131,10 +138,8 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
           : portToUse
 
         writeRuntimeConfig(actualPort)
-        if (verbose) {
+        if (verbose && isVerboseStartup) {
           logServerStarted(actualPort)
-        } else {
-          console.log('\x1b[32m%s\x1b[0m', `✅ Network access updated (${bindHost}:${actualPort})`)
         }
         resolve()
       })
@@ -159,8 +164,10 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
       return
     }
 
-    console.log('\n' + '='.repeat(70))
-    console.log('\x1b[33m%s\x1b[0m', `🚀 Starting server on ${bindHost}:${portToUse}...`)
+    if (isVerboseStartup) {
+      console.log('\n' + '='.repeat(70))
+      console.log('\x1b[33m%s\x1b[0m', `🚀 Starting server on ${bindHost}:${portToUse}...`)
+    }
 
     try {
       await attachListener(bindHost, portToUse, true)
@@ -169,11 +176,11 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
         const errorTitle = 'Application startup error'
         const errorMessage = `Port ${portToUse} is already in use by another application.\n\nPlease close other applications using this port and restart the application.`
 
-        console.log('\x1b[31m%s\x1b[0m', `❌ Port ${portToUse} is already in use!`)
+        console.error('\x1b[31m%s\x1b[0m', `❌ Port ${portToUse} is already in use!`)
         showSystemNotification(errorTitle, errorMessage)
         process.exit(1)
       } else {
-        console.log('\x1b[31m%s\x1b[0m', '❌ Server error:', err)
+        console.error('\x1b[31m%s\x1b[0m', '❌ Server error:', err)
         showSystemNotification('Server error', errorMessage(err))
         process.exit(1)
       }
@@ -195,6 +202,8 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
   }
 
   const bindShutdownHandler = () => {
+    if (!isVerboseStartup) return
+
     process.on('SIGINT', () => {
       console.log('\n\x1b[33m%s\x1b[0m', '🛑 Stopping server...')
       if (listener) {

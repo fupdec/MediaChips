@@ -111,11 +111,15 @@ async function createBackupLowDb() {
 async function restoreBackup(backupName: string) {
   step.value = 3
 
-  await typedApi.restoreBackup({
-    name: backupName,
-  })
-
-  step.value = 4
+  try {
+    await typedApi.restoreBackup({
+      name: backupName,
+    })
+    step.value = 4
+  } catch (e) {
+    step.value = 1
+    importStatus.value = e instanceof Error ? e.message : String(e)
+  }
 }
 
 async function finish() {

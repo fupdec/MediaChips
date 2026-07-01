@@ -5,6 +5,27 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-07-01
+
+### Added
+
+- **LowDB migration wizard** — auto-detects legacy `dbs.json` on startup and opens the migration dialog
+- **E2E test suite** — expanded from smoke tests to 16 scenarios (API auth, health, backups, navigation)
+- **Coverage thresholds** in CI to prevent test coverage regression
+
+### Changed
+
+- **Vue 3 rewrite** — first stable release on the `master` branch
+- **Tag list loading** — `find_duplicates` no longer forces the legacy JS filter path for tag pages
+- **API error responses** — task controllers return structured `{ message }` instead of raw error objects
+- **Production logging** — removed debug console output from Electron bootstrap and server startup
+- **Bundle loading** — country flags and material icon data load lazily in separate chunks
+
+### Fixed
+
+- **PageTag** — API failures now show notifications and an error alert instead of failing silently
+- **DialogMigration** — restore backup errors are surfaced to the user
+
 ## [0.14.2-beta] - 2026-06-26
 
 ### Fixed

@@ -100,7 +100,7 @@ function registerBuiltinRoutes({
       ips: config.ips,
       hostname: config.hostname,
       port: config.port,
-      appVersion: packageJson.version || '1.0.0',
+      appVersion: (packageJson.version || '1.0.0').replace(/(-beta)+$/i, '-beta'),
       path: activeDb ? path.join(databasesPath, activeDb.id) : '',
       databases: config.databases || [],
       activeDatabase: activeDb,

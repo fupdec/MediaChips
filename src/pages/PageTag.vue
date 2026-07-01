@@ -1,5 +1,12 @@
 <template>
   <div>
+    <v-container v-if="loadError" class="py-4">
+      <v-alert type="error" rounded="xl" variant="tonal">
+        {{ loadError }}
+      </v-alert>
+    </v-container>
+
+    <template v-else>
     <v-responsive
       :aspect-ratio="1400/609"
       color="transparent"
@@ -159,6 +166,7 @@
       :options="cropperOps"
       :imagePath="imgPath"
     />
+    </template>
   </div>
 </template>
 
@@ -179,6 +187,7 @@ import LayoutItems from "@/layouts/LayoutItems.vue";
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {sortByMenuMediaTypeOrder} from '@/utils/mediaType'
 import {getUrlParam} from '@/services/routeService'
+import {setNotification} from '@/services/notificationService'
 import type { Meta, Tag, AssignedMeta } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 import type { MetaInMediaTypeAssignment } from '@/types/metaAssignment'
@@ -223,6 +232,20 @@ const pinnedParentMeta = ref<Meta[]>([])
 const pinnedMeta = ref<AssignedMeta[]>([])
 const pinnedMedia = ref<PinnedMediaTab[]>([])
 const completionStatus = ref(0)
+const loadError = ref<string | null>(null)
+
+function getErrorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function notifyLoadError(error: unknown): void {
+  const text = getErrorText(error)
+  setNotification({
+    type: 'error',
+    title: t('common.error'),
+    text: text || t('common.unknown'),
+  })
+}
 
 // Computed
 const ENV = computed(() => itemsStore.environment)
@@ -274,33 +297,39 @@ const resolveInitialTab = () => {
 
 // Methods
 const init = async () => {
-  await getMeta()
-  await getTag()
-  await getImages()
-  await getPinnedMedia()
-  await getPinnedParentMeta()
-  await getCompletionStatus()
-  tab.value = resolveInitialTab()
-  is_init.value = true
+  loadError.value = null
 
-  cropperOps.value.aspectRatio = meta.value?.imageAspectRatio ?? 1
-  imgPath.value = path.join(
-    appStore.dbPath,
-    "meta/",
-    `${ENV.value.meta_id}`,
-    `${ENV.value.tag_id}_main.jpg`
-  )
+  try {
+    await getMeta()
+    await getTag()
+    await getImages()
+    await getPinnedMedia()
+    await getPinnedParentMeta()
+    await getCompletionStatus()
+    tab.value = resolveInitialTab()
+    is_init.value = true
 
-  // увеличиваем кол-во просмотров
-  await itemsStore.countViewNumber(tag.value, 'tag')
+    cropperOps.value.aspectRatio = meta.value?.imageAspectRatio ?? 1
+    imgPath.value = path.join(
+      appStore.dbPath,
+      "meta/",
+      `${ENV.value.meta_id}`,
+      `${ENV.value.tag_id}_main.jpg`
+    )
+
+    await itemsStore.countViewNumber(tag.value, 'tag')
+  } catch (error) {
+    loadError.value = getErrorText(error) || t('items.tag_load_failed')
+  }
 }
 
 const getMeta = async () => {
   try {
     const res = await typedApi.getMetaById(Number(ENV.value.meta_id))
     meta.value = res.data
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
+    throw error
   }
 }
 
@@ -316,8 +345,12 @@ const getTag = async () => {
   try {
     const res = await typedApi.postTagItems(query)
     tag.value = res.data.items[0] || { id: 0, tags: [], values: [] }
-  } catch (e) {
-    console.log(e)
+    if (!tag.value.id) {
+      throw new Error(t('items.tag_not_found'))
+    }
+  } catch (error) {
+    notifyLoadError(error)
+    throw error
   }
 }
 
@@ -343,8 +376,8 @@ const getPinnedMedia = async () => {
       (res.data || []).filter((item): item is PinnedMediaTab => Boolean(item.mediaType)),
       appStore.mediaTypes,
     )
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
   }
 }
 
@@ -361,8 +394,8 @@ const getPinnedParentMeta = async () => {
       }
     }
     pinnedParentMeta.value = metas
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
   }
 }
 
@@ -374,23 +407,23 @@ const getCompletionStatus = async () => {
   try {
     const tagsRes = await typedApi.getTagsInTag(tag.value.id)
     tags = tagsRes.data || []
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
   }
 
   try {
     const valuesRes = await typedApi.getValuesInTag(tag.value.id)
     values = valuesRes.data || []
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
   }
 
   try {
     const pinnedRes = await typedApi.getPinnedChildMeta(meta.value.id)
     pinned = pinnedRes.data || []
     pinnedMeta.value = pinned
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
   }
 
   const vals: Record<string | number, unknown> = {}
@@ -491,8 +524,8 @@ const changeTab = async (tab_value: string | null) => {
       mediaTypeId: mediaTypeId,
       metaId: metaId,
     })
-  } catch (e) {
-    console.log(e)
+  } catch (error) {
+    notifyLoadError(error)
   }
 
   upd.value = Date.now()

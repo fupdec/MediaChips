@@ -65,7 +65,7 @@
 <script setup lang="ts">
 import { reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import CountryFlag from 'vue-country-flag-next'
+import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
 import { parseCountries, getCountryCode } from '@/utils/country'
 
 import { useAppStore } from '@/stores/app'

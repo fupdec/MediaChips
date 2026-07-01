@@ -83,6 +83,12 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,vue}', 'shared/**/*.ts', 'api/**/*.ts', 'app/**/*.ts'],
       exclude: ['**/*.test.ts', '**/*.d.ts', '**/node_modules/**'],
+      thresholds: {
+        statements: 9,
+        branches: 6,
+        functions: 7,
+        lines: 9,
+      },
     },
   },
   build: {
@@ -161,6 +167,12 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
           }
           if (id.includes('/src/assets/Version_Histrory')) {
             return 'version-history-data'
+          }
+          if (id.includes('material-icons.json')) {
+            return 'material-icons-data'
+          }
+          if (id.includes('vue-country-flag-next')) {
+            return 'country-flag-vendor'
           }
           if (id.includes('node_modules/vue-i18n')) {
             return 'vue-i18n'

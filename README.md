@@ -37,7 +37,7 @@ Starting with **v0.13.0**, the `master` branch is a full rewrite:
 | | **Current (`master`)** | **Legacy (`legacy/vue2`)** |
 |---|---|---|
 | Stack | Vue 3 · Vite · Vuetify 3 · Express · Electron | Vue 2 · Webpack · Vuetify 2 |
-| Last release | [v0.13.0](https://github.com/fupdec/mediaChips/releases/tag/v0.13.0) | [v0.12.5-beta](https://github.com/fupdec/mediaChips/releases/tag/v0.12.5-beta) |
+| Last release | [v1.0.0](https://github.com/fupdec/mediaChips/releases/tag/v1.0.0) | [v0.12.5-beta](https://github.com/fupdec/mediaChips/releases/tag/v0.12.5-beta) |
 | Status | Active development | Maintenance / reference only |
 
 To work with the old codebase:

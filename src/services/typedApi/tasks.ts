@@ -140,6 +140,10 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskCreateThumbForVideo, body)
   },
 
+  checkDataForMigrateFromLowDb() {
+    return apiClient.post(API_ROUTES.taskCheckDataForMigrateFromLowDb)
+  },
+
   cleanLowDb() {
     return apiClient.post(API_ROUTES.taskCleanLowDb)
   },

@@ -435,13 +435,12 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
 }
 
 function resolveTagFilterQuery(options: TagFilterOptions = {}): TagFilterQueryResult {
-  if (options.find_duplicates) {
-    return { ok: false, reason: 'find_duplicates requires legacy tag loader' }
-  }
+  // Duplicate finder is a media-library feature; tag lists use the normal SQL path.
+  const {find_duplicates: _findDuplicates, ...queryOptions} = options
 
-  return buildTagFilterQuery(options.filters || [], {
-    metaId: options.metaId,
-    ids: options.ids || [],
+  return buildTagFilterQuery(queryOptions.filters || [], {
+    metaId: queryOptions.metaId,
+    ids: queryOptions.ids || [],
   })
 }
 

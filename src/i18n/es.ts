@@ -75,8 +75,8 @@ const es = {
   },
   aboutApp: {
     dialog_title: 'Acerca de MediaChips',
-    version: 'MediaChips v{version}-beta',
-    beta_notice: 'Esta es una versión beta. Informa errores y comentarios antes del lanzamiento estable v0.14.0 en',
+    version: 'MediaChips v{version}',
+    beta_notice: 'Informa errores y comentarios en',
     report_issues: 'GitHub Issues',
     contributors: 'por los colaboradores de MediaChips',
     version_history: 'Historial de versiones',
@@ -392,6 +392,8 @@ const es = {
     scroll_to_top: 'Desplazarse arriba',
     drop_video_or_folder: 'Suelte un video o una carpeta para agregarlos',
     no_media_or_meta_with_tag: 'No hay tipos de medio ni categorías de etiquetas vinculados a esta etiqueta',
+    tag_load_failed: 'No se pudo cargar la página de la etiqueta',
+    tag_not_found: 'Etiqueta no encontrada',
     view_type: 'Tipo de vista',
     view: {
       card: 'Tarjeta',

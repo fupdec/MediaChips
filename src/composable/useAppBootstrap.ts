@@ -18,6 +18,8 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
+import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
+import {useOperationsStore} from '@/stores/operations'
 import {useAppTheme} from '@/composable/useAppTheme'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useSystemMenuActions} from '@/composable/useSystemMenuActions'
@@ -47,6 +49,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   const watcherStore = useWatcherStore()
   const registrationStore = useRegistrationStore()
   const dialogsStore = useDialogsStore()
+  const operationsStore = useOperationsStore()
   const eventBus = useEventBus()
   const {init: initAppUpdater} = useAppUpdater()
   const {runSystemMenuAction} = useSystemMenuActions({
@@ -459,7 +462,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     isAppReady.value = true
     store.is_app_ready = true
     runAutoRegistration()
-    openOnboardingIfNeeded(isPlayerWindow.value)
+    if (!operationsStore.migrationLowDb.dialog) {
+      openOnboardingIfNeeded(isPlayerWindow.value)
+    }
     await nextTick()
   }
 
@@ -491,6 +496,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await initSettings()
     applyTheme()
     await applyLocale()
+    await openLowDbMigrationIfNeeded(isPlayerWindow.value)
 
     // Reveal the app chrome and Electron window before heavy startup work.
     await revealAppShell()

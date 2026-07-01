@@ -184,7 +184,7 @@ export default function createTasksFileController(_shared: TaskControllerShared)
         message: 'successfully deleted local file',
       })
     } catch (err) {
-      res.status(400).send(err)
+      res.status(400).send({message: apiErrorMessage(err)})
     }
   }
 
