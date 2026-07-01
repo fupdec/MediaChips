@@ -28,6 +28,7 @@ import {
   syncAppWindowFocusedFromDocument,
 } from '@/utils/windowFocus'
 import {debounce} from '@/utils/debounce'
+import {subscribeElectronIpc} from '@/utils/electronIpc'
 
 interface UseAppBootstrapOptions {
   isPlayerWindow: Ref<boolean>
@@ -280,9 +281,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     window.addEventListener('blur', syncAppWindowFocusedFromDocument)
     document.addEventListener('visibilitychange', syncAppWindowFocusedFromDocument)
 
-    if (store.isElectron && window.electronAPI?.on) {
-      unsubscribeWindowBlur = window.electronAPI.on('blur', () => setAppWindowFocused(false))
-      unsubscribeWindowFocus = window.electronAPI.on('focus', () => setAppWindowFocused(true))
+    if (store.isElectron) {
+      unsubscribeWindowBlur = subscribeElectronIpc('blur', () => setAppWindowFocused(false))
+      unsubscribeWindowFocus = subscribeElectronIpc('focus', () => setAppWindowFocused(true))
     }
   }
 
@@ -309,15 +310,15 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   function setupPlayerElectronListeners(): void {
-    if (!store.isElectron || !window.electronAPI?.on || playerElectronListenersRegistered) return
+    if (!store.isElectron || playerElectronListenersRegistered) return
 
     playerElectronListenersRegistered = true
-    unsubscribeGetItemsFromDb = window.electronAPI.on('getItemsFromDb', handleElectronGetItemsFromDb)
-    unsubscribePlayerUpdateVideoFrames = window.electronAPI.on(
+    unsubscribeGetItemsFromDb = subscribeElectronIpc('getItemsFromDb', handleElectronGetItemsFromDb)
+    unsubscribePlayerUpdateVideoFrames = subscribeElectronIpc(
       'updateVideoFrames',
       handleElectronUpdateVideoFrames,
     )
-    unsubscribeRemoveEntitiesFromState = window.electronAPI.on(
+    unsubscribeRemoveEntitiesFromState = subscribeElectronIpc(
       'removeEntitiesFromState',
       handleElectronRemoveEntitiesFromState,
     )
@@ -495,8 +496,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       window.addEventListener('keydown', appZoom.handleKeydown)
       window.addEventListener('wheel', appZoom.blockPinchZoom, {passive: false})
 
-      if (store.isElectron && window.electronAPI?.on) {
-        unsubscribeZoomChanged = window.electronAPI.on('zoom-changed', (...args: unknown[]) => {
+      if (store.isElectron) {
+        unsubscribeZoomChanged = subscribeElectronIpc('zoom-changed', (...args: unknown[]) => {
           void appZoom.syncFromElectron(Number(args[0]))
         })
       }
@@ -526,11 +527,11 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     if (store.isElectron) {
       setupPlayerElectronListeners()
 
-      unsubscribeAboutApp = window.electronAPI?.on?.('aboutApp', handleAboutApp)
-      unsubscribeShowDocumentation = window.electronAPI?.on?.('showDocumentation', handleShowDocumentation)
-      unsubscribeShowFeedback = window.electronAPI?.on?.('showFeedback', handleShowFeedback)
-      unsubscribeMenuAction = window.electronAPI?.on?.('menuAction', handleMenuAction)
-      unsubscribeLockApp = window.electronAPI?.on?.('lockApp', handleLockApp)
+      unsubscribeAboutApp = subscribeElectronIpc('aboutApp', handleAboutApp)
+      unsubscribeShowDocumentation = subscribeElectronIpc('showDocumentation', handleShowDocumentation)
+      unsubscribeShowFeedback = subscribeElectronIpc('showFeedback', handleShowFeedback)
+      unsubscribeMenuAction = subscribeElectronIpc('menuAction', handleMenuAction)
+      unsubscribeLockApp = subscribeElectronIpc('lockApp', handleLockApp)
     }
   }
 
@@ -556,6 +557,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     thumbBroadcastChannel?.close()
     thumbBroadcastChannel = null
     window.removeEventListener('resize', saveWindowSize)
+    saveWindowSize.cancel()
     teardownPlayerElectronListeners()
     unsubscribeAboutApp?.()
     unsubscribeShowDocumentation?.()

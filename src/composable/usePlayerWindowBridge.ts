@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
 import { useEventBus } from '@/utils/eventBus'
+import { subscribeElectronIpc } from '@/utils/electronIpc'
 import { isStandalonePlayerRoute } from '@/utils/playerWindow'
 import type { MediaItem } from '@/types/stores'
 import type { PlayVideoPayload } from '@/services/electronBridge'
@@ -84,13 +85,8 @@ export function usePlayerWindowBridge({
         onStopPlaying()
       }
 
-      window.electronAPI.on('play-video', handlePlayVideo)
-      window.electronAPI.on('stop-playing-video', handleStopPlaying)
-
-      cleanups.push(() => {
-        window.electronAPI?.removeListener?.('play-video', handlePlayVideo)
-        window.electronAPI?.removeListener?.('stop-playing-video', handleStopPlaying)
-      })
+      cleanups.push(subscribeElectronIpc('play-video', handlePlayVideo))
+      cleanups.push(subscribeElectronIpc('stop-playing-video', handleStopPlaying))
     }
   }
 

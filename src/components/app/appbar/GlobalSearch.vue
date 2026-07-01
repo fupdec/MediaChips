@@ -76,6 +76,7 @@ const RESULT_LIMIT = 50
 const GROUP_PREVIEW_LIMIT = 20
 const ROW_HEIGHT = 30
 const RESULTS_MAX_HEIGHT = 480
+const HIGHLIGHT_CACHE_MAX = 512
 
 const highlightCache = new Map<string, string>()
 let cachedHighlightQuery = ''
@@ -83,6 +84,19 @@ let cachedHighlightQuery = ''
 function clearHighlightCache(): void {
   highlightCache.clear()
   cachedHighlightQuery = ''
+}
+
+function cacheHighlight(text: string, highlighted: string): void {
+  if (highlightCache.has(text)) {
+    highlightCache.delete(text)
+  }
+  highlightCache.set(text, highlighted)
+
+  while (highlightCache.size > HIGHLIGHT_CACHE_MAX) {
+    const oldest = highlightCache.keys().next().value
+    if (oldest === undefined) break
+    highlightCache.delete(oldest)
+  }
 }
 
 watch(query, (value) => {
@@ -154,6 +168,7 @@ function showSearch() {
   dialog.value = true
   query.value = ''
   results.value = []
+  clearHighlightCache()
   focusSearchField()
 }
 
@@ -500,7 +515,7 @@ function getNameHighlighted(text: string) {
   let cached = highlightCache.get(text)
   if (cached === undefined) {
     cached = highlightChars(text, cachedHighlightQuery, true)
-    highlightCache.set(text, cached)
+    cacheHighlight(text, cached)
   }
 
   return cached

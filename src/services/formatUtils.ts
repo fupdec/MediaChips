@@ -1,10 +1,5 @@
 import type { FilterCondition, FilterObject, ReadableFileSize } from '@/types/common'
-import {
-  addTransparencyToGradient,
-  checkColorForDarkText,
-} from '@/utils/headerColorUtils'
-
-export { addTransparencyToGradient, checkColorForDarkText }
+import { checkColorForDarkText } from '@/utils/headerColorUtils'
 
 interface HoverPreviewOptions {
   maxSize?: number

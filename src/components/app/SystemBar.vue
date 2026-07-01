@@ -42,6 +42,7 @@ import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useSystemMenuActions} from '@/composable/useSystemMenuActions'
 import {SYSTEM_MENUS} from '@/types/systemMenu'
 import type {SystemMenuAction} from '@/types/systemMenu'
+import {subscribeElectronIpc} from '@/utils/electronIpc'
 import SystemMenuDropdown from '@/components/app/SystemMenuDropdown.vue'
 const WindowControls = defineAsyncComponent(() => import('@/components/ui/WindowControls.vue'))
 
@@ -106,22 +107,23 @@ const handleNavigationForward = () => {
   forward()
 }
 
+let unsubscribeMaximize: (() => void) | undefined
+let unsubscribeUnmaximize: (() => void) | undefined
+let unsubscribeNavigationBack: (() => void) | undefined
+let unsubscribeNavigationForward: (() => void) | undefined
+
 onMounted(() => {
-  if (window.electronAPI?.on) {
-    window.electronAPI.on('maximize', handleMaximize)
-    window.electronAPI.on('unmaximize', handleUnmaximize)
-    window.electronAPI.on('navigationBack', handleNavigationBack)
-    window.electronAPI.on('navigationForward', handleNavigationForward)
-  }
+  unsubscribeMaximize = subscribeElectronIpc('maximize', handleMaximize)
+  unsubscribeUnmaximize = subscribeElectronIpc('unmaximize', handleUnmaximize)
+  unsubscribeNavigationBack = subscribeElectronIpc('navigationBack', handleNavigationBack)
+  unsubscribeNavigationForward = subscribeElectronIpc('navigationForward', handleNavigationForward)
 })
 
 onUnmounted(() => {
-  if (window.electronAPI?.removeListener) {
-    window.electronAPI.removeListener('maximize', handleMaximize)
-    window.electronAPI.removeListener('unmaximize', handleUnmaximize)
-    window.electronAPI.removeListener('navigationBack', handleNavigationBack)
-    window.electronAPI.removeListener('navigationForward', handleNavigationForward)
-  }
+  unsubscribeMaximize?.()
+  unsubscribeUnmaximize?.()
+  unsubscribeNavigationBack?.()
+  unsubscribeNavigationForward?.()
 })
 </script>
 

@@ -72,6 +72,7 @@ export default defineConfig(async ({ mode }) => {
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    // Production builds skip sourcemaps unless ANALYZE=1 (bundle visualizer needs them).
     sourcemap: mode !== 'production' || process.env.ANALYZE === '1',
     chunkSizeWarningLimit: 2100,
 

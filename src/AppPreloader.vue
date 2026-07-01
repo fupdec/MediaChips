@@ -89,6 +89,7 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {useAppBootstrap} from '@/composable/useAppBootstrap'
 import {useAppZoom} from '@/composable/useAppZoom'
+import {useThemeColorMeta} from '@/composable/useThemeColorMeta'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {isPlayerUiActive} from '@/utils/playerShellState'
 
@@ -129,6 +130,7 @@ const mainLayoutClasses = computed(() => ({
 const isSettingsPage = computed(() => route.path === '/settings')
 
 const {isAppReady, isShellReady} = useAppBootstrap({isPlayerWindow, appZoom})
+useThemeColorMeta()
 </script>
 
 <style lang="scss">

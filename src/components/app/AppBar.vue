@@ -131,6 +131,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useI18n} from 'vue-i18n'
 import {scrollMainTo} from '@/utils/mainScroll'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
+import {subscribeElectronIpc} from '@/utils/electronIpc'
 
 /* Components */
 const ItemsSelection = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsSelection.vue'))
@@ -216,18 +217,17 @@ const handleLeaveFullScreen = () => {
   fullscreen.value = false
 }
 
+let unsubscribeEnterFullScreen: (() => void) | undefined
+let unsubscribeLeaveFullScreen: (() => void) | undefined
+
 onMounted(() => {
-  if (window.electronAPI?.on) {
-    window.electronAPI.on('enter-full-screen', handleEnterFullScreen)
-    window.electronAPI.on('leave-full-screen', handleLeaveFullScreen)
-  }
+  unsubscribeEnterFullScreen = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
+  unsubscribeLeaveFullScreen = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
 })
 
 onUnmounted(() => {
-  if (window.electronAPI?.removeListener) {
-    window.electronAPI.removeListener('enter-full-screen', handleEnterFullScreen)
-    window.electronAPI.removeListener('leave-full-screen', handleLeaveFullScreen)
-  }
+  unsubscribeEnterFullScreen?.()
+  unsubscribeLeaveFullScreen?.()
 })
 </script>
 

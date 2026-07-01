@@ -2,7 +2,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
 import { useEventBus } from '@/utils/eventBus'
-import { checkColorForDarkText, getReadableDuration } from '@/services/formatUtils'
+import { checkColorForDarkText } from '@/utils/headerColorUtils'
+import { getReadableDuration } from '@/services/formatUtils'
 import {
   formatMarkTimeRange,
   getMarkTimelineColor,

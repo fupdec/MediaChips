@@ -23,12 +23,13 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed} from 'vue'
+import {ref, onMounted, onUnmounted, computed} from 'vue'
 import {storeToRefs} from 'pinia'
 import {useAppStore} from '@/stores/app'
 import {usePlayerStore} from '@/stores/player'
 import WindowControls from '@/components/ui/WindowControls.vue'
-import {useDisplay} from "vuetify"; // Импортируем компонент
+import {useDisplay} from 'vuetify'
+import {subscribeElectronIpc} from '@/utils/electronIpc'
 
 defineProps<{
   disabled?: boolean
@@ -64,24 +65,39 @@ function close() {
   // Эта функция вызывается через emit из WindowControls
 }
 
+const handleMaximize = () => {
+  maximized.value = true
+}
+
+const handleUnmaximize = () => {
+  maximized.value = false
+}
+
+const handleEnterFullScreen = () => {
+  playerStore.fullscreen = true
+}
+
+const handleLeaveFullScreen = () => {
+  playerStore.fullscreen = false
+}
+
+let unsubscribeMaximize: (() => void) | undefined
+let unsubscribeUnmaximize: (() => void) | undefined
+let unsubscribeEnterFullScreen: (() => void) | undefined
+let unsubscribeLeaveFullScreen: (() => void) | undefined
+
 onMounted(() => {
-  if (window.electronAPI?.on) {
-    window.electronAPI.on("maximize", () => {
-      maximized.value = true
-    })
+  unsubscribeMaximize = subscribeElectronIpc('maximize', handleMaximize)
+  unsubscribeUnmaximize = subscribeElectronIpc('unmaximize', handleUnmaximize)
+  unsubscribeEnterFullScreen = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
+  unsubscribeLeaveFullScreen = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
+})
 
-    window.electronAPI.on("unmaximize", () => {
-      maximized.value = false
-    })
-
-    window.electronAPI.on("enter-full-screen", () => {
-      playerStore.fullscreen = true
-    })
-
-    window.electronAPI.on("leave-full-screen", () => {
-      playerStore.fullscreen = false
-    })
-  }
+onUnmounted(() => {
+  unsubscribeMaximize?.()
+  unsubscribeUnmaximize?.()
+  unsubscribeEnterFullScreen?.()
+  unsubscribeLeaveFullScreen?.()
 })
 </script>
 

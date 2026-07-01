@@ -1,4 +1,4 @@
-import { computed, watch, type WatchStopHandle } from 'vue'
+import { computed } from 'vue'
 import { useTheme } from 'vuetify'
 import { useSettingsStore } from '@/stores/settings'
 import { isRealWinElectron } from '@/utils/electronUi'
@@ -7,22 +7,6 @@ import {
   checkColorForDarkText,
   hexToRgba,
 } from '@/utils/headerColorUtils'
-
-let themeColorWatchStop: WatchStopHandle | null = null
-
-function ensureThemeColorMetaSync(colorSource: () => string): void {
-  if (themeColorWatchStop) return
-
-  themeColorWatchStop = watch(
-    colorSource,
-    (c) => {
-      document
-        .querySelector('meta[name="theme-color"]')
-        ?.setAttribute('content', c || '#000000')
-    },
-    { immediate: true },
-  )
-}
 
 export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
   const theme = useTheme()
@@ -38,8 +22,6 @@ export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
 
     return c || '#000000'
   })
-
-  ensureThemeColorMetaSync(() => color.value)
 
   const colorRGBA = computed(() => {
     const opacity = isWinElectron ? 60 : (variant === 'system' ? 80 : 60)

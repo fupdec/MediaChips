@@ -18,10 +18,3 @@ export function getWatcherBadgeCounts(
 
   return { new: newCount, lost: lostCount }
 }
-
-export function getWatcherBadgeCount(
-  files: WatcherFileChangeGroup[] = [],
-  field: 'new' | 'lost' = 'new',
-): number {
-  return getWatcherBadgeCounts(files)[field]
-}

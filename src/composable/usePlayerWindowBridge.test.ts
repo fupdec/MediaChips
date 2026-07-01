@@ -114,12 +114,14 @@ describe('usePlayerWindowBridge', () => {
 
   it('attaches electron play and stop handlers', () => {
     const listeners = new Map<string, (...args: unknown[]) => void>()
+    const unsubscribes: Array<() => void> = []
     window.electronAPI = mockElectronApi({
       on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
         listeners.set(event, handler)
-        return () => {}
+        const unsubscribe = vi.fn()
+        unsubscribes.push(unsubscribe)
+        return unsubscribe
       }),
-      removeListener: vi.fn(),
     })
 
     const onPlayVideo = vi.fn()
@@ -139,7 +141,10 @@ describe('usePlayerWindowBridge', () => {
     expect(onStopPlaying).toHaveBeenCalled()
 
     detach()
-    expect(window.electronAPI?.removeListener).toHaveBeenCalledTimes(2)
+    expect(unsubscribes).toHaveLength(2)
+    unsubscribes.forEach((unsubscribe) => {
+      expect(unsubscribe).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('exits electron fullscreen on macOS when needed', () => {

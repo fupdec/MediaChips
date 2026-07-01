@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import {ref, onMounted, onUnmounted, computed} from 'vue'
 import {useRoute} from "vue-router";
+import {subscribeElectronIpc} from '@/utils/electronIpc'
 
 const props = defineProps({
   windowType: {
@@ -99,14 +100,17 @@ const handleUnmaximize = () => {
   maximized.value = false
 }
 
+let unsubscribeMaximize: (() => void) | undefined
+let unsubscribeUnmaximize: (() => void) | undefined
+
 onMounted(() => {
-  window.electronAPI?.on?.('maximize', handleMaximize)
-  window.electronAPI?.on?.('unmaximize', handleUnmaximize)
+  unsubscribeMaximize = subscribeElectronIpc('maximize', handleMaximize)
+  unsubscribeUnmaximize = subscribeElectronIpc('unmaximize', handleUnmaximize)
 })
 
 onUnmounted(() => {
-  window.electronAPI?.removeListener?.('maximize', handleMaximize)
-  window.electronAPI?.removeListener?.('unmaximize', handleUnmaximize)
+  unsubscribeMaximize?.()
+  unsubscribeUnmaximize?.()
 })
 </script>
 

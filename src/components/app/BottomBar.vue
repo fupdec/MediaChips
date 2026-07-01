@@ -5,22 +5,16 @@ import {useSettingsStore} from '@/stores/settings'
 import {useWatcherStore} from '@/stores/watcher'
 import {useI18n} from 'vue-i18n'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import {getWatcherBadgeCounts} from '@/utils/watcherBadgeUtils'
+import {useWatcherBadgeCounts} from '@/composable/useWatcherBadgeCounts'
 import type { WatcherFilesEntry } from '@/types/watcher'
 
 const settings = useSettingsStore()
 const app = useAppStore()
 const watcherStore = useWatcherStore()
 const {t} = useI18n()
+const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
 
 const watcherFiles = computed(() => watcherStore.files)
-const watcherBadgeCountsByFolderId = computed(() => {
-  const counts: Record<number, ReturnType<typeof getWatcherBadgeCounts>> = {}
-  for (const entry of watcherFiles.value) {
-    counts[entry.folder.id] = getWatcherBadgeCounts(entry.files)
-  }
-  return counts
-})
 const folderHovered = ref(false)
 const hiddenMetaMenu = ref(false)
 

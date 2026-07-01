@@ -171,7 +171,7 @@ import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from "@/utils/eventBus"
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import {getWatcherBadgeCounts} from '@/utils/watcherBadgeUtils'
+import {useWatcherBadgeCounts} from '@/composable/useWatcherBadgeCounts'
 import type { Meta } from '@/types/stores'
 import type { WatcherFilesEntry } from '@/types/watcher'
 
@@ -185,15 +185,8 @@ const folderHovered = ref(false)
 const meta_arr = ref<MetaNavRow[]>([])
 const drag = ref(false)
 
+const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
 const watcherFiles = computed(() => watcherStore.files)
-
-const watcherBadgeCountsByFolderId = computed(() => {
-  const counts: Record<number, ReturnType<typeof getWatcherBadgeCounts>> = {}
-  for (const entry of watcherFiles.value) {
-    counts[entry.folder.id] = getWatcherBadgeCounts(entry.files)
-  }
-  return counts
-})
 
 const dragOptions = {
   animation: 200,

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  checkColorForDarkText,
   getReadableDuration,
   getReadableFileSize,
   getTextColor,
@@ -19,9 +18,8 @@ describe('formatUtils', () => {
   })
 
   it('detects dark text on dark backgrounds', () => {
-    expect(checkColorForDarkText('#000000')).toBe(true)
-    expect(checkColorForDarkText('#ffffff')).toBe(false)
     expect(getTextColor('#000000')).toBe('white')
+    expect(getTextColor('#ffffff')).toBe('black')
   })
 
   it('calculates hover preview dimensions', () => {
