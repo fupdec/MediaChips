@@ -90,6 +90,15 @@ function createAuthService(db: ApiDb) {
     if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
       return authHeader.slice(7).trim()
     }
+
+    const queryToken = req.query?.token
+    if (typeof queryToken === 'string' && queryToken.trim()) {
+      return queryToken.trim()
+    }
+    if (Array.isArray(queryToken) && typeof queryToken[0] === 'string' && queryToken[0].trim()) {
+      return queryToken[0].trim()
+    }
+
     return null
   }
 

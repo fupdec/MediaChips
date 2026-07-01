@@ -343,7 +343,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDisplay } from 'vuetify'
 import { useEventBus } from "@/utils/eventBus"
@@ -550,16 +550,22 @@ watch(() => dialogsStore.documentation, (isOpen) => {
   }
 })
 
+const handleShowDocumentation = (payload: unknown) => {
+  const id = payload as string
+  dialogs.value.documentation = true
+  nextTick(() => selectById(id, { scroll: true }))
+}
+
 onMounted(() => {
   if (items.value?.length) {
     selectById(items.value[0].id)
   }
 
-  eventBus.on('showDocumentation', (payload: unknown) => {
-    const id = payload as string
-    dialogs.value.documentation = true
-    nextTick(() => selectById(id, { scroll: true }))
-  })
+  eventBus.on('showDocumentation', handleShowDocumentation)
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('showDocumentation', handleShowDocumentation)
 })
 </script>
 

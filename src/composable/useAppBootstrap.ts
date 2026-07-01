@@ -306,43 +306,78 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     void getMachineId()
   }
 
+  const handleUpdatePage: Handler = () => {
+    ++upd.value
+  }
+
+  const handleGetMediaTypes: Handler = async () => {
+    await loadList('mediaTypes')
+  }
+
+  const handleGetTags: Handler = async () => {
+    await loadList('tags')
+  }
+
+  const handleGetMeta: Handler = async () => {
+    await loadList('meta')
+  }
+
+  const handleGetTabs: Handler = async () => {
+    await loadList('tabs')
+  }
+
+  const handleGetPlaylists: Handler = async () => {
+    await loadList('playlists')
+  }
+
+  const handleAddMediaEvent: Handler = (event) => {
+    void handleAddMedia(typeof event === 'function' ? event as () => void : undefined)
+  }
+
+  const handleDatabaseChanged: Handler = async () => {
+    store.isServerError = false
+    store.is_app_ready = false
+    isAppReady.value = false
+    itemsStore.$reset()
+    await registrationStore.reloadRegistrationFromConfig()
+    await loadMainAppData()
+    if (!store.isServerError) {
+      eventBus.emit('updatePage')
+      await router.push('/')
+      await markAppReady()
+    }
+  }
+
+  const handleAuthenticated: Handler = () => {
+    void loadMainAppData().then(() => markAppReady())
+  }
+
   function bindMainAppEventBus(): void {
-    eventBus.on('getMediaTypes', async () => {
-      await loadList('mediaTypes')
-    })
-    eventBus.on('getTags', async () => {
-      await loadList('tags')
-    })
-    eventBus.on('getMeta', async () => {
-      await loadList('meta')
-    })
-    eventBus.on('getTabs', async () => {
-      await loadList('tabs')
-    })
-    eventBus.on('getPlaylists', async () => {
-      await loadList('playlists')
-    })
-    eventBus.on('updatePage', () => ++upd.value)
-
+    eventBus.on('getMediaTypes', handleGetMediaTypes)
+    eventBus.on('getTags', handleGetTags)
+    eventBus.on('getMeta', handleGetMeta)
+    eventBus.on('getTabs', handleGetTabs)
+    eventBus.on('getPlaylists', handleGetPlaylists)
+    eventBus.on('updatePage', handleUpdatePage)
     eventBus.on('update:watcher', handleUpdateWatcher)
-    eventBus.on('addMedia', (event) => {
-      void handleAddMedia(typeof event === 'function' ? event as () => void : undefined)
-    })
+    eventBus.on('addMedia', handleAddMediaEvent)
     eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
+    eventBus.on('app:database-changed', handleDatabaseChanged)
+    eventBus.on('app:authenticated', handleAuthenticated)
+  }
 
-    eventBus.on('app:database-changed', async () => {
-      store.isServerError = false
-      store.is_app_ready = false
-      isAppReady.value = false
-      itemsStore.$reset()
-      await registrationStore.reloadRegistrationFromConfig()
-      await loadMainAppData()
-      if (!store.isServerError) {
-        eventBus.emit('updatePage')
-        await router.push('/')
-        await markAppReady()
-      }
-    })
+  function unbindMainAppEventBus(): void {
+    eventBus.off('getMediaTypes', handleGetMediaTypes)
+    eventBus.off('getTags', handleGetTags)
+    eventBus.off('getMeta', handleGetMeta)
+    eventBus.off('getTabs', handleGetTabs)
+    eventBus.off('getPlaylists', handleGetPlaylists)
+    eventBus.off('updatePage', handleUpdatePage)
+    eventBus.off('update:watcher', handleUpdateWatcher)
+    eventBus.off('addMedia', handleAddMediaEvent)
+    eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
+    eventBus.off('app:database-changed', handleDatabaseChanged)
+    eventBus.off('app:authenticated', handleAuthenticated)
   }
 
   async function markAppReady(): Promise<void> {
@@ -414,10 +449,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
 
     bindMainAppEventBus()
 
-    eventBus.on('app:authenticated', () => {
-      void loadMainAppData().then(() => markAppReady())
-    })
-
     if (typeof BroadcastChannel !== 'undefined') {
       thumbBroadcastChannel = new BroadcastChannel(THUMB_BROADCAST_CHANNEL)
       thumbBroadcastChannel.addEventListener('message', handleThumbBroadcast)
@@ -454,7 +485,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     store.is_app_ready = false
     isAppReady.value = false
     cleanupEventListeners()
-    eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
+    unbindMainAppEventBus()
     thumbBroadcastChannel?.removeEventListener('message', handleThumbBroadcast)
     thumbBroadcastChannel?.close()
     thumbBroadcastChannel = null

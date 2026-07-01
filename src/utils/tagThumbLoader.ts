@@ -1,8 +1,10 @@
 import path from 'path-browserify'
 import { getLocalImage } from '@/services/fileService'
 import { typedApi } from '@/services/typedApi'
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 
 const DEFAULT_TYPES = ['main', 'avatar', 'alt', 'custom1', 'custom2'] as const
+const INDIVIDUAL_LOAD_CONCURRENCY = 8
 
 export async function loadTagThumbUrl(
   dbPath: string,
@@ -26,18 +28,23 @@ async function loadTagThumbUrlsIndividually(
 ): Promise<Record<number | string, Record<string, string>>> {
   const thumbs: Record<number | string, Record<string, string>> = {}
 
-  await Promise.all(ids.map(async (id) => {
+  const entries = await mapWithConcurrency(ids, INDIVIDUAL_LOAD_CONCURRENCY, async (id) => {
     const typeMap: Record<string, string> = {}
 
-    await Promise.all(types.map(async (type) => {
+    for (const type of types) {
       const url = await loadTagThumbUrl(dbPath, metaId, id, type)
       if (url) typeMap[type] = url
-    }))
+    }
 
-    if (Object.keys(typeMap).length) {
+    return Object.keys(typeMap).length ? [id, typeMap] as const : null
+  })
+
+  for (const entry of entries) {
+    if (entry) {
+      const [id, typeMap] = entry
       thumbs[id] = typeMap
     }
-  }))
+  }
 
   return thumbs
 }

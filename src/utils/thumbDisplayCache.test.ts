@@ -36,6 +36,12 @@ describe('thumbDisplayCache', () => {
     expect(getCachedThumb('blob')).toBeUndefined()
   })
 
+  it('ignores authenticated file URLs with token query params', () => {
+    clearThumbDisplayCache()
+    setCachedThumb('auth', '/api/get-file?url=test.jpg&token=secret')
+    expect(getCachedThumb('auth')).toBeUndefined()
+  })
+
   it('clears all cached entries', () => {
     clearThumbDisplayCache()
     setCachedThumb('x', 'thumb-x')

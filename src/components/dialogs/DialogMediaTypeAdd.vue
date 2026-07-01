@@ -81,12 +81,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import type { PropType } from 'vue'
 import type { VFormInstance } from '@/types/vue'
 import { typedApi } from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
-import DialogIcons from "@/components/dialogs/DialogIcons.vue";
+const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 
 const props = defineProps({
   dialog: Boolean

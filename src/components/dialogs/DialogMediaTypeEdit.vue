@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted} from 'vue'
+import {ref, computed, watch, onMounted, defineAsyncComponent} from 'vue'
 import type {PropType} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {useI18n} from 'vue-i18n'
@@ -85,7 +85,7 @@ import {useDisplay} from 'vuetify'
 import {typedApi} from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import DialogIcons from '@/components/dialogs/DialogIcons.vue'
+const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import type {MediaType} from '@/types/media'

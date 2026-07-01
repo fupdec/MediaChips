@@ -1,6 +1,8 @@
 import path from 'path-browserify'
+import { API_ROUTES } from '@shared/api/routes'
 import { normalizePastedFilePath } from '@/utils/filePathInput'
-import { getApiBaseUrl } from '@/services/apiClient'
+import { buildApiUrl, getApiBaseUrl } from '@/services/apiClient'
+import { getAuthToken } from '@/services/authSession'
 import { typedApi } from '@/services/typedApi'
 import { checkFileExistsElectron, isElectron } from '@/services/electronBridge'
 import { queueFileExistenceCheck } from '@/utils/fileExistenceBatcher'
@@ -113,17 +115,26 @@ export async function checkFileExists(filePath: string) {
   }
 }
 
-export async function getLocalImage(imgPath: string, outside?: boolean, cacheBust = false) {
-  try {
-    const res = await typedApi.getFileBlob({
-      url: imgPath,
-      outside,
-      ...(cacheBust ? { _t: Date.now() } : {}),
-    })
-    return URL.createObjectURL(res.data)
-  } catch {
-    return '/images/unavailable.png'
-  }
+export function buildLocalFileUrl(
+  imgPath: string,
+  outside?: boolean,
+  cacheBust = false,
+): string {
+  const params = new URLSearchParams()
+  params.set('url', imgPath)
+  if (outside) params.set('outside', '1')
+  if (cacheBust) params.set('_t', String(Date.now()))
+
+  const token = getAuthToken()
+  if (token) params.set('token', token)
+
+  return buildApiUrl(`${API_ROUTES.getFile}?${params.toString()}`)
+}
+
+export function getLocalImage(imgPath: string, outside?: boolean, cacheBust = false) {
+  if (!imgPath) return '/images/unavailable.png'
+
+  return buildLocalFileUrl(imgPath, outside, cacheBust)
 }
 
 export async function createThumb(

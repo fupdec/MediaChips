@@ -21,7 +21,12 @@
         <DialogHeader @close="closeDialog" :header="t('meta.fields.icon_selection')" closable/>
 
         <v-card-text>
+          <div v-if="!iconsLoaded" class="d-flex justify-center py-8">
+            <v-progress-circular indeterminate color="primary" />
+          </div>
+
           <v-data-iterator
+            v-else
             :items="filteredIcons"
             :items-per-page="itemsPerPage"
             :page="page"
@@ -105,7 +110,12 @@
 import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import icons from '@/assets/material-icons.json'
+
+interface MaterialIcon {
+  id?: string
+  name: string
+  tags?: string[]
+}
 
 // Props
 const props = defineProps({
@@ -129,13 +139,23 @@ const search = ref('')
 const page = ref(1)
 const itemsPerPage = ref(50)
 const selectedIcon = ref('')
+const icons = ref<MaterialIcon[]>([])
+const iconsLoaded = ref(false)
+
+const loadIcons = async () => {
+  if (iconsLoaded.value) return
+
+  const module = await import('@/assets/material-icons.json')
+  icons.value = module.default as MaterialIcon[]
+  iconsLoaded.value = true
+}
 
 // Computed
 const filteredIcons = computed(() => {
-  if (!search.value) return icons
+  if (!search.value) return icons.value
 
   const searchTerm = search.value.toLowerCase()
-  return icons.filter(icon =>
+  return icons.value.filter(icon =>
     icon.name.toLowerCase().includes(searchTerm) ||
     (icon.tags && icon.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
   )
@@ -159,13 +179,6 @@ const resetDialog = () => {
   selectedIcon.value = ''
 }
 
-const truncateIconName = (name: string) => {
-  if (name && name.length > 15) {
-    return name.substring(0, 12) + '...'
-  }
-  return name
-}
-
 // Lifecycle
 onMounted(() => {
   internalDialog.value = props.modelValue
@@ -177,11 +190,13 @@ watch(() => props.modelValue, (newVal) => {
 
   if (newVal) {
     resetDialog()
+    void loadIcons()
   }
 })
 
 watch(internalDialog, (newVal) => {
   emit('update:model-value', newVal)
+  if (newVal) void loadIcons()
 })
 
 // Expose methods if needed

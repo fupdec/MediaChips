@@ -95,12 +95,14 @@ app.provide('eventBus', eventBus)
 const store = useAppStore()
 const itemsStore = useItemsStore()
 
-router.beforeEach((_to, _from, next) => {
-  itemsStore.isSelect = false
-  itemsStore.selection = []
-  itemsStore.selected_last = null
-  itemsStore.type = ''
-  itemsStore.find_duplicates = false
+router.beforeEach((to, from, next) => {
+  if (to.name !== from.name) {
+    itemsStore.isSelect = false
+    itemsStore.selection = []
+    itemsStore.selected_last = null
+    itemsStore.type = ''
+    itemsStore.find_duplicates = false
+  }
   next()
 })
 

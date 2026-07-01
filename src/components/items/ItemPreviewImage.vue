@@ -1,6 +1,5 @@
 <template>
   <div
-    ref="containerRef"
     class="image-preview-wrap"
     :class="{ 'no-file': !isFileExists }"
   >
@@ -15,7 +14,8 @@
         :src="thumb || undefined"
         :aspect-ratio="previewAspectRatio"
         class="thumb"
-        contain
+        :cover="isViewMasonry"
+        :contain="!isViewMasonry"
         @load="onThumbLoad"
         @error="onThumbError"
       />
@@ -37,7 +37,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import { loadImageDisplayUrl, revokeImageObjectUrl, IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
 import {getMediaAspectRatio} from '@/utils/gridLayout'
-import {getCachedThumb, isPersistentThumbUrl, mediaThumbKey} from '@/utils/thumbDisplayCache'
+import {getCachedThumb, isPersistentThumbUrl, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
 import type {MediaItem} from '@/types/stores'
 
 const props = defineProps<{
@@ -48,15 +48,13 @@ const props = defineProps<{
 const store = useAppStore()
 const itemsStore = useItemsStore()
 
-const containerRef = ref<HTMLElement | null>(null)
 const thumb = ref<string | null>(null)
 const detectedWidth = ref(0)
 const detectedHeight = ref(0)
 const isMounted = ref(false)
 let thumbObjectUrl: string | null = null
-let thumbObserver: IntersectionObserver | null = null
 let thumbLoadStarted = false
-let thumbErrorRetried = false
+let thumbFallbackStage = 0
 
 const ITEMS = computed(() => itemsStore)
 
@@ -97,18 +95,29 @@ const showResolution = computed(() =>
 )
 
 const onThumbLoad = () => {
-  thumbErrorRetried = false
+  thumbFallbackStage = 0
+  if (thumb.value && isPersistentThumbUrl(thumb.value) && props.media?.id) {
+    setCachedThumb(mediaThumbKey('images', props.media.id), thumb.value)
+  }
   if (Number(props.media?.width) > 0 && Number(props.media?.height) > 0) return
   if (thumb.value) probeImageDimensions(thumb.value)
 }
 
 const onThumbError = () => {
-  if (thumbErrorRetried) return
-  thumbErrorRetried = true
-  thumb.value = null
-  clearThumbUrl()
+  if (thumbFallbackStage >= 2) {
+    thumb.value = IMAGE_UNAVAILABLE_URL
+    return
+  }
+
+  thumbFallbackStage += 1
   thumbLoadStarted = false
-  void loadThumb({cacheBust: true})
+
+  if (thumbFallbackStage === 1) {
+    void loadThumb({cacheBust: true})
+    return
+  }
+
+  void loadThumb({preferFull: true, cacheBust: true})
 }
 
 const clearThumbUrl = () => {
@@ -140,23 +149,17 @@ const applyCachedThumb = (): boolean => {
   return true
 }
 
-const stopThumbObserver = () => {
-  thumbObserver?.disconnect()
-  thumbObserver = null
-}
-
 const regenerateThumb = async () => {
   await typedApi.updateMediaInfo(props.media.id)
 }
 
-const loadThumb = async ({cacheBust = false} = {}) => {
+const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
   if (!props.media?.id) return
   if (thumbLoadStarted && !cacheBust) return
   thumbLoadStarted = true
-  stopThumbObserver()
   clearThumbUrl()
 
-  const src = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust})
+  const src = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust, preferFull})
 
   if (!isMounted.value) {
     revokeImageObjectUrl(src?.startsWith?.('blob:') ? src : null)
@@ -193,27 +196,12 @@ const loadThumb = async ({cacheBust = false} = {}) => {
   thumb.value = IMAGE_UNAVAILABLE_URL
 }
 
-const scheduleThumbLoad = () => {
-  stopThumbObserver()
-  thumbLoadStarted = false
-  thumbErrorRetried = false
-
-  if (!containerRef.value || !props.isFileExists) return
-
-  thumbObserver = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return
-    void loadThumb()
-  }, {
-    rootMargin: '250px 0px',
-  })
-
-  thumbObserver.observe(containerRef.value)
-}
-
 const requestThumb = () => {
   if (!props.isFileExists) return
   if (applyCachedThumb()) return
-  scheduleThumbLoad()
+  thumbLoadStarted = false
+  thumbFallbackStage = 0
+  void loadThumb()
 }
 
 const openViewer = () => {
@@ -231,7 +219,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   isMounted.value = false
-  stopThumbObserver()
   clearThumbUrl()
 })
 
@@ -255,7 +242,7 @@ watch(() => itemsStore.thumbRefreshKeys[Number(props.media?.id)], (version) => {
   thumb.value = null
   clearThumbUrl()
   thumbLoadStarted = false
-  thumbErrorRetried = false
+  thumbFallbackStage = 0
   void loadThumb({cacheBust: true})
 })
 </script>

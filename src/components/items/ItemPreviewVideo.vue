@@ -261,7 +261,6 @@ const isSettingThumb = ref(false)
 const isCreatingThumb = ref(false)
 const thumbCreateAttempted = ref(false)
 const thumbLoadStarted = ref(false)
-let thumbObserver: IntersectionObserver | null = null
 const bigPreviewMenuActive = ref(false)
 const isMounted = ref(false)
 
@@ -969,36 +968,17 @@ const handleUpdateVideoFrames: Handler = (event) => {
   }
 }
 
-const stopThumbObserver = () => {
-  thumbObserver?.disconnect()
-  thumbObserver = null
-}
-
-const scheduleThumbLoad = () => {
-  stopThumbObserver()
-  thumbLoadStarted.value = false
-
-  const el = getPreviewEl()
-  if (!el) return
-
-  thumbObserver = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return
-    if (thumbLoadStarted.value) return
-    thumbLoadStarted.value = true
-    stopThumbObserver()
-    void getImg()
-  }, {
-    rootMargin: '320px 0px',
-  })
-
-  thumbObserver.observe(el)
+const requestThumb = () => {
+  if (thumbLoadStarted.value) return
+  thumbLoadStarted.value = true
+  void getImg()
 }
 
 // init
 onMounted(async () => {
   isMounted.value = true
   await nextTick()
-  scheduleThumbLoad()
+  requestThumb()
 
   if (!isMounted.value) return
 
@@ -1011,9 +991,12 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   isMounted.value = false
-  stopThumbObserver()
   stopPlayingPreview({force: true})
   eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
+
+  if (thumb.value?.startsWith('blob:')) {
+    URL.revokeObjectURL(thumb.value)
+  }
 
   for (const timeout in timeouts) {
     clearTimeout(timeouts[timeout])

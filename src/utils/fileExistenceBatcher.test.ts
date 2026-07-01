@@ -37,4 +37,22 @@ describe('fileExistenceBatcher', () => {
     expect(checker).toHaveBeenCalledTimes(1)
     expect(checker.mock.calls[0]?.[0]).toEqual(['/a.mp4', '/b.jpg'])
   })
+
+  it('flushes overflow paths in subsequent batches', async () => {
+    const checker = vi.fn(async (paths: string[]) => (
+      Object.fromEntries(paths.map((path) => [path, true]))
+    ))
+    setFileExistenceBatchChecker(checker)
+
+    const promises = Array.from({length: 105}, (_, index) => (
+      queueFileExistenceCheck(`/file-${index}.jpg`)
+    ))
+
+    await vi.advanceTimersByTimeAsync(32)
+    await Promise.all(promises)
+
+    expect(checker).toHaveBeenCalledTimes(2)
+    expect(checker.mock.calls[0]?.[0]).toHaveLength(100)
+    expect(checker.mock.calls[1]?.[0]).toHaveLength(5)
+  })
 })

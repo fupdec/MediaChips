@@ -25,7 +25,10 @@ const isUnavailable = (src: string | null | undefined): boolean => !src || src.i
 
 export function isPersistentThumbUrl(url: string | null | undefined): boolean {
   if (isUnavailable(url)) return false
-  return !String(url).startsWith('blob:')
+  const value = String(url)
+  if (value.startsWith('blob:')) return false
+  if (value.includes('token=')) return false
+  return true
 }
 
 export function setCachedThumb(key: string, url: string | null | undefined): void {

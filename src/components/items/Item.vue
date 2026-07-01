@@ -23,7 +23,7 @@
       :hover="true"
     >
       <div class="item_preview">
-        <template v-if="wasInView">
+        <template v-if="showPreview">
         <ItemPreviewVideo
           v-if="type === 'media' && isVideoMedia"
           @update-big-preview="(val) => big_preview = val"
@@ -68,7 +68,7 @@
       </div>
 
       <div
-        v-if="isMasonryImage && wasInView"
+        v-if="isMasonryImage && showPreview"
         class="masonry-meta-overlay"
         @click.stop="editItem"
       >
@@ -185,7 +185,7 @@
       :rounded="meta?.chipLabel === true ? false : 'pill'"
       class="tag-chip-view"
     >
-      <ItemPreviewTag v-if="tagItem && wasInView"
+      <ItemPreviewTag v-if="tagItem && showPreview"
                       :tag="tagItem"
                       :meta="previewMeta"></ItemPreviewTag>
       <div @click="editItem"
@@ -267,6 +267,8 @@ const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
 const { wasInView } = useLazyInView(itemRootRef, { rootMargin: '320px 0px' })
+
+const showPreview = computed(() => wasInView.value)
 
 const isVideoMedia = computed(() => isVideoMediaType(props.mediaType ?? undefined))
 const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefined))

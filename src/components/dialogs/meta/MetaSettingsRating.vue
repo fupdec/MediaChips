@@ -88,10 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch, onMounted, nextTick} from 'vue'
+import {ref, watch, onMounted, nextTick, defineAsyncComponent} from 'vue'
 import type {PropType} from 'vue'
 import {useI18n} from 'vue-i18n'
-import DialogIcons from '@/components/dialogs/DialogIcons.vue'
+const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import ColorPicker from '@/components/elements/ColorPicker.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import SettingsSection from '@/components/ui/SettingsSection.vue'

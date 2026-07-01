@@ -19,6 +19,13 @@ interface UseItemsThumbPrefetchOptions {
   metaId?: ComputedRef<number | undefined>
 }
 
+function getItemsSignature(items: Array<MediaItem | Tag>): string {
+  if (!items.length) return '0'
+  const firstId = items[0]?.id ?? ''
+  const lastId = items[items.length - 1]?.id ?? ''
+  return `${items.length}:${firstId}:${lastId}`
+}
+
 export function useItemsThumbPrefetch({
   items,
   itemsType,
@@ -70,7 +77,7 @@ export function useItemsThumbPrefetch({
       mediaType.value?.id ?? null,
       metaId?.value ?? null,
       Number(itemsStore.view),
-      items.value.map((item) => item.id).join(','),
+      getItemsSignature(items.value),
     ],
     () => debouncedPrefetch(),
     { immediate: true },

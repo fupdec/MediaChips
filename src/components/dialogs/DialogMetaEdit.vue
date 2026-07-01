@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch, nextTick} from 'vue'
+import {ref, computed, onMounted, watch, nextTick, defineAsyncComponent} from 'vue'
 import type {PropType} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {getErrorResponseData} from '@/types/vue'
@@ -93,7 +93,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useAppStore} from '@/stores/app'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ChipMetaType from '@/components/elements/ChipMetaType.vue'
-import DialogIcons from '@/components/dialogs/DialogIcons.vue'
+const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 import MetaSettingsArray from '@/components/dialogs/meta/MetaSettingsArray.vue'
 import MetaSettingsRating from '@/components/dialogs/meta/MetaSettingsRating.vue'

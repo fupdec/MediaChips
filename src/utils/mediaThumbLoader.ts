@@ -1,9 +1,11 @@
 import path from 'path-browserify'
 import { getLocalImage } from '@/services/fileService'
 import { typedApi } from '@/services/typedApi'
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 
 const THUMB_SUBFOLDERS = ['thumbs', 'grids'] as const
 const UNAVAILABLE_MARKER = 'unavailable.png'
+const INDIVIDUAL_LOAD_CONCURRENCY = 8
 
 export async function loadMediaThumbUrl(
   mediaPath: string,
@@ -30,12 +32,17 @@ async function loadMediaThumbUrlsIndividually(
 ): Promise<Record<number | string, string>> {
   const thumbs: Record<number | string, string> = {}
 
-  await Promise.all(ids.map(async (id) => {
+  const entries = await mapWithConcurrency(ids, INDIVIDUAL_LOAD_CONCURRENCY, async (id) => {
     const url = await loadMediaThumbUrl(mediaPath, mediaTypeFolder, id)
-    if (url) {
+    return url ? [id, url] as const : null
+  })
+
+  for (const entry of entries) {
+    if (entry) {
+      const [id, url] = entry
       thumbs[id] = url
     }
-  }))
+  }
 
   return thumbs
 }

@@ -36,11 +36,31 @@ function scheduleFlush(): void {
   }, FLUSH_DELAY_MS)
 }
 
+function requeueBatchEntries(batch: Map<string, PendingEntry[]>, paths: string[]): void {
+  for (const path of paths) {
+    const entries = batch.get(path)
+    if (!entries?.length) continue
+
+    const existing = pendingPaths.get(path) || []
+    pendingPaths.set(path, [...entries, ...existing])
+  }
+}
+
+function settleBatchPaths(
+  batch: Map<string, PendingEntry[]>,
+  paths: string[],
+  settle: (entry: PendingEntry) => void,
+): void {
+  for (const path of paths) {
+    for (const entry of batch.get(path) || []) {
+      settle(entry)
+    }
+  }
+}
+
 async function flushQueue(): Promise<void> {
-  if (flushPromise) {
+  while (flushPromise) {
     await flushPromise
-    if (pendingPaths.size) return flushQueue()
-    return
   }
 
   if (!pendingPaths.size) return
@@ -48,9 +68,13 @@ async function flushQueue(): Promise<void> {
   const batch = pendingPaths
   pendingPaths = new Map()
 
-  flushPromise = (async () => {
-    const paths = [...batch.keys()].slice(0, MAX_BATCH_SIZE)
+  const allPaths = [...batch.keys()]
+  const paths = allPaths.slice(0, MAX_BATCH_SIZE)
+  const overflowPaths = allPaths.slice(MAX_BATCH_SIZE)
 
+  requeueBatchEntries(batch, overflowPaths)
+
+  flushPromise = (async () => {
     try {
       const results = await batchChecker(paths)
       for (const path of paths) {
@@ -60,17 +84,17 @@ async function flushQueue(): Promise<void> {
         }
       }
     } catch (error) {
-      for (const path of paths) {
-        for (const entry of batch.get(path) || []) {
-          entry.reject(error)
-        }
-      }
+      settleBatchPaths(batch, paths, (entry) => entry.reject(error))
     } finally {
       flushPromise = null
     }
   })()
 
   await flushPromise
+
+  if (pendingPaths.size) {
+    return flushQueue()
+  }
 }
 
 export function queueFileExistenceCheck(filePath: string): Promise<boolean> {

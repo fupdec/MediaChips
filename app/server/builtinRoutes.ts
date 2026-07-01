@@ -132,11 +132,36 @@ function registerBuiltinRoutes({
     res.json({success: true, message: 'Configuration updated'})
   })
 
-  app.post('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
-    console.log('=== FILE REQUEST ===')
-    console.log('Request body:', req.body)
+  const FILE_MIME_TYPES = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.bmp': 'image/bmp',
+    '.svg': 'image/svg+xml',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.ogg': 'video/ogg',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+  } as const
 
-    const originalFilePath = req.body.url
+  function getFileRequestPath(req: ApiRequest): string | null {
+    const bodyPath = req.body?.url
+    if (typeof bodyPath === 'string' && bodyPath) return bodyPath
+
+    const queryPath = req.query?.url
+    if (typeof queryPath === 'string' && queryPath) return queryPath
+    if (Array.isArray(queryPath) && typeof queryPath[0] === 'string' && queryPath[0]) {
+      return queryPath[0]
+    }
+
+    return null
+  }
+
+  function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
+    const originalFilePath = getFileRequestPath(req)
 
     if (!originalFilePath) {
       return res.status(400).json({error: 'No file path provided'})
@@ -153,29 +178,16 @@ function registerBuiltinRoutes({
         })
       }
 
-      console.log('Sending file:', resolvedPath)
-
       const ext = path.extname(resolvedPath).toLowerCase()
-      const mimeTypes = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.bmp': 'image/bmp',
-        '.svg': 'image/svg+xml',
-        '.mp4': 'video/mp4',
-        '.webm': 'video/webm',
-        '.ogg': 'video/ogg',
-        '.mp3': 'audio/mpeg',
-        '.wav': 'audio/wav',
-      }
-
-      const contentType = mimeTypes[ext as keyof typeof mimeTypes] || 'application/octet-stream'
+      const contentType = FILE_MIME_TYPES[ext as keyof typeof FILE_MIME_TYPES] || 'application/octet-stream'
 
       res.setHeader('Content-Type', contentType)
       res.setHeader('Cache-Control', 'public, max-age=86400')
       res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+
+      if (headOnly) {
+        return res.status(200).end()
+      }
 
       res.sendFile(resolvedPath, (err: unknown) => {
         if (!err) return
@@ -219,6 +231,18 @@ function registerBuiltinRoutes({
       console.error('Error processing file:', err)
       safeJsonError(res, req, 500, {error: 'Server error', details: err instanceof Error ? apiErrorMessage(err) : String(err)})
     }
+  }
+
+  app.get('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
+    handleGetFile(req, res)
+  })
+
+  app.head('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
+    handleGetFile(req, res, {headOnly: true})
+  })
+
+  app.post('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
+    handleGetFile(req, res)
   })
 
   app.post('/api/check-file', (req: ApiRequest, res: ApiResponse) => {

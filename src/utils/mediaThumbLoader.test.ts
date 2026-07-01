@@ -39,11 +39,11 @@ describe('loadMediaThumbUrls', () => {
 
   it('falls back to individual file requests when batch API fails', async () => {
     vi.mocked(typedApi.postMediaThumbs).mockRejectedValue(new Error('offline'))
-    vi.mocked(getLocalImage).mockResolvedValue('blob:thumb-1')
+    vi.mocked(getLocalImage).mockResolvedValue('/api/get-file?url=test.jpg')
 
     const result = await loadMediaThumbUrls('/db/media', 'videos', [1])
 
     expect(getLocalImage).toHaveBeenCalled()
-    expect(result[1]).toBe('blob:thumb-1')
+    expect(result[1]).toBe('/api/get-file?url=test.jpg')
   })
 })

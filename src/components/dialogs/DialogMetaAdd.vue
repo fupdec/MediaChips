@@ -102,13 +102,13 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch} from 'vue'
+import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {getErrorResponseData} from '@/types/vue'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import DialogIcons from '@/components/dialogs/DialogIcons.vue'
+const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import MetaTypes from '@/assets/MetaTypes'
 import {typedApi} from '@/services/typedApi'
 import type { MetaWritePayload } from '@shared/entities/meta'

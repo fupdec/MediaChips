@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef">
+  <div>
     <!-- GRID VIEW -->
     <div v-if="Number(ITEMS.view) === 1">
       <v-img
@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch, ref } from 'vue'
+import { reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CountryFlag from 'vue-country-flag-next'
 import { parseCountries, getCountryCode } from '@/utils/country'
@@ -74,7 +74,7 @@ import { useItemsStore } from '@/stores/items'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getLocalImage} from '@/services/fileService'
 import {hideHoverImage} from '@/services/hoverService'
-import { useLazyInView } from '@/composable/useLazyInView'
+import { revokeImageObjectUrl } from '@/utils/imageSource'
 import {
   getCachedThumb,
   setCachedThumb,
@@ -95,8 +95,6 @@ const props = withDefaults(defineProps<{
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const router = useRouter()
-const rootRef = ref<HTMLElement | null>(null)
-const { wasInView } = useLazyInView(rootRef, { rootMargin: '320px 0px' })
 
 const images = reactive<Record<TagImageType, string | null>>({
   main: null,
@@ -177,11 +175,24 @@ const openTagPage = () => {
 
 const getFlag = (name: string) => getCountryCode(name)
 
-watch(wasInView, (visible) => {
-  if (!visible) return
+const clearLoadedImages = () => {
+  for (const type of getImageTypes()) {
+    const src = images[type]
+    if (src?.startsWith('blob:')) {
+      revokeImageObjectUrl(src)
+    }
+    images[type] = null
+  }
+}
+
+onMounted(() => {
   applyCachedImages()
   void getImages()
-}, { immediate: true })
+})
+
+onBeforeUnmount(() => {
+  clearLoadedImages()
+})
 
 watch(
   () => props.upd,

@@ -399,6 +399,15 @@ const setDisplaySrc = (src: string | null, {owned = false}: { owned?: boolean } 
   if (src) loadFailed.value = false
 }
 
+const adoptLoadedSrc = (src: string | null | undefined, token: number): string | null => {
+  if (!src) return null
+  if (token !== loadToken) {
+    if (src.startsWith('blob:')) revokeImageObjectUrl(src)
+    return null
+  }
+  return src
+}
+
 const loadCurrentImage = async () => {
   const token = ++loadToken
   const image = viewer.currentImage
@@ -424,8 +433,11 @@ const loadCurrentImage = async () => {
 
   if (!previewSrc) {
     try {
-      const thumbSrc = await loadThumbDisplayUrl(image, appStore.mediaPath)
-      if (token === loadToken && thumbSrc) {
+      const thumbSrc = adoptLoadedSrc(
+        await loadThumbDisplayUrl(image, appStore.mediaPath),
+        token,
+      )
+      if (thumbSrc) {
         setDisplaySrc(thumbSrc, {owned: true})
         viewer.setLoading(false)
       }
@@ -435,8 +447,8 @@ const loadCurrentImage = async () => {
   }
 
   try {
-    const fullSrc = await loadFullImageDisplayUrl(image)
-    if (token === loadToken && fullSrc) {
+    const fullSrc = adoptLoadedSrc(await loadFullImageDisplayUrl(image), token)
+    if (fullSrc) {
       setDisplaySrc(fullSrc, {owned: true})
     }
   } catch (error) {
@@ -572,7 +584,7 @@ const onWheel = (event: WheelEvent) => {
     return
   }
 
-  const sensitivity = pinchZoom ? 0.0025 : lineWheel ? 0.14 : 0.002
+  const sensitivity = pinchZoom ? 0.006 : lineWheel ? 0.14 : 0.004
   const nextScale = clampScale(viewer.scale * Math.exp(-event.deltaY * sensitivity))
   applyZoomAtPointer(event, nextScale)
 }
