@@ -4,6 +4,40 @@ html,
 body {
   overflow: hidden;
   height: 100%;
+  background-color: rgb(var(--v-theme-background));
+}
+
+.app-startup-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #333;
+  pointer-events: none;
+}
+
+.app-startup-splash__logo {
+  width: min(42vw, 220px);
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  animation: app-startup-pulse 2s infinite;
+}
+
+@keyframes app-startup-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .player-window-app {

@@ -268,25 +268,52 @@ ipcMain.handle('toggleDevTools', () => {
   }
 })
 
-// Show the splash window immediately, then reveal the main window once it loads.
-const bindMainWindowLoadedHandler = (mainWindow: BrowserWindowInstance) => {
-  const revealMainWindow = () => {
-    if (mainWindow.isDestroyed()) return
+// Keep splash visible until the renderer reports the UI shell is painted.
+const MAIN_APP_READY_TIMEOUT_MS = 60_000
 
-    console.log('App loaded')
-    if (loading && !loading.isDestroyed()) {
-      loading.hide()
-      loading = null
-    }
-    mainWindow.show()
+let isMainWindowRevealed = false
+let mainRevealFallbackTimer: ReturnType<typeof setTimeout> | null = null
+
+function hideLoadingWindow(): void {
+  if (loading && !loading.isDestroyed()) {
+    loading.hide()
+    loading.close()
+    loading = null
+  }
+}
+
+function revealMainWindow(): void {
+  if (!win || win.isDestroyed() || isMainWindowRevealed) return
+
+  isMainWindowRevealed = true
+
+  if (mainRevealFallbackTimer) {
+    clearTimeout(mainRevealFallbackTimer)
+    mainRevealFallbackTimer = null
   }
 
-  if (mainWindow.webContents.isLoading()) {
-    mainWindow.webContents.once('did-finish-load', revealMainWindow)
+  console.log('App ready')
+  hideLoadingWindow()
+  win.show()
+}
+
+const bindMainWindowLoadedHandler = (mainWindow: BrowserWindowInstance) => {
+  if (mainRevealFallbackTimer) {
+    clearTimeout(mainRevealFallbackTimer)
+  }
+
+  mainRevealFallbackTimer = setTimeout(() => {
+    console.warn('main-app-ready timeout, revealing main window')
+    revealMainWindow()
+  }, MAIN_APP_READY_TIMEOUT_MS)
+
+  if (!mainWindow.webContents.isLoading()) {
     return
   }
 
-  revealMainWindow()
+  mainWindow.webContents.once('did-finish-load', () => {
+    // Window reveal is deferred until renderer sends main-app-ready.
+  })
 }
 
 const createLoadingWindow = () => {
@@ -757,6 +784,11 @@ function destroyPlayerWindow() {
 
 ipcMain.handle('destroyPlayer', () => {
   destroyPlayerWindow()
+})
+
+ipcMain.on('main-app-ready', (event: IpcMainEvent) => {
+  if (!win || win.isDestroyed() || event.sender !== win.webContents) return
+  revealMainWindow()
 })
 
 ipcMain.on('player-ready', (event: IpcMainEvent) => {

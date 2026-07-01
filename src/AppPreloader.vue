@@ -8,7 +8,7 @@
       'sfw-mode': settingsStore.sfwMode === '1',
     }"
   >
-    <template v-if="!isPlayerWindow">
+    <template v-if="isShellReady && !isPlayerWindow">
       <SystemBar
         v-if="isWin && isElectron && !isPlayerWindow"
         :disabled="store.isLocked"
@@ -22,7 +22,7 @@
     </template>
 
     <Player/>
-    <ImageViewer v-if="!isPlayerWindow"/>
+    <ImageViewer v-if="isShellReady && !isPlayerWindow"/>
 
     <v-main
       v-if="isAppReady && !isPlayerWindow"
@@ -48,14 +48,26 @@
       <div id="main-drop-target" class="main-drop-target"></div>
     </v-main>
 
-    <HoverImage v-if="!isPlayerWindow"/>
+    <HoverImage v-if="isShellReady && !isPlayerWindow"/>
 
-    <template v-if="!isPlayerWindow">
+    <template v-if="isShellReady && !isPlayerWindow">
       <NotificationsPool/>
       <AutoUpdater/>
     </template>
 
-    <Dialogs v-if="!isPlayerWindow"/>
+    <Dialogs v-if="isShellReady && !isPlayerWindow"/>
+
+    <div
+      v-if="!isShellReady && !isPlayerWindow"
+      class="app-startup-splash"
+      aria-hidden="true"
+    >
+      <img
+        src="/icons/logo.png"
+        alt=""
+        class="app-startup-splash__logo"
+      >
+    </div>
 
     <v-overlay :model-value="isPlayerWindow && !isAppReady"
       :opacity="1">
@@ -64,7 +76,7 @@
         width="2"/>
     </v-overlay>
 
-    <ContextMenu v-if="!isPlayerWindow" v-show="contextMenu.show"></ContextMenu>
+    <ContextMenu v-if="isShellReady && !isPlayerWindow" v-show="contextMenu.show"></ContextMenu>
   </v-app>
 </template>
 
@@ -118,7 +130,7 @@ const mainLayoutClasses = computed(() => ({
 
 const isSettingsPage = computed(() => route.path === '/settings')
 
-const {isAppReady} = useAppBootstrap({isPlayerWindow, appZoom})
+const {isAppReady, isShellReady} = useAppBootstrap({isPlayerWindow, appZoom})
 </script>
 
 <style lang="scss">

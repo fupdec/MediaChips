@@ -139,7 +139,6 @@ import {ref, computed, onMounted, watch, nextTick, useAttrs} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import cloneDeep from 'lodash/cloneDeep'
 import orderBy from 'lodash/orderBy'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from "@/utils/eventBus"
@@ -220,7 +219,7 @@ interface TagFilterItem {
 }
 
 const filterTags = (title: string, queryText: string, tagObj: TagFilterItem) => {
-  const tag = cloneDeep(tagObj.raw);
+  const tag = {...tagObj.raw}
   const query = queryText.toLowerCase();
 
   const is_default = settingsStore.typingFiltersDefault == "1";

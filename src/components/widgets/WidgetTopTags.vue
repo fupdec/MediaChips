@@ -81,9 +81,9 @@ import {useAppStore} from "@/stores/app"
 import {useSettingsStore} from "@/stores/settings"
 import {useI18n} from 'vue-i18n'
 import groupBy from 'lodash/groupBy'
-import cloneDeep from 'lodash/cloneDeep'
 import path from "path-browserify"
-import {getLocalImage} from '@/services/fileService'
+import {buildLocalFileUrl} from '@/services/fileService'
+import {getCachedThumb, isPersistentThumbUrl, tagThumbKey} from '@/utils/thumbDisplayCache'
 import {getMetaName} from '@/utils/metaI18n'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {
@@ -116,11 +116,22 @@ const sortMode = computed((): MetaSortMode =>
 )
 const subtitleKey = computed(() => getTopTagsSubtitleKey(sortMode.value))
 
-async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
+function resolveTagImageUrl(metaId: string, tagId: number): string {
+  const cached = getCachedThumb(tagThumbKey(metaId, tagId, 'main'))
+  if (isPersistentThumbUrl(cached)) return cached!
+
+  return buildLocalFileUrl(path.join(
+    store.dbPath,
+    'meta',
+    metaId,
+    `${tagId}_main.jpg`,
+  ))
+}
+
+function getTagsTop(activeGroup: TopTagsCategory | null = null) {
   if (!metas.value.length) return
 
   const grouped = groupBy(tags.value, "metaId")
-  const reservedCopy = cloneDeep(grouped)
   const groups: TopTagsCategory[] = []
   const visibleMetas = sortMetaItems(
     metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
@@ -140,21 +151,16 @@ async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
     const sorted = sortTagItems(grouped[metaId] as TopTagItem[], sortMode.value).slice(0, limit) as TopTagItem[]
     if (!sorted.length) continue
 
-    for (const tag of sorted) {
-      const imgPath = path.join(
-        store.dbPath,
-        "meta",
-        `${metaId}`,
-        `${tag.id}_main.jpg`,
-      )
-      tag.image = await getLocalImage(imgPath)
-    }
+    const tagsWithImages = sorted.map((tag) => ({
+      ...tag,
+      image: resolveTagImageUrl(metaId, tag.id),
+    }))
 
-    const total = reservedCopy[metaId].length
+    const total = grouped[metaId].length
 
     groups.push({
       meta,
-      tags: sorted,
+      tags: tagsWithImages,
       limit,
       total,
       isNotAllLoaded: total > limit,

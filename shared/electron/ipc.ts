@@ -8,6 +8,7 @@ export const IPC_SEND_CHANNELS = [
   'stop-playing-video',
   'setFullScreen',
   'player-ready',
+  'main-app-ready',
   'setNotification',
   'maximize',
   'unmaximize',
@@ -245,6 +246,7 @@ export interface IpcSendPayloads {
   'stop-playing-video': void
   setFullScreen: boolean
   'player-ready': void
+  'main-app-ready': void
   setNotification: unknown
   maximize: unknown
   unmaximize: unknown

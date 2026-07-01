@@ -1,7 +1,6 @@
 import {ref, computed} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
-import cloneDeep from 'lodash/cloneDeep'
 import isEmpty from 'lodash/isEmpty'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -71,7 +70,7 @@ export function useItemsPageInit({
 
   const fetchMeta = async (): Promise<Meta> => {
     const res = await typedApi.getMetaById(Number(props.metaId))
-    return cloneDeep(res.data)
+    return {...res.data}
   }
 
   const fetchMediaType = async (): Promise<MediaType> => {

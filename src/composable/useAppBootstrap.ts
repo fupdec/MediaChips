@@ -62,6 +62,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   const {handleAddMedia, cleanupEventListeners} = useMediaAdding()
 
   const isAppReady = ref(false)
+  const isShellReady = ref(false)
+  let shellRevealSent = false
   const upd = ref(0)
 
   function cleanupStalePlayerRoute(): void {
@@ -295,6 +297,24 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     window.addEventListener('resize', saveWindowSize)
   }
 
+  function notifyMainWindowReady(): void {
+    if (!store.isElectron || shellRevealSent || isPlayerWindow.value) return
+    shellRevealSent = true
+    window.electronAPI?.send?.('main-app-ready')
+  }
+
+  async function revealAppShell(): Promise<void> {
+    if (!isShellReady.value) {
+      await nextTick()
+      isShellReady.value = true
+      await nextTick()
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await nextTick()
+    }
+
+    notifyMainWindowReady()
+  }
+
   function notifyPlayerReady(): void {
     if (store.isElectron && window.electronAPI?.send) {
       window.electronAPI.send('player-ready')
@@ -391,6 +411,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     store.is_app_ready = true
     runAutoRegistration()
     openOnboardingIfNeeded(isPlayerWindow.value)
+    await revealAppShell()
   }
 
   async function bootstrapPlayerWindow(): Promise<void> {
@@ -415,6 +436,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   async function bootstrapMainApp(): Promise<void> {
     store.is_app_ready = false
     isAppReady.value = false
+    isShellReady.value = false
+    shellRevealSent = false
 
     await initSettings()
 
@@ -457,6 +480,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await nextTick()
     if (authenticated) {
       await markAppReady()
+    } else {
+      await revealAppShell()
     }
 
     if (store.isElectron) {
@@ -484,6 +509,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   onBeforeUnmount(() => {
     store.is_app_ready = false
     isAppReady.value = false
+    isShellReady.value = false
+    shellRevealSent = false
     cleanupEventListeners()
     unbindMainAppEventBus()
     thumbBroadcastChannel?.removeEventListener('message', handleThumbBroadcast)
@@ -506,5 +533,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
 
   return {
     isAppReady,
+    isShellReady,
   }
 }

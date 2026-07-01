@@ -330,8 +330,11 @@ import {parseCountries, serializeCountries} from '@/utils/country'
 import {typedApi} from '@/services/typedApi'
 import {createImage} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
-import cloneDeep from 'lodash/cloneDeep'
-import isEqual from 'lodash/isEqual'
+import {
+  cloneMetaFieldValue,
+  cloneMetaValues,
+  metaArrayValuesEqual,
+} from '@/utils/metaValuesClone'
 import path from 'path-browserify'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -644,15 +647,13 @@ const equalOld = (metaId: string | number, metaType?: string) => {
   const oldVal = old.value[metaId]
 
   if (metaType === 'array') {
-    const valCopy = cloneDeep(val) as unknown[] || []
-    const oldCopy = cloneDeep(oldVal) as unknown[] || []
-    return isEqual(valCopy.sort(), oldCopy.sort())
+    return metaArrayValuesEqual(val, oldVal)
   }
   return val === oldVal
 }
 
 const restore = (key: string | number) => {
-  vals.value[key] = cloneDeep(old.value[key])
+  vals.value[key] = cloneMetaFieldValue(old.value[key])
 }
 
 const onMediaPathUpdate = (updatedMedia: MediaItem) => {
@@ -727,7 +728,7 @@ const getMetaValues = async () => {
       setVal(parsedTags[metaId], resolveItemKey(metaId))
     }
 
-    old.value = cloneDeep(vals.value)
+    old.value = cloneMetaValues(vals.value)
 
     if (isTag.value) {
       scraperStore.currentValues = vals.value
@@ -802,7 +803,7 @@ const save = async () => {
     }
   }
 
-  const { country, ...rest } = cloneDeep(vals.value) as EntityUpdateFormValues
+  const {country, ...rest} = cloneMetaValues(vals.value) as EntityUpdateFormValues
   const updateData: EntityUpdatePayload = rest
 
   if (isTag.value) {
@@ -887,7 +888,7 @@ const transferScrapedInfo = async () => {
           const tag = tags.find((i) => i.name === field.valueScraper)
 
           if (tag) {
-            const arr = cloneDeep(vals.value[metaId] || []) as number[]
+            const arr = [...(vals.value[metaId] as number[] || [])]
 
             if (!arr.includes(tag.id)) {
               arr.push(tag.id)

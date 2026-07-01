@@ -173,9 +173,10 @@ import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useRegistrationStore} from '@/stores/registration'
 import {typedApi} from '@/services/typedApi'
-import {getLocalImage} from '@/services/fileService'
+import {buildLocalFileUrl} from '@/services/fileService'
 import {checkColorForDarkText} from '@/services/formatUtils'
-import cloneDeep from 'lodash/cloneDeep'
+import {cloneFilters} from '@/utils/filterClone'
+import {getCachedThumb, isPersistentThumbUrl, tagThumbKey} from '@/utils/thumbDisplayCache'
 import uniq from 'lodash/uniq'
 import groupBy from 'lodash/groupBy'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
@@ -337,17 +338,23 @@ const getTag = async () => {
   }
 }
 
-const getImages = async () => {
-  const imageTypes = ['main', 'header', 'avatar'] as const
-  for (const i of imageTypes) {
-    const imgPathLocal = path.join(
-      appStore.dbPath,
-      "meta",
-      `${meta.value.id}`,
-      `${tag.value.id}_${i}.jpg`
-    )
+const resolveTagImage = (type: 'main' | 'header' | 'avatar'): string => {
+  const metaId = meta.value.id
+  const tagId = tag.value.id
+  const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
+  if (isPersistentThumbUrl(cached)) return cached!
 
-    images.value[i] = await getLocalImage(imgPathLocal)
+  return buildLocalFileUrl(path.join(
+    appStore.dbPath,
+    'meta',
+    String(metaId),
+    `${tagId}_${type}.jpg`,
+  ))
+}
+
+const getImages = () => {
+  for (const i of ['main', 'header', 'avatar'] as const) {
+    images.value[i] = resolveTagImage(i)
   }
   upd.value = Date.now()
 }
@@ -441,7 +448,7 @@ const getCompletionStatus = async () => {
   for (const i in pi) setValByKey(pi[i], i)
 
   const completed: number[] = []
-  for (const m of cloneDeep(pinned)) {
+  for (const m of pinned) {
     const val = vals[m.pinnedMetaId as number]
     if (val === undefined || val === null) completed.push(0)
     else if (typeof val == "boolean") completed.push(1)
@@ -480,7 +487,7 @@ const editMetaTag = async () => {
 const getTagsInMedia = async () => {
   let query = {
     mediaTypeId: ENV.value.media_type_id ?? undefined,
-    filters: cloneDeep(ITEMS.value.filters.filter(i => i.lock)),
+    filters: cloneFilters(ITEMS.value.filters.filter(i => i.lock)),
     sortBy: 'createdAt',
     direction: 'asc',
     find_duplicates: false,

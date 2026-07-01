@@ -1,7 +1,6 @@
 import {computed, watch, onMounted, onBeforeUnmount, nextTick, ref} from 'vue'
 import type { Handler } from 'mitt'
 import {useRouter} from 'vue-router'
-import cloneDeep from 'lodash/cloneDeep'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
@@ -170,7 +169,7 @@ export function useItemsPageEvents({
 
     void typedApi.getMetaById(Number(props.metaId))
       .then((res) => {
-        meta.value = cloneDeep(res.data)
+        meta.value = {...res.data}
         itemsStore.updateState({key: 'meta', value: res.data})
       })
       .catch((error) => {
