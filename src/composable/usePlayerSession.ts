@@ -1,7 +1,7 @@
 import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type InjectionKey} from 'vue'
 import type { Handler } from 'mitt'
 import {useI18n} from 'vue-i18n'
-import debounce from 'lodash/debounce'
+import { debounce } from '@/utils/debounce'
 import path from 'path-browserify'
 import { buildApiUrl } from '@/services/apiClient'
 import { typedApi } from '@/services/typedApi'

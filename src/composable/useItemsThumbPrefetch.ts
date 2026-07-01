@@ -1,5 +1,5 @@
 import { watch, type ComputedRef, type Ref } from 'vue'
-import debounce from 'lodash/debounce'
+import { debounce } from '@/utils/debounce'
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import { getMediaDeleteAssetFolder } from '@/utils/mediaType'

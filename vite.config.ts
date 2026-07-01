@@ -22,7 +22,7 @@ function invalidUrlMiddleware(): Plugin {
   }
 }
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
   const plugins: Plugin[] = [
     vue(),
     vuetify({ autoImport: true }),
@@ -72,7 +72,7 @@ export default defineConfig(async () => {
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: true,
+    sourcemap: mode !== 'production' || process.env.ANALYZE === '1',
     chunkSizeWarningLimit: 2100,
 
     rollupOptions: {

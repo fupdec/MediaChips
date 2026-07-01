@@ -28,7 +28,7 @@
 
       <div
         v-if="itemsStore.type && !itemsStore.isSelect"
-        :key="route.fullPath  + 'appbar'"
+        :key="itemsStore.type"
         class="d-flex align-center"
         style="height: 40px;"
       >
@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineAsyncComponent, onMounted, ref} from 'vue'
+import {computed, defineAsyncComponent, onMounted, onUnmounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
@@ -208,15 +208,25 @@ function register() {
   }
 }
 
-/* Electron events */
+const handleEnterFullScreen = () => {
+  fullscreen.value = true
+}
+
+const handleLeaveFullScreen = () => {
+  fullscreen.value = false
+}
+
 onMounted(() => {
   if (window.electronAPI?.on) {
-    window.electronAPI.on('enter-full-screen', () => {
-      fullscreen.value = true
-    })
-    window.electronAPI.on('leave-full-screen', () => {
-      fullscreen.value = false
-    })
+    window.electronAPI.on('enter-full-screen', handleEnterFullScreen)
+    window.electronAPI.on('leave-full-screen', handleLeaveFullScreen)
+  }
+})
+
+onUnmounted(() => {
+  if (window.electronAPI?.removeListener) {
+    window.electronAPI.removeListener('enter-full-screen', handleEnterFullScreen)
+    window.electronAPI.removeListener('leave-full-screen', handleLeaveFullScreen)
   }
 })
 </script>

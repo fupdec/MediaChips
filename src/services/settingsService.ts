@@ -1,4 +1,4 @@
-import debounce from 'lodash/debounce'
+import { debounce } from '@/utils/debounce'
 import { useSettingsStore } from '@/stores/settings'
 import { typedApi } from '@/services/typedApi'
 import type { SettingsState } from '@/types/settings'

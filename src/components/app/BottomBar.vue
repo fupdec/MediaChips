@@ -5,7 +5,8 @@ import {useSettingsStore} from '@/stores/settings'
 import {useWatcherStore} from '@/stores/watcher'
 import {useI18n} from 'vue-i18n'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import type { WatcherFileChangeGroup, WatcherFilesEntry } from '@/types/watcher'
+import {getWatcherBadgeCounts} from '@/utils/watcherBadgeUtils'
+import type { WatcherFilesEntry } from '@/types/watcher'
 
 const settings = useSettingsStore()
 const app = useAppStore()
@@ -13,6 +14,13 @@ const watcherStore = useWatcherStore()
 const {t} = useI18n()
 
 const watcherFiles = computed(() => watcherStore.files)
+const watcherBadgeCountsByFolderId = computed(() => {
+  const counts: Record<number, ReturnType<typeof getWatcherBadgeCounts>> = {}
+  for (const entry of watcherFiles.value) {
+    counts[entry.folder.id] = getWatcherBadgeCounts(entry.files)
+  }
+  return counts
+})
 const folderHovered = ref(false)
 const hiddenMetaMenu = ref(false)
 
@@ -25,12 +33,6 @@ const hiddenMeta = computed(() => app.meta.filter(i => i.type === 'array' && i.h
 function openDialogFolder(folder: WatcherFilesEntry) {
   watcherStore.folder = folder
   watcherStore.dialogFolder = true
-}
-
-const getBadgeVal = (files: WatcherFileChangeGroup[], field: 'new' | 'lost') => {
-  let v = 0
-  for (const group of files) v += group[field]?.length ?? 0
-  return v
 }
 </script>
 
@@ -215,7 +217,7 @@ const getBadgeVal = (files: WatcherFileChangeGroup[], field: 'new' | 'lost') => 
             <!-- badges -->
             <v-badge
               v-if="!watcherStore.busy"
-              :content="getBadgeVal(i.files, 'new')"
+              :content="watcherBadgeCountsByFolderId[i.folder.id]?.new ?? 0"
               :dot="!folderHovered"
               :offset-x="!folderHovered ? 48 : 55"
               :offset-y="!folderHovered ? -16 : -20"
@@ -223,7 +225,7 @@ const getBadgeVal = (files: WatcherFileChangeGroup[], field: 'new' | 'lost') => 
             />
             <v-badge
               v-if="!watcherStore.busy"
-              :content="getBadgeVal(i.files, 'lost')"
+              :content="watcherBadgeCountsByFolderId[i.folder.id]?.lost ?? 0"
               :dot="!folderHovered"
               :offset-x="!folderHovered ? 48 : 55"
               :offset-y="!folderHovered ? 0 : 2"

@@ -27,6 +27,7 @@ import {
   setAppWindowFocused,
   syncAppWindowFocusedFromDocument,
 } from '@/utils/windowFocus'
+import {debounce} from '@/utils/debounce'
 
 interface UseAppBootstrapOptions {
   isPlayerWindow: Ref<boolean>
@@ -34,14 +35,6 @@ interface UseAppBootstrapOptions {
 }
 
 type AppListField = 'mediaTypes' | 'tags' | 'meta' | 'tabs' | 'playlists'
-
-function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  return ((...args: Parameters<T>) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), ms)
-  }) as T
-}
 
 export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOptions) {
   const route = useRoute()
@@ -56,11 +49,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   const eventBus = useEventBus()
   const {init: initAppUpdater} = useAppUpdater()
   const {runSystemMenuAction} = useSystemMenuActions({
-    onLock: () => {
-      clearAuthToken()
-      void typedApi.logout().catch(() => {})
-      store.isLocked = true
-    },
+    onLock: lockApp,
   })
   const {applyTheme} = useAppTheme()
 
@@ -246,9 +235,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleLockApp = (): void => {
-    clearAuthToken()
-    void typedApi.logout().catch(() => {})
-    store.isLocked = true
+    lockApp()
   }
 
   const handleThumbBroadcast = (event: MessageEvent<{ id?: number }>): void => {
@@ -274,7 +261,17 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   let unsubscribeZoomChanged: (() => void) | void | undefined
   let unsubscribeWindowBlur: (() => void) | void | undefined
   let unsubscribeWindowFocus: (() => void) | void | undefined
+  let unsubscribeGetItemsFromDb: (() => void) | void | undefined
+  let unsubscribePlayerUpdateVideoFrames: (() => void) | void | undefined
+  let unsubscribeRemoveEntitiesFromState: (() => void) | void | undefined
   let thumbBroadcastChannel: BroadcastChannel | null = null
+  let playerElectronListenersRegistered = false
+
+  function lockApp(): void {
+    clearAuthToken()
+    void typedApi.logout().catch(() => {})
+    store.isLocked = true
+  }
 
   function setupWindowFocusTracking(): void {
     syncAppWindowFocusedFromDocument()
@@ -299,20 +296,43 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     unsubscribeWindowFocus = undefined
   }
 
-  function setupPlayerElectronListeners(): void {
-    if (!store.isElectron || !window.electronAPI?.on) return
+  const handleElectronGetItemsFromDb = (_event: unknown, data: unknown): void => {
+    eventBus.emit('getItemsFromDb', data as GetItemsFromDbEvent)
+  }
 
-    window.electronAPI.on('getItemsFromDb', (_event, data) => {
-      eventBus.emit('getItemsFromDb', data as GetItemsFromDbEvent)
-    })
-    window.electronAPI.on('updateVideoFrames', (_event, id) => {
-      itemsStore.refreshThumb(id as number, {broadcast: false})
-    })
-    window.electronAPI.on('removeEntitiesFromState', (_event, data) => {
-      eventBus.emit('removeEntitiesFromState', data as RemoveEntitiesEvent)
-    })
+  const handleElectronUpdateVideoFrames = (_event: unknown, id: unknown): void => {
+    itemsStore.refreshThumb(id as number, {broadcast: false})
+  }
+
+  const handleElectronRemoveEntitiesFromState = (_event: unknown, data: unknown): void => {
+    eventBus.emit('removeEntitiesFromState', data as RemoveEntitiesEvent)
+  }
+
+  function setupPlayerElectronListeners(): void {
+    if (!store.isElectron || !window.electronAPI?.on || playerElectronListenersRegistered) return
+
+    playerElectronListenersRegistered = true
+    unsubscribeGetItemsFromDb = window.electronAPI.on('getItemsFromDb', handleElectronGetItemsFromDb)
+    unsubscribePlayerUpdateVideoFrames = window.electronAPI.on(
+      'updateVideoFrames',
+      handleElectronUpdateVideoFrames,
+    )
+    unsubscribeRemoveEntitiesFromState = window.electronAPI.on(
+      'removeEntitiesFromState',
+      handleElectronRemoveEntitiesFromState,
+    )
 
     window.addEventListener('resize', saveWindowSize)
+  }
+
+  function teardownPlayerElectronListeners(): void {
+    unsubscribeGetItemsFromDb?.()
+    unsubscribePlayerUpdateVideoFrames?.()
+    unsubscribeRemoveEntitiesFromState?.()
+    unsubscribeGetItemsFromDb = undefined
+    unsubscribePlayerUpdateVideoFrames = undefined
+    unsubscribeRemoveEntitiesFromState = undefined
+    playerElectronListenersRegistered = false
   }
 
   function notifyMainWindowReady(): void {
@@ -536,6 +556,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     thumbBroadcastChannel?.close()
     thumbBroadcastChannel = null
     window.removeEventListener('resize', saveWindowSize)
+    teardownPlayerElectronListeners()
     unsubscribeAboutApp?.()
     unsubscribeShowDocumentation?.()
     unsubscribeShowFeedback?.()

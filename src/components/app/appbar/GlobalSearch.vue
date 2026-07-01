@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch} from 'vue'
+import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, triggerRef} from 'vue'
 import {useRouter} from 'vue-router'
 import {useHotkey} from 'vuetify'
 import {useI18n} from 'vue-i18n'
@@ -12,6 +12,7 @@ import {usePlayerStore} from '@/stores/player'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getDefaultMediaTypeId, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
 import {highlightChars} from '@/services/formatUtils'
+import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {openPath} from '@/services/shellService'
 import type { MediaItem, Meta, Tag } from '@/types/stores'
@@ -28,18 +29,6 @@ function groupByKey<T>(items: T[], key: keyof T): Record<string, T[]> {
     ;(grouped[groupKey] ??= []).push(item)
   }
   return grouped
-}
-
-function debounce<T extends (...args: never[]) => void>(fn: T, ms: number) {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const debounced = (...args: Parameters<T>) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), ms)
-  }
-  debounced.cancel = () => {
-    clearTimeout(timer)
-  }
-  return debounced
 }
 
 interface SearchGroup {
@@ -87,6 +76,22 @@ const RESULT_LIMIT = 50
 const GROUP_PREVIEW_LIMIT = 20
 const ROW_HEIGHT = 30
 const RESULTS_MAX_HEIGHT = 480
+
+const highlightCache = new Map<string, string>()
+let cachedHighlightQuery = ''
+
+function clearHighlightCache(): void {
+  highlightCache.clear()
+  cachedHighlightQuery = ''
+}
+
+watch(query, (value) => {
+  const trimmed = value.trim()
+  if (trimmed !== cachedHighlightQuery) {
+    clearHighlightCache()
+    cachedHighlightQuery = trimmed
+  }
+})
 
 const totalResults = computed(() =>
   results.value.reduce((sum, group) => sum + group.data.length, 0),
@@ -169,12 +174,14 @@ async function focusSearchField() {
 }
 
 function resetExpandedGroups() {
-  expandedGroupIds.value = new Set()
+  expandedGroupIds.value.clear()
+  triggerRef(expandedGroupIds)
 }
 
 function expandGroup(groupId: string) {
   if (expandedGroupIds.value.has(groupId)) return
-  expandedGroupIds.value = new Set([...expandedGroupIds.value, groupId])
+  expandedGroupIds.value.add(groupId)
+  triggerRef(expandedGroupIds)
 }
 
 function resetState() {
@@ -183,6 +190,7 @@ function resetState() {
   query.value = ''
   results.value = []
   resetExpandedGroups()
+  clearHighlightCache()
   loading.value = false
   selectedIndex.value = -1
 }
@@ -487,7 +495,15 @@ function shouldShowMatchedSynonyms(item: MediaItem | GlobalSearchTag, isMedia: b
 }
 
 function getNameHighlighted(text: string) {
-  return highlightChars(text, query.value.trim(), true)
+  if (!text) return ''
+
+  let cached = highlightCache.get(text)
+  if (cached === undefined) {
+    cached = highlightChars(text, cachedHighlightQuery, true)
+    highlightCache.set(text, cached)
+  }
+
+  return cached
 }
 </script>
 

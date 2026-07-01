@@ -1,6 +1,6 @@
 import {nextTick} from 'vue'
 import findIndex from 'lodash/findIndex'
-import debounce from 'lodash/debounce'
+import { debounce } from '@/utils/debounce'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {usePlayerStore} from '@/stores/player'

@@ -127,16 +127,16 @@
               <template #prepend>
                 <v-badge
                   v-if="!watcherStore.busy"
-                  :content="getBadgeVal(f.files, 'new')"
-                  :model-value="Boolean(getBadgeVal(f.files, 'new'))"
+                  :content="watcherBadgeCountsByFolderId[f.folder.id]?.new ?? 0"
+                  :model-value="Boolean(watcherBadgeCountsByFolderId[f.folder.id]?.new)"
                   :dot="!folderHovered"
                   color="success"
                   location="top right"
                 >
                   <v-badge
                     v-if="!watcherStore.busy"
-                    :content="getBadgeVal(f.files, 'lost')"
-                    :model-value="Boolean(getBadgeVal(f.files, 'lost'))"
+                    :content="watcherBadgeCountsByFolderId[f.folder.id]?.lost ?? 0"
+                    :model-value="Boolean(watcherBadgeCountsByFolderId[f.folder.id]?.lost)"
                     :dot="!folderHovered"
                     color="error"
                     location="bottom right"
@@ -171,8 +171,9 @@ import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from "@/utils/eventBus"
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
+import {getWatcherBadgeCounts} from '@/utils/watcherBadgeUtils'
 import type { Meta } from '@/types/stores'
-import type { WatcherFileChangeGroup, WatcherFilesEntry } from '@/types/watcher'
+import type { WatcherFilesEntry } from '@/types/watcher'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
@@ -185,6 +186,14 @@ const meta_arr = ref<MetaNavRow[]>([])
 const drag = ref(false)
 
 const watcherFiles = computed(() => watcherStore.files)
+
+const watcherBadgeCountsByFolderId = computed(() => {
+  const counts: Record<number, ReturnType<typeof getWatcherBadgeCounts>> = {}
+  for (const entry of watcherFiles.value) {
+    counts[entry.folder.id] = getWatcherBadgeCounts(entry.files)
+  }
+  return counts
+})
 
 const dragOptions = {
   animation: 200,
@@ -208,12 +217,9 @@ const mediaTypes = computed(() =>
 )
 
 /* meta disordered comes from metaStore (replace with your store shape) */
-const metaDisordered = computed(() => {
-  // expecting metaStore.meta array
-  const items = store.meta.filter(i => i.type === 'array')
-  // keep original hidden property unchanged
-  return items.map(i => ({...i}))
-})
+const metaDisordered = computed(() =>
+  store.meta.filter(i => i.type === 'array'),
+)
 
 /* helpers */
 function reorderMeta(items: MetaNavItem[]): MetaNavRow[] {
@@ -233,12 +239,29 @@ onMounted(() => {
 })
 
 watch(metaDisordered, (v) => {
-  meta_arr.value = reorderMeta(v)
+  if (drag.value) return
+
+  const currentItems = meta_arr.value.filter(isMetaNavItem)
+  if (metaNavItemsEqual(currentItems, v as MetaNavItem[])) return
+
+  meta_arr.value = reorderMeta(v as MetaNavItem[])
 })
 
 /* methods */
 function isMetaNavItem(item: MetaNavRow): item is MetaNavItem {
   return item.type !== 'toggler'
+}
+
+function metaNavItemsEqual(a: MetaNavItem[], b: MetaNavItem[]): boolean {
+  if (a.length !== b.length) return false
+
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false
+    if (a[i].order !== b[i].order) return false
+    if (Boolean(a[i].hidden) !== Boolean(b[i].hidden)) return false
+  }
+
+  return true
 }
 
 async function updateMetaOrder() {
@@ -262,32 +285,26 @@ async function updateMetaOrder() {
     })
     .filter((entry): entry is { id: number; order: number; hidden: boolean | undefined } => entry !== null)
 
-  // send updates sequentially (original did it one-by-one)
-  for (const p of payload) {
-    try {
-      await typedApi.updateMeta(p.id, {
-        order: p.order,
-        hidden: p.hidden,
-      })
-    } catch (e) {
-      console.error('Failed updating meta', p.id, e)
-    }
-  }
+  // send updates in parallel (same pattern as Tabs.vue)
+  await Promise.all(
+    payload.map(async (p) => {
+      try {
+        await typedApi.updateMeta(p.id, {
+          order: p.order,
+          hidden: p.hidden,
+        })
+      } catch (e) {
+        console.error('Failed updating meta', p.id, e)
+      }
+    }),
+  )
 
   eventBus.emit('getMeta')
 }
 
 function openDialogFolder(folder: WatcherFilesEntry) {
-  console.log('openDialogFolder', folder)
-
   watcherStore.folder = folder
   watcherStore.dialogFolder = true
-}
-
-function getBadgeVal(files: WatcherFileChangeGroup[] = [], field: 'new' | 'lost' = 'new') {
-  let value = 0
-  for (const group of files) value += group[field]?.length ?? 0
-  return value
 }
 </script>
 
