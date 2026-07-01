@@ -35,7 +35,7 @@ export function isAbortError(error: unknown): boolean {
 export function useItemsPage({
   props,
   mediaType,
-  container,
+  container: _container,
   updatePageSetting,
 }: UseItemsPageOptions) {
   const itemsStore = useItemsStore()
@@ -253,7 +253,7 @@ export function useItemsPage({
       }: {append?: boolean; requestedPage?: number} = {},
     ): Promise<boolean> => {
       const previousCount = append ? ITEMS.value.itemsOnPage.length : 0
-      let applied = applyListResponse(response, {append, requestedPage})
+      const applied = applyListResponse(response, {append, requestedPage})
 
       if (
         !applied

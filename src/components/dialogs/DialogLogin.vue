@@ -68,7 +68,7 @@ import {setAuthToken} from '@/services/authSession';
 import {useEventBus} from '@/utils/eventBus';
 
 // Props
-const props = defineProps({
+defineProps({
   modelValue: {
     type: Boolean,
     required: true

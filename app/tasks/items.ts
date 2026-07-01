@@ -2,14 +2,12 @@
 
 import findIndex from 'lodash/findIndex'
 import uniqBy from 'lodash/uniqBy'
-import isNumber from 'lodash/isNumber'
 import isEmpty from 'lodash/isEmpty'
 import groupBy from 'lodash/groupBy'
 import shuffle from 'lodash/shuffle'
 import orderBy from 'lodash/orderBy'
 import type { DbItemRow, ParsedItem, ParsedItemTags } from '../types/items'
 import type { FilterLike } from '../../api/types/db'
-import FilterCols from '../configs/filter-cols'
 import { parseCountries } from '../../api/utils/country'
 import { normalizeExt, parseExtList } from '../../api/utils/ext'
 
@@ -103,33 +101,6 @@ const filterItems = (
     return isActive && i.cond
   })
 
-  let videoCols: string[] = [];
-  const filterCols = FilterCols as {
-    video?: Array<{ param: string }>
-    image?: Array<{ param: string }>
-    default?: { video?: Array<{ param: string }>; image?: Array<{ param: string }> }
-  }
-  if (filterCols.video) {
-    videoCols = filterCols.video.map((i) => i.param);
-  } else if (filterCols.default?.video) {
-    videoCols = filterCols.default.video.map((i) => i.param);
-  }
-
-  let imageCols: string[] = [];
-  if (filterCols.image) {
-    imageCols = filterCols.image.map((i) => i.param);
-  } else if (filterCols.default?.image) {
-    imageCols = filterCols.default.image.map((i) => i.param);
-  }
-
-  const mediaMetadataCols = [...new Set([...videoCols, ...imageCols])];
-  const isFilterByVideo = filters.some((i: FilterLike) => (
-    i.param != null && mediaMetadataCols.includes(String(i.param))
-  ))
-  const isFilterByMetaValue = filters.some((i: FilterLike) => i.type !== 'array' && isNumber(i.param))
-  const isFilterTypeArray = filters.some((i: FilterLike) => i.type === 'array')
-  const array_count = 0; // для подсчета фильтров с типом массив
-
   const filterItem = (item: ParsedItem) => {
     const compareNumber = (sign: string | undefined, filterValue: unknown, itemValue: unknown) => {
       const a = Number(filterValue)
@@ -152,7 +123,6 @@ const filterItems = (
       const cond = filter.cond
       let val = filter.val
       const type = filter.type
-      const flag = filter.flag
       let is_match = false;
       const metaId = resolveMetaId(by)
       let item_val

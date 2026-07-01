@@ -14,7 +14,6 @@
     >
       <Item
         v-for="(item, idx) in row.items"
-        v-memo="[item.id, item.rating, item.favorite, item.views, item.name, size, view, itemsType]"
         :key="item.id"
         :type="itemsType"
         :item="item"

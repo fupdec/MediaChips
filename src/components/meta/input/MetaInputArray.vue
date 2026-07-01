@@ -148,7 +148,7 @@ import {
   highlightChars,
 } from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
-import type {ArrayMeta, TagFilterResponse, TagListItem} from '@/types/metaInput'
+import type { ArrayMeta, TagListItem } from '@/types/metaInput'
 
 const attrs = useAttrs()
 

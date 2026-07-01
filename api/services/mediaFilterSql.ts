@@ -6,7 +6,7 @@ import type {
   SqlParamBinder,
 } from '../types/mediaFilter'
 import { resolveMetaId } from '../utils/metaId'
-import { normalizeExt, parseExtList } from '../utils/ext'
+import { parseExtList } from '../utils/ext'
 import { COUNTRY_DELIMITER } from '../utils/country'
 
 const COUNTRY_DELIMITER_SQL = `char(${COUNTRY_DELIMITER.charCodeAt(0)})`

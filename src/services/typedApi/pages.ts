@@ -29,7 +29,6 @@ import {
   parseFilterRowResponse,
   parseFilterRowsInSavedFilter,
   parsePageSettingsFindOrCreate,
-  parsePathTagEntries,
   parsePlaylistCreateResponse,
   parseSavedFilterBasicList,
   parsePlaylistMediaLinks,

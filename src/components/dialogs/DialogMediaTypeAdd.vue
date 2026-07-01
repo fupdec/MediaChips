@@ -82,13 +82,12 @@
 
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
-import type { PropType } from 'vue'
 import type { VFormInstance } from '@/types/vue'
 import { typedApi } from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 
-const props = defineProps({
+defineProps({
   dialog: Boolean
 })
 

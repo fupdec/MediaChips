@@ -53,7 +53,7 @@ function normalizeFilterRow(row: FilterLike, tagsByRowId: TagsByRowIdMap | null 
     normalized.val = parseExtList(normalized.val as string | string[] | null | undefined)
   }
 
-  const {createdAt, updatedAt, ...cleaned} = normalized
+  const { ...cleaned } = normalized
   return cleaned
 }
 

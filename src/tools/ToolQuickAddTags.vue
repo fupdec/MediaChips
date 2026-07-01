@@ -45,9 +45,6 @@ const loading = ref(false)
 const message = ref('')
 const messageType = ref<'info' | 'success' | 'error' | 'warning'>('info')
 
-interface SuggestTagsResponse {
-  suggestions?: Array<{ word?: string }>
-}
 
 async function openSuggestedTags() {
   loading.value = true

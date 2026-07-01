@@ -169,15 +169,9 @@ import {useRoute, useRouter} from 'vue-router'
 import {useTheme, useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useRegistrationStore} from '@/stores/registration'
 import {typedApi} from '@/services/typedApi'
-import {checkColorForDarkText} from '@/utils/headerColorUtils'
-import {cloneFilters} from '@/utils/filterClone'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
-import uniq from 'lodash/uniq'
-import groupBy from 'lodash/groupBy'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import {useEventBus} from '@/utils/eventBus'
 import path from 'path-browserify';
@@ -200,12 +194,10 @@ interface TagImages {
 const route = useRoute()
 const router = useRouter()
 const theme = useTheme()
-const {xl, lg, md, sm, xs} = useDisplay()
+const {lg, md, sm, xs} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
-const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
-const registrationStore = useRegistrationStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
@@ -227,22 +219,14 @@ const imgPath = ref("")
 const cropperOps = ref({
   aspectRatio: 1,
 })
-const bgc = ref("#777")
-const tags_filter = ref<Record<string, Tag[]>>({})
-const tags_filter_value = ref<number[]>([])
 const pinnedParentMeta = ref<Meta[]>([])
 const pinnedMeta = ref<AssignedMeta[]>([])
 const pinnedMedia = ref<PinnedMediaTab[]>([])
-const values = ref<unknown[]>([])
 const completionStatus = ref(0)
 
 // Computed
-const ITEMS = computed(() => itemsStore)
 const ENV = computed(() => itemsStore.environment)
-const SETTINGS = computed(() => settingsStore)
-const reg = computed(() => registrationStore.reg)
 const is_dark = computed(() => theme.global.current.value.dark)
-const isTextDark = computed(() => checkColorForDarkText(bgc.value))
 const is_header_exists = computed(() => {
   if (images.value.header) {
     return !images.value.header.includes('unavailable.png')
@@ -321,7 +305,7 @@ const getMeta = async () => {
 }
 
 const getTag = async () => {
-  let query = {
+  const query = {
     metaId: meta.value.id,
     filters: [],
     sortBy: 'name',
@@ -367,11 +351,11 @@ const getPinnedMedia = async () => {
 const getPinnedParentMeta = async () => {
   try {
     const res = await typedApi.getPinnedParentMeta(Number(ENV.value.meta_id))
-    let childMetas = res.data || []
-    let metas = []
+    const childMetas = res.data || []
+    const metas = []
 
-    for (let cm of childMetas) {
-      let found = appStore.meta.find(i => i.id === cm.metaId)
+    for (const cm of childMetas) {
+      const found = appStore.meta.find(i => i.id === cm.metaId)
       if (found) {
         metas.push(found)
       }
@@ -409,7 +393,7 @@ const getCompletionStatus = async () => {
     console.log(e)
   }
 
-  let vals: Record<string | number, unknown> = {}
+  const vals: Record<string | number, unknown> = {}
   const setValByKey = (val: unknown, key: string | number) => {
     vals[key] = val
   }
@@ -450,7 +434,7 @@ const getCompletionStatus = async () => {
     else (val as unknown[]).length > 0 ? completed.push(1) : completed.push(0)
   }
   let completedValue = 0
-  for (let i of completed) {
+  for (const i of completed) {
     completedValue = completedValue + i
   }
   completionStatus.value = Math.ceil((completedValue / completed.length) * 100)
@@ -477,43 +461,18 @@ const editMetaTag = async () => {
   dialogsStore.tagEditing.show = true
 }
 
-const getTagsInMedia = async () => {
-  let query = {
-    mediaTypeId: ENV.value.media_type_id ?? undefined,
-    filters: cloneFilters(ITEMS.value.filters.filter(i => i.lock)),
-    sortBy: 'createdAt',
-    direction: 'asc',
-    find_duplicates: false,
-    ids: [],
-  }
-
-  try {
-    const res = await typedApi.postItemsList('/api/media/items', query)
-    const medias = res.data.items ?? []
-    let tags: number[] = []
-    for (const i of medias) {
-      const itemTags = Array.isArray(i.tags) ? i.tags : []
-      tags = [...tags, ...itemTags.map((t: { tagId: number }) => t.tagId)]
-    }
-    tags = uniq(tags)
-    tags_filter.value = groupBy(appStore.tags.filter(i => tags.includes(i.id)), 'metaId')
-  } catch (e) {
-    console.log(e)
-  }
-}
-
 const changeTab = async (tab_value: string | null) => {
   if (!tab_value) return
-  let item_types = ['tag', 'media']
-  for (let item_type of item_types) {
+  const item_types = ['tag', 'media']
+  for (const item_type of item_types) {
     if (tab_value.includes(item_type)) {
       itemsStore.type = item_type
     }
   }
 
-  let id = Number(tab_value.match(/\d+/g)) || null
-  let metaId = itemsStore.type === 'tag' ? id : null
-  let mediaTypeId = itemsStore.type === 'media' ? id : null
+  const id = Number(tab_value.match(/\d+/g)) || null
+  const metaId = itemsStore.type === 'tag' ? id : null
+  const mediaTypeId = itemsStore.type === 'media' ? id : null
 
   itemsStore.environment.media_type_id = mediaTypeId
   itemsStore.environment.meta_id = metaId

@@ -262,14 +262,6 @@ function applyConfig(config: ServerConfigPayload) {
   }
 }
 
-function reconnect() {
-  isConnected.value = false;
-  currentServer.value = null;
-  isConfigLoaded.value = false;
-  connectInFlight = null;
-  app.is_app_ready = false;
-}
-
 // Periodic connection check (main window only)
 if (!isPlayerWindow.value) {
   setInterval(() => {
@@ -289,7 +281,7 @@ if (!isPlayerWindow.value) {
                     handleServerConnected(server);
                   }
                 });
-              } catch (e) {
+              } catch (_e) {
                 // Handle error
               }
             }

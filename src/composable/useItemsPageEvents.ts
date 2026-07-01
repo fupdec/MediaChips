@@ -18,7 +18,6 @@ import type {
   RemoveEntitiesEvent,
   UseItemsPageEventsOptions,
 } from '@/types/itemsPage'
-import type { MediaItem } from '@/types/stores'
 import { normalizeEntityIds, normalizeRemoveEntitiesEvent } from '@/utils/eventPayloads'
 
 export function useItemsPageEvents({

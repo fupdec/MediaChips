@@ -214,7 +214,8 @@ function finalizeWheelValues(
   event: WheelEvent,
   { slider = false } = {},
 ): Pick<WheelMagnitudeResult, 'seekSeconds' | 'volumeDelta' | 'markDelta' | 'device'> {
-  let { seekSeconds, volumeDelta, markDelta, profile, device } = values
+  let { seekSeconds, volumeDelta, markDelta } = values
+  const { profile, device } = values
 
   seekSeconds = applyWheelModifiers(seekSeconds, event)
   volumeDelta = applyWheelModifiers(volumeDelta, event)

@@ -109,7 +109,6 @@ import {typedApi} from "@/services/typedApi"
 import path from "path-browserify"
 import {ref, computed} from "vue"
 import {useI18n} from "vue-i18n"
-import {useAppStore} from "@/stores/app"
 import {useDialogsStore} from "@/stores/dialogs"
 import {useNotificationsStore} from "@/stores/notifications"
 import {useDisplay} from "vuetify"
@@ -117,7 +116,6 @@ import DialogHeader from "@/components/elements/DialogHeader.vue"
 import SettingsCategoryDivider from "@/components/ui/SettingsCategoryDivider.vue"
 import type { MediaPathFile } from '@shared/api/responses'
 
-const store = useAppStore()
 const dialogsStore = useDialogsStore()
 const notificationsStore = useNotificationsStore()
 const {xs, xl} = useDisplay()

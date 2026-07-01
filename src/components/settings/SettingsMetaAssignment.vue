@@ -144,14 +144,7 @@ interface AssignmentListItem {
   raw: MediaType | Meta
 }
 
-interface MetaInMediaTypeRow {
-  mediaTypeId: number
-  metaId: number
-}
 
-interface PinnedMetaRow {
-  metaId: number
-}
 
 const {t} = useI18n()
 const route = useRoute()

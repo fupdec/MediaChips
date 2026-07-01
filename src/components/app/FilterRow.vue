@@ -222,7 +222,6 @@ import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import find from 'lodash/find'
-import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import type { FilterObject, FilterListParam } from '@/types/common'
 import type { VForm } from 'vuetify/components'
@@ -234,8 +233,6 @@ import {
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
 import MetaInputRating from '@/components/meta/input/MetaInputRating.vue'
-import {getCurrentMediaType} from '@/utils/mediaType'
-import {getExtensionOptions} from '@/utils/ext'
 
 // Props
 const props = defineProps({
@@ -271,7 +268,6 @@ const icon = ref('shape')
 const title = ref('')
 
 // Stores and composables
-const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const {t} = useI18n()
 
@@ -291,10 +287,6 @@ const filterValArray = computed(() => Array.isArray(modelFilter.value.val) ? mod
 const filterValString = computed(() => modelFilter.value.val == null ? '' : String(modelFilter.value.val))
 const paramAsString = computed(() => String(parameter.value ?? ''))
 const is_value_required = computed(() => !['is null', 'not null'].includes(condition.value ?? ''))
-
-const extensionOptions = computed(() =>
-  getExtensionOptions(getCurrentMediaType(appStore.mediaTypes, itemsStore.environment?.media_type_id))
-)
 
 // Methods
 const getParamData = (data: string | number | null) => {

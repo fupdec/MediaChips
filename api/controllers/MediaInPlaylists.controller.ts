@@ -1,4 +1,4 @@
-import type { ApiDb, AnyRecord } from '../types/db'
+import type { ApiDb } from '../types/db'
 import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 

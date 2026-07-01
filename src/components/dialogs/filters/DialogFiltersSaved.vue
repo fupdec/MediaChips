@@ -76,7 +76,6 @@
 
 <script setup lang="ts">
 import {ref, computed} from 'vue'
-import type {PropType} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'

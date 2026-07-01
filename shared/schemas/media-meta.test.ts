@@ -9,9 +9,7 @@ import {
   parseMetaSetting,
   parsePathTagEntries,
   parsePlaylistMediaLinks,
-  parseSetting,
   parseTagFilterResponse,
-  parseTagsInMediaCreateOne,
   parseVideoMetadata,
 } from '@shared/schemas'
 

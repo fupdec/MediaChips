@@ -1,5 +1,5 @@
 import type { ServerConfig, ServerDatabaseEntry, NetworkIpInfo, NetworkHelpers } from '../types/server'
-import { apiErrorMessage, apiErrorStack } from '../../api/types/errors'
+import { apiErrorMessage } from '../../api/types/errors'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'

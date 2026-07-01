@@ -63,16 +63,14 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from "@/services/typedApi"
 import {reloadApplicationAfterDatabaseChange} from '@/services/configService'
-import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
 
 const {t} = useI18n()
-const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const operationsStore = useOperationsStore()
 
@@ -81,7 +79,6 @@ const step = ref(1)
 const is_copy_backups = ref(false)
 const importStatus = ref('')
 
-const isElectron = computed(() => appStore.isElectron)
 
 async function showDialogDeleteConfirmation() {
   dialogsStore.confirm.text = t('migration.data_lost_confirm')

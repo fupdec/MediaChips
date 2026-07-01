@@ -1,4 +1,3 @@
-import type { ApiDb } from '../../api/types/db'
 import type { ServerDatabaseEntry } from '../types/server'
 import { apiErrorMessage } from '../../api/types/errors'
 import path from 'path'

@@ -42,7 +42,7 @@ ChartJS.register(
   PointElement,
 )
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   chartId?: string
   datasetIdKey?: string
   width?: number

@@ -157,7 +157,7 @@
 
           <!-- Assigned/Pinned metadata -->
           <v-col
-            v-for="(item, index) in assignedItems"
+            v-for="item in assignedItems"
             :key="`${currentItemId}_${item.pinnedMetaId || item.metaId}`"
             cols="12" md="6" xl="4"
             class="field"

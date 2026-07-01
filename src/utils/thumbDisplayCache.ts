@@ -1,7 +1,7 @@
 const DEFAULT_MAX_ENTRIES = 1500
 
 const cache = new Map<string, string>()
-let maxEntries = DEFAULT_MAX_ENTRIES
+const maxEntries = DEFAULT_MAX_ENTRIES
 
 function touch(key: string, url: string): void {
   cache.delete(key)

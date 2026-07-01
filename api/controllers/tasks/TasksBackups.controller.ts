@@ -1,4 +1,3 @@
-import type { AnyRecord } from '../../types/db'
 import type { Express } from 'express'
 import { apiErrorMessage } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'

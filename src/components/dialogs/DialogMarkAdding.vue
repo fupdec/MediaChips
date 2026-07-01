@@ -417,7 +417,7 @@ const add = () => {
     if (!valid.value || !text.value?.trim()) return
   }
 
-  let data: MarkAddingData = {}
+  const data: MarkAddingData = {}
   if (!markAdding.value.is_end_time_active) {
     dialogsStore.markAdding.end = null
   }

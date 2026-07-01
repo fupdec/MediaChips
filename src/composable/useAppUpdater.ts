@@ -12,7 +12,6 @@ const isSupported = ref(false)
 
 let initialized = false
 let startupCheckScheduled = false
-let unsubscribeStatus: (() => void) | null = null
 
 function hasUpdaterApi(): boolean {
   return Boolean(window.electronAPI?.updater)
@@ -28,7 +27,7 @@ export function useAppUpdater() {
     const updater = window.electronAPI!.updater!
     isSupported.value = await updater.isSupported()
 
-    unsubscribeStatus = updater.onStatus((payload: UpdaterStatus) => {
+    updater.onStatus((payload: UpdaterStatus) => {
       status.value = {
         ...payload,
         manualCheck: lastCheckManual.value,

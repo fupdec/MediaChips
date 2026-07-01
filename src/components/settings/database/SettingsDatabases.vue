@@ -112,7 +112,7 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
-import type {DatabaseEntry, DatabaseSizesResponse} from '@/types/settings'
+import type { DatabaseEntry } from '@/types/settings'
 import type {VFormInstance} from '@/types/vue'
 
 import SettingsBackups from '@/components/settings/database/SettingsBackups.vue'

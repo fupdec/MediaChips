@@ -145,22 +145,11 @@ const transition = ref('slide-y-reverse-transition')
 // Computed properties
 const ITEMS = computed(() => itemsStore)
 const filtersVisible = computed(() => filtersStore.visible)
-const toolbarSortShow = computed(() => toolbarStore.sort.show)
 const toolbarAppearanceShow = computed(() => toolbarStore.appearance.show)
 
 // Methods
 const toggleFilters = () => {
   filtersStore.visible = !filtersStore.visible
-}
-
-const toggleSortToolbar = () => {
-  toolbarStore.updateSort({
-    type: ITEMS.value.type,
-    show: !toolbarStore.sort.show
-  })
-  if (toolbarStore.sort.show) {
-    scrollTop()
-  }
 }
 
 const toggleCustomizeToolbar = () => {

@@ -90,7 +90,6 @@ import {useDisplay} from 'vuetify'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from '@/utils/eventBus'
-import {useAppStore} from '@/stores/app'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ChipMetaType from '@/components/elements/ChipMetaType.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
@@ -125,7 +124,6 @@ const props = defineProps({
 const emit = defineEmits(['update:model-value', 'update', 'delete', 'close'])
 
 // Stores
-const appStore = useAppStore()
 const {xs} = useDisplay()
 const route = useRoute()
 const eventBus = useEventBus()

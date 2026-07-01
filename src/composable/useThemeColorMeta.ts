@@ -1,18 +1,8 @@
-import { computed, onBeforeUnmount, watch } from 'vue'
-import { useTheme } from 'vuetify'
-import { useSettingsStore } from '@/stores/settings'
+import { onBeforeUnmount, watch } from 'vue'
+import { useHeaderColor } from '@/composable/useHeaderColor'
 
 export function useThemeColorMeta(): void {
-  const theme = useTheme()
-  const settingsStore = useSettingsStore()
-
-  const headerColor = computed(() => {
-    const c = theme.global.current.value.dark
-      ? settingsStore.appColorDarkHeader
-      : settingsStore.appColorLightHeader
-
-    return c || '#000000'
-  })
+  const headerColor = useHeaderColor()
 
   const stop = watch(
     headerColor,

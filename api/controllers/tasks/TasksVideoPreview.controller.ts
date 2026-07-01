@@ -159,8 +159,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         }
 
         await Promise.all(framePromises)
-          .catch((err: unknown) => {
-            // console.log(err)
+          .catch((_err: unknown) => {
+            // console.log(_err)
           })
 
         const inputFiles: string[] = []

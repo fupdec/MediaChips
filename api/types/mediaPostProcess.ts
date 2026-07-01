@@ -1,4 +1,4 @@
-import type { ApiDb, MediaLike } from './db'
+import type { ApiDb } from './db'
 
 export interface VideoMetadataResult {
   duration: number

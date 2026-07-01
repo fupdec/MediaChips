@@ -18,7 +18,7 @@
         ></v-btn>
       </template>
 
-      <template #default="{ isActive }">
+      <template #default>
         <v-card>
           <DialogHeader
             @close="closeDialog"
@@ -105,7 +105,6 @@
 import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {getErrorResponseData} from '@/types/vue'
-import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
@@ -133,7 +132,6 @@ const props = defineProps({
 const emit = defineEmits(['update:model-value', 'added', 'close'])
 
 // Stores
-const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
 
 // Refs
@@ -173,21 +171,6 @@ const initButtons = () => {
 const changeIcon = (icon: string) => {
   dialogIcons.value = false
   metaIcon.value = icon
-}
-
-const getHint = () => {
-  const type = metaType.value
-  const hints: Record<string, string> = {
-    string: 'for description or notes',
-    date: 'e.g. release date, last viewed date',
-    number: 'to count',
-    array: 'for tags. for example: red, green, blue',
-    boolean: 'true or false. like favourite',
-    rating: 'for scoring',
-    color: 'for color selection',
-    country: 'for country selection'
-  }
-  return hints[type] || 'Please select one of the types'
 }
 
 const nameRules = (value: string) => {

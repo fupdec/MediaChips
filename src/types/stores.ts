@@ -1,4 +1,3 @@
-import type { FilterObject } from '@shared/entities/filter'
 import type { MediaItem } from '@shared/entities/media'
 import type { MediaType } from '@shared/entities/media'
 export type {

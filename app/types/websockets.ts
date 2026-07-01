@@ -1,11 +1,7 @@
 import type { Express, Request } from 'express'
 
 import { apiErrorMessage, apiErrorStack } from '../../api/types/errors'
-import type {
-  MoveItemInput,
-  MoveProgressHandler,
-  PreparedMoveItem,
-} from './moveFile'
+import type { MoveItemInput } from './moveFile'
 
 export type {
   MoveItemInput,

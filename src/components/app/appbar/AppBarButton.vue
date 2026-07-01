@@ -50,7 +50,7 @@
 import {useDisplay} from 'vuetify'
 import type { PropType } from 'vue'
 
-const props = defineProps({
+defineProps({
   action: Function as PropType<() => void>,
   icon: String,
   text: String,

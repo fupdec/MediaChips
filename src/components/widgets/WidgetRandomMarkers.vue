@@ -48,9 +48,7 @@
 import {onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {useAppStore} from '@/stores/app'
 import ItemMarker from '@/components/items/ItemMarker.vue'
-import type { HomeMarkersResponse } from '@/types/widgets'
 import type { MarkItem } from '@/types/stores'
 
 const props = withDefaults(defineProps<{
@@ -60,7 +58,6 @@ const props = withDefaults(defineProps<{
 })
 
 const {t} = useI18n()
-const appStore = useAppStore()
 
 const marks = ref<MarkItem[]>([])
 const loading = ref(false)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 
-import {ref, computed, onMounted} from "vue";
+import { ref, onMounted } from "vue";
 import {useI18n} from "vue-i18n";
 import {useSettingsStore} from "@/stores/settings";
 import SettingsCategoryDivider

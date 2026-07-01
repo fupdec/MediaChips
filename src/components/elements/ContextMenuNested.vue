@@ -32,7 +32,7 @@
 
     <v-menu
       v-else
-      :model-value="item.show"
+      :model-value="isOpen"
       min-width="150"
       :nudge-top="3"
       offset-y
@@ -104,6 +104,7 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { ref, watch } from 'vue'
 import {useDisplay} from 'vuetify'
 import {useContextMenu} from "@/stores/contextMenu"
 import type { ContextMenuEntry } from '@/types/stores'
@@ -123,6 +124,12 @@ const props = defineProps({
 
 const emit = defineEmits(['show-parent'])
 
+const isOpen = ref(false)
+
+watch(() => props.item.show, (visible) => {
+  if (visible === false) isOpen.value = false
+})
+
 const {xs} = useDisplay()
 
 const activate = (originalFunction?: (...args: unknown[]) => unknown) => {
@@ -135,15 +142,11 @@ const open = () => {
   emit('show-parent')
 
   // Показываем текущее меню
-  if (props.item) {
-    props.item.show = true
-  }
+  isOpen.value = true
 }
 
 const showCurrent = () => {
-  if (props.item) {
-    props.item.show = true
-  }
+  isOpen.value = true
 }
 </script>
 

@@ -1,8 +1,13 @@
-import { defineConfig, type Plugin } from 'vitest/config'
+/// <reference types="vitest/config" />
+import { defineConfig, type Plugin, type UserConfig } from 'vite'
 import type { Connect } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 import path from 'path'
+
+function normalizePlugins(...items: Array<Plugin | Plugin[]>): Plugin[] {
+  return items.flat()
+}
 
 function invalidUrlMiddleware(): Plugin {
   return {
@@ -22,12 +27,12 @@ function invalidUrlMiddleware(): Plugin {
   }
 }
 
-export default defineConfig(async ({ mode }) => {
-  const plugins: Plugin[] = [
+export default defineConfig(async ({ mode }): Promise<UserConfig> => {
+  const plugins = normalizePlugins(
     vue(),
     vuetify({ autoImport: true }),
     invalidUrlMiddleware(),
-  ]
+  )
 
   if (process.env.ANALYZE === '1') {
     const { visualizer } = await import('rollup-plugin-visualizer')
@@ -57,6 +62,17 @@ export default defineConfig(async ({ mode }) => {
         changeOrigin: true,
       },
     },
+    warmup: {
+      clientFiles: [
+        './src/composable/AddingMedia.ts',
+        './src/composable/Watcher.ts',
+        './src/pages/PageHome.vue',
+        './src/layouts/LayoutItems.vue',
+      ],
+    },
+  },
+  optimizeDeps: {
+    holdUntilCrawlEnd: true,
   },
   base: './',
   test: {
@@ -78,7 +94,7 @@ export default defineConfig(async ({ mode }) => {
 
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        manualChunks(id: string) {
           if (id.includes('/shared/schemas/')) {
             return 'api-schemas'
           }

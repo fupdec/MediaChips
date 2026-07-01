@@ -28,7 +28,8 @@ function run(command, commandArgs = []) {
   }
 }
 
-run('node', ['scripts/compile.mjs', 'scripts'])
+run('node', ['scripts/compile.mjs', 'artifacts'])
+run('npm', ['run', 'build:app'])
 run('node', ['.scripts-build/download-parser-model.js'])
 
 const builderArgs = ['electron-builder']

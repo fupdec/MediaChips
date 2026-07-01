@@ -26,6 +26,14 @@ body {
   animation: app-startup-pulse 2s infinite;
 }
 
+.app-content-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 96px);
+  min-height: calc(100dvh - 96px);
+}
+
 @keyframes app-startup-pulse {
   0% {
     transform: scale(1);

@@ -59,7 +59,7 @@ const props = defineProps({
 
 const route = useRoute()
 
-const windowType = computed(() => route.query.player ? 'player' : 'main')
+const resolvedWindowType = computed(() => route.query.player ? 'player' : props.windowType)
 
 const emit = defineEmits(['minimize', 'maximize', 'unmaximize', 'close'])
 
@@ -67,24 +67,24 @@ const maximized = ref(false)
 
 const minimize = () => {
   emit('minimize')
-  window.electronAPI?.invoke?.("minimize", windowType.value)
+  window.electronAPI?.invoke?.("minimize", resolvedWindowType.value)
 }
 
 const maximize = () => {
   maximized.value = true
   emit('maximize')
-  window.electronAPI?.invoke?.("maximize", windowType.value)
+  window.electronAPI?.invoke?.("maximize", resolvedWindowType.value)
 }
 
 const unmaximize = () => {
   maximized.value = false
   emit('unmaximize')
-  window.electronAPI?.invoke?.("unmaximize", windowType.value)
+  window.electronAPI?.invoke?.("unmaximize", resolvedWindowType.value)
 }
 
 const close = () => {
   emit('close')
-  if (windowType.value === 'player') {
+  if (resolvedWindowType.value === 'player') {
     window.electronAPI?.invoke?.("closePlayer")
   } else {
     window.electronAPI?.send?.("closeApp")

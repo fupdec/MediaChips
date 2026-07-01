@@ -51,7 +51,6 @@ import {typedApi} from '@/services/typedApi'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {useAppStore} from "@/stores/app"
 import {useI18n} from 'vue-i18n'
-import type { HomeMediaStatsResponse, HomeTagCountResponse } from '@/types/widgets'
 
 const store = useAppStore()
 const {t} = useI18n()

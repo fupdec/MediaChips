@@ -1,6 +1,5 @@
 import type { ApiDb } from '../../api/types/db'
 import type { ServerConfig, NetworkIpInfo } from '../types/server'
-import fs from 'fs'
 import os from 'os'
 import { createSettingsRepository } from '../../api/db/repositories/settings'
 import { saveConfigFile } from './configFile'
@@ -65,7 +64,7 @@ function syncNetworkConfig(
   config.hostname = enabled ? os.hostname() : 'localhost'
 }
 
-async function initLanAccess(db: ApiDb, helpers: NetworkHelpers) {
+async function initLanAccess(db: ApiDb, _helpers: NetworkHelpers) {
   const envValue = readEnvLanAccess()
   if (envValue !== null) {
     lanEnabled = envValue

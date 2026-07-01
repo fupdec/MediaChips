@@ -326,41 +326,41 @@ const init = () => {
   let listByArray: FilterListParam[] = []
 
   if (ITEMS.value.type === 'media') {
-    let media = withFilterI18n(cols.media || [], "File")
+    const media = withFilterI18n(cols.media || [], "File")
     media.sort((a, b) => translateFilterText(a) > translateFilterText(b) ? 1 : translateFilterText(b) > translateFilterText(a) ? -1 : 0)
     listByArray = [...listByArray, ...media]
 
     if (isVideoMediaType(currentMediaType.value)) {
-      let video = withFilterI18n(cols.video || [], "Video")
+      const video = withFilterI18n(cols.video || [], "Video")
       video.sort((a, b) => translateFilterText(a) > translateFilterText(b) ? 1 : translateFilterText(b) > translateFilterText(a) ? -1 : 0)
       listByArray = [...listByArray, ...video]
     }
 
     if (isImageMediaType(currentMediaType.value)) {
-      let image = withFilterI18n(cols.image || [], t('media.type_names.image'))
+      const image = withFilterI18n(cols.image || [], t('media.type_names.image'))
       image.sort((a, b) => translateFilterText(a) > translateFilterText(b) ? 1 : translateFilterText(b) > translateFilterText(a) ? -1 : 0)
       listByArray = [...listByArray, ...image]
     }
 
     if (isAudioMediaType(currentMediaType.value)) {
-      let audio = withFilterI18n(cols.audio || [], t('media.type_names.audio'))
+      const audio = withFilterI18n(cols.audio || [], t('media.type_names.audio'))
       audio.sort((a, b) => translateFilterText(a) > translateFilterText(b) ? 1 : translateFilterText(b) > translateFilterText(a) ? -1 : 0)
       listByArray = [...listByArray, ...audio]
     }
   } else if (ITEMS.value.type === 'tag') {
-    let metaTag = withFilterI18n(cols.metaTag || [], "Tag")
+    const metaTag = withFilterI18n(cols.metaTag || [], "Tag")
     metaTag.sort((a, b) => translateFilterText(a) > translateFilterText(b) ? 1 : translateFilterText(b) > translateFilterText(a) ? -1 : 0)
     listByArray = [...listByArray, ...metaTag]
   }
 
   // так называемые заводские фильтры, типа закладок, даты создания, избранное...
-  let defaults = withFilterI18n(cols.standart || [], "Preset meta")
+  const defaults = withFilterI18n(cols.standart || [], "Preset meta")
   defaults.sort((a, b) => translateFilterText(a) > translateFilterText(b) ? 1 : translateFilterText(b) > translateFilterText(a) ? -1 : 0)
   listByArray = [...listByArray, ...defaults]
 
-  let pinned = ITEMS.value.assigned;
+  const pinned = ITEMS.value.assigned;
 
-  for (let i of pinned) {
+  for (const i of pinned) {
     if (i.meta && i.meta.id) {
       listByArray.push({
         param: i.meta.id,
@@ -453,7 +453,7 @@ const validateFilters = () => {
     return
   }
   if (filterRows.value) {
-    for (let i of filterRows.value) {
+    for (const i of filterRows.value) {
       i.validate()
     }
   }
@@ -471,11 +471,11 @@ const apply = async () => {
     }
   }
 
-  let savedFilter = ITEMS.value.savedFilter
+  const savedFilter = ITEMS.value.savedFilter
   await addFilterRows(savedFilter?.id)
 
   const removed_filters = filters.value.filter(i => i.removed)
-  for (let f of removed_filters) {
+  for (const f of removed_filters) {
     if (f.id) {
       await typedApi.deleteFilterRow(f.id)
     }
@@ -487,7 +487,7 @@ const apply = async () => {
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {
   const filterRows = cloneFilters(filters.value.filter(i => !i.lock && !i.removed))
-  for (let f of filterRows) {
+  for (const f of filterRows) {
     if (isSavedFilter) f.id = null
     try {
       await typedApi.createFilterRow({
@@ -538,7 +538,7 @@ const save = async () => {
 const loadSavedFilter = (loadedFilters: FilterObject[]) => {
   dialogLoad.value = false
   removeAll()
-  let old_filters = cloneFilters(filters.value.filter(i => !i.lock))
+  const old_filters = cloneFilters(filters.value.filter(i => !i.lock))
   filters.value = [...loadedFilters, ...old_filters]
   updKey.value += Date.now()
 }

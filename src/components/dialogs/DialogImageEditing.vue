@@ -95,13 +95,6 @@ interface CropperInstance {
   getResult: () => { canvas?: HTMLCanvasElement } | null
 }
 
-interface DialogHeaderButton {
-  icon?: string
-  text?: string
-  color?: string
-  variant?: string
-  action?: () => void | Promise<void>
-}
 
 // FilePond импорт
 import vueFilePond from 'vue-filepond'
@@ -153,7 +146,6 @@ const {t} = useI18n()
 // Refs
 const pond = ref<FilePondInstance | null>(null)
 const cropper = ref<CropperInstance | null>(null)
-const internalDialog = ref(false)
 const dialogImageDeleting = ref(false)
 const dialog = ref(false)
 

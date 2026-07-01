@@ -1,6 +1,6 @@
 <template>
   <v-checkbox
-    v-model="item.favorite"
+    :model-value="item.favorite"
     @click.stop
     @update:model-value="setVal($event, 'favorite')"
     :false-value="0"

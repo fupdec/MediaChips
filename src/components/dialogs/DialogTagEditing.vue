@@ -52,7 +52,6 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onBeforeUnmount, shallowRef} from 'vue'
-import type {Meta, Tag} from '@/types/stores'
 import {useDisplay} from 'vuetify'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'

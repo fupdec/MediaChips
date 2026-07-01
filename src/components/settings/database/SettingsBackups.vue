@@ -285,10 +285,6 @@ const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 
 const isElectron = computed(() => appStore.isElectron)
-const dialogProcess = computed({
-  get: () => dialogsStore.process,
-  set: v => (dialogsStore.process = v),
-})
 
 /* ---------- TABLE ---------- */
 

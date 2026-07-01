@@ -106,7 +106,6 @@ interface RatingSettings {
   ratingColor: string
 }
 
-type RatingSettingKey = keyof RatingSettings
 
 const props = defineProps({
   meta: {

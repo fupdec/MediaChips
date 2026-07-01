@@ -337,9 +337,23 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   function notifyMainWindowReady(): void {
-    if (!store.isElectron || shellRevealSent || isPlayerWindow.value) return
+    if (!window.electronAPI?.send || shellRevealSent || isPlayerWindow.value) return
     shellRevealSent = true
-    window.electronAPI?.send?.('main-app-ready')
+    window.electronAPI.send('main-app-ready')
+  }
+
+  function waitForPaintFrame(timeoutMs = 250): Promise<void> {
+    return new Promise((resolve) => {
+      let settled = false
+      const finish = () => {
+        if (settled) return
+        settled = true
+        resolve()
+      }
+
+      requestAnimationFrame(finish)
+      window.setTimeout(finish, timeoutMs)
+    })
   }
 
   async function revealAppShell(): Promise<void> {
@@ -347,11 +361,12 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       await nextTick()
       isShellReady.value = true
       await nextTick()
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      await nextTick()
     }
 
+    // Notify Electron before waiting for a paint frame: rAF does not run
+    // reliably while the main BrowserWindow is still hidden (show: false).
     notifyMainWindowReady()
+    await waitForPaintFrame()
   }
 
   function notifyPlayerReady(): void {
@@ -442,15 +457,10 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   async function markAppReady(): Promise<void> {
     await nextTick()
     isAppReady.value = true
-
-    await nextTick()
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-    await nextTick()
-
     store.is_app_ready = true
     runAutoRegistration()
     openOnboardingIfNeeded(isPlayerWindow.value)
-    await revealAppShell()
+    await nextTick()
   }
 
   async function bootstrapPlayerWindow(): Promise<void> {
@@ -479,15 +489,17 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     shellRevealSent = false
 
     await initSettings()
+    applyTheme()
+    await applyLocale()
+
+    // Reveal the app chrome and Electron window before heavy startup work.
+    await revealAppShell()
 
     if (store.isElectron && window.electronAPI?.updater) {
-      await initAppUpdater({
+      void initAppUpdater({
         checkAtStartup: settingsStore.checkForUpdatesAtStartup === '1',
       })
     }
-
-    applyTheme()
-    await applyLocale()
 
     const authenticated = await tryRestoreSession()
 
@@ -505,23 +517,28 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
 
     await getMachineId()
 
-    if (authenticated) {
-      await loadMainAppData()
-    }
+    try {
+      if (authenticated) {
+        await loadMainAppData()
+        await markAppReady()
+      }
 
-    await ensureDeferredServices()
-    bindMainAppEventBus()
+      try {
+        await ensureDeferredServices()
+      } catch (error) {
+        console.error('Deferred services failed to load:', error)
+      }
 
-    if (typeof BroadcastChannel !== 'undefined') {
-      thumbBroadcastChannel = new BroadcastChannel(THUMB_BROADCAST_CHANNEL)
-      thumbBroadcastChannel.addEventListener('message', handleThumbBroadcast)
-    }
+      bindMainAppEventBus()
 
-    await nextTick()
-    if (authenticated) {
-      await markAppReady()
-    } else {
-      await revealAppShell()
+      if (typeof BroadcastChannel !== 'undefined') {
+        thumbBroadcastChannel = new BroadcastChannel(THUMB_BROADCAST_CHANNEL)
+        thumbBroadcastChannel.addEventListener('message', handleThumbBroadcast)
+      }
+    } finally {
+      if (authenticated && !isAppReady.value) {
+        await markAppReady()
+      }
     }
 
     if (store.isElectron) {

@@ -16,7 +16,7 @@
       </div>
     </template>
 
-    <template v-slot:default="{ isActive }">
+    <template v-slot:default>
       <v-card>
         <DialogHeader @close="closeDialog" :header="t('meta.fields.icon_selection')" closable/>
 

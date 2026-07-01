@@ -22,7 +22,7 @@ const repoRequireRe =
 
 let changed = 0
 for (const file of walk(controllersDir)) {
-  let content = fs.readFileSync(file, 'utf8')
+  const content = fs.readFileSync(file, 'utf8')
   const imports = []
   const cleaned = content.replace(repoRequireRe, (match, fn, _dots, repoFile, offset) => {
     const before = content.slice(0, offset)

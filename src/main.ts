@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from '@/App.vue'
 import router from '@/router'
-import { i18n, loadLocale, registerVuetifyForLocales } from '@/i18n/loadLocale'
+import { i18n, registerVuetifyForLocales } from '@/i18n/loadLocale'
 
 // ============ VUETIFY SETUP ============
 import '@mdi/font/css/materialdesignicons.css'

@@ -116,7 +116,6 @@ export default function createTasksTaggingController(shared: TaskControllerShare
       let frames = 0
       let suggestions: TagSuggestionItem[] = []
       const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
-      const metaRepo = createMetaRepository(db.drizzle)
       const existingTags = req.body?.excludeExisting === false
         ? []
         : tagsRepo.findAllRaw()

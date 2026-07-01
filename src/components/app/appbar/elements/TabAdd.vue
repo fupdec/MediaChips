@@ -11,10 +11,8 @@
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
-import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 
-import AppbarButton from '@/components/app/appbar/AppBarButton.vue'
 import {typedApi} from '@/services/typedApi'
 import {getTabUrl} from '@/services/routeService'
 import {useEventBus} from '@/utils/eventBus'
@@ -22,7 +20,6 @@ import type { TabLike } from '@/types/common'
 
 /* ---------------- STORES ---------------- */
 
-const app = useAppStore()
 const items = useItemsStore()
 
 /* ---------------- UTILS ---------------- */

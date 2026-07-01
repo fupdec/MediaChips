@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, type Ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
 import { useRegistrationStore } from '@/stores/registration'

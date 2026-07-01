@@ -1,4 +1,3 @@
-import path from 'path-browserify'
 import { API_ROUTES } from '@shared/api/routes'
 import { normalizePastedFilePath } from '@/utils/filePathInput'
 import { buildApiUrl, getApiBaseUrl } from '@/services/apiClient'

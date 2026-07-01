@@ -24,27 +24,48 @@
     <component :is="ImageViewer" v-if="isShellReady && !isPlayerWindow"/>
 
     <v-main
-      v-if="isAppReady && !isPlayerWindow"
+      v-if="isShellReady && !isPlayerWindow"
       class="reduced-top app-main-layout"
       :class="mainLayoutClasses"
       app
     >
       <div
+        v-if="isAppReady"
         :class="addedTopClasses"
         class="added-top blur"
       ></div>
 
-      <div class="main-scroll" :class="{'main-scroll--settings': isSettingsPage}">
+      <div
+        v-if="isAppReady"
+        class="main-scroll"
+        :class="{'main-scroll--settings': isSettingsPage}"
+      >
         <div
           :class="[addedTopClasses, {'main-scroll-inner--settings': isSettingsPage}]"
           class="main-scroll-inner"
         >
           <router-view />
-
         </div>
       </div>
 
-      <div id="main-drop-target" class="main-drop-target"></div>
+      <div
+        v-else-if="!store.isLocked"
+        class="app-content-loading"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <v-progress-circular
+          indeterminate
+          size="64"
+          width="2"
+        />
+      </div>
+
+      <div
+        v-if="isAppReady"
+        id="main-drop-target"
+        class="main-drop-target"
+      ></div>
     </v-main>
 
     <component :is="HoverImage" v-if="isShellReady && !isPlayerWindow"/>

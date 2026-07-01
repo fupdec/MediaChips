@@ -259,7 +259,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch, nextTick} from 'vue'
+import {ref, onMounted, watch, nextTick} from 'vue'
 import type {PropType} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {isVideoMediaType, isImageMediaType, isAudioMediaType, isTextMediaType} from '@/utils/mediaType'
@@ -400,12 +400,6 @@ const checkPinnedMediaTypes = async () => {
     isPinnedToVideos.value = false
     isPinnedForMediaParser.value = false
   }
-}
-
-const showDocumentation = (id: string) => {
-  window.dispatchEvent(new CustomEvent('show-doc', {
-    detail: {id}
-  }))
 }
 
 // Lifecycle

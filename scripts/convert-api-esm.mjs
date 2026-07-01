@@ -12,7 +12,6 @@ function convertRoute(filePath) {
   if (!content.includes('module.exports')) return false
 
   const extraImports = []
-  const preLines = []
 
   if (content.includes("require('express')") || content.includes('require("express")')) {
     extraImports.push("import express from 'express'")

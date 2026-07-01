@@ -24,7 +24,7 @@ let rebuildTimer = null
 let rebuildInFlight = false
 let restartPending = false
 let shuttingDown = false
-let pendingChanges = new Set()
+const pendingChanges = new Set()
 
 function runSync(command, args) {
   const result = spawnSync(command, args, {

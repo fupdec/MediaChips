@@ -1,4 +1,3 @@
-import type { AnyRecord } from '../types/db'
 export {}
 
 declare global {

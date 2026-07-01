@@ -39,8 +39,8 @@ import {
   markLiveTranscodeSession,
   clearLiveTranscodeSessionMark,
 } from '@/utils/liveTranscodeLifecycle'
-import type { AssignedMeta, MediaItem, PlayerPlaylistItem } from '@/types/stores'
-import type { PlayerMark, ResolvedPlayableVideo, UsePlayerPlaybackOptions } from '@/types/player'
+import type { MediaItem, PlayerPlaylistItem } from '@/types/stores'
+import type { ResolvedPlayableVideo, UsePlayerPlaybackOptions } from '@/types/player'
 
 function metadataNumber(metadata: Record<string, unknown>, key: string): number | null {
   const value = Number(metadata[key])

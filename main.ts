@@ -802,11 +802,7 @@ ipcMain.on('player-ready', (event: IpcMainEvent) => {
   }
 })
 
-// for passing state between windows
-let temporaryStore: unknown
 ipcMain.on('open-player', async (_event: IpcMainEvent, data: Record<string, unknown>) => {
-  temporaryStore = data.store
-
   if (!player || player.isDestroyed()) {
     pendingPlayerPayload = data
     createPlayerWindow()

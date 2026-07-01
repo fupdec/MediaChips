@@ -14,7 +14,7 @@
 import { ref, watch } from 'vue'
 import { useLazyInView } from '@/composable/useLazyInView'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   minHeight?: string
 }>(), {
   minHeight: '72px',

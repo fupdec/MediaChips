@@ -1,4 +1,4 @@
-import {ref, watch, onBeforeUnmount, computed} from 'vue'
+import {ref, watch, onBeforeUnmount} from 'vue'
 import {useTasksStore} from '@/stores/tasks'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -31,7 +31,6 @@ export default function useVideoImageGenerator() {
   const processedVideoIds = ref(new Set<number>())
   const lastItemsCount = ref(0)
 
-  const ITEMS = computed(() => itemsStore)
 
   const createVideoGrid = (input: string, output: string): Promise<unknown> => {
     return new Promise((resolve, reject) => {

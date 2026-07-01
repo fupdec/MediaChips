@@ -1,4 +1,4 @@
-import type { ApiDb, AnyRecord, FilterLike } from '../types/db'
+import type { ApiDb, AnyRecord } from '../types/db'
 import type {
   LoadedMediaItem,
   MediaId,
@@ -25,7 +25,6 @@ import {
   setCachedUnfilteredTotal,
 } from './mediaListTotalsCache'
 
-import { filterItems } from '../../app/tasks/items'
 import { runFilterItemsAsync } from './filterItemsWorkerRunner'
 import {
   resolvePageLimit,

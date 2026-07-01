@@ -18,17 +18,8 @@ import {
   parseMediaTypeExtensions,
 } from '@/utils/mediaType'
 
-interface TagInMediaCreateResponse extends Array<unknown> {
-  1?: boolean
-}
 
-interface SuggestTagEntry {
-  word?: string
-}
 
-interface SuggestTagsResponse {
-  suggestions?: SuggestTagEntry[]
-}
 
 const filterPathsByExtensions = (paths: string[], extensions: string): string[] => {
   const allowed = parseMediaTypeExtensions(extensions)

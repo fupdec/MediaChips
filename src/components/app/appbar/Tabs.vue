@@ -61,7 +61,6 @@ const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
 const router = useRouter()
 const route = useRoute()
-const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
@@ -87,7 +86,7 @@ onMounted(() => {
 
 watch(
   () => tabsStore.value,
-  (val) => {
+  (_val) => {
     tabs.value = orderBy([...tabsStore.value], "order");
   }
 )

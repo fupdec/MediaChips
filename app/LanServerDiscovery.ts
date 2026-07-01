@@ -155,7 +155,6 @@ class LanServerDiscovery {
 
     const { base, start, end } = this.networkIpRange;
     const batchSize = 10; // Parallel requests
-    const total = end - start + 1;
 
     // Split into batches for parallel checks
     for (let batchStart = start; batchStart <= end; batchStart += batchSize) {
@@ -217,7 +216,7 @@ class LanServerDiscovery {
           timestamp: new Date().toISOString()
         };
       }
-    } catch (error) {
+    } catch (_error) {
       clearTimeout(timeoutId);
       // Silent failure: the server simply did not respond
     }

@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useTheme } from 'vuetify'
 import { useSettingsStore } from '@/stores/settings'
+import { useHeaderColor } from '@/composable/useHeaderColor'
 import { isRealWinElectron } from '@/utils/electronUi'
 import {
   addTransparencyToGradient,
@@ -14,14 +15,7 @@ export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
   const isWinElectron = isRealWinElectron()
 
   const SETTINGS = computed(() => settingsStore)
-
-  const color = computed(() => {
-    const c = theme.global.current.value.dark
-      ? SETTINGS.value.appColorDarkHeader
-      : SETTINGS.value.appColorLightHeader
-
-    return c || '#000000'
-  })
+  const color = useHeaderColor()
 
   const colorRGBA = computed(() => {
     const opacity = isWinElectron ? 60 : (variant === 'system' ? 80 : 60)

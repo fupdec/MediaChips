@@ -1,7 +1,5 @@
-import type { ServerConfig, ServerDatabaseEntry, NetworkIpInfo } from '../types/server'
-import fs from 'fs'
+import type { ServerConfig, ServerDatabaseEntry } from '../types/server'
 import path from 'path'
-import os from 'os'
 import type { Express } from 'express'
 import type { Server } from 'http'
 import type { AddressInfo } from 'net'
@@ -83,7 +81,6 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
   }
 
   const logServerStarted = (actualPort: number) => {
-    const bestIp = getBestLocalIp()
     const lanEnabled = isLanAccessEnabled()
 
     console.log('\x1b[32m%s\x1b[0m', '✅ Server started successfully!')

@@ -248,7 +248,6 @@ const onFolderPathInput = (value: string) => {
 const currentFolder = ref<WatchedFolderEntry | null>(null)
 
 // Computed
-const mediaTypes = computed(() => appStore.mediaTypes)
 
 const deleteConfirmText = computed(() =>
   t('settings_labels.tools.remove_watched_folder_confirm')
@@ -382,7 +381,7 @@ const saveFolder = async () => {
       type: 'success',
       text: t('notifications_text.folder_updated'),
     })
-  } catch (error) {
+  } catch (_error) {
     setNotification({
       type: 'error',
       text: t('notifications_text.folder_update_failed'),
@@ -408,7 +407,7 @@ const removeFolder = async () => {
       type: 'success',
       text: t('notifications_text.folder_removed'),
     })
-  } catch (error) {
+  } catch (_error) {
     setNotification({
       type: 'error',
       text: t('notifications_text.folder_remove_failed'),
@@ -426,7 +425,7 @@ const toggleFolderWatch = async (folder: WatchedFolderEntry) => {
   try {
     await toggleFolderWatchStatus(folder.id, !folder.watch)
     await getWatchedFolders()
-  } catch (error) {
+  } catch (_error) {
     setNotification({
       type: 'error',
       text: t('notifications_text.folder_toggle_failed'),

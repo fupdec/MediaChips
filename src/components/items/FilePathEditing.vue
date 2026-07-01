@@ -133,7 +133,6 @@ import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import path from 'path-browserify'
 import {typedApi} from '@/services/typedApi'
-import { useAppStore } from '@/stores/app'
 import { useOperationsStore } from '@/stores/operations'
 import { useItemsStore } from '@/stores/items'
 import { useDialogsStore } from '@/stores/dialogs'
@@ -174,7 +173,6 @@ const move_size = ref('')
 const move_eta = ref('')
 const form = ref<VFormInstance>(null)
 
-const appStore = useAppStore()
 const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
@@ -279,7 +277,7 @@ const savePathToDb = async (filePath: string, { notify = true } = {}) => {
     }
 
     return true
-  } catch (error) {
+  } catch (_error) {
     if (notify) {
       setNotification({
         type: "error",

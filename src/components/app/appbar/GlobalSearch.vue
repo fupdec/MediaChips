@@ -15,7 +15,7 @@ import {highlightChars} from '@/services/formatUtils'
 import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {openPath} from '@/services/shellService'
-import type { MediaItem, Meta, Tag } from '@/types/stores'
+import type { MediaItem, Tag } from '@/types/stores'
 
 type GlobalSearchTag = Tag & {
   matchSource?: 'name' | 'synonym' | 'both'

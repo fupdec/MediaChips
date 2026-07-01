@@ -144,7 +144,7 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
   }
 
   return clusters
-    .map(({ embedding, best, ...cluster }) => ({
+    .map(({ embedding: _embedding, best: _best, ...cluster }) => ({
       ...cluster,
       cluster: cluster.words,
     }))

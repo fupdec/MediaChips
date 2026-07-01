@@ -49,7 +49,6 @@
 </template>
 
 <script setup lang="ts">
-import type {AssignedMeta} from '@/types/stores'
 import type {PlayerMark} from '@/types/player'
 
 defineProps<{

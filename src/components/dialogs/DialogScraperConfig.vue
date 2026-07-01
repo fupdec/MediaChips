@@ -111,11 +111,10 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed} from 'vue'
+import { ref, onMounted } from 'vue'
 import type {PropType} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
-import {useAppStore} from '@/stores/app'
 import {typedApi} from '@/services/typedApi'
 import sortBy from 'lodash/sortBy'
 import {getIconDataType} from '@/services/metaTypeUtils'
@@ -142,9 +141,8 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close'])
+defineEmits(['close'])
 
-const store = useAppStore()
 const {xs} = useDisplay()
 const {t} = useI18n()
 
@@ -157,10 +155,6 @@ const draggedMeta = ref<AssignedMeta | null>(null)
 const getScraperFieldName = (field: ScraperFieldTemplate) => t(`scraper.fields.${field.key}`, field.name)
 
 const getMetaTypeName = (type: string) => t(`meta.types.${type}`, type)
-
-function close() {
-  emit('close')
-}
 
 function handleDragStart(meta: AssignedMeta) {
   console.log(meta)

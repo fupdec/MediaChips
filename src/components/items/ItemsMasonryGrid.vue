@@ -17,7 +17,6 @@
         class="masonry-virtual-item"
       >
         <Item
-          v-memo="[position.item.id, position.item.rating, position.item.favorite, position.item.views, position.item.name, size, view, itemsType]"
           :type="itemsType"
           :item="position.item"
           :meta="meta"
@@ -37,7 +36,6 @@
       >
         <Item
           v-for="{ item, index } in column.items"
-          v-memo="[item.id, item.rating, item.favorite, item.views, item.name, size, view, itemsType]"
           :key="item.id"
           :type="itemsType"
           :item="item"

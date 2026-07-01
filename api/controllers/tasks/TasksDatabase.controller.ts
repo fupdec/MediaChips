@@ -1,5 +1,4 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import type { AnyRecord } from '../../types/db'
 import { apiErrorMessage } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { DatabaseSizesResponse } from '@shared/api/responses'

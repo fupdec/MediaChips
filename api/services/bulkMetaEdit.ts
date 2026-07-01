@@ -4,7 +4,6 @@ import type {
   BulkItemType,
   BulkMetaEditOptions,
   BulkMetaEditResult,
-  MetaEditChange,
   PresetEditChange,
 } from '../types/bulkMetaEdit'
 

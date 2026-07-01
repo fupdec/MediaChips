@@ -144,7 +144,6 @@ import {computed, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useToolbarStore} from '@/stores/toolbar'
 import {useEventBus} from "@/utils/eventBus";
 import {getCurrentMediaType, matchesMediaTypeFilter} from '@/utils/mediaType'
 import {MEDIA_SORT_PARAMS} from '@/utils/mediaSortFilter'
@@ -153,7 +152,6 @@ import {MEDIA_SORT_PARAMS} from '@/utils/mediaSortFilter'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
-const toolbarStore = useToolbarStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
 

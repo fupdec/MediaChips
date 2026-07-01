@@ -478,7 +478,7 @@ const getImg = async ({bust = false, allowCreate = true} = {}) => {
   }
 }
 
-const createThumb = async (imgPath: string) => {
+const createThumb = async (_imgPath: string) => {
   try {
     await typedApi.taskCreateThumbForVideo({
       path: props.media.path,
@@ -876,7 +876,7 @@ const initFrames = () => {
     )
     if (i == 0 && img.includes("unavailable.png")) {
       frames.value = []
-      for (const j of timelines) frames.value.push(thumb.value ?? '')
+      for (const _j of timelines) frames.value.push(thumb.value ?? '')
       break
     } else {
       frames.value.push(img)

@@ -198,7 +198,7 @@ import {
   sortPinnedAssignmentItems,
 } from '@/utils/pinnedMetaOrder'
 import type {ItemsPageType, ItemContextMenuEntry, PresetMetaProps} from '@/types/itemsPage'
-import type { ParsePathTagEntry, RemoveTagFromItemPayload } from '@shared/api/responses'
+import type { RemoveTagFromItemPayload } from '@shared/api/responses'
 import type {AssignedMeta, MediaItem, Meta, Tag, ItemTagRef, ItemValueRef} from '@/types/stores'
 
 type PinnedMetaAssignment = AssignedMeta
@@ -425,7 +425,6 @@ const openNewTab = (tag: TagWithMeta): void => {
 }
 
 const removeTag = (tag: TagWithMeta): void => {
-  const url = `/api/TagsIn${props.type}/deleteFrom${props.type}`
   const data: RemoveTagPayload = {
     tagId: tag.id,
   }

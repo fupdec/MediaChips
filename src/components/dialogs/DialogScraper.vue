@@ -166,11 +166,6 @@ function transferScrapedInfo() {
   eventBus.emit('transferScrapedInfo')
 }
 
-function closeDataTransferDialog() {
-  dialogDataTransfer.value = false
-  dialogsStore.scraper.images = []
-}
-
 onMounted(() => {
   searchPerformer(1)
 })

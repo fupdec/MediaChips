@@ -135,7 +135,6 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import type { ComponentPublicInstance } from 'vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTasksStore } from '@/stores/tasks'
 import {useI18n} from "vue-i18n";

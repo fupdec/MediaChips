@@ -166,7 +166,6 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useEventBus} from '@/utils/eventBus'
 import {typedApi} from "@/services/typedApi"
-import useAppStore from "@/stores/app"
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getMediaDeleteAssetFolder, isManagedMediaType} from '@/utils/mediaType'
 import type {MediaType} from '@/types/media'
@@ -191,7 +190,7 @@ const closeDialog = () => {
 const copyPaths = (files: string[]) => {
   let paths = ''
 
-  for (let filePath of files) {
+  for (const filePath of files) {
     paths = paths + '\n' + filePath
   }
 
@@ -229,7 +228,7 @@ const removeFiles = async (
 
     watcherStore.dialogFolder = false
 
-    let data = {
+    const data = {
       metaId: null,
       with_file: false,
       type: getMediaDeleteAssetFolder(fileType),

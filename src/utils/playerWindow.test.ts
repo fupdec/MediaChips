@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import type { ElectronBridgeAPI } from '@shared/electron/ipc'
 import {
   isStandalonePlayerRoute,

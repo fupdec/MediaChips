@@ -14,7 +14,7 @@ import {
   checkRenameDiskSpace,
 } from '../../../app/tasks/moveFile'
 
-export default function createTasksFileController(shared: TaskControllerShared) {
+export default function createTasksFileController(_shared: TaskControllerShared) {
   const checkFileExists = async function (req: ApiRequest, res: ApiResponse) {
     const filePath = normalizeMediaPath(req.body.path)
     const resolved = filePath ? await resolveExistingPath(filePath) : null
@@ -114,7 +114,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
         try {
           files = await readdir(dir, {withFileTypes: true})
-        } catch (err) {
+        } catch (_err) {
           continue
         }
 

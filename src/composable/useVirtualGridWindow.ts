@@ -65,7 +65,6 @@ export function useVirtualGridWindow(
     if (!layoutEl) return
 
     const options = getOptions()
-    const gap = getGridGap(options.gapSize)
     const metrics = getLayoutMetrics(layoutEl.clientWidth, options)
 
     columnCount.value = metrics.columnCount

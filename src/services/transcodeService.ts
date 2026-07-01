@@ -99,10 +99,10 @@ export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 6000
       return
     }
 
-    let timeoutId: ReturnType<typeof setTimeout>
+    const timeoutRef: { id?: ReturnType<typeof setTimeout> } = {}
 
     const cleanup = () => {
-      if (timeoutId) clearTimeout(timeoutId)
+      if (timeoutRef.id !== undefined) clearTimeout(timeoutRef.id)
       videoEl.removeEventListener('canplay', onCanPlay)
       videoEl.removeEventListener('error', onError)
     }
@@ -117,7 +117,7 @@ export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 6000
       reject(videoEl.error || new Error('Video failed to load'))
     }
 
-    timeoutId = setTimeout(() => {
+    timeoutRef.id = setTimeout(() => {
       cleanup()
       reject(new Error('Video load timeout'))
     }, timeout)

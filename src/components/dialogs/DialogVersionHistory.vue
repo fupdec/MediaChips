@@ -64,7 +64,6 @@
 import {ref, computed, onMounted} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useAppStore} from '@/stores/app'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 import versions_history from "@/assets/Version_Histrory"
 
@@ -86,7 +85,6 @@ const emptyVersion: VersionEntry = {
 // Инициализация
 const {xs} = useDisplay()
 const dialogsStore = useDialogsStore()
-const appStore = useAppStore()
 
 // Реактивные данные
 const activeItems = ref<VersionEntry[]>([])
@@ -95,7 +93,6 @@ const items = ref<VersionEntry[]>(versions_history)
 
 // Вычисляемые свойства
 const dialogs = computed(() => dialogsStore)
-const apiUrl = computed(() => appStore.localhost)
 
 // Методы
 const updateActive = (version: VersionEntry) => {

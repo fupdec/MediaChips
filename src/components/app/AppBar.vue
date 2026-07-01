@@ -83,8 +83,8 @@
       <div class="d-flex align-center">
         <v-tooltip v-if="!reg"
           location="bottom">
-          <template v-slot:activator="{ props }">
-            <v-btn v-bind:="props"
+          <template v-slot:activator="{ props: activatorProps }">
+            <v-btn v-bind="activatorProps"
               @click="register"
               icon>
               <v-icon>mdi-lock-question</v-icon>
@@ -122,14 +122,10 @@ import {computed, defineAsyncComponent, onMounted, onUnmounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
-import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
-import {useToolbarStore} from '@/stores/toolbar'
-import {useDialogsStore} from '@/stores/dialogs'
 import {useRegistrationStore} from '@/stores/registration'
 import {useEventBus} from '@/utils/eventBus'
 import {useI18n} from 'vue-i18n'
-import {scrollMainTo} from '@/utils/mainScroll'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 
@@ -150,10 +146,7 @@ const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs
 
 /* Stores */
 const itemsStore = useItemsStore()
-const settingsStore = useSettingsStore()
-const toolbarStore = useToolbarStore()
 const app = useAppStore()
-const dialogs = useDialogsStore()
 const registrationStore = useRegistrationStore()
 const eventBus = useEventBus()
 
@@ -175,25 +168,7 @@ const fullscreen = ref(false)
 
 /* Colors */
 const tabs = computed(() => app.tabs)
-const settings = computed(() => settingsStore)
-const toolbar = computed(() => toolbarStore)
 const reg = computed(() => registrationStore.reg)
-
-/* Methods */
-function toggleSort() {
-  toolbar.value.sort.type = itemsStore.type
-  toolbar.value.sort.show = !toolbar.value.sort.show
-  if (toolbar.value.sort.show) scrollTop()
-}
-
-function toggleCustomization() {
-  toolbar.value.appearance.show = !toolbar.value.appearance.show
-  if (toolbar.value.appearance.show) scrollTop()
-}
-
-function scrollTop() {
-  scrollMainTo({ top: 0, behavior: 'smooth' })
-}
 
 function openRandomItem() {
   const ids = itemsStore.entities.map(i => i.id)

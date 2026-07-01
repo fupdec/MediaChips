@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { playlists } from '../schema/playlists'
 import { nowIso } from '../utils/timestamps'

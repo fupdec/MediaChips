@@ -195,7 +195,7 @@ function registerAuthRoutes(app: Express, authService: AuthService) {
         required,
         authenticated: authService.isRequestAuthenticated(req),
       })
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       res.status(500).json({message: 'Failed to read auth status'})
     }
   })
@@ -221,7 +221,7 @@ function registerAuthRoutes(app: Express, authService: AuthService) {
 
       const token = authService.createSession()
       res.json({token, required: true})
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       res.status(500).json({message: 'Login failed'})
     }
   })

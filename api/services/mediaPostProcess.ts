@@ -1,4 +1,3 @@
-import type { ApiDb } from '../types/db'
 import type {
   MediaId,
   MediaPostProcessorDeps,

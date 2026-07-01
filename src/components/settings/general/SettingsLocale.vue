@@ -16,7 +16,7 @@
         width="300"
         hide-details
       >
-        <template #selection="{ item }">
+        <template #selection>
           <country-flag :country="selectedLocale.flag" size="big" class="lang-flag"/>
           <span class="pl-2">{{ t(selectedLocale.nameKey) }}</span>
           <span class="pl-2">({{ selectedLocale.nativeName }})</span>

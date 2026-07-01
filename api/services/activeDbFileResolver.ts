@@ -1,4 +1,3 @@
-import type { ApiDb, AnyRecord, MediaLike, FilterLike, TagLike, MetaLike } from '../types/db'
 import path from 'path'
 import fs from 'fs'
 import { normalizeMediaPath } from '../utils/normalizeUserPath'

@@ -216,7 +216,7 @@ const metaDisordered = computed(() =>
 
 /* helpers */
 function reorderMeta(items: MetaNavItem[]): MetaNavRow[] {
-  let sorted = orderBy(items, ['hidden', 'order'], ['asc', 'asc'])
+  const sorted = orderBy(items, ['hidden', 'order'], ['asc', 'asc'])
   if (sorted.length > 1) {
     const visibleCount = sorted.filter(i => !i.hidden).length
     const arr: MetaNavRow[] = [...sorted]

@@ -32,7 +32,6 @@
 import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 
@@ -49,7 +48,6 @@ const props = defineProps({
 })
 
 /* store */
-const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const {t} = useI18n()
 
@@ -60,9 +58,6 @@ const folderSize = ref('0 MB')
 const confirmText = computed(() => t('settings_labels.database.clear_generated_images_confirm'))
 
 /* methods */
-interface FolderSizeResponse {
-  size: number
-}
 
 const getFolderSize = async () => {
   const {data} = await typedApi.getFolderSize({folder: props.imageType})

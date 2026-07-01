@@ -160,7 +160,6 @@ const itemsStore = useItemsStore()
 const operationsStore = useOperationsStore()
 const eventBus = useEventBus()
 const {
-  localhost: apiUrl,
   isElectron,
   tags: allTags,
 } = storeToRefs(mainStore)

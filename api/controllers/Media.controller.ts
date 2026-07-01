@@ -6,7 +6,6 @@ import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } fr
 import type { MediaPathUpdatePayload, MediaThumbsRequestPayload } from '@shared/api/payloads'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
-import fs from 'fs'
 import path from 'path'
 import {
   deleteMediaGeneratedAssets,
