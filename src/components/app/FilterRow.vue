@@ -14,7 +14,8 @@
       class="mb-4 rounded-xl filter"
       :class="{ active: active, removed: removed, disabled: isDisabled }"
       :disabled="isDisabled"
-      :variant="filter.active ? 'text' : 'plain'"
+      :variant="active ? 'text' : 'flat'"
+      :elevation="active ? undefined : 0"
     >
       <div class="d-flex align-center justify-space-between filter__header">
         <div class="d-flex align-center min-width-0 filter__title_block">

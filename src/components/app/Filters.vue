@@ -54,14 +54,14 @@
       <div class="px-2">
         <div class="d-flex align-center justify-space-between">
           <v-btn-toggle rounded="xl" density="compact">
-            <v-btn @click="dialogSave = true" variant="tonal" class="px-4">
-              <v-icon start>mdi-content-save</v-icon>
+            <v-btn @click="dialogSave = true" variant="tonal" size="small" class="px-3">
+              <v-icon start size="small">mdi-content-save</v-icon>
               {{ t('common.save') }}
             </v-btn>
             <v-divider vertical></v-divider>
-            <v-btn @click="dialogLoad = true" variant="tonal" class="px-4">
+            <v-btn @click="dialogLoad = true" variant="tonal" size="small" class="px-3">
               {{ t('common.load') }}
-              <v-icon end>mdi-content-save-move</v-icon>
+              <v-icon end size="small">mdi-content-save-move</v-icon>
             </v-btn>
           </v-btn-toggle>
 
@@ -70,8 +70,9 @@
             :color="is_filters_changed ? 'success' : 'primary'"
             rounded="xl"
             variant="flat"
+            size="small"
           >
-            <v-icon start>mdi-check</v-icon>
+            <v-icon start size="small">mdi-check</v-icon>
             {{ t('common.apply') }}
           </v-btn>
         </div>
@@ -89,14 +90,14 @@
         <v-spacer class="py-2"></v-spacer>
 
         <div v-if="filters.length > 1" class="d-flex align-center justify-space-between mb-4">
-          <v-btn @click="toggleRemovingAll" color="error" variant="tonal" rounded="xl">
-            <v-icon start>mdi-close</v-icon>
+          <v-btn @click="toggleRemovingAll" color="error" variant="tonal" rounded="xl" size="small">
+            <v-icon start size="small">mdi-close</v-icon>
             {{ t('common.remove_all') }}
           </v-btn>
 
-          <v-btn @click="toggleActivationAll" color="success" variant="tonal" rounded="xl">
+          <v-btn @click="toggleActivationAll" color="success" variant="tonal" rounded="xl" size="small">
             {{ t('common.activate_all') }}
-            <v-icon end>mdi-check-all</v-icon>
+            <v-icon end size="small">mdi-check-all</v-icon>
           </v-btn>
         </div>
       </div>
@@ -639,7 +640,19 @@ watch(currentMediaType, () => {
     pointer-events: all;
     box-shadow:  0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)), -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)), 5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
     background-color: rgba(var(--v-theme-background), 0.9);
-    backdrop-filter: blur(20px);
+    position: relative;
+    isolation: isolate;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: -1;
+      pointer-events: none;
+    }
   }
 
   &.temporary {

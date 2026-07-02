@@ -443,6 +443,28 @@ header {
       opacity: 0.2;
     }
   }
+  &:not(.active):not(.removed):not(.disabled) {
+    background: rgba(var(--v-theme-on-surface), 0.04) !important;
+    box-shadow: none !important;
+    color: rgba(var(--v-theme-on-surface), 0.55);
+
+    .filter__title {
+      color: rgba(var(--v-theme-on-surface), 0.55);
+    }
+
+    .v-icon {
+      color: rgba(var(--v-theme-on-surface), 0.4) !important;
+    }
+
+    > .v-card__overlay,
+    &:hover > .v-card__overlay {
+      opacity: 0 !important;
+    }
+
+    > .v-card__underlay {
+      opacity: 0 !important;
+    }
+  }
   &-form {
     position: relative;
     .disabled-btn {
