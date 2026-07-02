@@ -11,7 +11,7 @@
         :subheader="stepSubheader"
         icon="flag"
         closable
-        @close="skip"
+        @close="dismiss"
       />
 
       <v-card-text class="pt-2 pb-0">
@@ -76,7 +76,7 @@
           v-else
           color="primary"
           variant="flat"
-          @click="stepIndex += 1"
+          @click="next"
         >
           {{ t('onboarding.next') }}
         </v-btn>
@@ -86,21 +86,36 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
-import {completeOnboarding, skipOnboarding} from '@/composable/useOnboarding'
+import {
+  completeOnboarding,
+  dismissOnboarding,
+  getOnboardingStep,
+  saveOnboardingStep,
+  skipOnboarding,
+} from '@/composable/useOnboarding'
 
 const {t} = useI18n()
 const router = useRouter()
 const dialogs = useDialogsStore()
 const appStore = useAppStore()
 
-const stepIndex = ref(0)
+const stepIndex = ref(getOnboardingStep())
+
+watch(
+  () => dialogs.onboarding.show,
+  (show) => {
+    if (show) {
+      stepIndex.value = getOnboardingStep()
+    }
+  },
+)
 
 const steps = computed(() => [
   {
@@ -132,6 +147,11 @@ const stepSubheader = computed(() =>
   t('onboarding.step_counter', {current: stepIndex.value + 1, total: steps.value.length}),
 )
 
+async function dismiss() {
+  await dismissOnboarding(stepIndex.value)
+  stepIndex.value = 0
+}
+
 async function skip() {
   await skipOnboarding()
   stepIndex.value = 0
@@ -142,21 +162,29 @@ async function finish() {
   stepIndex.value = 0
 }
 
+async function next() {
+  const nextStep = stepIndex.value + 1
+  await saveOnboardingStep(nextStep)
+  stepIndex.value = nextStep
+}
+
 function onDialogToggle(value: boolean) {
   if (!value) {
-    void skip()
+    void dismiss()
   }
 }
 
 async function openSettings() {
-  await completeOnboarding()
+  const nextStep = stepIndex.value + 1
+  await dismissOnboarding(nextStep)
   stepIndex.value = 0
   await router.push({path: '/settings', query: {tab: 'library'}})
 }
 
 async function openMediaLibrary() {
   const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
-  await completeOnboarding()
+  const nextStep = stepIndex.value + 1
+  await dismissOnboarding(nextStep)
   stepIndex.value = 0
 
   if (mediaTypeId) {

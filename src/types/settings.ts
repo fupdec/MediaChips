@@ -116,6 +116,8 @@ export type SettingsState = {
   show_salutation: string
   show_ip_at_home_screen: string
   onboardingCompleted: string
+  onboardingStep: string
+  onboardingPaused: string
   home_widgets_config: string
   show_alert_new_tool_words: string
   show_default_meta_outlined: string
@@ -198,6 +200,8 @@ export const defaultSettingsState = (): SettingsState => ({
   show_salutation: '1',
   show_ip_at_home_screen: '1',
   onboardingCompleted: '0',
+  onboardingStep: '0',
+  onboardingPaused: '0',
   home_widgets_config: '',
   show_alert_new_tool_words: '1',
   show_default_meta_outlined: '1',

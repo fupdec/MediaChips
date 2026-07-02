@@ -109,4 +109,10 @@ app.use(readable, { router, store, i18n })
 
 router.isReady().then(() => {
   app.mount('#app')
+
+  if (import.meta.env.DEV) {
+    import('@/composable/useOnboarding').then(({openOnboarding}) => {
+      ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
+    })
+  }
 })
