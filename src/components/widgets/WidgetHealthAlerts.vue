@@ -201,6 +201,19 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
     })
   }
 
+  if (health.value.videoCodec.pending > 0) {
+    alerts.push({
+      id: 'video-codec',
+      type: 'info',
+      icon: 'mdi-movie-filter-outline',
+      text: t('home.widgets.health_video_codec_pending', {
+        count: health.value.videoCodec.pending,
+      }),
+      actionLabel: t('home.widgets.health_open_video_codec_backfill'),
+      action: openVideoCodecBackfillSettings,
+    })
+  }
+
   const videoImageTypes = ['preview', 'grid', 'timeline', 'marks']
   const videoImagesPending = videoImageTypes.reduce(
     (sum, key) => sum + Number(health.value.generatedImages.byType?.[key]?.pending || 0),
@@ -280,6 +293,16 @@ function openImageThumbsGenerationSettings() {
     query: {
       tab: 'database',
       section: 'generate_image_thumbs',
+    },
+  })
+}
+
+function openVideoCodecBackfillSettings() {
+  router.push({
+    path: '/settings',
+    query: {
+      tab: 'database',
+      section: 'video_codec_backfill',
     },
   })
 }

@@ -46,6 +46,11 @@ export const HomeHealthSchema = z.object({
     pending: z.number(),
     hashed: z.number(),
   }).optional(),
+  videoCodec: z.object({
+    total: z.number(),
+    pending: z.number(),
+    filled: z.number(),
+  }).optional(),
   generatedImages: z.object({
     byType: z.record(z.string(), z.unknown()),
     totalPending: z.number(),

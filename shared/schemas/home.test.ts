@@ -35,8 +35,10 @@ describe('home schemas', () => {
     const health = parseHomeHealth({
       duplicates: { byFilesize: 1, byContentHash: 2 },
       contentHash: { total: 10, pending: 3, hashed: 7 },
+      videoCodec: { total: 8, pending: 2, filled: 6 },
     })
     expect(health.duplicates?.byContentHash).toBe(2)
+    expect(health.videoCodec?.pending).toBe(2)
 
     const markers = parseHomeMarkers({ marks: [{ id: 1, time: 12 }] })
     expect(markers.marks?.[0]?.id).toBe(1)

@@ -9,6 +9,10 @@ import {
   iterateContentHashBackfill,
 } from '../../services/contentHashBackfill'
 import {
+  getVideoCodecBackfillStatus,
+  iterateVideoCodecBackfill,
+} from '../../services/videoCodecBackfill'
+import {
   getMissingMediaStatus,
   iterateMissingMediaSearch,
 } from '../../services/missingMediaFinder'
@@ -36,6 +40,46 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while checking content hash status."
       })
+    }
+  }
+
+  const videoCodecBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getVideoCodecBackfillStatus(db)
+      res.status(201).send(status)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while checking video codec status.',
+      })
+    }
+  }
+
+  const streamVideoCodecBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const shouldStop = createStreamAbortSignal(req, res)
+
+      for await (const event of iterateVideoCodecBackfill(db, {
+        shouldStop,
+        force: String(req.query.force || '').toLowerCase() === 'true',
+      })) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Some error occurred while backfilling video codecs.',
+      })
+      res.end()
     }
   }
 
@@ -231,6 +275,8 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   return {
     contentHashBackfillStatus,
     streamContentHashBackfill,
+    videoCodecBackfillStatus,
+    streamVideoCodecBackfill,
     imageThumbsGenerationStatus,
     streamImageThumbsGeneration,
     videoImagesGenerationStatus,

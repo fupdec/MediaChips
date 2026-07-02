@@ -16,6 +16,11 @@ vi.mock('../../services/contentHashBackfill', () => ({
   iterateContentHashBackfill: vi.fn(),
 }))
 
+vi.mock('../../services/videoCodecBackfill', () => ({
+  getVideoCodecBackfillStatus: vi.fn(),
+  iterateVideoCodecBackfill: vi.fn(),
+}))
+
 vi.mock('../../services/missingMediaFinder', () => ({
   getMissingMediaStatus,
   iterateMissingMediaSearch: vi.fn(),

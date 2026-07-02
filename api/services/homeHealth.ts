@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { readdir, stat } from 'fs/promises'
 import { getContentHashBackfillStatus } from './contentHashBackfill'
+import { getVideoCodecBackfillStatus } from './videoCodecBackfill'
 import { getVideoImagesGenerationStatus } from './videoImagesGeneration'
 import { getImageThumbsGenerationStatus } from './imageThumbsGeneration'
 import { queryGet } from '../db/utils/rawQuery'
@@ -80,9 +81,10 @@ async function getDuplicateCounts(db: ApiDb) {
 async function getHomeHealth(db: ApiDb): Promise<ParsedHomeHealth> {
   const getDbPath = () => db.path!
   const dbPath = getDbPath()
-  const [duplicates, contentHash, videoImages, imageThumbs, database] = await Promise.all([
+  const [duplicates, contentHash, videoCodec, videoImages, imageThumbs, database] = await Promise.all([
     getDuplicateCounts(db),
     getContentHashBackfillStatus(db),
+    getVideoCodecBackfillStatus(db),
     getVideoImagesGenerationStatus(db, dbPath),
     getImageThumbsGenerationStatus(db, dbPath),
     getActiveDatabaseSize(db),
@@ -96,6 +98,7 @@ async function getHomeHealth(db: ApiDb): Promise<ParsedHomeHealth> {
   return {
     duplicates,
     contentHash,
+    videoCodec,
     generatedImages,
     imageThumbs,
     database,
