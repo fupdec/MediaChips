@@ -1,5 +1,5 @@
 import {computed, nextTick} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {i18n} from '@/i18n/loadLocale'
 import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
 import {parseFilePath} from '@/services/pathTagParser'
@@ -67,7 +67,7 @@ export const useMediaAdding = () => {
   const itemsStore = useItemsStore()
   const tasksStore = useTasksStore()
   const eventBus = useEventBus()
-  const {t} = useI18n()
+  const t = i18n.global.t
 
   const ENV = computed(() => itemsStore.environment)
   const mediaTypes = computed(() => appStore.mediaTypes)

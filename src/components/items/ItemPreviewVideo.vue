@@ -58,6 +58,17 @@
         </v-btn>
       </div>
 
+      <!-- TRANSCODE FORMAT NOTICE -->
+      <div
+        v-if="showTranscodePreviewNotice"
+        class="preview transcode-preview-notice"
+        @click.stop="play"
+      >
+        <div class="playback-error">
+          {{ t('player.preview_format_unavailable') }}
+        </div>
+      </div>
+
       <!-- VIDEO PREVIEW -->
       <div
         v-if="showVideoPreview"
@@ -215,7 +226,11 @@ import {setOption} from '@/services/settingsService'
 import {isLikelyBrowserDirectVideo} from '@/utils/transcodeCompatibility'
 import {usePlayerStore} from '@/stores/player'
 import {getChunkStart} from '@/utils/liveStreamChunk'
-import {resolvePreviewVideoUrl, stopLiveTranscode} from '@/services/transcodeService'
+import {
+  fetchPlayableInfo,
+  resolvePreviewVideoUrl,
+  stopLiveTranscode,
+} from '@/services/transcodeService'
 import {isAppWindowFocused} from '@/utils/windowFocus'
 import type {MediaItem} from '@/types/stores'
 
@@ -268,6 +283,7 @@ const thumbCreateAttempted = ref(false)
 const thumbLoadStarted = ref(false)
 const bigPreviewMenuActive = ref(false)
 const isMounted = ref(false)
+const transcodeRequired = ref<boolean | null>(null)
 
 const getPreviewEl = (): HTMLElement | null => {
   const instance = previewRef.value
@@ -317,6 +333,10 @@ const isUnsupportedFormat = computed(() =>
   props.isFileExists && !isLikelyBrowserDirectVideo(props.media?.path),
 )
 
+const needsTranscodePlayback = computed(() =>
+  isUnsupportedFormat.value || transcodeRequired.value === true,
+)
+
 const isTranscodeEnabled = computed(() =>
   settingsStore.transcodeUnsupportedFormats === '1',
 )
@@ -326,7 +346,14 @@ const isVideoPreviewEnabled = computed(() =>
 )
 
 const shouldBlockVideoPreview = computed(() =>
-  isUnsupportedFormat.value && isVideoPreviewEnabled.value,
+  needsTranscodePlayback.value && isVideoPreviewEnabled.value,
+)
+
+const showTranscodePreviewNotice = computed(() =>
+  isViewCard.value &&
+  isHovered.value &&
+  shouldBlockVideoPreview.value &&
+  isTranscodeEnabled.value,
 )
 
 const shouldBlockHoverPreview = computed(() =>
@@ -644,6 +671,23 @@ const isIgnorablePreviewError = (error: unknown): boolean => {
   return name === 'AbortError' || name === 'NotAllowedError'
 }
 
+const checkTranscodeRequired = async () => {
+  if (!props.isFileExists || !props.media?.id || transcodeRequired.value !== null) {
+    return
+  }
+
+  try {
+    const playable = await fetchPlayableInfo(props.media.id)
+    transcodeRequired.value = Boolean(
+      playable.transcodeRequired ||
+      playable.streamPlayback ||
+      playable.mode === 'stream',
+    )
+  } catch {
+    transcodeRequired.value = false
+  }
+}
+
 const buildPreviewVideoUrl = () =>
   resolvePreviewVideoUrl(buildApiUrl, props.media.id, progress.value || 0)
 
@@ -779,20 +823,25 @@ const handleMouseEnter = () => {
   playbackError.value = false
   isHovered.value = true
 
-  if (isVideoPreviewEnabled.value && !shouldBlockVideoPreview.value) {
-    schedulePreviewPlayback()
-  }
+  void (async () => {
+    await checkTranscodeRequired()
+    if (!isHovered.value || !isAppWindowFocused()) return
 
-  if (SETTINGS.value.big_video_preview === '1' && !shouldBlockVideoPreview.value) {
-    const totalDelay = (Number(SETTINGS.value.delayVideoPreview) || 0) +
-      (Number(SETTINGS.value.big_video_preview_delay) || 0)
+    if (isVideoPreviewEnabled.value && !shouldBlockVideoPreview.value) {
+      schedulePreviewPlayback()
+    }
 
-    timeouts.cinema = setTimeout(() => {
-      emit('update-big-preview', true)
-      bigPreview.value = true
-      bigPreviewAnimation.value = true
-    }, Math.floor(totalDelay))
-  }
+    if (SETTINGS.value.big_video_preview === '1' && !shouldBlockVideoPreview.value) {
+      const totalDelay = (Number(SETTINGS.value.delayVideoPreview) || 0) +
+        (Number(SETTINGS.value.big_video_preview_delay) || 0)
+
+      timeouts.cinema = setTimeout(() => {
+        emit('update-big-preview', true)
+        bigPreview.value = true
+        bigPreviewAnimation.value = true
+      }, Math.floor(totalDelay))
+    }
+  })()
 }
 
 const stopPlayingPreview = ({force = false} = {}) => {
@@ -902,9 +951,14 @@ watch(() => contextMenuStore.show, (show) => {
 })
 
 watch(() => props.isFileExists, (exists) => {
+  transcodeRequired.value = null
   if (exists && isThumbUnavailable(thumb.value)) {
     getImg()
   }
+})
+
+watch(() => props.media?.id, () => {
+  transcodeRequired.value = null
 })
 
 watch(() => itemsStore.thumbRefreshKeys[Number(props.media.id)], (version) => {
@@ -1033,5 +1087,12 @@ onBeforeUnmount(() => {
 .big-preview-plug .v-card {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+.transcode-preview-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
 }
 </style>

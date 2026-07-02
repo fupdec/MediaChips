@@ -1,3 +1,4 @@
+import type { AxiosResponse } from 'axios'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { openLowDbMigrationIfNeeded } from './useLowDbMigration'
@@ -24,7 +25,9 @@ describe('openLowDbMigrationIfNeeded', () => {
   })
 
   it('opens dialog when legacy LowDB data exists', async () => {
-    vi.mocked(typedApi.checkDataForMigrateFromLowDb).mockResolvedValue({ status: 201, data: null })
+    vi.mocked(typedApi.checkDataForMigrateFromLowDb).mockResolvedValue(
+      { status: 201, data: null } as AxiosResponse,
+    )
 
     const opened = await openLowDbMigrationIfNeeded(false)
     const store = useOperationsStore()
