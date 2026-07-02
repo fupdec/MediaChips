@@ -21,6 +21,7 @@
           :key="`thumb_${mark.id}`"
           class="thumb"
           contain
+          @error="onThumbError"
         ></v-img>
 
         <v-sheet class="time"
@@ -93,7 +94,8 @@ import {useItemsStore} from '@/stores/items'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from '@/utils/eventBus'
 import {useLazyInView} from '@/composable/useLazyInView'
-import {loadMarkImageDisplayUrl} from '@/utils/markThumb'
+import {isMarkThumbUnavailable, loadMarkImageDisplayUrl} from '@/utils/markThumb'
+import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getReadableDuration} from '@/services/formatUtils'
 import {toPlayableMediaItem} from '@/utils/mediaItem'
@@ -144,6 +146,7 @@ const video = ref<HTMLVideoElement | null>(null)
 const rootRef = ref<HTMLElement | null>(null)
 const {wasInView} = useLazyInView(rootRef)
 const thumb = ref<string | undefined>(undefined)
+const thumbFallbackApplied = ref(false)
 const is_hovered = ref(false)
 const is_file_exists = ref(false)
 const playback_error = ref(false)
@@ -222,6 +225,7 @@ watch(() => appStore.window.focused, (focused) => {
 // Methods
 const loadThumb = async () => {
   try {
+    thumbFallbackApplied.value = false
     thumb.value = await loadMarkImageDisplayUrl({
       markId: props.mark.id,
       mediaPath: appStore.mediaPath,
@@ -230,6 +234,19 @@ const loadThumb = async () => {
   } catch (e) {
     console.log('Error loading image:', e)
   }
+}
+
+const onThumbError = () => {
+  if (thumbFallbackApplied.value) return
+
+  const mediaId = props.mark.medium?.id || props.mark.mediumId
+  if (!appStore.mediaPath || !mediaId) return
+
+  const videoThumb = resolveMediaThumbDisplayUrl(appStore.mediaPath, 'videos', mediaId)
+  if (isMarkThumbUnavailable(videoThumb)) return
+
+  thumbFallbackApplied.value = true
+  thumb.value = videoThumb!
 }
 
 const checkMarkFileExists = async () => {

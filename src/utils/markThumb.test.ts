@@ -1,22 +1,69 @@
 /// <reference types="node" />
-import { describe, expect, it } from 'vitest'
-import path from 'path'
-import os from 'os'
-import fs from 'fs'
-import { resolveActiveDbFilePath } from '../../api/services/activeDbFileResolver.js'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { loadMarkImageDisplayUrl } from '@/utils/markThumb'
 
-describe('resolveActiveDbFilePath', () => {
-  it('resolves files relative to the active database media folder', () => {
-    const dbPath = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-db-'))
-    const mediaDir = path.join(dbPath, 'media', 'videos')
-    fs.mkdirSync(mediaDir, { recursive: true })
-    const videoPath = path.join(mediaDir, 'sample.mp4')
-    fs.writeFileSync(videoPath, 'video')
+vi.mock('@/services/fileService', () => ({
+  buildLocalFileUrl: (filePath: string) => `file://${filePath}`,
+  checkFileExists: vi.fn(),
+  createThumb: vi.fn(),
+}))
 
-    const resolved = resolveActiveDbFilePath('videos/sample.mp4', dbPath)
+vi.mock('@/services/typedApi', () => ({
+  typedApi: {
+    createMarkThumb: vi.fn(),
+  },
+}))
 
-    expect(resolved).toBe(videoPath)
+vi.mock('@/utils/thumbSource', () => ({
+  isThumbUnavailable: (src: string | null | undefined) => !src || src.includes('unavailable.png'),
+  resolveMediaThumbDisplayUrl: vi.fn(),
+}))
 
-    fs.rmSync(dbPath, { recursive: true, force: true })
+import { checkFileExists } from '@/services/fileService'
+import { resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
+
+describe('loadMarkImageDisplayUrl', () => {
+  beforeEach(() => {
+    vi.mocked(checkFileExists).mockReset()
+    vi.mocked(resolveMediaThumbDisplayUrl).mockReset()
+  })
+
+  it('returns mark image when mark file exists', async () => {
+    vi.mocked(checkFileExists).mockResolvedValue(true)
+
+    const url = await loadMarkImageDisplayUrl({
+      markId: 42,
+      mediaPath: '/db/path',
+    })
+
+    expect(url).toBe('file:///db/path/videos/marks/42.jpg')
+    expect(resolveMediaThumbDisplayUrl).not.toHaveBeenCalled()
+  })
+
+  it('falls back to video thumb when mark image is missing', async () => {
+    vi.mocked(checkFileExists).mockResolvedValue(false)
+    vi.mocked(resolveMediaThumbDisplayUrl).mockReturnValue('file:///db/path/videos/thumbs/7.jpg')
+
+    const url = await loadMarkImageDisplayUrl({
+      markId: 42,
+      mediaPath: '/db/path',
+      mediaId: 7,
+    })
+
+    expect(url).toBe('file:///db/path/videos/thumbs/7.jpg')
+    expect(resolveMediaThumbDisplayUrl).toHaveBeenCalledWith('/db/path', 'videos', 7)
+  })
+
+  it('returns unavailable when neither mark nor video thumb exists', async () => {
+    vi.mocked(checkFileExists).mockResolvedValue(false)
+    vi.mocked(resolveMediaThumbDisplayUrl).mockReturnValue(null)
+
+    const url = await loadMarkImageDisplayUrl({
+      markId: 42,
+      mediaPath: '/db/path',
+      mediaId: 7,
+    })
+
+    expect(url).toBe('/images/unavailable.png')
   })
 })

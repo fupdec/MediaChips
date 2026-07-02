@@ -21,7 +21,7 @@ export function isMarkThumbUnavailable(src: string | null | undefined): boolean 
   return isThumbUnavailable(src)
 }
 
-export function loadMarkImageDisplayUrl({
+export async function loadMarkImageDisplayUrl({
   markId,
   mediaPath,
   mediaId,
@@ -29,15 +29,14 @@ export function loadMarkImageDisplayUrl({
   markId?: number | string
   mediaPath?: string | null
   mediaId?: number | string
-}): string {
+}): Promise<string> {
   if (!mediaPath || !markId) {
     return '/images/unavailable.png'
   }
 
-  const markImage = buildLocalFileUrl(getMarkImagePath(mediaPath, markId))
-
-  if (!isMarkThumbUnavailable(markImage)) {
-    return markImage
+  const markImagePath = getMarkImagePath(mediaPath, markId)
+  if (await checkFileExists(markImagePath)) {
+    return buildLocalFileUrl(markImagePath)
   }
 
   if (mediaId) {
@@ -47,7 +46,7 @@ export function loadMarkImageDisplayUrl({
     }
   }
 
-  return markImage
+  return '/images/unavailable.png'
 }
 
 function isMarkThumbAlreadyExistsError(error: unknown): boolean {
