@@ -10,6 +10,7 @@
         @close="dialogsStore.mediaEditing.show = false"
         :header="t('common.editing')"
         :subheader="fileName"
+        :subheader-copy-text="fileName"
         :buttons="buttons"
         icon="pencil"
         closable
@@ -69,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, defineAsyncComponent} from 'vue'
+import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import type {MediaItem} from '@/types/stores'
 import type {MediaType} from '@/types/media'
 import {useI18n} from 'vue-i18n'
@@ -79,6 +80,8 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
+import {buildLocalFileUrl} from '@/services/fileService'
+import {isThumbUnavailable, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import {useEventBus} from "@/utils/eventBus"
@@ -89,6 +92,7 @@ import {
   isAudioMediaType,
   isImageMediaType,
   isTextMediaType,
+  isVideoMediaType,
 } from '@/utils/mediaType'
 
 const DialogHeader = defineAsyncComponent(() => import("@/components/elements/DialogHeader.vue"))
@@ -191,8 +195,23 @@ async function getImage() {
     return
   }
 
-  imgPath.value = path.join(appStore.mediaPath, 'videos/thumbs', `${currentMedia.id}.jpg`)
-  thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {cacheBust: true})
+  const mediaTypeFolder = getMediaDeleteAssetFolder(mediaType) || 'videos'
+  imgPath.value = path.join(appStore.mediaPath, mediaTypeFolder, 'thumbs', `${currentMedia.id}.jpg`)
+  let thumbUrl = resolveMediaThumbDisplayUrl(appStore.mediaPath, mediaTypeFolder, currentMedia.id)
+
+  if (isThumbUnavailable(thumbUrl) && currentMedia.path && isVideoMediaType(mediaType)) {
+    try {
+      await typedApi.taskCreateThumbForVideo({
+        path: currentMedia.path,
+        id: currentMedia.id,
+      })
+      thumbUrl = buildLocalFileUrl(imgPath.value, false, true)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  thumb.value = thumbUrl
   cropperOps.value = {aspectRatio: 16 / 9}
 }
 
@@ -255,6 +274,11 @@ function close() {
 
 onMounted(() => {
   initButtons()
-  getImage()
+  void getImage()
+})
+
+watch(() => media.value?.id, (mediaId, previousId) => {
+  if (mediaId == null || mediaId === previousId) return
+  void getImage()
 })
 </script>

@@ -237,7 +237,10 @@ const es = {
     "current": "Actual",
     "found": "Encontrado",
     "exit": "Salir",
-    "or": "o"
+    "or": "o",
+    "copy_name": "Copiar nombre",
+    "copy_path": "Copiar ruta",
+    "copied": "Copiado al portapapeles"
   },
   "validation": {
     "path_required": "La ruta es obligatoria",
@@ -284,6 +287,8 @@ const es = {
     edit_tag: 'Editar etiqueta',
     filter_by_tag: 'Filtrar por etiqueta',
     open_page: 'Abrir página',
+    copy_name: 'Copiar nombre',
+    copy_path: 'Copiar ruta',
   },
   auto_update: {
     title: 'Actualizaciones',
@@ -411,6 +416,11 @@ const es = {
     finish: 'Empezar',
     open_settings: 'Abrir ajustes',
     open_library: 'Abrir biblioteca',
+    notification: {
+      title: 'Continuar configuración',
+      text: 'Dejó la guía de inicio en el paso {current} de {total}.',
+      resume: 'Continuar guía',
+    },
     steps: {
       welcome: {
         title: 'Bienvenido a MediaChips',
@@ -927,6 +937,7 @@ const es = {
       full_path: 'Ruta completa:',
       edit_path: 'Editar ruta al archivo',
       open_directory: 'Abrir directorio del archivo',
+      copy_path: 'Copiar ruta',
       editing_path: 'Editando ruta al archivo',
       full_path_hint: 'Es la ruta completa. Por ejemplo: /home/media/video.mp4',
       file_missing_operations_unavailable: 'El archivo no existe. Las operaciones de archivo no están disponibles.',

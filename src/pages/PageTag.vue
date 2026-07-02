@@ -9,17 +9,30 @@
     <template v-else>
     <v-responsive
       :aspect-ratio="1400/609"
-      color="transparent"
       class="tag-header"
-      :light="!is_dark"
-      :dark="is_dark"
-      :class="{'no-header-image': !is_header_exists}"
-      :style="{'background-image': `url('${is_header_exists ? images.header : images.main}')`}"
+      :class="{
+        'no-header-image': !is_header_exists,
+        'tag-header--has-bg': Boolean(headerBackgroundSrc),
+      }"
     >
+      <div
+        v-if="headerBackgroundSrc"
+        :class="['bg-image', {'bg-header': is_header_exists}]"
+        aria-hidden="true"
+      >
+        <v-img :key="upd" :src="headerBackgroundSrc" cover />
+      </div>
+
       <v-container class="profile-container my-6">
         <v-row>
           <v-col cols="12">
-            <v-btn @click="openMetaPage" :title="t('actions.open_page')" rounded>
+            <v-btn
+              @click="openMetaPage"
+              :title="t('actions.open_page')"
+              class="tag-meta-link"
+              rounded
+              variant="tonal"
+            >
               <v-icon start>mdi-{{ meta.icon }}</v-icon>
               <div class="text">{{ meta.name }}</div>
               <v-icon end>mdi-arrow-left</v-icon>
@@ -29,12 +42,28 @@
 
         <v-row style="position: relative;">
           <v-col cols="12">
-            <v-card class="text-md-h2 text-xl-h1" variant="text">
-              <v-avatar v-if="is_avatar_exists" :size="lg ? 120 : md ? 80 : sm ? 60 : xs ? 40 : 160" class="mr-8">
-                <v-img :src="images.avatar ?? undefined"></v-img>
+            <v-card class="tag-profile-heading text-md-h2 text-xl-h1" variant="text">
+              <v-avatar
+                v-if="avatarDisplaySrc"
+                :size="lg ? 120 : md ? 80 : sm ? 60 : xs ? 40 : 160"
+                class="tag-profile-heading__avatar mr-8"
+              >
+                <v-img :src="avatarDisplaySrc" cover />
               </v-avatar>
-              <v-icon v-else start>mdi-{{ meta.icon }}</v-icon>
-              <span>{{ tag.name }}</span>
+              <v-icon v-else class="tag-profile-heading__icon" start>mdi-{{ meta.icon }}</v-icon>
+              <span class="tag-profile-heading__name-row d-inline-flex align-center">
+                <span class="tag-profile-heading__name">{{ tag.name }}</span>
+                <v-btn
+                  @click="copyTagName"
+                  variant="text"
+                  icon
+                  size="small"
+                  class="tag-profile-heading__copy ml-1"
+                  :title="t('common.copy_name')"
+                >
+                  <v-icon icon="mdi-content-copy" />
+                </v-btn>
+              </span>
             </v-card>
           </v-col>
         </v-row>
@@ -42,10 +71,10 @@
         <v-row>
           <v-col cols="12" md="3">
             <v-responsive
-              v-if="images.main"
+              v-if="mainFileExists && images.main"
               :aspect-ratio="meta?.imageAspectRatio"
             >
-              <v-img :src="images.main" rounded="xl" :class="{'main-img':is_header_exists}"></v-img>
+              <v-img :src="images.main" rounded="xl" class="main-img"></v-img>
             </v-responsive>
           </v-col>
           <v-col cols="12" md="9" style="position:relative;">
@@ -174,12 +203,13 @@
 import {ref, computed, onMounted, onBeforeUnmount, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute, useRouter} from 'vue-router'
-import {useTheme, useDisplay} from 'vuetify'
+import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {typedApi} from '@/services/typedApi'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import {useEventBus} from '@/utils/eventBus'
 import path from 'path-browserify';
@@ -188,6 +218,7 @@ import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {sortByMenuMediaTypeOrder} from '@/utils/mediaType'
 import {getUrlParam} from '@/services/routeService'
 import {setNotification} from '@/services/notificationService'
+import {copyToClipboard} from '@/utils/copyToClipboard'
 import type { Meta, Tag, AssignedMeta } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 import type { MetaInMediaTypeAssignment } from '@/types/metaAssignment'
@@ -202,7 +233,6 @@ interface TagImages {
 }
 const route = useRoute()
 const router = useRouter()
-const theme = useTheme()
 const {lg, md, sm, xs} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
@@ -233,6 +263,9 @@ const pinnedMeta = ref<AssignedMeta[]>([])
 const pinnedMedia = ref<PinnedMediaTab[]>([])
 const completionStatus = ref(0)
 const loadError = ref<string | null>(null)
+const headerFileExists = ref(false)
+const avatarFileExists = ref(false)
+const mainFileExists = ref(false)
 
 function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -249,20 +282,21 @@ function notifyLoadError(error: unknown): void {
 
 // Computed
 const ENV = computed(() => itemsStore.environment)
-const is_dark = computed(() => theme.global.current.value.dark)
-const is_header_exists = computed(() => {
-  if (images.value.header) {
-    return !images.value.header.includes('unavailable.png')
-  } else {
-    return false
+const is_header_exists = computed(() => headerFileExists.value)
+const avatarDisplaySrc = computed(() => {
+  if (!avatarFileExists.value || !images.value.avatar) {
+    return null
   }
+  return images.value.avatar
 })
-const is_avatar_exists = computed(() => {
-  if (images.value.avatar) {
-    return !images.value.avatar.includes('unavailable.png')
-  } else {
-    return false
+const headerBackgroundSrc = computed(() => {
+  if (headerFileExists.value && images.value.header) {
+    return images.value.header
   }
+  if (mainFileExists.value && images.value.main) {
+    return images.value.main
+  }
+  return null
 })
 const resolveInitialTab = () => {
   const urlMediaTypeId = getUrlParam(route, 'mediaTypeId')
@@ -362,10 +396,19 @@ const resolveTagImage = (type: 'main' | 'header' | 'avatar'): string =>
     type,
   })
 
-const getImages = () => {
+const getImages = async () => {
+  if (!appStore.dbPath || !meta.value.id || !tag.value.id) return
+
   for (const i of ['main', 'header', 'avatar'] as const) {
     images.value[i] = resolveTagImage(i)
   }
+
+  const metaDir = path.join(appStore.dbPath, 'meta', String(meta.value.id))
+  const tagId = tag.value.id
+
+  headerFileExists.value = await checkFileExists(path.join(metaDir, `${tagId}_header.jpg`))
+  avatarFileExists.value = await checkFileExists(path.join(metaDir, `${tagId}_avatar.jpg`))
+  mainFileExists.value = await checkFileExists(path.join(metaDir, `${tagId}_main.jpg`))
   upd.value = Date.now()
 }
 
@@ -536,6 +579,14 @@ const openMetaPage = () => {
   router.push("/meta?metaId=" + String(meta.value.id))
 }
 
+const copyTagName = () => {
+  const name = tag.value?.name
+  if (!name) return
+  void copyToClipboard(name, {
+    successText: t('common.copied'),
+  })
+}
+
 // Event handlers
 const handleGetTag = async () => {
   await getTag()
@@ -577,6 +628,14 @@ onBeforeUnmount(() => {
   eventBus.off("updateLayoutItems")
   eventBus.off("getTag")
 })
+
+watch(
+  () => appStore.dbPath,
+  (dbPath) => {
+    if (!dbPath || !tag.value.id) return
+    void getImages()
+  },
+)
 
 watch(
   () => [

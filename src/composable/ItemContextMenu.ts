@@ -20,6 +20,7 @@ import {
 } from '@/utils/mediaType'
 import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
+import {copyToClipboard} from '@/utils/copyToClipboard'
 import {parseFilePath} from '@/services/pathTagParser'
 import translate, {type Locale} from '@/utils/translate'
 import {resolveSelectedMediaItems} from '@/utils/resolveSelection'
@@ -91,6 +92,33 @@ export default function useItemContextMenu(
           itemsStore.isSelect = false
         },
       })
+    }
+
+    if (!itemsStore.isSelect) {
+      if (type === 'media' && isMediaPageItem(item, type)) {
+        contextMenu.push({type: 'divider'})
+        contextMenu.push({
+          name: t('context_menu.copy_name'),
+          type: 'item',
+          icon: 'content-copy',
+          action: copyItemName,
+        })
+        contextMenu.push({
+          name: t('context_menu.copy_path'),
+          type: 'item',
+          icon: 'content-copy',
+          disabled: !mediaPageItemPath(item, type),
+          action: copyItemPath,
+        })
+      } else if (type === 'tag' && isTagPageItem(item, type)) {
+        contextMenu.push({type: 'divider'})
+        contextMenu.push({
+          name: t('context_menu.copy_name'),
+          type: 'item',
+          icon: 'content-copy',
+          action: copyItemName,
+        })
+      }
     }
 
     if (type === 'tag') {
@@ -316,6 +344,21 @@ export default function useItemContextMenu(
     } else if (isTagPageItem(item, type) && meta) {
       dialogsStore.editTag(item, meta)
     }
+  }
+
+  const copyItemName = (): void => {
+    const locale = settingsStore.locale as Locale
+    void copyToClipboard(String(item.name ?? ''), {
+      successText: translate('common.copied', {}, locale),
+    })
+  }
+
+  const copyItemPath = (): void => {
+    if (!isMediaPageItem(item, type)) return
+    const locale = settingsStore.locale as Locale
+    void copyToClipboard(mediaPageItemPath(item, type), {
+      successText: translate('common.copied', {}, locale),
+    })
   }
 
   const toggleSelect = (...args: unknown[]): void => {

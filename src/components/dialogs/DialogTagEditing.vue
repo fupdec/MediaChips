@@ -12,6 +12,7 @@
         @close="dialogsStore.tagEditing.show = false"
         :header="'Editing'"
         :subheader="tag?.name"
+        :subheader-copy-text="tag?.name"
         :buttons="buttons"
         icon="pencil"
         closable

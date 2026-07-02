@@ -237,7 +237,10 @@ const cn = {
     "current": "当前",
     "found": "已找到",
     "exit": "退出",
-    "or": "或"
+    "or": "或",
+    "copy_name": "复制名称",
+    "copy_path": "复制路径",
+    "copied": "已复制到剪贴板"
   },
   "validation": {
     "path_required": "路径为必填项",
@@ -284,6 +287,8 @@ const cn = {
     edit_tag: '编辑标签',
     filter_by_tag: '按标签筛选',
     open_page: '打开页面',
+    copy_name: '复制名称',
+    copy_path: '复制路径',
   },
   auto_update: {
     title: '更新',
@@ -411,6 +416,11 @@ const cn = {
     finish: '开始使用',
     open_settings: '打开设置',
     open_library: '打开媒体库',
+    notification: {
+      title: '继续设置',
+      text: '您在新手指南的第 {current} 步（共 {total} 步）处暂停。',
+      resume: '继续指南',
+    },
     steps: {
       welcome: {
         title: '欢迎使用 MediaChips',
@@ -927,6 +937,7 @@ const cn = {
       full_path: '完整路径：',
       edit_path: '编辑文件路径',
       open_directory: '打开文件所在目录',
+      copy_path: '复制路径',
       editing_path: '编辑文件路径',
       full_path_hint: '这是完整路径。例如：/home/media/video.mp4',
       file_missing_operations_unavailable: '文件不存在。文件操作不可用。',

@@ -3,7 +3,13 @@
   background-size: cover;
   position: relative;
   background-position: center;
-  background-size: cover;
+
+  .v-responsive__content {
+    position: relative;
+    z-index: 1;
+    min-height: 100%;
+  }
+
   &.no-header-image:before {
     backdrop-filter: blur(1vw);
     content: '';
@@ -21,27 +27,68 @@
     z-index: 1;
     text-align: center;
     cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+
     .v-image {
       border-radius: 7px;
       width: 300px;
     }
+  }
+
+  .tag-profile-heading__avatar {
+    box-shadow: none !important;
+    filter: none !important;
   }
   .nested-tags {
     font-size: 1.1rem;
   }
   .bg-image {
     filter: blur(8px) brightness(0.75);
-    width: 100%;
     position: absolute;
-    top: 0;
-    left: 0%;
-    height: 100%;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
+    inset: 0;
+    z-index: 0;
+
+    .v-responsive,
+    .v-img,
+    .v-img__img {
+      width: 100%;
+      height: 100%;
+    }
   }
   .bg-header {
     filter: brightness(0.75);
+  }
+  &.tag-header--has-bg {
+    .tag-meta-link {
+      color: rgba(255, 255, 255, 0.95);
+      background-color: rgba(0, 0, 0, 0.35) !important;
+      backdrop-filter: blur(8px);
+    }
+
+    .tag-profile-heading {
+      color: #fff;
+
+      &__name {
+        color: inherit;
+        text-shadow:
+          0 2px 14px rgba(0, 0, 0, 0.85),
+          0 1px 3px rgba(0, 0, 0, 0.95);
+      }
+
+      &__icon {
+        color: #fff;
+        filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.85));
+      }
+
+      &__avatar {
+        border: 3px solid rgba(255, 255, 255, 0.88);
+        background-color: rgba(255, 255, 255, 0.12);
+      }
+
+      &__copy {
+        color: #fff;
+      }
+    }
   }
   .description {
     margin-left: 25px;
@@ -96,7 +143,14 @@
 }
 
 .profile-container {
+  position: relative;
+  z-index: 1;
   padding-top: 16px;
+
+  .v-responsive:has(.main-img) {
+    overflow: visible;
+  }
+
   .buttons-left,
   .buttons-right {
     position: absolute;

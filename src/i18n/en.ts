@@ -237,7 +237,10 @@ const en = {
     "current": "Current",
     "found": "Found",
     "exit": "Exit",
-    "or": "or"
+    "or": "or",
+    "copy_name": "Copy name",
+    "copy_path": "Copy path",
+    "copied": "Copied to clipboard"
   },
   "validation": {
     "path_required": "Path is required",
@@ -284,6 +287,8 @@ const en = {
     edit_tag: 'Edit tag',
     filter_by_tag: 'Filter by tag',
     open_page: 'Open page',
+    copy_name: 'Copy name',
+    copy_path: 'Copy path',
   },
   auto_update: {
     title: 'Updates',
@@ -411,6 +416,11 @@ const en = {
     finish: 'Get started',
     open_settings: 'Open settings',
     open_library: 'Open library',
+    notification: {
+      title: 'Continue setup',
+      text: 'You left the getting started guide at step {current} of {total}.',
+      resume: 'Continue guide',
+    },
     steps: {
       welcome: {
         title: 'Welcome to MediaChips',
@@ -927,6 +937,7 @@ const en = {
       full_path: 'Full path:',
       edit_path: 'Edit path to file',
       open_directory: "Open file's directory",
+      copy_path: 'Copy path',
       editing_path: 'Editing path to file',
       full_path_hint: "It's full path. For example: /home/media/video.mp4",
       file_missing_operations_unavailable: "File doesn't exist. File operations are not available.",

@@ -237,7 +237,10 @@ const ru = {
     "current": "Текущее",
     "found": "Найдено",
     "exit": "Выйти",
-    "or": "или"
+    "or": "или",
+    "copy_name": "Копировать имя",
+    "copy_path": "Копировать путь",
+    "copied": "Скопировано в буфер обмена"
   },
   "validation": {
     "path_required": "Путь обязателен",
@@ -284,6 +287,8 @@ const ru = {
     edit_tag: 'Редактировать тег',
     filter_by_tag: 'Фильтровать по тегу',
     open_page: 'Открыть страницу',
+    copy_name: 'Копировать имя',
+    copy_path: 'Копировать путь',
   },
   auto_update: {
     title: 'Обновления',
@@ -411,6 +416,11 @@ const ru = {
     finish: 'Начать',
     open_settings: 'Открыть настройки',
     open_library: 'Открыть библиотеку',
+    notification: {
+      title: 'Продолжить настройку',
+      text: 'Вы остановились на шаге {current} из {total} в руководстве для новых пользователей.',
+      resume: 'Продолжить',
+    },
     steps: {
       welcome: {
         title: 'Добро пожаловать в MediaChips',
@@ -927,6 +937,7 @@ const ru = {
       full_path: 'Полный путь:',
       edit_path: 'Редактировать путь к файлу',
       open_directory: 'Открыть папку файла',
+      copy_path: 'Копировать путь',
       editing_path: 'Редактирование пути к файлу',
       full_path_hint: 'Это полный путь. Например: /home/media/video.mp4',
       file_missing_operations_unavailable: 'Файл не существует. Операции с файлом недоступны.',

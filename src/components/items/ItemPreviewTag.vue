@@ -1,7 +1,6 @@
 <template>
-  <div>
-    <!-- GRID VIEW -->
-    <div v-if="Number(ITEMS.view) === 1">
+  <!-- GRID VIEW -->
+  <div v-if="Number(ITEMS.view) === 1">
       <v-img
         :src="images.main || undefined"
         :aspect-ratio="meta?.imageAspectRatio"
@@ -49,17 +48,25 @@
           />
         </div>
       </div>
-    </div>
+  </div>
 
-    <!-- CHIP VIEW -->
+  <!-- CHIP VIEW -->
+  <span
+    v-else-if="Number(ITEMS.view) === 2"
+    class="tag-chip-avatar-wrap"
+  >
     <v-avatar
-      v-else-if="Number(ITEMS.view) === 2"
+      class="tag-chip-avatar"
       :rounded="meta?.chipLabel ? 0 : 'circle'"
       @click="openTagPage"
     >
-      <v-img :src="avatar || undefined" cover />
+      <v-img
+        :src="avatar || undefined"
+        cover
+        @error="onChipImageError"
+      />
     </v-avatar>
-  </div>
+  </span>
 </template>
 
 <script setup lang="ts">
@@ -108,9 +115,13 @@ const countries = computed(() =>
   parseCountries(typeof props.tag.country === 'string' ? props.tag.country : undefined)
 )
 
-const avatar = computed(() =>
-  images.avatar || images.main
-)
+const failedImageTypes = reactive(new Set<TagImageType>())
+
+const avatar = computed(() => {
+  if (images.avatar && !failedImageTypes.has('avatar')) return images.avatar
+  if (images.main && !failedImageTypes.has('main')) return images.main
+  return null
+})
 
 function getImageTypes(): TagImageType[] {
   if (Number(ITEMS.value.view) === 2) {
@@ -130,14 +141,16 @@ const applyCachedImages = () => {
 
 const getImages = () => {
   for (const type of getImageTypes()) {
-    if (images[type]) continue
+    if (failedImageTypes.has(type)) continue
 
     const cacheKey = tagThumbKey(props.meta.id, props.tag.id, type)
     const cached = getCachedThumb(cacheKey)
-    if (cached) {
-      images[type] = isThumbUnavailable(cached) ? null : cached
+    if (cached && !isThumbUnavailable(cached)) {
+      images[type] = cached
       continue
     }
+
+    if (images[type]) continue
 
     const src = resolveTagThumbDisplayUrl({
       dbPath: appStore.dbPath,
@@ -152,6 +165,19 @@ const getImages = () => {
     } else {
       images[type] = src
     }
+  }
+}
+
+const onChipImageError = () => {
+  const current = avatar.value
+  if (current === images.avatar) {
+    failedImageTypes.add('avatar')
+    images.avatar = null
+    return
+  }
+  if (current === images.main) {
+    failedImageTypes.add('main')
+    images.main = null
   }
 }
 
@@ -170,6 +196,7 @@ const openTagPage = () => {
 const getFlag = (name: string) => getCountryCode(name)
 
 const clearLoadedImages = () => {
+  failedImageTypes.clear()
   for (const type of getImageTypes()) {
     images[type] = null
   }
@@ -188,11 +215,19 @@ watch(
   () => props.upd,
   (arr) => {
     if (arr.includes(props.tag.id)) {
-      for (const type of getImageTypes()) {
-        images[type] = null
-      }
-      void getImages()
+      clearLoadedImages()
+      getImages()
     }
+  },
+)
+
+watch(
+  () => itemsStore.thumbRefreshKeys[Number(props.tag.id)],
+  (version, prev) => {
+    if (version == null || version === prev) return
+    clearLoadedImages()
+    applyCachedImages()
+    getImages()
   },
 )
 </script>

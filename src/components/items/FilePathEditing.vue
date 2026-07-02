@@ -44,6 +44,18 @@
           <v-icon start icon="mdi-folder-open"></v-icon>
           {{ t('media.file_path.open_directory') }}
         </v-btn>
+
+        <v-btn
+          @click="copyPath"
+          :disabled="!display_path"
+          color="primary"
+          variant="flat"
+          rounded="xl"
+          class="px-4"
+        >
+          <v-icon start icon="mdi-content-copy"></v-icon>
+          {{ t('media.file_path.copy_path') }}
+        </v-btn>
       </v-card-actions>
     </v-card>
 
@@ -142,6 +154,7 @@ import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
+import {copyToClipboard} from '@/utils/copyToClipboard'
 import type { MediaItem, MoveWsMessage } from '@/types/stores'
 import type { VFormInstance } from '@/types/vue'
 
@@ -254,6 +267,14 @@ const openFolder = () => {
   const filePath = display_path.value || props.media?.path
   if (!filePath) return
   openPath(filePath, true)
+}
+
+const copyPath = () => {
+  const filePath = display_path.value || props.media?.path
+  if (!filePath) return
+  void copyToClipboard(filePath, {
+    successText: t('common.copied'),
+  })
 }
 
 const savePathToDb = async (filePath: string, { notify = true } = {}) => {

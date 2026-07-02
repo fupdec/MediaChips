@@ -12,8 +12,19 @@
 
         <div v-if="subheader">
           <div class="text-h6">{{ header }}</div>
-          <div class="text-caption text-medium-emphasis">
-            {{ subheader }}
+          <div class="text-caption text-medium-emphasis d-inline-flex align-center">
+            <span class="text-truncate">{{ subheader }}</span>
+            <v-btn
+              v-if="subheaderCopyText"
+              @click.stop="copySubheader"
+              variant="text"
+              icon
+              size="x-small"
+              :title="subheaderCopyTitle || t('common.copy_name')"
+              class="ml-1 flex-shrink-0"
+            >
+              <v-icon icon="mdi-content-copy" size="small" />
+            </v-btn>
           </div>
         </div>
 
@@ -72,6 +83,7 @@ import type { PropType } from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import sortBy from 'lodash/sortBy'
+import {copyToClipboard} from '@/utils/copyToClipboard'
 
 interface DialogHeaderButton {
   icon?: string
@@ -93,6 +105,8 @@ const props = defineProps({
     required: true,
   },
   subheader: String,
+  subheaderCopyText: String,
+  subheaderCopyTitle: String,
   buttons: {
     type: Array as PropType<DialogHeaderButton[]>,
     default: () => [],
@@ -110,6 +124,13 @@ const buttonsOrdered = computed(() =>
 
 const run = (btn: DialogHeaderButton) => {
   btn.function ? btn.function() : btn.action?.()
+}
+
+const copySubheader = () => {
+  if (!props.subheaderCopyText) return
+  void copyToClipboard(props.subheaderCopyText, {
+    successText: t('common.copied'),
+  })
 }
 
 const dragWindow = (headerSelector: string, dialogSelector: string) => {
