@@ -25,6 +25,7 @@ export const meta = sqliteTable('meta', {
   chipLabel: integer('chipLabel', {mode: 'boolean'}).default(false),
   color: integer('color', {mode: 'boolean'}).default(false),
   imageAspectRatio: real('imageAspectRatio').default(1),
+  tagPageDesign: text('tagPageDesign').default('profile'),
   isLink: integer('isLink', {mode: 'boolean'}).default(false),
   ratingIcon: text('ratingIcon').default('star'),
   ratingIconEmpty: text('ratingIconEmpty').default('star-outline'),

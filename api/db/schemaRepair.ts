@@ -40,6 +40,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'meta', column: 'sortBy', definition: "text DEFAULT 'createdAt'"},
   {table: 'meta', column: 'sortDir', definition: "text DEFAULT 'asc'"},
   {table: 'meta', column: 'imageAspectRatio', definition: 'real DEFAULT 1'},
+  {table: 'meta', column: 'tagPageDesign', definition: "text DEFAULT 'profile'"},
   {table: 'meta', column: 'isLink', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'ratingIcon', definition: "text DEFAULT 'star'"},
   {table: 'meta', column: 'ratingIconEmpty', definition: "text DEFAULT 'star-outline'"},

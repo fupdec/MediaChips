@@ -12,6 +12,7 @@ export interface Meta {
   favorite?: boolean
   synonyms?: boolean
   imageAspectRatio?: number
+  tagPageDesign?: string
   hidden?: boolean
   order?: number
   type?: string
@@ -47,6 +48,7 @@ export interface MetaSetting {
   chipLabel?: boolean
   color?: boolean
   imageAspectRatio?: number
+  tagPageDesign?: string
   isLink?: boolean
   ratingIcon?: string
   ratingIconEmpty?: string

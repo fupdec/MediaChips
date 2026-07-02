@@ -38,6 +38,15 @@ describe('schemaRepair', () => {
     expect(columns.some((column) => column.name === 'views')).toBe(true)
   })
 
+  it('adds missing meta.tagPageDesign column for legacy databases', () => {
+    const repaired = repairSchemaColumns(sqlite)
+
+    expect(repaired).toContain('meta.tagPageDesign')
+    const columns = sqlite.pragma('table_info(meta)') as Array<{name: string}>
+    const column = columns.find((entry) => entry.name === 'tagPageDesign')
+    expect(column).toBeTruthy()
+  })
+
   it('creates imageMetadata and migrates legacy pinnedMeta into pinnedMetas', () => {
     sqlite.exec(`
       CREATE TABLE pinnedMeta (

@@ -36,6 +36,7 @@ export const MetaSchema = z.object({
   favorite: optionalCoercedBooleanSchema,
   synonyms: z.boolean().optional(),
   imageAspectRatio: z.number().optional(),
+  tagPageDesign: z.string().optional(),
   hidden: z.boolean().optional(),
   order: z.number().optional(),
   type: z.string().optional(),

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="['tag-page', `tag-page--${tagPageDesign}`]">
     <v-container v-if="loadError" class="py-4">
       <v-alert type="error" rounded="xl" variant="tonal">
         {{ loadError }}
@@ -7,12 +7,100 @@
     </v-container>
 
     <template v-else>
+    <v-container
+      v-if="tagPageDesign === 'minimal'"
+      class="tag-header-minimal py-4"
+    >
+      <v-row align="center">
+        <v-col cols="12" lg="6">
+          <v-btn
+            @click="openMetaPage"
+            :title="t('actions.open_page')"
+            class="tag-meta-link"
+            rounded
+            variant="tonal"
+          >
+            <v-icon start>mdi-{{ meta.icon }}</v-icon>
+            <div class="text">{{ meta.name }}</div>
+            <v-icon end>mdi-arrow-left</v-icon>
+          </v-btn>
+        </v-col>
+        <v-col cols="12" lg="6" class="d-flex justify-lg-end">
+          <TagPageDesignSwitcher
+            :model-value="tagPageDesign"
+            :loading="designSaving"
+            @update:model-value="changeTagPageDesign"
+          />
+        </v-col>
+      </v-row>
+
+      <v-row align="center" class="mt-2">
+        <v-col cols="auto">
+          <v-avatar
+            v-if="avatarDisplaySrc"
+            :size="avatarSize"
+            class="tag-profile-heading__avatar"
+          >
+            <v-img :src="avatarDisplaySrc" cover />
+          </v-avatar>
+          <v-icon v-else class="tag-profile-heading__icon" size="40">mdi-{{ meta.icon }}</v-icon>
+        </v-col>
+        <v-col>
+          <div class="tag-profile-heading__name-row d-inline-flex align-center">
+            <span class="tag-profile-heading__name text-h4">{{ tag.name }}</span>
+            <v-btn
+              @click="copyTagName"
+              variant="text"
+              icon
+              size="small"
+              class="tag-profile-heading__copy ml-1"
+              :title="t('common.copy_name')"
+            >
+              <v-icon icon="mdi-content-copy" />
+            </v-btn>
+          </div>
+        </v-col>
+        <v-col cols="auto">
+          <v-btn @click="editMetaTag" color="primary" rounded variant="flat">
+            <v-icon start>mdi-pencil</v-icon>
+            {{ t('common.edit') }}
+          </v-btn>
+        </v-col>
+      </v-row>
+
+      <v-card class="tag-panel tag-panel--flat mt-4" rounded="xl" variant="outlined">
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span>{{ t('meta.fields.metadata') }}</span>
+          <v-progress-linear
+            :model-value="completionStatus"
+            height="4"
+            color="primary"
+            class="tag-panel__progress ml-4"
+            rounded
+          />
+        </v-card-title>
+        <v-card-text>
+          <ItemPinnedMeta
+            :item="tag"
+            :tags="tag.tags"
+            :values="tag.values"
+            :assignment="pinnedMeta"
+            :is-show-all="true"
+            type="tag"
+            tag-page
+          />
+        </v-card-text>
+      </v-card>
+    </v-container>
+
     <v-responsive
-      :aspect-ratio="1400/609"
+      v-else
+      :aspect-ratio="headerAspectRatio"
       class="tag-header"
       :class="{
         'no-header-image': !is_header_exists,
         'tag-header--has-bg': Boolean(headerBackgroundSrc),
+        'tag-header--compact': tagPageDesign === 'compact',
       }"
     >
       <div
@@ -24,8 +112,8 @@
       </div>
 
       <v-container class="profile-container my-6">
-        <v-row>
-          <v-col cols="12">
+        <v-row align="center">
+          <v-col cols="12" lg="6">
             <v-btn
               @click="openMetaPage"
               :title="t('actions.open_page')"
@@ -38,15 +126,26 @@
               <v-icon end>mdi-arrow-left</v-icon>
             </v-btn>
           </v-col>
+          <v-col cols="12" lg="6" class="d-flex justify-lg-end">
+            <TagPageDesignSwitcher
+              :model-value="tagPageDesign"
+              :loading="designSaving"
+              @update:model-value="changeTagPageDesign"
+            />
+          </v-col>
         </v-row>
 
         <v-row style="position: relative;">
           <v-col cols="12">
-            <v-card class="tag-profile-heading text-md-h2 text-xl-h1" variant="text">
+            <v-card
+              class="tag-profile-heading"
+              :class="tagPageDesign === 'compact' ? 'text-h3' : 'text-md-h2 text-xl-h1'"
+              variant="text"
+            >
               <v-avatar
                 v-if="avatarDisplaySrc"
-                :size="lg ? 120 : md ? 80 : sm ? 60 : xs ? 40 : 160"
-                class="tag-profile-heading__avatar mr-8"
+                :size="avatarSize"
+                class="tag-profile-heading__avatar mr-4 mr-md-8"
               >
                 <v-img :src="avatarDisplaySrc" cover />
               </v-avatar>
@@ -68,16 +167,23 @@
           </v-col>
         </v-row>
 
-        <v-row>
-          <v-col cols="12" md="3">
+        <v-row :class="{'tag-profile-body--compact': tagPageDesign === 'compact'}">
+          <v-col
+            v-if="mainFileExists && images.main"
+            :cols="tagPageDesign === 'compact' ? 12 : 12"
+            :md="tagPageDesign === 'compact' ? 'auto' : 3"
+            class="d-flex"
+            :class="tagPageDesign === 'compact' ? 'justify-start mb-4' : ''"
+          >
             <v-responsive
-              v-if="mainFileExists && images.main"
               :aspect-ratio="meta?.imageAspectRatio"
+              :max-width="tagPageDesign === 'compact' ? 180 : undefined"
+              class="tag-main-image-wrap"
             >
-              <v-img :src="images.main" rounded="xl" class="main-img"></v-img>
+              <v-img :src="images.main" rounded="xl" class="main-img" cover />
             </v-responsive>
           </v-col>
-          <v-col cols="12" md="9" style="position:relative;">
+          <v-col cols="12" :md="tagPageDesign === 'compact' ? 12 : 9" style="position:relative;">
             <v-expansion-panels v-model="panel" multiple focusable>
               <v-expansion-panel class="rounded-xl tag-panel" :key="0">
                 <v-expansion-panel-title class="pa-6" ripple hide-actions style="position: relative">
@@ -94,7 +200,7 @@
                     height="2"
                     color="primary"
                     class="profile-complete-progress-linear"
-                  ></v-progress-linear>
+                  />
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
                   <ItemPinnedMeta
@@ -106,7 +212,7 @@
                     type="tag"
                     tag-page
                     class="mt-4"
-                  ></ItemPinnedMeta>
+                  />
                 </v-expansion-panel-text>
                 <div class="profile-hover-btn show">
                   <v-icon>mdi-chevron-down</v-icon>
@@ -211,6 +317,7 @@ import {typedApi} from '@/services/typedApi'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
+import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
 import {useEventBus} from '@/utils/eventBus'
 import path from 'path-browserify';
 import LayoutItems from "@/layouts/LayoutItems.vue";
@@ -219,6 +326,11 @@ import {sortByMenuMediaTypeOrder} from '@/utils/mediaType'
 import {getUrlParam} from '@/services/routeService'
 import {setNotification} from '@/services/notificationService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
+import {
+  getTagPageHeaderAspectRatio,
+  normalizeTagPageDesign,
+  type TagPageDesign,
+} from '@/utils/tagPageDesign'
 import type { Meta, Tag, AssignedMeta } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 import type { MetaInMediaTypeAssignment } from '@/types/metaAssignment'
@@ -266,6 +378,7 @@ const loadError = ref<string | null>(null)
 const headerFileExists = ref(false)
 const avatarFileExists = ref(false)
 const mainFileExists = ref(false)
+const designSaving = ref(false)
 
 function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -282,6 +395,17 @@ function notifyLoadError(error: unknown): void {
 
 // Computed
 const ENV = computed(() => itemsStore.environment)
+const tagPageDesign = computed(() => normalizeTagPageDesign(meta.value.tagPageDesign))
+const headerAspectRatio = computed(() => getTagPageHeaderAspectRatio(tagPageDesign.value))
+const avatarSize = computed(() => {
+  if (tagPageDesign.value === 'minimal') {
+    return 48
+  }
+  if (tagPageDesign.value === 'compact') {
+    return lg.value ? 80 : md.value ? 64 : sm.value ? 52 : xs.value ? 40 : 96
+  }
+  return lg.value ? 120 : md.value ? 80 : sm.value ? 60 : xs.value ? 40 : 160
+})
 const is_header_exists = computed(() => headerFileExists.value)
 const avatarDisplaySrc = computed(() => {
   if (!avatarFileExists.value || !images.value.avatar) {
@@ -585,6 +709,37 @@ const copyTagName = () => {
   void copyToClipboard(name, {
     successText: t('common.copied'),
   })
+}
+
+const syncMetaInStore = (patch: Partial<Meta>) => {
+  meta.value = {
+    ...meta.value,
+    ...patch,
+  }
+
+  const storeIndex = appStore.meta.findIndex((entry) => entry.id === meta.value.id)
+  if (storeIndex > -1) {
+    appStore.meta[storeIndex] = {
+      ...appStore.meta[storeIndex],
+      ...patch,
+    }
+  }
+}
+
+const changeTagPageDesign = async (design: TagPageDesign) => {
+  if (!meta.value.id || design === tagPageDesign.value || designSaving.value) {
+    return
+  }
+
+  designSaving.value = true
+  try {
+    await typedApi.updateMeta(meta.value.id, {tagPageDesign: design})
+    syncMetaInStore({tagPageDesign: design})
+  } catch (error) {
+    notifyLoadError(error)
+  } finally {
+    designSaving.value = false
+  }
 }
 
 // Event handlers

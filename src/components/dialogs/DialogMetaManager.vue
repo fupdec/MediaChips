@@ -170,6 +170,7 @@ interface MetaSettingsForm {
   hidden: boolean
   parser: boolean
   imageAspectRatio: number
+  tagPageDesign: string
   chipLabel: boolean
   chipVariant: string
   color: boolean
@@ -246,6 +247,7 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   hidden: false,
   parser: false,
   imageAspectRatio: 1,
+  tagPageDesign: 'profile',
   chipLabel: false,
   chipVariant: 'flat',
   color: false,

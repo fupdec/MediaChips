@@ -59,6 +59,51 @@
 
   <SettingsSection padded>
     <settings-category-divider
+      icon="palette"
+      compact
+      :title="t('meta.settings.tag_page_design')"
+    />
+
+    <div class="text-high-emphasis mb-2">{{ t('meta.settings.tag_page_design_hint') }}</div>
+
+    <v-item-group
+      v-model="settings.tagPageDesign"
+      mandatory
+      class="tag-page-design-settings"
+    >
+      <v-row>
+        <v-col
+          v-for="option in TAG_PAGE_DESIGN_OPTIONS"
+          :key="option.value"
+          cols="12"
+          md="4"
+        >
+          <v-item :value="option.value" v-slot="{ isSelected, toggle }">
+            <v-card
+              @click="toggle"
+              :class="{'tag-page-design-settings__card--active': isSelected}"
+              class="tag-page-design-settings__card pa-4"
+              rounded="xl"
+              variant="outlined"
+            >
+              <div class="d-flex align-center mb-2">
+                <v-icon :icon="option.icon" start />
+                <span class="text-subtitle-1">{{ t(option.labelKey) }}</span>
+                <v-spacer />
+                <v-icon v-if="isSelected" color="primary">mdi-check-circle</v-icon>
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ t(option.hintKey) }}
+              </div>
+            </v-card>
+          </v-item>
+        </v-col>
+      </v-row>
+    </v-item-group>
+  </SettingsSection>
+
+  <SettingsSection padded>
+    <settings-category-divider
       icon="post"
       compact
       :title="t('meta.settings.cards_appearance')"
@@ -269,6 +314,12 @@ import SettingsSection from '@/components/ui/SettingsSection.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
+import {
+  DEFAULT_TAG_PAGE_DESIGN,
+  TAG_PAGE_DESIGN_OPTIONS,
+  normalizeTagPageDesign,
+  type TagPageDesign,
+} from '@/utils/tagPageDesign'
 
 type ChipVariant = 'flat' | 'tonal' | 'outlined' | 'text'
 
@@ -276,6 +327,7 @@ interface MetaSettings {
   hidden: boolean
   parser: boolean
   imageAspectRatio: number
+  tagPageDesign: TagPageDesign
   chipLabel: boolean
   chipVariant: ChipVariant
   color: boolean
@@ -315,6 +367,7 @@ const settings = ref<MetaSettings>({
   hidden: false,
   parser: false,
   imageAspectRatio: 1,
+  tagPageDesign: DEFAULT_TAG_PAGE_DESIGN,
   chipLabel: false,
   chipVariant: 'flat',
   color: false,
@@ -371,6 +424,7 @@ const initSettings = () => {
   }
 
   settings.value = nextSettings
+  settings.value.tagPageDesign = normalizeTagPageDesign(props.meta.tagPageDesign)
 }
 
 const generateRandomColor = () => {
@@ -432,5 +486,15 @@ watch(() => props.meta?.id, () => {
   margin-right: 20px;
   margin-left: 10px;
   background-color: rgba(121, 121, 121, 0.164);
+}
+
+.tag-page-design-settings__card {
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &--active {
+    border-color: rgb(var(--v-theme-primary));
+    box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
+  }
 }
 </style>
