@@ -5,6 +5,8 @@ interface HoverOptions {
   width?: number
   height?: number
   isVideo?: boolean
+  label?: string
+  imageAspectRatio?: number
 }
 
 export function showHoverImage(
@@ -22,12 +24,15 @@ export function showHoverImage(
   let y = event.clientY
   const offset = 30
   const isMedia = data_type === 'media'
+  const tagAspectRatio = options.imageAspectRatio && options.imageAspectRatio > 0
+    ? options.imageAspectRatio
+    : 1
   const { previewWidth, previewHeight } = isMedia
     ? formatUtils.getHoverPreviewDimensions(options.width || 0, options.height || 0, {
       maxSize: 180,
       defaultRatio: options.isVideo ? 16 / 9 : 1,
     })
-    : { previewWidth: 160, previewHeight: 160 }
+    : formatUtils.getTagHoverPreviewDimensions('avatar', tagAspectRatio)
 
   const appHeight = window.innerHeight
   const appWidth = window.innerWidth
@@ -49,6 +54,8 @@ export function showHoverImage(
     hover.tagId = tagId
     hover.metaId = metaId
     hover.data_type = data_type || 'meta'
+    hover.label = options.label?.trim() || null
+    hover.imageAspectRatio = isMedia ? null : tagAspectRatio
   }, 500)
 
   window.setTimeout(() => {
@@ -60,6 +67,8 @@ export function hideHoverImage() {
   const store = useAppStore()
   clearTimeout(store.hover.timeout as ReturnType<typeof setTimeout>)
   store.hover.show = false
-  store.hover.previewWidth = 160
-  store.hover.previewHeight = 160
+  store.hover.label = null
+  store.hover.imageAspectRatio = null
+  store.hover.previewWidth = 180
+  store.hover.previewHeight = 180
 }

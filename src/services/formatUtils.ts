@@ -34,6 +34,18 @@ export function getHoverPreviewDimensions(
   }
 }
 
+export function getTagHoverPreviewDimensions(
+  thumbType: string,
+  imageAspectRatio?: number | null,
+  maxSize = 180,
+): { previewWidth: number; previewHeight: number } {
+  const ratio = thumbType === 'avatar'
+    ? 1
+    : (imageAspectRatio && imageAspectRatio > 0 ? imageAspectRatio : 1)
+
+  return getHoverPreviewDimensions(0, 0, { maxSize, defaultRatio: ratio })
+}
+
 export function getRandomId(): string {
   return Math.random().toString(16).slice(2)
 }

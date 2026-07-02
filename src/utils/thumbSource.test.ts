@@ -13,7 +13,7 @@ vi.mock('@/utils/thumbDisplayCache', () => ({
 }))
 
 import {getCachedThumb} from '@/utils/thumbDisplayCache'
-import {resolveMediaThumbDisplayUrl, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {resolveMediaThumbDisplayUrl, resolveTagThumbDisplayUrl, getTagHoverThumbCandidates} from '@/utils/thumbSource'
 
 describe('thumbSource', () => {
   beforeEach(() => {
@@ -45,6 +45,27 @@ describe('thumbSource', () => {
 
     expect(url).toContain('/api/get-file?url=')
     expect(decodeURIComponent(url)).toContain('2_avatar.jpg')
+  })
+
+  it('collects tag hover thumb candidates in priority order', () => {
+    vi.mocked(getCachedThumb).mockImplementation((key: string) => {
+      if (key.endsWith(':avatar')) return 'data:image/jpeg;base64,avatar'
+      if (key.endsWith(':main')) return 'data:image/jpeg;base64,main'
+      return undefined
+    })
+
+    const candidates = getTagHoverThumbCandidates({
+      dbPath: '/db',
+      metaId: 1,
+      tagId: 2,
+    })
+
+    expect(candidates).toEqual([
+      {type: 'avatar', url: 'data:image/jpeg;base64,avatar'},
+      {type: 'main', url: 'data:image/jpeg;base64,main'},
+      {type: 'alt', url: expect.stringContaining('2_alt.jpg')},
+      {type: 'custom1', url: expect.stringContaining('2_custom1.jpg')},
+    ])
   })
 
   it('builds media thumb URLs when cache is empty', () => {

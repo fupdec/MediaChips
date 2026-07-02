@@ -486,11 +486,20 @@ function showResultHover(event: MouseEvent, row: FlatResultRow) {
       width: row.item.width as number | undefined,
       height: row.item.height as number | undefined,
       isVideo: isVideoMediaType(type),
+      label: String(row.item.name ?? ''),
     })
     return
   }
 
-  showHoverImage(event, (row.item.metaId as number) ?? null, row.item.id, 'tag')
+  const tagMetaId = (row.item.metaId as number) ?? null
+  const tagMeta = tagMetaId
+    ? app.meta.find((item) => item.id === tagMetaId)
+    : undefined
+
+  showHoverImage(event, tagMetaId, row.item.id, 'tag', {
+    label: String(row.item.name ?? ''),
+    imageAspectRatio: tagMeta?.imageAspectRatio,
+  })
 }
 
 function getMatchedSynonymsText(item: GlobalSearchTag): string {

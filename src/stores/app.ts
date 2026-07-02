@@ -17,6 +17,8 @@ export const useAppStore = defineStore('app', {
       tagId: null,
       metaId: null,
       data_type: null,
+      label: null,
+      imageAspectRatio: null,
       timeout: 0,
       delay: 0,
       x: 0,

@@ -4,6 +4,7 @@ import {
   getReadableFileSize,
   getTextColor,
   getHoverPreviewDimensions,
+  getTagHoverPreviewDimensions,
 } from '@/services/formatUtils'
 
 describe('formatUtils', () => {
@@ -26,6 +27,17 @@ describe('formatUtils', () => {
     expect(getHoverPreviewDimensions(1920, 1080)).toEqual({
       previewWidth: 180,
       previewHeight: 101,
+    })
+  })
+
+  it('uses tag meta aspect ratio for non-avatar hover thumbs', () => {
+    expect(getTagHoverPreviewDimensions('main', 2)).toEqual({
+      previewWidth: 180,
+      previewHeight: 90,
+    })
+    expect(getTagHoverPreviewDimensions('avatar', 2)).toEqual({
+      previewWidth: 180,
+      previewHeight: 180,
     })
   })
 })

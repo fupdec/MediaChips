@@ -17,6 +17,8 @@ export interface AppHoverState {
   tagId: number | null
   metaId: number | null
   data_type: string | null
+  label: string | null
+  imageAspectRatio: number | null
   timeout: ReturnType<typeof setTimeout> | number
   delay: number
   x: number

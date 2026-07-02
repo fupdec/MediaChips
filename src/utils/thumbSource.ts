@@ -35,6 +35,43 @@ export function resolveTagThumbDisplayUrl({
   ))
 }
 
+export interface TagHoverThumbCandidate {
+  type: string
+  url: string
+}
+
+const TAG_HOVER_THUMB_TYPES = ['avatar', 'main', 'alt', 'custom1'] as const
+
+export function getTagHoverThumbCandidates({
+  dbPath,
+  metaId,
+  tagId,
+}: {
+  dbPath: string
+  metaId: number | string
+  tagId: number | string
+}): TagHoverThumbCandidate[] {
+  const candidates: TagHoverThumbCandidate[] = []
+  const seen = new Set<string>()
+
+  for (const type of TAG_HOVER_THUMB_TYPES) {
+    const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
+    if (cached && !isThumbUnavailable(cached) && !seen.has(cached)) {
+      seen.add(cached)
+      candidates.push({type, url: cached})
+      continue
+    }
+
+    const url = resolveTagThumbDisplayUrl({dbPath, metaId, tagId, type})
+    if (!isThumbUnavailable(url) && !seen.has(url)) {
+      seen.add(url)
+      candidates.push({type, url})
+    }
+  }
+
+  return candidates
+}
+
 export function resolveMediaThumbDisplayUrl(
   mediaPath: string,
   mediaTypeFolder: string,

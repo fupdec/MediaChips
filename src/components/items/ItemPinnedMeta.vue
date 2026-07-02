@@ -274,7 +274,10 @@ const formatMetaValue = (value: unknown): string => String(value ?? '')
 
 const onTagHover = (event: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
   if (event instanceof MouseEvent) {
-    showHoverImage(event, tag.metaId ?? null, tag.id, 'tag')
+    showHoverImage(event, tag.metaId ?? null, tag.id, 'tag', {
+      label: tag.name,
+      imageAspectRatio: tag.meta.imageAspectRatio,
+    })
   }
 }
 

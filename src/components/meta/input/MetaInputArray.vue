@@ -32,7 +32,10 @@
       <v-chip
         v-if="item.raw"
         @click:close="removeTag(item.value)"
-        @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag')"
+        @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
+          label: item.raw?.name || item.title,
+          imageAspectRatio: meta.imageAspectRatio,
+        })"
         @mouseleave.stop="hideHoverImage"
         :label="meta?.chipLabel"
         :variant="chipVariant"
@@ -59,7 +62,10 @@
       <v-list-item
         v-bind="props"
         @click="hideHoverImage"
-        @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag')"
+        @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
+          label: item.raw?.name || item.title,
+          imageAspectRatio: meta.imageAspectRatio,
+        })"
         @mouseleave.stop="hideHoverImage"
         class="list-item"
       >

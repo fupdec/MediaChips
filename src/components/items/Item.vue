@@ -176,7 +176,10 @@
       v-else-if="itemsStore.view == 2 && type == 'tag'"
       @contextmenu.stop="showContextMenu"
       @mousedown="stopSmoothScroll($event)"
-      @mouseover.stop="showHoverImage($event, tagMetaId, item.id, 'tag')"
+      @mouseover.stop="showHoverImage($event, tagMetaId, item.id, 'tag', {
+        label: item.name,
+        imageAspectRatio: meta?.imageAspectRatio,
+      })"
       @mouseleave.stop="hideHoverImage"
       :variant="tagChipVariant"
       :color="meta?.color ? item.color || '' : ''"
@@ -291,6 +294,7 @@ const mediaItem = computed((): MediaItem | null => (
 ))
 
 const tagMetaId = computed((): number | null => {
+  if (props.meta?.id) return props.meta.id
   const metaId = tagItem.value?.metaId
   return typeof metaId === 'number' ? metaId : null
 })
