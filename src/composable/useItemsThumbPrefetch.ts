@@ -64,9 +64,6 @@ export function useItemsThumbPrefetch({
         types,
       )
       setCachedTagThumbs(metaId.value, thumbs)
-      for (const tagId of Object.keys(thumbs)) {
-        itemsStore.refreshThumb(Number(tagId), {broadcast: false})
-      }
     }
   }
 

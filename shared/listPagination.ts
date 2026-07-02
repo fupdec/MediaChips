@@ -2,6 +2,9 @@ export const INFINITE_SCROLL_FLAG_LIMIT = 101
 export const INFINITE_SCROLL_PAGE_SIZE = 25
 export const INFINITE_SCROLL_MAX_ITEMS = 200
 
+/** Trimming drops items from the top and breaks scroll position — keep off. */
+export const INFINITE_SCROLL_TRIM_ENABLED = false
+
 export function resolvePageLimit(limit: number | null | undefined): number | null {
   if (limit == null || limit <= 0) return null
   if (limit >= INFINITE_SCROLL_FLAG_LIMIT) return INFINITE_SCROLL_PAGE_SIZE
@@ -30,6 +33,6 @@ export function trimInfiniteScrollItems<T>(
   items: T[],
   maxItems: number = INFINITE_SCROLL_MAX_ITEMS,
 ): T[] {
-  if (items.length <= maxItems) return items
+  if (!INFINITE_SCROLL_TRIM_ENABLED || items.length <= maxItems) return items
   return items.slice(items.length - maxItems)
 }

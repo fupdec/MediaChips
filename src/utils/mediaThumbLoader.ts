@@ -1,6 +1,6 @@
-import { typedApi } from '@/services/typedApi'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
+
 const INDIVIDUAL_LOAD_CONCURRENCY = 8
 
 export function loadMediaThumbUrl(
@@ -34,32 +34,14 @@ async function loadMediaThumbUrlsIndividually(
   return thumbs
 }
 
+/** Build local file URLs directly — avoids slow base64 batch API. */
 export async function loadMediaThumbUrls(
   mediaPath: string,
   mediaTypeFolder: string,
   ids: Array<number | string>,
 ): Promise<Record<number | string, string>> {
   const uniqueIds = [...new Set(ids.filter((id) => id != null))]
-  if (!uniqueIds.length) return {}
+  if (!uniqueIds.length || !mediaPath) return {}
 
-  try {
-    const response = await typedApi.postMediaThumbs({
-      ids: uniqueIds,
-      mediaType: mediaTypeFolder,
-    })
-    const rawThumbs = response.data?.thumbs ?? {}
-    const thumbs: Record<number | string, string> = {}
-
-    for (const id of uniqueIds) {
-      const value = rawThumbs[id] ?? rawThumbs[String(id)]
-      if (typeof value === 'string' && value) {
-        thumbs[id] = value
-      }
-    }
-
-    return thumbs
-  } catch {
-    if (!mediaPath) return {}
-    return loadMediaThumbUrlsIndividually(mediaPath, mediaTypeFolder, uniqueIds)
-  }
+  return loadMediaThumbUrlsIndividually(mediaPath, mediaTypeFolder, uniqueIds)
 }

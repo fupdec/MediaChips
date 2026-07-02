@@ -1,4 +1,3 @@
-import { typedApi } from '@/services/typedApi'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import { isThumbUnavailable, resolveTagThumbDisplayUrl } from '@/utils/thumbSource'
 
@@ -46,6 +45,7 @@ async function loadTagThumbUrlsIndividually(
   return thumbs
 }
 
+/** Build local file URLs directly — avoids slow base64 batch API. */
 export async function loadTagThumbUrls(
   dbPath: string,
   metaId: number | string,
@@ -55,14 +55,5 @@ export async function loadTagThumbUrls(
   const uniqueIds = [...new Set(ids.filter((id) => id != null))]
   if (!uniqueIds.length || !dbPath || metaId == null) return {}
 
-  try {
-    const response = await typedApi.postTagThumbs({
-      metaId: Number(metaId),
-      ids: uniqueIds,
-      types,
-    })
-    return response.data?.thumbs ?? {}
-  } catch {
-    return loadTagThumbUrlsIndividually(dbPath, metaId, uniqueIds, types)
-  }
+  return loadTagThumbUrlsIndividually(dbPath, metaId, uniqueIds, types)
 }

@@ -360,7 +360,8 @@ export function shouldUseVirtualGrid(
   isInfiniteScroll: boolean,
   _itemsType: 'media' | 'tag' = 'media',
 ): boolean {
-  return Boolean(isInfiniteScroll && itemCount >= VIRTUAL_GRID_THRESHOLD)
+  if (isInfiniteScroll) return false
+  return itemCount >= VIRTUAL_GRID_THRESHOLD
 }
 
 export const shouldUseVirtualMasonry = shouldUseVirtualGrid
