@@ -3,30 +3,33 @@
     @mouseenter="player.mouseOverControls = true"
     @mouseleave="player.mouseOverControls = false"
     :class="{hidden: !player.isControlsVisible}"
-    class="controls px-6"
+    class="controls"
     variant="text"
     theme="dark"
+    :ripple="false"
   >
-    <PlayerTimeline
-      ref="timelineRef"
-      :is-audio-mode="isAudioMode"
-      @showControls="emit('showControls')"
-      @removeMark="emit('removeMark', $event)"
-    />
+    <div class="controls-inner px-6" @click.stop>
+      <PlayerTimeline
+        ref="timelineRef"
+        :is-audio-mode="isAudioMode"
+        @showControls="emit('showControls')"
+        @removeMark="emit('removeMark', $event)"
+      />
 
-    <PlayerTransport
-      ref="transportRef"
-      :jump-to-mark="jumpToMark"
-      @toggleFullscreen="emit('toggleFullscreen')"
-      @togglePictureInPicture="emit('togglePictureInPicture')"
-      @play="emit('play', $event)"
-      @changeVolume="emit('changeVolume', $event)"
-      @showControls="emit('showControls')"
-      @addMark="emit('addMark')"
-      @removeMark="emit('removeMark', $event)"
-      @close="emit('close')"
-      @updateVideo="emit('updateVideo', $event)"
-    />
+      <PlayerTransport
+        ref="transportRef"
+        :jump-to-mark="jumpToMark"
+        @toggleFullscreen="emit('toggleFullscreen')"
+        @togglePictureInPicture="emit('togglePictureInPicture')"
+        @play="emit('play', $event)"
+        @changeVolume="emit('changeVolume', $event)"
+        @showControls="emit('showControls')"
+        @addMark="emit('addMark')"
+        @removeMark="emit('removeMark', $event)"
+        @close="emit('close')"
+        @updateVideo="emit('updateVideo', $event)"
+      />
+    </div>
   </v-card>
 </template>
 

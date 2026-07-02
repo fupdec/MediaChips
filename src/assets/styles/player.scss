@@ -23,11 +23,16 @@
   &.fullscreen {
     border-radius: 0;
     .video-wrapper {
+      overflow: visible;
       max-height: 100%;
       min-height: 0;
       &.playback-error {
         min-height: 400px;
         padding-bottom: var(--player-controls-offset, 120px);
+      }
+
+      .preview {
+        z-index: 20;
       }
     }
     .marks-wrapper,
@@ -53,6 +58,10 @@
   }
   &.player--window {
     --player-system-bar-height: 32px;
+
+    .video-wrapper > .preview {
+      z-index: 10;
+    }
 
     .system-bar-player.v-system-bar--fixed,
     .system-bar-player {
@@ -174,6 +183,40 @@
       right: 0;
       z-index: 3;
       overflow: visible;
+    }
+
+    > .preview {
+      pointer-events: none;
+      position: absolute;
+      z-index: 10;
+      width: auto;
+      height: clamp(100px, 15vh, 180px);
+      min-height: 100px;
+      display: inline-flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-origin: bottom center;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      background-color: #000;
+
+      video {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        object-fit: contain;
+        background-color: #000;
+      }
+
+      .time {
+        position: absolute;
+        bottom: 2px;
+        left: 0;
+        right: 0;
+        margin: auto;
+      }
     }
   }
   .reg-block {
@@ -394,6 +437,10 @@
     box-shadow: none;
   }
 
+  .controls-inner {
+    width: 100%;
+  }
+
   .v-btn.v-btn--variant-tonal,
   .v-btn-group.v-btn-group--variant-tonal {
     background-color: rgba(255, 255, 255, 0.12);
@@ -467,6 +514,10 @@
     pointer-events: none;
   }
   .timeline {
+    --player-timeline-preview-height: clamp(100px, 15vh, 180px);
+    --player-timeline-preview-offset: 50px;
+    --player-timeline-track-offset: 20px;
+
     position: relative;
     overflow: visible;
     &:hover {
@@ -487,6 +538,59 @@
     .v-slider__track-fill {
       transition: 0.1s all;
     }
+    .preview {
+      pointer-events: none;
+      position: absolute;
+      z-index: 12;
+      bottom: var(--player-timeline-preview-offset);
+      width: auto;
+      height: var(--player-timeline-preview-height);
+      min-height: 100px;
+      display: inline-flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-origin: bottom center;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      background-color: #000;
+
+      video {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        object-fit: contain;
+        background-color: #000;
+      }
+
+      .preview-frame {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        object-fit: contain;
+        background-color: #000;
+      }
+
+      .preview-generating {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+      }
+
+      .time {
+        position: absolute;
+        bottom: 2px;
+        left: 0;
+        right: 0;
+        margin: auto;
+      }
+    }
   }
   .v-slider-track {
     box-shadow: 0 0 7px 1px #00000040;
@@ -502,11 +606,14 @@
   .mark {
     cursor: pointer;
     position: absolute;
+    bottom: var(--player-timeline-track-offset, 20px);
     .breaker {
       position: absolute;
-      top: 2px;
+      top: auto;
+      bottom: 0;
       width: 1px;
-      height: 5px;
+      height: 8px;
+      transform: translateY(50%);
       opacity: 1;
       transition: 0.3s all;
       background-color: #ffffffcc;
@@ -523,9 +630,10 @@
       background-color: white;
       position: absolute;
       display: flex;
-      bottom: -5px;
+      bottom: 0;
       left: 0;
       height: 2px;
+      transform: translateY(50%);
       opacity: 0.7;
       border-radius: 3px;
       pointer-events: none;
@@ -533,7 +641,7 @@
     }
     .mark-icon {
       position: absolute;
-      bottom: 0;
+      bottom: 10px;
       left: -11px;
       right: 0;
       opacity: 0;
@@ -545,7 +653,7 @@
         z-index: 1;
         & + .tooltip {
           opacity: 1;
-          transform: scale(1);
+          transform: translateX(-50%) scale(1);
         }
       }
     }
@@ -559,21 +667,34 @@
     }
     .tooltip {
       position: absolute;
-      padding: 2px;
-      bottom: 22px;
-      width: 300px;
-      left: -150px;
+      padding: 0;
+      bottom: calc(var(--player-timeline-preview-offset) - var(--player-timeline-track-offset, 20px));
+      width: auto;
+      height: var(--player-timeline-preview-height);
+      min-height: 100px;
+      left: 50%;
+      display: inline-flex;
+      flex-direction: column;
       overflow: hidden;
-      transform: scale(0);
+      transform: translateX(-50%) scale(0);
+      transform-origin: bottom center;
       opacity: 0;
       transition: transform 0.01s ease, opacity 0.2s 0.1s ease;
+      z-index: 12;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      background-color: #000;
+
       &:hover {
         opacity: 1;
-        transform: scale(1);
+        transform: translateX(-50%) scale(1);
       }
     }
     .thumb {
-      border-radius: 5px;
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
       background-color: #000000;
     }
     .delete {

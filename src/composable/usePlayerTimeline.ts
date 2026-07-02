@@ -9,6 +9,7 @@ import {
   getTimelinePercents,
   shouldShowTranscodeTimeline,
 } from '@/utils/playerBuffer'
+import {computeTimelineHoverPercent} from '@/utils/playerPreviewPosition'
 import orderBy from 'lodash/orderBy'
 import type { PlayerMark } from '@/types/player'
 
@@ -168,23 +169,24 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   }
 
   const showPreview = (e: MouseEvent) => {
-    if (player.value.usesLiveTranscode) return
     if (!preview_show.value || !preview_event_target.value) return
 
-    previewPendingX = e.pageX
+    previewPendingX = e.clientX
     if (previewRafId) return
 
     previewRafId = requestAnimationFrame(() => {
       previewRafId = null
-      const pageX = previewPendingX
-      if (pageX == null || !preview_event_target.value) return
+      const clientX = previewPendingX
+      if (clientX == null || !preview_event_target.value) return
 
       const currentTargetRect = preview_event_target.value.getBoundingClientRect()
       const width = currentTargetRect.width
       if (!width) return
 
-      const left = pageX - currentTargetRect.left
-      playerStore.progress_hover = left / width * 100
+      const hoverPercent = computeTimelineHoverPercent(clientX, currentTargetRect)
+      if (hoverPercent == null) return
+
+      playerStore.progress_hover = hoverPercent
     })
   }
 

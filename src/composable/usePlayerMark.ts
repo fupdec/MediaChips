@@ -11,6 +11,7 @@ import {
   getMarkTimelinePositionStyle,
   getMarkTimelineWidthStyle,
 } from '@/composable/playerMarkDisplay'
+import { getPlayerPreviewAspectRatio } from '@/utils/playerPreviewPosition'
 import { loadMarkImageDisplayUrl } from '@/utils/markThumb'
 import type { PlayerMark } from '@/types/player'
 
@@ -49,6 +50,10 @@ export function usePlayerMark(
     playerStore.duration,
     props.controls_width,
   ))
+
+  const tooltipStyle = computed(() => ({
+    aspectRatio: String(getPlayerPreviewAspectRatio(playerStore.playlist, playerStore.nowPlaying)),
+  }))
 
   const getImg = async () => {
     if (!appStore.mediaPath) return
@@ -105,6 +110,7 @@ export function usePlayerMark(
     time,
     position,
     timeline_width,
+    tooltipStyle,
     jumpTo,
     remove,
   }

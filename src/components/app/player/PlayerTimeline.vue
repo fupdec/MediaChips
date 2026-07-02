@@ -1,7 +1,7 @@
 <template>
   <v-card-actions
     @wheel.prevent="wheelSeek"
-    @mousemove="saveEvent($event); showPreview($event)"
+    @mousemove.capture="saveEvent($event); showPreview($event)"
     @mouseleave="clearPreviewHover"
     class="timeline pa-0"
     ref="slider_progress"
@@ -32,7 +32,7 @@
 
     <controls-set-mark-time v-if="dialogsStore.markAdding.show"/>
 
-    <Preview v-if="!isAudioMode && !player.usesLiveTranscode"/>
+    <Preview v-if="!isAudioMode"/>
 
     <Mark
       v-for="mark in player.marks"

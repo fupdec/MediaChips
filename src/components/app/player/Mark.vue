@@ -20,8 +20,8 @@
       </v-icon>
     </div>
 
-    <v-sheet class="tooltip text-caption text-center pa-0 elevation-6" outlined rounded>
-      <v-img :src="thumb ?? undefined" :aspect-ratio="16 / 9" class="thumb" contain>
+    <v-sheet :style="tooltipStyle" class="tooltip text-caption text-center pa-0">
+      <v-img :src="thumb ?? undefined" class="thumb" contain height="100%" width="100%">
         <v-sheet v-if="mark.type !== 'favorite'" class="mark-name">
           <div class="name">
             <span v-if="mark.type === 'meta'" v-html="mark['tag.name'] || mark.tag?.name"/>
@@ -68,6 +68,7 @@ const {
   time,
   position,
   timeline_width,
+  tooltipStyle,
   jumpTo,
   remove,
 } = usePlayerMark(props, emit)
