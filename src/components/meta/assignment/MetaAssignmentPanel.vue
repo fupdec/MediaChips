@@ -1,5 +1,14 @@
 <template>
   <div class="meta-assignment-panel">
+    <MetaAssignmentAnchor
+      v-if="showAnchor"
+      :icon="anchorIcon"
+      :name="anchorName"
+      :subtitle="anchorSubtitle"
+      :type-label="anchorTypeLabel"
+      class="meta-assignment-panel__anchor mb-4"
+    />
+
     <v-alert
       v-if="showWarning"
       color="info"
@@ -14,15 +23,6 @@
         {{ t('meta.settings.only_array_child_meta') }}
       </div>
     </v-alert>
-
-    <MetaAssignmentAnchor
-      v-if="showAnchor"
-      :icon="anchorIcon"
-      :name="anchorName"
-      :subtitle="anchorSubtitle"
-      :type-label="anchorTypeLabel"
-      class="meta-assignment-panel__anchor mb-4"
-    />
 
     <v-card
       v-if="showMediaBoard || showTagsBoard"

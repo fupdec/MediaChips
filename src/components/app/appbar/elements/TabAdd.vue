@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useItemsStore } from '@/stores/items'
 
+import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {typedApi} from '@/services/typedApi'
 import {getTabUrl} from '@/services/routeService'
 import {useEventBus} from '@/utils/eventBus'

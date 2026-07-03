@@ -124,7 +124,8 @@
     <v-dialog
       v-model="dialogEditingPinnedMeta"
       @update:model-value="updatePinnedMeta"
-      width="600"
+      max-width="960"
+      width="95vw"
       scrollable
     >
       <v-card>
@@ -134,7 +135,7 @@
           closable
         />
 
-        <v-card-text class="text-center py-4 px-2 px-sm-4">
+        <v-card-text class="py-4 px-2 px-sm-4">
           <SettingsMediaTypeAddedMeta
             v-if="itemsStore.type === 'media' && media_type"
             :media-type="media_type"
