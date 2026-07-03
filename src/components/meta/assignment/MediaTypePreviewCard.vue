@@ -1,20 +1,17 @@
 <template>
-  <v-card
-    class="media-type-preview-card rounded-xl"
-    :class="{
-      'media-type-preview-card--pinned': isPinned,
-      'media-type-preview-card--available': !isPinned,
-      'media-type-preview-card--hero': hero,
-    }"
-    :variant="isPinned ? 'flat' : 'outlined'"
-    @click="handleClick"
+  <div
+    :class="rootClass"
+    @click="clickable ? handleClick() : undefined"
   >
     <div class="media-type-preview-card__header">
-      <v-icon size="22" :color="isPinned ? 'primary' : undefined">mdi-{{ mediaType.icon }}</v-icon>
-      <span class="text-body-2 font-weight-medium">{{ getMediaTypeName(mediaType, t) }}</span>
-      <v-spacer/>
-      <v-icon v-if="isPinned" size="16" color="primary">mdi-pin</v-icon>
-      <v-icon v-else size="16" class="text-medium-emphasis">mdi-plus-circle-outline</v-icon>
+      <v-icon v-if="!hero" size="22" :color="isPinned ? 'primary' : undefined">mdi-{{ mediaType.icon }}</v-icon>
+      <span
+        class="media-type-preview-card__header-title"
+        :class="hero ? 'text-caption text-medium-emphasis' : 'text-body-2 font-weight-medium'"
+      >{{ headerTitle }}</span>
+      <v-spacer v-if="!hero"/>
+      <v-icon v-if="!hero && isPinned" size="16" color="primary">mdi-pin</v-icon>
+      <v-icon v-else-if="!hero" size="16" class="text-medium-emphasis">mdi-plus-circle-outline</v-icon>
     </div>
 
     <div class="media-type-preview-card__preview">
@@ -35,7 +32,7 @@
     </div>
 
     <v-btn
-      v-if="isPinned && showUnpin"
+      v-if="!hero && isPinned && showUnpin"
       class="media-type-preview-card__unpin"
       icon
       size="x-small"
@@ -46,7 +43,7 @@
     >
       <v-icon size="16">mdi-close</v-icon>
     </v-btn>
-  </v-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -79,6 +76,22 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n()
+
+const rootClass = computed(() => {
+  if (props.hero) return 'media-type-preview-card-hero'
+  return {
+    'media-type-preview-card': true,
+    'media-type-preview-card--pinned': props.isPinned,
+    'media-type-preview-card--available': !props.isPinned,
+    'media-type-preview-card--clickable': props.clickable,
+  }
+})
+
+const headerTitle = computed(() =>
+  props.hero
+    ? t('meta.settings.media_card_pinned_fields_layout')
+    : getMediaTypeName(props.mediaType, t),
+)
 
 const previewFields = computed((): MediaTypePreviewField[] => {
   if (props.pinnedFields.length) {

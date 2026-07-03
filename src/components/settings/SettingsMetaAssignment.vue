@@ -132,6 +132,7 @@ import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
+import type {MetaInMediaTypeRow} from '@/types/metaAssignment'
 
 type AssignmentViewMode = 'media' | 'tags'
 
@@ -281,8 +282,15 @@ const ensureSelection = () => {
   }
 }
 
-const onAssignmentUpdated = () => {
-  loadAssignmentCounts()
+const onAssignmentUpdated = (items?: MetaInMediaTypeRow[]) => {
+  const selectedId = selectedIds.value[0]
+  if (viewMode.value === 'media' && selectedId != null && Array.isArray(items)) {
+    pinnedFieldsByMediaType.value = {
+      ...pinnedFieldsByMediaType.value,
+      [selectedId]: items.length,
+    }
+  }
+  void loadAssignmentCounts()
 }
 
 watch(viewMode, () => {

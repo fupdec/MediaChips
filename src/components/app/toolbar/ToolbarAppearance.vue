@@ -240,6 +240,7 @@ const updatePinnedMeta = () => {
   } else {
     eventBus.emit('getMediaType')
   }
+  eventBus.emit('updateAssignedMeta')
   eventBus.emit('updateLayoutItems')
 }
 

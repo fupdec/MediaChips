@@ -1121,6 +1121,7 @@ const en = {
       assignment_anchor_field: 'Metadata field',
       assignment_anchor_media: 'Media type',
       pinned_fields: 'Pinned fields',
+      media_card_pinned_fields_layout: 'Media card layout with pinned metadata fields',
       available_fields: 'Available fields',
       tag_form_preview: 'Tag edit form',
       add_field_slot: 'Add child fields from the list below',

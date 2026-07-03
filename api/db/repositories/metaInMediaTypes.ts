@@ -59,6 +59,13 @@ export function createMetaInMediaTypesRepository(db: DrizzleClient) {
       }))
     },
 
+    findAll() {
+      return db.select()
+        .from(metaInMediaTypes)
+        .orderBy(asc(metaInMediaTypes.order))
+        .all()
+    },
+
     update(metaId: number, mediaTypeId: number, data: Partial<MetaInMediaTypeRow>): void {
       db.update(metaInMediaTypes)
         .set(data)

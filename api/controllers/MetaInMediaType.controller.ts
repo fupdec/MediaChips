@@ -38,7 +38,7 @@ export default function (db: ApiDb) {
         ? metaInMediaTypesRepo.findByMediaTypeId(mediaTypeId)
         : metaId != null
           ? metaInMediaTypesRepo.findByMetaId(metaId)
-          : []
+          : metaInMediaTypesRepo.findAll()
 
       res.status(201).send(data)
     } catch (err: unknown) {

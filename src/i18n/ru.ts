@@ -1121,6 +1121,7 @@ const ru = {
       assignment_anchor_field: 'Поле метаданных',
       assignment_anchor_media: 'Тип медиа',
       pinned_fields: 'Закреплённые поля',
+      media_card_pinned_fields_layout: 'Макет карточки медиа с прикреплёнными полями метаданных',
       available_fields: 'Доступные поля',
       tag_form_preview: 'Форма редактирования тега',
       add_field_slot: 'Добавьте дочерние поля из списка ниже',

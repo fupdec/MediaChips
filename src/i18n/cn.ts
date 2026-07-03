@@ -1121,6 +1121,7 @@ const cn = {
       assignment_anchor_field: '元数据字段',
       assignment_anchor_media: '媒体类型',
       pinned_fields: '已固定字段',
+      media_card_pinned_fields_layout: '带固定元数据字段的媒体卡片布局',
       available_fields: '可用字段',
       tag_form_preview: '标签编辑表单',
       add_field_slot: '从下方列表添加子字段',

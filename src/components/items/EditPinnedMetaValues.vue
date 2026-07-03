@@ -692,7 +692,13 @@ const getMetaValues = async () => {
       const valuesResponse = await typedApi.getValuesInMedia(currentItemId.value)
       values = valuesResponse.data
 
-      assignedItems.value = sortPinnedAssignmentItems(itemsStore.safeAssigned)
+      const mediaTypeId = props.media?.mediaTypeId ?? itemsStore.environment?.media_type_id
+      if (mediaTypeId) {
+        const pinnedResponse = await typedApi.getAssignedMetaForMediaType(mediaTypeId)
+        assignedItems.value = sortPinnedAssignmentItems(pinnedResponse.data)
+      } else {
+        assignedItems.value = sortPinnedAssignmentItems(itemsStore.safeAssigned)
+      }
     }
 
     for (const item of assignedItems.value) {

@@ -31,7 +31,7 @@
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: rgba(var(--v-theme-surface-variant), 0.5);
+    background: rgba(var(--v-theme-on-surface), 0.06);
   }
 
   &__body {
@@ -77,11 +77,11 @@
 .media-type-preview-card {
   position: relative;
   padding: 12px;
-  cursor: pointer;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  border-radius: 12px;
+  box-sizing: border-box;
 
-  &:hover {
-    transform: translateY(-1px);
+  &--clickable {
+    cursor: pointer;
   }
 
   &--pinned {
@@ -90,21 +90,8 @@
   }
 
   &--available {
-    border-style: dashed !important;
+    border: 1px dashed rgba(var(--v-theme-on-surface), 0.28);
     opacity: 0.85;
-
-    &:hover {
-      opacity: 1;
-      border-color: rgba(var(--v-theme-primary), 0.5) !important;
-    }
-  }
-
-  &--hero {
-    cursor: default;
-
-    &:hover {
-      transform: none;
-    }
   }
 
   &__header {
@@ -154,11 +141,18 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
     padding: 2px 6px;
     border-radius: 6px;
     font-size: 11px;
     color: rgba(var(--v-theme-on-surface), 0.7);
     background: rgba(var(--v-theme-on-surface), 0.05);
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     &--active {
       color: rgb(var(--v-theme-primary));
@@ -171,6 +165,27 @@
     position: absolute;
     top: 4px;
     right: 4px;
+  }
+}
+
+.media-type-preview-card-hero {
+  .media-type-preview-card__header {
+    padding-inline: 16px;
+    margin-bottom: 10px;
+  }
+
+  .media-type-preview-card__header-title {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .media-type-preview-card__preview {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(var(--v-theme-primary), 0.05);
+    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    min-width: 0;
+    overflow: hidden;
   }
 }
 
@@ -241,6 +256,7 @@
   &__name {
     flex: 1 1 auto;
     min-width: 0;
+    padding-inline: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -331,16 +347,6 @@
       min-height: 28px;
       padding-inline: 8px;
       font-size: 0.75rem;
-    }
-
-    .media-type-preview-card--hero {
-      max-width: 100%;
-      box-sizing: border-box;
-
-      &.media-type-preview-card--pinned {
-        box-shadow: none;
-        border: 2px solid rgba(var(--v-theme-primary), 0.35);
-      }
     }
 
     .meta-to-meta-board__slot {

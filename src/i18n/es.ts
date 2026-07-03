@@ -1121,6 +1121,7 @@ const es = {
       assignment_anchor_field: 'Campo de metadatos',
       assignment_anchor_media: 'Tipo de medio',
       pinned_fields: 'Campos fijados',
+      media_card_pinned_fields_layout: 'Maqueta de tarjeta de medio con campos de metadatos fijados',
       available_fields: 'Campos disponibles',
       tag_form_preview: 'Formulario de edición de etiqueta',
       add_field_slot: 'Añade campos secundarios desde la lista inferior',
