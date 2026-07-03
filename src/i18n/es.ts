@@ -621,7 +621,7 @@ const es = {
     field_pinning: {
       title: 'Fijación de campos de metadatos',
       view_by_media: 'Tipos de medio',
-      view_by_tags: 'Categorías de etiquetas',
+      view_by_tags: 'Campos con etiquetas',
       select_media_type: 'Seleccione un tipo de medio de la lista',
       select_tag_category: 'Seleccione una categoría de etiquetas de la lista',
       no_tag_categories: 'Aún no hay categorías de etiquetas. Cree primero un campo de tipo Etiquetas en Metadatos personalizados.',

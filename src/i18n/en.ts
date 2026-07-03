@@ -621,7 +621,7 @@ const en = {
     field_pinning: {
       title: 'Pinning metadata fields',
       view_by_media: 'Media types',
-      view_by_tags: 'Tag categories',
+      view_by_tags: 'Tag fields',
       select_media_type: 'Select a media type from the list',
       select_tag_category: 'Select a tag category from the list',
       no_tag_categories: 'No tag categories yet. Create a Tags-type field in Custom metadata first.',

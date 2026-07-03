@@ -24,44 +24,17 @@
       class="meta-assignment-panel__anchor mb-4"
     />
 
-    <v-card class="rounded-xl meta-assignment-panel__board" variant="flat">
-      <div v-if="mode === 'from-meta'" class="meta-assignment-panel__segments pa-3 pb-0">
-        <v-btn-toggle
-          v-model="activeSegment"
-          mandatory
-          rounded="xl"
-          color="primary"
-          density="comfortable"
-          class="meta-assignment-panel__toggle"
-        >
-          <v-btn value="media" size="small" variant="outlined">
-            <v-icon start size="18">mdi-file-outline</v-icon>
-            {{ t('meta.settings.segment_to_media', {count: pinnedMedia.length}) }}
-          </v-btn>
-          <v-btn
-            value="tags"
-            size="small"
-            variant="outlined"
-            :disabled="!isMetaTypeArray"
-            :class="{'opacity-50': !isMetaTypeArray}"
-          >
-            <v-icon start size="18">mdi-tag-multiple-outline</v-icon>
-            {{ t('meta.settings.segment_to_tags', {count: pinnedChildMeta.length}) }}
-          </v-btn>
-        </v-btn-toggle>
-      </div>
-
+    <v-card
+      v-if="showMediaBoard || showTagsBoard"
+      class="rounded-xl meta-assignment-panel__board"
+      variant="flat"
+    >
       <v-card-text class="pa-4">
         <MetaToMediaBoard
           v-if="showMediaBoard"
-          :mode="mode"
-          :anchor-meta="meta"
           :anchor-media-type="mediaType"
-          :pinned-media="pinnedMedia"
           :pinned-items="pinnedMetaItems"
           :all-meta="allMeta"
-          @pin-media="confirmPinMedia"
-          @unpin-media="confirmUnpinMedia"
           @pin-meta="confirmPinMetaToType"
           @unpin-meta="confirmUnpinMetaFromType"
           @reorder="onMetaItemsReorder"
@@ -92,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted} from 'vue'
+import {ref, computed, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {getTextDataType} from '@/services/metaTypeUtils'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -106,7 +79,6 @@ import type {
   MediaType,
   Meta,
   MetaAssignmentMode,
-  MetaInMediaTypeAssignment,
   MetaInMediaTypeRow,
   PinnedChildMetaAssignment,
   ConfirmAction,
@@ -128,13 +100,11 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'pinned-meta-updated': []
-  'pinned-media-updated': []
   'meta-updated': [items: MetaInMediaTypeRow[]]
 }>()
 
 const {t, te} = useI18n()
 const {
-  fetchPinnedMediaForMeta,
   fetchPinnedMetaForMediaType,
   fetchPinnedChildMeta,
   fetchAllMeta,
@@ -148,8 +118,6 @@ const {
   updateChildMetaShow,
 } = useMetaAssignment()
 
-const activeSegment = ref<'media' | 'tags'>('media')
-const pinnedMedia = ref<MetaInMediaTypeAssignment[]>([])
 const pinnedChildMeta = ref<PinnedChildMetaAssignment[]>([])
 const pinnedMetaItems = ref<MetaInMediaTypeRow[]>([])
 const allMeta = ref<Meta[]>([])
@@ -158,12 +126,10 @@ const pendingAction = ref<ConfirmAction | null>(null)
 
 const isMetaTypeArray = computed(() => props.meta?.type === 'array')
 
-const showMediaBoard = computed(() =>
-  props.mode === 'from-media-type' || activeSegment.value === 'media'
-)
+const showMediaBoard = computed(() => props.mode === 'from-media-type')
 
 const showTagsBoard = computed(() =>
-  props.mode === 'from-meta' && activeSegment.value === 'tags' && isMetaTypeArray.value
+  props.mode === 'from-meta' && isMetaTypeArray.value
 )
 
 const anchorIcon = computed(() => {
@@ -200,17 +166,6 @@ const loadAllMeta = async () => {
   }
 }
 
-const loadPinnedMedia = async () => {
-  if (props.mode === 'from-meta' && props.meta?.id) {
-    try {
-      pinnedMedia.value = await fetchPinnedMediaForMeta(props.meta.id)
-      emit('pinned-media-updated')
-    } catch (e) {
-      console.error('Error loading pinned media:', e)
-    }
-  }
-}
-
 const loadPinnedMetaItems = async () => {
   if (props.mode === 'from-media-type' && props.mediaType?.id) {
     try {
@@ -235,7 +190,6 @@ const loadPinnedChildMeta = async () => {
 
 const refresh = async () => {
   await Promise.all([
-    loadPinnedMedia(),
     loadPinnedMetaItems(),
     loadPinnedChildMeta(),
     loadAllMeta(),
@@ -266,30 +220,6 @@ const executeConfirm = async () => {
   } finally {
     cancelConfirm()
   }
-}
-
-const confirmPinMedia = async (mediaType: MediaType) => {
-  if (!props.meta?.id) return
-  try {
-    await pinMetaToMediaType(props.meta.id, mediaType.id)
-    await loadPinnedMedia()
-  } catch (e) {
-    console.error('Error pinning media type:', e)
-  }
-}
-
-const confirmUnpinMedia = (mediaType: MediaType) => {
-  const metaId = props.meta?.id
-  if (!metaId) return
-  const warningKey = props.meta?.type === 'array'
-    ? 'unpin_media_type_tags_removed'
-    : 'unpin_media_type_values_removed'
-
-  openConfirm({
-    title: t('meta.settings.remove_pinned_media_types'),
-    text: `${t(`meta.settings.${warningKey}`)}\n${t('common.are_you_sure')}`,
-    run: () => unpinMetaFromMediaType(metaId, mediaType.id),
-  })
 }
 
 const confirmPinMetaToType = async (meta: Meta) => {
@@ -388,7 +318,6 @@ const toggleChildMetaShow = async (item: PinnedChildMetaAssignment) => {
 
 watch(() => props.meta, () => {
   if (props.mode === 'from-meta' && props.meta?.id) {
-    if (!isMetaTypeArray.value) activeSegment.value = 'media'
     refresh()
   }
 }, {immediate: true})
@@ -398,8 +327,4 @@ watch(() => props.mediaType, () => {
     refresh()
   }
 }, {immediate: true})
-
-onMounted(() => {
-  if (!isMetaTypeArray.value) activeSegment.value = 'media'
-})
 </script>

@@ -22,13 +22,15 @@
           {{ t('meta.settings.pinned_fields') }}
         </div>
 
-        <v-card class="meta-to-meta-board__preview rounded-xl pa-2" variant="flat">
+        <div class="media-type-preview-card-hero">
           <div class="media-type-preview-card__preview">
-            <div class="media-type-preview-card__thumb meta-to-meta-board__thumb">
+            <div class="media-type-preview-card__thumb">
               <v-icon size="20" color="primary">mdi-{{ parentMeta.icon }}</v-icon>
             </div>
 
             <div class="media-type-preview-card__lines">
+              <div class="media-type-preview-card__line media-type-preview-card__line--title"/>
+
               <draggable
                 v-if="pinnedItems.length"
                 :model-value="pinnedItems"
@@ -65,9 +67,9 @@
               </div>
             </div>
           </div>
-        </v-card>
+        </div>
 
-        <div v-if="pinnedItems.length" class="text-caption text-medium-emphasis mt-2">
+        <div v-if="pinnedItems.length" class="text-caption text-medium-emphasis mt-3">
           <v-icon size="14" start>mdi-drag</v-icon>
           {{ t('meta.settings.drag_to_reorder_or_unpin') }}
         </div>

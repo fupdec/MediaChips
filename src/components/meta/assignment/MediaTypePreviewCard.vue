@@ -3,15 +3,12 @@
     :class="rootClass"
     @click="clickable && !editable ? handleClick() : undefined"
   >
-    <div class="media-type-preview-card__header">
-      <v-icon v-if="!hero" size="22" :color="isPinned ? 'primary' : undefined">mdi-{{ mediaType.icon }}</v-icon>
-      <span
-        class="media-type-preview-card__header-title"
-        :class="hero ? 'text-caption text-medium-emphasis' : 'text-body-2 font-weight-medium'"
-      >{{ headerTitle }}</span>
-      <v-spacer v-if="!hero"/>
+    <div v-if="!hero" class="media-type-preview-card__header">
+      <v-icon size="22" :color="isPinned ? 'primary' : undefined">mdi-{{ mediaType.icon }}</v-icon>
+      <span class="media-type-preview-card__header-title text-body-2 font-weight-medium">{{ headerTitle }}</span>
+      <v-spacer/>
       <v-btn
-        v-if="!hero && isPinned && showUnpin"
+        v-if="isPinned && showUnpin"
         class="media-type-preview-card__unpin"
         icon
         size="x-small"
@@ -22,12 +19,14 @@
       >
         <v-icon size="16">mdi-close</v-icon>
       </v-btn>
-      <v-icon v-else-if="!hero && isPinned" size="16" color="primary">mdi-pin</v-icon>
-      <v-icon v-else-if="!hero" size="16" class="text-medium-emphasis">mdi-plus-circle-outline</v-icon>
+      <v-icon v-else-if="isPinned" size="16" color="primary">mdi-pin</v-icon>
+      <v-icon v-else size="16" class="text-medium-emphasis">mdi-plus-circle-outline</v-icon>
     </div>
 
     <div class="media-type-preview-card__preview">
-      <div class="media-type-preview-card__thumb"/>
+      <div class="media-type-preview-card__thumb">
+        <v-icon v-if="hero" size="20" color="primary">mdi-{{ mediaType.icon }}</v-icon>
+      </div>
       <div class="media-type-preview-card__lines">
         <div class="media-type-preview-card__line media-type-preview-card__line--title"/>
 
@@ -138,11 +137,7 @@ const rootClass = computed(() => {
   }
 })
 
-const headerTitle = computed(() =>
-  props.hero
-    ? t('meta.settings.media_card_pinned_fields_layout')
-    : getMediaTypeName(props.mediaType, t),
-)
+const headerTitle = computed(() => getMediaTypeName(props.mediaType, t))
 
 const previewFields = computed((): MediaTypePreviewField[] => {
   if (props.pinnedFields.length) {

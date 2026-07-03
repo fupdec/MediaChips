@@ -12,7 +12,6 @@
       mode="from-meta"
       :meta="meta"
       @pinned-meta-updated="$emit('pinned-meta-updated')"
-      @pinned-media-updated="$emit('pinned-media-updated')"
     />
   </div>
 </template>
@@ -26,5 +25,5 @@ defineProps<{
   meta: Meta
 }>()
 
-defineEmits(['pinned-meta-updated', 'pinned-media-updated'])
+defineEmits(['pinned-meta-updated'])
 </script>

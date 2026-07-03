@@ -112,7 +112,6 @@
           :show-warning="false"
           :show-anchor="false"
           @pinned-meta-updated="onAssignmentUpdated"
-          @pinned-media-updated="onAssignmentUpdated"
         />
       </main>
     </div>
