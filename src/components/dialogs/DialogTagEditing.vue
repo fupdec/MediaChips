@@ -91,7 +91,7 @@ interface DialogHeaderButton {
 }
 
 interface EditComponentInstance {
-  save?: () => void
+  save?: () => Promise<boolean>
 }
 
 const {xl, xs} = useDisplay()
@@ -243,12 +243,14 @@ const deleteTag = async () => {
   }
 }
 
-const save = () => {
-  if (editingComponent.value && typeof editingComponent.value.save === 'function') {
-    editingComponent.value.save();
-  } else {
-    console.error('Component or method not available');
+const save = async () => {
+  if (!editingComponent.value?.save) {
+    console.error('Component or method not available')
+    return
   }
+
+  const saved = await editingComponent.value.save()
+  if (!saved) return
 
   if (isTagPage.value) {
     eventBus.emit('getTag')

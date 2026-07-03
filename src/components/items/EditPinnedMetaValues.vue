@@ -752,10 +752,40 @@ const loadEditingState = async () => {
   await getMetaValues()
 }
 
-const save = async () => {
+const ENTITY_BASE_FIELD_KEYS = [
+  'name',
+  'color',
+  'synonyms',
+  'rating',
+  'favorite',
+  'views',
+  'bookmark',
+  'viewedAt',
+  'silent',
+] as const
+
+const buildEntityUpdateData = (): EntityUpdatePayload => {
+  const cloned = cloneMetaValues(vals.value) as EntityUpdateFormValues
+  const {country, ...rest} = cloned
+  const updateData: EntityUpdatePayload = {}
+
+  for (const key of ENTITY_BASE_FIELD_KEYS) {
+    if (key in rest) {
+      updateData[key] = rest[key]
+    }
+  }
+
+  if (isTag.value) {
+    updateData.country = country?.length ? serializeCountries(country) : undefined
+  }
+
+  return updateData
+}
+
+const save = async (): Promise<boolean> => {
   if (!valid.value || !form.value) {
     await form.value?.validate()
-    return
+    return false
   }
 
   const tags: Array<TagInTagPayload | TagInMediaPayload> = []
@@ -770,6 +800,7 @@ const save = async () => {
 
     let val = vals.value[key]
     const type = typeof val
+    const metaId = Number(key)
 
     if (type === 'string') {
       val = (val as string).trim()
@@ -780,13 +811,13 @@ const save = async () => {
           tags.push({
             parentTagId: currentItemId.value,
             tagId: tagId,
-            metaId: key,
+            metaId,
           })
         } else if (isMedia.value && currentItemId.value) {
           tags.push({
             mediaId: currentItemId.value,
             tagId: tagId,
-            metaId: key,
+            metaId,
           })
         }
       }
@@ -797,27 +828,21 @@ const save = async () => {
         values.push({
           value: val,
           tagId: currentItemId.value,
-          metaId: key,
+          metaId,
         })
       } else if (isMedia.value) {
         values.push({
           value: val,
           mediaId: currentItemId.value,
-          metaId: key,
+          metaId,
         })
       }
     }
   }
 
-  const {country, ...rest} = cloneMetaValues(vals.value) as EntityUpdateFormValues
-  const updateData: EntityUpdatePayload = rest
-
-  if (isTag.value) {
-    updateData.country = country?.length ? serializeCountries(country) : undefined
-  }
+  const updateData = buildEntityUpdateData()
 
   try {
-    // Обновляем основной объект
     const endpoint = isTag.value ? 'tag' : 'media'
     await typedApi.updateEntity(endpoint, currentItemId.value!, updateData)
 
@@ -835,16 +860,15 @@ const save = async () => {
       await typedApi.postItemValues(valuesEndpoint, values)
     }
 
-    emit('close')
-
-    // Эмитируем событие обновления
     eventBus.emit('getItemsFromDb', {
       ids: [currentItemId.value],
       type: currentItemType.value
     })
 
+    return true
   } catch (error) {
     console.error('Error saving item:', error)
+    return false
   }
 }
 

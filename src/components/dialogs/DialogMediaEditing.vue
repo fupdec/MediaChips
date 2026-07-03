@@ -106,7 +106,7 @@ interface DialogHeaderButton {
 }
 
 interface EditComponentInstance {
-  save?: () => void
+  save?: () => Promise<boolean>
 }
 
 const props = defineProps<{
@@ -227,12 +227,14 @@ async function onImageEdited() {
   })
 }
 
-function save() {
-  if (editingComponent.value && typeof editingComponent.value.save === 'function') {
-    editingComponent.value.save();
-  } else {
-    console.error('Component or method not available');
+async function save() {
+  if (!editingComponent.value?.save) {
+    console.error('Component or method not available')
+    return
   }
+
+  const saved = await editingComponent.value.save()
+  if (!saved) return
 
   if (itemsStore.type === 'media') {
     eventBus.emit('getTags')
