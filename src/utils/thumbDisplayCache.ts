@@ -37,6 +37,10 @@ export function setCachedThumb(key: string, url: string | null | undefined): voi
   evictOldest()
 }
 
+export function invalidateCachedThumb(key: string): void {
+  cache.delete(key)
+}
+
 export function setCachedMediaThumbs(
   folder: string,
   thumbs: Record<string | number, string>,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clearThumbDisplayCache,
   getCachedThumb,
+  invalidateCachedThumb,
   mediaThumbKey,
   setCachedThumb,
 } from '@/utils/thumbDisplayCache'
@@ -46,6 +47,13 @@ describe('thumbDisplayCache', () => {
     clearThumbDisplayCache()
     setCachedThumb('x', 'thumb-x')
     clearThumbDisplayCache()
+    expect(getCachedThumb('x')).toBeUndefined()
+  })
+
+  it('invalidates a single cached entry', () => {
+    clearThumbDisplayCache()
+    setCachedThumb('x', 'thumb-x')
+    invalidateCachedThumb('x')
     expect(getCachedThumb('x')).toBeUndefined()
   })
 })

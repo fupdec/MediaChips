@@ -8,6 +8,7 @@
         :class="{ static: images.alt }"
         cover
         @click="openTagPage"
+        @error="onImageError('main')"
       />
 
       <v-img
@@ -17,6 +18,7 @@
         class="secondary-img"
         cover
         @click="openTagPage"
+        @error="onImageError('alt')"
       />
 
       <div v-if="images.custom1" class="custom1-img-button">1</div>
@@ -25,6 +27,7 @@
         :src="images.custom1"
         class="custom1-img"
         cover
+        @error="onImageError('custom1')"
       />
 
       <div v-if="images.custom2" class="custom2-img-button">2</div>
@@ -33,6 +36,7 @@
         :src="images.custom2"
         class="custom2-img"
         cover
+        @error="onImageError('custom2')"
       />
 
       <div v-if="meta?.country" class="country">
@@ -72,15 +76,18 @@
 <script setup lang="ts">
 import { reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import path from 'path-browserify'
 import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
 import { parseCountries, getCountryCode } from '@/utils/country'
 
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
+import {checkFileExists} from '@/services/fileService'
 import {hideHoverImage} from '@/services/hoverService'
 import {
   getCachedThumb,
+  invalidateCachedThumb,
   setCachedThumb,
   tagThumbKey,
 } from '@/utils/thumbDisplayCache'
@@ -88,6 +95,8 @@ import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource
 import type {Meta, Tag} from '@/types/stores'
 
 type TagImageType = 'main' | 'alt' | 'custom1' | 'custom2' | 'avatar'
+
+const OPTIONAL_IMAGE_TYPES = new Set<TagImageType>(['alt', 'custom1', 'custom2'])
 
 const props = withDefaults(defineProps<{
   tag: Tag
@@ -130,8 +139,18 @@ function getImageTypes(): TagImageType[] {
   return ['main', 'alt', 'custom1', 'custom2']
 }
 
+const resolveTagThumbFilePath = (type: TagImageType) =>
+  path.join(
+    appStore.dbPath,
+    'meta',
+    String(props.meta.id),
+    `${props.tag.id}_${type}.jpg`,
+  )
+
 const applyCachedImages = () => {
   for (const type of getImageTypes()) {
+    if (OPTIONAL_IMAGE_TYPES.has(type)) continue
+
     const cached = getCachedThumb(tagThumbKey(props.meta.id, props.tag.id, type))
     if (cached) {
       images[type] = isThumbUnavailable(cached) ? null : cached
@@ -139,18 +158,27 @@ const applyCachedImages = () => {
   }
 }
 
-const getImages = () => {
+const getImages = async () => {
   for (const type of getImageTypes()) {
     if (failedImageTypes.has(type)) continue
 
     const cacheKey = tagThumbKey(props.meta.id, props.tag.id, type)
-    const cached = getCachedThumb(cacheKey)
-    if (cached && !isThumbUnavailable(cached)) {
-      images[type] = cached
-      continue
-    }
 
-    if (images[type]) continue
+    if (OPTIONAL_IMAGE_TYPES.has(type)) {
+      if (!await checkFileExists(resolveTagThumbFilePath(type))) {
+        images[type] = null
+        invalidateCachedThumb(cacheKey)
+        continue
+      }
+    } else {
+      const cached = getCachedThumb(cacheKey)
+      if (cached && !isThumbUnavailable(cached)) {
+        images[type] = cached
+        continue
+      }
+
+      if (images[type]) continue
+    }
 
     const src = resolveTagThumbDisplayUrl({
       dbPath: appStore.dbPath,
@@ -166,6 +194,12 @@ const getImages = () => {
       images[type] = src
     }
   }
+}
+
+const onImageError = (type: TagImageType) => {
+  failedImageTypes.add(type)
+  images[type] = null
+  invalidateCachedThumb(tagThumbKey(props.meta.id, props.tag.id, type))
 }
 
 const onChipImageError = () => {
