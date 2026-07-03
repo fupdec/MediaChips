@@ -19,13 +19,13 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
-            script: dist:win
+            distFlag: --win
           - os: macos-latest
             name: macOS
-            script: dist:mac
+            distFlag: --mac
           - os: ubuntu-latest
             name: Linux
-            script: dist:linux
+            distFlag: --linux
 
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
         run: npm run build
 
       - name: Build installers
-        run: npm run ${{ matrix.script }}
+        run: npm run dist -- ${{ matrix.distFlag }}
 
       - name: Collect distribution files
         shell: bash

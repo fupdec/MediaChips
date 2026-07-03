@@ -22,9 +22,6 @@
     "electron:built": "node scripts/electron-built.mjs",
     "pack": "node scripts/dist.mjs --dir",
     "dist": "node scripts/dist.mjs",
-    "dist:win": "node scripts/dist.mjs --win",
-    "dist:mac": "node scripts/dist.mjs --mac",
-    "dist:linux": "node scripts/dist.mjs --linux",
     "portable": "node scripts/dist.mjs --win-portable",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
@@ -135,7 +132,8 @@
         "to": "models",
         "filter": [
           "**/*",
-          "!**/clip-vit-base-patch32/**"
+          "!**/clip-vit-base-patch32/**",
+          "!**/face-api/**"
         ]
       }
     ],

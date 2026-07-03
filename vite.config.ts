@@ -77,7 +77,13 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   base: './',
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.{js,ts}', 'shared/**/*.test.ts', 'api/**/*.test.ts', 'app/**/*.test.ts'],
+    include: [
+      'src/**/*.test.{js,ts}',
+      'shared/**/*.test.ts',
+      'api/**/*.test.ts',
+      'app/**/*.test.ts',
+      'scripts/**/*.test.mjs',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

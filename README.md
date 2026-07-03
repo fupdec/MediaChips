@@ -180,7 +180,7 @@ npm run electron
 |---------|-------------|
 | `npm run pack` | Build unpacked app (`release/`) |
 | `npm run dist` | Build installers for the current platform |
-| `npm run dist:win` / `dist:mac` / `dist:linux` | Build installers for a specific platform |
+| `npm run dist -- --mac` / `--win` / `--linux` | Build installers for a specific platform |
 | `npm run portable` | Windows portable build |
 
 Build artifacts are written to the `release/` directory.
@@ -232,8 +232,8 @@ No extra GitHub secrets are required: the workflow uses the built-in `GITHUB_TOK
 | `server:dev` | Start backend with nodemon (auto-restart on TS changes) |
 | `electron` | Run the Electron desktop shell (Vite + hot reload) |
 | `pack` | Electron-builder — unpacked output |
-| `dist` | Electron-builder — installers for the current platform |
-| `dist:win` / `dist:mac` / `dist:linux` | Electron-builder — installers for one platform |
+| `dist` | Electron-builder — installers for the current platform (prunes foreign native binaries before pack) |
+| `npm run dist -- --mac` / `--win` / `--linux` | Electron-builder — installers for one platform |
 | `portable` | Electron-builder — Windows portable |
 
 ---
