@@ -59,7 +59,8 @@
             <v-chip
               v-for="tag in category.items"
               :key="`${tag.id}_${item.id}`"
-              @click.stop.prevent="showMenu($event, tag)"
+              @click.stop.prevent="openTagPage(tag)"
+              @contextmenu.stop.prevent="showMenu($event, tag)"
               @mouseenter="onTagHover($event, tag)"
               @mouseleave="hideHoverImage"
             >
@@ -122,7 +123,8 @@
             :variant="getMetaChipVariant(tag.meta)"
             :label="getMetaChipLabel(tag.meta)"
             :text="tag.name"
-            @click.stop.prevent="showMenu($event, tag)"
+            @click.stop.prevent="openTagPage(tag)"
+            @contextmenu.stop.prevent="showMenu($event, tag)"
             @mouseenter="onTagHover($event, tag)"
             @mouseleave="hideHoverImage"
           ></v-chip>
@@ -160,7 +162,10 @@
           :label="getMetaChipLabel(entry.data.meta)"
           :prepend-icon="`mdi-${entry.data?.meta?.icon}`"
           :text="entry.data.name"
-          @click.stop.prevent="showMenu($event, entry.data)"
+          @click.stop.prevent="openTagPage(entry.data)"
+          @contextmenu.stop.prevent="showMenu($event, entry.data)"
+          @mouseenter="onTagHover($event, entry.data)"
+          @mouseleave="hideHoverImage"
         ></v-chip>
 
         <v-chip
@@ -408,6 +413,13 @@ const checkShow = (metaId: number): boolean => {
 const getPath = (tag: TagWithMeta): string => {
   const mediaTypeId = itemsStore.environment?.media_type_id || getDefaultMediaTypeId(appStore.mediaTypes)
   return "/tag?metaId=" + tag.metaId + "&tagId=" + tag.id + "&mediaTypeId=" + mediaTypeId
+}
+
+const openTagPage = (tag: TagWithMeta): void => {
+  hideHoverImage()
+  const url = getPath(tag)
+  if (url === router.currentRoute.value.fullPath) return
+  router.push(url)
 }
 
 const openNewTab = (tag: TagWithMeta): void => {
