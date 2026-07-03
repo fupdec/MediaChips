@@ -65,6 +65,7 @@
           @pin-meta="confirmPinMetaToType"
           @unpin-meta="confirmUnpinMetaFromType"
           @reorder="onMetaItemsReorder"
+          @toggle-show="toggleMetaInMediaTypeShow"
         />
 
         <MetaToMetaBoard
@@ -75,6 +76,7 @@
           @pin="confirmPinChildMeta"
           @unpin="confirmUnpinChildMeta"
           @reorder="onChildMetaReorder"
+          @toggle-show="toggleChildMetaShow"
         />
       </v-card-text>
     </v-card>
@@ -139,9 +141,11 @@ const {
   pinMetaToMediaType,
   unpinMetaFromMediaType,
   updateMetaInMediaTypeOrder,
+  updateMetaInMediaTypeShow,
   pinChildMeta,
   unpinChildMeta,
   updateChildMetaOrder,
+  updateChildMetaShow,
 } = useMetaAssignment()
 
 const activeSegment = ref<'media' | 'tags'>('media')
@@ -245,9 +249,10 @@ const openConfirm = (action: ConfirmAction) => {
   confirmDialog.value = true
 }
 
-const cancelConfirm = () => {
+const cancelConfirm = async () => {
   pendingAction.value = null
   confirmDialog.value = false
+  await refresh()
 }
 
 const executeConfirm = async () => {
@@ -356,6 +361,28 @@ const onMetaItemsReorder = async (items: MetaInMediaTypeRow[]) => {
   } catch (e) {
     console.error('Error reordering pinned meta:', e)
     await loadPinnedMetaItems()
+  }
+}
+
+const toggleMetaInMediaTypeShow = async (item: MetaInMediaTypeRow) => {
+  if (!props.mediaType?.id || !item.metaId) return
+  const show = !(item.show === 1 || item.show === true)
+  try {
+    await updateMetaInMediaTypeShow(item.metaId, props.mediaType.id, show)
+    await loadPinnedMetaItems()
+  } catch (e) {
+    console.error('Error toggling pinned meta visibility:', e)
+  }
+}
+
+const toggleChildMetaShow = async (item: PinnedChildMetaAssignment) => {
+  if (!props.meta?.id) return
+  const show = !(item.show === 1 || item.show === true)
+  try {
+    await updateChildMetaShow(props.meta.id, item.pinnedMetaId, show)
+    await loadPinnedChildMeta()
+  } catch (e) {
+    console.error('Error toggling child meta visibility:', e)
   }
 }
 

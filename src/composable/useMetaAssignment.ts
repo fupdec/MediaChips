@@ -52,6 +52,22 @@ export function useMetaAssignment() {
     await typedApi.updateChildMetaOrder(metaId, pinnedMetaId, order)
   }
 
+  const updateMetaInMediaTypeShow = async (metaId: number, mediaTypeId: number, show: boolean) => {
+    await typedApi.updateMetaInMediaTypeAssignment({
+      metaId,
+      mediaTypeId,
+      data: {show},
+    })
+  }
+
+  const updateChildMetaShow = async (metaId: number, pinnedMetaId: number, show: boolean) => {
+    await typedApi.updatePinnedMetaAssignment({
+      metaId,
+      pinnedMetaId,
+      data: {show},
+    })
+  }
+
   return {
     fetchPinnedMediaForMeta,
     fetchPinnedMetaForMediaType,
@@ -60,9 +76,11 @@ export function useMetaAssignment() {
     pinMetaToMediaType,
     unpinMetaFromMediaType,
     updateMetaInMediaTypeOrder,
+    updateMetaInMediaTypeShow,
     pinChildMeta,
     unpinChildMeta,
     updateChildMetaOrder,
+    updateChildMetaShow,
   }
 }
 

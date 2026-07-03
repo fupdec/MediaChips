@@ -1,105 +1,96 @@
 <template>
   <div class="meta-to-media-board">
-  <template v-if="mode === 'from-meta'">
-    <div class="text-caption text-medium-emphasis mb-3">
-      {{ t('meta.settings.assignment_media_hint') }}
-    </div>
-
-    <div v-if="allMediaTypes.length" class="meta-to-media-board__grid">
-      <MediaTypePreviewCard
-        v-for="mediaType in allMediaTypes"
-        :key="mediaType.id"
-        :media-type="mediaType"
-        :is-pinned="isMediaTypePinned(mediaType.id)"
-        :highlight-meta="anchorMeta"
-        :show-unpin="false"
-        @pin="requestPin(mediaType)"
-        @unpin="requestUnpin(mediaType)"
-      />
-    </div>
-
-    <div v-else class="text-center py-4 text-medium-emphasis">
-      {{ t('meta.settings.no_media_types_available') }}
-    </div>
-  </template>
-
-  <template v-else>
-    <MediaTypePreviewCard
-      v-if="anchorMediaType"
-      :media-type="anchorMediaType"
-      :is-pinned="true"
-      :pinned-fields="pinnedMetaFields"
-      hero
-      :clickable="false"
-      :show-unpin="false"
-      class="mb-4"
-    />
-
-    <div class="text-caption text-medium-emphasis mb-2">
-      {{ t('meta.settings.pinned_fields') }}
-    </div>
-
-    <draggable
-      v-if="pinnedItems.length"
-      :model-value="pinnedItems"
-      item-key="metaId"
-      v-bind="dragOptions"
-      class="meta-to-meta-board__slots mb-2"
-      @update:model-value="onReorder"
-    >
-      <template #item="{element}">
-        <div class="meta-to-meta-board__slot">
-          <v-icon size="14" class="meta-to-meta-board__drag text-medium-emphasis">mdi-drag</v-icon>
-          <v-icon size="16" color="primary" class="meta-to-meta-board__icon">mdi-{{ element.meta?.icon }}</v-icon>
-          <span class="meta-to-meta-board__name text-body-2">{{ element.meta?.name }}</span>
-          <v-icon size="12" class="meta-to-meta-board__type text-medium-emphasis">{{ getIconDataType(element.meta?.type) }}</v-icon>
-          <v-btn
-            class="meta-to-meta-board__unpin"
-            icon
-            size="x-small"
-            variant="text"
-            color="error"
-            @click="$emit('unpin-meta', element)"
-          >
-            <v-icon size="14">mdi-close</v-icon>
-          </v-btn>
+    <div class="meta-assignment-board">
+      <aside class="meta-assignment-board__pool">
+        <div class="text-caption text-medium-emphasis mb-3">
+          <v-icon size="14" start>mdi-drag</v-icon>
+          {{ poolHint }}
         </div>
-      </template>
-    </draggable>
 
-    <div v-else class="meta-to-media-board__empty mb-4">
-      <v-img src="/images/no-pinned.svg" max-height="80" contain class="mb-2"/>
-      <div class="text-medium-emphasis text-body-2">{{ t('meta.fields.no_pinned_meta') }}</div>
-    </div>
-
-    <div v-if="pinnedItems.length" class="text-caption text-medium-emphasis mb-4">
-      <v-icon size="14" start>mdi-drag</v-icon>
-      {{ t('meta.settings.drag_to_reorder') }}
-    </div>
-
-    <div class="text-caption text-medium-emphasis mb-2">
-      {{ t('meta.settings.available_fields') }}
-    </div>
+        <MediaTypePool
+          v-if="mode === 'from-meta'"
+          :items="allMediaTypes"
+          :exclude-ids="pinnedMediaTypeIds"
+          :highlight-meta="anchorMeta"
+          drag-group="media-type-assign"
+          :empty-text="t('meta.settings.all_media_types_pinned')"
+          @select="requestPin"
+        />
 
         <MetaFieldPool
+          v-else
           :items="allMeta"
           :exclude-ids="pinnedMetaIds"
+          drag-group="meta-fields-assign"
           :compact="true"
-          :empty-icon="'mdi-database-check'"
           :empty-text="t('meta.settings.all_meta_pinned')"
           @select="requestPinMeta"
         />
-  </template>
+      </aside>
+
+      <main class="meta-assignment-board__target">
+        <div class="meta-assignment-board__target-header text-caption text-medium-emphasis mb-2">
+          {{ targetTitle }}
+        </div>
+
+        <template v-if="mode === 'from-meta'">
+          <draggable
+            v-if="pinnedMediaCards.length"
+            :model-value="pinnedMediaCards"
+            item-key="id"
+            v-bind="mediaDragOptions"
+            class="meta-to-media-board__pinned-grid"
+            @update:model-value="onPinnedMediaChange"
+          >
+            <template #item="{element}">
+              <MediaTypePreviewCard
+                :media-type="element"
+                :is-pinned="true"
+                :highlight-meta="anchorMeta"
+                :show-unpin="true"
+                @unpin="requestUnpin(element)"
+              />
+            </template>
+          </draggable>
+
+          <div v-else class="meta-assignment-board__drop-zone">
+            <v-icon size="32" class="mb-2 text-medium-emphasis">mdi-file-move-outline</v-icon>
+            <div class="text-body-2 text-medium-emphasis">{{ t('meta.settings.drop_media_type_here') }}</div>
+          </div>
+        </template>
+
+        <template v-else>
+          <MediaTypePreviewCard
+            v-if="anchorMediaType"
+            :media-type="anchorMediaType"
+            :is-pinned="true"
+            hero
+            editable
+            :pinned-items="pinnedItems"
+            :show-visibility-toggle="true"
+            drag-group="meta-fields-assign"
+            @items-change="onPinnedMetaChange"
+            @unpin="requestUnpinMeta"
+            @toggle-show="$emit('toggle-show', $event)"
+          />
+
+          <div v-if="hasPinnedItems" class="text-caption text-medium-emphasis mt-3">
+            <v-icon size="14" start>mdi-drag</v-icon>
+            {{ t('meta.settings.drag_to_reorder_or_unpin') }}
+          </div>
+        </template>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {getIconDataType} from '@/services/metaTypeUtils'
 import draggable from 'vuedraggable'
 import {useAppStore} from '@/stores/app'
 import MediaTypePreviewCard from './MediaTypePreviewCard.vue'
+import MediaTypePool from './MediaTypePool.vue'
 import MetaFieldPool from './MetaFieldPool.vue'
 import type {
   MediaType,
@@ -131,29 +122,109 @@ const emit = defineEmits<{
   'pin-meta': [meta: Meta]
   'unpin-meta': [item: MetaInMediaTypeRow]
   reorder: [items: MetaInMediaTypeRow[]]
+  'toggle-show': [item: MetaInMediaTypeRow]
 }>()
 
 const {t} = useI18n()
 const allMediaTypes = computed(() => useAppStore().mediaTypes || [])
 
-const dragOptions = {
+const mediaDragOptions = {
   animation: 180,
-  handle: '.meta-to-meta-board__drag',
-  ghostClass: 'meta-to-meta-board__slot--ghost',
+  group: {name: 'media-type-assign', pull: true, put: true},
+  ghostClass: 'media-type-preview-card--ghost',
 }
 
-const pinnedMediaTypeIds = computed(() => new Set(props.pinnedMedia.map((i) => i.mediaTypeId)))
-
+const pinnedMediaTypeIds = computed(() => props.pinnedMedia.map((i) => i.mediaTypeId))
 const pinnedMetaIds = computed(() => props.pinnedItems.map((i) => i.metaId))
 
-const pinnedMetaFields = computed((): Meta[] =>
-  props.pinnedItems.map((i) => i.meta).filter((meta): meta is Meta => meta != null)
+const pinnedMediaCards = computed(() =>
+  props.pinnedMedia
+    .map((row) => row.mediaType || allMediaTypes.value.find((mt) => mt.id === row.mediaTypeId))
+    .filter((mediaType): mediaType is MediaType => mediaType != null)
 )
 
-const isMediaTypePinned = (mediaTypeId: number) => pinnedMediaTypeIds.value.has(mediaTypeId)
+const poolHint = computed(() =>
+  props.mode === 'from-meta'
+    ? t('meta.settings.assignment_media_drag_hint')
+    : t('meta.settings.assignment_fields_drag_hint')
+)
+
+const targetTitle = computed(() =>
+  props.mode === 'from-meta'
+    ? t('meta.settings.pinned_media_types')
+    : t('meta.settings.pinned_fields')
+)
+
+const hasPinnedItems = computed(() =>
+  props.mode === 'from-meta'
+    ? pinnedMediaCards.value.length > 0
+    : props.pinnedItems.length > 0
+)
+
+const findAddedMeta = (next: MetaInMediaTypeRow[], prev: MetaInMediaTypeRow[]) => {
+  const prevIds = new Set(prev.map((item) => item.metaId))
+  return next.find((item) => !prevIds.has(item.metaId))
+}
+
+const findRemovedMeta = (next: MetaInMediaTypeRow[], prev: MetaInMediaTypeRow[]) => {
+  const nextIds = new Set(next.map((item) => item.metaId))
+  return prev.find((item) => !nextIds.has(item.metaId))
+}
+
+const findAddedMediaType = (next: MediaType[], prev: MediaType[]) => {
+  const prevIds = new Set(prev.map((item) => item.id))
+  return next.find((item) => !prevIds.has(item.id))
+}
+
+const findRemovedMediaType = (next: MediaType[], prev: MediaType[]) => {
+  const nextIds = new Set(next.map((item) => item.id))
+  return prev.find((item) => !nextIds.has(item.id))
+}
+
+const onPinnedMetaChange = (next: MetaInMediaTypeRow[]) => {
+  const prev = props.pinnedItems
+
+  if (next.length > prev.length) {
+    const added = findAddedMeta(next, prev)
+    if (added?.metaId) {
+      emit('reorder', next)
+      return
+    }
+    if (added) {
+      emit('pin-meta', added as unknown as Meta)
+    }
+    return
+  }
+
+  if (next.length < prev.length) {
+    const removed = findRemovedMeta(next, prev)
+    if (removed) emit('unpin-meta', removed)
+    return
+  }
+
+  emit('reorder', next)
+}
+
+const onPinnedMediaChange = (next: MediaType[]) => {
+  const prev = pinnedMediaCards.value
+
+  if (next.length > prev.length) {
+    const added = findAddedMediaType(next, prev)
+    if (added) emit('pin-media', added)
+    return
+  }
+
+  if (next.length < prev.length) {
+    const removed = findRemovedMediaType(next, prev)
+    if (removed) emit('unpin-media', removed)
+    return
+  }
+}
 
 const requestPin = (mediaType: MediaType) => emit('pin-media', mediaType)
 const requestUnpin = (mediaType: MediaType) => emit('unpin-media', mediaType)
 const requestPinMeta = (meta: Meta) => emit('pin-meta', meta)
-const onReorder = (items: MetaInMediaTypeRow[]) => emit('reorder', items)
+const requestUnpinMeta = (item?: MetaInMediaTypeRow) => {
+  if (item) emit('unpin-meta', item)
+}
 </script>
