@@ -519,11 +519,6 @@ defineEmits<{
 </script>
 
 <style lang="scss">
-.items-page-grid:not(.items-virtual-grid) :deep(.item) {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 280px;
-}
-
 .infinite-loader-full-height {
   text-align: center;
   padding: 24px 0;

@@ -454,6 +454,11 @@ export function useItemsPage({
     const threshold = 400
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold
     const shortPage = el.scrollHeight <= el.clientHeight + threshold
+    const loadedEnoughToFillViewport = ITEMS.value.itemsOnPage.length >= INFINITE_PAGE_SIZE
+
+    if (shortPage && loadedEnoughToFillViewport) {
+      return
+    }
 
     if (nearBottom || shortPage) {
       void loadNextInfinitePage()
