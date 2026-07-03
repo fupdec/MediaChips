@@ -10,6 +10,7 @@ import {getSavedFilters} from '@/services/filterService'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isImageMediaType} from '@/utils/mediaType'
 import {normalizeSortBy} from '@/utils/mediaSortFilter'
+import {normalizeItemsView} from '@/utils/itemsView'
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
 import type { AssignedMeta, Meta, SavedFilter } from '@/types/stores'
@@ -274,10 +275,15 @@ export function useItemsPageInit({
     const {settings: pageSettings, shouldLinkFilter} = await fetchPageSettings()
     Object.assign(storeUpdates, applyPageSettings(pageSettings))
 
-    if (
+    const resolvedView = storeUpdates.view != null
+      ? normalizeItemsView(storeUpdates.view, props.items_type, mediaType.value)
+      : null
+
+    if (resolvedView != null) {
+      storeUpdates.view = resolvedView
+    } else if (
       props.items_type === 'media' &&
-      isImageMediaType(mediaType.value) &&
-      storeUpdates.view == null
+      isImageMediaType(mediaType.value)
     ) {
       storeUpdates.view = 3
     }
@@ -288,6 +294,14 @@ export function useItemsPageInit({
 
     itemsStore.updateMultiple(storeUpdates)
     isFiltersReady.value = true
+
+    if (
+      resolvedView != null &&
+      pageSettings?.view != null &&
+      Number(pageSettings.view) !== resolvedView
+    ) {
+      await updatePageSetting({view: resolvedView})
+    }
 
     if (
       props.items_type === 'media' &&

@@ -19,6 +19,7 @@ import { useI18n } from 'vue-i18n'
 import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
 import { getCurrentMediaType, isVideoMediaType, isImageMediaType } from '@/utils/mediaType'
+import { normalizeItemsView } from '@/utils/itemsView'
 import { useEventBus } from '@/utils/eventBus'
 
 const eventBus = useEventBus()
@@ -77,12 +78,13 @@ const initViewOptions = () => {
     })
   }
 
-  if (itemsStore.type === 'media' && !isVideoMediaType(currentMediaType.value) && currentView.value === 2) {
-    updateView(1)
-  }
-
-  if (itemsStore.type === 'media' && !isImageMediaType(currentMediaType.value) && currentView.value === 3) {
-    updateView(1)
+  const normalizedView = normalizeItemsView(
+    currentView.value,
+    itemsStore.type === 'tag' ? 'tag' : 'media',
+    currentMediaType.value,
+  )
+  if (normalizedView !== currentView.value) {
+    updateView(normalizedView)
   }
 }
 
