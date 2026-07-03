@@ -15,6 +15,13 @@
       "when": 1782753600000,
       "tag": "0001_performance_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782757200000,
+      "tag": "0002_meta_tag_page_design",
+      "breakpoints": true
     }
   ]
 }
