@@ -28,8 +28,11 @@ export default function useVideoImageGenerator() {
   })
 
   const timeout = ref<ReturnType<typeof setTimeout> | null>(null)
-  const processedVideoIds = ref(new Set<number>())
+  const processedGridVideoIds = ref(new Set<number>())
+  const processedTimelineVideoIds = ref(new Set<number>())
   const lastItemsCount = ref(0)
+
+  type PreviewKind = 'grid' | 'timeline'
 
 
   const createVideoGrid = (input: string, output: string): Promise<unknown> => {
@@ -55,6 +58,7 @@ export default function useVideoImageGenerator() {
       typedApi.taskCreateTimeline({ id: video.id, path: video.path })
         .then((res) => {
           itemsStore.refreshThumb(video.id, {broadcast: false})
+          eventBus.emit('updateVideoFrames', video.id)
           resolve(res)
         })
         .catch((e) => {
@@ -148,20 +152,26 @@ export default function useVideoImageGenerator() {
     }
   }
 
-  const getVideosToProcess = (videos: MediaItem[]): MediaItem[] => {
+  const getProcessedVideoIds = (kind: PreviewKind) =>
+    kind === 'grid' ? processedGridVideoIds : processedTimelineVideoIds
+
+  const getVideosToProcess = (videos: MediaItem[], kind: PreviewKind): MediaItem[] => {
     if (!Array.isArray(videos) || !videos.length) return []
 
-    return videos.filter((video) => video?.id && !processedVideoIds.value.has(video.id))
+    const processed = getProcessedVideoIds(kind)
+    return videos.filter((video) => video?.id && !processed.value.has(video.id))
   }
 
-  const markVideosProcessed = (videos: MediaItem[]): void => {
+  const markVideosProcessed = (videos: MediaItem[], kind: PreviewKind): void => {
+    const processed = getProcessedVideoIds(kind)
     for (const video of videos) {
-      if (video?.id) processedVideoIds.value.add(video.id)
+      if (video?.id) processed.value.add(video.id)
     }
   }
 
   const resetProcessedVideos = (): void => {
-    processedVideoIds.value = new Set()
+    processedGridVideoIds.value = new Set()
+    processedTimelineVideoIds.value = new Set()
   }
 
   const generateImages = (videos: MediaItem[]): void => {
@@ -187,27 +197,42 @@ export default function useVideoImageGenerator() {
     timeline.value.stopped = false
 
     timeout.value = setTimeout(() => {
-      const videosToProcess = getVideosToProcess(videos)
-      if (!videosToProcess.length) return
+      const shouldGenerateGrid = !grid.value.active && settingsStore.videoPreviewStatic === 'grid'
+      const shouldGenerateTimeline = !timeline.value.active &&
+        (settingsStore.videoPreviewHover === 'timeline' ||
+          Number(itemsStore.view) === 2)
 
-      markVideosProcessed(videosToProcess)
+      const gridVideos = shouldGenerateGrid ? getVideosToProcess(videos, 'grid') : []
+      const timelineVideos = shouldGenerateTimeline ? getVideosToProcess(videos, 'timeline') : []
 
-      if (!grid.value.active && settingsStore.videoPreviewStatic === 'grid') {
-        void createGrids(videosToProcess)
+      if (!gridVideos.length && !timelineVideos.length) return
+
+      if (gridVideos.length) {
+        markVideosProcessed(gridVideos, 'grid')
+        void createGrids(gridVideos)
       }
 
-      if (!timeline.value.active &&
-        (settingsStore.videoPreviewHover === 'timeline' ||
-          Number(itemsStore.view) === 2)) {
-        void createTimelines(videosToProcess)
+      if (timelineVideos.length) {
+        markVideosProcessed(timelineVideos, 'timeline')
+        void createTimelines(timelineVideos)
       }
     }, 3000)
+  }
+
+  const scheduleGenerationForCurrentPage = () => {
+    if (itemsStore.type === 'media') {
+      generateImages(itemsStore.itemsOnPage)
+    }
   }
 
   watch(() => itemsStore.itemsOnPage, (videos) => {
     if (itemsStore.type === 'media') {
       generateImages(videos)
     }
+  })
+
+  watch(() => Number(itemsStore.view), () => {
+    scheduleGenerationForCurrentPage()
   })
 
   const cleanup = (): void => {

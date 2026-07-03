@@ -154,7 +154,7 @@
         @mouseleave="stopScrollStory"
         @mousemove.capture="scrollStory"
       >
-        <div v-if="isFileExists && isFramesLost"
+        <div v-if="showFramesInProgressMessage"
           class="message">
           <v-sheet>{{ t('media.preview.frames_in_progress') }}</v-sheet>
         </div>
@@ -185,7 +185,7 @@
             :key="i"
             class="frame"
           >
-            <img :src="img"/>
+            <img :src="img || undefined" @error="onStoryFrameError(i)"/>
             <div class="duration">{{ duration }}</div>
           </div>
         </div>
@@ -284,6 +284,35 @@ const thumbLoadStarted = ref(false)
 const bigPreviewMenuActive = ref(false)
 const isMounted = ref(false)
 const transcodeRequired = ref<boolean | null>(null)
+let initFramesToken = 0
+
+const resolveThumbFallback = (): string => {
+  if (!props.media?.id) return ''
+
+  if (thumb.value && !isThumbUnavailable(thumb.value)) {
+    return thumb.value
+  }
+
+  const cached = getCachedThumb(mediaThumbKey('videos', props.media.id))
+  if (cached && !isThumbUnavailable(cached)) {
+    return cached
+  }
+
+  const url = resolveMediaThumbDisplayUrl(store.mediaPath, 'videos', props.media.id)
+  return url && !isThumbUnavailable(url) ? url : ''
+}
+
+const probeDisplayImageUrl = (url: string): Promise<boolean> => new Promise((resolve) => {
+  if (!url || isThumbUnavailable(url)) {
+    resolve(false)
+    return
+  }
+
+  const image = new Image()
+  image.onload = () => resolve(!isThumbUnavailable(image.src))
+  image.onerror = () => resolve(false)
+  image.src = url
+})
 
 const getPreviewEl = (): HTMLElement | null => {
   const instance = previewRef.value
@@ -319,8 +348,12 @@ const isFrameLost = computed(() =>
   frame.value ? frame.value.includes('unavailable.png') : true
 )
 
-const isFramesLost = computed(() =>
-  frames.value[0] ? frames.value[0] === thumb.value : true
+const timelineUsesThumbFallback = ref(false)
+
+const showFramesInProgressMessage = computed(() =>
+  props.isFileExists &&
+  timelineUsesThumbFallback.value &&
+  Boolean(isTaskRunning.value),
 )
 
 const progressPosition = computed(() => {
@@ -914,23 +947,41 @@ const stopScrollStory = () => {
   }
 }
 
-const initFrames = () => {
-  frames.value = []
-  for (let i = 0; i < timelines.length; i++) {
-    const progressValue = timelines[i]
-    const img = resolveTimelineFrameDisplayUrl(
-      store.mediaPath,
-      props.media.id,
-      progressValue,
-    )
-    if (i == 0 && img.includes("unavailable.png")) {
-      frames.value = []
-      for (const _j of timelines) frames.value.push(thumb.value ?? '')
-      break
-    } else {
-      frames.value.push(img)
-    }
+const initFrames = async () => {
+  const token = ++initFramesToken
+  if (!isMounted.value || !props.media?.id || !isViewTimeline.value) return
+
+  await getImg()
+  if (token !== initFramesToken || !isViewTimeline.value) return
+
+  const thumbFallback = resolveThumbFallback()
+  const firstTimelineUrl = resolveTimelineFrameDisplayUrl(
+    store.mediaPath,
+    props.media.id,
+    timelines[0],
+  )
+  const hasTimeline = await probeDisplayImageUrl(firstTimelineUrl)
+  if (token !== initFramesToken || !isViewTimeline.value) return
+
+  if (!hasTimeline) {
+    timelineUsesThumbFallback.value = true
+    frames.value = timelines.map(() => thumbFallback)
+    return
   }
+
+  timelineUsesThumbFallback.value = false
+  frames.value = timelines.map((progressValue) =>
+    resolveTimelineFrameDisplayUrl(store.mediaPath, props.media.id, progressValue),
+  )
+}
+
+const onStoryFrameError = (index: number) => {
+  const fallback = resolveThumbFallback()
+  if (!fallback || frames.value[index] === fallback) return
+
+  const next = [...frames.value]
+  next[index] = fallback
+  frames.value = next
 }
 
 // Наблюдатели
@@ -967,17 +1018,34 @@ watch(() => itemsStore.thumbRefreshKeys[Number(props.media.id)], (version) => {
   if (shouldRegenerate) {
     thumbCreateAttempted.value = false
   }
-  getImg({bust: true, allowCreate: shouldRegenerate})
-  if (isViewTimeline.value) {
-    initFrames()
-  }
+  void getImg({bust: true, allowCreate: shouldRegenerate}).then(() => {
+    if (isViewTimeline.value) {
+      void initFrames()
+    }
+  })
 })
 
 watch(() => ITEMS.value.view, (value) => {
   if (Number(value) === 2) {
-    initFrames()
+    void initFrames()
+    return
   }
-  getImg()
+
+  initFramesToken += 1
+  void getImg()
+})
+
+watch(isTaskRunning, (running, wasRunning) => {
+  if (wasRunning && !running && isViewTimeline.value) {
+    void initFrames()
+  }
+})
+
+watch(thumb, () => {
+  if (!isViewTimeline.value) return
+  if (!frames.value.length || frames.value.every((src) => !src || isThumbUnavailable(src))) {
+    void initFrames()
+  }
 })
 
 watch(() => bigPreview.value, (value) => {
@@ -1001,7 +1069,7 @@ watch(() => is_window_focused.value, (value) => {
 const handleUpdateVideoFrames: Handler = (event) => {
   const id = Number(event)
   if (Number(props.media.id) === id && isViewTimeline.value) {
-    initFrames()
+    void initFrames()
   }
 }
 
@@ -1019,8 +1087,9 @@ onMounted(async () => {
 
   if (!isMounted.value) return
 
+  await getImg()
   if (isViewTimeline.value) {
-    initFrames()
+    await initFrames()
   }
 
   eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
@@ -1028,6 +1097,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   isMounted.value = false
+  initFramesToken += 1
   stopPlayingPreview({force: true})
   eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
 
