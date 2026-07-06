@@ -187,7 +187,7 @@
     </div>
 
     <Teleport to="#main-drop-target">
-      <v-card
+      <div
         v-show="dropzone"
         @dragleave="onDropzoneDragLeave"
         @drop.prevent="catchDrop($event)"
@@ -196,7 +196,7 @@
         class="dropzone"
       >
         <div class="text">{{ t('items.drop_video_or_folder') }}</div>
-      </v-card>
+      </div>
     </Teleport>
 
     <QuickActionButton v-if="SETTINGS.show_quick_action_button == '1'"/>
@@ -204,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -488,16 +488,33 @@ const onDropzoneDragOver = (event: DragEvent) => {
   dropzone.value = true
 }
 
-const onDropzoneDragLeave = () => {
+const onDropzoneDragLeave = (event: DragEvent) => {
+  const relatedTarget = event.relatedTarget
+  if (relatedTarget instanceof Node && event.currentTarget instanceof Node && event.currentTarget.contains(relatedTarget)) {
+    return
+  }
+
   dropzoneDragDepth.value = Math.max(0, dropzoneDragDepth.value - 1)
   if (dropzoneDragDepth.value === 0) {
     dropzone.value = false
   }
 }
 
-const catchDrop = (e: DragEvent) => {
+const resetDropzone = () => {
   dropzone.value = false
   dropzoneDragDepth.value = 0
+}
+
+onMounted(() => {
+  window.addEventListener('dragend', resetDropzone)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('dragend', resetDropzone)
+})
+
+const catchDrop = (e: DragEvent) => {
+  resetDropzone()
   if (!isElectron.value || props.items_type !== 'media' || !mediaType.value || !props.mediaTypeId) return
 
   const paths = collectDroppedPaths(e)
