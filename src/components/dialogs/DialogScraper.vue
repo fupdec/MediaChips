@@ -79,16 +79,14 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, defineAsyncComponent} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '@/stores/scraper'
 import {useDialogsStore} from '@/stores/dialogs'
 
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 
-const ScraperDataTransfer = defineAsyncComponent(() =>
-  import("@/components/scraper/ScraperDataTransfer.vue"),
-)
+import ScraperDataTransfer from "@/components/scraper/ScraperDataTransfer.vue"
 import {useEventBus} from "@/utils/eventBus"
 import type { ScraperSelectedResult } from '@/types/scraper'
 

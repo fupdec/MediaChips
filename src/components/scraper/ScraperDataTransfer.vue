@@ -80,16 +80,14 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, watch, defineAsyncComponent} from 'vue'
+import {computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '@/stores/scraper'
 import {useAppStore} from '@/stores/app'
 import Countries from "@/assets/Countries"
 import {getMetaName} from "@/utils/metaI18n"
 
-const ScraperSelectImages = defineAsyncComponent(() =>
-  import('@/components/scraper/ScraperSelectImages.vue'),
-)
+import ScraperSelectImages from '@/components/scraper/ScraperSelectImages.vue'
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]
@@ -239,9 +237,13 @@ onMounted(() => {
   getData()
 })
 
-watch(() => props.selected, () => {
-  getData()
-})
+watch(
+  [() => props.selected, pinned, currentValues],
+  () => {
+    getData()
+  },
+  {deep: true},
+)
 </script>
 
 <style>
