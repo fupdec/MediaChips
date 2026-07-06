@@ -2,7 +2,7 @@
   <!-- GRID VIEW -->
   <div v-if="Number(ITEMS.view) === 1">
       <v-img
-        :src="images.main || undefined"
+        :src="mainImageSrc"
         :aspect-ratio="meta?.imageAspectRatio"
         class="main-img"
         :class="{ static: images.alt }"
@@ -65,7 +65,7 @@
       @click="openTagPage"
     >
       <v-img
-        :src="avatar || undefined"
+        :src="avatar"
         cover
         @error="onChipImageError"
       />
@@ -92,6 +92,7 @@ import {
   tagThumbKey,
 } from '@/utils/thumbDisplayCache'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
 import type {Meta, Tag} from '@/types/stores'
 
 type TagImageType = 'main' | 'alt' | 'custom1' | 'custom2' | 'avatar'
@@ -126,10 +127,22 @@ const countries = computed(() =>
 
 const failedImageTypes = reactive(new Set<TagImageType>())
 
+const mainImageSrc = computed(() => {
+  if (images.main && !failedImageTypes.has('main') && !isThumbUnavailable(images.main)) {
+    return images.main
+  }
+
+  return IMAGE_UNAVAILABLE_URL
+})
+
 const avatar = computed(() => {
-  if (images.avatar && !failedImageTypes.has('avatar')) return images.avatar
-  if (images.main && !failedImageTypes.has('main')) return images.main
-  return null
+  if (images.avatar && !failedImageTypes.has('avatar') && !isThumbUnavailable(images.avatar)) {
+    return images.avatar
+  }
+  if (images.main && !failedImageTypes.has('main') && !isThumbUnavailable(images.main)) {
+    return images.main
+  }
+  return IMAGE_UNAVAILABLE_URL
 })
 
 function getImageTypes(): TagImageType[] {
@@ -153,7 +166,7 @@ const applyCachedImages = () => {
 
     const cached = getCachedThumb(tagThumbKey(props.meta.id, props.tag.id, type))
     if (cached) {
-      images[type] = isThumbUnavailable(cached) ? null : cached
+      images[type] = isThumbUnavailable(cached) ? IMAGE_UNAVAILABLE_URL : cached
     }
   }
 }
@@ -172,12 +185,18 @@ const getImages = async () => {
       }
     } else {
       const cached = getCachedThumb(cacheKey)
-      if (cached && !isThumbUnavailable(cached)) {
-        images[type] = cached
+      if (cached) {
+        images[type] = isThumbUnavailable(cached) ? IMAGE_UNAVAILABLE_URL : cached
         continue
       }
 
-      if (images[type]) continue
+      if (images[type] && images[type] !== IMAGE_UNAVAILABLE_URL) continue
+
+      if (!await checkFileExists(resolveTagThumbFilePath(type))) {
+        images[type] = IMAGE_UNAVAILABLE_URL
+        setCachedThumb(cacheKey, IMAGE_UNAVAILABLE_URL)
+        continue
+      }
     }
 
     const src = resolveTagThumbDisplayUrl({
@@ -188,7 +207,7 @@ const getImages = async () => {
     })
     setCachedThumb(cacheKey, src)
 
-    if (type !== 'main' && isThumbUnavailable(src)) {
+    if (OPTIONAL_IMAGE_TYPES.has(type) && isThumbUnavailable(src)) {
       images[type] = null
     } else {
       images[type] = src
@@ -197,22 +216,26 @@ const getImages = async () => {
 }
 
 const onImageError = (type: TagImageType) => {
+  if (type === 'main' || type === 'avatar') {
+    images[type] = IMAGE_UNAVAILABLE_URL
+    setCachedThumb(tagThumbKey(props.meta.id, props.tag.id, type), IMAGE_UNAVAILABLE_URL)
+    return
+  }
+
   failedImageTypes.add(type)
   images[type] = null
   invalidateCachedThumb(tagThumbKey(props.meta.id, props.tag.id, type))
 }
 
 const onChipImageError = () => {
-  const current = avatar.value
-  if (current === images.avatar) {
+  if (images.avatar && !failedImageTypes.has('avatar')) {
     failedImageTypes.add('avatar')
     images.avatar = null
     return
   }
-  if (current === images.main) {
-    failedImageTypes.add('main')
-    images.main = null
-  }
+
+  images.main = IMAGE_UNAVAILABLE_URL
+  setCachedThumb(tagThumbKey(props.meta.id, props.tag.id, 'main'), IMAGE_UNAVAILABLE_URL)
 }
 
 const openTagPage = () => {
