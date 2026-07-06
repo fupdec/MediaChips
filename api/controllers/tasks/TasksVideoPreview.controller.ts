@@ -286,12 +286,23 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
   const createImage = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      let buf = Buffer.from(req.body.image, 'base64')
       const {outputPath, url, sizes} = req.body
+      let buf: Buffer
 
       if (url) {
-        const response = await axios.get(url, {responseType: 'arraybuffer'})
+        const response = await axios.get(url, {
+          responseType: 'arraybuffer',
+          timeout: 30000,
+          maxRedirects: 5,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            Accept: 'image/*,*/*;q=0.8',
+          },
+          validateStatus: (status) => status >= 200 && status < 300,
+        })
         buf = Buffer.from(response.data)
+      } else {
+        buf = Buffer.from(req.body.image, 'base64')
       }
 
       const result = await getImageMedia().processAndSaveImage({

@@ -7,6 +7,22 @@ import { Jimp } from 'jimp'
 const THUMB_HEIGHT = 320
 const THUMB_JPEG_QUALITY = 85
 
+async function decodeImageBuffer(buffer: Buffer): Promise<JimpImage> {
+  try {
+    return await Jimp.read(buffer) as unknown as JimpImage
+  } catch (jimpError) {
+    try {
+      const {default: sharp} = await import('sharp')
+      const pngBuffer = await sharp(buffer).png().toBuffer()
+      return await Jimp.read(pngBuffer) as unknown as JimpImage
+    } catch (sharpError) {
+      const jimpMessage = jimpError instanceof Error ? jimpError.message : String(jimpError)
+      const sharpMessage = sharpError instanceof Error ? sharpError.message : String(sharpError)
+      throw new Error(`Unable to decode image: ${jimpMessage}; sharp fallback failed: ${sharpMessage}`)
+    }
+  }
+}
+
 async function writeJpeg(image: JimpImage, outputPath: string, quality = THUMB_JPEG_QUALITY) {
   const buffer = await image.getBuffer('image/jpeg', {quality})
   await fs.promises.writeFile(outputPath, buffer)
@@ -106,7 +122,8 @@ const createImageThumb = async (pathToFile: string, id: string | number, dbPath:
 }
 
 async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveImageOptions) {
-  const image = await Jimp.read(buffer) as unknown as JimpImage
+  fs.mkdirSync(path.dirname(outputPath), {recursive: true})
+  const image = await decodeImageBuffer(buffer)
   const width = image.width
   const height = image.height
   const aspectRatio = width / height
