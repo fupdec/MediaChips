@@ -7,6 +7,55 @@ import { nowIso } from '../utils/timestamps'
 export type TagRow = typeof tags.$inferSelect
 export type TagInsert = typeof tags.$inferInsert
 
+const TAG_MUTABLE_COLUMNS = new Set([
+  'name',
+  'synonyms',
+  'rating',
+  'favorite',
+  'bookmark',
+  'country',
+  'color',
+  'views',
+  'viewedAt',
+  'metaId',
+  'oldId',
+])
+
+function coerceTagField(key: string, value: unknown): unknown {
+  switch (key) {
+    case 'rating':
+      return value == null || value === '' ? 0 : Math.round(Number(value)) || 0
+    case 'views':
+      return value == null || value === '' ? 0 : Number(value) || 0
+    case 'favorite':
+      return value === true || value === 1 || value === '1'
+    case 'metaId':
+      return value == null || value === '' ? null : Number(value) || null
+    case 'name':
+      return value == null ? '' : String(value)
+    case 'synonyms':
+    case 'bookmark':
+    case 'color':
+    case 'country':
+    case 'viewedAt':
+    case 'oldId':
+      return value == null || value === '' ? null : String(value)
+    default:
+      return value
+  }
+}
+
+export function pickTagFields(data: Record<string, unknown>): Partial<TagInsert> {
+  const picked: Partial<TagInsert> = {}
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!TAG_MUTABLE_COLUMNS.has(key) || value === undefined) continue
+    ;(picked as Record<string, unknown>)[key] = coerceTagField(key, value)
+  }
+
+  return picked
+}
+
 const TAG_ITEMS_QUERY = `SELECT tags.*, tags_in_tags.tag_tags, values_in_tags.tag_values
 FROM tags
          LEFT JOIN (SELECT tagsInTags.parentTagId                                     id,
@@ -61,8 +110,8 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
       return Number(row?.count ?? 0)
     },
 
-    updateById(id: number, data: Partial<TagInsert>, options: {silent?: boolean} = {}): void {
-      const payload: Partial<TagInsert> = {...data}
+    updateById(id: number, data: Record<string, unknown>, options: {silent?: boolean} = {}): void {
+      const payload = pickTagFields(data)
       if (!options.silent) {
         payload.updatedAt = nowIso()
       }
@@ -73,12 +122,12 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         .run()
     },
 
-    updateByIds(ids: number[], data: Partial<TagInsert>): void {
+    updateByIds(ids: number[], data: Record<string, unknown>): void {
       if (!ids.length) return
 
       db.update(tags)
         .set({
-          ...data,
+          ...pickTagFields(data),
           updatedAt: nowIso(),
         })
         .where(inArray(tags.id, ids))

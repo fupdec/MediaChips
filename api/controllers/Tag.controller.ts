@@ -4,7 +4,7 @@ import type { ApiRequest, ApiResponse } from '../types/http'
 import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
 import type { CreateTagPayload, TagItemsListRequest, TagThumbsRequestPayload } from '@shared/api/payloads'
 import { getRequestBody } from '../types/http'
-import { createTagsRepository, type TagInsert } from '../db/repositories/tags'
+import { createTagsRepository } from '../db/repositories/tags'
 import { createMarksRepository } from '../db/repositories/marks'
 import {
   deleteMarkGeneratedAsset,
@@ -108,7 +108,7 @@ export default function (db: ApiDb) {
     try {
       const body = getRequestBody<EntityUpdatePayload>(req)
       const { silent, ...updates } = body
-      tagsRepo.updateById(Number(req.params.id), updates as Partial<TagInsert>, {silent: Boolean(silent)})
+      tagsRepo.updateById(Number(req.params.id), updates as Record<string, unknown>, {silent: Boolean(silent)})
       res.status(201).send([1])
     } catch (err: unknown) {
       res.status(500).send({

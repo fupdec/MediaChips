@@ -63,9 +63,17 @@ const changeColor = (value: string | { hex?: string }) => {
   palette.value = typeof value === 'object' ? (value.hex ?? props.color) : value
 }
 
+const resolvePaletteHex = (value: unknown): string => {
+  if (typeof value === 'string' && value.length > 0) return value
+  if (value && typeof value === 'object' && 'hex' in value) {
+    const hex = (value as {hex?: string}).hex
+    if (hex) return hex
+  }
+  return props.color
+}
+
 const apply = () => {
-  console.log(palette.value)
-  emit('getColor', palette.value)
+  emit('getColor', resolvePaletteHex(palette.value))
   emit('update:modelValue', false)
 }
 

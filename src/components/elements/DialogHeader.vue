@@ -133,6 +133,8 @@ const copySubheader = () => {
   })
 }
 
+const INTERACTIVE_SELECTOR = 'button, a, input, textarea, select, [role="button"], .v-btn, .v-selection-control'
+
 const dragWindow = (headerSelector: string, dialogSelector: string) => {
   let isDragging = false
   let dragElement: HTMLElement | null = null
@@ -144,6 +146,7 @@ const dragWindow = (headerSelector: string, dialogSelector: string) => {
   const onMouseDown = (e: MouseEvent) => {
     const target = e.target as HTMLElement | null
     if (!target?.closest(headerSelector)) return
+    if (target.closest(INTERACTIVE_SELECTOR)) return
 
     const dialog = target.closest(dialogSelector)
     if (!dialog) return

@@ -236,6 +236,15 @@ async function save() {
   const saved = await editingComponent.value.save()
   if (!saved) return
 
+  const mediaId = media.value?.id
+  if (mediaId != null) {
+    eventBus.emit('getItemsFromDb', {
+      ids: [mediaId],
+      type: 'media',
+    })
+    itemsStore.refreshThumb(mediaId, {regenerate: true})
+  }
+
   if (itemsStore.type === 'media') {
     eventBus.emit('getTags')
   }

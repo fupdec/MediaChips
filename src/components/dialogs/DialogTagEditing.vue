@@ -252,14 +252,19 @@ const save = async () => {
   const saved = await editingComponent.value.save()
   if (!saved) return
 
+  const savedTagId = tag.value?.id
+
   if (isTagPage.value) {
     eventBus.emit('getTag')
   }
 
+  if (savedTagId != null) {
+    eventBus.emit('getItemsFromDb', {ids: [savedTagId], type: 'tag'})
+    itemsStore.refreshThumb(savedTagId)
+  }
+
   if (itemsStore.type === 'media') {
     eventBus.emit('getTags')
-  } else if (tag.value) {
-    eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
   }
 
   dialogsStore.tagEditing.show = false
@@ -283,10 +288,8 @@ const handleScraperImages = () => {
 }
 
 onMounted(() => {
-  if (dialogsStore.tagEditing.show && tag.value && meta.value) {
-    initButtons()
-    getImages()
-  }
+  initButtons()
+  getImages()
 
   eventBus.on('scraperGotImages', handleScraperImages)
 })

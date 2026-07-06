@@ -1,6 +1,19 @@
 import type Database from 'better-sqlite3'
 
 const FTS_BACKFILL_BATCH_SIZE = 2000
+const LEGACY_FTS_MARKER = 'contentless_delete=1'
+
+const MEDIA_FTS_TRIGGERS = [
+  'media_fts_insert',
+  'media_fts_delete',
+  'media_fts_update',
+] as const
+
+const TAGS_FTS_TRIGGERS = [
+  'tags_fts_insert',
+  'tags_fts_delete',
+  'tags_fts_update',
+] as const
 
 function hasTable(sqlite: Database.Database, tableName: string): boolean {
   const row = sqlite.prepare(
@@ -8,6 +21,34 @@ function hasTable(sqlite: Database.Database, tableName: string): boolean {
   ).get(tableName) as {name: string} | undefined
 
   return Boolean(row)
+}
+
+function getFtsTableSql(sqlite: Database.Database, tableName: string): string {
+  const row = sqlite.prepare(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
+  ).get(tableName) as {sql?: string} | undefined
+
+  return row?.sql ?? ''
+}
+
+function isModernFtsTable(sqlite: Database.Database, tableName: string): boolean {
+  if (!hasTable(sqlite, tableName)) return false
+  return getFtsTableSql(sqlite, tableName).includes(LEGACY_FTS_MARKER)
+}
+
+function dropFtsTriggers(sqlite: Database.Database, triggerNames: readonly string[]) {
+  for (const triggerName of triggerNames) {
+    sqlite.exec(`DROP TRIGGER IF EXISTS ${triggerName}`)
+  }
+}
+
+function dropSearchFtsTables(sqlite: Database.Database) {
+  dropFtsTriggers(sqlite, MEDIA_FTS_TRIGGERS)
+  dropFtsTriggers(sqlite, TAGS_FTS_TRIGGERS)
+  sqlite.exec(`
+    DROP TABLE IF EXISTS media_fts;
+    DROP TABLE IF EXISTS tags_fts;
+  `)
 }
 
 function backfillMediaFts(sqlite: Database.Database) {
@@ -68,21 +109,21 @@ function createMediaFts(sqlite: Database.Database) {
   sqlite.exec(`
     CREATE VIRTUAL TABLE media_fts USING fts5(
       name,
+      content='',
+      contentless_delete=1,
       tokenize='unicode61 remove_diacritics 2'
     );
 
-    CREATE TRIGGER IF NOT EXISTS media_fts_insert AFTER INSERT ON media BEGIN
+    CREATE TRIGGER media_fts_insert AFTER INSERT ON media BEGIN
       INSERT INTO media_fts(rowid, name) VALUES (new.id, COALESCE(new.name, ''));
     END;
 
-    CREATE TRIGGER IF NOT EXISTS media_fts_delete AFTER DELETE ON media BEGIN
-      INSERT INTO media_fts(media_fts, rowid, name)
-      VALUES ('delete', old.id, COALESCE(old.name, ''));
+    CREATE TRIGGER media_fts_delete AFTER DELETE ON media BEGIN
+      DELETE FROM media_fts WHERE rowid = old.id;
     END;
 
-    CREATE TRIGGER IF NOT EXISTS media_fts_update AFTER UPDATE OF name ON media BEGIN
-      INSERT INTO media_fts(media_fts, rowid, name)
-      VALUES ('delete', old.id, COALESCE(old.name, ''));
+    CREATE TRIGGER media_fts_update AFTER UPDATE OF name ON media BEGIN
+      DELETE FROM media_fts WHERE rowid = old.id;
       INSERT INTO media_fts(rowid, name) VALUES (new.id, COALESCE(new.name, ''));
     END;
   `)
@@ -94,22 +135,22 @@ function createTagsFts(sqlite: Database.Database) {
     CREATE VIRTUAL TABLE tags_fts USING fts5(
       name,
       synonyms,
+      content='',
+      contentless_delete=1,
       tokenize='unicode61 remove_diacritics 2'
     );
 
-    CREATE TRIGGER IF NOT EXISTS tags_fts_insert AFTER INSERT ON tags BEGIN
+    CREATE TRIGGER tags_fts_insert AFTER INSERT ON tags BEGIN
       INSERT INTO tags_fts(rowid, name, synonyms)
       VALUES (new.id, COALESCE(new.name, ''), COALESCE(new.synonyms, ''));
     END;
 
-    CREATE TRIGGER IF NOT EXISTS tags_fts_delete AFTER DELETE ON tags BEGIN
-      INSERT INTO tags_fts(tags_fts, rowid, name, synonyms)
-      VALUES ('delete', old.id, COALESCE(old.name, ''), COALESCE(old.synonyms, ''));
+    CREATE TRIGGER tags_fts_delete AFTER DELETE ON tags BEGIN
+      DELETE FROM tags_fts WHERE rowid = old.id;
     END;
 
-    CREATE TRIGGER IF NOT EXISTS tags_fts_update AFTER UPDATE OF name, synonyms ON tags BEGIN
-      INSERT INTO tags_fts(tags_fts, rowid, name, synonyms)
-      VALUES ('delete', old.id, COALESCE(old.name, ''), COALESCE(old.synonyms, ''));
+    CREATE TRIGGER tags_fts_update AFTER UPDATE OF name, synonyms ON tags BEGIN
+      DELETE FROM tags_fts WHERE rowid = old.id;
       INSERT INTO tags_fts(rowid, name, synonyms)
       VALUES (new.id, COALESCE(new.name, ''), COALESCE(new.synonyms, ''));
     END;
@@ -117,22 +158,31 @@ function createTagsFts(sqlite: Database.Database) {
   backfillTagsFts(sqlite)
 }
 
+function recreateSearchFtsIndex(sqlite: Database.Database): string[] {
+  dropSearchFtsTables(sqlite)
+  createMediaFts(sqlite)
+  createTagsFts(sqlite)
+  return ['media_fts', 'tags_fts']
+}
+
 export function ensureSearchFtsIndex(sqlite: Database.Database): string[] {
-  const installed: string[] = []
+  const hasMediaFts = hasTable(sqlite, 'media_fts')
+  const hasTagsFts = hasTable(sqlite, 'tags_fts')
 
-  if (!hasTable(sqlite, 'media_fts')) {
-    createMediaFts(sqlite)
-    installed.push('media_fts')
+  if (!hasMediaFts && !hasTagsFts) {
+    return recreateSearchFtsIndex(sqlite)
   }
 
-  if (!hasTable(sqlite, 'tags_fts')) {
-    createTagsFts(sqlite)
-    installed.push('tags_fts')
+  const needsMigration = (hasMediaFts && !isModernFtsTable(sqlite, 'media_fts'))
+    || (hasTagsFts && !isModernFtsTable(sqlite, 'tags_fts'))
+
+  if (needsMigration) {
+    return recreateSearchFtsIndex(sqlite)
   }
 
-  return installed
+  return []
 }
 
 export function hasSearchFtsIndex(sqlite: Database.Database): boolean {
-  return hasTable(sqlite, 'media_fts') && hasTable(sqlite, 'tags_fts')
+  return isModernFtsTable(sqlite, 'media_fts') && isModernFtsTable(sqlite, 'tags_fts')
 }

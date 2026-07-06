@@ -103,7 +103,7 @@
     >
       <Item
         v-for="(i, x) in ITEMS.itemsOnPage"
-        v-memo="[i.id, i.rating, i.favorite, i.views, i.name, ITEMS.size, ITEMS.view, listItemType]"
+        v-memo="[i, ITEMS.size, ITEMS.view, listItemType]"
         :key="String(i.id)"
         :type="listItemType"
         :item="i"

@@ -752,7 +752,7 @@ const loadEditingState = async () => {
   await getMetaValues()
 }
 
-const ENTITY_BASE_FIELD_KEYS = [
+const TAG_ENTITY_FIELD_KEYS = [
   'name',
   'color',
   'synonyms',
@@ -760,33 +760,59 @@ const ENTITY_BASE_FIELD_KEYS = [
   'favorite',
   'views',
   'bookmark',
-  'viewedAt',
-  'silent',
 ] as const
+
+const MEDIA_ENTITY_FIELD_KEYS = [
+  'rating',
+  'favorite',
+  'views',
+  'bookmark',
+] as const
+
+const normalizeEntityFieldValue = (
+  key: string,
+  value: MetaFieldValue,
+): MetaFieldValue => {
+  switch (key) {
+    case 'rating':
+    case 'views':
+      return value == null || value === '' ? 0 : Number(value) || 0
+    case 'favorite':
+      return value === true || value === 1 ? 1 : 0
+    case 'synonyms':
+    case 'bookmark':
+    case 'color':
+      return value == null || value === '' ? null : value
+    case 'name':
+      return typeof value === 'string' ? value.trim() : value
+    default:
+      return value
+  }
+}
 
 const buildEntityUpdateData = (): EntityUpdatePayload => {
   const cloned = cloneMetaValues(vals.value) as EntityUpdateFormValues
   const {country, ...rest} = cloned
   const updateData: EntityUpdatePayload = {}
+  const fieldKeys = isTag.value ? TAG_ENTITY_FIELD_KEYS : MEDIA_ENTITY_FIELD_KEYS
 
-  for (const key of ENTITY_BASE_FIELD_KEYS) {
-    if (key in rest) {
-      updateData[key] = rest[key]
-    }
+  for (const key of fieldKeys) {
+    if (!(key in rest)) continue
+    updateData[key] = normalizeEntityFieldValue(key, rest[key])
   }
 
   if (isTag.value) {
-    updateData.country = country?.length ? serializeCountries(country) : undefined
+    updateData.country = country?.length ? serializeCountries(country) : null
   }
 
   return updateData
 }
 
 const save = async (): Promise<boolean> => {
-  if (!valid.value || !form.value) {
-    await form.value?.validate()
-    return false
-  }
+  if (!form.value) return false
+
+  const {valid: isValid} = await form.value.validate()
+  if (!isValid) return false
 
   const tags: Array<TagInTagPayload | TagInMediaPayload> = []
   const values: Array<ValueInTagPayload | ValueInMediaPayload> = []
@@ -859,11 +885,6 @@ const save = async (): Promise<boolean> => {
     if (values.length > 0) {
       await typedApi.postItemValues(valuesEndpoint, values)
     }
-
-    eventBus.emit('getItemsFromDb', {
-      ids: [currentItemId.value],
-      type: currentItemType.value
-    })
 
     return true
   } catch (error) {
