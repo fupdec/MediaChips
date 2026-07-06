@@ -276,7 +276,11 @@ export function useItemsPageInit({
     Object.assign(storeUpdates, applyPageSettings(pageSettings))
 
     const resolvedView = storeUpdates.view != null
-      ? normalizeItemsView(storeUpdates.view, props.items_type, mediaType.value)
+      ? normalizeItemsView(
+        storeUpdates.view,
+        props.items_type === 'tag' ? 'tag' : 'media',
+        mediaType.value,
+      )
       : null
 
     if (resolvedView != null) {

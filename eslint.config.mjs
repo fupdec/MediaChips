@@ -13,6 +13,7 @@ const generatedAndVendor = [
   '.scripts-build/**',
   '.cache/**',
   'release/**',
+  'coverage/**',
   'api/**/*.js',
   'app/**/*.js',
   'shared/**/*.js',

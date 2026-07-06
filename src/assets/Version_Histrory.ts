@@ -10,7 +10,7 @@ export const history = [
         <li><strong>LowDB migration</strong> — automatic detection and wizard for legacy databases</li>
         <li><strong>Performance</strong> — SQL path for duplicate finder; lazy-loaded heavy assets</li>
         <li><strong>Reliability</strong> — improved error handling in tag pages and task APIs</li>
-        <li><strong>Quality</strong> — 422 unit tests and 16 E2E scenarios</li>
+        <li><strong>Quality</strong> — 454 unit tests and 16 E2E scenarios</li>
       </ul>
       <h3>Notes:</h3>
       <ul>

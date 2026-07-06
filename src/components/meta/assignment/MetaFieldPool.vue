@@ -14,7 +14,7 @@
     />
 
     <div v-if="draggable && filteredFlatItems.length" class="meta-field-pool__draggable-wrap">
-      <draggable
+      <Vuedraggable
         :list="filteredFlatItems"
         item-key="id"
         v-bind="dragOptions"
@@ -34,7 +34,7 @@
             {{ element.name }}
           </v-chip>
         </template>
-      </draggable>
+      </Vuedraggable>
     </div>
 
     <div v-else-if="groupedItems.length" class="meta-field-pool__groups">
@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
-import draggable from 'vuedraggable'
+import Vuedraggable from 'vuedraggable'
 import {getIconDataType, getTextDataType} from '@/services/metaTypeUtils'
 import {groupMetaByType} from '@/utils/metaSort'
 import type {MetaFieldPoolItem} from '@/types/metaAssignment'

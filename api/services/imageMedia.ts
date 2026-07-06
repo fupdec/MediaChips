@@ -18,7 +18,9 @@ async function decodeImageBuffer(buffer: Buffer): Promise<JimpImage> {
     } catch (sharpError) {
       const jimpMessage = jimpError instanceof Error ? jimpError.message : String(jimpError)
       const sharpMessage = sharpError instanceof Error ? sharpError.message : String(sharpError)
-      throw new Error(`Unable to decode image: ${jimpMessage}; sharp fallback failed: ${sharpMessage}`)
+      const error = new Error(`Unable to decode image: ${jimpMessage}; sharp fallback failed: ${sharpMessage}`)
+      ;(error as Error & {cause?: unknown}).cause = sharpError
+      throw error
     }
   }
 }

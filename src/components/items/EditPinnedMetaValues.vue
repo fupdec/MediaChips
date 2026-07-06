@@ -428,7 +428,7 @@ const props = withDefaults(defineProps<{
   media: null,
 })
 
-const emit = defineEmits<{
+defineEmits<{
   close: []
 }>()
 
@@ -440,7 +440,6 @@ const currentItem = computed((): MediaItem | Tag | null => {
   return mediaOverride.value || props.media
 })
 const currentItemId = computed(() => currentItem.value?.id)
-const currentItemType = computed((): 'tag' | 'media' => isTag.value ? 'tag' : 'media')
 const overviewItem = computed((): MediaItem | Tag => {
   return currentItem.value ?? props.tag ?? props.media ?? {id: 0}
 })
@@ -793,7 +792,7 @@ const normalizeEntityFieldValue = (
 const buildEntityUpdateData = (): EntityUpdatePayload => {
   const cloned = cloneMetaValues(vals.value) as EntityUpdateFormValues
   const {country, ...rest} = cloned
-  const updateData: EntityUpdatePayload = {}
+  const updateData: Record<string, MetaFieldValue> = {}
   const fieldKeys = isTag.value ? TAG_ENTITY_FIELD_KEYS : MEDIA_ENTITY_FIELD_KEYS
 
   for (const key of fieldKeys) {
@@ -805,7 +804,7 @@ const buildEntityUpdateData = (): EntityUpdatePayload => {
     updateData.country = country?.length ? serializeCountries(country) : null
   }
 
-  return updateData
+  return updateData as EntityUpdatePayload
 }
 
 const save = async (): Promise<boolean> => {
