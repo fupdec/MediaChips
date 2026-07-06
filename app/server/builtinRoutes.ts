@@ -114,6 +114,9 @@ function registerBuiltinRoutes({
       allowLanAccess: isLanAccessEnabled(),
       allowLanAccessEnvLocked: isLanAccessEnvLocked(),
       registration: typeof config.registration === 'string' ? config.registration : '',
+      ...(typeof config.onboardingCompleted === 'string' ? { onboardingCompleted: config.onboardingCompleted } : {}),
+      ...(typeof config.onboardingStep === 'string' ? { onboardingStep: config.onboardingStep } : {}),
+      ...(typeof config.onboardingPaused === 'string' ? { onboardingPaused: config.onboardingPaused } : {}),
     }
 
     res.json(responseConfig)

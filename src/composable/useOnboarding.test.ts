@@ -1,13 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-const { setOption } = vi.hoisted(() => ({
-  setOption: vi.fn().mockResolvedValue(undefined),
+const { persistOnboardingConfig } = vi.hoisted(() => ({
+  persistOnboardingConfig: vi.fn(),
 }))
 
-vi.mock('@/services/settingsService', () => ({
-  setOption,
-}))
+vi.mock('@/services/onboardingConfig', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/onboardingConfig')>()
+  return {
+    ...actual,
+    persistOnboardingConfig: persistOnboardingConfig.mockImplementation(async (partial) => {
+      const { useSettingsStore } = await import('@/stores/settings')
+      useSettingsStore().$patch(partial)
+    }),
+  }
+})
 
 import { useAppStore } from '@/stores/app'
 import { useDialogsStore } from '@/stores/dialogs'
@@ -89,7 +96,7 @@ describe('useOnboarding', () => {
     expect(notifications.notifications.some((item) => item.source === 'onboarding')).toBe(true)
   })
 
-  it('persists completion when skipped or finished', async () => {
+  it('persists completion to global config when skipped or finished', async () => {
     const settings = useSettingsStore()
     const dialogs = useDialogsStore()
     settings.onboardingCompleted = '0'
@@ -98,13 +105,20 @@ describe('useOnboarding', () => {
     await skipOnboarding()
 
     expect(dialogs.onboarding.show).toBe(false)
-    expect(setOption).toHaveBeenCalledWith('1', 'onboardingCompleted')
+    expect(persistOnboardingConfig).toHaveBeenCalledWith({
+      onboardingCompleted: '1',
+      onboardingPaused: '0',
+    })
 
     dialogs.onboarding.show = true
     await completeOnboarding()
 
     expect(dialogs.onboarding.show).toBe(false)
-    expect(setOption).toHaveBeenCalledWith('1', 'onboardingCompleted')
+    expect(persistOnboardingConfig).toHaveBeenCalledWith({
+      onboardingCompleted: '1',
+      onboardingPaused: '0',
+      onboardingStep: '3',
+    })
   })
 
   it('pauses onboarding and creates a resume notification when dismissed', async () => {
@@ -117,8 +131,10 @@ describe('useOnboarding', () => {
     await dismissOnboarding(2)
 
     expect(dialogs.onboarding.show).toBe(false)
-    expect(setOption).toHaveBeenCalledWith('2', 'onboardingStep')
-    expect(setOption).toHaveBeenCalledWith('1', 'onboardingPaused')
+    expect(persistOnboardingConfig).toHaveBeenCalledWith({
+      onboardingStep: '2',
+      onboardingPaused: '1',
+    })
     expect(notifications.notifications.some((item) => item.source === 'onboarding')).toBe(true)
   })
 

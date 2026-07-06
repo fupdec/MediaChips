@@ -18,6 +18,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
+import {migrateOnboardingFromDbIfNeeded} from '@/services/onboardingConfig'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
 import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
 import {useOperationsStore} from '@/stores/operations'
@@ -93,9 +94,15 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
         a[i.option] = i.value
         return a
       }, {})
+      const hadOnboardingInDb = res.data.some((row) =>
+        row.option === 'onboardingCompleted'
+        || row.option === 'onboardingStep'
+        || row.option === 'onboardingPaused',
+      )
 
       settingsStore.updateMultiple(sets)
       await registrationStore.migrateRegistrationFromDbIfNeeded()
+      await migrateOnboardingFromDbIfNeeded({ hadOnboardingInDb })
       cleanupStalePlayerRoute()
       store.isServerError = false
     } catch {

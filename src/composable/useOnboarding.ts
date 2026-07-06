@@ -2,7 +2,7 @@ import { useAppStore } from '@/stores/app'
 import { useDialogsStore } from '@/stores/dialogs'
 import { useSettingsStore } from '@/stores/settings'
 import { useNotificationsStore } from '@/stores/notifications'
-import { setOption } from '@/services/settingsService'
+import { persistOnboardingConfig } from '@/services/onboardingConfig'
 import { i18n } from '@/i18n/loadLocale'
 
 export const ONBOARDING_STEP_COUNT = 4
@@ -52,39 +52,34 @@ export function openOnboarding(): void {
 
 export async function saveOnboardingStep(step: number): Promise<void> {
   const clamped = clampStep(step)
-  useSettingsStore().onboardingStep = String(clamped)
-  await setOption(String(clamped), 'onboardingStep')
+  await persistOnboardingConfig({ onboardingStep: String(clamped) }, { clearDb: false })
 }
 
 export async function dismissOnboarding(step: number): Promise<void> {
   useDialogsStore().onboarding.show = false
-  const settings = useSettingsStore()
-  settings.onboardingStep = String(clampStep(step))
-  settings.onboardingPaused = '1'
-  await saveOnboardingStep(step)
-  await setOption('1', 'onboardingPaused')
+  await persistOnboardingConfig({
+    onboardingStep: String(clampStep(step)),
+    onboardingPaused: '1',
+  })
   syncOnboardingNotification()
 }
 
 export async function skipOnboarding(): Promise<void> {
   useDialogsStore().onboarding.show = false
-  const settings = useSettingsStore()
-  settings.onboardingCompleted = '1'
-  settings.onboardingPaused = '0'
-  await setOption('1', 'onboardingCompleted')
-  await setOption('0', 'onboardingPaused')
+  await persistOnboardingConfig({
+    onboardingCompleted: '1',
+    onboardingPaused: '0',
+  })
   removeOnboardingNotification()
 }
 
 export async function completeOnboarding(): Promise<void> {
   useDialogsStore().onboarding.show = false
-  const settings = useSettingsStore()
-  settings.onboardingCompleted = '1'
-  settings.onboardingPaused = '0'
-  settings.onboardingStep = String(ONBOARDING_STEP_COUNT - 1)
-  await setOption('1', 'onboardingCompleted')
-  await setOption('0', 'onboardingPaused')
-  await saveOnboardingStep(ONBOARDING_STEP_COUNT - 1)
+  await persistOnboardingConfig({
+    onboardingCompleted: '1',
+    onboardingPaused: '0',
+    onboardingStep: String(ONBOARDING_STEP_COUNT - 1),
+  })
   removeOnboardingNotification()
 }
 

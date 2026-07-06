@@ -13,6 +13,9 @@ export interface ServerConfig {
   path?: string
   appVersion?: string
   registration?: string
+  onboardingCompleted?: string
+  onboardingStep?: string
+  onboardingPaused?: string
   databases: ServerDatabaseEntry[]
 }
 
