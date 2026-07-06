@@ -40,6 +40,8 @@ export function parseSynonymList(synonyms: string | null | undefined): string[] 
     .filter(Boolean)
 }
 
+const WORD_TOKEN_SPLIT = /[^\p{L}\p{N}]+/u
+
 function tokenMatchesQueryPart(token: string, part: string): boolean {
   if (token === part) return true
   if (!token.startsWith(part)) return false
@@ -60,7 +62,7 @@ export function matchesGlobalSearchName(
 
   const tokens = String(name || '')
     .toLowerCase()
-    .split(/[^a-z0-9]+/)
+    .split(WORD_TOKEN_SPLIT)
     .filter(Boolean)
 
   if (!tokens.length) return false
@@ -81,7 +83,7 @@ export function matchesGlobalSearchSynonyms(
   for (const synonym of parseSynonymList(synonyms)) {
     const tokens = synonym
       .toLowerCase()
-      .split(/[^a-z0-9]+/)
+      .split(WORD_TOKEN_SPLIT)
       .filter(Boolean)
 
     if (parts.every((part) => tokens.some((token) => tokenMatchesQueryPart(token, part)))) {

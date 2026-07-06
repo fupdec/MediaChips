@@ -50,6 +50,13 @@ describe('matchesGlobalSearchName', () => {
     expect(matchesGlobalSearchName('Lana Analise', 'lana anal')).toBe(false)
     expect(matchesGlobalSearchName('Lana Storm', 'lana storm')).toBe(true)
   })
+
+  it('matches non-ascii names and queries', () => {
+    expect(matchesGlobalSearchName('Актер', 'акт')).toBe(true)
+    expect(matchesGlobalSearchName('Драма ночь', 'драма')).toBe(true)
+    expect(matchesGlobalSearchName('北京故事', '北京')).toBe(true)
+    expect(matchesGlobalSearchName('Action Hero', 'акт')).toBe(false)
+  })
 })
 
 describe('resolveGlobalSearchTagMatch', () => {

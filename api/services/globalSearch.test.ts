@@ -42,14 +42,16 @@ function createSearchTestDb() {
 
     INSERT INTO media (path, name, mediaTypeId, createdAt, updatedAt) VALUES
       ('/a.mp4', 'Action Hero', 1, '2024-01-01', '2024-01-01'),
-      ('/b.mp4', 'Drama Night', 1, '2024-01-01', '2024-01-01');
+      ('/b.mp4', 'Drama Night', 1, '2024-01-01', '2024-01-01'),
+      ('/c.mp4', 'Актер дня', 1, '2024-01-01', '2024-01-01');
 
     INSERT INTO tags (name, synonyms, metaId, createdAt, updatedAt) VALUES
       ('Actor', 'Performer', 1, '2024-01-01', '2024-01-01'),
       ('Director', NULL, 1, '2024-01-01', '2024-01-01'),
       ('YasmiButt', 'anal, gape', 2, '2024-01-01', '2024-01-01'),
       ('Anal Gape', NULL, 3, '2024-01-01', '2024-01-01'),
-      ('Lana Analise', NULL, 2, '2024-01-01', '2024-01-01');
+      ('Lana Analise', NULL, 2, '2024-01-01', '2024-01-01'),
+      ('Режиссёр', 'исполнитель', 1, '2024-01-01', '2024-01-01');
   `)
 
   ensureSearchFtsIndex(sqlite)
@@ -135,6 +137,21 @@ describe('globalSearch FTS', () => {
       const results = await searchGlobal(db, 'act', 10)
       expect(results.media).toHaveLength(1)
       expect(results.tags.some((tag) => tag.name === 'Actor')).toBe(true)
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('finds media and tags with non-ascii names', async () => {
+    const { sqlite, db } = createSearchTestDb()
+
+    try {
+      const media = await searchMediaByName(db, 'акт', 10) as Array<{ name?: string }>
+      expect(media).toHaveLength(1)
+      expect(media[0].name).toBe('Актер дня')
+
+      const tags = await searchTagsByName(db, 'реж', 10) as Array<{ name?: string }>
+      expect(tags.some((tag) => tag.name === 'Режиссёр')).toBe(true)
     } finally {
       sqlite.close()
     }
