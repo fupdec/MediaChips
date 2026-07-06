@@ -32,6 +32,11 @@ function createExpressApp() {
   })
 
   app.use((req: Request, res: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV === 'production') {
+      next()
+      return
+    }
+
     const url = req.originalUrl || req.url
     const isTranscodeStream = req.method === 'GET' && /\/api\/video\/\d+\/transcode\/stream(?:\?|$)/.test(url)
     const isQuietRoute = /^\/api\/(?:get-file|check-file|check-files|health|ping|auth\/status)(?:\?|$)/.test(url.split('?')[0])

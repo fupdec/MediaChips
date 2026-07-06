@@ -31,6 +31,10 @@ type AppServerExports = {
 
 process.electron_app = app
 
+if (app.isPackaged) {
+  process.env.NODE_ENV = 'production'
+}
+
 const serverModule = require('./app/server.js') as AppServerExports & { default?: AppServerExports }
 const server = (serverModule.default ?? serverModule) as AppServerExports
 const serverConfig = server.config
@@ -61,6 +65,9 @@ let suppressPlayerWarmup = false
 let suppressZoomChangedEvent = false
 // Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
 const isDevelopment = !app.isPackaged && process.env.NODE_ENV !== 'production'
+const devLog = (...args: unknown[]) => {
+  if (isDevelopment) console.log(...args)
+}
 // Vite is opt-in so `npx electron .` serves the built UI from the embedded backend.
 const useViteDevServer = isDevelopment && process.env.MEDIA_CHIPS_VITE_DEV === '1'
 
@@ -200,7 +207,6 @@ const createWindow = () => {
   bindMainWindowLoadedHandler(mainWindow)
   mainWindow.webContents.on('did-finish-load', () => {
     sendConfigToWindow(mainWindow)
-    setTimeout(warmupPlayerWindow, 1500)
     if (isDevelopment) {
       // mainWindow.webContents.openDevTools();
     }
@@ -292,7 +298,7 @@ function revealMainWindow(): void {
     mainRevealFallbackTimer = null
   }
 
-  console.log('App ready')
+  devLog('App ready')
   hideLoadingWindow()
   win.show()
 }
@@ -613,7 +619,7 @@ process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
 
 // folder selection dialog and getting their paths
 ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: unknown) => {
-  console.log('showOpenDialog called with properties:', properties);
+  devLog('showOpenDialog called with properties:', properties);
 
   // Check that properties is an array
   let dialogProperties = [];
@@ -630,14 +636,14 @@ ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: 
     }
   }
 
-  console.log('Dialog properties being used:', dialogProperties);
+  devLog('Dialog properties being used:', dialogProperties);
 
   try {
     const result = await dialog.showOpenDialog({
       properties: dialogProperties,
     });
 
-    console.log('Dialog closed, result:', {
+    devLog('Dialog closed, result:', {
       canceled: result.canceled,
       filePaths: result.filePaths,
       filePathsLength: result.filePaths.length
@@ -749,19 +755,14 @@ function deliverPlayerPayload(data: unknown) {
 }
 
 function schedulePlayerWarmup() {
-  if (playerWarmupTimer) return
+  if (playerWarmupTimer || !isMainWindowRevealed) return
 
   playerWarmupTimer = setTimeout(() => {
     playerWarmupTimer = null
     if (!player || player.isDestroyed()) {
       createPlayerWindow()
     }
-  }, 1500)
-}
-
-function warmupPlayerWindow() {
-  if (player && !player.isDestroyed()) return
-  createPlayerWindow()
+  }, 30_000)
 }
 
 function destroyPlayerWindow() {
@@ -789,6 +790,7 @@ ipcMain.handle('destroyPlayer', () => {
 ipcMain.on('main-app-ready', (event: IpcMainEvent) => {
   if (!win || win.isDestroyed() || event.sender !== win.webContents) return
   revealMainWindow()
+  schedulePlayerWarmup()
 })
 
 ipcMain.on('player-ready', (event: IpcMainEvent) => {

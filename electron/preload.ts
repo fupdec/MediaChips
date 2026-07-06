@@ -42,15 +42,25 @@ ipcRenderer.on('play-video', (event: IpcRendererEvent, ...args: unknown[]) => {
 
 type FileLike = { path?: string }
 
+const isDevPreload = process.env.NODE_ENV !== 'production'
+
+function ipcLog(...args: unknown[]): void {
+  if (isDevPreload) console.log(...args)
+}
+
+function ipcWarn(...args: unknown[]): void {
+  if (isDevPreload) console.warn(...args)
+}
+
 // Экспортируем API с разными пространствами имен
 contextBridge.exposeInMainWorld('electronAPI', {
   // Для отправки сообщений
   send: (channel: string, data: unknown) => {
     if (includesChannel(validSendChannels, channel)) {
-      console.log(`[IPC] Sending to ${channel}:`, data);
+      ipcLog(`[IPC] Sending to ${channel}:`, data);
       ipcRenderer.send(channel, data);
     } else {
-      console.warn(`[IPC] Blocked attempt to send to channel: ${channel}`);
+      ipcWarn(`[IPC] Blocked attempt to send to channel: ${channel}`);
     }
   },
 
@@ -60,7 +70,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     try {
       return webUtils.getPathForFile(file as File)
     } catch (error) {
-      console.warn('[IPC] getPathForFile failed:', error)
+      ipcWarn('[IPC] getPathForFile failed:', error)
       return file.path || ''
     }
   },
@@ -68,14 +78,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Для вызова с ожиданием ответа
   invoke: (channel: string, data: unknown) => {
     if (includesChannel(validInvokeChannels, channel)) {
-      console.log(`[IPC] Invoking ${channel}:`, data);
+      ipcLog(`[IPC] Invoking ${channel}:`, data);
 
       // Специальная обработка для showOpenDialog
       if (channel === 'showOpenDialog') {
         let normalized = data
         // Убеждаемся, что передаем массив
         if (!Array.isArray(normalized)) {
-          console.warn('[IPC] showOpenDialog: data должен быть массивом, преобразую...');
+          ipcWarn('[IPC] showOpenDialog: data должен быть массивом, преобразую...');
           if (typeof normalized === 'string') {
             normalized = [normalized];
           } else if (typeof normalized === 'object' && normalized !== null) {
@@ -91,14 +101,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
       return ipcRenderer.invoke(channel, data);
     }
-    console.warn(`[IPC] Blocked attempt to invoke channel: ${channel}`);
+    ipcWarn(`[IPC] Blocked attempt to invoke channel: ${channel}`);
     return Promise.reject(new Error(`Channel ${channel} is not allowed`));
   },
 
   // Для получения сообщений
   on: (channel: string, callback: IpcCallback) => {
     if (includesChannel(validOnChannels, channel)) {
-      console.log(`[IPC] Setting up listener for ${channel}`);
+      ipcLog(`[IPC] Setting up listener for ${channel}`);
 
       // Создаем специальный обработчик для play-video
       if (channel === 'play-video') {
@@ -121,7 +131,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       } else {
         // Для остальных каналов передаем как есть
         const subscription: IpcListener = (event, ...args) => {
-          console.log(`[IPC] Received from ${channel}:`, args);
+          ipcLog(`[IPC] Received from ${channel}:`, args);
           callback(...args);
         };
         ipcRenderer.on(channel, subscription);
@@ -133,7 +143,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         };
       }
     }
-    console.warn(`[IPC] Blocked attempt to listen to channel: ${channel}`);
+    ipcWarn(`[IPC] Blocked attempt to listen to channel: ${channel}`);
     return () => {};
   },
 
@@ -240,7 +250,7 @@ contextBridge.exposeInMainWorld('$electronOperable', {
     let normalized = properties
     // Убеждаемся, что передаем массив
     if (!Array.isArray(normalized)) {
-      console.warn('[IPC] showOpenDialog: преобразую свойства в массив...');
+      ipcWarn('[IPC] showOpenDialog: преобразую свойства в массив...');
       if (typeof normalized === 'string') {
         normalized = [normalized];
       } else if (typeof normalized === 'object' && normalized !== null) {
