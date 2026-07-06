@@ -19,6 +19,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
+import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
 import {useOperationsStore} from '@/stores/operations'
 import {useAppTheme} from '@/composable/useAppTheme'
 import {useAppZoom} from '@/composable/useAppZoom'
@@ -179,11 +180,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   async function loadMainAppData(): Promise<void> {
-    await initSettings()
-    await getMachineId()
-    await getFolders()
-
     await Promise.all([
+      getFolders(),
       loadList('mediaTypes'),
       loadList('tags'),
       loadList('meta'),
@@ -412,11 +410,13 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleDatabaseChanged: Handler = async () => {
+    invalidateHomeMediaCache()
     store.isServerError = false
     store.is_app_ready = false
     isAppReady.value = false
     itemsStore.$reset()
     await registrationStore.reloadRegistrationFromConfig()
+    await initSettings()
     await loadMainAppData()
     if (!store.isServerError) {
       eventBus.emit('updatePage')
@@ -496,10 +496,11 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await initSettings()
     applyTheme()
     await applyLocale()
-    await openLowDbMigrationIfNeeded(isPlayerWindow.value)
 
     // Reveal the app chrome and Electron window before heavy startup work.
     await revealAppShell()
+
+    void openLowDbMigrationIfNeeded(isPlayerWindow.value)
 
     if (store.isElectron && window.electronAPI?.updater) {
       void initAppUpdater({
@@ -508,6 +509,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     }
 
     const authenticated = await tryRestoreSession()
+    const machineIdPromise = getMachineId()
 
     if (appZoom) {
       await appZoom.initFromSettings()
@@ -521,7 +523,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       }
     }
 
-    await getMachineId()
+    await machineIdPromise
 
     try {
       if (authenticated) {
@@ -529,11 +531,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
         await markAppReady()
       }
 
-      try {
-        await ensureDeferredServices()
-      } catch (error) {
+      void ensureDeferredServices().catch((error) => {
         console.error('Deferred services failed to load:', error)
-      }
+      })
 
       bindMainAppEventBus()
 

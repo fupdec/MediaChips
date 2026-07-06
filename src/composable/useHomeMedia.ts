@@ -19,8 +19,9 @@ const topViews = ref<MediaItem[]>([])
 let loadPromise: Promise<void> | null = null
 let lastOptionsKey = ''
 
-function buildOptionsKey(options: HomeMediaLoadOptions) {
+function buildOptionsKey(options: HomeMediaLoadOptions, dbPath: string) {
   return [
+    dbPath,
     options.loadContinue ? options.limits.continue ?? 12 : 0,
     options.loadFavorites ? options.limits.favorites ?? 12 : 0,
     options.loadTopViews ? options.limits.topViews ?? 12 : 0,
@@ -28,6 +29,9 @@ function buildOptionsKey(options: HomeMediaLoadOptions) {
 }
 
 export function invalidateHomeMediaCache() {
+  continueWatching.value = []
+  favorites.value = []
+  topViews.value = []
   loadPromise = null
   lastOptionsKey = ''
 }
@@ -50,7 +54,7 @@ export function useHomeMedia() {
       return
     }
 
-    const optionsKey = buildOptionsKey(options)
+    const optionsKey = buildOptionsKey(options, store.dbPath || '')
     if (loadPromise && optionsKey === lastOptionsKey) {
       return loadPromise
     }

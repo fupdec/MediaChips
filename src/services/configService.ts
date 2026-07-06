@@ -71,7 +71,11 @@ export async function initConfig() {
 export async function reloadApplicationAfterDatabaseChange() {
   clearThumbDisplayCache()
   clearFileExistenceBatchQueue()
-  await destroySeparatePlayerWindow()
+  try {
+    await destroySeparatePlayerWindow()
+  } catch (error) {
+    console.warn('Failed to destroy player window during database switch:', error)
+  }
   await refreshServerConfig()
   eventBus.$emit('app:database-changed')
 }

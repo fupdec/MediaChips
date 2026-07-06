@@ -77,7 +77,7 @@
 
     <HomeWidgetRenderer
       v-for="widgetId in orderedEnabledWidgets"
-      :key="widgetId"
+      :key="`${store.dbPath}-${widgetId}`"
       :widget-id="widgetId"
       :limits="limits"
       :media-widgets-enabled="mediaWidgetsEnabled"
@@ -110,7 +110,7 @@ import type { MediaItem } from '@/types/stores'
 const store = useAppStore()
 const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
-const eventBus = useEventBus()
+const {on: onEventBus, clearAll: clearEventBusListeners, emit: emitEventBus} = useEventBus()
 const {t} = useI18n()
 const {openMediaList} = useOpenMediaList()
 const {orderedEnabledWidgets, limits, isWidgetEnabled} = useHomeWidgets()
@@ -186,7 +186,7 @@ function openTopViewsList() {
 }
 
 function emitShowDocs() {
-  eventBus.emit("showDocumentation", "app")
+  emitEventBus("showDocumentation", "app")
 }
 
 function copy() {
@@ -199,6 +199,7 @@ async function hideAlert() {
 
 watch(
   () => [
+    store.dbPath,
     limits.value.continue,
     limits.value.favorites,
     limits.value.topViews,
@@ -209,7 +210,10 @@ watch(
   () => reloadHomeMediaIfNeeded(),
 )
 
+onEventBus('app:database-changed', reloadHomeMediaIfNeeded)
+
 onBeforeUnmount(() => {
+  clearEventBusListeners()
   setOption('0', "show_salutation")
 })
 </script>

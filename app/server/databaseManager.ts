@@ -10,6 +10,7 @@ import {
 } from '../../api/db'
 import { bootstrapDatabase } from '../../api/db/migrationRunner'
 import { saveConfigFile } from './configFile'
+import { createStorageDirectories } from './serverConfig'
 
 type TranscodeManagerLike = {
   stopAllLiveStreams(): void
@@ -39,6 +40,8 @@ function removeSqliteFiles(dbFilePath: string) {
 
 export function createDatabaseManager(deps: DatabaseManagerDeps) {
   async function applyConnection(dbConfig: ServerDatabaseEntry) {
+    createStorageDirectories(deps.config, deps.databasesPath)
+
     const folderPath = path.join(deps.databasesPath, dbConfig.id)
     const dbFilePath = path.join(folderPath, 'db.sqlite')
 

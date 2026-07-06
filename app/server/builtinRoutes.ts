@@ -18,6 +18,7 @@ import { isClientAbortError, safeJsonError } from './fileResolver'
 import { streamVideoFile } from '../../api/services/transcode/streamVideoFile'
 import { parseMaxHeightOverride } from '../../api/services/transcode/transcodeSettings'
 import { getDatabaseManager } from './databaseRegistry'
+import { createStorageDirectories } from './serverConfig'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
 import packageJson from '../../package.json'
 
@@ -120,6 +121,10 @@ function registerBuiltinRoutes({
 
   app.post('/api/update-config', (req: ApiRequest, res: ApiResponse) => {
     Object.assign(config, req.body)
+
+    if (Array.isArray(req.body?.databases)) {
+      createStorageDirectories(config, databasesPath)
+    }
 
     const activeDb = config.databases.find((dbEntry: ServerDatabaseEntry) => dbEntry.active)
     if (activeDb) {

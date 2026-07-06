@@ -120,6 +120,7 @@ import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import {updateConfig, reloadApplicationAfterDatabaseChange} from '@/services/configService'
+import {setNotification} from '@/services/notificationService'
 import {
   getDateFromMs,
   getReadableFileSize,
@@ -267,18 +268,38 @@ async function updateDb() {
   dialogDb.value = false
 }
 
+function syncActiveDatabase(databaseId: string) {
+  const databasesList = getConfigDatabases().map((entry) => ({
+    ...entry,
+    active: entry.id === databaseId,
+  }))
+
+  setConfigDatabases(databasesList)
+  databases.value = databasesList
+}
+
 async function activateDb() {
   if (!db.value) return
 
+  const targetId = db.value.id
   dialogActivateConfirm.value = false
   dialogsStore.process.show = true
 
   try {
-    await typedApi.switchDatabase({databaseId: db.value.id})
+    await typedApi.switchDatabase({databaseId: targetId})
+    syncActiveDatabase(targetId)
     await reloadApplicationAfterDatabaseChange()
     await loadDatabaseSizes()
+    setNotification({
+      type: 'success',
+      text: t('settings_labels.database.database_activated'),
+    })
   } catch (error) {
     console.error('Failed to activate database:', error)
+    setNotification({
+      type: 'error',
+      text: error instanceof Error ? error.message : t('common.error'),
+    })
   } finally {
     dialogsStore.process.show = false
   }
