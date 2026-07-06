@@ -85,7 +85,7 @@ body {
   }
 
   &.has-bottom-bar {
-    --app-content-offset-bottom: env(safe-area-inset-bottom, 0px);
+    --app-content-offset-bottom: calc(var(--app-bottom-bar-height) + env(safe-area-inset-bottom, 0px));
   }
 }
 
