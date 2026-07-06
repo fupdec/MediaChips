@@ -125,7 +125,9 @@ describe('resolveMediaFilterQuery', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.whereSql).toContain('dup.filesize = media.filesize')
+    expect(result.whereSql).toContain('GROUP BY filesize')
+    expect(result.whereSql).toContain('HAVING COUNT(*) > 1')
+    expect(result.whereSql).toContain('media.filesize IN')
   })
 
   it('matches canUseSqlMediaLoader', () => {

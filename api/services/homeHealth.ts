@@ -51,11 +51,12 @@ async function getDuplicateCounts(db: ApiDb) {
     SELECT COUNT(*) AS count
     FROM media m
     WHERE m.filesize > 0
-      AND EXISTS (
-        SELECT 1
-        FROM media m2
-        WHERE m2.id != m.id
-          AND m2.filesize = m.filesize
+      AND m.filesize IN (
+        SELECT filesize
+        FROM media
+        WHERE filesize > 0
+        GROUP BY filesize
+        HAVING COUNT(*) > 1
       )
   `) as {count?: number} | undefined
 
@@ -64,11 +65,13 @@ async function getDuplicateCounts(db: ApiDb) {
     FROM media m
     WHERE m.contentHash IS NOT NULL
       AND m.contentHash != ''
-      AND EXISTS (
-        SELECT 1
-        FROM media m2
-        WHERE m2.id != m.id
-          AND m2.contentHash = m.contentHash
+      AND m.contentHash IN (
+        SELECT contentHash
+        FROM media
+        WHERE contentHash IS NOT NULL
+          AND contentHash != ''
+        GROUP BY contentHash
+        HAVING COUNT(*) > 1
       )
   `) as {count?: number} | undefined
 

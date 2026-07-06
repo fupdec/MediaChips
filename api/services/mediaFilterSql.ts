@@ -540,6 +540,38 @@ function missingMediaTypeResult(): MediaFilterQueryResult {
   return { ok: false, reason: 'Missing mediaTypeId' }
 }
 
+function buildDuplicateValuesSubquery(
+  duplicatesBy: string,
+  scopeSql: string,
+): string {
+  if (duplicatesBy === 'path') {
+    return `SELECT path
+      FROM media
+      WHERE ${scopeSql}
+        AND path IS NOT NULL
+        AND path != ''
+      GROUP BY path
+      HAVING COUNT(*) > 1`
+  }
+
+  if (duplicatesBy === 'contentHash') {
+    return `SELECT contentHash
+      FROM media
+      WHERE ${scopeSql}
+        AND contentHash IS NOT NULL
+        AND contentHash != ''
+      GROUP BY contentHash
+      HAVING COUNT(*) > 1`
+  }
+
+  return `SELECT filesize
+    FROM media
+    WHERE ${scopeSql}
+      AND filesize > 0
+    GROUP BY filesize
+    HAVING COUNT(*) > 1`
+}
+
 function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_by?: string } = {}): MediaFilterQueryResult {
   const {mediaTypeId, ids = []} = options
   const duplicatesBy = options.duplicates_by || 'filesize'
@@ -556,30 +588,20 @@ function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_b
     clauses.push('media.id IN (:ids)')
   }
 
+  const duplicateValuesSubquery = buildDuplicateValuesSubquery(
+    duplicatesBy,
+    'mediaTypeId = :mediaTypeId',
+  )
+
   if (duplicatesBy === 'path') {
     clauses.push(`media.path IS NOT NULL AND media.path != ''`)
-    clauses.push(`EXISTS (
-      SELECT 1 FROM media dup
-      WHERE dup.id != media.id
-        AND dup.mediaTypeId = :mediaTypeId
-        AND dup.path = media.path
-    )`)
+    clauses.push(`media.path IN (${duplicateValuesSubquery})`)
   } else if (duplicatesBy === 'contentHash') {
     clauses.push(`media.contentHash IS NOT NULL AND media.contentHash != ''`)
-    clauses.push(`EXISTS (
-      SELECT 1 FROM media dup
-      WHERE dup.id != media.id
-        AND dup.mediaTypeId = :mediaTypeId
-        AND dup.contentHash = media.contentHash
-    )`)
+    clauses.push(`media.contentHash IN (${duplicateValuesSubquery})`)
   } else {
     clauses.push(`media.filesize > 0`)
-    clauses.push(`EXISTS (
-      SELECT 1 FROM media dup
-      WHERE dup.id != media.id
-        AND dup.mediaTypeId = :mediaTypeId
-        AND dup.filesize = media.filesize
-    )`)
+    clauses.push(`media.filesize IN (${duplicateValuesSubquery})`)
   }
 
   return {
