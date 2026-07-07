@@ -4,6 +4,7 @@ import {
   MINIMIZE_TO_TRAY_CONFIG_KEY,
   isGlobalAppConfigKey,
   readGlobalConfigString,
+  readMinimizeToTrayConfig,
   type GlobalAppConfigKey,
 } from '@shared/appGlobalConfig'
 import { useAppStore } from '@/stores/app'
@@ -138,12 +139,26 @@ export async function migrateMinimizeToTrayFromDbIfNeeded(
     return
   }
 
-  await updateConfig({ [MINIMIZE_TO_TRAY_CONFIG_KEY]: dbValue })
+  await persistMinimizeToTray(dbValue === '1')
+  await typedApi.putSetting(MINIMIZE_TO_TRAY_CONFIG_KEY, '')
+}
+
+export async function persistMinimizeToTray(enabled: boolean): Promise<void> {
+  const value = enabled ? '1' : '0'
+
+  await updateConfig({ [MINIMIZE_TO_TRAY_CONFIG_KEY]: value })
+
+  const appStore = useAppStore()
   appStore.config = {
     ...appStore.config,
-    [MINIMIZE_TO_TRAY_CONFIG_KEY]: dbValue,
+    [MINIMIZE_TO_TRAY_CONFIG_KEY]: value,
   }
 
-  await typedApi.putSetting(MINIMIZE_TO_TRAY_CONFIG_KEY, '')
-  void syncMinimizeToTray(dbValue === '1')
+  void syncMinimizeToTray(enabled)
+}
+
+export function readMinimizeToTrayFromStore(
+  config: Record<string, unknown> | null | undefined = useAppStore().config,
+): boolean {
+  return readMinimizeToTrayConfig(config) === '1'
 }

@@ -597,8 +597,8 @@ const en = {
       result: 'Result',
       count_views: 'Count number of views',
       count_views_hint: 'Views are added when media, tag, or category page is opened',
-      minimize_to_tray: 'Minimize to system tray on close',
-      minimize_to_tray_hint: 'When enabled, closing the window hides the app to the tray and keeps it running in the background. Use the tray icon to restore or exit.',
+      minimize_to_tray: 'Show icon in system tray',
+      minimize_to_tray_hint: 'When enabled, an icon appears in the notification area while the app is running. Closing the window hides the app to the tray instead of quitting.',
       language: 'Language',
       languages: {
         en: 'English',

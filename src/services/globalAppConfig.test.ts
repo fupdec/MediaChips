@@ -124,4 +124,14 @@ describe('globalAppConfig', () => {
     expect(putSetting).toHaveBeenCalledWith('minimizeToTray', '')
     expect(syncMinimizeToTray).toHaveBeenCalledWith(true)
   })
+
+  it('persists minimizeToTray updates to config.json and syncs the tray', async () => {
+    const { persistMinimizeToTray } = await import('@/services/globalAppConfig')
+
+    await persistMinimizeToTray(true)
+
+    expect(updateConfig).toHaveBeenCalledWith({ minimizeToTray: '1' })
+    expect(useAppStore().config.minimizeToTray).toBe('1')
+    expect(syncMinimizeToTray).toHaveBeenCalledWith(true)
+  })
 })

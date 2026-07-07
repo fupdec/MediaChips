@@ -597,8 +597,8 @@ const es = {
       result: 'Resultado',
       count_views: 'Contar número de vistas',
       count_views_hint: 'Las vistas se agregan cuando se abre un medio, una etiqueta o una página de categoría',
-      minimize_to_tray: 'Minimizar a la bandeja del sistema al cerrar',
-      minimize_to_tray_hint: 'Cuando está activado, cerrar la ventana oculta la aplicación en la bandeja del sistema y la mantiene ejecutándose en segundo plano. Usa el icono de la bandeja para restaurar o salir.',
+      minimize_to_tray: 'Mostrar icono en la bandeja del sistema',
+      minimize_to_tray_hint: 'Cuando está activado, aparece un icono junto al reloj mientras la aplicación está en ejecución. Al cerrar la ventana, la aplicación se oculta en la bandeja en lugar de salir.',
       language: 'Idioma',
       languages: {
         en: 'Inglés',

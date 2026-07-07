@@ -22,6 +22,13 @@ export const DEFAULT_GLOBAL_APP_CONFIG: Record<GlobalAppConfigKey, string> = {
 
 export const MINIMIZE_TO_TRAY_CONFIG_KEY = 'minimizeToTray' as const
 
+export function readMinimizeToTrayConfig(
+  source: Record<string, unknown> | null | undefined,
+): string {
+  const value = source?.[MINIMIZE_TO_TRAY_CONFIG_KEY]
+  return value === '1' ? '1' : '0'
+}
+
 export function isGlobalAppConfigKey(key: string): key is GlobalAppConfigKey {
   return (GLOBAL_APP_CONFIG_KEYS as readonly string[]).includes(key)
 }

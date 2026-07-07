@@ -24,8 +24,11 @@ import {
   GLOBAL_APP_CONFIG_KEYS,
   migrateGlobalAppConfigFromDbIfNeeded,
   migrateMinimizeToTrayFromDbIfNeeded,
+  readMinimizeToTrayFromStore,
   type GlobalAppConfigKey,
 } from '@/services/globalAppConfig'
+import {syncMinimizeToTray} from '@/services/electronBridge'
+import {isWinElectronUi} from '@/utils/electronUi'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
 import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
 import {useOperationsStore} from '@/stores/operations'
@@ -133,6 +136,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
         await migrateMinimizeToTrayFromDbIfNeeded(minimizeToTrayDbValue)
       } catch (error) {
         console.warn('Failed to migrate global app settings:', error)
+      }
+      if (!isPlayerWindow.value && isWinElectronUi()) {
+        void syncMinimizeToTray(readMinimizeToTrayFromStore())
       }
       cleanupStalePlayerRoute()
       store.isServerError = false

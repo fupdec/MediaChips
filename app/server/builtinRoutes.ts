@@ -24,6 +24,7 @@ import packageJson from '../../package.json'
 import {
   GLOBAL_APP_CONFIG_KEYS,
   readGlobalConfigString,
+  readMinimizeToTrayConfig,
 } from '../../shared/appGlobalConfig'
 function buildGlobalSettingsPayload(config: ServerConfig) {
   const source = config as unknown as Record<string, unknown>
@@ -138,7 +139,7 @@ function registerBuiltinRoutes({
       allowLanAccess: isLanAccessEnabled(),
       allowLanAccessEnvLocked: isLanAccessEnvLocked(),
       registration: typeof config.registration === 'string' ? config.registration : '',
-      minimizeToTray: typeof config.minimizeToTray === 'string' ? config.minimizeToTray : '0',
+      minimizeToTray: readMinimizeToTrayConfig(config as unknown as Record<string, unknown>),
       ...buildGlobalSettingsPayload(config),
       ...(typeof config.onboardingCompleted === 'string' ? { onboardingCompleted: config.onboardingCompleted } : {}),
       ...(typeof config.onboardingStep === 'string' ? { onboardingStep: config.onboardingStep } : {}),

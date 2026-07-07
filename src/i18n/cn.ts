@@ -597,8 +597,8 @@ const cn = {
       result: '结果',
       count_views: '统计观看次数',
       count_views_hint: '打开媒体、标签或分类页面时会增加观看次数',
-      minimize_to_tray: '关闭时最小化到系统托盘',
-      minimize_to_tray_hint: '启用后，关闭窗口会将应用隐藏到系统托盘并在后台继续运行。使用托盘图标可恢复或退出。',
+      minimize_to_tray: '在系统托盘显示图标',
+      minimize_to_tray_hint: '启用后，应用运行期间会在通知区域显示图标。关闭窗口时应用会隐藏到托盘，而不是退出。',
       language: '语言',
       languages: {
         en: '英语',
