@@ -1140,6 +1140,18 @@ const ru = {
     },
   },
   watcher: {
+    scan: {
+      start_title: 'Сканирование отслеживаемых папок',
+      start_count: 'Сканирование {count} папок...',
+      start_single: 'Сканирование папки «{name}»...',
+      start_named: 'Сканирование: {names}',
+      complete_title: 'Сканирование завершено',
+      complete_summary: '{folders} папок: {newCount} новых, {lostCount} потерянных',
+      complete_synchronized: 'Все файлы синхронизированы',
+      complete_failed: 'Ошибка сканирования: {error}',
+      complete_failed_generic: 'Ошибка сканирования',
+      folder_line: '{name}: {newCount} новых, {lostCount} потерянных',
+    },
     folder: {
       title: 'Отслеживаемая папка',
       new_count: 'Новые ({count})',

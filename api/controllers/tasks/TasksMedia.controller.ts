@@ -272,11 +272,13 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       const result = await addMediaToDb(pathToFile, mediaType, is_check_duplicates)
 
-      if (result.isCreated && result.media) {
-        await mediaPostProcess.processNewMedia(result.media, mediaType)
-      }
-
       sendAddMediaResponse(res, result)
+
+      if (result.isCreated && result.media) {
+        void mediaPostProcess.processNewMedia(result.media, mediaType).catch((error: unknown) => {
+          console.error('Post-processing failed:', apiErrorMessage(error))
+        })
+      }
     } catch (error) {
       console.error('addMedia failed:', error)
       res.status(400).send({

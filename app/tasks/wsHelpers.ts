@@ -30,6 +30,17 @@ export function buildWatcherMasks(extensions: WatcherExtensionsMap): string[] {
   return masks
 }
 
+export function buildWatcherWatchPaths(
+  extensions: WatcherExtensionsMap,
+  useFolderRoots = false,
+): string[] {
+  if (useFolderRoots) {
+    return Object.keys(extensions)
+  }
+
+  return buildWatcherMasks(extensions)
+}
+
 export function normalizeMoveMessageItems(msg: MoveFilesWsMessage): MoveItemInput[] {
   if (Array.isArray(msg.items) && msg.items.length) {
     return msg.items

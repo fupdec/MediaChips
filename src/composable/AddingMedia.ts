@@ -30,6 +30,30 @@ const filterPathsByExtensions = (paths: string[], extensions: string): string[] 
   })
 }
 
+const ADD_MEDIA_CONCURRENCY = 3
+
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+  shouldStop: () => boolean,
+): Promise<void> {
+  if (!items.length) return
+
+  let nextIndex = 0
+  const workerCount = Math.min(Math.max(limit, 1), items.length)
+
+  await Promise.all(Array.from({length: workerCount}, async () => {
+    while (nextIndex < items.length) {
+      if (shouldStop()) break
+
+      const currentIndex = nextIndex
+      nextIndex += 1
+      await worker(items[currentIndex])
+    }
+  }))
+}
+
 const resolveMediaTypeForAdding = (
   mediaTypes: MediaType[],
   {
@@ -226,26 +250,7 @@ export const useMediaAdding = () => {
       let lastProgressUpdate = 0
       let current = 0
 
-      const updateProgress = async (force = false) => {
-        const now = Date.now()
-        if (!force && now - lastProgressUpdate < 150) return
-
-        lastProgressUpdate = now
-        const progress = Math.min(current * percentage, 100)
-
-        task.value.current = current
-        task.value.progress = progress
-        task.value.processed = t('media.adding.in_progress', {current, total: files.length})
-
-        await tasksStore.updateTask(taskId, {
-          subtitle: t('media.adding.in_progress', {current, total: files.length}),
-          progress,
-        })
-      }
-
-      for (const filePath of files) {
-        if (task.value.stopped) break
-
+      const processFile = async (filePath: string) => {
         try {
           const response = await typedApi.addMedia({
             path: filePath,
@@ -281,6 +286,30 @@ export const useMediaAdding = () => {
         current += 1
         await updateProgress()
       }
+
+      const updateProgress = async (force = false) => {
+        const now = Date.now()
+        if (!force && now - lastProgressUpdate < 150) return
+
+        lastProgressUpdate = now
+        const progress = Math.min(current * percentage, 100)
+
+        task.value.current = current
+        task.value.progress = progress
+        task.value.processed = t('media.adding.in_progress', {current, total: files.length})
+
+        await tasksStore.updateTask(taskId, {
+          subtitle: t('media.adding.in_progress', {current, total: files.length}),
+          progress,
+        })
+      }
+
+      await runWithConcurrency(
+        files,
+        ADD_MEDIA_CONCURRENCY,
+        processFile,
+        () => task.value.stopped,
+      )
 
       await updateProgress(true)
 

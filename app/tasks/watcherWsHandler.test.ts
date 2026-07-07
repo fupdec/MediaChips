@@ -126,12 +126,13 @@ describe('createWatcherWsHandler', () => {
     }))
 
     expect(watch).toHaveBeenCalledWith(['/media/movies/**/*.mp4'], expect.any(Object))
+    expect(refreshDbPaths).toHaveBeenCalled()
     await triggerWatcherEvent('ready')
     expect(fullSync).toHaveBeenCalledWith(folders)
-    expect(ws.messages).toEqual([{
-      type: 'files',
-      data: [{folder: {path: '/media/movies'}, files: []}],
-    }])
+    expect(ws.messages.some((message) => message.type === 'scanStart')).toBe(true)
+    expect(ws.messages.some((message) => message.type === 'scanComplete')).toBe(true)
+    expect(ws.messages.some((message) => message.type === 'files')).toBe(true)
+    expect(ws.messages[ws.messages.length - 1]?.type).toBe('scanComplete')
   })
 
   it('stops the watcher and sends closed', async () => {

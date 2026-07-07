@@ -8,7 +8,8 @@ import {typedApi} from '@/services/typedApi'
 import {getAuthToken, clearAuthToken} from '@/services/authSession'
 import {updateConfig} from '@/services/configService'
 import {getWatchedFolders} from '@/services/watcherService'
-import type { WatchedFolderEntry } from '@/services/watcherUtils'
+import {getActiveWatchedFolders, type WatchedFolderEntry} from '@/services/watcherUtils'
+import {useWatcher} from '@/composable/Watcher'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore, THUMB_BROADCAST_CHANNEL} from '@/stores/items'
@@ -59,16 +60,24 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   })
   const {applyTheme} = useAppTheme()
 
-  let updateWatcher = (_folders: WatchedFolderEntry[]): void => {}
   let handleAddMedia = async (_action?: () => void): Promise<void> => {}
   let cleanupMediaAdding: (() => void) | null = null
 
+  const {updateWatcher} = useWatcher(store.localhost)
+
+  function startWatcherIfEnabled(): void {
+    if (settingsStore.watchFolders !== '1') {
+      return
+    }
+
+    const watched = getActiveWatchedFolders(watcherStore.folders)
+    if (watched.length > 0) {
+      updateWatcher(watched)
+    }
+  }
+
   async function ensureDeferredServices(): Promise<void> {
-    const [{useWatcher}, {useMediaAdding}] = await Promise.all([
-      import('@/composable/Watcher'),
-      import('@/composable/AddingMedia'),
-    ])
-    updateWatcher = useWatcher(store.localhost).updateWatcher
+    const {useMediaAdding} = await import('@/composable/AddingMedia')
     const mediaAdding = useMediaAdding()
     handleAddMedia = mediaAdding.handleAddMedia
     cleanupMediaAdding = mediaAdding.cleanupEventListeners
@@ -151,7 +160,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   function handleUpdateWatcher(): void {
-    updateWatcher(watcherStore.folders)
+    startWatcherIfEnabled()
   }
 
   async function applyLocale(): Promise<void> {
@@ -433,7 +442,10 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleAuthenticated: Handler = () => {
-    void loadMainAppData().then(() => markAppReady())
+    void loadMainAppData().then(() => {
+      startWatcherIfEnabled()
+      return markAppReady()
+    })
   }
 
   function bindMainAppEventBus(): void {
@@ -538,9 +550,11 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
         await markAppReady()
       }
 
-      void ensureDeferredServices().catch((error) => {
+      await ensureDeferredServices().catch((error) => {
         console.error('Deferred services failed to load:', error)
       })
+
+      startWatcherIfEnabled()
 
       bindMainAppEventBus()
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildWatcherMasks,
+  buildWatcherWatchPaths,
   foldersConfigUnchanged,
   getWatcherFoldersConfigKey,
   normalizeMoveMessageItems,
@@ -42,6 +43,22 @@ describe('buildWatcherMasks', () => {
       '/media/movies/**/*.mp4',
       '/media/movies/**/*.mkv',
       '/media/clips/**/*.mp4',
+    ])
+  })
+})
+
+describe('buildWatcherWatchPaths', () => {
+  it('uses folder roots for mounted volumes to avoid slow glob polling', () => {
+    const extensions = {
+      '/Volumes/pron/#torrents/': ['mp4', 'mkv'],
+    }
+
+    expect(buildWatcherWatchPaths(extensions, true)).toEqual([
+      '/Volumes/pron/#torrents/',
+    ])
+    expect(buildWatcherWatchPaths(extensions, false)).toEqual([
+      '/Volumes/pron/#torrents/**/*.mp4',
+      '/Volumes/pron/#torrents/**/*.mkv',
     ])
   })
 })

@@ -11,11 +11,15 @@ import { errorMessage } from '../types/websockets'
 import type { Request } from 'express'
 import chokidar from 'chokidar'
 import { WatcherSyncEngine } from './watcherSync'
+import { buildChokidarOptions, needsPollingForFolders } from './watcherChokidarOptions'
 import {
-  buildWatcherMasks,
+  buildWatcherWatchPaths,
   foldersConfigUnchanged,
   getWatcherFoldersConfigKey,
 } from './wsHelpers'
+import { buildWatcherScanSummary } from './watcherScanSummary'
+
+const FILE_EVENT_DEBOUNCE_MS = 200
 
 export function createWatcherWsHandler(db: ApiDb): WsHandler {
   return (ws: AppWebSocket, _req: Request) => {
@@ -29,6 +33,9 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
     let pendingFileEvents: Array<{ event: 'add' | 'unlink'; path: string }> = []
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
     let lastFoldersConfigKey = ''
+    let scanNotificationActive = false
+    let scanFailed = false
+    let scanError: string | undefined
 
     const sendReports = () => {
       if (ws.readyState !== 1) {
@@ -38,6 +45,45 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       ws.send(JSON.stringify({
         type: 'files',
         data: syncEngine.getReports(),
+      }))
+    }
+
+    const sendScanStart = () => {
+      if (ws.readyState !== 1 || !watchedFolders.length) {
+        return
+      }
+
+      ws.send(JSON.stringify({
+        type: 'scanStart',
+        data: {
+          folderCount: watchedFolders.length,
+          folderNames: watchedFolders.map((folder) => {
+            const name = (folder as {name?: string}).name
+            if (typeof name === 'string' && name.trim()) {
+              return name.trim()
+            }
+
+            const normalized = folder.path.replace(/\\/g, '/').replace(/\/+$/, '')
+            const parts = normalized.split('/')
+            return parts[parts.length - 1] || folder.path
+          }),
+        },
+      }))
+    }
+
+    const sendScanComplete = (options: {failed?: boolean; error?: string} = {}) => {
+      if (ws.readyState !== 1) {
+        return
+      }
+
+      const reports = syncEngine.getReports()
+      ws.send(JSON.stringify({
+        type: 'scanComplete',
+        data: {
+          ...buildWatcherScanSummary(reports),
+          failed: options.failed === true,
+          error: options.error,
+        },
       }))
     }
 
@@ -70,10 +116,19 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       isProcessing = true
       pendingFullSync = false
 
+      if (!scanNotificationActive) {
+        scanNotificationActive = true
+        scanFailed = false
+        scanError = undefined
+        sendScanStart()
+      }
+
       try {
         await syncEngine.fullSync(watchedFolders)
         sendReports()
       } catch (error: unknown) {
+        scanFailed = true
+        scanError = errorMessage(error)
         console.error('Error in watcher full sync:', errorMessage(error))
       } finally {
         isProcessing = false
@@ -88,6 +143,14 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
         } else if (pendingDbRefresh) {
           pendingDbRefresh = false
           void runDbRefresh()
+        } else if (scanNotificationActive) {
+          sendScanComplete({
+            failed: scanFailed,
+            error: scanError,
+          })
+          scanNotificationActive = false
+          scanFailed = false
+          scanError = undefined
         }
       }
     }
@@ -154,7 +217,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       }
       debounceTimer = setTimeout(() => {
         processFileEvents()
-      }, 500)
+      }, FILE_EVENT_DEBOUNCE_MS)
     }
 
     const startWatcher = (folders: WatchedFolderEntry[], extensions: WatcherExtensionsMap) => {
@@ -163,19 +226,19 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
         watcher = null
       }
 
-      const foldersMasked = buildWatcherMasks(extensions)
+      const folderPaths = folders.map((folder) => folder.path)
+      const usePolling = needsPollingForFolders(folderPaths)
+      const watchPaths = buildWatcherWatchPaths(extensions, usePolling)
 
-      watcher = chokidar.watch(foldersMasked, {
-        ignoreInitial: true,
-        persistent: true,
-        awaitWriteFinish: {
-          stabilityThreshold: 2000,
-          pollInterval: 100,
-        },
-        ignored: /(^|[\/\\])\../,
-        ignorePermissionErrors: true,
-        depth: 99,
+      syncEngine.setFolders(folders)
+      void syncEngine.refreshDbPaths().then(() => {
+        sendReports()
       })
+
+      watcher = chokidar.watch(
+        watchPaths,
+        buildChokidarOptions(folderPaths),
+      )
 
       watcher
         .on('add', (filePath: string) => {
@@ -204,8 +267,10 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       }
 
       if (watcher) {
-        const foldersMasked = buildWatcherMasks(extensions)
-        watcher.add(foldersMasked)
+        const folderPaths = folders.map((folder) => folder.path)
+        const usePolling = needsPollingForFolders(folderPaths)
+        const watchPaths = buildWatcherWatchPaths(extensions, usePolling)
+        watcher.add(watchPaths)
 
         setTimeout(() => {
           void runFullSync()
@@ -238,6 +303,9 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
             syncEngine.reset()
             pendingFileEvents = []
             lastFoldersConfigKey = ''
+            scanNotificationActive = false
+            scanFailed = false
+            scanError = undefined
             if (ws.readyState === 1) {
               ws.send(JSON.stringify({type: 'closed'}))
             }

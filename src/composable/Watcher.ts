@@ -1,18 +1,34 @@
 import { watch, ref, onBeforeUnmount } from 'vue'
+import { i18n } from '@/i18n/loadLocale'
 import { useSettingsStore } from '@/stores/settings'
 import { useWatcherStore } from '@/stores/watcher'
-import {getWatchedFoldersExtensions, type WatchedFolderEntry} from '@/services/watcherUtils'
+import {
+  getActiveWatchedFolders,
+  getWatchedFoldersExtensions,
+  type WatchedFolderEntry,
+} from '@/services/watcherUtils'
 import type { WatcherWsPayload } from '@/types/itemsPage'
-import { isWatcherFilesMessage, parseWatcherInboundMessage } from '@/types/watcher'
+import {
+  isWatcherFilesMessage,
+  isWatcherScanCompleteMessage,
+  isWatcherScanStartMessage,
+  parseWatcherInboundMessage,
+} from '@/types/watcher'
+import {
+  showWatcherScanCompleteNotification,
+  showWatcherScanStartNotification,
+} from '@/utils/watcherScanNotifications'
 import uniqBy from 'lodash/uniqBy'
 
 export function useWatcher(apiUrl: string) {
   const settingsStore = useSettingsStore()
   const watcherStore = useWatcherStore()
+  const t = i18n.global.t
 
   const isWsReady = ref(false)
   const wsRetryCount = ref(0)
   const maxRetries = 3
+  let scanStartNotificationId: number | null = null
 
   const runWatcher = (): void => {
     if (settingsStore.watchFolders !== '1') {
@@ -35,7 +51,7 @@ export function useWatcher(apiUrl: string) {
         isWsReady.value = true
         wsRetryCount.value = 0
 
-        const watchedFolders = watcherStore.folders.filter((folder) => folder.watch)
+        const watchedFolders = getActiveWatchedFolders(watcherStore.folders)
         const extensions = getWatchedFoldersExtensions(watchedFolders)
 
         if (watchedFolders.length > 0) {
@@ -63,6 +79,17 @@ export function useWatcher(apiUrl: string) {
             case 'files':
               if (isWatcherFilesMessage(parsedMsg)) {
                 watcherStore.files = uniqBy(parsedMsg.data, (entry) => entry.folder.id)
+              }
+              break
+            case 'scanStart':
+              if (isWatcherScanStartMessage(parsedMsg)) {
+                scanStartNotificationId = showWatcherScanStartNotification(t, parsedMsg.data)
+              }
+              break
+            case 'scanComplete':
+              if (isWatcherScanCompleteMessage(parsedMsg)) {
+                showWatcherScanCompleteNotification(t, parsedMsg.data, scanStartNotificationId)
+                scanStartNotificationId = null
               }
               break
             case 'closed':
@@ -113,15 +140,24 @@ export function useWatcher(apiUrl: string) {
       console.log('WebSocket not ready, starting watcher...')
       runWatcher()
 
-      setTimeout(() => {
+      const waitForOpenAndSendUpdate = (attempt = 0) => {
         if (isWsReady.value && watcherStore.ws && watcherStore.ws.readyState === WebSocket.OPEN) {
           sendMessage({
             type: 'update',
             folders: foldersToWatch,
             extensions: getWatchedFoldersExtensions(foldersToWatch),
           })
+          return
         }
-      }, 1000)
+
+        if (attempt >= 20) {
+          return
+        }
+
+        setTimeout(() => waitForOpenAndSendUpdate(attempt + 1), 500)
+      }
+
+      waitForOpenAndSendUpdate()
       return
     }
 
@@ -179,7 +215,7 @@ export function useWatcher(apiUrl: string) {
   watch(() => watcherStore.folders, (val) => {
     clearTimeout(foldersWatchTimeout)
     foldersWatchTimeout = setTimeout(() => {
-      const watched = val.filter((folder) => folder.watch)
+      const watched = getActiveWatchedFolders(val)
       if (watched.length > 0) {
         updateWatcher(watched)
       }

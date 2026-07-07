@@ -1140,6 +1140,18 @@ const cn = {
     },
   },
   watcher: {
+    scan: {
+      start_title: '正在扫描监视文件夹',
+      start_count: '正在扫描 {count} 个文件夹...',
+      start_single: '正在扫描文件夹“{name}”...',
+      start_named: '正在扫描：{names}',
+      complete_title: '扫描完成',
+      complete_summary: '{folders} 个文件夹：{newCount} 个新增，{lostCount} 个丢失',
+      complete_synchronized: '所有文件已同步',
+      complete_failed: '扫描失败：{error}',
+      complete_failed_generic: '扫描失败',
+      folder_line: '{name}：{newCount} 个新增，{lostCount} 个丢失',
+    },
     folder: {
       title: '监视文件夹',
       new_count: '新增 ({count})',

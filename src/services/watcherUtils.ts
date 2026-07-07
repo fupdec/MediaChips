@@ -4,9 +4,17 @@ export interface WatchedFolderEntry {
   path: string
   name?: string
   types: MediaType[]
-  watch?: boolean
+  watch?: boolean | number
   id?: number
   folderId?: number
+}
+
+export function isFolderWatchEnabled(folder: WatchedFolderEntry): boolean {
+  return folder.watch !== false && folder.watch !== 0
+}
+
+export function getActiveWatchedFolders(folders: WatchedFolderEntry[]): WatchedFolderEntry[] {
+  return folders.filter(isFolderWatchEnabled)
 }
 
 export function getWatchedFoldersExtensions(watchedFolders: WatchedFolderEntry[]) {

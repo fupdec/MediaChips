@@ -14,7 +14,7 @@ const watcherStore = useWatcherStore()
 const {t} = useI18n()
 const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
 
-const watcherFiles = computed(() => watcherStore.files)
+const watcherFiles = computed(() => watcherStore.menuEntries)
 const folderHovered = ref(false)
 const hiddenMetaMenu = ref(false)
 

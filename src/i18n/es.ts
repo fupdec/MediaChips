@@ -1140,6 +1140,18 @@ const es = {
     },
   },
   watcher: {
+    scan: {
+      start_title: 'Escaneando carpetas vigiladas',
+      start_count: 'Escaneando {count} carpetas...',
+      start_single: 'Escaneando la carpeta "{name}"...',
+      start_named: 'Escaneando: {names}',
+      complete_title: 'Escaneo completado',
+      complete_summary: '{folders} carpetas: {newCount} nuevos, {lostCount} perdidos',
+      complete_synchronized: 'Todos los archivos están sincronizados',
+      complete_failed: 'Error de escaneo: {error}',
+      complete_failed_generic: 'Error de escaneo',
+      folder_line: '{name}: {newCount} nuevos, {lostCount} perdidos',
+    },
     folder: {
       title: 'Carpeta vigilada',
       new_count: 'Nuevos ({count})',

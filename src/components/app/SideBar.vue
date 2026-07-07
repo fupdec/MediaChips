@@ -186,7 +186,7 @@ const meta_arr = ref<MetaNavRow[]>([])
 const drag = ref(false)
 
 const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
-const watcherFiles = computed(() => watcherStore.files)
+const watcherFiles = computed(() => watcherStore.menuEntries)
 
 const dragOptions = {
   animation: 200,

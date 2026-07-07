@@ -1140,6 +1140,18 @@ const en = {
     },
   },
   watcher: {
+    scan: {
+      start_title: 'Scanning watched folders',
+      start_count: 'Scanning {count} folders...',
+      start_single: 'Scanning folder "{name}"...',
+      start_named: 'Scanning: {names}',
+      complete_title: 'Scan complete',
+      complete_summary: '{folders} folders: {newCount} new, {lostCount} lost',
+      complete_synchronized: 'All files are synchronized',
+      complete_failed: 'Scan failed: {error}',
+      complete_failed_generic: 'Scan failed',
+      folder_line: '{name}: {newCount} new, {lostCount} lost',
+    },
     folder: {
       title: 'Watched folder',
       new_count: 'New ({count})',

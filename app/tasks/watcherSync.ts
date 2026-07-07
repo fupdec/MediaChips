@@ -66,26 +66,32 @@ async function findFilesRecursive(
     return allFiles
   }
 
+  let entries: import('fs').Dirent[] = []
   try {
-    const files = await fs.readdir(dir)
-
-    for (const file of files) {
-      const filePath = path.join(dir, file)
-
-      try {
-        const stat = await fs.stat(filePath)
-
-        if (stat.isDirectory()) {
-          await findFilesRecursive(filePath, extensions, depth + 1, maxDepth, allFiles)
-        } else if (stat.isFile() && fileMatchesExtensions(filePath, extensions)) {
-          allFiles.push(normalizeMediaPath(filePath))
-        }
-      } catch {
-        // Skip inaccessible paths.
-      }
-    }
+    entries = await fs.readdir(dir, {withFileTypes: true})
   } catch {
-    // Skip unreadable directories.
+    return allFiles
+  }
+
+  const subdirTasks: Promise<void>[] = []
+
+  for (const entry of entries) {
+    const filePath = path.join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      subdirTasks.push(
+        findFilesRecursive(filePath, extensions, depth + 1, maxDepth, allFiles).then(() => undefined),
+      )
+      continue
+    }
+
+    if (entry.isFile() && fileMatchesExtensions(filePath, extensions)) {
+      allFiles.push(normalizeMediaPath(filePath))
+    }
+  }
+
+  if (subdirTasks.length) {
+    await Promise.all(subdirTasks)
   }
 
   return allFiles
@@ -114,11 +120,11 @@ interface FolderSyncState {
 }
 
 function recomputeDiff(state: TypeSyncState): void {
-  state.newPaths = sortPaths(
-    state.fsPaths.filter((fsPath) => !state.dbEntries.some((entry) => pathsMatch(String(entry.path), fsPath))),
+  state.newPaths = state.fsPaths.filter(
+    (fsPath) => !state.dbEntries.some((entry) => pathsMatch(String(entry.path), fsPath)),
   )
-  state.lostEntries = sortLost(
-    state.dbEntries.filter((entry) => !state.fsPaths.some((fsPath) => pathsMatch(String(entry.path), fsPath))),
+  state.lostEntries = state.dbEntries.filter(
+    (entry) => !state.fsPaths.some((fsPath) => pathsMatch(String(entry.path), fsPath)),
   )
 }
 
@@ -127,8 +133,8 @@ function buildReport(folderState: FolderSyncState): WatcherFolderReport {
     folder: folderState.folder,
     files: folderState.types.map((typeState) => ({
       type: typeState.type,
-      lost: typeState.lostEntries,
-      new: typeState.newPaths,
+      lost: sortLost(typeState.lostEntries),
+      new: sortPaths(typeState.newPaths),
     })),
   }
 }
@@ -200,8 +206,8 @@ class WatcherSyncEngine {
         : []
 
       for (const typeState of folderState.types) {
-        typeState.fsPaths = sortPaths(
-          filesInFolder.filter((filePath) => fileMatchesExtensions(filePath, typeState.extensions)),
+        typeState.fsPaths = filesInFolder.filter(
+          (filePath) => fileMatchesExtensions(filePath, typeState.extensions),
         )
         typeState.dbEntries = mapMediaRowsToDbEntries(
           mediaRows,
@@ -266,7 +272,7 @@ class WatcherSyncEngine {
   private applyFileAdded(typeState: TypeSyncState, filePath: string): boolean {
     const existingFsPath = findEquivalentPath(filePath, typeState.fsPaths)
     if (!existingFsPath) {
-      typeState.fsPaths = sortPaths([...typeState.fsPaths, filePath])
+      typeState.fsPaths.push(filePath)
     }
 
     const dbEntry = findEquivalentEntry(filePath, typeState.dbEntries)
@@ -277,7 +283,7 @@ class WatcherSyncEngine {
     }
 
     if (!findEquivalentPath(filePath, typeState.newPaths)) {
-      typeState.newPaths = sortPaths([...typeState.newPaths, filePath])
+      typeState.newPaths.push(filePath)
       return true
     }
 
@@ -294,7 +300,7 @@ class WatcherSyncEngine {
 
     const dbEntry = findEquivalentEntry(filePath, typeState.dbEntries)
     if (dbEntry && !findEquivalentEntry(filePath, typeState.lostEntries)) {
-      typeState.lostEntries = sortLost([...typeState.lostEntries, dbEntry])
+      typeState.lostEntries.push(dbEntry)
       return true
     }
 
