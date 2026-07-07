@@ -14,9 +14,14 @@ import { tokenizeFilePath } from '../../services/pathTokenizer'
 import {
   computeContentHashForPath,
   fileExists,
-  verifyContentHashMatch,
   resolveExistingPath,
 } from '../../services/contentHash'
+import {
+  buildMediaDuplicateKey,
+  findRegisteredDuplicate,
+  registerDuplicateMedia,
+  withDuplicateLookupLock,
+} from '../../services/addMediaDedup'
 import {
   normalizeMediaPath,
   pathsEquivalent,
@@ -44,6 +49,55 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     return mediaRepo.findByPathVariants(variants) ?? null
   }
 
+  const buildDuplicateResponse = (
+    existing: {id?: unknown; path?: unknown},
+    pathToFile: string,
+    parameter: 'path' | 'content_hash' | 'basename_filesize',
+    reason?: 'duplicate' | 'moved',
+  ) => ({
+    isCreated: false as const,
+    duplicate: {
+      parameter,
+      path: existing.path,
+      id: existing.id,
+      ...(reason ? {reason, new_path: pathToFile} : {}),
+    },
+  })
+
+  const findFastDuplicate = (
+    basename: string,
+    filesize: number,
+    mediaType: {id: unknown},
+    pathToFile: string,
+  ) => {
+    const duplicateKey = buildMediaDuplicateKey(mediaType.id, filesize, basename)
+    const registeredDuplicate = findRegisteredDuplicate(duplicateKey)
+
+    if (registeredDuplicate && !pathsEquivalent(registeredDuplicate.path, pathToFile)) {
+      return {
+        duplicate: registeredDuplicate,
+        duplicateKey,
+        parameter: 'basename_filesize' as const,
+      }
+    }
+
+    const duplicateByBasename = mediaRepo.findByBasenameFilesizeAndMediaType(
+      basename,
+      filesize,
+      mediaType.id,
+    )
+
+    if (duplicateByBasename && !pathsEquivalent(String(duplicateByBasename.path), pathToFile)) {
+      return {
+        duplicate: duplicateByBasename,
+        duplicateKey,
+        parameter: 'basename_filesize' as const,
+      }
+    }
+
+    return null
+  }
+
   const addMediaToDb = async (
     rawPathToFile: string,
     mediaType: { id: unknown },
@@ -57,128 +111,78 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     }
 
     const stats = await stat(resolvedPath)
-    const filesize = stats.size;
+    const filesize = stats.size
+    const basename = path.basename(resolvedPath)
+    const duplicateKey = buildMediaDuplicateKey(mediaType.id, filesize, basename)
 
-    const existingByPath = await findMediaByPath(pathToFile)
+    const processAdd = async () => {
+      const existingByPath = await findMediaByPath(pathToFile)
 
-    if (existingByPath) {
-      return {
-        isCreated: false,
-        duplicate: {
-          parameter: 'path',
-          path: existingByPath.path,
-          id: existingByPath.id,
-        },
+      if (existingByPath) {
+        return buildDuplicateResponse(existingByPath, pathToFile, 'path')
       }
-    }
 
-    let contentHash = null
-    try {
-      contentHash = await computeContentHashForPath(resolvedPath)
-    } catch (error) {
-      console.error(`Content hash failed for ${pathToFile}:`, apiErrorMessage(error))
-    }
-
-    if (is_check_duplicates && contentHash) {
-      let duplicate_by_hash = mediaRepo.findByContentHash(contentHash)
-
-      if (!duplicate_by_hash) {
-        const legacyCandidates = mediaRepo.findLegacyHashCandidates(filesize, mediaType.id)
-
-        for (const candidate of legacyCandidates) {
-          if (!(await fileExists(candidate.path))) {
-            continue
-          }
-
-          try {
-            const candidateHash = await computeContentHashForPath(candidate.path)
-            mediaRepo.updateById(Number(candidate.id), {contentHash: candidateHash})
-
-            if (candidateHash === contentHash) {
-              duplicate_by_hash = {...candidate, contentHash: candidateHash}
-              break
-            }
-          } catch (error) {
-            console.error(`Content hash failed for ${candidate.path}:`, apiErrorMessage(error))
-          }
+      if (is_check_duplicates) {
+        const fastDuplicate = findFastDuplicate(basename, filesize, mediaType, pathToFile)
+        if (fastDuplicate) {
+          const existingPathExists = await fileExists(String(fastDuplicate.duplicate.path))
+          return buildDuplicateResponse(
+            fastDuplicate.duplicate,
+            pathToFile,
+            fastDuplicate.parameter,
+            existingPathExists ? 'duplicate' : 'moved',
+          )
         }
       }
 
-      if (duplicate_by_hash && pathsEquivalent(duplicate_by_hash.path, pathToFile)) {
+      const storedPath = resolvedPath
+
+      const defaults: AnyRecord = {
+        filesize: filesize,
+        ext: path.extname(storedPath),
+        basename,
+        name: path.parse(storedPath).name,
+        mediaTypeId: mediaType.id,
+      }
+
+      const {row: media, created: isCreated} = mediaRepo.findOrCreateByPath(storedPath, defaults)
+
+      if (!isCreated) {
         return {
-          isCreated: false,
-          duplicate: {
-            parameter: 'path',
-            path: duplicate_by_hash.path,
-            id: duplicate_by_hash.id,
-          },
+          media,
+          ...buildDuplicateResponse(media, pathToFile, 'path'),
         }
       }
 
-      if (duplicate_by_hash && await fileExists(duplicate_by_hash.path)) {
-        const isSameContent = await verifyContentHashMatch(duplicate_by_hash.path, contentHash)
+      if (is_check_duplicates) {
+        registerDuplicateMedia(duplicateKey, {
+          id: Number(media.id),
+          path: String(media.path),
+        })
+      }
 
-        if (!isSameContent) {
-          try {
-            const correctedHash = await computeContentHashForPath(duplicate_by_hash.path)
-            mediaRepo.updateById(Number(duplicate_by_hash.id), {contentHash: correctedHash})
-          } catch (error) {
-            console.error(`Content hash correction failed for ${duplicate_by_hash.path}:`, apiErrorMessage(error))
+      void computeContentHashForPath(resolvedPath)
+        .then((hash) => {
+          if (hash) {
+            mediaRepo.updateById(Number(media.id), {contentHash: hash})
           }
+        })
+        .catch((error: unknown) => {
+          console.error(`Content hash failed for ${pathToFile}:`, apiErrorMessage(error))
+        })
 
-          duplicate_by_hash = undefined
-        }
-      }
-
-      if (duplicate_by_hash) {
-        const existingPathExists = await fileExists(duplicate_by_hash.path)
-
-        return {
-          isCreated: false,
-          duplicate: {
-            parameter: 'content_hash',
-            path: duplicate_by_hash.path,
-            id: duplicate_by_hash.id,
-            reason: existingPathExists ? 'duplicate' : 'moved',
-            new_path: pathToFile,
-          },
-        }
-      }
-    }
-
-    const storedPath = resolvedPath
-
-    const defaults: AnyRecord = {
-      filesize: filesize,
-      ext: path.extname(storedPath),
-      basename: path.basename(storedPath),
-      name: path.parse(storedPath).name,
-      mediaTypeId: mediaType.id,
-    }
-
-    if (contentHash) {
-      defaults.contentHash = contentHash
-    }
-
-    const {row: media, created: isCreated} = mediaRepo.findOrCreateByPath(storedPath, defaults)
-
-    if (!isCreated) {
       return {
         media,
-        isCreated: false,
-        duplicate: {
-          parameter: 'path',
-          path: media.path,
-          id: media.id,
-        },
+        isCreated: true,
+        duplicate: false,
       }
     }
 
-    return {
-      media,
-      isCreated: true,
-      duplicate: false,
+    if (!is_check_duplicates) {
+      return processAdd()
     }
+
+    return withDuplicateLookupLock(duplicateKey, processAdd)
   }
 
   const getVideoMetadata = async (pathToFile: string) => {

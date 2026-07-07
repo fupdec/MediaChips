@@ -7,7 +7,9 @@ import {transformTextToArray} from '@/services/formatUtils'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
+import {useWatcherStore} from '@/stores/watcher'
 import {useEventBus} from '@/utils/eventBus'
+import {removeWatcherNewPaths} from '@/utils/watcherReportUtils'
 import type { ParsePathTagEntry } from '@shared/api/responses'
 import type { MediaType } from '@/types/media'
 import type { AddedMediaEntry } from '@/stores/tasks'
@@ -30,7 +32,7 @@ const filterPathsByExtensions = (paths: string[], extensions: string): string[] 
   })
 }
 
-const ADD_MEDIA_CONCURRENCY = 3
+const ADD_MEDIA_CONCURRENCY = 5
 
 async function runWithConcurrency<T>(
   items: T[],
@@ -90,6 +92,7 @@ export const useMediaAdding = () => {
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
   const tasksStore = useTasksStore()
+  const watcherStore = useWatcherStore()
   const eventBus = useEventBus()
   const t = i18n.global.t
 
@@ -365,6 +368,15 @@ export const useMediaAdding = () => {
           ids: [],
           type: 'media',
         })
+      }
+
+      const resolvedWatcherPaths = [
+        ...task.value.added,
+        ...task.value.duplicates.map((entry) => entry.path),
+      ]
+
+      if (resolvedWatcherPaths.length > 0 && watcherStore.files.length > 0) {
+        watcherStore.files = removeWatcherNewPaths(watcherStore.files, resolvedWatcherPaths)
       }
 
       eventBus.emit('update:watcher')

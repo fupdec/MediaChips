@@ -181,6 +181,29 @@ describe('createWatcherWsHandler', () => {
     })
   })
 
+  it('refreshes the database on explicit refresh requests', async () => {
+    const ws = createMockWebSocket()
+    createWatcherWsHandler(db)(ws, req)
+
+    await ws.emit('message', JSON.stringify({
+      type: 'start',
+      folders,
+      extensions: {'/media/movies': ['mp4']},
+    }))
+    await triggerWatcherEvent('ready')
+
+    vi.clearAllMocks()
+    getReports.mockReturnValue([{folder: {path: '/media/movies'}, files: []}])
+
+    await ws.emit('message', JSON.stringify({type: 'refresh'}))
+
+    expect(refreshDbPaths).toHaveBeenCalled()
+    expect(ws.messages[ws.messages.length - 1]).toEqual({
+      type: 'files',
+      data: [{folder: {path: '/media/movies'}, files: []}],
+    })
+  })
+
   it('ignores invalid JSON without crashing', async () => {
     const ws = createMockWebSocket()
     createWatcherWsHandler(db)(ws, req)

@@ -262,7 +262,11 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       lastFoldersConfigKey = nextConfigKey
 
       if (watcher && foldersUnchanged) {
-        void runDbRefresh()
+        if (!isProcessing) {
+          void runDbRefresh()
+        } else {
+          pendingDbRefresh = true
+        }
         return
       }
 
@@ -293,6 +297,17 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
 
           case 'update':
             updateWatcher(data.folders || [], data.extensions || {})
+            break
+
+          case 'refresh':
+            if (!watcher) {
+              break
+            }
+            if (!isProcessing) {
+              void runDbRefresh()
+            } else {
+              pendingDbRefresh = true
+            }
             break
 
           case 'stop':

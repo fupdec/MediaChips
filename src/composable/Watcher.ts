@@ -29,9 +29,22 @@ export function useWatcher(apiUrl: string) {
   const wsRetryCount = ref(0)
   const maxRetries = 3
   let scanStartNotificationId: number | null = null
+  let watcherEventsEnabled = false
+  let pendingStartFolders: WatchedFolderEntry[] | null = null
+
+  const enableWatcherEvents = (): void => {
+    watcherEventsEnabled = true
+  }
+
+  const getWebSocketState = (): number | null => watcherStore.ws?.readyState ?? null
 
   const runWatcher = (): void => {
     if (settingsStore.watchFolders !== '1') {
+      return
+    }
+
+    const wsState = getWebSocketState()
+    if (wsState === WebSocket.CONNECTING || wsState === WebSocket.OPEN) {
       return
     }
 
@@ -51,7 +64,8 @@ export function useWatcher(apiUrl: string) {
         isWsReady.value = true
         wsRetryCount.value = 0
 
-        const watchedFolders = getActiveWatchedFolders(watcherStore.folders)
+        const watchedFolders = pendingStartFolders ?? getActiveWatchedFolders(watcherStore.folders)
+        pendingStartFolders = null
         const extensions = getWatchedFoldersExtensions(watchedFolders)
 
         if (watchedFolders.length > 0) {
@@ -136,37 +150,42 @@ export function useWatcher(apiUrl: string) {
   const updateWatcher = (foldersToWatch: WatchedFolderEntry[]): void => {
     if (settingsStore.watchFolders !== '1') return
 
-    if (!isWsReady.value || !watcherStore.ws || watcherStore.ws.readyState !== WebSocket.OPEN) {
-      console.log('WebSocket not ready, starting watcher...')
+    const wsState = getWebSocketState()
+
+    if (wsState !== WebSocket.OPEN || !isWsReady.value || !watcherStore.ws) {
+      pendingStartFolders = foldersToWatch
       runWatcher()
-
-      const waitForOpenAndSendUpdate = (attempt = 0) => {
-        if (isWsReady.value && watcherStore.ws && watcherStore.ws.readyState === WebSocket.OPEN) {
-          sendMessage({
-            type: 'update',
-            folders: foldersToWatch,
-            extensions: getWatchedFoldersExtensions(foldersToWatch),
-          })
-          return
-        }
-
-        if (attempt >= 20) {
-          return
-        }
-
-        setTimeout(() => waitForOpenAndSendUpdate(attempt + 1), 500)
-      }
-
-      waitForOpenAndSendUpdate()
       return
     }
 
+    pendingStartFolders = null
     const extensions = getWatchedFoldersExtensions(foldersToWatch)
     sendMessage({
       type: 'update',
       folders: foldersToWatch,
       extensions: extensions,
     })
+  }
+
+  const refreshWatcher = (): void => {
+    if (settingsStore.watchFolders !== '1') {
+      return
+    }
+
+    const wsState = getWebSocketState()
+    if (wsState === WebSocket.OPEN && watcherStore.ws) {
+      sendMessage({type: 'refresh'})
+      return
+    }
+
+    startWatcherIfEnabled()
+  }
+
+  const startWatcherIfEnabled = (): void => {
+    const watched = getActiveWatchedFolders(watcherStore.folders)
+    if (watched.length > 0) {
+      updateWatcher(watched)
+    }
   }
 
   const stopWatcher = (): void => {
@@ -202,6 +221,10 @@ export function useWatcher(apiUrl: string) {
   let foldersWatchTimeout: ReturnType<typeof setTimeout> | undefined
 
   watch(() => settingsStore.watchFolders, (val) => {
+    if (!watcherEventsEnabled) {
+      return
+    }
+
     clearTimeout(watchTimeout)
     watchTimeout = setTimeout(() => {
       if (val === '0') {
@@ -213,6 +236,10 @@ export function useWatcher(apiUrl: string) {
   })
 
   watch(() => watcherStore.folders, (val) => {
+    if (!watcherEventsEnabled) {
+      return
+    }
+
     clearTimeout(foldersWatchTimeout)
     foldersWatchTimeout = setTimeout(() => {
       const watched = getActiveWatchedFolders(val)
@@ -234,6 +261,8 @@ export function useWatcher(apiUrl: string) {
   return {
     runWatcher,
     updateWatcher,
+    refreshWatcher,
     stopWatcher,
+    enableWatcherEvents,
   }
 }

@@ -142,14 +142,41 @@ export function createMediaRepository(db: DrizzleClient) {
         .get()
     },
 
-    findLegacyHashCandidates(filesize: number, mediaTypeId: unknown): MediaRow[] {
+    findByBasenameFilesizeAndMediaType(
+      basename: string,
+      filesize: number,
+      mediaTypeId: unknown,
+    ): MediaRow | undefined {
+      if (!basename) return undefined
+
       return db.select()
         .from(media)
         .where(and(
+          eq(media.basename, basename),
           eq(media.filesize, filesize),
           eq(media.mediaTypeId, Number(mediaTypeId)),
-          or(isNull(media.contentHash), eq(media.contentHash, '')),
         ))
+        .get()
+    },
+
+    findLegacyHashCandidates(
+      filesize: number,
+      mediaTypeId: unknown,
+      basename?: string | null,
+    ): MediaRow[] {
+      const conditions = [
+        eq(media.filesize, filesize),
+        eq(media.mediaTypeId, Number(mediaTypeId)),
+        or(isNull(media.contentHash), eq(media.contentHash, '')),
+      ]
+
+      if (basename) {
+        conditions.push(eq(media.basename, basename))
+      }
+
+      return db.select()
+        .from(media)
+        .where(and(...conditions))
         .all()
     },
 

@@ -11,8 +11,8 @@ export type {
 
 export type WatcherExtensionsMap = Record<string, string[]>
 
-export interface WatcherWsMessage {
-  type: 'start' | 'update' | 'stop'
+export type WatcherWsMessage = {
+  type: 'start' | 'update' | 'stop' | 'refresh'
   folders?: WatchedFolderEntry[]
   extensions?: WatcherExtensionsMap
 }

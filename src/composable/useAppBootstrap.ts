@@ -63,7 +63,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   let handleAddMedia = async (_action?: () => void): Promise<void> => {}
   let cleanupMediaAdding: (() => void) | null = null
 
-  const {updateWatcher} = useWatcher(store.localhost)
+  const {updateWatcher, refreshWatcher, enableWatcherEvents} = useWatcher(store.localhost)
 
   function startWatcherIfEnabled(): void {
     if (settingsStore.watchFolders !== '1') {
@@ -160,7 +160,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   function handleUpdateWatcher(): void {
-    startWatcherIfEnabled()
+    refreshWatcher()
   }
 
   async function applyLocale(): Promise<void> {
@@ -555,6 +555,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       })
 
       startWatcherIfEnabled()
+      enableWatcherEvents()
 
       bindMainAppEventBus()
 

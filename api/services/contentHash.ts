@@ -34,6 +34,8 @@ const resolveExistingPath = async (pathToFile: string): Promise<string | null> =
 
 const fileExists = async (pathToFile: string) => Boolean(await resolveExistingPath(pathToFile))
 
+const hashCache = new Map<string, string>()
+
 const computeContentHash = (pathToFile: string) => new Promise<string>((resolve, reject) => {
   const hash = crypto.createHash('sha256')
   const stream = fs.createReadStream(pathToFile)
@@ -43,14 +45,23 @@ const computeContentHash = (pathToFile: string) => new Promise<string>((resolve,
   stream.on('error', reject)
 })
 
-const computeContentHashForPath = async (pathToFile: string) => {
+const computeContentHashForPath = async (
+  pathToFile: string,
+  {useCache = true}: {useCache?: boolean} = {},
+) => {
   const resolvedPath = await resolveExistingPath(pathToFile)
 
   if (!resolvedPath) {
     throw new Error(`File not found: ${pathToFile}`)
   }
 
-  return computeContentHash(resolvedPath)
+  if (useCache && hashCache.has(resolvedPath)) {
+    return hashCache.get(resolvedPath) as string
+  }
+
+  const hash = await computeContentHash(resolvedPath)
+  hashCache.set(resolvedPath, hash)
+  return hash
 }
 
 const verifyContentHashMatch = async (pathToFile: string, expectedHash: string | null | undefined) => {
