@@ -20,6 +20,9 @@ export type SystemMenuAction =
   | 'lock'
   | 'restart'
   | 'exit'
+  | 'minimizeWindow'
+  | 'toggleMaximize'
+  | 'closeWindow'
   | 'documentation'
   | 'sendFeedback'
   | 'keyboardShortcuts'
@@ -39,7 +42,7 @@ export interface SystemMenuItemConfig {
 }
 
 export interface SystemMenuConfig {
-  id: 'file' | 'edit' | 'view' | 'app' | 'help'
+  id: 'file' | 'edit' | 'view' | 'app' | 'window' | 'help'
   labelKey: string
   items: SystemMenuItemConfig[]
 }
@@ -95,6 +98,16 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
       {divider: true},
       {action: 'restart', icon: 'mdi-restart', labelKey: 'systemBar.restart'},
       {action: 'exit', icon: 'mdi-logout', labelKey: 'common.exit', hotkey: 'Ctrl+Q'},
+    ],
+  },
+  {
+    id: 'window',
+    labelKey: 'systemBar.menu_window',
+    items: [
+      {action: 'minimizeWindow', icon: 'mdi-window-minimize', labelKey: 'systemBar.minimize'},
+      {action: 'toggleMaximize', icon: 'mdi-window-maximize', labelKey: 'systemBar.maximize'},
+      {divider: true},
+      {action: 'closeWindow', icon: 'mdi-window-close', labelKey: 'systemBar.close_window'},
     ],
   },
   {

@@ -9,6 +9,7 @@ import {useAppZoom} from '@/composable/useAppZoom'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {setOption} from '@/services/settingsService'
 import {openPath} from '@/services/shellService'
+import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
 import type {SystemMenuAction} from '@/types/systemMenu'
 
 const WEBSITE_URL = 'https://mediachips.app/'
@@ -26,6 +27,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   const eventBus = useEventBus()
   const appZoom = useAppZoom()
   const {ensureInitialized, check, isSupported} = useAppUpdater()
+  const {isWindowMaximized} = useWindowMaximizedState()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -106,6 +108,17 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         }
         break
       case 'exit':
+        window.electronAPI?.send?.('closeApp')
+        break
+      case 'minimizeWindow':
+        await window.electronAPI?.invoke?.('minimize')
+        break
+      case 'toggleMaximize':
+        if (window.electronAPI?.invoke) {
+          await window.electronAPI.invoke(isWindowMaximized.value ? 'unmaximize' : 'maximize')
+        }
+        break
+      case 'closeWindow':
         window.electronAPI?.send?.('closeApp')
         break
       case 'documentation':
