@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import {spawn, spawnSync} from 'child_process'
 import {createConnection} from 'node:net'
+import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'fs'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const E2E_PORT = 12321
+const E2E_CONFIG_PATH = join(root, 'public/config.json')
 
 function isPortInUse(port) {
   return new Promise((resolve) => {
@@ -39,11 +41,43 @@ function run(command, args = []) {
   }
 }
 
+function ensureE2eConfig() {
+  mkdirSync(dirname(E2E_CONFIG_PATH), {recursive: true})
+
+  let config = null
+  if (existsSync(E2E_CONFIG_PATH)) {
+    try {
+      config = JSON.parse(readFileSync(E2E_CONFIG_PATH, 'utf8'))
+    } catch {
+      config = null
+    }
+  }
+
+  const databaseId = config?.databases?.[0]?.id || Date.now().toString(16)
+  const baseConfig = config && Array.isArray(config.databases) ? config : {
+    databases: [{
+      id: databaseId,
+      name: 'Default',
+      active: true,
+      createdAt: Date.now(),
+    }],
+  }
+
+  writeFileSync(E2E_CONFIG_PATH, JSON.stringify({
+    ...baseConfig,
+    port: E2E_PORT,
+    onboardingCompleted: '1',
+    onboardingPaused: '0',
+    onboardingStep: '0',
+  }, null, 2))
+}
+
 await ensurePortAvailable()
 if (!process.env.SKIP_E2E_BUILD) {
   run('npm', ['run', 'build:app'])
 }
 run('node', ['scripts/run-server.mjs', '--prepare'])
+ensureE2eConfig()
 
 const server = spawn('node', ['app/server.js'], {
   cwd: root,
