@@ -196,11 +196,16 @@ export const VideoPreviewTaskRequestSchema = z.object({
   overwrite: z.boolean().optional(),
 }).passthrough()
 
-export const SuggestTagsRequestSchema = z.object({
-  paths: z.array(z.object({
+export const SuggestTagsPathEntrySchema = z.union([
+  z.string(),
+  z.object({
     path: z.string().optional(),
     mediaId: z.coerce.number().optional(),
-  }).passthrough()).optional(),
+  }).passthrough(),
+])
+
+export const SuggestTagsRequestSchema = z.object({
+  paths: z.array(SuggestTagsPathEntrySchema).optional(),
   limit: z.coerce.number().optional(),
   maxWords: z.coerce.number().optional(),
   excludeExisting: optionalCoercedBoolean,

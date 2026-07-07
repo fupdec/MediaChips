@@ -499,7 +499,7 @@ export const useMediaAdding = () => {
     try {
       task.value.status = t('media.adding.suggesting_tags_from_paths')
       const response = await typedApi.suggestTagsFromPaths({
-        paths: task.value.added,
+        paths: task.value.added.map((filePath) => ({ path: filePath })),
         limit: 30,
         maxWords: 3,
         excludeExisting: true,

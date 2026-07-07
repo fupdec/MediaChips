@@ -18,3 +18,7 @@ export const optionalCoercedNumberSchema = coercedNumberSchema.optional()
 export const nullableCoercedNumberSchema = z.coerce.number().nullable()
 
 export const optionalNullableCoercedNumberSchema = nullableCoercedNumberSchema.optional()
+
+export const nullableStringSchema = z.string().nullable()
+
+export const optionalNullableStringSchema = nullableStringSchema.optional()

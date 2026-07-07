@@ -1,7 +1,6 @@
 import { createSettingsRepository } from '../../db/repositories/settings'
 import {
   DEFAULT_GLOBAL_APP_CONFIG,
-  GLOBAL_APP_CONFIG_KEYS,
   readGlobalConfigString,
   type GlobalAppConfigKey,
 } from '../../../shared/appGlobalConfig'
@@ -25,38 +24,27 @@ function getGlobalServerConfig(): Record<string, unknown> | null {
   return globalConfig.serverConfig ?? null
 }
 
-function readTranscodeSettingsFromGlobalConfig(): Partial<TranscodeSettings> {
-  const globalConfig = getGlobalServerConfig()
-  if (!globalConfig) return {}
+function readTranscodeSettingsFromGlobalConfig(
+  globalConfig: Record<string, unknown>,
+): TranscodeSettings {
+  const settings = {} as TranscodeSettings
 
-  const settings: Partial<TranscodeSettings> = {}
   for (const key of Object.keys(DEFAULTS) as TranscodeSettingKey[]) {
-    if (typeof globalConfig[key] === 'string') {
-      settings[key] = globalConfig[key] as string
-    }
+    settings[key] = readGlobalConfigString(globalConfig, key)
   }
 
   return settings
 }
 
-function hasTranscodeSettingsInGlobalConfig(): boolean {
-  const globalConfig = getGlobalServerConfig()
-  if (!globalConfig) return false
-
-  return (Object.keys(DEFAULTS) as TranscodeSettingKey[]).some((key) =>
-    typeof globalConfig[key] === 'string',
-  )
-}
-
 async function getTranscodeSettings(db: TranscodeDb | null | undefined): Promise<TranscodeSettings> {
-  const settings: TranscodeSettings = {...DEFAULTS}
-  const globalSettings = readTranscodeSettingsFromGlobalConfig()
-
-  for (const [key, value] of Object.entries(globalSettings) as Array<[TranscodeSettingKey, string]>) {
-    settings[key] = value
+  const globalConfig = getGlobalServerConfig()
+  if (globalConfig) {
+    return readTranscodeSettingsFromGlobalConfig(globalConfig)
   }
 
-  if (hasTranscodeSettingsInGlobalConfig() || !db?.drizzle) {
+  const settings: TranscodeSettings = {...DEFAULTS}
+
+  if (!db?.drizzle) {
     return settings
   }
 
@@ -66,8 +54,9 @@ async function getTranscodeSettings(db: TranscodeDb | null | undefined): Promise
 
     for (const row of rows) {
       const key = row.option as TranscodeSettingKey
-      if (key in settings) {
-        settings[key] = String(row.value)
+      const value = String(row.value ?? '')
+      if (key in settings && value !== '') {
+        settings[key] = value
       }
     }
   } catch (error) {

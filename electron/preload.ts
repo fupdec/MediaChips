@@ -18,6 +18,11 @@ const validInvokeChannels = [...IPC_INVOKE_CHANNELS]
 
 const validOnChannels = [...IPC_ON_CHANNELS]
 
+const payloadObjectChannels = new Set([
+  'getItemsFromDb',
+  'removeEntitiesFromState',
+])
+
 function includesChannel(channels: readonly string[], channel: string): boolean {
   return channels.includes(channel)
 }
@@ -131,6 +136,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       } else {
         // Для остальных каналов передаем как есть
         const subscription: IpcListener = (event, ...args) => {
+          if (payloadObjectChannels.has(channel)) {
+            const payload = args[0]
+            if (payload == null || typeof payload !== 'object' || Array.isArray(payload)) {
+              ipcWarn(`[IPC] Ignoring ${channel} with invalid payload:`, args)
+              return
+            }
+          }
+
           ipcLog(`[IPC] Received from ${channel}:`, args);
           callback(...args);
         };

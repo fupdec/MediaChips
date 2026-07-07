@@ -42,6 +42,23 @@ describe('shared schemas', () => {
     ])
   })
 
+  it('parses sqlite-style meta rows with null text fields', () => {
+    expect(parseMetaList([{ id: 4, name: null, type: 'array' }])).toEqual([
+      { id: 4, name: null, type: 'array' },
+    ])
+  })
+
+  it('parses sqlite-style media list rows with null numeric fields', () => {
+    const result = parseMediaListResponse({
+      items: [{ id: 10, name: 'clip.mp4', time: null, duration: null }],
+      totalFiltered: null,
+      totalFilesize: null,
+      total: null,
+    })
+    expect(result.items?.[0]?.time).toBeNull()
+    expect(result.totalFiltered).toBeNull()
+  })
+
   it('parses settings entries', () => {
     expect(parseSettings([{ option: 'theme', value: 'dark' }])).toEqual([
       { option: 'theme', value: 'dark' },

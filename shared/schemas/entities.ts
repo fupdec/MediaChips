@@ -1,18 +1,28 @@
 import { z } from 'zod'
-import { coercedBooleanSchema, optionalCoercedBooleanSchema } from './coercion'
+import {
+  coercedBooleanSchema,
+  optionalCoercedBooleanSchema,
+  optionalNullableCoercedNumberSchema,
+  optionalNullableStringSchema,
+} from './coercion'
 
-export { coercedBooleanSchema, optionalCoercedBooleanSchema } from './coercion'
+export {
+  coercedBooleanSchema,
+  optionalCoercedBooleanSchema,
+  optionalNullableCoercedNumberSchema,
+  optionalNullableStringSchema,
+} from './coercion'
 
 export const MediaTypeSchema = z.object({
   id: z.number(),
-  type: z.string().optional(),
-  name: z.string().optional(),
-  nameSingular: z.string().optional(),
-  icon: z.string().optional(),
-  extensions: z.string().optional(),
+  type: optionalNullableStringSchema,
+  name: optionalNullableStringSchema,
+  nameSingular: optionalNullableStringSchema,
+  icon: optionalNullableStringSchema,
+  extensions: optionalNullableStringSchema,
   hidden: z.boolean().optional(),
   custom: z.boolean().optional(),
-  order: z.number().optional(),
+  order: optionalNullableCoercedNumberSchema,
 })
 
 export const TagSchema = z.object({
@@ -27,30 +37,30 @@ export const TagSchema = z.object({
 
 export const MetaSchema = z.object({
   id: z.number(),
-  name: z.string().optional(),
+  name: optionalNullableStringSchema,
   parser: z.boolean().optional(),
-  icon: z.string().optional(),
-  chipVariant: z.string().optional(),
+  icon: optionalNullableStringSchema,
+  chipVariant: optionalNullableStringSchema,
   color: z.boolean().optional(),
   rating: z.boolean().optional(),
   favorite: optionalCoercedBooleanSchema,
   synonyms: z.boolean().optional(),
-  imageAspectRatio: z.number().optional(),
-  tagPageDesign: z.string().optional(),
+  imageAspectRatio: optionalNullableCoercedNumberSchema,
+  tagPageDesign: optionalNullableStringSchema,
   hidden: z.boolean().optional(),
-  order: z.number().optional(),
-  type: z.string().optional(),
+  order: optionalNullableCoercedNumberSchema,
+  type: optionalNullableStringSchema,
 }).passthrough()
 
 export const TabSchema = z.object({
   id: z.union([z.number(), z.string()]).optional(),
-  url: z.string().optional(),
-  name: z.string().optional(),
+  url: optionalNullableStringSchema,
+  name: optionalNullableStringSchema,
 }).passthrough()
 
 export const PlaylistSchema = z.object({
   id: z.number(),
-  name: z.string().optional(),
+  name: optionalNullableStringSchema,
 }).passthrough()
 
 export const SettingEntrySchema = z.object({
@@ -73,23 +83,23 @@ export const FilterObjectSchema = z.object({
 
 export const MediaItemSchema = z.object({
   id: z.number(),
-  name: z.string().optional(),
-  path: z.string().optional(),
-  mediaTypeId: z.number().optional(),
-  thumb: z.string().optional(),
-  views: z.number().optional(),
+  name: optionalNullableStringSchema,
+  path: optionalNullableStringSchema,
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+  thumb: optionalNullableStringSchema,
+  views: optionalNullableCoercedNumberSchema,
   favorite: optionalCoercedBooleanSchema,
-  duration: z.number().optional(),
-  time: z.number().optional(),
+  duration: optionalNullableCoercedNumberSchema,
+  time: optionalNullableCoercedNumberSchema,
 }).passthrough()
 
 export const MediaListResponseSchema = z.object({
   items: z.array(MediaItemSchema).optional(),
-  totalFiltered: z.number().optional(),
-  totalFilesize: z.number().optional(),
-  total: z.number().optional(),
-  pages: z.number().optional(),
-  page: z.number().optional(),
+  totalFiltered: optionalNullableCoercedNumberSchema,
+  totalFilesize: optionalNullableCoercedNumberSchema,
+  total: optionalNullableCoercedNumberSchema,
+  pages: optionalNullableCoercedNumberSchema,
+  page: optionalNullableCoercedNumberSchema,
   navigation: z.array(MediaItemSchema).optional(),
 })
 
