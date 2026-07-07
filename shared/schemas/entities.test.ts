@@ -44,7 +44,7 @@ describe('shared schemas', () => {
 
   it('parses sqlite-style meta rows with null text fields', () => {
     expect(parseMetaList([{ id: 4, name: null, type: 'array' }])).toEqual([
-      { id: 4, name: null, type: 'array' },
+      { id: 4, name: undefined, type: 'array' },
     ])
   })
 
@@ -55,8 +55,8 @@ describe('shared schemas', () => {
       totalFilesize: null,
       total: null,
     })
-    expect(result.items?.[0]?.time).toBeNull()
-    expect(result.totalFiltered).toBeNull()
+    expect(result.items?.[0]?.time).toBeUndefined()
+    expect(result.totalFiltered).toBeUndefined()
   })
 
   it('parses settings entries', () => {

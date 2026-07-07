@@ -46,7 +46,7 @@ export async function openPath(entryPath: string, isDirectory?: boolean) {
     })
   } catch (error) {
     const err = error as AxiosLikeError
-    const message = err.response?.data?.message || err.message
+    const message = err.response?.data?.message || err.message || 'Failed to open path'
     notifyOpenPathError(message)
     throw error
   }

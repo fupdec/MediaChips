@@ -17,8 +17,14 @@ export const optionalCoercedNumberSchema = coercedNumberSchema.optional()
 
 export const nullableCoercedNumberSchema = z.coerce.number().nullable()
 
-export const optionalNullableCoercedNumberSchema = nullableCoercedNumberSchema.optional()
+export const optionalNullableCoercedNumberSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.coerce.number().optional(),
+)
 
 export const nullableStringSchema = z.string().nullable()
 
-export const optionalNullableStringSchema = nullableStringSchema.optional()
+export const optionalNullableStringSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().optional(),
+)
