@@ -49,6 +49,17 @@ export interface SystemMenuConfig {
 
 export const SYSTEM_MENUS: SystemMenuConfig[] = [
   {
+    id: 'app',
+    labelKey: 'systemBar.menu_app',
+    items: [
+      {action: 'settings', icon: 'mdi-cog', labelKey: 'systemBar.settings', hotkey: 'Ctrl+,'},
+      {action: 'lock', icon: 'mdi-lock', labelKey: 'systemBar.lock'},
+      {divider: true},
+      {action: 'restart', icon: 'mdi-restart', labelKey: 'systemBar.restart'},
+      {action: 'exit', icon: 'mdi-logout', labelKey: 'common.exit', hotkey: 'Ctrl+Q'},
+    ],
+  },
+  {
     id: 'file',
     labelKey: 'systemBar.menu_file',
     items: [
@@ -58,21 +69,6 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
       {action: 'exportBackup', icon: 'mdi-database-export', labelKey: 'systemBar.export_backup'},
       {divider: true},
       {action: 'openDataFolder', icon: 'mdi-folder-open', labelKey: 'systemBar.open_data_folder'},
-    ],
-  },
-  {
-    id: 'edit',
-    labelKey: 'systemBar.menu_edit',
-    items: [
-      {action: 'undo', labelKey: 'systemBar.undo', hotkey: 'Ctrl+Z'},
-      {action: 'redo', labelKey: 'systemBar.redo', hotkey: 'Ctrl+Y'},
-      {divider: true},
-      {action: 'cut', labelKey: 'systemBar.cut', hotkey: 'Ctrl+X'},
-      {action: 'copy', labelKey: 'systemBar.copy', hotkey: 'Ctrl+C'},
-      {action: 'paste', labelKey: 'systemBar.paste', hotkey: 'Ctrl+V'},
-      {divider: true},
-      {action: 'selectAll', labelKey: 'systemBar.select_all', hotkey: 'Ctrl+A'},
-      {action: 'find', labelKey: 'systemBar.find', hotkey: 'Ctrl+F'},
     ],
   },
   {
@@ -87,27 +83,6 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
       {action: 'resetZoom', labelKey: 'systemBar.reset_zoom', hotkey: 'Ctrl+0'},
       {divider: true},
       {action: 'toggleFullscreen', icon: 'mdi-fullscreen', labelKey: 'systemBar.toggle_fullscreen'},
-    ],
-  },
-  {
-    id: 'app',
-    labelKey: 'systemBar.menu_app',
-    items: [
-      {action: 'settings', icon: 'mdi-cog', labelKey: 'systemBar.settings', hotkey: 'Ctrl+,'},
-      {action: 'lock', icon: 'mdi-lock', labelKey: 'systemBar.lock'},
-      {divider: true},
-      {action: 'restart', icon: 'mdi-restart', labelKey: 'systemBar.restart'},
-      {action: 'exit', icon: 'mdi-logout', labelKey: 'common.exit', hotkey: 'Ctrl+Q'},
-    ],
-  },
-  {
-    id: 'window',
-    labelKey: 'systemBar.menu_window',
-    items: [
-      {action: 'minimizeWindow', icon: 'mdi-window-minimize', labelKey: 'systemBar.minimize'},
-      {action: 'toggleMaximize', icon: 'mdi-window-maximize', labelKey: 'systemBar.maximize'},
-      {divider: true},
-      {action: 'closeWindow', icon: 'mdi-window-close', labelKey: 'systemBar.close_window'},
     ],
   },
   {

@@ -596,6 +596,128 @@ function menuActionItem(label: string, action: string, accelerator?: string) {
 
 const isMac = process.platform === 'darwin'
 
+const fileMenu = {
+  label: 'File',
+  submenu: [
+    menuActionItem('Add Media', 'addMedia'),
+    {type: 'separator' as const},
+    menuActionItem('Import Backup...', 'importBackup'),
+    menuActionItem('Export Backup...', 'exportBackup'),
+    {type: 'separator' as const},
+    menuActionItem('Open Data Folder', 'openDataFolder'),
+    {type: 'separator' as const},
+    {role: 'close' as const},
+  ],
+}
+
+const editMenu = {
+  label: 'Edit',
+  submenu: [
+    {
+      label: 'Undo',
+      accelerator: 'CommandOrControl+Z',
+      role: 'undo' as const,
+    },
+    {
+      label: 'Redo',
+      accelerator: 'CommandOrControl+Y',
+      role: 'redo' as const,
+    },
+    {type: 'separator' as const},
+    {
+      label: 'Cut',
+      accelerator: 'CommandOrControl+X',
+      role: 'cut' as const,
+    },
+    {
+      label: 'Copy',
+      accelerator: 'CommandOrControl+C',
+      role: 'copy' as const,
+    },
+    {
+      label: 'Paste',
+      accelerator: 'CommandOrControl+V',
+      role: 'paste' as const,
+    },
+    {type: 'separator' as const},
+    {
+      label: 'Select all',
+      accelerator: 'CommandOrControl+A',
+      role: 'selectAll' as const,
+    },
+    menuActionItem('Find', 'find', 'CommandOrControl+F'),
+  ],
+}
+
+const viewMenu = {
+  label: 'View',
+  submenu: [
+    menuActionItem('Global Search', 'globalSearch'),
+    menuActionItem('Toggle Theme', 'toggleTheme'),
+    {type: 'separator' as const},
+    {role: 'zoomIn' as const},
+    {role: 'zoomOut' as const},
+    {role: 'resetZoom' as const},
+    {type: 'separator' as const},
+    {role: 'togglefullscreen' as const},
+  ],
+}
+
+const appMenu = {
+  label: 'App',
+  submenu: [
+    menuActionItem('Settings', 'settings', 'CommandOrControl+,'),
+    {
+      label: 'Lock',
+      id: 'lock',
+      enabled: true,
+      click() {
+        lockApp()
+      },
+    },
+    {type: 'separator' as const},
+    menuActionItem('Restart', 'restart'),
+    ...(!isMac ? [{
+      label: 'Exit',
+      accelerator: 'CommandOrControl+Q',
+      click() {
+        app.exit()
+      },
+    }] : []),
+  ],
+}
+
+const windowMenu = {
+  label: 'Window',
+  submenu: [
+    {role: 'minimize' as const},
+    {role: 'zoom' as const},
+    {type: 'separator' as const},
+    {role: 'front' as const},
+  ],
+}
+
+const helpMenu = {
+  label: 'Help',
+  submenu: [
+    menuActionItem('Documentation', 'documentation'),
+    menuActionItem('Send Feedback', 'sendFeedback'),
+    menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),
+    {type: 'separator' as const},
+    menuActionItem('Check for Updates', 'checkUpdates'),
+    menuActionItem('Version History', 'versionHistory'),
+    menuActionItem('Website', 'website'),
+    {type: 'separator' as const},
+    {
+      label: 'Toggle Developer Tools',
+      accelerator: 'CommandOrControl+Shift+I',
+      role: 'toggleDevTools' as const,
+    },
+    {type: 'separator' as const},
+    menuActionItem('About', 'about'),
+  ],
+}
+
 const systemMenu = Menu.buildFromTemplate([
   ...(isMac ? [{
     label: app.name,
@@ -609,122 +731,9 @@ const systemMenu = Menu.buildFromTemplate([
       {role: 'quit' as const},
     ],
   }] : []),
-  {
-    label: 'File',
-    submenu: [
-      menuActionItem('Add Media', 'addMedia'),
-      {type: 'separator'},
-      menuActionItem('Import Backup...', 'importBackup'),
-      menuActionItem('Export Backup...', 'exportBackup'),
-      {type: 'separator'},
-      menuActionItem('Open Data Folder', 'openDataFolder'),
-      {type: 'separator'},
-      {role: 'close'},
-    ],
-  },
-  {
-    label: 'Edit',
-    submenu: [
-      {
-        label: 'Undo',
-        accelerator: 'CommandOrControl+Z',
-        role: 'undo',
-      },
-      {
-        label: 'Redo',
-        accelerator: 'CommandOrControl+Y',
-        role: 'redo',
-      },
-      {type: 'separator'},
-      {
-        label: 'Cut',
-        accelerator: 'CommandOrControl+X',
-        role: 'cut',
-      },
-      {
-        label: 'Copy',
-        accelerator: 'CommandOrControl+C',
-        role: 'copy',
-      },
-      {
-        label: 'Paste',
-        accelerator: 'CommandOrControl+V',
-        role: 'paste',
-      },
-      {type: 'separator'},
-      {
-        label: 'Select all',
-        accelerator: 'CommandOrControl+A',
-        role: 'selectAll',
-      },
-      menuActionItem('Find', 'find', 'CommandOrControl+F'),
-    ],
-  },
-  {
-    label: 'View',
-    submenu: [
-      menuActionItem('Global Search', 'globalSearch'),
-      menuActionItem('Toggle Theme', 'toggleTheme'),
-      {type: 'separator'},
-      {role: 'zoomIn'},
-      {role: 'zoomOut'},
-      {role: 'resetZoom'},
-      {type: 'separator'},
-      {role: 'togglefullscreen'},
-    ],
-  },
-  {
-    label: 'App',
-    submenu: [
-      menuActionItem('Settings', 'settings', 'CommandOrControl+,'),
-      {
-        label: 'Lock',
-        id: 'lock',
-        enabled: true,
-        click() {
-          lockApp()
-        },
-      },
-      {type: 'separator'},
-      menuActionItem('Restart', 'restart'),
-      ...(!isMac ? [{
-        label: 'Exit',
-        accelerator: 'CommandOrControl+Q',
-        click() {
-          app.exit()
-        },
-      }] : []),
-    ],
-  },
-  ...(isMac ? [{
-    label: 'Window',
-    submenu: [
-      {role: 'minimize' as const},
-      {role: 'zoom' as const},
-      {type: 'separator' as const},
-      {role: 'front' as const},
-    ],
-  }] : []),
-  {
-    label: 'Help',
-    submenu: [
-      menuActionItem('Documentation', 'documentation'),
-      menuActionItem('Send Feedback', 'sendFeedback'),
-      menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),
-      {type: 'separator'},
-      menuActionItem('Check for Updates', 'checkUpdates'),
-      menuActionItem('Version History', 'versionHistory'),
-      menuActionItem('Website', 'website'),
-      {type: 'separator'},
-      {
-        label: 'Toggle Developer Tools',
-        accelerator: 'CommandOrControl+Shift+I',
-        role: 'toggleDevTools',
-      },
-      {type: 'separator'},
-      menuActionItem('About', 'about'),
-    ],
-  },
+  ...(isMac
+    ? [fileMenu, editMenu, viewMenu, appMenu, windowMenu, helpMenu]
+    : [appMenu, fileMenu, viewMenu, helpMenu]),
 ])
 
 Menu.setApplicationMenu(systemMenu)
