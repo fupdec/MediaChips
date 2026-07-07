@@ -304,8 +304,11 @@ function openDialogFolder(folder: WatcherFilesEntry) {
 <style scoped
   lang="scss">
 .scrollable {
-  overflow-y: auto;
-  height: calc(100vh - 64px);
+  height: 100%;
+}
+
+:deep(.v-navigation-drawer__content) {
+  overflow: hidden;
 }
 
 .ghost {
