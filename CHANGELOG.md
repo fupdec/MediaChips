@@ -5,17 +5,33 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-07-01
+## [1.0.0] - 2026-07-07
+
+First stable release of the Vue 3 rewrite.
 
 ### Added
 
 - **LowDB migration wizard** — auto-detects legacy `dbs.json` on startup and opens the migration dialog
+- **Onboarding wizard** — first-launch setup guide with resumable progress stored in `config.json`
+- **Tag page layouts** — switchable designs per tag category (profile, grid, and more)
+- **Metadata field pinning** — drag-and-drop boards for assigning and reordering pinned fields
+- **Windows system tray** — optional minimize-to-tray on close (Settings → General)
+- **Windows Window menu** — Minimize, Zoom, and Full Screen in the system menu bar
+- **FTS search** — full-text search for tags and media with lazy ML model loading
+- **Video codec backfill** — maintenance task for videos missing ffprobe metadata
+- **Copy to clipboard** — tag names and file paths from the tag page header
 - **E2E test suite** — expanded from smoke tests to 16 scenarios (API auth, health, backups, navigation)
 - **Coverage thresholds** in CI to prevent test coverage regression
 
 ### Changed
 
 - **Vue 3 rewrite** — first stable release on the `master` branch
+- **Machine-level settings** — global options (zoom, LAN access, transcode, tray) moved from the database to `config.json`
+- **License registration** — stored in `config.json` instead of the database
+- **Backend** — migrated to ESM imports; Drizzle ORM with performance indexes for duplicates and filters
+- **Startup performance** — deferred heavy modules, lazy-loaded home widgets, trimmed packaged logs, smaller installers
+- **Library browsing** — server-side tag pagination, grid thumb prefetch, stabilized infinite scroll
+- **Watched folders** — faster imports, improved scan reliability, menu badge refresh after adding files
 - **Tag list loading** — `find_duplicates` no longer forces the legacy JS filter path for tag pages
 - **API error responses** — task controllers return structured `{ message }` instead of raw error objects
 - **Production logging** — removed debug console output from Electron bootstrap and server startup
@@ -23,8 +39,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Production builds** — tags and media lists empty in packaged installers (server imported from excluded `src/`)
+- **Global search** — filtering for non-ASCII media and tag names; hover preview aspect ratio
+- **Tag and media editing** — FTS sync on save; dialogs stay open until pinned meta save completes
+- **Database switching** — home widgets refresh after activation
+- **Drag-and-drop overlay** — confined to main content area; respects app chrome offsets
 - **PageTag** — API failures now show notifications and an error alert instead of failing silently
 - **DialogMigration** — restore backup errors are surfaced to the user
+- **Timeline and player** — hover preview positioning; frame images for scrub preview
+- **Tag previews** — `unavailable.png` fallback when thumb files are missing
+- **Filter panel** — dropdown positioning and overlay z-index
+- **Windows** — folder drag-and-drop via `webUtils.getPathForFile`; Task API routes in packaged builds
+- **Media insert** — normalized SQLite bind values for `better-sqlite3`
+
+### Upgrade notes
+
+- **From v0.14.x-beta:** in-app auto-update should deliver v1.0.0; otherwise install manually once
+- **From v0.13.1 or older:** install the latest beta or v1.0.0 manually first
+- **Portable Windows** builds do not support in-app auto-update
+- **macOS** builds are unsigned; see [INSTALLATION.md](./INSTALLATION.md) for Gatekeeper steps and manual DMG update flow
 
 ## [0.14.2-beta] - 2026-06-26
 
@@ -82,47 +115,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Redesigned home page** with configurable widgets (stats, extended stats, continue watching, favorites, top views, markers, health alerts, top tags, quick actions)
-- **Audio media type** — full support across backend and UI: metadata, filters, playback, and home widgets
-- **Text media type** — previews, editing, and “open file” actions
+- **Audio** and **text** media types with full backend and UI support
 - **SFW mode** — optional blur for images in the main content area
-- **Persistent interface zoom** — keyboard shortcuts, settings UI, and sync with Electron on desktop
+- **Persistent interface zoom** with keyboard shortcuts and settings
 - **Markers page** — filtering, sorting, infinite scroll, and thumbnail generation
-- **Settings → Video** tab for video-related options (moved out of scattered sections)
-- **Field pinning settings** — drag-reorder and consistent card display order for pinned metadata
-- **Database maintenance tools** — faster media library operations and batch video image generation in database settings
-- **Meta sort mode** with view counts in tag-related settings
+- **Settings → Video** tab; **field pinning** with drag-reorder
+- **Database maintenance tools** and batch video image generation
 - **Mute toggle** on fullscreen video hover preview
-- **Feedback form** — includes OS info and system details in the footer
-- **Lowercase API path normalization** on the server (`/api/media` → `/api/Media`, etc.) for consistent routing in production builds
-- **In-app documentation** updates for the Video settings section
 
 ### Changed
 
-- **Settings** reorganized into focused sidebar tabs: General, Appearance, Library, Files, Video, About
-- **Library settings** streamlined — media types, metadata, scraper, and quick tags grouped under one tab
-- **Items pagination** refactored with improved infinite-scroll loading and virtual grid behavior
-- **Smart playlists** and **saved filters** UI polished; playlist page loads faster
-- **Settings lists** show database sizes; tools layout uses inline hints and section cards
-- **Filters drawer** — higher background opacity for readability
-- **Settings page layout** — unified width via shared `v-container`, nested sections scroll correctly
+- **Settings** reorganized into General, Appearance, Library, Files, Video, and About tabs
+- Improved **items pagination**, infinite scroll, smart playlists, and saved filters UI
+- Settings lists show **database sizes**; filters drawer readability improved
 - **Item context menu** labels localized across all locales
-- **Theme colors** apply immediately when changed in settings
 
 ### Fixed
 
-- **Production builds (macOS DMG and installers)** — Media and Tag API routes failed to register because server code imported from excluded `src/`; tags and media lists appeared empty while other DB stats still worked
-- API routing gaps (`bulk-meta` routes, dev config loading, installer excludes)
-- **macOS auto-update** for unsigned builds — updater offers download instead of blocked in-place install
-- **License activation** — stable hardware fingerprint; path handling and thumbnail crop regressions from v0.13
-- **Tag page** tabs — lazy rendering, correct ordering, refresh after tag removal
-- **Player** playback error layout when no playable file is found
-- **Import** duplicate detection and skipped-file messaging
-- **System player** launch on Windows 11 via `shell.openPath`
-- **Country flags** for tag names that contain commas
-- **Documentation tree** — highlight and expand the active article
-- **Image viewer** loading and conflicting pinch-zoom gestures
-- **List page** regressions after pagination changes
-- **Settings page** flex layout so nested content scrolls on smaller windows
+- **Production builds (DMG/installers)** — tags and media lists empty because server code imported from excluded `src/`
+- API routing gaps; macOS auto-update for unsigned builds
+- License activation, tag page tabs, player error layout, import duplicates
+- System player on Windows 11; country flags with commas in names
+- Image viewer, list pagination regressions, settings scroll layout
 
 ### Upgrade notes
 
@@ -132,40 +146,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **macOS** builds are unsigned; see [INSTALLATION.md](./INSTALLATION.md) for Gatekeeper steps and manual DMG update flow
 - This is a **beta** — report issues on GitHub before the stable v0.14.0 release
 
-## [0.13.1] - 2026-06-22
+## [0.13.1] - 2026-06-20
 
 ### Added
 
 - **In-app auto-update** for Windows (NSIS), macOS (ZIP), and Linux (AppImage) via GitHub Releases
-- **Settings → About** — manual update check and “check for updates at startup” option
 - **GitHub Actions** — CI workflow and multi-platform release pipeline (Windows, macOS, Linux)
-- **On-demand CLIP model** — video object recognition model (~150 MB) downloads from the import dialog when needed, not bundled in the installer
-- **Images media type** — full support across backend and UI
-- **Server-side media pagination** and virtual grid utilities for smoother infinite-scroll media lists
 - **In-app version history** entry for the v0.13.0 Vue 3 rewrite
-- **About dialog** localization and auto-parsed dependency list
 
 ### Changed
 
-- **Smaller installers** — CLIP model removed from build artifacts; path parser model (MiniLM, ~23 MB) remains bundled
 - **macOS releases** — separate `arm64` and `x64` DMG/ZIP builds instead of a universal binary
-- **Windows Electron UI** — unified header bar styling; SystemBar shown only on Windows Electron
-- **AppBar** — use default elevation shadow on Windows Electron
-- Tracked `package-lock.json` for reproducible CI builds
 
 ### Fixed
 
-- Blank white Electron window on Windows 11
-- Windows Electron header chrome and SystemBar menus
-- About dialog on macOS
-- Duplicate import that broke the production build
-- List page regressions after pagination changes
-- `electron-builder` config (invalid `zip` section for v26)
-- Linux CI build — use PNG icon instead of ICNS
-- macOS CI build — avoid universal binary failure with native `sharp` modules
 - Release publish workflow — single publish job, installer-only uploads, retries, git checkout for `gh release create`
-- **macOS auto-update** — unsigned builds cannot use in-place install; updater offers **Download DMG** instead of ShipIt install
-- macOS DMG window layout for drag-to-Applications install
 
 ### Upgrade notes
 

@@ -4,17 +4,20 @@ export const history = [
     version: 'v1.0.0',
     name: 'First stable Vue 3 release',
     content: `
-      <p><strong>MediaChips v1.0.0</strong> is the first stable release of the Vue 3 rewrite with migration support, expanded tests, and production polish.</p>
+      <p><strong>MediaChips v1.0.0</strong> is the first stable release of the Vue 3 rewrite — migration support, onboarding, performance improvements, and production polish.</p>
       <h3>Highlights:</h3>
       <ul>
         <li><strong>LowDB migration</strong> — automatic detection and wizard for legacy databases</li>
-        <li><strong>Performance</strong> — SQL path for duplicate finder; lazy-loaded heavy assets</li>
-        <li><strong>Reliability</strong> — improved error handling in tag pages and task APIs</li>
-        <li><strong>Quality</strong> — 454 unit tests and 16 E2E scenarios</li>
+        <li><strong>Onboarding wizard</strong> — first-launch setup with resumable progress</li>
+        <li><strong>Tag page layouts</strong> — switchable designs per tag category</li>
+        <li><strong>Field pinning</strong> — drag-and-drop boards for metadata assignment</li>
+        <li><strong>Windows tray</strong> — optional minimize-to-tray on close</li>
+        <li><strong>Performance</strong> — faster startup, duplicate finder SQL indexes, watched-folder imports</li>
+        <li><strong>Quality</strong> — 485 unit tests and 16 E2E scenarios</li>
       </ul>
       <h3>Notes:</h3>
       <ul>
-        <li><strong>From beta builds:</strong> in-app auto-update should deliver v1.0.0</li>
+        <li><strong>From v0.14.x-beta:</strong> in-app auto-update should deliver v1.0.0</li>
         <li><strong>macOS (unsigned):</strong> see INSTALLATION.md for Gatekeeper steps</li>
         <li>Full changelog: <a href="https://github.com/fupdec/MediaChips/blob/master/CHANGELOG.md" target="_blank">CHANGELOG.md</a></li>
       </ul>

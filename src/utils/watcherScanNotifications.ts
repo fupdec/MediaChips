@@ -1,6 +1,10 @@
 import { setNotification } from '@/services/notificationService'
 import { useNotificationsStore } from '@/stores/notifications'
-import type { ComposerTranslation } from 'vue-i18n'
+
+export type WatcherTranslate = (
+  key: string,
+  named?: Record<string, unknown>,
+) => string
 
 export interface WatcherScanStartPayload {
   folderCount: number
@@ -33,7 +37,7 @@ function folderLabel(folder: WatcherScanFolderSummary): string {
   return parts[parts.length - 1] || folder.path
 }
 
-function buildScanStartText(t: ComposerTranslation, payload: WatcherScanStartPayload): string {
+function buildScanStartText(t: WatcherTranslate, payload: WatcherScanStartPayload): string {
   if (payload.folderNames.length === 1) {
     return t('watcher.scan.start_single', {name: payload.folderNames[0]})
   }
@@ -45,7 +49,7 @@ function buildScanStartText(t: ComposerTranslation, payload: WatcherScanStartPay
   return t('watcher.scan.start_count', {count: payload.folderCount})
 }
 
-function buildScanCompleteText(t: ComposerTranslation, payload: WatcherScanSummaryPayload): string {
+function buildScanCompleteText(t: WatcherTranslate, payload: WatcherScanSummaryPayload): string {
   if (payload.failed) {
     return payload.error
       ? t('watcher.scan.complete_failed', {error: payload.error})
@@ -76,7 +80,7 @@ function buildScanCompleteText(t: ComposerTranslation, payload: WatcherScanSumma
 }
 
 export function showWatcherScanStartNotification(
-  t: ComposerTranslation,
+  t: WatcherTranslate,
   payload: WatcherScanStartPayload,
 ): number {
   return setNotification({
@@ -89,7 +93,7 @@ export function showWatcherScanStartNotification(
 }
 
 export function showWatcherScanCompleteNotification(
-  t: ComposerTranslation,
+  t: WatcherTranslate,
   payload: WatcherScanSummaryPayload,
   startNotificationId: number | null,
 ): void {
