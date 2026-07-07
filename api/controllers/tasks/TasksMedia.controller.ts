@@ -24,7 +24,6 @@ import {
 } from '../../services/addMediaDedup'
 import {
   enqueueContentHash,
-  enqueueMediaPostProcess,
   runWithFfprobeLimit,
 } from '../../services/mediaPostProcessQueue'
 import {
@@ -282,17 +281,11 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       const result = await addMediaToDb(pathToFile, mediaType, is_check_duplicates)
 
-      sendAddMediaResponse(res, result)
-
       if (result.isCreated && result.media) {
-        enqueueMediaPostProcess(async () => {
-          try {
-            await mediaPostProcess.processNewMedia(result.media, mediaType)
-          } catch (error: unknown) {
-            console.error('Post-processing failed:', apiErrorMessage(error))
-          }
-        })
+        await mediaPostProcess.processNewMedia(result.media, mediaType)
       }
+
+      sendAddMediaResponse(res, result)
     } catch (error) {
       console.error('addMedia failed:', error)
       res.status(400).send({

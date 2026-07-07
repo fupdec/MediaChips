@@ -32,7 +32,7 @@ const filterPathsByExtensions = (paths: string[], extensions: string): string[] 
   })
 }
 
-const ADD_MEDIA_CONCURRENCY = 5
+const ADD_MEDIA_CONCURRENCY = 3
 
 async function runWithConcurrency<T>(
   items: T[],
