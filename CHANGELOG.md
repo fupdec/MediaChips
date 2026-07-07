@@ -5,6 +5,16 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-07-08
+
+### Fixed
+
+- **Windows console validation noise** — API response schemas accept SQLite `null` values for media timestamps, totals, and meta names
+- **Tag suggestions on import** — accept plain file path strings in `suggestTagsFromPaths` requests
+- **Open file/folder on Windows** — prefer native Electron IPC for `openPath` instead of the HTTP task endpoint
+- **Electron IPC crashes** — ignore malformed `getItemsFromDb` / `removeEntitiesFromState` payloads in preload
+- **Transcode defaults** — read transcode settings from `config.json` when keys are missing from server config
+
 ## [1.0.2] - 2026-07-08
 
 ### Fixed

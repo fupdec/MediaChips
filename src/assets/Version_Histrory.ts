@@ -1,5 +1,24 @@
 export const history = [
   {
+    id: '1.0.3',
+    version: 'v1.0.3',
+    name: 'Windows validation and import fixes',
+    content: `
+      <p><strong>MediaChips v1.0.3</strong> reduces Windows console errors, fixes tag suggestions during import, and opens files via native Electron APIs.</p>
+      <h3>Highlights:</h3>
+      <ul>
+        <li><strong>Cleaner startup</strong> — typed API validation accepts SQLite null values for media/meta fields</li>
+        <li><strong>Import tag suggestions</strong> — path-based tag suggestions work again when adding files</li>
+        <li><strong>Open in Explorer</strong> — file and folder opening uses Electron IPC on desktop</li>
+      </ul>
+      <h3>Notes:</h3>
+      <ul>
+        <li><strong>From v1.0.2:</strong> in-app auto-update should deliver v1.0.3</li>
+        <li>Full changelog: <a href="https://github.com/fupdec/MediaChips/blob/master/CHANGELOG.md" target="_blank">CHANGELOG.md</a></li>
+      </ul>
+    `,
+  },
+  {
     id: '1.0.2',
     version: 'v1.0.2',
     name: 'Media previews on import restored',
