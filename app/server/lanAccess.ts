@@ -64,7 +64,7 @@ function syncNetworkConfig(
   config.hostname = enabled ? os.hostname() : 'localhost'
 }
 
-async function initLanAccess(db: ApiDb, _helpers: NetworkHelpers) {
+async function initLanAccess(db: ApiDb, _helpers: NetworkHelpers, config?: ServerConfig) {
   const envValue = readEnvLanAccess()
   if (envValue !== null) {
     lanEnabled = envValue
@@ -74,10 +74,20 @@ async function initLanAccess(db: ApiDb, _helpers: NetworkHelpers) {
 
   envLocked = false
 
+  if (config && typeof config.allowLanAccess === 'string' && config.allowLanAccess !== '') {
+    lanEnabled = parseBooleanSetting(config.allowLanAccess, true)
+    return lanEnabled
+  }
+
   const settingsRepo = createSettingsRepository(db.drizzle)
   const {row: setting} = settingsRepo.findOrCreateByOption('allowLanAccess', '1')
 
   lanEnabled = parseBooleanSetting(setting.value, true)
+
+  if (config) {
+    config.allowLanAccess = lanEnabled ? '1' : '0'
+  }
+
   return lanEnabled
 }
 
@@ -94,6 +104,7 @@ async function applyLanAccessChange(enabled: boolean) {
 
   if (!serverDeps) return
 
+  serverDeps.config.allowLanAccess = enabled ? '1' : '0'
   syncNetworkConfig(serverDeps.config, enabled, serverDeps)
   saveConfigFile(serverDeps.configPath, serverDeps.config)
   await serverDeps.restartListener()

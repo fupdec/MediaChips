@@ -16,6 +16,14 @@ export interface ServerConfig {
   onboardingCompleted?: string
   onboardingStep?: string
   onboardingPaused?: string
+  minimizeToTray?: string
+  allowLanAccess?: string
+  checkForUpdatesAtStartup?: string
+  selectedDisk?: string
+  transcodeUnsupportedFormats?: string
+  transcodeMaxHeight?: string
+  transcodeCacheMaxGb?: string
+  zoom?: string
   databases: ServerDatabaseEntry[]
 }
 

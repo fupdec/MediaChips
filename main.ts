@@ -4,6 +4,8 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  Tray,
+  nativeImage,
   dialog,
   shell,
 } from 'electron'
@@ -61,6 +63,14 @@ const useWinElectronFrame = isWindows
 let win: BrowserWindowInstance | null = null
 let loading: BrowserWindowInstance | null = null
 let player: BrowserWindowInstance | null = null
+let tray: Electron.Tray | null = null
+// When enabled (Windows only), closing the main window hides it to the system
+// tray instead of quitting. Persisted in config.json (`minimizeToTray`); the
+// renderer notifies the main process of runtime changes via `set-minimize-to-tray`.
+let minimizeToTray = false
+// Distinguishes an explicit quit (tray menu / File → Exit) from a window close
+// that should be intercepted and turned into "hide to tray".
+let isQuitting = false
 let suppressPlayerWarmup = false
 let suppressZoomChangedEvent = false
 // Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
@@ -181,6 +191,12 @@ const createWindow = () => {
   const mainWindow = win!
   bindRendererLoadRetry(mainWindow.webContents, () => getRendererUrl())
   mainWindow.loadURL(getRendererUrl())
+  mainWindow.on('close', (event: Electron.Event) => {
+    if (isWindows && minimizeToTray && !isQuitting) {
+      event.preventDefault()
+      mainWindow.hide()
+    }
+  })
   mainWindow.on('closed', () => {
     if (process.platform !== 'darwin') app.quit()
     else win = null
@@ -364,6 +380,12 @@ app.on('ready', async () => {
   }
 
   createWindow()
+
+  // config.json is the source of truth for the tray preference. Initialize the
+  // in-memory flag and create the tray icon before the renderer has loaded.
+  minimizeToTray = isWindows && serverConfig.minimizeToTray === '1'
+  if (minimizeToTray) createTray()
+
   initAppUpdater({getWindow: () => win})
 })
 
@@ -379,6 +401,8 @@ app.on("activate", async () => {
 });
 
 function quitApp() {
+  isQuitting = true
+  destroyTray()
   if (playerWarmupTimer) {
     clearTimeout(playerWarmupTimer)
     playerWarmupTimer = null
@@ -396,8 +420,88 @@ function quitApp() {
   app.quit()
 }
 
-// window events from render process
-ipcMain.on('closeApp', quitApp)
+// window events from render process. When "minimize to tray" is enabled on
+// Windows, the in-app close button hides the window instead of quitting.
+function handleCloseAppRequest() {
+  if (isWindows && minimizeToTray && !isQuitting) {
+    if (win && !win.isDestroyed()) win.hide()
+    return
+  }
+  quitApp()
+}
+
+ipcMain.on('closeApp', handleCloseAppRequest)
+
+function showMainWindow() {
+  if (!win || win.isDestroyed()) {
+    if (!useViteDevServer) {
+      void waitForBackend(serverConfig.port).then(() => createWindow())
+    } else {
+      createWindow()
+    }
+    return
+  }
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+function createTray() {
+  if (tray || !isWindows) return
+
+  try {
+    // Prefer the multi-size .ico (16/32/48) so Windows can pick the crispest
+    // variant for the current DPI; fall back to the PNG if it is missing.
+    const iconDir = path.join(__dirname, 'dist/icons')
+    const icoPath = path.join(iconDir, 'favicon.ico')
+    const pngPath = path.join(iconDir, 'icon.png')
+    const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath
+    const image = nativeImage.createFromPath(iconPath)
+    tray = new Tray(image.isEmpty() ? iconPath : image)
+    tray.setToolTip('MediaChips')
+    tray.setContextMenu(Menu.buildFromTemplate([
+      {label: 'Open MediaChips', click: () => showMainWindow()},
+      {type: 'separator'},
+      {label: 'Exit', click: () => { isQuitting = true; quitApp() }},
+    ]))
+    tray.on('click', () => {
+      if (win && !win.isDestroyed() && win.isVisible()) {
+        win.hide()
+      } else {
+        showMainWindow()
+      }
+    })
+    tray.on('double-click', () => showMainWindow())
+  } catch (error) {
+    console.warn('Failed to create tray icon:', error)
+    tray = null
+  }
+}
+
+function destroyTray() {
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
+}
+
+ipcMain.handle('set-minimize-to-tray', (_event: IpcMainInvokeEvent, enabled: unknown) => {
+  minimizeToTray = Boolean(enabled)
+
+  if (!isWindows) return minimizeToTray
+
+  if (minimizeToTray) {
+    createTray()
+  } else {
+    destroyTray()
+    // Without a tray icon a hidden window would be unreachable, so restore it.
+    if (win && !win.isDestroyed() && !win.isVisible()) {
+      win.show()
+    }
+  }
+
+  return minimizeToTray
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== "darwin") // close if not macOS
@@ -490,7 +594,21 @@ function menuActionItem(label: string, action: string, accelerator?: string) {
   }
 }
 
+const isMac = process.platform === 'darwin'
+
 const systemMenu = Menu.buildFromTemplate([
+  ...(isMac ? [{
+    label: app.name,
+    submenu: [
+      {role: 'services' as const},
+      {type: 'separator' as const},
+      {role: 'hide' as const},
+      {role: 'hideOthers' as const},
+      {role: 'unhide' as const},
+      {type: 'separator' as const},
+      {role: 'quit' as const},
+    ],
+  }] : []),
   {
     label: 'File',
     submenu: [
@@ -500,6 +618,8 @@ const systemMenu = Menu.buildFromTemplate([
       menuActionItem('Export Backup...', 'exportBackup'),
       {type: 'separator'},
       menuActionItem('Open Data Folder', 'openDataFolder'),
+      {type: 'separator'},
+      {role: 'close'},
     ],
   },
   {
@@ -567,15 +687,24 @@ const systemMenu = Menu.buildFromTemplate([
       },
       {type: 'separator'},
       menuActionItem('Restart', 'restart'),
-      {
+      ...(!isMac ? [{
         label: 'Exit',
         accelerator: 'CommandOrControl+Q',
         click() {
           app.exit()
         },
-      },
+      }] : []),
     ],
   },
+  ...(isMac ? [{
+    label: 'Window',
+    submenu: [
+      {role: 'minimize' as const},
+      {role: 'zoom' as const},
+      {type: 'separator' as const},
+      {role: 'front' as const},
+    ],
+  }] : []),
   {
     label: 'Help',
     submenu: [

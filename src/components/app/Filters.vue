@@ -628,6 +628,7 @@ watch(currentMediaType, () => {
 
 <style lang="scss">
 .filters-drawer {
+  z-index: 1200;
   max-height: 100%;
   padding: 16px 4px 16px 16px;
   background: transparent;

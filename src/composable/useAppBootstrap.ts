@@ -20,6 +20,12 @@ import {useEventBus} from '@/utils/eventBus'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
 import {migrateOnboardingFromDbIfNeeded} from '@/services/onboardingConfig'
+import {
+  GLOBAL_APP_CONFIG_KEYS,
+  migrateGlobalAppConfigFromDbIfNeeded,
+  migrateMinimizeToTrayFromDbIfNeeded,
+  type GlobalAppConfigKey,
+} from '@/services/globalAppConfig'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
 import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
 import {useOperationsStore} from '@/stores/operations'
@@ -108,10 +114,26 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
         || row.option === 'onboardingStep'
         || row.option === 'onboardingPaused',
       )
+      const hadGlobalKeysInDb = res.data.reduce<Partial<Record<GlobalAppConfigKey, boolean>>>(
+        (accumulator, row) => {
+          if (GLOBAL_APP_CONFIG_KEYS.includes(row.option as GlobalAppConfigKey)) {
+            accumulator[row.option as GlobalAppConfigKey] = true
+          }
+          return accumulator
+        },
+        {},
+      )
+      const minimizeToTrayDbValue = res.data.find((row) => row.option === 'minimizeToTray')?.value
 
       settingsStore.updateMultiple(sets)
       await registrationStore.migrateRegistrationFromDbIfNeeded()
       await migrateOnboardingFromDbIfNeeded({ hadOnboardingInDb })
+      try {
+        await migrateGlobalAppConfigFromDbIfNeeded({ hadInDb: hadGlobalKeysInDb })
+        await migrateMinimizeToTrayFromDbIfNeeded(minimizeToTrayDbValue)
+      } catch (error) {
+        console.warn('Failed to migrate global app settings:', error)
+      }
       cleanupStalePlayerRoute()
       store.isServerError = false
     } catch {

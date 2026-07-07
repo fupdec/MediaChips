@@ -152,4 +152,19 @@ describe('Setting.controller', () => {
     })
     expect(applyLanAccessChange).not.toHaveBeenCalled()
   })
+
+  it('clears migrated global settings in the database without changing LAN access', async () => {
+    const req = {
+      params: {option: 'allowLanAccess'},
+      body: {value: ''},
+    } as unknown as ApiRequest
+    const res = createResponse()
+
+    await controller.update(req, res)
+
+    expect(upsertByOption).toHaveBeenCalledWith('allowLanAccess', '')
+    expect(applyLanAccessChange).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(201)
+    expect(res.body).toEqual([1])
+  })
 })

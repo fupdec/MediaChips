@@ -26,6 +26,17 @@ export async function checkFileExistsElectron(filePath: string): Promise<boolean
   return Boolean(exists)
 }
 
+export async function syncMinimizeToTray(enabled: boolean): Promise<void> {
+  const api = getElectronAPI()
+  if (!api?.invoke) return
+
+  try {
+    await api.invoke('set-minimize-to-tray', enabled)
+  } catch (error) {
+    console.error('Failed to sync minimize-to-tray setting:', error)
+  }
+}
+
 export async function showElectronOpenDialog(
   properties: string[] | string | Record<string, boolean> | null,
 ): Promise<OpenDialogResult | null> {

@@ -6,12 +6,12 @@ import type {
   FileResolverResult,
   ResolveFilePathFn,
 } from '../types/builtinRoutes'
-import type { ServerDatabaseEntry } from '../types/server'
+import type { ServerConfig, ServerDatabaseEntry } from '../types/server'
 import path from 'path'
 import fs from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import { normalizeMediaPath } from '../../api/utils/normalizeUserPath'
-import { isLanAccessEnabled, isLanAccessEnvLocked } from './lanAccess'
+import { isLanAccessEnabled, isLanAccessEnvLocked, applyLanAccessChange } from './lanAccess'
 import { isLoopbackHost } from './constants'
 import { saveConfigFile } from './configFile'
 import { isClientAbortError, safeJsonError } from './fileResolver'
@@ -21,6 +21,30 @@ import { getDatabaseManager } from './databaseRegistry'
 import { createStorageDirectories } from './serverConfig'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
 import packageJson from '../../package.json'
+import {
+  GLOBAL_APP_CONFIG_KEYS,
+  readGlobalConfigString,
+} from '../../shared/appGlobalConfig'
+function buildGlobalSettingsPayload(config: ServerConfig) {
+  const source = config as unknown as Record<string, unknown>
+  const payload: Record<string, string> = {}
+
+  for (const key of GLOBAL_APP_CONFIG_KEYS) {
+    payload[key] = readGlobalConfigString(source, key)
+  }
+
+  return payload
+}
+
+function parseBooleanSetting(value: unknown, fallback: boolean): boolean {
+  if (value === undefined || value === null || value === '') return fallback
+  if (value === true || value === 1) return true
+  if (value === false || value === 0) return false
+  const normalized = String(value).toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  return fallback
+}
 
 function resolveMediaVideoPath(
   db: ApiDb,
@@ -114,6 +138,8 @@ function registerBuiltinRoutes({
       allowLanAccess: isLanAccessEnabled(),
       allowLanAccessEnvLocked: isLanAccessEnvLocked(),
       registration: typeof config.registration === 'string' ? config.registration : '',
+      minimizeToTray: typeof config.minimizeToTray === 'string' ? config.minimizeToTray : '0',
+      ...buildGlobalSettingsPayload(config),
       ...(typeof config.onboardingCompleted === 'string' ? { onboardingCompleted: config.onboardingCompleted } : {}),
       ...(typeof config.onboardingStep === 'string' ? { onboardingStep: config.onboardingStep } : {}),
       ...(typeof config.onboardingPaused === 'string' ? { onboardingPaused: config.onboardingPaused } : {}),
@@ -122,7 +148,11 @@ function registerBuiltinRoutes({
     res.json(responseConfig)
   })
 
-  app.post('/api/update-config', (req: ApiRequest, res: ApiResponse) => {
+  app.post('/api/update-config', async (req: ApiRequest, res: ApiResponse) => {
+    const shouldApplyLanAccess = req.body
+      && 'allowLanAccess' in req.body
+      && !isLanAccessEnvLocked()
+
     Object.assign(config, req.body)
 
     if (Array.isArray(req.body?.databases)) {
@@ -134,10 +164,24 @@ function registerBuiltinRoutes({
       config.path = path.join(databasesPath, activeDb.id)
     }
 
-    saveConfigFile(configPath, config)
-    console.log('\x1b[36m%s\x1b[0m', `Config updated. Active database: ${activeDb?.name || 'none'}`)
+    try {
+      if (shouldApplyLanAccess) {
+        const enabled = parseBooleanSetting(req.body.allowLanAccess, true)
+        config.allowLanAccess = enabled ? '1' : '0'
+        await applyLanAccessChange(enabled)
+      } else {
+        saveConfigFile(configPath, config)
+      }
 
-    res.json({success: true, message: 'Configuration updated'})
+      console.log('\x1b[36m%s\x1b[0m', `Config updated. Active database: ${activeDb?.name || 'none'}`)
+      res.json({success: true, message: 'Configuration updated'})
+    } catch (error: unknown) {
+      console.error('Failed to update config:', error)
+      res.status(500).json({
+        success: false,
+        message: apiErrorMessage(error) || 'Failed to update configuration',
+      })
+    }
   })
 
   const FILE_MIME_TYPES = {

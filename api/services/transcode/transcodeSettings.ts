@@ -1,10 +1,17 @@
 import { createSettingsRepository } from '../../db/repositories/settings'
+import {
+  DEFAULT_GLOBAL_APP_CONFIG,
+  GLOBAL_APP_CONFIG_KEYS,
+  readGlobalConfigString,
+  type GlobalAppConfigKey,
+} from '../../../shared/appGlobalConfig'
 
 const DEFAULTS = {
-  transcodeUnsupportedFormats: '1',
-  transcodeMaxHeight: '1080',
-  transcodeCacheMaxGb: '5',
-} as const
+  transcodeUnsupportedFormats: DEFAULT_GLOBAL_APP_CONFIG.transcodeUnsupportedFormats,
+  transcodeMaxHeight: DEFAULT_GLOBAL_APP_CONFIG.transcodeMaxHeight,
+  transcodeCacheMaxGb: DEFAULT_GLOBAL_APP_CONFIG.transcodeCacheMaxGb,
+} as const satisfies Record<Extract<GlobalAppConfigKey,
+  'transcodeUnsupportedFormats' | 'transcodeMaxHeight' | 'transcodeCacheMaxGb'>, string>
 
 type TranscodeSettingKey = keyof typeof DEFAULTS
 type TranscodeSettings = Record<TranscodeSettingKey, string>
@@ -13,10 +20,43 @@ interface TranscodeDb {
   drizzle?: import('../../db/client').DrizzleClient
 }
 
+function getGlobalServerConfig(): Record<string, unknown> | null {
+  const globalConfig = global as { serverConfig?: Record<string, unknown> }
+  return globalConfig.serverConfig ?? null
+}
+
+function readTranscodeSettingsFromGlobalConfig(): Partial<TranscodeSettings> {
+  const globalConfig = getGlobalServerConfig()
+  if (!globalConfig) return {}
+
+  const settings: Partial<TranscodeSettings> = {}
+  for (const key of Object.keys(DEFAULTS) as TranscodeSettingKey[]) {
+    if (typeof globalConfig[key] === 'string') {
+      settings[key] = globalConfig[key] as string
+    }
+  }
+
+  return settings
+}
+
+function hasTranscodeSettingsInGlobalConfig(): boolean {
+  const globalConfig = getGlobalServerConfig()
+  if (!globalConfig) return false
+
+  return (Object.keys(DEFAULTS) as TranscodeSettingKey[]).some((key) =>
+    typeof globalConfig[key] === 'string',
+  )
+}
+
 async function getTranscodeSettings(db: TranscodeDb | null | undefined): Promise<TranscodeSettings> {
   const settings: TranscodeSettings = {...DEFAULTS}
+  const globalSettings = readTranscodeSettingsFromGlobalConfig()
 
-  if (!db?.drizzle) {
+  for (const [key, value] of Object.entries(globalSettings) as Array<[TranscodeSettingKey, string]>) {
+    settings[key] = value
+  }
+
+  if (hasTranscodeSettingsInGlobalConfig() || !db?.drizzle) {
     return settings
   }
 

@@ -65,6 +65,26 @@
       :title="t('settings_labels.general.count_views')"
       :hint="t('settings_labels.general.count_views_hint')"
     ></settings-switch>
+
+    <!-- MINIMIZE TO TRAY SWITCH (Windows only, stored in config.json) -->
+    <v-switch
+      v-if="showTraySetting"
+      v-model="minimizeToTray"
+      color="primary"
+      class="mt-0 settings-switch"
+      inset
+    >
+      <template #label>
+        <div class="d-flex flex-column ml-4">
+          <div class="text-body-1 text-high-emphasis">
+            {{ t('settings_labels.general.minimize_to_tray') }}
+          </div>
+          <div class="text-caption text-medium-emphasis mt-1">
+            {{ t('settings_labels.general.minimize_to_tray_hint') }}
+          </div>
+        </div>
+      </template>
+    </v-switch>
   </div>
 </template>
 
@@ -73,7 +93,9 @@ import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
-import {refreshServerConfig} from '@/services/configService'
+import {refreshServerConfig, updateConfig} from '@/services/configService'
+import {useAppPlatform} from '@/composable/useAppPlatform'
+import {syncMinimizeToTray} from '@/services/electronBridge'
 
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 
@@ -82,6 +104,19 @@ const {t} = useI18n({useScope: 'global'})
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const lanAccessEnvLocked = ref(false)
+
+const {isElectron, isWin} = useAppPlatform()
+const showTraySetting = computed(() => isElectron && isWin)
+
+const minimizeToTray = computed<boolean>({
+  get: () => appStore.config.minimizeToTray === '1',
+  set: (enabled) => {
+    const value = enabled ? '1' : '0'
+    appStore.config = {...appStore.config, minimizeToTray: value}
+    void updateConfig({minimizeToTray: value})
+    void syncMinimizeToTray(enabled)
+  },
+})
 
 const SETTINGS = computed(() => settingsStore)
 const frontendUrl = computed(() => appStore.localhost)

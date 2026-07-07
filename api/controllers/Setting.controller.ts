@@ -5,6 +5,9 @@ import type { ApiRequest, ApiResponse } from '../types/http'
 import { createSettingsRepository } from '../db/repositories/settings'
 import { getAuthService } from '../../app/server/authRegistry'
 import { applyLanAccessChange, isLanAccessEnvLocked } from '../../app/server/lanAccess'
+import { isGlobalAppConfigKey } from '../../shared/appGlobalConfig'
+import { getAppConfigPath } from '../utils/appConfigPath'
+import { loadConfigFile, saveConfigFile } from '../../app/server/configFile'
 
 export default function (db: ApiDb) {
   const settingsRepo = createSettingsRepository(db.drizzle)
@@ -48,22 +51,52 @@ export default function (db: ApiDb) {
   const update = async function (req: ApiRequest, res: ApiResponse) {
     if (!req.body) return res.sendStatus(400)
 
+    const option = paramString(req.params.option)
+
     try {
-      settingsRepo.upsertByOption(paramString(req.params.option), req.body.value)
+      if (isGlobalAppConfigKey(option)) {
+        const value = String(req.body.value)
 
-      if (req.params.option === 'phrase' || req.params.option === 'passwordProtection') {
-        getAuthService().invalidateSettingsCache()
-      }
-
-      if (req.params.option === 'allowLanAccess') {
-        if (isLanAccessEnvLocked()) {
-          return res.status(409).send({
-            message: 'LAN access is controlled by MEDIA_CHIPS_ALLOW_LAN environment variable',
-          })
+        if (value === '') {
+          settingsRepo.upsertByOption(option, '')
+          return res.status(201).send([1])
         }
 
-        const enabled = req.body.value === '1' || req.body.value === 1 || req.body.value === true
-        await applyLanAccessChange(enabled)
+        if (option === 'allowLanAccess') {
+          if (isLanAccessEnvLocked()) {
+            return res.status(409).send({
+              message: 'LAN access is controlled by MEDIA_CHIPS_ALLOW_LAN environment variable',
+            })
+          }
+
+          const enabled = value === '1' || req.body.value === 1 || req.body.value === true
+          await applyLanAccessChange(enabled)
+        } else {
+          const configPath = getAppConfigPath()
+          const loaded = loadConfigFile(configPath)
+          if (!loaded.config) {
+            return res.status(500).send({
+              message: 'Failed to load application config',
+            })
+          }
+
+          loaded.config[option] = value
+          saveConfigFile(configPath, loaded.config)
+
+          const globalConfig = global as { serverConfig?: Record<string, unknown> }
+          if (globalConfig.serverConfig) {
+            globalConfig.serverConfig[option] = value
+          }
+        }
+
+        settingsRepo.upsertByOption(option, '')
+        return res.status(201).send([1])
+      }
+
+      settingsRepo.upsertByOption(option, req.body.value)
+
+      if (option === 'phrase' || option === 'passwordProtection') {
+        getAuthService().invalidateSettingsCache()
       }
 
       res.status(201).send([1])

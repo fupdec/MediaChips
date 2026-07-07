@@ -94,7 +94,7 @@ const {startServer, restartNetworkListener, bindShutdownHandler, getListener} = 
 })
 
 async function bootstrapServer() {
-  await initLanAccess(db, networkHelpers)
+  await initLanAccess(db, networkHelpers, config)
   syncNetworkConfig(config, isLanAccessEnabled(), networkHelpers)
 
   registerServerNetworkDeps({

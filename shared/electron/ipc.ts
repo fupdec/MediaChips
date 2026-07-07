@@ -49,6 +49,7 @@ export const IPC_INVOKE_CHANNELS = [
   'setZoomFactor',
   'getZoomFactor',
   'checkFileExists',
+  'set-minimize-to-tray',
 ] as const
 
 export const IPC_ON_CHANNELS = [
@@ -205,6 +206,7 @@ export interface IpcInvokePayloads {
   setZoomFactor: number
   getZoomFactor: void
   checkFileExists: CheckFileExistsPayload
+  'set-minimize-to-tray': boolean
 }
 
 export interface IpcInvokeResults {
@@ -236,6 +238,7 @@ export interface IpcInvokeResults {
   setZoomFactor: number
   getZoomFactor: number
   checkFileExists: boolean
+  'set-minimize-to-tray': boolean
 }
 
 export interface IpcSendPayloads {
