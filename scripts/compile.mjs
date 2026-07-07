@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {cpSync, mkdirSync, readdirSync} from 'fs'
 import {spawnSync} from 'child_process'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
@@ -6,19 +7,64 @@ import {fileURLToPath} from 'url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const TARGETS = {
-  shared: 'npx tsc -p tsconfig.shared-build.json && rsync -a .shared-build/shared/ shared/',
-  app: 'npx tsc -p tsconfig.app.json && rsync -a .app-build/app/ app/',
-  api: 'npx tsc -p tsconfig.api.json && rsync -a .api-build/api/ api/',
-  electron: 'npx tsc -p tsconfig.electron.json && cp .electron-build/electron/*.js electron/',
-  main: 'npx tsc -p tsconfig.main.json && cp .main-build/main.js main.js',
-  scripts: 'npx tsc -p tsconfig.scripts.json',
+  shared: {
+    tsc: 'tsconfig.shared-build.json',
+    copy: () => copyDirContents(join(root, '.shared-build/shared'), join(root, 'shared')),
+  },
+  app: {
+    tsc: 'tsconfig.app.json',
+    copy: () => copyDirContents(join(root, '.app-build/app'), join(root, 'app')),
+  },
+  api: {
+    tsc: 'tsconfig.api.json',
+    copy: () => copyDirContents(join(root, '.api-build/api'), join(root, 'api')),
+  },
+  electron: {
+    tsc: 'tsconfig.electron.json',
+    copy: () => copyJsFiles(join(root, '.electron-build/electron'), join(root, 'electron')),
+  },
+  main: {
+    tsc: 'tsconfig.main.json',
+    copy: () => cpSync(join(root, '.main-build/main.js'), join(root, 'main.js')),
+  },
+  scripts: {
+    tsc: 'tsconfig.scripts.json',
+  },
 }
 
-function runShell(command) {
-  const result = spawnSync(command, {
+function copyDirContents(srcDir, destDir) {
+  mkdirSync(destDir, {recursive: true})
+
+  for (const entry of readdirSync(srcDir, {withFileTypes: true})) {
+    const srcPath = join(srcDir, entry.name)
+    const destPath = join(destDir, entry.name)
+
+    if (entry.isDirectory()) {
+      copyDirContents(srcPath, destPath)
+      continue
+    }
+
+    cpSync(srcPath, destPath)
+  }
+}
+
+function copyJsFiles(srcDir, destDir) {
+  mkdirSync(destDir, {recursive: true})
+
+  for (const entry of readdirSync(srcDir, {withFileTypes: true})) {
+    if (!entry.isFile() || !entry.name.endsWith('.js')) {
+      continue
+    }
+
+    cpSync(join(srcDir, entry.name), join(destDir, entry.name))
+  }
+}
+
+function runTsc(project) {
+  const result = spawnSync('npx', ['tsc', '-p', project], {
     cwd: root,
     stdio: 'inherit',
-    shell: true,
+    shell: process.platform === 'win32',
   })
 
   if (result.status !== 0) {
@@ -27,30 +73,30 @@ function runShell(command) {
 }
 
 function runTarget(name) {
-  const command = TARGETS[name]
-  if (!command) {
+  const target = TARGETS[name]
+  if (!target) {
     console.error(`Unknown compile target: ${name}`)
     console.error(`Available: ${Object.keys(TARGETS).join(', ')}, backend, electron-artifacts, artifacts`)
     process.exit(1)
   }
 
-  runShell(command)
+  runTsc(target.tsc)
+  target.copy?.()
 }
 
 async function runParallel(names) {
   const {spawn} = await import('child_process')
 
   await Promise.all(names.map((name) => new Promise((resolve, reject) => {
-    const command = TARGETS[name]
-    if (!command) {
+    const target = TARGETS[name]
+    if (!target) {
       reject(new Error(`Unknown compile target: ${name}`))
       return
     }
 
-    const child = spawn(command, {
+    const child = spawn(process.execPath, [join(root, 'scripts/compile.mjs'), name], {
       cwd: root,
       stdio: 'inherit',
-      shell: true,
     })
 
     child.on('exit', (code) => {
