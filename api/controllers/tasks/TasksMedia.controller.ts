@@ -23,6 +23,11 @@ import {
   withDuplicateLookupLock,
 } from '../../services/addMediaDedup'
 import {
+  enqueueContentHash,
+  enqueueMediaPostProcess,
+  runWithFfprobeLimit,
+} from '../../services/mediaPostProcessQueue'
+import {
   normalizeMediaPath,
   pathsEquivalent,
   buildPathLookupVariants,
@@ -161,15 +166,16 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         })
       }
 
-      void computeContentHashForPath(resolvedPath)
-        .then((hash) => {
+      enqueueContentHash(async () => {
+        try {
+          const hash = await computeContentHashForPath(resolvedPath)
           if (hash) {
             mediaRepo.updateById(Number(media.id), {contentHash: hash})
           }
-        })
-        .catch((error: unknown) => {
+        } catch (error: unknown) {
           console.error(`Content hash failed for ${pathToFile}:`, apiErrorMessage(error))
-        })
+        }
+      })
 
       return {
         media,
@@ -185,7 +191,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     return withDuplicateLookupLock(duplicateKey, processAdd)
   }
 
-  const getVideoMetadata = async (pathToFile: string) => {
+  const getVideoMetadata = async (pathToFile: string) => runWithFfprobeLimit(async () => {
     try {
       const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
       if (info.format.duration < 1) {
@@ -216,9 +222,9 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       console.error(error)
       return false
     }
-  }
+  })
 
-  const getAudioMetadata = async (pathToFile: string) => {
+  const getAudioMetadata = async (pathToFile: string) => runWithFfprobeLimit(async () => {
     try {
       const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
       if (!info?.format?.duration || info.format.duration < 1) {
@@ -243,7 +249,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       console.error(error)
       return false
     }
-  }
+  })
 
   const mediaPostProcess = createMediaPostProcessor({
     db,
@@ -279,8 +285,12 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       sendAddMediaResponse(res, result)
 
       if (result.isCreated && result.media) {
-        void mediaPostProcess.processNewMedia(result.media, mediaType).catch((error: unknown) => {
-          console.error('Post-processing failed:', apiErrorMessage(error))
+        enqueueMediaPostProcess(async () => {
+          try {
+            await mediaPostProcess.processNewMedia(result.media, mediaType)
+          } catch (error: unknown) {
+            console.error('Post-processing failed:', apiErrorMessage(error))
+          }
         })
       }
     } catch (error) {

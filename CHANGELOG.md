@@ -5,6 +5,18 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-07-08
+
+### Fixed
+
+- **Server hang after adding media** — queue background post-processing (ffmpeg, ffprobe, content hash) with concurrency limits so bulk imports no longer freeze the API
+- **Phantom scrollbar in navigation sidebar on Windows**
+- **Flaky E2E navigation** blocked by the onboarding overlay
+
+### Changed
+
+- **Windows system menu** — simplified menu order; removed Edit and Window menus
+
 ## [1.0.0] - 2026-07-07
 
 First stable release of the Vue 3 rewrite.

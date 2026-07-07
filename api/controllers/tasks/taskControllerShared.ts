@@ -12,6 +12,7 @@ import {
   extractVideoFrame,
   extractVideoThumbnail,
 } from '../../utils/ffmpeg'
+import { runWithFfmpegLimit } from '../../services/mediaPostProcessQueue'
 import { createSettingsRepository } from '../../db/repositories/settings'
 
 function lazyService<T = AnyRecord>(modulePath: string) {
@@ -100,14 +101,14 @@ export default function createTaskControllerShared(db: ApiDb) {
     }
   }
 
-  const createThumbMiddle = (pathToFile: string, id: unknown) => {
+  const createThumbMiddle = (pathToFile: string, id: unknown) => runWithFfmpegLimit(() => {
     const outputPath = path.join(getDbPath(), 'media/videos/thumbs', `${id}.jpg`)
     return withTimeout(
       extractVideoThumbnail({input: pathToFile, outputPath, height: 320}),
       120000,
       'ffmpeg thumbnail',
     ).then(() => 'success')
-  }
+  })
 
   const createThumbCustom = (timestamp: unknown, inputPath: string, outputPath: string, width: number) => {
     return extractVideoFrame({

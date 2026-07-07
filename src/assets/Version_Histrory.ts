@@ -1,5 +1,24 @@
 export const history = [
   {
+    id: '1.0.1',
+    version: 'v1.0.1',
+    name: 'Stability fix for media imports',
+    content: `
+      <p><strong>MediaChips v1.0.1</strong> fixes a server hang that could make the app unusable after adding files, plus Windows UI polish.</p>
+      <h3>Highlights:</h3>
+      <ul>
+        <li><strong>Media import stability</strong> — background thumbnail and metadata generation is now queued with concurrency limits</li>
+        <li><strong>Windows sidebar</strong> — fixed phantom scrollbar in the navigation panel</li>
+        <li><strong>Windows menu bar</strong> — simplified system menu order</li>
+      </ul>
+      <h3>Notes:</h3>
+      <ul>
+        <li><strong>From v1.0.0:</strong> in-app auto-update should deliver v1.0.1</li>
+        <li>Full changelog: <a href="https://github.com/fupdec/MediaChips/blob/master/CHANGELOG.md" target="_blank">CHANGELOG.md</a></li>
+      </ul>
+    `,
+  },
+  {
     id: '1.0.0',
     version: 'v1.0.0',
     name: 'First stable Vue 3 release',
