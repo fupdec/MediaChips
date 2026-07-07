@@ -1,5 +1,23 @@
 export const history = [
   {
+    id: '1.0.2',
+    version: 'v1.0.2',
+    name: 'Media previews on import restored',
+    content: `
+      <p><strong>MediaChips v1.0.2</strong> restores immediate metadata and video preview generation when adding files, while keeping fast duplicate detection.</p>
+      <h3>Highlights:</h3>
+      <ul>
+        <li><strong>Import previews</strong> — metadata and video thumbnails are generated during add again</li>
+        <li><strong>Fast duplicates</strong> — basename/filesize checks with background content hashing</li>
+      </ul>
+      <h3>Notes:</h3>
+      <ul>
+        <li><strong>From v1.0.1:</strong> in-app auto-update should deliver v1.0.2</li>
+        <li>Full changelog: <a href="https://github.com/fupdec/MediaChips/blob/master/CHANGELOG.md" target="_blank">CHANGELOG.md</a></li>
+      </ul>
+    `,
+  },
+  {
     id: '1.0.1',
     version: 'v1.0.1',
     name: 'Stability fix for media imports',
