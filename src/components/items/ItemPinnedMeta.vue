@@ -59,6 +59,7 @@
             <v-chip
               v-for="tag in category.items"
               :key="`${tag.id}_${item.id}`"
+              v-bind="getTagChipBind(tag)"
               @click.stop.prevent="openTagPage(tag)"
               @contextmenu.stop.prevent="showMenu($event, tag)"
               @mouseenter="onTagHover($event, tag)"
@@ -119,9 +120,7 @@
           <v-chip
             v-for="tag in category.items"
             :key="`${tag.id}_${item.id}`"
-            :color="tag.meta?.color ? tag.color : undefined"
-            :variant="getMetaChipVariant(tag.meta)"
-            :label="getMetaChipLabel(tag.meta)"
+            v-bind="getTagChipBind(tag)"
             :text="tag.name"
             @click.stop.prevent="openTagPage(tag)"
             @contextmenu.stop.prevent="showMenu($event, tag)"
@@ -157,9 +156,7 @@
       <template v-for="entry in pinnedFlatComputed" :key="`${entry.kind}_${entry.metaId}_${entry.data.id || entry.data.name}_${item.id}`">
         <v-chip
           v-if="entry.kind === 'tag'"
-          :color="entry.data.meta?.color ? entry.data.color : undefined"
-          :variant="getMetaChipVariant(entry.data.meta)"
-          :label="getMetaChipLabel(entry.data.meta)"
+          v-bind="getTagChipBind(entry.data)"
           :prepend-icon="`mdi-${entry.data?.meta?.icon}`"
           :text="entry.data.name"
           @click.stop.prevent="openTagPage(entry.data)"
@@ -195,7 +192,7 @@ import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
 import {useRouter} from "vue-router"
 import {usePresetMeta} from "@/composable/ItemPresetMeta"
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
-import {getFilterObject} from '@/services/formatUtils'
+import {getFilterObject, getTextColor} from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {
   groupByPinnedAssignmentOrder,
@@ -267,12 +264,22 @@ const defaultMetaChipVariant = computed((): ChipVariant | undefined =>
   toChipVariant(settingsStore.default_meta_chip_variant),
 )
 
-const getMetaChipVariant = (meta?: Meta): ChipVariant | undefined =>
-  toChipVariant(meta?.chipVariant)
-
 const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
   const label = meta?.chipLabel
   return typeof label === 'boolean' ? label : undefined
+}
+
+const getTagChipBind = (tag: TagWithMeta) => {
+  const variant: ChipVariant = toChipVariant(tag.meta?.chipVariant) ?? 'flat'
+  const colored = Boolean(tag.meta?.color && tag.color)
+
+  return {
+    variant,
+    color: colored ? tag.color : undefined,
+    textColor: colored ? getTextColor(tag.color, variant === 'outlined') || undefined : undefined,
+    label: getMetaChipLabel(tag.meta),
+    class: colored ? 'tag-chip--colored' : undefined,
+  }
 }
 
 const formatMetaValue = (value: unknown): string => String(value ?? '')

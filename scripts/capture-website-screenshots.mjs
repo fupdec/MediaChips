@@ -39,7 +39,7 @@ async function dismissOnboarding(page) {
 }
 
 async function prepareApp(page) {
-  await page.request.put(`${BASE_URL}/api/Setting/sfwMode`, { data: { value: '1' } })
+  await page.request.put(`${BASE_URL}/api/Setting/sfwMode`, { data: { value: '0' } })
   await page.request.put(`${BASE_URL}/api/Setting/onboardingCompleted`, { data: { value: '1' } })
   await page.request.put(`${BASE_URL}/api/Setting/locale`, { data: { value: 'en' } })
   await page.request.put(`${BASE_URL}/api/Setting/open_player_in_separate_window`, { data: { value: '0' } })
@@ -58,6 +58,19 @@ async function waitForMediaGrid(page) {
   await page.locator('.v-application').waitFor({ state: 'visible', timeout: 60_000 })
   await dismissOnboarding(page)
   await page.locator('.item').first().waitFor({ state: 'visible', timeout: 90_000 })
+  await page.waitForTimeout(2000)
+}
+
+async function openPlayerForFirstVideo(page) {
+  const opened = await page.evaluate(async () => {
+    const pinia = document.querySelector('#app')?.__vue_app__?.config?.globalProperties?.$pinia
+    const itemsStore = pinia?._s?.get('items')
+    const video = itemsStore?.itemsOnPage?.[0]
+    if (!video) return false
+    return itemsStore.playVideo({ video, videos: [video], trustPath: true })
+  })
+  if (!opened) throw new Error('Could not open player for first video')
+  await page.locator('.v-overlay--active .dialog-player').waitFor({ state: 'visible', timeout: 30_000 })
   await page.waitForTimeout(2000)
 }
 
@@ -123,14 +136,12 @@ async function main() {
     await page.waitForTimeout(400)
     await page.locator('.filters-drawer').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
     await waitForMediaGrid(page)
-    await page.locator('.item .thumb').first().click()
-    await page.locator('.v-overlay--active .dialog-player').waitFor({ state: 'visible', timeout: 30_000 })
-    await page.waitForTimeout(2000)
+    await openPlayerForFirstVideo(page)
     await saveJpeg(page, '.v-overlay--active .dialog-player', 'player')
 
     console.log('Capturing tags page…')
     await page.keyboard.press('Escape')
-    await page.goto(`${BASE_URL}/meta?metaId=18`)
+    await page.goto(`${BASE_URL}/meta?metaId=3`)
     await page.locator('.item').first().waitFor({ state: 'visible', timeout: 90_000 })
     await page.waitForTimeout(1500)
     await saveJpeg(page, '.v-main', 'tags')
@@ -138,7 +149,7 @@ async function main() {
     console.log('Capturing tag edit dialog…')
     await page.locator('.item').first().click({ button: 'right' })
     await page.waitForTimeout(500)
-    await page.locator('.v-overlay--active .v-list-item').filter({ hasText: /^edit$/i }).first().click()
+    await page.locator('.v-overlay--active .v-list-item').filter({ hasText: /edit/i }).first().click()
     await page.getByText(/^Editing$/).waitFor({ state: 'visible', timeout: 15_000 })
     await page.waitForTimeout(800)
     await saveJpeg(page, '.v-overlay--active .v-card', 'edit-tag')

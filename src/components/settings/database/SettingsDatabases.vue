@@ -36,9 +36,9 @@
         variant="outlined"
         class="py-4"
       >
-        <template v-if="db.active" #prepend>
-          <v-avatar color="success">
-            <v-icon icon="mdi-check"/>
+        <template #prepend>
+          <v-avatar variant="tonal">
+            <v-icon :icon="`mdi-${db.icon || DEFAULT_DB_ICON}`"/>
           </v-avatar>
         </template>
 
@@ -90,6 +90,11 @@
               autofocus
               :rules="[v => validateName(v)]"
             />
+
+            <DialogIcons
+              :icon="dbIcon"
+              @apply="changeIcon"
+            />
           </v-form>
         </v-card-text>
       </v-card>
@@ -107,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch} from 'vue'
+import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
@@ -119,6 +124,7 @@ import SettingsBackups from '@/components/settings/database/SettingsBackups.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
+const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import {updateConfig, reloadApplicationAfterDatabaseChange} from '@/services/configService'
 import {setNotification} from '@/services/notificationService'
 import {
@@ -134,6 +140,8 @@ interface DialogHeaderButton {
   action?: () => void | Promise<void>
 }
 
+const DEFAULT_DB_ICON = 'database-outline'
+
 /* stores */
 const store = useAppStore()
 const dialogsStore = useDialogsStore()
@@ -141,6 +149,7 @@ const {t} = useI18n()
 
 /* state */
 const dbName = ref('')
+const dbIcon = ref(DEFAULT_DB_ICON)
 const db = ref<DatabaseEntry | null>(null)
 const valid = ref(false)
 
@@ -193,6 +202,7 @@ function formatDbSize(id: string) {
 /* actions */
 function openAdd() {
   dbName.value = ''
+  dbIcon.value = DEFAULT_DB_ICON
   headerText.value = t('settings_labels.database.adding_database')
   buttons.value = [
     {
@@ -208,6 +218,7 @@ function openAdd() {
 function openEdit(item: DatabaseEntry) {
   db.value = item
   dbName.value = item.name
+  dbIcon.value = item.icon || DEFAULT_DB_ICON
   headerText.value = t('settings_labels.database.editing_database')
   buttons.value = [
     {
@@ -226,17 +237,24 @@ function openActivate(item: DatabaseEntry) {
   dialogActivateConfirm.value = true
 }
 
+function changeIcon(selectedIcon: string) {
+  dbIcon.value = selectedIcon
+}
+
 async function addDb() {
   await formRef.value?.validate()
   if (!valid.value) return
 
   const databasesList = getConfigDatabases()
 
+  const icon = dbIcon.value === DEFAULT_DB_ICON ? undefined : dbIcon.value
+
   databasesList.push({
     id: Date.now().toString(16),
     name: dbName.value,
     active: false,
     createdAt: Date.now(),
+    ...(icon ? {icon} : {}),
   })
 
   setConfigDatabases(databasesList)
@@ -260,6 +278,12 @@ async function updateDb() {
   if (!target) return
 
   target.name = dbName.value
+  const icon = dbIcon.value === DEFAULT_DB_ICON ? undefined : dbIcon.value
+  if (icon) {
+    target.icon = icon
+  } else {
+    delete target.icon
+  }
 
   setConfigDatabases(databasesList)
   await updateConfig({databases: databasesList})

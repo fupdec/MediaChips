@@ -47,6 +47,10 @@ function normalizeDatabaseEntry(entry: unknown, index: number): ServerDatabaseEn
     ? entry.name.trim()
     : 'Default'
 
+  const icon = typeof entry.icon === 'string' && entry.icon.trim()
+    ? entry.icon.trim()
+    : undefined
+
   return {
     id,
     name,
@@ -54,6 +58,7 @@ function normalizeDatabaseEntry(entry: unknown, index: number): ServerDatabaseEn
     createdAt: typeof entry.createdAt === 'number' && Number.isFinite(entry.createdAt)
       ? entry.createdAt
       : Date.now(),
+    ...(icon ? {icon} : {}),
   }
 }
 

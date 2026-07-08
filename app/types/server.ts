@@ -3,6 +3,7 @@ export interface ServerDatabaseEntry {
   name: string
   active: boolean
   createdAt?: number
+  icon?: string
 }
 
 export interface ServerConfig {

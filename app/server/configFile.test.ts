@@ -72,6 +72,19 @@ describe('configFile', () => {
     expect(normalized?.databases[0]?.active).toBe(true)
   })
 
+  it('preserves database icon on normalize', () => {
+    const normalized = normalizeServerConfig({
+      port: 12321,
+      databases: [
+        {id: '1', name: 'One', active: true, createdAt: 1, icon: 'film'},
+        {id: '2', name: 'Two', active: false, createdAt: 2, icon: '  '},
+      ],
+    })
+
+    expect(normalized?.databases[0]?.icon).toBe('film')
+    expect(normalized?.databases[1]?.icon).toBeUndefined()
+  })
+
   it('creates backup before saving', () => {
     fs.writeFileSync(configPath, JSON.stringify(createDefaultConfig()))
     saveConfigFile(configPath, {

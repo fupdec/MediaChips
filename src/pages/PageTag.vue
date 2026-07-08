@@ -755,6 +755,22 @@ const handleUpdateLayoutItems = () => {
   upd.value = Date.now()
 }
 
+const handleGetMeta = async () => {
+  if (!is_init.value || !meta.value.id) return
+
+  try {
+    await getMeta()
+    syncMetaInStore(meta.value)
+    cropperOps.value.aspectRatio = meta.value?.imageAspectRatio ?? 1
+    await getPinnedMedia()
+    await getPinnedParentMeta()
+    await getCompletionStatus()
+    upd.value = Date.now()
+  } catch (error) {
+    notifyLoadError(error)
+  }
+}
+
 const applyRouteContext = () => {
   itemsStore.environment.media_type_id = getUrlParam(route, "mediaTypeId")
   itemsStore.environment.meta_id = getUrlParam(route, "metaId")
@@ -774,6 +790,7 @@ onMounted(async () => {
   await init()
 
   eventBus.on("getTag", handleGetTag)
+  eventBus.on("getMeta", handleGetMeta)
   eventBus.on("updateLayoutItems", handleUpdateLayoutItems)
 
   panel.value = [0]
@@ -782,6 +799,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   eventBus.off("updateLayoutItems")
   eventBus.off("getTag")
+  eventBus.off("getMeta", handleGetMeta)
 })
 
 watch(

@@ -5,6 +5,7 @@ export type DatabaseEntry = {
   name: string
   active: boolean
   createdAt: number
+  icon?: string
 }
 
 export type MissingMediaStatus = {
