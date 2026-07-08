@@ -1,6 +1,6 @@
 <template>
   <v-checkbox
-    :model-value="item.favorite"
+    :model-value="favoriteValue"
     @click.stop
     @update:model-value="setVal($event, 'favorite')"
     :false-value="0"
@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import {typedApi} from '@/services/typedApi'
 import { useItemsStore } from '@/stores/items'
 import type {MediaItem, Tag} from '@/types/stores'
@@ -26,6 +27,8 @@ const props = defineProps<{
 }>()
 
 const itemsStore = useItemsStore()
+
+const favoriteValue = computed(() => (props.item.favorite ? 1 : 0))
 
 const setVal = async (val: boolean | number | null, key: string) => {
   const numVal = val ? 1 : 0

@@ -47,6 +47,14 @@ describe('schemaRepair', () => {
     expect(column).toBeTruthy()
   })
 
+  it('adds missing meta.synonyms column for legacy databases', () => {
+    const repaired = repairSchemaColumns(sqlite)
+
+    expect(repaired).toContain('meta.synonyms')
+    const columns = sqlite.pragma('table_info(meta)') as Array<{name: string}>
+    expect(columns.some((column) => column.name === 'synonyms')).toBe(true)
+  })
+
   it('creates imageMetadata and migrates legacy pinnedMeta into pinnedMetas', () => {
     sqlite.exec(`
       CREATE TABLE pinnedMeta (
