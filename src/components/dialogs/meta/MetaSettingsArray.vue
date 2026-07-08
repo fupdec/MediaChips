@@ -59,56 +59,124 @@
 
   <SettingsSection padded>
     <settings-category-divider
-      icon="palette"
+      icon="shape"
       compact
-      :title="t('meta.settings.tag_page_design')"
+      :title="t('meta.settings.preset_meta_in_tags')"
     />
 
-    <v-alert
-      color="info"
-      class="text-caption mb-4"
-      variant="tonal"
-      rounded="xl"
-      density="compact"
-      closable
-    >
-      {{ t('meta.settings.tag_page_design_hint') }}
-    </v-alert>
+    <v-row>
+      <v-col cols="12"
+        sm="5">
+        <v-switch inset
+          v-model="settings.rating">
+          <template v-slot:label>
+            <v-icon color="yellow-darken-2">mdi-star</v-icon>
+            <div class=" ml-2">{{ t('meta.types.rating') }}</div>
+          </template>
+        </v-switch>
 
-    <v-item-group
-      v-model="settings.tagPageDesign"
-      mandatory
-      class="tag-page-design-settings"
-    >
-      <v-row>
-        <v-col
-          v-for="option in TAG_PAGE_DESIGN_OPTIONS"
-          :key="option.value"
-          cols="12"
-          md="4"
+        <v-switch inset
+          v-model="settings.favorite"
+          hide-details>
+          <template v-slot:label>
+            <v-icon color="pink">mdi-heart</v-icon>
+            <div class=" ml-2">{{ t('meta.sorting.favorite') }}</div>
+          </template>
+        </v-switch>
+      </v-col>
+      <v-col cols="12"
+        sm="7">
+        <v-switch inset
+          v-model="settings.bookmark"
+          class="mt-0"
         >
-          <v-item :value="option.value" v-slot="{ isSelected, toggle }">
-            <v-card
-              @click="toggle"
-              :class="{'tag-page-design-settings__card--active': isSelected}"
-              class="tag-page-design-settings__card pa-4"
-              rounded="xl"
-              variant="outlined"
-            >
-              <div class="d-flex align-center mb-2">
-                <v-icon :icon="option.icon" start />
-                <span class="text-subtitle-1">{{ t(option.labelKey) }}</span>
-                <v-spacer />
-                <v-icon v-if="isSelected" color="primary">mdi-check-circle</v-icon>
+          <template v-slot:label>
+            <div class="d-flex flex-column ml-2">
+              <div>
+                <v-icon color="red">mdi-bookmark</v-icon>
+                {{ t('player.controls.bookmark') }}
               </div>
-              <div class="text-caption text-medium-emphasis">
-                {{ t(option.hintKey) }}
+              <div class="text-caption mt-1">{{ t('meta.settings.bookmark_hint') }}</div>
+            </div>
+          </template>
+        </v-switch>
+
+        <v-switch inset
+          v-model="settings.country"
+          class="mt-0"
+          hide-details>
+          <template v-slot:label>
+            <div class="d-flex flex-column ml-2">
+              <div>
+                <v-icon color="grey">mdi-flag</v-icon>
+                {{ t('meta.types.country') }}
               </div>
-            </v-card>
-          </v-item>
-        </v-col>
-      </v-row>
-    </v-item-group>
+              <div class="text-caption mt-1">{{ t('meta.settings.country_hint') }}</div>
+            </div>
+          </template>
+        </v-switch>
+      </v-col>
+    </v-row>
+  </SettingsSection>
+
+  <SettingsSection padded>
+    <settings-category-divider
+      icon="tag"
+      compact
+      :title="t('meta.settings.chips_appearance')"
+    />
+
+    <div class="d-flex align-center flex-wrap justify-space-between mt-4 mb-4">
+      <div class="text-body-1 text-high-emphasis mr-6">
+        <v-icon start>mdi-label</v-icon>
+        {{ t('settings_labels.appearance.chip_variant') }}
+      </div>
+
+      <v-chip-group column>
+        <v-chip
+          v-for="variant in chipVariants"
+          :key="variant"
+          @click="settings.chipVariant = variant"
+          :label="settings.chipLabel"
+          :variant="variant"
+          :base-color="settings.color ? randomColor : ''"
+        >
+          <v-icon v-if="settings.chipVariant == variant"
+            start>mdi-check
+          </v-icon>
+          <span>{{ variant }}</span>
+        </v-chip>
+      </v-chip-group>
+
+      <v-btn
+        v-if="settings.color"
+        @click="generateRandomColor"
+        color="settings.color"
+        icon
+      >
+        <v-icon>mdi-dice-5</v-icon>
+      </v-btn>
+    </div>
+
+    <v-row>
+      <v-col cols="12"
+        sm="5">
+        <v-switch v-model="settings.color"
+          :label="t('settings_labels.appearance.colors')"
+          class="my-0"
+          hide-details
+          inset/>
+      </v-col>
+
+      <v-col cols="12"
+        sm="7">
+        <v-switch v-model="settings.chipLabel"
+          :label="t('meta.settings.label')"
+          class="my-0"
+          hide-details
+          inset/>
+      </v-col>
+    </v-row>
   </SettingsSection>
 
   <SettingsSection padded>
@@ -188,128 +256,6 @@
       </v-radio>
     </v-radio-group>
   </SettingsSection>
-
-  <SettingsSection padded>
-    <settings-category-divider
-      icon="tag"
-      compact
-      :title="t('meta.settings.chips_appearance')"
-    />
-
-    <div class="d-flex align-center flex-wrap justify-space-between mt-4 mb-4">
-      <div class="text-body-1 text-high-emphasis mr-6">
-        <v-icon start>mdi-label</v-icon>
-        {{ t('settings_labels.appearance.chip_variant') }}
-      </div>
-
-      <v-chip-group column>
-        <v-chip
-          v-for="variant in chipVariants"
-          :key="variant"
-          @click="settings.chipVariant = variant"
-          :label="settings.chipLabel"
-          :variant="variant"
-          :base-color="settings.color ? randomColor : ''"
-        >
-          <v-icon v-if="settings.chipVariant == variant"
-            start>mdi-check
-          </v-icon>
-          <span>{{ variant }}</span>
-        </v-chip>
-      </v-chip-group>
-
-      <v-btn
-        v-if="settings.color"
-        @click="generateRandomColor"
-        color="settings.color"
-        icon
-      >
-        <v-icon>mdi-dice-5</v-icon>
-      </v-btn>
-    </div>
-
-    <v-row>
-      <v-col cols="12"
-        sm="5">
-        <v-switch v-model="settings.color"
-          :label="t('settings_labels.appearance.colors')"
-          class="my-0"
-          hide-details
-          inset/>
-      </v-col>
-
-      <v-col cols="12"
-        sm="7">
-        <v-switch v-model="settings.chipLabel"
-          :label="t('meta.settings.label')"
-          class="my-0"
-          hide-details
-          inset/>
-      </v-col>
-    </v-row>
-  </SettingsSection>
-
-  <SettingsSection padded>
-    <settings-category-divider
-      icon="shape"
-      compact
-      :title="t('meta.settings.preset_meta_in_tags')"
-    />
-
-    <v-row>
-      <v-col cols="12"
-        sm="5">
-        <v-switch inset
-          v-model="settings.rating">
-          <template v-slot:label>
-            <v-icon color="yellow-darken-2">mdi-star</v-icon>
-            <div class=" ml-2">{{ t('meta.types.rating') }}</div>
-          </template>
-        </v-switch>
-
-        <v-switch inset
-          v-model="settings.favorite"
-          hide-details>
-          <template v-slot:label>
-            <v-icon color="pink">mdi-heart</v-icon>
-            <div class=" ml-2">{{ t('meta.sorting.favorite') }}</div>
-          </template>
-        </v-switch>
-      </v-col>
-      <v-col cols="12"
-        sm="7">
-        <v-switch inset
-          v-model="settings.bookmark"
-          class="mt-0"
-        >
-          <template v-slot:label>
-            <div class="d-flex flex-column ml-2">
-              <div>
-                <v-icon color="red">mdi-bookmark</v-icon>
-                {{ t('player.controls.bookmark') }}
-              </div>
-              <div class="text-caption mt-1">{{ t('meta.settings.bookmark_hint') }}</div>
-            </div>
-          </template>
-        </v-switch>
-
-        <v-switch inset
-          v-model="settings.country"
-          class="mt-0"
-          hide-details>
-          <template v-slot:label>
-            <div class="d-flex flex-column ml-2">
-              <div>
-                <v-icon color="grey">mdi-flag</v-icon>
-                {{ t('meta.types.country') }}
-              </div>
-              <div class="text-caption mt-1">{{ t('meta.settings.country_hint') }}</div>
-            </div>
-          </template>
-        </v-switch>
-      </v-col>
-    </v-row>
-  </SettingsSection>
 </template>
 
 <script setup lang="ts">
@@ -323,12 +269,6 @@ import SettingsSection from '@/components/ui/SettingsSection.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
-import {
-  DEFAULT_TAG_PAGE_DESIGN,
-  TAG_PAGE_DESIGN_OPTIONS,
-  normalizeTagPageDesign,
-  type TagPageDesign,
-} from '@/utils/tagPageDesign'
 
 type ChipVariant = 'flat' | 'tonal' | 'outlined' | 'text'
 
@@ -336,7 +276,6 @@ interface MetaSettings {
   hidden: boolean
   parser: boolean
   imageAspectRatio: number
-  tagPageDesign: TagPageDesign
   chipLabel: boolean
   chipVariant: ChipVariant
   color: boolean
@@ -376,7 +315,6 @@ const settings = ref<MetaSettings>({
   hidden: false,
   parser: false,
   imageAspectRatio: 1,
-  tagPageDesign: DEFAULT_TAG_PAGE_DESIGN,
   chipLabel: false,
   chipVariant: 'flat',
   color: false,
@@ -433,7 +371,6 @@ const initSettings = () => {
   }
 
   settings.value = nextSettings
-  settings.value.tagPageDesign = normalizeTagPageDesign(props.meta.tagPageDesign)
 }
 
 const generateRandomColor = () => {
@@ -495,15 +432,5 @@ watch(() => props.meta?.id, () => {
   margin-right: 20px;
   margin-left: 10px;
   background-color: rgba(121, 121, 121, 0.164);
-}
-
-.tag-page-design-settings__card {
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-
-  &--active {
-    border-color: rgb(var(--v-theme-primary));
-    box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
-  }
 }
 </style>
