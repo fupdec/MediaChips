@@ -17,7 +17,6 @@ export const MediaTypeSchema = z.object({
   id: z.number(),
   type: optionalNullableStringSchema,
   name: optionalNullableStringSchema,
-  nameSingular: optionalNullableStringSchema,
   icon: optionalNullableStringSchema,
   extensions: optionalNullableStringSchema,
   hidden: z.boolean().optional(),

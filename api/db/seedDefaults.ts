@@ -8,7 +8,6 @@ const DEFAULT_MEDIA_TYPES = [
   {
     type: 'video',
     name: 'Videos',
-    nameSingular: 'Video',
     icon: 'video-outline',
     extensions: 'avi,3gp,f4v,flv,m4v,mkv,mod,mov,mp4,mpeg,mpg,mts,rm,rmvb,swf,ts,vob,webm,wmv,yuv',
     custom: 0,
@@ -18,7 +17,6 @@ const DEFAULT_MEDIA_TYPES = [
   {
     type: 'image',
     name: 'Images',
-    nameSingular: 'Image',
     icon: 'image-outline',
     extensions: IMAGE_EXTENSIONS,
     custom: 0,
@@ -28,7 +26,6 @@ const DEFAULT_MEDIA_TYPES = [
   {
     type: 'audio',
     name: 'Audios',
-    nameSingular: 'Audio',
     icon: 'music',
     extensions: 'mp3,m4a,wav,flac',
     custom: 0,
@@ -38,7 +35,6 @@ const DEFAULT_MEDIA_TYPES = [
   {
     type: 'text',
     name: 'Texts',
-    nameSingular: 'Text',
     icon: 'sticker-text-outline',
     extensions: 'txt,doc,pdf,html',
     custom: 0,
@@ -126,15 +122,14 @@ function seedMediaTypes(sqlite: Database.Database) {
   const timestamp = nowIso()
   const insert = sqlite.prepare(`
     INSERT INTO mediaTypes (
-      type, name, nameSingular, icon, extensions, custom, hidden, "order", createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      type, name, icon, extensions, custom, hidden, "order", createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   for (const mediaType of DEFAULT_MEDIA_TYPES) {
     insert.run(
       mediaType.type,
       mediaType.name,
-      mediaType.nameSingular,
       mediaType.icon,
       mediaType.extensions,
       mediaType.custom,

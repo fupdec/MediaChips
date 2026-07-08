@@ -13,7 +13,6 @@ export function createMediaTypesRepository(db: DrizzleClient) {
       return db.insert(mediaTypes)
         .values({
           name: data.name ?? null,
-          nameSingular: data.nameSingular ?? null,
           icon: data.icon ?? null,
           extensions: data.extensions ?? null,
           order: data.order ?? null,

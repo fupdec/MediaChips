@@ -4,7 +4,6 @@ export const meta = sqliteTable('meta', {
   id: integer('id').primaryKey({autoIncrement: true}),
   type: text('type'),
   name: text('name'),
-  nameSingular: text('nameSingular'),
   icon: text('icon'),
   hint: text('hint'),
   order: integer('order'),

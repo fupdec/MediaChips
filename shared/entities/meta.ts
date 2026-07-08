@@ -95,7 +95,6 @@ export type MarkFilterMeta = Meta
 
 export interface MetaWritePayload extends Partial<Meta>, Partial<MetaSetting> {
   hint?: string
-  nameSingular?: string
   metaSetting?: Partial<MetaSetting>
   pageSetting?: Record<string, unknown>
   [key: string]: unknown

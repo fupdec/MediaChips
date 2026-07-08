@@ -34,7 +34,6 @@ function addColumnIfMissing(
 }
 
 const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
-  {table: 'meta', column: 'nameSingular', definition: 'text'},
   {table: 'meta', column: 'icon', definition: 'text'},
   {table: 'meta', column: 'hint', definition: 'text'},
   {table: 'meta', column: 'order', definition: 'integer'},

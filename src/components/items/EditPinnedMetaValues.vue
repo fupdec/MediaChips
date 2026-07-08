@@ -371,6 +371,10 @@ import type { ScraperPinnedItem } from '@/types/scraper'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
 import type { TagInTagEntry, ValueInTagEntry, EntityUpdatePayload } from '@shared/api/responses'
 import type {VFormInstance} from '@/types/vue'
+import {
+  parseMetaBooleanValue,
+  serializeMetaBooleanValue,
+} from '@shared/schemas/coercion'
 
 // Components
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
@@ -562,9 +566,9 @@ const getNumberVal = (item: PinnedMetaAssignment): number | undefined => {
   return isNaN(n) ? undefined : n
 }
 
-const getBooleanVal = (item: PinnedMetaAssignment): boolean | undefined => {
+const getBooleanVal = (item: PinnedMetaAssignment): boolean => {
   const val = vals.value[getItemKey(item)]
-  return typeof val === 'boolean' ? val : undefined
+  return parseMetaBooleanValue(val)
 }
 
 const getRatingVal = (item: PinnedMetaAssignment): number | undefined => {
@@ -778,6 +782,8 @@ const getMetaValues = async () => {
         if (type === 'rating') {
           val = Number(val)
           if (isNaN(val as number)) val = 0
+        } else if (type === 'boolean') {
+          val = parseMetaBooleanValue(val)
         }
       }
 
@@ -889,10 +895,14 @@ const save = async (): Promise<boolean> => {
     if (!isMeta || !assignedKeys.has(String(key))) continue
 
     let val = vals.value[key]
-    const type = typeof val
+    const assignedItem = findAssignedItemByMetaId(key)
+    const metaType = assignedItem?.meta?.type
+    const valType = typeof val
     const metaId = Number(key)
 
-    if (type === 'string') {
+    if (metaType === 'boolean') {
+      val = serializeMetaBooleanValue(val)
+    } else if (valType === 'string') {
       val = (val as string).trim()
       if ((val as string).length === 0) val = null
     } else if (Array.isArray(val)) {

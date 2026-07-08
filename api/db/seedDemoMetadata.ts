@@ -62,12 +62,12 @@ export function seedDemoMetadata(sqlite: Database.Database) {
   const timestamp = nowIso()
   const result = sqlite.prepare(`
     INSERT INTO meta (
-      type, name, nameSingular, icon, hint, "order", synonyms, hidden, nested, marks, bookmark,
+      type, name, icon, hint, "order", synonyms, hidden, nested, marks, bookmark,
       parser, country, career, scraper, rating, favorite, chipVariant, chipLabel, color,
       imageAspectRatio, isLink, ratingIcon, ratingIconEmpty, ratingIconHalf, ratingMax,
       ratingColor, ratingHalf, sortBy, sortDir, createdAt, updatedAt
     ) VALUES (
-      'array', 'Color tags', 'Color tag', 'tag', 'For organize media', 1, 1, 0, 0, 1, 1,
+      'array', 'Color tags', 'tag', 'For organize media', 1, 1, 0, 0, 1, 1,
       1, 0, 0, 0, 1, 1, 'flat', 0, 1,
       1, 0, 'star', 'star-outline', 'star-half-full', 5,
       '#ffab00', 0, 'createdAt', 'asc', ?, ?

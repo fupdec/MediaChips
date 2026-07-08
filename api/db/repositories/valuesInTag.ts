@@ -1,13 +1,24 @@
 import { and, eq, inArray } from 'drizzle-orm'
+import { serializeMetaValueForStorage } from '@shared/schemas/coercion'
 import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { valuesInTags } from '../schema/valuesInTag'
+
+function normalizeStoredMetaValue(value: unknown): string | null {
+  return serializeMetaValueForStorage(value)
+}
 
 export function createValuesInTagRepository(db: DrizzleClient) {
   return {
     bulkCreate(items: Array<typeof valuesInTags.$inferInsert>) {
       if (!items.length) return []
-      return db.insert(valuesInTags).values(items).returning().all()
+
+      const normalizedItems = items.map((item) => ({
+        ...item,
+        value: normalizeStoredMetaValue(item.value),
+      }))
+
+      return db.insert(valuesInTags).values(normalizedItems).returning().all()
     },
 
     findAllByTagId(tagId: number) {

@@ -138,7 +138,6 @@ const valid = ref(false)
 
 // Form fields
 const name = ref('')
-const singular = ref('')
 const metaHint = ref('')
 const metaIcon = ref('shape')
 const isLink = ref(false)
@@ -186,7 +185,6 @@ const initMeta = () => {
   if (!props.meta) return
 
   name.value = props.meta.name || ''
-  singular.value = String(props.meta.nameSingular ?? props.meta.name ?? '')
   metaHint.value = String(props.meta.hint ?? '')
   metaIcon.value = String(props.meta.icon || 'shape')
 }
@@ -218,7 +216,6 @@ const applyChanges = async () => {
   try {
     const metaData = {
       name: name.value,
-      nameSingular: singular.value || name.value,
       hint: metaHint.value,
       icon: metaIcon.value,
       ...settingsArray.value,
@@ -293,7 +290,6 @@ const deleteMeta = () => {
 const resetDialog = () => {
   // Reset form fields
   name.value = ''
-  singular.value = ''
   metaHint.value = ''
   metaIcon.value = 'shape'
   isLink.value = false

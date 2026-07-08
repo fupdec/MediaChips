@@ -14,7 +14,6 @@ export interface MediaType {
   id: number
   type?: string
   name?: string
-  nameSingular?: string
   icon?: string
   extensions?: string
   hidden?: boolean

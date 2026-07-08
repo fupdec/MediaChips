@@ -36,7 +36,6 @@
             @submit.prevent
           >
             <v-text-field v-model="name" :rules="[nameRules]" label="Name" />
-            <!-- <v-text-field v-model="singular" :rules="[nameRules]" label="Singular name" /> -->
             <v-combobox
               v-model="extensions"
               :hide-no-data="!search"
@@ -98,7 +97,6 @@ const form = ref<VFormInstance>(null)
 const dialogIcons = ref(false)
 const valid = ref(false)
 const name = ref('')
-const singular = ref('')
 const extensions = ref<string[]>([])
 const search = ref('')
 const icon = ref('shape')
@@ -128,7 +126,6 @@ async function addMeta() {
   try {
     await typedApi.createMediaType({
       name: name.value,
-      nameSingular: singular.value,
       extensions: [...extensions.value].sort().join(','),
       icon: icon.value,
     })
@@ -146,7 +143,6 @@ function close() {
     form.value.reset()
   }
   name.value = ''
-  singular.value = ''
   extensions.value = []
   search.value = ''
   icon.value = 'shape'

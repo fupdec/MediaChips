@@ -191,7 +191,6 @@ async function apply() {
   try {
     await typedApi.updateMediaType(props.media.id, {
       name: name.value,
-      nameSingular: name.value, // или singular если он у вас есть
       icon: icon.value,
       extensions: extensions.value.sort().join(','),
       hidden: hidden.value

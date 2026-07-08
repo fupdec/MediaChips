@@ -28,3 +28,25 @@ export const optionalNullableStringSchema = z.preprocess(
   (value) => (value === null ? undefined : value),
   z.string().optional(),
 )
+
+export function isMetaTruthyValue(value: unknown): boolean {
+  return value === true
+    || value === 1
+    || value === '1'
+    || value === 'true'
+    || value === 'TRUE'
+}
+
+export function parseMetaBooleanValue(value: unknown): boolean {
+  return isMetaTruthyValue(value)
+}
+
+export function serializeMetaBooleanValue(value: unknown): string {
+  return parseMetaBooleanValue(value) ? 'true' : 'false'
+}
+
+export function serializeMetaValueForStorage(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'boolean') return serializeMetaBooleanValue(value)
+  return String(value)
+}

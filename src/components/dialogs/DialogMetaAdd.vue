@@ -143,7 +143,6 @@ const valid = ref(false)
 const metaTypes = ref(MetaTypes)
 const metaType = ref('array')
 const name = ref('')
-const singular = ref('')
 const metaHint = ref('')
 const metaIcon = ref('shape')
 const isLink = ref(false)
@@ -196,7 +195,6 @@ const addMeta = async () => {
     const metaData: MetaWritePayload = {
       type: metaType.value,
       name: name.value,
-      nameSingular: metaType.value === 'array' ? (singular.value || name.value) : name.value,
       hint: metaHint.value,
       icon: metaIcon.value,
       metaSetting: {
@@ -247,7 +245,6 @@ const resetForm = () => {
   // Reset form fields
   metaType.value = 'array'
   name.value = ''
-  singular.value = ''
   metaHint.value = ''
   metaIcon.value = 'shape'
   isLink.value = false

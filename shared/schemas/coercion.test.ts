@@ -4,6 +4,9 @@ import {
   coercedBooleanSchema,
   nullableCoercedNumberSchema,
   optionalCoercedNumberSchema,
+  parseMetaBooleanValue,
+  serializeMetaBooleanValue,
+  serializeMetaValueForStorage,
 } from './coercion'
 
 describe('schema coercion helpers', () => {
@@ -21,5 +24,23 @@ describe('schema coercion helpers', () => {
 
   it('rejects invalid numbers', () => {
     expect(() => optionalCoercedNumberSchema.parse('abc')).toThrow(z.ZodError)
+  })
+
+  it('parses stored meta checkbox values', () => {
+    expect(parseMetaBooleanValue(true)).toBe(true)
+    expect(parseMetaBooleanValue('true')).toBe(true)
+    expect(parseMetaBooleanValue('1')).toBe(true)
+    expect(parseMetaBooleanValue(1)).toBe(true)
+    expect(parseMetaBooleanValue('false')).toBe(false)
+    expect(parseMetaBooleanValue(false)).toBe(false)
+    expect(parseMetaBooleanValue(null)).toBe(false)
+  })
+
+  it('serializes meta checkbox values for sqlite storage', () => {
+    expect(serializeMetaBooleanValue(true)).toBe('true')
+    expect(serializeMetaBooleanValue(false)).toBe('false')
+    expect(serializeMetaValueForStorage(true)).toBe('true')
+    expect(serializeMetaValueForStorage(false)).toBe('false')
+    expect(serializeMetaValueForStorage(null)).toBeNull()
   })
 })

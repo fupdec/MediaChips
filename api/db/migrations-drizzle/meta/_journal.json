@@ -43,6 +43,13 @@
       "when": 1782768000000,
       "tag": "0005_meta_auto_color_from_image",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782771600000,
+      "tag": "0006_drop_name_singular",
+      "breakpoints": true
     }
   ]
 }

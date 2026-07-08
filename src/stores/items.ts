@@ -57,7 +57,6 @@ function createItemsStoreState() {
     totalFiltered: 0,
     totalFilesize: 0,
     name: 'Tags',
-    nameSingular: 'Tag',
     icon: 'shape',
     isSelect: false,
     selected_last: null as number | null,

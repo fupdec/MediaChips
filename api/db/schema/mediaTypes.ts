@@ -3,7 +3,6 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 export const mediaTypes = sqliteTable('mediaTypes', {
   id: integer('id').primaryKey({autoIncrement: true}),
   name: text('name'),
-  nameSingular: text('nameSingular'),
   icon: text('icon'),
   extensions: text('extensions'),
   order: integer('order'),

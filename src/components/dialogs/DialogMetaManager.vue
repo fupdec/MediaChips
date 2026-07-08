@@ -152,6 +152,7 @@ import {typedApi} from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import type {Meta} from '@/types/stores'
+import type { MetaWritePayload } from '@shared/entities/meta'
 
 interface DialogHeaderButton {
   icon?: string
@@ -350,6 +351,29 @@ const nameRules = (value: string) => {
   return validateName(value)
 }
 
+const buildMetaCreatePayload = (): MetaWritePayload => {
+  const form = metaSettings.value
+  const base: MetaWritePayload = {
+    type: form.type,
+    name: form.name,
+    hint: form.hint,
+    icon: form.icon,
+  }
+
+  if (form.type === 'string') {
+    return {
+      ...base,
+      isLink: form.isLink,
+    }
+  }
+
+  if (form.type === 'rating' || form.type === 'array') {
+    return {...form}
+  }
+
+  return base
+}
+
 const sendForm = async () => {
   if (!form.value) return
 
@@ -357,9 +381,13 @@ const sendForm = async () => {
   if (!formValid) return
 
   try {
+    const payload = props.editMode && props.meta?.id
+      ? metaSettings.value
+      : buildMetaCreatePayload()
+
     const response = props.editMode && props.meta?.id
-      ? await typedApi.updateMeta(props.meta.id, metaSettings.value)
-      : await typedApi.createMeta(metaSettings.value)
+      ? await typedApi.updateMeta(props.meta.id, payload)
+      : await typedApi.createMeta(payload)
 
     if (response.data) {
       if (!props.editMode) {

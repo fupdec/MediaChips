@@ -23,7 +23,6 @@ export interface AddMediaPayload {
 
 export interface MediaTypeWritePayload {
   name?: string
-  nameSingular?: string
   extensions?: string
   icon?: string
   hidden?: boolean | number
