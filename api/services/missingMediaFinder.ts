@@ -29,12 +29,23 @@ async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = 
   return missing
 }
 
-async function getMissingMediaStatus(db: ApiDb) {
+async function getMissingMediaStatus(db: ApiDb, {full = false} = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
+  const total = mediaRepo.countAll()
+
+  if (!full) {
+    return {
+      total,
+      missing: null,
+      withHash: null,
+      withoutHash: null,
+    }
+  }
+
   const missing = await loadMissingMedia(db)
 
   return {
-    total: mediaRepo.countAll(),
+    total,
     missing: missing.length,
     withHash: missing.filter((item: AnyRecord) => item.contentHash).length,
     withoutHash: missing.filter((item: AnyRecord) => !item.contentHash).length,

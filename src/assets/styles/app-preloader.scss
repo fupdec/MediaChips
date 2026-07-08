@@ -136,6 +136,28 @@ body {
   }
 }
 
+@media (max-width: 959px) {
+  .main-scroll--settings {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .main-scroll-inner--settings {
+    height: auto;
+    min-height: 100%;
+    display: block;
+
+    > * {
+      min-height: auto;
+    }
+  }
+
+  .app-main-layout.has-bottom-bar .main-scroll-inner--settings {
+    padding-bottom: var(--app-content-offset-bottom);
+  }
+}
+
 .added-top {
   &.blur {
     position: fixed;

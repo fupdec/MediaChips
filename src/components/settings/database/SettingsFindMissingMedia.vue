@@ -18,25 +18,50 @@
     </v-alert>
 
     <div class="text-body-2 mb-4">
-      {{ t('settings_labels.database.find_missing_media_status', {
-        missing: status.missing,
-        total: status.total,
-        withHash: status.withHash,
-      }) }}
+      <template v-if="statusLoaded && status.missing != null">
+        {{ t('settings_labels.database.find_missing_media_status', {
+          missing: status.missing,
+          total: status.total,
+          withHash: status.withHash,
+        }) }}
+      </template>
+      <template v-else-if="statusLoaded">
+        {{ t('settings_labels.database.find_missing_media_status_not_loaded', {
+          total: status.total,
+        }) }}
+      </template>
+      <template v-else>
+        {{ t('settings_labels.database.status_not_loaded') }}
+      </template>
     </div>
 
-    <v-btn
-      v-if="appStore.isElectron"
-      @click="selectFolders"
-      color="primary"
-      rounded
-      variant="outlined"
-      class="mb-4 pr-4"
-      :disabled="active"
-    >
-      <v-icon icon="mdi-folder-open" start/>
-      {{ t('media.adding.select_folders') }}
-    </v-btn>
+    <div class="d-flex flex-wrap ga-2 mb-4">
+      <v-btn
+        @click="refreshStatus"
+        :loading="statusLoading"
+        :disabled="statusLoading || active"
+        color="secondary"
+        rounded
+        variant="outlined"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-refresh" start/>
+        {{ t('settings_labels.database.refresh_status') }}
+      </v-btn>
+
+      <v-btn
+        v-if="appStore.isElectron"
+        @click="selectFolders"
+        color="primary"
+        rounded
+        variant="outlined"
+        class="pr-4"
+        :disabled="active"
+      >
+        <v-icon icon="mdi-folder-open" start/>
+        {{ t('media.adding.select_folders') }}
+      </v-btn>
+    </div>
 
     <v-textarea
       :model-value="searchPaths"
@@ -165,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
@@ -187,10 +212,12 @@ const tasksStore = useTasksStore()
 
 const status = ref<MissingMediaStatus>({
   total: 0,
-  missing: 0,
-  withHash: 0,
-  withoutHash: 0,
+  missing: null,
+  withHash: null,
+  withoutHash: null,
 })
+const statusLoaded = ref(false)
+const statusLoading = ref(false)
 
 const searchPaths = ref('')
 
@@ -218,7 +245,7 @@ let abortController: AbortController | null = null
 let taskId: string | null = null
 
 const canStart = computed(() => (
-  status.value.missing > 0 &&
+  (status.value.missing ?? 0) > 0 &&
   searchPaths.value.trim().length > 0
 ))
 
@@ -234,14 +261,27 @@ const parsePaths = () => searchPaths.value
   .map((item) => item.trim())
   .filter(Boolean)
 
-const fetchStatus = async () => {
-  const response = await fetch(`${appStore.localhost}/api/Task/missingMediaStatus`)
+const fetchStatus = async (full = true) => {
+  const query = full ? '?full=true' : ''
+  const response = await fetch(`${appStore.localhost}/api/Task/missingMediaStatus${query}`)
 
   if (!response.ok) {
     throw new Error(response.statusText || 'Failed to load missing media status')
   }
 
   status.value = await response.json() as MissingMediaStatus
+  statusLoaded.value = true
+}
+
+const refreshStatus = async () => {
+  statusLoading.value = true
+  try {
+    await fetchStatus(true)
+  } catch (error) {
+    console.error('Failed to load missing media status:', error)
+  } finally {
+    statusLoading.value = false
+  }
 }
 
 const selectFolders = async () => {
@@ -477,14 +517,6 @@ const relinkSelected = async () => {
     relinking.value = false
   }
 }
-
-onMounted(async () => {
-  try {
-    await fetchStatus()
-  } catch (error) {
-    console.error('Failed to load missing media status:', error)
-  }
-})
 </script>
 
 <style scoped>

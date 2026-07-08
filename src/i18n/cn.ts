@@ -767,6 +767,9 @@ const cn = {
     database: {
       manage_backups: '管理备份',
       add_new_database: '添加新数据库',
+      calculate_sizes: '计算大小',
+      refresh_status: '刷新状态',
+      status_not_loaded: '状态未加载。',
       created: '创建于',
       database_activated: '数据库已激活。',
       restore_complete: '恢复已成功完成。',
@@ -842,6 +845,7 @@ const cn = {
       find_missing_media: '查找丢失文件',
       find_missing_media_hint: '扫描已连接驱动器上的文件夹，查找与数据库中路径失效的媒体匹配的文件。强匹配使用内容哈希；大小匹配仅在文件名也一致时显示。',
       find_missing_media_status: '磁盘上缺失 {missing}/{total} 个媒体文件（{withHash} 个有内容哈希）',
+      find_missing_media_status_not_loaded: '数据库中有 {total} 个媒体文件。刷新状态以扫描缺失文件。',
       find_missing_media_paths_label: '搜索文件夹',
       find_missing_media_start: '开始搜索',
       find_missing_media_progress: '已扫描：{scanned} · 匹配：{matched} · 数据库缺失：{missing}',

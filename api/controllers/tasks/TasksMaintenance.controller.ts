@@ -198,7 +198,8 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
   const missingMediaStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
-      const status = await getMissingMediaStatus(db)
+      const full = String(req.query?.full || '').toLowerCase() === 'true'
+      const status = await getMissingMediaStatus(db, {full})
       res.status(201).send(status)
     } catch (err) {
       res.status(500).send({

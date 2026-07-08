@@ -6,23 +6,21 @@
     />
 
     <!-- Actions -->
-    <v-card-actions>
+    <div class="d-flex flex-wrap ga-2 mb-2">
       <v-btn
         id="database_add"
         color="success"
         rounded
         variant="flat"
-        class="pr-4 mb-2"
+        class="pr-4"
         @click="openAdd"
       >
         <v-icon icon="mdi-plus" class="mr-2"/>
         {{ t('settings_labels.database.add_new_database') }}
       </v-btn>
 
-      <v-spacer/>
-
       <SettingsBackups/>
-    </v-card-actions>
+    </div>
 
     <!-- List -->
     <v-list density="compact" rounded class="px-0 settings-outlined-list" bg-color="transparent">
@@ -112,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
+import {ref, computed, watch, onMounted, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'

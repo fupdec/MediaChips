@@ -32,6 +32,21 @@
       </span>
     </v-alert>
 
+    <div class="d-flex flex-wrap ga-2 mb-4">
+      <v-btn
+        @click="refreshStatus"
+        :loading="statusLoading"
+        :disabled="statusLoading || !!activeType"
+        color="secondary"
+        rounded
+        variant="outlined"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-refresh" start/>
+        {{ t('settings_labels.database.refresh_status') }}
+      </v-btn>
+    </div>
+
     <v-progress-linear
       v-if="activeType"
       :model-value="progress"
@@ -60,7 +75,12 @@
       </div>
 
       <div class="text-body-2 text-medium-emphasis mb-3">
-        {{ t('settings_labels.database.generate_video_images_status', status[imageType.id] || emptyStatus) }}
+        <template v-if="statusLoaded">
+          {{ t('settings_labels.database.generate_video_images_status', status[imageType.id] || emptyStatus) }}
+        </template>
+        <template v-else>
+          {{ t('settings_labels.database.status_not_loaded') }}
+        </template>
       </div>
 
       <div v-if="lastSummary[imageType.id]" class="text-body-2 mb-3">
@@ -76,7 +96,7 @@
         <v-btn
           v-if="activeType !== imageType.id"
           @click="startGeneration(imageType.id, false)"
-          :disabled="statusLoading || !!activeType || (status[imageType.id]?.pending || 0) === 0"
+          :disabled="!statusLoaded || statusLoading || !!activeType || (status[imageType.id]?.pending || 0) === 0"
           color="primary"
           rounded
           variant="flat"
@@ -89,7 +109,7 @@
         <v-btn
           v-if="activeType !== imageType.id"
           @click="startGeneration(imageType.id, true)"
-          :disabled="statusLoading || !!activeType || (status[imageType.id]?.total || 0) === 0"
+          :disabled="!statusLoaded || statusLoading || !!activeType || (status[imageType.id]?.total || 0) === 0"
           color="secondary"
           rounded
           variant="outlined"
@@ -116,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch} from 'vue'
+import {ref, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useApiBaseUrl} from '@/composable/useApiBaseUrl'
@@ -190,6 +210,7 @@ const activeType = ref<ImageTypeId | null>(null)
 const progress = ref(0)
 const currentPath = ref('')
 const statusLoading = ref(false)
+const statusLoaded = ref(false)
 const statusError = ref('')
 const lastSummary = ref<Partial<Record<ImageTypeId, GenerationSummary | null>>>({})
 const counters = ref<GenerationCounters>({
@@ -227,12 +248,21 @@ const fetchStatus = async () => {
     }
 
     status.value = await response.json() as Record<ImageTypeId, ImageTypeStatus>
+    statusLoaded.value = true
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     statusError.value = err.message
     throw err
   } finally {
     statusLoading.value = false
+  }
+}
+
+const refreshStatus = async () => {
+  try {
+    await fetchStatus()
+  } catch (error) {
+    console.error('Failed to load video images generation status:', error)
   }
 }
 
@@ -414,14 +444,6 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
     await fetchStatus().catch(() => {})
   }
 }
-
-watch(apiBaseUrl, (baseUrl) => {
-  if (!baseUrl) return
-
-  fetchStatus().catch((error) => {
-    console.error('Failed to load video images generation status:', error)
-  })
-}, {immediate: true})
 </script>
 
 <style scoped>

@@ -5,6 +5,7 @@
       id="database_backups"
       color="primary"
       rounded
+      variant="flat"
     >
       <v-icon icon="mdi-database" class="mr-2"/>
       {{ t('settings_labels.database.manage_backups') }}

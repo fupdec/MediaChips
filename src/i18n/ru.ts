@@ -767,6 +767,9 @@ const ru = {
     database: {
       manage_backups: 'Управление резервными копиями',
       add_new_database: 'Добавить новую базу данных',
+      calculate_sizes: 'Подсчитать размеры',
+      refresh_status: 'Обновить статус',
+      status_not_loaded: 'Статус не загружен.',
       created: 'Создано',
       database_activated: 'База данных активирована.',
       restore_complete: 'Восстановление успешно завершено.',
@@ -842,6 +845,7 @@ const ru = {
       find_missing_media: 'Поиск потерянных файлов',
       find_missing_media_hint: 'Сканирует папки на подключённых дисках и ищет файлы, соответствующие медиа с битым путём в базе. Точные совпадения — по хэшу содержимого; по размеру — только если совпадает имя файла.',
       find_missing_media_status: 'Не найдено на диске: {missing} из {total} ({withHash} с хэшем содержимого)',
+      find_missing_media_status_not_loaded: 'В базе {total} медиафайлов. Нажмите «Обновить статус», чтобы проверить отсутствующие файлы.',
       find_missing_media_paths_label: 'Папки для поиска',
       find_missing_media_start: 'Начать поиск',
       find_missing_media_progress: 'Просканировано: {scanned} · совпадений: {matched} · потеряно в БД: {missing}',

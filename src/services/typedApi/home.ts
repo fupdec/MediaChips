@@ -61,8 +61,10 @@ export const homeApi = {
     }))
   },
 
-  getMissingMediaStatus() {
-    return apiClient.get(API_ROUTES.taskMissingMediaStatus).then((res) => ({
+  getMissingMediaStatus({full = false}: {full?: boolean} = {}) {
+    return apiClient.get(API_ROUTES.taskMissingMediaStatus, {
+      params: full ? {full: 'true'} : undefined,
+    }).then((res) => ({
       ...res,
       data: validated(parseMissingMediaStatus, res.data),
     }))

@@ -323,7 +323,7 @@ async function loadHealth() {
 }
 
 async function loadMissingStatus() {
-  const response = await typedApi.getMissingMediaStatus()
+  const response = await typedApi.getMissingMediaStatus({full: true})
   missingCount.value = Number(response.data?.missing || 0)
 }
 

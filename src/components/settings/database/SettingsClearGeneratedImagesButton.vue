@@ -1,21 +1,17 @@
 <template>
-  <div class="mx-4 d-inline">
-    <div class="d-inline-flex flex-column text-center mb-4">
-      <v-btn
-        color="error"
-        rounded
-        @click="dialogDelete = true"
-      >
-        <v-icon icon="mdi-delete"
-          start/>
-        {{ button }}
-      </v-btn>
+  <div class="d-flex flex-column text-center">
+    <v-btn
+      color="error"
+      rounded
+      @click="dialogDelete = true"
+    >
+      <v-icon icon="mdi-delete" start/>
+      {{ button }}
+    </v-btn>
 
-      <div class="mt-2 text-body-2">
-        <v-icon icon="mdi-harddisk"
-          class="mr-1"/>
-        {{ folderSize }}
-      </div>
+    <div class="mt-2 text-body-2">
+      <v-icon icon="mdi-harddisk" class="mr-1"/>
+      {{ folderSize }}
     </div>
 
     <DialogDeleteConfirm
@@ -78,6 +74,5 @@ const clearData = async () => {
   dialogsStore.process.show = false
 }
 
-/* lifecycle */
 onMounted(getFolderSize)
 </script>

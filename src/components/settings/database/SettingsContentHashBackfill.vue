@@ -18,11 +18,16 @@
     </v-alert>
 
     <div class="text-body-2 mb-4">
-      {{ t('settings_labels.database.content_hash_backfill_status', {
-        hashed: status.hashed,
-        total: status.total,
-        pending: status.pending,
-      }) }}
+      <template v-if="statusLoaded">
+        {{ t('settings_labels.database.content_hash_backfill_status', {
+          hashed: status.hashed,
+          total: status.total,
+          pending: status.pending,
+        }) }}
+      </template>
+      <template v-else>
+        {{ t('settings_labels.database.status_not_loaded') }}
+      </template>
     </div>
 
     <v-progress-linear
@@ -72,48 +77,64 @@
       </span>
     </v-alert>
 
-    <v-btn
-      v-if="!active"
-      @click="startBackfill(false)"
-      :disabled="status.pending === 0 || status.total === 0"
-      color="primary"
-      rounded
-      variant="flat"
-      class="pr-4 mr-2"
-    >
-      <v-icon icon="mdi-play" start/>
-      {{ t('settings_labels.database.content_hash_backfill_start') }}
-    </v-btn>
+    <div class="d-flex flex-wrap ga-2">
+      <v-btn
+        v-if="!active"
+        @click="refreshStatus"
+        :loading="statusLoading"
+        :disabled="statusLoading"
+        color="secondary"
+        rounded
+        variant="outlined"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-refresh" start/>
+        {{ t('settings_labels.database.refresh_status') }}
+      </v-btn>
 
-    <v-btn
-      v-if="!active"
-      @click="startBackfill(true)"
-      :disabled="status.total === 0"
-      color="secondary"
-      rounded
-      variant="outlined"
-      class="pr-4"
-    >
-      <v-icon icon="mdi-refresh" start/>
-      {{ t('settings_labels.database.content_hash_backfill_recalculate') }}
-    </v-btn>
+      <v-btn
+        v-if="!active"
+        @click="startBackfill(false)"
+        :disabled="!statusLoaded || status.pending === 0 || status.total === 0"
+        color="primary"
+        rounded
+        variant="flat"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-play" start/>
+        {{ t('settings_labels.database.content_hash_backfill_start') }}
+      </v-btn>
 
-    <v-btn
-      v-else
-      @click="stopBackfill"
-      color="error"
-      rounded
-      variant="flat"
-      class="pr-4"
-    >
-      <v-icon icon="mdi-stop" start/>
-      {{ t('common.stop') }}
-    </v-btn>
+      <v-btn
+        v-if="!active"
+        @click="startBackfill(true)"
+        :disabled="!statusLoaded || status.total === 0"
+        color="secondary"
+        rounded
+        variant="outlined"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-refresh" start/>
+        {{ t('settings_labels.database.content_hash_backfill_recalculate') }}
+      </v-btn>
+
+      <v-btn
+        v-else
+        @click="stopBackfill"
+        color="error"
+        rounded
+        variant="flat"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-stop" start/>
+        {{ t('common.stop') }}
+      </v-btn>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
@@ -162,6 +183,8 @@ const status = ref<ContentHashStatus>({
   pending: 0,
   hashed: 0,
 })
+const statusLoaded = ref(false)
+const statusLoading = ref(false)
 
 const active = ref(false)
 const progress = ref(0)
@@ -186,6 +209,18 @@ const fetchStatus = async () => {
   }
 
   status.value = await response.json()
+  statusLoaded.value = true
+}
+
+const refreshStatus = async () => {
+  statusLoading.value = true
+  try {
+    await fetchStatus()
+  } catch (error) {
+    console.error('Failed to load content hash backfill status:', error)
+  } finally {
+    statusLoading.value = false
+  }
 }
 
 const stopBackfill = () => {
@@ -362,14 +397,6 @@ const startBackfill = async (force = false) => {
     await fetchStatus().catch(() => {})
   }
 }
-
-onMounted(async () => {
-  try {
-    await fetchStatus()
-  } catch (error) {
-    console.error('Failed to load content hash backfill status:', error)
-  }
-})
 </script>
 
 <style scoped>

@@ -17,25 +17,27 @@
       </span>
     </v-alert>
 
-    <SettingsClearGeneratedImagesButton
-      :button="$t('settings_labels.database.timelines')"
-      image-type="timelines"
-    />
+    <div class="d-flex flex-wrap ga-2 mb-4">
+      <SettingsClearGeneratedImagesButton
+        :button="$t('settings_labels.database.timelines')"
+        image-type="timelines"
+      />
 
-    <SettingsClearGeneratedImagesButton
-      :button="$t('settings_labels.database.grids')"
-      image-type="grids"
-    />
+      <SettingsClearGeneratedImagesButton
+        :button="$t('settings_labels.database.grids')"
+        image-type="grids"
+      />
 
-    <SettingsClearGeneratedImagesButton
-      :button="$t('settings_labels.database.marks')"
-      image-type="marks"
-    />
+      <SettingsClearGeneratedImagesButton
+        :button="$t('settings_labels.database.marks')"
+        image-type="marks"
+      />
 
-    <SettingsClearGeneratedImagesButton
-      :button="$t('settings_labels.database.image_thumbnails')"
-      image-type="image-thumbs"
-    />
+      <SettingsClearGeneratedImagesButton
+        :button="$t('settings_labels.database.image_thumbnails')"
+        image-type="image-thumbs"
+      />
+    </div>
   </div>
 </template>
 

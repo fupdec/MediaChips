@@ -10,9 +10,9 @@ export type DatabaseEntry = {
 
 export type MissingMediaStatus = {
   total: number
-  missing: number
-  withHash: number
-  withoutHash: number
+  missing: number | null
+  withHash: number | null
+  withoutHash: number | null
 }
 
 export type MissingMediaMatch = {

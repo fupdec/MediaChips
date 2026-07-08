@@ -767,6 +767,9 @@ const es = {
     database: {
       manage_backups: 'Gestionar copias de seguridad',
       add_new_database: 'Agregar nueva base de datos',
+      calculate_sizes: 'Calcular tamaños',
+      refresh_status: 'Actualizar estado',
+      status_not_loaded: 'Estado no cargado.',
       created: 'Creado',
       database_activated: 'La base de datos está activada.',
       restore_complete: 'Restauración completada correctamente.',
@@ -842,6 +845,7 @@ const es = {
       find_missing_media: 'Buscar archivos perdidos',
       find_missing_media_hint: 'Escanea carpetas en unidades conectadas para encontrar archivos que coincidan con medios cuya ruta en la base de datos está rota. Las coincidencias fuertes usan hash de contenido; las de tamaño solo si el nombre también coincide.',
       find_missing_media_status: '{missing} de {total} archivos de medios no están en disco ({withHash} con hash de contenido)',
+      find_missing_media_status_not_loaded: '{total} archivos de medios en la base de datos. Actualice el estado para buscar archivos faltantes.',
       find_missing_media_paths_label: 'Carpetas para buscar',
       find_missing_media_start: 'Iniciar búsqueda',
       find_missing_media_progress: 'Escaneados: {scanned} · coincidencias: {matched} · perdidos en BD: {missing}',

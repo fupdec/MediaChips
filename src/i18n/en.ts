@@ -767,6 +767,9 @@ const en = {
     database: {
       manage_backups: 'Manage backups',
       add_new_database: 'Add new database',
+      calculate_sizes: 'Calculate sizes',
+      refresh_status: 'Refresh status',
+      status_not_loaded: 'Status not loaded.',
       created: 'Created',
       database_activated: 'The database is activated.',
       restore_complete: 'Restore completed successfully.',
@@ -842,6 +845,7 @@ const en = {
       find_missing_media: 'Find missing files',
       find_missing_media_hint: 'Scan folders on connected drives to find files that match media with broken paths in the database. Strong matches use content hash; size matches are shown only when the filename also matches.',
       find_missing_media_status: '{missing} of {total} media files are missing on disk ({withHash} with content hash)',
+      find_missing_media_status_not_loaded: '{total} media files in database. Refresh status to scan for missing files.',
       find_missing_media_paths_label: 'Folders to search',
       find_missing_media_start: 'Start search',
       find_missing_media_progress: 'Scanned: {scanned} · matches: {matched} · missing in DB: {missing}',

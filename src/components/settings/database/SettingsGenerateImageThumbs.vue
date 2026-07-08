@@ -51,7 +51,12 @@
     </div>
 
     <div class="text-body-2 text-medium-emphasis mb-3">
-      {{ t('settings_labels.database.generate_image_thumbs_status', status) }}
+      <template v-if="statusLoaded">
+        {{ t('settings_labels.database.generate_image_thumbs_status', status) }}
+      </template>
+      <template v-else>
+        {{ t('settings_labels.database.status_not_loaded') }}
+      </template>
     </div>
 
     <div v-if="lastSummary" class="text-body-2 mb-3">
@@ -61,8 +66,22 @@
     <div class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="!active"
+        @click="refreshStatus"
+        :loading="statusLoading"
+        :disabled="statusLoading"
+        color="secondary"
+        rounded
+        variant="outlined"
+        class="pr-4"
+      >
+        <v-icon icon="mdi-refresh" start/>
+        {{ t('settings_labels.database.refresh_status') }}
+      </v-btn>
+
+      <v-btn
+        v-if="!active"
         @click="startGeneration(false)"
-        :disabled="statusLoading || status.pending === 0"
+        :disabled="!statusLoaded || statusLoading || status.pending === 0"
         color="primary"
         rounded
         variant="flat"
@@ -75,7 +94,7 @@
       <v-btn
         v-if="!active"
         @click="startGeneration(true)"
-        :disabled="statusLoading || status.total === 0"
+        :disabled="!statusLoaded || statusLoading || status.total === 0"
         color="secondary"
         rounded
         variant="outlined"
@@ -101,7 +120,7 @@
 </template>
 
 <script setup>
-import {ref, watch} from 'vue'
+import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useApiBaseUrl} from '@/composable/useApiBaseUrl'
@@ -118,6 +137,7 @@ const active = ref(false)
 const progress = ref(0)
 const currentPath = ref('')
 const statusLoading = ref(false)
+const statusLoaded = ref(false)
 const statusError = ref('')
 const lastSummary = ref(null)
 const counters = ref({
@@ -150,11 +170,20 @@ const fetchStatus = async () => {
     }
 
     status.value = await response.json()
+    statusLoaded.value = true
   } catch (error) {
     statusError.value = error.message
     throw error
   } finally {
     statusLoading.value = false
+  }
+}
+
+const refreshStatus = async () => {
+  try {
+    await fetchStatus()
+  } catch (error) {
+    console.error('Failed to load image thumbnails generation status:', error)
   }
 }
 
@@ -319,14 +348,6 @@ const startGeneration = async (force = false) => {
     await fetchStatus().catch(() => {})
   }
 }
-
-watch(apiBaseUrl, (baseUrl) => {
-  if (!baseUrl) return
-
-  fetchStatus().catch((error) => {
-    console.error('Failed to load image thumbnails generation status:', error)
-  })
-}, {immediate: true})
 </script>
 
 <style scoped>

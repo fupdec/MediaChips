@@ -327,8 +327,19 @@ function resolveTab(routeTab: string) {
   return TAB_ALIASES[routeTab] || routeTab
 }
 
+function getScrollContainer(): HTMLElement | null {
+  if (!contentRef.value) return null
+
+  const contentStyle = getComputedStyle(contentRef.value)
+  if (contentStyle.overflowY === 'auto' || contentStyle.overflowY === 'scroll') {
+    return contentRef.value
+  }
+
+  return contentRef.value.closest('.main-scroll') as HTMLElement | null
+}
+
 function scrollToSettingsSection(sectionId: string, attempts = 12) {
-  const scrollContainer = contentRef.value
+  const scrollContainer = getScrollContainer()
   const element = document.getElementById(sectionId)
   if (scrollContainer && element) {
     const top = element.getBoundingClientRect().top
@@ -393,8 +404,9 @@ function syncTabToRoute(nextTab: string) {
 onMounted(applyRouteSettings)
 
 watch(tab, (nextTab) => {
-  if (contentRef.value) {
-    contentRef.value.scrollTop = 0
+  const scrollContainer = getScrollContainer()
+  if (scrollContainer) {
+    scrollContainer.scrollTop = 0
   }
   if (applyingRoute.value) return
   syncTabToRoute(nextTab)
