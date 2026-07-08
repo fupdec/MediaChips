@@ -11,7 +11,7 @@
               :image-path="imagePath ?? undefined"
               :min-width="minWidth"
               :min-height="mediaMinHeight"
-              @edited="$emit('edited')"
+              @edited="$emit('edited', $event)"
             />
           </v-img>
         </div>
@@ -34,7 +34,7 @@
               :image-path="currentImage.path"
               :min-width="currentImage.width"
               :min-height="currentImage.height"
-              @edited="$emit('edited')"
+              @edited="$emit('edited', $event)"
             />
           </v-img>
           <v-sheet
@@ -68,6 +68,8 @@
 <script setup lang="ts">
 import {computed, defineAsyncComponent} from 'vue'
 import type {PropType} from 'vue'
+
+import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 
 const DialogImageEditing = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogImageEditing.vue'),
@@ -119,7 +121,10 @@ const props = defineProps({
   },
 })
 
-defineEmits(['edited', 'update:currentIndex'])
+defineEmits<{
+  edited: [payload?: ImageEditedPayload]
+  'update:currentIndex': [index: number]
+}>()
 
 const currentImage = computed((): TagImage | undefined => props.images[props.currentIndex])
 

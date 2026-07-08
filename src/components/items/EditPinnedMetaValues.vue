@@ -138,8 +138,22 @@
           <v-col v-if="isTag && meta?.color" cols="12" md="6" xl="4">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <div class="text-medium-emphasis text-caption">{{ t('meta.default_names.color') }}</div>
-              <v-icon @click="pickColor" :color="vals.color ?? undefined" start>mdi-circle</v-icon>
-              <v-btn @click="pickColor" color="primary" variant="flat" rounded="xl">{{ t('settings_labels.appearance.change_color') }}</v-btn>
+              <div class="d-flex flex-wrap align-center ga-2 mt-1">
+                <v-icon @click="pickColor" :color="vals.color ?? undefined" start>mdi-circle</v-icon>
+                <v-btn @click="pickColor" color="primary" variant="flat" rounded="xl">
+                  {{ t('settings_labels.appearance.change_color') }}
+                </v-btn>
+                <v-btn
+                  @click="pickColorFromImage"
+                  :disabled="!hasMainTagImage"
+                  color="primary"
+                  variant="tonal"
+                  rounded="xl"
+                  prepend-icon="mdi-eyedropper"
+                >
+                  {{ t('meta.settings.color_from_image') }}
+                </v-btn>
+              </div>
             </v-card>
           </v-col>
 
@@ -344,6 +358,14 @@ import 'dayjs/locale/zh-cn'
 import 'dayjs/locale/ru'
 import {usePresetMeta} from '@/composable/ItemPresetMeta'
 import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
+import {
+  DEFAULT_TAG_COLOR,
+  extractColorFromImageUrl,
+  extractColorFromLocalFile,
+  isDefaultTagColor,
+} from '@/utils/colorFromImage'
+import {getCachedThumb, tagThumbKey} from '@/utils/thumbDisplayCache'
+import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import type {PresetMetaProps} from '@/types/itemsPage'
 import type { ScraperPinnedItem } from '@/types/scraper'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
@@ -590,7 +612,7 @@ const initBaseValues = () => {
     vals.value = {
       country: countries,
       name: props.tag.name || null,
-      color: (props.tag.color as string | undefined) || '#777',
+      color: (props.tag.color as string | undefined) || DEFAULT_TAG_COLOR,
       synonyms: props.tag.synonyms || null,
       rating: Number(props.tag.rating) || 0,
       favorite: Number(props.tag.favorite) || 0,
@@ -619,8 +641,51 @@ const setValByKey = (val: MetaFieldValue, key: string | number) => {
 }
 
 const pickColor = () => {
-  colorPicker.value.color = (vals.value.color as string | undefined) ?? '#777'
+  colorPicker.value.color = (vals.value.color as string | undefined) ?? DEFAULT_TAG_COLOR
   colorPicker.value.dialog = true
+}
+
+const tryApplyAutoColorFromImage = (color: string) => {
+  if (!isTag.value || !props.meta?.color || !props.meta?.autoColorFromImage) return
+  if (!isDefaultTagColor(vals.value.color)) return
+
+  vals.value.color = color
+}
+
+const hasMainTagImage = computed(() => {
+  if (!isTag.value || !props.meta || !props.tag) return false
+
+  const url = resolveTagThumbDisplayUrl({
+    dbPath: appStore.dbPath,
+    metaId: props.meta.id,
+    tagId: props.tag.id,
+    type: 'main',
+  })
+
+  return !isThumbUnavailable(url)
+})
+
+const pickColorFromImage = async () => {
+  if (!isTag.value || !props.meta?.color || !props.tag) return
+
+  const cached = getCachedThumb(tagThumbKey(props.meta.id, props.tag.id, 'main'))
+  let color: string
+
+  if (cached?.startsWith('data:')) {
+    color = await extractColorFromImageUrl(cached)
+  } else {
+    const filePath = path.join(
+      appStore.dbPath,
+      'meta',
+      `${props.meta.id}`,
+      `${props.tag.id}_main.jpg`,
+    )
+    color = await extractColorFromLocalFile(filePath)
+  }
+
+  if (isDefaultTagColor(color)) return
+
+  vals.value.color = color
 }
 
 const setColor = (color: string) => {
@@ -900,6 +965,7 @@ const transferScrapedInfo = async () => {
   if (images.length > 0) {
     const imageTypes = ['main', 'alt', 'custom1', 'custom2']
     let index = 0
+    let mainImageUrl: string | null = null
 
     for (const url of images) {
       const imageType = imageTypes[index]
@@ -920,8 +986,29 @@ const transferScrapedInfo = async () => {
           title: t('scraper.error'),
           text: t('scraper.image_cannot_be_obtained'),
         })
+      } else if (imageType === 'main') {
+        mainImageUrl = url
       }
     }
+
+    if (
+      mainImageUrl
+      && props.meta.autoColorFromImage
+      && props.meta.color
+      && isDefaultTagColor(vals.value.color)
+    ) {
+      const mainPath = path.join(
+        appStore.dbPath,
+        'meta',
+        `${props.meta.id}`,
+        `${props.tag.id}_main.jpg`,
+      )
+      const color = await extractColorFromLocalFile(mainPath)
+      if (!isDefaultTagColor(color)) {
+        vals.value.color = color
+      }
+    }
+
     eventBus.emit('scraperGotImages')
     dialogsStore.scraper.images = []
   }
@@ -1009,7 +1096,8 @@ const completionStatus = computed(() => {
 
 // Expose methods to parent component
 defineExpose({
-  save
+  save,
+  tryApplyAutoColorFromImage,
 })
 </script>
 

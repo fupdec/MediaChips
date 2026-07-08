@@ -8,6 +8,7 @@ export interface Meta {
   icon?: string
   chipVariant?: string
   color?: boolean
+  autoColorFromImage?: boolean
   rating?: boolean
   favorite?: boolean
   synonyms?: boolean
@@ -47,6 +48,7 @@ export interface MetaSetting {
   chipOutlined?: boolean
   chipLabel?: boolean
   color?: boolean
+  autoColorFromImage?: boolean
   imageAspectRatio?: number
   tagPageDesign?: string
   isLink?: boolean

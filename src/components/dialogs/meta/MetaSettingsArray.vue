@@ -177,6 +177,23 @@
           inset/>
       </v-col>
     </v-row>
+
+    <v-switch
+      v-model="settings.autoColorFromImage"
+      :disabled="!settings.color"
+      class="mt-2"
+      hide-details
+      inset
+    >
+      <template #label>
+        <div class="d-flex flex-column ml-2">
+          <div>{{ t('meta.settings.auto_color_from_image') }}</div>
+          <div class="text-caption mt-1">
+            {{ t('meta.settings.auto_color_from_image_hint') }}
+          </div>
+        </div>
+      </template>
+    </v-switch>
   </SettingsSection>
 
   <SettingsSection padded>
@@ -279,6 +296,7 @@ interface MetaSettings {
   chipLabel: boolean
   chipVariant: ChipVariant
   color: boolean
+  autoColorFromImage: boolean
   favorite: boolean
   rating: boolean
   synonyms: boolean
@@ -318,6 +336,7 @@ const settings = ref<MetaSettings>({
   chipLabel: false,
   chipVariant: 'flat',
   color: false,
+  autoColorFromImage: false,
   favorite: false,
   rating: false,
   synonyms: false,
@@ -345,6 +364,7 @@ const BOOLEAN_SETTING_KEYS = new Set<keyof MetaSettings>([
   'parser',
   'chipLabel',
   'color',
+  'autoColorFromImage',
   'favorite',
   'rating',
   'synonyms',
@@ -415,6 +435,12 @@ onMounted(() => {
 watch(settings, () => {
   emit('update', settings.value)
 }, {deep: true})
+
+watch(() => settings.value.color, (enabled) => {
+  if (!enabled) {
+    settings.value.autoColorFromImage = false
+  }
+})
 
 watch(() => props.meta?.id, () => {
   initSettings()

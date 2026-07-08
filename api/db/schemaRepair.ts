@@ -54,6 +54,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'meta', column: 'chipVariant', definition: "text DEFAULT 'flat'"},
   {table: 'meta', column: 'chipLabel', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'color', definition: 'integer DEFAULT 0'},
+  {table: 'meta', column: 'autoColorFromImage', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'imageAspectRatio', definition: 'real DEFAULT 1'},
   {table: 'meta', column: 'tagPageDesign', definition: "text DEFAULT 'profile'"},
   {table: 'meta', column: 'isLink', definition: 'integer DEFAULT 0'},

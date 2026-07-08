@@ -71,6 +71,7 @@ import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
 import {useEventBus} from "@/utils/eventBus"
 import DialogDeleteConfirm from "@/components/dialogs/DialogDeleteConfirm.vue"
+import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 
 interface TagImage {
   type: string
@@ -92,6 +93,7 @@ interface DialogHeaderButton {
 
 interface EditComponentInstance {
   save?: () => Promise<boolean>
+  tryApplyAutoColorFromImage?: (color: string) => void
 }
 
 const {xl, xs} = useDisplay()
@@ -195,8 +197,11 @@ const getImages = () => {
   }
 }
 
-const onImageEdited = () => {
+const onImageEdited = (payload?: ImageEditedPayload) => {
   getImages()
+  if (payload?.extractedColor) {
+    editingComponent.value?.tryApplyAutoColorFromImage?.(payload.extractedColor)
+  }
   if (!tag.value) return
   eventBus.emit('getItemsFromDb', {
     ids: [tag.value.id],

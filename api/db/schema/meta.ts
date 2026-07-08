@@ -24,6 +24,7 @@ export const meta = sqliteTable('meta', {
   chipVariant: text('chipVariant').default('flat'),
   chipLabel: integer('chipLabel', {mode: 'boolean'}).default(false),
   color: integer('color', {mode: 'boolean'}).default(false),
+  autoColorFromImage: integer('autoColorFromImage', {mode: 'boolean'}).default(false),
   imageAspectRatio: real('imageAspectRatio').default(1),
   tagPageDesign: text('tagPageDesign').default('profile'),
   isLink: integer('isLink', {mode: 'boolean'}).default(false),

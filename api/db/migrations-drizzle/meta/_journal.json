@@ -36,6 +36,13 @@
       "when": 1782764400000,
       "tag": "0004_media_basename_filesize_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1782768000000,
+      "tag": "0005_meta_auto_color_from_image",
+      "breakpoints": true
     }
   ]
 }

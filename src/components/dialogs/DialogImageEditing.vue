@@ -84,6 +84,7 @@ import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useNotificationsStore} from '@/stores/notifications'
 import {createImage, deleteLocalFile} from '@/services/fileService'
+import {extractColorFromCanvas, isMainTagImagePath} from '@/utils/colorFromImage'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 
@@ -136,7 +137,14 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['close', 'edited'])
+export interface ImageEditedPayload {
+  extractedColor?: string
+}
+
+const emit = defineEmits<{
+  close: []
+  edited: [payload?: ImageEditedPayload]
+}>()
 
 // Stores
 const notificationsStore = useNotificationsStore()
@@ -269,15 +277,21 @@ const crop = async () => {
         title: t('image.generation'),
         text: t('image.cannot_crop')
       })
-    } else {
-      notificationsStore.setNotification({
-        type: 'success',
-        text: t('image.cropped_saved')
-      })
+      return
+    }
+
+    notificationsStore.setNotification({
+      type: 'success',
+      text: t('image.cropped_saved')
+    })
+
+    const payload: ImageEditedPayload = {}
+    if (isMainTagImagePath(props.imagePath)) {
+      payload.extractedColor = extractColorFromCanvas(canvas)
     }
 
     closeDialog()
-    emit('edited')
+    emit('edited', payload)
 
   } catch (error) {
     console.error('Error cropping image:', error)

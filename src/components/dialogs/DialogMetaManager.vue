@@ -174,6 +174,7 @@ interface MetaSettingsForm {
   chipLabel: boolean
   chipVariant: string
   color: boolean
+  autoColorFromImage: boolean
   favorite: boolean
   rating: boolean
   synonyms: boolean
@@ -251,6 +252,7 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   chipLabel: false,
   chipVariant: 'flat',
   color: false,
+  autoColorFromImage: false,
   favorite: false,
   rating: false,
   synonyms: false,
