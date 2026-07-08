@@ -84,7 +84,7 @@ const resolveHoverCandidates = (): TagHoverThumbCandidate[] => {
   if (!hover.tagId) return []
 
   if (hover.data_type === 'media') {
-    const cached = getCachedThumb(mediaThumbKey('videos', hover.tagId))
+    const cached = getCachedThumb(mediaThumbKey('videos', hover.tagId, 'thumbs'))
     if (cached && !isThumbUnavailable(cached)) {
       return [{type: 'thumb', url: cached}]
     }

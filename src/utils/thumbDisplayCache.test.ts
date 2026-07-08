@@ -56,4 +56,13 @@ describe('thumbDisplayCache', () => {
     invalidateCachedThumb('x')
     expect(getCachedThumb('x')).toBeUndefined()
   })
+
+  it('keeps video thumb and grid previews under separate keys', () => {
+    clearThumbDisplayCache()
+    setCachedThumb(mediaThumbKey('videos', 42, 'thumbs'), 'thumb-url')
+    setCachedThumb(mediaThumbKey('videos', 42, 'grids'), 'grid-url')
+
+    expect(getCachedThumb(mediaThumbKey('videos', 42, 'thumbs'))).toBe('thumb-url')
+    expect(getCachedThumb(mediaThumbKey('videos', 42, 'grids'))).toBe('grid-url')
+  })
 })

@@ -36,7 +36,7 @@ export function usePlaylistItem(
   const is_locked = computed(() => !reg.value && props.index > UNREGISTERED_PLAYLIST_LIMIT)
 
   const getThumb = () => {
-    const cached = getCachedThumb(mediaThumbKey('videos', props.video.id))
+    const cached = getCachedThumb(mediaThumbKey('videos', props.video.id, 'thumbs'))
     if (isPersistentThumbUrl(cached)) {
       thumb.value = cached ?? null
       return

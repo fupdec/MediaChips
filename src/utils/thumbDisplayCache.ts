@@ -46,7 +46,10 @@ export function setCachedMediaThumbs(
   thumbs: Record<string | number, string>,
 ): void {
   for (const [id, url] of Object.entries(thumbs)) {
-    setCachedThumb(mediaThumbKey(folder, id), url)
+    const key = folder === 'videos'
+      ? mediaThumbKey(folder, id, 'thumbs')
+      : mediaThumbKey(folder, id)
+    setCachedThumb(key, url)
   }
 }
 
@@ -65,7 +68,14 @@ export function clearThumbDisplayCache(): void {
   cache.clear()
 }
 
-export function mediaThumbKey(folder: string, id: number | string): string {
+export function mediaThumbKey(
+  folder: string,
+  id: number | string,
+  subfolder?: 'thumbs' | 'grids',
+): string {
+  if (subfolder) {
+    return `media:${folder}:${subfolder}:${id}`
+  }
   return `media:${folder}:${id}`
 }
 

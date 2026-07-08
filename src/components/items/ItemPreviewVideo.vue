@@ -21,6 +21,8 @@
         class="thumb"
         contain
         @click.stop="play"
+        @load="onThumbLoad"
+        @error="onThumbError"
       />
 
       <div class="duration">{{ duration }}</div>
@@ -281,6 +283,7 @@ const isSettingThumb = ref(false)
 const isCreatingThumb = ref(false)
 const thumbCreateAttempted = ref(false)
 const thumbLoadStarted = ref(false)
+const thumbFallbackStage = ref(0)
 const bigPreviewMenuActive = ref(false)
 const isMounted = ref(false)
 const transcodeRequired = ref<boolean | null>(null)
@@ -293,7 +296,7 @@ const resolveThumbFallback = (): string => {
     return thumb.value
   }
 
-  const cached = getCachedThumb(mediaThumbKey('videos', props.media.id))
+  const cached = getCachedThumb(mediaThumbKey('videos', props.media.id, 'thumbs'))
   if (cached && !isThumbUnavailable(cached)) {
     return cached
   }
@@ -478,6 +481,30 @@ const toggleFullScreen = () => {
 }
 
 // Модифицированные методы
+const getStaticPreviewSubfolder = (): 'thumbs' | 'grids' =>
+  settingsStore.videoPreviewStatic === 'grid' && isViewCard.value ? 'grids' : 'thumbs'
+
+const onThumbLoad = () => {
+  thumbFallbackStage.value = 0
+  if (thumb.value && !isThumbUnavailable(thumb.value) && props.media?.id) {
+    setCachedThumb(
+      mediaThumbKey('videos', props.media.id, getStaticPreviewSubfolder()),
+      thumb.value,
+    )
+  }
+}
+
+const onThumbError = () => {
+  if (thumbFallbackStage.value >= 2) {
+    thumb.value = '/images/unavailable.png'
+    return
+  }
+
+  thumbFallbackStage.value += 1
+  thumbCreateAttempted.value = false
+  void getImg({bust: true, allowCreate: true})
+}
+
 const loadThumb = (subfolder: 'thumbs' | 'grids', {bust = false} = {}) => {
   if (!props.media?.id) return
 
@@ -493,18 +520,22 @@ const loadThumb = (subfolder: 'thumbs' | 'grids', {bust = false} = {}) => {
   thumb.value = thumbUrl
 
   if (thumbUrl && !isThumbUnavailable(thumbUrl)) {
-    setCachedThumb(mediaThumbKey('videos', props.media.id), thumbUrl)
+    setCachedThumb(mediaThumbKey('videos', props.media.id, subfolder), thumbUrl)
   }
 }
 
-const maybeCreateMissingThumb = async (imgPath: string) => {
-  if (!props.isFileExists || !isThumbUnavailable(thumb.value)) return
+const maybeCreateMissingThumb = async () => {
+  if (!props.isFileExists || !thumb.value) return
   if (isCreatingThumb.value || thumbCreateAttempted.value) return
+
+  const exists = await probeDisplayImageUrl(thumb.value)
+  if (exists) return
 
   isCreatingThumb.value = true
   thumbCreateAttempted.value = true
   try {
-    await createThumb(imgPath)
+    await createThumb('')
+    loadThumb('thumbs', {bust: true})
   } finally {
     isCreatingThumb.value = false
   }
@@ -513,28 +544,32 @@ const maybeCreateMissingThumb = async (imgPath: string) => {
 const getImg = async ({bust = false, allowCreate = true} = {}) => {
   if (!isMounted.value || !props.media?.id) return
 
+  const subfolder = getStaticPreviewSubfolder()
+
   if (!bust) {
-    const cached = getCachedThumb(mediaThumbKey('videos', props.media.id))
+    const cached = getCachedThumb(mediaThumbKey('videos', props.media.id, subfolder))
     if (cached && !isThumbUnavailable(cached)) {
       thumb.value = cached
       return
     }
   }
 
-  const is_grid = settingsStore.videoPreviewStatic === "grid"
-  const thumbsPath = path.join(store.mediaPath, 'videos/thumbs', `${props.media.id}.jpg`)
+  const is_grid = subfolder === 'grids'
 
-  if (is_grid && isViewCard.value) {
+  if (is_grid) {
     loadThumb('grids', {bust})
-    if (allowCreate && isThumbUnavailable(thumb.value)) {
-      loadThumb('thumbs', {bust})
-      await maybeCreateMissingThumb(thumbsPath)
+    if (allowCreate && thumb.value) {
+      const gridExists = await probeDisplayImageUrl(thumb.value)
+      if (!gridExists) {
+        loadThumb('thumbs', {bust})
+      }
     }
   } else {
     loadThumb('thumbs', {bust})
-    if (allowCreate) {
-      await maybeCreateMissingThumb(thumbsPath)
-    }
+  }
+
+  if (allowCreate) {
+    await maybeCreateMissingThumb()
   }
 }
 
@@ -544,7 +579,6 @@ const createThumb = async (_imgPath: string) => {
       path: props.media.path,
       id: props.media.id,
     })
-    await loadThumb('thumbs', {bust: true})
   } catch (e) {
     console.log(e)
   }
@@ -1033,6 +1067,12 @@ watch(() => ITEMS.value.view, (value) => {
 
   initFramesToken += 1
   void getImg()
+})
+
+watch(() => settingsStore.videoPreviewStatic, () => {
+  thumbFallbackStage.value = 0
+  thumbCreateAttempted.value = false
+  void getImg({bust: true})
 })
 
 watch(isTaskRunning, (running, wasRunning) => {

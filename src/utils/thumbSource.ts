@@ -80,7 +80,11 @@ export function resolveMediaThumbDisplayUrl(
 ): string | null {
   if (!mediaPath || id == null) return null
 
-  const cached = getCachedThumb(mediaThumbKey(mediaTypeFolder, id))
+  const cached = getCachedThumb(
+    mediaTypeFolder === 'videos'
+      ? mediaThumbKey(mediaTypeFolder, id, subfolder)
+      : mediaThumbKey(mediaTypeFolder, id),
+  )
   if (isPersistentThumbUrl(cached)) return cached!
 
   return buildLocalFileUrl(path.join(
