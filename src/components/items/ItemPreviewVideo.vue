@@ -188,7 +188,7 @@
             class="frame"
           >
             <img :src="img || undefined" @error="onStoryFrameError(i)"/>
-            <div class="duration">{{ duration }}</div>
+            <div class="duration">{{ getTimelineFrameDuration(i) }}</div>
           </div>
         </div>
       </div>
@@ -346,6 +346,15 @@ const height = computed(() =>
 const duration = computed(() =>
   getReadableDuration(mediaDuration.value)
 )
+
+const getTimelineFrameDuration = (index: number) => {
+  const percent = timelines[index]
+  if (percent == null || !mediaDuration.value) {
+    return duration.value
+  }
+
+  return getReadableDuration(Math.floor(mediaDuration.value * percent / 100))
+}
 
 const isFrameLost = computed(() =>
   frame.value ? frame.value.includes('unavailable.png') : true
