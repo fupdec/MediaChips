@@ -20,6 +20,7 @@ import { parseMaxHeightOverride } from '../../api/services/transcode/transcodeSe
 import { getDatabaseManager } from './databaseRegistry'
 import { createStorageDirectories } from './serverConfig'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
+import { resolveVideoThumbFilePath } from '../../api/services/videoPreviewThumb'
 import packageJson from '../../package.json'
 import {
   GLOBAL_APP_CONFIG_KEYS,
@@ -213,7 +214,7 @@ function registerBuiltinRoutes({
     return null
   }
 
-  function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
+  async function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
     const originalFilePath = getFileRequestPath(req)
 
     if (!originalFilePath) {
@@ -221,7 +222,7 @@ function registerBuiltinRoutes({
     }
 
     try {
-      const resolvedPath = resolveFilePath(originalFilePath)
+      const resolvedPath = await resolveVideoThumbFilePath(originalFilePath, db, resolveFilePath)
 
       if (!resolvedPath) {
         console.error('File not found:', originalFilePath)
@@ -287,15 +288,15 @@ function registerBuiltinRoutes({
   }
 
   app.get('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
-    handleGetFile(req, res)
+    void handleGetFile(req, res)
   })
 
   app.head('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
-    handleGetFile(req, res, {headOnly: true})
+    void handleGetFile(req, res, {headOnly: true})
   })
 
   app.post('/api/get-file', (req: ApiRequest, res: ApiResponse) => {
-    handleGetFile(req, res)
+    void handleGetFile(req, res)
   })
 
   app.post('/api/check-file', (req: ApiRequest, res: ApiResponse) => {
