@@ -39,12 +39,16 @@ async function dismissOnboarding(page) {
 }
 
 async function prepareApp(page) {
+  await page.request.put(`${BASE_URL}/api/Setting/sfwMode`, { data: { value: '1' } })
+  await page.request.put(`${BASE_URL}/api/Setting/onboardingCompleted`, { data: { value: '1' } })
+  await page.request.put(`${BASE_URL}/api/Setting/locale`, { data: { value: 'en' } })
+  await page.request.put(`${BASE_URL}/api/Setting/open_player_in_separate_window`, { data: { value: '0' } })
+  await page.request.put(`${BASE_URL}/api/Setting/isPlayVideoInSystemPlayer`, { data: { value: '0' } })
+
   await page.goto(BASE_URL)
   await page.locator('#app').waitFor({ state: 'visible', timeout: 60_000 })
   await page.locator('.v-application').waitFor({ state: 'visible', timeout: 60_000 })
   await dismissOnboarding(page)
-  await page.request.put(`${BASE_URL}/api/Setting/sfwMode`, { data: { value: '1' } })
-  await page.request.put(`${BASE_URL}/api/Setting/onboardingCompleted`, { data: { value: '1' } })
   await page.reload({ waitUntil: 'networkidle' })
   await dismissOnboarding(page)
 }
@@ -53,15 +57,12 @@ async function waitForMediaGrid(page) {
   await page.goto(`${BASE_URL}/media?mediaTypeId=1`)
   await page.locator('.v-application').waitFor({ state: 'visible', timeout: 60_000 })
   await dismissOnboarding(page)
-  await page.locator('.item, .items-page-grid, .items-masonry-grid, .items-virtual-grid').first().waitFor({
-    state: 'visible',
-    timeout: 90_000,
-  })
+  await page.locator('.item').first().waitFor({ state: 'visible', timeout: 90_000 })
   await page.waitForTimeout(2000)
 }
 
 async function openFilters(page) {
-  const filterBtn = page.locator('.v-app-bar').getByRole('button', { name: /filter|фильтр|filtro|筛选/i }).first()
+  const filterBtn = page.locator('.v-app-bar').getByRole('button', { name: /filter/i }).first()
   if (await filterBtn.isVisible().catch(() => false)) {
     await filterBtn.click()
   } else {
@@ -86,7 +87,22 @@ async function main() {
     await waitForMediaGrid(page)
     await saveJpeg(page, '.v-main', 'videos')
 
+    console.log('Capturing filmstrip / grid preview…')
+    await page.request.put(`${BASE_URL}/api/Setting/videoPreviewStatic`, { data: { value: 'grid' } })
+    await page.request.put(`${BASE_URL}/api/Setting/videoPreviewHover`, { data: { value: 'timeline' } })
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.locator('.item').first().waitFor({ state: 'visible', timeout: 90_000 })
+    const previewItem = page.locator('.item').first()
+    await previewItem.hover()
+    await page.waitForTimeout(1200)
+    const filmstripPng = join(TMP_DIR, 'filmstrip.png')
+    const filmstripJpeg = join(OUT_DIR, 'filmstrip.jpeg')
+    await previewItem.screenshot({ path: filmstripPng, type: 'png', animations: 'disabled' })
+    execSync(`sips -s format jpeg "${filmstripPng}" --out "${filmstripJpeg}"`, { stdio: 'pipe' })
+    console.log(`✓ ${filmstripJpeg}`)
+
     console.log('Capturing filters panel…')
+    await waitForMediaGrid(page)
     await openFilters(page)
     await saveJpeg(page, '.v-application', 'filters')
 
@@ -102,20 +118,27 @@ async function main() {
     await page.waitForTimeout(600)
     await saveJpeg(page, '.v-main', 'sort')
 
+    console.log('Capturing video player…')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(400)
+    await page.locator('.filters-drawer').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
+    await waitForMediaGrid(page)
+    await page.locator('.item .thumb').first().click()
+    await page.locator('.v-overlay--active .dialog-player').waitFor({ state: 'visible', timeout: 30_000 })
+    await page.waitForTimeout(2000)
+    await saveJpeg(page, '.v-overlay--active .dialog-player', 'player')
+
     console.log('Capturing tags page…')
+    await page.keyboard.press('Escape')
     await page.goto(`${BASE_URL}/meta?metaId=18`)
-    await page.locator('.v-application').waitFor({ state: 'visible', timeout: 60_000 })
-    await page.locator('.items-page-grid .item, .items-masonry-grid .item, .items-virtual-grid .item, .item').first().waitFor({
-      state: 'visible',
-      timeout: 90_000,
-    })
+    await page.locator('.item').first().waitFor({ state: 'visible', timeout: 90_000 })
     await page.waitForTimeout(1500)
     await saveJpeg(page, '.v-main', 'tags')
 
     console.log('Capturing tag edit dialog…')
     await page.locator('.item').first().click({ button: 'right' })
     await page.waitForTimeout(500)
-    await page.locator('.v-overlay--active .v-list-item').filter({ hasText: /редакт|edit tag|editar|编辑/i }).first().click()
+    await page.locator('.v-overlay--active .v-list-item').filter({ hasText: /^edit$/i }).first().click()
     await page.getByText(/^Editing$/).waitFor({ state: 'visible', timeout: 15_000 })
     await page.waitForTimeout(800)
     await saveJpeg(page, '.v-overlay--active .v-card', 'edit-tag')
@@ -125,7 +148,6 @@ async function main() {
     await page.goto(`${BASE_URL}/settings?tab=library`)
     await page.locator('#settings-doc-tab-library').click()
     await page.locator('.meta-group .v-chip').first().waitFor({ state: 'visible', timeout: 30_000 })
-    await page.waitForTimeout(1000)
     await page.locator('.meta-group .v-chip').first().click()
     await page.locator('.v-overlay--scroll-blocked .v-card').first().waitFor({ state: 'visible', timeout: 15_000 })
     await page.waitForTimeout(800)
@@ -136,7 +158,7 @@ async function main() {
     await waitForMediaGrid(page)
     await savePng(page, '.v-main', 'filters-min')
 
-    console.log('\nDone.')
+    console.log('\nDone — screenshots saved to', OUT_DIR)
   } finally {
     await browser.close()
   }
