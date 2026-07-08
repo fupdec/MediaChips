@@ -331,7 +331,7 @@ const startSearch = async () => {
   counters.value = {
     scanned: 0,
     matched: 0,
-    missing: status.value.missing,
+    missing: status.value.missing ?? 0,
   }
 
   abortController = new AbortController()
