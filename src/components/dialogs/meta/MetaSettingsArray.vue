@@ -64,7 +64,16 @@
       :title="t('meta.settings.tag_page_design')"
     />
 
-    <div class="text-high-emphasis mb-2">{{ t('meta.settings.tag_page_design_hint') }}</div>
+    <v-alert
+      color="info"
+      class="text-caption mb-4"
+      variant="tonal"
+      rounded="xl"
+      density="compact"
+      closable
+    >
+      {{ t('meta.settings.tag_page_design_hint') }}
+    </v-alert>
 
     <v-item-group
       v-model="settings.tagPageDesign"
