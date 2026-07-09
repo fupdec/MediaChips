@@ -62,8 +62,8 @@ type MediaDragHoverListener = (active: boolean) => void
 const mediaDragHoverListeners = new Set<MediaDragHoverListener>()
 let mediaDragHoverActive = false
 
-function setMediaDragHover(active: boolean) {
-  if (mediaDragHoverActive === active) return
+function setMediaDragHover(active: boolean, options?: {forceNotify?: boolean}) {
+  if (mediaDragHoverActive === active && !options?.forceNotify) return
   mediaDragHoverActive = active
   for (const listener of mediaDragHoverListeners) {
     listener(active)
@@ -75,7 +75,7 @@ function handlePreloadDragEnter(event: Event) {
   if (!isLikelyExternalFileDrag(dragEvent)) return
 
   event.preventDefault()
-  setMediaDragHover(true)
+  setMediaDragHover(true, {forceNotify: true})
 }
 
 function handlePreloadDragOver(event: Event) {
@@ -326,5 +326,8 @@ contextBridge.exposeInMainWorld('mediaDragAPI', {
     return () => {
       mediaDragHoverListeners.delete(listener)
     }
+  },
+  resetHover() {
+    resetMediaDragHover()
   },
 });

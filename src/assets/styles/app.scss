@@ -1234,11 +1234,12 @@ header {
   display: flex;
   flex-direction: column;
   z-index: 16;
-  padding: 24px;
+  padding: 48px;
   margin: 0;
-  opacity: 0.92;
-  background: rgba(var(--v-theme-background), 0.72);
-  backdrop-filter: blur(6px);
+  opacity: 1;
+  background: rgba(var(--v-theme-background), 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   pointer-events: all;
   border-radius: 0;
   box-shadow: none;
@@ -1257,7 +1258,7 @@ header {
     color: rgb(var(--v-theme-primary));
     font-size: clamp(1.25rem, 2vw, 2rem);
     text-align: center;
-    padding: 24px;
+    padding: 32px;
     box-sizing: border-box;
   }
 }

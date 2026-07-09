@@ -9,6 +9,7 @@ import type {
 
 export interface MediaDragAPI {
   onHoverChange(listener: (active: boolean) => void): () => void
+  resetHover(): void
 }
 
 declare global {

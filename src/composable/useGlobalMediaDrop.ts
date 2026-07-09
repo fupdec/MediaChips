@@ -49,6 +49,7 @@ export function useGlobalMediaDrop() {
 
   const resetDropzone = () => {
     dropzoneActive.value = false
+    window.mediaDragAPI?.resetHover?.()
   }
 
   const showDropzone = () => {

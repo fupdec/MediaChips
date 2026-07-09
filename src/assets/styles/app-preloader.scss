@@ -104,8 +104,9 @@ body {
 
     &--active {
       pointer-events: all;
-      opacity: 0.92;
+      opacity: 1;
       visibility: visible;
+      cursor: pointer;
     }
   }
 }

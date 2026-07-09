@@ -101,6 +101,7 @@
       <div
         class="dropzone"
         :class="{'dropzone--active': dropzoneActive}"
+        @click="dismissDropzone"
       >
         <div class="text">{{ t('items.drop_video_or_folder') }}</div>
       </div>
@@ -148,7 +149,13 @@ const {isElectron, isMac, isWin} = useAppPlatform()
 const isPlayerWindow = computed(() => isStandalonePlayerRoute(route))
 const appZoom = route.query.player ? null : useAppZoom()
 const contextMenu = computed(() => contextMenuStore)
-const {dropzoneActive} = useGlobalMediaDrop()
+const {dropzoneActive, resetDropzone} = useGlobalMediaDrop()
+
+function dismissDropzone() {
+  if (dropzoneActive.value) {
+    resetDropzone()
+  }
+}
 
 const addedTopClasses = computed(() => ({
   'windows-os-added-top': isWin && isElectron,
