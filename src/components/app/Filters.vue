@@ -640,15 +640,20 @@ watch(currentMediaType, () => {
   .filter-block {
     pointer-events: all;
     box-shadow:  0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)), -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)), 5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
-    background-color: rgba(var(--v-theme-background), 0.9);
+    background-color: transparent !important;
     position: relative;
     isolation: isolate;
+
+    > .v-card__underlay {
+      opacity: 0 !important;
+    }
 
     &::before {
       content: '';
       position: absolute;
       inset: 0;
       border-radius: inherit;
+      background-color: rgba(var(--v-theme-background), 0.9);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       z-index: -1;
@@ -675,12 +680,14 @@ watch(currentMediaType, () => {
 .filters-list {
   overflow-y: auto;
   min-height: 0;
-  padding: 0 12px 0 8px;
+  padding: 4px 12px 0 8px;
   scrollbar-gutter: stable;
-  .v-form:last-of-type {
-    .filter {
-      margin-bottom: 0 !important;
-    }
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .filter-form .filter {
+    margin-bottom: 0 !important;
   }
 }
 </style>

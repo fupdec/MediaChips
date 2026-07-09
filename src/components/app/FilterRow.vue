@@ -11,7 +11,7 @@
     ></v-btn>
 
     <v-card
-      class="mb-4 rounded-xl filter"
+      class="rounded-xl filter"
       :class="{ active: active, removed: removed, disabled: isDisabled }"
       :disabled="isDisabled"
       :variant="active ? 'text' : 'flat'"

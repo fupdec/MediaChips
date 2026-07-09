@@ -12,6 +12,8 @@
     color="primary"
     rounded
     return-object
+    :custom-filter="acceptFilterItem"
+    :menu-props="{ contentClass: 'custom-list filters-add-menu' }"
     @click:append="add"
     @keyup.enter="add"
   >
@@ -44,7 +46,7 @@
       </template>
 
       <template v-else>
-        <v-list-item v-bind="props">
+        <v-list-item v-bind="props" class="filters-add-item">
           <template #prepend>
             <v-icon size="22">
               mdi-{{ getFilterParam(item.raw).icon }}
@@ -54,9 +56,12 @@
           <template #title>
             <div
               v-html="highlight(getFilterText(getFilterParam(item.raw)))"
-              class="text-body-2"
+              class="filters-add-item__title"
             ></div>
-            <div class="d-flex align-center text-caption">
+          </template>
+
+          <template #subtitle>
+            <div class="d-flex align-center filters-add-item__subtitle">
               <v-icon size="12" class="mr-1">
                 {{ getTypeIcon(getFilterParam(item.raw).type) }}
               </v-icon>
@@ -111,16 +116,43 @@ const selectedFilter = ref<FilterListParam | null>(null)
 const search = ref('')
 const filtersRef = ref<{ blur?: () => void } | null>(null)
 
+const isDefaultSearch = computed(() => settingsStore.typingFiltersDefault == '1')
+
+const getFilterText = (item: FilterListParam) =>
+  item?.textKey ? t(item.textKey) : item?.text || ''
+
+const getGroupText = (group?: string) =>
+  t(`filters.groups.${group}`, group || '')
+
+const isGroupHeader = (item: unknown): item is FilterGroupHeader =>
+  typeof item === 'object' && item !== null && 'header' in item
+
+const isGroupDivider = (item: unknown): item is FilterGroupDivider =>
+  typeof item === 'object' && item !== null && 'divider' in item
+
+const matchesSearch = (text: string, query: string) => {
+  if (!query) return true
+  return isDefaultSearch.value
+    ? text.toLowerCase().includes(query.toLowerCase())
+    : foundByChars(text, query)
+}
+
+const acceptFilterItem = (
+  _title: string,
+  query: string,
+  item?: { raw: FilterGroupedItem },
+) => {
+  const raw = item?.raw
+  if (!raw || isGroupHeader(raw) || isGroupDivider(raw)) return true
+  return matchesSearch(getFilterText(raw), query)
+}
+
 /* =========================
  * COMPUTED
  * ========================= */
 
 const filtersGrouped = computed((): FilterGroupedItem[] => {
-  const is_default = settingsStore.typingFiltersDefault == "1"
-
-  const params = props.params.filter((i: FilterListParam) =>
-   is_default ? getFilterText(i).toLowerCase().indexOf(search.value.toLowerCase()) > -1 : foundByChars(getFilterText(i), search.value)
-)
+  const params = props.params.filter((i: FilterListParam) => matchesSearch(getFilterText(i), search.value))
   const ordered = orderBy(params, [(i: FilterListParam) => getGroupText(i.group), (i: FilterListParam) => getFilterText(i)])
   const grouped = groupBy(ordered, 'group')
 
@@ -139,12 +171,6 @@ const filtersGrouped = computed((): FilterGroupedItem[] => {
  * METHODS
  * ========================= */
 
-const isGroupHeader = (item: unknown): item is FilterGroupHeader =>
-  typeof item === 'object' && item !== null && 'header' in item
-
-const isGroupDivider = (item: unknown): item is FilterGroupDivider =>
-  typeof item === 'object' && item !== null && 'divider' in item
-
 const getFilterParam = (item: unknown): FilterListParam => item as FilterListParam
 
 const add = () => {
@@ -158,13 +184,7 @@ const add = () => {
 const getTypeIcon = (type?: string) => getIconDataType(type || '')
 
 const highlight = (text: string) =>
-  highlightChars(text, search.value, true)
-
-const getFilterText = (item: FilterListParam) =>
-  item?.textKey ? t(item.textKey) : item?.text || ''
-
-const getGroupText = (group?: string) =>
-  t(`filters.groups.${group}`, group || '')
+  highlightChars(text, search.value, isDefaultSearch.value)
 
 const getTypeText = (type?: string) =>
   t(`meta.types.${type}`, type || '')
