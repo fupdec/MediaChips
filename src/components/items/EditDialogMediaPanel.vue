@@ -1,7 +1,37 @@
 <template>
   <div class="edit-dialog-media-panel">
-    <v-card variant="elevated" rounded="lg" elevation="3" class="edit-dialog-media-panel__card">
-      <template v-if="mode === 'media'">
+    <v-card
+      variant="elevated"
+      rounded="lg"
+      elevation="3"
+      class="edit-dialog-media-panel__card"
+      :class="{'edit-dialog-media-panel__card--video': isVideoPanel}"
+    >
+      <template v-if="isVideoPanel">
+        <div
+          class="edit-dialog-media-panel__image-wrap edit-dialog-media-panel__image-wrap--video"
+          :style="imageWrapStyle"
+        >
+          <ItemPreviewVideo
+            :media="media!"
+            :is-file-exists="isFileExists"
+            preview-host="embedded"
+          />
+        </div>
+        <div v-if="imageSrc" class="edit-dialog-media-panel__thumb-actions">
+          <DialogImageEditing
+            detached
+            :image="imageSrc"
+            :options="cropperOptions"
+            :image-path="imagePath ?? undefined"
+            :min-width="minWidth"
+            :min-height="mediaMinHeight"
+            @edited="$emit('edited', $event)"
+          />
+        </div>
+      </template>
+
+      <template v-else-if="mode === 'media'">
         <div class="edit-dialog-media-panel__image-wrap" :style="imageWrapStyle">
           <v-img :src="imageSrc ?? undefined" cover class="edit-dialog-media-panel__image">
             <DialogImageEditing
@@ -70,6 +100,8 @@ import {computed, defineAsyncComponent} from 'vue'
 import type {PropType} from 'vue'
 
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
+import type {MediaItem} from '@/types/stores'
+import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 
 const DialogImageEditing = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogImageEditing.vue'),
@@ -119,6 +151,18 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  isVideoMedia: {
+    type: Boolean,
+    default: false,
+  },
+  media: {
+    type: Object as PropType<MediaItem | null>,
+    default: null,
+  },
+  isFileExists: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 defineEmits<{
@@ -127,6 +171,10 @@ defineEmits<{
 }>()
 
 const currentImage = computed((): TagImage | undefined => props.images[props.currentIndex])
+
+const isVideoPanel = computed(() =>
+  props.mode === 'media' && props.isVideoMedia && props.media != null,
+)
 
 const mediaMinHeight = computed(() => {
   const ratio = props.cropperOptions?.aspectRatio || 16 / 9

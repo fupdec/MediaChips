@@ -1346,8 +1346,8 @@ const cn = {
     video_thumb_not_updated: '视频缩略图未更新',
   },
   image: {
-    edit_image: '预览',
-    editing_image: '预览',
+    edit_image: '编辑缩略图',
+    editing_image: '编辑缩略图',
     drop_or_click_upload: '将图像拖到此处或点击上传',
     upload_error: '上传错误',
     upload_failed: '上传图像失败。请重试。',

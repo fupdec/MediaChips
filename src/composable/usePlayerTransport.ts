@@ -12,6 +12,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {createThumb} from '@/services/fileService'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import {getReadableDuration} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {
@@ -244,7 +245,8 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     try {
       await createThumb(time, video.value.path, imgPath, 320, true)
       emit('updateVideo', video.value.id)
-      itemsStore.refreshThumb(video.value.id)
+      invalidateVideoThumbCaches(video.value.id)
+      itemsStore.refreshThumb(video.value.id, {regenerate: true})
       if (is_separate_window.value && window.electronAPI?.send) {
         window.electronAPI.send('updateVideoFrames', video.value.id)
       }

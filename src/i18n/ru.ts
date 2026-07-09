@@ -1346,8 +1346,8 @@ const ru = {
     video_thumb_not_updated: 'Превью видео не обновлено',
   },
   image: {
-    edit_image: 'Превью',
-    editing_image: 'Превью',
+    edit_image: 'Редактировать миниатюру',
+    editing_image: 'Редактирование миниатюры',
     drop_or_click_upload: 'Перетащите изображение сюда или нажмите для загрузки',
     upload_error: 'Ошибка загрузки',
     upload_failed: 'Не удалось загрузить изображение. Попробуйте еще раз.',

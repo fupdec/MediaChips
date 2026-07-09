@@ -54,6 +54,18 @@
               <v-icon size="72" color="grey">mdi-file-document-outline</v-icon>
             </v-sheet>
             <EditDialogMediaPanel
+              v-else-if="isVideoMedia"
+              mode="media"
+              is-video-media
+              :media="media"
+              :is-file-exists="isFileExists"
+              :image-src="thumb ?? undefined"
+              :image-path="imgPath ?? undefined"
+              :cropper-options="cropperOps"
+              :min-width="500"
+              @edited="onImageEdited"
+            />
+            <EditDialogMediaPanel
               v-else
               mode="media"
               :image-src="thumb ?? undefined"
@@ -80,8 +92,9 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
-import {buildLocalFileUrl} from '@/services/fileService'
+import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/fileService'
 import {isThumbUnavailable, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import {useEventBus} from "@/utils/eventBus"
@@ -123,6 +136,7 @@ const itemsStore = useItemsStore()
 const {t} = useI18n()
 const thumb = ref<string | null>(null)
 const imgPath = ref<string | null>(null)
+const isFileExists = ref(true)
 const buttons = ref<DialogHeaderButton[]>([])
 const editingComponent = ref<EditComponentInstance | null>(null)
 const cropperOps = ref({
@@ -146,6 +160,7 @@ const currentMediaType = computed(() =>
 const isAudioMedia = computed(() => isAudioMediaType(currentMediaType.value))
 const isImageMedia = computed(() => isImageMediaType(currentMediaType.value))
 const isTextMedia = computed(() => isTextMediaType(currentMediaType.value))
+const isVideoMedia = computed(() => isVideoMediaType(currentMediaType.value))
 
 function initButtons() {
   buttons.value = [{
@@ -197,20 +212,15 @@ async function getImage() {
 
   const mediaTypeFolder = getMediaDeleteAssetFolder(mediaType) || 'videos'
   imgPath.value = path.join(appStore.mediaPath, mediaTypeFolder, 'thumbs', `${currentMedia.id}.jpg`)
-  let thumbUrl = resolveMediaThumbDisplayUrl(appStore.mediaPath, mediaTypeFolder, currentMedia.id)
 
-  if (isThumbUnavailable(thumbUrl) && currentMedia.path && isVideoMediaType(mediaType)) {
-    try {
-      await typedApi.taskCreateThumbForVideo({
-        path: currentMedia.path,
-        id: currentMedia.id,
-      })
-      thumbUrl = buildLocalFileUrl(imgPath.value, false, true)
-    } catch (error) {
-      console.error(error)
-    }
+  if (isVideoMediaType(mediaType)) {
+    invalidateVideoThumbCaches(currentMedia.id)
+    thumb.value = buildLocalFileUrl(imgPath.value, false, true)
+    cropperOps.value = {aspectRatio: 16 / 9}
+    return
   }
 
+  let thumbUrl = resolveMediaThumbDisplayUrl(appStore.mediaPath, mediaTypeFolder, currentMedia.id)
   thumb.value = thumbUrl
   cropperOps.value = {aspectRatio: 16 / 9}
 }
@@ -292,4 +302,29 @@ watch(() => media.value?.id, (mediaId, previousId) => {
   if (mediaId == null || mediaId === previousId) return
   void getImage()
 })
+
+watch(
+  () => itemsStore.thumbRefreshKeys[Number(media.value?.id)],
+  (version) => {
+    if (version == null) return
+    void getImage()
+  },
+)
+
+watch(
+  () => media.value?.path ?? null,
+  (filePath) => {
+    if (!filePath) {
+      isFileExists.value = false
+      return
+    }
+
+    void checkPathExists(filePath).then((exists) => {
+      if (media.value?.path === filePath) {
+        isFileExists.value = exists
+      }
+    })
+  },
+  {immediate: true},
+)
 </script>

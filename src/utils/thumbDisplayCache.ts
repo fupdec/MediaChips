@@ -41,6 +41,11 @@ export function invalidateCachedThumb(key: string): void {
   cache.delete(key)
 }
 
+export function invalidateVideoThumbCaches(id: number | string): void {
+  invalidateCachedThumb(mediaThumbKey('videos', id, 'thumbs'))
+  invalidateCachedThumb(mediaThumbKey('videos', id, 'grids'))
+}
+
 export function setCachedMediaThumbs(
   folder: string,
   thumbs: Record<string | number, string>,

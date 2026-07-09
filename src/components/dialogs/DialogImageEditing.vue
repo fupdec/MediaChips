@@ -1,11 +1,10 @@
 <template>
   <v-dialog
-    activator="parent"
+    :activator="detached ? undefined : 'parent'"
     v-model="dialog"
     scrollable
     width="800"
     :fullscreen="xs"
-    :attach="false"
   >
     <template v-slot:activator="{ props: activatorProps }">
       <v-btn
@@ -41,7 +40,8 @@
 
           <div class="cropper-block">
             <AdvancedCropper
-              v-if="src"
+              v-if="src && dialog"
+              :key="src"
               @change="updateSize"
               :src="src"
               :stencil-props="options"
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch} from 'vue'
+import {ref, computed, onMounted, watch, nextTick} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -133,7 +133,11 @@ const props = defineProps({
   minHeight: {
     type: Number,
     default: 100
-  }
+  },
+  detached: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Emits
@@ -323,6 +327,12 @@ onMounted(() => {
 // Watchers
 watch(() => props.image, (newVal) => {
   src.value = newVal || null
+})
+
+watch(dialog, async (isOpen) => {
+  if (!isOpen) return
+  src.value = props.image || null
+  await nextTick()
 })
 </script>
 
