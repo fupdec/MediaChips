@@ -1,6 +1,5 @@
 <template>
-  <v-container @dragover="showDrop"
-    ref="container">
+  <v-container ref="container">
 
     <div class="text-md-h2 d-flex align-end justify-space-between flex-wrap my-6">
       <div class="d-flex align-baseline">
@@ -186,34 +185,18 @@
       />
     </div>
 
-    <Teleport to="#main-drop-target">
-      <div
-        v-show="dropzone"
-        @dragleave="onDropzoneDragLeave"
-        @drop.prevent="catchDrop($event)"
-        @dragenter.prevent="onDropzoneDragEnter"
-        @dragover.prevent="onDropzoneDragOver"
-        class="dropzone"
-      >
-        <div class="text">{{ t('items.drop_video_or_folder') }}</div>
-      </div>
-    </Teleport>
-
     <QuickActionButton v-if="SETTINGS.show_quick_action_button == '1'"/>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
+import {ref, computed} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
-import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
-import {useTasksStore} from '@/stores/tasks'
 import {useRegistrationStore} from '@/stores/registration'
 import {useToolbarStore} from '@/stores/toolbar'
-import {useEventBus} from '@/utils/eventBus'
 import {useItemsPage} from '@/composable/useItemsPage'
 import {useItemsPageInit} from '@/composable/useItemsPageInit'
 import {useItemsPageEvents} from '@/composable/useItemsPageEvents'
@@ -239,7 +222,6 @@ import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isVideoMediaType, isImageMediaType} from '@/utils/mediaType'
 import {getReadableFileSize} from '@/services/formatUtils'
-import {collectDroppedPaths, startDroppedMediaAdding} from '@/utils/mediaDrop'
 import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -248,14 +230,11 @@ import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
 const props = defineProps<ItemsPageProps>()
 
 // Сторы Pinia
-const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
-const tasksStore = useTasksStore()
 const toolbarStore = useToolbarStore()
 const registrationStore = useRegistrationStore()
 
-const eventBus = useEventBus()
 const {t} = useI18n()
 
 // Константы из Vuetify
@@ -267,8 +246,6 @@ useVideoImageGenerator()
 // Реактивные переменные
 const mediaType = ref<MediaType | null>(null)
 const meta = ref<Meta | null>(null)
-const dropzone = ref(false)
-const dropzoneDragDepth = ref(0)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
 
@@ -408,7 +385,6 @@ const itemsGridLayoutOptions = computed(() => ({
 }))
 const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(itemsGridRef, itemsGridLayoutOptions)
 const reg = computed(() => registrationStore.reg)
-const isElectron = computed(() => appStore.isElectron)
 const ENV = computed(() => ITEMS.value.environment)
 
 useItemsThumbPrefetch({
@@ -462,71 +438,6 @@ const image_filters_no_results = computed(() => {
 const toggleCustomization = () => {
   const toolbarStore = useToolbarStore()
   toolbarStore.appearance.show = !toolbarStore.appearance.show
-}
-
-const containsDroppedFiles = (event: DragEvent) =>
-  Array.from(event?.dataTransfer?.types || []).includes('Files')
-
-const showDrop = (e: DragEvent) => {
-  if (!containsDroppedFiles(e)) return
-
-  e.preventDefault()
-  if (isElectron.value && props.items_type === 'media') {
-    dropzone.value = true
-  }
-}
-
-const onDropzoneDragEnter = (event: DragEvent) => {
-  if (!containsDroppedFiles(event)) return
-  dropzoneDragDepth.value += 1
-  dropzone.value = true
-}
-
-const onDropzoneDragOver = (event: DragEvent) => {
-  if (!containsDroppedFiles(event)) return
-  event.preventDefault()
-  dropzone.value = true
-}
-
-const onDropzoneDragLeave = (event: DragEvent) => {
-  const relatedTarget = event.relatedTarget
-  if (relatedTarget instanceof Node && event.currentTarget instanceof Node && event.currentTarget.contains(relatedTarget)) {
-    return
-  }
-
-  dropzoneDragDepth.value = Math.max(0, dropzoneDragDepth.value - 1)
-  if (dropzoneDragDepth.value === 0) {
-    dropzone.value = false
-  }
-}
-
-const resetDropzone = () => {
-  dropzone.value = false
-  dropzoneDragDepth.value = 0
-}
-
-onMounted(() => {
-  window.addEventListener('dragend', resetDropzone)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('dragend', resetDropzone)
-})
-
-const catchDrop = (e: DragEvent) => {
-  resetDropzone()
-  if (!isElectron.value || props.items_type !== 'media' || !mediaType.value || !props.mediaTypeId) return
-
-  const paths = collectDroppedPaths(e)
-  if (!paths.length) return
-
-  startDroppedMediaAdding({
-    paths,
-    mediaTypeId: props.mediaTypeId,
-    mediaTypes: appStore.mediaTypes,
-    tasksStore: tasksStore as Parameters<typeof startDroppedMediaAdding>[0]['tasksStore'],
-    eventBus,
-  })
 }
 
 defineEmits<{

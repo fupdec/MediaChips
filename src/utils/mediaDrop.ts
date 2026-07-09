@@ -1,7 +1,8 @@
 import { normalizePastedFilePath } from '@/utils/filePathInput'
 import type { EventBusEvent, EventBusMap } from '@shared/events/map'
 import type { MediaType } from '@/types/media'
-import { inferMediaTypeFromPaths } from '@/utils/mediaType'
+import { inferMediaTypeFromPaths, parseMediaTypeExtensions } from '@/utils/mediaType'
+import { isLikelyExternalFileDrag } from '@shared/mediaFileDrag'
 
 interface EventBusLike {
   emit: <K extends EventBusEvent>(event: K, payload?: EventBusMap[K]) => void
@@ -57,12 +58,50 @@ function collapseNestedDroppedPaths(paths: string[]): string[] {
   return roots.length ? roots : normalized
 }
 
+export function containsDroppedFiles(event: DragEvent | null | undefined): boolean {
+  return isLikelyExternalFileDrag(event)
+}
+
 export function collectDroppedPaths(event: DragEvent | null | undefined): string[] {
   const paths = getDroppedFilesFromEvent(event)
     .map((file) => getDroppedFilePath(file))
     .filter(Boolean)
 
   return collapseNestedDroppedPaths(paths)
+}
+
+function looksLikeFilePath(path: string, mediaTypes?: MediaType[] | null): boolean {
+  const basename = path.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || ''
+  const extension = basename.includes('.') ? basename.split('.').pop()?.toLowerCase() : ''
+  if (!extension) return false
+
+  if (mediaTypes?.length) {
+    for (const mediaType of mediaTypes) {
+      if (parseMediaTypeExtensions(mediaType.extensions).includes(extension)) {
+        return true
+      }
+    }
+  }
+
+  return /\.[^./\\]+$/.test(path)
+}
+
+export function partitionDroppedPaths(
+  paths: string[],
+  mediaTypes?: MediaType[] | null,
+): { files: string[]; directories: string[] } {
+  const files: string[] = []
+  const directories: string[] = []
+
+  for (const entryPath of paths) {
+    if (looksLikeFilePath(entryPath, mediaTypes)) {
+      files.push(entryPath)
+    } else {
+      directories.push(entryPath)
+    }
+  }
+
+  return { files, directories }
 }
 
 interface MediaAddingStore {
@@ -91,17 +130,22 @@ export function startDroppedMediaAdding({
 }): boolean {
   if (!paths.length) return false
 
+  const { files, directories } = partitionDroppedPaths(paths, mediaTypes)
+  const pathsForTypeInference = files.length ? files : paths
+
   const resolvedMediaTypeId = Number(
     mediaTypeId
-    ?? inferMediaTypeFromPaths(paths, mediaTypes)?.id,
+    ?? inferMediaTypeFromPaths(pathsForTypeInference, mediaTypes)?.id,
   )
 
   if (!resolvedMediaTypeId) return false
 
+  const isDirectFilesOnly = files.length > 0 && directories.length === 0
+
   tasksStore.mediaAdding.media_type_id = resolvedMediaTypeId
-  tasksStore.mediaAdding.directFiles = []
-  tasksStore.mediaAdding.skipFileScan = false
-  tasksStore.mediaAdding.paths = paths.join('\n')
+  tasksStore.mediaAdding.directFiles = isDirectFilesOnly ? [...files] : files
+  tasksStore.mediaAdding.skipFileScan = isDirectFilesOnly
+  tasksStore.mediaAdding.paths = (directories.length ? directories : files).join('\n')
   tasksStore.mediaAdding.dialogProcess = true
   tasksStore.mediaAdding.active = true
   eventBus.emit('addMedia')

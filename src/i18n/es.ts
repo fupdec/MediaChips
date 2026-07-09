@@ -401,7 +401,7 @@ const es = {
   },
   items: {
     scroll_to_top: 'Desplazarse arriba',
-    drop_video_or_folder: 'Suelte un video o una carpeta para agregarlos',
+    drop_video_or_folder: 'Suelte un video, archivos o una carpeta para agregarlos',
     no_media_or_meta_with_tag: 'No hay tipos de medio ni categorías de etiquetas vinculados a esta etiqueta',
     tag_load_failed: 'No se pudo cargar la página de la etiqueta',
     tag_not_found: 'Etiqueta no encontrada',
@@ -987,7 +987,7 @@ const es = {
     preview: {
       generating_timeline: 'Generando imágenes de la línea de tiempo',
       frames_in_progress: 'Creación de fotogramas en progreso...',
-      drop_video_or_folder: 'Suelte un video o carpeta para agregarlos',
+      drop_video_or_folder: 'Suelte un video, archivos o carpeta para agregarlos',
       mute: 'Silenciar',
       unmute: 'Activar sonido',
     },

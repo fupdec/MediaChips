@@ -401,7 +401,7 @@ const en = {
   },
   items: {
     scroll_to_top: 'Scroll to top',
-    drop_video_or_folder: 'Drop video or folder to add them',
+    drop_video_or_folder: 'Drop video or files to add them',
     no_media_or_meta_with_tag: 'No linked media types or tag categories for this tag',
     tag_load_failed: 'Failed to load tag page',
     tag_not_found: 'Tag not found',
@@ -987,7 +987,7 @@ const en = {
     preview: {
       generating_timeline: 'Generating timeline images',
       frames_in_progress: 'Creation of frames in progress...',
-      drop_video_or_folder: 'Drop video or folder to add them',
+      drop_video_or_folder: 'Drop video or files to add them',
       mute: 'Mute',
       unmute: 'Unmute',
     },

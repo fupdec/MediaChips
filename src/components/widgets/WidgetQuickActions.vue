@@ -77,7 +77,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {getDefaultMediaTypeId, inferMediaTypeFromPaths} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getMetaName} from '@/utils/metaI18n'
-import {collectDroppedPaths, startDroppedMediaAdding} from '@/utils/mediaDrop'
+import {collectDroppedPaths, containsDroppedFiles, startDroppedMediaAdding} from '@/utils/mediaDrop'
 import DialogMediaAdding from '@/components/dialogs/DialogMediaAdding.vue'
 import {setNotification} from '@/services/notificationService'
 
@@ -109,7 +109,7 @@ function openSearch() {
 }
 
 function containsFiles(event: DragEvent) {
-  return Array.from(event.dataTransfer?.types || []).includes('Files')
+  return containsDroppedFiles(event)
 }
 
 function onDragEnter(event: DragEvent) {

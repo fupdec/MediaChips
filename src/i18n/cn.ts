@@ -401,7 +401,7 @@ const cn = {
   },
   items: {
     scroll_to_top: '滚动到顶部',
-    drop_video_or_folder: '拖放视频或文件夹以添加',
+    drop_video_or_folder: '拖放视频、文件或文件夹以添加',
     no_media_or_meta_with_tag: '此标签没有关联的媒体类型或标签分类',
     tag_load_failed: '无法加载标签页面',
     tag_not_found: '未找到标签',
@@ -987,7 +987,7 @@ const cn = {
     preview: {
       generating_timeline: '正在生成时间线图像',
       frames_in_progress: '正在创建帧...',
-      drop_video_or_folder: '拖放视频或文件夹以添加',
+      drop_video_or_folder: '拖放视频、文件或文件夹以添加',
       mute: '静音',
       unmute: '取消静音',
     },

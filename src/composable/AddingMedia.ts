@@ -138,7 +138,7 @@ export const useMediaAdding = () => {
     addMediaInProgress = true
 
     const skipFileScan = task.value.skipFileScan
-    const directFiles = skipFileScan ? [...task.value.directFiles] : []
+    const directFiles = [...task.value.directFiles]
     const savedMediaTypeId = task.value.media_type_id
 
     task.value.active = true
@@ -213,7 +213,7 @@ export const useMediaAdding = () => {
     let files: string[] = []
 
     try {
-      if (skipFileScan && directFiles.length > 0) {
+      if (skipFileScan && directFiles.length > 0 && paths.length === 0) {
         files = filterPathsByExtensions(directFiles, extensions)
         task.value.status = t('media.adding.preparing_files', {count: files.length})
       } else {
@@ -234,6 +234,13 @@ export const useMediaAdding = () => {
           })
 
           files = files.concat(response.data)
+        }
+
+        if (directFiles.length > 0) {
+          files = [...new Set([
+            ...files,
+            ...filterPathsByExtensions(directFiles, extensions),
+          ])]
         }
       }
 

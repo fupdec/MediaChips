@@ -38,6 +38,8 @@
       v-if="tasksStore.mediaAdding.dialogProcess"
     />
 
+    <TagsAdd v-if="!itemsStore.type" :button="false" />
+
     <DialogMediaEditing
       v-if="dialogsStore.mediaEditing.show"
       @close="dialogsStore.mediaEditing.show = false"
@@ -155,6 +157,9 @@ const DialogScraperMultiple = defineAsyncComponent(() =>
 )
 const DialogMediaAddingProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaAddingProcess.vue')
+)
+const TagsAdd = defineAsyncComponent(() =>
+  import('@/components/app/appbar/elements/TagsAdd.vue')
 )
 const DialogOrganizeMediaByTag = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogOrganizeMediaByTag.vue')

@@ -7,9 +7,14 @@ import type {
   ElectronReadableAPI,
 } from './ipc'
 
+export interface MediaDragAPI {
+  onHoverChange(listener: (active: boolean) => void): () => void
+}
+
 declare global {
   interface Window {
     electronAPI?: ElectronBridgeAPI
+    mediaDragAPI?: MediaDragAPI
     $electronOperable?: ElectronOperableAPI
     operableAPI?: Pick<
       ElectronOperableAPI,

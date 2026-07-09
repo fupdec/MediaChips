@@ -61,11 +61,6 @@
         />
       </div>
 
-      <div
-        v-if="isAppReady"
-        id="main-drop-target"
-        class="main-drop-target"
-      ></div>
     </v-main>
 
     <component :is="HoverImage" v-if="isShellReady && !isPlayerWindow"/>
@@ -97,11 +92,25 @@
     </v-overlay>
 
     <ContextMenu v-if="isShellReady && !isPlayerWindow" v-show="contextMenu.show"/>
+
+    <div
+      v-if="isElectron && !isPlayerWindow"
+      class="main-drop-target"
+      aria-hidden="true"
+    >
+      <div
+        class="dropzone"
+        :class="{'dropzone--active': dropzoneActive}"
+      >
+        <div class="text">{{ t('items.drop_video_or_folder') }}</div>
+      </div>
+    </div>
   </v-app>
 </template>
 
 <script setup lang="ts">
 import {computed, defineAsyncComponent} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {useRoute} from 'vue-router'
 import {useNavigationLayout} from '@/composable/useNavigationLayout'
 import {useAppStore} from '@/stores/app'
@@ -115,6 +124,7 @@ import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {isPlayerUiActive} from '@/utils/playerShellState'
 
 import SystemBar from '@/components/app/SystemBar.vue'
+import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
 
 const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))
 const SideBar = defineAsyncComponent(() => import('@/components/app/SideBar.vue'))
@@ -131,12 +141,14 @@ const settingsStore = useSettingsStore()
 const store = useAppStore()
 const contextMenuStore = useContextMenu()
 const route = useRoute()
+const {t} = useI18n()
 const {useBottomBar} = useNavigationLayout()
 
 const {isElectron, isMac, isWin} = useAppPlatform()
 const isPlayerWindow = computed(() => isStandalonePlayerRoute(route))
 const appZoom = route.query.player ? null : useAppZoom()
 const contextMenu = computed(() => contextMenuStore)
+const {dropzoneActive} = useGlobalMediaDrop()
 
 const addedTopClasses = computed(() => ({
   'windows-os-added-top': isWin && isElectron,

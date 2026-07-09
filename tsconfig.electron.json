@@ -15,5 +15,5 @@
     "ignoreDeprecations": "6.0",
     "types": ["node"]
   },
-  "include": ["electron/**/*.ts", "shared/electron/**/*.ts"]
+  "include": ["electron/**/*.ts", "shared/electron/**/*.ts", "shared/mediaFileDrag.ts"]
 }

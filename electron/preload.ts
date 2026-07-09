@@ -11,6 +11,7 @@ import {
   IPC_ON_CHANNELS,
   IPC_SEND_CHANNELS,
 } from '../shared/electron/ipc'
+import { isLikelyExternalFileDrag } from '../shared/mediaFileDrag'
 
 const validSendChannels = [...IPC_SEND_CHANNELS]
 
@@ -56,6 +57,46 @@ function ipcLog(...args: unknown[]): void {
 function ipcWarn(...args: unknown[]): void {
   if (isDevPreload) console.warn(...args)
 }
+
+type MediaDragHoverListener = (active: boolean) => void
+const mediaDragHoverListeners = new Set<MediaDragHoverListener>()
+let mediaDragHoverActive = false
+
+function setMediaDragHover(active: boolean) {
+  if (mediaDragHoverActive === active) return
+  mediaDragHoverActive = active
+  for (const listener of mediaDragHoverListeners) {
+    listener(active)
+  }
+}
+
+function handlePreloadDragEnter(event: Event) {
+  const dragEvent = event as DragEvent
+  if (!isLikelyExternalFileDrag(dragEvent)) return
+
+  event.preventDefault()
+  setMediaDragHover(true)
+}
+
+function handlePreloadDragOver(event: Event) {
+  const dragEvent = event as DragEvent
+  if (!isLikelyExternalFileDrag(dragEvent)) return
+
+  event.preventDefault()
+  if (dragEvent.dataTransfer) {
+    dragEvent.dataTransfer.dropEffect = 'copy'
+  }
+  setMediaDragHover(true)
+}
+
+function resetMediaDragHover() {
+  setMediaDragHover(false)
+}
+
+window.addEventListener('dragenter', handlePreloadDragEnter, true)
+window.addEventListener('dragover', handlePreloadDragOver, true)
+window.addEventListener('drop', resetMediaDragHover, true)
+window.addEventListener('dragend', resetMediaDragHover, true)
 
 // Экспортируем API с разными пространствами имен
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -276,4 +317,14 @@ contextBridge.exposeInMainWorld('$electronOperable', {
     return ipcRenderer.invoke('showOpenDialog', normalized);
   },
   getDateForDB: () => ipcRenderer.invoke('getDateForDB')
+});
+
+contextBridge.exposeInMainWorld('mediaDragAPI', {
+  onHoverChange(listener: MediaDragHoverListener) {
+    mediaDragHoverListeners.add(listener)
+    listener(mediaDragHoverActive)
+    return () => {
+      mediaDragHoverListeners.delete(listener)
+    }
+  },
 });

@@ -90,17 +90,23 @@ body {
 }
 
 .main-drop-target {
-  position: absolute;
-  top: var(--app-content-offset-top);
-  right: 0;
-  bottom: var(--app-content-offset-bottom);
-  left: 0;
+  position: fixed;
+  inset: 0;
   pointer-events: none;
-  z-index: 15;
+  z-index: 1008;
   overflow: hidden;
 
   .dropzone {
-    pointer-events: all;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease, visibility 0.12s ease;
+
+    &--active {
+      pointer-events: all;
+      opacity: 0.92;
+      visibility: visible;
+    }
   }
 }
 

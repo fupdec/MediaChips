@@ -542,6 +542,13 @@ ipcMain.handle('minimize', (_event: IpcMainInvokeEvent, args: unknown) => {
     win?.minimize()
   }
 })
+ipcMain.handle('focusMainWindow', () => {
+  if (!win || win.isDestroyed()) return false
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+  return true
+})
 ipcMain.handle('relaunch', () => {
   app.relaunch()
   app.exit()
