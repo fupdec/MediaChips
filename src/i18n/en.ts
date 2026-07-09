@@ -990,6 +990,12 @@ const en = {
       drop_video_or_folder: 'Drop video or files to add them',
       mute: 'Mute',
       unmute: 'Unmute',
+      big_preview_size: {
+        title: 'Preview size',
+        original: 'Original',
+        full_height: 'Full height',
+        three_quarters: '3/4 height',
+      },
     },
   },
   meta: {

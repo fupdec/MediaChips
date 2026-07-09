@@ -114,6 +114,7 @@ export type SettingsState = {
   play_sound_on_video_preview: string
   big_video_preview: string
   big_video_preview_delay: string
+  big_video_preview_size: string
   show_salutation: string
   show_ip_at_home_screen: string
   onboardingCompleted: string
@@ -198,6 +199,7 @@ export const defaultSettingsState = (): SettingsState => ({
   play_sound_on_video_preview: '1',
   big_video_preview: '1',
   big_video_preview_delay: '2000',
+  big_video_preview_size: 'full_height',
   show_salutation: '1',
   show_ip_at_home_screen: '1',
   onboardingCompleted: '0',

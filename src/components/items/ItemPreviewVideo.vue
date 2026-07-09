@@ -236,6 +236,21 @@ import {
 import {isAppWindowFocused} from '@/utils/windowFocus'
 import type {MediaItem} from '@/types/stores'
 
+type BigVideoPreviewSize = 'original' | 'full_height' | 'three_quarters'
+
+const BIG_PREVIEW_SIZE_CLASSES: Record<BigVideoPreviewSize, string> = {
+  original: 'big-preview-size-original',
+  full_height: 'big-preview-size-full-height',
+  three_quarters: 'big-preview-size-three-quarters',
+}
+
+const normalizeBigPreviewSize = (value: string | undefined): BigVideoPreviewSize => {
+  if (value === 'original' || value === 'full_height' || value === 'three_quarters') {
+    return value
+  }
+  return 'full_height'
+}
+
 type TimeoutMap = {
   shrink?: ReturnType<typeof setTimeout>
   z?: ReturnType<typeof setTimeout>
@@ -330,6 +345,10 @@ const ITEMS = computed(() => itemsStore)
 const SETTINGS = computed(() => settingsStore)
 
 const muted = computed(() => SETTINGS.value.play_sound_on_video_preview !== '1')
+
+const bigPreviewSize = computed(() =>
+  normalizeBigPreviewSize(SETTINGS.value.big_video_preview_size),
+)
 
 const quality = computed(() =>
   getReadableVideoQuality(mediaWidth.value, mediaHeight.value)
@@ -446,6 +465,9 @@ const resetPreviewContainer = () => {
 
   el.removeEventListener('animationend', removeClasses)
   el.classList.remove('big-preview', 'shrink-down')
+  Object.values(BIG_PREVIEW_SIZE_CLASSES).forEach((className) => {
+    el.classList.remove(className)
+  })
   el.style.animation = ''
 }
 
@@ -486,6 +508,7 @@ const toggleFullScreen = () => {
   preview.style.setProperty("--preview-height", preview.offsetHeight + "px")
   if (bigPreview.value && !playbackError.value) {
     preview.classList.add('big-preview')
+    applyBigPreviewSize(preview)
   }
 }
 
@@ -598,6 +621,38 @@ const togglePreviewMute = () => {
   setOption(nextValue, 'play_sound_on_video_preview')
 }
 
+const applyBigPreviewSize = (preview: HTMLElement) => {
+  Object.values(BIG_PREVIEW_SIZE_CLASSES).forEach((className) => {
+    preview.classList.remove(className)
+  })
+  preview.classList.add(BIG_PREVIEW_SIZE_CLASSES[bigPreviewSize.value])
+
+  if (mediaWidth.value > 0 && mediaHeight.value > 0) {
+    preview.style.setProperty('--big-preview-native-width', `${mediaWidth.value}px`)
+    preview.style.setProperty('--big-preview-native-height', `${mediaHeight.value}px`)
+  }
+}
+
+const setBigPreviewSize = (size: BigVideoPreviewSize) => {
+  setOption(size, 'big_video_preview_size')
+  const preview = getPreviewEl()
+  if (preview && bigPreview.value) {
+    applyBigPreviewSize(preview)
+  }
+}
+
+const buildBigPreviewSizeMenu = () => {
+  const sizes: BigVideoPreviewSize[] = ['original', 'full_height', 'three_quarters']
+  return sizes.map((size) => ({
+    name: t(`media.preview.big_preview_size.${size}`),
+    type: 'item' as const,
+    icon: bigPreviewSize.value === size ? 'radiobox-marked' : 'radiobox-blank',
+    action: () => {
+      setBigPreviewSize(size)
+    },
+  }))
+}
+
 const shouldKeepBigPreviewOpen = () => {
   return bigPreview.value && (contextMenuStore.show || bigPreviewMenuActive.value)
 }
@@ -669,6 +724,13 @@ const handlePreviewContextMenu = (e: MouseEvent) => {
         action: () => {
           togglePreviewMute()
         },
+      },
+      {type: 'divider'},
+      {
+        name: t('media.preview.big_preview_size.title'),
+        type: 'menu',
+        icon: 'resize',
+        menu: buildBigPreviewSizeMenu(),
       },
       {type: 'divider'},
       {
@@ -1106,6 +1168,12 @@ watch(() => bigPreview.value, (value) => {
   if (getPreviewEl()?.classList.contains('big-preview')) {
     shrink()
   }
+})
+
+watch(bigPreviewSize, () => {
+  const preview = getPreviewEl()
+  if (!preview || !bigPreview.value) return
+  applyBigPreviewSize(preview)
 })
 
 watch(() => is_window_focused.value, (value) => {

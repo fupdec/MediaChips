@@ -830,6 +830,37 @@
       video {
         transition-duration: 0s;
         background-color: transparent;
+        min-width: 0;
+        min-height: 0;
+        width: auto;
+        height: auto;
+        max-width: 95vw;
+        max-height: 95vh;
+        object-fit: contain;
+      }
+    }
+    &.big-preview-size-original .preview {
+      max-width: min(var(--big-preview-native-width, 95vw), 95vw);
+      max-height: min(var(--big-preview-native-height, 95vh), 95vh);
+      video {
+        max-width: min(var(--big-preview-native-width, 95vw), 95vw);
+        max-height: min(var(--big-preview-native-height, 95vh), 95vh);
+      }
+    }
+    &.big-preview-size-full-height .preview {
+      max-height: 95vh;
+      height: 95vh;
+      video {
+        height: 100%;
+        max-height: 95vh;
+      }
+    }
+    &.big-preview-size-three-quarters .preview {
+      max-height: 75vh;
+      height: 75vh;
+      video {
+        height: 100%;
+        max-height: 75vh;
       }
     }
     .preview-mute-btn {

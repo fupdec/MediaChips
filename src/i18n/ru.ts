@@ -990,6 +990,12 @@ const ru = {
       drop_video_or_folder: 'Перетащите видео, файлы или папку, чтобы добавить их',
       mute: 'Выключить звук',
       unmute: 'Включить звук',
+      big_preview_size: {
+        title: 'Размер превью',
+        original: 'Оригинал',
+        full_height: 'На всю высоту',
+        three_quarters: '3/4',
+      },
     },
   },
   meta: {

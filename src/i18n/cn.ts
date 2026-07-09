@@ -990,6 +990,12 @@ const cn = {
       drop_video_or_folder: '拖放视频、文件或文件夹以添加',
       mute: '静音',
       unmute: '取消静音',
+      big_preview_size: {
+        title: '预览大小',
+        original: '原始',
+        full_height: '全高',
+        three_quarters: '3/4 高度',
+      },
     },
   },
   meta: {

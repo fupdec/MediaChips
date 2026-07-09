@@ -990,6 +990,12 @@ const es = {
       drop_video_or_folder: 'Suelte un video, archivos o carpeta para agregarlos',
       mute: 'Silenciar',
       unmute: 'Activar sonido',
+      big_preview_size: {
+        title: 'Tamaño de vista previa',
+        original: 'Original',
+        full_height: 'Altura completa',
+        three_quarters: '3/4 de altura',
+      },
     },
   },
   meta: {
