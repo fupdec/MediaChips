@@ -17,6 +17,9 @@ export const usePlayerStore = defineStore('player', {
     fullscreen: false,
     statusText: '',
     statusIcon: '',
+    statusSubtitleKey: null as string | null,
+    statusProgress: null as number | null,
+    statusLarge: false,
     backgroundStatusText: '',
     backgroundStatusIcon: '',
     statusTimeout: -1 as TimeoutHandle | number,
@@ -111,14 +114,14 @@ export const usePlayerStore = defineStore('player', {
       if (!this.player) return
       void this.player.play()
       this.paused = false
-      this.changePlayerStatusText({ text: 'Play', icon: 'play' })
+      this.showTimedStatus(this.currentTime, {subtitleKey: 'player.controls.play', icon: 'play'})
       this.trackCurrentTime()
     },
     playerPause() {
       if (!this.player) return
       this.player.pause()
       this.paused = true
-      this.changePlayerStatusText({ text: 'Paused', icon: 'pause' })
+      this.showTimedStatus(this.currentTime, {subtitleKey: 'player.controls.pause', icon: 'pause'})
       clearInterval(this.currentTimeTimeout as IntervalHandle)
     },
     playerStop() {
@@ -131,11 +134,13 @@ export const usePlayerStore = defineStore('player', {
       if (this.usesLiveTranscode && this.liveStreamSeekHandler) {
         this.currentTime = 0
         this.liveStreamSeekHandler(0)
+        this.showTimedStatus(0, {subtitleKey: 'player.controls.stop', icon: 'stop'})
         return
       }
 
       this.player.currentTime = 0
       this.currentTime = 0
+      this.showTimedStatus(0, {subtitleKey: 'player.controls.stop', icon: 'stop'})
     },
     playerJumpTo(time: number) {
       if (!this.player) return
@@ -144,22 +149,63 @@ export const usePlayerStore = defineStore('player', {
 
       if (this.usesLiveTranscode && this.liveStreamSeekHandler) {
         this.liveStreamSeekHandler(time)
+        this.currentTime = time
+        this.showSeekStatus(time)
         return
       }
 
       this.player.currentTime = time
       this.currentTime = time
+      this.showSeekStatus(time)
+    },
+    showSeekStatus(time: number) {
+      this.showTimedStatus(time, {icon: 'arrow-u-down-right'})
+    },
+    showTimedStatus(
+      time: number,
+      {
+        subtitleKey = null,
+        icon = '',
+      }: {
+        subtitleKey?: string | null
+        icon?: string
+      } = {},
+    ) {
       const current = getReadableDuration(time)
       const duration = getReadableDuration(this.duration)
-      this.changePlayerStatusText({ text: `${current} / ${duration}`, icon: 'arrow-u-down-right' })
+      const progress = this.duration > 0 ? (time / this.duration) * 100 : 0
+      this.changePlayerStatusText({
+        text: `${current} / ${duration}`,
+        icon,
+        subtitleKey,
+        progress,
+      })
     },
-    changePlayerStatusText({ text, icon }: { text: string; icon: string }) {
+    changePlayerStatusText({
+      text,
+      icon,
+      subtitleKey = null,
+      progress = null,
+      large = false,
+    }: {
+      text: string
+      icon: string
+      subtitleKey?: string | null
+      progress?: number | null
+      large?: boolean
+    }) {
       clearTimeout(this.statusTimeout as TimeoutHandle)
       this.statusText = text
       this.statusIcon = icon
+      this.statusSubtitleKey = subtitleKey
+      this.statusProgress = progress
+      this.statusLarge = large
       this.statusTimeout = setTimeout(() => {
         this.statusText = ''
         this.statusIcon = ''
+        this.statusSubtitleKey = null
+        this.statusProgress = null
+        this.statusLarge = false
       }, 3000)
     },
     setBackgroundStatus({ text, icon }: { text: string; icon: string }) {

@@ -111,9 +111,33 @@
             </div>
           </div>
 
-          <div v-show="player.displayStatusText" class="status-text">
-            <v-icon dark start>mdi-{{ player.displayStatusIcon }}</v-icon>
-            {{ player.displayStatusText }}
+          <div
+            v-show="player.displayStatusText"
+            class="status-text"
+            :class="{
+              'status-text--timed': player.statusProgress != null,
+              'status-text--title': player.statusLarge,
+            }"
+          >
+            <div class="status-text__content">
+              <v-icon
+                v-if="player.displayStatusIcon && player.statusProgress == null"
+                dark
+                start
+              >
+                mdi-{{ player.displayStatusIcon }}
+              </v-icon>
+              {{ player.displayStatusText }}
+            </div>
+            <div v-if="player.statusProgress != null" class="status-text__progress">
+              <div
+                class="status-text__progress-fill"
+                :style="{width: `${player.statusProgress}%`}"
+              />
+            </div>
+            <div v-if="player.statusSubtitleKey" class="status-text__subtitle">
+              {{ t(player.statusSubtitleKey) }}
+            </div>
           </div>
 
           <Controls

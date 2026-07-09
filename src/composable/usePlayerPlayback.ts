@@ -694,6 +694,7 @@ export function usePlayerPlayback({
     playerStore.changePlayerStatusText({
       text: `${playerStore.nowPlaying + 1}. ${media.name}`,
       icon: 'format-list-bulleted',
+      large: true,
     })
 
     try {
