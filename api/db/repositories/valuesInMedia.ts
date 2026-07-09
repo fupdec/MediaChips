@@ -1,5 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm'
-import { serializeMetaValueForStorage } from '@shared/schemas/coercion'
+import { serializeMetaValueForStorage } from '../../../shared/schemas/coercion'
 import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { valuesInMedia } from '../schema/valuesInMedia'
