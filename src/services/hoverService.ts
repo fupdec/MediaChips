@@ -9,6 +9,10 @@ interface HoverOptions {
   imageAspectRatio?: number
 }
 
+export const HOVER_CARD_WIDTH = 300
+/** @deprecated use HOVER_CARD_WIDTH */
+export const TAG_HOVER_CARD_WIDTH = HOVER_CARD_WIDTH
+
 export function showHoverImage(
   event: MouseEvent,
   metaId: number | null,
@@ -28,11 +32,11 @@ export function showHoverImage(
     ? options.imageAspectRatio
     : 1
   const { previewWidth, previewHeight } = isMedia
-    ? formatUtils.getHoverPreviewDimensions(options.width || 0, options.height || 0, {
-      maxSize: 180,
-      defaultRatio: options.isVideo ? 16 / 9 : 1,
-    })
-    : formatUtils.getTagHoverPreviewDimensions('avatar', tagAspectRatio)
+    ? {
+      previewWidth: HOVER_CARD_WIDTH,
+      previewHeight: 120,
+    }
+    : formatUtils.getTagHoverPreviewDimensions('avatar', tagAspectRatio, HOVER_CARD_WIDTH)
 
   const appHeight = window.innerHeight
   const appWidth = window.innerWidth
@@ -56,6 +60,9 @@ export function showHoverImage(
     hover.data_type = data_type || 'meta'
     hover.label = options.label?.trim() || null
     hover.imageAspectRatio = isMedia ? null : tagAspectRatio
+    hover.mediaWidth = isMedia ? (options.width ?? null) : null
+    hover.mediaHeight = isMedia ? (options.height ?? null) : null
+    hover.isVideo = isMedia ? Boolean(options.isVideo) : false
   }, 500)
 
   window.setTimeout(() => {
@@ -69,6 +76,9 @@ export function hideHoverImage() {
   store.hover.show = false
   store.hover.label = null
   store.hover.imageAspectRatio = null
+  store.hover.mediaWidth = null
+  store.hover.mediaHeight = null
+  store.hover.isVideo = false
   store.hover.previewWidth = 180
   store.hover.previewHeight = 180
 }

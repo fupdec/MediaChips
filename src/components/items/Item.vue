@@ -193,7 +193,7 @@
                       :tag="tagItem"
                       :meta="previewMeta"></ItemPreviewTag>
       <div @click="editItem"
-           class="ml-2">{{ item.name }}
+           class="tag-chip-view__label">{{ item.name }}
       </div>
     </v-chip>
 

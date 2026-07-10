@@ -63,8 +63,6 @@ describe('thumbSource', () => {
     expect(candidates).toEqual([
       {type: 'avatar', url: 'data:image/jpeg;base64,avatar'},
       {type: 'main', url: 'data:image/jpeg;base64,main'},
-      {type: 'alt', url: expect.stringContaining('2_alt.jpg')},
-      {type: 'custom1', url: expect.stringContaining('2_custom1.jpg')},
     ])
   })
 

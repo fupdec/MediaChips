@@ -1444,7 +1444,7 @@
   .tag-chip-view {
     display: inline-flex !important;
     align-items: stretch;
-    padding-inline-start: 0 !important;
+    padding-inline: 0 !important;
     padding-block: 0 !important;
     cursor: pointer;
     box-shadow: none !important;
@@ -1454,7 +1454,15 @@
       display: inline-flex;
       align-items: center;
       height: 100%;
+      padding-inline: 0 !important;
       padding-block: 0 !important;
+    }
+
+    &__label {
+      margin-inline: 4px 5px;
+      line-height: 1.1;
+      padding: 0;
+      white-space: nowrap;
     }
 
     &:hover {
@@ -1509,12 +1517,22 @@
       .tag-chip-view {
         --tag-chip-avatar-size: 20px;
         height: 20px !important;
+
+        &__label {
+          margin-inline: 3px 4px;
+          font-size: 11px;
+        }
       }
     }
     &-2 {
       .tag-chip-view {
         --tag-chip-avatar-size: 26px;
         height: 26px !important;
+
+        &__label {
+          margin-inline: 3px 5px;
+          font-size: 12px;
+        }
       }
     }
     &-3 {

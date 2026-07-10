@@ -44,7 +44,7 @@ export interface TagHoverThumbCandidate {
   url: string
 }
 
-const TAG_HOVER_THUMB_TYPES = ['avatar', 'main', 'alt', 'custom1'] as const
+const TAG_HOVER_THUMB_TYPES = ['avatar', 'main'] as const
 
 export function getTagHoverThumbCandidates({
   dbPath,

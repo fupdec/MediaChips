@@ -19,6 +19,9 @@ export interface AppHoverState {
   data_type: string | null
   label: string | null
   imageAspectRatio: number | null
+  mediaWidth: number | null
+  mediaHeight: number | null
+  isVideo: boolean
   timeout: ReturnType<typeof setTimeout> | number
   delay: number
   x: number

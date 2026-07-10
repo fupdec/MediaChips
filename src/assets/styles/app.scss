@@ -433,6 +433,120 @@ header {
     display: block;
     background-color: rgb(var(--v-theme-surface-variant));
   }
+
+  &--item-card {
+    width: 300px !important;
+    overflow: visible;
+
+    .item-hover-card {
+      border-radius: inherit;
+      overflow: hidden;
+    }
+  }
+}
+
+.item-hover-card {
+  &__content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  &__media {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  &__image {
+    width: 100%;
+    height: auto;
+    max-width: 96px;
+    max-height: 120px;
+    object-fit: contain;
+    display: block;
+    border-radius: 6px;
+    background-color: rgba(var(--v-theme-surface-variant), 0.35);
+  }
+
+  &__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    min-height: 72px;
+    border-radius: 6px;
+    background:
+      linear-gradient(145deg, rgba(var(--v-theme-surface-variant), 0.45), rgba(var(--v-theme-surface), 0.9));
+  }
+
+  &__info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__title {
+    line-height: 1.25;
+    font-size: 0.95rem;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  &__synonyms {
+    margin-top: 2px;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  &__rating-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    min-height: 20px;
+  }
+
+  &__rating {
+    flex: 0 1 auto;
+    min-height: 20px;
+
+    .v-rating__wrapper {
+      margin: 0;
+    }
+  }
+
+  &__meta {
+    padding: 0 10px 10px;
+    border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+
+    .nested-tags {
+      padding-top: 8px;
+      font-size: 0.75rem;
+
+      .v-chip {
+        margin: 0.15em 0.1em !important;
+        padding: 0 !important;
+        min-height: 20px !important;
+        height: auto !important;
+
+        .v-chip__content {
+          padding-inline: 6px !important;
+        }
+
+        .v-chip__prepend {
+          margin-inline: 3px 2px !important;
+        }
+      }
+    }
+  }
 }
 
 .group-buttons {
