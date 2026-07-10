@@ -13,6 +13,7 @@ export function isPlainKey(event: KeyboardEvent): boolean {
 interface PlayerStoreLike {
   active?: boolean
   isKeyboardBlocked?: boolean
+  currentTime?: number
   player?: { currentTime: number } | null
   playerJumpTo?: (time: number) => void
 }
@@ -50,7 +51,8 @@ function seekByDelta(playerStore: PlayerStoreLike, delta: number, event: Keyboar
   if (!playerStore.player) return false
   if (shouldThrottleSeek(event)) return false
 
-  playerStore.playerJumpTo?.(playerStore.player.currentTime + delta)
+  const baseTime = playerStore.currentTime ?? playerStore.player.currentTime
+  playerStore.playerJumpTo?.(baseTime + delta)
   return true
 }
 

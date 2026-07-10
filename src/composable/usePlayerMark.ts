@@ -66,9 +66,7 @@ export function usePlayerMark(
   }
 
   const jumpTo = () => {
-    if (playerStore.player) {
-      playerStore.player.currentTime = props.mark.time
-    }
+    playerStore.playerJumpTo(props.mark.time)
   }
 
   const remove = () => {
