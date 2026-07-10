@@ -291,6 +291,38 @@
 
 .tag-main-image-wrap {
   width: 100%;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.tag-page-gallery {
+  overflow: visible;
+
+  &__frame {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+
+    .tag-page-gallery__image,
+    .tag-page-gallery__image .v-img__img {
+      border-radius: 0 !important;
+    }
+  }
+
+  &__carousel {
+    height: 100%;
+
+    .v-window,
+    .v-window__container,
+    .v-carousel-item {
+      height: 100%;
+    }
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 @media (max-width: 480px) {

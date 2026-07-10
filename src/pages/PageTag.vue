@@ -167,21 +167,20 @@
           </v-col>
         </v-row>
 
-        <v-row :class="{'tag-profile-body--compact': tagPageDesign === 'compact'}">
+        <v-row align="start" :class="{'tag-profile-body--compact': tagPageDesign === 'compact'}">
           <v-col
-            v-if="mainFileExists && images.main"
+            v-if="galleryImages.length > 0"
             :cols="tagPageDesign === 'compact' ? 12 : 12"
             :md="tagPageDesign === 'compact' ? 'auto' : 3"
-            class="d-flex"
+            class="d-flex align-self-start"
             :class="tagPageDesign === 'compact' ? 'justify-start mb-4' : ''"
           >
-            <v-responsive
+            <TagPageGallery
+              :images="galleryImages"
               :aspect-ratio="meta?.imageAspectRatio"
               :max-width="tagPageDesign === 'compact' ? 180 : undefined"
-              class="tag-main-image-wrap"
-            >
-              <v-img :src="images.main" rounded="xl" class="main-img" cover />
-            </v-responsive>
+              :hover-reveal="is_header_exists"
+            />
           </v-col>
           <v-col cols="12" :md="tagPageDesign === 'compact' ? 12 : 9" style="position:relative;">
             <v-expansion-panels v-model="panel" multiple focusable>
@@ -292,15 +291,6 @@
       </v-alert>
     </v-container>
 
-    <DialogImageEditing
-      v-if="dialogImageEditing"
-      @edited="getImages"
-      @close="dialogImageEditing = false"
-      :dialog="dialogImageEditing"
-      :image="images.main"
-      :options="cropperOps"
-      :imagePath="imgPath"
-    />
     </template>
   </div>
 </template>
@@ -318,6 +308,7 @@ import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
+import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
 import {useEventBus} from '@/utils/eventBus'
 import path from 'path-browserify';
 import LayoutItems from "@/layouts/LayoutItems.vue";
@@ -338,10 +329,17 @@ import type { TagInTagEntry, ValueInTagEntry } from '@shared/api/responses'
 
 type PinnedMediaTab = MetaInMediaTypeAssignment & { mediaType: MediaType }
 
+type TagGalleryImageType = 'main' | 'alt' | 'custom1' | 'custom2'
+
+const TAG_GALLERY_IMAGE_TYPES: TagGalleryImageType[] = ['main', 'alt', 'custom1', 'custom2']
+
 interface TagImages {
   main: string | null
   header: string | null
   avatar: string | null
+  alt: string | null
+  custom1: string | null
+  custom2: string | null
 }
 const route = useRoute()
 const router = useRouter()
@@ -363,13 +361,11 @@ const images = ref<TagImages>({
   main: null,
   header: null,
   avatar: null,
+  alt: null,
+  custom1: null,
+  custom2: null,
 })
 const panel = ref<number[]>([])
-const dialogImageEditing = ref(false)
-const imgPath = ref("")
-const cropperOps = ref({
-  aspectRatio: 1,
-})
 const pinnedParentMeta = ref<Meta[]>([])
 const pinnedMeta = ref<AssignedMeta[]>([])
 const pinnedMedia = ref<PinnedMediaTab[]>([])
@@ -378,6 +374,12 @@ const loadError = ref<string | null>(null)
 const headerFileExists = ref(false)
 const avatarFileExists = ref(false)
 const mainFileExists = ref(false)
+const galleryFileExists = ref<Record<TagGalleryImageType, boolean>>({
+  main: false,
+  alt: false,
+  custom1: false,
+  custom2: false,
+})
 const designSaving = ref(false)
 
 function getErrorText(error: unknown): string {
@@ -421,6 +423,18 @@ const headerBackgroundSrc = computed(() => {
     return images.value.main
   }
   return null
+})
+const galleryImages = computed((): TagPageGalleryImage[] => {
+  return TAG_GALLERY_IMAGE_TYPES.flatMap((type) => {
+    if (!galleryFileExists.value[type] || !images.value[type]) {
+      return []
+    }
+
+    return [{
+      type,
+      src: images.value[type]!,
+    }]
+  })
 })
 const resolveInitialTab = () => {
   const urlMediaTypeId = getUrlParam(route, 'mediaTypeId')
@@ -467,14 +481,6 @@ const init = async () => {
     tab.value = resolveInitialTab()
     is_init.value = true
 
-    cropperOps.value.aspectRatio = meta.value?.imageAspectRatio ?? 1
-    imgPath.value = path.join(
-      appStore.dbPath,
-      "meta/",
-      `${ENV.value.meta_id}`,
-      `${ENV.value.tag_id}_main.jpg`
-    )
-
     await itemsStore.countViewNumber(tag.value, 'tag')
   } catch (error) {
     loadError.value = getErrorText(error) || t('items.tag_load_failed')
@@ -512,7 +518,7 @@ const getTag = async () => {
   }
 }
 
-const resolveTagImage = (type: 'main' | 'header' | 'avatar'): string =>
+const resolveTagImage = (type: keyof TagImages): string =>
   resolveTagThumbDisplayUrl({
     dbPath: appStore.dbPath,
     metaId: meta.value.id,
@@ -523,8 +529,8 @@ const resolveTagImage = (type: 'main' | 'header' | 'avatar'): string =>
 const getImages = async () => {
   if (!appStore.dbPath || !meta.value.id || !tag.value.id) return
 
-  for (const i of ['main', 'header', 'avatar'] as const) {
-    images.value[i] = resolveTagImage(i)
+  for (const type of ['main', 'header', 'avatar', 'alt', 'custom1', 'custom2'] as const) {
+    images.value[type] = resolveTagImage(type)
   }
 
   const metaDir = path.join(appStore.dbPath, 'meta', String(meta.value.id))
@@ -533,6 +539,11 @@ const getImages = async () => {
   headerFileExists.value = await checkFileExists(path.join(metaDir, `${tagId}_header.jpg`))
   avatarFileExists.value = await checkFileExists(path.join(metaDir, `${tagId}_avatar.jpg`))
   mainFileExists.value = await checkFileExists(path.join(metaDir, `${tagId}_main.jpg`))
+
+  for (const type of TAG_GALLERY_IMAGE_TYPES) {
+    galleryFileExists.value[type] = await checkFileExists(path.join(metaDir, `${tagId}_${type}.jpg`))
+  }
+
   upd.value = Date.now()
 }
 
@@ -761,7 +772,6 @@ const handleGetMeta = async () => {
   try {
     await getMeta()
     syncMetaInStore(meta.value)
-    cropperOps.value.aspectRatio = meta.value?.imageAspectRatio ?? 1
     await getPinnedMedia()
     await getPinnedParentMeta()
     await getCompletionStatus()

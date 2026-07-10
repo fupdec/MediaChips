@@ -63,6 +63,10 @@ jobs:
       - name: Build installers
         run: npm run dist -- ${{ matrix.distFlag }}
 
+      - name: Build Windows portable
+        if: matrix.os == 'windows-latest'
+        run: npm run portable
+
       - name: Collect distribution files
         shell: bash
         run: |
