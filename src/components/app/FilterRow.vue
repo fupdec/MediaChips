@@ -90,7 +90,7 @@
         </div>
       </div>
 
-      <div v-if="active" class="filter__body">
+      <div v-if="showsFilterValue" class="filter__body">
         <v-text-field
           v-if="is_value_required && (filter.type === 'string' || filter.type === null)"
           v-model="filterValue"
@@ -288,6 +288,23 @@ const filterValArray = computed(() => Array.isArray(modelFilter.value.val) ? mod
 const filterValString = computed(() => modelFilter.value.val == null ? '' : String(modelFilter.value.val))
 const paramAsString = computed(() => String(parameter.value ?? ''))
 const is_value_required = computed(() => !['is null', 'not null'].includes(condition.value ?? ''))
+
+const showsFilterValue = computed(() => {
+  if (!active.value || !is_value_required.value) return false
+
+  const type = modelFilter.value.type
+  const param = parameter.value
+
+  if (type === 'boolean') return false
+
+  if (type === 'string' || type === null) return true
+  if (type === 'number' || type === 'date' || type === 'rating') return true
+  if (param === 'rating' && type !== 'rating') return true
+  if (type === 'array' && /\d/.test(paramAsString.value)) return true
+  if (param === 'country' || param === 'ext') return true
+
+  return false
+})
 
 // Methods
 const getParamData = (data: string | number | null) => {
