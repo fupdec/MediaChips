@@ -8,8 +8,8 @@ describe('license schemas', () => {
       license_expiry: '2026-12-31',
     })
 
-    expect(info.license_code).toBe('ABC-123')
-    expect(info.license_expiry).toBe('2026-12-31')
+    expect(info?.license_code).toBe('ABC-123')
+    expect(info?.license_expiry).toBe('2026-12-31')
   })
 
   it('parses activate response', () => {
@@ -19,7 +19,12 @@ describe('license schemas', () => {
       message: 'ok',
     })
 
-    expect(response.activated).toBe(true)
-    expect(response.license?.license_code).toBe('ABC-123')
+    expect(response?.activated).toBe(true)
+    expect(response?.license?.license_code).toBe('ABC-123')
+  })
+
+  it('returns null when the license API responds with null', () => {
+    expect(parseLicenseInfo(null)).toBeNull()
+    expect(parseLicenseActivateResponse(null)).toBeNull()
   })
 })

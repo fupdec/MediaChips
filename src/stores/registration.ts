@@ -6,6 +6,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { resolveApiBaseUrl } from '@/utils/apiBaseUrl'
 import { setOption } from '@/services/settingsService'
 import { refreshServerConfig, updateConfig } from '@/services/configService'
+import { ZodError } from 'zod'
 import { parseLicenseActivateResponse, parseLicenseInfo } from '@/schemas/license'
 import type { LicenseInfo } from '@/types/stores'
 
@@ -62,6 +63,10 @@ function getErrorMessage(error: unknown, fallback: string) {
       return 'License service is unavailable (404). Check your internet connection.'
     }
     return 'Device ID service is unavailable (404). Restart the application and try again.'
+  }
+
+  if (error instanceof ZodError) {
+    return fallback
   }
 
   return err.response?.data?.message || err.message || fallback

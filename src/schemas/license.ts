@@ -19,10 +19,26 @@ export const LicenseActivateResponseSchema = z.object({
   message: z.string().optional(),
 }).passthrough()
 
-export function parseLicenseInfo(data: unknown): LicenseInfo {
-  return LicenseInfoSchema.parse(data) as LicenseInfo
+export function parseLicenseInfo(data: unknown): LicenseInfo | null {
+  if (data == null) return null
+
+  const result = LicenseInfoSchema.safeParse(data)
+  if (!result.success) {
+    console.warn('[license] Failed to parse license info:', result.error.issues)
+    return null
+  }
+
+  return result.data as LicenseInfo
 }
 
 export function parseLicenseActivateResponse(data: unknown) {
-  return LicenseActivateResponseSchema.parse(data)
+  if (data == null) return null
+
+  const result = LicenseActivateResponseSchema.safeParse(data)
+  if (!result.success) {
+    console.warn('[license] Failed to parse activate response:', result.error.issues)
+    return null
+  }
+
+  return result.data
 }
