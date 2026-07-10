@@ -52,6 +52,17 @@ function rememberPositiveResult(filePath: string) {
   negativeCache.delete(filePath)
 }
 
+export function invalidateFileExistsCache(filePath?: string) {
+  if (filePath) {
+    negativeCache.delete(filePath)
+    positiveCache.delete(filePath)
+    return
+  }
+
+  negativeCache.clear()
+  positiveCache.clear()
+}
+
 async function checkFileExistsRemote(filePath: string) {
   if (!getApiBaseUrl()) return false
 

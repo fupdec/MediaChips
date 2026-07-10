@@ -15,8 +15,10 @@
             v-model="query"
             @click:append="searchPerformer(1)"
             :disabled="searchInProgress"
+            :loading="searchInProgress"
             :placeholder="t('scraper.performer_name_or_alias')"
-            append-icon="mdi-magnify"
+            append-inner-icon="mdi-magnify"
+            @click:append-inner="searchPerformer(1)"
             class="mb-4"
             hide-details
             filled
@@ -141,12 +143,15 @@ const query = computed({
 
 async function searchPerformer(page = 1) {
   searchInProgress.value = true
-  const result = await scraperStore.searchPerformer({
-    page: page,
-  })
-  performers.value = result?.data || []
-  pagination.value = (result as { meta?: ScraperPagination })?.meta || {}
-  searchInProgress.value = false
+  try {
+    const result = await scraperStore.searchPerformer({
+      page: page,
+    })
+    performers.value = result?.data || []
+    pagination.value = (result as { meta?: ScraperPagination })?.meta || {}
+  } finally {
+    searchInProgress.value = false
+  }
 }
 
 function getInfo(performer: ScraperPerformer) {

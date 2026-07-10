@@ -86,6 +86,8 @@ import {useScraperStore} from '@/stores/scraper'
 import {useAppStore} from '@/stores/app'
 import Countries from "@/assets/Countries"
 import {getMetaName} from "@/utils/metaI18n"
+import {areScraperValuesEqual} from '@/utils/scraperValueCompare'
+import {normalizeScraperExtras} from '@/utils/scraperFieldNormalize'
 
 import ScraperSelectImages from '@/components/scraper/ScraperSelectImages.vue'
 
@@ -120,21 +122,7 @@ async function getData() {
   const values = props.selected?.extras
   if (!values) return
 
-  const clearVal = (value: unknown, regexp: RegExp) => {
-    if (value) {
-      const match = String(value).match(regexp)
-      if (match) return match[0]
-    }
-    return value
-  }
-
-  values["bra"] = clearVal(values["cupsize"], /\d+/)
-  values["cupsize"] = clearVal(values["cupsize"], /\D+/)
-  values["height"] = clearVal(values["height"], /\d+/)
-  values["weight"] = clearVal(values["weight"], /\d+/)
-  if (values["fake_boobs"] || values["fake_boobs"] === false) {
-    values["fake_boobs"] = values["fake_boobs"] ? "Fake" : "Real"
-  }
+  normalizeScraperExtras(values)
 
   const data: ScraperTransferField[] = []
   const tagsAll = appStore.tags || []
@@ -186,6 +174,9 @@ async function getData() {
     if (Array.isArray(val) && val.length) {
       isAlreadyContain = val.includes(valueScraper)
     }
+    if (!isAlreadyContain) {
+      isAlreadyContain = areScraperValuesEqual(val, valueScraper, metaItem.meta.type)
+    }
 
     data.push({
       dataType: metaItem.meta.type,
@@ -210,7 +201,7 @@ function restore(item: ScraperTransferField) {
 }
 
 function transfer(item: ScraperTransferField) {
-  if (item.isTransfered) return
+  if (item.isTransfered || item.isAlreadyContain) return
   if (item.dataType === "array") {
     if (!item.isAlreadyContain && Array.isArray(item.valueCurrent)) {
       item.valueCurrent.push(item.valueScraper)

@@ -12,7 +12,7 @@ import fs from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import { normalizeMediaPath } from '../../api/utils/normalizeUserPath'
 import { isLanAccessEnabled, isLanAccessEnvLocked, applyLanAccessChange } from './lanAccess'
-import { isLoopbackHost } from './constants'
+import { isAllowedOrigin, isLoopbackHost } from './constants'
 import { saveConfigFile } from './configFile'
 import { isClientAbortError, safeJsonError } from './fileResolver'
 import { streamVideoFile } from '../../api/services/transcode/streamVideoFile'
@@ -238,6 +238,14 @@ function registerBuiltinRoutes({
       res.setHeader('Content-Type', contentType)
       res.setHeader('Cache-Control', 'public, max-age=86400')
       res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+
+      const requestOrigin = req.headers.origin
+      if (typeof requestOrigin === 'string' && isAllowedOrigin(requestOrigin)) {
+        res.setHeader('Access-Control-Allow-Origin', requestOrigin)
+        res.setHeader('Vary', 'Origin')
+      } else {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+      }
 
       if (headOnly) {
         return res.status(200).end()

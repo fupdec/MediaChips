@@ -366,6 +366,7 @@ import {
 } from '@/utils/colorFromImage'
 import {getCachedThumb, tagThumbKey} from '@/utils/thumbDisplayCache'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import type {PresetMetaProps} from '@/types/itemsPage'
 import type { ScraperPinnedItem } from '@/types/scraper'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
@@ -960,6 +961,10 @@ const save = async (): Promise<boolean> => {
       await typedApi.postItemValues(valuesEndpoint, values)
     }
 
+    if (isTag.value && props.meta && props.tag) {
+      refreshTagThumbDisplay(itemsStore, appStore.dbPath, props.meta.id, props.tag.id)
+    }
+
     return true
   } catch (error) {
     console.error('Error saving item:', error)
@@ -1021,6 +1026,7 @@ const transferScrapedInfo = async () => {
 
     eventBus.emit('scraperGotImages')
     dialogsStore.scraper.images = []
+    refreshTagThumbDisplay(itemsStore, appStore.dbPath, props.meta.id, props.tag.id)
   }
 
   const fields = (scraperStore.fields || []) as ScraperTransferField[]

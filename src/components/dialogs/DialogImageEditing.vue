@@ -79,12 +79,14 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch, nextTick} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useNotificationsStore} from '@/stores/notifications'
+import {typedApi} from '@/services/typedApi'
 import {createImage, deleteLocalFile} from '@/services/fileService'
-import {extractColorFromCanvas, isMainTagImagePath} from '@/utils/colorFromImage'
+import {extractColorFromCanvas, isMainTagImagePath, parseLocalFilePathFromApiUrl} from '@/utils/colorFromImage'
+import {revokeImageObjectUrl} from '@/utils/imageSource'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 
@@ -163,8 +165,36 @@ const dialog = ref(false)
 
 // Cropper data
 const src = ref<string | null>(null)
+const cropperObjectUrl = ref<string | null>(null)
 const width = ref<number | null>(null)
 const height = ref<number | null>(null)
+
+const revokeCropperObjectUrl = () => {
+  revokeImageObjectUrl(cropperObjectUrl.value)
+  cropperObjectUrl.value = null
+}
+
+const resolveCropperSrc = async (image: string): Promise<string | null> => {
+  if (!image) return null
+  if (image.startsWith('data:') || image.startsWith('blob:')) return image
+
+  const filePath = props.imagePath || parseLocalFilePathFromApiUrl(image)
+  if (!filePath) return image
+
+  try {
+    const response = await typedApi.getFileBlob({url: filePath})
+    revokeCropperObjectUrl()
+    cropperObjectUrl.value = URL.createObjectURL(response.data)
+    return cropperObjectUrl.value
+  } catch (error) {
+    console.error('Failed to load cropper image:', error)
+    return image
+  }
+}
+
+const syncCropperSrc = async () => {
+  src.value = await resolveCropperSrc(props.image)
+}
 
 // FilePond data
 const uploadedImageError = ref<unknown>(null)
@@ -217,6 +247,7 @@ const handleFile = () => {
   if (pond.value && pond.value.getFiles().length > 0) {
     const file = pond.value.getFiles()[0]
     if (file && file.getFileEncodeDataURL) {
+      revokeCropperObjectUrl()
       src.value = file.getFileEncodeDataURL()
     }
   }
@@ -321,17 +352,27 @@ const closeDialog = () => {
 
 // Lifecycle
 onMounted(() => {
-  src.value = props.image || null
+  void syncCropperSrc()
+})
+
+onBeforeUnmount(() => {
+  revokeCropperObjectUrl()
 })
 
 // Watchers
-watch(() => props.image, (newVal) => {
-  src.value = newVal || null
+watch(() => props.image, () => {
+  if (dialog.value) {
+    void syncCropperSrc()
+  }
 })
 
 watch(dialog, async (isOpen) => {
-  if (!isOpen) return
-  src.value = props.image || null
+  if (!isOpen) {
+    revokeCropperObjectUrl()
+    return
+  }
+
+  await syncCropperSrc()
   await nextTick()
 })
 </script>

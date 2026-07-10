@@ -64,6 +64,7 @@ import {useScraperStore} from "@/stores/scraper"
 import {useNotificationsStore} from "@/stores/notifications"
 import {typedApi} from '@/services/typedApi'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {checkCurrentPage} from '@/services/routeService'
 import path from 'path-browserify'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
@@ -151,7 +152,7 @@ const initButtons = () => {
   })
 }
 
-const getImages = () => {
+const getImages = ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
   images.value = []
   if (!tag.value || !meta.value) return
 
@@ -177,6 +178,7 @@ const getImages = () => {
       metaId: meta.value.id,
       tagId: tag.value.id,
       type: imgType.type,
+      cacheBust,
     })
 
     if (!isThumbUnavailable(src)) {
@@ -198,7 +200,10 @@ const getImages = () => {
 }
 
 const onImageEdited = (payload?: ImageEditedPayload) => {
-  getImages()
+  if (tag.value && meta.value) {
+    refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
+  }
+  getImages({cacheBust: true})
   if (payload?.extractedColor) {
     editingComponent.value?.tryApplyAutoColorFromImage?.(payload.extractedColor)
   }
@@ -265,7 +270,6 @@ const save = async () => {
 
   if (savedTagId != null) {
     eventBus.emit('getItemsFromDb', {ids: [savedTagId], type: 'tag'})
-    itemsStore.refreshThumb(savedTagId)
   }
 
   if (itemsStore.type === 'media') {
@@ -287,7 +291,10 @@ const openScraper = () => {
 }
 
 const handleScraperImages = () => {
-  getImages()
+  if (tag.value && meta.value) {
+    refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
+  }
+  getImages({cacheBust: true})
   if (!tag.value) return
   eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
 }
