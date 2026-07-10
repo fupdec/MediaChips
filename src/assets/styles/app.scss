@@ -541,8 +541,16 @@ header {
           padding-inline: 6px !important;
         }
 
-        .v-chip__prepend {
-          margin-inline: 3px 2px !important;
+        &:has(.v-chip__prepend) {
+          .v-chip__prepend {
+            margin-left: 10px !important;
+            margin-right: 2px !important;
+          }
+
+          .v-chip__content {
+            padding-left: 0 !important;
+            padding-right: 6px !important;
+          }
         }
       }
     }
