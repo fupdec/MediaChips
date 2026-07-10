@@ -145,6 +145,8 @@ function registerBuiltinRoutes({
       ...(typeof config.onboardingCompleted === 'string' ? { onboardingCompleted: config.onboardingCompleted } : {}),
       ...(typeof config.onboardingStep === 'string' ? { onboardingStep: config.onboardingStep } : {}),
       ...(typeof config.onboardingPaused === 'string' ? { onboardingPaused: config.onboardingPaused } : {}),
+      ...(typeof config.lastSeenVersion === 'string' ? { lastSeenVersion: config.lastSeenVersion } : {}),
+      ...(typeof config.skippedUpdateVersions === 'string' ? { skippedUpdateVersions: config.skippedUpdateVersions } : {}),
     }
 
     res.json(responseConfig)
@@ -214,7 +216,22 @@ function registerBuiltinRoutes({
     return null
   }
 
+  function applyCorsHeaders(req: ApiRequest, res: ApiResponse) {
+    const requestOrigin = req.headers.origin
+    if (typeof requestOrigin === 'string' && isAllowedOrigin(requestOrigin)) {
+      res.setHeader('Access-Control-Allow-Origin', requestOrigin)
+      res.setHeader('Vary', 'Origin')
+      return
+    }
+
+    if (!requestOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', '*')
+    }
+  }
+
   async function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
+    applyCorsHeaders(req, res)
+
     const originalFilePath = getFileRequestPath(req)
 
     if (!originalFilePath) {
@@ -238,14 +255,6 @@ function registerBuiltinRoutes({
       res.setHeader('Content-Type', contentType)
       res.setHeader('Cache-Control', 'public, max-age=86400')
       res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
-
-      const requestOrigin = req.headers.origin
-      if (typeof requestOrigin === 'string' && isAllowedOrigin(requestOrigin)) {
-        res.setHeader('Access-Control-Allow-Origin', requestOrigin)
-        res.setHeader('Vary', 'Origin')
-      } else {
-        res.setHeader('Access-Control-Allow-Origin', '*')
-      }
 
       if (headOnly) {
         return res.status(200).end()

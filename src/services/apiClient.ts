@@ -1,13 +1,14 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
-import { resolveApiBaseUrl } from '@/utils/apiBaseUrl'
+import { isViteDevProxyMode, resolveApiBaseUrl } from '@/utils/apiBaseUrl'
 import { clearAuthToken, getAuthToken } from '@/services/authSession'
 import type { AppState } from '@/types/stores'
 
 type AppStoreLike = Pick<AppState, 'config' | 'localhost'>
 
 export function getApiBaseUrl(appStore: AppStoreLike = useAppStore()) {
+  if (isViteDevProxyMode()) return ''
   return resolveApiBaseUrl(appStore.config) || appStore.localhost || ''
 }
 

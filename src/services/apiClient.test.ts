@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { buildApiUrl, getApiBaseUrl } from '@/services/apiClient'
 
 describe('apiClient helpers', () => {
@@ -6,6 +6,10 @@ describe('apiClient helpers', () => {
     localhost: 'http://127.0.0.1:12321',
     config: { ip: 'localhost', port: 12321 },
   }
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
 
   it('builds api urls from relative paths', () => {
     expect(buildApiUrl('/api/media/items', 'http://localhost:12321'))
@@ -20,6 +24,22 @@ describe('apiClient helpers', () => {
   })
 
   it('resolves base url from app store config', () => {
+    vi.stubEnv('DEV', false)
     expect(getApiBaseUrl(appStore)).toBe('http://localhost:12321')
+  })
+
+  it('uses vite proxy base in dev when ui runs on vite port', () => {
+    vi.stubEnv('DEV', true)
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        protocol: 'http:',
+        port: '3000',
+        hostname: 'localhost',
+        origin: 'http://localhost:3000',
+      },
+    })
+
+    expect(getApiBaseUrl(appStore)).toBe('')
   })
 })

@@ -1,6 +1,7 @@
 import axios from 'axios'
 import path from 'path-browserify'
-import { resolveApiBaseUrl } from '@/utils/apiBaseUrl'
+import { resolveDirectBackendUrl } from '@/utils/apiBaseUrl'
+import { buildApiUrl } from '@/services/apiClient'
 import { useAppStore } from '@/stores/app'
 import { typedApi } from '@/services/typedApi'
 import { destroySeparatePlayerWindow } from '@/utils/playerWindow'
@@ -25,7 +26,7 @@ export async function updateConfig(data: Record<string, unknown>) {
 
 function applyConfigToStore(config: AppConfigResponse) {
   const store = useAppStore()
-  store.localhost = resolveApiBaseUrl(config)
+  store.localhost = resolveDirectBackendUrl(config)
   store.appVersion = config.appVersion || store.appVersion
   store.dbPath = config.path || ''
   store.mediaPath = path.join(config.path || '', 'media')
@@ -35,10 +36,7 @@ function applyConfigToStore(config: AppConfigResponse) {
 
 export async function refreshServerConfig() {
   const store = useAppStore()
-  const baseUrl = resolveApiBaseUrl(store.config) || store.localhost
-  if (!baseUrl) return null
-
-  const response = await fetch(`${baseUrl}/api/config`)
+  const response = await fetch(buildApiUrl('/api/config'))
   if (!response.ok) {
     throw new Error('Failed to refresh server config')
   }

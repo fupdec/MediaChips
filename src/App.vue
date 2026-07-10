@@ -19,7 +19,7 @@ import AppPreloader from "@/AppPreloader.vue"
 import path from "path-browserify"
 import {useAppStore} from "@/stores/app"
 import AutoConnect from "@/AutoConnect.vue"
-import {resolveApiBaseUrl} from "@/utils/apiBaseUrl"
+import {resolveApiBaseUrl, resolveDirectBackendUrl} from "@/utils/apiBaseUrl"
 import type {AppConfig, ServerConfigPayload, ServerInfo} from "@/types/common"
 
 const isConfigLoaded = ref(false)
@@ -159,7 +159,7 @@ function handleServerConnected(serverInfo: ServerInfo) {
 
 async function initializeApp(server: ServerInfo) {
   if (isPlayerWindow.value) {
-    app.localhost = resolveApiBaseUrl({}, server)
+    app.localhost = resolveDirectBackendUrl({}, server)
     await loadConfig()
     if (!isConfigLoaded.value) {
       await fetchConfigFromServer()
@@ -239,7 +239,7 @@ async function fetchConfigFromServer() {
 function applyConfig(config: ServerConfigPayload) {
   const wasLoaded = isConfigLoaded.value
 
-  app.localhost = resolveApiBaseUrl(config as AppConfig, currentServer.value)
+  app.localhost = resolveDirectBackendUrl(config as AppConfig, currentServer.value)
   app.appVersion = config.appVersion ?? ''
   app.dbPath = config.path ?? ''
   app.mediaPath = path.join(config.path ?? '', 'media')
