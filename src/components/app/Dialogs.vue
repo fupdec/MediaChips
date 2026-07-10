@@ -32,6 +32,7 @@
     <DialogProcess
       v-if="dialogsStore.process.show"
       :dialog="dialogsStore.process.show"
+      :text="dialogsStore.process.text ?? undefined"
     />
 
     <DialogMediaAddingProcess

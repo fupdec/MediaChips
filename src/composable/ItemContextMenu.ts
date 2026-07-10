@@ -24,6 +24,8 @@ import {copyToClipboard} from '@/utils/copyToClipboard'
 import {parseFilePath} from '@/services/pathTagParser'
 import translate, {type Locale} from '@/utils/translate'
 import {resolveSelectedMediaItems} from '@/utils/resolveSelection'
+import {useScraperStore} from '@/stores/scraper'
+import {useAutoScrapeBatch} from '@/composable/useAutoScrapeBatch'
 import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '@/utils/pageItem'
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
@@ -59,6 +61,9 @@ export default function useItemContextMenu(
 
   const eventBus = useEventBus()
 
+  const scraperStore = useScraperStore()
+  const { runForSelection } = useAutoScrapeBatch()
+
   const reg = options.reg ?? registrationStore.reg
   const x = options.x ?? 0
 
@@ -73,6 +78,9 @@ export default function useItemContextMenu(
     const locale = settingsStore.locale as Locale
     const t = (key: string, params: Record<string, string | number> = {}) => translate(key, params, locale)
     const contextMenu: ItemContextMenuEntry[] = []
+    const canAutoScrape = type === 'tag'
+      && settingsStore.showAdultContent === '1'
+      && meta?.scraper === true
 
     if (!itemsStore.isSelect) {
       contextMenu.push({
@@ -92,6 +100,19 @@ export default function useItemContextMenu(
           itemsStore.isSelect = false
         },
       })
+
+      if (canAutoScrape) {
+        contextMenu.push({
+          name: t('context_menu.bulk_auto_scrape'),
+          type: 'item',
+          icon: 'cloud-download',
+          disabled: itemsStore.selection.length === 0 || scraperStore.autoScrapeInProgress,
+          action: () => {
+            if (!meta) return
+            void runForSelection(meta)
+          },
+        })
+      }
     }
 
     if (!itemsStore.isSelect) {
@@ -123,6 +144,18 @@ export default function useItemContextMenu(
 
     if (type === 'tag') {
       if (!itemsStore.isSelect) {
+        if (canAutoScrape && isTagPageItem(item, type) && meta) {
+          contextMenu.push({
+            name: t('context_menu.auto_scrape'),
+            type: 'item',
+            icon: 'cloud-download',
+            disabled: scraperStore.autoScrapeInProgress,
+            action: () => {
+              void autoScrapeSingleTag()
+            },
+          })
+        }
+
         contextMenu.push({type: 'divider'})
         contextMenu.push({
           name: t('context_menu.open_in_new_tab'),
@@ -343,6 +376,40 @@ export default function useItemContextMenu(
       dialogsStore.editMedia(item, currentMediaType.value)
     } else if (isTagPageItem(item, type) && meta) {
       dialogsStore.editTag(item, meta)
+    }
+  }
+
+  const autoScrapeSingleTag = async (): Promise<void> => {
+    if (!isTagPageItem(item, type) || !meta) return
+
+    const locale = settingsStore.locale as Locale
+    const translateLocal = (key: string, params: Record<string, string | number> = {}) =>
+      translate(key, params, locale)
+
+    dialogsStore.process.show = true
+    dialogsStore.process.text = translateLocal('scraper.auto_scrape_in_progress', {
+      name: item.name || '',
+    })
+
+    try {
+      const result = await scraperStore.autoScrapeTag({
+        tag: item,
+        meta,
+      })
+
+      notificationsStore.setNotification({
+        type: result.success ? 'success' : result.error === 'not_found' ? 'warning' : 'error',
+        title: translateLocal(result.success ? 'scraper.auto_scrape_done' : 'scraper.auto_scrape_failed'),
+        text: result.performerName || item.name || '',
+      })
+
+      if (result.success) {
+        eventBus.emit('getItemsFromDb', { ids: [item.id], type: 'tag' })
+        eventBus.emit('getTags')
+      }
+    } finally {
+      dialogsStore.process.show = false
+      dialogsStore.process.text = null
     }
   }
 

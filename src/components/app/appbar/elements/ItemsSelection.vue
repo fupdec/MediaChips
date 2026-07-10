@@ -18,6 +18,14 @@
       :action="selectAll"
     />
 
+    <AppBarButton
+      v-if="canAutoScrape"
+      icon="cloud-download"
+      :text="t('appbar.buttons.auto_scrape')"
+      :disabled="itemsStore.selection.length === 0 || scraperStore.autoScrapeInProgress"
+      :action="autoScrapeSelected"
+    />
+
     <span class="text-caption ml-6" v-html="selectedText"></span>
   </div>
 </template>
@@ -26,16 +34,32 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useItemsStore } from '@/stores/items'
+import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@/stores/settings'
+import { useScraperStore } from '@/stores/scraper'
+import { useAutoScrapeBatch } from '@/composable/useAutoScrapeBatch'
 
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
 
-/* ---------------------- STORE ---------------------- */
-
 const itemsStore = useItemsStore()
+const appStore = useAppStore()
+const settingsStore = useSettingsStore()
+const scraperStore = useScraperStore()
+const { runForSelection } = useAutoScrapeBatch()
 const { t } = useI18n()
 
-/* ---------------------- COMPUTED ---------------------- */
+const performerMeta = computed(() => {
+  const metaId = itemsStore.environment.meta_id
+  if (!metaId) return null
+  return appStore.meta.find((item) => item.id === metaId) ?? null
+})
+
+const canAutoScrape = computed(() =>
+  itemsStore.type === 'tag'
+  && settingsStore.showAdultContent === '1'
+  && performerMeta.value?.scraper === true
+)
 
 const filesizes = computed(() => {
   if (itemsStore.type !== 'media') return ''
@@ -69,8 +93,6 @@ const selectedText = computed(() => {
   return text
 })
 
-/* ---------------------- METHODS ---------------------- */
-
 function toggleSelect() {
   itemsStore.isSelect = !itemsStore.isSelect
   itemsStore.selection = []
@@ -83,5 +105,11 @@ function selectVisible() {
 
 async function selectAll() {
   await itemsStore.selectAllFiltered()
+}
+
+async function autoScrapeSelected() {
+  const meta = performerMeta.value
+  if (!meta || itemsStore.selection.length === 0) return
+  await runForSelection(meta)
 }
 </script>

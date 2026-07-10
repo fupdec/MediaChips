@@ -45,4 +45,8 @@ export interface ScraperTransferField {
 export interface ScraperMultiplePerformer {
   performer: { id: number | string; name?: string }
   result: ScraperSelectedResult
+  status?: 'pending' | 'searching' | 'applying' | 'done' | 'error' | 'not_found'
+  error?: string
+  tagName?: string
+  matchedName?: string
 }

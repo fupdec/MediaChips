@@ -57,6 +57,19 @@
             <v-icon start>mdi-search-web</v-icon>
             {{ t('settings_labels.tools.configure_scraper') }}
           </v-btn>
+
+          <v-btn
+            v-if="selected_meta"
+            :disabled="!selected_meta || scraperStore.autoScrapeInProgress || allTagsCount === 0"
+            @click="confirmScrapeAll"
+            class="mb-4 ml-2"
+            color="info"
+            rounded
+            variant="tonal"
+          >
+            <v-icon start>mdi-cloud-download</v-icon>
+            {{ t('settings_labels.tools.scrape_all_tags', { count: allTagsCount }) }}
+          </v-btn>
         </v-col>
       </v-row>
     </div>
@@ -74,6 +87,9 @@ import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue"
 import SettingsCategoryDivider from "@/components/ui/SettingsCategoryDivider.vue"
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue"
 import {useEventBus} from "@/utils/eventBus"
+import {useScraperStore} from "@/stores/scraper"
+import {useAutoScrapeBatch} from "@/composable/useAutoScrapeBatch"
+import {getAllTagsForMeta} from "@/utils/resolveSelectedTags"
 import type {Meta} from "@/types/stores"
 
 const DialogScraperConfig = defineAsyncComponent(() =>
@@ -82,6 +98,8 @@ const DialogScraperConfig = defineAsyncComponent(() =>
 
 const store = useAppStore()
 const settingsStore = useSettingsStore()
+const scraperStore = useScraperStore()
+const { runForAll } = useAutoScrapeBatch()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
@@ -91,6 +109,22 @@ const meta_tags = computed(() => {
   const metas = store.meta?.filter(i => i.type === "array") || []
   return sortBy(metas, "name")
 })
+
+const allTagsCount = computed(() => {
+  if (!selected_meta.value) return 0
+  return getAllTagsForMeta(selected_meta.value.id).length
+})
+
+async function confirmScrapeAll() {
+  if (!selected_meta.value || allTagsCount.value === 0) return
+
+  const confirmed = window.confirm(
+    t('settings_labels.tools.scrape_all_tags_confirm', { count: allTagsCount.value }),
+  )
+  if (!confirmed) return
+
+  await runForAll(selected_meta.value)
+}
 
 async function updateSettings(meta: Meta | null | undefined) {
   if (!meta) return

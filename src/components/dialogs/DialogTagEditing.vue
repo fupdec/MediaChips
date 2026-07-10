@@ -21,7 +21,7 @@
       <v-card-text class="pa-2 pa-sm-4">
         <EditPinnedMetaValues
           v-if="tag && meta"
-          :key="tag.id"
+          :key="`${tag.id}-${editReloadKey}`"
           layout="hero"
           @close="close"
           :tag="tag"
@@ -95,6 +95,7 @@ interface DialogHeaderButton {
 interface EditComponentInstance {
   save?: () => Promise<boolean>
   tryApplyAutoColorFromImage?: (color: string) => void
+  reload?: () => Promise<void>
 }
 
 const {xl, xs} = useDisplay()
@@ -114,6 +115,7 @@ const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const is_show_dialog_delete_confirm = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
 const currentIndex = shallowRef(0)
+const editReloadKey = ref(0)
 
 const tag = computed(() => dialogsStore.tagEditing.tag)
 const meta = computed(() => dialogsStore.tagEditing.meta)
@@ -140,6 +142,13 @@ const initButtons = () => {
       color: 'info',
       variant: 'flat',
       action: openScraper
+    })
+    buttons.value.push({
+      icon: 'cloud-download',
+      text: t('actions.auto_scrape_info'),
+      color: 'info',
+      variant: 'tonal',
+      action: autoScrape
     })
   }
 
@@ -288,6 +297,43 @@ const openScraper = () => {
     scraperStore.query = tag.value.name
   }
   dialogsStore.scraper.show = true
+}
+
+const autoScrape = async () => {
+  if (!tag.value || !meta.value) return
+
+  dialogsStore.process.show = true
+  dialogsStore.process.text = t('scraper.auto_scrape_in_progress', { name: tag.value.name || '' })
+
+  try {
+    const result = await scraperStore.autoScrapeTag({
+      tag: tag.value,
+      meta: meta.value,
+    })
+
+    if (result.success) {
+      notificationsStore.setNotification({
+        type: 'success',
+        title: t('scraper.auto_scrape_done'),
+        text: result.performerName || tag.value.name || '',
+      })
+      eventBus.emit('getItemsFromDb', { ids: [tag.value.id], type: 'tag' })
+      if (isTagPage.value) {
+        eventBus.emit('getTag')
+      }
+      editReloadKey.value += 1
+      getImages({ cacheBust: true })
+    } else {
+      notificationsStore.setNotification({
+        type: result.error === 'not_found' ? 'warning' : 'error',
+        title: t('scraper.auto_scrape_failed'),
+        text: tag.value.name || '',
+      })
+    }
+  } finally {
+    dialogsStore.process.show = false
+    dialogsStore.process.text = null
+  }
 }
 
 const handleScraperImages = () => {

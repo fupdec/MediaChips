@@ -84,10 +84,8 @@ import {computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '@/stores/scraper'
 import {useAppStore} from '@/stores/app'
-import Countries from "@/assets/Countries"
 import {getMetaName} from "@/utils/metaI18n"
-import {areScraperValuesEqual} from '@/utils/scraperValueCompare'
-import {normalizeScraperExtras} from '@/utils/scraperFieldNormalize'
+import {buildScraperTransferFields} from '@/utils/scraperTransferFields'
 
 import ScraperSelectImages from '@/components/scraper/ScraperSelectImages.vue'
 
@@ -101,7 +99,6 @@ import type {
   ScraperSelectedResult,
   ScraperTransferField,
 } from '@/types/scraper'
-import type { Meta } from '@/types/stores'
 
 const props = defineProps<{
   selected?: ScraperSelectedResult | null
@@ -119,79 +116,14 @@ const currentValues = computed(() => scraperStore.currentValues)
 const getScraperFieldName = (key: string) => t(`scraper.fields.${key}`, key)
 
 async function getData() {
-  const values = props.selected?.extras
-  if (!values) return
+  if (!props.selected) return
 
-  normalizeScraperExtras(values)
-
-  const data: ScraperTransferField[] = []
-  const tagsAll = appStore.tags || []
-
-  const cc = values.birthplace_code
-  const found_cc = Countries.find((i) => i.code === cc)
-  if (found_cc) {
-    const currentCountry = (currentValues.value.country as string[]) || []
-    data.push({
-      dataType: 'country',
-      valueCurrent: currentCountry,
-      valueReserved: [...currentCountry],
-      valueScraper: [found_cc.name],
-      isTagExists: false,
-      key: 'country',
-      meta: { id: 0, icon: 'flag' } satisfies Meta,
-      isTransfered: false,
-      isAlreadyContain: currentCountry.includes(found_cc.name),
-    })
-  }
-
-  metas.value.forEach((metaItem) => {
-    if (!metaItem.meta) return
-    const valueScraper = values[metaItem.scraper as string]
-    if (!valueScraper) return
-
-    const pinnedKey = metaItem.pinnedMetaId
-    let val = pinnedKey != null ? currentValues.value[pinnedKey] : null
-    let isTagExists = false
-
-    if (metaItem.meta.type === "array") {
-      if (Array.isArray(val) && val.length) {
-        val = val.map((id) => {
-          const tag = appStore.getTagById(Number(id))
-          return tag ? tag.name : id
-        })
-      } else {
-        val = []
-      }
-      isTagExists =
-        tagsAll
-          .filter((tag) => tag.metaId === metaItem.meta?.id)
-          .findIndex(
-            (tag) => tag.name?.toLowerCase() === String(valueScraper).toLowerCase()
-          ) > -1
-    }
-
-    let isAlreadyContain = false
-    if (Array.isArray(val) && val.length) {
-      isAlreadyContain = val.includes(valueScraper)
-    }
-    if (!isAlreadyContain) {
-      isAlreadyContain = areScraperValuesEqual(val, valueScraper, metaItem.meta.type)
-    }
-
-    data.push({
-      dataType: metaItem.meta.type,
-      valueCurrent: cloneTransferValue(val),
-      valueReserved: cloneTransferValue(val),
-      valueScraper,
-      isTagExists,
-      key: metaItem.scraper as string,
-      meta: {...metaItem.meta},
-      isTransfered: false,
-      isAlreadyContain,
-    })
+  scraperStore.fields = buildScraperTransferFields({
+    selected: props.selected,
+    pinned: pinned.value,
+    currentValues: currentValues.value,
+    tags: appStore.tags || [],
   })
-
-  scraperStore.fields = data
 }
 
 function restore(item: ScraperTransferField) {
