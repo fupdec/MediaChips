@@ -356,11 +356,12 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
 }
 
 export function shouldUseVirtualGrid(
-  _itemCount: number,
-  _isInfiniteScroll: boolean,
+  itemCount: number,
+  isInfiniteScroll: boolean,
   _itemsType: 'media' | 'tag' = 'media',
 ): boolean {
-  return false
+  if (isInfiniteScroll) return false
+  return itemCount >= VIRTUAL_GRID_THRESHOLD
 }
 
 export const shouldUseVirtualMasonry = shouldUseVirtualGrid
