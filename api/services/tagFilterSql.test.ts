@@ -73,6 +73,44 @@ describe('buildTagFilterQuery', () => {
 
     expect(result.whereSql).toContain('tags.country')
   })
+
+  it('builds tag relation join for in only filter', () => {
+    const result = buildTagFilterQuery([
+      { active: true, param: 3, type: 'array', cond: 'in only', val: [1050, 1051] },
+    ], { metaId: 17 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('tagsInTags')
+    expect(result.joinSql).toContain('GROUP BY parentTagId')
+    expect(result.joinSql).toContain('COUNT(DISTINCT CASE WHEN tagId IN')
+  })
+
+  it('builds not in all without correlated subquery', () => {
+    const result = buildTagFilterQuery([
+      { active: true, param: 3, type: 'array', cond: 'not in all', val: [1050, 1051] },
+    ], { metaId: 17 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('LEFT JOIN')
+    expect(result.joinSql).toContain('HAVING COUNT(DISTINCT tagId)')
+    expect(result.whereSql).toContain('tf0.parentTagId IS NULL')
+  })
+
+  it('builds not in as anti-join for tag relations', () => {
+    const result = buildTagFilterQuery([
+      { active: true, param: 3, type: 'array', cond: 'not in', val: [1050] },
+    ], { metaId: 17 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('LEFT JOIN')
+    expect(result.whereSql).toContain('tf0.parentTagId IS NULL')
+  })
 })
 
 describe('resolveTagFilterQuery', () => {

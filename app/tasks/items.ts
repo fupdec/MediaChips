@@ -203,6 +203,10 @@ const filterItems = (
           } else {
             is_match = !filterValues.every((entry) => tags.includes(entry))
           }
+        } else if (cond === 'in only') {
+          is_match = !isEmpty(filterValues)
+            && tags.length === filterValues.length
+            && filterValues.every((entry) => tags.includes(entry))
         } else if (!isEmpty(filterValues) && !isEmpty(tags)) { // если есть значения
           if (cond === 'in') { // включая один из
             is_match = tags.some((tagId) => filterValues.includes(tagId))

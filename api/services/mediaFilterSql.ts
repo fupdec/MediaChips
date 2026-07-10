@@ -5,6 +5,14 @@ import type {
   MediaFilterQueryResult,
   SqlParamBinder,
 } from '../types/mediaFilter'
+import {
+  applyTagArrayJoinResult,
+  buildTagArrayFilterClause,
+  buildTagArrayJoinResult,
+  canUseTagArrayJoin,
+  getTagArrayFilterTagIds,
+  MEDIA_TAG_LINK,
+} from './tagArrayFilterSql'
 import { resolveMetaId } from '../utils/metaId'
 import { buildMediaMetaSortExpression } from '../utils/metaValueSort'
 import { parseExtList } from '../utils/ext'
@@ -359,116 +367,16 @@ function buildExtArrayClause(filter: FilterLike, nextParam: SqlParamBinder) {
   }
 }
 
-function canUseTagArrayJoin(filter: FilterLike) {
-  if (!isTagArrayFilter(filter)) return false
-
-  const tagIds = Array.isArray(filter.val)
-    ? filter.val.filter((id: unknown) => id !== null && id !== undefined && id !== '')
-    : []
-
-  return (filter.cond === 'in' || filter.cond === 'in all') && tagIds.length > 0
-}
-
 function buildTagArrayJoin(filter: FilterLike, alias: string, nextParam: SqlParamBinder) {
-  if (!canUseTagArrayJoin(filter)) return null
-
   const metaId = resolveMetaId(filter.param)
-  const {cond, val} = filter
-  const tagIds = Array.isArray(val) ? val.filter((id: unknown) => id !== null && id !== undefined && id !== '') : []
+  if (metaId === null) return null
   const metaKey = nextParam(metaId)
-
-  if (cond === 'in all' && tagIds.length > 1) {
-    const tagsKey = nextParam(tagIds)
-    const countKey = nextParam(tagIds.length)
-    return `INNER JOIN (
-      SELECT mediaId FROM tagsInMedia
-      WHERE metaId = ${metaKey} AND tagId IN (${tagsKey})
-      GROUP BY mediaId
-      HAVING COUNT(DISTINCT tagId) = ${countKey}
-    ) ${alias} ON ${alias}.mediaId = media.id`
-  }
-
-  const tagsKey = nextParam(tagIds.length === 1 ? tagIds[0] : tagIds)
-  if (tagIds.length === 1) {
-    return `INNER JOIN tagsInMedia ${alias} ON ${alias}.mediaId = media.id AND ${alias}.metaId = ${metaKey} AND ${alias}.tagId = ${tagsKey}`
-  }
-
-  return `INNER JOIN tagsInMedia ${alias} ON ${alias}.mediaId = media.id AND ${alias}.metaId = ${metaKey} AND ${alias}.tagId IN (${tagsKey})`
+  return buildTagArrayJoinResult(MEDIA_TAG_LINK, filter, alias, metaKey, nextParam)
 }
 
 function buildTagArrayClause(metaId: number | string, filter: FilterLike, nextParam: SqlParamBinder) {
-  const {cond, val} = filter
   const metaKey = nextParam(metaId)
-  const tagIds = Array.isArray(val) ? val.filter((id: unknown) => id !== null && id !== undefined && id !== '') : []
-
-  if (cond === 'is null') {
-    return `NOT EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      WHERE tim.mediaId = media.id AND tim.metaId = ${metaKey}
-    )`
-  }
-
-  if (cond === 'not null') {
-    return `EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      WHERE tim.mediaId = media.id AND tim.metaId = ${metaKey}
-    )`
-  }
-
-  if (!tagIds.length) {
-    if (cond === 'not in') return '1 = 1'
-    if (cond === 'not in all') {
-      return `EXISTS (
-        SELECT 1 FROM tagsInMedia tim
-        WHERE tim.mediaId = media.id AND tim.metaId = ${metaKey}
-      )`
-    }
-    return '0 = 1'
-  }
-
-  const tagsKey = nextParam(tagIds)
-
-  if (cond === 'in') {
-    return `EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      WHERE tim.mediaId = media.id
-        AND tim.metaId = ${metaKey}
-        AND tim.tagId IN (${tagsKey})
-    )`
-  }
-
-  if (cond === 'not in') {
-    return `NOT EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      WHERE tim.mediaId = media.id
-        AND tim.metaId = ${metaKey}
-        AND tim.tagId IN (${tagsKey})
-    )`
-  }
-
-  if (cond === 'in all') {
-    const countKey = nextParam(tagIds.length)
-    return `(
-      SELECT COUNT(DISTINCT tim.tagId)
-      FROM tagsInMedia tim
-      WHERE tim.mediaId = media.id
-        AND tim.metaId = ${metaKey}
-        AND tim.tagId IN (${tagsKey})
-    ) = ${countKey}`
-  }
-
-  if (cond === 'not in all') {
-    const countKey = nextParam(tagIds.length)
-    return `NOT (
-      SELECT COUNT(DISTINCT tim.tagId)
-      FROM tagsInMedia tim
-      WHERE tim.mediaId = media.id
-        AND tim.metaId = ${metaKey}
-        AND tim.tagId IN (${tagsKey})
-    ) = ${countKey}`
-  }
-
-  return null
+  return buildTagArrayFilterClause(MEDIA_TAG_LINK, metaKey, filter, nextParam)
 }
 
 function buildFilterClause(filter: FilterLike, nextParam: SqlParamBinder) {
@@ -647,9 +555,12 @@ function getMediaFilterSqlFallbackReason(options: MediaFilterOptions & {
 function canUseSqlMediaFilters(options: MediaFilterOptions = {}) {
   const filters = normalizeActiveFilters(options.filters)
   for (const filter of filters) {
-    if (canUseTagArrayJoin(filter)) {
-      if (!buildTagArrayJoin(filter, 'tf0', () => ':p0')) return false
-      continue
+    if (isTagArrayFilter(filter)) {
+      const tagIds = getTagArrayFilterTagIds(filter)
+      if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
+        if (!buildTagArrayJoin(filter, 'tf0', () => ':p0')) return false
+        continue
+      }
     }
     if (!buildFilterClause(filter, () => ':p0')) return false
   }
@@ -674,8 +585,8 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
     return `:${key}`
   }
 
-  const clauses = ['media.mediaTypeId = :mediaTypeId']
-  const joins = []
+  const clauses: string[] = ['media.mediaTypeId = :mediaTypeId']
+  const joins: string[] = []
   let joinIndex = 0
   let needsDistinct = false
 
@@ -688,19 +599,21 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
 
   for (let filterIndex = 0; filterIndex < activeFilters.length; filterIndex += 1) {
     const filter = activeFilters[filterIndex]
-    const join = buildTagArrayJoin(filter, `tf${joinIndex}`, nextParam)
-    if (join) {
-      joins.push(join)
-      joinIndex += 1
-      if (filter.cond === 'in') {
-        const tagIds = Array.isArray(filter.val)
-          ? filter.val.filter((id: unknown) => id !== null && id !== undefined && id !== '')
-          : []
-        if (tagIds.length > 1) {
-          needsDistinct = true
+    if (isTagArrayFilter(filter)) {
+      const tagIds = getTagArrayFilterTagIds(filter)
+      if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
+        const join = buildTagArrayJoin(filter, `tf${joinIndex}`, nextParam)
+        if (join) {
+          applyTagArrayJoinResult(join, joins, clauses)
+          joinIndex += 1
+          if (filter.cond === 'in') {
+            if (tagIds.length > 1) {
+              needsDistinct = true
+            }
+          }
+          continue
         }
       }
-      continue
     }
 
     const clause = buildFilterClause(filter, nextParam)

@@ -1,6 +1,14 @@
 import type { FilterLike } from '../types/db'
 import type { FilterCondition, TagFilterOptions, TagFilterQueryResult } from '../types/tagFilter'
 import type { SqlParamBinder } from '../types/mediaFilter'
+import {
+  applyTagArrayJoinResult,
+  buildTagArrayFilterClause,
+  buildTagArrayJoinResult,
+  canUseTagArrayJoin,
+  getTagArrayFilterTagIds,
+  TAG_RELATION_LINK,
+} from './tagArrayFilterSql'
 import { resolveMetaId } from '../utils/metaId'
 import { buildTagMetaSortExpression } from '../utils/metaValueSort'
 import {
@@ -152,116 +160,16 @@ function buildTagCountryArrayClause(filter: FilterLike, nextParam: SqlParamBinde
   return null
 }
 
-function canUseTagRelationJoin(filter: FilterLike) {
-  if (!isTagRelationArrayFilter(filter)) return false
-
-  const tagIds = Array.isArray(filter.val)
-    ? filter.val.filter((id: unknown) => id !== null && id !== undefined && id !== '')
-    : []
-
-  return (filter.cond === 'in' || filter.cond === 'in all') && tagIds.length > 0
-}
-
 function buildTagRelationJoin(filter: FilterLike, alias: string, nextParam: SqlParamBinder) {
-  if (!canUseTagRelationJoin(filter)) return null
-
   const metaId = resolveMetaId(filter.param)
-  const {cond, val} = filter
-  const tagIds = Array.isArray(val) ? val.filter((id: unknown) => id !== null && id !== undefined && id !== '') : []
+  if (metaId === null) return null
   const metaKey = nextParam(metaId)
-
-  if (cond === 'in all' && tagIds.length > 1) {
-    const tagsKey = nextParam(tagIds)
-    const countKey = nextParam(tagIds.length)
-    return `INNER JOIN (
-      SELECT parentTagId FROM tagsInTags
-      WHERE metaId = ${metaKey} AND tagId IN (${tagsKey})
-      GROUP BY parentTagId
-      HAVING COUNT(DISTINCT tagId) = ${countKey}
-    ) ${alias} ON ${alias}.parentTagId = tags.id`
-  }
-
-  const tagsKey = nextParam(tagIds.length === 1 ? tagIds[0] : tagIds)
-  if (tagIds.length === 1) {
-    return `INNER JOIN tagsInTags ${alias} ON ${alias}.parentTagId = tags.id AND ${alias}.metaId = ${metaKey} AND ${alias}.tagId = ${tagsKey}`
-  }
-
-  return `INNER JOIN tagsInTags ${alias} ON ${alias}.parentTagId = tags.id AND ${alias}.metaId = ${metaKey} AND ${alias}.tagId IN (${tagsKey})`
+  return buildTagArrayJoinResult(TAG_RELATION_LINK, filter, alias, metaKey, nextParam)
 }
 
 function buildTagRelationArrayClause(metaId: number | string, filter: FilterLike, nextParam: SqlParamBinder) {
-  const {cond, val} = filter
   const metaKey = nextParam(metaId)
-  const tagIds = Array.isArray(val) ? val.filter((id: unknown) => id !== null && id !== undefined && id !== '') : []
-
-  if (cond === 'is null') {
-    return `NOT EXISTS (
-      SELECT 1 FROM tagsInTags tit
-      WHERE tit.parentTagId = tags.id AND tit.metaId = ${metaKey}
-    )`
-  }
-
-  if (cond === 'not null') {
-    return `EXISTS (
-      SELECT 1 FROM tagsInTags tit
-      WHERE tit.parentTagId = tags.id AND tit.metaId = ${metaKey}
-    )`
-  }
-
-  if (!tagIds.length) {
-    if (cond === 'not in') return '1 = 1'
-    if (cond === 'not in all') {
-      return `EXISTS (
-        SELECT 1 FROM tagsInTags tit
-        WHERE tit.parentTagId = tags.id AND tit.metaId = ${metaKey}
-      )`
-    }
-    return '0 = 1'
-  }
-
-  const tagsKey = nextParam(tagIds)
-
-  if (cond === 'in') {
-    return `EXISTS (
-      SELECT 1 FROM tagsInTags tit
-      WHERE tit.parentTagId = tags.id
-        AND tit.metaId = ${metaKey}
-        AND tit.tagId IN (${tagsKey})
-    )`
-  }
-
-  if (cond === 'not in') {
-    return `NOT EXISTS (
-      SELECT 1 FROM tagsInTags tit
-      WHERE tit.parentTagId = tags.id
-        AND tit.metaId = ${metaKey}
-        AND tit.tagId IN (${tagsKey})
-    )`
-  }
-
-  if (cond === 'in all') {
-    const countKey = nextParam(tagIds.length)
-    return `(
-      SELECT COUNT(DISTINCT tit.tagId)
-      FROM tagsInTags tit
-      WHERE tit.parentTagId = tags.id
-        AND tit.metaId = ${metaKey}
-        AND tit.tagId IN (${tagsKey})
-    ) = ${countKey}`
-  }
-
-  if (cond === 'not in all') {
-    const countKey = nextParam(tagIds.length)
-    return `NOT (
-      SELECT COUNT(DISTINCT tit.tagId)
-      FROM tagsInTags tit
-      WHERE tit.parentTagId = tags.id
-        AND tit.metaId = ${metaKey}
-        AND tit.tagId IN (${tagsKey})
-    ) = ${countKey}`
-  }
-
-  return null
+  return buildTagArrayFilterClause(TAG_RELATION_LINK, metaKey, filter, nextParam)
 }
 
 function buildMetaValueClause(metaId: number | string, filter: FilterLike, nextParam: SqlParamBinder) {
@@ -400,19 +308,21 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
 
   for (let filterIndex = 0; filterIndex < activeFilters.length; filterIndex += 1) {
     const filter = activeFilters[filterIndex]
-    const join = buildTagRelationJoin(filter, `tf${joinIndex}`, nextParam)
-    if (join) {
-      joins.push(join)
-      joinIndex += 1
-      if (filter.cond === 'in') {
-        const tagIds = Array.isArray(filter.val)
-          ? filter.val.filter((id: unknown) => id !== null && id !== undefined && id !== '')
-          : []
-        if (tagIds.length > 1) {
-          needsDistinct = true
+    if (isTagRelationArrayFilter(filter)) {
+      const tagIds = getTagArrayFilterTagIds(filter)
+      if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
+        const join = buildTagRelationJoin(filter, `tf${joinIndex}`, nextParam)
+        if (join) {
+          applyTagArrayJoinResult(join, joins, clauses)
+          joinIndex += 1
+          if (filter.cond === 'in') {
+            if (tagIds.length > 1) {
+              needsDistinct = true
+            }
+          }
+          continue
         }
       }
-      continue
     }
 
     const clause = buildFilterClause(filter, nextParam)

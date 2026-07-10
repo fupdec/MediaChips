@@ -222,8 +222,9 @@ export function getListCond(type: string | null | undefined): FilterCondition[] 
     return [
       { cond: 'in', icon: 'math-norm', text: 'includes one of' },
       { cond: 'in all', icon: 'equal', text: 'includes all' },
-      { cond: 'not in', icon: 'not-equal', text: 'excludes one of' },
-      { cond: 'not in all', icon: 'not-equal-variant', text: 'excludes all' },
+      { cond: 'in only', icon: 'target', text: 'only' },
+      { cond: 'not in', icon: 'not-equal-variant', text: 'excludes all' },
+      { cond: 'not in all', icon: 'not-equal', text: 'excludes one of' },
       { cond: 'is null', icon: 'code-brackets', text: 'empty' },
       { cond: 'not null', icon: 'dots-horizontal', text: 'not empty' },
     ]

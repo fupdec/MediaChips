@@ -112,6 +112,66 @@ describe('buildMediaFilterQuery', () => {
 
     expect(result.whereSql).toContain('LOWER(media.name) = LOWER')
   })
+
+  it('builds not in as excludes-all anti-join (no listed tags allowed)', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'not in', val: [1, 2] },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('LEFT JOIN')
+    expect(result.joinSql).toContain('SELECT DISTINCT mediaId')
+    expect(result.whereSql).toContain('tf0.mediaId IS NULL')
+    expect(result.whereSql).not.toContain('NOT EXISTS')
+  })
+
+  it('builds not in all as excludes-one-of anti-join', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'not in all', val: [1, 2] },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('LEFT JOIN')
+    expect(result.joinSql).toContain('HAVING COUNT(DISTINCT tagId)')
+    expect(result.whereSql).toContain('tf0.mediaId IS NULL')
+  })
+
+  it('builds is null and not null without correlated exists', () => {
+    const emptyResult = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'is null', val: [] },
+    ], { mediaTypeId: 1 })
+    const filledResult = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'not null', val: [] },
+    ], { mediaTypeId: 1 })
+
+    expect(emptyResult.ok).toBe(true)
+    expect(filledResult.ok).toBe(true)
+    if (!emptyResult.ok || !filledResult.ok) return
+
+    expect(emptyResult.joinSql).toContain('LEFT JOIN')
+    expect(emptyResult.whereSql).toContain('tf0.mediaId IS NULL')
+    expect(filledResult.joinSql).toContain('INNER JOIN')
+    expect(emptyResult.whereSql).not.toContain('NOT EXISTS')
+    expect(filledResult.whereSql).not.toContain('EXISTS')
+  })
+
+  it('builds in only as exact tag set join for meta', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'in only', val: [5] },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('GROUP BY mediaId')
+    expect(result.joinSql).toContain('COUNT(DISTINCT tagId)')
+    expect(result.joinSql).toContain('COUNT(DISTINCT CASE WHEN tagId IN')
+    expect(result.whereSql).not.toContain('SELECT COUNT(*)')
+  })
 })
 
 describe('resolveMediaFilterQuery', () => {
