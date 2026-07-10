@@ -1241,9 +1241,12 @@ const cn = {
     groups: {
       File: '文件',
       Video: '视频',
+      Image: '图片',
+      Audio: '音频',
       Tag: '标签',
       'Preset meta': '内置字段',
       'Pinned meta': '固定元数据字段',
+      Other: '其他',
     },
     conditions: {
       equal: '等于',

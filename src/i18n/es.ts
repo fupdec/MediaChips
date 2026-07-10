@@ -1241,9 +1241,12 @@ const es = {
     groups: {
       File: 'Archivo',
       Video: 'Video',
+      Image: 'Imagen',
+      Audio: 'Audio',
       Tag: 'Etiqueta',
       'Preset meta': 'Campos integrados',
       'Pinned meta': 'Campos de metadatos fijados',
+      Other: 'Otro',
     },
     conditions: {
       equal: 'igual',

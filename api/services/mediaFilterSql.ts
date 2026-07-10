@@ -6,6 +6,7 @@ import type {
   SqlParamBinder,
 } from '../types/mediaFilter'
 import { resolveMetaId } from '../utils/metaId'
+import { buildMediaMetaSortExpression } from '../utils/metaValueSort'
 import { parseExtList } from '../utils/ext'
 import { COUNTRY_DELIMITER } from '../utils/country'
 
@@ -756,8 +757,14 @@ LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
   return tagJoins ? `FROM media${tagJoins}` : 'FROM media'
 }
 
-function getSortExpression(sortBy: string) {
+function getSortExpression(sortBy: string, sortMetaType?: string | null) {
   if (sortBy === 'shuffle') return 'RANDOM()'
+
+  const metaId = resolveMetaId(sortBy)
+  if (metaId !== null && sortMetaType) {
+    return buildMediaMetaSortExpression(metaId, sortMetaType)
+  }
+
   return SORT_COLUMNS[sortBy as keyof typeof SORT_COLUMNS] || SORT_COLUMNS.id
 }
 

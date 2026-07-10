@@ -9,6 +9,7 @@ export interface FilterItemsWorkerRequest {
   direction: string
   find_duplicates: boolean
   duplicates_by?: string
+  sortMetaType?: string | null
 }
 
 export interface FilterItemsWorkerSuccess {

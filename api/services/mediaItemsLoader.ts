@@ -31,6 +31,7 @@ import {
   shouldPaginateMediaList,
   slicePage,
 } from './mediaItemsPagination'
+import { resolveSortMetaType } from './resolveSortMetaType'
 
 function shouldLogLegacyMediaLoader() {
   return process.env.NODE_ENV !== 'production'
@@ -227,6 +228,7 @@ async function loadMediaItemsLegacy(
   const items = rows.map(createItemShell)
   await attachMediaRelations(db, items, mediaTypeId, ids)
 
+  const sortMetaType = resolveSortMetaType(db, sortBy)
   const totalUnfiltered = items.length
   const { items: filtered, totalFiltered, totalFilesize } = await runFilterItemsAsync({
     filters,
@@ -236,6 +238,7 @@ async function loadMediaItemsLegacy(
     direction,
     find_duplicates,
     duplicates_by,
+    sortMetaType,
   })
 
   const pageLimit = resolvePageLimit(limit)
@@ -284,7 +287,8 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
   const whereClause = `WHERE ${whereSql}`
-  const sortExpr = getSortExpression(sortBy)
+  const sortMetaType = resolveSortMetaType(db, sortBy)
+  const sortExpr = getSortExpression(sortBy, sortMetaType)
   const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
   const joinForFilters = requiresMetadataJoinForFilters(filters)
   const joinForSort = requiresMetadataJoinForSort(sortBy)
@@ -472,7 +476,8 @@ async function getFilteredMediaSummary(db: ApiDb, options: MediaLoadOptions = {}
   const joinForSort = requiresMetadataJoinForSort(sortBy)
   const fromForCount = getMediaFromClause(joinForFilters, joinSql)
   const fromForSort = getMediaFromClause(joinForFilters || joinForSort, joinSql)
-  const sortExpr = getSortExpression(sortBy)
+  const sortMetaType = resolveSortMetaType(db, sortBy)
+  const sortExpr = getSortExpression(sortBy, sortMetaType)
   const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
   const idSelect = buildMediaIdSelect(needsDistinct)
 
@@ -548,13 +553,16 @@ async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
   const fromForCount = getMediaFromClause(joinForFilters, joinSql)
   const fromForSort = getMediaFromClause(joinForFilters || joinForSort, joinSql)
   const idSelect = buildMediaIdSelect(needsDistinct)
+  const sortMetaType = resolveSortMetaType(db, options.sortBy || 'id')
+  const sortExpr = getSortExpression(options.sortBy || 'id', sortMetaType)
+  const sortDir = options.direction === 'asc' ? 'ASC' : 'DESC'
 
   const [countRows, idRows] = await Promise.all([
     queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
     queryAllAsync(db, `${idSelect}
       ${fromForSort}
       ${whereClause}
-      ORDER BY ${getSortExpression(options.sortBy || 'id')} ${options.direction === 'asc' ? 'ASC' : 'DESC'}`, replacements),
+      ORDER BY ${sortExpr} ${sortDir}`, replacements),
   ])
 
   const totals = countRows[0] || {}

@@ -19,6 +19,7 @@ parentPort.on('message', (request: FilterItemsWorkerRequest) => {
       request.direction,
       request.find_duplicates,
       request.duplicates_by ?? 'filesize',
+      request.sortMetaType ?? null,
     )
 
     const response: FilterItemsWorkerResponse = {

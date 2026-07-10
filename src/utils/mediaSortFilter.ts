@@ -1,6 +1,7 @@
 import Cols from '../../app/configs/filter-cols'
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
+import type { AssignedMeta } from '@/types/stores'
 import {
   getMediaTypeKey,
   isAudioMediaType,
@@ -8,6 +9,14 @@ import {
   isVideoMediaType,
   matchesMediaTypeFilter,
 } from '@/utils/mediaType'
+
+export const SORTABLE_META_TYPES = new Set([
+  'number',
+  'rating',
+  'date',
+  'string',
+  'boolean',
+])
 
 export const VIDEO_ONLY_FILTER_PARAMS = ['duration', 'bitrate', 'fps', 'codec']
 export const AUDIO_ONLY_FILTER_PARAMS = ['duration', 'bitrate', 'codec']
@@ -103,16 +112,167 @@ export function getSortParams(itemsType: string, mediaType: MediaType | null | u
   )
 }
 
+export interface AssignedSortParam {
+  param: number
+  icon: string
+  text: string
+  types: Array<'media' | 'tag'>
+}
+
+export function getAssignedSortParams(assigned: AssignedMeta[] = []): AssignedSortParam[] {
+  const params: AssignedSortParam[] = []
+
+  for (const item of assigned) {
+    const meta = item.meta
+    const metaId = meta?.id
+    const metaType = meta?.type
+
+    if (metaId == null || !metaType || !SORTABLE_META_TYPES.has(metaType)) {
+      continue
+    }
+
+    params.push({
+      param: Number(metaId),
+      icon: meta.icon || 'tag',
+      text: meta.name || '',
+      types: ['media', 'tag'],
+    })
+  }
+
+  return params
+}
+
+export function getAllSortParams(
+  itemsType: string,
+  mediaType: MediaType | null | undefined,
+  assigned: AssignedMeta[] = [],
+) {
+  return [
+    ...getSortParams(itemsType, mediaType),
+    ...getAssignedSortParams(assigned),
+  ]
+}
+
+export type SortParamItem = ReturnType<typeof getAllSortParams>[number]
+
+export interface SortGroupHeader {
+  header: string
+}
+
+export interface SortGroupDivider {
+  divider: true
+}
+
+export type SortGroupedItem = SortParamItem | SortGroupHeader | SortGroupDivider
+
+const PRESET_META_SORT_PARAMS = new Set(['rating', 'createdAt', 'updatedAt', 'viewedAt', 'views'])
+const FILE_SORT_PARAMS = new Set(['path', 'filesize'])
+const VIDEO_SORT_PARAMS = new Set(['duration', 'bitrate', 'fps', 'codec', 'width', 'height'])
+const AUDIO_SORT_PARAMS = new Set(['duration', 'bitrate', 'codec'])
+const IMAGE_SORT_PARAMS = new Set(['width', 'height'])
+
+export const SORT_GROUP_ORDER = [
+  'File',
+  'Tag',
+  'Video',
+  'Image',
+  'Audio',
+  'Preset meta',
+  'Pinned meta',
+  'Other',
+] as const
+
+export function getSortParamGroup(
+  param: SortParamItem,
+  itemsType: string,
+  mediaType: MediaType | null | undefined,
+) {
+  if (typeof param.param === 'number') {
+    return 'Pinned meta'
+  }
+
+  const key = String(param.param)
+  if (key === 'shuffle') return 'Other'
+  if (PRESET_META_SORT_PARAMS.has(key)) return 'Preset meta'
+  if (FILE_SORT_PARAMS.has(key)) return 'File'
+  if (key === 'name') return itemsType === 'tag' ? 'Tag' : 'File'
+
+  if (IMAGE_SORT_PARAMS.has(key) && isImageMediaType(mediaType)) {
+    return 'Image'
+  }
+  if (AUDIO_SORT_PARAMS.has(key) && isAudioMediaType(mediaType)) {
+    return 'Audio'
+  }
+  if (VIDEO_SORT_PARAMS.has(key)) {
+    return 'Video'
+  }
+
+  return 'Other'
+}
+
+export function isSortGroupHeader(item: unknown): item is SortGroupHeader {
+  return typeof item === 'object' && item !== null && 'header' in item
+}
+
+export function isSortGroupDivider(item: unknown): item is SortGroupDivider {
+  return typeof item === 'object' && item !== null && 'divider' in item
+}
+
+export function isSortParamItem(item: unknown): item is SortParamItem {
+  return typeof item === 'object' && item !== null && 'param' in item
+}
+
+export function buildGroupedSortItems(
+  params: SortParamItem[],
+  itemsType: string,
+  mediaType: MediaType | null | undefined,
+): SortGroupedItem[] {
+  const grouped = new Map<string, SortParamItem[]>()
+
+  for (const param of params) {
+    const group = getSortParamGroup(param, itemsType, mediaType)
+    const items = grouped.get(group) || []
+    items.push(param)
+    grouped.set(group, items)
+  }
+
+  const result: SortGroupedItem[] = []
+
+  for (const group of SORT_GROUP_ORDER) {
+    const items = grouped.get(group)
+    if (!items?.length) continue
+
+    result.push({header: group})
+    result.push(...items)
+    result.push({divider: true})
+    grouped.delete(group)
+  }
+
+  for (const [group, items] of grouped) {
+    if (!items.length) continue
+    result.push({header: group})
+    result.push(...items)
+    result.push({divider: true})
+  }
+
+  if (result.length) {
+    result.pop()
+  }
+
+  return result
+}
+
 export function normalizeSortBy(
   sortBy: unknown,
   itemsType: string,
   mediaType: MediaType | null | undefined,
   fallback = 'createdAt',
+  assigned: AssignedMeta[] = [],
 ) {
   if (sortBy === 'shuffle') return sortBy
 
   const normalized = sortBy == null ? '' : String(sortBy)
-  const allowed = getSortParams(itemsType, mediaType).map((param) => param.param)
+  const allowed = getAllSortParams(itemsType, mediaType, assigned).map((param) => String(param.param))
   return allowed.includes(normalized) ? normalized : fallback
 }
 

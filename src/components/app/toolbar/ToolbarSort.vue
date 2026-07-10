@@ -2,7 +2,7 @@
   <v-autocomplete
     :model-value="items.sortBy"
     @update:model-value="sort"
-    :items="sortParams"
+    :items="sortParamsGrouped"
     item-value="param"
     rounded="xl"
     variant="outlined"
@@ -42,13 +42,22 @@
       <span v-else class="pl-2">{{ selectionLabel }}</span>
     </template>
     <template v-slot:item="{ item, props: menuProps }">
-      <v-list-item v-bind="menuProps"
+      <template v-if="isSortGroupHeader(item.raw)">
+        <v-list-subheader>{{ getGroupText(item.raw.header) }}</v-list-subheader>
+      </template>
+
+      <template v-else-if="isSortGroupDivider(item.raw)">
+        <v-divider />
+      </template>
+
+      <v-list-item v-else
+        v-bind="menuProps"
         density="compact">
         <template v-slot:title>
           <div class="text-body-2 py-1">
             <v-icon :icon="`mdi-${item.raw.icon}`"
               size="small"></v-icon>
-            <span class="pl-4">{{ t(item.raw.textKey) }}</span>
+            <span class="pl-4">{{ 'textKey' in item.raw && item.raw.textKey ? t(item.raw.textKey) : item.raw.text }}</span>
           </div>
         </template>
       </v-list-item>
@@ -146,7 +155,12 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from "@/utils/eventBus";
 import {getCurrentMediaType, matchesMediaTypeFilter} from '@/utils/mediaType'
-import {MEDIA_SORT_PARAMS} from '@/utils/mediaSortFilter'
+import {
+  buildGroupedSortItems,
+  getAllSortParams,
+  isSortGroupDivider,
+  isSortGroupHeader,
+} from '@/utils/mediaSortFilter'
 
 /* ================= STORES ================= */
 
@@ -155,27 +169,38 @@ const appStore = useAppStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
-/* ================= DATA ================= */
-
-const params = MEDIA_SORT_PARAMS
-
 /* ================= COMPUTED ================= */
 
 const items = computed(() => itemsStore)
 const env = computed(() => itemsStore.environment)
 
-const sortParams = computed(() => {
-  const currentMediaType = getCurrentMediaType(appStore.mediaTypes, env.value.media_type_id)
+const currentMediaType = computed(() =>
+  getCurrentMediaType(appStore.mediaTypes, env.value.media_type_id),
+)
 
-  return params.filter(p =>
-    p.types.includes(items.value.type) &&
-    matchesMediaTypeFilter(p, currentMediaType)
+const sortParams = computed(() => {
+  return getAllSortParams(
+    items.value.type,
+    currentMediaType.value,
+    items.value.safeAssigned,
+  ).filter((param) =>
+    param.types.includes(items.value.type) &&
+    (!('media_types' in param) || matchesMediaTypeFilter(param, currentMediaType.value))
   )
 })
 
+const sortParamsGrouped = computed(() =>
+  buildGroupedSortItems(sortParams.value, items.value.type, currentMediaType.value),
+)
+
+const getGroupText = (group?: string) =>
+  t(`filters.groups.${group}`, group || '')
+
 const selectionLabel = computed(() => {
-  const current = sortParams.value.find((param) => param.param === items.value.sortBy)
-  return current ? t(current.textKey) : t('filters.sort_by')
+  const current = sortParams.value.find((param) => String(param.param) === String(items.value.sortBy))
+  if (!current) return t('filters.sort_by')
+  if ('textKey' in current && current.textKey) return t(current.textKey)
+  return current.text || t('filters.sort_by')
 })
 
 const normalizeSortBy = () => {
@@ -204,13 +229,14 @@ function toggleDir() {
   eventBus.emit("setItemsSortDir", dir);
 }
 
-function sort(param: string) {
-  if (items.value.sortBy === param) {
+function sort(param: string | number) {
+  const nextSortBy = String(param)
+  if (String(items.value.sortBy) === nextSortBy) {
     toggleDir()
     return
   }
 
-  itemsStore.setSortBy(param)
-  eventBus.emit("setItemsSortBy", param);
+  itemsStore.setSortBy(nextSortBy)
+  eventBus.emit("setItemsSortBy", nextSortBy);
 }
 </script>

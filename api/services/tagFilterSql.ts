@@ -2,6 +2,7 @@ import type { FilterLike } from '../types/db'
 import type { FilterCondition, TagFilterOptions, TagFilterQueryResult } from '../types/tagFilter'
 import type { SqlParamBinder } from '../types/mediaFilter'
 import { resolveMetaId } from '../utils/metaId'
+import { buildTagMetaSortExpression } from '../utils/metaValueSort'
 import {
   buildStringComparison,
   buildTagCountryMatchSql,
@@ -453,8 +454,14 @@ function getTagFromClause(joinSql: string = '') {
   return joinSql ? `FROM tags\n${joinSql}` : 'FROM tags'
 }
 
-function getTagSortExpression(sortBy: string) {
+function getTagSortExpression(sortBy: string, sortMetaType?: string | null) {
   if (sortBy === 'shuffle') return 'RANDOM()'
+
+  const metaId = resolveMetaId(sortBy)
+  if (metaId !== null && sortMetaType) {
+    return buildTagMetaSortExpression(metaId, sortMetaType)
+  }
+
   return SORT_COLUMNS[sortBy] || SORT_COLUMNS.id
 }
 

@@ -125,7 +125,10 @@ export function useItemsPageInit({
     return []
   }
 
-  const applyPageSettings = (pageSettings: PageSettingsRecord | null): Partial<ItemsPageStoreUpdates> => {
+  const applyPageSettings = (
+    pageSettings: PageSettingsRecord | null,
+    assigned: AssignedMeta[] = [],
+  ): Partial<ItemsPageStoreUpdates> => {
     if (!pageSettings) return {}
 
     const vals = ['page', 'limit', 'size', 'view', 'sortBy', 'sortDir'] as const
@@ -139,12 +142,13 @@ export function useItemsPageInit({
         value = 1
       }
 
-      if (i === 'sortBy' && props.items_type === 'media') {
+      if (i === 'sortBy') {
         value = normalizeSortBy(
           String(value),
           props.items_type,
           mediaType.value,
           'createdAt',
+          assigned,
         )
       }
 
@@ -272,8 +276,11 @@ export function useItemsPageInit({
       }
     }
 
+    const assigned = await fetchPinnedMeta()
+    storeUpdates.assigned = assigned
+
     const {settings: pageSettings, shouldLinkFilter} = await fetchPageSettings()
-    Object.assign(storeUpdates, applyPageSettings(pageSettings))
+    Object.assign(storeUpdates, applyPageSettings(pageSettings, assigned))
 
     const resolvedView = storeUpdates.view != null
       ? normalizeItemsView(
@@ -292,8 +299,6 @@ export function useItemsPageInit({
       storeUpdates.view = 3
     }
 
-    const assigned = await fetchPinnedMeta()
-    storeUpdates.assigned = assigned
     storeUpdates.isFiltersLoaded = true
 
     itemsStore.updateMultiple(storeUpdates)

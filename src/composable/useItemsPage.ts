@@ -191,6 +191,7 @@ export function useItemsPage({
       props.items_type,
       mediaType.value,
       'createdAt',
+      ITEMS.value.safeAssigned,
     ) || 'id'
     query.direction = ITEMS.value.sortDir || 'desc'
     query.find_duplicates = ITEMS.value.find_duplicates || false

@@ -10,6 +10,7 @@ import type { DbItemRow, ParsedItem, ParsedItemTags } from '../types/items'
 import type { FilterLike } from '../../api/types/db'
 import { parseCountries } from '../../api/utils/country'
 import { normalizeExt, parseExtList } from '../../api/utils/ext'
+import { getItemSortIteratee } from '../../api/utils/metaValueSort'
 
 const parseItemsFromDb = (items: DbItemRow[]) => {
   const parseTagsAndValues = (item: DbItemRow): ParsedItemTags => {
@@ -94,6 +95,7 @@ const filterItems = (
   direction: string,
   find_duplicates: boolean,
   duplicates_by = 'filesize',
+  sortMetaType?: string | null,
 ) => {
   // отсеиваем неактивные и без условий (в случае бага)
   const filters = filters_all.filter((i: FilterLike) => {
@@ -233,7 +235,8 @@ const filterItems = (
   if (sortBy === 'shuffle') {
     result = shuffle(result);
   } else {
-    result = orderBy(result, [sortBy], [direction as 'asc' | 'desc']);
+    const iteratee = getItemSortIteratee(sortBy, sortMetaType)
+    result = orderBy(result, [iteratee], [direction as 'asc' | 'desc']);
   }
 
   return result;

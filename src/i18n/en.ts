@@ -1241,9 +1241,12 @@ const en = {
     groups: {
       File: 'File',
       Video: 'Video',
+      Image: 'Image',
+      Audio: 'Audio',
       Tag: 'Tag',
       'Preset meta': 'Built-in fields',
       'Pinned meta': 'Pinned metadata fields',
+      Other: 'Other',
     },
     conditions: {
       equal: 'equal',

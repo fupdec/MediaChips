@@ -16,6 +16,7 @@ import {
   shouldPaginateMediaList,
   slicePage,
 } from './mediaItemsPagination'
+import { resolveSortMetaType } from './resolveSortMetaType'
 
 export interface TagLoadOptions {
   metaId: number
@@ -84,7 +85,8 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
   const whereClause = `WHERE ${whereSql}`
   const fromClause = getTagFromClause(joinSql)
-  const sortExpr = getTagSortExpression(sortBy)
+  const sortMetaType = resolveSortMetaType(db, sortBy)
+  const sortExpr = getTagSortExpression(sortBy, sortMetaType)
   const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
   const idSelect = buildTagIdSelect(needsDistinct)
 
@@ -167,6 +169,7 @@ async function loadTagItemsLegacy(
 
   const data = tagsRepo.getItemsForMeta(metaId, ids)
   const itemsAll = parseItemsFromDb(data as DbItemRow[])
+  const sortMetaType = resolveSortMetaType(db, sortBy)
   const { items: itemsFiltered, totalFiltered } = await runFilterItemsAsync({
     filters,
     itemType: 'tags',
@@ -174,6 +177,7 @@ async function loadTagItemsLegacy(
     sortBy,
     direction,
     find_duplicates,
+    sortMetaType,
   })
 
   const totalUnfiltered = itemsAll.length

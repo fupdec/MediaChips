@@ -1241,9 +1241,12 @@ const ru = {
     groups: {
       File: 'Файл',
       Video: 'Видео',
+      Image: 'Изображение',
+      Audio: 'Аудио',
       Tag: 'Тег',
       'Preset meta': 'Встроенные поля',
       'Pinned meta': 'Закрепленные поля метаданных',
+      Other: 'Прочее',
     },
     conditions: {
       equal: 'равно',
