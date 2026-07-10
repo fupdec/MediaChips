@@ -19,6 +19,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
+import {openWhatsNewIfNeeded} from '@/composable/useWhatsNew'
 import {migrateOnboardingFromDbIfNeeded} from '@/services/onboardingConfig'
 import {
   GLOBAL_APP_CONFIG_KEYS,
@@ -511,6 +512,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     runAutoRegistration()
     if (!operationsStore.migrationLowDb.dialog) {
       openOnboardingIfNeeded(isPlayerWindow.value)
+      void openWhatsNewIfNeeded(isPlayerWindow.value)
     }
     await nextTick()
   }

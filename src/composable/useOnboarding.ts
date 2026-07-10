@@ -3,6 +3,7 @@ import { useDialogsStore } from '@/stores/dialogs'
 import { useSettingsStore } from '@/stores/settings'
 import { useNotificationsStore } from '@/stores/notifications'
 import { persistOnboardingConfig } from '@/services/onboardingConfig'
+import { openWhatsNewIfNeeded } from '@/composable/useWhatsNew'
 import { i18n } from '@/i18n/loadLocale'
 
 export const ONBOARDING_STEP_COUNT = 4
@@ -71,6 +72,7 @@ export async function skipOnboarding(): Promise<void> {
     onboardingPaused: '0',
   })
   removeOnboardingNotification()
+  void openWhatsNewIfNeeded(false)
 }
 
 export async function completeOnboarding(): Promise<void> {
@@ -81,6 +83,7 @@ export async function completeOnboarding(): Promise<void> {
     onboardingStep: String(ONBOARDING_STEP_COUNT - 1),
   })
   removeOnboardingNotification()
+  void openWhatsNewIfNeeded(false)
 }
 
 function removeOnboardingNotification(): void {

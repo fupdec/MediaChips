@@ -65,7 +65,7 @@ import {ref, computed, onMounted} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useDialogsStore} from '@/stores/dialogs'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
-import versions_history from "@/assets/Version_Histrory"
+import { getMergedVersionHistory } from '@/services/changelog'
 
 interface VersionEntry {
   id: string
@@ -89,7 +89,7 @@ const dialogsStore = useDialogsStore()
 // Реактивные данные
 const activeItems = ref<VersionEntry[]>([])
 const selected = ref<VersionEntry>(emptyVersion)
-const items = ref<VersionEntry[]>(versions_history)
+const items = ref<VersionEntry[]>(getMergedVersionHistory())
 
 // Вычисляемые свойства
 const dialogs = computed(() => dialogsStore)

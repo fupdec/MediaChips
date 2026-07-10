@@ -5,6 +5,119 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **"Only" array filter condition** — match items whose tag set is exactly the selected values (no extras, no omissions); supported in client filters, media SQL, and tag SQL
+- **Automated release notes** — GitHub Releases are populated from `CHANGELOG.md` during CI publish
+- **In-app changelog** — view release notes from update notifications, on first launch after updating, and in version history (bundled from `CHANGELOG.md`)
+- **Skip update version** — hide a specific offered update until a newer version is published
+
+### Changed
+
+- **Array filter labels** — corrected "excludes all" / "excludes one of" icons and wording to match actual behavior
+- **Version history** — recent versions are loaded from `CHANGELOG.md` instead of manual HTML entries
+
+### Fixed
+
+- **License API parsing** — tolerate null or malformed activate/info responses without crashing registration
+
+## [1.0.10] - 2026-07-10
+
+### Added
+
+- **Performer scraper** — automated single and batch tag updates from external sources
+- **Pinned metadata sorting** — sort media and tags by pinned fields; grouped sort options in the toolbar dropdown
+
+### Changed
+
+- **Toolbar sort dropdown** — highlight the active sort option
+- **Card descriptions** — improved visibility of empty rating and favorite icons
+
+### Fixed
+
+- **Tag deletion** — refresh the items list and filtered total after removing a tag
+- **Ungrouped card chips** — icon and text spacing in metadata chips
+- **ToolbarSort TypeScript errors** — restore CI type-check
+
+## [1.0.9] - 2026-07-10
+
+### Added
+
+- **Tag page image carousel** — browse tag images in a carousel on tag pages
+- **Compact hover previews** — tag and media hover previews shown as item cards
+- **Windows portable release** — publish a portable build alongside the installer
+
+### Changed
+
+- **Metadata chip padding** — tighter spacing in media and tag grid cards
+- **Virtual grid** — re-enabled for paginated lists while infinite scroll stays fully rendered
+- **Grid memory use** — reduced memory consumption during long infinite scroll sessions
+
+### Fixed
+
+- **Player seek hotkeys** — use store time correctly during transcode playback
+- **Tag thumbnails and scraper transfer** — refresh edge cases after data transfer
+
+## [1.0.7] - 2026-07-10
+
+### Added
+
+- **Grid video previews** — inline playback timeline and thumb refresh on hover
+
+### Changed
+
+- **Player status overlays** — progress and playback labels on the video player
+
+### Fixed
+
+- **Windows install** — Electron fallback and HTTP model download when bundled assets are missing
+
+## [1.0.6] - 2026-07-09
+
+### Added
+
+- **Big video preview size** — configurable preview dimensions with global persistence
+
+### Changed
+
+- **Global drag-and-drop** — improved file drop handling and tag suggestions after import
+- **Drop zone overlay** — dismiss, styling, and re-drag hover state fixes
+
+## [1.0.5] - 2026-07-09
+
+### Fixed
+
+- **Filters panel** — blur, search, and list styling
+- **Electron startup** — relative shared imports in API repos
+- **Checkbox meta values** — correct boolean handling; removed unused `nameSingular`
+- **Auto-color migration** — updated migration count expectations
+- **Find missing media** — nullable missing count type in search results
+
+## [1.0.4] - 2026-07-09
+
+### Added
+
+- **Tag color from cover** — pick tag color from `main.jpg` with category auto-color setting
+- **On-demand video thumbnails** — generate missing thumbs when serving thumb files
+- **Website capture scripts** — Playwright-based screenshot capture from a running app
+- **Database icons** — visual database identifiers in settings
+- **Tag page design hint** — compact info alert for layout options
+
+### Changed
+
+- **Tag category settings** — simplified configuration; layout switching moved to tag pages
+- **Tag page layout switcher** — restored button-toggle design
+- **Video timeline thumbs** — per-frame timestamp instead of file duration
+
+### Fixed
+
+- **Database settings** — responsiveness and maintenance status loading
+- **Video static preview** — switching from grid to thumb view
+- **Legacy backup repair** — schema repair and favorite heart display
+- **Schema null normalization** — TypeScript build compatibility
+
 ## [1.0.3] - 2026-07-08
 
 ### Fixed

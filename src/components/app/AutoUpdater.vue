@@ -9,6 +9,13 @@
   >
     <div class="text-body-2">{{ message }}</div>
 
+    <div
+      v-if="showReleaseNotesPreview"
+      class="text-caption text-medium-emphasis mt-2 release-notes-preview"
+    >
+      {{ releaseNotesPreview }}
+    </div>
+
     <v-progress-linear
       v-if="status.state === 'downloading'"
       :model-value="Number(status.percent || 0)"
@@ -19,6 +26,27 @@
     />
 
     <template v-slot:actions>
+      <v-btn
+        v-if="showViewChangelog"
+        @click="handleViewChangelog"
+        color="primary"
+        variant="tonal"
+        class="px-4 mr-2"
+      >
+        <v-icon icon="mdi-text-box-outline" start></v-icon>
+        {{ t('auto_update.view_changelog') }}
+      </v-btn>
+
+      <v-btn
+        v-if="showSkipVersion"
+        @click="handleSkipVersion"
+        variant="text"
+        class="px-4 mr-2"
+      >
+        <v-icon icon="mdi-close-circle-outline" start></v-icon>
+        {{ t('auto_update.skip_version') }}
+      </v-btn>
+
       <v-btn
         v-if="status.state === 'available' && !status.manualInstall"
         @click="handleDownload"
@@ -93,10 +121,21 @@ import {computed, onMounted, ref, watch} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useI18n} from 'vue-i18n'
 import {useAppUpdater} from '@/composable/useAppUpdater'
+import {openChangelogDialog} from '@/composable/useWhatsNew'
+import {getChangelogEntry} from '@/services/changelog'
 
 const appStore = useAppStore()
 const {t} = useI18n()
-const {status, lastCheckManual, ensureInitialized, check, download, install, dismiss} = useAppUpdater()
+const {
+  status,
+  lastCheckManual,
+  ensureInitialized,
+  check,
+  download,
+  install,
+  dismiss,
+  skipOfferedVersion,
+} = useAppUpdater()
 
 const show = ref(false)
 const isDownloading = ref(false)
@@ -183,6 +222,54 @@ const dismissLabel = computed(() => (
   status.value.state === 'up-to-date' ? t('common.close') : t('auto_update.later')
 ))
 
+const showSkipVersion = computed(() => (
+  ['available', 'available-manual'].includes(status.value.state)
+  && Boolean(status.value.nextVersion)
+))
+
+const showViewChangelog = computed(() => {
+  if (!['available', 'available-manual', 'downloaded', 'downloaded-manual'].includes(status.value.state)) {
+    return false
+  }
+
+  const version = status.value.nextVersion
+  if (!version) {
+    return false
+  }
+
+  return Boolean(getChangelogEntry(version) || String(status.value.releaseNotes || '').trim())
+})
+
+const releaseNotesPreview = computed(() => {
+  const version = status.value.nextVersion
+  if (!version) {
+    return ''
+  }
+
+  const bundled = getChangelogEntry(version)
+  if (bundled?.name) {
+    return bundled.name
+  }
+
+  const notes = String(status.value.releaseNotes || '').trim()
+  if (!notes) {
+    return ''
+  }
+
+  return notes
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+    ?.replace(/^[-*]\s*/, '')
+    ?.replace(/\*\*/g, '')
+    ?.replace(/ — .+$/, '')
+    || ''
+})
+
+const showReleaseNotesPreview = computed(() => (
+  showViewChangelog.value && Boolean(releaseNotesPreview.value)
+))
+
 const showFallbackDownload = computed(() => (
   status.value.state === 'disabled' ||
   (status.value.state === 'error' && !isSignatureError.value)
@@ -223,6 +310,24 @@ function handleDismiss() {
   dismiss()
 }
 
+function handleViewChangelog() {
+  const version = status.value.nextVersion
+  if (!version) {
+    return
+  }
+
+  openChangelogDialog({
+    version,
+    markdown: status.value.releaseNotes,
+    title: t('auto_update.changelog_for', { version: version.startsWith('v') ? version : `v${version}` }),
+  })
+}
+
+async function handleSkipVersion() {
+  await skipOfferedVersion()
+  show.value = false
+}
+
 function openReleases() {
   window.open(String(status.value.releasesUrl || releasesUrl), '_blank', 'noopener,noreferrer')
 }
@@ -233,3 +338,12 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.release-notes-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

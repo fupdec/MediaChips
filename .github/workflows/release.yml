@@ -117,9 +117,25 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          NOTES_FILE="$(mktemp)"
+
+          if node scripts/extract-changelog.mjs "$VERSION" "$NOTES_FILE"; then
+            echo "Using CHANGELOG.md for release notes"
+          else
+            echo "No CHANGELOG section for v$VERSION, falling back to generated notes"
+            NOTES_FILE=""
+          fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, uploading assets"
+            if [ -n "$NOTES_FILE" ]; then
+              gh release edit "$TAG" --notes-file "$NOTES_FILE"
+            fi
+          elif [ -n "$NOTES_FILE" ]; then
+            gh release create "$TAG" \
+              --title "MediaChips $TAG" \
+              --notes-file "$NOTES_FILE"
           else
             gh release create "$TAG" \
               --title "MediaChips $TAG" \

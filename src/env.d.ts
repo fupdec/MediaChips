@@ -7,6 +7,11 @@ declare module '*.vue' {
   export default component
 }
 
+declare module '*.md?raw' {
+  const content: string
+  export default content
+}
+
 declare module 'path-browserify' {
   const path: {
     join: (...parts: string[]) => string

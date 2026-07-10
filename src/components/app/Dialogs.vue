@@ -26,6 +26,7 @@
     <DialogFeedback v-if="dialogsStore.feedback"/>
     <DialogFindInPage v-if="dialogsStore.findInPage.show"/>
     <DialogVersionHistory v-if="dialogsStore.versions"/>
+    <DialogChangelog v-if="dialogsStore.changelog.show"/>
 
     <DialogError v-if="dialogsStore.error.show"/>
 
@@ -140,6 +141,9 @@ const DialogFindInPage = defineAsyncComponent(() =>
 )
 const DialogVersionHistory = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogVersionHistory.vue')
+)
+const DialogChangelog = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogChangelog.vue')
 )
 const DialogMigration = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMigration.vue')

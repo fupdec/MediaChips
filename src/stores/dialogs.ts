@@ -17,6 +17,19 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     feedbackPreset: null as { subject?: string; message?: string } | null,
     findInPage: { show: false },
     versions: false,
+    changelog: {
+      show: false,
+      title: '',
+      entries: [] as Array<{
+        id: string
+        version: string
+        name: string
+        date?: string
+        content: string
+      }>,
+      markSeenOnClose: false,
+      seenVersion: '',
+    },
     mediaEditing: { show: false, media: null as MediaItem | null, mediaType: {} as Partial<MediaType> },
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     bulkEditingItems: false,

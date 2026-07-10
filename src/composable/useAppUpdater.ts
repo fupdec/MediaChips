@@ -1,6 +1,7 @@
 import type { UpdaterState } from '@shared/electron/ipc'
 import { ref, readonly } from 'vue'
 import { useAppStore } from '@/stores/app'
+import { isUpdateVersionSkipped, skipUpdateVersion } from '@/services/updatePreferences'
 
 type UpdaterStatus = UpdaterState & {
   manualCheck?: boolean
@@ -17,6 +18,31 @@ function hasUpdaterApi(): boolean {
   return Boolean(window.electronAPI?.updater)
 }
 
+function shouldSuppressAvailableUpdate(payload: UpdaterStatus): boolean {
+  if (!payload.nextVersion) {
+    return false
+  }
+
+  return isUpdateVersionSkipped(payload.nextVersion)
+}
+
+function applyUpdaterStatus(payload: UpdaterStatus): void {
+  if (
+    !payload.manualCheck
+    && ['available', 'available-manual'].includes(payload.state)
+    && shouldSuppressAvailableUpdate(payload)
+  ) {
+    status.value = {
+      ...payload,
+      state: 'idle',
+      manualCheck: payload.manualCheck,
+    }
+    return
+  }
+
+  status.value = payload
+}
+
 export function useAppUpdater() {
   const appStore = useAppStore()
 
@@ -28,15 +54,18 @@ export function useAppUpdater() {
     isSupported.value = await updater.isSupported()
 
     updater.onStatus((payload: UpdaterStatus) => {
-      status.value = {
+      applyUpdaterStatus({
         ...payload,
         manualCheck: lastCheckManual.value,
-      }
+      })
     })
 
     const initial = await updater.getState()
     if (initial) {
-      status.value = initial
+      applyUpdaterStatus({
+        ...initial,
+        manualCheck: lastCheckManual.value,
+      })
     }
   }
 
@@ -60,19 +89,19 @@ export function useAppUpdater() {
     }
 
     if (!isSupported.value) {
-      status.value = {
+      applyUpdaterStatus({
         ...status.value,
         state: 'disabled',
         manualCheck: manual,
-      }
+      })
       return status.value
     }
 
     const result = await window.electronAPI!.updater!.check()
-    status.value = {
+    applyUpdaterStatus({
       ...result,
       manualCheck: manual,
-    }
+    })
     return status.value
   }
 
@@ -80,7 +109,7 @@ export function useAppUpdater() {
     await ensureInitialized()
     if (!hasUpdaterApi()) return null
     const result = await window.electronAPI!.updater!.download()
-    status.value = result
+    applyUpdaterStatus(result)
     return result
   }
 
@@ -94,6 +123,16 @@ export function useAppUpdater() {
     if (['available', 'available-manual', 'downloaded', 'downloaded-manual', 'error', 'up-to-date'].includes(status.value.state)) {
       status.value = { ...status.value, state: 'idle' }
     }
+  }
+
+  async function skipOfferedVersion() {
+    const version = status.value.nextVersion
+    if (!version) {
+      return
+    }
+
+    await skipUpdateVersion(version)
+    dismiss()
   }
 
   function destroy() {
@@ -110,6 +149,7 @@ export function useAppUpdater() {
     download,
     install,
     dismiss,
+    skipOfferedVersion,
     destroy,
   }
 }
