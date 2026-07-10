@@ -688,6 +688,21 @@ header {
   &__title_block {
     flex: 1 1 auto;
     min-width: 0;
+    align-items: center;
+  }
+  &__title_content {
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+
+    .filter__icon.v-icon {
+      flex: none;
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
   &__actions {
     margin-left: 8px;
@@ -702,6 +717,7 @@ header {
     text-overflow: ellipsis;
     min-width: 0;
     flex: 1 1 auto;
+    line-height: 1.25rem;
   }
   &__cond {
     flex: 0 0 auto;

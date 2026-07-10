@@ -38,8 +38,10 @@
             </v-icon>
           </v-btn>
 
-          <v-icon size="small" class="flex-shrink-0">mdi-{{ icon }}</v-icon>
-          <div class="text-body-2 filter__title ml-1">{{ title }}</div>
+          <div class="d-flex align-center min-width-0 filter__title_content">
+            <v-icon size="small" class="flex-shrink-0 filter__icon">mdi-{{ icon }}</v-icon>
+            <div class="text-body-2 filter__title">{{ title }}</div>
+          </div>
         </div>
 
         <div class="d-flex align-center flex-shrink-0 filter__actions">
