@@ -57,7 +57,7 @@
           <div class="text-body-2 py-1">
             <v-icon :icon="`mdi-${item.raw.icon}`"
               size="small"></v-icon>
-            <span class="pl-4">{{ 'textKey' in item.raw && item.raw.textKey ? t(item.raw.textKey) : item.raw.text }}</span>
+            <span class="pl-4">{{ getSortParamText(item.raw) }}</span>
           </div>
         </template>
         <template v-if="isActiveSortParam(item.raw)" #append>
@@ -167,6 +167,7 @@ import {getCurrentMediaType, matchesMediaTypeFilter} from '@/utils/mediaType'
 import {
   buildGroupedSortItems,
   getAllSortParams,
+  getSortParamLabel,
   isSortGroupDivider,
   isSortGroupHeader,
   isSortParamItem,
@@ -188,29 +189,33 @@ const currentMediaType = computed(() =>
   getCurrentMediaType(appStore.mediaTypes, env.value.media_type_id),
 )
 
+const itemsType = computed(() => items.value.type as 'media' | 'tag')
+
 const sortParams = computed(() => {
   return getAllSortParams(
-    items.value.type,
+    itemsType.value,
     currentMediaType.value,
     items.value.safeAssigned,
   ).filter((param) =>
-    param.types.includes(items.value.type) &&
+    param.types.includes(itemsType.value) &&
     (!('media_types' in param) || matchesMediaTypeFilter(param, currentMediaType.value))
   )
 })
 
 const sortParamsGrouped = computed(() =>
-  buildGroupedSortItems(sortParams.value, items.value.type, currentMediaType.value),
+  buildGroupedSortItems(sortParams.value, itemsType.value, currentMediaType.value),
 )
 
 const getGroupText = (group?: string) =>
   t(`filters.groups.${group}`, group || '')
 
+const getSortParamText = (raw: unknown) =>
+  isSortParamItem(raw) ? getSortParamLabel(raw, t) : ''
+
 const selectionLabel = computed(() => {
   const current = sortParams.value.find((param) => String(param.param) === String(items.value.sortBy))
   if (!current) return t('filters.sort_by')
-  if ('textKey' in current && current.textKey) return t(current.textKey)
-  return current.text || t('filters.sort_by')
+  return getSortParamLabel(current, t) || t('filters.sort_by')
 })
 
 const selectionIcon = computed(() => {

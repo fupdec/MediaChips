@@ -155,6 +155,21 @@ export function getAllSortParams(
 
 export type SortParamItem = ReturnType<typeof getAllSortParams>[number]
 
+export function isAssignedSortParam(param: SortParamItem): param is AssignedSortParam {
+  return typeof param.param === 'number'
+}
+
+export function getSortParamLabel(
+  param: SortParamItem,
+  translate: (key: string) => string,
+): string {
+  if (isAssignedSortParam(param)) {
+    return param.text || ''
+  }
+
+  return translate(param.textKey)
+}
+
 export interface SortGroupHeader {
   header: string
 }
