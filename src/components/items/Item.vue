@@ -23,17 +23,18 @@
       :hover="true"
     >
       <div class="item_preview">
-        <template v-if="showPreview">
         <ItemPreviewVideo
           v-if="type === 'media' && isVideoMedia"
           @update-big-preview="(val) => big_preview = val"
           :media="item"
           :is-file-exists="is_file_exists"
+          :preview-active="showPreview"
         />
         <ItemPreviewImage
           v-else-if="type === 'media' && isImageMedia"
           :media="item"
           :is-file-exists="is_file_exists"
+          :preview-active="showPreview"
         />
         <ItemPreviewAudio
           v-else-if="type === 'media' && isAudioMedia"
@@ -49,6 +50,7 @@
           v-if="type=='tag'"
           :tag="item"
           :meta="previewMeta"
+          :preview-active="showPreview"
         />
 
         <ItemRating
@@ -64,7 +66,6 @@
         <div v-if="!reg && x > 14"
              class="reg-block"
              v-html="'App not registered'"/>
-        </template>
       </div>
 
       <div
@@ -213,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch} from 'vue'
+import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -233,6 +234,7 @@ import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {hexToRgba} from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
+import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {toChipVariant} from '@/utils/chipVariant'
 import type {MediaType} from '@/types/media'
 import type {ContextMenuEntry, MediaItem, Meta, Tag} from '@/types/stores'
@@ -270,9 +272,9 @@ const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
 const checkedFilePath = ref<string | null>(null)
-const { wasInView } = useLazyInView(itemRootRef, { rootMargin: '320px 0px' })
+const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '200px 0px' })
 
-const showPreview = computed(() => wasInView.value)
+const showPreview = computed(() => isInView.value)
 
 const isVideoMedia = computed(() => isVideoMediaType(props.mediaType ?? undefined))
 const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefined))
@@ -381,6 +383,17 @@ const showContextMenu = (e: MouseEvent) => {
 const toggleSelect = (e: MouseEvent) => {
   itemsStore.toggleSelect(e, props.item)
 }
+
+watch(isInView, (visible) => {
+  const id = Number(props.item.id)
+  if (!Number.isFinite(id)) return
+  if (visible) markItemVisible(id)
+  else markItemHidden(id)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  markItemHidden(Number(props.item.id))
+})
 
 watch(
   () => [wasInView.value, mediaItem.value?.path] as const,

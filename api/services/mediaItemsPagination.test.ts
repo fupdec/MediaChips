@@ -39,11 +39,13 @@ describe('mediaItemsPagination', () => {
     expect(slicePage(items, 1, 101)).toHaveLength(INFINITE_SCROLL_PAGE_SIZE)
   })
 
-  it('does not trim infinite-scroll items while trimming is disabled', () => {
-    const items = Array.from({ length: 250 }, (_, index) => index + 1)
+  it('trims infinite-scroll items to the configured window', () => {
+    const items = Array.from({ length: 300 }, (_, index) => index + 1)
 
-    expect(trimInfiniteScrollItems(items)).toHaveLength(250)
-    expect(trimInfiniteScrollItems(items)[0]).toBe(1)
-    expect(trimInfiniteScrollItems(items)[249]).toBe(250)
+    const result = trimInfiniteScrollItems(items)
+    expect(result.items).toHaveLength(250)
+    expect(result.trimmedFromTop).toBe(50)
+    expect(result.items[0]).toBe(51)
+    expect(result.items[249]).toBe(300)
   })
 })

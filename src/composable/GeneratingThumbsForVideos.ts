@@ -4,7 +4,10 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {typedApi} from '@/services/typedApi'
+import {visibleItemIds} from '@/utils/visibleItemsWindow'
 import type { MediaItem } from '@/types/stores'
+
+const GENERATION_WINDOW_LIMIT = 24
 
 interface GeneratorState {
   active: boolean
@@ -174,6 +177,18 @@ export default function useVideoImageGenerator() {
     processedTimelineVideoIds.value = new Set()
   }
 
+  const resolveVideosForGeneration = (videos: MediaItem[]): MediaItem[] => {
+    if (!Array.isArray(videos) || !videos.length) return []
+
+    const visible = visibleItemIds.value
+    if (visible.length) {
+      const visibleSet = new Set(visible.map((id) => Number(id)))
+      return videos.filter((video) => visibleSet.has(Number(video.id)))
+    }
+
+    return videos.slice(0, GENERATION_WINDOW_LIMIT)
+  }
+
   const generateImages = (videos: MediaItem[]): void => {
     if (!Array.isArray(videos)) return
 
@@ -221,15 +236,18 @@ export default function useVideoImageGenerator() {
 
   const scheduleGenerationForCurrentPage = () => {
     if (itemsStore.type === 'media') {
-      generateImages(itemsStore.itemsOnPage)
+      generateImages(resolveVideosForGeneration(itemsStore.itemsOnPage))
     }
   }
 
-  watch(() => itemsStore.itemsOnPage, (videos) => {
-    if (itemsStore.type === 'media') {
-      generateImages(videos)
-    }
-  })
+  watch(
+    [() => itemsStore.itemsOnPage, visibleItemIds],
+    ([videos]) => {
+      if (itemsStore.type === 'media') {
+        generateImages(resolveVideosForGeneration(videos as MediaItem[]))
+      }
+    },
+  )
 
   watch(() => Number(itemsStore.view), () => {
     scheduleGenerationForCurrentPage()

@@ -1,4 +1,4 @@
-const DEFAULT_MAX_ENTRIES = 1500
+const DEFAULT_MAX_ENTRIES = 400
 
 const cache = new Map<string, string>()
 const maxEntries = DEFAULT_MAX_ENTRIES
@@ -44,6 +44,17 @@ export function invalidateCachedThumb(key: string): void {
 export function invalidateVideoThumbCaches(id: number | string): void {
   invalidateCachedThumb(mediaThumbKey('videos', id, 'thumbs'))
   invalidateCachedThumb(mediaThumbKey('videos', id, 'grids'))
+}
+
+const TAG_THUMB_TYPES = ['main', 'alt', 'custom1', 'custom2', 'avatar', 'header'] as const
+
+export function invalidateTagThumbCaches(
+  metaId: number | string,
+  tagId: number | string,
+): void {
+  for (const type of TAG_THUMB_TYPES) {
+    invalidateCachedThumb(tagThumbKey(metaId, tagId, type))
+  }
 }
 
 export function setCachedMediaThumbs(

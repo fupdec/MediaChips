@@ -9,8 +9,11 @@ import {
   setCachedMediaThumbs,
   setCachedTagThumbs,
 } from '@/utils/thumbDisplayCache'
+import { visibleItemIds } from '@/utils/visibleItemsWindow'
 import type { MediaType } from '@/types/media'
 import type { MediaItem, Tag } from '@/types/stores'
+
+const PREFETCH_FALLBACK_LIMIT = 48
 
 interface UseItemsThumbPrefetchOptions {
   items: ComputedRef<Array<MediaItem | Tag>>
@@ -26,6 +29,17 @@ function getItemsSignature(items: Array<MediaItem | Tag>): string {
   return `${items.length}:${firstId}:${lastId}`
 }
 
+function resolvePrefetchItems<T extends { id: number | string }>(items: T[]): T[] {
+  const visible = visibleItemIds.value
+  if (visible.length) {
+    const visibleSet = new Set(visible.map((id) => Number(id)))
+    return items.filter((item) => visibleSet.has(Number(item.id)))
+  }
+
+  if (items.length <= PREFETCH_FALLBACK_LIMIT) return items
+  return items.slice(0, PREFETCH_FALLBACK_LIMIT)
+}
+
 export function useItemsThumbPrefetch({
   items,
   itemsType,
@@ -36,7 +50,7 @@ export function useItemsThumbPrefetch({
   const itemsStore = useItemsStore()
 
   const prefetch = async () => {
-    const list = items.value
+    const list = resolvePrefetchItems(items.value)
     if (!list.length) return
 
     if (itemsType.value === 'media' && mediaType.value) {
@@ -78,6 +92,7 @@ export function useItemsThumbPrefetch({
       metaId?.value ?? null,
       Number(itemsStore.view),
       getItemsSignature(items.value),
+      visibleItemIds.value.join(','),
     ],
     () => debouncedPrefetch(),
     { immediate: true },

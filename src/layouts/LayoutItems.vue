@@ -190,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
@@ -225,6 +225,8 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
+import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
+import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
 
 // Пропсы
 const props = defineProps<ItemsPageProps>()
@@ -364,6 +366,11 @@ const useVirtualMasonry = computed(() =>
     listItemType.value,
   ),
 )
+
+onBeforeUnmount(() => {
+  clearVisibleItemIds()
+  resetVisibilityObserver()
+})
 const itemsGridClasses = computed(() => [
   `item__size-${ITEMS.value.size}`,
   `gap-size-${SETTINGS.value.gapSize}`,
@@ -447,6 +454,11 @@ defineEmits<{
 </script>
 
 <style lang="scss">
+.items-page-grid:not(.items-virtual-grid) :deep(.item) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
+}
+
 .infinite-loader-full-height {
   text-align: center;
   padding: 24px 0;

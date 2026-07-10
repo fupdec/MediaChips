@@ -18,21 +18,25 @@ export function resolveTagThumbDisplayUrl({
   metaId,
   tagId,
   type,
+  cacheBust = false,
 }: {
   dbPath: string
   metaId: number | string
   tagId: number | string
   type: string
+  cacheBust?: boolean
 }): string {
-  const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
-  if (isPersistentThumbUrl(cached)) return cached!
+  if (!cacheBust) {
+    const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
+    if (isPersistentThumbUrl(cached)) return cached!
+  }
 
   return buildLocalFileUrl(path.join(
     dbPath,
     'meta',
     String(metaId),
     `${tagId}_${type}.jpg`,
-  ))
+  ), false, cacheBust)
 }
 
 export interface TagHoverThumbCandidate {

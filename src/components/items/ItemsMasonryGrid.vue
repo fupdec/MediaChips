@@ -50,10 +50,11 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, onMounted, onBeforeUnmount, type HTMLAttributes} from 'vue'
+import {computed, ref, onMounted, onBeforeUnmount, watch, type HTMLAttributes} from 'vue'
 import Item from '@/components/items/Item.vue'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useVirtualMasonryWindow} from '@/composable/useVirtualMasonryWindow'
+import {setVisibleItemIds, clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {
   estimateMasonryItemHeight,
   getDistributedCardWidth,
@@ -118,6 +119,21 @@ const {
   totalHeight,
   itemStyle,
 } = useVirtualMasonryWindow(itemsSource, layoutRef, layoutOptions, virtualEnabled)
+
+watch(
+  visibleItems,
+  (positions) => {
+    if (!props.virtual) return
+    setVisibleItemIds(positions.map((position) => position.item.id))
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  if (props.virtual) {
+    clearVisibleItemIds()
+  }
+})
 
 const gap = computed(() => getGridGap(props.gapSize ?? 'xs'))
 

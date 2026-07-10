@@ -10,6 +10,7 @@
       v-for="row in visibleRows"
       :key="row.startIndex"
       :class="gridClasses"
+      :style="rowStyle"
       class="virtual-grid-row"
     >
       <Item
@@ -33,10 +34,11 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, type HTMLAttributes} from 'vue'
+import {computed, ref, watch, onBeforeUnmount, type HTMLAttributes} from 'vue'
 import Item from '@/components/items/Item.vue'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useVirtualGridWindow} from '@/composable/useVirtualGridWindow'
+import {setVisibleItemIds, clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import type {GridLayoutOptions} from '@/utils/gridLayout'
 import type {MediaType} from '@/types/media'
 import type {MediaItem, Meta} from '@/types/stores'
@@ -98,14 +100,31 @@ const layoutOptions = computed(() => ({
   lineGrid: props.lineGrid ?? false,
   chipsGrid: props.chipsGrid ?? false,
   imageAspectRatio: props.imageAspectRatio,
-  lockRowHeight: props.itemsType === 'tag' && !props.chipsGrid,
+  lockRowHeight: true,
 }))
 
 const {
   visibleRows,
   topSpacer,
   bottomSpacer,
+  rowHeight,
 } = useVirtualGridWindow(itemsSource, layoutRef, layoutOptions)
+
+const rowStyle = computed(() => ({
+  minHeight: `${rowHeight.value}px`,
+}))
+
+watch(
+  visibleRows,
+  (rows) => {
+    setVisibleItemIds(rows.flatMap((row) => row.items.map((item) => item.id)))
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  clearVisibleItemIds()
+})
 </script>
 
 <style scoped>
@@ -116,5 +135,9 @@ const {
 .virtual-grid-spacer {
   width: 100%;
   pointer-events: none;
+}
+
+.virtual-grid-row {
+  box-sizing: border-box;
 }
 </style>

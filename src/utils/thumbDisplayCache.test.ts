@@ -23,12 +23,12 @@ describe('thumbDisplayCache', () => {
   it('evicts oldest entries when capacity is exceeded', () => {
     clearThumbDisplayCache()
 
-    for (let i = 0; i < 1501; i += 1) {
+    for (let i = 0; i < 401; i += 1) {
       setCachedThumb(mediaThumbKey('videos', i), `thumb-${i}`)
     }
 
     expect(getCachedThumb(mediaThumbKey('videos', 0))).toBeUndefined()
-    expect(getCachedThumb(mediaThumbKey('videos', 1500))).toBe('thumb-1500')
+    expect(getCachedThumb(mediaThumbKey('videos', 400))).toBe('thumb-400')
   })
 
   it('ignores blob URLs that would be revoked later', () => {

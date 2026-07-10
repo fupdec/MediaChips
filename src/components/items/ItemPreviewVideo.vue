@@ -253,6 +253,7 @@ import {
   resolveMediaThumbDisplayUrl,
   resolveTimelineFrameDisplayUrl,
 } from '@/utils/thumbSource'
+import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import {
   getReadableDuration,
   getReadableVideoHeight,
@@ -279,6 +280,8 @@ const BIG_PREVIEW_SIZE_CLASSES: Record<BigVideoPreviewSize, string> = {
   three_quarters: 'big-preview-size-three-quarters',
 }
 
+const thumbLoadInFlight = new Map<string, Promise<void>>()
+
 const normalizeBigPreviewSize = (value: string | undefined): BigVideoPreviewSize => {
   if (value === 'original' || value === 'full_height' || value === 'three_quarters') {
     return value
@@ -298,8 +301,10 @@ const props = withDefaults(defineProps<{
   media: MediaItem
   isFileExists: boolean
   previewHost?: 'grid' | 'embedded'
+  previewActive?: boolean
 }>(), {
   previewHost: 'grid',
+  previewActive: true,
 })
 
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
@@ -381,6 +386,22 @@ let gridPreviewOrigin: {
 const isMounted = ref(false)
 const transcodeRequired = ref<boolean | null>(null)
 let initFramesToken = 0
+let thumbProbeController: AbortController | null = null
+
+const abortThumbProbe = () => {
+  thumbProbeController?.abort()
+  thumbProbeController = null
+}
+
+const clearPreviewResources = () => {
+  abortThumbProbe()
+  thumb.value = null
+  frame.value = null
+  frames.value = []
+  thumbLoadStarted.value = false
+  thumbCreateAttempted.value = false
+  thumbFallbackStage.value = 0
+}
 
 const resolveThumbFallback = (): string => {
   if (!props.media?.id) return ''
@@ -397,18 +418,6 @@ const resolveThumbFallback = (): string => {
   const url = resolveMediaThumbDisplayUrl(store.mediaPath, 'videos', props.media.id)
   return url && !isThumbUnavailable(url) ? url : ''
 }
-
-const probeDisplayImageUrl = (url: string): Promise<boolean> => new Promise((resolve) => {
-  if (!url || isThumbUnavailable(url)) {
-    resolve(false)
-    return
-  }
-
-  const image = new Image()
-  image.onload = () => resolve(!isThumbUnavailable(image.src))
-  image.onerror = () => resolve(false)
-  image.src = url
-})
 
 const getPreviewEl = (): HTMLElement | null => {
   const instance = previewRef.value
@@ -919,10 +928,13 @@ const refreshGridPreviewIfNeeded = async () => {
 }
 
 const maybeCreateMissingThumb = async () => {
-  if (!props.isFileExists || !thumb.value) return
+  if (!props.previewActive || !props.isFileExists || !thumb.value) return
   if (isCreatingThumb.value || thumbCreateAttempted.value) return
 
-  const exists = await probeDisplayImageUrl(thumb.value)
+  abortThumbProbe()
+  thumbProbeController = new AbortController()
+  const exists = await probeDisplayImageUrl(thumb.value, thumbProbeController.signal)
+  if (!isMounted.value) return
   if (exists) return
 
   isCreatingThumb.value = true
@@ -935,8 +947,8 @@ const maybeCreateMissingThumb = async () => {
   }
 }
 
-const getImg = async ({bust = false, allowCreate = true} = {}) => {
-  if (!isMounted.value || !props.media?.id) return
+const loadImg = async ({bust = false, allowCreate = true} = {}) => {
+  if (!props.previewActive || !isMounted.value || !props.media?.id) return
 
   const subfolder = getStaticPreviewSubfolder()
 
@@ -953,7 +965,10 @@ const getImg = async ({bust = false, allowCreate = true} = {}) => {
   if (is_grid) {
     loadThumb('grids', {bust})
     if (allowCreate && thumb.value) {
-      const gridExists = await probeDisplayImageUrl(thumb.value)
+      abortThumbProbe()
+      thumbProbeController = new AbortController()
+      const gridExists = await probeDisplayImageUrl(thumb.value, thumbProbeController.signal)
+      if (!isMounted.value) return
       if (!gridExists) {
         loadThumb('thumbs', {bust})
       }
@@ -964,6 +979,26 @@ const getImg = async ({bust = false, allowCreate = true} = {}) => {
 
   if (allowCreate) {
     await maybeCreateMissingThumb()
+  }
+}
+
+const getImg = async ({bust = false, allowCreate = true} = {}) => {
+  if (!props.previewActive || !isMounted.value || !props.media?.id) return
+
+  const subfolder = getStaticPreviewSubfolder()
+  const key = `${props.media.id}:${subfolder}:${bust ? 1 : 0}:${allowCreate ? 1 : 0}`
+  const existing = thumbLoadInFlight.get(key)
+  if (existing) {
+    await existing
+    return
+  }
+
+  const promise = loadImg({bust, allowCreate})
+  thumbLoadInFlight.set(key, promise)
+  try {
+    await promise
+  } finally {
+    thumbLoadInFlight.delete(key)
   }
 }
 
@@ -1514,7 +1549,12 @@ const initFrames = async () => {
     props.media.id,
     timelines[0],
   )
-  const hasTimeline = await probeDisplayImageUrl(firstTimelineUrl)
+  abortThumbProbe()
+  thumbProbeController = new AbortController()
+  const hasTimeline = await probeDisplayImageUrl(
+    firstTimelineUrl,
+    thumbProbeController.signal,
+  )
   if (token !== initFramesToken || !isViewTimeline.value) return
 
   if (!hasTimeline) {
@@ -1657,24 +1697,33 @@ const handleUpdateVideoFrames: Handler = (event) => {
 }
 
 const requestThumb = () => {
+  if (!props.previewActive) return
   if (thumbLoadStarted.value) return
   thumbLoadStarted.value = true
   void getImg()
 }
 
-// init
+watch(() => props.previewActive, (active) => {
+  if (active) {
+    requestThumb()
+    void getImg()
+    if (isViewTimeline.value) {
+      void initFrames()
+    }
+    return
+  }
+
+  stopPlayingPreview({force: true})
+  clearPreviewResources()
+}, { immediate: true })
+
 onMounted(async () => {
   isMounted.value = true
   await nextTick()
-  requestThumb()
-
-  if (!isMounted.value) return
-
-  await getImg()
-  if (isViewTimeline.value) {
-    await initFrames()
+  if (props.previewActive) {
+    requestThumb()
+    void getImg()
   }
-
   eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
 })
 
@@ -1683,6 +1732,7 @@ onBeforeUnmount(() => {
   initFramesToken += 1
   stopPlayingPreview({force: true})
   eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
+  clearPreviewResources()
 
   for (const timeout in timeouts) {
     clearTimeout(timeouts[timeout])

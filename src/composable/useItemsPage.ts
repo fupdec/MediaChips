@@ -18,6 +18,7 @@ import type {
   UseItemsPageOptions,
 } from '@/types/itemsPage'
 import {trimInfiniteScrollItems} from '@shared/listPagination'
+import {compensateScrollAfterTopTrim} from '@/utils/infiniteScrollTrim'
 
 export const INFINITE_PAGE_SIZE = 25
 
@@ -148,8 +149,16 @@ export function useItemsPage({
       ? uniqBy([...ITEMS.value.itemsOnPage, ...pageItems], 'id')
       : pageItems
 
+    const scrollEl = is_infinite_scroll.value
+      ? (getMainScrollEl() as HTMLElement | null)
+      : null
+    const previousScrollHeight = scrollEl?.scrollHeight ?? 0
+    let trimmedFromTop = 0
+
     if (is_infinite_scroll.value) {
-      nextItems = trimInfiniteScrollItems(nextItems)
+      const trimResult = trimInfiniteScrollItems(nextItems)
+      nextItems = trimResult.items
+      trimmedFromTop = trimResult.trimmedFromTop
     }
 
     itemsStore.updateMultiple({
@@ -157,6 +166,10 @@ export function useItemsPage({
       itemsOnPage: nextItems,
       isFiltersLoaded: true,
     })
+
+    if (trimmedFromTop > 0 && scrollEl) {
+      compensateScrollAfterTopTrim(previousScrollHeight)
+    }
     return true
   }
 
@@ -380,7 +393,7 @@ export function useItemsPage({
     const items_concat = is_infinite_scroll.value
       ? trimInfiniteScrollItems(
         uniqBy([...ITEMS.value.itemsOnPage, ...new_items_on_page], 'id'),
-      )
+      ).items
       : new_items_on_page
 
     itemsStore.updateState({key: 'itemsOnPage', value: items_concat})

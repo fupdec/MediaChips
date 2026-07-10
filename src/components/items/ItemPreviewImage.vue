@@ -40,10 +40,14 @@ import {getMediaAspectRatio} from '@/utils/gridLayout'
 import {getCachedThumb, isPersistentThumbUrl, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
 import type {MediaItem} from '@/types/stores'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   media: MediaItem
   isFileExists?: boolean
-}>()
+  previewActive?: boolean
+}>(), {
+  isFileExists: true,
+  previewActive: true,
+})
 
 const store = useAppStore()
 const itemsStore = useItemsStore()
@@ -197,12 +201,29 @@ const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
 }
 
 const requestThumb = () => {
-  if (!props.isFileExists) return
+  if (!props.previewActive || !props.isFileExists) return
   if (applyCachedThumb()) return
   thumbLoadStarted = false
   thumbFallbackStage = 0
   void loadThumb()
 }
+
+const clearLoadedThumb = () => {
+  clearThumbUrl()
+  thumb.value = null
+  detectedWidth.value = 0
+  detectedHeight.value = 0
+  thumbLoadStarted = false
+  thumbFallbackStage = 0
+}
+
+watch(() => props.previewActive, (active) => {
+  if (active) {
+    requestThumb()
+    return
+  }
+  clearLoadedThumb()
+}, { immediate: true })
 
 const openViewer = () => {
   if (!props.isFileExists) return
@@ -214,7 +235,7 @@ const openViewer = () => {
 
 onMounted(() => {
   isMounted.value = true
-  requestThumb()
+  if (props.previewActive) requestThumb()
 })
 
 onBeforeUnmount(() => {

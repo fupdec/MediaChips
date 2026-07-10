@@ -207,6 +207,24 @@
     //border-radius: 4px 4px 0 0;
     background-color: #7878782b;
     flex: 1 0 auto;
+
+    &__placeholder {
+      width: 100%;
+      background-color: #7878782b;
+
+      &--video {
+        aspect-ratio: 16 / 9;
+      }
+
+      &--square {
+        aspect-ratio: 1 / 1;
+      }
+
+      &--masonry {
+        min-height: 180px;
+      }
+    }
+
     &:hover {
       .secondary-img {
         opacity: 1;

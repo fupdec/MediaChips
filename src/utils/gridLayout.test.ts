@@ -18,25 +18,25 @@ import {
 } from '@/utils/gridLayout'
 
 describe('shouldUseVirtualGrid', () => {
-  it('disables virtual grid for infinite scroll to keep scroll position stable', () => {
-    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, true, 'tag')).toBe(false)
-    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, true, 'tag')).toBe(false)
-    expect(shouldUseVirtualGrid(100, true, 'tag')).toBe(false)
+  it('disables virtualization for infinite scroll to keep scroll position stable', () => {
+    expect(shouldUseVirtualGrid(0, true, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(1, true, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(100, true, 'media')).toBe(false)
   })
 
-  it('enables virtual grid for paginated lists with enough items', () => {
-    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
+  it('enables virtualization for paginated lists at the threshold', () => {
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
     expect(shouldUseVirtualGrid(100, false, 'tag')).toBe(true)
   })
 })
 
 describe('shouldUseVirtualMasonry', () => {
-  it('uses the same rules as the row virtualizer', () => {
-    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD, true, 'media')).toBe(false)
+  it('follows the same rules as the row virtualizer', () => {
+    expect(shouldUseVirtualMasonry(0, true, 'media')).toBe(false)
+    expect(shouldUseVirtualMasonry(100, true, 'media')).toBe(false)
+    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
     expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
-    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD - 1, true, 'media')).toBe(false)
   })
 })
 

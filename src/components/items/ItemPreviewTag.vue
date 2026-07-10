@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, computed, watch, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import path from 'path-browserify'
 import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
@@ -88,6 +88,7 @@ import {hideHoverImage} from '@/services/hoverService'
 import {
   getCachedThumb,
   invalidateCachedThumb,
+  invalidateTagThumbCaches,
   setCachedThumb,
   tagThumbKey,
 } from '@/utils/thumbDisplayCache'
@@ -103,8 +104,10 @@ const props = withDefaults(defineProps<{
   tag: Tag
   meta: Meta
   upd?: number[]
+  previewActive?: boolean
 }>(), {
   upd: () => [],
+  previewActive: true,
 })
 
 const appStore = useAppStore()
@@ -126,6 +129,7 @@ const countries = computed(() =>
 )
 
 const failedImageTypes = reactive(new Set<TagImageType>())
+const lastHandledThumbRefresh = ref<number | null>(null)
 
 const mainImageSrc = computed(() => {
   if (images.main && !failedImageTypes.has('main') && !isThumbUnavailable(images.main)) {
@@ -171,7 +175,7 @@ const applyCachedImages = () => {
   }
 }
 
-const getImages = async () => {
+const getImages = async ({cacheBust = false} = {}) => {
   for (const type of getImageTypes()) {
     if (failedImageTypes.has(type)) continue
 
@@ -184,13 +188,15 @@ const getImages = async () => {
         continue
       }
     } else {
-      const cached = getCachedThumb(cacheKey)
-      if (cached) {
-        images[type] = isThumbUnavailable(cached) ? IMAGE_UNAVAILABLE_URL : cached
-        continue
+      if (!cacheBust) {
+        const cached = getCachedThumb(cacheKey)
+        if (cached) {
+          images[type] = isThumbUnavailable(cached) ? IMAGE_UNAVAILABLE_URL : cached
+          continue
+        }
       }
 
-      if (images[type] && images[type] !== IMAGE_UNAVAILABLE_URL) continue
+      if (!cacheBust && images[type] && images[type] !== IMAGE_UNAVAILABLE_URL) continue
 
       if (!await checkFileExists(resolveTagThumbFilePath(type))) {
         images[type] = IMAGE_UNAVAILABLE_URL
@@ -204,6 +210,7 @@ const getImages = async () => {
       metaId: props.meta.id,
       tagId: props.tag.id,
       type,
+      cacheBust,
     })
     setCachedThumb(cacheKey, src)
 
@@ -259,10 +266,33 @@ const clearLoadedImages = () => {
   }
 }
 
-onMounted(() => {
-  applyCachedImages()
-  void getImages()
-})
+const reloadTagThumbs = ({cacheBust = false} = {}) => {
+  failedImageTypes.clear()
+  clearLoadedImages()
+  void getImages({cacheBust})
+}
+
+const handleThumbRefresh = (version: number) => {
+  if (lastHandledThumbRefresh.value === version) return
+  lastHandledThumbRefresh.value = version
+  invalidateTagThumbCaches(props.meta.id, props.tag.id)
+  reloadTagThumbs({cacheBust: true})
+}
+
+watch(() => props.previewActive, (active) => {
+  if (active) {
+    const version = itemsStore.thumbRefreshKeys[Number(props.tag.id)]
+    if (version != null && version !== lastHandledThumbRefresh.value) {
+      handleThumbRefresh(version)
+      return
+    }
+
+    applyCachedImages()
+    void getImages()
+    return
+  }
+  clearLoadedImages()
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   clearLoadedImages()
@@ -272,8 +302,7 @@ watch(
   () => props.upd,
   (arr) => {
     if (arr.includes(props.tag.id)) {
-      clearLoadedImages()
-      getImages()
+      reloadTagThumbs({cacheBust: true})
     }
   },
 )
@@ -282,9 +311,7 @@ watch(
   () => itemsStore.thumbRefreshKeys[Number(props.tag.id)],
   (version, prev) => {
     if (version == null || version === prev) return
-    clearLoadedImages()
-    applyCachedImages()
-    getImages()
+    handleThumbRefresh(version)
   },
 )
 </script>

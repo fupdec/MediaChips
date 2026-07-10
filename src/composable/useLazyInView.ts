@@ -1,7 +1,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, type Ref } from 'vue'
-import { getMainScrollEl } from '@/utils/mainScroll'
+import { observeVisibility, unobserveVisibility } from '@/utils/sharedVisibilityObserver'
 
-const DEFAULT_ROOT_MARGIN = '320px 0px'
+const DEFAULT_ROOT_MARGIN = '200px 0px'
 
 type ElementRef = Ref<{ $el?: Element } | Element | null>
 
@@ -11,7 +11,7 @@ export function useLazyInView(
 ) {
   const isInView = ref(false)
   const wasInView = ref(false)
-  let observer: IntersectionObserver | null = null
+  const rootMargin = options.rootMargin || DEFAULT_ROOT_MARGIN
 
   const getElement = (): Element | null => {
     const value = elementRef.value
@@ -21,37 +21,26 @@ export function useLazyInView(
     return null
   }
 
+  const handleVisibility = (visible: boolean) => {
+    isInView.value = visible
+    if (visible) wasInView.value = true
+  }
+
   const unobserve = () => {
-    if (observer) {
-      observer.disconnect()
-      observer = null
-    }
+    const el = getElement()
+    if (el) unobserveVisibility(el)
   }
 
   const observe = () => {
     unobserve()
     const el = getElement()
     if (!el) return
-
-    observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          isInView.value = entry.isIntersecting
-          if (entry.isIntersecting) wasInView.value = true
-        }
-      },
-      {
-        root: getMainScrollEl() || null,
-        rootMargin: options.rootMargin || DEFAULT_ROOT_MARGIN,
-        threshold: 0,
-      },
-    )
-    observer.observe(el)
+    observeVisibility(el, handleVisibility, rootMargin)
   }
 
   const checkInitialVisibility = () => {
     const el = getElement()
-    const root = getMainScrollEl()
+    const root = document.querySelector('.main-scroll')
     if (!el) return
 
     const rect = el.getBoundingClientRect()

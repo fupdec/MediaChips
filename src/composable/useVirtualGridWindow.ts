@@ -149,7 +149,7 @@ export function useVirtualGridWindow(
     bottomSpacer.value = (rows.length - end) * rh
     visibleRows.value = rows.slice(start, end)
 
-    if (scheduleMeasure) {
+    if (scheduleMeasure && !layoutOptions.value.lockRowHeight) {
       if (measureRaf) cancelAnimationFrame(measureRaf)
       measureRaf = requestAnimationFrame(() => {
         nextTick(measureVisibleRows)
