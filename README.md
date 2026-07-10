@@ -190,15 +190,16 @@ Build artifacts are written to the `release/` directory.
 Desktop auto-update reads installers from [GitHub Releases](https://github.com/fupdec/MediaChips/releases).
 
 1. Bump `version` in `package.json` (semver, e.g. `0.13.1`).
-2. Commit the change on `main`.
-3. Create and push a matching tag (tag must equal version with a `v` prefix):
+2. Move the `[Unreleased]` section in `CHANGELOG.md` to `[X.Y.Z] - YYYY-MM-DD`.
+3. Commit the change on `main`.
+4. Create and push a matching tag (tag must equal version with a `v` prefix):
 
 ```bash
 git tag v0.13.1
 git push origin v0.13.1
 ```
 
-4. The [Release workflow](.github/workflows/release.yml) builds **Windows (NSIS + portable)**, **macOS (arm64 + x64 DMG/ZIP)**, and **Linux (AppImage)** in parallel and uploads them to the GitHub Release together with `latest.yml` / `latest-mac.yml` / `latest-linux.yml` required by `electron-updater`.
+5. The [Release workflow](.github/workflows/release.yml) builds **Windows (NSIS + portable)**, **macOS (arm64 + x64 DMG/ZIP)**, and **Linux (AppImage)** in parallel and uploads them to the GitHub Release together with `latest.yml` / `latest-mac.yml` / `latest-linux.yml` required by `electron-updater`. Release notes are taken from the matching `CHANGELOG.md` section.
 
 Expected asset names (legacy style):
 
@@ -209,7 +210,7 @@ Expected asset names (legacy style):
 | macOS (install) | `MediaChips.vX.Y.Z.Mac.arm64.dmg`, `MediaChips.vX.Y.Z.Mac.x64.dmg` |
 | macOS (auto-update) | `MediaChips.vX.Y.Z.Mac.arm64.zip`, `MediaChips.vX.Y.Z.Mac.x64.zip` |
 | Linux | `MediaChips.vX.Y.Z.Linux.AppImage` |
-5. Installed desktop apps with **Settings → About → Check for updates at startup** will detect the new version automatically.
+6. Installed desktop apps with **Settings → About → Check for updates at startup** will detect the new version automatically.
 
 No extra GitHub secrets are required: the workflow uses the built-in `GITHUB_TOKEN` with `contents: write`.
 

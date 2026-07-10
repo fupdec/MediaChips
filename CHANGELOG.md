@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-07-11
+
 ### Added
 
 - **"Only" array filter condition** — match items whose tag set is exactly the selected values (no extras, no omissions); supported in client filters, media SQL, and tag SQL
@@ -16,12 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Tag array filter SQL** — faster join-based queries instead of correlated subqueries
 - **Array filter labels** — corrected "excludes all" / "excludes one of" icons and wording to match actual behavior
+- **Filter panel** — hide value inputs for empty/not-empty and boolean conditions; align condition icons with labels
+- **Hover preview cards** — softer shadow with wider diffusion
 - **Version history** — recent versions are loaded from `CHANGELOG.md` instead of manual HTML entries
 
 ### Fixed
 
 - **License API parsing** — tolerate null or malformed activate/info responses without crashing registration
+- **Dev API routing** — route localhost requests through the Vite proxy to avoid CORS errors when loading thumbnails in Electron dev
 
 ## [1.0.10] - 2026-07-10
 
