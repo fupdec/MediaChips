@@ -33,13 +33,11 @@
 
       </v-btn>
     </template>
-    <template v-slot:selection="{ item }">
-      <template v-if="item?.raw?.textKey">
-        <v-icon :icon="`mdi-${item.raw.icon}`"
-          size="small"></v-icon>
-        <span class="pl-2">{{ t(item.raw.textKey) }}</span>
-      </template>
-      <span v-else class="pl-2">{{ selectionLabel }}</span>
+    <template v-slot:selection>
+      <v-icon v-if="selectionIcon"
+        :icon="`mdi-${selectionIcon}`"
+        size="small"></v-icon>
+      <span class="pl-2">{{ selectionLabel }}</span>
     </template>
     <template v-slot:item="{ item, props: menuProps }">
       <template v-if="isSortGroupHeader(item.raw)">
@@ -52,6 +50,8 @@
 
       <v-list-item v-else
         v-bind="menuProps"
+        :active="isActiveSortParam(item.raw)"
+        color="primary"
         density="compact">
         <template v-slot:title>
           <div class="text-body-2 py-1">
@@ -59,6 +59,15 @@
               size="small"></v-icon>
             <span class="pl-4">{{ 'textKey' in item.raw && item.raw.textKey ? t(item.raw.textKey) : item.raw.text }}</span>
           </div>
+        </template>
+        <template v-if="isActiveSortParam(item.raw)" #append>
+          <v-icon size="small">
+            {{
+              items.sortDir === 'asc'
+                ? 'mdi-sort-ascending'
+                : 'mdi-sort-descending'
+            }}
+          </v-icon>
         </template>
       </v-list-item>
     </template>
@@ -160,6 +169,7 @@ import {
   getAllSortParams,
   isSortGroupDivider,
   isSortGroupHeader,
+  isSortParamItem,
 } from '@/utils/mediaSortFilter'
 
 /* ================= STORES ================= */
@@ -202,6 +212,14 @@ const selectionLabel = computed(() => {
   if ('textKey' in current && current.textKey) return t(current.textKey)
   return current.text || t('filters.sort_by')
 })
+
+const selectionIcon = computed(() => {
+  const current = sortParams.value.find((param) => String(param.param) === String(items.value.sortBy))
+  return current?.icon || ''
+})
+
+const isActiveSortParam = (raw: unknown) =>
+  isSortParamItem(raw) && String(raw.param) === String(items.value.sortBy)
 
 const normalizeSortBy = () => {
   if (!items.value.isFiltersLoaded) return
