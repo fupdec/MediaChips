@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount, shallowRef} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, shallowRef, nextTick} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
@@ -65,7 +65,7 @@ import {useNotificationsStore} from "@/stores/notifications"
 import {typedApi} from '@/services/typedApi'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
-import {checkCurrentPage} from '@/services/routeService'
+import {checkCurrentPage, getUrlParam} from '@/services/routeService'
 import path from 'path-browserify'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
@@ -226,22 +226,28 @@ const onImageEdited = (payload?: ImageEditedPayload) => {
 const deleteTag = async () => {
   if (!tag.value || !meta.value) return
 
+  const deletedTagId = tag.value.id
+  const deletedMetaId = meta.value.id
+  const deletedTagName = tag.value.name
+
   try {
     await typedApi.deleteEntityOne('tag', {
-      metaId: meta.value.id,
-      id: tag.value.id
+      metaId: deletedMetaId,
+      id: deletedTagId,
     })
 
     if (itemsStore.type === 'media') {
       const visibleIds = itemsStore.itemsOnPage.map((item) => item.id)
       for (const itemId of visibleIds) {
-        itemsStore.removeTagFromItem({itemId, tagId: tag.value.id})
+        itemsStore.removeTagFromItem({itemId, tagId: deletedTagId})
       }
     }
 
+    itemsStore.removeItem(deletedTagId)
+
     eventBus.emit('removeEntitiesFromState', {
-      ids: [tag.value.id],
-      type: 'tag'
+      ids: [deletedTagId],
+      type: 'tag',
     })
 
     eventBus.emit('getTags', [])
@@ -251,12 +257,20 @@ const deleteTag = async () => {
     notificationsStore.setNotification({
       type: 'info',
       title: 'The tag has been deleted',
-      text: tag.value.name,
+      text: deletedTagName,
     })
 
-    if (isTagPage.value) {
-      await router.push(`/meta?metaId=${meta.value.id}`)
+    const routeTagId = getUrlParam(router.currentRoute.value, 'tagId')
+    const isDeletingCurrentPageTag = isTagPage.value
+      && routeTagId != null
+      && Number(routeTagId) === Number(deletedTagId)
+
+    if (isDeletingCurrentPageTag) {
+      await router.push(`/meta?metaId=${deletedMetaId}`)
+      await nextTick()
     }
+
+    eventBus.emit('getItemsFromDb', {type: 'tag'})
   } catch (error) {
     console.error('Error deleting tag:', error)
   }

@@ -436,21 +436,29 @@ export const useItemsStore = defineStore('items', {
 
     // Удалить элемент по ID
     removeItem(id: number) {
+      let removed = false
+
       // Удалить с текущей страницы
       const indexPage = this.itemsOnPage.findIndex(i => sameItemId(i.id, id))
       if (indexPage > -1) {
         this.itemsOnPage.splice(indexPage, 1)
+        removed = true
       }
 
       // Удалить из всех элементов
       const indexEntities = this.entities.findIndex(i => sameItemId(i.id, id))
       if (indexEntities > -1) {
         this.entities.splice(indexEntities, 1)
+        removed = true
       }
 
       const indexNavigation = this.navigationItems.findIndex(i => sameItemId(i.id, id))
       if (indexNavigation > -1) {
         this.navigationItems.splice(indexNavigation, 1)
+        removed = true
+      }
+
+      if (removed) {
         this.totalFiltered = Math.max(0, this.totalFiltered - 1)
       }
 
