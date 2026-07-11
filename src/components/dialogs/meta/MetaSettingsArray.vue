@@ -83,6 +83,21 @@
             <div class=" ml-2">{{ t('meta.sorting.favorite') }}</div>
           </template>
         </v-switch>
+
+        <v-switch inset
+          v-model="settings.synonyms"
+          class="mt-0"
+          hide-details>
+          <template v-slot:label>
+            <div class="d-flex flex-column ml-2">
+              <div>
+                <v-icon color="grey">mdi-alphabetical</v-icon>
+                {{ t('filters.sort.synonyms') }}
+              </div>
+              <div class="text-caption mt-1">{{ t('editing.synonyms_hint') }}</div>
+            </div>
+          </template>
+        </v-switch>
       </v-col>
       <v-col cols="12"
         sm="7">
