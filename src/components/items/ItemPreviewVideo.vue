@@ -1049,6 +1049,17 @@ const shouldKeepBigPreviewOpen = () => {
   return bigPreview.value && (contextMenuStore.show || bigPreviewMenuActive.value)
 }
 
+const hasActivePreviewState = () =>
+  isHovered.value || bigPreview.value || isShrinking.value
+
+const canOpenBigPreview = () =>
+  isHovered.value &&
+  isAppWindowFocused() &&
+  props.isFileExists &&
+  !shouldBlockVideoPreview.value &&
+  !playbackError.value &&
+  SETTINGS.value.big_video_preview === '1'
+
 const handlePreviewClick = () => {
   if (isShrinking.value) return
   if (bigPreview.value) {
@@ -1439,6 +1450,8 @@ const handleMouseEnter = () => {
         (Number(SETTINGS.value.big_video_preview_delay) || 0)
 
       timeouts.cinema = setTimeout(() => {
+        if (!canOpenBigPreview()) return
+
         captureGridPreviewOrigin()
         const preview = getPreviewEl()
         if (preview) {
@@ -1453,7 +1466,7 @@ const handleMouseEnter = () => {
 }
 
 const stopPlayingPreview = ({force = false} = {}) => {
-  if (!props.isFileExists) return
+  if (!props.isFileExists && !hasActivePreviewState()) return
   if (isShrinking.value && !force) return
   if (!force && shouldKeepBigPreviewOpen()) return
 
@@ -1597,8 +1610,31 @@ watch(() => contextMenuStore.show, (show) => {
 
 watch(() => props.isFileExists, (exists) => {
   transcodeRequired.value = null
-  if (exists && isThumbUnavailable(thumb.value)) {
+  if (!exists) {
+    clearTimeout(timeouts.cinema)
+    if (hasActivePreviewState()) {
+      stopPlayingPreview({force: true})
+    }
+    return
+  }
+  if (isThumbUnavailable(thumb.value)) {
     getImg()
+  }
+})
+
+watch(playbackError, (error) => {
+  if (!error) return
+  clearTimeout(timeouts.cinema)
+  if (bigPreview.value) {
+    stopPlayingPreview()
+  }
+})
+
+watch(shouldBlockVideoPreview, (blocked) => {
+  if (!blocked) return
+  clearTimeout(timeouts.cinema)
+  if (bigPreview.value) {
+    stopPlayingPreview()
   }
 })
 
