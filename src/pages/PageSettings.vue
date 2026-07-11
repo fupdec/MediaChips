@@ -82,6 +82,10 @@
               <SettingsSection>
                 <SettingsQuickTags/>
               </SettingsSection>
+
+              <SettingsSection>
+                <SettingsParseLibraryTags/>
+              </SettingsSection>
             </SettingsList>
           </div>
 
@@ -196,6 +200,9 @@ const SettingsDataScraper = defineAsyncComponent(() =>
 )
 const SettingsQuickTags = defineAsyncComponent(() =>
   import("@/components/settings/library/SettingsQuickTags.vue")
+)
+const SettingsParseLibraryTags = defineAsyncComponent(() =>
+  import("@/components/settings/library/SettingsParseLibraryTags.vue")
 )
 const SettingsVideoPreview = defineAsyncComponent(() =>
   import("@/components/settings/tools/SettingsVideoPreview.vue")

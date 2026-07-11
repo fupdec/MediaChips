@@ -97,6 +97,11 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
       return db.select().from(tags).all()
     },
 
+    findByMetaIds(metaIds: number[]): TagRow[] {
+      if (!metaIds.length) return []
+      return db.select().from(tags).where(inArray(tags.metaId, metaIds)).all()
+    },
+
     findOldIdMappings(): Array<{id: number; oldId: string | null}> {
       return db.select({id: tags.id, oldId: tags.oldId}).from(tags).all()
     },

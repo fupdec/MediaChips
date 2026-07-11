@@ -107,6 +107,14 @@ export const ParsePathTagsRequestSchema = z.object({
   settings: z.record(z.unknown()).optional(),
 }).passthrough()
 
+export const ApplyParseLibraryTagsRequestSchema = z.object({
+  assignments: z.array(z.object({
+    mediaId: z.number(),
+    tagId: z.number(),
+    metaId: z.number(),
+  })).optional().default([]),
+}).passthrough()
+
 export const AuthLoginRequestSchema = z.object({
   password: z.string().optional(),
 })
@@ -242,3 +250,4 @@ export type ParsedGlobalSearchRequest = z.infer<typeof GlobalSearchRequestSchema
 export type ParsedPathPayload = z.infer<typeof PathPayloadSchema>
 export type ParsedAddMediaRequest = z.infer<typeof AddMediaRequestSchema>
 export type ParsedParsePathTagsRequest = z.infer<typeof ParsePathTagsRequestSchema>
+export type ParsedApplyParseLibraryTagsRequest = z.infer<typeof ApplyParseLibraryTagsRequestSchema>

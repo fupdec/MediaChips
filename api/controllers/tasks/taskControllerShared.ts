@@ -74,6 +74,8 @@ export default function createTaskControllerShared(db: ApiDb) {
     'pathParser.similarityThreshold': 0.75,
     'pathParser.folderWeight': 1.5,
     'pathParser.clusterThreshold': 0.88,
+    'pathParser.preferLongestMatch': true,
+    'pathParser.matchPrecision': 0.5,
   }
 
   const parseBooleanSetting = (value: unknown) => {
@@ -90,6 +92,8 @@ export default function createTaskControllerShared(db: ApiDb) {
     for (const row of rows) {
       const option = String(row.option)
       if (option === 'pathParser.useML') settings[option] = parseBooleanSetting(row.value)
+      else if (option === 'pathParser.preferLongestMatch') settings[option] = parseBooleanSetting(row.value)
+      else if (option === 'pathParser.matchPrecision') settings[option] = Number(row.value)
       else settings[option] = Number(row.value)
     }
 
@@ -98,6 +102,12 @@ export default function createTaskControllerShared(db: ApiDb) {
       similarityThreshold: Number(overrides.similarityThreshold ?? settings['pathParser.similarityThreshold']),
       folderWeight: Number(overrides.folderWeight ?? settings['pathParser.folderWeight']),
       clusterThreshold: Number(overrides.clusterThreshold ?? settings['pathParser.clusterThreshold']),
+      preferLongestMatch: parseBooleanSetting(
+        overrides.preferLongestMatch ?? settings['pathParser.preferLongestMatch'],
+      ),
+      matchPrecision: Number(
+        overrides.matchPrecision ?? settings['pathParser.matchPrecision'] ?? 0.5,
+      ),
     }
   }
 

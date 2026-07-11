@@ -1,51 +1,45 @@
-import type { ApiDb, AnyRecord, TagLike, MetaLike } from '../types/db'
+import type { AnyRecord, MetaLike, TagLike } from '../types/db'
 
-import { cleanComparable, tokenizeFilePath } from './pathTokenizer'
+import {
+  buildTagPathIndex,
+  exactMatchPath as exactMatchPathCore,
+  extractPathPhrases,
+  matchPathToTagsFromPhrasesWithIndex,
+  matchPathsToTagsBatch,
+  type TagLikeForParser,
+} from '../../shared/pathParser/core'
 
-function getTagTerms(tag: TagLike) {
-  const synonyms = String(tag.synonyms || '')
-    .split(',')
-    .map(i => i.trim())
-    .filter(Boolean)
-
-  return [tag.name, ...synonyms].filter(Boolean)
-}
-
-function exactMatchPath(filePath: string, tag: TagLike) {
-  const parsed = tokenizeFilePath(filePath)
-  const candidates = new Set([parsed.file, ...parsed.folders].map(cleanComparable).filter(Boolean))
-  const tokensBySegment = new Map()
-
-  for (const item of parsed.tokens) {
-    const key = `${item.source}:${item.segment}`
-    if (!tokensBySegment.has(key)) tokensBySegment.set(key, [])
-    tokensBySegment.get(key).push(item.token)
-  }
-
-  for (const tokens of tokensBySegment.values()) {
-    for (let size = 1; size <= tokens.length; size++) {
-      for (let i = 0; i <= tokens.length - size; i++) {
-        candidates.add(tokens.slice(i, i + size).join(''))
-      }
-    }
-  }
-
-  return getTagTerms(tag).some(term => {
-    const cleanTerm = cleanComparable(term)
-    if (!cleanTerm || cleanTerm.length < 2) return false
-
-    return candidates.has(cleanTerm)
+function toParserTags(tags: TagLike[]): TagLikeForParser[] {
+  return tags.flatMap((tag) => {
+    if (tag.id == null) return []
+    return [{
+      id: tag.id,
+      metaId: tag.metaId,
+      name: typeof tag.name === 'string' ? tag.name : null,
+      synonyms: typeof tag.synonyms === 'string' ? tag.synonyms : null,
+    }]
   })
 }
 
-async function matchPathToTags(
-  db: ApiDb,
-  filePath: string,
-  mediaId: unknown,
-  tags: TagLike[],
-  metas: MetaLike[],
-  settings: AnyRecord = {},
-) {
+function toParserTag(tag: TagLike): TagLikeForParser | null {
+  if (tag.id == null) return null
+  return {
+    id: tag.id,
+    metaId: tag.metaId,
+    name: typeof tag.name === 'string' ? tag.name : null,
+    synonyms: typeof tag.synonyms === 'string' ? tag.synonyms : null,
+  }
+}
+
+function getMatchOptions(settings: AnyRecord = {}) {
+  return {
+    preferLongestMatch: settings.preferLongestMatch !== false,
+    minTokenLength: Number(settings.minTokenLength) > 0 ? Number(settings.minTokenLength) : 2,
+    matchPrecision: Number(settings.matchPrecision ?? settings['pathParser.matchPrecision'] ?? 0.5),
+  }
+}
+
+function filterEligibleTags(tags: TagLike[], metas: MetaLike[], settings: AnyRecord = {}) {
   const parserMetaIds = new Set(
     metas
       .filter((meta) => meta.parser)
@@ -54,25 +48,69 @@ async function matchPathToTags(
   const requestedMetaIds = Array.isArray(settings.metaIds) && settings.metaIds.length
     ? new Set((settings.metaIds as unknown[]).map(Number))
     : null
-  const values = []
 
-  for (const tag of tags) {
+  return tags.filter((tag) => {
     const metaId = Number(tag.metaId)
-    if (!parserMetaIds.has(metaId)) continue
-    if (requestedMetaIds && !requestedMetaIds.has(metaId)) continue
-
-    if (exactMatchPath(filePath, tag)) {
-      values.push({ tagId: tag.id, metaId: tag.metaId, mediaId, score: 1, source: 'exact' })
-    }
-  }
-
-  const seen = new Set()
-  return values.filter(value => {
-    const key = `${value.mediaId}:${value.metaId}:${value.tagId}`
-    if (seen.has(key)) return false
-    seen.add(key)
+    if (!parserMetaIds.has(metaId)) return false
+    if (requestedMetaIds && !requestedMetaIds.has(metaId)) return false
     return true
   })
 }
 
-export { exactMatchPath, matchPathToTags }
+function mapMatches(matches: Array<{
+  tagId: unknown
+  metaId: unknown
+  mediaId: unknown
+  score: number
+  source: string
+}>) {
+  return matches.map((match) => ({
+    tagId: match.tagId,
+    metaId: match.metaId,
+    mediaId: match.mediaId,
+    score: match.score,
+    source: match.source,
+  }))
+}
+
+function exactMatchPath(filePath: string, tag: TagLike, settings: AnyRecord = {}) {
+  const parserTag = toParserTag(tag)
+  if (!parserTag) return false
+  return exactMatchPathCore(filePath, parserTag, getMatchOptions(settings))
+}
+
+async function matchPathToTags(
+  _db: unknown,
+  filePath: string,
+  mediaId: unknown,
+  tags: TagLike[],
+  metas: MetaLike[],
+  settings: AnyRecord = {},
+) {
+  const eligibleTags = toParserTags(filterEligibleTags(tags, metas, settings))
+  const matchOptions = getMatchOptions(settings)
+  const parsed = extractPathPhrases(filePath, matchOptions)
+  const index = buildTagPathIndex(eligibleTags, matchOptions)
+  const matches = matchPathToTagsFromPhrasesWithIndex(parsed, mediaId, index, matchOptions)
+  return mapMatches(matches)
+}
+
+function matchPathsToTags(
+  paths: Array<{ path: string; mediaId: unknown }>,
+  tags: TagLike[],
+  metas: MetaLike[],
+  settings: AnyRecord = {},
+) {
+  const eligibleTags = toParserTags(filterEligibleTags(tags, metas, settings))
+  const matches = matchPathsToTagsBatch(paths, eligibleTags, getMatchOptions(settings))
+  return mapMatches(matches)
+}
+
+export {
+  buildTagPathIndex,
+  exactMatchPath,
+  extractPathPhrases,
+  filterEligibleTags,
+  matchPathToTags,
+  matchPathsToTags,
+}

@@ -55,6 +55,48 @@ export type RelinkMissingMediaResponse = {
   updated?: number
 }
 
+export type ParseLibraryTagsStatus = {
+  totalMedia: number
+  parserMetas: Array<{ id: number; name: string }>
+  parserTags: number
+}
+
+export type ParseLibraryTagsPreviewTag = {
+  tagId: number
+  metaId: number
+  tagName: string
+  metaName: string
+  isNew: boolean
+}
+
+export type ParseLibraryTagsPreviewItem = {
+  mediaId: number
+  path: string
+  tags: ParseLibraryTagsPreviewTag[]
+}
+
+export type ParseLibraryTagsSummary = {
+  totalMedia: number
+  mediaWithNewTags: number
+  totalNewTags: number
+  totalProposedTags: number
+  stopped: boolean
+}
+
+export type ParseLibraryTagsSearchEvent =
+  | { type: 'progress'; processed?: number; total?: number; current?: string }
+  | { type: 'item'; item: ParseLibraryTagsPreviewItem }
+  | {
+    type: 'complete'
+    summary?: ParseLibraryTagsSummary
+    items?: ParseLibraryTagsPreviewItem[]
+  }
+  | { type: 'error'; message?: string }
+
+export type ApplyParseLibraryTagsResponse = {
+  applied?: number
+}
+
 export type SettingsState = {
   allowLanAccess: string
   passwordProtection: string
@@ -138,6 +180,8 @@ export type SettingsState = {
   'pathParser.similarityThreshold': string
   'pathParser.folderWeight': string
   'pathParser.clusterThreshold': string
+  'pathParser.preferLongestMatch': string
+  'pathParser.matchPrecision': string
 }
 
 export const defaultSettingsState = (): SettingsState => ({
@@ -223,4 +267,6 @@ export const defaultSettingsState = (): SettingsState => ({
   'pathParser.similarityThreshold': '0.75',
   'pathParser.folderWeight': '1.5',
   'pathParser.clusterThreshold': '0.88',
+  'pathParser.preferLongestMatch': 'true',
+  'pathParser.matchPrecision': '0.5',
 })

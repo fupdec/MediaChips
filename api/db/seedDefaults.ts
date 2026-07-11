@@ -74,6 +74,8 @@ const MIGRATION_SETTINGS = [
   {option: 'pathParser.similarityThreshold', value: '0.75'},
   {option: 'pathParser.folderWeight', value: '1.5'},
   {option: 'pathParser.clusterThreshold', value: '0.88'},
+  {option: 'pathParser.preferLongestMatch', value: 'true'},
+  {option: 'pathParser.matchPrecision', value: '0.5'},
   {option: 'meta_sort_mode', value: 'menu'},
   {
     option: 'home_widgets_config',

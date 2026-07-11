@@ -7,6 +7,8 @@ export interface ParserSettings {
   similarityThreshold: number
   folderWeight: number
   clusterThreshold: number
+  preferLongestMatch: boolean
+  matchPrecision: number
 }
 
 export type LazyService = () => AnyRecord

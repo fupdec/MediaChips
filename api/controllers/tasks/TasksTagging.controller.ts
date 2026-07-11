@@ -6,7 +6,12 @@ import type { ParsePathTagEntry } from '@shared/api/responses'
 import { createTagsRepository } from '../../db/repositories/tags'
 import { createMetaRepository } from '../../db/repositories/meta'
 import { createMediaRepository } from '../../db/repositories/media'
-import { matchPathToTags } from '../../services/pathTagMatcher'
+import { matchPathsToTags } from '../../services/pathTagMatcher'
+import {
+  applyParseLibraryTags,
+  getParseLibraryTagsStatus,
+  iterateParseLibraryTagsPreview,
+} from '../../services/parseLibraryTagsPreview'
 import { suggestTagsFromMedia } from '../../services/tagSuggester'
 
 export default function createTasksTaggingController(shared: TaskControllerShared) {
@@ -15,6 +20,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
     getParserSettings,
     getVideoClipTagger,
     getEmbeddingModel,
+    createStreamAbortSignal,
   } = shared
 
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -189,20 +195,23 @@ export default function createTasksTaggingController(shared: TaskControllerShare
       const settings = await getParserSettings(req.body.settings || {})
       const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
       const metaRepo = createMetaRepository(db.drizzle)
-      const [tags, metas] = await Promise.all([
-        Promise.resolve(tagsRepo.findAllRaw()),
-        Promise.resolve(metaRepo.findAll()),
-      ])
+      const metas = metaRepo.findAll()
+      const parserMetaIds = metas
+        .filter((meta) => meta.parser)
+        .map((meta) => Number(meta.id))
+      const requestedMetaIds = Array.isArray(req.body.metaIds) && req.body.metaIds.length
+        ? req.body.metaIds.map(Number)
+        : null
+      const metaIds = requestedMetaIds?.length
+        ? parserMetaIds.filter((metaId) => requestedMetaIds.includes(metaId))
+        : parserMetaIds
+      const tags = tagsRepo.findByMetaIds(metaIds)
 
-      const values: AnyRecord[] = []
-      for (const item of paths) {
-        if (!item?.path || !item?.mediaId) continue
-        const parsed = await matchPathToTags(db, item.path, item.mediaId, tags as TagLike[], metas as MetaLike[], {
-          ...settings,
-          metaIds: req.body.metaIds,
-        })
-        values.push(...parsed)
-      }
+      const eligiblePaths = paths.filter((item: AnyRecord) => item?.path && item?.mediaId)
+      const values = matchPathsToTags(eligiblePaths, tags as TagLike[], metas as MetaLike[], {
+        ...settings,
+        metaIds: req.body.metaIds,
+      })
 
       res.status(201).send(values.map((i: AnyRecord) => ({
         tagId: i.tagId,
@@ -259,11 +268,66 @@ export default function createTasksTaggingController(shared: TaskControllerShare
     }
   }
 
+  const parseLibraryTagsStatus = async (_req: ApiRequest, res: ApiResponse) => {
+    try {
+      res.status(201).send(getParseLibraryTagsStatus(db))
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || "Some error occurred while checking parse library tags status."
+      })
+    }
+  }
+
+  const streamParseLibraryTagsPreview = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const settings = await getParserSettings(req.body?.settings || {})
+      const shouldStop = createStreamAbortSignal(req, res)
+
+      for await (const event of iterateParseLibraryTagsPreview(db, {
+        settings,
+        shouldStop,
+      })) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || "Some error occurred while parsing library tags."
+      })
+      res.end()
+    }
+  }
+
+  const applyParseLibraryTagsPreview = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const assignments = Array.isArray(req.body?.assignments) ? req.body.assignments : []
+      const result = applyParseLibraryTags(db, assignments)
+      res.status(201).send(result)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || "Some error occurred while applying parsed library tags."
+      })
+    }
+  }
+
   return {
     suggestTagsFromPaths,
     suggestTagsFromVideoFrames,
     streamVideoObjectRecognition,
     parsePathTags,
+    parseLibraryTagsStatus,
+    streamParseLibraryTagsPreview,
+    applyParseLibraryTagsPreview,
     parserStatus,
     downloadParserModel,
     clipModelStatus,

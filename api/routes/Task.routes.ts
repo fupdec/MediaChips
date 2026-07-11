@@ -8,6 +8,7 @@ import {
   CheckFilesPayloadSchema,
   AddMediaRequestSchema,
   ParsePathTagsRequestSchema,
+  ApplyParseLibraryTagsRequestSchema,
   RenameFileRequestSchema,
   OpenPathRequestSchema,
   GetFileListRequestSchema,
@@ -116,6 +117,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/downloadClipModel', 'downloadClipModel', validateBody(BackupNameRequestSchema))
 
   register('post', '/parsePathTags', 'parsePathTags', validateBody(ParsePathTagsRequestSchema))
+  register('get', '/parseLibraryTagsStatus', 'parseLibraryTagsStatus')
+  register('post', '/streamParseLibraryTagsPreview', 'streamParseLibraryTagsPreview')
+  register('post', '/applyParseLibraryTags', 'applyParseLibraryTagsPreview', validateBody(ApplyParseLibraryTagsRequestSchema))
 
   register('get', '/parserStatus', 'parserStatus')
   register('post', '/downloadParserModel', 'downloadParserModel', validateBody(BackupNameRequestSchema))
