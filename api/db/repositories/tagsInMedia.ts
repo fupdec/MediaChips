@@ -1,17 +1,37 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
+import { media } from '../schema/media'
 import { meta } from '../schema/meta'
 import { tags } from '../schema/tags'
 import { tagsInMedia } from '../schema/tagsInMedia'
+import { nowIso } from '../utils/timestamps'
 
 type TagSummary = Pick<typeof tags.$inferSelect, 'name' | 'color' | 'metaId'>
 type MetaSummary = Pick<typeof meta.$inferSelect, 'name' | 'icon'>
+
+function touchMediaUpdatedAt(db: DrizzleClient, mediaIds: Array<number | null | undefined>) {
+  const uniqueIds = [...new Set(mediaIds.map(Number).filter(Boolean))]
+  if (!uniqueIds.length) return
+
+  const updatedAt = nowIso()
+  const chunkSize = 500
+
+  for (let index = 0; index < uniqueIds.length; index += chunkSize) {
+    const chunk = uniqueIds.slice(index, index + chunkSize)
+    db.update(media)
+      .set({ updatedAt })
+      .where(inArray(media.id, chunk))
+      .run()
+  }
+}
 
 export function createTagsInMediaRepository(db: DrizzleClient) {
   return {
     bulkCreate(items: Array<typeof tagsInMedia.$inferInsert>) {
       if (!items.length) return []
-      return db.insert(tagsInMedia).values(items).onConflictDoNothing().returning().all()
+      const inserted = db.insert(tagsInMedia).values(items).onConflictDoNothing().returning().all()
+      touchMediaUpdatedAt(db, inserted.map((row) => row.mediaId))
+      return inserted
     },
 
     findOrCreate(data: typeof tagsInMedia.$inferInsert) {
@@ -27,6 +47,7 @@ export function createTagsInMediaRepository(db: DrizzleClient) {
       if (existing) return [existing, false] as const
 
       const created = db.insert(tagsInMedia).values(data).returning().get()
+      touchMediaUpdatedAt(db, [data.mediaId])
       return [created, true] as const
     },
 
