@@ -400,7 +400,7 @@ const onEnter = (event: KeyboardEvent) => {
   }
 }
 const setVal = (newVal: unknown) => {
-  const normalized = normalizeIds(newVal)
+  const normalized = [...new Set(normalizeIds(newVal))]
   const previous = normalizeIds(val.value)
 
   if (!normalized.length && previous.length) {

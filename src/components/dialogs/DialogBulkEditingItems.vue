@@ -452,6 +452,11 @@ const save = async () => {
       ? {type: items_type}
       : {ids: selected_items_ids, type: items_type})
 
+    const hasTagChanges = changes.some((change) => change.metaType === 'array')
+    if (hasTagChanges) {
+      eventBus.emit('getTags')
+    }
+
     itemsStore.selection = []
     itemsStore.selected_last = null
     itemsStore.isSelect = false

@@ -294,6 +294,7 @@ export function useItemsPageEvents({
       if (props.items_type === 'media' && !props.mediaTypeId) return
       if (props.items_type === 'tag' && !props.metaId) return
 
+      itemsStore.clearSelection()
       await runInitSafely()
     },
   )

@@ -674,6 +674,7 @@ const editMetaTag = async () => {
 
 const changeTab = async (tab_value: string | null) => {
   if (!tab_value) return
+  itemsStore.clearSelection()
   const item_types = ['tag', 'media']
   for (const item_type of item_types) {
     if (tab_value.includes(item_type)) {

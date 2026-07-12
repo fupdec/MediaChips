@@ -2,6 +2,7 @@ import type { ApiDb } from '../types/db'
 import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { applyBulkMetaEdit } from '../services/bulkMetaEdit'
+import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
 
 export default function createBulkMetaController(db: ApiDb) {
   const apply = async function (req: ApiRequest, res: ApiResponse) {
@@ -15,6 +16,7 @@ export default function createBulkMetaController(db: ApiDb) {
         presetChanges,
       })
 
+      invalidateMediaDerivedCaches()
       res.status(201).send(result)
     } catch (err) {
       res.status(500).send({
