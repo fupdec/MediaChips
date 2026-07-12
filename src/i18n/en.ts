@@ -582,6 +582,7 @@ const en = {
     select_images_hint: 'Please select images. Maximum {count}.',
     error: 'Scraper error',
     image_cannot_be_obtained: 'Image cannot be obtained',
+    images_import_partial: 'Could not download {failed} of {total} image(s)',
     auto_scrape_in_progress: 'Auto scraping: {name}',
     auto_scrape_done: 'Scraper data applied',
     auto_scrape_failed: 'Auto scrape failed',

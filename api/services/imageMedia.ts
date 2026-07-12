@@ -123,6 +123,40 @@ const createImageThumb = async (pathToFile: string, id: string | number, dbPath:
   return outputPath
 }
 
+function getCenterCropRect(
+  width: number,
+  height: number,
+  targetAspectRatio: number,
+): {x: number; y: number; w: number; h: number} {
+  const aspectRatio = width / height
+
+  let cropWidth: number
+  let cropHeight: number
+
+  if (aspectRatio > targetAspectRatio) {
+    cropHeight = height
+    cropWidth = height * targetAspectRatio
+  } else {
+    cropWidth = width
+    cropHeight = width / targetAspectRatio
+  }
+
+  cropWidth = Math.min(cropWidth, width)
+  cropHeight = Math.min(cropHeight, height)
+
+  const x = Math.max(0, (width - cropWidth) / 2)
+  const y = Math.max(0, (height - cropHeight) / 2)
+  const flooredX = Math.floor(x)
+  const flooredY = Math.floor(y)
+
+  return {
+    x: flooredX,
+    y: flooredY,
+    w: Math.min(Math.floor(cropWidth), width - flooredX),
+    h: Math.min(Math.floor(cropHeight), height - flooredY),
+  }
+}
+
 async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveImageOptions) {
   fs.mkdirSync(path.dirname(outputPath), {recursive: true})
   const image = await decodeImageBuffer(buffer)
@@ -136,29 +170,8 @@ async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveIm
     const minAspectRatio = minWidth / minHeight
 
     if (Math.abs(minAspectRatio - aspectRatio) > 0.01) {
-      let cropWidth
-      let cropHeight
-      let x
-      let y
-
-      if (minAspectRatio < 1) {
-        cropHeight = height
-        cropWidth = height * minAspectRatio
-        x = Math.max((width - cropWidth) / 2, 0)
-        y = 0
-      } else {
-        cropWidth = width
-        cropHeight = width / minAspectRatio
-        x = 0
-        y = Math.max((height - cropHeight) / 2, 0)
-      }
-
-      await image.crop({
-        x: Math.floor(x),
-        y: Math.floor(y),
-        w: Math.floor(cropWidth),
-        h: Math.floor(cropHeight),
-      })
+      const crop = getCenterCropRect(width, height, minAspectRatio)
+      await image.crop(crop)
     }
 
     if (minWidth < image.width || minHeight < image.height) {
@@ -174,6 +187,7 @@ export {
   getImageMetadata,
   createImageThumb,
   ensureImageThumbDir,
+  getCenterCropRect,
   processAndSaveImage,
   readExifOrientation,
   applyExifOrientation,

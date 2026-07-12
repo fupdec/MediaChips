@@ -582,6 +582,7 @@ const ru = {
     select_images_hint: 'Выберите изображения. Максимум {count}.',
     error: 'Ошибка скрапера',
     image_cannot_be_obtained: 'Не удалось получить изображение',
+    images_import_partial: 'Не удалось загрузить {failed} из {total} изображений',
     auto_scrape_in_progress: 'Авто-скрапинг: {name}',
     auto_scrape_done: 'Данные скрапера применены',
     auto_scrape_failed: 'Авто-скрапинг не удался',

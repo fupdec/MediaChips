@@ -8,7 +8,7 @@ import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
 import os from 'os'
 import fs from 'fs'
-import axios from 'axios'
+import { downloadRemoteImage } from '../../services/remoteImageDownload'
 import path from 'path'
 import {
   combineVideoFrames,
@@ -232,21 +232,13 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
   const createImage = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      const {outputPath, url, sizes} = req.body
+      const {outputPath, url, sizes, image} = req.body
+      const downloadUrl = url
+        || (typeof image === 'string' && /^https?:\/\//i.test(image.trim()) ? image.trim() : null)
       let buf: Buffer
 
-      if (url) {
-        const response = await axios.get(url, {
-          responseType: 'arraybuffer',
-          timeout: 30000,
-          maxRedirects: 5,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            Accept: 'image/*,*/*;q=0.8',
-          },
-          validateStatus: (status) => status >= 200 && status < 300,
-        })
-        buf = Buffer.from(response.data)
+      if (downloadUrl) {
+        buf = await downloadRemoteImage(downloadUrl)
       } else {
         buf = Buffer.from(req.body.image, 'base64')
       }

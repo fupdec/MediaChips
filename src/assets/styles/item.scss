@@ -116,7 +116,8 @@
   }
   .main-img {
     &.static {
-      .v-image__image {
+      .v-image__image,
+      .v-img__img {
         transform: none !important;
       }
     }
@@ -124,10 +125,24 @@
   .main-img,
   .thumb {
     cursor: pointer;
+    .v-image__image,
+    .v-img__img {
+      transition: transform 0.3s ease;
+    }
     &:hover {
-      .v-image__image {
-        transition: 0.3s all ease;
+      .v-image__image,
+      .v-img__img {
         transform: scale(1.1);
+      }
+    }
+  }
+  &.item-tag.item-view-1 {
+    .main-img:not(.static) {
+      &:hover {
+        .v-image__image,
+        .v-img__img {
+          transform: scale(1.05);
+        }
       }
     }
   }

@@ -981,9 +981,12 @@ const transferScrapedInfo = async () => {
     const imageTypes = ['main', 'alt', 'custom1', 'custom2']
     let index = 0
     let mainImageUrl: string | null = null
+    let failedCount = 0
 
     for (const url of images) {
       const imageType = imageTypes[index]
+      if (!imageType) break
+
       const imagePath = path.join(
         appStore.dbPath,
         'meta',
@@ -996,14 +999,21 @@ const transferScrapedInfo = async () => {
 
       const res = await createImage(url, imagePath, sizes)
       if (res.status != 201) {
-        setNotification({
-          type: 'error',
-          title: t('scraper.error'),
-          text: t('scraper.image_cannot_be_obtained'),
-        })
+        ++failedCount
       } else if (imageType === 'main') {
         mainImageUrl = url
       }
+    }
+
+    if (failedCount > 0) {
+      setNotification({
+        type: failedCount === images.length ? 'error' : 'warning',
+        title: t('scraper.error'),
+        text: t('scraper.images_import_partial', {
+          failed: failedCount,
+          total: images.length,
+        }),
+      })
     }
 
     if (

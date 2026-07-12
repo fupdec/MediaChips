@@ -581,6 +581,7 @@ const cn = {
     select_images_hint: '请选择图片。最多 {count} 张。',
     error: '抓取器错误',
     image_cannot_be_obtained: '无法获取图片',
+    images_import_partial: '无法下载 {total} 张图片中的 {failed} 张',
     auto_scrape_in_progress: '自动抓取：{name}',
     auto_scrape_done: '抓取数据已应用',
     auto_scrape_failed: '自动抓取失败',

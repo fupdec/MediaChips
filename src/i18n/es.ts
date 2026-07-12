@@ -581,6 +581,7 @@ const es = {
     select_images_hint: 'Seleccione imágenes. Máximo {count}.',
     error: 'Error del extractor',
     image_cannot_be_obtained: 'No se pudo obtener la imagen',
+    images_import_partial: 'No se pudieron descargar {failed} de {total} imágenes',
     auto_scrape_in_progress: 'Extracción automática: {name}',
     auto_scrape_done: 'Datos del extractor aplicados',
     auto_scrape_failed: 'La extracción automática falló',

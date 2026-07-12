@@ -5,7 +5,7 @@
         :src="mainImageSrc"
         :aspect-ratio="meta?.imageAspectRatio"
         class="main-img"
-        :class="{ static: images.alt }"
+        :class="{ static: hasMultipleTagImages }"
         cover
         @click="openTagPage"
         @error="onImageError('main')"
@@ -148,6 +148,10 @@ const avatar = computed(() => {
   }
   return IMAGE_UNAVAILABLE_URL
 })
+
+const hasMultipleTagImages = computed(() => Boolean(
+  images.alt || images.custom1 || images.custom2,
+))
 
 function getImageTypes(): TagImageType[] {
   if (Number(ITEMS.value.view) === 2) {

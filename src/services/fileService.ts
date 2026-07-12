@@ -167,25 +167,43 @@ export async function deleteLocalFile(filePath: string) {
   return typedApi.deleteLocalFile(filePath)
 }
 
+function resolveCreateImageUrl(image: string): string | null {
+  const trimmed = image?.trim()
+  if (!trimmed) return null
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  if (/^\/\//.test(trimmed)) return `https:${trimmed}`
+  return null
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function createImage(
   image: string,
   outputPath: string,
   sizes: unknown,
 ) {
-  let url: string | null = null
-  const base64regex =
-    /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/
+  const url = resolveCreateImageUrl(image)
+  const maxAttempts = url ? 3 : 1
+  let lastResponse
 
-  const image_string = image?.length > 100 ? image.substring(0, 99) : null
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    lastResponse = await typedApi.createImage({
+      image,
+      outputPath,
+      url,
+      sizes,
+    })
 
-  if (image_string && !base64regex.test(image_string) && image.includes('http')) {
-    url = image
+    if (lastResponse.status === 201) {
+      return lastResponse
+    }
+
+    if (attempt < maxAttempts) {
+      await sleep(400 * attempt)
+    }
   }
 
-  return typedApi.createImage({
-    image,
-    outputPath,
-    url,
-    sizes,
-  })
+  return lastResponse!
 }
