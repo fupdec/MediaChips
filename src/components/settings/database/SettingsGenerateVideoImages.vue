@@ -139,11 +139,12 @@
 import {ref, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
-import {useApiBaseUrl} from '@/composable/useApiBaseUrl'
+import {buildApiUrl} from '@/services/apiClient'
+import {getAuthToken} from '@/services/authSession'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
 
-type ImageTypeId = 'preview' | 'grid' | 'timeline' | 'marks'
+type ImageTypeId = 'preview' | 'grid' | 'marks'
 
 interface ImageTypeConfig {
   id: ImageTypeId
@@ -188,12 +189,18 @@ interface GenerationEvent {
 
 const {t} = useI18n()
 const tasksStore = useTasksStore()
-const apiBaseUrl = useApiBaseUrl()
+
+const buildRequestHeaders = (withJson = false): HeadersInit => {
+  const token = getAuthToken()
+  return {
+    ...(withJson ? {'Content-Type': 'application/json'} : {}),
+    ...(token ? {Authorization: `Bearer ${token}`} : {}),
+  }
+}
 
 const imageTypes: ImageTypeConfig[] = [
   {id: 'preview', titleKey: 'settings_labels.database.generate_video_images_preview'},
   {id: 'grid', titleKey: 'settings_labels.database.generate_video_images_grid'},
-  {id: 'timeline', titleKey: 'settings_labels.database.generate_video_images_timeline'},
   {id: 'marks', titleKey: 'settings_labels.database.generate_video_images_marks'},
 ]
 
@@ -202,7 +209,6 @@ const emptyStatus: ImageTypeStatus = {total: 0, pending: 0, generated: 0}
 const status = ref<Record<ImageTypeId, ImageTypeStatus>>({
   preview: {...emptyStatus},
   grid: {...emptyStatus},
-  timeline: {...emptyStatus},
   marks: {...emptyStatus},
 })
 
@@ -231,14 +237,14 @@ const activeTypeLabel = computed(() => {
 })
 
 const fetchStatus = async () => {
-  const baseUrl = apiBaseUrl.value
-  if (!baseUrl) return
-
   statusLoading.value = true
   statusError.value = ''
 
   try {
-    const response = await fetch(`${baseUrl}/api/Task/videoImagesGenerationStatus`)
+    const response = await fetch(
+      buildApiUrl('/api/Task/videoImagesGenerationStatus'),
+      {headers: buildRequestHeaders()},
+    )
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -295,8 +301,6 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
   const typeItem = imageTypes.find((type) => type.id === imageType)
   if (!typeItem) return
 
-  const baseUrl = apiBaseUrl.value
-
   taskId = tasksStore.setTask({
     title: t(typeItem.titleKey),
     subtitle: t('settings_labels.database.generate_video_images_progress', counters.value),
@@ -308,10 +312,10 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
 
   try {
     const response = await fetch(
-      `${baseUrl}/api/Task/streamVideoImagesGeneration?type=${imageType}&force=${force ? 'true' : 'false'}`,
+      buildApiUrl(`/api/Task/streamVideoImagesGeneration?type=${imageType}&force=${force ? 'true' : 'false'}`),
       {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: buildRequestHeaders(true),
         signal: abortController.signal,
         body: JSON.stringify({}),
       },

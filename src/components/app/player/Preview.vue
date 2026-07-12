@@ -4,16 +4,14 @@
     :style="previewStyle"
     class="preview text-center"
   >
-    <img
-      v-if="useTimelineFrames"
-      :key="timelineFrameKey"
-      :src="timelineFrameUrl ?? undefined"
-      class="preview-frame"
-      alt=""
-      @error="onTimelineFrameError"
-    >
+    <div
+      v-if="useTimelineFrames && gridFrameStyle"
+      :key="gridFrameKey"
+      class="preview-frame grid-sprite-frame"
+      :style="gridFrameStyle"
+    />
     <video
-      v-else
+      v-else-if="!useTimelineFrames"
       ref="preview"
       muted
       preload="metadata"
@@ -52,12 +50,15 @@ import {usePlayerStore} from '@/stores/player'
 import {useTasksStore} from '@/stores/tasks'
 import {getReadableDuration} from '@/services/formatUtils'
 import {typedApi} from '@/services/typedApi'
-import {pickTimelineFramePercent, getPlayerPreviewAspectRatio} from '@/utils/playerPreviewPosition'
+import {pickGridFrameIndex, getPlayerPreviewAspectRatio} from '@/utils/playerPreviewPosition'
+import {buildContainedThumbFallbackStyle, buildGridSpriteFrameStyle} from '@/utils/gridSprite'
+import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {
   isThumbUnavailable,
+  resolveGridSpriteDisplayUrl,
   resolveMediaThumbDisplayUrl,
-  resolveTimelineFrameDisplayUrl,
 } from '@/utils/thumbSource'
+import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import throttle from 'lodash/throttle'
 
 const SEEK_MIN_DELTA = 0.25
@@ -68,9 +69,9 @@ const playerStore = usePlayerStore()
 const tasksStore = useTasksStore()
 
 const preview = ref<HTMLVideoElement | null>(null)
-const timelineGenRequestedFor = ref<number | null>(null)
-const timelineFrameCacheBust = ref(0)
-const timelineFrameFailed = ref(false)
+const gridGenRequestedFor = ref<number | null>(null)
+const gridFrameCacheBust = ref(0)
+const gridFrameFailed = ref(false)
 
 const useTimelineFrames = computed(() => playerStore.usesLiveTranscode)
 
@@ -106,9 +107,9 @@ const formattedTime = computed(() => {
   return getReadableDuration(time)
 })
 
-const timelineFramePercent = computed(() => {
+const gridFrameIndex = computed(() => {
   if (playerStore.progress_hover == null) return null
-  return pickTimelineFramePercent(playerStore.progress_hover)
+  return pickGridFrameIndex(playerStore.progress_hover)
 })
 
 const fallbackThumbUrl = computed(() => {
@@ -117,57 +118,95 @@ const fallbackThumbUrl = computed(() => {
   return resolveMediaThumbDisplayUrl(appStore.mediaPath, 'videos', mediaId)
 })
 
-const timelineFrameUrl = computed(() => {
+const gridSpriteUrl = computed(() => {
   const mediaId = playerStore.media?.id
-  const percent = timelineFramePercent.value
-  if (!mediaId || percent == null) return null
+  if (!mediaId) return null
 
-  if (timelineFrameFailed.value && fallbackThumbUrl.value && !isThumbUnavailable(fallbackThumbUrl.value)) {
+  if (gridFrameFailed.value && fallbackThumbUrl.value && !isThumbUnavailable(fallbackThumbUrl.value)) {
     return fallbackThumbUrl.value
   }
 
-  return resolveTimelineFrameDisplayUrl(
+  return resolveGridSpriteDisplayUrl(
     appStore.mediaPath,
     mediaId,
-    percent,
-    timelineFrameCacheBust.value > 0,
+    gridFrameCacheBust.value > 0,
   )
 })
 
-const timelineFrameKey = computed(() => {
-  const mediaId = playerStore.media?.id ?? 'none'
-  const percent = timelineFramePercent.value ?? 0
-  return `${mediaId}-${percent}-${timelineFrameCacheBust.value}`
+const gridFrameStyle = computed(() => {
+  const spriteUrl = gridSpriteUrl.value
+  const frameIndex = gridFrameIndex.value
+  if (!spriteUrl || frameIndex == null) return null
+
+  if (gridFrameFailed.value && fallbackThumbUrl.value && spriteUrl === fallbackThumbUrl.value) {
+    return buildContainedThumbFallbackStyle(
+      spriteUrl,
+      aspectRatio.value,
+      aspectRatio.value,
+    )
+  }
+
+  return buildGridSpriteFrameStyle(
+    spriteUrl,
+    frameIndex,
+    aspectRatio.value,
+    aspectRatio.value,
+  )
 })
 
-const isGeneratingTimeline = computed(() =>
-  tasksStore.list.some((task) => task.title === 'Generating timeline images'),
+const gridFrameKey = computed(() => {
+  const mediaId = playerStore.media?.id ?? 'none'
+  const frameIndex = gridFrameIndex.value ?? 0
+  return `${mediaId}-${frameIndex}-${gridFrameCacheBust.value}`
+})
+
+const isGeneratingGrid = computed(() =>
+  tasksStore.list.some((task) => task.title === 'Generating grids images'),
 )
 
 const showTimelineGenerating = computed(() =>
   useTimelineFrames.value &&
-  (isGeneratingTimeline.value || timelineGenRequestedFor.value === playerStore.media?.id) &&
-  timelineFrameFailed.value,
+  (isGeneratingGrid.value || gridGenRequestedFor.value === playerStore.media?.id) &&
+  gridFrameFailed.value,
 )
 
-const requestTimelineGeneration = () => {
+const requestGridGeneration = () => {
   const media = playerStore.media
   if (!media?.id || !media.path) return
-  if (timelineGenRequestedFor.value === media.id) return
+  if (gridGenRequestedFor.value === media.id) return
 
-  timelineGenRequestedFor.value = media.id
-  typedApi.taskCreateTimeline({id: media.id, path: media.path})
+  gridGenRequestedFor.value = media.id
+  typedApi.taskCreateGrid(buildVideoGridTaskParams(media.path, `${media.id}.jpg`))
     .then(() => {
       itemsStore.refreshThumb(media.id, {broadcast: false})
-      timelineFrameCacheBust.value++
-      timelineFrameFailed.value = false
+      gridFrameCacheBust.value++
+      gridFrameFailed.value = false
     })
     .catch(() => {})
 }
 
-const onTimelineFrameError = () => {
-  timelineFrameFailed.value = true
-  requestTimelineGeneration()
+const onGridFrameError = () => {
+  gridFrameFailed.value = true
+  requestGridGeneration()
+}
+
+const probeGridSprite = async () => {
+  const spriteUrl = resolveGridSpriteDisplayUrl(
+    appStore.mediaPath,
+    playerStore.media?.id ?? '',
+    gridFrameCacheBust.value > 0,
+  )
+  if (!spriteUrl || isThumbUnavailable(spriteUrl)) {
+    onGridFrameError()
+    return
+  }
+
+  const exists = await probeDisplayImageUrl(spriteUrl)
+  if (!exists) {
+    onGridFrameError()
+  } else {
+    gridFrameFailed.value = false
+  }
 }
 
 const syncPreviewFrame = () => {
@@ -196,22 +235,23 @@ watch(
   () => (playerStore.usesLiveTranscode ? playerStore.media?.id : null),
   (mediaId) => {
     if (mediaId == null) return
-    requestTimelineGeneration()
+    void probeGridSprite()
+    requestGridGeneration()
   },
 )
 
 watch(() => playerStore.progress_hover, () => {
   if (useTimelineFrames.value) {
-    timelineFrameFailed.value = false
+    gridFrameFailed.value = false
     return
   }
   throttledSyncPreviewFrame()
 })
 
 watch(() => playerStore.media?.id, () => {
-  timelineGenRequestedFor.value = null
-  timelineFrameCacheBust.value = 0
-  timelineFrameFailed.value = false
+  gridGenRequestedFor.value = null
+  gridFrameCacheBust.value = 0
+  gridFrameFailed.value = false
   const video = preview.value
   if (video) {
     video.removeAttribute('src')
@@ -222,8 +262,8 @@ watch(() => playerStore.media?.id, () => {
 watch(
   () => itemsStore.thumbRefreshKeys[Number(playerStore.media?.id)],
   () => {
-    timelineFrameCacheBust.value++
-    timelineFrameFailed.value = false
+    gridFrameCacheBust.value++
+    gridFrameFailed.value = false
   },
 )
 

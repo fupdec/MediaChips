@@ -4,6 +4,7 @@ import path from 'path'
 import { createDrizzleClient, smokeTestDrizzle } from '../../api/db'
 import { bootstrapDatabase } from '../../api/db/migrationRunner'
 import { createApiDb } from '../../api/createApiDb'
+import { scheduleLegacyTimelineCleanup } from '../../api/services/legacyTimelineCleanup'
 
 function setupDatabase({databasesPath, dbConfig}: { databasesPath: string; dbConfig: ServerDatabaseEntry | undefined }) {
   if (!dbConfig) {
@@ -32,6 +33,7 @@ function setupDatabase({databasesPath, dbConfig}: { databasesPath: string; dbCon
 
     const mediaCount = smokeTestDrizzle(db.drizzle)
     console.log('\x1b[32m%s\x1b[0m', `✅ Drizzle connected (${mediaCount} media rows)`)
+    scheduleLegacyTimelineCleanup(db)
   }).catch((err: unknown) => {
     console.log('\x1b[33m%s\x1b[0m', '⚠️ Database bootstrap error:', err instanceof Error ? apiErrorMessage(err) : String(err))
   })

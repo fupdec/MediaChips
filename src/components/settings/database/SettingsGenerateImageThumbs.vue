@@ -2,7 +2,7 @@
   <div id="settings-generate-image-thumbs" class="mx-4 pb-4">
     <settings-category-divider
       :title="t('settings_labels.database.generate_image_thumbs')"
-      icon="mdi-image-outline"
+      icon="image-outline"
     />
 
     <v-alert
@@ -123,12 +123,20 @@
 import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
-import {useApiBaseUrl} from '@/composable/useApiBaseUrl'
+import {buildApiUrl} from '@/services/apiClient'
+import {getAuthToken} from '@/services/authSession'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 
 const {t} = useI18n()
 const tasksStore = useTasksStore()
-const apiBaseUrl = useApiBaseUrl()
+
+const buildRequestHeaders = (withJson = false) => {
+  const token = getAuthToken()
+  return {
+    ...(withJson ? {'Content-Type': 'application/json'} : {}),
+    ...(token ? {Authorization: `Bearer ${token}`} : {}),
+  }
+}
 
 const emptyStatus = {total: 0, pending: 0, generated: 0}
 
@@ -153,14 +161,14 @@ let abortController = null
 let taskId = null
 
 const fetchStatus = async () => {
-  const baseUrl = apiBaseUrl.value
-  if (!baseUrl) return
-
   statusLoading.value = true
   statusError.value = ''
 
   try {
-    const response = await fetch(`${baseUrl}/api/Task/imageThumbsGenerationStatus`)
+    const response = await fetch(
+      buildApiUrl('/api/Task/imageThumbsGenerationStatus'),
+      {headers: buildRequestHeaders()},
+    )
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -211,7 +219,6 @@ const startGeneration = async (force = false) => {
   }
 
   abortController = new AbortController()
-  const baseUrl = apiBaseUrl.value
 
   taskId = tasksStore.setTask({
     title: t('settings_labels.database.generate_image_thumbs'),
@@ -223,10 +230,10 @@ const startGeneration = async (force = false) => {
 
   try {
     const response = await fetch(
-      `${baseUrl}/api/Task/streamImageThumbsGeneration?force=${force ? 'true' : 'false'}`,
+      buildApiUrl(`/api/Task/streamImageThumbsGeneration?force=${force ? 'true' : 'false'}`),
       {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: buildRequestHeaders(true),
         signal: abortController.signal,
         body: JSON.stringify({}),
       },

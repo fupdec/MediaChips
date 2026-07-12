@@ -4,6 +4,7 @@ import path from 'path'
 import { createMediaRepository } from '../db/repositories/media'
 import { resolveActiveDbFilePath } from './activeDbFileResolver'
 import { extractVideoThumbnail } from '../utils/ffmpeg'
+import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY } from '../../shared/videoPreview'
 import { runWithFfmpegLimit } from './mediaPostProcessQueue'
 
 const THUMB_GENERATION_TIMEOUT_MS = 120_000
@@ -61,7 +62,12 @@ async function generateVideoPreviewThumb(
   }
 
   await withTimeout(
-    extractVideoThumbnail({input: videoPath, outputPath, height: 320}),
+    extractVideoThumbnail({
+      input: videoPath,
+      outputPath,
+      height: VIDEO_THUMB_HEIGHT,
+      jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
+    }),
     THUMB_GENERATION_TIMEOUT_MS,
     'ffmpeg thumbnail',
   )

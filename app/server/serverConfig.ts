@@ -127,7 +127,7 @@ function createStorageDirectories(config: ServerConfig, databasesPath: string) {
     const audioPath = path.join(mediaPath, 'audios')
     const textPath = path.join(mediaPath, 'texts')
 
-    const videoSubDirs = ['thumbs', 'marks', 'grids', 'timelines'].map(subDir =>
+    const videoSubDirs = ['thumbs', 'marks', 'grids'].map(subDir =>
       path.join(videoPath, subDir),
     )
 

@@ -1,6 +1,6 @@
 import type { FfprobeInfo } from './tasks'
 
-export type VideoImageType = 'preview' | 'grid' | 'timeline' | 'marks'
+export type VideoImageType = 'preview' | 'grid' | 'marks'
 
 export interface VideoGridOptions {
   input: string
@@ -8,11 +8,6 @@ export interface VideoGridOptions {
   cols: number
   rows: number
   width: number
-}
-
-export interface VideoTimelineItem {
-  id: unknown
-  path: string
 }
 
 export interface VideoImageItem {
@@ -41,7 +36,6 @@ export interface VideoImageTypeStatus {
 export interface VideoImagesGenerationStatus {
   preview: VideoImageTypeStatus
   grid: VideoImageTypeStatus
-  timeline: VideoImageTypeStatus
   marks: VideoImageTypeStatus
 }
 

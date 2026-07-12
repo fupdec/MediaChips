@@ -1,16 +1,15 @@
-import type { FfprobeInfo } from '../types/tasks'
-import type { AnyRecord, ApiDb } from '../types/db'
+import type { ApiDb } from '../types/db'
 import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import fs from 'fs'
 import path from 'path'
 import { machineId } from 'node-machine-id'
-import { extractVideoFrame, ffprobe } from '../utils/ffmpeg'
 import { resolveExistingPath } from '../services/contentHash'
 import { normalizeMediaPath } from '../utils/normalizeUserPath'
 import { getAppConfigPath } from '../utils/appConfigPath'
 import {
   getVideoImagesGenerationStatus,
+  generateVideoImage,
   iterateVideoImagesGeneration,
 } from '../services/videoImagesGeneration'
 import type { VideoImageType } from '../types/videoImagesGeneration'
@@ -68,69 +67,30 @@ export default function taskVideoCoreController(db: ApiDb) {
   }
 
   const createTimeline = async (req: ApiRequest, res: ApiResponse) => {
-    const timelinesPath = path.join(getDbPath(), 'media', 'videos', 'timelines')
-    if (!fs.existsSync(timelinesPath)) {
-      fs.mkdirSync(timelinesPath, {recursive: true})
-    }
-
     const resolvedVideoPath = await resolveExistingPath(req.body.path)
     if (!resolvedVideoPath) {
       res.status(400).send({message: 'The video does not exist.'})
       return
     }
 
-    const video = {...req.body, path: resolvedVideoPath}
-
-    class Timeline {
-      video: AnyRecord
-
-      constructor(videoItem: AnyRecord) {
-        this.video = videoItem
-      }
-
-      getVideoDuration(pathToFile: string) {
-        return ffprobe(pathToFile).then((info) => (info as FfprobeInfo).format.duration)
-      }
-
-      createFrame(timestamp: string, output: string) {
-        return extractVideoFrame({
-          input: String(this.video.path),
-          output,
-          timestamp,
-          vf: 'scale=-1:180',
-        }).then((frameOutput: unknown) => new Promise((resolve) => {
-          setTimeout(() => resolve(frameOutput), 500)
-        }))
-      }
-
-      async generate() {
-        const parts = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
-        const duration = await this.getVideoDuration(String(this.video.path))
-        if (typeof duration !== 'number') return false
-        const timestamps = parts.map((i: number) => (
-          new Date(Math.floor(duration * (i / 100) * 1000)).toISOString().substr(11, 8)
-        ))
-        const framePromises = timestamps.map((timestamp, index) => {
-          const output = path.join(timelinesPath, `${this.video.id}_${parts[index]}.jpg`)
-          return this.createFrame(timestamp, output)
-        })
-        return Promise.all(framePromises)
-      }
-    }
-
-    const lastFrame = path.join(timelinesPath, `${video.id}_95.jpg`)
-    if (fs.existsSync(lastFrame)) {
-      res.status(400).send({message: 'Timeline already exists'})
+    const gridPath = path.join(getDbPath(), 'media', 'videos', 'grids', `${req.body.id}.jpg`)
+    if (fs.existsSync(gridPath)) {
+      res.status(400).send({message: 'Grid already exists'})
       return
     }
 
     try {
-      const result = await new Timeline(video).generate()
-      if (result) {
+      const result = await generateVideoImage(getDbPath(), 'grid', {
+        id: req.body.id,
+        path: resolvedVideoPath,
+      })
+
+      if (result.status === 'created' || result.status === 'skipped') {
         res.status(201).send(result)
-      } else {
-        res.status(400).send({message: 'Timeline already exists'})
+        return
       }
+
+      res.status(400).send({message: result.message || 'Failed to create grid'})
     } catch (error) {
       res.status(400).send({message: error})
     }

@@ -9,6 +9,7 @@ import {
   setActiveConnection,
 } from '../../api/db'
 import { bootstrapDatabase } from '../../api/db/migrationRunner'
+import { scheduleLegacyTimelineCleanup } from '../../api/services/legacyTimelineCleanup'
 import { saveConfigFile } from './configFile'
 import { createStorageDirectories } from './serverConfig'
 
@@ -58,6 +59,7 @@ export function createDatabaseManager(deps: DatabaseManagerDeps) {
     deps.db.path_databases = deps.databasesPath
 
     await bootstrapDatabase(dbFilePath)
+    scheduleLegacyTimelineCleanup(deps.db)
 
     deps.onDatabaseChanged?.()
     deps.transcodeManager?.clearCacheForActiveDb()

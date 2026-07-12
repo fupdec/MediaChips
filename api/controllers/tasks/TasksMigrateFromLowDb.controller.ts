@@ -163,7 +163,7 @@ export default function (db: ApiDb) {
       const imagePath = path.join(mediaPath, 'images')
       const audioPath = path.join(mediaPath, 'audios')
       const textPath = path.join(mediaPath, 'texts')
-      const videoDirs = ['thumbs', 'marks', 'grids', 'timelines'].map((dirName: string) => (
+      const videoDirs = ['thumbs', 'marks', 'grids'].map((dirName: string) => (
         path.join(videoPath, dirName)
       ))
       userDirs = [...userDirs, ...[getDbPath(), mediaPath, metaPath, backupsPath]]

@@ -4,8 +4,9 @@ import {
   computePreviewTimelineMetrics,
   computeTimelineHoverPercent,
   getPlayerPreviewAspectRatio,
-  pickTimelineFramePercent,
+  pickGridFrameIndex,
 } from './playerPreviewPosition'
+import {getGridFramePercent} from './gridSprite'
 
 describe('playerPreviewPosition', () => {
   it('returns null when timeline is hidden', () => {
@@ -41,11 +42,12 @@ describe('playerPreviewPosition', () => {
     expect(computeTimelineHoverPercent(400, {left: 24, right: 776, bottom: 560, width: 752, height: 40})).toBe(50)
   })
 
-  it('picks the nearest generated timeline frame percent', () => {
-    expect(pickTimelineFramePercent(0)).toBe(5)
-    expect(pickTimelineFramePercent(12)).toBe(15)
-    expect(pickTimelineFramePercent(50)).toBe(45)
-    expect(pickTimelineFramePercent(100)).toBe(95)
+  it('picks the nearest generated grid frame index', () => {
+    expect(pickGridFrameIndex(0)).toBe(0)
+    expect(pickGridFrameIndex(12)).toBe(1)
+    expect(pickGridFrameIndex(50)).toBe(4)
+    expect(pickGridFrameIndex(100)).toBe(8)
+    expect(getGridFramePercent(pickGridFrameIndex(50))).toBe(50)
   })
 
   it('falls back to 16:9 when video dimensions are missing', () => {

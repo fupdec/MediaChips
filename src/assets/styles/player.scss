@@ -564,13 +564,17 @@
         background-color: #000;
       }
 
-      .preview-frame {
+      .preview-frame,
+      .grid-sprite-frame {
         flex: 1 1 auto;
         width: 100%;
         height: 100%;
         min-height: 0;
-        object-fit: contain;
         background-color: #000;
+      }
+
+      .preview-frame {
+        object-fit: contain;
       }
 
       .preview-generating {

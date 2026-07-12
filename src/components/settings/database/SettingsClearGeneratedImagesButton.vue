@@ -9,9 +9,10 @@
       {{ button }}
     </v-btn>
 
-    <div class="mt-2 text-body-2">
+    <div class="mt-2 text-body-2 text-medium-emphasis">
       <v-icon icon="mdi-harddisk" class="mr-1"/>
-      {{ folderSize }}
+      <span v-if="sizeLoading">{{ t('common.loading') }}</span>
+      <span v-else>{{ formattedFolderSize }}</span>
     </div>
 
     <DialogDeleteConfirm
@@ -25,54 +26,65 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import {getReadableFileSize} from '@/services/formatUtils'
+import type {GeneratedMediaFolderKey} from '@shared/generatedMediaFolders'
 
-/* props */
 const props = defineProps({
   imageType: {
-    type: String,
+    type: String as () => GeneratedMediaFolderKey,
     required: true,
   },
   button: {
     type: String,
     required: true,
   },
+  folderSize: {
+    type: Number,
+    default: undefined,
+  },
+  sizeLoading: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-/* store */
+const emit = defineEmits<{
+  cleared: []
+}>()
+
 const dialogsStore = useDialogsStore()
 const {t} = useI18n()
 
-/* state */
 const dialogDelete = ref(false)
-const folderSize = ref('0 MB')
 
 const confirmText = computed(() => t('settings_labels.database.clear_generated_images_confirm'))
 
-/* methods */
+const formattedFolderSize = computed(() => {
+  if (props.folderSize == null) {
+    return t('settings_labels.database.folder_size_unknown')
+  }
 
-const getFolderSize = async () => {
-  const {data} = await typedApi.getFolderSize({folder: props.imageType})
-
-  const sizeMb = data.size / 1024 / 1024
-  folderSize.value = `${sizeMb.toFixed(2)} MB`
-}
+  return getReadableFileSize(props.folderSize)
+})
 
 const clearData = async () => {
+  dialogDelete.value = false
   dialogsStore.process.show = true
-  dialogsStore.process.show = false
 
-  await typedApi.clearGeneratedData({
-    imageType: props.imageType,
-  })
-
-  await getFolderSize()
-  dialogsStore.process.show = false
+  try {
+    await typedApi.clearGeneratedData({
+      imageType: props.imageType,
+    })
+    emit('cleared')
+  } catch (error) {
+    console.error('Failed to clear generated images:', error)
+  } finally {
+    dialogsStore.process.show = false
+  }
 }
-
-onMounted(getFolderSize)
 </script>

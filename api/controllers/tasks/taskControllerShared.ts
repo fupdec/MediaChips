@@ -14,6 +14,11 @@ import {
 } from '../../utils/ffmpeg'
 import { runWithFfmpegLimit } from '../../services/mediaPostProcessQueue'
 import { createSettingsRepository } from '../../db/repositories/settings'
+import {
+  GENERATED_MEDIA_FOLDERS,
+  type GeneratedMediaFolderKey,
+} from '../../../shared/generatedMediaFolders'
+import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
 
 function lazyService<T = AnyRecord>(modulePath: string) {
   let cached: T | undefined
@@ -28,15 +33,8 @@ const getEmbeddingModel = lazyService<EmbeddingModelService>('../../services/emb
 const getImageMedia = lazyService<ImageMediaService>('../../services/imageMedia')
 const getVideoImagesGeneration = lazyService<VideoImagesGenerationService>('../../services/videoImagesGeneration')
 
-const GENERATED_MEDIA_FOLDERS: Record<string, string> = {
-  timelines: 'media/videos/timelines',
-  grids: 'media/videos/grids',
-  marks: 'media/videos/marks',
-  'image-thumbs': 'media/images/thumbs',
-}
-
 const resolveGeneratedFolderPath = (dbPath: string, folderKey: string) => {
-  const relativePath = GENERATED_MEDIA_FOLDERS[folderKey]
+  const relativePath = GENERATED_MEDIA_FOLDERS[folderKey as GeneratedMediaFolderKey]
   if (!relativePath) return null
   return path.join(dbPath, relativePath)
 }
@@ -114,18 +112,30 @@ export default function createTaskControllerShared(db: ApiDb) {
   const createThumbMiddle = (pathToFile: string, id: unknown) => runWithFfmpegLimit(() => {
     const outputPath = path.join(getDbPath(), 'media/videos/thumbs', `${id}.jpg`)
     return withTimeout(
-      extractVideoThumbnail({input: pathToFile, outputPath, height: 320}),
+      extractVideoThumbnail({
+        input: pathToFile,
+        outputPath,
+        height: VIDEO_THUMB_HEIGHT,
+        jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
+      }),
       120000,
       'ffmpeg thumbnail',
     ).then(() => 'success')
   })
 
-  const createThumbCustom = (timestamp: unknown, inputPath: string, outputPath: string, width: number) => {
+  const createThumbCustom = (
+    timestamp: unknown,
+    inputPath: string,
+    outputPath: string,
+    height: number,
+    jpegQuality?: number,
+  ) => {
     return extractVideoFrame({
       input: inputPath,
       output: outputPath,
       timestamp: timestamp != null ? String(timestamp) : undefined,
-      vf: `scale=-1:${width}`,
+      vf: `scale=-1:${height}`,
+      jpegQuality,
     })
   }
 

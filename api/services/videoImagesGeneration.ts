@@ -9,7 +9,6 @@ import type {
   VideoImagesGenerationStatus,
   VideoImageType,
   VideoImageTypeStatus,
-  VideoTimelineItem,
 } from '../types/videoImagesGeneration'
 import fs from 'fs'
 import { readdir } from 'fs/promises'
@@ -20,11 +19,21 @@ import {
   extractVideoFrame,
   extractVideoThumbnail,
   ffprobe,
+  getVideoStreamDimensions,
 } from '../utils/ffmpeg'
 import { resolveExistingPath } from './contentHash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createMarksRepository } from '../db/repositories/marks'
+import {
+  VIDEO_GRID_JPEG_QUALITY,
+  VIDEO_GRID_SPRITE,
+  VIDEO_MARK_HEIGHT,
+  VIDEO_MARK_JPEG_QUALITY,
+  VIDEO_THUMB_HEIGHT,
+  VIDEO_THUMB_JPEG_QUALITY,
+  getGridSpriteDimensions,
+} from '../../shared/videoPreview'
 
 async function getVideoMediaTypeId(db: ApiDb) {
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -32,7 +41,7 @@ async function getVideoMediaTypeId(db: ApiDb) {
   return videoType?.id || null
 }
 
-const IMAGE_TYPES: VideoImageType[] = ['preview', 'grid', 'timeline', 'marks']
+const IMAGE_TYPES: VideoImageType[] = ['preview', 'grid', 'marks']
 
 const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => Promise.race([
   promise,
@@ -45,7 +54,6 @@ const formatMarkTimestamp = (time: number) => new Date(1000 * time).toISOString(
 
 const getPreviewPath = (dbPath: string, id: unknown) => path.join(dbPath, 'media/videos/thumbs', `${id}.jpg`)
 const getGridPath = (dbPath: string, id: unknown) => path.join(dbPath, 'media/videos/grids', `${id}.jpg`)
-const getTimelineMarkerPath = (dbPath: string, id: unknown) => path.join(dbPath, 'media/videos/timelines', `${id}_95.jpg`)
 const getMarkPath = (dbPath: string, id: unknown) => path.join(dbPath, 'media/videos/marks', `${id}.jpg`)
 
 const ensureDir = (dirPath: string) => {
@@ -60,8 +68,6 @@ function hasGeneratedImage(dbPath: string, imageType: VideoImageType, item: Vide
       return fs.existsSync(getPreviewPath(dbPath, item.id))
     case 'grid':
       return fs.existsSync(getGridPath(dbPath, item.id))
-    case 'timeline':
-      return fs.existsSync(getTimelineMarkerPath(dbPath, item.id))
     case 'marks':
       return fs.existsSync(getMarkPath(dbPath, item.id))
     default:
@@ -74,7 +80,12 @@ function createPreviewImage(pathToFile: string, id: unknown, dbPath: string) {
   ensureDir(thumbsDir)
   const outputPath = getPreviewPath(dbPath, id)
   return withTimeout(
-    extractVideoThumbnail({input: pathToFile, outputPath, height: 320}),
+    extractVideoThumbnail({
+      input: pathToFile,
+      outputPath,
+      height: VIDEO_THUMB_HEIGHT,
+      jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
+    }),
     120000,
     'ffmpeg thumbnail',
   )
@@ -85,7 +96,8 @@ function createMarkImage(timestamp: string, inputPath: string, outputPath: strin
     input: inputPath,
     output: outputPath,
     timestamp,
-    vf: 'scale=-1:180',
+    vf: `scale=-1:${VIDEO_MARK_HEIGHT}`,
+    jpegQuality: VIDEO_MARK_JPEG_QUALITY,
   })
 }
 
@@ -113,8 +125,14 @@ class VideoGrid {
     ensureDir(this.gridsPath)
   }
 
-  getVideoDuration(pathToFile: string) {
-    return ffprobe(pathToFile).then((info) => (info as FfprobeDurationInfo).format.duration)
+  async getVideoInfo(pathToFile: string) {
+    const info = await ffprobe(pathToFile)
+    const {aspectRatio} = getVideoStreamDimensions(info)
+
+    return {
+      duration: (info as FfprobeDurationInfo).format.duration,
+      aspectRatio,
+    }
   }
 
   makeLayout(i: number) {
@@ -139,17 +157,26 @@ class VideoGrid {
     }))
   }
 
-  ffmpegCombineP(inputFiles: string[], streams: string[], layouts: string[]) {
+  ffmpegCombineP(
+    inputFiles: string[],
+    streams: string[],
+    layouts: string[],
+    spriteWidth: number,
+    spriteHeight: number,
+  ) {
     return combineVideoFrames({
       inputs: inputFiles,
-      filterComplex: `${streams.join('')}xstack=inputs=${this.tileCount}:layout=${layouts.join('|')}[v];[v]scale=${Math.floor(this.width * this.cols)}:-1[scaled]`,
+      filterComplex: `${streams.join('')}xstack=inputs=${this.tileCount}:layout=${layouts.join('|')}[v];[v]scale=${spriteWidth}:${spriteHeight}:flags=lanczos[scaled]`,
       output: path.join(this.gridsPath, this.output),
+      jpegQuality: VIDEO_GRID_JPEG_QUALITY,
     })
   }
 
   async generate() {
-    const duration = await this.getVideoDuration(this.input)
+    const {duration, aspectRatio} = await this.getVideoInfo(this.input)
     if (typeof duration !== 'number') return false
+
+    const sprite = getGridSpriteDimensions(aspectRatio, this.cols, this.rows)
     const durSlice = parseInt(String(duration / this.tileCount), 10)
 
     const framePromises: Promise<unknown>[] = []
@@ -170,51 +197,8 @@ class VideoGrid {
       layouts.push(this.makeLayout(l))
     }
 
-    await this.ffmpegCombineP(inputFiles, streams, layouts)
+    await this.ffmpegCombineP(inputFiles, streams, layouts, sprite.width, sprite.height)
     return {output: this.output}
-  }
-}
-
-class VideoTimeline {
-  video: VideoTimelineItem
-  timelinesPath: string
-
-  constructor(video: VideoTimelineItem, dbPath: string) {
-    this.video = video
-    this.timelinesPath = path.join(dbPath, 'media/videos/timelines')
-    ensureDir(this.timelinesPath)
-  }
-
-  getVideoDuration(pathToFile: string) {
-    return ffprobe(pathToFile).then((info) => (info as FfprobeDurationInfo).format.duration)
-  }
-
-  createFrame(timestamp: string, output: string) {
-    return extractVideoFrame({
-      input: this.video.path,
-      output,
-      timestamp,
-      vf: 'scale=-1:180',
-    }).then((frameOutput: unknown) => new Promise((resolve) => {
-      setTimeout(() => resolve(frameOutput), 500)
-    }))
-  }
-
-  async generate() {
-    const parts = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
-    const duration = await this.getVideoDuration(this.video.path)
-    if (typeof duration !== 'number') return false
-    const timestamps = parts.map((part) => (
-      new Date(Math.floor(duration * (part / 100) * 1000)).toISOString().substr(11, 8)
-    ))
-
-    const framePromises: Promise<unknown>[] = []
-    for (let i = 0; i < timestamps.length; i++) {
-      const output = path.join(this.timelinesPath, `${this.video.id}_${parts[i]}.jpg`)
-      framePromises.push(this.createFrame(timestamps[i], output))
-    }
-
-    return Promise.all(framePromises)
   }
 }
 
@@ -252,24 +236,11 @@ async function generateVideoImage(
         const grid = new VideoGrid({
           input: resolvedPath,
           output: `${item.id}.jpg`,
-          width: 180,
-          cols: 3,
-          rows: 3,
+          width: VIDEO_GRID_SPRITE.tileWidth,
+          cols: VIDEO_GRID_SPRITE.cols,
+          rows: VIDEO_GRID_SPRITE.rows,
         }, dbPath)
         await grid.generate()
-        break
-      }
-      case 'timeline': {
-        const timelineMarker = getTimelineMarkerPath(dbPath, item.id)
-        if (force && fs.existsSync(timelineMarker)) {
-          const parts = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
-          for (const part of parts) {
-            const framePath = path.join(dbPath, 'media/videos/timelines', `${item.id}_${part}.jpg`)
-            if (fs.existsSync(framePath)) fs.unlinkSync(framePath)
-          }
-        }
-        const timeline = new VideoTimeline({id: item.id, path: resolvedPath}, dbPath)
-        await timeline.generate()
         break
       }
       case 'marks': {
@@ -298,7 +269,6 @@ async function generateVideoImage(
 const GENERATED_DIR_BY_TYPE: Record<VideoImageType, string> = {
   preview: 'media/videos/thumbs',
   grid: 'media/videos/grids',
-  timeline: 'media/videos/timelines',
   marks: 'media/videos/marks',
 }
 
@@ -331,13 +301,6 @@ async function loadGeneratedIdSet(dbPath: string, imageType: VideoImageType): Pr
   const ids = new Set<string>()
 
   for (const file of files) {
-    if (imageType === 'timeline') {
-      if (file.endsWith('_95.jpg')) {
-        ids.add(file.slice(0, -'_95.jpg'.length))
-      }
-      continue
-    }
-
     if (file.endsWith('.jpg')) {
       ids.add(file.slice(0, -4))
     }
@@ -353,14 +316,12 @@ async function getVideoImagesGenerationStatus(db: ApiDb, dbPath: string): Promis
   const [
     previewIds,
     gridIds,
-    timelineIds,
     markImageIds,
     videoRows,
     markRows,
   ] = await Promise.all([
     loadGeneratedIdSet(dbPath, 'preview'),
     loadGeneratedIdSet(dbPath, 'grid'),
-    loadGeneratedIdSet(dbPath, 'timeline'),
     loadGeneratedIdSet(dbPath, 'marks'),
     Promise.resolve(videoTypeId ? mediaRepo.findIdsByMediaType(videoTypeId) : []),
     Promise.resolve(marksRepo.findAllIds()),
@@ -372,7 +333,6 @@ async function getVideoImagesGenerationStatus(db: ApiDb, dbPath: string): Promis
   return {
     preview: buildStatus(videoTotal, countGenerated(videoRows as Array<{ id?: unknown }>, previewIds)),
     grid: buildStatus(videoTotal, countGenerated(videoRows as Array<{ id?: unknown }>, gridIds)),
-    timeline: buildStatus(videoTotal, countGenerated(videoRows as Array<{ id?: unknown }>, timelineIds)),
     marks: buildStatus(marksTotal, countGenerated(markRows as Array<{ id?: unknown }>, markImageIds)),
   }
 }
@@ -496,6 +456,7 @@ async function* iterateVideoImagesGeneration(
 
 export {
   IMAGE_TYPES,
+  generateVideoImage,
   getVideoImagesGenerationStatus,
   iterateVideoImagesGeneration,
 }

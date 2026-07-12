@@ -1,22 +1,4 @@
-export const TIMELINE_FRAME_PERCENTS = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95] as const
-
-export type TimelineFramePercent = typeof TIMELINE_FRAME_PERCENTS[number]
-
-export function pickTimelineFramePercent(hoverPercent: number): TimelineFramePercent {
-  const clamped = Math.max(0, Math.min(100, hoverPercent))
-  let nearest: TimelineFramePercent = TIMELINE_FRAME_PERCENTS[0]
-  let minDistance = Math.abs(clamped - nearest)
-
-  for (const percent of TIMELINE_FRAME_PERCENTS) {
-    const distance = Math.abs(clamped - percent)
-    if (distance < minDistance) {
-      minDistance = distance
-      nearest = percent
-    }
-  }
-
-  return nearest
-}
+export {pickGridFrameIndex} from './gridSprite'
 
 export function getPlayerPreviewAspectRatio(
   playlist: Array<{ width?: number | null; height?: number | null } | undefined>,

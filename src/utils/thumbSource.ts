@@ -99,15 +99,20 @@ export function resolveMediaThumbDisplayUrl(
   ))
 }
 
-export function resolveTimelineFrameDisplayUrl(
+export function resolveGridSpriteDisplayUrl(
   mediaPath: string,
   mediaId: number | string,
-  progressValue: number,
   cacheBust = false,
-): string {
+): string | null {
+  if (!mediaPath || mediaId == null) return null
+
+  const cached = getCachedThumb(mediaThumbKey('videos', mediaId, 'grids'))
+  if (!cacheBust && isPersistentThumbUrl(cached)) return cached!
+
   return buildLocalFileUrl(path.join(
     mediaPath,
-    'videos/timelines',
-    `${mediaId}_${progressValue}.jpg`,
+    'videos',
+    'grids',
+    `${mediaId}.jpg`,
   ), false, cacheBust)
 }

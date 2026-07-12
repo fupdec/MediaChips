@@ -65,16 +65,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       return
     }
 
-    const dirSize = async (directory: string) => {
-      if (!fs.existsSync(directory)) return 0
-
-      const files = await readdir(directory)
-      const stats = files.map((file) => stat(path.join(directory, String(file))))
-
-      return (await Promise.all(stats)).reduce((accumulator, {size}) => accumulator + size, 0)
-    }
-
-    const size = await dirSize(dirPath)
+    const size = await getDirectorySize(dirPath)
     res.status(201).send({size})
   }
 

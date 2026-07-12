@@ -149,14 +149,18 @@
           </v-btn>
         </div>
 
-        <img :src="frame ?? undefined"/>
+        <div
+          v-if="hoverGridFrameStyle"
+          class="grid-sprite-frame"
+          :style="hoverGridFrameStyle"
+        />
 
         <div class="sections">
           <div
-            v-for="(t, i) in timelines"
-            :key="i"
+            v-for="frameIndex in GRID_FRAME_INDEXES"
+            :key="frameIndex"
             class="section"
-            @mouseover="getFrameImg(t)"
+            @mouseover="setHoverFrameIndex(frameIndex)"
           />
         </div>
       </div>
@@ -218,12 +222,16 @@
           class="wrapper"
         >
           <div
-            v-for="(img, i) in frames"
-            :key="i"
+            v-for="frameIndex in GRID_FRAME_INDEXES"
+            :key="frameIndex"
             class="frame"
           >
-            <img :src="img || undefined" @error="onStoryFrameError(i)"/>
-            <div class="duration">{{ getTimelineFrameDuration(i) }}</div>
+            <div
+              v-if="storyFrameStyles[frameIndex]"
+              class="grid-sprite-frame"
+              :style="storyFrameStyles[frameIndex]"
+            />
+            <div class="duration">{{ getGridFrameDuration(frameIndex) }}</div>
           </div>
         </div>
       </div>
@@ -249,9 +257,18 @@ import {typedApi} from '@/services/typedApi'
 import {buildLocalFileUrl, createThumb as createVideoThumb} from '@/services/fileService'
 import {getCachedThumb, invalidateVideoThumbCaches, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
 import {
+  GRID_FRAME_INDEXES,
+  buildContainedThumbFallbackStyle,
+  buildGridSpriteFrameStyle,
+  buildStoryGridSpriteFrameStyle,
+  buildStoryThumbFallbackStyle,
+  getGridFramePercent,
+} from '@/utils/gridSprite'
+import {getMediaAspectRatio} from '@/utils/gridLayout'
+import {
   isThumbUnavailable,
+  resolveGridSpriteDisplayUrl,
   resolveMediaThumbDisplayUrl,
-  resolveTimelineFrameDisplayUrl,
 } from '@/utils/thumbSource'
 import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import {
@@ -270,6 +287,7 @@ import {
   stopLiveTranscode,
 } from '@/services/transcodeService'
 import {isAppWindowFocused} from '@/utils/windowFocus'
+import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import type {MediaItem} from '@/types/stores'
 
 type BigVideoPreviewSize = 'original' | 'full_height' | 'three_quarters'
@@ -359,12 +377,12 @@ const thumb = ref<string | null>(null)
 const thumbDisplayKey = computed(() =>
   itemsStore.thumbRefreshKeys[Number(props.media.id)] ?? 0,
 )
-const frame = ref<string | null>(null)
-const frames = ref<string[]>([])
+const hoverFrameIndex = ref(0)
+const gridSpriteUrl = ref<string | null>(null)
+const storyUsesThumbFallback = ref(false)
 const progress = ref(0)
 const playbackTime = ref(0)
 
-const timelines = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
 const timeouts: TimeoutMap = {}
 const bigPreview = ref(false)
 const bigPreviewAnimation = ref(false)
@@ -396,8 +414,9 @@ const abortThumbProbe = () => {
 const clearPreviewResources = () => {
   abortThumbProbe()
   thumb.value = null
-  frame.value = null
-  frames.value = []
+  gridSpriteUrl.value = null
+  hoverFrameIndex.value = 0
+  storyUsesThumbFallback.value = false
   thumbLoadStarted.value = false
   thumbCreateAttempted.value = false
   thumbFallbackStage.value = 0
@@ -442,7 +461,7 @@ const quality = computed(() =>
 )
 
 const isTaskRunning = computed(() =>
-  tasksStore.list.find(task => task.title === 'Generating timeline images')
+  tasksStore.list.find(task => task.title === 'Generating grids images')
 )
 
 const height = computed(() =>
@@ -453,24 +472,56 @@ const duration = computed(() =>
   getReadableDuration(mediaDuration.value)
 )
 
-const getTimelineFrameDuration = (index: number) => {
-  const percent = timelines[index]
-  if (percent == null || !mediaDuration.value) {
+const mediaAspectRatio = computed(() =>
+  getMediaAspectRatio({
+    width: mediaWidth.value,
+    height: mediaHeight.value,
+  }, 16 / 9),
+)
+
+const getGridFrameDuration = (frameIndex: number) => {
+  if (!mediaDuration.value) {
     return duration.value
   }
 
+  const percent = getGridFramePercent(frameIndex)
   return getReadableDuration(Math.floor(mediaDuration.value * percent / 100))
 }
 
-const isFrameLost = computed(() =>
-  frame.value ? frame.value.includes('unavailable.png') : true
-)
+const hoverGridFrameStyle = computed(() => {
+  const thumbFallback = resolveThumbFallback()
 
-const timelineUsesThumbFallback = ref(false)
+  if (storyUsesThumbFallback.value && thumbFallback) {
+    return buildContainedThumbFallbackStyle(thumbFallback, mediaAspectRatio.value)
+  }
+
+  if (!gridSpriteUrl.value) return null
+  return buildGridSpriteFrameStyle(
+    gridSpriteUrl.value,
+    hoverFrameIndex.value,
+    mediaAspectRatio.value,
+  )
+})
+
+const storyFrameStyles = computed(() => {
+  const spriteUrl = gridSpriteUrl.value
+  const thumbFallback = resolveThumbFallback()
+
+  return GRID_FRAME_INDEXES.map((frameIndex) => {
+    if (storyUsesThumbFallback.value && thumbFallback) {
+      return buildStoryThumbFallbackStyle(thumbFallback, mediaAspectRatio.value)
+    }
+
+    if (!spriteUrl) return null
+    return buildStoryGridSpriteFrameStyle(spriteUrl, frameIndex, mediaAspectRatio.value)
+  })
+})
+
+const isFrameLost = computed(() => !hoverGridFrameStyle.value)
 
 const showFramesInProgressMessage = computed(() =>
   props.isFileExists &&
-  timelineUsesThumbFallback.value &&
+  storyUsesThumbFallback.value &&
   Boolean(isTaskRunning.value),
 )
 
@@ -913,13 +964,7 @@ const refreshGridPreviewIfNeeded = async () => {
   if (settingsStore.videoPreviewStatic !== 'grid' || !props.media.path) return
 
   try {
-    await typedApi.taskCreateGrid({
-      input: props.media.path,
-      output: `${props.media.id}.jpg`,
-      width: 180,
-      cols: 3,
-      rows: 3,
-    })
+    await typedApi.taskCreateGrid(buildVideoGridTaskParams(props.media.path, `${props.media.id}.jpg`))
     invalidateVideoThumbCaches(props.media.id)
     itemsStore.refreshThumb(props.media.id, {regenerate: true})
   } catch (error) {
@@ -1058,6 +1103,7 @@ const canOpenBigPreview = () =>
   props.isFileExists &&
   !shouldBlockVideoPreview.value &&
   !playbackError.value &&
+  isVideoPreviewEnabled.value &&
   SETTINGS.value.big_video_preview === '1'
 
 const handlePreviewClick = () => {
@@ -1445,7 +1491,11 @@ const handleMouseEnter = () => {
       schedulePreviewPlayback()
     }
 
-    if (SETTINGS.value.big_video_preview === '1' && !shouldBlockVideoPreview.value) {
+    if (
+      isVideoPreviewEnabled.value &&
+      SETTINGS.value.big_video_preview === '1' &&
+      !shouldBlockVideoPreview.value
+    ) {
       const totalDelay = (Number(SETTINGS.value.delayVideoPreview) || 0) +
         (Number(SETTINGS.value.big_video_preview_delay) || 0)
 
@@ -1522,12 +1572,8 @@ const handleMouseLeave = () => {
   }, 100)
 }
 
-const getFrameImg = (progressValue: number) => {
-  frame.value = resolveTimelineFrameDisplayUrl(
-    store.mediaPath,
-    props.media.id,
-    progressValue,
-  )
+const setHoverFrameIndex = (frameIndex: number) => {
+  hoverFrameIndex.value = frameIndex
 }
 
 const scrollStory = (e: MouseEvent) => {
@@ -1549,47 +1595,45 @@ const stopScrollStory = () => {
   }
 }
 
+const ensureGridSpriteLoaded = async () => {
+  if (!props.media?.id) return false
+
+  const gridUrl = resolveGridSpriteDisplayUrl(store.mediaPath, props.media.id)
+  if (!gridUrl) {
+    storyUsesThumbFallback.value = true
+    gridSpriteUrl.value = null
+    return false
+  }
+
+  abortThumbProbe()
+  thumbProbeController = new AbortController()
+  const hasGrid = await probeDisplayImageUrl(gridUrl, thumbProbeController.signal)
+  if (!hasGrid) {
+    storyUsesThumbFallback.value = true
+    gridSpriteUrl.value = null
+    return false
+  }
+
+  storyUsesThumbFallback.value = false
+  gridSpriteUrl.value = gridUrl
+  setCachedThumb(mediaThumbKey('videos', props.media.id, 'grids'), gridUrl)
+  return true
+}
+
 const initFrames = async () => {
   const token = ++initFramesToken
   if (!isMounted.value || !props.media?.id || !isViewTimeline.value) return
 
   await getImg()
   if (token !== initFramesToken || !isViewTimeline.value) return
+  await ensureGridSpriteLoaded()
+}
 
-  const thumbFallback = resolveThumbFallback()
-  const firstTimelineUrl = resolveTimelineFrameDisplayUrl(
-    store.mediaPath,
-    props.media.id,
-    timelines[0],
-  )
-  abortThumbProbe()
-  thumbProbeController = new AbortController()
-  const hasTimeline = await probeDisplayImageUrl(
-    firstTimelineUrl,
-    thumbProbeController.signal,
-  )
-  if (token !== initFramesToken || !isViewTimeline.value) return
-
-  if (!hasTimeline) {
-    timelineUsesThumbFallback.value = true
-    frames.value = timelines.map(() => thumbFallback)
-    return
+watch(() => showTimelinePreview.value, (active) => {
+  if (active) {
+    void ensureGridSpriteLoaded()
   }
-
-  timelineUsesThumbFallback.value = false
-  frames.value = timelines.map((progressValue) =>
-    resolveTimelineFrameDisplayUrl(store.mediaPath, props.media.id, progressValue),
-  )
-}
-
-const onStoryFrameError = (index: number) => {
-  const fallback = resolveThumbFallback()
-  if (!fallback || frames.value[index] === fallback) return
-
-  const next = [...frames.value]
-  next[index] = fallback
-  frames.value = next
-}
+})
 
 // Наблюдатели
 watch(
@@ -1681,7 +1725,7 @@ watch(isTaskRunning, (running, wasRunning) => {
 
 watch(thumb, () => {
   if (!isViewTimeline.value) return
-  if (!frames.value.length || frames.value.every((src) => !src || isThumbUnavailable(src))) {
+  if (!gridSpriteUrl.value && storyUsesThumbFallback.value) {
     void initFrames()
   }
 })

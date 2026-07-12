@@ -4,6 +4,8 @@ import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
 interface FfprobeStream {
   codec_type?: string
   codec_name?: string
+  width?: number | string
+  height?: number | string
   nb_frames?: number | string
   [key: string]: unknown
 }
@@ -50,6 +52,8 @@ function normalizeFfprobePayload(data: FfprobePayload) {
 
   const streams = (data.streams || []).map((stream) => ({
     ...stream,
+    width: stream.width != null ? Number(stream.width) : undefined,
+    height: stream.height != null ? Number(stream.height) : undefined,
     nb_frames: stream.nb_frames != null ? Number(stream.nb_frames) : undefined,
   }))
 
@@ -70,6 +74,29 @@ async function ffprobe(filePath: string) {
   return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
 }
 
+function getVideoStreamDimensions(
+  probe: {streams?: FfprobeStream[]},
+  fallbackAspectRatio = 16 / 9,
+) {
+  const videoStream = probe.streams?.find((stream) => stream.codec_type === 'video')
+  const width = Number(videoStream?.width) || 0
+  const height = Number(videoStream?.height) || 0
+
+  if (width > 0 && height > 0) {
+    return {
+      width,
+      height,
+      aspectRatio: width / height,
+    }
+  }
+
+  return {
+    width: 0,
+    height: 0,
+    aspectRatio: fallbackAspectRatio,
+  }
+}
+
 async function runFfmpeg(args: string[]) {
   return runProcess(getFfmpegPath(), args)
 }
@@ -79,11 +106,13 @@ async function extractVideoFrame({
   output,
   timestamp,
   vf,
+  jpegQuality,
 }: {
   input: string
   output: string
   timestamp?: string
   vf?: string
+  jpegQuality?: number
 }) {
   const args: string[] = []
 
@@ -95,6 +124,10 @@ async function extractVideoFrame({
 
   if (vf) {
     args.push('-vf', vf)
+  }
+
+  if (jpegQuality != null && /\.jpe?g$/i.test(output)) {
+    args.push('-q:v', String(jpegQuality))
   }
 
   args.push('-y', output)
@@ -121,11 +154,13 @@ async function extractVideoThumbnail({
   outputPath,
   height = 320,
   seekRatio = 0.5,
+  jpegQuality,
 }: {
   input: string
   outputPath: string
   height?: number
   seekRatio?: number
+  jpegQuality?: number
 }) {
   let seekSeconds = 1
 
@@ -136,7 +171,7 @@ async function extractVideoThumbnail({
     // Skip the common all-black first frame when metadata is unavailable.
   }
 
-  await runFfmpeg([
+  const args = [
     '-ss',
     String(seekSeconds),
     '-i',
@@ -145,9 +180,14 @@ async function extractVideoThumbnail({
     `scale=-1:${height}`,
     '-frames:v',
     '1',
-    '-y',
-    outputPath,
-  ])
+  ]
+
+  if (jpegQuality != null && /\.jpe?g$/i.test(outputPath)) {
+    args.push('-q:v', String(jpegQuality))
+  }
+
+  args.push('-y', outputPath)
+  await runFfmpeg(args)
   return outputPath
 }
 
@@ -156,11 +196,13 @@ async function combineVideoFrames({
   filterComplex,
   output,
   mapLabel = '[scaled]',
+  jpegQuality,
 }: {
   inputs: string[]
   filterComplex: string
   output: string
   mapLabel?: string
+  jpegQuality?: number
 }) {
   const args = ['-y']
 
@@ -168,7 +210,13 @@ async function combineVideoFrames({
     args.push('-i', input)
   }
 
-  args.push('-filter_complex', filterComplex, '-map', mapLabel, output)
+  args.push('-filter_complex', filterComplex, '-map', mapLabel)
+
+  if (jpegQuality != null && /\.jpe?g$/i.test(output)) {
+    args.push('-q:v', String(jpegQuality))
+  }
+
+  args.push(output)
   await runFfmpeg(args)
 }
 
@@ -179,4 +227,5 @@ export {
   extractVideoThumbnail,
   combineVideoFrames,
   resolveThumbnailSeekSeconds,
+  getVideoStreamDimensions,
 }

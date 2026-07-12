@@ -100,7 +100,8 @@ export interface TaskControllerShared {
     timestamp: unknown,
     inputPath: string,
     outputPath: string,
-    width: number,
+    height: number,
+    jpegQuality?: number,
   ) => Promise<unknown>
 }
 

@@ -214,7 +214,7 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
     })
   }
 
-  const videoImageTypes = ['preview', 'grid', 'timeline', 'marks']
+  const videoImageTypes = ['preview', 'grid', 'marks']
   const videoImagesPending = videoImageTypes.reduce(
     (sum, key) => sum + Number(health.value.generatedImages.byType?.[key]?.pending || 0),
     0,

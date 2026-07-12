@@ -27,6 +27,7 @@ import type {
   UpdateMediaMultiplePayload,
   VideoPreviewTaskPayload,
 } from '@shared/api/payloads'
+import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {
   parseAddMediaResponse,
   parseBackupList,
@@ -45,6 +46,7 @@ import {
   AddMediaRequestSchema,
   DatabaseSizesRequestSchema,
   CheckFilesPayloadSchema,
+  FolderSizeRequestSchema,
   PathPayloadSchema,
 } from '@shared/schemas/requests'
 import { validated, validateRequest } from './validate'
@@ -133,7 +135,7 @@ export const tasksApi = {
   },
 
   taskCreateTimeline(body: VideoTimelineTaskPayload) {
-    return apiClient.post(API_ROUTES.taskCreateTimeline, body)
+    return apiClient.post(API_ROUTES.taskCreateGrid, buildVideoGridTaskParams(body.path, `${body.id}.jpg`))
   },
 
   taskCreateThumbForVideo(body: VideoPreviewTaskPayload) {
@@ -225,12 +227,13 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskDeleteDb, body)
   },
 
-  clearGeneratedData(body: BackupNamePayload) {
+  clearGeneratedData(body: {imageType: string}) {
     return apiClient.post(API_ROUTES.taskClearData, body)
   },
 
   getFolderSize(body: FolderSizePayload) {
-    return apiClient.post(API_ROUTES.taskGetFolderSize, body).then((res) => ({
+    const payload = validateRequest(FolderSizeRequestSchema, body)
+    return apiClient.post(API_ROUTES.taskGetFolderSize, payload).then((res) => ({
       ...res,
       data: validated(parseFolderSizeResponse, res.data),
     }))

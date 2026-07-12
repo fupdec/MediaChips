@@ -636,6 +636,7 @@
   .timeline {
     cursor: pointer;
     display: flex;
+    align-items: center;
     justify-content: center;
     height: 100%;
     width: 100%;
@@ -644,6 +645,9 @@
     left: 0;
     top: 0;
     animation: appearing 0.3s both;
+    .grid-sprite-frame {
+      flex-shrink: 0;
+    }
     img {
       height: 100%;
     }
@@ -731,6 +735,12 @@
     }
     .frame {
       position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      .grid-sprite-frame {
+        flex-shrink: 0;
+      }
     }
     &:hover {
       .error,
