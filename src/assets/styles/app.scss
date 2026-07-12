@@ -780,6 +780,12 @@ header {
   .v-toolbar__content {
     z-index: 1;
   }
+  .v-toolbar__extension {
+    z-index: 2;
+    height: 28px !important;
+    min-height: 28px !important;
+    overflow: visible;
+  }
   .v-tabs-bar {
     margin: -2px;
   }
@@ -847,6 +853,56 @@ header {
   }
   .v-tabs-slider {
     display: none;
+  }
+
+  // Scroll arrows overlay tab edges and steal clicks from partially visible tabs.
+  .v-slide-group--has-affixes {
+    position: relative;
+
+    .v-slide-group__container {
+      flex: 1 1 auto;
+      width: 100%;
+      padding-inline: 28px;
+      box-sizing: border-box;
+    }
+
+    .v-slide-group__prev,
+    .v-slide-group__next {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 2;
+      flex: none !important;
+      width: 28px;
+      min-width: 28px;
+      pointer-events: none;
+      -webkit-app-region: no-drag;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(var(--v-theme-surface), 0.15);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-radius: 20px;
+
+      .v-icon {
+        pointer-events: auto;
+        cursor: pointer;
+      }
+    }
+
+    .v-slide-group__prev {
+      left: 0;
+    }
+
+    .v-slide-group__next {
+      right: 0;
+    }
+  }
+
+  .v-slide-group__content > .sortable,
+  .v-slide-group__content > div:first-child {
+    display: flex;
   }
 }
 

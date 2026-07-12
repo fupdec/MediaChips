@@ -9,6 +9,7 @@
     <Draggable
       v-model="tabs"
       item-key="id"
+      class="tabs-draggable"
       v-bind="dragOptions"
       @start="startDrag"
       @end="endDrag"
@@ -284,6 +285,10 @@ const showContextMenu = (e: MouseEvent, tabId: number | string, index: number) =
 </script>
 
 <style scoped>
+.tabs-draggable {
+  display: flex;
+}
+
 .dragged {
   * {
     opacity: 0;

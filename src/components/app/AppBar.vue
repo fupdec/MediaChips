@@ -6,6 +6,7 @@
       'os-windows-electron': isWinElectron,
     }"
     density="compact"
+    :extended="tabs.length > 0"
     extension-height="36"
     :hide-on-scroll="xs"
     :style="gradient"
@@ -233,7 +234,8 @@ onUnmounted(() => {
 }
 
 .extension-tabs {
-  height: 100%;
+  min-height: 28px;
+  height: auto;
   width: 100%;
   display: flex;
   justify-content: center;
