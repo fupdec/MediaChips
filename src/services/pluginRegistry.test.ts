@@ -68,6 +68,29 @@ describe('pluginRegistry', () => {
     expect(catalog.filter((entry) => entry.manifest.id === BUILTIN_PLUGIN_IDS.adult)).toHaveLength(1)
   })
 
+  it('mergePluginCatalog appends user plugins', async () => {
+    const {mergePluginCatalog} = await import('@/services/pluginHost')
+    const catalog = mergePluginCatalog([BUILTIN_PLUGIN_IDS.adult], [{
+      manifest: {
+        id: 'mediachips.demo',
+        name: 'Demo',
+        version: '1.0.0',
+        engines: {mediachips: '>=1.0.0'},
+        permissions: ['ui.settings'],
+      },
+      source: 'user',
+      state: 'installed',
+      uiEntry: null,
+      mainEntry: null,
+      error: null,
+      enabled: false,
+    }])
+    expect(catalog.map((entry) => entry.manifest.id)).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      'mediachips.demo',
+    ])
+  })
+
   it('enables and disables bundled plugins', () => {
     const registry = new PluginRegistry(createBundledPluginCatalog([BUILTIN_PLUGIN_IDS.adult]))
     expect(registry.setEnabled(BUILTIN_PLUGIN_IDS.adult, false)?.state).toBe('disabled')

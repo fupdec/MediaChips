@@ -16,6 +16,7 @@ import {
 } from '@/services/pluginHost'
 import {setOption} from '@/services/settingsService'
 import {useSettingsStore} from '@/stores/settings'
+import {apiClient} from '@/services/apiClient'
 
 function syncFromRegistry() {
   const snapshot = getPluginRegistry().snapshot()
@@ -32,6 +33,8 @@ export const usePluginsStore = defineStore('usePluginsStore', {
   state: () => ({
     ...syncFromRegistry(),
     bootstrapped: false,
+    installing: false,
+    installError: null as string | null,
   }),
   getters: {
     plannedCount: (state) => state.catalog.filter((entry) => entry.state === 'planned').length,
@@ -74,6 +77,32 @@ export const usePluginsStore = defineStore('usePluginsStore', {
       }
       this.refresh()
       await this.persistEnabled()
+    },
+    async installFromPath(sourcePath: string) {
+      this.installing = true
+      this.installError = null
+      try {
+        const {data} = await apiClient.post<PluginCatalogEntry>('/api/Plugin/install', {
+          path: sourcePath,
+        })
+        await this.bootstrap()
+        return data
+      } catch (error: unknown) {
+        const message = (error as {response?: {data?: {message?: string}}})?.response?.data?.message
+          || (error instanceof Error ? error.message : String(error))
+        this.installError = message
+        throw error
+      } finally {
+        this.installing = false
+      }
+    },
+    async uninstall(pluginId: string) {
+      await apiClient.post('/api/Plugin/uninstall', {id: pluginId})
+      if (this.enabledPluginIds.includes(pluginId)) {
+        await deactivatePlugin(pluginId)
+        await this.persistEnabled()
+      }
+      await this.bootstrap()
     },
   },
 })

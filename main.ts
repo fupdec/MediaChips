@@ -766,19 +766,23 @@ process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
 ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: unknown) => {
   devLog('showOpenDialog called with properties:', properties);
 
-  // Check that properties is an array
-  let dialogProperties = [];
+  let dialogProperties: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles'> = []
+  let filters: Array<{name: string; extensions: string[]}> | undefined
 
-  if (Array.isArray(properties)) {
-    dialogProperties = properties;
-  } else {
-    console.warn('Properties should be an array, received:', typeof properties);
-    // Attempt to convert
-    if (typeof properties === 'string') {
-      dialogProperties = [properties];
-    } else if (typeof properties === 'object' && properties !== null) {
-      dialogProperties = Object.keys(properties).filter(key => (properties as Record<string, unknown>)[key] === true);
+  if (properties && typeof properties === 'object' && !Array.isArray(properties) && 'properties' in (properties as object)) {
+    const options = properties as {properties?: unknown; filters?: unknown}
+    if (Array.isArray(options.properties)) {
+      dialogProperties = options.properties as typeof dialogProperties
     }
+    if (Array.isArray(options.filters)) {
+      filters = options.filters as typeof filters
+    }
+  } else if (Array.isArray(properties)) {
+    dialogProperties = properties as typeof dialogProperties
+  } else if (typeof properties === 'string') {
+    dialogProperties = [properties as typeof dialogProperties[number]]
+  } else if (typeof properties === 'object' && properties !== null) {
+    dialogProperties = Object.keys(properties).filter(key => (properties as Record<string, unknown>)[key] === true) as typeof dialogProperties
   }
 
   devLog('Dialog properties being used:', dialogProperties);
@@ -786,6 +790,7 @@ ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: 
   try {
     const result = await dialog.showOpenDialog({
       properties: dialogProperties,
+      ...(filters ? {filters} : {}),
     });
 
     devLog('Dialog closed, result:', {

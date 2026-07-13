@@ -22,6 +22,7 @@ import registerMetaSetting from '../../api/routes/MetaSetting.routes'
 import registerPageSetting from '../../api/routes/PageSetting.routes'
 import registerSavedFilter from '../../api/routes/SavedFilter.routes'
 import registerSetting from '../../api/routes/Setting.routes'
+import registerPlugin from '../../api/routes/Plugin.routes'
 import registerTab from '../../api/routes/Tab.routes'
 import registerTask from '../../api/routes/Task.routes'
 import registerBulkMeta from '../../api/routes/BulkMeta.routes'
@@ -71,6 +72,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
 
   registrars.push(
     { routeFile: 'Setting.routes', register: registerSetting },
+    { routeFile: 'Plugin.routes', register: registerPlugin },
     { routeFile: 'Tab.routes', register: registerTab },
     { routeFile: 'Task.routes', register: registerTask },
     { routeFile: 'BulkMeta.routes', register: registerBulkMeta },

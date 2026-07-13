@@ -129,6 +129,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       // Специальная обработка для showOpenDialog
       if (channel === 'showOpenDialog') {
         let normalized = data
+        // Allow { properties, filters } for zip file picks.
+        if (
+          normalized
+          && typeof normalized === 'object'
+          && !Array.isArray(normalized)
+          && 'properties' in (normalized as Record<string, unknown>)
+        ) {
+          return ipcRenderer.invoke(channel, normalized);
+        }
         // Убеждаемся, что передаем массив
         if (!Array.isArray(normalized)) {
           ipcWarn('[IPC] showOpenDialog: data должен быть массивом, преобразую...');
@@ -301,6 +310,14 @@ contextBridge.exposeInMainWorld('$electronOperable', {
     ipcRenderer.invoke('createThumb', { time, videoPath, imgPath, width }),
   setNotification: (notification: unknown) => ipcRenderer.invoke('setNotification', notification),
   showOpenDialog: (properties: string[] | string | Record<string, unknown> | null | undefined) => {
+    if (
+      properties
+      && typeof properties === 'object'
+      && !Array.isArray(properties)
+      && 'properties' in properties
+    ) {
+      return ipcRenderer.invoke('showOpenDialog', properties);
+    }
     let normalized = properties
     // Убеждаемся, что передаем массив
     if (!Array.isArray(normalized)) {

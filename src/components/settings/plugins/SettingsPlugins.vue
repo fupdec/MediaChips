@@ -31,6 +31,42 @@
       </ol>
     </v-alert>
 
+    <div class="d-flex flex-wrap ga-2 mb-4">
+      <v-btn
+        rounded
+        variant="tonal"
+        prepend-icon="mdi-folder-open-outline"
+        :loading="installingKind === 'folder'"
+        :disabled="Boolean(installingKind)"
+        @click="installFromFolder"
+      >
+        {{ t('settings_labels.plugins.install_folder') }}
+      </v-btn>
+      <v-btn
+        rounded
+        variant="tonal"
+        prepend-icon="mdi-zip-box-outline"
+        :loading="installingKind === 'zip'"
+        :disabled="Boolean(installingKind)"
+        @click="installFromZip"
+      >
+        {{ t('settings_labels.plugins.install_zip') }}
+      </v-btn>
+    </div>
+
+    <v-alert
+      v-if="pluginsStore.installError"
+      class="mb-4"
+      type="error"
+      variant="tonal"
+      density="comfortable"
+      rounded="lg"
+      closable
+      @click:close="pluginsStore.installError = null"
+    >
+      {{ pluginsStore.installError }}
+    </v-alert>
+
     <div class="d-flex flex-wrap ga-2 mb-4 text-caption text-medium-emphasis">
       <span>{{ t('settings_labels.plugins.stats_installed', {count: pluginsStore.installedCount}) }}</span>
       <span>·</span>
@@ -86,6 +122,13 @@
             </v-tooltip>
           </div>
 
+          <div
+            v-if="entry.error"
+            class="text-caption text-error mb-3"
+          >
+            {{ entry.error }}
+          </div>
+
           <div class="text-caption text-medium-emphasis mb-1">
             {{ t('settings_labels.plugins.permissions_label') }}
           </div>
@@ -101,16 +144,30 @@
             </v-chip>
           </div>
 
-          <v-switch
-            :model-value="entry.enabled"
-            :disabled="togglingId === entry.manifest.id"
-            :loading="togglingId === entry.manifest.id"
-            :label="t('settings_labels.plugins.enabled')"
-            color="primary"
-            density="compact"
-            hide-details
-            @update:model-value="(value) => onToggle(entry.manifest.id, Boolean(value))"
-          />
+          <div class="d-flex align-center flex-wrap ga-2">
+            <v-switch
+              :model-value="entry.enabled"
+              :disabled="entry.state === 'error' || togglingId === entry.manifest.id"
+              :loading="togglingId === entry.manifest.id"
+              :label="t('settings_labels.plugins.enabled')"
+              color="primary"
+              density="compact"
+              hide-details
+              @update:model-value="(value) => onToggle(entry.manifest.id, Boolean(value))"
+            />
+            <v-btn
+              v-if="entry.source === 'user'"
+              size="small"
+              rounded
+              variant="text"
+              color="error"
+              :disabled="uninstallingId === entry.manifest.id"
+              :loading="uninstallingId === entry.manifest.id"
+              @click="onUninstall(entry.manifest.id)"
+            >
+              {{ t('settings_labels.plugins.uninstall') }}
+            </v-btn>
+          </div>
         </v-card-text>
       </v-card>
     </template>
@@ -128,6 +185,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {usePluginsStore} from '@/stores/plugins'
+import {showElectronOpenDialog} from '@/services/electronBridge'
 import type {PluginCatalogEntry, PluginInstallState, PluginPermission} from '@shared/plugins'
 
 const PLUGINS_SITE_URL = 'https://mediachips.app/plugins'
@@ -135,6 +193,8 @@ const PLUGINS_SITE_URL = 'https://mediachips.app/plugins'
 const {t, te} = useI18n()
 const pluginsStore = usePluginsStore()
 const togglingId = ref<string | null>(null)
+const uninstallingId = ref<string | null>(null)
+const installingKind = ref<'folder' | 'zip' | null>(null)
 
 const installedEntries = computed(() =>
   pluginsStore.catalog.filter((entry) => entry.state !== 'planned'),
@@ -142,6 +202,33 @@ const installedEntries = computed(() =>
 
 function openPluginsSite() {
   window.open(PLUGINS_SITE_URL, '_blank')
+}
+
+async function pickAndInstall(kind: 'folder' | 'zip') {
+  installingKind.value = kind
+  pluginsStore.installError = null
+  try {
+    const result = kind === 'folder'
+      ? await showElectronOpenDialog(['openDirectory'])
+      : await showElectronOpenDialog({
+        properties: ['openFile'],
+        filters: [{name: 'Plugin zip', extensions: ['zip']}],
+      })
+    if (!result || result.canceled || !result.filePaths?.[0]) return
+    await pluginsStore.installFromPath(result.filePaths[0])
+  } catch {
+    // installError is set on the store
+  } finally {
+    installingKind.value = null
+  }
+}
+
+function installFromFolder() {
+  return pickAndInstall('folder')
+}
+
+function installFromZip() {
+  return pickAndInstall('zip')
 }
 
 function permissionLabel(permission: PluginPermission | string): string {
@@ -182,6 +269,17 @@ async function onToggle(pluginId: string, enabled: boolean) {
     await pluginsStore.setEnabled(pluginId, enabled)
   } finally {
     togglingId.value = null
+  }
+}
+
+async function onUninstall(pluginId: string) {
+  uninstallingId.value = pluginId
+  try {
+    await pluginsStore.uninstall(pluginId)
+  } catch (error) {
+    pluginsStore.installError = error instanceof Error ? error.message : String(error)
+  } finally {
+    uninstallingId.value = null
   }
 }
 

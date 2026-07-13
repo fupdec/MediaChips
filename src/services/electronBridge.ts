@@ -37,11 +37,20 @@ export async function syncMinimizeToTray(enabled: boolean): Promise<void> {
   }
 }
 
+export type OpenDialogOptions = {
+  properties?: string[]
+  filters?: Array<{name: string; extensions: string[]}>
+}
+
 export async function showElectronOpenDialog(
-  properties: string[] | string | Record<string, boolean> | null,
+  properties: string[] | string | Record<string, boolean> | OpenDialogOptions | null,
 ): Promise<OpenDialogResult | null> {
   const api = getElectronAPI()
   if (!api?.invoke) return null
+
+  if (properties && typeof properties === 'object' && !Array.isArray(properties) && 'properties' in properties) {
+    return api.invoke('showOpenDialog', properties)
+  }
 
   let dialogProperties: string[] = []
   if (Array.isArray(properties)) {
@@ -49,7 +58,7 @@ export async function showElectronOpenDialog(
   } else if (typeof properties === 'string') {
     dialogProperties = [properties]
   } else if (typeof properties === 'object' && properties !== null) {
-    dialogProperties = Object.keys(properties).filter((key) => properties[key] === true)
+    dialogProperties = Object.keys(properties).filter((key) => (properties as Record<string, boolean>)[key] === true)
   }
 
   return api.invoke('showOpenDialog', dialogProperties)

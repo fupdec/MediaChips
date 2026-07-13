@@ -1,9 +1,10 @@
-import {BUILTIN_PLUGIN_IDS, createPluginCatalog} from '@shared/plugins'
+import {BUILTIN_PLUGIN_IDS, createBundledPluginCatalog} from '@shared/plugins'
 import type {PluginCatalogEntry} from '@shared/plugins'
 import {getPluginRegistry} from '@/services/pluginRegistry'
 import type {MediaChipsPlugin, PluginApi, PluginComponentMap} from '@/types/pluginRuntime'
 import {adultPlugin, adultHostComponentMap} from '@/plugins/adult/hostBridge'
 import {isSfwBuild} from '@/utils/sfwBuild'
+import {apiClient} from '@/services/apiClient'
 
 const pluginModules: Record<string, MediaChipsPlugin> = isSfwBuild()
   ? {}
@@ -77,10 +78,17 @@ export function resolvePluginComponentLoader(componentKey: string) {
 export async function activatePlugin(pluginId: string): Promise<boolean> {
   if (activated.has(pluginId)) return true
 
-  const plugin = pluginModules[pluginId]
-  if (!plugin) return false
-
   const registry = getPluginRegistry()
+  const plugin = pluginModules[pluginId]
+  if (!plugin) {
+    const entry = registry.getEntry(pluginId)
+    if (entry?.source === 'user' && entry.state !== 'error') {
+      registry.setEnabled(pluginId, true)
+      return true
+    }
+    return false
+  }
+
   try {
     await plugin.activate(createPluginApi(pluginId))
     activated.add(pluginId)
@@ -120,34 +128,74 @@ export async function deactivatePlugin(pluginId: string): Promise<void> {
 }
 
 export function parseEnabledPlugins(raw: unknown): string[] {
-  if (isSfwBuild()) return []
+  let ids: string[] = []
 
   if (Array.isArray(raw)) {
-    return raw.map((item) => String(item)).filter(Boolean)
-  }
-
-  if (typeof raw === 'string' && raw.trim()) {
+    ids = raw.map((item) => String(item)).filter(Boolean)
+  } else if (typeof raw === 'string' && raw.trim()) {
     try {
       const parsed = JSON.parse(raw) as unknown
       if (Array.isArray(parsed)) {
-        return parsed.map((item) => String(item)).filter(Boolean)
+        ids = parsed.map((item) => String(item)).filter(Boolean)
+      } else {
+        ids = raw.split(',').map((item) => item.trim()).filter(Boolean)
       }
     } catch {
-      return raw.split(',').map((item) => item.trim()).filter(Boolean)
+      ids = raw.split(',').map((item) => item.trim()).filter(Boolean)
     }
+  } else if (!isSfwBuild()) {
+    ids = [BUILTIN_PLUGIN_IDS.adult]
   }
 
-  return [BUILTIN_PLUGIN_IDS.adult]
+  if (isSfwBuild()) {
+    return ids.filter((id) => id !== BUILTIN_PLUGIN_IDS.adult)
+  }
+  return ids
 }
 
 export function serializeEnabledPlugins(pluginIds: string[]): string {
   return JSON.stringify(pluginIds)
 }
 
+async function fetchUserPluginCatalog(enabledPluginIds: string[]): Promise<PluginCatalogEntry[]> {
+  try {
+    const {data} = await apiClient.get<PluginCatalogEntry[]>('/api/Plugin', {
+      params: {enabledPlugins: JSON.stringify(enabledPluginIds)},
+    })
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.warn('Failed to load installed user plugins', error)
+    return []
+  }
+}
+
+export function mergePluginCatalog(
+  enabledPluginIds: string[],
+  userEntries: PluginCatalogEntry[] = [],
+): PluginCatalogEntry[] {
+  const bundled = createBundledPluginCatalog(enabledPluginIds)
+  const bundledIds = new Set(bundled.map((entry) => entry.manifest.id))
+  const users = userEntries
+    .filter((entry) => !bundledIds.has(entry.manifest.id))
+    .map((entry) => {
+      const enabled = enabledPluginIds.includes(entry.manifest.id) && entry.state !== 'error'
+      return {
+        ...entry,
+        enabled,
+        state: entry.state === 'error'
+          ? 'error' as const
+          : (enabled ? 'enabled' as const : 'installed' as const),
+      }
+    })
+  return [...bundled, ...users]
+}
+
 export async function bootstrapPlugins(enabledPluginIds?: string[]): Promise<void> {
-  const enabled = isSfwBuild() ? [] : (enabledPluginIds ?? [BUILTIN_PLUGIN_IDS.adult])
+  const enabled = enabledPluginIds
+    ?? (isSfwBuild() ? [] : [BUILTIN_PLUGIN_IDS.adult])
   const registry = getPluginRegistry()
-  registry.reset(createPluginCatalog(enabled))
+  const userEntries = await fetchUserPluginCatalog(enabled)
+  registry.reset(mergePluginCatalog(enabled, userEntries))
 
   for (const id of activated) {
     registry.clearContributions(id)
