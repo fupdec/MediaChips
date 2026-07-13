@@ -4,6 +4,7 @@ const META_NAME_KEYS: Record<string, string> = {
   favorite: 'favorite',
   bookmark: 'bookmark',
   country: 'country',
+  file_name: 'file_name',
 }
 
 interface MetaLike {

@@ -56,7 +56,7 @@
           </v-col>
 
           <!-- Synonyms - only for tags -->
-          <v-col v-if="isTag && meta?.synonyms" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="isTag && showSynonymsField" cols="12" md="6" xl="4" class="field">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <v-text-field
                 v-model="vals.synonyms"
@@ -158,7 +158,7 @@
           </v-col>
 
           <!-- Country - only for tags -->
-          <v-col v-if="isTag && meta?.country" cols="12" md="6" xl="4">
+          <v-col v-if="isTag && showCountryField" cols="12" md="6" xl="4">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <MetaInputCountry
                 @update:model-value="setValByKey($event, 'country')"
@@ -339,6 +339,7 @@ import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useScraperStore} from '@/stores/scraper'
+import {useSceneScraperStore} from '@/stores/sceneScraper'
 import {useEventBus} from '@/utils/eventBus'
 import {parseCountries, serializeCountries} from '@/utils/country'
 import {typedApi} from '@/services/typedApi'
@@ -365,10 +366,18 @@ import {
   isDefaultTagColor,
 } from '@/utils/colorFromImage'
 import {getCachedThumb, tagThumbKey} from '@/utils/thumbDisplayCache'
-import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
+import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {applySceneScrapedTagNames} from '@/services/sceneScraperApply'
+import {applyScenePosterToVideoThumb} from '@/services/sceneScraperPoster'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
+import {
+  getCurrentMediaType,
+  getMediaDeleteAssetFolder,
+  isVideoMediaType,
+} from '@/utils/mediaType'
 import type {PresetMetaProps} from '@/types/itemsPage'
-import type { ScraperPinnedItem } from '@/types/scraper'
+import type { ScraperPinnedItem, ScraperTransferField } from '@/types/scraper'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
 import type { TagInTagEntry, ValueInTagEntry, EntityUpdatePayload } from '@shared/api/responses'
 import type {VFormInstance} from '@/types/vue'
@@ -475,6 +484,7 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const scraperStore = useScraperStore()
+const sceneScraperStore = useSceneScraperStore()
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
@@ -533,6 +543,9 @@ const favoriteEnabled = computed(() => {
   if (isMedia.value) return true
   return false
 })
+
+const showSynonymsField = computed(() => Boolean(props.meta?.synonyms || props.meta?.scraper))
+const showCountryField = computed(() => Boolean(props.meta?.country || props.meta?.scraper))
 
 // Methods
 
@@ -629,6 +642,7 @@ const initBaseValues = () => {
 
   if (isMedia.value && props.media) {
     vals.value = {
+      name: props.media.name || props.media.basename || null,
       rating: Number(props.media.rating) || 0,
       favorite: Number(props.media.favorite) || 0,
       views: Number(props.media.views) || 0,
@@ -765,8 +779,10 @@ const getMetaValues = async () => {
       if (mediaTypeId) {
         const pinnedResponse = await typedApi.getAssignedMetaForMediaType(mediaTypeId)
         assignedItems.value = sortPinnedAssignmentItems(pinnedResponse.data)
+        sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
       } else {
         assignedItems.value = sortPinnedAssignmentItems(itemsStore.safeAssigned)
+        sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
       }
     }
 
@@ -809,6 +825,8 @@ const getMetaValues = async () => {
 
     if (isTag.value) {
       scraperStore.currentValues = vals.value
+    } else if (isMedia.value) {
+      sceneScraperStore.currentValues = vals.value
     }
 
   } catch (error) {
@@ -834,6 +852,7 @@ const TAG_ENTITY_FIELD_KEYS = [
 ] as const
 
 const MEDIA_ENTITY_FIELD_KEYS = [
+  'name',
   'rating',
   'favorite',
   'views',
@@ -972,6 +991,94 @@ const save = async (): Promise<boolean> => {
   }
 }
 
+const transferSceneScrapedInfo = async () => {
+  if (!isMedia.value) return
+
+  const fields = (sceneScraperStore.fields || []) as ScraperTransferField[]
+  const selectedPosterUrl = sceneScraperStore.selectedPosterUrl
+  const mediaId = props.media?.id
+
+  if (selectedPosterUrl && mediaId != null) {
+    const mediaType = getCurrentMediaType(
+      appStore.mediaTypes,
+      props.media?.mediaTypeId ?? itemsStore.environment?.media_type_id,
+    )
+
+    if (isVideoMediaType(mediaType)) {
+      const mediaTypeFolder = getMediaDeleteAssetFolder(mediaType) || 'videos'
+      const posterResult = await applyScenePosterToVideoThumb({
+        url: selectedPosterUrl,
+        mediaId: Number(mediaId),
+        mediaPath: appStore.mediaPath,
+        mediaTypeFolder,
+        mediaWidth: props.media?.width,
+        mediaHeight: props.media?.height,
+      })
+
+      if (!posterResult.success) {
+        setNotification({
+          type: 'error',
+          title: t('scraper.error'),
+          text: t('scene_scraper.poster_error'),
+        })
+      } else {
+        invalidateVideoThumbCaches(Number(mediaId))
+        itemsStore.refreshThumb(Number(mediaId), {regenerate: true})
+        eventBus.emit('getItemsFromDb', {
+          ids: [Number(mediaId)],
+          type: 'media',
+        })
+      }
+    }
+
+    sceneScraperStore.selectedPosterUrl = null
+  }
+
+  let arrayFieldsApplied = false
+
+  for (const field of fields) {
+    if (!field.isTransfered) continue
+
+    if (field.dataType === 'bookmark') {
+      setValByKey(field.valueCurrent as MetaFieldValue, 'bookmark')
+      continue
+    }
+
+    if (field.dataType === 'mediaName') {
+      const nextName = String(field.valueCurrent ?? '').trim()
+      setValByKey(nextName || null, 'name')
+      if (props.media) {
+        mediaOverride.value = {
+          ...(mediaOverride.value || props.media),
+          name: nextName || null,
+        }
+      }
+      continue
+    }
+
+    if (field.dataType === 'array') {
+      const metaId = field.meta.id
+      const currentTagIds = [...(vals.value[metaId] as number[] || [])]
+      const nextTagIds = await applySceneScrapedTagNames({
+        metaId,
+        names: field.valueCurrent,
+        currentTagIds,
+        allTags: appStore.tags || [],
+      })
+
+      setValByKey(nextTagIds, metaId)
+      arrayFieldsApplied = true
+      continue
+    }
+
+    setValByKey(field.valueCurrent as MetaFieldValue, field.meta.id)
+  }
+
+  if (arrayFieldsApplied) {
+    eventBus.emit('getTags')
+  }
+}
+
 const transferScrapedInfo = async () => {
   if (!isTag.value || !props.meta || !props.tag) return
 
@@ -1065,7 +1172,9 @@ const transferScrapedInfo = async () => {
           }
         }
       } else if (field.dataType === 'country') {
-        setValByKey(field.valueScraper, 'country')
+        setValByKey(field.valueCurrent, 'country')
+      } else if (field.dataType === 'synonyms') {
+        setValByKey(field.valueCurrent, 'synonyms')
       } else {
         setValByKey(field.valueScraper, field.meta.id)
       }
@@ -1080,6 +1189,8 @@ onMounted(async () => {
   // Подписываемся на событие передачи данных из скрапера (только для тегов)
   if (isTag.value) {
     eventBus.on('transferScrapedInfo', transferScrapedInfo)
+  } else if (isMedia.value) {
+    eventBus.on('transferSceneScrapedInfo', transferSceneScrapedInfo)
   }
 })
 
@@ -1088,9 +1199,20 @@ watch(currentItemId, async (itemId, previousItemId) => {
   await loadEditingState()
 })
 
+watch(
+  () => dialogsStore.sceneScraper.show,
+  (show) => {
+    if (!show || !isMedia.value) return
+    sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
+    sceneScraperStore.currentValues = vals.value
+  },
+)
+
 onUnmounted(() => {
   if (isTag.value) {
     eventBus.off('transferScrapedInfo', transferScrapedInfo)
+  } else if (isMedia.value) {
+    eventBus.off('transferSceneScrapedInfo', transferSceneScrapedInfo)
   }
 })
 

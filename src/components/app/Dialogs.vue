@@ -92,6 +92,16 @@
       @close="dialogsStore.scraperMultiple.show = false"
     />
 
+    <DialogSceneScraper
+      v-if="dialogsStore.sceneScraper.show"
+      @close="dialogsStore.sceneScraper.show = false"
+    />
+
+    <DialogSceneScraperMultiple
+      v-if="dialogsStore.sceneScraperMultiple.show"
+      @close="dialogsStore.sceneScraperMultiple.show = false"
+    />
+
     <v-dialog
       v-model="dialogsStore.about.show"
       width="500"
@@ -159,6 +169,12 @@ const DialogScraper = defineAsyncComponent(() =>
 )
 const DialogScraperMultiple = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogScraperMultiple.vue')
+)
+const DialogSceneScraper = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogSceneScraper.vue')
+)
+const DialogSceneScraperMultiple = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogSceneScraperMultiple.vue')
 )
 const DialogMediaAddingProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaAddingProcess.vue')

@@ -43,6 +43,7 @@ export type EventBusMap = {
   refreshMarkThumbs: void
   viewImage: ViewImageEvent
   transferScrapedInfo: void
+  transferSceneScrapedInfo: void
   scraperGotImages: void
   'app:database-changed': void
 } & Record<string, unknown>
