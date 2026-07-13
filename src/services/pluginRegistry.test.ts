@@ -34,19 +34,37 @@ describe('pluginRegistry', () => {
   })
 
   it('does not enable planned plugins', () => {
+    const plannedEntry = {
+      manifest: {
+        id: 'mediachips.example',
+        name: 'Example',
+        version: '0.0.0',
+        description: 'Test planned plugin',
+        author: 'MediaChips',
+        icon: 'puzzle',
+        engines: {mediachips: '>=1.0.0'},
+        requiresAdult: false,
+        permissions: ['ui.settings'] as const,
+      },
+      source: 'planned' as const,
+      state: 'planned' as const,
+      uiEntry: null,
+      mainEntry: null,
+      error: null,
+      enabled: false,
+    }
     const planned = createPlannedPluginCatalog()
-    expect(planned.length).toBeGreaterThan(0)
-    const plannedId = planned[0]!.manifest.id
-    const registry = new PluginRegistry(planned)
-    const updated = registry.setEnabled(plannedId, true)
+    expect(planned).toEqual([])
+    const registry = new PluginRegistry([plannedEntry])
+    const updated = registry.setEnabled(plannedEntry.manifest.id, true)
     expect(updated?.enabled).toBe(false)
     expect(updated?.state).toBe('planned')
   })
 
-  it('merges bundled and planned plugins in createPluginCatalog', () => {
+  it('createPluginCatalog returns only bundled plugins', () => {
     const catalog = createPluginCatalog([BUILTIN_PLUGIN_IDS.adult])
     expect(catalog.some((entry) => entry.manifest.id === BUILTIN_PLUGIN_IDS.adult && entry.source === 'bundled')).toBe(true)
-    expect(catalog.some((entry) => entry.state === 'planned')).toBe(true)
+    expect(catalog.every((entry) => entry.state !== 'planned')).toBe(true)
     expect(catalog.filter((entry) => entry.manifest.id === BUILTIN_PLUGIN_IDS.adult)).toHaveLength(1)
   })
 

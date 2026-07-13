@@ -1,6 +1,5 @@
 import {BUILTIN_PLUGIN_IDS, type PluginCatalogEntry} from '@shared/plugins'
 import {isSfwBuild} from '../buildFlags'
-import {createPlannedPluginCatalog} from './plannedCatalog'
 
 /** Bundled adult plugin — present in direct builds, can be disabled from UI. */
 export function createBundledAdultCatalogEntry(enabled = true): PluginCatalogEntry {
@@ -40,10 +39,7 @@ export function createBundledPluginCatalog(enabledPlugins: string[] = [BUILTIN_P
   return [createBundledAdultCatalogEntry(adultEnabled)]
 }
 
-/** Bundled plugins plus planned placeholders (excluding ids already bundled). */
+/** Active plugin catalog (bundled only until external install lands). */
 export function createPluginCatalog(enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult]): PluginCatalogEntry[] {
-  const bundled = createBundledPluginCatalog(enabledPlugins)
-  const bundledIds = new Set(bundled.map((entry) => entry.manifest.id))
-  const planned = createPlannedPluginCatalog().filter((entry) => !bundledIds.has(entry.manifest.id))
-  return [...bundled, ...planned]
+  return createBundledPluginCatalog(enabledPlugins)
 }

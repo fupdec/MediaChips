@@ -1,44 +1,40 @@
 <template>
   <div class="mx-4">
-    <settings-category-divider
-      :title="t('settings_labels.plugins.title')"
-      icon="puzzle"
-    />
-
-    <div class="text-caption text-medium-emphasis mb-4">
-      {{ t(pluginsHintKey) }}
-    </div>
-
-    <div class="d-flex flex-wrap ga-2 mb-4">
+    <v-alert
+      class="mb-4"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      rounded="lg"
+    >
+      <div class="text-body-2 mb-2">
+        {{ t('settings_labels.plugins.download_alert') }}
+      </div>
       <v-btn
-        disabled
+        color="primary"
         rounded
-        variant="tonal"
-        prepend-icon="mdi-folder-open-outline"
+        variant="flat"
+        size="small"
+        prepend-icon="mdi-open-in-new"
+        class="mb-3"
+        @click="openPluginsSite"
       >
-        {{ t('settings_labels.plugins.install_folder') }}
+        {{ t('settings_labels.plugins.download_button') }}
       </v-btn>
-      <v-btn
-        disabled
-        rounded
-        variant="tonal"
-        prepend-icon="mdi-zip-box-outline"
-      >
-        {{ t('settings_labels.plugins.install_zip') }}
-      </v-btn>
-      <span class="text-caption text-medium-emphasis align-self-center">
-        {{ t('settings_labels.plugins.install_soon') }}
-      </span>
-    </div>
+      <div class="text-caption text-medium-emphasis mb-1">
+        {{ t('settings_labels.plugins.install_how_title') }}
+      </div>
+      <ol class="plugins-install-steps text-caption text-medium-emphasis mb-0 pl-4">
+        <li>{{ t('settings_labels.plugins.install_how_1') }}</li>
+        <li>{{ t('settings_labels.plugins.install_how_2') }}</li>
+        <li>{{ t('settings_labels.plugins.install_how_3') }}</li>
+      </ol>
+    </v-alert>
 
     <div class="d-flex flex-wrap ga-2 mb-4 text-caption text-medium-emphasis">
       <span>{{ t('settings_labels.plugins.stats_installed', {count: pluginsStore.installedCount}) }}</span>
       <span>·</span>
       <span>{{ t('settings_labels.plugins.stats_enabled', {count: pluginsStore.enabledCount}) }}</span>
-      <template v-if="pluginsStore.plannedCount > 0">
-        <span>·</span>
-        <span>{{ t('settings_labels.plugins.stats_planned', {count: pluginsStore.plannedCount}) }}</span>
-      </template>
     </div>
 
     <template v-if="installedEntries.length">
@@ -119,73 +115,34 @@
       </v-card>
     </template>
 
-    <template v-if="plannedEntries.length">
-      <div class="text-subtitle-2 mb-2 mt-4">{{ t('settings_labels.plugins.section_coming_soon') }}</div>
-      <v-card
-        v-for="entry in plannedEntries"
-        :key="entry.manifest.id"
-        class="mb-3 plugin-card"
-        rounded="xl"
-        variant="flat"
-      >
-        <v-card-item>
-          <template #prepend>
-            <v-avatar color="secondary" variant="tonal" rounded="lg">
-              <v-icon>{{ `mdi-${entry.manifest.icon || 'puzzle'}` }}</v-icon>
-            </v-avatar>
-          </template>
-
-          <v-card-title class="text-body-1">
-            {{ pluginName(entry) }}
-            <v-chip
-              class="ml-2"
-              size="x-small"
-              label
-              color="warning"
-              variant="tonal"
-            >
-              {{ t('settings_labels.plugins.state.planned') }}
-            </v-chip>
-          </v-card-title>
-
-          <v-card-subtitle class="text-wrap">
-            {{ pluginDescription(entry) }}
-          </v-card-subtitle>
-        </v-card-item>
-
-        <v-card-text class="pt-0">
-          <div class="text-caption text-medium-emphasis">
-            {{ t('settings_labels.plugins.coming_soon') }}
-          </div>
-        </v-card-text>
-      </v-card>
-    </template>
+    <div
+      v-else
+      class="text-caption text-medium-emphasis mb-2"
+    >
+      {{ t('settings_labels.plugins.empty_installed') }}
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {usePluginsStore} from '@/stores/plugins'
-import {isSfwBuild} from '@/utils/sfwBuild'
 import type {PluginCatalogEntry, PluginInstallState, PluginPermission} from '@shared/plugins'
+
+const PLUGINS_SITE_URL = 'https://mediachips.app/plugins'
 
 const {t, te} = useI18n()
 const pluginsStore = usePluginsStore()
 const togglingId = ref<string | null>(null)
 
-const pluginsHintKey = isSfwBuild()
-  ? 'settings_labels.plugins.hint_sfw'
-  : 'settings_labels.plugins.hint'
-
 const installedEntries = computed(() =>
   pluginsStore.catalog.filter((entry) => entry.state !== 'planned'),
 )
 
-const plannedEntries = computed(() =>
-  pluginsStore.catalog.filter((entry) => entry.state === 'planned'),
-)
+function openPluginsSite() {
+  window.open(PLUGINS_SITE_URL, '_blank')
+}
 
 function permissionLabel(permission: PluginPermission | string): string {
   const key = `settings_labels.plugins.permissions.${permission}`
@@ -243,5 +200,9 @@ onMounted(() => {
   text-decoration: underline dotted;
   text-underline-offset: 2px;
   opacity: 0.75;
+}
+
+.plugins-install-steps {
+  line-height: 1.5;
 }
 </style>
