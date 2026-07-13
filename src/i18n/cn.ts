@@ -600,8 +600,10 @@ const cn = {
     },
     fields: {
       birthday: '生日',
+      deathday: '逝世日期',
       career_start_year: '职业开始年份',
       career_end_year: '职业结束年份',
+      gender: '性别',
       ethnicity: '种族',
       eye_colour: '眼睛颜色',
       hair_colour: '头发颜色',
@@ -615,6 +617,7 @@ const cn = {
       tattoos: '纹身',
       country: '国家',
       synonyms: '同义词 / 别名',
+      bio: '传记',
     },
   },
   settings_labels: {
@@ -705,7 +708,7 @@ const cn = {
     field_pinning: {
       title: '固定元数据字段',
       view_by_media: '媒体类型',
-      view_by_tags: '标签字段',
+      view_by_tags: '标签分类',
       select_media_type: '从列表中选择媒体类型',
       select_tag_category: '从列表中选择标签分类',
       no_tag_categories: '尚无标签分类。请先在自定义元数据中创建“标签”类型字段。',

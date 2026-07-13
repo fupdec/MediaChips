@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bookmarkAlreadyContains,
   buildScraperTransferFields,
   formatScraperAliases,
+  mergeBookmarkValues,
   mergeSynonymValues,
   resolveCountryName,
   synonymsAlreadyContain,
@@ -34,6 +36,77 @@ describe('scraperTransferFields', () => {
     const synonyms = fields.find((field) => field.key === 'synonyms')
     expect(synonyms?.valueScraper).toBe('Angie, Angela')
     expect(synonyms?.isAlreadyContain).toBe(false)
+  })
+
+  it('builds bookmark transfer field from bio and appends to existing text', () => {
+    const fields = buildScraperTransferFields({
+      selected: {
+        bio: 'Award-winning performer.',
+      },
+      pinned: [],
+      currentValues: {
+        bookmark: 'My notes',
+      },
+      tags: [],
+    })
+
+    expect(fields).toHaveLength(1)
+
+    const bookmark = fields.find((field) => field.key === 'bio')
+    expect(bookmark?.dataType).toBe('bookmark')
+    expect(bookmark?.valueScraper).toBe('Award-winning performer.')
+    expect(bookmark?.isAlreadyContain).toBe(false)
+    expect(mergeBookmarkValues('My notes', bookmark?.valueScraper)).toBe(
+      'My notes\n\nAward-winning performer.',
+    )
+  })
+
+  it('marks bio as already contained when bookmark includes it', () => {
+    const fields = buildScraperTransferFields({
+      selected: {
+        bio: 'Known for comedy roles.',
+      },
+      pinned: [],
+      currentValues: {
+        bookmark: 'Notes\n\nKnown for comedy roles.',
+      },
+      tags: [],
+    })
+
+    const bookmark = fields.find((field) => field.key === 'bio')
+    expect(bookmark?.isAlreadyContain).toBe(true)
+    expect(bookmarkAlreadyContains('Notes\n\nKnown for comedy roles.', 'Known for comedy roles.')).toBe(true)
+  })
+
+  it('builds deathday and gender fields from pinned mappings', () => {
+    const fields = buildScraperTransferFields({
+      selected: {
+        extras: {
+          deathday: '2020-01-15',
+          gender: 'Female',
+        },
+      },
+      pinned: [
+        {
+          scraper: 'deathday',
+          pinnedMetaId: 11,
+          meta: { id: 11, type: 'date', name: 'Deathday', icon: 'calendar' },
+        },
+        {
+          scraper: 'gender',
+          pinnedMetaId: 12,
+          meta: { id: 12, type: 'array', name: 'Gender', icon: 'gender-female' },
+        },
+      ],
+      currentValues: {
+        11: null,
+        12: [],
+      },
+      tags: [],
+    })
+
+    expect(fields.find((field) => field.key === 'deathday')?.valueScraper).toBe('2020-01-15')
+    expect(fields.find((field) => field.key === 'gender')?.valueScraper).toBe('Female')
   })
 
   it('resolves country from nationality when birthplace code is missing', () => {

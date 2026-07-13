@@ -4,7 +4,7 @@ import { typedApi } from '@/services/typedApi'
 import { createImage } from '@/services/fileService'
 import { parseCountries, serializeCountries } from '@/utils/country'
 import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
-import { buildScraperTransferFields, mergeSynonymValues } from '@/utils/scraperTransferFields'
+import { buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues } from '@/utils/scraperTransferFields'
 import {
   DEFAULT_TAG_COLOR,
   extractColorFromLocalFile,
@@ -201,6 +201,12 @@ async function applyTransferFields({
       continue
     }
 
+    if (field.dataType === 'bookmark') {
+      const merged = mergeBookmarkValues(vals.bookmark, field.valueScraper)
+      vals.bookmark = merged || null
+      continue
+    }
+
     vals[field.meta.id] = field.valueScraper as MetaFieldValue
   }
 }
@@ -360,6 +366,7 @@ export async function autoApplyScrapedTagData({
       selected: {
         name: typeof performer.name === 'string' ? performer.name : null,
         aliases: Array.isArray(performer.aliases) ? performer.aliases as string[] : undefined,
+        bio: typeof performer.bio === 'string' ? performer.bio : null,
         extras: (performer.extras as Record<string, unknown> | undefined) || {},
         posters: performer.posters as ScraperPoster[] | undefined,
       },

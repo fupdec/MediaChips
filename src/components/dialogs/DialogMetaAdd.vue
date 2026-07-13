@@ -29,13 +29,12 @@
 
           <v-card-text class="pa-4 meta-add-dialog-content">
             <v-alert color="info" class="text-caption mb-4" variant="tonal" density="compact" rounded="xl">
-              {{ currentMetaType?.hint || 'Select a meta type' }}
+              {{ currentMetaType?.hint || t('meta.dialogs.select_meta_type') }}
               <div v-show="metaType === 'array' || metaType === 'rating'">
-                After adding, a dialog with detailed settings will appear
+                {{ t('meta.dialogs.settings_active_after_adding') }}
               </div>
               <div v-show="metaType === 'array'">
-                You can view and manage tags on the page of this tag type. A link
-                of this page will appear in the navigation menu.
+                {{ t('meta.dialogs.array_meta_info') }}
               </div>
             </v-alert>
 
@@ -103,6 +102,7 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {VFormInstance} from '@/types/vue'
 import {getErrorResponseData} from '@/types/vue'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -133,6 +133,7 @@ const emit = defineEmits(['update:model-value', 'added', 'close'])
 
 // Stores
 const notificationsStore = useNotificationsStore()
+const {t} = useI18n()
 
 // Refs
 const form = ref<VFormInstance>(null)

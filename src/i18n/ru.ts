@@ -618,8 +618,10 @@ const ru = {
     },
     fields: {
       birthday: 'Дата рождения',
+      deathday: 'Дата смерти',
       career_start_year: 'Год начала карьеры',
       career_end_year: 'Год завершения карьеры',
+      gender: 'Пол',
       ethnicity: 'Этничность',
       eye_colour: 'Цвет глаз',
       hair_colour: 'Цвет волос',
@@ -633,6 +635,7 @@ const ru = {
       tattoos: 'Татуировки',
       country: 'Страна',
       synonyms: 'Синонимы / псевдонимы',
+      bio: 'Биография',
     },
   },
   scene_scraper: {

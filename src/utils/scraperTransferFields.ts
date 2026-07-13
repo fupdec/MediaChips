@@ -33,6 +33,21 @@ function synonymsAlreadyContain(current: unknown, scraped: unknown): boolean {
     && scrapedList.every((name) => currentSet.has(name.toLowerCase()))
 }
 
+function mergeBookmarkValues(current: unknown, scraped: unknown): string {
+  const currentText = String(current || '').trim()
+  const scrapedText = String(scraped || '').trim()
+  if (!scrapedText) return currentText
+  if (!currentText) return scrapedText
+  if (currentText.includes(scrapedText)) return currentText
+  return `${currentText}\n\n${scrapedText}`
+}
+
+function bookmarkAlreadyContains(current: unknown, scraped: unknown): boolean {
+  const scrapedText = String(scraped || '').trim()
+  if (!scrapedText) return true
+  return String(current || '').trim().includes(scrapedText)
+}
+
 function formatScraperAliases(
   aliases: unknown,
   performerName?: string | null,
@@ -109,6 +124,22 @@ export function buildScraperTransferFields({
     })
   }
 
+  const scrapedBio = String(selected.bio || '').trim()
+  if (scrapedBio) {
+    const currentBookmark = String(currentValues.bookmark || '')
+    data.push({
+      dataType: 'bookmark',
+      valueCurrent: currentBookmark,
+      valueReserved: currentBookmark,
+      valueScraper: scrapedBio,
+      isTagExists: false,
+      key: 'bio',
+      meta: { id: 0, icon: 'bookmark', name: 'bookmark' } satisfies Meta,
+      isTransfered: false,
+      isAlreadyContain: bookmarkAlreadyContains(currentBookmark, scrapedBio),
+    })
+  }
+
   metas.forEach((metaItem) => {
     if (!metaItem.meta) return
 
@@ -159,7 +190,9 @@ export function buildScraperTransferFields({
 }
 
 export {
+  bookmarkAlreadyContains,
   formatScraperAliases,
+  mergeBookmarkValues,
   mergeSynonymValues,
   parseSynonymValues,
   resolveCountryName,

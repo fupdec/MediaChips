@@ -618,8 +618,10 @@ const en = {
     },
     fields: {
       birthday: 'Birthday',
+      deathday: 'Deathday',
       career_start_year: 'Year of career start',
       career_end_year: 'Year of career end',
+      gender: 'Gender',
       ethnicity: 'Ethnicity',
       eye_colour: 'Eye color',
       hair_colour: 'Hair colors',
@@ -633,6 +635,7 @@ const en = {
       tattoos: 'Tattoos',
       country: 'Country',
       synonyms: 'Synonyms / aliases',
+      bio: 'Biography',
     },
   },
   scene_scraper: {

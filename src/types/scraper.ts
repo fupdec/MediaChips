@@ -20,6 +20,7 @@ export interface ScraperPoster {
 export interface ScraperSelectedResult {
   name?: string | null
   aliases?: string[]
+  bio?: string | null
   extras?: Record<string, unknown>
   posters?: ScraperPoster[]
 }

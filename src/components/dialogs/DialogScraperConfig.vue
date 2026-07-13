@@ -125,7 +125,6 @@ import type {AssignedMeta, Meta} from '@/types/stores'
 
 interface ScraperFieldTemplate {
   name: string
-  oldKey: string
   type: string
   key: string
 }

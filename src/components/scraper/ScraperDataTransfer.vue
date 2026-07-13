@@ -85,7 +85,7 @@ import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '@/stores/scraper'
 import {useAppStore} from '@/stores/app'
 import {getMetaName} from "@/utils/metaI18n"
-import {buildScraperTransferFields, mergeSynonymValues} from '@/utils/scraperTransferFields'
+import {buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues} from '@/utils/scraperTransferFields'
 
 import ScraperSelectImages from '@/components/scraper/ScraperSelectImages.vue'
 
@@ -153,6 +153,8 @@ function transfer(item: ScraperTransferField) {
     item.valueCurrent = current
   } else if (item.dataType === 'synonyms') {
     item.valueCurrent = mergeSynonymValues(item.valueCurrent, item.valueScraper)
+  } else if (item.dataType === 'bookmark') {
+    item.valueCurrent = mergeBookmarkValues(item.valueCurrent, item.valueScraper)
   } else {
     item.valueCurrent = item.valueScraper
   }

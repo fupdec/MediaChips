@@ -1213,6 +1213,8 @@ const transferScrapedInfo = async () => {
         setValByKey(field.valueCurrent, 'country')
       } else if (field.dataType === 'synonyms') {
         setValByKey(field.valueCurrent, 'synonyms')
+      } else if (field.dataType === 'bookmark') {
+        setValByKey(field.valueCurrent, 'bookmark')
       } else {
         setValByKey(field.valueScraper, field.meta.id)
       }
