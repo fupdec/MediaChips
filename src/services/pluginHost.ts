@@ -3,14 +3,19 @@ import type {PluginCatalogEntry} from '@shared/plugins'
 import {getPluginRegistry} from '@/services/pluginRegistry'
 import type {MediaChipsPlugin, PluginApi, PluginComponentMap} from '@/types/pluginRuntime'
 import {adultPlugin, adultHostComponentMap} from '@/plugins/adult/hostBridge'
+import {isSfwBuild} from '@/utils/sfwBuild'
 
-const pluginModules: Record<string, MediaChipsPlugin> = {
-  [BUILTIN_PLUGIN_IDS.adult]: adultPlugin,
-}
+const pluginModules: Record<string, MediaChipsPlugin> = isSfwBuild()
+  ? {}
+  : {
+    [BUILTIN_PLUGIN_IDS.adult]: adultPlugin,
+  }
 
-const componentMaps: Record<string, PluginComponentMap> = {
-  [BUILTIN_PLUGIN_IDS.adult]: adultHostComponentMap,
-}
+const componentMaps: Record<string, PluginComponentMap> = isSfwBuild()
+  ? {}
+  : {
+    [BUILTIN_PLUGIN_IDS.adult]: adultHostComponentMap,
+  }
 
 const activated = new Set<string>()
 
@@ -115,6 +120,8 @@ export async function deactivatePlugin(pluginId: string): Promise<void> {
 }
 
 export function parseEnabledPlugins(raw: unknown): string[] {
+  if (isSfwBuild()) return []
+
   if (Array.isArray(raw)) {
     return raw.map((item) => String(item)).filter(Boolean)
   }
@@ -138,7 +145,7 @@ export function serializeEnabledPlugins(pluginIds: string[]): string {
 }
 
 export async function bootstrapPlugins(enabledPluginIds?: string[]): Promise<void> {
-  const enabled = enabledPluginIds ?? [BUILTIN_PLUGIN_IDS.adult]
+  const enabled = isSfwBuild() ? [] : (enabledPluginIds ?? [BUILTIN_PLUGIN_IDS.adult])
   const registry = getPluginRegistry()
   registry.reset(createBundledPluginCatalog(enabled))
 

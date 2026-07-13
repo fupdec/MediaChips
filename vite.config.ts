@@ -28,6 +28,11 @@ function invalidUrlMiddleware(): Plugin {
 }
 
 export default defineConfig(async ({ mode }): Promise<UserConfig> => {
+  const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
+  const adultPackageRoot = sfwBuild
+    ? path.resolve(__dirname, './src/plugins/sfwStub')
+    : path.resolve(__dirname, './packages/plugin-adult/src')
+
   const plugins = normalizePlugins(
     vue(),
     vuetify({ autoImport: true }),
@@ -45,13 +50,17 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
 
   return {
   plugins,
+  define: {
+    'import.meta.env.MEDIA_CHIPS_SFW': JSON.stringify(sfwBuild ? 'true' : ''),
+    'process.env.MEDIA_CHIPS_SFW': JSON.stringify(sfwBuild ? '1' : ''),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, './shared'),
       // Package root (src/) so deep imports like @mediachips/plugin-adult/components/... work.
-      // Sibling checkout: path.resolve(__dirname, '../mediachips-plugin-adult/src')
-      '@mediachips/plugin-adult': path.resolve(__dirname, './packages/plugin-adult/src'),
+      // SFW / App Store builds point at noop stubs under src/plugins/sfwStub.
+      '@mediachips/plugin-adult': adultPackageRoot,
     },
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
   },

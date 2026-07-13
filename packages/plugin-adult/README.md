@@ -23,6 +23,22 @@ Lives under `packages/` for co-development; can be extracted to a separate repo 
 | `src/composables/**` | batch auto-scrape helpers |
 | `src/server/**` | TPDB API client + scraper Express controller (CJS via nested `package.json`) |
 
+## SFW / App Store builds
+
+```bash
+MEDIA_CHIPS_SFW=1 npm run build:app
+MEDIA_CHIPS_SFW=1 npm run dist -- --mac
+# or
+npm run dist:sfw -- --mac
+```
+
+With `MEDIA_CHIPS_SFW=1`:
+- Vite aliases `@mediachips/plugin-adult` → `src/plugins/sfwStub`
+- Scraper API routes are not registered
+- Adult catalog / plugin activation is skipped
+- `packages/plugin-adult` is excluded from the electron-builder asar
+
+
 Server (owned by this plugin): `packages/plugin-adult/src/server/` — TPDB client, scraper controller, API key resolution.
 Host mounts routes via thin re-exports under `api/plugins/adult/` (compiled CJS copies into `src/server/*.js`, gitignored).
 

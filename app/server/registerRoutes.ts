@@ -21,7 +21,6 @@ import registerMediaTypesInWatchedFolders from '../../api/routes/MediaTypesInWat
 import registerMetaSetting from '../../api/routes/MetaSetting.routes'
 import registerPageSetting from '../../api/routes/PageSetting.routes'
 import registerSavedFilter from '../../api/routes/SavedFilter.routes'
-import registerScraper from '../../api/routes/Scraper.routes'
 import registerSetting from '../../api/routes/Setting.routes'
 import registerTab from '../../api/routes/Tab.routes'
 import registerTask from '../../api/routes/Task.routes'
@@ -31,38 +30,54 @@ import registerValuesInTag from '../../api/routes/ValuesInTag.routes'
 import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
 import registerVideoMetadata from '../../api/routes/VideoMetadata.routes'
 import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
+import { isSfwBuild } from '../../shared/buildFlags'
 
-const ROUTE_REGISTRARS: ReadonlyArray<{ routeFile: string; register: ApiRouteRegistrar }> = [
-  { routeFile: 'PinnedMeta.routes', register: registerPinnedMeta },
-  { routeFile: 'Home.routes', register: registerHome },
-  { routeFile: 'FilterRow.routes', register: registerFilterRow },
-  { routeFile: 'FilterRowsInSavedFilter.routes', register: registerFilterRowsInSavedFilter },
-  { routeFile: 'Tag.routes', register: registerTag },
-  { routeFile: 'TagsInFilterRow.routes', register: registerTagsInFilterRow },
-  { routeFile: 'TagsInTag.routes', register: registerTagsInTag },
-  { routeFile: 'TagsInMedia.routes', register: registerTagsInMedia },
-  { routeFile: 'Mark.routes', register: registerMark },
-  { routeFile: 'Media.routes', register: registerMedia },
-  { routeFile: 'Playlist.routes', register: registerPlaylist },
-  { routeFile: 'MediaInPlaylists.routes', register: registerMediaInPlaylists },
-  { routeFile: 'MediaType.routes', register: registerMediaType },
-  { routeFile: 'Meta.routes', register: registerMeta },
-  { routeFile: 'MetaInMediaType.routes', register: registerMetaInMediaType },
-  { routeFile: 'MediaTypesInWatchedFolders.routes', register: registerMediaTypesInWatchedFolders },
-  { routeFile: 'MetaSetting.routes', register: registerMetaSetting },
-  { routeFile: 'PageSetting.routes', register: registerPageSetting },
-  { routeFile: 'SavedFilter.routes', register: registerSavedFilter },
-  { routeFile: 'Scraper.routes', register: registerScraper },
-  { routeFile: 'Setting.routes', register: registerSetting },
-  { routeFile: 'Tab.routes', register: registerTab },
-  { routeFile: 'Task.routes', register: registerTask },
-  { routeFile: 'BulkMeta.routes', register: registerBulkMeta },
-  { routeFile: 'tasks/TasksBackups.routes', register: registerTasksBackups },
-  { routeFile: 'ValuesInTag.routes', register: registerValuesInTag },
-  { routeFile: 'ValuesInMedia.routes', register: registerValuesInMedia },
-  { routeFile: 'VideoMetadata.routes', register: registerVideoMetadata },
-  { routeFile: 'WatchedFolder.routes', register: registerWatchedFolder },
-]
+function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRegistrar }> {
+  const registrars: Array<{ routeFile: string; register: ApiRouteRegistrar }> = [
+    { routeFile: 'PinnedMeta.routes', register: registerPinnedMeta },
+    { routeFile: 'Home.routes', register: registerHome },
+    { routeFile: 'FilterRow.routes', register: registerFilterRow },
+    { routeFile: 'FilterRowsInSavedFilter.routes', register: registerFilterRowsInSavedFilter },
+    { routeFile: 'Tag.routes', register: registerTag },
+    { routeFile: 'TagsInFilterRow.routes', register: registerTagsInFilterRow },
+    { routeFile: 'TagsInTag.routes', register: registerTagsInTag },
+    { routeFile: 'TagsInMedia.routes', register: registerTagsInMedia },
+    { routeFile: 'Mark.routes', register: registerMark },
+    { routeFile: 'Media.routes', register: registerMedia },
+    { routeFile: 'Playlist.routes', register: registerPlaylist },
+    { routeFile: 'MediaInPlaylists.routes', register: registerMediaInPlaylists },
+    { routeFile: 'MediaType.routes', register: registerMediaType },
+    { routeFile: 'Meta.routes', register: registerMeta },
+    { routeFile: 'MetaInMediaType.routes', register: registerMetaInMediaType },
+    { routeFile: 'MediaTypesInWatchedFolders.routes', register: registerMediaTypesInWatchedFolders },
+    { routeFile: 'MetaSetting.routes', register: registerMetaSetting },
+    { routeFile: 'PageSetting.routes', register: registerPageSetting },
+    { routeFile: 'SavedFilter.routes', register: registerSavedFilter },
+  ]
+
+  if (!isSfwBuild()) {
+    // Lazy require keeps ThePornDB / adult plugin modules out of SFW process graphs.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const registerScraper = require('../../api/routes/Scraper.routes').default as ApiRouteRegistrar
+    registrars.push({ routeFile: 'Scraper.routes', register: registerScraper })
+  }
+
+  registrars.push(
+    { routeFile: 'Setting.routes', register: registerSetting },
+    { routeFile: 'Tab.routes', register: registerTab },
+    { routeFile: 'Task.routes', register: registerTask },
+    { routeFile: 'BulkMeta.routes', register: registerBulkMeta },
+    { routeFile: 'tasks/TasksBackups.routes', register: registerTasksBackups },
+    { routeFile: 'ValuesInTag.routes', register: registerValuesInTag },
+    { routeFile: 'ValuesInMedia.routes', register: registerValuesInMedia },
+    { routeFile: 'VideoMetadata.routes', register: registerVideoMetadata },
+    { routeFile: 'WatchedFolder.routes', register: registerWatchedFolder },
+  )
+
+  return registrars
+}
+
+const ROUTE_REGISTRARS = buildRouteRegistrars()
 
 export const ROUTE_FILES = ROUTE_REGISTRARS.map(({ routeFile }) => routeFile)
 

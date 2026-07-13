@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {mkdirSync, readFileSync, writeFileSync} from 'fs'
 import {spawnSync} from 'child_process'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
@@ -6,6 +7,8 @@ import {pruneNativeBinaries, resolveDistTarget} from './prune-native-binaries.mj
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
+const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
+    10|  || args.includes('--sfw')
 
 function readFlag(name) {
   return args.includes(name)
@@ -17,11 +20,12 @@ function readOption(name, fallback) {
   return args[index + 1] ?? fallback
 }
 
-function run(command, commandArgs = []) {
+function run(command, commandArgs = [], env = process.env) {
   const result = spawnSync(command, commandArgs, {
     cwd: root,
     stdio: 'inherit',
     shell: true,
+    env,
   })
 
   if (result.status !== 0) {
@@ -30,11 +34,19 @@ function run(command, commandArgs = []) {
 }
 
 const target = resolveDistTarget(args)
+const childEnv = {
+  ...process.env,
+  ...(sfwBuild ? {MEDIA_CHIPS_SFW: '1'} : {}),
+}
 
-run('node', ['scripts/compile.mjs', 'artifacts'])
-run('npm', ['run', 'build:app'])
-run('node', ['.scripts-build/download-parser-model.js'])
-run('node', ['scripts/ensure-electron-native.mjs', '--force'])
+if (sfwBuild) {
+  console.log('[dist] MEDIA_CHIPS_SFW=1 — adult plugin stripped from this build')
+}
+
+run('node', ['scripts/compile.mjs', 'artifacts'], childEnv)
+run('npm', ['run', 'build:app'], childEnv)
+run('node', ['.scripts-build/download-parser-model.js'], childEnv)
+run('node', ['scripts/ensure-electron-native.mjs', '--force'], childEnv)
 pruneNativeBinaries(target)
 
 const builderArgs = ['electron-builder']
@@ -62,4 +74,23 @@ if (!readFlag('--dir')) {
   builderArgs.push('--publish', publish)
 }
 
-run('npx', builderArgs)
+if (sfwBuild) {
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+  const config = {
+    ...pkg.build,
+    productName: `${pkg.build.productName || 'MediaChips'} SFW`,
+    files: [
+      ...(pkg.build.files || []),
+      '!packages/plugin-adult/**',
+      '!node_modules/@mediachips/plugin-adult/**',
+      '!api/plugins/adult/**',
+    ],
+  }
+  const configDir = join(root, '.cache')
+  mkdirSync(configDir, {recursive: true})
+  const configPath = join(configDir, 'electron-builder.sfw.json')
+  writeFileSync(configPath, JSON.stringify(config, null, 2))
+  builderArgs.push('--config', configPath)
+}
+
+run('npx', builderArgs, childEnv)

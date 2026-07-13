@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import {cpSync, mkdirSync, readdirSync} from 'fs'
+import {cpSync, existsSync, mkdirSync, readdirSync} from 'fs'
 import {spawnSync} from 'child_process'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
 
 const TARGETS = {
   shared: {
@@ -16,13 +17,14 @@ const TARGETS = {
     copy: () => copyDirContents(join(root, '.app-build/app'), join(root, 'app')),
   },
   api: {
-    tsc: 'tsconfig.api.json',
+    tsc: sfwBuild ? 'tsconfig.api.sfw.json' : 'tsconfig.api.json',
     copy: () => {
       copyDirContents(join(root, '.api-build/api'), join(root, 'api'))
-      copyDirContents(
-        join(root, '.api-build/packages/plugin-adult/src/server'),
-        join(root, 'packages/plugin-adult/src/server'),
-      )
+      if (sfwBuild) return
+      const serverOut = join(root, '.api-build/packages/plugin-adult/src/server')
+      if (existsSync(serverOut)) {
+        copyDirContents(serverOut, join(root, 'packages/plugin-adult/src/server'))
+      }
     },
   },
   electron: {

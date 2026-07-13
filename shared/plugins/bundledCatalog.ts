@@ -1,4 +1,5 @@
 import {BUILTIN_PLUGIN_IDS, type PluginCatalogEntry} from '@shared/plugins'
+import {isSfwBuild} from '../buildFlags'
 
 /** Bundled adult plugin — present in direct builds, can be disabled from UI. */
 export function createBundledAdultCatalogEntry(enabled = true): PluginCatalogEntry {
@@ -32,6 +33,8 @@ export function createBundledAdultCatalogEntry(enabled = true): PluginCatalogEnt
 }
 
 export function createBundledPluginCatalog(enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult]): PluginCatalogEntry[] {
+  if (isSfwBuild()) return []
+
   const adultEnabled = enabledPlugins.includes(BUILTIN_PLUGIN_IDS.adult)
   return [createBundledAdultCatalogEntry(adultEnabled)]
 }
