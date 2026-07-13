@@ -69,7 +69,7 @@
               class="px-4"
             >
               <v-icon start>mdi-open-in-new</v-icon>
-              Open task
+              {{ t('settings_labels.tools.open_process_dialog') }}
             </v-btn>
             <v-btn
               v-if="task.action"
@@ -105,6 +105,8 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import {useTasksStore} from '@/stores/tasks'
+import {useSceneScraperStore} from '@/stores/sceneScraper'
+import {useScraperStore} from '@/stores/scraper'
 import {mergeProps} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {onMounted, onBeforeUnmount} from 'vue'
@@ -114,6 +116,8 @@ import {useEventBus} from '@/utils/eventBus'
 const {t} = useI18n()
 
 const tasksStore = useTasksStore()
+const sceneScraperStore = useSceneScraperStore()
+const scraperStore = useScraperStore()
 const eventBus = useEventBus()
 
 const menuVisible = ref(false)
@@ -134,7 +138,14 @@ const remove = (action: unknown, id: string | number) => {
   if (typeof action === 'function') {
     action()
   }
-  tasksStore.removeTask(String(id))
+  const taskId = String(id)
+  tasksStore.removeTask(taskId)
+  if (sceneScraperStore.batchTaskId === taskId) {
+    sceneScraperStore.batchTaskId = null
+  }
+  if (scraperStore.batchTaskId === taskId) {
+    scraperStore.batchTaskId = null
+  }
 }
 
 const openTasksMenu = () => {

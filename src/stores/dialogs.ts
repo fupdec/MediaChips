@@ -9,6 +9,7 @@ import type { ValueInTagEntry } from '@shared/api/responses'
 import type { Tab } from '@shared/entities/tab'
 import type { MediaType } from '@/types/media'
 import type { ScraperMultiplePerformer } from '@/types/scraper'
+import type { SceneScraperBatchItem } from '@/types/sceneScraper'
 
 export const useDialogsStore = defineStore('useDialogsStore', {
   state: () => ({
@@ -53,6 +54,8 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     scraperConfig: { show: false },
     scraper: { show: false, images: [] as string[] },
     scraperMultiple: { show: false, performers: [] as ScraperMultiplePerformer[], progress: 0 },
+    sceneScraper: { show: false, media: null as MediaItem | null },
+    sceneScraperMultiple: { show: false, items: [] as SceneScraperBatchItem[], progress: 0 },
   }),
   actions: {
     editMedia(media: MediaItem | null, mediaType: MediaType | null = null) {

@@ -25,25 +25,40 @@ export function useAutoScrapeBatch() {
     const t = (key: string, params: Record<string, string | number> = {}) =>
       translate(key, params, locale)
 
-    const results = await scraperStore.autoScrapeTags({ tags, meta })
+    const { results, cancelled, total } = await scraperStore.autoScrapeTags({ tags, meta })
 
     const successCount = results.filter((item) => item.success).length
-    const failedCount = results.length - successCount
+    const successfulIds = results.filter((item) => item.success).map((item) => item.tagId)
 
-    notificationsStore.setNotification({
-      type: failedCount === results.length ? 'error' : failedCount > 0 ? 'warning' : 'success',
-      title: t('scraper.auto_scrape_batch_done'),
-      text: t('scraper.auto_scrape_batch_summary', {
-        success: successCount,
-        failed: failedCount,
-      }),
-    })
+    if (cancelled) {
+      notificationsStore.setNotification({
+        type: 'info',
+        title: t('scraper.auto_scrape_batch_stopped'),
+        text: t('scraper.auto_scrape_batch_stopped_summary', {
+          success: successCount,
+          remaining: Math.max(total - results.length, 0),
+          total,
+        }),
+      })
+    } else {
+      const failedCount = results.length - successCount
+      notificationsStore.setNotification({
+        type: failedCount === results.length ? 'error' : failedCount > 0 ? 'warning' : 'success',
+        title: t('scraper.auto_scrape_batch_done'),
+        text: t('scraper.auto_scrape_batch_summary', {
+          success: successCount,
+          failed: failedCount,
+        }),
+      })
+    }
 
-    eventBus.emit('getItemsFromDb', {
-      ids: tags.map((tag) => tag.id),
-      type: 'tag',
-    })
-    eventBus.emit('getTags')
+    if (successfulIds.length) {
+      eventBus.emit('getItemsFromDb', {
+        ids: successfulIds,
+        type: 'tag',
+      })
+      eventBus.emit('getTags')
+    }
 
     if (clearSelection) {
       itemsStore.isSelect = false

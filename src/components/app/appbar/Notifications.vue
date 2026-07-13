@@ -92,7 +92,7 @@
                     class="px-4"
                   >
                     <v-icon start>mdi-open-in-new</v-icon>
-                    Open task
+                    {{ t('settings_labels.tools.open_process_dialog') }}
                   </v-btn>
                   <v-btn
                     v-if="item.action"
@@ -137,6 +137,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTasksStore } from '@/stores/tasks'
+import { useSceneScraperStore } from '@/stores/sceneScraper'
+import { useScraperStore } from '@/stores/scraper'
 import {useI18n} from "vue-i18n";
 import type { TaskItem } from '@/types/stores'
 
@@ -154,6 +156,8 @@ type NotificationActivityItem = {
 
 const notificationsStore = useNotificationsStore()
 const tasksStore = useTasksStore()
+const sceneScraperStore = useSceneScraperStore()
+const scraperStore = useScraperStore()
 const activatorRef = ref<HTMLElement | { $el?: HTMLElement } | null>(null)
 const menuRef = ref<{ updateLocation?: () => void } | null>(null)
 
@@ -212,10 +216,16 @@ const openTask = (action: unknown) => {
 }
 
 const stopTask = (task: TaskActivityItem) => {
-  if (task.action && typeof task.action === 'function') {
+  if (!task.done && task.action && typeof task.action === 'function') {
     task.action()
   }
   tasksStore.removeTask(task.id)
+  if (task.id && sceneScraperStore.batchTaskId === task.id) {
+    sceneScraperStore.batchTaskId = null
+  }
+  if (task.id && scraperStore.batchTaskId === task.id) {
+    scraperStore.batchTaskId = null
+  }
 }
 
 const closeAll = () => {

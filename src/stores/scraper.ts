@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { useAppStore } from '@/stores/app'
 import { useDialogsStore } from '@/stores/dialogs'
 import { useItemsStore } from '@/stores/items'
+import { useTasksStore } from '@/stores/tasks'
+import { useSettingsStore } from '@/stores/settings'
+import translate, { type Locale } from '@/utils/translate'
 import { searchScraperPerformers } from '@/services/scraperApi'
 import { autoApplyScrapedTagData } from '@/services/scraperAutoApply'
 import { findBestMatchingPerformer } from '@/utils/scraperMatch'
@@ -13,6 +16,7 @@ import type {
   ScraperMultiplePerformer,
 } from '@/types/scraper'
 import type { Meta, Tag } from '@/types/stores'
+import type { AutoScrapeBatchOutcome } from '@/types/autoScrapeBatch'
 
 const SCRAPER_API_BASE_URL = import.meta.env.VITE_SCRAPER_API_URL || 'https://mediachips.app/wp-json/mediachips/v1/scraper'
 
@@ -33,6 +37,7 @@ export const useScraperStore = defineStore('useScraperStore', {
     pinned: [] as ScraperPinnedItem[],
     autoScrapeInProgress: false,
     autoScrapeCancelled: false,
+    batchTaskId: null as string | null,
   }),
   actions: {
     async searchPerformer({ page = 1, query }: { page?: number; query?: string } = {}) {
@@ -113,6 +118,11 @@ export const useScraperStore = defineStore('useScraperStore', {
     cancelAutoScrape() {
       this.autoScrapeCancelled = true
     },
+    clearBatchTask() {
+      if (!this.batchTaskId) return
+      useTasksStore().removeTask(this.batchTaskId)
+      this.batchTaskId = null
+    },
     async autoScrapeTags({
       tags,
       meta,
@@ -121,10 +131,21 @@ export const useScraperStore = defineStore('useScraperStore', {
       tags: Tag[]
       meta: Meta
       onProgress?: (progress: number, item: ScraperMultiplePerformer) => void
-    }): Promise<AutoScrapeTagResult[]> {
+    }): Promise<AutoScrapeBatchOutcome<AutoScrapeTagResult>> {
       const dialogsStore = useDialogsStore()
+      const tasksStore = useTasksStore()
+      const settingsStore = useSettingsStore()
+      const locale = settingsStore.locale as Locale
+      const t = (key: string, params: Record<string, string | number> = {}) =>
+        translate(key, params, locale)
       const results: AutoScrapeTagResult[] = []
+      let cancelled = false
 
+      const openBatchDialog = () => {
+        dialogsStore.scraperMultiple.show = true
+      }
+
+      this.clearBatchTask()
       this.autoScrapeInProgress = true
       this.autoScrapeCancelled = false
       dialogsStore.scraperMultiple.performers = tags.map((tag) => ({
@@ -136,9 +157,20 @@ export const useScraperStore = defineStore('useScraperStore', {
       dialogsStore.scraperMultiple.progress = 0
       dialogsStore.scraperMultiple.show = true
 
+      this.batchTaskId = tasksStore.setTask({
+        title: t('scraper.auto_scrape_multiple'),
+        subtitle: t('scraper.auto_scrape_progress', { processed: 0, total: tags.length }),
+        icon: 'account-search',
+        progress: 0,
+        click: openBatchDialog,
+        action: () => this.cancelAutoScrape(),
+      })
+      const currentTaskId = this.batchTaskId
+
       try {
         for (let index = 0; index < tags.length; index++) {
           if (this.autoScrapeCancelled) {
+            cancelled = true
             for (let pendingIndex = index; pendingIndex < tags.length; pendingIndex++) {
               const pendingEntry = dialogsStore.scraperMultiple.performers[pendingIndex]
               if (pendingEntry.status === 'pending') {
@@ -155,6 +187,7 @@ export const useScraperStore = defineStore('useScraperStore', {
 
           const result = await this.autoScrapeTag({ tag, meta })
           if (this.autoScrapeCancelled) {
+            cancelled = true
             performerEntry.status = 'error'
             performerEntry.error = 'cancelled'
             break
@@ -172,15 +205,50 @@ export const useScraperStore = defineStore('useScraperStore', {
           performerEntry.matchedName = result.performerName
 
           results.push(result)
-          dialogsStore.scraperMultiple.progress = Math.round(((index + 1) / tags.length) * 100)
-          onProgress?.(dialogsStore.scraperMultiple.progress, performerEntry)
+          const progress = Math.round(((index + 1) / tags.length) * 100)
+          dialogsStore.scraperMultiple.progress = progress
+          tasksStore.updateTask(currentTaskId, {
+            subtitle: t('scraper.auto_scrape_progress', {
+              processed: index + 1,
+              total: tags.length,
+            }),
+            progress,
+          })
+          onProgress?.(progress, performerEntry)
         }
       } finally {
         this.autoScrapeInProgress = false
-        dialogsStore.scraperMultiple.progress = 100
+        cancelled = cancelled || this.autoScrapeCancelled
+        this.autoScrapeCancelled = false
+        if (!cancelled) {
+          dialogsStore.scraperMultiple.progress = 100
+        }
+
+        const successCount = results.filter((item) => item.success).length
+        const failedCount = results.length - successCount
+        tasksStore.updateTask(currentTaskId, {
+          subtitle: cancelled
+            ? t('scraper.auto_scrape_batch_stopped_summary', {
+              success: successCount,
+              remaining: Math.max(tags.length - results.length, 0),
+              total: tags.length,
+            })
+            : t('scraper.auto_scrape_batch_summary', {
+              success: successCount,
+              failed: failedCount,
+            }),
+          progress: cancelled ? dialogsStore.scraperMultiple.progress : 100,
+          color: cancelled ? 'warning' : failedCount > 0 ? 'warning' : 'success',
+          done: true,
+          action: () => {},
+        })
       }
 
-      return results
+      return {
+        results,
+        cancelled,
+        total: tags.length,
+      }
     },
     async retryFailedAutoScrape(meta: Meta): Promise<AutoScrapeTagResult[]> {
       const dialogsStore = useDialogsStore()
@@ -196,7 +264,8 @@ export const useScraperStore = defineStore('useScraperStore', {
 
       if (!tags.length) return []
 
-      return this.autoScrapeTags({ tags, meta })
+      const outcome = await this.autoScrapeTags({ tags, meta })
+      return outcome.results
     },
     async updateInfoOfPerformer({
       tag,

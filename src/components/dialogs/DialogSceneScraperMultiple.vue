@@ -8,7 +8,7 @@
     <v-card>
       <DialogHeader
         @close="close"
-        :header="t('scraper.auto_scrape_multiple')"
+        :header="t('scene_scraper.auto_scrape_multiple')"
         :buttons="headerButtons"
         closable
       />
@@ -23,9 +23,9 @@
 
       <v-card-text class="pa-0">
         <v-virtual-scroll
-          v-if="performers.length"
+          v-if="items.length"
           :height="listHeight"
-          :items="performers"
+          :items="items"
           :item-height="ITEM_HEIGHT"
           class="virtual-scroller bulk-scrape-results"
         >
@@ -37,11 +37,11 @@
                 </v-icon>
               </template>
 
-              <v-list-item-title>{{ item.tagName || item.performer.name }}</v-list-item-title>
+              <v-list-item-title>{{ item.media.name || `#${item.media.id}` }}</v-list-item-title>
               <v-list-item-subtitle>
                 <span v-if="item.status === 'searching'">{{ t('scraper.status.searching') }}</span>
                 <span v-else-if="item.status === 'done'">
-                  {{ t('scraper.status.matched', { name: item.matchedName || '' }) }}
+                  {{ t('scraper.status.matched', { name: item.sceneTitle || '' }) }}
                 </span>
                 <span v-else-if="item.status === 'not_found'">{{ t('scraper.status.not_found') }}</span>
                 <span v-else-if="item.error === 'cancelled'">{{ t('scraper.status.cancelled') }}</span>
@@ -60,137 +60,89 @@
 import {computed, ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useScraperStore} from '@/stores/scraper'
-import {useAppStore} from '@/stores/app'
+import {useSceneScraperStore} from '@/stores/sceneScraper'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import BulkScrapeProcessStatus from '@/components/scraper/BulkScrapeProcessStatus.vue'
 import {countBulkScrapeStatuses} from '@/utils/bulkScrapeStatusCounts'
-import type { ScraperMultiplePerformer } from '@/types/scraper'
+import type { SceneScraperBatchItem } from '@/types/sceneScraper'
 
 const {t} = useI18n()
 const dialogsStore = useDialogsStore()
-const scraperStore = useScraperStore()
-const appStore = useAppStore()
+const sceneScraperStore = useSceneScraperStore()
 const dialog = ref(false)
 
-const performers = computed(() =>
-  dialogsStore.scraperMultiple.performers as ScraperMultiplePerformer[]
+const items = computed(() =>
+  dialogsStore.sceneScraperMultiple.items as SceneScraperBatchItem[],
 )
-const progress = computed(() => dialogsStore.scraperMultiple.progress)
+const progress = computed(() => dialogsStore.sceneScraperMultiple.progress)
 
-const statusCounts = computed(() => countBulkScrapeStatuses(performers.value))
+const statusCounts = computed(() => countBulkScrapeStatuses(items.value))
 
 const ITEM_HEIGHT = 56
 const MAX_LIST_HEIGHT = 420
 
 const listHeight = computed(() => {
-  const count = performers.value.length
+  const count = items.value.length
   if (!count) return 0
   return Math.min(count * ITEM_HEIGHT, MAX_LIST_HEIGHT)
 })
 
-const performerMeta = computed(() => {
-  const scraperMeta = appStore.meta.find((item) => item.scraper)
-  return scraperMeta ?? null
-})
-
-const hasFailed = computed(() =>
-  performers.value.some((item) => item.status === 'not_found' || item.status === 'error'),
-)
-
-const headerButtons = computed(() => {
-  const buttons = []
-
-  if (scraperStore.autoScrapeInProgress) {
-    buttons.push({
+const headerButtons = computed(() => [
+  ...(sceneScraperStore.autoScrapeInProgress
+    ? [{
       icon: 'stop',
       text: t('common.cancel'),
       color: 'error',
-      outlined: true,
-      action: () => scraperStore.cancelAutoScrape(),
-    })
-    buttons.push({
+      outlined: false,
+      action: () => sceneScraperStore.cancelAutoScrape(),
+    }, {
       icon: 'arrow-collapse',
       text: t('appbar.minimize'),
       color: 'secondary',
       outlined: true,
       action: hide,
-    })
-    return buttons
-  }
+    }]
+    : [{
+      icon: 'close',
+      text: t('common.close'),
+      color: 'primary',
+      outlined: true,
+      action: close,
+    }]),
+])
 
-  if (hasFailed.value && performerMeta.value) {
-    buttons.push({
-      icon: 'refresh',
-      text: t('scraper.retry_failed'),
-      color: 'warning',
-      outlined: false,
-      action: retryFailed,
-    })
-  }
-
-  buttons.push({
-    icon: 'close',
-    text: t('common.close'),
-    color: 'primary',
-    outlined: false,
-    action: close,
-  })
-
-  return buttons
-})
-
-function statusIcon(status?: ScraperMultiplePerformer['status']) {
-  switch (status) {
-    case 'searching':
-      return 'mdi-loading'
-    case 'done':
-      return 'mdi-check-circle'
-    case 'not_found':
-      return 'mdi-alert-circle-outline'
-    case 'error':
-      return 'mdi-close-circle'
-    default:
-      return 'mdi-clock-outline'
-  }
+function statusColor(status?: SceneScraperBatchItem['status']) {
+  if (status === 'done') return 'success'
+  if (status === 'searching') return 'primary'
+  if (status === 'not_found') return 'warning'
+  if (status === 'error') return 'error'
+  return undefined
 }
 
-function statusColor(status?: ScraperMultiplePerformer['status']) {
-  switch (status) {
-    case 'done':
-      return 'success'
-    case 'not_found':
-      return 'warning'
-    case 'error':
-      return 'error'
-    case 'searching':
-      return 'info'
-    default:
-      return undefined
-  }
-}
-
-async function retryFailed() {
-  if (!performerMeta.value) return
-  await scraperStore.retryFailedAutoScrape(performerMeta.value)
+function statusIcon(status?: SceneScraperBatchItem['status']) {
+  if (status === 'done') return 'mdi-check-circle'
+  if (status === 'searching') return 'mdi-loading'
+  if (status === 'not_found') return 'mdi-help-circle'
+  if (status === 'error') return 'mdi-alert-circle'
+  return 'mdi-clock-outline'
 }
 
 function hide() {
-  dialogsStore.scraperMultiple.show = false
+  dialogsStore.sceneScraperMultiple.show = false
 }
 
 function close() {
-  if (scraperStore.autoScrapeInProgress) {
+  if (sceneScraperStore.autoScrapeInProgress) {
     hide()
     return
   }
   dialog.value = false
-  dialogsStore.scraperMultiple.show = false
-  scraperStore.clearBatchTask()
+  dialogsStore.sceneScraperMultiple.show = false
+  sceneScraperStore.clearBatchTask()
 }
 
 onMounted(() => {
-  dialog.value = dialogsStore.scraperMultiple.show
+  dialog.value = dialogsStore.sceneScraperMultiple.show
 })
 </script>
 

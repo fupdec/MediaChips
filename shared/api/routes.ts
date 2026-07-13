@@ -90,6 +90,9 @@ export const API_ROUTES = {
   taskClipModelStatus: '/api/Task/clipModelStatus',
   taskDownloadClipModel: '/api/Task/downloadClipModel',
   mediaNumberOfMediaWithTag: '/api/media/numberOfMediaWithTag',
+  scraperSearchScenes: '/api/scraper/scenes/search',
+  scraperMatchScenes: '/api/scraper/scenes/match',
+  scraperScenesStatus: '/api/scraper/scenes/status',
 } as const
 
 export type ApiRouteKey = keyof typeof API_ROUTES

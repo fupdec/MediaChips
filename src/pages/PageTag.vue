@@ -95,13 +95,16 @@
 
     <v-responsive
       v-else
-      :aspect-ratio="headerAspectRatio"
+      :aspect-ratio="hasGalleryImages ? headerAspectRatio : undefined"
       class="tag-header"
       :class="{
-        'no-header-image': !is_header_exists,
+        'no-header-image': !is_header_exists && !headerUsesColorBg,
         'tag-header--has-bg': Boolean(headerBackgroundSrc),
+        'tag-header--color-bg': headerUsesColorBg,
+        'tag-header--no-gallery': !hasGalleryImages,
         'tag-header--compact': tagPageDesign === 'compact',
       }"
+      :style="headerBackgroundStyle"
     >
       <div
         v-if="headerBackgroundSrc"
@@ -111,7 +114,10 @@
         <v-img :key="upd" :src="headerBackgroundSrc" cover />
       </div>
 
-      <v-container class="profile-container my-6">
+      <v-container
+        class="profile-container"
+        :class="hasGalleryImages ? 'my-6' : 'mt-6 mb-0'"
+      >
         <v-row align="center">
           <v-col cols="12" lg="6">
             <v-btn
@@ -182,7 +188,11 @@
               :hover-reveal="is_header_exists"
             />
           </v-col>
-          <v-col cols="12" :md="tagPageDesign === 'compact' ? 12 : 9" style="position:relative;">
+          <v-col
+            cols="12"
+            :md="hasGalleryImages && tagPageDesign !== 'compact' ? 9 : 12"
+            style="position:relative;"
+          >
             <v-expansion-panels v-model="panel" multiple focusable>
               <v-expansion-panel class="rounded-xl tag-panel" :key="0">
                 <v-expansion-panel-title class="pa-6" ripple hide-actions style="position: relative">
@@ -322,6 +332,8 @@ import {
   normalizeTagPageDesign,
   type TagPageDesign,
 } from '@/utils/tagPageDesign'
+import { DEFAULT_TAG_COLOR, isDefaultTagColor } from '@/utils/colorFromImage'
+import { hexToRgba } from '@/services/formatUtils'
 import type { Meta, Tag, AssignedMeta } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 import type { MetaInMediaTypeAssignment } from '@/types/metaAssignment'
@@ -330,6 +342,8 @@ import type { TagInTagEntry, ValueInTagEntry } from '@shared/api/responses'
 type PinnedMediaTab = MetaInMediaTypeAssignment & { mediaType: MediaType }
 
 type TagGalleryImageType = 'main' | 'alt' | 'custom1' | 'custom2'
+
+const TAG_HEADER_FALLBACK_COLOR_OPACITY = 20
 
 const TAG_GALLERY_IMAGE_TYPES: TagGalleryImageType[] = ['main', 'alt', 'custom1', 'custom2']
 
@@ -424,6 +438,23 @@ const headerBackgroundSrc = computed(() => {
   }
   return null
 })
+const headerFallbackColor = computed(() => {
+  if (headerBackgroundSrc.value) return null
+
+  if (meta.value?.color && tag.value.color && !isDefaultTagColor(tag.value.color)) {
+    return tag.value.color
+  }
+
+  return DEFAULT_TAG_COLOR
+})
+const headerUsesColorBg = computed(() => Boolean(headerFallbackColor.value))
+const headerBackgroundStyle = computed(() => {
+  if (!headerFallbackColor.value) return undefined
+
+  return {
+    backgroundColor: hexToRgba(headerFallbackColor.value, TAG_HEADER_FALLBACK_COLOR_OPACITY),
+  }
+})
 const galleryImages = computed((): TagPageGalleryImage[] => {
   return TAG_GALLERY_IMAGE_TYPES.flatMap((type) => {
     if (!galleryFileExists.value[type] || !images.value[type]) {
@@ -436,6 +467,7 @@ const galleryImages = computed((): TagPageGalleryImage[] => {
     }]
   })
 })
+const hasGalleryImages = computed(() => galleryImages.value.length > 0)
 const resolveInitialTab = () => {
   const urlMediaTypeId = getUrlParam(route, 'mediaTypeId')
 

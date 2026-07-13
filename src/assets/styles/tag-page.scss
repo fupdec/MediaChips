@@ -20,6 +20,16 @@
     bottom: 0;
     background-color: rgba(var(--v-theme-background), 0.4);
   }
+  &.tag-header--color-bg.no-header-image:before {
+    content: none;
+  }
+  &.tag-header--no-gallery {
+    min-height: 0;
+
+    .v-responsive__content {
+      min-height: 0;
+    }
+  }
   .no-header-image {
     backdrop-filter: blur(15px);
   }
