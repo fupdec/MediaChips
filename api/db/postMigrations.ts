@@ -6,13 +6,21 @@ import { runLegacyUpgrades } from './legacyUpgrades'
 import { repairSchemaColumns, repairMissingTables } from './schemaRepair'
 import { ensureSearchFtsIndex } from './searchFts'
 
-export function runPostMigrations(dbPath: string) {
+export type PostMigrationOptions = {
+  /** When false, skip sample Color tags seed (e.g. during LowDB migration). Default true. */
+  seedDemo?: boolean
+}
+
+export function runPostMigrations(dbPath: string, options: PostMigrationOptions = {}) {
   const sqlite = new Database(dbPath)
+  const seedDemo = options.seedDemo !== false
 
   try {
     applySqlitePragmas(sqlite)
     seedDefaults(sqlite)
-    seedDemoMetadata(sqlite)
+    if (seedDemo) {
+      seedDemoMetadata(sqlite)
+    }
     const repairedColumns = repairSchemaColumns(sqlite)
     if (repairedColumns.length) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema columns: ${repairedColumns.join(', ')}`)

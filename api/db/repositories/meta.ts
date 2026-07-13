@@ -28,7 +28,9 @@ function pickMetaFields(data: Record<string, unknown>): Partial<MetaInsert> {
   const picked: Partial<MetaInsert> = {}
   for (const [key, value] of Object.entries(data)) {
     if (META_COLUMNS.has(key)) {
-      (picked as Record<string, unknown>)[key] = value
+      (picked as Record<string, unknown>)[key] = key === 'oldId' && value != null
+        ? String(value)
+        : value
     }
   }
   return picked

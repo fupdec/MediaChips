@@ -75,7 +75,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
 
       const timestamp = nowIso()
       const values = items.map((item) => ({
-        oldId: item.oldId ?? null,
+        oldId: item.oldId == null ? null : String(item.oldId),
         name: item.name ?? '',
         synonyms: item.synonyms ?? null,
         rating: item.rating ?? 0,

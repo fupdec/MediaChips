@@ -23,6 +23,18 @@ import { createWatchedFoldersRepository } from '../db/repositories/watchedFolder
 import { createMediaTypesInWatchedFoldersRepository } from '../db/repositories/mediaTypesInWatchedFolders'
 import { loadDefaultSettingsList } from '../utils/defaultSettings'
 
+function sameOldId(a: unknown, b: unknown): boolean {
+  const normalize = (value: unknown): string => {
+    if (value == null || value === '') return ''
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Number.isInteger(value) ? String(value) : String(value)
+    }
+    const raw = String(value)
+    return /^\d+\.0+$/.test(raw) ? String(Number.parseInt(raw, 10)) : raw
+  }
+  return normalize(a) === normalize(b)
+}
+
 async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
   const mediaRepo = createMediaRepository(db.drizzle)
   const videoMetadataRepo = createVideoMetadataRepository(db.drizzle)
@@ -46,7 +58,7 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
   const videoMetadata = obj.videoMetadata
     .map((video: AnyRecord) => {
-      const media = mediaIds.find((x) => x.oldId === video.oldId)
+      const media = mediaIds.find((x) => sameOldId(x.oldId, video.oldId))
       if (!media) return null
       return {
         mediaId: media.id,
@@ -88,7 +100,7 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
   for (const tags of obj.tags) {
     for (const i in tags) {
-      const meta = metaIds.find((x) => x.oldId === i)
+      const meta = metaIds.find((x) => sameOldId(x.oldId, i))
       if (!meta) continue
 
       const newTags = (tags as LowDbTagsByMetaId)[i].map((it: AnyRecord) => ({
@@ -101,8 +113,11 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
   const tagsIds = tagsRepo.findOldIdMappings() as OldIdMapping[]
 
-  for (const i of (obj.settings.metaAssignedToVideos as Array<{ id: unknown }>)) {
-    const meta = metaIds.find((x) => x.oldId === i.id)
+  const assignedMeta = Array.isArray(obj.settings.metaAssignedToVideos)
+    ? obj.settings.metaAssignedToVideos as Array<{ id: unknown }>
+    : []
+  for (const i of assignedMeta) {
+    const meta = metaIds.find((x) => sameOldId(x.oldId, i.id))
     if (!meta) continue
     metaInMediaTypesRepo.create({
       mediaTypeId: 1,
@@ -118,7 +133,7 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
     const playlistVideos = Array.isArray(playlist.videos) ? playlist.videos : []
     for (const videoOldId of playlistVideos) {
-      const media = mediaIds.find((x) => x.oldId === videoOldId)
+      const media = mediaIds.find((x) => sameOldId(x.oldId, videoOldId))
       if (!media) continue
 
       mediaInPlaylistsRepo.create({
@@ -131,13 +146,13 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
   const marks: AnyRecord[] = []
   for (const mark of obj.marks) {
-    const found = mediaIds.find((x) => x.oldId === mark.videoId)
+    const found = mediaIds.find((x) => sameOldId(x.oldId, mark.videoId))
     if (!found) continue
 
     const nextMark: AnyRecord = {...mark, mediaId: found.id}
     if (nextMark.type === 'favorite' && nextMark.text === '') nextMark.text = null
     else if (nextMark.type === 'meta') {
-      const foundTag = tagsIds.find((x) => x.oldId === nextMark.oldTagId)
+      const foundTag = tagsIds.find((x) => sameOldId(x.oldId, nextMark.oldTagId))
       if (!foundTag) continue
       nextMark.tagId = foundTag.id
     }
@@ -148,7 +163,7 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
   const tagsInMedia: AnyRecord[] = []
   const valuesInMedia: AnyRecord[] = []
   for (const videoMeta of obj.onlyMeta) {
-    const mVideo = mediaIds.find((x) => x.oldId === videoMeta.id)
+    const mVideo = mediaIds.find((x) => sameOldId(x.oldId, videoMeta.id))
     if (!mVideo) continue
 
     const onlyMetaFields = Object.fromEntries(
@@ -156,13 +171,13 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
     )
 
     for (const fieldName in onlyMetaFields) {
-      const m = metaIds.find((x) => x.oldId === fieldName)
+      const m = metaIds.find((x) => sameOldId(x.oldId, fieldName))
       if (!m) continue
 
       const val = onlyMetaFields[fieldName]
       if (m.type === 'array') {
         for (const tag of val as Array<string | number>) {
-          const metaTag = tagsIds.find((x) => x.oldId === tag)
+          const metaTag = tagsIds.find((x) => sameOldId(x.oldId, tag))
           if (!metaTag) continue
           tagsInMedia.push({
             metaId: m.id,
@@ -185,11 +200,11 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
   const pinnedMeta: AnyRecord[] = []
   for (const c of obj.pinnedMeta) {
-    const meta = metaIds.find((x) => x.oldId === c.metaId)
+    const meta = metaIds.find((x) => sameOldId(x.oldId, c.metaId))
     if (!meta) continue
 
     for (const id of (c.pinnedMetaId as unknown[])) {
-      const child = metaIds.find((x) => x.oldId === id)
+      const child = metaIds.find((x) => sameOldId(x.oldId, id))
       if (!child) continue
 
       pinnedMeta.push({
@@ -205,18 +220,18 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
   const valuesInTag: AnyRecord[] = []
   for (const card of obj.metaInTags) {
     for (const cardId in card) {
-      const metaTag = tagsIds.find((x) => x.oldId === cardId)
+      const metaTag = tagsIds.find((x) => sameOldId(x.oldId, cardId))
       if (!metaTag) continue
 
       for (const key in (card as Record<string, Record<string, unknown>>)[cardId]) {
-        const metaOfTag = metaIds.find((x) => x.oldId === key)
+        const metaOfTag = metaIds.find((x) => sameOldId(x.oldId, key))
         if (!metaOfTag) continue
 
         const val = (card as Record<string, Record<string, unknown>>)[cardId][key]
         if (metaOfTag.type === 'array') {
           const tagOldIds = Array.isArray(val) ? val : []
           for (const tagOldId of tagOldIds) {
-            const tag = tagsIds.find((x) => x.oldId === tagOldId)
+            const tag = tagsIds.find((x) => sameOldId(x.oldId, tagOldId))
             if (tag) {
               tagsInTag.push({
                 parentTagId: metaTag.id,

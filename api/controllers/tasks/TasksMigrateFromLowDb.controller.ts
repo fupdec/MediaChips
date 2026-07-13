@@ -12,6 +12,11 @@ import { rimraf } from 'rimraf'
 import StreamZip from 'node-stream-zip'
 import archiver from 'archiver'
 import { serializeCountries } from '../../utils/country'
+import {
+  closeActiveConnection,
+  createDrizzleClient,
+  setActiveConnection,
+} from '../../db'
 import { resetDatabaseAndRunMigrations } from '../../db/migrationRunner'
 import { importLowDbData } from '../../services/lowDbImport'
 
@@ -29,6 +34,24 @@ function readJsonFile<T = unknown>(filePath: string): T {
 
 function asLegacyArray(value: unknown): AnyRecord[] {
   return Array.isArray(value) ? value as AnyRecord[] : []
+}
+
+function asLegacyIsoTimestamp(value: unknown): string {
+  const raw = asLegacyString(value)
+  const date = new Date(raw)
+  if (!raw || Number.isNaN(date.getTime())) {
+    return new Date().toISOString().replace('T', ' ').replace('Z', ' +00:00')
+  }
+  return date.toISOString().replace('T', ' ').replace('Z', ' +00:00')
+}
+
+function asLegacyOldId(value: unknown): string | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Number.isInteger(value) ? String(value) : String(value)
+  }
+  const raw = String(value)
+  return /^\d+\.0+$/.test(raw) ? String(Number.parseInt(raw, 10)) : raw
 }
 
 export default function (db: ApiDb) {
@@ -132,7 +155,7 @@ export default function (db: ApiDb) {
     const ext = path.extname(backupPath)
     if (!fs.existsSync(backupPath) || ext !== '.zip') {
       console.error('backup path does not exist')
-      return "Invalid path or file does not exist"
+      throw new Error('Invalid path or file does not exist')
     }
 
     const zip = new StreamZip.async({
@@ -191,17 +214,18 @@ export default function (db: ApiDb) {
 
     function moveDir(from: string, to: string) {
       return new Promise<string>(async (resolve, reject) => {
-        if (fs.existsSync(from)) {
+        if (!fs.existsSync(from)) {
+          resolve('Source directory does not exist.')
+          return
+        }
+        try {
           // удаление необходимо, чтобы при перемещении каталога не было ошибки
-          try {
-            await rmrf(to)
-            // перемещаем каталог
-            fs.renameSync(from, to)
-            resolve("Successfully moved directory.")
-          } catch (err) {
-            console.log(err)
-            reject(err)
-          }
+          await rmrf(to)
+          fs.renameSync(from, to)
+          resolve('Successfully moved directory.')
+        } catch (err) {
+          console.log(err)
+          reject(err)
         }
       })
     }
@@ -236,7 +260,7 @@ export default function (db: ApiDb) {
           const pathStr = asLegacyString(i.path)
           const baseName = pathStr ? (pathStr.split('\\').pop()?.split('/').pop() ?? '') : ''
           return {
-            oldId: i.id,
+            oldId: asLegacyOldId(i.id),
             path: i.path,
             basename: baseName,
             name: baseName.replace(/\.[^/.]+$/, ''),
@@ -247,36 +271,36 @@ export default function (db: ApiDb) {
             bookmark: i.bookmark || null,
             views: i.views || 0,
             mediaTypeId: 1,
-            createdAt: (new Date(asLegacyString(i.date)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
-            updatedAt: (new Date(asLegacyString(i.edit)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
+            createdAt: asLegacyIsoTimestamp(i.date),
+            updatedAt: asLegacyIsoTimestamp(i.edit),
           }
         })
         obj.videoMetadata = asLegacyArray(Videos.videos).map((i: AnyRecord) => {
           const resolution = asLegacyString(i.resolution)
           return {
-            oldId: i.id,
+            oldId: asLegacyOldId(i.id),
             duration: i.duration || 0,
             width: +(resolution.match(/\d*/)?.[0] || 0),
             height: +(resolution.match(/x(.*)/)?.[1] || 0),
           }
         })
         obj.playlists = asLegacyArray(Playlists.playlists).map((i: AnyRecord) => ({
-          oldId: i.id,
+          oldId: asLegacyOldId(i.id),
           name: i.name,
           favorite: i.favorite || false,
           videos: i.videos || [],
-          createdAt: (new Date(asLegacyString(i.date)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
-          updatedAt: (new Date(asLegacyString(i.edit)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
+          createdAt: asLegacyIsoTimestamp(i.date),
+          updatedAt: asLegacyIsoTimestamp(i.edit),
         }))
         obj.marks = asLegacyArray(Marks.markers).map((i: AnyRecord) => {
           const markType = asLegacyString(i.type).toLowerCase()
           const isFavoriteOrBookmark = ['favorite', 'bookmark'].includes(markType)
           return {
             time: i.time,
-            videoId: i.videoId,
+            videoId: asLegacyOldId(i.videoId) ?? i.videoId,
             text: isFavoriteOrBookmark ? i.name : null,
             type: isFavoriteOrBookmark ? markType : 'meta',
-            oldTagId: isFavoriteOrBookmark ? null : i.name,
+            oldTagId: isFavoriteOrBookmark ? null : asLegacyOldId(i.name) ?? i.name,
           }
         })
         // get meta
@@ -285,16 +309,16 @@ export default function (db: ApiDb) {
           if (m.type === 'specific') continue
           if (m.type === 'simple') {
             const sm = {
-              oldId: m.id,
+              oldId: asLegacyOldId(m.id),
               type: m.dataType,
               name: settings.name,
               icon: settings.icon || 'shape',
               hint: settings.hint || null,
-              createdAt: (new Date(asLegacyString(m.date)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
-              updatedAt: (new Date(asLegacyString(m.edit)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
+              createdAt: asLegacyIsoTimestamp(m.date),
+              updatedAt: asLegacyIsoTimestamp(m.edit),
               metaSetting: {
                 ...{
-                  "oldId": m.id,
+                  "oldId": asLegacyOldId(m.id),
                   "hidden": true,
                   "parser": false,
                   "imageAspectRatio": 1,
@@ -321,33 +345,33 @@ export default function (db: ApiDb) {
             obj.meta.push(sm)
             if (m.dataType === 'array') {
               const tags = asLegacyArray(settings.items).map((i: AnyRecord) => ({
-                oldId: i.id,
+                oldId: asLegacyOldId(i.id),
                 name: i.name,
               }))
               obj.tags.push({
-                [String(m.id)]: tags
+                [String(asLegacyOldId(m.id) ?? m.id)]: tags
               })
             }
           } else if (m.type === 'complex') {
             const cm: AnyRecord = {
-              oldId: m.id,
+              oldId: asLegacyOldId(m.id),
               type: 'array',
               name: settings.name,
               icon: settings.icon || 'shape',
               hint: settings.hint || null,
-              createdAt: (new Date(asLegacyString(m.date)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
-              updatedAt: (new Date(asLegacyString(m.edit)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
+              createdAt: asLegacyIsoTimestamp(m.date),
+              updatedAt: asLegacyIsoTimestamp(m.edit),
             }
             const metaSettings = {...settings}
             if (metaSettings.metaInCard) {
               obj.pinnedMeta.push({
-                metaId: m.id,
-                pinnedMetaId: asLegacyArray(metaSettings.metaInCard).map((i: AnyRecord) => i.id),
+                metaId: asLegacyOldId(m.id) ?? m.id,
+                pinnedMetaId: asLegacyArray(metaSettings.metaInCard).map((i: AnyRecord) => asLegacyOldId(i.id) ?? i.id),
                 scraperField: asLegacyArray(metaSettings.metaInCard).map((i: AnyRecord) => i.scraperField),
               })
             }
             delete metaSettings.metaInCard
-            metaSettings.oldId = m.id
+            metaSettings.oldId = asLegacyOldId(m.id)
             metaSettings.marks = metaSettings.markers
             cm.metaSetting = metaSettings
             cm.pageSetting = {
@@ -358,7 +382,7 @@ export default function (db: ApiDb) {
               const meta = asLegacyRecord(i.meta)
               const synonyms = meta.synonyms
               return {
-                oldId: i.id,
+                oldId: asLegacyOldId(i.id),
                 name: meta.name,
                 synonyms: Array.isArray(synonyms) ? synonyms.join(', ') : null,
                 rating: meta.rating || 0,
@@ -367,8 +391,8 @@ export default function (db: ApiDb) {
                 country: serializeCountries(meta.country as string[] | null | undefined),
                 color: meta.color || null,
                 views: i.views || 0,
-                createdAt: (new Date(asLegacyString(i.date)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
-                updatedAt: (new Date(asLegacyString(i.edit)).toISOString()).replace('T', ' ').replace('Z', ' +00:00'),
+                createdAt: asLegacyIsoTimestamp(i.date),
+                updatedAt: asLegacyIsoTimestamp(i.edit),
               }
             })
             for (const z of cards) {
@@ -380,23 +404,27 @@ export default function (db: ApiDb) {
               }
             }
               obj.tags.push({
-                [String(m.id)]: cards
+                [String(asLegacyOldId(m.id) ?? m.id)]: cards
               })
             const metaKeys = ['name', 'synonyms', 'favorite', 'rating', 'bookmark', 'country', 'color']
             asLegacyArray(Meta.cards).filter((card: AnyRecord) => card.metaId == m.id).map((i: AnyRecord) => {
               const cardMeta = asLegacyRecord(i.meta)
               const metas = Object.fromEntries(Object.entries(cardMeta).filter(([key]) => !metaKeys.includes(key)))
               obj.metaInTags.push({
-                [String(i.id)]: metas
+                [String(asLegacyOldId(i.id) ?? i.id)]: metas
               })
             })
           }
         }
         // get videos meta values and meta tags
         const videoKeys = ['path', 'duration', 'size', 'rating', 'favorite', 'date', 'resolution', 'edit', 'views', 'viewed', 'bookmark']
-        obj.onlyMeta = asLegacyArray(Videos.videos).map((i: AnyRecord) =>
-          Object.fromEntries(Object.entries(i).filter(([key]) => !videoKeys.includes(key)))
-        )
+        obj.onlyMeta = asLegacyArray(Videos.videos).map((i: AnyRecord) => {
+          const fields = Object.fromEntries(Object.entries(i).filter(([key]) => !videoKeys.includes(key)))
+          return {
+            ...fields,
+            id: asLegacyOldId(i.id) ?? i.id,
+          }
+        })
         for (const z of obj.onlyMeta) {
           for (const y in z) {
             if (typeof z[y] == 'string' && z[y].length == 0) delete z[y]
@@ -415,9 +443,14 @@ export default function (db: ApiDb) {
 
     // очищаем таблицы новой БД
     const dbSqlitePath = path.join(getDbPath()!, 'db.sqlite')
-    await resetDatabaseAndRunMigrations(dbSqlitePath)
+    await resetDatabaseAndRunMigrations(dbSqlitePath, { seedDemo: false })
     console.log('Current data in tables was cleared')
     console.log('\x1b[36m%s\x1b[0m', 'Migrations applied.', 'color: #bada55');
+
+    // restoreBackup closes the live connection so SQLite files can be replaced.
+    // Re-open it before importLowDbData — the ApiDb drizzle/sqlite proxies otherwise throw.
+    closeActiveConnection()
+    setActiveConnection(createDrizzleClient(dbSqlitePath))
 
     try {
       const {mediaIds, metaIds, tagsIds} = await importLowDbData(db, obj)
@@ -444,12 +477,24 @@ export default function (db: ApiDb) {
 
       mapDir(metaNew)
 
+      function sameOldId(a: unknown, b: unknown) {
+        const normalize = (value: unknown): string => {
+          if (value == null || value === '') return ''
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            return Number.isInteger(value) ? String(value) : String(value)
+          }
+          const raw = String(value)
+          return /^\d+\.0+$/.test(raw) ? String(Number.parseInt(raw, 10)) : raw
+        }
+        return normalize(a) === normalize(b)
+      }
+
       function replaceMetaId(name: string) {
         const types = ["_main", "_alt", "_custom1", "_custom2", "_avatar", "_header"]
         for (const type of types) {
           if (!name.includes(type)) continue
           const oldId = name.replace(type, '')
-          const found = tagsIds.find((x: OldIdMapping) => x.oldId === oldId)
+          const found = tagsIds.find((x: OldIdMapping) => sameOldId(x.oldId, oldId))
           if (!found) continue
           name = found.id + type
           break
@@ -472,7 +517,7 @@ export default function (db: ApiDb) {
       console.log('Renaming media files...');
 
       function replaceMediaId(name: string) {
-        const found = mediaIds.find((x: OldIdMapping) => x.oldId === name)
+        const found = mediaIds.find((x: OldIdMapping) => sameOldId(x.oldId, name))
         if (found) return found.id
         else return name
       }
@@ -485,14 +530,14 @@ export default function (db: ApiDb) {
       }
       console.log('\x1b[36m%s\x1b[0m', 'Media files had renamed successfully.', 'color: #bada55');
 
-      rmrf(tempPath)
+      await rmrf(tempPath)
       console.log('Removing temp data...');
       console.log('\x1b[36m%s\x1b[0m', 'All data has been successfully imported.', 'color: #bada55');
 
       return "All data has been successfully imported."
     } catch (e: unknown) {
-      console.log(e)
-      return e
+      console.error('migrateFromLowDb import failed:', e)
+      throw e instanceof Error ? e : new Error(apiErrorMessage(e) || String(e))
     }
   };
 

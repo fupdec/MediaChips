@@ -239,7 +239,7 @@ export function createMediaRepository(db: DrizzleClient) {
           favorite: item.favorite ?? false,
           bookmark: item.bookmark ?? null,
           views: item.views ?? 0,
-          oldId: item.oldId ?? null,
+          oldId: item.oldId == null ? null : String(item.oldId),
           mediaTypeId: item.mediaTypeId == null ? null : Number(item.mediaTypeId),
           createdAt: item.createdAt ?? timestamp,
           updatedAt: item.updatedAt ?? timestamp,

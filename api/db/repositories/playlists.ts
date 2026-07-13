@@ -14,7 +14,7 @@ export function createPlaylistsRepository(db: DrizzleClient) {
         .values({
           name: data.name ?? null,
           favorite: data.favorite ?? false,
-          oldId: data.oldId ?? null,
+          oldId: data.oldId == null ? null : String(data.oldId),
           createdAt: data.createdAt ?? timestamp,
           updatedAt: data.updatedAt ?? timestamp,
         })
@@ -30,7 +30,7 @@ export function createPlaylistsRepository(db: DrizzleClient) {
         .values(items.map((item) => ({
           name: item.name ?? null,
           favorite: item.favorite ?? false,
-          oldId: item.oldId ?? null,
+          oldId: item.oldId == null ? null : String(item.oldId),
           createdAt: item.createdAt ?? timestamp,
           updatedAt: item.updatedAt ?? timestamp,
         })))
