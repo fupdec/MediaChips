@@ -1,4 +1,4 @@
-import {BUILTIN_PLUGIN_IDS, createBundledPluginCatalog} from '@shared/plugins'
+import {BUILTIN_PLUGIN_IDS, createPluginCatalog} from '@shared/plugins'
 import type {PluginCatalogEntry} from '@shared/plugins'
 import {getPluginRegistry} from '@/services/pluginRegistry'
 import type {MediaChipsPlugin, PluginApi, PluginComponentMap} from '@/types/pluginRuntime'
@@ -147,7 +147,7 @@ export function serializeEnabledPlugins(pluginIds: string[]): string {
 export async function bootstrapPlugins(enabledPluginIds?: string[]): Promise<void> {
   const enabled = isSfwBuild() ? [] : (enabledPluginIds ?? [BUILTIN_PLUGIN_IDS.adult])
   const registry = getPluginRegistry()
-  registry.reset(createBundledPluginCatalog(enabled))
+  registry.reset(createPluginCatalog(enabled))
 
   for (const id of activated) {
     registry.clearContributions(id)

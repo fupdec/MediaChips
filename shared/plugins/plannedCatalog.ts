@@ -1,30 +1,41 @@
-import {
-  BUILTIN_PLUGIN_IDS,
-  type PluginCatalogEntry,
-} from './types'
+import type {PluginCatalogEntry} from './types'
 
-/** Placeholder catalog until real plugin packages are loadable. */
+/**
+ * Future plugins that are not loadable yet.
+ * Bundled plugins (e.g. adult) must not appear here — they live in bundledCatalog.
+ */
 export function createPlannedPluginCatalog(): PluginCatalogEntry[] {
   return [
     {
       manifest: {
-        id: BUILTIN_PLUGIN_IDS.adult,
-        name: 'Adult features',
+        id: 'mediachips.nfoImport',
+        name: 'NFO / Kodi import',
         version: '0.0.0',
-        description:
-          'Performer and scene scrapers, ThePornDB integration, and related adult tools.',
+        description: 'Import titles, posters, and ratings from NFO sidecars and Kodi-style folders.',
         author: 'MediaChips',
-        icon: 'shield-alert',
+        icon: 'file-document-outline',
         engines: {mediachips: '>=1.0.0'},
-        requiresAdult: true,
-        permissions: [
-          'ui.settings',
-          'ui.menu',
-          'ui.dialogs',
-          'api.routes',
-          'network.external',
-          'fs.write',
-        ],
+        requiresAdult: false,
+        permissions: ['ui.settings', 'fs.read', 'fs.write'],
+      },
+      source: 'planned',
+      state: 'planned',
+      uiEntry: null,
+      mainEntry: null,
+      error: null,
+      enabled: false,
+    },
+    {
+      manifest: {
+        id: 'mediachips.jellyfinSync',
+        name: 'Jellyfin sync',
+        version: '0.0.0',
+        description: 'Sync libraries and watch state with a Jellyfin server.',
+        author: 'MediaChips',
+        icon: 'server-network',
+        engines: {mediachips: '>=1.0.0'},
+        requiresAdult: false,
+        permissions: ['ui.settings', 'network.external'],
       },
       source: 'planned',
       state: 'planned',

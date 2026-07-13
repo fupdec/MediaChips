@@ -3,6 +3,7 @@ import {
   BUILTIN_PLUGIN_IDS,
   createBundledPluginCatalog,
   createPlannedPluginCatalog,
+  createPluginCatalog,
 } from '@shared/plugins'
 import {
   PluginRegistry,
@@ -33,10 +34,20 @@ describe('pluginRegistry', () => {
   })
 
   it('does not enable planned plugins', () => {
-    const registry = new PluginRegistry(createPlannedPluginCatalog())
-    const updated = registry.setEnabled(BUILTIN_PLUGIN_IDS.adult, true)
+    const planned = createPlannedPluginCatalog()
+    expect(planned.length).toBeGreaterThan(0)
+    const plannedId = planned[0]!.manifest.id
+    const registry = new PluginRegistry(planned)
+    const updated = registry.setEnabled(plannedId, true)
     expect(updated?.enabled).toBe(false)
     expect(updated?.state).toBe('planned')
+  })
+
+  it('merges bundled and planned plugins in createPluginCatalog', () => {
+    const catalog = createPluginCatalog([BUILTIN_PLUGIN_IDS.adult])
+    expect(catalog.some((entry) => entry.manifest.id === BUILTIN_PLUGIN_IDS.adult && entry.source === 'bundled')).toBe(true)
+    expect(catalog.some((entry) => entry.state === 'planned')).toBe(true)
+    expect(catalog.filter((entry) => entry.manifest.id === BUILTIN_PLUGIN_IDS.adult)).toHaveLength(1)
   })
 
   it('enables and disables bundled plugins', () => {

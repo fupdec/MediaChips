@@ -1,5 +1,6 @@
 import {BUILTIN_PLUGIN_IDS, type PluginCatalogEntry} from '@shared/plugins'
 import {isSfwBuild} from '../buildFlags'
+import {createPlannedPluginCatalog} from './plannedCatalog'
 
 /** Bundled adult plugin — present in direct builds, can be disabled from UI. */
 export function createBundledAdultCatalogEntry(enabled = true): PluginCatalogEntry {
@@ -7,26 +8,26 @@ export function createBundledAdultCatalogEntry(enabled = true): PluginCatalogEnt
     manifest: {
       id: BUILTIN_PLUGIN_IDS.adult,
       name: 'Adult features',
-        version: '0.1.0',
-        description:
-          'Performer and scene scrapers, ThePornDB integration, and related adult tools.',
-        author: 'MediaChips',
-        icon: 'shield-alert',
-        engines: {mediachips: '>=1.0.0'},
-        requiresAdult: true,
-        permissions: [
-          'ui.settings',
-          'ui.menu',
-          'ui.dialogs',
-          'api.routes',
-          'network.external',
-          'fs.write',
-        ],
-      },
-      source: 'bundled',
-      state: enabled ? 'enabled' : 'disabled',
-      uiEntry: '@mediachips/plugin-adult',
-      mainEntry: null,
+      version: '0.1.0',
+      description:
+        'Performer and scene scrapers, ThePornDB integration, and related adult tools.',
+      author: 'MediaChips',
+      icon: 'shield-alert',
+      engines: {mediachips: '>=1.0.0'},
+      requiresAdult: true,
+      permissions: [
+        'ui.settings',
+        'ui.menu',
+        'ui.dialogs',
+        'api.routes',
+        'network.external',
+        'fs.write',
+      ],
+    },
+    source: 'bundled',
+    state: enabled ? 'enabled' : 'disabled',
+    uiEntry: '@mediachips/plugin-adult',
+    mainEntry: null,
     error: null,
     enabled,
   }
@@ -37,4 +38,12 @@ export function createBundledPluginCatalog(enabledPlugins: string[] = [BUILTIN_P
 
   const adultEnabled = enabledPlugins.includes(BUILTIN_PLUGIN_IDS.adult)
   return [createBundledAdultCatalogEntry(adultEnabled)]
+}
+
+/** Bundled plugins plus planned placeholders (excluding ids already bundled). */
+export function createPluginCatalog(enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult]): PluginCatalogEntry[] {
+  const bundled = createBundledPluginCatalog(enabledPlugins)
+  const bundledIds = new Set(bundled.map((entry) => entry.manifest.id))
+  const planned = createPlannedPluginCatalog().filter((entry) => !bundledIds.has(entry.manifest.id))
+  return [...bundled, ...planned]
 }
