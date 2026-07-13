@@ -122,14 +122,6 @@ const headerButtons = computed(() => {
     })
   }
 
-  buttons.push({
-    icon: 'close',
-    text: t('common.close'),
-    color: 'primary',
-    outlined: false,
-    action: close,
-  })
-
   return buttons
 })
 

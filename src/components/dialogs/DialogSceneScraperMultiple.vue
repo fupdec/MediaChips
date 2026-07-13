@@ -87,8 +87,8 @@ const listHeight = computed(() => {
   return Math.min(count * ITEM_HEIGHT, MAX_LIST_HEIGHT)
 })
 
-const headerButtons = computed(() => [
-  ...(sceneScraperStore.autoScrapeInProgress
+const headerButtons = computed(() => (
+  sceneScraperStore.autoScrapeInProgress
     ? [{
       icon: 'stop',
       text: t('common.cancel'),
@@ -96,14 +96,8 @@ const headerButtons = computed(() => [
       outlined: false,
       action: () => sceneScraperStore.cancelAutoScrape(),
     }]
-    : [{
-      icon: 'close',
-      text: t('common.close'),
-      color: 'primary',
-      outlined: true,
-      action: close,
-    }]),
-])
+    : []
+))
 
 function statusColor(status?: SceneScraperBatchItem['status']) {
   if (status === 'done') return 'success'
