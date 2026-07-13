@@ -1,52 +1,36 @@
 <template>
-  <div ref="rootRef" class="item" :class="{ 'item--plain-card': plainCard }">
+  <div
+    ref="rootRef"
+    class="item"
+    :class="{
+      'item--plain-card': plainCard,
+      'big-preview': bigPreview,
+    }"
+  >
     <v-card
       class="item-mark"
-      :class="[{ 'no-file': !is_file_exists }]"
+      :class="[{ 'no-file': !isFileExists }]"
       :elevation="plainCard ? 2 : undefined"
     >
-      <v-responsive
-        @mouseover.capture="playPreview"
-        @click="stopPlayingPreview"
-        @mouseleave="stopPlayingPreview"
-        @blur="stopPlayingPreview"
-        v-ripple="{ class: 'primary--text' }"
-        :aspect-ratio="16 / 9"
-        class="video-preview-container"
-      >
-        <v-img
-          @click="play"
-          :src="thumb"
-          :aspect-ratio="16 / 9"
-          :key="`thumb_${mark.id}`"
-          class="thumb"
-          contain
-          @error="onThumbError"
-        ></v-img>
+      <div class="item-mark__preview">
+        <ItemPreviewVideo
+          v-if="videoMedia"
+          :media="videoMedia"
+          :is-file-exists="isFileExists"
+          preview-host="compact"
+          v-bind="thumb ? { thumbUrl: thumb } : {}"
+          :preview-start-time="markTime"
+          :preview-end-time="markEnd"
+          :play-time="markTime"
+          @update-big-preview="bigPreview = $event"
+        />
 
-        <v-sheet class="time"
+        <v-sheet
+          class="time"
           light
-          v-html="time"/>
-
-        <div
-          v-if="is_file_exists && is_hovered"
-          @click="play"
-          :style="`animation-delay: ${SETTINGS.delayVideoPreview}ms`"
-          class="preview"
-        >
-          <video
-            ref="video"
-            :muted="muted"
-            @error="playback_error = true"
-            :class="{'video-playback-error': playback_error}"
-            loop
-          />
-          <div v-if="playback_error"
-            class="playback-error">
-            {{ t('player.preview_format_unavailable') }}
-          </div>
-        </div>
-      </v-responsive>
+          v-html="time"
+        />
+      </div>
 
       <v-card-subtitle
         style="overflow:hidden; white-space:nowrap; text-overflow: ellipsis;"
@@ -86,20 +70,17 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
+import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import type {PropType} from 'vue'
 import {useAppStore} from '@/stores/app'
-import {useSettingsStore} from '@/stores/settings'
-import {useItemsStore} from '@/stores/items'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from '@/utils/eventBus'
 import {useLazyInView} from '@/composable/useLazyInView'
-import {isMarkThumbUnavailable, loadMarkImageDisplayUrl} from '@/utils/markThumb'
-import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
+import {loadMarkImageDisplayUrl} from '@/utils/markThumb'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getReadableDuration} from '@/services/formatUtils'
 import {toPlayableMediaItem} from '@/utils/mediaItem'
-import {isAppWindowFocused} from '@/utils/windowFocus'
+import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 import type {MarkItem} from '@/types/stores'
 
 interface ItemMarkerMedium {
@@ -137,27 +118,16 @@ const props = defineProps({
 })
 
 const appStore = useAppStore()
-const settingsStore = useSettingsStore()
-const itemsStore = useItemsStore()
 const {t} = useI18n()
 const eventBus = useEventBus()
 
-const video = ref<HTMLVideoElement | null>(null)
 const rootRef = ref<HTMLElement | null>(null)
 const {wasInView} = useLazyInView(rootRef)
 const thumb = ref<string | undefined>(undefined)
-const thumbFallbackApplied = ref(false)
-const is_hovered = ref(false)
-const is_file_exists = ref(false)
-const playback_error = ref(false)
-const previewTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
-const videoLoadTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
-const isVideoPlaying = ref(false)
+const isFileExists = ref(false)
+const bigPreview = ref(false)
 
-// Computed
-const apiUrl = computed(() => appStore.localhost)
-const SETTINGS = computed(() => settingsStore)
-const muted = computed(() => SETTINGS.value.play_sound_on_video_preview !== "1")
+const videoMedia = computed(() => toPlayableMediaItem(props.mark.medium))
 
 const markTime = computed(() => Number(props.mark.time) || 0)
 const markEnd = computed(() => {
@@ -173,59 +143,8 @@ const time = computed(() => {
   return startTime
 })
 
-// Метод для безопасного воспроизведения видео
-const safePlayVideo = () => {
-  if (!video.value || !is_hovered.value || playback_error.value || !isAppWindowFocused()) return
-
-  try {
-    video.value.play().then(() => {
-      isVideoPlaying.value = true
-    }).catch((e: unknown) => {
-      console.error('Error playing video:', e)
-      playback_error.value = true
-      isVideoPlaying.value = false
-    })
-  } catch (e) {
-    console.error('Exception in safePlayVideo:', e)
-    playback_error.value = true
-    isVideoPlaying.value = false
-  }
-}
-
-// Метод для безопасной остановки видео
-const safeStopVideo = () => {
-  if (video.value) {
-    try {
-      video.value.pause()
-      isVideoPlaying.value = false
-
-      // Сбрасываем обработчики событий
-      video.value.oncanplay = null
-      video.value.onerror = null
-      video.value.ontimeupdate = null
-    } catch (e) {
-      console.error('Error stopping video:', e)
-    }
-  }
-}
-
-// Watch для отслеживания изменения is_hovered
-watch(is_hovered, (newVal) => {
-  if (!newVal) {
-    safeStopVideo()
-  }
-})
-
-watch(() => appStore.window.focused, (focused) => {
-  if (!focused) {
-    stopPlayingPreview()
-  }
-})
-
-// Methods
 const loadThumb = async () => {
   try {
-    thumbFallbackApplied.value = false
     thumb.value = await loadMarkImageDisplayUrl({
       markId: props.mark.id,
       mediaPath: appStore.mediaPath,
@@ -236,133 +155,9 @@ const loadThumb = async () => {
   }
 }
 
-const onThumbError = () => {
-  if (thumbFallbackApplied.value) return
-
-  const mediaId = props.mark.medium?.id || props.mark.mediumId
-  if (!appStore.mediaPath || !mediaId) return
-
-  const videoThumb = resolveMediaThumbDisplayUrl(appStore.mediaPath, 'videos', mediaId)
-  if (isMarkThumbUnavailable(videoThumb)) return
-
-  thumbFallbackApplied.value = true
-  thumb.value = videoThumb!
-}
-
 const checkMarkFileExists = async () => {
   const mediumPath = props.mark.medium?.path
-  is_file_exists.value = mediumPath ? await checkPathExists(mediumPath) : false
-}
-
-const playPreview = () => {
-  if (!is_file_exists.value || is_hovered.value || !isAppWindowFocused()) return
-
-  is_hovered.value = true
-
-  // Очищаем предыдущий таймаут
-  if (previewTimeout.value) {
-    clearTimeout(previewTimeout.value)
-    previewTimeout.value = null
-  }
-
-  previewTimeout.value = setTimeout(() => {
-    if (!video.value || !is_hovered.value || !isAppWindowFocused()) return
-
-    try {
-      // Сбрасываем ошибку воспроизведения
-      playback_error.value = false
-
-      const medium = props.mark.medium
-      const mediumId = medium?.id
-      if (!mediumId) return
-
-      const timeParam = markEnd.value != null
-        ? `#t=${markTime.value},${markEnd.value}`
-        : `#t=${markTime.value}`
-
-      const videoSrc = apiUrl.value + "/api/video/" + mediumId + timeParam
-
-      // Если источник уже установлен и видео то же самое
-      if (video.value.src && video.value.src.includes(String(mediumId))) {
-        video.value.currentTime = markTime.value
-        safePlayVideo()
-      } else {
-        // Устанавливаем новый источник
-        safeStopVideo()
-
-        video.value.src = videoSrc
-        video.value.currentTime = markTime.value
-
-        // Очищаем предыдущий таймаут загрузки
-        if (videoLoadTimeout.value) {
-          clearTimeout(videoLoadTimeout.value)
-        }
-
-        // Устанавливаем обработчик canplay с проверкой
-        video.value.oncanplay = () => {
-          if (video.value && is_hovered.value && !playback_error.value && isAppWindowFocused()) {
-            safePlayVideo()
-          }
-        }
-
-        // Обработчик ошибок
-        video.value.onerror = (e: Event | string) => {
-          console.error('Video error:', e)
-          playback_error.value = true
-          isVideoPlaying.value = false
-        }
-
-        // Обработчик для зацикливания в рамках временного отрезка
-        if (markEnd.value != null) {
-          video.value.ontimeupdate = () => {
-            if (video.value && markEnd.value != null && video.value.currentTime > markEnd.value) {
-              video.value.currentTime = markTime.value
-            }
-          }
-        }
-
-        // Таймаут для загрузки видео
-        videoLoadTimeout.value = setTimeout(() => {
-          if (video.value && video.value.readyState < 2 && is_hovered.value) {
-            video.value.load()
-          }
-        }, 100)
-      }
-    } catch (e) {
-      console.error('Error in playPreview:', e)
-      playback_error.value = true
-      isVideoPlaying.value = false
-    }
-  }, Number(SETTINGS.value.delayVideoPreview) || 0)
-}
-
-const stopPlayingPreview = () => {
-  is_hovered.value = false
-
-  // Очищаем таймауты
-  if (previewTimeout.value) {
-    clearTimeout(previewTimeout.value)
-    previewTimeout.value = null
-  }
-
-  if (videoLoadTimeout.value) {
-    clearTimeout(videoLoadTimeout.value)
-    videoLoadTimeout.value = null
-  }
-
-  safeStopVideo()
-}
-
-const play = () => {
-  const videoItem = toPlayableMediaItem(props.mark.medium)
-  if (!videoItem) return
-
-  itemsStore.playVideo({
-    video: videoItem,
-    videos: [videoItem],
-    time: markTime.value,
-  })
-  stopPlayingPreview()
+  isFileExists.value = mediumPath ? await checkPathExists(mediumPath) : false
 }
 
 const handleUpdateMarkImage = (id: unknown) => {
@@ -377,38 +172,52 @@ watch(wasInView, (visible) => {
   void checkMarkFileExists()
 })
 
+watch(() => props.mark.id, () => {
+  void loadThumb()
+  void checkMarkFileExists()
+})
+
 onMounted(() => {
   eventBus.on('updateMarkImage', handleUpdateMarkImage)
 })
 
 onUnmounted(() => {
   eventBus.off('updateMarkImage', handleUpdateMarkImage)
-  stopPlayingPreview()
-
-  // Полная очистка при размонтировании
-  if (video.value) {
-    video.value.src = ''
-    video.value.oncanplay = null
-    video.value.onerror = null
-    video.value.ontimeupdate = null
-  }
 })
 </script>
 
 <style lang="scss">
 .item-mark {
-  .video-preview-container {
+  .item-mark__preview {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
     cursor: pointer;
+    border-radius: 4px;
+
+    .video-preview-host--compact {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .video-preview-container,
+    .video-preview-host__anchor {
+      border-radius: inherit;
+    }
+
+    .video-preview-container {
+      height: 100%;
+    }
   }
+
   &.no-file {
     .thumb {
       filter: saturate(0.1) opacity(50%);
     }
   }
-  .preview {
-    top: 0;
-    left: 0;
-  }
+
   .time {
     pointer-events: none;
     position: absolute;
@@ -418,7 +227,7 @@ onUnmounted(() => {
     padding: 0 7px;
     border-radius: 15px;
     font-size: 14px;
-    z-index: 1;
+    z-index: 3;
   }
 }
 </style>

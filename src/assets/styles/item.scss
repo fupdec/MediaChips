@@ -842,7 +842,7 @@
   background-color: #7878782b;
   flex: 1 0 auto;
 
-  &:not(.big-preview):not(.shrink-down) {
+  &:not(.video-preview-container--expanded) {
     position: relative !important;
     inset: unset !important;
     width: auto !important;
@@ -852,47 +852,21 @@
     transition: 0.2s all ease;
   }
 
-  &.big-preview,
-  &.shrink-down {
-    transition: none !important;
-  }
-
-  &.shrink-down {
-    animation: go-full-screen reverse backwards 300ms ease-in !important;
-    .preview,
-    .timeline {
-      display: none !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-    .thumb {
-      opacity: 1 !important;
-      z-index: 3;
-      width: 100% !important;
-      min-width: 100% !important;
-      height: 100% !important;
-      left: 0 !important;
-      top: 0 !important;
-      filter: blur(0px) !important;
-      background: none;
-    }
-    .v-ripple {
-      display: none !important;
-    }
-  }
-  &.big-preview {
+  &.video-preview-container--expanded {
     position: fixed;
     background-color: transparent;
-    z-index: 1000;
+    z-index: 3000;
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: go-full-screen 350ms forwards ease-out;
     pointer-events: auto;
     cursor: pointer;
+    transition: none !important;
+
     video {
       pointer-events: none;
-      animation: appearing 100ms forwards ease-in;
+      opacity: 1;
+      animation: none;
     }
     .duration,
     .resolution {
@@ -908,7 +882,26 @@
       filter: blur(50px);
       left: -50%;
       top: -50%;
+      transition:
+        width 350ms ease-in-out,
+        min-width 350ms ease-in-out,
+        height 350ms ease-in-out,
+        left 350ms ease-in-out,
+        top 350ms ease-in-out;
     }
+
+    &.video-preview-container--expanding {
+      .thumb {
+        filter: blur(0);
+      }
+
+      .preview,
+      .preview video {
+        opacity: 1 !important;
+        animation: none !important;
+      }
+    }
+
     .preview {
       pointer-events: none;
       border-radius: 16px;
@@ -923,10 +916,13 @@
       transform: translate(-50%, -50%);
       z-index: 1000;
       opacity: 1;
+      animation: none;
       transition-duration: 0s;
       background-color: transparent;
       video {
         display: block;
+        opacity: 1;
+        animation: none;
         transition-duration: 0s;
         background-color: transparent;
         min-width: 0;
@@ -939,6 +935,70 @@
         border-radius: 0;
       }
     }
+
+    &.video-preview-container--collapsing {
+      .thumb {
+        filter: none !important;
+        width: 100%;
+        min-width: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+        opacity: 1;
+        z-index: 1;
+        transition:
+          width 350ms ease-in-out,
+          min-width 350ms ease-in-out,
+          height 350ms ease-in-out,
+          left 350ms ease-in-out,
+          top 350ms ease-in-out;
+      }
+
+      .preview {
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        transform: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        border-radius: inherit;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+        opacity: 1 !important;
+        transition: opacity 350ms ease-in !important;
+        background-color: transparent !important;
+
+        video {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: none !important;
+          max-height: none !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          object-fit: contain;
+          opacity: 1 !important;
+          transition: none !important;
+        }
+      }
+
+      .preview-playback-timeline {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 120ms ease-out;
+      }
+    }
+
+    &.video-preview-container--collapsing.video-preview-container--preview-fading {
+      .preview {
+        opacity: 0 !important;
+      }
+    }
+
     &.big-preview-size-original .preview {
       video {
         max-width: min(var(--big-preview-native-width, 95vw), 95vw);
@@ -993,26 +1053,29 @@
     left: -0.5%;
     top: -0.5%;
     background-color: #000;
+    z-index: 2;
+    opacity: 1;
+    transition: none;
   }
   .preview {
-    opacity: 0;
+    opacity: 1;
     width: 100%;
     height: 100%;
     display: flex;
     overflow: hidden;
     position: absolute;
-    animation-fill-mode: both;
-    animation-duration: 0.5s;
+    z-index: 1;
+    animation: none;
     box-shadow: #1110 0 0 0 0;
     transition-duration: 0.5s;
-    transition-property: box-shadow, background-color;
-    background-color: #000;
+    transition-property: box-shadow;
+    background-color: transparent;
     video {
       min-width: 100%;
       min-height: 100%;
       object-fit: contain;
-      transition: 0.5s all ease;
-      background-color: #000;
+      background-color: transparent;
+      opacity: 1;
     }
     .playback-error {
       position: absolute;
@@ -1031,19 +1094,32 @@
   .rating,
   .duration,
   .resolution {
-    z-index: 1;
+    z-index: 3;
   }
   &:hover,
-  &.is-hovered {
-    .preview {
-      animation-name: appearing;
-      opacity: 1;
-      video {
-        opacity: 1;
-      }
-    }
+  &.is-hovered,
+  &.is-preview-active {
     .v-icon.mdi-star:not(.yellow--text) {
       color: rgba(255, 255, 255, 0.5) !important;
+    }
+  }
+
+  &.is-hover-preview-ready:not(.video-preview-container--expanded) {
+    .thumb {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 520ms ease-in;
+    }
+  }
+
+  &.video-preview-container--expanded {
+    .thumb {
+      z-index: auto;
+      transition: none;
+    }
+
+    .preview {
+      z-index: 1000;
     }
   }
   .progress {
@@ -1066,6 +1142,7 @@
     background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.28) 100%);
     pointer-events: none;
     user-select: none;
+    animation: preview-timeline-appear 320ms ease-out both;
 
     &__track {
       height: 3px;
@@ -1073,6 +1150,7 @@
       background: rgba(255, 255, 255, 0.28);
       overflow: hidden;
       margin-bottom: 6px;
+      animation: preview-timeline-item-appear 280ms ease-out both;
     }
 
     &__fill {
@@ -1086,6 +1164,7 @@
     &__time {
       display: flex;
       justify-content: center;
+      animation: preview-timeline-item-appear 320ms ease-out 60ms both;
     }
 
     &__chip {
@@ -1100,14 +1179,20 @@
 
 @keyframes go-full-screen {
   from {
+    top: var(--preview-top);
+    left: var(--preview-left);
+    right: auto;
+    bottom: auto;
     width: var(--preview-width);
     height: var(--preview-height);
-    inset: var(--inset);
   }
   to {
-    width: 100%;
-    height: 100%;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
   }
 }
 
@@ -1118,6 +1203,30 @@
   to {
     opacity: 1;
   }
+}
+
+@keyframes preview-timeline-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes preview-timeline-item-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body > .video-preview-container.video-preview-container--expanded {
+  z-index: 3000;
 }
 
 .fav-in-card {
@@ -1754,16 +1863,49 @@
 }
 
 .video-preview-host:not(.video-preview-host--embedded) {
+  position: relative;
   width: 100%;
 
-  &:has(.big-preview),
-  &:has(.shrink-down) {
+  .video-preview-host__anchor {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .video-preview-host__anchor-thumb {
+    width: 100%;
+    height: 100%;
+  }
+
+  &:has(.video-preview-host__anchor) {
     aspect-ratio: 16 / 9;
   }
 }
 
 .video-preview-host--embedded {
+  position: relative;
   width: 100%;
+
+  .video-preview-host__anchor {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .video-preview-host__anchor-thumb {
+    width: 100%;
+    height: 100%;
+  }
 
   .embedded-play-hint {
     position: absolute;
@@ -1794,57 +1936,159 @@
     }
 
     .thumb {
-      z-index: 1;
+      z-index: 2;
+      opacity: 1;
+      transition: none;
     }
 
     .preview,
     .timeline {
-      z-index: 2;
-      opacity: 0;
+      z-index: 1;
+      opacity: 1;
       position: absolute;
       width: 100%;
       height: 100%;
       left: 0;
       top: 0;
+      background-color: transparent;
+      animation: none;
+    }
+
+    .timeline {
+      opacity: 0;
+      z-index: 2;
+      transition: opacity 320ms ease;
     }
 
     .preview video {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      background-color: #000;
+      background-color: transparent;
+      opacity: 1;
     }
 
-    &.is-preview-active,
-    &.embedded-expanded {
-      .preview,
+    &.is-preview-active:not(.video-preview-container--expanded) {
       .timeline {
         opacity: 1;
       }
     }
 
-    &.is-preview-active .thumb {
-      opacity: 0;
-      pointer-events: none;
+    &.is-hover-preview-ready:not(.video-preview-container--expanded) {
+      .thumb {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 520ms ease-in;
+      }
     }
 
-    &.embedded-expanded {
-      border-radius: 8px;
-      transition: border-radius 400ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    &.embedded-shrinking {
-      .preview,
-      .timeline {
-        display: none !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+    &.video-preview-container--expanded {
+      .thumb {
+        z-index: auto;
+        transition: none;
       }
 
+      .preview {
+        z-index: 1000;
+      }
+    }
+  }
+}
+
+.video-preview-host--compact {
+  position: relative;
+  width: 100%;
+  border-radius: inherit;
+
+  .video-preview-host__anchor {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .video-preview-host__anchor-thumb {
+    width: 100%;
+    height: 100%;
+  }
+
+  .video-preview-container {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    width: 100%;
+    cursor: pointer;
+    border-radius: inherit;
+
+    .duration,
+    .resolution,
+    .progress {
+      display: none;
+    }
+
+    .thumb {
+      z-index: 2;
+      opacity: 1;
+      transition: none;
+
+      .v-img__img {
+        object-fit: cover;
+      }
+    }
+
+    .preview,
+    .timeline {
+      z-index: 1;
+      opacity: 1;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+      background-color: transparent;
+      animation: none;
+    }
+
+    .timeline {
+      opacity: 0;
+      z-index: 2;
+      transition: opacity 320ms ease;
+    }
+
+    .preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background-color: transparent;
+      opacity: 1;
+    }
+
+    &.is-preview-active:not(.video-preview-container--expanded) {
+      .timeline {
+        opacity: 1;
+      }
+    }
+
+    &.is-hover-preview-ready:not(.video-preview-container--expanded) {
       .thumb {
-        opacity: 1 !important;
+        opacity: 0;
         pointer-events: none;
-        filter: none !important;
+        transition: opacity 520ms ease-in;
+      }
+    }
+
+    &.video-preview-container--expanded {
+      .thumb {
+        z-index: auto;
+        transition: none;
+      }
+
+      .preview {
+        z-index: 1000;
       }
     }
   }

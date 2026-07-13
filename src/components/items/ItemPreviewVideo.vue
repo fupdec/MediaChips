@@ -1,26 +1,42 @@
 <template>
   <div :class="hostClasses">
     <!-- CARD VIEW -->
-    <v-responsive
-      v-if="isViewCard"
-      ref="previewRef"
-      v-ripple="bigPreview ? false : { class: `text-primary` }"
-      :aspect-ratio="16 / 9"
-      class="video-preview-container"
-      :class="previewContainerClasses"
-      @blur="handlePreviewBlur"
-      @click="handlePreviewClick"
-      @contextmenu="handlePreviewContextMenu"
-      @mouseleave="handleMouseLeave"
-      @mousemove="changePreviewTime"
-      @mouseenter="handleMouseEnter"
+    <div
+      v-if="isViewCard && showCardAnchor"
+      ref="cardAnchorRef"
+      class="video-preview-host__anchor"
+      aria-hidden="true"
     >
+      <v-img
+        :src="thumb || undefined"
+        cover
+        class="video-preview-host__anchor-thumb"
+      />
+    </div>
+
+    <Teleport to="body" :disabled="!useBigPreviewPortal">
+      <v-responsive
+        v-if="isViewCard"
+        ref="previewRef"
+        v-ripple="gridBigPreview.isExpanded.value ? false : { class: `text-primary` }"
+        :aspect-ratio="16 / 9"
+        class="video-preview-container"
+        :class="previewContainerClasses"
+        :style="previewAppearStyle"
+        @blur="handlePreviewBlur"
+        @click="handlePreviewClick"
+        @contextmenu="handlePreviewContextMenu"
+        @mouseleave="handleMouseLeave"
+        @mousemove="changePreviewTime"
+        @mouseenter="handleMouseEnter"
+      >
       <v-img
         :key="thumbDisplayKey"
         :aspect-ratio="16 / 9"
         :src="thumb || undefined"
         class="thumb"
-        contain
+        :contain="!isCompactHost"
+        :cover="isCompactHost"
         @click.stop="handleMediaClick"
         @load="onThumbLoad"
         @error="onThumbError"
@@ -33,15 +49,15 @@
         <v-icon color="white" size="48">mdi-play</v-icon>
       </div>
 
-      <div class="duration">{{ duration }}</div>
+      <div v-if="!isCompactHost" class="duration">{{ duration }}</div>
 
       <div
-        v-if="isShowProgress && !playbackError && !showPlaybackTimeline"
+        v-if="!isCompactHost && isShowProgress && !playbackError && !showPlaybackTimeline"
         :style="{ right: progressPosition }"
         class="progress"
       />
 
-      <div class="resolution">
+      <div v-if="!isCompactHost" class="resolution">
         <div :class="quality.toLowerCase()"
           class="text">
           {{ quality }}
@@ -82,7 +98,6 @@
       <!-- VIDEO PREVIEW -->
       <div
         v-if="showVideoPreview"
-        :style="{ animationDelay: `${SETTINGS.delayVideoPreview}ms` }"
         class="preview"
         @click.stop="handleMediaClick"
       >
@@ -165,10 +180,11 @@
         </div>
       </div>
     </v-responsive>
+    </Teleport>
 
     <!-- BIG PREVIEW ANIMATION -->
     <v-responsive
-      v-if="bigPreviewAnimation && isHovered && !playbackError"
+      v-if="bigPreviewAnimation && isHovered && !playbackError && !isCompactHost && !showVideoPreview"
       :aspect-ratio="16 / 9"
       class="big-preview-plug"
     >
@@ -288,6 +304,7 @@ import {
 } from '@/services/transcodeService'
 import {isAppWindowFocused} from '@/utils/windowFocus'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
+import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import type {MediaItem} from '@/types/stores'
 
 type BigVideoPreviewSize = 'original' | 'full_height' | 'three_quarters'
@@ -312,20 +329,45 @@ type TimeoutMap = {
   z?: ReturnType<typeof setTimeout>
   leave?: ReturnType<typeof setTimeout>
   cinema?: ReturnType<typeof setTimeout>
+  hoverCooldown?: ReturnType<typeof setTimeout>
   [key: string]: ReturnType<typeof setTimeout> | undefined
 }
+
+const HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS = 500
+let hoverPreviewReadyAt = 0
+
+const armHoverPreviewCooldown = () => {
+  hoverPreviewReadyAt = Date.now() + HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS
+}
+
+const getHoverPreviewCooldownRemaining = () =>
+  Math.max(0, hoverPreviewReadyAt - Date.now())
 
 const props = withDefaults(defineProps<{
   media: MediaItem
   isFileExists: boolean
-  previewHost?: 'grid' | 'embedded'
+  previewHost?: 'grid' | 'embedded' | 'compact'
   previewActive?: boolean
+  thumbUrl?: string
+  previewStartTime?: number
+  previewEndTime?: number | null
+  playTime?: number
 }>(), {
   previewHost: 'grid',
   previewActive: true,
+  thumbUrl: undefined,
+  previewEndTime: undefined,
+  playTime: undefined,
 })
 
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
+const isCompactHost = computed(() => props.previewHost === 'compact')
+const usesExternalThumb = computed(() => props.thumbUrl != null && props.thumbUrl !== '')
+const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
+const showCardAnchor = computed(() =>
+  gridBigPreview.isVisual.value || bigPreviewAnimation.value,
+)
+const useBigPreviewPortal = computed(() => gridBigPreview.isPortaled.value)
 
 const hostClasses = computed(() => [
   'video-preview-host',
@@ -334,19 +376,24 @@ const hostClasses = computed(() => [
 ])
 
 const previewContainerClasses = computed(() => {
-  const isGridBigPreview = !isEmbeddedHost.value &&
-    (bigPreview.value || isShrinking.value)
+  const isFullscreenBigPreview = gridBigPreview.isVisual.value
+  const isGridExpanding = gridBigPreview.isExpanding.value
+  const isGridCollapsing = gridBigPreview.isCollapsing.value
 
   const classes: Record<string, boolean> = {
-    'is-hovered': isHovered.value || isShrinking.value,
+    'is-hovered': isHovered.value ||
+      gridBigPreview.isActive.value ||
+      gridBigPreview.isCollapsing.value ||
+      isShrinking.value,
     'is-preview-active': showVideoPreview.value || showTimelinePreview.value,
-    'embedded-expanded': isEmbeddedHost.value && embeddedExpandActive.value && !isShrinking.value,
-    'embedded-shrinking': isEmbeddedHost.value && isShrinking.value,
-    'big-preview': isGridBigPreview,
-    'shrink-down': !isEmbeddedHost.value && isGridShrinkDown.value,
+    'is-hover-preview-ready': hoverPreviewReady.value && !isFullscreenBigPreview,
+    'video-preview-container--expanded': isFullscreenBigPreview,
+    'video-preview-container--expanding': isGridExpanding,
+    'video-preview-container--collapsing': isGridCollapsing,
+    'video-preview-container--preview-fading': isGridCollapsing && collapsePreviewFading.value,
   }
 
-  if (isGridBigPreview) {
+  if (isFullscreenBigPreview && !isGridCollapsing) {
     classes[BIG_PREVIEW_SIZE_CLASSES[bigPreviewSize.value]] = true
   }
 
@@ -366,8 +413,10 @@ const contextMenuStore = useContextMenu()
 const playerStore = usePlayerStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
+const gridBigPreview = useVideoBigPreview()
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
+const cardAnchorRef = ref<HTMLElement | null>(null)
 const videoRef = ref<HTMLVideoElement | null>(null)
 const storyRef = ref<HTMLElement | null>(null)
 const storyWrapperRef = ref<HTMLElement | null>(null)
@@ -384,7 +433,6 @@ const progress = ref(0)
 const playbackTime = ref(0)
 
 const timeouts: TimeoutMap = {}
-const bigPreview = ref(false)
 const bigPreviewAnimation = ref(false)
 const playbackError = ref(false)
 const isSettingThumb = ref(false)
@@ -394,13 +442,10 @@ const thumbLoadStarted = ref(false)
 const thumbFallbackStage = ref(0)
 const bigPreviewMenuActive = ref(false)
 const isShrinking = ref(false)
-const isGridShrinkDown = ref(false)
-const embeddedExpandActive = ref(false)
-let gridPreviewOrigin: {
-  inset: string
-  width: string
-  height: string
-} | null = null
+const holdPreviewVideoDuringCollapse = ref(false)
+const collapsePreviewFading = ref(false)
+const hoverPreviewReady = ref(false)
+const isBigPreviewOpen = computed(() => gridBigPreview.isExpanded.value)
 const isMounted = ref(false)
 const transcodeRequired = ref<boolean | null>(null)
 let initFramesToken = 0
@@ -576,7 +621,7 @@ const isShowProgress = computed(() =>
 )
 
 const isViewCard = computed(() =>
-  isEmbeddedHost.value || Number(ITEMS.value.view) === 1,
+  isEmbeddedHost.value || isCompactHost.value || Number(ITEMS.value.view) === 1,
 )
 
 const isViewTimeline = computed(() =>
@@ -585,10 +630,28 @@ const isViewTimeline = computed(() =>
 
 const is_window_focused = computed(() => store.window.focused)
 
+const previewAppearStyle = computed(() => {
+  const delay = Math.max(0, Number(SETTINGS.value.delayVideoPreview) || 0)
+  return {
+    '--preview-appear-delay': `${delay}ms`,
+  }
+})
+
+const markHoverPreviewReady = () => {
+  if (!isHovered.value || !showVideoPreview.value || gridBigPreview.isVisual.value) return
+  hoverPreviewReady.value = true
+}
+
+const resetHoverPreviewReady = () => {
+  hoverPreviewReady.value = false
+}
+
 const showVideoPreview = computed(() =>
   SETTINGS.value.videoPreviewHover === 'video' &&
   props.isFileExists &&
-  isHovered.value &&
+  (isHovered.value ||
+    gridBigPreview.isVisual.value ||
+    holdPreviewVideoDuringCollapse.value) &&
   !isShrinking.value &&
   !shouldBlockVideoPreview.value,
 )
@@ -605,8 +668,8 @@ const showEmbeddedPlayHint = computed(() =>
   isEmbeddedHost.value &&
   props.isFileExists &&
   isHovered.value &&
-  !embeddedExpandActive.value &&
-  !bigPreview.value &&
+  !gridBigPreview.isExpanded.value &&
+  !gridBigPreview.isCollapsing.value &&
   !isShrinking.value &&
   !showVideoPreview.value &&
   !showTimelinePreview.value &&
@@ -620,7 +683,7 @@ const showPlaybackTimeline = computed(() =>
   showVideoPreview.value &&
   !playbackError.value &&
   mediaDuration.value > 0 &&
-  (isEmbeddedHost.value || bigPreview.value),
+  (isEmbeddedHost.value || isBigPreviewOpen.value),
 )
 
 const playbackTimelinePercent = computed(() => {
@@ -636,6 +699,7 @@ const playbackTimelineTimeLabel = computed(() => {
 
 const hidePreviewVideoImmediately = () => {
   previewPlaybackToken += 1
+  resetHoverPreviewReady()
   stopPreviewLiveTranscode()
 
   if (videoRef.value) {
@@ -650,74 +714,96 @@ const hidePreviewVideoImmediately = () => {
   }
 }
 
-const getGridPreviewOriginTarget = (): HTMLElement | null => {
-  const preview = getPreviewEl()
-  return preview?.parentElement ?? preview
-}
-
-const captureGridPreviewOrigin = () => {
-  const target = getPreviewEl() ?? getGridPreviewOriginTarget()
-  if (!target) return
-
-  const {top, right, bottom, left, width, height} = target.getBoundingClientRect()
-  gridPreviewOrigin = {
-    inset: `${top}px ${right}px ${bottom}px ${left}px`,
-    width: `${width}px`,
-    height: `${height}px`,
-  }
-}
-
-const applyGridPreviewOrigin = (preview: HTMLElement) => {
-  if (!gridPreviewOrigin) {
-    captureGridPreviewOrigin()
-  }
-  if (!gridPreviewOrigin) return
-
-  preview.style.setProperty('--inset', gridPreviewOrigin.inset)
-  preview.style.setProperty('--preview-width', gridPreviewOrigin.width)
-  preview.style.setProperty('--preview-height', gridPreviewOrigin.height)
-}
-
-const updateGridShrinkOrigin = (preview: HTMLElement) => {
-  const target = getGridPreviewOriginTarget()
-  if (target) {
-    const {top, right, bottom, left, width, height} = target.getBoundingClientRect()
-    gridPreviewOrigin = {
-      inset: `${top}px ${right}px ${bottom}px ${left}px`,
-      width: `${width}px`,
-      height: `${height}px`,
+const pausePreviewVideoOnly = () => {
+  if (videoRef.value) {
+    try {
+      videoRef.value.pause()
+    } catch (error) {
+      console.error(error)
     }
   }
-  applyGridPreviewOrigin(preview)
 }
 
-const restartGridShrinkAnimation = async (preview: HTMLElement) => {
-  preview.style.animation = 'none'
-  void preview.offsetHeight
-  preview.style.animation = ''
-  isGridShrinkDown.value = false
+const waitForPreviewPaint = (): Promise<void> =>
+  new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+
+const releasePreviewVideoAfterCollapse = () => {
+  holdPreviewVideoDuringCollapse.value = false
+  collapsePreviewFading.value = false
+  hidePreviewVideoImmediately()
+}
+
+const resetBigPreviewOpen = () => {
+  bigPreviewAnimation.value = false
+  gridBigPreview.forceClose(getPreviewEl())
+  emit('update-big-preview', false)
+}
+
+const openGridBigPreview = async () => {
+  if (!canOpenBigPreview()) return
+
+  const preview = getPreviewEl()
+  if (!preview) return
+
+  const sourceRect = gridBigPreview.captureRect(preview)
+  bigPreviewAnimation.value = true
+  emit('update-big-preview', true)
+
+  const opened = await gridBigPreview.startExpand(() => getPreviewEl(), sourceRect)
+  bigPreviewAnimation.value = false
+
+  if (!opened) {
+    resetBigPreviewOpen()
+    return
+  }
+
+  const expandedPreview = getPreviewEl()
+  if (expandedPreview) {
+    applyBigPreviewMetrics(expandedPreview)
+  }
+}
+
+const closeGridBigPreview = async () => {
+  const preview = getPreviewEl()
+  if (!preview || !gridBigPreview.isExpanded.value) {
+    holdPreviewVideoDuringCollapse.value = false
+    collapsePreviewFading.value = false
+    gridBigPreview.forceClose(preview)
+    return
+  }
+
+  holdPreviewVideoDuringCollapse.value = true
+  collapsePreviewFading.value = false
+  pausePreviewVideoOnly()
+
+  const anchor = cardAnchorRef.value ?? preview
+  const targetRect = gridBigPreview.captureRect(anchor)
+  emit('update-big-preview', false)
+
+  const collapsing = gridBigPreview.startCollapse(() => getPreviewEl(), targetRect)
+
   await nextTick()
-  isGridShrinkDown.value = true
-  await nextTick()
-  void preview.offsetHeight
+  await waitForPreviewPaint()
+  if (gridBigPreview.isCollapsing.value) {
+    collapsePreviewFading.value = true
+  }
+
+  try {
+    await collapsing
+  } finally {
+    releasePreviewVideoAfterCollapse()
+  }
 }
 
 const restorePreviewLayout = (el: HTMLElement) => {
-  el.style.animation = 'none'
-  el.style.removeProperty('--inset')
-  el.style.removeProperty('--preview-width')
-  el.style.removeProperty('--preview-height')
+  gridBigPreview.clearFrame(el)
   el.style.removeProperty('--big-preview-native-width')
   el.style.removeProperty('--big-preview-native-height')
-  el.style.removeProperty('width')
-  el.style.removeProperty('height')
-  el.style.removeProperty('inset')
-  el.style.removeProperty('top')
-  el.style.removeProperty('right')
-  el.style.removeProperty('bottom')
-  el.style.removeProperty('left')
-  el.style.removeProperty('transform')
-  el.style.removeProperty('z-index')
+  el.style.removeProperty('animation')
 
   el.querySelectorAll<HTMLElement>('.thumb, .preview, .timeline').forEach((node) => {
     node.style.removeProperty('width')
@@ -735,7 +821,6 @@ const restorePreviewLayout = (el: HTMLElement) => {
   })
 
   void el.offsetHeight
-  el.style.removeProperty('animation')
 }
 
 const resetPreviewContainer = () => {
@@ -744,12 +829,8 @@ const resetPreviewContainer = () => {
   const el = getPreviewEl()
   if (!el) return
 
-  el.removeEventListener('animationend', removeClasses)
   el.classList.remove(
-    'big-preview',
-    'shrink-down',
-    'embedded-expanded',
-    'embedded-shrinking',
+    'video-preview-container--expanded',
   )
   Object.values(BIG_PREVIEW_SIZE_CLASSES).forEach((className) => {
     el.classList.remove(className)
@@ -760,18 +841,19 @@ const resetPreviewContainer = () => {
 
 const removeClasses = () => {
   isShrinking.value = false
-  isGridShrinkDown.value = false
-  embeddedExpandActive.value = false
   isHovered.value = false
-  bigPreview.value = false
   bigPreviewAnimation.value = false
-  gridPreviewOrigin = null
+  holdPreviewVideoDuringCollapse.value = false
+  collapsePreviewFading.value = false
+  gridBigPreview.forceClose(getPreviewEl())
   emit('update-big-preview', false)
   stopPreviewLiveTranscode()
 
   for (const timeout in timeouts) {
     clearTimeout(timeouts[timeout])
   }
+
+  armHoverPreviewCooldown()
 
   void nextTick(() => {
     resetPreviewContainer()
@@ -783,6 +865,7 @@ const finalizePreviewStop = () => {
   previewPlaybackToken += 1
   playbackError.value = false
   playbackTime.value = 0
+  resetHoverPreviewReady()
 
   if (videoRef.value) {
     try {
@@ -793,122 +876,6 @@ const finalizePreviewStop = () => {
     } catch (error) {
       console.error(error)
     }
-  }
-}
-
-const getEmbeddedLayoutTarget = (): HTMLElement | null =>
-  getPreviewEl()?.closest('.edit-dialog-hero__media') ?? null
-
-const waitForEmbeddedLayoutPaint = (): Promise<void> =>
-  new Promise((resolve) => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => resolve())
-    })
-  })
-
-const startEmbeddedExpand = async () => {
-  embeddedExpandActive.value = false
-  await nextTick()
-
-  const layoutTarget = getEmbeddedLayoutTarget()
-  if (layoutTarget) {
-    void layoutTarget.offsetWidth
-  }
-
-  await waitForEmbeddedLayoutPaint()
-
-  if (!bigPreview.value || isShrinking.value) return
-  embeddedExpandActive.value = true
-}
-
-const shrinkEmbedded = () => {
-  if (!isShrinking.value) {
-    removeClasses()
-    return
-  }
-
-  hidePreviewVideoImmediately()
-
-  const layoutTarget = getEmbeddedLayoutTarget()
-
-  const finishShrink = () => {
-    layoutTarget?.removeEventListener('transitionend', onTransitionEnd)
-    clearTimeout(timeouts.shrink)
-    removeClasses()
-  }
-
-  const onTransitionEnd = (event: TransitionEvent) => {
-    if (event.target !== layoutTarget) return
-    if (event.propertyName !== 'max-width') return
-    finishShrink()
-  }
-
-  if (layoutTarget) {
-    layoutTarget.addEventListener('transitionend', onTransitionEnd)
-  }
-
-  clearTimeout(timeouts.shrink)
-  timeouts.shrink = setTimeout(finishShrink, 450)
-}
-
-const shrinkGrid = async () => {
-  if (!isShrinking.value) {
-    removeClasses()
-    return
-  }
-
-  hidePreviewVideoImmediately()
-
-  await nextTick()
-  const preview = getPreviewEl()
-  if (!preview) {
-    removeClasses()
-    return
-  }
-
-  if (!preview.classList.contains('big-preview')) {
-    await nextTick()
-  }
-
-  updateGridShrinkOrigin(preview)
-  await restartGridShrinkAnimation(preview)
-
-  const onShrinkAnimationEnd = (event: AnimationEvent) => {
-    if (event.target !== preview) return
-    if (event.animationName && event.animationName !== 'go-full-screen') return
-    preview.removeEventListener('animationend', onShrinkAnimationEnd)
-    clearTimeout(timeouts.shrink)
-    removeClasses()
-  }
-
-  preview.removeEventListener('animationend', onShrinkAnimationEnd)
-  preview.addEventListener('animationend', onShrinkAnimationEnd)
-
-  clearTimeout(timeouts.shrink)
-  timeouts.shrink = setTimeout(() => {
-    preview.removeEventListener('animationend', onShrinkAnimationEnd)
-    removeClasses()
-  }, 450)
-}
-
-const shrink = () => {
-  if (isEmbeddedHost.value) {
-    shrinkEmbedded()
-    return
-  }
-  shrinkGrid()
-}
-
-const toggleFullScreen = () => {
-  if (isEmbeddedHost.value) return
-
-  const preview = getPreviewEl()
-  if (!preview) return
-
-  preview.removeEventListener('animationend', removeClasses)
-  applyGridPreviewOrigin(preview)
-  if (bigPreview.value && !playbackError.value) {
-    applyBigPreviewMetrics(preview)
   }
 }
 
@@ -995,6 +962,11 @@ const maybeCreateMissingThumb = async () => {
 const loadImg = async ({bust = false, allowCreate = true} = {}) => {
   if (!props.previewActive || !isMounted.value || !props.media?.id) return
 
+  if (usesExternalThumb.value) {
+    thumb.value = props.thumbUrl ?? null
+    return
+  }
+
   const subfolder = getStaticPreviewSubfolder()
 
   if (!bust) {
@@ -1073,7 +1045,7 @@ const applyBigPreviewMetrics = (preview: HTMLElement) => {
 const setBigPreviewSize = (size: BigVideoPreviewSize) => {
   setOption(size, 'big_video_preview_size')
   const preview = getPreviewEl()
-  if (preview && (bigPreview.value || isShrinking.value)) {
+  if (preview && gridBigPreview.isVisual.value) {
     applyBigPreviewMetrics(preview)
   }
 }
@@ -1090,12 +1062,11 @@ const buildBigPreviewSizeMenu = () => {
   }))
 }
 
-const shouldKeepBigPreviewOpen = () => {
-  return bigPreview.value && (contextMenuStore.show || bigPreviewMenuActive.value)
-}
+const shouldKeepBigPreviewOpen = () =>
+  isBigPreviewOpen.value && (contextMenuStore.show || bigPreviewMenuActive.value)
 
 const hasActivePreviewState = () =>
-  isHovered.value || bigPreview.value || isShrinking.value
+  isHovered.value || gridBigPreview.isActive.value || isShrinking.value
 
 const canOpenBigPreview = () =>
   isHovered.value &&
@@ -1107,8 +1078,8 @@ const canOpenBigPreview = () =>
   SETTINGS.value.big_video_preview === '1'
 
 const handlePreviewClick = () => {
-  if (isShrinking.value) return
-  if (bigPreview.value) {
+  if (gridBigPreview.isCollapsing.value || isShrinking.value) return
+  if (isBigPreviewOpen.value) {
     stopPlayingPreview()
     return
   }
@@ -1116,8 +1087,8 @@ const handlePreviewClick = () => {
 }
 
 const handleMediaClick = () => {
-  if (isShrinking.value) return
-  if (bigPreview.value) {
+  if (gridBigPreview.isCollapsing.value || isShrinking.value) return
+  if (isBigPreviewOpen.value) {
     stopPlayingPreview()
     return
   }
@@ -1125,7 +1096,7 @@ const handleMediaClick = () => {
 }
 
 const handlePreviewBlur = () => {
-  if (bigPreview.value) return
+  if (isBigPreviewOpen.value) return
   stopPlayingPreview()
 }
 
@@ -1216,7 +1187,7 @@ const buildBigPreviewContextMenu = () => {
 }
 
 const handlePreviewContextMenu = (e: MouseEvent) => {
-  if (!bigPreview.value || !props.isFileExists || playbackError.value || shouldBlockVideoPreview.value) return
+  if (!gridBigPreview.isExpanded.value || !props.isFileExists || playbackError.value || shouldBlockVideoPreview.value) return
 
   e.preventDefault()
   e.stopPropagation()
@@ -1231,13 +1202,14 @@ const handlePreviewContextMenu = (e: MouseEvent) => {
 }
 
 const play = (_inApp?: unknown) => {
-  if (bigPreview.value || isShrinking.value) {
+  if (isBigPreviewOpen.value || isShrinking.value) {
     stopPlayingPreview()
     return
   }
   stopPlayingPreview({force: true})
   itemsStore.playVideo({
     video: props.media,
+    ...(props.playTime != null ? {time: props.playTime} : {}),
   })
 }
 
@@ -1291,10 +1263,20 @@ const syncPlaybackTimeFromVideo = () => {
 }
 
 const handleVideoTimeUpdate = () => {
+  if (
+    props.previewEndTime != null &&
+    props.previewStartTime != null &&
+    resolvePreviewPlaybackTime() > props.previewEndTime
+  ) {
+    void syncPreviewVideoPosition(props.previewStartTime)
+    return
+  }
+
   syncPlaybackTimeFromVideo()
 }
 
 const changePreviewTime = debounce((e: MouseEvent) => {
+  if (hasFixedPreviewTime.value) return
   if (!props.isFileExists || playbackError.value || shouldBlockVideoPreview.value) return
   if (SETTINGS.value.videoPreviewHover !== "video") return
 
@@ -1362,13 +1344,13 @@ const stopPreviewLiveTranscode = () => {
   stopLiveTranscode(props.media.id).catch(() => {})
 }
 
-const syncPreviewVideoPosition = async (targetTime: number) => {
+const syncPreviewVideoPosition = async (targetTime: number): Promise<boolean> => {
   const video = videoRef.value
-  if (!video || !showVideoPreview.value) return
+  if (!video || !showVideoPreview.value) return false
 
   const token = previewPlaybackToken
   const url = await buildPreviewVideoUrl()
-  if (!url) return
+  if (!url) return false
   const isLive = url.includes('/transcode/stream')
 
   if (isLive) {
@@ -1381,11 +1363,11 @@ const syncPreviewVideoPosition = async (targetTime: number) => {
       await waitForPreviewCanPlay(video, token)
     }
 
-    if (token !== previewPlaybackToken) return
+    if (token !== previewPlaybackToken) return false
     const chunkStart = getChunkStart(targetTime)
     video.currentTime = Math.max(0, targetTime - chunkStart)
     playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
-    return
+    return true
   }
 
   previewUsesLiveStream.value = false
@@ -1394,9 +1376,10 @@ const syncPreviewVideoPosition = async (targetTime: number) => {
     await waitForPreviewCanPlay(video, token)
   }
 
-  if (token !== previewPlaybackToken) return
+  if (token !== previewPlaybackToken) return false
   video.currentTime = Math.min(targetTime, video.duration || targetTime)
   playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
+  return true
 }
 
 const waitForPreviewCanPlay = (video: HTMLVideoElement, token: number): Promise<void> => new Promise((resolve, reject) => {
@@ -1435,18 +1418,20 @@ const startPreviewPlayback = async () => {
   if (!video || !showVideoPreview.value || !isAppWindowFocused()) return
   if (playerStore.active && playerStore.liveTranscodeMediaId === props.media.id) return
 
-  const videoSrc = await buildPreviewVideoUrl()
-  if (!videoSrc) {
-    playbackError.value = true
-    return
+  const targetTime = hasFixedPreviewTime.value && props.previewStartTime != null
+    ? props.previewStartTime
+    : progress.value
+
+  if (hasFixedPreviewTime.value && props.previewStartTime != null) {
+    progress.value = props.previewStartTime
+    playbackTime.value = props.previewStartTime
   }
-  previewUsesLiveStream.value = videoSrc.includes('/transcode/stream')
 
   try {
-    const needsNewSource = !video.src || !video.src.includes(String(props.media.id))
-    if (needsNewSource) {
-      video.src = videoSrc
-      await waitForPreviewCanPlay(video, token)
+    const positioned = await syncPreviewVideoPosition(targetTime)
+    if (!positioned) {
+      if (token === previewPlaybackToken) playbackError.value = true
+      return
     }
 
     if (token !== previewPlaybackToken || !showVideoPreview.value || !isAppWindowFocused()) return
@@ -1454,11 +1439,13 @@ const startPreviewPlayback = async () => {
     await video.play()
     playbackError.value = false
     syncPlaybackTimeFromVideo()
+    markHoverPreviewReady()
   } catch (error) {
     if (token !== previewPlaybackToken || isIgnorablePreviewError(error)) return
 
     console.error('Video playback error:', error)
     playbackError.value = true
+    resetHoverPreviewReady()
     stopPreviewLiveTranscode()
     video.removeAttribute('src')
     video.load()
@@ -1476,12 +1463,30 @@ const schedulePreviewPlayback = () => {
   }, delay)
 }
 
+const applyFixedPreviewTime = () => {
+  if (props.previewStartTime == null) return
+
+  progress.value = props.previewStartTime
+  playbackTime.value = props.previewStartTime
+}
+
 const handleMouseEnter = () => {
   if (!props.isFileExists || isHovered.value || !isAppWindowFocused()) return
 
   clearTimeout(timeouts.leave)
+  clearTimeout(timeouts.hoverCooldown)
+
+  const cooldownRemaining = getHoverPreviewCooldownRemaining()
+  if (cooldownRemaining > 0) {
+    timeouts.hoverCooldown = setTimeout(() => {
+      handleMouseEnter()
+    }, cooldownRemaining)
+    return
+  }
+
   playbackError.value = false
   isHovered.value = true
+  applyFixedPreviewTime()
 
   void (async () => {
     await checkTranscodeRequired()
@@ -1501,15 +1506,7 @@ const handleMouseEnter = () => {
 
       timeouts.cinema = setTimeout(() => {
         if (!canOpenBigPreview()) return
-
-        captureGridPreviewOrigin()
-        const preview = getPreviewEl()
-        if (preview) {
-          applyGridPreviewOrigin(preview)
-        }
-        emit('update-big-preview', true)
-        bigPreview.value = true
-        bigPreviewAnimation.value = true
+        void openGridBigPreview()
       }, Math.floor(totalDelay))
     }
   })()
@@ -1518,27 +1515,31 @@ const handleMouseEnter = () => {
 const stopPlayingPreview = ({force = false} = {}) => {
   if (!props.isFileExists && !hasActivePreviewState()) return
   if (isShrinking.value && !force) return
+  if (gridBigPreview.isCollapsing.value && !force) return
   if (!force && shouldKeepBigPreviewOpen()) return
 
   clearTimeout(timeouts.leave)
   clearTimeout(timeouts.cinema)
   bigPreviewMenuActive.value = false
 
-  if (force && isShrinking.value) {
+  if (force && (isShrinking.value || gridBigPreview.isCollapsing.value)) {
     clearTimeout(timeouts.shrink)
+    holdPreviewVideoDuringCollapse.value = false
+    collapsePreviewFading.value = false
+    gridBigPreview.forceClose(getPreviewEl())
     removeClasses()
     return
   }
 
-  const shouldShrink = !force && bigPreview.value
+  const shouldShrink = !force && isBigPreviewOpen.value
 
   if (shouldShrink) {
     clearTimeout(timeouts.z)
     bigPreviewAnimation.value = false
-    isShrinking.value = true
-    hidePreviewVideoImmediately()
-    emit('update-big-preview', false)
-    bigPreview.value = false
+
+    void closeGridBigPreview().finally(() => {
+      removeClasses()
+    })
     return
   }
 
@@ -1547,12 +1548,9 @@ const stopPlayingPreview = ({force = false} = {}) => {
   hidePreviewVideoImmediately()
   stopPreviewLiveTranscode()
   isShrinking.value = false
-  isGridShrinkDown.value = false
-  embeddedExpandActive.value = false
-  gridPreviewOrigin = null
   isHovered.value = false
-  bigPreview.value = false
   bigPreviewAnimation.value = false
+  gridBigPreview.forceClose(getPreviewEl())
   emit('update-big-preview', false)
 
   for (const timeout in timeouts) {
@@ -1564,7 +1562,15 @@ const stopPlayingPreview = ({force = false} = {}) => {
 }
 
 const handleMouseLeave = () => {
-  if (bigPreview.value || isShrinking.value) return
+  clearTimeout(timeouts.hoverCooldown)
+
+  if (gridBigPreview.isActive.value || isShrinking.value || bigPreviewAnimation.value) return
+
+  // Immediately abort pending/in-flight hover crossfade so thumb snaps back.
+  previewPlaybackToken += 1
+  resetHoverPreviewReady()
+  clearTimeout(timeouts.z)
+  clearTimeout(timeouts.cinema)
 
   clearTimeout(timeouts.leave)
   timeouts.leave = setTimeout(() => {
@@ -1635,11 +1641,18 @@ watch(() => showTimelinePreview.value, (active) => {
   }
 })
 
+watch(showVideoPreview, (active) => {
+  if (!active) resetHoverPreviewReady()
+})
+
 // Наблюдатели
 watch(
   () => showVideoPreview.value && videoRef.value,
   (ready) => {
     if (!ready) return
+    if (hasFixedPreviewTime.value && props.previewStartTime != null) {
+      void syncPreviewVideoPosition(props.previewStartTime)
+    }
     schedulePreviewPlayback()
   },
 )
@@ -1669,7 +1682,7 @@ watch(() => props.isFileExists, (exists) => {
 watch(playbackError, (error) => {
   if (!error) return
   clearTimeout(timeouts.cinema)
-  if (bigPreview.value) {
+  if (isBigPreviewOpen.value) {
     stopPlayingPreview()
   }
 })
@@ -1677,7 +1690,7 @@ watch(playbackError, (error) => {
 watch(shouldBlockVideoPreview, (blocked) => {
   if (!blocked) return
   clearTimeout(timeouts.cinema)
-  if (bigPreview.value) {
+  if (isBigPreviewOpen.value) {
     stopPlayingPreview()
   }
 })
@@ -1730,35 +1743,9 @@ watch(thumb, () => {
   }
 })
 
-watch(() => bigPreview.value, async (value) => {
-  if (value) {
-    if (isEmbeddedHost.value) {
-      await startEmbeddedExpand()
-      return
-    }
-
-    await nextTick()
-    toggleFullScreen()
-    return
-  }
-
-  embeddedExpandActive.value = false
-
-  if (isEmbeddedHost.value) {
-    if (isShrinking.value) {
-      shrinkEmbedded()
-    }
-    return
-  }
-
-  if (isShrinking.value) {
-    await shrinkGrid()
-  }
-})
-
 watch(bigPreviewSize, () => {
   const preview = getPreviewEl()
-  if (!preview || (!bigPreview.value && !isShrinking.value)) return
+  if (!preview || !gridBigPreview.isVisual.value) return
   applyBigPreviewMetrics(preview)
 })
 
@@ -1782,6 +1769,11 @@ const requestThumb = () => {
   thumbLoadStarted.value = true
   void getImg()
 }
+
+watch(() => props.thumbUrl, (url) => {
+  if (!usesExternalThumb.value) return
+  thumb.value = url ?? null
+}, {immediate: true})
 
 watch(() => props.previewActive, (active) => {
   if (active) {

@@ -1,24 +1,36 @@
 <template>
   <v-card
     class="home-media-card"
+    :class="{ 'home-media-card--big-preview': bigPreview }"
     rounded="lg"
     elevation="2"
     hover
-    @click="emit('click')"
+    @click="handleCardClick"
   >
     <div
       class="home-media-card__preview"
       :class="{ 'no-file': !isFileExists }"
     >
-      <v-img
-        v-if="thumb"
-        :src="thumb"
-        cover
-        class="home-media-card__thumb"
+      <ItemPreviewVideo
+        v-if="isVideoMedia"
+        :media="item"
+        :is-file-exists="isFileExists"
+        preview-host="compact"
+        :play-time="continuePlayTime"
+        @update-big-preview="bigPreview = $event"
       />
-      <div v-else class="home-media-card__placeholder">
-        <v-icon size="36" color="grey-darken-1">{{ placeholderIcon }}</v-icon>
-      </div>
+
+      <template v-else>
+        <v-img
+          v-if="thumb"
+          :src="thumb"
+          cover
+          class="home-media-card__thumb"
+        />
+        <div v-else class="home-media-card__placeholder">
+          <v-icon size="36" color="grey-darken-1">{{ placeholderIcon }}</v-icon>
+        </div>
+      </template>
 
       <v-chip
         v-if="variant === 'views' && item.views"
@@ -60,7 +72,10 @@
       height="3"
     />
 
-    <div class="home-media-card__body pa-2">
+    <div
+      class="home-media-card__body pa-2"
+      @click="handleBodyClick"
+    >
       <div class="text-caption text-truncate" :title="item.name">
         {{ item.name }}
       </div>
@@ -82,6 +97,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import {useAppStore} from '@/stores/app'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {findMediaTypeById, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
+import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 import type { HomeMediaCardVariant, HomeMediaItem } from '@/types/widgets'
 
 const props = withDefaults(defineProps<{
@@ -97,6 +113,7 @@ const emit = defineEmits<{
   click: []
 }>()
 
+const bigPreview = ref(false)
 const isFileExists = ref(true)
 
 async function verifyFileExists() {
@@ -118,6 +135,14 @@ const appStore = useAppStore()
 const mediaType = computed(() =>
   findMediaTypeById(appStore.mediaTypes, props.item.mediaTypeId),
 )
+
+const isVideoMedia = computed(() => isVideoMediaType(mediaType.value))
+
+const continuePlayTime = computed(() => {
+  if (props.variant !== 'continue') return undefined
+  const time = Number(props.item.time || 0)
+  return time > 0 ? time : undefined
+})
 
 const placeholderIcon = computed(() => {
   if (isImageMediaType(mediaType.value)) return 'mdi-image'
@@ -145,25 +170,69 @@ const subtitle = computed(() => {
 
   return ''
 })
+
+function handleCardClick() {
+  if (!isVideoMedia.value) {
+    emit('click')
+  }
+}
+
+function handleBodyClick() {
+  if (isVideoMedia.value) {
+    emit('click')
+  }
+}
 </script>
 
 <style lang="scss" scoped>
 .home-media-card {
   width: 148px;
   flex: 0 0 148px;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
+
+  &--big-preview {
+    position: relative;
+    z-index: 1010;
+  }
 
   &__preview {
     position: relative;
     aspect-ratio: 16 / 9;
     overflow: hidden;
+    border-radius: 8px 8px 0 0;
     background: rgba(var(--v-theme-on-surface), 0.06);
 
     &.no-file {
       .home-media-card__thumb,
-      :deep(.v-img__img) {
+      :deep(.v-img__img),
+      :deep(.thumb .v-img__img) {
         filter: saturate(0.1) opacity(50%);
+      }
+    }
+
+    :deep(.video-preview-host--compact) {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    :deep(.video-preview-container) {
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    :deep(.video-preview-host__anchor) {
+      border-radius: inherit;
+    }
+
+    :deep(.thumb) {
+      border-radius: inherit;
+
+      .v-img__img {
+        object-fit: cover;
+        border-radius: inherit;
       }
     }
   }
@@ -191,14 +260,14 @@ const subtitle = computed(() => {
     position: absolute;
     right: 6px;
     bottom: 6px;
-    z-index: 1;
+    z-index: 3;
   }
 
   &__favorite {
     position: absolute;
     top: 6px;
     right: 6px;
-    z-index: 1;
+    z-index: 3;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
   }
 
@@ -206,7 +275,7 @@ const subtitle = computed(() => {
     position: absolute;
     left: 4px;
     bottom: 4px;
-    z-index: 1;
+    z-index: 3;
   }
 
   &__body {
