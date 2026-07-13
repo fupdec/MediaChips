@@ -95,12 +95,6 @@ const headerButtons = computed(() => [
       color: 'error',
       outlined: false,
       action: () => sceneScraperStore.cancelAutoScrape(),
-    }, {
-      icon: 'arrow-collapse',
-      text: t('appbar.minimize'),
-      color: 'secondary',
-      outlined: true,
-      action: hide,
     }]
     : [{
       icon: 'close',

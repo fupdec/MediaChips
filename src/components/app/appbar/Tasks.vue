@@ -69,7 +69,7 @@
               class="px-4"
             >
               <v-icon start>mdi-open-in-new</v-icon>
-              {{ t('settings_labels.tools.open_process_dialog') }}
+              {{ t('media.adding.open_process_dialog') }}
             </v-btn>
             <v-btn
               v-if="task.action"

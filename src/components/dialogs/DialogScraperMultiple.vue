@@ -109,13 +109,6 @@ const headerButtons = computed(() => {
       outlined: true,
       action: () => scraperStore.cancelAutoScrape(),
     })
-    buttons.push({
-      icon: 'arrow-collapse',
-      text: t('appbar.minimize'),
-      color: 'secondary',
-      outlined: true,
-      action: hide,
-    })
     return buttons
   }
 
