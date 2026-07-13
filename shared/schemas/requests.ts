@@ -49,6 +49,17 @@ export const TagThumbsRequestSchema = z.object({
   types: z.array(z.string()).optional(),
 }).passthrough()
 
+export const SceneSearchRequestSchema = z.object({
+  query: z.string().trim().min(1),
+  limit: optionalCoercedNumber,
+}).passthrough()
+
+export const SceneMatchRequestSchema = z.object({
+  mediaId: z.union([z.number(), z.string()]),
+  query: z.string().trim().optional(),
+  limit: optionalCoercedNumber,
+}).passthrough()
+
 export const MediaPathUpdateRequestSchema = z.object({
   id: z.union([z.number(), z.string()]),
   path: z.string().min(1),

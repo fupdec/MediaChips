@@ -21,6 +21,7 @@ import registerMediaTypesInWatchedFolders from '../../api/routes/MediaTypesInWat
 import registerMetaSetting from '../../api/routes/MetaSetting.routes'
 import registerPageSetting from '../../api/routes/PageSetting.routes'
 import registerSavedFilter from '../../api/routes/SavedFilter.routes'
+import registerScraper from '../../api/routes/Scraper.routes'
 import registerSetting from '../../api/routes/Setting.routes'
 import registerTab from '../../api/routes/Tab.routes'
 import registerTask from '../../api/routes/Task.routes'
@@ -51,6 +52,7 @@ const ROUTE_REGISTRARS: ReadonlyArray<{ routeFile: string; register: ApiRouteReg
   { routeFile: 'MetaSetting.routes', register: registerMetaSetting },
   { routeFile: 'PageSetting.routes', register: registerPageSetting },
   { routeFile: 'SavedFilter.routes', register: registerSavedFilter },
+  { routeFile: 'Scraper.routes', register: registerScraper },
   { routeFile: 'Setting.routes', register: registerSetting },
   { routeFile: 'Tab.routes', register: registerTab },
   { routeFile: 'Task.routes', register: registerTask },

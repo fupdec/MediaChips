@@ -1,5 +1,7 @@
 import type { ServerDatabaseEntry, NetworkIpInfo } from './types/server'
 import type { TranscodeManager } from './types/builtinRoutes'
+import path from 'path'
+import dotenv from 'dotenv'
 import { apiErrorMessage } from '../api/types/errors'
 import { getBestLocalIp, getAllIps } from './server/network'
 import { initializeServerConfig } from './server/serverConfig'
@@ -22,6 +24,10 @@ import { initDatabaseManager } from './server/databaseRegistry'
 import { invalidateMediaDerivedCaches } from '../api/services/mediaCacheInvalidation'
 import { createTranscodeManager } from '../api/services/transcode/transcodeService'
 import registerWebSockets from './tasks/websockets'
+
+dotenv.config({
+  path: path.join(__dirname, '../.env'),
+})
 
 const networkHelpers = {
   getBestLocalIp,
