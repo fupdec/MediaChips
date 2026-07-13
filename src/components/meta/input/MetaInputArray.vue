@@ -141,12 +141,13 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch, nextTick, useAttrs} from 'vue'
+import {ref, computed, onMounted, onUnmounted, watch, nextTick, useAttrs} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useSettingsStore} from '@/stores/settings'
+import {useAppStore} from '@/stores/app'
 import {useEventBus} from "@/utils/eventBus"
 import {
   foundByChars,
@@ -177,6 +178,7 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
+const appStore = useAppStore()
 const eventBus = useEventBus()
 const router = useRouter()
 const {t} = useI18n()
@@ -287,7 +289,14 @@ const sameIds = (left: unknown, right: unknown) => {
 
 const findTagName = (tagId: number | string) => {
   const tag = listTags.value.find((t) => String(t.id) === String(tagId))
-  return tag ? tag.name : String(tagId)
+  if (tag?.name) return tag.name
+
+  const storeTag = appStore.getTagById(Number(tagId))
+  return storeTag?.name ?? String(tagId)
+}
+
+const refreshTagsFromEvent = async () => {
+  await getTags()
 }
 
 const getTags = async () => {
@@ -469,6 +478,11 @@ onMounted(async () => {
 
   val.value = normalizeIds(props.modelValue)
   await getTags()
+  eventBus.on('getTags', refreshTagsFromEvent)
+})
+
+onUnmounted(() => {
+  eventBus.off('getTags', refreshTagsFromEvent)
 })
 
 // Watchers
