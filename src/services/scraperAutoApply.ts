@@ -4,7 +4,7 @@ import { typedApi } from '@/services/typedApi'
 import { createImage } from '@/services/fileService'
 import { parseCountries, serializeCountries } from '@/utils/country'
 import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
-import { buildScraperTransferFields } from '@/utils/scraperTransferFields'
+import { buildScraperTransferFields, mergeSynonymValues } from '@/utils/scraperTransferFields'
 import {
   DEFAULT_TAG_COLOR,
   extractColorFromLocalFile,
@@ -195,6 +195,12 @@ async function applyTransferFields({
       continue
     }
 
+    if (field.dataType === 'synonyms') {
+      const merged = mergeSynonymValues(vals.synonyms, field.valueScraper)
+      vals.synonyms = merged || null
+      continue
+    }
+
     vals[field.meta.id] = field.valueScraper as MetaFieldValue
   }
 }
@@ -352,6 +358,8 @@ export async function autoApplyScrapedTagData({
     const currentValues = await loadTagValues(tag, assignedItems)
     const fields = buildScraperTransferFields({
       selected: {
+        name: typeof performer.name === 'string' ? performer.name : null,
+        aliases: Array.isArray(performer.aliases) ? performer.aliases as string[] : undefined,
         extras: (performer.extras as Record<string, unknown> | undefined) || {},
         posters: performer.posters as ScraperPoster[] | undefined,
       },
