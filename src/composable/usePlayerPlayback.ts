@@ -33,6 +33,7 @@ import {
   fetchPlayableInfo,
   stopLiveTranscode,
   playLiveStreamWhenReady,
+  shouldAttemptDirectPlaybackFallback,
   UnsupportedPlaybackError,
 } from '@/services/transcodeService'
 import {
@@ -178,34 +179,56 @@ export function usePlayerPlayback({
     })
 
     playerStore.player.addEventListener('error', () => {
-      if (!playerStore.active || !playerStore.player?.src) return
+      void handleVideoElementError()
+    })
 
-      if (isIgnorablePlaybackError({
-        usesLiveTranscode: playerStore.usesLiveTranscode,
-        isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
-        mediaErrorCode: playerStore.player.error?.code,
-      })) {
-        return
-      }
+    playerStore.player.addEventListener('seeking', () => {
+      if (playerStore.usesLiveTranscode) return
+      armDirectSeekStallWatch()
+    })
 
-      playerStore.playbackError = true
-      if (playerStore.usesLiveTranscode) {
-        failTranscode(playerStore.player.error?.message || 'Playback failed')
-      }
+    playerStore.player.addEventListener('seeked', () => {
+      clearDirectSeekStallWatch()
     })
 
     playerStore.player.addEventListener('waiting', () => {
-      if (!playerStore.usesLiveTranscode) return
+      if (!playerStore.usesLiveTranscode) {
+        // Chromium often stalls mid-seek on pathological MP4s without firing error.
+        armDirectSeekStallWatch(1500)
+        return
+      }
       playerStore.isStreamWaiting = true
     })
 
     playerStore.player.addEventListener('playing', () => {
+      clearDirectSeekStallWatch()
       if (!playerStore.usesLiveTranscode) return
       playerStore.liveTranscodeStarted = true
       playerStore.isStreamWaiting = false
       playerStore.playbackError = false
       playerStore.isLiveStreamSeeking = false
     })
+  }
+
+  const handleVideoElementError = async () => {
+    if (!playerStore.active || !playerStore.player?.src) return
+
+    if (isIgnorablePlaybackError({
+      usesLiveTranscode: playerStore.usesLiveTranscode,
+      isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
+      mediaErrorCode: playerStore.player.error?.code,
+    })) {
+      return
+    }
+
+    if (await tryFallbackDirectToLiveTranscode(playerStore.player.error?.code)) {
+      return
+    }
+
+    playerStore.playbackError = true
+    if (playerStore.usesLiveTranscode) {
+      failTranscode(playerStore.player.error?.message || 'Playback failed')
+    }
   }
 
   const bindVideoElement = (el: HTMLVideoElement | null) => {
@@ -277,11 +300,41 @@ export function usePlayerPlayback({
   let liveStreamSeekGeneration = 0
   let isAdvancingChunk = false
   let pendingNextChunkStart: number | null = null
+  let directPlaybackFallbackAttempted = false
+  let liveStreamCopyCompatible = false
+  let directPlaybackFallbackInFlight = false
+  let directSeekStallTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearDirectSeekStallWatch = () => {
+    if (directSeekStallTimer != null) {
+      clearTimeout(directSeekStallTimer)
+      directSeekStallTimer = null
+    }
+  }
+
+  const armDirectSeekStallWatch = (delayMs = 2500) => {
+    if (playerStore.usesLiveTranscode || directPlaybackFallbackAttempted) return
+    clearDirectSeekStallWatch()
+    directSeekStallTimer = setTimeout(() => {
+      directSeekStallTimer = null
+      if (!playerStore.active || playerStore.usesLiveTranscode) return
+      const videoEl = playerStore.player
+      if (!videoEl?.src) return
+      // Still seeking/waiting with no error → force remux path.
+      if (videoEl.seeking || videoEl.readyState < 3) {
+        void tryFallbackDirectToLiveTranscode(3)
+      }
+    }, delayMs)
+  }
 
   const resetTranscodeState = () => {
     playerStore.transcodeStatus = 'none'
     playerStore.transcodeError = null
   }
+
+  const liveStreamUrlOptions = () => (
+    liveStreamCopyCompatible ? {copyCompatible: true} : {}
+  )
 
   const failTranscode = (message?: string) => {
     playerStore.transcodeStatus = 'error'
@@ -303,8 +356,80 @@ export function usePlayerPlayback({
         mediaId,
         playerStore.liveStreamOffset,
         playerStore.liveTranscodeMaxHeight,
+        liveStreamUrlOptions(),
       ),
     )
+  }
+
+  const tryFallbackDirectToLiveTranscode = async (mediaErrorCode?: number) => {
+    if (directPlaybackFallbackInFlight) return true
+
+    const media = playerStore.media
+      || playerStore.playlist[playerStore.nowPlaying]
+      || null
+    const mediaId = media?.id ?? currentLiveMediaId
+    const transcodeEnabled = settingsStore.transcodeUnsupportedFormats === '1'
+
+    if (!shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: playerStore.usesLiveTranscode,
+      fallbackAttempted: directPlaybackFallbackAttempted,
+      transcodeEnabled,
+      mediaErrorCode,
+    })) {
+      return false
+    }
+
+    if (mediaId == null || !playerStore.player) return false
+
+    directPlaybackFallbackAttempted = true
+    directPlaybackFallbackInFlight = true
+
+    const resumeTime = Number.isFinite(playerStore.player.currentTime) && playerStore.player.currentTime > 0
+      ? playerStore.player.currentTime
+      : playerStore.currentTime || 0
+    const chunkStart = getChunkStart(resumeTime)
+
+    try {
+      currentLiveMediaId = mediaId
+      // Prefer re-encode: stream-copy remux of odd H.264 MP4s often yields audio + black video.
+      liveStreamCopyCompatible = false
+      playerStore.usesLiveTranscode = true
+      playerStore.liveTranscodeMediaId = mediaId
+      playerStore.liveTranscodeMaxHeight = normalizeTranscodeMaxHeight(settingsStore.transcodeMaxHeight)
+      playerStore.transcodeStatus = 'stream'
+      playerStore.playbackError = false
+      playerStore.transcodeError = null
+      playerStore.liveStreamOffset = chunkStart
+      playerStore.currentTime = resumeTime
+      playerStore.bufferedRanges = []
+      playerStore.isLiveStreamSeeking = true
+      playerStore.liveStreamSeekHandler = (time: number) => {
+        playerStore.currentTime = time
+        seekLiveStream(time)
+      }
+      markLiveTranscodeSession(mediaId)
+
+      playerStore.player.src = buildLiveStreamUrl(
+        buildApiUrl,
+        mediaId,
+        chunkStart,
+        playerStore.liveTranscodeMaxHeight,
+        liveStreamUrlOptions(),
+      )
+
+      await playCurrentLiveStream()
+      if (!playerStore.active) return true
+      playerStore.paused = false
+      playerStore.isLiveStreamSeeking = false
+      playerStore.syncPlaybackState()
+      return true
+    } catch (error) {
+      console.warn('Direct playback re-encode fallback failed:', error)
+      failTranscode(errorMessage(error, 'Playback failed after transcode fallback'))
+      return true
+    } finally {
+      directPlaybackFallbackInFlight = false
+    }
   }
 
   const stopLiveTranscodeSession = (mediaId: number | null = currentLiveMediaId) => {
@@ -326,11 +451,13 @@ export function usePlayerPlayback({
     playerStore.isLiveStreamSeeking = false
     playerStore.isStreamWaiting = false
     currentLiveMediaId = null
+    liveStreamCopyCompatible = false
     isAdvancingChunk = false
     pendingNextChunkStart = null
     liveStreamSeekGeneration += 1
     seekLiveStream.cancel?.()
     maybeAdvanceLiveStreamChunk.cancel?.()
+    clearDirectSeekStallWatch()
 
     clearLiveTranscodeSessionMark()
 
@@ -358,6 +485,7 @@ export function usePlayerPlayback({
       currentLiveMediaId,
       nextChunkStart,
       playerStore.liveTranscodeMaxHeight,
+      liveStreamUrlOptions(),
     )
     playerStore.currentTime = nextChunkStart
 
@@ -423,6 +551,7 @@ export function usePlayerPlayback({
       currentLiveMediaId,
       chunkStart,
       playerStore.liveTranscodeMaxHeight,
+      liveStreamUrlOptions(),
     )
     playerStore.currentTime = time
 
@@ -479,6 +608,8 @@ export function usePlayerPlayback({
 
     const chunkStart = getChunkStart(startTime)
     currentLiveMediaId = mediaId
+    // container_layout needs full re-encode; remux-copy paints black video in Chromium.
+    liveStreamCopyCompatible = playable.remuxCopy === true && playable.reason !== 'container_layout'
     playerStore.usesLiveTranscode = true
     playerStore.liveTranscodeMediaId = mediaId
     playerStore.liveTranscodeMaxHeight = normalizeTranscodeMaxHeight(settingsStore.transcodeMaxHeight)
@@ -492,7 +623,13 @@ export function usePlayerPlayback({
     resetTranscodeState()
     playerStore.transcodeStatus = 'stream'
     markLiveTranscodeSession(mediaId)
-    return buildLiveStreamUrl(buildApiUrl, mediaId, chunkStart, playerStore.liveTranscodeMaxHeight)
+    return buildLiveStreamUrl(
+      buildApiUrl,
+      mediaId,
+      chunkStart,
+      playerStore.liveTranscodeMaxHeight,
+      liveStreamUrlOptions(),
+    )
   }
 
   const isLoadSrcStale = (session: number) =>
@@ -503,7 +640,7 @@ export function usePlayerPlayback({
     if (!playerStore.usesLiveTranscode || !playerStore.player || !currentLiveMediaId || !playerStore.active) {
       return
     }
-    if (normalized === playerStore.liveTranscodeMaxHeight) return
+    if (normalized === playerStore.liveTranscodeMaxHeight && !liveStreamCopyCompatible) return
 
     seekLiveStream.cancel?.()
     maybeAdvanceLiveStreamChunk.cancel?.()
@@ -518,6 +655,8 @@ export function usePlayerPlayback({
     const liveMediaId = currentLiveMediaId
     if (liveMediaId == null) return
 
+    // Quality changes require re-encode; drop remux-copy mode.
+    liveStreamCopyCompatible = false
     playerStore.liveTranscodeMaxHeight = normalized
     playerStore.isLiveStreamSeeking = true
     playerStore.playbackError = false
@@ -529,6 +668,7 @@ export function usePlayerPlayback({
       liveMediaId,
       chunkStart,
       normalized,
+      liveStreamUrlOptions(),
     )
 
     try {
@@ -540,6 +680,7 @@ export function usePlayerPlayback({
             liveMediaId,
             chunkStart,
             normalized,
+            liveStreamUrlOptions(),
           ),
         )
         if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
@@ -566,6 +707,10 @@ export function usePlayerPlayback({
   const loadSrc = async (media: MediaItem, start_time?: number) => {
     const session = ++transcodeSessionId
     resetTranscodeState()
+    directPlaybackFallbackAttempted = false
+    directPlaybackFallbackInFlight = false
+    liveStreamCopyCompatible = false
+    clearDirectSeekStallWatch()
     await clearLiveTranscodeHandlers()
     if (isLoadSrcStale(session)) return
 

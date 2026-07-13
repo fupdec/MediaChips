@@ -10,6 +10,8 @@ interface LiveStreamOptions {
   duration?: number | null
   audioOnly?: boolean
   maxHeight?: number | null
+  /** Remux with stream copy when codecs are already browser-compatible. */
+  copyCodecs?: boolean
 }
 
 interface ActiveStream {
@@ -33,6 +35,7 @@ function buildFfmpegLiveArgs({
   duration = null,
   audioOnly,
   maxHeight,
+  copyCodecs = false,
 }: LiveStreamOptions) {
   const args = ['-hide_banner', '-loglevel', 'error', '-nostdin']
 
@@ -47,9 +50,16 @@ function buildFfmpegLiveArgs({
   }
 
   if (audioOnly) {
-    args.push('-vn', '-c:a', 'aac', '-b:a', '192k')
+    if (copyCodecs) {
+      args.push('-vn', '-c:a', 'copy')
+    } else {
+      args.push('-vn', '-c:a', 'aac', '-b:a', '192k')
+    }
+  } else if (copyCodecs) {
+    // Container remux only — used when Chromium rejects a "compatible" MP4.
+    args.push('-c', 'copy')
   } else {
-    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-crf', '23')
+    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-crf', '23', '-pix_fmt', 'yuv420p')
     if (maxHeight) {
       args.push('-vf', `scale='min(${maxHeight},iw)':-2`)
     }
@@ -75,9 +85,15 @@ function isIgnorableStreamError(error: NodeJS.ErrnoException | null | undefined)
     || code === 'ERR_STREAM_WRITE_AFTER_END'
 }
 
-function buildSessionKey(streamKey: string, startTime: number, maxHeight: number | null = null) {
+function buildSessionKey(
+  streamKey: string,
+  startTime: number,
+  maxHeight: number | null = null,
+  copyCodecs = false,
+) {
   const heightPart = maxHeight == null ? 'auto' : String(maxHeight)
-  return `${streamKey}@${Number(startTime).toFixed(2)}@${heightPart}`
+  const base = `${streamKey}@${Number(startTime).toFixed(2)}@${heightPart}`
+  return copyCodecs ? `${base}@copy` : base
 }
 
 function shouldRejectDuplicateStream(
@@ -170,9 +186,10 @@ function createLiveStreamRegistry() {
       duration = null,
       audioOnly = false,
       maxHeight = null,
+      copyCodecs = false,
     }: LiveStreamOptions & {streamKey: string},
   ) {
-    const sessionKey = buildSessionKey(streamKey, startTime, maxHeight)
+    const sessionKey = buildSessionKey(streamKey, startTime, maxHeight, copyCodecs)
     const existing = activeStreams.get(sessionKey)
 
     if (existing && !existing.stopped) {
@@ -195,7 +212,8 @@ function createLiveStreamRegistry() {
       startTime,
       duration,
       audioOnly,
-      maxHeight,
+      maxHeight: copyCodecs ? null : maxHeight,
+      copyCodecs,
     })
 
     const proc = spawn(getFfmpegPath(), args, {stdio: ['ignore', 'pipe', 'pipe']})

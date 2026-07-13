@@ -10,6 +10,11 @@ import type { PlayableInfo } from '@shared/schemas/transcode'
 
 const LIVE_STREAM_RETRY_DELAY_MS = 400
 
+const MEDIA_ERR_ABORTED = 1
+const MEDIA_ERR_NETWORK = 2
+const MEDIA_ERR_DECODE = 3
+const MEDIA_ERR_SRC_NOT_SUPPORTED = 4
+
 type BuildApiUrl = (path: string, baseUrl?: string) => string
 
 export type { PlayableInfo, TranscodeCacheStats } from '@shared/schemas/transcode'
@@ -35,6 +40,7 @@ export function buildLiveStreamUrl(
   mediaId: number,
   startSeconds = 0,
   maxHeight: number | string | null = null,
+  options: {copyCompatible?: boolean} = {},
 ) {
   const start = getChunkStart(startSeconds)
   const params = new URLSearchParams({
@@ -42,11 +48,31 @@ export function buildLiveStreamUrl(
     time: String(Math.random()),
   })
 
-  if (maxHeight != null && maxHeight !== '') {
+  if (maxHeight != null && maxHeight !== '' && !options.copyCompatible) {
     params.set('maxHeight', String(maxHeight))
+  }
+  if (options.copyCompatible) {
+    params.set('copy', '1')
   }
 
   return `${buildApiUrl(apiVideoTranscodeStream(mediaId))}?${params.toString()}`
+}
+
+/** Direct H.264/AAC can still fail in Chromium on pathological containers. */
+export function shouldAttemptDirectPlaybackFallback({
+  usesLiveTranscode,
+  fallbackAttempted,
+  transcodeEnabled,
+  mediaErrorCode,
+}: {
+  usesLiveTranscode?: boolean
+  fallbackAttempted?: boolean
+  transcodeEnabled?: boolean
+  mediaErrorCode?: number | null
+}): boolean {
+  if (usesLiveTranscode || fallbackAttempted || !transcodeEnabled) return false
+  if (mediaErrorCode == null) return true
+  return mediaErrorCode === MEDIA_ERR_DECODE || mediaErrorCode === MEDIA_ERR_SRC_NOT_SUPPORTED
 }
 
 export class UnsupportedPlaybackError extends Error {
@@ -70,18 +96,21 @@ export async function resolvePreviewVideoUrl(
       return null
     }
     if (playable.transcodeRequired || playable.streamPlayback || playable.mode === 'stream') {
-      return buildLiveStreamUrl(buildApiUrl, mediaId, startSeconds)
+      return buildLiveStreamUrl(
+        buildApiUrl,
+        mediaId,
+        startSeconds,
+        null,
+        {
+          copyCompatible: playable.remuxCopy === true && playable.reason !== 'container_layout',
+        },
+      )
     }
     return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
   } catch {
     return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
   }
 }
-
-const MEDIA_ERR_ABORTED = 1
-const MEDIA_ERR_NETWORK = 2
-const MEDIA_ERR_DECODE = 3
-const MEDIA_ERR_SRC_NOT_SUPPORTED = 4
 
 export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 60000 } = {}) {
   return new Promise<void>((resolve, reject) => {

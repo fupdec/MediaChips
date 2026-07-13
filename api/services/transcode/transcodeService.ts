@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { ffprobe } from '../../utils/ffmpeg'
 import { analyzeProbeResult } from './codecCompatibility'
+import { needsBrowserRemuxForMp4 } from './mp4ContainerLayout'
 import {
   resolveExistingCache,
   getCacheStats,
@@ -29,6 +30,7 @@ interface PlayabilityResult {
   videoCodec: string | null
   audioCodec: string | null
   duration: number
+  needsRemux?: boolean
 }
 
 interface PlaybackPlan {
@@ -41,6 +43,7 @@ interface PlaybackPlan {
   reason: string | null
   playability?: PlayabilityResult
   streamPlayback?: boolean
+  remuxCopy?: boolean
 }
 
 interface TranscodeManagerOptions {
@@ -53,6 +56,7 @@ interface StreamLiveOptions {
   startTime?: number
   audioOnly?: boolean
   maxHeight?: number | null
+  copyCodecs?: boolean
   settings?: Awaited<ReturnType<typeof getTranscodeSettings>>
   transcodeEnabled?: boolean
 }
@@ -101,12 +105,14 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     const probe = await ffprobe(filePath)
     const duration = Number(probe.format?.duration || 0)
     const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
+    const needsRemux = Boolean(analyzed.playable && !audioOnly && needsBrowserRemuxForMp4(filePath))
     const result: PlayabilityResult = {
       playable: analyzed.playable,
-      reason: analyzed.reason,
+      reason: needsRemux ? 'container_layout' : analyzed.reason,
       videoCodec: analyzed.videoCodec ?? null,
       audioCodec: analyzed.audioCodec ?? null,
       duration,
+      needsRemux,
     }
     setPlayabilityCacheEntry(cacheKey, result)
     return result
@@ -129,6 +135,23 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     }
 
     const playability = await analyzePlayability(filePath)
+
+    // Codec-compatible MP4s can still freeze Chromium on seek; live-transcode
+    // (re-encode) is required — stream-copy remux still yields black video in Chromium.
+    if (playability.playable && playability.needsRemux) {
+      return {
+        mode: 'stream',
+        transcodeRequired: true,
+        transcodeEnabled,
+        transcodeStatus: 'stream',
+        streamPlayback: true,
+        remuxCopy: false,
+        progress: 0,
+        error: null,
+        reason: 'container_layout',
+        playability,
+      }
+    }
 
     if (playability.playable) {
       return {
@@ -218,6 +241,9 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       chunkStart,
       fileDuration,
     })
+    const codecsCopySafe = Boolean(playability.playable && !playability.needsRemux)
+    // Never stream-copy pathological MP4 layouts: Chromium plays audio with a black frame.
+    const copyCodecs = Boolean(options.copyCodecs) && codecsCopySafe && !playability.needsRemux
 
     liveStreams.pipeLiveTranscode(req, res, {
       streamKey: cacheInfo.cacheKey,
@@ -225,7 +251,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       startTime: chunkStart,
       duration: chunkDuration,
       audioOnly,
-      maxHeight,
+      maxHeight: copyCodecs ? null : maxHeight,
+      copyCodecs,
     })
   }
 

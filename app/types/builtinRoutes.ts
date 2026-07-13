@@ -21,6 +21,7 @@ export interface TranscodePlaybackPlan {
   transcodeEnabled?: boolean
   transcodeStatus?: string
   streamPlayback?: boolean
+  remuxCopy?: boolean
   progress?: number
   error?: unknown
   reason?: string
@@ -46,7 +47,7 @@ export interface TranscodeManager {
     req: Request,
     res: Response,
     videoPath: string,
-    options: { startTime: number; maxHeight?: number },
+    options: { startTime: number; maxHeight?: number; copyCodecs?: boolean },
   ): Promise<void>
   getTranscodeStatus(videoPath: string): Promise<TranscodeStatus>
   getCacheStatsForActiveDb(): Record<string, unknown>

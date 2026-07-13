@@ -1,28 +1,47 @@
 import {describe, it, expect} from 'vitest'
 import {
+  buildFfmpegLiveArgs,
   buildSessionKey,
   shouldRejectDuplicateStream,
 } from '../../api/services/transcode/liveStreamTranscode.js'
 
-type BuildSessionKey = (streamKey: string, startTime: number, maxHeight?: number | null) => string
-const buildKey = buildSessionKey as BuildSessionKey
-
 describe('liveStreamTranscode session keys', () => {
   it('includes start time and max height in the session key', () => {
-    expect(buildKey('abc123', 120, 720)).toBe('abc123@120.00@720')
+    expect(buildSessionKey('abc123', 120, 720)).toBe('abc123@120.00@720')
   })
 
   it('uses distinct keys for different quality at the same chunk', () => {
     const streamKey = 'file-hash'
     const start = 240
 
-    expect(buildKey(streamKey, start, 1080)).not.toBe(
-      buildKey(streamKey, start, 720),
+    expect(buildSessionKey(streamKey, start, 1080)).not.toBe(
+      buildSessionKey(streamKey, start, 720),
     )
   })
 
   it('uses auto height marker when max height is omitted', () => {
     expect(buildSessionKey('abc123', 0)).toBe('abc123@0.00@auto')
+  })
+
+  it('appends copy marker for remux sessions', () => {
+    expect(buildSessionKey('abc123', 0, 720, true)).toBe('abc123@0.00@720@copy')
+  })
+})
+
+describe('buildFfmpegLiveArgs', () => {
+  it('uses stream copy for remux mode', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 30,
+      duration: 120,
+      copyCodecs: true,
+      maxHeight: 720,
+    })
+
+    expect(args).toContain('-c')
+    expect(args).toContain('copy')
+    expect(args).not.toContain('libx264')
+    expect(args).not.toContain('-vf')
   })
 })
 

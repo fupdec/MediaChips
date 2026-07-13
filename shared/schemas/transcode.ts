@@ -7,6 +7,7 @@ export const PlayableInfoSchema = z.object({
   transcodeEnabled: z.boolean().optional(),
   transcodeStatus: z.string().optional(),
   streamPlayback: z.boolean().optional(),
+  remuxCopy: z.boolean().optional(),
   progress: z.number().optional(),
   error: z.unknown().nullable().optional(),
   reason: z.string().optional(),

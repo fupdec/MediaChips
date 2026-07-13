@@ -5,6 +5,7 @@ import {
   playLiveStreamWhenReady,
   playWhenReady,
   resolvePreviewVideoUrl,
+  shouldAttemptDirectPlaybackFallback,
 } from '@/services/transcodeService'
 
 vi.mock('@/services/typedApi', () => ({
@@ -29,6 +30,12 @@ describe('transcodeService urls', () => {
   it('builds live stream url with max height', () => {
     const url = buildLiveStreamUrl(buildApiUrl, 42, 0, '720')
     expect(url).toContain('maxHeight=720')
+  })
+
+  it('builds remux copy live stream url without max height', () => {
+    const url = buildLiveStreamUrl(buildApiUrl, 42, 0, '720', {copyCompatible: true})
+    expect(url).toContain('copy=1')
+    expect(url).not.toContain('maxHeight=')
   })
 
   it('builds direct video stream url', () => {
@@ -124,5 +131,58 @@ describe('playWhenReady', () => {
 
     await playWhenReady(videoEl)
     expect(videoEl.play).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('shouldAttemptDirectPlaybackFallback', () => {
+  it('falls back on decode / src-not-supported when transcoding is enabled', () => {
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      mediaErrorCode: 3,
+    })).toBe(true)
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      mediaErrorCode: 4,
+    })).toBe(true)
+  })
+
+  it('does not fall back when already live, already tried, or transcoding is off', () => {
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: true,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      mediaErrorCode: 3,
+    })).toBe(false)
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: false,
+      fallbackAttempted: true,
+      transcodeEnabled: true,
+      mediaErrorCode: 3,
+    })).toBe(false)
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: false,
+      fallbackAttempted: false,
+      transcodeEnabled: false,
+      mediaErrorCode: 3,
+    })).toBe(false)
+  })
+
+  it('ignores abort / network media errors', () => {
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      mediaErrorCode: 1,
+    })).toBe(false)
+    expect(shouldAttemptDirectPlaybackFallback({
+      usesLiveTranscode: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      mediaErrorCode: 2,
+    })).toBe(false)
   })
 })
