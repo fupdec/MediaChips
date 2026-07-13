@@ -1,26 +1,32 @@
 <template>
   <AutoConnect
-    v-if="!isConnected && !isDevBrowser"
+    v-if="!isConnected && !isDevBrowser && !isElectronHost"
     @connected="handleServerConnected"
     @manual-mode="showManual = true"
   ></AutoConnect>
   <div
-    v-else-if="!isConfigLoaded"
+    v-else-if="!isConnected || !isConfigLoaded"
     class="dev-connecting"
   >
     <v-progress-circular indeterminate size="64" width="2"/>
+    <p v-if="isElectronHost && reconnectHint" class="reconnect-hint">{{ reconnectHint }}</p>
   </div>
   <app-preloader v-else/>
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, provide, type Ref} from "vue"
+import {ref, onMounted, onBeforeUnmount, provide, type Ref} from "vue"
 import AppPreloader from "@/AppPreloader.vue"
 import path from "path-browserify"
 import {useAppStore} from "@/stores/app"
 import AutoConnect from "@/AutoConnect.vue"
-import {resolveApiBaseUrl, resolveDirectBackendUrl} from "@/utils/apiBaseUrl"
+import {getLocalBackendUrl, resolveDirectBackendUrl} from "@/utils/apiBaseUrl"
 import type {AppConfig, ServerConfigPayload, ServerInfo} from "@/types/common"
+
+const FIXED_PORT = import.meta.env.VITE_PORT || 12321
+const PING_INTERVAL_MS = 30000
+const PING_FAILURES_BEFORE_DISCONNECT = 3
+const RECONNECT_INTERVAL_MS = 2000
 
 const isConfigLoaded = ref(false)
 const app = useAppStore()
@@ -28,9 +34,14 @@ const app = useAppStore()
 const isConnected = ref(false)
 const currentServer: Ref<ServerInfo | null> = ref(null)
 const showManual = ref(false)
+const reconnectHint = ref('')
 const isDevBrowser = import.meta.env.DEV && !window.electronAPI
+const isElectronHost = Boolean(window.electronAPI)
 let connectInFlight: Promise<void> | null = null
 let electronConfigListenerBound = false
+let consecutivePingFailures = 0
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let healthCheckTimer: ReturnType<typeof setInterval> | null = null
 
 // Dedicated player window is Electron-only.
 const isPlayerWindow = ref(
@@ -43,7 +54,7 @@ provide('currentServer', currentServer);
 onMounted(() => {
   const currentOriginServer = getCurrentOriginServer()
   if (currentOriginServer) {
-    handleServerConnected(currentOriginServer);
+    handleServerConnected(normalizeServerInfo(currentOriginServer));
     return;
   }
 
@@ -53,26 +64,43 @@ onMounted(() => {
     return;
   }
 
-  // If this is a player window, use simpler connection logic
-  if (isPlayerWindow.value) {
-    // For player, use localhost immediately
-    const serverInfo = {
-      url: 'http://localhost:' + (import.meta.env.VITE_PORT || 12321),
-      ip: 'localhost'
-    };
-    handleServerConnected(serverInfo);
-    return;
+  // Electron host (and player window): always use loopback — never LAN discovery.
+  if (isElectronHost || isPlayerWindow.value) {
+    handleServerConnected(getLocalServerInfo())
+    return
   }
 
   restoreLastServerConnection()
 });
 
-function tryConnectToDevBackend() {
-  const backendPort = import.meta.env.VITE_PORT || 12321
-  const server = {
-    url: `http://localhost:${backendPort}`,
-    ip: 'localhost',
+onBeforeUnmount(() => {
+  if (healthCheckTimer) clearInterval(healthCheckTimer)
+  stopReconnectLoop()
+})
+
+function getLocalServerInfo(): ServerInfo {
+  return {
+    url: getLocalBackendUrl(FIXED_PORT),
+    ip: '127.0.0.1',
   }
+}
+
+function normalizeServerInfo(server: ServerInfo): ServerInfo {
+  const url = server.url || `http://${server.ip || '127.0.0.1'}:${FIXED_PORT}`
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname === 'localhost') {
+      parsed.hostname = '127.0.0.1'
+      return {url: parsed.origin, ip: '127.0.0.1'}
+    }
+  } catch {
+    // keep as-is
+  }
+  return {...server, url}
+}
+
+function tryConnectToDevBackend() {
+  const server = getLocalServerInfo()
 
   checkServerAvailability(server).then((available) => {
     if (available) {
@@ -89,7 +117,12 @@ function restoreLastServerConnection() {
   if (!lastServer) return
 
   try {
-    const server = JSON.parse(lastServer)
+    const server = normalizeServerInfo(JSON.parse(lastServer))
+    // Remote clients may have cached a LAN IP; Electron must prefer loopback.
+    if (isElectronHost) {
+      handleServerConnected(getLocalServerInfo())
+      return
+    }
     checkServerAvailability(server).then((available) => {
       if (available) {
         handleServerConnected(server)
@@ -101,7 +134,7 @@ function restoreLastServerConnection() {
 }
 
 function getCurrentOriginServer() {
-  const fixedPort = String(import.meta.env.VITE_PORT || 12321)
+  const fixedPort = String(FIXED_PORT)
 
   if (!['http:', 'https:'].includes(window.location.protocol)) {
     return null
@@ -131,8 +164,9 @@ async function checkServerAvailability(server: ServerInfo) {
 }
 
 function handleServerConnected(serverInfo: ServerInfo) {
-  const serverUrl = serverInfo?.url
-    || `http://${serverInfo?.ip || 'localhost'}:${import.meta.env.VITE_PORT || 12321}`
+  const normalized = normalizeServerInfo(serverInfo)
+  const serverUrl = normalized.url
+    || `http://${normalized.ip || '127.0.0.1'}:${FIXED_PORT}`
 
   if (
     connectInFlight
@@ -141,11 +175,15 @@ function handleServerConnected(serverInfo: ServerInfo) {
     return connectInFlight
   }
 
+  stopReconnectLoop()
+  consecutivePingFailures = 0
+  reconnectHint.value = ''
+
   connectInFlight = (async () => {
-    currentServer.value = {...serverInfo, url: serverUrl}
+    currentServer.value = {...normalized, url: serverUrl}
     isConnected.value = true
 
-    if (!isPlayerWindow.value) {
+    if (!isPlayerWindow.value && !isElectronHost) {
       localStorage.setItem('lastServer', JSON.stringify(currentServer.value))
     }
 
@@ -214,7 +252,7 @@ async function fetchConfigFromServer() {
 
   try {
     // Use current server URL or localhost for player
-    const baseUrl = currentServer.value?.url || `http://localhost:${import.meta.env.VITE_PORT || 12321}`;
+    const baseUrl = currentServer.value?.url || getLocalBackendUrl(FIXED_PORT);
     const response = await fetch(`${baseUrl}/api/config`);
 
     if (response.ok) {
@@ -251,42 +289,99 @@ function applyConfig(config: ServerConfigPayload) {
   }
 }
 
+function stopReconnectLoop() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
+
+function startReconnectLoop() {
+  if (reconnectTimer) return
+
+  const attempt = async () => {
+    reconnectHint.value = isElectronHost
+      ? 'Reconnecting to local server…'
+      : 'Reconnecting…'
+
+    const candidates: ServerInfo[] = isElectronHost
+      ? [getLocalServerInfo()]
+      : [
+          getLocalServerInfo(),
+          currentServer.value,
+          (() => {
+            try {
+              const raw = localStorage.getItem('lastServer')
+              return raw ? normalizeServerInfo(JSON.parse(raw)) : null
+            } catch {
+              return null
+            }
+          })(),
+        ].filter(Boolean) as ServerInfo[]
+
+    for (const server of candidates) {
+      if (await checkServerAvailability(server)) {
+        await handleServerConnected(server)
+        return
+      }
+    }
+
+    reconnectTimer = setTimeout(attempt, RECONNECT_INTERVAL_MS)
+  }
+
+  void attempt()
+}
+
+function handleServerUnavailable() {
+  consecutivePingFailures += 1
+  if (consecutivePingFailures < PING_FAILURES_BEFORE_DISCONNECT) {
+    console.warn(`⚠️ Server ping failed (${consecutivePingFailures}/${PING_FAILURES_BEFORE_DISCONNECT})`)
+    return
+  }
+
+  console.warn('⚠️ Connection to server lost')
+
+  // Electron hosts the API in-process. Never swap to LAN AutoConnect / white screen —
+  // keep the UI mounted and wait for the next successful ping after transient downtime
+  // (e.g. LAN bind restart).
+  if (isElectronHost) {
+    reconnectHint.value = ''
+    return
+  }
+
+  isConnected.value = false
+  startReconnectLoop()
+}
+
 // Periodic connection check (main window only)
 if (!isPlayerWindow.value) {
-  setInterval(() => {
-    if (isConnected.value && currentServer.value) {
-      checkServerAvailability(currentServer.value).then(available => {
-        if (!available) {
-          console.warn('⚠️ Connection to server lost');
-          isConnected.value = false;
-          // Attempt reconnection
-          setTimeout(() => {
-            const lastServer = localStorage.getItem('lastServer');
-            if (lastServer) {
-              try {
-                const server = JSON.parse(lastServer);
-                checkServerAvailability(server).then(available => {
-                  if (available) {
-                    handleServerConnected(server);
-                  }
-                });
-              } catch (_e) {
-                // Handle error
-              }
-            }
-          }, 5000);
-        }
-      });
-    }
-  }, 30000);
+  healthCheckTimer = setInterval(() => {
+    if (!isConnected.value || !currentServer.value) return
+
+    checkServerAvailability(currentServer.value).then(available => {
+      if (available) {
+        consecutivePingFailures = 0
+        return
+      }
+      handleServerUnavailable()
+    })
+  }, PING_INTERVAL_MS)
 }
 </script>
 
 <style scoped>
 .dev-connecting {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   min-height: 100vh;
+}
+
+.reconnect-hint {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 14px;
 }
 </style>

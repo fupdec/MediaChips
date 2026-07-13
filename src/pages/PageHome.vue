@@ -97,6 +97,7 @@ import {useAppStore} from "@/stores/app"
 import {useSettingsStore} from "@/stores/settings"
 import {useItemsStore} from "@/stores/items"
 import {useEventBus} from "@/utils/eventBus"
+import {resolveLanShareUrl} from "@/utils/apiBaseUrl"
 import {useHomeWidgets} from '@/composable/useHomeWidgets'
 import {invalidateHomeMediaCache, useHomeMedia} from '@/composable/useHomeMedia'
 import {useOpenMediaList} from "@/utils/openMediaList"
@@ -118,7 +119,10 @@ const { loadHomeMedia } = useHomeMedia()
 
 const showWidgetsDialog = ref(false)
 
-const apiUrl = computed(() => store.localhost)
+const apiUrl = computed(() =>
+  resolveLanShareUrl(store.config as Parameters<typeof resolveLanShareUrl>[0])
+  || store.localhost,
+)
 
 const mediaWidgetsEnabled = computed(() => ({
   continue: isWidgetEnabled('continue'),

@@ -76,6 +76,7 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {refreshServerConfig} from '@/services/configService'
+import {resolveLanShareUrl} from '@/utils/apiBaseUrl'
 import {isWinElectronUi} from '@/utils/electronUi'
 import SettingsMinimizeToTray from '@/components/settings/general/SettingsMinimizeToTray.vue'
 
@@ -90,7 +91,10 @@ const lanAccessEnvLocked = ref(false)
 const showTraySetting = isWinElectronUi()
 
 const SETTINGS = computed(() => settingsStore)
-const frontendUrl = computed(() => appStore.localhost)
+const frontendUrl = computed(() =>
+  resolveLanShareUrl(appStore.config as Parameters<typeof resolveLanShareUrl>[0])
+  || appStore.localhost,
+)
 const lanAccessHint = computed(() =>
   lanAccessEnvLocked.value
     ? t('settings_labels.general.allow_lan_access_env_locked')

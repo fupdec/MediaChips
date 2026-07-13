@@ -3,6 +3,9 @@ import {
   isViteDevProxyMode,
   resolveApiBaseUrl,
   resolveDirectBackendUrl,
+  resolveLanShareUrl,
+  isLoopbackHost,
+  getLocalBackendUrl,
 } from '@/utils/apiBaseUrl'
 
 describe('resolveApiBaseUrl', () => {
@@ -67,5 +70,40 @@ describe('resolveApiBaseUrl', () => {
 
     expect(resolveApiBaseUrl({ port: 12321 }))
       .toBe('http://localhost:12321')
+  })
+})
+
+describe('resolveLanShareUrl', () => {
+  it('returns null when LAN access is disabled', () => {
+    expect(resolveLanShareUrl({
+      allowLanAccess: false,
+      ip: '192.168.1.10',
+      port: 12321,
+    })).toBeNull()
+  })
+
+  it('prefers non-loopback serverInfo.webUrl', () => {
+    expect(resolveLanShareUrl({
+      allowLanAccess: true,
+      ip: 'localhost',
+      port: 12321,
+      serverInfo: {webUrl: 'http://192.168.1.10:12321'},
+    })).toBe('http://192.168.1.10:12321')
+  })
+
+  it('falls back to config.ip / ips and ignores localhost', () => {
+    expect(resolveLanShareUrl({
+      allowLanAccess: '1',
+      ip: 'localhost',
+      port: 12321,
+      ips: ['127.0.0.1', '10.0.0.5'],
+    })).toBe('http://10.0.0.5:12321')
+  })
+
+  it('detects loopback hosts', () => {
+    expect(isLoopbackHost('localhost')).toBe(true)
+    expect(isLoopbackHost('127.0.0.1')).toBe(true)
+    expect(isLoopbackHost('192.168.1.1')).toBe(false)
+    expect(getLocalBackendUrl(12321)).toBe('http://127.0.0.1:12321')
   })
 })
