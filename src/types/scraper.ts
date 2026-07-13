@@ -18,6 +18,8 @@ export interface ScraperPoster {
 }
 
 export interface ScraperSelectedResult {
+  name?: string | null
+  aliases?: string[]
   extras?: Record<string, unknown>
   posters?: ScraperPoster[]
 }
@@ -36,6 +38,7 @@ export interface ScraperTransferField {
   valueReserved: unknown
   valueScraper?: unknown
   isTagExists?: boolean
+  scrapedTags?: import('@/utils/sceneScraperTags').SceneScraperTagEntry[]
   key: string
   meta: Meta
   isTransfered: boolean

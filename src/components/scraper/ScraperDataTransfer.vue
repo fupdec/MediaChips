@@ -85,7 +85,7 @@ import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '@/stores/scraper'
 import {useAppStore} from '@/stores/app'
 import {getMetaName} from "@/utils/metaI18n"
-import {buildScraperTransferFields} from '@/utils/scraperTransferFields'
+import {buildScraperTransferFields, mergeSynonymValues} from '@/utils/scraperTransferFields'
 
 import ScraperSelectImages from '@/components/scraper/ScraperSelectImages.vue'
 
@@ -138,6 +138,21 @@ function transfer(item: ScraperTransferField) {
     if (!item.isAlreadyContain && Array.isArray(item.valueCurrent)) {
       item.valueCurrent.push(item.valueScraper)
     }
+  } else if (item.dataType === 'country') {
+    const current = Array.isArray(item.valueCurrent) ? [...item.valueCurrent] : []
+    const scraped = Array.isArray(item.valueScraper)
+      ? item.valueScraper.map((entry) => String(entry))
+      : [String(item.valueScraper)]
+
+    for (const name of scraped) {
+      if (name && !current.includes(name)) {
+        current.push(name)
+      }
+    }
+
+    item.valueCurrent = current
+  } else if (item.dataType === 'synonyms') {
+    item.valueCurrent = mergeSynonymValues(item.valueCurrent, item.valueScraper)
   } else {
     item.valueCurrent = item.valueScraper
   }
