@@ -8,7 +8,7 @@ import {pruneNativeBinaries, resolveDistTarget} from './prune-native-binaries.mj
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
-    10|  || args.includes('--sfw')
+  || args.includes('--sfw')
 
 function readFlag(name) {
   return args.includes(name)
@@ -33,6 +33,23 @@ function run(command, commandArgs = [], env = process.env) {
   }
 }
 
+function restoreSfwCompiledTsSource() {
+  // Compile bakes SFW_COMPILED into shared/sfwCompiled.js for the asar.
+  // Reset the .ts source so the working tree does not stay dirty after dist:sfw.
+  writeFileSync(
+    join(root, 'shared/sfwCompiled.ts'),
+    [
+      '/**',
+      ' * Overwritten by `scripts/compile.mjs` when MEDIA_CHIPS_SFW=1.',
+      ' * Packaged Electron apps do not inherit that env var, so the flag must be baked in.',
+      ' */',
+      'export const SFW_COMPILED = false',
+      '',
+    ].join('\n'),
+    'utf8',
+  )
+}
+
 const target = resolveDistTarget(args)
 const childEnv = {
   ...process.env,
@@ -44,6 +61,15 @@ if (sfwBuild) {
 }
 
 run('node', ['scripts/compile.mjs', 'artifacts'], childEnv)
+if (sfwBuild) {
+  restoreSfwCompiledTsSource()
+  const baked = readFileSync(join(root, 'shared/sfwCompiled.js'), 'utf8')
+  if (!/\bSFW_COMPILED\s*=\s*true\b/.test(baked) && !/exports\.SFW_COMPILED\s*=\s*true/.test(baked)) {
+    console.error('[dist] shared/sfwCompiled.js was not baked with SFW_COMPILED=true')
+    process.exit(1)
+  }
+  console.log('[dist] verified shared/sfwCompiled.js has SFW_COMPILED=true')
+}
 run('npm', ['run', 'build:app'], childEnv)
 run('node', ['.scripts-build/download-parser-model.js'], childEnv)
 run('node', ['scripts/ensure-electron-native.mjs', '--force'], childEnv)
@@ -84,6 +110,10 @@ if (sfwBuild) {
       '!packages/plugin-adult/**',
       '!node_modules/@mediachips/plugin-adult/**',
       '!api/plugins/adult/**',
+      '!api/routes/Scraper.routes.js',
+      '!api/controllers/Scraper.controller.js',
+      '!api/services/theporndbApi.js',
+      '!api/services/sceneScraperMarkers.js',
     ],
   }
   const configDir = join(root, '.cache')

@@ -20,7 +20,12 @@ function hasDownloadedModel() {
 }
 
 async function downloadFile(url: string, dest: string) {
-  const response = await fetch(url)
+  const response = await fetch(url, {
+    headers: {
+      // Hugging Face often returns 403 to bare Node fetches without a UA.
+      'User-Agent': 'mediachips-dist/1.0 (+https://github.com/fupdec/MediaChips)',
+    },
+  })
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`)
   }
@@ -41,8 +46,18 @@ async function main() {
 
   for (const file of MODEL_FILES) {
     const dest = path.join(modelDir, file)
+    if (fs.existsSync(dest)) {
+      console.log(`  ${file} (cached)`)
+      continue
+    }
     console.log(`  ${file}`)
     await downloadFile(`${HF_BASE}/${file}`, dest)
+  }
+
+  if (!hasDownloadedModel()) {
+    throw new Error(
+      `Parser model incomplete at ${modelDir}. Missing files must be downloaded when Hugging Face is reachable.`,
+    )
   }
 
   console.log('Parser model is ready')

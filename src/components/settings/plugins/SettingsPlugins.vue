@@ -6,7 +6,7 @@
     />
 
     <div class="text-caption text-medium-emphasis mb-4">
-      {{ t('settings_labels.plugins.hint') }}
+      {{ t(pluginsHintKey) }}
     </div>
 
     <div class="d-flex flex-wrap ga-2 mb-4">
@@ -168,11 +168,16 @@ import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {usePluginsStore} from '@/stores/plugins'
+import {isSfwBuild} from '@/utils/sfwBuild'
 import type {PluginCatalogEntry, PluginInstallState, PluginPermission} from '@shared/plugins'
 
 const {t, te} = useI18n()
 const pluginsStore = usePluginsStore()
 const togglingId = ref<string | null>(null)
+
+const pluginsHintKey = isSfwBuild()
+  ? 'settings_labels.plugins.hint_sfw'
+  : 'settings_labels.plugins.hint'
 
 const installedEntries = computed(() =>
   pluginsStore.catalog.filter((entry) => entry.state !== 'planned'),

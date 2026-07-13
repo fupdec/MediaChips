@@ -57,9 +57,16 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
 
   if (!isSfwBuild()) {
     // Lazy require keeps ThePornDB / adult plugin modules out of SFW process graphs.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const registerScraper = require('../../api/routes/Scraper.routes').default as ApiRouteRegistrar
-    registrars.push({ routeFile: 'Scraper.routes', register: registerScraper })
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const registerScraper = require('../../api/routes/Scraper.routes').default as ApiRouteRegistrar
+      registrars.push({ routeFile: 'Scraper.routes', register: registerScraper })
+    } catch (err: unknown) {
+      console.warn(
+        '[routes] Scraper routes unavailable (adult plugin missing?):',
+        err instanceof Error ? err.message : String(err),
+      )
+    }
   }
 
   registrars.push(

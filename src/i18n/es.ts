@@ -628,6 +628,7 @@ const es = {
     plugins: {
       title: 'Plugins',
       hint: 'Paquetes opcionales que amplían MediaChips. Desactive el plugin Adulto para ocultar scrapers y la pestaña Adulto.',
+      hint_sfw: 'Paquetes opcionales que amplían MediaChips. Esta versión SFW no incluye scrapers para adultos; abajo verá extensiones futuras.',
       stub_notice: 'La instalación desde carpeta/zip llegará más adelante. Los plugins incluidos ya se pueden activar o desactivar.',
       install_later_hint: 'La instalación de plugins desde carpeta o zip estará disponible en una futura actualización. Los plugins incluidos ya se pueden activar o desactivar arriba.',
       install_soon: 'Disponible en una actualización posterior',
