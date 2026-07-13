@@ -9,6 +9,10 @@ import {
   iterateContentHashBackfill,
 } from '../../services/contentHashBackfill'
 import {
+  getOshashBackfillStatus,
+  iterateOshashBackfill,
+} from '../../services/oshashBackfill'
+import {
   getVideoCodecBackfillStatus,
   iterateVideoCodecBackfill,
 } from '../../services/videoCodecBackfill'
@@ -39,6 +43,17 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     } catch (err) {
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while checking content hash status."
+      })
+    }
+  }
+
+  const oshashBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getOshashBackfillStatus(db)
+      res.status(201).send(status)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while checking oshash status.',
       })
     }
   }
@@ -196,6 +211,35 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     }
   }
 
+  const streamOshashBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const shouldStop = createStreamAbortSignal(req, res)
+
+      for await (const event of iterateOshashBackfill(db, {
+        shouldStop,
+        force: String(req.query.force || '').toLowerCase() === 'true',
+      })) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Some error occurred while backfilling oshash values.',
+      })
+      res.end()
+    }
+  }
+
   const missingMediaStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const full = String(req.query?.full || '').toLowerCase() === 'true'
@@ -275,7 +319,9 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
   return {
     contentHashBackfillStatus,
+    oshashBackfillStatus,
     streamContentHashBackfill,
+    streamOshashBackfill,
     videoCodecBackfillStatus,
     streamVideoCodecBackfill,
     imageThumbsGenerationStatus,

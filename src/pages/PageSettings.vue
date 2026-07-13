@@ -120,6 +120,10 @@
               </SettingsSection>
 
               <SettingsSection>
+                <SettingsOshashBackfill/>
+              </SettingsSection>
+
+              <SettingsSection>
                 <SettingsVideoCodecBackfill/>
               </SettingsSection>
 
@@ -231,6 +235,9 @@ const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
 const SettingsContentHashBackfill = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsContentHashBackfill.vue")
 )
+const SettingsOshashBackfill = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsOshashBackfill.vue")
+)
 const SettingsVideoCodecBackfill = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsVideoCodecBackfill.vue")
 )
@@ -325,6 +332,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   generate_video_images: "settings-generate-video-images",
   generate_image_thumbs: "settings-generate-image-thumbs",
   video_codec_backfill: "settings-video-codec-backfill",
+  oshash_backfill: "settings-oshash-backfill",
   field_pinning: "settings-meta-assignment",
   video_preview: "video_preview",
   backups: "database_backups",
@@ -376,6 +384,7 @@ function applyRouteSettings() {
     section === "generate_video_images"
     || section === "generate_image_thumbs"
     || section === "video_codec_backfill"
+    || section === "oshash_backfill"
     || section === "backups"
   ) {
     tab.value = "database"

@@ -70,6 +70,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'media', column: 'ext', definition: 'text'},
   {table: 'media', column: 'filesize', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'contentHash', definition: 'text'},
+  {table: 'media', column: 'oshash', definition: 'text'},
   {table: 'media', column: 'rating', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'favorite', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'bookmark', definition: 'text'},

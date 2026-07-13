@@ -12,7 +12,7 @@ export type MediaInsert = typeof media.$inferInsert
 export type MediaPathEntry = Pick<MediaRow, 'id' | 'path' | 'mediaTypeId'>
 
 const MEDIA_MUTABLE_COLUMNS = new Set([
-  'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'rating', 'favorite',
+  'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'oshash', 'rating', 'favorite',
   'bookmark', 'views', 'oldId', 'viewedAt', 'mediaTypeId',
 ])
 

@@ -8,6 +8,7 @@ export const media = sqliteTable('media', {
   ext: text('ext'),
   filesize: integer('filesize').default(0),
   contentHash: text('contentHash'),
+  oshash: text('oshash'),
   rating: integer('rating').default(0),
   favorite: integer('favorite', {mode: 'boolean'}).default(false),
   bookmark: text('bookmark'),

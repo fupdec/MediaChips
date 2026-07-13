@@ -126,6 +126,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   register('get', '/contentHashBackfillStatus', 'contentHashBackfillStatus')
   register('post', '/streamContentHashBackfill', 'streamContentHashBackfill')
+  register('get', '/oshashBackfillStatus', 'oshashBackfillStatus')
+  register('post', '/streamOshashBackfill', 'streamOshashBackfill')
   register('get', '/videoCodecBackfillStatus', 'videoCodecBackfillStatus')
   register('post', '/streamVideoCodecBackfill', 'streamVideoCodecBackfill')
   register('get', '/videoImagesGenerationStatus', 'videoImagesGenerationStatus')

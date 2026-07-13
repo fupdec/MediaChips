@@ -24,6 +24,7 @@ export type MediaLike = AnyRecord & {
   mediaTypeId?: number | string
   filesize?: number
   contentHash?: string | null
+  oshash?: string | null
 }
 
 export type FilterLike = AnyRecord & {

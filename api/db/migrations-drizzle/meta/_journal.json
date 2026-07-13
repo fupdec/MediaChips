@@ -50,6 +50,13 @@
       "when": 1782771600000,
       "tag": "0006_drop_name_singular",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1782775200000,
+      "tag": "0007_media_oshash",
+      "breakpoints": true
     }
   ]
 }

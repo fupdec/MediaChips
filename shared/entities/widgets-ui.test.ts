@@ -22,6 +22,7 @@ describe('widget ui normalizers', () => {
     expect(ui.duplicates.byContentHash).toBe(2)
     expect(ui.videoCodec.pending).toBe(1)
     expect(ui.contentHash.total).toBe(0)
+    expect(ui.oshash.total).toBe(0)
   })
 
   it('provides empty defaults', () => {

@@ -201,6 +201,19 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
     })
   }
 
+  if (health.value.oshash.pending > 0) {
+    alerts.push({
+      id: 'oshash',
+      type: 'info',
+      icon: 'mdi-identifier',
+      text: t('home.widgets.health_oshash_pending', {
+        count: health.value.oshash.pending,
+      }),
+      actionLabel: t('home.widgets.health_open_settings'),
+      action: openOshashBackfillSettings,
+    })
+  }
+
   if (health.value.videoCodec.pending > 0) {
     alerts.push({
       id: 'video-codec',
@@ -303,6 +316,16 @@ function openVideoCodecBackfillSettings() {
     query: {
       tab: 'database',
       section: 'video_codec_backfill',
+    },
+  })
+}
+
+function openOshashBackfillSettings() {
+  router.push({
+    path: '/settings',
+    query: {
+      tab: 'database',
+      section: 'oshash_backfill',
     },
   })
 }
