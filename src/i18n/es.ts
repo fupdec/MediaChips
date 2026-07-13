@@ -499,6 +499,7 @@ const es = {
       tag_name: 'Nombre de la etiqueta',
       type: 'Tipo',
       id: 'ID',
+      shuffle: 'Aleatorio',
     },
   },
   editing: {

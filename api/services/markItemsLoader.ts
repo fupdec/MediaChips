@@ -8,6 +8,7 @@ import type {
 } from '../types/markItems'
 import { createMarksRepository } from '../db/repositories/marks'
 import { createMetaRepository } from '../db/repositories/meta'
+import shuffle from 'lodash/shuffle'
 
 function normalizeMark(mark: MarkLike): MarkLike {
   const json = {...mark} as MarkLike
@@ -68,6 +69,10 @@ function sortMarks(
   sortBy: MarkSortKey | string = 'time',
   sortDir: 'asc' | 'desc' | string = 'desc',
 ): MarkLike[] {
+  if (sortBy === 'shuffle') {
+    return shuffle(items)
+  }
+
   const direction = sortDir === 'asc' ? 1 : -1
 
   return [...items].sort((a, b) => {

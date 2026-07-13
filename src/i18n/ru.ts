@@ -504,6 +504,7 @@ const ru = {
       tag_name: 'Название тега',
       type: 'Тип',
       id: 'ID',
+      shuffle: 'Случайно',
     },
   },
   editing: {

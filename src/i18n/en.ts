@@ -504,6 +504,7 @@ const en = {
       tag_name: 'Tag name',
       type: 'Type',
       id: 'ID',
+      shuffle: 'Shuffle',
     },
   },
   editing: {

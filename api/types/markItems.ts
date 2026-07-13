@@ -16,7 +16,7 @@ export interface MarkLike extends AnyRecord {
   toJSON?: () => MarkLike
 }
 
-export type MarkSortKey = 'videoName' | 'type' | 'tagName' | 'id' | 'time'
+export type MarkSortKey = 'videoName' | 'type' | 'tagName' | 'id' | 'time' | 'shuffle'
 
 export interface MarkLoadOptions {
   types?: Array<number | string>

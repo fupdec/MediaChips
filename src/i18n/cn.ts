@@ -499,6 +499,7 @@ const cn = {
       tag_name: '标签名称',
       type: '类型',
       id: 'ID',
+      shuffle: '随机',
     },
   },
   editing: {
