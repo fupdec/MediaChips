@@ -15,17 +15,17 @@
           </v-chip>
         </td>
       </tr>
-      <tr v-if="licenseInfo?.license_code">
+      <tr v-if="savedLicenseCode">
         <td>{{ t('registration.activation_key') }}</td>
-        <td><b>{{ licenseInfo.license_code || "??" }}</b></td>
+        <td><b>{{ savedLicenseCode }}</b></td>
       </tr>
-      <tr v-if="licenseInfo?.license_code">
+      <tr v-if="savedLicenseCode">
         <td>{{ t('registration.used_devices') }}</td>
         <td><b>{{ activated_devices }} / 3</b></td>
       </tr>
-      <tr v-if="licenseInfo?.license_code">
+      <tr v-if="savedLicenseCode">
         <td>{{ t('registration.expiration_date') }}</td>
-        <td><b>{{ licenseInfo.license_expiry || "??" }}</b></td>
+        <td><b>{{ displayLicenseInfo?.license_expiry || "??" }}</b></td>
       </tr>
       </tbody>
     </v-table>
@@ -47,6 +47,20 @@
       >
         <v-icon start>mdi-cancel</v-icon>
         <span>{{ t('registration.deactivate_on_device') }}</span>
+      </v-btn>
+    </div>
+
+    <div v-if="savedLicenseCode" class="mb-4">
+      <v-btn
+        @click="dialogDeactivateOthersConfirm = true"
+        color="warning"
+        rounded
+        variant="flat"
+        :loading="isLicenseRefreshRun"
+        :disabled="isLicenseRefreshRun"
+      >
+        <v-icon start>mdi-devices</v-icon>
+        <span>{{ t('registration.deactivate_other_devices') }}</span>
       </v-btn>
     </div>
 
@@ -228,6 +242,19 @@
                     {{ t('registration.enter_another_key') }}
                   </div>
                 </v-alert>
+
+                <div v-if="activationsCount > 2" class="mt-4">
+                  <v-btn
+                    @click="dialogDeactivateOthersConfirm = true"
+                    color="warning"
+                    rounded
+                    variant="flat"
+                    :disabled="isQueryRun"
+                  >
+                    <v-icon start>mdi-devices</v-icon>
+                    {{ t('registration.deactivate_other_devices') }}
+                  </v-btn>
+                </div>
               </v-card-text>
               <v-card-actions>
                 <v-btn @click="closeDialog" class="ma-2 pr-4" text rounded>
@@ -290,11 +317,19 @@
       :dialog="dialogDeactivateConfirm"
       :text="t('registration.deactivate_confirm')"
     />
+
+    <DialogConfirm
+      v-if="dialogDeactivateOthersConfirm"
+      @close="dialogDeactivateOthersConfirm = false"
+      @confirm="deactivateOtherDevices"
+      :dialog="dialogDeactivateOthersConfirm"
+      :text="t('registration.deactivate_other_devices_confirm')"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRegistrationStore} from '@/stores/registration'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -326,6 +361,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 // Локальные реактивные переменные
 const dialog = ref(false)
 const dialogDeactivateConfirm = ref(false)
+const dialogDeactivateOthersConfirm = ref(false)
 const step = ref(1)
 const licenseKey = ref('')
 const valid = ref(false)
@@ -336,6 +372,9 @@ const isKeyExpired = ref(false)
 const checkingStatus = ref('')
 const registrationStatus = ref('')
 const activated_devices = ref(0)
+const checkedLicenseInfo = ref<LicenseInfo | null>(null)
+const remoteLicenseInfo = ref<LicenseInfo | null>(null)
+const isLicenseRefreshRun = ref(false)
 
 const cleanObj: LicenseInfo = {
   license_code: '',
@@ -356,7 +395,40 @@ const licenseInfo = computed((): LicenseInfo | null => {
   const info = regInfo.value
   return info && typeof info === 'object' ? info : null
 })
+const savedLicenseCode = computed(() => licenseInfo.value?.license_code || '')
+const displayLicenseInfo = computed((): LicenseInfo | null => {
+  return remoteLicenseInfo.value || licenseInfo.value || null
+})
 const activationsCount = computed(() => numberOfActivations.value ?? 0)
+
+const refreshLicenseFromServer = async () => {
+  const licenseCode = savedLicenseCode.value
+  if (!licenseCode) {
+    remoteLicenseInfo.value = null
+    activated_devices.value = 0
+    return
+  }
+
+  isLicenseRefreshRun.value = true
+
+  try {
+    await registrationStore.ensureMachineId()
+    const data = await registrationStore.checkLicense(licenseCode)
+    if (data) {
+      remoteLicenseInfo.value = data
+      activated_devices.value = calculateActivations(data)
+    } else if (licenseInfo.value) {
+      activated_devices.value = calculateActivations(licenseInfo.value)
+    }
+  } catch (error) {
+    console.warn('Failed to refresh license from server:', error)
+    if (licenseInfo.value) {
+      activated_devices.value = calculateActivations(licenseInfo.value)
+    }
+  } finally {
+    isLicenseRefreshRun.value = false
+  }
+}
 
 // Ссылка на форму
 const form = ref<VFormInstance>(null)
@@ -407,6 +479,7 @@ const checkLicenseKey = async () => {
     const data = await registrationStore.checkLicense(licenseKey.value)
 
     if (data) {
+      checkedLicenseInfo.value = data
       numberOfActivations.value = calculateActivations(data)
 
       const today = new Date().toISOString().substring(0, 10)
@@ -443,6 +516,7 @@ const register = async () => {
         if (data.license) {
           await registrationStore.updateRegInfo(data.license)
           registrationStatus.value = t('registration.registration_successful')
+          await refreshLicenseFromServer()
         } else {
           registrationStatus.value = t('registration.registration_failed')
         }
@@ -491,6 +565,8 @@ const deactivateKey = async () => {
       licenseKey.value = ''
 
       await registrationStore.updateRegInfo(cleanObj)
+      activated_devices.value = 0
+      remoteLicenseInfo.value = null
     } else {
       notificationsStore.setNotification({
         type: 'error',
@@ -505,10 +581,73 @@ const deactivateKey = async () => {
   }
 }
 
+const deactivateOtherDevices = async () => {
+  dialogDeactivateOthersConfirm.value = false
+
+  const licenseCode = licenseInfo.value?.license_code || licenseKey.value
+  if (!licenseCode) {
+    notificationsStore.setNotification({
+      type: 'error',
+      text: t('registration.no_activation_key_found')
+    })
+    return
+  }
+
+  isQueryRun.value = true
+
+  try {
+    const data = await registrationStore.deactivateOtherDevices(licenseCode)
+
+    if (data.deactivatedCount === 0) {
+      notificationsStore.setNotification({
+        type: 'info',
+        text: t('registration.deactivate_other_devices_none')
+      })
+      return
+    }
+
+    if (data.success) {
+      notificationsStore.setNotification({
+        type: 'success',
+        text: t('registration.deactivate_other_devices_success', {count: data.deactivatedCount})
+      })
+
+      const freshData = data.license || await registrationStore.checkLicense(licenseCode)
+      if (freshData) {
+        checkedLicenseInfo.value = freshData
+        remoteLicenseInfo.value = freshData
+        numberOfActivations.value = calculateActivations(freshData)
+        activated_devices.value = numberOfActivations.value
+      }
+    } else {
+      notificationsStore.setNotification({
+        type: 'error',
+        text: data.message || t('registration.deactivation_failed')
+      })
+    }
+  } catch (error) {
+    notificationsStore.setNotification({
+      type: 'error',
+      text: getErrorMessage(error, t('registration.deactivation_failed'))
+    })
+  } finally {
+    isQueryRun.value = false
+  }
+}
+
 // Инициализация при монтировании
 onMounted(() => {
-  if (licenseInfo.value) {
-    activated_devices.value = calculateActivations(licenseInfo.value)
+  if (savedLicenseCode.value) {
+    refreshLicenseFromServer()
+  }
+})
+
+watch(savedLicenseCode, (licenseCode) => {
+  if (licenseCode) {
+    refreshLicenseFromServer()
+  } else {
+    remoteLicenseInfo.value = null
+    activated_devices.value = 0
   }
 })
 </script>

@@ -7,7 +7,11 @@ import { resolveApiBaseUrl } from '@/utils/apiBaseUrl'
 import { setOption } from '@/services/settingsService'
 import { refreshServerConfig, updateConfig } from '@/services/configService'
 import { ZodError } from 'zod'
-import { parseLicenseActivateResponse, parseLicenseInfo } from '@/schemas/license'
+import {
+  parseLicenseActivateResponse,
+  parseLicenseDeactivateOthersResponse,
+  parseLicenseInfo,
+} from '@/schemas/license'
 import type { LicenseInfo } from '@/types/stores'
 
 const LICENSE_API_BASE_URL = import.meta.env.VITE_LICENSE_API_URL || 'https://mediachips.app/wp-json/mediachips/v1/license'
@@ -42,17 +46,20 @@ function isValidMachineId(value: unknown): value is string {
   return /^[a-f0-9-]+$/i.test(id)
 }
 
+function collectLicenseFingerprints(data: LicenseInfo) {
+  return [data.fingerprint_1, data.fingerprint_2, data.fingerprint_3]
+    .filter((fingerprint): fingerprint is string => !!fingerprint && fingerprint.length > 0)
+}
+
 function calculateActivations(data: LicenseInfo) {
-  const fingerprints = [data.fingerprint_1, data.fingerprint_2, data.fingerprint_3]
-  let count = 0
+  return collectLicenseFingerprints(data).length
+}
 
-  for (const fingerprint of fingerprints) {
-    if (fingerprint && fingerprint.length > 0) {
-      count++
-    }
-  }
-
-  return count
+type DeactivateOtherDevicesResult = {
+  success: boolean
+  deactivatedCount: number
+  message?: string
+  license?: LicenseInfo
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -284,6 +291,32 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
       })
 
       return response.data
+    },
+
+    async deactivateOtherDevices(licenseCode: string): Promise<DeactivateOtherDevicesResult> {
+      const fingerprint = await this.ensureMachineId()
+
+      const response = await apiClient.post(`${this.licenseApiBaseUrl}/deactivate-others`, {
+        license_code: licenseCode,
+        fingerprint,
+      })
+
+      const data = parseLicenseDeactivateOthersResponse(response.data)
+      if (!data) {
+        return { success: false, deactivatedCount: 0, message: 'Invalid response from license service' }
+      }
+
+      const info = this.regInfo
+      if (data.license && info && typeof info === 'object' && info.license_code === licenseCode) {
+        await this.updateRegInfo(data.license)
+      }
+
+      return {
+        success: !!data.success,
+        deactivatedCount: data.deactivated_count ?? 0,
+        message: data.message,
+        license: data.license as LicenseInfo | undefined,
+      }
     },
 
     async tryAutoRegisterOnStartup(): Promise<AutoRegisterResult> {

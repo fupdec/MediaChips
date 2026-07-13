@@ -19,6 +19,13 @@ export const LicenseActivateResponseSchema = z.object({
   message: z.string().optional(),
 }).passthrough()
 
+export const LicenseDeactivateOthersResponseSchema = z.object({
+  success: z.boolean().optional(),
+  deactivated_count: z.number().optional(),
+  license: LicenseInfoSchema.optional(),
+  message: z.string().optional(),
+}).passthrough()
+
 export function parseLicenseInfo(data: unknown): LicenseInfo | null {
   if (data == null) return null
 
@@ -37,6 +44,18 @@ export function parseLicenseActivateResponse(data: unknown) {
   const result = LicenseActivateResponseSchema.safeParse(data)
   if (!result.success) {
     console.warn('[license] Failed to parse activate response:', result.error.issues)
+    return null
+  }
+
+  return result.data
+}
+
+export function parseLicenseDeactivateOthersResponse(data: unknown) {
+  if (data == null) return null
+
+  const result = LicenseDeactivateOthersResponseSchema.safeParse(data)
+  if (!result.success) {
+    console.warn('[license] Failed to parse deactivate-others response:', result.error.issues)
     return null
   }
 

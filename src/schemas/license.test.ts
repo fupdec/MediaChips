@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseLicenseActivateResponse, parseLicenseInfo } from '@/schemas/license'
+import {
+  parseLicenseActivateResponse,
+  parseLicenseDeactivateOthersResponse,
+  parseLicenseInfo,
+} from '@/schemas/license'
 
 describe('license schemas', () => {
   it('parses license info', () => {
@@ -23,8 +27,22 @@ describe('license schemas', () => {
     expect(response?.license?.license_code).toBe('ABC-123')
   })
 
+  it('parses deactivate-others response', () => {
+    const response = parseLicenseDeactivateOthersResponse({
+      success: true,
+      deactivated_count: 2,
+      license: { license_code: 'ABC-123', fingerprint_1: 'device-a' },
+      message: 'ok',
+    })
+
+    expect(response?.success).toBe(true)
+    expect(response?.deactivated_count).toBe(2)
+    expect(response?.license?.license_code).toBe('ABC-123')
+  })
+
   it('returns null when the license API responds with null', () => {
     expect(parseLicenseInfo(null)).toBeNull()
     expect(parseLicenseActivateResponse(null)).toBeNull()
+    expect(parseLicenseDeactivateOthersResponse(null)).toBeNull()
   })
 })
