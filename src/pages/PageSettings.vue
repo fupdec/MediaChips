@@ -76,15 +76,23 @@
               <SettingsMetaAssignment/>
 
               <SettingsSection>
-                <SettingsDataScraper/>
-              </SettingsSection>
-
-              <SettingsSection>
                 <SettingsQuickTags/>
               </SettingsSection>
 
               <SettingsSection>
                 <SettingsParseLibraryTags/>
+              </SettingsSection>
+            </SettingsList>
+          </div>
+
+          <div v-else-if="isPluginOwnedTab(tab)">
+            <SettingsList>
+              <SettingsSection
+                v-for="panel in panelsForActiveTab"
+                :key="`${panel.pluginId}:${panel.componentKey}`"
+                :id="panel.sectionId"
+              >
+                <component :is="resolvePanelComponent(panel.componentKey)"/>
               </SettingsSection>
             </SettingsList>
           </div>
@@ -145,6 +153,14 @@
             </SettingsList>
           </div>
 
+          <div v-else-if="tab === 'plugins'">
+            <SettingsList>
+              <SettingsSection>
+                <SettingsPlugins/>
+              </SettingsSection>
+            </SettingsList>
+          </div>
+
           <div v-else-if="tab === 'about'">
             <SettingsList>
               <SettingsSection>
@@ -163,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, onMounted, watch, nextTick, defineAsyncComponent} from "vue"
+import {computed, ref, onMounted, watch, nextTick, defineAsyncComponent, type Component} from "vue"
 import {useRoute, useRouter} from "vue-router"
 import {useI18n} from "vue-i18n"
 import SettingsList from "@/components/ui/SettingsList.vue"
@@ -183,6 +199,8 @@ import SettingsAppearancePage
   from "@/components/settings/appearance/SettingsAppearancePage.vue"
 import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
+import {usePluginsStore} from "@/stores/plugins"
+import {resolvePluginComponentLoader} from "@/services/pluginHost"
 
 const SettingsWatchedFolders = defineAsyncComponent(() =>
   import("@/components/settings/tools/SettingsWatchedFolders.vue")
@@ -198,9 +216,6 @@ const SettingsMetaAssignment = defineAsyncComponent(() =>
 )
 const SettingsMediaTypes = defineAsyncComponent(() =>
   import("@/components/settings/SettingsMediaTypes.vue")
-)
-const SettingsDataScraper = defineAsyncComponent(() =>
-  import("@/components/settings/library/SettingsDataScraper.vue")
 )
 const SettingsQuickTags = defineAsyncComponent(() =>
   import("@/components/settings/library/SettingsQuickTags.vue")
@@ -253,6 +268,9 @@ const SettingsLocale = defineAsyncComponent(() =>
 const SettingsRegistration = defineAsyncComponent(() =>
   import("@/components/settings/about/SettingsRegistration.vue")
 )
+const SettingsPlugins = defineAsyncComponent(() =>
+  import("@/components/settings/plugins/SettingsPlugins.vue")
+)
 const About = defineAsyncComponent(() =>
   import("@/components/app/About.vue")
 )
@@ -263,9 +281,11 @@ const TAB_ALIASES: Record<string, string> = {
   media: "library",
   assignment: "library",
   video: "general",
+  // Legacy: scraper lived under Library before the adult plugin tab.
+  data_scraper: "adult",
 }
 
-const NAV_ITEMS: SettingsNavItem[] = [
+const CORE_NAV_ITEMS: SettingsNavItem[] = [
   {
     value: "general",
     icon: "mdi-application-cog-outline",
@@ -302,6 +322,13 @@ const NAV_ITEMS: SettingsNavItem[] = [
     docId: "settings-doc-tab-database",
   },
   {
+    value: "plugins",
+    icon: "mdi-puzzle-outline",
+    labelKey: "settings.tabs.plugins",
+    descKey: "settings.tabs_desc.plugins",
+    docId: "settings-doc-tab-plugins",
+  },
+  {
     value: "about",
     icon: "mdi-information-variant",
     labelKey: "settings.tabs.about",
@@ -310,23 +337,77 @@ const NAV_ITEMS: SettingsNavItem[] = [
   },
 ]
 
+const pluginComponentCache = new Map<string, Component>()
+
 const tab = ref("general")
 const contentRef = ref<HTMLElement | null>(null)
 const applyingRoute = ref(false)
 const route = useRoute()
 const router = useRouter()
 const {t} = useI18n()
+const pluginsStore = usePluginsStore()
 
-const navItems = NAV_ITEMS
+const pluginNavItems = computed((): SettingsNavItem[] => {
+  void pluginsStore.revision
+  return pluginsStore.settingsNav.map((item) => ({
+    value: item.value,
+    icon: item.icon,
+    labelKey: item.labelKey,
+    descKey: item.descKey,
+    docId: item.docId,
+  }))
+})
+
+const navItems = computed((): SettingsNavItem[] => {
+  const items = [...CORE_NAV_ITEMS]
+  const insertAt = items.findIndex((item) => item.value === 'plugins')
+  const pluginItems = pluginNavItems.value
+  if (insertAt >= 0) {
+    items.splice(insertAt, 0, ...pluginItems)
+  } else {
+    items.push(...pluginItems)
+  }
+  return items
+})
+
+const panelsForActiveTab = computed(() => {
+  void pluginsStore.revision
+  return pluginsStore.settingsPanels.filter((panel) => panel.tab === tab.value)
+})
+
+function isPluginOwnedTab(tabValue: string): boolean {
+  return pluginNavItems.value.some((item) => item.value === tabValue)
+}
+
+function resolvePanelComponent(componentKey: string): Component | null {
+  const cached = pluginComponentCache.get(componentKey)
+  if (cached) return cached
+
+  const loader = resolvePluginComponentLoader(componentKey)
+  if (!loader) return null
+
+  const asyncComponent = defineAsyncComponent(loader)
+  pluginComponentCache.set(componentKey, asyncComponent)
+  return asyncComponent
+}
 
 const activeNavItem = computed(() => {
-  const item = NAV_ITEMS.find(entry => entry.value === tab.value) || NAV_ITEMS[0]
+  const item = navItems.value.find(entry => entry.value === tab.value) || navItems.value[0]
   return {
     label: t(item.labelKey),
     description: t(item.descKey),
     icon: item.icon,
   }
 })
+
+watch(
+  () => pluginsStore.revision,
+  () => {
+    if (!navItems.value.some((item) => item.value === tab.value)) {
+      tab.value = 'general'
+    }
+  },
+)
 
 const SETTINGS_SECTION_IDS: Record<string, string> = {
   generate_video_images: "settings-generate-video-images",

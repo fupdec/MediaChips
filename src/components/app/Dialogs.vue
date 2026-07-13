@@ -83,22 +83,22 @@
     <DialogMigration v-if="operationsStore.migrationLowDb.dialog"/>
 
     <DialogScraper
-      v-if="dialogsStore.scraper.show"
+      v-if="adultUiAvailable && dialogsStore.scraper.show"
       @close="dialogsStore.scraper.show = false"
     />
 
     <DialogScraperMultiple
-      v-if="dialogsStore.scraperMultiple.show"
+      v-if="adultUiAvailable && dialogsStore.scraperMultiple.show"
       @close="dialogsStore.scraperMultiple.show = false"
     />
 
     <DialogSceneScraper
-      v-if="dialogsStore.sceneScraper.show"
+      v-if="adultUiAvailable && dialogsStore.sceneScraper.show"
       @close="dialogsStore.sceneScraper.show = false"
     />
 
     <DialogSceneScraperMultiple
-      v-if="dialogsStore.sceneScraperMultiple.show"
+      v-if="adultUiAvailable && dialogsStore.sceneScraperMultiple.show"
       @close="dialogsStore.sceneScraperMultiple.show = false"
     />
 
@@ -124,13 +124,15 @@
 </template>
 
 <script setup lang="ts">
-import {defineAsyncComponent} from 'vue'
+import {defineAsyncComponent, computed} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useTasksStore} from '@/stores/tasks'
 import {useWatcherStore} from '@/stores/watcher'
 import {useOperationsStore} from '@/stores/operations'
 import {useItemsStore} from '@/stores/items'
+import {usePluginsStore} from '@/stores/plugins'
+import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 
 // Async components
@@ -165,16 +167,16 @@ const DialogProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogProcess.vue')
 )
 const DialogScraper = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogScraper.vue')
+  import('@mediachips/plugin-adult/components/DialogScraper.vue')
 )
 const DialogScraperMultiple = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogScraperMultiple.vue')
+  import('@mediachips/plugin-adult/components/DialogScraperMultiple.vue')
 )
 const DialogSceneScraper = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogSceneScraper.vue')
+  import('@mediachips/plugin-adult/components/DialogSceneScraper.vue')
 )
 const DialogSceneScraperMultiple = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogSceneScraperMultiple.vue')
+  import('@mediachips/plugin-adult/components/DialogSceneScraperMultiple.vue')
 )
 const DialogMediaAddingProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaAddingProcess.vue')
@@ -216,7 +218,13 @@ const tasksStore = useTasksStore()
 const watcherStore = useWatcherStore()
 const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
+const pluginsStore = usePluginsStore()
+const settingsStore = useSettingsStore()
 const {t} = useI18n()
+
+const adultUiAvailable = computed(() =>
+  pluginsStore.isAdultEnabled && settingsStore.showAdultContent === '1',
+)
 
 const closeApp = () => {
   if (window.electronAPI?.send) {

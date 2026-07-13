@@ -4,7 +4,7 @@ import { createMediaRepository } from '../db/repositories/media'
 import { createMetaRepository } from '../db/repositories/meta'
 import { createTagsRepository } from '../db/repositories/tags'
 import { deleteMarkGeneratedAsset } from './localAssetCleanup'
-import { fetchTpdbSceneMarkers } from './theporndbApi'
+import { fetchTpdbSceneMarkers } from '../plugins/adult/theporndbApi'
 import {
   buildExistingMarkSignature,
   buildSceneMarkerSignature,
@@ -57,7 +57,7 @@ export async function applyTpdbSceneMarkersToMedia({
     }
   }
 
-  const markers = await fetchTpdbSceneMarkers(sceneId)
+  const markers = await fetchTpdbSceneMarkers(sceneId, {db})
   if (!markers.length) {
     return { imported: 0, skipped: 0, total: 0 }
   }

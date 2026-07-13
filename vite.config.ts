@@ -49,6 +49,9 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, './shared'),
+      // Package root (src/) so deep imports like @mediachips/plugin-adult/components/... work.
+      // Sibling checkout: path.resolve(__dirname, '../mediachips-plugin-adult/src')
+      '@mediachips/plugin-adult': path.resolve(__dirname, './packages/plugin-adult/src'),
     },
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
   },
@@ -82,6 +85,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       'shared/**/*.test.ts',
       'api/**/*.test.ts',
       'app/**/*.test.ts',
+      'packages/**/*.test.ts',
       'scripts/**/*.test.mjs',
     ],
     coverage: {

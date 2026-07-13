@@ -138,6 +138,8 @@ const cn = {
       video: '视频',
       about: '关于',
       database: '数据库',
+      plugins: '插件',
+      adult: '成人内容',
       meta: '自定义元数据',
       field_pinning: '字段固定',
       media: '媒体类型',
@@ -148,6 +150,8 @@ const cn = {
       library: '元数据字段、媒体类型和标签',
       files: '监视文件夹和文件路径',
       database: '数据库、备份和库维护',
+      plugins: '扩展和可选功能包',
+      adult: '抓取器与成人内容选项',
       about: '注册和应用信息',
     },
     groups: {
@@ -621,6 +625,54 @@ const cn = {
     },
   },
   settings_labels: {
+    plugins: {
+      title: '插件',
+      hint: '扩展 MediaChips 的可选功能包。关闭「成人功能」插件可隐藏抓取器和成人内容设置页。',
+      stub_notice: '从文件夹/zip 安装将稍后提供。内置插件现在可以开关。',
+      install_later_hint: '从文件夹或 zip 安装插件将在后续更新中提供。上方已可开关内置插件。',
+      stats_planned: '计划中 · {count}',
+      stats_installed: '已安装 · {count}',
+      stats_enabled: '已启用 · {count}',
+      version: 'v{version}',
+      enabled: '已启用',
+      coming_soon: '即将推出 — 当前版本无法安装',
+      install_folder: '从文件夹安装',
+      install_zip: '从 zip 安装',
+      permissions_label: '权限',
+      permissions: {
+        ui: {
+          settings: '设置',
+          menu: '菜单',
+          dialogs: '对话框',
+          routes: '页面',
+        },
+        api: {
+          routes: '服务器 API',
+        },
+        network: {
+          external: '外部网络',
+        },
+        fs: {
+          read: '读取文件',
+          write: '写入文件',
+        },
+      },
+      catalog: {
+        mediachips: {
+          adult: {
+            name: '成人功能',
+            description: '表演者与场景抓取、ThePornDB 集成及相关成人工具。',
+          },
+        },
+      },
+      state: {
+        planned: '计划中',
+        installed: '已安装',
+        enabled: '已启用',
+        disabled: '已禁用',
+        error: '错误',
+      },
+    },
     general: {
       browser_access: '该应用可在同一网络中其他设备的浏览器中打开。',
       browser_access_disabled: '已禁用局域网访问。仅本机可在浏览器中打开应用。',
@@ -838,6 +890,9 @@ const cn = {
       adult_features_hint: '启用表演者和场景抓取器，以及应用中的相关操作。',
       data_scraper: '数据抓取器',
       data_scraper_hint: '从互联网解析表演者信息',
+      tpdb_api_key: 'ThePornDB API 密钥',
+      tpdb_api_key_hint: '用于从 {site} 获取表演者与场景信息。',
+      tpdb_api_key_placeholder: '粘贴 ThePornDB 的 token',
       sfw_mode: 'SFW 模式',
       sfw_mode_hint: '模糊主内容区域中的所有图片',
       scraper_no_meta_warning: '尚未为抓取器添加元数据字段。',

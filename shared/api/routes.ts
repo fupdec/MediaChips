@@ -90,6 +90,7 @@ export const API_ROUTES = {
   taskClipModelStatus: '/api/Task/clipModelStatus',
   taskDownloadClipModel: '/api/Task/downloadClipModel',
   mediaNumberOfMediaWithTag: '/api/media/numberOfMediaWithTag',
+  scraperSearchPerformers: '/api/scraper/performers',
   scraperSearchScenes: '/api/scraper/scenes/search',
   scraperMatchScenes: '/api/scraper/scenes/match',
   scraperScenesStatus: '/api/scraper/scenes/status',

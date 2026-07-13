@@ -43,19 +43,18 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
-import { useSettingsStore } from '@/stores/settings'
 import { useScraperStore } from '@/stores/scraper'
 import { useSceneScraperStore } from '@/stores/sceneScraper'
 import { useAutoScrapeBatch } from '@/composable/useAutoScrapeBatch'
 import { useAutoSceneScrapeBatch } from '@/composable/useAutoSceneScrapeBatch'
 import { isVideoMediaType, getCurrentMediaType } from '@/utils/mediaType'
+import { isAdultUiAvailable } from '@/services/adultFeatures'
 
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
-const settingsStore = useSettingsStore()
 const scraperStore = useScraperStore()
 const sceneScraperStore = useSceneScraperStore()
 const { runForSelection } = useAutoScrapeBatch()
@@ -70,7 +69,7 @@ const performerMeta = computed(() => {
 
 const canAutoScrape = computed(() =>
   itemsStore.type === 'tag'
-  && settingsStore.showAdultContent === '1'
+  && isAdultUiAvailable()
   && performerMeta.value?.scraper === true
 )
 
@@ -80,7 +79,7 @@ const currentMediaType = computed(() =>
 
 const canSceneAutoScrape = computed(() =>
   itemsStore.type === 'media'
-  && settingsStore.showAdultContent === '1'
+  && isAdultUiAvailable()
   && isVideoMediaType(currentMediaType.value)
 )
 

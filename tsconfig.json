@@ -20,7 +20,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@shared/*": ["shared/*"]
+      "@shared/*": ["shared/*"],
+      "@mediachips/plugin-adult": ["packages/plugin-adult/src/index.ts"],
+      "@mediachips/plugin-adult/*": ["packages/plugin-adult/src/*"]
     },
     "types": ["vite/client", "node"]
   },
@@ -29,7 +31,9 @@
     "src/**/*.tsx",
     "src/**/*.vue",
     "src/**/*.js",
-    "shared/**/*.ts"
+    "shared/**/*.ts",
+    "packages/plugin-adult/src/**/*.ts",
+    "packages/plugin-adult/src/**/*.vue"
   ],
   "references": [{ "path": "./tsconfig.node.json" }],
   "exclude": []

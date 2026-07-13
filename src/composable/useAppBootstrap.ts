@@ -546,6 +546,13 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     applyTheme()
     await applyLocale()
 
+    try {
+      const {usePluginsStore} = await import('@/stores/plugins')
+      await usePluginsStore().bootstrap()
+    } catch (error) {
+      console.error('Failed to bootstrap plugins:', error)
+    }
+
     // Reveal the app chrome and Electron window before heavy startup work.
     await revealAppShell()
 

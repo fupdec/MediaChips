@@ -138,6 +138,8 @@ const es = {
       video: 'Video',
       about: 'Acerca de',
       database: 'Base de datos',
+      plugins: 'Plugins',
+      adult: 'Adulto',
       meta: 'Metadatos personalizados',
       field_pinning: 'Fijación de campos',
       media: 'Tipos de medio',
@@ -148,6 +150,8 @@ const es = {
       library: 'Campos de metadatos, tipos de medio y etiquetas',
       files: 'Carpetas vigiladas y rutas de archivos',
       database: 'Bases de datos, copias de seguridad y mantenimiento',
+      plugins: 'Extensiones y packs de funciones opcionales',
+      adult: 'Extractores y opciones de contenido adulto',
       about: 'Registro e información de la aplicación',
     },
     groups: {
@@ -621,6 +625,54 @@ const es = {
     },
   },
   settings_labels: {
+    plugins: {
+      title: 'Plugins',
+      hint: 'Paquetes opcionales que amplían MediaChips. Desactive el plugin Adulto para ocultar scrapers y la pestaña Adulto.',
+      stub_notice: 'La instalación desde carpeta/zip llegará más adelante. Los plugins incluidos ya se pueden activar o desactivar.',
+      install_later_hint: 'La instalación de plugins desde carpeta o zip estará disponible en una futura actualización. Los plugins incluidos ya se pueden activar o desactivar arriba.',
+      stats_planned: 'Planificados · {count}',
+      stats_installed: 'Instalados · {count}',
+      stats_enabled: 'Activados · {count}',
+      version: 'v{version}',
+      enabled: 'Activado',
+      coming_soon: 'Próximamente — no instalable en esta versión',
+      install_folder: 'Instalar desde carpeta',
+      install_zip: 'Instalar desde zip',
+      permissions_label: 'Permisos',
+      permissions: {
+        ui: {
+          settings: 'Ajustes',
+          menu: 'Menús',
+          dialogs: 'Diálogos',
+          routes: 'Páginas',
+        },
+        api: {
+          routes: 'API del servidor',
+        },
+        network: {
+          external: 'Red externa',
+        },
+        fs: {
+          read: 'Leer archivos',
+          write: 'Escribir archivos',
+        },
+      },
+      catalog: {
+        mediachips: {
+          adult: {
+            name: 'Funciones adultas',
+            description: 'Extractores de intérpretes y escenas, integración con ThePornDB y herramientas adultas relacionadas.',
+          },
+        },
+      },
+      state: {
+        planned: 'Planificado',
+        installed: 'Instalado',
+        enabled: 'Activado',
+        disabled: 'Desactivado',
+        error: 'Error',
+      },
+    },
     general: {
       browser_access: 'La aplicación está disponible para abrirse en un navegador en otros dispositivos de la misma red.',
       browser_access_disabled: 'El acceso en red local está desactivado. Solo este equipo puede abrir la aplicación en el navegador.',
@@ -838,6 +890,9 @@ const es = {
       adult_features_hint: 'Activa los scrapers de intérpretes y escenas, y las acciones relacionadas en la aplicación.',
       data_scraper: 'Extractor de datos',
       data_scraper_hint: 'Extracción de información sobre el intérprete desde Internet',
+      tpdb_api_key: 'Clave API de ThePornDB',
+      tpdb_api_key_hint: 'Necesaria para obtener información de {site}.',
+      tpdb_api_key_placeholder: 'Pega el token de ThePornDB',
       sfw_mode: 'Modo SFW',
       sfw_mode_hint: 'Difumina todas las imágenes del área de contenido principal',
       scraper_no_meta_warning: 'No se han agregado campos de metadatos para el extractor.',

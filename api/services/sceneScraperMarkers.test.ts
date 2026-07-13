@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeTpdbMarkerTime, parseTpdbMarkers } from './theporndbApi'
+import { normalizeTpdbMarkerTime, parseTpdbMarkers } from '../plugins/adult/theporndbApi'
 
 describe('scene scraper marker parsing', () => {
   it('normalizes numeric and timestamp marker times', () => {

@@ -155,6 +155,14 @@ const Settings = [  {
     "value": 0
   },
   {
+    "option": "enabledPlugins",
+    "value": "[\"mediachips.adult\"]"
+  },
+  {
+    "option": "tpdbApiKey",
+    "value": ""
+  },
+  {
     "option": "sceneAutoApplyOnExactMatch",
     "value": 0
   },

@@ -62,6 +62,7 @@ import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {useScraperStore} from "@/stores/scraper"
 import {useNotificationsStore} from "@/stores/notifications"
+import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {typedApi} from '@/services/typedApi'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
@@ -135,7 +136,7 @@ const initButtons = () => {
     }
   ]
 
-  if (settingsStore.showAdultContent === '1' && meta.value?.scraper) {
+  if (isAdultUiAvailable() && meta.value?.scraper) {
     buttons.value.push({
       icon: 'search-web',
       text: t('actions.scrape_info'),

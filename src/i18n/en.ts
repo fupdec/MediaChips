@@ -139,6 +139,8 @@ const en = {
       video: 'Video',
       about: 'About',
       database: 'Database',
+      plugins: 'Plugins',
+      adult: 'Adult',
       meta: 'Custom metadata',
       field_pinning: 'Field pinning',
       media: 'Media types',
@@ -149,6 +151,8 @@ const en = {
       library: 'Metadata fields, media types and tagging',
       files: 'Watched folders and file paths',
       database: 'Databases, backups and library maintenance',
+      plugins: 'Extensions and optional feature packs',
+      adult: 'Scrapers and adult content options',
       about: 'Registration and app information',
     },
     groups: {
@@ -705,6 +709,54 @@ const en = {
     },
   },
   settings_labels: {
+    plugins: {
+      title: 'Plugins',
+      hint: 'Optional packs that extend MediaChips. Turn off the Adult plugin to hide scrapers and the Adult settings tab.',
+      stub_notice: 'Install from folder/zip will arrive later. Bundled plugins can be toggled now.',
+      install_later_hint: 'Installing plugins from a folder or zip will be available in a future update. Bundled plugins can already be enabled or disabled above.',
+      stats_planned: 'Planned · {count}',
+      stats_installed: 'Installed · {count}',
+      stats_enabled: 'Enabled · {count}',
+      version: 'v{version}',
+      enabled: 'Enabled',
+      coming_soon: 'Coming soon — not installable in this build',
+      install_folder: 'Install from folder',
+      install_zip: 'Install from zip',
+      permissions_label: 'Permissions',
+      permissions: {
+        ui: {
+          settings: 'Settings',
+          menu: 'Menus',
+          dialogs: 'Dialogs',
+          routes: 'Pages',
+        },
+        api: {
+          routes: 'Server API',
+        },
+        network: {
+          external: 'External network',
+        },
+        fs: {
+          read: 'Read files',
+          write: 'Write files',
+        },
+      },
+      catalog: {
+        mediachips: {
+          adult: {
+            name: 'Adult features',
+            description: 'Performer and scene scrapers, ThePornDB integration, and related adult tools.',
+          },
+        },
+      },
+      state: {
+        planned: 'Planned',
+        installed: 'Installed',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        error: 'Error',
+      },
+    },
     general: {
       browser_access: 'The application is available for opening in a browser on other devices located on the same network.',
       browser_access_disabled: 'Local network access is disabled. Only this computer can open the app in a browser.',
@@ -922,6 +974,9 @@ const en = {
       adult_features_hint: 'Enables performer and scene scrapers, and related actions in the app.',
       data_scraper: 'Data Scraper',
       data_scraper_hint: 'Parsing info about performer from the Internet',
+      tpdb_api_key: 'ThePornDB API key',
+      tpdb_api_key_hint: 'Required to fetch performer and scene data from {site}.',
+      tpdb_api_key_placeholder: 'Paste token from ThePornDB',
       sfw_mode: 'SFW mode',
       sfw_mode_hint: 'Blurs all images in the main content area',
       scraper_no_meta_warning: 'No metadata fields have been added for scraper.',

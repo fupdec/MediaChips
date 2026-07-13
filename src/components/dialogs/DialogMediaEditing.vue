@@ -91,6 +91,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
+import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
 import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/fileService'
@@ -173,7 +174,7 @@ function initButtons() {
     action: deleteMedia,
   }]
 
-  if (settingsStore.showAdultContent === '1' && isVideoMedia.value) {
+  if (isAdultUiAvailable() && isVideoMedia.value) {
     buttons.value.push({
       icon: 'search-web',
       text: t('actions.scrape_scene'),

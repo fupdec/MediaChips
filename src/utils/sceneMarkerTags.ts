@@ -1,5 +1,5 @@
 import type { Tag } from '@/types/stores'
-import { findOrCreateTagByName, tagMatchesLookupName } from './sceneScraperTags'
+import { findOrCreateTagByName, tagMatchesLookupName } from '@/utils/sceneScraperTags'
 
 export function findTagForMarkerTitle(title: string, allTags: Tag[]): Tag | undefined {
   const trimmed = String(title || '').trim()

@@ -137,6 +137,8 @@ export type SettingsState = {
   showExperimentalFeatures: string
   showSavedFilters: string
   showAdultContent: string
+  enabledPlugins: string
+  tpdbApiKey: string
   sceneAutoApplyOnExactMatch: string
   sceneScraperImportMarkers: string
   sceneScraperMarkerMetaId: string
@@ -227,6 +229,8 @@ export const defaultSettingsState = (): SettingsState => ({
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
   showAdultContent: '0',
+  enabledPlugins: '["mediachips.adult"]',
+  tpdbApiKey: '',
   sceneAutoApplyOnExactMatch: '0',
   sceneScraperImportMarkers: '1',
   sceneScraperMarkerMetaId: '',

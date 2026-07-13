@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { flattenFingerprintMatches } from './theporndbApi'
+import {describe, expect, it} from 'vitest'
+import {flattenFingerprintMatches} from './theporndbApi'
 
 describe('theporndbApi helpers', () => {
   it('flattens nested fingerprint matches and deduplicates scenes', () => {

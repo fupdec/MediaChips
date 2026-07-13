@@ -28,6 +28,7 @@ import {useScraperStore} from '@/stores/scraper'
 import {useAutoScrapeBatch} from '@/composable/useAutoScrapeBatch'
 import {useAutoSceneScrapeBatch} from '@/composable/useAutoSceneScrapeBatch'
 import {useSceneScraperStore} from '@/stores/sceneScraper'
+import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '@/utils/pageItem'
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
@@ -83,10 +84,10 @@ export default function useItemContextMenu(
     const t = (key: string, params: Record<string, string | number> = {}) => translate(key, params, locale)
     const contextMenu: ItemContextMenuEntry[] = []
     const canAutoScrape = type === 'tag'
-      && settingsStore.showAdultContent === '1'
+      && isAdultUiAvailable()
       && meta?.scraper === true
     const canSceneAutoScrape = type === 'media'
-      && settingsStore.showAdultContent === '1'
+      && isAdultUiAvailable()
       && isVideoMediaType(currentMediaType.value)
 
     if (!itemsStore.isSelect) {
