@@ -58,8 +58,17 @@ describe('pluginInstall', () => {
   it('installs from a folder and lists the plugin', async () => {
     const source = path.join(tempRoot, 'source-demo')
     writeMinimalPlugin(source)
+    await expect(installPluginFromPath(source)).rejects.toThrow(/zip/i)
+  })
 
-    const entry = await installPluginFromPath(source)
+  it('installs from a zip package and lists the plugin', async () => {
+    const folder = path.join(tempRoot, 'zip-list-source')
+    writeMinimalPlugin(folder, 'mediachips.demo')
+    const zipPath = path.join(tempRoot, 'demo.zip')
+    const zipResult = spawnSync('zip', ['-r', zipPath, '.'], {cwd: folder, encoding: 'utf8'})
+    expect(zipResult.status).toBe(0)
+
+    const entry = await installPluginFromPath(zipPath)
     expect(entry.manifest.id).toBe('mediachips.demo')
     expect(entry.source).toBe('user')
     expect(entry.state).toBe('installed')
@@ -87,17 +96,23 @@ describe('pluginInstall', () => {
   })
 
   it('uninstalls a user plugin', async () => {
-    const source = path.join(tempRoot, 'source-remove')
-    writeMinimalPlugin(source, 'mediachips.remove')
-    await installPluginFromPath(source)
+    const folder = path.join(tempRoot, 'source-remove')
+    writeMinimalPlugin(folder, 'mediachips.remove')
+    const zipPath = path.join(tempRoot, 'remove.zip')
+    const zipResult = spawnSync('zip', ['-r', zipPath, '.'], {cwd: folder, encoding: 'utf8'})
+    expect(zipResult.status).toBe(0)
+    await installPluginFromPath(zipPath)
     await uninstallPlugin('mediachips.remove')
     expect(fs.existsSync(path.join(tempRoot, 'plugins', 'mediachips.remove'))).toBe(false)
   })
 
   it('rejects invalid manifests', async () => {
-    const source = path.join(tempRoot, 'bad')
-    fs.mkdirSync(source, {recursive: true})
-    fs.writeFileSync(path.join(source, 'plugin.json'), JSON.stringify({name: 'Nope'}))
-    await expect(installPluginFromPath(source)).rejects.toThrow(/id/i)
+    const folder = path.join(tempRoot, 'bad')
+    fs.mkdirSync(folder, {recursive: true})
+    fs.writeFileSync(path.join(folder, 'plugin.json'), JSON.stringify({name: 'Nope'}))
+    const zipPath = path.join(tempRoot, 'bad.zip')
+    const zipResult = spawnSync('zip', ['-r', zipPath, '.'], {cwd: folder, encoding: 'utf8'})
+    expect(zipResult.status).toBe(0)
+    await expect(installPluginFromPath(zipPath)).rejects.toThrow(/id/i)
   })
 })

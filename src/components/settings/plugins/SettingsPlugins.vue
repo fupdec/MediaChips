@@ -35,19 +35,9 @@
       <v-btn
         rounded
         variant="tonal"
-        prepend-icon="mdi-folder-open-outline"
-        :loading="installingKind === 'folder'"
-        :disabled="Boolean(installingKind)"
-        @click="installFromFolder"
-      >
-        {{ t('settings_labels.plugins.install_folder') }}
-      </v-btn>
-      <v-btn
-        rounded
-        variant="tonal"
         prepend-icon="mdi-zip-box-outline"
-        :loading="installingKind === 'zip'"
-        :disabled="Boolean(installingKind)"
+        :loading="installing"
+        :disabled="installing"
         @click="installFromZip"
       >
         {{ t('settings_labels.plugins.install_zip') }}
@@ -194,7 +184,7 @@ const {t, te} = useI18n()
 const pluginsStore = usePluginsStore()
 const togglingId = ref<string | null>(null)
 const uninstallingId = ref<string | null>(null)
-const installingKind = ref<'folder' | 'zip' | null>(null)
+const installing = ref(false)
 
 const installedEntries = computed(() =>
   pluginsStore.catalog.filter((entry) => entry.state !== 'planned'),
@@ -204,31 +194,21 @@ function openPluginsSite() {
   window.open(PLUGINS_SITE_URL, '_blank')
 }
 
-async function pickAndInstall(kind: 'folder' | 'zip') {
-  installingKind.value = kind
+async function installFromZip() {
+  installing.value = true
   pluginsStore.installError = null
   try {
-    const result = kind === 'folder'
-      ? await showElectronOpenDialog(['openDirectory'])
-      : await showElectronOpenDialog({
-        properties: ['openFile'],
-        filters: [{name: 'Plugin zip', extensions: ['zip']}],
-      })
+    const result = await showElectronOpenDialog({
+      properties: ['openFile'],
+      filters: [{name: 'Plugin zip', extensions: ['zip']}],
+    })
     if (!result || result.canceled || !result.filePaths?.[0]) return
     await pluginsStore.installFromPath(result.filePaths[0])
   } catch {
     // installError is set on the store
   } finally {
-    installingKind.value = null
+    installing.value = false
   }
-}
-
-function installFromFolder() {
-  return pickAndInstall('folder')
-}
-
-function installFromZip() {
-  return pickAndInstall('zip')
 }
 
 function permissionLabel(permission: PluginPermission | string): string {

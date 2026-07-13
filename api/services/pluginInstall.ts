@@ -199,13 +199,11 @@ export async function installPluginFromPath(inputPath: string): Promise<PluginCa
   let packageDir: string
   let cleanupTemp: string | null = null
 
-  if (stats.isDirectory()) {
-    packageDir = sourcePath
-  } else if (stats.isFile() && path.extname(sourcePath).toLowerCase() === '.zip') {
+  if (stats.isFile() && path.extname(sourcePath).toLowerCase() === '.zip') {
     cleanupTemp = await extractZipToTemp(sourcePath)
     packageDir = resolvePackageRoot(cleanupTemp)
   } else {
-    throw new Error('Choose a plugin folder or a .zip file')
+    throw new Error('Choose a plugin .zip file')
   }
 
   const manifest = readManifestFromDir(packageDir)
