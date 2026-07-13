@@ -108,7 +108,6 @@
       :fullscreen="xs"
       :width="xl ? 1280 : 960"
       scrollable
-      persistent
       class="parse-library-tags-dialog"
     >
       <v-card rounded="lg" class="parse-library-tags-dialog__card">
@@ -314,6 +313,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useDisplay } from 'vuetify'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
@@ -324,6 +324,7 @@ import { setNotification } from '@/services/notificationService'
 import { setOption } from '@/services/settingsService'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
+import { useTasksStore } from '@/stores/tasks'
 import type {
   ApplyParseLibraryTagsResponse,
   ParseLibraryTagsPreviewItem,
@@ -348,9 +349,11 @@ const assignmentKey = (mediaId: number, metaId: number, tagId: number) => `${med
 const globalTagKey = (metaId: number, tagId: number) => `${metaId}:${tagId}`
 
 const { t } = useI18n()
+const router = useRouter()
 const { xs, xl, smAndDown } = useDisplay()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
+const tasksStore = useTasksStore()
 
 const status = ref<ParseLibraryTagsStatus>({
   totalMedia: 0,
@@ -382,6 +385,31 @@ const counters = ref({
 })
 
 let abortController: AbortController | null = null
+let taskId: string | null = null
+
+const openParseLibraryTagsDialog = () => {
+  if (router.currentRoute.value.path !== '/settings') {
+    void router.push({ path: '/settings', query: { tab: 'library' } })
+  }
+  dialog.value = true
+}
+
+const updateParseLibraryTagsTask = (data: {
+  subtitle?: string
+  progress?: number
+  color?: string
+  done?: boolean
+  action?: () => void
+}) => {
+  if (!taskId) return
+  tasksStore.updateTask(taskId, data)
+}
+
+const clearParseLibraryTagsTask = () => {
+  if (!taskId) return
+  tasksStore.removeTask(taskId)
+  taskId = null
+}
 
 const hasParserMetas = computed(() => status.value.parserMetas.length > 0)
 const parserMetaNames = computed(() => status.value.parserMetas.map((meta) => meta.name).join(', '))
@@ -720,16 +748,17 @@ const applyAll = async () => {
   await applyAssignments(buildAssignmentsFromMedia(items.value.map((item) => item.mediaId)))
 }
 
-const stopParsing = () => {
-  abortController?.abort()
-}
-
 const closeDialog = () => {
   if (active.value) {
-    stopParsing()
+    dialog.value = false
     return
   }
   dialog.value = false
+  clearParseLibraryTagsTask()
+}
+
+const stopParsing = () => {
+  abortController?.abort()
 }
 
 const startParsing = async () => {
@@ -757,6 +786,16 @@ const startParsing = async () => {
   }
 
   abortController = new AbortController()
+
+  taskId = tasksStore.setTask({
+    title: t('settings_labels.library.parse_library_tags'),
+    subtitle: t('settings_labels.library.parse_library_tags_progress', counters.value),
+    icon: 'tag-search-outline',
+    progress: 0,
+    click: openParseLibraryTagsDialog,
+    action: stopParsing,
+  })
+  const currentTaskId = taskId
 
   try {
     const response = await fetch(`${appStore.localhost}/api/Task/streamParseLibraryTagsPreview`, {
@@ -786,6 +825,11 @@ const startParsing = async () => {
         if (event.total) {
           progress.value = Math.min(((event.processed || 0) / event.total) * 100, 99)
         }
+
+        updateParseLibraryTagsTask({
+          subtitle: t('settings_labels.library.parse_library_tags_progress', counters.value),
+          progress: progress.value,
+        })
       }
 
       if (event.type === 'item' && event.item) {
@@ -807,6 +851,14 @@ const startParsing = async () => {
         }
         progress.value = 100
         scanFinished.value = true
+
+        updateParseLibraryTagsTask({
+          subtitle: t('settings_labels.library.parse_library_tags_complete', lastSummary.value),
+          progress: 100,
+          color: 'success',
+          done: true,
+          action: () => {},
+        })
       }
 
       if (event.type === 'error') {
@@ -839,11 +891,30 @@ const startParsing = async () => {
         title: t('settings_labels.library.parse_library_tags'),
         text: String(error),
       })
+      updateParseLibraryTagsTask({
+        subtitle: String(error),
+        color: 'error',
+        done: true,
+        action: () => {},
+      })
+    } else if (currentTaskId) {
+      updateParseLibraryTagsTask({
+        subtitle: t('common.stop'),
+        color: 'warning',
+        done: true,
+        action: () => {},
+      })
     }
     scanFinished.value = true
   } finally {
     active.value = false
     abortController = null
+    if (taskId === currentTaskId && !scanFinished.value) {
+      updateParseLibraryTagsTask({
+        done: true,
+        action: () => {},
+      })
+    }
   }
 }
 
