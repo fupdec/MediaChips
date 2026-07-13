@@ -90,6 +90,7 @@ import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
+import {useSettingsStore} from '@/stores/settings'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
 import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/fileService'
@@ -133,6 +134,7 @@ const eventBus = useEventBus()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
+const settingsStore = useSettingsStore()
 const {t} = useI18n()
 const thumb = ref<string | null>(null)
 const imgPath = ref<string | null>(null)
@@ -169,13 +171,31 @@ function initButtons() {
     color: "error",
     outlined: false,
     action: deleteMedia,
-  }, {
+  }]
+
+  if (settingsStore.showAdultContent === '1' && isVideoMedia.value) {
+    buttons.value.push({
+      icon: 'search-web',
+      text: t('actions.scrape_scene'),
+      color: 'info',
+      outlined: false,
+      action: openSceneScraper,
+    })
+  }
+
+  buttons.value.push({
     icon: "content-save",
     text: t('common.save'),
     color: "success",
     outlined: false,
     action: save,
-  }]
+  })
+}
+
+function openSceneScraper() {
+  if (!media.value) return
+  dialogsStore.sceneScraper.media = {...media.value}
+  dialogsStore.sceneScraper.show = true
 }
 
 async function getImage() {

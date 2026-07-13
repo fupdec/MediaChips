@@ -26,6 +26,14 @@
       :action="autoScrapeSelected"
     />
 
+    <AppBarButton
+      v-if="canSceneAutoScrape"
+      icon="cloud-download"
+      :text="t('appbar.buttons.auto_scrape_scenes')"
+      :disabled="itemsStore.selection.length === 0 || sceneScraperStore.autoScrapeInProgress"
+      :action="autoScrapeScenesSelected"
+    />
+
     <span class="text-caption ml-6" v-html="selectedText"></span>
   </div>
 </template>
@@ -37,7 +45,10 @@ import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { useScraperStore } from '@/stores/scraper'
+import { useSceneScraperStore } from '@/stores/sceneScraper'
 import { useAutoScrapeBatch } from '@/composable/useAutoScrapeBatch'
+import { useAutoSceneScrapeBatch } from '@/composable/useAutoSceneScrapeBatch'
+import { isVideoMediaType, getCurrentMediaType } from '@/utils/mediaType'
 
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
@@ -46,7 +57,9 @@ const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const scraperStore = useScraperStore()
+const sceneScraperStore = useSceneScraperStore()
 const { runForSelection } = useAutoScrapeBatch()
+const { runForSelection: runSceneScrapeForSelection } = useAutoSceneScrapeBatch()
 const { t } = useI18n()
 
 const performerMeta = computed(() => {
@@ -59,6 +72,16 @@ const canAutoScrape = computed(() =>
   itemsStore.type === 'tag'
   && settingsStore.showAdultContent === '1'
   && performerMeta.value?.scraper === true
+)
+
+const currentMediaType = computed(() =>
+  getCurrentMediaType(appStore.mediaTypes, itemsStore.environment?.media_type_id),
+)
+
+const canSceneAutoScrape = computed(() =>
+  itemsStore.type === 'media'
+  && settingsStore.showAdultContent === '1'
+  && isVideoMediaType(currentMediaType.value)
 )
 
 const filesizes = computed(() => {
@@ -111,5 +134,10 @@ async function autoScrapeSelected() {
   const meta = performerMeta.value
   if (!meta || itemsStore.selection.length === 0) return
   await runForSelection(meta)
+}
+
+async function autoScrapeScenesSelected() {
+  if (itemsStore.selection.length === 0) return
+  await runSceneScrapeForSelection()
 }
 </script>

@@ -152,7 +152,11 @@ const Settings = [  {
   },
   {
     "option": "showAdultContent",
-    "value": 1
+    "value": 0
+  },
+  {
+    "option": "sceneAutoApplyOnExactMatch",
+    "value": 0
   },
   {
     "option": "sfwMode",

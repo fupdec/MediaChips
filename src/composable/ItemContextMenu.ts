@@ -26,6 +26,8 @@ import translate, {type Locale} from '@/utils/translate'
 import {resolveSelectedMediaItems} from '@/utils/resolveSelection'
 import {useScraperStore} from '@/stores/scraper'
 import {useAutoScrapeBatch} from '@/composable/useAutoScrapeBatch'
+import {useAutoSceneScrapeBatch} from '@/composable/useAutoSceneScrapeBatch'
+import {useSceneScraperStore} from '@/stores/sceneScraper'
 import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '@/utils/pageItem'
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
@@ -62,7 +64,9 @@ export default function useItemContextMenu(
   const eventBus = useEventBus()
 
   const scraperStore = useScraperStore()
+  const sceneScraperStore = useSceneScraperStore()
   const { runForSelection } = useAutoScrapeBatch()
+  const { runForSelection: runSceneScrapeForSelection, runForMedia: runSceneScrapeForMedia } = useAutoSceneScrapeBatch()
 
   const reg = options.reg ?? registrationStore.reg
   const x = options.x ?? 0
@@ -81,6 +85,9 @@ export default function useItemContextMenu(
     const canAutoScrape = type === 'tag'
       && settingsStore.showAdultContent === '1'
       && meta?.scraper === true
+    const canSceneAutoScrape = type === 'media'
+      && settingsStore.showAdultContent === '1'
+      && isVideoMediaType(currentMediaType.value)
 
     if (!itemsStore.isSelect) {
       contextMenu.push({
@@ -110,6 +117,18 @@ export default function useItemContextMenu(
           action: () => {
             if (!meta) return
             void runForSelection(meta)
+          },
+        })
+      }
+
+      if (canSceneAutoScrape) {
+        contextMenu.push({
+          name: t('context_menu.bulk_auto_scrape_scenes'),
+          type: 'item',
+          icon: 'cloud-download',
+          disabled: itemsStore.selection.length === 0 || sceneScraperStore.autoScrapeInProgress,
+          action: () => {
+            void runSceneScrapeForSelection()
           },
         })
       }
@@ -183,6 +202,19 @@ export default function useItemContextMenu(
       })
 
       contextMenu.push({type: 'divider'})
+
+      if (canSceneAutoScrape && isMediaPageItem(item, type)) {
+        contextMenu.push({
+          name: t('context_menu.auto_scrape_scene'),
+          type: 'item',
+          icon: 'cloud-download',
+          disabled: sceneScraperStore.autoScrapeInProgress,
+          action: () => {
+            void autoScrapeSingleScene()
+          },
+        })
+        contextMenu.push({type: 'divider'})
+      }
 
       if (!itemsStore.isSelect && isVideoMediaType(currentMediaType.value)) {
         contextMenu.push({
@@ -377,6 +409,12 @@ export default function useItemContextMenu(
     } else if (isTagPageItem(item, type) && meta) {
       dialogsStore.editTag(item, meta)
     }
+  }
+
+  const autoScrapeSingleScene = async (): Promise<void> => {
+    if (!isMediaPageItem(item, type)) return
+
+    await runSceneScrapeForMedia(item, { openManualOnMiss: true })
   }
 
   const autoScrapeSingleTag = async (): Promise<void> => {

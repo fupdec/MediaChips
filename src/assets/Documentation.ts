@@ -151,7 +151,7 @@ export const docs = [
             id: 'adult_features',
             name: 'Adult features',
             icon: 'mdi-shield-alert',
-            selector: ['[href="/settings"]', '#adult_content_checkbox'],
+            selector: ['[href="/settings"]', '#settings-doc-tab-library', '#adult_content_checkbox'],
           },
           {
             id: 'data_scraper',

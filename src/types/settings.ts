@@ -137,6 +137,7 @@ export type SettingsState = {
   showExperimentalFeatures: string
   showSavedFilters: string
   showAdultContent: string
+  sceneAutoApplyOnExactMatch: string
   sfwMode: string
   registration: string
   databaseVersion: string
@@ -223,7 +224,8 @@ export const defaultSettingsState = (): SettingsState => ({
   showHeaderImageAboveProfile: '1',
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
-  showAdultContent: '1',
+  showAdultContent: '0',
+  sceneAutoApplyOnExactMatch: '0',
   sfwMode: '0',
   registration: '',
   databaseVersion: '',
