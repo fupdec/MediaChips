@@ -118,6 +118,37 @@ describe('playLiveStreamWhenReady', () => {
     expect(videoEl.play).toHaveBeenCalledTimes(2)
     expect(videoEl.src).toBe('http://localhost/stream?attempt=2')
   })
+
+  it('stops retrying when cancelled', async () => {
+    const videoEl = {
+      src: '',
+      readyState: 4,
+      error: {code: 2},
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      play: vi.fn().mockRejectedValue(new Error('network')),
+      pause: vi.fn(),
+      removeAttribute: vi.fn(),
+      load: vi.fn(),
+    } as unknown as HTMLVideoElement
+
+    let cancelled = false
+    const promise = playLiveStreamWhenReady(
+      videoEl,
+      () => 'http://localhost/stream',
+      {
+        retries: 4,
+        timeout: 1000,
+        isCancelled: () => cancelled,
+      },
+    )
+
+    cancelled = true
+    await vi.runAllTimersAsync()
+    await promise
+
+    expect(videoEl.play).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('playWhenReady', () => {

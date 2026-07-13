@@ -147,12 +147,20 @@ export function usePlayerSession() {
   )
 
   const closePlayer = async () => {
-    if (video.value) {
-      await updatePlaybackTime(video.value)
+    const mediaToSave = video.value
+    const savedCurrentTime = playerStore.currentTime
+
+    // Stop media immediately so audio does not keep playing while async cleanup runs
+    // (separate player window is hidden with backgroundThrottling: false).
+    if (document.pictureInPictureElement) {
+      try {
+        await document.exitPictureInPicture()
+      } catch {
+        // ignore
+      }
     }
 
-    await clearLiveTranscodeHandlers()
-
+    abortVideoPlayback(playerStore.player)
     playerStore.active = false
     playerStore.playbackError = false
     playerStore.transcodeStatus = 'none'
@@ -169,18 +177,19 @@ export function usePlayerSession() {
     playerStore.clearBackgroundStatus()
     isReady.value = false
 
-    if (playerStore.player) {
-      playerStore.player.pause()
-      playerStore.player.src = ''
-    }
-
     clearInterval(playerStore.currentTimeTimeout)
-    playerStore.currentTime = 0
     playerStore.isAudioMode = false
     playerStore.paused = false
     detachHotkeys()
-
     resetPlayerWindowTitle()
+
+    if (mediaToSave) {
+      playerStore.currentTime = savedCurrentTime
+      await updatePlaybackTime(mediaToSave)
+    }
+
+    await clearLiveTranscodeHandlers()
+    playerStore.currentTime = 0
   }
 
   const playerWrapperProps = computed(() => {

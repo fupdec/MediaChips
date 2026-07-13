@@ -213,7 +213,9 @@ export const useMediaAdding = () => {
     let files: string[] = []
 
     try {
-      if (skipFileScan && directFiles.length > 0 && paths.length === 0) {
+      // skipFileScan: direct file drops/additions already have full paths;
+      // avoid getFileList/lstat (which can surface OS access-denied errors).
+      if (skipFileScan && directFiles.length > 0) {
         files = filterPathsByExtensions(directFiles, extensions)
         task.value.status = t('media.adding.preparing_files', {count: files.length})
       } else {

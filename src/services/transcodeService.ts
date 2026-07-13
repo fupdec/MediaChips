@@ -1,6 +1,7 @@
 import {
   getChunkStart,
 } from '@/utils/liveStreamChunk'
+import { abortVideoPlayback } from '@/utils/liveTranscodeLifecycle'
 import { typedApi } from '@/services/typedApi'
 import {
   apiVideoStream,
@@ -159,23 +160,39 @@ export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 6000
 export async function playLiveStreamWhenReady(
   videoEl: HTMLVideoElement,
   getStreamUrl: () => string,
-  { retries = 6, timeout = 60000 } = {},
+  {
+    retries = 6,
+    timeout = 60000,
+    isCancelled,
+  }: {
+    retries?: number
+    timeout?: number
+    isCancelled?: () => boolean
+  } = {},
 ) {
   let lastError: unknown
 
   for (let attempt = 0; attempt < retries; attempt += 1) {
+    if (isCancelled?.()) return
+
     if (attempt > 0) {
       await new Promise((resolve) => {
         window.setTimeout(resolve, LIVE_STREAM_RETRY_DELAY_MS * attempt * attempt)
       })
+      if (isCancelled?.()) return
     }
 
     videoEl.src = getStreamUrl()
 
     try {
       await playWhenReady(videoEl, { timeout })
+      if (isCancelled?.()) {
+        abortVideoPlayback(videoEl)
+        return
+      }
       return
     } catch (error) {
+      if (isCancelled?.()) return
       lastError = error
       if (attempt >= retries - 1) break
 

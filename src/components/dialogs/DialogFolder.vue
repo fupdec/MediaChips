@@ -207,7 +207,7 @@ const addFiles = (files: string[], mediaTypeId: number) => {
 
   tasksStore.mediaAdding.directFiles = [...files]
   tasksStore.mediaAdding.skipFileScan = true
-  tasksStore.mediaAdding.paths = files.join('\n')
+  tasksStore.mediaAdding.paths = ''
   tasksStore.mediaAdding.dialogProcess = true
   tasksStore.mediaAdding.active = true
   tasksStore.mediaAdding.media_type_id = mediaTypeId

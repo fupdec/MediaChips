@@ -145,7 +145,10 @@ export function startDroppedMediaAdding({
   tasksStore.mediaAdding.media_type_id = resolvedMediaTypeId
   tasksStore.mediaAdding.directFiles = isDirectFilesOnly ? [...files] : files
   tasksStore.mediaAdding.skipFileScan = isDirectFilesOnly
-  tasksStore.mediaAdding.paths = (directories.length ? directories : files).join('\n')
+  // File-only drops leave paths empty so AddingMedia uses directFiles without scanning.
+  tasksStore.mediaAdding.paths = directories.length
+    ? directories.join('\n')
+    : (isDirectFilesOnly ? '' : files.join('\n'))
   tasksStore.mediaAdding.dialogProcess = true
   tasksStore.mediaAdding.active = true
   eventBus.emit('addMedia')

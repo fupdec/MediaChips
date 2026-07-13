@@ -358,6 +358,7 @@ export function usePlayerPlayback({
         playerStore.liveTranscodeMaxHeight,
         liveStreamUrlOptions(),
       ),
+      {isCancelled: () => !playerStore.active},
     )
   }
 
@@ -682,6 +683,7 @@ export function usePlayerPlayback({
             normalized,
             liveStreamUrlOptions(),
           ),
+          {isCancelled: () => !playerStore.active},
         )
         if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
         playerStore.paused = false
