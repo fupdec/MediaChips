@@ -38,7 +38,15 @@
           </v-alert>
         </div>
 
-        <div v-if="importStatus">{{ importStatus }}</div>
+        <v-alert
+          v-if="importStatus"
+          type="error"
+          density="compact"
+          variant="tonal"
+          class="body-2 mt-4"
+        >
+          {{ importStatus }}
+        </v-alert>
 
         <v-progress-linear
           v-if="step == 2 || step == 3"
@@ -69,6 +77,7 @@ import {typedApi} from "@/services/typedApi"
 import {reloadApplicationAfterDatabaseChange} from '@/services/configService'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
+import {getApiErrorMessage} from '@/types/vue'
 
 const {t} = useI18n()
 const dialogsStore = useDialogsStore()
@@ -104,7 +113,8 @@ async function createBackupLowDb() {
       await restoreBackup(backupName)
     }
   } catch (e) {
-    importStatus.value = String(e)
+    step.value = 1
+    importStatus.value = getApiErrorMessage(e, t('migration.error_unknown'))
   }
 }
 
@@ -116,9 +126,10 @@ async function restoreBackup(backupName: string) {
       name: backupName,
     })
     step.value = 4
+    importStatus.value = ''
   } catch (e) {
     step.value = 1
-    importStatus.value = e instanceof Error ? e.message : String(e)
+    importStatus.value = getApiErrorMessage(e, t('migration.error_unknown'))
   }
 }
 
