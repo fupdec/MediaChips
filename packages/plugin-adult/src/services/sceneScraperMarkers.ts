@@ -1,6 +1,6 @@
 import { typedApi } from '@/services/typedApi'
 import type { Tag } from '@/types/stores'
-import type { SceneScraperMarker, SceneScraperMarkerEntry } from '@/types/sceneScraper'
+import type { SceneScraperMarker, SceneScraperMarkerEntry } from '../types/sceneScraper'
 import {
   buildExistingMarkSignature,
   buildSceneMarkerSignature,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { areScraperValuesEqual } from '@/utils/scraperValueCompare'
+import { areScraperValuesEqual } from './scraperValueCompare'
 
 describe('areScraperValuesEqual', () => {
   it('matches scalar text and numeric values', () => {

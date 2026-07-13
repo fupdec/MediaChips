@@ -1,5 +1,5 @@
 import orderBy from 'lodash/orderBy'
-import type { ScraperPerformer } from '@/types/scraper'
+import type { ScraperPerformer } from '../types/scraper'
 
 function normalizeQuery(value: string): string {
   return value.trim().toLowerCase()

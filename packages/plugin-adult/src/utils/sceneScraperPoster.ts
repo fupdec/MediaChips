@@ -3,7 +3,7 @@ import {
   VIDEO_GRID_REFERENCE_ASPECT_RATIO,
   VIDEO_THUMB_HEIGHT,
 } from '@shared/videoPreview'
-import type { SceneScraperImage } from '@/types/sceneScraper'
+import type { SceneScraperImage } from '../types/sceneScraper'
 
 export function getSceneImagePixelArea(image: SceneScraperImage): number {
   const width = Number(image.width) || 0

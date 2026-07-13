@@ -241,17 +241,17 @@
 <script setup lang="ts">
 import {computed, defineAsyncComponent, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useSceneScraperStore} from '@/stores/sceneScraper'
+import {useSceneScraperStore} from '../../stores/sceneScraper'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {getMetaName} from '@/utils/metaI18n'
-import {buildSceneTransferFields} from '@/utils/buildSceneTransferFields'
-import {applyTransferAllToFields} from '@/utils/sceneTransferApply'
+import {buildSceneTransferFields} from '../../utils/buildSceneTransferFields'
+import {applyTransferAllToFields} from '../../utils/sceneTransferApply'
 import SceneScraperSelectPoster from './SceneScraperSelectPoster.vue'
 import { formatMarkTimestamp } from '@/utils/markThumb'
-import type {SceneScraperScene, SceneScraperMarkerEntry} from '@/types/sceneScraper'
-import type {ScraperTransferField} from '@/types/scraper'
-import type {SceneScraperTagEntry} from '@/utils/sceneScraperTags'
+import type {SceneScraperScene, SceneScraperMarkerEntry} from '../../types/sceneScraper'
+import type {ScraperTransferField} from '../../types/scraper'
+import type {SceneScraperTagEntry} from '../../utils/sceneScraperTags'
 
 const DialogSceneScraperConfig = defineAsyncComponent(() =>
   import('../DialogSceneScraperConfig.vue'),

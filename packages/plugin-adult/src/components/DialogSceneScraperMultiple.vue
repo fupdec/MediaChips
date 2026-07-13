@@ -60,11 +60,11 @@
 import {computed, ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useSceneScraperStore} from '@/stores/sceneScraper'
+import {useSceneScraperStore} from '../stores/sceneScraper'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import BulkScrapeProcessStatus from './scraper/BulkScrapeProcessStatus.vue'
-import {countBulkScrapeStatuses} from '@/utils/bulkScrapeStatusCounts'
-import type { SceneScraperBatchItem } from '@/types/sceneScraper'
+import {countBulkScrapeStatuses} from '../utils/bulkScrapeStatusCounts'
+import type { SceneScraperBatchItem } from '../types/sceneScraper'
 
 const {t} = useI18n()
 const dialogsStore = useDialogsStore()

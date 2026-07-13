@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { SceneScraperSearchResponse } from '@/types/sceneScraper'
+import type { SceneScraperSearchResponse } from '../types/sceneScraper'
 
 export const SceneScraperImageSchema = z.object({
   url: z.string().optional(),

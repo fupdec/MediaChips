@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/apiClient'
 import { API_ROUTES } from '@shared/api/routes'
-import { parseScraperPerformerSearchResponse } from '@/schemas/scraper'
-import type { ScraperPerformerSearchResponse } from '@/types/scraper'
+import { parseScraperPerformerSearchResponse } from '../schemas/scraper'
+import type { ScraperPerformerSearchResponse } from '../types/scraper'
 import axios from 'axios'
 
 function extractApiErrorMessage(error: unknown): string {

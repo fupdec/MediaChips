@@ -1,5 +1,5 @@
 import { useItemsStore } from '@/stores/items'
-import { useScraperStore } from '@/stores/scraper'
+import { useScraperStore } from '../stores/scraper'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
 import { useEventBus } from '@/utils/eventBus'

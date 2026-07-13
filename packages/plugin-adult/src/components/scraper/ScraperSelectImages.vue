@@ -49,7 +49,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {getReadableFileSize} from '@/services/formatUtils'
 import 'viewerjs/dist/viewer.css'
 import {api as viewerApi} from 'v-viewer'
-import type { ScraperSelectedResult } from '@/types/scraper'
+import type { ScraperSelectedResult } from '../../types/scraper'
 
 const props = defineProps<{
   selected: ScraperSelectedResult

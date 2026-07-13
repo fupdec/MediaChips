@@ -21,15 +21,15 @@ Lives under `packages/` for co-development; can be extracted to a separate repo 
 | `src/utils/**` | transfer/match/normalize helpers |
 | `src/schemas/**`, `src/types/**`, `src/assets/**` | schemas, types, field maps |
 | `src/composables/**` | batch auto-scrape helpers |
+| `src/server/**` | TPDB API client + scraper Express controller (CJS via nested `package.json`) |
 
-Server (host tree, adult-owned): `api/plugins/adult/` — TPDB client, scraper controller, API key resolution.
+Server (owned by this plugin): `packages/plugin-adult/src/server/` — TPDB client, scraper controller, API key resolution.
+Host mounts routes via thin re-exports under `api/plugins/adult/` (compiled CJS copies into `src/server/*.js`, gitignored).
 
-Host keeps thin re-exports under `src/stores/scraper.ts` etc. so existing `@/…` imports keep working.
+Host bridging: `src/plugins/adult/hostBridge`. App code imports adult UI/stores from `@mediachips/plugin-adult/…` directly.
 
-Server-side TPDB client and `/api/scraper/*` routes live under `api/plugins/adult/`
-(owned by this plugin). Users set a personal ThePornDB API key in Adult settings;
-requests go directly to `api.theporndb.net` / GraphQL (no mediachips.app proxy).
-`TPDB_API_KEY` env remains a fallback.
+Users set a personal ThePornDB API key in Adult settings; requests go directly to
+`api.theporndb.net` / GraphQL. `TPDB_API_KEY` env remains a fallback.
 
 ## Develop against the app
 

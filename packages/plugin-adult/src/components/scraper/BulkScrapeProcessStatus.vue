@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import {useI18n} from 'vue-i18n'
-import type { BulkScrapeStatusCounts } from '@/utils/bulkScrapeStatusCounts'
+import type { BulkScrapeStatusCounts } from '../../utils/bulkScrapeStatusCounts'
 
 defineProps<{
   counts: BulkScrapeStatusCounts

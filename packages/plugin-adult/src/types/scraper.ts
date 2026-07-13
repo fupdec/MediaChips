@@ -39,7 +39,7 @@ export interface ScraperTransferField {
   valueReserved: unknown
   valueScraper?: unknown
   isTagExists?: boolean
-  scrapedTags?: import('@/utils/sceneScraperTags').SceneScraperTagEntry[]
+  scrapedTags?: import('../utils/sceneScraperTags').SceneScraperTagEntry[]
   key: string
   meta: Meta
   isTransfered: boolean

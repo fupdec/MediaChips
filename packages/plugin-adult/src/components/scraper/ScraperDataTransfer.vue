@@ -82,10 +82,10 @@
 <script setup lang="ts">
 import {computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useScraperStore} from '@/stores/scraper'
+import {useScraperStore} from '../../stores/scraper'
 import {useAppStore} from '@/stores/app'
 import {getMetaName} from "@/utils/metaI18n"
-import {buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues} from '@/utils/scraperTransferFields'
+import {buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues} from '../../utils/scraperTransferFields'
 
 import ScraperSelectImages from './ScraperSelectImages.vue'
 
@@ -98,7 +98,7 @@ import type {
   ScraperPinnedItem,
   ScraperSelectedResult,
   ScraperTransferField,
-} from '@/types/scraper'
+} from '../../types/scraper'
 
 const props = defineProps<{
   selected?: ScraperSelectedResult | null

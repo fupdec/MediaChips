@@ -83,14 +83,14 @@
 <script setup lang="ts">
 import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useScraperStore} from '@/stores/scraper'
+import {useScraperStore} from '../stores/scraper'
 import {useDialogsStore} from '@/stores/dialogs'
 
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 
 import ScraperDataTransfer from "./scraper/ScraperDataTransfer.vue"
 import {useEventBus} from "@/utils/eventBus"
-import type { ScraperSelectedResult } from '@/types/scraper'
+import type { ScraperSelectedResult } from '../types/scraper'
 
 interface ScraperPerformer {
   id?: number

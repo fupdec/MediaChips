@@ -119,7 +119,7 @@ import {typedApi} from '@/services/typedApi'
 import sortBy from 'lodash/sortBy'
 import {getIconDataType} from '@/services/metaTypeUtils'
 import DialogHeader from "@/components/elements/DialogHeader.vue";
-import ScraperFields from "@/assets/ScraperFields";
+import ScraperFields from "../assets/ScraperFields";
 import {getMetaName} from "@/utils/metaI18n";
 import type {AssignedMeta, Meta} from '@/types/stores'
 

@@ -127,7 +127,7 @@ import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import sortBy from 'lodash/sortBy'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import SceneScraperFields from '@/assets/SceneScraperFields'
+import SceneScraperFields from '../assets/SceneScraperFields'
 import {typedApi} from '@/services/typedApi'
 import {getIconDataType} from '@/services/metaTypeUtils'
 import {getMetaName} from '@/utils/metaI18n'
@@ -137,7 +137,7 @@ import {
   canAssignMetaToScraperField,
   resolveAssignmentMetaId,
   resolveAssignmentMetaType,
-} from '@/utils/scraperFieldMapping'
+} from '../utils/scraperFieldMapping'
 import type {AssignedMeta} from '@/types/stores'
 
 interface ScraperFieldTemplate {

@@ -1,5 +1,5 @@
 import { typedApi } from '@/services/typedApi'
-import { findOrCreateTagByName, findTagByNameOrSynonym, normalizeScrapedTagNames } from '@/utils/sceneScraperTags'
+import { findOrCreateTagByName, findTagByNameOrSynonym, normalizeScrapedTagNames } from '../utils/sceneScraperTags'
 import type { Tag } from '@/types/stores'
 
 export async function applySceneScrapedTagNames({

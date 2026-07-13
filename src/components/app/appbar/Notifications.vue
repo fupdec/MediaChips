@@ -137,8 +137,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTasksStore } from '@/stores/tasks'
-import { useSceneScraperStore } from '@/stores/sceneScraper'
-import { useScraperStore } from '@/stores/scraper'
+import { useSceneScraperStore } from '@mediachips/plugin-adult/stores/sceneScraper'
+import { useScraperStore } from '@mediachips/plugin-adult/stores/scraper'
 import {useI18n} from "vue-i18n";
 import type { TaskItem } from '@/types/stores'
 

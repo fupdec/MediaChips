@@ -23,6 +23,7 @@
     "./types/*": "./src/types/*",
     "./assets/*": "./src/assets/*",
     "./composables/*": "./src/composables/*",
+    "./server/*": "./src/server/*",
     "./package.json": "./package.json"
   },
   "files": [

@@ -105,8 +105,8 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import {useTasksStore} from '@/stores/tasks'
-import {useSceneScraperStore} from '@/stores/sceneScraper'
-import {useScraperStore} from '@/stores/scraper'
+import {useSceneScraperStore} from '@mediachips/plugin-adult/stores/sceneScraper'
+import {useScraperStore} from '@mediachips/plugin-adult/stores/scraper'
 import {mergeProps} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {onMounted, onBeforeUnmount} from 'vue'

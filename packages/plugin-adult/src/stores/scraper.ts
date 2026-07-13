@@ -5,18 +5,18 @@ import { useItemsStore } from '@/stores/items'
 import { useTasksStore } from '@/stores/tasks'
 import { useSettingsStore } from '@/stores/settings'
 import translate, { type Locale } from '@/utils/translate'
-import { searchScraperPerformers } from '@/services/scraperApi'
-import { autoApplyScrapedTagData } from '@/services/scraperAutoApply'
-import { findBestMatchingPerformer } from '@/utils/scraperMatch'
+import { searchScraperPerformers } from '../services/scraperApi'
+import { autoApplyScrapedTagData } from '../services/scraperAutoApply'
+import { findBestMatchingPerformer } from '../utils/scraperMatch'
 import { refreshTagThumbDisplay } from '@/utils/tagThumbRefresh'
 import type {
   ScraperPerformer,
   ScraperTransferField,
   ScraperPinnedItem,
   ScraperMultiplePerformer,
-} from '@/types/scraper'
+} from '../types/scraper'
 import type { Meta, Tag } from '@/types/stores'
-import type { AutoScrapeBatchOutcome } from '@/types/autoScrapeBatch'
+import type { AutoScrapeBatchOutcome } from '../types/autoScrapeBatch'
 
 export interface AutoScrapeTagResult {
   success: boolean

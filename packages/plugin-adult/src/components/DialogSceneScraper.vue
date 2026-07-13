@@ -124,14 +124,14 @@ import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import SceneScraperDataTransfer from './scraper/SceneScraperDataTransfer.vue'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useSceneScraperStore} from '@/stores/sceneScraper'
+import {useSceneScraperStore} from '../stores/sceneScraper'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {setNotification} from '@/services/notificationService'
-import {isExactOshashMatch} from '@/services/sceneScraperAutoApply'
+import {isExactOshashMatch} from '../services/sceneScraperAutoApply'
 import {buildSceneSearchQueryFromFilename} from '@/utils/sceneSearchQuery'
-import {buildSceneScrapeSuccessNotificationText} from '@/utils/sceneScraperMarkerSummary'
-import type {SceneScraperScene} from '@/types/sceneScraper'
+import {buildSceneScrapeSuccessNotificationText} from '../utils/sceneScraperMarkerSummary'
+import type {SceneScraperScene} from '../types/sceneScraper'
 
 interface DialogHeaderButton {
   icon?: string

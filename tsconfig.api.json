@@ -19,5 +19,10 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["api/**/*.ts", "api/types/**/*.d.ts", "shared/**/*.ts"]
+  "include": [
+    "api/**/*.ts",
+    "api/types/**/*.d.ts",
+    "shared/**/*.ts",
+    "packages/plugin-adult/src/server/**/*.ts"
+  ]
 }

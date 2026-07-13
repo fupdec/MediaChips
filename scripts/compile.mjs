@@ -17,7 +17,13 @@ const TARGETS = {
   },
   api: {
     tsc: 'tsconfig.api.json',
-    copy: () => copyDirContents(join(root, '.api-build/api'), join(root, 'api')),
+    copy: () => {
+      copyDirContents(join(root, '.api-build/api'), join(root, 'api'))
+      copyDirContents(
+        join(root, '.api-build/packages/plugin-adult/src/server'),
+        join(root, 'packages/plugin-adult/src/server'),
+      )
+    },
   },
   electron: {
     tsc: 'tsconfig.electron.json',

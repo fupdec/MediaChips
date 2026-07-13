@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ScraperPerformerSearchResponse } from '@/types/scraper'
+import type { ScraperPerformerSearchResponse } from '../types/scraper'
 
 export const ScraperPerformerSchema = z.object({
   slug: z.string().optional(),

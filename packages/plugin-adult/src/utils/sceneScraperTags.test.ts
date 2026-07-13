@@ -3,7 +3,7 @@ import {
   buildScrapedTagEntries,
   findTagByNameOrSynonym,
   tagMatchesLookupName,
-} from '@/utils/sceneScraperTags'
+} from './sceneScraperTags'
 import type { Tag } from '@/types/stores'
 
 const tags: Tag[] = [

@@ -1,12 +1,12 @@
 import Countries from '@/assets/Countries'
-import { areScraperValuesEqual } from '@/utils/scraperValueCompare'
-import { normalizeScraperExtras } from '@/utils/scraperFieldNormalize'
+import { areScraperValuesEqual } from './scraperValueCompare'
+import { normalizeScraperExtras } from './scraperFieldNormalize'
 import type { Meta, Tag } from '@/types/stores'
 import type {
   ScraperPinnedItem,
   ScraperSelectedResult,
   ScraperTransferField,
-} from '@/types/scraper'
+} from '../types/scraper'
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]

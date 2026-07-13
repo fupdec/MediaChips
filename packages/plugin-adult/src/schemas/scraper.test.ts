@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseScraperPerformerSearchResponse } from '@/schemas/scraper'
+import { parseScraperPerformerSearchResponse } from './scraper'
 
 describe('scraper schemas', () => {
   it('parses performer search response', () => {

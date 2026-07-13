@@ -8,8 +8,8 @@ import type { AssignedMeta } from '@shared/entities/meta'
 import type { ValueInTagEntry } from '@shared/api/responses'
 import type { Tab } from '@shared/entities/tab'
 import type { MediaType } from '@/types/media'
-import type { ScraperMultiplePerformer } from '@/types/scraper'
-import type { SceneScraperBatchItem } from '@/types/sceneScraper'
+import type { ScraperMultiplePerformer } from '@mediachips/plugin-adult/types/scraper'
+import type { SceneScraperBatchItem } from '@mediachips/plugin-adult/types/sceneScraper'
 
 export const useDialogsStore = defineStore('useDialogsStore', {
   state: () => ({

@@ -1,13 +1,13 @@
 import type { Meta, Tag } from '@/types/stores'
-import type { SceneScraperScene } from '@/types/sceneScraper'
-import type { ScraperPinnedItem, ScraperTransferField } from '@/types/scraper'
-import { areScraperValuesEqual } from '@/utils/scraperValueCompare'
+import type { SceneScraperScene } from '../types/sceneScraper'
+import type { ScraperPinnedItem, ScraperTransferField } from '../types/scraper'
+import { areScraperValuesEqual } from './scraperValueCompare'
 import {
   buildScrapedTagEntries,
   findTagByNameOrSynonym,
   normalizeScrapedTagNames,
   tagMatchesLookupName,
-} from '@/utils/sceneScraperTags'
+} from './sceneScraperTags'
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]

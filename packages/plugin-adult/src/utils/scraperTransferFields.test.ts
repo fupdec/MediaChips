@@ -7,7 +7,7 @@ import {
   mergeSynonymValues,
   resolveCountryName,
   synonymsAlreadyContain,
-} from '@/utils/scraperTransferFields'
+} from './scraperTransferFields'
 
 describe('scraperTransferFields', () => {
   it('builds country and synonyms transfer fields from scraper payload', () => {

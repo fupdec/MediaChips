@@ -3,7 +3,7 @@ import {
   getMediaThumbAspectRatio,
   getVideoThumbSaveSizes,
   pickBestSceneImage,
-} from '@/utils/sceneScraperPoster'
+} from './sceneScraperPoster'
 import { VIDEO_THUMB_HEIGHT } from '@shared/videoPreview'
 
 describe('sceneScraperPoster', () => {

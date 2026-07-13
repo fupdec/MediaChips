@@ -3,7 +3,7 @@ import {
   extractScraperDigits,
   extractScraperLetters,
   normalizeScraperExtras,
-} from '@/utils/scraperFieldNormalize'
+} from './scraperFieldNormalize'
 
 describe('scraperFieldNormalize', () => {
   it('splits combined bra size into band digits and cup letters', () => {

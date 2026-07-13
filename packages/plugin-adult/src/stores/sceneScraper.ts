@@ -3,22 +3,22 @@ import { useAppStore } from '@/stores/app'
 import { useDialogsStore } from '@/stores/dialogs'
 import { useTasksStore } from '@/stores/tasks'
 import { useSettingsStore } from '@/stores/settings'
-import { matchScraperScenes, searchScraperScenes, fetchSceneMarkers } from '@/services/sceneScraperApi'
+import { matchScraperScenes, searchScraperScenes, fetchSceneMarkers } from '../services/sceneScraperApi'
 import {
   annotateSceneMarkersWithExisting,
-} from '@/services/sceneScraperMarkers'
+} from '../services/sceneScraperMarkers'
 import { typedApi } from '@/services/typedApi'
 import {
   matchAndAutoApplySceneToMedia,
   type SceneAutoApplyResult,
-} from '@/services/sceneScraperAutoApply'
+} from '../services/sceneScraperAutoApply'
 import { buildSceneSearchQueryFromFilename } from '@/utils/sceneSearchQuery'
 import translate, { type Locale } from '@/utils/translate'
 import { getCurrentMediaType, getMediaDeleteAssetFolder } from '@/utils/mediaType'
-import type { SceneScraperScene, SceneScraperMarkerEntry } from '@/types/sceneScraper'
-import type { ScraperPinnedItem, ScraperTransferField } from '@/types/scraper'
+import type { SceneScraperScene, SceneScraperMarkerEntry } from '../types/sceneScraper'
+import type { ScraperPinnedItem, ScraperTransferField } from '../types/scraper'
 import type { MediaItem } from '@/types/stores'
-import type { AutoScrapeBatchOutcome } from '@/types/autoScrapeBatch'
+import type { AutoScrapeBatchOutcome } from '../types/autoScrapeBatch'
 
 export type SceneScraperMatchMethod = 'oshash' | 'search' | null
 export type AutoSceneScrapeResult = SceneAutoApplyResult
@@ -35,7 +35,7 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
     fields: [] as ScraperTransferField[],
     pinned: [] as ScraperPinnedItem[],
     selectedPosterUrl: null as string | null,
-    markers: [] as import('@/types/sceneScraper').SceneScraperMarkerEntry[],
+    markers: [] as import('../types/sceneScraper').SceneScraperMarkerEntry[],
     markersLoading: false,
     markersSceneId: null as string | null,
     autoScrapeInProgress: false,

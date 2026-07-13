@@ -3,7 +3,7 @@ import {
   getMediaThumbAspectRatio,
   getVideoThumbOutputPath,
   getVideoThumbSaveSizes,
-} from '@/utils/sceneScraperPoster'
+} from '../utils/sceneScraperPoster'
 
 export async function applyScenePosterToVideoThumb({
   url,

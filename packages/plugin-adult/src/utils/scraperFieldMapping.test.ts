@@ -3,7 +3,7 @@ import {
   canAssignMetaToScraperField,
   resolveAssignmentMetaId,
   resolveAssignmentMetaType,
-} from '@/utils/scraperFieldMapping'
+} from './scraperFieldMapping'
 
 describe('scraperFieldMapping', () => {
   it('resolves meta id from assignment row', () => {

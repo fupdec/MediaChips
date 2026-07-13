@@ -60,7 +60,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
-import {useScraperStore} from "@/stores/scraper"
+import {useScraperStore} from "@mediachips/plugin-adult/stores/scraper"
 import {useNotificationsStore} from "@/stores/notifications"
 import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {typedApi} from '@/services/typedApi'

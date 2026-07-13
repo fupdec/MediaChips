@@ -81,11 +81,11 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useSceneScraperStore} from '@/stores/sceneScraper'
-import {pickBestSceneImage} from '@/utils/sceneScraperPoster'
+import {useSceneScraperStore} from '../../stores/sceneScraper'
+import {pickBestSceneImage} from '../../utils/sceneScraperPoster'
 import 'viewerjs/dist/viewer.css'
 import {api as viewerApi} from 'v-viewer'
-import type {SceneScraperScene} from '@/types/sceneScraper'
+import type {SceneScraperScene} from '../../types/sceneScraper'
 
 const props = defineProps<{
   scene: SceneScraperScene

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   annotateSceneMarkersWithExisting,
   buildSceneMarkerSignature,
-} from '@/services/sceneScraperMarkers'
+} from './sceneScraperMarkers'
 import type { Tag } from '@/types/stores'
 
 const tags: Tag[] = [

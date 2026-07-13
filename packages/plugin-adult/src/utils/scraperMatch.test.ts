@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findBestMatchingPerformer } from '@/utils/scraperMatch'
-import type { ScraperPerformer } from '@/types/scraper'
+import { findBestMatchingPerformer } from './scraperMatch'
+import type { ScraperPerformer } from '../types/scraper'
 
 describe('findBestMatchingPerformer', () => {
   const performers: ScraperPerformer[] = [

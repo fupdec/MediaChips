@@ -1,4 +1,4 @@
-import type { ScraperTransferField } from '@/types/scraper'
+import type { ScraperTransferField } from '../types/scraper'
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]

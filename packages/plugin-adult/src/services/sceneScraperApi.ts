@@ -1,15 +1,15 @@
 import { apiClient } from '@/services/apiClient'
 import { API_ROUTES } from '@shared/api/routes'
-import { parseSceneScraperSearchResponse } from '@/schemas/sceneScraper'
+import { parseSceneScraperSearchResponse } from '../schemas/sceneScraper'
 import {
   parseSceneScraperMarkersApplyResult,
   parseSceneScraperMarkersResponse,
-} from '@/schemas/sceneScraper'
+} from '../schemas/sceneScraper'
 import type {
   SceneScraperMarkersApplyResult,
   SceneScraperMarkersResponse,
   SceneScraperSearchResponse,
-} from '@/types/sceneScraper'
+} from '../types/sceneScraper'
 import axios from 'axios'
 
 function extractApiErrorMessage(error: unknown): string {

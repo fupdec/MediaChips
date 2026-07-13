@@ -60,12 +60,12 @@
 import {computed, ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useScraperStore} from '@/stores/scraper'
+import {useScraperStore} from '../stores/scraper'
 import {useAppStore} from '@/stores/app'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import BulkScrapeProcessStatus from './scraper/BulkScrapeProcessStatus.vue'
-import {countBulkScrapeStatuses} from '@/utils/bulkScrapeStatusCounts'
-import type { ScraperMultiplePerformer } from '@/types/scraper'
+import {countBulkScrapeStatuses} from '../utils/bulkScrapeStatusCounts'
+import type { ScraperMultiplePerformer } from '../types/scraper'
 
 const {t} = useI18n()
 const dialogsStore = useDialogsStore()

@@ -4,7 +4,7 @@ import { typedApi } from '@/services/typedApi'
 import { createImage } from '@/services/fileService'
 import { parseCountries, serializeCountries } from '@/utils/country'
 import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
-import { buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues } from '@/utils/scraperTransferFields'
+import { buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues } from '../utils/scraperTransferFields'
 import {
   DEFAULT_TAG_COLOR,
   extractColorFromLocalFile,
@@ -19,7 +19,7 @@ import type {
   ScraperPinnedItem,
   ScraperPoster,
   ScraperTransferField,
-} from '@/types/scraper'
+} from '../types/scraper'
 
 type MetaFieldValue = string | number | boolean | string[] | number[] | null | undefined
 

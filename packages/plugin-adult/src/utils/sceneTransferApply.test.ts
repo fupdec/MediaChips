@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyTransferAllToFields } from '@/utils/sceneTransferApply'
-import type { ScraperTransferField } from '@/types/scraper'
+import { applyTransferAllToFields } from './sceneTransferApply'
+import type { ScraperTransferField } from '../types/scraper'
 
 describe('sceneTransferApply', () => {
   it('transfers all non-contained fields', () => {
