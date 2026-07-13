@@ -130,6 +130,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {setNotification} from '@/services/notificationService'
 import {isExactOshashMatch} from '@/services/sceneScraperAutoApply'
 import {buildSceneSearchQueryFromFilename} from '@/utils/sceneSearchQuery'
+import {buildSceneScrapeSuccessNotificationText} from '@/utils/sceneScraperMarkerSummary'
 import type {SceneScraperScene} from '@/types/sceneScraper'
 
 interface DialogHeaderButton {
@@ -225,7 +226,13 @@ async function tryAutoApplyExactMatch(): Promise<boolean> {
   setNotification({
     type: 'success',
     title: t('scene_scraper.auto_scrape_done'),
-    text: result.sceneTitle || result.mediaName || '',
+    text: buildSceneScrapeSuccessNotificationText({
+      sceneTitle: result.sceneTitle,
+      mediaName: result.mediaName,
+      markersImported: result.markersImported,
+      importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
+      t,
+    }),
   })
   eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
   closeDialog()

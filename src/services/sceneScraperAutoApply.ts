@@ -2,6 +2,8 @@ import { typedApi } from '@/services/typedApi'
 import { matchScraperScenes } from '@/services/sceneScraperApi'
 import { applySceneScrapedTagNames } from '@/services/sceneScraperApply'
 import { applyScenePosterToVideoThumb } from '@/services/sceneScraperPoster'
+import { applySceneMarkersFromTpdb } from '@/services/sceneScraperApi'
+import { useSettingsStore } from '@/stores/settings'
 import { buildSceneTransferFields } from '@/utils/buildSceneTransferFields'
 import { buildSceneSearchQueryFromFilename } from '@/utils/sceneSearchQuery'
 import { applyTransferAllToFields } from '@/utils/sceneTransferApply'
@@ -26,6 +28,7 @@ export interface SceneAutoApplyResult {
   mediaId: number
   mediaName?: string | null
   sceneTitle?: string | null
+  markersImported?: number
   error?: SceneAutoApplyError
 }
 
@@ -338,11 +341,28 @@ export async function autoApplySceneToMedia({
 
     await saveMediaValues(mediaId, vals, assignedItems)
 
+    let markersImported = 0
+    const settingsStore = useSettingsStore()
+    if (settingsStore.sceneScraperImportMarkers === '1') {
+      try {
+        const markerMetaId = Number(settingsStore.sceneScraperMarkerMetaId) || null
+        const markerResult = await applySceneMarkersFromTpdb({
+          sceneId: scene.id,
+          mediaId,
+          markerMetaId,
+        })
+        markersImported = markerResult.imported
+      } catch (error) {
+        console.error('Scene marker import failed:', error)
+      }
+    }
+
     return {
       success: true,
       mediaId,
       mediaName: media.name,
       sceneTitle: scene.title,
+      markersImported,
     }
   } catch (error) {
     console.error('Scene auto-apply failed:', error)

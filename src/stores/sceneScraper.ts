@@ -3,7 +3,11 @@ import { useAppStore } from '@/stores/app'
 import { useDialogsStore } from '@/stores/dialogs'
 import { useTasksStore } from '@/stores/tasks'
 import { useSettingsStore } from '@/stores/settings'
-import { matchScraperScenes, searchScraperScenes } from '@/services/sceneScraperApi'
+import { matchScraperScenes, searchScraperScenes, fetchSceneMarkers } from '@/services/sceneScraperApi'
+import {
+  annotateSceneMarkersWithExisting,
+} from '@/services/sceneScraperMarkers'
+import { typedApi } from '@/services/typedApi'
 import {
   matchAndAutoApplySceneToMedia,
   type SceneAutoApplyResult,
@@ -11,7 +15,7 @@ import {
 import { buildSceneSearchQueryFromFilename } from '@/utils/sceneSearchQuery'
 import translate, { type Locale } from '@/utils/translate'
 import { getCurrentMediaType, getMediaDeleteAssetFolder } from '@/utils/mediaType'
-import type { SceneScraperScene } from '@/types/sceneScraper'
+import type { SceneScraperScene, SceneScraperMarkerEntry } from '@/types/sceneScraper'
 import type { ScraperPinnedItem, ScraperTransferField } from '@/types/scraper'
 import type { MediaItem } from '@/types/stores'
 import type { AutoScrapeBatchOutcome } from '@/types/autoScrapeBatch'
@@ -31,6 +35,9 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
     fields: [] as ScraperTransferField[],
     pinned: [] as ScraperPinnedItem[],
     selectedPosterUrl: null as string | null,
+    markers: [] as import('@/types/sceneScraper').SceneScraperMarkerEntry[],
+    markersLoading: false,
+    markersSceneId: null as string | null,
     autoScrapeInProgress: false,
     autoScrapeCancelled: false,
     batchTaskId: null as string | null,
@@ -110,6 +117,60 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
       this.fields = []
       this.pinned = []
       this.selectedPosterUrl = null
+      this.markers = []
+      this.markersLoading = false
+      this.markersSceneId = null
+    },
+    async loadMarkersForScene({
+      sceneId,
+      mediaId,
+    }: {
+      sceneId: string
+      mediaId: number
+    }) {
+      const normalizedSceneId = String(sceneId || '').trim()
+      if (!normalizedSceneId || !mediaId) {
+        this.markers = []
+        this.markersSceneId = null
+        return []
+      }
+
+      if (this.markersSceneId === normalizedSceneId && !this.markersLoading) {
+        return this.markers
+      }
+
+      this.markersLoading = true
+      this.markersSceneId = normalizedSceneId
+
+      try {
+        const appStore = useAppStore()
+        const settingsStore = useSettingsStore()
+        const markerMetaId = Number(settingsStore.sceneScraperMarkerMetaId) || null
+
+        const [markersResponse, existingMarksResponse] = await Promise.all([
+          fetchSceneMarkers(normalizedSceneId),
+          typedApi.getMarksForVideo(mediaId),
+        ])
+
+        this.markers = annotateSceneMarkersWithExisting(
+          markersResponse.data || [],
+          existingMarksResponse.data || [],
+          {
+            allTags: appStore.tags || [],
+            markerMetaId,
+          },
+        )
+        return this.markers
+      } catch (error) {
+        console.error('Failed to load scene markers:', error)
+        this.markers = []
+        return []
+      } finally {
+        this.markersLoading = false
+      }
+    },
+    setMarkers(markers: SceneScraperMarkerEntry[]) {
+      this.markers = markers
     },
     cancelAutoScrape() {
       this.autoScrapeCancelled = true

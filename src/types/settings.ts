@@ -138,6 +138,8 @@ export type SettingsState = {
   showSavedFilters: string
   showAdultContent: string
   sceneAutoApplyOnExactMatch: string
+  sceneScraperImportMarkers: string
+  sceneScraperMarkerMetaId: string
   sfwMode: string
   registration: string
   databaseVersion: string
@@ -226,6 +228,8 @@ export const defaultSettingsState = (): SettingsState => ({
   showSavedFilters: '1',
   showAdultContent: '0',
   sceneAutoApplyOnExactMatch: '0',
+  sceneScraperImportMarkers: '1',
+  sceneScraperMarkerMetaId: '',
   sfwMode: '0',
   registration: '',
   databaseVersion: '',

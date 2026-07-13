@@ -60,6 +60,17 @@ export const SceneMatchRequestSchema = z.object({
   limit: optionalCoercedNumber,
 }).passthrough()
 
+export const SceneMarkersRequestSchema = z.object({
+  sceneId: z.string().trim().min(1),
+}).passthrough()
+
+export const SceneMarkersApplyRequestSchema = z.object({
+  sceneId: z.string().trim().min(1),
+  mediaId: z.union([z.number(), z.string()]),
+  merge: z.enum(['merge', 'replace']).optional(),
+  markerMetaId: z.union([z.number(), z.string()]).nullable().optional(),
+}).passthrough()
+
 export const MediaPathUpdateRequestSchema = z.object({
   id: z.union([z.number(), z.string()]),
   path: z.string().min(1),

@@ -151,6 +151,44 @@
         icon-text="flash-auto"
         class="mt-2"
       />
+
+      <settings-switch
+        :title="t('settings_labels.tools.scene_import_markers')"
+        :hint="t('settings_labels.tools.scene_import_markers_hint')"
+        option="sceneScraperImportMarkers"
+        icon-text="bookmark-multiple-outline"
+        class="mt-2"
+      />
+
+      <v-autocomplete
+        v-if="settingsStore.sceneScraperImportMarkers === '1'"
+        v-model="selected_marker_meta"
+        @update:model-value="onMarkerMetaSelected"
+        :items="marker_meta_options"
+        item-value="id"
+        item-title="name"
+        :label="t('settings_labels.tools.scene_marker_meta')"
+        :placeholder="t('settings_labels.tools.select_marker_meta')"
+        :hint="t('settings_labels.tools.scene_marker_meta_hint')"
+        persistent-hint
+        return-object
+        variant="filled"
+        class="mt-4"
+        clearable
+      >
+        <template #selection="{ item }">
+          <v-icon start>mdi-{{ item.raw.icon || 'tag' }}</v-icon>
+          <span>{{ item.raw.name }}</span>
+        </template>
+        <template #item="{ item, props }">
+          <v-list-item v-bind="props">
+            <template #title>
+              <v-icon start>mdi-{{ item.raw.icon || 'tag' }}</v-icon>
+              <span>{{ item.raw.name }}</span>
+            </template>
+          </v-list-item>
+        </template>
+      </v-autocomplete>
     </template>
   </div>
 </template>
@@ -165,6 +203,7 @@ import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue"
 import SettingsCategoryDivider from "@/components/ui/SettingsCategoryDivider.vue"
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue"
 import {useSettingsStore} from "@/stores/settings"
+import {setOption} from '@/services/settingsService'
 import {useEventBus} from "@/utils/eventBus"
 import {useScraperStore} from "@/stores/scraper"
 import {useSceneScraperStore} from "@/stores/sceneScraper"
@@ -194,10 +233,16 @@ const {t} = useI18n()
 
 const selected_meta = ref<Meta | undefined>(undefined)
 const selectedVideoMediaType = ref<MediaType | undefined>(undefined)
+const selected_marker_meta = ref<Meta | undefined>(undefined)
 
 const meta_tags = computed(() => {
   const metas = store.meta?.filter(i => i.type === "array") || []
   return sortBy(metas, "name")
+})
+
+const marker_meta_options = computed(() => {
+  const metas = store.meta?.filter(i => i.marks && i.type === 'array') || []
+  return sortBy(metas, 'name')
 })
 
 const videoMediaTypes = computed(() => {
@@ -226,6 +271,23 @@ async function onPerformerMetaSelected(meta: Meta | null | undefined) {
   selected_meta.value = meta || undefined
   if (!meta) return
   await updateSettings(meta)
+}
+
+function syncSelectedMarkerMeta() {
+  const markerMetaId = Number(settingsStore.sceneScraperMarkerMetaId)
+  if (!markerMetaId) {
+    selected_marker_meta.value = undefined
+    return
+  }
+
+  selected_marker_meta.value = marker_meta_options.value.find(
+    (item) => item.id === markerMetaId,
+  ) || selected_marker_meta.value
+}
+
+function onMarkerMetaSelected(meta: Meta | null | undefined) {
+  selected_marker_meta.value = meta || undefined
+  setOption(meta?.id ? String(meta.id) : '', 'sceneScraperMarkerMetaId')
 }
 
 async function confirmScrapeAll() {
@@ -272,6 +334,7 @@ async function updateSettings(meta: Meta) {
 onMounted(async () => {
   selected_meta.value = meta_tags.value.find(i => i.scraper)
   selectedVideoMediaType.value = videoMediaTypes.value[0]
+  syncSelectedMarkerMeta()
   await refreshAllVideosCount()
 })
 
@@ -289,7 +352,16 @@ watch(
     } else {
       selected_meta.value = meta_tags.value.find(i => i.scraper)
     }
+
+    syncSelectedMarkerMeta()
   },
   { deep: true },
+)
+
+watch(
+  () => settingsStore.sceneScraperMarkerMetaId,
+  () => {
+    syncSelectedMarkerMeta()
+  },
 )
 </script>

@@ -40,6 +40,30 @@ export const SceneScraperSearchResponseSchema = z.object({
   oshash: z.string().nullable().optional(),
 }).passthrough()
 
+export const SceneScraperMarkerSchema = z.object({
+  title: z.string(),
+  time: z.number(),
+  end: z.number().nullable().optional(),
+}).passthrough()
+
+export const SceneScraperMarkersResponseSchema = z.object({
+  data: z.array(SceneScraperMarkerSchema).optional(),
+}).passthrough()
+
+export const SceneScraperMarkersApplyResultSchema = z.object({
+  imported: z.number(),
+  skipped: z.number(),
+  total: z.number(),
+}).passthrough()
+
 export function parseSceneScraperSearchResponse(data: unknown): SceneScraperSearchResponse {
   return SceneScraperSearchResponseSchema.parse(data) as SceneScraperSearchResponse
+}
+
+export function parseSceneScraperMarkersResponse(data: unknown) {
+  return SceneScraperMarkersResponseSchema.parse(data)
+}
+
+export function parseSceneScraperMarkersApplyResult(data: unknown) {
+  return SceneScraperMarkersApplyResultSchema.parse(data)
 }

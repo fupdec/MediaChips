@@ -16,6 +16,35 @@
     </div>
   </v-alert>
 
+  <v-alert
+    v-if="hasArrayScrapedTags || hasScenePosterImages || markersSectionVisible"
+    type="info"
+    density="compact"
+    variant="tonal"
+    class="mt-4 mb-2 text-caption"
+  >
+    <template v-if="hasArrayScrapedTags || markersSectionVisible">
+      <ul class="scraped-tags-legend mb-0 pl-4">
+        <li>
+          <v-icon size="x-small" color="primary" class="mr-1">mdi-tag</v-icon>
+          {{ t('scene_scraper.tag_exists') }}
+        </li>
+        <li>
+          <v-icon size="x-small" color="success" class="mr-1">mdi-plus-circle-outline</v-icon>
+          {{ t('scene_scraper.tag_new') }}
+        </li>
+        <li>
+          <v-icon size="x-small" class="mr-1">mdi-check</v-icon>
+          {{ t('scene_scraper.tag_already_assigned') }}
+        </li>
+      </ul>
+    </template>
+
+    <div v-if="hasScenePosterImages" :class="{'mt-2': hasArrayScrapedTags || markersSectionVisible}">
+      {{ t('scene_scraper.poster_select_hint') }}
+    </div>
+  </v-alert>
+
   <v-card-actions class="px-0">
     <v-btn @click="restoreAll" color="primary" class="px-4" rounded variant="flat">
       <v-icon icon="mdi-restore" start></v-icon>
@@ -124,34 +153,89 @@
 
   <SceneScraperSelectPoster :scene="scene"/>
 
-  <v-alert
-    v-if="hasArrayScrapedTags || hasScenePosterImages"
-    type="info"
-    density="compact"
-    variant="tonal"
-    class="mt-4 text-caption"
+  <v-card
+    v-if="markersSectionVisible"
+    class="mt-4"
+    variant="outlined"
+    rounded="lg"
   >
-    <template v-if="hasArrayScrapedTags">
-      <ul class="scraped-tags-legend mb-0 pl-4">
-        <li>
-          <v-icon size="x-small" color="primary" class="mr-1">mdi-tag</v-icon>
-          {{ t('scene_scraper.tag_exists') }}
-        </li>
-        <li>
-          <v-icon size="x-small" color="success" class="mr-1">mdi-plus-circle-outline</v-icon>
-          {{ t('scene_scraper.tag_new') }}
-        </li>
-        <li>
-          <v-icon size="x-small" class="mr-1">mdi-check</v-icon>
-          {{ t('scene_scraper.tag_already_assigned') }}
-        </li>
-      </ul>
-    </template>
+    <v-card-title class="text-subtitle-1 px-4 py-3">
+      {{ t('scene_scraper.markers_title', { count: markers.length }) }}
+    </v-card-title>
 
-    <div v-if="hasScenePosterImages" :class="{'mt-2': hasArrayScrapedTags}">
-      {{ t('scene_scraper.poster_select_hint') }}
-    </div>
-  </v-alert>
+    <v-card-text class="px-4 pb-4">
+      <v-progress-linear
+        v-if="sceneScraperStore.markersLoading"
+        indeterminate
+        color="primary"
+        class="mb-3"
+      />
+
+      <div
+        v-else-if="markers.length"
+        class="d-flex align-center justify-space-between mb-3"
+      >
+        <div class="text-caption text-medium-emphasis">
+          {{ t('scene_scraper.markers_hint') }}
+        </div>
+        <v-btn
+          size="small"
+          variant="text"
+          color="primary"
+          @click="toggleAllMarkers"
+        >
+          {{ allMarkersSelected ? t('scene_scraper.markers_deselect_all') : t('scene_scraper.markers_select_all') }}
+        </v-btn>
+      </div>
+
+      <v-list
+        v-if="markers.length"
+        density="compact"
+        class="scene-marker-list pa-0"
+      >
+        <v-list-item
+          v-for="(marker, index) in markers"
+          :key="`${marker.time}-${marker.title}-${index}`"
+          :disabled="marker.alreadyExists || marker.unresolved"
+        >
+          <template #prepend>
+            <v-checkbox-btn
+              :model-value="marker.selected"
+              :disabled="marker.alreadyExists || marker.unresolved"
+              color="primary"
+              @update:model-value="toggleMarker(marker, $event)"
+            />
+          </template>
+
+          <v-list-item-title>{{ marker.title }}</v-list-item-title>
+          <v-list-item-subtitle>
+            {{ formatMarkerTime(marker) }}
+            <span v-if="marker.alreadyExists" class="ml-2">
+              {{ t('scene_scraper.marker_already_exists') }}
+            </span>
+            <span v-else-if="marker.tagExists" class="ml-2">
+              <v-icon size="x-small" color="primary" class="mr-1">mdi-tag</v-icon>
+              {{ t('scene_scraper.marker_tag_exists') }}
+            </span>
+            <span v-else-if="marker.willCreate" class="ml-2">
+              <v-icon size="x-small" color="success" class="mr-1">mdi-plus-circle-outline</v-icon>
+              {{ t('scene_scraper.marker_tag_will_create') }}
+            </span>
+            <span v-else-if="marker.unresolved" class="ml-2 text-warning">
+              {{ t('scene_scraper.marker_tag_unresolved') }}
+            </span>
+          </v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+
+      <div
+        v-else-if="!sceneScraperStore.markersLoading"
+        class="text-caption text-medium-emphasis"
+      >
+        {{ t('scene_scraper.markers_empty') }}
+      </div>
+    </v-card-text>
+  </v-card>
 </template>
 
 <script setup lang="ts">
@@ -164,7 +248,8 @@ import {getMetaName} from '@/utils/metaI18n'
 import {buildSceneTransferFields} from '@/utils/buildSceneTransferFields'
 import {applyTransferAllToFields} from '@/utils/sceneTransferApply'
 import SceneScraperSelectPoster from '@/components/scraper/SceneScraperSelectPoster.vue'
-import type {SceneScraperScene} from '@/types/sceneScraper'
+import { formatMarkTimestamp } from '@/utils/markThumb'
+import type {SceneScraperScene, SceneScraperMarkerEntry} from '@/types/sceneScraper'
 import type {ScraperTransferField} from '@/types/scraper'
 import type {SceneScraperTagEntry} from '@/utils/sceneScraperTags'
 
@@ -185,6 +270,18 @@ const fields = computed(() => sceneScraperStore.fields)
 const pinned = computed(() => sceneScraperStore.pinned)
 const metas = computed(() => pinned.value.filter((item) => item.scraper))
 const currentValues = computed(() => sceneScraperStore.currentValues)
+const markers = computed(() => sceneScraperStore.markers)
+
+const markersSectionVisible = computed(() => {
+  if (!props.scene?.id) return false
+  if (sceneScraperStore.markersLoading) return true
+  return sceneScraperStore.markersSceneId === props.scene.id
+})
+
+const mediaId = computed(() => {
+  const id = dialogsStore.sceneScraper.media?.id
+  return id != null ? Number(id) : null
+})
 
 const mediaTypeId = computed(() => {
   const mediaTypeId = dialogsStore.sceneScraper.media?.mediaTypeId
@@ -199,7 +296,50 @@ const hasScenePosterImages = computed(() =>
   (props.scene.images || []).some((image) => String(image.url ?? '').trim()),
 )
 
+const selectableMarkers = computed(() =>
+  markers.value.filter((marker) => !marker.alreadyExists && !marker.unresolved),
+)
+
+const allMarkersSelected = computed(() =>
+  selectableMarkers.value.length > 0
+  && selectableMarkers.value.every((marker) => marker.selected),
+)
+
 const getScraperFieldName = (key: string) => t(`scene_scraper.fields.${key}`, key)
+
+function formatMarkerTime(marker: SceneScraperMarkerEntry) {
+  if (marker.end != null && marker.end > marker.time) {
+    return `${formatMarkTimestamp(marker.time)} – ${formatMarkTimestamp(marker.end)}`
+  }
+  return formatMarkTimestamp(marker.time)
+}
+
+function toggleMarker(marker: SceneScraperMarkerEntry, selected: boolean | null) {
+  marker.selected = Boolean(selected)
+  sceneScraperStore.setMarkers([...markers.value])
+}
+
+function toggleAllMarkers() {
+  const nextSelected = !allMarkersSelected.value
+  for (const marker of markers.value) {
+    if (!marker.alreadyExists && !marker.unresolved) {
+      marker.selected = nextSelected
+    }
+  }
+  sceneScraperStore.setMarkers([...markers.value])
+}
+
+async function loadMarkers() {
+  if (!mediaId.value || !props.scene?.id) {
+    sceneScraperStore.setMarkers([])
+    return
+  }
+
+  await sceneScraperStore.loadMarkersForScene({
+    sceneId: props.scene.id,
+    mediaId: mediaId.value,
+  })
+}
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]
@@ -317,20 +457,32 @@ function restoreAll() {
     .filter((item) => item.isTransfered)
     .forEach((item) => restore(item))
   sceneScraperStore.selectedPosterUrl = null
+  for (const marker of markers.value) {
+    marker.selected = !marker.alreadyExists && !marker.unresolved
+  }
+  sceneScraperStore.setMarkers([...markers.value])
 }
 
 function transferAll() {
   sceneScraperStore.fields = applyTransferAllToFields(sceneScraperStore.fields)
+  for (const marker of markers.value) {
+    if (!marker.alreadyExists && !marker.unresolved) {
+      marker.selected = true
+    }
+  }
+  sceneScraperStore.setMarkers([...markers.value])
 }
 
 onMounted(() => {
   getData()
+  void loadMarkers()
 })
 
 watch(
   [() => props.scene, pinned, currentValues],
   () => {
     getData()
+    void loadMarkers()
   },
   {deep: true},
 )

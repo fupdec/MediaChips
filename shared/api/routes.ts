@@ -93,6 +93,8 @@ export const API_ROUTES = {
   scraperSearchScenes: '/api/scraper/scenes/search',
   scraperMatchScenes: '/api/scraper/scenes/match',
   scraperScenesStatus: '/api/scraper/scenes/status',
+  scraperSceneMarkers: '/api/scraper/scenes/markers',
+  scraperSceneMarkersApply: '/api/scraper/scenes/markers/apply',
 } as const
 
 export type ApiRouteKey = keyof typeof API_ROUTES

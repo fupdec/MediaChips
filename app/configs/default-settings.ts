@@ -159,6 +159,14 @@ const Settings = [  {
     "value": 0
   },
   {
+    "option": "sceneScraperImportMarkers",
+    "value": 1
+  },
+  {
+    "option": "sceneScraperMarkerMetaId",
+    "value": ""
+  },
+  {
     "option": "sfwMode",
     "value": 0
   },

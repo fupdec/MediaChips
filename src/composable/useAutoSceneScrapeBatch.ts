@@ -8,6 +8,7 @@ import { resolveSelectedMediaItems } from '@/utils/resolveSelection'
 import { getCurrentMediaType, isVideoMediaType } from '@/utils/mediaType'
 import { useAppStore } from '@/stores/app'
 import translate, { type Locale } from '@/utils/translate'
+import { buildSceneScrapeSuccessNotificationText } from '@/utils/sceneScraperMarkerSummary'
 import type { MediaItem } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 
@@ -72,13 +73,22 @@ export function useAutoSceneScrapeBatch() {
       })
     } else {
       const failedCount = results.length - successCount
+      const markersImported = results.reduce(
+        (sum, item) => sum + (item.success ? (item.markersImported ?? 0) : 0),
+        0,
+      )
+      const batchSummary = t('scene_scraper.auto_scrape_batch_summary', {
+        success: successCount,
+        failed: failedCount,
+      })
+      const markerSummary = settingsStore.sceneScraperImportMarkers === '1' && markersImported > 0
+        ? t('scene_scraper.markers_imported_summary', { count: markersImported })
+        : null
+
       notificationsStore.setNotification({
         type: failedCount === results.length ? 'error' : failedCount > 0 ? 'warning' : 'success',
         title: t('scene_scraper.auto_scrape_batch_done'),
-        text: t('scene_scraper.auto_scrape_batch_summary', {
-          success: successCount,
-          failed: failedCount,
-        }),
+        text: markerSummary ? `${batchSummary} · ${markerSummary}` : batchSummary,
       })
     }
 
@@ -130,7 +140,13 @@ export function useAutoSceneScrapeBatch() {
       notificationsStore.setNotification({
         type: 'success',
         title: t('scene_scraper.auto_scrape_done'),
-        text: result.sceneTitle || result.mediaName || '',
+        text: buildSceneScrapeSuccessNotificationText({
+          sceneTitle: result.sceneTitle,
+          mediaName: result.mediaName,
+          markersImported: result.markersImported,
+          importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
+          t,
+        }),
       })
       eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
       itemsStore.refreshThumb(media.id, { regenerate: true })

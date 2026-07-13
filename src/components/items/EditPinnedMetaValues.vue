@@ -370,6 +370,7 @@ import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {applySceneScrapedTagNames} from '@/services/sceneScraperApply'
 import {applyScenePosterToVideoThumb} from '@/services/sceneScraperPoster'
+import {applySelectedSceneMarkers} from '@/services/sceneScraperMarkers'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import {
   getCurrentMediaType,
@@ -1076,6 +1077,43 @@ const transferSceneScrapedInfo = async () => {
 
   if (arrayFieldsApplied) {
     eventBus.emit('getTags')
+  }
+
+  if (mediaId != null && sceneScraperStore.markers.length) {
+    const markerMetaId = Number(settingsStore.sceneScraperMarkerMetaId) || null
+    const imported = await applySelectedSceneMarkers({
+      mediaId: Number(mediaId),
+      markers: sceneScraperStore.markers,
+      markerMetaId,
+      allTags: appStore.tags || [],
+    })
+
+    if (imported > 0) {
+      eventBus.emit('refreshMarkThumbs')
+    }
+
+    if (settingsStore.sceneScraperImportMarkers === '1') {
+      setNotification({
+        type: imported > 0 ? 'success' : 'info',
+        title: t('scene_scraper.markers_apply_done'),
+        text: t('scene_scraper.markers_applied_summary', {
+          imported,
+          total: sceneScraperStore.markers.length,
+        }),
+      })
+    }
+  } else if (
+    mediaId != null
+    && settingsStore.sceneScraperImportMarkers === '1'
+    && sceneScraperStore.markersSceneId
+    && sceneScraperStore.markers.length === 0
+    && !sceneScraperStore.markersLoading
+  ) {
+    setNotification({
+      type: 'info',
+      title: t('scene_scraper.markers_apply_done'),
+      text: t('scene_scraper.markers_none_on_tpdb'),
+    })
   }
 }
 

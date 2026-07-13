@@ -148,12 +148,6 @@ export const docs = [
             selector: ['[href="/settings"]', '#settings-quick-tags'],
           },
           {
-            id: 'adult_features',
-            name: 'Adult features',
-            icon: 'mdi-shield-alert',
-            selector: ['[href="/settings"]', '#settings-doc-tab-library', '#adult_content_checkbox'],
-          },
-          {
             id: 'data_scraper',
             name: 'Data scraper',
             icon: 'mdi-search-web',

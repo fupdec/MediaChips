@@ -49,3 +49,28 @@ export interface SceneScraperBatchItem {
   error?: string
   sceneTitle?: string | null
 }
+
+export interface SceneScraperMarker {
+  title: string
+  time: number
+  end?: number | null
+}
+
+export interface SceneScraperMarkerEntry extends SceneScraperMarker {
+  selected: boolean
+  alreadyExists: boolean
+  tagId?: number | null
+  tagExists?: boolean
+  willCreate?: boolean
+  unresolved?: boolean
+}
+
+export interface SceneScraperMarkersResponse {
+  data?: SceneScraperMarker[]
+}
+
+export interface SceneScraperMarkersApplyResult {
+  imported: number
+  skipped: number
+  total: number
+}
