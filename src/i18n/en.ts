@@ -712,7 +712,7 @@ const en = {
     plugins: {
       title: 'Plugins',
       hint: 'Optional packs that extend MediaChips. Turn off the Adult plugin to hide scrapers and the Adult settings tab.',
-      hint_sfw: 'Optional packs that extend MediaChips. This SFW build ships without adult scrapers.',
+      hint_sfw: 'Optional packs that extend MediaChips. This SFW build ships without adult scrapers — download the Adult zip from mediachips.app/plugins and install it here.',
       stub_notice: 'Install from folder/zip will arrive later. Bundled plugins can be toggled now.',
       install_later_hint: 'Installing plugins from a folder or zip will be available in a future update. Bundled plugins can already be enabled or disabled above.',
       download_alert: 'Plugins are available on the official MediaChips website. Download the zip there, then install it in the app.',

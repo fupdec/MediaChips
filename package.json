@@ -30,6 +30,8 @@
     "test": "node scripts/ensure-sqlite-tests.mjs && vitest run",
     "test:plugin-adult": "vitest run packages/plugin-adult",
     "pack:plugin-sample": "node scripts/pack-plugin-sample.mjs",
+    "pack:plugin-adult": "node scripts/pack-plugin-adult.mjs",
+    "pack:plugins": "npm run pack:plugin-sample && npm run pack:plugin-adult",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "main": "main.js",

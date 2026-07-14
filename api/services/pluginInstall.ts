@@ -4,7 +4,6 @@ import os from 'os'
 import path from 'path'
 import StreamZip from 'node-stream-zip'
 import type {PluginCatalogEntry, PluginManifest, PluginPermission} from '../../shared/plugins'
-import {isSfwBuild} from '../../shared/buildFlags'
 import {normalizeMediaPath} from '../utils/normalizeUserPath'
 
 const MANIFEST_NAMES = ['plugin.json', 'mediachips.plugin.json'] as const
@@ -112,9 +111,6 @@ export function catalogEntryFromPluginDir(
   enabledPlugins: string[] = [],
 ): PluginCatalogEntry {
   const manifest = readManifestFromDir(pluginDir)
-  if (isSfwBuild() && manifest.requiresAdult) {
-    throw new Error('Adult plugins are not available in SFW builds')
-  }
   const enabled = enabledPlugins.includes(manifest.id)
   return {
     manifest,
@@ -207,10 +203,6 @@ export async function installPluginFromPath(inputPath: string): Promise<PluginCa
   }
 
   const manifest = readManifestFromDir(packageDir)
-  if (isSfwBuild() && manifest.requiresAdult) {
-    if (cleanupTemp) await fse.remove(cleanupTemp).catch(() => undefined)
-    throw new Error('Adult plugins are not available in SFW builds')
-  }
 
   const targetDir = path.join(root, manifest.id)
   if (fs.existsSync(targetDir)) {

@@ -1,0 +1,21 @@
+{
+  "id": "mediachips.adult",
+  "name": "Adult features",
+  "version": "0.1.0",
+  "description": "Performer and scene scrapers, ThePornDB integration, and related adult tools. Included in standard builds; install this zip in SFW builds under Settings → Plugins.",
+  "author": "MediaChips",
+  "homepage": "https://mediachips.app/plugins",
+  "icon": "shield-alert",
+  "engines": {
+    "mediachips": ">=1.0.0"
+  },
+  "requiresAdult": true,
+  "permissions": [
+    "ui.settings",
+    "ui.menu",
+    "ui.dialogs",
+    "api.routes",
+    "network.external",
+    "fs.write"
+  ]
+}

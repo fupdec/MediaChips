@@ -628,7 +628,7 @@ const cn = {
     plugins: {
       title: '插件',
       hint: '扩展 MediaChips 的可选功能包。关闭「成人功能」插件可隐藏抓取器和成人内容设置页。',
-      hint_sfw: '扩展 MediaChips 的可选功能包。此 SFW 版本不包含成人抓取器。',
+      hint_sfw: '扩展 MediaChips 的可选功能包。此 SFW 版本不包含成人抓取器——请从 mediachips.app/plugins 下载 Adult zip 并在此安装。',
       stub_notice: '从文件夹/zip 安装将稍后提供。内置插件现在可以开关。',
       install_later_hint: '从文件夹或 zip 安装插件将在后续更新中提供。上方已可开关内置插件。',
       download_alert: '插件可在 MediaChips 官方网站获取。请先下载 zip，再于应用中安装。',

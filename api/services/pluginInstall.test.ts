@@ -115,4 +115,32 @@ describe('pluginInstall', () => {
     expect(zipResult.status).toBe(0)
     await expect(installPluginFromPath(zipPath)).rejects.toThrow(/id/i)
   })
+
+  it('installs the official adult package in SFW mode', async () => {
+    const previous = process.env.MEDIA_CHIPS_SFW
+    process.env.MEDIA_CHIPS_SFW = '1'
+    try {
+      const folder = path.join(tempRoot, 'adult-source')
+      writeMinimalPlugin(folder, 'mediachips.adult')
+      fs.writeFileSync(path.join(folder, 'plugin.json'), JSON.stringify({
+        id: 'mediachips.adult',
+        name: 'Adult features',
+        version: '0.1.0',
+        engines: {mediachips: '>=1.0.0'},
+        requiresAdult: true,
+        permissions: ['ui.settings', 'api.routes'],
+      }, null, 2))
+      const zipPath = path.join(tempRoot, 'adult.zip')
+      const zipResult = spawnSync('zip', ['-r', zipPath, '.'], {cwd: folder, encoding: 'utf8'})
+      expect(zipResult.status).toBe(0)
+
+      const entry = await installPluginFromPath(zipPath)
+      expect(entry.manifest.id).toBe('mediachips.adult')
+      expect(entry.manifest.requiresAdult).toBe(true)
+      expect(fs.existsSync(path.join(tempRoot, 'plugins', 'mediachips.adult', 'plugin.json'))).toBe(true)
+    } finally {
+      if (previous == null) delete process.env.MEDIA_CHIPS_SFW
+      else process.env.MEDIA_CHIPS_SFW = previous
+    }
+  })
 })

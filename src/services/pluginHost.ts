@@ -147,9 +147,6 @@ export function parseEnabledPlugins(raw: unknown): string[] {
     ids = [BUILTIN_PLUGIN_IDS.adult]
   }
 
-  if (isSfwBuild()) {
-    return ids.filter((id) => id !== BUILTIN_PLUGIN_IDS.adult)
-  }
   return ids
 }
 
