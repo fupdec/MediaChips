@@ -903,7 +903,10 @@
     }
 
     .preview {
-      pointer-events: none;
+      // Receive click / contextmenu on the video surface. (With
+      // pointer-events: none, Chromium often lets hits fall through the
+      // transparent expanded stage entirely past the container.)
+      pointer-events: auto;
       border-radius: 16px;
       overflow: hidden;
       display: inline-flex;
@@ -918,21 +921,28 @@
       opacity: 1;
       animation: none;
       transition-duration: 0s;
-      background-color: transparent;
+      background-color: #000;
+      // Transform on this shell breaks overflow clipping of hardware
+      // <video> in Electron — round + clip the video element itself.
       video {
         display: block;
         opacity: 1;
         animation: none;
         transition-duration: 0s;
-        background-color: transparent;
+        background-color: #000;
         min-width: 0;
         min-height: 0;
         width: auto;
         height: auto;
+        // Keep the fit box ≥16:9 so landscape is height-limited
+        // (side insets) instead of width-limited (edge-to-edge flush).
         max-width: 95vw;
-        max-height: 95vh;
+        max-height: min(95vh, calc(90vw * 9 / 16));
         object-fit: contain;
-        border-radius: 0;
+        border-radius: 16px;
+        clip-path: inset(0 round 16px);
+        -webkit-clip-path: inset(0 round 16px);
+        pointer-events: none;
       }
     }
 
@@ -1002,23 +1012,36 @@
     &.big-preview-size-original .preview {
       video {
         max-width: min(var(--big-preview-native-width, 95vw), 95vw);
-        max-height: min(var(--big-preview-native-height, 95vh), 95vh);
+        max-height: min(
+          var(--big-preview-native-height, 95vh),
+          95vh,
+          calc(90vw * 9 / 16)
+        );
       }
     }
     &.big-preview-size-full-height .preview {
       video {
-        height: 95vh;
+        // Stretch up to the same ≥16:9 fit box (side insets + rounded corners).
+        height: min(95vh, calc(90vw * 9 / 16));
         width: auto;
         max-width: 95vw;
-        max-height: 95vh;
+        max-height: min(95vh, calc(90vw * 9 / 16));
       }
     }
-    &.big-preview-size-three-quarters .preview {
+    &.big-preview-size-two-thirds .preview {
       video {
-        height: 75vh;
+        height: min(calc(100vh * 2 / 3), calc(90vw * 9 / 16));
         width: auto;
         max-width: 95vw;
-        max-height: 75vh;
+        max-height: min(calc(100vh * 2 / 3), calc(90vw * 9 / 16));
+      }
+    }
+    &.big-preview-size-half .preview {
+      video {
+        height: min(50vh, calc(90vw * 9 / 16));
+        width: auto;
+        max-width: 95vw;
+        max-height: min(50vh, calc(90vw * 9 / 16));
       }
     }
     .preview-mute-btn {
@@ -1037,12 +1060,18 @@
       &__track {
         height: 4px;
         margin-bottom: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+      }
+
+      &__fill {
+        box-shadow: 0 0 14px rgba(var(--v-theme-primary), 0.28);
       }
 
       &__chip {
         font-size: 0.82rem;
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
       }
     }
   }
@@ -1056,6 +1085,32 @@
     z-index: 2;
     opacity: 1;
     transition: none;
+
+    // Keep vertical letterboxing black while the container stays gray
+    // for missing / loading / unavailable placeholders.
+    .v-img__img {
+      background-color: #000;
+    }
+  }
+  .preview-unavailable-notice {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    box-sizing: border-box;
+    background: rgba(11, 11, 11, 0.78);
+    color: #e16363;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 500;
+    pointer-events: auto;
+    cursor: pointer;
   }
   .preview {
     opacity: 1;
@@ -1941,6 +1996,10 @@ body > .video-preview-container.video-preview-container--expanded {
       transition: none;
     }
 
+    .preview-unavailable-notice {
+      z-index: 4;
+    }
+
     .preview,
     .timeline {
       z-index: 1;
@@ -1959,6 +2018,7 @@ body > .video-preview-container.video-preview-container--expanded {
       z-index: 2;
       transition: opacity 320ms ease;
     }
+
 
     .preview video {
       width: 100%;
@@ -2040,6 +2100,10 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
 
+    .preview-unavailable-notice {
+      z-index: 4;
+    }
+
     .preview,
     .timeline {
       z-index: 1;
@@ -2058,6 +2122,7 @@ body > .video-preview-container.video-preview-container--expanded {
       z-index: 2;
       transition: opacity 320ms ease;
     }
+
 
     .preview video {
       width: 100%;

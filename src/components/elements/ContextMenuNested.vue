@@ -41,6 +41,7 @@
       :close-on-click="false"
       :open-on-hover="true"
       :transition="false"
+      :z-index="4010"
     >
       <template v-slot:activator="{ props }">
         <v-list-item

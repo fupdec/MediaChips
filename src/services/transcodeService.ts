@@ -10,6 +10,7 @@ import {
 import type { PlayableInfo } from '@shared/schemas/transcode'
 
 const LIVE_STREAM_RETRY_DELAY_MS = 400
+const PLAYABLE_INFO_CACHE_TTL_MS = 5 * 60 * 1000
 
 const MEDIA_ERR_ABORTED = 1
 const MEDIA_ERR_NETWORK = 2
@@ -20,8 +21,42 @@ type BuildApiUrl = (path: string, baseUrl?: string) => string
 
 export type { PlayableInfo, TranscodeCacheStats } from '@shared/schemas/transcode'
 
+type PlayableCacheEntry = {
+  value: PlayableInfo
+  at: number
+}
+
+const playableInfoCache = new Map<number, PlayableCacheEntry>()
+const playableInfoInFlight = new Map<number, Promise<PlayableInfo>>()
+
+export function invalidatePlayableInfo(mediaId?: number) {
+  if (mediaId == null) {
+    playableInfoCache.clear()
+    return
+  }
+  playableInfoCache.delete(mediaId)
+}
+
 export function fetchPlayableInfo(mediaId: number): Promise<PlayableInfo> {
-  return typedApi.getVideoPlayable(mediaId).then((response) => response.data)
+  const cached = playableInfoCache.get(mediaId)
+  if (cached && Date.now() - cached.at < PLAYABLE_INFO_CACHE_TTL_MS) {
+    return Promise.resolve(cached.value)
+  }
+
+  const inFlight = playableInfoInFlight.get(mediaId)
+  if (inFlight) return inFlight
+
+  const request = typedApi.getVideoPlayable(mediaId)
+    .then((response) => {
+      playableInfoCache.set(mediaId, {value: response.data, at: Date.now()})
+      return response.data
+    })
+    .finally(() => {
+      playableInfoInFlight.delete(mediaId)
+    })
+
+  playableInfoInFlight.set(mediaId, request)
+  return request
 }
 
 export function stopLiveTranscode(mediaId: number) {
@@ -89,23 +124,16 @@ export class UnsupportedPlaybackError extends Error {
 export async function resolvePreviewVideoUrl(
   buildApiUrl: BuildApiUrl,
   mediaId: number,
-  startSeconds = 0,
+  _startSeconds = 0,
 ) {
   try {
     const playable = await fetchPlayableInfo(mediaId)
     if (playable.mode === 'unsupported') {
       return null
     }
+    // Hover preview never starts live transcoding — open the player instead.
     if (playable.transcodeRequired || playable.streamPlayback || playable.mode === 'stream') {
-      return buildLiveStreamUrl(
-        buildApiUrl,
-        mediaId,
-        startSeconds,
-        null,
-        {
-          copyCompatible: playable.remuxCopy === true && playable.reason !== 'container_layout',
-        },
-      )
+      return null
     }
     return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
   } catch {

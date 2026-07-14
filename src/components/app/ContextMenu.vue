@@ -4,6 +4,7 @@
     v-model="contextMenu.show"
     content-class="bottom-menu-mobile"
     width="500"
+    :z-index="4000"
   >
     <v-card max-height="80vh" class="menu">
       <v-list density="compact" class="px-2">
@@ -41,6 +42,7 @@
     :close-on-content-click="false"
     :close-on-click="false"
     :transition="false"
+    :z-index="4000"
     min-width="150"
   >
     <v-list density="compact" class="context-menu" :lines="false" nav rounded="lg">

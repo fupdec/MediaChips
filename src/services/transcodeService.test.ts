@@ -2,6 +2,7 @@ import {describe, it, expect, vi, beforeEach} from 'vitest'
 import {
   buildLiveStreamUrl,
   buildVideoStreamUrl,
+  invalidatePlayableInfo,
   playLiveStreamWhenReady,
   playWhenReady,
   resolvePreviewVideoUrl,
@@ -49,6 +50,7 @@ describe('resolvePreviewVideoUrl', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    invalidatePlayableInfo()
   })
 
   it('uses live stream url when transcode is required', async () => {
@@ -60,9 +62,36 @@ describe('resolvePreviewVideoUrl', () => {
       config: {} as never,
     })
 
+    // Hover preview must not start live transcoding.
+    expect(await resolvePreviewVideoUrl(buildApiUrl, 15, 30)).toBeNull()
+  })
+
+  it('returns direct stream url when format is browser-playable', async () => {
+    mockGetVideoPlayable.mockResolvedValue({
+      data: {transcodeRequired: false, mode: 'direct', streamPlayback: false},
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as never,
+    })
+
     const url = await resolvePreviewVideoUrl(buildApiUrl, 15, 30)
-    expect(url).toContain('/api/video/15/transcode/stream')
-    expect(url).toContain('start=30')
+    expect(url).toContain('/api/video/15?source=auto')
+  })
+
+  it('reuses cached playable info for subsequent lookups', async () => {
+    mockGetVideoPlayable.mockResolvedValue({
+      data: {transcodeRequired: false, mode: 'direct', streamPlayback: false},
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as never,
+    })
+
+    await resolvePreviewVideoUrl(buildApiUrl, 21)
+    await resolvePreviewVideoUrl(buildApiUrl, 21)
+
+    expect(mockGetVideoPlayable).toHaveBeenCalledTimes(1)
   })
 
   it('returns null when format is unsupported and transcode is disabled', async () => {

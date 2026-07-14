@@ -67,53 +67,32 @@
         </div>
       </div>
 
-      <!-- SYSTEM PLAYER (transcode disabled + unsupported format) -->
+      <!-- PREVIEW UNAVAILABLE NOTICE (from <video> playback errors only) -->
       <div
-        v-if="showTranscodeDisabledNotice"
-        class="player-only-notice"
-      >
-        <v-btn
-          class="player-only-notice__btn"
-          color="primary"
-          variant="flat"
-          rounded="pill"
-          size="small"
-          @click.stop="openInSystemPlayer"
-        >
-          {{ t('actions.open_system_player') }}
-        </v-btn>
-      </div>
-
-      <!-- TRANSCODE FORMAT NOTICE -->
-      <div
-        v-if="showTranscodePreviewNotice"
-        class="preview transcode-preview-notice"
+        v-if="showPreviewUnavailableNotice"
+        class="preview-unavailable-notice"
         @click.stop="handleMediaClick"
+        @contextmenu="handlePreviewContextMenu"
       >
-        <div class="playback-error">
-          {{ t('player.preview_format_unavailable') }}
-        </div>
+        <v-icon size="18" class="preview-unavailable-notice__icon">mdi-alert-outline</v-icon>
+        <span>{{ t('player.preview_format_unavailable') }}</span>
       </div>
 
       <!-- VIDEO PREVIEW -->
       <div
-        v-if="showVideoPreview"
+        v-if="showVideoPreview && !playbackError"
         class="preview"
         @click.stop="handleMediaClick"
+        @contextmenu="handlePreviewContextMenu"
       >
         <video
           ref="videoRef"
-          :class="{ 'video-playback-error': playbackError }"
           :muted="muted"
           loop
           @error="handleVideoError"
           @loadeddata="handleVideoLoaded"
           @timeupdate="handleVideoTimeUpdate"
         />
-        <div v-if="playbackError"
-          class="playback-error">
-          {{ t('player.preview_format_unavailable') }}
-        </div>
       </div>
 
       <div
@@ -294,12 +273,10 @@ import {
 } from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
-import {isLikelyBrowserDirectVideo} from '@/utils/transcodeCompatibility'
 import {usePlayerStore} from '@/stores/player'
 import {getChunkStart} from '@/utils/liveStreamChunk'
 import {
-  fetchPlayableInfo,
-  resolvePreviewVideoUrl,
+  buildVideoStreamUrl,
   stopLiveTranscode,
 } from '@/services/transcodeService'
 import {isAppWindowFocused} from '@/utils/windowFocus'
@@ -307,20 +284,28 @@ import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import type {MediaItem} from '@/types/stores'
 
-type BigVideoPreviewSize = 'original' | 'full_height' | 'three_quarters'
+type BigVideoPreviewSize = 'original' | 'full_height' | 'two_thirds' | 'half'
 
 const BIG_PREVIEW_SIZE_CLASSES: Record<BigVideoPreviewSize, string> = {
   original: 'big-preview-size-original',
   full_height: 'big-preview-size-full-height',
-  three_quarters: 'big-preview-size-three-quarters',
+  two_thirds: 'big-preview-size-two-thirds',
+  half: 'big-preview-size-half',
 }
 
 const thumbLoadInFlight = new Map<string, Promise<void>>()
 
 const normalizeBigPreviewSize = (value: string | undefined): BigVideoPreviewSize => {
-  if (value === 'original' || value === 'full_height' || value === 'three_quarters') {
+  if (
+    value === 'original' ||
+    value === 'full_height' ||
+    value === 'two_thirds' ||
+    value === 'half'
+  ) {
     return value
   }
+  // Migrate legacy option names.
+  if (value === 'three_quarters') return 'two_thirds'
   return 'full_height'
 }
 
@@ -447,7 +432,6 @@ const collapsePreviewFading = ref(false)
 const hoverPreviewReady = ref(false)
 const isBigPreviewOpen = computed(() => gridBigPreview.isExpanded.value)
 const isMounted = ref(false)
-const transcodeRequired = ref<boolean | null>(null)
 let initFramesToken = 0
 let thumbProbeController: AbortController | null = null
 
@@ -576,48 +560,19 @@ const progressPosition = computed(() => {
   return `${100 - (progress.value / duration) * 100}%`
 })
 
-const isUnsupportedFormat = computed(() =>
-  props.isFileExists && !isLikelyBrowserDirectVideo(props.media?.path),
-)
-
-const needsTranscodePlayback = computed(() =>
-  isUnsupportedFormat.value || transcodeRequired.value === true,
-)
-
-const isTranscodeEnabled = computed(() =>
-  settingsStore.transcodeUnsupportedFormats === '1',
-)
-
 const isVideoPreviewEnabled = computed(() =>
   SETTINGS.value.videoPreviewHover === 'video',
 )
 
-const shouldBlockVideoPreview = computed(() =>
-  needsTranscodePlayback.value && isVideoPreviewEnabled.value,
-)
-
-const showTranscodePreviewNotice = computed(() =>
-  isViewCard.value &&
-  isHovered.value &&
-  shouldBlockVideoPreview.value &&
-  isTranscodeEnabled.value,
-)
-
-const shouldBlockHoverPreview = computed(() =>
-  shouldBlockVideoPreview.value && !isTranscodeEnabled.value,
-)
-
-const showTranscodeDisabledNotice = computed(() =>
-  shouldBlockHoverPreview.value &&
-  isHovered.value &&
-  isViewCard.value,
+const showPreviewUnavailableNotice = computed(() =>
+  playbackError.value && isViewCard.value && isHovered.value,
 )
 
 const isShowProgress = computed(() =>
   SETTINGS.value.videoPreviewHover === 'video' &&
   props.isFileExists &&
   isHovered.value &&
-  !shouldBlockVideoPreview.value,
+  !playbackError.value,
 )
 
 const isViewCard = computed(() =>
@@ -652,16 +607,14 @@ const showVideoPreview = computed(() =>
   (isHovered.value ||
     gridBigPreview.isVisual.value ||
     holdPreviewVideoDuringCollapse.value) &&
-  !isShrinking.value &&
-  !shouldBlockVideoPreview.value,
+  !isShrinking.value,
 )
 
 const showTimelinePreview = computed(() =>
   SETTINGS.value.videoPreviewHover === 'timeline' &&
   props.isFileExists &&
   isHovered.value &&
-  !isShrinking.value &&
-  !shouldBlockHoverPreview.value,
+  !isShrinking.value,
 )
 
 const showEmbeddedPlayHint = computed(() =>
@@ -673,9 +626,7 @@ const showEmbeddedPlayHint = computed(() =>
   !isShrinking.value &&
   !showVideoPreview.value &&
   !showTimelinePreview.value &&
-  !showTranscodeDisabledNotice.value &&
-  !showTranscodePreviewNotice.value &&
-  !playbackError.value,
+  !showPreviewUnavailableNotice.value,
 )
 
 const showPlaybackTimeline = computed(() =>
@@ -1051,7 +1002,7 @@ const setBigPreviewSize = (size: BigVideoPreviewSize) => {
 }
 
 const buildBigPreviewSizeMenu = () => {
-  const sizes: BigVideoPreviewSize[] = ['original', 'full_height', 'three_quarters']
+  const sizes: BigVideoPreviewSize[] = ['original', 'full_height', 'two_thirds', 'half']
   return sizes.map((size) => ({
     name: t(`media.preview.big_preview_size.${size}`),
     type: 'item' as const,
@@ -1072,14 +1023,16 @@ const canOpenBigPreview = () =>
   isHovered.value &&
   isAppWindowFocused() &&
   props.isFileExists &&
-  !shouldBlockVideoPreview.value &&
   !playbackError.value &&
   isVideoPreviewEnabled.value &&
   SETTINGS.value.big_video_preview === '1'
 
 const handlePreviewClick = () => {
   if (gridBigPreview.isCollapsing.value || isShrinking.value) return
-  if (isBigPreviewOpen.value) {
+  if (gridBigPreview.isVisual.value) {
+    // Clear keep-open flags so an earlier context menu cannot block dismiss.
+    contextMenuStore.show = false
+    bigPreviewMenuActive.value = false
     stopPlayingPreview()
     return
   }
@@ -1088,7 +1041,9 @@ const handlePreviewClick = () => {
 
 const handleMediaClick = () => {
   if (gridBigPreview.isCollapsing.value || isShrinking.value) return
-  if (isBigPreviewOpen.value) {
+  if (gridBigPreview.isVisual.value) {
+    contextMenuStore.show = false
+    bigPreviewMenuActive.value = false
     stopPlayingPreview()
     return
   }
@@ -1187,7 +1142,12 @@ const buildBigPreviewContextMenu = () => {
 }
 
 const handlePreviewContextMenu = (e: MouseEvent) => {
-  if (!gridBigPreview.isExpanded.value || !props.isFileExists || playbackError.value || shouldBlockVideoPreview.value) return
+  // isVisual covers expanded + expanding; collapsing should not open the menu.
+  if (
+    !gridBigPreview.isVisual.value ||
+    gridBigPreview.isCollapsing.value ||
+    !props.isFileExists
+  ) return
 
   e.preventDefault()
   e.stopPropagation()
@@ -1210,14 +1170,6 @@ const play = (_inApp?: unknown) => {
   itemsStore.playVideo({
     video: props.media,
     ...(props.playTime != null ? {time: props.playTime} : {}),
-  })
-}
-
-const openInSystemPlayer = () => {
-  stopPlayingPreview({force: true})
-  itemsStore.playVideo({
-    video: props.media,
-    in_system: true,
   })
 }
 
@@ -1276,31 +1228,41 @@ const handleVideoTimeUpdate = () => {
 }
 
 const changePreviewTime = debounce((e: MouseEvent) => {
-  if (hasFixedPreviewTime.value) return
-  if (!props.isFileExists || playbackError.value || shouldBlockVideoPreview.value) return
-  if (SETTINGS.value.videoPreviewHover !== "video") return
+  applyPreviewTimeFromPointer(e, {seek: true})
+}, 50)
+
+const getPreviewTimeFromPointer = (clientX: number): number | null => {
+  if (hasFixedPreviewTime.value) return null
+  if (!props.isFileExists || playbackError.value) return null
+  if (SETTINGS.value.videoPreviewHover !== 'video') return null
+  if (!mediaDuration.value) return null
 
   const preview = getPreviewEl()
-  if (!preview) return
+  if (!preview) return null
 
   const rect = preview.getBoundingClientRect()
-  const percent = rect.width / 100
-  const x = e.clientX - rect.left
-  let progressValue = x / percent
+  if (rect.width <= 0) return null
 
-  if (progressValue < 0) {
-    progressValue = 0
-  } else if (progressValue > 100) {
-    progressValue = 100
-  }
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+  return Math.floor(mediaDuration.value * ratio)
+}
 
-  progressValue = Math.floor(mediaDuration.value / 100 * progressValue)
+const applyPreviewTimeFromPointer = (
+  e: Pick<MouseEvent, 'clientX'>,
+  {seek = false}: {seek?: boolean} = {},
+) => {
+  const progressValue = getPreviewTimeFromPointer(e.clientX)
+  if (progressValue == null) return
+
   if (progress.value !== progressValue) {
     progress.value = progressValue
     playbackTime.value = progressValue
+  }
+
+  if (seek) {
     void syncPreviewVideoPosition(progressValue)
   }
-}, 50)
+}
 
 let previewPlaybackToken = 0
 const previewUsesLiveStream = ref(false)
@@ -1310,25 +1272,29 @@ const isIgnorablePreviewError = (error: unknown): boolean => {
   return name === 'AbortError' || name === 'NotAllowedError'
 }
 
-const checkTranscodeRequired = async () => {
-  if (!props.isFileExists || !props.media?.id || transcodeRequired.value !== null) {
-    return
+const scheduleHoverPreviewUi = () => {
+  if (!isHovered.value || !isAppWindowFocused()) return
+
+  if (isVideoPreviewEnabled.value) {
+    schedulePreviewPlayback()
   }
 
-  try {
-    const playable = await fetchPlayableInfo(props.media.id)
-    transcodeRequired.value = Boolean(
-      playable.transcodeRequired ||
-      playable.streamPlayback ||
-      playable.mode === 'stream',
-    )
-  } catch {
-    transcodeRequired.value = false
+  if (
+    isVideoPreviewEnabled.value &&
+    SETTINGS.value.big_video_preview === '1'
+  ) {
+    const totalDelay = (Number(SETTINGS.value.delayVideoPreview) || 0) +
+      (Number(SETTINGS.value.big_video_preview_delay) || 0)
+
+    timeouts.cinema = setTimeout(() => {
+      if (!canOpenBigPreview()) return
+      void openGridBigPreview()
+    }, Math.floor(totalDelay))
   }
 }
 
 const buildPreviewVideoUrl = () =>
-  resolvePreviewVideoUrl(buildApiUrl, props.media.id, progress.value || 0)
+  buildVideoStreamUrl(buildApiUrl, props.media.id, 'auto')
 
 const getPreviewStreamStart = (url: string): string | null => {
   try {
@@ -1343,6 +1309,28 @@ const stopPreviewLiveTranscode = () => {
   previewUsesLiveStream.value = false
   stopLiveTranscode(props.media.id).catch(() => {})
 }
+
+const waitForPreviewSeek = (video: HTMLVideoElement, token: number): Promise<void> => new Promise((resolve) => {
+  if (token !== previewPlaybackToken) {
+    resolve()
+    return
+  }
+
+  if (video.seeking) {
+    const onSeeked = () => {
+      clearTimeout(timeoutId)
+      resolve()
+    }
+    const timeoutId = setTimeout(() => {
+      video.removeEventListener('seeked', onSeeked)
+      resolve()
+    }, 400)
+    video.addEventListener('seeked', onSeeked, {once: true})
+    return
+  }
+
+  resolve()
+})
 
 const syncPreviewVideoPosition = async (targetTime: number): Promise<boolean> => {
   const video = videoRef.value
@@ -1366,6 +1354,8 @@ const syncPreviewVideoPosition = async (targetTime: number): Promise<boolean> =>
     if (token !== previewPlaybackToken) return false
     const chunkStart = getChunkStart(targetTime)
     video.currentTime = Math.max(0, targetTime - chunkStart)
+    await waitForPreviewSeek(video, token)
+    if (token !== previewPlaybackToken) return false
     playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
     return true
   }
@@ -1377,7 +1367,12 @@ const syncPreviewVideoPosition = async (targetTime: number): Promise<boolean> =>
   }
 
   if (token !== previewPlaybackToken) return false
-  video.currentTime = Math.min(targetTime, video.duration || targetTime)
+  const nextTime = Math.min(targetTime, video.duration || targetTime)
+  if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.05) {
+    video.currentTime = nextTime
+    await waitForPreviewSeek(video, token)
+    if (token !== previewPlaybackToken) return false
+  }
   playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
   return true
 }
@@ -1394,6 +1389,7 @@ const waitForPreviewCanPlay = (video: HTMLVideoElement, token: number): Promise<
   }
 
   const cleanup = () => {
+    clearTimeout(timeoutId)
     video.removeEventListener('canplay', onCanPlay)
     video.removeEventListener('error', onError)
   }
@@ -1407,6 +1403,11 @@ const waitForPreviewCanPlay = (video: HTMLVideoElement, token: number): Promise<
     cleanup()
     reject(video.error || new Error('Video failed to load'))
   }
+
+  const timeoutId = setTimeout(() => {
+    cleanup()
+    reject(new Error('Preview playback timed out'))
+  }, 8000)
 
   video.addEventListener('canplay', onCanPlay, {once: true})
   video.addEventListener('error', onError, {once: true})
@@ -1470,8 +1471,14 @@ const applyFixedPreviewTime = () => {
   playbackTime.value = props.previewStartTime
 }
 
-const handleMouseEnter = () => {
+let lastHoverClientX: number | null = null
+
+const handleMouseEnter = (e?: MouseEvent) => {
   if (!props.isFileExists || isHovered.value || !isAppWindowFocused()) return
+
+  if (e) {
+    lastHoverClientX = e.clientX
+  }
 
   clearTimeout(timeouts.leave)
   clearTimeout(timeouts.hoverCooldown)
@@ -1479,37 +1486,27 @@ const handleMouseEnter = () => {
   const cooldownRemaining = getHoverPreviewCooldownRemaining()
   if (cooldownRemaining > 0) {
     timeouts.hoverCooldown = setTimeout(() => {
-      handleMouseEnter()
+      handleMouseEnter(
+        lastHoverClientX == null
+          ? undefined
+          : ({clientX: lastHoverClientX} as MouseEvent),
+      )
     }, cooldownRemaining)
     return
   }
 
   playbackError.value = false
   isHovered.value = true
-  applyFixedPreviewTime()
 
-  void (async () => {
-    await checkTranscodeRequired()
-    if (!isHovered.value || !isAppWindowFocused()) return
+  if (hasFixedPreviewTime.value) {
+    applyFixedPreviewTime()
+  } else if (lastHoverClientX != null) {
+    // Seed seek before playback starts so preview doesn't begin at 0:00.
+    applyPreviewTimeFromPointer({clientX: lastHoverClientX})
+  }
 
-    if (isVideoPreviewEnabled.value && !shouldBlockVideoPreview.value) {
-      schedulePreviewPlayback()
-    }
-
-    if (
-      isVideoPreviewEnabled.value &&
-      SETTINGS.value.big_video_preview === '1' &&
-      !shouldBlockVideoPreview.value
-    ) {
-      const totalDelay = (Number(SETTINGS.value.delayVideoPreview) || 0) +
-        (Number(SETTINGS.value.big_video_preview_delay) || 0)
-
-      timeouts.cinema = setTimeout(() => {
-        if (!canOpenBigPreview()) return
-        void openGridBigPreview()
-      }, Math.floor(totalDelay))
-    }
-  })()
+  // Start preview immediately for browser-direct containers (mp4/webm).
+  scheduleHoverPreviewUi()
 }
 
 const stopPlayingPreview = ({force = false} = {}) => {
@@ -1526,6 +1523,7 @@ const stopPlayingPreview = ({force = false} = {}) => {
     clearTimeout(timeouts.shrink)
     holdPreviewVideoDuringCollapse.value = false
     collapsePreviewFading.value = false
+    contextMenuStore.show = false
     gridBigPreview.forceClose(getPreviewEl())
     removeClasses()
     return
@@ -1666,7 +1664,6 @@ watch(() => contextMenuStore.show, (show) => {
 })
 
 watch(() => props.isFileExists, (exists) => {
-  transcodeRequired.value = null
   if (!exists) {
     clearTimeout(timeouts.cinema)
     if (hasActivePreviewState()) {
@@ -1682,21 +1679,15 @@ watch(() => props.isFileExists, (exists) => {
 watch(playbackError, (error) => {
   if (!error) return
   clearTimeout(timeouts.cinema)
+  clearTimeout(timeouts.z)
+  previewPlaybackToken += 1
+  resetHoverPreviewReady()
+  stopPreviewLiveTranscode()
   if (isBigPreviewOpen.value) {
+    contextMenuStore.show = false
+    bigPreviewMenuActive.value = false
     stopPlayingPreview()
   }
-})
-
-watch(shouldBlockVideoPreview, (blocked) => {
-  if (!blocked) return
-  clearTimeout(timeouts.cinema)
-  if (isBigPreviewOpen.value) {
-    stopPlayingPreview()
-  }
-})
-
-watch(() => props.media?.id, () => {
-  transcodeRequired.value = null
 })
 
 watch(() => itemsStore.thumbRefreshKeys[Number(props.media.id)], (version) => {
@@ -1821,53 +1812,33 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-.video-playback-error {
-  opacity: 0;
-  display: none;
-}
-
 .preview {
   position: relative;
 }
 
-.playback-error {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #ff4444;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 12px;
-  text-align: center;
-}
-
-.player-only-notice {
+.preview-unavailable-notice {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.35);
-
-  .player-only-notice__btn {
-    pointer-events: auto;
-    opacity: 1;
-  }
+  gap: 6px;
+  padding: 12px;
+  box-sizing: border-box;
+  background: rgba(11, 11, 11, 0.78);
+  color: #e16363;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 500;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .big-preview-plug .v-card {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
-}
-
-.transcode-preview-notice {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
 }
 </style>
