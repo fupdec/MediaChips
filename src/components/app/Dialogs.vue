@@ -22,6 +22,7 @@
     />
 
     <DialogOnboarding v-if="dialogsStore.onboarding.show"/>
+    <DialogAdultOnboarding v-if="adultUiAvailable && dialogsStore.adultOnboarding.show"/>
     <DialogDocumentation v-show="dialogsStore.documentation"/>
     <DialogFeedback v-if="dialogsStore.feedback"/>
     <DialogFindInPage v-if="dialogsStore.findInPage.show"/>
@@ -140,6 +141,9 @@ const DialogLogin = defineAsyncComponent(() =>
 )
 const DialogOnboarding = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogOnboarding.vue')
+)
+const DialogAdultOnboarding = defineAsyncComponent(() =>
+  import('@mediachips/plugin-adult/components/DialogAdultOnboarding.vue')
 )
 const DialogDocumentation = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogDocumentation.vue')

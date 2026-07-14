@@ -1,16 +1,42 @@
 <template>
-  <div class="mx-4">
+  <div class="scraper-settings mx-4">
     <settings-category-divider
       :title="t('settings_labels.library.data_scraper')"
       icon="search-web"
     >
       <template #actions>
+        <v-spacer/>
         <button-documentation id="data_scraper"/>
       </template>
     </settings-category-divider>
 
-    <v-card-subtitle class="px-0 mb-2">{{ t('settings_labels.tools.tpdb_api_key') }}</v-card-subtitle>
-      <div class="text-caption text-medium-emphasis mb-4">
+    <v-alert
+      class="mb-6"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      rounded="lg"
+    >
+      <div class="d-flex flex-wrap align-center justify-space-between ga-3">
+        <div class="text-body-2">{{ t('adult_onboarding.intro') }}</div>
+        <v-btn
+          color="primary"
+          rounded
+          size="small"
+          variant="flat"
+          prepend-icon="mdi-shield-search"
+          @click="openAdultOnboarding"
+        >
+          {{ t('adult_onboarding.open_guide') }}
+        </v-btn>
+      </div>
+    </v-alert>
+
+    <section class="scraper-block mb-6">
+      <div class="text-subtitle-1 font-weight-medium mb-1">
+        {{ t('settings_labels.tools.tpdb_api_key') }}
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-4">
         <i18n-t keypath="settings_labels.tools.tpdb_api_key_hint" tag="span">
           <template #site>
             <a
@@ -28,147 +54,84 @@
         :type="showTpdbApiKey ? 'text' : 'password'"
         :append-inner-icon="showTpdbApiKey ? 'mdi-eye' : 'mdi-eye-off'"
         @click:append-inner="showTpdbApiKey = !showTpdbApiKey"
-        :label="t('settings_labels.tools.tpdb_api_key')"
         :placeholder="t('settings_labels.tools.tpdb_api_key_placeholder')"
         autocomplete="off"
         rounded
         variant="outlined"
         hide-details
-        class="mb-6"
-        style="max-width: 36rem"
+        class="scraper-field"
       />
+    </section>
 
-      <div class="text-h6 font-weight-medium px-0 mb-2">{{ t('settings_labels.tools.performer_scraper') }}</div>
-      <div class="text-caption text-medium-emphasis mb-4">
-        {{ t('settings_labels.tools.data_scraper_hint') }}
+    <v-divider class="mb-6"/>
+
+    <section class="scraper-block mb-6">
+      <div class="text-subtitle-1 font-weight-medium mb-1">
+        {{ t('settings_labels.tools.scene_scraper') }}
       </div>
-
-      <v-row>
-        <v-col cols="12" sm="6">
-          <v-autocomplete
-            v-model="selected_meta"
-            @update:model-value="onPerformerMetaSelected"
-            :items="meta_tags"
-            item-value="id"
-            item-title="name"
-            :label="t('settings_labels.tools.performers_meta')"
-            :placeholder="t('settings_labels.tools.select_meta')"
-            return-object
-            variant="filled"
-          >
-            <template v-slot:selection="{ item }">
-              <v-icon start>mdi-{{ item.raw.icon }}</v-icon>
-              <span>{{ item.raw.name }}</span>
-            </template>
-            <template v-slot:item="{ item, props }">
-              <v-list-item v-bind="props">
-                <template #title>
-                  <v-icon start>mdi-{{ item.raw.icon }}</v-icon>
-                  <span>{{ item.raw.name }}</span>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
-        </v-col>
-        <v-col cols="12" sm="6">
-          <v-btn
-            :disabled="!selected_meta"
-            class="mb-4"
-            color="primary"
-            rounded
-            variant="flat"
-          >
-            <DialogScraperConfig v-if="selected_meta" :meta="selected_meta"/>
-
-            <v-icon start>mdi-search-web</v-icon>
-            {{ t('settings_labels.tools.configure_scraper') }}
-          </v-btn>
-
-          <v-btn
-            :disabled="!selected_meta || scraperStore.autoScrapeInProgress || allTagsCount === 0"
-            @click="confirmScrapeAll"
-            class="mb-4 ml-2"
-            color="info"
-            rounded
-            variant="tonal"
-          >
-            <v-icon start>mdi-cloud-download</v-icon>
-            {{ t('settings_labels.tools.scrape_all_tags', { count: allTagsCount }) }}
-          </v-btn>
-        </v-col>
-      </v-row>
-
-      <v-divider class="my-4"/>
-
-      <div class="text-h6 font-weight-medium px-0 mb-2">{{ t('settings_labels.tools.scene_scraper') }}</div>
-      <div class="text-caption text-medium-emphasis mb-4">
+      <div class="text-body-2 text-medium-emphasis mb-4">
         {{ t('settings_labels.tools.scene_scraper_hint') }}
       </div>
 
-      <v-row>
-        <v-col cols="12" sm="6">
-          <v-autocomplete
-            v-model="selectedVideoMediaType"
-            :items="videoMediaTypes"
-            item-value="id"
-            item-title="name"
-            :label="t('settings_labels.tools.video_media_type')"
-            :placeholder="t('settings_labels.tools.select_video_media_type')"
-            return-object
-            variant="filled"
-          >
-            <template #selection="{ item }">
+      <v-autocomplete
+        v-model="selectedVideoMediaType"
+        :items="videoMediaTypes"
+        item-value="id"
+        item-title="name"
+        :label="t('settings_labels.tools.video_media_type')"
+        :placeholder="t('settings_labels.tools.select_video_media_type')"
+        return-object
+        variant="outlined"
+        rounded
+        hide-details
+        class="scraper-field mb-4"
+      >
+        <template #selection="{ item }">
+          <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
+          <span>{{ item.raw.name }}</span>
+        </template>
+        <template #item="{ item, props }">
+          <v-list-item v-bind="props">
+            <template #title>
               <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
               <span>{{ item.raw.name }}</span>
             </template>
-            <template #item="{ item, props }">
-              <v-list-item v-bind="props">
-                <template #title>
-                  <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
-                  <span>{{ item.raw.name }}</span>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
-        </v-col>
-        <v-col cols="12" sm="6">
-          <v-btn
-            :disabled="!selectedVideoMediaType"
-            class="mb-4"
-            color="primary"
-            rounded
-            variant="flat"
-          >
-            <DialogSceneScraperConfig
-              v-if="selectedVideoMediaType"
-              :media-type-id="selectedVideoMediaType.id"
-            />
+          </v-list-item>
+        </template>
+      </v-autocomplete>
 
-            <v-icon start>mdi-movie-search</v-icon>
-            {{ t('settings_labels.tools.configure_scene_scraper') }}
-          </v-btn>
-
-          <v-btn
+      <div class="d-flex flex-wrap ga-2 mb-4">
+        <v-btn
+          :disabled="!selectedVideoMediaType"
+          color="primary"
+          rounded
+          variant="flat"
+        >
+          <DialogSceneScraperConfig
             v-if="selectedVideoMediaType"
-            :disabled="!selectedVideoMediaType || sceneScraperStore.autoScrapeInProgress || allVideosCount === 0"
-            @click="confirmScrapeAllScenes"
-            class="mb-4 ml-2"
-            color="info"
-            rounded
-            variant="tonal"
-          >
-            <v-icon start>mdi-cloud-download</v-icon>
-            {{ t('settings_labels.tools.scrape_all_scenes', { count: allVideosCount }) }}
-          </v-btn>
-        </v-col>
-      </v-row>
+            :media-type-id="selectedVideoMediaType.id"
+          />
+          <v-icon start>mdi-tune</v-icon>
+          {{ t('settings_labels.tools.configure_scene_scraper') }}
+        </v-btn>
+
+        <v-btn
+          :disabled="!selectedVideoMediaType || sceneScraperStore.autoScrapeInProgress || allVideosCount === 0"
+          color="primary"
+          rounded
+          variant="tonal"
+          @click="confirmScrapeAllScenes"
+        >
+          <v-icon start>mdi-cloud-download</v-icon>
+          {{ t('settings_labels.tools.scrape_all_scenes', { count: allVideosCount }) }}
+        </v-btn>
+      </div>
 
       <settings-switch
         :title="t('settings_labels.tools.scene_auto_apply')"
         :hint="t('settings_labels.tools.scene_auto_apply_hint')"
         option="sceneAutoApplyOnExactMatch"
         icon-text="flash-auto"
-        class="mt-2"
       />
 
       <settings-switch
@@ -191,9 +154,10 @@
         :hint="t('settings_labels.tools.scene_marker_meta_hint')"
         persistent-hint
         return-object
-        variant="filled"
-        class="mt-4"
+        variant="outlined"
+        rounded
         clearable
+        class="scraper-field mt-4"
       >
         <template #selection="{ item }">
           <v-icon start>mdi-{{ item.raw.icon || 'tag' }}</v-icon>
@@ -208,6 +172,70 @@
           </v-list-item>
         </template>
       </v-autocomplete>
+    </section>
+
+    <v-divider class="mb-6"/>
+
+    <section class="scraper-block mb-2">
+      <div class="text-subtitle-1 font-weight-medium mb-1">
+        {{ t('settings_labels.tools.performer_scraper') }}
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-4">
+        {{ t('settings_labels.tools.data_scraper_hint') }}
+      </div>
+
+      <v-autocomplete
+        v-model="selected_meta"
+        @update:model-value="onPerformerMetaSelected"
+        :items="meta_tags"
+        item-value="id"
+        item-title="name"
+        :label="t('settings_labels.tools.performers_meta')"
+        :placeholder="t('settings_labels.tools.select_meta')"
+        return-object
+        variant="outlined"
+        rounded
+        hide-details
+        class="scraper-field mb-4"
+      >
+        <template #selection="{ item }">
+          <v-icon start>mdi-{{ item.raw.icon }}</v-icon>
+          <span>{{ item.raw.name }}</span>
+        </template>
+        <template #item="{ item, props }">
+          <v-list-item v-bind="props">
+            <template #title>
+              <v-icon start>mdi-{{ item.raw.icon }}</v-icon>
+              <span>{{ item.raw.name }}</span>
+            </template>
+          </v-list-item>
+        </template>
+      </v-autocomplete>
+
+      <div class="d-flex flex-wrap ga-2">
+        <v-btn
+          :disabled="!selected_meta"
+          color="primary"
+          rounded
+          variant="flat"
+        >
+          <DialogScraperConfig v-if="selected_meta" :meta="selected_meta"/>
+          <v-icon start>mdi-tune</v-icon>
+          {{ t('settings_labels.tools.configure_scraper') }}
+        </v-btn>
+
+        <v-btn
+          :disabled="!selected_meta || scraperStore.autoScrapeInProgress || allTagsCount === 0"
+          color="primary"
+          rounded
+          variant="tonal"
+          @click="confirmScrapeAll"
+        >
+          <v-icon start>mdi-cloud-download</v-icon>
+          {{ t('settings_labels.tools.scrape_all_tags', { count: allTagsCount }) }}
+        </v-btn>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -227,6 +255,7 @@ import {useScraperStore} from "../stores/scraper"
 import {useSceneScraperStore} from "../stores/sceneScraper"
 import {useAutoScrapeBatch} from "../composables/useAutoScrapeBatch"
 import {useAutoSceneScrapeBatch, getAllVideoMediaForType} from "../composables/useAutoSceneScrapeBatch"
+import {openAdultOnboarding} from "@/composable/useAdultOnboarding"
 import {getAllTagsForMeta} from "@/utils/resolveSelectedTags"
 import {isVideoMediaType} from "@/utils/mediaType"
 import type { Meta } from '@/types/stores'
@@ -390,3 +419,9 @@ watch(
   },
 )
 </script>
+
+<style scoped>
+.scraper-field {
+  max-width: 36rem;
+}
+</style>

@@ -97,6 +97,13 @@ export function useGlobalMediaDrop() {
 
     const paths = collectDroppedPaths(event)
     const mediaTypeId = resolveMediaTypeId(paths)
+    const hasFilePayload = Boolean(
+      event.dataTransfer?.files?.length
+      || Array.from(event.dataTransfer?.items || []).some((item) => item.kind === 'file'),
+    )
+
+    // Internal UI drags (chips, lists) can look like empty file drags — ignore silently.
+    if (!paths.length && !hasFilePayload) return
 
     if (!paths.length || mediaTypeId == null) {
       setNotification({

@@ -29,8 +29,8 @@
             <div
               v-for="cm in pinnedMetasFree"
               :key="cm.id"
-              @dragstart="handleDragStart(cm)"
-              @dragend="dragging = null"
+              @dragstart="handleDragStart(cm, $event)"
+              @dragend="handleDragEnd"
               draggable="true"
               class="ma-1"
               :style="{cursor: dragging ? 'grabbing' : 'grab'}"
@@ -155,17 +155,28 @@ const getScraperFieldName = (field: ScraperFieldTemplate) => t(`scraper.fields.$
 
 const getMetaTypeName = (type: string) => t(`meta.types.${type}`, type)
 
-function handleDragStart(meta: AssignedMeta) {
-  console.log(meta)
+function handleDragStart(meta: AssignedMeta, event: DragEvent) {
   dragging.value = meta.meta?.type || null
   draggedMeta.value = meta
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    // Mark as internal UI drag so global file-drop handlers ignore it.
+    event.dataTransfer.setData('text/plain', String(meta.pinnedMetaId ?? meta.metaId ?? ''))
+  }
+}
+
+function handleDragEnd() {
+  dragging.value = null
+  draggedMeta.value = null
 }
 
 function handleDragover(field: ScraperField, event: DragEvent) {
   if (field.meta || (draggedMeta.value && draggedMeta.value.meta?.type !== field.type)) {
-    event.dataTransfer!.dropEffect = 'none'
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
   } else {
     event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
   }
 }
 

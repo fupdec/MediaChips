@@ -425,6 +425,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   field_pinning: "settings-meta-assignment",
   video_preview: "video_preview",
   backups: "database_backups",
+  adult_scraper: "settings-adult-scraper",
 }
 
 function resolveTab(routeTab: string) {
@@ -479,6 +480,8 @@ function applyRouteSettings() {
     tab.value = "database"
   } else if (section === "field_pinning") {
     tab.value = "library"
+  } else if (section === "adult_scraper") {
+    tab.value = "plugins"
   } else if (section === "video_preview") {
     tab.value = "general"
   } else if (route.query.tab) {
