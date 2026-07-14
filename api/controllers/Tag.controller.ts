@@ -7,7 +7,6 @@ import { getRequestBody } from '../types/http'
 import { createTagsRepository } from '../db/repositories/tags'
 import { createMarksRepository } from '../db/repositories/marks'
 import {
-  deleteMarkGeneratedAsset,
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
 import { loadTagItems } from '../services/tagItemsLoader'
@@ -137,11 +136,8 @@ export default function (db: ApiDb) {
         })
       }
 
-      const marks = marksRepo.findIdsByTagId(id)
-
-      for (const mark of marks) {
-        deleteMarkGeneratedAsset(getDbPath(), mark.id)
-      }
+      const tagName = typeof tag.name === 'string' ? tag.name.trim() : ''
+      marksRepo.convertMetaMarksToBookmarksByTagId(id, tagName)
 
       await deleteTagGeneratedAssets(getDbPath(), metaId, id)
 

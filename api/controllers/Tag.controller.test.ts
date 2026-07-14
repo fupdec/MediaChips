@@ -8,10 +8,9 @@ const {
   findAllRaw,
   updateById,
   deleteById,
-  findIdsByTagId,
+  convertMetaMarksToBookmarksByTagId,
   loadTagItems,
   deleteTagGeneratedAssets,
-  deleteMarkGeneratedAsset,
   mapWithConcurrency,
   readImageAsDataUrl,
 } = vi.hoisted(() => ({
@@ -21,10 +20,9 @@ const {
   findAllRaw: vi.fn(),
   updateById: vi.fn(),
   deleteById: vi.fn(),
-  findIdsByTagId: vi.fn(),
+  convertMetaMarksToBookmarksByTagId: vi.fn(),
   loadTagItems: vi.fn(),
   deleteTagGeneratedAssets: vi.fn(),
-  deleteMarkGeneratedAsset: vi.fn(),
   mapWithConcurrency: vi.fn(),
   readImageAsDataUrl: vi.fn(),
 }))
@@ -42,7 +40,7 @@ vi.mock('../db/repositories/tags', () => ({
 
 vi.mock('../db/repositories/marks', () => ({
   createMarksRepository: () => ({
-    findIdsByTagId,
+    convertMetaMarksToBookmarksByTagId,
   }),
 }))
 
@@ -52,7 +50,6 @@ vi.mock('../services/tagItemsLoader', () => ({
 
 vi.mock('../services/localAssetCleanup', () => ({
   deleteTagGeneratedAssets,
-  deleteMarkGeneratedAsset,
 }))
 
 vi.mock('../services/thumbEncoding', () => ({
@@ -93,7 +90,6 @@ describe('Tag.controller', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     deleteTagGeneratedAssets.mockResolvedValue(undefined)
-    findIdsByTagId.mockReturnValue([])
   })
 
   it('requires metaId for tag item listings', async () => {
@@ -177,16 +173,15 @@ describe('Tag.controller', () => {
     expect(deleteById).not.toHaveBeenCalled()
   })
 
-  it('deletes tag assets and the tag record', async () => {
-    findById.mockReturnValue({id: 5, metaId: 2})
-    findIdsByTagId.mockReturnValue([{id: 8}])
+  it('converts tag marks to bookmarks and deletes the tag record', async () => {
+    findById.mockReturnValue({id: 5, metaId: 2, name: 'Action'})
 
     const req = {body: {id: 5}} as ApiRequest
     const res = createResponse()
 
     await controller.deleteOne(req, res)
 
-    expect(deleteMarkGeneratedAsset).toHaveBeenCalledWith('/tmp/db', 8)
+    expect(convertMetaMarksToBookmarksByTagId).toHaveBeenCalledWith(5, 'Action')
     expect(deleteTagGeneratedAssets).toHaveBeenCalledWith('/tmp/db', 2, 5)
     expect(deleteById).toHaveBeenCalledWith(5)
     expect(res.statusCode).toBe(201)

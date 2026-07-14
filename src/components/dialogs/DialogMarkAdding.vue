@@ -375,9 +375,7 @@ const getCurrentTime = (field: 'time' | 'end') => {
 }
 
 const jumpTo = (seconds: number) => {
-  if (playerStore.player) {
-    playerStore.player.currentTime = normalizeMarkTime(seconds)
-  }
+  playerStore.playerJumpTo(normalizeMarkTime(seconds))
 }
 
 const setVal = (newVal: unknown) => {

@@ -89,6 +89,17 @@ export function createMarksRepository(db: DrizzleClient) {
         .all()
     },
 
+    convertMetaMarksToBookmarksByTagId(tagId: unknown, text: string): void {
+      db.update(marks)
+        .set({
+          type: 'bookmark',
+          text: text || null,
+          tagId: null,
+        })
+        .where(eq(marks.tagId, Number(tagId)))
+        .run()
+    },
+
     findAllForVideo(mediaId: number) {
       const rows = db.select()
         .from(marks)

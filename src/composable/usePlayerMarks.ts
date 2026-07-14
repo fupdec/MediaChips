@@ -57,9 +57,7 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
   const getDuration = (duration: number) => getReadableDuration(duration)
 
   const jumpTo = (time: number) => {
-    if (player.value.player) {
-      player.value.player.currentTime = time
-    }
+    playerStore.playerJumpTo(time)
   }
 
   const remove = (mark: PlayerMark) => {
