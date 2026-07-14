@@ -1,11 +1,31 @@
 import {SFW_COMPILED} from './sfwCompiled'
+import {MSSTORE_COMPILED} from './msStoreCompiled'
 
 /**
- * Build-time SFW / App Store strip flag.
- * - Compiler sets `SFW_COMPILED` when MEDIA_CHIPS_SFW=1 (baked into packaged apps).
- * - Env MEDIA_CHIPS_SFW=1 still works for local SFW without a rebuild of this flag.
- * - Renderer also reads import.meta.env.MEDIA_CHIPS_SFW via Vite define.
+ * Store / “clean” build channel (adult not bundled).
+ *
+ * When true:
+ * - Adult plugin is **not** bundled (no catalog entry, no scraper routes in asar).
+ * - Users install Adult from https://mediachips.app/plugins (zip → mainEntry + host:bundled UI).
+ *
+ * When false (standard / general release):
+ * - Adult is bundled and can be enabled in Settings → Plugins.
+ *
+ * Does **not** unlock licensing — that is `isMsStoreBuild()` only.
  */
 export function isSfwBuild(): boolean {
   return SFW_COMPILED || String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
+}
+
+/** Alias for adult-strip channel checks (same as SFW today). */
+export function isStoreBuild(): boolean {
+  return isSfwBuild()
+}
+
+/**
+ * Official Microsoft Store AppX only (`MEDIA_CHIPS_MSSTORE=1` / `MSSTORE_COMPILED`).
+ * Always-activated license bypass — not set for dist:store / dist:sfw smoke builds.
+ */
+export function isMsStoreBuild(): boolean {
+  return MSSTORE_COMPILED || String(process.env.MEDIA_CHIPS_MSSTORE || '').trim() === '1'
 }

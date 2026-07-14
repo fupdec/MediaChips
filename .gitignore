@@ -33,6 +33,9 @@ server.log
 yarn.lock
 *.tsbuildinfo
 
+# Generated adult zip entry (rebuilt by npm run pack:plugin-adult)
+/plugins/official/adult/main.cjs
+
 # local env files
 .env
 env

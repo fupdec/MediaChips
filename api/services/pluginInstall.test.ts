@@ -55,6 +55,30 @@ describe('pluginInstall', () => {
     expect(manifest.permissions).toEqual(['ui.settings'])
   })
 
+  it('parses mainEntry and uiEntry from the manifest', () => {
+    const manifest = parsePluginManifest({
+      id: 'mediachips.adult',
+      name: 'Adult',
+      version: '0.1.0',
+      engines: {mediachips: '>=1.0.0'},
+      mainEntry: './main.cjs',
+      uiEntry: 'host:bundled',
+      permissions: ['api.routes'],
+    })
+    expect(manifest.mainEntry).toBe('main.cjs')
+    expect(manifest.uiEntry).toBe('host:bundled')
+  })
+
+  it('rejects unsafe mainEntry paths', () => {
+    expect(() => parsePluginManifest({
+      id: 'mediachips.demo',
+      name: 'Demo',
+      version: '0.1.0',
+      engines: {mediachips: '>=1.0.0'},
+      mainEntry: '../escape.cjs',
+    })).toThrow(/relative path/i)
+  })
+
   it('installs from a folder and lists the plugin', async () => {
     const source = path.join(tempRoot, 'source-demo')
     writeMinimalPlugin(source)

@@ -1,13 +1,9 @@
 import {BUILTIN_PLUGIN_IDS} from '@shared/plugins'
 import {getPluginRegistry} from '@/services/pluginRegistry'
 import {usePluginsStore} from '@/stores/plugins'
-import {useSettingsStore} from '@/stores/settings'
-import {isSfwBuild} from '@/utils/sfwBuild'
 
 /** Plugin pack is installed and enabled. Prefers Pinia when available for reactivity. */
 export function isAdultPluginEnabled(): boolean {
-  if (isSfwBuild()) return false
-
   try {
     return usePluginsStore().isAdultEnabled
   } catch {
@@ -17,11 +13,8 @@ export function isAdultPluginEnabled(): boolean {
 
 /**
  * Adult scrape UI (menus, dialogs, editing buttons).
- * Requires both the adult plugin and the privacy switch.
+ * Requires the adult plugin to be enabled in Settings → Plugins.
  */
 export function isAdultUiAvailable(): boolean {
-  if (isSfwBuild()) return false
-
-  const settingsStore = useSettingsStore()
-  return isAdultPluginEnabled() && settingsStore.showAdultContent === '1'
+  return isAdultPluginEnabled()
 }

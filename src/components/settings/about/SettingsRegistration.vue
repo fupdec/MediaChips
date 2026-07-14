@@ -5,6 +5,29 @@
       icon="key-variant"
     />
 
+    <template v-if="isStoreChannel">
+      <v-table class="mb-4">
+        <tbody>
+          <tr>
+            <td>{{ t('registration.status') }}</td>
+            <td>
+              <v-chip color="success" variant="tonal" label>
+                <span>{{ t('registration.store_licensed') }}</span>
+              </v-chip>
+            </td>
+          </tr>
+          <tr>
+            <td>{{ t('registration.license_source') }}</td>
+            <td><b>{{ t('registration.microsoft_store') }}</b></td>
+          </tr>
+        </tbody>
+      </v-table>
+      <div class="text-caption text-medium-emphasis mb-4">
+        {{ t('registration.store_licensed_hint') }}
+      </div>
+    </template>
+
+    <template v-else>
     <v-table class="mb-4">
       <tbody>
       <tr>
@@ -75,6 +98,7 @@
         {{ t('registration.buy_lifetime_key') }}
       </v-btn>
     </div>
+    </template>
 
     <v-dialog
       v-model="dialog"
@@ -335,6 +359,7 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useNotificationsStore} from '@/stores/notifications'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import {isMsStoreBuild} from '@/utils/sfwBuild'
 import type {VFormInstance} from '@/types/vue'
 import type {LicenseInfo} from '@/types/stores'
 
@@ -352,6 +377,7 @@ interface LicenseActionResponse {
 const registrationStore = useRegistrationStore()
 const notificationsStore = useNotificationsStore()
 const {t} = useI18n()
+const isStoreChannel = isMsStoreBuild()
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const err = error as AxiosLikeError

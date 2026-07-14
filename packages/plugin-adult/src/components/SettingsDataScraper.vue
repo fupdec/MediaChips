@@ -9,17 +9,7 @@
       </template>
     </settings-category-divider>
 
-    <settings-switch
-      :title="t('settings_labels.tools.adult_features')"
-      :hint="t('settings_labels.tools.adult_features_hint')"
-      option="showAdultContent"
-      icon-text="shield-alert"
-      id="adult_content_checkbox"
-      class="mb-4"
-    />
-
-    <template v-if="settingsStore.showAdultContent === '1'">
-      <v-card-subtitle class="px-0 mb-2">{{ t('settings_labels.tools.tpdb_api_key') }}</v-card-subtitle>
+    <v-card-subtitle class="px-0 mb-2">{{ t('settings_labels.tools.tpdb_api_key') }}</v-card-subtitle>
       <div class="text-caption text-medium-emphasis mb-4">
         <i18n-t keypath="settings_labels.tools.tpdb_api_key_hint" tag="span">
           <template #site>
@@ -218,7 +208,6 @@
           </v-list-item>
         </template>
       </v-autocomplete>
-    </template>
   </div>
 </template>
 

@@ -44,6 +44,16 @@ export interface PluginManifest {
   /** Hide / gate when adult features are off */
   requiresAdult?: boolean
   permissions: PluginPermission[]
+  /**
+   * Relative path inside the plugin package for Node/Express registration.
+   * Example: `main.cjs` — `register(app, db)` CJS export.
+   */
+  mainEntry?: string | null
+  /**
+   * Relative path or host token for UI activation.
+   * Official adult uses `host:bundled` (load host adult modules when installed).
+   */
+  uiEntry?: string | null
 }
 
 export interface PluginCatalogEntry {

@@ -13,6 +13,7 @@ import {
   parseLicenseInfo,
 } from '@/schemas/license'
 import type { LicenseInfo } from '@/types/stores'
+import {isMsStoreBuild} from '@/utils/sfwBuild'
 
 const LICENSE_API_BASE_URL = import.meta.env.VITE_LICENSE_API_URL || 'https://mediachips.app/wp-json/mediachips/v1/license'
 
@@ -320,6 +321,11 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
     },
 
     async tryAutoRegisterOnStartup(): Promise<AutoRegisterResult> {
+      // Official Microsoft Store AppX only — licensed via store purchase, no key API.
+      if (isMsStoreBuild()) {
+        return { success: true, skipped: true }
+      }
+
       const info = this.regInfo
       if (!info || typeof info !== 'object' || !info.license_code) {
         return { success: true, skipped: true }
@@ -422,6 +428,11 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
 
     reg(state): boolean {
       try {
+        // Official Microsoft Store AppX only (`MEDIA_CHIPS_MSSTORE`).
+        if (isMsStoreBuild()) {
+          return true
+        }
+
         const info = this.regInfo
         if (!info || typeof info !== 'object' || Object.keys(info).length === 0) {
           return false

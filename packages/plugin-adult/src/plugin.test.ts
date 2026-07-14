@@ -13,7 +13,7 @@ describe('@mediachips/plugin-adult', () => {
     expect(adultPlugin.manifest.requiresAdult).toBe(true)
   })
 
-  it('registers adult settings tab, panel, and dialogs', () => {
+  it('registers scraper panel under Plugins and dialogs (no Adult tab)', () => {
     const addNavItem = vi.fn()
     const addPanel = vi.fn()
     const register = vi.fn()
@@ -24,9 +24,9 @@ describe('@mediachips/plugin-adult', () => {
       routes: {add: vi.fn()},
     })
 
-    expect(addNavItem).toHaveBeenCalledWith(expect.objectContaining({value: 'adult'}))
+    expect(addNavItem).not.toHaveBeenCalled()
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({
-      tab: 'adult',
+      tab: 'plugins',
       componentKey: ADULT_COMPONENT_KEYS.settingsDataScraper,
     }))
     expect(register).toHaveBeenCalledTimes(4)

@@ -6,10 +6,10 @@ Official MediaChips plugin for performer/scene scrapers and ThePornDB.
 
 | Build | Adult features |
 |-------|----------------|
-| **Standard** | Already bundled — enable in Settings → Plugins (no zip needed). |
-| **SFW** | Not bundled. Download this zip, then **Install from zip**. |
+| **Standard (general)** | Already bundled — enable in Settings → Plugins (no zip needed). |
+| **Microsoft Store / store channel** | Not bundled. Download this zip, then **Install from zip**. |
 
-## Install (SFW)
+## Install (Store channel)
 
 1. Download `mediachips.adult-0.1.0.zip` from [mediachips.app/plugins](https://mediachips.app/plugins)
 2. Open MediaChips → Settings → Plugins → **Install from zip**
@@ -19,12 +19,14 @@ Official MediaChips plugin for performer/scene scrapers and ThePornDB.
 ## Package layout
 
 ```
-plugin.json   # required manifest
+plugin.json   # required manifest (mainEntry + uiEntry)
+main.cjs      # Express scraper routes (loaded by the host)
 README.md     # this file (optional)
 ```
 
 Zip so `plugin.json` is at the archive root (or inside a single top-level folder).
 
-## Status
+## Runtime notes
 
-Manifest + install path work now. Scraper UI/API load from this zip in SFW builds as the plugin runtime lands; until then, standard builds remain the supported path for scrapers.
+- `mainEntry` (`main.cjs`) registers `/api/scraper/*` when the package is installed (store builds).
+- `uiEntry` (`host:bundled`) tells the host to activate its adult UI modules after install+enable.

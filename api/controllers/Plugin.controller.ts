@@ -6,6 +6,7 @@ import {
   listInstalledUserPlugins,
   uninstallPlugin,
 } from '../services/pluginInstall'
+import {remountPluginMainsAfterInstall} from '../services/pluginMainRuntime'
 
 export default function createPluginController(_db: ApiDb) {
   const list = async (_req: ApiRequest, res: ApiResponse) => {
@@ -35,6 +36,7 @@ export default function createPluginController(_db: ApiDb) {
         return
       }
       const entry = await installPluginFromPath(sourcePath)
+      remountPluginMainsAfterInstall()
       res.status(201).send(entry)
     } catch (err: unknown) {
       res.status(400).send({message: apiErrorMessage(err) || 'Failed to install plugin'})

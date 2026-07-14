@@ -32,6 +32,7 @@ import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
 import registerVideoMetadata from '../../api/routes/VideoMetadata.routes'
 import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
+import { bindPluginMainRuntime } from '../../api/services/pluginMainRuntime'
 
 function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRegistrar }> {
   const registrars: Array<{ routeFile: string; register: ApiRouteRegistrar }> = [
@@ -105,6 +106,18 @@ export function registerApiRoutes(app: Express, db: ApiDb) {
         '\x1b[31m%s\x1b[0m',
         `Failed to register route ${routeFile}:`,
         err instanceof Error ? (apiErrorStack(err) || apiErrorMessage(err)) : String(err),
+      )
+    }
+  }
+
+  // SFW loads scraper API from an installed adult zip mainEntry.
+  if (isSfwBuild()) {
+    try {
+      bindPluginMainRuntime(app, db)
+    } catch (err: unknown) {
+      console.error(
+        '[plugins] failed to bind plugin main runtime:',
+        err instanceof Error ? apiErrorMessage(err) : String(err),
       )
     }
   }

@@ -6,6 +6,7 @@ import {fileURLToPath} from 'url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
+const msStoreBuild = String(process.env.MEDIA_CHIPS_MSSTORE || '').trim() === '1'
 
 /** Bake SFW into shared so packaged apps don't need MEDIA_CHIPS_SFW at runtime. */
 function syncSfwCompiledFlag() {
@@ -14,7 +15,7 @@ function syncSfwCompiledFlag() {
     filePath,
     [
       '/**',
-      ' * Overwritten by `scripts/compile.mjs` when MEDIA_CHIPS_SFW=1.',
+      ' * Overwritten by `scripts/compile.mjs` when MEDIA_CHIPS_SFW=1 (adult-strip channel).',
       ' * Packaged Electron apps do not inherit that env var, so the flag must be baked in.',
       ' */',
       `export const SFW_COMPILED = ${sfwBuild ? 'true' : 'false'}`,
@@ -23,7 +24,28 @@ function syncSfwCompiledFlag() {
     'utf8',
   )
   if (sfwBuild) {
-    console.log('[compile] SFW_COMPILED=true (baked for packaged SFW runtime)')
+    console.log('[compile] SFW_COMPILED=true (baked for packaged SFW / adult-strip runtime)')
+  }
+}
+
+/** Bake MS Store license bypass separately from SFW adult strip. */
+function syncMsStoreCompiledFlag() {
+  const filePath = join(root, 'shared/msStoreCompiled.ts')
+  writeFileSync(
+    filePath,
+    [
+      '/**',
+      ' * Overwritten by `scripts/compile.mjs` when MEDIA_CHIPS_MSSTORE=1.',
+      ' * Packaged AppX does not inherit that env var, so the flag must be baked in.',
+      ' * Only Microsoft Store builds use this — not general SFW/smoke.',
+      ' */',
+      `export const MSSTORE_COMPILED = ${msStoreBuild ? 'true' : 'false'}`,
+      '',
+    ].join('\n'),
+    'utf8',
+  )
+  if (msStoreBuild) {
+    console.log('[compile] MSSTORE_COMPILED=true (baked for Microsoft Store license bypass)')
   }
 }
 
@@ -163,6 +185,7 @@ async function main() {
   }
 
   syncSfwCompiledFlag()
+  syncMsStoreCompiledFlag()
 
   if (args[0] === '--parallel') {
     await runParallel(args.slice(1))

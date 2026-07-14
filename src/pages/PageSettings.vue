@@ -158,6 +158,14 @@
               <SettingsSection>
                 <SettingsPlugins/>
               </SettingsSection>
+
+              <SettingsSection
+                v-for="panel in panelsForActiveTab"
+                :key="`${panel.pluginId}:${panel.componentKey}`"
+                :id="panel.sectionId"
+              >
+                <component :is="resolvePanelComponent(panel.componentKey)"/>
+              </SettingsSection>
             </SettingsList>
           </div>
 

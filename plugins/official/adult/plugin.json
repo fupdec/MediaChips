@@ -10,6 +10,8 @@
     "mediachips": ">=1.0.0"
   },
   "requiresAdult": true,
+  "mainEntry": "main.cjs",
+  "uiEntry": "host:bundled",
   "permissions": [
     "ui.settings",
     "ui.menu",

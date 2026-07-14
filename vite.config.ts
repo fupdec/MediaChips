@@ -28,8 +28,13 @@ function invalidUrlMiddleware(): Plugin {
 }
 
 export default defineConfig(async ({ mode }): Promise<UserConfig> => {
-  const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
-  const adultPackageRoot = sfwBuild
+  // MEDIA_CHIPS_SFW: adult API stripped from asar; UI stays for host:bundled after zip install.
+  // MEDIA_CHIPS_MSSTORE: same strip + license bypass (official AppX only).
+  // MEDIA_CHIPS_MAS=1 additionally stubs UI (stricter strip).
+  const masBuild = String(process.env.MEDIA_CHIPS_MAS || '').trim() === '1'
+  const storeBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1' || masBuild
+  const msStoreBuild = String(process.env.MEDIA_CHIPS_MSSTORE || '').trim() === '1'
+  const adultPackageRoot = masBuild
     ? path.resolve(__dirname, './src/plugins/sfwStub')
     : path.resolve(__dirname, './packages/plugin-adult/src')
 
@@ -51,15 +56,17 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   return {
   plugins,
   define: {
-    'import.meta.env.MEDIA_CHIPS_SFW': JSON.stringify(sfwBuild ? 'true' : ''),
-    'process.env.MEDIA_CHIPS_SFW': JSON.stringify(sfwBuild ? '1' : ''),
+    'import.meta.env.MEDIA_CHIPS_SFW': JSON.stringify(storeBuild ? 'true' : ''),
+    'process.env.MEDIA_CHIPS_SFW': JSON.stringify(storeBuild ? '1' : ''),
+    'import.meta.env.MEDIA_CHIPS_MSSTORE': JSON.stringify(msStoreBuild ? 'true' : ''),
+    'process.env.MEDIA_CHIPS_MSSTORE': JSON.stringify(msStoreBuild ? '1' : ''),
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, './shared'),
       // Package root (src/) so deep imports like @mediachips/plugin-adult/components/... work.
-      // SFW / App Store builds point at noop stubs under src/plugins/sfwStub.
+      // MEDIA_CHIPS_MAS=1 points at noop stubs under src/plugins/sfwStub.
       '@mediachips/plugin-adult': adultPackageRoot,
     },
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],

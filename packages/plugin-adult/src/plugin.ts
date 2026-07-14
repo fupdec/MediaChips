@@ -38,16 +38,9 @@ export const adultPluginManifest: PluginManifest = {
 }
 
 export function activateAdultPlugin(api: PluginApi): void {
-  api.settings.addNavItem({
-    value: 'adult',
-    icon: 'mdi-shield-alert-outline',
-    labelKey: 'settings.tabs.adult',
-    descKey: 'settings.tabs_desc.adult',
-    docId: 'settings-doc-tab-adult',
-  })
-
+  // Scraper settings live under Settings → Plugins (no separate 18+/Adult tab).
   api.settings.addPanel({
-    tab: 'adult',
+    tab: 'plugins',
     sectionId: 'settings-adult-scraper',
     componentKey: ADULT_COMPONENT_KEYS.settingsDataScraper,
   })

@@ -132,7 +132,6 @@ import {useWatcherStore} from '@/stores/watcher'
 import {useOperationsStore} from '@/stores/operations'
 import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
-import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 
 // Async components
@@ -219,11 +218,10 @@ const watcherStore = useWatcherStore()
 const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
 const pluginsStore = usePluginsStore()
-const settingsStore = useSettingsStore()
 const {t} = useI18n()
 
 const adultUiAvailable = computed(() =>
-  pluginsStore.isAdultEnabled && settingsStore.showAdultContent === '1',
+  pluginsStore.isAdultEnabled,
 )
 
 const closeApp = () => {

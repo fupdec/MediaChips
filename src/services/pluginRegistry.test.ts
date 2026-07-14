@@ -139,8 +139,10 @@ describe('pluginHost', () => {
     expect(getActivatedPluginIds()).toContain(BUILTIN_PLUGIN_IDS.adult)
 
     const live = getPluginRegistry().snapshot()
-    expect(live.settingsNav.some((item) => item.value === 'adult')).toBe(true)
-    expect(live.settingsPanels.some((item) => item.componentKey === 'SettingsDataScraper')).toBe(true)
+    expect(live.settingsNav.some((item) => item.value === 'adult')).toBe(false)
+    expect(live.settingsPanels.some((item) =>
+      item.componentKey === 'SettingsDataScraper' && item.tab === 'plugins',
+    )).toBe(true)
     expect(live.dialogs.length).toBeGreaterThanOrEqual(4)
   })
 

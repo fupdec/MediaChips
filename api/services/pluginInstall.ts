@@ -38,6 +38,19 @@ function isPathInside(parent: string, child: string): boolean {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
+function parseRelativeEntry(raw: unknown): string | null {
+  if (raw == null) return null
+  const value = String(raw).trim()
+  if (!value) return null
+  // Host token for bundled UI modules (official adult).
+  if (value.startsWith('host:')) return value
+  const normalized = value.replace(/\\/g, '/').replace(/^\.\//, '')
+  if (!normalized || normalized.includes('..') || path.isAbsolute(normalized)) {
+    throw new Error('plugin.json mainEntry/uiEntry must be a relative path without ..')
+  }
+  return normalized
+}
+
 export function parsePluginManifest(raw: unknown): PluginManifest {
   if (!raw || typeof raw !== 'object') {
     throw new Error('plugin.json must be an object')
@@ -78,6 +91,8 @@ export function parsePluginManifest(raw: unknown): PluginManifest {
     engines: {mediachips},
     requiresAdult: Boolean(data.requiresAdult),
     permissions,
+    mainEntry: parseRelativeEntry(data.mainEntry),
+    uiEntry: parseRelativeEntry(data.uiEntry),
   }
 }
 
@@ -116,8 +131,8 @@ export function catalogEntryFromPluginDir(
     manifest,
     source: 'user',
     state: enabled ? 'enabled' : 'installed',
-    uiEntry: null,
-    mainEntry: null,
+    uiEntry: manifest.uiEntry ?? null,
+    mainEntry: manifest.mainEntry ?? null,
     error: null,
     enabled,
   }

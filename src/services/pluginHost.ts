@@ -75,19 +75,46 @@ export function resolvePluginComponentLoader(componentKey: string) {
   return null
 }
 
+function isHostBundledUiEntry(entry: PluginCatalogEntry | undefined): boolean {
+  if (!entry) return false
+  return entry.uiEntry === 'host:bundled'
+    || entry.manifest.uiEntry === 'host:bundled'
+    || (
+      entry.manifest.id === BUILTIN_PLUGIN_IDS.adult
+      && entry.source === 'user'
+    )
+}
+
+function bindHostAdultModules(pluginId: string): boolean {
+  if (pluginId !== BUILTIN_PLUGIN_IDS.adult) return false
+  if (!pluginModules[pluginId]) {
+    pluginModules[pluginId] = adultPlugin
+  }
+  if (!componentMaps[pluginId]) {
+    componentMaps[pluginId] = adultHostComponentMap
+  }
+  return true
+}
+
 export async function activatePlugin(pluginId: string): Promise<boolean> {
   if (activated.has(pluginId)) return true
 
   const registry = getPluginRegistry()
-  const plugin = pluginModules[pluginId]
+  let plugin = pluginModules[pluginId]
   if (!plugin) {
     const entry = registry.getEntry(pluginId)
-    if (entry?.source === 'user' && entry.state !== 'error') {
+    if (entry?.source === 'user' && entry.state !== 'error' && isHostBundledUiEntry(entry)) {
+      bindHostAdultModules(pluginId)
+      plugin = pluginModules[pluginId]
+    } else if (entry?.source === 'user' && entry.state !== 'error') {
       registry.setEnabled(pluginId, true)
       return true
+    } else {
+      return false
     }
-    return false
   }
+
+  if (!plugin) return false
 
   try {
     await plugin.activate(createPluginApi(pluginId))
