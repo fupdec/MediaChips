@@ -10,6 +10,7 @@ export const SceneScraperImageSchema = z.object({
 export const SceneScraperPerformerSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
+  gender: z.string().nullable().optional(),
 }).passthrough()
 
 export const SceneScraperSceneSchema = z.object({

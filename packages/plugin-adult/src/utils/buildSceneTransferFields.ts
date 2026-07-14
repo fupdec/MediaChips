@@ -8,6 +8,7 @@ import {
   normalizeScrapedTagNames,
   tagMatchesLookupName,
 } from './sceneScraperTags'
+import { performerMatchesGenderFilter } from './scraperPerformerGender'
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]
@@ -45,8 +46,14 @@ function areAnyScrapedTagsPresent(
   )
 }
 
-export function getSceneScraperExtras(scene: SceneScraperScene): Record<string, unknown> {
+export function getSceneScraperExtras(
+  scene: SceneScraperScene,
+  options: { performerGender?: string | null } = {},
+): Record<string, unknown> {
   const performers = (scene.performers || [])
+    .filter((item) =>
+      performerMatchesGenderFilter(item.performer?.gender, options.performerGender),
+    )
     .map((item) => item.performer?.name)
     .filter((name): name is string => Boolean(name))
   const tags = (scene.tags || [])
@@ -68,13 +75,15 @@ export function buildSceneTransferFields({
   pinned,
   currentValues,
   tags,
+  performerGender,
 }: {
   scene: SceneScraperScene
   pinned: ScraperPinnedItem[]
   currentValues: Record<string, unknown>
   tags: Tag[]
+  performerGender?: string | null
 }): ScraperTransferField[] {
-  const values = getSceneScraperExtras(scene)
+  const values = getSceneScraperExtras(scene, { performerGender })
   const data: ScraperTransferField[] = []
   const metas = pinned.filter((item) => item.scraper)
 

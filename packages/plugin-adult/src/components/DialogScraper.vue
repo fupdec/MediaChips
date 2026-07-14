@@ -11,20 +11,36 @@
 
       <v-card-text class="py-6">
         <form @submit.prevent="searchPerformer()">
-          <v-text-field
-            v-model="query"
-            @click:append="searchPerformer(1)"
-            :disabled="searchInProgress"
-            :loading="searchInProgress"
-            :placeholder="t('scraper.performer_name_or_alias')"
-            append-inner-icon="mdi-magnify"
-            @click:append-inner="searchPerformer(1)"
-            class="mb-4"
-            hide-details
-            filled
-            dense
-            autofocus
-          ></v-text-field>
+          <div class="d-flex flex-wrap ga-3 mb-4 align-start">
+            <v-select
+              v-model="selectedGender"
+              :items="genderOptions"
+              item-title="title"
+              item-value="value"
+              :label="t('scraper.gender_filter')"
+              :disabled="searchInProgress"
+              hide-details
+              density="comfortable"
+              variant="outlined"
+              rounded
+              class="scraper-gender-select"
+            />
+
+            <v-text-field
+              v-model="query"
+              :disabled="searchInProgress"
+              :loading="searchInProgress"
+              :placeholder="t('scraper.performer_name_or_alias')"
+              append-inner-icon="mdi-magnify"
+              @click:append-inner="searchPerformer(1)"
+              hide-details
+              density="comfortable"
+              variant="outlined"
+              rounded
+              autofocus
+              class="scraper-search-field flex-grow-1"
+            />
+          </div>
         </form>
 
         <v-pagination
@@ -85,6 +101,13 @@ import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '../stores/scraper'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSettingsStore} from '@/stores/settings'
+import {setOption} from '@/services/settingsService'
+import {
+  SCRAPER_PERFORMER_GENDER_ANY,
+  SCRAPER_PERFORMER_GENDER_OPTIONS,
+  normalizeScraperPerformerGender,
+} from '../utils/scraperPerformerGender'
 
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 
@@ -115,6 +138,7 @@ interface DialogHeaderButton {
 
 const scraperStore = useScraperStore()
 const dialogsStore = useDialogsStore()
+const settingsStore = useSettingsStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
@@ -133,7 +157,24 @@ const buttons = computed((): DialogHeaderButton[] => [
   }
 ])
 
-// query теперь использует store
+const genderOptions = computed(() => [
+  {value: SCRAPER_PERFORMER_GENDER_ANY, title: t('scraper.gender_any')},
+  ...SCRAPER_PERFORMER_GENDER_OPTIONS.map((option) => ({
+    value: option.value,
+    title: t(`scraper.genders.${option.i18nKey}`),
+  })),
+])
+
+const selectedGender = computed({
+  get: () => normalizeScraperPerformerGender(settingsStore.scraperPerformerGender),
+  set: (value: string) => {
+    const next = normalizeScraperPerformerGender(value)
+    settingsStore.scraperPerformerGender = next
+    setOption(next, 'scraperPerformerGender')
+    void searchPerformer(1)
+  },
+})
+
 const query = computed({
   get: () => scraperStore.query,
   set: (value) => {
@@ -165,7 +206,6 @@ function getInfo(performer: ScraperPerformer) {
 }
 
 function getEmptyImg() {
-  // Замените на актуальный путь
   return '/images/unavailable.png'
 }
 
@@ -178,3 +218,15 @@ onMounted(() => {
   searchPerformer(1)
 })
 </script>
+
+<style scoped>
+.scraper-gender-select {
+  width: 12.5rem;
+  min-width: 10rem;
+  flex: 0 0 auto;
+}
+
+.scraper-search-field {
+  min-width: 16rem;
+}
+</style>

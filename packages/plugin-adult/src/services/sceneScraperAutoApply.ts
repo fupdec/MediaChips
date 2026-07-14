@@ -320,6 +320,7 @@ export async function autoApplySceneToMedia({
       pinned,
       currentValues,
       tags: allTags,
+      performerGender: useSettingsStore().scraperPerformerGender,
     }))
 
     const vals = {...currentValues}

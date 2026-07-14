@@ -249,6 +249,7 @@ import {buildSceneTransferFields} from '../../utils/buildSceneTransferFields'
 import {applyTransferAllToFields} from '../../utils/sceneTransferApply'
 import SceneScraperSelectPoster from './SceneScraperSelectPoster.vue'
 import { formatMarkTimestamp } from '@/utils/markThumb'
+import {useSettingsStore} from '@/stores/settings'
 import type {SceneScraperScene, SceneScraperMarkerEntry} from '../../types/sceneScraper'
 import type {ScraperTransferField} from '../../types/scraper'
 import type {SceneScraperTagEntry} from '../../utils/sceneScraperTags'
@@ -264,6 +265,7 @@ const props = defineProps<{
 const sceneScraperStore = useSceneScraperStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
+const settingsStore = useSettingsStore()
 const {t} = useI18n()
 
 const fields = computed(() => sceneScraperStore.fields)
@@ -421,6 +423,7 @@ async function getData() {
     pinned: pinned.value,
     currentValues: currentValues.value,
     tags: appStore.tags || [],
+    performerGender: settingsStore.scraperPerformerGender,
   })
 }
 

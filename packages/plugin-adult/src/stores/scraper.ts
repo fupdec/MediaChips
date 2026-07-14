@@ -8,6 +8,7 @@ import translate, { type Locale } from '@/utils/translate'
 import { searchScraperPerformers } from '../services/scraperApi'
 import { autoApplyScrapedTagData } from '../services/scraperAutoApply'
 import { findBestMatchingPerformer } from '../utils/scraperMatch'
+import { resolveScraperPerformerGenderParam } from '../utils/scraperPerformerGender'
 import { refreshTagThumbDisplay } from '@/utils/tagThumbRefresh'
 import type {
   ScraperPerformer,
@@ -39,8 +40,11 @@ export const useScraperStore = defineStore('useScraperStore', {
   actions: {
     async searchPerformer({ page = 1, query }: { page?: number; query?: string } = {}) {
       const q = query || this.query
+      const gender = resolveScraperPerformerGenderParam(
+        useSettingsStore().scraperPerformerGender,
+      )
       return searchScraperPerformers({
-        gender: 'Female',
+        gender,
         page,
         q,
       })

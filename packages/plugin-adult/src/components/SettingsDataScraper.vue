@@ -212,6 +212,19 @@
         </template>
       </v-autocomplete>
 
+      <v-select
+        v-model="selectedPerformerGender"
+        :items="performerGenderOptions"
+        item-title="title"
+        item-value="value"
+        :label="t('settings_labels.tools.performer_gender')"
+        :hint="t('settings_labels.tools.performer_gender_hint')"
+        persistent-hint
+        variant="outlined"
+        rounded
+        class="scraper-field mb-4"
+      />
+
       <div class="d-flex flex-wrap ga-2">
         <v-btn
           :disabled="!selected_meta"
@@ -258,6 +271,11 @@ import {useAutoSceneScrapeBatch, getAllVideoMediaForType} from "../composables/u
 import {openAdultOnboarding} from "@/composable/useAdultOnboarding"
 import {getAllTagsForMeta} from "@/utils/resolveSelectedTags"
 import {isVideoMediaType} from "@/utils/mediaType"
+import {
+  SCRAPER_PERFORMER_GENDER_ANY,
+  SCRAPER_PERFORMER_GENDER_OPTIONS,
+  normalizeScraperPerformerGender,
+} from "../utils/scraperPerformerGender"
 import type { Meta } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 
@@ -283,6 +301,23 @@ const selectedVideoMediaType = ref<MediaType | undefined>(undefined)
 const selected_marker_meta = ref<Meta | undefined>(undefined)
 const tpdbApiKey = ref('')
 const showTpdbApiKey = ref(false)
+
+const performerGenderOptions = computed(() => [
+  {value: SCRAPER_PERFORMER_GENDER_ANY, title: t('scraper.gender_any')},
+  ...SCRAPER_PERFORMER_GENDER_OPTIONS.map((option) => ({
+    value: option.value,
+    title: t(`scraper.genders.${option.i18nKey}`),
+  })),
+])
+
+const selectedPerformerGender = computed({
+  get: () => normalizeScraperPerformerGender(settingsStore.scraperPerformerGender),
+  set: (value: string) => {
+    const next = normalizeScraperPerformerGender(value)
+    settingsStore.scraperPerformerGender = next
+    setOption(next, 'scraperPerformerGender')
+  },
+})
 
 function saveTpdbApiKey() {
   setOption(tpdbApiKey.value, 'tpdbApiKey')

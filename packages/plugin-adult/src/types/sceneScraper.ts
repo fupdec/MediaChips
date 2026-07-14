@@ -7,6 +7,7 @@ export interface SceneScraperImage {
 export interface SceneScraperPerformer {
   id?: string
   name?: string
+  gender?: string | null
 }
 
 export interface SceneScraperPerformerAppearance {

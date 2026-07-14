@@ -139,6 +139,7 @@ export type SettingsState = {
   showAdultContent: string
   enabledPlugins: string
   tpdbApiKey: string
+  scraperPerformerGender: string
   sceneAutoApplyOnExactMatch: string
   sceneScraperImportMarkers: string
   sceneScraperMarkerMetaId: string
@@ -231,6 +232,7 @@ export const defaultSettingsState = (): SettingsState => ({
   showAdultContent: '0',
   enabledPlugins: '["mediachips.adult"]',
   tpdbApiKey: '',
+  scraperPerformerGender: 'Female',
   sceneAutoApplyOnExactMatch: '0',
   sceneScraperImportMarkers: '1',
   sceneScraperMarkerMetaId: '',

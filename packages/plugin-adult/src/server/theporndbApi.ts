@@ -26,6 +26,7 @@ const SCENE_FIELDS = `
     performer {
       id
       name
+      gender
     }
   }
   tags {
@@ -59,6 +60,7 @@ export interface TpdbSceneImage {
 export interface TpdbScenePerformer {
   id?: string
   name?: string
+  gender?: string | null
 }
 
 export interface TpdbScenePerformerAppearance {
