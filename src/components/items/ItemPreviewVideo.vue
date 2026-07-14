@@ -32,11 +32,11 @@
       >
       <v-img
         :key="thumbDisplayKey"
-        :aspect-ratio="16 / 9"
+        :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
         :src="thumb || undefined"
         class="thumb"
-        :contain="!isCompactHost"
-        :cover="isCompactHost"
+        :contain="!isCompactHost && !gridBigPreview.isVisual.value"
+        :cover="isCompactHost || gridBigPreview.isVisual.value"
         @click.stop="handleMediaClick"
         @load="onThumbLoad"
         @error="onThumbError"

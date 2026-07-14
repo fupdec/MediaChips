@@ -74,6 +74,28 @@ async function ffprobe(filePath: string) {
   return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
 }
 
+/**
+ * Faster codec-only probe for playability checks.
+ * Limits demuxer analysis so large files don't wait on a full scan.
+ */
+async function ffprobePlayability(filePath: string) {
+  const {stdout} = await runProcess(getFfprobePath(), [
+    '-v',
+    'quiet',
+    '-probesize',
+    '32768',
+    '-analyzeduration',
+    '500000',
+    '-show_entries',
+    'stream=codec_type,codec_name:format=duration',
+    '-of',
+    'json',
+    filePath,
+  ])
+
+  return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
+}
+
 function getVideoStreamDimensions(
   probe: {streams?: FfprobeStream[]},
   fallbackAspectRatio = 16 / 9,
@@ -222,6 +244,7 @@ async function combineVideoFrames({
 
 export {
   ffprobe,
+  ffprobePlayability,
   runFfmpeg,
   extractVideoFrame,
   extractVideoThumbnail,

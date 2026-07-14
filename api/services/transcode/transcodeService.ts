@@ -1,8 +1,12 @@
 import type {Request, Response} from 'express'
 import fs from 'fs'
 import path from 'path'
-import { ffprobe } from '../../utils/ffmpeg'
-import { analyzeProbeResult } from './codecCompatibility'
+import { ffprobePlayability } from '../../utils/ffmpeg'
+import {
+  DIRECT_VIDEO_CONTAINERS,
+  DIRECT_AUDIO_CONTAINERS,
+  analyzeProbeResult,
+} from './codecCompatibility'
 import { needsBrowserRemuxForMp4 } from './mp4ContainerLayout'
 import {
   resolveExistingCache,
@@ -102,10 +106,46 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     }
 
     const audioOnly = isAudioFilePath(filePath)
-    const probe = await ffprobe(filePath)
+    const extension = path.extname(filePath).toLowerCase()
+
+    // Fast path: containers Chromium can't play directly always need
+    // live transcoding — skip ffprobe entirely for playback planning.
+    if (audioOnly) {
+      if (!DIRECT_AUDIO_CONTAINERS.has(extension)) {
+        const result: PlayabilityResult = {
+          playable: false,
+          reason: 'container',
+          videoCodec: null,
+          audioCodec: null,
+          duration: 0,
+          needsRemux: false,
+        }
+        setPlayabilityCacheEntry(cacheKey, result)
+        return result
+      }
+    } else if (!DIRECT_VIDEO_CONTAINERS.has(extension)) {
+      const result: PlayabilityResult = {
+        playable: false,
+        reason: 'container',
+        videoCodec: null,
+        audioCodec: null,
+        duration: 0,
+        needsRemux: false,
+      }
+      setPlayabilityCacheEntry(cacheKey, result)
+      return result
+    }
+
+    // Run remux layout scan in parallel with the lightweight codec probe.
+    const mayNeedRemux = !audioOnly && (extension === '.mp4' || extension === '.m4v')
+    const remuxPromise = mayNeedRemux
+      ? Promise.resolve().then(() => needsBrowserRemuxForMp4(filePath))
+      : Promise.resolve(false)
+
+    const probe = await ffprobePlayability(filePath)
     const duration = Number(probe.format?.duration || 0)
     const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
-    const needsRemux = Boolean(analyzed.playable && !audioOnly && needsBrowserRemuxForMp4(filePath))
+    const needsRemux = Boolean(analyzed.playable && !audioOnly && await remuxPromise)
     const result: PlayabilityResult = {
       playable: analyzed.playable,
       reason: needsRemux ? 'container_layout' : analyzed.reason,

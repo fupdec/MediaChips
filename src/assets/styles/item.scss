@@ -882,12 +882,20 @@
       filter: blur(50px);
       left: -50%;
       top: -50%;
+      background-color: transparent;
       transition:
         width 350ms ease-in-out,
         min-width 350ms ease-in-out,
         height 350ms ease-in-out,
         left 350ms ease-in-out,
         top 350ms ease-in-out;
+
+      // Cover the stage so card letterbox blacks don't read as bars
+      // behind the centered video plate.
+      .v-img__img {
+        object-fit: cover !important;
+        background-color: transparent !important;
+      }
     }
 
     &.video-preview-container--expanding {
@@ -921,7 +929,8 @@
       opacity: 1;
       animation: none;
       transition-duration: 0s;
-      background-color: #000;
+      // Let blurred thumb show through letterbox / side insets.
+      background-color: transparent;
       // Transform on this shell breaks overflow clipping of hardware
       // <video> in Electron — round + clip the video element itself.
       video {
@@ -929,7 +938,7 @@
         opacity: 1;
         animation: none;
         transition-duration: 0s;
-        background-color: #000;
+        background-color: transparent;
         min-width: 0;
         min-height: 0;
         width: auto;
