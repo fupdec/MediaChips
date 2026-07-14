@@ -76,16 +76,18 @@ async function ffprobe(filePath: string) {
 
 /**
  * Faster codec-only probe for playability checks.
- * Limits demuxer analysis so large files don't wait on a full scan.
+ * Bounded demuxer window keeps large files quick, but wide enough that
+ * moov/codecs are usually visible. Callers should fall back to full ffprobe
+ * when the result looks incomplete.
  */
 async function ffprobePlayability(filePath: string) {
   const {stdout} = await runProcess(getFfprobePath(), [
     '-v',
     'quiet',
     '-probesize',
-    '32768',
+    '5000000',
     '-analyzeduration',
-    '500000',
+    '5000000',
     '-show_entries',
     'stream=codec_type,codec_name:format=duration',
     '-of',

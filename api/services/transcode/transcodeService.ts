@@ -1,7 +1,7 @@
 import type {Request, Response} from 'express'
 import fs from 'fs'
 import path from 'path'
-import { ffprobePlayability } from '../../utils/ffmpeg'
+import { ffprobe, ffprobePlayability } from '../../utils/ffmpeg'
 import {
   DIRECT_VIDEO_CONTAINERS,
   DIRECT_AUDIO_CONTAINERS,
@@ -68,6 +68,22 @@ interface StreamLiveOptions {
 function isAudioFilePath(filePath: string | null | undefined): boolean {
   const ext = path.extname(filePath || '').toLowerCase()
   return AUDIO_EXTENSIONS.has(ext)
+}
+
+function isPlayabilityProbeIncomplete(
+  probe: {streams?: Array<{codec_type?: string; codec_name?: string}>} | null | undefined,
+  options: {audioOnly?: boolean} = {},
+): boolean {
+  const streams = probe?.streams || []
+  if (streams.length === 0) return true
+
+  if (options.audioOnly) {
+    const audio = streams.find((stream) => stream.codec_type === 'audio')
+    return !audio || !audio.codec_name
+  }
+
+  const video = streams.find((stream) => stream.codec_type === 'video')
+  return !video || !video.codec_name
 }
 
 function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeManagerOptions) {
@@ -142,7 +158,11 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       ? Promise.resolve().then(() => needsBrowserRemuxForMp4(filePath))
       : Promise.resolve(false)
 
-    const probe = await ffprobePlayability(filePath)
+    let probe = await ffprobePlayability(filePath)
+    if (isPlayabilityProbeIncomplete(probe, {audioOnly})) {
+      probe = await ffprobe(filePath)
+    }
+
     const duration = Number(probe.format?.duration || 0)
     const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
     const needsRemux = Boolean(analyzed.playable && !audioOnly && await remuxPromise)

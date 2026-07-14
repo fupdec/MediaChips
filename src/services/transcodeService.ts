@@ -11,6 +11,7 @@ import type { PlayableInfo } from '@shared/schemas/transcode'
 
 const LIVE_STREAM_RETRY_DELAY_MS = 400
 const PLAYABLE_INFO_CACHE_TTL_MS = 5 * 60 * 1000
+const PLAYABLE_INFO_CACHE_MAX = 80
 
 const MEDIA_ERR_ABORTED = 1
 const MEDIA_ERR_NETWORK = 2
@@ -29,6 +30,16 @@ type PlayableCacheEntry = {
 const playableInfoCache = new Map<number, PlayableCacheEntry>()
 const playableInfoInFlight = new Map<number, Promise<PlayableInfo>>()
 
+function trimPlayableInfoCache() {
+  if (playableInfoCache.size <= PLAYABLE_INFO_CACHE_MAX) return
+  const overflow = playableInfoCache.size - PLAYABLE_INFO_CACHE_MAX
+  const keys = playableInfoCache.keys()
+  for (let i = 0; i < overflow; i += 1) {
+    const key = keys.next().value
+    if (key == null) break
+    playableInfoCache.delete(key)
+  }
+}
 export function invalidatePlayableInfo(mediaId?: number) {
   if (mediaId == null) {
     playableInfoCache.clear()
@@ -49,6 +60,7 @@ export function fetchPlayableInfo(mediaId: number): Promise<PlayableInfo> {
   const request = typedApi.getVideoPlayable(mediaId)
     .then((response) => {
       playableInfoCache.set(mediaId, {value: response.data, at: Date.now()})
+      trimPlayableInfoCache()
       return response.data
     })
     .finally(() => {
@@ -67,8 +79,19 @@ export function fetchTranscodeCacheStats() {
   return typedApi.getTranscodeCacheStats().then((response) => response.data)
 }
 
-export function buildVideoStreamUrl(buildApiUrl: BuildApiUrl, mediaId: number, source = 'auto') {
-  return `${buildApiUrl(apiVideoStream(mediaId))}?source=${source}&time=${Math.random()}`
+export function buildVideoStreamUrl(
+  buildApiUrl: BuildApiUrl,
+  mediaId: number,
+  source = 'auto',
+  {bustCache = true}: {bustCache?: boolean} = {},
+) {
+  const params = new URLSearchParams({source})
+  // Hover previews reuse one stable URL so Chromium can drop prior buffers; the
+  // full player keeps cache-busting when codecs/plan change.
+  if (bustCache) {
+    params.set('time', String(Math.random()))
+  }
+  return `${buildApiUrl(apiVideoStream(mediaId))}?${params.toString()}`
 }
 
 export function buildLiveStreamUrl(
@@ -124,14 +147,28 @@ export class UnsupportedPlaybackError extends Error {
 export async function resolvePreviewVideoUrl(
   buildApiUrl: BuildApiUrl,
   mediaId: number,
-  _startSeconds = 0,
+  startSeconds = 0,
 ) {
   try {
     const playable = await fetchPlayableInfo(mediaId)
     if (playable.mode === 'unsupported') {
       return null
     }
-    // Hover preview never starts live transcoding — open the player instead.
+
+    // Hover / big preview: only browser-direct playback. Live FFmpeg is for the
+    // full player — using it here thrash-encodes and still opens cinema for
+    // formats that should show "preview unavailable".
+    const playability = playable.playability as {playable?: boolean} | undefined
+    const codecsBrowserSafe = playability?.playable === true || playable.reason === 'container_layout'
+    if (playable.mode === 'direct' || codecsBrowserSafe) {
+      return buildVideoStreamUrl(
+        buildApiUrl,
+        mediaId,
+        playable.mode === 'direct' ? 'auto' : 'direct',
+        {bustCache: false},
+      )
+    }
+
     if (playable.transcodeRequired || playable.streamPlayback || playable.mode === 'stream') {
       return null
     }
