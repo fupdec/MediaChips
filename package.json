@@ -29,6 +29,7 @@
     "test:e2e:install": "playwright install chromium",
     "test": "node scripts/ensure-sqlite-tests.mjs && vitest run",
     "test:plugin-adult": "vitest run packages/plugin-adult",
+    "pack:plugin-sample": "node scripts/pack-plugin-sample.mjs",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "main": "main.js",
