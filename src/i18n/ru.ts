@@ -272,7 +272,11 @@ const ru = {
     playlists: 'Плейлисты',
     markers: 'Маркеры',
     settings: 'Настройки',
-    toggle_hidden: 'Переключить скрытие',
+    section_library: 'Библиотека',
+    section_tags: 'Теги',
+    section_system: 'Система',
+    hidden: 'Скрытые',
+    show_hidden: 'Показать скрытые ({count})',
   },
   tabs: {
     edit_tab: 'Редактировать вкладку',

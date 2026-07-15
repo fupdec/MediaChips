@@ -6,11 +6,17 @@
     permanent
     mini-variant
     rail
+    class="sidebar-nav"
+    @mouseenter="isDrawerHovered = true"
+    @mouseleave="isDrawerHovered = false"
   >
     <div class="scrollable vertical">
       <div class="scrollable-child">
-        <v-list nav
-          density="compact">
+        <v-list nav density="compact">
+
+          <v-list-subheader class="sidebar-section">
+            {{ t('navigation.section_library') }}
+          </v-list-subheader>
 
           <!-- Home -->
           <v-list-item
@@ -20,10 +26,11 @@
             draggable="false"
             color="primary"
             link
-          />
-
-          <v-divider v-if="mediaTypes.length > 0"
-            class="my-1"/>
+          >
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ t('navigation.home') }}
+            </v-tooltip>
+          </v-list-item>
 
           <!-- Media types -->
           <v-list-item
@@ -36,7 +43,11 @@
             color="primary"
             exact
             link
-          />
+          >
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ getMediaTypeName(mt, t) }}
+            </v-tooltip>
+          </v-list-item>
 
           <!-- Playlists/Markers -->
           <v-list-item
@@ -47,7 +58,11 @@
             draggable="false"
             color="primary"
             link
-          />
+          >
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ t('navigation.playlists') }}
+            </v-tooltip>
+          </v-list-item>
 
           <v-list-item
             v-if="settingsStore.showMarkersInNavigation === '1'"
@@ -57,59 +72,84 @@
             draggable="false"
             color="primary"
             link
-          />
-
-          <v-divider v-if="meta_arr.length" class="my-1"/>
-
-          <!-- Meta list with draggable -->
-          <Draggable
-            v-model="meta_arr"
-            @start="drag = true"
-            @end="updateMetaOrder"
-            v-bind="dragOptions"
-            item-key="id"
-            handle=".drag-handle"
           >
-            <template #item="{ element: item }">
-              <div class="mb-1">
-                <!-- toggler -->
-                <v-list-item
-                  v-if="item.type === 'toggler'"
-                  @click="isShowHidden = !isShowHidden"
-                  :prepend-icon="`mdi-chevron-${isShowHidden ? 'up' : 'down'}`"
-                  :title="t('navigation.toggle_hidden')"
-                  class="drag-handle"
-                  draggable="false"
-                ></v-list-item>
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ t('navigation.markers') }}
+            </v-tooltip>
+          </v-list-item>
 
-                <!-- normal meta -->
-                <v-list-item
-                  v-else
-                  :to="`/meta?metaId=${item.id}`"
-                  :prepend-icon="`mdi-${item.icon}`"
-                  :title="item.name"
-                  :active="route.query.metaId == String(item.id)"
-                  :class="{'d-none': item.hidden && !isShowHidden}"
-                  color="primary"
-                  class="drag-handle"
-                  exact
-                  link
-                ></v-list-item>
-              </div>
-            </template>
-          </Draggable>
+          <template v-if="meta_arr.length">
+            <v-list-subheader class="sidebar-section">
+              {{ t('navigation.section_tags') }}
+            </v-list-subheader>
 
-          <v-divider class="my-1"/>
+            <!-- Meta list with draggable -->
+            <Draggable
+              v-model="meta_arr"
+              @start="drag = true"
+              @end="updateMetaOrder"
+              v-bind="dragOptions"
+              item-key="id"
+              handle=".drag-handle"
+            >
+              <template #item="{ element: item }">
+                <div class="mb-1">
+                  <!-- toggler -->
+                  <v-list-item
+                    v-if="item.type === 'toggler'"
+                    @click="isShowHidden = !isShowHidden"
+                    :prepend-icon="`mdi-chevron-${isShowHidden ? 'up' : 'down'}`"
+                    :title="hiddenToggleLabel"
+                    class="drag-handle sidebar-hidden-toggle"
+                    draggable="false"
+                  >
+                    <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+                      {{ hiddenToggleLabel }}
+                    </v-tooltip>
+                  </v-list-item>
+
+                  <!-- normal meta -->
+                  <v-list-item
+                    v-else
+                    :to="`/meta?metaId=${item.id}`"
+                    :prepend-icon="`mdi-${item.icon}`"
+                    :title="item.name"
+                    :active="route.query.metaId == String(item.id)"
+                    :class="{
+                      'd-none': item.hidden && !isShowHidden,
+                      'sidebar-meta--hidden': item.hidden && isShowHidden,
+                    }"
+                    color="primary"
+                    class="drag-handle"
+                    exact
+                    link
+                  >
+                    <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+                      {{ item.name }}
+                    </v-tooltip>
+                  </v-list-item>
+                </div>
+              </template>
+            </Draggable>
+          </template>
+
+          <v-list-subheader class="sidebar-section">
+            {{ t('navigation.section_system') }}
+          </v-list-subheader>
 
           <!-- Settings -->
           <v-list-item
             to="/settings"
             prepend-icon="mdi-cog-outline"
-            :title="t('headings.settings')"
+            :title="t('navigation.settings')"
             draggable="false"
             color="primary"
             link
-          />
+          >
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ t('navigation.settings') }}
+            </v-tooltip>
+          </v-list-item>
 
           <!-- Watcher folders -->
           <div
@@ -117,7 +157,6 @@
             @mouseover="folderHovered = true"
             @mouseleave="folderHovered = false"
           >
-            <v-divider class="my-1"/>
             <v-list-item
               v-for="f in watcherFiles"
               :key="f.folder.id"
@@ -151,6 +190,10 @@
               <template #title>
                 {{ f.folder.name }}
               </template>
+
+              <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+                {{ f.folder.name }}
+              </v-tooltip>
             </v-list-item>
           </div>
 
@@ -181,6 +224,7 @@ type MetaNavItem = Meta & { hidden?: boolean; order?: number }
 type MetaNavRow = MetaNavItem | { type: 'toggler'; id: string }
 
 const isShowHidden = ref(false)
+const isDrawerHovered = ref(false)
 const folderHovered = ref(false)
 const meta_arr = ref<MetaNavRow[]>([])
 const drag = ref(false)
@@ -212,6 +256,16 @@ const mediaTypes = computed(() =>
 /* meta disordered comes from metaStore (replace with your store shape) */
 const metaDisordered = computed(() =>
   store.meta.filter(i => i.type === 'array'),
+)
+
+const hiddenMetaCount = computed(() =>
+  meta_arr.value.filter(i => isMetaNavItem(i) && i.hidden).length,
+)
+
+const hiddenToggleLabel = computed(() =>
+  isShowHidden.value
+    ? t('navigation.hidden')
+    : t('navigation.show_hidden', {count: hiddenMetaCount.value}),
 )
 
 /* helpers */
@@ -317,5 +371,37 @@ function openDialogFolder(folder: WatcherFilesEntry) {
 
 .d-none {
   display: none !important;
+}
+
+.sidebar-section {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  height: 28px;
+  min-height: 28px;
+  padding-inline: 16px;
+  opacity: 0.55;
+  overflow: hidden;
+}
+
+.sidebar-nav.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) {
+  /* Keep header space so icons do not jump when labels appear */
+  :deep(.sidebar-section) {
+    visibility: hidden;
+  }
+}
+
+.sidebar-hidden-toggle {
+  opacity: 0.72;
+
+  :deep(.v-list-item-title) {
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+}
+
+.sidebar-meta--hidden {
+  opacity: 0.55;
 }
 </style>

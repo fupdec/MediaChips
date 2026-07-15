@@ -270,7 +270,11 @@ const es = {
     playlists: 'Listas de reproducción',
     markers: 'Marcadores',
     settings: 'Configuración',
-    toggle_hidden: 'Alternar ocultos',
+    section_library: 'Biblioteca',
+    section_tags: 'Etiquetas',
+    section_system: 'Sistema',
+    hidden: 'Ocultos',
+    show_hidden: 'Mostrar ocultos ({count})',
   },
   tabs: {
     edit_tab: 'Editar pestaña',

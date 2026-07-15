@@ -270,7 +270,11 @@ const cn = {
     playlists: '播放列表',
     markers: '标记',
     settings: '设置',
-    toggle_hidden: '切换隐藏',
+    section_library: '媒体库',
+    section_tags: '标签',
+    section_system: '系统',
+    hidden: '已隐藏',
+    show_hidden: '显示隐藏 ({count})',
   },
   tabs: {
     edit_tab: '编辑标签页',

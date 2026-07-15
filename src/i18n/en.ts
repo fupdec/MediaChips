@@ -272,7 +272,11 @@ const en = {
     playlists: 'Playlists',
     markers: 'Markers',
     settings: 'Settings',
-    toggle_hidden: 'Toggle hidden',
+    section_library: 'Library',
+    section_tags: 'Tags',
+    section_system: 'System',
+    hidden: 'Hidden',
+    show_hidden: 'Show hidden ({count})',
   },
   tabs: {
     edit_tab: 'Edit tab',
