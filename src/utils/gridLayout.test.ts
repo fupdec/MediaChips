@@ -18,16 +18,14 @@ import {
 } from '@/utils/gridLayout'
 
 describe('shouldUseVirtualGrid', () => {
-  it('disables virtualization for infinite scroll to keep scroll position stable', () => {
+  it('keeps virtualization off so fixed row estimates cannot jump scroll', () => {
     expect(shouldUseVirtualGrid(0, true, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(1, true, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(100, true, 'media')).toBe(false)
-  })
-
-  it('enables virtualization for paginated lists at the threshold', () => {
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
-    expect(shouldUseVirtualGrid(100, false, 'tag')).toBe(true)
+    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(50, false, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(100, false, 'tag')).toBe(false)
   })
 })
 
@@ -36,7 +34,8 @@ describe('shouldUseVirtualMasonry', () => {
     expect(shouldUseVirtualMasonry(0, true, 'media')).toBe(false)
     expect(shouldUseVirtualMasonry(100, true, 'media')).toBe(false)
     expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
-    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
+    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(false)
+    expect(shouldUseVirtualMasonry(50, false, 'media')).toBe(false)
   })
 })
 

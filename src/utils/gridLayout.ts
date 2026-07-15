@@ -356,12 +356,14 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
 }
 
 export function shouldUseVirtualGrid(
-  itemCount: number,
-  isInfiniteScroll: boolean,
+  _itemCount: number,
+  _isInfiniteScroll: boolean,
   _itemsType: 'media' | 'tag' = 'media',
 ): boolean {
-  if (isInfiniteScroll) return false
-  return itemCount >= VIRTUAL_GRID_THRESHOLD
+  // Fixed row-height virtualization jumps scroll when real card heights differ from
+  // estimates (e.g. page size 50≥threshold). Paginated pages are small enough for
+  // full render + content-visibility; infinite scroll stays unvirtualized too.
+  return false
 }
 
 export const shouldUseVirtualMasonry = shouldUseVirtualGrid
