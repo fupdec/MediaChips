@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Scene/performer auto-scrape** — reuse newly created performers and tags across media instead of inserting duplicates on each item
+
 ## [1.1.0] - 2026-07-15
 
 ### Added

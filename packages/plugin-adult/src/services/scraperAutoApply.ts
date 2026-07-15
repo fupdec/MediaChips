@@ -5,6 +5,7 @@ import { createImage } from '@/services/fileService'
 import { parseCountries, serializeCountries } from '@/utils/country'
 import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
 import { buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues } from '../utils/scraperTransferFields'
+import { findOrCreateTagByName, findTagByNameOrSynonym } from '../utils/sceneScraperTags'
 import {
   DEFAULT_TAG_COLOR,
   extractColorFromLocalFile,
@@ -72,27 +73,6 @@ function getDefaultMetaValue(type?: string): MetaFieldValue {
 function pickBestPoster(posters: ScraperPoster[] = []): ScraperPoster | null {
   if (!posters.length) return null
   return orderBy(posters, ['size'], ['desc'])[0] || null
-}
-
-async function findOrCreateTagByName(
-  name: string,
-  metaId: number,
-  allTags: Tag[],
-): Promise<number> {
-  const existing = allTags.find(
-    (tag) => tag.metaId === metaId && tag.name?.toLowerCase() === name.toLowerCase(),
-  )
-  if (existing) return existing.id
-
-  const response = await typedApi.createTags([{ name, metaId }])
-  const created = response.data[0]
-  allTags.push({
-    ...created,
-    id: created.id,
-    name: created.name || name,
-    metaId,
-  } as Tag)
-  return created.id
 }
 
 async function loadTagValues(
@@ -175,12 +155,15 @@ async function applyTransferFields({
       if (!valueName) continue
 
       if (field.isTagExists) {
-        const tag = allTags.find(
-          (entry) => entry.metaId === metaId && entry.name === field.valueScraper,
-        )
+        const tag = findTagByNameOrSynonym(metaId, String(field.valueScraper || ''), allTags)
         vals[metaId] = tag ? [tag.id] : []
       } else {
-        const tagId = await findOrCreateTagByName(valueName, metaId, allTags)
+        const tagId = await findOrCreateTagByName(
+          valueName,
+          metaId,
+          allTags,
+          (payload) => typedApi.createTags(payload),
+        )
         vals[metaId] = [tagId]
       }
       continue

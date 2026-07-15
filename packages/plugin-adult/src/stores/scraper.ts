@@ -101,12 +101,14 @@ export const useScraperStore = defineStore('useScraperStore', {
 
       const appStore = useAppStore()
       const itemsStore = useItemsStore()
+      // Use the live store list (not a snapshot) so nested tags created while
+      // applying one performer are reused for later items in a batch.
       const applyResult = await autoApplyScrapedTagData({
         tag,
         meta,
         performer,
         dbPath: appStore.dbPath,
-        allTags: [...(appStore.tags || [])],
+        allTags: appStore.tags || [],
       })
 
       if (applyResult.success) {

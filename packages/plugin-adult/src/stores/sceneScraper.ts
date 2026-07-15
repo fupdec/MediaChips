@@ -191,9 +191,12 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
       const mediaType = getCurrentMediaType(appStore.mediaTypes, media.mediaTypeId)
       const mediaTypeFolder = getMediaDeleteAssetFolder(mediaType) || 'videos'
 
+      // Use the live store list (not a snapshot). findOrCreateTagByName pushes
+      // newly created performers/tags onto this array so later media in a batch
+      // reuse them instead of inserting duplicates.
       return matchAndAutoApplySceneToMedia({
         media,
-        allTags: [...(appStore.tags || [])],
+        allTags: appStore.tags || [],
         mediaPath: appStore.mediaPath,
         mediaTypeFolder,
         requireExactOshash,

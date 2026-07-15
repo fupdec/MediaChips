@@ -149,6 +149,7 @@ export function useAutoSceneScrapeBatch() {
         }),
       })
       eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
+      eventBus.emit('getTags')
       itemsStore.refreshThumb(media.id, { regenerate: true })
       return result
     }

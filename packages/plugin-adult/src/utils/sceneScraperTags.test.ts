@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildScrapedTagEntries,
+  findOrCreateTagByName,
   findTagByNameOrSynonym,
   tagMatchesLookupName,
 } from './sceneScraperTags'
@@ -77,5 +78,21 @@ describe('sceneScraperTags', () => {
       exists: true,
       alreadyAssigned: true,
     })
+  })
+
+  it('reuses a newly created tag from the shared allTags list on later lookups', async () => {
+    const allTags: Tag[] = []
+    const createTags = vi.fn(async () => ({
+      data: [{ id: 42, name: 'Jia Lissa' }],
+    }))
+
+    const firstId = await findOrCreateTagByName('Jia Lissa', 10, allTags, createTags)
+    const secondId = await findOrCreateTagByName('jia lissa', 10, allTags, createTags)
+
+    expect(firstId).toBe(42)
+    expect(secondId).toBe(42)
+    expect(createTags).toHaveBeenCalledTimes(1)
+    expect(allTags).toHaveLength(1)
+    expect(allTags[0]).toMatchObject({ id: 42, name: 'Jia Lissa', metaId: 10 })
   })
 })
