@@ -175,39 +175,29 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
     })
   }
 
-  if (health.value.duplicates.byContentHash > 0) {
+  if ((health.value.duplicates.byFingerprint || health.value.duplicates.byContentHash) > 0) {
     alerts.push({
       id: 'duplicates-hash',
       type: 'warning',
       icon: 'mdi-fingerprint',
-      text: t('home.widgets.health_duplicates_hash', {
-        count: health.value.duplicates.byContentHash,
+      text: t('home.widgets.health_duplicates_fingerprint', {
+        count: health.value.duplicates.byFingerprint || health.value.duplicates.byContentHash,
       }),
-      actionLabel: t('home.widgets.health_open_settings'),
-      action: openDatabaseSettings,
+      actionLabel: t('home.widgets.health_show_duplicates'),
+      action: openDuplicates,
     })
   }
 
-  if (health.value.contentHash.pending > 0) {
+  const fingerprintPending = Number(health.value.fingerprint?.pending ?? (
+    Number(health.value.contentHash?.pending || 0) + Number(health.value.oshash?.pending || 0)
+  ))
+  if (fingerprintPending > 0) {
     alerts.push({
-      id: 'content-hash',
+      id: 'fingerprint',
       type: 'info',
       icon: 'mdi-fingerprint-off',
-      text: t('home.widgets.health_content_hash_pending', {
-        count: health.value.contentHash.pending,
-      }),
-      actionLabel: t('home.widgets.health_open_settings'),
-      action: openFilesSettings,
-    })
-  }
-
-  if (health.value.oshash.pending > 0) {
-    alerts.push({
-      id: 'oshash',
-      type: 'info',
-      icon: 'mdi-identifier',
-      text: t('home.widgets.health_oshash_pending', {
-        count: health.value.oshash.pending,
+      text: t('home.widgets.health_fingerprint_pending', {
+        count: fingerprintPending,
       }),
       actionLabel: t('home.widgets.health_open_settings'),
       action: openOshashBackfillSettings,

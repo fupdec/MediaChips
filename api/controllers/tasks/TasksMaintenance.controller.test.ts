@@ -11,9 +11,13 @@ const {
   updateById: vi.fn(),
 }))
 
-vi.mock('../../services/contentHashBackfill', () => ({
+vi.mock('../../services/mediaFingerprintBackfill', () => ({
   getContentHashBackfillStatus,
+  getOshashBackfillStatus: vi.fn(),
+  getFingerprintBackfillStatus: vi.fn(),
   iterateContentHashBackfill: vi.fn(),
+  iterateOshashBackfill: vi.fn(),
+  iterateFingerprintBackfill: vi.fn(),
 }))
 
 vi.mock('../../services/videoCodecBackfill', () => ({

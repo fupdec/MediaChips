@@ -39,7 +39,13 @@ export interface HomeHealthGeneratedTypeUi {
 }
 
 export interface HomeHealthDataUi {
-  duplicates: { byFilesize: number; byContentHash: number }
+  duplicates: {
+    byFilesize: number
+    byContentHash: number
+    byOshash: number
+    byFingerprint: number
+  }
+  fingerprint: { total: number; pending: number; hashed: number }
   contentHash: { total: number; pending: number; hashed: number }
   oshash: { total: number; pending: number; hashed: number }
   videoCodec: { total: number; pending: number; filled: number }
@@ -63,8 +69,25 @@ export function toExtendedStatsUi(data: ParsedExtendedStats): ExtendedStatsUi {
 }
 
 export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
+  const duplicates = data.duplicates ?? {
+    byFilesize: 0,
+    byContentHash: 0,
+    byOshash: 0,
+    byFingerprint: 0,
+  }
   return {
-    duplicates: data.duplicates ?? { byFilesize: 0, byContentHash: 0 },
+    duplicates: {
+      byFilesize: duplicates.byFilesize ?? 0,
+      byContentHash: duplicates.byContentHash ?? 0,
+      byOshash: duplicates.byOshash ?? 0,
+      byFingerprint: duplicates.byFingerprint
+        ?? ((duplicates.byContentHash ?? 0) + (duplicates.byOshash ?? 0)),
+    },
+    fingerprint: data.fingerprint ?? {
+      total: (data.contentHash?.total ?? 0) + (data.oshash?.total ?? 0),
+      pending: (data.contentHash?.pending ?? 0) + (data.oshash?.pending ?? 0),
+      hashed: (data.contentHash?.hashed ?? 0) + (data.oshash?.hashed ?? 0),
+    },
     contentHash: data.contentHash ?? { total: 0, pending: 0, hashed: 0 },
     oshash: data.oshash ?? { total: 0, pending: 0, hashed: 0 },
     videoCodec: data.videoCodec ?? { total: 0, pending: 0, filled: 0 },
@@ -90,7 +113,8 @@ export const emptyExtendedStatsUi = (): ExtendedStatsUi => ({
 })
 
 export const emptyHomeHealthUi = (): HomeHealthDataUi => ({
-  duplicates: { byFilesize: 0, byContentHash: 0 },
+  duplicates: { byFilesize: 0, byContentHash: 0, byOshash: 0, byFingerprint: 0 },
+  fingerprint: { total: 0, pending: 0, hashed: 0 },
   contentHash: { total: 0, pending: 0, hashed: 0 },
   oshash: { total: 0, pending: 0, hashed: 0 },
   videoCodec: { total: 0, pending: 0, filled: 0 },

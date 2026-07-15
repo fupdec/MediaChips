@@ -12,7 +12,6 @@ import { stat } from 'fs/promises'
 import { ffprobe } from '../../utils/ffmpeg'
 import { tokenizeFilePath } from '../../services/pathTokenizer'
 import {
-  computeContentHashForPath,
   fileExists,
   resolveExistingPath,
 } from '../../services/contentHash'
@@ -23,7 +22,10 @@ import {
   withDuplicateLookupLock,
 } from '../../services/addMediaDedup'
 import {
-  enqueueContentHash,
+  computeFingerprint,
+  duplicateParameterForKind,
+} from '../../services/mediaFingerprint'
+import {
   runWithFfprobeLimit,
 } from '../../services/mediaPostProcessQueue'
 import {
@@ -56,7 +58,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const buildDuplicateResponse = (
     existing: {id?: unknown; path?: unknown},
     pathToFile: string,
-    parameter: 'path' | 'content_hash' | 'basename_filesize',
+    parameter: 'path' | 'content_hash' | 'oshash' | 'basename_filesize',
     reason?: 'duplicate' | 'moved',
   ) => ({
     isCreated: false as const,
@@ -102,9 +104,44 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     return null
   }
 
+  const findFingerprintDuplicate = async (
+    pathToFile: string,
+    resolvedPath: string,
+    filesize: number,
+    mediaType: {id: unknown; type?: unknown},
+  ) => {
+    let fingerprint
+    try {
+      fingerprint = await computeFingerprint({
+        path: resolvedPath,
+        filesize,
+        mediaType: mediaType.type != null ? String(mediaType.type) : undefined,
+      })
+    } catch (error: unknown) {
+      console.error(`Fingerprint failed for ${pathToFile}:`, apiErrorMessage(error))
+      return null
+    }
+
+    if (!fingerprint) return null
+
+    const existing = fingerprint.kind === 'oshash'
+      ? mediaRepo.findByOshash(fingerprint.value, mediaType.id)
+      : mediaRepo.findByContentHash(fingerprint.value, mediaType.id)
+
+    if (!existing || pathsEquivalent(String(existing.path), pathToFile)) {
+      return {fingerprint, duplicate: null}
+    }
+
+    return {
+      fingerprint,
+      duplicate: existing,
+      parameter: duplicateParameterForKind(fingerprint.kind),
+    }
+  }
+
   const addMediaToDb = async (
     rawPathToFile: string,
-    mediaType: { id: unknown },
+    mediaType: { id: unknown; type?: unknown },
     is_check_duplicates: boolean,
   ) => {
     const pathToFile = normalizeMediaPath(rawPathToFile)
@@ -119,12 +156,19 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     const basename = path.basename(resolvedPath)
     const duplicateKey = buildMediaDuplicateKey(mediaType.id, filesize, basename)
 
+    const mediaTypeRow = mediaType.type != null
+      ? mediaType
+      : (mediaTypesRepo.findById(Number(mediaType.id)) || mediaType)
+    const mediaTypeName = mediaTypeRow.type != null ? String(mediaTypeRow.type) : undefined
+
     const processAdd = async () => {
       const existingByPath = await findMediaByPath(pathToFile)
 
       if (existingByPath) {
         return buildDuplicateResponse(existingByPath, pathToFile, 'path')
       }
+
+      let computedFingerprint: Awaited<ReturnType<typeof computeFingerprint>> = null
 
       if (is_check_duplicates) {
         const fastDuplicate = findFastDuplicate(basename, filesize, mediaType, pathToFile)
@@ -134,6 +178,24 @@ export default function createTasksMediaController(shared: TaskControllerShared)
             fastDuplicate.duplicate,
             pathToFile,
             fastDuplicate.parameter,
+            existingPathExists ? 'duplicate' : 'moved',
+          )
+        }
+
+        const fingerprintMatch = await findFingerprintDuplicate(
+          pathToFile,
+          resolvedPath,
+          filesize,
+          {id: mediaType.id, type: mediaTypeName},
+        )
+        computedFingerprint = fingerprintMatch?.fingerprint || null
+
+        if (fingerprintMatch?.duplicate) {
+          const existingPathExists = await fileExists(String(fingerprintMatch.duplicate.path))
+          return buildDuplicateResponse(
+            fingerprintMatch.duplicate,
+            pathToFile,
+            fingerprintMatch.parameter,
             existingPathExists ? 'duplicate' : 'moved',
           )
         }
@@ -165,16 +227,18 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         })
       }
 
-      enqueueContentHash(async () => {
-        try {
-          const hash = await computeContentHashForPath(resolvedPath)
-          if (hash) {
-            mediaRepo.updateById(Number(media.id), {contentHash: hash})
-          }
-        } catch (error: unknown) {
-          console.error(`Content hash failed for ${pathToFile}:`, apiErrorMessage(error))
+      try {
+        const fingerprint = computedFingerprint || await computeFingerprint({
+          path: resolvedPath,
+          filesize,
+          mediaType: mediaTypeName,
+        })
+        if (fingerprint) {
+          mediaRepo.updateById(Number(media.id), fingerprint.patch)
         }
-      })
+      } catch (error: unknown) {
+        console.error(`Fingerprint failed for ${pathToFile}:`, apiErrorMessage(error))
+      }
 
       return {
         media,

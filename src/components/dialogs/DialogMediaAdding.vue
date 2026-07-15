@@ -230,6 +230,13 @@ const dialogHeader = computed(() => {
 // Кнопки действий в диалоге
 const dialogActionButtons = computed(() => [
   {
+    icon: 'magnify',
+    text: t('media.adding.scan_duplicates'),
+    color: 'secondary',
+    variant: 'outlined',
+    action: startDuplicateScanProcess,
+  },
+  {
     icon: 'plus',
     text: t('common.add'),
     color: 'success',
@@ -265,6 +272,10 @@ onMounted(() => {
 
 const handleAddMedia = async () => {
   await mediaAdding.addMedia()
+}
+
+const handleScanDuplicates = async () => {
+  await mediaAdding.scanFolderDuplicates()
 }
 
 /**
@@ -332,6 +343,21 @@ const startMediaAddingProcess = async () => {
   isDialogVisible.value = false
 
   await handleAddMedia()
+}
+
+const startDuplicateScanProcess = async () => {
+  if (!mediaForm.value) return
+  const {valid} = await mediaForm.value.validate()
+  if (!valid) return
+
+  syncMediaTypeFromContext()
+  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(tasksStore.mediaAdding.paths || '') ?? '')
+  tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(tasksStore.mediaAdding.excluded || '') ?? '')
+  tasksStore.mediaAdding.dialogProcess = true
+  tasksStore.mediaAdding.active = true
+  isDialogVisible.value = false
+
+  await handleScanDuplicates()
 }
 
 /**

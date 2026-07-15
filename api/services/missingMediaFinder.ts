@@ -3,6 +3,8 @@ import type { MissingMediaSearchOptions } from '../types/missingMediaFinder'
 import path from 'path'
 import { readdir, stat } from 'fs/promises'
 import { computeContentHash, fileExists } from './contentHash'
+import { computeOshashForPath } from './oshash'
+import { resolveFingerprintKind } from './mediaFingerprint'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 
@@ -107,14 +109,33 @@ async function* walkMediaFiles(
   }
 }
 
-function buildMissingIndexes(missingMedia: AnyRecord[]) {
+function buildMissingIndexes(missingMedia: AnyRecord[], mediaTypeById: Map<number, string>) {
   const byHash = new Map()
+  const byOshash = new Map()
   const bySizeNoHash = new Map()
   const targetSizes = new Set()
 
   for (const item of missingMedia) {
     const size = Number(item.filesize) || 0
     targetSizes.add(size)
+    const mediaType = mediaTypeById.get(Number(item.mediaTypeId)) || ''
+    const kind = resolveFingerprintKind(mediaType, size)
+
+    if (kind === 'oshash' && item.oshash) {
+      if (!byOshash.has(item.oshash)) {
+        byOshash.set(item.oshash, [])
+      }
+      byOshash.get(item.oshash).push(item)
+      continue
+    }
+
+    if (kind === 'contentHash' && item.contentHash) {
+      if (!byHash.has(item.contentHash)) {
+        byHash.set(item.contentHash, [])
+      }
+      byHash.get(item.contentHash).push(item)
+      continue
+    }
 
     if (item.contentHash) {
       if (!byHash.has(item.contentHash)) {
@@ -124,13 +145,21 @@ function buildMissingIndexes(missingMedia: AnyRecord[]) {
       continue
     }
 
+    if (item.oshash) {
+      if (!byOshash.has(item.oshash)) {
+        byOshash.set(item.oshash, [])
+      }
+      byOshash.get(item.oshash).push(item)
+      continue
+    }
+
     if (!bySizeNoHash.has(size)) {
       bySizeNoHash.set(size, [])
     }
     bySizeNoHash.get(size).push(item)
   }
 
-  return {byHash, bySizeNoHash, targetSizes}
+  return {byHash, byOshash, bySizeNoHash, targetSizes}
 }
 
 function pickWeakCandidate(candidates: AnyRecord[], foundPath: string) {
@@ -216,8 +245,11 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
     return
   }
 
-  const {byHash, bySizeNoHash, targetSizes} = buildMissingIndexes(missingMedia)
   const mediaTypes = mediaTypesRepo.findAll()
+  const mediaTypeById = new Map(
+    mediaTypes.map((item) => [Number(item.id), String(item.type || '')]),
+  )
+  const {byHash, byOshash, bySizeNoHash, targetSizes} = buildMissingIndexes(missingMedia, mediaTypeById)
   const extensionRegex = buildExtensionRegex(mediaTypes as Array<{ extensions?: string }>)
   const knownPaths = new Set(
     mediaRepo.findPaths().map((item: string) => String(item || '').toLowerCase()),
@@ -284,18 +316,45 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
     sizeMatched += 1
 
-    let contentHash = null
+    let contentHash: string | null = null
+    let oshash: string | null = null
+    const kind = resolveFingerprintKind(null, filesize)
 
     try {
-      contentHash = await computeContentHash(filePath)
+      if (kind === 'oshash' || byOshash.size > 0) {
+        oshash = await computeOshashForPath(filePath)
+      }
     } catch {
-      continue
+      // continue with other strategies
+    }
+
+    try {
+      if (kind === 'contentHash' || (!oshash && byHash.size > 0)) {
+        contentHash = await computeContentHash(filePath)
+      }
+    } catch {
+      if (!oshash) continue
     }
 
     let match = null
     let confidence = null
 
-    if (byHash.has(contentHash)) {
+    if (oshash && byOshash.has(oshash)) {
+      const candidates = byOshash.get(oshash)
+        .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
+      if (candidates.length === 1) {
+        match = candidates[0]
+        confidence = 'oshash'
+      } else if (candidates.length > 1) {
+        const weak = pickWeakCandidate(candidates, filePath)
+        if (weak) {
+          match = weak
+          confidence = 'oshash'
+        }
+      }
+    }
+
+    if (!match && contentHash && byHash.has(contentHash)) {
       const candidates = byHash.get(contentHash)
         .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
       if (candidates.length === 1) {
@@ -308,7 +367,9 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
           confidence = 'hash'
         }
       }
-    } else {
+    }
+
+    if (!match) {
       const candidates = (bySizeNoHash.get(filesize) || [])
         .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
       const weak = pickWeakCandidate(candidates, filePath)
@@ -327,7 +388,8 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
         oldPath: match.path,
         newPath: filePath,
         confidence,
-        contentHash,
+        contentHash: contentHash || match.contentHash || null,
+        oshash: oshash || match.oshash || null,
       }
 
       matches.push(matchItem)

@@ -135,10 +135,33 @@ export function createMediaRepository(db: DrizzleClient) {
         .get()
     },
 
-    findByContentHash(contentHash: string): MediaRow | undefined {
+    findByContentHash(contentHash: string, mediaTypeId?: unknown): MediaRow | undefined {
+      const hash = String(contentHash || '').trim()
+      if (!hash) return undefined
+
+      const conditions = [eq(media.contentHash, hash)]
+      if (mediaTypeId != null && mediaTypeId !== '') {
+        conditions.push(eq(media.mediaTypeId, Number(mediaTypeId)))
+      }
+
       return db.select()
         .from(media)
-        .where(eq(media.contentHash, contentHash))
+        .where(and(...conditions))
+        .get()
+    },
+
+    findByOshash(oshash: string, mediaTypeId?: unknown): MediaRow | undefined {
+      const hash = String(oshash || '').trim()
+      if (!hash) return undefined
+
+      const conditions = [eq(media.oshash, hash)]
+      if (mediaTypeId != null && mediaTypeId !== '') {
+        conditions.push(eq(media.mediaTypeId, Number(mediaTypeId)))
+      }
+
+      return db.select()
+        .from(media)
+        .where(and(...conditions))
         .get()
     },
 

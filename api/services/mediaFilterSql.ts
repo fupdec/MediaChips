@@ -473,6 +473,16 @@ function buildDuplicateValuesSubquery(
       HAVING COUNT(*) > 1`
   }
 
+  if (duplicatesBy === 'oshash') {
+    return `SELECT oshash
+      FROM media
+      WHERE ${scopeSql}
+        AND oshash IS NOT NULL
+        AND oshash != ''
+      GROUP BY oshash
+      HAVING COUNT(*) > 1`
+  }
+
   return `SELECT filesize
     FROM media
     WHERE ${scopeSql}
@@ -497,20 +507,37 @@ function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_b
     clauses.push('media.id IN (:ids)')
   }
 
-  const duplicateValuesSubquery = buildDuplicateValuesSubquery(
-    duplicatesBy,
-    'mediaTypeId = :mediaTypeId',
-  )
+  const scopeSql = 'mediaTypeId = :mediaTypeId'
 
-  if (duplicatesBy === 'path') {
-    clauses.push(`media.path IS NOT NULL AND media.path != ''`)
-    clauses.push(`media.path IN (${duplicateValuesSubquery})`)
-  } else if (duplicatesBy === 'contentHash') {
-    clauses.push(`media.contentHash IS NOT NULL AND media.contentHash != ''`)
-    clauses.push(`media.contentHash IN (${duplicateValuesSubquery})`)
+  if (duplicatesBy === 'fingerprint') {
+    const oshashDupes = buildDuplicateValuesSubquery('oshash', scopeSql)
+    const contentHashDupes = buildDuplicateValuesSubquery('contentHash', scopeSql)
+    clauses.push(`(
+      (
+        media.oshash IS NOT NULL AND media.oshash != ''
+        AND media.oshash IN (${oshashDupes})
+      )
+      OR (
+        media.contentHash IS NOT NULL AND media.contentHash != ''
+        AND media.contentHash IN (${contentHashDupes})
+      )
+    )`)
   } else {
-    clauses.push(`media.filesize > 0`)
-    clauses.push(`media.filesize IN (${duplicateValuesSubquery})`)
+    const duplicateValuesSubquery = buildDuplicateValuesSubquery(duplicatesBy, scopeSql)
+
+    if (duplicatesBy === 'path') {
+      clauses.push(`media.path IS NOT NULL AND media.path != ''`)
+      clauses.push(`media.path IN (${duplicateValuesSubquery})`)
+    } else if (duplicatesBy === 'contentHash') {
+      clauses.push(`media.contentHash IS NOT NULL AND media.contentHash != ''`)
+      clauses.push(`media.contentHash IN (${duplicateValuesSubquery})`)
+    } else if (duplicatesBy === 'oshash') {
+      clauses.push(`media.oshash IS NOT NULL AND media.oshash != ''`)
+      clauses.push(`media.oshash IN (${duplicateValuesSubquery})`)
+    } else {
+      clauses.push(`media.filesize > 0`)
+      clauses.push(`media.filesize IN (${duplicateValuesSubquery})`)
+    }
   }
 
   return {

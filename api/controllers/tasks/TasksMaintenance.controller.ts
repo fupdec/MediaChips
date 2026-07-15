@@ -6,12 +6,12 @@ import { createMediaRepository } from '../../db/repositories/media'
 import path from 'path'
 import {
   getContentHashBackfillStatus,
-  iterateContentHashBackfill,
-} from '../../services/contentHashBackfill'
-import {
+  getFingerprintBackfillStatus,
   getOshashBackfillStatus,
+  iterateContentHashBackfill,
+  iterateFingerprintBackfill,
   iterateOshashBackfill,
-} from '../../services/oshashBackfill'
+} from '../../services/mediaFingerprintBackfill'
 import {
   getVideoCodecBackfillStatus,
   iterateVideoCodecBackfill,
@@ -24,6 +24,7 @@ import {
   getImageThumbsGenerationStatus,
   iterateImageThumbsGeneration,
 } from '../../services/imageThumbsGeneration'
+import { iterateScanFolderDuplicates } from '../../services/scanFolderDuplicates'
 
 export default function createTasksMaintenanceController(shared: TaskControllerShared) {
   const {
@@ -54,6 +55,17 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     } catch (err) {
       res.status(500).send({
         message: apiErrorMessage(err) || 'Some error occurred while checking oshash status.',
+      })
+    }
+  }
+
+  const fingerprintBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getFingerprintBackfillStatus(db)
+      res.status(201).send(status)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while checking fingerprint status.',
       })
     }
   }
@@ -240,6 +252,35 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     }
   }
 
+  const streamFingerprintBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const shouldStop = createStreamAbortSignal(req, res)
+
+      for await (const event of iterateFingerprintBackfill(db, {
+        shouldStop,
+        force: String(req.query.force || '').toLowerCase() === 'true',
+      })) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Some error occurred while backfilling fingerprints.',
+      })
+      res.end()
+    }
+  }
+
   const missingMediaStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const full = String(req.query?.full || '').toLowerCase() === 'true'
@@ -282,6 +323,41 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     }
   }
 
+  const streamScanFolderDuplicates = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const shouldStop = createStreamAbortSignal(req, res)
+      const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
+      const paths = Array.isArray(req.body?.paths) ? req.body.paths : []
+      const excluded = Array.isArray(req.body?.excluded) ? req.body.excluded : []
+
+      for await (const event of iterateScanFolderDuplicates(db, {
+        folders,
+        paths,
+        excluded,
+        mediaTypeId: req.body?.mediaTypeId ?? req.body?.type?.id ?? null,
+        shouldStop,
+      })) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Some error occurred while scanning folder duplicates.',
+      })
+      res.end()
+    }
+  }
+
   const relinkMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const matches = Array.isArray(req.body?.matches) ? req.body.matches : []
@@ -303,6 +379,9 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
         if (item.contentHash) {
           data.contentHash = item.contentHash
         }
+        if (item.oshash) {
+          data.oshash = item.oshash
+        }
 
         mediaRepo.updateById(Number(mediaId), data, {silent: true})
 
@@ -320,8 +399,10 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   return {
     contentHashBackfillStatus,
     oshashBackfillStatus,
+    fingerprintBackfillStatus,
     streamContentHashBackfill,
     streamOshashBackfill,
+    streamFingerprintBackfill,
     videoCodecBackfillStatus,
     streamVideoCodecBackfill,
     imageThumbsGenerationStatus,
@@ -330,6 +411,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamVideoImagesGeneration,
     missingMediaStatus,
     streamFindMissingMedia,
+    streamScanFolderDuplicates,
     relinkMissingMedia,
   }
 }

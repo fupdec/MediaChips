@@ -484,14 +484,22 @@ const duplicates_by_content_hash = computed((): MediaAddingDuplicateEntry[] => {
   return (task.value.duplicates as MediaAddingDuplicateEntry[])
     .filter(i => {
       const duplicate = getDuplicateDetails(i.duplicate)
-      return duplicate?.parameter === 'content_hash' && duplicate?.reason === 'duplicate'
+      const parameter = duplicate?.parameter
+      return (
+        (parameter === 'content_hash' || parameter === 'oshash' || parameter === 'basename_filesize')
+        && duplicate?.reason === 'duplicate'
+      )
     })
 })
 
 const moved_files = computed((): MediaAddingDuplicateEntry[] => {
   return (task.value.duplicates as MediaAddingDuplicateEntry[]).filter(i => {
     const duplicate = getDuplicateDetails(i.duplicate)
-    return duplicate?.parameter === 'content_hash' && duplicate?.reason === 'moved'
+    const parameter = duplicate?.parameter
+    return (
+      (parameter === 'content_hash' || parameter === 'oshash' || parameter === 'basename_filesize')
+      && duplicate?.reason === 'moved'
+    )
   })
 })
 
@@ -527,7 +535,11 @@ const deleteDuplicates = async (delete_type: DeleteDuplicateType) => {
     try {
       const dupes = (task.value.duplicates as MediaAddingDuplicateEntry[]).filter(i => {
         const duplicate = getDuplicateDetails(i.duplicate)
-        return duplicate?.parameter === 'content_hash' && duplicate?.reason === 'duplicate'
+        const parameter = duplicate?.parameter
+        return (
+          (parameter === 'content_hash' || parameter === 'oshash' || parameter === 'basename_filesize')
+          && duplicate?.reason === 'duplicate'
+        )
       })
 
       for (const dupe of dupes) {

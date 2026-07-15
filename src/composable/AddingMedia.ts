@@ -537,9 +537,165 @@ export const useMediaAdding = () => {
     }
   }
 
+  const scanFolderDuplicates = async (): Promise<void> => {
+    if (addMediaInProgress) return
+    addMediaInProgress = true
+
+    const appStore = useAppStore()
+    const t = i18n.global.t
+    const mediaTypes = appStore.mediaTypes as MediaType[]
+    const paths = transformTextToArray(task.value.paths)
+    const excluded = transformTextToArray(task.value.excluded)
+    const mediaType = resolveMediaTypeForAdding(mediaTypes, {
+      mediaTypeId: task.value.media_type_id,
+      paths,
+      directFiles: task.value.directFiles || [],
+      skipFileScan: Boolean(task.value.skipFileScan),
+    })
+
+    if (!mediaType || !paths.length) {
+      addMediaInProgress = false
+      return
+    }
+
+    task.value.status = t('media.adding.scanning_files')
+    task.value.progress = 0
+    task.value.duplicates = []
+    task.value.errors = []
+    task.value.finished = false
+    task.value.stopped = false
+
+    const abortController = new AbortController()
+    // Respect the process dialog stop flag via polling abort
+    const stopWatcher = setInterval(() => {
+      if (task.value.stopped) {
+        abortController.abort()
+        clearInterval(stopWatcher)
+      }
+    }, 200)
+
+    try {
+      const response = await fetch(
+        `${appStore.localhost}/api/Task/streamScanFolderDuplicates`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          signal: abortController.signal,
+          body: JSON.stringify({
+            folders: paths,
+            excluded: task.value.is_exclude ? excluded : [],
+            mediaTypeId: mediaType.id,
+          }),
+        },
+      )
+
+      if (!response.ok || !response.body) {
+        throw new Error(response.statusText || 'Folder duplicate scan failed')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      const handleEvent = (event: Record<string, unknown>) => {
+        if (event.type === 'progress') {
+          const processed = Number(event.processed || 0)
+          const total = Number(event.total || 0)
+          task.value.current = processed
+          task.value.total = total
+          task.value.progress = total ? Math.min((processed / total) * 100, 100) : 0
+          task.value.processed = t('media.adding.in_progress', {current: processed, total})
+          task.value.status = String(event.phase || t('media.adding.scanning_files'))
+          if (event.current) {
+            task.value.status = `${task.value.status}: ${event.current}`
+          }
+        }
+
+        if (event.type === 'complete') {
+          const inLibrary = Array.isArray(event.inLibrary) ? event.inLibrary as Array<{
+            path: string
+            libraryPath: string
+            libraryId: number
+            parameter: string
+          }> : []
+          const withinFolder = Array.isArray(event.withinFolder) ? event.withinFolder as Array<{
+            paths: string[]
+            filesize: number
+          }> : []
+
+          for (const item of inLibrary) {
+            task.value.duplicates.push({
+              path: item.path,
+              duplicate: {
+                parameter: item.parameter,
+                path: item.libraryPath,
+                id: item.libraryId,
+                reason: 'duplicate',
+              },
+            })
+          }
+
+          for (const group of withinFolder) {
+            const [first, ...rest] = group.paths || []
+            for (const filePath of rest) {
+              task.value.duplicates.push({
+                path: filePath,
+                duplicate: {
+                  parameter: 'basename_filesize',
+                  path: first,
+                  reason: 'duplicate',
+                },
+              })
+            }
+          }
+
+          task.value.finished = true
+          task.value.progress = 100
+          task.value.status = t('media.adding.duplicates_by_fingerprint_count', {
+            count: task.value.duplicates.length,
+          })
+        }
+
+        if (event.type === 'error') {
+          throw new Error(String(event.message || 'Folder duplicate scan failed'))
+        }
+      }
+
+      while (true) {
+        const {value, done} = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, {stream: true})
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          handleEvent(JSON.parse(line))
+        }
+      }
+      if (buffer.trim()) {
+        handleEvent(JSON.parse(buffer))
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      if (err.name !== 'AbortError') {
+        task.value.errors.push(err.message)
+        setNotification({
+          type: 'error',
+          title: t('media.adding.scan_duplicates'),
+          text: err.message,
+        })
+      }
+      task.value.finished = true
+    } finally {
+      clearInterval(stopWatcher)
+      addMediaInProgress = false
+    }
+  }
+
   return {
     task,
     addMedia,
+    scanFolderDuplicates,
     handleAddMedia,
     parseTagsForAddedMedia,
     reparseTagsForAddedMedia,

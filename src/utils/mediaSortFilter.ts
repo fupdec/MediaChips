@@ -350,13 +350,13 @@ export function sanitizeFiltersForMediaType(
 }
 
 export function getDuplicatesGroupKey(mediaType: MediaType | null | undefined) {
-  return isImageMediaType(mediaType) ? 'path' : 'filesize'
+  return isImageMediaType(mediaType) ? 'path' : 'fingerprint'
 }
 
 export function getDuplicatesModeLabelKey(mediaType: MediaType | null | undefined) {
   return isImageMediaType(mediaType)
     ? 'filters.show_only_duplicates_by_path'
-    : 'filters.show_only_duplicates_by_filesize'
+    : 'filters.show_only_duplicates_by_fingerprint'
 }
 
 export function getMediaTypeKeyFromId(mediaTypes: MediaType[] | null | undefined, mediaTypeId: unknown) {

@@ -128,6 +128,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/streamContentHashBackfill', 'streamContentHashBackfill')
   register('get', '/oshashBackfillStatus', 'oshashBackfillStatus')
   register('post', '/streamOshashBackfill', 'streamOshashBackfill')
+  register('get', '/fingerprintBackfillStatus', 'fingerprintBackfillStatus')
+  register('post', '/streamFingerprintBackfill', 'streamFingerprintBackfill')
   register('get', '/videoCodecBackfillStatus', 'videoCodecBackfillStatus')
   register('post', '/streamVideoCodecBackfill', 'streamVideoCodecBackfill')
   register('get', '/videoImagesGenerationStatus', 'videoImagesGenerationStatus')
@@ -137,6 +139,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('get', '/missingMediaStatus', 'missingMediaStatus')
   register('post', '/streamFindMissingMedia', 'streamFindMissingMedia')
   register('post', '/relinkMissingMedia', 'relinkMissingMedia')
+  register('post', '/streamScanFolderDuplicates', 'streamScanFolderDuplicates')
 
   app.use('/api/Task', router)
 }

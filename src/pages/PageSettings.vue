@@ -124,11 +124,7 @@
               <SettingsGroupLabel :title="t('settings.groups.maintenance')"/>
 
               <SettingsSection>
-                <SettingsContentHashBackfill/>
-              </SettingsSection>
-
-              <SettingsSection>
-                <SettingsOshashBackfill/>
+                <SettingsFingerprintBackfill/>
               </SettingsSection>
 
               <SettingsSection>
@@ -255,11 +251,8 @@ const SettingsGenerateVideoImages = defineAsyncComponent(() =>
 const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateImageThumbs.vue")
 )
-const SettingsContentHashBackfill = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsContentHashBackfill.vue")
-)
-const SettingsOshashBackfill = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsOshashBackfill.vue")
+const SettingsFingerprintBackfill = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsFingerprintBackfill.vue")
 )
 const SettingsVideoCodecBackfill = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsVideoCodecBackfill.vue")
@@ -421,7 +414,9 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   generate_video_images: "settings-generate-video-images",
   generate_image_thumbs: "settings-generate-image-thumbs",
   video_codec_backfill: "settings-video-codec-backfill",
-  oshash_backfill: "settings-oshash-backfill",
+  oshash_backfill: "settings-fingerprint-backfill",
+  fingerprint_backfill: "settings-fingerprint-backfill",
+  content_hash_backfill: "settings-fingerprint-backfill",
   field_pinning: "settings-meta-assignment",
   video_preview: "video_preview",
   backups: "database_backups",
@@ -475,6 +470,8 @@ function applyRouteSettings() {
     || section === "generate_image_thumbs"
     || section === "video_codec_backfill"
     || section === "oshash_backfill"
+    || section === "fingerprint_backfill"
+    || section === "content_hash_backfill"
     || section === "backups"
   ) {
     tab.value = "database"

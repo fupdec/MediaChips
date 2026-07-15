@@ -40,6 +40,25 @@ export const HomeHealthSchema = z.object({
   duplicates: z.object({
     byFilesize: z.number(),
     byContentHash: z.number(),
+    byOshash: z.number().optional(),
+    byFingerprint: z.number().optional(),
+  }).optional(),
+  fingerprint: z.object({
+    total: z.number(),
+    pending: z.number(),
+    hashed: z.number(),
+    byKind: z.object({
+      oshash: z.object({
+        total: z.number(),
+        pending: z.number(),
+        hashed: z.number(),
+      }),
+      contentHash: z.object({
+        total: z.number(),
+        pending: z.number(),
+        hashed: z.number(),
+      }),
+    }).optional(),
   }).optional(),
   contentHash: z.object({
     total: z.number(),
