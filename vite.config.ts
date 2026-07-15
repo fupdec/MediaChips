@@ -50,7 +50,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       filename: 'dist/bundle-stats.html',
       gzipSize: true,
       open: false,
-    }))
+    }) as Plugin)
   }
 
   return {
