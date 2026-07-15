@@ -10,6 +10,7 @@ import {useAppUpdater} from '@/composable/useAppUpdater'
 import {setOption} from '@/services/settingsService'
 import {openPath} from '@/services/shellService'
 import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
+import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type {SystemMenuAction} from '@/types/systemMenu'
 
 const WEBSITE_URL = 'https://mediachips.app/'
@@ -123,6 +124,10 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         break
       case 'documentation':
         eventBus.emit('showDocumentation', 'app')
+        break
+      case 'gettingStarted':
+        await saveOnboardingStep(0)
+        openOnboarding()
         break
       case 'sendFeedback':
         dialogsStore.openFeedback()

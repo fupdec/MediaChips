@@ -708,6 +708,7 @@ const helpMenu = {
   label: 'Help',
   submenu: [
     menuActionItem('Documentation', 'documentation'),
+    menuActionItem('Getting Started', 'gettingStarted'),
     menuActionItem('Send Feedback', 'sendFeedback'),
     menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),
     {type: 'separator' as const},

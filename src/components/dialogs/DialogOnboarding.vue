@@ -2,7 +2,7 @@
   <v-dialog
     :model-value="dialogs.onboarding.show"
     persistent
-    width="560"
+    width="680"
     @update:model-value="onDialogToggle"
   >
     <v-card rounded="lg">
@@ -22,6 +22,18 @@
           rounded
           class="mb-4"
         />
+
+        <div
+          v-if="currentStep.image"
+          class="onboarding-step-image mb-4 rounded-lg overflow-hidden bg-surface-variant"
+        >
+          <v-img
+            :src="currentStep.image"
+            :alt="currentStep.title"
+            aspect-ratio="16/9"
+            cover
+          />
+        </div>
 
         <div class="text-h6 mb-2">{{ currentStep.title }}</div>
         <p class="text-body-2 text-medium-emphasis mb-0">{{ currentStep.body }}</p>
@@ -61,6 +73,15 @@
           @click="openMediaLibrary"
         >
           {{ t('onboarding.open_library') }}
+        </v-btn>
+
+        <v-btn
+          v-if="currentStep.action === 'plugins'"
+          color="primary"
+          variant="tonal"
+          @click="openPlugins"
+        >
+          {{ t('onboarding.open_plugins') }}
         </v-btn>
 
         <v-btn
@@ -117,26 +138,32 @@ watch(
   },
 )
 
+type OnboardingAction = 'settings' | 'media' | 'plugins' | null
+
 const steps = computed(() => [
   {
     title: t('onboarding.steps.welcome.title'),
     body: t('onboarding.steps.welcome.body'),
-    action: null,
+    image: '/images/onboarding/01-welcome.png',
+    action: null as OnboardingAction,
   },
   {
     title: t('onboarding.steps.library.title'),
     body: t('onboarding.steps.library.body'),
-    action: 'settings',
+    image: '/images/onboarding/02-fields.png',
+    action: 'settings' as OnboardingAction,
   },
   {
     title: t('onboarding.steps.media.title'),
     body: t('onboarding.steps.media.body'),
-    action: 'media',
+    image: '/images/onboarding/03-add-files.png',
+    action: 'media' as OnboardingAction,
   },
   {
     title: t('onboarding.steps.done.title'),
     body: t('onboarding.steps.done.body'),
-    action: null,
+    image: '/images/onboarding/04-ready.png',
+    action: 'plugins' as OnboardingAction,
   },
 ])
 
@@ -181,6 +208,12 @@ async function openSettings() {
   await router.push({path: '/settings', query: {tab: 'library'}})
 }
 
+async function openPlugins() {
+  await completeOnboarding()
+  stepIndex.value = 0
+  await router.push({path: '/settings', query: {tab: 'plugins'}})
+}
+
 async function openMediaLibrary() {
   const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
   const nextStep = stepIndex.value + 1
@@ -195,3 +228,9 @@ async function openMediaLibrary() {
   await router.push('/')
 }
 </script>
+
+<style scoped>
+.onboarding-step-image {
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+</style>

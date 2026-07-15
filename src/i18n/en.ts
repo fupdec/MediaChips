@@ -69,6 +69,7 @@ const en = {
     lock: 'Lock',
     restart: 'Restart',
     documentation: 'Documentation',
+    getting_started: 'Getting started',
     send_feedback: 'Send Feedback',
     report_bug: 'Report a Bug',
     report_bug_subject: 'Bug Report',
@@ -344,6 +345,7 @@ const en = {
     welcome: 'Welcome to the MediaChips app!',
     documentation_hint: "Check out the documentation to learn about the app's capabilities.",
     show_documentation: 'Show documentation',
+    show_onboarding: 'Getting started',
     customize_widgets: 'Customize widgets',
     new_tool: 'New tool!',
     quick_tags_tool_hint: 'You can quickly add tags using the most popular words found in file paths!',
@@ -446,6 +448,7 @@ const en = {
     finish: 'Get started',
     open_settings: 'Open settings',
     open_library: 'Open library',
+    open_plugins: 'Open plugins',
     notification: {
       title: 'Continue setup',
       text: 'You left the getting started guide at step {current} of {total}.',
@@ -454,19 +457,19 @@ const en = {
     steps: {
       welcome: {
         title: 'Welcome to MediaChips',
-        body: 'This short guide helps you set up your library. You can reopen documentation anytime from the home screen.',
+        body: 'Organize local media files — video, images, audio, and text. Add labels, find files quickly, and open them here. Everything stays on your device. You can skip this guide and open it again later from Help.',
       },
       library: {
-        title: 'Set up metadata fields',
-        body: 'Open Settings → Library to create metadata fields. Add at least one Tags field if you want tag categories, then pin fields to your media types.',
+        title: 'Decide what info to store',
+        body: 'In Settings → Library, create fields for the details you need — for example tags, rating, or date. Then choose which file types use them (video, images, and so on). Later you can fill this info for each file.',
       },
       media: {
         title: 'Add your files',
-        body: 'Open your video library and add files or folders. You can also configure watched folders in Settings → Files.',
+        body: 'Open the library and add files or folders. To skip doing this every time, set up watched folders in Settings → Files — new files will show up automatically.',
       },
       done: {
         title: 'You are ready',
-        body: 'Use filters, saved tabs, and home widgets to organize your collection. Enjoy your library!',
+        body: 'Filter the library, save tabs you use often, and arrange the home screen. Tip: plugins can help you organize your media library faster — open Settings → Plugins to see what is available.',
       },
     },
   },

@@ -16,16 +16,29 @@
           {{ t('home.documentation_hint') }}
         </div>
 
-        <v-btn
-          color="primary"
-          rounded
-          size="small"
-          variant="tonal"
-          @click="emitShowDocs"
-        >
-          <v-icon start size="18">mdi-book-open-variant-outline</v-icon>
-          {{ t('home.show_documentation') }}
-        </v-btn>
+        <div class="d-flex flex-wrap ga-2">
+          <v-btn
+            color="primary"
+            rounded
+            size="small"
+            variant="tonal"
+            @click="emitShowDocs"
+          >
+            <v-icon start size="18">mdi-book-open-variant-outline</v-icon>
+            {{ t('home.show_documentation') }}
+          </v-btn>
+
+          <v-btn
+            color="primary"
+            rounded
+            size="small"
+            variant="tonal"
+            @click="openGettingStarted"
+          >
+            <v-icon start size="18">mdi-flag-outline</v-icon>
+            {{ t('home.show_onboarding') }}
+          </v-btn>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -59,7 +72,18 @@
       </v-btn>
     </v-alert>
 
-    <div class="d-flex justify-end mb-2">
+    <div class="d-flex justify-end flex-wrap ga-2 mb-2">
+      <v-btn
+        color="primary"
+        variant="text"
+        rounded
+        size="small"
+        @click="openGettingStarted"
+      >
+        <v-icon start>mdi-flag-outline</v-icon>
+        {{ t('home.show_onboarding') }}
+      </v-btn>
+
       <v-btn
         @click="showWidgetsDialog = true"
         v-tooltip:top="t('home.customize_widgets')"
@@ -106,6 +130,7 @@ import HomeWidgetRenderer from '@/components/widgets/HomeWidgetRenderer.vue'
 import DialogHomeWidgets from '@/components/dialogs/DialogHomeWidgets.vue'
 import {openPath} from '@/services/shellService'
 import {setOption} from '@/services/settingsService'
+import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type { MediaItem } from '@/types/stores'
 
 const store = useAppStore()
@@ -191,6 +216,11 @@ function openTopViewsList() {
 
 function emitShowDocs() {
   emitEventBus("showDocumentation", "app")
+}
+
+async function openGettingStarted() {
+  await saveOnboardingStep(0)
+  openOnboarding()
 }
 
 function copy() {

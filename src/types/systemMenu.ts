@@ -24,6 +24,7 @@ export type SystemMenuAction =
   | 'toggleMaximize'
   | 'closeWindow'
   | 'documentation'
+  | 'gettingStarted'
   | 'sendFeedback'
   | 'keyboardShortcuts'
   | 'checkUpdates'
@@ -90,6 +91,7 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
     labelKey: 'systemBar.menu_help',
     items: [
       {action: 'documentation', icon: 'mdi-book-open-page-variant', labelKey: 'systemBar.documentation'},
+      {action: 'gettingStarted', icon: 'mdi-flag-outline', labelKey: 'systemBar.getting_started'},
       {action: 'sendFeedback', icon: 'mdi-message-text-outline', labelKey: 'systemBar.send_feedback'},
       {action: 'keyboardShortcuts', icon: 'mdi-keyboard-outline', labelKey: 'systemBar.keyboard_shortcuts'},
       {divider: true},

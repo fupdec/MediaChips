@@ -68,6 +68,7 @@ const es = {
     lock: 'Bloquear',
     restart: 'Reiniciar',
     documentation: 'Documentación',
+    getting_started: 'Primeros pasos',
     send_feedback: 'Enviar comentarios',
     report_bug: 'Informar de un error',
     report_bug_subject: 'Informe de error',
@@ -340,6 +341,7 @@ const es = {
     welcome: '¡Bienvenido a MediaChips!',
     documentation_hint: 'Consulte la documentación para conocer las capacidades de la aplicación.',
     show_documentation: 'Mostrar documentación',
+    show_onboarding: 'Primeros pasos',
     customize_widgets: 'Personalizar widgets',
     new_tool: '¡Nueva herramienta!',
     quick_tags_tool_hint: 'Puede agregar etiquetas rápidamente usando las palabras más populares encontradas en las rutas de archivos.',
@@ -439,6 +441,7 @@ const es = {
     finish: 'Empezar',
     open_settings: 'Abrir ajustes',
     open_library: 'Abrir biblioteca',
+    open_plugins: 'Abrir plugins',
     notification: {
       title: 'Continuar configuración',
       text: 'Dejó la guía de inicio en el paso {current} de {total}.',
@@ -447,19 +450,19 @@ const es = {
     steps: {
       welcome: {
         title: 'Bienvenido a MediaChips',
-        body: 'Esta guía breve le ayuda a configurar su biblioteca. Puede volver a abrir la documentación desde la pantalla de inicio.',
+        body: 'Organice archivos multimedia locales: vídeo, imágenes, audio y texto. Añada etiquetas, encuentre archivos rápido y ábralos aquí. Todo permanece en su dispositivo. Puede omitir esta guía y volver a abrirla más tarde desde Ayuda.',
       },
       library: {
-        title: 'Configure los campos de metadatos',
-        body: 'Abra Ajustes → Biblioteca para crear campos. Añada al menos un campo de Etiquetas y fíjelos a sus tipos de medio.',
+        title: 'Elija qué información guardar',
+        body: 'En Ajustes → Biblioteca, cree campos para los datos que necesita — por ejemplo etiquetas, valoración o fecha. Luego indique a qué tipos de archivo se aplican (vídeo, imágenes, etc.). Después podrá rellenar esa información en cada archivo.',
       },
       media: {
         title: 'Añada sus archivos',
-        body: 'Abra su biblioteca de vídeo y añada archivos o carpetas. Las carpetas vigiladas se configuran en Ajustes → Archivos.',
+        body: 'Abra la biblioteca y añada archivos o carpetas. Para no hacerlo cada vez a mano, active carpetas vigiladas en Ajustes → Archivos: los archivos nuevos aparecerán solos.',
       },
       done: {
         title: 'Todo listo',
-        body: 'Use filtros, pestañas guardadas y widgets de inicio para organizar su colección. ¡Disfrute de su biblioteca!',
+        body: 'Filtre la biblioteca, guarde las pestañas que use a menudo y configure la pantalla de inicio. Consejo: los plugins pueden ayudarle a organizar su biblioteca más rápido — abra Ajustes → Plugins para ver lo disponible.',
       },
     },
   },
