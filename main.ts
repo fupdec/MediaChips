@@ -171,6 +171,9 @@ const bindRendererLoadRetry = (
 }
 
 const createWindow = () => {
+  // Allow reveal again when the window is recreated after close (e.g. macOS Dock click).
+  isMainWindowRevealed = false
+
   win = new BrowserWindow({
     show: false,
     height: serverConfig.win?.height || 720,
