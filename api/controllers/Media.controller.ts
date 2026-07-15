@@ -7,7 +7,7 @@ import type { MediaPathUpdatePayload, MediaThumbsRequestPayload } from '@shared/
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import path from 'path'
-import { parseMediaFilePath } from '@shared/mediaPath'
+import { parseMediaFilePath } from '../../shared/mediaPath'
 import {
   deleteMediaGeneratedAssets,
   unlinkResolvedPath,

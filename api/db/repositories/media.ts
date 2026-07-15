@@ -16,7 +16,7 @@ const MEDIA_MUTABLE_COLUMNS = new Set([
   'bookmark', 'views', 'oldId', 'viewedAt', 'mediaTypeId',
 ])
 
-function pickMediaFields(data: Record<string, unknown>): Partial<MediaInsert> {
+function pickMediaFields(data: object): Partial<MediaInsert> {
   const picked: Partial<MediaInsert> = {}
   for (const [key, value] of Object.entries(data)) {
     if (MEDIA_MUTABLE_COLUMNS.has(key)) {
@@ -274,7 +274,7 @@ export function createMediaRepository(db: DrizzleClient) {
       return db.select({id: media.id, oldId: media.oldId}).from(media).all()
     },
 
-    updateById(id: number, data: Record<string, unknown>, options: {silent?: boolean} = {}): void {
+    updateById(id: number, data: object, options: {silent?: boolean} = {}): void {
       const payload = pickMediaFields(data)
       if (!options.silent) {
         payload.updatedAt = nowIso()
@@ -390,7 +390,7 @@ export function createMediaRepository(db: DrizzleClient) {
         .get()
     },
 
-    updateByIds(ids: number[], data: Record<string, unknown>, options: {silent?: boolean} = {}): void {
+    updateByIds(ids: number[], data: object, options: {silent?: boolean} = {}): void {
       if (!ids.length) return
 
       const payload = pickMediaFields(data)

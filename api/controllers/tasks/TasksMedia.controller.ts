@@ -33,7 +33,7 @@ import {
   pathsEquivalent,
   buildPathLookupVariants,
 } from '../../utils/normalizeUserPath'
-import { mediaNameLooksLikePath, parseMediaFilePath } from '@shared/mediaPath'
+import { mediaNameLooksLikePath, parseMediaFilePath } from '../../../shared/mediaPath'
 import { invalidateMediaDerivedCaches } from '../../services/mediaCacheInvalidation'
 
 export default function createTasksMediaController(shared: TaskControllerShared) {

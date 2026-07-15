@@ -3,7 +3,7 @@ import type { AnyRecord } from '../../types/db'
 import { apiErrorMessage } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMediaRepository } from '../../db/repositories/media'
-import { parseMediaFilePath } from '@shared/mediaPath'
+import { parseMediaFilePath } from '../../../shared/mediaPath'
 import {
   getContentHashBackfillStatus,
   getFingerprintBackfillStatus,
