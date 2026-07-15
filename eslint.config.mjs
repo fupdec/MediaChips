@@ -20,6 +20,7 @@ const generatedAndVendor = [
   'electron/*.js',
   'main.js',
   'scripts/*.js',
+  'plugins/**/*.cjs',
 ]
 
 export default tseslint.config(

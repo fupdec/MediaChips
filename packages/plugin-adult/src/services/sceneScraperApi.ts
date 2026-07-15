@@ -30,7 +30,7 @@ async function postSceneScraperRequest(
     const response = await apiClient.post(route, body)
     return parseSceneScraperSearchResponse(response.data)
   } catch (error) {
-    throw new Error(extractApiErrorMessage(error))
+    throw new Error(extractApiErrorMessage(error), { cause: error })
   }
 }
 
@@ -65,7 +65,7 @@ export async function fetchSceneMarkers(sceneId: string): Promise<SceneScraperMa
     const response = await apiClient.post(API_ROUTES.scraperSceneMarkers, { sceneId })
     return parseSceneScraperMarkersResponse(response.data)
   } catch (error) {
-    throw new Error(extractApiErrorMessage(error))
+    throw new Error(extractApiErrorMessage(error), { cause: error })
   }
 }
 
@@ -89,6 +89,6 @@ export async function applySceneMarkersFromTpdb({
     })
     return parseSceneScraperMarkersApplyResult(response.data)
   } catch (error) {
-    throw new Error(extractApiErrorMessage(error))
+    throw new Error(extractApiErrorMessage(error), { cause: error })
   }
 }

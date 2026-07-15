@@ -190,7 +190,7 @@ interface GenerationEvent {
 const {t} = useI18n()
 const tasksStore = useTasksStore()
 
-const buildRequestHeaders = (withJson = false): HeadersInit => {
+const buildRequestHeaders = (withJson = false): Record<string, string> => {
   const token = getAuthToken()
   return {
     ...(withJson ? {'Content-Type': 'application/json'} : {}),
