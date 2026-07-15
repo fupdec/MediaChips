@@ -197,7 +197,7 @@ const filterItems = (
           is_match = !isEmpty(tags);
         } else if (cond === 'not in') {
           is_match = !tags.some((tagId) => filterValues.includes(tagId))
-        } else if (cond === 'not in all') { // исключая все
+        } else if (cond === 'not in all') { // excludes all (missing at least one)
           if (!filterValues.length) {
             is_match = !isEmpty(tags);
           } else {

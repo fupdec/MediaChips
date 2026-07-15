@@ -640,24 +640,13 @@ watch(currentMediaType, () => {
   .filter-block {
     pointer-events: all;
     box-shadow:  0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)), -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)), 5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
-    background-color: transparent !important;
-    position: relative;
-    isolation: isolate;
+    background-color: rgba(var(--v-theme-background), 0.9) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 
+    // tonal underlay would paint opaque primary tint over the glass background
     > .v-card__underlay {
       opacity: 0 !important;
-    }
-
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      background-color: rgba(var(--v-theme-background), 0.9);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      z-index: -1;
-      pointer-events: none;
     }
   }
 

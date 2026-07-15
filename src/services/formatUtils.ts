@@ -219,12 +219,13 @@ export function getListCond(type: string | null | undefined): FilterCondition[] 
   }
 
   if (type === 'array') {
+    // Labels mirror includes: "excludes one of" = has none; "excludes all" = missing at least one.
     return [
       { cond: 'in', icon: 'math-norm', text: 'includes one of' },
       { cond: 'in all', icon: 'equal', text: 'includes all' },
       { cond: 'in only', icon: 'target', text: 'only' },
-      { cond: 'not in', icon: 'not-equal-variant', text: 'excludes all' },
-      { cond: 'not in all', icon: 'not-equal', text: 'excludes one of' },
+      { cond: 'not in', icon: 'not-equal-variant', text: 'excludes one of' },
+      { cond: 'not in all', icon: 'not-equal', text: 'excludes all' },
       { cond: 'is null', icon: 'code-brackets', text: 'empty' },
       { cond: 'not null', icon: 'dots-horizontal', text: 'not empty' },
     ]

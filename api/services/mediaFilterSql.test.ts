@@ -113,7 +113,7 @@ describe('buildMediaFilterQuery', () => {
     expect(result.whereSql).toContain('LOWER(media.name) = LOWER')
   })
 
-  it('builds not in as excludes-all anti-join (no listed tags allowed)', () => {
+  it('builds not in as excludes-one-of anti-join (no listed tags allowed)', () => {
     const result = buildMediaFilterQuery([
       { active: true, param: 17, type: 'array', cond: 'not in', val: [1, 2] },
     ], { mediaTypeId: 1 })
@@ -127,7 +127,7 @@ describe('buildMediaFilterQuery', () => {
     expect(result.whereSql).not.toContain('NOT EXISTS')
   })
 
-  it('builds not in all as excludes-one-of anti-join', () => {
+  it('builds not in all as excludes-all anti-join', () => {
     const result = buildMediaFilterQuery([
       { active: true, param: 17, type: 'array', cond: 'not in all', val: [1, 2] },
     ], { mediaTypeId: 1 })

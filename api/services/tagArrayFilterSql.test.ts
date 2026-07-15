@@ -10,7 +10,7 @@ import {
 } from './tagArrayFilterSql'
 
 describe('buildTagArrayJoinResult', () => {
-  it('builds anti-join for not in (excludes all)', () => {
+  it('builds anti-join for not in (excludes one of)', () => {
     const result = buildTagArrayJoinResult(
       MEDIA_TAG_LINK,
       { cond: 'not in', val: [1, 2] },
@@ -29,7 +29,7 @@ describe('buildTagArrayJoinResult', () => {
     expect(result.join).not.toContain('NOT EXISTS')
   })
 
-  it('builds anti-join for not in all (excludes one of)', () => {
+  it('builds anti-join for not in all (excludes all)', () => {
     const result = buildTagArrayJoinResult(
       MEDIA_TAG_LINK,
       { cond: 'not in all', val: [1, 2] },

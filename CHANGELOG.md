@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Array filter labels** — swap "excludes one of" / "excludes all" so they match include operators (and user expectations)
+- **Filters panel blur** — restore `backdrop-filter` on the panel (pseudo-element + isolation broke the glass effect)
 - **macOS Dock restore** — clicking the Dock icon after closing the main window shows the app again
 - **Grid hover preview** — direct play without live cinema; clearer unavailable state; fix stuck big preview for missing files
 - **Player** — audio leak on close; marker seek on live transcode; Chromium playback for pathological H.264 MP4 layouts
