@@ -7,10 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-15
+
+### Added
+
+- **Plugin system** — install user plugins from folder or zip; SFW builds strip the adult plugin; Adult plugin zip for SFW installs; sample Hello plugin for testing
+- **Adult scrapers as a plugin** — ThePornDB scene and performer scrapers moved into `@mediachips/plugin-adult` with direct API calls
+- **Scene scraper** — manual and bulk scene scrape dialogs, settings wiring, marker import as meta marks, gender filter for performer search/import
+- **Hybrid fingerprints** — dedup, backfill, and folder scan using media fingerprints / oshash storage
+- **Library path tag parsing** — parse tags from paths library-wide with preview dialog and match precision controls
+- **Plugins settings** — catalog UX with installed and planned sections; link to the official download site
+- **Getting-started onboarding** — clearer copy, screenshots, reopen entry points; adult scraper setup guide
+- **SideBar navigation** — section labels and rail tooltips
+- **Markers shuffle sort** — random order option on the markers page
+- **Synonyms meta setting** — toggle synonyms on tag category metadata fields
+- **License device management** — deactivate other devices with live server status
+- **MS Store licensing** — separate licensing path for store builds
+- **Patreon sponsor link** via GitHub FUNDING.yml
+
 ### Changed
 
+- **Grid video previews** — 3×3 sprite grids instead of timeline strips; improved hover/fullscreen big preview UX and start position
+- **Scraper onboarding** — hash step merged into media setup; clearer scraper settings UX
+- **Bulk scrape UX** — status counts, hideable tasks, clearer cancel handling
 - **In-app documentation** — settings tree and articles match current tabs (Plugins, Database maintenance, items-per-page, fingerprint dedup, Adult scrapers)
 - **Paginated media grids** — virtual row rendering stays off to avoid jumpy scroll at page sizes like 50
+- **Electron LAN share** — keep UI offline from LAN discovery and copy a real share URL
+- **Performer scraper transfer** — bio → bookmarks, country/synonym fields, aliases as tag synonyms on auto-apply
+
+### Fixed
+
+- **macOS Dock restore** — clicking the Dock icon after closing the main window shows the app again
+- **Grid hover preview** — direct play without live cinema; clearer unavailable state; fix stuck big preview for missing files
+- **Player** — audio leak on close; marker seek on live transcode; Chromium playback for pathological H.264 MP4 layouts
+- **Bulk path edits** — stop turning media names into full Windows paths; relative shared imports for Electron path updates
+- **Bulk edit** — selection persistence and stale tag display after edits
+- **Migration** — LowDB empty-database false success; clearer API migration error messages
+- **App bar** — tab clicks and scroll arrow styling
+- **SFW packaged builds** — no crash when dotenv/adult routes are absent
+- **TypeScript** — production build type errors unblocked
+- **Tag UI** — refresh MetaInputArray labels after database tag updates; keep marks when deleting tags; poster import and tag card image hover
+- **updatedAt** — bump media `updatedAt` when new tags are assigned
+- **File drops** — skip redundant file scan on direct drops
+- **Playability checks** — faster checks; hide big preview letterbox bars
 
 ## [1.0.11] - 2026-07-11
 
