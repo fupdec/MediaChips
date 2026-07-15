@@ -443,14 +443,6 @@ interface MetaInputArrayInstance {
   create: (name: string) => void
 }
 
-interface ScraperTransferField {
-  isTransfered?: boolean
-  dataType?: string
-  meta: Meta
-  isTagExists?: boolean
-  valueScraper?: string
-}
-
 const props = withDefaults(defineProps<{
   layout?: EditLayout
   showOverview?: boolean
@@ -1051,7 +1043,7 @@ const transferSceneScrapedInfo = async () => {
       if (props.media) {
         mediaOverride.value = {
           ...(mediaOverride.value || props.media),
-          name: nextName || null,
+          name: nextName || undefined,
         }
       }
       continue
@@ -1205,18 +1197,19 @@ const transferScrapedInfo = async () => {
           }
         } else {
           const input = metaInputRefs.value[metaId]
-          if (input?.create && field.valueScraper) {
-            input.create(field.valueScraper)
+          const scraperName = String(field.valueScraper ?? '').trim()
+          if (input?.create && scraperName) {
+            input.create(scraperName)
           }
         }
       } else if (field.dataType === 'country') {
-        setValByKey(field.valueCurrent, 'country')
+        setValByKey(field.valueCurrent as MetaFieldValue, 'country')
       } else if (field.dataType === 'synonyms') {
-        setValByKey(field.valueCurrent, 'synonyms')
+        setValByKey(field.valueCurrent as MetaFieldValue, 'synonyms')
       } else if (field.dataType === 'bookmark') {
-        setValByKey(field.valueCurrent, 'bookmark')
+        setValByKey(field.valueCurrent as MetaFieldValue, 'bookmark')
       } else {
-        setValByKey(field.valueScraper, field.meta.id)
+        setValByKey(field.valueScraper as MetaFieldValue, field.meta.id)
       }
     }
   }

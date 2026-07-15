@@ -12,13 +12,13 @@ const tags: Tag[] = [
     metaId: 10,
     name: 'Angela White',
     synonyms: 'Angela, AW',
-  } as Tag,
+  },
   {
     id: 2,
     metaId: 10,
     name: 'Blacked',
-    synonyms: null,
-  } as Tag,
+    synonyms: undefined,
+  },
 ]
 
 describe('sceneScraperTags', () => {
@@ -58,8 +58,8 @@ describe('sceneScraperTags', () => {
         id: 3,
         metaId: 20,
         name: 'BigNaturals',
-        synonyms: null,
-      } as Tag,
+        synonyms: undefined,
+      },
     ]
 
     expect(findTagByNameOrSynonym(20, 'Big Naturals', studioTags)?.id).toBe(3)

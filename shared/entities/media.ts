@@ -40,6 +40,8 @@ export interface MediaItem {
   id: number
   name?: string
   path?: string
+  basename?: string
+  ext?: string
   mediaTypeId?: number
   width?: number | null
   height?: number | null

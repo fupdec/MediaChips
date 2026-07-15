@@ -135,7 +135,10 @@ export const tasksApi = {
   },
 
   taskCreateTimeline(body: VideoTimelineTaskPayload) {
-    return apiClient.post(API_ROUTES.taskCreateGrid, buildVideoGridTaskParams(body.path, `${body.id}.jpg`))
+    return apiClient.post(
+      API_ROUTES.taskCreateGrid,
+      buildVideoGridTaskParams(body.path ?? '', `${body.id}.jpg`),
+    )
   },
 
   taskCreateThumbForVideo(body: VideoPreviewTaskPayload) {

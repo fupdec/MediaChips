@@ -160,7 +160,7 @@ const query = computed({
 
 const scenes = computed(() => sceneScraperStore.scenes)
 
-const mediaLabel = computed(() => {
+const mediaLabel = computed((): string => {
   const media = dialogsStore.sceneScraper.media
   if (!media) return ''
   return media.basename || media.name || media.path?.split('/').pop() || ''
@@ -281,7 +281,9 @@ function closeDialog(value = false) {
 
 function bootstrapQuery() {
   const media = dialogsStore.sceneScraper.media
-  const filename = media?.basename || media?.name || media?.path?.split('/').pop() || ''
+  const filename = String(
+    media?.basename || media?.name || media?.path?.split('/').pop() || '',
+  )
   sceneScraperStore.setQueryFromFilename(filename)
 
   if (!sceneScraperStore.query && filename) {

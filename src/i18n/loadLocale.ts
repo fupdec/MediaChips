@@ -124,7 +124,7 @@ export async function loadLocale(
 // files does not flash English until settings rehydrate.
 if (initialLocale !== 'en') {
   void loadLocale(initialLocale).then((code) => {
-    i18n.global.locale.value = code
+    i18n.global.locale.value = code as typeof i18n.global.locale.value
   })
 }
 
@@ -141,7 +141,7 @@ async function reloadActiveLocaleMessages(): Promise<void> {
   loadedLocales.add('en')
 
   await loadLocale(current, {reload: true})
-  i18n.global.locale.value = current
+  i18n.global.locale.value = current as typeof i18n.global.locale.value
   if (vuetifyInstance) {
     vuetifyInstance.locale.current.value = current
   }

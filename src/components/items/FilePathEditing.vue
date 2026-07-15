@@ -208,7 +208,7 @@ const applyPathUpdate = (filePath: string) => {
 
   if (props.media?.id == null) return
 
-  itemsStore.updateItem({ id: props.media.id, item: updated })
+  itemsStore.updateItem({ id: props.media.id, item: updated as Partial<MediaItem> })
   eventBus.emit('getItemsFromDb', { ids: [props.media.id], type: 'media' })
 
   const editingMedia = dialogsStore.mediaEditing.media

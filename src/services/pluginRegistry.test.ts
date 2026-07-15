@@ -5,6 +5,7 @@ import {
   createPlannedPluginCatalog,
   createPluginCatalog,
 } from '@shared/plugins'
+import type {PluginPermission} from '@shared/plugins'
 import {
   PluginRegistry,
   getPluginRegistry,
@@ -44,7 +45,7 @@ describe('pluginRegistry', () => {
         icon: 'puzzle',
         engines: {mediachips: '>=1.0.0'},
         requiresAdult: false,
-        permissions: ['ui.settings'] as const,
+        permissions: ['ui.settings'] as PluginPermission[],
       },
       source: 'planned' as const,
       state: 'planned' as const,

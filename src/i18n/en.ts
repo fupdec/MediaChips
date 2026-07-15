@@ -1545,7 +1545,6 @@ const en = {
     show_only_duplicates_by_filesize: 'Show only duplicates by filesize',
     show_only_duplicates_by_path: 'Show only duplicates by path',
     show_only_duplicates_by_fingerprint: 'Show only duplicates by fingerprint',
-    show_only_duplicates_by_fingerprint: 'Show only duplicates by fingerprint',
     deactivate_all_filters: 'Deactivate All Filters',
     deactivate_filter: 'Deactivate filter',
     groups: {

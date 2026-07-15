@@ -121,13 +121,13 @@ function syncSelectedIndexFromStore() {
   selectedIndex.value = index >= 0 ? index : null
 }
 
-function toggleSelection(index: number, toggle: () => void) {
+function toggleSelection(index: number, toggle?: () => void) {
   if (selectedIndex.value === index) {
     clearSelection()
     return
   }
 
-  toggle()
+  toggle?.()
 }
 
 function clearSelection() {

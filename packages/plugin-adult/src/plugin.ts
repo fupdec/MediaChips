@@ -1,4 +1,4 @@
-import type {MediaChipsPlugin, PluginApi, PluginManifest} from '../../shared/plugins/types'
+import type {MediaChipsPlugin, PluginApi, PluginManifest} from '@shared/plugins/types'
 
 /**
  * Stable component keys registered by this plugin.

@@ -16,7 +16,10 @@ export function parseFilePath(
       .map((item) => Number(item.metaId))
   )
 
-  const eligibleTags = tags.filter((tag) => parserMetaIds.has(Number(tag.metaId)))
+  const eligibleTags = tags.filter(
+    (tag): tag is Tag & { metaId: number } =>
+      tag.metaId != null && parserMetaIds.has(Number(tag.metaId)),
+  )
   const matches = matchPathToTags(filePath, mediaId, eligibleTags, {
     preferLongestMatch: settings['pathParser.preferLongestMatch'] === 'true',
     matchPrecision: Number(settings['pathParser.matchPrecision'] || 0.5),

@@ -13,7 +13,8 @@ import { useI18n } from 'vue-i18n'
 
 const vuetify = createVuetify({
   locale: {
-    adapter: createVueI18nAdapter({ i18n, useI18n }),
+    // Vue-i18n locale union widens beyond the adapter's literal `"en"` default.
+    adapter: createVueI18nAdapter({ i18n: i18n as never, useI18n }),
     messages: {
       en: i18n.global.getLocaleMessage('en'),
     },
