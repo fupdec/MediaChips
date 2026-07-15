@@ -120,8 +120,8 @@ const steps = computed(() => [
     body: t('adult_onboarding.steps.media.body'),
     action: 'media' as AdultOnboardingAction,
     actionLabel: t('adult_onboarding.open_library'),
-    secondaryAction: null as AdultOnboardingAction | null,
-    secondaryActionLabel: '',
+    secondaryAction: 'oshash' as AdultOnboardingAction,
+    secondaryActionLabel: t('adult_onboarding.open_oshash'),
   },
   {
     title: t('adult_onboarding.steps.metadata.title'),
@@ -130,14 +130,6 @@ const steps = computed(() => [
     actionLabel: t('adult_onboarding.open_library_settings'),
     secondaryAction: 'scraper' as AdultOnboardingAction,
     secondaryActionLabel: t('adult_onboarding.open_scraper_settings'),
-  },
-  {
-    title: t('adult_onboarding.steps.oshash.title'),
-    body: t('adult_onboarding.steps.oshash.body'),
-    action: 'oshash' as AdultOnboardingAction,
-    actionLabel: t('adult_onboarding.open_oshash'),
-    secondaryAction: null as AdultOnboardingAction | null,
-    secondaryActionLabel: '',
   },
   {
     title: t('adult_onboarding.steps.scenes.title'),

@@ -488,16 +488,12 @@ const en = {
         body: 'Follow these steps to add performers, tags, and player markers from ThePornDB. You will need an API key from their site.',
       },
       media: {
-        title: 'Add your videos',
-        body: 'Add as many videos as you can. New files get an OSHash automatically. The more files you have, the more useful data the scraper can find.',
+        title: 'Add videos and fill hashes',
+        body: 'Add as many videos as you can — new files get an OSHash automatically. Check that previously added videos already have hashes; if not, run the fingerprint backfill in Database settings so every file has a hash for scene matching.',
       },
       metadata: {
         title: 'Create and connect fields',
         body: 'In Library settings, create fields for performers, studio, tags, dates, and so on. Attach them to your videos and tags. Then open the scraper and drag your fields onto the matching options. Use the same performer field for scenes and for performer search.',
-      },
-      oshash: {
-        title: 'Fill hashes for existing videos',
-        body: 'New files get an OSHash when they are added. If you already have videos in the library, open Database settings and run the fingerprint backfill so every file has a hash for scene matching.',
       },
       scenes: {
         title: 'Find scenes for your videos',

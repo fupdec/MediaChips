@@ -481,16 +481,12 @@ const es = {
         body: 'Siga estos pasos para añadir intérpretes, etiquetas y marcadores del reproductor desde ThePornDB. Necesitará una clave API de su sitio.',
       },
       media: {
-        title: 'Añada sus vídeos',
-        body: 'Añada tantos vídeos como pueda. Los archivos nuevos obtienen un OSHash automáticamente. Cuantos más archivos tenga, más datos útiles podrá encontrar el scraper.',
+        title: 'Añada vídeos y rellene los hashes',
+        body: 'Añada tantos vídeos como pueda: los archivos nuevos obtienen un OSHash automáticamente. Compruebe que los vídeos añadidos antes ya tengan hashes; si no, ejecute el relleno de huellas en los ajustes de base de datos para que cada archivo tenga un hash para emparejar escenas.',
       },
       metadata: {
         title: 'Cree y conecte los campos',
         body: 'En los ajustes de biblioteca, cree campos para intérpretes, estudio, etiquetas, fechas, etc. Enlícelos a vídeos y etiquetas. Luego, en el scraper, arrastre sus campos a las opciones correspondientes. Use el mismo campo de intérpretes para escenas y para la búsqueda de intérpretes.',
-      },
-      oshash: {
-        title: 'Rellene los hashes de vídeos existentes',
-        body: 'Los archivos nuevos obtienen un OSHash al añadirse. Si ya tiene vídeos en la biblioteca, abra los ajustes de base de datos y ejecute el relleno de huellas para que cada archivo tenga un hash para emparejar escenas.',
       },
       scenes: {
         title: 'Busque escenas para sus vídeos',
