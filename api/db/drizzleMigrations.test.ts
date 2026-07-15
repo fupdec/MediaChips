@@ -31,7 +31,7 @@ describe('drizzleMigrations', () => {
     const sqlite = new Database(dbPath)
     try {
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 7})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 8})
     } finally {
       sqlite.close()
     }
@@ -47,7 +47,7 @@ describe('drizzleMigrations', () => {
       sqlite.exec(`INSERT INTO SequelizeMeta (name) VALUES ('00_initial.js')`)
       sqlite.exec(`DELETE FROM __drizzle_migrations`)
       ensureLegacyDrizzleBaseline(sqlite)
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 7})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 8})
     } finally {
       sqlite.close()
     }
@@ -56,7 +56,7 @@ describe('drizzleMigrations', () => {
 
     const reopened = new Database(dbPath)
     try {
-      expect(reopened.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 7})
+      expect(reopened.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 8})
     } finally {
       reopened.close()
     }

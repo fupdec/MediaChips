@@ -18,6 +18,7 @@ describe('media repository duplicate lookups', () => {
         ext TEXT,
         filesize INTEGER NOT NULL DEFAULT 0,
         contentHash TEXT,
+        oshash TEXT,
         rating INTEGER DEFAULT 0,
         favorite INTEGER DEFAULT 0,
         bookmark TEXT,
