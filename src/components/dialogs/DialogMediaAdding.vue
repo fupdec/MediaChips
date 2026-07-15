@@ -46,6 +46,60 @@
             {{ t('media.adding.select_folders') }}
           </v-btn>
 
+          <div v-if="!isElectron && mediaRoots.length" class="mb-4">
+            <div class="text-caption text-medium-emphasis mb-2">
+              {{ t('media.adding.mounted_roots_hint') }}
+            </div>
+            <div class="d-flex flex-wrap ga-2 mb-2">
+              <v-chip
+                v-for="root in mediaRoots"
+                :key="root.path"
+                color="primary"
+                variant="tonal"
+                label
+                prepend-icon="mdi-harddisk"
+                @click="appendPath(root.path)"
+              >
+                {{ root.path }}
+              </v-chip>
+            </div>
+            <div
+              v-for="root in mediaRoots"
+              :key="`${root.path}-children`"
+              class="mb-2"
+            >
+              <div
+                v-if="root.children.length"
+                class="text-caption mb-1"
+              >
+                {{ root.name }}
+              </div>
+              <div class="d-flex flex-wrap ga-2">
+                <v-chip
+                  v-for="child in root.children"
+                  :key="child.path"
+                  size="small"
+                  variant="outlined"
+                  prepend-icon="mdi-folder"
+                  @click="appendPath(child.path)"
+                >
+                  {{ child.name }}
+                </v-chip>
+              </div>
+            </div>
+          </div>
+
+          <v-alert
+            v-else-if="!isElectron && mediaRootsLoaded && !mediaRoots.length"
+            type="info"
+            variant="tonal"
+            density="compact"
+            rounded="xl"
+            class="mb-4 text-caption"
+          >
+            {{ t('media.adding.mounted_roots_empty') }}
+          </v-alert>
+
           <!-- Форма с путями к файлам -->
           <v-form ref="mediaForm" v-model="isFormValid">
             <v-textarea
@@ -53,7 +107,7 @@
               @update:model-value="onPathsInput"
               :rules="[requiredPathRule]"
               :label="t('media.adding.paths_label')"
-              :hint="t('media.adding.paths_hint')"
+              :hint="isElectron ? t('media.adding.paths_hint') : t('media.adding.paths_hint_docker')"
               variant="outlined"
               no-resize
               autofocus
@@ -150,6 +204,7 @@ import {useMediaAdding} from '@/composable/AddingMedia'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {collectDroppedPaths} from '@/utils/mediaDrop'
 import {showOpenDialog} from '@/services/electronDialogService'
+import {fetchMediaRoots, type MediaRootEntry} from '@/services/mediaRootsService'
 
 
 // Хуки
@@ -193,6 +248,8 @@ const mediaAdding = useMediaAdding()
 const internalDialogVisible = ref(false)
 const isFormValid = ref(false)
 const mediaForm = ref<VFormInstance>(null)
+const mediaRoots = ref<MediaRootEntry[]>([])
+const mediaRootsLoaded = ref(false)
 
 const isDialogVisible = computed({
   get() {
@@ -268,7 +325,25 @@ const onExcludedInput = (value: string) => {
  */
 onMounted(() => {
   resetDialogState()
+  void loadMediaRoots()
 })
+
+async function loadMediaRoots() {
+  if (isElectron.value) return
+  try {
+    mediaRoots.value = await fetchMediaRoots(appStore.localhost || '')
+  } catch {
+    mediaRoots.value = []
+  } finally {
+    mediaRootsLoaded.value = true
+  }
+}
+
+function appendPath(nextPath: string) {
+  const existing = (tasksStore.mediaAdding.paths || '').trim()
+  const merged = existing ? `${existing}\n${nextPath}` : nextPath
+  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(merged) ?? '')
+}
 
 const handleAddMedia = async () => {
   await mediaAdding.addMedia()
@@ -284,6 +359,7 @@ const handleScanDuplicates = async () => {
 watch(isDialogVisible, (newValue) => {
   if (newValue) {
     resetDialogState()
+    void loadMediaRoots()
   }
 })
 

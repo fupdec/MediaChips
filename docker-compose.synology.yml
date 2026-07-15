@@ -1,0 +1,37 @@
+# Synology DSM / Container Manager example.
+# 1. Edit host paths under volumes.
+# 2. Set MEDIA_CHIPS_PUBLIC_HOST to the NAS LAN IP (Control Panel → Network).
+# 3. Set PUID/PGID to the DSM user that owns your media folders
+#    (SSH: id -u / id -g).
+#
+# Usage in DSM Container Manager → Project, or:
+#   docker compose -f docker-compose.synology.yml up -d
+
+services:
+  mediachips:
+    image: ghcr.io/fupdec/mediachips:latest
+    container_name: mediachips
+    restart: unless-stopped
+    ports:
+      - "12321:12321"
+    volumes:
+      - /volume1/docker/mediachips/data:/data
+      - /volume1/video:/media/video
+      - /volume1/photo:/media/photo
+      # - /volume1/homes/USER/movies:/media/movies
+    environment:
+      NODE_ENV: production
+      TZ: Europe/Moscow
+      PUID: "1026"
+      PGID: "100"
+      MEDIA_CHIPS_ALLOW_LAN: "1"
+      MEDIA_CHIPS_DATA_DIR: /data
+      MEDIA_CHIPS_PUBLIC_HOST: "192.168.1.50"
+      FFMPEG_PATH: /usr/bin/ffmpeg
+      FFPROBE_PATH: /usr/bin/ffprobe
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:12321/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

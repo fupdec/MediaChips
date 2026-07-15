@@ -9,7 +9,9 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
+# file: packages/plugin-adult must exist before npm ci
 COPY package*.json ./
+COPY packages/plugin-adult/package.json ./packages/plugin-adult/
 RUN npm ci --ignore-scripts
 
 COPY . .
@@ -20,29 +22,51 @@ RUN node scripts/compile.mjs backend \
 
 FROM node:22-alpine AS runner
 
-RUN apk add --no-cache ffmpeg
+RUN apk add --no-cache \
+    ffmpeg \
+    python3 \
+    make \
+    g++ \
+    tini \
+    su-exec \
+    shadow
 
 WORKDIR /app
 
 COPY package*.json ./
+COPY packages/plugin-adult/package.json ./packages/plugin-adult/
 RUN npm ci --omit=dev --ignore-scripts \
-    && npm rebuild better-sqlite3
+    && npm rebuild better-sqlite3 \
+    && apk del python3 make g++
 
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/packages/plugin-adult/src/server ./packages/plugin-adult/src/server
+COPY --from=builder /app/packages/plugin-adult/package.json ./packages/plugin-adult/package.json
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN mkdir -p /app/app_storage \
+# Prefer Alpine system binaries over glibc ffmpeg-static / ffprobe-static.
+ENV FFMPEG_PATH=/usr/bin/ffmpeg \
+    FFPROBE_PATH=/usr/bin/ffprobe \
+    NODE_ENV=production \
+    MEDIA_CHIPS_ALLOW_LAN=1 \
+    MEDIA_CHIPS_DATA_DIR=/data \
+    PUID=1001 \
+    PGID=1001
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /app/app_storage /data \
     && addgroup -g 1001 -S nodejs \
     && adduser -S nodejs -u 1001 -G nodejs \
-    && chown -R nodejs:nodejs /app
-
-USER nodejs
+    && chown -R nodejs:nodejs /app /data
 
 EXPOSE 12321
 
-ENV NODE_ENV=production
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:12321/api/health >/dev/null || exit 1
 
+ENTRYPOINT ["tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "app/server.js"]

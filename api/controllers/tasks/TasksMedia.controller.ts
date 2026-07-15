@@ -150,7 +150,10 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     const resolvedPath = await resolveExistingPath(pathToFile)
 
     if (!resolvedPath) {
-      throw new Error(`File not found: ${pathToFile}`)
+      const dockerHint = process.env.MEDIA_CHIPS_DATA_DIR
+        ? ' In Docker/NAS, mount the host folder and use the in-container path (for example /media/movies/...).'
+        : ''
+      throw new Error(`File not found: ${pathToFile}.${dockerHint}`)
     }
 
     const stats = await stat(resolvedPath)

@@ -1,4 +1,5 @@
 import os from 'os'
+import { isDockerLikeInterface, isLikelyContainerBridgeIp, isUsableLanAddress } from './publicHost'
 
 type NetworkInterfaces = Record<string, import('os').NetworkInterfaceInfo[] | undefined>
 
@@ -20,6 +21,7 @@ function getBestLocalIp() {
   const allIps = []
   for (const [name, ifaces] of Object.entries(interfaces)) {
     if (!ifaces) continue
+    if (isDockerLikeInterface(name)) continue
     for (const iface of ifaces) {
       if (iface.family === 'IPv4' && !iface.internal) {
         allIps.push({
@@ -27,31 +29,40 @@ function getBestLocalIp() {
           interface: name,
           mac: iface.mac,
           isLinkLocal: iface.address.startsWith('169.254.'),
+          isContainerBridge: isLikelyContainerBridgeIp(iface.address),
         })
       }
     }
   }
 
   for (const ifaceName of preferredOrder) {
-    const interfaceIp = allIps.find(ip => ip.interface === ifaceName && !ip.isLinkLocal)
+    const interfaceIp = allIps.find(ip =>
+      ip.interface === ifaceName && !ip.isLinkLocal && !ip.isContainerBridge)
     if (interfaceIp) {
       console.log(`Selected IP ${interfaceIp.address} by interface priority ${ifaceName}`)
       return interfaceIp.address
     }
   }
 
-  const nonLinkLocalIps = allIps.filter(ip => !ip.isLinkLocal)
+  const lanIps = allIps.filter(ip => isUsableLanAddress(ip.address, ip.interface) && !ip.isContainerBridge)
   for (const prefix of ipPriority) {
-    const matchingIp = nonLinkLocalIps.find(ip => ip.address.startsWith(prefix))
+    const matchingIp = lanIps.find(ip => ip.address.startsWith(prefix))
     if (matchingIp) {
       console.log(`Selected IP ${matchingIp.address} by prefix ${prefix}`)
       return matchingIp.address
     }
   }
 
-  if (nonLinkLocalIps.length > 0) {
-    console.log(`Selected first non-link-local IP: ${nonLinkLocalIps[0].address}`)
-    return nonLinkLocalIps[0].address
+  if (lanIps.length > 0) {
+    console.log(`Selected first usable LAN IP: ${lanIps[0].address}`)
+    return lanIps[0].address
+  }
+
+  // Last resort: docker bridge IP (still better than nothing for diagnostics).
+  const anyUsable = allIps.filter(ip => isUsableLanAddress(ip.address, ip.interface))
+  if (anyUsable.length > 0) {
+    console.log(`Only container/bridge IPs available, selected: ${anyUsable[0].address}`)
+    return anyUsable[0].address
   }
 
   if (allIps.length > 0) {
@@ -69,6 +80,7 @@ function getAllIps() {
 
   for (const [name, ifaces] of Object.entries(interfaces)) {
     if (!ifaces) continue
+    if (isDockerLikeInterface(name)) continue
     for (const iface of ifaces) {
       if (iface.family === 'IPv4' && !iface.internal) {
         ips.push({

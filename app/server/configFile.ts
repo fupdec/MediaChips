@@ -200,6 +200,22 @@ export function saveConfigFile(configPath: string, config: ConfigFileRecord | Se
   const payload = JSON.stringify(normalized, null, 2)
   const tempPath = `${configPath}.tmp`
   fs.writeFileSync(tempPath, payload, 'utf8')
-  fs.renameSync(tempPath, configPath)
+
+  try {
+    fs.renameSync(tempPath, configPath)
+  } catch (err: unknown) {
+    // Bind-mounted files (Docker/Synology) often reject atomic rename with EBUSY/EXDEV.
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as {code?: unknown}).code) : ''
+    if (code === 'EBUSY' || code === 'EXDEV') {
+      fs.writeFileSync(configPath, payload, 'utf8')
+      try {
+        fs.unlinkSync(tempPath)
+      } catch {
+        // ignore cleanup failures
+      }
+      return
+    }
+    throw err
+  }
 }
 

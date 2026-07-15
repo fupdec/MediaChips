@@ -39,6 +39,18 @@ function isLanAccessEnabledInConfig(config: LanShareConfig): boolean {
     || value === 'true'
 }
 
+function isLikelyContainerBridgeIp(address: string): boolean {
+  const match = /^172\.(\d+)\./.exec(address)
+  if (!match) return false
+  const second = Number(match[1])
+  return second >= 16 && second <= 31
+}
+
+function isShareableLanHost(host: string | null | undefined): boolean {
+  if (!host || isLoopbackHost(host)) return false
+  return !isLikelyContainerBridgeIp(host)
+}
+
 /** URL other devices should open. Never returns Electron's localhost origin. */
 export function resolveLanShareUrl(config: LanShareConfig = {}): string | null {
   if (!isLanAccessEnabledInConfig(config)) return null
@@ -48,18 +60,23 @@ export function resolveLanShareUrl(config: LanShareConfig = {}): string | null {
   if (webUrl) {
     try {
       const host = new URL(webUrl).hostname
-      if (!isLoopbackHost(host)) return webUrl
+      if (isShareableLanHost(host)) return webUrl
     } catch {
       // ignore invalid webUrl
     }
   }
 
-  if (config.ip && !isLoopbackHost(config.ip)) {
+  if (isShareableLanHost(config.ip)) {
     return `http://${config.ip}:${port}`
   }
 
-  const lanIp = (config.ips || []).find((ip) => !isLoopbackHost(ip))
+  const lanIp = (config.ips || []).find((ip) => isShareableLanHost(ip))
   if (lanIp) return `http://${lanIp}:${port}`
+
+  // Browser opened via real LAN IP — reuse it for the share banner.
+  if (typeof window !== 'undefined' && isShareableLanHost(window.location.hostname)) {
+    return window.location.origin.replace(/\/$/, '')
+  }
 
   return null
 }
@@ -78,6 +95,12 @@ export function resolveApiBaseUrl(config: AppConfig = {}, serverInfo: ServerInfo
     const appPort = String(config.port || DEFAULT_PORT)
 
     if (['http:', 'https:'].includes(protocol) && port === appPort) {
+      return origin.replace(/\/$/, '')
+    }
+
+    // Docker/Synology often publish the container on a host port that differs from
+    // the in-container FIXED_PORT written into config.json. Prefer the page origin.
+    if (!import.meta.env.DEV && ['http:', 'https:'].includes(protocol)) {
       return origin.replace(/\/$/, '')
     }
   }

@@ -18,12 +18,21 @@ function resolveBundledBinary(modulePath: string | null | undefined): string {
   return modulePath
 }
 
+function resolvePathFromEnvOrBundled(envName: string, bundledPath: string | null | undefined): string {
+  const fromEnv = process.env[envName]
+  if (fromEnv && fs.existsSync(fromEnv)) {
+    return fromEnv
+  }
+
+  return resolveBundledBinary(bundledPath)
+}
+
 function getFfmpegPath(): string {
-  return resolveBundledBinary(require('ffmpeg-static'))
+  return resolvePathFromEnvOrBundled('FFMPEG_PATH', require('ffmpeg-static'))
 }
 
 function getFfprobePath(): string {
-  return resolveBundledBinary(require('ffprobe-static').path)
+  return resolvePathFromEnvOrBundled('FFPROBE_PATH', require('ffprobe-static').path)
 }
 
 export {

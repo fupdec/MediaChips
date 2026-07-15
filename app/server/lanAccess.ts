@@ -3,6 +3,7 @@ import type { ServerConfig, NetworkIpInfo } from '../types/server'
 import os from 'os'
 import { createSettingsRepository } from '../../api/db/repositories/settings'
 import { saveConfigFile } from './configFile'
+import { pickPublicHost } from './publicHost'
 
 const LAN_ENABLED_VALUES = ['1', 'true', 'yes', 'on']
 
@@ -56,7 +57,7 @@ function syncNetworkConfig(
   enabled: boolean,
   helpers: NetworkHelpers,
 ) {
-  const bestIp = helpers.getBestLocalIp()
+  const bestIp = pickPublicHost(helpers, {})
   const allIps = helpers.getAllIps()
 
   config.ip = enabled ? bestIp : 'localhost'

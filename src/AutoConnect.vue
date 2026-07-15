@@ -113,6 +113,34 @@ async function startDiscovery() {
   scanProgress.value = 0;
   scannedCount.value = 0;
 
+  // If Express already serves this page, connect immediately (Docker remap friendly).
+  if (['http:', 'https:'].includes(window.location.protocol) && !import.meta.env.DEV) {
+    try {
+      const originUrl = window.location.origin
+      const response = await fetch(`${originUrl}/api/ping`, {
+        signal: AbortSignal.timeout(3000),
+      })
+      if (response.ok) {
+        const result = {
+          success: true,
+          ip: window.location.hostname || 'localhost',
+          url: originUrl,
+          apiUrl: `${originUrl}/api`,
+          responseTime: 0,
+          status: 'online',
+          timestamp: new Date().toISOString(),
+        }
+        serverInfo.value = result
+        status.value = 'connected'
+        emit('connected', result)
+        localStorage.setItem('lastServer', JSON.stringify(result))
+        return
+      }
+    } catch {
+      // fall through to LAN discovery
+    }
+  }
+
   // Progress simulation
   const progressInterval = setInterval(() => {
     if (scanProgress.value < 90) {

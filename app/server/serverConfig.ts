@@ -5,10 +5,12 @@ import fs from 'fs'
 import os from 'os'
 import { loadConfigFile, createDefaultConfig, saveConfigFile } from './configFile'
 import { FIXED_PORT } from './ports'
+import { pickPublicHost } from './publicHost'
 
 function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   let app_folder: string | undefined
   const is_electron_running = process.versions.electron
+  const dataDir = process.env.MEDIA_CHIPS_DATA_DIR?.trim()
 
   if (is_electron_running) {
     app_folder = process.env.PORTABLE_EXECUTABLE_DIR || process.electron_app!.getPath('userData')
@@ -25,11 +27,15 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
         console.error('Error while preserving data:', err)
       }
     }
+  } else if (dataDir) {
+    app_folder = path.resolve(dataDir)
+    process.app_folder = app_folder
+    fs.mkdirSync(app_folder, {recursive: true})
   }
 
   let configPath
-  if (is_electron_running) {
-    configPath = path.join(app_folder!, '/config.json')
+  if (app_folder) {
+    configPath = path.join(app_folder, 'config.json')
   } else {
     configPath = path.join(__dirname, '../../public/config.json')
   }
@@ -60,7 +66,7 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   }
 
   const allIpsInfo = getAllIps()
-  const bestIp = getBestLocalIp()
+  const bestIp = pickPublicHost({getBestLocalIp, getAllIps}, {})
 
   config.ip = bestIp
   config.ips = allIpsInfo.map((ip: NetworkIpInfo) => ip.address)
@@ -82,8 +88,8 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   }
 
   let databasesPath
-  if (is_electron_running) {
-    databasesPath = path.join(app_folder!, '/app_storage')
+  if (app_folder) {
+    databasesPath = path.join(app_folder, 'app_storage')
   } else {
     databasesPath = path.join(__dirname, '../../app_storage')
   }

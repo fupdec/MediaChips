@@ -95,6 +95,17 @@ Pre-built installers are published on GitHub:
 
 For macOS installation notes (Gatekeeper / quarantine), see [INSTALLATION.md](./INSTALLATION.md).
 
+### Docker / Synology / NAS
+
+Self-host with Docker (multi-arch image for DSM and similar NAS systems):
+
+```bash
+docker compose up -d --build
+# or pull: ghcr.io/fupdec/mediachips:latest
+```
+
+See **[DOCKER.md](./DOCKER.md)** for Synology DSM volumes, `PUID`/`PGID`, LAN share URL, and how to add media via `/media/...` mounts.
+
 ---
 
 ## Build from source

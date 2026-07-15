@@ -31,30 +31,40 @@ const RECONNECT_INTERVAL_MS = 2000
 const isConfigLoaded = ref(false)
 const app = useAppStore()
 
-const isConnected = ref(false)
-const currentServer: Ref<ServerInfo | null> = ref(null)
-const showManual = ref(false)
-const reconnectHint = ref('')
 const isDevBrowser = import.meta.env.DEV && !window.electronAPI
 const isElectronHost = Boolean(window.electronAPI)
-let connectInFlight: Promise<void> | null = null
-let electronConfigListenerBound = false
-let consecutivePingFailures = 0
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-let healthCheckTimer: ReturnType<typeof setInterval> | null = null
 
 // Dedicated player window is Electron-only.
 const isPlayerWindow = ref(
   window.location.search.includes('player=true') && Boolean(window.electronAPI)
 )
 
+// Resolve same-origin before first render so AutoConnect/LAN scan never mounts
+// when Express already serves the page (Docker port remap included).
+const initialOriginServer = !isElectronHost && !isPlayerWindow.value
+  ? getCurrentOriginServer()
+  : null
+
+const isConnected = ref(Boolean(initialOriginServer) || isElectronHost || isPlayerWindow.value)
+const currentServer: Ref<ServerInfo | null> = ref(
+  initialOriginServer
+    ? normalizeServerInfo(initialOriginServer)
+    : (isElectronHost || isPlayerWindow.value ? getLocalServerInfo() : null),
+)
+const showManual = ref(false)
+const reconnectHint = ref('')
+let connectInFlight: Promise<void> | null = null
+let electronConfigListenerBound = false
+let consecutivePingFailures = 0
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let healthCheckTimer: ReturnType<typeof setInterval> | null = null
+
 // Make current server available to all components
 provide('currentServer', currentServer);
 
 onMounted(() => {
-  const currentOriginServer = getCurrentOriginServer()
-  if (currentOriginServer) {
-    handleServerConnected(normalizeServerInfo(currentOriginServer));
+  if (initialOriginServer) {
+    handleServerConnected(normalizeServerInfo(initialOriginServer));
     return;
   }
 
@@ -133,16 +143,24 @@ function restoreLastServerConnection() {
   }
 }
 
-function getCurrentOriginServer() {
-  const fixedPort = String(FIXED_PORT)
+function getCurrentOriginServer(): ServerInfo | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
 
   if (!['http:', 'https:'].includes(window.location.protocol)) {
     return null
   }
 
-  // Vite dev server runs on a different port, so only accept the app server.
-  if (window.location.port !== fixedPort) {
-    return null
+  // Vite DEV serves UI on another port (e.g. 3000); only trust same-origin there
+  // when it already matches the backend port. Production Express (including Docker
+  // published on a remapped host port like 12322→12321) always serves API + UI
+  // from the current origin.
+  if (import.meta.env.DEV) {
+    const fixedPort = String(FIXED_PORT)
+    if (window.location.port && window.location.port !== fixedPort) {
+      return null
+    }
   }
 
   return {

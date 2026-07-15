@@ -1,33 +1,31 @@
-version: '3.8'
-
 services:
   mediachips:
     build: .
+    image: mediachips:local
     container_name: mediachips
     restart: unless-stopped
     ports:
       - "12321:12321"
     volumes:
-      # Основные данные приложения
-      - ./app_storage:/app/app_storage
-      - ./public/config.json:/app/public/config.json
-
-      # Media folders. Replace host paths with your own directories.
-      - ./media/video:/media/video:ro
-      - ./media/movies:/media/movies:ro
-      - ./media/series:/media/series:ro
-
-      # Add more media folders if needed.
-      # - ./media/another_folder:/media/another:ro
-
+      # Config + SQLite DBs + generated thumbs
+      - ./docker-data:/data
+      # Host media libraries → in-container paths used in Add media
+      - /Users/vit/Movies:/media/movies
+      # - /path/to/series:/media/series
     environment:
       - NODE_ENV=production
-      - TZ=UTC
-      # Docker needs LAN binding so the published port can accept host traffic.
+      - TZ=${TZ:-UTC}
+      - PUID=${PUID:-1001}
+      - PGID=${PGID:-1001}
       - MEDIA_CHIPS_ALLOW_LAN=1
-    networks:
-      - media-network
-
-networks:
-  media-network:
-    driver: bridge
+      - MEDIA_CHIPS_DATA_DIR=/data
+      # LAN/NAS IP for the home-page share link (phones). Example: 192.168.1.50
+      - MEDIA_CHIPS_PUBLIC_HOST=${MEDIA_CHIPS_PUBLIC_HOST:-}
+      - FFMPEG_PATH=/usr/bin/ffmpeg
+      - FFPROBE_PATH=/usr/bin/ffprobe
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:12321/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

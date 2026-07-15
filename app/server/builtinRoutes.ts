@@ -12,7 +12,10 @@ import fs from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import { normalizeMediaPath } from '../../api/utils/normalizeUserPath'
 import { isLanAccessEnabled, isLanAccessEnvLocked, applyLanAccessChange } from './lanAccess'
-import { isAllowedOrigin, isLoopbackHost } from './constants'
+import { isAllowedOrigin } from './constants'
+import { pickPublicHost } from './publicHost'
+import { listMediaRoots } from '../../api/services/mediaRoots'
+import { getBestLocalIp, getAllIps } from './network'
 import { saveConfigFile } from './configFile'
 import { isClientAbortError, safeJsonError } from './fileResolver'
 import { streamVideoFile } from '../../api/services/transcode/streamVideoFile'
@@ -113,14 +116,22 @@ function registerBuiltinRoutes({
     }
   })
 
+  app.get('/api/media-roots', (_req: ApiRequest, res: ApiResponse) => {
+    res.json({
+      roots: listMediaRoots(),
+      configured: Boolean(process.env.MEDIA_CHIPS_MEDIA_ROOTS?.trim())
+        || listMediaRoots().length > 0,
+    })
+  })
+
   app.get('/api/config', (req: ApiRequest, res: ApiResponse) => {
     console.log('Config request from:', req.headers.origin || 'unknown origin')
 
     const activeDb = config.databases.find((dbEntry: ServerDatabaseEntry) => dbEntry.active)
-    const requestHostname = req.hostname
-    const frontendIp = requestHostname && !isLoopbackHost(requestHostname)
-      ? requestHostname
-      : config.ip
+    const frontendIp = pickPublicHost(
+      {getBestLocalIp, getAllIps},
+      {requestHostname: req.hostname},
+    )
 
     const responseConfig = {
       ip: frontendIp,
