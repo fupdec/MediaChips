@@ -81,8 +81,8 @@ Desktop builds are available for **macOS**, **Windows**, and **Linux**.
 - Watched folders for new and removed files
 - File operations: move, delete, open containing folder
 - Password protection
-- Duplicate detection by file size
-- Data scraper for adult content
+- Duplicate detection by hybrid fingerprint (and related health alerts)
+- Plugins (optional Adult pack with performer/scene scrapers)
 - Path-based tag suggestions (optional ML model)
 
 ---

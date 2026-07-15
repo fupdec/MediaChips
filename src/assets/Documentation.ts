@@ -147,12 +147,6 @@ export const docs = [
             icon: 'mdi-tag-plus-outline',
             selector: ['[href="/settings"]', '#settings-quick-tags'],
           },
-          {
-            id: 'data_scraper',
-            name: 'Data scraper',
-            icon: 'mdi-search-web',
-            selector: ['[href="/settings"]', '#settings-doc-tab-library'],
-          },
         ],
       },
       {
@@ -187,13 +181,32 @@ export const docs = [
               { id: 'database.backups.restore', name: 'Restoring backups', icon: 'mdi-database-refresh' },
             ],
           },
-          { id: 'settings.files.content_hash', name: 'Content hash backfill', icon: 'mdi-fingerprint' },
+          {
+            id: 'database.fingerprint',
+            name: 'Dedup fingerprints',
+            icon: 'mdi-fingerprint',
+            selector: ['[href="/settings"]', '#settings-fingerprint-backfill'],
+          },
           { id: 'settings.files.find_missing', name: 'Find missing files', icon: 'mdi-file-search-outline' },
           {
             id: 'settings.files.generated_previews',
             name: 'Generated previews',
             icon: 'mdi-image-auto-adjust',
             selector: ['[href="/settings"]', '#settings-generate-video-images'],
+          },
+        ],
+      },
+      {
+        id: 'settings.plugins',
+        name: 'Plugins',
+        icon: 'mdi-puzzle-outline',
+        selector: ['[href="/settings"]', '#settings-doc-tab-plugins'],
+        children: [
+          {
+            id: 'data_scraper',
+            name: 'Data scraper',
+            icon: 'mdi-search-web',
+            selector: ['[href="/settings"]', '#settings-doc-tab-plugins'],
           },
         ],
       },

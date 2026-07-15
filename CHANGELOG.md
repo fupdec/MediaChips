@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **In-app documentation** — settings tree and articles match current tabs (Plugins, Database maintenance, items-per-page, fingerprint dedup, Adult scrapers)
+- **Paginated media grids** — virtual row rendering stays off to avoid jumpy scroll at page sizes like 50
+
 ## [1.0.11] - 2026-07-11
 
 ### Added
