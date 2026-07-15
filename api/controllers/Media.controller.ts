@@ -7,6 +7,7 @@ import type { MediaPathUpdatePayload, MediaThumbsRequestPayload } from '@shared/
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import path from 'path'
+import { parseMediaFilePath } from '@shared/mediaPath'
 import {
   deleteMediaGeneratedAssets,
   unlinkResolvedPath,
@@ -151,12 +152,7 @@ export default function (db: ApiDb) {
   const updatePath = function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MediaPathUpdatePayload>(req)
-      const data = {
-        path: body.path,
-        basename: path.basename(String(body.path ?? '')),
-        name: path.parse(String(body.path ?? '')).name,
-        ext: path.extname(String(body.path ?? '')),
-      }
+      const data = parseMediaFilePath(String(body.path ?? ''))
 
       mediaRepo.updateById(Number(body.id), data, {silent: true})
       invalidateMediaDerivedCaches()

@@ -144,6 +144,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import path from 'path-browserify'
+import { parseMediaFilePath } from '@shared/mediaPath'
 import {typedApi} from '@/services/typedApi'
 import { useOperationsStore } from '@/stores/operations'
 import { useItemsStore } from '@/stores/items'
@@ -197,16 +198,7 @@ watch(() => props.media.path, (value) => {
   display_path.value = value || ''
 }, { immediate: true })
 
-const buildPathFields = (filePath: string) => {
-  const ext = path.extname(filePath)
-  const basename = path.basename(filePath)
-  return {
-    path: filePath,
-    basename,
-    name: ext ? basename.slice(0, -ext.length) : basename,
-    ext,
-  }
-}
+const buildPathFields = (filePath: string) => parseMediaFilePath(filePath)
 
 const applyPathUpdate = (filePath: string) => {
   const updated = buildPathFields(filePath)
@@ -278,7 +270,7 @@ const copyPath = () => {
 }
 
 const savePathToDb = async (filePath: string, { notify = true } = {}) => {
-  const basename = path.basename(filePath)
+  const { basename } = parseMediaFilePath(filePath)
 
   try {
     await typedApi.updateMediaPath({
@@ -337,7 +329,7 @@ const updateFilePath = async () => {
   if (!file_path.value) return
 
   const filePath = file_path.value
-  const basename = path.basename(filePath)
+  const { basename } = parseMediaFilePath(filePath)
   const shouldMove = is_file_exists.value && is_different_path.value && move_file.value
 
   if (shouldMove) {

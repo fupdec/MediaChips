@@ -106,7 +106,6 @@
 
 <script setup lang="ts">
 import {typedApi} from "@/services/typedApi"
-import path from "path-browserify"
 import {ref, computed} from "vue"
 import {useI18n} from "vue-i18n"
 import {useDialogsStore} from "@/stores/dialogs"
@@ -172,15 +171,13 @@ const replaceFiles = async () => {
   const str = found.value
   const repl = replacement.value
 
+  // Only send id + path; the API derives basename/name/ext with
+  // cross-platform path parsing so Windows `\` paths don't become names.
   const replaced = files.value.map((i) => {
     const currentPath = i.path || ''
-    const newPath = currentPath.replace(str, repl)
     return {
       id: i.id,
-      path: newPath,
-      ext: path.extname(newPath),
-      basename: path.basename(newPath),
-      name: path.basename(newPath).replace(/\.[^/.]+$/, ""),
+      path: currentPath.replace(str, repl),
     }
   })
 

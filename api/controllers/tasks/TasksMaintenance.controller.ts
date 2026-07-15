@@ -3,7 +3,7 @@ import type { AnyRecord } from '../../types/db'
 import { apiErrorMessage } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMediaRepository } from '../../db/repositories/media'
-import path from 'path'
+import { parseMediaFilePath } from '@shared/mediaPath'
 import {
   getContentHashBackfillStatus,
   getFingerprintBackfillStatus,
@@ -369,11 +369,12 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
         if (!filePath || !mediaId) continue
 
+        const parsed = parseMediaFilePath(filePath)
         const data: AnyRecord = {
-          path: filePath,
-          basename: path.basename(filePath),
-          name: path.parse(filePath).name,
-          ext: path.extname(filePath),
+          path: parsed.path,
+          basename: parsed.basename,
+          name: parsed.name,
+          ext: parsed.ext,
         }
 
         if (item.contentHash) {
