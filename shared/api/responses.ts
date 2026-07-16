@@ -83,6 +83,8 @@ export type ItemsPageListQuery = ItemsListRequest
 export interface GetItemsFromDbEvent {
   ids?: Array<number | string | undefined>
   type: string
+  /** Optional partial fields to apply immediately (before refetch). */
+  patch?: Record<string, unknown>
 }
 
 export interface RemoveEntitiesPayload {

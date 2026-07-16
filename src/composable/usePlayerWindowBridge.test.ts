@@ -97,17 +97,29 @@ describe('usePlayerWindowBridge', () => {
     })
   })
 
+  it('emits getItemsFromDb with optional patch', () => {
+    const {updateItemVideo} = usePlayerWindowBridge()
+    updateItemVideo(42, {time: 123})
+
+    expect(emitMock).toHaveBeenCalledWith('getItemsFromDb', {
+      ids: [42],
+      type: 'media',
+      patch: {time: 123},
+    })
+  })
+
   it('sends getItemsFromDb through electron in standalone mode', () => {
     routeRef.value = {query: {player: 'true'}}
     const send = vi.fn()
     window.electronAPI = mockElectronApi({send})
 
     const {updateItemVideo} = usePlayerWindowBridge()
-    updateItemVideo(7)
+    updateItemVideo(7, {time: 45})
 
     expect(send).toHaveBeenCalledWith('getItemsFromDb', {
       ids: [7],
       type: 'media',
+      patch: {time: 45},
     })
     expect(emitMock).not.toHaveBeenCalled()
   })

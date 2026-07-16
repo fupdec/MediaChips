@@ -18,6 +18,7 @@ import type {
   RemoveEntitiesEvent,
   UseItemsPageEventsOptions,
 } from '@/types/itemsPage'
+import type { MediaItem } from '@/types/stores'
 import { normalizeEntityIds, normalizeRemoveEntitiesEvent } from '@/utils/eventPayloads'
 
 export function useItemsPageEvents({
@@ -75,12 +76,21 @@ export function useItemsPageEvents({
   }
 
   const handleGetItemsFromDb: Handler = (event) => {
-    const {ids, type} = event as GetItemsFromDbEvent
+    const {ids, type, patch} = event as GetItemsFromDbEvent
     if (props.items_type !== type) return
     const normalizedIds = normalizeEntityIds(ids)
     if (Array.isArray(normalizedIds) && normalizedIds.length === 0 && loader.value.is_busy) {
       return
     }
+
+    // Apply optimistic patch so cards update immediately (e.g. watched time),
+    // then refetch from DB for the full item payload.
+    if (patch && normalizedIds?.length) {
+      for (const id of normalizedIds) {
+        itemsStore.updateItem({id, item: patch as Partial<MediaItem>})
+      }
+    }
+
     void getItemsFromDb(normalizedIds)
   }
 

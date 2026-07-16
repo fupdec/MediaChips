@@ -41,10 +41,14 @@ export function usePlayerWindowBridge({
     document.title = appStore.app_title || 'MediaChips'
   }
 
-  const updateItemVideo = (id: number | string) => {
+  const updateItemVideo = (
+    id: number | string,
+    patch?: Record<string, unknown>,
+  ) => {
     const data = {
       ids: [id],
       type: 'media',
+      ...(patch ? {patch} : {}),
     }
 
     if (isPlayerWindow.value && window.electronAPI?.send) {

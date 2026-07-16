@@ -21,6 +21,13 @@ export function createVideoMetadataRepository(db: DrizzleClient) {
     },
 
     updateByMediaId(mediaId: number, data: Partial<VideoMetadataInsert>): void {
+      const existing = this.findByMediaId(mediaId)
+      if (!existing) {
+        db.insert(videoMetadata)
+          .values({mediaId, ...data})
+          .run()
+        return
+      }
       db.update(videoMetadata)
         .set(data)
         .where(eq(videoMetadata.mediaId, mediaId))

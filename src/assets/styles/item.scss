@@ -820,6 +820,9 @@
   }
   .v-progress-linear {
     flex: 1 0 auto;
+    margin-top: -1px;
+    position: relative;
+    z-index: 1;
   }
 }
 
@@ -1074,6 +1077,7 @@
 
       &__fill {
         box-shadow: 0 0 14px rgba(var(--v-theme-primary), 0.28);
+        transition: none;
       }
 
       &__chip {

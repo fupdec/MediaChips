@@ -111,7 +111,8 @@
 
       <v-progress-linear
         v-if="type === 'media' && (isVideoMedia || isAudioMedia) && item.duration"
-        :value="(Number(item.time || 0) / Number(item.duration)) * 100"
+        :model-value="(Number(item.time || 0) / Number(item.duration)) * 100"
+        color="primary"
       />
 
       <div

@@ -871,11 +871,12 @@ export function usePlayerPlayback({
   }
 
   const updatePlaybackTime = async (media: MediaItem) => {
+    const time = Number(playerStore.currentTime) || 0
     try {
       await typedApi.updateVideoMetadata(media.id, {
-        time: playerStore.currentTime,
+        time,
       })
-      updateItemVideo(media.id)
+      updateItemVideo(media.id, {time})
     } catch (error) {
       console.warn('Failed to save playback time:', error)
     }

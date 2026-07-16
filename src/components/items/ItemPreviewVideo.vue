@@ -1296,7 +1296,11 @@ const applyPreviewTimeFromPointer = (
 
   if (progress.value !== progressValue) {
     progress.value = progressValue
-    playbackTime.value = progressValue
+    // Keep the playback timeline on the real video playhead; pointer only
+    // drives hover scrubbing (`progress`) and deferred seeks.
+    if (!showPlaybackTimeline.value) {
+      playbackTime.value = progressValue
+    }
   }
 
   if (seek) {
@@ -1412,26 +1416,24 @@ const syncPreviewVideoPosition = async (
         const relative = Math.max(0, clamped - currentStart)
         if (Math.abs(video.currentTime - relative) > 0.12) {
           if (video.seeking) {
-            playbackTime.value = Math.min(Math.max(0, clamped), mediaDuration.value || clamped)
             return true
           }
           video.currentTime = relative
           await waitForPreviewSeek(video, previewPlaybackToken)
         }
-        playbackTime.value = Math.min(Math.max(0, clamped), mediaDuration.value || clamped)
+        syncPlaybackTimeFromVideo()
         return true
       }
     } else {
       const nextTime = Math.min(targetTime, video.duration || targetTime)
       if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.12) {
         if (video.seeking) {
-          playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
           return true
         }
         video.currentTime = nextTime
         await waitForPreviewSeek(video, previewPlaybackToken)
       }
-      playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
+      syncPlaybackTimeFromVideo()
       return true
     }
   }
@@ -1462,7 +1464,7 @@ const syncPreviewVideoPosition = async (
       await waitForPreviewSeek(video, token)
       if (token !== previewPlaybackToken) return false
     }
-    playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
+    syncPlaybackTimeFromVideo()
     return true
   }
 
@@ -1479,7 +1481,7 @@ const syncPreviewVideoPosition = async (
     await waitForPreviewSeek(video, token)
     if (token !== previewPlaybackToken) return false
   }
-  playbackTime.value = Math.min(Math.max(0, targetTime), mediaDuration.value || targetTime)
+  syncPlaybackTimeFromVideo()
   return true
 }
 
