@@ -344,6 +344,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {parseCountries, serializeCountries} from '@/utils/country'
 import {typedApi} from '@/services/typedApi'
 import {createImage} from '@/services/fileService'
+import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {setNotification} from '@/services/notificationService'
 import {
   cloneMetaFieldValue,
@@ -723,9 +724,32 @@ const restore = (key: string | number) => {
   vals.value[key] = cloneMetaFieldValue(old.value[key])
 }
 
+const applyMediaFileInfo = (fileInfo: Partial<MediaItem> | null) => {
+  if (!fileInfo || !isMedia.value) return
+
+  const base = mediaOverride.value || props.media
+  if (!base) return
+
+  mediaOverride.value = {...base, ...fileInfo}
+
+  const mediaId = Number(base.id)
+  if (mediaId) {
+    // Bust thumb caches so the dialog reloads after image probe/thumb regen.
+    itemsStore.refreshThumb(mediaId)
+  }
+}
+
+const refreshEditingMediaFileInfo = async () => {
+  if (!isMedia.value || currentItemId.value == null) return
+
+  const fileInfo = await refreshMediaFileInfo(Number(currentItemId.value))
+  applyMediaFileInfo(fileInfo)
+}
+
 const onMediaPathUpdate = (updatedMedia: MediaItem) => {
   if (!isMedia.value) return
   mediaOverride.value = updatedMedia
+  void refreshEditingMediaFileInfo()
 }
 
 const setMetaInputRef = (el: unknown, metaId: string | number) => {
@@ -1098,12 +1122,16 @@ onMounted(async () => {
     eventBus.on('transferScrapedInfo', transferScrapedInfo)
   } else if (isMedia.value) {
     eventBus.on('transferSceneScrapedInfo', transferSceneScrapedInfo)
+    void refreshEditingMediaFileInfo()
   }
 })
 
 watch(currentItemId, async (itemId, previousItemId) => {
   if (!itemId || itemId === previousItemId) return
   await loadEditingState()
+  if (isMedia.value) {
+    void refreshEditingMediaFileInfo()
+  }
 })
 
 watch(

@@ -149,7 +149,6 @@ import {typedApi} from '@/services/typedApi'
 import { useOperationsStore } from '@/stores/operations'
 import { useItemsStore } from '@/stores/items'
 import { useDialogsStore } from '@/stores/dialogs'
-import { useEventBus } from '@/utils/eventBus'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
@@ -190,7 +189,6 @@ const form = ref<VFormInstance>(null)
 const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
-const eventBus = useEventBus()
 
 const display_path = ref('')
 
@@ -209,7 +207,6 @@ const applyPathUpdate = (filePath: string) => {
   if (props.media?.id == null) return
 
   itemsStore.updateItem({ id: props.media.id, item: updated as Partial<MediaItem> })
-  eventBus.emit('getItemsFromDb', { ids: [props.media.id], type: 'media' })
 
   const editingMedia = dialogsStore.mediaEditing.media
   if (dialogsStore.mediaEditing.show && editingMedia?.id === props.media.id) {

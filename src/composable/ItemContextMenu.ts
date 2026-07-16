@@ -19,6 +19,7 @@ import {
   isVideoMediaType,
 } from '@/utils/mediaType'
 import {setNotification} from '@/services/notificationService'
+import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {openPath} from '@/services/shellService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {parseFilePath} from '@/services/pathTagParser'
@@ -550,13 +551,8 @@ export default function useItemContextMenu(
 
     const updated: number[] = []
     for (const id of ids) {
-      await typedApi.updateMediaInfo(id)
-        .then(() => {
-          updated.push(id)
-        })
-        .catch((e) => {
-          console.log(e)
-        })
+      const fileInfo = await refreshMediaFileInfo(id)
+      if (fileInfo) updated.push(id)
     }
 
     await setNotification({
