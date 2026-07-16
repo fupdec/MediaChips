@@ -376,6 +376,7 @@ const previewContainerClasses = computed(() => {
       isShrinking.value,
     'is-preview-active': showVideoPreview.value || showTimelinePreview.value,
     'is-hover-preview-ready': hoverPreviewReady.value && !isFullscreenBigPreview,
+    'is-video-preview-enabled': isVideoPreviewEnabled.value,
     'video-preview-container--expanded': isFullscreenBigPreview,
     'video-preview-container--expanding': isGridExpanding,
     'video-preview-container--collapsing': isGridCollapsing,

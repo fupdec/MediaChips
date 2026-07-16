@@ -136,6 +136,12 @@
       }
     }
   }
+  .video-preview-container.is-video-preview-enabled .thumb {
+    .v-image__image,
+    .v-img__img {
+      transform: none !important;
+    }
+  }
   &.item-tag.item-view-1 {
     .main-img:not(.static) {
       &:hover {
