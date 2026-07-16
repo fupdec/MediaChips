@@ -137,7 +137,9 @@ onUnmounted(() => {
   height: 100%;
   flex: 0 0 auto;
 
-  .v-btn {
+  .v-btn,
+  .system-menu-btn {
+    -webkit-app-region: no-drag;
     text-transform: capitalize;
     font-weight: normal;
     letter-spacing: normal;
@@ -152,43 +154,42 @@ onUnmounted(() => {
 
 .app-system-bar-title {
   position: absolute;
-  left: 380px;
-  right: 138px;
+  left: 0;
+  right: 0;
   text-align: center;
   font-size: 12px;
-  -webkit-app-region: drag;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.v-system-bar {
+.system-bar-custom.v-system-bar {
   overflow: visible;
+  position: relative;
+  -webkit-app-region: drag;
 
-  &:before {
-    content: "";
-    position: absolute;
-    height: 100%;
-    top: 3px;
-    left: 380px;
-    right: 138px;
-    background-color: transparent;
-    -webkit-app-region: drag;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  &.maximized:before {
-    top: 0;
+  .app-menu-container,
+  .app-menu-container .v-btn,
+  .system-menu,
+  .system-menu-btn,
+  .window-controls,
+  .window-controls .v-btn,
+  .window-controls .window-control-btn {
+    -webkit-app-region: no-drag;
   }
 }
 
 .context-menu,
-.system-menu {
+.system-menu,
+.system-menu-btn,
+.system-menu-dropdown,
+.system-menu-dropdown .v-list,
+.system-menu-dropdown .v-list-item {
   -webkit-app-region: no-drag;
 }
 
 .system-menu-btn {
   position: relative;
   z-index: 2;
-  -webkit-app-region: no-drag;
 }
 
 .system-menu-dropdown {
@@ -214,13 +215,6 @@ onUnmounted(() => {
       flex-shrink: 0;
       margin-left: 12px;
     }
-  }
-}
-
-@media (max-width: 840px) {
-  .app-system-bar-title {
-    right: 160px;
-    position: absolute;
   }
 }
 

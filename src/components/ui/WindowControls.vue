@@ -117,9 +117,11 @@ onUnmounted(() => {
 <style scoped
   lang="scss">
 .window-controls {
-  -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
+  -webkit-app-region: no-drag;
 
   &.windows-style {
     .window-control-btn {
@@ -140,6 +142,7 @@ onUnmounted(() => {
   .window-control-btn {
     min-width: 0;
     border-radius: 0 !important;
+    -webkit-app-region: no-drag;
 
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);

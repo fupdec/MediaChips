@@ -111,12 +111,17 @@ onUnmounted(() => {
   width: 100% !important;
   position: relative;
 
+  .window-controls,
+  .window-controls .window-control-btn {
+    -webkit-app-region: no-drag;
+  }
+
   .app-system-bar-title {
     position: absolute !important;
     left: 0 !important;
     right: 0 !important;
     text-align: center;
-    padding: 0 138px 0 80px;
+    padding: 0 138px;
     max-width: none;
     overflow: hidden;
     text-overflow: ellipsis;
