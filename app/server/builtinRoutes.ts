@@ -15,6 +15,8 @@ import { isLanAccessEnabled, isLanAccessEnvLocked, applyLanAccessChange } from '
 import { isAllowedOrigin } from './constants'
 import { pickPublicHost } from './publicHost'
 import { listMediaRoots } from '../../api/services/mediaRoots'
+import { listBrowseDirectory } from '../../api/services/browseDirectory'
+import { listSystemPlaces } from '../../api/services/systemPlaces'
 import { getBestLocalIp, getAllIps } from './network'
 import { saveConfigFile } from './configFile'
 import { isClientAbortError, safeJsonError } from './fileResolver'
@@ -122,6 +124,41 @@ function registerBuiltinRoutes({
       configured: Boolean(process.env.MEDIA_CHIPS_MEDIA_ROOTS?.trim())
         || listMediaRoots().length > 0,
     })
+  })
+
+  app.post('/api/browse/listDirectory', (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const result = listBrowseDirectory(req.body?.path, {
+        extensions: req.body?.extensions,
+        mediaRepo: createMediaRepository(db.drizzle),
+      })
+
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to list directory'
+      res.status(status).json({message})
+    }
+  })
+
+  app.get('/api/browse/places', (_req: ApiRequest, res: ApiResponse) => {
+    const explicitRoots = process.env.MEDIA_CHIPS_MEDIA_ROOTS?.trim()
+    const container = Boolean(process.env.MEDIA_CHIPS_DATA_DIR?.trim())
+
+    if (explicitRoots || container) {
+      res.json({
+        container,
+        places: listMediaRoots().map((root) => ({
+          id: `media:${root.path}`,
+          path: root.path,
+          name: root.name,
+          icon: 'mdi-harddisk',
+        })),
+      })
+      return
+    }
+
+    res.json({container: false, places: listSystemPlaces()})
   })
 
   app.get('/api/config', (req: ApiRequest, res: ApiResponse) => {

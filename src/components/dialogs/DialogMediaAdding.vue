@@ -3,7 +3,7 @@
     v-model="isDialogVisible"
     :fullscreen="xs"
     scrollable
-    width="800"
+    width="880"
   >
     <template v-if="!hideActivator" v-slot:activator="{ props: activatorProps }">
       <AppBarButton
@@ -33,64 +33,22 @@
           @dragover.prevent
           class="pa-2 pa-sm-4"
         >
-          <!-- Кнопки выбора папок (только в Electron) -->
-          <v-btn
-            v-if="isElectron"
-            @click="selectMultipleDirectories"
-            color="primary"
-            rounded="lg"
-            variant="flat"
-            class="mb-6"
-          >
-            <v-icon start>mdi-folder-open</v-icon>
-            {{ t('media.adding.select_folders') }}
-          </v-btn>
-
-          <div v-if="!isElectron && mediaRoots.length" class="mb-4">
-            <div class="text-caption text-medium-emphasis mb-2">
-              {{ t('media.adding.mounted_roots_hint') }}
-            </div>
-            <div class="d-flex flex-wrap ga-2 mb-2">
-              <v-chip
-                v-for="root in mediaRoots"
-                :key="root.path"
-                color="primary"
-                variant="tonal"
-                label
-                prepend-icon="mdi-harddisk"
-                @click="appendPath(root.path)"
-              >
-                {{ root.path }}
-              </v-chip>
-            </div>
-            <div
-              v-for="root in mediaRoots"
-              :key="`${root.path}-children`"
-              class="mb-2"
-            >
-              <div
-                v-if="root.children.length"
-                class="text-caption mb-1"
-              >
-                {{ root.name }}
-              </div>
-              <div class="d-flex flex-wrap ga-2">
-                <v-chip
-                  v-for="child in root.children"
-                  :key="child.path"
-                  size="small"
-                  variant="outlined"
-                  prepend-icon="mdi-folder"
-                  @click="appendPath(child.path)"
-                >
-                  {{ child.name }}
-                </v-chip>
-              </div>
-            </div>
-          </div>
+          <MediaFolderBrowser
+            v-if="browsePath || browsePlaces.length"
+            class="mb-4"
+            :base-url="appStore.localhost || ''"
+            :path="browsePath"
+            :extensions="currentMediaType?.extensions || ''"
+            :selected-paths="selectedBrowserPaths"
+            :places="browsePlaces"
+            :active-place-id="activePlaceId"
+            @update:path="browsePath = $event"
+            @update:selected-paths="onBrowserSelection"
+            @select-place="openBrowsePlace"
+          />
 
           <v-alert
-            v-else-if="!isElectron && mediaRootsLoaded && !mediaRoots.length"
+            v-if="browsePlacesLoaded && !browsePlaces.length && !browsePath"
             type="info"
             variant="tonal"
             density="compact"
@@ -100,71 +58,71 @@
             {{ t('media.adding.mounted_roots_empty') }}
           </v-alert>
 
-          <!-- Форма с путями к файлам -->
-          <v-form ref="mediaForm" v-model="isFormValid">
-            <v-textarea
-              :model-value="mediaAddingState.paths"
-              @update:model-value="onPathsInput"
-              :rules="[requiredPathRule]"
-              :label="t('media.adding.paths_label')"
-              :hint="isElectron ? t('media.adding.paths_hint') : t('media.adding.paths_hint_docker')"
-              variant="outlined"
-              no-resize
-              autofocus
-              rounded="lg"
-              rows="5"
-            />
-          </v-form>
+          <div class="media-adding-options mb-1">
+            <div class="text-caption text-medium-emphasis mb-2">
+              {{ t('media.adding.paths_section') }}
+            </div>
 
-          <!-- Проверка дубликатов по содержимому файла -->
-          <v-checkbox
-            v-model="mediaAddingState.is_check_duplicates"
-            :label="t('media.adding.check_duplicates')"
-            class="mt-0 mb-2 mr-4"
-            hide-details
-          />
+            <!-- Форма с путями к файлам -->
+            <v-form ref="mediaForm" v-model="isFormValid">
+              <v-textarea
+                :model-value="mediaAddingState.paths"
+                @update:model-value="onPathsInput"
+                :rules="[requiredPathRule]"
+                :label="t('media.adding.paths_label')"
+                :hint="pathsHint"
+                persistent-hint
+                variant="outlined"
+                no-resize
+                rounded="lg"
+                rows="2"
+                density="comfortable"
+              />
+            </v-form>
 
-          <v-alert
-            v-if="isImageAdding"
-            type="info"
-            variant="tonal"
-            density="compact"
-            rounded="xl"
-            class="mb-2 text-caption"
-          >
-            {{ t('media.adding.images_skip_by_path_hint') }}
-          </v-alert>
+            <div class="media-adding-options__checks mt-3">
+              <!-- Проверка дубликатов по содержимому файла -->
+              <v-checkbox
+                v-model="mediaAddingState.is_check_duplicates"
+                :label="t('media.adding.check_duplicates')"
+                class="mt-0"
+                hide-details
+                density="compact"
+              />
 
-          <!-- Опция парсинга тегов с кнопкой помощи -->
-          <div class="d-flex align-center mb-2">
-            <v-checkbox
-              v-model="mediaAddingState.is_parsing"
-              :label="t('media.adding.parse_tags')"
-              class="mt-0"
-              hide-details
-            />
-            <button-documentation id="media.parser"></button-documentation>
+              <v-alert
+                v-if="isImageAdding"
+                type="info"
+                variant="tonal"
+                density="compact"
+                rounded="xl"
+                class="text-caption"
+              >
+                {{ t('media.adding.images_skip_by_path_hint') }}
+              </v-alert>
+
+              <!-- Опция парсинга тегов с кнопкой помощи -->
+              <div class="d-flex align-center">
+                <v-checkbox
+                  v-model="mediaAddingState.is_parsing"
+                  :label="t('media.adding.parse_tags')"
+                  class="mt-0"
+                  hide-details
+                  density="compact"
+                />
+                <button-documentation id="media.parser"></button-documentation>
+              </div>
+
+              <!-- Опция исключения путей -->
+              <v-checkbox
+                v-model="tasksStore.mediaAdding.is_exclude"
+                :label="t('media.adding.exclude_paths')"
+                class="mt-0"
+                hide-details
+                density="compact"
+              />
+            </div>
           </div>
-
-          <!-- Опция исключения путей -->
-          <v-checkbox
-            v-model="tasksStore.mediaAdding.is_exclude"
-            :label="t('media.adding.exclude_paths')"
-            class="mt-0"
-          />
-
-          <!-- Кнопки выбора папок (только в Electron) -->
-          <v-btn
-            v-if="tasksStore.mediaAdding.is_exclude && isElectron"
-            @click="selectMultipleDirectoriesExcluded"
-            color="primary"
-            rounded="lg"
-            variant="flat"
-            class="mb-6"
-          >
-            <v-icon start>mdi-folder-open</v-icon>
-            {{ t('media.adding.select_folders') }}
-          </v-btn>
 
           <!-- Поле для исключенных путей (показывается условно) -->
           <v-textarea
@@ -177,6 +135,8 @@
             rounded="lg"
             no-resize
             rows="3"
+            class="mt-2"
+            density="comfortable"
           />
         </v-card-text>
       </v-card>
@@ -203,8 +163,9 @@ import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue"
 import {useMediaAdding} from '@/composable/AddingMedia'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {collectDroppedPaths} from '@/utils/mediaDrop'
-import {showOpenDialog} from '@/services/electronDialogService'
-import {fetchMediaRoots, type MediaRootEntry} from '@/services/mediaRootsService'
+import {fetchBrowsePlaces, type BrowsePlace} from '@/services/browsePlacesService'
+import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
+import {transformTextToArray} from '@/services/formatUtils'
 
 
 // Хуки
@@ -248,8 +209,27 @@ const mediaAdding = useMediaAdding()
 const internalDialogVisible = ref(false)
 const isFormValid = ref(false)
 const mediaForm = ref<VFormInstance>(null)
-const mediaRoots = ref<MediaRootEntry[]>([])
-const mediaRootsLoaded = ref(false)
+const browsePlaces = ref<BrowsePlace[]>([])
+const browsePlacesLoaded = ref(false)
+const isContainerRuntime = ref(false)
+const browsePath = ref('')
+const selectedBrowserPaths = ref<string[]>([])
+
+const activePlaceId = computed(() => {
+  const current = browsePath.value
+  if (!current) return null
+  const matches = browsePlaces.value
+    .filter((place) => {
+      if (current === place.path) return true
+      const prefix = place.path.endsWith('/') || place.path.endsWith('\\')
+        ? place.path
+        : `${place.path}/`
+      const prefixWin = place.path.endsWith('\\') ? place.path : `${place.path}\\`
+      return current.startsWith(prefix) || current.startsWith(prefixWin)
+    })
+    .sort((a, b) => b.path.length - a.path.length)
+  return matches[0]?.id ?? null
+})
 
 const isDialogVisible = computed({
   get() {
@@ -275,6 +255,11 @@ const currentMediaType = computed(() =>
 )
 
 const isImageAdding = computed(() => isImageMediaType(currentMediaType.value))
+
+const pathsHint = computed(() => {
+  if (isContainerRuntime.value) return t('media.adding.paths_hint_docker')
+  return t('media.adding.paths_hint')
+})
 
 const dialogHeader = computed(() => {
   const typeName = getMediaTypeName(currentMediaType.value, t)
@@ -311,7 +296,9 @@ const requiredPathRule = (value: string) => {
 }
 
 const onPathsInput = (value: string) => {
-  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(value) ?? '')
+  const normalized = String(normalizePastedFilePathsText(value) ?? '')
+  tasksStore.mediaAdding.paths = normalized
+  selectedBrowserPaths.value = transformTextToArray(normalized)
 }
 
 const onExcludedInput = (value: string) => {
@@ -325,24 +312,39 @@ const onExcludedInput = (value: string) => {
  */
 onMounted(() => {
   resetDialogState()
-  void loadMediaRoots()
+  void loadBrowsePlaces()
 })
 
-async function loadMediaRoots() {
-  if (isElectron.value) return
+function defaultBrowsePath(places: BrowsePlace[]): string {
+  return places.find((place) => place.id === 'home')?.path
+    || places.find((place) => place.id === 'videos')?.path
+    || places[0]?.path
+    || ''
+}
+
+async function loadBrowsePlaces() {
   try {
-    mediaRoots.value = await fetchMediaRoots(appStore.localhost || '')
+    const result = await fetchBrowsePlaces(appStore.localhost || '')
+    browsePlaces.value = result.places
+    isContainerRuntime.value = result.container
+    if (!browsePath.value && browsePlaces.value.length) {
+      browsePath.value = defaultBrowsePath(browsePlaces.value)
+    }
   } catch {
-    mediaRoots.value = []
+    browsePlaces.value = []
+    isContainerRuntime.value = false
   } finally {
-    mediaRootsLoaded.value = true
+    browsePlacesLoaded.value = true
   }
 }
 
-function appendPath(nextPath: string) {
-  const existing = (tasksStore.mediaAdding.paths || '').trim()
-  const merged = existing ? `${existing}\n${nextPath}` : nextPath
-  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(merged) ?? '')
+function openBrowsePlace(nextPath: string) {
+  browsePath.value = nextPath
+}
+
+function onBrowserSelection(paths: string[]) {
+  selectedBrowserPaths.value = paths
+  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(paths.join('\n')) ?? '')
 }
 
 const handleAddMedia = async () => {
@@ -359,7 +361,7 @@ const handleScanDuplicates = async () => {
 watch(isDialogVisible, (newValue) => {
   if (newValue) {
     resetDialogState()
-    void loadMediaRoots()
+    void loadBrowsePlaces()
   }
 })
 
@@ -372,6 +374,12 @@ const resetDialogState = () => {
   tasksStore.mediaAdding.excluded = ''
   tasksStore.mediaAdding.skipFileScan = false
   tasksStore.mediaAdding.directFiles = []
+  selectedBrowserPaths.value = []
+  if (browsePlaces.value.length) {
+    browsePath.value = defaultBrowsePath(browsePlaces.value)
+  } else {
+    browsePath.value = ''
+  }
   if (mediaForm.value) {
     mediaForm.value.reset()
   }
@@ -383,19 +391,6 @@ const syncMediaTypeFromContext = () => {
   if (mediaTypeId) {
     tasksStore.mediaAdding.media_type_id = Number(mediaTypeId)
   }
-}
-
-/**
- * Выбирает несколько директорий через системный диалог (только Electron)
- */
-const selectMultipleDirectories = async () => {
-  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
-  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(paths || '') ?? '')
-}
-
-const selectMultipleDirectoriesExcluded = async () => {
-  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
-  tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(paths || '') ?? '')
 }
 
 /**
@@ -453,3 +448,11 @@ const handleFileDrop = (event: DragEvent) => {
     : String(normalizePastedFilePathsText(newPaths) ?? '')
 }
 </script>
+
+<style scoped>
+.media-adding-options__checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+</style>

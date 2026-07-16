@@ -19,7 +19,7 @@
     "build:store": "MEDIA_CHIPS_SFW=1 vite build",
     "server": "node scripts/run-server.mjs",
     "server:lan": "node scripts/run-server.mjs --lan",
-    "server:dev": "nodemon --watch app --watch api --watch shared --ext ts --delay 1 --exec \"node scripts/run-server.mjs --prepare && node app/server.js\"",
+    "server:dev": "nodemon --watch app --watch api --watch shared --ext ts --delay 1 --ignore shared/sfwCompiled.ts --ignore shared/msStoreCompiled.ts --exec \"node scripts/run-server.mjs --prepare && node app/server.js\"",
     "electron": "node scripts/electron-dev.mjs",
     "electron:built": "node scripts/electron-built.mjs",
     "pack": "node scripts/dist.mjs --dir",

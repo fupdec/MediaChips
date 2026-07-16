@@ -81,6 +81,8 @@ export const API_ROUTES = {
   taskSuggestTagsFromPaths: '/api/Task/suggestTagsFromPaths',
   taskGetFileList: '/api/Task/getFileList',
   mediaRoots: '/api/media-roots',
+  browseListDirectory: '/api/browse/listDirectory',
+  browsePlaces: '/api/browse/places',
   taskCreateGrid: '/api/Task/createGrid',
   taskCreateTimeline: '/api/Task/createTimeline',
   taskCreateThumbForVideo: '/api/Task/createThumbForVideo',

@@ -40,4 +40,31 @@ describe('mediaRoots', () => {
     expect(isPathInsideMediaRoots(path.join(movies, 'a'), movies)).toBe(true)
     expect(isPathInsideMediaRoots(path.join(root, 'other'), movies)).toBe(false)
   })
+
+  it('falls back to system places when no mounts are configured outside Docker', () => {
+    const previousDataDir = process.env.MEDIA_CHIPS_DATA_DIR
+    delete process.env.MEDIA_CHIPS_DATA_DIR
+
+    try {
+      const roots = listMediaRoots('   ')
+      expect(roots.length).toBeGreaterThan(0)
+      expect(roots.some((root) => root.path === path.resolve(os.homedir()))).toBe(true)
+      expect(isPathInsideMediaRoots(path.join(os.homedir(), 'Desktop'), '   ')).toBe(true)
+    } finally {
+      if (previousDataDir === undefined) delete process.env.MEDIA_CHIPS_DATA_DIR
+      else process.env.MEDIA_CHIPS_DATA_DIR = previousDataDir
+    }
+  })
+
+  it('does not fall back to home when Docker data dir is set and mounts are empty', () => {
+    const previousDataDir = process.env.MEDIA_CHIPS_DATA_DIR
+    process.env.MEDIA_CHIPS_DATA_DIR = '/data'
+
+    try {
+      expect(listMediaRoots('   ')).toEqual([])
+    } finally {
+      if (previousDataDir === undefined) delete process.env.MEDIA_CHIPS_DATA_DIR
+      else process.env.MEDIA_CHIPS_DATA_DIR = previousDataDir
+    }
+  })
 })
