@@ -71,7 +71,7 @@
               <div v-for="(sub, i) in item.menu" :key="i">
                 <v-list-item
                   v-if="sub.type == 'item'"
-                  @mouseenter="open"
+                  @mouseenter="onPlainItemEnter"
                   @click="activate(sub.action)"
                   class="pr-1"
                   link
@@ -91,6 +91,7 @@
                 <ContextMenuNested
                   v-else-if="sub.type == 'menu'"
                   @show-parent="showCurrent"
+                  @close-siblings="hideChildNested"
                   :item="sub"
                 />
               </div>
@@ -124,7 +125,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['show-parent'])
+const emit = defineEmits(['show-parent', 'close-siblings'])
 
 const isOpen = ref(false)
 const activatorRef = ref<ComponentPublicInstance | HTMLElement | null>(null)
@@ -150,6 +151,14 @@ watch(() => contextMenu.show, (show) => {
 const activate = (originalFunction?: (...args: unknown[]) => unknown) => {
   originalFunction?.()
   contextMenu.show = false
+}
+
+const hideChildNested = () => {
+  for (const sub of props.item.menu ?? []) {
+    if (sub.type == 'menu') {
+      sub.show = false
+    }
+  }
 }
 
 const resolveActivatorEl = (): HTMLElement | null => {
@@ -190,12 +199,23 @@ const placeSubmenu = async () => {
 }
 
 const open = () => {
+  // Close other menus at this level before opening (v-menu used to do this).
+  emit('close-siblings')
   emit('show-parent')
+  props.item.show = true
   isOpen.value = true
   void placeSubmenu()
 }
 
+const onPlainItemEnter = () => {
+  hideChildNested()
+  emit('show-parent')
+  props.item.show = true
+  isOpen.value = true
+}
+
 const showCurrent = () => {
+  props.item.show = true
   isOpen.value = true
   void placeSubmenu()
 }

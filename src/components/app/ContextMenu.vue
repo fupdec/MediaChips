@@ -73,6 +73,7 @@
             <ContextMenuNested
               v-else-if="item.type == 'menu'"
               :item="item"
+              @close-siblings="hideNested"
             />
           </div>
         </div>
