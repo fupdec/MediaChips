@@ -32,7 +32,7 @@ export interface MediaPostProcessorDeps {
   getVideoMetadata: (pathToFile: string) => Promise<VideoMetadataResult | false>
   getAudioMetadata: (pathToFile: string) => Promise<AudioMetadataResult | false>
   getImageMedia: () => ImageMediaHelper
-  createThumbMiddle: (pathToFile: string, id: unknown) => Promise<string>
+  createThumbMiddle: (pathToFile: string, id: unknown, seekRatio?: number) => Promise<string>
   withTimeout: (promise: Promise<unknown>, ms: number, label: string) => Promise<unknown>
 }
 

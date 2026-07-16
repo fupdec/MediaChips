@@ -28,7 +28,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
   const mediaRepo = createMediaRepository(db.drizzle)
 
   const createThumbForVideo = async function (req: ApiRequest, res: ApiResponse) {
-    createThumbMiddle(req.body.path, req.body.id)
+    const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
+    createThumbMiddle(req.body.path, req.body.id, seekRatio)
       .then((result: string) => {
         res.status(201).send(result)
       })

@@ -10,11 +10,12 @@
       <v-btn
         v-bind="activatorProps"
         size="small"
-        variant="elevated"
-        class="pa-2 ma-2"
+        variant="flat"
+        color="primary"
+        rounded="xl"
+        :class="activatorClass || 'pa-2 ma-2'"
         prepend-icon="mdi-image-edit-outline"
         :text="t('image.edit_image')"
-        color="primary"
       ></v-btn>
     </template>
     <template v-slot:default="{ isActive }">
@@ -139,6 +140,10 @@ const props = defineProps({
   detached: {
     type: Boolean,
     default: false,
+  },
+  activatorClass: {
+    type: String,
+    default: '',
   },
 })
 

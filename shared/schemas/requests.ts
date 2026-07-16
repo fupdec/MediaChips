@@ -223,6 +223,7 @@ export const VideoPreviewTaskRequestSchema = z.object({
   cols: z.coerce.number().optional(),
   rows: z.coerce.number().optional(),
   timestamp: z.coerce.number().optional(),
+  seekRatio: z.coerce.number().min(0).max(1).optional(),
   overwrite: z.boolean().optional(),
 }).passthrough()
 

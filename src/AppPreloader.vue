@@ -91,7 +91,7 @@
         width="2"/>
     </v-overlay>
 
-    <ContextMenu v-if="isShellReady && !isPlayerWindow" v-show="contextMenu.show"/>
+    <ContextMenu v-if="isShellReady && !isPlayerWindow"/>
 
     <div
       v-if="isElectron && !isPlayerWindow"
@@ -116,7 +116,6 @@ import {useRoute} from 'vue-router'
 import {useNavigationLayout} from '@/composable/useNavigationLayout'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
-import {useContextMenu} from '@/stores/contextMenu'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {useAppBootstrap} from '@/composable/useAppBootstrap'
 import {useAppZoom} from '@/composable/useAppZoom'
@@ -140,7 +139,6 @@ const AutoUpdater = defineAsyncComponent(() => import('@/components/app/AutoUpda
 
 const settingsStore = useSettingsStore()
 const store = useAppStore()
-const contextMenuStore = useContextMenu()
 const route = useRoute()
 const {t} = useI18n()
 const {useBottomBar} = useNavigationLayout()
@@ -148,7 +146,6 @@ const {useBottomBar} = useNavigationLayout()
 const {isElectron, isMac, isWin} = useAppPlatform()
 const isPlayerWindow = computed(() => isStandalonePlayerRoute(route))
 const appZoom = route.query.player ? null : useAppZoom()
-const contextMenu = computed(() => contextMenuStore)
 const {dropzoneActive, resetDropzone} = useGlobalMediaDrop()
 
 function dismissDropzone() {

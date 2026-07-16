@@ -5,6 +5,7 @@ import { getAuthToken } from '@/services/authSession'
 import { typedApi } from '@/services/typedApi'
 import { checkFileExistsElectron, isElectron } from '@/services/electronBridge'
 import { queueFileExistenceCheck } from '@/utils/fileExistenceBatcher'
+import { isViteDevProxyMode } from '@/utils/apiBaseUrl'
 
 const NEGATIVE_CACHE_TTL_MS = 60_000
 const POSITIVE_CACHE_TTL_MS = 5 * 60_000
@@ -63,8 +64,13 @@ export function invalidateFileExistsCache(filePath?: string) {
   positiveCache.clear()
 }
 
+function canCheckFileViaApi() {
+  // Vite dev uses an empty base URL so /api goes through the proxy.
+  return isViteDevProxyMode() || Boolean(getApiBaseUrl())
+}
+
 async function checkFileExistsRemote(filePath: string) {
-  if (!getApiBaseUrl()) return false
+  if (!canCheckFileViaApi()) return false
 
   try {
     const response = await typedApi.checkFileExists(filePath)
@@ -113,7 +119,7 @@ export async function checkFileExists(filePath: string) {
     return electronResult
   }
 
-  if (!getApiBaseUrl()) return false
+  if (!canCheckFileViaApi()) return false
 
   try {
     const exists = await queueFileExistenceCheck(filePath)

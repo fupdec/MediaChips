@@ -3,6 +3,7 @@
     v-model="dialogsStore.mediaEditing.show"
     :fullscreen="xs"
     :width="xl ? 1400 : 1000"
+    :persistent="keepDialogOpen"
     scrollable
   >
     <v-card>
@@ -64,6 +65,7 @@
               :cropper-options="cropperOps"
               :min-width="500"
               @edited="onImageEdited"
+              @update-big-preview="onBigPreviewChange"
             />
             <EditDialogMediaPanel
               v-else
@@ -91,6 +93,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
+import {useContextMenu} from '@/stores/contextMenu'
 import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
@@ -136,10 +139,12 @@ const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
+const contextMenuStore = useContextMenu()
 const {t} = useI18n()
 const thumb = ref<string | null>(null)
 const imgPath = ref<string | null>(null)
 const isFileExists = ref(true)
+const bigPreviewOpen = ref(false)
 const buttons = ref<DialogHeaderButton[]>([])
 const editingComponent = ref<EditComponentInstance | null>(null)
 const cropperOps = ref({
@@ -147,6 +152,14 @@ const cropperOps = ref({
 })
 
 const media = computed(() => props.media ?? dialogsStore.mediaEditing.media)
+
+// Big preview teleports above the dialog; keep the dialog from treating
+// those clicks as "outside" (which unmounts the preview and kills the menu).
+const keepDialogOpen = computed(() => bigPreviewOpen.value || contextMenuStore.show)
+
+function onBigPreviewChange(value: boolean) {
+  bigPreviewOpen.value = value
+}
 
 const fileName = computed(() => {
   const filePath = media.value?.path || ''
@@ -321,7 +334,12 @@ onMounted(() => {
 
 watch(() => media.value?.id, (mediaId, previousId) => {
   if (mediaId == null || mediaId === previousId) return
+  bigPreviewOpen.value = false
   void getImage()
+})
+
+watch(() => dialogsStore.mediaEditing.show, (show) => {
+  if (!show) bigPreviewOpen.value = false
 })
 
 watch(

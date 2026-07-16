@@ -95,7 +95,7 @@ export interface TaskControllerShared {
   getImageMedia: () => ImageMediaService
   getVideoImagesGeneration: () => VideoImagesGenerationService
   resolveGeneratedFolderPath: (folderKey: string) => string | null
-  createThumbMiddle: (pathToFile: string, id: unknown) => Promise<string>
+  createThumbMiddle: (pathToFile: string, id: unknown, seekRatio?: number) => Promise<string>
   createThumbCustom: (
     timestamp: unknown,
     inputPath: string,

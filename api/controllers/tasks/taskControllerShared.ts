@@ -109,14 +109,18 @@ export default function createTaskControllerShared(db: ApiDb) {
     }
   }
 
-  const createThumbMiddle = (pathToFile: string, id: unknown) => runWithFfmpegLimit(() => {
+  const createThumbMiddle = (pathToFile: string, id: unknown, seekRatio = 0.5) => runWithFfmpegLimit(() => {
     const outputPath = path.join(getDbPath(), 'media/videos/thumbs', `${id}.jpg`)
+    const normalizedSeekRatio = Number.isFinite(seekRatio)
+      ? Math.min(Math.max(Number(seekRatio), 0), 1)
+      : 0.5
     return withTimeout(
       extractVideoThumbnail({
         input: pathToFile,
         outputPath,
         height: VIDEO_THUMB_HEIGHT,
         jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
+        seekRatio: normalizedSeekRatio,
       }),
       120000,
       'ffmpeg thumbnail',

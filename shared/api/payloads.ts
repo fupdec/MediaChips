@@ -129,6 +129,7 @@ export interface VideoPreviewTaskPayload {
   width?: number
   cols?: number
   rows?: number
+  seekRatio?: number
   [key: string]: unknown
 }
 

@@ -1120,17 +1120,15 @@ const buildBigPreviewContextMenu = () => {
     },
   ]
 
-  if (!isEmbeddedHost.value) {
-    items.push(
-      {type: 'divider'},
-      {
-        name: t('media.preview.big_preview_size.title'),
-        type: 'menu',
-        icon: 'resize',
-        menu: buildBigPreviewSizeMenu(),
-      },
-    )
-  }
+  items.push(
+    {type: 'divider'},
+    {
+      name: t('media.preview.big_preview_size.title'),
+      type: 'menu',
+      icon: 'resize',
+      menu: buildBigPreviewSizeMenu(),
+    },
+  )
 
   items.push(
     {type: 'divider'},
@@ -1160,6 +1158,10 @@ const handlePreviewContextMenu = (e: MouseEvent) => {
   e.stopPropagation()
 
   bigPreviewMenuActive.value = true
+
+  // Keep the cinema layer under the global context menu while it is open.
+  const preview = getPreviewEl()
+  if (preview) preview.style.zIndex = '19990'
 
   contextMenuStore.showContextMenu({
     x: e.clientX,
@@ -1847,10 +1849,15 @@ watch(
 )
 
 watch(() => contextMenuStore.show, (show) => {
-  if (show || !bigPreviewMenuActive.value) return
+  if (show) return
+  if (!bigPreviewMenuActive.value) return
 
   nextTick(() => {
     bigPreviewMenuActive.value = false
+    const preview = getPreviewEl()
+    if (preview && gridBigPreview.isVisual.value) {
+      preview.style.zIndex = '3000'
+    }
   })
 })
 
