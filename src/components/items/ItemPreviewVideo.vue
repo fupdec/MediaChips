@@ -273,7 +273,7 @@ import {
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
 import {usePlayerStore} from '@/stores/player'
-import {getChunkStart, LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
+import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
 import {
   claimHoverVideoPreview,
   releaseHoverVideoPreview,
@@ -1211,8 +1211,8 @@ const resolvePreviewPlaybackTime = (): number => {
 
   if (previewUsesLiveStream.value) {
     const startParam = video.src ? getPreviewStreamStart(video.src) : null
-    const chunkStart = startParam != null ? Number(startParam) : getChunkStart(progress.value)
-    return chunkStart + video.currentTime
+    const streamStart = startParam != null ? Number(startParam) : 0
+    return streamStart + video.currentTime
   }
 
   return video.currentTime
@@ -1412,9 +1412,9 @@ const syncPreviewVideoPosition = async (
     const isLiveSrc = activeSrc.includes('/transcode/stream')
     if (isLiveSrc) {
       const currentStart = Number(getPreviewStreamStart(activeSrc) || 0)
-      const desiredStart = getChunkStart(targetTime)
-      if (currentStart === desiredStart || !allowLiveChunkSwitch) {
-        const maxInChunk = currentStart + LIVE_STREAM_CHUNK_SECONDS - 0.05
+      const maxInChunk = currentStart + LIVE_STREAM_CHUNK_SECONDS - 0.05
+      const withinCurrentSegment = targetTime >= currentStart - 0.05 && targetTime <= maxInChunk
+      if (withinCurrentSegment || !allowLiveChunkSwitch) {
         const clamped = Math.min(
           Math.max(targetTime, currentStart),
           Math.max(currentStart, maxInChunk),
@@ -1463,8 +1463,8 @@ const syncPreviewVideoPosition = async (
     }
 
     if (token !== previewPlaybackToken) return false
-    const chunkStart = getChunkStart(allowLiveChunkSwitch ? targetTime : Number(nextStart) || 0)
-    const relative = Math.max(0, targetTime - chunkStart)
+    const streamStart = Number(nextStart) || 0
+    const relative = Math.max(0, targetTime - streamStart)
     if (Math.abs(video.currentTime - relative) > 0.12) {
       video.currentTime = relative
       await waitForPreviewSeek(video, token)

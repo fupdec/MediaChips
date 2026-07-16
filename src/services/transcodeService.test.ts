@@ -22,10 +22,16 @@ const mockGetVideoPlayable = vi.mocked(typedApi.getVideoPlayable)
 describe('transcodeService urls', () => {
   const buildApiUrl = (path: string) => `http://localhost:12321${path}`
 
-  it('builds live stream url with start offset', () => {
+  it('builds live stream url with exact start offset', () => {
     const url = buildLiveStreamUrl(buildApiUrl, 42, 125.5)
     expect(url).toContain('/api/video/42/transcode/stream')
-    expect(url).toContain('start=120')
+    expect(url).toContain('start=125.5')
+  })
+
+  it('builds live stream url with accurate seek flag for clip marks', () => {
+    const url = buildLiveStreamUrl(buildApiUrl, 42, 641, '1080', {accurateSeek: true})
+    expect(url).toContain('accurate=1')
+    expect(url).toContain('start=641')
   })
 
   it('builds live stream url with max height', () => {

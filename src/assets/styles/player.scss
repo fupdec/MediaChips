@@ -467,6 +467,13 @@
   &.hidden {
     display: none;
   }
+  // Match mark left% to the seek track (Vuetify defaults to margin-inline: 8px).
+  .timeline .v-slider.v-input--horizontal,
+  .timeline-slider.v-slider.v-input--horizontal,
+  .mark-time-range.v-slider.v-input--horizontal {
+    margin-inline: 0;
+  }
+
   .timeline-slider {
     margin: 0;
 

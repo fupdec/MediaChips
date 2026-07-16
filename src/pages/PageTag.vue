@@ -91,6 +91,20 @@
           />
         </v-card-text>
       </v-card>
+
+      <div v-if="showPlayClips" class="tag-play-clips mt-4">
+        <v-btn
+          color="primary"
+          rounded
+          variant="flat"
+          :loading="playingClips"
+          :disabled="clipCount === 0 || playingClips"
+          @click="playClips"
+        >
+          <v-icon start>mdi-playlist-play</v-icon>
+          {{ t('tags.play_clips', {count: clipCount}) }}
+        </v-btn>
+      </div>
     </v-container>
 
     <v-responsive
@@ -231,6 +245,20 @@
                 </div>
               </v-expansion-panel>
             </v-expansion-panels>
+
+            <div v-if="showPlayClips" class="tag-play-clips mt-4">
+              <v-btn
+                color="primary"
+                rounded
+                variant="flat"
+                :loading="playingClips"
+                :disabled="clipCount === 0 || playingClips"
+                @click="playClips"
+              >
+                <v-icon start>mdi-playlist-play</v-icon>
+                {{ t('tags.play_clips', {count: clipCount}) }}
+              </v-btn>
+            </div>
           </v-col>
         </v-row>
       </v-container>
@@ -395,6 +423,8 @@ const galleryFileExists = ref<Record<TagGalleryImageType, boolean>>({
   custom2: false,
 })
 const designSaving = ref(false)
+const clipCount = ref(0)
+const playingClips = ref(false)
 
 function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -468,6 +498,7 @@ const galleryImages = computed((): TagPageGalleryImage[] => {
   })
 })
 const hasGalleryImages = computed(() => galleryImages.value.length > 0)
+const showPlayClips = computed(() => Boolean(meta.value?.marks))
 const resolveInitialTab = () => {
   const urlMediaTypeId = getUrlParam(route, 'mediaTypeId')
 
@@ -506,16 +537,68 @@ const init = async () => {
   try {
     await getMeta()
     await getTag()
-    await getImages()
-    await getPinnedMedia()
-    await getPinnedParentMeta()
-    await getCompletionStatus()
+    await Promise.all([
+      getImages(),
+      getPinnedMedia(),
+      getPinnedParentMeta(),
+      getCompletionStatus(),
+      refreshClipCount(),
+    ])
     tab.value = resolveInitialTab()
     is_init.value = true
 
     await itemsStore.countViewNumber(tag.value, 'tag')
   } catch (error) {
     loadError.value = getErrorText(error) || t('items.tag_load_failed')
+  }
+}
+
+const refreshClipCount = async () => {
+  clipCount.value = 0
+  if (!meta.value?.marks || !tag.value?.id) return
+
+  try {
+    const res = await typedApi.getMarkClips({
+      tagId: Number(tag.value.id),
+      countOnly: true,
+    })
+    clipCount.value = Number(res.data?.count ?? 0)
+  } catch (error) {
+    console.warn('Failed to load clip count:', error)
+  }
+}
+
+const playClips = async () => {
+  if (!tag.value?.id || playingClips.value) return
+
+  playingClips.value = true
+  try {
+    const res = await typedApi.getMarkClips({
+      tagId: Number(tag.value.id),
+      sort: 'time',
+    })
+    const clips = res.data?.items || []
+    clipCount.value = Number(res.data?.count ?? clips.length)
+
+    if (!clips.length) {
+      setNotification({
+        type: 'warning',
+        title: t('tags.play_clips_empty_title'),
+        text: t('tags.play_clips_empty_text'),
+      })
+      return
+    }
+
+    await itemsStore.playVideo({
+      video: clips[0],
+      videos: clips,
+      time: clips[0].segmentStart,
+      trustPath: true,
+    })
+  } catch (error) {
+    notifyLoadError(error)
+  } finally {
+    playingClips.value = false
   }
 }
 

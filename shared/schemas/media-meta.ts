@@ -6,6 +6,7 @@ import {
   MetaSchema,
   TagSchema,
 } from './entities'
+import { optionalNullableCoercedNumberSchema } from './coercion'
 
 export const AssignedMetaSchema = z.object({
   id: z.union([z.number(), z.string()]).optional(),
@@ -78,6 +79,23 @@ export const VideoMetadataSchema = z.object({
 }).passthrough()
 
 export const MediaCountWithTagSchema = z.object({
+  count: z.number(),
+}).passthrough()
+
+export const MarkClipItemSchema = z.object({
+  id: z.number(),
+  markId: z.number(),
+  path: z.string().optional(),
+  name: z.string().optional(),
+  basename: z.string().optional(),
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+  segmentStart: z.number(),
+  segmentEnd: z.number(),
+  time: z.number().optional(),
+}).passthrough()
+
+export const MarkClipsResponseSchema = z.object({
+  items: z.array(MarkClipItemSchema),
   count: z.number(),
 }).passthrough()
 

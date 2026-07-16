@@ -43,6 +43,75 @@ describe('buildFfmpegLiveArgs', () => {
     expect(args).not.toContain('libx264')
     expect(args).not.toContain('-vf')
   })
+
+  it('uses precise output-only seek when accurateSeek is set without keyframe', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 641,
+      duration: 30,
+      copyCodecs: false,
+      accurateSeek: true,
+    })
+
+    // Accurate flag must not decode from t=0 — use the fast margin seek.
+    const inputIndex = args.indexOf('-i')
+    const preInputSs = args.slice(0, inputIndex).lastIndexOf('-ss')
+    const postInputSs = args.indexOf('-ss', inputIndex)
+
+    expect(args[preInputSs + 1]).toBe('621')
+    expect(postInputSs).toBeGreaterThan(inputIndex)
+    expect(args[postInputSs + 1]).toBe('20')
+  })
+
+  it('caps huge keyframe output skips so startup stays fast', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 641,
+      duration: 30,
+      copyCodecs: false,
+      accurateSeek: true,
+      inputSeekTime: 485,
+      outputSeekTime: 156,
+    })
+
+    const inputIndex = args.indexOf('-i')
+    const preInputSs = args.slice(0, inputIndex).lastIndexOf('-ss')
+    const postInputSs = args.indexOf('-ss', inputIndex)
+
+    // 156s output skip is capped to 20s; overflow is pushed into input seek.
+    expect(args[preInputSs + 1]).toBe('621')
+    expect(postInputSs).toBeGreaterThan(inputIndex)
+    expect(args[postInputSs + 1]).toBe('20')
+  })
+
+  it('uses precise output seek when re-encoding from a mid-file mark', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 368,
+      duration: 30,
+      copyCodecs: false,
+    })
+
+    const inputIndex = args.indexOf('-i')
+    const preInputSs = args.slice(0, inputIndex).lastIndexOf('-ss')
+    const postInputSs = args.indexOf('-ss', inputIndex)
+
+    expect(args[preInputSs + 1]).toBe('348')
+    expect(postInputSs).toBeGreaterThan(inputIndex)
+    expect(args[postInputSs + 1]).toBe('20')
+  })
+
+  it('uses output-only seek for early marks while re-encoding', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 8,
+      duration: 30,
+      copyCodecs: false,
+    })
+
+    expect(args.indexOf('-ss')).toBeGreaterThan(args.indexOf('-i'))
+    expect(args[args.indexOf('-ss') + 1]).toBe('8')
+  })
 })
 
 describe('shouldRejectDuplicateStream', () => {

@@ -59,4 +59,11 @@ describe('playerMarkDisplay', () => {
     expect(getMarkTimelinePositionStyle({ time: 30, type: 'favorite' }, 120)).toBe('left: 25%;')
     expect(getMarkTimelineWidthStyle({ time: 10, end: 30, type: 'favorite' }, 100, 400)).toBe('width: 80px;')
   })
+
+  it('clamps timeline layout when mark time is outside duration', () => {
+    expect(getMarkTimelinePositionStyle({ time: -5, type: 'favorite' }, 100)).toBe('left: 0%;')
+    expect(getMarkTimelinePositionStyle({ time: 150, type: 'favorite' }, 100)).toBe('left: 100%;')
+    expect(getMarkTimelinePositionStyle({ time: 30, type: 'favorite' }, 0)).toBe('')
+    expect(getMarkTimelineWidthStyle({ time: 90, end: 200, type: 'favorite' }, 100, 400)).toBe('width: 40px;')
+  })
 })

@@ -1,3 +1,4 @@
+import shuffle from 'lodash/shuffle'
 import type { ApiDb } from '../types/db'
 import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
@@ -13,6 +14,39 @@ export default function (db: ApiDb) {
     try {
       const data = marksRepo.create(req.body)
       res.status(201).send(data)
+    } catch (err: unknown) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || "Some error occurred while performing query."
+      })
+    }
+  };
+
+  const getClips = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const tagId = Number(req.body?.tagId)
+      if (!Number.isFinite(tagId) || tagId <= 0) {
+        res.status(400).send({message: 'tagId is required'})
+        return
+      }
+
+      const countOnly = Boolean(req.body?.countOnly)
+      if (countOnly) {
+        res.status(201).send({
+          items: [],
+          count: marksRepo.countClipsByTagId(tagId),
+        })
+        return
+      }
+
+      let items = marksRepo.findClipsByTagId(tagId)
+      if (req.body?.sort === 'shuffle') {
+        items = shuffle(items)
+      }
+
+      res.status(201).send({
+        items,
+        count: items.length,
+      })
     } catch (err: unknown) {
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while performing query."
@@ -83,6 +117,7 @@ export default function (db: ApiDb) {
 
   return {
     create,
+    getClips,
     findAllForVideo,
     findAll,
     getItems,

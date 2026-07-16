@@ -12,6 +12,12 @@ interface LiveStreamOptions {
   maxHeight?: number | null
   /** Remux with stream copy when codecs are already browser-compatible. */
   copyCodecs?: boolean
+  /** Frame-accurate start for clip marks (uses keyframe+output skip when possible). */
+  accurateSeek?: boolean
+  /** Explicit input demuxer seek (seconds). */
+  inputSeekTime?: number
+  /** Explicit output decode skip after input seek (seconds). */
+  outputSeekTime?: number
 }
 
 interface ActiveStream {
@@ -29,6 +35,8 @@ interface ActiveStream {
   onResponseClose: (() => void) | null
 }
 
+const LIVE_INPUT_SEEK_MARGIN_SECONDS = 20
+
 function buildFfmpegLiveArgs({
   inputPath,
   startTime = 0,
@@ -36,14 +44,38 @@ function buildFfmpegLiveArgs({
   audioOnly,
   maxHeight,
   copyCodecs = false,
+  accurateSeek: _accurateSeek = false,
+  inputSeekTime,
+  outputSeekTime,
 }: LiveStreamOptions) {
   const args = ['-hide_banner', '-loglevel', 'error', '-nostdin']
+  const start = Math.max(0, Number(startTime) || 0)
+  const hasExplicitSeek = inputSeekTime != null || outputSeekTime != null
+  const inputSeek = Math.max(0, Number(inputSeekTime) || 0)
+  const outputSeek = Math.max(0, Number(outputSeekTime) || 0)
 
-  if (startTime > 0) {
-    args.push('-ss', String(startTime))
+  // Prefer fast input seeks. Never decode from t=0 to a mid-file mark — that
+  // can take minutes. Cap any output-side skip so startup stays responsive.
+  if (copyCodecs) {
+    if (start > 0) args.push('-ss', String(start))
+    args.push('-i', inputPath)
+  } else if (hasExplicitSeek) {
+    const cappedOutput = Math.min(outputSeek, LIVE_INPUT_SEEK_MARGIN_SECONDS)
+    const overflow = Math.max(0, outputSeek - cappedOutput)
+    const adjustedInput = Math.max(0, inputSeek + overflow)
+    if (adjustedInput > 0.05) args.push('-ss', String(adjustedInput))
+    args.push('-i', inputPath)
+    if (cappedOutput > 0.05) args.push('-ss', String(cappedOutput))
+  } else if (start > LIVE_INPUT_SEEK_MARGIN_SECONDS) {
+    args.push('-ss', String(start - LIVE_INPUT_SEEK_MARGIN_SECONDS))
+    args.push('-i', inputPath)
+    args.push('-ss', String(LIVE_INPUT_SEEK_MARGIN_SECONDS))
+  } else if (start > 0) {
+    args.push('-i', inputPath)
+    args.push('-ss', String(start))
+  } else {
+    args.push('-i', inputPath)
   }
-
-  args.push('-i', inputPath)
 
   if (duration != null && duration > 0) {
     args.push('-t', String(duration))
@@ -187,6 +219,9 @@ function createLiveStreamRegistry() {
       audioOnly = false,
       maxHeight = null,
       copyCodecs = false,
+      accurateSeek = false,
+      inputSeekTime,
+      outputSeekTime,
     }: LiveStreamOptions & {streamKey: string},
   ) {
     const sessionKey = buildSessionKey(streamKey, startTime, maxHeight, copyCodecs)
@@ -214,6 +249,9 @@ function createLiveStreamRegistry() {
       audioOnly,
       maxHeight: copyCodecs ? null : maxHeight,
       copyCodecs,
+      accurateSeek,
+      inputSeekTime,
+      outputSeekTime,
     })
 
     const proc = spawn(getFfmpegPath(), args, {stdio: ['ignore', 'pipe', 'pipe']})

@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, sql } from 'drizzle-orm'
+import { and, asc, count, eq, gt, isNotNull, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { marks } from '../schema/marks'
 import { media } from '../schema/media'
@@ -87,6 +87,61 @@ export function createMarksRepository(db: DrizzleClient) {
         .from(marks)
         .where(eq(marks.tagId, Number(tagId)))
         .all()
+    },
+
+    countClipsByTagId(tagId: unknown): number {
+      const row = db.select({count: count()})
+        .from(marks)
+        .where(and(
+          eq(marks.tagId, Number(tagId)),
+          isNotNull(marks.end),
+        ))
+        .get()
+      return Number(row?.count ?? 0)
+    },
+
+    findClipsByTagId(tagId: unknown) {
+      const rows = db.select()
+        .from(marks)
+        .where(and(
+          eq(marks.tagId, Number(tagId)),
+          isNotNull(marks.end),
+        ))
+        .orderBy(asc(marks.time), asc(marks.id))
+        .all()
+
+      const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
+      const mediaRows = mediaIds.length
+        ? db.select().from(media).all().filter((item) => mediaIds.includes(item.id))
+        : []
+      const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
+
+      return rows
+        .map((row) => {
+          const medium = row.mediaId != null ? mediaById.get(row.mediaId) : null
+          if (!medium) return null
+          const segmentStart = Number(row.time) || 0
+          const segmentEnd = Number(row.end)
+          return {
+            id: medium.id,
+            markId: row.id,
+            path: medium.path,
+            name: medium.name || medium.basename || undefined,
+            basename: medium.basename ?? undefined,
+            mediaTypeId: medium.mediaTypeId ?? undefined,
+            segmentStart,
+            segmentEnd,
+            time: segmentStart,
+          }
+        })
+        .filter((item): item is NonNullable<typeof item> => item != null)
+        .sort((a, b) => {
+          if (a.segmentStart !== b.segmentStart) return a.segmentStart - b.segmentStart
+          const nameA = (a.name || '').toLowerCase()
+          const nameB = (b.name || '').toLowerCase()
+          if (nameA !== nameB) return nameA.localeCompare(nameB)
+          return a.markId - b.markId
+        })
     },
 
     convertMetaMarksToBookmarksByTagId(tagId: unknown, text: string): void {

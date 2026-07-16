@@ -5,6 +5,8 @@ const {
   create,
   findAllForVideo,
   findAllWithRelations,
+  findClipsByTagId,
+  countClipsByTagId,
   deleteById,
   loadMarkItems,
   getMarkFilterMetas,
@@ -13,6 +15,8 @@ const {
   create: vi.fn(),
   findAllForVideo: vi.fn(),
   findAllWithRelations: vi.fn(),
+  findClipsByTagId: vi.fn(),
+  countClipsByTagId: vi.fn(),
   deleteById: vi.fn(),
   loadMarkItems: vi.fn(),
   getMarkFilterMetas: vi.fn(),
@@ -24,6 +28,8 @@ vi.mock('../db/repositories/marks', () => ({
     create,
     findAllForVideo,
     findAllWithRelations,
+    findClipsByTagId,
+    countClipsByTagId,
     deleteById,
   }),
 }))
@@ -140,6 +146,37 @@ describe('Mark.controller', () => {
 
     expect(getMarkFilterMetas).toHaveBeenCalled()
     expect(res.body).toEqual([{id: 3, name: 'Performers'}])
+  })
+
+  it('returns ranged clips for a tag', () => {
+    findClipsByTagId.mockReturnValue([
+      {id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12},
+    ])
+
+    const req = {body: {tagId: 7}} as ApiRequest
+    const res = createResponse()
+
+    controller.getClips(req, res)
+
+    expect(findClipsByTagId).toHaveBeenCalledWith(7)
+    expect(res.statusCode).toBe(201)
+    expect(res.body).toEqual({
+      items: [{id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12}],
+      count: 1,
+    })
+  })
+
+  it('returns clip count only when requested', () => {
+    countClipsByTagId.mockReturnValue(4)
+
+    const req = {body: {tagId: 7, countOnly: true}} as ApiRequest
+    const res = createResponse()
+
+    controller.getClips(req, res)
+
+    expect(countClipsByTagId).toHaveBeenCalledWith(7)
+    expect(res.statusCode).toBe(201)
+    expect(res.body).toEqual({items: [], count: 4})
   })
 
   it('deletes generated assets and mark row', () => {

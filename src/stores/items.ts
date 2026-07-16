@@ -15,7 +15,7 @@ import type { EntityUpdatePayload } from '@shared/api/responses'
 import type { PlayableMedia } from '@shared/entities/media'
 import type { AssignedMeta, ItemsEnvironment, MediaItem, Meta, SavedFilter } from '@/types/stores'
 import type { ItemsPageStoreUpdates } from '@/types/itemsPage'
-import { ensureMediaItem } from '@/utils/mediaItem'
+import { ensureMediaItem, getSegmentStart } from '@/utils/mediaItem'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 
 const eventBus = useEventBus()
@@ -316,7 +316,8 @@ export const useItemsStore = defineStore('items', {
       const data = {
         video: targetVideo,
         videos: playlistVideos,
-        time: time || 0
+        time: getSegmentStart(targetVideo)
+          ?? (time != null && Number.isFinite(Number(time)) ? Number(time) : 0),
       };
 
       if (

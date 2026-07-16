@@ -556,6 +556,13 @@ const en = {
       shuffle: 'Shuffle',
     },
   },
+  tags: {
+    play_clips: 'Play clips ({count})',
+    play_clips_in_order: 'Play in order',
+    play_clips_shuffle: 'Shuffle clips',
+    play_clips_empty_title: 'No clips',
+    play_clips_empty_text: 'This tag has no timed ranges on the timeline yet.',
+  },
   editing: {
     progress_filling_data: 'Progress of filling data',
     media_file_information: 'Media file information',

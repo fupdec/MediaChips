@@ -117,6 +117,9 @@ export interface TaskItem {
 
 export interface PlayerPlaylistItem extends MediaItem {
   key: string
+  markId?: number
+  segmentStart?: number
+  segmentEnd?: number
 }
 
 export interface LicenseInfo {

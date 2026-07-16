@@ -1,6 +1,3 @@
-import {
-  getChunkStart,
-} from '@/utils/liveStreamChunk'
 import { abortVideoPlayback } from '@/utils/liveTranscodeLifecycle'
 import { typedApi } from '@/services/typedApi'
 import {
@@ -99,9 +96,12 @@ export function buildLiveStreamUrl(
   mediaId: number,
   startSeconds = 0,
   maxHeight: number | string | null = null,
-  options: {copyCompatible?: boolean} = {},
+  options: {copyCompatible?: boolean; accurateSeek?: boolean} = {},
 ) {
-  const start = getChunkStart(startSeconds)
+  // Live fMP4 pipes are not byte-range seekable (Accept-Ranges: none).
+  // Start ffmpeg at the exact timeline position — chunk-aligning here left
+  // playback up to ~30s early when the UI tried an in-chunk currentTime seek.
+  const start = Math.max(0, Number(startSeconds) || 0)
   const params = new URLSearchParams({
     start: String(start),
     time: String(Math.random()),
@@ -112,6 +112,9 @@ export function buildLiveStreamUrl(
   }
   if (options.copyCompatible) {
     params.set('copy', '1')
+  }
+  if (options.accurateSeek) {
+    params.set('accurate', '1')
   }
 
   return `${buildApiUrl(apiVideoTranscodeStream(mediaId))}?${params.toString()}`

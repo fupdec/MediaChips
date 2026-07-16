@@ -156,6 +156,24 @@ export interface MarkForVideo {
   [key: string]: unknown
 }
 
+export interface MarkClipItem {
+  id: number
+  markId: number
+  path?: string
+  name?: string
+  basename?: string
+  mediaTypeId?: number
+  segmentStart: number
+  segmentEnd: number
+  time?: number
+  [key: string]: unknown
+}
+
+export interface MarkClipsResponse {
+  items: MarkClipItem[]
+  count: number
+}
+
 export interface DynamicPlaylistSummary {
   id: number
   count?: number | null

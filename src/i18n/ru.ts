@@ -556,6 +556,13 @@ const ru = {
       shuffle: 'Случайно',
     },
   },
+  tags: {
+    play_clips: 'Воспроизвести клипы ({count})',
+    play_clips_in_order: 'По порядку',
+    play_clips_shuffle: 'В случайном порядке',
+    play_clips_empty_title: 'Нет клипов',
+    play_clips_empty_text: 'У этого тега пока нет диапазонов на таймлайне.',
+  },
   editing: {
     progress_filling_data: 'Прогресс заполнения данных',
     media_file_information: 'Информация о медиафайле',

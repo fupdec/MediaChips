@@ -75,6 +75,82 @@ async function ffprobe(filePath: string) {
 }
 
 /**
+ * Last video keyframe at or before `targetSeconds`.
+ * Used for accurate mid-file seeks without decoding from t=0.
+ */
+async function findPreviousKeyframeTime(
+  filePath: string,
+  targetSeconds: number,
+  lookbackSeconds = 600,
+): Promise<number | null> {
+  const target = Math.max(0, Number(targetSeconds) || 0)
+  if (target <= 0.05) return 0
+
+  const windowStart = Math.max(0, target - Math.max(30, lookbackSeconds))
+  const windowDuration = Math.ceil(target - windowStart + 2)
+  const interval = `${windowStart}%+${windowDuration}`
+
+  const fromFrames = async () => {
+    const {stdout} = await runProcess(getFfprobePath(), [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-skip_frame', 'nokey',
+      '-show_entries', 'frame=pts_time',
+      '-of', 'csv=p=0',
+      '-read_intervals', interval,
+      filePath,
+    ])
+    let best: number | null = null
+    for (const line of stdout.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      const pts = Number(trimmed)
+      if (!Number.isFinite(pts) || pts < 0 || pts > target + 0.05) continue
+      if (best == null || pts > best) best = pts
+    }
+    return best
+  }
+
+  const fromPackets = async () => {
+    const {stdout} = await runProcess(getFfprobePath(), [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'packet=pts_time,flags',
+      '-of', 'csv=p=0',
+      '-read_intervals', interval,
+      filePath,
+    ])
+    let best: number | null = null
+    for (const line of stdout.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      const [ptsRaw, flags = ''] = trimmed.split(',')
+      if (!ptsRaw || !flags.includes('K')) continue
+      const pts = Number(ptsRaw)
+      if (!Number.isFinite(pts) || pts < 0 || pts > target + 0.05) continue
+      if (best == null || pts > best) best = pts
+    }
+    return best
+  }
+
+  try {
+    const frameKey = await fromFrames()
+    // Empty ffprobe lines parse as 0; ignore a bogus t=0 hit for mid-file targets.
+    if (frameKey != null && !(frameKey < 0.05 && target > 1)) {
+      return frameKey
+    }
+  } catch {
+    // Fall through to packet scan.
+  }
+
+  try {
+    return await fromPackets()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Faster codec-only probe for playability checks.
  * Bounded demuxer window keeps large files quick, but wide enough that
  * moov/codecs are usually visible. Callers should fall back to full ffprobe
@@ -247,6 +323,7 @@ async function combineVideoFrames({
 export {
   ffprobe,
   ffprobePlayability,
+  findPreviousKeyframeTime,
   runFfmpeg,
   extractVideoFrame,
   extractVideoThumbnail,

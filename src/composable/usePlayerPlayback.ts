@@ -20,12 +20,12 @@ import {typedApi} from '@/services/typedApi'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {ensureMarkThumb, getMarkImagePath} from '@/utils/markThumb'
-import {isIgnorablePlaybackError} from '@/utils/playerBuffer'
+import {isIgnorablePlaybackError, getAbsolutePlaybackTime} from '@/utils/playerBuffer'
 import {
-  getChunkStart,
   getNextChunkStart,
   LIVE_STREAM_CHUNK_SECONDS,
   LIVE_STREAM_PREFETCH_SECONDS,
+  resolveLiveFileDuration,
 } from '@/utils/liveStreamChunk'
 import {
   buildVideoStreamUrl,
@@ -42,10 +42,69 @@ import {
 } from '@/utils/liveTranscodeLifecycle'
 import type { MediaItem, PlayerPlaylistItem } from '@/types/stores'
 import type { ResolvedPlayableVideo, UsePlayerPlaybackOptions } from '@/types/player'
+import { getSegmentEnd, getSegmentStart, isClipPlaylistItem, mergeClipFields, playlistItemKey } from '@/utils/mediaItem'
+import { isPlaylistNavDisabled } from '@/composable/usePlayerTransportPlayback'
 
 function metadataNumber(metadata: Record<string, unknown>, key: string): number | null {
   const value = Number(metadata[key])
   return Number.isFinite(value) ? value : null
+}
+
+/** Relative time inside a live chunk for an absolute timeline position. */
+export function getLiveChunkRelativeTime(absoluteTime: number, chunkStart: number): number {
+  const relative = Number(absoluteTime) - Number(chunkStart)
+  if (!Number.isFinite(relative) || relative <= 0) return 0
+  return relative
+}
+
+function applyLiveChunkRelativeSeek(
+  videoEl: HTMLVideoElement | null | undefined,
+  absoluteTime: number,
+  chunkStart: number,
+) {
+  if (!videoEl) return
+  const relative = getLiveChunkRelativeTime(absoluteTime, chunkStart)
+  if (relative <= 0.05) return
+  if (Math.abs((videoEl.currentTime || 0) - relative) <= 0.12) return
+  videoEl.currentTime = relative
+}
+
+function waitForMediaEvent(
+  videoEl: HTMLVideoElement,
+  eventName: 'loadedmetadata' | 'seeked',
+  timeoutMs = 8000,
+): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      videoEl.removeEventListener(eventName, onEvent)
+      window.clearTimeout(timeoutId)
+      resolve()
+    }
+    const onEvent = () => finish()
+    const timeoutId = window.setTimeout(finish, timeoutMs)
+    videoEl.addEventListener(eventName, onEvent, {once: true})
+  })
+}
+
+async function seekDirectPlaybackTo(
+  videoEl: HTMLVideoElement,
+  time: number,
+  isCancelled?: () => boolean,
+) {
+  const target = Math.max(0, Number(time) || 0)
+  if (!Number.isFinite(target)) return
+
+  if (videoEl.readyState < HTMLMediaElement.HAVE_METADATA) {
+    await waitForMediaEvent(videoEl, 'loadedmetadata')
+    if (isCancelled?.()) return
+  }
+
+  if (Math.abs((videoEl.currentTime || 0) - target) <= 0.12) return
+  videoEl.currentTime = target
+  await waitForMediaEvent(videoEl, 'seeked', 4000)
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -72,8 +131,16 @@ export async function resolvePlayableVideo(
 ): Promise<ResolvedPlayableVideo | null> {
   const candidates = []
 
+  const matchesInitial = (item: MediaItem) => {
+    if (initialVideo.key && item.key) return item.key === initialVideo.key
+    if (initialVideo.markId != null && item.markId != null) {
+      return Number(item.markId) === Number(initialVideo.markId)
+    }
+    return item.id == initialVideo.id
+  }
+
   if (playlist.length > 0) {
-    const foundIndex = findIndex(playlist, (item) => item.id == initialVideo.id)
+    const foundIndex = findIndex(playlist, matchesInitial)
 
     if (foundIndex >= 0) {
       for (let offset = 0; offset < playlist.length; offset++) {
@@ -97,7 +164,7 @@ export async function resolvePlayableVideo(
 
   if (initialVideo?.id) {
     const index = playlist.length > 0
-      ? Math.max(0, findIndex(playlist, (item) => item.id == initialVideo.id))
+      ? Math.max(0, findIndex(playlist, matchesInitial))
       : 0
     return {video: initialVideo, index}
   }
@@ -129,6 +196,64 @@ export function usePlayerPlayback({
   const eventBus = useEventBus()
   const {t} = useI18n()
 
+  let segmentAdvancePending = false
+
+  const maybeAdvanceSegmentPlaylist = () => {
+    if (segmentAdvancePending || !playerStore.active || !controls.value) return
+    if (playerStore.isLiveStreamSeeking || isAdvancingChunk) return
+
+    const current = playerStore.playlist[playerStore.nowPlaying]
+    const segmentEnd = getSegmentEnd(current)
+    if (segmentEnd == null) return
+
+    const currentTime = Number(playerStore.currentTime)
+    if (!Number.isFinite(currentTime) || currentTime < segmentEnd) return
+
+    const stopAtSegmentEnd = () => {
+      playerStore.playerPause()
+      if (playerStore.player && !playerStore.usesLiveTranscode) {
+        playerStore.player.currentTime = segmentEnd
+      }
+      playerStore.syncPlaybackState()
+    }
+
+    segmentAdvancePending = true
+    try {
+      // Cancel in-flight live chunk work so it cannot restart the previous media.
+      seekLiveStream.cancel?.()
+      maybeAdvanceLiveStreamChunk.cancel?.()
+      liveStreamSeekGeneration += 1
+      isAdvancingChunk = false
+      pendingNextChunkStart = null
+
+      const canAutoplayNext = playerStore.playlistMode.includes('autoplay')
+        && !isPlaylistNavDisabled({
+          playlistMode: playerStore.playlistMode,
+          playlistShuffle: playerStore.playlistShuffle,
+          nowPlaying: playerStore.nowPlaying,
+          playlistLength: playerStore.playlist.length,
+          direction: 'next',
+        })
+
+      if (canAutoplayNext) {
+        controls.value.next?.()
+      } else {
+        stopAtSegmentEnd()
+      }
+    } finally {
+      // Allow the next segment (or pause) to settle before watching again.
+      window.setTimeout(() => {
+        segmentAdvancePending = false
+      }, 250)
+    }
+  }
+
+  const getLiveFileDuration = () => resolveLiveFileDuration({
+    metadataDuration: metadataNumber(playerStore.metadata, 'duration'),
+    storeDuration: playerStore.duration,
+    liveStreamOffset: playerStore.liveStreamOffset,
+  })
+
   const initPlayer = () => {
     if (!playerStore.player) return
     if (playerStore.player.dataset.playerBound === '1') return
@@ -141,11 +266,14 @@ export function usePlayerPlayback({
       if (!videoEl) return
 
       const metadataDuration = metadataNumber(playerStore.metadata, 'duration')
-      if (playerStore.usesLiveTranscode && metadataDuration != null) {
-        playerStore.duration = metadataDuration
+      if (playerStore.usesLiveTranscode) {
+        // Never trust videoEl.duration for live chunks — it is the segment length.
+        if (metadataDuration != null && metadataDuration > 0) {
+          playerStore.duration = metadataDuration
+        }
       } else if (Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
         playerStore.duration = videoEl.duration
-      } else if (metadataDuration != null) {
+      } else if (metadataDuration != null && metadataDuration > 0) {
         playerStore.duration = metadataDuration
       }
 
@@ -155,6 +283,7 @@ export function usePlayerPlayback({
     playerStore.player.addEventListener('timeupdate', () => {
       playerStore.syncPlaybackState()
       maybeAdvanceLiveStreamChunk()
+      maybeAdvanceSegmentPlaylist()
     })
 
     playerStore.player.addEventListener('progress', () => {
@@ -163,14 +292,33 @@ export function usePlayerPlayback({
 
     playerStore.player.addEventListener('ended', async () => {
       if (playerStore.usesLiveTranscode) {
-        const nextStart = getNextChunkStart(
+        const fileDuration = getLiveFileDuration()
+        let nextStart = getNextChunkStart(
           playerStore.liveStreamOffset,
-          playerStore.duration,
+          fileDuration,
         )
+
+        const current = playerStore.playlist[playerStore.nowPlaying]
+        const segmentEnd = getSegmentEnd(current)
+        const absoluteTime = getAbsolutePlaybackTime({
+          usesLiveTranscode: true,
+          liveStreamOffset: playerStore.liveStreamOffset,
+          playerCurrentTime: playerStore.player?.currentTime,
+        })
+        const stillInsideSegment = segmentEnd != null && absoluteTime < segmentEnd - 0.25
+
+        // Mid-clip: keep streaming the next chunk even if duration is unknown/wrong.
+        if (nextStart == null && stillInsideSegment) {
+          nextStart = playerStore.liveStreamOffset + LIVE_STREAM_CHUNK_SECONDS
+        }
+
         if (nextStart != null) {
           const advanced = await switchLiveStreamChunk(nextStart)
           if (advanced) return
         }
+
+        // Do not advance the playlist while the current timed clip is unfinished.
+        if (stillInsideSegment) return
       }
 
       if (playerStore.playlistMode.includes('autoplay') && controls.value) {
@@ -302,6 +450,7 @@ export function usePlayerPlayback({
   let pendingNextChunkStart: number | null = null
   let directPlaybackFallbackAttempted = false
   let liveStreamCopyCompatible = false
+  let liveStreamAccurateSeek = false
   let directPlaybackFallbackInFlight = false
   let directSeekStallTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -332,9 +481,10 @@ export function usePlayerPlayback({
     playerStore.transcodeError = null
   }
 
-  const liveStreamUrlOptions = () => (
-    liveStreamCopyCompatible ? {copyCompatible: true} : {}
-  )
+  const liveStreamUrlOptions = () => ({
+    ...(liveStreamCopyCompatible ? {copyCompatible: true} : {}),
+    ...(liveStreamAccurateSeek ? {accurateSeek: true} : {}),
+  })
 
   const failTranscode = (message?: string) => {
     playerStore.transcodeStatus = 'error'
@@ -388,7 +538,7 @@ export function usePlayerPlayback({
     const resumeTime = Number.isFinite(playerStore.player.currentTime) && playerStore.player.currentTime > 0
       ? playerStore.player.currentTime
       : playerStore.currentTime || 0
-    const chunkStart = getChunkStart(resumeTime)
+    const streamStart = Math.max(0, Number(resumeTime) || 0)
 
     try {
       currentLiveMediaId = mediaId
@@ -400,8 +550,8 @@ export function usePlayerPlayback({
       playerStore.transcodeStatus = 'stream'
       playerStore.playbackError = false
       playerStore.transcodeError = null
-      playerStore.liveStreamOffset = chunkStart
-      playerStore.currentTime = resumeTime
+      playerStore.liveStreamOffset = streamStart
+      playerStore.currentTime = streamStart
       playerStore.bufferedRanges = []
       playerStore.isLiveStreamSeeking = true
       playerStore.liveStreamSeekHandler = (time: number) => {
@@ -413,7 +563,7 @@ export function usePlayerPlayback({
       playerStore.player.src = buildLiveStreamUrl(
         buildApiUrl,
         mediaId,
-        chunkStart,
+        streamStart,
         playerStore.liveTranscodeMaxHeight,
         liveStreamUrlOptions(),
       )
@@ -421,6 +571,7 @@ export function usePlayerPlayback({
       await playCurrentLiveStream()
       if (!playerStore.active) return true
       playerStore.paused = false
+      playerStore.currentTime = streamStart
       playerStore.isLiveStreamSeeking = false
       playerStore.syncPlaybackState()
       return true
@@ -453,6 +604,7 @@ export function usePlayerPlayback({
     playerStore.isStreamWaiting = false
     currentLiveMediaId = null
     liveStreamCopyCompatible = false
+    liveStreamAccurateSeek = false
     isAdvancingChunk = false
     pendingNextChunkStart = null
     liveStreamSeekGeneration += 1
@@ -475,6 +627,8 @@ export function usePlayerPlayback({
     const seekGeneration = ++liveStreamSeekGeneration
     isAdvancingChunk = true
     pendingNextChunkStart = null
+    // Chunk boundaries do not need frame-accurate decode-from-zero seeking.
+    liveStreamAccurateSeek = false
     const wasPaused = playerStore.paused
 
     playerStore.isLiveStreamSeeking = true
@@ -522,7 +676,7 @@ export function usePlayerPlayback({
 
     const chunkStart = playerStore.liveStreamOffset
     const relativeTime = playerStore.player.currentTime || 0
-    const nextStart = getNextChunkStart(chunkStart, playerStore.duration)
+    const nextStart = getNextChunkStart(chunkStart, getLiveFileDuration())
     if (nextStart == null) return
 
     const prefetchAt = LIVE_STREAM_CHUNK_SECONDS - LIVE_STREAM_PREFETCH_SECONDS
@@ -538,23 +692,57 @@ export function usePlayerPlayback({
       return
     }
 
-    const chunkStart = getChunkStart(time)
+    const seekTime = Math.max(0, Number(time) || 0)
+    const streamStart = playerStore.liveStreamOffset
+    const relative = getLiveChunkRelativeTime(seekTime, streamStart)
+
+    // Already on a stream that starts at this exact position.
+    if (
+      Math.abs(seekTime - streamStart) <= 0.05
+      && playerStore.player.src
+      && !isAdvancingChunk
+    ) {
+      playerStore.currentTime = seekTime
+      playerStore.syncPlaybackState()
+      return
+    }
+
+    // Small forward seek inside the current non-seekable segment only works once
+    // that time is already buffered; otherwise restart ffmpeg at the exact time.
+    const bufferedEnd = playerStore.player.buffered?.length
+      ? playerStore.player.buffered.end(playerStore.player.buffered.length - 1)
+      : 0
+    if (
+      relative > 0.05
+      && relative < LIVE_STREAM_CHUNK_SECONDS
+      && relative <= bufferedEnd + 0.25
+      && playerStore.player.src
+      && !isAdvancingChunk
+    ) {
+      applyLiveChunkRelativeSeek(playerStore.player, seekTime, streamStart)
+      playerStore.currentTime = seekTime
+      playerStore.syncPlaybackState()
+      return
+    }
+
     const seekGeneration = ++liveStreamSeekGeneration
     const wasPaused = playerStore.paused
     isAdvancingChunk = false
     pendingNextChunkStart = null
+    // Keep seeks fast — never request decode-from-zero / keyframe-probe accurate mode.
+    liveStreamAccurateSeek = false
     playerStore.isLiveStreamSeeking = true
     playerStore.playbackError = false
-    playerStore.liveStreamOffset = chunkStart
+    playerStore.liveStreamOffset = seekTime
     playerStore.bufferedRanges = []
     playerStore.player.src = buildLiveStreamUrl(
       buildApiUrl,
       currentLiveMediaId,
-      chunkStart,
+      seekTime,
       playerStore.liveTranscodeMaxHeight,
       liveStreamUrlOptions(),
     )
-    playerStore.currentTime = time
+    playerStore.currentTime = seekTime
 
     const onPlaying = () => {
       if (seekGeneration !== liveStreamSeekGeneration) return
@@ -584,6 +772,7 @@ export function usePlayerPlayback({
 
     if (seekGeneration !== liveStreamSeekGeneration) return
 
+    playerStore.currentTime = seekTime
     playerStore.syncPlaybackState()
 
     window.setTimeout(() => {
@@ -593,7 +782,11 @@ export function usePlayerPlayback({
     }, 15000)
   }, 250)
 
-  const resolveVideoSource = async (mediaId: number, startTime = 0) => {
+  const resolveVideoSource = async (
+    mediaId: number,
+    startTime = 0,
+    _options: {accurateStart?: boolean} = {},
+  ) => {
     await clearLiveTranscodeHandlers()
 
     const playable = await fetchPlayableInfo(mediaId)
@@ -602,15 +795,22 @@ export function usePlayerPlayback({
       throw new UnsupportedPlaybackError()
     }
 
+    const streamStart = Math.max(0, Number(startTime) || 0)
+
+    // Prefer direct playback whenever the browser can handle the file.
+    // Forcing live re-encode just for clip marks made every clip start wait on ffmpeg.
     if (!playable.transcodeRequired) {
       resetTranscodeState()
+      liveStreamAccurateSeek = false
       return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
     }
 
-    const chunkStart = getChunkStart(startTime)
     currentLiveMediaId = mediaId
     // container_layout needs full re-encode; remux-copy paints black video in Chromium.
-    liveStreamCopyCompatible = playable.remuxCopy === true && playable.reason !== 'container_layout'
+    liveStreamCopyCompatible = playable.remuxCopy === true
+      && playable.reason !== 'container_layout'
+      && streamStart < 0.05
+    liveStreamAccurateSeek = false
     playerStore.usesLiveTranscode = true
     playerStore.liveTranscodeMediaId = mediaId
     playerStore.liveTranscodeMaxHeight = normalizeTranscodeMaxHeight(settingsStore.transcodeMaxHeight)
@@ -620,14 +820,14 @@ export function usePlayerPlayback({
       seekLiveStream(time)
     }
 
-    playerStore.liveStreamOffset = chunkStart
+    playerStore.liveStreamOffset = streamStart
     resetTranscodeState()
     playerStore.transcodeStatus = 'stream'
     markLiveTranscodeSession(mediaId)
     return buildLiveStreamUrl(
       buildApiUrl,
       mediaId,
-      chunkStart,
+      streamStart,
       playerStore.liveTranscodeMaxHeight,
       liveStreamUrlOptions(),
     )
@@ -649,8 +849,7 @@ export function usePlayerPlayback({
     const seekGeneration = ++liveStreamSeekGeneration
     isAdvancingChunk = false
     pendingNextChunkStart = null
-    const time = playerStore.currentTime
-    const chunkStart = getChunkStart(time)
+    const time = Math.max(0, Number(playerStore.currentTime) || 0)
     const wasPaused = playerStore.paused
 
     const liveMediaId = currentLiveMediaId
@@ -661,13 +860,13 @@ export function usePlayerPlayback({
     playerStore.liveTranscodeMaxHeight = normalized
     playerStore.isLiveStreamSeeking = true
     playerStore.playbackError = false
-    playerStore.liveStreamOffset = chunkStart
+    playerStore.liveStreamOffset = time
     playerStore.bufferedRanges = []
     playerStore.currentTime = time
     playerStore.player.src = buildLiveStreamUrl(
       buildApiUrl,
       liveMediaId,
-      chunkStart,
+      time,
       normalized,
       liveStreamUrlOptions(),
     )
@@ -679,7 +878,7 @@ export function usePlayerPlayback({
           () => buildLiveStreamUrl(
             buildApiUrl,
             liveMediaId,
-            chunkStart,
+            time,
             normalized,
             liveStreamUrlOptions(),
           ),
@@ -700,6 +899,7 @@ export function usePlayerPlayback({
       }
     } finally {
       if (seekGeneration === liveStreamSeekGeneration && playerStore.active) {
+        playerStore.currentTime = time
         playerStore.isLiveStreamSeeking = false
         playerStore.syncPlaybackState()
       }
@@ -712,6 +912,7 @@ export function usePlayerPlayback({
     directPlaybackFallbackAttempted = false
     directPlaybackFallbackInFlight = false
     liveStreamCopyCompatible = false
+    liveStreamAccurateSeek = false
     clearDirectSeekStallWatch()
     await clearLiveTranscodeHandlers()
     if (isLoadSrcStale(session)) return
@@ -745,7 +946,14 @@ export function usePlayerPlayback({
       return
     }
 
-    media = resolved.video
+    const requestedMedia = media
+    const requestedClip = isClipPlaylistItem(requestedMedia)
+    const requestedSegmentStart = getSegmentStart(requestedMedia)
+    const explicitStart = start_time != null && Number.isFinite(Number(start_time))
+      ? Number(start_time)
+      : undefined
+
+    media = mergeClipFields(resolved.video, requestedMedia)
     const mediaType = findMediaTypeById(appStore.mediaTypes, media.mediaTypeId)
     playerStore.isAudioMode = isAudioMediaType(mediaType) || isAudioFilePath(media.path)
     playerStore.is_file_exists = media.path ? await checkFileExists(media.path) : false
@@ -759,12 +967,18 @@ export function usePlayerPlayback({
     if (isLoadSrcStale(session)) return
 
     const metadataDuration = metadataNumber(playerStore.metadata, 'duration')
-    if (metadataDuration != null) {
+    if (metadataDuration != null && metadataDuration > 0) {
       playerStore.duration = metadataDuration
     }
 
-    let targetStartTime = start_time || 0
-    if (!start_time && settingsStore.restorePlaybackTime == '1') {
+    const playingClip = requestedClip || isClipPlaylistItem(media)
+    const segmentStart = getSegmentStart(media) ?? requestedSegmentStart
+    let targetStartTime = 0
+    if (explicitStart != null) {
+      targetStartTime = explicitStart
+    } else if (segmentStart != null) {
+      targetStartTime = segmentStart
+    } else if (!playingClip && settingsStore.restorePlaybackTime == '1') {
       const metaTime = metadataNumber(playerStore.metadata, 'time')
       if (metaTime != null && metadataDuration != null) {
         if (!(metadataDuration - metaTime < 5)) {
@@ -772,6 +986,10 @@ export function usePlayerPlayback({
         }
       }
     }
+
+    // Show clip/resume time immediately — do not wait on marks/thumbs.
+    playerStore.media = media
+    playerStore.currentTime = targetStartTime
 
     try {
       videoEl.src = await resolveVideoSource(media.id, targetStartTime)
@@ -793,25 +1011,24 @@ export function usePlayerPlayback({
       return
     }
 
-    playerStore.media = media
-    await getMarks(media)
-    if (isLoadSrcStale(session)) {
-      await clearLiveTranscodeHandlers()
-      return
-    }
-
     playerStore.trackCurrentTime()
     videoEl.playbackRate = playerStore.speed
 
     if (!playerStore.usesLiveTranscode) {
-      if (start_time) {
-        videoEl.currentTime = start_time
-      } else if (targetStartTime) {
-        videoEl.currentTime = targetStartTime
+      if (explicitStart != null || targetStartTime > 0 || segmentStart != null) {
+        await seekDirectPlaybackTo(
+          videoEl,
+          targetStartTime,
+          () => isLoadSrcStale(session),
+        )
+        if (isLoadSrcStale(session)) {
+          await clearLiveTranscodeHandlers()
+          return
+        }
+        playerStore.currentTime = targetStartTime
       }
     } else {
-      const chunkStart = getChunkStart(targetStartTime)
-      playerStore.liveStreamOffset = chunkStart
+      playerStore.liveStreamOffset = targetStartTime
       playerStore.currentTime = targetStartTime
       playerStore.bufferedRanges = []
     }
@@ -847,6 +1064,9 @@ export function usePlayerPlayback({
     try {
       if (playerStore.usesLiveTranscode) {
         await playCurrentLiveStream()
+        if (isLoadSrcStale(session)) return
+        playerStore.currentTime = targetStartTime
+        playerStore.syncPlaybackState()
       } else {
         await videoEl.play()
       }
@@ -868,6 +1088,9 @@ export function usePlayerPlayback({
 
     if (isLoadSrcStale(session)) return
     isReady.value = true
+
+    // Marks/thumbs after playback starts — do not block clip start.
+    void getMarks(media)
   }
 
   const updatePlaybackTime = async (media: MediaItem) => {
@@ -896,9 +1119,9 @@ export function usePlayerPlayback({
       return
     }
 
-    playerStore.playlist = videos.map((item): PlayerPlaylistItem => ({
+    playerStore.playlist = videos.map((item, index): PlayerPlaylistItem => ({
       ...item,
-      key: String(item.id),
+      key: playlistItemKey(item, index),
       thumb: item.thumb
         ? (item.thumb.startsWith('http') ? item.thumb : buildApiUrl(item.thumb))
         : '/images/unavailable.png',
@@ -910,7 +1133,10 @@ export function usePlayerPlayback({
     updatePlayerWindowTitle(media)
 
     await nextTick()
-    await loadSrc(media, time)
+    const startTime = time != null && Number.isFinite(Number(time))
+      ? Number(time)
+      : getSegmentStart(media)
+    await loadSrc(media, startTime)
 
     const mediaTypeId = media.mediaTypeId || getDefaultMediaTypeId(appStore.mediaTypes)
     try {

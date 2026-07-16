@@ -566,13 +566,22 @@ function registerBuiltinRoutes({
       const startTime = Math.max(0, Number(req.query.start) || 0)
       const maxHeightOverride = parseMaxHeightOverride(req.query.maxHeight)
       const copyCodecs = req.query.copy === '1' || req.query.copy === 'true'
-      const streamOptions: { startTime: number; maxHeight?: number; copyCodecs?: boolean } = { startTime }
+      const accurateSeek = req.query.accurate === '1' || req.query.accurate === 'true'
+      const streamOptions: {
+        startTime: number
+        maxHeight?: number
+        copyCodecs?: boolean
+        accurateSeek?: boolean
+      } = {startTime}
 
       if (maxHeightOverride != null) {
         streamOptions.maxHeight = maxHeightOverride
       }
       if (copyCodecs) {
         streamOptions.copyCodecs = true
+      }
+      if (accurateSeek) {
+        streamOptions.accurateSeek = true
       }
 
       await transcodeManager.streamLive(req, res, resolved.videoPath, streamOptions)

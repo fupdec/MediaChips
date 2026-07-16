@@ -58,7 +58,7 @@ import {
   PageSettingsRecordSchema,
   PlaylistCreateResponseSchema,
 } from './pages'
-import type { PageSettingsRecord, SettingEntry, DatabaseSizesResponse, BackupEntry, MediaPathFile, AddMediaResponse, ParsePathTagEntry, MarkForVideo } from '../api/responses'
+import type { PageSettingsRecord, SettingEntry, DatabaseSizesResponse, BackupEntry, MediaPathFile, AddMediaResponse, ParsePathTagEntry, MarkForVideo, MarkClipsResponse } from '../api/responses'
 import type { SavedFilterBasic } from '../entities/filter'
 import type { MediaType } from '../entities/media'
 import type { MediaItem } from '../entities/media'
@@ -74,6 +74,7 @@ import {
   AssignedMetaSchema,
   FilterRowResponseSchema,
   MarkForVideoSchema,
+  MarkClipsResponseSchema,
   MediaCountWithTagSchema,
   MetaSettingSchema,
   PinnedMetaLinkSchema,
@@ -354,6 +355,10 @@ export function parseMark(data: unknown): MarkForVideo {
   return MarkForVideoSchema.parse(data) as MarkForVideo
 }
 
+export function parseMarkClipsResponse(data: unknown): MarkClipsResponse {
+  return MarkClipsResponseSchema.parse(data) as MarkClipsResponse
+}
+
 export function parseVideoMetadata(data: unknown) {
   return VideoMetadataSchema.parse(data)
 }
@@ -450,6 +455,7 @@ export {
   AssignedMetaSchema,
   FilterRowResponseSchema,
   MarkForVideoSchema,
+  MarkClipsResponseSchema,
   MediaCountWithTagSchema,
   MetaSettingSchema,
   PinnedMetaLinkSchema,

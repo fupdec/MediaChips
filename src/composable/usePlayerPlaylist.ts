@@ -48,18 +48,22 @@ export function usePlayerPlaylist({ emit, scrollerId = 'scroller' }: UsePlayerPl
   const play = (index: number) => {
     playerStore.paused = false
     const current = video.value
+    const next = player.value.playlist[index]
+    if (!next) return
+
+    playerStore.nowPlaying = index
 
     if (player.value.playlistMode.includes('shuffle')) {
       playerStore.playlistShuffle = promotePlaylistIndex(
         createShuffledPlaylistIndexes(player.value.playlist.length),
         index,
       )
-      emit('play', { n: player.value.playlist[index], o: current })
+      emit('play', { n: next, o: current })
       if (player.value.playlistVisible) scrollToNowPlaying()
       return
     }
 
-    emit('play', { n: player.value.playlist[index], o: current })
+    emit('play', { n: next, o: current })
   }
 
   const handleScrollToNowPlaying = () => {

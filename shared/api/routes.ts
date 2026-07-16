@@ -65,6 +65,7 @@ export const API_ROUTES = {
   mediaThumbsCapital: '/api/Media/thumbs',
   tagThumbs: '/api/tag/thumbs',
   markItems: '/api/Mark/items',
+  markClips: '/api/Mark/clips',
   markFilterMetas: '/api/Mark/filter-metas',
   bulkMetaApply: '/api/bulk-meta/apply',
   transcodeCache: '/api/transcode/cache',

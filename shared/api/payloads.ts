@@ -241,6 +241,12 @@ export interface MarkItemsRequestPayload {
   [key: string]: unknown
 }
 
+export interface MarkClipsRequestPayload {
+  tagId: number
+  sort?: 'time' | 'shuffle'
+  countOnly?: boolean
+}
+
 export interface BulkMetaApplyPayload {
   itemType: 'media' | 'tag'
   itemIds: Array<number | string>

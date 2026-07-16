@@ -55,8 +55,25 @@ export interface MediaItem {
   synonyms?: string
   values?: ItemValueRef[]
   tags?: ItemTagRef[]
+  /** Timed clip playlist fields (marks with start/end). */
+  markId?: number
+  segmentStart?: number
+  segmentEnd?: number
+  key?: string
   [key: string]: unknown
 }
 
 /** Minimal media shape accepted by the player and playlist actions. */
-export type PlayableMedia = Pick<MediaItem, 'id'> & Partial<Pick<MediaItem, 'path' | 'name' | 'mediaTypeId' | 'duration' | 'thumb' | 'time'>>
+export type PlayableMedia = Pick<MediaItem, 'id'> & Partial<Pick<MediaItem,
+  | 'path'
+  | 'name'
+  | 'mediaTypeId'
+  | 'duration'
+  | 'thumb'
+  | 'time'
+  | 'markId'
+  | 'segmentStart'
+  | 'segmentEnd'
+  | 'key'
+  | 'basename'
+>>

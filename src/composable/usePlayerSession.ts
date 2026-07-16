@@ -28,6 +28,7 @@ import {
 } from '@/utils/liveTranscodeLifecycle'
 import type { MediaItem } from '@/types/stores'
 import type { PlayVideoSwitch, PlayerControlsRef, PlayerMark, PlayerMarksComponentRef } from '@/types/player'
+import { getSegmentStart, isClipPlaylistItem } from '@/utils/mediaItem'
 
 export function usePlayerSession() {
   const appStore = useAppStore()
@@ -319,7 +320,46 @@ export function usePlayerSession() {
     if (o) {
       await updatePlaybackTime(o)
     }
-    await loadSrc(n)
+
+    const nextIndex = playerStore.playlist.findIndex((item) => {
+      if (n.key && item.key) return item.key === n.key
+      if (n.markId != null && item.markId != null) return Number(item.markId) === Number(n.markId)
+      return false
+    })
+    if (nextIndex >= 0) {
+      playerStore.nowPlaying = nextIndex
+    }
+
+    const start = getSegmentStart(n)
+    const sameMedia = Boolean(o && n?.id != null && o.id === n.id)
+    // Same-file browser seeks land on the previous keyframe and leave the playhead
+    // before the mark. Always reload clip items so live/accurate start can apply.
+    const canSeekSameMedia = sameMedia
+      && start != null
+      && !isClipPlaylistItem(n)
+      && !playerStore.usesLiveTranscode
+      && playerStore.player
+
+    if (canSeekSameMedia) {
+      const videoEl = playerStore.player
+      playerStore.playerJumpTo(start)
+      playerStore.changePlayerStatusText({
+        text: `${playerStore.nowPlaying + 1}. ${n.name}`,
+        icon: 'format-list-bulleted',
+        large: true,
+      })
+      if (playerStore.paused && videoEl) {
+        try {
+          await videoEl.play()
+          playerStore.paused = false
+        } catch {
+          // ignore autoplay failures
+        }
+      }
+      return
+    }
+
+    await loadSrc(n, start)
   }
 
   const togglePause = () => {

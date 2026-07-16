@@ -16,6 +16,7 @@ import type {
   MarkForVideo,
 } from '@shared/api/responses'
 import type {
+  MarkClipsRequestPayload,
   MarkItemsRequestPayload,
   MediaIdsRequestPayload,
   MediaPathUpdatePayload,
@@ -23,6 +24,7 @@ import type {
 } from '@shared/api/payloads'
 import {
   parseMark,
+  parseMarkClipsResponse,
   parseMarksForVideo,
   parseMediaCountWithTag,
   parseMediaIdsResponse,
@@ -105,6 +107,13 @@ export const mediaApi = {
     return apiClient.post<MediaListResponseData>(API_ROUTES.markItems, body).then((res) => ({
       ...res,
       data: validated(parseMediaListResponse, res.data),
+    }))
+  },
+
+  getMarkClips(body: MarkClipsRequestPayload) {
+    return apiClient.post(API_ROUTES.markClips, body).then((res) => ({
+      ...res,
+      data: validated(parseMarkClipsResponse, res.data),
     }))
   },
 

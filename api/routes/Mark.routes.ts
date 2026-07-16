@@ -3,7 +3,7 @@ import type { Express } from 'express'
 
 import express from 'express'
 import {  validateBody  } from '../middleware/validateBody'
-import {  ItemsListRequestSchema  } from '../../shared/schemas/requests'
+import {  ItemsListRequestSchema, MarkClipsRequestSchema  } from '../../shared/schemas/requests'
 import createMarkController from '../controllers/Mark.controller'
 
 
@@ -19,6 +19,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get("/", Mark.findAll);
 
   router.post("/items", validateBody(ItemsListRequestSchema), Mark.getItems);
+
+  router.post("/clips", validateBody(MarkClipsRequestSchema), Mark.getClips);
 
   router.get("/filter-metas", Mark.getFilterMetas);
 

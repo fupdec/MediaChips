@@ -30,7 +30,8 @@ function getNextChunkStart(
   chunkDuration = LIVE_STREAM_CHUNK_SECONDS,
 ): number | null {
   const next = chunkStart + chunkDuration
-  if (!fileDuration || next >= fileDuration - 0.25) {
+  const knownDuration = Number(fileDuration)
+  if (Number.isFinite(knownDuration) && knownDuration > 0 && next >= knownDuration - 0.25) {
     return null
   }
 

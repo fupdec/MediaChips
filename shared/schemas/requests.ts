@@ -262,6 +262,12 @@ export const HomeMarkersQuerySchema = z.object({
   limit: optionalCoercedNumber,
 }).passthrough()
 
+export const MarkClipsRequestSchema = z.object({
+  tagId: z.coerce.number(),
+  sort: z.enum(['time', 'shuffle']).optional(),
+  countOnly: optionalCoercedBoolean,
+}).passthrough()
+
 export const MediaTagCountQuerySchema = z.object({
   mediaTypeId: z.coerce.number(),
   tagId: z.coerce.number(),

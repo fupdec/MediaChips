@@ -549,6 +549,13 @@ const cn = {
       shuffle: '随机',
     },
   },
+  tags: {
+    play_clips: '播放片段 ({count})',
+    play_clips_in_order: '按顺序播放',
+    play_clips_shuffle: '随机播放片段',
+    play_clips_empty_title: '没有片段',
+    play_clips_empty_text: '此标签在时间轴上还没有时间范围标记。',
+  },
   editing: {
     progress_filling_data: '数据填写进度',
     media_file_information: '媒体文件信息',

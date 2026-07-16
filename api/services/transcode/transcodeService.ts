@@ -20,7 +20,6 @@ import {
 } from './transcodeSettings'
 import { createLiveStreamRegistry } from './liveStreamTranscode'
 import {
-  getChunkStart,
   getChunkDuration,
 } from './liveStreamChunk'
 
@@ -61,6 +60,7 @@ interface StreamLiveOptions {
   audioOnly?: boolean
   maxHeight?: number | null
   copyCodecs?: boolean
+  accurateSeek?: boolean
   settings?: Awaited<ReturnType<typeof getTranscodeSettings>>
   transcodeEnabled?: boolean
 }
@@ -279,8 +279,9 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     options: StreamLiveOptions = {},
   ): Promise<void> {
     const settings = options.settings || await getTranscodeSettings(db)
-    const requestedStart = Math.max(0, Number(options.startTime) || 0)
-    const chunkStart = getChunkStart(requestedStart)
+    // Use the exact requested start. Chunk-aligning forced the client to seek
+    // inside a non-seekable fMP4 pipe, which silently stayed at t=0 (up to ~30s early).
+    const streamStart = Math.max(0, Number(options.startTime) || 0)
     const audioOnly = options.audioOnly ?? isAudioFilePath(filePath)
     const maxHeight = options.maxHeight ?? getMaxHeight(settings)
     const dbId = getActiveDbId()
@@ -298,17 +299,23 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     const playability = await analyzePlayability(filePath)
     const fileDuration = Number(playability.duration || 0)
     const chunkDuration = getChunkDuration({
-      chunkStart,
+      chunkStart: streamStart,
       fileDuration,
     })
     const codecsCopySafe = Boolean(playability.playable && !playability.needsRemux)
     // Never stream-copy pathological MP4 layouts: Chromium plays audio with a black frame.
-    const copyCodecs = Boolean(options.copyCodecs) && codecsCopySafe && !playability.needsRemux
+    // Also skip copy when starting mid-file — copy can only cut on keyframes and lands early.
+    const copyCodecs = Boolean(options.copyCodecs)
+      && codecsCopySafe
+      && !playability.needsRemux
+      && streamStart < 0.05
 
+    // Do not probe keyframes or decode-from-zero for "accurate" starts — both add
+    // multi-second (sometimes multi-minute) latency before the first frame.
     liveStreams.pipeLiveTranscode(req, res, {
       streamKey: cacheInfo.cacheKey,
       inputPath: filePath,
-      startTime: chunkStart,
+      startTime: streamStart,
       duration: chunkDuration,
       audioOnly,
       maxHeight: copyCodecs ? null : maxHeight,

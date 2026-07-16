@@ -51,7 +51,7 @@
             @play="play(index)"
             :video="item"
             :index="index"
-            :key="item.id"
+            :key="item.key || `clip-${item.markId || item.id}-${index}`"
           />
         </template>
 

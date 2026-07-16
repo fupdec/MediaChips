@@ -6,6 +6,7 @@ import {
 } from '@/utils/playerBuffer'
 import type { MediaItem, PlayerPlaylistItem } from '@/types/stores'
 import type { PlayerMark } from '@/types/player'
+import { playlistItemKey } from '@/utils/mediaItem'
 
 type TimeoutHandle = ReturnType<typeof setTimeout>
 type IntervalHandle = ReturnType<typeof setInterval>
@@ -217,14 +218,23 @@ export const usePlayerStore = defineStore('player', {
       this.backgroundStatusIcon = ''
     },
     setPlaylistItems(videos: MediaItem[] | null | undefined, { host = '' }: { host?: string } = {}) {
+      const currentKey = this.playlist[this.nowPlaying]?.key
       const currentId = this.playlist[this.nowPlaying]?.id
-      this.playlist = (videos || []).map((item) => ({
+      this.playlist = (videos || []).map((item, index) => ({
         ...item,
-        key: String(item.id),
+        key: playlistItemKey(item, index),
         thumb: item.thumb?.startsWith?.('http')
           ? item.thumb
           : (item.thumb ? `${host}${item.thumb}` : '/images/unavailable.png'),
       }))
+
+      if (currentKey != null) {
+        const nextIndex = this.playlist.findIndex((item) => item.key === currentKey)
+        if (nextIndex >= 0) {
+          this.nowPlaying = nextIndex
+          return
+        }
+      }
 
       if (currentId != null) {
         const nextIndex = this.playlist.findIndex((item) => item.id === currentId)

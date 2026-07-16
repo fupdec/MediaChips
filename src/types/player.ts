@@ -29,7 +29,7 @@ export interface UsePlayerPlaybackOptions {
   controls: Ref<PlayerControlsRef | null>
   marks: Ref<PlayerMarksComponentRef | null>
   isPlayerWindow: ComputedRef<boolean>
-  updateItemVideo: (id: number | string) => void
+  updateItemVideo: (id: number | string, patch?: Record<string, unknown>) => void
   updatePlayerWindowTitle: (item: MediaItem) => void
 }
 

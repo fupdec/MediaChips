@@ -28,15 +28,17 @@
     <div class="playlist-item__info">
       <span class="playlist-item__index">{{ index + 1 }}</span>
       <div class="playlist-item__text">
-        <span class="playlist-item__name" :title="video.name" v-text="video.name"/>
-        <span v-if="video.duration" class="playlist-item__duration" v-text="getDuration(video.duration)"/>
+        <span class="playlist-item__name" :title="displayName" v-text="displayName"/>
+        <span v-if="durationLabel" class="playlist-item__duration" v-text="durationLabel"/>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
 import {usePlaylistItem} from '@/composable/usePlaylistItem'
+import {getSegmentEnd, getSegmentStart} from '@/utils/mediaItem'
 import type {MediaItem} from '@/types/stores'
 
 const props = defineProps<{
@@ -56,4 +58,22 @@ const {
   getDuration,
   play,
 } = usePlaylistItem(props, emit)
+
+const segmentStart = computed(() => getSegmentStart(props.video))
+const segmentEnd = computed(() => getSegmentEnd(props.video))
+
+const displayName = computed(() => {
+  const name = props.video.name || ''
+  if (segmentStart.value == null || segmentEnd.value == null) return name
+  return `${name} · ${getDuration(segmentStart.value)} – ${getDuration(segmentEnd.value)}`
+})
+
+const durationLabel = computed(() => {
+  if (segmentStart.value != null && segmentEnd.value != null) {
+    const length = Math.max(0, segmentEnd.value - segmentStart.value)
+    return getDuration(length)
+  }
+  if (props.video.duration) return getDuration(props.video.duration)
+  return ''
+})
 </script>

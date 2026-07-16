@@ -3,6 +3,7 @@ import {
   getChunkStart,
   getChunkDuration,
   getNextChunkStart,
+  resolveLiveFileDuration,
   LIVE_STREAM_CHUNK_SECONDS,
 } from '@/utils/liveStreamChunk'
 
@@ -29,5 +30,31 @@ describe('liveStreamChunk', () => {
     expect(getNextChunkStart(0, 200)).toBe(30)
     expect(getNextChunkStart(120, 140)).toBeNull()
     expect(getNextChunkStart(120, 200)).toBe(150)
+  })
+
+  it('keeps advancing when file duration is unknown', () => {
+    expect(getNextChunkStart(270, null)).toBe(300)
+    expect(getNextChunkStart(270, 0)).toBe(300)
+    expect(getNextChunkStart(270, undefined)).toBe(300)
+  })
+
+  it('resolves live file duration without trusting chunk-sized store values', () => {
+    expect(resolveLiveFileDuration({
+      metadataDuration: 600,
+      storeDuration: 10,
+      liveStreamOffset: 270,
+    })).toBe(600)
+
+    expect(resolveLiveFileDuration({
+      metadataDuration: 0,
+      storeDuration: 10,
+      liveStreamOffset: 270,
+    })).toBeNull()
+
+    expect(resolveLiveFileDuration({
+      metadataDuration: null,
+      storeDuration: 600,
+      liveStreamOffset: 270,
+    })).toBe(600)
   })
 })

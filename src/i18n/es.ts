@@ -549,6 +549,13 @@ const es = {
       shuffle: 'Aleatorio',
     },
   },
+  tags: {
+    play_clips: 'Clips ({count})',
+    play_clips_in_order: 'Reproducir en orden',
+    play_clips_shuffle: 'Mezclar clips',
+    play_clips_empty_title: 'Sin clips',
+    play_clips_empty_text: 'Esta etiqueta aún no tiene rangos temporizados en la línea de tiempo.',
+  },
   editing: {
     progress_filling_data: 'Progreso de llenado de datos',
     media_file_information: 'Información del archivo multimedia',
