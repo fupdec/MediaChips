@@ -1143,12 +1143,13 @@
     box-shadow: #1110 0 0 0 0;
     transition-duration: 0.5s;
     transition-property: box-shadow;
-    background-color: transparent;
+    // Black letterbox/pillarbox once the static thumb fades out on hover.
+    background-color: #000;
     video {
       min-width: 100%;
       min-height: 100%;
       object-fit: contain;
-      background-color: transparent;
+      background-color: #000;
       opacity: 1;
     }
     .playback-error {
