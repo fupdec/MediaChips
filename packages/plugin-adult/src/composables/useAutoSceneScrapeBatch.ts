@@ -9,6 +9,7 @@ import { getCurrentMediaType, isVideoMediaType } from '@/utils/mediaType'
 import { useAppStore } from '@/stores/app'
 import translate, { type Locale } from '@/utils/translate'
 import { buildSceneScrapeSuccessNotificationText } from '../utils/sceneScraperMarkerSummary'
+import { applySceneScrapeResultToCard } from '../services/sceneScraperCardRefresh'
 import type { MediaItem } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 
@@ -93,15 +94,16 @@ export function useAutoSceneScrapeBatch() {
     }
 
     if (successfulIds.length) {
+      for (const result of results) {
+        if (!result.success) continue
+        await applySceneScrapeResultToCard(result.mediaId, result, {
+          regenerateThumb: true,
+        })
+      }
       eventBus.emit('getItemsFromDb', {
         ids: successfulIds,
         type: 'media',
       })
-      eventBus.emit('getTags')
-
-      for (const mediaId of successfulIds) {
-        itemsStore.refreshThumb(mediaId, { regenerate: true })
-      }
     }
 
     if (clearSelection) {
@@ -148,9 +150,9 @@ export function useAutoSceneScrapeBatch() {
           t,
         }),
       })
+      // Await tag catalog + card relations so chips resolve after oshash auto-apply.
+      await applySceneScrapeResultToCard(media.id, result, { regenerateThumb: true })
       eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
-      eventBus.emit('getTags')
-      itemsStore.refreshThumb(media.id, { regenerate: true })
       return result
     }
 

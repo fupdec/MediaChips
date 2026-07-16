@@ -107,7 +107,8 @@
 
             <v-card-text>
               <SceneScraperDataTransfer
-                v-if="selectedScene"
+                v-if="selectedScene && transferContextKey"
+                :key="transferContextKey"
                 :scene="selectedScene"
               />
             </v-card-text>
@@ -123,14 +124,26 @@ import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import SceneScraperDataTransfer from './scraper/SceneScraperDataTransfer.vue'
+import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useItemsStore} from '@/stores/items'
 import {useSceneScraperStore} from '../stores/sceneScraper'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {setNotification} from '@/services/notificationService'
-import {isExactOshashMatch} from '../services/sceneScraperAutoApply'
+import {
+  applyManualSceneTransferToMedia,
+  isExactOshashMatch,
+  type SceneAutoApplyResult,
+} from '../services/sceneScraperAutoApply'
+import {applySceneScrapeResultToCard} from '../services/sceneScraperCardRefresh'
+import {applyTransferAllToFields} from '../utils/sceneTransferApply'
 import {buildSceneSearchQueryFromFilename} from '@/utils/sceneSearchQuery'
 import {buildSceneScrapeSuccessNotificationText} from '../utils/sceneScraperMarkerSummary'
+import {
+  getCurrentMediaType,
+  getMediaDeleteAssetFolder,
+} from '@/utils/mediaType'
 import type {SceneScraperScene} from '../types/sceneScraper'
 
 interface DialogHeaderButton {
@@ -141,7 +154,9 @@ interface DialogHeaderButton {
   action?: () => void | Promise<void>
 }
 
+const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
+const itemsStore = useItemsStore()
 const sceneScraperStore = useSceneScraperStore()
 const settingsStore = useSettingsStore()
 const eventBus = useEventBus()
@@ -150,6 +165,8 @@ const {t} = useI18n()
 const searched = ref(false)
 const selectedScene = ref<SceneScraperScene | null>(null)
 const dialogDataTransfer = ref(false)
+const transferInProgress = ref(false)
+const searchGeneration = ref(0)
 
 const query = computed({
   get: () => sceneScraperStore.query,
@@ -159,6 +176,13 @@ const query = computed({
 })
 
 const scenes = computed(() => sceneScraperStore.scenes)
+
+const transferContextKey = computed(() => {
+  const mediaId = dialogsStore.sceneScraper.media?.id
+  const sceneId = selectedScene.value?.id
+  if (mediaId == null || !sceneId) return ''
+  return `${mediaId}:${sceneId}`
+})
 
 const mediaLabel = computed((): string => {
   const media = dialogsStore.sceneScraper.media
@@ -198,14 +222,165 @@ function formatSceneDate(scene: SceneScraperScene): string {
 }
 
 function openDataTransfer(scene: SceneScraperScene) {
+  // Drop leftover transfer UI state from the previous scene/media.
+  sceneScraperStore.fields = []
+  sceneScraperStore.selectedPosterUrl = null
+  sceneScraperStore.markers = []
+  sceneScraperStore.markersSceneId = null
   selectedScene.value = scene
   dialogDataTransfer.value = true
 }
 
-function transferScrapedInfo() {
-  dialogDataTransfer.value = false
-  dialogsStore.sceneScraper.show = false
-  eventBus.emit('transferSceneScrapedInfo')
+function hasManualTransferChanges(): boolean {
+  const fields = sceneScraperStore.fields || []
+  if (fields.some((field) => field.isTransfered)) return true
+  if (String(sceneScraperStore.selectedPosterUrl || '').trim()) return true
+  return (sceneScraperStore.markers || []).some(
+    (marker) => marker.selected && !marker.alreadyExists && !marker.unresolved,
+  )
+}
+
+async function refreshMediaAfterScrape(
+  mediaId: number,
+  result?: Pick<SceneAutoApplyResult, 'mediaName' | 'mediaBookmark' | 'mediaTags' | 'mediaValues'>,
+  {
+    regenerateThumb = true,
+    reloadEditor = true,
+  }: {
+    regenerateThumb?: boolean
+    reloadEditor?: boolean
+  } = {},
+) {
+  await applySceneScrapeResultToCard(mediaId, result, {regenerateThumb})
+
+  // Refetch after local card update so a stale in-flight list request cannot win.
+  eventBus.emit('getItemsFromDb', {ids: [mediaId], type: 'media'})
+
+  if (reloadEditor) {
+    eventBus.emit('transferSceneScrapedInfo')
+  }
+}
+
+/** Patch oshash locally only — never refetch here (races with oshash auto-apply). */
+function syncMediaAfterOshashUpdate(mediaId: number, oshash: string) {
+  const scraperMedia = dialogsStore.sceneScraper.media
+  if (scraperMedia && Number(scraperMedia.id) === Number(mediaId)) {
+    dialogsStore.sceneScraper.media = {...scraperMedia, oshash}
+  }
+
+  const editingMedia = dialogsStore.mediaEditing.media
+  if (editingMedia && Number(editingMedia.id) === Number(mediaId)) {
+    dialogsStore.mediaEditing.media = {...editingMedia, oshash}
+  }
+
+  itemsStore.updateItem({
+    id: mediaId,
+    item: {oshash},
+  })
+}
+
+function syncMediaEditingCopy(
+  mediaId: number,
+  {
+    mediaName,
+    mediaBookmark,
+  }: {
+    mediaName?: string | null
+    mediaBookmark?: string | null
+  } = {},
+) {
+  const editingMedia = dialogsStore.mediaEditing.media
+  if (!editingMedia || Number(editingMedia.id) !== Number(mediaId)) return
+
+  dialogsStore.mediaEditing.media = {
+    ...editingMedia,
+    ...(mediaName !== undefined ? {name: mediaName || undefined} : {}),
+    ...(mediaBookmark !== undefined ? {bookmark: mediaBookmark} : {}),
+  }
+}
+
+async function transferScrapedInfo() {
+  const media = dialogsStore.sceneScraper.media
+  if (!media?.id || transferInProgress.value) return
+
+  // Apply without an explicit selection → transfer everything found.
+  if (!hasManualTransferChanges()) {
+    sceneScraperStore.fields = applyTransferAllToFields(sceneScraperStore.fields || [])
+    for (const marker of sceneScraperStore.markers || []) {
+      if (!marker.alreadyExists && !marker.unresolved) {
+        marker.selected = true
+      }
+    }
+    sceneScraperStore.setMarkers([...(sceneScraperStore.markers || [])])
+  }
+
+  const didTransferContent = hasManualTransferChanges()
+  transferInProgress.value = true
+  try {
+    const mediaType = getCurrentMediaType(
+      appStore.mediaTypes,
+      media.mediaTypeId ?? itemsStore.environment?.media_type_id,
+    )
+    const mediaTypeFolder = getMediaDeleteAssetFolder(mediaType) || 'videos'
+
+    const result = await applyManualSceneTransferToMedia({
+      media,
+      fields: sceneScraperStore.fields || [],
+      allTags: appStore.tags || [],
+      mediaPath: appStore.mediaPath,
+      mediaTypeFolder,
+      selectedPosterUrl: sceneScraperStore.selectedPosterUrl,
+      markers: sceneScraperStore.markers || [],
+      sceneTitle: selectedScene.value?.title || null,
+    })
+
+    if (!result.success) {
+      setNotification({
+        type: 'error',
+        title: t('scraper.error'),
+        text: t(`scene_scraper.auto_scrape_error.${result.error || 'save_failed'}`),
+      })
+      return
+    }
+
+    // No scene data transferred — only possible side effect is lazy oshash from match.
+    if (!didTransferContent) {
+      const oshash = String(sceneScraperStore.oshash || media.oshash || '').trim()
+      if (oshash) {
+        syncMediaAfterOshashUpdate(Number(media.id), oshash)
+      }
+      dialogDataTransfer.value = false
+      closeDialog()
+      return
+    }
+
+    syncMediaEditingCopy(Number(media.id), {
+      mediaName: result.mediaName,
+      mediaBookmark: result.mediaBookmark,
+    })
+    await refreshMediaAfterScrape(Number(media.id), result)
+
+    if (result.markersImported && result.markersImported > 0) {
+      eventBus.emit('refreshMarkThumbs')
+    }
+
+    setNotification({
+      type: 'success',
+      title: t('scene_scraper.auto_scrape_done'),
+      text: buildSceneScrapeSuccessNotificationText({
+        sceneTitle: result.sceneTitle,
+        mediaName: result.mediaName,
+        markersImported: result.markersImported,
+        importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
+        t,
+      }),
+    })
+
+    dialogDataTransfer.value = false
+    closeDialog()
+  } finally {
+    transferInProgress.value = false
+  }
 }
 
 async function tryAutoApplyExactMatch(): Promise<boolean> {
@@ -234,12 +409,20 @@ async function tryAutoApplyExactMatch(): Promise<boolean> {
       t,
     }),
   })
-  eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
+  syncMediaEditingCopy(Number(media.id), {
+    mediaName: result.mediaName,
+    mediaBookmark: result.mediaBookmark,
+  })
+  await refreshMediaAfterScrape(Number(media.id), result)
   closeDialog()
   return true
 }
 
 async function searchScenes({useTextSearchOnly = false}: {useTextSearchOnly?: boolean} = {}) {
+  const generation = ++searchGeneration.value
+  const media = dialogsStore.sceneScraper.media
+  const mediaId = media?.id != null ? Number(media.id) : null
+
   searched.value = true
   selectedScene.value = null
   dialogDataTransfer.value = false
@@ -249,18 +432,35 @@ async function searchScenes({useTextSearchOnly = false}: {useTextSearchOnly?: bo
     return
   }
 
-  const media = dialogsStore.sceneScraper.media
-  if (media?.id) {
+  const hadOshash = Boolean(String(media?.oshash || '').trim())
+
+  if (mediaId) {
     await sceneScraperStore.matchScenesForMedia({
-      mediaId: Number(media.id),
+      mediaId,
       query: sceneScraperStore.query,
     })
+
+    // Ignore stale responses from an earlier media/search.
+    if (generation !== searchGeneration.value) return
+    if (Number(dialogsStore.sceneScraper.media?.id) !== mediaId) return
+
+    const nextOshash = String(sceneScraperStore.oshash || '').trim()
+    if (!hadOshash && nextOshash) {
+      // Lazy oshash write during match — sync card, do not toast.
+      syncMediaAfterOshashUpdate(mediaId, nextOshash)
+    }
   } else {
     await sceneScraperStore.searchScenes()
+    if (generation !== searchGeneration.value) return
   }
+
+  if (generation !== searchGeneration.value) return
+  if (mediaId != null && Number(dialogsStore.sceneScraper.media?.id) !== mediaId) return
 
   if (sceneScraperStore.matchMethod === 'oshash' && sceneScraperStore.scenes.length === 1) {
     if (await tryAutoApplyExactMatch()) return
+    if (generation !== searchGeneration.value) return
+    if (mediaId != null && Number(dialogsStore.sceneScraper.media?.id) !== mediaId) return
     openDataTransfer(sceneScraperStore.scenes[0])
   }
 }
@@ -271,6 +471,7 @@ async function searchScenesByText() {
 
 function closeDialog(value = false) {
   if (value) return
+  searchGeneration.value += 1
   dialogsStore.sceneScraper.show = false
   dialogsStore.sceneScraper.media = null
   selectedScene.value = null
@@ -291,8 +492,22 @@ function bootstrapQuery() {
   }
 }
 
-onMounted(async () => {
+function prepareForMedia(mediaId: number | null) {
+  selectedScene.value = null
+  dialogDataTransfer.value = false
+  searched.value = false
+  sceneScraperStore.clearSearchResults()
+  sceneScraperStore.currentValues = {}
+  sceneScraperStore.pinned = []
+  sceneScraperStore.transferMediaId = mediaId
   bootstrapQuery()
+}
+
+onMounted(async () => {
+  const mediaId = dialogsStore.sceneScraper.media?.id != null
+    ? Number(dialogsStore.sceneScraper.media.id)
+    : null
+  prepareForMedia(mediaId)
   await searchScenes()
 })
 
@@ -300,10 +515,7 @@ watch(
   () => dialogsStore.sceneScraper.media?.id,
   async (mediaId, previousId) => {
     if (!mediaId || mediaId === previousId) return
-    bootstrapQuery()
-    searched.value = false
-    selectedScene.value = null
-    dialogDataTransfer.value = false
+    prepareForMedia(Number(mediaId))
     await searchScenes()
   },
 )

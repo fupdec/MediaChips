@@ -3,6 +3,7 @@ import { matchScraperScenes } from './sceneScraperApi'
 import { applySceneScrapedTagNames } from './sceneScraperApply'
 import { applyScenePosterToVideoThumb } from './sceneScraperPoster'
 import { applySceneMarkersFromTpdb } from './sceneScraperApi'
+import { applySelectedSceneMarkers } from './sceneScraperMarkers'
 import { useSettingsStore } from '@/stores/settings'
 import { buildSceneTransferFields } from '../utils/buildSceneTransferFields'
 import { buildSceneSearchQueryFromFilename } from '@/utils/sceneSearchQuery'
@@ -12,8 +13,8 @@ import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
 import { parseMetaBooleanValue, serializeMetaBooleanValue } from '@shared/schemas/coercion'
 import type { AssignedMeta } from '@shared/entities/meta'
 import type { EntityUpdatePayload, TagInTagEntry, ValueInTagEntry } from '@shared/api/responses'
-import type { MediaItem, Tag } from '@/types/stores'
-import type { SceneScraperScene } from '../types/sceneScraper'
+import type { ItemTagRef, ItemValueRef, MediaItem, Tag } from '@/types/stores'
+import type { SceneScraperMarkerEntry, SceneScraperScene } from '../types/sceneScraper'
 import type { ScraperPinnedItem, ScraperTransferField } from '../types/scraper'
 
 export type SceneAutoApplyError =
@@ -27,8 +28,11 @@ export interface SceneAutoApplyResult {
   success: boolean
   mediaId: number
   mediaName?: string | null
+  mediaBookmark?: string | null
   sceneTitle?: string | null
   markersImported?: number
+  mediaTags?: ItemTagRef[]
+  mediaValues?: ItemValueRef[]
   error?: SceneAutoApplyError
 }
 
@@ -75,6 +79,23 @@ function getDefaultMetaValue(type?: string): MediaFieldValue {
 
 function getAssignedItemKey(item: AssignedMeta): string | number | undefined {
   return item.pinnedMetaId ?? item.meta?.id ?? item.metaId
+}
+
+function getAssignedItemByMetaId(
+  assignedItems: AssignedMeta[],
+  metaId: number,
+): AssignedMeta | undefined {
+  return assignedItems.find(
+    (item) => Number(item.meta?.id ?? item.metaId) === Number(metaId),
+  )
+}
+
+function getStorageKeyForMetaId(
+  assignedItems: AssignedMeta[],
+  metaId: number,
+): string | number {
+  const assignedItem = getAssignedItemByMetaId(assignedItems, metaId)
+  return assignedItem ? (getAssignedItemKey(assignedItem) ?? metaId) : metaId
 }
 
 function normalizeEntityFieldValue(key: string, value: MediaFieldValue): MediaFieldValue {
@@ -182,10 +203,12 @@ async function applyTransferredFieldsToMediaValues({
   fields,
   vals,
   allTags,
+  assignedItems,
 }: {
   fields: ScraperTransferField[]
   vals: MediaValues
   allTags: Tag[]
+  assignedItems: AssignedMeta[]
 }) {
   for (const field of fields) {
     if (!field.isTransfered) continue
@@ -201,19 +224,21 @@ async function applyTransferredFieldsToMediaValues({
       continue
     }
 
+    const metaId = Number(field.meta.id)
+    const storageKey = getStorageKeyForMetaId(assignedItems, metaId)
+
     if (field.dataType === 'array') {
-      const metaId = field.meta.id
-      const currentTagIds = [...(vals[metaId] as number[] || [])]
-      vals[metaId] = await applySceneScrapedTagNames({
+      // valueCurrent is the authoritative name list from the transfer UI.
+      vals[storageKey] = await applySceneScrapedTagNames({
         metaId,
         names: field.valueCurrent,
-        currentTagIds,
+        currentTagIds: [],
         allTags,
       })
       continue
     }
 
-    vals[field.meta.id] = field.valueCurrent as MediaFieldValue
+    vals[storageKey] = field.valueCurrent as MediaFieldValue
   }
 }
 
@@ -229,7 +254,7 @@ async function saveMediaValues(
   )
 
   for (const key in vals) {
-    const isMeta = /\d/.test(key)
+    const isMeta = /^\d+$/.test(String(key))
     if (!isMeta || !assignedKeys.has(String(key))) continue
 
     let val = vals[key]
@@ -237,7 +262,8 @@ async function saveMediaValues(
       (item) => String(getAssignedItemKey(item)) === String(key),
     )
     const metaType = assignedItem?.meta?.type
-    const metaId = Number(key)
+    const metaId = Number(assignedItem?.meta?.id ?? assignedItem?.metaId ?? key)
+    if (!Number.isFinite(metaId) || metaId <= 0) continue
 
     if (metaType === 'boolean') {
       val = serializeMetaBooleanValue(val)
@@ -245,16 +271,19 @@ async function saveMediaValues(
       val = val.trim()
       if (val.length === 0) val = null
     } else if (Array.isArray(val)) {
-      for (const tagId of val as number[]) {
+      for (const rawId of val) {
+        const tagId = Number(rawId)
+        if (!Number.isFinite(tagId) || tagId <= 0) continue
         tags.push({
           mediaId,
           tagId,
           metaId,
         })
       }
+      continue
     }
 
-    if (isMeta && !Array.isArray(val)) {
+    if (!Array.isArray(val)) {
       values.push({
         value: val,
         mediaId,
@@ -277,11 +306,139 @@ async function saveMediaValues(
   }
 }
 
+async function readMediaCardRelations(mediaId: number): Promise<{
+  mediaTags: ItemTagRef[]
+  mediaValues: ItemValueRef[]
+}> {
+  const [tagsResponse, valuesResponse] = await Promise.all([
+    typedApi.getTagsInMedia(mediaId),
+    typedApi.getValuesInMedia(mediaId),
+  ])
+
+  const mediaTags: ItemTagRef[] = (tagsResponse.data || []).map((entry) => ({
+    tagId: Number(entry.tagId),
+    metaId: Number(entry.metaId),
+  })).filter((entry) => Number.isFinite(entry.tagId) && Number.isFinite(entry.metaId))
+
+  const mediaValues: ItemValueRef[] = (valuesResponse.data || []).map((entry) => ({
+    metaId: Number(entry.metaId),
+    value: entry.value,
+  })).filter((entry) => Number.isFinite(entry.metaId))
+
+  return {mediaTags, mediaValues}
+}
+
 function buildSearchQuery(media: MediaItem): string {
   const filename = String(
     media.basename || media.name || media.path?.split('/').pop() || '',
   )
   return buildSceneSearchQueryFromFilename(filename)
+}
+
+/** Load pinned meta + current media values for the transfer UI when the editor is closed. */
+export async function loadSceneTransferContext(media: MediaItem): Promise<{
+  assignedItems: AssignedMeta[]
+  currentValues: MediaValues
+}> {
+  const assignedItems = await loadAssignedMetaForMedia(media)
+  const currentValues = await loadMediaValues(media, assignedItems)
+  return {assignedItems, currentValues}
+}
+
+/**
+ * Persist a manual scene-scraper transfer (selected fields / poster / markers).
+ * Unlike auto-apply, field selection comes from the transfer UI.
+ */
+export async function applyManualSceneTransferToMedia({
+  media,
+  fields,
+  allTags,
+  mediaPath,
+  mediaTypeFolder = 'videos',
+  selectedPosterUrl = null,
+  markers = [],
+  sceneTitle = null,
+}: {
+  media: MediaItem
+  fields: ScraperTransferField[]
+  allTags: Tag[]
+  mediaPath: string
+  mediaTypeFolder?: string
+  selectedPosterUrl?: string | null
+  markers?: SceneScraperMarkerEntry[]
+  sceneTitle?: string | null
+}): Promise<SceneAutoApplyResult> {
+  const mediaId = Number(media.id)
+
+  try {
+    const assignedItems = await loadAssignedMetaForMedia(media)
+    if (!hasSceneScraperMapping(assignedItems)) {
+      return {
+        success: false,
+        mediaId,
+        mediaName: media.name,
+        sceneTitle,
+        error: 'no_config',
+      }
+    }
+
+    const vals = await loadMediaValues(media, assignedItems)
+    await applyTransferredFieldsToMediaValues({fields, vals, allTags, assignedItems})
+
+    const posterUrl = String(selectedPosterUrl || '').trim()
+    if (posterUrl) {
+      const posterResult = await applyScenePosterToVideoThumb({
+        url: posterUrl,
+        mediaId,
+        mediaPath,
+        mediaTypeFolder,
+        mediaWidth: media.width,
+        mediaHeight: media.height,
+      })
+      if (!posterResult.success) {
+        console.error('Scene poster apply failed:', posterResult.error)
+      }
+    }
+
+    await saveMediaValues(mediaId, vals, assignedItems)
+
+    let markersImported = 0
+    const settingsStore = useSettingsStore()
+    if (markers.length) {
+      const markerMetaId = Number(settingsStore.sceneScraperMarkerMetaId) || null
+      markersImported = await applySelectedSceneMarkers({
+        mediaId,
+        markers,
+        markerMetaId,
+        allTags,
+      })
+    }
+
+    // Re-read relations from DB so the card update matches what was persisted.
+    const relations = await readMediaCardRelations(mediaId)
+
+    return {
+      success: true,
+      mediaId,
+      mediaName: typeof vals.name === 'string' ? vals.name : media.name,
+      mediaBookmark: typeof vals.bookmark === 'string' || vals.bookmark == null
+        ? (vals.bookmark as string | null)
+        : media.bookmark ?? null,
+      sceneTitle,
+      markersImported,
+      mediaTags: relations.mediaTags,
+      mediaValues: relations.mediaValues,
+    }
+  } catch (error) {
+    console.error('Manual scene transfer failed:', error)
+    return {
+      success: false,
+      mediaId,
+      mediaName: media.name,
+      sceneTitle,
+      error: 'save_failed',
+    }
+  }
 }
 
 export async function autoApplySceneToMedia({
@@ -324,7 +481,7 @@ export async function autoApplySceneToMedia({
     }))
 
     const vals = {...currentValues}
-    await applyTransferredFieldsToMediaValues({ fields, vals, allTags })
+    await applyTransferredFieldsToMediaValues({fields, vals, allTags, assignedItems})
 
     if (applyPoster) {
       const poster = pickBestSceneImage(scene.images)
@@ -358,12 +515,19 @@ export async function autoApplySceneToMedia({
       }
     }
 
+    const relations = await readMediaCardRelations(mediaId)
+
     return {
       success: true,
       mediaId,
-      mediaName: media.name,
+      mediaName: typeof vals.name === 'string' ? vals.name : media.name,
+      mediaBookmark: typeof vals.bookmark === 'string' || vals.bookmark == null
+        ? (vals.bookmark as string | null)
+        : media.bookmark ?? null,
       sceneTitle: scene.title,
       markersImported,
+      mediaTags: relations.mediaTags,
+      mediaValues: relations.mediaValues,
     }
   } catch (error) {
     console.error('Scene auto-apply failed:', error)

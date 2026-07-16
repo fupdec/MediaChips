@@ -247,8 +247,6 @@ const {preset_meta} = usePresetMeta(presetMetaProps)
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
-const metaStore = useAppStore().meta
-const tagsStore = useAppStore().tags
 const contextMenuStore = useContextMenu()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
@@ -309,6 +307,9 @@ const assignmentRows = computed(() => {
 })
 
 const tagItems = computed((): TagWithMeta[] => {
+  // Access via store (not a destructured snapshot) so getTags() replacements stay reactive.
+  const metaStore = appStore.meta
+  const tagsStore = appStore.tags
   if (!metaStore.length || !tagsStore.length || !props.tags?.length) return []
 
   const result = props.tags
@@ -340,6 +341,7 @@ const tagGroups = computed(() =>
 )
 
 const valueItems = computed((): ValueWithMeta[] => {
+  const metaStore = appStore.meta
   if (!metaStore.length || !props.values?.length) return []
 
   const result = props.values
@@ -412,7 +414,7 @@ const checkShow = (metaId: number): boolean => {
   if (itemsStore.type === 'tag') tagName = 'pinnedMetaId'
   const x = assigned.findIndex((i) => i[tagName] == metaId)
   if (x > -1) {
-    return assigned[x].show == 1
+    return assigned[x].show === true || assigned[x].show == 1
   }
   return false
 }

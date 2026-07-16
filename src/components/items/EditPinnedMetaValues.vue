@@ -368,15 +368,6 @@ import {
 import {getCachedThumb, tagThumbKey} from '@/utils/thumbDisplayCache'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
-import {applySceneScrapedTagNames} from '@mediachips/plugin-adult/services/sceneScraperApply'
-import {applyScenePosterToVideoThumb} from '@mediachips/plugin-adult/services/sceneScraperPoster'
-import {applySelectedSceneMarkers} from '@mediachips/plugin-adult/services/sceneScraperMarkers'
-import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
-import {
-  getCurrentMediaType,
-  getMediaDeleteAssetFolder,
-  isVideoMediaType,
-} from '@/utils/mediaType'
 import type {PresetMetaProps} from '@/types/itemsPage'
 import type { ScraperPinnedItem, ScraperTransferField } from '@mediachips/plugin-adult/types/scraper'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
@@ -987,126 +978,9 @@ const save = async (): Promise<boolean> => {
 const transferSceneScrapedInfo = async () => {
   if (!isMedia.value) return
 
-  const fields = (sceneScraperStore.fields || []) as ScraperTransferField[]
-  const selectedPosterUrl = sceneScraperStore.selectedPosterUrl
-  const mediaId = props.media?.id
-
-  if (selectedPosterUrl && mediaId != null) {
-    const mediaType = getCurrentMediaType(
-      appStore.mediaTypes,
-      props.media?.mediaTypeId ?? itemsStore.environment?.media_type_id,
-    )
-
-    if (isVideoMediaType(mediaType)) {
-      const mediaTypeFolder = getMediaDeleteAssetFolder(mediaType) || 'videos'
-      const posterResult = await applyScenePosterToVideoThumb({
-        url: selectedPosterUrl,
-        mediaId: Number(mediaId),
-        mediaPath: appStore.mediaPath,
-        mediaTypeFolder,
-        mediaWidth: props.media?.width,
-        mediaHeight: props.media?.height,
-      })
-
-      if (!posterResult.success) {
-        setNotification({
-          type: 'error',
-          title: t('scraper.error'),
-          text: t('scene_scraper.poster_error'),
-        })
-      } else {
-        invalidateVideoThumbCaches(Number(mediaId))
-        itemsStore.refreshThumb(Number(mediaId), {regenerate: true})
-        eventBus.emit('getItemsFromDb', {
-          ids: [Number(mediaId)],
-          type: 'media',
-        })
-      }
-    }
-
-    sceneScraperStore.selectedPosterUrl = null
-  }
-
-  let arrayFieldsApplied = false
-
-  for (const field of fields) {
-    if (!field.isTransfered) continue
-
-    if (field.dataType === 'bookmark') {
-      setValByKey(field.valueCurrent as MetaFieldValue, 'bookmark')
-      continue
-    }
-
-    if (field.dataType === 'mediaName') {
-      const nextName = String(field.valueCurrent ?? '').trim()
-      setValByKey(nextName || null, 'name')
-      if (props.media) {
-        mediaOverride.value = {
-          ...(mediaOverride.value || props.media),
-          name: nextName || undefined,
-        }
-      }
-      continue
-    }
-
-    if (field.dataType === 'array') {
-      const metaId = field.meta.id
-      const currentTagIds = [...(vals.value[metaId] as number[] || [])]
-      const nextTagIds = await applySceneScrapedTagNames({
-        metaId,
-        names: field.valueCurrent,
-        currentTagIds,
-        allTags: appStore.tags || [],
-      })
-
-      setValByKey(nextTagIds, metaId)
-      arrayFieldsApplied = true
-      continue
-    }
-
-    setValByKey(field.valueCurrent as MetaFieldValue, field.meta.id)
-  }
-
-  if (arrayFieldsApplied) {
-    eventBus.emit('getTags')
-  }
-
-  if (mediaId != null && sceneScraperStore.markers.length) {
-    const markerMetaId = Number(settingsStore.sceneScraperMarkerMetaId) || null
-    const imported = await applySelectedSceneMarkers({
-      mediaId: Number(mediaId),
-      markers: sceneScraperStore.markers,
-      markerMetaId,
-      allTags: appStore.tags || [],
-    })
-
-    if (imported > 0) {
-      eventBus.emit('refreshMarkThumbs')
-    }
-
-    if (settingsStore.sceneScraperImportMarkers === '1') {
-      setNotification({
-        type: imported > 0 ? 'success' : 'info',
-        title: t('scene_scraper.markers_apply_done'),
-        text: t('scene_scraper.markers_applied_summary', {
-          imported,
-          total: sceneScraperStore.markers.length,
-        }),
-      })
-    }
-  } else if (
-    mediaId != null
-    && settingsStore.sceneScraperImportMarkers === '1'
-    && sceneScraperStore.markersSceneId
-    && sceneScraperStore.markers.length === 0
-    && !sceneScraperStore.markersLoading
-  ) {
-    setNotification({
-      type: 'info',
-      title: t('scene_scraper.markers_apply_done'),
-      text: t('scene_scraper.markers_none_on_tpdb'),
-    })
-  }
+  // Manual apply now persists in DialogSceneScraper; reload the open editor form.
+  mediaOverride.value = null
+  await loadEditingState()
 }
 
 const transferScrapedInfo = async () => {
@@ -1235,7 +1109,8 @@ watch(currentItemId, async (itemId, previousItemId) => {
 watch(
   () => dialogsStore.sceneScraper.show,
   (show) => {
-    if (!show || !isMedia.value) return
+    if (!show || !isMedia.value || currentItemId.value == null) return
+    sceneScraperStore.transferMediaId = Number(currentItemId.value)
     sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
     sceneScraperStore.currentValues = vals.value
   },

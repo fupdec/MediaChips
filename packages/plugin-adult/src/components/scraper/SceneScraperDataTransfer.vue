@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineAsyncComponent, onMounted, watch} from 'vue'
+import {computed, defineAsyncComponent, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSceneScraperStore} from '../../stores/sceneScraper'
 import {useAppStore} from '@/stores/app'
@@ -247,11 +247,12 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {getMetaName} from '@/utils/metaI18n'
 import {buildSceneTransferFields} from '../../utils/buildSceneTransferFields'
 import {applyTransferAllToFields} from '../../utils/sceneTransferApply'
+import {loadSceneTransferContext} from '../../services/sceneScraperAutoApply'
 import SceneScraperSelectPoster from './SceneScraperSelectPoster.vue'
 import { formatMarkTimestamp } from '@/utils/markThumb'
 import {useSettingsStore} from '@/stores/settings'
 import type {SceneScraperScene, SceneScraperMarkerEntry} from '../../types/sceneScraper'
-import type {ScraperTransferField} from '../../types/scraper'
+import type {ScraperPinnedItem, ScraperTransferField} from '../../types/scraper'
 import type {SceneScraperTagEntry} from '../../utils/sceneScraperTags'
 
 const DialogSceneScraperConfig = defineAsyncComponent(() =>
@@ -417,7 +418,41 @@ function toggleScrapedTag(item: ScraperTransferField, tag: SceneScraperTagEntry)
   sceneScraperStore.fields = [...sceneScraperStore.fields]
 }
 
+const contextLoading = ref(false)
+
+async function ensureTransferContext() {
+  const media = dialogsStore.sceneScraper.media
+  if (!media?.id) return
+
+  const mediaId = Number(media.id)
+  const contextMatchesMedia = sceneScraperStore.transferMediaId === mediaId
+    && sceneScraperStore.pinned.length > 0
+
+  if (contextMatchesMedia) return
+
+  contextLoading.value = true
+  try {
+    const {assignedItems, currentValues: values} = await loadSceneTransferContext(media)
+    // Another media may have become active while we were loading.
+    if (Number(dialogsStore.sceneScraper.media?.id) !== mediaId) return
+
+    sceneScraperStore.transferMediaId = mediaId
+    sceneScraperStore.pinned = assignedItems.filter((item) => item.scraper) as ScraperPinnedItem[]
+    sceneScraperStore.currentValues = values
+  } finally {
+    contextLoading.value = false
+  }
+}
+
 async function getData() {
+  await ensureTransferContext()
+  if (Number(dialogsStore.sceneScraper.media?.id) !== Number(mediaId.value)) return
+  if (props.scene?.id && sceneScraperStore.markersSceneId
+    && sceneScraperStore.markersSceneId !== props.scene.id) {
+    sceneScraperStore.markers = []
+    sceneScraperStore.markersSceneId = null
+  }
+
   sceneScraperStore.fields = buildSceneTransferFields({
     scene: props.scene,
     pinned: pinned.value,
@@ -477,15 +512,14 @@ function transferAll() {
 }
 
 onMounted(() => {
-  getData()
-  void loadMarkers()
+  void getData().then(() => loadMarkers())
 })
 
 watch(
   [() => props.scene, pinned, currentValues],
   () => {
-    getData()
-    void loadMarkers()
+    if (contextLoading.value) return
+    void getData().then(() => loadMarkers())
   },
   {deep: true},
 )

@@ -28,12 +28,14 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
     query: '',
     scenes: [] as SceneScraperScene[],
     searchInProgress: false,
+    searchRequestId: 0,
     lastError: null as string | null,
     matchMethod: null as SceneScraperMatchMethod,
     oshash: null as string | null,
     currentValues: {} as Record<string, unknown>,
     fields: [] as ScraperTransferField[],
     pinned: [] as ScraperPinnedItem[],
+    transferMediaId: null as number | null,
     selectedPosterUrl: null as string | null,
     markers: [] as import('../types/sceneScraper').SceneScraperMarkerEntry[],
     markersLoading: false,
@@ -46,6 +48,26 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
     setQueryFromFilename(filename: string) {
       this.query = buildSceneSearchQueryFromFilename(filename)
     },
+    clearSearchResults() {
+      this.scenes = []
+      this.matchMethod = null
+      this.oshash = null
+      this.lastError = null
+      this.fields = []
+      this.selectedPosterUrl = null
+      this.markers = []
+      this.markersLoading = false
+      this.markersSceneId = null
+    },
+    beginSearchRequest() {
+      this.searchRequestId += 1
+      this.searchInProgress = true
+      this.clearSearchResults()
+      return this.searchRequestId
+    },
+    isCurrentSearchRequest(requestId: number) {
+      return this.searchRequestId === requestId
+    },
     async matchScenesForMedia({
       mediaId,
       query,
@@ -57,8 +79,7 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
     }) {
       const searchQuery = String(query ?? this.query).trim()
       this.query = searchQuery
-      this.searchInProgress = true
-      this.lastError = null
+      const requestId = this.beginSearchRequest()
 
       try {
         const result = await matchScraperScenes({
@@ -66,56 +87,68 @@ export const useSceneScraperStore = defineStore('useSceneScraperStore', {
           query: searchQuery || undefined,
           limit,
         })
+        if (!this.isCurrentSearchRequest(requestId)) return this.scenes
+
         this.scenes = result.data || []
         this.matchMethod = result.matchMethod || null
         this.oshash = result.oshash || null
         return this.scenes
       } catch (error: unknown) {
+        if (!this.isCurrentSearchRequest(requestId)) return this.scenes
         this.lastError = error instanceof Error ? error.message : String(error)
         this.scenes = []
         this.matchMethod = null
         this.oshash = null
         return []
       } finally {
-        this.searchInProgress = false
+        if (this.isCurrentSearchRequest(requestId)) {
+          this.searchInProgress = false
+        }
       }
     },
     async searchScenes({query, limit = 24}: {query?: string; limit?: number} = {}) {
       const searchQuery = String(query ?? this.query).trim()
       this.query = searchQuery
-      this.searchInProgress = true
-      this.lastError = null
+      const requestId = this.beginSearchRequest()
 
       try {
         if (!searchQuery) {
+          if (!this.isCurrentSearchRequest(requestId)) return this.scenes
           this.scenes = []
           this.matchMethod = null
           return []
         }
 
         const result = await searchScraperScenes(searchQuery, {limit})
+        if (!this.isCurrentSearchRequest(requestId)) return this.scenes
+
         this.scenes = result.data || []
         this.matchMethod = result.matchMethod || 'search'
         return this.scenes
       } catch (error: unknown) {
+        if (!this.isCurrentSearchRequest(requestId)) return this.scenes
         this.lastError = error instanceof Error ? error.message : String(error)
         this.scenes = []
         this.matchMethod = null
         return []
       } finally {
-        this.searchInProgress = false
+        if (this.isCurrentSearchRequest(requestId)) {
+          this.searchInProgress = false
+        }
       }
     },
     reset() {
       this.query = ''
       this.scenes = []
       this.searchInProgress = false
+      this.searchRequestId += 1
       this.lastError = null
       this.matchMethod = null
       this.oshash = null
       this.currentValues = {}
       this.fields = []
       this.pinned = []
+      this.transferMediaId = null
       this.selectedPosterUrl = null
       this.markers = []
       this.markersLoading = false

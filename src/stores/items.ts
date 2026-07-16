@@ -506,33 +506,26 @@ export const useItemsStore = defineStore('items', {
       return true
     },
 
-    // Обновить элемент по ID
+    // Обновить элемент по ID.
+    // Mutate in place so virtual/masonry layouts that keep item refs stay in sync.
     updateItem({id, item}: { id: number; item: Partial<MediaItem> }) {
       if (!item) return
 
-      const mergeItem = (current: MediaItem): MediaItem => ({
-        ...current,
-        ...item,
-      })
+      const mergeInto = (current: MediaItem | undefined) => {
+        if (!current) return
 
-      const indexPage = this.itemsOnPage.findIndex(i => sameItemId(i.id, id))
-      if (indexPage > -1) {
-        this.itemsOnPage.splice(indexPage, 1, mergeItem(this.itemsOnPage[indexPage]))
+        Object.assign(current, item)
+        if ('tags' in item) {
+          current.tags = Array.isArray(item.tags) ? [...item.tags] : []
+        }
+        if ('values' in item) {
+          current.values = Array.isArray(item.values) ? [...item.values] : []
+        }
       }
 
-      const indexEntities = this.entities.findIndex(i => sameItemId(i.id, id))
-      if (indexEntities > -1) {
-        this.entities.splice(indexEntities, 1, mergeItem(this.entities[indexEntities]))
-      }
-
-      const indexNavigation = this.navigationItems.findIndex(i => sameItemId(i.id, id))
-      if (indexNavigation > -1) {
-        this.navigationItems.splice(
-          indexNavigation,
-          1,
-          mergeItem(this.navigationItems[indexNavigation]),
-        )
-      }
+      mergeInto(this.itemsOnPage.find(i => sameItemId(i.id, id)))
+      mergeInto(this.entities.find(i => sameItemId(i.id, id)))
+      mergeInto(this.navigationItems.find(i => sameItemId(i.id, id)))
     },
 
     // Обновить поле элемента (альтернативный метод)
