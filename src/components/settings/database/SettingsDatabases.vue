@@ -19,19 +19,6 @@
         {{ t('settings_labels.database.add_new_database') }}
       </v-btn>
 
-      <v-btn
-        color="secondary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-        :loading="sizesLoading"
-        :disabled="sizesLoading"
-        @click="loadDatabaseSizes"
-      >
-        <v-icon icon="mdi-harddisk" start/>
-        {{ t('settings_labels.database.calculate_sizes') }}
-      </v-btn>
-
       <SettingsBackups/>
     </div>
 
@@ -172,7 +159,6 @@ const buttons = ref<DialogHeaderButton[]>([])
 
 const formRef = ref<VFormInstance>(null)
 const dbSizes = ref<Record<string, number>>({})
-const sizesLoading = ref(false)
 
 function getConfigDatabases(): DatabaseEntry[] {
   return (store.config.databases as DatabaseEntry[] | undefined) ?? []
@@ -197,15 +183,11 @@ async function loadDatabaseSizes() {
     return
   }
 
-  sizesLoading.value = true
-
   try {
     const {data} = await typedApi.getDatabaseSizes({ids})
     dbSizes.value = data.sizes || {}
   } catch (error) {
     console.error('Error loading database sizes:', error)
-  } finally {
-    sizesLoading.value = false
   }
 }
 
