@@ -16,17 +16,43 @@
             :media="media!"
             :is-file-exists="isFileExists"
             preview-host="embedded"
+            @update-big-preview="$emit('update-big-preview', $event)"
           />
         </div>
-        <div v-if="imageSrc" class="edit-dialog-media-panel__thumb-actions">
+        <div class="edit-dialog-media-panel__thumb-actions">
+          <div class="text-medium-emphasis text-caption px-1">{{ t('image.thumbnail') }}</div>
           <DialogImageEditing
+            v-if="imageSrc"
             detached
+            activator-class="edit-dialog-media-panel__thumb-btn"
             :image="imageSrc"
             :options="cropperOptions"
             :image-path="imagePath ?? undefined"
             :min-width="minWidth"
             :min-height="mediaMinHeight"
             @edited="$emit('edited', $event)"
+          />
+          <v-btn
+            size="small"
+            variant="flat"
+            color="primary"
+            rounded="xl"
+            prepend-icon="mdi-dice-5-outline"
+            :text="t('image.create_thumb_random')"
+            :loading="isCreatingThumb === 'random'"
+            :disabled="!canCreateThumb || isCreatingThumb != null"
+            @click="createVideoThumb('random')"
+          />
+          <v-btn
+            size="small"
+            variant="flat"
+            color="primary"
+            rounded="xl"
+            prepend-icon="mdi-image-frame"
+            :text="t('image.create_thumb_default')"
+            :loading="isCreatingThumb === 'default'"
+            :disabled="!canCreateThumb || isCreatingThumb != null"
+            @click="createVideoThumb('default')"
           />
         </div>
       </template>
@@ -96,12 +122,17 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineAsyncComponent} from 'vue'
+import {computed, defineAsyncComponent, ref} from 'vue'
 import type {PropType} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 import type {MediaItem} from '@/types/stores'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
+import {typedApi} from '@/services/typedApi'
+import {setNotification} from '@/services/notificationService'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
+import {useItemsStore} from '@/stores/items'
 
 const DialogImageEditing = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogImageEditing.vue'),
@@ -165,16 +196,58 @@ const props = defineProps({
   },
 })
 
-defineEmits<{
+const emit = defineEmits<{
   edited: [payload?: ImageEditedPayload]
   'update:currentIndex': [index: number]
+  'update-big-preview': [value: boolean]
 }>()
+
+const {t} = useI18n()
+const itemsStore = useItemsStore()
+const isCreatingThumb = ref<'random' | 'default' | null>(null)
 
 const currentImage = computed((): TagImage | undefined => props.images[props.currentIndex])
 
 const isVideoPanel = computed(() =>
   props.mode === 'media' && props.isVideoMedia && props.media != null,
 )
+
+const canCreateThumb = computed(() =>
+  Boolean(props.isFileExists && props.media?.id != null && props.media?.path),
+)
+
+async function createVideoThumb(mode: 'random' | 'default') {
+  const media = props.media
+  if (!media?.id || !media.path || isCreatingThumb.value) return
+
+  isCreatingThumb.value = mode
+  try {
+    await typedApi.taskCreateThumbForVideo({
+      path: media.path,
+      id: media.id,
+      seekRatio: mode === 'random' ? Math.random() : 0.5,
+    })
+    invalidateVideoThumbCaches(media.id)
+    itemsStore.refreshThumb(media.id, {regenerate: true})
+    emit('edited')
+    setNotification({
+      title: t('player.video_thumb_updated'),
+      text: media.path,
+      icon: 'image',
+      type: 'success',
+    })
+  } catch (e) {
+    console.error(e)
+    setNotification({
+      title: t('player.video_thumb_not_updated'),
+      text: String(e),
+      icon: 'image',
+      type: 'error',
+    })
+  } finally {
+    isCreatingThumb.value = null
+  }
+}
 
 const mediaMinHeight = computed(() => {
   const ratio = props.cropperOptions?.aspectRatio || 16 / 9

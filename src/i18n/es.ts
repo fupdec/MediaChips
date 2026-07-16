@@ -1586,7 +1586,10 @@ const es = {
     video_thumb_not_updated: 'Miniatura de video no actualizada',
   },
   image: {
-    edit_image: 'Editar miniatura',
+    thumbnail: 'Miniatura',
+    create_thumb_random: 'Tiempo aleatorio',
+    create_thumb_default: 'Por defecto',
+    edit_image: 'Editar',
     editing_image: 'Editar miniatura',
     drop_or_click_upload: 'Suelte una imagen aquí o haga clic para cargar',
     upload_error: 'Error de carga',

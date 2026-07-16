@@ -1586,7 +1586,10 @@ const cn = {
     video_thumb_not_updated: '视频缩略图未更新',
   },
   image: {
-    edit_image: '编辑缩略图',
+    thumbnail: '缩略图',
+    create_thumb_random: '随机时间',
+    create_thumb_default: '默认',
+    edit_image: '编辑',
     editing_image: '编辑缩略图',
     drop_or_click_upload: '将图像拖到此处或点击上传',
     upload_error: '上传错误',

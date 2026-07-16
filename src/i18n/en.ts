@@ -1683,7 +1683,10 @@ const en = {
     video_thumb_not_updated: 'Video thumb not updated',
   },
   image: {
-    edit_image: 'Edit thumbnail',
+    thumbnail: 'Thumbnail',
+    create_thumb_random: 'Random time',
+    create_thumb_default: 'By default',
+    edit_image: 'Edit',
     editing_image: 'Edit thumbnail',
     drop_or_click_upload: 'Drop image here or click for upload',
     upload_error: 'Upload Error',

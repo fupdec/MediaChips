@@ -1683,7 +1683,10 @@ const ru = {
     video_thumb_not_updated: 'Превью видео не обновлено',
   },
   image: {
-    edit_image: 'Редактировать миниатюру',
+    thumbnail: 'Миниатюра',
+    create_thumb_random: 'Случайное время',
+    create_thumb_default: 'По умолчанию',
+    edit_image: 'Редактировать',
     editing_image: 'Редактирование миниатюры',
     drop_or_click_upload: 'Перетащите изображение сюда или нажмите для загрузки',
     upload_error: 'Ошибка загрузки',
