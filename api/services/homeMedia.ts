@@ -62,7 +62,7 @@ async function getFavoriteMedia(db: ApiDb, limit = 12) {
   const rows = queryAll(db, `${MEDIA_HOME_SELECT}
      ${MEDIA_HOME_FROM}
      WHERE media.favorite = 1
-     ORDER BY media.viewedAt DESC, media.updatedAt DESC
+     ORDER BY RANDOM()
      LIMIT :limit`, {limit})
   return rows.map(mapHomeItem)
 }
