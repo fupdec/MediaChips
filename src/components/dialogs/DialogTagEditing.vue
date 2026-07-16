@@ -64,6 +64,7 @@ import {useScraperStore} from "@mediachips/plugin-adult/stores/scraper"
 import {useNotificationsStore} from "@/stores/notifications"
 import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {typedApi} from '@/services/typedApi'
+import {checkFileExists} from '@/services/fileService'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {checkCurrentPage, getUrlParam} from '@/services/routeService'
@@ -162,7 +163,7 @@ const initButtons = () => {
   })
 }
 
-const getImages = ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
+const getImages = async ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
   images.value = []
   if (!tag.value || !meta.value) return
 
@@ -183,6 +184,8 @@ const getImages = ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
       String(meta.value.id),
       fileName,
     )
+    if (!await checkFileExists(imgPath)) continue
+
     const src = resolveTagThumbDisplayUrl({
       dbPath: store.dbPath,
       metaId: meta.value.id,
@@ -332,6 +335,16 @@ const autoScrape = async () => {
         title: t('scraper.auto_scrape_done'),
         text: result.performerName || tag.value.name || '',
       })
+
+      try {
+        const response = await typedApi.getTagById(tag.value.id)
+        if (response.data) {
+          dialogsStore.tagEditing.tag = response.data
+        }
+      } catch (error) {
+        console.error('Error refreshing tag after auto scrape:', error)
+      }
+
       eventBus.emit('getItemsFromDb', { ids: [tag.value.id], type: 'tag' })
       if (isTagPage.value) {
         eventBus.emit('getTag')

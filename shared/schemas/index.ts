@@ -96,6 +96,10 @@ export function parseTags(data: unknown) {
   return z.array(TagSchema).parse(data)
 }
 
+export function parseTag(data: unknown) {
+  return TagSchema.parse(data)
+}
+
 export function parseMetaList(data: unknown) {
   return z.array(MetaSchema).parse(data)
 }

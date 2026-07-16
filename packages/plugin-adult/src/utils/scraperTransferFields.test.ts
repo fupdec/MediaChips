@@ -4,6 +4,7 @@ import {
   buildScraperTransferFields,
   formatScraperAliases,
   mergeBookmarkValues,
+  mergeCountryValues,
   mergeSynonymValues,
   resolveCountryName,
   synonymsAlreadyContain,
@@ -112,6 +113,41 @@ describe('scraperTransferFields', () => {
   it('resolves country from nationality when birthplace code is missing', () => {
     expect(resolveCountryName({ nationality: 'Australia' })).toBe('Australia')
     expect(resolveCountryName({ nationality: 'Unknownland' })).toBe('Unknownland')
+  })
+
+  it('resolves country from birthplace when code and nationality are missing', () => {
+    expect(resolveCountryName({ birthplace: 'Netherlands' })).toBe('Netherlands')
+    expect(resolveCountryName({ birthplace: 'united states' })).toBe('United States')
+  })
+
+  it('resolves country from country code alias', () => {
+    expect(resolveCountryName({ country: 'nl' })).toBe('Netherlands')
+  })
+
+  it('collects country fields from performer root when extras omit them', () => {
+    const fields = buildScraperTransferFields({
+      selected: {
+        extras: {
+          gender: 'Female',
+        },
+        birthplace: 'Netherlands',
+      } as never,
+      pinned: [],
+      currentValues: {
+        country: [],
+      },
+      tags: [],
+    })
+
+    const country = fields.find((field) => field.key === 'country')
+    expect(country?.valueScraper).toEqual(['Netherlands'])
+  })
+
+  it('merges scraped countries without duplicates', () => {
+    expect(mergeCountryValues(['United States'], ['Canada', 'United States'])).toEqual([
+      'United States',
+      'Canada',
+    ])
   })
 
   it('formats aliases without the performer name', () => {

@@ -609,18 +609,21 @@ const getDefaultMetaValue = (type?: string): MetaFieldValue => {
   return null
 }
 
-const initBaseValues = () => {
-  if (isTag.value && props.tag) {
-    const countries = parseCountries(props.tag.country as string | undefined)
+const initBaseValues = (tagSource?: Tag | null) => {
+  if (isTag.value) {
+    const tag = tagSource ?? props.tag
+    if (!tag) return
+
+    const countries = parseCountries(tag.country as string | undefined)
     vals.value = {
       country: countries,
-      name: props.tag.name || null,
-      color: (props.tag.color as string | undefined) || DEFAULT_TAG_COLOR,
-      synonyms: props.tag.synonyms || null,
-      rating: Number(props.tag.rating) || 0,
-      favorite: Number(props.tag.favorite) || 0,
-      views: Number(props.tag.views) || 0,
-      bookmark: props.tag.bookmark || null,
+      name: tag.name || null,
+      color: (tag.color as string | undefined) || DEFAULT_TAG_COLOR,
+      synonyms: tag.synonyms || null,
+      rating: Number(tag.rating) || 0,
+      favorite: Number(tag.favorite) || 0,
+      views: Number(tag.views) || 0,
+      bookmark: tag.bookmark || null,
     }
     return
   }
@@ -845,7 +848,19 @@ const getMetaValues = async () => {
 const loadEditingState = async () => {
   if (!currentItemId.value) return
 
-  initBaseValues()
+  if (isTag.value) {
+    let tagSource = props.tag
+    try {
+      const response = await typedApi.getTagById(Number(currentItemId.value))
+      tagSource = response.data ?? tagSource
+    } catch (error) {
+      console.error('Error loading tag base values:', error)
+    }
+    initBaseValues(tagSource)
+  } else {
+    initBaseValues()
+  }
+
   await getMetaValues()
 }
 

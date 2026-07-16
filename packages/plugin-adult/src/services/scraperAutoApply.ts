@@ -1,11 +1,11 @@
 import path from 'path-browserify'
-import orderBy from 'lodash/orderBy'
 import { typedApi } from '@/services/typedApi'
 import { createImage } from '@/services/fileService'
 import { parseCountries, serializeCountries } from '@/utils/country'
 import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
-import { buildScraperTransferFields, mergeBookmarkValues, mergeSynonymValues } from '../utils/scraperTransferFields'
+import { buildScraperTransferFields, collectPerformerScraperValues, mergeBookmarkValues, mergeCountryValues, mergeSynonymValues } from '../utils/scraperTransferFields'
 import { findOrCreateTagByName, findTagByNameOrSynonym } from '../utils/sceneScraperTags'
+import { getOrderedScraperPosters } from '../utils/scraperPosters'
 import {
   DEFAULT_TAG_COLOR,
   extractColorFromLocalFile,
@@ -70,9 +70,52 @@ function getDefaultMetaValue(type?: string): MetaFieldValue {
   return null
 }
 
-function pickBestPoster(posters: ScraperPoster[] = []): ScraperPoster | null {
-  if (!posters.length) return null
-  return orderBy(posters, ['size'], ['desc'])[0] || null
+async function downloadMainImage({
+  performer,
+  meta,
+  tag,
+  dbPath,
+  vals,
+}: {
+  performer: ScraperPerformer
+  meta: Meta
+  tag: Tag
+  dbPath: string
+  vals: TagValues
+}): Promise<boolean> {
+  const posters = getOrderedScraperPosters(
+    Array.isArray(performer.posters) ? performer.posters as ScraperPoster[] : [],
+  )
+  if (!posters.length) return false
+
+  const imagePath = path.join(
+    dbPath,
+    'meta',
+    String(meta.id),
+    `${tag.id}_main.jpg`,
+  )
+  const aspectRatio = Number(meta.imageAspectRatio) || 1
+  const sizes = {width: 300, height: 300 / aspectRatio}
+
+  for (const poster of posters) {
+    const response = await createImage(poster.url, imagePath, sizes)
+    if (response.status !== 201) continue
+
+    if (
+      meta.autoColorFromImage
+      && meta.color
+      && isDefaultTagColor(vals.color)
+    ) {
+      const color = await extractColorFromLocalFile(imagePath)
+      if (!isDefaultTagColor(color)) {
+        vals.color = color
+      }
+    }
+
+    return true
+  }
+
+  return false
 }
 
 async function loadTagValues(
@@ -170,11 +213,7 @@ async function applyTransferFields({
     }
 
     if (field.dataType === 'country') {
-      vals.country = Array.isArray(field.valueScraper)
-        ? [...field.valueScraper]
-        : field.valueScraper
-          ? [String(field.valueScraper)]
-          : []
+      vals.country = mergeCountryValues(vals.country, field.valueScraper)
       continue
     }
 
@@ -286,48 +325,6 @@ async function saveTagValues(
   }
 }
 
-async function downloadMainImage({
-  performer,
-  meta,
-  tag,
-  dbPath,
-  vals,
-}: {
-  performer: ScraperPerformer
-  meta: Meta
-  tag: Tag
-  dbPath: string
-  vals: TagValues
-}): Promise<boolean> {
-  const posters = Array.isArray(performer.posters) ? performer.posters as ScraperPoster[] : []
-  const poster = pickBestPoster(posters)
-  if (!poster?.url) return false
-
-  const imagePath = path.join(
-    dbPath,
-    'meta',
-    String(meta.id),
-    `${tag.id}_main.jpg`,
-  )
-  const aspectRatio = Number(meta.imageAspectRatio) || 1
-  const sizes = {width: 300, height: 300 / aspectRatio}
-  const response = await createImage(poster.url, imagePath, sizes)
-  if (response.status !== 201) return false
-
-  if (
-    meta.autoColorFromImage
-    && meta.color
-    && isDefaultTagColor(vals.color)
-  ) {
-    const color = await extractColorFromLocalFile(imagePath)
-    if (!isDefaultTagColor(color)) {
-      vals.color = color
-    }
-  }
-
-  return true
-}
-
 export async function autoApplyScrapedTagData({
   tag,
   meta,
@@ -345,12 +342,13 @@ export async function autoApplyScrapedTagData({
     }
 
     const currentValues = await loadTagValues(tag, assignedItems)
+    const performerValues = collectPerformerScraperValues(performer as Record<string, unknown>)
     const fields = buildScraperTransferFields({
       selected: {
         name: typeof performer.name === 'string' ? performer.name : null,
         aliases: Array.isArray(performer.aliases) ? performer.aliases as string[] : undefined,
         bio: typeof performer.bio === 'string' ? performer.bio : null,
-        extras: (performer.extras as Record<string, unknown> | undefined) || {},
+        extras: performerValues,
         posters: performer.posters as ScraperPoster[] | undefined,
       },
       pinned,

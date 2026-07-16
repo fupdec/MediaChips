@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient'
 import {
   API_ROUTES,
+  apiEntity,
   apiItemTagsEndpoint,
   apiItemTagsEndpointDelete,
   apiMediaType,
@@ -44,6 +45,7 @@ import {
   parseMetaList,
   parseMetaSetting,
   parsePathTagEntries,
+  parseTag,
   parseTags,
   parseTagsInMediaCreateOne,
   parseTagThumbsResponse,
@@ -220,6 +222,13 @@ export const metaApi = {
     return apiClient.post<Tag[]>(API_ROUTES.tag, body).then((res) => ({
       ...res,
       data: validated(parseTags, res.data),
+    }))
+  },
+
+  getTagById(id: number) {
+    return apiClient.get(apiEntity('tag', id)).then((res) => ({
+      ...res,
+      data: validated(parseTag, res.data),
     }))
   },
 

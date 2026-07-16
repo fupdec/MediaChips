@@ -63,16 +63,80 @@ function formatScraperAliases(
   return names.join(', ')
 }
 
+function findCountryByCode(code: unknown): string | null {
+  const normalized = String(code || '').trim()
+  if (!normalized) return null
+
+  const byCode = Countries.find(
+    (item) => item.code.toLowerCase() === normalized.toLowerCase(),
+  )
+  return byCode?.name || null
+}
+
+function findCountryByName(name: unknown): string | null {
+  const normalized = String(name || '').trim()
+  if (!normalized) return null
+
+  const byName = Countries.find(
+    (item) => item.name.toLowerCase() === normalized.toLowerCase(),
+  )
+  return byName?.name || normalized
+}
+
 function resolveCountryName(values: Record<string, unknown>): string | null {
-  const birthplaceCode = values.birthplace_code
-  const byCode = Countries.find((item) => item.code === birthplaceCode)
-  if (byCode) return byCode.name
+  const byCode = findCountryByCode(values.birthplace_code ?? values.country)
+  if (byCode) return byCode
+
+  const birthplace = String(values.birthplace || '').trim()
+  if (birthplace) {
+    return findCountryByName(birthplace)
+  }
 
   const nationality = String(values.nationality || '').trim()
   if (!nationality) return null
 
-  const byName = Countries.find((item) => item.name.toLowerCase() === nationality.toLowerCase())
-  return byName?.name || nationality
+  return findCountryByName(nationality)
+}
+
+const PERFORMER_COUNTRY_KEYS = [
+  'birthplace',
+  'birthplace_code',
+  'nationality',
+  'country',
+] as const
+
+export function collectPerformerScraperValues(
+  performer: Record<string, unknown>,
+): Record<string, unknown> {
+  const extras = (performer.extras && typeof performer.extras === 'object')
+    ? {...performer.extras as Record<string, unknown>}
+    : {}
+
+  for (const key of PERFORMER_COUNTRY_KEYS) {
+    const rootValue = performer[key]
+    if ((extras[key] == null || extras[key] === '') && rootValue != null && rootValue !== '') {
+      extras[key] = rootValue
+    }
+  }
+
+  return extras
+}
+
+export function mergeCountryValues(current: unknown, scraped: unknown): string[] {
+  const currentList = Array.isArray(current) ? [...current] : []
+  const scrapedList = Array.isArray(scraped)
+    ? scraped.map((entry) => String(entry)).filter(Boolean)
+    : scraped
+      ? [String(scraped)]
+      : []
+
+  for (const name of scrapedList) {
+    if (name && !currentList.includes(name)) {
+      currentList.push(name)
+    }
+  }
+
+  return currentList
 }
 
 export function buildScraperTransferFields({
@@ -86,7 +150,7 @@ export function buildScraperTransferFields({
   currentValues: Record<string, unknown>
   tags: Tag[]
 }): ScraperTransferField[] {
-  const values = selected.extras || {}
+  const values = collectPerformerScraperValues(selected as Record<string, unknown>)
   normalizeScraperExtras(values)
 
   const data: ScraperTransferField[] = []
@@ -191,6 +255,8 @@ export function buildScraperTransferFields({
 
 export {
   bookmarkAlreadyContains,
+  findCountryByCode,
+  findCountryByName,
   formatScraperAliases,
   mergeBookmarkValues,
   mergeSynonymValues,
