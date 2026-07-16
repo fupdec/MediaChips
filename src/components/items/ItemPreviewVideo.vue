@@ -859,7 +859,10 @@ const onThumbError = () => {
 
   thumbFallbackStage.value += 1
   thumbCreateAttempted.value = false
-  void getImg({bust: true, allowCreate: true})
+  // First failure: retry load only. Creating on a transient error can overwrite
+  // a scraped/custom poster with an ffmpeg frame from the video.
+  const allowCreate = thumbFallbackStage.value >= 2
+  void getImg({bust: true, allowCreate})
 }
 
 const loadThumb = (subfolder: 'thumbs' | 'grids', {bust = false} = {}) => {

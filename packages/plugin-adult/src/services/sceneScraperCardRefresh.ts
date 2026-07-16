@@ -25,9 +25,9 @@ export async function applySceneScrapeResultToCard(
   mediaId: number,
   result?: Pick<SceneAutoApplyResult, 'mediaName' | 'mediaBookmark' | 'mediaTags' | 'mediaValues'>,
   {
-    regenerateThumb = true,
+    refreshThumb = true,
   }: {
-    regenerateThumb?: boolean
+    refreshThumb?: boolean
   } = {},
 ) {
   const itemsStore = useItemsStore()
@@ -44,8 +44,10 @@ export async function applySceneScrapeResultToCard(
     },
   })
 
-  if (regenerateThumb) {
+  if (refreshThumb) {
+    // Cache-bust only. Never pass regenerate:true — that enables ffmpeg recreate on a
+    // failed existence probe and can overwrite a scraped poster with a video frame.
     invalidateVideoThumbCaches(mediaId)
-    itemsStore.refreshThumb(mediaId, {regenerate: true})
+    itemsStore.refreshThumb(mediaId)
   }
 }

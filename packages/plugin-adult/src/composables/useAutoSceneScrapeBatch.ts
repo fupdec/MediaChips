@@ -97,7 +97,7 @@ export function useAutoSceneScrapeBatch() {
       for (const result of results) {
         if (!result.success) continue
         await applySceneScrapeResultToCard(result.mediaId, result, {
-          regenerateThumb: true,
+          refreshThumb: true,
         })
       }
       eventBus.emit('getItemsFromDb', {
@@ -151,7 +151,7 @@ export function useAutoSceneScrapeBatch() {
         }),
       })
       // Await tag catalog + card relations so chips resolve after oshash auto-apply.
-      await applySceneScrapeResultToCard(media.id, result, { regenerateThumb: true })
+      await applySceneScrapeResultToCard(media.id, result, { refreshThumb: true })
       eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
       return result
     }

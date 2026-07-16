@@ -244,14 +244,14 @@ async function refreshMediaAfterScrape(
   mediaId: number,
   result?: Pick<SceneAutoApplyResult, 'mediaName' | 'mediaBookmark' | 'mediaTags' | 'mediaValues'>,
   {
-    regenerateThumb = true,
+    refreshThumb = true,
     reloadEditor = true,
   }: {
-    regenerateThumb?: boolean
+    refreshThumb?: boolean
     reloadEditor?: boolean
   } = {},
 ) {
-  await applySceneScrapeResultToCard(mediaId, result, {regenerateThumb})
+  await applySceneScrapeResultToCard(mediaId, result, {refreshThumb})
 
   // Refetch after local card update so a stale in-flight list request cannot win.
   eventBus.emit('getItemsFromDb', {ids: [mediaId], type: 'media'})
