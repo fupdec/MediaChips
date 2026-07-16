@@ -1208,6 +1208,7 @@ const en = {
       files: 'Adding files',
       files_for_type: 'Adding {type}',
       select_folders: 'Select folders',
+      browse_folders: 'Browse folders',
       paths_label: 'Paths to files or folders',
       paths_hint: 'Each path starts on a new line',
       paths_hint_docker: 'Use in-container paths such as /media/movies/... (one path per line)',

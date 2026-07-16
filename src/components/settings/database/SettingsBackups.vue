@@ -144,10 +144,27 @@
             {{ t('settings_labels.database.file_missing') }}
           </v-alert>
 
-          <v-btn v-if="isElectron" @click="chooseFile" class="mb-4" color="primary" variant="flat">
-            <v-icon left>mdi-folder-open</v-icon>
-            {{ t('settings_labels.database.select_backup') }}
-          </v-btn>
+          <div class="d-flex flex-wrap ga-2 mb-4">
+            <v-btn
+              v-if="isElectron"
+              @click="chooseFile"
+              color="primary"
+              rounded
+              variant="flat"
+            >
+              <v-icon start>mdi-file-outline</v-icon>
+              {{ t('settings_labels.database.select_backup') }}
+            </v-btn>
+            <v-btn
+              @click="showImportBrowseDialog = true"
+              color="primary"
+              rounded
+              :variant="isElectron ? 'tonal' : 'flat'"
+            >
+              <v-icon start>mdi-folder-search-outline</v-icon>
+              {{ t('media.adding.browse_folders') }}
+            </v-btn>
+          </div>
 
           <v-text-field
             :model-value="filePath"
@@ -190,10 +207,27 @@
             {{ t('settings_labels.database.folder_missing') }}
           </v-alert>
 
-          <v-btn v-if="isElectron" @click="chooseDir" class="mb-4" color="primary" rounded depressed>
-            <v-icon left>mdi-folder-open</v-icon>
-            {{ t('settings_labels.database.select_folder') }}
-          </v-btn>
+          <div class="d-flex flex-wrap ga-2 mb-4">
+            <v-btn
+              v-if="isElectron"
+              @click="chooseDirNative"
+              color="primary"
+              rounded
+              variant="flat"
+            >
+              <v-icon start>mdi-folder-open</v-icon>
+              {{ t('settings_labels.database.select_folder') }}
+            </v-btn>
+            <v-btn
+              @click="showBrowseDialog = true"
+              color="primary"
+              rounded
+              :variant="isElectron ? 'tonal' : 'flat'"
+            >
+              <v-icon start>mdi-folder-search-outline</v-icon>
+              {{ t('media.adding.browse_folders') }}
+            </v-btn>
+          </div>
 
           <v-text-field
             :model-value="folderPath"
@@ -205,6 +239,20 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <DialogBrowseFolder
+      v-model="showBrowseDialog"
+      :initial-path="folderPath"
+      @confirm="onBrowseConfirm"
+    />
+
+    <DialogBrowseFolder
+      v-model="showImportBrowseDialog"
+      :header="t('settings_labels.database.select_backup')"
+      :file-extensions="['zip']"
+      :confirm-text="t('common.select')"
+      @confirm="onImportBrowseConfirm"
+    />
   </div>
 </template>
 
@@ -221,6 +269,7 @@ import {getErrorResponseData} from '@/types/vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
@@ -237,6 +286,8 @@ const dialogRestoreFinished = ref(false)
 const dialogDelete = ref(false)
 const dialogImport = ref(false)
 const dialogExport = ref(false)
+const showBrowseDialog = ref(false)
+const showImportBrowseDialog = ref(false)
 
 /* ---------- DATA ---------- */
 
@@ -428,7 +479,21 @@ async function exportBackup() {
   await getBackups()
 }
 
-async function chooseDir() {
+function onBrowseConfirm(paths: string[]) {
+  const next = paths[0]
+  if (!next) return
+  folderPath.value = next
+  isFolderExists.value = true
+}
+
+function onImportBrowseConfirm(paths: string[]) {
+  const next = paths[0]
+  if (!next) return
+  filePath.value = next
+  isFileExists.value = true
+}
+
+async function chooseDirNative() {
   const res = await window.electronAPI?.invoke?.('showOpenDialog', ['openDirectory'])
   if (res?.filePaths?.length) {
     folderPath.value = res.filePaths[0]

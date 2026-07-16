@@ -33,6 +33,21 @@
           @dragover.prevent
           class="pa-2 pa-sm-4"
         >
+          <div
+            v-if="isElectron"
+            class="d-flex flex-wrap ga-2 mb-3"
+          >
+            <v-btn
+              @click="selectMultipleDirectories"
+              color="primary"
+              rounded="lg"
+              variant="flat"
+            >
+              <v-icon start>mdi-folder-open</v-icon>
+              {{ t('media.adding.select_folders') }}
+            </v-btn>
+          </div>
+
           <MediaFolderBrowser
             v-if="browsePath || browsePlaces.length"
             class="mb-4"
@@ -124,6 +139,18 @@
             </div>
           </div>
 
+          <v-btn
+            v-if="tasksStore.mediaAdding.is_exclude && isElectron"
+            @click="selectMultipleDirectoriesExcluded"
+            color="primary"
+            rounded="lg"
+            variant="flat"
+            class="mb-2 mt-2"
+          >
+            <v-icon start>mdi-folder-open</v-icon>
+            {{ t('media.adding.select_folders') }}
+          </v-btn>
+
           <!-- Поле для исключенных путей (показывается условно) -->
           <v-textarea
             v-if="tasksStore.mediaAdding.is_exclude"
@@ -163,6 +190,7 @@ import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue"
 import {useMediaAdding} from '@/composable/AddingMedia'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {collectDroppedPaths} from '@/utils/mediaDrop'
+import {showOpenDialog} from '@/services/electronDialogService'
 import {fetchBrowsePlaces, type BrowsePlace} from '@/services/browsePlacesService'
 import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
 import {transformTextToArray} from '@/services/formatUtils'
@@ -345,6 +373,24 @@ function openBrowsePlace(nextPath: string) {
 function onBrowserSelection(paths: string[]) {
   selectedBrowserPaths.value = paths
   tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(paths.join('\n')) ?? '')
+}
+
+const selectMultipleDirectories = async () => {
+  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
+  if (!paths?.length) return
+  const existing = (tasksStore.mediaAdding.paths || '').trim()
+  const merged = existing ? `${existing}\n${paths}` : paths
+  const normalized = String(normalizePastedFilePathsText(merged) ?? '')
+  tasksStore.mediaAdding.paths = normalized
+  selectedBrowserPaths.value = transformTextToArray(normalized)
+}
+
+const selectMultipleDirectoriesExcluded = async () => {
+  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
+  if (!paths?.length) return
+  const existing = (tasksStore.mediaAdding.excluded || '').trim()
+  const merged = existing ? `${existing}\n${paths}` : paths
+  tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(merged) ?? '')
 }
 
 const handleAddMedia = async () => {

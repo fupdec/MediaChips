@@ -1114,6 +1114,7 @@ const es = {
       files: 'Agregando archivos',
       files_for_type: 'Agregando {type}',
       select_folders: 'Seleccionar carpetas',
+      browse_folders: 'Explorar carpetas',
       paths_label: 'Rutas a archivos o carpetas',
       paths_hint: 'Cada ruta comienza en una nueva línea',
       paths_hint_docker: 'Use rutas del contenedor como /media/movies/... (una por línea)',

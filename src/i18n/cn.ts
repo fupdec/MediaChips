@@ -1114,6 +1114,7 @@ const cn = {
       files: '添加文件',
       files_for_type: '添加{type}',
       select_folders: '选择文件夹',
+      browse_folders: '浏览文件夹',
       paths_label: '文件或文件夹路径',
       paths_hint: '每个路径从新行开始',
       paths_hint_docker: '请使用容器内路径，例如 /media/movies/...（每行一个）',

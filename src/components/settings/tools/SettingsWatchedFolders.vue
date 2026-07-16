@@ -108,18 +108,27 @@
         <v-card-text class="pa-sm-4 pa-2">
           <v-form v-model="formValid"
             ref="folderForm">
-            <!-- Select Folder Button (Electron only) -->
-            <v-btn
-              v-if="isElectron"
-              @click="chooseDirectory"
-              class="mb-4"
-              color="primary"
-              rounded="pill"
-              variant="flat"
-            >
-              <v-icon start>mdi-folder-open</v-icon>
-              {{ t('settings_labels.database.select_folder') }}
-            </v-btn>
+            <div class="d-flex flex-wrap ga-2 mb-4">
+              <v-btn
+                v-if="isElectron"
+                @click="chooseDirectoryNative"
+                color="primary"
+                rounded="pill"
+                variant="flat"
+              >
+                <v-icon start>mdi-folder-open</v-icon>
+                {{ t('settings_labels.database.select_folder') }}
+              </v-btn>
+              <v-btn
+                @click="showBrowseDialog = true"
+                color="primary"
+                rounded="pill"
+                :variant="isElectron ? 'tonal' : 'flat'"
+              >
+                <v-icon start>mdi-folder-search-outline</v-icon>
+                {{ t('media.adding.browse_folders') }}
+              </v-btn>
+            </div>
 
             <!-- Path Input -->
             <v-text-field
@@ -187,6 +196,12 @@
       @confirm="removeFolder"
       :text="deleteConfirmText"
     />
+
+    <DialogBrowseFolder
+      v-model="showBrowseDialog"
+      :initial-path="folderData.path"
+      @confirm="onBrowseConfirm"
+    />
   </div>
 </template>
 
@@ -199,6 +214,7 @@ import {useWatcherStore} from '@/stores/watcher'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import SettingsCategoryDivider
   from "@/components/ui/SettingsCategoryDivider.vue"
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
@@ -220,14 +236,14 @@ interface FolderFormData {
 const appStore = useAppStore()
 const watcherStore = useWatcherStore()
 const {t} = useI18n()
-
-const isElectron = appStore.isElectron
+const isElectron = computed(() => Boolean(appStore.isElectron))
 
 // Refs
 const folderForm = ref<VFormInstance>(null)
 const formValid = ref(false)
 const showMediaTypesError = ref(false)
 const showFolderDialog = ref(false)
+const showBrowseDialog = ref(false)
 const showDeleteDialog = ref(false)
 const isEditMode = ref(false)
 const watcherBusy = ref(false)
@@ -286,14 +302,21 @@ const toggleFolderWatchStatus = async (id: number, watch: boolean) => {
 }
 
 // UI методы
-const chooseDirectory = async () => {
-  if (!isElectron || !window.electronAPI?.invoke) return
+const onBrowseConfirm = (paths: string[]) => {
+  const next = paths[0]
+  if (!next) return
+  folderData.value.path = next
+  if (!folderData.value.name) {
+    folderData.value.name = next.split(/[\\/]/).pop() || ''
+  }
+}
 
+const chooseDirectoryNative = async () => {
+  if (!window.electronAPI?.invoke) return
   try {
     const result = await window.electronAPI.invoke('showOpenDialog', ['openDirectory'])
     if (result?.filePaths?.length) {
       folderData.value.path = result.filePaths[0]
-      // Set default name from path if not specified
       if (!folderData.value.name) {
         folderData.value.name = folderData.value.path.split(/[\\/]/).pop() || ''
       }

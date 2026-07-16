@@ -51,7 +51,7 @@
 
       <v-btn
         v-if="appStore.isElectron"
-        @click="selectFolders"
+        @click="selectFoldersNative"
         color="primary"
         rounded
         variant="outlined"
@@ -60,6 +60,18 @@
       >
         <v-icon icon="mdi-folder-open" start/>
         {{ t('media.adding.select_folders') }}
+      </v-btn>
+
+      <v-btn
+        @click="showBrowseDialog = true"
+        color="primary"
+        rounded
+        :variant="appStore.isElectron ? 'tonal' : 'outlined'"
+        class="pr-4"
+        :disabled="active"
+      >
+        <v-icon icon="mdi-folder-search-outline" start/>
+        {{ t('media.adding.browse_folders') }}
       </v-btn>
     </div>
 
@@ -186,6 +198,13 @@
         </template>
       </v-virtual-scroll>
     </v-card>
+
+    <DialogBrowseFolder
+      v-model="showBrowseDialog"
+      multiple
+      :header="t('media.adding.select_folders')"
+      @confirm="onBrowseConfirm"
+    />
   </div>
 </template>
 
@@ -195,6 +214,7 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {showOpenDialog} from '@/services/electronDialogService'
 import {setNotification} from '@/services/notificationService'
@@ -220,6 +240,7 @@ const statusLoaded = ref(false)
 const statusLoading = ref(false)
 
 const searchPaths = ref('')
+const showBrowseDialog = ref(false)
 
 const onSearchPathsInput = (value: string) => {
   searchPaths.value = normalizePastedFilePathsText(value) as string
@@ -284,12 +305,18 @@ const refreshStatus = async () => {
   }
 }
 
-const selectFolders = async () => {
-  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
-  if (!paths?.length) return
-
+const onBrowseConfirm = (paths: string[]) => {
+  if (!paths.length) return
   const existing = parsePaths()
   searchPaths.value = [...new Set([...existing, ...paths])].join('\n')
+}
+
+const selectFoldersNative = async () => {
+  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
+  if (!paths?.length) return
+  const existing = parsePaths()
+  const nativePaths = String(paths).split('\n').map((p) => p.trim()).filter(Boolean)
+  searchPaths.value = [...new Set([...existing, ...nativePaths])].join('\n')
 }
 
 const toggleMatch = (id: MissingMediaMatch['id'], value: boolean | null) => {

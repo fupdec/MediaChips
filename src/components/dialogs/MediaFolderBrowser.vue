@@ -62,8 +62,12 @@
           </div>
         </div>
 
-        <div class="media-folder-browser__actions">
+        <div
+          v-if="showSelection"
+          class="media-folder-browser__actions"
+        >
           <v-btn
+            v-if="!isFilePicker"
             size="small"
             variant="tonal"
             color="primary"
@@ -84,29 +88,41 @@
         </div>
       </div>
 
-      <div class="media-folder-browser__filters">
-        <v-checkbox
-          v-model="hideInLibrary"
-          density="compact"
-          hide-details
-          :label="t('media.adding.browser_hide_in_library')"
-          class="mt-0 media-folder-browser__filter-check"
-        />
-        <v-checkbox
-          v-model="hideNonMedia"
-          density="compact"
-          hide-details
-          :label="t('media.adding.browser_hide_non_media')"
-          class="mt-0 media-folder-browser__filter-check"
-        />
-        <v-spacer />
         <div
-          v-if="selectedPaths.size"
-          class="text-caption text-medium-emphasis"
+          v-if="!foldersOnly && !isFilePicker"
+          class="media-folder-browser__filters"
         >
-          {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
+          <v-checkbox
+            v-model="hideInLibrary"
+            density="compact"
+            hide-details
+            :label="t('media.adding.browser_hide_in_library')"
+            class="mt-0 media-folder-browser__filter-check"
+          />
+          <v-checkbox
+            v-model="hideNonMedia"
+            density="compact"
+            hide-details
+            :label="t('media.adding.browser_hide_non_media')"
+            class="mt-0 media-folder-browser__filter-check"
+          />
+          <v-spacer />
+          <div
+            v-if="showSelection && selectedPaths.size"
+            class="text-caption text-medium-emphasis"
+          >
+            {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
+          </div>
         </div>
-      </div>
+        <div
+          v-else-if="showSelection && selectedPaths.size"
+          class="media-folder-browser__filters"
+        >
+          <v-spacer />
+          <div class="text-caption text-medium-emphasis">
+            {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
+          </div>
+        </div>
 
       <v-alert
         v-if="error"
@@ -156,55 +172,58 @@
             rounded="0"
             @click="onEntryActivate(entry)"
           >
-            <template #prepend>
-              <v-checkbox
-                :model-value="selectedPaths.has(entry.path)"
-                :disabled="entry.inLibrary && !entry.isDirectory"
-                density="compact"
-                hide-details
-                class="mt-0 media-folder-browser__check"
-                @click.stop
-                @update:model-value="(checked) => toggleEntry(entry, Boolean(checked))"
-              />
-              <v-icon
-                :icon="entry.isDirectory ? 'mdi-folder' : 'mdi-file-outline'"
-                :color="entry.isDirectory ? folderIconColor : undefined"
-                :style="entry.isDirectory ? folderIconStyle : undefined"
-                class="media-folder-browser__icon"
-              />
-            </template>
+          <template #prepend>
+            <v-checkbox
+              v-if="showSelection"
+              :model-value="selectedPaths.has(entry.path)"
+              :disabled="(entry.inLibrary && !entry.isDirectory && !isFilePicker) || (isFilePicker && entry.isDirectory)"
+              density="compact"
+              hide-details
+              class="mt-0 media-folder-browser__check"
+              @click.stop
+              @update:model-value="(checked) => toggleEntry(entry, Boolean(checked))"
+            />
+            <v-icon
+              :icon="entry.isDirectory ? 'mdi-folder' : 'mdi-file-outline'"
+              :color="entry.isDirectory ? folderIconColor : undefined"
+              :style="entry.isDirectory ? folderIconStyle : undefined"
+              class="media-folder-browser__icon"
+            />
+          </template>
 
             <v-list-item-title class="text-body-2 text-truncate">
               {{ entry.name }}
             </v-list-item-title>
 
             <template #append>
-              <v-chip
-                v-if="entry.inLibrary"
-                size="x-small"
-                color="secondary"
-                variant="tonal"
-                label
-              >
-                {{ t('media.adding.browser_in_library') }}
-              </v-chip>
-              <v-chip
-                v-else-if="entry.addable"
-                size="x-small"
-                color="success"
-                variant="tonal"
-                label
-              >
-                {{ t('media.adding.browser_addable') }}
-              </v-chip>
-              <v-chip
-                v-else-if="!entry.isDirectory"
-                size="x-small"
-                variant="outlined"
-                label
-              >
-                {{ t('media.adding.browser_not_media') }}
-              </v-chip>
+              <template v-if="!foldersOnly && !isFilePicker">
+                <v-chip
+                  v-if="entry.inLibrary"
+                  size="x-small"
+                  color="secondary"
+                  variant="tonal"
+                  label
+                >
+                  {{ t('media.adding.browser_in_library') }}
+                </v-chip>
+                <v-chip
+                  v-else-if="entry.addable"
+                  size="x-small"
+                  color="success"
+                  variant="tonal"
+                  label
+                >
+                  {{ t('media.adding.browser_addable') }}
+                </v-chip>
+                <v-chip
+                  v-else-if="!entry.isDirectory"
+                  size="x-small"
+                  variant="outlined"
+                  label
+                >
+                  {{ t('media.adding.browser_not_media') }}
+                </v-chip>
+              </template>
             </template>
           </v-list-item>
         </v-list>
@@ -229,9 +248,18 @@ const props = withDefaults(defineProps<{
   selectedPaths: string[]
   places?: BrowsePlace[]
   activePlaceId?: string | null
+  /** Folder picker mode: directories only, no media badges/filters. */
+  foldersOnly?: boolean
+  /** Show only directories + files matching these extensions (no media badges). */
+  fileExtensions?: string[]
+  /** Show row checkboxes and selection toolbar actions. */
+  showSelection?: boolean
 }>(), {
   places: () => [],
   activePlaceId: null,
+  foldersOnly: false,
+  fileExtensions: () => [],
+  showSelection: true,
 })
 
 const emit = defineEmits<{
@@ -262,8 +290,18 @@ const folderIconStyle = computed(() => (
   isMacServer.value ? {color: '#5AC8FA'} : undefined
 ))
 
+const isFilePicker = computed(() => props.fileExtensions.length > 0)
+const allowedFileExtensions = computed(() =>
+  new Set(props.fileExtensions.map((ext) => ext.replace(/^\./, '').toLowerCase())),
+)
+
 const visibleEntries = computed(() => {
   return entries.value.filter((entry) => {
+    if (props.foldersOnly) return entry.isDirectory
+    if (isFilePicker.value) {
+      if (entry.isDirectory) return true
+      return Boolean(entry.extension && allowedFileExtensions.value.has(entry.extension))
+    }
     if (entry.isDirectory) return true
     if (hideInLibrary.value && entry.inLibrary) return false
     if (hideNonMedia.value && !entry.addable && !entry.inLibrary) return false
@@ -354,8 +392,13 @@ function emitSelection(next: Set<string>) {
 }
 
 function toggleEntry(entry: BrowseDirectoryEntry, checked: boolean) {
-  if (entry.inLibrary && !entry.isDirectory) return
+  if (entry.inLibrary && !entry.isDirectory && !isFilePicker.value) return
   const next = new Set(selectedPaths.value)
+  // File picker: keep a single selected file
+  if (isFilePicker.value && !entry.isDirectory && checked) {
+    emitSelection(new Set([entry.path]))
+    return
+  }
   if (checked) next.add(entry.path)
   else next.delete(entry.path)
   emitSelection(next)
@@ -366,6 +409,15 @@ function onEntryActivate(entry: BrowseDirectoryEntry) {
     navigateTo(entry.path)
     return
   }
+  if (isFilePicker.value) {
+    if (!props.showSelection) {
+      emitSelection(new Set([entry.path]))
+      return
+    }
+    toggleEntry(entry, !selectedPaths.value.has(entry.path))
+    return
+  }
+  if (!props.showSelection) return
   if (entry.inLibrary) return
   toggleEntry(entry, !selectedPaths.value.has(entry.path))
 }
@@ -473,9 +525,30 @@ watch(
 
 .media-folder-browser__icon {
   margin-inline-end: 0;
+  font-size: 18px;
 }
 
 .media-folder-browser__list :deep(.v-list-item) {
-  min-height: 36px;
+  min-height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.media-folder-browser__list :deep(.v-list-item-title) {
+  line-height: 1.2;
+  font-size: 0.75rem;
+}
+
+.media-folder-browser__list :deep(.v-list-item__prepend),
+.media-folder-browser__list :deep(.v-list-item__append) {
+  align-self: center;
+}
+
+.media-folder-browser__list :deep(.v-checkbox) {
+  --v-input-control-height: 30px;
+}
+
+.media-folder-browser__list :deep(.v-selection-control) {
+  min-height: 30px;
 }
 </style>

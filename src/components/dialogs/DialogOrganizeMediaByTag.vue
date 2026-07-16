@@ -18,17 +18,27 @@
       </v-card-subtitle>
 
       <v-card-text>
-        <v-btn
-          v-if="isElectron"
-          @click="chooseDir"
-          class="mb-4"
-          color="primary"
-          rounded="pill"
-          variant="flat"
-        >
-          <v-icon start>mdi-folder-open</v-icon>
-          {{ t('settings_labels.database.select_folder') }}
-        </v-btn>
+        <div class="d-flex flex-wrap ga-2 mb-4">
+          <v-btn
+            v-if="isElectron"
+            @click="chooseDirNative"
+            color="primary"
+            rounded="pill"
+            variant="flat"
+          >
+            <v-icon start>mdi-folder-open</v-icon>
+            {{ t('settings_labels.database.select_folder') }}
+          </v-btn>
+          <v-btn
+            @click="showBrowseDialog = true"
+            color="primary"
+            rounded="pill"
+            :variant="isElectron ? 'tonal' : 'flat'"
+          >
+            <v-icon start>mdi-folder-search-outline</v-icon>
+            {{ t('media.adding.browse_folders') }}
+          </v-btn>
+        </div>
 
         <v-text-field
           :model-value="root_folder"
@@ -119,6 +129,12 @@
       </v-card-text>
     </v-card>
   </v-dialog>
+
+  <DialogBrowseFolder
+    v-model="showBrowseDialog"
+    :initial-path="root_folder || ''"
+    @confirm="onBrowseConfirm"
+  />
 </template>
 
 <script setup lang="ts">
@@ -132,6 +148,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useOperationsStore} from '@/stores/operations'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
@@ -169,6 +186,7 @@ const meta_list = ref<Meta[]>([])
 const structure = ref<Meta[]>([])
 const root_folder = ref<string | null>(null)
 const example = ref('')
+const showBrowseDialog = ref(false)
 
 const onRootFolderInput = (value: string) => {
   root_folder.value = String(normalizePastedFilePath(value) ?? '')
@@ -221,9 +239,18 @@ const remove = (meta: Meta, index: number) => {
   getExample()
 }
 
-const chooseDir = async () => {
+const onBrowseConfirm = (paths: string[]) => {
+  const next = paths[0]
+  if (!next) return
+  root_folder.value = next
+  getExample()
+}
+
+const chooseDirNative = async () => {
   try {
-    const result = await window.electronAPI?.invoke?.('showOpenDialog', ['openDirectory'])
+    const result = await window.electronAPI?.invoke?.('showOpenDialog', ['openDirectory']) as {
+      filePaths?: string[]
+    } | undefined
     if (result?.filePaths?.length) {
       root_folder.value = result.filePaths[0] ?? null
       getExample()

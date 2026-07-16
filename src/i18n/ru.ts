@@ -1208,6 +1208,7 @@ const ru = {
       files: 'Добавление файлов',
       files_for_type: 'Добавление: {type}',
       select_folders: 'Выбрать папки',
+      browse_folders: 'Обзор папок',
       paths_label: 'Пути к файлам или папкам',
       paths_hint: 'Каждый путь начинается с новой строки',
       paths_hint_docker: 'Указывайте пути внутри контейнера, например /media/movies/... (каждый путь с новой строки)',
