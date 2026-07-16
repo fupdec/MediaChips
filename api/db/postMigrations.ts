@@ -3,7 +3,7 @@ import { applySqlitePragmas } from './pragmas'
 import { seedDefaults } from './seedDefaults'
 import { seedDemoMetadata } from './seedDemoMetadata'
 import { runLegacyUpgrades } from './legacyUpgrades'
-import { repairSchemaColumns, repairMissingTables } from './schemaRepair'
+import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from './schemaRepair'
 import { ensureSearchFtsIndex } from './searchFts'
 
 export type PostMigrationOptions = {
@@ -28,6 +28,10 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
     const repairedTables = repairMissingTables(sqlite)
     if (repairedTables.length) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema tables: ${repairedTables.join(', ')}`)
+    }
+    const repairedIndexes = repairMissingIndexes(sqlite)
+    if (repairedIndexes.length) {
+      console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema indexes: ${repairedIndexes.join(', ')}`)
     }
     const installedFts = ensureSearchFtsIndex(sqlite)
     if (installedFts.length) {

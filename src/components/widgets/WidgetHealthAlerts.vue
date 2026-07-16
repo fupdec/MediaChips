@@ -128,7 +128,6 @@ const eventBus = useEventBus()
 const checked = ref(false)
 const loading = ref(false)
 const health = ref<HomeHealthData>(emptyHomeHealthUi())
-const missingCount = ref(0)
 
 const activeTasksCount = computed(() => tasksStore.list.length)
 
@@ -150,17 +149,6 @@ const databaseSizeLabel = computed(() => {
 
 const visibleAlerts = computed((): HealthAlertItem[] => {
   const alerts: HealthAlertItem[] = []
-
-  if (missingCount.value > 0) {
-    alerts.push({
-      id: 'missing',
-      type: 'warning',
-      icon: 'mdi-file-remove-outline',
-      text: t('home.widgets.health_missing', {count: missingCount.value}),
-      actionLabel: t('home.widgets.health_open_settings'),
-      action: openFilesSettings,
-    })
-  }
 
   if (health.value.duplicates.byFilesize > 0) {
     alerts.push({
@@ -273,13 +261,6 @@ function openDatabaseSettings() {
   })
 }
 
-function openFilesSettings() {
-  router.push({
-    path: '/settings',
-    query: {tab: 'files'},
-  })
-}
-
 function openImageGenerationSettings() {
   router.push({
     path: '/settings',
@@ -335,24 +316,15 @@ async function loadHealth() {
   health.value = toHomeHealthUi(response.data)
 }
 
-async function loadMissingStatus() {
-  const response = await typedApi.getMissingMediaStatus({full: true})
-  missingCount.value = Number(response.data?.missing || 0)
-}
-
 async function runCheck() {
   if (loading.value) return
 
   loading.value = true
   checked.value = false
-  missingCount.value = 0
   health.value = emptyHomeHealthUi()
 
   try {
-    await Promise.all([
-      loadHealth(),
-      loadMissingStatus(),
-    ])
+    await loadHealth()
     checked.value = true
   } catch (error) {
     console.error(error)

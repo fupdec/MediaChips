@@ -12,18 +12,13 @@ interface VideoCodecMediaRow {
 const VIDEO_MEDIA_SQL = `
   FROM media m
   INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
+  LEFT JOIN videoMetadata vm ON vm.mediaId = m.id
   WHERE mt.type = 'video'
 `
 
+/** Missing row or empty codec — uses LEFT JOIN above (avoids correlated EXISTS scans). */
 const PENDING_CODEC_SQL = `
-  AND (
-    NOT EXISTS (SELECT 1 FROM videoMetadata vm WHERE vm.mediaId = m.id)
-    OR EXISTS (
-      SELECT 1 FROM videoMetadata vm
-      WHERE vm.mediaId = m.id
-        AND (vm.codec IS NULL OR vm.codec = '')
-    )
-  )
+  AND (vm.mediaId IS NULL OR vm.codec IS NULL OR vm.codec = '')
 `
 
 async function getVideoCodecBackfillStatus(db: ApiDb) {

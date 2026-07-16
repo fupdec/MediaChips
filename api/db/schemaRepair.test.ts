@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { repairSchemaColumns, repairMissingTables } from './schemaRepair'
+import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from './schemaRepair'
 
 describe('schemaRepair', () => {
   let tempDir: string
@@ -76,5 +76,26 @@ describe('schemaRepair', () => {
 
     const pinnedRows = sqlite.prepare('SELECT metaId, pinnedMetaId, scraper FROM pinnedMetas').all()
     expect(pinnedRows).toEqual([{metaId: 1, pinnedMetaId: 2, scraper: 'test'}])
+  })
+
+  it('adds unique index on videoMetadata.mediaId for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE videoMetadata (
+        duration INTEGER DEFAULT 0,
+        codec TEXT,
+        mediaId INTEGER
+      );
+      INSERT INTO videoMetadata (mediaId, codec) VALUES (1, 'h264'), (2, NULL);
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired).toContain('video_metadata_media_id_idx')
+    expect(repairMissingIndexes(sqlite)).toEqual([])
+
+    const index = sqlite.prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'video_metadata_media_id_idx'`,
+    ).get() as {sql: string}
+    expect(index.sql).toMatch(/UNIQUE/i)
   })
 })

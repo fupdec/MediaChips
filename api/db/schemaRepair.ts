@@ -164,3 +164,25 @@ export function repairMissingTables(sqlite: Database.Database): string[] {
   return repaired
 }
 
+function hasIndex(sqlite: Database.Database, indexName: string): boolean {
+  const row = sqlite.prepare(
+    `SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`,
+  ).get(indexName) as {name: string} | undefined
+
+  return Boolean(row)
+}
+
+/** Idempotent indexes for legacy DBs that skip stamped drizzle migrations. */
+export function repairMissingIndexes(sqlite: Database.Database): string[] {
+  const repaired: string[] = []
+
+  if (hasTable(sqlite, 'videoMetadata') && !hasIndex(sqlite, 'video_metadata_media_id_idx')) {
+    sqlite.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "video_metadata_media_id_idx" ON "videoMetadata" ("mediaId")',
+    )
+    repaired.push('video_metadata_media_id_idx')
+  }
+
+  return repaired
+}
+

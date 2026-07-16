@@ -57,6 +57,13 @@
       "when": 1782775200000,
       "tag": "0007_media_oshash",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1782778800000,
+      "tag": "0008_video_metadata_media_id_idx",
+      "breakpoints": true
     }
   ]
 }
