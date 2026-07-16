@@ -26,12 +26,12 @@ export const MediaTypeSchema = z.object({
 
 export const TagSchema = z.object({
   id: z.number(),
-  metaId: z.number().nullable().optional(),
-  name: z.string().nullable().optional(),
-  synonyms: z.string().nullable().optional(),
+  metaId: optionalNullableCoercedNumberSchema,
+  name: optionalNullableStringSchema,
+  synonyms: optionalNullableStringSchema,
   favorite: optionalCoercedBooleanSchema,
-  color: z.string().nullable().optional(),
-  bookmark: z.string().nullable().optional(),
+  color: optionalNullableStringSchema,
+  bookmark: optionalNullableStringSchema,
 }).passthrough()
 
 export const MetaSchema = z.object({

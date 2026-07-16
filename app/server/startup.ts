@@ -8,8 +8,13 @@ import { errnoCode, errorMessage } from '../types/websockets'
 import { getBestLocalIp, getAllIps } from './network'
 import { isLanAccessEnabled, syncNetworkConfig } from './lanAccess'
 import { saveConfigFile } from './configFile'
-import { FIXED_PORT } from './ports'
+import { FIXED_PORT, resolveListenPort } from './ports'
 import { getBindHostForServer } from './constants'
+import {
+  parsePortInput,
+  promptPortInput,
+  suggestAlternatePort,
+} from './promptPort'
 import packageJson from '../../package.json'
 
 const isElectronRuntime = Boolean(process.versions.electron)
@@ -64,6 +69,37 @@ function isPortInUse(port: number, bindHost: string) {
       })
       .listen(port, bindHost)
   })
+}
+
+async function askForAlternatePort(busyPort: number): Promise<number | null> {
+  let suggested = suggestAlternatePort(busyPort)
+
+  while (true) {
+    const raw = await promptPortInput(busyPort, suggested)
+    if (raw == null) {
+      return null
+    }
+
+    const parsed = parsePortInput(raw)
+    if (parsed == null) {
+      showSystemNotification(
+        'Invalid port',
+        'Please enter a valid port number between 1 and 65535.',
+      )
+      continue
+    }
+
+    if (parsed === busyPort) {
+      showSystemNotification(
+        'Port still in use',
+        `Port ${parsed} is still busy. Please choose a different port.`,
+      )
+      suggested = suggestAlternatePort(parsed)
+      continue
+    }
+
+    return parsed
+  }
 }
 
 function createServerStarter({app, config, configPath, databasesPath}: ServerStarterOptions) {
@@ -130,6 +166,11 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
   }
 
   const attachListener = (bindHost: string, portToUse: number, verbose: boolean) => {
+    // Publish the intended port before listen() resolves so Electron's get-config
+    // / waitForBackend ping cannot race on a stale port.
+    config.port = portToUse
+    process.server_config = config
+
     return new Promise<void>((resolve, reject) => {
       listener = app.listen(portToUse, bindHost, () => {
         const address = listener?.address()
@@ -150,45 +191,75 @@ function createServerStarter({app, config, configPath, databasesPath}: ServerSta
     })
   }
 
+  const exitBecausePortBusy = (portToUse: number) => {
+    const errorTitle = 'Application startup error'
+    const errorMessage = `Port ${portToUse} is already in use by another application.\n\nPlease close other applications using this port and restart the application.`
+
+    console.error('\x1b[31m%s\x1b[0m', `❌ Port ${portToUse} is already in use!`)
+    showSystemNotification(errorTitle, errorMessage)
+    process.exit(1)
+  }
+
   const startServer = async () => {
-    const portToUse = FIXED_PORT
+    let portToUse = resolveListenPort(config.port)
     const bindHost = getBindHostForServer()
-    const portBusy = await isPortInUse(portToUse, bindHost)
 
-    if (portBusy) {
-      const errorTitle = 'Application startup error'
-      const errorMessage = `Port ${portToUse} is already in use by another application.\n\nPlease close other applications using this port and restart the application.`
+    while (true) {
+      const portBusy = await isPortInUse(portToUse, bindHost)
 
-      showSystemNotification(errorTitle, errorMessage)
-      process.exit(1)
-      return
-    }
+      if (portBusy) {
+        if (!isElectronRuntime) {
+          exitBecausePortBusy(portToUse)
+          return
+        }
 
-    if (isVerboseStartup) {
-      console.log('\n' + '='.repeat(70))
-      console.log('\x1b[33m%s\x1b[0m', `🚀 Starting server on ${bindHost}:${portToUse}...`)
-    }
+        const alternate = await askForAlternatePort(portToUse)
+        if (alternate == null) {
+          process.exit(1)
+          return
+        }
 
-    try {
-      await attachListener(bindHost, portToUse, true)
-    } catch (err: unknown) {
-      if (errnoCode(err) === 'EADDRINUSE') {
-        const errorTitle = 'Application startup error'
-        const errorMessage = `Port ${portToUse} is already in use by another application.\n\nPlease close other applications using this port and restart the application.`
+        portToUse = alternate
+        config.port = alternate
+        continue
+      }
 
-        console.error('\x1b[31m%s\x1b[0m', `❌ Port ${portToUse} is already in use!`)
-        showSystemNotification(errorTitle, errorMessage)
-        process.exit(1)
-      } else {
+      if (isVerboseStartup) {
+        console.log('\n' + '='.repeat(70))
+        console.log('\x1b[33m%s\x1b[0m', `🚀 Starting server on ${bindHost}:${portToUse}...`)
+      }
+
+      try {
+        await attachListener(bindHost, portToUse, true)
+        return
+      } catch (err: unknown) {
+        if (errnoCode(err) === 'EADDRINUSE') {
+          if (!isElectronRuntime) {
+            exitBecausePortBusy(portToUse)
+            return
+          }
+
+          const alternate = await askForAlternatePort(portToUse)
+          if (alternate == null) {
+            process.exit(1)
+            return
+          }
+
+          portToUse = alternate
+          config.port = alternate
+          continue
+        }
+
         console.error('\x1b[31m%s\x1b[0m', '❌ Server error:', err)
         showSystemNotification('Server error', errorMessage(err))
         process.exit(1)
+        return
       }
     }
   }
 
   const restartNetworkListener = async () => {
-    const portToUse = FIXED_PORT
+    const portToUse = resolveListenPort(config.port)
     const bindHost = getBindHostForServer()
 
     if (listener) {

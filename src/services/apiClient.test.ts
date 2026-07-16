@@ -25,6 +25,15 @@ describe('apiClient helpers', () => {
 
   it('resolves base url from app store config', () => {
     vi.stubEnv('DEV', false)
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        protocol: 'http:',
+        port: '12321',
+        hostname: 'localhost',
+        origin: 'http://localhost:12321',
+      },
+    })
     expect(getApiBaseUrl(appStore)).toBe('http://localhost:12321')
   })
 

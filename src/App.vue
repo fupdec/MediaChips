@@ -89,8 +89,9 @@ onBeforeUnmount(() => {
 })
 
 function getLocalServerInfo(): ServerInfo {
+  const port = app.config?.port || FIXED_PORT
   return {
-    url: getLocalBackendUrl(FIXED_PORT),
+    url: getLocalBackendUrl(port),
     ip: '127.0.0.1',
   }
 }
@@ -301,6 +302,13 @@ function applyConfig(config: ServerConfigPayload) {
   app.mediaPath = path.join(config.path ?? '', 'media')
   app.databases = config.databases ?? []
   app.config = config
+
+  if (isElectronHost && config.port) {
+    currentServer.value = {
+      url: getLocalBackendUrl(config.port),
+      ip: '127.0.0.1',
+    }
+  }
 
   if (!wasLoaded) {
     isConfigLoaded.value = true

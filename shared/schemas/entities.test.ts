@@ -29,9 +29,9 @@ describe('shared schemas', () => {
       name: 'Tag',
       metaId: 1,
       favorite: false,
-      synonyms: null,
-      color: null,
-      bookmark: null,
+      synonyms: undefined,
+      color: undefined,
+      bookmark: undefined,
     }])
   })
 

@@ -396,7 +396,7 @@ export async function applyManualSceneTransferToMedia({
         mediaHeight: media.height,
       })
       if (!posterResult.success) {
-        console.error('Scene poster apply failed:', posterResult.error)
+        console.error('Scene poster apply failed:', posterResult.outputPath)
       }
     }
 

@@ -37,16 +37,18 @@ if (app.isPackaged) {
   process.env.NODE_ENV = 'production'
 }
 
-const serverModule = require('./app/server.js') as AppServerExports & { default?: AppServerExports }
-const server = (serverModule.default ?? serverModule) as AppServerExports
-const serverConfig = server.config
-
+// Claim the single-instance lock before starting the HTTP server so a second
+// launch exits immediately instead of racing on the listen port / prompts.
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
   console.warn('MediaChips is already running. Exiting second instance.')
   process.exit(0)
 }
+
+const serverModule = require('./app/server.js') as AppServerExports & { default?: AppServerExports }
+const server = (serverModule.default ?? serverModule) as AppServerExports
+const serverConfig = server.config
 
 if (process.platform === 'win32') {
   const disableGpu = ['1', 'true', 'yes', 'on'].includes(
@@ -82,20 +84,23 @@ const devLog = (...args: unknown[]) => {
 const useViteDevServer = isDevelopment && process.env.MEDIA_CHIPS_VITE_DEV === '1'
 
 const waitForBackend = async (port: number, timeoutMs = 30000) => {
-  const deadline = Date.now() + timeoutMs
+  const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : Number.POSITIVE_INFINITY
 
   while (Date.now() < deadline) {
-    if (server.listener) return
+    // Only treat the backend as ready after /api/ping succeeds. `server.listener`
+    // is assigned when listen() is called, which can be before the port is bound
+    // and before config.port is written — racing that left the UI on a stale port.
+    const currentPort = serverConfig.port || port
 
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/ping`)
+      const response = await fetch(`http://127.0.0.1:${currentPort}/api/ping`)
       if (response.ok) return
     } catch {}
 
     await new Promise((resolve) => setTimeout(resolve, 200))
   }
 
-  console.warn(`Backend not ready on port ${port} after ${timeoutMs}ms; loading renderer anyway`)
+  console.warn(`Backend not ready on port ${serverConfig.port || port} after ${timeoutMs}ms; loading renderer anyway`)
 }
 
 const getRendererUrl = (search = '') => {
@@ -348,7 +353,7 @@ const createLoadingWindow = () => {
     show: false,
     frame: false,
     resizable: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     backgroundColor: '#333',
     icon: __dirname + `/icons/icon.png`,
     webPreferences: {
@@ -376,12 +381,11 @@ app.on('second-instance', () => {
 })
 
 app.on('ready', async () => {
+  // Wait for the API before any UI chrome. The port-in-use prompt may run first;
+  // showing the splash behind it left a stuck logo with no main window.
+  await waitForBackend(serverConfig.port, 600000)
+
   createLoadingWindow()
-
-  if (!useViteDevServer) {
-    await waitForBackend(serverConfig.port)
-  }
-
   createWindow()
 
   // config.json is the source of truth for the tray preference. Initialize the
@@ -396,9 +400,7 @@ app.on("activate", async () => {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (win === null) {
-    if (!useViteDevServer) {
-      await waitForBackend(serverConfig.port)
-    }
+    await waitForBackend(serverConfig.port, 600000)
     createWindow()
   }
 });
@@ -437,11 +439,7 @@ ipcMain.on('closeApp', handleCloseAppRequest)
 
 function showMainWindow() {
   if (!win || win.isDestroyed()) {
-    if (!useViteDevServer) {
-      void waitForBackend(serverConfig.port).then(() => createWindow())
-    } else {
-      createWindow()
-    }
+    void waitForBackend(serverConfig.port, 600000).then(() => createWindow())
     return
   }
   if (win.isMinimized()) win.restore()
@@ -756,8 +754,11 @@ function lockApp() {
 
 process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {
+    // Port conflicts are normally handled during server startup with a native
+    // port-input dialog. This is only a last-resort safety net.
+    const port = serverConfig.port || 12321
     dialog.showErrorBox('Startup Error',
-      `Port 12321 is already in use.\n\n` +
+      `Port ${port} is already in use.\n\n` +
       `Please close other applications using this port and restart the application.`
     );
     app.quit();

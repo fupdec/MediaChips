@@ -5,6 +5,11 @@ const DEFAULT_PORT = import.meta.env.VITE_PORT || 12321
 export function isViteDevProxyMode(): boolean {
   if (typeof window === 'undefined' || !import.meta.env.DEV) return false
 
+  // Electron serves the UI from Vite but the API runs on the backend listen port
+  // from config.json (possibly changed after a "port in use" prompt). The Vite
+  // proxy target is fixed at startup, so Electron must call the backend directly.
+  if (window.electronAPI) return false
+
   const vitePort = String(import.meta.env.VITE_DEV_SERVER_PORT || 3000)
   const currentPort = window.location.port
     || (window.location.protocol === 'https:' ? '443' : '80')
@@ -84,6 +89,12 @@ export function resolveLanShareUrl(config: LanShareConfig = {}): string | null {
 export function resolveApiBaseUrl(config: AppConfig = {}, serverInfo: ServerInfo | null = null): string {
   if (isViteDevProxyMode()) {
     return ''
+  }
+
+  // Electron always reaches the embedded backend over loopback, even when the UI
+  // is loaded from the Vite dev server on another port.
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    return getLocalBackendUrl(config.port || DEFAULT_PORT)
   }
 
   if (serverInfo?.url) {

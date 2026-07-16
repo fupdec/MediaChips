@@ -38,6 +38,25 @@ describe('resolveApiBaseUrl', () => {
     expect(isViteDevProxyMode()).toBe(true)
   })
 
+  it('skips vite proxy mode inside Electron so the backend port from config is used', () => {
+    const previous = window.electronAPI
+    Object.defineProperty(window, 'electronAPI', {
+      configurable: true,
+      value: {},
+    })
+
+    try {
+      expect(isViteDevProxyMode()).toBe(false)
+      expect(resolveApiBaseUrl({ ip: '192.168.1.37', port: 12322 }))
+        .toBe('http://127.0.0.1:12322')
+    } finally {
+      Object.defineProperty(window, 'electronAPI', {
+        configurable: true,
+        value: previous,
+      })
+    }
+  })
+
   it('prefers explicit server info url outside vite proxy mode', () => {
     vi.stubEnv('DEV', false)
 

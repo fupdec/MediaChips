@@ -38,7 +38,7 @@ export async function applySceneScrapeResultToCard(
     id: mediaId,
     item: {
       ...(result?.mediaName !== undefined ? {name: result.mediaName || undefined} : {}),
-      ...(result?.mediaBookmark !== undefined ? {bookmark: result.mediaBookmark} : {}),
+      ...(result?.mediaBookmark !== undefined ? {bookmark: result.mediaBookmark ?? undefined} : {}),
       tags: [...(result?.mediaTags || [])],
       values: [...(result?.mediaValues || [])],
     },

@@ -4,7 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import os from 'os'
 import { loadConfigFile, createDefaultConfig, saveConfigFile } from './configFile'
-import { FIXED_PORT } from './ports'
+import { resolveListenPort } from './ports'
 import { pickPublicHost } from './publicHost'
 
 function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
@@ -71,7 +71,8 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   config.ip = bestIp
   config.ips = allIpsInfo.map((ip: NetworkIpInfo) => ip.address)
   config.hostname = os.hostname()
-  config.port = FIXED_PORT
+  // Keep a previously saved Electron port override; fall back to the default.
+  config.port = resolveListenPort(config.port)
 
   const activeDb = config.databases.find((db: ServerDatabaseEntry) => db.active)
   if (!activeDb) {
@@ -105,7 +106,7 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   }
 
   saveConfigFile(configPath, config)
-  console.log('\x1b[32m%s\x1b[0m', `✅ Config saved. Primary IP: ${bestIp}, Port: ${FIXED_PORT}`)
+  console.log('\x1b[32m%s\x1b[0m', `✅ Config saved. Primary IP: ${bestIp}, Port: ${config.port}`)
 
   createStorageDirectories(config, databasesPath)
 

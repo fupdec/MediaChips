@@ -25,8 +25,9 @@ const inFlight = new Map<number, Promise<Partial<MediaItem> | null>>()
 export function pickMediaFileInfo(item: Partial<MediaItem>): Partial<MediaItem> {
   const picked: Partial<MediaItem> = {}
   for (const key of MEDIA_FILE_INFO_FIELDS) {
-    if (item[key] !== undefined) {
-      picked[key] = item[key as MediaFileInfoField]
+    const value = item[key as MediaFileInfoField]
+    if (value !== undefined) {
+      Object.assign(picked, {[key]: value})
     }
   }
   return picked

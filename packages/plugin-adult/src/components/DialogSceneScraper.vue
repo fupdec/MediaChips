@@ -295,7 +295,7 @@ function syncMediaEditingCopy(
   dialogsStore.mediaEditing.media = {
     ...editingMedia,
     ...(mediaName !== undefined ? {name: mediaName || undefined} : {}),
-    ...(mediaBookmark !== undefined ? {bookmark: mediaBookmark} : {}),
+    ...(mediaBookmark !== undefined ? {bookmark: mediaBookmark ?? undefined} : {}),
   }
 }
 
