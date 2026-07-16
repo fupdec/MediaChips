@@ -408,11 +408,13 @@ const onEnter = (event: KeyboardEvent) => {
     create()
   }
 }
-const setVal = (newVal: unknown) => {
+const setVal = (newVal: unknown, options: {allowClear?: boolean} = {}) => {
   const normalized = [...new Set(normalizeIds(newVal))]
   const previous = normalizeIds(val.value)
 
-  if (!normalized.length && previous.length) {
+  // Block spurious empty updates from autocomplete blur/search reset, but allow
+  // intentional clears (e.g. removing the last chip via the close button).
+  if (!normalized.length && previous.length && !options.allowClear) {
     const tagsStillExist = previous.every((id) =>
       listTags.value.some((tag) => Number(tag.id) === id)
     )
@@ -448,9 +450,9 @@ const onBlur = () => {
 const removeTag = (tagId: number | string) => {
   if (Array.isArray(val.value)) {
     const newVal = normalizeIds(val.value).filter((id) => String(id) !== String(tagId))
-    setVal(newVal)
+    setVal(newVal, {allowClear: true})
   } else if (String(val.value) === String(tagId)) {
-    setVal([])
+    setVal([], {allowClear: true})
   }
   hideHoverImage()
 }
