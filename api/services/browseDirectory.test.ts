@@ -42,12 +42,24 @@ describe('browseDirectory', () => {
       'a.mp4',
       'readme.txt',
     ])
-    expect(result.entries.find((entry) => entry.name === 'a.mp4')).toMatchObject({
+    const video = result.entries.find((entry) => entry.name === 'a.mp4')
+    expect(video).toMatchObject({
       isDirectory: false,
       addable: true,
       inLibrary: false,
       extension: 'mp4',
+      size: 1,
     })
+    expect(typeof video?.mtimeMs).toBe('number')
+    expect(video!.mtimeMs!).toBeGreaterThan(0)
+
+    const folder = result.entries.find((entry) => entry.name === 'Action')
+    expect(folder).toMatchObject({
+      isDirectory: true,
+      size: null,
+    })
+    expect(typeof folder?.mtimeMs).toBe('number')
+
     expect(result.entries.find((entry) => entry.name === 'readme.txt')).toMatchObject({
       addable: false,
       extension: 'txt',

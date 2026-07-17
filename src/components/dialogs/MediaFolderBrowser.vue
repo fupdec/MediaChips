@@ -158,74 +158,134 @@
         >
           {{ t('media.adding.browser_empty') }}
         </div>
-        <v-list
-          v-else
-          density="compact"
-          class="py-0"
-        >
-          <v-list-item
-            v-for="entry in visibleEntries"
-            :key="entry.path"
-            :active="selectedPaths.has(entry.path)"
-            :disabled="entry.inLibrary && !entry.isDirectory"
-            rounded="0"
-            @click="onEntryActivate(entry)"
+        <template v-else>
+          <div
+            class="media-folder-browser__header"
+            :class="{'media-folder-browser__header--selectable': showSelection}"
           >
-          <template #prepend>
-            <v-checkbox
-              v-if="showSelection"
-              :model-value="selectedPaths.has(entry.path)"
-              :disabled="(entry.inLibrary && !entry.isDirectory && !isFilePicker) || (isFilePicker && entry.isDirectory)"
-              density="compact"
-              hide-details
-              class="mt-0 media-folder-browser__check"
-              @click.stop
-              @update:model-value="(checked) => toggleEntry(entry, Boolean(checked))"
+            <button
+              type="button"
+              class="media-folder-browser__col media-folder-browser__col--name media-folder-browser__sort"
+              :class="{'media-folder-browser__sort--active': sortKey === 'name'}"
+              @click="toggleSort('name')"
+            >
+              <span>{{ t('media.adding.browser_col_name') }}</span>
+              <v-icon
+                v-if="sortKey === 'name'"
+                :icon="sortDesc ? 'mdi-menu-down' : 'mdi-menu-up'"
+                size="14"
+              />
+            </button>
+            <button
+              type="button"
+              class="media-folder-browser__col media-folder-browser__col--size media-folder-browser__sort"
+              :class="{'media-folder-browser__sort--active': sortKey === 'size'}"
+              @click="toggleSort('size')"
+            >
+              <span>{{ t('media.adding.browser_col_size') }}</span>
+              <v-icon
+                v-if="sortKey === 'size'"
+                :icon="sortDesc ? 'mdi-menu-down' : 'mdi-menu-up'"
+                size="14"
+              />
+            </button>
+            <button
+              type="button"
+              class="media-folder-browser__col media-folder-browser__col--mtime media-folder-browser__sort"
+              :class="{'media-folder-browser__sort--active': sortKey === 'mtime'}"
+              @click="toggleSort('mtime')"
+            >
+              <span>{{ t('media.adding.browser_col_modified') }}</span>
+              <v-icon
+                v-if="sortKey === 'mtime'"
+                :icon="sortDesc ? 'mdi-menu-down' : 'mdi-menu-up'"
+                size="14"
+              />
+            </button>
+            <span
+              v-if="!foldersOnly && !isFilePicker"
+              class="media-folder-browser__col media-folder-browser__col--status"
             />
-            <v-icon
-              :icon="entry.isDirectory ? 'mdi-folder' : 'mdi-file-outline'"
-              :color="entry.isDirectory ? folderIconColor : undefined"
-              :style="entry.isDirectory ? folderIconStyle : undefined"
-              class="media-folder-browser__icon"
-            />
-          </template>
-
-            <v-list-item-title class="text-body-2 text-truncate">
-              {{ entry.name }}
-            </v-list-item-title>
-
-            <template #append>
-              <template v-if="!foldersOnly && !isFilePicker">
-                <v-chip
-                  v-if="entry.inLibrary"
-                  size="x-small"
-                  color="secondary"
-                  variant="tonal"
-                  label
-                >
-                  {{ t('media.adding.browser_in_library') }}
-                </v-chip>
-                <v-chip
-                  v-else-if="entry.addable"
-                  size="x-small"
-                  color="success"
-                  variant="tonal"
-                  label
-                >
-                  {{ t('media.adding.browser_addable') }}
-                </v-chip>
-                <v-chip
-                  v-else-if="!entry.isDirectory"
-                  size="x-small"
-                  variant="outlined"
-                  label
-                >
-                  {{ t('media.adding.browser_not_media') }}
-                </v-chip>
+          </div>
+          <v-list
+            density="compact"
+            class="py-0"
+          >
+            <v-list-item
+              v-for="entry in visibleEntries"
+              :key="entry.path"
+              :active="selectedPaths.has(entry.path)"
+              :disabled="entry.inLibrary && !entry.isDirectory"
+              rounded="0"
+              @click="onEntryActivate(entry)"
+            >
+              <template #prepend>
+                <v-checkbox
+                  v-if="showSelection"
+                  :model-value="selectedPaths.has(entry.path)"
+                  :disabled="(entry.inLibrary && !entry.isDirectory && !isFilePicker) || (isFilePicker && entry.isDirectory)"
+                  density="compact"
+                  hide-details
+                  class="mt-0 media-folder-browser__check"
+                  @click.stop
+                  @update:model-value="(checked) => toggleEntry(entry, Boolean(checked))"
+                />
+                <v-icon
+                  :icon="entry.isDirectory ? 'mdi-folder' : 'mdi-file-outline'"
+                  :color="entry.isDirectory ? folderIconColor : undefined"
+                  :style="entry.isDirectory ? folderIconStyle : undefined"
+                  class="media-folder-browser__icon"
+                />
               </template>
-            </template>
-          </v-list-item>
-        </v-list>
+
+              <div class="media-folder-browser__row-body">
+                <span
+                  class="media-folder-browser__col media-folder-browser__col--name text-truncate"
+                  :title="entry.name"
+                >
+                  {{ entry.name }}
+                </span>
+                <span class="media-folder-browser__col media-folder-browser__col--size text-medium-emphasis">
+                  {{ formatEntrySize(entry) }}
+                </span>
+                <span class="media-folder-browser__col media-folder-browser__col--mtime text-medium-emphasis">
+                  {{ formatEntryMtime(entry) }}
+                </span>
+                <span
+                  v-if="!foldersOnly && !isFilePicker"
+                  class="media-folder-browser__col media-folder-browser__col--status"
+                >
+                  <v-chip
+                    v-if="entry.inLibrary"
+                    size="x-small"
+                    color="secondary"
+                    variant="tonal"
+                    label
+                  >
+                    {{ t('media.adding.browser_in_library') }}
+                  </v-chip>
+                  <v-chip
+                    v-else-if="entry.addable"
+                    size="x-small"
+                    color="success"
+                    variant="tonal"
+                    label
+                  >
+                    {{ t('media.adding.browser_addable') }}
+                  </v-chip>
+                  <v-chip
+                    v-else-if="!entry.isDirectory"
+                    size="x-small"
+                    variant="outlined"
+                    label
+                  >
+                    {{ t('media.adding.browser_not_media') }}
+                  </v-chip>
+                </span>
+              </div>
+            </v-list-item>
+          </v-list>
+        </template>
       </div>
     </div>
   </div>
@@ -239,6 +299,7 @@ import {
   type BrowseDirectoryEntry,
 } from '@/services/browseDirectoryService'
 import type {BrowsePlace} from '@/services/browsePlacesService'
+import {getReadableFileSize} from '@/services/formatUtils'
 
 const props = withDefaults(defineProps<{
   baseUrl: string
@@ -283,6 +344,9 @@ const hideInLibrary = ref(false)
 const hideNonMedia = ref(false)
 const showHidden = ref(false)
 const serverPlatform = ref('')
+type SortKey = 'name' | 'size' | 'mtime'
+const sortKey = ref<SortKey>('name')
+const sortDesc = ref(false)
 
 const selectedPaths = computed(() => new Set(props.selectedPaths))
 
@@ -299,7 +363,7 @@ const allowedFileExtensions = computed(() =>
 )
 
 const visibleEntries = computed(() => {
-  return entries.value.filter((entry) => {
+  const filtered = entries.value.filter((entry) => {
     if (props.foldersOnly) return entry.isDirectory
     if (isFilePicker.value) {
       if (entry.isDirectory) return true
@@ -309,6 +373,25 @@ const visibleEntries = computed(() => {
     if (hideInLibrary.value && entry.inLibrary) return false
     if (hideNonMedia.value && !entry.addable && !entry.inLibrary) return false
     return true
+  })
+
+  const direction = sortDesc.value ? -1 : 1
+  return [...filtered].sort((a, b) => {
+    // Keep folders above files, like Finder with “folders on top”.
+    if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
+
+    let cmp = 0
+    if (sortKey.value === 'size') {
+      cmp = (a.size ?? -1) - (b.size ?? -1)
+    } else if (sortKey.value === 'mtime') {
+      cmp = (a.mtimeMs ?? 0) - (b.mtimeMs ?? 0)
+    } else {
+      cmp = a.name.localeCompare(b.name, undefined, {sensitivity: 'base', numeric: true})
+    }
+    if (cmp === 0) {
+      cmp = a.name.localeCompare(b.name, undefined, {sensitivity: 'base', numeric: true})
+    }
+    return cmp * direction
   })
 })
 
@@ -353,6 +436,32 @@ function placeLabel(place: BrowsePlace): string {
     return t(`media.adding.place_${place.id}`)
   }
   return place.name || place.path
+}
+
+function formatEntrySize(entry: BrowseDirectoryEntry): string {
+  if (entry.isDirectory || entry.size == null) return ''
+  return getReadableFileSize(entry.size)
+}
+
+function formatEntryMtime(entry: BrowseDirectoryEntry): string {
+  if (entry.mtimeMs == null || !Number.isFinite(entry.mtimeMs)) return ''
+  return new Date(entry.mtimeMs).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function toggleSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDesc.value = !sortDesc.value
+    return
+  }
+  sortKey.value = key
+  // First click: name A→Z; size/date newest/largest first (Finder-like).
+  sortDesc.value = key !== 'name'
 }
 
 async function loadDirectory(targetPath: string) {
@@ -511,6 +620,91 @@ watch(
   overflow: auto;
 }
 
+.media-folder-browser__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 16px 4px 40px;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.media-folder-browser__header--selectable {
+  padding-left: 72px;
+}
+
+.media-folder-browser__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.media-folder-browser__sort:hover,
+.media-folder-browser__sort--active {
+  color: rgba(var(--v-theme-on-surface), 0.9);
+}
+
+.media-folder-browser__col--size.media-folder-browser__sort,
+.media-folder-browser__col--mtime.media-folder-browser__sort {
+  justify-content: flex-end;
+}
+
+.media-folder-browser__row-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.media-folder-browser__col {
+  flex: 0 0 auto;
+  min-width: 0;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.media-folder-browser__col--name {
+  flex: 1 1 auto;
+}
+
+.media-folder-browser__col--size {
+  width: 72px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.media-folder-browser__col--mtime {
+  width: 148px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.media-folder-browser__col--status {
+  width: 96px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .media-folder-browser__empty {
   padding: 28px 16px;
   text-align: center;
@@ -562,9 +756,21 @@ watch(
   padding-bottom: 0;
 }
 
-.media-folder-browser__list :deep(.v-list-item-title) {
-  line-height: 1.2;
-  font-size: 0.75rem;
+/* Finder-like zebra stripes */
+.media-folder-browser__list :deep(.v-list-item:nth-child(even):not(.v-list-item--active)) {
+  background: rgba(var(--v-theme-on-surface), 0.035);
+}
+
+.media-folder-browser__list :deep(.v-list-item:hover:not(.v-list-item--active)) {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.media-folder-browser__list :deep(.v-list-item--active) {
+  background: rgba(var(--v-theme-primary), 0.16);
+}
+
+.media-folder-browser__list :deep(.v-list-item__content) {
+  overflow: hidden;
 }
 
 .media-folder-browser__list :deep(.v-list-item__prepend),
@@ -578,5 +784,16 @@ watch(
 
 .media-folder-browser__list :deep(.v-selection-control) {
   min-height: 30px;
+}
+
+@media (max-width: 720px) {
+  .media-folder-browser__col--mtime,
+  .media-folder-browser__header .media-folder-browser__col--mtime {
+    display: none;
+  }
+
+  .media-folder-browser__col--status {
+    width: 84px;
+  }
 }
 </style>

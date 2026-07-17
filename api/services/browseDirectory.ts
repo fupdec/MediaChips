@@ -12,6 +12,8 @@ export type BrowseDirectoryEntry = {
   path: string
   isDirectory: boolean
   size: number | null
+  /** File/folder last modification time in Unix ms, or null if unavailable. */
+  mtimeMs: number | null
   extension: string | null
   inLibrary: boolean
   addable: boolean
@@ -130,12 +132,14 @@ export function listBrowseDirectory(
     if (!isDirectory && !isFile) continue
 
     let size: number | null = null
-    if (isFile) {
-      try {
-        size = fs.statSync(entryPath).size
-      } catch {
-        size = null
-      }
+    let mtimeMs: number | null = null
+    try {
+      const entryStats = fs.statSync(entryPath)
+      mtimeMs = entryStats.mtimeMs
+      if (isFile) size = entryStats.size
+    } catch {
+      size = null
+      mtimeMs = null
     }
 
     const extension = isFile ? fileExtension(name) : null
@@ -147,6 +151,7 @@ export function listBrowseDirectory(
       path: entryPath,
       isDirectory,
       size,
+      mtimeMs,
       extension,
       inLibrary: false,
       addable,
