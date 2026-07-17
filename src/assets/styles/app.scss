@@ -888,12 +888,14 @@ header {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: rgba(var(--v-theme-surface), 0.55);
+      // Same fill as the opaque app bar (not surface — that reads too bright).
+      background-color: var(--app-header-bg, rgb(var(--v-theme-surface)));
       border-radius: 20px;
 
       .v-icon {
         pointer-events: auto;
         cursor: pointer;
+        opacity: 1;
       }
     }
 

@@ -9,7 +9,7 @@
     :extended="tabs.length > 0"
     extension-height="36"
     :hide-on-scroll="xs"
-    :style="gradient"
+    :style="[gradient, {'--app-header-bg': colorRGBA}]"
   >
     <!-- Gradient bg -->
     <!--    <template #image>-->
