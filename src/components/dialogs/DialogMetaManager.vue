@@ -18,6 +18,11 @@
       <v-card-text :key="metaKey" class="px-4 pb-6 pt-6 meta-manager-dialog-content">
         <div class="dialog-settings-stack">
           <SettingsSection padded>
+            <MetaFieldFormPreview
+              v-if="metaSettings.type"
+              :meta="metaSettingsAsMeta"
+            />
+
             <v-alert
               v-if="!editMode && metaSettings.type === 'array'"
               type="info"
@@ -145,6 +150,7 @@ const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/Dial
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 import MetaSettingsArray from '@/components/dialogs/meta/MetaSettingsArray.vue'
 import MetaSettingsRating from '@/components/dialogs/meta/MetaSettingsRating.vue'
+import MetaFieldFormPreview from '@/components/dialogs/meta/MetaFieldFormPreview.vue'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import MetaTypes from '@/assets/MetaTypes'

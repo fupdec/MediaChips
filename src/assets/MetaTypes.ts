@@ -1,9 +1,9 @@
 const MetaTypes = [
   {
-    text: "Tags",
+    text: "Tag category",
     value: "array",
     icon: "mdi-tag-multiple-outline",
-    hint: "for many values. e.g: red, green, blue",
+    hint: "a tag category; add tags on its page",
   },
   {
     text: "Text",

@@ -13,7 +13,7 @@ const META_TYPE_ICONS: Record<string, string> = {
 }
 
 const META_TYPE_TEXT_FALLBACK: Record<string, string> = {
-  array: 'Tags',
+  array: 'Tag category',
   string: 'Text',
   number: 'Number',
   boolean: 'Checkbox',

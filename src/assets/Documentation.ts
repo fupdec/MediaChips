@@ -72,7 +72,7 @@ export const docs = [
     name: 'Field types',
     icon: 'mdi-shape-plus',
     children: [
-      { id: 'meta_types.tags', name: 'Tags', icon: 'mdi-tag-multiple' },
+      { id: 'meta_types.tags', name: 'Tag category', icon: 'mdi-tag-multiple' },
       { id: 'meta_types.string', name: 'Text', icon: 'mdi-text' },
       { id: 'meta_types.number', name: 'Number', icon: 'mdi-numeric' },
       { id: 'meta_types.boolean', name: 'Checkbox', icon: 'mdi-checkbox-marked-outline' },

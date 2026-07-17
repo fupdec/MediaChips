@@ -6,29 +6,6 @@
       :title="t('meta.settings.rating_customization')"
     />
 
-    <div class="text-center">
-      <v-chip variant="tonal" size="large" class="mb-4">
-        <v-list-item-subtitle>{{ t('common.preview') }}</v-list-item-subtitle>
-        <div class="d-flex align-center">
-          <v-rating
-            v-model="rating"
-            :length="settings.ratingMax"
-            :icon="`mdi-${settings.ratingIcon}`"
-            :full-icon="`mdi-${settings.ratingIcon}`"
-            :empty-icon="`mdi-${settings.ratingIconEmpty || settings.ratingIcon}`"
-            :half-increments="settings.ratingHalf"
-            :half-icon="`mdi-${settings.ratingIconHalf || settings.ratingIcon}`"
-            :active-color="settings.ratingColor"
-            :color="settings.ratingColor"
-            :bg-color="'grey'"
-            density="compact"
-            :clearable="true"
-            hover
-          />
-        </div>
-      </v-chip>
-    </div>
-
     <v-row>
       <v-col cols="12" md="6">
         <DialogIcons
@@ -117,7 +94,6 @@ const props = defineProps({
 const emit = defineEmits(['update'])
 const {t} = useI18n()
 
-const rating = ref(1.5)
 const dialogPalette = ref(false)
 
 const settings = ref<RatingSettings>({
@@ -155,12 +131,6 @@ onMounted(() => {
   nextTick(() => {
     initSettings()
   })
-})
-
-watch(() => settings.value.ratingMax, (val) => {
-  const num = parseInt(String(val), 10)
-  if (num < 2 || num > 10) return
-  else if (rating.value > num) rating.value = num
 })
 
 watch(settings.value, () => {
