@@ -1232,6 +1232,7 @@ const en = {
       browser_clear_selection: 'Clear selection',
       browser_hide_in_library: 'Hide already in library',
       browser_hide_non_media: 'Hide non-media',
+      browser_show_hidden: 'Show hidden files',
       browser_places: 'Quick access',
       browser_selected_count: 'Selected: {count}',
       paths_section: 'Selected paths',

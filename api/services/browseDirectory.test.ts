@@ -108,4 +108,27 @@ describe('browseDirectory', () => {
     expect(result.parentPath).toBe(path.resolve(movies))
     expect(result.rootPath).toBe(path.resolve(movies))
   })
+
+  it('hides dotfiles by default and includes them when showHidden is true', () => {
+    const root = makeTempRoot()
+    const movies = path.join(root, 'movies')
+    fs.mkdirSync(movies, {recursive: true})
+    fs.mkdirSync(path.join(movies, '.stash'), {recursive: true})
+    fs.writeFileSync(path.join(movies, '.hidden.mp4'), 'x')
+    fs.writeFileSync(path.join(movies, 'visible.mp4'), 'x')
+
+    const hidden = listBrowseDirectory(movies, {envValue: movies, extensions: 'mp4'})
+    expect(hidden.entries.map((entry) => entry.name)).toEqual(['visible.mp4'])
+
+    const shown = listBrowseDirectory(movies, {
+      envValue: movies,
+      extensions: 'mp4',
+      showHidden: true,
+    })
+    expect(shown.entries.map((entry) => entry.name)).toEqual([
+      '.stash',
+      '.hidden.mp4',
+      'visible.mp4',
+    ])
+  })
 })

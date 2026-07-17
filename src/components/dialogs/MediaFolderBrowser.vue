@@ -90,11 +90,9 @@
         </div>
       </div>
 
-        <div
-          v-if="!foldersOnly && !isFilePicker"
-          class="media-folder-browser__filters"
-        >
+        <div class="media-folder-browser__filters">
           <v-checkbox
+            v-if="!foldersOnly && !isFilePicker"
             v-model="hideInLibrary"
             density="compact"
             hide-details
@@ -102,10 +100,18 @@
             class="mt-0 media-folder-browser__filter-check"
           />
           <v-checkbox
+            v-if="!foldersOnly && !isFilePicker"
             v-model="hideNonMedia"
             density="compact"
             hide-details
             :label="t('media.adding.browser_hide_non_media')"
+            class="mt-0 media-folder-browser__filter-check"
+          />
+          <v-checkbox
+            v-model="showHidden"
+            density="compact"
+            hide-details
+            :label="t('media.adding.browser_show_hidden')"
             class="mt-0 media-folder-browser__filter-check"
           />
           <v-spacer />
@@ -113,15 +119,6 @@
             v-if="showSelection && selectedPaths.size"
             class="text-caption text-medium-emphasis"
           >
-            {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
-          </div>
-        </div>
-        <div
-          v-else-if="showSelection && selectedPaths.size"
-          class="media-folder-browser__filters"
-        >
-          <v-spacer />
-          <div class="text-caption text-medium-emphasis">
             {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
           </div>
         </div>
@@ -284,6 +281,7 @@ const currentPath = ref('')
 const entries = ref<BrowseDirectoryEntry[]>([])
 const hideInLibrary = ref(false)
 const hideNonMedia = ref(false)
+const showHidden = ref(false)
 const serverPlatform = ref('')
 
 const selectedPaths = computed(() => new Set(props.selectedPaths))
@@ -365,6 +363,7 @@ async function loadDirectory(targetPath: string) {
     const result = await fetchBrowseDirectory(props.baseUrl, {
       path: targetPath,
       extensions: props.extensions,
+      showHidden: showHidden.value,
     })
     currentPath.value = result.currentPath
     parentPath.value = result.parentPath
@@ -439,7 +438,7 @@ function clearSelection() {
 }
 
 watch(
-  () => [props.path, props.extensions, props.baseUrl] as const,
+  () => [props.path, props.extensions, props.baseUrl, showHidden.value] as const,
   ([nextPath]) => {
     if (nextPath) void loadDirectory(nextPath)
   },

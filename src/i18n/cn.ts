@@ -1233,6 +1233,7 @@ const cn = {
       browser_clear_selection: '清除选择',
       browser_hide_in_library: '隐藏已在库中的项',
       browser_hide_non_media: '隐藏非媒体',
+      browser_show_hidden: '显示隐藏文件',
       browser_places: '快速访问',
       browser_selected_count: '已选：{count}',
       paths_section: '已选路径',

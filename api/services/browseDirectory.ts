@@ -70,6 +70,8 @@ export function listBrowseDirectory(
     extensions?: unknown
     mediaRepo?: MediaRepository | null
     limit?: number
+    /** Include names starting with `.` (dotfiles / hidden on Unix). Default false. */
+    showHidden?: boolean
   } = {},
 ): BrowseDirectoryResult {
   if (typeof rawPath !== 'string' || !rawPath.trim()) {
@@ -98,6 +100,7 @@ export function listBrowseDirectory(
   const parentPath = resolveParentPath(currentPath, rootPath, envValue)
   const allowedExtensions = new Set(parseExtensions(options.extensions))
   const limit = options.limit ?? DEFAULT_ENTRY_LIMIT
+  const showHidden = Boolean(options.showHidden)
 
   let dirents: fs.Dirent[]
   try {
@@ -117,7 +120,8 @@ export function listBrowseDirectory(
     }
 
     const name = dirent.name
-    if (!name || name.startsWith('.')) continue
+    if (!name) continue
+    if (!showHidden && name.startsWith('.')) continue
     if (SKIP_DIR_NAMES.has(name)) continue
 
     const entryPath = path.join(currentPath, name)

@@ -26,15 +26,18 @@ export async function fetchBrowseDirectory(
   {
     path: directoryPath,
     extensions,
+    showHidden,
   }: {
     path: string
     extensions?: string
+    showHidden?: boolean
   },
 ): Promise<BrowseDirectoryResult> {
   const url = `${baseUrl.replace(/\/$/, '')}${API_ROUTES.browseListDirectory}`
   const {data} = await axios.post<BrowseDirectoryResult>(url, {
     path: directoryPath,
     extensions: extensions || undefined,
+    showHidden: showHidden || undefined,
   }, {timeout: 10000})
 
   return {

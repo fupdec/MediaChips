@@ -1233,6 +1233,7 @@ const es = {
       browser_clear_selection: 'Borrar selección',
       browser_hide_in_library: 'Ocultar ya en la biblioteca',
       browser_hide_non_media: 'Ocultar no medios',
+      browser_show_hidden: 'Mostrar archivos ocultos',
       browser_places: 'Acceso rápido',
       browser_selected_count: 'Seleccionados: {count}',
       paths_section: 'Rutas seleccionadas',

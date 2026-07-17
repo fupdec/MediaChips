@@ -1232,6 +1232,7 @@ const de = {
       browser_clear_selection: "Klare Auswahl",
       browser_hide_in_library: "Bereits in der Bibliothek ausblenden",
       browser_hide_non_media: "Nicht-Medien ausblenden",
+      browser_show_hidden: "Versteckte Dateien anzeigen",
       browser_places: "Schneller Zugriff",
       browser_selected_count: "Ausgewählt: {count}",
       paths_section: "Ausgewählte Wege",

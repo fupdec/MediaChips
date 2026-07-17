@@ -130,6 +130,7 @@ function registerBuiltinRoutes({
     try {
       const result = listBrowseDirectory(req.body?.path, {
         extensions: req.body?.extensions,
+        showHidden: Boolean(req.body?.showHidden),
         mediaRepo: createMediaRepository(db.drizzle),
       })
 

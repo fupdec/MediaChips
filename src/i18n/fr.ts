@@ -1232,6 +1232,7 @@ const fr = {
       browser_clear_selection: 'Effacer la sélection',
       browser_hide_in_library: 'Masquer déjà dans la bibliothèque',
       browser_hide_non_media: 'Masquer les éléments non multimédias',
+      browser_show_hidden: 'Afficher les fichiers cachés',
       browser_places: 'Accès rapide',
       browser_selected_count: 'Sélectionné : {count}',
       paths_section: 'Chemins sélectionnés',

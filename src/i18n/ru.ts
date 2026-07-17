@@ -1232,6 +1232,7 @@ const ru = {
       browser_clear_selection: 'Сбросить выбор',
       browser_hide_in_library: 'Скрыть уже в библиотеке',
       browser_hide_non_media: 'Скрыть не медиа',
+      browser_show_hidden: 'Показать скрытые файлы',
       browser_places: 'Быстрый доступ',
       browser_selected_count: 'Выбрано: {count}',
       paths_section: 'Выбранные пути',
