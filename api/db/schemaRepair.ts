@@ -173,6 +173,54 @@ function hasIndex(sqlite: Database.Database, indexName: string): boolean {
   return Boolean(row)
 }
 
+type JoinUniqueIndexSpec = {
+  indexName: string
+  table: string
+  columns: string[]
+}
+
+const JOIN_UNIQUE_INDEXES: JoinUniqueIndexSpec[] = [
+  {
+    indexName: 'tags_in_tags_unique_idx',
+    table: 'tagsInTags',
+    columns: ['parentTagId', 'tagId', 'metaId'],
+  },
+  {
+    indexName: 'tags_in_media_unique_idx',
+    table: 'tagsInMedia',
+    columns: ['mediaId', 'tagId', 'metaId'],
+  },
+  {
+    indexName: 'tags_in_filter_rows_unique_idx',
+    table: 'tagsInFilterRows',
+    columns: ['tagId', 'rowId', 'metaId'],
+  },
+  {
+    indexName: 'values_in_tags_unique_idx',
+    table: 'valuesInTags',
+    columns: ['tagId', 'metaId'],
+  },
+  {
+    indexName: 'values_in_media_unique_idx',
+    table: 'valuesInMedia',
+    columns: ['mediaId', 'metaId'],
+  },
+]
+
+function dedupeJoinTableRows(sqlite: Database.Database, table: string, columns: string[]): number {
+  if (!hasTable(sqlite, table)) return 0
+
+  const quotedCols = columns.map((column) => `"${column}"`).join(', ')
+  const result = sqlite.prepare(`
+    DELETE FROM "${table}"
+    WHERE rowid NOT IN (
+      SELECT MIN(rowid) FROM "${table}" GROUP BY ${quotedCols}
+    )
+  `).run()
+
+  return Number(result.changes ?? 0)
+}
+
 /** Idempotent indexes for legacy DBs that skip stamped drizzle migrations. */
 export function repairMissingIndexes(sqlite: Database.Database): string[] {
   const repaired: string[] = []
@@ -182,6 +230,17 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE UNIQUE INDEX IF NOT EXISTS "video_metadata_media_id_idx" ON "videoMetadata" ("mediaId")',
     )
     repaired.push('video_metadata_media_id_idx')
+  }
+
+  for (const spec of JOIN_UNIQUE_INDEXES) {
+    if (!hasTable(sqlite, spec.table) || hasIndex(sqlite, spec.indexName)) continue
+
+    const removed = dedupeJoinTableRows(sqlite, spec.table, spec.columns)
+    const quotedCols = spec.columns.map((column) => `"${column}"`).join(', ')
+    sqlite.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "${spec.indexName}" ON "${spec.table}" (${quotedCols})`,
+    )
+    repaired.push(removed > 0 ? `${spec.indexName} (deduped ${removed})` : spec.indexName)
   }
 
   return repaired

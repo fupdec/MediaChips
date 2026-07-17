@@ -14,13 +14,16 @@ export function createValuesInMediaRepository(db: DrizzleClient) {
     bulkCreate(items: Array<typeof valuesInMedia.$inferInsert>) {
       if (!items.length) return []
 
-      const normalizedItems = items.map((item) => ({
-        ...item,
-        value: normalizeStoredMetaValue(item.value),
-      }))
+      const unique = new Map<string, typeof valuesInMedia.$inferInsert>()
+      for (const item of items) {
+        unique.set(`${item.mediaId}:${item.metaId}`, {
+          ...item,
+          value: normalizeStoredMetaValue(item.value),
+        })
+      }
 
-      return mapChunks(normalizedItems, (chunk) => (
-        db.insert(valuesInMedia).values(chunk).returning().all()
+      return mapChunks([...unique.values()], (chunk) => (
+        db.insert(valuesInMedia).values(chunk).onConflictDoNothing().returning().all()
       ))
     },
 

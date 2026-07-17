@@ -39,6 +39,12 @@ export interface CreateTagPayload {
   [key: string]: unknown
 }
 
+export interface MergeTagsPayload {
+  metaId: number
+  survivorId: number
+  sourceIds: number[]
+}
+
 export interface ParsePathTagsPayload {
   paths: Array<{ path?: string; mediaId: number }>
 }

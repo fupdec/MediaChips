@@ -14,13 +14,16 @@ export function createValuesInTagRepository(db: DrizzleClient) {
     bulkCreate(items: Array<typeof valuesInTags.$inferInsert>) {
       if (!items.length) return []
 
-      const normalizedItems = items.map((item) => ({
-        ...item,
-        value: normalizeStoredMetaValue(item.value),
-      }))
+      const unique = new Map<string, typeof valuesInTags.$inferInsert>()
+      for (const item of items) {
+        unique.set(`${item.tagId}:${item.metaId}`, {
+          ...item,
+          value: normalizeStoredMetaValue(item.value),
+        })
+      }
 
-      return mapChunks(normalizedItems, (chunk) => (
-        db.insert(valuesInTags).values(chunk).returning().all()
+      return mapChunks([...unique.values()], (chunk) => (
+        db.insert(valuesInTags).values(chunk).onConflictDoNothing().returning().all()
       ))
     },
 

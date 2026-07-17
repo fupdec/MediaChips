@@ -56,10 +56,24 @@ export function createTagsInFilterRowsRepository(db: DrizzleClient) {
 
       const row = db.insert(tagsInFilterRows)
         .values({tagId, rowId, metaId})
+        .onConflictDoNothing()
         .returning()
         .get()
 
-      return {row, created: true}
+      if (row) {
+        return {row, created: true}
+      }
+
+      const raced = db.select()
+        .from(tagsInFilterRows)
+        .where(and(
+          eq(tagsInFilterRows.tagId, tagId),
+          eq(tagsInFilterRows.rowId, rowId),
+          eq(tagsInFilterRows.metaId, metaId),
+        ))
+        .get()
+
+      return {row: raced!, created: false}
     },
   }
 }

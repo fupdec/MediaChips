@@ -20,11 +20,11 @@ import {
   apiValuesInTag,
 } from '@shared/api/routes'
 import type { Meta, Tag, MarkFilterMeta, MetaWritePayload } from '@shared/entities/meta'
-import type { RemoveTagFromItemPayload } from '@shared/api/responses'
 import type {
   CreateTagPayload,
   CreateTagsInMediaOnePayload,
   MediaTypeWritePayload,
+  MergeTagsPayload,
   MetaAssignmentOrderPayload,
   MetaAssignmentUpdatePayload,
   ParsePathTagsPayload,
@@ -32,6 +32,7 @@ import type {
   PinMetaAssignmentPayload,
   PostTagItemsPayload,
 } from '@shared/api/payloads'
+import type { MergeTagsResult, RemoveTagFromItemPayload } from '@shared/api/responses'
 import {
   parseAssignedMetaList,
   parseMeta,
@@ -223,6 +224,10 @@ export const metaApi = {
       ...res,
       data: validated(parseTags, res.data),
     }))
+  },
+
+  mergeTags(body: MergeTagsPayload) {
+    return apiClient.post<MergeTagsResult>(API_ROUTES.tagMerge, body)
   },
 
   getTagById(id: number) {

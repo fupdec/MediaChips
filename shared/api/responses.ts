@@ -250,6 +250,29 @@ export interface DeleteEntityOnePayload {
   [key: string]: unknown
 }
 
+export interface MergeTagsResult {
+  survivor: {
+    id: number
+    name: string
+    synonyms?: string | null
+    metaId?: number | null
+    [key: string]: unknown
+  }
+  deletedIds: number[]
+  migrated: {
+    mediaLinks: number
+    nestedAsChild: number
+    nestedAsParent: number
+    nestedNameDeduped: number
+    filterRows: number
+    values: number
+    marks: number
+    tabs: number
+    savedFilters: number
+    pageSettings: number
+  }
+}
+
 export interface WatchedFolderUpdatePayload {
   path?: string
   name?: string

@@ -1,6 +1,7 @@
 export const API_ROUTES = {
   mediaType: '/api/mediaType',
   tag: '/api/tag',
+  tagMerge: '/api/Tag/merge',
   meta: '/api/meta',
   tab: '/api/tab',
   playlist: '/api/playlist',

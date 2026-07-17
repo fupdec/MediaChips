@@ -110,6 +110,16 @@ export default function useItemContextMenu(
         },
       })
 
+      if (type === 'tag' && meta) {
+        contextMenu.push({
+          name: t('context_menu.merge_tags'),
+          type: 'item',
+          icon: 'set-merge',
+          disabled: itemsStore.selection.length < 2,
+          action: openTagMerge,
+        })
+      }
+
       if (canAutoScrape) {
         contextMenu.push({
           name: t('context_menu.bulk_auto_scrape'),
@@ -411,6 +421,23 @@ export default function useItemContextMenu(
     } else if (isTagPageItem(item, type) && meta) {
       dialogsStore.editTag(item, meta)
     }
+  }
+
+  const openTagMerge = (): void => {
+    if (type !== 'tag' || !meta) return
+
+    const selectedTags = itemsStore.selection
+      .map((id) => {
+        const fromPage = itemsStore.getItemById(id)
+        if (fromPage && isTagPageItem(fromPage, 'tag')) return fromPage
+        return store.tags.find((tag) => Number(tag.id) === Number(id)) ?? null
+      })
+      .filter((tag): tag is Tag => Boolean(tag))
+
+    if (selectedTags.length < 2) return
+
+    dialogsStore.openTagMerge(selectedTags, meta)
+    itemsStore.isSelect = false
   }
 
   const autoScrapeSingleScene = async (): Promise<void> => {

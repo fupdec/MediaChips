@@ -2,7 +2,7 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import { validateBody } from '../middleware/validateBody'
-import { TagThumbsRequestSchema } from '../../shared/schemas/requests'
+import { MergeTagsRequestSchema, TagThumbsRequestSchema } from '../../shared/schemas/requests'
 import createTagController from '../controllers/Tag.controller'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
@@ -16,6 +16,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get("/count", Tag.getCount);
 
   router.post("/thumbs", validateBody(TagThumbsRequestSchema), Tag.getThumbs);
+
+  // Merge duplicate tags within one category
+  router.post("/merge", validateBody(MergeTagsRequestSchema), Tag.merge);
 
   // Retrieve a single Tag with id
   router.get("/:id", Tag.findOne);

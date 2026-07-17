@@ -826,10 +826,12 @@ const getMetaValues = async () => {
     const parsedTags: Record<string, number[]> = {}
     for (const tag of tags) {
       const metaIdKey = String(tag.metaId)
+      const tagId = Number(tag.tagId)
+      if (!Number.isFinite(tagId)) continue
       if (!parsedTags[metaIdKey]) {
-        parsedTags[metaIdKey] = [tag.tagId]
-      } else {
-        parsedTags[metaIdKey].push(tag.tagId)
+        parsedTags[metaIdKey] = [tagId]
+      } else if (!parsedTags[metaIdKey].includes(tagId)) {
+        parsedTags[metaIdKey].push(tagId)
       }
     }
 
@@ -954,17 +956,21 @@ const save = async (): Promise<boolean> => {
       val = (val as string).trim()
       if ((val as string).length === 0) val = null
     } else if (Array.isArray(val)) {
-      for (const tagId of val as number[]) {
+      const seenTagIds = new Set<number>()
+      for (const rawTagId of val as number[]) {
+        const tagId = Number(rawTagId)
+        if (!Number.isFinite(tagId) || seenTagIds.has(tagId)) continue
+        seenTagIds.add(tagId)
         if (isTag.value && currentItemId.value) {
           tags.push({
             parentTagId: currentItemId.value,
-            tagId: tagId,
+            tagId,
             metaId,
           })
         } else if (isMedia.value && currentItemId.value) {
           tags.push({
             mediaId: currentItemId.value,
-            tagId: tagId,
+            tagId,
             metaId,
           })
         }

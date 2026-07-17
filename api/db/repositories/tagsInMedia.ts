@@ -30,7 +30,13 @@ export function createTagsInMediaRepository(db: DrizzleClient) {
   return {
     bulkCreate(items: Array<typeof tagsInMedia.$inferInsert>) {
       if (!items.length) return []
-      const inserted = mapChunks(items, (chunk) => (
+
+      const unique = new Map<string, typeof tagsInMedia.$inferInsert>()
+      for (const item of items) {
+        unique.set(`${item.mediaId}:${item.tagId}:${item.metaId}`, item)
+      }
+
+      const inserted = mapChunks([...unique.values()], (chunk) => (
         db.insert(tagsInMedia).values(chunk).onConflictDoNothing().returning().all()
       ))
       touchMediaUpdatedAt(db, inserted.map((row) => row.mediaId))
@@ -49,9 +55,27 @@ export function createTagsInMediaRepository(db: DrizzleClient) {
 
       if (existing) return [existing, false] as const
 
-      const created = db.insert(tagsInMedia).values(data).returning().get()
-      touchMediaUpdatedAt(db, [data.mediaId])
-      return [created, true] as const
+      const created = db.insert(tagsInMedia)
+        .values(data)
+        .onConflictDoNothing()
+        .returning()
+        .get()
+
+      if (created) {
+        touchMediaUpdatedAt(db, [data.mediaId])
+        return [created, true] as const
+      }
+
+      const raced = db.select()
+        .from(tagsInMedia)
+        .where(and(
+          eq(tagsInMedia.mediaId, data.mediaId),
+          eq(tagsInMedia.tagId, data.tagId),
+          eq(tagsInMedia.metaId, data.metaId),
+        ))
+        .get()
+
+      return [raced!, false] as const
     },
 
     findAllByMediaId(mediaId: number) {

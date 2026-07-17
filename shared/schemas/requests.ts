@@ -49,6 +49,12 @@ export const TagThumbsRequestSchema = z.object({
   types: z.array(z.string()).optional(),
 }).passthrough()
 
+export const MergeTagsRequestSchema = z.object({
+  metaId: z.union([z.number(), z.string()]),
+  survivorId: z.union([z.number(), z.string()]),
+  sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
+})
+
 export const SceneSearchRequestSchema = z.object({
   query: z.string().trim().min(1),
   limit: optionalCoercedNumber,

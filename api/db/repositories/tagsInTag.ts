@@ -12,8 +12,14 @@ export function createTagsInTagRepository(db: DrizzleClient) {
   return {
     bulkCreate(items: Array<typeof tagsInTags.$inferInsert>) {
       if (!items.length) return []
-      return mapChunks(items, (chunk) => (
-        db.insert(tagsInTags).values(chunk).returning().all()
+
+      const unique = new Map<string, typeof tagsInTags.$inferInsert>()
+      for (const item of items) {
+        unique.set(`${item.parentTagId}:${item.tagId}:${item.metaId}`, item)
+      }
+
+      return mapChunks([...unique.values()], (chunk) => (
+        db.insert(tagsInTags).values(chunk).onConflictDoNothing().returning().all()
       ))
     },
 
@@ -29,8 +35,24 @@ export function createTagsInTagRepository(db: DrizzleClient) {
 
       if (existing) return [existing, false] as const
 
-      const created = db.insert(tagsInTags).values(data).returning().get()
-      return [created, true] as const
+      const created = db.insert(tagsInTags)
+        .values(data)
+        .onConflictDoNothing()
+        .returning()
+        .get()
+
+      if (created) return [created, true] as const
+
+      const raced = db.select()
+        .from(tagsInTags)
+        .where(and(
+          eq(tagsInTags.parentTagId, data.parentTagId),
+          eq(tagsInTags.tagId, data.tagId),
+          eq(tagsInTags.metaId, data.metaId),
+        ))
+        .get()
+
+      return [raced!, false] as const
     },
 
     findAllByParentTagId(parentTagId: number) {

@@ -99,6 +99,33 @@ describe('schemaRepair', () => {
     expect(index.sql).toMatch(/UNIQUE/i)
   })
 
+  it('dedupes tagsInTags and adds a unique index for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE tagsInTags (
+        parentTagId INTEGER,
+        tagId INTEGER,
+        metaId INTEGER
+      );
+      INSERT INTO tagsInTags (parentTagId, tagId, metaId) VALUES
+        (1, 10, 2),
+        (1, 10, 2),
+        (1, 10, 2),
+        (1, 11, 2);
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired.some((entry) => entry.startsWith('tags_in_tags_unique_idx'))).toBe(true)
+    const rows = sqlite.prepare(
+      'SELECT parentTagId, tagId, metaId, COUNT(*) AS c FROM tagsInTags GROUP BY 1,2,3',
+    ).all() as Array<{parentTagId: number; tagId: number; metaId: number; c: number}>
+    expect(rows).toEqual([
+      {parentTagId: 1, tagId: 10, metaId: 2, c: 1},
+      {parentTagId: 1, tagId: 11, metaId: 2, c: 1},
+    ])
+    expect(repairMissingIndexes(sqlite)).toEqual([])
+  })
+
   it('adds missing filterRows.order column for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE filterRows (

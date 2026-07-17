@@ -2,13 +2,19 @@ import type { ApiDb, FilterLike } from '../types/db'
 import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
-import type { CreateTagPayload, TagItemsListRequest, TagThumbsRequestPayload } from '@shared/api/payloads'
+import type {
+  CreateTagPayload,
+  MergeTagsPayload,
+  TagItemsListRequest,
+  TagThumbsRequestPayload,
+} from '@shared/api/payloads'
 import { getRequestBody } from '../types/http'
 import { createTagsRepository } from '../db/repositories/tags'
 import { createMarksRepository } from '../db/repositories/marks'
 import {
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
+import { mergeTagsInCategory, TagMergeError } from '../services/tagMerge'
 import { loadTagItems } from '../services/tagItemsLoader'
 import {
   mapWithConcurrency,
@@ -119,6 +125,27 @@ export default function (db: ApiDb) {
     }
   };
 
+  const merge = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<MergeTagsPayload>(req)
+      const result = await mergeTagsInCategory(db, {
+        metaId: Number(body.metaId),
+        survivorId: Number(body.survivorId),
+        sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
+      })
+      res.status(200).send(result)
+    } catch (err: unknown) {
+      if (err instanceof TagMergeError) {
+        return res.status(err.status).send({
+          message: err.message,
+        })
+      }
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while merging tags.',
+      })
+    }
+  }
+
   const deleteOne = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<DeleteEntityOnePayload>(req)
     const id = body.id
@@ -207,6 +234,7 @@ export default function (db: ApiDb) {
     getAll,
     findOne,
     update,
+    merge,
     deleteOne,
   }
 }
