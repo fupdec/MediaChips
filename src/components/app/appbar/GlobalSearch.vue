@@ -437,8 +437,8 @@ function openFirstResult() {
   const row = flatResults.value.find(entry => entry.kind === 'item')
   if (!row) return
 
-  if (row.group.is_media) openMedia(row.item, row.group.mediaTypeId)
-  else openTag(row.item)
+  if (row.group.is_media) openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
+  else openTag(row.item as Tag)
 }
 
 function openSelectedResult() {
@@ -715,8 +715,8 @@ function getNameHighlighted(text: string) {
               @mouseenter="onItemMouseenter(row, index); showResultHover($event, row)"
               @mouseleave.stop="hideHoverImage"
               @click="row.group.is_media
-                ? openMedia(row.item, row.group.mediaTypeId)
-                : openTag(row.item)"
+                ? openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
+                : openTag(row.item as Tag)"
             >
               <template
                 v-for="matchedTags in [getMatchedTags(row.item, row.group.is_media)]"

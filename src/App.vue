@@ -303,9 +303,10 @@ function applyConfig(config: ServerConfigPayload) {
   app.databases = config.databases ?? []
   app.config = config
 
-  if (isElectronHost && config.port) {
+  const port = config.port
+  if (isElectronHost && (typeof port === 'number' || typeof port === 'string') && port !== '') {
     currentServer.value = {
-      url: getLocalBackendUrl(config.port),
+      url: getLocalBackendUrl(port),
       ip: '127.0.0.1',
     }
   }

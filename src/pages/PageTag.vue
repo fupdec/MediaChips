@@ -613,12 +613,19 @@ const getMeta = async () => {
 }
 
 const getTag = async () => {
+  const tagId = ENV.value.tag_id
+  if (tagId == null) {
+    const error = new Error(t('items.tag_not_found'))
+    notifyLoadError(error)
+    throw error
+  }
+
   const query = {
     metaId: meta.value.id,
     filters: [],
     sortBy: 'name',
     sortDir: 'asc',
-    ids: [ENV.value.tag_id],
+    ids: [tagId],
   }
 
   try {

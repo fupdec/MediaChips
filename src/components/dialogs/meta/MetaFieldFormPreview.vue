@@ -182,7 +182,10 @@ const fieldName = computed(() =>
   props.meta?.name?.trim() || t('meta.dialogs.field_form_preview_unnamed'),
 )
 
-const fieldHint = computed(() => props.meta?.hint || '')
+const fieldHint = computed(() => {
+  const hint = props.meta?.hint
+  return typeof hint === 'string' ? hint : ''
+})
 
 const fieldIcon = computed(() =>
   props.meta?.icon ? `mdi-${props.meta.icon}` : '',
@@ -190,7 +193,10 @@ const fieldIcon = computed(() =>
 
 const ratingMax = computed(() => Number(props.meta?.ratingMax) || 5)
 const ratingHalf = computed(() => !!props.meta?.ratingHalf)
-const ratingColor = computed(() => props.meta?.ratingColor || '#ffab00')
+const ratingColor = computed(() => {
+  const color = props.meta?.ratingColor
+  return typeof color === 'string' ? color : '#ffab00'
+})
 const ratingFullIcon = computed(() => `mdi-${props.meta?.ratingIcon || 'star'}`)
 const ratingEmptyIcon = computed(() =>
   `mdi-${props.meta?.ratingIconEmpty || props.meta?.ratingIcon || 'star-outline'}`,
