@@ -35,6 +35,7 @@ export type EventBusMap = {
   setItemsSortBy: string
   setItemsSortDir: string
   setItemsView: number | string
+  setItemsGroupBy: string
   setItemsLimit: number
   updateLayoutItems: void
   updateAssignedMeta: void

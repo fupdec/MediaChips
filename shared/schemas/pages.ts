@@ -8,6 +8,7 @@ export const PageSettingsRecordSchema = z.object({
   view: z.union([z.number(), z.string()]).optional(),
   sortBy: z.string().optional(),
   sortDir: z.string().optional(),
+  firstChar: z.string().optional(),
   filterId: z.number().optional(),
   query: z.unknown().optional(),
 }).passthrough()

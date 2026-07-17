@@ -19,6 +19,7 @@
 
       <div class="d-flex align-end">
         <ToolbarSort></ToolbarSort>
+        <ToolbarGroupBy></ToolbarGroupBy>
 
         <v-btn @click="toggleCustomization"
           v-tooltip:top="t('appbar.buttons.customize')"
@@ -100,17 +101,58 @@
       :style="itemsGridStyle"
       class="items-page-grid"
     >
-      <Item
-        v-for="(i, x) in ITEMS.itemsOnPage"
-        v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType]"
-        :key="String(i.id)"
-        :type="listItemType"
-        :item="i"
-        :meta="meta"
-        :media-type="mediaType"
-        :reg="reg"
-        :x="x"
-      />
+      <template v-if="groupedSections">
+        <div
+          v-if="showGroupByPageHint"
+          class="items-group-hint"
+        >
+          {{ t('items.group_by_page_hint') }}
+          <span v-if="canFilterPinnedMetaGroups">
+            {{ t('items.group_by_pinned_meta_click_hint') }}
+          </span>
+        </div>
+        <template v-for="section in groupedSections" :key="section.key">
+          <div
+            class="items-group-header"
+            :class="{'items-group-header--clickable': canOpenGroupFilter(section)}"
+            @click="openGroupFilter(section)"
+          >
+            <span class="items-group-header__label">{{ section.label }}</span>
+            <span class="items-group-header__count">{{ section.items.length }}</span>
+            <v-icon
+              v-if="canOpenGroupFilter(section)"
+              size="18"
+              class="items-group-header__action"
+            >
+              mdi-filter-outline
+            </v-icon>
+          </div>
+          <Item
+            v-for="(i, x) in section.items"
+            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType]"
+            :key="String(i.id)"
+            :type="listItemType"
+            :item="i"
+            :meta="meta"
+            :media-type="mediaType"
+            :reg="reg"
+            :x="x"
+          />
+        </template>
+      </template>
+      <template v-else>
+        <Item
+          v-for="(i, x) in ITEMS.itemsOnPage"
+          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType]"
+          :key="String(i.id)"
+          :type="listItemType"
+          :item="i"
+          :meta="meta"
+          :media-type="mediaType"
+          :reg="reg"
+          :x="x"
+        />
+      </template>
     </div>
 
     <div
@@ -197,6 +239,7 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useRegistrationStore} from '@/stores/registration'
 import {useToolbarStore} from '@/stores/toolbar'
+import {useAppStore} from '@/stores/app'
 import {useItemsPage} from '@/composable/useItemsPage'
 import {useItemsPageInit} from '@/composable/useItemsPageInit'
 import {useItemsPageEvents} from '@/composable/useItemsPageEvents'
@@ -216,6 +259,7 @@ import Loading from '@/components/elements/Loading.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
+import ToolbarGroupBy from '@/components/app/toolbar/ToolbarGroupBy.vue'
 import ToolbarAppearance from "@/components/app/toolbar/ToolbarAppearance.vue";
 import DialogMediaAdding from '@/components/dialogs/DialogMediaAdding.vue'
 import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
@@ -227,6 +271,14 @@ import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
+import {
+  buildItemGroups,
+  resolveActiveItemsGroupBy,
+  type ItemsGroupSection,
+} from '@/utils/itemsGroupBy'
+import {getFilterObject} from '@/services/formatUtils'
+import {useEventBus} from '@/utils/eventBus'
+import type { MediaItem } from '@/types/stores'
 
 // Пропсы
 const props = defineProps<ItemsPageProps>()
@@ -236,8 +288,9 @@ const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
 const toolbarStore = useToolbarStore()
 const registrationStore = useRegistrationStore()
-
-const {t} = useI18n()
+const appStore = useAppStore()
+const eventBus = useEventBus()
+const {t, locale} = useI18n()
 
 // Константы из Vuetify
 const {xs} = useDisplay()
@@ -381,6 +434,108 @@ const useVirtualMasonry = computed(() =>
   ),
 )
 
+const groupedSections = computed(() => {
+  if (isMasonryGrid.value) return null
+  const groupBy = resolveActiveItemsGroupBy(
+    ITEMS.value.groupBy,
+    ITEMS.value.sortBy,
+    listItemType.value,
+  )
+  if (groupBy === 'none') return null
+
+  const metaId = Number(ITEMS.value.groupByMetaId)
+  const usePinnedMetaId = listItemType.value === 'tag'
+  const assigned = ITEMS.value.sortedAssigned.find((row) => {
+    const rowMetaId = Number(
+      usePinnedMetaId
+        ? (row.pinnedMetaId ?? row.meta?.id)
+        : (row.metaId ?? row.meta?.id),
+    )
+    return rowMetaId === metaId
+  })
+  const tagsById = new Map(appStore.tags.map((tag) => [Number(tag.id), tag.name || '']))
+
+  return buildItemGroups(
+    ITEMS.value.itemsOnPage,
+    groupBy,
+    ITEMS.value.sortBy,
+    {
+      locale: locale.value,
+      t: (key, params) => t(key, params),
+      metaId: Number.isFinite(metaId) ? metaId : null,
+      metaType: assigned?.meta?.type || null,
+      resolveTagName: (tagId) => tagsById.get(Number(tagId)) || `#${tagId}`,
+    },
+  )
+})
+
+const showGroupByPageHint = computed(() => Boolean(groupedSections.value?.length))
+const canFilterPinnedMetaGroups = computed(() =>
+  resolveActiveItemsGroupBy(
+    ITEMS.value.groupBy,
+    ITEMS.value.sortBy,
+    listItemType.value,
+  ) === 'pinnedMeta',
+)
+
+const canOpenGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
+  if (!canFilterPinnedMetaGroups.value || !section.filter) return false
+  if (section.filter.tagIds) return true
+  if (section.key === '#') return true
+  return section.filter.value != null
+}
+
+const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
+  if (!canOpenGroupFilter(section) || !section.filter) return
+
+  const {metaId, type, tagIds, value} = section.filter
+  let filter
+
+  if (type === 'array' || type === 'select' || tagIds) {
+    if (section.key === '#' || !tagIds?.length) {
+      filter = getFilterObject({
+        param: metaId,
+        type: 'array',
+        cond: 'is null',
+        val: null,
+      })
+    } else {
+      filter = getFilterObject({
+        param: metaId,
+        type: 'array',
+        cond: 'in all',
+        val: tagIds,
+      })
+    }
+  } else if (section.key === '#' || value == null || value === '') {
+    filter = getFilterObject({
+      param: metaId,
+      type: type || 'string',
+      cond: 'is null',
+      val: null,
+    })
+  } else {
+    filter = getFilterObject({
+      param: metaId,
+      type: type || 'string',
+      cond: 'like',
+      val: String(value),
+    })
+  }
+
+  itemsStore.updateMultiple({
+    filters: [...ITEMS.value.filters, filter],
+    groupBy: 'none',
+    groupByMetaId: null,
+    page: 1,
+  })
+  eventBus.emit('setItemsGroupBy', 'none')
+  // Let Filters.vue sync store → local filters before apply (same pattern as ItemPinnedMeta).
+  setTimeout(() => {
+    eventBus.emit('applyFilters')
+  }, 0)
+}
+
 onBeforeUnmount(() => {
   clearVisibleItemIds()
   resetVisibilityObserver()
@@ -471,6 +626,56 @@ defineEmits<{
 .items-page-grid:not(.items-virtual-grid) :deep(.item) {
   content-visibility: auto;
   contain-intrinsic-size: auto 280px;
+}
+
+.items-group-header {
+  flex: 0 0 100%;
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 4px 4px;
+  margin-top: 8px;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  box-sizing: border-box;
+}
+
+.items-group-header--clickable {
+  cursor: pointer;
+}
+
+.items-group-header--clickable:hover {
+  opacity: 0.85;
+}
+
+.items-group-header:first-child {
+  margin-top: 0;
+  padding-top: 4px;
+}
+
+.items-group-header__label {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.items-group-header__count {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.items-group-header__action {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.items-group-hint {
+  flex: 0 0 100%;
+  width: 100%;
+  font-size: 0.8125rem;
+  opacity: 0.7;
+  padding: 0 4px 8px;
 }
 
 .infinite-loader-full-height {

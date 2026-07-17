@@ -11,6 +11,11 @@ import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isImageMediaType} from '@/utils/mediaType'
 import {normalizeSortBy} from '@/utils/mediaSortFilter'
 import {normalizeItemsView} from '@/utils/itemsView'
+import {
+  parseGroupBySetting,
+  getGroupByRequiredSort,
+  isSortCompatibleWithGroupBy,
+} from '@/utils/itemsGroupBy'
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
 import type { AssignedMeta, Meta, SavedFilter } from '@/types/stores'
@@ -129,10 +134,15 @@ export function useItemsPageInit({
     pageSettings: PageSettingsRecord | null,
     assigned: AssignedMeta[] = [],
   ): Partial<ItemsPageStoreUpdates> => {
-    if (!pageSettings) return {}
+    if (!pageSettings) {
+      return {groupBy: 'none', groupByMetaId: null}
+    }
 
     const vals = ['page', 'limit', 'size', 'view', 'sortBy', 'sortDir'] as const
-    const updates: Partial<ItemsPageStoreUpdates> = {}
+    const updates: Partial<ItemsPageStoreUpdates> = {
+      groupBy: 'none',
+      groupByMetaId: null,
+    }
 
     for (const i of vals) {
       let value = pageSettings[i]
@@ -153,6 +163,23 @@ export function useItemsPageInit({
       }
 
       updates[i] = value as never
+    }
+
+    const parsedGroupBy = parseGroupBySetting(pageSettings.firstChar)
+    updates.groupBy = parsedGroupBy.groupBy
+    updates.groupByMetaId = parsedGroupBy.groupBy === 'pinnedMeta'
+      ? parsedGroupBy.metaId
+      : null
+    const requiredSort = getGroupByRequiredSort(parsedGroupBy.groupBy)
+    if (requiredSort && !isSortCompatibleWithGroupBy(parsedGroupBy.groupBy, updates.sortBy)) {
+      updates.sortBy = requiredSort
+      if (updates.sortDir == null) {
+        updates.sortDir = parsedGroupBy.groupBy === 'firstLetter'
+          || parsedGroupBy.groupBy === 'path'
+          || parsedGroupBy.groupBy === 'diskRoot'
+          ? 'asc'
+          : 'desc'
+      }
     }
 
     return updates

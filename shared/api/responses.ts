@@ -29,6 +29,7 @@ export interface PageSettingData {
   view?: number | string
   sortBy?: string
   sortDir?: string
+  firstChar?: string
   filterId?: number
   query?: unknown
 }

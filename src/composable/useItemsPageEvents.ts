@@ -20,6 +20,13 @@ import type {
 } from '@/types/itemsPage'
 import type { MediaItem } from '@/types/stores'
 import { normalizeEntityIds, normalizeRemoveEntitiesEvent } from '@/utils/eventPayloads'
+import {
+  getGroupByRequiredSort,
+  isSortCompatibleWithGroupBy,
+  normalizeItemsGroupBy,
+  parseGroupBySetting,
+  serializeGroupBySetting,
+} from '@/utils/itemsGroupBy'
 
 export function useItemsPageEvents({
   props,
@@ -151,14 +158,23 @@ export function useItemsPageEvents({
   }
 
   const handleSetItemsSortBy: Handler = (event) => {
+    const sortBy = String(event)
+    const pageSettingUpdates: Parameters<typeof updatePageSetting>[0] = {
+      page: 1,
+      sortBy,
+    }
+
+    const groupBy = normalizeItemsGroupBy(ITEMS.value.groupBy)
+    if (groupBy !== 'none' && !isSortCompatibleWithGroupBy(groupBy, sortBy)) {
+      itemsStore.updateState({key: 'groupBy', value: 'none'})
+      pageSettingUpdates.firstChar = 'none'
+    }
+
     itemsStore.updateState({
       key: 'page',
       value: 1,
     })
-    void updatePageSetting({
-      page: 1,
-      sortBy: String(event),
-    })
+    void updatePageSetting(pageSettingUpdates)
     void getItemsFromDb()
   }
 
@@ -166,6 +182,46 @@ export function useItemsPageEvents({
     const val = event
     void updatePageSetting({
       view: val as number | string,
+    })
+  }
+
+  const handleSetItemsGroupBy: Handler = (event) => {
+    const parsed = parseGroupBySetting(event)
+    const groupBy = parsed.groupBy
+    const metaId = parsed.metaId
+    const requiredSort = getGroupByRequiredSort(groupBy)
+    const needsSortChange = Boolean(
+      requiredSort && !isSortCompatibleWithGroupBy(groupBy, ITEMS.value.sortBy),
+    )
+
+    itemsStore.updateMultiple({
+      groupBy,
+      groupByMetaId: groupBy === 'pinnedMeta' ? metaId : null,
+    })
+
+    const firstChar = serializeGroupBySetting(groupBy, metaId)
+
+    if (needsSortChange && requiredSort) {
+      const sortDir = groupBy === 'firstLetter' || groupBy === 'path' || groupBy === 'diskRoot'
+        ? 'asc'
+        : 'desc'
+      itemsStore.updateMultiple({
+        sortBy: requiredSort,
+        sortDir,
+        page: 1,
+      })
+      void updatePageSetting({
+        firstChar,
+        sortBy: requiredSort,
+        sortDir,
+        page: 1,
+      })
+      void getItemsFromDb()
+      return
+    }
+
+    void updatePageSetting({
+      firstChar,
     })
   }
 
@@ -229,6 +285,7 @@ export function useItemsPageEvents({
     ['setItemsSortDir', handleSetItemsSortDir],
     ['setItemsSortBy', handleSetItemsSortBy],
     ['setItemsView', handleSetItemsView],
+    ['setItemsGroupBy', handleSetItemsGroupBy],
     ['updateAssignedMeta', handleUpdateAssignedMeta],
     ['getMeta', handleGetMeta],
     ['openRandomItem', handleOpenRandomItem],

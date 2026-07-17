@@ -17,6 +17,7 @@ import type { AssignedMeta, ItemsEnvironment, MediaItem, Meta, SavedFilter } fro
 import type { ItemsPageStoreUpdates } from '@/types/itemsPage'
 import { ensureMediaItem, getSegmentStart } from '@/utils/mediaItem'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
+import type { ItemsGroupBy } from '@/utils/itemsGroupBy'
 
 const eventBus = useEventBus()
 
@@ -49,6 +50,8 @@ function createItemsStoreState() {
     filterId: null as number | null,
     size: 3,
     view: 1,
+    groupBy: 'none' as ItemsGroupBy,
+    groupByMetaId: null as number | null,
     sortBy: 'name',
     sortDir: 'asc',
     entities: [] as MediaItem[],
