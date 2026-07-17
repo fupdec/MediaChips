@@ -854,6 +854,7 @@ const es = {
         de: 'Alemán',
         fr: 'Francés',
         ja: 'Japonés',
+        pt: 'Portugués',
         es: 'Español',
         cn: 'Chino',
         ru: 'Ruso',

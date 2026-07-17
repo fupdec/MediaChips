@@ -359,6 +359,7 @@ import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/ja'
+import 'dayjs/locale/pt-br'
 import 'dayjs/locale/es'
 import 'dayjs/locale/zh-cn'
 import 'dayjs/locale/ru'
@@ -478,7 +479,7 @@ const itemsStore = useItemsStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
-const locale = computed(() => settingsStore.locale == 'cn' ? 'zh-cn' : settingsStore.locale)
+const locale = computed(() => settingsStore.locale == 'cn' ? 'zh-cn' : settingsStore.locale == 'pt' ? 'pt-br' : settingsStore.locale)
 dayjs.extend(relativeTime)
 dayjs.locale(locale.value)
 

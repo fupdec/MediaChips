@@ -853,6 +853,7 @@ const de = {
         de: "Deutsch",
         fr: "Französisch",
         ja: "Japanisch",
+        pt: "Portugiesisch",
         es: "Spanisch",
         cn: "Chinesisch",
         ru: "Russisch",

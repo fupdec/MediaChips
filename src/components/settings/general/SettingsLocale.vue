@@ -83,6 +83,12 @@ const locales = [
     flag: 'jp',
   },
   {
+    code: 'pt',
+    nameKey: 'settings_labels.general.languages.pt',
+    nativeName: 'Português',
+    flag: 'br',
+  },
+  {
     code: 'es',
     nameKey: 'settings_labels.general.languages.es',
     nativeName: 'Español',
