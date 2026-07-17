@@ -24,9 +24,14 @@ export async function applyScenePosterToVideoThumb({
   const aspectRatio = getMediaThumbAspectRatio(mediaWidth, mediaHeight)
   const sizes = getVideoThumbSaveSizes(aspectRatio)
   const result = await createImage(url, outputPath, sizes)
+  const success = result.status === 201
+
+  if (!success) {
+    console.error('Scene poster apply failed:', outputPath, result.data)
+  }
 
   return {
-    success: result.status === 201,
+    success,
     outputPath,
   }
 }

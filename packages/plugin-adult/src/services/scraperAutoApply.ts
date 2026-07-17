@@ -1,6 +1,9 @@
 import path from 'path-browserify'
 import { typedApi } from '@/services/typedApi'
 import { createImage } from '@/services/fileService'
+import { setNotification } from '@/services/notificationService'
+import { useSettingsStore } from '@/stores/settings'
+import translate, { type Locale } from '@/utils/translate'
 import { parseCountries, serializeCountries } from '@/utils/country'
 import { sortPinnedAssignmentItems } from '@/utils/pinnedMetaOrder'
 import { buildScraperTransferFields, collectPerformerScraperValues, mergeBookmarkValues, mergeCountryValues, mergeSynonymValues } from '../utils/scraperTransferFields'
@@ -115,6 +118,12 @@ async function downloadMainImage({
     return true
   }
 
+  const locale = useSettingsStore().locale as Locale
+  setNotification({
+    type: 'error',
+    title: translate('scraper.error', {}, locale),
+    text: translate('scraper.image_cannot_be_obtained', {}, locale),
+  })
   return false
 }
 

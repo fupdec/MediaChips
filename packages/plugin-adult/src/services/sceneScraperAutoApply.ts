@@ -33,6 +33,7 @@ export interface SceneAutoApplyResult {
   markersImported?: number
   mediaTags?: ItemTagRef[]
   mediaValues?: ItemValueRef[]
+  posterFailed?: boolean
   error?: SceneAutoApplyError
 }
 
@@ -386,6 +387,7 @@ export async function applyManualSceneTransferToMedia({
     await applyTransferredFieldsToMediaValues({fields, vals, allTags, assignedItems})
 
     const posterUrl = String(selectedPosterUrl || '').trim()
+    let posterFailed = false
     if (posterUrl) {
       const posterResult = await applyScenePosterToVideoThumb({
         url: posterUrl,
@@ -395,9 +397,7 @@ export async function applyManualSceneTransferToMedia({
         mediaWidth: media.width,
         mediaHeight: media.height,
       })
-      if (!posterResult.success) {
-        console.error('Scene poster apply failed:', posterResult.outputPath)
-      }
+      posterFailed = !posterResult.success
     }
 
     await saveMediaValues(mediaId, vals, assignedItems)
@@ -426,6 +426,7 @@ export async function applyManualSceneTransferToMedia({
         : media.bookmark ?? null,
       sceneTitle,
       markersImported,
+      posterFailed,
       mediaTags: relations.mediaTags,
       mediaValues: relations.mediaValues,
     }
@@ -483,10 +484,11 @@ export async function autoApplySceneToMedia({
     const vals = {...currentValues}
     await applyTransferredFieldsToMediaValues({fields, vals, allTags, assignedItems})
 
+    let posterFailed = false
     if (applyPoster) {
       const poster = pickBestSceneImage(scene.images)
       if (poster?.url) {
-        await applyScenePosterToVideoThumb({
+        const posterResult = await applyScenePosterToVideoThumb({
           url: poster.url,
           mediaId,
           mediaPath,
@@ -494,6 +496,7 @@ export async function autoApplySceneToMedia({
           mediaWidth: media.width,
           mediaHeight: media.height,
         })
+        posterFailed = !posterResult.success
       }
     }
 
@@ -526,6 +529,7 @@ export async function autoApplySceneToMedia({
         : media.bookmark ?? null,
       sceneTitle: scene.title,
       markersImported,
+      posterFailed,
       mediaTags: relations.mediaTags,
       mediaValues: relations.mediaValues,
     }

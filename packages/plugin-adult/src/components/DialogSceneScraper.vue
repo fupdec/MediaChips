@@ -364,16 +364,19 @@ async function transferScrapedInfo() {
       eventBus.emit('refreshMarkThumbs')
     }
 
+    const successText = buildSceneScrapeSuccessNotificationText({
+      sceneTitle: result.sceneTitle,
+      mediaName: result.mediaName,
+      markersImported: result.markersImported,
+      importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
+      t,
+    })
     setNotification({
-      type: 'success',
+      type: result.posterFailed ? 'warning' : 'success',
       title: t('scene_scraper.auto_scrape_done'),
-      text: buildSceneScrapeSuccessNotificationText({
-        sceneTitle: result.sceneTitle,
-        mediaName: result.mediaName,
-        markersImported: result.markersImported,
-        importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
-        t,
-      }),
+      text: result.posterFailed
+        ? `${successText} · ${t('scene_scraper.poster_error')}`
+        : successText,
     })
 
     dialogDataTransfer.value = false
@@ -398,16 +401,19 @@ async function tryAutoApplyExactMatch(): Promise<boolean> {
 
   if (!result.success) return false
 
+  const successText = buildSceneScrapeSuccessNotificationText({
+    sceneTitle: result.sceneTitle,
+    mediaName: result.mediaName,
+    markersImported: result.markersImported,
+    importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
+    t,
+  })
   setNotification({
-    type: 'success',
+    type: result.posterFailed ? 'warning' : 'success',
     title: t('scene_scraper.auto_scrape_done'),
-    text: buildSceneScrapeSuccessNotificationText({
-      sceneTitle: result.sceneTitle,
-      mediaName: result.mediaName,
-      markersImported: result.markersImported,
-      importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
-      t,
-    }),
+    text: result.posterFailed
+      ? `${successText} · ${t('scene_scraper.poster_error')}`
+      : successText,
   })
   syncMediaEditingCopy(Number(media.id), {
     mediaName: result.mediaName,

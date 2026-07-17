@@ -74,6 +74,7 @@ export function useAutoSceneScrapeBatch() {
       })
     } else {
       const failedCount = results.length - successCount
+      const posterFailedCount = results.filter((item) => item.success && item.posterFailed).length
       const markersImported = results.reduce(
         (sum, item) => sum + (item.success ? (item.markersImported ?? 0) : 0),
         0,
@@ -85,11 +86,17 @@ export function useAutoSceneScrapeBatch() {
       const markerSummary = settingsStore.sceneScraperImportMarkers === '1' && markersImported > 0
         ? t('scene_scraper.markers_imported_summary', { count: markersImported })
         : null
+      const posterSummary = posterFailedCount > 0
+        ? t('scene_scraper.poster_error')
+        : null
+      const text = [batchSummary, markerSummary, posterSummary].filter(Boolean).join(' · ')
 
       notificationsStore.setNotification({
-        type: failedCount === results.length ? 'error' : failedCount > 0 ? 'warning' : 'success',
+        type: failedCount === results.length
+          ? 'error'
+          : (failedCount > 0 || posterFailedCount > 0) ? 'warning' : 'success',
         title: t('scene_scraper.auto_scrape_batch_done'),
-        text: markerSummary ? `${batchSummary} · ${markerSummary}` : batchSummary,
+        text,
       })
     }
 
@@ -139,16 +146,19 @@ export function useAutoSceneScrapeBatch() {
       translate(key, params, locale)
 
     if (result.success) {
+      const successText = buildSceneScrapeSuccessNotificationText({
+        sceneTitle: result.sceneTitle,
+        mediaName: result.mediaName,
+        markersImported: result.markersImported,
+        importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
+        t,
+      })
       notificationsStore.setNotification({
-        type: 'success',
+        type: result.posterFailed ? 'warning' : 'success',
         title: t('scene_scraper.auto_scrape_done'),
-        text: buildSceneScrapeSuccessNotificationText({
-          sceneTitle: result.sceneTitle,
-          mediaName: result.mediaName,
-          markersImported: result.markersImported,
-          importMarkersEnabled: settingsStore.sceneScraperImportMarkers === '1',
-          t,
-        }),
+        text: result.posterFailed
+          ? `${successText} · ${t('scene_scraper.poster_error')}`
+          : successText,
       })
       // Await tag catalog + card relations so chips resolve after oshash auto-apply.
       await applySceneScrapeResultToCard(media.id, result, { refreshThumb: true })
