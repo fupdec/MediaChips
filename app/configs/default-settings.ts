@@ -156,7 +156,7 @@ const Settings = [  {
   },
   {
     "option": "enabledPlugins",
-    "value": "[\"mediachips.adult\",\"mediachips.stash\"]"
+    "value": "[\"mediachips.adult\",\"mediachips.stash\",\"mediachips.jellyfin\",\"mediachips.plex\",\"mediachips.emby\"]"
   },
   {
     "option": "tpdbApiKey",

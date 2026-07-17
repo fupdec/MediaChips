@@ -38,6 +38,9 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     ? path.resolve(__dirname, './src/plugins/sfwStub')
     : path.resolve(__dirname, './packages/plugin-adult/src')
   const stashPackageRoot = path.resolve(__dirname, './packages/plugin-stash/src')
+  const jellyfinPackageRoot = path.resolve(__dirname, './packages/plugin-jellyfin/src')
+  const plexPackageRoot = path.resolve(__dirname, './packages/plugin-plex/src')
+  const embyPackageRoot = path.resolve(__dirname, './packages/plugin-emby/src')
 
   const plugins = normalizePlugins(
     vue(),
@@ -70,6 +73,9 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       // MEDIA_CHIPS_MAS=1 points at noop stubs under src/plugins/sfwStub.
       '@mediachips/plugin-adult': adultPackageRoot,
       '@mediachips/plugin-stash': stashPackageRoot,
+      '@mediachips/plugin-jellyfin': jellyfinPackageRoot,
+      '@mediachips/plugin-plex': plexPackageRoot,
+      '@mediachips/plugin-emby': embyPackageRoot,
     },
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
   },

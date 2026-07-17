@@ -24,6 +24,9 @@
     "api/types/**/*.d.ts",
     "shared/**/*.ts",
     "packages/plugin-adult/src/server/**/*.ts",
-    "packages/plugin-stash/src/server/**/*.ts"
+    "packages/plugin-stash/src/server/**/*.ts",
+    "packages/plugin-jellyfin/src/server/**/*.ts",
+    "packages/plugin-plex/src/server/**/*.ts",
+    "packages/plugin-emby/src/server/**/*.ts"
   ]
 }

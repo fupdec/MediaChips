@@ -80,6 +80,39 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
         err instanceof Error ? err.message : String(err),
       )
     }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const registerJellyfin = require('../../api/routes/Jellyfin.routes').default as ApiRouteRegistrar
+      registrars.push({ routeFile: 'Jellyfin.routes', register: registerJellyfin })
+    } catch (err: unknown) {
+      console.warn(
+        '[routes] Jellyfin routes unavailable (jellyfin plugin missing?):',
+        err instanceof Error ? err.message : String(err),
+      )
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const registerPlex = require('../../api/routes/Plex.routes').default as ApiRouteRegistrar
+      registrars.push({ routeFile: 'Plex.routes', register: registerPlex })
+    } catch (err: unknown) {
+      console.warn(
+        '[routes] Plex routes unavailable (plex plugin missing?):',
+        err instanceof Error ? err.message : String(err),
+      )
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const registerEmby = require('../../api/routes/Emby.routes').default as ApiRouteRegistrar
+      registrars.push({ routeFile: 'Emby.routes', register: registerEmby })
+    } catch (err: unknown) {
+      console.warn(
+        '[routes] Emby routes unavailable (emby plugin missing?):',
+        err instanceof Error ? err.message : String(err),
+      )
+    }
   }
 
   registrars.push(

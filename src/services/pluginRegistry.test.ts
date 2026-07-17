@@ -26,16 +26,18 @@ describe('pluginRegistry', () => {
     resetPluginRegistryForTests()
   })
 
-  it('starts with bundled adult and stash catalog entries enabled by default', () => {
+  it('starts with bundled adult, stash, and media-server import catalog entries enabled by default', () => {
     const catalog = createBundledPluginCatalog()
-    expect(catalog).toHaveLength(2)
+    expect(catalog).toHaveLength(5)
     expect(catalog.map((entry) => entry.manifest.id)).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
+      BUILTIN_PLUGIN_IDS.jellyfin,
+      BUILTIN_PLUGIN_IDS.plex,
+      BUILTIN_PLUGIN_IDS.emby,
     ])
     expect(catalog[0]?.source).toBe('bundled')
-    expect(catalog[0]?.enabled).toBe(true)
-    expect(catalog[1]?.enabled).toBe(true)
+    expect(catalog.every((entry) => entry.enabled)).toBe(true)
   })
 
   it('does not enable planned plugins', () => {
@@ -93,6 +95,9 @@ describe('pluginRegistry', () => {
     expect(catalog.map((entry) => entry.manifest.id)).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
+      BUILTIN_PLUGIN_IDS.jellyfin,
+      BUILTIN_PLUGIN_IDS.plex,
+      BUILTIN_PLUGIN_IDS.emby,
       'mediachips.demo',
     ])
   })
@@ -137,15 +142,24 @@ describe('pluginHost', () => {
     expect(parseEnabledPlugins('["mediachips.adult"]')).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
+      BUILTIN_PLUGIN_IDS.jellyfin,
+      BUILTIN_PLUGIN_IDS.plex,
+      BUILTIN_PLUGIN_IDS.emby,
     ])
     expect(parseEnabledPlugins('["mediachips.adult","mediachips.stash"]')).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
+      BUILTIN_PLUGIN_IDS.jellyfin,
+      BUILTIN_PLUGIN_IDS.plex,
+      BUILTIN_PLUGIN_IDS.emby,
     ])
     expect(parseEnabledPlugins([])).toEqual([])
     expect(parseEnabledPlugins(undefined)).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
+      BUILTIN_PLUGIN_IDS.jellyfin,
+      BUILTIN_PLUGIN_IDS.plex,
+      BUILTIN_PLUGIN_IDS.emby,
     ])
   })
 

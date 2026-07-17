@@ -1,0 +1,19 @@
+{
+  "id": "mediachips.jellyfin",
+  "name": "Jellyfin import",
+  "version": "0.1.0",
+  "description": "Import movies, episodes, people, genres, studios, series, and chapters from a Jellyfin server. Included in standard builds; enable under Settings → Plugins.",
+  "author": "MediaChips",
+  "homepage": "https://mediachips.app/plugins",
+  "icon": "server",
+  "engines": {
+    "mediachips": ">=1.0.0"
+  },
+  "mainEntry": "main.cjs",
+  "uiEntry": "host:bundled",
+  "permissions": [
+    "ui.settings",
+    "api.routes",
+    "network.external"
+  ]
+}

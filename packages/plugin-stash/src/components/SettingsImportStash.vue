@@ -2,7 +2,7 @@
   <div id="settings-import-stash" class="mx-4 pb-4">
     <settings-category-divider
       :title="t('settings_labels.database.import_stash')"
-      icon="database-import"
+      icon="package-variant"
     />
 
     <v-alert

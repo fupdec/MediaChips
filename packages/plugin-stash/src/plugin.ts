@@ -16,7 +16,7 @@ export const stashPluginManifest: PluginManifest = {
   description:
     'Import scenes, performers, studios, tags, and markers from a Stash database (stash-go.sqlite).',
   author: 'MediaChips',
-  icon: 'database-import',
+  icon: 'package-variant',
   engines: {mediachips: '>=1.0.0'},
   permissions: [
     'ui.settings',

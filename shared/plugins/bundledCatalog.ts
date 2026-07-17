@@ -42,7 +42,7 @@ export function createBundledStashCatalogEntry(enabled = true): PluginCatalogEnt
       description:
         'Import scenes, performers, studios, tags, and markers from a Stash database (stash-go.sqlite).',
       author: 'MediaChips',
-      icon: 'database-import',
+      icon: 'package-variant',
       engines: {mediachips: '>=1.0.0'},
       permissions: [
         'ui.settings',
@@ -59,20 +59,112 @@ export function createBundledStashCatalogEntry(enabled = true): PluginCatalogEnt
   }
 }
 
+/** Bundled Jellyfin import plugin. */
+export function createBundledJellyfinCatalogEntry(enabled = true): PluginCatalogEntry {
+  return {
+    manifest: {
+      id: BUILTIN_PLUGIN_IDS.jellyfin,
+      name: 'Jellyfin import',
+      version: '0.1.0',
+      description:
+        'Import movies, episodes, people, genres, studios, series, and chapters from a Jellyfin server.',
+      author: 'MediaChips',
+      icon: 'server',
+      engines: {mediachips: '>=1.0.0'},
+      permissions: [
+        'ui.settings',
+        'api.routes',
+        'network.external',
+      ],
+    },
+    source: 'bundled',
+    state: enabled ? 'enabled' : 'disabled',
+    uiEntry: '@mediachips/plugin-jellyfin',
+    mainEntry: null,
+    error: null,
+    enabled,
+  }
+}
+
+/** Bundled Plex import plugin. */
+export function createBundledPlexCatalogEntry(enabled = true): PluginCatalogEntry {
+  return {
+    manifest: {
+      id: BUILTIN_PLUGIN_IDS.plex,
+      name: 'Plex import',
+      version: '0.1.0',
+      description:
+        'Import movies, episodes, people, genres, studios, series, and chapters from a Plex server.',
+      author: 'MediaChips',
+      icon: 'play-network',
+      engines: {mediachips: '>=1.0.0'},
+      permissions: [
+        'ui.settings',
+        'api.routes',
+        'network.external',
+      ],
+    },
+    source: 'bundled',
+    state: enabled ? 'enabled' : 'disabled',
+    uiEntry: '@mediachips/plugin-plex',
+    mainEntry: null,
+    error: null,
+    enabled,
+  }
+}
+
+/** Bundled Emby import plugin (Jellyfin-compatible API). */
+export function createBundledEmbyCatalogEntry(enabled = true): PluginCatalogEntry {
+  return {
+    manifest: {
+      id: BUILTIN_PLUGIN_IDS.emby,
+      name: 'Emby import',
+      version: '0.1.0',
+      description:
+        'Import movies, episodes, people, genres, studios, series, and chapters from an Emby server.',
+      author: 'MediaChips',
+      icon: 'television-box',
+      engines: {mediachips: '>=1.0.0'},
+      permissions: [
+        'ui.settings',
+        'api.routes',
+        'network.external',
+      ],
+    },
+    source: 'bundled',
+    state: enabled ? 'enabled' : 'disabled',
+    uiEntry: '@mediachips/plugin-emby',
+    mainEntry: null,
+    error: null,
+    enabled,
+  }
+}
+
+const DEFAULT_BUNDLED_PLUGIN_IDS = [
+  BUILTIN_PLUGIN_IDS.adult,
+  BUILTIN_PLUGIN_IDS.stash,
+  BUILTIN_PLUGIN_IDS.jellyfin,
+  BUILTIN_PLUGIN_IDS.plex,
+  BUILTIN_PLUGIN_IDS.emby,
+]
+
 export function createBundledPluginCatalog(
-  enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash],
+  enabledPlugins: string[] = DEFAULT_BUNDLED_PLUGIN_IDS,
 ): PluginCatalogEntry[] {
   if (isSfwBuild()) return []
 
   return [
     createBundledAdultCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.adult)),
     createBundledStashCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.stash)),
+    createBundledJellyfinCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.jellyfin)),
+    createBundledPlexCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.plex)),
+    createBundledEmbyCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.emby)),
   ]
 }
 
 /** Active plugin catalog (bundled only until external install lands). */
 export function createPluginCatalog(
-  enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash],
+  enabledPlugins: string[] = DEFAULT_BUNDLED_PLUGIN_IDS,
 ): PluginCatalogEntry[] {
   return createBundledPluginCatalog(enabledPlugins)
 }

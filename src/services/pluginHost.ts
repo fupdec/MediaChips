@@ -4,16 +4,28 @@ import {getPluginRegistry} from '@/services/pluginRegistry'
 import type {MediaChipsPlugin, PluginApi, PluginComponentMap} from '@/types/pluginRuntime'
 import {adultPlugin, adultHostComponentMap} from '@/plugins/adult/hostBridge'
 import {stashPlugin, stashHostComponentMap} from '@/plugins/stash/hostBridge'
+import {jellyfinPlugin, jellyfinHostComponentMap} from '@/plugins/jellyfin/hostBridge'
+import {plexPlugin, plexHostComponentMap} from '@/plugins/plex/hostBridge'
+import {embyPlugin, embyHostComponentMap} from '@/plugins/emby/hostBridge'
 import {isSfwBuild} from '@/utils/sfwBuild'
 import {apiClient} from '@/services/apiClient'
 
-const DEFAULT_ENABLED_PLUGINS = [BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash]
+const DEFAULT_ENABLED_PLUGINS = [
+  BUILTIN_PLUGIN_IDS.adult,
+  BUILTIN_PLUGIN_IDS.stash,
+  BUILTIN_PLUGIN_IDS.jellyfin,
+  BUILTIN_PLUGIN_IDS.plex,
+  BUILTIN_PLUGIN_IDS.emby,
+]
 
 const pluginModules: Record<string, MediaChipsPlugin> = isSfwBuild()
   ? {}
   : {
     [BUILTIN_PLUGIN_IDS.adult]: adultPlugin,
     [BUILTIN_PLUGIN_IDS.stash]: stashPlugin,
+    [BUILTIN_PLUGIN_IDS.jellyfin]: jellyfinPlugin,
+    [BUILTIN_PLUGIN_IDS.plex]: plexPlugin,
+    [BUILTIN_PLUGIN_IDS.emby]: embyPlugin,
   }
 
 const componentMaps: Record<string, PluginComponentMap> = isSfwBuild()
@@ -21,9 +33,20 @@ const componentMaps: Record<string, PluginComponentMap> = isSfwBuild()
   : {
     [BUILTIN_PLUGIN_IDS.adult]: adultHostComponentMap,
     [BUILTIN_PLUGIN_IDS.stash]: stashHostComponentMap,
+    [BUILTIN_PLUGIN_IDS.jellyfin]: jellyfinHostComponentMap,
+    [BUILTIN_PLUGIN_IDS.plex]: plexHostComponentMap,
+    [BUILTIN_PLUGIN_IDS.emby]: embyHostComponentMap,
   }
 
 const activated = new Set<string>()
+
+const HOST_BUNDLED_IDS = new Set<string>([
+  BUILTIN_PLUGIN_IDS.adult,
+  BUILTIN_PLUGIN_IDS.stash,
+  BUILTIN_PLUGIN_IDS.jellyfin,
+  BUILTIN_PLUGIN_IDS.plex,
+  BUILTIN_PLUGIN_IDS.emby,
+])
 
 function createPluginApi(pluginId: string): PluginApi {
   const registry = getPluginRegistry()
@@ -84,11 +107,7 @@ function isHostBundledUiEntry(entry: PluginCatalogEntry | undefined): boolean {
   if (!entry) return false
   return entry.uiEntry === 'host:bundled'
     || entry.manifest.uiEntry === 'host:bundled'
-    || (
-      (entry.manifest.id === BUILTIN_PLUGIN_IDS.adult
-        || entry.manifest.id === BUILTIN_PLUGIN_IDS.stash)
-      && entry.source === 'user'
-    )
+    || (HOST_BUNDLED_IDS.has(entry.manifest.id) && entry.source === 'user')
 }
 
 function bindHostBundledModules(pluginId: string): boolean {
@@ -100,6 +119,21 @@ function bindHostBundledModules(pluginId: string): boolean {
   if (pluginId === BUILTIN_PLUGIN_IDS.stash) {
     if (!pluginModules[pluginId]) pluginModules[pluginId] = stashPlugin
     if (!componentMaps[pluginId]) componentMaps[pluginId] = stashHostComponentMap
+    return true
+  }
+  if (pluginId === BUILTIN_PLUGIN_IDS.jellyfin) {
+    if (!pluginModules[pluginId]) pluginModules[pluginId] = jellyfinPlugin
+    if (!componentMaps[pluginId]) componentMaps[pluginId] = jellyfinHostComponentMap
+    return true
+  }
+  if (pluginId === BUILTIN_PLUGIN_IDS.plex) {
+    if (!pluginModules[pluginId]) pluginModules[pluginId] = plexPlugin
+    if (!componentMaps[pluginId]) componentMaps[pluginId] = plexHostComponentMap
+    return true
+  }
+  if (pluginId === BUILTIN_PLUGIN_IDS.emby) {
+    if (!pluginModules[pluginId]) pluginModules[pluginId] = embyPlugin
+    if (!componentMaps[pluginId]) componentMaps[pluginId] = embyHostComponentMap
     return true
   }
   return false
@@ -174,20 +208,26 @@ export function parseEnabledPlugins(raw: unknown): string[] {
       if (Array.isArray(parsed)) {
         ids = parsed.map((item) => String(item)).filter(Boolean)
       } else {
-        ids = raw.split(',').map((item) => item.trim()).filter(Boolean)
+        ids = raw.split(',').map((item) => String(item).trim()).filter(Boolean)
       }
     } catch {
-      ids = raw.split(',').map((item) => item.trim()).filter(Boolean)
+      ids = raw.split(',').map((item) => String(item).trim()).filter(Boolean)
     }
   } else if (!isSfwBuild()) {
     ids = [...DEFAULT_ENABLED_PLUGINS]
   }
 
-  // Soft-migrate previous default so Stash import stays available after plugin extraction.
+  // Soft-migrate previous defaults so new import plugins stay available.
   if (
     !isSfwBuild()
-    && ids.length === 1
-    && ids[0] === BUILTIN_PLUGIN_IDS.adult
+    && (
+      (ids.length === 1 && ids[0] === BUILTIN_PLUGIN_IDS.adult)
+      || (
+        ids.length === 2
+        && ids.includes(BUILTIN_PLUGIN_IDS.adult)
+        && ids.includes(BUILTIN_PLUGIN_IDS.stash)
+      )
+    )
   ) {
     ids = [...DEFAULT_ENABLED_PLUGINS]
   }

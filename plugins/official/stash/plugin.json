@@ -5,7 +5,7 @@
   "description": "Import scenes, performers, studios, tags, and markers from a Stash database (stash-go.sqlite). Included in standard builds; enable under Settings → Plugins.",
   "author": "MediaChips",
   "homepage": "https://mediachips.app/plugins",
-  "icon": "database-import",
+  "icon": "package-variant",
   "engines": {
     "mediachips": ">=1.0.0"
   },

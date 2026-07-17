@@ -17,6 +17,9 @@ node_modules
 /shared/**/*.js
 /packages/plugin-adult/src/server/**/*.js
 /packages/plugin-stash/src/server/**/*.js
+/packages/plugin-jellyfin/src/server/**/*.js
+/packages/plugin-plex/src/server/**/*.js
+/packages/plugin-emby/src/server/**/*.js
 /api/assets/**/*.js
 /electron/*.js
 /main.js

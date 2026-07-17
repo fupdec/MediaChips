@@ -1,0 +1,13 @@
+{
+  "id": "mediachips.plex",
+  "name": "Plex import",
+  "version": "0.1.0",
+  "description": "Import movies, episodes, people, genres, studios, series, and chapters from a Plex server.",
+  "author": "MediaChips",
+  "homepage": "https://mediachips.app/plugins",
+  "icon": "play-network",
+  "engines": {"mediachips": ">=1.0.0"},
+  "mainEntry": "main.cjs",
+  "uiEntry": "host:bundled",
+  "permissions": ["ui.settings", "api.routes", "network.external"]
+}

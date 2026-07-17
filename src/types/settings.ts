@@ -230,7 +230,7 @@ export const defaultSettingsState = (): SettingsState => ({
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
   showAdultContent: '0',
-  enabledPlugins: '["mediachips.adult","mediachips.stash"]',
+  enabledPlugins: '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby"]',
   tpdbApiKey: '',
   scraperPerformerGender: 'Female',
   sceneAutoApplyOnExactMatch: '0',

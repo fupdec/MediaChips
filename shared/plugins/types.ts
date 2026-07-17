@@ -6,6 +6,9 @@
 export const BUILTIN_PLUGIN_IDS = {
   adult: 'mediachips.adult',
   stash: 'mediachips.stash',
+  jellyfin: 'mediachips.jellyfin',
+  plex: 'mediachips.plex',
+  emby: 'mediachips.emby',
 } as const
 
 export type BuiltinPluginId = (typeof BUILTIN_PLUGIN_IDS)[keyof typeof BUILTIN_PLUGIN_IDS]
