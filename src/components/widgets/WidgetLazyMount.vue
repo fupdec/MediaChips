@@ -2,9 +2,10 @@
   <div
     ref="rootRef"
     class="widget-lazy-mount"
-    :style="{ minHeight }"
+    :class="{'widget-lazy-mount--pending': !wasInView}"
+    :style="wasInView ? undefined : {minHeight}"
   >
-    <slot v-if="wasInView" />
+    <slot v-if="wasInView"/>
     <div
       v-else
       class="widget-lazy-mount__placeholder"
@@ -38,8 +39,13 @@ watch(wasInView, (visible) => {
 <style lang="scss" scoped>
 .widget-lazy-mount {
   width: 100%;
-  contain: layout;
   box-sizing: border-box;
+
+  // Only contain layout while reserving space for not-yet-mounted widgets.
+  // After mount, empty widgets (v-if="items.length") must collapse to avoid gaps.
+  &--pending {
+    contain: layout;
+  }
 }
 
 .widget-lazy-mount__placeholder {

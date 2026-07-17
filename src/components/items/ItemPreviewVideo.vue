@@ -987,7 +987,10 @@ const createThumb = async (_imgPath: string) => {
       id: props.media.id,
     })
   } catch (e) {
-    console.log(e)
+    // Missing source files after migration are common; avoid spamming the console.
+    if (import.meta.env.DEV) {
+      console.debug('createThumb failed', props.media?.id, e)
+    }
   }
 }
 

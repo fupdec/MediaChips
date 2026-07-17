@@ -73,8 +73,6 @@ const {t} = useI18n()
 
 <style lang="scss" scoped>
 .home-media-row {
-  min-height: 200px;
-
   &__scroll {
     display: flex;
     align-items: flex-start;

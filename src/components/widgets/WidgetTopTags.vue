@@ -155,9 +155,11 @@ function getTagsTop(activeGroup: TopTagsCategory | null = null) {
 
   const grouped = groupBy(tags.value, 'metaId')
   const groups: TopTagsCategory[] = []
+  // Category order always matches the navigation menu; tag sort mode only
+  // affects items within each category.
   const visibleMetas = sortMetaItems(
     metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
-    sortMode.value,
+    META_SORT_MODES.menu,
   )
 
   for (const meta of visibleMetas) {
