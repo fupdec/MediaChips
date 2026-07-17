@@ -45,7 +45,7 @@ const DEFAULT_MEDIA_TYPES = [
 
 const MIGRATION_SETTINGS = [
   {option: 'ratingAndFavoriteInCard', value: '0'},
-  {option: 'group_chips_in_card_description', value: '0'},
+  {option: 'group_chips_in_card_description', value: '1'},
   {option: 'show_preset_metadata_in_card', value: '1'},
   {option: 'count_number_of_views', value: '1'},
   {option: 'system_dark_mode', value: '1'},
@@ -63,10 +63,10 @@ const MIGRATION_SETTINGS = [
   {option: 'show_default_meta_filesize', value: '1'},
   {option: 'show_default_meta_duration', value: '0'},
   {option: 'show_default_meta_resolution', value: '0'},
-  {option: 'show_default_meta_ext', value: '1'},
-  {option: 'show_default_meta_codec', value: '1'},
-  {option: 'show_default_meta_bitrate', value: '1'},
-  {option: 'show_default_meta_fps', value: '1'},
+  {option: 'show_default_meta_ext', value: '0'},
+  {option: 'show_default_meta_codec', value: '0'},
+  {option: 'show_default_meta_bitrate', value: '0'},
+  {option: 'show_default_meta_fps', value: '0'},
   {option: 'show_default_meta_number_media', value: '1'},
   {option: 'show_default_meta_number_views', value: '1'},
   {option: 'default_meta_chip_variant', value: 'flat'},
