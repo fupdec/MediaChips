@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  INFINITE_SCROLL_MAX_ITEMS,
   INFINITE_SCROLL_PAGE_SIZE,
   resolvePageLimit,
   shouldPaginateMediaList,
@@ -40,12 +41,13 @@ describe('mediaItemsPagination', () => {
   })
 
   it('trims infinite-scroll items to the configured window', () => {
-    const items = Array.from({ length: 300 }, (_, index) => index + 1)
+    const overflow = 50
+    const items = Array.from({ length: INFINITE_SCROLL_MAX_ITEMS + overflow }, (_, index) => index + 1)
 
     const result = trimInfiniteScrollItems(items)
-    expect(result.items).toHaveLength(250)
-    expect(result.trimmedFromTop).toBe(50)
-    expect(result.items[0]).toBe(51)
-    expect(result.items[249]).toBe(300)
+    expect(result.items).toHaveLength(INFINITE_SCROLL_MAX_ITEMS)
+    expect(result.trimmedFromTop).toBe(overflow)
+    expect(result.items[0]).toBe(overflow + 1)
+    expect(result.items[INFINITE_SCROLL_MAX_ITEMS - 1]).toBe(INFINITE_SCROLL_MAX_ITEMS + overflow)
   })
 })

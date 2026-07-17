@@ -114,7 +114,7 @@
     </div>
 
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && is_infinite_scroll && ITEMS.itemsOnPage.length >= ITEMS.totalFiltered && ITEMS.totalFiltered > 0"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -173,7 +173,7 @@
     </div>
 
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && is_infinite_scroll && ITEMS.itemsOnPage.length < ITEMS.totalFiltered"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore"
       class="infinite-loader-full-height"
     >
       <Loading v-if="isLoadingMore" />
@@ -270,6 +270,7 @@ const {
   pages,
   loader,
   isLoadingMore,
+  infiniteScrollExhausted,
   is_infinite_scroll,
   showPagination,
   paginationPage,
@@ -293,6 +294,19 @@ const {
   container,
   updatePageSetting,
 })
+
+const infiniteScrollHasMore = computed(() => (
+  is_infinite_scroll.value
+  && itemsStore.totalFiltered > 0
+  && !infiniteScrollExhausted.value
+  && itemsStore.itemsOnPage.length < itemsStore.totalFiltered
+))
+
+const infiniteScrollReachedEnd = computed(() => (
+  is_infinite_scroll.value
+  && itemsStore.totalFiltered > 0
+  && (infiniteScrollExhausted.value || itemsStore.itemsOnPage.length >= itemsStore.totalFiltered)
+))
 
 const init = () => runInit({
   disposeListFetching,

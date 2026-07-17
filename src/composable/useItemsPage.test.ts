@@ -2,12 +2,14 @@ import {describe, it, expect} from 'vitest'
 import {getNextInfiniteMediaPage, INFINITE_PAGE_SIZE} from '@/composable/useItemsPage'
 
 describe('useItemsPage helpers', () => {
-  it('returns first page when list is empty', () => {
-    expect(getNextInfiniteMediaPage(0)).toBe(1)
+  it('returns the next page after the current page index', () => {
+    expect(getNextInfiniteMediaPage(0)).toBe(2)
+    expect(getNextInfiniteMediaPage(1)).toBe(2)
+    expect(getNextInfiniteMediaPage(2)).toBe(3)
+    expect(getNextInfiniteMediaPage(20)).toBe(21)
   })
 
-  it('calculates next infinite page from loaded item count', () => {
-    expect(getNextInfiniteMediaPage(INFINITE_PAGE_SIZE)).toBe(2)
-    expect(getNextInfiniteMediaPage(INFINITE_PAGE_SIZE * 2 + 3)).toBe(3)
+  it('keeps infinite page size at 25', () => {
+    expect(INFINITE_PAGE_SIZE).toBe(25)
   })
 })

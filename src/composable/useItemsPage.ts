@@ -22,9 +22,9 @@ import {compensateScrollAfterTopTrim} from '@/utils/infiniteScrollTrim'
 
 export const INFINITE_PAGE_SIZE = 25
 
-export function getNextInfiniteMediaPage(itemCount: number, pageSize = INFINITE_PAGE_SIZE): number {
-  if (!itemCount) return 1
-  return Math.floor(itemCount / pageSize) + 1
+/** Next infinite-scroll page from the current page index (not DOM window size). */
+export function getNextInfiniteMediaPage(currentPage: number): number {
+  return Math.max(1, Number(currentPage) || 1) + 1
 }
 
 export function isAbortError(error: unknown): boolean {
@@ -51,6 +51,7 @@ export function useItemsPage({
     is_busy: false,
   })
   const isLoadingMore = ref(false)
+  const infiniteScrollExhausted = ref(false)
   const scrollRoot = ref<HTMLElement | null>(null)
 
   let listFetchSeq = 0
@@ -81,6 +82,7 @@ export function useItemsPage({
   }
 
   const resetMediaListState = (): void => {
+    infiniteScrollExhausted.value = false
     itemsStore.updateMultiple({
       itemsOnPage: [],
       entities: [],
@@ -266,7 +268,10 @@ export function useItemsPage({
         requestedPage = 1,
       }: {append?: boolean; requestedPage?: number} = {},
     ): Promise<boolean> => {
-      const previousCount = append ? ITEMS.value.itemsOnPage.length : 0
+      if (!append) {
+        infiniteScrollExhausted.value = false
+      }
+
       const applied = applyListResponse(response, {append, requestedPage})
 
       if (
@@ -285,18 +290,9 @@ export function useItemsPage({
         itemsStore.updateState({key: 'page', value: response.data.page})
       }
 
-      if (append && response.data.items?.length === 0) {
-        itemsStore.updateState({
-          key: 'totalFiltered',
-          value: ITEMS.value.itemsOnPage.length,
-        })
-        total.value = ITEMS.value.itemsOnPage.length
-      } else if (append && ITEMS.value.itemsOnPage.length === previousCount) {
-        itemsStore.updateState({
-          key: 'totalFiltered',
-          value: ITEMS.value.itemsOnPage.length,
-        })
-        total.value = ITEMS.value.itemsOnPage.length
+      if (append && (response.data.items?.length ?? 0) === 0) {
+        // Reached the end of the filtered set. Keep totalFiltered from the first page.
+        infiniteScrollExhausted.value = true
       } else if (append || is_infinite_scroll.value) {
         await nextTick()
         maybeLoadMoreIfNearBottom()
@@ -441,6 +437,7 @@ export function useItemsPage({
   const loadNextInfinitePage = async (): Promise<void> => {
     if (!is_infinite_scroll.value) return
     if (loader.value.is_busy || isLoadingMore.value) return
+    if (infiniteScrollExhausted.value) return
     if (ITEMS.value.totalFiltered <= 0) return
     if (ITEMS.value.itemsOnPage.length >= ITEMS.value.totalFiltered) return
 
@@ -448,7 +445,7 @@ export function useItemsPage({
     try {
       itemsStore.updateState({
         key: 'page',
-        value: getNextInfiniteMediaPage(ITEMS.value.itemsOnPage.length),
+        value: getNextInfiniteMediaPage(ITEMS.value.page),
       })
       await getItemsFromDb()
     } finally {
@@ -459,6 +456,7 @@ export function useItemsPage({
   const maybeLoadMoreIfNearBottom = (): void => {
     if (!is_infinite_scroll.value) return
     if (loader.value.is_busy || isLoadingMore.value) return
+    if (infiniteScrollExhausted.value) return
     if (ITEMS.value.totalFiltered <= 0) return
     if (ITEMS.value.itemsOnPage.length >= ITEMS.value.totalFiltered) return
 
@@ -529,6 +527,7 @@ export function useItemsPage({
     pages,
     loader,
     isLoadingMore,
+    infiniteScrollExhausted,
     scrollRoot,
     is_infinite_scroll,
     showPagination,
