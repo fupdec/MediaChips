@@ -60,7 +60,9 @@ body {
 }
 
 .reduced-top {
-  padding-top: 0 !important;
+  /* Offset for fixed app bar; scroll lives in the remaining v-main area. */
+  padding-top: var(--app-content-offset-top, 48px) !important;
+  box-sizing: border-box;
 }
 
 .app-main-layout {
@@ -119,10 +121,6 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.main-scroll-inner {
-  padding-top: var(--app-content-offset-top);
-}
-
 .app-main-layout.has-bottom-bar .main-scroll-inner {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -165,33 +163,9 @@ body {
   }
 }
 
-.added-top {
-  &.blur {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    padding-top: 48px;
-    pointer-events: none;
-    backdrop-filter: blur(10px);
-    background-color: rgba(var(--v-theme-background), 0.7);
-    z-index: 10;
-
-    &.windows-os-added-top {
-      padding-top: calc(48px + 32px);
-    }
-
-    &.added-top-tabs {
-      padding-bottom: 28px;
-    }
-  }
-}
-
-// Windows Electron header chrome (macOS-like transparency + blur)
+// Windows Electron header chrome (no glass blur — content no longer scrolls under the bar)
 .electron-win {
   .system-bar-custom.v-system-bar {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     box-shadow: none !important;
     border-bottom: none !important;
     overflow: visible;
@@ -205,14 +179,8 @@ body {
       opacity: 0;
     }
 
-    // macOS-style: bar is semi-transparent, blur only on toolbar buttons
     .v-toolbar__content .v-btn {
-      backdrop-filter: blur(25px);
-      -webkit-backdrop-filter: blur(25px);
-
       &:not(.v-btn--variant-flat) {
-        background: transparent !important;
-
         .v-btn__overlay,
         .v-btn__underlay {
           opacity: 0;
@@ -223,13 +191,5 @@ body {
         }
       }
     }
-  }
-
-  .added-top.blur {
-    backdrop-filter: blur(10px);
-  }
-
-  .filters-drawer .filter-block {
-    backdrop-filter: blur(20px);
   }
 }

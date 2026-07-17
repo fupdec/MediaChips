@@ -2,34 +2,35 @@
   <WidgetLazyMount
     v-if="widgetId === 'stats'"
     class="mt-2 mb-4"
-    min-height="88px"
+    min-height="96px"
   >
     <WidgetTotalStats class="mb-0"/>
   </WidgetLazyMount>
 
   <WidgetLazyMount
     v-else-if="widgetId === 'extendedStats'"
-    min-height="120px"
+    min-height="200px"
   >
     <WidgetExtendedStats/>
   </WidgetLazyMount>
 
   <WidgetLazyMount
     v-else-if="widgetId === 'quickActions'"
-    min-height="96px"
+    min-height="120px"
   >
     <WidgetQuickActions/>
   </WidgetLazyMount>
 
   <WidgetLazyMount
     v-else-if="widgetId === 'continue'"
-    min-height="180px"
+    min-height="220px"
     @activate="ensureHomeMediaLoaded"
   >
     <WidgetMediaRow
       :title="t('home.widgets.continue_watching')"
       icon="mdi-history"
       :items="continueWatching"
+      :loading="homeMediaLoading"
       variant="continue"
       @open="onOpenContinue"
       @view-all="onOpenContinueList"
@@ -38,13 +39,14 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'favorites'"
-    min-height="180px"
+    min-height="220px"
     @activate="ensureHomeMediaLoaded"
   >
     <WidgetMediaRow
       :title="t('home.widgets.favorites')"
       icon="mdi-heart"
       :items="favorites"
+      :loading="homeMediaLoading"
       variant="favorite"
       @open="onOpenMedia"
       @view-all="onOpenFavoritesList"
@@ -53,13 +55,14 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'topViews'"
-    min-height="180px"
+    min-height="220px"
     @activate="ensureHomeMediaLoaded"
   >
     <WidgetMediaRow
       :title="t('home.widgets.top_views')"
       icon="mdi-eye"
       :items="topViews"
+      :loading="homeMediaLoading"
       variant="views"
       @open="onOpenMedia"
       @view-all="onOpenTopViewsList"
@@ -68,7 +71,7 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'markers'"
-    min-height="180px"
+    min-height="220px"
   >
     <WidgetRandomMarkers :limit="limits?.markers ?? 8"/>
   </WidgetLazyMount>
@@ -82,7 +85,7 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'topTags'"
-    min-height="180px"
+    min-height="240px"
   >
     <WidgetTopTags :limit="limits?.topTags ?? 10"/>
   </WidgetLazyMount>
@@ -92,15 +95,16 @@
 import {defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
-import { useHomeMedia } from '@/composable/useHomeMedia'
-import type { HomeWidgetLimits } from '@/types/widgets'
-import type { MediaItem } from '@/types/stores'
+// Above-the-fold widgets: sync import avoids async 0-height flash / CLS.
+import WidgetTotalStats from '@/components/widgets/WidgetTotalStats.vue'
+import WidgetExtendedStats from '@/components/widgets/WidgetExtendedStats.vue'
+import WidgetQuickActions from '@/components/widgets/WidgetQuickActions.vue'
+import WidgetMediaRow from '@/components/widgets/WidgetMediaRow.vue'
+import {useHomeMedia} from '@/composable/useHomeMedia'
+import type {HomeWidgetLimits} from '@/types/widgets'
+import type {MediaItem} from '@/types/stores'
 
 const WidgetTopTags = defineAsyncComponent(() => import('@/components/widgets/WidgetTopTags.vue'))
-const WidgetTotalStats = defineAsyncComponent(() => import('@/components/widgets/WidgetTotalStats.vue'))
-const WidgetExtendedStats = defineAsyncComponent(() => import('@/components/widgets/WidgetExtendedStats.vue'))
-const WidgetQuickActions = defineAsyncComponent(() => import('@/components/widgets/WidgetQuickActions.vue'))
-const WidgetMediaRow = defineAsyncComponent(() => import('@/components/widgets/WidgetMediaRow.vue'))
 const WidgetRandomMarkers = defineAsyncComponent(() => import('@/components/widgets/WidgetRandomMarkers.vue'))
 const WidgetHealthAlerts = defineAsyncComponent(() => import('@/components/widgets/WidgetHealthAlerts.vue'))
 
@@ -120,7 +124,13 @@ const props = defineProps<{
 }>()
 
 const {t} = useI18n()
-const { continueWatching, favorites, topViews, loadHomeMedia } = useHomeMedia()
+const {
+  continueWatching,
+  favorites,
+  topViews,
+  loadHomeMedia,
+  isLoading: homeMediaLoading,
+} = useHomeMedia()
 
 function ensureHomeMediaLoaded() {
   void loadHomeMedia({

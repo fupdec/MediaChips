@@ -15,6 +15,7 @@ export interface HomeMediaLoadOptions {
 const continueWatching = ref<MediaItem[]>([])
 const favorites = ref<MediaItem[]>([])
 const topViews = ref<MediaItem[]>([])
+const isLoading = ref(false)
 
 let loadPromise: Promise<void> | null = null
 let lastOptionsKey = ''
@@ -32,6 +33,7 @@ export function invalidateHomeMediaCache() {
   continueWatching.value = []
   favorites.value = []
   topViews.value = []
+  isLoading.value = false
   loadPromise = null
   lastOptionsKey = ''
 }
@@ -51,6 +53,7 @@ export function useHomeMedia() {
       continueWatching.value = []
       favorites.value = []
       topViews.value = []
+      isLoading.value = false
       return
     }
 
@@ -60,6 +63,7 @@ export function useHomeMedia() {
     }
 
     lastOptionsKey = optionsKey
+    isLoading.value = true
     loadPromise = (async () => {
       try {
         const response = await typedApi.getHomeMedia({
@@ -85,6 +89,8 @@ export function useHomeMedia() {
         lastOptionsKey = ''
         console.error(error)
         throw error
+      } finally {
+        isLoading.value = false
       }
     })()
 
@@ -95,6 +101,7 @@ export function useHomeMedia() {
     continueWatching,
     favorites,
     topViews,
+    isLoading,
     loadHomeMedia,
   }
 }

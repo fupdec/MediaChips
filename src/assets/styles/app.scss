@@ -782,9 +782,6 @@ header {
 
 // TABS
 .v-app-bar {
-  .v-btn {
-    backdrop-filter: blur(25px);
-  }
   .v-image__image {
     filter: none;
   }
@@ -891,9 +888,7 @@ header {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: rgba(var(--v-theme-surface), 0.15);
-      backdrop-filter: blur(25px);
-      -webkit-backdrop-filter: blur(25px);
+      background-color: rgba(var(--v-theme-surface), 0.55);
       border-radius: 20px;
 
       .v-icon {

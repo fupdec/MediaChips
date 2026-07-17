@@ -103,12 +103,25 @@ export async function checkFileExists(filePath: string) {
   const cachedPositive = getCachedPositiveResult(filePath)
   if (cachedPositive === true) return true
 
+  // Cheap volume-root probe only: avoids per-card IPC storms while scrolling.
   const volumeRoot = getUnavailableVolumeRoot(filePath)
   if (volumeRoot && volumeRoot !== filePath) {
     const volumeExists = await checkFileExistsElectron(volumeRoot)
     if (volumeExists === false) {
       rememberNegativeResult(filePath)
       return false
+    }
+  }
+
+  // Prefer batched HTTP like the browser; IPC only when the API is unavailable.
+  if (canCheckFileViaApi()) {
+    try {
+      const exists = await queueFileExistenceCheck(filePath)
+      if (exists) rememberPositiveResult(filePath)
+      else rememberNegativeResult(filePath)
+      return exists
+    } catch {
+      return checkFileExistsRemote(filePath)
     }
   }
 
@@ -119,16 +132,7 @@ export async function checkFileExists(filePath: string) {
     return electronResult
   }
 
-  if (!canCheckFileViaApi()) return false
-
-  try {
-    const exists = await queueFileExistenceCheck(filePath)
-    if (exists) rememberPositiveResult(filePath)
-    else rememberNegativeResult(filePath)
-    return exists
-  } catch {
-    return checkFileExistsRemote(filePath)
-  }
+  return false
 }
 
 export function buildLocalFileUrl(

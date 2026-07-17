@@ -31,17 +31,11 @@
     >
       <div
         v-if="isAppReady"
-        :class="addedTopClasses"
-        class="added-top blur"
-      ></div>
-
-      <div
-        v-if="isAppReady"
         class="main-scroll"
         :class="{'main-scroll--settings': isSettingsPage}"
       >
         <div
-          :class="[addedTopClasses, {'main-scroll-inner--settings': isSettingsPage}]"
+          :class="{'main-scroll-inner--settings': isSettingsPage}"
           class="main-scroll-inner"
         >
           <router-view />

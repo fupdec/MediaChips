@@ -1,86 +1,108 @@
 <template>
-  <div v-if="tagsTop.length" class="widget-top-tags">
-    <section
-      v-for="category in tagsTop"
-      :key="category.meta.id"
-      class="widget-top-tags__section mb-6"
-    >
-      <div class="d-flex align-center mb-3 min-width-0">
-        <v-icon class="mr-2 flex-shrink-0" size="24">
-          mdi-{{ category.meta.icon || 'tag' }}
-        </v-icon>
+  <div class="widget-top-tags">
+    <template v-if="tagsTop.length">
+      <WidgetLazyMount
+        v-for="(category, index) in visibleCategories"
+        :key="category.meta.id"
+        class="mb-6"
+        min-height="220px"
+        @activate="revealMoreCategories(index)"
+      >
+        <section class="widget-top-tags__section">
+          <div class="d-flex align-center mb-3 min-width-0">
+            <v-icon class="mr-2 flex-shrink-0" size="24">
+              mdi-{{ category.meta.icon || 'tag' }}
+            </v-icon>
 
-        <div class="min-width-0">
-          <div class="text-h6 text-truncate">
-            {{ getMetaName(category.meta, t) }}
-          </div>
-          <div class="text-caption text-medium-emphasis">
-            {{ t(subtitleKey, { count: category.tags.length }) }}
-          </div>
-        </div>
-      </div>
-
-      <div class="widget-top-tags__scroll">
-        <v-card
-          v-for="tag in category.tags"
-          :key="tag.id"
-          class="widget-top-tags__card"
-          @click="openTagPage(category.meta, tag)"
-          rounded="lg"
-          elevation="2"
-          hover
-        >
-          <div class="widget-top-tags__preview">
-            <v-img
-              v-if="tag.image"
-              :src="tag.image"
-              cover
-              class="widget-top-tags__thumb"
-            />
-            <div v-else class="widget-top-tags__placeholder">
-              <v-icon color="grey-darken-1" size="28">mdi-tag-outline</v-icon>
+            <div class="min-width-0">
+              <div class="text-h6 text-truncate">
+                {{ getMetaName(category.meta, t) }}
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ t(subtitleKey, {count: category.tags.length}) }}
+              </div>
             </div>
+          </div>
 
-            <v-chip
-              v-if="tag.views && sortMode === META_SORT_MODES.popularity"
-              class="widget-top-tags__badge"
-              color="primary"
-              size="x-small"
-              variant="flat"
+          <div class="widget-top-tags__scroll">
+            <v-card
+              v-for="tag in category.tags"
+              :key="tag.id"
+              class="widget-top-tags__card"
+              @click="openTagPage(category.meta, tag)"
+              rounded="lg"
+              elevation="2"
+              hover
             >
-              <v-icon start size="12">mdi-eye</v-icon>
-              {{ tag.views }}
-            </v-chip>
-          </div>
+              <div class="widget-top-tags__preview">
+                <v-img
+                  v-if="tag.image"
+                  :src="tag.image"
+                  cover
+                  class="widget-top-tags__thumb"
+                />
+                <div v-else class="widget-top-tags__placeholder">
+                  <v-icon color="grey-darken-1" size="28">mdi-tag-outline</v-icon>
+                </div>
 
-          <div class="widget-top-tags__body pa-2">
-            <div class="text-caption text-truncate">{{ tag.name }}</div>
-          </div>
-        </v-card>
+                <v-chip
+                  v-if="tag.views && sortMode === META_SORT_MODES.popularity"
+                  class="widget-top-tags__badge"
+                  color="primary"
+                  size="x-small"
+                  variant="flat"
+                >
+                  <v-icon start size="12">mdi-eye</v-icon>
+                  {{ tag.views }}
+                </v-chip>
+              </div>
 
-        <button
-          v-if="category.isNotAllLoaded"
-          @click="getTagsTop(category)"
-          class="widget-top-tags__more"
-          type="button"
-        >
-          <v-icon color="primary" size="22">mdi-plus</v-icon>
-          <span class="text-caption text-medium-emphasis mt-1">
-            {{ t('widgets.top_tags.show_more_short', { count: Math.min(10, category.total - category.limit) }) }}
-          </span>
-        </button>
+              <div class="widget-top-tags__body pa-2">
+                <div class="text-caption text-truncate">{{ tag.name }}</div>
+              </div>
+            </v-card>
+
+            <button
+              v-if="category.isNotAllLoaded"
+              @click="getTagsTop(category)"
+              class="widget-top-tags__more"
+              type="button"
+            >
+              <v-icon color="primary" size="22">mdi-plus</v-icon>
+              <span class="text-caption text-medium-emphasis mt-1">
+                {{ t('widgets.top_tags.show_more_short', {count: Math.min(10, category.total - category.limit)}) }}
+              </span>
+            </button>
+          </div>
+        </section>
+      </WidgetLazyMount>
+    </template>
+
+    <div
+      v-else
+      class="widget-top-tags__skeleton"
+      aria-hidden="true"
+    >
+      <div class="widget-top-tags__skeleton-title"/>
+      <div class="widget-top-tags__scroll">
+        <div
+          v-for="index in 5"
+          :key="index"
+          class="widget-top-tags__skeleton-card"
+        />
       </div>
-    </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted} from "vue"
-import {useRouter} from "vue-router"
-import {useAppStore} from "@/stores/app"
-import {useSettingsStore} from "@/stores/settings"
+import {ref, computed, watch, onMounted} from 'vue'
+import {useRouter} from 'vue-router'
+import {useAppStore} from '@/stores/app'
+import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import groupBy from 'lodash/groupBy'
+import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {getMetaName} from '@/utils/metaI18n'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
@@ -91,8 +113,11 @@ import {
   META_SORT_MODES,
   type MetaSortMode,
 } from '@/utils/metaSort'
-import type { TopTagsCategory, TopTagItem } from '@/types/widgets'
-import type { Meta } from '@/types/stores'
+import type {TopTagsCategory, TopTagItem} from '@/types/widgets'
+import type {Meta} from '@/types/stores'
+
+const INITIAL_VISIBLE_CATEGORIES = 2
+const REVEAL_CATEGORY_BATCH = 2
 
 const props = withDefaults(defineProps<{
   limit?: number
@@ -106,6 +131,7 @@ const router = useRouter()
 const {t} = useI18n()
 
 const tagsTop = ref<TopTagsCategory[]>([])
+const visibleCategoryCount = ref(INITIAL_VISIBLE_CATEGORIES)
 
 const tags = computed(() => store.tags)
 const metas = computed(() => store.meta)
@@ -113,6 +139,7 @@ const sortMode = computed((): MetaSortMode =>
   (settingsStore.meta_sort_mode as MetaSortMode) || META_SORT_MODES.menu,
 )
 const subtitleKey = computed(() => getTopTagsSubtitleKey(sortMode.value))
+const visibleCategories = computed(() => tagsTop.value.slice(0, visibleCategoryCount.value))
 
 function resolveTagImageUrl(metaId: string, tagId: number): string {
   return resolveTagThumbDisplayUrl({
@@ -126,7 +153,7 @@ function resolveTagImageUrl(metaId: string, tagId: number): string {
 function getTagsTop(activeGroup: TopTagsCategory | null = null) {
   if (!metas.value.length) return
 
-  const grouped = groupBy(tags.value, "metaId")
+  const grouped = groupBy(tags.value, 'metaId')
   const groups: TopTagsCategory[] = []
   const visibleMetas = sortMetaItems(
     metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
@@ -163,6 +190,19 @@ function getTagsTop(activeGroup: TopTagsCategory | null = null) {
   }
 
   tagsTop.value = groups
+  visibleCategoryCount.value = Math.min(
+    Math.max(visibleCategoryCount.value, INITIAL_VISIBLE_CATEGORIES),
+    groups.length || INITIAL_VISIBLE_CATEGORIES,
+  )
+}
+
+function revealMoreCategories(index: number) {
+  if (index < visibleCategoryCount.value - 1) return
+  if (visibleCategoryCount.value >= tagsTop.value.length) return
+  visibleCategoryCount.value = Math.min(
+    tagsTop.value.length,
+    visibleCategoryCount.value + REVEAL_CATEGORY_BATCH,
+  )
 }
 
 function openTagPage(meta: Meta, tag: TopTagItem) {
@@ -172,10 +212,13 @@ function openTagPage(meta: Meta, tag: TopTagItem) {
 watch(tags, () => getTagsTop())
 watch(metas, () => getTagsTop())
 watch(() => props.limit, () => getTagsTop())
-watch(sortMode, () => getTagsTop())
+watch(sortMode, () => {
+  visibleCategoryCount.value = INITIAL_VISIBLE_CATEGORIES
+  getTagsTop()
+})
 
 onMounted(() => {
-  window.dispatchEvent(new CustomEvent("getTags"))
+  window.dispatchEvent(new CustomEvent('getTags'))
   getTagsTop()
 })
 </script>
@@ -260,6 +303,26 @@ onMounted(() => {
       background: rgba(var(--v-theme-primary), 0.08);
       border-color: rgba(var(--v-theme-primary), 0.7);
     }
+  }
+
+  &__skeleton {
+    min-height: 220px;
+  }
+
+  &__skeleton-title {
+    width: 160px;
+    height: 24px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    background: rgba(var(--v-theme-on-surface), 0.06);
+  }
+
+  &__skeleton-card {
+    width: 104px;
+    flex: 0 0 104px;
+    aspect-ratio: 3 / 4;
+    border-radius: 12px;
+    background: rgba(var(--v-theme-on-surface), 0.06);
   }
 }
 </style>

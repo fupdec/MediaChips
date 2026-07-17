@@ -212,7 +212,6 @@ onUnmounted(() => {
 .darwin-buttons {
   width: 96px;
   height: 36px;
-  backdrop-filter: blur(20px);
   border-radius: 25px;
   margin-left: 5px;
 }
@@ -225,7 +224,6 @@ onUnmounted(() => {
   border-radius: 15px;
   width: 76px;
   height: 25px;
-  backdrop-filter: blur(10px);
 }
 
 .scrollable {

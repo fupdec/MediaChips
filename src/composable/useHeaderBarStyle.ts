@@ -9,7 +9,7 @@ import {
   hexToRgba,
 } from '@/utils/headerColorUtils'
 
-export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
+export function useHeaderBarStyle(_variant: 'app' | 'system' = 'app') {
   const theme = useTheme()
   const settingsStore = useSettingsStore()
   const isWinElectron = isRealWinElectron()
@@ -18,8 +18,8 @@ export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
   const color = useHeaderColor()
 
   const colorRGBA = computed(() => {
-    const opacity = isWinElectron ? 60 : (variant === 'system' ? 80 : 60)
-    return hexToRgba(color.value, opacity)
+    // Opaque bar: content no longer scrolls underneath, so glass transparency is unused.
+    return hexToRgba(color.value, 100)
   })
 
   const gradient = computed(() => {
@@ -31,9 +31,7 @@ export function useHeaderBarStyle(variant: 'app' | 'system' = 'app') {
 
     if (!g || typeof g !== 'string') return ''
 
-    const alpha = isWinElectron ? 0.6 : (variant === 'system' ? 0.8 : 0.6)
-
-    return 'background:' + addTransparencyToGradient(g, alpha)
+    return 'background:' + addTransparencyToGradient(g, 1)
   })
 
   const barTheme = computed(() => {
