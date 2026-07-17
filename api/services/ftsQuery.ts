@@ -94,7 +94,7 @@ export function matchesGlobalSearchSynonyms(
   return { matched: matchedSynonyms.length > 0, matchedSynonyms }
 }
 
-export type GlobalSearchTagMatchSource = 'name' | 'synonym' | 'both'
+export type GlobalSearchTagMatchSource = 'name' | 'synonym' | 'bookmark' | 'both'
 
 export interface GlobalSearchTagResult {
   id: number
@@ -103,29 +103,42 @@ export interface GlobalSearchTagResult {
   synonyms?: string | null
   matchSource?: GlobalSearchTagMatchSource
   matchedSynonyms?: string[]
+  matchedBookmark?: string
 }
 
 export function resolveGlobalSearchTagMatch(
   name: string | null | undefined,
   synonyms: string | null | undefined,
   rawQuery: string,
+  bookmark?: string | null,
 ): {
   matched: boolean
   matchSource?: GlobalSearchTagMatchSource
   matchedSynonyms: string[]
+  matchedBookmark?: string
 } {
   const nameMatch = matchesGlobalSearchName(name, rawQuery)
   const { matched: synonymMatch, matchedSynonyms } = matchesGlobalSearchSynonyms(synonyms, rawQuery)
+  const bookmarkText = bookmark == null ? '' : String(bookmark)
+  const bookmarkMatch = matchesGlobalSearchName(bookmarkText, rawQuery)
 
-  if (!nameMatch && !synonymMatch) {
+  if (!nameMatch && !synonymMatch && !bookmarkMatch) {
     return { matched: false, matchedSynonyms: [] }
   }
 
-  let matchSource: GlobalSearchTagMatchSource = 'name'
-  if (nameMatch && synonymMatch) matchSource = 'both'
-  else if (synonymMatch) matchSource = 'synonym'
+  const sources: GlobalSearchTagMatchSource[] = []
+  if (nameMatch) sources.push('name')
+  if (synonymMatch) sources.push('synonym')
+  if (bookmarkMatch) sources.push('bookmark')
 
-  return { matched: true, matchSource, matchedSynonyms }
+  const matchSource: GlobalSearchTagMatchSource = sources.length > 1 ? 'both' : sources[0]
+
+  return {
+    matched: true,
+    matchSource,
+    matchedSynonyms,
+    matchedBookmark: bookmarkMatch ? bookmarkText : undefined,
+  }
 }
 
 export function isFtsSearchAvailable(sqlite: Database.Database): boolean {

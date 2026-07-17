@@ -139,13 +139,15 @@ export const GlobalSearchMediaItemSchema = z.object({
   path: z.string().optional(),
   width: z.number().nullable().optional(),
   height: z.number().nullable().optional(),
-  matchSource: z.enum(['name', 'tag', 'both']).optional(),
+  matchSource: z.enum(['name', 'tag', 'bookmark', 'both']).optional(),
+  matchedBookmark: z.string().optional(),
   matchedTags: z.array(z.object({
     id: z.number(),
     name: z.string(),
     metaId: z.number().nullable().optional(),
-    matchSource: z.enum(['name', 'synonym', 'both']).optional(),
+    matchSource: z.enum(['name', 'synonym', 'bookmark', 'both']).optional(),
     matchedSynonyms: z.array(z.string()).optional(),
+    matchedBookmark: z.string().optional(),
   })).optional(),
 })
 
@@ -154,8 +156,9 @@ export const GlobalSearchTagItemSchema = z.object({
   name: z.string().nullable().optional(),
   metaId: z.number().nullable().optional(),
   synonyms: z.string().nullable().optional(),
-  matchSource: z.enum(['name', 'synonym', 'both']).optional(),
+  matchSource: z.enum(['name', 'synonym', 'bookmark', 'both']).optional(),
   matchedSynonyms: z.array(z.string()).optional(),
+  matchedBookmark: z.string().optional(),
 })
 
 export const GlobalSearchMediaResponseSchema = z.object({

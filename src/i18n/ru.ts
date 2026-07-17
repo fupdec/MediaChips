@@ -126,6 +126,7 @@ const ru = {
     showMore: 'Показать ещё ({count})',
     resultsCount: 'Найдено: {count}',
     viaSynonym: 'син.',
+    viaBookmark: 'закл.',
     viaTag: 'тег',
     hintEsc: 'закрыть',
     hintArrows: 'навигация',

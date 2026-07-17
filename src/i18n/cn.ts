@@ -125,6 +125,7 @@ const cn = {
     showMore: '显示更多 ({count})',
     resultsCount: '找到 {count} 条',
     viaSynonym: '同义词',
+    viaBookmark: '书签',
     viaTag: '标签',
     hintEsc: '关闭',
     hintArrows: '导航',

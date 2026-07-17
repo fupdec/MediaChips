@@ -125,6 +125,7 @@ const es = {
     showMore: 'Mostrar más ({count})',
     resultsCount: '{count} encontrados',
     viaSynonym: 'sin.',
+    viaBookmark: 'marcador',
     viaTag: 'etiqueta',
     hintEsc: 'cerrar',
     hintArrows: 'navegar',

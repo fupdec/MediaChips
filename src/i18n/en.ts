@@ -126,6 +126,7 @@ const en = {
     showMore: 'Show more ({count})',
     resultsCount: '{count} found',
     viaSynonym: 'syn.',
+    viaBookmark: 'bookmark',
     viaTag: 'tag',
     hintEsc: 'close',
     hintArrows: 'navigate',

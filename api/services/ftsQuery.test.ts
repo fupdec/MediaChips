@@ -71,4 +71,18 @@ describe('resolveGlobalSearchTagMatch', () => {
     expect(resolveGlobalSearchTagMatch('Lana Analise', null, 'anal').matched).toBe(false)
     expect(resolveGlobalSearchTagMatch('Anal Gape', null, 'anal').matched).toBe(true)
   })
+
+  it('matches tags by bookmark notes', () => {
+    const result = resolveGlobalSearchTagMatch('Director', null, 'vacation', 'watched on vacation')
+    expect(result.matched).toBe(true)
+    expect(result.matchSource).toBe('bookmark')
+    expect(result.matchedBookmark).toBe('watched on vacation')
+  })
+
+  it('reports both when name and bookmark match', () => {
+    const result = resolveGlobalSearchTagMatch('Actor', null, 'act', 'favorite actor note')
+    expect(result.matched).toBe(true)
+    expect(result.matchSource).toBe('both')
+    expect(result.matchedBookmark).toBe('favorite actor note')
+  })
 })

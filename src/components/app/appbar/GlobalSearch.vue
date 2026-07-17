@@ -21,18 +21,21 @@ type MatchedSearchTag = {
   id: number
   name: string
   metaId?: number | null
-  matchSource?: 'name' | 'synonym' | 'both'
+  matchSource?: 'name' | 'synonym' | 'bookmark' | 'both'
   matchedSynonyms?: string[]
+  matchedBookmark?: string
 }
 
 type GlobalSearchMedia = MediaItem & {
-  matchSource?: 'name' | 'tag' | 'both'
+  matchSource?: 'name' | 'tag' | 'bookmark' | 'both'
   matchedTags?: MatchedSearchTag[]
+  matchedBookmark?: string
 }
 
 type GlobalSearchTag = Tag & {
-  matchSource?: 'name' | 'synonym' | 'both'
+  matchSource?: 'name' | 'synonym' | 'bookmark' | 'both'
   matchedSynonyms?: string[]
+  matchedBookmark?: string
 }
 
 function groupByKey<T>(items: T[], key: keyof T): Record<string, T[]> {
@@ -245,13 +248,15 @@ function normalizeSearchMedia(
     mediaTypeId?: number
     width?: number | null
     height?: number | null
-    matchSource?: 'name' | 'tag' | 'both'
+    matchSource?: 'name' | 'tag' | 'bookmark' | 'both'
+    matchedBookmark?: string
     matchedTags?: MatchedSearchTag[]
   }>,
 ): GlobalSearchMedia[] {
   return items.map((item) => ({
     ...item,
     name: item.name ?? undefined,
+    matchedBookmark: item.matchedBookmark || undefined,
     matchedTags: item.matchedTags?.length ? item.matchedTags : undefined,
   }))
 }
@@ -262,8 +267,9 @@ function normalizeSearchTags(
     name?: string | null
     synonyms?: string | null
     metaId?: number | null
-    matchSource?: 'name' | 'synonym' | 'both'
+    matchSource?: 'name' | 'synonym' | 'bookmark' | 'both'
     matchedSynonyms?: string[]
+    matchedBookmark?: string
   }>,
 ): GlobalSearchTag[] {
   return items.map((item) => ({
@@ -271,6 +277,7 @@ function normalizeSearchTags(
     name: item.name ?? undefined,
     synonyms: item.synonyms ?? undefined,
     metaId: item.metaId ?? undefined,
+    matchedBookmark: item.matchedBookmark || undefined,
   }))
 }
 
@@ -528,6 +535,11 @@ function getMatchedSynonymsText(item: GlobalSearchTag): string {
   return ''
 }
 
+function getMatchedBookmarkText(item: GlobalSearchMedia | GlobalSearchTag): string {
+  if (item.matchedBookmark) return item.matchedBookmark
+  return ''
+}
+
 function getMatchedTags(item: GlobalSearchMedia | GlobalSearchTag, isMedia: boolean): MatchedSearchTag[] {
   if (!isMedia) return []
   const media = item as GlobalSearchMedia
@@ -553,6 +565,10 @@ function getMatchedTagChipLabel(tag: MatchedSearchTag): string {
   const synonym = tag.matchedSynonyms?.find((entry) => textMatchesGlobalSearchQuery(entry, query))
   if (synonym) return synonym
 
+  if (tag.matchedBookmark && textMatchesGlobalSearchQuery(tag.matchedBookmark, query)) {
+    return tag.matchedBookmark
+  }
+
   if (tag.matchSource === 'synonym' && tag.matchedSynonyms?.[0]) {
     return tag.matchedSynonyms[0]
   }
@@ -563,7 +579,11 @@ function getMatchedTagChipLabel(tag: MatchedSearchTag): string {
 function shouldShowMatchedSynonyms(item: GlobalSearchMedia | GlobalSearchTag, isMedia: boolean): boolean {
   if (isMedia) return false
   const tag = item as GlobalSearchTag
-  return tag.matchSource === 'synonym' || tag.matchSource === 'both'
+  return Boolean(tag.matchedSynonyms?.length || tag.matchSource === 'synonym')
+}
+
+function shouldShowMatchedBookmark(item: GlobalSearchMedia | GlobalSearchTag): boolean {
+  return Boolean(item.matchedBookmark)
 }
 
 function getNameHighlighted(text: string) {
@@ -715,6 +735,13 @@ function getNameHighlighted(text: string) {
                   >
                     <span class="global-search__synonyms-label">{{ t('globalSearch.viaSynonym') }}</span>
                     <span v-html="getNameHighlighted(getMatchedSynonymsText(row.item as GlobalSearchTag))"/>
+                  </span>
+                  <span
+                    v-if="shouldShowMatchedBookmark(row.item)"
+                    class="global-search__synonyms text-medium-emphasis ml-1"
+                  >
+                    <span class="global-search__synonyms-label">{{ t('globalSearch.viaBookmark') }}</span>
+                    <span v-html="getNameHighlighted(getMatchedBookmarkText(row.item))"/>
                   </span>
                 </div>
 

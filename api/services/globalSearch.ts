@@ -6,6 +6,7 @@ import {
   isFtsSearchAvailable,
   matchesGlobalSearchName,
   resolveGlobalSearchTagMatch,
+  type GlobalSearchTagMatchSource,
   type GlobalSearchTagResult,
 } from './ftsQuery'
 
@@ -19,10 +20,16 @@ const MEDIA_SEARCH_SELECT = `SELECT media.id,
             COALESCE(videoMetadata.width, imageMetadata.width) AS width,
             COALESCE(videoMetadata.height, imageMetadata.height) AS height`
 
+const MEDIA_BOOKMARK_SEARCH_SELECT = `${MEDIA_SEARCH_SELECT},
+            media.bookmark`
+
 const TAG_SEARCH_SELECT = `SELECT tags.id,
             tags.name,
             tags.metaId,
             tags.synonyms`
+
+const TAG_BOOKMARK_SEARCH_SELECT = `${TAG_SEARCH_SELECT},
+            tags.bookmark`
 
 function escapeLikePattern(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
@@ -78,6 +85,36 @@ async function searchMediaByName(db: ApiDb, query: string, limit: unknown) {
   }
 
   return rows.filter((row) => matchesGlobalSearchName(String(row.name || ''), trimmed))
+}
+
+async function searchMediaByBookmark(db: ApiDb, query: string, limit: unknown) {
+  const trimmed = String(query || '').trim()
+  if (!trimmed) return []
+
+  const sqlLimit = normalizeLimit(limit)
+  const pattern = `%${escapeLikePattern(trimmed)}%`
+
+  const rows = await queryAll(db, `${MEDIA_BOOKMARK_SEARCH_SELECT}
+     FROM media
+              LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+              LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+     WHERE media.bookmark LIKE :pattern ESCAPE '\\'
+     LIMIT :limit`, {pattern, limit: sqlLimit})
+
+  return rows
+    .filter((row) => matchesGlobalSearchName(
+      row.bookmark == null ? '' : String(row.bookmark),
+      trimmed,
+    ))
+    .map((row) => {
+      const bookmark = row.bookmark == null ? '' : String(row.bookmark)
+      const {bookmark: _bookmark, ...mediaRow} = row
+      return {
+        ...mediaRow,
+        matchSource: 'bookmark' as const,
+        matchedBookmark: bookmark,
+      }
+    })
 }
 
 export interface SearchTagsByNameOptions {
@@ -146,11 +183,16 @@ async function searchTagsByNameFts(
      LIMIT :limit`, replacements)
 }
 
-function enrichTagSearchRow(row: Record<string, unknown>, trimmed: string): GlobalSearchTagResult | null {
+function enrichTagSearchRow(
+  row: Record<string, unknown>,
+  trimmed: string,
+): GlobalSearchTagResult | null {
+  const bookmark = row.bookmark == null ? null : String(row.bookmark)
   const resolved = resolveGlobalSearchTagMatch(
     String(row.name || ''),
     row.synonyms == null ? '' : String(row.synonyms),
     trimmed,
+    bookmark,
   )
 
   if (!resolved.matched || !resolved.matchSource) return null
@@ -162,6 +204,7 @@ function enrichTagSearchRow(row: Record<string, unknown>, trimmed: string): Glob
     synonyms: row.synonyms == null ? null : String(row.synonyms),
     matchSource: resolved.matchSource,
     matchedSynonyms: resolved.matchedSynonyms.length ? resolved.matchedSynonyms : undefined,
+    matchedBookmark: resolved.matchedBookmark,
   }
 }
 
@@ -198,14 +241,96 @@ async function searchTagsByName(
     .filter((row): row is NonNullable<typeof row> => row != null)
 }
 
+async function searchTagsByBookmark(
+  db: ApiDb,
+  query: string,
+  limitOrOptions?: unknown,
+  maybeOptions?: SearchTagsByNameOptions,
+): Promise<GlobalSearchTagResult[]> {
+  const trimmed = String(query || '').trim()
+  if (!trimmed) return []
+
+  const options = normalizeSearchTagsOptions(limitOrOptions, maybeOptions)
+  const sqlLimit = normalizeLimit(options.limit)
+  const metaId = normalizeMetaId(options.metaId)
+  const pattern = `%${escapeLikePattern(trimmed)}%`
+  const metaClause = metaId == null ? '' : 'AND metaId = :metaId'
+  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
+  if (metaId != null) replacements.metaId = metaId
+
+  const rows = await queryAll(db, `${TAG_BOOKMARK_SEARCH_SELECT}
+     FROM tags
+     WHERE bookmark LIKE :pattern ESCAPE '\\'
+     ${metaClause}
+     LIMIT :limit`, replacements)
+
+  return rows
+    .map((row) => enrichTagSearchRow(row, trimmed))
+    .filter((row): row is NonNullable<typeof row> => row != null)
+}
+
+function combineTagMatchSources(
+  a: GlobalSearchTagMatchSource | undefined,
+  b: GlobalSearchTagMatchSource | undefined,
+): GlobalSearchTagMatchSource {
+  if (!a) return b || 'name'
+  if (!b) return a
+  if (a === b) return a
+  return 'both'
+}
+
+function mergeTagSearchRows(
+  primary: GlobalSearchTagResult[],
+  secondary: GlobalSearchTagResult[],
+  limit: unknown,
+): GlobalSearchTagResult[] {
+  const sqlLimit = normalizeLimit(limit)
+  const merged: GlobalSearchTagResult[] = []
+  const byId = new Map<number, GlobalSearchTagResult>()
+
+  for (const row of primary) {
+    if (byId.has(row.id)) continue
+    const next = {...row}
+    byId.set(row.id, next)
+    merged.push(next)
+    if (merged.length >= sqlLimit) return merged
+  }
+
+  for (const row of secondary) {
+    const existing = byId.get(row.id)
+    if (existing) {
+      existing.matchSource = combineTagMatchSources(existing.matchSource, row.matchSource)
+      if (row.matchedSynonyms?.length) {
+        const synonymSet = new Set([
+          ...(existing.matchedSynonyms || []),
+          ...row.matchedSynonyms,
+        ])
+        existing.matchedSynonyms = [...synonymSet]
+      }
+      if (row.matchedBookmark) {
+        existing.matchedBookmark = row.matchedBookmark
+      }
+      continue
+    }
+
+    if (merged.length >= sqlLimit) break
+    const next = {...row}
+    byId.set(row.id, next)
+    merged.push(next)
+  }
+
+  return merged
+}
+
 async function searchMediaByTagIds(
   db: ApiDb,
   tags: Array<{
     id: number
     name?: string | null
     metaId?: number | null
-    matchSource?: 'name' | 'synonym' | 'both'
+    matchSource?: GlobalSearchTagMatchSource
     matchedSynonyms?: string[]
+    matchedBookmark?: string
   }>,
   limit: unknown,
 ) {
@@ -249,6 +374,7 @@ async function searchMediaByTagIds(
           metaId: tag?.metaId == null ? null : Number(tag.metaId),
           matchSource: tag?.matchSource,
           matchedSynonyms: tag?.matchedSynonyms?.length ? [...tag.matchedSynonyms] : undefined,
+          matchedBookmark: tag?.matchedBookmark,
         }
       })
       .filter((tag) => tag != null)
@@ -262,7 +388,17 @@ async function searchMediaByTagIds(
   })
 }
 
-type MediaSearchMatchSource = 'name' | 'tag' | 'both'
+type MediaSearchMatchSource = 'name' | 'tag' | 'bookmark' | 'both'
+
+function combineMediaMatchSources(
+  a: MediaSearchMatchSource | undefined,
+  b: MediaSearchMatchSource | undefined,
+): MediaSearchMatchSource {
+  if (!a) return b || 'name'
+  if (!b) return a
+  if (a === b) return a
+  return 'both'
+}
 
 function mergeMediaSearchRows(
   primary: Array<Record<string, unknown>>,
@@ -302,8 +438,13 @@ function mergeMediaSearchRows(
         tagById.set(Number(tag.id), tag)
       }
       existing.matchedTags = [...tagById.values()]
-      if (existing.matchSource === 'name' && nextTags.length) {
-        existing.matchSource = 'both'
+      existing.matchSource = combineMediaMatchSources(
+        existing.matchSource as MediaSearchMatchSource | undefined,
+        (row.matchSource as MediaSearchMatchSource | undefined)
+          || (nextTags.length ? 'tag' : undefined),
+      )
+      if (typeof row.matchedBookmark === 'string' && row.matchedBookmark) {
+        existing.matchedBookmark = row.matchedBookmark
       }
       continue
     }
@@ -321,23 +462,33 @@ function mergeMediaSearchRows(
 }
 
 async function searchGlobal(db: ApiDb, query: string, limit: unknown) {
-  const [mediaByName, tags] = await Promise.all([
+  const [mediaByName, mediaByBookmark, tagsByName, tagsByBookmark] = await Promise.all([
     searchMediaByName(db, query, limit),
+    searchMediaByBookmark(db, query, limit),
     searchTagsByName(db, query, {limit}),
+    searchTagsByBookmark(db, query, {limit}),
   ])
 
+  const tags = mergeTagSearchRows(tagsByName, tagsByBookmark, limit)
   const mediaByTags = await searchMediaByTagIds(db, tags, limit)
+  const media = mergeMediaSearchRows(
+    mergeMediaSearchRows(mediaByName, mediaByBookmark, limit),
+    mediaByTags,
+    limit,
+  )
 
   return {
-    media: mergeMediaSearchRows(mediaByName, mediaByTags, limit),
+    media,
     tags,
   }
 }
 
 export {
   searchMediaByName,
+  searchMediaByBookmark,
   searchMediaByTagIds,
   searchTagsByName,
+  searchTagsByBookmark,
   searchGlobal,
   MAX_LIMIT,
   DEFAULT_LIMIT,
