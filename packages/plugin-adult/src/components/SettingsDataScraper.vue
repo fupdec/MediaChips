@@ -109,7 +109,9 @@
         >
           <DialogSceneScraperConfig
             v-if="selectedVideoMediaType"
+            :key="`scene-scraper-${selectedVideoMediaType.id}`"
             :media-type-id="selectedVideoMediaType.id"
+            @created="onSceneFieldsCreated"
           />
           <v-icon start>mdi-tune</v-icon>
           {{ t('settings_labels.tools.configure_scene_scraper') }}
@@ -227,12 +229,16 @@
 
       <div class="d-flex flex-wrap ga-2">
         <v-btn
-          :disabled="!selected_meta"
           color="primary"
           rounded
           variant="flat"
         >
-          <DialogScraperConfig v-if="selected_meta" :meta="selected_meta"/>
+          <DialogScraperConfig
+            :key="`performer-scraper-${selected_meta?.id || 'new'}`"
+            :meta="selected_meta || null"
+            :media-type-id="selectedVideoMediaType?.id || null"
+            @created="onPerformerFieldsCreated"
+          />
           <v-icon start>mdi-tune</v-icon>
           {{ t('settings_labels.tools.configure_scraper') }}
         </v-btn>
@@ -359,6 +365,15 @@ async function onPerformerMetaSelected(meta: Meta | null | undefined) {
   selected_meta.value = meta || undefined
   if (!meta) return
   await updateSettings(meta)
+}
+
+async function onPerformerFieldsCreated(meta: Meta) {
+  selected_meta.value = meta
+  await updateSettings(meta)
+}
+
+function onSceneFieldsCreated() {
+  eventBus.emit('getMeta')
 }
 
 function syncSelectedMarkerMeta() {

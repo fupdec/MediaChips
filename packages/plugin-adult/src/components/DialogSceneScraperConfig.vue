@@ -1,9 +1,11 @@
 <template>
   <v-dialog
+    v-model="dialogOpen"
     :fullscreen="xs"
     max-width="800"
     scrollable
     activator="parent"
+    @update:model-value="onDialogToggle"
   >
     <template #default="{ isActive }">
       <v-card>
@@ -23,6 +25,26 @@
           >
             {{ t('scene_scraper.drag_meta_hint') }}
           </v-alert>
+
+          <div
+            v-if="showCreateFieldsButton"
+            class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4"
+          >
+            <div class="text-body-2 text-medium-emphasis">
+              {{ t('settings_labels.tools.create_scene_meta_hint') }}
+            </div>
+            <v-btn
+              :loading="creatingFields"
+              color="primary"
+              rounded
+              size="small"
+              variant="flat"
+              prepend-icon="mdi-auto-fix"
+              @click="confirmCreateFields"
+            >
+              {{ t('settings_labels.tools.create_scene_meta') }}
+            </v-btn>
+          </div>
 
           <v-card-subtitle class="mb-2">{{ t('scraper.pinned_meta') }}</v-card-subtitle>
 
@@ -48,13 +70,23 @@
           </div>
 
           <v-alert
-            v-else
-            type="info"
+            v-else-if="pinnedMetas.length"
+            type="success"
             rounded="xl"
             variant="tonal"
             class="text-caption"
           >
             {{ t('scraper.no_more_meta_added') }}
+          </v-alert>
+
+          <v-alert
+            v-else
+            type="warning"
+            rounded="xl"
+            variant="tonal"
+            class="text-caption"
+          >
+            {{ t('scene_scraper.no_meta_warning') }}
           </v-alert>
 
           <v-divider class="my-4"></v-divider>
@@ -64,7 +96,7 @@
           <div class="d-flex flex-wrap">
             <div
               v-for="(field, index) in scraperFields"
-              :key="index"
+              :key="field.key || index"
               @dragover.prevent="handleDragover(field, $event)"
               @drop.prevent="handleDrop(field, $event)"
               :class="[{
@@ -122,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, ref} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import sortBy from 'lodash/sortBy'
@@ -133,6 +165,8 @@ import {getIconDataType} from '@/services/metaTypeUtils'
 import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
 import {useAppStore} from '@/stores/app'
+import {useEventBus} from '@/utils/eventBus'
+import {ensureSceneScraperMeta} from '../services/ensureSceneScraperMeta'
 import {
   canAssignMetaToScraperField,
   resolveAssignmentMetaId,
@@ -154,24 +188,86 @@ const props = defineProps<{
   mediaTypeId: number
 }>()
 
+const emit = defineEmits<{
+  created: []
+}>()
+
 const appStore = useAppStore()
+const eventBus = useEventBus()
 const {xs} = useDisplay()
 const {t} = useI18n()
 
+const dialogOpen = ref(false)
+const creatingFields = ref(false)
 const pinnedMetas = ref<AssignedMeta[]>([])
 const pinnedMetasFree = ref<AssignedMeta[]>([])
 const dragging = ref<string | null>(null)
 const scraperFields = ref<ScraperField[]>([])
 const draggedMeta = ref<AssignedMeta | null>(null)
 
+const mappedFieldCount = computed(() =>
+  scraperFields.value.filter((field) => Boolean(field.meta)).length,
+)
+
+const showCreateFieldsButton = computed(() =>
+  mappedFieldCount.value < scraperFields.value.length,
+)
+
 const getScraperFieldName = (field: ScraperFieldTemplate) =>
   t(`scene_scraper.fields.${field.key}`, field.name)
 
 const getMetaTypeName = (type: string) => t(`meta.types.${type}`, type)
 
+function translateWithFallback(key: string, fallback?: string) {
+  const translated = t(key)
+  return translated === key && fallback ? fallback : translated
+}
+
+function onDialogToggle(open: boolean) {
+  dialogOpen.value = open
+  if (open) {
+    void updateScraperFields()
+  }
+}
+
 function getAppendIcon(item: AssignedMeta): string | undefined {
   const icon = getIconDataType(resolveAssignmentMetaType(item, appStore.meta || []))
   return icon?.replace(/^mdi-/, '')
+}
+
+async function confirmCreateFields() {
+  const confirmed = window.confirm(t('settings_labels.tools.create_scene_meta_confirm'))
+  if (!confirmed) return
+
+  creatingFields.value = true
+  try {
+    const result = await ensureSceneScraperMeta({
+      mediaTypeId: Number(props.mediaTypeId),
+      t: translateWithFallback,
+    })
+
+    eventBus.emit('getMeta')
+    emit('created')
+    await updateScraperFields()
+
+    setNotification({
+      type: 'success',
+      title: t('settings_labels.tools.create_scene_meta_done'),
+      text: t('settings_labels.tools.create_scene_meta_summary', {
+        created: result.createdFields,
+        mapped: result.mappedFields,
+      }),
+    })
+  } catch (error) {
+    console.error('Failed to create scene scraper meta:', error)
+    setNotification({
+      type: 'error',
+      title: t('settings_labels.tools.create_scene_meta'),
+      text: t('settings_labels.tools.create_scene_meta_failed'),
+    })
+  } finally {
+    creatingFields.value = false
+  }
 }
 
 function handleDragStart(meta: AssignedMeta, event: DragEvent) {
@@ -286,6 +382,13 @@ async function getPinnedMeta() {
     console.error('Error fetching pinned meta for media type:', error)
   }
 }
+
+watch(
+  () => props.mediaTypeId,
+  () => {
+    void updateScraperFields()
+  },
+)
 
 onMounted(() => {
   updateScraperFields()
