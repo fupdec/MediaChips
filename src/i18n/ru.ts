@@ -1550,6 +1550,13 @@ const ru = {
       delete_confirm: 'Удалить файлы из приложения?',
     },
   },
+  folder_browse: {
+    title: 'Папки',
+    hint: 'Откройте папку, чтобы отфильтровать библиотеку',
+    filtering: 'Показано',
+    clear: 'Сбросить',
+    pick_folder: 'Выберите папку…',
+  },
   filters: {
     title: 'Фильтры',
     duplicates: 'Дубликаты',
@@ -1601,6 +1608,8 @@ const ru = {
       less_than_or_equal: 'меньше или равно',
       includes: 'содержит',
       excludes: 'не содержит',
+      under_folder: 'в папке',
+      starts_with: 'начинается с',
       includes_one_of: 'содержит один из',
       includes_all: 'содержит все',
       only: 'только',

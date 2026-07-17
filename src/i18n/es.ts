@@ -1454,6 +1454,13 @@ const es = {
       delete_confirm: '¿Eliminar archivos de la aplicación?',
     },
   },
+  folder_browse: {
+    title: 'Carpetas',
+    hint: 'Abre una carpeta para filtrar la biblioteca',
+    filtering: 'Mostrando',
+    clear: 'Limpiar',
+    pick_folder: 'Seleccionar carpeta…',
+  },
   filters: {
     title: 'Filtros',
     duplicates: 'Duplicados',
@@ -1504,6 +1511,8 @@ const es = {
       less_than_or_equal: 'menor o igual que',
       includes: 'incluye',
       excludes: 'excluye',
+      under_folder: 'en carpeta',
+      starts_with: 'empieza con',
       includes_one_of: 'incluye uno de',
       includes_all: 'incluye todo',
       only: 'solo',

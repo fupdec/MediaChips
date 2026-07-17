@@ -113,6 +113,32 @@ describe('buildMediaFilterQuery', () => {
     expect(result.whereSql).toContain('LOWER(media.name) = LOWER')
   })
 
+  it('supports under folder path prefix matching', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 'path', type: 'string', cond: 'under folder', val: '/media/videos' },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toContain('media.path LIKE')
+    expect(Object.values(result.replacements)).toEqual(
+      expect.arrayContaining(['/media/videos/%', '/media/videos\\%']),
+    )
+  })
+
+  it('supports starts with string matching', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 'path', type: 'string', cond: 'starts with', val: '/media/videos/' },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toContain('LOWER(media.path) LIKE')
+    expect(Object.values(result.replacements)).toContain('/media/videos/%')
+  })
+
   it('builds not in as excludes-one-of anti-join (no listed tags allowed)', () => {
     const result = buildMediaFilterQuery([
       { active: true, param: 17, type: 'array', cond: 'not in', val: [1, 2] },

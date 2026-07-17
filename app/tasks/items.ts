@@ -160,11 +160,22 @@ const filterItems = (
         }
       } else if (type === 'string') {
         const itemText = String(item_val ?? '')
-        const filterText = String(val ?? '')
+        const filterText = Array.isArray(val) ? String(val[0] ?? '') : String(val ?? '')
         if (cond == 'includes' || cond == 'like') {
           is_match = itemText ? itemText.toLowerCase().includes(filterText) : false
         } else if (cond == 'excludes' || cond == 'not like') {
           is_match = itemText ? !itemText.toLowerCase().includes(filterText) : true
+        } else if (cond == 'under folder') {
+          const folder = filterText.replace(/[\\/]+$/, '')
+          if (!folder || !itemText) {
+            is_match = false
+          } else {
+            const lowerItem = itemText.toLowerCase()
+            const lowerFolder = folder.toLowerCase()
+            is_match = lowerItem.startsWith(`${lowerFolder}/`) || lowerItem.startsWith(`${lowerFolder}\\`)
+          }
+        } else if (cond == 'starts with') {
+          is_match = itemText ? itemText.toLowerCase().startsWith(filterText.toLowerCase()) : false
         } else if (cond == 'is null') {
           is_match = !item_val;
         } else if (cond == 'not null') {

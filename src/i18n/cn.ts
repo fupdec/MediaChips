@@ -1454,6 +1454,13 @@ const cn = {
       delete_confirm: '从应用中删除文件？',
     },
   },
+  folder_browse: {
+    title: '文件夹',
+    hint: '打开文件夹以筛选媒体库',
+    filtering: '正在显示',
+    clear: '清除',
+    pick_folder: '选择文件夹…',
+  },
   filters: {
     title: '筛选器',
     duplicates: '重复项',
@@ -1504,6 +1511,8 @@ const cn = {
       less_than_or_equal: '小于或等于',
       includes: '包含',
       excludes: '不包含',
+      under_folder: '在文件夹中',
+      starts_with: '开头是',
       includes_one_of: '包含其中一个',
       includes_all: '包含全部',
       only: '仅',

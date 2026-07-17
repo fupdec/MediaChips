@@ -94,7 +94,30 @@
 
       <div v-if="showsFilterValue" class="filter__body">
         <v-text-field
-          v-if="is_value_required && (filter.type === 'string' || filter.type === null)"
+          v-if="is_value_required && isPathFilter"
+          v-model="filterValue"
+          :disabled="is_locked || !is_value_required"
+          class="ma-1 pt-0"
+          hide-details
+          density="compact"
+          variant="outlined"
+          rounded
+          :placeholder="t('folder_browse.pick_folder')"
+        >
+          <template #append-inner>
+            <v-btn
+              icon="mdi-folder-search-outline"
+              size="x-small"
+              variant="text"
+              :disabled="is_locked"
+              :title="t('media.adding.browse_folders')"
+              @click.stop="openFolderDialog"
+            />
+          </template>
+        </v-text-field>
+
+        <v-text-field
+          v-else-if="is_value_required && (filter.type === 'string' || filter.type === null)"
           v-model="filterValue"
           :disabled="is_locked || !is_value_required"
           class="ma-1 pt-0"
@@ -116,19 +139,20 @@
           variant="outlined"
           rounded
         >
-          <template v-slot:append>
-            <span
-              v-if="parameter === 'filesize'"
-              class="mr-2"
-              style="white-space: nowrap;"
-              v-html="getReadableFileSize(filterValNumber)"
-            ></span>
-            <span
-              v-if="parameter === 'duration'"
-              class="mr-2"
-              style="white-space: nowrap;"
-              v-html="getReadableDuration(filterValNumber)"
-            ></span>
+          <template
+            v-if="numberHintLabel"
+            #append-inner
+          >
+            <v-chip
+              size="small"
+              rounded="pill"
+              variant="tonal"
+              color="primary"
+              label
+              class="filter__hint-chip"
+            >
+              {{ numberHintLabel }}
+            </v-chip>
           </template>
         </v-text-field>
 
@@ -216,6 +240,15 @@
         </div>
       </div>
     </v-card>
+
+    <DialogBrowseFolder
+      v-if="isPathFilter"
+      v-model="folderDialog"
+      :header="t('media.adding.browse_folders')"
+      :confirm-text="t('common.select')"
+      :initial-path="pathDialogInitial"
+      @confirm="onFolderPicked"
+    />
   </v-form>
 </template>
 
@@ -236,7 +269,7 @@ import {
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
 import MetaInputRating from '@/components/meta/input/MetaInputRating.vue'
-
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 // Props
 const props = defineProps({
   filter: {
@@ -269,6 +302,7 @@ const valid = ref(false)
 const active = ref(false)
 const icon = ref('shape')
 const title = ref('')
+const folderDialog = ref(false)
 
 // Stores and composables
 const itemsStore = useItemsStore()
@@ -290,6 +324,19 @@ const filterValArray = computed(() => Array.isArray(modelFilter.value.val) ? mod
 const filterValString = computed(() => modelFilter.value.val == null ? '' : String(modelFilter.value.val))
 const paramAsString = computed(() => String(parameter.value ?? ''))
 const is_value_required = computed(() => !['is null', 'not null'].includes(condition.value ?? ''))
+const isPathFilter = computed(() => parameter.value === 'path')
+const pathDialogInitial = computed(() => {
+  const raw = Array.isArray(modelFilter.value.val)
+    ? String(modelFilter.value.val[0] ?? '')
+    : String(modelFilter.value.val ?? '')
+  return raw.trim().replace(/[\\/]+$/, '')
+})
+const numberHintLabel = computed(() => {
+  if (!Number.isFinite(filterValNumber.value)) return ''
+  if (parameter.value === 'filesize') return getReadableFileSize(filterValNumber.value)
+  if (parameter.value === 'duration') return getReadableDuration(filterValNumber.value)
+  return ''
+})
 
 const showsFilterValue = computed(() => {
   if (!active.value || !is_value_required.value) return false
@@ -336,6 +383,20 @@ const filterValue = computed({
 
 const setCondition = (val: string | null) => {
   emit('setCondition', val)
+}
+
+const openFolderDialog = () => {
+  if (is_locked.value) return
+  folderDialog.value = true
+}
+
+const onFolderPicked = (paths: string[]) => {
+  const folderPath = String(paths[0] || '').trim().replace(/[\\/]+$/, '')
+  if (!folderPath) return
+  emit('setValue', folderPath)
+  if (condition.value !== 'under folder') {
+    emit('setCondition', 'under folder')
+  }
 }
 
 const setValue = (val: unknown) => {

@@ -212,6 +212,8 @@ export function getListCond(type: string | null | undefined): FilterCondition[] 
     return [
       { cond: 'like', icon: 'equal', text: 'includes' },
       { cond: 'not like', icon: 'not-equal-variant', text: 'excludes' },
+      { cond: 'under folder', icon: 'folder-outline', text: 'under folder' },
+      { cond: 'starts with', icon: 'contain-start', text: 'starts with' },
       { cond: 'is null', icon: 'code-brackets', text: 'empty' },
       { cond: 'not null', icon: 'dots-horizontal', text: 'not empty' },
       { cond: 'regex', icon: 'regex', text: 'regex' },

@@ -1550,6 +1550,13 @@ const en = {
       delete_confirm: 'Delete files from app?',
     },
   },
+  folder_browse: {
+    title: 'Folders',
+    hint: 'Open a folder to filter the library',
+    filtering: 'Showing',
+    clear: 'Clear',
+    pick_folder: 'Select a folder…',
+  },
   filters: {
     title: 'Filters',
     duplicates: 'Duplicates',
@@ -1601,6 +1608,8 @@ const en = {
       less_than_or_equal: 'less than or equal',
       includes: 'includes',
       excludes: 'excludes',
+      under_folder: 'under folder',
+      starts_with: 'starts with',
       includes_one_of: 'includes one of',
       includes_all: 'includes all',
       only: 'only',
