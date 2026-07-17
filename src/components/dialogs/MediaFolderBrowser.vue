@@ -1,6 +1,8 @@
 <template>
-  <div class="media-folder-browser">
-    <div
+  <div
+    class="media-folder-browser"
+    :class="{'media-folder-browser--fill': fillHeight}"
+  >    <div
       v-if="places.length"
       class="media-folder-browser__places"
     >
@@ -254,12 +256,15 @@ const props = withDefaults(defineProps<{
   fileExtensions?: string[]
   /** Show row checkboxes and selection toolbar actions. */
   showSelection?: boolean
+  /** Stretch list to fill parent height (side panel). */
+  fillHeight?: boolean
 }>(), {
   places: () => [],
   activePlaceId: null,
   foldersOnly: false,
   fileExtensions: () => [],
   showSelection: true,
+  fillHeight: false,
 })
 
 const emit = defineEmits<{
@@ -516,6 +521,30 @@ watch(
 
 .media-folder-browser__check {
   margin-inline-end: 12px;
+}
+
+.media-folder-browser--fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.media-folder-browser--fill .media-folder-browser__places {
+  flex-shrink: 0;
+}
+
+.media-folder-browser--fill .media-folder-browser__panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.media-folder-browser--fill .media-folder-browser__list {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
 }
 
 .media-folder-browser__list :deep(.v-list-item__prepend > .v-list-item__spacer) {
