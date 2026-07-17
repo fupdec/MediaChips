@@ -11,6 +11,7 @@ export const filterRows = sqliteTable('filterRows', {
   lock: integer('lock', {mode: 'boolean'}),
   union: text('union'),
   metaId: integer('metaId'),
+  order: integer('order').default(0),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 })

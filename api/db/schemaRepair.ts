@@ -88,6 +88,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'tags', column: 'views', definition: 'integer DEFAULT 0'},
   {table: 'tags', column: 'viewedAt', definition: 'text'},
   {table: 'tags', column: 'metaId', definition: 'integer'},
+  {table: 'filterRows', column: 'order', definition: 'integer DEFAULT 0'},
 ]
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {

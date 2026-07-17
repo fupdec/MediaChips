@@ -64,6 +64,13 @@
       "when": 1782778800000,
       "tag": "0008_video_metadata_media_id_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1782782400000,
+      "tag": "0009_filter_rows_order",
+      "breakpoints": true
     }
   ]
 }

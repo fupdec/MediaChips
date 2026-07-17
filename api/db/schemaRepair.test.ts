@@ -98,4 +98,21 @@ describe('schemaRepair', () => {
     ).get() as {sql: string}
     expect(index.sql).toMatch(/UNIQUE/i)
   })
+
+  it('adds missing filterRows.order column for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE filterRows (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        param text,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+    `)
+
+    const repaired = repairSchemaColumns(sqlite)
+
+    expect(repaired).toContain('filterRows.order')
+    const columns = sqlite.pragma('table_info(filterRows)') as Array<{name: string}>
+    expect(columns.some((column) => column.name === 'order')).toBe(true)
+  })
 })

@@ -78,6 +78,8 @@ export const FilterObjectSchema = z.object({
   lock: coercedBooleanSchema,
   removed: coercedBooleanSchema.optional(),
   metaId: z.number().nullable().optional(),
+  order: optionalNullableCoercedNumberSchema,
+  clientKey: z.string().optional(),
 })
 
 export const MediaItemSchema = z.object({

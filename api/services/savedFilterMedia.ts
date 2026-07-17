@@ -107,6 +107,15 @@ async function loadSavedFilterRowsBatch(db: ApiDb, savedFilterIds: SavedFilterId
     filtersBySavedFilterId.get(Number(filterId))?.push(cleaned)
   }
 
+  for (const rows of filtersBySavedFilterId.values()) {
+    rows.sort((a, b) => {
+      const orderA = Number(a.order ?? 0)
+      const orderB = Number(b.order ?? 0)
+      if (orderA !== orderB) return orderA - orderB
+      return Number(a.id ?? 0) - Number(b.id ?? 0)
+    })
+  }
+
   return filtersBySavedFilterId
 }
 

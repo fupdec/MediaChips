@@ -9,6 +9,9 @@ export interface FilterObject {
   lock: boolean
   removed?: boolean
   metaId?: number
+  order?: number | null
+  /** UI-only stable key for drag-and-drop before the row has a DB id. */
+  clientKey?: string
 }
 
 export interface FilterListParam {

@@ -70,7 +70,6 @@
             :color="is_filters_changed ? 'success' : 'primary'"
             rounded="xl"
             variant="flat"
-            size="small"
           >
             <v-icon start size="small">mdi-check</v-icon>
             {{ t('common.apply') }}
@@ -103,23 +102,34 @@
       </div>
 
       <v-card-text v-if="isReady" :disabled="ITEMS.find_duplicates" class="filters-list">
-        <FilterRow
-          v-for="(f, i) in filters"
-          :key="`filter-${i}-${updKey}`"
-          :filter="f"
-          :index="i"
-          :list-by="listBy"
-          @set-by="setBy($event, i)"
-          @set-condition="setCondition($event, i)"
-          @set-value="setValue($event, i)"
-          @set-active="setActive($event, i)"
-          @remove="remove(i)"
-          @pick-date="pickDate(i)"
-          @valid="validate"
-          ref="filterRows"
-        ></FilterRow>
+        <draggable
+          v-if="filters.length > 0"
+          v-model="filters"
+          v-bind="dragOptions"
+          :item-key="dragItemKey"
+          handle=".drag-handle"
+          :disabled="ITEMS.find_duplicates"
+          @end="onReorder"
+          class="filters-draggable"
+        >
+          <template #item="{ element: f, index: i }">
+            <FilterRow
+              :filter="f"
+              :index="i"
+              :list-by="listBy"
+              @set-by="setBy($event, i)"
+              @set-condition="setCondition($event, i)"
+              @set-value="setValue($event, i)"
+              @set-active="setActive($event, i)"
+              @remove="remove(i)"
+              @pick-date="pickDate(i)"
+              @valid="validate"
+              ref="filterRows"
+            ></FilterRow>
+          </template>
+        </draggable>
 
-        <div v-if="filters.length === 0" class="text-center py-6 overline">
+        <div v-else class="text-center py-6 overline">
           <v-img src="/images/filters/filters-none.svg" class="my-4" contain/>
           <div>{{ t('filters.no_filters') }}</div>
         </div>
@@ -189,6 +199,7 @@
 import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import dayjs from 'dayjs'
+import draggable from 'vuedraggable'
 import {cloneFilters, filtersEqual} from '@/utils/filterClone'
 import {typedApi} from '@/services/typedApi'
 import {getSavedFilters} from '@/services/filterService'
@@ -269,6 +280,13 @@ const filtersPreviousState = ref<FilterObject[]>([])
 const removeAllState = ref(true)
 const deactivateAllState = ref(true)
 const formSave = ref<VForm | null>(null)
+
+const dragOptions = {
+  animation: 200,
+  ghostClass: 'filter-ghost',
+}
+
+const dragItemKey = (filter: FilterObject) => String(filter.id ?? filter.clientKey)
 
 // Computed
 const filtersVisible = computed(() => filtersStore.visible)
@@ -374,11 +392,18 @@ const init = () => {
   }
 
   listBy.value = listByArray
-  filters.value = sanitizeFiltersForMediaType(
+  const nextFilters = sanitizeFiltersForMediaType(
     cloneFilters(ITEMS.value.filters),
     ITEMS.value.type,
     currentMediaType.value
   )
+  nextFilters.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+  nextFilters.forEach((filter) => {
+    if (filter.id == null && !filter.clientKey) {
+      filter.clientKey = Math.random().toString(16).slice(2)
+    }
+  })
+  filters.value = nextFilters
   filtersPreviousState.value = cloneFilters(filters.value)
 }
 
@@ -390,9 +415,20 @@ const add = (params: FilterListParam[]) => {
       param: String(i.param),
       type: i.type ?? null,
       cond,
+      order: filters.value.length,
     })
     filters.value.push(filter_obj)
   }
+}
+
+const reindexFilterOrder = () => {
+  filters.value.forEach((filter, index) => {
+    filter.order = index
+  })
+}
+
+const onReorder = () => {
+  reindexFilterOrder()
 }
 
 const setBy = (value: string | number, index: number) => {
@@ -487,15 +523,24 @@ const apply = async () => {
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {
-  const filterRows = cloneFilters(filters.value.filter(i => !i.lock && !i.removed))
-  for (const f of filterRows) {
-    if (isSavedFilter) f.id = null
+  for (let index = 0; index < filters.value.length; index++) {
+    const filter = filters.value[index]
+    if (filter.lock || filter.removed) continue
+
+    const payload = cloneFilters([{...filter, order: index}])[0]
+    if (isSavedFilter) payload.id = null
+
     try {
-      await typedApi.createFilterRow({
-        filter: f,
+      const response = await typedApi.createFilterRow({
+        filter: payload,
         filterId: filterId,
-        rowId: isSavedFilter ? null : f.id
+        rowId: isSavedFilter ? null : payload.id,
       })
+      const created = response.data
+      if (!isSavedFilter && created?.id != null) {
+        filter.id = created.id
+        filter.order = index
+      }
     } catch (error) {
       console.error('Error adding filter row:', error)
     }
@@ -540,7 +585,13 @@ const loadSavedFilter = (loadedFilters: FilterObject[]) => {
   dialogLoad.value = false
   removeAll()
   const old_filters = cloneFilters(filters.value.filter(i => !i.lock))
-  filters.value = [...loadedFilters, ...old_filters]
+  const incoming = loadedFilters.map((filter, index) => getFilterObject({
+    ...filter,
+    id: null,
+    order: index,
+  }))
+  filters.value = [...incoming, ...old_filters]
+  reindexFilterOrder()
   updKey.value += Date.now()
 }
 
@@ -674,6 +725,16 @@ watch(currentMediaType, () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  .filters-draggable {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-ghost {
+    opacity: 0.5;
+  }
 
   .filter-form .filter {
     margin-bottom: 0 !important;

@@ -22,7 +22,7 @@
           <v-btn
             @click="toggleRemoved"
             color="error"
-            class="mr-2 flex-shrink-0"
+            class="mr-0 flex-shrink-0"
             icon
             size="small"
             :title="removed ? t('common.restore') : t('common.remove')"
@@ -36,6 +36,18 @@
               size="20"
               color="grey">mdi-close
             </v-icon>
+          </v-btn>
+
+          <v-btn
+            v-if="!is_locked"
+            class="drag-handle flex-shrink-0"
+            icon
+            size="x-small"
+            variant="text"
+            :title="t('filters.drag_to_reorder')"
+            :disabled="isDisabled"
+          >
+            <v-icon size="18">mdi-drag</v-icon>
           </v-btn>
 
           <div class="d-flex align-center min-width-0 filter__title_content">

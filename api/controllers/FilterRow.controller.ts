@@ -32,7 +32,7 @@ export default function (db: ApiDb) {
         filterObj.val = serializeExtList(val)
       }
 
-      const allowedFields = ['param', 'type', 'cond', 'val', 'active', 'note', 'lock']
+      const allowedFields = ['param', 'type', 'cond', 'val', 'active', 'note', 'lock', 'order']
       const payload: AnyRecord = {}
       for (const key of allowedFields) {
         if (Object.prototype.hasOwnProperty.call(filterObj, key)) {

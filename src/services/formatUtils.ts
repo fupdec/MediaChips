@@ -60,6 +60,8 @@ export function getFilterObject(obj: Partial<FilterObject> = {}): FilterObject {
     note: null,
     active: true,
     lock: false,
+    order: null,
+    clientKey: Math.random().toString(16).slice(2),
     ...obj,
   }
 }
