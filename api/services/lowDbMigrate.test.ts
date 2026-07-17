@@ -215,4 +215,84 @@ describe('migrateFromLowDb', () => {
     const mediaRepo = createMediaRepository(db.drizzle)
     expect(mediaRepo.findAllRaw()).toHaveLength(videoCount)
   })
+
+  it('imports libraries with duplicate media paths by keeping one row', async () => {
+    const dbFolder = path.join(tmpDir, 'db-dup-paths')
+    const backupsFolder = path.join(dbFolder, 'backups')
+    const sqlitePath = path.join(dbFolder, 'db.sqlite')
+    fs.mkdirSync(backupsFolder, { recursive: true })
+    fs.mkdirSync(path.join(dbFolder, 'media'), { recursive: true })
+    fs.mkdirSync(path.join(dbFolder, 'meta'), { recursive: true })
+
+    const backupPath = path.join(backupsFolder, 'legacy-dup.zip')
+    await writeZip(backupPath, {
+      'dbs.json': JSON.stringify({ folders: [] }),
+      'databases/dbv.json': JSON.stringify({
+        videos: [
+          {
+            id: 1,
+            path: '/videos/same.mp4',
+            size: 10,
+            date: '2020-01-01',
+            edit: '2020-01-01',
+            resolution: '100x100',
+            duration: 1,
+          },
+          {
+            id: 2,
+            path: '/videos/same.mp4',
+            size: 20,
+            date: '2020-01-02',
+            edit: '2020-01-02',
+            resolution: '200x200',
+            duration: 2,
+          },
+          {
+            id: 3,
+            path: '/videos/other.mp4',
+            size: 30,
+            date: '2020-01-03',
+            edit: '2020-01-03',
+            resolution: '300x300',
+            duration: 3,
+          },
+        ],
+      }),
+      'databases/dbpl.json': JSON.stringify({
+        playlists: [{
+          id: 'pl1',
+          name: 'Favorites',
+          videos: [1, 2, 3],
+          date: '2020-01-01',
+          edit: '2020-01-01',
+        }],
+      }),
+      'databases/dbm.json': JSON.stringify({
+        markers: [{
+          type: 'bookmark',
+          time: 1,
+          videoId: 2,
+          name: 'From duplicate id',
+        }],
+      }),
+      'databases/meta.json': JSON.stringify({ meta: [], cards: [] }),
+    })
+
+    const db = createApiDb({
+      drizzleConnection: createDrizzleClient(sqlitePath),
+      path: dbFolder,
+    })
+    closeActiveConnection()
+
+    const controller = createTasksMigrateFromLowDbController(db)
+    await expect(controller.migrateFromLowDb(backupPath)).resolves.toBeTypeOf('string')
+
+    const mediaRepo = createMediaRepository(db.drizzle)
+    const media = mediaRepo.findAllRaw()
+    expect(media).toHaveLength(2)
+    expect(media.map((row) => row.path).sort()).toEqual([
+      '/videos/other.mp4',
+      '/videos/same.mp4',
+    ])
+  })
 })

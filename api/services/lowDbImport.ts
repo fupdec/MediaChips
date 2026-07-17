@@ -23,16 +23,106 @@ import { createWatchedFoldersRepository } from '../db/repositories/watchedFolder
 import { createMediaTypesInWatchedFoldersRepository } from '../db/repositories/mediaTypesInWatchedFolders'
 import { loadDefaultSettingsList } from '../utils/defaultSettings'
 
-function sameOldId(a: unknown, b: unknown): boolean {
-  const normalize = (value: unknown): string => {
-    if (value == null || value === '') return ''
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return Number.isInteger(value) ? String(value) : String(value)
-    }
-    const raw = String(value)
-    return /^\d+\.0+$/.test(raw) ? String(Number.parseInt(raw, 10)) : raw
+function normalizeLegacyId(value: unknown): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Number.isInteger(value) ? String(value) : String(value)
   }
-  return normalize(a) === normalize(b)
+  const raw = String(value)
+  return /^\d+\.0+$/.test(raw) ? String(Number.parseInt(raw, 10)) : raw
+}
+
+function sameOldId(a: unknown, b: unknown): boolean {
+  return normalizeLegacyId(a) === normalizeLegacyId(b)
+}
+
+function normalizeMediaPath(pathValue: unknown): string {
+  return String(pathValue ?? '').trim()
+}
+
+/**
+ * Legacy LowDB libraries sometimes contain duplicate paths (and blank paths).
+ * SQLite media.path is unique, so keep one row per path and alias other oldIds
+ * onto the kept row so playlists/marks/meta still resolve.
+ */
+export function dedupeLegacyVideosByPath(videos: AnyRecord[]): {
+  videos: AnyRecord[]
+  oldIdAliases: Map<string, string>
+} {
+  const videosByPath = new Map<string, AnyRecord>()
+  const oldIdAliases = new Map<string, string>()
+  const blankPathVideos: AnyRecord[] = []
+
+  for (const video of videos) {
+    const pathKey = normalizeMediaPath(video.path)
+    const oldId = normalizeLegacyId(video.oldId)
+    if (!pathKey) {
+      blankPathVideos.push(video)
+      continue
+    }
+
+    const existing = videosByPath.get(pathKey)
+    if (!existing) {
+      videosByPath.set(pathKey, video)
+      continue
+    }
+
+    const keptOldId = normalizeLegacyId(existing.oldId)
+    if (oldId && keptOldId && oldId !== keptOldId) {
+      oldIdAliases.set(oldId, keptOldId)
+    }
+  }
+
+  // Blank paths would all collide on '' — keep one and alias the rest.
+  if (blankPathVideos.length) {
+    const [kept, ...duplicates] = blankPathVideos
+    const keptOldId = normalizeLegacyId(kept.oldId)
+    for (const duplicate of duplicates) {
+      const oldId = normalizeLegacyId(duplicate.oldId)
+      if (oldId && keptOldId && oldId !== keptOldId) {
+        oldIdAliases.set(oldId, keptOldId)
+      }
+    }
+    return {
+      videos: [...videosByPath.values(), kept],
+      oldIdAliases,
+    }
+  }
+
+  return {
+    videos: [...videosByPath.values()],
+    oldIdAliases,
+  }
+}
+
+function expandMediaIdMappings(
+  mediaIds: OldIdMapping[],
+  oldIdAliases: Map<string, string>,
+): OldIdMapping[] {
+  if (!oldIdAliases.size) return mediaIds
+
+  const byOldId = new Map(
+    mediaIds
+      .filter((row) => row.oldId != null && row.oldId !== '')
+      .map((row) => [normalizeLegacyId(row.oldId), row]),
+  )
+
+  const expanded = [...mediaIds]
+  for (const [aliasOldId, canonicalOldId] of oldIdAliases) {
+    if (byOldId.has(aliasOldId)) continue
+    const canonical = byOldId.get(normalizeLegacyId(canonicalOldId))
+    if (!canonical) continue
+    expanded.push({id: canonical.id, oldId: aliasOldId})
+  }
+  return expanded
+}
+
+function dedupeByMediaId<T extends {mediaId: number}>(rows: T[]): T[] {
+  const byMediaId = new Map<number, T>()
+  for (const row of rows) {
+    if (!byMediaId.has(row.mediaId)) byMediaId.set(row.mediaId, row)
+  }
+  return [...byMediaId.values()]
 }
 
 async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
@@ -53,21 +143,33 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
   const watchedFoldersRepo = createWatchedFoldersRepository(db.drizzle)
   const mediaTypesInWatchedFoldersRepo = createMediaTypesInWatchedFoldersRepository(db.drizzle)
 
-  mediaRepo.bulkCreate(obj.videos)
-  const mediaIds: OldIdMapping[] = mediaRepo.findOldIdMappings()
+  const {videos, oldIdAliases} = dedupeLegacyVideosByPath(obj.videos)
+  if (oldIdAliases.size) {
+    console.warn(
+      `LowDB import: skipped ${oldIdAliases.size} duplicate media path(s); aliasing old IDs onto kept rows.`,
+    )
+  }
 
-  const videoMetadata = obj.videoMetadata
-    .map((video: AnyRecord) => {
-      const media = mediaIds.find((x) => sameOldId(x.oldId, video.oldId))
-      if (!media) return null
-      return {
-        mediaId: media.id,
-        duration: video.duration,
-        width: video.width,
-        height: video.height,
-      }
-    })
-    .filter(Boolean)
+  mediaRepo.bulkCreate(videos)
+  const mediaIds: OldIdMapping[] = expandMediaIdMappings(
+    mediaRepo.findOldIdMappings(),
+    oldIdAliases,
+  )
+
+  const videoMetadata = dedupeByMediaId(
+    obj.videoMetadata
+      .map((video: AnyRecord) => {
+        const media = mediaIds.find((x) => sameOldId(x.oldId, video.oldId))
+        if (!media) return null
+        return {
+          mediaId: media.id,
+          duration: video.duration,
+          width: video.width,
+          height: video.height,
+        }
+      })
+      .filter(Boolean) as Array<{mediaId: number; duration: unknown; width: unknown; height: unknown}>,
+  )
 
   videoMetadataRepo.bulkCreate(videoMetadata as Parameters<typeof videoMetadataRepo.bulkCreate>[0])
 
@@ -132,9 +234,11 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
     if (!p) continue
 
     const playlistVideos = Array.isArray(playlist.videos) ? playlist.videos : []
+    const seenMediaIds = new Set<number>()
     for (const videoOldId of playlistVideos) {
       const media = mediaIds.find((x) => sameOldId(x.oldId, videoOldId))
-      if (!media) continue
+      if (!media || seenMediaIds.has(Number(media.id))) continue
+      seenMediaIds.add(Number(media.id))
 
       mediaInPlaylistsRepo.create({
         playlistId: p.id,
@@ -197,7 +301,15 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
   }
 
   if (tagsInMedia.length) tagsInMediaRepo.bulkCreate(tagsInMedia as Parameters<typeof tagsInMediaRepo.bulkCreate>[0])
-  if (valuesInMedia.length) valuesInMediaRepo.bulkCreate(valuesInMedia as Parameters<typeof valuesInMediaRepo.bulkCreate>[0])
+  if (valuesInMedia.length) {
+    const uniqueValues = new Map<string, AnyRecord>()
+    for (const row of valuesInMedia) {
+      uniqueValues.set(`${row.mediaId}:${row.metaId}`, row)
+    }
+    valuesInMediaRepo.bulkCreate(
+      [...uniqueValues.values()] as Parameters<typeof valuesInMediaRepo.bulkCreate>[0],
+    )
+  }
 
   const pinnedMeta: AnyRecord[] = []
   for (const c of obj.pinnedMeta) {
