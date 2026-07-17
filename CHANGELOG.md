@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-17
+
+### Added
+
+- **Global search** — match media and tags via assigned tags, synonyms, and bookmark notes; server-side tag autocomplete for faster filters
+- **Play clips by tag** — compile matching marker segments into a playable playlist from a tag page
+- **In-app folder browser** — browse and pick folders when adding media; reuse across pickers with optional Electron native dialogs; fill side-panel height
+- **Folder path filters** — browse library paths from filters and match media under a selected folder
+- **Filter row reorder** — persistent drag-and-drop ordering for filter rows
+- **Tag category field form preview** — live preview while editing meta field settings (renamed from “Tags”)
+- **NAS Docker packaging** — container image and browser mount UX for network storage setups
+- **Busy port prompt** — ask for an alternate listen port when Electron finds the default port in use
+- **ThePornDB API key** — store the key in global app config (`config.json`) so it applies across all libraries
+
+### Changed
+
+- **Home favorites** — show favorite media in random order
+- **Home library health** — faster health check
+- **Infinite scroll** — correct title counts and raise the DOM window to 500 items
+- **Electron scrolling / home widgets** — smoother scroll behavior and more stable widget layout
+- **Localized filter dates** — show filter dates in the active locale and translate the date picker title
+- **Video edit dialog** — clearer thumbnail action layout/labels; auto-refresh file info while editing
+- **App bar tab arrows** — match scroll arrow backgrounds to the app bar color
+- **Database settings** — remove the manual database size calculate button
+
+### Fixed
+
+- **TypeScript** — production `vue-tsc` build errors (config port, global search unions, meta preview hints, tag ids)
+- **Scraper posters** — warn when poster downloads fail; stop scraped video posters from reverting to the original thumb; fix performer auto-scrape country, synonyms, and poster selection
+- **Scene scrape cards** — refresh media card tags after applying a scene
+- **Hover previews** — fix gray pillarboxes on vertical videos; disable card thumbnail zoom when video preview is enabled; fix big-preview context menus and watched-progress / playhead UI
+- **Edit dialog** — more reliable file existence checks
+- **Tag autocomplete** — prevent blur from clearing already selected chips
+- **Context menus** — sibling submenus no longer stay open on hover
+- **Windows system bar** — center the title and keep window controls non-draggable
+
 ## [1.1.2] - 2026-07-15
 
 ### Fixed

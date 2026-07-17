@@ -46,7 +46,7 @@ Pre-built images (after a release/CI push):
 
 ```text
 ghcr.io/fupdec/mediachips:latest
-ghcr.io/fupdec/mediachips:1.1.2
+ghcr.io/fupdec/mediachips:1.2.0
 ```
 
 Image architectures: `linux/amd64`, `linux/arm64`.
