@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3'
 import type { DrizzleClient } from '../client'
 import { tags } from '../schema/tags'
 import { nowIso } from '../utils/timestamps'
+import { mapChunks } from '../utils/chunk'
 
 export type TagRow = typeof tags.$inferSelect
 export type TagInsert = typeof tags.$inferInsert
@@ -74,23 +75,25 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
       if (!items.length) return []
 
       const timestamp = nowIso()
-      const values = items.map((item) => ({
-        oldId: item.oldId == null ? null : String(item.oldId),
-        name: item.name ?? '',
-        synonyms: item.synonyms ?? null,
-        rating: item.rating ?? 0,
-        favorite: item.favorite ?? false,
-        bookmark: item.bookmark ?? null,
-        country: item.country ?? null,
-        color: item.color ?? null,
-        views: item.views ?? 0,
-        viewedAt: item.viewedAt ?? null,
-        metaId: item.metaId ?? null,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      }))
+      return mapChunks(items, (chunk) => {
+        const values = chunk.map((item) => ({
+          oldId: item.oldId == null ? null : String(item.oldId),
+          name: item.name ?? '',
+          synonyms: item.synonyms ?? null,
+          rating: item.rating ?? 0,
+          favorite: item.favorite ?? false,
+          bookmark: item.bookmark ?? null,
+          country: item.country ?? null,
+          color: item.color ?? null,
+          views: item.views ?? 0,
+          viewedAt: item.viewedAt ?? null,
+          metaId: item.metaId ?? null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }))
 
-      return db.insert(tags).values(values).returning().all()
+        return db.insert(tags).values(values).returning().all()
+      })
     },
 
     findAllRaw(): TagRow[] {

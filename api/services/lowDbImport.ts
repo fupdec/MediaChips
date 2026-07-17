@@ -176,7 +176,8 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
       const val = onlyMetaFields[fieldName]
       if (m.type === 'array') {
-        for (const tag of val as Array<string | number>) {
+        const tagOldIds = Array.isArray(val) ? val : []
+        for (const tag of tagOldIds) {
           const metaTag = tagsIds.find((x) => sameOldId(x.oldId, tag))
           if (!metaTag) continue
           tagsInMedia.push({

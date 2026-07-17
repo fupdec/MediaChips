@@ -152,4 +152,67 @@ describe('migrateFromLowDb', () => {
     const mediaRepo = createMediaRepository(db.drizzle)
     expect(mediaRepo.findAllRaw()).toHaveLength(1)
   })
+
+  it('imports large legacy libraries without stack overflow on bulk insert', async () => {
+    const dbFolder = path.join(tmpDir, 'db-large')
+    const backupsFolder = path.join(dbFolder, 'backups')
+    const sqlitePath = path.join(dbFolder, 'db.sqlite')
+    fs.mkdirSync(backupsFolder, { recursive: true })
+    fs.mkdirSync(path.join(dbFolder, 'media'), { recursive: true })
+    fs.mkdirSync(path.join(dbFolder, 'meta'), { recursive: true })
+
+    const videoCount = 3500
+    const videos = Array.from({ length: videoCount }, (_, index) => ({
+      id: index + 1,
+      path: `/videos/clip-${index + 1}.mp4`,
+      size: 1024 + index,
+      date: '2020-01-02',
+      edit: '2020-01-03',
+      resolution: '1280x720',
+      duration: 12,
+      rating: index % 6,
+    }))
+    const tags = Array.from({ length: 2500 }, (_, index) => ({
+      id: `tag-${index + 1}`,
+      name: `Tag ${index + 1}`,
+    }))
+
+    const backupPath = path.join(backupsFolder, 'legacy-large.zip')
+    await writeZip(backupPath, {
+      'dbs.json': JSON.stringify({
+        folders: [],
+        metaAssignedToVideos: [{ id: 'genre' }],
+      }),
+      'databases/dbv.json': JSON.stringify({ videos }),
+      'databases/dbpl.json': JSON.stringify({ playlists: [] }),
+      'databases/dbm.json': JSON.stringify({ markers: [] }),
+      'databases/meta.json': JSON.stringify({
+        meta: [{
+          id: 'genre',
+          type: 'simple',
+          dataType: 'array',
+          date: '2020-01-01',
+          edit: '2020-01-01',
+          settings: {
+            name: 'Genre',
+            icon: 'tag',
+            items: tags,
+          },
+        }],
+        cards: [],
+      }),
+    })
+
+    const db = createApiDb({
+      drizzleConnection: createDrizzleClient(sqlitePath),
+      path: dbFolder,
+    })
+    closeActiveConnection()
+
+    const controller = createTasksMigrateFromLowDbController(db)
+    await expect(controller.migrateFromLowDb(backupPath)).resolves.toBeTypeOf('string')
+
+    const mediaRepo = createMediaRepository(db.drizzle)
+    expect(mediaRepo.findAllRaw()).toHaveLength(videoCount)
+  })
 })

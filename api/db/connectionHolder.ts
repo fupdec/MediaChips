@@ -6,9 +6,9 @@ let activeConnection: DrizzleConnection | null = null
 
 function bindProxyTarget<T extends object>(getTarget: () => T): T {
   return new Proxy({} as T, {
-    get(_target, prop, receiver) {
+    get(_target, prop) {
       const target = getTarget()
-      const value = Reflect.get(target, prop, receiver)
+      const value = Reflect.get(target, prop, target)
       if (typeof value === 'function') {
         return (...args: unknown[]) => value.apply(target, args)
       }

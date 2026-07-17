@@ -2,6 +2,7 @@ import { asc, eq } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { playlists } from '../schema/playlists'
 import { nowIso } from '../utils/timestamps'
+import { forEachChunk } from '../utils/chunk'
 
 export type PlaylistRow = typeof playlists.$inferSelect
 export type PlaylistInsert = typeof playlists.$inferInsert
@@ -26,15 +27,17 @@ export function createPlaylistsRepository(db: DrizzleClient) {
       if (!items.length) return
 
       const timestamp = nowIso()
-      db.insert(playlists)
-        .values(items.map((item) => ({
-          name: item.name ?? null,
-          favorite: item.favorite ?? false,
-          oldId: item.oldId == null ? null : String(item.oldId),
-          createdAt: item.createdAt ?? timestamp,
-          updatedAt: item.updatedAt ?? timestamp,
-        })))
-        .run()
+      forEachChunk(items, (chunk) => {
+        db.insert(playlists)
+          .values(chunk.map((item) => ({
+            name: item.name ?? null,
+            favorite: item.favorite ?? false,
+            oldId: item.oldId == null ? null : String(item.oldId),
+            createdAt: item.createdAt ?? timestamp,
+            updatedAt: item.updatedAt ?? timestamp,
+          })))
+          .run()
+      })
     },
 
     findByOldId(oldId: unknown): PlaylistRow | undefined {

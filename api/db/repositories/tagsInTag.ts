@@ -3,6 +3,7 @@ import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { tags } from '../schema/tags'
 import { tagsInTags } from '../schema/tagsInTag'
+import { mapChunks } from '../utils/chunk'
 
 type TagSummary = Pick<typeof tags.$inferSelect, 'name' | 'color' | 'metaId'>
 type MetaSummary = Pick<typeof meta.$inferSelect, 'name' | 'icon'>
@@ -11,7 +12,9 @@ export function createTagsInTagRepository(db: DrizzleClient) {
   return {
     bulkCreate(items: Array<typeof tagsInTags.$inferInsert>) {
       if (!items.length) return []
-      return db.insert(tagsInTags).values(items).returning().all()
+      return mapChunks(items, (chunk) => (
+        db.insert(tagsInTags).values(chunk).returning().all()
+      ))
     },
 
     findOrCreate(data: typeof tagsInTags.$inferInsert) {

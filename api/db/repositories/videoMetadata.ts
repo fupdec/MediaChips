@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { videoMetadata } from '../schema/videoMetadata'
+import { forEachChunk } from '../utils/chunk'
 
 export type VideoMetadataRow = typeof videoMetadata.$inferSelect
 export type VideoMetadataInsert = typeof videoMetadata.$inferInsert
@@ -17,7 +18,9 @@ export function createVideoMetadataRepository(db: DrizzleClient) {
 
     bulkCreate(items: VideoMetadataInsert[]): void {
       if (!items.length) return
-      db.insert(videoMetadata).values(items).run()
+      forEachChunk(items, (chunk) => {
+        db.insert(videoMetadata).values(chunk).run()
+      })
     },
 
     updateByMediaId(mediaId: number, data: Partial<VideoMetadataInsert>): void {

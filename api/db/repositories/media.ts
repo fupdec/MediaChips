@@ -3,6 +3,7 @@ import type { DrizzleClient } from '../client'
 import { media } from '../schema/media'
 import { tagsInMedia } from '../schema/tagsInMedia'
 import { nowIso } from '../utils/timestamps'
+import { forEachChunk } from '../utils/chunk'
 import { queryGet } from '../utils/rawQuery'
 import type { ApiDb } from '../../types/db'
 import { buildFolderPathLikePatterns } from '../../utils/watcherFolderPaths'
@@ -250,24 +251,26 @@ export function createMediaRepository(db: DrizzleClient) {
       if (!items.length) return
 
       const timestamp = nowIso()
-      db.insert(media)
-        .values(items.map((item) => ({
-          path: item.path ?? '',
-          basename: item.basename ?? null,
-          name: item.name ?? null,
-          ext: item.ext ?? null,
-          filesize: item.filesize ?? 0,
-          contentHash: item.contentHash ?? null,
-          rating: item.rating ?? 0,
-          favorite: item.favorite ?? false,
-          bookmark: item.bookmark ?? null,
-          views: item.views ?? 0,
-          oldId: item.oldId == null ? null : String(item.oldId),
-          mediaTypeId: item.mediaTypeId == null ? null : Number(item.mediaTypeId),
-          createdAt: item.createdAt ?? timestamp,
-          updatedAt: item.updatedAt ?? timestamp,
-        })))
-        .run()
+      forEachChunk(items, (chunk) => {
+        db.insert(media)
+          .values(chunk.map((item) => ({
+            path: item.path ?? '',
+            basename: item.basename ?? null,
+            name: item.name ?? null,
+            ext: item.ext ?? null,
+            filesize: item.filesize ?? 0,
+            contentHash: item.contentHash ?? null,
+            rating: item.rating ?? 0,
+            favorite: item.favorite ?? false,
+            bookmark: item.bookmark ?? null,
+            views: item.views ?? 0,
+            oldId: item.oldId == null ? null : String(item.oldId),
+            mediaTypeId: item.mediaTypeId == null ? null : Number(item.mediaTypeId),
+            createdAt: item.createdAt ?? timestamp,
+            updatedAt: item.updatedAt ?? timestamp,
+          })))
+          .run()
+      })
     },
 
     findOldIdMappings(): Array<{id: number; oldId: string | null}> {

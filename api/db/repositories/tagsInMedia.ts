@@ -5,6 +5,7 @@ import { meta } from '../schema/meta'
 import { tags } from '../schema/tags'
 import { tagsInMedia } from '../schema/tagsInMedia'
 import { nowIso } from '../utils/timestamps'
+import { mapChunks } from '../utils/chunk'
 
 type TagSummary = Pick<typeof tags.$inferSelect, 'name' | 'color' | 'metaId'>
 type MetaSummary = Pick<typeof meta.$inferSelect, 'name' | 'icon'>
@@ -29,7 +30,9 @@ export function createTagsInMediaRepository(db: DrizzleClient) {
   return {
     bulkCreate(items: Array<typeof tagsInMedia.$inferInsert>) {
       if (!items.length) return []
-      const inserted = db.insert(tagsInMedia).values(items).onConflictDoNothing().returning().all()
+      const inserted = mapChunks(items, (chunk) => (
+        db.insert(tagsInMedia).values(chunk).onConflictDoNothing().returning().all()
+      ))
       touchMediaUpdatedAt(db, inserted.map((row) => row.mediaId))
       return inserted
     },

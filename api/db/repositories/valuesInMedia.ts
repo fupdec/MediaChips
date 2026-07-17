@@ -3,6 +3,7 @@ import { serializeMetaValueForStorage } from '../../../shared/schemas/coercion'
 import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { valuesInMedia } from '../schema/valuesInMedia'
+import { mapChunks } from '../utils/chunk'
 
 function normalizeStoredMetaValue(value: unknown): string | null {
   return serializeMetaValueForStorage(value)
@@ -18,7 +19,9 @@ export function createValuesInMediaRepository(db: DrizzleClient) {
         value: normalizeStoredMetaValue(item.value),
       }))
 
-      return db.insert(valuesInMedia).values(normalizedItems).returning().all()
+      return mapChunks(normalizedItems, (chunk) => (
+        db.insert(valuesInMedia).values(chunk).returning().all()
+      ))
     },
 
     findAllByMediaId(mediaId: number) {

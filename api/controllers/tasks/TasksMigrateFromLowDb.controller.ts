@@ -123,12 +123,12 @@ export default function (db: ApiDb) {
           } catch (err) {
             console.error(err)
             res.status(400).send({message: apiErrorMessage(err)})
+            return
           }
         }
       }
 
-      await rmrf(pathUserData)
-
+      // Keep legacy userfiles until migrateFromLowDb succeeds so a failed restore can be retried.
       res.status(201).send(backupName)
     });
     archive.on("error", (err: unknown) => {
@@ -388,7 +388,7 @@ export default function (db: ApiDb) {
                 rating: meta.rating || 0,
                 favorite: meta.favorite || false,
                 bookmark: meta.bookmark || null,
-                country: serializeCountries(meta.country as string[] | null | undefined),
+                country: serializeCountries(meta.country as string | string[] | null | undefined),
                 color: meta.color || null,
                 views: i.views || 0,
                 createdAt: asLegacyIsoTimestamp(i.date),
@@ -532,6 +532,12 @@ export default function (db: ApiDb) {
 
       await rmrf(tempPath)
       console.log('Removing temp data...');
+
+      if (fs.existsSync(pathUserData)) {
+        await rmrf(pathUserData)
+        console.log('\x1b[36m%s\x1b[0m', 'Old LowDB userfiles cleared after successful import.', 'color: #bada55');
+      }
+
       console.log('\x1b[36m%s\x1b[0m', 'All data has been successfully imported.', 'color: #bada55');
 
       return "All data has been successfully imported."

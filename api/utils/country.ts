@@ -49,9 +49,14 @@ function parseCountries(stored: string | null | undefined): string[] {
   return result.filter(Boolean)
 }
 
-function serializeCountries(countries: string[] | null | undefined): string | null {
-  if (!countries || !countries.length) return null
-  return countries.join(COUNTRY_DELIMITER)
+function serializeCountries(countries: string | string[] | null | undefined): string | null {
+  if (countries == null) return null
+  if (typeof countries === 'string') {
+    const trimmed = countries.trim()
+    return trimmed || null
+  }
+  if (!Array.isArray(countries) || !countries.length) return null
+  return countries.map(String).filter(Boolean).join(COUNTRY_DELIMITER)
 }
 
 function getCountryCode(name: string): string {

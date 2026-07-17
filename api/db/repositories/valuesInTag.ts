@@ -3,6 +3,7 @@ import { serializeMetaValueForStorage } from '../../../shared/schemas/coercion'
 import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { valuesInTags } from '../schema/valuesInTag'
+import { mapChunks } from '../utils/chunk'
 
 function normalizeStoredMetaValue(value: unknown): string | null {
   return serializeMetaValueForStorage(value)
@@ -18,7 +19,9 @@ export function createValuesInTagRepository(db: DrizzleClient) {
         value: normalizeStoredMetaValue(item.value),
       }))
 
-      return db.insert(valuesInTags).values(normalizedItems).returning().all()
+      return mapChunks(normalizedItems, (chunk) => (
+        db.insert(valuesInTags).values(chunk).returning().all()
+      ))
     },
 
     findAllByTagId(tagId: number) {

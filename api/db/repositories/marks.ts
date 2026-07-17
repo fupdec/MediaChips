@@ -4,6 +4,7 @@ import { marks } from '../schema/marks'
 import { media } from '../schema/media'
 import { meta } from '../schema/meta'
 import { tags } from '../schema/tags'
+import { forEachChunk } from '../utils/chunk'
 
 export type MarkRow = typeof marks.$inferSelect
 export type MarkInsert = typeof marks.$inferInsert
@@ -27,16 +28,18 @@ export function createMarksRepository(db: DrizzleClient) {
     bulkCreate(items: Array<Partial<MarkInsert>>): void {
       if (!items.length) return
 
-      db.insert(marks)
-        .values(items.map((item) => ({
-          type: item.type ?? null,
-          text: item.text ?? null,
-          time: item.time ?? null,
-          end: item.end ?? null,
-          tagId: item.tagId ?? null,
-          mediaId: item.mediaId ?? null,
-        })))
-        .run()
+      forEachChunk(items, (chunk) => {
+        db.insert(marks)
+          .values(chunk.map((item) => ({
+            type: item.type ?? null,
+            text: item.text ?? null,
+            time: item.time ?? null,
+            end: item.end ?? null,
+            tagId: item.tagId ?? null,
+            mediaId: item.mediaId ?? null,
+          })))
+          .run()
+      })
     },
 
     findIdsByMediaId(mediaId: unknown): Array<{id: number}> {

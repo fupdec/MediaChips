@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { pinnedMetas } from '../schema/pinnedMeta'
+import { forEachChunk } from '../utils/chunk'
 
 export type PinnedMetaRow = typeof pinnedMetas.$inferSelect
 export type MetaRow = typeof meta.$inferSelect
@@ -59,15 +60,17 @@ export function createPinnedMetaRepository(db: DrizzleClient) {
     }>): void {
       if (!items.length) return
 
-      db.insert(pinnedMetas)
-        .values(items.map((item) => ({
-          metaId: item.metaId,
-          pinnedMetaId: item.pinnedMetaId,
-          scraper: item.scraper ?? null,
-          show: item.show ?? true,
-          order: item.order ?? null,
-        })))
-        .run()
+      forEachChunk(items, (chunk) => {
+        db.insert(pinnedMetas)
+          .values(chunk.map((item) => ({
+            metaId: item.metaId,
+            pinnedMetaId: item.pinnedMetaId,
+            scraper: item.scraper ?? null,
+            show: item.show ?? true,
+            order: item.order ?? null,
+          })))
+          .run()
+      })
     },
 
     findAll(filters: {metaId?: number; pinnedMetaId?: number} = {}): PinnedMetaWithMeta[] {
