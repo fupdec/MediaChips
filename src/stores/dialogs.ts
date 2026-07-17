@@ -34,6 +34,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     mediaEditing: { show: false, media: null as MediaItem | null, mediaType: {} as Partial<MediaType> },
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     tagMerge: { show: false, tags: [] as Tag[], meta: null as Meta | null },
+    tagCategoryMerge: { show: false, categories: [] as Meta[] },
     bulkEditingItems: false,
     markAdding: {
       show: false,
@@ -86,6 +87,14 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.tagMerge.show = false
       this.tagMerge.tags = []
       this.tagMerge.meta = null
+    },
+    openTagCategoryMerge(categories: Meta[]) {
+      this.tagCategoryMerge.categories = categories
+      this.tagCategoryMerge.show = true
+    },
+    closeTagCategoryMerge() {
+      this.tagCategoryMerge.show = false
+      this.tagCategoryMerge.categories = []
     },
     editTab(tab: Tab) {
       this.tabEditing.tab = tab

@@ -58,29 +58,47 @@
       {{ t('meta.dialogs.meta_missing_add_first') }}
     </div>
 
-    <v-card
-      v-for="(group, param) in filteredMeta"
-      :key="`key_${metaKey}_param_${param}`"
-      class="meta-group pa-2 mb-3 mt-3 rounded-xl"
-      variant="flat"
-    >
-      <div class="meta-group__label d-flex align-center text-subtitle-2 text-medium-emphasis ps-2 mb-1">
-        <v-icon color="grey" start>{{ getIconDataType(param) }}</v-icon>
-        <span>{{ formatDataType(param) }}</span>
+    <template v-else-if="!isSearchEmpty">
+      <div class="meta-fields__caption text-caption text-medium-emphasis mt-3 mb-1">
+        {{ t('meta.dialogs.fields_section_label') }}
       </div>
 
-      <v-chip-group column>
-        <v-chip
-          v-for="m in group"
-          :key="`key_${metaKey}__id_${m.id}`"
-          @click="openEditDialog(m)"
-          class="ma-1"
-        >
-          <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
-          <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
-        </v-chip>
-      </v-chip-group>
-    </v-card>
+      <v-card
+        v-for="(group, param) in filteredMeta"
+        :key="`key_${metaKey}_param_${param}`"
+        class="meta-group pa-2 mb-3 mt-3 rounded-xl"
+        variant="flat"
+      >
+        <div class="meta-group__label d-flex align-center text-subtitle-2 text-medium-emphasis ps-2 mb-1">
+          <v-icon color="grey" start>{{ getIconDataType(param) }}</v-icon>
+          <span>{{ formatDataType(param) }}</span>
+          <v-spacer />
+          <v-btn
+            v-if="param === 'array' && tagCategories.length >= 2"
+            size="small"
+            variant="tonal"
+            color="primary"
+            class="text-none"
+            rounded="xl"
+            prepend-icon="mdi-set-merge"
+            :text="t('meta.dialogs.merge_categories_title')"
+            @click="openCategoryMerge"
+          />
+        </div>
+
+        <v-chip-group column>
+          <v-chip
+            v-for="m in group"
+            :key="`key_${metaKey}__id_${m.id}`"
+            @click="openEditDialog(m)"
+            class="ma-1"
+          >
+            <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
+            <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
+          </v-chip>
+        </v-chip-group>
+      </v-card>
+    </template>
 
     <div v-if="meta.length && isSearchEmpty" class="meta-empty text-medium-emphasis mt-4">
       <v-img src="/images/filters/filters-no-results-meta.svg" max-height="120" class="mb-2" contain></v-img>
@@ -98,9 +116,10 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
+import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {typedApi} from '@/services/typedApi'
 import isEmpty from 'lodash/isEmpty'
@@ -113,6 +132,7 @@ import {setOption} from '@/services/settingsService'
 import type {Meta} from '@/types/stores'
 
 const settingsStore = useSettingsStore()
+const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
 const {t, te} = useI18n()
 
@@ -130,6 +150,10 @@ const sortMode = computed((): MetaSortMode =>
   (settingsStore.meta_sort_mode as MetaSortMode) || META_SORT_MODES.menu,
 )
 const sortOptions = computed(() => getMetaSortOptions(t))
+
+const tagCategories = computed(() =>
+  meta.value.filter((item) => item.type === 'array'),
+)
 
 const filteredMeta = computed(() => {
   const searchTerm = search.value?.toLowerCase() || ''
@@ -181,6 +205,18 @@ const closeEditDialog = () => {
   editDialog.value = false
   selectedMeta.value = null
 }
+
+const openCategoryMerge = () => {
+  if (tagCategories.value.length < 2) return
+  dialogsStore.openTagCategoryMerge(tagCategories.value)
+}
+
+watch(
+  () => dialogsStore.tagCategoryMerge.show,
+  async (show, wasShown) => {
+    if (wasShown && !show) await getMeta('array')
+  },
+)
 
 const showMetaDocs = () => {
   eventBus.emit('showDocumentation', 'meta')

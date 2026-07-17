@@ -62,6 +62,10 @@
       v-if="dialogsStore.tagMerge.show"
     />
 
+    <DialogTagCategoryMerge
+      v-if="dialogsStore.tagCategoryMerge.show"
+    />
+
     <DialogGlobalDeleteConfirm
       v-if="dialogsStore.confirm.show"
       @close="dialogsStore.confirm.show = false"
@@ -202,6 +206,9 @@ const DialogTagEditing = defineAsyncComponent(() =>
 )
 const DialogTagMerge = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogTagMerge.vue')
+)
+const DialogTagCategoryMerge = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogTagCategoryMerge.vue')
 )
 const DialogBulkEditingItems = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogBulkEditingItems.vue')

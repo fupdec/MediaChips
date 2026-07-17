@@ -1,6 +1,8 @@
 import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
+import { validateBody } from '../middleware/validateBody'
+import { MergeCategoriesRequestSchema } from '../../shared/schemas/requests'
 import createMetaController from '../controllers/Meta.controller'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
@@ -12,6 +14,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   // Retrieve all Meta
   router.get("/", Meta.findAll);
+
+  // Merge tag categories
+  router.post("/mergeCategories", validateBody(MergeCategoriesRequestSchema), Meta.mergeCategories);
 
   // Retrieve a single Meta with id
   router.get("/:id", Meta.findOne);

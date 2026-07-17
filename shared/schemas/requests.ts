@@ -55,6 +55,11 @@ export const MergeTagsRequestSchema = z.object({
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
 })
 
+export const MergeCategoriesRequestSchema = z.object({
+  survivorId: z.union([z.number(), z.string()]),
+  sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
+})
+
 export const SceneSearchRequestSchema = z.object({
   query: z.string().trim().min(1),
   limit: optionalCoercedNumber,

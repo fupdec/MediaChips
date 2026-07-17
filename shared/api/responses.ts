@@ -273,6 +273,30 @@ export interface MergeTagsResult {
   }
 }
 
+export interface MergeCategoriesResult {
+  survivor: {
+    id: number
+    name?: string | null
+    type?: string | null
+    [key: string]: unknown
+  }
+  deletedIds: number[]
+  autoMergedTagIds: number[]
+  migrated: {
+    tags: number
+    mediaLinks: number
+    nestedLinks: number
+    filterRows: number
+    filterRowTags: number
+    tabs: number
+    savedFilters: number
+    pageSettings: number
+    mediaTypeAssignments: number
+    pinnedFields: number
+    autoMergedTagPairs: number
+  }
+}
+
 export interface WatchedFolderUpdatePayload {
   path?: string
   name?: string

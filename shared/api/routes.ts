@@ -3,6 +3,7 @@ export const API_ROUTES = {
   tag: '/api/tag',
   tagMerge: '/api/Tag/merge',
   meta: '/api/meta',
+  metaMergeCategories: '/api/Meta/mergeCategories',
   tab: '/api/tab',
   playlist: '/api/playlist',
   setting: '/api/Setting',

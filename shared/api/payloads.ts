@@ -45,6 +45,11 @@ export interface MergeTagsPayload {
   sourceIds: number[]
 }
 
+export interface MergeCategoriesPayload {
+  survivorId: number
+  sourceIds: number[]
+}
+
 export interface ParsePathTagsPayload {
   paths: Array<{ path?: string; mediaId: number }>
 }
