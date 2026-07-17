@@ -3,7 +3,7 @@ import type { createVuetify } from 'vuetify'
 import { en } from 'vuetify/locale'
 import en_custom from '@/i18n/en'
 
-type AppLocale = 'en' | 'cn' | 'es' | 'ru'
+type AppLocale = 'en' | 'cn' | 'de' | 'es' | 'ru'
 type NonEnglishLocale = Exclude<AppLocale, 'en'>
 type VuetifyInstance = ReturnType<typeof createVuetify>
 type LocaleMessages = Record<string, unknown>
@@ -15,18 +15,20 @@ let vuetifyInstance: VuetifyInstance | null = null
 
 const customLocaleLoaders: Record<NonEnglishLocale, () => Promise<{ default: Record<string, unknown> }>> = {
   cn: () => import('@/i18n/cn'),
+  de: () => import('@/i18n/de'),
   es: () => import('@/i18n/es'),
   ru: () => import('@/i18n/ru'),
 }
 
 const vuetifyLocaleLoaders: Record<NonEnglishLocale, () => Promise<LocaleMessages>> = {
   cn: () => import('vuetify/locale').then((m) => m.zhHans),
+  de: () => import('vuetify/locale').then((m) => m.de),
   es: () => import('vuetify/locale').then((m) => m.es),
   ru: () => import('vuetify/locale').then((m) => m.ru),
 }
 
 function normalizeLocale(locale: string): AppLocale {
-  if (locale === 'cn' || locale === 'es' || locale === 'ru') return locale
+  if (locale === 'cn' || locale === 'de' || locale === 'es' || locale === 'ru') return locale
   return 'en'
 }
 
@@ -150,7 +152,7 @@ async function reloadActiveLocaleMessages(): Promise<void> {
 if (import.meta.hot) {
   // Keep the chosen language across locale file edits instead of full page
   // reload falling back to English (createI18n default).
-  import.meta.hot.accept(['./en', './ru', './es', './cn'], () => {
+  import.meta.hot.accept(['./en', './ru', './es', './cn', './de'], () => {
     void reloadActiveLocaleMessages()
   })
 }

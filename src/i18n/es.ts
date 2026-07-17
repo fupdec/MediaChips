@@ -851,6 +851,7 @@ const es = {
       language: 'Idioma',
       languages: {
         en: 'Inglés',
+        de: 'Alemán',
         es: 'Español',
         cn: 'Chino',
         ru: 'Ruso',

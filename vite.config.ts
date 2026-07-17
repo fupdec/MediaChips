@@ -181,8 +181,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
           if (id.includes('/src/i18n/en.ts')) {
             return 'locale-en'
           }
-          if (/\/src\/i18n\/(ru|cn|es)\.ts$/.test(id)) {
-            const locale = id.match(/\/(ru|cn|es)\.ts$/)?.[1]
+          if (/\/src\/i18n\/(ru|cn|es|de)\.ts$/.test(id)) {
+            const locale = id.match(/\/(ru|cn|es|de)\.ts$/)?.[1]
             return locale ? `locale-${locale}` : 'locale-extra'
           }
           if (id.includes('/src/assets/Countries')) {

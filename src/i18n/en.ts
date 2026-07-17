@@ -850,6 +850,7 @@ const en = {
       language: 'Language',
       languages: {
         en: 'English',
+        de: 'German',
         es: 'Spanish',
         cn: 'Chinese',
         ru: 'Russian',

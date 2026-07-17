@@ -851,6 +851,7 @@ const cn = {
       language: '语言',
       languages: {
         en: '英语',
+        de: '德语',
         es: '西班牙语',
         cn: '中文',
         ru: '俄语',

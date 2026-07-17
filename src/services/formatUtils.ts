@@ -138,6 +138,7 @@ export function getDateFromMs(ms: number): string {
 
 const FILTER_DATE_LOCALES: Record<string, string> = {
   en: 'en',
+  de: 'de',
   es: 'es',
   ru: 'ru',
   cn: 'zh-CN',

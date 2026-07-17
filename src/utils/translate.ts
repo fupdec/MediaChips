@@ -1,10 +1,10 @@
 import { i18n } from '@/i18n/loadLocale'
 
-type Locale = 'en' | 'ru' | 'cn' | 'es'
+type Locale = 'en' | 'ru' | 'cn' | 'de' | 'es'
 
 export type { Locale }
 
-const LOCALES: Locale[] = ['en', 'ru', 'cn', 'es']
+const LOCALES: Locale[] = ['en', 'ru', 'cn', 'de', 'es']
 
 export function toLocale(value: string | undefined): Locale {
   if (value && LOCALES.includes(value as Locale)) {
