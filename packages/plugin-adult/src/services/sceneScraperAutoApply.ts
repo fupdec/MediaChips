@@ -74,7 +74,6 @@ export function hasSceneScraperMapping(assignedItems: AssignedMeta[]): boolean {
 function getDefaultMetaValue(type?: string): MediaFieldValue {
   if (type === 'array') return []
   if (type === 'boolean') return false
-  if (type === 'number' || type === 'rating') return 0
   return null
 }
 
@@ -169,8 +168,13 @@ async function loadMediaValues(
     if (key == null) continue
 
     let val = value.value
-    if (item?.meta?.type === 'rating') {
-      val = Number(val) || 0
+    if (item?.meta?.type === 'rating' || item?.meta?.type === 'number') {
+      if (val == null || val === '') {
+        val = null
+      } else {
+        const n = Number(val)
+        val = Number.isNaN(n) ? null : n
+      }
     } else if (item?.meta?.type === 'boolean') {
       val = parseMetaBooleanValue(val)
     }

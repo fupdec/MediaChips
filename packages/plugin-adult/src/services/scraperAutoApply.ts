@@ -69,7 +69,6 @@ export interface AutoScrapeApplyResult {
 function getDefaultMetaValue(type?: string): MetaFieldValue {
   if (type === 'array') return []
   if (type === 'boolean') return false
-  if (type === 'number' || type === 'rating') return 0
   return null
 }
 
@@ -159,9 +158,13 @@ async function loadTagValues(
     )
     let val = value.value
 
-    if (item?.meta?.type === 'rating') {
-      val = Number(val)
-      if (Number.isNaN(val)) val = 0
+    if (item?.meta?.type === 'rating' || item?.meta?.type === 'number') {
+      if (val == null || val === '') {
+        val = null
+      } else {
+        const n = Number(val)
+        val = Number.isNaN(n) ? null : n
+      }
     } else if (item?.meta?.type === 'boolean') {
       val = parseMetaBooleanValue(val)
     }

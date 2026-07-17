@@ -577,6 +577,7 @@ const getBooleanVal = (item: PinnedMetaAssignment): boolean => {
 
 const getRatingVal = (item: PinnedMetaAssignment): number | undefined => {
   const val = vals.value[getItemKey(item)]
+  if (val == null || val === '') return undefined
   const n = Number(val)
   return isNaN(n) ? undefined : n
 }
@@ -610,7 +611,6 @@ const resolveItemKey = (metaId: string | number): string | number => {
 const getDefaultMetaValue = (type?: string): MetaFieldValue => {
   if (type === 'array') return []
   if (type === 'boolean') return false
-  if (type === 'number' || type === 'rating') return 0
   return null
 }
 
@@ -812,9 +812,13 @@ const getMetaValues = async () => {
 
       if (item) {
         const type = item.meta?.type
-        if (type === 'rating') {
-          val = Number(val)
-          if (isNaN(val as number)) val = 0
+        if (type === 'rating' || type === 'number') {
+          if (val == null || val === '') {
+            val = null
+          } else {
+            const n = Number(val)
+            val = isNaN(n) ? null : n
+          }
         } else if (type === 'boolean') {
           val = parseMetaBooleanValue(val)
         }
