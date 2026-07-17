@@ -5,12 +5,18 @@ import { BUILTIN_PLUGIN_IDS } from '../../../../shared/plugins/types'
 export type TpdbApiKeySource = 'settings' | 'env' | null
 
 export function pickTpdbApiKey(
-  settingsValue?: string | null,
+  configValue?: string | null,
+  dbValue?: string | null,
   envValue?: string | null,
 ): {key: string; source: TpdbApiKeySource} {
-  const fromSettings = String(settingsValue || '').trim()
-  if (fromSettings) {
-    return {key: fromSettings, source: 'settings'}
+  const fromConfig = String(configValue || '').trim()
+  if (fromConfig) {
+    return {key: fromConfig, source: 'settings'}
+  }
+
+  const fromDb = String(dbValue || '').trim()
+  if (fromDb) {
+    return {key: fromDb, source: 'settings'}
   }
 
   const fromEnv = String(envValue || '').trim()
@@ -21,15 +27,25 @@ export function pickTpdbApiKey(
   return {key: '', source: null}
 }
 
+function readGlobalConfigTpdbApiKey(): string | null {
+  const serverConfig = (globalThis as {serverConfig?: Record<string, unknown>}).serverConfig
+  const value = serverConfig?.tpdbApiKey
+  return typeof value === 'string' ? value : null
+}
+
 export function resolveTpdbApiKey(db?: ApiDb | null): {
   key: string
   source: TpdbApiKeySource
 } {
-  const settingsValue = db
+  const dbValue = db
     ? createSettingsRepository(db.drizzle).findByOption('tpdbApiKey')?.value
     : null
 
-  return pickTpdbApiKey(settingsValue, process.env.TPDB_API_KEY)
+  return pickTpdbApiKey(
+    readGlobalConfigTpdbApiKey(),
+    dbValue,
+    process.env.TPDB_API_KEY,
+  )
 }
 
 export function isTpdbConfigured(db?: ApiDb | null): boolean {

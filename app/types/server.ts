@@ -23,6 +23,7 @@ export interface ServerConfig {
   allowLanAccess?: string
   checkForUpdatesAtStartup?: string
   selectedDisk?: string
+  tpdbApiKey?: string
   transcodeUnsupportedFormats?: string
   transcodeMaxHeight?: string
   transcodeCacheMaxGb?: string

@@ -48,6 +48,7 @@ describe('globalAppConfig', () => {
       allowLanAccess: '1',
       checkForUpdatesAtStartup: '1',
       selectedDisk: '',
+      tpdbApiKey: '',
       transcodeUnsupportedFormats: '1',
       transcodeMaxHeight: '1080',
       transcodeCacheMaxGb: '5',
@@ -87,24 +88,56 @@ describe('globalAppConfig', () => {
       transcodeCacheMaxGb: '10',
       allowLanAccess: '0',
       selectedDisk: 'D:',
+      tpdbApiKey: 'config-key',
     }
 
     const settings = useSettingsStore()
     settings.zoom = '2'
     settings.checkForUpdatesAtStartup = '0'
     settings.allowLanAccess = '1'
+    settings.tpdbApiKey = 'db-key'
 
     await migrateGlobalAppConfigFromDbIfNeeded({
       hadInDb: {
         zoom: true,
         allowLanAccess: true,
+        tpdbApiKey: true,
       },
     })
 
     expect(settings.zoom).toBe('1.25')
     expect(settings.allowLanAccess).toBe('0')
+    expect(settings.tpdbApiKey).toBe('config-key')
     expect(putSetting).toHaveBeenCalled()
     expect(updateConfig).not.toHaveBeenCalled()
+  })
+
+  it('promotes newly global keys from the database when config already exists', async () => {
+    const app = useAppStore()
+    app.config = {
+      zoom: '1.25',
+      checkForUpdatesAtStartup: '1',
+      allowLanAccess: '1',
+      selectedDisk: '',
+      transcodeUnsupportedFormats: '1',
+      transcodeMaxHeight: '1080',
+      transcodeCacheMaxGb: '5',
+    }
+
+    const settings = useSettingsStore()
+    settings.tpdbApiKey = 'legacy-db-key'
+
+    await migrateGlobalAppConfigFromDbIfNeeded({
+      hadInDb: {
+        tpdbApiKey: true,
+      },
+    })
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      zoom: '1.25',
+      tpdbApiKey: 'legacy-db-key',
+    }))
+    expect(settings.tpdbApiKey).toBe('legacy-db-key')
   })
 
   it('persists global setting updates to config.json', async () => {

@@ -96,11 +96,41 @@ export async function persistGlobalAppConfig(
   }
 }
 
+function isKeyPresentInConfig(
+  config: Record<string, unknown> | null | undefined,
+  key: GlobalAppConfigKey,
+): boolean {
+  if (!config) return false
+  const value = config[key]
+  return typeof value === 'string' || (key === 'allowLanAccess' && typeof value === 'boolean')
+}
+
 export async function migrateGlobalAppConfigFromDbIfNeeded(
   options: { hadInDb?: Partial<Record<GlobalAppConfigKey, boolean>> } = {},
 ): Promise<void> {
+  const dbState = {} as GlobalAppConfigState
+  for (const key of GLOBAL_APP_CONFIG_KEYS) {
+    dbState[key] = readDbValueForKey(key)
+  }
+
   if (hasGlobalAppConfigInConfig()) {
+    const appStore = useAppStore()
     const configState = readGlobalAppConfigFromStore()
+    const merges: Partial<GlobalAppConfigState> = {}
+
+    // Newly promoted global keys may still live only in the DB while older
+    // keys are already in config.json — copy those DB values before clearing.
+    for (const key of GLOBAL_APP_CONFIG_KEYS) {
+      if (isKeyPresentInConfig(appStore.config, key)) continue
+      if (dbState[key] === DEFAULT_GLOBAL_APP_CONFIG[key]) continue
+      merges[key] = dbState[key]
+    }
+
+    if (Object.keys(merges).length > 0) {
+      await persistGlobalAppConfig({...configState, ...merges})
+      return
+    }
+
     applyGlobalAppConfigToSettings(configState)
 
     const hadAnyInDb = options.hadInDb
@@ -112,11 +142,6 @@ export async function migrateGlobalAppConfigFromDbIfNeeded(
     }
 
     return
-  }
-
-  const dbState = {} as GlobalAppConfigState
-  for (const key of GLOBAL_APP_CONFIG_KEYS) {
-    dbState[key] = readDbValueForKey(key)
   }
 
   if (hasMeaningfulDbState(dbState, options.hadInDb)) {

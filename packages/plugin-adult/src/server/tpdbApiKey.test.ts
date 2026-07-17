@@ -3,22 +3,29 @@ import {pickTpdbApiKey} from './tpdbApiKey'
 import {buildTpdbPerformersPath} from './theporndbApi'
 
 describe('pickTpdbApiKey', () => {
-  it('prefers settings over environment', () => {
-    expect(pickTpdbApiKey('settings-key', 'env-key')).toEqual({
+  it('prefers global config over database and environment', () => {
+    expect(pickTpdbApiKey('config-key', 'db-key', 'env-key')).toEqual({
+      key: 'config-key',
+      source: 'settings',
+    })
+  })
+
+  it('prefers database settings over environment', () => {
+    expect(pickTpdbApiKey('', 'settings-key', 'env-key')).toEqual({
       key: 'settings-key',
       source: 'settings',
     })
   })
 
-  it('falls back to environment when settings are empty', () => {
-    expect(pickTpdbApiKey('  ', 'env-key')).toEqual({
+  it('falls back to environment when config and settings are empty', () => {
+    expect(pickTpdbApiKey('  ', null, 'env-key')).toEqual({
       key: 'env-key',
       source: 'env',
     })
   })
 
-  it('returns empty when neither source is set', () => {
-    expect(pickTpdbApiKey(null, '')).toEqual({
+  it('returns empty when no source is set', () => {
+    expect(pickTpdbApiKey(null, null, '')).toEqual({
       key: '',
       source: null,
     })
