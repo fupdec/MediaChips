@@ -252,7 +252,10 @@ export default function createTasksVideoPreviewController(shared: TaskController
       res.status(201).send({outputPath: result})
     } catch (e) {
       console.log(e)
-      res.status(202).send(e)
+      const message = e instanceof Error
+        ? e.message
+        : 'Failed to download or save image'
+      res.status(202).send({message})
     }
   }
 
