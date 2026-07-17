@@ -194,6 +194,10 @@ describe('importStashLibrary', () => {
     expect(tagsMeta).toBeTruthy()
     expect(tagsMeta?.marks).toBe(true)
 
+    const performersMeta = metas.find((meta) => meta.name === 'Performers')
+    expect(performersMeta).toBeTruthy()
+    expect(performersMeta?.imageAspectRatio).toBeCloseTo(5 / 8)
+
     const marksRepo = createMarksRepository(connection.drizzle)
     const marks = marksRepo.findAllForVideo(media!.id)
     expect(marks).toHaveLength(1)

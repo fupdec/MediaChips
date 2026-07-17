@@ -30,7 +30,14 @@ import type {
 } from './types'
 
 const META_DEFS = [
-  {key: 'performers' as const, name: 'Performers', icon: 'account', country: true, marks: false},
+  {
+    key: 'performers' as const,
+    name: 'Performers',
+    icon: 'account',
+    country: true,
+    marks: false,
+    imageAspectRatio: 5 / 8,
+  },
   {key: 'studios' as const, name: 'Studios', icon: 'domain', country: false, marks: false},
   {key: 'tags' as const, name: 'Tags', icon: 'tag', country: false, marks: true},
 ]
@@ -74,6 +81,7 @@ function ensureMetaCategories(db: ApiDb, videoMediaTypeId: number) {
         icon: def.icon,
         country: def.country,
         marks: def.marks,
+        imageAspectRatio: 'imageAspectRatio' in def ? def.imageAspectRatio : undefined,
         favorite: true,
         rating: true,
         synonyms: true,
@@ -82,8 +90,21 @@ function ensureMetaCategories(db: ApiDb, videoMediaTypeId: number) {
       metaId = created.id
       metaRepo.ensureArrayMetaResources(metaId)
       allMeta.push(created)
-    } else if (def.marks && !existing?.marks) {
-      metaRepo.updateById(metaId, {marks: true})
+    } else {
+      const patch: Record<string, unknown> = {}
+      if (def.marks && !existing?.marks) {
+        patch.marks = true
+      }
+      if (
+        'imageAspectRatio' in def
+        && def.imageAspectRatio != null
+        && Number(existing?.imageAspectRatio) !== def.imageAspectRatio
+      ) {
+        patch.imageAspectRatio = def.imageAspectRatio
+      }
+      if (Object.keys(patch).length) {
+        metaRepo.updateById(metaId, patch)
+      }
     }
 
     const linked = existingLinks.some(
