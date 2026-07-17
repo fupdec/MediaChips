@@ -252,6 +252,11 @@ export const BackupNameRequestSchema = z.object({
   path: z.string().optional(),
 }).passthrough()
 
+export const ImportFromStashRequestSchema = z.object({
+  path: z.string().min(1),
+  createMissingMedia: optionalCoercedBoolean,
+}).passthrough()
+
 export const HomeMediaQuerySchema = z.object({
   continueLimit: optionalCoercedNumber,
   favoritesLimit: optionalCoercedNumber,

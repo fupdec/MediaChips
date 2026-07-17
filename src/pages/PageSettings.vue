@@ -121,6 +121,10 @@
                 <SettingsDatabases/>
               </SettingsSection>
 
+              <SettingsSection>
+                <SettingsImportStash/>
+              </SettingsSection>
+
               <SettingsGroupLabel :title="t('settings.groups.maintenance')"/>
 
               <SettingsSection>
@@ -241,6 +245,9 @@ const SettingsOpenDataFolder = defineAsyncComponent(() =>
 )
 const SettingsDatabases = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDatabases.vue")
+)
+const SettingsImportStash = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsImportStash.vue")
 )
 const SettingsClearGeneratedImages = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsClearGeneratedImages.vue")

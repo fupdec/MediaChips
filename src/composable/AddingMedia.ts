@@ -3,7 +3,7 @@ import {i18n} from '@/i18n/loadLocale'
 import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
 import {parseFilePath} from '@/services/pathTagParser'
-import {transformTextToArray} from '@/services/formatUtils'
+import {getReadableDuration, transformTextToArray} from '@/services/formatUtils'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
@@ -261,6 +261,23 @@ export const useMediaAdding = () => {
       const addedForParsing: AddedMediaEntry[] = []
       let lastProgressUpdate = 0
       let current = 0
+      const progressStartedAt = Date.now()
+
+      const formatAddingProgress = (done: number, total: number) => {
+        if (done > 0 && done < total) {
+          const elapsedSeconds = (Date.now() - progressStartedAt) / 1000
+          const etaSeconds = Math.round((elapsedSeconds / done) * (total - done))
+          if (etaSeconds > 0) {
+            return t('media.adding.in_progress_eta', {
+              current: done,
+              total,
+              eta: getReadableDuration(etaSeconds),
+            })
+          }
+        }
+
+        return t('media.adding.in_progress', {current: done, total})
+      }
 
       const processFile = async (filePath: string) => {
         try {
@@ -305,13 +322,14 @@ export const useMediaAdding = () => {
 
         lastProgressUpdate = now
         const progress = Math.min(current * percentage, 100)
+        const progressText = formatAddingProgress(current, files.length)
 
         task.value.current = current
         task.value.progress = progress
-        task.value.processed = t('media.adding.in_progress', {current, total: files.length})
+        task.value.processed = progressText
 
         await tasksStore.updateTask(taskId, {
-          subtitle: t('media.adding.in_progress', {current, total: files.length}),
+          subtitle: progressText,
           progress,
         })
       }

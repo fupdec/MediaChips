@@ -1199,6 +1199,28 @@ const ja = {
     },
     database: {
       manage_backups: "バックアップの管理",
+      import_stash: "Stash からインポート",
+      import_stash_hint:
+        "シーン、出演者、スタジオ、タグ、マーカーを Stash データベース ファイル (stash-go.sqlite) から現在のライブラリにインポートします。メディアはファイル パスまたは oshash によって照合されます。",
+      import_stash_backup_warning:
+        "データはアクティブなデータベースにマージされます。インポートする前にバックアップを作成してください。",
+      import_stash_path: "stash-go.sqlite へのパス",
+      import_stash_path_hint:
+        "デフォルトの Stash データベース ファイル名は stash-go.sqlite です",
+      import_stash_select_file: "Stash データベースを選択してください",
+      import_stash_create_missing:
+        "まだライブラリにないシーンのメディア エントリを作成する",
+      import_stash_start: "インポートを開始する",
+      import_stash_progress: "{phase}: {processed}/{total}",
+      import_stash_phase_starting: "起動",
+      import_stash_phase_performers: "出演者",
+      import_stash_phase_studios: "スタジオ",
+      import_stash_phase_tags: "タグ",
+      import_stash_phase_scenes: "シーン",
+      import_stash_complete:
+        "完了: {performers} パフォーマー、{studios} スタジオ、{tags} タグ · メディア作成 {mediaCreated}、一致 {mediaMatched}、更新 {mediaUpdated}、スキップ {mediaSkipped} · マーカー {markers}",
+      import_stash_success: "Stash インポートが完了しました",
+      import_stash_cancelled: "Stash インポートがキャンセルされました",
       add_new_database: "新しいデータベースを追加する",
       calculate_sizes: "サイズを計算する",
       refresh_status: "ステータスの更新",
@@ -1435,6 +1457,7 @@ const ja = {
       error_title: "ファイル追加エラー",
       media_type_not_found: "メディアタイプが見つかりません",
       in_progress: "進行中: {current}/{total}",
+      in_progress_eta: "進行中: {current} / {total} • ~{eta} が残っています",
       added_count: "追加 ({count})",
       existing_count: "既存 ({count})",
       duplicates_by_size_count: "ファイル サイズによる重複 ({count})",

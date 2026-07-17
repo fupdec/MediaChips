@@ -25,10 +25,12 @@ import {
   VideoPreviewTaskRequestSchema,
   SuggestTagsRequestSchema,
   BackupNameRequestSchema,
+  ImportFromStashRequestSchema,
 } from '../../shared/schemas/requests'
 import createTaskController from '../controllers/Task.controller'
 import createTaskVideoCoreController from '../controllers/taskVideoCore.controller'
 import createTasksMigrateFromLowDbController from '../controllers/tasks/TasksMigrateFromLowDb.controller'
+import createTasksMigrateFromStashController from '../controllers/tasks/TasksMigrateFromStash.controller'
 
 type TaskHandlers = Record<string, RequestHandler | undefined>
 
@@ -61,6 +63,24 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     router.post('/cleanLowDb', TasksMigrateFromLowDb.cleanDataLowDb!)
     router.post('/createBackupLowDb', TasksMigrateFromLowDb.createBackupLowDb!)
     router.post('/migrateFromLowDb', TasksMigrateFromLowDb.migrateFromLowDb!)
+  }
+
+  let TasksMigrateFromStash: TaskHandlers | null = null
+  try {
+    TasksMigrateFromStash = createTasksMigrateFromStashController(db) as unknown as TaskHandlers
+  } catch (err) {
+    console.error(
+      'Stash import Task routes unavailable:',
+      apiErrorStack(err) || apiErrorMessage(err),
+    )
+  }
+
+  if (TasksMigrateFromStash?.streamImportFromStash) {
+    router.post(
+      '/streamImportFromStash',
+      validateBody(ImportFromStashRequestSchema),
+      TasksMigrateFromStash.streamImportFromStash,
+    )
   }
 
   const register = (
