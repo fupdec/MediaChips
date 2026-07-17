@@ -30,7 +30,19 @@ vi.mock('../../app/tasks/items', () => ({
   ) => items,
 }))
 
+vi.mock('./globalSearch', () => ({
+  searchTagsByName: vi.fn(async () => []),
+}))
+
+vi.mock('./filterItemsWorkerRunner', () => ({
+  runFilterItemsAsync: async ({items}: {items: Array<{id: number}>}) => ({
+    items,
+    totalFiltered: items.length,
+  }),
+}))
+
 import { loadTagItems } from './tagItemsLoader'
+import { searchTagsByName } from './globalSearch'
 
 describe('loadTagItems', () => {
   beforeEach(() => {
@@ -108,5 +120,44 @@ describe('loadTagItems', () => {
 
     expect(result.items).toHaveLength(15)
     expect(result.pages).toBeUndefined()
+  })
+
+  it('narrows tag items by server-side search matches', async () => {
+    vi.mocked(searchTagsByName).mockResolvedValueOnce([
+      {id: 3, name: 'Alpha', metaId: 17, synonyms: null, matchSource: 'name'},
+      {id: 7, name: 'Alpine', metaId: 17, synonyms: null, matchSource: 'name'},
+    ])
+    getItemsForMeta.mockReturnValue([
+      {id: 3, metaId: 17, name: 'Alpha'},
+      {id: 7, metaId: 17, name: 'Alpine'},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      search: 'alp',
+      skipTotals: true,
+    })
+
+    expect(searchTagsByName).toHaveBeenCalledWith({} as never, 'alp', {
+      limit: 500,
+      metaId: 17,
+    })
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [3, 7])
+    expect(result.items).toHaveLength(2)
+  })
+
+  it('returns empty items when search matches nothing', async () => {
+    vi.mocked(searchTagsByName).mockResolvedValueOnce([])
+    queryAllAsync.mockResolvedValueOnce([{totalUnfiltered: 12}])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      search: 'zzz',
+    })
+
+    expect(result.items).toEqual([])
+    expect(result.totalFiltered).toBe(0)
+    expect(result.total).toBe(12)
+    expect(getItemsForMeta).not.toHaveBeenCalled()
   })
 })

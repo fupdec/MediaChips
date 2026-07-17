@@ -76,6 +76,9 @@ export interface ItemsListRequest {
   page?: number
   limit?: number
   skipTotals?: boolean
+  /** Tag autocomplete / name+synonym search. */
+  search?: string
+  query?: string
 }
 
 export type ItemsPageListQuery = ItemsListRequest

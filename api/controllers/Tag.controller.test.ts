@@ -130,6 +130,7 @@ describe('Tag.controller', () => {
       page: 2,
       limit: 25,
       skipTotals: false,
+      search: undefined,
     })
     expect(res.statusCode).toBe(201)
     expect(res.body).toEqual({items: [{id: 1}], total: 1})

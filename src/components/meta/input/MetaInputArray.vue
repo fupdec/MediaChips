@@ -155,6 +155,7 @@ import {
   highlightChars,
 } from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
+import {debounce} from '@/utils/debounce'
 import type { ArrayMeta, TagListItem } from '@/types/metaInput'
 
 const attrs = useAttrs()
@@ -183,11 +184,14 @@ const eventBus = useEventBus()
 const router = useRouter()
 const {t} = useI18n()
 
+const AUTOCOMPLETE_LIMIT = 50
+
 const meta = ref<ArrayMeta>({} as ArrayMeta)
 const val = ref<number[]>([])
 const listTags = ref<TagListItem[]>([])
 const search = ref('')
 const field = ref<unknown>(null)
+let fetchRequestId = 0
 
 const sortBy = computed(() => [
   {
@@ -226,50 +230,55 @@ interface TagFilterItem {
   value: number | string
 }
 
-const filterTags = (title: string, queryText: string, tagObj: TagFilterItem) => {
+const applyTagHighlight = (tagObj: TagFilterItem, queryText: string) => {
   const tag = {...tagObj.raw}
-  const query = queryText.toLowerCase();
+  const query = queryText.toLowerCase()
+  const is_default = settingsStore.typingFiltersDefault == "1"
 
-  const is_default = settingsStore.typingFiltersDefault == "1";
   const is_name_found = is_default
     ? tag.name.toLowerCase().indexOf(query) > -1
-    : foundByChars(tag.name, query);
+    : foundByChars(tag.name, query)
 
   if (is_name_found) {
-    tagObj.raw.name_parsed = highlightChars(tag.name, queryText, is_default);
-    tagObj.raw.synonyms_parsed = tagObj.raw.synonyms;
-    return true;
+    tagObj.raw.name_parsed = highlightChars(tag.name, queryText, is_default)
+    tagObj.raw.synonyms_parsed = tagObj.raw.synonyms
+    return
   }
-  if (!tag.synonyms) {
-    return false;
-  }
-  const synonyms = tag.synonyms.split(',').map((i: string) => i.trim());
 
-  const values: boolean[] = [];
-  const synonyms_parsed: string[] = [];
+  if (!tag.synonyms) {
+    tagObj.raw.name_parsed = tag.name
+    tagObj.raw.synonyms_parsed = tag.synonyms
+    return
+  }
+
+  const synonyms = tag.synonyms.split(',').map((i: string) => i.trim())
+  const synonyms_parsed: string[] = []
+
   for (const i of synonyms) {
     const synonymMatch = is_default
       ? i.toLowerCase().indexOf(query) > -1
-      : foundByChars(i, query);
-    values.push(synonymMatch);
+      : foundByChars(i, query)
 
-    if (synonymMatch) {
-      synonyms_parsed.push(highlightChars(i, queryText, is_default));
-    } else {
-      synonyms_parsed.push(i);
-    }
+    synonyms_parsed.push(
+      synonymMatch ? highlightChars(i, queryText, is_default) : i,
+    )
   }
 
-  tagObj.raw.name_parsed = tag.name;
-  tagObj.raw.synonyms_parsed = synonyms_parsed.join(', ');
-  return values.some(Boolean);
+  tagObj.raw.name_parsed = tag.name
+  tagObj.raw.synonyms_parsed = synonyms_parsed.join(', ')
 }
 
-const filterTagsForAutocomplete = filterTags as (
-  value: string,
+/** Server already filtered — keep all items, only apply highlight. */
+const filterTagsForAutocomplete = (
+  _value: string,
   query: string,
   item?: TagFilterItem,
-) => boolean
+) => {
+  if (item?.raw && query) {
+    applyTagHighlight(item, query)
+  }
+  return true
+}
 
 const normalizeIds = (value: unknown): number[] => {
   if (value == null) return []
@@ -295,25 +304,69 @@ const findTagName = (tagId: number | string) => {
   return storeTag?.name ?? String(tagId)
 }
 
-const refreshTagsFromEvent = async () => {
-  await getTags()
+const mergeTagLists = (...lists: TagListItem[][]) => {
+  const byId = new Map<number, TagListItem>()
+  for (const list of lists) {
+    for (const tag of list) {
+      byId.set(Number(tag.id), tag)
+    }
+  }
+  return [...byId.values()]
 }
 
-const getTags = async () => {
+const getTags = async (searchQuery = search.value) => {
+  if (!props.metaId) {
+    listTags.value = []
+    return
+  }
+
+  const requestId = ++fetchRequestId
+  const selectedIds = normalizeIds(val.value)
+  const trimmedSearch = String(searchQuery || '').trim()
+
   try {
-    const res = await typedApi.postTagItems({
+    const mainPromise = typedApi.postTagItems({
       metaId: props.metaId,
       filters: [],
       sortBy: meta.value?.sortBy || 'name',
       direction: meta.value?.sortDir || 'asc',
+      search: trimmedSearch || undefined,
+      page: 1,
+      limit: AUTOCOMPLETE_LIMIT,
+      skipTotals: true,
     })
-    const tags = res.data.items ?? []
-    listTags.value = sortTags(tags as TagListItem[])
+
+    const selectedPromise = selectedIds.length
+      ? typedApi.postTagItems({
+          metaId: props.metaId,
+          ids: selectedIds,
+          filters: [],
+          skipTotals: true,
+        })
+      : Promise.resolve({data: {items: [] as TagListItem[]}})
+
+    const [mainRes, selectedRes] = await Promise.all([mainPromise, selectedPromise])
+    if (requestId !== fetchRequestId) return
+
+    const tags = mergeTagLists(
+      (selectedRes.data.items ?? []) as TagListItem[],
+      (mainRes.data.items ?? []) as TagListItem[],
+    )
+    listTags.value = sortTags(tags)
   } catch (e) {
+    if (requestId !== fetchRequestId) return
     listTags.value = []
     console.error(e)
   }
 }
+
+const refreshTagsFromEvent = async () => {
+  await getTags(search.value)
+}
+
+const runGetTags = debounce((query: string) => {
+  void getTags(query)
+}, 200)
 
 const changeSortDir = async () => {
   const sortDir = meta.value.sortDir === 'asc' ? 'desc' : 'asc'
@@ -324,6 +377,7 @@ const changeSortDir = async () => {
     })
     await getMeta()
     listTags.value = sortTags(listTags.value)
+    await getTags(search.value)
   } catch (error) {
     console.error(error)
   }
@@ -336,6 +390,7 @@ const changeSortBy = async (param: string) => {
     })
     await getMeta()
     listTags.value = sortTags(listTags.value)
+    await getTags(search.value)
   } catch (error) {
     console.error(error)
   }
@@ -375,7 +430,7 @@ const create = async () => {
     }
 
     setVal(newVal)
-    await getTags()
+    await getTags('')
 
     eventBus.emit("getTags")
 
@@ -479,17 +534,22 @@ onMounted(async () => {
   await getMeta()
 
   val.value = normalizeIds(props.modelValue)
-  await getTags()
+  await getTags('')
   eventBus.on('getTags', refreshTagsFromEvent)
 })
 
 onUnmounted(() => {
+  runGetTags.cancel()
   eventBus.off('getTags', refreshTagsFromEvent)
 })
 
 // Watchers
 watch(() => props.modelValue, (newVal: number[] | number | undefined) => {
   val.value = normalizeIds(newVal)
+})
+
+watch(search, (query) => {
+  runGetTags(query)
 })
 </script>
 

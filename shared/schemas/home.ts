@@ -139,6 +139,14 @@ export const GlobalSearchMediaItemSchema = z.object({
   path: z.string().optional(),
   width: z.number().nullable().optional(),
   height: z.number().nullable().optional(),
+  matchSource: z.enum(['name', 'tag', 'both']).optional(),
+  matchedTags: z.array(z.object({
+    id: z.number(),
+    name: z.string(),
+    metaId: z.number().nullable().optional(),
+    matchSource: z.enum(['name', 'synonym', 'both']).optional(),
+    matchedSynonyms: z.array(z.string()).optional(),
+  })).optional(),
 })
 
 export const GlobalSearchTagItemSchema = z.object({

@@ -80,23 +80,70 @@ async function searchMediaByName(db: ApiDb, query: string, limit: unknown) {
   return rows.filter((row) => matchesGlobalSearchName(String(row.name || ''), trimmed))
 }
 
-async function searchTagsByNameLike(db: ApiDb, trimmed: string, sqlLimit: number) {
+export interface SearchTagsByNameOptions {
+  limit?: unknown
+  metaId?: number | null
+}
+
+function normalizeMetaId(value: unknown): number | null {
+  const metaId = Number(value)
+  return Number.isFinite(metaId) ? metaId : null
+}
+
+function normalizeSearchTagsOptions(
+  limitOrOptions?: unknown,
+  maybeOptions: SearchTagsByNameOptions = {},
+): SearchTagsByNameOptions {
+  if (
+    limitOrOptions != null
+    && typeof limitOrOptions === 'object'
+    && !Array.isArray(limitOrOptions)
+  ) {
+    return limitOrOptions as SearchTagsByNameOptions
+  }
+
+  return {
+    limit: limitOrOptions,
+    metaId: maybeOptions.metaId,
+  }
+}
+
+async function searchTagsByNameLike(
+  db: ApiDb,
+  trimmed: string,
+  sqlLimit: number,
+  metaId: number | null,
+) {
   const pattern = `%${escapeLikePattern(trimmed)}%`
+  const metaClause = metaId == null ? '' : 'AND metaId = :metaId'
+  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
+  if (metaId != null) replacements.metaId = metaId
 
   return queryAll(db, `${TAG_SEARCH_SELECT}
      FROM tags
-     WHERE name LIKE :pattern ESCAPE '\\'
-        OR synonyms LIKE :pattern ESCAPE '\\'
-     LIMIT :limit`, {pattern, limit: sqlLimit})
+     WHERE (name LIKE :pattern ESCAPE '\\'
+        OR synonyms LIKE :pattern ESCAPE '\\')
+     ${metaClause}
+     LIMIT :limit`, replacements)
 }
 
-async function searchTagsByNameFts(db: ApiDb, matchQuery: string, sqlLimit: number) {
+async function searchTagsByNameFts(
+  db: ApiDb,
+  matchQuery: string,
+  sqlLimit: number,
+  metaId: number | null,
+) {
+  const metaClause = metaId == null ? '' : 'AND tags.metaId = :metaId'
+  const replacements: Record<string, unknown> = {match: matchQuery, limit: sqlLimit}
+  if (metaId != null) replacements.metaId = metaId
+
   return queryAll(db, `${TAG_SEARCH_SELECT}
      FROM tags_fts
               INNER JOIN tags ON tags.id = tags_fts.rowid
      WHERE tags_fts MATCH :match
+     ${metaClause}
      ORDER BY bm25(tags_fts)
-     LIMIT :limit`, {match: matchQuery, limit: sqlLimit})
+     LIMIT :limit`, replacements)
 }
 
 function enrichTagSearchRow(row: Record<string, unknown>, trimmed: string): GlobalSearchTagResult | null {
@@ -118,25 +165,32 @@ function enrichTagSearchRow(row: Record<string, unknown>, trimmed: string): Glob
   }
 }
 
-async function searchTagsByName(db: ApiDb, query: string, limit: unknown): Promise<GlobalSearchTagResult[]> {
+async function searchTagsByName(
+  db: ApiDb,
+  query: string,
+  limitOrOptions?: unknown,
+  maybeOptions?: SearchTagsByNameOptions,
+): Promise<GlobalSearchTagResult[]> {
   const trimmed = String(query || '').trim()
   if (!trimmed) return []
 
-  const sqlLimit = normalizeLimit(limit)
+  const options = normalizeSearchTagsOptions(limitOrOptions, maybeOptions)
+  const sqlLimit = normalizeLimit(options.limit)
+  const metaId = normalizeMetaId(options.metaId)
   const matchQuery = buildTagFtsMatchQuery(trimmed)
 
   let rows: Array<Record<string, unknown>> = []
 
   if (matchQuery && isFtsSearchAvailable(db.sqlite)) {
     try {
-      rows = await searchTagsByNameFts(db, matchQuery, sqlLimit)
+      rows = await searchTagsByNameFts(db, matchQuery, sqlLimit, metaId)
     } catch {
       // Fall back to LIKE when FTS query syntax is invalid.
     }
   }
 
   if (!rows.length) {
-    rows = await searchTagsByNameLike(db, trimmed, sqlLimit)
+    rows = await searchTagsByNameLike(db, trimmed, sqlLimit, metaId)
   }
 
   return rows
@@ -144,17 +198,145 @@ async function searchTagsByName(db: ApiDb, query: string, limit: unknown): Promi
     .filter((row): row is NonNullable<typeof row> => row != null)
 }
 
+async function searchMediaByTagIds(
+  db: ApiDb,
+  tags: Array<{
+    id: number
+    name?: string | null
+    metaId?: number | null
+    matchSource?: 'name' | 'synonym' | 'both'
+    matchedSynonyms?: string[]
+  }>,
+  limit: unknown,
+) {
+  const uniqueTags = [...new Map(
+    tags
+      .map((tag) => [Number(tag.id), tag] as const)
+      .filter(([id]) => Number.isFinite(id)),
+  ).values()]
+  if (!uniqueTags.length) return []
+
+  const sqlLimit = normalizeLimit(limit)
+  const tagIds = uniqueTags.map((tag) => Number(tag.id))
+  const tagById = new Map(
+    uniqueTags.map((tag) => [Number(tag.id), tag]),
+  )
+
+  const rows = await queryAll(db, `${MEDIA_SEARCH_SELECT},
+            GROUP_CONCAT(DISTINCT tagsInMedia.tagId) AS matchedTagIds
+     FROM media
+              INNER JOIN tagsInMedia ON tagsInMedia.mediaId = media.id
+              LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+              LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+     WHERE tagsInMedia.tagId IN (:tagIds)
+     GROUP BY media.id
+     LIMIT :limit`, {tagIds, limit: sqlLimit})
+
+  return rows.map((row) => {
+    const matchedTagIds = String(row.matchedTagIds || '')
+      .split(',')
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id))
+
+    const matchedTags = matchedTagIds
+      .map((id) => {
+        const tag = tagById.get(id)
+        const name = tag?.name == null ? null : String(tag.name)
+        if (name == null || name === '') return null
+        return {
+          id,
+          name,
+          metaId: tag?.metaId == null ? null : Number(tag.metaId),
+          matchSource: tag?.matchSource,
+          matchedSynonyms: tag?.matchedSynonyms?.length ? [...tag.matchedSynonyms] : undefined,
+        }
+      })
+      .filter((tag) => tag != null)
+
+    const {matchedTagIds: _matchedTagIds, ...mediaRow} = row
+    return {
+      ...mediaRow,
+      matchSource: 'tag' as const,
+      matchedTags,
+    }
+  })
+}
+
+type MediaSearchMatchSource = 'name' | 'tag' | 'both'
+
+function mergeMediaSearchRows(
+  primary: Array<Record<string, unknown>>,
+  secondary: Array<Record<string, unknown>>,
+  limit: unknown,
+) {
+  const sqlLimit = normalizeLimit(limit)
+  const merged: Array<Record<string, unknown>> = []
+  const byId = new Map<number, Record<string, unknown>>()
+
+  for (const row of primary) {
+    const id = Number(row.id)
+    if (!Number.isFinite(id) || byId.has(id)) continue
+    const next = {
+      ...row,
+      matchSource: (row.matchSource as MediaSearchMatchSource | undefined) || 'name',
+    }
+    byId.set(id, next)
+    merged.push(next)
+    if (merged.length >= sqlLimit) return merged
+  }
+
+  for (const row of secondary) {
+    const id = Number(row.id)
+    if (!Number.isFinite(id)) continue
+
+    const existing = byId.get(id)
+    if (existing) {
+      const existingTags = Array.isArray(existing.matchedTags)
+        ? existing.matchedTags as Array<{id: number; name: string}>
+        : []
+      const nextTags = Array.isArray(row.matchedTags)
+        ? row.matchedTags as Array<{id: number; name: string}>
+        : []
+      const tagById = new Map<number, {id: number; name: string}>()
+      for (const tag of [...existingTags, ...nextTags]) {
+        tagById.set(Number(tag.id), tag)
+      }
+      existing.matchedTags = [...tagById.values()]
+      if (existing.matchSource === 'name' && nextTags.length) {
+        existing.matchSource = 'both'
+      }
+      continue
+    }
+
+    if (merged.length >= sqlLimit) break
+    const next = {
+      ...row,
+      matchSource: (row.matchSource as MediaSearchMatchSource | undefined) || 'tag',
+    }
+    byId.set(id, next)
+    merged.push(next)
+  }
+
+  return merged
+}
+
 async function searchGlobal(db: ApiDb, query: string, limit: unknown) {
-  const [media, tags] = await Promise.all([
+  const [mediaByName, tags] = await Promise.all([
     searchMediaByName(db, query, limit),
-    searchTagsByName(db, query, limit),
+    searchTagsByName(db, query, {limit}),
   ])
 
-  return { media, tags }
+  const mediaByTags = await searchMediaByTagIds(db, tags, limit)
+
+  return {
+    media: mergeMediaSearchRows(mediaByName, mediaByTags, limit),
+    tags,
+  }
 }
 
 export {
   searchMediaByName,
+  searchMediaByTagIds,
   searchTagsByName,
   searchGlobal,
   MAX_LIMIT,

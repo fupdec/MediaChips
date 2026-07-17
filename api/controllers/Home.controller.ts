@@ -77,7 +77,11 @@ export default (db: ApiDb) => {
   const searchTags = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const q = req.body?.q ?? req.body?.query
-      const items = await searchTagsByName(db, String(q || ''), req.body?.limit)
+      const metaId = req.body?.metaId
+      const items = await searchTagsByName(db, String(q || ''), {
+        limit: req.body?.limit,
+        metaId: metaId == null || metaId === '' ? null : Number(metaId),
+      })
       res.status(200).send({items})
     } catch (err) {
       res.status(500).send({

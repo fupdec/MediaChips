@@ -5,6 +5,8 @@ import {
   getTextColor,
   getHoverPreviewDimensions,
   getTagHoverPreviewDimensions,
+  highlightGlobalSearchText,
+  textMatchesGlobalSearchQuery,
 } from '@/services/formatUtils'
 
 describe('formatUtils', () => {
@@ -39,5 +41,19 @@ describe('formatUtils', () => {
       previewWidth: 180,
       previewHeight: 180,
     })
+  })
+
+  it('highlights contiguous global search queries', () => {
+    expect(highlightGlobalSearchText('Piss Shower', 'piss s')).toContain(
+      '<mark class="global-search__hl">Piss S</mark>hower',
+    )
+  })
+
+  it('highlights global search token prefixes when query is split', () => {
+    const html = highlightGlobalSearchText('sybil piss in mouth', 'piss s')
+    expect(html).toContain('<mark class="global-search__hl">s</mark>ybil')
+    expect(html).toContain('<mark class="global-search__hl">piss</mark>')
+    expect(textMatchesGlobalSearchQuery('sybil piss in mouth', 'piss s')).toBe(true)
+    expect(textMatchesGlobalSearchQuery('Piss Shower', 'piss s')).toBe(true)
   })
 })

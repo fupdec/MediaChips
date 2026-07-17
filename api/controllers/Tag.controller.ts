@@ -47,6 +47,9 @@ export default function (db: ApiDb) {
         page,
         limit: limit > 0 ? limit : null,
         skipTotals: body.skipTotals === true,
+        search: typeof body.search === 'string'
+          ? body.search
+          : (typeof body.query === 'string' ? body.query : undefined),
       })
       res.status(201).send(result)
     } catch (err) {

@@ -40,6 +40,13 @@ function createSearchTestDb() {
       updatedAt TEXT NOT NULL
     );
 
+    CREATE TABLE tagsInMedia (
+      mediaId INTEGER NOT NULL,
+      tagId INTEGER NOT NULL,
+      metaId INTEGER NOT NULL,
+      PRIMARY KEY (mediaId, tagId, metaId)
+    );
+
     INSERT INTO media (path, name, mediaTypeId, createdAt, updatedAt) VALUES
       ('/a.mp4', 'Action Hero', 1, '2024-01-01', '2024-01-01'),
       ('/b.mp4', 'Drama Night', 1, '2024-01-01', '2024-01-01'),
@@ -52,6 +59,9 @@ function createSearchTestDb() {
       ('Anal Gape', NULL, 3, '2024-01-01', '2024-01-01'),
       ('Lana Analise', NULL, 2, '2024-01-01', '2024-01-01'),
       ('Режиссёр', 'исполнитель', 1, '2024-01-01', '2024-01-01');
+
+    INSERT INTO tagsInMedia (mediaId, tagId, metaId) VALUES
+      (2, 1, 1);
   `)
 
   ensureSearchFtsIndex(sqlite)
@@ -135,7 +145,48 @@ describe('globalSearch FTS', () => {
 
     try {
       const results = await searchGlobal(db, 'act', 10)
-      expect(results.media).toHaveLength(1)
+      expect(results.media.map((item) => (item as {name?: string}).name).sort()).toEqual(['Action Hero', 'Drama Night'])
+      const action = results.media.find((item) => (item as {name?: string}).name === 'Action Hero') as {
+        matchSource?: string
+      }
+      const drama = results.media.find((item) => (item as {name?: string}).name === 'Drama Night') as {
+        matchSource?: string
+        matchedTags?: Array<{name: string}>
+      }
+      expect(action?.matchSource).toBe('name')
+      expect(drama?.matchSource).toBe('tag')
+      expect(drama?.matchedTags?.some((tag) => tag.name === 'Actor')).toBe(true)
+      expect(results.tags.some((tag) => tag.name === 'Actor')).toBe(true)
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('finds tags within a meta category', async () => {
+    const { sqlite, db } = createSearchTestDb()
+
+    try {
+      const results = await searchTagsByName(db, 'anal', {limit: 10, metaId: 2})
+      const names = results.map((tag) => tag.name)
+      expect(names).toContain('YasmiButt')
+      expect(names).not.toContain('Anal Gape')
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('includes media linked to matching tags in global search', async () => {
+    const { sqlite, db } = createSearchTestDb()
+
+    try {
+      const results = await searchGlobal(db, 'perform', 10)
+      const drama = results.media.find((item) => item.name === 'Drama Night') as {
+        matchSource?: string
+        matchedTags?: Array<{id: number; name: string}>
+      } | undefined
+      expect(drama).toBeTruthy()
+      expect(drama?.matchSource).toBe('tag')
+      expect(drama?.matchedTags?.some((tag) => tag.name === 'Actor')).toBe(true)
       expect(results.tags.some((tag) => tag.name === 'Actor')).toBe(true)
     } finally {
       sqlite.close()

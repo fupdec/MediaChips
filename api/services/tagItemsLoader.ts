@@ -17,6 +17,7 @@ import {
   slicePage,
 } from './mediaItemsPagination'
 import { resolveSortMetaType } from './resolveSortMetaType'
+import { searchTagsByName } from './globalSearch'
 
 export interface TagLoadOptions {
   metaId: number
@@ -28,6 +29,38 @@ export interface TagLoadOptions {
   page?: number
   limit?: number | null
   skipTotals?: boolean
+  /** Server-side autocomplete / name+synonym search within a meta category. */
+  search?: string
+}
+
+const SEARCH_ID_RESOLVE_LIMIT = 500
+
+function emptyTagItemsResult(options: TagLoadOptions, totalUnfiltered: number | null = null) {
+  const pageLimit = resolvePageLimit(options.limit ?? null)
+  const shouldPaginate = shouldPaginateMediaList({ids: options.ids, limit: options.limit ?? null})
+  const safePage = Math.max(1, Number(options.page) || 1)
+
+  const result: Record<string, unknown> = {
+    items: [],
+    total: totalUnfiltered,
+    totalFiltered: 0,
+    page: shouldPaginate ? safePage : 1,
+    limit: shouldPaginate ? pageLimit : 0,
+  }
+
+  if (!options.skipTotals && shouldPaginate && pageLimit != null) {
+    result.pages = 1
+  }
+
+  return result
+}
+
+async function resolveSearchTagIds(db: ApiDb, metaId: number, search: string): Promise<number[]> {
+  const matched = await searchTagsByName(db, search, {
+    limit: SEARCH_ID_RESOLVE_LIMIT,
+    metaId,
+  })
+  return matched.map((tag) => tag.id)
 }
 
 function shouldLogLegacyTagLoader() {
@@ -204,18 +237,47 @@ async function loadTagItemsLegacy(
 }
 
 async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
+  const search = String(options.search || '').trim()
+  let resolvedOptions = options
+
+  if (search) {
+    const matchedIds = await resolveSearchTagIds(db, options.metaId, search)
+    if (!matchedIds.length) {
+      let totalUnfiltered: number | null = null
+      if (!options.skipTotals) {
+        const rows = await queryAllAsync<{totalUnfiltered: number}>(db, `SELECT COUNT(*) AS totalUnfiltered
+           FROM tags
+           WHERE tags.metaId = :metaId`, {metaId: options.metaId})
+        totalUnfiltered = Number(rows[0]?.totalUnfiltered) || 0
+      }
+      return emptyTagItemsResult(options, totalUnfiltered)
+    }
+
+    const requestedIds = Array.isArray(options.ids) ? options.ids : []
+    const matchedIdSet = new Set(matchedIds)
+    const ids = requestedIds.length
+      ? requestedIds.filter((id) => matchedIdSet.has(Number(id)))
+      : matchedIds
+
+    if (!ids.length) {
+      return emptyTagItemsResult(options)
+    }
+
+    resolvedOptions = {...options, ids}
+  }
+
   const fallbackReason = getTagFilterSqlFallbackReason({
-    metaId: options.metaId,
-    ids: options.ids,
-    filters: options.filters,
-    find_duplicates: options.find_duplicates,
+    metaId: resolvedOptions.metaId,
+    ids: resolvedOptions.ids,
+    filters: resolvedOptions.filters,
+    find_duplicates: resolvedOptions.find_duplicates,
   })
 
   if (fallbackReason) {
-    return loadTagItemsLegacy(db, options, fallbackReason)
+    return loadTagItemsLegacy(db, resolvedOptions, fallbackReason)
   }
 
-  return loadTagItemsSql(db, options)
+  return loadTagItemsSql(db, resolvedOptions)
 }
 
 export {

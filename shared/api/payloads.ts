@@ -68,6 +68,14 @@ export interface PostTagItemsPayload {
   tagId?: number
   mediaId?: number
   filters?: FilterObject[]
+  search?: string
+  query?: string
+  page?: number
+  limit?: number
+  skipTotals?: boolean
+  sortBy?: string
+  direction?: string
+  ids?: number[]
   [key: string]: unknown
 }
 

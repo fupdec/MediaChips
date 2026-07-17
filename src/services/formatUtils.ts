@@ -187,6 +187,83 @@ export function highlightChars(string: string, query: string, is_default?: boole
   return res
 }
 
+const GLOBAL_SEARCH_WORD_SPLIT = /[^\p{L}\p{N}]+/u
+const GLOBAL_SEARCH_WORD_MATCH = /[\p{L}\p{N}]+/gu
+
+function tokenMatchesSearchPart(token: string, part: string): boolean {
+  if (token === part) return true
+  if (!token.startsWith(part)) return false
+  if (part.length <= 3) return true
+  return token.length <= part.length + 2
+}
+
+function wrapGlobalSearchHighlight(text: string): string {
+  return `<mark class="global-search__hl">${text}</mark>`
+}
+
+/**
+ * Highlight text the same way global search matches it:
+ * prefer a contiguous query match, otherwise highlight matching word prefixes.
+ */
+export function highlightGlobalSearchText(text: string, rawQuery: string): string {
+  const source = String(text || '')
+  const query = String(rawQuery || '').trim()
+  if (!source || !query) return source
+
+  const lowerSource = source.toLowerCase()
+  const lowerQuery = query.toLowerCase()
+  const fullIndex = lowerSource.indexOf(lowerQuery)
+  if (fullIndex >= 0) {
+    return (
+      source.slice(0, fullIndex)
+      + wrapGlobalSearchHighlight(source.slice(fullIndex, fullIndex + query.length))
+      + source.slice(fullIndex + query.length)
+    )
+  }
+
+  const parts = lowerQuery.split(/\s+/).filter(Boolean)
+  if (!parts.length) return source
+
+  let result = ''
+  let lastIndex = 0
+  GLOBAL_SEARCH_WORD_MATCH.lastIndex = 0
+
+  for (const match of source.matchAll(GLOBAL_SEARCH_WORD_MATCH)) {
+    const token = match[0]
+    const index = match.index ?? 0
+    result += source.slice(lastIndex, index)
+
+    const tokenLower = token.toLowerCase()
+    const matchedPart = parts.find((part) => tokenMatchesSearchPart(tokenLower, part))
+    if (matchedPart) {
+      const hlLen = Math.min(matchedPart.length, token.length)
+      result += wrapGlobalSearchHighlight(token.slice(0, hlLen)) + token.slice(hlLen)
+    } else {
+      result += token
+    }
+
+    lastIndex = index + token.length
+  }
+
+  result += source.slice(lastIndex)
+  return result
+}
+
+export function textMatchesGlobalSearchQuery(text: string | null | undefined, rawQuery: string): boolean {
+  const query = String(rawQuery || '').trim().toLowerCase()
+  if (!query) return false
+
+  const tokens = String(text || '')
+    .toLowerCase()
+    .split(GLOBAL_SEARCH_WORD_SPLIT)
+    .filter(Boolean)
+
+  if (!tokens.length) return false
+
+  const parts = query.split(/\s+/).filter(Boolean)
+  return parts.every((part) => tokens.some((token) => tokenMatchesSearchPart(token, part)))
+}
+
 export function getTextColor(color: string | null | undefined, is_outlined?: boolean): string {
   if (!color) return ''
   if (is_outlined) {

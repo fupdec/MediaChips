@@ -84,7 +84,7 @@ export const homeApi = {
     }))
   },
 
-  searchTags(body: { q: string; limit?: number }, config?: AxiosRequestConfig) {
+  searchTags(body: { q: string; limit?: number; metaId?: number }, config?: AxiosRequestConfig) {
     return apiClient.post(API_ROUTES.globalSearchTags, body, config).then((res) => ({
       ...res,
       data: validated(parseGlobalSearchTagsResponse, res.data),

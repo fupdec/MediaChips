@@ -11,11 +11,24 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getDefaultMediaTypeId, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
-import {highlightChars} from '@/services/formatUtils'
+import {highlightGlobalSearchText, textMatchesGlobalSearchQuery} from '@/services/formatUtils'
 import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {openPath} from '@/services/shellService'
 import type { MediaItem, Tag } from '@/types/stores'
+
+type MatchedSearchTag = {
+  id: number
+  name: string
+  metaId?: number | null
+  matchSource?: 'name' | 'synonym' | 'both'
+  matchedSynonyms?: string[]
+}
+
+type GlobalSearchMedia = MediaItem & {
+  matchSource?: 'name' | 'tag' | 'both'
+  matchedTags?: MatchedSearchTag[]
+}
 
 type GlobalSearchTag = Tag & {
   matchSource?: 'name' | 'synonym' | 'both'
@@ -32,7 +45,7 @@ function groupByKey<T>(items: T[], key: keyof T): Record<string, T[]> {
 }
 
 interface SearchGroup {
-  data: Array<MediaItem | GlobalSearchTag>
+  data: Array<GlobalSearchMedia | GlobalSearchTag>
   name?: string
   icon?: string
   mediaTypeId?: number
@@ -43,7 +56,7 @@ interface SearchGroup {
 
 type FlatResultRow =
   | { kind: 'header'; group: SearchGroup; id: string }
-  | { kind: 'item'; group: SearchGroup; item: MediaItem | Tag; id: string }
+  | { kind: 'item'; group: SearchGroup; item: GlobalSearchMedia | GlobalSearchTag; id: string }
   | { kind: 'show-more'; group: SearchGroup; hiddenCount: number; id: string }
 
 const {t} = useI18n()
@@ -232,11 +245,14 @@ function normalizeSearchMedia(
     mediaTypeId?: number
     width?: number | null
     height?: number | null
+    matchSource?: 'name' | 'tag' | 'both'
+    matchedTags?: MatchedSearchTag[]
   }>,
-): MediaItem[] {
+): GlobalSearchMedia[] {
   return items.map((item) => ({
     ...item,
     name: item.name ?? undefined,
+    matchedTags: item.matchedTags?.length ? item.matchedTags : undefined,
   }))
 }
 
@@ -258,7 +274,7 @@ function normalizeSearchTags(
   }))
 }
 
-function buildMediaGroups(data: MediaItem[]) {
+function buildMediaGroups(data: GlobalSearchMedia[]) {
   const grouped = groupByKey(data, 'mediaTypeId')
 
   return Object.keys(grouped).map(id => {
@@ -376,7 +392,7 @@ function openGroup(group: SearchGroup) {
   else openMeta(group.metaId)
 }
 
-function openMedia(media: MediaItem, mediaTypeId?: number) {
+function openMedia(media: GlobalSearchMedia, mediaTypeId?: number) {
   closeThenNavigate(() => {
     const type = mediaTypes.value.find(item => item.id === Number(mediaTypeId || media.mediaTypeId))
 
@@ -430,7 +446,7 @@ function openSelectedResult() {
     return
   }
 
-  if (row.group.is_media) openMedia(row.item as MediaItem, row.group.mediaTypeId)
+  if (row.group.is_media) openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
   else openTag(row.item as Tag)
 }
 
@@ -512,7 +528,39 @@ function getMatchedSynonymsText(item: GlobalSearchTag): string {
   return ''
 }
 
-function shouldShowMatchedSynonyms(item: MediaItem | GlobalSearchTag, isMedia: boolean): boolean {
+function getMatchedTags(item: GlobalSearchMedia | GlobalSearchTag, isMedia: boolean): MatchedSearchTag[] {
+  if (!isMedia) return []
+  const media = item as GlobalSearchMedia
+  if (!media.matchedTags?.length) return []
+  // Show chips whenever backend attached matched tags (tag-only or name+tag).
+  return media.matchedTags
+}
+
+function openMatchedTag(tag: MatchedSearchTag) {
+  openTag({
+    id: tag.id,
+    name: tag.name,
+    metaId: tag.metaId ?? undefined,
+  } as Tag)
+}
+
+function getMatchedTagChipLabel(tag: MatchedSearchTag): string {
+  const query = cachedHighlightQuery
+  if (!query) return tag.name
+
+  if (textMatchesGlobalSearchQuery(tag.name, query)) return tag.name
+
+  const synonym = tag.matchedSynonyms?.find((entry) => textMatchesGlobalSearchQuery(entry, query))
+  if (synonym) return synonym
+
+  if (tag.matchSource === 'synonym' && tag.matchedSynonyms?.[0]) {
+    return tag.matchedSynonyms[0]
+  }
+
+  return tag.name
+}
+
+function shouldShowMatchedSynonyms(item: GlobalSearchMedia | GlobalSearchTag, isMedia: boolean): boolean {
   if (isMedia) return false
   const tag = item as GlobalSearchTag
   return tag.matchSource === 'synonym' || tag.matchSource === 'both'
@@ -523,7 +571,7 @@ function getNameHighlighted(text: string) {
 
   let cached = highlightCache.get(text)
   if (cached === undefined) {
-    cached = highlightChars(text, cachedHighlightQuery, true)
+    cached = highlightGlobalSearchText(text, cachedHighlightQuery)
     cacheHighlight(text, cached)
   }
 
@@ -650,20 +698,50 @@ function getNameHighlighted(text: string) {
                 ? openMedia(row.item, row.group.mediaTypeId)
                 : openTag(row.item)"
             >
-              <v-icon size="14" class="text-medium-emphasis mr-2">
-                mdi-{{ row.group.is_media ? 'file-outline' : 'tag-outline' }}
-              </v-icon>
+              <template
+                v-for="matchedTags in [getMatchedTags(row.item, row.group.is_media)]"
+                :key="`${row.id}-matched`"
+              >
+                <v-icon size="14" class="text-medium-emphasis mr-2">
+                  mdi-{{ row.group.is_media ? 'file-outline' : 'tag-outline' }}
+                </v-icon>
 
-              <div class="global-search__item-title">
-                <span v-html="getNameHighlighted(row.item.name ?? '')"/>
-                <span
-                  v-if="shouldShowMatchedSynonyms(row.item, row.group.is_media)"
-                  class="global-search__synonyms text-medium-emphasis ml-1"
+                <div class="global-search__item-title">
+                  <span v-if="matchedTags.length">{{ row.item.name }}</span>
+                  <span v-else v-html="getNameHighlighted(row.item.name ?? '')"/>
+                  <span
+                    v-if="shouldShowMatchedSynonyms(row.item, row.group.is_media)"
+                    class="global-search__synonyms text-medium-emphasis ml-1"
+                  >
+                    <span class="global-search__synonyms-label">{{ t('globalSearch.viaSynonym') }}</span>
+                    <span v-html="getNameHighlighted(getMatchedSynonymsText(row.item as GlobalSearchTag))"/>
+                  </span>
+                </div>
+
+                <div
+                  v-if="matchedTags.length"
+                  class="global-search__matched-tags ml-2"
                 >
-                  <span class="global-search__synonyms-label">{{ t('globalSearch.viaSynonym') }}</span>
-                  <span v-html="getNameHighlighted(getMatchedSynonymsText(row.item as GlobalSearchTag))"/>
-                </span>
-              </div>
+                  <v-chip
+                    size="x-small"
+                    variant="tonal"
+                    color="primary"
+                    prepend-icon="mdi-tag-outline"
+                    class="global-search__matched-tag"
+                    @click.stop="openMatchedTag(matchedTags[0])"
+                  >
+                    <span v-html="getNameHighlighted(getMatchedTagChipLabel(matchedTags[0]))"/>
+                  </v-chip>
+                  <v-chip
+                    v-if="matchedTags.length > 1"
+                    size="x-small"
+                    variant="text"
+                    class="global-search__matched-tag-more px-1"
+                  >
+                    +{{ matchedTags.length - 1 }}
+                  </v-chip>
+                </div>
+              </template>
             </div>
           </template>
         </v-virtual-scroll>
@@ -755,10 +833,52 @@ function getNameHighlighted(text: string) {
 }
 
 .global-search__item-title {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.global-search__matched-tags {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 42%;
+}
+
+.global-search__matched-tag {
+  max-width: 100%;
+}
+
+.global-search__matched-tag :deep(.v-chip__content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search__matched-tag-more {
+  min-width: 0;
+  opacity: 0.8;
+}
+
+.global-search__item-title :deep(.global-search__hl) {
+  background: rgba(var(--v-theme-primary), 0.22);
+  color: inherit;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.global-search__matched-tag :deep(.global-search__hl) {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .global-search__synonyms-label {
