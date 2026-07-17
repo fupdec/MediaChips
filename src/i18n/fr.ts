@@ -852,6 +852,7 @@ const fr = {
         en: 'Anglais',
         de: 'Allemand',
         fr: 'Français',
+        ja: 'Japonais',
         es: 'Espagnol',
         cn: 'Chinois',
         ru: 'Russe',
