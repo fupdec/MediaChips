@@ -56,6 +56,7 @@ export default function (db: ApiDb) {
         search: typeof body.search === 'string'
           ? body.search
           : (typeof body.query === 'string' ? body.query : undefined),
+        groupBy: body.groupBy,
       })
       res.status(201).send(result)
     } catch (err) {

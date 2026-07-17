@@ -513,7 +513,8 @@ const fr = {
     group_by_resolution_1440p: '1440p',
     group_by_resolution_2160p: '4K+',
     group_by_page_hint: 'Les groupes sont construits uniquement à partir de la page actuelle.',
-    group_by_pinned_meta_click_hint: 'Cliquez sur un en-tête de groupe pour filtrer tous les éléments correspondants.',
+    group_by_pinned_meta_click_hint: 'Utilisez Filtrer sur un groupe pour afficher tous les éléments correspondants.',
+    group_by_filter_action: 'Filtrer',
     view: {
       card: 'Carte',
       timeline: 'Chronologie',

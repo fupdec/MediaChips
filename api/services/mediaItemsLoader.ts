@@ -7,6 +7,7 @@ import type {
 } from '../types/mediaFilter'
 import type { ParsedItem } from '../../app/types/items'
 import { queryAllAsync } from '../db/utils/rawQuery'
+import { chunkArray } from '../db/utils/chunk'
 import {
   getMediaFilterSqlFallbackReason,
   getMediaFromClause,
@@ -32,6 +33,37 @@ import {
   slicePage,
 } from './mediaItemsPagination'
 import { resolveSortMetaType } from './resolveSortMetaType'
+import {
+  aggregateGroupedItems,
+  resolveListGroupBy,
+  type BuildItemGroupsOptions,
+  type GroupableItem,
+  type ItemsGroupBy,
+  type ItemsGroupSummary,
+} from '../../shared/itemsGroupBy'
+import { createMetaRepository } from '../db/repositories/meta'
+
+const GROUP_SLIM_SELECT = `SELECT
+  media.id,
+  media.path,
+  media.name,
+  media.basename,
+  media.ext,
+  media.mediaTypeId,
+  media.filesize,
+  media.rating,
+  media.favorite,
+  media.views,
+  media.viewedAt,
+  media.createdAt,
+  media.updatedAt,
+  COALESCE(videoMetadata.width, imageMetadata.width) AS width,
+  COALESCE(videoMetadata.height, imageMetadata.height) AS height,
+  videoMetadata.duration,
+  videoMetadata.bitrate,
+  videoMetadata.codec,
+  videoMetadata.fps,
+  videoMetadata.time`
 
 function shouldLogLegacyMediaLoader() {
   return process.env.NODE_ENV !== 'production'
@@ -122,6 +154,124 @@ const createItemShell = (row: AnyRecord): LoadedMediaItem => ({
   values: [],
   key: String(row.id),
 })
+
+async function attachPinnedMetaForGrouping(
+  db: ApiDb,
+  items: GroupableItem[],
+  metaId: number,
+  metaType: string | null | undefined,
+): Promise<BuildItemGroupsOptions> {
+  const mediaIds = items
+    .map((item) => Number(item.id))
+    .filter((id) => Number.isFinite(id))
+  if (!mediaIds.length) {
+    return {metaId, metaType: metaType || null}
+  }
+
+  const type = String(metaType || '')
+  const isTagMeta = !type || type === 'array' || type === 'select'
+  const tagsByMediaId = new Map<number, Array<{tagId: number; metaId: number}>>()
+  const valuesByMediaId = new Map<number, Array<{metaId: number; value: unknown}>>()
+  const tagNameById = new Map<number, string>()
+
+  for (const chunk of chunkArray(mediaIds)) {
+    if (isTagMeta) {
+      const tagRows = await queryAllAsync(db,
+        `SELECT mediaId, tagId, metaId FROM tagsInMedia
+         WHERE mediaId IN (:mediaIds) AND metaId = :metaId`,
+        {mediaIds: chunk, metaId},
+      )
+      for (const row of tagRows) {
+        const mediaId = Number(row.mediaId)
+        const tagId = Number(row.tagId)
+        if (!Number.isFinite(mediaId) || !Number.isFinite(tagId)) continue
+        if (!tagsByMediaId.has(mediaId)) tagsByMediaId.set(mediaId, [])
+        tagsByMediaId.get(mediaId)!.push({tagId, metaId: Number(row.metaId)})
+      }
+    } else {
+      const valueRows = await queryAllAsync(db,
+        `SELECT mediaId, value, metaId FROM valuesInMedia
+         WHERE mediaId IN (:mediaIds) AND metaId = :metaId`,
+        {mediaIds: chunk, metaId},
+      )
+      for (const row of valueRows) {
+        const mediaId = Number(row.mediaId)
+        if (!Number.isFinite(mediaId)) continue
+        if (!valuesByMediaId.has(mediaId)) valuesByMediaId.set(mediaId, [])
+        valuesByMediaId.get(mediaId)!.push({
+          metaId: Number(row.metaId),
+          value: row.value,
+        })
+      }
+    }
+  }
+
+  if (isTagMeta && tagsByMediaId.size) {
+    const tagIds = [...new Set(
+      [...tagsByMediaId.values()].flatMap((rows) => rows.map((row) => row.tagId)),
+    )]
+    for (const chunk of chunkArray(tagIds)) {
+      const nameRows = await queryAllAsync(db,
+        `SELECT id, name FROM tags WHERE id IN (:ids)`,
+        {ids: chunk},
+      )
+      for (const row of nameRows) {
+        tagNameById.set(Number(row.id), String(row.name || ''))
+      }
+    }
+  }
+
+  for (const item of items) {
+    const id = Number(item.id)
+    item.tags = tagsByMediaId.get(id) || []
+    item.values = valuesByMediaId.get(id) || []
+  }
+
+  return {
+    metaId,
+    metaType: metaType || (isTagMeta ? 'array' : 'string'),
+    resolveTagName: (tagId) => tagNameById.get(Number(tagId)) || `#${tagId}`,
+  }
+}
+
+async function buildMediaGroupsFromSlimRows(
+  db: ApiDb,
+  slimRows: AnyRecord[],
+  groupBy: ItemsGroupBy,
+  sortBy: unknown,
+  groupMetaId: number | null,
+  groupByMetaType?: string | null,
+  direction?: string | null,
+): Promise<{groups: ItemsGroupSummary[]; orderedIds: number[]}> {
+  const items = slimRows.map((row) => ({...row})) as GroupableItem[]
+  let options: BuildItemGroupsOptions = {
+    metaId: groupMetaId,
+    metaType: groupByMetaType || null,
+    direction: direction || 'asc',
+  }
+
+  if (groupBy === 'pinnedMeta' && groupMetaId != null) {
+    let metaType = groupByMetaType || null
+    if (!metaType) {
+      const metaRepo = createMetaRepository(db.drizzle)
+      metaType = metaRepo.findById(groupMetaId)?.type || 'array'
+    }
+    options = {
+      ...(await attachPinnedMetaForGrouping(db, items, groupMetaId, metaType)),
+      direction: direction || 'asc',
+    }
+  }
+
+  return aggregateGroupedItems(items, groupBy, sortBy, options)
+}
+
+function sliceOrderedIds(orderedIds: number[], page: number, limit: number | null | undefined): number[] {
+  const pageLimit = resolvePageLimit(limit)
+  if (pageLimit == null) return orderedIds
+  const safePage = Math.max(1, Number(page) || 1)
+  const start = (safePage - 1) * pageLimit
+  return orderedIds.slice(start, start + pageLimit)
+}
 
 async function fetchBaseMediaRows(db: ApiDb, mediaTypeId: MediaId | null | undefined, ids: MediaId[] = []) {
   if (ids.length) {
@@ -243,9 +393,32 @@ async function loadMediaItemsLegacy(
 
   const pageLimit = resolvePageLimit(limit)
   const shouldPaginate = shouldPaginateMediaList({ ids, limit })
-  const pageItems = shouldPaginate
-    ? slicePage(filtered, page, limit)
-    : filtered
+  const {groupBy, metaId: groupMetaId} = resolveListGroupBy(options.groupBy, 'media')
+
+  let pageItems = filtered
+  let groups: ItemsGroupSummary[] | undefined
+
+  if (groupBy !== 'none') {
+    const aggregated = await buildMediaGroupsFromSlimRows(
+      db,
+      filtered as unknown as AnyRecord[],
+      groupBy,
+      sortBy,
+      groupMetaId,
+      options.groupByMetaType,
+      direction,
+    )
+    groups = aggregated.groups
+    const pageIds = shouldPaginate
+      ? sliceOrderedIds(aggregated.orderedIds, page, limit)
+      : aggregated.orderedIds
+    const byId = new Map(filtered.map((item) => [Number(item.id), item]))
+    pageItems = pageIds
+      .map((id) => byId.get(id))
+      .filter((item): item is typeof filtered[number] => item != null)
+  } else if (shouldPaginate) {
+    pageItems = slicePage(filtered, page, limit)
+  }
 
   return {
     items: pageItems,
@@ -258,6 +431,7 @@ async function loadMediaItemsLegacy(
     pages: shouldPaginate && pageLimit
       ? Math.max(1, Math.ceil(totalFiltered / pageLimit))
       : 1,
+    ...(groups ? {groups} : {}),
   }
 }
 
@@ -292,8 +466,14 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
   const joinForFilters = requiresMetadataJoinForFilters(filters)
   const joinForSort = requiresMetadataJoinForSort(sortBy)
+  const {groupBy, metaId: groupMetaId} = resolveListGroupBy(options.groupBy, 'media')
+  const groupingActive = groupBy !== 'none'
+  // GROUP_SLIM_SELECT always reads video/image metadata columns.
   const fromForCount = getMediaFromClause(joinForFilters, joinSql)
-  const fromForSort = getMediaFromClause(joinForFilters || joinForSort, joinSql)
+  const fromForSort = getMediaFromClause(
+    joinForFilters || joinForSort || groupingActive,
+    joinSql,
+  )
   const idSelect = buildMediaIdSelect(needsDistinct)
 
   const pageLimit = resolvePageLimit(limit)
@@ -301,18 +481,68 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   const safePage = Math.max(1, Number(page) || 1)
   const queryReplacements = {...replacements}
 
-  let idQuery = `${idSelect}
-    ${fromForSort}
-    ${whereClause}
-    ORDER BY ${sortExpr} ${sortDir}`
+  let pageIds: MediaId[] = []
+  let groups: ItemsGroupSummary[] | undefined
 
-  if (shouldPaginate && pageLimit != null) {
-    queryReplacements.limit = pageLimit
-    queryReplacements.offset = (safePage - 1) * pageLimit
-    idQuery += ' LIMIT :limit OFFSET :offset'
+  if (groupingActive) {
+    let slimRows: AnyRecord[]
+    if (needsDistinct) {
+      const allIdRows = await queryAllAsync(db, `${idSelect}
+        ${fromForSort}
+        ${whereClause}
+        ORDER BY ${sortExpr} ${sortDir}`, replacements)
+      const allIds = allIdRows.map((row: AnyRecord) => row.id as MediaId)
+      const rowsById = new Map<MediaId, AnyRecord>()
+      for (const chunk of chunkArray(allIds)) {
+        const chunkRows = await queryAllAsync(db,
+          `${GROUP_SLIM_SELECT}
+           FROM media
+           LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+           LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+           WHERE media.id IN (:ids)`,
+          {ids: chunk},
+        )
+        for (const row of chunkRows) {
+          rowsById.set(row.id as MediaId, row)
+        }
+      }
+      slimRows = allIds
+        .map((id) => rowsById.get(id))
+        .filter((row): row is AnyRecord => row != null)
+    } else {
+      slimRows = await queryAllAsync(db, `${GROUP_SLIM_SELECT}
+        ${fromForSort}
+        ${whereClause}
+        ORDER BY ${sortExpr} ${sortDir}`, replacements)
+    }
+    const aggregated = await buildMediaGroupsFromSlimRows(
+      db,
+      slimRows,
+      groupBy,
+      sortBy,
+      groupMetaId,
+      options.groupByMetaType,
+      direction,
+    )
+    groups = aggregated.groups
+    pageIds = shouldPaginate
+      ? sliceOrderedIds(aggregated.orderedIds, safePage, limit)
+      : aggregated.orderedIds
+  } else {
+    let idQuery = `${idSelect}
+      ${fromForSort}
+      ${whereClause}
+      ORDER BY ${sortExpr} ${sortDir}`
+
+    if (shouldPaginate && pageLimit != null) {
+      queryReplacements.limit = pageLimit
+      queryReplacements.offset = (safePage - 1) * pageLimit
+      idQuery += ' LIMIT :limit OFFSET :offset'
+    }
+
+    const idRows = await queryAllAsync(db, idQuery, queryReplacements)
+    pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
   }
-
-  const queries = [queryAllAsync(db, idQuery, queryReplacements)]
 
   const totalsCacheKey = buildFilteredTotalsCacheKey({
     mediaTypeId,
@@ -334,32 +564,24 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
       totalFiltered = cachedFilteredTotals.totalFiltered
       totalFilesize = cachedFilteredTotals.totalFilesize
     } else {
-      queries.push(
+      const [totalsRows, unfilteredRows] = await Promise.all([
         queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
         queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
            FROM media
            WHERE media.mediaTypeId = :mediaTypeId`, {mediaTypeId}),
-      )
+      ])
+      const totals = totalsRows?.[0] || {}
+      const unfiltered = unfilteredRows?.[0] || {}
+      totalUnfiltered = Number(unfiltered.totalUnfiltered) || 0
+      totalFiltered = Number(totals.totalFiltered) || 0
+      totalFilesize = Number(totals.totalFilesize) || 0
+      setCachedFilteredTotals(totalsCacheKey, {
+        totalFiltered,
+        totalFilesize,
+      })
+      setCachedUnfilteredTotal(mediaTypeId as number | string, totalUnfiltered)
     }
   }
-
-  const results = await Promise.all(queries)
-  const idRows = results[0]
-
-  if (!skipTotals && totalFiltered == null) {
-    const totals = results[1]?.[0] || {}
-    const unfiltered = results[2]?.[0] || {}
-    totalUnfiltered = Number(unfiltered.totalUnfiltered) || 0
-    totalFiltered = Number(totals.totalFiltered) || 0
-    totalFilesize = Number(totals.totalFilesize) || 0
-    setCachedFilteredTotals(totalsCacheKey, {
-      totalFiltered,
-      totalFilesize,
-    })
-    setCachedUnfilteredTotal(mediaTypeId as number | string, totalUnfiltered)
-  }
-
-  const pageIds: MediaId[] = idRows.map((row: AnyRecord) => row.id as MediaId)
 
   let navigation
   if (includeNavigation) {
@@ -388,6 +610,10 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     navigation,
     page: shouldPaginate ? safePage : 1,
     limit: shouldPaginate ? pageLimit : (totalFiltered ?? items.length),
+  }
+
+  if (groups) {
+    result.groups = groups
   }
 
   if (!skipTotals && shouldPaginate && totalFiltered != null && pageLimit != null) {

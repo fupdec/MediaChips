@@ -47,6 +47,7 @@ export default function (db: ApiDb) {
         limit: limit > 0 ? limit : null,
         includeNavigation: body.includeNavigation === true && !ids.length,
         skipTotals: body.skipTotals === true,
+        groupBy: body.groupBy,
       })
 
       res.status(201).send(result)

@@ -538,7 +538,8 @@ const ja = {
     group_by_resolution_1440p: '1440p',
     group_by_resolution_2160p: '4K+',
     group_by_page_hint: 'グループは現在のページのみから作成されます。',
-    group_by_pinned_meta_click_hint: 'グループ見出しをクリックすると一致するすべての項目をフィルターします。',
+    group_by_pinned_meta_click_hint: 'グループの「フィルター」で一致するすべての項目を表示します。',
+    group_by_filter_action: 'フィルター',
     view: {
       card: "カード",
       timeline: "タイムライン",

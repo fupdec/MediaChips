@@ -166,7 +166,11 @@ export function useItemsPageEvents({
 
     const groupBy = normalizeItemsGroupBy(ITEMS.value.groupBy)
     if (groupBy !== 'none' && !isSortCompatibleWithGroupBy(groupBy, sortBy)) {
-      itemsStore.updateState({key: 'groupBy', value: 'none'})
+      itemsStore.updateMultiple({
+        groupBy: 'none',
+        groupByMetaId: null,
+        groups: [],
+      })
       pageSettingUpdates.firstChar = 'none'
     }
 
@@ -189,30 +193,36 @@ export function useItemsPageEvents({
     const parsed = parseGroupBySetting(event)
     const groupBy = parsed.groupBy
     const metaId = parsed.metaId
-    const requiredSort = getGroupByRequiredSort(groupBy)
-    const needsSortChange = Boolean(
-      requiredSort && !isSortCompatibleWithGroupBy(groupBy, ITEMS.value.sortBy),
+    const preferredSort = getGroupByRequiredSort(groupBy)
+    const currentSort = String(ITEMS.value.sortBy || '')
+    const needsSortChange = groupBy !== 'none' && (
+      currentSort === 'shuffle'
+      || (preferredSort != null && currentSort !== preferredSort)
     )
+    const sortToApply = preferredSort || (currentSort === 'shuffle' ? 'name' : null)
 
     itemsStore.updateMultiple({
       groupBy,
       groupByMetaId: groupBy === 'pinnedMeta' ? metaId : null,
+      groups: [],
+      page: 1,
     })
 
     const firstChar = serializeGroupBySetting(groupBy, metaId)
 
-    if (needsSortChange && requiredSort) {
+    if (needsSortChange && sortToApply) {
       const sortDir = groupBy === 'firstLetter' || groupBy === 'path' || groupBy === 'diskRoot'
+        || sortToApply === 'name'
         ? 'asc'
         : 'desc'
       itemsStore.updateMultiple({
-        sortBy: requiredSort,
+        sortBy: sortToApply,
         sortDir,
         page: 1,
       })
       void updatePageSetting({
         firstChar,
-        sortBy: requiredSort,
+        sortBy: sortToApply,
         sortDir,
         page: 1,
       })
@@ -222,7 +232,9 @@ export function useItemsPageEvents({
 
     void updatePageSetting({
       firstChar,
+      page: 1,
     })
+    void getItemsFromDb()
   }
 
   const handleUpdateAssignedMeta: Handler = async () => {

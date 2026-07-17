@@ -19,6 +19,10 @@ import type {
 } from '@/types/itemsPage'
 import {trimInfiniteScrollItems} from '@shared/listPagination'
 import {compensateScrollAfterTopTrim} from '@/utils/infiniteScrollTrim'
+import {
+  normalizeItemsGroupBy,
+  serializeGroupBySetting,
+} from '@/utils/itemsGroupBy'
 
 export const INFINITE_PAGE_SIZE = 25
 
@@ -167,6 +171,9 @@ export function useItemsPage({
       entities: nextItems,
       itemsOnPage: nextItems,
       isFiltersLoaded: true,
+      ...(!append && response.data.groups
+        ? {groups: response.data.groups}
+        : (!append ? {groups: []} : {})),
     })
 
     if (trimmedFromTop > 0 && scrollEl) {
@@ -226,6 +233,14 @@ export function useItemsPage({
 
       query.limit = pageLimit
       query.skipTotals = appendListPage
+
+      const groupBy = ITEMS.value.groupBy
+      if (groupBy && groupBy !== 'none') {
+        query.groupBy = serializeGroupBySetting(
+          normalizeItemsGroupBy(groupBy),
+          ITEMS.value.groupByMetaId,
+        )
+      }
     }
 
     if (ids && ids.length > 0) {

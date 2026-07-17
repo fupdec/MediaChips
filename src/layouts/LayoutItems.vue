@@ -102,30 +102,19 @@
       class="items-page-grid"
     >
       <template v-if="groupedSections">
-        <div
-          v-if="showGroupByPageHint"
-          class="items-group-hint"
-        >
-          {{ t('items.group_by_page_hint') }}
-          <span v-if="canFilterPinnedMetaGroups">
-            {{ t('items.group_by_pinned_meta_click_hint') }}
-          </span>
-        </div>
         <template v-for="section in groupedSections" :key="section.key">
-          <div
-            class="items-group-header"
-            :class="{'items-group-header--clickable': canOpenGroupFilter(section)}"
-            @click="openGroupFilter(section)"
-          >
+          <div class="items-group-header">
             <span class="items-group-header__label">{{ section.label }}</span>
-            <span class="items-group-header__count">{{ section.items.length }}</span>
-            <v-icon
+            <span class="items-group-header__count">{{ section.count ?? section.items.length }}</span>
+            <button
               v-if="canOpenGroupFilter(section)"
-              size="18"
+              type="button"
               class="items-group-header__action"
+              @click.stop="openGroupFilter(section)"
             >
-              mdi-filter-outline
-            </v-icon>
+              <v-icon size="18">mdi-filter-outline</v-icon>
+              <span>{{ t('items.group_by_filter_action') }}</span>
+            </button>
           </div>
           <Item
             v-for="(i, x) in section.items"
@@ -273,6 +262,7 @@ import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
 import {
   buildItemGroups,
+  getGroupKeyAndLabel,
   resolveActiveItemsGroupBy,
   type ItemsGroupSection,
 } from '@/utils/itemsGroupBy'
@@ -454,22 +444,51 @@ const groupedSections = computed(() => {
     return rowMetaId === metaId
   })
   const tagsById = new Map(appStore.tags.map((tag) => [Number(tag.id), tag.name || '']))
+  const options = {
+    locale: locale.value,
+    t: (key: string, params?: Record<string, string | number>) => t(key, params),
+    metaId: Number.isFinite(metaId) ? metaId : null,
+    metaType: assigned?.meta?.type || null,
+    direction: ITEMS.value.sortDir || 'asc',
+    resolveTagName: (tagId: number) => tagsById.get(Number(tagId)) || `#${tagId}`,
+  }
 
-  return buildItemGroups(
+  const serverGroups = ITEMS.value.groups || []
+  if (serverGroups.length) {
+    const itemsByKey = new Map<string, MediaItem[]>()
+    for (const item of ITEMS.value.itemsOnPage) {
+      const {key} = getGroupKeyAndLabel(item, groupBy, ITEMS.value.sortBy, options)
+      const list = itemsByKey.get(key) || []
+      list.push(item)
+      itemsByKey.set(key, list)
+    }
+
+    const sections: ItemsGroupSection<MediaItem>[] = []
+    for (const group of serverGroups) {
+      const items = itemsByKey.get(group.key)
+      if (!items?.length) continue
+      const localized = getGroupKeyAndLabel(items[0], groupBy, ITEMS.value.sortBy, options)
+      sections.push({
+        key: group.key,
+        label: localized.label || group.label,
+        items,
+        count: group.count,
+        filter: group.filter ?? localized.filter ?? null,
+      })
+    }
+    if (sections.length) return sections
+  }
+
+  // Fallback when server groups are missing or keys don't match page items.
+  const fallback = buildItemGroups(
     ITEMS.value.itemsOnPage,
     groupBy,
     ITEMS.value.sortBy,
-    {
-      locale: locale.value,
-      t: (key, params) => t(key, params),
-      metaId: Number.isFinite(metaId) ? metaId : null,
-      metaType: assigned?.meta?.type || null,
-      resolveTagName: (tagId) => tagsById.get(Number(tagId)) || `#${tagId}`,
-    },
+    options,
   )
+  return fallback.length ? fallback : null
 })
 
-const showGroupByPageHint = computed(() => Boolean(groupedSections.value?.length))
 const canFilterPinnedMetaGroups = computed(() =>
   resolveActiveItemsGroupBy(
     ITEMS.value.groupBy,
@@ -527,6 +546,7 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
     filters: [...ITEMS.value.filters, filter],
     groupBy: 'none',
     groupByMetaId: null,
+    groups: [],
     page: 1,
   })
   eventBus.emit('setItemsGroupBy', 'none')
@@ -640,14 +660,6 @@ defineEmits<{
   box-sizing: border-box;
 }
 
-.items-group-header--clickable {
-  cursor: pointer;
-}
-
-.items-group-header--clickable:hover {
-  opacity: 0.85;
-}
-
 .items-group-header:first-child {
   margin-top: 0;
   padding-top: 4px;
@@ -667,7 +679,22 @@ defineEmits<{
 
 .items-group-header__action {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
   opacity: 0.7;
+  cursor: pointer;
+}
+
+.items-group-header__action:hover {
+  opacity: 1;
 }
 
 .items-group-hint {

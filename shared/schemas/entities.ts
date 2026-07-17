@@ -101,8 +101,20 @@ export const MediaListResponseSchema = z.object({
   total: optionalNullableCoercedNumberSchema,
   pages: optionalNullableCoercedNumberSchema,
   page: optionalNullableCoercedNumberSchema,
+  limit: optionalNullableCoercedNumberSchema,
   navigation: z.array(MediaItemSchema).optional(),
-})
+  groups: z.array(z.object({
+    key: z.string(),
+    label: z.string(),
+    count: z.number(),
+    filter: z.object({
+      metaId: z.number(),
+      type: z.string(),
+      tagIds: z.array(z.number()).optional(),
+      value: z.unknown().optional(),
+    }).nullable().optional(),
+  }).passthrough()).optional(),
+}).passthrough()
 
 export type ParsedMediaType = z.infer<typeof MediaTypeSchema>
 export type ParsedTag = z.infer<typeof TagSchema>

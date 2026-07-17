@@ -513,7 +513,8 @@ const pt = {
     group_by_resolution_1440p: '1440p',
     group_by_resolution_2160p: '4K+',
     group_by_page_hint: 'Os grupos são montados apenas com a página atual.',
-    group_by_pinned_meta_click_hint: 'Clique no cabeçalho do grupo para filtrar todos os itens correspondentes.',
+    group_by_pinned_meta_click_hint: 'Use Filtrar em um grupo para ver todos os itens correspondentes.',
+    group_by_filter_action: 'Filtrar',
     view: {
       card: 'Cartão',
       timeline: 'Linha do tempo',

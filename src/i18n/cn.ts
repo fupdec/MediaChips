@@ -515,7 +515,8 @@ const cn = {
     group_by_resolution_1440p: '1440p',
     group_by_resolution_2160p: '4K+',
     group_by_page_hint: '分组仅基于当前页。',
-    group_by_pinned_meta_click_hint: '点击分组标题可筛选全部匹配项。',
+    group_by_pinned_meta_click_hint: '点击分组右侧的「筛选」可查看全部匹配项。',
+    group_by_filter_action: '筛选',
     view: {
       card: '卡片',
       timeline: '时间轴',

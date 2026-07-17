@@ -78,6 +78,10 @@ export interface MediaLoadOptions {
   includeNavigation?: boolean
   skipTotals?: boolean
   previewLimit?: number
+  /** Serialized group-by setting, e.g. `firstLetter` or `pinnedMeta:42`. */
+  groupBy?: string
+  /** Meta type for pinnedMeta grouping (`array`, `string`, …). */
+  groupByMetaType?: string | null
 }
 
 export type MediaId = number | string

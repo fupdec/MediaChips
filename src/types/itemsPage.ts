@@ -11,7 +11,7 @@ import type {
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
 import type { AssignedMeta, MediaItem, Meta, SavedFilter, Tag } from '@/types/stores'
-import type { ItemsGroupBy } from '@/utils/itemsGroupBy'
+import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
 
 export type ItemsPageType = 'media' | 'tag'
 
@@ -156,6 +156,7 @@ export interface ItemsPageStoreUpdates {
   view?: number | string
   groupBy?: ItemsGroupBy | string
   groupByMetaId?: number | null
+  groups?: ItemsGroupSummary[]
   sortBy?: string
   sortDir?: string
   [key: string]: unknown

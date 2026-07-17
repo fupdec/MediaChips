@@ -515,7 +515,8 @@ const es = {
     group_by_resolution_1440p: '1440p',
     group_by_resolution_2160p: '4K+',
     group_by_page_hint: 'Los grupos se construyen solo con la página actual.',
-    group_by_pinned_meta_click_hint: 'Haz clic en un encabezado de grupo para filtrar todos los elementos coincidentes.',
+    group_by_pinned_meta_click_hint: 'Usa Filtrar en un grupo para ver todos los elementos coincidentes.',
+    group_by_filter_action: 'Filtrar',
     view: {
       card: 'Tarjeta',
       timeline: 'Línea de tiempo',

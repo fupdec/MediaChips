@@ -14,7 +14,6 @@ import {normalizeItemsView} from '@/utils/itemsView'
 import {
   parseGroupBySetting,
   getGroupByRequiredSort,
-  isSortCompatibleWithGroupBy,
 } from '@/utils/itemsGroupBy'
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
@@ -171,12 +170,20 @@ export function useItemsPageInit({
       ? parsedGroupBy.metaId
       : null
     const requiredSort = getGroupByRequiredSort(parsedGroupBy.groupBy)
-    if (requiredSort && !isSortCompatibleWithGroupBy(parsedGroupBy.groupBy, updates.sortBy)) {
-      updates.sortBy = requiredSort
+    const currentSort = String(updates.sortBy || '')
+    if (
+      parsedGroupBy.groupBy !== 'none'
+      && (
+        currentSort === 'shuffle'
+        || (requiredSort != null && currentSort !== requiredSort)
+      )
+    ) {
+      updates.sortBy = requiredSort || 'name'
       if (updates.sortDir == null) {
         updates.sortDir = parsedGroupBy.groupBy === 'firstLetter'
           || parsedGroupBy.groupBy === 'path'
           || parsedGroupBy.groupBy === 'diskRoot'
+          || updates.sortBy === 'name'
           ? 'asc'
           : 'desc'
       }

@@ -22,6 +22,7 @@ export const ItemsListRequestSchema = z.object({
   page: optionalCoercedNumber,
   limit: optionalCoercedNumber,
   skipTotals: optionalCoercedBoolean,
+  groupBy: z.string().optional(),
 }).passthrough()
 
 export const MediaIdsRequestSchema = z.object({

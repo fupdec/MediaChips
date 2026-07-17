@@ -6,6 +6,7 @@ import type { Playlist } from '../entities/playlist'
 import type { Tab } from '../entities/tab'
 import type { SavedFilter } from '../entities/filter'
 import type { AssignedMeta } from '../entities/meta'
+import type { ItemsGroupSummary } from '../itemsGroupBy'
 
 export interface SettingEntry {
   option: string
@@ -19,7 +20,9 @@ export interface MediaListResponseData {
   total?: number
   pages?: number
   page?: number
+  limit?: number
   navigation?: MediaItem[]
+  groups?: ItemsGroupSummary[]
 }
 
 export interface PageSettingData {
@@ -77,6 +80,8 @@ export interface ItemsListRequest {
   page?: number
   limit?: number
   skipTotals?: boolean
+  /** Serialized group-by setting, e.g. `firstLetter` or `pinnedMeta:42`. */
+  groupBy?: string
   /** Tag autocomplete / name+synonym search. */
   search?: string
   query?: string

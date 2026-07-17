@@ -514,7 +514,8 @@ const ru = {
     group_by_resolution_1440p: '1440p',
     group_by_resolution_2160p: '4K+',
     group_by_page_hint: 'Группы построены только по текущей странице.',
-    group_by_pinned_meta_click_hint: 'Клик по заголовку группы — фильтр по всем подходящим айтемам.',
+    group_by_pinned_meta_click_hint: 'Кнопка «Фильтровать» у группы показывает все подходящие айтемы.',
+    group_by_filter_action: 'Фильтровать',
     view: {
       card: 'Карточка',
       timeline: 'Таймлайн',
