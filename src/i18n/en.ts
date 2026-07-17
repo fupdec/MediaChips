@@ -1576,6 +1576,7 @@ const en = {
     string: 'String',
     number: 'Number',
     date: 'Date',
+    select_date: 'Select date',
     duplicate_filter: 'Duplicate filter',
     remove_filter: 'Remove filter',
     adding_filter: 'Adding filter',

@@ -7,6 +7,7 @@ import {
   getTagHoverPreviewDimensions,
   highlightGlobalSearchText,
   textMatchesGlobalSearchQuery,
+  formatFilterDateDisplay,
 } from '@/services/formatUtils'
 
 describe('formatUtils', () => {
@@ -55,5 +56,13 @@ describe('formatUtils', () => {
     expect(html).toContain('<mark class="global-search__hl">piss</mark>')
     expect(textMatchesGlobalSearchQuery('sybil piss in mouth', 'piss s')).toBe(true)
     expect(textMatchesGlobalSearchQuery('Piss Shower', 'piss s')).toBe(true)
+  })
+
+  it('formats filter dates for display without changing storage shape', () => {
+    expect(formatFilterDateDisplay('2024-03-15', 'en')).toMatch(/March/)
+    expect(formatFilterDateDisplay('2024-03-15', 'ru')).toMatch(/марта|март/i)
+    expect(formatFilterDateDisplay('2024-03-15', 'cn')).toMatch(/2024/)
+    expect(formatFilterDateDisplay(null)).toBe('')
+    expect(formatFilterDateDisplay('not-a-date')).toBe('not-a-date')
   })
 })

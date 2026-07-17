@@ -136,6 +136,41 @@ export function getDateFromMs(ms: number): string {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 }
 
+const FILTER_DATE_LOCALES: Record<string, string> = {
+  en: 'en',
+  es: 'es',
+  ru: 'ru',
+  cn: 'zh-CN',
+}
+
+/** Display-only formatting for filter date values stored as YYYY-MM-DD. */
+export function formatFilterDateDisplay(value: unknown, locale?: string | null): string {
+  if (value == null || value === '') return ''
+  const raw = String(value).trim()
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (!match) return raw
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(year, month - 1, day)
+  if (
+    Number.isNaN(date.getTime())
+    || date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+  ) {
+    return raw
+  }
+
+  const resolvedLocale = FILTER_DATE_LOCALES[String(locale || '')] || undefined
+  return date.toLocaleDateString(resolvedLocale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 export function getDateForDB(ms?: number | null): string {
   const date = ms ? new Date(ms) : new Date()
   return date.toISOString().replace('T', ' ').replace('Z', ' +00:00')

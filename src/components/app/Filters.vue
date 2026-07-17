@@ -188,6 +188,7 @@
       <v-date-picker
         @update:model-value="setDate"
         :model-value="datePicker.value"
+        :title="t('filters.select_date')"
         color="primary"
         rounded="xl"
       />

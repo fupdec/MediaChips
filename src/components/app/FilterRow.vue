@@ -189,10 +189,10 @@
           :meta_id="metaIdParam"
         ></MetaInputRating>
 
-        <v-text-field
+          <v-text-field
           v-if="filter.type === 'date'"
           @click="pickDate"
-          :model-value="filterValString"
+          :model-value="filterDateDisplay"
           :disabled="is_locked || !is_value_required"
           class="ma-1 pt-0"
           readonly
@@ -277,6 +277,7 @@ import {
   getListCond,
   getReadableDuration,
   getReadableFileSize,
+  formatFilterDateDisplay,
 } from '@/services/formatUtils'
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
@@ -318,7 +319,7 @@ const folderDialog = ref(false)
 
 // Stores and composables
 const itemsStore = useItemsStore()
-const {t} = useI18n()
+const {t, locale} = useI18n()
 
 // Computed properties
 const modelFilter = computed(() => props.filter)
@@ -334,6 +335,9 @@ const metaIdParam = computed(() => {
 const filterValNumber = computed(() => Number(modelFilter.value.val))
 const filterValArray = computed(() => Array.isArray(modelFilter.value.val) ? modelFilter.value.val : [])
 const filterValString = computed(() => modelFilter.value.val == null ? '' : String(modelFilter.value.val))
+const filterDateDisplay = computed(() =>
+  formatFilterDateDisplay(modelFilter.value.val, locale.value),
+)
 const paramAsString = computed(() => String(parameter.value ?? ''))
 const is_value_required = computed(() => !['is null', 'not null'].includes(condition.value ?? ''))
 const isPathFilter = computed(() => parameter.value === 'path')

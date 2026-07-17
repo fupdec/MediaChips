@@ -1480,6 +1480,7 @@ const es = {
     string: 'Texto',
     number: 'Número',
     date: 'Fecha',
+    select_date: 'Seleccionar fecha',
     duplicate_filter: 'Duplicar filtro',
     remove_filter: 'Eliminar filtro',
     adding_filter: 'Agregando filtro',

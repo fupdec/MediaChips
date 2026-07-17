@@ -117,6 +117,10 @@
           <span v-html="getValForTypeNumber(filter.param, filter.val)"/>
         </span>
 
+        <span v-else-if="filter.type === 'date'" class="ml-1">
+          "{{ formatFilterDateDisplay(filter.val, locale) }}"
+        </span>
+
         <span v-else-if="filter.type !== 'boolean'" class="ml-1">
           "{{ filter.val }}"
         </span>
@@ -136,7 +140,7 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {getCurrentMediaType} from '@/utils/mediaType'
-import {getListCond, getReadableFileSize, getReadableDuration} from '@/services/formatUtils'
+import {getListCond, getReadableFileSize, getReadableDuration, formatFilterDateDisplay} from '@/services/formatUtils'
 import {getDuplicatesModeLabelKey} from '@/utils/mediaSortFilter'
 import type { FilterObject, FilterListParam } from '@/types/common'
 
@@ -169,7 +173,7 @@ const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const eventBus = useEventBus()
-const {t} = useI18n()
+const {t, locale} = useI18n()
 
 /* =========================
  * COMPUTED

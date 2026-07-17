@@ -1480,6 +1480,7 @@ const cn = {
     string: '字符串',
     number: '数字',
     date: '日期',
+    select_date: '选择日期',
     duplicate_filter: '复制筛选器',
     remove_filter: '移除筛选器',
     adding_filter: '添加筛选器',

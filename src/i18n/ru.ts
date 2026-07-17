@@ -1576,6 +1576,7 @@ const ru = {
     string: 'Строка',
     number: 'Число',
     date: 'Дата',
+    select_date: 'Выбор даты',
     duplicate_filter: 'Дублировать фильтр',
     remove_filter: 'Удалить фильтр',
     adding_filter: 'Добавление фильтра',
