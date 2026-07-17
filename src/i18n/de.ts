@@ -850,10 +850,11 @@ const de = {
       language: "Sprache",
       languages: {
         en: "Englisch",
+        de: "Deutsch",
+        fr: "Französisch",
         es: "Spanisch",
         cn: "Chinesisch",
         ru: "Russisch",
-        de: "Deutsch",
       },
       home_widgets: "Startseiten-Widgets",
       home_widgets_hint: "Ziehen Sie, um die Reihenfolge neu anzuordnen, die Sichtbarkeit umzuschalten und die Anzahl der Elemente für unterstützte Widgets festzulegen.",

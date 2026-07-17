@@ -71,6 +71,12 @@ const locales = [
     flag: 'de',
   },
   {
+    code: 'fr',
+    nameKey: 'settings_labels.general.languages.fr',
+    nativeName: 'Français',
+    flag: 'fr',
+  },
+  {
     code: 'es',
     nameKey: 'settings_labels.general.languages.es',
     nativeName: 'Español',

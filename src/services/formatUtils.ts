@@ -140,6 +140,7 @@ const FILTER_DATE_LOCALES: Record<string, string> = {
   en: 'en',
   de: 'de',
   es: 'es',
+  fr: 'fr',
   ru: 'ru',
   cn: 'zh-CN',
 }
