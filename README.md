@@ -100,9 +100,10 @@ For macOS installation notes (Gatekeeper / quarantine), see [INSTALLATION.md](./
 Self-host with Docker (multi-arch image for DSM and similar NAS systems):
 
 ```bash
-docker compose up -d --build
-# or pull: vinsdoe/mediachips:latest
-# or:     ghcr.io/fupdec/mediachips:latest
+cp .env.docker.example .env   # optional
+docker compose up -d
+# pulls vinsdoe/mediachips:latest — open http://localhost:12321
+# or: docker pull ghcr.io/fupdec/mediachips:latest
 ```
 
 See **[DOCKER.md](./DOCKER.md)** for Synology DSM volumes, `PUID`/`PGID`, LAN share URL, and how to add media via `/media/...` mounts.

@@ -5,11 +5,18 @@ Self-host MediaChips as a single container. Browse from any device on your LAN.
 ## Quick start (desktop Docker)
 
 ```bash
-cp .env.docker.example .env   # edit MEDIA_CHIPS_PUBLIC_HOST / PUID / PGID
-docker compose up -d --build
+cp .env.docker.example .env   # optional: MEDIA_CHIPS_PUBLIC_HOST / PUID / PGID
+docker compose up -d
 ```
 
-Open **http://localhost:12321**.
+This pulls `vinsdoe/mediachips:latest` and publishes **http://localhost:12321** (port `12321`).
+
+To rebuild from source instead of pulling:
+
+```bash
+# in docker-compose.yml: uncomment `build: .` and set image: mediachips:local
+docker compose up -d --build
+```
 
 ### Add media
 

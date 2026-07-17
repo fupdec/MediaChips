@@ -1,17 +1,24 @@
 services:
   mediachips:
-    build: .
-    image: mediachips:local
+    # Published multi-arch image (Docker Hub). Alternatives:
+    #   ghcr.io/fupdec/mediachips:latest
+    # Local rebuild from this repo:
+    #   docker compose up -d --build
+    #   (uncomment `build: .` below and set image: mediachips:local)
+    image: vinsdoe/mediachips:latest
+    # build: .
     container_name: mediachips
     restart: unless-stopped
     ports:
       - "12321:12321"
     volumes:
-      # Config + SQLite DBs + generated thumbs
+      # Config + SQLite DBs + generated thumbs (persistent)
       - ./docker-data:/data
-      # Host media libraries → in-container paths used in Add media
-      - /Users/vit/Movies:/media/movies
-      # - /path/to/series:/media/series
+      # Mount host media libraries, then add them in the UI as /media/...
+      # Examples (uncomment and edit to your paths):
+      # - /Users/you/Movies:/media/movies
+      # - /volume1/video:/media/video
+      # - D:/Videos:/media/videos
     environment:
       - NODE_ENV=production
       - TZ=${TZ:-UTC}
