@@ -45,6 +45,11 @@ Do **not** paste Mac/Windows host paths (`/Users/...`, `D:\...`) — the contain
 Pre-built images (after a release/CI push):
 
 ```text
+# Docker Hub (existing public repo)
+vinsdoe/mediachips:latest
+vinsdoe/mediachips:1.2.0
+
+# GitHub Container Registry
 ghcr.io/fupdec/mediachips:latest
 ghcr.io/fupdec/mediachips:1.2.0
 ```
@@ -78,4 +83,4 @@ Point DSM reverse proxy / HTTPS to `http://localhost:12321`. Keep WebSocket supp
 | `File not found` when adding | Path is not mounted; use `/media/...` from the dialog chips |
 | Share link shows `172.x.x.x` | Set `MEDIA_CHIPS_PUBLIC_HOST` to the NAS LAN IP |
 | Permission denied writing DB/thumbs | Align `PUID`/`PGID` with folder owner |
-| Build on NAS is slow/fails | Pull `ghcr.io/fupdec/mediachips` instead of building |
+| Build on NAS is slow/fails | Pull `vinsdoe/mediachips` (or `ghcr.io/fupdec/mediachips`) instead of building |

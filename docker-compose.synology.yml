@@ -9,7 +9,8 @@
 
 services:
   mediachips:
-    image: ghcr.io/fupdec/mediachips:latest
+    image: vinsdoe/mediachips:latest
+    # Alternative: ghcr.io/fupdec/mediachips:latest
     container_name: mediachips
     restart: unless-stopped
     ports:

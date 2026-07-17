@@ -13,6 +13,14 @@ permissions:
   contents: read
   packages: write
 
+# Publishes to:
+#   - ghcr.io/fupdec/mediachips  (GitHub Packages)
+#   - vinsdoe/mediachips        (Docker Hub — existing public repo)
+#
+# Required repo secrets for Docker Hub:
+#   DOCKERHUB_USERNAME  (e.g. vinsdoe)
+#   DOCKERHUB_TOKEN     (Hub Access Token with Read & Write)
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -35,11 +43,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/mediachips
+          images: |
+            ghcr.io/${{ github.repository_owner }}/mediachips
+            vinsdoe/mediachips
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
