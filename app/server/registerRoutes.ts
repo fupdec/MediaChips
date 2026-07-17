@@ -69,6 +69,17 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
         err instanceof Error ? err.message : String(err),
       )
     }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const registerStash = require('../../api/routes/Stash.routes').default as ApiRouteRegistrar
+      registrars.push({ routeFile: 'Stash.routes', register: registerStash })
+    } catch (err: unknown) {
+      console.warn(
+        '[routes] Stash routes unavailable (stash plugin missing?):',
+        err instanceof Error ? err.message : String(err),
+      )
+    }
   }
 
   registrars.push(

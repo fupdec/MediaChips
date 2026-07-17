@@ -3,14 +3,14 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import Database from 'better-sqlite3'
-import {bootstrapDatabase} from '../../db/migrationRunner'
-import {closeDrizzleClient, createDrizzleClient} from '../../db/client'
-import {createMediaRepository} from '../../db/repositories/media'
-import {createTagsRepository} from '../../db/repositories/tags'
-import {createMarksRepository} from '../../db/repositories/marks'
-import {createMetaRepository} from '../../db/repositories/meta'
+import {bootstrapDatabase} from '../../../../../api/db/migrationRunner'
+import {closeDrizzleClient, createDrizzleClient} from '../../../../../api/db/client'
+import {createMediaRepository} from '../../../../../api/db/repositories/media'
+import {createTagsRepository} from '../../../../../api/db/repositories/tags'
+import {createMarksRepository} from '../../../../../api/db/repositories/marks'
+import {createMetaRepository} from '../../../../../api/db/repositories/meta'
 import {importStashLibrary} from './importStashLibrary'
-import type {ApiDb} from '../../types/db'
+import type {ApiDb} from '../../../../../api/types/db'
 
 function createFixtureStashDb(filePath: string) {
   const db = new Database(filePath)
@@ -190,7 +190,9 @@ describe('importStashLibrary', () => {
     const metas = metaRepo.findAll()
     expect(metas.some((meta) => meta.name === 'Performers')).toBe(true)
     expect(metas.some((meta) => meta.name === 'Studios')).toBe(true)
-    expect(metas.some((meta) => meta.name === 'Tags')).toBe(true)
+    const tagsMeta = metas.find((meta) => meta.name === 'Tags')
+    expect(tagsMeta).toBeTruthy()
+    expect(tagsMeta?.marks).toBe(true)
 
     const marksRepo = createMarksRepository(connection.drizzle)
     const marks = marksRepo.findAllForVideo(media!.id)

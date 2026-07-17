@@ -26,12 +26,16 @@ describe('pluginRegistry', () => {
     resetPluginRegistryForTests()
   })
 
-  it('starts with bundled adult catalog entry enabled by default', () => {
+  it('starts with bundled adult and stash catalog entries enabled by default', () => {
     const catalog = createBundledPluginCatalog()
-    expect(catalog).toHaveLength(1)
-    expect(catalog[0]?.manifest.id).toBe(BUILTIN_PLUGIN_IDS.adult)
+    expect(catalog).toHaveLength(2)
+    expect(catalog.map((entry) => entry.manifest.id)).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
+    ])
     expect(catalog[0]?.source).toBe('bundled')
     expect(catalog[0]?.enabled).toBe(true)
+    expect(catalog[1]?.enabled).toBe(true)
   })
 
   it('does not enable planned plugins', () => {
@@ -88,6 +92,7 @@ describe('pluginRegistry', () => {
     }])
     expect(catalog.map((entry) => entry.manifest.id)).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
       'mediachips.demo',
     ])
   })
@@ -129,9 +134,30 @@ describe('pluginHost', () => {
   })
 
   it('parses enabledPlugins setting values', () => {
-    expect(parseEnabledPlugins('["mediachips.adult"]')).toEqual([BUILTIN_PLUGIN_IDS.adult])
+    expect(parseEnabledPlugins('["mediachips.adult"]')).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
+    ])
+    expect(parseEnabledPlugins('["mediachips.adult","mediachips.stash"]')).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
+    ])
     expect(parseEnabledPlugins([])).toEqual([])
-    expect(parseEnabledPlugins(undefined)).toEqual([BUILTIN_PLUGIN_IDS.adult])
+    expect(parseEnabledPlugins(undefined)).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
+    ])
+  })
+
+  it('activates stash plugin settings panel', async () => {
+    const ok = await activatePlugin(BUILTIN_PLUGIN_IDS.stash)
+    expect(ok).toBe(true)
+    expect(getActivatedPluginIds()).toContain(BUILTIN_PLUGIN_IDS.stash)
+
+    const live = getPluginRegistry().snapshot()
+    expect(live.settingsPanels.some((item) =>
+      item.componentKey === 'SettingsImportStash' && item.tab === 'plugins',
+    )).toBe(true)
   })
 
   it('activates adult plugin contributions', async () => {

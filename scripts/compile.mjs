@@ -70,9 +70,11 @@ const TARGETS = {
     copy: () => {
       copyDirContents(join(root, '.api-build/api'), join(root, 'api'))
       if (sfwBuild) return
-      const serverOut = join(root, '.api-build/packages/plugin-adult/src/server')
-      if (existsSync(serverOut)) {
-        copyDirContents(serverOut, join(root, 'packages/plugin-adult/src/server'))
+      for (const pluginId of ['plugin-adult', 'plugin-stash']) {
+        const serverOut = join(root, `.api-build/packages/${pluginId}/src/server`)
+        if (existsSync(serverOut)) {
+          copyDirContents(serverOut, join(root, `packages/${pluginId}/src/server`))
+        }
       }
     },
   },

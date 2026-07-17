@@ -16,6 +16,7 @@ node_modules
 /api/**/*.js
 /shared/**/*.js
 /packages/plugin-adult/src/server/**/*.js
+/packages/plugin-stash/src/server/**/*.js
 /api/assets/**/*.js
 /electron/*.js
 /main.js

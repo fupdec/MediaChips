@@ -1,0 +1,19 @@
+{
+  "id": "mediachips.stash",
+  "name": "Stash import",
+  "version": "0.1.0",
+  "description": "Import scenes, performers, studios, tags, and markers from a Stash database (stash-go.sqlite). Included in standard builds; enable under Settings → Plugins.",
+  "author": "MediaChips",
+  "homepage": "https://mediachips.app/plugins",
+  "icon": "database-import",
+  "engines": {
+    "mediachips": ">=1.0.0"
+  },
+  "mainEntry": "main.cjs",
+  "uiEntry": "host:bundled",
+  "permissions": [
+    "ui.settings",
+    "api.routes",
+    "fs.read"
+  ]
+}

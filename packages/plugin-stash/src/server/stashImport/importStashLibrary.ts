@@ -1,15 +1,15 @@
 import path from 'path'
-import type { ApiDb } from '../../types/db'
-import { createMediaRepository } from '../../db/repositories/media'
-import { createMediaTypesRepository } from '../../db/repositories/mediaTypes'
-import { createMetaRepository } from '../../db/repositories/meta'
-import { createMetaInMediaTypesRepository } from '../../db/repositories/metaInMediaTypes'
-import { createTagsRepository } from '../../db/repositories/tags'
-import { createTagsInMediaRepository } from '../../db/repositories/tagsInMedia'
-import { createMarksRepository } from '../../db/repositories/marks'
-import { createVideoMetadataRepository } from '../../db/repositories/videoMetadata'
-import { buildPathLookupVariants, normalizeMediaPath } from '../../utils/normalizeUserPath'
-import { parseMediaFilePath } from '../../../shared/mediaPath'
+import type { ApiDb } from '../../../../../api/types/db'
+import { createMediaRepository } from '../../../../../api/db/repositories/media'
+import { createMediaTypesRepository } from '../../../../../api/db/repositories/mediaTypes'
+import { createMetaRepository } from '../../../../../api/db/repositories/meta'
+import { createMetaInMediaTypesRepository } from '../../../../../api/db/repositories/metaInMediaTypes'
+import { createTagsRepository } from '../../../../../api/db/repositories/tags'
+import { createTagsInMediaRepository } from '../../../../../api/db/repositories/tagsInMedia'
+import { createMarksRepository } from '../../../../../api/db/repositories/marks'
+import { createVideoMetadataRepository } from '../../../../../api/db/repositories/videoMetadata'
+import { buildPathLookupVariants, normalizeMediaPath } from '../../../../../api/utils/normalizeUserPath'
+import { parseMediaFilePath } from '../../../../../shared/mediaPath'
 import {
   formatSynonyms,
   mapStashRatingToMediaChips,
@@ -30,9 +30,9 @@ import type {
 } from './types'
 
 const META_DEFS = [
-  {key: 'performers' as const, name: 'Performers', icon: 'account', country: true},
-  {key: 'studios' as const, name: 'Studios', icon: 'domain', country: false},
-  {key: 'tags' as const, name: 'Tags', icon: 'tag', country: false},
+  {key: 'performers' as const, name: 'Performers', icon: 'account', country: true, marks: false},
+  {key: 'studios' as const, name: 'Studios', icon: 'domain', country: false, marks: false},
+  {key: 'tags' as const, name: 'Tags', icon: 'tag', country: false, marks: true},
 ]
 
 function emptyCounts(): StashImportCounts {
@@ -73,6 +73,7 @@ function ensureMetaCategories(db: ApiDb, videoMediaTypeId: number) {
         name: def.name,
         icon: def.icon,
         country: def.country,
+        marks: def.marks,
         favorite: true,
         rating: true,
         synonyms: true,
@@ -81,6 +82,8 @@ function ensureMetaCategories(db: ApiDb, videoMediaTypeId: number) {
       metaId = created.id
       metaRepo.ensureArrayMetaResources(metaId)
       allMeta.push(created)
+    } else if (def.marks && !existing?.marks) {
+      metaRepo.updateById(metaId, {marks: true})
     }
 
     const linked = existingLinks.some(

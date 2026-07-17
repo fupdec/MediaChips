@@ -3,19 +3,24 @@ import type {PluginCatalogEntry} from '@shared/plugins'
 import {getPluginRegistry} from '@/services/pluginRegistry'
 import type {MediaChipsPlugin, PluginApi, PluginComponentMap} from '@/types/pluginRuntime'
 import {adultPlugin, adultHostComponentMap} from '@/plugins/adult/hostBridge'
+import {stashPlugin, stashHostComponentMap} from '@/plugins/stash/hostBridge'
 import {isSfwBuild} from '@/utils/sfwBuild'
 import {apiClient} from '@/services/apiClient'
+
+const DEFAULT_ENABLED_PLUGINS = [BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash]
 
 const pluginModules: Record<string, MediaChipsPlugin> = isSfwBuild()
   ? {}
   : {
     [BUILTIN_PLUGIN_IDS.adult]: adultPlugin,
+    [BUILTIN_PLUGIN_IDS.stash]: stashPlugin,
   }
 
 const componentMaps: Record<string, PluginComponentMap> = isSfwBuild()
   ? {}
   : {
     [BUILTIN_PLUGIN_IDS.adult]: adultHostComponentMap,
+    [BUILTIN_PLUGIN_IDS.stash]: stashHostComponentMap,
   }
 
 const activated = new Set<string>()
@@ -80,20 +85,24 @@ function isHostBundledUiEntry(entry: PluginCatalogEntry | undefined): boolean {
   return entry.uiEntry === 'host:bundled'
     || entry.manifest.uiEntry === 'host:bundled'
     || (
-      entry.manifest.id === BUILTIN_PLUGIN_IDS.adult
+      (entry.manifest.id === BUILTIN_PLUGIN_IDS.adult
+        || entry.manifest.id === BUILTIN_PLUGIN_IDS.stash)
       && entry.source === 'user'
     )
 }
 
-function bindHostAdultModules(pluginId: string): boolean {
-  if (pluginId !== BUILTIN_PLUGIN_IDS.adult) return false
-  if (!pluginModules[pluginId]) {
-    pluginModules[pluginId] = adultPlugin
+function bindHostBundledModules(pluginId: string): boolean {
+  if (pluginId === BUILTIN_PLUGIN_IDS.adult) {
+    if (!pluginModules[pluginId]) pluginModules[pluginId] = adultPlugin
+    if (!componentMaps[pluginId]) componentMaps[pluginId] = adultHostComponentMap
+    return true
   }
-  if (!componentMaps[pluginId]) {
-    componentMaps[pluginId] = adultHostComponentMap
+  if (pluginId === BUILTIN_PLUGIN_IDS.stash) {
+    if (!pluginModules[pluginId]) pluginModules[pluginId] = stashPlugin
+    if (!componentMaps[pluginId]) componentMaps[pluginId] = stashHostComponentMap
+    return true
   }
-  return true
+  return false
 }
 
 export async function activatePlugin(pluginId: string): Promise<boolean> {
@@ -104,7 +113,7 @@ export async function activatePlugin(pluginId: string): Promise<boolean> {
   if (!plugin) {
     const entry = registry.getEntry(pluginId)
     if (entry?.source === 'user' && entry.state !== 'error' && isHostBundledUiEntry(entry)) {
-      bindHostAdultModules(pluginId)
+      bindHostBundledModules(pluginId)
       plugin = pluginModules[pluginId]
     } else if (entry?.source === 'user' && entry.state !== 'error') {
       registry.setEnabled(pluginId, true)
@@ -171,7 +180,16 @@ export function parseEnabledPlugins(raw: unknown): string[] {
       ids = raw.split(',').map((item) => item.trim()).filter(Boolean)
     }
   } else if (!isSfwBuild()) {
-    ids = [BUILTIN_PLUGIN_IDS.adult]
+    ids = [...DEFAULT_ENABLED_PLUGINS]
+  }
+
+  // Soft-migrate previous default so Stash import stays available after plugin extraction.
+  if (
+    !isSfwBuild()
+    && ids.length === 1
+    && ids[0] === BUILTIN_PLUGIN_IDS.adult
+  ) {
+    ids = [...DEFAULT_ENABLED_PLUGINS]
   }
 
   return ids
@@ -216,7 +234,7 @@ export function mergePluginCatalog(
 
 export async function bootstrapPlugins(enabledPluginIds?: string[]): Promise<void> {
   const enabled = enabledPluginIds
-    ?? (isSfwBuild() ? [] : [BUILTIN_PLUGIN_IDS.adult])
+    ?? (isSfwBuild() ? [] : [...DEFAULT_ENABLED_PLUGINS])
   const registry = getPluginRegistry()
   const userEntries = await fetchUserPluginCatalog(enabled)
   registry.reset(mergePluginCatalog(enabled, userEntries))

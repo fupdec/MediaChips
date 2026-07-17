@@ -165,7 +165,7 @@ import {showOpenDialog} from '@/services/electronDialogService'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
-import {API_ROUTES} from '@shared/api/routes'
+const STASH_STREAM_IMPORT_PATH = '/api/stash/streamImport'
 
 const {t} = useI18n()
 const appStore = useAppStore()
@@ -247,7 +247,7 @@ const startImport = async () => {
   abortController = new AbortController()
 
   try {
-    const response = await fetch(`${appStore.localhost}${API_ROUTES.taskStreamImportFromStash}`, {
+    const response = await fetch(`${appStore.localhost}${STASH_STREAM_IMPORT_PATH}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       signal: abortController.signal,
@@ -300,10 +300,10 @@ const startImport = async () => {
             mediaSkipped: Number(event.mediaSkipped) || 0,
             markers: Number(event.markers) || 0,
           }
-                          setNotification({
-                            type: 'success',
-                            text: t('settings_labels.database.import_stash_success'),
-                          })
+          setNotification({
+            type: 'success',
+            text: t('settings_labels.database.import_stash_success'),
+          })
         } else if (event.type === 'error') {
           lastError.value = String(event.message || 'Stash import failed')
         }

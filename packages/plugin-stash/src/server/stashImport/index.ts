@@ -17,5 +17,6 @@ export type {
   StashImportResult,
   StashImportCounts,
   StashImportProgressCallback,
+  StashImportProgressEvent,
   StashLibrarySnapshot,
 } from './types'

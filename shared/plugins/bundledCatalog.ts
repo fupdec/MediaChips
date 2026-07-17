@@ -32,14 +32,47 @@ export function createBundledAdultCatalogEntry(enabled = true): PluginCatalogEnt
   }
 }
 
-export function createBundledPluginCatalog(enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult]): PluginCatalogEntry[] {
+/** Bundled Stash import plugin. */
+export function createBundledStashCatalogEntry(enabled = true): PluginCatalogEntry {
+  return {
+    manifest: {
+      id: BUILTIN_PLUGIN_IDS.stash,
+      name: 'Stash import',
+      version: '0.1.0',
+      description:
+        'Import scenes, performers, studios, tags, and markers from a Stash database (stash-go.sqlite).',
+      author: 'MediaChips',
+      icon: 'database-import',
+      engines: {mediachips: '>=1.0.0'},
+      permissions: [
+        'ui.settings',
+        'api.routes',
+        'fs.read',
+      ],
+    },
+    source: 'bundled',
+    state: enabled ? 'enabled' : 'disabled',
+    uiEntry: '@mediachips/plugin-stash',
+    mainEntry: null,
+    error: null,
+    enabled,
+  }
+}
+
+export function createBundledPluginCatalog(
+  enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash],
+): PluginCatalogEntry[] {
   if (isSfwBuild()) return []
 
-  const adultEnabled = enabledPlugins.includes(BUILTIN_PLUGIN_IDS.adult)
-  return [createBundledAdultCatalogEntry(adultEnabled)]
+  return [
+    createBundledAdultCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.adult)),
+    createBundledStashCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.stash)),
+  ]
 }
 
 /** Active plugin catalog (bundled only until external install lands). */
-export function createPluginCatalog(enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult]): PluginCatalogEntry[] {
+export function createPluginCatalog(
+  enabledPlugins: string[] = [BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash],
+): PluginCatalogEntry[] {
   return createBundledPluginCatalog(enabledPlugins)
 }

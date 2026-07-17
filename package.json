@@ -32,8 +32,10 @@
     "test:e2e:install": "playwright install chromium",
     "test": "node scripts/ensure-sqlite-tests.mjs && vitest run",
     "test:plugin-adult": "vitest run packages/plugin-adult",
+    "test:plugin-stash": "vitest run packages/plugin-stash",
     "pack:plugin-adult": "node scripts/pack-plugin-adult.mjs",
-    "pack:plugins": "npm run pack:plugin-adult",
+    "pack:plugin-stash": "node scripts/pack-plugin-stash.mjs",
+    "pack:plugins": "npm run pack:plugin-adult && npm run pack:plugin-stash",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "main": "main.js",
@@ -43,6 +45,7 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "@mediachips/plugin-adult": "file:packages/plugin-adult",
+    "@mediachips/plugin-stash": "file:packages/plugin-stash",
     "@xenova/transformers": "^2.17.2",
     "archiver": "^7.0.1",
     "axios": "^1.18.1",

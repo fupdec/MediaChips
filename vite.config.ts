@@ -37,6 +37,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   const adultPackageRoot = masBuild
     ? path.resolve(__dirname, './src/plugins/sfwStub')
     : path.resolve(__dirname, './packages/plugin-adult/src')
+  const stashPackageRoot = path.resolve(__dirname, './packages/plugin-stash/src')
 
   const plugins = normalizePlugins(
     vue(),
@@ -68,6 +69,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       // Package root (src/) so deep imports like @mediachips/plugin-adult/components/... work.
       // MEDIA_CHIPS_MAS=1 points at noop stubs under src/plugins/sfwStub.
       '@mediachips/plugin-adult': adultPackageRoot,
+      '@mediachips/plugin-stash': stashPackageRoot,
     },
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
   },

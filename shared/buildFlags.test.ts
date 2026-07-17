@@ -48,7 +48,8 @@ describe('build channel flags', () => {
       expect(isSfwBuild()).toBe(false)
       expect(isStoreBuild()).toBe(false)
       expect(isMsStoreBuild()).toBe(false)
-      expect(createBundledPluginCatalog(['mediachips.adult']).length).toBe(1)
+      expect(createBundledPluginCatalog(['mediachips.adult']).length).toBe(2)
+      expect(createBundledPluginCatalog(['mediachips.adult', 'mediachips.stash']).filter((e) => e.enabled).length).toBe(2)
     } finally {
       if (previousSfw == null) delete process.env.MEDIA_CHIPS_SFW
       else process.env.MEDIA_CHIPS_SFW = previousSfw

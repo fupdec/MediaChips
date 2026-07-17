@@ -23,6 +23,7 @@
     "api/**/*.ts",
     "api/types/**/*.d.ts",
     "shared/**/*.ts",
-    "packages/plugin-adult/src/server/**/*.ts"
+    "packages/plugin-adult/src/server/**/*.ts",
+    "packages/plugin-stash/src/server/**/*.ts"
   ]
 }

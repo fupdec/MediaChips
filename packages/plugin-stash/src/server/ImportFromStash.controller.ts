@@ -1,11 +1,12 @@
-import type { ApiDb } from '../../types/db'
-import { apiErrorMessage } from '../../types/errors'
-import type { ApiRequest, ApiResponse } from '../../types/http'
+import type { ApiDb } from '../../../../api/types/db'
+import { apiErrorMessage } from '../../../../api/types/errors'
+import type { ApiRequest, ApiResponse } from '../../../../api/types/http'
 import fs from 'fs'
-import { normalizeMediaPath } from '../../utils/normalizeUserPath'
-import { importStashLibrary } from '../../services/stashImport'
+import { normalizeMediaPath } from '../../../../api/utils/normalizeUserPath'
+import { importStashLibrary } from './stashImport'
+import type { StashImportProgressEvent } from './stashImport'
 
-export default function createTasksMigrateFromStashController(db: ApiDb) {
+export default function createImportFromStashController(db: ApiDb) {
   const createStreamAbortSignal = (req: ApiRequest, res: ApiResponse) => {
     let stopped = false
     const stop = () => {
@@ -19,7 +20,7 @@ export default function createTasksMigrateFromStashController(db: ApiDb) {
   }
 
   const streamImportFromStash = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: object) => {
+    const writeEvent = (event: Record<string, unknown> | StashImportProgressEvent) => {
       res.write(`${JSON.stringify(event)}\n`)
     }
 

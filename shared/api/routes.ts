@@ -90,7 +90,7 @@ export const API_ROUTES = {
   taskCleanLowDb: '/api/Task/cleanLowDb',
   taskCheckDataForMigrateFromLowDb: '/api/Task/checkDataForMigrateFromLowDb',
   taskCreateBackupLowDb: '/api/Task/createBackupLowDb',
-  taskStreamImportFromStash: '/api/Task/streamImportFromStash',
+  stashStreamImport: '/api/stash/streamImport',
   taskMissingMediaStatus: '/api/Task/missingMediaStatus',
   taskClipModelStatus: '/api/Task/clipModelStatus',
   taskDownloadClipModel: '/api/Task/downloadClipModel',
