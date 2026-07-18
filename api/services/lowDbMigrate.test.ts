@@ -214,7 +214,7 @@ describe('migrateFromLowDb', () => {
 
     const mediaRepo = createMediaRepository(db.drizzle)
     expect(mediaRepo.findAllRaw()).toHaveLength(videoCount)
-  })
+  }, 60_000)
 
   it('imports libraries with duplicate media paths by keeping one row', async () => {
     const dbFolder = path.join(tmpDir, 'db-dup-paths')

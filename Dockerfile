@@ -9,9 +9,14 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# file: packages/plugin-adult must exist before npm ci
+# file: packages/* must exist before npm ci (local plugin deps)
 COPY package*.json ./
 COPY packages/plugin-adult/package.json ./packages/plugin-adult/
+COPY packages/plugin-stash/package.json ./packages/plugin-stash/
+COPY packages/plugin-jellyfin/package.json ./packages/plugin-jellyfin/
+COPY packages/plugin-plex/package.json ./packages/plugin-plex/
+COPY packages/plugin-emby/package.json ./packages/plugin-emby/
+COPY packages/plugin-tmdb/package.json ./packages/plugin-tmdb/
 RUN npm ci --ignore-scripts
 
 COPY . .
@@ -35,6 +40,11 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY packages/plugin-adult/package.json ./packages/plugin-adult/
+COPY packages/plugin-stash/package.json ./packages/plugin-stash/
+COPY packages/plugin-jellyfin/package.json ./packages/plugin-jellyfin/
+COPY packages/plugin-plex/package.json ./packages/plugin-plex/
+COPY packages/plugin-emby/package.json ./packages/plugin-emby/
+COPY packages/plugin-tmdb/package.json ./packages/plugin-tmdb/
 RUN npm ci --omit=dev --ignore-scripts \
     && npm rebuild better-sqlite3 \
     && apk del python3 make g++
