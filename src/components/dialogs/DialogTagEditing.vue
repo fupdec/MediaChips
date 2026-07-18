@@ -342,7 +342,8 @@ const openTmdbPersonScraper = () => {
 }
 
 const refreshTagAfterScrape = async () => {
-  if (!tag.value) return
+  if (!tag.value || !meta.value) return
+  refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
   try {
     const response = await typedApi.getTagById(tag.value.id)
     if (response.data) {
@@ -406,8 +407,10 @@ const autoScrapeTmdbPerson = async () => {
 
     if (result.success) {
       notificationsStore.setNotification({
-        type: 'success',
-        title: t('tmdb.auto_scrape_done'),
+        type: result.error === 'image_failed' ? 'warning' : 'success',
+        title: result.error === 'image_failed'
+          ? t('tmdb.auto_scrape_image_failed')
+          : t('tmdb.auto_scrape_done'),
         text: result.personName || tag.value.name || '',
       })
       await refreshTagAfterScrape()

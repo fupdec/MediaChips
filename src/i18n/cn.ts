@@ -861,6 +861,7 @@ const cn = {
     auto_scrape_in_progress: 'TMDB 自动抓取：{name}',
     auto_scrape_done: 'TMDB 数据已应用',
     auto_scrape_failed: 'TMDB 自动抓取失败',
+    auto_scrape_image_failed: 'TMDB data applied, but profile photo download failed',
     auto_scrape_progress: 'TMDB：{processed} / {total}',
     auto_scrape_progress_item: 'TMDB：{processed} / {total} — {name}',
     auto_scrape_batch_done: 'TMDB 批量抓取完成',

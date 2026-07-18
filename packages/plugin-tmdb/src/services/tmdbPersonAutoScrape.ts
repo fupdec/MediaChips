@@ -100,6 +100,10 @@ export async function autoScrapeTmdbPersonTag({
     }
 
     const {extras} = await getTmdbPerson(hit.id)
+    // Search hits often include a profile URL even when details briefly omit it.
+    if (!extras.image && hit.profileUrl) {
+      extras.image = hit.profileUrl
+    }
     const selectedFields = ALL_FIELDS.filter((key) => {
       if (key === 'image') return Boolean(extras.image)
       if (key === 'synonyms') return Boolean(extras.synonyms)

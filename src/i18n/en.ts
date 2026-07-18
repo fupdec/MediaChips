@@ -860,6 +860,7 @@ const en = {
     auto_scrape_in_progress: 'TMDB auto scrape: {name}',
     auto_scrape_done: 'TMDB data applied',
     auto_scrape_failed: 'TMDB auto scrape failed',
+    auto_scrape_image_failed: 'TMDB data applied, but profile photo download failed',
     auto_scrape_progress: 'TMDB: {processed} of {total}',
     auto_scrape_progress_item: 'TMDB: {processed} of {total} — {name}',
     auto_scrape_batch_done: 'TMDB batch finished',

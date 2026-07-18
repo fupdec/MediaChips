@@ -860,6 +860,7 @@ const ru = {
     auto_scrape_in_progress: 'TMDB авто-скрапинг: {name}',
     auto_scrape_done: 'Данные TMDB применены',
     auto_scrape_failed: 'TMDB авто-скрапинг не удался',
+    auto_scrape_image_failed: 'Данные TMDB применены, но фото профиля не скачалось',
     auto_scrape_progress: 'TMDB: {processed} из {total}',
     auto_scrape_progress_item: 'TMDB: {processed} из {total} — {name}',
     auto_scrape_batch_done: 'Пакетный TMDB-скрапинг завершён',

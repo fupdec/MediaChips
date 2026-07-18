@@ -65,6 +65,7 @@ export async function ensureTmdbPersonMeta({
       type: 'array',
       name: t('tmdb.fields.cast', 'Cast'),
       icon: 'account-group',
+      color: true,
       rating: true,
       favorite: true,
       synonyms: true,
@@ -84,6 +85,11 @@ export async function ensureTmdbPersonMeta({
   if (!parent.synonyms) {
     await typedApi.updateMeta(parent.id, {synonyms: true})
     parent = {...parent, synonyms: true}
+  }
+
+  if (!parent.color) {
+    await typedApi.updateMeta(parent.id, {color: true})
+    parent = {...parent, color: true}
   }
 
   if (mediaTypeId) {

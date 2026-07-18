@@ -22,6 +22,14 @@ function buildDownloadHeaders(url: string, referer?: string) {
   }
 }
 
+function refererCandidatesForUrl(url: URL): Array<string | undefined> {
+  // TMDB CDN is more reliable without a referer (and rejects image.tmdb.org as referer).
+  if (/(^|\.)tmdb\.org$/i.test(url.hostname)) {
+    return [undefined, 'https://www.themoviedb.org/']
+  }
+  return [`${url.origin}/`, undefined]
+}
+
 export async function downloadRemoteImage(
   url: string,
   {retries = DEFAULT_RETRIES, timeoutMs = DEFAULT_TIMEOUT_MS} = {},
@@ -32,10 +40,7 @@ export async function downloadRemoteImage(
   }
 
   const parsedUrl = new URL(trimmedUrl)
-  const refererCandidates = [
-    `${parsedUrl.origin}/`,
-    undefined,
-  ]
+  const refererCandidates = refererCandidatesForUrl(parsedUrl)
 
   let lastError: unknown
 

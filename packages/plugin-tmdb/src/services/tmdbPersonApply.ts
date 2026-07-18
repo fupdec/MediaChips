@@ -1,9 +1,16 @@
 import path from 'path-browserify'
 import {createImage} from '@/services/fileService'
 import {typedApi} from '@/services/typedApi'
+import {useItemsStore} from '@/stores/items'
 import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
 import {findOrCreateTagByName} from '@/utils/tagLookup'
 import {serializeCountries} from '@/utils/country'
+import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
+import {
+  DEFAULT_TAG_COLOR,
+  extractColorFromLocalFile,
+  isDefaultTagColor,
+} from '@/utils/colorFromImage'
 import type {AssignedMeta} from '@shared/entities/meta'
 import type {Meta, Tag} from '@/types/stores'
 import {ensureTmdbPersonMeta} from './ensureTmdbPersonMeta'
@@ -48,6 +55,11 @@ function getChildMetaId(item: AssignedMeta | undefined): number {
   if (!item) return NaN
   // Pinned-child rows: meta is the child field; pinnedMetaId is also the child id.
   return Number(item.meta?.id ?? item.pinnedMetaId ?? item.metaId)
+}
+
+/** Prefer a mid-size TMDB asset — `original` profiles are large and often fail to download in time. */
+export function toTmdbProfileDownloadUrl(url: string): string {
+  return String(url || '').replace(/\/t\/p\/original\//, '/t/p/w780/')
 }
 
 export async function applyTmdbPersonExtrasToTag({
@@ -98,10 +110,6 @@ export async function applyTmdbPersonExtrasToTag({
         : tag.country
     }
 
-    if (Object.keys(entityUpdate).length) {
-      await typedApi.updateEntity('tag', tagId, entityUpdate)
-    }
-
     const nextTags = tagLinks.map((entry) => ({
       parentTagId: tagId,
       tagId: Number(entry.tagId),
@@ -150,21 +158,48 @@ export async function applyTmdbPersonExtrasToTag({
       }
     }
 
-    await typedApi.deleteItemTags('TagsInTag', tagId)
-    if (nextTags.length) await typedApi.postItemTags('TagsInTag', nextTags)
-    await typedApi.deleteItemValues('ValuesInTag', tagId)
-    if (nextValues.length) await typedApi.postItemValues('ValuesInTag', nextValues)
-
     let imageFailed = false
     if (selected.has('image') && extras.image) {
       const imagePath = path.join(dbPath, 'meta', String(meta.id), `${tagId}_main.jpg`)
       const aspectRatio = Number(meta.imageAspectRatio) || 1
-      const result = await createImage(extras.image, imagePath, {
-        width: 300,
-        height: 300 / aspectRatio,
-      })
+      const sizes = {width: 300, height: 300 / aspectRatio}
+      const downloadUrl = toTmdbProfileDownloadUrl(extras.image)
+      const result = await createImage(downloadUrl, imagePath, sizes)
       imageFailed = result.status !== 201
+
+      if (!imageFailed) {
+        // Clear negative file-exists / thumb caches so the new poster shows up immediately.
+        try {
+          refreshTagThumbDisplay(useItemsStore(), dbPath, meta.id, tagId)
+        } catch {
+          // stores may be unavailable outside app context
+        }
+
+        if (
+          meta.autoColorFromImage
+          && meta.color
+          && isDefaultTagColor(
+            (entityUpdate.color as string | null | undefined)
+              ?? (tag.color as string | null | undefined)
+              ?? DEFAULT_TAG_COLOR,
+          )
+        ) {
+          const color = await extractColorFromLocalFile(imagePath)
+          if (!isDefaultTagColor(color)) {
+            entityUpdate.color = color
+          }
+        }
+      }
     }
+
+    if (Object.keys(entityUpdate).length) {
+      await typedApi.updateEntity('tag', tagId, entityUpdate)
+    }
+
+    await typedApi.deleteItemTags('TagsInTag', tagId)
+    if (nextTags.length) await typedApi.postItemTags('TagsInTag', nextTags)
+    await typedApi.deleteItemValues('ValuesInTag', tagId)
+    if (nextValues.length) await typedApi.postItemValues('ValuesInTag', nextValues)
 
     if (skippedKeys.length) {
       return {

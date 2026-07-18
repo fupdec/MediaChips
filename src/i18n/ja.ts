@@ -909,6 +909,7 @@ const ja = {
     auto_scrape_in_progress: "TMDB 自動スクレイプ: {name}",
     auto_scrape_done: "TMDB データが適用されました",
     auto_scrape_failed: "TMDB 自動スクレイプに失敗しました",
+    auto_scrape_image_failed: 'TMDB data applied, but profile photo download failed',
     auto_scrape_progress: "TMDB: {processed}/{total}",
     auto_scrape_progress_item: "TMDB: {processed}/{total} — {name}",
     auto_scrape_batch_done: "TMDB バッチが完了しました",

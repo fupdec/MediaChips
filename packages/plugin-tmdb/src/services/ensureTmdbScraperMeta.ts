@@ -49,11 +49,17 @@ export async function ensureTmdbScraperMeta({
         type: field.type,
         name: localized,
         icon: ICONS[field.key] || 'shape',
-        ...(field.type === 'array' ? {pageSetting: {page: 1}} : {}),
+        ...(field.type === 'array'
+          ? {color: true, pageSetting: {page: 1}}
+          : {}),
       })
       meta = created.data
       allMeta = [...allMeta, meta]
       createdFields += 1
+    } else if (field.type === 'array' && !meta.color) {
+      await typedApi.updateMeta(meta.id, {color: true})
+      meta = {...meta, color: true}
+      allMeta = allMeta.map((item) => (item.id === meta!.id ? meta! : item))
     }
 
     let assignment = assignedByMetaId.get(Number(meta.id))

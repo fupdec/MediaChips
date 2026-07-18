@@ -861,6 +861,7 @@ const es = {
     auto_scrape_in_progress: 'TMDB extracción automática: {name}',
     auto_scrape_done: 'Datos de TMDB aplicados',
     auto_scrape_failed: 'Falló la extracción automática de TMDB',
+    auto_scrape_image_failed: 'TMDB data applied, but profile photo download failed',
     auto_scrape_progress: 'TMDB: {processed} de {total}',
     auto_scrape_progress_item: 'TMDB: {processed} de {total} — {name}',
     auto_scrape_batch_done: 'Lote de TMDB finalizado',
