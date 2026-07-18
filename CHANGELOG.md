@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-18
+
+### Fixed
+
+- **Video wall titles** — keep library card names in sync after file rename and edit-dialog save
+- **Play submenu** — MediaChips and external player actions work again from nested context menus
+- **Tag profile images** — restore Edit for performer/avatar slots, including missing image types
+
 ## [1.3.0] - 2026-07-18
 
 ### Added
