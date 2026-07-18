@@ -39,8 +39,8 @@
         @mouseleave.stop="hideHoverImage"
         :label="meta?.chipLabel"
         :variant="chipVariant"
-        :color="meta?.color ? item.raw.color : ''"
-        :text-color="meta?.color ? getTextColor(item.raw.color, chipVariant === 'outlined') : ''"
+        :color="chipColorFor(item.raw)"
+        :text-color="chipTextColorFor(item.raw)"
         closable
         class="ma-1"
         size="small"
@@ -80,7 +80,7 @@
                 <v-icon v-else size="small" class="mr-1">mdi-heart-outline</v-icon>
               </span>
               <span v-if="meta.color">
-                <v-icon :color="item.raw.color || ''" size="14" class="mr-1">mdi-circle</v-icon>
+                <v-icon :color="chipColorFor(item.raw) || ''" size="14" class="mr-1">mdi-circle</v-icon>
               </span>
             </div>
             <div class="d-flex align-baseline">
@@ -154,6 +154,7 @@ import {
   getTextColor,
   highlightChars,
 } from '@/services/formatUtils'
+import {resolveTagChipColor} from '@shared/tagChipColor'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {debounce} from '@/utils/debounce'
 import type { ArrayMeta, TagListItem } from '@/types/metaInput'
@@ -224,6 +225,17 @@ const showIcons = computed(() =>
 const chipVariant = computed(() =>
   (meta.value?.chipVariant || 'flat') as 'text' | 'flat' | 'elevated' | 'outlined' | 'plain' | 'tonal'
 )
+
+const chipColorFor = (tag?: TagListItem | null) => {
+  if (!tag) return undefined
+  return resolveTagChipColor(meta.value?.color, tag.color)
+}
+
+const chipTextColorFor = (tag?: TagListItem | null) => {
+  const color = chipColorFor(tag)
+  if (!color) return ''
+  return getTextColor(color, chipVariant.value === 'outlined')
+}
 
 interface TagFilterItem {
   raw: TagListItem

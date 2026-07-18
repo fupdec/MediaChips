@@ -1,13 +1,7 @@
+import { DEFAULT_TAG_COLOR, isDefaultTagColor } from '@shared/tagChipColor'
 import { typedApi } from '@/services/typedApi'
 
-export const DEFAULT_TAG_COLOR = '#777'
-
-export function isDefaultTagColor(color: string | null | undefined): boolean {
-  if (color == null || color === '') return true
-
-  const normalized = color.trim().toLowerCase()
-  return normalized === '#777' || normalized === '#777777'
-}
+export { DEFAULT_TAG_COLOR, isDefaultTagColor }
 
 export function isMainTagImagePath(imagePath: string): boolean {
   return /_main\.jpg$/i.test(imagePath)

@@ -184,7 +184,7 @@
       })"
       @mouseleave.stop="hideHoverImage"
       :variant="tagChipVariant"
-      :color="meta?.color ? item.color || '' : ''"
+      :color="tagChipColor"
       :size="getChipSize"
       :label="meta?.chipLabel === true"
       :rounded="meta?.chipLabel === true ? false : 'pill'"
@@ -237,6 +237,7 @@ import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {toChipVariant} from '@/utils/chipVariant'
+import {resolveTagChipColor} from '@shared/tagChipColor'
 import type {MediaType} from '@/types/media'
 import type {ContextMenuEntry, MediaItem, Meta, Tag} from '@/types/stores'
 
@@ -310,17 +311,20 @@ const tagChipVariant = computed((): ChipVariant | undefined =>
   toChipVariant(props.meta?.chipVariant),
 )
 
+const tagChipColor = computed((): string | undefined => {
+  if (props.type !== 'tag') return undefined
+  return resolveTagChipColor(props.meta?.color, props.item.color)
+})
+
 const is_selected = computed(() => {
   return itemsStore.selection.includes(props.item.id)
 })
 
 const card_color = computed(() => {
-  const default_color = ''
-  if (props.meta?.color) {
-    return props.item.color ? hexToRgba(props.item.color, 9) : default_color
-  } else {
-    return default_color
-  }
+  // Media cards must stay uncolored; only tag category cards may use a tint.
+  if (props.type !== 'tag' || !props.meta?.color) return ''
+  const color = tagChipColor.value
+  return color ? hexToRgba(color, 9) : ''
 })
 
 const is_rating_active = computed(() => {
