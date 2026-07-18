@@ -39,10 +39,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
+import { useContextMenu } from '@/stores/contextMenu'
 import { useScraperStore } from '@mediachips/plugin-adult/stores/scraper'
 import { useSceneScraperStore } from '@mediachips/plugin-adult/stores/sceneScraper'
 import { useAutoScrapeBatch } from '@mediachips/plugin-adult/composables/useAutoScrapeBatch'
@@ -55,6 +56,7 @@ import {getReadableFileSize} from '@/services/formatUtils'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
+const contextMenu = useContextMenu()
 const scraperStore = useScraperStore()
 const sceneScraperStore = useSceneScraperStore()
 const { runForSelection } = useAutoScrapeBatch()
@@ -120,6 +122,25 @@ function toggleSelect() {
   itemsStore.selection = []
   itemsStore.selected_last = null
 }
+
+function onKeyDown(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return
+  if (event.defaultPrevented) return
+  if (contextMenu.show) return
+  // Let open Vuetify dialogs/menus handle Escape first
+  if (document.querySelector('.v-overlay--active')) return
+
+  event.preventDefault()
+  toggleSelect()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeyDown)
+})
 
 function selectVisible() {
   itemsStore.selection = itemsStore.itemsOnPage.map(i => i.id)

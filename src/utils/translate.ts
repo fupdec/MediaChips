@@ -27,21 +27,39 @@ function getByPath(obj: Record<string, unknown> | undefined, keyPath: string): u
   }, obj)
 }
 
+function resolvePlainMessage(locale: Locale, key: string): string | undefined {
+  const value = getByPath(getMessages(locale), key)
+  return typeof value === 'string' ? value : undefined
+}
+
 export function translate(
   key: string,
   params: Record<string, string | number> = {},
   locale: Locale = 'en',
 ): string {
   const code = toLocale(locale)
-  let text = getByPath(getMessages(code), key)
-    ?? getByPath(getMessages('en'), key)
+
+  // Prefer vue-i18n so fallbackLocale applies when a key is missing in the active catalog.
+  try {
+    const translated = Object.keys(params).length > 0
+      ? i18n.global.t(key, params, {locale: code})
+      : i18n.global.t(key, code)
+    if (typeof translated === 'string' && translated !== key) {
+      return translated
+    }
+  } catch {
+    // Fall through to manual lookup.
+  }
+
+  let text = resolvePlainMessage(code, key)
+    ?? resolvePlainMessage('en', key)
     ?? key
 
   for (const [name, value] of Object.entries(params)) {
-    text = String(text).replace(new RegExp(`\\{${name}\\}`, 'g'), String(value))
+    text = text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(value))
   }
 
-  return String(text)
+  return text
 }
 
 export default translate
