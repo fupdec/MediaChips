@@ -633,13 +633,16 @@ const initBaseValues = (tagSource?: Tag | null) => {
     return
   }
 
-  if (isMedia.value && props.media) {
+  if (isMedia.value) {
+    const media = mediaOverride.value || props.media
+    if (!media) return
+
     vals.value = {
-      name: props.media.name || props.media.basename || null,
-      rating: Number(props.media.rating) || 0,
-      favorite: Number(props.media.favorite) || 0,
-      views: Number(props.media.views) || 0,
-      bookmark: props.media.bookmark || null,
+      name: media.name || media.basename || null,
+      rating: Number(media.rating) || 0,
+      favorite: Number(media.favorite) || 0,
+      views: Number(media.views) || 0,
+      bookmark: media.bookmark || null,
     }
   }
 }
@@ -757,6 +760,12 @@ const refreshEditingMediaFileInfo = async () => {
 const onMediaPathUpdate = (updatedMedia: MediaItem) => {
   if (!isMedia.value) return
   mediaOverride.value = updatedMedia
+  // Keep form name in sync with path rename. Save writes MEDIA_ENTITY_FIELD_KEYS
+  // including name; without this, Save reverts the wall title to the stale stem.
+  if (updatedMedia.name != null) {
+    vals.value.name = updatedMedia.name
+    old.value.name = updatedMedia.name
+  }
   void refreshEditingMediaFileInfo()
 }
 

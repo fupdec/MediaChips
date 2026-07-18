@@ -147,8 +147,11 @@ const clampToViewport = async () => {
 
 const onPointerDownOutside = (event: PointerEvent) => {
   if (!contextMenu.show || xs.value) return
-  const el = menuRoot.value
-  if (el && event.target instanceof Node && el.contains(event.target)) return
+  const target = event.target
+  // Nested submenus are separate body Teleports (.app-context-menu--nested),
+  // so they are not inside menuRoot — treat any context-menu panel as inside.
+  if (target instanceof Element && target.closest('.app-context-menu')) return
+  if (target instanceof Node && menuRoot.value?.contains(target)) return
   contextMenu.show = false
 }
 

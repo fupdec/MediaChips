@@ -56,6 +56,7 @@
           class="app-context-menu app-context-menu--nested"
           :style="submenuStyle"
           @mouseenter="open"
+          @pointerdown.stop
           @mousedown.stop
           @contextmenu.prevent.stop
         >

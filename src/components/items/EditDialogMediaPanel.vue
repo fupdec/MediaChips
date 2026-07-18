@@ -83,16 +83,7 @@
             :src="currentImage.src"
             cover
             class="edit-dialog-media-panel__image"
-          >
-            <DialogImageEditing
-              :image="currentImage.src"
-              :options="tagCropperOptions"
-              :image-path="currentImage.path"
-              :min-width="currentImage.width"
-              :min-height="currentImage.height"
-              @edited="$emit('edited', $event)"
-            />
-          </v-img>
+          />
           <v-sheet
             v-else
             color="grey-darken-3"
@@ -101,6 +92,23 @@
           >
             <v-icon size="48" color="grey">mdi-image-off-outline</v-icon>
           </v-sheet>
+        </div>
+
+        <div class="edit-dialog-media-panel__thumb-actions">
+          <div class="text-medium-emphasis text-caption px-1">
+            {{ currentImage?.type || t('image.thumbnail') }}
+          </div>
+          <DialogImageEditing
+            v-if="currentImage"
+            detached
+            activator-class="edit-dialog-media-panel__thumb-btn"
+            :image="currentImage.src || ''"
+            :options="tagCropperOptions"
+            :image-path="currentImage.path"
+            :min-width="currentImage.width"
+            :min-height="currentImage.height"
+            @edited="$emit('edited', $event)"
+          />
         </div>
 
         <div v-if="images.length > 1" class="edit-dialog-media-panel__thumbs">
@@ -146,6 +154,7 @@ interface TagImage {
   width: number
   height: number
   key: string
+  missing?: boolean
 }
 
 interface CropperOptions {

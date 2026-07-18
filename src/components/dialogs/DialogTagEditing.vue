@@ -85,6 +85,7 @@ interface TagImage {
   width: number
   height: number
   key: string
+  missing?: boolean
 }
 
 interface DialogHeaderButton {
@@ -201,27 +202,29 @@ const getImages = async ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
       String(meta.value.id),
       fileName,
     )
-    if (!await checkFileExists(imgPath)) continue
+    const exists = await checkFileExists(imgPath)
+    const src = exists
+      ? resolveTagThumbDisplayUrl({
+          dbPath: store.dbPath,
+          metaId: meta.value.id,
+          tagId: tag.value.id,
+          type: imgType.type,
+          cacheBust,
+        })
+      : ''
 
-    const src = resolveTagThumbDisplayUrl({
-      dbPath: store.dbPath,
-      metaId: meta.value.id,
-      tagId: tag.value.id,
+    // Always expose every slot (including avatar/header) so Edit/Add stays available
+    // even when the file was never created or was deleted.
+    images.value.push({
       type: imgType.type,
-      cacheBust,
+      path: imgPath,
+      src: src && !isThumbUnavailable(src) ? src : '',
+      aspectRatio: imgType.aspectRatio,
+      width: imgType.width,
+      height: Math.floor(imgType.width / imgType.aspectRatio),
+      key: `${imgType.type}-${tag.value.id}`,
+      missing: !exists || !src || isThumbUnavailable(src),
     })
-
-    if (!isThumbUnavailable(src)) {
-      images.value.push({
-        type: imgType.type,
-        path: imgPath,
-        src,
-        aspectRatio: imgType.aspectRatio,
-        width: imgType.width,
-        height: Math.floor(imgType.width / imgType.aspectRatio),
-        key: `${imgType.type}-${tag.value.id}`,
-      })
-    }
   }
 
   if (currentIndex.value >= images.value.length) {

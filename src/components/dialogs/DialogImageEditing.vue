@@ -29,7 +29,6 @@
 
         <v-card-text class="d-flex flex-column pa-4">
           <FilePond
-            v-if="image"
             @addfile="handleFile"
             @error="handleFileError"
             :allow-multiple="false"
@@ -50,6 +49,9 @@
               ref="cropper"
               class="cropper"
             />
+            <div v-else-if="dialog" class="cropper-empty text-medium-emphasis text-center pa-8">
+              {{ t('image.drop_or_click_upload') }}
+            </div>
             <div v-if="width && height" class="cropper-size">
               <v-icon
                 v-if="width < minWidth || height < minHeight"
@@ -206,24 +208,31 @@ const uploadedImageError = ref<unknown>(null)
 const uploadedImage = ref<unknown[]>([])
 
 // Buttons
-const buttons = computed(() => [
-  {
-    icon: 'delete',
-    text: t('common.delete'),
-    color: 'error',
-    variant: 'flat',
-    action: () => {
-      dialogImageDeleting.value = true
-    },
-  },
-  {
+const buttons = computed(() => {
+  const actions = []
+
+  if (props.image) {
+    actions.push({
+      icon: 'delete',
+      text: t('common.delete'),
+      color: 'error',
+      variant: 'flat',
+      action: () => {
+        dialogImageDeleting.value = true
+      },
+    })
+  }
+
+  actions.push({
     icon: 'content-save',
     text: t('common.save'),
     color: 'success',
     variant: 'flat',
     action: crop,
-  },
-])
+  })
+
+  return actions
+})
 
 // Computed
 const textDialogDelete = computed(() => {
