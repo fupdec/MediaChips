@@ -172,16 +172,15 @@ const setSortMode = (value: MetaSortMode) => {
 
 const isSearchEmpty = computed(() => isEmpty(filteredMeta.value))
 
-const getMeta = async (type?: string) => {
+const getMeta = async (_type?: string) => {
   try {
     initiated.value = false
 
     const response = await typedApi.getMeta()
     meta.value = response.data
 
-    if (type === 'array') {
-      eventBus.emit('getMeta')
-    }
+    // Always refresh global meta (assignment boards, sidebar, etc.).
+    eventBus.emit('getMeta')
     metaKey.value = Date.now()
   } catch (error) {
     console.error('Error fetching meta:', error)

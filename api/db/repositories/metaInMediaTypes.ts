@@ -37,10 +37,12 @@ export function createMetaInMediaTypesRepository(db: DrizzleClient) {
       const metaRows = db.select().from(meta).all()
       const metaById = new Map(metaRows.map((row) => [row.id, row]))
 
-      return rows.map((row) => ({
-        ...row,
-        meta: metaById.get(row.metaId) ?? null,
-      }))
+      return rows
+        .map((row) => ({
+          ...row,
+          meta: metaById.get(row.metaId) ?? null,
+        }))
+        .filter((row) => row.meta != null)
     },
 
     findByMetaId(metaId: number) {
@@ -82,6 +84,12 @@ export function createMetaInMediaTypesRepository(db: DrizzleClient) {
           eq(metaInMediaTypes.metaId, metaId),
           eq(metaInMediaTypes.mediaTypeId, mediaTypeId),
         ))
+        .run()
+    },
+
+    deleteByMetaId(metaId: number): void {
+      db.delete(metaInMediaTypes)
+        .where(eq(metaInMediaTypes.metaId, metaId))
         .run()
     },
   }

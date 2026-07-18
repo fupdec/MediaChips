@@ -107,11 +107,12 @@ function updateMediaTypes() {
 }
 
 .media-types-settings__empty {
-  padding: 4px 0;
+  padding: 4px 0 4px 16px;
 }
 
 .media-types-settings__chips {
   margin: -4px;
+  padding-left: 16px;
 }
 
 .media-types-settings__chip {

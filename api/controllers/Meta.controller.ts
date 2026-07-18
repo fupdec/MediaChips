@@ -6,12 +6,16 @@ import type { Meta, MetaWritePayload } from '@shared/entities/meta'
 import type { MergeCategoriesPayload } from '@shared/api/payloads'
 import { paramString } from '../types/errors'
 import { createMetaRepository } from '../db/repositories/meta'
+import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
+import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
 import { mergeTagCategories, MetaCategoryMergeError } from '../services/metaCategoryMerge'
 import fs from 'fs'
 import path from 'path'
 
 export default function (db: ApiDb) {
   const metaRepo = createMetaRepository(db.drizzle)
+  const metaInMediaTypesRepo = createMetaInMediaTypesRepository(db.drizzle)
+  const pinnedMetaRepo = createPinnedMetaRepository(db.drizzle)
   const metaFolder = path.join(db.path ?? '', 'meta')
 
   const create = function (req: ApiRequest, res: ApiResponse) {
@@ -100,7 +104,10 @@ export default function (db: ApiDb) {
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
-      metaRepo.deleteById(Number(req.params.id))
+      const id = Number(req.params.id)
+      metaInMediaTypesRepo.deleteByMetaId(id)
+      pinnedMetaRepo.deleteByMetaId(id)
+      metaRepo.deleteById(id)
       const dir = path.join(metaFolder, paramString(req.params.id))
       fs.rmSync(dir, {
         recursive: true,

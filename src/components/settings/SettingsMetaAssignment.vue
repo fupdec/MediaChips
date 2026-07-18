@@ -119,12 +119,13 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted} from 'vue'
+import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useAppStore} from '@/stores/app'
+import {useEventBus} from '@/utils/eventBus'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import MetaAssignmentPanel from '@/components/meta/assignment/MetaAssignmentPanel.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
@@ -148,6 +149,7 @@ interface AssignmentListItem {
 
 const {t} = useI18n()
 const route = useRoute()
+const eventBus = useEventBus()
 
 const viewMode = ref<AssignmentViewMode>('media')
 const selectedIds = ref<number[]>([])
@@ -309,5 +311,10 @@ onMounted(async () => {
   await loadAssignmentCounts()
   selectFromRoute()
   ensureSelection()
+  eventBus.on('getMeta', loadAssignmentCounts)
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('getMeta', loadAssignmentCounts)
 })
 </script>

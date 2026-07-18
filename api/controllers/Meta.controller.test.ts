@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { ApiRequest, ApiResponse } from '../types/http'
+import {describe, it, expect, vi, beforeEach} from 'vitest'
+import type {ApiRequest, ApiResponse} from '../types/http'
 
 const {
   create,
@@ -9,6 +9,8 @@ const {
   updateById,
   deleteById,
   ensureArrayMetaResources,
+  deleteMetaInMediaByMetaId,
+  deletePinnedByMetaId,
   existsSync,
   mkdirSync,
   rmSync,
@@ -20,6 +22,8 @@ const {
   updateById: vi.fn(),
   deleteById: vi.fn(),
   ensureArrayMetaResources: vi.fn(),
+  deleteMetaInMediaByMetaId: vi.fn(),
+  deletePinnedByMetaId: vi.fn(),
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   rmSync: vi.fn(),
@@ -34,6 +38,18 @@ vi.mock('../db/repositories/meta', () => ({
     updateById,
     deleteById,
     ensureArrayMetaResources,
+  }),
+}))
+
+vi.mock('../db/repositories/metaInMediaTypes', () => ({
+  createMetaInMediaTypesRepository: () => ({
+    deleteByMetaId: deleteMetaInMediaByMetaId,
+  }),
+}))
+
+vi.mock('../db/repositories/pinnedMeta', () => ({
+  createPinnedMetaRepository: () => ({
+    deleteByMetaId: deletePinnedByMetaId,
   }),
 }))
 
@@ -151,6 +167,8 @@ describe('Meta.controller', () => {
 
     controller.deleteOne(req, res)
 
+    expect(deleteMetaInMediaByMetaId).toHaveBeenCalledWith(5)
+    expect(deletePinnedByMetaId).toHaveBeenCalledWith(5)
     expect(deleteById).toHaveBeenCalledWith(5)
     expect(rmSync).toHaveBeenCalledWith('/tmp/db/meta/5', {
       recursive: true,

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, or } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { meta } from '../schema/meta'
 import { pinnedMetas } from '../schema/pinnedMeta'
@@ -24,10 +24,12 @@ function attachMetaRows(
     : []
   const metaById = new Map(metaRows.map((row) => [row.id, row]))
 
-  return rows.map((row) => ({
-    ...row,
-    meta: metaById.get(row[metaIdField]) ?? null,
-  }))
+  return rows
+    .map((row) => ({
+      ...row,
+      meta: metaById.get(row[metaIdField]) ?? null,
+    }))
+    .filter((row) => row.meta != null)
 }
 
 export function createPinnedMetaRepository(db: DrizzleClient) {
@@ -109,6 +111,15 @@ export function createPinnedMetaRepository(db: DrizzleClient) {
         .where(and(
           eq(pinnedMetas.pinnedMetaId, pinnedMetaId),
           eq(pinnedMetas.metaId, metaId),
+        ))
+        .run()
+    },
+
+    deleteByMetaId(metaId: number): void {
+      db.delete(pinnedMetas)
+        .where(or(
+          eq(pinnedMetas.metaId, metaId),
+          eq(pinnedMetas.pinnedMetaId, metaId),
         ))
         .run()
     },
