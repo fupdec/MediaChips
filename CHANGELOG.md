@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-07-18
+
+### Changed
+
+- **Filters panel** — opaque background instead of glass transparency
+- **README** — finish translating the troubleshooting section to English
+
 ## [1.3.2] - 2026-07-18
 
 ### Fixed
