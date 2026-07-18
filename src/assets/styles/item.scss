@@ -3,8 +3,8 @@
   --item-rating-icon: 20px;
   --item-fav-icon: 22px;
   --item-rating-star-gap: 1px;
-  --item-fav-inset-top: max(2px, calc(var(--card-width, 14em) * 0.02));
-  --item-fav-inset-right: max(1px, calc(var(--card-width, 14em) * 0.008));
+  --item-fav-inset-top: 6px;
+  --item-fav-inset-right: 6px;
 
   &--selecting {
     overflow: hidden;
@@ -369,20 +369,38 @@
   //}
   .fav-btn {
     position: absolute;
-    top: var(--item-fav-inset-top);
-    right: var(--item-fav-inset-right);
+    top: 0;
+    right: 0;
+    box-sizing: content-box;
+    width: var(--item-fav-icon);
+    height: var(--item-fav-icon);
+    min-width: var(--item-fav-icon);
+    max-width: var(--item-fav-icon);
+    margin: 0 !important;
+    padding: var(--item-fav-inset-top) var(--item-fav-inset-right) 0 0 !important;
     opacity: 0.7;
-    z-index: 1;
+    z-index: 5;
     transform: none;
 
+    .v-input__control {
+      width: var(--item-fav-icon);
+      height: var(--item-fav-icon);
+    }
+
     .v-selection-control {
-      min-height: var(--item-fav-icon);
+      min-height: var(--item-fav-icon) !important;
+      height: var(--item-fav-icon);
+      width: var(--item-fav-icon);
+      margin: 0;
+      padding: 0;
     }
 
     .v-selection-control__wrapper,
     .v-selection-control__input {
-      width: var(--item-fav-icon);
-      height: var(--item-fav-icon);
+      width: var(--item-fav-icon) !important;
+      height: var(--item-fav-icon) !important;
+      min-width: var(--item-fav-icon) !important;
+      min-height: var(--item-fav-icon) !important;
     }
 
     .v-icon {
@@ -401,6 +419,11 @@
     position: relative;
     top: auto;
     right: auto;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    max-width: none;
+    padding: 0 !important;
   }
 
   .rating.v-rating {
@@ -424,6 +447,10 @@
 
   .item_preview > .rating,
   .item_preview > .fav-btn {
+    // Above nested .thumb (z-index: 2) which otherwise paints over these overlays.
+    z-index: 5;
+    transition: opacity 0.2s ease;
+
     .v-icon {
       text-shadow: 0px 1px 3px #444444c5;
     }
@@ -431,6 +458,23 @@
 
   .item_preview > .fav-btn {
     text-shadow: 0px 1px 3px #444444c5;
+
+    // Match empty rating stars (`color="#eee"`); keep pink when favorited.
+    .v-selection-control:not(.v-selection-control--dirty) .v-icon {
+      color: #eee !important;
+      opacity: 1;
+    }
+  }
+
+  // Keep rating/favorite on the static poster; hide while hover video preview plays.
+  .item_preview:has(.video-preview-container.is-hovered) > .rating,
+  .item_preview:has(.video-preview-container.is-hovered) > .fav-btn,
+  .item_preview:has(.video-preview-container.is-preview-active) > .rating,
+  .item_preview:has(.video-preview-container.is-preview-active) > .fav-btn,
+  &.big-preview .item_preview > .rating,
+  &.big-preview .item_preview > .fav-btn {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .rating {
@@ -1949,6 +1993,8 @@ body > .video-preview-container.video-preview-container--expanded {
 
 .video-preview-host:not(.video-preview-host--embedded) {
   position: relative;
+  // Contain nested thumb z-index so card rating/favorite overlays can sit above.
+  z-index: 0;
   width: 100%;
 
   .video-preview-host__anchor {

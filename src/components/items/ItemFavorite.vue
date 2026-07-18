@@ -8,10 +8,10 @@
     false-icon="mdi-heart-outline"
     true-icon="mdi-heart"
     color="pink"
+    base-color="#eee"
     class="ma-0 pa-0 fav-btn"
     hide-details
     density="compact"
-    dark
   />
 </template>
 
