@@ -81,12 +81,12 @@ export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
       byContentHash: duplicates.byContentHash ?? 0,
       byOshash: duplicates.byOshash ?? 0,
       byFingerprint: duplicates.byFingerprint
-        ?? ((duplicates.byContentHash ?? 0) + (duplicates.byOshash ?? 0)),
+        ?? (duplicates.byOshash ?? 0),
     },
     fingerprint: data.fingerprint ?? {
-      total: (data.contentHash?.total ?? 0) + (data.oshash?.total ?? 0),
-      pending: (data.contentHash?.pending ?? 0) + (data.oshash?.pending ?? 0),
-      hashed: (data.contentHash?.hashed ?? 0) + (data.oshash?.hashed ?? 0),
+      total: data.oshash?.total ?? 0,
+      pending: data.oshash?.pending ?? 0,
+      hashed: data.oshash?.hashed ?? 0,
     },
     contentHash: data.contentHash ?? { total: 0, pending: 0, hashed: 0 },
     oshash: data.oshash ?? { total: 0, pending: 0, hashed: 0 },

@@ -64,21 +64,6 @@ async function getDuplicateCounts(db: ApiDb) {
       )
   `) as {count?: number} | undefined
 
-  const byContentHash = queryGet(db, `
-    SELECT COUNT(*) AS count
-    FROM media m
-    WHERE m.contentHash IS NOT NULL
-      AND m.contentHash != ''
-      AND m.contentHash IN (
-        SELECT contentHash
-        FROM media
-        WHERE contentHash IS NOT NULL
-          AND contentHash != ''
-        GROUP BY contentHash
-        HAVING COUNT(*) > 1
-      )
-  `) as {count?: number} | undefined
-
   const byOshash = queryGet(db, `
     SELECT COUNT(*) AS count
     FROM media m
@@ -94,11 +79,11 @@ async function getDuplicateCounts(db: ApiDb) {
       )
   `) as {count?: number} | undefined
 
-  const byFingerprint = Number(byContentHash?.count || 0) + Number(byOshash?.count || 0)
+  const byFingerprint = Number(byOshash?.count || 0)
 
   return {
     byFilesize: Number(byFilesize?.count || 0),
-    byContentHash: Number(byContentHash?.count || 0),
+    byContentHash: 0,
     byOshash: Number(byOshash?.count || 0),
     byFingerprint,
   }

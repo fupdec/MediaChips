@@ -16,11 +16,11 @@ describe('widget ui normalizers', () => {
 
   it('normalizes partial home health', () => {
     const ui = toHomeHealthUi({
-      duplicates: { byFilesize: 1, byContentHash: 2 },
+      duplicates: { byFilesize: 1, byContentHash: 2, byOshash: 3 },
       videoCodec: { total: 5, pending: 1, filled: 4 },
     })
     expect(ui.duplicates.byContentHash).toBe(2)
-    expect(ui.duplicates.byFingerprint).toBe(2)
+    expect(ui.duplicates.byFingerprint).toBe(3)
     expect(ui.videoCodec.pending).toBe(1)
     expect(ui.contentHash.total).toBe(0)
     expect(ui.oshash.total).toBe(0)

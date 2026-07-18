@@ -17,7 +17,7 @@ const ja = {
       Please_select_items: "項目を選択してください",
       add_tags: "タグを追加",
       create_tab: "タブを作成",
-      edit_meta: "メタデータフィールドの編集",
+      edit_meta: "タグカテゴリを編集",
       open_random: "ランダムに開く",
       auto_scrape: "TPDB 自動スクレイプ",
       tmdb_auto_scrape: "TMDB 自動スクレイプ",
@@ -1493,8 +1493,7 @@ const ja = {
       content_hash_backfill_complete:
         "完了: {hashed} ハッシュ化、{missing} 欠落、{failed} 失敗",
       fingerprint_backfill: "fingerprint の重複排除",
-      fingerprint_backfill_hint:
-        "重複検出に使用されるハイブリッド fingerprint を埋めます。ビデオと大きなファイルの場合は oshash、小さな非ビデオ メディアの場合は SHA-256 です。シーンのマッチングや移動されたファイルの復元にも使用されます。",
+      fingerprint_backfill_hint: '重複検出・シーン照合・移動ファイル復元に使う OpenSubtitles oshash を埋めます。oshash は高速で、各ファイルの先頭と末尾の小さな断片だけを読みます。',
       fingerprint_backfill_status:
         "{total} ファイル中 {hashed} が fingerprint 処理されました ({pending} 保留中)",
       fingerprint_backfill_start: "埋め戻し開始",

@@ -1,10 +1,6 @@
-import { computeContentHashForPath } from './contentHash'
 import { computeOshashForPath } from './oshash'
 
-/** Non-video files larger than this use oshash instead of full-file sha256. */
-const FINGERPRINT_SIZE_THRESHOLD_BYTES = 32 * 1024 * 1024
-
-type FingerprintKind = 'oshash' | 'contentHash'
+type FingerprintKind = 'oshash'
 type MediaTypeLike = string | null | undefined
 
 type FingerprintFields = {
@@ -21,33 +17,16 @@ type FingerprintMediaInput = {
 type ComputedFingerprint = {
   kind: FingerprintKind
   value: string
-  patch: {oshash: string} | {contentHash: string}
-}
-
-function normalizeMediaType(mediaType: MediaTypeLike): string {
-  return String(mediaType || '').trim().toLowerCase()
+  patch: {oshash: string}
 }
 
 function resolveFingerprintKind(
-  mediaType: MediaTypeLike,
+  _mediaType: MediaTypeLike,
   filesize: number,
 ): FingerprintKind | null {
   const size = Number(filesize) || 0
-  const type = normalizeMediaType(mediaType)
-
-  if (type === 'video') {
-    if (size <= 8) return null
-    return 'oshash'
-  }
-
-  if (size <= 0) return null
-
-  if (size > FINGERPRINT_SIZE_THRESHOLD_BYTES) {
-    if (size <= 8) return null
-    return 'oshash'
-  }
-
-  return 'contentHash'
+  if (size <= 8) return null
+  return 'oshash'
 }
 
 function getFingerprintValue(
@@ -57,7 +36,7 @@ function getFingerprintValue(
   if (kind === 'oshash') {
     return String(fields.oshash || '').trim()
   }
-  return String(fields.contentHash || '').trim()
+  return ''
 }
 
 function isFingerprintFilled(
@@ -71,19 +50,14 @@ function isFingerprintFilled(
 }
 
 function fingerprintPatch(kind: FingerprintKind, value: string): ComputedFingerprint['patch'] {
-  if (kind === 'oshash') {
-    return {oshash: value}
-  }
-  return {contentHash: value}
+  return {oshash: value}
 }
 
 async function computeFingerprint(input: FingerprintMediaInput): Promise<ComputedFingerprint | null> {
   const kind = resolveFingerprintKind(input.mediaType, input.filesize)
   if (!kind) return null
 
-  const value = kind === 'oshash'
-    ? await computeOshashForPath(input.path)
-    : await computeContentHashForPath(input.path)
+  const value = await computeOshashForPath(input.path)
 
   return {
     kind,
@@ -92,12 +66,11 @@ async function computeFingerprint(input: FingerprintMediaInput): Promise<Compute
   }
 }
 
-function duplicateParameterForKind(kind: FingerprintKind): 'oshash' | 'content_hash' {
-  return kind === 'oshash' ? 'oshash' : 'content_hash'
+function duplicateParameterForKind(_kind: FingerprintKind): 'oshash' {
+  return 'oshash'
 }
 
 export {
-  FINGERPRINT_SIZE_THRESHOLD_BYTES,
   resolveFingerprintKind,
   getFingerprintValue,
   isFingerprintFilled,

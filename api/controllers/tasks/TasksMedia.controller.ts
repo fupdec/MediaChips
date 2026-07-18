@@ -23,7 +23,6 @@ import {
 } from '../../services/addMediaDedup'
 import {
   computeFingerprint,
-  duplicateParameterForKind,
 } from '../../services/mediaFingerprint'
 import {
   runWithFfprobeLimit,
@@ -126,9 +125,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
     if (!fingerprint) return null
 
-    const existing = fingerprint.kind === 'oshash'
-      ? mediaRepo.findByOshash(fingerprint.value, mediaType.id)
-      : mediaRepo.findByContentHash(fingerprint.value, mediaType.id)
+    const existing = mediaRepo.findByOshash(fingerprint.value, mediaType.id)
 
     if (!existing || pathsEquivalent(String(existing.path), pathToFile)) {
       return {fingerprint, duplicate: null}
@@ -137,7 +134,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     return {
       fingerprint,
       duplicate: existing,
-      parameter: duplicateParameterForKind(fingerprint.kind),
+      parameter: 'oshash' as const,
     }
   }
 

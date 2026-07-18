@@ -108,7 +108,7 @@ describe('TasksMaintenance.controller', () => {
     const req = {
       body: {
         matches: [
-          {id: 1, newPath: '/media/a.mp4', contentHash: 'abc'},
+          {id: 1, newPath: '/media/a.mp4', oshash: 'abc'},
           {id: null, path: '/media/b.mp4'},
           {id: 2, path: '/media/c.mp4'},
         ],
@@ -124,7 +124,7 @@ describe('TasksMaintenance.controller', () => {
       basename: 'a.mp4',
       name: 'a',
       ext: '.mp4',
-      contentHash: 'abc',
+      oshash: 'abc',
     }, {silent: true})
     expect(updateById).toHaveBeenNthCalledWith(2, 2, {
       path: '/media/c.mp4',

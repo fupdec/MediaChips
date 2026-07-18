@@ -3,7 +3,6 @@ import { queryGet } from '../db/utils/rawQuery'
 import { createMediaRepository } from '../db/repositories/media'
 import { resolveExistingPath } from './contentHash'
 import {
-  FINGERPRINT_SIZE_THRESHOLD_BYTES,
   computeFingerprint,
   type FingerprintKind,
 } from './mediaFingerprint'
@@ -22,52 +21,19 @@ const MEDIA_WITH_TYPE_SQL = `
   INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
 `
 
-/** Rows that should store oshash under the hybrid policy. */
+/** All media large enough for oshash. */
 const OSHASH_SCOPE_SQL = `
-  (
-    (LOWER(COALESCE(mt.type, '')) = 'video' AND m.filesize > 8)
-    OR (
-      LOWER(COALESCE(mt.type, '')) != 'video'
-      AND m.filesize > ${FINGERPRINT_SIZE_THRESHOLD_BYTES}
-    )
-  )
+  (m.filesize > 8)
 `
 
-/** Rows that should store contentHash (sha256) under the hybrid policy. */
-const CONTENT_HASH_SCOPE_SQL = `
-  (
-    LOWER(COALESCE(mt.type, '')) != 'video'
-    AND m.filesize > 0
-    AND m.filesize <= ${FINGERPRINT_SIZE_THRESHOLD_BYTES}
-  )
-`
-
-const FINGERPRINT_SCOPE_SQL = `
-  (${OSHASH_SCOPE_SQL} OR ${CONTENT_HASH_SCOPE_SQL})
-`
+const FINGERPRINT_SCOPE_SQL = OSHASH_SCOPE_SQL
 
 const PENDING_OSHASH_SQL = `
   AND ${OSHASH_SCOPE_SQL}
   AND (m.oshash IS NULL OR m.oshash = '')
 `
 
-const PENDING_CONTENT_HASH_SQL = `
-  AND ${CONTENT_HASH_SCOPE_SQL}
-  AND (m.contentHash IS NULL OR m.contentHash = '')
-`
-
-const PENDING_FINGERPRINT_SQL = `
-  AND (
-    (
-      ${OSHASH_SCOPE_SQL}
-      AND (m.oshash IS NULL OR m.oshash = '')
-    )
-    OR (
-      ${CONTENT_HASH_SCOPE_SQL}
-      AND (m.contentHash IS NULL OR m.contentHash = '')
-    )
-  )
-`
+const PENDING_FINGERPRINT_SQL = PENDING_OSHASH_SQL
 
 function countSql(db: ApiDb, whereExtra = ''): number {
   const row = queryGet<{count: number}>(db, `
@@ -82,16 +48,11 @@ function countSql(db: ApiDb, whereExtra = ''): number {
 async function getFingerprintBackfillStatus(db: ApiDb) {
   const oshashTotal = countSql(db, `AND ${OSHASH_SCOPE_SQL}`)
   const oshashPending = countSql(db, PENDING_OSHASH_SQL)
-  const contentHashTotal = countSql(db, `AND ${CONTENT_HASH_SCOPE_SQL}`)
-  const contentHashPending = countSql(db, PENDING_CONTENT_HASH_SQL)
-
-  const total = oshashTotal + contentHashTotal
-  const pending = oshashPending + contentHashPending
 
   return {
-    total,
-    pending,
-    hashed: total - pending,
+    total: oshashTotal,
+    pending: oshashPending,
+    hashed: oshashTotal - oshashPending,
     byKind: {
       oshash: {
         total: oshashTotal,
@@ -99,37 +60,35 @@ async function getFingerprintBackfillStatus(db: ApiDb) {
         hashed: oshashTotal - oshashPending,
       },
       contentHash: {
-        total: contentHashTotal,
-        pending: contentHashPending,
-        hashed: contentHashTotal - contentHashPending,
+        total: 0,
+        pending: 0,
+        hashed: 0,
       },
     },
   }
 }
 
-/** Policy-scoped status for the legacy content-hash settings panel. */
-async function getContentHashBackfillStatus(db: ApiDb) {
-  const total = countSql(db, `AND ${CONTENT_HASH_SCOPE_SQL}`)
-  const pending = countSql(db, PENDING_CONTENT_HASH_SQL)
-  return {total, pending, hashed: total - pending}
+/** Legacy content-hash settings panel — SHA-256 fingerprinting is retired. */
+async function getContentHashBackfillStatus(_db: ApiDb) {
+  return {total: 0, pending: 0, hashed: 0}
 }
 
-/** Policy-scoped status for the legacy oshash settings panel (video + large non-video). */
+/** Status for the oshash / fingerprint settings panel. */
 async function getOshashBackfillStatus(db: ApiDb) {
   const total = countSql(db, `AND ${OSHASH_SCOPE_SQL}`)
   const pending = countSql(db, PENDING_OSHASH_SQL)
   return {total, pending, hashed: total - pending}
 }
 
-function pendingFilterForKind(kind: FingerprintKind | 'all', force: boolean): string {
+function pendingFilterForKind(kind: FingerprintKind | 'all' | 'contentHash', force: boolean): string {
+  if (kind === 'contentHash') {
+    return 'AND 0 = 1'
+  }
+
   if (force) {
-    if (kind === 'oshash') return `AND ${OSHASH_SCOPE_SQL}`
-    if (kind === 'contentHash') return `AND ${CONTENT_HASH_SCOPE_SQL}`
     return `AND ${FINGERPRINT_SCOPE_SQL}`
   }
 
-  if (kind === 'oshash') return PENDING_OSHASH_SQL
-  if (kind === 'contentHash') return PENDING_CONTENT_HASH_SQL
   return PENDING_FINGERPRINT_SQL
 }
 
@@ -137,7 +96,7 @@ function findNextForFingerprintBackfill(
   db: ApiDb,
   lastId: number,
   force = false,
-  kind: FingerprintKind | 'all' = 'all',
+  kind: FingerprintKind | 'all' | 'contentHash' = 'all',
 ): FingerprintMediaRow | undefined {
   return queryGet<FingerprintMediaRow>(db, `
     SELECT
@@ -158,7 +117,7 @@ function findNextForFingerprintBackfill(
 function countForFingerprintBackfill(
   db: ApiDb,
   force = false,
-  kind: FingerprintKind | 'all' = 'all',
+  kind: FingerprintKind | 'all' | 'contentHash' = 'all',
 ): number {
   return countSql(db, pendingFilterForKind(kind, force))
 }
@@ -233,7 +192,7 @@ async function* iterateFingerprintBackfill(
   }: {
     shouldStop?: () => boolean
     force?: boolean
-    kind?: FingerprintKind | 'all'
+    kind?: FingerprintKind | 'all' | 'contentHash'
   } = {},
 ) {
   const total = countForFingerprintBackfill(db, force, kind)
@@ -313,7 +272,6 @@ async function* iterateContentHashBackfill(
 
 export {
   OSHASH_SCOPE_SQL,
-  CONTENT_HASH_SCOPE_SQL,
   getFingerprintBackfillStatus,
   getContentHashBackfillStatus,
   getOshashBackfillStatus,

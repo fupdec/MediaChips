@@ -181,11 +181,11 @@
             <div class="match-row__content">
               <div class="d-flex align-center ga-2 mb-1">
                 <v-chip
-                  :color="item.confidence === 'hash' ? 'success' : 'warning'"
+                  :color="item.confidence === 'oshash' ? 'success' : 'warning'"
                   size="x-small"
                   label
                 >
-                  {{ item.confidence === 'hash'
+                  {{ item.confidence === 'oshash'
                     ? t('settings_labels.database.find_missing_media_match_hash')
                     : t('settings_labels.database.find_missing_media_match_size') }}
                 </v-chip>

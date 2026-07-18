@@ -2,9 +2,8 @@ import type { ApiDb, AnyRecord } from '../types/db'
 import type { MissingMediaSearchOptions } from '../types/missingMediaFinder'
 import path from 'path'
 import { readdir, stat } from 'fs/promises'
-import { computeContentHash, fileExists } from './contentHash'
+import { fileExists } from './contentHash'
 import { computeOshashForPath } from './oshash'
-import { resolveFingerprintKind } from './mediaFingerprint'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 
@@ -49,8 +48,8 @@ async function getMissingMediaStatus(db: ApiDb, {full = false} = {}) {
   return {
     total,
     missing: missing.length,
-    withHash: missing.filter((item: AnyRecord) => item.contentHash).length,
-    withoutHash: missing.filter((item: AnyRecord) => !item.contentHash).length,
+    withHash: missing.filter((item: AnyRecord) => item.oshash).length,
+    withoutHash: missing.filter((item: AnyRecord) => !item.oshash).length,
   }
 }
 
@@ -109,8 +108,7 @@ async function* walkMediaFiles(
   }
 }
 
-function buildMissingIndexes(missingMedia: AnyRecord[], mediaTypeById: Map<number, string>) {
-  const byHash = new Map()
+function buildMissingIndexes(missingMedia: AnyRecord[]) {
   const byOshash = new Map()
   const bySizeNoHash = new Map()
   const targetSizes = new Set()
@@ -118,32 +116,6 @@ function buildMissingIndexes(missingMedia: AnyRecord[], mediaTypeById: Map<numbe
   for (const item of missingMedia) {
     const size = Number(item.filesize) || 0
     targetSizes.add(size)
-    const mediaType = mediaTypeById.get(Number(item.mediaTypeId)) || ''
-    const kind = resolveFingerprintKind(mediaType, size)
-
-    if (kind === 'oshash' && item.oshash) {
-      if (!byOshash.has(item.oshash)) {
-        byOshash.set(item.oshash, [])
-      }
-      byOshash.get(item.oshash).push(item)
-      continue
-    }
-
-    if (kind === 'contentHash' && item.contentHash) {
-      if (!byHash.has(item.contentHash)) {
-        byHash.set(item.contentHash, [])
-      }
-      byHash.get(item.contentHash).push(item)
-      continue
-    }
-
-    if (item.contentHash) {
-      if (!byHash.has(item.contentHash)) {
-        byHash.set(item.contentHash, [])
-      }
-      byHash.get(item.contentHash).push(item)
-      continue
-    }
 
     if (item.oshash) {
       if (!byOshash.has(item.oshash)) {
@@ -159,7 +131,7 @@ function buildMissingIndexes(missingMedia: AnyRecord[], mediaTypeById: Map<numbe
     bySizeNoHash.get(size).push(item)
   }
 
-  return {byHash, byOshash, bySizeNoHash, targetSizes}
+  return {byOshash, bySizeNoHash, targetSizes}
 }
 
 function pickWeakCandidate(candidates: AnyRecord[], foundPath: string) {
@@ -246,10 +218,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
   }
 
   const mediaTypes = mediaTypesRepo.findAll()
-  const mediaTypeById = new Map(
-    mediaTypes.map((item) => [Number(item.id), String(item.type || '')]),
-  )
-  const {byHash, byOshash, bySizeNoHash, targetSizes} = buildMissingIndexes(missingMedia, mediaTypeById)
+  const {byOshash, bySizeNoHash, targetSizes} = buildMissingIndexes(missingMedia)
   const extensionRegex = buildExtensionRegex(mediaTypes as Array<{ extensions?: string }>)
   const knownPaths = new Set(
     mediaRepo.findPaths().map((item: string) => String(item || '').toLowerCase()),
@@ -316,24 +285,14 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
     sizeMatched += 1
 
-    let contentHash: string | null = null
     let oshash: string | null = null
-    const kind = resolveFingerprintKind(null, filesize)
 
     try {
-      if (kind === 'oshash' || byOshash.size > 0) {
+      if (byOshash.size > 0) {
         oshash = await computeOshashForPath(filePath)
       }
     } catch {
-      // continue with other strategies
-    }
-
-    try {
-      if (kind === 'contentHash' || (!oshash && byHash.size > 0)) {
-        contentHash = await computeContentHash(filePath)
-      }
-    } catch {
-      if (!oshash) continue
+      // continue with size/name matching
     }
 
     let match = null
@@ -350,21 +309,6 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
         if (weak) {
           match = weak
           confidence = 'oshash'
-        }
-      }
-    }
-
-    if (!match && contentHash && byHash.has(contentHash)) {
-      const candidates = byHash.get(contentHash)
-        .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
-      if (candidates.length === 1) {
-        match = candidates[0]
-        confidence = 'hash'
-      } else if (candidates.length > 1) {
-        const weak = pickWeakCandidate(candidates, filePath)
-        if (weak) {
-          match = weak
-          confidence = 'hash'
         }
       }
     }
@@ -388,7 +332,6 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
         oldPath: match.path,
         newPath: filePath,
         confidence,
-        contentHash: contentHash || match.contentHash || null,
         oshash: oshash || match.oshash || null,
       }
 

@@ -377,9 +377,6 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
           ext: parsed.ext,
         }
 
-        if (item.contentHash) {
-          data.contentHash = item.contentHash
-        }
         if (item.oshash) {
           data.oshash = item.oshash
         }

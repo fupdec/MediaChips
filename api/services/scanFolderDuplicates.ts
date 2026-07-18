@@ -198,7 +198,6 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
 
   const libraryBySizeBasename = new Map<string, LibraryHit[]>()
   const libraryByOshash = new Map<string, LibraryHit[]>()
-  const libraryByContentHash = new Map<string, LibraryHit[]>()
 
   if (typeId != null) {
     const rows = queryAll<LibraryHit>(db, `
@@ -216,12 +215,6 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
       if (oshash) {
         if (!libraryByOshash.has(oshash)) libraryByOshash.set(oshash, [])
         libraryByOshash.get(oshash)!.push(row)
-      }
-
-      const contentHash = String(row.contentHash || '').trim()
-      if (contentHash) {
-        if (!libraryByContentHash.has(contentHash)) libraryByContentHash.set(contentHash, [])
-        libraryByContentHash.get(contentHash)!.push(row)
       }
     }
   }
@@ -245,7 +238,7 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     path: string
     libraryPath: string
     libraryId: number
-    parameter: 'basename_filesize' | 'oshash' | 'content_hash'
+    parameter: 'basename_filesize' | 'oshash'
   }> = []
   const withinFolderConfirmed: Array<{
     filesize: number
@@ -280,9 +273,7 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
           value: fingerprint.value,
         })
 
-        const libraryHits = fingerprint.kind === 'oshash'
-          ? (libraryByOshash.get(fingerprint.value) || [])
-          : (libraryByContentHash.get(fingerprint.value) || [])
+        const libraryHits = libraryByOshash.get(fingerprint.value) || []
 
         for (const hit of libraryHits) {
           if (pathsEquivalent(String(hit.path), file.path)) continue
@@ -290,7 +281,7 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
             path: file.path,
             libraryPath: String(hit.path),
             libraryId: Number(hit.id),
-            parameter: fingerprint.kind === 'oshash' ? 'oshash' : 'content_hash',
+            parameter: 'oshash',
           })
         }
       }
