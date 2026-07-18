@@ -29,9 +29,6 @@ FROM node:22-alpine AS runner
 
 RUN apk add --no-cache \
     ffmpeg \
-    python3 \
-    make \
-    g++ \
     tini \
     su-exec \
     shadow
@@ -45,10 +42,11 @@ COPY packages/plugin-jellyfin/package.json ./packages/plugin-jellyfin/
 COPY packages/plugin-plex/package.json ./packages/plugin-plex/
 COPY packages/plugin-emby/package.json ./packages/plugin-emby/
 COPY packages/plugin-tmdb/package.json ./packages/plugin-tmdb/
-RUN npm ci --omit=dev --ignore-scripts \
-    && npm rebuild better-sqlite3 \
-    && apk del python3 make g++
+# Skip a second native rebuild here: under QEMU arm64, `npm rebuild better-sqlite3`
+# intermittently dies with SIGILL (exit 132). Reuse the builder binary instead.
+RUN npm ci --omit=dev --ignore-scripts
 
+COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/shared ./shared

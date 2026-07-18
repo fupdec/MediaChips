@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-18
+
+### Fixed
+
+- **Docker arm64** — reuse the builder `better-sqlite3` binary instead of a second QEMU rebuild that could SIGILL
+
 ## [1.3.1] - 2026-07-18
 
 ### Fixed
