@@ -271,22 +271,22 @@ scripts/        Build and utility scripts
 
 ## Troubleshooting
 
-### `better-sqlite3` и Electron
+### `better-sqlite3` and Electron
 
-Нужна **better-sqlite3 12.4.2+** — в 11.x сборка под современный Electron падает (`Context::GetIsolate` удалён из V8).
+You need **better-sqlite3 12.4.2+** — on 11.x, builds against modern Electron fail (`Context::GetIsolate` was removed from V8).
 
-Модуль нативный и собирается под **один** runtime за раз:
+The module is native and builds for **one** runtime at a time:
 
-| Задача | Что происходит |
-|--------|----------------|
-| `npm run server` / `server:dev` | `better-sqlite3` пересобирается под Node при `postinstall` и перед запуском |
-| `npm run electron` | `better-sqlite3` пересобирается под Electron через `scripts/ensure-electron-native.mjs` |
+| Task | What happens |
+|------|----------------|
+| `npm run server` / `server:dev` | `better-sqlite3` is rebuilt for Node during `postinstall` and before start |
+| `npm run electron` | `better-sqlite3` is rebuilt for Electron via `scripts/ensure-electron-native.mjs` |
 
-Если после `npm install` видите `NODE_MODULE_VERSION` mismatch — выполните `npm rebuild better-sqlite3` или `node scripts/ensure-electron-native.mjs --force`.
+If you see a `NODE_MODULE_VERSION` mismatch after `npm install`, run `npm rebuild better-sqlite3` or `node scripts/ensure-electron-native.mjs --force`.
 
-На macOS 15+ (особенно macOS 26) Electron может падать с `CODESIGNING / Invalid Page` при загрузке `better-sqlite3`: `electron-rebuild` оставляет `linker-signed` бинарник, который AMFI отклоняет. `scripts/ensure-electron-native.mjs` после сборки автоматически переподписывает `.node` файлы ad-hoc (`codesign --sign -`). Если запускали `electron-rebuild` вручную — выполните `node scripts/sign-native-modules.mjs`.
+On macOS 15+ (especially macOS 26), Electron may crash with `CODESIGNING / Invalid Page` when loading `better-sqlite3`: `electron-rebuild` leaves a `linker-signed` binary that AMFI rejects. After the rebuild, `scripts/ensure-electron-native.mjs` automatically re-signs `.node` files ad-hoc (`codesign --sign -`). If you ran `electron-rebuild` manually, run `node scripts/sign-native-modules.mjs`.
 
-`electron-builder` при `pack`/`dist` пересобирает нативные модули сам; в CI отдельный `electron-rebuild` не нужен.
+`electron-builder` rebuilds native modules itself during `pack`/`dist`; a separate `electron-rebuild` step is not needed in CI.
 
 ### Electron and the `databases` folder
 
