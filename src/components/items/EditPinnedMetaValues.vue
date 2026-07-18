@@ -1013,6 +1013,12 @@ const save = async (): Promise<boolean> => {
     const endpoint = isTag.value ? 'tag' : 'media'
     await typedApi.updateEntity(endpoint, currentItemId.value!, updateData)
 
+    // Keep wall cards in sync immediately (rating/favorite overlays read from the store item).
+    itemsStore.updateItem({
+      id: currentItemId.value!,
+      item: updateData as Partial<MediaItem>,
+    })
+
     const tagsEndpoint = isTag.value ? 'TagsInTag' : 'TagsInMedia'
     await typedApi.deleteItemTags(tagsEndpoint, currentItemId.value!)
 

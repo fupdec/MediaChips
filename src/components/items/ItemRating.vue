@@ -28,13 +28,30 @@ const itemsStore = useItemsStore()
 
 const rating = ref(props.item.rating as number | undefined)
 
-watch(rating, async (val) => {
-  await typedApi.updateEntity(props.type, props.item.id, { rating: val })
+// Keep stars in sync when the item is refreshed after dialog save / refetch.
+watch(
+  () => props.item.rating,
+  (val) => {
+    if (rating.value !== val) {
+      rating.value = val as number | undefined
+    }
+  },
+)
 
-  itemsStore.updateItemField({
-    id: props.item.id,
-    field: 'rating',
-    value: val,
-  })
+watch(rating, async (val) => {
+  if (val === props.item.rating) return
+
+  try {
+    await typedApi.updateEntity(props.type, props.item.id, { rating: val })
+
+    itemsStore.updateItemField({
+      id: props.item.id,
+      field: 'rating',
+      value: val,
+    })
+  } catch (error) {
+    console.error('Error updating rating:', error)
+    rating.value = props.item.rating as number | undefined
+  }
 })
 </script>
