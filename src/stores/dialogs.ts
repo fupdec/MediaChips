@@ -59,6 +59,12 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     scraperMultiple: { show: false, performers: [] as ScraperMultiplePerformer[], progress: 0 },
     sceneScraper: { show: false, media: null as MediaItem | null },
     sceneScraperMultiple: { show: false, items: [] as SceneScraperBatchItem[], progress: 0 },
+    tmdbScraper: { show: false, media: null as MediaItem | null },
+    tmdbPersonScraper: {
+      show: false,
+      tag: null as Tag | null,
+      meta: null as Meta | null,
+    },
   }),
   actions: {
     editMedia(media: MediaItem | null, mediaType: MediaType | null = null) {

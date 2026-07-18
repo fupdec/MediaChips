@@ -60,6 +60,7 @@
 
     <ItemsMasonryGrid
       v-if="pageInitialized && ITEMS.itemsOnPage.length && isMasonryGrid"
+      :key="`masonry-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
       :meta="meta"
@@ -76,6 +77,7 @@
 
     <ItemsVirtualGrid
       v-else-if="pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
+      :key="`virtual-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
       :meta="meta"
@@ -96,6 +98,7 @@
 
     <div
       v-else-if="pageInitialized && ITEMS.itemsOnPage.length"
+      :key="`grid-${itemsRenderKey}`"
       ref="itemsGridRef"
       :class="itemsGridClasses"
       :style="itemsGridStyle"
@@ -118,7 +121,7 @@
           </div>
           <Item
             v-for="(i, x) in section.items"
-            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType]"
+            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey]"
             :key="String(i.id)"
             :type="listItemType"
             :item="i"
@@ -132,7 +135,7 @@
       <template v-else>
         <Item
           v-for="(i, x) in ITEMS.itemsOnPage"
-          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType]"
+          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey]"
           :key="String(i.id)"
           :type="listItemType"
           :item="i"
@@ -357,7 +360,7 @@ const init = () => runInit({
   getItemsFromDb,
 })
 
-const {pageInitialized} = useItemsPageEvents({
+const {pageInitialized, itemsRenderKey} = useItemsPageEvents({
   props,
   mediaType,
   meta,

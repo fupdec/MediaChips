@@ -1,0 +1,13 @@
+{
+  "id": "mediachips.tmdb",
+  "name": "TMDB scraper",
+  "version": "0.1.0",
+  "description": "Scrape movie metadata from The Movie Database (TMDB) API by title, TMDB id, or IMDb id.",
+  "author": "MediaChips",
+  "homepage": "https://mediachips.app/plugins",
+  "icon": "movie-search-outline",
+  "engines": {"mediachips": ">=1.0.0"},
+  "mainEntry": "main.cjs",
+  "uiEntry": "host:bundled",
+  "permissions": ["ui.settings", "ui.dialogs", "api.routes", "network.external", "fs.write"]
+}

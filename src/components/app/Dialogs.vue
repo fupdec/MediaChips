@@ -111,6 +111,15 @@
       @close="dialogsStore.sceneScraperMultiple.show = false"
     />
 
+    <DialogTmdbScraper
+      v-if="tmdbUiAvailable && dialogsStore.tmdbScraper.show"
+      @close="dialogsStore.tmdbScraper.show = false"
+    />
+    <DialogTmdbPersonScraper
+      v-if="tmdbUiAvailable && dialogsStore.tmdbPersonScraper.show"
+      @close="dialogsStore.tmdbPersonScraper.show = false"
+    />
+
     <v-dialog
       v-model="dialogsStore.about.show"
       width="500"
@@ -189,6 +198,12 @@ const DialogSceneScraper = defineAsyncComponent(() =>
 const DialogSceneScraperMultiple = defineAsyncComponent(() =>
   import('@mediachips/plugin-adult/components/DialogSceneScraperMultiple.vue')
 )
+const DialogTmdbScraper = defineAsyncComponent(() =>
+  import('@mediachips/plugin-tmdb/components/DialogTmdbScraper.vue')
+)
+const DialogTmdbPersonScraper = defineAsyncComponent(() =>
+  import('@mediachips/plugin-tmdb/components/DialogTmdbPersonScraper.vue')
+)
 const DialogMediaAddingProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaAddingProcess.vue')
 )
@@ -240,6 +255,10 @@ const {t} = useI18n()
 
 const adultUiAvailable = computed(() =>
   pluginsStore.isAdultEnabled,
+)
+
+const tmdbUiAvailable = computed(() =>
+  pluginsStore.enabledPluginIds.includes('mediachips.tmdb'),
 )
 
 const closeApp = () => {

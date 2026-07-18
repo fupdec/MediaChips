@@ -7,6 +7,7 @@ import {stashPlugin, stashHostComponentMap} from '@/plugins/stash/hostBridge'
 import {jellyfinPlugin, jellyfinHostComponentMap} from '@/plugins/jellyfin/hostBridge'
 import {plexPlugin, plexHostComponentMap} from '@/plugins/plex/hostBridge'
 import {embyPlugin, embyHostComponentMap} from '@/plugins/emby/hostBridge'
+import {tmdbPlugin, tmdbHostComponentMap} from '@/plugins/tmdb/hostBridge'
 import {isSfwBuild} from '@/utils/sfwBuild'
 import {apiClient} from '@/services/apiClient'
 
@@ -16,26 +17,37 @@ const DEFAULT_ENABLED_PLUGINS = [
   BUILTIN_PLUGIN_IDS.jellyfin,
   BUILTIN_PLUGIN_IDS.plex,
   BUILTIN_PLUGIN_IDS.emby,
+  BUILTIN_PLUGIN_IDS.tmdb,
+]
+
+const SFW_ENABLED_PLUGINS = [
+  BUILTIN_PLUGIN_IDS.tmdb,
 ]
 
 const pluginModules: Record<string, MediaChipsPlugin> = isSfwBuild()
-  ? {}
+  ? {
+    [BUILTIN_PLUGIN_IDS.tmdb]: tmdbPlugin,
+  }
   : {
     [BUILTIN_PLUGIN_IDS.adult]: adultPlugin,
     [BUILTIN_PLUGIN_IDS.stash]: stashPlugin,
     [BUILTIN_PLUGIN_IDS.jellyfin]: jellyfinPlugin,
     [BUILTIN_PLUGIN_IDS.plex]: plexPlugin,
     [BUILTIN_PLUGIN_IDS.emby]: embyPlugin,
+    [BUILTIN_PLUGIN_IDS.tmdb]: tmdbPlugin,
   }
 
 const componentMaps: Record<string, PluginComponentMap> = isSfwBuild()
-  ? {}
+  ? {
+    [BUILTIN_PLUGIN_IDS.tmdb]: tmdbHostComponentMap,
+  }
   : {
     [BUILTIN_PLUGIN_IDS.adult]: adultHostComponentMap,
     [BUILTIN_PLUGIN_IDS.stash]: stashHostComponentMap,
     [BUILTIN_PLUGIN_IDS.jellyfin]: jellyfinHostComponentMap,
     [BUILTIN_PLUGIN_IDS.plex]: plexHostComponentMap,
     [BUILTIN_PLUGIN_IDS.emby]: embyHostComponentMap,
+    [BUILTIN_PLUGIN_IDS.tmdb]: tmdbHostComponentMap,
   }
 
 const activated = new Set<string>()
@@ -46,6 +58,7 @@ const HOST_BUNDLED_IDS = new Set<string>([
   BUILTIN_PLUGIN_IDS.jellyfin,
   BUILTIN_PLUGIN_IDS.plex,
   BUILTIN_PLUGIN_IDS.emby,
+  BUILTIN_PLUGIN_IDS.tmdb,
 ])
 
 function createPluginApi(pluginId: string): PluginApi {
@@ -136,6 +149,11 @@ function bindHostBundledModules(pluginId: string): boolean {
     if (!componentMaps[pluginId]) componentMaps[pluginId] = embyHostComponentMap
     return true
   }
+  if (pluginId === BUILTIN_PLUGIN_IDS.tmdb) {
+    if (!pluginModules[pluginId]) pluginModules[pluginId] = tmdbPlugin
+    if (!componentMaps[pluginId]) componentMaps[pluginId] = tmdbHostComponentMap
+    return true
+  }
   return false
 }
 
@@ -161,29 +179,24 @@ export async function activatePlugin(pluginId: string): Promise<boolean> {
 
   try {
     await plugin.activate(createPluginApi(pluginId))
-    activated.add(pluginId)
     registry.setEnabled(pluginId, true)
+    activated.add(pluginId)
     return true
   } catch (error) {
     console.error(`Failed to activate plugin ${pluginId}`, error)
-    const entry = registry.getEntry(pluginId)
-    if (entry) {
-      registry.replaceCatalog(
-        registry.getCatalog().map((item) => (
-          item.manifest.id === pluginId
-            ? {...item, state: 'error', error: error instanceof Error ? error.message : String(error), enabled: false}
-            : item
-        )),
-      )
-    }
+    registry.setEnabled(pluginId, false)
     return false
   }
 }
 
 export async function deactivatePlugin(pluginId: string): Promise<void> {
-  const plugin = pluginModules[pluginId]
-  const registry = getPluginRegistry()
+  if (!activated.has(pluginId)) {
+    getPluginRegistry().setEnabled(pluginId, false)
+    return
+  }
 
+  const registry = getPluginRegistry()
+  const plugin = pluginModules[pluginId]
   if (plugin?.deactivate) {
     try {
       await plugin.deactivate()
@@ -213,11 +226,12 @@ export function parseEnabledPlugins(raw: unknown): string[] {
     } catch {
       ids = raw.split(',').map((item) => String(item).trim()).filter(Boolean)
     }
-  } else if (!isSfwBuild()) {
+  } else if (isSfwBuild()) {
+    ids = [...SFW_ENABLED_PLUGINS]
+  } else {
     ids = [...DEFAULT_ENABLED_PLUGINS]
   }
 
-  // Soft-migrate previous defaults so new import plugins stay available.
   if (
     !isSfwBuild()
     && (
@@ -230,6 +244,29 @@ export function parseEnabledPlugins(raw: unknown): string[] {
     )
   ) {
     ids = [...DEFAULT_ENABLED_PLUGINS]
+  }
+
+  const previousDefaultWithoutTmdb = [
+    BUILTIN_PLUGIN_IDS.adult,
+    BUILTIN_PLUGIN_IDS.stash,
+    BUILTIN_PLUGIN_IDS.jellyfin,
+    BUILTIN_PLUGIN_IDS.plex,
+    BUILTIN_PLUGIN_IDS.emby,
+  ]
+  if (
+    !isSfwBuild()
+    && ids.length === previousDefaultWithoutTmdb.length
+    && previousDefaultWithoutTmdb.every((id) => ids.includes(id))
+    && !ids.includes(BUILTIN_PLUGIN_IDS.tmdb)
+  ) {
+    ids = [...ids, BUILTIN_PLUGIN_IDS.tmdb]
+  }
+
+  // Drop removed YAML scrapers plugin id if still present in saved settings.
+  ids = ids.filter((id) => id !== 'mediachips.scrapers')
+
+  if (isSfwBuild() && !ids.includes(BUILTIN_PLUGIN_IDS.tmdb)) {
+    ids = [...ids, BUILTIN_PLUGIN_IDS.tmdb]
   }
 
   return ids
@@ -274,7 +311,7 @@ export function mergePluginCatalog(
 
 export async function bootstrapPlugins(enabledPluginIds?: string[]): Promise<void> {
   const enabled = enabledPluginIds
-    ?? (isSfwBuild() ? [] : [...DEFAULT_ENABLED_PLUGINS])
+    ?? (isSfwBuild() ? [...SFW_ENABLED_PLUGINS] : [...DEFAULT_ENABLED_PLUGINS])
   const registry = getPluginRegistry()
   const userEntries = await fetchUserPluginCatalog(enabled)
   registry.reset(mergePluginCatalog(enabled, userEntries))
@@ -297,9 +334,7 @@ export function getActivatedPluginIds(): string[] {
   return [...activated]
 }
 
-/** Test helper — clears activation tracking (pair with resetPluginRegistryForTests). */
-export function resetPluginHostForTests() {
+/** Test helper — clear activation state between unit tests. */
+export function resetPluginHostForTests(): void {
   activated.clear()
 }
-
-export type {PluginCatalogEntry}

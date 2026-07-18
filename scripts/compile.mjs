@@ -69,8 +69,10 @@ const TARGETS = {
     tsc: sfwBuild ? 'tsconfig.api.sfw.json' : 'tsconfig.api.json',
     copy: () => {
       copyDirContents(join(root, '.api-build/api'), join(root, 'api'))
-      if (sfwBuild) return
-      for (const pluginId of ['plugin-adult', 'plugin-stash', 'plugin-jellyfin', 'plugin-plex', 'plugin-emby']) {
+      const pluginIds = sfwBuild
+        ? ['plugin-tmdb']
+        : ['plugin-adult', 'plugin-stash', 'plugin-jellyfin', 'plugin-plex', 'plugin-emby', 'plugin-tmdb']
+      for (const pluginId of pluginIds) {
         const serverOut = join(root, `.api-build/packages/${pluginId}/src/server`)
         if (existsSync(serverOut)) {
           copyDirContents(serverOut, join(root, `packages/${pluginId}/src/server`))

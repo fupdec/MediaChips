@@ -1,4 +1,9 @@
 {
   "extends": "./tsconfig.api.json",
-  "include": ["api/**/*.ts", "api/types/**/*.d.ts", "shared/**/*.ts"]
+  "include": [
+    "api/**/*.ts",
+    "api/types/**/*.d.ts",
+    "shared/**/*.ts",
+    "packages/plugin-tmdb/src/server/**/*.ts"
+  ]
 }

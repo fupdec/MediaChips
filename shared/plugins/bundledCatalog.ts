@@ -140,18 +140,54 @@ export function createBundledEmbyCatalogEntry(enabled = true): PluginCatalogEntr
   }
 }
 
+/** Bundled TMDB movie scraper (official API). */
+export function createBundledTmdbCatalogEntry(enabled = true): PluginCatalogEntry {
+  return {
+    manifest: {
+      id: BUILTIN_PLUGIN_IDS.tmdb,
+      name: 'TMDB scraper',
+      version: '0.1.0',
+      description:
+        'Scrape movie metadata from The Movie Database (TMDB) API by title, TMDB id, or IMDb id.',
+      author: 'MediaChips',
+      icon: 'movie-search-outline',
+      engines: {mediachips: '>=1.0.0'},
+      permissions: [
+        'ui.settings',
+        'ui.dialogs',
+        'api.routes',
+        'network.external',
+        'fs.write',
+      ],
+    },
+    source: 'bundled',
+    state: enabled ? 'enabled' : 'disabled',
+    uiEntry: '@mediachips/plugin-tmdb',
+    mainEntry: null,
+    error: null,
+    enabled,
+  }
+}
+
 const DEFAULT_BUNDLED_PLUGIN_IDS = [
   BUILTIN_PLUGIN_IDS.adult,
   BUILTIN_PLUGIN_IDS.stash,
   BUILTIN_PLUGIN_IDS.jellyfin,
   BUILTIN_PLUGIN_IDS.plex,
   BUILTIN_PLUGIN_IDS.emby,
+  BUILTIN_PLUGIN_IDS.tmdb,
 ]
 
 export function createBundledPluginCatalog(
   enabledPlugins: string[] = DEFAULT_BUNDLED_PLUGIN_IDS,
 ): PluginCatalogEntry[] {
-  if (isSfwBuild()) return []
+  const tmdbEntry = createBundledTmdbCatalogEntry(
+    enabledPlugins.includes(BUILTIN_PLUGIN_IDS.tmdb),
+  )
+
+  if (isSfwBuild()) {
+    return [tmdbEntry]
+  }
 
   return [
     createBundledAdultCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.adult)),
@@ -159,6 +195,7 @@ export function createBundledPluginCatalog(
     createBundledJellyfinCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.jellyfin)),
     createBundledPlexCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.plex)),
     createBundledEmbyCatalogEntry(enabledPlugins.includes(BUILTIN_PLUGIN_IDS.emby)),
+    tmdbEntry,
   ]
 }
 

@@ -29,7 +29,10 @@ import {useScraperStore} from '@mediachips/plugin-adult/stores/scraper'
 import {useAutoScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoScrapeBatch'
 import {useAutoSceneScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
 import {useSceneScraperStore} from '@mediachips/plugin-adult/stores/sceneScraper'
+import {useTmdbPersonAutoScrapeBatch} from '@mediachips/plugin-tmdb/composables/useTmdbPersonAutoScrapeBatch'
+import {autoScrapeTmdbPersonTag} from '@mediachips/plugin-tmdb/services/tmdbPersonAutoScrape'
 import {isAdultUiAvailable} from '@/services/adultFeatures'
+import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '@/utils/pageItem'
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
@@ -69,6 +72,7 @@ export default function useItemContextMenu(
   const sceneScraperStore = useSceneScraperStore()
   const { runForSelection } = useAutoScrapeBatch()
   const { runForSelection: runSceneScrapeForSelection, runForMedia: runSceneScrapeForMedia } = useAutoSceneScrapeBatch()
+  const tmdbPersonBatch = useTmdbPersonAutoScrapeBatch()
 
   const reg = options.reg ?? registrationStore.reg
   const x = options.x ?? 0
@@ -87,6 +91,9 @@ export default function useItemContextMenu(
     const canAutoScrape = type === 'tag'
       && isAdultUiAvailable()
       && meta?.scraper === true
+    const canTmdbPersonAutoScrape = type === 'tag'
+      && isTmdbUiAvailable()
+      && isTmdbPersonCategory(meta)
     const canSceneAutoScrape = type === 'media'
       && isAdultUiAvailable()
       && isVideoMediaType(currentMediaType.value)
@@ -129,6 +136,19 @@ export default function useItemContextMenu(
           action: () => {
             if (!meta) return
             void runForSelection(meta)
+          },
+        })
+      }
+
+      if (canTmdbPersonAutoScrape) {
+        contextMenu.push({
+          name: t('context_menu.bulk_tmdb_auto_scrape'),
+          type: 'item',
+          icon: 'movie-search-outline',
+          disabled: itemsStore.selection.length === 0 || tmdbPersonBatch.isInProgress(),
+          action: () => {
+            if (!meta) return
+            void tmdbPersonBatch.runForSelection(meta)
           },
         })
       }
@@ -183,6 +203,18 @@ export default function useItemContextMenu(
             disabled: scraperStore.autoScrapeInProgress,
             action: () => {
               void autoScrapeSingleTag()
+            },
+          })
+        }
+
+        if (canTmdbPersonAutoScrape && isTagPageItem(item, type) && meta) {
+          contextMenu.push({
+            name: t('context_menu.tmdb_auto_scrape'),
+            type: 'item',
+            icon: 'movie-search-outline',
+            disabled: tmdbPersonBatch.isInProgress(),
+            action: () => {
+              void autoScrapeSingleTmdbPerson()
             },
           })
         }
@@ -468,6 +500,41 @@ export default function useItemContextMenu(
         type: result.success ? 'success' : result.error === 'not_found' ? 'warning' : 'error',
         title: translateLocal(result.success ? 'scraper.auto_scrape_done' : 'scraper.auto_scrape_failed'),
         text: result.performerName || item.name || '',
+      })
+
+      if (result.success) {
+        eventBus.emit('getItemsFromDb', { ids: [item.id], type: 'tag' })
+        eventBus.emit('getTags')
+      }
+    } finally {
+      dialogsStore.process.show = false
+      dialogsStore.process.text = null
+    }
+  }
+
+  const autoScrapeSingleTmdbPerson = async (): Promise<void> => {
+    if (!isTagPageItem(item, type) || !meta) return
+
+    const locale = settingsStore.locale as Locale
+    const translateLocal = (key: string, params: Record<string, string | number> = {}) =>
+      translate(key, params, locale)
+
+    dialogsStore.process.show = true
+    dialogsStore.process.text = translateLocal('tmdb.auto_scrape_in_progress', {
+      name: item.name || '',
+    })
+
+    try {
+      const result = await autoScrapeTmdbPersonTag({
+        tag: item,
+        meta,
+        dbPath: store.dbPath,
+      })
+
+      notificationsStore.setNotification({
+        type: result.success ? 'success' : result.error === 'not_found' ? 'warning' : 'error',
+        title: translateLocal(result.success ? 'tmdb.auto_scrape_done' : 'tmdb.auto_scrape_failed'),
+        text: result.personName || item.name || '',
       })
 
       if (result.success) {

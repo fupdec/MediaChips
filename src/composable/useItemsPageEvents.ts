@@ -58,6 +58,7 @@ export function useItemsPageEvents({
   const ITEMS = computed(() => itemsStore)
   let initPromise: Promise<void> | null = null
   const pageInitialized = ref(false)
+  const itemsRenderKey = ref(0)
 
   const runInitSafely = async (): Promise<void> => {
     if (initPromise) {
@@ -248,6 +249,7 @@ export function useItemsPageEvents({
       .then((res) => {
         meta.value = {...res.data}
         itemsStore.updateState({key: 'meta', value: res.data})
+        itemsRenderKey.value += 1
       })
       .catch((error) => {
         console.error('Failed to refresh meta:', error)
@@ -380,5 +382,6 @@ export function useItemsPageEvents({
 
   return {
     pageInitialized,
+    itemsRenderKey,
   }
 }

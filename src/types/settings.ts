@@ -139,6 +139,8 @@ export type SettingsState = {
   showAdultContent: string
   enabledPlugins: string
   tpdbApiKey: string
+  tmdbApiKey: string
+  tmdbPersonMetaId: string
   scraperPerformerGender: string
   sceneAutoApplyOnExactMatch: string
   sceneScraperImportMarkers: string
@@ -230,8 +232,10 @@ export const defaultSettingsState = (): SettingsState => ({
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
   showAdultContent: '0',
-  enabledPlugins: '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby"]',
+  enabledPlugins: '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby","mediachips.tmdb"]',
   tpdbApiKey: '',
+  tmdbApiKey: '',
+  tmdbPersonMetaId: '',
   scraperPerformerGender: 'Female',
   sceneAutoApplyOnExactMatch: '0',
   sceneScraperImportMarkers: '1',

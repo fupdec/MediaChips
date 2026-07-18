@@ -41,6 +41,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   const jellyfinPackageRoot = path.resolve(__dirname, './packages/plugin-jellyfin/src')
   const plexPackageRoot = path.resolve(__dirname, './packages/plugin-plex/src')
   const embyPackageRoot = path.resolve(__dirname, './packages/plugin-emby/src')
+  const tmdbPackageRoot = path.resolve(__dirname, './packages/plugin-tmdb/src')
 
   const plugins = normalizePlugins(
     vue(),
@@ -76,6 +77,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       '@mediachips/plugin-jellyfin': jellyfinPackageRoot,
       '@mediachips/plugin-plex': plexPackageRoot,
       '@mediachips/plugin-emby': embyPackageRoot,
+      '@mediachips/plugin-tmdb': tmdbPackageRoot,
     },
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
   },

@@ -52,17 +52,18 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount, shallowRef, nextTick} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, shallowRef, nextTick, watch} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
-import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {useScraperStore} from "@mediachips/plugin-adult/stores/scraper"
 import {useNotificationsStore} from "@/stores/notifications"
 import {isAdultUiAvailable} from '@/services/adultFeatures'
+import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
+import {autoScrapeTmdbPersonTag} from '@mediachips/plugin-tmdb/services/tmdbPersonAutoScrape'
 import {typedApi} from '@/services/typedApi'
 import {checkFileExists} from '@/services/fileService'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
@@ -104,7 +105,6 @@ const {xl, xs} = useDisplay()
 const router = useRouter()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
-const settingsStore = useSettingsStore()
 const store = useAppStore()
 const scraperStore = useScraperStore()
 const notificationsStore = useNotificationsStore()
@@ -151,6 +151,23 @@ const initButtons = () => {
       color: 'info',
       variant: 'tonal',
       action: autoScrape
+    })
+  }
+
+  if (isTmdbUiAvailable() && isTmdbPersonCategory(meta.value)) {
+    buttons.value.push({
+      icon: 'movie-search-outline',
+      text: t('actions.tmdb_person'),
+      color: 'primary',
+      variant: 'flat',
+      action: openTmdbPersonScraper,
+    })
+    buttons.value.push({
+      icon: 'cloud-download',
+      text: t('actions.tmdb_person_auto'),
+      color: 'primary',
+      variant: 'tonal',
+      action: autoScrapeTmdbPerson,
     })
   }
 
@@ -317,6 +334,31 @@ const openScraper = () => {
   dialogsStore.scraper.show = true
 }
 
+const openTmdbPersonScraper = () => {
+  if (!tag.value || !meta.value) return
+  dialogsStore.tmdbPersonScraper.tag = {...tag.value}
+  dialogsStore.tmdbPersonScraper.meta = {...meta.value}
+  dialogsStore.tmdbPersonScraper.show = true
+}
+
+const refreshTagAfterScrape = async () => {
+  if (!tag.value) return
+  try {
+    const response = await typedApi.getTagById(tag.value.id)
+    if (response.data) {
+      dialogsStore.tagEditing.tag = response.data
+    }
+  } catch (error) {
+    console.error('Error refreshing tag after scrape:', error)
+  }
+  eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
+  if (isTagPage.value) {
+    eventBus.emit('getTag')
+  }
+  editReloadKey.value += 1
+  getImages({cacheBust: true})
+}
+
 const autoScrape = async () => {
   if (!tag.value || !meta.value) return
 
@@ -335,26 +377,44 @@ const autoScrape = async () => {
         title: t('scraper.auto_scrape_done'),
         text: result.performerName || tag.value.name || '',
       })
-
-      try {
-        const response = await typedApi.getTagById(tag.value.id)
-        if (response.data) {
-          dialogsStore.tagEditing.tag = response.data
-        }
-      } catch (error) {
-        console.error('Error refreshing tag after auto scrape:', error)
-      }
-
-      eventBus.emit('getItemsFromDb', { ids: [tag.value.id], type: 'tag' })
-      if (isTagPage.value) {
-        eventBus.emit('getTag')
-      }
-      editReloadKey.value += 1
-      getImages({ cacheBust: true })
+      await refreshTagAfterScrape()
     } else {
       notificationsStore.setNotification({
         type: result.error === 'not_found' ? 'warning' : 'error',
         title: t('scraper.auto_scrape_failed'),
+        text: tag.value.name || '',
+      })
+    }
+  } finally {
+    dialogsStore.process.show = false
+    dialogsStore.process.text = null
+  }
+}
+
+const autoScrapeTmdbPerson = async () => {
+  if (!tag.value || !meta.value) return
+
+  dialogsStore.process.show = true
+  dialogsStore.process.text = t('tmdb.auto_scrape_in_progress', {name: tag.value.name || ''})
+
+  try {
+    const result = await autoScrapeTmdbPersonTag({
+      tag: tag.value,
+      meta: meta.value,
+      dbPath: store.dbPath,
+    })
+
+    if (result.success) {
+      notificationsStore.setNotification({
+        type: 'success',
+        title: t('tmdb.auto_scrape_done'),
+        text: result.personName || tag.value.name || '',
+      })
+      await refreshTagAfterScrape()
+    } else {
+      notificationsStore.setNotification({
+        type: result.error === 'not_found' ? 'warning' : 'error',
+        title: t('tmdb.auto_scrape_failed'),
         text: tag.value.name || '',
       })
     }
@@ -372,6 +432,29 @@ const handleScraperImages = () => {
   if (!tag.value) return
   eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
 }
+
+watch(
+  () => dialogsStore.tmdbPersonScraper.show,
+  async (show, wasShow) => {
+    if (wasShow && !show && tag.value) {
+      try {
+        const response = await typedApi.getTagById(tag.value.id)
+        if (response.data) {
+          dialogsStore.tagEditing.tag = response.data
+        }
+      } catch (error) {
+        console.error('Error refreshing tag after TMDB person scrape:', error)
+      }
+      eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
+      editReloadKey.value += 1
+      getImages({cacheBust: true})
+    }
+  },
+)
+
+watch(() => meta.value?.id, () => {
+  initButtons()
+})
 
 onMounted(() => {
   initButtons()

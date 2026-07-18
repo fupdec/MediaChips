@@ -109,6 +109,13 @@ export const API_ROUTES = {
   scraperScenesStatus: '/api/scraper/scenes/status',
   scraperSceneMarkers: '/api/scraper/scenes/markers',
   scraperSceneMarkersApply: '/api/scraper/scenes/markers/apply',
+  tmdbStatus: '/api/tmdb/status',
+  tmdbSearch: '/api/tmdb/search',
+  tmdbMovie: '/api/tmdb/movie',
+  tmdbTitle: '/api/tmdb/title',
+  tmdbFindImdb: '/api/tmdb/find/imdb',
+  tmdbPersonSearch: '/api/tmdb/person/search',
+  tmdbPerson: '/api/tmdb/person',
 } as const
 
 export type ApiRouteKey = keyof typeof API_ROUTES

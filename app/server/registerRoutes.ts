@@ -115,6 +115,19 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     }
   }
 
+  // TMDB scraper is SFW-safe and always registered when the package is present.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const registerTmdb = require('../../api/routes/Tmdb.routes').default as ApiRouteRegistrar
+    registrars.push({ routeFile: 'Tmdb.routes', register: registerTmdb })
+  } catch (err: unknown) {
+    console.warn(
+      '[routes] TMDB routes unavailable (tmdb plugin missing?):',
+      err instanceof Error ? err.message : String(err),
+    )
+  }
+
+
   registrars.push(
     { routeFile: 'Setting.routes', register: registerSetting },
     { routeFile: 'Plugin.routes', register: registerPlugin },

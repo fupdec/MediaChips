@@ -296,6 +296,22 @@ export const ImportFromPlexRequestSchema = z.object({
 export const ListEmbyLibrariesRequestSchema = ListJellyfinLibrariesRequestSchema
 export const ImportFromEmbyRequestSchema = ImportFromJellyfinRequestSchema
 
+export const TmdbSearchRequestSchema = z.object({
+  query: z.string().min(1),
+  year: z.union([z.string(), z.number()]).optional(),
+  limit: z.union([z.string(), z.number()]).optional(),
+}).passthrough()
+
+export const TmdbMovieRequestSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+}).passthrough()
+
+export const TmdbFindImdbRequestSchema = z.object({
+  imdbId: z.string().min(1),
+}).passthrough()
+
+
+
 export const HomeMediaQuerySchema = z.object({
   continueLimit: optionalCoercedNumber,
   favoritesLimit: optionalCoercedNumber,

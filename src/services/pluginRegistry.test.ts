@@ -28,13 +28,14 @@ describe('pluginRegistry', () => {
 
   it('starts with bundled adult, stash, and media-server import catalog entries enabled by default', () => {
     const catalog = createBundledPluginCatalog()
-    expect(catalog).toHaveLength(5)
+    expect(catalog).toHaveLength(6)
     expect(catalog.map((entry) => entry.manifest.id)).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
       BUILTIN_PLUGIN_IDS.jellyfin,
       BUILTIN_PLUGIN_IDS.plex,
       BUILTIN_PLUGIN_IDS.emby,
+      BUILTIN_PLUGIN_IDS.tmdb,
     ])
     expect(catalog[0]?.source).toBe('bundled')
     expect(catalog.every((entry) => entry.enabled)).toBe(true)
@@ -98,6 +99,7 @@ describe('pluginRegistry', () => {
       BUILTIN_PLUGIN_IDS.jellyfin,
       BUILTIN_PLUGIN_IDS.plex,
       BUILTIN_PLUGIN_IDS.emby,
+      BUILTIN_PLUGIN_IDS.tmdb,
       'mediachips.demo',
     ])
   })
@@ -145,6 +147,7 @@ describe('pluginHost', () => {
       BUILTIN_PLUGIN_IDS.jellyfin,
       BUILTIN_PLUGIN_IDS.plex,
       BUILTIN_PLUGIN_IDS.emby,
+      BUILTIN_PLUGIN_IDS.tmdb,
     ])
     expect(parseEnabledPlugins('["mediachips.adult","mediachips.stash"]')).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
@@ -152,6 +155,7 @@ describe('pluginHost', () => {
       BUILTIN_PLUGIN_IDS.jellyfin,
       BUILTIN_PLUGIN_IDS.plex,
       BUILTIN_PLUGIN_IDS.emby,
+      BUILTIN_PLUGIN_IDS.tmdb,
     ])
     expect(parseEnabledPlugins([])).toEqual([])
     expect(parseEnabledPlugins(undefined)).toEqual([
@@ -160,6 +164,7 @@ describe('pluginHost', () => {
       BUILTIN_PLUGIN_IDS.jellyfin,
       BUILTIN_PLUGIN_IDS.plex,
       BUILTIN_PLUGIN_IDS.emby,
+      BUILTIN_PLUGIN_IDS.tmdb,
     ])
   })
 

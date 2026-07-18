@@ -95,6 +95,7 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
 import {isAdultUiAvailable} from '@/services/adultFeatures'
+import {isTmdbUiAvailable} from '@/services/tmdbFeatures'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
 import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/fileService'
@@ -197,6 +198,16 @@ function initButtons() {
     })
   }
 
+  if (isTmdbUiAvailable() && isVideoMedia.value) {
+    buttons.value.push({
+      icon: 'movie-search-outline',
+      text: t('actions.tmdb_scrape'),
+      color: 'primary',
+      outlined: true,
+      action: openTmdbScraper,
+    })
+  }
+
   buttons.value.push({
     icon: "content-save",
     text: t('common.save'),
@@ -210,6 +221,12 @@ function openSceneScraper() {
   if (!media.value) return
   dialogsStore.sceneScraper.media = {...media.value}
   dialogsStore.sceneScraper.show = true
+}
+
+function openTmdbScraper() {
+  if (!media.value) return
+  dialogsStore.tmdbScraper.media = {...media.value}
+  dialogsStore.tmdbScraper.show = true
 }
 
 async function getImage() {

@@ -27,6 +27,14 @@
     />
 
     <AppBarButton
+      v-if="canTmdbPersonAutoScrape"
+      icon="movie-search-outline"
+      :text="t('appbar.buttons.tmdb_auto_scrape')"
+      :disabled="itemsStore.selection.length === 0 || tmdbPersonBatch.isInProgress()"
+      :action="autoScrapeTmdbSelected"
+    />
+
+    <AppBarButton
       v-if="canSceneAutoScrape"
       icon="cloud-download"
       :text="t('appbar.buttons.auto_scrape_scenes')"
@@ -48,8 +56,10 @@ import { useScraperStore } from '@mediachips/plugin-adult/stores/scraper'
 import { useSceneScraperStore } from '@mediachips/plugin-adult/stores/sceneScraper'
 import { useAutoScrapeBatch } from '@mediachips/plugin-adult/composables/useAutoScrapeBatch'
 import { useAutoSceneScrapeBatch } from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
+import { useTmdbPersonAutoScrapeBatch } from '@mediachips/plugin-tmdb/composables/useTmdbPersonAutoScrapeBatch'
 import { isVideoMediaType, getCurrentMediaType } from '@/utils/mediaType'
 import { isAdultUiAvailable } from '@/services/adultFeatures'
+import { isTmdbUiAvailable, isTmdbPersonCategory } from '@/services/tmdbFeatures'
 
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
@@ -61,6 +71,7 @@ const scraperStore = useScraperStore()
 const sceneScraperStore = useSceneScraperStore()
 const { runForSelection } = useAutoScrapeBatch()
 const { runForSelection: runSceneScrapeForSelection } = useAutoSceneScrapeBatch()
+const tmdbPersonBatch = useTmdbPersonAutoScrapeBatch()
 const { t } = useI18n()
 
 const performerMeta = computed(() => {
@@ -73,6 +84,12 @@ const canAutoScrape = computed(() =>
   itemsStore.type === 'tag'
   && isAdultUiAvailable()
   && performerMeta.value?.scraper === true
+)
+
+const canTmdbPersonAutoScrape = computed(() =>
+  itemsStore.type === 'tag'
+  && isTmdbUiAvailable()
+  && isTmdbPersonCategory(performerMeta.value)
 )
 
 const currentMediaType = computed(() =>
@@ -154,6 +171,12 @@ async function autoScrapeSelected() {
   const meta = performerMeta.value
   if (!meta || itemsStore.selection.length === 0) return
   await runForSelection(meta)
+}
+
+async function autoScrapeTmdbSelected() {
+  const meta = performerMeta.value
+  if (!meta || itemsStore.selection.length === 0) return
+  await tmdbPersonBatch.runForSelection(meta)
 }
 
 async function autoScrapeScenesSelected() {
