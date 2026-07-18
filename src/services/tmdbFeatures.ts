@@ -16,17 +16,36 @@ export function isTmdbUiAvailable(): boolean {
   return isTmdbPluginEnabled()
 }
 
+type AssignedScraperRow = {
+  metaId?: number | null
+  scraper?: string | null
+}
+
+const TMDB_PERSON_NAME_RE = /^(cast|performers|акт[её]ры)$/iu
+
 /** True when this tag category is the configured TMDB Cast/person category. */
-export function isTmdbPersonCategory(meta?: Meta | null): boolean {
-  if (!meta?.id || meta.type !== 'array') return false
+export function isTmdbPersonCategory(
+  meta?: Meta | null,
+  assigned?: AssignedScraperRow[] | null,
+): boolean {
+  if (!meta?.id) return false
+  if (meta.type != null && meta.type !== 'array') return false
+
+  const metaId = Number(meta.id)
+
+  if (assigned?.some((row) => Number(row.metaId) === metaId && row.scraper === 'tmdb_cast')) {
+    return true
+  }
+
   try {
     const settingsStore = useSettingsStore()
     const configured = Number(settingsStore.tmdbPersonMetaId)
-    if (Number.isFinite(configured) && configured > 0) {
-      return Number(meta.id) === configured
+    if (Number.isFinite(configured) && configured > 0 && metaId === configured) {
+      return true
     }
   } catch {
     // settings store may be unavailable outside app context
   }
-  return /^(cast|performers)$/i.test(String(meta.name || ''))
+
+  return TMDB_PERSON_NAME_RE.test(String(meta.name || '').trim())
 }

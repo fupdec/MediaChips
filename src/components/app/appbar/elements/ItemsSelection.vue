@@ -83,13 +83,13 @@ const performerMeta = computed(() => {
 const canAutoScrape = computed(() =>
   itemsStore.type === 'tag'
   && isAdultUiAvailable()
-  && performerMeta.value?.scraper === true
+  && Boolean(performerMeta.value?.scraper)
 )
 
 const canTmdbPersonAutoScrape = computed(() =>
   itemsStore.type === 'tag'
   && isTmdbUiAvailable()
-  && isTmdbPersonCategory(performerMeta.value)
+  && isTmdbPersonCategory(performerMeta.value, itemsStore.sortedAssigned)
 )
 
 const currentMediaType = computed(() =>

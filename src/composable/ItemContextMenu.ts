@@ -90,10 +90,10 @@ export default function useItemContextMenu(
     const contextMenu: ItemContextMenuEntry[] = []
     const canAutoScrape = type === 'tag'
       && isAdultUiAvailable()
-      && meta?.scraper === true
+      && Boolean(meta?.scraper)
     const canTmdbPersonAutoScrape = type === 'tag'
       && isTmdbUiAvailable()
-      && isTmdbPersonCategory(meta)
+      && isTmdbPersonCategory(meta, itemsStore.sortedAssigned)
     const canSceneAutoScrape = type === 'media'
       && isAdultUiAvailable()
       && isVideoMediaType(currentMediaType.value)
@@ -532,8 +532,14 @@ export default function useItemContextMenu(
       })
 
       notificationsStore.setNotification({
-        type: result.success ? 'success' : result.error === 'not_found' ? 'warning' : 'error',
-        title: translateLocal(result.success ? 'tmdb.auto_scrape_done' : 'tmdb.auto_scrape_failed'),
+        type: result.success
+          ? (result.error === 'image_failed' ? 'warning' : 'success')
+          : result.error === 'not_found' ? 'warning' : 'error',
+        title: translateLocal(
+          result.success
+            ? (result.error === 'image_failed' ? 'tmdb.auto_scrape_image_failed' : 'tmdb.auto_scrape_done')
+            : 'tmdb.auto_scrape_failed',
+        ),
         text: result.personName || item.name || '',
       })
 

@@ -185,10 +185,17 @@ import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
+import {useNotificationsStore} from '@/stores/notifications'
+import {useScraperStore} from '@mediachips/plugin-adult/stores/scraper'
+import {autoScrapeTmdbPersonTag} from '@mediachips/plugin-tmdb/services/tmdbPersonAutoScrape'
+import {isAdultUiAvailable} from '@/services/adultFeatures'
+import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
+import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 
 import {useEventBus} from "@/utils/eventBus"
 import translate, {toLocale} from '@/utils/translate'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
+import {resolveTagChipColor} from '@shared/tagChipColor'
 import {useRouter} from "vue-router"
 import {usePresetMeta} from "@/composable/ItemPresetMeta"
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
@@ -250,6 +257,8 @@ const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
+const notificationsStore = useNotificationsStore()
+const scraperStore = useScraperStore()
 
 const eventBus = useEventBus()
 
@@ -269,12 +278,13 @@ const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
 
 const getTagChipBind = (tag: TagWithMeta) => {
   const variant: ChipVariant = toChipVariant(tag.meta?.chipVariant) ?? 'flat'
-  const colored = Boolean(tag.meta?.color && tag.color)
+  const color = resolveTagChipColor(tag.meta?.color, tag.color)
+  const colored = Boolean(color)
 
   return {
     variant,
-    color: colored ? tag.color : undefined,
-    textColor: colored ? getTextColor(tag.color, variant === 'outlined') || undefined : undefined,
+    color: colored ? color : undefined,
+    textColor: colored ? getTextColor(color, variant === 'outlined') || undefined : undefined,
     label: getMetaChipLabel(tag.meta),
     class: colored ? 'tag-chip--colored' : undefined,
   }
@@ -496,6 +506,74 @@ const filterByTag = (tag: TagWithMeta): void => {
   }, 0)
 }
 
+const autoScrapeTpdbTag = async (tag: TagWithMeta): Promise<void> => {
+  const meta = tag.meta
+  if (!meta) return
+
+  const locale = toLocale(settingsStore.locale)
+  const t = (key: string, params: Record<string, string | number> = {}) =>
+    translate(key, params, locale)
+
+  dialogsStore.process.show = true
+  dialogsStore.process.text = t('scraper.auto_scrape_in_progress', {name: tag.name || ''})
+
+  try {
+    const result = await scraperStore.autoScrapeTag({tag, meta})
+    notificationsStore.setNotification({
+      type: result.success ? 'success' : result.error === 'not_found' ? 'warning' : 'error',
+      title: t(result.success ? 'scraper.auto_scrape_done' : 'scraper.auto_scrape_failed'),
+      text: result.performerName || tag.name || '',
+    })
+    if (result.success) {
+      refreshTagThumbDisplay(itemsStore, appStore.dbPath, meta.id, tag.id)
+      eventBus.emit('getItemsFromDb', {ids: [tag.id], type: 'tag'})
+      eventBus.emit('getTags')
+    }
+  } finally {
+    dialogsStore.process.show = false
+    dialogsStore.process.text = null
+  }
+}
+
+const autoScrapeTmdbTag = async (tag: TagWithMeta): Promise<void> => {
+  const meta = tag.meta
+  if (!meta) return
+
+  const locale = toLocale(settingsStore.locale)
+  const t = (key: string, params: Record<string, string | number> = {}) =>
+    translate(key, params, locale)
+
+  dialogsStore.process.show = true
+  dialogsStore.process.text = t('tmdb.auto_scrape_in_progress', {name: tag.name || ''})
+
+  try {
+    const result = await autoScrapeTmdbPersonTag({
+      tag,
+      meta,
+      dbPath: appStore.dbPath,
+    })
+    notificationsStore.setNotification({
+      type: result.success
+        ? (result.error === 'image_failed' ? 'warning' : 'success')
+        : result.error === 'not_found' ? 'warning' : 'error',
+      title: t(
+        result.success
+          ? (result.error === 'image_failed' ? 'tmdb.auto_scrape_image_failed' : 'tmdb.auto_scrape_done')
+          : 'tmdb.auto_scrape_failed',
+      ),
+      text: result.personName || tag.name || '',
+    })
+    if (result.success) {
+      refreshTagThumbDisplay(itemsStore, appStore.dbPath, meta.id, tag.id)
+      eventBus.emit('getItemsFromDb', {ids: [tag.id], type: 'tag'})
+      eventBus.emit('getTags')
+    }
+  } finally {
+    dialogsStore.process.show = false
+    dialogsStore.process.text = null
+  }
+}
+
 const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
   hideHoverImage()
 
@@ -503,6 +581,13 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
   const t = (key: string, params: Record<string, string | number> = {}) => translate(key, params, locale)
   const clientX = e instanceof MouseEvent ? e.clientX : 0
   const clientY = e instanceof MouseEvent ? e.clientY : 0
+
+  const canTpdbAutoScrape = isAdultUiAvailable() && Boolean(tag.meta?.scraper)
+  const canTmdbAutoScrape = isTmdbUiAvailable()
+    && isTmdbPersonCategory(tag.meta, [
+      ...assignmentRows.value,
+      ...itemsStore.sortedAssigned,
+    ])
 
   const contextMenu: ItemContextMenuEntry[] = [
     {
@@ -513,9 +598,36 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
         const meta = appStore.getMetaById(tag.metaId)
         if (meta) dialogsStore.editTag(tag, meta)
       },
-    }, {
-      type: "divider"
     },
+  ]
+
+  if (canTpdbAutoScrape || canTmdbAutoScrape) {
+    contextMenu.push({type: 'divider'})
+    if (canTpdbAutoScrape) {
+      contextMenu.push({
+        name: t('context_menu.auto_scrape'),
+        type: 'item',
+        icon: 'cloud-download',
+        disabled: scraperStore.autoScrapeInProgress,
+        action: () => {
+          void autoScrapeTpdbTag(tag)
+        },
+      })
+    }
+    if (canTmdbAutoScrape) {
+      contextMenu.push({
+        name: t('context_menu.tmdb_auto_scrape'),
+        type: 'item',
+        icon: 'movie-search-outline',
+        action: () => {
+          void autoScrapeTmdbTag(tag)
+        },
+      })
+    }
+  }
+
+  contextMenu.push(
+    {type: 'divider'},
     {
       name: t('context_menu.filter_by_tag'),
       type: "item",
@@ -523,9 +635,8 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
       action: () => {
         filterByTag(tag)
       },
-    }, {
-      type: "divider"
     },
+    {type: 'divider'},
     {
       name: t('context_menu.open_page'),
       type: "item",
@@ -535,16 +646,17 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
         const url = getPath(tag)
         router.push(url)
       },
-    }, {
+    },
+    {
       name: t('context_menu.open_in_new_tab'),
       type: "item",
       icon: "tab",
       action: () => {
         openNewTab(tag)
       },
-    }, {
-      type: "divider"
-    }, {
+    },
+    {type: 'divider'},
+    {
       name: t('common.remove'),
       type: "item",
       icon: "close",
@@ -552,8 +664,8 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
       action: () => {
         removeTag(tag)
       },
-    }
-  ]
+    },
+  )
 
   contextMenuStore.showContextMenu({
     x: clientX,
