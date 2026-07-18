@@ -692,11 +692,9 @@ watch(currentMediaType, () => {
   .filter-block {
     pointer-events: all;
     box-shadow:  0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)), -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)), 5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
-    background-color: rgba(var(--v-theme-background), 0.9) !important;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background-color: rgb(var(--v-theme-background)) !important;
 
-    // tonal underlay would paint opaque primary tint over the glass background
+    // tonal underlay would paint a primary tint over the solid background
     > .v-card__underlay {
       opacity: 0 !important;
     }
