@@ -449,7 +449,8 @@ const groupedSections = computed(() => {
   const tagsById = new Map(appStore.tags.map((tag) => [Number(tag.id), tag.name || '']))
   const options = {
     locale: locale.value,
-    t: (key: string, params?: Record<string, string | number>) => t(key, params),
+    t: (key: string, params?: Record<string, string | number>) =>
+      params ? t(key, params) : t(key),
     metaId: Number.isFinite(metaId) ? metaId : null,
     metaType: assigned?.meta?.type || null,
     direction: ITEMS.value.sortDir || 'asc',

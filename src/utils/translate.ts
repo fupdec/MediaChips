@@ -41,9 +41,10 @@ export function translate(
 
   // Prefer vue-i18n so fallbackLocale applies when a key is missing in the active catalog.
   try {
+    // Locales beyond `en` are registered dynamically; vue-i18n's typed Locales stay on `en`.
     const translated = Object.keys(params).length > 0
-      ? i18n.global.t(key, params, {locale: code})
-      : i18n.global.t(key, code)
+      ? i18n.global.t(key, params, {locale: code as 'en'})
+      : i18n.global.t(key, code as 'en')
     if (typeof translated === 'string' && translated !== key) {
       return translated
     }

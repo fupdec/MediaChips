@@ -26,7 +26,7 @@ export interface TmdbPersonSearchHit {
 }
 
 export async function getTmdbStatus(): Promise<{configured: boolean}> {
-  const response = await apiClient.get(API_ROUTES.tmdbStatus)
+  const response = await apiClient.get<{configured: boolean}>(API_ROUTES.tmdbStatus)
   return response.data
 }
 
@@ -35,12 +35,12 @@ export async function searchTmdbMovies(payload: {
   year?: string | number
   limit?: number
 }): Promise<{results: TmdbSearchHit[]}> {
-  const response = await apiClient.post(API_ROUTES.tmdbSearch, payload)
+  const response = await apiClient.post<{results: TmdbSearchHit[]}>(API_ROUTES.tmdbSearch, payload)
   return response.data
 }
 
 export async function getTmdbMovie(id: number | string): Promise<{extras: TmdbExtras}> {
-  const response = await apiClient.get(`${API_ROUTES.tmdbMovie}/${id}`)
+  const response = await apiClient.get<{extras: TmdbExtras}>(`${API_ROUTES.tmdbMovie}/${id}`)
   return response.data
 }
 
@@ -49,7 +49,7 @@ export async function getTmdbTitle(
   id: number | string,
   options: {season?: number; episode?: number; hint?: string} = {},
 ): Promise<{extras: TmdbExtras}> {
-  const response = await apiClient.get(`${API_ROUTES.tmdbTitle}/${mediaType}/${id}`, {
+  const response = await apiClient.get<{extras: TmdbExtras}>(`${API_ROUTES.tmdbTitle}/${mediaType}/${id}`, {
     params: {
       season: options.season,
       episode: options.episode,
@@ -60,7 +60,9 @@ export async function getTmdbTitle(
 }
 
 export async function findTmdbByImdb(imdbId: string): Promise<{extras: TmdbExtras}> {
-  const response = await apiClient.get(`${API_ROUTES.tmdbFindImdb}/${encodeURIComponent(imdbId)}`)
+  const response = await apiClient.get<{extras: TmdbExtras}>(
+    `${API_ROUTES.tmdbFindImdb}/${encodeURIComponent(imdbId)}`,
+  )
   return response.data
 }
 
@@ -68,11 +70,14 @@ export async function searchTmdbPeople(payload: {
   query: string
   limit?: number
 }): Promise<{results: TmdbPersonSearchHit[]}> {
-  const response = await apiClient.post(API_ROUTES.tmdbPersonSearch, payload)
+  const response = await apiClient.post<{results: TmdbPersonSearchHit[]}>(
+    API_ROUTES.tmdbPersonSearch,
+    payload,
+  )
   return response.data
 }
 
 export async function getTmdbPerson(id: number | string): Promise<{extras: TmdbPersonExtras}> {
-  const response = await apiClient.get(`${API_ROUTES.tmdbPerson}/${id}`)
+  const response = await apiClient.get<{extras: TmdbPersonExtras}>(`${API_ROUTES.tmdbPerson}/${id}`)
   return response.data
 }

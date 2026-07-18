@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-18
+
+### Added
+
+- **TMDB scraper plugin** — bundled movie and person scrapers with poster download and auto-color apply
+- **Pinned tag auto-scrape** — TPDB/TMDB scrape actions on pinned tag-chip menus
+- **Items list grouping** — group by letter, media fields, and pinned meta (server-side item groups)
+- **Tag merge** — merge tags within a category and merge tag categories with same-name auto-merge; unique tag-link rows
+- **Stash / Jellyfin / Plex / Emby import plugins** — library import modeled on Stash; distributable zip packages
+- **Scraper meta auto-setup** — one-click creation of performer and scene scraper meta fields
+- **Folder browser** — sortable name/size/modified columns; optional show-hidden toggle
+- **Locales** — German, French, Japanese, and Brazilian Portuguese UI, docs, and CLIP tag localization
+- **Aspect-ratio presets** — preset cards and custom inputs instead of radios
+- **Add-media ETA** — show estimated time while adding media from Stash import
+
+### Changed
+
+- **Tag chip colors** — show colors only when explicitly saved
+- **Empty number/rating meta** — keep blank instead of defaulting to 0
+- **Home widgets** — collapse empty widgets; keep top-tag categories in menu order
+- **Grouped chips** — enabled by default; preset card meta limited to size, views, and media count
+- **Stash import** — performers image aspect ratio 5:8; extract Stash into bundled `mediachips.stash` plugin
+- **Meta pinning UI** — clean up assignments on delete and refresh pinning
+- **Docker Compose** — pull the published image by default
+- **Translations** — catch up Spanish and Chinese for scene scraper and fingerprint keys
+- **Select mode** — exit with Escape; harden context-menu i18n lookup
+
+### Fixed
+
+- **Card thumbs** — rating and favorite overlay visibility and styling
+- **LowDB restore** — fail less often on duplicate media paths
+- **LowDB migration** — avoid stack overflow on large bulk inserts
+
 ## [1.2.0] - 2026-07-17
 
 ### Added

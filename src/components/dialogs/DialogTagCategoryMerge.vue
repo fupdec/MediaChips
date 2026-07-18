@@ -294,6 +294,8 @@ async function merge() {
       appStore.meta[survivorIndex] = {
         ...appStore.meta[survivorIndex],
         ...survivor,
+        name: survivor.name ?? undefined,
+        type: survivor.type ?? undefined,
       }
     }
 

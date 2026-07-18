@@ -143,6 +143,8 @@ async function merge() {
       appStore.tags[survivorIndex] = {
         ...appStore.tags[survivorIndex],
         ...survivor,
+        synonyms: survivor.synonyms ?? undefined,
+        metaId: survivor.metaId ?? undefined,
       }
     }
 

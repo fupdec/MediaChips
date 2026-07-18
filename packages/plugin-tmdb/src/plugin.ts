@@ -50,8 +50,8 @@ export const tmdbPlugin: MediaChipsPlugin = {
   activate: activateTmdbPlugin,
 }
 
-export function createTmdbComponentMap<TLoader>(
-  loaders: Record<TmdbComponentKey, TLoader>,
-): Record<string, TLoader> {
+export function createTmdbComponentMap(
+  loaders: Record<TmdbComponentKey, () => Promise<{default: unknown}>>,
+): Record<string, () => Promise<{default: unknown}>> {
   return {...loaders}
 }

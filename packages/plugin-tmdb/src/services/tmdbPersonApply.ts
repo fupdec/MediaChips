@@ -106,8 +106,10 @@ export async function applyTmdbPersonExtrasToTag({
     // Keep existing country serialization if present on tag.
     if (tag.country != null) {
       entityUpdate.country = Array.isArray(tag.country)
-        ? serializeCountries(tag.country)
-        : tag.country
+        ? serializeCountries(tag.country as string[])
+        : typeof tag.country === 'string'
+          ? tag.country
+          : null
     }
 
     const nextTags = tagLinks.map((entry) => ({

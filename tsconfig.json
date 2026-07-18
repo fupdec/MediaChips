@@ -22,7 +22,9 @@
       "@/*": ["src/*"],
       "@shared/*": ["shared/*"],
       "@mediachips/plugin-adult": ["packages/plugin-adult/src/index.ts"],
-      "@mediachips/plugin-adult/*": ["packages/plugin-adult/src/*"]
+      "@mediachips/plugin-adult/*": ["packages/plugin-adult/src/*"],
+      "@mediachips/plugin-tmdb": ["packages/plugin-tmdb/src/index.ts"],
+      "@mediachips/plugin-tmdb/*": ["packages/plugin-tmdb/src/*"]
     },
     "types": ["vite/client", "node"]
   },
@@ -33,7 +35,9 @@
     "src/**/*.js",
     "shared/**/*.ts",
     "packages/plugin-adult/src/**/*.ts",
-    "packages/plugin-adult/src/**/*.vue"
+    "packages/plugin-adult/src/**/*.vue",
+    "packages/plugin-tmdb/src/**/*.ts",
+    "packages/plugin-tmdb/src/**/*.vue"
   ],
   "references": [{ "path": "./tsconfig.node.json" }],
   "exclude": []
