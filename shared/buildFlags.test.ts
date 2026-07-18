@@ -3,6 +3,7 @@ import {isSfwBuild, isStoreBuild, isMsStoreBuild} from './buildFlags'
 import {SFW_COMPILED} from './sfwCompiled'
 import {MSSTORE_COMPILED} from './msStoreCompiled'
 import {createBundledPluginCatalog} from './plugins/bundledCatalog'
+import {BUILTIN_PLUGIN_IDS} from './plugins/types'
 
 describe('build channel flags', () => {
   it('keeps compiled flags false in the source tree by default', () => {
@@ -19,7 +20,10 @@ describe('build channel flags', () => {
       expect(isSfwBuild()).toBe(true)
       expect(isStoreBuild()).toBe(true)
       expect(isMsStoreBuild()).toBe(false)
-      expect(createBundledPluginCatalog()).toEqual([])
+      const catalog = createBundledPluginCatalog()
+      expect(catalog).toHaveLength(1)
+      expect(catalog[0]?.manifest.id).toBe(BUILTIN_PLUGIN_IDS.tmdb)
+      expect(catalog.some((entry) => entry.manifest.id === BUILTIN_PLUGIN_IDS.adult)).toBe(false)
     } finally {
       if (previousSfw == null) delete process.env.MEDIA_CHIPS_SFW
       else process.env.MEDIA_CHIPS_SFW = previousSfw
@@ -48,8 +52,24 @@ describe('build channel flags', () => {
       expect(isSfwBuild()).toBe(false)
       expect(isStoreBuild()).toBe(false)
       expect(isMsStoreBuild()).toBe(false)
-      expect(createBundledPluginCatalog(['mediachips.adult']).length).toBe(2)
-      expect(createBundledPluginCatalog(['mediachips.adult', 'mediachips.stash']).filter((e) => e.enabled).length).toBe(2)
+      const catalog = createBundledPluginCatalog([BUILTIN_PLUGIN_IDS.adult])
+      expect(catalog).toHaveLength(6)
+      expect(catalog.map((entry) => entry.manifest.id)).toEqual([
+        BUILTIN_PLUGIN_IDS.adult,
+        BUILTIN_PLUGIN_IDS.stash,
+        BUILTIN_PLUGIN_IDS.jellyfin,
+        BUILTIN_PLUGIN_IDS.plex,
+        BUILTIN_PLUGIN_IDS.emby,
+        BUILTIN_PLUGIN_IDS.tmdb,
+      ])
+      expect(catalog.filter((entry) => entry.enabled).map((entry) => entry.manifest.id)).toEqual([
+        BUILTIN_PLUGIN_IDS.adult,
+      ])
+      expect(
+        createBundledPluginCatalog([BUILTIN_PLUGIN_IDS.adult, BUILTIN_PLUGIN_IDS.stash]).filter(
+          (entry) => entry.enabled,
+        ).length,
+      ).toBe(2)
     } finally {
       if (previousSfw == null) delete process.env.MEDIA_CHIPS_SFW
       else process.env.MEDIA_CHIPS_SFW = previousSfw
