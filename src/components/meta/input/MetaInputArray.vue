@@ -96,6 +96,21 @@
       </v-list-item>
     </template>
 
+    <template #append-item>
+      <div
+        v-if="hasMore"
+        v-intersect="onLoadMoreIntersect"
+        class="d-flex justify-center pa-2"
+      >
+        <v-progress-circular
+          v-if="loadingMore"
+          indeterminate
+          size="20"
+          width="2"
+        />
+      </div>
+    </template>
+
     <template v-if="purpose != 'filter' && purpose != 'bulk' && showIcons" v-slot:prepend>
       <v-menu location="top" close-on-click>
         <template v-slot:activator="{ props }">
@@ -192,6 +207,10 @@ const val = ref<number[]>([])
 const listTags = ref<TagListItem[]>([])
 const search = ref('')
 const field = ref<unknown>(null)
+const currentPage = ref(1)
+const hasMore = ref(false)
+const loadingMore = ref(false)
+const sentinelIntersecting = ref(false)
 let fetchRequestId = 0
 
 const sortBy = computed(() => [
@@ -326,15 +345,29 @@ const mergeTagLists = (...lists: TagListItem[][]) => {
   return [...byId.values()]
 }
 
-const getTags = async (searchQuery = search.value) => {
+const getTags = async (
+  searchQuery = search.value,
+  options: {append?: boolean} = {},
+) => {
+  const append = Boolean(options.append)
+
   if (!props.metaId) {
     listTags.value = []
+    currentPage.value = 1
+    hasMore.value = false
+    loadingMore.value = false
     return
   }
 
-  const requestId = ++fetchRequestId
+  if (append) {
+    if (!hasMore.value || loadingMore.value) return
+    loadingMore.value = true
+  }
+
+  const requestId = append ? fetchRequestId : ++fetchRequestId
   const selectedIds = normalizeIds(val.value)
   const trimmedSearch = String(searchQuery || '').trim()
+  const page = append ? currentPage.value + 1 : 1
 
   try {
     const mainPromise = typedApi.postTagItems({
@@ -343,12 +376,12 @@ const getTags = async (searchQuery = search.value) => {
       sortBy: meta.value?.sortBy || 'name',
       direction: meta.value?.sortDir || 'asc',
       search: trimmedSearch || undefined,
-      page: 1,
+      page,
       limit: AUTOCOMPLETE_LIMIT,
       skipTotals: true,
     })
 
-    const selectedPromise = selectedIds.length
+    const selectedPromise = (!append && selectedIds.length)
       ? typedApi.postTagItems({
           metaId: props.metaId,
           ids: selectedIds,
@@ -360,16 +393,47 @@ const getTags = async (searchQuery = search.value) => {
     const [mainRes, selectedRes] = await Promise.all([mainPromise, selectedPromise])
     if (requestId !== fetchRequestId) return
 
-    const tags = mergeTagLists(
-      (selectedRes.data.items ?? []) as TagListItem[],
-      (mainRes.data.items ?? []) as TagListItem[],
-    )
-    listTags.value = sortTags(tags)
+    const mainItems = (mainRes.data.items ?? []) as TagListItem[]
+    hasMore.value = mainItems.length >= AUTOCOMPLETE_LIMIT
+    currentPage.value = page
+
+    if (append) {
+      const beforeCount = listTags.value.length
+      listTags.value = mergeTagLists(listTags.value, mainItems)
+      if (listTags.value.length === beforeCount) {
+        hasMore.value = false
+      }
+    } else {
+      listTags.value = mergeTagLists(
+        (selectedRes.data.items ?? []) as TagListItem[],
+        mainItems,
+      )
+    }
   } catch (e) {
     if (requestId !== fetchRequestId) return
-    listTags.value = []
+    if (!append) {
+      listTags.value = []
+      currentPage.value = 1
+      hasMore.value = false
+    }
     console.error(e)
+  } finally {
+    if (append) loadingMore.value = false
   }
+}
+
+const loadMoreTags = async () => {
+  if (!hasMore.value || loadingMore.value) return
+  await getTags(search.value, {append: true})
+  await nextTick()
+  if (hasMore.value && sentinelIntersecting.value) {
+    await loadMoreTags()
+  }
+}
+
+const onLoadMoreIntersect = (isIntersecting: boolean) => {
+  sentinelIntersecting.value = isIntersecting
+  if (isIntersecting) void loadMoreTags()
 }
 
 const refreshTagsFromEvent = async () => {
