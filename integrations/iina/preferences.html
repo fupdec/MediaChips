@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 16px;
+      color: #1d1d1f;
+    }
+    .row {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .hint {
+      color: #6e6e73;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <label for="base_url">MediaChips base URL</label>
+    <input id="base_url" type="text" data-pref-key="base_url" />
+    <div class="hint">Default: http://127.0.0.1:12321</div>
+  </div>
+
+  <div class="row">
+    <label for="token">Auth token (optional)</label>
+    <input id="token" type="password" data-pref-key="token" />
+    <div class="hint">Needed only when password protection is enabled in MediaChips.</div>
+  </div>
+
+  <div class="row">
+    <label class="check">
+      <input type="checkbox" data-pref-key="osd" />
+      Show OSD when marks are loaded
+    </label>
+  </div>
+
+  <div class="row">
+    <label class="check">
+      <input type="checkbox" data-pref-key="merge" />
+      Merge with existing chapters instead of replacing
+    </label>
+  </div>
+</body>
+</html>

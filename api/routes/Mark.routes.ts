@@ -3,7 +3,7 @@ import type { Express } from 'express'
 
 import express from 'express'
 import {  validateBody  } from '../middleware/validateBody'
-import {  ItemsListRequestSchema, MarkClipsRequestSchema  } from '../../shared/schemas/requests'
+import {  ItemsListRequestSchema, MarkClipsRequestSchema, PathPayloadSchema  } from '../../shared/schemas/requests'
 import createMarkController from '../controllers/Mark.controller'
 
 
@@ -15,6 +15,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post("/", Mark.create);
 
   router.get("/video/:id", Mark.findAllForVideo);
+
+  router.post("/by-path", validateBody(PathPayloadSchema), Mark.findChaptersByPath);
 
   router.get("/", Mark.findAll);
 

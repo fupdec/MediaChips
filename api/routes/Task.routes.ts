@@ -11,6 +11,7 @@ import {
   ApplyParseLibraryTagsRequestSchema,
   RenameFileRequestSchema,
   OpenPathRequestSchema,
+  OpenInExternalPlayerRequestSchema,
   GetFileListRequestSchema,
   UpdateMediaInfoRequestSchema,
   SearchMediaByPathRequestSchema,
@@ -80,6 +81,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/checkFilesExists', 'checkFilesExists', validateBody(CheckFilesPayloadSchema))
   register('post', '/renameFile', 'renameFile', validateBody(RenameFileRequestSchema))
   register('post', '/openPath', 'openPath', validateBody(OpenPathRequestSchema))
+  register('post', '/openInExternalPlayer', 'openInExternalPlayer', validateBody(OpenInExternalPlayerRequestSchema))
   register('post', '/getFileList', 'getFileList', validateBody(GetFileListRequestSchema))
 
   register('post', '/addMedia', 'addMedia', validateBody(AddMediaRequestSchema))

@@ -103,6 +103,10 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskOpenPath, body)
   },
 
+  openInExternalPlayer(body: { path: string; player: 'mpv' | 'iina'; mediaId?: number }) {
+    return apiClient.post(API_ROUTES.taskOpenInExternalPlayer, body)
+  },
+
   updateConfig(data: ConfigUpdatePayload) {
     return apiClient.post(API_ROUTES.updateConfig, data)
   },

@@ -164,6 +164,12 @@ export const OpenPathRequestSchema = z.object({
   isDir: z.boolean().optional(),
 })
 
+export const OpenInExternalPlayerRequestSchema = z.object({
+  path: z.string().min(1),
+  player: z.enum(['mpv', 'iina']),
+  mediaId: z.union([z.number(), z.string()]).optional(),
+})
+
 export const GetFileListRequestSchema = z.object({
   path: z.string().min(1),
   filter: z.string().min(1),

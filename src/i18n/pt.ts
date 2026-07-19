@@ -305,6 +305,8 @@ const pt = {
     play_audio_in: 'Reproduzir áudio em',
     mediachips_player: 'MediaChips Jogador',
     external_player: 'Leitor Externo',
+    mpv: 'mpv',
+    iina: 'IINA',
     view_image: 'Ver imagem',
     open_image_file: 'Abrir arquivo de imagem',
     open_text_file: 'Abrir arquivo de texto',

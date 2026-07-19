@@ -57,10 +57,19 @@ function pathsEquivalent(left: string | null | undefined, right: string | null |
 
 function buildPathLookupVariants(value: string): string[] {
   const canonical = normalizeMediaPath(value)
-  const variants = new Set<string>(pathVariants(canonical))
+  const seeds = new Set<string>()
 
   if (canonical) {
-    variants.add(canonical)
+    seeds.add(canonical)
+    seeds.add(canonical.replace(/\\/g, '/'))
+    seeds.add(canonical.replace(/\//g, '\\'))
+  }
+
+  const variants = new Set<string>()
+  for (const seed of seeds) {
+    for (const variant of pathVariants(seed)) {
+      variants.add(variant)
+    }
   }
 
   return [...variants]

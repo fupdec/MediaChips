@@ -305,6 +305,8 @@ const de = {
     play_audio_in: "Audio abspielen",
     mediachips_player: "MediaChips Spieler",
     external_player: "Externer Player",
+    mpv: 'mpv',
+    iina: 'IINA',
     view_image: "Bild ansehen",
     open_image_file: "Bilddatei öffnen",
     open_text_file: "Textdatei öffnen",

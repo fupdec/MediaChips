@@ -4,6 +4,7 @@ import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createMarksRepository } from '../db/repositories/marks'
 import { getMarkFilterMetas, loadMarkItems } from '../services/markItemsLoader'
+import { resolveMarkChaptersForPath } from '../services/markChaptersForPath'
 import { deleteMarkGeneratedAsset } from '../services/localAssetCleanup'
 
 export default function (db: ApiDb) {
@@ -65,6 +66,23 @@ export default function (db: ApiDb) {
     }
   };
 
+  const findChaptersByPath = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const pathValue = String(req.body?.path || '').trim()
+      if (!pathValue) {
+        res.status(400).send({message: 'path is required'})
+        return
+      }
+
+      const result = resolveMarkChaptersForPath(db, pathValue)
+      res.status(200).send(result)
+    } catch (err: unknown) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || "Some error occurred while performing query."
+      })
+    }
+  };
+
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const marks = marksRepo.findAllWithRelations()
@@ -119,6 +137,7 @@ export default function (db: ApiDb) {
     create,
     getClips,
     findAllForVideo,
+    findChaptersByPath,
     findAll,
     getItems,
     getFilterMetas,

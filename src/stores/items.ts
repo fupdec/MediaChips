@@ -250,10 +250,13 @@ export const useItemsStore = defineStore('items', {
       return index >= 0 ? candidates[index] : null
     },
 
-    async playVideo({video, time, in_system, videos, trustPath = false}: {
+    async playVideo({video, time, in_system, player, videos, trustPath = false}: {
       video: PlayableMedia
       time?: number
+      /** @deprecated Prefer `player`. `true` → system, `false` → builtin. */
       in_system?: boolean
+      /** Explicit player choice; overrides the default-player setting. */
+      player?: 'default' | 'builtin' | 'system'
       videos?: PlayableMedia[]
       trustPath?: boolean
     }) {
@@ -291,7 +294,12 @@ export const useItemsStore = defineStore('items', {
         }
       }
 
-      if (in_system || settingsStore.isPlayVideoInSystemPlayer === "1") {
+      const resolvedPlayer: 'default' | 'builtin' | 'system' = player
+        ?? (in_system === true ? 'system' : in_system === false ? 'builtin' : 'default')
+      const useSystemPlayer = resolvedPlayer === 'system'
+        || (resolvedPlayer === 'default' && settingsStore.isPlayVideoInSystemPlayer === '1')
+
+      if (useSystemPlayer) {
         if (targetVideo.path) {
           await openPath(targetVideo.path)
         }

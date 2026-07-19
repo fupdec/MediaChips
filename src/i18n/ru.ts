@@ -305,6 +305,8 @@ const ru = {
     play_audio_in: 'Воспроизвести аудио в',
     mediachips_player: 'Плеер MediaChips',
     external_player: 'Внешний плеер',
+    mpv: 'mpv',
+    iina: 'IINA',
     view_image: 'Просмотреть изображение',
     open_image_file: 'Открыть файл изображения',
     open_text_file: 'Открыть текстовый файл',

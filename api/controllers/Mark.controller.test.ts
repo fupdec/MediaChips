@@ -11,6 +11,7 @@ const {
   loadMarkItems,
   getMarkFilterMetas,
   deleteMarkGeneratedAsset,
+  resolveMarkChaptersForPath,
 } = vi.hoisted(() => ({
   create: vi.fn(),
   findAllForVideo: vi.fn(),
@@ -21,6 +22,7 @@ const {
   loadMarkItems: vi.fn(),
   getMarkFilterMetas: vi.fn(),
   deleteMarkGeneratedAsset: vi.fn(),
+  resolveMarkChaptersForPath: vi.fn(),
 }))
 
 vi.mock('../db/repositories/marks', () => ({
@@ -37,6 +39,10 @@ vi.mock('../db/repositories/marks', () => ({
 vi.mock('../services/markItemsLoader', () => ({
   loadMarkItems,
   getMarkFilterMetas,
+}))
+
+vi.mock('../services/markChaptersForPath', () => ({
+  resolveMarkChaptersForPath,
 }))
 
 vi.mock('../services/localAssetCleanup', () => ({
@@ -101,6 +107,39 @@ describe('Mark.controller', () => {
     expect(findAllForVideo).toHaveBeenCalledWith(42)
     expect(res.statusCode).toBe(201)
     expect(res.body).toEqual([{id: 1, time: 3}])
+  })
+
+  it('returns chapters for a media path', () => {
+    resolveMarkChaptersForPath.mockReturnValue({
+      found: true,
+      mediaId: 9,
+      path: '/videos/clip.mp4',
+      chapters: [{title: 'Favorite', time: 12}],
+    })
+
+    const req = {body: {path: '/videos/clip.mp4'}} as ApiRequest
+    const res = createResponse()
+
+    controller.findChaptersByPath(req, res)
+
+    expect(resolveMarkChaptersForPath).toHaveBeenCalled()
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual({
+      found: true,
+      mediaId: 9,
+      path: '/videos/clip.mp4',
+      chapters: [{title: 'Favorite', time: 12}],
+    })
+  })
+
+  it('rejects chapters-by-path without path', () => {
+    const req = {body: {}} as ApiRequest
+    const res = createResponse()
+
+    controller.findChaptersByPath(req, res)
+
+    expect(res.statusCode).toBe(400)
+    expect(resolveMarkChaptersForPath).not.toHaveBeenCalled()
   })
 
   it('returns all marks with relations', () => {

@@ -310,6 +310,8 @@ const ja = {
     play_audio_in: "でオーディオを再生する",
     mediachips_player: "MediaChips プレーヤー",
     external_player: "外部プレーヤー",
+    mpv: 'mpv',
+    iina: 'IINA',
     view_image: "画像を見る",
     open_image_file: "画像ファイルを開く",
     open_text_file: "テキストファイルを開く",

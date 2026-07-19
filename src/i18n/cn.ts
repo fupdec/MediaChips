@@ -306,6 +306,8 @@ const cn = {
     play_audio_in: '播放音频于',
     mediachips_player: 'MediaChips 播放器',
     external_player: '外部播放器',
+    mpv: 'mpv',
+    iina: 'IINA',
     view_image: '查看图片',
     open_image_file: '打开图片文件',
     open_text_file: '打开文本文件',

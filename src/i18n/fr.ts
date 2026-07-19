@@ -305,6 +305,8 @@ const fr = {
     play_audio_in: 'Lire l\'audio dans',
     mediachips_player: 'Joueur MediaChips',
     external_player: 'Lecteur externe',
+    mpv: 'mpv',
+    iina: 'IINA',
     view_image: 'Voir l\'image',
     open_image_file: 'Ouvrir le fichier image',
     open_text_file: 'Ouvrir un fichier texte',

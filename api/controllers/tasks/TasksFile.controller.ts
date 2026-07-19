@@ -13,8 +13,18 @@ import {
   prepareRename,
   checkRenameDiskSpace,
 } from '../../../app/tasks/moveFile'
+import { createMarksRepository } from '../../db/repositories/marks'
+import { marksToChapters, resolveMarkChaptersForPath } from '../../services/markChaptersForPath'
+import {
+  ExternalPlayerError,
+  launchExternalPlayer,
+  type ExternalPlayerKind,
+} from '../../services/externalPlayerLaunch'
 
-export default function createTasksFileController(_shared: TaskControllerShared) {
+export default function createTasksFileController(shared: TaskControllerShared) {
+  const { db } = shared
+  const marksRepo = createMarksRepository(db.drizzle)
+
   const checkFileExists = async function (req: ApiRequest, res: ApiResponse) {
     const filePath = normalizeMediaPath(req.body.path)
     const resolved = filePath ? await resolveExistingPath(filePath) : null
@@ -99,6 +109,47 @@ export default function createTasksFileController(_shared: TaskControllerShared)
       if (err) return fail(apiErrorMessage(err))
       res.sendStatus(201)
     })
+  }
+
+  const openInExternalPlayer = async function (req: ApiRequest, res: ApiResponse) {
+    const player = String(req.body?.player || '') as ExternalPlayerKind
+    const mediaPath = normalizeMediaPath(req.body?.path)
+    const mediaIdRaw = req.body?.mediaId
+    const mediaId = mediaIdRaw == null || mediaIdRaw === ''
+      ? null
+      : Number(mediaIdRaw)
+
+    if (player !== 'mpv' && player !== 'iina') {
+      res.status(400).send({message: 'player must be mpv or iina'})
+      return
+    }
+
+    if (!mediaPath) {
+      res.status(400).send({message: 'path is required'})
+      return
+    }
+
+    try {
+      let chapters = [] as ReturnType<typeof marksToChapters>
+      if (Number.isFinite(mediaId) && mediaId != null && mediaId > 0) {
+        chapters = marksToChapters(marksRepo.findAllForVideo(mediaId))
+      } else {
+        chapters = resolveMarkChaptersForPath(db, mediaPath).chapters
+      }
+
+      const result = await launchExternalPlayer({
+        player,
+        mediaPath,
+        chapters,
+      })
+      res.status(201).send(result)
+    } catch (err: unknown) {
+      if (err instanceof ExternalPlayerError) {
+        res.status(400).send({message: err.message, code: err.code})
+        return
+      }
+      res.status(400).send({message: apiErrorMessage(err)})
+    }
   }
 
   const getFileList = async function (req: ApiRequest, res: ApiResponse) {
@@ -193,6 +244,7 @@ export default function createTasksFileController(_shared: TaskControllerShared)
     checkFilesExists,
     renameFile,
     openPath,
+    openInExternalPlayer,
     getFileList,
     deleteFile,
   }

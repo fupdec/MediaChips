@@ -21,6 +21,7 @@ import {
 import {setNotification} from '@/services/notificationService'
 import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {openPath} from '@/services/shellService'
+import {detectAppPlatform} from '@/composable/useAppPlatform'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {parseFilePath} from '@/services/pathTagParser'
 import translate, {type Locale} from '@/utils/translate'
@@ -45,6 +46,8 @@ interface DeleteItemPayload extends DeleteEntityOnePayload {
 export interface ItemContextMenuOptions {
   reg?: boolean
   x?: number
+  /** Force single-item menu/actions (e.g. global search results). */
+  singleItem?: boolean
 }
 
 type ContextItem = PageItem
@@ -76,6 +79,7 @@ export default function useItemContextMenu(
 
   const reg = options.reg ?? registrationStore.reg
   const x = options.x ?? 0
+  const isSelectMode = () => !options.singleItem && itemsStore.isSelect
 
   const currentMediaType = computed(() => {
     if (isMediaPageItem(item, type)) {
@@ -98,7 +102,7 @@ export default function useItemContextMenu(
       && isAdultUiAvailable()
       && isVideoMediaType(currentMediaType.value)
 
-    if (!itemsStore.isSelect) {
+    if (!isSelectMode()) {
       contextMenu.push({
         name: t('common.edit'),
         type: 'item',
@@ -166,7 +170,7 @@ export default function useItemContextMenu(
       }
     }
 
-    if (!itemsStore.isSelect) {
+    if (!isSelectMode()) {
       if (type === 'media' && isMediaPageItem(item, type)) {
         contextMenu.push({type: 'divider'})
         contextMenu.push({
@@ -194,7 +198,7 @@ export default function useItemContextMenu(
     }
 
     if (type === 'tag') {
-      if (!itemsStore.isSelect) {
+      if (!isSelectMode()) {
         if (canAutoScrape && isTagPageItem(item, type) && meta) {
           contextMenu.push({
             name: t('context_menu.auto_scrape'),
@@ -233,7 +237,7 @@ export default function useItemContextMenu(
         name: t('context_menu.parse_tags_in_path'),
         type: 'item',
         icon: 'text-box-search',
-        disabled: itemsStore.isSelect && itemsStore.selection.length === 0,
+        disabled: isSelectMode() && itemsStore.selection.length === 0,
         action: parseMetadata,
       })
 
@@ -241,7 +245,7 @@ export default function useItemContextMenu(
         name: t('context_menu.update_file_info'),
         type: 'item',
         icon: 'file-sync-outline',
-        disabled: !is_file_exists || (itemsStore.isSelect && itemsStore.selection.length === 0),
+        disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
         action: updateFileInfo,
       })
 
@@ -260,36 +264,59 @@ export default function useItemContextMenu(
         contextMenu.push({type: 'divider'})
       }
 
-      if (!itemsStore.isSelect && isVideoMediaType(currentMediaType.value)) {
+      if (!isSelectMode() && isVideoMediaType(currentMediaType.value)) {
+        const playInMenu: ItemContextMenuEntry[] = [
+          {
+            name: t('context_menu.mediachips_player'),
+            type: 'item',
+            icon: 'open-in-app',
+            disabled: !is_file_exists,
+            action: () => {
+              play()
+            },
+          },
+          {
+            name: t('context_menu.external_player'),
+            type: 'item',
+            icon: 'open-in-new',
+            disabled: !is_file_exists,
+            action: () => {
+              play(true)
+            },
+          },
+          {
+            name: t('context_menu.mpv'),
+            type: 'item',
+            icon: 'play-box',
+            disabled: !is_file_exists,
+            action: () => {
+              void openInExternalPlayer('mpv')
+            },
+          },
+        ]
+
+        if (detectAppPlatform().isMac) {
+          playInMenu.push({
+            name: t('context_menu.iina'),
+            type: 'item',
+            icon: 'play-box-outline',
+            disabled: !is_file_exists,
+            action: () => {
+              void openInExternalPlayer('iina')
+            },
+          })
+        }
+
         contextMenu.push({
           name: t('context_menu.play_video_in'),
           type: 'menu',
           icon: 'play-circle',
           disabled: !is_file_exists || (!reg && x > 14),
-          menu: [
-            {
-              name: t('context_menu.mediachips_player'),
-              type: 'item',
-              icon: 'open-in-app',
-              disabled: !is_file_exists,
-              action: () => {
-                play()
-              },
-            },
-            {
-              name: t('context_menu.external_player'),
-              type: 'item',
-              icon: 'open-in-new',
-              disabled: !is_file_exists,
-              action: () => {
-                play(true)
-              },
-            },
-          ],
+          menu: playInMenu,
         })
       }
 
-      if (!itemsStore.isSelect && isAudioMediaType(currentMediaType.value)) {
+      if (!isSelectMode() && isAudioMediaType(currentMediaType.value)) {
         contextMenu.push({
           name: t('context_menu.play_audio_in'),
           type: 'menu',
@@ -318,7 +345,7 @@ export default function useItemContextMenu(
         })
       }
 
-      if (!itemsStore.isSelect && isImageMediaType(currentMediaType.value)) {
+      if (!isSelectMode() && isImageMediaType(currentMediaType.value)) {
         contextMenu.push({
           name: t('context_menu.view_image'),
           type: 'item',
@@ -341,7 +368,7 @@ export default function useItemContextMenu(
         })
       }
 
-      if (!itemsStore.isSelect && isTextMediaType(currentMediaType.value)) {
+      if (!isSelectMode() && isTextMediaType(currentMediaType.value)) {
         contextMenu.push({
           name: t('context_menu.open_text_file'),
           type: 'item',
@@ -353,7 +380,7 @@ export default function useItemContextMenu(
         })
       }
 
-      if (!itemsStore.isSelect) {
+      if (!isSelectMode()) {
         contextMenu.push({
           name: t('context_menu.open_files_folder'),
           type: 'item',
@@ -369,7 +396,7 @@ export default function useItemContextMenu(
         name: t('context_menu.move_file_to'),
         type: 'item',
         icon: 'file-move',
-        disabled: (itemsStore.isSelect && itemsStore.selection.length === 0) || !is_file_exists || operationsStore.moving.active,
+        disabled: (isSelectMode() && itemsStore.selection.length === 0) || !is_file_exists || operationsStore.moving.active,
         action: moveTo,
       })
 
@@ -377,7 +404,7 @@ export default function useItemContextMenu(
         name: t('context_menu.organize_by_tag'),
         type: 'item',
         icon: 'folder-plus',
-        disabled: (itemsStore.isSelect && itemsStore.selection.length === 0) || !is_file_exists,
+        disabled: (isSelectMode() && itemsStore.selection.length === 0) || !is_file_exists,
         action: organizeFolderByTag,
       })
 
@@ -386,7 +413,7 @@ export default function useItemContextMenu(
 
       if (isPlaylistMedia) {
         const getMediaIdsForPlaylist = (): number[] => {
-          if (itemsStore.isSelect) return [...itemsStore.selection]
+          if (isSelectMode()) return [...itemsStore.selection]
           return [item.id]
         }
 
@@ -418,7 +445,7 @@ export default function useItemContextMenu(
           type: 'menu',
           icon: 'playlist-plus',
           menu: menuPlaylists,
-          disabled: itemsStore.isSelect && itemsStore.selection.length === 0,
+          disabled: isSelectMode() && itemsStore.selection.length === 0,
         })
       }
 
@@ -426,21 +453,23 @@ export default function useItemContextMenu(
     }
 
     const is_selected = itemsStore.selection.includes(item.id)
-    contextMenu.push({
-      name: is_selected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),
-      icon: is_selected ? 'checkbox-blank-outline' : 'checkbox-marked-outline',
-      type: 'item',
-      action: (event?: unknown) => toggleSelect(event as MouseEvent),
-    })
+    if (!options.singleItem) {
+      contextMenu.push({
+        name: is_selected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),
+        icon: is_selected ? 'checkbox-blank-outline' : 'checkbox-marked-outline',
+        type: 'item',
+        action: (event?: unknown) => toggleSelect(event as MouseEvent),
+      })
 
-    contextMenu.push({type: 'divider'})
+      contextMenu.push({type: 'divider'})
+    }
 
     contextMenu.push({
       name: t('common.delete'),
       type: 'item',
       icon: 'delete',
       color: 'red',
-      disabled: itemsStore.isSelect && itemsStore.selection.length === 0,
+      disabled: isSelectMode() && itemsStore.selection.length === 0,
       action: deleteItem,
     })
 
@@ -591,7 +620,7 @@ export default function useItemContextMenu(
 
   const parseMetadata = async (): Promise<void> => {
     let videos: MediaItem[] = []
-    if (itemsStore.isSelect) {
+    if (isSelectMode()) {
       videos = await resolveSelectedMediaItems(itemsStore.selection)
     } else if (isMediaPageItem(item, type)) {
       videos.push(item)
@@ -643,7 +672,7 @@ export default function useItemContextMenu(
 
   const updateFileInfo = async (): Promise<void> => {
     let ids: number[] = []
-    if (itemsStore.isSelect) {
+    if (isSelectMode()) {
       ids = itemsStore.selection
     } else {
       ids = [item.id]
@@ -673,7 +702,7 @@ export default function useItemContextMenu(
     if (!is_file_exists) return
 
     let ids = [item.id]
-    if (itemsStore.isSelect) ids = itemsStore.selection
+    if (isSelectMode()) ids = itemsStore.selection
 
     const cb = (id?: number): void => {
       if (id == null) return
@@ -694,7 +723,7 @@ export default function useItemContextMenu(
     if (!is_file_exists) return
 
     let ids = [item.id]
-    if (itemsStore.isSelect) {
+    if (isSelectMode()) {
       ids = itemsStore.selection
     }
     operationsStore.create_folder_move_media.ids = ids
@@ -703,7 +732,7 @@ export default function useItemContextMenu(
 
   const addMediaToPlaylist = async (mediaId: number, playlistId: number): Promise<void> => {
     const arr: Array<{ mediaId: number; playlistId: number }> = []
-    if (itemsStore.isSelect) {
+    if (isSelectMode()) {
       arr.push(...itemsStore.selection.map((id) => ({
         mediaId: id,
         playlistId,
@@ -732,20 +761,30 @@ export default function useItemContextMenu(
 
   const resolveSelectedMedia = resolveSelectedMediaItems
 
+  const resolveItemById = (id: number): MediaItem | Tag | null => {
+    if (Number(id) === Number(item.id)) return item
+    const fromPage = itemsStore.entities.find((entry) => Number(entry.id) === Number(id))
+    if (fromPage) return fromPage
+    if (type === 'tag') {
+      return store.tags.find((tag) => Number(tag.id) === Number(id)) ?? null
+    }
+    return null
+  }
+
   const deleteItem = (): void => {
     const deleteItems = async (): Promise<void> => {
       const is_checked = dialogsStore.confirm.checkBox
 
       let ids = [item.id]
-      if (itemsStore.isSelect) {
+      if (isSelectMode()) {
         ids = itemsStore.selection
       }
 
       const deleted_items_names: string[] = []
-      const itemsToDelete = type === 'media' && itemsStore.isSelect
+      const itemsToDelete = type === 'media' && isSelectMode()
         ? await resolveSelectedMedia(ids)
         : ids
-          .map((id) => itemsStore.entities.find((entry) => entry.id === id))
+          .map((id) => resolveItemById(id))
           .filter((entry): entry is MediaItem | Tag => Boolean(entry))
 
       for (const found of itemsToDelete) {
@@ -802,12 +841,41 @@ export default function useItemContextMenu(
     dialogsStore.confirm.show = true
   }
 
-  const play = (in_system?: unknown): void => {
+  const play = (forceSystem = false): void => {
     if (!isMediaPageItem(item, type)) return
     itemsStore.playVideo({
       video: item,
-      in_system: Boolean(in_system),
+      player: forceSystem ? 'system' : 'builtin',
     })
+  }
+
+  const openInExternalPlayer = async (player: 'mpv' | 'iina'): Promise<void> => {
+    if (!isMediaPageItem(item, type)) return
+    const mediaPath = mediaPageItemPath(item, type)
+    if (!mediaPath) return
+
+    const locale = settingsStore.locale as Locale
+    const playerLabel = translate(
+      player === 'iina' ? 'context_menu.iina' : 'context_menu.mpv',
+      {},
+      locale,
+    )
+
+    try {
+      await typedApi.openInExternalPlayer({
+        path: mediaPath,
+        player,
+        mediaId: Number(item.id) || undefined,
+      })
+      await itemsStore.countViewNumber(item, 'media')
+    } catch (error) {
+      const err = error as {response?: {data?: {message?: string}}; message?: string}
+      setNotification({
+        type: 'error',
+        title: playerLabel,
+        text: err.response?.data?.message || err.message || String(error),
+      })
+    }
   }
 
   return {

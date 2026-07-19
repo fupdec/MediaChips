@@ -1,0 +1,32 @@
+{
+  "name": "MediaChips Marks",
+  "identifier": "io.mediachips.iina-marks",
+  "version": "1.0.0",
+  "description": "Load MediaChips timeline marks into IINA as chapters.",
+  "author": {
+    "name": "MediaChips"
+  },
+  "entry": "main.js",
+  "permissions": [
+    "network-request",
+    "show-osd"
+  ],
+  "allowedDomains": ["*"],
+  "preferencesPage": "preferences.html",
+  "preferenceDefaults": {
+    "base_url": "http://127.0.0.1:12321",
+    "token": "",
+    "osd": true,
+    "merge": false
+  },
+  "localized": {
+    "en": {
+      "name": "MediaChips Marks",
+      "description": "Load MediaChips timeline marks into IINA as chapters."
+    },
+    "ru": {
+      "name": "Метки MediaChips",
+      "description": "Загружает временные метки MediaChips в IINA как главы."
+    }
+  }
+}
