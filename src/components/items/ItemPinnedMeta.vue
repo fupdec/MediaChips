@@ -364,6 +364,8 @@ const valueItems = computed((): ValueWithMeta[] => {
   const result = props.values
     .map((i): ValueWithMeta | null => {
       if (!i) return null
+      // Skip blank stored values so cards don't render empty chips.
+      if (i.value == null || i.value === '') return null
       const meta = metaStore.find(m => m.id === i.metaId)
       return meta ? {...meta, value: i.value} : null
     })
