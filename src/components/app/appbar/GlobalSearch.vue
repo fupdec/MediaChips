@@ -9,13 +9,17 @@ import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
+import {useContextMenu} from '@/stores/contextMenu'
+import {useImageViewerStore} from '@/stores/imageViewer'
+import useItemContextMenu from '@/composable/ItemContextMenu'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getDefaultMediaTypeId, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
 import {highlightGlobalSearchText, textMatchesGlobalSearchQuery} from '@/services/formatUtils'
 import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {openPath} from '@/services/shellService'
-import type { MediaItem, Tag } from '@/types/stores'
+import {checkFileExists} from '@/services/fileService'
+import type { ContextMenuEntry, MediaItem, Meta, Tag } from '@/types/stores'
 
 type MatchedSearchTag = {
   id: number
@@ -74,6 +78,8 @@ useHotkey('slash', () => {
 const app = useAppStore()
 const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
+const imageViewerStore = useImageViewerStore()
+const contextMenuStore = useContextMenu()
 const meta = computed(() => app.meta)
 const mediaTypes = computed(() => app.mediaTypes)
 
@@ -394,6 +400,13 @@ watch(query, (value) => {
   if (!value) onQueryInput()
 })
 
+watch(
+  () => playerStore.active || imageViewerStore.active,
+  (active) => {
+    if (active && dialog.value) dialog.value = false
+  },
+)
+
 function openGroup(group: SearchGroup) {
   if (group.is_media) openMediaPage(group.mediaTypeId)
   else openMeta(group.metaId)
@@ -499,6 +512,56 @@ function onSearchKeydown(e: KeyboardEvent) {
 function onItemMouseenter(row: FlatResultRow, index: number) {
   if (row.kind === 'header') return
   selectedIndex.value = index
+}
+
+let contextMenuRequestId = 0
+
+async function showResultContextMenu(event: MouseEvent, row: FlatResultRow, index: number) {
+  event.preventDefault()
+  event.stopPropagation()
+  hideHoverImage()
+
+  if (row.kind !== 'item') return
+
+  selectedIndex.value = index
+
+  const requestId = ++contextMenuRequestId
+  const isMedia = row.group.is_media
+  const item = isMedia
+    ? {
+        ...row.item,
+        mediaTypeId: (row.item as GlobalSearchMedia).mediaTypeId ?? row.group.mediaTypeId,
+      } as GlobalSearchMedia
+    : row.item
+  let fileExists = true
+
+  if (isMedia) {
+    const mediaPath = String((item as GlobalSearchMedia).path ?? '')
+    if (mediaPath) {
+      fileExists = await checkFileExists(mediaPath)
+      if (requestId !== contextMenuRequestId) return
+    }
+  }
+
+  const tagMeta: Meta | null | undefined = isMedia
+    ? null
+    : meta.value.find((entry) => entry.id === Number((item as GlobalSearchTag).metaId)) ?? null
+
+  const {getContextMenu} = useItemContextMenu(
+    item,
+    isMedia ? 'media' : 'tag',
+    tagMeta,
+    fileExists,
+    null,
+    {singleItem: true},
+  )
+
+  contextMenuStore.showContextMenu({
+    content: getContextMenu() as ContextMenuEntry[],
+    x: event.clientX,
+    y: event.clientY,
+    tagMeta,
+  })
 }
 
 function showResultHover(event: MouseEvent, row: FlatResultRow) {
@@ -714,6 +777,7 @@ function getNameHighlighted(text: string) {
               :class="{'global-search__item--active': index === selectedIndex}"
               @mouseenter="onItemMouseenter(row, index); showResultHover($event, row)"
               @mouseleave.stop="hideHoverImage"
+              @contextmenu="showResultContextMenu($event, row, index)"
               @click="row.group.is_media
                 ? openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
                 : openTag(row.item as Tag)"
