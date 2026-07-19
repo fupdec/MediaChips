@@ -26,6 +26,14 @@ export function normalizeScraperExtras(values: Record<string, unknown>): void {
     values.weight = extractScraperDigits(values.weight)
   }
 
+  if (values.waist != null && values.waist !== '') {
+    values.waist = extractScraperDigits(values.waist)
+  }
+
+  if (values.hips != null && values.hips !== '') {
+    values.hips = extractScraperDigits(values.hips)
+  }
+
   if (values.fake_boobs || values.fake_boobs === false) {
     values.fake_boobs = values.fake_boobs ? 'Fake' : 'Real'
   }

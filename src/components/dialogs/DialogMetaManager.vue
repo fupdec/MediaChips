@@ -105,6 +105,12 @@
             :meta="metaSettingsAsMeta"
           />
 
+          <MetaSettingsNumber
+            v-if="metaSettings.type === 'number'"
+            @update="updateMetaSettings"
+            :meta="metaSettingsAsMeta"
+          />
+
           <SettingsSection v-if="metaSettings.type === 'string'" padded>
             <settings-category-divider icon="link-variant" compact :title="t('meta.fields.link')"/>
             <v-switch
@@ -150,6 +156,7 @@ const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/Dial
 import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 import MetaSettingsArray from '@/components/dialogs/meta/MetaSettingsArray.vue'
 import MetaSettingsRating from '@/components/dialogs/meta/MetaSettingsRating.vue'
+import MetaSettingsNumber from '@/components/dialogs/meta/MetaSettingsNumber.vue'
 import MetaFieldFormPreview from '@/components/dialogs/meta/MetaFieldFormPreview.vue'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
@@ -157,6 +164,10 @@ import MetaTypes from '@/assets/MetaTypes'
 import {typedApi} from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
+import {
+  canConvertMeasurementUnits,
+  normalizeMeasurementUnit,
+} from '@shared/measurementUnits'
 import type {Meta} from '@/types/stores'
 import type { MetaWritePayload } from '@shared/entities/meta'
 
@@ -178,6 +189,7 @@ interface MetaSettingsForm {
   parser: boolean
   imageAspectRatio: number
   tagPageDesign: string
+  measurementUnit: string | null
   chipLabel: boolean
   chipVariant: string
   color: boolean
@@ -256,6 +268,7 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   parser: false,
   imageAspectRatio: 1,
   tagPageDesign: 'profile',
+  measurementUnit: null,
   chipLabel: false,
   chipVariant: 'flat',
   color: false,
@@ -297,7 +310,7 @@ const metaKey = ref(0)
 const buttons = ref<DialogHeaderButton[]>([])
 
 // Computed
-const hasOptions = computed(() => ['array', 'rating', 'string'].includes(metaSettings.value.type))
+const hasOptions = computed(() => ['array', 'rating', 'string', 'number'].includes(metaSettings.value.type))
 
 const dialogHeader = computed(() => {
   return props.editMode ? t('media.type.editing_meta') : t('meta.dialogs.adding_meta')
@@ -373,6 +386,13 @@ const buildMetaCreatePayload = (): MetaWritePayload => {
     }
   }
 
+  if (form.type === 'number') {
+    return {
+      ...base,
+      measurementUnit: form.measurementUnit,
+    }
+  }
+
   if (form.type === 'rating' || form.type === 'array') {
     return {...form}
   }
@@ -386,6 +406,25 @@ const sendForm = async () => {
   const {valid: formValid} = await form.value.validate()
   if (!formValid) return
 
+  if (props.editMode && props.meta?.id && metaSettings.value.type === 'number') {
+    const fromUnit = normalizeMeasurementUnit(props.meta.measurementUnit)
+    const toUnit = normalizeMeasurementUnit(metaSettings.value.measurementUnit)
+    if (
+      fromUnit
+      && toUnit
+      && fromUnit !== toUnit
+      && canConvertMeasurementUnits(fromUnit, toUnit)
+    ) {
+      const confirmed = window.confirm(
+        t('meta.settings.measurement_unit_convert_confirm', {
+          from: t(`meta.settings.measurement_units.${fromUnit}`),
+          to: t(`meta.settings.measurement_units.${toUnit}`),
+        }),
+      )
+      if (!confirmed) return
+    }
+  }
+
   try {
     const payload = props.editMode && props.meta?.id
       ? metaSettings.value
@@ -395,7 +434,7 @@ const sendForm = async () => {
       ? await typedApi.updateMeta(props.meta.id, payload)
       : await typedApi.createMeta(payload)
 
-    if (response.data) {
+    if (response.data !== undefined) {
       if (!props.editMode) {
         setNotification({
           type: 'success',

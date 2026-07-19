@@ -26,6 +26,7 @@ export const meta = sqliteTable('meta', {
   autoColorFromImage: integer('autoColorFromImage', {mode: 'boolean'}).default(false),
   imageAspectRatio: real('imageAspectRatio').default(1),
   tagPageDesign: text('tagPageDesign').default('profile'),
+  measurementUnit: text('measurementUnit'),
   isLink: integer('isLink', {mode: 'boolean'}).default(false),
   ratingIcon: text('ratingIcon').default('star'),
   ratingIconEmpty: text('ratingIconEmpty').default('star-outline'),

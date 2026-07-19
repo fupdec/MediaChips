@@ -15,6 +15,10 @@ import {
   isDefaultTagColor,
 } from '@/utils/colorFromImage'
 import { parseMetaBooleanValue, serializeMetaBooleanValue } from '@shared/schemas/coercion'
+import {
+  isMeasurementScraperKey,
+  normalizeMeasurementUnit,
+} from '@shared/measurementUnits'
 import type { AssignedMeta } from '@shared/entities/meta'
 import type { EntityUpdatePayload } from '@shared/api/responses'
 import type { Meta, Tag } from '@/types/stores'
@@ -366,10 +370,15 @@ export async function autoApplyScrapedTagData({
       pinned,
       currentValues,
       tags: allTags,
-    }).map((field) => ({
-      ...field,
-      isTransfered: true,
-    }))
+    })
+      .filter((field) => {
+        if (!isMeasurementScraperKey(field.key)) return true
+        return Boolean(normalizeMeasurementUnit(field.meta?.measurementUnit))
+      })
+      .map((field) => ({
+        ...field,
+        isTransfered: true,
+      }))
 
     const vals = {...currentValues}
     const tagsBefore = allTags.length

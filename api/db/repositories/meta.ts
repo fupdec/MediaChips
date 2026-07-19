@@ -13,7 +13,7 @@ const META_COLUMNS = new Set([
   'type', 'name', 'icon', 'hint', 'order', 'views', 'oldId',
   'synonyms', 'hidden', 'nested', 'marks', 'bookmark', 'parser', 'country', 'career',
   'scraper', 'rating', 'favorite', 'chipVariant', 'chipLabel', 'color', 'autoColorFromImage',
-  'imageAspectRatio', 'tagPageDesign', 'isLink', 'ratingIcon', 'ratingIconEmpty', 'ratingIconHalf',
+  'imageAspectRatio', 'tagPageDesign', 'measurementUnit', 'isLink', 'ratingIcon', 'ratingIconEmpty', 'ratingIconHalf',
   'ratingMax', 'ratingColor', 'ratingHalf', 'sortBy', 'sortDir',
 ])
 

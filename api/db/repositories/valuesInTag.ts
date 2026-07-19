@@ -42,6 +42,23 @@ export function createValuesInTagRepository(db: DrizzleClient) {
       }))
     },
 
+    findAllByMetaId(metaId: number) {
+      return db.select()
+        .from(valuesInTags)
+        .where(eq(valuesInTags.metaId, metaId))
+        .all()
+    },
+
+    updateValue(tagId: number, metaId: number, value: string | null): void {
+      db.update(valuesInTags)
+        .set({value: normalizeStoredMetaValue(value)})
+        .where(and(
+          eq(valuesInTags.tagId, tagId),
+          eq(valuesInTags.metaId, metaId),
+        ))
+        .run()
+    },
+
     deleteOne(tagId: number, metaId: number): void {
       db.delete(valuesInTags)
         .where(and(

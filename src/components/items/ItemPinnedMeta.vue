@@ -74,7 +74,7 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
-          >{{ i.value }}
+          >{{ formatMetaValue(i) }}
           </v-chip>
         </div>
 
@@ -133,7 +133,7 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
-            :text="formatMetaValue(i.value)"
+            :text="formatMetaValue(i)"
           ></v-chip>
         </template>
       </div>
@@ -168,7 +168,7 @@
         <v-chip
           v-else
           :prepend-icon="`mdi-${entry.data.icon}`"
-          :text="formatMetaValue(entry.data.value)"
+          :text="formatMetaValue(entry.data)"
         ></v-chip>
       </template>
     </div>
@@ -201,6 +201,10 @@ import {usePresetMeta} from "@/composable/ItemPresetMeta"
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getFilterObject, getTextColor} from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
+import {
+  formatMeasurementDisplay,
+  normalizeMeasurementUnit,
+} from '@/utils/measurementUnits'
 import {
   groupByPinnedAssignmentOrder,
   sortByPinnedAssignmentOrder,
@@ -290,8 +294,6 @@ const getTagChipBind = (tag: TagWithMeta) => {
   }
 }
 
-const formatMetaValue = (value: unknown): string => String(value ?? '')
-
 const onTagHover = (event: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
   if (event instanceof MouseEvent) {
     showHoverImage(event, tag.metaId ?? null, tag.id, 'tag', {
@@ -315,6 +317,11 @@ const assignmentRows = computed(() => {
   }
   return itemsStore.sortedAssigned
 })
+
+const formatMetaValue = (meta: ValueWithMeta): string => {
+  const unit = normalizeMeasurementUnit(meta.measurementUnit)
+  return formatMeasurementDisplay(meta.value, unit)
+}
 
 const tagItems = computed((): TagWithMeta[] => {
   // Access via store (not a destructured snapshot) so getTags() replacements stay reactive.

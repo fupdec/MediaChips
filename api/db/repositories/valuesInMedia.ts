@@ -42,6 +42,23 @@ export function createValuesInMediaRepository(db: DrizzleClient) {
       }))
     },
 
+    findAllByMetaId(metaId: number) {
+      return db.select()
+        .from(valuesInMedia)
+        .where(eq(valuesInMedia.metaId, metaId))
+        .all()
+    },
+
+    updateValue(mediaId: number, metaId: number, value: string | null): void {
+      db.update(valuesInMedia)
+        .set({value: normalizeStoredMetaValue(value)})
+        .where(and(
+          eq(valuesInMedia.mediaId, mediaId),
+          eq(valuesInMedia.metaId, metaId),
+        ))
+        .run()
+    },
+
     deleteOne(mediaId: number, metaId: number): void {
       db.delete(valuesInMedia)
         .where(and(

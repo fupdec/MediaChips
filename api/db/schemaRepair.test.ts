@@ -38,6 +38,14 @@ describe('schemaRepair', () => {
     expect(columns.some((column) => column.name === 'views')).toBe(true)
   })
 
+  it('adds missing meta.measurementUnit column for legacy databases', () => {
+    const repaired = repairSchemaColumns(sqlite)
+
+    expect(repaired).toContain('meta.measurementUnit')
+    const columns = sqlite.pragma('table_info(meta)') as Array<{name: string}>
+    expect(columns.some((column) => column.name === 'measurementUnit')).toBe(true)
+  })
+
   it('adds missing meta.tagPageDesign column for legacy databases', () => {
     const repaired = repairSchemaColumns(sqlite)
 

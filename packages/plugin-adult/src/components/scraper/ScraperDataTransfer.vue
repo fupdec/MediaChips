@@ -77,15 +77,33 @@
   </v-table>
 
   <ScraperSelectImages v-if="selected" :selected="selected"></ScraperSelectImages>
+
+  <DialogMeasurementUnitPrompt
+    v-model="unitPromptOpen"
+    :fields="unitPromptFields"
+    @confirm="onUnitPromptConfirm"
+    @cancel="unitPromptOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, watch} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '../../stores/scraper'
 import {useAppStore} from '@/stores/app'
 import {getMetaName} from "@/utils/metaI18n"
 import {buildScraperTransferFields, mergeBookmarkValues, mergeCountryValues, mergeSynonymValues} from '../../utils/scraperTransferFields'
+import {typedApi} from '@/services/typedApi'
+import {
+  isMeasurementScraperKey,
+  normalizeMeasurementUnit,
+  type MeasurementUnit,
+} from '@shared/measurementUnits'
+import DialogMeasurementUnitPrompt from './DialogMeasurementUnitPrompt.vue'
+import {
+  suggestedUnitForScraperKey,
+  type MeasurementUnitPromptField,
+} from '../../utils/measurementUnitPrompt'
 
 import ScraperSelectImages from './ScraperSelectImages.vue'
 
@@ -113,10 +131,41 @@ const pinned = computed(() => scraperStore.pinned as ScraperPinnedItem[])
 const metas = computed(() => pinned.value.filter((i) => i.scraper))
 const currentValues = computed(() => scraperStore.currentValues)
 
+const unitPromptOpen = ref(false)
+const unitPromptFields = ref<MeasurementUnitPromptField[]>([])
+
 const getScraperFieldName = (key: string) => t(`scraper.fields.${key}`, key)
+
+function collectUnsetMeasurementFields(): MeasurementUnitPromptField[] {
+  const result: MeasurementUnitPromptField[] = []
+  const seen = new Set<number>()
+
+  for (const item of pinned.value) {
+    const scraperKey = item.scraper
+    if (!isMeasurementScraperKey(scraperKey) || !item.meta) continue
+    const metaId = Number(item.meta.id ?? item.pinnedMetaId)
+    if (!Number.isFinite(metaId) || seen.has(metaId)) continue
+    if (normalizeMeasurementUnit(item.meta.measurementUnit)) continue
+    seen.add(metaId)
+    result.push({
+      metaId,
+      metaName: getMetaName(item.meta, t),
+      scraperKey,
+      suggestedUnit: suggestedUnitForScraperKey(scraperKey),
+    })
+  }
+
+  return result
+}
 
 async function getData() {
   if (!props.selected) return
+
+  const unset = collectUnsetMeasurementFields()
+  if (unset.length && !unitPromptOpen.value) {
+    unitPromptFields.value = unset
+    unitPromptOpen.value = true
+  }
 
   scraperStore.fields = buildScraperTransferFields({
     selected: props.selected,
@@ -124,6 +173,27 @@ async function getData() {
     currentValues: currentValues.value,
     tags: appStore.tags || [],
   })
+}
+
+async function onUnitPromptConfirm(selections: Record<number, MeasurementUnit>) {
+  try {
+    for (const [metaIdRaw, unit] of Object.entries(selections)) {
+      const metaId = Number(metaIdRaw)
+      await typedApi.updateMeta(metaId, {measurementUnit: unit})
+
+      const storeMeta = appStore.meta.find((meta) => Number(meta.id) === metaId)
+      if (storeMeta) storeMeta.measurementUnit = unit
+
+      for (const item of pinned.value) {
+        if (Number(item.meta?.id ?? item.pinnedMetaId) === metaId && item.meta) {
+          item.meta.measurementUnit = unit
+        }
+      }
+    }
+  } finally {
+    unitPromptOpen.value = false
+    await getData()
+  }
 }
 
 function restore(item: ScraperTransferField) {
@@ -163,13 +233,13 @@ function transferAll() {
 }
 
 onMounted(() => {
-  getData()
+  void getData()
 })
 
 watch(
   [() => props.selected, pinned, currentValues],
   () => {
-    getData()
+    void getData()
   },
   {deep: true},
 )

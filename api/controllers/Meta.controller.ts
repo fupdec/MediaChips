@@ -9,6 +9,7 @@ import { createMetaRepository } from '../db/repositories/meta'
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
 import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
 import { mergeTagCategories, MetaCategoryMergeError } from '../services/metaCategoryMerge'
+import { applyMeasurementUnitChange } from '../services/measurementUnitChange'
 import fs from 'fs'
 import path from 'path'
 
@@ -73,8 +74,12 @@ export default function (db: ApiDb) {
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MetaWritePayload>(req)
-      metaRepo.updateById(parseInt(paramString(req.params.id), 10), body as Record<string, unknown>)
-      res.sendStatus(201)
+      const metaId = parseInt(paramString(req.params.id), 10)
+      const conversion = Object.prototype.hasOwnProperty.call(body, 'measurementUnit')
+        ? applyMeasurementUnitChange(db.drizzle, metaId, body.measurementUnit)
+        : null
+      metaRepo.updateById(metaId, body as Record<string, unknown>)
+      res.status(201).send(conversion ? {conversion} : {})
     } catch (err: unknown) {
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while performing query."

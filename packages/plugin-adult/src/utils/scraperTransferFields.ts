@@ -1,6 +1,15 @@
 import Countries from '@/assets/Countries'
 import { areScraperValuesEqual } from './scraperValueCompare'
 import { normalizeScraperExtras } from './scraperFieldNormalize'
+import {
+  convertScraperValueToStorage,
+  isMeasurementScraperKey,
+  normalizeMeasurementUnit,
+} from '@shared/measurementUnits'
+import {
+  coerceScraperValueToMetaType,
+  isScraperMetaTypeCompatible,
+} from './scraperTypeCoerce'
 import type { Meta, Tag } from '@/types/stores'
 import type {
   ScraperPinnedItem,
@@ -151,10 +160,35 @@ export function buildScraperTransferFields({
   tags: Tag[]
 }): ScraperTransferField[] {
   const values = collectPerformerScraperValues(selected as Record<string, unknown>)
+  // Keep originals for unit-suffix detection (e.g. "75kg"); bra is often derived from cupsize later.
+  const rawValues = {...values}
+
   normalizeScraperExtras(values)
 
-  const data: ScraperTransferField[] = []
+  // Convert after normalize so bra from cupsize ("38DD" → bra=38) is included.
+  // Prefer the pre-normalize raw string when present so suffixes like "75kg" are detected.
+  // Hard kind check: on mismatch the scraped value is dropped (field skipped).
   const metas = pinned.filter((item) => item.scraper)
+  for (const metaItem of metas) {
+    const scraperKey = metaItem.scraper as string
+    if (!isMeasurementScraperKey(scraperKey) || !metaItem.meta) continue
+    const storageUnit = normalizeMeasurementUnit(metaItem.meta.measurementUnit)
+    if (!storageUnit) continue
+    if (values[scraperKey] == null || values[scraperKey] === '') continue
+
+    const rawHint = rawValues[scraperKey] ?? (
+      scraperKey === 'bra' ? rawValues.cupsize : undefined
+    )
+    const sourceValue = (rawHint != null && rawHint !== '') ? rawHint : values[scraperKey]
+    const converted = convertScraperValueToStorage(sourceValue, scraperKey, storageUnit)
+    if (converted == null) {
+      delete values[scraperKey]
+      continue
+    }
+    values[scraperKey] = converted
+  }
+
+  const data: ScraperTransferField[] = []
 
   const countryName = resolveCountryName(values)
   if (countryName) {
@@ -207,14 +241,22 @@ export function buildScraperTransferFields({
   metas.forEach((metaItem) => {
     if (!metaItem.meta) return
 
-    const valueScraper = values[metaItem.scraper as string]
+    const scraperKey = metaItem.scraper as string
+    const metaType = String(metaItem.meta.type || '')
+    if (!isScraperMetaTypeCompatible(scraperKey, metaType)) return
+
+    let valueScraper = values[scraperKey]
     if (valueScraper == null || valueScraper === '') return
+
+    const coerced = coerceScraperValueToMetaType(valueScraper, metaType)
+    if (coerced == null) return
+    valueScraper = coerced
 
     const pinnedKey = metaItem.pinnedMetaId
     let val = pinnedKey != null ? currentValues[pinnedKey] : null
     let isTagExists = false
 
-    if (metaItem.meta.type === 'array') {
+    if (metaType === 'array') {
       if (Array.isArray(val) && val.length) {
         val = val.map((id) => {
           const tag = tags.find((entry) => Number(entry.id) === Number(id))
@@ -234,16 +276,16 @@ export function buildScraperTransferFields({
       isAlreadyContain = val.includes(valueScraper)
     }
     if (!isAlreadyContain) {
-      isAlreadyContain = areScraperValuesEqual(val, valueScraper, metaItem.meta.type)
+      isAlreadyContain = areScraperValuesEqual(val, valueScraper, metaType)
     }
 
     data.push({
-      dataType: metaItem.meta.type,
+      dataType: metaType,
       valueCurrent: cloneTransferValue(val),
       valueReserved: cloneTransferValue(val),
       valueScraper,
       isTagExists,
-      key: metaItem.scraper as string,
+      key: scraperKey,
       meta: {...metaItem.meta},
       isTransfered: false,
       isAlreadyContain,

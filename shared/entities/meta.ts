@@ -14,6 +14,7 @@ export interface Meta {
   synonyms?: boolean
   imageAspectRatio?: number
   tagPageDesign?: string
+  measurementUnit?: string | null
   hidden?: boolean
   order?: number
   type?: string

@@ -71,6 +71,13 @@
       "when": 1782782400000,
       "tag": "0009_filter_rows_order",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1782786000000,
+      "tag": "0010_meta_measurement_unit",
+      "breakpoints": true
     }
   ]
 }
