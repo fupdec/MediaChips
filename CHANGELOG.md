@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-07-20
+
+### Added
+
+- **Image-only view mode** — for videos and tags
+- **Global search context menu** — open the item context menu from search results
+- **mpv / IINA launch** — play videos with MediaChips marks as chapters
+- **Measurement units** — per-meta units with scrape conversion and type checks
+- **Tag autocomplete** — load more options when scrolling the dropdown
+
+### Changed
+
+- **Fingerprints** — oshash-only hashing; drop full-file SHA-256 for faster add/dedup
+- **Pinned meta chips** — hide empty values on media cards
+
+### Fixed
+
+- **Tag cards** — rating and favorite update after edit
+
 ## [1.3.3] - 2026-07-18
 
 ### Changed
