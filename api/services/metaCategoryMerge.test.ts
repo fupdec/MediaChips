@@ -46,6 +46,7 @@ function createTestDb() {
       autoColorFromImage INTEGER DEFAULT 0,
       imageAspectRatio REAL DEFAULT 1,
       tagPageDesign TEXT DEFAULT 'profile',
+      measurementUnit TEXT,
       isLink INTEGER DEFAULT 0,
       ratingIcon TEXT DEFAULT 'star',
       ratingIconEmpty TEXT DEFAULT 'star-outline',
