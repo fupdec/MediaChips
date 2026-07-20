@@ -64,6 +64,11 @@ const initViewOptions = () => {
       icon: "view-sequential",
       textKey: "items.view.timeline",
     })
+    viewOptions.value.push({
+      val: 4,
+      icon: 'image-outline',
+      textKey: 'items.view.image',
+    })
   } else if (itemsStore.type === 'media' && isImageMediaType(currentMediaType.value)) {
     viewOptions.value.push({
       val: 3,
@@ -75,6 +80,11 @@ const initViewOptions = () => {
       val: 2,
       icon: "format-line-style",
       textKey: "items.view.chip",
+    })
+    viewOptions.value.push({
+      val: 4,
+      icon: 'image-outline',
+      textKey: 'items.view.image',
     })
   }
 

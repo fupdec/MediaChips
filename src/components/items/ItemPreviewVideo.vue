@@ -49,15 +49,15 @@
         <v-icon color="white" size="48">mdi-play</v-icon>
       </div>
 
-      <div v-if="!isCompactHost" class="duration">{{ duration }}</div>
+      <div v-if="!isCompactHost && !isImageOnlyView" class="duration">{{ duration }}</div>
 
       <div
-        v-if="!isCompactHost && isShowProgress && !playbackError && !showPlaybackTimeline"
+        v-if="!isCompactHost && !isImageOnlyView && isShowProgress && !playbackError && !showPlaybackTimeline"
         :style="{ right: progressPosition }"
         class="progress"
       />
 
-      <div v-if="!isCompactHost" class="resolution">
+      <div v-if="!isCompactHost && !isImageOnlyView" class="resolution">
         <div :class="quality.toLowerCase()"
           class="text">
           {{ quality }}
@@ -284,6 +284,7 @@ import {
   stopLiveTranscode,
 } from '@/services/transcodeService'
 import {isAppWindowFocused} from '@/utils/windowFocus'
+import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import type {MediaItem} from '@/types/stores'
@@ -582,8 +583,10 @@ const isShowProgress = computed(() =>
   !playbackError.value,
 )
 
+const isImageOnlyView = computed(() => isImageOnlyItemsView(ITEMS.value.view))
+
 const isViewCard = computed(() =>
-  isEmbeddedHost.value || isCompactHost.value || Number(ITEMS.value.view) === 1,
+  isEmbeddedHost.value || isCompactHost.value || Number(ITEMS.value.view) === 1 || isImageOnlyView.value,
 )
 
 const isViewTimeline = computed(() =>

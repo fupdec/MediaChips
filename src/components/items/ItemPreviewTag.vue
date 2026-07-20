@@ -1,6 +1,6 @@
 <template>
-  <!-- GRID VIEW -->
-  <div v-if="Number(ITEMS.view) === 1">
+  <!-- GRID / IMAGE-ONLY VIEW -->
+  <div v-if="Number(ITEMS.view) === 1 || Number(ITEMS.view) === 4">
       <v-img
         :src="mainImageSrc"
         :aspect-ratio="meta?.imageAspectRatio"
@@ -11,47 +11,49 @@
         @error="onImageError('main')"
       />
 
-      <v-img
-        v-if="images.alt"
-        :src="images.alt"
-        :aspect-ratio="meta?.imageAspectRatio"
-        class="secondary-img"
-        cover
-        @click="openTagPage"
-        @error="onImageError('alt')"
-      />
+      <template v-if="Number(ITEMS.view) === 1">
+        <v-img
+          v-if="images.alt"
+          :src="images.alt"
+          :aspect-ratio="meta?.imageAspectRatio"
+          class="secondary-img"
+          cover
+          @click="openTagPage"
+          @error="onImageError('alt')"
+        />
 
-      <div v-if="images.custom1" class="custom1-img-button">1</div>
-      <v-img
-        v-if="images.custom1"
-        :src="images.custom1"
-        class="custom1-img"
-        cover
-        @error="onImageError('custom1')"
-      />
+        <div v-if="images.custom1" class="custom1-img-button">1</div>
+        <v-img
+          v-if="images.custom1"
+          :src="images.custom1"
+          class="custom1-img"
+          cover
+          @error="onImageError('custom1')"
+        />
 
-      <div v-if="images.custom2" class="custom2-img-button">2</div>
-      <v-img
-        v-if="images.custom2"
-        :src="images.custom2"
-        class="custom2-img"
-        cover
-        @error="onImageError('custom2')"
-      />
+        <div v-if="images.custom2" class="custom2-img-button">2</div>
+        <v-img
+          v-if="images.custom2"
+          :src="images.custom2"
+          class="custom2-img"
+          cover
+          @error="onImageError('custom2')"
+        />
 
-      <div v-if="meta?.country" class="country">
-        <div
-          v-for="i in countries"
-          :key="i"
-          class="flag-icon mb-1"
-        >
-          <country-flag
-            :country="getFlag(i)"
-            size="normal"
-            :title="i"
-          />
+        <div v-if="meta?.country" class="country">
+          <div
+            v-for="i in countries"
+            :key="i"
+            class="flag-icon mb-1"
+          >
+            <country-flag
+              :country="getFlag(i)"
+              size="normal"
+              :title="i"
+            />
+          </div>
         </div>
-      </div>
+      </template>
   </div>
 
   <!-- CHIP VIEW -->
@@ -156,6 +158,9 @@ const hasMultipleTagImages = computed(() => Boolean(
 function getImageTypes(): TagImageType[] {
   if (Number(ITEMS.value.view) === 2) {
     return ['avatar', 'main']
+  }
+  if (Number(ITEMS.value.view) === 4) {
+    return ['main']
   }
   return ['main', 'alt', 'custom1', 'custom2']
 }

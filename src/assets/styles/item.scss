@@ -142,7 +142,8 @@
       transform: none !important;
     }
   }
-  &.item-tag.item-view-1 {
+  &.item-tag.item-view-1,
+  &.item-tag.item-view-4 {
     .main-img:not(.static) {
       &:hover {
         .v-image__image,
@@ -1389,6 +1390,21 @@ body > .video-preview-container.video-preview-container--expanded {
 .item-media.item-view-1 {
   .image-preview-container {
     flex: 1 0 auto;
+  }
+}
+
+.item-media.item-view-4,
+.item-tag.item-view-4 {
+  .item_wrapper {
+    overflow: hidden;
+  }
+
+  .description {
+    display: none;
+  }
+
+  .item_preview {
+    border-radius: inherit;
   }
 }
 

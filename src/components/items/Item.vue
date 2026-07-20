@@ -16,7 +16,7 @@
     class="item"
   >
     <v-card
-      v-if="itemsStore.view == 1 || (itemsStore.view == 2 && type === 'media' && isVideoMedia) || (itemsStore.view == 3 && type === 'media' && isImageMedia)"
+      v-if="showCardView"
       class="item_wrapper"
       :color="card_color"
       variant="flat"
@@ -54,12 +54,12 @@
         />
 
         <ItemRating
-          v-if="settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
+          v-if="!isImageOnlyView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
           :item="item"
           :type="type"
         ></ItemRating>
         <ItemFavorite
-          v-if="settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
+          v-if="!isImageOnlyView && settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
           :item="item"
           :type="type"
         ></ItemFavorite>
@@ -110,13 +110,13 @@
       </div>
 
       <v-progress-linear
-        v-if="type === 'media' && (isVideoMedia || isAudioMedia) && item.duration"
+        v-if="!isImageOnlyView && type === 'media' && (isVideoMedia || isAudioMedia) && item.duration"
         :model-value="(Number(item.time || 0) / Number(item.duration)) * 100"
         color="primary"
       />
 
       <div
-        v-if="!(type === 'media' && isImageMedia && itemsStore.view == 3)"
+        v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && itemsStore.view == 3)"
         @click="editItem"
         v-ripple="{ class: `text-primary` }"
         class="description"
@@ -157,7 +157,7 @@
       </div>
 
       <v-icon
-        v-if="item.bookmark"
+        v-if="!isImageOnlyView && item.bookmark"
         :title="item.bookmark"
         icon="mdi-bookmark"
         class="bookmark"
@@ -234,6 +234,7 @@ import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} f
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {hexToRgba} from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
+import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {toChipVariant} from '@/utils/chipVariant'
@@ -283,11 +284,21 @@ const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefine
 const isAudioMedia = computed(() => isAudioMediaType(props.mediaType ?? undefined))
 const isTextMedia = computed(() => isTextMediaType(props.mediaType ?? undefined))
 
+const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
+
 const isMasonryImage = computed(() =>
   props.type === 'media'
   && isImageMedia.value
   && Number(itemsStore.view) === 3
 )
+
+const showCardView = computed(() => {
+  const view = Number(itemsStore.view)
+  if (view === 1 || isImageOnlyView.value) return true
+  if (view === 2 && props.type === 'media' && isVideoMedia.value) return true
+  if (view === 3 && props.type === 'media' && isImageMedia.value) return true
+  return false
+})
 
 const tagItem = computed((): Tag | null => (
   isTagPageItem(props.item, props.type) ? props.item : null

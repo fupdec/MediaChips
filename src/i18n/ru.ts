@@ -526,6 +526,7 @@ const ru = {
       timeline: 'Таймлайн',
       chip: 'Чип',
       masonry: 'Мозаика',
+      image: 'Изображение',
     },
   },
   onboarding: {

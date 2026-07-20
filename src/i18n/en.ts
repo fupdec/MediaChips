@@ -526,6 +526,7 @@ const en = {
       timeline: 'Timeline',
       chip: 'Chip',
       masonry: 'Masonry',
+      image: 'Image',
     },
   },
   onboarding: {

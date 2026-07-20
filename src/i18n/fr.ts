@@ -526,6 +526,7 @@ const fr = {
       timeline: 'Chronologie',
       chip: 'Puce',
       masonry: 'Maçonnerie',
+      image: 'Image',
     },
   },
   onboarding: {

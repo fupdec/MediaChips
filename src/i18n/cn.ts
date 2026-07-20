@@ -527,6 +527,7 @@ const cn = {
       timeline: '时间轴',
       chip: '标签块',
       masonry: '瀑布流',
+      image: '图片',
     },
   },
   onboarding: {

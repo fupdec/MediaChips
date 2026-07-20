@@ -551,6 +551,7 @@ const ja = {
       timeline: "タイムライン",
       chip: "チップ",
       masonry: "石積み",
+      image: "画像",
     },
   },
   onboarding: {

@@ -10,7 +10,8 @@ export function normalizeItemsView(
 
   if (itemsType === 'media') {
     if (isVideoMediaType(mediaType)) {
-      return value === 2 ? 2 : 1
+      if (value === 2 || value === 4) return value
+      return 1
     }
 
     if (isImageMediaType(mediaType)) {
@@ -21,8 +22,14 @@ export function normalizeItemsView(
   }
 
   if (itemsType === 'tag') {
-    return value === 2 ? 2 : 1
+    if (value === 2 || value === 4) return value
+    return 1
   }
 
   return 1
+}
+
+/** Image-only grid: thumbnail without card chrome (video + tags). */
+export function isImageOnlyItemsView(view: number | string | null | undefined): boolean {
+  return Number(view) === 4
 }

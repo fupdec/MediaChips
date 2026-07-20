@@ -567,7 +567,7 @@ onBeforeUnmount(() => {
 const itemsGridClasses = computed(() => [
   `item__size-${ITEMS.value.size}`,
   `gap-size-${SETTINGS.value.gapSize}`,
-  {'card-grid': ITEMS.value.view == 1},
+  {'card-grid': ITEMS.value.view == 1 || ITEMS.value.view == 4},
   {'chips-grid': isChipsGrid.value},
   {'line-grid': isLineGrid.value},
   {'wide-image': isWideImage.value},

@@ -527,6 +527,7 @@ const es = {
       timeline: 'Línea de tiempo',
       chip: 'Chip',
       masonry: 'Mosaico',
+      image: 'Imagen',
     },
   },
   onboarding: {

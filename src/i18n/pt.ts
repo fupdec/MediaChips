@@ -526,6 +526,7 @@ const pt = {
       timeline: 'Linha do tempo',
       chip: 'Chip',
       masonry: 'Alvenaria',
+      image: 'Imagem',
     },
   },
   onboarding: {

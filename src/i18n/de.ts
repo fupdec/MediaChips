@@ -526,6 +526,7 @@ const de = {
       timeline: "Zeitleiste",
       chip: "Chip",
       masonry: "Mauerwerk",
+      image: "Bild",
     },
   },
   onboarding: {
