@@ -1,8 +1,6 @@
 <template>
   <v-dialog
-    v-if="dialogsStore.tagEditing.show"
-    :model-value="dialogsStore.tagEditing.show"
-    @click:outside="dialogsStore.tagEditing.show = false"
+    v-model="dialogsStore.tagEditing.show"
     :fullscreen="xs"
     :width="xl ? 1400 : 1000"
     scrollable

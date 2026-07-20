@@ -788,10 +788,21 @@ const getCompletionStatus = async () => {
 // }
 
 const editMetaTag = async () => {
-  await getTag()
+  // Open with current in-memory tag/meta first so the opening click cannot race
+  // a late @click:outside / overlay dismiss after await.
   dialogsStore.tagEditing.meta = meta.value
   dialogsStore.tagEditing.tag = tag.value
   dialogsStore.tagEditing.show = true
+
+  try {
+    await getTag()
+    if (dialogsStore.tagEditing.show) {
+      dialogsStore.tagEditing.meta = meta.value
+      dialogsStore.tagEditing.tag = tag.value
+    }
+  } catch (error) {
+    console.error('Failed to refresh tag before editing:', error)
+  }
 }
 
 const changeTab = async (tab_value: string | null) => {

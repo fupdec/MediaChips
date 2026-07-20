@@ -216,9 +216,13 @@ const DialogOrganizeMediaByTag = defineAsyncComponent(() =>
 const DialogMediaEditing = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaEditing.vue')
 )
-const DialogTagEditing = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogTagEditing.vue')
-)
+const DialogTagEditing = defineAsyncComponent({
+  loader: () => import('@/components/dialogs/DialogTagEditing.vue'),
+  onError(error, _retry, fail) {
+    console.error('Failed to load DialogTagEditing', error)
+    fail()
+  },
+})
 const DialogTagMerge = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogTagMerge.vue')
 )
