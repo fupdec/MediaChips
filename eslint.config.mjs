@@ -85,4 +85,12 @@ export default tseslint.config(
       },
     },
   },
+  {
+    files: ['integrations/iina/**/*.js'],
+    languageOptions: {
+      globals: {
+        iina: 'readonly',
+      },
+    },
+  },
 )
