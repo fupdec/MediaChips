@@ -602,6 +602,10 @@
     margin-right: 0.2em;
     font-size: 1.2em;
   }
+  .nested-tags__toggle {
+    cursor: pointer;
+    margin: 0.15em 0.1em !important;
+  }
 }
 
 .item .nested-tags {

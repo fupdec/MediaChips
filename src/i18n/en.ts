@@ -521,6 +521,8 @@ const en = {
     group_by_page_hint: 'Groups are built from the current page only.',
     group_by_pinned_meta_click_hint: 'Use the Filter control on a group to show all matching items.',
     group_by_filter_action: 'Filter',
+    chips_show_more: '+{count}',
+    chips_show_less: 'Show less',
     view: {
       card: 'Card',
       timeline: 'Timeline',

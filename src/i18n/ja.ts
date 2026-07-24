@@ -546,6 +546,8 @@ const ja = {
     group_by_page_hint: 'グループは現在のページのみから作成されます。',
     group_by_pinned_meta_click_hint: 'グループの「フィルター」で一致するすべての項目を表示します。',
     group_by_filter_action: 'フィルター',
+    chips_show_more: '+{count}',
+    chips_show_less: '少なく表示',
     view: {
       card: "カード",
       timeline: "タイムライン",

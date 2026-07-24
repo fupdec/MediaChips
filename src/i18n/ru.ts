@@ -521,6 +521,8 @@ const ru = {
     group_by_page_hint: 'Группы построены только по текущей странице.',
     group_by_pinned_meta_click_hint: 'Кнопка «Фильтровать» у группы показывает все подходящие айтемы.',
     group_by_filter_action: 'Фильтровать',
+    chips_show_more: '+{count}',
+    chips_show_less: 'Свернуть',
     view: {
       card: 'Карточка',
       timeline: 'Таймлайн',

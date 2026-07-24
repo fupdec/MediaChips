@@ -89,7 +89,7 @@
     <div v-else-if="isGrouped">
       <!-- PRESET META GROUPED -->
       <div
-        v-for="meta in preset_meta"
+        v-for="meta in visiblePresetMeta"
         :key="meta.name"
         class="category"
       >
@@ -107,7 +107,7 @@
 
       <!-- PINNED FIELDS GROUPED -->
       <div
-        v-for="category in pinnedCategoriesComputed"
+        v-for="category in visibleCategories"
         :key="`${category.kind}_${category.metaId}_${item.id}`"
         class="category"
       >
@@ -137,13 +137,27 @@
           ></v-chip>
         </template>
       </div>
+
+      <div
+        v-if="needsCollapse"
+        class="category"
+      >
+        <v-chip
+          class="nested-tags__toggle"
+          variant="tonal"
+          color="primary"
+          :prepend-icon="chipsExpanded ? 'mdi-chevron-up' : 'mdi-dots-horizontal'"
+          :text="collapseToggleLabel"
+          @click.stop.prevent="toggleChipsExpanded"
+        />
+      </div>
     </div>
 
     <!-- FLAT -->
     <div v-else>
       <!-- PRESET META FLAT -->
       <v-chip
-        v-for="meta in preset_meta"
+        v-for="meta in visiblePresetMeta"
         :key="meta.name"
         :title="meta.text"
         :label="settingsStore.show_default_meta_label == '1'"
@@ -153,7 +167,7 @@
       ></v-chip>
 
       <!-- PINNED FIELDS FLAT -->
-      <template v-for="entry in pinnedFlatComputed" :key="`${entry.kind}_${entry.metaId}_${entry.data.id || entry.data.name}_${item.id}`">
+      <template v-for="entry in visibleFlatEntries" :key="`${entry.kind}_${entry.metaId}_${entry.data.id || entry.data.name}_${item.id}`">
         <v-chip
           v-if="entry.kind === 'tag'"
           v-bind="getTagChipBind(entry.data)"
@@ -171,12 +185,22 @@
           :text="formatMetaValue(entry.data)"
         ></v-chip>
       </template>
+
+      <v-chip
+        v-if="needsCollapse"
+        class="nested-tags__toggle"
+        variant="tonal"
+        color="primary"
+        :prepend-icon="chipsExpanded ? 'mdi-chevron-up' : 'mdi-dots-horizontal'"
+        :text="collapseToggleLabel"
+        @click.stop.prevent="toggleChipsExpanded"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref, watch} from 'vue'
 import groupBy from 'lodash/groupBy'
 import {typedApi} from '@/services/typedApi'
 
@@ -213,6 +237,9 @@ import {
 import type {ItemsPageType, ItemContextMenuEntry, PresetMetaProps} from '@/types/itemsPage'
 import type { RemoveTagFromItemPayload } from '@shared/api/responses'
 import type {AssignedMeta, MediaItem, Meta, Tag, ItemTagRef, ItemValueRef} from '@/types/stores'
+
+/** Max chips shown on cards before a "+N" toggle appears. */
+const CHIP_COLLAPSE_LIMIT = 12
 
 type PinnedMetaAssignment = AssignedMeta
 
@@ -423,6 +450,78 @@ const pinnedFlatComputed = computed((): PinnedFlatEntry[] => {
     {usePinnedMetaId: usePinnedMetaIdKey.value},
   )
 })
+
+const chipsExpanded = ref(false)
+
+watch(() => props.item.id, () => {
+  chipsExpanded.value = false
+})
+
+const collapseEnabled = computed(() => !props.tagPage)
+
+const totalChipCount = computed((): number => {
+  if (isGrouped.value) {
+    return preset_meta.value.length
+      + pinnedCategoriesComputed.value.reduce((sum, category) => sum + category.items.length, 0)
+  }
+  return preset_meta.value.length + pinnedFlatComputed.value.length
+})
+
+const needsCollapse = computed(() =>
+  collapseEnabled.value && totalChipCount.value > CHIP_COLLAPSE_LIMIT,
+)
+
+const hiddenChipCount = computed(() =>
+  Math.max(0, totalChipCount.value - CHIP_COLLAPSE_LIMIT),
+)
+
+const isChipsCollapsed = computed(() => needsCollapse.value && !chipsExpanded.value)
+
+const visiblePresetMeta = computed(() => {
+  if (!isChipsCollapsed.value) return preset_meta.value
+  return preset_meta.value.slice(0, CHIP_COLLAPSE_LIMIT)
+})
+
+const visibleFlatEntries = computed((): PinnedFlatEntry[] => {
+  if (!isChipsCollapsed.value) return pinnedFlatComputed.value
+  const remaining = Math.max(0, CHIP_COLLAPSE_LIMIT - preset_meta.value.length)
+  return pinnedFlatComputed.value.slice(0, remaining)
+})
+
+const visibleCategories = computed((): PinnedCategory[] => {
+  if (!isChipsCollapsed.value) return pinnedCategoriesComputed.value
+
+  let remaining = Math.max(0, CHIP_COLLAPSE_LIMIT - preset_meta.value.length)
+  const result: PinnedCategory[] = []
+
+  for (const category of pinnedCategoriesComputed.value) {
+    if (remaining <= 0) break
+
+    if (category.kind === 'tags') {
+      const items = category.items.slice(0, remaining)
+      remaining -= items.length
+      result.push({...category, items})
+    } else {
+      const items = category.items.slice(0, remaining)
+      remaining -= items.length
+      result.push({...category, items})
+    }
+  }
+
+  return result
+})
+
+const collapseToggleLabel = computed((): string => {
+  const locale = toLocale(settingsStore.locale)
+  if (chipsExpanded.value) {
+    return translate('items.chips_show_less', {}, locale)
+  }
+  return translate('items.chips_show_more', {count: hiddenChipCount.value}, locale)
+})
+
+const toggleChipsExpanded = (): void => {
+  chipsExpanded.value = !chipsExpanded.value
+}
 
 const checkShow = (metaId: number): boolean => {
   if (props.tagPage) {

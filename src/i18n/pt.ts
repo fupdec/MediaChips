@@ -521,6 +521,8 @@ const pt = {
     group_by_page_hint: 'Os grupos são montados apenas com a página atual.',
     group_by_pinned_meta_click_hint: 'Use Filtrar em um grupo para ver todos os itens correspondentes.',
     group_by_filter_action: 'Filtrar',
+    chips_show_more: '+{count}',
+    chips_show_less: 'Mostrar menos',
     view: {
       card: 'Cartão',
       timeline: 'Linha do tempo',

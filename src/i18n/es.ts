@@ -522,6 +522,8 @@ const es = {
     group_by_page_hint: 'Los grupos se construyen solo con la página actual.',
     group_by_pinned_meta_click_hint: 'Usa Filtrar en un grupo para ver todos los elementos coincidentes.',
     group_by_filter_action: 'Filtrar',
+    chips_show_more: '+{count}',
+    chips_show_less: 'Mostrar menos',
     view: {
       card: 'Tarjeta',
       timeline: 'Línea de tiempo',

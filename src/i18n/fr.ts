@@ -521,6 +521,8 @@ const fr = {
     group_by_page_hint: 'Les groupes sont construits uniquement à partir de la page actuelle.',
     group_by_pinned_meta_click_hint: 'Utilisez Filtrer sur un groupe pour afficher tous les éléments correspondants.',
     group_by_filter_action: 'Filtrer',
+    chips_show_more: '+{count}',
+    chips_show_less: 'Afficher moins',
     view: {
       card: 'Carte',
       timeline: 'Chronologie',

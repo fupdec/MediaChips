@@ -522,6 +522,8 @@ const cn = {
     group_by_page_hint: '分组仅基于当前页。',
     group_by_pinned_meta_click_hint: '点击分组右侧的「筛选」可查看全部匹配项。',
     group_by_filter_action: '筛选',
+    chips_show_more: '+{count}',
+    chips_show_less: '收起',
     view: {
       card: '卡片',
       timeline: '时间轴',
