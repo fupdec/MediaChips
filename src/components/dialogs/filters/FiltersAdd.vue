@@ -19,7 +19,7 @@
   >
     <!-- APPEND -->
     <template v-if="selectedFilter" #append>
-      <v-btn @click="add" color="primary" rounded="xl" variant="flat">
+      <v-btn @click="add" color="success" rounded="xl" variant="flat">
         <v-icon start>mdi-plus</v-icon>
         {{ t('common.add') }}
       </v-btn>

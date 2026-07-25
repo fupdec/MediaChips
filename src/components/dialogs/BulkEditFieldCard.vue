@@ -5,7 +5,10 @@
     color="rgba(150, 150, 150, 0.09)"
     variant="flat"
   >
-    <div class="bulk-field-card__header">
+    <div
+      class="bulk-field-card__header"
+      :class="{'bulk-field-card__header--solo': !showValueInput}"
+    >
       <v-btn
         @click="$emit('toggle-mode')"
         :key="`${field.key}_${refreshKey}`"
@@ -43,8 +46,8 @@
     </div>
 
     <div
+      v-if="showValueInput"
       class="bulk-field-card__body"
-      :class="{'bulk-field-card__body--disabled': disabled}"
     >
       <MetaInputArray
         v-if="field.type === 'array'"
@@ -224,6 +227,8 @@ const fieldCardClass = computed(() => ({
   'bulk-field-card--add': props.editType === 3,
 }))
 
+const showValueInput = computed(() => props.editType === 2 || props.editType === 3)
+
 const fieldMeta = computed(() => props.field.meta || {})
 </script>
 
@@ -256,13 +261,12 @@ const fieldMeta = computed(() => props.field.meta || {})
   margin-bottom: 12px;
 }
 
-.bulk-field-card__title {
-  min-width: 0;
+.bulk-field-card__header--solo {
+  margin-bottom: 0;
 }
 
-.bulk-field-card__body--disabled {
-  opacity: 0.55;
-  pointer-events: none;
+.bulk-field-card__title {
+  min-width: 0;
 }
 
 .bulk-field-card__body :deep(.v-field) {

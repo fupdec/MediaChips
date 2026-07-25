@@ -75,13 +75,31 @@
 
               <SettingsMetaAssignment/>
 
-              <SettingsSection>
-                <SettingsQuickTags/>
-              </SettingsSection>
+              <v-switch
+                v-model="libraryAdvanced"
+                color="primary"
+                class="mt-0 mb-2 settings-library-advanced-switch"
+                inset
+                hide-details
+              >
+                <template #label>
+                  <div class="d-flex flex-column ml-4">
+                    <div class="text-body-1 text-high-emphasis">
+                      {{ t('settings.groups.advanced') }}
+                    </div>
+                  </div>
+                </template>
+              </v-switch>
 
-              <SettingsSection>
-                <SettingsParseLibraryTags/>
-              </SettingsSection>
+              <template v-if="libraryAdvanced">
+                <SettingsSection>
+                  <SettingsQuickTags/>
+                </SettingsSection>
+
+                <SettingsSection>
+                  <SettingsParseLibraryTags/>
+                </SettingsSection>
+              </template>
             </SettingsList>
           </div>
 
@@ -350,6 +368,7 @@ const pluginComponentCache = new Map<string, Component>()
 const tab = ref("general")
 const contentRef = ref<HTMLElement | null>(null)
 const applyingRoute = ref(false)
+const libraryAdvanced = ref(false)
 const route = useRoute()
 const router = useRouter()
 const {t} = useI18n()
@@ -528,6 +547,10 @@ watch(() => route.fullPath, applyRouteSettings)
 </script>
 
 <style scoped>
+.settings-library-advanced-switch :deep(.v-label) {
+  opacity: 1;
+}
+
 .settings-page {
   display: flex;
   flex-direction: column;

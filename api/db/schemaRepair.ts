@@ -223,6 +223,11 @@ const JOIN_UNIQUE_INDEXES: JoinUniqueIndexSpec[] = [
     table: 'valuesInMedia',
     columns: ['mediaId', 'metaId'],
   },
+  {
+    indexName: 'meta_in_media_types_unique_idx',
+    table: 'metaInMediaTypes',
+    columns: ['metaId', 'mediaTypeId'],
+  },
 ]
 
 function dedupeJoinTableRows(sqlite: Database.Database, table: string, columns: string[]): number {

@@ -37,12 +37,23 @@ export function createMetaInMediaTypesRepository(db: DrizzleClient) {
       const metaRows = db.select().from(meta).all()
       const metaById = new Map(metaRows.map((row) => [row.id, row]))
 
-      return rows
-        .map((row) => ({
-          ...row,
-          meta: metaById.get(row.metaId) ?? null,
-        }))
-        .filter((row) => row.meta != null)
+      // Legacy DBs may contain duplicate (metaId, mediaTypeId) rows.
+      const deduped = new Map<number, MetaInMediaTypeRow & { meta: typeof metaRows[number] }>()
+      for (const row of rows) {
+        const metaRow = metaById.get(row.metaId)
+        if (!metaRow) continue
+        const existing = deduped.get(row.metaId)
+        if (!existing) {
+          deduped.set(row.metaId, {...row, meta: metaRow})
+          continue
+        }
+        // Prefer the assignment that keeps a scraper mapping.
+        if (!existing.scraper && row.scraper) {
+          deduped.set(row.metaId, {...row, meta: metaRow, order: existing.order})
+        }
+      }
+
+      return Array.from(deduped.values())
     },
 
     findByMetaId(metaId: number) {

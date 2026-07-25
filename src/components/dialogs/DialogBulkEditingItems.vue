@@ -52,7 +52,7 @@
         </div>
 
         <v-sheet
-          v-if="hasEditableFields"
+          v-if="hasEditableFields && showModeLegend"
           class="mode-legend rounded-xl pa-3 mb-4"
           color="rgba(150, 150, 150, 0.09)"
         >
@@ -73,6 +73,21 @@
           </div>
         </v-sheet>
 
+        <div
+          v-else-if="hasEditableFields"
+          class="mb-4"
+        >
+          <v-btn
+            size="small"
+            variant="text"
+            color="primary"
+            @click="showModeLegend = true"
+          >
+            <v-icon start size="small">mdi-help-circle-outline</v-icon>
+            {{ t('bulk_editing.show_modes') }}
+          </v-btn>
+        </div>
+
         <v-alert
           v-else
           type="warning"
@@ -81,15 +96,25 @@
           density="compact"
           rounded="xl"
         >
-          <v-row align="center">
-            <v-col class="grow">
-              {{ t('bulk_editing.no_meta_assigned', { type: itemsStore.type }) }} <br>
-              {{ t('bulk_editing.assign_in_settings') }}
-            </v-col>
-            <v-col class="shrink d-flex justify-end">
-              <button-documentation id="meta.assign"/>
-            </v-col>
-          </v-row>
+          <div class="mb-2">
+            {{ t('bulk_editing.no_meta_assigned', { type: itemsStore.type }) }}
+            <br>
+            {{ t('bulk_editing.assign_in_settings') }}
+          </div>
+          <div class="d-flex flex-wrap align-center ga-2">
+            <v-btn
+              color="primary"
+              size="small"
+              variant="flat"
+              rounded="xl"
+              :to="{ path: '/settings', query: { tab: 'library', view: 'media' } }"
+              @click="dialogsStore.bulkEditingItems = false"
+            >
+              <v-icon start size="small">mdi-pin</v-icon>
+              {{ t('bulk_editing.open_field_pinning') }}
+            </v-btn>
+            <button-documentation id="meta.assign"/>
+          </div>
         </v-alert>
 
         <template v-if="presetFields.length">
@@ -231,6 +256,7 @@ const values = ref<Record<FieldKey, FieldValue>>({})
 const edits = ref<Record<FieldKey, number>>({})
 const key = ref(Date.now())
 const saving = ref(false)
+const showModeLegend = ref(false)
 const datePicker = ref<{
   dialog: boolean
   metaId: FieldKey | null
@@ -242,9 +268,15 @@ const datePicker = ref<{
 })
 
 const pinned = computed((): Meta[] => {
+  const seen = new Set<number>()
   return sortPinnedAssignmentItems(itemsStore.safeAssigned)
     .map((item) => item.meta)
-    .filter((meta): meta is Meta => Boolean(meta))
+    .filter((meta): meta is Meta => {
+      if (!meta?.id) return false
+      if (seen.has(meta.id)) return false
+      seen.add(meta.id)
+      return true
+    })
 })
 
 const presetFields = computed((): BulkEditField[] => {

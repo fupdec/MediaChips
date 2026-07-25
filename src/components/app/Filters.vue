@@ -621,6 +621,17 @@ watch(currentMediaType, () => {
   .filter-block {
     pointer-events: all;
     background-color: rgb(var(--v-theme-background)) !important;
+    padding: 8px 8px 16px;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    overflow: hidden;
+    max-height: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 200ms ease;
+    box-shadow: 0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)),
+      -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)),
+      5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12));
 
     // tonal underlay would paint a primary tint over the solid background
     > .v-card__underlay {
@@ -628,23 +639,16 @@ watch(currentMediaType, () => {
     }
   }
 
-  // Shadow only while open — otherwise it peeks beside the sidebar when closed.
   &.v-navigation-drawer--active .filter-block {
-    box-shadow: 0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)),
-      -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)),
-      5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
+    opacity: 1;
   }
 
+  // Clip leftovers when fully closed, but keep content visible during fade/slide.
   &:not(.v-navigation-drawer--active) {
     overflow: hidden !important;
 
     .v-navigation-drawer__content {
       overflow: hidden !important;
-    }
-
-    .filter-block {
-      box-shadow: none !important;
-      visibility: hidden;
     }
   }
 
@@ -660,15 +664,6 @@ watch(currentMediaType, () => {
   // Docked: no gutter strip beside the card
   &:not(.temporary) {
     padding: 16px 0 16px 16px;
-  }
-
-  .filter-block {
-    padding: 8px 8px 16px;
-    display: grid;
-    grid-template-rows: auto auto 1fr;
-    overflow: hidden;
-    max-height: 100%;
-    height: 100%;
   }
 }
 

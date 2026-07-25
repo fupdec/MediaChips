@@ -679,6 +679,8 @@ const en = {
     mode_add: 'will be added to the existing one (for tags only)',
     no_meta_assigned: 'No metadata fields are pinned to this {type}.',
     assign_in_settings: 'You can pin them in the settings.',
+    open_field_pinning: 'Pin metadata fields',
+    show_modes: 'Edit modes',
     selected_count: '{count} items selected for bulk editing',
     saving: 'Applying changes, please wait...',
     replace: 'Replace',
