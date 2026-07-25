@@ -11,6 +11,7 @@ import {
   extractColorFromLocalFile,
   isDefaultTagColor,
 } from '@/utils/colorFromImage'
+import {TAG_IMAGE_SAVE_WIDTH} from '@shared/tagImages'
 import type {AssignedMeta} from '@shared/entities/meta'
 import type {Meta, Tag} from '@/types/stores'
 import {ensureTmdbPersonMeta} from './ensureTmdbPersonMeta'
@@ -164,7 +165,7 @@ export async function applyTmdbPersonExtrasToTag({
     if (selected.has('image') && extras.image) {
       const imagePath = path.join(dbPath, 'meta', String(meta.id), `${tagId}_main.jpg`)
       const aspectRatio = Number(meta.imageAspectRatio) || 1
-      const sizes = {width: 300, height: 300 / aspectRatio}
+      const sizes = {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / aspectRatio}
       const downloadUrl = toTmdbProfileDownloadUrl(extras.image)
       const result = await createImage(downloadUrl, imagePath, sizes)
       imageFailed = result.status !== 201

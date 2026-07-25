@@ -3,6 +3,7 @@ import {createImage} from '@/services/fileService'
 import {typedApi} from '@/services/typedApi'
 import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
 import {findOrCreateTagByName} from '@/utils/tagLookup'
+import {VIDEO_THUMB_HEIGHT} from '@shared/videoPreview'
 import type {AssignedMeta} from '@shared/entities/meta'
 import type {MediaItem, Tag} from '@/types/stores'
 import {ensureTmdbScraperMeta} from './ensureTmdbScraperMeta'
@@ -182,10 +183,12 @@ export async function applyTmdbExtrasToMedia({
     let posterFailed = false
     if (selected.has('poster') && data.image) {
       const outputPath = path.join(mediaPath, 'videos', 'thumbs', `${mediaId}.jpg`)
-      const result = await createImage(data.image, outputPath, [
-        {width: 300, height: 450},
-        {width: 600, height: 900},
-      ])
+      // Movie posters are typically 2:3; match video thumb height.
+      const sizes = {
+        width: Math.round(VIDEO_THUMB_HEIGHT * (2 / 3)),
+        height: VIDEO_THUMB_HEIGHT,
+      }
+      const result = await createImage(data.image, outputPath, sizes)
       posterFailed = result.status !== 201
     }
 

@@ -15,6 +15,7 @@ import {
   isDefaultTagColor,
 } from '@/utils/colorFromImage'
 import { parseMetaBooleanValue, serializeMetaBooleanValue } from '@shared/schemas/coercion'
+import { TAG_IMAGE_SAVE_WIDTH } from '@shared/tagImages'
 import {
   isMeasurementScraperKey,
   normalizeMeasurementUnit,
@@ -101,7 +102,7 @@ async function downloadMainImage({
     `${tag.id}_main.jpg`,
   )
   const aspectRatio = Number(meta.imageAspectRatio) || 1
-  const sizes = {width: 300, height: 300 / aspectRatio}
+  const sizes = {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / aspectRatio}
 
   for (const poster of posters) {
     const response = await createImage(poster.url, imagePath, sizes)

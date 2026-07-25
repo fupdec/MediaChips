@@ -221,7 +221,7 @@ export const CreateImageRequestSchema = z.object({
   image: z.string().min(1),
   outputPath: z.string().min(1),
   url: z.string().nullable().optional(),
-  sizes: z.unknown(),
+  sizes: z.unknown().optional(),
 }).passthrough()
 
 export const CreateMarkThumbRequestSchema = z.object({

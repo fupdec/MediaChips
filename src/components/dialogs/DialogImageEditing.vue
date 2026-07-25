@@ -317,7 +317,6 @@ const crop = async () => {
       height: props.minHeight
     }
 
-    // Create image from buffer
     const createResult = await createImage(imgBuffer, props.imagePath, sizes);
 
     if (createResult.status === 202 || !createResult.status) {

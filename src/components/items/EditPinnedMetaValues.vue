@@ -374,6 +374,7 @@ import {
 import {getCachedThumb, tagThumbKey} from '@/utils/thumbDisplayCache'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {TAG_IMAGE_SAVE_WIDTH} from '@shared/tagImages'
 import type {PresetMetaProps} from '@/types/itemsPage'
 import type { ScraperPinnedItem, ScraperTransferField } from '@mediachips/plugin-adult/types/scraper'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
@@ -1075,7 +1076,7 @@ const transferScrapedInfo = async () => {
       )
       ++index
       const ar = Number(props.meta.imageAspectRatio) || 1
-      const sizes = {width: 300, height: 300 / ar}
+      const sizes = {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / ar}
 
       const res = await createImage(url, imagePath, sizes)
       if (res.status != 201) {

@@ -130,7 +130,7 @@ export interface CreateImagePayload {
   image: string
   outputPath: string
   url?: string | null
-  sizes: unknown
+  sizes?: unknown
 }
 
 export interface CreateMarkThumbPayload {

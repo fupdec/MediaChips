@@ -165,17 +165,17 @@ async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveIm
   const aspectRatio = width / height
 
   if (sizes?.width && sizes?.height) {
-    const minWidth = sizes.width
-    const minHeight = sizes.height
-    const minAspectRatio = minWidth / minHeight
+    const targetWidth = sizes.width
+    const targetHeight = sizes.height
+    const targetAspectRatio = targetWidth / targetHeight
 
-    if (Math.abs(minAspectRatio - aspectRatio) > 0.01) {
-      const crop = getCenterCropRect(width, height, minAspectRatio)
+    if (Math.abs(targetAspectRatio - aspectRatio) > 0.01) {
+      const crop = getCenterCropRect(width, height, targetAspectRatio)
       await image.crop(crop)
     }
 
-    if (minWidth < image.width || minHeight < image.height) {
-      await image.resize({w: minWidth, h: minHeight})
+    if (targetWidth < image.width || targetHeight < image.height) {
+      await image.resize({w: targetWidth, h: targetHeight})
     }
   }
 
