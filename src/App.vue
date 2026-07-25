@@ -1,4 +1,16 @@
 <template>
+  <ConnectionStatusBanner
+    :show="isServerUnavailable"
+    :title="connectionBannerTitle"
+    :subtitle="connectionBannerSubtitle"
+    :show-restart="isElectronHost"
+    :restart-label="t('systemBar.restart')"
+    :restarting="isRelaunching"
+    :show-cancel-auto-restart="isElectronHost && autoRelaunchSecondsLeft != null"
+    :cancel-auto-restart-label="t('auto_connect.cancel_auto_restart')"
+    @restart="relaunchApp"
+    @cancel-auto-restart="cancelAutoRelaunch"
+  />
   <AutoConnect
     v-if="!isConnected && !isDevBrowser && !isElectronHost"
     @connected="handleServerConnected"
@@ -9,14 +21,16 @@
     class="dev-connecting"
   >
     <v-progress-circular indeterminate size="64" width="2"/>
-    <p v-if="isElectronHost && reconnectHint" class="reconnect-hint">{{ reconnectHint }}</p>
+    <p v-if="reconnectHint" class="reconnect-hint">{{ reconnectHint }}</p>
   </div>
   <app-preloader v-else/>
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, onBeforeUnmount, provide, type Ref} from "vue"
+import {ref, computed, onMounted, onBeforeUnmount, provide, type Ref} from "vue"
+import {useI18n} from "vue-i18n"
 import AppPreloader from "@/AppPreloader.vue"
+import ConnectionStatusBanner from "@/components/app/ConnectionStatusBanner.vue"
 import path from "path-browserify"
 import {useAppStore} from "@/stores/app"
 import AutoConnect from "@/AutoConnect.vue"
@@ -27,7 +41,11 @@ const FIXED_PORT = import.meta.env.VITE_PORT || 12321
 const PING_INTERVAL_MS = 30000
 const PING_FAILURES_BEFORE_DISCONNECT = 3
 const RECONNECT_INTERVAL_MS = 2000
+/** Auto-relaunch Electron app after this long of continuous server downtime. */
+const AUTO_RELAUNCH_AFTER_MS = 5 * 60 * 1000
+const AUTO_RELAUNCH_TICK_MS = 1000
 
+const {t} = useI18n()
 const isConfigLoaded = ref(false)
 const app = useAppStore()
 
@@ -53,11 +71,32 @@ const currentServer: Ref<ServerInfo | null> = ref(
 )
 const showManual = ref(false)
 const reconnectHint = ref('')
+const isServerUnavailable = ref(false)
+const autoRelaunchSecondsLeft = ref<number | null>(null)
+const isRelaunching = ref(false)
 let connectInFlight: Promise<void> | null = null
 let electronConfigListenerBound = false
 let consecutivePingFailures = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let healthCheckTimer: ReturnType<typeof setInterval> | null = null
+let autoRelaunchTimer: ReturnType<typeof setTimeout> | null = null
+let autoRelaunchTickTimer: ReturnType<typeof setInterval> | null = null
+let unavailableSinceMs: number | null = null
+let autoRelaunchCancelled = false
+
+const connectionBannerTitle = computed(() => t('auto_connect.connection_lost'))
+
+const connectionBannerSubtitle = computed(() => {
+  if (isRelaunching.value) {
+    return t('auto_connect.restarting')
+  }
+  if (isElectronHost && autoRelaunchSecondsLeft.value != null) {
+    return t('auto_connect.auto_restart_in', {seconds: autoRelaunchSecondsLeft.value})
+  }
+  return isElectronHost
+    ? t('auto_connect.reconnecting_local')
+    : t('auto_connect.reconnecting')
+})
 
 // Make current server available to all components
 provide('currentServer', currentServer);
@@ -86,6 +125,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (healthCheckTimer) clearInterval(healthCheckTimer)
   stopReconnectLoop()
+  clearAutoRelaunchTimers()
 })
 
 function getLocalServerInfo(): ServerInfo {
@@ -182,10 +222,85 @@ async function checkServerAvailability(server: ServerInfo) {
   }
 }
 
+function clearAutoRelaunchTimers() {
+  if (autoRelaunchTimer) {
+    clearTimeout(autoRelaunchTimer)
+    autoRelaunchTimer = null
+  }
+  if (autoRelaunchTickTimer) {
+    clearInterval(autoRelaunchTickTimer)
+    autoRelaunchTickTimer = null
+  }
+  autoRelaunchSecondsLeft.value = null
+  unavailableSinceMs = null
+}
+
+function cancelAutoRelaunch() {
+  autoRelaunchCancelled = true
+  clearAutoRelaunchTimers()
+}
+
+function scheduleAutoRelaunch() {
+  if (!isElectronHost || autoRelaunchCancelled || autoRelaunchTimer) return
+
+  unavailableSinceMs = Date.now()
+  autoRelaunchSecondsLeft.value = Math.ceil(AUTO_RELAUNCH_AFTER_MS / 1000)
+
+  autoRelaunchTickTimer = setInterval(() => {
+    if (unavailableSinceMs == null) return
+    const left = Math.max(
+      0,
+      Math.ceil((AUTO_RELAUNCH_AFTER_MS - (Date.now() - unavailableSinceMs)) / 1000),
+    )
+    autoRelaunchSecondsLeft.value = left
+  }, AUTO_RELAUNCH_TICK_MS)
+
+  autoRelaunchTimer = setTimeout(() => {
+    void relaunchApp()
+  }, AUTO_RELAUNCH_AFTER_MS)
+}
+
+async function relaunchApp() {
+  if (!isElectronHost || isRelaunching.value) return
+  if (!window.electronAPI?.invoke) return
+
+  isRelaunching.value = true
+  clearAutoRelaunchTimers()
+  try {
+    await window.electronAPI.invoke('relaunch')
+  } catch (error) {
+    console.error('Failed to relaunch application:', error)
+    isRelaunching.value = false
+  }
+}
+
+function markServerAvailable() {
+  consecutivePingFailures = 0
+  if (!isServerUnavailable.value && !reconnectHint.value) return
+
+  isServerUnavailable.value = false
+  reconnectHint.value = ''
+  autoRelaunchCancelled = false
+  clearAutoRelaunchTimers()
+  stopReconnectLoop()
+}
+
+function markServerUnavailable() {
+  if (isServerUnavailable.value) return
+
+  isServerUnavailable.value = true
+  reconnectHint.value = isElectronHost
+    ? t('auto_connect.reconnecting_local')
+    : t('auto_connect.reconnecting')
+  scheduleAutoRelaunch()
+}
+
 function handleServerConnected(serverInfo: ServerInfo) {
   const normalized = normalizeServerInfo(serverInfo)
   const serverUrl = normalized.url
     || `http://${normalized.ip || '127.0.0.1'}:${FIXED_PORT}`
+
+  markServerAvailable()
 
   if (
     connectInFlight
@@ -193,10 +308,6 @@ function handleServerConnected(serverInfo: ServerInfo) {
   ) {
     return connectInFlight
   }
-
-  stopReconnectLoop()
-  consecutivePingFailures = 0
-  reconnectHint.value = ''
 
   connectInFlight = (async () => {
     currentServer.value = {...normalized, url: serverUrl}
@@ -327,9 +438,14 @@ function startReconnectLoop() {
   if (reconnectTimer) return
 
   const attempt = async () => {
+    if (!isServerUnavailable.value && isConnected.value) {
+      reconnectTimer = null
+      return
+    }
+
     reconnectHint.value = isElectronHost
-      ? 'Reconnecting to local server…'
-      : 'Reconnecting…'
+      ? t('auto_connect.reconnecting_local')
+      : t('auto_connect.reconnecting')
 
     const candidates: ServerInfo[] = isElectronHost
       ? [getLocalServerInfo()]
@@ -367,12 +483,12 @@ function handleServerUnavailable() {
   }
 
   console.warn('⚠️ Connection to server lost')
+  markServerUnavailable()
 
-  // Electron hosts the API in-process. Never swap to LAN AutoConnect / white screen —
-  // keep the UI mounted and wait for the next successful ping after transient downtime
-  // (e.g. LAN bind restart).
+  // Electron hosts the API in-process. Keep the UI mounted and reconnect in the
+  // background (e.g. transient downtime during LAN bind restart).
   if (isElectronHost) {
-    reconnectHint.value = ''
+    startReconnectLoop()
     return
   }
 
@@ -383,11 +499,17 @@ function handleServerUnavailable() {
 // Periodic connection check (main window only)
 if (!isPlayerWindow.value) {
   healthCheckTimer = setInterval(() => {
-    if (!isConnected.value || !currentServer.value) return
+    if (!currentServer.value) return
+    // While disconnected in browser mode, reconnect loop owns recovery.
+    if (!isConnected.value && !isElectronHost) return
 
     checkServerAvailability(currentServer.value).then(available => {
       if (available) {
-        consecutivePingFailures = 0
+        if (isServerUnavailable.value) {
+          void handleServerConnected(currentServer.value!)
+        } else {
+          consecutivePingFailures = 0
+        }
         return
       }
       handleServerUnavailable()
