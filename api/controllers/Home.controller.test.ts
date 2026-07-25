@@ -124,7 +124,10 @@ describe('Home.controller', () => {
 
     await controller.searchGlobal(req, res)
 
-    expect(searchGlobal).toHaveBeenCalledWith({}, 'matrix', undefined)
+    expect(searchGlobal).toHaveBeenCalledWith({}, 'matrix', {
+      limit: undefined,
+      tagIds: undefined,
+    })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({media: [], tags: []})
   })

@@ -42,6 +42,12 @@ type GlobalSearchTag = Tag & {
   matchedBookmark?: string
 }
 
+type PinnedSearchTag = {
+  id: number
+  name: string
+  metaId?: number | null
+}
+
 function groupByKey<T>(items: T[], key: keyof T): Record<string, T[]> {
   const grouped: Record<string, T[]> = {}
   for (const item of items) {
@@ -62,6 +68,7 @@ interface SearchGroup {
 }
 
 type FlatResultRow =
+  | { kind: 'section'; section: 'tags' | 'filtered'; title: string; id: string }
   | { kind: 'header'; group: SearchGroup; id: string }
   | { kind: 'item'; group: SearchGroup; item: GlobalSearchMedia | GlobalSearchTag; id: string }
   | { kind: 'show-more'; group: SearchGroup; hiddenCount: number; id: string }
@@ -88,9 +95,11 @@ const query = ref('')
 const loading = ref(false)
 const results = ref<SearchGroup[]>([])
 const expandedGroupIds = ref<Set<string>>(new Set())
-const searchField = ref<{ focus: () => void } | null>(null)
+const searchInput = ref<HTMLInputElement | null>(null)
 const resultsScroller = ref<{ scrollToIndex: (index: number) => void } | null>(null)
 const selectedIndex = ref(-1)
+const pinnedTags = ref<PinnedSearchTag[]>([])
+const inputFocused = ref(false)
 
 let abortController: AbortController | null = null
 let pendingNavigation: (() => void) | null = null
@@ -135,8 +144,14 @@ const totalResults = computed(() =>
 
 const flatResults = computed((): FlatResultRow[] => {
   const flat: FlatResultRow[] = []
+  const showSections = pinnedTags.value.length > 0
+  const tagGroups = results.value.filter((group) => !group.is_media)
+  const mediaGroups = results.value.filter((group) => group.is_media)
+  const groupsToRender = showSections
+    ? [...tagGroups, ...mediaGroups]
+    : results.value
 
-  for (const group of results.value) {
+  const appendGroup = (group: SearchGroup) => {
     flat.push({kind: 'header', group, id: `h-${group.group_id}`})
 
     const isExpanded = expandedGroupIds.value.has(group.group_id)
@@ -163,6 +178,29 @@ const flatResults = computed((): FlatResultRow[] => {
     }
   }
 
+  if (showSections) {
+    if (tagGroups.length) {
+      flat.push({
+        kind: 'section',
+        section: 'tags',
+        title: t('globalSearch.sectionTags'),
+        id: 'section-tags',
+      })
+      for (const group of tagGroups) appendGroup(group)
+    }
+    if (mediaGroups.length) {
+      flat.push({
+        kind: 'section',
+        section: 'filtered',
+        title: t('globalSearch.sectionFiltered'),
+        id: 'section-filtered',
+      })
+      for (const group of mediaGroups) appendGroup(group)
+    }
+    return flat
+  }
+
+  for (const group of groupsToRender) appendGroup(group)
   return flat
 })
 
@@ -178,9 +216,17 @@ const navigableIndices = computed(() =>
   }, []),
 )
 
+const hasActiveSearch = computed(() =>
+  Boolean(query.value.trim() || pinnedTags.value.length),
+)
+
+const selectedIsTag = computed(() => {
+  const row = flatResults.value[selectedIndex.value]
+  return Boolean(row && row.kind === 'item' && !row.group.is_media)
+})
+
 const status = computed(() => {
-  const q = query.value.trim()
-  if (!q) return t('globalSearch.startTyping')
+  if (!hasActiveSearch.value) return t('globalSearch.startTyping')
   if (loading.value) return t('globalSearch.loading')
   if (!results.value.length) return t('globalSearch.noResult')
   return t('globalSearch.resultsCount', {count: totalResults.value})
@@ -189,6 +235,7 @@ const status = computed(() => {
 function showSearch() {
   dialog.value = true
   query.value = ''
+  pinnedTags.value = []
   results.value = []
   clearHighlightCache()
   focusSearchField()
@@ -206,8 +253,14 @@ onBeforeUnmount(() => {
 
 async function focusSearchField() {
   await nextTick()
-  searchField.value?.focus()
-  setTimeout(() => searchField.value?.focus(), 50)
+  searchInput.value?.focus()
+  setTimeout(() => searchInput.value?.focus(), 50)
+}
+
+function onInputShellMouseDown(e: MouseEvent) {
+  if (e.target === searchInput.value) return
+  e.preventDefault()
+  focusSearchField()
 }
 
 function resetExpandedGroups() {
@@ -225,6 +278,7 @@ function resetState() {
   abortController?.abort()
   runSearch.cancel()
   query.value = ''
+  pinnedTags.value = []
   results.value = []
   resetExpandedGroups()
   clearHighlightCache()
@@ -341,7 +395,8 @@ function sortGroups(groups: SearchGroup[]) {
 
 async function search() {
   const q = query.value.trim()
-  if (!q) {
+  const tagIds = pinnedTags.value.map((tag) => tag.id)
+  if (!q && !tagIds.length) {
     results.value = []
     loading.value = false
     return
@@ -362,7 +417,14 @@ async function search() {
   selectedIndex.value = -1
 
   try {
-    const searchRes = await typedApi.searchGlobal({ q, limit: RESULT_LIMIT }, { signal })
+    const searchRes = await typedApi.searchGlobal(
+      {
+        q,
+        limit: RESULT_LIMIT,
+        ...(tagIds.length ? {tagIds} : {}),
+      },
+      {signal},
+    )
 
     if (signal.aborted) return
 
@@ -381,7 +443,7 @@ async function search() {
 const runSearch = debounce(search, 250)
 
 function onQueryInput() {
-  if (!query.value.trim()) {
+  if (!query.value.trim() && !pinnedTags.value.length) {
     abortController?.abort()
     runSearch.cancel()
     results.value = []
@@ -394,6 +456,47 @@ function onQueryInput() {
   loading.value = true
   selectedIndex.value = -1
   runSearch()
+}
+
+function pinSelectedTag() {
+  const row = flatResults.value[selectedIndex.value]
+  if (!row || row.kind !== 'item' || row.group.is_media) return
+
+  const tag = row.item as GlobalSearchTag
+  if (!Number.isFinite(tag.id)) return
+  if (pinnedTags.value.some((entry) => entry.id === tag.id)) return
+
+  pinnedTags.value = [
+    ...pinnedTags.value,
+    {
+      id: tag.id,
+      name: String(tag.name ?? ''),
+      metaId: tag.metaId ?? null,
+    },
+  ]
+  query.value = ''
+  runSearch.cancel()
+  loading.value = true
+  selectedIndex.value = -1
+  void search()
+  focusSearchField()
+}
+
+function unpinTag(tagId: number) {
+  pinnedTags.value = pinnedTags.value.filter((tag) => tag.id !== tagId)
+  runSearch.cancel()
+  if (!query.value.trim() && !pinnedTags.value.length) {
+    abortController?.abort()
+    results.value = []
+    resetExpandedGroups()
+    loading.value = false
+    selectedIndex.value = -1
+    return
+  }
+  loading.value = true
+  selectedIndex.value = -1
+  void search()
+  focusSearchField()
 }
 
 watch(query, (value) => {
@@ -456,7 +559,7 @@ function openFirstResult() {
 
 function openSelectedResult() {
   const row = flatResults.value[selectedIndex.value]
-  if (!row || row.kind === 'header') {
+  if (!row || row.kind === 'header' || row.kind === 'section') {
     openFirstResult()
     return
   }
@@ -496,6 +599,19 @@ function moveSelection(direction: number) {
   scrollSelectedIntoView()
 }
 
+function clearAllSearch() {
+  query.value = ''
+  pinnedTags.value = []
+  abortController?.abort()
+  runSearch.cancel()
+  results.value = []
+  resetExpandedGroups()
+  clearHighlightCache()
+  loading.value = false
+  selectedIndex.value = -1
+  focusSearchField()
+}
+
 function onSearchKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
@@ -506,11 +622,17 @@ function onSearchKeydown(e: KeyboardEvent) {
   } else if (e.key === 'Enter') {
     e.preventDefault()
     openSelectedResult()
+  } else if (e.key === 'Tab' && selectedIsTag.value) {
+    e.preventDefault()
+    pinSelectedTag()
+  } else if (e.key === 'Backspace' && !query.value && pinnedTags.value.length) {
+    e.preventDefault()
+    unpinTag(pinnedTags.value[pinnedTags.value.length - 1].id)
   }
 }
 
 function onItemMouseenter(row: FlatResultRow, index: number) {
-  if (row.kind === 'header') return
+  if (row.kind === 'header' || row.kind === 'section') return
   selectedIndex.value = index
 }
 
@@ -685,21 +807,60 @@ function getNameHighlighted(text: string) {
           <v-hotkey keys="slash" variant="flat"/>
         </div>
 
-        <v-text-field
-          ref="searchField"
-          v-model="query"
-          @update:model-value="onQueryInput"
-          @keydown="onSearchKeydown"
-          :placeholder="t('globalSearch.enterText')"
-          clearable
-          autofocus
-          variant="outlined"
-          density="compact"
-          rounded
-          color="primary"
-          hide-details
-          prepend-inner-icon="mdi-magnify"
-        />
+        <div
+          class="global-search__input"
+          :class="{'global-search__input--focused': inputFocused}"
+          @mousedown="onInputShellMouseDown"
+        >
+          <v-icon class="global-search__input-icon text-medium-emphasis" size="20">
+            mdi-magnify
+          </v-icon>
+
+          <div class="global-search__input-body">
+            <v-chip
+              v-for="tag in pinnedTags"
+              :key="tag.id"
+              size="small"
+              variant="tonal"
+              color="primary"
+              closable
+              prepend-icon="mdi-tag"
+              class="global-search__input-chip"
+              @mousedown.stop
+              @click:close="unpinTag(tag.id)"
+            >
+              {{ tag.name }}
+            </v-chip>
+
+            <input
+              ref="searchInput"
+              v-model="query"
+              class="global-search__input-text"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              :placeholder="pinnedTags.length ? '' : t('globalSearch.enterText')"
+              @input="onQueryInput"
+              @keydown="onSearchKeydown"
+              @focus="inputFocused = true"
+              @blur="inputFocused = false"
+            >
+          </div>
+
+          <v-btn
+            v-if="query || pinnedTags.length"
+            class="global-search__input-clear"
+            icon
+            variant="text"
+            density="compact"
+            size="small"
+            tabindex="-1"
+            @mousedown.prevent
+            @click.stop="clearAllSearch"
+          >
+            <v-icon size="18">mdi-close</v-icon>
+          </v-btn>
+        </div>
       </div>
 
       <v-divider/>
@@ -707,10 +868,10 @@ function getNameHighlighted(text: string) {
       <v-card-text class="global-search__body pa-0">
         <div
           class="global-search__status text-center text-medium-emphasis py-3 px-4"
-          :class="{'global-search__status--empty': !query.trim() || (!loading && !results.length)}"
+          :class="{'global-search__status--empty': !hasActiveSearch || (!loading && !results.length)}"
         >
           <v-icon
-            v-if="!query.trim()"
+            v-if="!hasActiveSearch"
             class="mb-2"
             size="32"
             color="medium-emphasis"
@@ -747,12 +908,26 @@ function getNameHighlighted(text: string) {
         >
           <template #default="{ item: row, index }">
             <div
-              v-if="row.kind === 'header'"
+              v-if="row.kind === 'section'"
+              class="global-search__section d-flex align-center px-3 text-caption"
+              :class="`global-search__section--${row.section}`"
+            >
+              <v-icon
+                size="14"
+                start
+              >
+                {{ row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
+              </v-icon>
+              <span class="font-weight-bold">{{ row.title }}</span>
+            </div>
+
+            <div
+              v-else-if="row.kind === 'header'"
               class="global-search__group-header d-flex align-center px-3 text-caption"
               @click="openGroup(row.group)"
             >
               <v-icon size="14" start>mdi-{{ row.group.icon }}</v-icon>
-              <span class="font-weight-medium">{{ row.group.name }}</span>
+              <span class="font-weight-bold">{{ row.group.name }}</span>
               <v-chip class="ml-2" size="x-small" variant="tonal" color="primary">
                 {{ row.group.data.length }}
               </v-chip>
@@ -850,6 +1025,11 @@ function getNameHighlighted(text: string) {
         <v-spacer/>
         <v-hotkey keys="enter" variant="flat"/>
         <span class="ml-1">{{ t('globalSearch.hintEnter') }}</span>
+        <template v-if="selectedIsTag">
+          <v-spacer/>
+          <v-hotkey keys="tab" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintTab') }}</span>
+        </template>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -861,6 +1041,66 @@ function getNameHighlighted(text: string) {
   top: 0;
   z-index: 2;
   background: rgb(var(--v-theme-surface));
+}
+
+.global-search__input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 999px;
+  background: transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: text;
+}
+
+.global-search__input--focused {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
+}
+
+.global-search__input-icon {
+  flex: 0 0 auto;
+}
+
+.global-search__input-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.global-search__input-chip {
+  max-width: 100%;
+}
+
+.global-search__input-chip :deep(.v-chip__content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search__input-text {
+  flex: 1 1 120px;
+  min-width: 80px;
+  height: 28px;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 28px;
+}
+
+.global-search__input-clear {
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .global-search__body {
@@ -880,16 +1120,31 @@ function getNameHighlighted(text: string) {
   padding-bottom: 28px !important;
 }
 
+.global-search__section {
+  height: 30px;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--v-theme-primary));
+  background: transparent;
+  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.global-search__section--filtered {
+  color: rgb(var(--v-theme-primary));
+}
+
 .global-search__group-header {
   cursor: pointer;
   height: 30px;
   font-size: 0.75rem;
-  background: rgba(var(--v-theme-surface-variant), 0.2);
+  color: rgb(var(--v-theme-primary));
+  background: transparent;
   transition: background-color 0.15s ease;
 }
 
 .global-search__group-header:hover {
-  background: rgba(var(--v-theme-primary), 0.08);
+  background: rgba(var(--v-theme-primary), 0.06);
 }
 
 .global-search__item {

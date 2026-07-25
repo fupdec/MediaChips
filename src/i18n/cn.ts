@@ -132,6 +132,9 @@ const cn = {
     hintEsc: '关闭',
     hintArrows: '导航',
     hintEnter: '打开',
+    hintTab: '固定标签',
+    sectionTags: '可固定标签',
+    sectionFiltered: '按标签筛选',
   },
   settings: {
     tabs: {

@@ -118,6 +118,7 @@ export const GlobalSearchRequestSchema = z.object({
   query: z.string().optional(),
   limit: z.union([z.number(), z.string()]).optional(),
   metaId: z.union([z.number(), z.string()]).optional(),
+  tagIds: z.array(z.union([z.number(), z.string()])).optional(),
 }).passthrough()
 
 export const PathPayloadSchema = z.object({

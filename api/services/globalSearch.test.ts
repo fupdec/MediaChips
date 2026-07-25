@@ -70,7 +70,9 @@ function createSearchTestDb() {
       ('Режиссёр', 'исполнитель', NULL, 1, '2024-01-01', '2024-01-01');
 
     INSERT INTO tagsInMedia (mediaId, tagId, metaId) VALUES
-      (2, 1, 1);
+      (2, 1, 1),
+      (2, 2, 1),
+      (1, 1, 1);
   `)
 
   ensureSearchFtsIndex(sqlite)
@@ -162,7 +164,7 @@ describe('globalSearch FTS', () => {
         matchSource?: string
         matchedTags?: Array<{name: string}>
       }
-      expect(action?.matchSource).toBe('name')
+      expect(action?.matchSource).toBe('both')
       expect(drama?.matchSource).toBe('tag')
       expect(drama?.matchedTags?.some((tag) => tag.name === 'Actor')).toBe(true)
       expect(results.tags.some((tag) => tag.name === 'Actor')).toBe(true)
@@ -298,6 +300,34 @@ describe('globalSearch FTS', () => {
       }
       expect(action?.matchSource).toBe('both')
       expect(action?.matchedBookmark).toBe('action notes')
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('filters media and co-occurring tags by pinned tagIds', async () => {
+    const { sqlite, db } = createSearchTestDb()
+
+    try {
+      const pinnedOnly = await searchGlobal(db, '', {limit: 10, tagIds: [1]})
+      expect(pinnedOnly.media.map((item) => (item as {name?: string}).name).sort()).toEqual([
+        'Action Hero',
+        'Drama Night',
+      ])
+      expect(pinnedOnly.tags.some((tag) => tag.name === 'Director')).toBe(true)
+      expect(pinnedOnly.tags.some((tag) => tag.name === 'Actor')).toBe(false)
+
+      const pinnedAndQuery = await searchGlobal(db, 'drama', {limit: 10, tagIds: [1]})
+      expect(pinnedAndQuery.media.map((item) => (item as {name?: string}).name)).toEqual(['Drama Night'])
+      expect(pinnedAndQuery.media.some((item) => (item as {name?: string}).name === 'Action Hero')).toBe(false)
+
+      const bothPinned = await searchGlobal(db, '', {limit: 10, tagIds: [1, 2]})
+      expect(bothPinned.media.map((item) => (item as {name?: string}).name)).toEqual(['Drama Night'])
+
+      // New text still finds tags for further pinning, not only co-occurring ones.
+      const pinCandidates = await searchGlobal(db, 'anal', {limit: 10, tagIds: [1]})
+      expect(pinCandidates.tags.some((tag) => tag.name === 'YasmiButt')).toBe(true)
+      expect(pinCandidates.tags.some((tag) => tag.name === 'Actor')).toBe(false)
     } finally {
       sqlite.close()
     }

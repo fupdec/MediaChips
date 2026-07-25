@@ -231,6 +231,22 @@ export function highlightChars(string: string, query: string, is_default?: boole
 const GLOBAL_SEARCH_WORD_SPLIT = /[^\p{L}\p{N}]+/u
 const GLOBAL_SEARCH_WORD_MATCH = /[\p{L}\p{N}]+/gu
 
+function splitGlobalSearchTokens(text: string | null | undefined): string[] {
+  const source = String(text || '')
+  if (!source.trim()) return []
+
+  const withCamelBoundaries = source
+    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, '$1 $2')
+    .replace(/(\p{Lu}+)(\p{Lu}\p{Ll})/gu, '$1 $2')
+
+  const tokens = [
+    ...withCamelBoundaries.toLowerCase().split(GLOBAL_SEARCH_WORD_SPLIT),
+    ...source.toLowerCase().split(GLOBAL_SEARCH_WORD_SPLIT),
+  ].filter(Boolean)
+
+  return [...new Set(tokens)]
+}
+
 function tokenMatchesSearchPart(token: string, part: string): boolean {
   if (token === part) return true
   if (!token.startsWith(part)) return false
@@ -294,11 +310,7 @@ export function textMatchesGlobalSearchQuery(text: string | null | undefined, ra
   const query = String(rawQuery || '').trim().toLowerCase()
   if (!query) return false
 
-  const tokens = String(text || '')
-    .toLowerCase()
-    .split(GLOBAL_SEARCH_WORD_SPLIT)
-    .filter(Boolean)
-
+  const tokens = splitGlobalSearchTokens(text)
   if (!tokens.length) return false
 
   const parts = query.split(/\s+/).filter(Boolean)

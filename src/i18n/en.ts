@@ -132,6 +132,9 @@ const en = {
     hintEsc: 'close',
     hintArrows: 'navigate',
     hintEnter: 'open',
+    hintTab: 'pin tag',
+    sectionTags: 'Tags to pin',
+    sectionFiltered: 'Filtered by tags',
   },
   settings: {
     tabs: {

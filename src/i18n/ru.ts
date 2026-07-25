@@ -132,6 +132,9 @@ const ru = {
     hintEsc: 'закрыть',
     hintArrows: 'навигация',
     hintEnter: 'открыть',
+    hintTab: 'закрепить тег',
+    sectionTags: 'Теги для закрепления',
+    sectionFiltered: 'Результаты по тегам',
   },
   settings: {
     tabs: {

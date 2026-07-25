@@ -41,6 +41,12 @@ describe('matchesGlobalSearchName', () => {
     expect(matchesGlobalSearchName('Anal Gape', 'anal')).toBe(true)
   })
 
+  it('matches CamelCase tag names by word prefix', () => {
+    expect(matchesGlobalSearchName('JulesJordan', 'jule')).toBe(true)
+    expect(matchesGlobalSearchName('JulesJordan', 'jordan')).toBe(true)
+    expect(matchesGlobalSearchName('JulesJordan', 'jules')).toBe(true)
+  })
+
   it('rejects incidental long-prefix matches', () => {
     expect(matchesGlobalSearchName('Lana Analise', 'anal')).toBe(false)
     expect(matchesGlobalSearchName('YasmiButt', 'anal')).toBe(false)

@@ -70,7 +70,7 @@ export const homeApi = {
     }))
   },
 
-  searchGlobal(body: { q: string; limit?: number }, config?: AxiosRequestConfig) {
+  searchGlobal(body: { q: string; limit?: number; tagIds?: number[] }, config?: AxiosRequestConfig) {
     return apiClient.post(API_ROUTES.globalSearch, body, config).then((res) => ({
       ...res,
       data: validated(parseGlobalSearchResponse, res.data),

@@ -136,6 +136,9 @@ const ja = {
     hintEsc: "近い",
     hintArrows: "ナビゲートする",
     hintEnter: "開ける",
+    hintTab: "タグを固定",
+    sectionTags: "固定するタグ",
+    sectionFiltered: "タグで絞り込み",
   },
   settings: {
     tabs: {

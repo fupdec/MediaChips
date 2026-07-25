@@ -132,6 +132,9 @@ const de = {
     hintEsc: "schließen",
     hintArrows: "navigieren",
     hintEnter: "offen",
+    hintTab: "Tag anheften",
+    sectionTags: "Tags zum Anheften",
+    sectionFiltered: "Nach Tags gefiltert",
   },
   settings: {
     tabs: {

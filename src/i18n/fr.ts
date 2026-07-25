@@ -132,6 +132,9 @@ const fr = {
     hintEsc: 'fermer',
     hintArrows: 'naviguer',
     hintEnter: 'ouvert',
+    hintTab: 'épingler le tag',
+    sectionTags: 'Tags à épingler',
+    sectionFiltered: 'Filtré par tags',
   },
   settings: {
     tabs: {

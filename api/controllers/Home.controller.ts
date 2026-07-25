@@ -93,7 +93,10 @@ export default (db: ApiDb) => {
   const searchGlobalHandler = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const q = req.body?.q ?? req.body?.query
-      const data = await searchGlobal(db, String(q || ''), req.body?.limit)
+      const data = await searchGlobal(db, String(q || ''), {
+        limit: req.body?.limit,
+        tagIds: req.body?.tagIds,
+      })
       res.status(200).send(data)
     } catch (err) {
       res.status(500).send({

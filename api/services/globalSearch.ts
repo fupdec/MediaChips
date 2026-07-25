@@ -41,29 +41,108 @@ function normalizeLimit(value: unknown): number {
   return Math.min(Math.floor(limit), MAX_LIMIT)
 }
 
-async function searchMediaByNameLike(db: ApiDb, trimmed: string, sqlLimit: number) {
+function normalizeTagIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  const ids = value
+    .map((entry) => Number(entry))
+    .filter((id) => Number.isFinite(id) && id > 0)
+  return [...new Set(ids)]
+}
+
+export interface SearchGlobalOptions {
+  limit?: unknown
+  tagIds?: unknown
+}
+
+function normalizeSearchGlobalOptions(limitOrOptions?: unknown): SearchGlobalOptions {
+  if (
+    limitOrOptions != null
+    && typeof limitOrOptions === 'object'
+    && !Array.isArray(limitOrOptions)
+  ) {
+    return limitOrOptions as SearchGlobalOptions
+  }
+
+  return {limit: limitOrOptions}
+}
+
+/** Media that have every listed tag (AND). */
+const PINNED_MEDIA_JOIN = `INNER JOIN (
+       SELECT mediaId AS pinnedMediaId
+       FROM tagsInMedia
+       WHERE tagId IN (:pinnedTagIds)
+       GROUP BY mediaId
+       HAVING COUNT(DISTINCT tagId) = :pinnedTagCount
+     ) pinnedMedia ON pinnedMedia.pinnedMediaId = media.id`
+
+/** Tags that co-occur on media having every listed tag, excluding those tags. */
+const COOCCURRING_TAG_CLAUSE = `AND tags.id IN (
+       SELECT DISTINCT tim.tagId
+       FROM tagsInMedia tim
+       WHERE tim.mediaId IN (
+         SELECT mediaId
+         FROM tagsInMedia
+         WHERE tagId IN (:pinnedTagIds)
+         GROUP BY mediaId
+         HAVING COUNT(DISTINCT tagId) = :pinnedTagCount
+       )
+     )
+     AND tags.id NOT IN (:pinnedTagIds)`
+
+function pinnedTagReplacements(tagIds: number[]): Record<string, unknown> {
+  return {
+    pinnedTagIds: tagIds,
+    pinnedTagCount: tagIds.length,
+  }
+}
+
+async function searchMediaByNameLike(
+  db: ApiDb,
+  trimmed: string,
+  sqlLimit: number,
+  pinnedTagIds: number[] = [],
+) {
   const pattern = `%${escapeLikePattern(trimmed)}%`
+  const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
+  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
+  if (pinnedTagIds.length) Object.assign(replacements, pinnedTagReplacements(pinnedTagIds))
 
   return queryAll(db, `${MEDIA_SEARCH_SELECT}
      FROM media
+              ${pinnedJoin}
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE media.name LIKE :pattern ESCAPE '\\'
-     LIMIT :limit`, {pattern, limit: sqlLimit})
+     LIMIT :limit`, replacements)
 }
 
-async function searchMediaByNameFts(db: ApiDb, matchQuery: string, sqlLimit: number) {
+async function searchMediaByNameFts(
+  db: ApiDb,
+  matchQuery: string,
+  sqlLimit: number,
+  pinnedTagIds: number[] = [],
+) {
+  const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
+  const replacements: Record<string, unknown> = {match: matchQuery, limit: sqlLimit}
+  if (pinnedTagIds.length) Object.assign(replacements, pinnedTagReplacements(pinnedTagIds))
+
   return queryAll(db, `${MEDIA_SEARCH_SELECT}
      FROM media_fts
               INNER JOIN media ON media.id = media_fts.rowid
+              ${pinnedJoin}
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE media_fts MATCH :match
      ORDER BY bm25(media_fts)
-     LIMIT :limit`, {match: matchQuery, limit: sqlLimit})
+     LIMIT :limit`, replacements)
 }
 
-async function searchMediaByName(db: ApiDb, query: string, limit: unknown) {
+async function searchMediaByName(
+  db: ApiDb,
+  query: string,
+  limit: unknown,
+  pinnedTagIds: number[] = [],
+) {
   const trimmed = String(query || '').trim()
   if (!trimmed) return []
 
@@ -74,32 +153,41 @@ async function searchMediaByName(db: ApiDb, query: string, limit: unknown) {
 
   if (matchQuery && isFtsSearchAvailable(db.sqlite)) {
     try {
-      rows = await searchMediaByNameFts(db, matchQuery, sqlLimit)
+      rows = await searchMediaByNameFts(db, matchQuery, sqlLimit, pinnedTagIds)
     } catch {
       // Fall back to LIKE when FTS query syntax is invalid.
     }
   }
 
   if (!rows.length) {
-    rows = await searchMediaByNameLike(db, trimmed, sqlLimit)
+    rows = await searchMediaByNameLike(db, trimmed, sqlLimit, pinnedTagIds)
   }
 
   return rows.filter((row) => matchesGlobalSearchName(String(row.name || ''), trimmed))
 }
 
-async function searchMediaByBookmark(db: ApiDb, query: string, limit: unknown) {
+async function searchMediaByBookmark(
+  db: ApiDb,
+  query: string,
+  limit: unknown,
+  pinnedTagIds: number[] = [],
+) {
   const trimmed = String(query || '').trim()
   if (!trimmed) return []
 
   const sqlLimit = normalizeLimit(limit)
   const pattern = `%${escapeLikePattern(trimmed)}%`
+  const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
+  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
+  if (pinnedTagIds.length) Object.assign(replacements, pinnedTagReplacements(pinnedTagIds))
 
   const rows = await queryAll(db, `${MEDIA_BOOKMARK_SEARCH_SELECT}
      FROM media
+              ${pinnedJoin}
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE media.bookmark LIKE :pattern ESCAPE '\\'
-     LIMIT :limit`, {pattern, limit: sqlLimit})
+     LIMIT :limit`, replacements)
 
   return rows
     .filter((row) => matchesGlobalSearchName(
@@ -120,6 +208,10 @@ async function searchMediaByBookmark(db: ApiDb, query: string, limit: unknown) {
 export interface SearchTagsByNameOptions {
   limit?: unknown
   metaId?: number | null
+  /** Only tags that appear on media having ALL of these tags. */
+  cooccurWithTagIds?: number[]
+  /** Exclude these tag ids from results (typically the pinned ones). */
+  excludeTagIds?: number[]
 }
 
 function normalizeMetaId(value: unknown): number | null {
@@ -142,6 +234,40 @@ function normalizeSearchTagsOptions(
   return {
     limit: limitOrOptions,
     metaId: maybeOptions.metaId,
+    cooccurWithTagIds: maybeOptions.cooccurWithTagIds,
+    excludeTagIds: maybeOptions.excludeTagIds,
+  }
+}
+
+function buildTagScopeClause(options: SearchTagsByNameOptions): {
+  clause: string
+  replacements: Record<string, unknown>
+} {
+  const metaId = normalizeMetaId(options.metaId)
+  const cooccurWithTagIds = normalizeTagIds(options.cooccurWithTagIds)
+  const excludeTagIds = normalizeTagIds(options.excludeTagIds)
+  const replacements: Record<string, unknown> = {}
+  const parts: string[] = []
+
+  if (metaId != null) {
+    parts.push('AND tags.metaId = :metaId')
+    replacements.metaId = metaId
+  }
+
+  if (cooccurWithTagIds.length) {
+    parts.push(COOCCURRING_TAG_CLAUSE)
+    Object.assign(replacements, pinnedTagReplacements(cooccurWithTagIds))
+  }
+
+  if (excludeTagIds.length && !cooccurWithTagIds.length) {
+    // Co-occurring clause already excludes pinned tags; only add when not co-filtering.
+    parts.push('AND tags.id NOT IN (:excludeTagIds)')
+    replacements.excludeTagIds = excludeTagIds
+  }
+
+  return {
+    clause: parts.join('\n     '),
+    replacements,
   }
 }
 
@@ -149,12 +275,18 @@ async function searchTagsByNameLike(
   db: ApiDb,
   trimmed: string,
   sqlLimit: number,
-  metaId: number | null,
+  options: SearchTagsByNameOptions,
 ) {
   const pattern = `%${escapeLikePattern(trimmed)}%`
-  const metaClause = metaId == null ? '' : 'AND metaId = :metaId'
-  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
-  if (metaId != null) replacements.metaId = metaId
+  const scope = buildTagScopeClause(options)
+  const replacements: Record<string, unknown> = {
+    pattern,
+    limit: sqlLimit,
+    ...scope.replacements,
+  }
+
+  // LIKE path uses unqualified metaId column when not joining FTS.
+  const metaClause = scope.clause.replace(/tags\.metaId/g, 'metaId').replace(/tags\.id/g, 'id')
 
   return queryAll(db, `${TAG_SEARCH_SELECT}
      FROM tags
@@ -168,17 +300,20 @@ async function searchTagsByNameFts(
   db: ApiDb,
   matchQuery: string,
   sqlLimit: number,
-  metaId: number | null,
+  options: SearchTagsByNameOptions,
 ) {
-  const metaClause = metaId == null ? '' : 'AND tags.metaId = :metaId'
-  const replacements: Record<string, unknown> = {match: matchQuery, limit: sqlLimit}
-  if (metaId != null) replacements.metaId = metaId
+  const scope = buildTagScopeClause(options)
+  const replacements: Record<string, unknown> = {
+    match: matchQuery,
+    limit: sqlLimit,
+    ...scope.replacements,
+  }
 
   return queryAll(db, `${TAG_SEARCH_SELECT}
      FROM tags_fts
               INNER JOIN tags ON tags.id = tags_fts.rowid
      WHERE tags_fts MATCH :match
-     ${metaClause}
+     ${scope.clause}
      ORDER BY bm25(tags_fts)
      LIMIT :limit`, replacements)
 }
@@ -219,21 +354,20 @@ async function searchTagsByName(
 
   const options = normalizeSearchTagsOptions(limitOrOptions, maybeOptions)
   const sqlLimit = normalizeLimit(options.limit)
-  const metaId = normalizeMetaId(options.metaId)
   const matchQuery = buildTagFtsMatchQuery(trimmed)
 
   let rows: Array<Record<string, unknown>> = []
 
   if (matchQuery && isFtsSearchAvailable(db.sqlite)) {
     try {
-      rows = await searchTagsByNameFts(db, matchQuery, sqlLimit, metaId)
+      rows = await searchTagsByNameFts(db, matchQuery, sqlLimit, options)
     } catch {
       // Fall back to LIKE when FTS query syntax is invalid.
     }
   }
 
   if (!rows.length) {
-    rows = await searchTagsByNameLike(db, trimmed, sqlLimit, metaId)
+    rows = await searchTagsByNameLike(db, trimmed, sqlLimit, options)
   }
 
   return rows
@@ -252,11 +386,14 @@ async function searchTagsByBookmark(
 
   const options = normalizeSearchTagsOptions(limitOrOptions, maybeOptions)
   const sqlLimit = normalizeLimit(options.limit)
-  const metaId = normalizeMetaId(options.metaId)
   const pattern = `%${escapeLikePattern(trimmed)}%`
-  const metaClause = metaId == null ? '' : 'AND metaId = :metaId'
-  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
-  if (metaId != null) replacements.metaId = metaId
+  const scope = buildTagScopeClause(options)
+  const metaClause = scope.clause.replace(/tags\.metaId/g, 'metaId').replace(/tags\.id/g, 'id')
+  const replacements: Record<string, unknown> = {
+    pattern,
+    limit: sqlLimit,
+    ...scope.replacements,
+  }
 
   const rows = await queryAll(db, `${TAG_BOOKMARK_SEARCH_SELECT}
      FROM tags
@@ -333,6 +470,7 @@ async function searchMediaByTagIds(
     matchedBookmark?: string
   }>,
   limit: unknown,
+  requireAllTagIds: number[] = [],
 ) {
   const uniqueTags = [...new Map(
     tags
@@ -346,16 +484,22 @@ async function searchMediaByTagIds(
   const tagById = new Map(
     uniqueTags.map((tag) => [Number(tag.id), tag]),
   )
+  const pinnedJoin = requireAllTagIds.length ? PINNED_MEDIA_JOIN : ''
+  const replacements: Record<string, unknown> = {tagIds, limit: sqlLimit}
+  if (requireAllTagIds.length) {
+    Object.assign(replacements, pinnedTagReplacements(requireAllTagIds))
+  }
 
   const rows = await queryAll(db, `${MEDIA_SEARCH_SELECT},
             GROUP_CONCAT(DISTINCT tagsInMedia.tagId) AS matchedTagIds
      FROM media
+              ${pinnedJoin}
               INNER JOIN tagsInMedia ON tagsInMedia.mediaId = media.id
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE tagsInMedia.tagId IN (:tagIds)
      GROUP BY media.id
-     LIMIT :limit`, {tagIds, limit: sqlLimit})
+     LIMIT :limit`, replacements)
 
   return rows.map((row) => {
     const matchedTagIds = String(row.matchedTagIds || '')
@@ -461,16 +605,110 @@ function mergeMediaSearchRows(
   return merged
 }
 
-async function searchGlobal(db: ApiDb, query: string, limit: unknown) {
+async function loadPinnedTagSummaries(db: ApiDb, tagIds: number[]) {
+  if (!tagIds.length) return []
+  return queryAll(db, `${TAG_SEARCH_SELECT}
+     FROM tags
+     WHERE id IN (:tagIds)`, {tagIds})
+}
+
+async function searchMediaHavingAllTagIds(db: ApiDb, tagIds: number[], limit: unknown) {
+  const sqlLimit = normalizeLimit(limit)
+  const pinnedTags = await loadPinnedTagSummaries(db, tagIds)
+  const tagById = new Map(
+    pinnedTags.map((tag) => [Number(tag.id), tag]),
+  )
+
+  const rows = await queryAll(db, `${MEDIA_SEARCH_SELECT}
+     FROM media
+              ${PINNED_MEDIA_JOIN}
+              LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+              LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+     LIMIT :limit`, {
+    ...pinnedTagReplacements(tagIds),
+    limit: sqlLimit,
+  })
+
+  return rows.map((row) => {
+    const matchedTags = tagIds
+      .map((id) => {
+        const tag = tagById.get(id)
+        const name = tag?.name == null ? null : String(tag.name)
+        if (name == null || name === '') return null
+        return {
+          id,
+          name,
+          metaId: tag?.metaId == null ? null : Number(tag.metaId),
+          matchSource: 'name' as const,
+        }
+      })
+      .filter((tag) => tag != null)
+
+    return {
+      ...row,
+      matchSource: 'tag' as const,
+      matchedTags,
+    }
+  })
+}
+
+async function searchCooccurringTags(
+  db: ApiDb,
+  tagIds: number[],
+  limit: unknown,
+): Promise<GlobalSearchTagResult[]> {
+  const sqlLimit = normalizeLimit(limit)
+  const rows = await queryAll(db, `${TAG_SEARCH_SELECT}
+     FROM tags
+     WHERE 1 = 1
+     ${COOCCURRING_TAG_CLAUSE.replace(/tags\.id/g, 'id')}
+     LIMIT :limit`, {
+    ...pinnedTagReplacements(tagIds),
+    limit: sqlLimit,
+  })
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    name: row.name == null ? null : String(row.name),
+    metaId: row.metaId == null ? null : Number(row.metaId),
+    synonyms: row.synonyms == null ? null : String(row.synonyms),
+    matchSource: 'name' as const,
+  }))
+}
+
+async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) {
+  const options = normalizeSearchGlobalOptions(limitOrOptions)
+  const limit = options.limit
+  const pinnedTagIds = normalizeTagIds(options.tagIds)
+  const trimmed = String(query || '').trim()
+
+  if (!trimmed && !pinnedTagIds.length) {
+    return {media: [], tags: []}
+  }
+
+  if (!trimmed && pinnedTagIds.length) {
+    const [media, tags] = await Promise.all([
+      searchMediaHavingAllTagIds(db, pinnedTagIds, limit),
+      searchCooccurringTags(db, pinnedTagIds, limit),
+    ])
+    return {media, tags}
+  }
+
+  // With text query: tags are always global matches (for pinning more),
+  // media are scoped to pinned tags when any are set.
+  const tagSearchOptions: SearchTagsByNameOptions = pinnedTagIds.length
+    ? {limit, excludeTagIds: pinnedTagIds}
+    : {limit}
+
   const [mediaByName, mediaByBookmark, tagsByName, tagsByBookmark] = await Promise.all([
-    searchMediaByName(db, query, limit),
-    searchMediaByBookmark(db, query, limit),
-    searchTagsByName(db, query, {limit}),
-    searchTagsByBookmark(db, query, {limit}),
+    searchMediaByName(db, trimmed, limit, pinnedTagIds),
+    searchMediaByBookmark(db, trimmed, limit, pinnedTagIds),
+    searchTagsByName(db, trimmed, tagSearchOptions),
+    searchTagsByBookmark(db, trimmed, tagSearchOptions),
   ])
 
   const tags = mergeTagSearchRows(tagsByName, tagsByBookmark, limit)
-  const mediaByTags = await searchMediaByTagIds(db, tags, limit)
+  const mediaByTags = await searchMediaByTagIds(db, tags, limit, pinnedTagIds)
   const media = mergeMediaSearchRows(
     mergeMediaSearchRows(mediaByName, mediaByBookmark, limit),
     mediaByTags,

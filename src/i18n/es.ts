@@ -132,6 +132,9 @@ const es = {
     hintEsc: 'cerrar',
     hintArrows: 'navegar',
     hintEnter: 'abrir',
+    hintTab: 'fijar etiqueta',
+    sectionTags: 'Etiquetas para fijar',
+    sectionFiltered: 'Filtrado por etiquetas',
   },
   settings: {
     tabs: {
