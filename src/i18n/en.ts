@@ -167,6 +167,7 @@ const en = {
       storage: 'Storage',
       maintenance: 'Maintenance',
       localization: 'Localization',
+      advanced: 'Advanced',
     },
     path_parser: {
       title: 'Path tag parser',
@@ -259,7 +260,23 @@ const en = {
     "or": "or",
     "copy_name": "Copy name",
     "copy_path": "Copy path",
-    "copied": "Copied to clipboard"
+    "copied": "Copied to clipboard",
+    "more": "More"
+  },
+  keyboard_shortcuts: {
+    title: 'Keyboard shortcuts',
+    app: 'App',
+    player: 'Player',
+    select: 'Selection mode',
+    search: 'Global search',
+    add_media: 'Add media',
+    filters: 'Toggle filters',
+    toggle_select: 'Toggle select mode',
+    shortcuts: 'Show this list',
+    bulk_edit: 'Bulk edit selection',
+    delete: 'Delete selection',
+    exit_select: 'Exit select mode',
+    see_player_docs: 'See documentation for all player hotkeys',
   },
   "validation": {
     "path_required": "Path is required",
@@ -295,6 +312,7 @@ const en = {
   context_menu: {
     bulk_edit: 'Bulk Edit',
     merge_tags: 'Merge tags',
+    more: 'More',
     bulk_auto_scrape: 'TPDB auto scrape selected',
     bulk_tmdb_auto_scrape: 'TMDB auto scrape selected',
     bulk_auto_scrape_scenes: 'TPDB auto scrape scenes (selected)',
@@ -363,6 +381,7 @@ const en = {
     show_documentation: 'Show documentation',
     show_onboarding: 'Getting started',
     customize_widgets: 'Customize widgets',
+    keyboard_hint: 'Press / to search · ? for shortcuts',
     new_tool: 'New tool!',
     quick_tags_tool_hint: 'You can quickly add tags using the most popular words found in file paths!',
     available_under_tools: 'Also available under "Settings -> Library".',
@@ -636,7 +655,11 @@ const en = {
   },
   markers: {
     no_markers_add_first: 'There are no markers. Please add them first in application player.',
+    no_markers_title: 'No markers yet',
+    no_markers_hint: 'Open a video and add marks on the player timeline.',
+    open_library: 'Open library',
     no_results: 'No markers matching the selected filters',
+    clear_filters: 'Clear filters',
     search_placeholder: 'Search markers...',
     sort: {
       time: 'Timestamp',
@@ -693,6 +716,13 @@ const en = {
   },
   empty_states: {
     no_items_add_first: 'There are no items. Please add them first.',
+    no_items_title: 'Nothing here yet',
+    no_items_media_hint: 'Add files to start organizing your library.',
+    no_items_tags_hint: 'Create tags to label and filter your media.',
+    no_filter_results: 'No items match the current filters.',
+    clear_filters: 'Clear filters',
+    edit_filters: 'Edit filters',
+    search_hint: 'Press / to search',
   },
   widgets: {
     stats: {
@@ -1860,6 +1890,8 @@ const en = {
     duplicates: 'Duplicates',
     duplicates_by_path: 'Duplicates by path',
     no_filters: 'No filters',
+    simple: 'Simple',
+    advanced: 'Advanced',
     drag_to_reorder: 'Drag to reorder',
     saving_filter: 'Saving filter',
     filter_name: 'Filter set name',
@@ -1979,6 +2011,8 @@ const en = {
       selected_tag: 'Selected tag',
       start_time: 'Start time',
       end_time: 'End time',
+      set_range: 'Set range',
+      clear_range: 'Clear range',
       sync_with_player: 'Sync with player',
       jump_to_time: 'Jump to time',
       end_time_must_be_greater: 'The end time must be greater than the start time',

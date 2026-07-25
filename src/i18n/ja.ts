@@ -171,6 +171,7 @@ const ja = {
       storage: "ストレージ",
       maintenance: "メンテナンス",
       localization: "ローカリゼーション",
+      advanced: "詳細",
     },
     path_parser: {
       title: "パスタグパーサー",
@@ -265,6 +266,22 @@ const ja = {
     copy_name: "名前をコピーする",
     copy_path: "パスをコピーする",
     copied: "クリップボードにコピーされました",
+    "more": "その他",
+  },
+  keyboard_shortcuts: {
+    title: "キーボードショートカット",
+    app: "アプリ",
+    player: "プレーヤー",
+    select: "選択モード",
+    search: "グローバル検索",
+    add_media: "メディアを追加",
+    filters: "フィルターの表示切替",
+    toggle_select: "選択モード切替",
+    shortcuts: "この一覧を表示",
+    bulk_edit: "選択を一括編集",
+    delete: "選択を削除",
+    exit_select: "選択モードを終了",
+    see_player_docs: "プレーヤーの全ショートカットはドキュメントを参照",
   },
   validation: {
     path_required: "パスは必須です",
@@ -307,6 +324,7 @@ const ja = {
     tmdb_auto_scrape: "TMDB 自動スクレイプ",
     auto_scrape_scene: "TPDB シーンを自動スクレイプ",
     open_in_new_tab: "新しいタブで開く",
+    more: "その他",
     parse_tags_in_path: "パス内のタグを解析する",
     update_file_info: "ファイル情報を更新する",
     play_video_in: "ビデオを再生する",
@@ -376,6 +394,7 @@ const ja = {
     show_documentation: "ドキュメントを表示する",
     show_onboarding: "はじめる",
     customize_widgets: "ウィジェットをカスタマイズする",
+    keyboard_hint: "検索は / · ショートカットは ?",
     new_tool: "新しいツール！",
     quick_tags_tool_hint:
       "ファイル パスで見つかった最も一般的な単語を使用して、タグをすばやく追加できます。",
@@ -669,7 +688,11 @@ const ja = {
   markers: {
     no_markers_add_first:
       "マーカーはありません。最初にアプリケーションプレーヤーに追加してください。",
+    no_markers_title: "マーカーはまだありません",
+    no_markers_hint: "動画を開き、プレーヤーのタイムラインにマークを追加してください。",
+    open_library: "ライブラリを開く",
     no_results: "選択したフィルターに一致するマーカーはありません",
+    clear_filters: "フィルターをクリア",
     search_placeholder: "マーカーを検索...",
     sort: {
       time: "タイムスタンプ",
@@ -715,6 +738,8 @@ const ja = {
     no_meta_assigned:
       "この {type} にはメタデータ フィールドが固定されていません。",
     assign_in_settings: "設定で固定することができます。",
+    open_field_pinning: "メタデータフィールドを固定",
+    show_modes: "編集モード",
     selected_count: "{count} 項目が一括編集用に選択されました",
     saving: "変更を適用しています。お待ちください...",
     replace: "交換する",
@@ -727,6 +752,13 @@ const ja = {
   },
   empty_states: {
     no_items_add_first: "項目はありません。最初に追加してください。",
+    no_items_title: "まだ何もありません",
+    no_items_media_hint: "ファイルを追加してライブラリの整理を始めましょう。",
+    no_items_tags_hint: "タグを作成してメディアを分類・絞り込みましょう。",
+    no_filter_results: "現在のフィルターに一致する項目がありません。",
+    clear_filters: "フィルターをクリア",
+    edit_filters: "フィルターを編集",
+    search_hint: "/ で検索",
   },
   widgets: {
     stats: {
@@ -2061,6 +2093,8 @@ const ja = {
     duplicates: "重複",
     duplicates_by_path: "パスごとの重複",
     no_filters: "フィルターなし",
+    simple: "シンプル",
+    advanced: "詳細",
     drag_to_reorder: "ドラッグして並べ替えます",
     saving_filter: "フィルタの保存",
     filter_name: "フィルターセット名",
@@ -2181,6 +2215,8 @@ const ja = {
       selected_tag: "選択したタグ",
       start_time: "開始時間",
       end_time: "終了時刻",
+      set_range: "範囲を設定",
+      clear_range: "範囲をクリア",
       sync_with_player: "プレーヤーと同期する",
       jump_to_time: "時間にジャンプする",
       end_time_must_be_greater:

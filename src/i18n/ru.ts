@@ -167,6 +167,7 @@ const ru = {
       storage: 'Хранение',
       maintenance: 'Обслуживание',
       localization: 'Локализация',
+      advanced: 'Дополнительно',
     },
     path_parser: {
       title: 'Парсер тегов по пути',
@@ -259,7 +260,23 @@ const ru = {
     "or": "или",
     "copy_name": "Копировать имя",
     "copy_path": "Копировать путь",
-    "copied": "Скопировано в буфер обмена"
+    "copied": "Скопировано в буфер обмена",
+    "more": "Ещё"
+  },
+  keyboard_shortcuts: {
+    title: 'Горячие клавиши',
+    app: 'Приложение',
+    player: 'Плеер',
+    select: 'Режим выбора',
+    search: 'Глобальный поиск',
+    add_media: 'Добавить медиа',
+    filters: 'Показать/скрыть фильтры',
+    toggle_select: 'Режим выбора',
+    shortcuts: 'Показать этот список',
+    bulk_edit: 'Массовое редактирование',
+    delete: 'Удалить выбранное',
+    exit_select: 'Выйти из режима выбора',
+    see_player_docs: 'Все клавиши плеера — в документации',
   },
   "validation": {
     "path_required": "Путь обязателен",
@@ -295,6 +312,7 @@ const ru = {
   context_menu: {
     bulk_edit: 'Массовое редактирование',
     merge_tags: 'Объединить теги',
+    more: 'Ещё',
     bulk_auto_scrape: 'TPDB авто-скрапинг выбранных',
     bulk_tmdb_auto_scrape: 'TMDB авто-скрапинг выбранных',
     bulk_auto_scrape_scenes: 'TPDB авто-скрапинг сцен (выбранные)',
@@ -363,6 +381,7 @@ const ru = {
     show_documentation: 'Показать документацию',
     show_onboarding: 'Первые шаги',
     customize_widgets: 'Настроить виджеты',
+    keyboard_hint: 'Нажмите / для поиска · ? для горячих клавиш',
     new_tool: 'Новый инструмент!',
     quick_tags_tool_hint: 'Вы можете быстро добавлять теги по самым популярным словам, найденным в путях файлов!',
     available_under_tools: 'Также доступно в разделе "Настройки -> Библиотека".',
@@ -636,7 +655,11 @@ const ru = {
   },
   markers: {
     no_markers_add_first: 'Маркеров нет. Сначала добавьте их в плеере приложения.',
+    no_markers_title: 'Маркеров пока нет',
+    no_markers_hint: 'Откройте видео и добавьте метки на таймлайне плеера.',
+    open_library: 'Открыть библиотеку',
     no_results: 'Нет маркеров, соответствующих выбранным фильтрам',
+    clear_filters: 'Сбросить фильтры',
     search_placeholder: 'Поиск маркеров...',
     sort: {
       time: 'Время',
@@ -693,6 +716,13 @@ const ru = {
   },
   empty_states: {
     no_items_add_first: 'Элементов нет. Сначала добавьте их.',
+    no_items_title: 'Пока пусто',
+    no_items_media_hint: 'Добавьте файлы, чтобы начать организовывать библиотеку.',
+    no_items_tags_hint: 'Создайте теги, чтобы помечать и фильтровать медиа.',
+    no_filter_results: 'Нет элементов, подходящих под текущие фильтры.',
+    clear_filters: 'Сбросить фильтры',
+    edit_filters: 'Изменить фильтры',
+    search_hint: 'Нажмите / для поиска',
   },
   widgets: {
     stats: {
@@ -1861,6 +1891,8 @@ const ru = {
     duplicates: 'Дубликаты',
     duplicates_by_path: 'Дубликаты по пути',
     no_filters: 'Нет фильтров',
+    simple: 'Простые',
+    advanced: 'Расширенные',
     drag_to_reorder: 'Перетащите для изменения порядка',
     saving_filter: 'Сохранение фильтра',
     filter_name: 'Имя набора фильтров',
@@ -1980,6 +2012,8 @@ const ru = {
       selected_tag: 'Выбранный тег',
       start_time: 'Время начала',
       end_time: 'Время окончания',
+      set_range: 'Задать диапазон',
+      clear_range: 'Убрать диапазон',
       sync_with_player: 'Синхронизировать с плеером',
       jump_to_time: 'Перейти ко времени',
       end_time_must_be_greater: 'Время окончания должно быть больше времени начала',
