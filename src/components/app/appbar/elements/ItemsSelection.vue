@@ -19,27 +19,17 @@
     />
 
     <AppBarButton
-      v-if="canAutoScrape"
-      icon="cloud-download"
-      :text="t('appbar.buttons.auto_scrape')"
-      :disabled="itemsStore.selection.length === 0 || scraperStore.autoScrapeInProgress"
-      :action="autoScrapeSelected"
+      icon="pencil-plus"
+      :text="t('common.edit')"
+      :disabled="itemsStore.selection.length === 0"
+      :action="openBulkEdit"
     />
 
     <AppBarButton
-      v-if="canTmdbPersonAutoScrape"
-      icon="movie-search-outline"
-      :text="t('appbar.buttons.tmdb_auto_scrape')"
-      :disabled="itemsStore.selection.length === 0 || tmdbPersonBatch.isInProgress()"
-      :action="autoScrapeTmdbSelected"
-    />
-
-    <AppBarButton
-      v-if="canSceneAutoScrape"
-      icon="cloud-download"
-      :text="t('appbar.buttons.auto_scrape_scenes')"
-      :disabled="itemsStore.selection.length === 0 || sceneScraperStore.autoScrapeInProgress"
-      :action="autoScrapeScenesSelected"
+      icon="delete"
+      :text="t('common.delete')"
+      :disabled="itemsStore.selection.length === 0"
+      :action="openDelete"
     />
 
     <span class="text-caption ml-6" v-html="selectedText"></span>
@@ -51,56 +41,33 @@ import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
+import { useDialogsStore } from '@/stores/dialogs'
 import { useContextMenu } from '@/stores/contextMenu'
-import { useScraperStore } from '@mediachips/plugin-adult/stores/scraper'
-import { useSceneScraperStore } from '@mediachips/plugin-adult/stores/sceneScraper'
-import { useAutoScrapeBatch } from '@mediachips/plugin-adult/composables/useAutoScrapeBatch'
-import { useAutoSceneScrapeBatch } from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
-import { useTmdbPersonAutoScrapeBatch } from '@mediachips/plugin-tmdb/composables/useTmdbPersonAutoScrapeBatch'
-import { isVideoMediaType, getCurrentMediaType } from '@/utils/mediaType'
-import { isAdultUiAvailable } from '@/services/adultFeatures'
-import { isTmdbUiAvailable, isTmdbPersonCategory } from '@/services/tmdbFeatures'
-
+import useItemContextMenu from '@/composable/ItemContextMenu'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
-import {getReadableFileSize} from '@/services/formatUtils'
+import { getReadableFileSize } from '@/services/formatUtils'
+import type { MediaItem, Tag } from '@/types/stores'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
+const dialogsStore = useDialogsStore()
 const contextMenu = useContextMenu()
-const scraperStore = useScraperStore()
-const sceneScraperStore = useSceneScraperStore()
-const { runForSelection } = useAutoScrapeBatch()
-const { runForSelection: runSceneScrapeForSelection } = useAutoSceneScrapeBatch()
-const tmdbPersonBatch = useTmdbPersonAutoScrapeBatch()
 const { t } = useI18n()
 
-const performerMeta = computed(() => {
+const selectionMeta = computed(() => {
   const metaId = itemsStore.environment.meta_id
   if (!metaId) return null
   return appStore.meta.find((item) => item.id === metaId) ?? null
 })
 
-const canAutoScrape = computed(() =>
-  itemsStore.type === 'tag'
-  && isAdultUiAvailable()
-  && Boolean(performerMeta.value?.scraper)
-)
-
-const canTmdbPersonAutoScrape = computed(() =>
-  itemsStore.type === 'tag'
-  && isTmdbUiAvailable()
-  && isTmdbPersonCategory(performerMeta.value, itemsStore.sortedAssigned)
-)
-
-const currentMediaType = computed(() =>
-  getCurrentMediaType(appStore.mediaTypes, itemsStore.environment?.media_type_id),
-)
-
-const canSceneAutoScrape = computed(() =>
-  itemsStore.type === 'media'
-  && isAdultUiAvailable()
-  && isVideoMediaType(currentMediaType.value)
-)
+function resolveRepresentativeItem(): MediaItem | Tag {
+  const id = itemsStore.selection[0]
+  if (id != null) {
+    const fromPage = itemsStore.entities.find((entry) => Number(entry.id) === Number(id))
+    if (fromPage) return fromPage
+  }
+  return (itemsStore.entities[0] ?? { id: 0, name: '' }) as MediaItem | Tag
+}
 
 const filesizes = computed(() => {
   if (itemsStore.type !== 'media') return ''
@@ -109,8 +76,8 @@ const filesizes = computed(() => {
     return getReadableFileSize(itemsStore.totalFilesize)
   }
 
-  const selectedFiles = itemsStore.entities.filter(i =>
-    itemsStore.selection.includes(i.id)
+  const selectedFiles = itemsStore.entities.filter((i) =>
+    itemsStore.selection.includes(i.id),
   )
 
   const sum = selectedFiles.reduce((a, b) => a + Number(b.filesize || 0), 0)
@@ -140,15 +107,57 @@ function toggleSelect() {
   itemsStore.selected_last = null
 }
 
+function openBulkEdit() {
+  if (itemsStore.selection.length === 0) return
+  dialogsStore.bulkEditingItems = true
+  itemsStore.isSelect = false
+}
+
+function openDelete() {
+  if (itemsStore.selection.length === 0) return
+  const { deleteItem } = useItemContextMenu(
+    resolveRepresentativeItem(),
+    itemsStore.type,
+    selectionMeta.value,
+    true,
+    null,
+  )
+  deleteItem()
+}
+
 function onKeyDown(event: KeyboardEvent) {
-  if (event.key !== 'Escape') return
   if (event.defaultPrevented) return
   if (contextMenu.show) return
-  // Let open Vuetify dialogs/menus handle Escape first
   if (document.querySelector('.v-overlay--active')) return
 
-  event.preventDefault()
-  toggleSelect()
+  const target = event.target
+  if (target instanceof Element) {
+    const tag = target.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (target as HTMLElement).isContentEditable) {
+      return
+    }
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    toggleSelect()
+    return
+  }
+
+  if (!itemsStore.selection.length) return
+
+  if (event.code === 'KeyE') {
+    if (event.ctrlKey || event.metaKey || event.altKey) return
+    event.preventDefault()
+    openBulkEdit()
+    return
+  }
+
+  if (event.code === 'Delete' || event.code === 'Backspace') {
+    if (event.ctrlKey || event.metaKey || event.altKey) return
+    event.preventDefault()
+    openDelete()
+  }
 }
 
 onMounted(() => {
@@ -160,27 +169,10 @@ onBeforeUnmount(() => {
 })
 
 function selectVisible() {
-  itemsStore.selection = itemsStore.itemsOnPage.map(i => i.id)
+  itemsStore.selection = itemsStore.itemsOnPage.map((i) => i.id)
 }
 
 async function selectAll() {
   await itemsStore.selectAllFiltered()
-}
-
-async function autoScrapeSelected() {
-  const meta = performerMeta.value
-  if (!meta || itemsStore.selection.length === 0) return
-  await runForSelection(meta)
-}
-
-async function autoScrapeTmdbSelected() {
-  const meta = performerMeta.value
-  if (!meta || itemsStore.selection.length === 0) return
-  await tmdbPersonBatch.runForSelection(meta)
-}
-
-async function autoScrapeScenesSelected() {
-  if (itemsStore.selection.length === 0) return
-  await runSceneScrapeForSelection()
 }
 </script>

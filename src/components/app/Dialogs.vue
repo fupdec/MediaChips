@@ -29,6 +29,16 @@
     <DialogVersionHistory v-if="dialogsStore.versions"/>
     <DialogChangelog v-if="dialogsStore.changelog.show"/>
 
+    <DialogKeyboardShortcuts
+      v-model="showKeyboardShortcuts"
+      @open-player-docs="openPlayerHotkeyDocs"
+    />
+
+    <DialogMediaAdding
+      v-model="addMediaDialogOpen"
+      hide-activator
+    />
+
     <DialogError v-if="dialogsStore.error.show"/>
 
     <DialogProcess
@@ -142,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import {defineAsyncComponent, computed} from 'vue'
+import {defineAsyncComponent, computed, ref, onMounted, onBeforeUnmount} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useTasksStore} from '@/stores/tasks'
@@ -151,6 +161,8 @@ import {useOperationsStore} from '@/stores/operations'
 import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
+import {useAppHotkeys} from '@/composable/useAppHotkeys'
+import {useEventBus} from '@/utils/eventBus'
 
 // Async components
 const DialogLogin = defineAsyncComponent(() =>
@@ -179,6 +191,12 @@ const DialogChangelog = defineAsyncComponent(() =>
 )
 const DialogMigration = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMigration.vue')
+)
+const DialogKeyboardShortcuts = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogKeyboardShortcuts.vue')
+)
+const DialogMediaAdding = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogMediaAdding.vue')
 )
 const DialogError = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogError.vue')
@@ -256,6 +274,21 @@ const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
 const pluginsStore = usePluginsStore()
 const {t} = useI18n()
+const eventBus = useEventBus()
+const { showShortcuts: showKeyboardShortcuts, openPlayerDocs: openPlayerHotkeyDocs } = useAppHotkeys()
+const addMediaDialogOpen = ref(false)
+
+function openAddMediaDialog() {
+  addMediaDialogOpen.value = true
+}
+
+onMounted(() => {
+  eventBus.on('showAddMediaDialog', openAddMediaDialog)
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('showAddMediaDialog', openAddMediaDialog)
+})
 
 const adultUiAvailable = computed(() =>
   pluginsStore.isAdultEnabled,

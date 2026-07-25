@@ -117,6 +117,7 @@
 
     <div v-if="playlists.length == 0 && is_manual_loaded" class="layout-img">
       <v-img src="/images/no-data.svg" max-height="40vh" class="my-4" contain></v-img>
+      <div class="text-h6 mb-1">{{ t('empty_states.no_items_title') }}</div>
       <div class="text--secondary">{{ t('empty_states.no_items_add_first') }}</div>
     </div>
 

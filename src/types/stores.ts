@@ -65,7 +65,6 @@ export interface AppState {
   tabs: import('@shared/entities/tab').Tab[]
   filters: {
     visible: boolean
-    attached: boolean
   }
   syncDarkModeOs: {
     matchMedia: boolean

@@ -30,17 +30,27 @@ export interface HomeWidgetsConfig {
 }
 
 export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
-  order: [...HOME_WIDGET_IDS],
+  order: [
+    'quickActions',
+    'continue',
+    'favorites',
+    'stats',
+    'extendedStats',
+    'topViews',
+    'markers',
+    'health',
+    'topTags',
+  ],
   enabled: {
-    stats: true,
-    extendedStats: true,
+    stats: false,
+    extendedStats: false,
     quickActions: true,
     continue: true,
     favorites: true,
-    topViews: true,
-    markers: true,
-    health: true,
-    topTags: true,
+    topViews: false,
+    markers: false,
+    health: false,
+    topTags: false,
   },
   limits: {
     continue: 12,

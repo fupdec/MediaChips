@@ -3,31 +3,31 @@ import { nowIso } from './utils/timestamps'
 
 const TAGS = [
   {
-    name: 'Red',
-    synonyms: 'Crimson, Scarlet, Ruby',
-    rating: 4,
-    favorite: 1,
-    bookmark: 'important',
-    color: '#ff0000',
-    views: 100,
-  },
-  {
-    name: 'Green',
-    synonyms: 'Emerald, Lime, Forest',
-    rating: 3,
+    name: 'Watch later',
+    synonyms: 'Later, Queue, To watch',
+    rating: 0,
     favorite: 0,
     bookmark: null,
-    color: '#00ff00',
-    views: 75,
+    color: '#2196f3',
+    views: 0,
   },
   {
-    name: 'Blue',
-    synonyms: 'Azure, Navy, Sky',
+    name: 'Favorite scene',
+    synonyms: 'Fav scene, Best scene',
     rating: 5,
     favorite: 1,
     bookmark: 'favorite',
-    color: '#0000ff',
-    views: 120,
+    color: '#e91e63',
+    views: 0,
+  },
+  {
+    name: 'Rewatch',
+    synonyms: 'Watch again, Replay',
+    rating: 4,
+    favorite: 0,
+    bookmark: null,
+    color: '#ff9800',
+    views: 0,
   },
 ] as const
 
@@ -67,7 +67,7 @@ export function seedDemoMetadata(sqlite: Database.Database) {
       imageAspectRatio, isLink, ratingIcon, ratingIconEmpty, ratingIconHalf, ratingMax,
       ratingColor, ratingHalf, sortBy, sortDir, createdAt, updatedAt
     ) VALUES (
-      'array', 'Color tags', 'tag', 'For organize media', 1, 1, 0, 0, 1, 1,
+      'array', 'Labels', 'tag', 'Starter labels — rename or delete as you like', 1, 1, 0, 0, 1, 1,
       1, 0, 0, 0, 1, 1, 'flat', 0, 1,
       1, 0, 'star', 'star-outline', 'star-half-full', 5,
       '#ffab00', 0, 'createdAt', 'asc', ?, ?
@@ -107,4 +107,3 @@ export function seedDemoMetadata(sqlite: Database.Database) {
     )
   }
 }
-

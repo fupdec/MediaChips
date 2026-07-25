@@ -40,7 +40,6 @@ export const useAppStore = defineStore('app', {
     tabs: [],
     filters: {
       visible: false,
-      attached: true,
     },
     syncDarkModeOs: {
       matchMedia: false,

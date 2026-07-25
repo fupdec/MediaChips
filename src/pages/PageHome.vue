@@ -16,6 +16,10 @@
           {{ t('home.documentation_hint') }}
         </div>
 
+        <div class="text-caption text-medium-emphasis mb-3">
+          {{ t('home.keyboard_hint') }}
+        </div>
+
         <div class="d-flex flex-wrap ga-2">
           <v-btn
             color="primary"

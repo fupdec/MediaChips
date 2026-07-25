@@ -29,6 +29,8 @@ export type EventBusMap = {
   playVideo: unknown
   showDocumentation: string
   showGlobalSearch: void
+  showAddMediaDialog: void
+  showKeyboardShortcuts: void
   openTasksMenu: void
   openRandomItem: number
   openTagsAddWithNames: OpenTagsAddWithNamesEvent | string[] | undefined

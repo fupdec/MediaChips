@@ -133,7 +133,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         dialogsStore.openFeedback()
         break
       case 'keyboardShortcuts':
-        eventBus.emit('showDocumentation', 'player.hotkeys')
+        eventBus.emit('showKeyboardShortcuts')
         break
       case 'checkUpdates':
         await ensureInitialized()

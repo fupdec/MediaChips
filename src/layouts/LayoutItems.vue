@@ -1,23 +1,23 @@
 <template>
   <v-container ref="container">
 
-    <div class="text-md-h2 d-flex align-end justify-space-between flex-wrap my-6">
-      <div class="d-flex align-baseline">
-        <v-icon size="42" start>mdi-{{ ITEMS.icon }}</v-icon>
+    <div class="items-page-header text-h4 text-md-h2 d-flex align-end justify-space-between flex-wrap ga-4 mt-6 mb-8">
+      <div class="d-flex align-baseline items-page-header__title">
+        <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
         {{ pageTitle }}
         <span v-if="!loader.is_busy && total > 0">
         <span v-if="total != totalInDb"
-          class="text-h5 ml-2">
+          class="text-h6 text-md-h5 ml-2">
           ({{ total }} of {{ totalInDb }})
         </span>
         <span v-else
-          class="text-h5 ml-2">({{ total }})</span>
+          class="text-h6 text-md-h5 ml-2">({{ total }})</span>
         <span v-if="filesize_all"
-          class="text-h6 ml-2">({{ filesize_all }})</span>
+          class="text-subtitle-1 text-md-h6 ml-2">({{ filesize_all }})</span>
         </span>
       </div>
 
-      <div class="d-flex align-end">
+      <div class="d-flex align-end flex-wrap ga-2">
         <ToolbarSort></ToolbarSort>
         <ToolbarGroupBy></ToolbarGroupBy>
 
@@ -178,7 +178,15 @@
         max-height="40vh"
         class="my-4"
         contain></v-img>
-      <div class="text-medium-emphasish">{{ t('empty_states.no_items_add_first') }}</div>
+      <div class="text-h6 mb-1">{{ t('empty_states.no_items_title') }}</div>
+      <div class="text-medium-emphasis">
+        {{ items_type === 'media'
+          ? t('empty_states.no_items_media_hint')
+          : t('empty_states.no_items_tags_hint') }}
+      </div>
+      <div class="text-caption text-medium-emphasis mt-2">
+        {{ t('empty_states.search_hint') }}
+      </div>
       <div class="mt-4 d-flex justify-center">
         <DialogMediaAdding
           v-if="items_type === 'media'"
@@ -202,7 +210,26 @@
         max-height="40vh"
         class="my-4"
         contain></v-img>
-      <div class="text-medium-emphasis">There is no items matching the filters
+      <div class="text-medium-emphasis mb-4">{{ t('empty_states.no_filter_results') }}</div>
+      <div class="d-flex justify-center flex-wrap ga-2">
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="xl"
+          @click="clearAllFilters"
+        >
+          <v-icon start>mdi-filter-off</v-icon>
+          {{ t('empty_states.clear_filters') }}
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="tonal"
+          rounded="xl"
+          @click="openFilters"
+        >
+          <v-icon start>mdi-filter</v-icon>
+          {{ t('empty_states.edit_filters') }}
+        </v-btn>
       </div>
     </div>
 
@@ -634,6 +661,14 @@ const image_filters_no_results = computed(() => {
   return img_path;
 })
 
+function openFilters() {
+  appStore.filters.visible = true
+}
+
+function clearAllFilters() {
+  eventBus.emit('deactivateAllFilters')
+}
+
 // Методы
 const toggleCustomization = () => {
   const toolbarStore = useToolbarStore()
@@ -724,5 +759,26 @@ defineEmits<{
   width: 100%;
   height: 1px;
   pointer-events: none;
+}
+
+.items-page-header {
+  row-gap: 16px;
+
+  &__icon {
+    font-size: 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin-inline-end: 8px;
+
+    @media (min-width: 960px) {
+      font-size: 42px !important;
+      width: 42px !important;
+      height: 42px !important;
+    }
+  }
+
+  &__title {
+    margin-bottom: 4px;
+  }
 }
 </style>

@@ -128,7 +128,20 @@
         class="my-4"
         contain
       />
-      <div class="text--secondary">{{ t('markers.no_markers_add_first') }}</div>
+      <div class="text-h6 mb-1">{{ t('markers.no_markers_title') }}</div>
+      <div class="text--secondary mb-4">{{ t('markers.no_markers_hint') }}</div>
+      <div class="d-flex justify-center">
+        <v-btn
+          color="success"
+          variant="flat"
+          rounded="xl"
+          size="large"
+          @click="openLibrary"
+        >
+          <v-icon start>mdi-folder-play-outline</v-icon>
+          {{ t('markers.open_library') }}
+        </v-btn>
+      </div>
     </div>
 
     <div
@@ -141,7 +154,18 @@
         class="my-4"
         contain
       />
-      <div class="text--secondary">{{ t('markers.no_results') }}</div>
+      <div class="text--secondary mb-4">{{ t('markers.no_results') }}</div>
+      <div class="d-flex justify-center">
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="xl"
+          @click="clearMarkerFilters"
+        >
+          <v-icon start>mdi-filter-off</v-icon>
+          {{ t('markers.clear_filters') }}
+        </v-btn>
+      </div>
     </div>
 
     <div
@@ -171,7 +195,10 @@
 <script setup lang="ts">
 import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRouter} from 'vue-router'
 import {useMarksStore} from '@/stores/marks'
+import {useAppStore} from '@/stores/app'
+import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {MARK_SORT_PARAMS} from '@/utils/markSort'
 import {scrollMainTo} from '@/utils/mainScroll'
 import useMarkImageGenerator from '@/composable/GeneratingThumbsForMarks'
@@ -179,12 +206,25 @@ import ItemMarker from '@/components/items/ItemMarker.vue'
 import Loading from '@/components/elements/Loading.vue'
 
 const {t} = useI18n()
+const router = useRouter()
 const marksStore = useMarksStore()
+const appStore = useAppStore()
 
 useMarkImageGenerator()
 
 const searchInput = ref('')
 const showInfiniteLoader = ref(false)
+
+function openLibrary() {
+  const id = getDefaultMediaTypeId(appStore.mediaTypes)
+  void router.push(id != null ? `/media?mediaTypeId=${id}` : '/media')
+}
+
+function clearMarkerFilters() {
+  searchInput.value = ''
+  marksStore.setSearch('')
+  marksStore.setSelectedTypes([])
+}
 
 const onTypesChange = (types: string[]) => {
   marksStore.setSelectedTypes(types || [])

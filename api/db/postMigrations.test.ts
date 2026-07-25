@@ -35,7 +35,12 @@ describe('postMigrations', () => {
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='media_media_type_id_idx'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media_fts'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tags_fts'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 11})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 12})
+      expect(sqlite.prepare(`SELECT name FROM meta`).get()).toEqual({name: 'Labels'})
+      const tagNames = (
+        sqlite.prepare(`SELECT name FROM tags ORDER BY name`).all() as Array<{name: string}>
+      ).map((row) => row.name)
+      expect(tagNames).toEqual(['Favorite scene', 'Rewatch', 'Watch later'])
     } finally {
       sqlite.close()
     }

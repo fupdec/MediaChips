@@ -131,21 +131,37 @@
             </div>
           </div>
 
-          <div class="mark-adding__time-row mark-adding__time-row--end">
+          <div
+            v-if="!markAdding.is_end_time_active"
+            class="mt-2"
+          >
+            <v-btn
+              size="small"
+              variant="tonal"
+              rounded="xl"
+              @click="toggleEndTime(true)"
+            >
+              <v-icon start size="small">mdi-arrow-expand-horizontal</v-icon>
+              {{ t('player.mark_dialog.set_range') }}
+            </v-btn>
+          </div>
+
+          <div
+            v-else
+            class="mark-adding__time-row mark-adding__time-row--end"
+          >
             <div class="mark-adding__time-head">
               <span class="mark-adding__field-label">{{ t('player.mark_dialog.end_time') }}</span>
-              <v-switch
-                v-model="markAdding.is_end_time_active"
-                @update:model-value="toggleEndTime"
-                density="compact"
-                hide-details
-                inset
-                color="primary"
-                class="mark-adding__switch"
-              />
+              <v-btn
+                size="x-small"
+                variant="text"
+                @click="toggleEndTime(false)"
+              >
+                {{ t('player.mark_dialog.clear_range') }}
+              </v-btn>
             </div>
 
-            <div v-if="markAdding.is_end_time_active" class="mark-adding__time-controls">
+            <div class="mark-adding__time-controls">
               <v-number-input
                 v-model="markAdding.end"
                 @update:model-value="onEndTimeChange"
@@ -352,6 +368,7 @@ const onEndTimeChange = (time: number) => {
 }
 
 const toggleEndTime = (active: boolean | null) => {
+  dialogsStore.markAdding.is_end_time_active = Boolean(active)
   if (!active) {
     dialogsStore.markAdding.end = null
     return
