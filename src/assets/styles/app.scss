@@ -390,8 +390,6 @@ header {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: appearing 0.18s ease forwards;
-  transition: width 0.2s ease, top 0.2s ease, left 0.2s ease;
 
   &__media {
     position: relative;
@@ -437,11 +435,20 @@ header {
 
   &--item-card {
     width: 300px !important;
-    overflow: visible;
+    max-height: inherit;
+    overflow: hidden;
 
     .item-hover-card {
       border-radius: inherit;
+      max-height: inherit;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .item-hover-card__content {
+      min-height: 0;
+      overflow: auto;
     }
   }
 }

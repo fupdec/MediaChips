@@ -24,10 +24,18 @@ export interface AppHoverState {
   isVideo: boolean
   timeout: ReturnType<typeof setTimeout> | number
   delay: number
+  /** Cursor anchor X (viewport). */
+  anchorX: number
+  /** Cursor anchor Y (viewport). */
+  anchorY: number
+  /** Final card left (viewport). */
   x: number
+  /** Final card top (viewport). */
   y: number
   previewWidth: number
   previewHeight: number
+  /** Max card height that fits in the viewport. */
+  maxHeight: number
 }
 
 export interface AppLogEntry {
