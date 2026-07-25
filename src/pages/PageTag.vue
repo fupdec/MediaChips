@@ -640,19 +640,20 @@ const getTag = async () => {
   }
 }
 
-const resolveTagImage = (type: keyof TagImages): string =>
+const resolveTagImage = (type: keyof TagImages, cacheBust: boolean | number = false): string =>
   resolveTagThumbDisplayUrl({
     dbPath: appStore.dbPath,
     metaId: meta.value.id,
     tagId: tag.value.id,
     type,
+    cacheBust,
   })
 
-const getImages = async () => {
+const getImages = async ({cacheBust = false}: {cacheBust?: boolean | number} = {}) => {
   if (!appStore.dbPath || !meta.value.id || !tag.value.id) return
 
   for (const type of ['main', 'header', 'avatar', 'alt', 'custom1', 'custom2'] as const) {
-    images.value[type] = resolveTagImage(type)
+    images.value[type] = resolveTagImage(type, cacheBust)
   }
 
   const metaDir = path.join(appStore.dbPath, 'meta', String(meta.value.id))
@@ -951,6 +952,14 @@ watch(
   (dbPath) => {
     if (!dbPath || !tag.value.id) return
     void getImages()
+  },
+)
+
+watch(
+  () => itemsStore.thumbRefreshKeys[Number(tag.value.id)],
+  (version, prev) => {
+    if (version == null || version === prev || !tag.value.id) return
+    void getImages({cacheBust: true})
   },
 )
 

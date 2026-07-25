@@ -1,7 +1,12 @@
 const DEFAULT_MAX_ENTRIES = 400
 
 const cache = new Map<string, string>()
+const tagThumbVersions = new Map<string, number>()
 const maxEntries = DEFAULT_MAX_ENTRIES
+
+function tagVersionKey(metaId: number | string, tagId: number | string): string {
+  return `tagver:${metaId}:${tagId}`
+}
 
 function touch(key: string, url: string): void {
   cache.delete(key)
@@ -57,6 +62,29 @@ export function invalidateTagThumbCaches(
   }
 }
 
+export function setTagThumbVersion(
+  metaId: number | string,
+  tagId: number | string,
+  version = Date.now(),
+): number {
+  tagThumbVersions.set(tagVersionKey(metaId, tagId), version)
+  return version
+}
+
+export function getTagThumbVersion(
+  metaId: number | string,
+  tagId: number | string,
+): number | undefined {
+  return tagThumbVersions.get(tagVersionKey(metaId, tagId))
+}
+
+export function clearTagThumbVersion(
+  metaId: number | string,
+  tagId: number | string,
+): void {
+  tagThumbVersions.delete(tagVersionKey(metaId, tagId))
+}
+
 export function setCachedMediaThumbs(
   folder: string,
   thumbs: Record<string | number, string>,
@@ -74,7 +102,11 @@ export function setCachedTagThumbs(
   thumbs: Record<string | number, Record<string, string>>,
 ): void {
   for (const [tagId, typeMap] of Object.entries(thumbs)) {
+    const version = getTagThumbVersion(metaId, tagId)
     for (const [type, url] of Object.entries(typeMap)) {
+      // After a tag image edit, refuse to re-cache stale stable URLs from
+      // in-flight prefetch that resolved before the version bump.
+      if (version && !String(url).includes('_t=')) continue
       setCachedThumb(tagThumbKey(metaId, tagId, type), url)
     }
   }
@@ -82,6 +114,7 @@ export function setCachedTagThumbs(
 
 export function clearThumbDisplayCache(): void {
   cache.clear()
+  tagThumbVersions.clear()
 }
 
 export function mediaThumbKey(

@@ -99,6 +99,7 @@
 import {ref, computed, watch, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
+import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import groupBy from 'lodash/groupBy'
@@ -126,6 +127,7 @@ const props = withDefaults(defineProps<{
 })
 
 const store = useAppStore()
+const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
 const {t} = useI18n()
@@ -214,6 +216,11 @@ function openTagPage(meta: Meta, tag: TopTagItem) {
 watch(tags, () => getTagsTop())
 watch(metas, () => getTagsTop())
 watch(() => props.limit, () => getTagsTop())
+watch(
+  () => itemsStore.thumbRefreshKeys,
+  () => getTagsTop(),
+  {deep: true},
+)
 watch(sortMode, () => {
   visibleCategoryCount.value = INITIAL_VISIBLE_CATEGORIES
   getTagsTop()

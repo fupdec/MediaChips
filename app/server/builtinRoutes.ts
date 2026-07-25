@@ -300,16 +300,39 @@ function registerBuiltinRoutes({
 
       const ext = path.extname(resolvedPath).toLowerCase()
       const contentType = FILE_MIME_TYPES[ext as keyof typeof FILE_MIME_TYPES] || 'application/octet-stream'
+      const stats = fs.statSync(resolvedPath)
+      const etag = `W/"${stats.size}-${Math.trunc(stats.mtimeMs)}"`
 
       res.setHeader('Content-Type', contentType)
-      res.setHeader('Cache-Control', 'public, max-age=86400')
+      // Mutable paths (tag images, regenerated thumbs) share stable URLs — force
+      // revalidation so overwrites are not stuck behind a long-lived browser cache.
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+      res.setHeader('Last-Modified', stats.mtime.toUTCString())
+      res.setHeader('ETag', etag)
       res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+
+      const ifNoneMatch = req.headers['if-none-match']
+      if (typeof ifNoneMatch === 'string') {
+        const tags = ifNoneMatch.split(',').map((tag) => tag.trim())
+        if (tags.includes(etag) || tags.includes('*')) {
+          return res.status(304).end()
+        }
+      } else {
+        const ifModifiedSince = req.headers['if-modified-since']
+        if (typeof ifModifiedSince === 'string') {
+          const since = Date.parse(ifModifiedSince)
+          if (!Number.isNaN(since) && Math.trunc(stats.mtimeMs) <= since) {
+            return res.status(304).end()
+          }
+        }
+      }
 
       if (headOnly) {
         return res.status(200).end()
       }
 
-      res.sendFile(resolvedPath, (err: unknown) => {
+      // Keep the explicit validators above; avoid sendFile replacing them.
+      res.sendFile(resolvedPath, {etag: false, lastModified: false}, (err: unknown) => {
         if (!err) return
 
         if (isClientAbortError(err) || req.aborted || res.writableEnded) {
@@ -321,7 +344,6 @@ function registerBuiltinRoutes({
         if (res.headersSent) return
 
         try {
-          const stats = fs.statSync(resolvedPath)
           const fileStream = fs.createReadStream(resolvedPath)
 
           fileStream.on('error', (streamErr: Error) => {

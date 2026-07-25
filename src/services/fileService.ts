@@ -135,15 +135,23 @@ export async function checkFileExists(filePath: string) {
   return false
 }
 
+// Bump when /api/get-file caching semantics change so browsers drop stale
+// responses previously stored under Cache-Control max-age=86400.
+const GET_FILE_CACHE_VERSION = '1'
+
 export function buildLocalFileUrl(
   imgPath: string,
   outside?: boolean,
-  cacheBust = false,
+  cacheBust: boolean | number = false,
 ): string {
   const params = new URLSearchParams()
   params.set('url', imgPath)
+  params.set('cv', GET_FILE_CACHE_VERSION)
   if (outside) params.set('outside', '1')
-  if (cacheBust) params.set('_t', String(Date.now()))
+  if (cacheBust === true) params.set('_t', String(Date.now()))
+  else if (typeof cacheBust === 'number' && Number.isFinite(cacheBust)) {
+    params.set('_t', String(cacheBust))
+  }
 
   const token = getAuthToken()
   if (token) params.set('token', token)
@@ -151,7 +159,11 @@ export function buildLocalFileUrl(
   return buildApiUrl(`${API_ROUTES.getFile}?${params.toString()}`)
 }
 
-export function getLocalImage(imgPath: string, outside?: boolean, cacheBust = false) {
+export function getLocalImage(
+  imgPath: string,
+  outside?: boolean,
+  cacheBust: boolean | number = false,
+) {
   if (!imgPath) return '/images/unavailable.png'
 
   return buildLocalFileUrl(imgPath, outside, cacheBust)
@@ -192,7 +204,7 @@ function sleep(ms: number) {
 export async function createImage(
   image: string,
   outputPath: string,
-  sizes: unknown,
+  sizes?: unknown,
 ) {
   const url = resolveCreateImageUrl(image)
   const maxAttempts = url ? 3 : 1

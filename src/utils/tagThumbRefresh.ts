@@ -1,6 +1,9 @@
 import path from 'path-browserify'
 import { invalidateFileExistsCache } from '@/services/fileService'
-import { invalidateTagThumbCaches } from '@/utils/thumbDisplayCache'
+import {
+  invalidateTagThumbCaches,
+  setTagThumbVersion,
+} from '@/utils/thumbDisplayCache'
 
 const TAG_IMAGE_FILE_TYPES = ['main', 'alt', 'custom1', 'custom2', 'avatar', 'header'] as const
 
@@ -29,5 +32,8 @@ export function refreshTagThumbDisplay(
 ): void {
   invalidateTagThumbCaches(metaId, tagId)
   invalidateTagThumbFileExistsCaches(dbPath, metaId, tagId)
+  // Fixed filesystem paths need a stable bust token so Home/Tag menus
+  // rebuild `/api/get-file` URLs after overwrite/delete/re-add.
+  setTagThumbVersion(metaId, tagId)
   itemsStore.refreshThumb(Number(tagId))
 }

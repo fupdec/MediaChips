@@ -2,6 +2,7 @@ import path from 'path-browserify'
 import { buildLocalFileUrl } from '@/services/fileService'
 import {
   getCachedThumb,
+  getTagThumbVersion,
   isPersistentThumbUrl,
   mediaThumbKey,
   tagThumbKey,
@@ -24,9 +25,14 @@ export function resolveTagThumbDisplayUrl({
   metaId: number | string
   tagId: number | string
   type: string
-  cacheBust?: boolean
+  cacheBust?: boolean | number
 }): string {
-  if (!cacheBust) {
+  const version = getTagThumbVersion(metaId, tagId)
+  const bustToken: boolean | number = cacheBust === true
+    ? true
+    : (typeof cacheBust === 'number' ? cacheBust : (version ?? false))
+
+  if (!bustToken) {
     const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
     if (isPersistentThumbUrl(cached)) return cached!
   }
@@ -36,7 +42,7 @@ export function resolveTagThumbDisplayUrl({
     'meta',
     String(metaId),
     `${tagId}_${type}.jpg`,
-  ), false, cacheBust)
+  ), false, bustToken)
 }
 
 export interface TagHoverThumbCandidate {
@@ -58,9 +64,12 @@ export function getTagHoverThumbCandidates({
   const candidates: TagHoverThumbCandidate[] = []
   const seen = new Set<string>()
 
+  const version = getTagThumbVersion(metaId, tagId)
+
   for (const type of TAG_HOVER_THUMB_TYPES) {
     const cached = getCachedThumb(tagThumbKey(metaId, tagId, type))
-    if (cached && !isThumbUnavailable(cached) && !seen.has(cached)) {
+    const cachedIsCurrent = !version || String(cached).includes('_t=')
+    if (cached && cachedIsCurrent && !isThumbUnavailable(cached) && !seen.has(cached)) {
       seen.add(cached)
       candidates.push({type, url: cached})
       continue

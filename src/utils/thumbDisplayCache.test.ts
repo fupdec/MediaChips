@@ -4,7 +4,10 @@ import {
   getCachedThumb,
   invalidateCachedThumb,
   mediaThumbKey,
+  setCachedTagThumbs,
   setCachedThumb,
+  setTagThumbVersion,
+  tagThumbKey,
 } from '@/utils/thumbDisplayCache'
 
 describe('thumbDisplayCache', () => {
@@ -64,5 +67,22 @@ describe('thumbDisplayCache', () => {
 
     expect(getCachedThumb(mediaThumbKey('videos', 42, 'thumbs'))).toBe('thumb-url')
     expect(getCachedThumb(mediaThumbKey('videos', 42, 'grids'))).toBe('grid-url')
+  })
+
+  it('refuses to re-cache stable tag urls after an image edit version bump', () => {
+    clearThumbDisplayCache()
+    setTagThumbVersion(9, 100, 123)
+
+    setCachedTagThumbs(9, {
+      100: {
+        main: '/api/get-file?url=100_main.jpg',
+        avatar: '/api/get-file?url=100_avatar.jpg&_t=123',
+      },
+    })
+
+    expect(getCachedThumb(tagThumbKey(9, 100, 'main'))).toBeUndefined()
+    expect(getCachedThumb(tagThumbKey(9, 100, 'avatar'))).toBe(
+      '/api/get-file?url=100_avatar.jpg&_t=123',
+    )
   })
 })

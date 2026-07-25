@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { invalidateTagThumbCaches } from '@/utils/thumbDisplayCache'
+import { invalidateTagThumbCaches, setTagThumbVersion } from '@/utils/thumbDisplayCache'
 import {
   invalidateTagThumbFileExistsCaches,
   refreshTagThumbDisplay,
@@ -7,6 +7,7 @@ import {
 
 vi.mock('@/utils/thumbDisplayCache', () => ({
   invalidateTagThumbCaches: vi.fn(),
+  setTagThumbVersion: vi.fn(),
 }))
 
 vi.mock('@/services/fileService', () => ({
@@ -26,13 +27,14 @@ describe('tagThumbRefresh', () => {
     expect(invalidateFileExistsCache).toHaveBeenCalledWith('/db/meta/18/1626_custom2.jpg')
   })
 
-  it('invalidates thumb caches and refreshes the card thumb', () => {
+  it('invalidates thumb caches, bumps version, and refreshes the card thumb', () => {
     const itemsStore = { refreshThumb: vi.fn() }
 
     refreshTagThumbDisplay(itemsStore, '/db', 18, 1626)
 
     expect(invalidateTagThumbCaches).toHaveBeenCalledWith(18, 1626)
     expect(invalidateFileExistsCache).toHaveBeenCalledWith('/db/meta/18/1626_main.jpg')
+    expect(setTagThumbVersion).toHaveBeenCalledWith(18, 1626)
     expect(itemsStore.refreshThumb).toHaveBeenCalledWith(1626)
   })
 })
