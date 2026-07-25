@@ -1,13 +1,33 @@
 <template>
   <v-dialog
     v-model="model"
-    :persistent="persistent"
+    :persistent="isPersistent"
     width="400"
     scrollable
   >
     <v-card>
-      <v-card-text class="text-center pt-8">
-        <div v-html="text" />
+      <v-card-text class="text-center" :class="variant === 'delete' ? '' : 'pt-8'">
+        <v-icon
+          v-if="variant === 'delete'"
+          icon="mdi-alert-outline"
+          size="48"
+          color="error"
+          class="py-6 mb-4"
+        />
+        <div
+          :class="variant === 'delete' ? 'error-text' : undefined"
+          v-html="text"
+        />
+        <v-checkbox
+          v-if="checkBoxText"
+          :model-value="checkBox"
+          :label="checkBoxText"
+          color="error"
+          hide-details
+          density="compact"
+          class="mt-2"
+          @update:model-value="emit('update:checkBox', Boolean($event))"
+        />
       </v-card-text>
 
       <v-card-actions class="pb-4 px-4">
@@ -18,19 +38,19 @@
           @click="close"
         >
           <v-icon icon="mdi-close" start />
-          No
+          {{ cancelLabel }}
         </v-btn>
 
         <v-spacer />
 
         <v-btn
-          color="success"
+          :color="variant === 'delete' ? 'error' : 'success'"
           variant="flat"
           class="px-4"
           @click="confirm"
         >
           <v-icon icon="mdi-check" start />
-          Yes
+          {{ confirmLabel }}
         </v-btn>
 
         <v-spacer v-if="!closable" />
@@ -40,32 +60,46 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import {computed} from 'vue'
 
-const emit = defineEmits(['update:dialog', 'close', 'confirm'])
+const emit = defineEmits<{
+  'update:dialog': [value: boolean]
+  'update:checkBox': [value: boolean]
+  close: []
+  confirm: []
+  delete: []
+  remove: []
+}>()
 
-const props = defineProps({
-  dialog: {
-    type: Boolean,
-    required: true,
-  },
-  text: {
-    type: String,
-    default: '',
-  },
-  persistent: {
-    type: Boolean,
-    default: false,
-  },
-  closable: {
-    type: Boolean,
-    default: true,
-  },
+const props = withDefaults(defineProps<{
+  dialog: boolean
+  text?: string
+  persistent?: boolean
+  closable?: boolean
+  variant?: 'confirm' | 'delete'
+  checkBoxText?: string
+  checkBox?: boolean
+}>(), {
+  text: '',
+  persistent: false,
+  closable: true,
+  variant: 'confirm',
+  checkBoxText: '',
+  checkBox: false,
 })
 
-/**
- * v-model wrapper
- */
+const isPersistent = computed(() =>
+  props.persistent || props.variant === 'delete',
+)
+
+const cancelLabel = computed(() =>
+  props.variant === 'delete' ? 'Cancel' : 'No',
+)
+
+const confirmLabel = computed(() =>
+  props.variant === 'delete' ? 'Delete' : 'Yes',
+)
+
 const model = computed({
   get: () => props.dialog,
   set: (val) => {
@@ -80,6 +114,10 @@ function close() {
 
 function confirm() {
   emit('confirm')
+  if (props.variant === 'delete') {
+    emit('delete')
+    emit('remove')
+  }
   model.value = false
 }
 </script>
@@ -89,5 +127,9 @@ pre {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+.error-text {
+  color: rgb(var(--v-theme-error));
 }
 </style>

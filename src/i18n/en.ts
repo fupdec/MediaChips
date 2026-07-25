@@ -55,11 +55,7 @@ const en = {
     copy: 'Copy',
     paste: 'Paste',
     select_all: 'Select All',
-    find: 'Find',
-    find_placeholder: 'Search on page...',
-    find_next: 'Find Next',
-    find_no_matches: 'No matches found',
-    find_matches: 'Match {current} of {total}',
+
     global_search: 'Global Search',
     toggle_theme: 'Toggle Theme',
     zoom_in: 'Zoom In',

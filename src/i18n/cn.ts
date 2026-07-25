@@ -55,11 +55,7 @@ const cn = {
     copy: '复制',
     paste: '粘贴',
     select_all: '全选',
-    find: '查找',
-    find_placeholder: '在页面中搜索...',
-    find_next: '查找下一个',
-    find_no_matches: '未找到匹配项',
-    find_matches: '第 {current} 个，共 {total} 个',
+
     global_search: '全局搜索',
     toggle_theme: '切换主题',
     zoom_in: '放大',

@@ -56,11 +56,7 @@ const ja = {
     copy: "コピー",
     paste: "ペースト",
     select_all: "すべて選択",
-    find: "探す",
-    find_placeholder: "ページ内を検索...",
-    find_next: "次を探す",
-    find_no_matches: "一致するものが見つかりませんでした",
-    find_matches: "{total} の {current} と一致",
+
     global_search: "グローバル検索",
     toggle_theme: "テーマの切り替え",
     zoom_in: "ズームイン",

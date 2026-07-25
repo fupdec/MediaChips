@@ -9,7 +9,6 @@ export type SystemMenuAction =
   | 'copy'
   | 'paste'
   | 'selectAll'
-  | 'find'
   | 'globalSearch'
   | 'toggleTheme'
   | 'zoomIn'

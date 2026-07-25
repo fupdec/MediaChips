@@ -25,7 +25,6 @@
     <DialogAdultOnboarding v-if="adultUiAvailable && dialogsStore.adultOnboarding.show"/>
     <DialogDocumentation v-show="dialogsStore.documentation"/>
     <DialogFeedback v-if="dialogsStore.feedback"/>
-    <DialogFindInPage v-if="dialogsStore.findInPage.show"/>
     <DialogVersionHistory v-if="dialogsStore.versions"/>
     <DialogChangelog v-if="dialogsStore.changelog.show"/>
 
@@ -76,9 +75,16 @@
       v-if="dialogsStore.tagCategoryMerge.show"
     />
 
-    <DialogGlobalDeleteConfirm
+    <DialogConfirm
       v-if="dialogsStore.confirm.show"
-      @close="dialogsStore.confirm.show = false"
+      variant="delete"
+      :dialog="dialogsStore.confirm.show"
+      :text="dialogsStore.confirm.text || ''"
+      :check-box-text="dialogsStore.confirm.checkBoxText"
+      :check-box="dialogsStore.confirm.checkBox"
+      @update:check-box="dialogsStore.confirm.checkBox = $event"
+      @close="closeConfirmDialog"
+      @confirm="runConfirmDialog"
     />
 
     <DialogPlaylistAdd
@@ -91,10 +97,14 @@
 
     <DialogFolder v-if="watcherStore.dialogFolder"/>
 
-    <DialogSelectFolder
+    <DialogBrowseFolder
       v-if="operationsStore.moving.dialog"
-      @select="moveFiles"
-      @close="operationsStore.moving.dialog = false"
+      v-model="operationsStore.moving.dialog"
+      path-input
+      validate-exists
+      show-native-picker
+      :initial-path="operationsStore.moving.folderPath"
+      @confirm="onMoveFolderConfirm"
     />
 
     <DialogOrganizeMediaByTag v-if="operationsStore.create_folder_move_media.dialog"/>
@@ -180,9 +190,6 @@ const DialogDocumentation = defineAsyncComponent(() =>
 const DialogFeedback = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogFeedback.vue')
 )
-const DialogFindInPage = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogFindInPage.vue')
-)
 const DialogVersionHistory = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogVersionHistory.vue')
 )
@@ -253,14 +260,14 @@ const DialogBulkEditingItems = defineAsyncComponent(() =>
 const DialogFolder = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogFolder.vue')
 )
-const DialogGlobalDeleteConfirm = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogGlobalDeleteConfirm.vue')
+const DialogConfirm = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogConfirm.vue')
+)
+const DialogBrowseFolder = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogBrowseFolder.vue')
 )
 const DialogPlaylistAdd = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogPlaylistAdd.vue')
-)
-const DialogSelectFolder = defineAsyncComponent(() =>
-  import('@/components/dialogs/DialogSelectFolder.vue')
 )
 const About = defineAsyncComponent(() =>
   import('@/components/app/About.vue')
@@ -304,7 +311,23 @@ const closeApp = () => {
   }
 }
 
-const moveFiles = async () => {
+function closeConfirmDialog() {
+  dialogsStore.confirm.show = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox = false
+}
+
+function runConfirmDialog() {
+  if (typeof dialogsStore.confirm.action === 'function') {
+    dialogsStore.confirm.action()
+  }
+  closeConfirmDialog()
+}
+
+async function onMoveFolderConfirm(paths: string[]) {
+  const path = paths[0]?.trim()
+  if (!path) return
+  operationsStore.moving.folderPath = path
   await operationsStore.moveFiles()
   itemsStore.selection = []
   operationsStore.moving.dialog = false

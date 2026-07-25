@@ -75,8 +75,9 @@
       </v-card>
     </v-dialog>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDelete"
+      variant="delete"
       :dialog="dialogDelete"
       @close="dialogDelete = false"
       @delete="deletePlaylist"
@@ -96,7 +97,7 @@ import {getFilters} from '@/services/filterService'
 import {validateName} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import FiltersChips from '@/components/elements/FiltersChips.vue'
 import {buildM3uPlaylist, downloadTextFile, playlistExportFilename} from '@/utils/playlistExport'
 import type {FilterObject} from '@/types/common'

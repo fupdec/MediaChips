@@ -16,7 +16,6 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     documentation: false,
     feedback: false,
     feedbackPreset: null as { subject?: string; message?: string } | null,
-    findInPage: { show: false },
     versions: false,
     changelog: {
       show: false,

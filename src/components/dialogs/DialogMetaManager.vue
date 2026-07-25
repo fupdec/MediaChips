@@ -135,13 +135,14 @@
   </v-dialog>
 
   <!-- Диалог подтверждения удаления (только в режиме редактирования) -->
-  <DialogDeleteConfirm
+  <DialogConfirm
     v-if="editMode && dialogDeleteMeta"
+    variant="delete"
     :dialog="dialogDeleteMeta"
     @delete="deleteMeta"
     @close="dialogDeleteMeta=false"
     :text="textDialogDelete"
-  ></DialogDeleteConfirm>
+  ></DialogConfirm>
 </template>
 
 <script setup lang="ts">
@@ -153,7 +154,7 @@ import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import MetaSettingsArray from '@/components/dialogs/meta/MetaSettingsArray.vue'
 import MetaSettingsRating from '@/components/dialogs/meta/MetaSettingsRating.vue'
 import MetaSettingsNumber from '@/components/dialogs/meta/MetaSettingsNumber.vue'

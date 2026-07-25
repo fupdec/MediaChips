@@ -108,8 +108,9 @@
       </v-card>
     </v-dialog>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDeletePlaylist"
+      variant="delete"
       :dialog="dialogDeletePlaylist"
       @close="dialogDeletePlaylist = false"
       @delete="deletePlaylist"
@@ -132,7 +133,7 @@ import {validateName} from '@/services/formatUtils';
 import {setNotification} from '@/services/notificationService';
 import {useAppStore} from '@/stores/app';
 import DialogHeader from '@/components/elements/DialogHeader.vue';
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue';
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue';
 import sortBy from 'lodash/sortBy';
 import {buildM3uPlaylist, downloadTextFile, playlistExportFilename} from '@/utils/playlistExport';
 import type {Playlist} from '@/types/stores'

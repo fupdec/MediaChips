@@ -96,6 +96,7 @@
     <DialogConfirm
       :dialog="dialogRestoreConfirm"
       :text="t('settings_labels.database.restore_confirm')"
+      @close="dialogRestoreConfirm = false"
       @confirm="restoreBackup"
     />
 
@@ -103,16 +104,18 @@
       :dialog="dialogRestoreFinished"
       :closable="false"
       :text="restoreCompleteText"
+      @close="dialogRestoreFinished = false"
       @confirm="closeRestoreFinished"
     />
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDelete"
+      variant="delete"
       :dialog="dialogDelete"
       :text="t('settings_labels.database.delete_confirm')"
       @close="dialogDelete = false"
       @delete="deleteBackups"
-    ></DialogDeleteConfirm>
+    />
 
     <v-dialog v-model="dialogImport" width="700">
       <v-card>
@@ -268,7 +271,6 @@ import {getErrorResponseData} from '@/types/vue'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists} from '@/services/fileService'

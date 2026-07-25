@@ -54,8 +54,9 @@
       </v-card-text>
     </v-card>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="confirmDialog"
+      variant="delete"
       :dialog="confirmDialog"
       @close="cancelConfirm"
       @confirm="executeConfirm"
@@ -74,7 +75,7 @@ import {useEventBus} from '@/utils/eventBus'
 import MetaAssignmentAnchor from './MetaAssignmentAnchor.vue'
 import MetaToMediaBoard from './MetaToMediaBoard.vue'
 import MetaToMetaBoard from './MetaToMetaBoard.vue'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 
 import type {
   MediaType,

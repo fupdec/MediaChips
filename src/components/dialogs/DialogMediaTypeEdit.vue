@@ -66,12 +66,13 @@
       </v-card>
     </v-dialog>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDeleteMediaType"
-      @close="dialogDeleteMediaType = false"
-      @delete="deleteMeta"
+      variant="delete"
       :dialog="dialogDeleteMediaType"
       :text="textDialogDelete"
+      @close="dialogDeleteMediaType = false"
+      @delete="deleteMeta"
     />
   </div>
 </template>
@@ -86,7 +87,7 @@ import {typedApi} from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import type {MediaType} from '@/types/media'
 

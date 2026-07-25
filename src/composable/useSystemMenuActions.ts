@@ -74,9 +74,6 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
       case 'selectAll':
         runEditCommand('selectAll')
         break
-      case 'find':
-        dialogsStore.findInPage.show = true
-        break
       case 'globalSearch':
         eventBus.emit('showGlobalSearch')
         break

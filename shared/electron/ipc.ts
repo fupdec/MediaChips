@@ -39,8 +39,6 @@ export const IPC_INVOKE_CHANNELS = [
   'destroyPlayer',
   'toggleDevTools',
   'toggleMainFullscreen',
-  'findInPage',
-  'stopFindInPage',
   'updater:check',
   'updater:download',
   'updater:install',
@@ -122,19 +120,6 @@ export interface CreateThumbIpcPayload {
   width: number
 }
 
-export interface FindInPagePayload {
-  query: string
-  forward?: boolean
-  findNext?: boolean
-}
-
-export interface FindInPageResult {
-  activeMatchOrdinal?: number
-  matches?: number
-  selectionArea?: unknown
-  finalUpdate?: boolean
-}
-
 export interface PlayVideoPayload {
   video?: Record<string, unknown>
   videos?: Array<Record<string, unknown>>
@@ -197,8 +182,6 @@ export interface IpcInvokePayloads {
   destroyPlayer: void
   toggleDevTools: void
   toggleMainFullscreen: void
-  findInPage: FindInPagePayload
-  stopFindInPage: void
   'updater:check': void
   'updater:download': void
   'updater:install': void
@@ -230,8 +213,6 @@ export interface IpcInvokeResults {
   destroyPlayer: void
   toggleDevTools: void
   toggleMainFullscreen: void
-  findInPage: FindInPageResult
-  stopFindInPage: void
   'updater:check': UpdaterState
   'updater:download': UpdaterState
   'updater:install': void

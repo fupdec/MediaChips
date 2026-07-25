@@ -55,11 +55,7 @@ const ru = {
     copy: 'Копировать',
     paste: 'Вставить',
     select_all: 'Выделить всё',
-    find: 'Найти',
-    find_placeholder: 'Поиск на странице...',
-    find_next: 'Найти далее',
-    find_no_matches: 'Совпадений не найдено',
-    find_matches: 'Совпадение {current} из {total}',
+
     global_search: 'Глобальный поиск',
     toggle_theme: 'Переключить тему',
     zoom_in: 'Увеличить',

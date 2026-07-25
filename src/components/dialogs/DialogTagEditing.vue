@@ -39,8 +39,9 @@
       </v-card-text>
     </v-card>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="is_show_dialog_delete_confirm"
+      variant="delete"
       :dialog="is_show_dialog_delete_confirm"
       @delete="deleteTag"
       @close="is_show_dialog_delete_confirm = false"
@@ -72,7 +73,7 @@ import DialogHeader from '@/components/elements/DialogHeader.vue'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
 import {useEventBus} from "@/utils/eventBus"
-import DialogDeleteConfirm from "@/components/dialogs/DialogDeleteConfirm.vue"
+import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 
 interface TagImage {

@@ -70,8 +70,9 @@
         </v-card-text>
       </v-card>
 
-      <DialogDeleteConfirm
+      <DialogConfirm
         v-if="dialogImageDeleting"
+        variant="delete"
         :dialog="dialogImageDeleting"
         @delete="deleteFile"
         @close="dialogImageDeleting = false"
@@ -91,7 +92,7 @@ import {createImage, deleteLocalFile} from '@/services/fileService'
 import {extractColorFromCanvas, isMainTagImagePath, parseLocalFilePathFromApiUrl} from '@/utils/colorFromImage'
 import {revokeImageObjectUrl} from '@/utils/imageSource'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 
 interface FilePondInstance {
   getFiles: () => Array<{ getFileEncodeDataURL?: () => string }>

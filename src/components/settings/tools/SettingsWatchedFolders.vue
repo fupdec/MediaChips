@@ -217,8 +217,9 @@
     </v-dialog>
 
     <!-- Delete Confirmation Dialog -->
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="showDeleteDialog"
+      variant="delete"
       :dialog="showDeleteDialog"
       @close="showDeleteDialog = false"
       @confirm="removeFolder"
@@ -241,7 +242,7 @@ import {useAppStore} from '@/stores/app'
 import {useWatcherStore} from '@/stores/watcher'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import SettingsCategoryDivider
   from "@/components/ui/SettingsCategoryDivider.vue"

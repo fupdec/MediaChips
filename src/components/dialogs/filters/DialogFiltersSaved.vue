@@ -101,8 +101,9 @@
       </v-card>
     </v-dialog>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDel"
+      variant="delete"
       :dialog="dialogDel"
       :text="t('filters.delete_saved_filter_confirm')"
       @close="dialogDel = false"
@@ -121,7 +122,7 @@ import {getSavedFilters} from '@/services/filterService'
 import {validateName} from '@/services/formatUtils'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SavedFiltersList from '@/components/elements/SavedFiltersList.vue'
 
 import {useItemsStore} from '@/stores/items'

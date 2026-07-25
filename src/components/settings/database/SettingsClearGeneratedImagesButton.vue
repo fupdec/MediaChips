@@ -15,8 +15,9 @@
       <span v-else>{{ formattedFolderSize }}</span>
     </div>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDelete"
+      variant="delete"
       :dialog="dialogDelete"
       :text="confirmText"
       @close="dialogDelete = false"
@@ -30,7 +31,7 @@ import {ref, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
 import type {GeneratedMediaFolderKey} from '@shared/generatedMediaFolders'
 

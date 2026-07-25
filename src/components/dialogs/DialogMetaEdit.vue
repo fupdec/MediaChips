@@ -71,8 +71,9 @@
       </v-card>
     </v-dialog>
 
-    <DialogDeleteConfirm
+    <DialogConfirm
       v-if="dialogDeleteMeta"
+      variant="delete"
       :dialog="dialogDeleteMeta"
       @delete="deleteMeta"
       @close="dialogDeleteMeta=false"
@@ -93,7 +94,7 @@ import {useEventBus} from '@/utils/eventBus'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ChipMetaType from '@/components/elements/ChipMetaType.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
-import DialogDeleteConfirm from '@/components/dialogs/DialogDeleteConfirm.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import MetaSettingsArray from '@/components/dialogs/meta/MetaSettingsArray.vue'
 import MetaSettingsRating from '@/components/dialogs/meta/MetaSettingsRating.vue'
 import {typedApi} from '@/services/typedApi'

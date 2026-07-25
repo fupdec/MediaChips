@@ -561,33 +561,6 @@ ipcMain.handle('toggleMainFullscreen', () => {
   return win.isFullScreen()
 })
 
-ipcMain.handle('findInPage', async (_event: IpcMainInvokeEvent, payload: unknown) => {
-  const options = payload as { text?: string; forward?: boolean; findNext?: boolean }
-  const query = String(options?.text || '').trim()
-  if (!query || !win || win.isDestroyed()) {
-    return {matches: 0, activeMatchOrdinal: 0}
-  }
-
-  return new Promise((resolve) => {
-    const requestId = win!.webContents.findInPage(query, {
-      forward: options?.forward !== false,
-      findNext: Boolean(options?.findNext),
-    })
-
-    const onFound = (_event: Electron.Event, result: Electron.FoundInPageResult) => {
-      if (result.requestId !== requestId) return
-      win?.webContents.removeListener('found-in-page', onFound)
-      resolve(result)
-    }
-
-    win!.webContents.on('found-in-page', onFound)
-  })
-})
-
-ipcMain.handle('stopFindInPage', () => {
-  win?.webContents.stopFindInPage('clearSelection')
-})
-
 function sendMenuAction(action: string) {
   win?.webContents.send('menuAction', action)
 }
@@ -653,14 +626,13 @@ const editMenu = {
       accelerator: 'CommandOrControl+A',
       role: 'selectAll' as const,
     },
-    menuActionItem('Find', 'find', 'CommandOrControl+F'),
+    menuActionItem('Global Search', 'globalSearch', 'CommandOrControl+F'),
   ],
 }
 
 const viewMenu = {
   label: 'View',
   submenu: [
-    menuActionItem('Global Search', 'globalSearch'),
     menuActionItem('Toggle Theme', 'toggleTheme'),
     {type: 'separator' as const},
     {role: 'zoomIn' as const},

@@ -55,11 +55,7 @@ const de = {
     copy: "Kopieren",
     paste: "Einfügen",
     select_all: "Alles auswählen",
-    find: "Finden",
-    find_placeholder: "Auf Seite suchen...",
-    find_next: "Weiter finden",
-    find_no_matches: "Keine Übereinstimmungen gefunden",
-    find_matches: "Übereinstimmung mit {current} von {total}",
+
     global_search: "Globale Suche",
     toggle_theme: "Thema umschalten",
     zoom_in: "Vergrößern",

@@ -55,11 +55,7 @@ const fr = {
     copy: 'Copier',
     paste: 'Coller',
     select_all: 'Sélectionner tout',
-    find: 'Rechercher',
-    find_placeholder: 'Rechercher sur la page...',
-    find_next: 'Rechercher le suivant',
-    find_no_matches: 'Aucune correspondance trouvée',
-    find_matches: 'Résultat {current} sur {total}',
+
     global_search: 'Recherche globale',
     toggle_theme: 'Basculer le thème',
     zoom_in: 'Zoomer',
