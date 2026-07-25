@@ -233,6 +233,8 @@ export default function useItemContextMenu(
         contextMenu.push({type: 'divider'})
       }
     } else if (type === 'media') {
+      // Metadata / tools
+      contextMenu.push({type: 'divider'})
       contextMenu.push({
         name: t('context_menu.parse_tags_in_path'),
         type: 'item',
@@ -249,8 +251,6 @@ export default function useItemContextMenu(
         action: updateFileInfo,
       })
 
-      contextMenu.push({type: 'divider'})
-
       if (canSceneAutoScrape && isMediaPageItem(item, type)) {
         contextMenu.push({
           name: t('context_menu.auto_scrape_scene'),
@@ -261,68 +261,14 @@ export default function useItemContextMenu(
             void autoScrapeSingleScene()
           },
         })
+      }
+
+      // Playback / open
+      if (!isSelectMode()) {
         contextMenu.push({type: 'divider'})
-      }
 
-      if (!isSelectMode() && isVideoMediaType(currentMediaType.value)) {
-        const playInMenu: ItemContextMenuEntry[] = [
-          {
-            name: t('context_menu.mediachips_player'),
-            type: 'item',
-            icon: 'open-in-app',
-            disabled: !is_file_exists,
-            action: () => {
-              play()
-            },
-          },
-          {
-            name: t('context_menu.external_player'),
-            type: 'item',
-            icon: 'open-in-new',
-            disabled: !is_file_exists,
-            action: () => {
-              play(true)
-            },
-          },
-          {
-            name: t('context_menu.mpv'),
-            type: 'item',
-            icon: 'play-box',
-            disabled: !is_file_exists,
-            action: () => {
-              void openInExternalPlayer('mpv')
-            },
-          },
-        ]
-
-        if (detectAppPlatform().isMac) {
-          playInMenu.push({
-            name: t('context_menu.iina'),
-            type: 'item',
-            icon: 'play-box-outline',
-            disabled: !is_file_exists,
-            action: () => {
-              void openInExternalPlayer('iina')
-            },
-          })
-        }
-
-        contextMenu.push({
-          name: t('context_menu.play_video_in'),
-          type: 'menu',
-          icon: 'play-circle',
-          disabled: !is_file_exists || (!reg && x > 14),
-          menu: playInMenu,
-        })
-      }
-
-      if (!isSelectMode() && isAudioMediaType(currentMediaType.value)) {
-        contextMenu.push({
-          name: t('context_menu.play_audio_in'),
-          type: 'menu',
-          icon: 'play-circle',
-          disabled: !is_file_exists || (!reg && x > 14),
-          menu: [
+        if (isVideoMediaType(currentMediaType.value)) {
+          const playInMenu: ItemContextMenuEntry[] = [
             {
               name: t('context_menu.mediachips_player'),
               type: 'item',
@@ -341,46 +287,102 @@ export default function useItemContextMenu(
                 play(true)
               },
             },
-          ],
-        })
-      }
+            {
+              name: t('context_menu.mpv'),
+              type: 'item',
+              icon: 'play-box',
+              disabled: !is_file_exists,
+              action: () => {
+                void openInExternalPlayer('mpv')
+              },
+            },
+          ]
 
-      if (!isSelectMode() && isImageMediaType(currentMediaType.value)) {
-        contextMenu.push({
-          name: t('context_menu.view_image'),
-          type: 'item',
-          icon: 'image-search',
-          disabled: !is_file_exists,
-          action: () => {
-            if (isMediaPageItem(item, type)) {
-              itemsStore.viewImage({image: item})
-            }
-          },
-        })
-        contextMenu.push({
-          name: t('context_menu.open_image_file'),
-          type: 'item',
-          icon: 'file-image',
-          disabled: !is_file_exists,
-          action: () => {
-            openPath(mediaPageItemPath(item, type))
-          },
-        })
-      }
+          if (detectAppPlatform().isMac) {
+            playInMenu.push({
+              name: t('context_menu.iina'),
+              type: 'item',
+              icon: 'play-box-outline',
+              disabled: !is_file_exists,
+              action: () => {
+                void openInExternalPlayer('iina')
+              },
+            })
+          }
 
-      if (!isSelectMode() && isTextMediaType(currentMediaType.value)) {
-        contextMenu.push({
-          name: t('context_menu.open_text_file'),
-          type: 'item',
-          icon: 'file-document-outline',
-          disabled: !is_file_exists,
-          action: () => {
-            openPath(mediaPageItemPath(item, type))
-          },
-        })
-      }
+          contextMenu.push({
+            name: t('context_menu.play_video_in'),
+            type: 'menu',
+            icon: 'play-circle',
+            disabled: !is_file_exists || (!reg && x > 14),
+            menu: playInMenu,
+          })
+        }
 
-      if (!isSelectMode()) {
+        if (isAudioMediaType(currentMediaType.value)) {
+          contextMenu.push({
+            name: t('context_menu.play_audio_in'),
+            type: 'menu',
+            icon: 'play-circle',
+            disabled: !is_file_exists || (!reg && x > 14),
+            menu: [
+              {
+                name: t('context_menu.mediachips_player'),
+                type: 'item',
+                icon: 'open-in-app',
+                disabled: !is_file_exists,
+                action: () => {
+                  play()
+                },
+              },
+              {
+                name: t('context_menu.external_player'),
+                type: 'item',
+                icon: 'open-in-new',
+                disabled: !is_file_exists,
+                action: () => {
+                  play(true)
+                },
+              },
+            ],
+          })
+        }
+
+        if (isImageMediaType(currentMediaType.value)) {
+          contextMenu.push({
+            name: t('context_menu.view_image'),
+            type: 'item',
+            icon: 'image-search',
+            disabled: !is_file_exists,
+            action: () => {
+              if (isMediaPageItem(item, type)) {
+                itemsStore.viewImage({image: item})
+              }
+            },
+          })
+          contextMenu.push({
+            name: t('context_menu.open_image_file'),
+            type: 'item',
+            icon: 'file-image',
+            disabled: !is_file_exists,
+            action: () => {
+              openPath(mediaPageItemPath(item, type))
+            },
+          })
+        }
+
+        if (isTextMediaType(currentMediaType.value)) {
+          contextMenu.push({
+            name: t('context_menu.open_text_file'),
+            type: 'item',
+            icon: 'file-document-outline',
+            disabled: !is_file_exists,
+            action: () => {
+              openPath(mediaPageItemPath(item, type))
+            },
+          })
+        }
+
         contextMenu.push({
           name: t('context_menu.open_files_folder'),
           type: 'item',
@@ -392,6 +394,8 @@ export default function useItemContextMenu(
         })
       }
 
+      // File management
+      contextMenu.push({type: 'divider'})
       contextMenu.push({
         name: t('context_menu.move_file_to'),
         type: 'item',
