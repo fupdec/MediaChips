@@ -35,47 +35,62 @@
 
     <!-- ITEM -->
     <template #item="{ item, props }">
-      <template v-if="isGroupHeader(item.raw)">
-        <v-list-subheader>
+      <div
+        v-if="isGroupHeader(item.raw)"
+        class="filters-add-menu__category"
+      >
+        <v-icon
+          size="16"
+          class="filters-add-menu__category-icon"
+        >
+          mdi-{{ getGroupIcon(item.raw.header) }}
+        </v-icon>
+        <span class="filters-add-menu__category-title">
           {{ getGroupText(item.raw.header) }}
-        </v-list-subheader>
-      </template>
+        </span>
+        <v-chip
+          size="x-small"
+          variant="tonal"
+          color="primary"
+          class="ml-2"
+        >
+          {{ item.raw.count }}
+        </v-chip>
+      </div>
 
-      <template v-else-if="isGroupDivider(item.raw)">
-        <v-divider />
-      </template>
+      <v-list-item
+        v-else
+        v-bind="props"
+        class="filters-add-item"
+      >
+        <template #prepend>
+          <v-icon size="22">
+            mdi-{{ getFilterParam(item.raw).icon }}
+          </v-icon>
+        </template>
 
-      <template v-else>
-        <v-list-item v-bind="props" class="filters-add-item">
-          <template #prepend>
-            <v-icon size="22">
-              mdi-{{ getFilterParam(item.raw).icon }}
+        <template #title>
+          <div
+            v-html="highlight(getFilterText(getFilterParam(item.raw)))"
+            class="filters-add-item__title"
+          ></div>
+        </template>
+
+        <template #subtitle>
+          <div class="d-flex align-center filters-add-item__subtitle">
+            <v-icon size="12" class="mr-1">
+              {{ getTypeIcon(getFilterParam(item.raw).type) }}
             </v-icon>
-          </template>
-
-          <template #title>
-            <div
-              v-html="highlight(getFilterText(getFilterParam(item.raw)))"
-              class="filters-add-item__title"
-            ></div>
-          </template>
-
-          <template #subtitle>
-            <div class="d-flex align-center filters-add-item__subtitle">
-              <v-icon size="12" class="mr-1">
-                {{ getTypeIcon(getFilterParam(item.raw).type) }}
-              </v-icon>
-              {{ getTypeText(getFilterParam(item.raw).type) }}
-            </div>
-          </template>
-        </v-list-item>
-      </template>
+            {{ getTypeText(getFilterParam(item.raw).type) }}
+          </div>
+        </template>
+      </v-list-item>
     </template>
   </v-autocomplete>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import orderBy from 'lodash/orderBy'
@@ -87,13 +102,22 @@ import type { FilterListParam } from '@/types/common'
 
 interface FilterGroupHeader {
   header: string
+  count: number
+  disabled: true
 }
 
-interface FilterGroupDivider {
-  divider: true
-}
+type FilterGroupedItem = FilterListParam | FilterGroupHeader
 
-type FilterGroupedItem = FilterListParam | FilterGroupHeader | FilterGroupDivider
+const GROUP_ICONS: Record<string, string> = {
+  File: 'file-outline',
+  Video: 'video-outline',
+  Image: 'image-outline',
+  Audio: 'music-note-outline',
+  Tag: 'tag-multiple-outline',
+  'Preset meta': 'form-textbox',
+  'Pinned meta': 'pin-outline',
+  Other: 'dots-horizontal',
+}
 
 const settingsStore = useSettingsStore()
 const {t} = useI18n()
@@ -112,7 +136,7 @@ const emit = defineEmits(['add'])
  * STATE
  * ========================= */
 
-const selectedFilter = ref<FilterListParam | null>(null)
+const selectedFilter = ref<FilterListParam | FilterGroupHeader | null>(null)
 const search = ref('')
 const filtersRef = ref<{ blur?: () => void } | null>(null)
 
@@ -124,11 +148,11 @@ const getFilterText = (item: FilterListParam) =>
 const getGroupText = (group?: string) =>
   t(`filters.groups.${group}`, group || '')
 
+const getGroupIcon = (group?: string) =>
+  GROUP_ICONS[group || ''] || 'filter-outline'
+
 const isGroupHeader = (item: unknown): item is FilterGroupHeader =>
   typeof item === 'object' && item !== null && 'header' in item
-
-const isGroupDivider = (item: unknown): item is FilterGroupDivider =>
-  typeof item === 'object' && item !== null && 'divider' in item
 
 const matchesSearch = (text: string, query: string) => {
   if (!query) return true
@@ -143,7 +167,7 @@ const acceptFilterItem = (
   item?: { raw: FilterGroupedItem },
 ) => {
   const raw = item?.raw
-  if (!raw || isGroupHeader(raw) || isGroupDivider(raw)) return true
+  if (!raw || isGroupHeader(raw)) return true
   return matchesSearch(getFilterText(raw), query)
 }
 
@@ -159,12 +183,20 @@ const filtersGrouped = computed((): FilterGroupedItem[] => {
   const result: FilterGroupedItem[] = []
 
   for (const group in grouped) {
-    result.push({ header: group })
+    result.push({
+      header: group,
+      count: grouped[group].length,
+      disabled: true,
+    })
     result.push(...grouped[group])
-    result.push({ divider: true })
   }
-  result.pop()
   return result
+})
+
+watch(selectedFilter, (value) => {
+  if (value && isGroupHeader(value)) {
+    selectedFilter.value = null
+  }
 })
 
 /* =========================
@@ -174,7 +206,7 @@ const filtersGrouped = computed((): FilterGroupedItem[] => {
 const getFilterParam = (item: unknown): FilterListParam => item as FilterListParam
 
 const add = () => {
-  if (!selectedFilter.value) return
+  if (!selectedFilter.value || isGroupHeader(selectedFilter.value)) return
 
   emit('add', [selectedFilter.value])
   selectedFilter.value = null

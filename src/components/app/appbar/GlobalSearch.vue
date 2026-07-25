@@ -225,13 +225,6 @@ const selectedIsTag = computed(() => {
   return Boolean(row && row.kind === 'item' && !row.group.is_media)
 })
 
-const status = computed(() => {
-  if (!hasActiveSearch.value) return t('globalSearch.startTyping')
-  if (loading.value) return t('globalSearch.loading')
-  if (!results.value.length) return t('globalSearch.noResult')
-  return t('globalSearch.resultsCount', {count: totalResults.value})
-})
-
 function showSearch() {
   dialog.value = true
   query.value = ''
@@ -803,7 +796,18 @@ function getNameHighlighted(text: string) {
     <v-card class="global-search" rounded="xl">
       <div class="global-search__header pa-4 pb-2">
         <div class="d-flex align-center justify-space-between mb-3">
-          <div class="text-h6">{{ t('appbar.globalSearch') }}</div>
+          <div class="d-flex align-center ga-3 min-w-0">
+            <div class="text-h6 text-truncate">{{ t('appbar.globalSearch') }}</div>
+            <v-chip
+              v-if="hasActiveSearch && !loading && totalResults > 0"
+              size="small"
+              variant="tonal"
+              color="primary"
+              class="flex-shrink-0"
+            >
+              {{ totalResults }}
+            </v-chip>
+          </div>
           <v-hotkey keys="slash" variant="flat"/>
         </div>
 
@@ -866,35 +870,28 @@ function getNameHighlighted(text: string) {
       <v-divider/>
 
       <v-card-text class="global-search__body pa-0">
-        <div
-          class="global-search__status text-center text-medium-emphasis py-3 px-4"
-          :class="{'global-search__status--empty': !hasActiveSearch || (!loading && !results.length)}"
-        >
-          <v-icon
-            v-if="!hasActiveSearch"
-            class="mb-2"
-            size="32"
-            color="medium-emphasis"
-          >
-            mdi-text-search
-          </v-icon>
-          <v-icon
-            v-else-if="!loading && !results.length"
-            class="mb-2"
-            size="32"
-            color="medium-emphasis"
-          >
-            mdi-file-search-outline
-          </v-icon>
-          <div class="text-caption">{{ status }}</div>
-        </div>
-
         <v-progress-linear
           v-if="loading"
           color="primary"
           indeterminate
           height="2"
         />
+
+        <div
+          v-if="!loading && (!hasActiveSearch || !results.length)"
+          class="global-search__status text-center text-medium-emphasis py-6 px-4"
+        >
+          <v-icon
+            class="mb-2"
+            size="32"
+            color="medium-emphasis"
+          >
+            {{ hasActiveSearch ? 'mdi-file-search-outline' : 'mdi-text-search' }}
+          </v-icon>
+          <div class="text-caption">
+            {{ hasActiveSearch ? t('globalSearch.noResult') : t('globalSearch.startTyping') }}
+          </div>
+        </div>
 
         <v-virtual-scroll
           v-if="flatResults.length"
@@ -909,30 +906,49 @@ function getNameHighlighted(text: string) {
           <template #default="{ item: row, index }">
             <div
               v-if="row.kind === 'section'"
-              class="global-search__section d-flex align-center px-3 text-caption"
+              class="global-search__section"
               :class="`global-search__section--${row.section}`"
             >
-              <v-icon
-                size="14"
-                start
-              >
-                {{ row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
-              </v-icon>
-              <span class="font-weight-bold">{{ row.title }}</span>
+              <div class="global-search__category">
+                <v-icon
+                  size="16"
+                  class="global-search__category-icon"
+                >
+                  {{ row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
+                </v-icon>
+                <span class="global-search__category-title">{{ row.title }}</span>
+              </div>
             </div>
 
             <div
               v-else-if="row.kind === 'header'"
-              class="global-search__group-header d-flex align-center px-3 text-caption"
+              class="global-search__group-header"
               @click="openGroup(row.group)"
             >
-              <v-icon size="14" start>mdi-{{ row.group.icon }}</v-icon>
-              <span class="font-weight-bold">{{ row.group.name }}</span>
-              <v-chip class="ml-2" size="x-small" variant="tonal" color="primary">
-                {{ row.group.data.length }}
-              </v-chip>
-              <v-spacer/>
-              <v-icon size="14" class="text-medium-emphasis">mdi-chevron-right</v-icon>
+              <div class="global-search__category global-search__category--clickable">
+                <v-icon
+                  size="16"
+                  class="global-search__category-icon"
+                >
+                  mdi-{{ row.group.icon }}
+                </v-icon>
+                <span class="global-search__category-title">{{ row.group.name }}</span>
+                <v-chip
+                  class="ml-2"
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                >
+                  {{ row.group.data.length }}
+                </v-chip>
+                <v-spacer/>
+                <v-icon
+                  size="14"
+                  class="text-medium-emphasis"
+                >
+                  mdi-chevron-right
+                </v-icon>
+              </div>
             </div>
 
             <div
@@ -1115,36 +1131,53 @@ function getNameHighlighted(text: string) {
   border-bottom: thin solid rgba(var(--v-border-color), calc(var(--v-border-opacity) * 0.5));
 }
 
-.global-search__status--empty {
-  padding-top: 28px !important;
-  padding-bottom: 28px !important;
-}
-
-.global-search__section {
+.global-search__section,
+.global-search__group-header {
   height: 30px;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgb(var(--v-theme-primary));
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
   background: transparent;
-  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-
-.global-search__section--filtered {
-  color: rgb(var(--v-theme-primary));
 }
 
 .global-search__group-header {
   cursor: pointer;
-  height: 30px;
-  font-size: 0.75rem;
-  color: rgb(var(--v-theme-primary));
-  background: transparent;
-  transition: background-color 0.15s ease;
 }
 
-.global-search__group-header:hover {
-  background: rgba(var(--v-theme-primary), 0.06);
+.global-search__category {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 26px;
+  margin: 0 4px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.global-search__category--clickable:hover {
+  background: rgba(var(--v-theme-primary), 0.14);
+  border-color: rgba(var(--v-theme-primary), 0.28);
+}
+
+.global-search__category-icon {
+  color: rgb(var(--v-theme-primary));
+  opacity: 0.9;
+}
+
+.global-search__category-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.78);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .global-search__item {

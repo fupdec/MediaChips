@@ -3,7 +3,7 @@
     <v-dialog
       v-model="dialogModel"
       :fullscreen="xs"
-      max-width="600"
+      max-width="640"
       scrollable
     >
       <v-card>
@@ -14,18 +14,55 @@
         />
 
         <v-card-text class="pa-4 pb-0">
+          <v-form
+            class="mb-4"
+            @submit.prevent="submitCreate"
+          >
+            <div class="saved-filter-create">
+              <v-text-field
+                v-model="createName"
+                :placeholder="t('filters.filter_name')"
+                :disabled="!canCreate"
+                :hint="canCreate ? undefined : t('filters.save_current_empty')"
+                :persistent-hint="!canCreate"
+                :error-messages="createError"
+                density="comfortable"
+                variant="solo-filled"
+                flat
+                rounded="xl"
+                hide-details="auto"
+                class="saved-filter-create__field"
+                @update:model-value="createError = ''"
+                @keydown.enter.prevent="submitCreate"
+              />
+              <v-btn
+                color="success"
+                variant="flat"
+                rounded="pill"
+                class="saved-filter-create__btn"
+                :disabled="!canCreate"
+                @click="submitCreate"
+              >
+                <v-icon start>mdi-plus</v-icon>
+                {{ t('common.create') }}
+              </v-btn>
+            </div>
+          </v-form>
+
           <v-alert
+            v-if="savedFilters.length"
             type="info"
             variant="tonal"
             density="compact"
             rounded="xl"
             class="mb-4 text-caption"
           >
-            {{ t('filters.saved_filters_load_hint') }}
+            {{ t('filters.saved_filters_manage_hint') }}
           </v-alert>
 
           <SavedFiltersList
             :filters="savedFilters"
+            :empty-text="t('filters.no_saved_filters_cta')"
             selectable
             editable
             deletable
@@ -93,9 +130,17 @@ import type {SavedFilter} from '@/types/stores'
 
 const props = defineProps({
   dialog: Boolean,
+  canCreate: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['close', 'apply'])
+const emit = defineEmits<{
+  close: []
+  apply: [filters: FilterObject[]]
+  save: [name: string]
+}>()
 
 const itemsStore = useItemsStore()
 const {t} = useI18n()
@@ -112,11 +157,34 @@ const selected = ref<SavedFilter | null>(null)
 
 const validName = ref(true)
 const filterName = ref('')
+const createName = ref('')
+const createError = ref('')
 const formRef = ref<VFormInstance>(null)
 
 const savedFilters = computed(() => itemsStore.filters_saved)
 
 const close = () => emit('close')
+
+const submitCreate = () => {
+  if (!props.canCreate) return
+  const name = createName.value.trim()
+  if (!name) {
+    createError.value = t('validation.name_required')
+    return
+  }
+  const nameCheck = validateName(name)
+  if (nameCheck !== true) {
+    createError.value = nameCheck === 'Name is required'
+      ? t('validation.name_required')
+      : nameCheck === 'Name must be 50 characters or fewer'
+        ? t('validation.name_max_length')
+        : t('validation.incorrect_value')
+    return
+  }
+  emit('save', name)
+  createName.value = ''
+  createError.value = ''
+}
 
 const openDialogDelete = (filter: SavedFilter) => {
   selected.value = filter
@@ -180,3 +248,22 @@ const editButtons = computed(() => [
   },
 ])
 </script>
+
+<style lang="scss" scoped>
+.saved-filter-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: center;
+
+  &__field {
+    min-width: 0;
+  }
+
+  &__btn {
+    flex-shrink: 0;
+    height: 40px;
+    padding-inline: 18px;
+  }
+}
+</style>

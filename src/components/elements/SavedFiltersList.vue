@@ -63,7 +63,15 @@
       class="mb-4"
       contain
     />
-    <div>{{ emptyText || t('filters.no_saved_filters') }}</div>
+    <v-alert
+      type="info"
+      variant="tonal"
+      density="compact"
+      rounded="xl"
+      class="text-start text-caption"
+    >
+      {{ emptyText || t('filters.no_saved_filters') }}
+    </v-alert>
   </div>
 </template>
 

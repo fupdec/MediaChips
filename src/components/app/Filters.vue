@@ -2,12 +2,12 @@
   <v-navigation-drawer
     v-model="filtersVisible"
     class="filters-drawer"
-    :class="{'temporary': filtersStore.attached}"
-    :temporary="filtersStore.attached"
+    :class="{'temporary': filtersFloating}"
+    :temporary="filtersFloating"
+    :floating="filtersFloating"
     :scrim="false"
     disable-resize-watcher
     width="450"
-    floating
   >
     <v-card variant="tonal" color="primary" class="filter-block" rounded="xl">
 
@@ -29,41 +29,23 @@
 
         <v-spacer></v-spacer>
 
-        <v-btn
-          v-if="ITEMS.type === 'media'"
-          @click="toggleDuplicates"
-          :color="ITEMS.find_duplicates ? 'primary' : ''"
-          rounded="xl"
-          variant="flat"
-          size="x-small"
-        >
-          <v-icon class="mr-1" size="x-small">mdi-file-multiple</v-icon>
-          <span>{{ duplicatesButtonLabel }}</span>
-        </v-btn>
-
-        <v-btn @click="filtersStore.attached = !filtersStore.attached" variant="text" icon size="small">
-          <v-icon v-if="filtersStore.attached">mdi-pin</v-icon>
-          <v-icon v-else>mdi-pin-outline</v-icon>
-        </v-btn>
-
         <v-btn @click="filtersStore.visible = false" variant="text" icon size="small">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-actions>
 
       <div class="px-2">
-        <div class="d-flex align-center justify-space-between">
-          <v-btn-toggle rounded="xl" density="compact">
-            <v-btn @click="dialogSave = true" variant="tonal" size="small" class="px-3">
-              <v-icon start size="small">mdi-content-save</v-icon>
-              {{ t('common.save') }}
-            </v-btn>
-            <v-divider vertical></v-divider>
-            <v-btn @click="dialogLoad = true" variant="tonal" size="small" class="px-3">
-              {{ t('common.load') }}
-              <v-icon end size="small">mdi-content-save-move</v-icon>
-            </v-btn>
-          </v-btn-toggle>
+        <div class="d-flex align-center justify-space-between mb-2 ga-2">
+          <v-btn
+            variant="tonal"
+            rounded="xl"
+            size="small"
+            color="primary"
+            @click="dialogSaved = true"
+          >
+            <v-icon start size="small">mdi-content-save</v-icon>
+            {{ t('filters.saved_short') }}
+          </v-btn>
 
           <v-btn
             @click="apply"
@@ -88,7 +70,10 @@
 
         <v-spacer class="py-2"></v-spacer>
 
-        <div v-if="filters.length > 1" class="d-flex align-center justify-space-between mb-4">
+        <div
+          v-if="filters.length > 1"
+          class="d-flex align-center justify-space-between mb-4"
+        >
           <v-btn @click="toggleRemovingAll" color="error" variant="tonal" rounded="xl" size="small">
             <v-icon start size="small">mdi-close</v-icon>
             {{ t('common.remove_all') }}
@@ -136,51 +121,14 @@
       </v-card-text>
     </v-card>
 
-    <!-- Save Filter Dialog -->
-    <v-dialog v-model="dialogSave" width="600" scrollable>
-      <v-card>
-        <DialogHeader
-          @close="dialogSave = false"
-          :header="t('filters.saving_filter')"
-          :buttons="[
-            {
-              icon: 'content-save',
-              text: t('common.save'),
-              color: 'success',
-              outlined: false,
-              action: save,
-            },
-          ]"
-          closable
-        />
-
-        <v-card-text class="text-center py-4 px-2 px-sm-4">
-          <v-form
-            v-model="validName"
-            ref="formSave"
-            class="flex-grow-1"
-            @submit.prevent
-          >
-            <v-text-field
-              v-model="filterName"
-              :rules="[nameRules]"
-              :label="t('filters.filter_name')"
-              autofocus
-              rounded="lg"
-              variant="filled"
-            />
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
-    <!-- Load Filter Dialog -->
+    <!-- Saved filters management -->
     <DialogFiltersSaved
-      v-if="dialogLoad"
-      :dialog="dialogLoad"
-      @close="dialogLoad = false"
+      v-if="dialogSaved"
+      :dialog="dialogSaved"
+      :can-create="hasSavableFilters"
+      @close="dialogSaved = false"
       @apply="loadSavedFilter"
-      @update="init"
+      @save="saveCurrentAsNamed"
     />
 
     <!-- Date Picker Dialog -->
@@ -199,6 +147,7 @@
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useDisplay} from 'vuetify'
 import dayjs from 'dayjs'
 import draggable from 'vuedraggable'
 import {cloneFilters, filtersEqual} from '@/utils/filterClone'
@@ -207,14 +156,12 @@ import {getSavedFilters} from '@/services/filterService'
 import {
   getFilterObject,
   getListCond,
-  validateName,
 } from '@/services/formatUtils'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
 import type { FilterObject, FilterListParam } from '@/types/common'
 import type { SavedFilter } from '@/types/stores'
-import type { VForm } from 'vuetify/components'
 import {
   getCurrentMediaType,
   isImageMediaType,
@@ -228,7 +175,6 @@ import {
 import cols from '../../../app/configs/filter-cols'
 
 // Components
-import DialogHeader from '@/components/elements/DialogHeader.vue'
 import FilterRow from '@/components/app/FilterRow.vue'
 import DialogFiltersSaved from '@/components/dialogs/filters/DialogFiltersSaved.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
@@ -257,6 +203,15 @@ const filtersStore = appStore.filters
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
+const {width} = useDisplay()
+
+/** Dock filters when there is room for sidebar + drawer + content; otherwise float. */
+const FILTERS_DRAWER_WIDTH = 450
+const SIDEBAR_WIDTH = 280
+const MIN_CONTENT_WIDTH = 640
+const filtersFloating = computed(() =>
+  width.value < SIDEBAR_WIDTH + FILTERS_DRAWER_WIDTH + MIN_CONTENT_WIDTH
+)
 
 // Reactive data
 const updKey = ref(0)
@@ -272,15 +227,11 @@ const datePicker = ref<{
   index: -1,
   value: null
 })
-const dialogSave = ref(false)
-const validName = ref(false)
+const dialogSaved = ref(false)
 const filterRows = ref<Array<InstanceType<typeof FilterRow>> | null>(null)
-const filterName = ref('')
-const dialogLoad = ref(false)
 const filtersPreviousState = ref<FilterObject[]>([])
 const removeAllState = ref(true)
 const deactivateAllState = ref(true)
-const formSave = ref<VForm | null>(null)
 
 const dragOptions = {
   animation: 200,
@@ -299,15 +250,12 @@ const currentMediaType = computed(() =>
   getCurrentMediaType(appStore.mediaTypes, ENV.value.media_type_id)
 )
 
-const duplicatesButtonLabel = computed(() => {
-  if (ITEMS.value.type !== 'media') return t('filters.duplicates')
-  return isImageMediaType(currentMediaType.value)
-    ? t('filters.duplicates_by_path')
-    : t('filters.duplicates')
-})
-
 const is_filters_changed = computed(() =>
   !filtersEqual(filtersPreviousState.value, filters.value),
+)
+
+const hasSavableFilters = computed(() =>
+  filters.value.some((filter) => !filter.removed && !filter.lock),
 )
 
 // Methods
@@ -486,14 +434,8 @@ const toggleActivationAll = () => {
 }
 
 const validateFilters = () => {
-  if (!dialogSave.value || filters.value.length === 0) {
+  if (filters.value.length === 0) {
     valid.value = true
-    return
-  }
-  if (filterRows.value) {
-    for (const i of filterRows.value) {
-      i.validate()
-    }
   }
 }
 
@@ -548,17 +490,15 @@ const addFilterRows = async (filterId: number | null | undefined, isSavedFilter 
   }
 }
 
-const save = async () => {
-  if (!formSave.value) return
-
-  const {valid} = await formSave.value.validate()
-  if (!valid) return
+const saveCurrentAsNamed = async (name: string) => {
+  const trimmed = String(name || '').trim()
+  if (!trimmed || !hasSavableFilters.value) return
 
   let savedFilter: SavedFilter = { id: 0 }
 
   try {
     const response = await typedApi.createSavedFilter({
-      name: filterName.value,
+      name: trimmed,
       mediaTypeId: ENV.value.media_type_id ?? null,
       metaId: ENV.value.meta_id ?? null,
       tagId: ENV.value.tag_id ?? null,
@@ -575,15 +515,11 @@ const save = async () => {
     await addFilterRows(savedFilter.id, true)
   }
 
-  dialogSave.value = false
-  filterName.value = ''
-
-  // получаем актуальные сохраненные наборы фильтров
   await getSavedFilters()
 }
 
 const loadSavedFilter = (loadedFilters: FilterObject[]) => {
-  dialogLoad.value = false
+  dialogSaved.value = false
   removeAll()
   const old_filters = cloneFilters(filters.value.filter(i => !i.lock))
   const incoming = loadedFilters.map((filter, index) => getFilterObject({
@@ -609,18 +545,6 @@ const setDate = (date: string | Date | null) => {
 
 const validate = (val: boolean) => {
   valid.value = val
-}
-
-const nameRules = (string: string) => {
-  return validateName(string)
-}
-
-const toggleDuplicates = () => {
-  itemsStore.updateState({
-    key: "find_duplicates",
-    value: !ITEMS.value.find_duplicates
-  })
-  apply()
 }
 
 // Event listeners
@@ -683,15 +607,19 @@ watch(currentMediaType, () => {
   z-index: 1200;
   max-height: 100%;
   padding: 16px 4px 16px 16px;
-  background: transparent;
+  background: transparent !important;
+  border: none !important;
+  border-inline-end: none !important;
+  box-shadow: none !important;
   pointer-events: none;
 
   .v-navigation-drawer__content {
     overflow: visible !important;
+    background: transparent !important;
   }
+
   .filter-block {
     pointer-events: all;
-    box-shadow:  0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)), -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)), 5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
     background-color: rgb(var(--v-theme-background)) !important;
 
     // tonal underlay would paint a primary tint over the solid background
@@ -700,10 +628,38 @@ watch(currentMediaType, () => {
     }
   }
 
+  // Shadow only while open — otherwise it peeks beside the sidebar when closed.
+  &.v-navigation-drawer--active .filter-block {
+    box-shadow: 0px 4px 6px -3px var(--v-shadow-key-umbra-opacity, rgba(0, 0, 0, 0.2)),
+      -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)),
+      5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12)) !important;
+  }
+
+  &:not(.v-navigation-drawer--active) {
+    overflow: hidden !important;
+
+    .v-navigation-drawer__content {
+      overflow: hidden !important;
+    }
+
+    .filter-block {
+      box-shadow: none !important;
+      visibility: hidden;
+    }
+  }
+
   &.temporary {
-    background: transparent;
-    overflow: visible !important;
+    background: transparent !important;
     padding: 16px;
+  }
+
+  &.temporary.v-navigation-drawer--active {
+    overflow: visible !important;
+  }
+
+  // Docked: no gutter strip beside the card
+  &:not(.temporary) {
+    padding: 16px 0 16px 16px;
   }
 
   .filter-block {
