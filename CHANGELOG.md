@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Player** — turn off live transcoding mid-playback and switch to direct play (or pick a quality to turn it back on)
+
+### Fixed
+
+- **Live transcode** — encode in short windows again (not to EOF) so scrubbing/seeking does not thrash the CPU; hand off on the actual playback position to avoid skipped frames
+
 ## [1.3.4] - 2026-07-20
 
 ### Added

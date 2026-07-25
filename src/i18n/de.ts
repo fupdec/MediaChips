@@ -1963,6 +1963,7 @@ const de = {
       switch_time: "Wechseln Sie zwischen verstrichener und verbleibender Zeit",
       picture_in_picture: "Bild-in-Bild-Modus",
       transcode_quality: "Transkodierungsqualität",
+      transcode_off: "Aus (direkt)",
       transcode_quality_original: "Original",
       transcode_quality_1080: "1080p",
       transcode_quality_720: "720p",

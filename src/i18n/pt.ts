@@ -1963,6 +1963,7 @@ const pt = {
       switch_time: 'Alternar entre o tempo decorrido e o tempo restante',
       picture_in_picture: 'Modo imagem em imagem',
       transcode_quality: 'Qualidade de transcodificação',
+      transcode_off: 'Desligado (direto)',
       transcode_quality_original: 'Originais',
       transcode_quality_1080: '1080p',
       transcode_quality_720: '720p',

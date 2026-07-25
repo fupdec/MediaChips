@@ -1961,6 +1961,7 @@ const ru = {
       switch_time: 'Переключить прошедшее и оставшееся время',
       picture_in_picture: 'Режим картинка в картинке',
       transcode_quality: 'Качество транскодирования',
+      transcode_off: 'Выкл (напрямую)',
       transcode_quality_original: 'Оригинал',
       transcode_quality_1080: '1080p',
       transcode_quality_720: '720p',

@@ -1964,6 +1964,7 @@ const es = {
       switch_time: 'Cambiar entre tiempo transcurrido y restante',
       picture_in_picture: 'Modo imagen en imagen',
       transcode_quality: 'Calidad de transcodificación',
+      transcode_off: 'Desactivado (directo)',
       transcode_quality_original: 'Original',
       transcode_quality_1080: '1080p',
       transcode_quality_720: '720p',

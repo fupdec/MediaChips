@@ -1964,6 +1964,7 @@ const cn = {
       switch_time: '在已播放时间和剩余时间之间切换',
       picture_in_picture: '画中画模式',
       transcode_quality: '转码质量',
+      transcode_off: '关闭（直接播放）',
       transcode_quality_original: '原始',
       transcode_quality_1080: '1080p',
       transcode_quality_720: '720p',

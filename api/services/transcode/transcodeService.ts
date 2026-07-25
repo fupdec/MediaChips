@@ -298,6 +298,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
 
     const playability = await analyzePlayability(filePath)
     const fileDuration = Number(playability.duration || 0)
+    // Short windows only: encoding to EOF made every seek/scrub re-encode the
+    // whole remainder and look like endless transcoding while browsing.
     const chunkDuration = getChunkDuration({
       chunkStart: streamStart,
       fileDuration,

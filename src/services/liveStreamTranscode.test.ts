@@ -44,7 +44,7 @@ describe('buildFfmpegLiveArgs', () => {
     expect(args).not.toContain('-vf')
   })
 
-  it('uses precise output-only seek when accurateSeek is set without keyframe', () => {
+  it('uses absolute timeline seek when accurateSeek is set without keyframe', () => {
     const args = buildFfmpegLiveArgs({
       inputPath: '/videos/sample.mp4',
       startTime: 641,
@@ -53,14 +53,15 @@ describe('buildFfmpegLiveArgs', () => {
       accurateSeek: true,
     })
 
-    // Accurate flag must not decode from t=0 — use the fast margin seek.
     const inputIndex = args.indexOf('-i')
     const preInputSs = args.slice(0, inputIndex).lastIndexOf('-ss')
     const postInputSs = args.indexOf('-ss', inputIndex)
 
     expect(args[preInputSs + 1]).toBe('621')
+    expect(args).toContain('-copyts')
     expect(postInputSs).toBeGreaterThan(inputIndex)
-    expect(args[postInputSs + 1]).toBe('20')
+    expect(args[postInputSs + 1]).toBe('641')
+    expect(args).toContain('setpts=PTS-STARTPTS')
   })
 
   it('caps huge keyframe output skips so startup stays fast', () => {
@@ -80,11 +81,12 @@ describe('buildFfmpegLiveArgs', () => {
 
     // 156s output skip is capped to 20s; overflow is pushed into input seek.
     expect(args[preInputSs + 1]).toBe('621')
+    expect(args).toContain('-copyts')
     expect(postInputSs).toBeGreaterThan(inputIndex)
-    expect(args[postInputSs + 1]).toBe('20')
+    expect(args[postInputSs + 1]).toBe('641')
   })
 
-  it('uses precise output seek when re-encoding from a mid-file mark', () => {
+  it('uses absolute timeline seek when re-encoding from a mid-file mark', () => {
     const args = buildFfmpegLiveArgs({
       inputPath: '/videos/sample.mp4',
       startTime: 368,
@@ -97,11 +99,15 @@ describe('buildFfmpegLiveArgs', () => {
     const postInputSs = args.indexOf('-ss', inputIndex)
 
     expect(args[preInputSs + 1]).toBe('348')
+    expect(args).toContain('-copyts')
     expect(postInputSs).toBeGreaterThan(inputIndex)
-    expect(args[postInputSs + 1]).toBe('20')
+    expect(args[postInputSs + 1]).toBe('368')
+    expect(args[args.indexOf('-t') + 1]).toBe('30')
+    expect(args).toContain('setpts=PTS-STARTPTS')
+    expect(args).toContain('asetpts=PTS-STARTPTS')
   })
 
-  it('uses output-only seek for early marks while re-encoding', () => {
+  it('uses absolute output seek for early marks while re-encoding', () => {
     const args = buildFfmpegLiveArgs({
       inputPath: '/videos/sample.mp4',
       startTime: 8,
@@ -110,7 +116,22 @@ describe('buildFfmpegLiveArgs', () => {
     })
 
     expect(args.indexOf('-ss')).toBeGreaterThan(args.indexOf('-i'))
+    expect(args).toContain('-copyts')
     expect(args[args.indexOf('-ss') + 1]).toBe('8')
+  })
+
+  it('forces short GOPs and timed fragment flushes for seamless chunks', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 0,
+      duration: 30,
+      copyCodecs: false,
+    })
+
+    expect(args).toContain('-g')
+    expect(args[args.indexOf('-g') + 1]).toBe('30')
+    expect(args).toContain('-frag_duration')
+    expect(args[args.indexOf('-frag_duration') + 1]).toBe('1000000')
   })
 })
 

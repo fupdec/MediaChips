@@ -22,9 +22,9 @@ import {setNotification} from '@/services/notificationService'
 import {ensureMarkThumb, getMarkImagePath} from '@/utils/markThumb'
 import {isIgnorablePlaybackError, getAbsolutePlaybackTime} from '@/utils/playerBuffer'
 import {
-  getNextChunkStart,
+  getContinuousNextChunkStart,
+  LIVE_STREAM_CHUNK_HANDOFF_SECONDS,
   LIVE_STREAM_CHUNK_SECONDS,
-  LIVE_STREAM_PREFETCH_SECONDS,
   resolveLiveFileDuration,
 } from '@/utils/liveStreamChunk'
 import {
@@ -55,6 +55,21 @@ export function getLiveChunkRelativeTime(absoluteTime: number, chunkStart: numbe
   const relative = Number(absoluteTime) - Number(chunkStart)
   if (!Number.isFinite(relative) || relative <= 0) return 0
   return relative
+}
+
+/**
+ * How far the current live segment actually played.
+ * Prefer currentTime over duration — fMP4 often reports a full -t window even
+ * when the last frames were never delivered.
+ */
+export function resolveLiveHandoffElapsed(videoEl: HTMLVideoElement | null | undefined): number {
+  const currentTime = Number(videoEl?.currentTime)
+  if (Number.isFinite(currentTime) && currentTime > 0.05) return currentTime
+
+  const duration = Number(videoEl?.duration)
+  if (Number.isFinite(duration) && duration > 0.05) return duration
+
+  return LIVE_STREAM_CHUNK_SECONDS
 }
 
 function applyLiveChunkRelativeSeek(
@@ -293,8 +308,11 @@ export function usePlayerPlayback({
     playerStore.player.addEventListener('ended', async () => {
       if (playerStore.usesLiveTranscode) {
         const fileDuration = getLiveFileDuration()
-        let nextStart = getNextChunkStart(
+        // Continue from the last shown frame — never jump ahead on a fixed grid.
+        const handoffElapsed = resolveLiveHandoffElapsed(playerStore.player)
+        let nextStart = getContinuousNextChunkStart(
           playerStore.liveStreamOffset,
+          handoffElapsed,
           fileDuration,
         )
 
@@ -309,7 +327,7 @@ export function usePlayerPlayback({
 
         // Mid-clip: keep streaming the next chunk even if duration is unknown/wrong.
         if (nextStart == null && stillInsideSegment) {
-          nextStart = playerStore.liveStreamOffset + LIVE_STREAM_CHUNK_SECONDS
+          nextStart = absoluteTime
         }
 
         if (nextStart != null) {
@@ -451,6 +469,7 @@ export function usePlayerPlayback({
   let directPlaybackFallbackAttempted = false
   let liveStreamCopyCompatible = false
   let liveStreamAccurateSeek = false
+  let forceDirectPlayback = false
   let directPlaybackFallbackInFlight = false
   let directSeekStallTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -520,6 +539,10 @@ export function usePlayerPlayback({
       || null
     const mediaId = media?.id ?? currentLiveMediaId
     const transcodeEnabled = settingsStore.transcodeUnsupportedFormats === '1'
+
+    if (playerStore.liveTranscodeDisabled || forceDirectPlayback) {
+      return false
+    }
 
     if (!shouldAttemptDirectPlaybackFallback({
       usesLiveTranscode: playerStore.usesLiveTranscode,
@@ -619,6 +642,114 @@ export function usePlayerPlayback({
     }
   }
 
+  const resolveCurrentMediaId = (): number | null => {
+    return currentLiveMediaId
+      ?? playerStore.liveTranscodeMediaId
+      ?? playerStore.media?.id
+      ?? playerStore.playlist[playerStore.nowPlaying]?.id
+      ?? null
+  }
+
+  const startLiveTranscodeAt = async (mediaId: number, startTime: number, maxHeight: string) => {
+    const streamStart = Math.max(0, Number(startTime) || 0)
+    const videoEl = playerStore.player
+    if (!videoEl || !playerStore.active) return
+
+    forceDirectPlayback = false
+    playerStore.liveTranscodeDisabled = false
+    playerStore.liveTranscodeOfferable = true
+    currentLiveMediaId = mediaId
+    liveStreamCopyCompatible = false
+    liveStreamAccurateSeek = false
+    playerStore.usesLiveTranscode = true
+    playerStore.liveTranscodeMediaId = mediaId
+    playerStore.liveTranscodeMaxHeight = maxHeight
+    playerStore.transcodeStatus = 'stream'
+    playerStore.playbackError = false
+    playerStore.transcodeError = null
+    playerStore.liveStreamOffset = streamStart
+    playerStore.currentTime = streamStart
+    playerStore.bufferedRanges = []
+    playerStore.isLiveStreamSeeking = true
+    playerStore.liveStreamSeekHandler = (time: number) => {
+      playerStore.currentTime = time
+      seekLiveStream(time)
+    }
+    markLiveTranscodeSession(mediaId)
+
+    videoEl.src = buildLiveStreamUrl(
+      buildApiUrl,
+      mediaId,
+      streamStart,
+      maxHeight,
+      liveStreamUrlOptions(),
+    )
+
+    await playCurrentLiveStream()
+    if (!playerStore.active) return
+    playerStore.paused = false
+    playerStore.isLiveStreamSeeking = false
+    playerStore.syncPlaybackState()
+  }
+
+  const disableLiveTranscode = async () => {
+    const mediaId = resolveCurrentMediaId()
+    const videoEl = playerStore.player
+    if (mediaId == null || !videoEl || !playerStore.active) return
+    if (playerStore.liveTranscodeDisabled && !playerStore.usesLiveTranscode) return
+
+    const time = Math.max(
+      0,
+      Number(playerStore.currentTime)
+        || Number(videoEl.currentTime)
+        || 0,
+    )
+    const wasPaused = playerStore.paused
+
+    forceDirectPlayback = true
+    playerStore.liveTranscodeDisabled = true
+    playerStore.liveTranscodeOfferable = true
+    playerStore.isLiveStreamSeeking = true
+    playerStore.playbackError = false
+
+    await clearLiveTranscodeHandlers()
+    // Keep the session preference after clearing the live pipe.
+    forceDirectPlayback = true
+    playerStore.liveTranscodeDisabled = true
+    playerStore.liveTranscodeOfferable = true
+    if (!playerStore.active) return
+
+    const seekGeneration = ++liveStreamSeekGeneration
+    videoEl.src = buildVideoStreamUrl(buildApiUrl, mediaId, 'direct')
+    playerStore.currentTime = time
+
+    try {
+      await seekDirectPlaybackTo(
+        videoEl,
+        time,
+        () => seekGeneration !== liveStreamSeekGeneration || !playerStore.active,
+      )
+      if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
+      if (!wasPaused) {
+        await videoEl.play()
+        playerStore.paused = false
+      }
+      playerStore.changePlayerStatusText({
+        text: t('player.controls.transcode_off'),
+        icon: 'video-off',
+      })
+    } catch (error) {
+      if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
+      console.warn('Failed to switch to direct playback:', error)
+      playerStore.playbackError = true
+    } finally {
+      if (seekGeneration === liveStreamSeekGeneration && playerStore.active) {
+        playerStore.isLiveStreamSeeking = false
+        playerStore.syncPlaybackState()
+      }
+    }
+  }
+
   const switchLiveStreamChunk = async (nextChunkStart: number) => {
     if (!currentLiveMediaId || !playerStore.player || !playerStore.active || nextChunkStart == null) {
       return false
@@ -676,11 +807,21 @@ export function usePlayerPlayback({
 
     const chunkStart = playerStore.liveStreamOffset
     const relativeTime = playerStore.player.currentTime || 0
-    const nextStart = getNextChunkStart(chunkStart, getLiveFileDuration())
-    if (nextStart == null) return
+    const segmentDuration = Number(playerStore.player.duration)
+    const endMark = Number.isFinite(segmentDuration) && segmentDuration > 0.5
+      ? segmentDuration
+      : LIVE_STREAM_CHUNK_SECONDS
 
-    const prefetchAt = LIVE_STREAM_CHUNK_SECONDS - LIVE_STREAM_PREFETCH_SECONDS
-    if (relativeTime < prefetchAt) return
+    // Hand off only at the real end. Never switch early onto a fixed +30 grid.
+    if (relativeTime < endMark - LIVE_STREAM_CHUNK_HANDOFF_SECONDS) return
+
+    // Continue from the frame that is on screen (currentTime), not claimed duration.
+    const nextStart = getContinuousNextChunkStart(
+      chunkStart,
+      relativeTime,
+      getLiveFileDuration(),
+    )
+    if (nextStart == null) return
     if (pendingNextChunkStart === nextStart) return
 
     pendingNextChunkStart = nextStart
@@ -707,14 +848,13 @@ export function usePlayerPlayback({
       return
     }
 
-    // Small forward seek inside the current non-seekable segment only works once
+    // Forward seek inside the current non-seekable pipe only works once
     // that time is already buffered; otherwise restart ffmpeg at the exact time.
     const bufferedEnd = playerStore.player.buffered?.length
       ? playerStore.player.buffered.end(playerStore.player.buffered.length - 1)
       : 0
     if (
       relative > 0.05
-      && relative < LIVE_STREAM_CHUNK_SECONDS
       && relative <= bufferedEnd + 0.25
       && playerStore.player.src
       && !isAdvancingChunk
@@ -796,13 +936,25 @@ export function usePlayerPlayback({
     }
 
     const streamStart = Math.max(0, Number(startTime) || 0)
+    const canLiveTranscode = Boolean(playable.transcodeRequired)
+      && settingsStore.transcodeUnsupportedFormats === '1'
+    playerStore.liveTranscodeOfferable = canLiveTranscode || playable.mode === 'stream'
 
     // Prefer direct playback whenever the browser can handle the file.
     // Forcing live re-encode just for clip marks made every clip start wait on ffmpeg.
-    if (!playable.transcodeRequired) {
+    if (!playable.transcodeRequired || forceDirectPlayback || playerStore.liveTranscodeDisabled) {
       resetTranscodeState()
       liveStreamAccurateSeek = false
-      return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
+      if (playable.transcodeRequired) {
+        playerStore.liveTranscodeDisabled = true
+        playerStore.liveTranscodeOfferable = true
+        forceDirectPlayback = true
+      }
+      return buildVideoStreamUrl(
+        buildApiUrl,
+        mediaId,
+        playable.transcodeRequired ? 'direct' : 'auto',
+      )
     }
 
     currentLiveMediaId = mediaId
@@ -812,6 +964,8 @@ export function usePlayerPlayback({
       && streamStart < 0.05
     liveStreamAccurateSeek = false
     playerStore.usesLiveTranscode = true
+    playerStore.liveTranscodeDisabled = false
+    playerStore.liveTranscodeOfferable = true
     playerStore.liveTranscodeMediaId = mediaId
     playerStore.liveTranscodeMaxHeight = normalizeTranscodeMaxHeight(settingsStore.transcodeMaxHeight)
     playerStore.transcodeStatus = 'stream'
@@ -838,9 +992,31 @@ export function usePlayerPlayback({
 
   const changeLiveTranscodeMaxHeight = async (maxHeight: number | string) => {
     const normalized = String(maxHeight)
-    if (!playerStore.usesLiveTranscode || !playerStore.player || !currentLiveMediaId || !playerStore.active) {
+    const mediaId = resolveCurrentMediaId()
+    if (!playerStore.player || mediaId == null || !playerStore.active) {
       return
     }
+
+    // Re-enable live transcode after the user turned it off mid-playback.
+    if (playerStore.liveTranscodeDisabled || !playerStore.usesLiveTranscode) {
+      if (!playerStore.liveTranscodeOfferable) return
+      const time = Math.max(0, Number(playerStore.currentTime) || 0)
+      const wasPaused = playerStore.paused
+      const seekGeneration = ++liveStreamSeekGeneration
+      try {
+        await startLiveTranscodeAt(mediaId, time, normalized)
+        if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
+        if (wasPaused) {
+          playerStore.playerPause()
+        }
+      } catch (error) {
+        if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
+        failTranscode(errorMessage(error, 'Failed to enable live transcode'))
+        console.warn('Failed to enable live transcode:', error)
+      }
+      return
+    }
+
     if (normalized === playerStore.liveTranscodeMaxHeight && !liveStreamCopyCompatible) return
 
     seekLiveStream.cancel?.()
@@ -913,6 +1089,9 @@ export function usePlayerPlayback({
     directPlaybackFallbackInFlight = false
     liveStreamCopyCompatible = false
     liveStreamAccurateSeek = false
+    forceDirectPlayback = false
+    playerStore.liveTranscodeDisabled = false
+    playerStore.liveTranscodeOfferable = false
     clearDirectSeekStallWatch()
     await clearLiveTranscodeHandlers()
     if (isLoadSrcStale(session)) return
@@ -1156,6 +1335,7 @@ export function usePlayerPlayback({
     stopLiveTranscodeSession,
     clearLiveTranscodeHandlers,
     changeLiveTranscodeMaxHeight,
+    disableLiveTranscode,
     initPlayingVideo,
   }
 }

@@ -2164,6 +2164,7 @@ const ja = {
       switch_time: "経過時間と残り時間を切り替える",
       picture_in_picture: "ピクチャインピクチャモード",
       transcode_quality: "トランスコードの品質",
+      transcode_off: "オフ（直接再生）",
       transcode_quality_original: "オリジナル",
       transcode_quality_1080: "1080p",
       transcode_quality_720: "720p",

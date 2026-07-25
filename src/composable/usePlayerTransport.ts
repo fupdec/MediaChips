@@ -217,6 +217,11 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     })
   }
 
+  const disableLiveTranscode = async () => {
+    if (!session?.disableLiveTranscode) return
+    await session.disableLiveTranscode()
+  }
+
   const addMark = () => {
     if (dialogsStore.markAdding.show) {
       if (!dialogsStore.markAdding.submitting) {
@@ -402,6 +407,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     changeSpeed,
     transcodeQualityLabel,
     changeTranscodeMaxHeight,
+    disableLiveTranscode,
     addMark,
     removeMark,
     setAsThumb,

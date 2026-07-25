@@ -70,6 +70,7 @@ export function usePlayerSession() {
     updatePlaybackTime,
     clearLiveTranscodeHandlers,
     changeLiveTranscodeMaxHeight,
+    disableLiveTranscode,
     initPlayingVideo,
   } = usePlayerPlayback({
     isReady,
@@ -170,6 +171,8 @@ export function usePlayerSession() {
     playerStore.liveTranscodeStarted = false
     playerStore.liveTranscodeMediaId = null
     playerStore.liveTranscodeMaxHeight = '1080'
+    playerStore.liveTranscodeOfferable = false
+    playerStore.liveTranscodeDisabled = false
     playerStore.liveStreamSeekHandler = null
     playerStore.liveStreamOffset = 0
     playerStore.bufferedRanges = []
@@ -563,6 +566,7 @@ export function usePlayerSession() {
     showPlaybackError,
     closePlayer,
     changeLiveTranscodeMaxHeight,
+    disableLiveTranscode,
     stopSmoothScroll,
     moveOverPlayer,
     togglePause,

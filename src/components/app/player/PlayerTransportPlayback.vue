@@ -108,12 +108,15 @@
       </v-menu>
     </div>
 
-    <div v-if="playerStore.usesLiveTranscode && !isAudioMode" class="transcode-quality ml-1">
+    <div
+      v-if="showTranscodeMenu"
+      class="transcode-quality ml-1"
+    >
       <v-menu
         attach=".transcode-quality"
         nudge-top="45"
         nudge-left="10"
-        min-width="140"
+        min-width="160"
         top
       >
         <template #activator="{ props: menuProps }">
@@ -122,17 +125,24 @@
             variant="tonal"
             :density="density"
             dark>
-            <v-icon>mdi-high-definition-box</v-icon>
+            <v-icon>{{ playerStore.liveTranscodeDisabled ? 'mdi-video-off' : 'mdi-high-definition-box' }}</v-icon>
             <div class="tip" v-html="t('player.controls.transcode_quality')"/>
           </v-btn>
         </template>
 
         <v-list density="compact" class="py-1">
           <v-list-item
+            :active="playerStore.liveTranscodeDisabled"
+            color="primary"
+            @click="disableLiveTranscode"
+          >
+            <v-list-item-title v-text="t('player.controls.transcode_off')"/>
+          </v-list-item>
+          <v-list-item
             v-for="height in transcodeHeights"
             :key="height"
             :value="height"
-            :active="playerStore.liveTranscodeMaxHeight === height"
+            :active="!playerStore.liveTranscodeDisabled && playerStore.liveTranscodeMaxHeight === height"
             color="primary"
             @click="changeTranscodeMaxHeight(height)"
           >
@@ -144,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import {inject} from 'vue'
+import {computed, inject} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PLAYER_TRANSPORT_KEY} from '@/composable/playerTransportKey'
 
@@ -166,5 +176,11 @@ const {
   changeSpeed,
   transcodeQualityLabel,
   changeTranscodeMaxHeight,
+  disableLiveTranscode,
 } = inject(PLAYER_TRANSPORT_KEY)!
+
+const showTranscodeMenu = computed(() => (
+  !isAudioMode.value
+  && (playerStore.usesLiveTranscode || playerStore.liveTranscodeOfferable || playerStore.liveTranscodeDisabled)
+))
 </script>

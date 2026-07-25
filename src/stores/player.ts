@@ -34,6 +34,10 @@ export const usePlayerStore = defineStore('player', {
     liveTranscodeStarted: false,
     liveTranscodeMediaId: null as number | null,
     liveTranscodeMaxHeight: '1080',
+    /** Current media can use live transcode (unsupported format / container layout). */
+    liveTranscodeOfferable: false,
+    /** User turned live transcode off for this playback session. */
+    liveTranscodeDisabled: false,
     liveStreamSeekHandler: null as ((time: number) => void) | null,
     liveStreamOffset: 0,
     bufferedRanges: [] as Array<{ start: number; end: number }>,
