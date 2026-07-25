@@ -29,6 +29,8 @@ export interface MediaTypeFilterParam {
 export interface ItemTagRef {
   tagId: number
   metaId?: number
+  /** Present when the tag is inherited from a tagged parent folder. */
+  fromFolder?: boolean
 }
 
 export interface ItemValueRef {

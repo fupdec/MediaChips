@@ -171,7 +171,7 @@
         <v-chip
           v-if="entry.kind === 'tag'"
           v-bind="getTagChipBind(entry.data)"
-          :prepend-icon="`mdi-${entry.data?.meta?.icon}`"
+          :prepend-icon="getTagChipPrependIcon(entry.data)"
           :text="entry.data.name"
           @click.stop.prevent="openTagPage(entry.data)"
           @contextmenu.stop.prevent="showMenu($event, entry.data)"
@@ -243,7 +243,7 @@ const CHIP_COLLAPSE_LIMIT = 12
 
 type PinnedMetaAssignment = AssignedMeta
 
-type TagWithMeta = Tag & { meta: Meta; metaId: number }
+type TagWithMeta = Tag & { meta: Meta; metaId: number; fromFolder?: boolean }
 
 type ValueWithMeta = Meta & { value: unknown }
 
@@ -308,17 +308,33 @@ const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
 }
 
 const getTagChipBind = (tag: TagWithMeta) => {
-  const variant: ChipVariant = toChipVariant(tag.meta?.chipVariant) ?? 'flat'
+  const variant: ChipVariant = tag.fromFolder
+    ? 'tonal'
+    : (toChipVariant(tag.meta?.chipVariant) ?? 'flat')
   const color = resolveTagChipColor(tag.meta?.color, tag.color)
   const colored = Boolean(color)
+  const locale = toLocale(settingsStore.locale)
+  const fromFolderTitle = tag.fromFolder
+    ? translate('items.tag_from_folder', {}, locale)
+    : undefined
 
   return {
     variant,
     color: colored ? color : undefined,
     textColor: colored ? getTextColor(color, variant === 'outlined') || undefined : undefined,
     label: getMetaChipLabel(tag.meta),
-    class: colored ? 'tag-chip--colored' : undefined,
+    title: fromFolderTitle || tag.name || undefined,
+    prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
+    class: [
+      colored ? 'tag-chip--colored' : undefined,
+      tag.fromFolder ? 'tag-chip--from-folder' : undefined,
+    ].filter(Boolean).join(' ') || undefined,
   }
+}
+
+const getTagChipPrependIcon = (tag: TagWithMeta): string | undefined => {
+  if (tag.fromFolder) return 'mdi-folder-outline'
+  return tag.meta?.icon ? `mdi-${tag.meta.icon}` : undefined
 }
 
 const onTagHover = (event: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
@@ -363,7 +379,7 @@ const tagItems = computed((): TagWithMeta[] => {
       const tag = tagsStore.find(t => t.id === i.tagId)
       const metaId = i.metaId ?? tag?.metaId ?? meta?.id
       if (!tag || !meta || metaId == null) return null
-      return {...tag, meta, metaId}
+      return {...tag, meta, metaId, fromFolder: Boolean(i.fromFolder)}
     })
     .filter((tag): tag is TagWithMeta => tag !== null && !!tag.meta && !!tag.id)
     .filter(tag => checkShow(tag.metaId))
@@ -764,15 +780,23 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
       },
     },
     {type: 'divider'},
-    {
-      name: t('common.remove'),
-      type: "item",
-      icon: "close",
-      color: "error",
-      action: () => {
-        removeTag(tag)
+    tag.fromFolder
+      ? {
+        name: t('items.tag_from_folder'),
+        type: 'item',
+        icon: 'folder-outline',
+        disabled: true,
+        action: () => {},
+      }
+      : {
+        name: t('common.remove'),
+        type: 'item',
+        icon: 'close',
+        color: 'error',
+        action: () => {
+          removeTag(tag)
+        },
       },
-    },
   )
 
   contextMenuStore.showContextMenu({
@@ -783,3 +807,10 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
   })
 }
 </script>
+
+<style scoped>
+.tag-chip--from-folder {
+  opacity: 0.92;
+  border-style: dashed !important;
+}
+</style>

@@ -104,6 +104,10 @@
               </SettingsSection>
 
               <SettingsSection>
+                <SettingsFolderTags/>
+              </SettingsSection>
+
+              <SettingsSection>
                 <SettingsWatchedFolders/>
               </SettingsSection>
             </SettingsList>
@@ -211,6 +215,9 @@ const SettingsWatchedFolders = defineAsyncComponent(() =>
 )
 const SettingsBulkPathEditing = defineAsyncComponent(() =>
   import("@/components/settings/files/SettingsBulkPathEditing.vue")
+)
+const SettingsFolderTags = defineAsyncComponent(() =>
+  import("@/components/settings/files/SettingsFolderTags.vue")
 )
 const SettingsMeta = defineAsyncComponent(() =>
   import("@/components/settings/SettingsMeta.vue")

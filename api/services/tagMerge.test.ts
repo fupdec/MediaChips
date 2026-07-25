@@ -42,6 +42,12 @@ function createTestDb() {
       metaId INTEGER NOT NULL,
       PRIMARY KEY (mediaId, tagId, metaId)
     );
+    CREATE TABLE tagsInFolders (
+      folderId INTEGER NOT NULL,
+      tagId INTEGER NOT NULL,
+      metaId INTEGER NOT NULL,
+      PRIMARY KEY (folderId, tagId, metaId)
+    );
     CREATE TABLE tagsInTags (
       parentTagId INTEGER NOT NULL,
       tagId INTEGER NOT NULL,

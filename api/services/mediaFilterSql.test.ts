@@ -52,9 +52,24 @@ describe('buildMediaFilterQuery', () => {
 
     expect(result.whereSql).toContain('media.mediaTypeId = :mediaTypeId')
     expect(result.joinSql).toContain('tagsInMedia')
+    expect(result.joinSql).toContain('folderPaths')
+    expect(result.joinSql).toContain('tagsInFolders')
     expect(result.joinSql).toContain('metaId = :f0')
-    expect(result.joinSql).toContain('tagId = :f1')
+    expect(result.joinSql).toContain('tagId IN (:f1)')
     expect(result.replacements).toMatchObject({ mediaTypeId: 1, f0: 17, f1: 1050 })
+  })
+
+  it('matches media under a tagged folder for tag in-filter', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'in', val: [42] },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('tagsInFolders')
+    expect(result.joinSql).toContain("LIKE RTRIM(REPLACE(fp.path")
+    expect(result.joinSql).toContain('UNION')
   })
 
   it('ignores inactive filters', () => {

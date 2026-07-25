@@ -20,6 +20,7 @@ const API_SEGMENT_ALIASES = {
   tag: 'Tag',
   tagsinfilterrow: 'TagsInFilterRow',
   tagsinmedia: 'TagsInMedia',
+  tagsinfolder: 'TagsInFolder',
   tagsintag: 'TagsInTag',
   task: 'Task',
   tasksbackups: 'TasksBackups',

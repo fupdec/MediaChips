@@ -14,6 +14,13 @@ export const API_ROUTES = {
   mark: '/api/mark',
   markByPath: '/api/mark/by-path',
   tagsInMediaCreateOne: '/api/TagsInMedia/createOne',
+  tagsInFolder: '/api/TagsInFolder',
+  tagsInFolderCreateOne: '/api/TagsInFolder/createOne',
+  tagsInFolderByPaths: '/api/TagsInFolder/byPaths',
+  tagsInFolderList: '/api/TagsInFolder/list',
+  tagsInFolderClearAll: '/api/TagsInFolder/clearAll',
+  tagsInFolderReplaceForMeta: '/api/TagsInFolder/replaceForMeta',
+  tagsInFolderRemapPaths: '/api/TagsInFolder/remapPaths',
   metaInMediaType: '/api/MetaInMediaType',
   pinnedMeta: '/api/PinnedMeta',
   savedFilterFindAll: '/api/SavedFilter/findAll',
@@ -156,6 +163,10 @@ export function apiValuesInTag(tagId: number | string) {
 
 export function apiTagsInMedia(mediaId: number | string) {
   return `/api/TagsInMedia?mediaId=${mediaId}`
+}
+
+export function apiTagsInFolder(folderPath: string) {
+  return `/api/TagsInFolder?path=${encodeURIComponent(folderPath)}`
 }
 
 export function apiValuesInMedia(mediaId: number | string) {

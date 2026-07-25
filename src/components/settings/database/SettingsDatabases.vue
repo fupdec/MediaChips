@@ -23,49 +23,83 @@
     </div>
 
     <!-- List -->
-    <v-list density="compact" rounded class="px-0 settings-outlined-list" bg-color="transparent">
+    <v-list
+      density="compact"
+      rounded="xl"
+      class="px-0 settings-outlined-list databases__list"
+      bg-color="transparent"
+    >
       <v-list-item
-        v-for="db in databases"
+        v-for="(db, index) in databases"
         :key="db.id"
-        :class="{ active: db.active }"
+        :class="{
+          active: db.active,
+          'databases__row--zebra': index % 2 === 1,
+        }"
         :color="db.active ? 'success' : undefined"
-        @click="openActivate(db)"
         rounded="pill"
         variant="outlined"
-        class="py-4"
+        class="databases__row py-2"
+        @click="openActivate(db)"
       >
         <template #prepend>
-          <v-avatar variant="tonal">
-            <v-icon :icon="`mdi-${db.icon || DEFAULT_DB_ICON}`"/>
+          <v-avatar
+            variant="tonal"
+            :color="db.active ? 'success' : 'primary'"
+            size="32"
+            class="mr-1"
+          >
+            <v-icon
+              size="18"
+              :icon="`mdi-${db.icon || DEFAULT_DB_ICON}`"
+            />
           </v-avatar>
         </template>
 
-        <v-list-item-title class="d-flex align-center">
-          <span>{{ db.name }}</span>
-          <v-chip v-if="db.active" color="success" size="x-small" label class="ml-2">
+        <v-list-item-title class="databases__title d-flex align-center text-body-2">
+          <span class="text-truncate">{{ db.name }}</span>
+          <v-chip
+            v-if="db.active"
+            color="success"
+            size="x-small"
+            label
+            rounded="pill"
+            class="ml-2"
+          >
             {{ t('common.active') }}
           </v-chip>
         </v-list-item-title>
-        <v-list-item-subtitle>
+        <v-list-item-subtitle class="databases__subtitle text-caption">
           {{ t('settings_labels.database.created') }} {{ getDateFromMs(db.createdAt) }}
-          <span class="ml-4">ID: {{ db.id }}</span>
-          <span class="ml-4 text-medium-emphasis">{{ formatDbSize(db.id) }}</span>
+          <span class="ml-3">ID: {{ db.id }}</span>
+          <span class="ml-3 text-medium-emphasis">{{ formatDbSize(db.id) }}</span>
         </v-list-item-subtitle>
 
         <template #append>
-          <v-btn-group rounded="xl">
-            <v-btn @click.stop="openEdit(db)" icon>
-              <v-icon icon="mdi-pencil"/>
+          <div class="databases__actions d-flex">
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              :aria-label="t('common.edit')"
+              @click.stop="openEdit(db)"
+            >
+              <v-icon icon="mdi-pencil" />
             </v-btn>
-
             <v-btn
               v-if="!db.active"
               icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              color="error"
+              :aria-label="t('common.remove')"
               @click.stop="confirmRemoving(db)"
             >
-              <v-icon icon="mdi-close" color="error"/>
+              <v-icon icon="mdi-delete-outline" />
             </v-btn>
-          </v-btn-group>
+          </div>
         </template>
       </v-list-item>
     </v-list>
@@ -350,11 +384,53 @@ watch(databases, loadDatabaseSizes)
 </script>
 
 <style scoped>
-.v-list-item.active {
-  pointer-events: none;
+.databases__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.v-list-item.active .v-btn {
+.databases__row {
+  align-items: center;
+  min-height: 52px;
+  border-color: rgba(var(--v-border-color), 0.14) !important;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.databases__row--zebra {
+  background: rgba(var(--v-theme-on-surface), 0.035);
+}
+
+.databases__row:hover {
+  background: rgba(var(--v-theme-primary), 0.04);
+  border-color: rgba(var(--v-theme-primary), 0.22) !important;
+}
+
+.databases__row.active {
+  pointer-events: none;
+  background: rgba(var(--v-theme-success), 0.06);
+  border-color: rgba(var(--v-theme-success), 0.28) !important;
+}
+
+.databases__row.active .v-btn {
   pointer-events: all;
+}
+
+.databases__title {
+  font-weight: 500;
+  min-width: 0;
+}
+
+.databases__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.databases__actions {
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(var(--v-theme-surface), 0.7);
 }
 </style>

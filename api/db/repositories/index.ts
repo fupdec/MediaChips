@@ -16,6 +16,8 @@ export {createSavedFiltersRepository, type SavedFilterInsert, type SavedFilterRo
 export {createSettingsRepository, type SettingRow} from './settings'
 export {createTagsInFilterRowsRepository} from './tagsInFilterRows'
 export {createTagsInMediaRepository} from './tagsInMedia'
+export {createFolderPathsRepository, type FolderPathRow} from './folderPaths'
+export {createTagsInFoldersRepository, type TagsInFolderInsert, type FolderWithTags, type HydratedFolderTag} from './tagsInFolders'
 export {createTagsInTagRepository} from './tagsInTag'
 export {createTagsRepository, type TagInsert, type TagRow} from './tags'
 export {createTabsRepository, type TabInsert, type TabRow} from './tabs'

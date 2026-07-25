@@ -39,53 +39,81 @@
 
     <!-- Folders List -->
     <v-list
-      class="px-0 settings-outlined-list"
+      class="px-0 settings-outlined-list watched-folders__list"
       density="compact"
       rounded="xl"
       bg-color="transparent"
     >
       <v-list-item
-        v-for="folder in watcherStore.folders"
+        v-for="(folder, index) in watcherStore.folders"
         :key="folder.id"
         rounded="pill"
         variant="outlined"
-        class="py-4"
+        class="watched-folders__row py-2"
+        :class="{'watched-folders__row--zebra': index % 2 === 1}"
       >
         <template #prepend>
           <v-avatar
             @click="toggleFolderWatch(folder)"
             :color="folder.watch ? 'success' : 'grey'"
-            size="40"
+            variant="tonal"
+            size="32"
+            class="mr-1"
             style="cursor: pointer"
           >
-            <v-icon :icon="`mdi-eye${folder.watch ? '' : '-off'}`"/>
+            <v-icon
+              size="18"
+              :icon="`mdi-eye${folder.watch ? '' : '-off'}`"
+            />
           </v-avatar>
         </template>
 
-        <v-list-item-title class="d-flex align-center">
-          <template v-for="type in folder.types"
-            :key="type.id">
-            <v-icon size="small"
-              class="mr-1">mdi-{{ type.icon }}
+        <v-list-item-title class="watched-folders__title d-flex align-center text-body-2">
+          <template
+            v-for="type in folder.types"
+            :key="type.id"
+          >
+            <v-icon
+              size="14"
+              class="mr-1"
+            >
+              mdi-{{ type.icon }}
             </v-icon>
           </template>
-          <span class="ml-2">{{ folder.name }}</span>
+          <span class="text-truncate">{{ folder.name }}</span>
         </v-list-item-title>
 
-        <v-list-item-subtitle>{{ folder.path }}</v-list-item-subtitle>
+        <v-list-item-subtitle
+          class="watched-folders__path text-caption"
+          :title="folder.path"
+        >
+          {{ folder.path }}
+        </v-list-item-subtitle>
 
         <template #append>
-          <v-btn-toggle
-            rounded="pill">
-            <v-btn @click.stop="editFolder(folder)"
-              icon>
-              <v-icon>mdi-pencil</v-icon>
+          <div class="watched-folders__actions d-flex">
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              :aria-label="t('common.edit')"
+              @click.stop="editFolder(folder)"
+            >
+              <v-icon icon="mdi-pencil" />
             </v-btn>
-            <v-btn @click.stop="confirmRemoveFolder(folder)"
-              icon>
-              <v-icon color="error">mdi-close</v-icon>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              color="error"
+              :aria-label="t('common.remove')"
+              @click.stop="confirmRemoveFolder(folder)"
+            >
+              <v-icon icon="mdi-delete-outline" />
             </v-btn>
-          </v-btn-toggle>
+          </div>
         </template>
       </v-list-item>
     </v-list>
@@ -477,3 +505,45 @@ onMounted(() => {
   getWatchedFolders()
 })
 </script>
+
+<style scoped>
+.watched-folders__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.watched-folders__row {
+  align-items: center;
+  min-height: 52px;
+  border-color: rgba(var(--v-border-color), 0.14) !important;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.watched-folders__row--zebra {
+  background: rgba(var(--v-theme-on-surface), 0.035);
+}
+
+.watched-folders__row:hover {
+  background: rgba(var(--v-theme-primary), 0.04);
+  border-color: rgba(var(--v-theme-primary), 0.22) !important;
+}
+
+.watched-folders__title {
+  font-weight: 500;
+  min-width: 0;
+}
+
+.watched-folders__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watched-folders__actions {
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(var(--v-theme-surface), 0.7);
+}
+</style>

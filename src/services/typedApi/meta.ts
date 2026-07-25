@@ -15,6 +15,7 @@ import {
   apiPinnedMetaDelete,
   apiRemoveTagFromItem,
   apiTagsInMedia,
+  apiTagsInFolder,
   apiTagsInTag,
   apiValuesInMedia,
   apiValuesInTag,
@@ -158,6 +159,64 @@ export const metaApi = {
       ...res,
       data: validated(parseTagInTagEntries, res.data),
     }))
+  },
+
+  getTagsInFolder(folderPath: string) {
+    return apiClient.get(apiTagsInFolder(folderPath)).then((res) => ({
+      ...res,
+      data: validated(parseTagInTagEntries, res.data),
+    }))
+  },
+
+  getTagsInFoldersByPaths(paths: string[]) {
+    return apiClient.post(API_ROUTES.tagsInFolderByPaths, {paths}).then((res) => ({
+      ...res,
+      data: (res.data || {}) as Record<string, ReturnType<typeof parseTagInTagEntries>>,
+    }))
+  },
+
+  listFolderTags() {
+    return apiClient.get(API_ROUTES.tagsInFolderList).then((res) => ({
+      ...res,
+      data: (Array.isArray(res.data) ? res.data : []) as Array<{
+        id: number
+        path: string
+        tags: Array<{
+          tagId: number
+          metaId: number
+          folderId?: number
+          tag?: {id?: number; name?: string; color?: string | null} | null
+        }>
+      }>,
+    }))
+  },
+
+  clearFolderTags(path: string) {
+    return apiClient.post(API_ROUTES.tagsInFolderClearAll, {path})
+  },
+
+  createTagsInFolderOne(body: {path: string; tagId: number; metaId: number}) {
+    return apiClient.post(API_ROUTES.tagsInFolderCreateOne, body)
+  },
+
+  postTagsInFolder(body: Array<{path: string; tagId: number; metaId: number}>) {
+    return apiClient.post(API_ROUTES.tagsInFolder, body)
+  },
+
+  replaceFolderTagsForMeta(body: {path: string; metaId: number; tagIds: number[]}) {
+    return apiClient.post(API_ROUTES.tagsInFolderReplaceForMeta, body)
+  },
+
+  deleteFolderTag(body: {path: string; tagId: number}) {
+    return apiClient.post(`${API_ROUTES.tagsInFolder}/deleteFromFolder`, body)
+  },
+
+  deleteFolderTagsByMeta(body: {path: string; metaId: number}) {
+    return apiClient.post(`${API_ROUTES.tagsInFolder}/deleteAllTagsByMetaId`, body)
+  },
+
+  remapFolderPaths(body: {find: string; replace: string}) {
+    return apiClient.post(API_ROUTES.tagsInFolderRemapPaths, body)
   },
 
   getValuesInMedia(mediaId: number) {

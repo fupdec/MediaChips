@@ -44,6 +44,7 @@ describe('loadMediaItems', () => {
           { id: 2, mediaTypeId: 1, path: '/b.mp4', name: 'b.mp4', filesize: 2000 },
         ]
       }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
       if (sql.includes('tagsInMedia')) return []
       if (sql.includes('valuesInMedia')) return []
       return []
@@ -67,6 +68,7 @@ describe('loadMediaItems', () => {
       if (sql.includes('WHERE media.mediaTypeId')) {
         return [{ id: 1, mediaTypeId: 1, path: '/a.mp4', name: 'a.mp4', filesize: 1000 }]
       }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
       if (sql.includes('tagsInMedia') || sql.includes('valuesInMedia')) return []
       return []
     })
@@ -91,5 +93,42 @@ describe('loadMediaItems', () => {
     )
 
     warn.mockRestore()
+  })
+
+  it('merges inherited folder tags into media card tags', async () => {
+    vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
+      if (sql.includes('LIMIT :limit')) {
+        return [{ id: 10 }]
+      }
+      if (sql.includes('totalFilesize')) {
+        return [{ totalFiltered: 1, totalFilesize: 1000 }]
+      }
+      if (sql.includes('totalUnfiltered')) {
+        return [{ totalUnfiltered: 1 }]
+      }
+      if (sql.includes('WHERE media.id IN')) {
+        return [{ id: 10, mediaTypeId: 1, path: '/media/show/ep.mp4', name: 'ep.mp4', filesize: 1000 }]
+      }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) {
+        return [{ mediaId: 10, tagId: 42, metaId: 7 }]
+      }
+      if (sql.includes('FROM tagsInMedia') || sql.includes('tagsInMedia WHERE')) {
+        return [{ mediaId: 10, tagId: 11, metaId: 7 }]
+      }
+      if (sql.includes('valuesInMedia')) return []
+      return []
+    })
+
+    const result = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      page: 1,
+      limit: 25,
+    })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].tags).toEqual(expect.arrayContaining([
+      { tagId: 11, metaId: 7 },
+      { tagId: 42, metaId: 7, fromFolder: true },
+    ]))
   })
 })

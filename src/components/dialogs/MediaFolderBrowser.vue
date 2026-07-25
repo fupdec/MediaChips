@@ -65,11 +65,37 @@
         </div>
 
         <div
-          v-if="showSelection"
+          v-if="showSelection || enableFolderTags"
           class="media-folder-browser__actions"
         >
+          <FolderTagsMenu
+            v-if="enableFolderTags"
+            :folder-path="currentPath"
+            @saved="reloadFolderTags"
+          >
+            <template #activator="{props: menuProps}">
+              <v-btn
+                v-bind="menuProps"
+                size="small"
+                variant="text"
+                :disabled="loading || !currentPath"
+                prepend-icon="mdi-tag-multiple-outline"
+              >
+                {{ t('media.adding.folder_tags_edit') }}
+              </v-btn>
+            </template>
+          </FolderTagsMenu>
           <v-btn
-            v-if="!isFilePicker"
+            v-if="enableFolderTags"
+            size="small"
+            variant="text"
+            prepend-icon="mdi-folder-multiple-outline"
+            @click="folderTagsManagerOpen = true"
+          >
+            {{ t('media.adding.folder_tags_manager_open') }}
+          </v-btn>
+          <v-btn
+            v-if="showSelection && !isFilePicker"
             size="small"
             variant="tonal"
             color="primary"
@@ -80,6 +106,7 @@
             {{ t('media.adding.browser_select_folder') }}
           </v-btn>
           <v-btn
+            v-if="showSelection"
             size="small"
             variant="text"
             :disabled="loading || !selectedPaths.size"
@@ -244,6 +271,22 @@
                   :title="entry.name"
                 >
                   {{ entry.name }}
+                  <span
+                    v-if="enableFolderTags && entry.isDirectory && folderTagChips(entry.path).length"
+                    class="media-folder-browser__tag-chips"
+                  >
+                    <v-chip
+                      v-for="chip in folderTagChips(entry.path)"
+                      :key="`${entry.path}:${chip.tagId}`"
+                      size="x-small"
+                      label
+                      :color="chip.color || undefined"
+                      variant="tonal"
+                      class="ml-1"
+                    >
+                      {{ chip.name }}
+                    </v-chip>
+                  </span>
                 </span>
                 <span class="media-folder-browser__col media-folder-browser__col--size text-medium-emphasis">
                   {{ formatEntrySize(entry) }}
@@ -288,6 +331,11 @@
         </template>
       </div>
     </div>
+
+    <DialogFolderTagsManager
+      v-if="enableFolderTags"
+      v-model="folderTagsManagerOpen"
+    />
   </div>
 </template>
 
@@ -300,6 +348,9 @@ import {
 } from '@/services/browseDirectoryService'
 import type {BrowsePlace} from '@/services/browsePlacesService'
 import {getReadableFileSize} from '@/services/formatUtils'
+import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
+import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
+import {typedApi} from '@/services/typedApi'
 
 const props = withDefaults(defineProps<{
   baseUrl: string
@@ -316,6 +367,8 @@ const props = withDefaults(defineProps<{
   showSelection?: boolean
   /** Stretch list to fill parent height (side panel). */
   fillHeight?: boolean
+  /** Allow editing / viewing tags on folders. */
+  enableFolderTags?: boolean
 }>(), {
   places: () => [],
   activePlaceId: null,
@@ -323,6 +376,7 @@ const props = withDefaults(defineProps<{
   fileExtensions: () => [],
   showSelection: true,
   fillHeight: false,
+  enableFolderTags: true,
 })
 
 const emit = defineEmits<{
@@ -347,6 +401,65 @@ const serverPlatform = ref('')
 type SortKey = 'name' | 'size' | 'mtime'
 const sortKey = ref<SortKey>('name')
 const sortDesc = ref(false)
+const folderTagsManagerOpen = ref(false)
+const folderTagsByPath = ref<Record<string, Array<{
+  tagId: number
+  metaId: number
+  name: string
+  color?: string | null
+}>>>({})
+
+function canonicalizeFolderPath(folderPath: string): string {
+  return String(folderPath || '').trim().replace(/[\\/]+$/, '')
+}
+
+watch(folderTagsManagerOpen, (open, wasOpen) => {
+  if (!open && wasOpen) void reloadFolderTags()
+})
+
+function folderTagChips(folderPath: string) {
+  const key = canonicalizeFolderPath(folderPath)
+  return folderTagsByPath.value[key] || []
+}
+
+async function reloadFolderTags() {
+  if (!props.enableFolderTags) {
+    folderTagsByPath.value = {}
+    return
+  }
+
+  const paths = [
+    currentPath.value,
+    ...entries.value.filter((entry) => entry.isDirectory).map((entry) => entry.path),
+  ]
+    .map(canonicalizeFolderPath)
+    .filter(Boolean)
+
+  if (!paths.length) {
+    folderTagsByPath.value = {}
+    return
+  }
+
+  try {
+    const res = await typedApi.getTagsInFoldersByPaths(paths)
+    const next: typeof folderTagsByPath.value = {}
+    for (const [path, rows] of Object.entries(res.data || {})) {
+      const key = canonicalizeFolderPath(path)
+      next[key] = (rows || []).map((row) => {
+        const tag = (row as {tag?: {name?: string; color?: string | null}}).tag
+        return {
+          tagId: Number(row.tagId),
+          metaId: Number(row.metaId),
+          name: String(tag?.name || row.tagId),
+          color: tag?.color ?? null,
+        }
+      }).filter((row) => row.tagId && row.name)
+    }
+    folderTagsByPath.value = next
+  } catch (error) {
+    console.error(error)
+  }
+}
 
 const selectedPaths = computed(() => new Set(props.selectedPaths))
 
@@ -483,6 +596,7 @@ async function loadDirectory(targetPath: string) {
     if (result.currentPath !== props.path) {
       emit('update:path', result.currentPath)
     }
+    await reloadFolderTags()
   } catch (err: unknown) {
     const message = (err as {response?: {data?: {message?: string}}; message?: string})
       ?.response?.data?.message
@@ -490,6 +604,7 @@ async function loadDirectory(targetPath: string) {
       || t('media.adding.browser_load_error')
     error.value = message
     entries.value = []
+    folderTagsByPath.value = {}
   } finally {
     loading.value = false
   }
@@ -684,6 +799,14 @@ watch(
 
 .media-folder-browser__col--name {
   flex: 1 1 auto;
+}
+
+.media-folder-browser__tag-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 100%;
+  vertical-align: middle;
 }
 
 .media-folder-browser__col--size {

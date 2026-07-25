@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gt, inArray, isNull, like, or, sql } from 'd
 import type { DrizzleClient } from '../client'
 import { media } from '../schema/media'
 import { tagsInMedia } from '../schema/tagsInMedia'
+import { folderPaths, tagsInFolders } from '../schema/folderPaths'
 import { nowIso } from '../utils/timestamps'
 import { forEachChunk } from '../utils/chunk'
 import { queryGet } from '../utils/rawQuery'
@@ -335,15 +336,41 @@ export function createMediaRepository(db: DrizzleClient) {
     },
 
     countWithTag(mediaTypeId: unknown, tagId: unknown): number {
-      const row = db.select({count: count()})
+      const typeId = Number(mediaTypeId)
+      const tag = Number(tagId)
+      const ids = new Set<number>()
+
+      const direct = db.select({id: media.id})
         .from(media)
         .innerJoin(tagsInMedia, eq(tagsInMedia.mediaId, media.id))
         .where(and(
-          eq(media.mediaTypeId, Number(mediaTypeId)),
-          eq(tagsInMedia.tagId, Number(tagId)),
+          eq(media.mediaTypeId, typeId),
+          eq(tagsInMedia.tagId, tag),
         ))
-        .get()
-      return Number(row?.count ?? 0)
+        .all()
+      for (const row of direct) ids.add(row.id)
+
+      const folders = db.select({path: folderPaths.path})
+        .from(folderPaths)
+        .innerJoin(tagsInFolders, eq(tagsInFolders.folderId, folderPaths.id))
+        .where(eq(tagsInFolders.tagId, tag))
+        .all()
+
+      for (const folder of folders) {
+        const patterns = buildFolderPathLikePatterns(folder.path || '')
+        if (!patterns.length) continue
+
+        const inherited = db.select({id: media.id})
+          .from(media)
+          .where(and(
+            eq(media.mediaTypeId, typeId),
+            or(...patterns.map((pattern) => like(media.path, pattern))),
+          ))
+          .all()
+        for (const row of inherited) ids.add(row.id)
+      }
+
+      return ids.size
     },
 
     getStats(apiDb: ApiDb): {total: number; filesize: number} {

@@ -188,6 +188,10 @@ const replaceFiles = async () => {
       mediaFiles: replaced,
     })
 
+    if (str) {
+      await typedApi.remapFolderPaths({find: str, replace: repl})
+    }
+
     query.value = ""
     replacement.value = ""
     found.value = ""

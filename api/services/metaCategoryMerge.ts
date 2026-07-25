@@ -8,6 +8,7 @@ import {metaInMediaTypes} from '../db/schema/metaInMediaTypes'
 import {pinnedMetas} from '../db/schema/pinnedMeta'
 import {tags} from '../db/schema/tags'
 import {tagsInMedia} from '../db/schema/tagsInMedia'
+import {tagsInFolders} from '../db/schema/folderPaths'
 import {tagsInTags} from '../db/schema/tagsInTag'
 import {tagsInFilterRows} from '../db/schema/tagsInFilterRows'
 import {filterRows} from '../db/schema/filterRows'
@@ -129,6 +130,27 @@ function remapTagsInMediaMetaId(
   )
   tx.insert(tagsInMedia).values(remapped).onConflictDoNothing().run()
   tx.delete(tagsInMedia).where(eq(tagsInMedia.metaId, sourceMetaId)).run()
+  return remapped.length
+}
+
+function remapTagsInFoldersMetaId(
+  tx: MergeTx,
+  sourceMetaId: number,
+  survivorMetaId: number,
+): number {
+  const rows = tx.select().from(tagsInFolders).where(eq(tagsInFolders.metaId, sourceMetaId)).all()
+  if (!rows.length) return 0
+
+  const remapped = uniqueByKey(
+    rows.map((row) => ({
+      folderId: row.folderId,
+      tagId: row.tagId,
+      metaId: survivorMetaId,
+    })),
+    (row) => `${row.folderId}:${row.tagId}:${row.metaId}`,
+  )
+  tx.insert(tagsInFolders).values(remapped).onConflictDoNothing().run()
+  tx.delete(tagsInFolders).where(eq(tagsInFolders.metaId, sourceMetaId)).run()
   return remapped.length
 }
 
@@ -317,6 +339,7 @@ export async function mergeTagCategories(
 
     for (const sourceMetaId of sourceIds) {
       migrated.mediaLinks += remapTagsInMediaMetaId(tx, sourceMetaId, survivorId)
+      remapTagsInFoldersMetaId(tx, sourceMetaId, survivorId)
       migrated.nestedLinks += remapTagsInTagsMetaId(tx, sourceMetaId, survivorId)
       migrated.filterRowTags += remapTagsInFilterRowsMetaId(tx, sourceMetaId, survivorId)
 

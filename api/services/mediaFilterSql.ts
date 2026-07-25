@@ -7,12 +7,13 @@ import type {
 } from '../types/mediaFilter'
 import {
   applyTagArrayJoinResult,
-  buildTagArrayFilterClause,
-  buildTagArrayJoinResult,
   canUseTagArrayJoin,
   getTagArrayFilterTagIds,
-  MEDIA_TAG_LINK,
 } from './tagArrayFilterSql'
+import {
+  buildMediaTagArrayFilterClause,
+  buildMediaTagArrayJoinResult,
+} from './mediaTagFilterSql'
 import { resolveMetaId } from '../utils/metaId'
 import { buildMediaMetaSortExpression } from '../utils/metaValueSort'
 import { parseExtList } from '../utils/ext'
@@ -391,12 +392,12 @@ function buildTagArrayJoin(filter: FilterLike, alias: string, nextParam: SqlPara
   const metaId = resolveMetaId(filter.param)
   if (metaId === null) return null
   const metaKey = nextParam(metaId)
-  return buildTagArrayJoinResult(MEDIA_TAG_LINK, filter, alias, metaKey, nextParam)
+  return buildMediaTagArrayJoinResult(filter, alias, metaKey, nextParam)
 }
 
 function buildTagArrayClause(metaId: number | string, filter: FilterLike, nextParam: SqlParamBinder) {
   const metaKey = nextParam(metaId)
-  return buildTagArrayFilterClause(MEDIA_TAG_LINK, metaKey, filter, nextParam)
+  return buildMediaTagArrayFilterClause(metaKey, filter, nextParam)
 }
 
 function buildFilterClause(filter: FilterLike, nextParam: SqlParamBinder) {

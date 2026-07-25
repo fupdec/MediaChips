@@ -10,6 +10,7 @@ import registerTag from '../../api/routes/Tag.routes'
 import registerTagsInFilterRow from '../../api/routes/TagsInFilterRow.routes'
 import registerTagsInTag from '../../api/routes/TagsInTag.routes'
 import registerTagsInMedia from '../../api/routes/TagsInMedia.routes'
+import registerTagsInFolder from '../../api/routes/TagsInFolder.routes'
 import registerMark from '../../api/routes/Mark.routes'
 import registerMedia from '../../api/routes/Media.routes'
 import registerPlaylist from '../../api/routes/Playlist.routes'
@@ -44,6 +45,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'TagsInFilterRow.routes', register: registerTagsInFilterRow },
     { routeFile: 'TagsInTag.routes', register: registerTagsInTag },
     { routeFile: 'TagsInMedia.routes', register: registerTagsInMedia },
+    { routeFile: 'TagsInFolder.routes', register: registerTagsInFolder },
     { routeFile: 'Mark.routes', register: registerMark },
     { routeFile: 'Media.routes', register: registerMedia },
     { routeFile: 'Playlist.routes', register: registerPlaylist },

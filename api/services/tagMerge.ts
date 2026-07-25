@@ -2,6 +2,7 @@ import {and, eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../types/db'
 import {tags} from '../db/schema/tags'
 import {tagsInMedia} from '../db/schema/tagsInMedia'
+import {tagsInFolders} from '../db/schema/folderPaths'
 import {tagsInTags} from '../db/schema/tagsInTag'
 import {tagsInFilterRows} from '../db/schema/tagsInFilterRows'
 import {valuesInTags} from '../db/schema/valuesInTag'
@@ -258,6 +259,28 @@ export function mergeTagsInCategoryTx(
       .all()
     migrated.mediaLinks = inserted.length || mediaRows.length
     tx.delete(tagsInMedia).where(inArray(tagsInMedia.tagId, sourceIds)).run()
+  }
+
+  // tagsInFolders: move links to survivor, drop PK collisions
+  const folderLinks = tx.select()
+    .from(tagsInFolders)
+    .where(inArray(tagsInFolders.tagId, sourceIds))
+    .all()
+
+  if (folderLinks.length) {
+    const folderRows = uniqueByKey(
+      folderLinks.map((row) => ({
+        folderId: row.folderId,
+        tagId: survivorId,
+        metaId: row.metaId,
+      })),
+      (row) => `${row.folderId}:${row.tagId}:${row.metaId}`,
+    )
+    tx.insert(tagsInFolders)
+      .values(folderRows)
+      .onConflictDoNothing()
+      .run()
+    tx.delete(tagsInFolders).where(inArray(tagsInFolders.tagId, sourceIds)).run()
   }
 
   // tagsInTags as child (tagId)

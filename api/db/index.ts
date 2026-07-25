@@ -31,6 +31,8 @@ export {
   createSettingsRepository,
   createTagsInFilterRowsRepository,
   createTagsInMediaRepository,
+  createFolderPathsRepository,
+  createTagsInFoldersRepository,
   createTagsInTagRepository,
   createTagsRepository,
   createTabsRepository,

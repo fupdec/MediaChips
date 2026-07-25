@@ -42,6 +42,56 @@ import {
   type ItemsGroupSummary,
 } from '../../shared/itemsGroupBy'
 import { createMetaRepository } from '../db/repositories/meta'
+import { buildMediaPathUnderFolderSql } from './mediaTagFilterSql'
+
+type MediaTagLink = {tagId: number; metaId: number; fromFolder?: boolean}
+
+function pushUniqueTagLink(
+  map: Map<number, MediaTagLink[]>,
+  mediaId: number,
+  tagId: number,
+  metaId: number,
+  fromFolder = false,
+) {
+  if (!Number.isFinite(mediaId) || !Number.isFinite(tagId) || !Number.isFinite(metaId)) return
+  if (!map.has(mediaId)) map.set(mediaId, [])
+  const list = map.get(mediaId)!
+  if (list.some((row) => row.tagId === tagId && row.metaId === metaId)) return
+  list.push(fromFolder ? {tagId, metaId, fromFolder: true} : {tagId, metaId})
+}
+
+async function loadInheritedFolderTagsByMediaIds(
+  db: ApiDb,
+  mediaIds: MediaId[],
+  metaId?: number | null,
+): Promise<Array<{mediaId: number; tagId: number; metaId: number}>> {
+  if (!mediaIds.length) return []
+
+  const pathMatch = buildMediaPathUnderFolderSql('m.path', 'fp.path')
+  const metaClause = metaId != null ? ' AND tif.metaId = :metaId' : ''
+  const rows: Array<{mediaId: number; tagId: number; metaId: number}> = []
+
+  for (const chunk of chunkArray(mediaIds)) {
+    const chunkRows = await queryAllAsync(db, `
+      SELECT m.id AS mediaId, tif.tagId AS tagId, tif.metaId AS metaId
+      FROM media m
+      INNER JOIN folderPaths fp
+      INNER JOIN tagsInFolders tif ON tif.folderId = fp.id${metaClause}
+      WHERE m.id IN (:mediaIds)
+        AND ${pathMatch}
+    `, metaId != null ? {mediaIds: chunk, metaId} : {mediaIds: chunk})
+
+    for (const row of chunkRows) {
+      rows.push({
+        mediaId: Number(row.mediaId),
+        tagId: Number(row.tagId),
+        metaId: Number(row.metaId),
+      })
+    }
+  }
+
+  return rows
+}
 
 const GROUP_SLIM_SELECT = `SELECT
   media.id,
@@ -170,7 +220,7 @@ async function attachPinnedMetaForGrouping(
 
   const type = String(metaType || '')
   const isTagMeta = !type || type === 'array' || type === 'select'
-  const tagsByMediaId = new Map<number, Array<{tagId: number; metaId: number}>>()
+  const tagsByMediaId = new Map<number, MediaTagLink[]>()
   const valuesByMediaId = new Map<number, Array<{metaId: number; value: unknown}>>()
   const tagNameById = new Map<number, string>()
 
@@ -182,11 +232,12 @@ async function attachPinnedMetaForGrouping(
         {mediaIds: chunk, metaId},
       )
       for (const row of tagRows) {
-        const mediaId = Number(row.mediaId)
-        const tagId = Number(row.tagId)
-        if (!Number.isFinite(mediaId) || !Number.isFinite(tagId)) continue
-        if (!tagsByMediaId.has(mediaId)) tagsByMediaId.set(mediaId, [])
-        tagsByMediaId.get(mediaId)!.push({tagId, metaId: Number(row.metaId)})
+        pushUniqueTagLink(
+          tagsByMediaId,
+          Number(row.mediaId),
+          Number(row.tagId),
+          Number(row.metaId),
+        )
       }
     } else {
       const valueRows = await queryAllAsync(db,
@@ -203,6 +254,13 @@ async function attachPinnedMetaForGrouping(
           value: row.value,
         })
       }
+    }
+  }
+
+  if (isTagMeta) {
+    const inherited = await loadInheritedFolderTagsByMediaIds(db, mediaIds, metaId)
+    for (const row of inherited) {
+      pushUniqueTagLink(tagsByMediaId, row.mediaId, row.tagId, row.metaId, true)
     }
   }
 
@@ -319,16 +377,17 @@ async function attachMediaRelations(db: ApiDb, items: LoadedMediaItem[], mediaTy
   const tagRows = await queryAllAsync(db, tagQuery, replacements)
   const valueRows = await queryAllAsync(db, valueQuery, replacements)
 
-  const tagsByMediaId = new Map()
+  const tagsByMediaId = new Map<number, MediaTagLink[]>()
   const valuesByMediaId = new Map()
 
   for (const row of tagRows) {
     if (!idSet.has(row.mediaId)) continue
-    if (!tagsByMediaId.has(row.mediaId)) tagsByMediaId.set(row.mediaId, [])
-    tagsByMediaId.get(row.mediaId).push({
-      tagId: Number(row.tagId),
-      metaId: Number(row.metaId),
-    })
+    pushUniqueTagLink(
+      tagsByMediaId,
+      Number(row.mediaId),
+      Number(row.tagId),
+      Number(row.metaId),
+    )
   }
 
   for (const row of valueRows) {
@@ -340,8 +399,14 @@ async function attachMediaRelations(db: ApiDb, items: LoadedMediaItem[], mediaTy
     })
   }
 
+  const inherited = await loadInheritedFolderTagsByMediaIds(db, mediaIds as MediaId[])
+  for (const row of inherited) {
+    if (!idSet.has(row.mediaId)) continue
+    pushUniqueTagLink(tagsByMediaId, row.mediaId, row.tagId, row.metaId, true)
+  }
+
   for (const item of items) {
-    item.tags = tagsByMediaId.get(item.id) || []
+    item.tags = tagsByMediaId.get(Number(item.id)) || []
     item.values = valuesByMediaId.get(item.id) || []
   }
 
@@ -602,7 +667,17 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   const items = orderedRows.map(createItemShell)
   await attachMediaRelations(db, items, mediaTypeId, pageIds)
 
-  const result: AnyRecord = {
+  const result: {
+    items: LoadedMediaItem[]
+    total: number | null
+    totalFiltered: number | null
+    totalFilesize: number | null
+    navigation?: NavigationMediaItem[]
+    page: number
+    limit: number | null
+    pages?: number
+    groups?: ItemsGroupSummary[]
+  } = {
     items,
     total: totalUnfiltered,
     totalFiltered,

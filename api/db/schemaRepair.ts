@@ -119,6 +119,18 @@ const MISSING_TABLE_DDL: Record<string, string> = {
     "order" integer,
     PRIMARY KEY("metaId", "pinnedMetaId")
   )`,
+  folderPaths: `CREATE TABLE "folderPaths" (
+    "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    "path" text NOT NULL,
+    "createdAt" text NOT NULL,
+    "updatedAt" text NOT NULL
+  )`,
+  tagsInFolders: `CREATE TABLE "tagsInFolders" (
+    "folderId" integer NOT NULL,
+    "tagId" integer NOT NULL,
+    "metaId" integer NOT NULL,
+    PRIMARY KEY("folderId", "tagId", "metaId")
+  )`,
 }
 
 function createTableIfMissing(sqlite: Database.Database, tableName: string): boolean {
@@ -192,6 +204,11 @@ const JOIN_UNIQUE_INDEXES: JoinUniqueIndexSpec[] = [
     columns: ['mediaId', 'tagId', 'metaId'],
   },
   {
+    indexName: 'tags_in_folders_unique_idx',
+    table: 'tagsInFolders',
+    columns: ['folderId', 'tagId', 'metaId'],
+  },
+  {
     indexName: 'tags_in_filter_rows_unique_idx',
     table: 'tagsInFilterRows',
     columns: ['tagId', 'rowId', 'metaId'],
@@ -231,6 +248,13 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE UNIQUE INDEX IF NOT EXISTS "video_metadata_media_id_idx" ON "videoMetadata" ("mediaId")',
     )
     repaired.push('video_metadata_media_id_idx')
+  }
+
+  if (hasTable(sqlite, 'folderPaths') && !hasIndex(sqlite, 'folder_paths_path_unique_idx')) {
+    sqlite.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "folder_paths_path_unique_idx" ON "folderPaths" ("path")',
+    )
+    repaired.push('folder_paths_path_unique_idx')
   }
 
   for (const spec of JOIN_UNIQUE_INDEXES) {
