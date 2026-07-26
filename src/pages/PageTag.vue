@@ -390,11 +390,6 @@ interface TagImages {
   custom1: string | null
   custom2: string | null
 }
-/** Keep in sync with Filters.vue dock breakpoint / drawer width. */
-const FILTERS_DRAWER_WIDTH = 450
-const SIDEBAR_WIDTH = 280
-const MIN_CONTENT_WIDTH = 640
-
 const route = useRoute()
 const router = useRouter()
 const {lg, md, sm, xs, width} = useDisplay()
@@ -402,6 +397,11 @@ const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const {t} = useI18n()
+
+/** Keep in sync with Filters.vue dock breakpoint. */
+const FILTERS_DRAWER_WIDTH = 450
+const SIDEBAR_WIDTH = 280
+const MIN_CONTENT_WIDTH = 640
 
 // Refs
 const upd = ref(0)

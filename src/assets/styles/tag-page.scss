@@ -1,14 +1,8 @@
-.tag-page {
+.tag-page--filters-docked {
   .tag-header,
   .tag-header-minimal {
-    transition: padding-inline-start 200ms ease;
-  }
-
-  &--filters-docked {
-    .tag-header,
-    .tag-header-minimal {
-      padding-inline-start: 450px;
-    }
+    margin-inline-start: 20px;
+    width: calc(100% - 20px);
   }
 }
 
