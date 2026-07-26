@@ -146,27 +146,7 @@
               <SettingsGroupLabel :title="t('settings.groups.maintenance')"/>
 
               <SettingsSection>
-                <SettingsFingerprintBackfill/>
-              </SettingsSection>
-
-              <SettingsSection>
-                <SettingsVideoCodecBackfill/>
-              </SettingsSection>
-
-              <SettingsSection>
-                <SettingsFindMissingMedia/>
-              </SettingsSection>
-
-              <SettingsSection>
-                <SettingsGenerateVideoImages/>
-              </SettingsSection>
-
-              <SettingsSection>
-                <SettingsGenerateImageThumbs/>
-              </SettingsSection>
-
-              <SettingsSection>
-                <SettingsClearGeneratedImages/>
+                <SettingsMaintenancePanel/>
               </SettingsSection>
             </SettingsList>
           </div>
@@ -267,23 +247,8 @@ const SettingsOpenDataFolder = defineAsyncComponent(() =>
 const SettingsDatabases = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDatabases.vue")
 )
-const SettingsClearGeneratedImages = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsClearGeneratedImages.vue")
-)
-const SettingsGenerateVideoImages = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsGenerateVideoImages.vue")
-)
-const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsGenerateImageThumbs.vue")
-)
-const SettingsFingerprintBackfill = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsFingerprintBackfill.vue")
-)
-const SettingsVideoCodecBackfill = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsVideoCodecBackfill.vue")
-)
-const SettingsFindMissingMedia = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsFindMissingMedia.vue")
+const SettingsMaintenancePanel = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsMaintenancePanel.vue")
 )
 const SettingsGeneral = defineAsyncComponent(() =>
   import("@/components/settings/general/SettingsGeneral.vue")
