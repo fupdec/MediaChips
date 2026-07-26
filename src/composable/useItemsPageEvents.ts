@@ -5,6 +5,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
 import {registerItemsPageCommands} from '@/composable/itemsPageCommands'
+import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
 import {
   getDefaultMediaTypeId,
@@ -244,7 +245,7 @@ export function useItemsPageEvents({
     await getPinnedMeta()
   }
 
-  const handleGetMeta: Handler = () => {
+  const handleGetMeta = () => {
     if (props.items_type !== 'tag' || !props.metaId) return
 
     void typedApi.getMetaById(Number(props.metaId))
@@ -296,10 +297,10 @@ export function useItemsPageEvents({
   const eventHandlers: Array<[string, Handler]> = [
     ['getItemsFromDb', handleGetItemsFromDb],
     ['removeEntitiesFromState', handleRemoveEntitiesFromState],
-    ['getMeta', handleGetMeta],
   ]
 
   let unregisterPageCommands: (() => void) | null = null
+  let unsubscribeMetaCatalog: (() => void) | null = null
 
   const bindEvents = (): void => {
     unregisterPageCommands = registerItemsPageCommands({
@@ -310,8 +311,10 @@ export function useItemsPageEvents({
       setView: handleSetItemsView,
       setGroupBy: handleSetItemsGroupBy,
       refreshAssignedMeta: handleUpdateAssignedMeta,
+      refreshCurrentMeta: handleGetMeta,
       openRandomItem: handleOpenRandomItem,
     })
+    unsubscribeMetaCatalog = onMetaCatalogChanged(handleGetMeta)
 
     for (const [name, handler] of eventHandlers) {
       eventBus.on(name, handler)
@@ -321,6 +324,8 @@ export function useItemsPageEvents({
   const unbindEvents = (): void => {
     unregisterPageCommands?.()
     unregisterPageCommands = null
+    unsubscribeMetaCatalog?.()
+    unsubscribeMetaCatalog = null
 
     for (const [name, handler] of eventHandlers) {
       eventBus.off(name, handler)

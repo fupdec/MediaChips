@@ -71,7 +71,7 @@ import {useI18n} from 'vue-i18n'
 import {getTextDataType} from '@/services/metaTypeUtils'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {useMetaAssignment} from '@/composable/useMetaAssignment'
-import {useEventBus} from '@/utils/eventBus'
+import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import MetaAssignmentAnchor from './MetaAssignmentAnchor.vue'
 import MetaToMediaBoard from './MetaToMediaBoard.vue'
 import MetaToMetaBoard from './MetaToMetaBoard.vue'
@@ -330,13 +330,14 @@ watch(() => props.mediaType, () => {
   }
 }, {immediate: true})
 
-const eventBus = useEventBus()
+let unsubscribeMetaCatalog: (() => void) | null = null
 
 onMounted(() => {
-  eventBus.on('getMeta', refresh)
+  unsubscribeMetaCatalog = onMetaCatalogChanged(refresh)
 })
 
 onBeforeUnmount(() => {
-  eventBus.off('getMeta', refresh)
+  unsubscribeMetaCatalog?.()
+  unsubscribeMetaCatalog = null
 })
 </script>

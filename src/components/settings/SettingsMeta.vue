@@ -120,8 +120,9 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useAppStore} from '@/stores/app'
 import {useEventBus} from '@/utils/eventBus'
-import {typedApi} from '@/services/typedApi'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import isEmpty from 'lodash/isEmpty'
 import MetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
@@ -133,6 +134,7 @@ import type {Meta} from '@/types/stores'
 
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
+const appStore = useAppStore()
 const eventBus = useEventBus()
 const {t, te} = useI18n()
 
@@ -176,11 +178,9 @@ const getMeta = async (_type?: string) => {
   try {
     initiated.value = false
 
-    const response = await typedApi.getMeta()
-    meta.value = response.data
+    await reloadMetaCatalog()
+    meta.value = [...appStore.meta]
 
-    // Always refresh global meta (assignment boards, sidebar, etc.).
-    eventBus.emit('getMeta')
     metaKey.value = Date.now()
   } catch (error) {
     console.error('Error fetching meta:', error)

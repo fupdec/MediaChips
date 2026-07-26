@@ -156,6 +156,7 @@ import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
 import {useAppStore} from '@/stores/app'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {ensureTmdbScraperMeta} from '../services/ensureTmdbScraperMeta'
 import {
   canAssignMetaToScraperField,
@@ -233,7 +234,7 @@ async function confirmCreateFields() {
       mediaTypeId: Number(props.mediaTypeId),
       t: translateWithFallback,
     })
-    eventBus.emit('getMeta')
+    void reloadMetaCatalog()
     emit('created')
     await updateScraperFields()
     setNotification({

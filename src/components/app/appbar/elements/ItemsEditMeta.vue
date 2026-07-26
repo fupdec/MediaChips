@@ -22,7 +22,7 @@
 import {ref, computed} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
@@ -35,7 +35,6 @@ const MetaManager = defineAsyncComponent(() =>
 
 const store = useAppStore()
 const itemsStore = useItemsStore()
-const eventBus = useEventBus()
 const router = useRouter()
 const {t} = useI18n()
 
@@ -59,6 +58,6 @@ const deleteMeta = async () => {
 }
 
 const emitUpdate = () => {
-  eventBus.emit('getMeta')
+  void reloadMetaCatalog()
 }
 </script>

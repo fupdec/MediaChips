@@ -3,6 +3,7 @@ import {defineStore} from 'pinia'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {typedApi} from '@/services/typedApi'
@@ -369,7 +370,7 @@ export const useItemsStore = defineStore('items', {
       await typedApi.updateEntity(model, item.id, data)
 
       if (itemType === 'meta') {
-        eventBus.emit('getMeta')
+        void reloadMetaCatalog()
         return
       }
 

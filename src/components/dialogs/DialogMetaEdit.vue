@@ -88,9 +88,8 @@ import type {PropType} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {getErrorResponseData} from '@/types/vue'
 import {useDisplay} from 'vuetify'
-import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ChipMetaType from '@/components/elements/ChipMetaType.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
@@ -126,8 +125,6 @@ const emit = defineEmits(['update:model-value', 'update', 'delete', 'close'])
 
 // Stores
 const {xs} = useDisplay()
-const route = useRoute()
-const eventBus = useEventBus()
 const {t} = useI18n()
 
 // Refs
@@ -236,7 +233,7 @@ const applyChanges = async () => {
 
     // Update meta list if array type
     if (props.meta.type === 'array') {
-      eventBus.emit('getMeta')
+      void reloadMetaCatalog()
     }
 
     closeDialog()

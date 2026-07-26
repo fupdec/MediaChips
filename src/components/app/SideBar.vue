@@ -160,7 +160,7 @@ import {useRoute} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useI18n} from 'vue-i18n'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import type {Meta} from '@/types/stores'
 
@@ -177,7 +177,6 @@ const drag = ref(false)
 
 const route = useRoute()
 const {t} = useI18n()
-const eventBus = useEventBus()
 
 const {
   metaArray,
@@ -281,7 +280,7 @@ async function updateMetaOrder() {
     }),
   )
 
-  eventBus.emit('getMeta')
+  await reloadMetaCatalog()
 }
 </script>
 

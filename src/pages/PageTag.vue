@@ -349,6 +349,7 @@ import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
 import {useEventBus} from '@/utils/eventBus'
 import {registerPageTagLayoutRemount} from '@/composable/pageTagLayoutRemount'
+import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import path from 'path-browserify';
 import LayoutItems from "@/layouts/LayoutItems.vue";
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -903,6 +904,7 @@ const handleUpdateLayoutItems = () => {
 }
 
 let unregisterLayoutRemount: (() => void) | null = null
+let unsubscribeMetaCatalog: (() => void) | null = null
 
 const handleGetMeta = async () => {
   if (!is_init.value || !meta.value.id) return
@@ -938,8 +940,10 @@ onMounted(async () => {
   await init()
 
   unregisterLayoutRemount = registerPageTagLayoutRemount(handleUpdateLayoutItems)
+  unsubscribeMetaCatalog = onMetaCatalogChanged(() => {
+    void handleGetMeta()
+  })
   eventBus.on("getTag", handleGetTag)
-  eventBus.on("getMeta", handleGetMeta)
 
   panel.value = [0]
 })
@@ -947,8 +951,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   unregisterLayoutRemount?.()
   unregisterLayoutRemount = null
+  unsubscribeMetaCatalog?.()
+  unsubscribeMetaCatalog = null
   eventBus.off("getTag")
-  eventBus.off("getMeta", handleGetMeta)
 })
 
 watch(

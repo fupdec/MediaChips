@@ -111,6 +111,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getTmdbPerson, searchTmdbPeople, type TmdbPersonSearchHit} from '../services/tmdbApi'
 import {
   applyTmdbPersonExtrasToTag,
@@ -237,7 +238,7 @@ async function apply() {
       }
     }
 
-    eventBus.emit('getMeta')
+    void reloadMetaCatalog()
     eventBus.emit('scraperGotImages')
     // Parent DialogTagEditing remounts editor when this dialog closes.
 

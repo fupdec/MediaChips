@@ -154,7 +154,7 @@ import {isVideoMediaType} from '@/utils/mediaType'
 import type {MediaType} from '@/types/media'
 import type {Meta} from '@/types/stores'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getTmdbStatus} from '../services/tmdbApi'
 
 const DialogTmdbScraperConfig = defineAsyncComponent(() =>
@@ -166,7 +166,6 @@ const DialogTmdbPersonConfig = defineAsyncComponent(() =>
 
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
-const eventBus = useEventBus()
 
 const apiKey = ref('')
 const showKey = ref(false)
@@ -193,13 +192,13 @@ function savePersonMeta() {
 }
 
 function onFieldsCreated() {
-  eventBus.emit('getMeta')
+  void reloadMetaCatalog()
 }
 
 function onPersonFieldsCreated(meta: Meta) {
   selectedPersonMeta.value = meta
   setOption(String(meta.id), 'tmdbPersonMetaId')
-  eventBus.emit('getMeta')
+  void reloadMetaCatalog()
 }
 
 onMounted(async () => {

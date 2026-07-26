@@ -155,6 +155,7 @@ import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import {typedApi} from '@/services/typedApi'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getErrorResponseData} from '@/types/vue'
 import type {Meta} from '@/types/stores'
 
@@ -309,7 +310,7 @@ async function merge() {
       return tag
     })
 
-    eventBus.emit('getMeta')
+    void reloadMetaCatalog()
     eventBus.emit('getTags')
 
     notificationsStore.setNotification({

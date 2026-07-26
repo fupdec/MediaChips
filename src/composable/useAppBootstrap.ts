@@ -17,6 +17,7 @@ import {useWatcherStore} from '@/stores/watcher'
 import {useRegistrationStore} from '@/stores/registration'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
+import {registerMetaCatalogLoader} from '@/composable/metaCatalog'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
 import {openWhatsNewIfNeeded} from '@/composable/useWhatsNew'
@@ -433,10 +434,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await loadList('tags')
   }
 
-  const handleGetMeta: Handler = async () => {
-    await loadList('meta')
-  }
-
   const handleGetTabs: Handler = async () => {
     await loadList('tabs')
   }
@@ -471,10 +468,12 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     })
   }
 
+  let unregisterMetaCatalogLoader: (() => void) | null = null
+
   function bindMainAppEventBus(): void {
+    unregisterMetaCatalogLoader = registerMetaCatalogLoader(() => loadList('meta'))
     eventBus.on('getMediaTypes', handleGetMediaTypes)
     eventBus.on('getTags', handleGetTags)
-    eventBus.on('getMeta', handleGetMeta)
     eventBus.on('getTabs', handleGetTabs)
     eventBus.on('getPlaylists', handleGetPlaylists)
     eventBus.on('update:watcher', handleUpdateWatcher)
@@ -485,9 +484,10 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   function unbindMainAppEventBus(): void {
+    unregisterMetaCatalogLoader?.()
+    unregisterMetaCatalogLoader = null
     eventBus.off('getMediaTypes', handleGetMediaTypes)
     eventBus.off('getTags', handleGetTags)
-    eventBus.off('getMeta', handleGetMeta)
     eventBus.off('getTabs', handleGetTabs)
     eventBus.off('getPlaylists', handleGetPlaylists)
     eventBus.off('update:watcher', handleUpdateWatcher)

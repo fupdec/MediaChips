@@ -262,6 +262,7 @@
 import {ref, computed, onMounted, watch, defineAsyncComponent} from "vue"
 import {useI18n} from "vue-i18n"
 import {useAppStore} from "@/stores/app"
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {typedApi} from "@/services/typedApi"
 import sortBy from 'lodash/sortBy'
 import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue"
@@ -269,7 +270,6 @@ import SettingsCategoryDivider from "@/components/ui/SettingsCategoryDivider.vue
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue"
 import {useSettingsStore} from "@/stores/settings"
 import {setOption} from '@/services/settingsService'
-import {useEventBus} from "@/utils/eventBus"
 import {useScraperStore} from "../stores/scraper"
 import {useSceneScraperStore} from "../stores/sceneScraper"
 import {useAutoScrapeBatch} from "../composables/useAutoScrapeBatch"
@@ -299,7 +299,6 @@ const scraperStore = useScraperStore()
 const sceneScraperStore = useSceneScraperStore()
 const { runForAll } = useAutoScrapeBatch()
 const { runForAll: runSceneScrapeForAll } = useAutoSceneScrapeBatch()
-const eventBus = useEventBus()
 const {t} = useI18n()
 
 const selected_meta = ref<Meta | undefined>(undefined)
@@ -373,7 +372,7 @@ async function onPerformerFieldsCreated(meta: Meta) {
 }
 
 function onSceneFieldsCreated() {
-  eventBus.emit('getMeta')
+  void reloadMetaCatalog()
 }
 
 function syncSelectedMarkerMeta() {
@@ -428,7 +427,7 @@ async function updateSettings(meta: Meta) {
   try {
     await typedApi.updateMeta(meta.id, {scraper: true})
 
-    eventBus.emit("getMeta")
+    void reloadMetaCatalog()
   } catch (error) {
     console.error("Error updating selected meta:", error)
   }

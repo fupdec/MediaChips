@@ -126,6 +126,7 @@ import {
   type TmdbExtras,
 } from '../services/tmdbApply'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
 import {useItemsStore} from '@/stores/items'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
@@ -321,7 +322,7 @@ async function refreshAfterApply(mediaId: number, refreshThumb: boolean) {
     // non-fatal — editor reload below still hits the API
   }
 
-  eventBus.emit('getMeta')
+  void reloadMetaCatalog()
   eventBus.emit('getItemsFromDb', {ids: [mediaId], type: 'media'})
   // Reload open media editor form (same path as adult scene scraper).
   eventBus.emit('transferSceneScrapedInfo')

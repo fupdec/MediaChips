@@ -152,6 +152,7 @@ import DialogHeader from "@/components/elements/DialogHeader.vue";
 import ScraperFields from "../assets/ScraperFields";
 import {getMetaName} from "@/utils/metaI18n";
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {useNotificationsStore} from '@/stores/notifications'
 import {ensurePerformerScraperMeta} from '../services/ensurePerformerScraperMeta'
 import type {AssignedMeta, Meta} from '@/types/stores'
@@ -239,7 +240,7 @@ async function confirmCreateFields() {
     })
 
     localMetaId.value = Number(result.parentMeta.id)
-    eventBus.emit('getMeta')
+    void reloadMetaCatalog()
     emit('created', result.parentMeta)
     await updateScraperFields()
 

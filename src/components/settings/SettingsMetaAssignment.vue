@@ -125,7 +125,7 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useAppStore} from '@/stores/app'
-import {useEventBus} from '@/utils/eventBus'
+import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import MetaAssignmentPanel from '@/components/meta/assignment/MetaAssignmentPanel.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
@@ -149,7 +149,6 @@ interface AssignmentListItem {
 
 const {t} = useI18n()
 const route = useRoute()
-const eventBus = useEventBus()
 
 const viewMode = ref<AssignmentViewMode>('media')
 const selectedIds = ref<number[]>([])
@@ -307,14 +306,19 @@ watch(() => route.fullPath, () => {
   ensureSelection()
 })
 
+let unsubscribeMetaCatalog: (() => void) | null = null
+
 onMounted(async () => {
   await loadAssignmentCounts()
   selectFromRoute()
   ensureSelection()
-  eventBus.on('getMeta', loadAssignmentCounts)
+  unsubscribeMetaCatalog = onMetaCatalogChanged(() => {
+    void loadAssignmentCounts()
+  })
 })
 
 onBeforeUnmount(() => {
-  eventBus.off('getMeta', loadAssignmentCounts)
+  unsubscribeMetaCatalog?.()
+  unsubscribeMetaCatalog = null
 })
 </script>

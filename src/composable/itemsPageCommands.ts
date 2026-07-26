@@ -8,6 +8,7 @@ export type ItemsPageCommands = {
   setView: (view: number | string) => void
   setGroupBy: (groupBy: string) => void
   refreshAssignedMeta: () => void | Promise<void>
+  refreshCurrentMeta: () => void
   openRandomItem: (id: number) => void
 }
 
@@ -29,6 +30,7 @@ export function useItemsPageCommands(): ItemsPageCommands {
     setView: (view) => active?.setView(view),
     setGroupBy: (groupBy) => active?.setGroupBy(groupBy),
     refreshAssignedMeta: () => active?.refreshAssignedMeta(),
+    refreshCurrentMeta: () => active?.refreshCurrentMeta(),
     openRandomItem: (id) => active?.openRandomItem(id),
   }
 }

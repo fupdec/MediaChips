@@ -156,9 +156,9 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useToolbarStore} from '@/stores/toolbar'
-import {useEventBus} from '@/utils/eventBus'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
 
 // Components
@@ -175,7 +175,6 @@ const itemsStore = useItemsStore()
 const toolbarStore = useToolbarStore()
 const mediaTypesStore = useAppStore().mediaTypes
 const metaStore = useAppStore().meta
-const eventBus = useEventBus()
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 
@@ -240,7 +239,7 @@ const updateSize = (val: number) => {
 
 const updatePinnedMeta = () => {
   if (itemsStore.type === 'tag') {
-    eventBus.emit('getMeta')
+    void reloadMetaCatalog()
   }
   void pageCommands.refreshAssignedMeta()
   remountPageTagLayoutItems()

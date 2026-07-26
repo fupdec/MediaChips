@@ -156,6 +156,7 @@ import {getIconDataType} from '@/services/metaTypeUtils'
 import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {ensureTmdbPersonMeta} from '../services/ensureTmdbPersonMeta'
 import type {AssignedMeta} from '@/types/stores'
 import type {Meta} from '@/types/stores'
@@ -239,7 +240,7 @@ async function confirmCreateFields() {
       t: translateWithFallback,
     })
     localMetaId.value = Number(result.parentMeta.id)
-    eventBus.emit('getMeta')
+    void reloadMetaCatalog()
     emit('created', result.parentMeta)
     await updateScraperFields()
     setNotification({

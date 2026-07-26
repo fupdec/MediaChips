@@ -8,7 +8,6 @@ import type {
 export type EventBusMap = {
   getMediaTypes: void
   getTags: void | unknown[]
-  getMeta: void
   getTabs: void
   getPlaylists: void
   getTag: void
