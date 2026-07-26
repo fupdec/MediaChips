@@ -5,11 +5,9 @@ import type {
   SetItemsFiltersEvent,
   ViewImageEvent,
 } from '../api/responses'
-import type { FilterObject } from '../entities/filter'
 
 export type EventBusMap = {
   getMediaTypes: void
-  getMediaType: void
   getTags: void | unknown[]
   getMeta: void
   getTabs: void
@@ -17,15 +15,10 @@ export type EventBusMap = {
   getTag: void
   getItemsFromDb: GetItemsFromDbEvent
   removeEntitiesFromState: RemoveEntitiesEvent
-  updatePage: void
   'update:watcher': void
   addMedia: (() => void) | undefined
   updateVideoFrames: number
-  applyFilters: void
   setItemsFilters: SetItemsFiltersEvent
-  applySavedFilter: FilterObject[] | unknown
-  deactivateFilter: number
-  deactivateAllFilters: void
   playVideo: unknown
   showDocumentation: string
   showGlobalSearch: void

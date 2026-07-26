@@ -10,10 +10,9 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onBeforeUnmount} from 'vue'
+import {computed, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import LayoutItems from '@/layouts/LayoutItems.vue'
-import {useEventBus} from "@/utils/eventBus"
 
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
@@ -21,10 +20,7 @@ import type {ItemsPageType} from '@/types/itemsPage'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
-const eventBus = useEventBus()
 const route = useRoute()
-
-const upd = ref(0)
 
 const env = computed(() => itemsStore.environment)
 
@@ -58,20 +54,9 @@ function applyRouteContext() {
   env.value.tab_id = readQueryId('tabId')
 }
 
-function updateLayout() {
-  upd.value = Date.now()
-}
-
 applyRouteContext()
 
 watch(() => route.fullPath, () => {
   applyRouteContext()
-  upd.value = Date.now()
-})
-
-eventBus.on("updateLayoutItems", updateLayout)
-
-onBeforeUnmount(() => {
-  eventBus.off("updateLayoutItems", updateLayout)
 })
 </script>

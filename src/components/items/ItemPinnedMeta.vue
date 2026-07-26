@@ -217,6 +217,7 @@ import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 
 import {useEventBus} from "@/utils/eventBus"
+import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import translate, {toLocale} from '@/utils/translate'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
 import {resolveTagChipColor} from '@shared/tagChipColor'
@@ -292,6 +293,7 @@ const notificationsStore = useNotificationsStore()
 const scraperStore = useScraperStore()
 
 const eventBus = useEventBus()
+const filtersController = useItemsFiltersController()
 
 const itemRating = computed((): number | undefined => {
   const rating = props.item.rating
@@ -626,7 +628,7 @@ const filterByTag = (tag: TagWithMeta): void => {
   itemsStore.filters.push(filter_new)
 
   setTimeout(() => {
-    eventBus.emit('applyFilters')
+    void filtersController.apply()
   }, 0)
 }
 

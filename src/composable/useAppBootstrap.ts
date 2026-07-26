@@ -96,7 +96,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   const isAppReady = ref(false)
   const isShellReady = ref(false)
   let shellRevealSent = false
-  const upd = ref(0)
 
   function cleanupStalePlayerRoute(): void {
     if (route.query.player && !store.isElectron) {
@@ -426,10 +425,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     void getMachineId()
   }
 
-  const handleUpdatePage: Handler = () => {
-    ++upd.value
-  }
-
   const handleGetMediaTypes: Handler = async () => {
     await loadList('mediaTypes')
   }
@@ -464,7 +459,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await initSettings()
     await loadMainAppData()
     if (!store.isServerError) {
-      eventBus.emit('updatePage')
       await router.push('/')
       await markAppReady()
     }
@@ -483,7 +477,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     eventBus.on('getMeta', handleGetMeta)
     eventBus.on('getTabs', handleGetTabs)
     eventBus.on('getPlaylists', handleGetPlaylists)
-    eventBus.on('updatePage', handleUpdatePage)
     eventBus.on('update:watcher', handleUpdateWatcher)
     eventBus.on('addMedia', handleAddMediaEvent)
     eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
@@ -497,7 +490,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     eventBus.off('getMeta', handleGetMeta)
     eventBus.off('getTabs', handleGetTabs)
     eventBus.off('getPlaylists', handleGetPlaylists)
-    eventBus.off('updatePage', handleUpdatePage)
     eventBus.off('update:watcher', handleUpdateWatcher)
     eventBus.off('addMedia', handleAddMediaEvent)
     eventBus.off('updateVideoFrames', handleUpdateVideoFrames)

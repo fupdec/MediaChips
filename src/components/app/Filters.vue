@@ -188,6 +188,7 @@ import {
 import {
   sanitizeFiltersForMediaType,
 } from '@/utils/mediaSortFilter'
+import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
 
 import cols from '../../../app/configs/filter-cols'
 
@@ -558,40 +559,36 @@ const validate = (val: boolean) => {
 // Event listeners
 const handleApplySavedFilter = (filtersPayload: unknown) => {
   loadSavedFilter(filtersPayload as FilterObject[])
-  apply()
+  void apply()
 }
 
 const handleDeactivateFilter = (index: number) => {
   filters.value[index].active = false
-  apply()
+  void apply()
 }
 
 const handleDeactivateAllFilters = () => {
   deactivateAll()
-  apply()
+  void apply()
 }
 
-const handleApplyFilters = () => {
-  apply()
-}
-
-const handleDeactivateFilterEvent = (payload: unknown) => handleDeactivateFilter(payload as number)
+let unregisterFiltersController: (() => void) | null = null
 
 // Lifecycle
 onMounted(() => {
-  eventBus.on('applySavedFilter', handleApplySavedFilter)
-  eventBus.on('deactivateFilter', handleDeactivateFilterEvent)
-  eventBus.on('deactivateAllFilters', handleDeactivateAllFilters)
-  eventBus.on('applyFilters', handleApplyFilters)
+  unregisterFiltersController = registerItemsFiltersController({
+    apply,
+    applySaved: handleApplySavedFilter,
+    deactivate: handleDeactivateFilter,
+    deactivateAll: handleDeactivateAllFilters,
+  })
 
   if (props.isReady) init()
 })
 
 onUnmounted(() => {
-  eventBus.off('applySavedFilter', handleApplySavedFilter)
-  eventBus.off('deactivateFilter', handleDeactivateFilterEvent)
-  eventBus.off('deactivateAllFilters', handleDeactivateAllFilters)
-  eventBus.off('applyFilters', handleApplyFilters)
+  unregisterFiltersController?.()
+  unregisterFiltersController = null
 })
 
 // Watchers

@@ -238,8 +238,6 @@ const updateSize = (val: number) => {
 const updatePinnedMeta = () => {
   if (itemsStore.type === 'tag') {
     eventBus.emit('getMeta')
-  } else {
-    eventBus.emit('getMediaType')
   }
   eventBus.emit('updateAssignedMeta')
   eventBus.emit('updateLayoutItems')

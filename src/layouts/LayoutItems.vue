@@ -287,6 +287,7 @@ import {isVideoMediaType, isImageMediaType} from '@/utils/mediaType'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
+import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
@@ -310,6 +311,7 @@ const toolbarStore = useToolbarStore()
 const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
 const eventBus = useEventBus()
+const filtersController = useItemsFiltersController()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
@@ -583,7 +585,7 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
   eventBus.emit('setItemsGroupBy', 'none')
   // Let Filters.vue sync store → local filters before apply (same pattern as ItemPinnedMeta).
   setTimeout(() => {
-    eventBus.emit('applyFilters')
+    void filtersController.apply()
   }, 0)
 }
 
@@ -666,7 +668,7 @@ function openFilters() {
 }
 
 function clearAllFilters() {
-  eventBus.emit('deactivateAllFilters')
+  filtersController.deactivateAll()
 }
 
 // Методы

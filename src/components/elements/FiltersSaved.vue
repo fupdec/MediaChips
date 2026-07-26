@@ -17,12 +17,12 @@
 import {computed, onBeforeUnmount} from 'vue'
 import {useRoute} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
-import {useEventBus} from '@/utils/eventBus'
+import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import type { SavedFilter } from '@/types/stores'
 
 const route = useRoute()
 const itemsStore = useItemsStore()
-const eventBus = useEventBus()
+const filtersController = useItemsFiltersController()
 
 const savedFilters = computed(() => itemsStore.filters_saved || [])
 
@@ -32,7 +32,7 @@ const activate = (savedFilter: SavedFilter) => {
     filters = filters.map((filter) => ({...filter, id: null}))
   }
 
-  eventBus.emit('applySavedFilter', filters)
+  filtersController.applySaved(filters)
 }
 
 onBeforeUnmount(() => {

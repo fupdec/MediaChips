@@ -237,11 +237,6 @@ const applyChanges = async () => {
     // Update meta list if array type
     if (props.meta.type === 'array') {
       eventBus.emit('getMeta')
-
-      // If on meta page, trigger update
-      if (route.path === '/meta') {
-        eventBus.emit('updatePage')
-      }
     }
 
     closeDialog()

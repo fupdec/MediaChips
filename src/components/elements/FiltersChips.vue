@@ -91,7 +91,7 @@ import Cols from '../../../app/configs/filter-cols'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
-import {useEventBus} from '@/utils/eventBus'
+import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {getCurrentMediaType} from '@/utils/mediaType'
 import {getListCond, getReadableFileSize, getReadableDuration, formatFilterDateDisplay} from '@/services/formatUtils'
 import {getDuplicatesModeLabelKey} from '@/utils/mediaSortFilter'
@@ -117,7 +117,7 @@ const colsCache = ref<FilterListParam[] | null>(null)
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
-const eventBus = useEventBus()
+const filtersController = useItemsFiltersController()
 const {t, locale} = useI18n()
 
 const showIcons = computed(() =>
@@ -142,12 +142,12 @@ const tags = computed(() => appStore.tags)
 const switchOffDuplicates = () => {
   if (props.readonly || props.isTooltip) return
   itemsStore.find_duplicates = false
-  eventBus.emit('applyFilters')
+  void filtersController.apply()
 }
 
 const deactivate = (index: number) => {
   if (props.readonly) return
-  eventBus.emit('deactivateFilter', index)
+  filtersController.deactivate(index)
 }
 
 const isFilterRowActive = (filter: FilterObject) => filter.active !== false && !filter.removed
