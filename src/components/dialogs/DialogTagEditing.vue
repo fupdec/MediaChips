@@ -74,6 +74,7 @@ import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
 import {useEventBus} from "@/utils/eventBus"
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 
@@ -312,7 +313,7 @@ const save = async () => {
   const savedTagId = tag.value?.id
 
   if (isTagPage.value) {
-    eventBus.emit('getTag')
+    void refreshPageTag()
   }
 
   if (savedTagId != null) {
@@ -357,7 +358,7 @@ const refreshTagAfterScrape = async () => {
   }
   eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
   if (isTagPage.value) {
-    eventBus.emit('getTag')
+    void refreshPageTag()
   }
   editReloadKey.value += 1
   getImages({cacheBust: true})

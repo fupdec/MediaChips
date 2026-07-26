@@ -353,8 +353,7 @@ import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
-import {useEventBus} from '@/utils/eventBus'
-import {registerPageTagLayoutRemount} from '@/composable/pageTagLayoutRemount'
+import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
 import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import path from 'path-browserify';
 import LayoutItems from "@/layouts/LayoutItems.vue";
@@ -402,7 +401,6 @@ const {lg, md, sm, xs, width} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
-const eventBus = useEventBus()
 const {t} = useI18n()
 
 // Refs
@@ -919,6 +917,7 @@ const handleUpdateLayoutItems = () => {
 }
 
 let unregisterLayoutRemount: (() => void) | null = null
+let unregisterPageTagRefresh: (() => void) | null = null
 let unsubscribeMetaCatalog: (() => void) | null = null
 
 const handleGetMeta = async () => {
@@ -955,10 +954,10 @@ onMounted(async () => {
   await init()
 
   unregisterLayoutRemount = registerPageTagLayoutRemount(handleUpdateLayoutItems)
+  unregisterPageTagRefresh = registerPageTagRefresh(handleGetTag)
   unsubscribeMetaCatalog = onMetaCatalogChanged(() => {
     void handleGetMeta()
   })
-  eventBus.on("getTag", handleGetTag)
 
   panel.value = [0]
 })
@@ -966,9 +965,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   unregisterLayoutRemount?.()
   unregisterLayoutRemount = null
+  unregisterPageTagRefresh?.()
+  unregisterPageTagRefresh = null
   unsubscribeMetaCatalog?.()
   unsubscribeMetaCatalog = null
-  eventBus.off("getTag")
 })
 
 watch(

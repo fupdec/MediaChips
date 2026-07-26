@@ -218,6 +218,7 @@ import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 
 import {useEventBus} from "@/utils/eventBus"
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
+import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import translate, {toLocale} from '@/utils/translate'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
@@ -609,7 +610,7 @@ const removeTag = (tag: TagWithMeta): void => {
       })
 
       if (props.type === 'tag') {
-        eventBus.emit('getTag')
+        void refreshPageTag()
       }
     })
     .catch((e) => {

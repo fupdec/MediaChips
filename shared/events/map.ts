@@ -6,7 +6,6 @@ import type {
 } from '../api/responses'
 
 export type EventBusMap = {
-  getTag: void
   getItemsFromDb: GetItemsFromDbEvent
   removeEntitiesFromState: RemoveEntitiesEvent
   'update:watcher': void
