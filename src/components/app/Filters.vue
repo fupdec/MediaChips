@@ -176,7 +176,6 @@ import {
 } from '@/services/formatUtils'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useEventBus} from '@/utils/eventBus'
 import type { FilterObject, FilterListParam } from '@/types/common'
 import type { SavedFilter } from '@/types/stores'
 import {
@@ -189,6 +188,7 @@ import {
   sanitizeFiltersForMediaType,
 } from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 
 import cols from '../../../app/configs/filter-cols'
 
@@ -221,7 +221,7 @@ const props = defineProps({
 const appStore = useAppStore()
 const filtersStore = appStore.filters
 const itemsStore = useItemsStore()
-const eventBus = useEventBus()
+const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 const {width} = useDisplay()
 
@@ -471,7 +471,7 @@ const apply = async () => {
   }
 
   itemsStore.updateState({key: "filters", value: cloneFilters(filters.value)})
-  eventBus.emit('setItemsFilters', {filters: filters.value})
+  void pageCommands.setFilters({filters: filters.value})
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {

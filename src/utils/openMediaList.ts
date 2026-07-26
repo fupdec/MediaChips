@@ -1,6 +1,6 @@
 import { useRouter } from 'vue-router'
 import { useItemsStore } from '@/stores/items'
-import { useEventBus } from '@/utils/eventBus'
+import { useItemsPageCommands } from '@/composable/itemsPageCommands'
 import { getDefaultMediaTypeId } from '@/utils/mediaType'
 import { useAppStore } from '@/stores/app'
 
@@ -14,7 +14,7 @@ export function useOpenMediaList() {
   const router = useRouter()
   const itemsStore = useItemsStore()
   const appStore = useAppStore()
-  const eventBus = useEventBus()
+  const pageCommands = useItemsPageCommands()
 
   const openMediaList = async ({ sortBy, sortDir = 'desc', mediaTypeId }: OpenMediaListOptions = {}) => {
     const targetMediaTypeId = mediaTypeId ?? getDefaultMediaTypeId(appStore.mediaTypes)
@@ -24,8 +24,8 @@ export function useOpenMediaList() {
     if (sortBy) {
       itemsStore.updateState({ key: 'sortBy', value: sortBy })
       itemsStore.updateState({ key: 'sortDir', value: sortDir })
-      eventBus.emit('setItemsSortBy', sortBy)
-      eventBus.emit('setItemsSortDir', sortDir)
+      pageCommands.setSortBy(sortBy)
+      pageCommands.setSortDir(sortDir)
     }
   }
 

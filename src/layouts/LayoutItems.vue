@@ -288,6 +288,7 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
@@ -298,7 +299,6 @@ import {
   type ItemsGroupSection,
 } from '@/utils/itemsGroupBy'
 import {getFilterObject} from '@/services/formatUtils'
-import {useEventBus} from '@/utils/eventBus'
 import type { MediaItem } from '@/types/stores'
 
 // Пропсы
@@ -310,8 +310,8 @@ const settingsStore = useSettingsStore()
 const toolbarStore = useToolbarStore()
 const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
-const eventBus = useEventBus()
 const filtersController = useItemsFiltersController()
+const pageCommands = useItemsPageCommands()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
@@ -582,7 +582,7 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
     groups: [],
     page: 1,
   })
-  eventBus.emit('setItemsGroupBy', 'none')
+  pageCommands.setGroupBy('none')
   // Let Filters.vue sync store → local filters before apply (same pattern as ItemPinnedMeta).
   setTimeout(() => {
     void filtersController.apply()

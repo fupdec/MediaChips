@@ -162,7 +162,7 @@ import {computed, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useEventBus} from "@/utils/eventBus";
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {getCurrentMediaType, matchesMediaTypeFilter} from '@/utils/mediaType'
 import {
   buildGroupedSortItems,
@@ -177,7 +177,7 @@ import {
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
-const eventBus = useEventBus()
+const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 
 /* ================= COMPUTED ================= */
@@ -236,7 +236,7 @@ const normalizeSortBy = () => {
     const fallback = allowed.includes('createdAt') ? 'createdAt' : allowed[0]
     if (fallback && fallback !== currentSortBy) {
       itemsStore.setSortBy(fallback)
-      eventBus.emit('setItemsSortBy', fallback)
+      pageCommands.setSortBy(fallback)
     }
   }
 }
@@ -249,7 +249,7 @@ watch(() => items.value.isFiltersLoaded, normalizeSortBy)
 function toggleDir() {
   const dir = items.value.sortDir === 'asc' ? 'desc' : 'asc'
   itemsStore.setSortDir(dir)
-  eventBus.emit("setItemsSortDir", dir);
+  pageCommands.setSortDir(dir)
 }
 
 function sort(param: string | number) {
@@ -260,6 +260,6 @@ function sort(param: string | number) {
   }
 
   itemsStore.setSortBy(nextSortBy)
-  eventBus.emit("setItemsSortBy", nextSortBy);
+  pageCommands.setSortBy(nextSortBy)
 }
 </script>

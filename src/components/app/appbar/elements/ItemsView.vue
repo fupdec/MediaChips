@@ -20,9 +20,9 @@ import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
 import { getCurrentMediaType, isVideoMediaType, isImageMediaType } from '@/utils/mediaType'
 import { normalizeItemsView } from '@/utils/itemsView'
-import { useEventBus } from '@/utils/eventBus'
+import { useItemsPageCommands } from '@/composable/itemsPageCommands'
 
-const eventBus = useEventBus()
+const pageCommands = useItemsPageCommands()
 
 // Store
 const itemsStore = useItemsStore()
@@ -102,8 +102,7 @@ const updateView = (val: number) => {
   // Обновляем в хранилище
   itemsStore.updateState({ key: 'view', value: val })
 
-  // Отправляем событие через event bus
-  eventBus.emit('setItemsView', val)
+  pageCommands.setView(val)
 
   // Или отправляем кастомное событие
   const viewChangedEvent = new CustomEvent('items-view-changed', {

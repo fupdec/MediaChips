@@ -4,6 +4,7 @@ import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
+import {registerItemsPageCommands} from '@/composable/itemsPageCommands'
 import {typedApi} from '@/services/typedApi'
 import {
   getDefaultMediaTypeId,
@@ -18,6 +19,7 @@ import type {
   RemoveEntitiesEvent,
   UseItemsPageEventsOptions,
 } from '@/types/itemsPage'
+import type { SetItemsFiltersEvent } from '@shared/api/responses'
 import type { MediaItem } from '@/types/stores'
 import { normalizeEntityIds, normalizeRemoveEntitiesEvent } from '@/utils/eventPayloads'
 import {
@@ -102,7 +104,7 @@ export function useItemsPageEvents({
     void getItemsFromDb(normalizedIds)
   }
 
-  const handleSetItemsFilters: Handler = async (event) => {
+  const handleSetItemsFilters = async (event: SetItemsFiltersEvent) => {
     const val = event
     itemsStore.updateState({key: 'page', value: 1})
     await updatePageSetting({
@@ -113,7 +115,7 @@ export function useItemsPageEvents({
     await getItemsFromDb()
   }
 
-  const handleSetItemsLimit: Handler = (event) => {
+  const handleSetItemsLimit = (event: number) => {
     const val = Number(event)
     itemsStore.updateState({
       key: 'page',
@@ -146,7 +148,7 @@ export function useItemsPageEvents({
     getEntitiesOnPage(ids)
   }
 
-  const handleSetItemsSortDir: Handler = (event) => {
+  const handleSetItemsSortDir = (event: string) => {
     itemsStore.updateState({
       key: 'page',
       value: 1,
@@ -158,7 +160,7 @@ export function useItemsPageEvents({
     void getItemsFromDb()
   }
 
-  const handleSetItemsSortBy: Handler = (event) => {
+  const handleSetItemsSortBy = (event: string) => {
     const sortBy = String(event)
     const pageSettingUpdates: Parameters<typeof updatePageSetting>[0] = {
       page: 1,
@@ -183,14 +185,14 @@ export function useItemsPageEvents({
     void getItemsFromDb()
   }
 
-  const handleSetItemsView: Handler = (event) => {
+  const handleSetItemsView = (event: number | string) => {
     const val = event
     void updatePageSetting({
-      view: val as number | string,
+      view: val,
     })
   }
 
-  const handleSetItemsGroupBy: Handler = (event) => {
+  const handleSetItemsGroupBy = (event: string) => {
     const parsed = parseGroupBySetting(event)
     const groupBy = parsed.groupBy
     const metaId = parsed.metaId
@@ -293,25 +295,33 @@ export function useItemsPageEvents({
 
   const eventHandlers: Array<[string, Handler]> = [
     ['getItemsFromDb', handleGetItemsFromDb],
-    ['setItemsFilters', handleSetItemsFilters],
-    ['setItemsLimit', handleSetItemsLimit],
     ['removeEntitiesFromState', handleRemoveEntitiesFromState],
-    ['setItemsSortDir', handleSetItemsSortDir],
-    ['setItemsSortBy', handleSetItemsSortBy],
-    ['setItemsView', handleSetItemsView],
-    ['setItemsGroupBy', handleSetItemsGroupBy],
     ['updateAssignedMeta', handleUpdateAssignedMeta],
     ['getMeta', handleGetMeta],
     ['openRandomItem', handleOpenRandomItem],
   ]
 
+  let unregisterPageCommands: (() => void) | null = null
+
   const bindEvents = (): void => {
+    unregisterPageCommands = registerItemsPageCommands({
+      setFilters: handleSetItemsFilters,
+      setLimit: handleSetItemsLimit,
+      setSortBy: handleSetItemsSortBy,
+      setSortDir: handleSetItemsSortDir,
+      setView: handleSetItemsView,
+      setGroupBy: handleSetItemsGroupBy,
+    })
+
     for (const [name, handler] of eventHandlers) {
       eventBus.on(name, handler)
     }
   }
 
   const unbindEvents = (): void => {
+    unregisterPageCommands?.()
+    unregisterPageCommands = null
+
     for (const [name, handler] of eventHandlers) {
       eventBus.off(name, handler)
     }

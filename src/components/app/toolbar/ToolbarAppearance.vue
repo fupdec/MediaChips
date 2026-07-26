@@ -157,6 +157,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useToolbarStore} from '@/stores/toolbar'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {typedApi} from '@/services/typedApi'
 
 // Components
@@ -174,6 +175,7 @@ const toolbarStore = useToolbarStore()
 const mediaTypesStore = useAppStore().mediaTypes
 const metaStore = useAppStore().meta
 const eventBus = useEventBus()
+const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 
 // State
@@ -228,7 +230,7 @@ const toggleMetaVisibility = async (metaItem: AssignedMeta) => {
 
 const updateLimit = (val: number) => {
   itemsStore.updateState({key: 'limit', value: val})
-  eventBus.emit('setItemsLimit', val)
+  pageCommands.setLimit(val)
 }
 
 const updateSize = (val: number) => {

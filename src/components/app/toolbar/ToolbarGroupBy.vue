@@ -57,7 +57,7 @@ import {computed, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useEventBus} from '@/utils/eventBus'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {getMetaName} from '@/utils/metaI18n'
 import {getCurrentMediaType} from '@/utils/mediaType'
 import {
@@ -78,7 +78,7 @@ import {
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
-const eventBus = useEventBus()
+const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 
 const currentMediaType = computed(() => {
@@ -157,7 +157,7 @@ function emitGroupBy(groupBy: ItemsGroupBy, metaId: number | null = null) {
     groupByMetaId: groupBy === 'pinnedMeta' ? metaId : null,
     groups: [],
   })
-  eventBus.emit('setItemsGroupBy', serializeGroupBySetting(groupBy, metaId))
+  pageCommands.setGroupBy(serializeGroupBySetting(groupBy, metaId))
 }
 
 function updateGroupBy(val: string | null) {

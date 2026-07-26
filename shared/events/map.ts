@@ -2,7 +2,6 @@ import type {
   GetItemsFromDbEvent,
   OpenTagsAddWithNamesEvent,
   RemoveEntitiesEvent,
-  SetItemsFiltersEvent,
   ViewImageEvent,
 } from '../api/responses'
 
@@ -18,7 +17,6 @@ export type EventBusMap = {
   'update:watcher': void
   addMedia: (() => void) | undefined
   updateVideoFrames: number
-  setItemsFilters: SetItemsFiltersEvent
   playVideo: unknown
   showDocumentation: string
   showGlobalSearch: void
@@ -27,11 +25,6 @@ export type EventBusMap = {
   openTasksMenu: void
   openRandomItem: number
   openTagsAddWithNames: OpenTagsAddWithNamesEvent | string[] | undefined
-  setItemsSortBy: string
-  setItemsSortDir: string
-  setItemsView: number | string
-  setItemsGroupBy: string
-  setItemsLimit: number
   updateLayoutItems: void
   updateAssignedMeta: void
   scrollToNowPlaying: void
