@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
 import { useEventBus } from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import { subscribeElectronIpc } from '@/utils/electronIpc'
 import { isStandalonePlayerRoute } from '@/utils/playerWindow'
 import type { MediaItem } from '@/types/stores'
@@ -19,6 +20,7 @@ export function usePlayerWindowBridge({
   const appStore = useAppStore()
   const playerStore = usePlayerStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
   const isPlayerWindow = computed(() => isStandalonePlayerRoute(route))
 
@@ -54,7 +56,7 @@ export function usePlayerWindowBridge({
     if (isPlayerWindow.value && window.electronAPI?.send) {
       window.electronAPI.send('getItemsFromDb', data)
     } else {
-      eventBus.emit('getItemsFromDb', data)
+      listSync.getItemsFromDb(data)
     }
   }
 

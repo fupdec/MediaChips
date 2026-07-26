@@ -89,6 +89,8 @@ import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from "@/stores/notifications"
 
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
+import {registerAppShellHandler} from '@/composable/appShell'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
 
@@ -117,6 +119,7 @@ const route = useRoute()
 const app = useAppStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const tagsStore = app.tags
 
 /* ---------------- STATE ---------------- */
@@ -198,7 +201,7 @@ async function add() {
       void reloadTagsCatalog()
 
       // 🔥 заменяет $root.$emit("getItemsFromDb")
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: [],
         type: 'tag'
       })
@@ -248,11 +251,14 @@ function nameRules(string: string) {
 
 const openTagsAddHandler = (payload: unknown) => openWithNames(payload as { names?: string | string[]; metaId?: number })
 
+let unregisterOpenTagsAddWithNames: (() => void) | null = null
+
 onMounted(() => {
-  eventBus.on('openTagsAddWithNames', openTagsAddHandler)
+  unregisterOpenTagsAddWithNames = registerAppShellHandler('openTagsAddWithNames', openTagsAddHandler)
 })
 
 onUnmounted(() => {
-  eventBus.off('openTagsAddWithNames', openTagsAddHandler)
+  unregisterOpenTagsAddWithNames?.()
+  unregisterOpenTagsAddWithNames = null
 })
 </script>

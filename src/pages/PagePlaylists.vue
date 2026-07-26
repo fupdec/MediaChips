@@ -178,7 +178,7 @@ import {loadPlaylistThumbs} from '@/utils/playlistThumbs'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
 import {getFilters} from '@/services/filterService'
-import {useEventBus} from '@/utils/eventBus'
+import {useAppShell} from '@/composable/appShell'
 import {getErrorStatus} from '@/types/vue'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -210,7 +210,7 @@ const playerStore = usePlayerStore()
 const settingsStore = useSettingsStore()
 const {t} = useI18n()
 const {width} = useDisplay()
-const eventBus = useEventBus()
+const appShell = useAppShell()
 
 const container = ref<HTMLElement | null>(null)
 const playlists = ref<PagePlaylist[]>([])
@@ -577,7 +577,7 @@ const deleteSmartPlaylist = async () => {
 }
 
 const showSmartPlaylistsDocs = () => {
-  eventBus.emit('showDocumentation', 'playlists.smart')
+  appShell.showDocumentation('playlists.smart')
 }
 
 onMounted(() => {

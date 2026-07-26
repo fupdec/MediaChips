@@ -346,7 +346,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDisplay } from 'vuetify'
-import { useEventBus } from "@/utils/eventBus"
+import { registerAppShellHandler } from '@/composable/appShell'
 import { useDialogsStore } from '@/stores/dialogs'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 import Documentation from "@/assets/Documentation"
@@ -369,7 +369,6 @@ interface DocumentationItem {
 // Инициализация
 const { xs } = useDisplay()
 const { t, locale } = useI18n()
-const eventBus = useEventBus()
 const dialogsStore = useDialogsStore()
 
 // Реактивные данные
@@ -556,16 +555,19 @@ const handleShowDocumentation = (payload: unknown) => {
   nextTick(() => selectById(id, { scroll: true }))
 }
 
+let unregisterShowDocumentation: (() => void) | null = null
+
 onMounted(() => {
   if (items.value?.length) {
     selectById(items.value[0].id)
   }
 
-  eventBus.on('showDocumentation', handleShowDocumentation)
+  unregisterShowDocumentation = registerAppShellHandler('showDocumentation', handleShowDocumentation)
 })
 
 onBeforeUnmount(() => {
-  eventBus.off('showDocumentation', handleShowDocumentation)
+  unregisterShowDocumentation?.()
+  unregisterShowDocumentation = null
 })
 </script>
 

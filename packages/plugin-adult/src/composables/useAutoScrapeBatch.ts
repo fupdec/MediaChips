@@ -3,6 +3,7 @@ import { useScraperStore } from '../stores/scraper'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
 import { useEventBus } from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import translate, { type Locale } from '@/utils/translate'
 import { getAllTagsForMeta, resolveSelectedTags } from '@/utils/resolveSelectedTags'
@@ -14,6 +15,7 @@ export function useAutoScrapeBatch() {
   const notificationsStore = useNotificationsStore()
   const settingsStore = useSettingsStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
   async function runBatch(tags: Tag[], meta: Meta, {
     clearSelection = true,
@@ -54,7 +56,7 @@ export function useAutoScrapeBatch() {
     }
 
     if (successfulIds.length) {
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: successfulIds,
         type: 'tag',
       })

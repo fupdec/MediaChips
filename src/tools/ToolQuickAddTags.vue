@@ -33,9 +33,9 @@
 import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {useEventBus} from '@/utils/eventBus'
+import {useAppShell} from '@/composable/appShell'
 
-const eventBus = useEventBus()
+const appShell = useAppShell()
 const {t} = useI18n()
 
 const loading = ref(false)
@@ -65,7 +65,7 @@ async function openSuggestedTags() {
       return
     }
 
-    eventBus.emit('openTagsAddWithNames', {
+    appShell.openTagsAddWithNames({
       names,
       title: t('notifications_text.suggested_tags_title'),
     })

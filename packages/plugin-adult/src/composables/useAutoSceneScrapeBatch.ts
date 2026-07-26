@@ -4,6 +4,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
 import { useSceneScraperStore } from '../stores/sceneScraper'
 import { useEventBus } from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import { resolveSelectedMediaItems } from '@/utils/resolveSelection'
 import { getCurrentMediaType, isVideoMediaType } from '@/utils/mediaType'
 import { useAppStore } from '@/stores/app'
@@ -41,6 +42,7 @@ export function useAutoSceneScrapeBatch() {
   const settingsStore = useSettingsStore()
   const appStore = useAppStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
   async function runBatch(mediaItems: MediaItem[], {
     clearSelection = true,
@@ -107,7 +109,7 @@ export function useAutoSceneScrapeBatch() {
           refreshThumb: true,
         })
       }
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: successfulIds,
         type: 'media',
       })
@@ -162,7 +164,7 @@ export function useAutoSceneScrapeBatch() {
       })
       // Await tag catalog + card relations so chips resolve after oshash auto-apply.
       await applySceneScrapeResultToCard(media.id, result, { refreshThumb: true })
-      eventBus.emit('getItemsFromDb', { ids: [media.id], type: 'media' })
+      listSync.getItemsFromDb({ ids: [media.id], type: 'media' })
       return result
     }
 

@@ -172,7 +172,7 @@ import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
-import {useEventBus} from '@/utils/eventBus'
+import {registerAppShellHandler} from '@/composable/appShell'
 
 // Async components
 const DialogLogin = defineAsyncComponent(() =>
@@ -281,7 +281,6 @@ const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
 const pluginsStore = usePluginsStore()
 const {t} = useI18n()
-const eventBus = useEventBus()
 const { showShortcuts: showKeyboardShortcuts, openPlayerDocs: openPlayerHotkeyDocs } = useAppHotkeys()
 const addMediaDialogOpen = ref(false)
 
@@ -289,12 +288,15 @@ function openAddMediaDialog() {
   addMediaDialogOpen.value = true
 }
 
+let unregisterShowAddMediaDialog: (() => void) | null = null
+
 onMounted(() => {
-  eventBus.on('showAddMediaDialog', openAddMediaDialog)
+  unregisterShowAddMediaDialog = registerAppShellHandler('showAddMediaDialog', openAddMediaDialog)
 })
 
 onBeforeUnmount(() => {
-  eventBus.off('showAddMediaDialog', openAddMediaDialog)
+  unregisterShowAddMediaDialog?.()
+  unregisterShowAddMediaDialog = null
 })
 
 const adultUiAvailable = computed(() =>

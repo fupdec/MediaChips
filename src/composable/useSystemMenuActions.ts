@@ -5,6 +5,7 @@ import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
+import {useAppShell} from '@/composable/appShell'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {setOption} from '@/services/settingsService'
@@ -26,6 +27,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   const settingsStore = useSettingsStore()
   const dialogsStore = useDialogsStore()
   const eventBus = useEventBus()
+  const appShell = useAppShell()
   const appZoom = useAppZoom()
   const {ensureInitialized, check, isSupported} = useAppUpdater()
   const {isWindowMaximized} = useWindowMaximizedState()
@@ -75,7 +77,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         runEditCommand('selectAll')
         break
       case 'globalSearch':
-        eventBus.emit('showGlobalSearch')
+        appShell.showGlobalSearch()
         break
       case 'toggleTheme':
         await toggleTheme()
@@ -120,7 +122,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         window.electronAPI?.send?.('closeApp')
         break
       case 'documentation':
-        eventBus.emit('showDocumentation', 'app')
+        appShell.showDocumentation('app')
         break
       case 'gettingStarted':
         await saveOnboardingStep(0)
@@ -130,7 +132,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         dialogsStore.openFeedback()
         break
       case 'keyboardShortcuts':
-        eventBus.emit('showKeyboardShortcuts')
+        appShell.showKeyboardShortcuts()
         break
       case 'checkUpdates':
         await ensureInitialized()

@@ -112,7 +112,7 @@ import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
-import {useEventBus} from '@/utils/eventBus'
+import {useAppShell} from '@/composable/appShell'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import type { HealthAlertItem, HomeHealthData } from '@/types/widgets'
@@ -123,7 +123,7 @@ const router = useRouter()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const tasksStore = useTasksStore()
-const eventBus = useEventBus()
+const appShell = useAppShell()
 
 const checked = ref(false)
 const loading = ref(false)
@@ -302,7 +302,7 @@ function openOshashBackfillSettings() {
 }
 
 function openTasks() {
-  eventBus.emit('openTasksMenu')
+  appShell.openTasksMenu()
 }
 
 function openDuplicates() {

@@ -351,6 +351,8 @@ import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
+import {useAppShell} from '@/composable/appShell'
 import {useMediaAdding} from '@/composable/AddingMedia'
 import {deleteLocalFile} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
@@ -415,6 +417,8 @@ const appStore = useAppStore()
 const tasksStore = useTasksStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
+  const appShell = useAppShell()
 const {reparseTagsForAddedMedia} = useMediaAdding()
 
 // Reactive state
@@ -566,7 +570,7 @@ const deleteDuplicates = async (delete_type: DeleteDuplicateType) => {
         const ids = dupes.map(i => getDuplicateDetails(i.duplicate)?.id).filter(Boolean) as number[]
 
         if (ids.length > 0) {
-          eventBus.emit('getItemsFromDb', {
+          listSync.getItemsFromDb({
             ids: ids,
             type: 'media',
           })
@@ -608,7 +612,7 @@ const relinkMovedFiles = async () => {
     const ids = dupes.map(i => getDuplicateDetails(i.duplicate)?.id).filter(Boolean) as number[]
 
     if (ids.length > 0) {
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: ids,
         type: 'media',
       })
@@ -632,7 +636,7 @@ const relinkMovedFiles = async () => {
 }
 
 const openSuggestedTags = () => {
-  eventBus.emit('openTagsAddWithNames', {
+  appShell.openTagsAddWithNames({
     names: task.value.suggestedTags || [],
     title: t('media.adding.suggested_tags_from_added_files'),
   })

@@ -74,6 +74,7 @@ import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
+import {useAppShell} from '@/composable/appShell'
 import {getDefaultMediaTypeId, inferMediaTypeFromPaths} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getMetaName} from '@/utils/metaI18n'
@@ -86,6 +87,7 @@ const appStore = useAppStore()
 const tasksStore = useTasksStore()
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
+  const appShell = useAppShell()
 
 const addDialogOpen = ref(false)
 const dropzoneActive = ref(false)
@@ -105,7 +107,7 @@ function openAddDialog() {
 }
 
 function openSearch() {
-  eventBus.emit('showGlobalSearch')
+  appShell.showGlobalSearch()
 }
 
 function containsFiles(event: DragEvent) {

@@ -245,6 +245,7 @@ import {useSettingsStore} from '@/stores/settings'
 import {useTasksStore} from '@/stores/tasks'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import type {Handler} from 'mitt'
 import {buildApiUrl} from '@/services/apiClient'
 import {typedApi} from '@/services/typedApi'
@@ -403,6 +404,7 @@ const tasksStore = useTasksStore()
 const contextMenuStore = useContextMenu()
 const playerStore = usePlayerStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const {t} = useI18n()
 const gridBigPreview = useVideoBigPreview()
 
@@ -1097,7 +1099,7 @@ const setAsThumbFromPreview = async () => {
       loadThumb('grids', {bust: true})
     }
     itemsStore.refreshThumb(props.media.id, {regenerate: true})
-    eventBus.emit('getItemsFromDb', {ids: [props.media.id], type: 'media'})
+    listSync.getItemsFromDb({ids: [props.media.id], type: 'media'})
     void refreshGridPreviewIfNeeded()
     setNotification({
       title: t('player.video_thumb_updated'),
@@ -1201,7 +1203,7 @@ const handleVideoError = () => {
 }
 
 const restartImageGeneration = () => {
-  eventBus.emit('getItemsFromDb', {ids: [props.media.id], type: 'media'})
+  listSync.getItemsFromDb({ids: [props.media.id], type: 'media'})
 }
 
 const handleVideoLoaded = () => {

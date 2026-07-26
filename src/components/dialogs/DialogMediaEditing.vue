@@ -104,6 +104,7 @@ import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import {useEventBus} from "@/utils/eventBus"
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
 import {
@@ -137,6 +138,7 @@ const props = defineProps<{
 
 const {xs, xl} = useDisplay()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
@@ -283,7 +285,7 @@ async function onImageEdited() {
   if (mediaId != null) {
     itemsStore.refreshThumb(mediaId, {regenerate: true})
   }
-  eventBus.emit('getItemsFromDb', {
+  listSync.getItemsFromDb({
     ids: [mediaId],
     type: 'media'
   })
@@ -300,7 +302,7 @@ async function save() {
 
   const mediaId = media.value?.id
   if (mediaId != null) {
-    eventBus.emit('getItemsFromDb', {
+    listSync.getItemsFromDb({
       ids: [mediaId],
       type: 'media',
     })
@@ -330,7 +332,7 @@ function deleteMedia() {
       path: currentMedia.path,
     })
 
-    eventBus.emit('removeEntitiesFromState', {
+    listSync.removeEntitiesFromState({
       detail: {
         ids: [currentMedia.id],
         type: 'media',

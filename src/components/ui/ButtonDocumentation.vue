@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import {useEventBus} from "@/utils/eventBus";
-const eventBus = useEventBus()
+import {useAppShell} from '@/composable/appShell'
+
+const appShell = useAppShell()
 
 const props = defineProps({
   id: String,
 })
 
 const showDocumentation = () => {
-  eventBus.emit('showDocumentation', props.id)
+  appShell.showDocumentation(props.id || '')
 }
 </script>
 

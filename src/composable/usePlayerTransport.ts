@@ -9,6 +9,7 @@ import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {createThumb} from '@/services/fileService'
@@ -51,6 +52,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const dialogsStore = useDialogsStore()
   const itemsStore = useItemsStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
   const route = useRoute()
   const {xs, xl, mdAndDown, smAndDown} = useDisplay()
   const {t} = useI18n()
@@ -353,7 +355,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
             type: 'media',
           })
         } else {
-          eventBus.emit('removeEntitiesFromState', {
+          listSync.removeEntitiesFromState({
             detail: {
               ids: [video_edit.id],
               type: 'media',

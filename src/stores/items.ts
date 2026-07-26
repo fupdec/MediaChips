@@ -3,6 +3,7 @@ import {defineStore} from 'pinia'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
@@ -22,6 +23,7 @@ import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
 
 const eventBus = useEventBus()
+const listSync = useItemsListSync()
 
 export const THUMB_BROADCAST_CHANNEL = 'mediachips-thumb-update'
 
@@ -375,7 +377,7 @@ export const useItemsStore = defineStore('items', {
         return
       }
 
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: [item.id],
         type: itemType || 'media',
       })

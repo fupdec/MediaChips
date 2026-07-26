@@ -203,6 +203,7 @@ import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {shouldReloadListAfterBulkAction} from '@/utils/resolveSelection'
@@ -250,6 +251,7 @@ const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const {t} = useI18n()
 
 const dialog = ref(true)
@@ -482,7 +484,7 @@ const save = async () => {
     close()
 
     const reloadList = shouldReloadListAfterBulkAction(selected_items_ids)
-    eventBus.emit('getItemsFromDb', reloadList
+    listSync.getItemsFromDb(reloadList
       ? {type: items_type}
       : {ids: selected_items_ids, type: items_type})
 

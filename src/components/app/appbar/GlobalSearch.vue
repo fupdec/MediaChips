@@ -4,7 +4,7 @@ import {useRouter} from 'vue-router'
 import {useHotkey} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {useEventBus} from '@/utils/eventBus'
+import {registerAppShellHandler} from '@/composable/appShell'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -74,7 +74,6 @@ type FlatResultRow =
   | { kind: 'show-more'; group: SearchGroup; hiddenCount: number; id: string }
 
 const {t} = useI18n()
-const eventBus = useEventBus()
 const router = useRouter()
 
 useHotkey('slash', () => {
@@ -234,12 +233,15 @@ function showSearch() {
   focusSearchField()
 }
 
+let unregisterShowGlobalSearch: (() => void) | null = null
+
 onMounted(() => {
-  eventBus.on('showGlobalSearch', showSearch)
+  unregisterShowGlobalSearch = registerAppShellHandler('showGlobalSearch', showSearch)
 })
 
 onBeforeUnmount(() => {
-  eventBus.off('showGlobalSearch', showSearch)
+  unregisterShowGlobalSearch?.()
+  unregisterShowGlobalSearch = null
   abortController?.abort()
   runSearch.cancel()
 })

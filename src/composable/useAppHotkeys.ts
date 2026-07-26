@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import { usePlayerStore } from '@/stores/player'
-import { useEventBus } from '@/utils/eventBus'
+import { registerAppShellHandler, useAppShell } from '@/composable/appShell'
 import { getDefaultMediaTypeId } from '@/utils/mediaType'
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -24,7 +24,7 @@ export function useAppHotkeys() {
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
   const playerStore = usePlayerStore()
-  const eventBus = useEventBus()
+  const appShell = useAppShell()
   const showShortcuts = ref(false)
 
   function openAddMedia() {
@@ -33,7 +33,7 @@ export function useAppHotkeys() {
     if (router.currentRoute.value.path !== '/media' && id != null) {
       void router.push(`/media?mediaTypeId=${id}`)
     }
-    eventBus.emit('showAddMediaDialog')
+    appShell.showAddMediaDialog()
   }
 
   function showShortcutsDialog() {
@@ -78,21 +78,24 @@ export function useAppHotkeys() {
     }
   }
 
+  let unregisterShowKeyboardShortcuts: (() => void) | null = null
+
   onMounted(() => {
     window.addEventListener('keydown', onKeyDown)
-    eventBus.on('showKeyboardShortcuts', showShortcutsDialog)
+    unregisterShowKeyboardShortcuts = registerAppShellHandler('showKeyboardShortcuts', showShortcutsDialog)
   })
 
   onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKeyDown)
-    eventBus.off('showKeyboardShortcuts', showShortcutsDialog)
+    unregisterShowKeyboardShortcuts?.()
+    unregisterShowKeyboardShortcuts = null
   })
 
   return {
     showShortcuts,
     openPlayerDocs() {
       showShortcuts.value = false
-      eventBus.emit('showDocumentation', 'player.hotkeys')
+      appShell.showDocumentation('player.hotkeys')
     },
   }
 }

@@ -130,6 +130,7 @@ import {useItemsStore} from '@/stores/items'
 import {useSceneScraperStore} from '../stores/sceneScraper'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {setNotification} from '@/services/notificationService'
 import {
   applyManualSceneTransferToMedia,
@@ -160,6 +161,7 @@ const itemsStore = useItemsStore()
 const sceneScraperStore = useSceneScraperStore()
 const settingsStore = useSettingsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const {t} = useI18n()
 
 const searched = ref(false)
@@ -254,7 +256,7 @@ async function refreshMediaAfterScrape(
   await applySceneScrapeResultToCard(mediaId, result, {refreshThumb})
 
   // Refetch after local card update so a stale in-flight list request cannot win.
-  eventBus.emit('getItemsFromDb', {ids: [mediaId], type: 'media'})
+  listSync.getItemsFromDb({ids: [mediaId], type: 'media'})
 
   if (reloadEditor) {
     eventBus.emit('transferSceneScrapedInfo')

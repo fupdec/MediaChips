@@ -217,6 +217,7 @@ import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 
 import {useEventBus} from "@/utils/eventBus"
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
@@ -295,6 +296,7 @@ const notificationsStore = useNotificationsStore()
 const scraperStore = useScraperStore()
 
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const filtersController = useItemsFiltersController()
 
 const itemRating = computed((): number | undefined => {
@@ -604,7 +606,7 @@ const removeTag = (tag: TagWithMeta): void => {
         tagId: tag.id,
       })
 
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: [props.item.id],
         type: props.type,
       })
@@ -654,7 +656,7 @@ const autoScrapeTpdbTag = async (tag: TagWithMeta): Promise<void> => {
     })
     if (result.success) {
       refreshTagThumbDisplay(itemsStore, appStore.dbPath, meta.id, tag.id)
-      eventBus.emit('getItemsFromDb', {ids: [tag.id], type: 'tag'})
+      listSync.getItemsFromDb({ids: [tag.id], type: 'tag'})
       void reloadTagsCatalog()
     }
   } finally {
@@ -693,7 +695,7 @@ const autoScrapeTmdbTag = async (tag: TagWithMeta): Promise<void> => {
     })
     if (result.success) {
       refreshTagThumbDisplay(itemsStore, appStore.dbPath, meta.id, tag.id)
-      eventBus.emit('getItemsFromDb', {ids: [tag.id], type: 'tag'})
+      listSync.getItemsFromDb({ids: [tag.id], type: 'tag'})
       void reloadTagsCatalog()
     }
   } finally {

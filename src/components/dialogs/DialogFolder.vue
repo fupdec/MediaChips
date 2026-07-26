@@ -165,6 +165,7 @@ import {useTasksStore} from '@/stores/tasks'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {typedApi} from "@/services/typedApi"
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getMediaDeleteAssetFolder, isManagedMediaType} from '@/utils/mediaType'
@@ -177,6 +178,7 @@ const tasksStore = useTasksStore()
 const dialogsStore = useDialogsStore()
 const notificationStore = useNotificationsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const {t} = useI18n()
 
 const folderState = computed(() => watcherStore.folder)
@@ -242,7 +244,7 @@ const removeFiles = async (
 
     await Promise.all(deletePromises)
 
-    eventBus.emit("removeEntitiesFromState", {
+    listSync.removeEntitiesFromState({
       ids: lost.map((i) => i.id),
       type: 'media',
     })

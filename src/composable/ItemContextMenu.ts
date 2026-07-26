@@ -8,6 +8,7 @@ import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useRegistrationStore} from '@/stores/registration'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
 import {
@@ -71,6 +72,7 @@ export default function useItemContextMenu(
   const registrationStore = useRegistrationStore()
 
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
   const scraperStore = useScraperStore()
   const sceneScraperStore = useSceneScraperStore()
@@ -537,7 +539,7 @@ export default function useItemContextMenu(
       })
 
       if (result.success) {
-        eventBus.emit('getItemsFromDb', { ids: [item.id], type: 'tag' })
+        listSync.getItemsFromDb({ ids: [item.id], type: 'tag' })
         void reloadTagsCatalog()
       }
     } finally {
@@ -578,7 +580,7 @@ export default function useItemContextMenu(
       })
 
       if (result.success) {
-        eventBus.emit('getItemsFromDb', { ids: [item.id], type: 'tag' })
+        listSync.getItemsFromDb({ ids: [item.id], type: 'tag' })
         void reloadTagsCatalog()
       }
     } finally {
@@ -668,7 +670,7 @@ export default function useItemContextMenu(
       icon: 'text-box-search',
     })
     if (added.length > 0) {
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: updated,
         type: 'media',
       })
@@ -696,7 +698,7 @@ export default function useItemContextMenu(
       icon: 'file-sync-outline',
     })
     if (updated.length > 0) {
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: updated,
         type: 'media',
       })
@@ -711,7 +713,7 @@ export default function useItemContextMenu(
 
     const cb = (id?: number): void => {
       if (id == null) return
-      eventBus.emit('getItemsFromDb', {
+      listSync.getItemsFromDb({
         ids: [id],
         type: 'media',
       })
@@ -758,7 +760,7 @@ export default function useItemContextMenu(
     }
 
     itemsStore.isSelect = false
-    eventBus.emit('getItemsFromDb', {
+    listSync.getItemsFromDb({
       ids: itemsStore.selection,
       type: 'media',
     })
@@ -826,7 +828,7 @@ export default function useItemContextMenu(
         text: deleted_items_names.join(', '),
       })
 
-      eventBus.emit('removeEntitiesFromState', {
+      listSync.removeEntitiesFromState({
         ids,
         type,
       })

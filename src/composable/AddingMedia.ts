@@ -9,6 +9,7 @@ import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
 import {useWatcherStore} from '@/stores/watcher'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {removeWatcherNewPaths} from '@/utils/watcherReportUtils'
 import type { ParsePathTagEntry } from '@shared/api/responses'
 import type { MediaType } from '@/types/media'
@@ -94,6 +95,7 @@ export const useMediaAdding = () => {
   const tasksStore = useTasksStore()
   const watcherStore = useWatcherStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
   const t = i18n.global.t
 
   const ENV = computed(() => itemsStore.environment)
@@ -391,7 +393,7 @@ export const useMediaAdding = () => {
         !ENV.value.media_type_id
         || Number(ENV.value.media_type_id) === Number(mediaType.id)
       ) {
-        eventBus.emit('getItemsFromDb', {
+        listSync.getItemsFromDb({
           ids: [],
           type: 'media',
         })
@@ -488,7 +490,7 @@ export const useMediaAdding = () => {
 
       const mediaIds = [...new Set(items.map((item) => item.mediaId))]
       if (mediaIds.length > 0) {
-        eventBus.emit('getItemsFromDb', {
+        listSync.getItemsFromDb({
           ids: mediaIds,
           type: 'media',
         })

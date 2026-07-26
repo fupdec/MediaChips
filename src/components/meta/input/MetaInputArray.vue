@@ -164,6 +164,7 @@ import orderBy from 'lodash/orderBy'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {useEventBus} from "@/utils/eventBus"
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
 import {
   foundByChars,
@@ -198,6 +199,7 @@ const emit = defineEmits<{
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const router = useRouter()
 const {t} = useI18n()
 
@@ -521,7 +523,7 @@ const create = async () => {
       if (router.currentRoute.value.query.player) {
         window.electronAPI?.send?.("getItemsFromDb", data)
       } else {
-        eventBus.emit("getItemsFromDb", data)
+        listSync.getItemsFromDb(data)
       }
     }
   } catch (e) {

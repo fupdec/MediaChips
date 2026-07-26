@@ -17,6 +17,8 @@ import {useWatcherStore} from '@/stores/watcher'
 import {useRegistrationStore} from '@/stores/registration'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
+import {useAppShell} from '@/composable/appShell'
 import {registerMetaCatalogLoader} from '@/composable/metaCatalog'
 import {
   registerTagsCatalogLoader,
@@ -71,6 +73,8 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   const dialogsStore = useDialogsStore()
   const operationsStore = useOperationsStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
+  const appShell = useAppShell()
   const {init: initAppUpdater} = useAppUpdater()
   const {runSystemMenuAction} = useSystemMenuActions({
     onLock: lockApp,
@@ -276,7 +280,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleShowDocumentation = (): void => {
-    eventBus.emit('showDocumentation', 'app')
+    appShell.showDocumentation('app')
   }
 
   const handleShowFeedback = (): void => {
@@ -350,7 +354,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleElectronGetItemsFromDb = (_event: unknown, data: unknown): void => {
-    eventBus.emit('getItemsFromDb', data as GetItemsFromDbEvent)
+    listSync.getItemsFromDb(data as GetItemsFromDbEvent)
   }
 
   const handleElectronUpdateVideoFrames = (_event: unknown, id: unknown): void => {
@@ -358,7 +362,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleElectronRemoveEntitiesFromState = (_event: unknown, data: unknown): void => {
-    eventBus.emit('removeEntitiesFromState', data as RemoveEntitiesEvent)
+    listSync.removeEntitiesFromState(data as RemoveEntitiesEvent)
   }
 
   function setupPlayerElectronListeners(): void {

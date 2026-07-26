@@ -126,6 +126,7 @@ import {
   type TmdbExtras,
 } from '../services/tmdbApply'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
 import {useItemsStore} from '@/stores/items'
@@ -137,6 +138,7 @@ const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
 const query = ref('')
 const year = ref('')
@@ -323,7 +325,7 @@ async function refreshAfterApply(mediaId: number, refreshThumb: boolean) {
   }
 
   void reloadMetaCatalog()
-  eventBus.emit('getItemsFromDb', {ids: [mediaId], type: 'media'})
+  listSync.getItemsFromDb({ids: [mediaId], type: 'media'})
   // Reload open media editor form (same path as adult scene scraper).
   eventBus.emit('transferSceneScrapedInfo')
 

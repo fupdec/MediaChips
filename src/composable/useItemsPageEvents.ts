@@ -1,10 +1,9 @@
 import {computed, watch, onMounted, onBeforeUnmount, nextTick, ref} from 'vue'
-import type { Handler } from 'mitt'
 import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useEventBus} from '@/utils/eventBus'
 import {registerItemsPageCommands} from '@/composable/itemsPageCommands'
+import {registerItemsListSync} from '@/composable/itemsListSync'
 import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
 import {
@@ -56,7 +55,6 @@ export function useItemsPageEvents({
   const itemsStore = useItemsStore()
   const appStore = useAppStore()
   const router = useRouter()
-  const eventBus = useEventBus()
 
   const ITEMS = computed(() => itemsStore)
   let initPromise: Promise<void> | null = null
@@ -86,8 +84,8 @@ export function useItemsPageEvents({
     return initPromise
   }
 
-  const handleGetItemsFromDb: Handler = (event) => {
-    const {ids, type, patch} = event as GetItemsFromDbEvent
+  const handleGetItemsFromDb = (event: GetItemsFromDbEvent) => {
+    const {ids, type, patch} = event
     if (props.items_type !== type) return
     const normalizedIds = normalizeEntityIds(ids)
     if (Array.isArray(normalizedIds) && normalizedIds.length === 0 && loader.value.is_busy) {
@@ -131,8 +129,8 @@ export function useItemsPageEvents({
     void getItemsFromDb()
   }
 
-  const handleRemoveEntitiesFromState: Handler = (event) => {
-    const payload = normalizeRemoveEntitiesEvent(event as RemoveEntitiesEvent)
+  const handleRemoveEntitiesFromState = (event: RemoveEntitiesEvent) => {
+    const payload = normalizeRemoveEntitiesEvent(event)
     if (!payload) return
     const {ids, type} = payload
     if (type !== props.items_type) return
@@ -294,12 +292,8 @@ export function useItemsPageEvents({
     return ITEMS.value.itemsOnPage.length > previousCount
   }
 
-  const eventHandlers: Array<[string, Handler]> = [
-    ['getItemsFromDb', handleGetItemsFromDb],
-    ['removeEntitiesFromState', handleRemoveEntitiesFromState],
-  ]
-
   let unregisterPageCommands: (() => void) | null = null
+  let unregisterListSync: (() => void) | null = null
   let unsubscribeMetaCatalog: (() => void) | null = null
 
   const bindEvents = (): void => {
@@ -314,22 +308,20 @@ export function useItemsPageEvents({
       refreshCurrentMeta: handleGetMeta,
       openRandomItem: handleOpenRandomItem,
     })
+    unregisterListSync = registerItemsListSync({
+      getItemsFromDb: handleGetItemsFromDb,
+      removeEntitiesFromState: handleRemoveEntitiesFromState,
+    })
     unsubscribeMetaCatalog = onMetaCatalogChanged(handleGetMeta)
-
-    for (const [name, handler] of eventHandlers) {
-      eventBus.on(name, handler)
-    }
   }
 
   const unbindEvents = (): void => {
     unregisterPageCommands?.()
     unregisterPageCommands = null
+    unregisterListSync?.()
+    unregisterListSync = null
     unsubscribeMetaCatalog?.()
     unsubscribeMetaCatalog = null
-
-    for (const [name, handler] of eventHandlers) {
-      eventBus.off(name, handler)
-    }
   }
 
   onMounted(async () => {

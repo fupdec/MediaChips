@@ -4,6 +4,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import translate, {type Locale} from '@/utils/translate'
@@ -21,6 +22,7 @@ export function useTmdbPersonAutoScrapeBatch() {
   const notificationsStore = useNotificationsStore()
   const settingsStore = useSettingsStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
   async function runBatch(tags: Tag[], meta: Meta, {
     clearSelection = true,
@@ -59,7 +61,7 @@ export function useTmdbPersonAutoScrapeBatch() {
         results.push(result)
 
         if (result.success) {
-          eventBus.emit('getItemsFromDb', {ids: [result.tagId], type: 'tag'})
+          listSync.getItemsFromDb({ids: [result.tagId], type: 'tag'})
         }
       }
     } finally {

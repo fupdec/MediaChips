@@ -152,6 +152,7 @@ import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import type {Meta} from '@/types/stores'
 
@@ -176,6 +177,7 @@ const mainStore = useAppStore()
 const itemsStore = useItemsStore()
 const operationsStore = useOperationsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const {
   isElectron,
   tags: allTags,
@@ -307,7 +309,7 @@ const organizeFiles = async () => {
       operationsStore.moving.items = moveItems
       operationsStore.moving.ids = []
       operationsStore.moving.callback = (movedId) => {
-        eventBus.emit('getItemsFromDb', { ids: [movedId], type: 'media' })
+        listSync.getItemsFromDb({ ids: [movedId], type: 'media' })
       }
       await operationsStore.moveFiles()
     }

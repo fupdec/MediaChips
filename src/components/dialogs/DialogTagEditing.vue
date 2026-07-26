@@ -73,6 +73,7 @@ import DialogHeader from '@/components/elements/DialogHeader.vue'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
 import {useEventBus} from "@/utils/eventBus"
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
@@ -111,6 +112,7 @@ const store = useAppStore()
 const scraperStore = useScraperStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 const {t} = useI18n()
 
 const images = ref<TagImage[]>([])
@@ -242,7 +244,7 @@ const onImageEdited = (payload?: ImageEditedPayload) => {
     editingComponent.value?.tryApplyAutoColorFromImage?.(payload.extractedColor)
   }
   if (!tag.value) return
-  eventBus.emit('getItemsFromDb', {
+  listSync.getItemsFromDb({
     ids: [tag.value.id],
     type: 'tag'
   })
@@ -270,7 +272,7 @@ const deleteTag = async () => {
 
     itemsStore.removeItem(deletedTagId)
 
-    eventBus.emit('removeEntitiesFromState', {
+    listSync.removeEntitiesFromState({
       ids: [deletedTagId],
       type: 'tag',
     })
@@ -295,7 +297,7 @@ const deleteTag = async () => {
       await nextTick()
     }
 
-    eventBus.emit('getItemsFromDb', {type: 'tag'})
+    listSync.getItemsFromDb({type: 'tag'})
   } catch (error) {
     console.error('Error deleting tag:', error)
   }
@@ -317,7 +319,7 @@ const save = async () => {
   }
 
   if (savedTagId != null) {
-    eventBus.emit('getItemsFromDb', {ids: [savedTagId], type: 'tag'})
+    listSync.getItemsFromDb({ids: [savedTagId], type: 'tag'})
   }
 
   if (itemsStore.type === 'media') {
@@ -356,7 +358,7 @@ const refreshTagAfterScrape = async () => {
   } catch (error) {
     console.error('Error refreshing tag after scrape:', error)
   }
-  eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
+  listSync.getItemsFromDb({ids: [tag.value.id], type: 'tag'})
   if (isTagPage.value) {
     void refreshPageTag()
   }
@@ -437,7 +439,7 @@ const handleScraperImages = () => {
   }
   getImages({cacheBust: true})
   if (!tag.value) return
-  eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
+  listSync.getItemsFromDb({ids: [tag.value.id], type: 'tag'})
 }
 
 watch(
@@ -452,7 +454,7 @@ watch(
       } catch (error) {
         console.error('Error refreshing tag after TMDB person scrape:', error)
       }
-      eventBus.emit('getItemsFromDb', {ids: [tag.value.id], type: 'tag'})
+      listSync.getItemsFromDb({ids: [tag.value.id], type: 'tag'})
       editReloadKey.value += 1
       getImages({cacheBust: true})
     }

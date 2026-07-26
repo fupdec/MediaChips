@@ -125,6 +125,7 @@ import {useAppStore} from "@/stores/app"
 import {useSettingsStore} from "@/stores/settings"
 import {useItemsStore} from "@/stores/items"
 import {useEventBus} from "@/utils/eventBus"
+import {useAppShell} from '@/composable/appShell'
 import {resolveLanShareUrl} from "@/utils/apiBaseUrl"
 import {useHomeWidgets} from '@/composable/useHomeWidgets'
 import {invalidateHomeMediaCache, useHomeMedia} from '@/composable/useHomeMedia'
@@ -141,6 +142,7 @@ const store = useAppStore()
 const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const {on: onEventBus, clearAll: clearEventBusListeners, emit: emitEventBus} = useEventBus()
+  const appShell = useAppShell()
 const {t} = useI18n()
 const {openMediaList} = useOpenMediaList()
 const {orderedEnabledWidgets, limits, isWidgetEnabled} = useHomeWidgets()
@@ -219,7 +221,7 @@ function openTopViewsList() {
 }
 
 function emitShowDocs() {
-  emitEventBus("showDocumentation", "app")
+  appShell.showDocumentation("app")
 }
 
 async function openGettingStarted() {

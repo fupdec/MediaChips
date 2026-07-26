@@ -110,7 +110,7 @@ import {useScraperStore} from '@mediachips/plugin-adult/stores/scraper'
 import {mergeProps} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {onMounted, onBeforeUnmount} from 'vue'
-import {useEventBus} from '@/utils/eventBus'
+import {registerAppShellHandler} from '@/composable/appShell'
 
 // i18n
 const {t} = useI18n()
@@ -118,7 +118,6 @@ const {t} = useI18n()
 const tasksStore = useTasksStore()
 const sceneScraperStore = useSceneScraperStore()
 const scraperStore = useScraperStore()
-const eventBus = useEventBus()
 
 const menuVisible = ref(false)
 
@@ -152,12 +151,15 @@ const openTasksMenu = () => {
   menuVisible.value = true
 }
 
+let unregisterOpenTasksMenu: (() => void) | null = null
+
 onMounted(() => {
-  eventBus.on('openTasksMenu', openTasksMenu)
+  unregisterOpenTasksMenu = registerAppShellHandler('openTasksMenu', openTasksMenu)
 })
 
 onBeforeUnmount(() => {
-  eventBus.off('openTasksMenu', openTasksMenu)
+  unregisterOpenTasksMenu?.()
+  unregisterOpenTasksMenu = null
 })
 </script>
 

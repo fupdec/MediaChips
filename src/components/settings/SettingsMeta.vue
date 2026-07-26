@@ -121,7 +121,7 @@ import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
-import {useEventBus} from '@/utils/eventBus'
+import {useAppShell} from '@/composable/appShell'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import isEmpty from 'lodash/isEmpty'
 import MetaManager from '@/components/dialogs/DialogMetaManager.vue'
@@ -135,7 +135,7 @@ import type {Meta} from '@/types/stores'
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
-const eventBus = useEventBus()
+const appShell = useAppShell()
 const {t, te} = useI18n()
 
 const formatDataType = (type: string) => getTextDataType(type, {te, t})
@@ -218,7 +218,7 @@ watch(
 )
 
 const showMetaDocs = () => {
-  eventBus.emit('showDocumentation', 'meta')
+  appShell.showDocumentation('meta')
 }
 
 onMounted(async () => {

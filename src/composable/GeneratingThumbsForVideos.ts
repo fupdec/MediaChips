@@ -3,6 +3,7 @@ import {useTasksStore} from '@/stores/tasks'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {typedApi} from '@/services/typedApi'
 import {visibleItemIds} from '@/utils/visibleItemsWindow'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
@@ -20,6 +21,7 @@ export default function useVideoImageGenerator() {
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
   const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
   const grid = ref<GeneratorState>({
     active: false,
@@ -74,7 +76,7 @@ export default function useVideoImageGenerator() {
 
           itemsStore.refreshThumb(video.id, {broadcast: false})
           eventBus.emit('updateVideoFrames', video.id)
-          eventBus.emit('getItemsFromDb', {
+          listSync.getItemsFromDb({
             ids: [video.id],
             type: 'media',
           })

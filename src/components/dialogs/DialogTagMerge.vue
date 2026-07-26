@@ -71,6 +71,7 @@ import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import {typedApi} from '@/services/typedApi'
 import {useEventBus} from '@/utils/eventBus'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {getErrorResponseData} from '@/types/vue'
 import type {Tag} from '@/types/stores'
@@ -81,6 +82,7 @@ const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
+  const listSync = useItemsListSync()
 
 const survivorId = ref<number | null>(null)
 const saving = ref(false)
@@ -149,11 +151,11 @@ async function merge() {
       }
     }
 
-    eventBus.emit('removeEntitiesFromState', {
+    listSync.removeEntitiesFromState({
       ids: deletedIds,
       type: 'tag',
     })
-    eventBus.emit('getItemsFromDb', {
+    listSync.getItemsFromDb({
       ids: [survivor.id],
       type: 'tag',
     })
