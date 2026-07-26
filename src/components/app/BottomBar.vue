@@ -1,33 +1,23 @@
 <script setup lang="ts">
-import {ref, computed} from 'vue'
-import {useAppStore} from '@/stores/app'
-import {useSettingsStore} from '@/stores/settings'
-import {useWatcherStore} from '@/stores/watcher'
-import {useI18n} from 'vue-i18n'
-import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import {useWatcherBadgeCounts} from '@/composable/useWatcherBadgeCounts'
-import type { WatcherFilesEntry } from '@/types/watcher'
+import {ref} from 'vue'
+import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 
-const settings = useSettingsStore()
-const app = useAppStore()
-const watcherStore = useWatcherStore()
-const {t} = useI18n()
-const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
-
-const watcherFiles = computed(() => watcherStore.menuEntries)
 const folderHovered = ref(false)
 const hiddenMetaMenu = ref(false)
 
-const mediaTypes = computed(() => app.mediaTypes.filter(i => !i.hidden))
-const mediaTypesHidden = computed(() => app.mediaTypes.filter(i => i.hidden))
-
-const meta = computed(() => app.meta.filter(i => i.type === 'array' && !i.hidden))
-const hiddenMeta = computed(() => app.meta.filter(i => i.type === 'array' && i.hidden))
-
-function openDialogFolder(folder: WatcherFilesEntry) {
-  watcherStore.folder = folder
-  watcherStore.dialogFolder = true
-}
+const {
+  mediaTypesHidden,
+  metaVisible,
+  metaHidden,
+  libraryLinks,
+  settingsLink,
+  watcherFiles,
+  showWatcherFolders,
+  watcherBadgeCountsByFolderId,
+  watcherBusy,
+  openDialogFolder,
+  metaPath,
+} = useLibraryNavItems()
 </script>
 
 <template>
@@ -39,99 +29,48 @@ function openDialogFolder(folder: WatcherFilesEntry) {
     elevation="10"
     class="bottom-menu"
   >
-    <!-- Home -->
-    <v-tooltip location="top">
-      <template #activator="{ props }">
-        <v-btn
-          v-bind="props"
-          to="/"
-          variant="text"
-          color="primary"
-        >
-          <v-icon>mdi-home-outline</v-icon>
-          <span>{{ t('navigation.home') }}</span>
-        </v-btn>
-      </template>
-      {{ t('navigation.home') }}
-    </v-tooltip>
-
-    <!-- Media types -->
     <v-tooltip
-      v-for="media in mediaTypes"
-      :key="media.id"
+      v-for="link in libraryLinks"
+      :key="link.key"
       location="top"
     >
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
-          :to="`/media?mediaTypeId=${media.id}`"
-          variant="text"
-          color="primary"
-          exact
-        >
-          <v-icon>{{ `mdi-${media.icon}` }}</v-icon>
-          <span>{{ getMediaTypeName(media, t) }}</span>
-        </v-btn>
-      </template>
-      {{ getMediaTypeName(media, t) }}
-    </v-tooltip>
-
-    <!-- Playlists -->
-    <v-tooltip v-if="settings.showPlaylistsInNavigation === '1'" location="top">
-      <template #activator="{ props }">
-        <v-btn
-          v-bind="props"
-          to="/playlists"
+          :to="link.to"
+          :exact="link.exact"
           variant="text"
           color="primary"
         >
-          <v-icon>mdi-format-list-bulleted</v-icon>
-          <span>{{ t('navigation.playlists') }}</span>
+          <v-icon>{{ link.icon }}</v-icon>
+          <span>{{ link.title }}</span>
         </v-btn>
       </template>
-      {{ t('navigation.playlists') }}
+      {{ link.title }}
     </v-tooltip>
 
-    <!-- Markers -->
-    <v-tooltip v-if="settings.showMarkersInNavigation === '1'" location="top">
-      <template #activator="{ props }">
-        <v-btn
-          v-bind="props"
-          to="/markers"
-          variant="text"
-          color="primary"
-        >
-          <v-icon>mdi-tooltip-outline</v-icon>
-          <span>{{ t('navigation.markers') }}</span>
-        </v-btn>
-      </template>
-      {{ t('navigation.markers') }}
-    </v-tooltip>
-
-    <!-- Meta -->
     <v-tooltip
-      v-for="i in meta"
-      :key="i.id"
+      v-for="item in metaVisible"
+      :key="item.id"
       location="top"
     >
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
-          :to="`/meta?metaId=${i.id}`"
+          :to="metaPath(item.id)"
           variant="text"
           color="primary"
           exact
         >
-          <v-icon>{{ `mdi-${i.icon}` }}</v-icon>
-          <span>{{ i.name }}</span>
+          <v-icon>{{ `mdi-${item.icon}` }}</v-icon>
+          <span>{{ item.name }}</span>
         </v-btn>
       </template>
-      {{ i.name }}
+      {{ item.name }}
     </v-tooltip>
 
-    <!-- Hidden menu -->
     <v-menu
-      v-if="mediaTypesHidden.length || hiddenMeta.length"
+      v-if="mediaTypesHidden.length || metaHidden.length"
       v-model="hiddenMetaMenu"
       location="top"
     >
@@ -151,84 +90,83 @@ function openDialogFolder(folder: WatcherFilesEntry) {
 
       <v-list density="compact">
         <v-list-item
-          v-for="i in hiddenMeta"
-          :key="i.id"
-          :to="`/meta?metaId=${i.id}`"
+          v-for="item in metaHidden"
+          :key="item.id"
+          :to="metaPath(item.id)"
           color="primary"
           density="compact"
           exact
           link
         >
           <template #prepend>
-            <v-icon>{{ `mdi-${i.icon}` }}</v-icon>
+            <v-icon>{{ `mdi-${item.icon}` }}</v-icon>
           </template>
           <template #title>
-            <span>{{ i.name }}</span>
+            <span>{{ item.name }}</span>
           </template>
         </v-list-item>
       </v-list>
     </v-menu>
 
-    <!-- Settings -->
     <v-tooltip location="top">
       <template #activator="{ props }">
-        <v-btn v-bind="props"
-          to="/settings"
+        <v-btn
+          v-bind="props"
+          :to="settingsLink.to"
           color="primary"
-          variant="text">
-          <v-icon>mdi-cog-outline</v-icon>
-          <span>{{ t('navigation.settings') }}</span>
+          variant="text"
+        >
+          <v-icon>{{ settingsLink.icon }}</v-icon>
+          <span>{{ settingsLink.title }}</span>
         </v-btn>
       </template>
-      {{ t('navigation.settings') }}
+      {{ settingsLink.title }}
     </v-tooltip>
 
-    <!-- Watcher folders -->
     <div
-      v-if="watcherFiles.length && settings.watchFolders === '1'"
+      v-if="showWatcherFolders"
       class="folders"
       @mouseover="folderHovered = true"
       @mouseleave="folderHovered = false"
     >
       <v-tooltip
-        v-for="i in watcherFiles"
-        :key="i.folder.id"
+        v-for="entry in watcherFiles"
+        :key="entry.folder.id"
         location="top"
       >
         <template #activator="{ props }">
           <div class="folder-wrapper">
             <v-btn
               v-bind="props"
-              @click="openDialogFolder(i)"
-              :disabled="watcherStore.busy"
+              @click="openDialogFolder(entry)"
+              :disabled="watcherBusy"
               class="folder v-btn--selected v-btn--active"
               variant="text"
             >
-              <v-icon v-if="watcherStore.busy">mdi-folder-sync-outline</v-icon>
+              <v-icon v-if="watcherBusy">mdi-folder-sync-outline</v-icon>
               <v-icon v-else>mdi-folder-outline</v-icon>
             </v-btn>
 
-            <!-- badges -->
             <v-badge
-              v-if="!watcherStore.busy"
-              :content="watcherBadgeCountsByFolderId[i.folder.id]?.new ?? 0"
+              v-if="!watcherBusy"
+              :content="watcherBadgeCountsByFolderId[entry.folder.id]?.new ?? 0"
               :dot="!folderHovered"
               :offset-x="!folderHovered ? 48 : 55"
               :offset-y="!folderHovered ? -16 : -20"
               color="success"
             />
             <v-badge
-              v-if="!watcherStore.busy"
-              :content="watcherBadgeCountsByFolderId[i.folder.id]?.lost ?? 0"
+              v-if="!watcherBusy"
+              :content="watcherBadgeCountsByFolderId[entry.folder.id]?.lost ?? 0"
               :dot="!folderHovered"
               :offset-x="!folderHovered ? 48 : 55"
               :offset-y="!folderHovered ? 0 : 2"
               color="error"
-            ></v-badge>
+            />
           </div>
         </template>
 
-        <span>{{ i.folder.name }}</span>
+        <span>{{ entry.folder.name }}</span>
       </v-tooltip>
     </div>
   </v-bottom-navigation>
