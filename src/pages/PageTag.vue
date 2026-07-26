@@ -348,6 +348,7 @@ import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
 import {useEventBus} from '@/utils/eventBus'
+import {registerPageTagLayoutRemount} from '@/composable/pageTagLayoutRemount'
 import path from 'path-browserify';
 import LayoutItems from "@/layouts/LayoutItems.vue";
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -901,6 +902,8 @@ const handleUpdateLayoutItems = () => {
   upd.value = Date.now()
 }
 
+let unregisterLayoutRemount: (() => void) | null = null
+
 const handleGetMeta = async () => {
   if (!is_init.value || !meta.value.id) return
 
@@ -934,15 +937,16 @@ onMounted(async () => {
   applyRouteContext()
   await init()
 
+  unregisterLayoutRemount = registerPageTagLayoutRemount(handleUpdateLayoutItems)
   eventBus.on("getTag", handleGetTag)
   eventBus.on("getMeta", handleGetMeta)
-  eventBus.on("updateLayoutItems", handleUpdateLayoutItems)
 
   panel.value = [0]
 })
 
 onBeforeUnmount(() => {
-  eventBus.off("updateLayoutItems")
+  unregisterLayoutRemount?.()
+  unregisterLayoutRemount = null
   eventBus.off("getTag")
   eventBus.off("getMeta", handleGetMeta)
 })

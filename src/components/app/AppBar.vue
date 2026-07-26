@@ -125,8 +125,8 @@ import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
-import {useEventBus} from '@/utils/eventBus'
 import {useI18n} from 'vue-i18n'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 
@@ -149,7 +149,7 @@ const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs
 const itemsStore = useItemsStore()
 const app = useAppStore()
 const registrationStore = useRegistrationStore()
-const eventBus = useEventBus()
+const pageCommands = useItemsPageCommands()
 
 /* Router & i18n */
 const route = useRoute()
@@ -175,7 +175,7 @@ function openRandomItem() {
   const ids = itemsStore.entities.map(i => i.id)
   if (ids.length > 0) {
     const rand = Math.floor(Math.random() * ids.length)
-    eventBus.emit('openRandomItem', ids[rand])
+    pageCommands.openRandomItem(ids[rand])
   }
 }
 

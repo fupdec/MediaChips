@@ -240,7 +240,7 @@ export function useItemsPageEvents({
     void getItemsFromDb()
   }
 
-  const handleUpdateAssignedMeta: Handler = async () => {
+  const handleUpdateAssignedMeta = async () => {
     await getPinnedMeta()
   }
 
@@ -258,7 +258,7 @@ export function useItemsPageEvents({
       })
   }
 
-  const handleOpenRandomItem: Handler = (event) => {
+  const handleOpenRandomItem = (event: number) => {
     const id = Number(event)
     const navigationPool = ITEMS.value.navigationItems.length
       ? ITEMS.value.navigationItems
@@ -296,9 +296,7 @@ export function useItemsPageEvents({
   const eventHandlers: Array<[string, Handler]> = [
     ['getItemsFromDb', handleGetItemsFromDb],
     ['removeEntitiesFromState', handleRemoveEntitiesFromState],
-    ['updateAssignedMeta', handleUpdateAssignedMeta],
     ['getMeta', handleGetMeta],
-    ['openRandomItem', handleOpenRandomItem],
   ]
 
   let unregisterPageCommands: (() => void) | null = null
@@ -311,6 +309,8 @@ export function useItemsPageEvents({
       setSortDir: handleSetItemsSortDir,
       setView: handleSetItemsView,
       setGroupBy: handleSetItemsGroupBy,
+      refreshAssignedMeta: handleUpdateAssignedMeta,
+      openRandomItem: handleOpenRandomItem,
     })
 
     for (const [name, handler] of eventHandlers) {

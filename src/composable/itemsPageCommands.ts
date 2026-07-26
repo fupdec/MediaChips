@@ -7,6 +7,8 @@ export type ItemsPageCommands = {
   setSortDir: (sortDir: string) => void
   setView: (view: number | string) => void
   setGroupBy: (groupBy: string) => void
+  refreshAssignedMeta: () => void | Promise<void>
+  openRandomItem: (id: number) => void
 }
 
 let active: ItemsPageCommands | null = null
@@ -26,5 +28,7 @@ export function useItemsPageCommands(): ItemsPageCommands {
     setSortDir: (sortDir) => active?.setSortDir(sortDir),
     setView: (view) => active?.setView(view),
     setGroupBy: (groupBy) => active?.setGroupBy(groupBy),
+    refreshAssignedMeta: () => active?.refreshAssignedMeta(),
+    openRandomItem: (id) => active?.openRandomItem(id),
   }
 }

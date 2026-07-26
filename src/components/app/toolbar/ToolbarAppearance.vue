@@ -158,6 +158,7 @@ import {useItemsStore} from '@/stores/items'
 import {useToolbarStore} from '@/stores/toolbar'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {typedApi} from '@/services/typedApi'
 
 // Components
@@ -222,7 +223,7 @@ const toggleMetaVisibility = async (metaItem: AssignedMeta) => {
     }
 
     // Emit event or update store
-    eventBus.emit('updateAssignedMeta')
+    void pageCommands.refreshAssignedMeta()
   } catch (error) {
     console.error('Error toggling meta visibility:', error)
   }
@@ -241,8 +242,8 @@ const updatePinnedMeta = () => {
   if (itemsStore.type === 'tag') {
     eventBus.emit('getMeta')
   }
-  eventBus.emit('updateAssignedMeta')
-  eventBus.emit('updateLayoutItems')
+  void pageCommands.refreshAssignedMeta()
+  remountPageTagLayoutItems()
 }
 
 const closePinnedMetaDialog = () => {

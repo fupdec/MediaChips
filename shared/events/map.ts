@@ -23,10 +23,7 @@ export type EventBusMap = {
   showAddMediaDialog: void
   showKeyboardShortcuts: void
   openTasksMenu: void
-  openRandomItem: number
   openTagsAddWithNames: OpenTagsAddWithNamesEvent | string[] | undefined
-  updateLayoutItems: void
-  updateAssignedMeta: void
   scrollToNowPlaying: void
   updateMarkImage: number | string
   refreshMarkThumbs: void
