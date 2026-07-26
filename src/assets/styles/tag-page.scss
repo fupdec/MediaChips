@@ -1,3 +1,17 @@
+.tag-page {
+  .tag-header,
+  .tag-header-minimal {
+    transition: padding-inline-start 200ms ease;
+  }
+
+  &--filters-docked {
+    .tag-header,
+    .tag-header-minimal {
+      padding-inline-start: 450px;
+    }
+  }
+}
+
 .tag-header {
   display: flex;
   background-size: cover;

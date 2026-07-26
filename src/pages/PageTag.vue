@@ -1,5 +1,11 @@
 <template>
-  <div :class="['tag-page', `tag-page--${tagPageDesign}`]">
+  <div
+    :class="[
+      'tag-page',
+      `tag-page--${tagPageDesign}`,
+      {'tag-page--filters-docked': filtersDocked},
+    ]"
+  >
     <v-container v-if="loadError" class="py-4">
       <v-alert type="error" rounded="xl" variant="tonal">
         {{ loadError }}
@@ -385,9 +391,14 @@ interface TagImages {
   custom1: string | null
   custom2: string | null
 }
+/** Keep in sync with Filters.vue dock breakpoint / drawer width. */
+const FILTERS_DRAWER_WIDTH = 450
+const SIDEBAR_WIDTH = 280
+const MIN_CONTENT_WIDTH = 640
+
 const route = useRoute()
 const router = useRouter()
-const {lg, md, sm, xs} = useDisplay()
+const {lg, md, sm, xs, width} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
@@ -444,6 +455,10 @@ function notifyLoadError(error: unknown): void {
 // Computed
 const ENV = computed(() => itemsStore.environment)
 const tagPageDesign = computed(() => normalizeTagPageDesign(meta.value.tagPageDesign))
+const filtersDocked = computed(() =>
+  Boolean(appStore.filters.visible)
+  && width.value >= SIDEBAR_WIDTH + FILTERS_DRAWER_WIDTH + MIN_CONTENT_WIDTH,
+)
 const headerAspectRatio = computed(() => getTagPageHeaderAspectRatio(tagPageDesign.value))
 const avatarSize = computed(() => {
   if (tagPageDesign.value === 'minimal') {
