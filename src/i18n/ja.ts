@@ -1176,7 +1176,7 @@ const ja = {
       show_markers: "ナビゲーションにマーカーを表示する",
       page: "ページ",
       saved_filters: "保存済みフィルターセット",
-      saved_filters_hint: "タグとメディアのページの見出しの下にある",
+      saved_filters_hint: "ページ見出しの下にクイック適用チップを表示。セットの管理はフィルターパネルで。",
       quick_action_button: "クイックアクションボタン",
       quick_action_button_hint:
         "アプリバーからのアクションを備えたフローティング ボタン",
@@ -2092,6 +2092,8 @@ const ja = {
     simple: "シンプル",
     advanced: "詳細",
     drag_to_reorder: "ドラッグして並べ替えます",
+    edit_mode: "編集",
+    edit_mode_hint: "追加・削除・並べ替えと保存セットの管理",
     saving_filter: "フィルタの保存",
     filter_name: "フィルターセット名",
     save_current: "現在のフィルターを保存",

@@ -22,9 +22,27 @@
       </v-overlay>
 
       <v-card-actions class="pt-3 pb-6">
-        <div class="d-flex justify-center align-center">
-          <v-icon start>mdi-filter</v-icon>
-          <span class="text-h5">{{ t('filters.title') }}</span>
+        <div class="d-flex align-center ga-3 min-width-0">
+          <div class="d-flex align-center">
+            <v-icon start>mdi-filter</v-icon>
+            <span class="text-h5">{{ t('filters.title') }}</span>
+          </div>
+
+          <v-switch
+            v-if="filters.length >= 1"
+            v-model="editMode"
+            color="primary"
+            density="compact"
+            hide-details
+            inset
+            class="flex-grow-0 ma-0 filters-edit-switch"
+            :aria-label="t('filters.edit_mode')"
+            :title="t('filters.edit_mode_hint')"
+          >
+            <template #thumb>
+              <v-icon v-if="editMode" size="x-small">mdi-pencil</v-icon>
+            </template>
+          </v-switch>
         </div>
 
         <v-spacer></v-spacer>
@@ -35,8 +53,9 @@
       </v-card-actions>
 
       <div class="px-2">
-        <div class="d-flex align-center justify-space-between mb-2 ga-2">
+        <div class="d-flex align-center mb-2 ga-2" :class="editMode ? 'justify-space-between' : ''">
           <v-btn
+            v-if="editMode"
             variant="tonal"
             rounded="xl"
             size="small"
@@ -52,48 +71,29 @@
             :color="is_filters_changed ? 'success' : 'primary'"
             rounded="xl"
             variant="flat"
+            :block="!editMode"
+            :class="{ 'flex-grow-1': !editMode }"
           >
             <v-icon start size="small">mdi-check</v-icon>
             {{ t('common.apply') }}
           </v-btn>
         </div>
 
-        <v-spacer class="py-2"></v-spacer>
-
         <FiltersAdd
-          v-if="isReady"
+          v-if="isReady && (editMode || filters.length === 0)"
           @add="add"
           :params="listBy"
-          :disabled="ITEMS.find_duplicates"
           class="my-2"
         />
-
-        <v-spacer class="py-2"></v-spacer>
-
-        <div
-          v-if="filters.length > 1"
-          class="d-flex align-center justify-space-between mb-4"
-        >
-          <v-btn @click="toggleRemovingAll" color="error" variant="tonal" rounded="xl" size="small">
-            <v-icon start size="small">mdi-close</v-icon>
-            {{ t('common.remove_all') }}
-          </v-btn>
-
-          <v-btn @click="toggleActivationAll" color="success" variant="tonal" rounded="xl" size="small">
-            {{ t('common.activate_all') }}
-            <v-icon end size="small">mdi-check-all</v-icon>
-          </v-btn>
-        </div>
       </div>
 
-      <v-card-text v-if="isReady" :disabled="ITEMS.find_duplicates" class="filters-list">
-        <draggable
-          v-if="filters.length > 0"
+      <v-card-text v-if="isReady" class="filters-list">
+        <Draggable
+          v-if="filters.length > 0 && editMode"
           v-model="filters"
           v-bind="dragOptions"
           :item-key="dragItemKey"
           handle=".drag-handle"
-          :disabled="ITEMS.find_duplicates"
           @end="onReorder"
           class="filters-draggable"
         >
@@ -102,6 +102,7 @@
               :filter="f"
               :index="i"
               :list-by="listBy"
+              editable
               @set-by="setBy($event, i)"
               @set-condition="setCondition($event, i)"
               @set-value="setValue($event, i)"
@@ -109,10 +110,27 @@
               @remove="remove(i)"
               @pick-date="pickDate(i)"
               @valid="validate"
-              ref="filterRows"
-            ></FilterRow>
+            />
           </template>
-        </draggable>
+        </Draggable>
+
+        <template v-else-if="filters.length > 0">
+          <FilterRow
+            v-for="(f, i) in filters"
+            :key="String(f.id ?? f.clientKey ?? i)"
+            :filter="f"
+            :index="i"
+            :list-by="listBy"
+            @set-by="setBy($event, i)"
+            @set-condition="setCondition($event, i)"
+            @set-value="setValue($event, i)"
+            @set-active="setActive($event, i)"
+            @remove="remove(i)"
+            @pick-date="pickDate(i)"
+            @valid="validate"
+            ref="filterRows"
+          />
+        </template>
 
         <div v-else class="text-center py-6 overline">
           <v-img src="/images/filters/filters-none.svg" class="my-4" contain/>
@@ -145,11 +163,10 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
+import {ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
 import dayjs from 'dayjs'
-import draggable from 'vuedraggable'
 import {cloneFilters, filtersEqual} from '@/utils/filterClone'
 import {typedApi} from '@/services/typedApi'
 import {getSavedFilters} from '@/services/filterService'
@@ -178,6 +195,8 @@ import cols from '../../../app/configs/filter-cols'
 import FilterRow from '@/components/app/FilterRow.vue'
 import DialogFiltersSaved from '@/components/dialogs/filters/DialogFiltersSaved.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
+
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
 /**
  обозначения ключей для объекта "фильтр":
@@ -230,8 +249,7 @@ const datePicker = ref<{
 const dialogSaved = ref(false)
 const filterRows = ref<Array<InstanceType<typeof FilterRow>> | null>(null)
 const filtersPreviousState = ref<FilterObject[]>([])
-const removeAllState = ref(true)
-const deactivateAllState = ref(true)
+const editMode = ref(false)
 
 const dragOptions = {
   animation: 200,
@@ -241,7 +259,12 @@ const dragOptions = {
 const dragItemKey = (filter: FilterObject) => String(filter.id ?? filter.clientKey)
 
 // Computed
-const filtersVisible = computed(() => filtersStore.visible)
+const filtersVisible = computed({
+  get: () => filtersStore.visible,
+  set: (value: boolean) => {
+    filtersStore.visible = value
+  },
+})
 
 const ITEMS = computed(() => itemsStore)
 const ENV = computed(() => ITEMS.value.environment)
@@ -368,6 +391,7 @@ const add = (params: FilterListParam[]) => {
     })
     filters.value.push(filter_obj)
   }
+  editMode.value = true
 }
 
 const reindexFilterOrder = () => {
@@ -414,11 +438,6 @@ const removeAll = (state?: boolean) => {
   updKey.value += Date.now()
 }
 
-const toggleRemovingAll = () => {
-  removeAll(removeAllState.value)
-  removeAllState.value = !removeAllState.value
-}
-
 const deactivateAll = (state?: boolean) => {
   const is_active = state === undefined ? false : state
   const updatedFilters = filters.value.map(i =>
@@ -428,11 +447,6 @@ const deactivateAll = (state?: boolean) => {
   updKey.value += Date.now()
 }
 
-const toggleActivationAll = () => {
-  deactivateAll(deactivateAllState.value)
-  deactivateAllState.value = !deactivateAllState.value
-}
-
 const validateFilters = () => {
   if (filters.value.length === 0) {
     valid.value = true
@@ -440,15 +454,9 @@ const validateFilters = () => {
 }
 
 const apply = async () => {
-  if (ITEMS.value.find_duplicates) {
-    eventBus.emit('setItemsFilters', {filters: filters.value})
-
+  validateFilters()
+  if (!valid.value) {
     return
-  } else {
-    validateFilters()
-    if (!valid.value) {
-      return
-    }
   }
 
   const savedFilter = ITEMS.value.savedFilter
@@ -600,6 +608,14 @@ watch(() => props.isReady, (val) => {
 watch(currentMediaType, () => {
   if (props.isReady && ITEMS.value.type === 'media') init()
 })
+
+watch(() => filters.value.length, (length) => {
+  if (length < 1) editMode.value = false
+})
+
+watch(filtersVisible, (visible) => {
+  if (!visible) editMode.value = false
+})
 </script>
 
 <style lang="scss">
@@ -688,6 +704,21 @@ watch(currentMediaType, () => {
 
   .filter-form .filter {
     margin-bottom: 0 !important;
+  }
+}
+
+.filters-edit-switch {
+  transform: scale(0.82);
+  transform-origin: left center;
+
+  :deep(.v-selection-control) {
+    min-height: 28px;
+  }
+
+  :deep(.v-switch__thumb) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 </style>

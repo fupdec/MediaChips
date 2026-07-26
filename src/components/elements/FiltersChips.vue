@@ -1,131 +1,84 @@
 <template>
-  <div class="d-flex">
-    <!-- DUPLICATES MODE -->
-    <v-switch
+  <div class="d-flex flex-wrap align-center">
+    <v-chip
       v-if="itemsStore.find_duplicates"
-      v-model="itemsStore.find_duplicates"
-      @click="switchOffDuplicates"
+      class="ma-1 px-2"
       color="primary"
-      class="mt-0 ml-2"
-      hide-details
-      density="compact"
-      inset
+      size="small"
+      variant="flat"
+      :title="t('filters.deactivate_filter')"
+      @click="switchOffDuplicates"
     >
-      <template #label>
-        <div class="ml-2 text-medium-emphasis">{{ duplicatesLabel }}</div>
-      </template>
-    </v-switch>
+      <v-icon size="14" class="mr-1">mdi-content-duplicate</v-icon>
+      {{ duplicatesLabel }}
+    </v-chip>
 
-    <!-- FILTER CHIPS -->
-    <div
-      v-else
-      class="d-flex flex-wrap align-center"
+    <v-chip
+      v-for="(filter, index) in filters"
+      :key="index"
+      v-show="shouldShowFilter(filter)"
+      class="ma-1 px-2"
+      :class="{
+        readonly: isTooltip,
+        'filter-chip--inactive': isTooltip && !isFilterRowActive(filter),
+      }"
+      :color="getChipColor(filter)"
+      size="small"
+      :variant="getChipVariant(filter)"
+      :disabled="(filter.lock && !isTooltip) || !itemsStore.isFiltersLoaded"
+      :title="getChipTitle(filter)"
+      @click="deactivate(index)"
     >
-      <!-- DEACTIVATE ALL -->
-      <div v-if="activeFilters.length && !readonly">
-        <v-tooltip v-if="isTooltip" location="top">
-          <template #activator="{ props }">
-            <v-btn
-              v-bind="props"
-              icon
-              color="primary"
-              class="mr-2"
-              :disabled="!itemsStore.isFiltersLoaded"
-              @click="deactivateAll"
-            >
-              <v-icon>mdi-filter-remove</v-icon>
-            </v-btn>
-          </template>
-          <span>{{ t('filters.deactivate_all_filters') }}</span>
-        </v-tooltip>
-
-        <v-btn
-          v-else
-          variant="text"
-          rounded
-          size="small"
-          class="mr-2"
-          color="primary"
-          :disabled="!itemsStore.isFiltersLoaded"
-          @click="deactivateAll"
-        >
-          <v-icon start>mdi-filter-remove</v-icon>
-          {{ t('filters.deactivate_all_filters') }}
-        </v-btn>
-      </div>
-
-      <!-- FILTER CHIP -->
-      <v-chip
-        v-for="(filter, index) in filters"
-        :key="index"
-        v-show="shouldShowFilter(filter)"
-        class="ma-1 px-2"
-        :class="{
-          readonly: isTooltip,
-          'filter-chip--inactive': isTooltip && !isFilterRowActive(filter),
-        }"
-        :color="getChipColor(filter)"
-        size="small"
-        :variant="getChipVariant(filter)"
-        :disabled="(filter.lock && !isTooltip) || !itemsStore.isFiltersLoaded"
-        :title="getChipTitle(filter)"
-        @click="deactivate(index)"
+      <v-icon
+        v-if="filter.lock"
+        size="14"
+        class="mr-1"
       >
-        <!-- LOCK -->
-        <v-icon
-          v-if="filter.lock"
-          size="14"
-          class="mr-1"
-        >
-          mdi-lock
+        mdi-lock
+      </v-icon>
+
+      <span v-if="showIcons" class="d-flex align-center">
+        <v-icon size="14" class="mr-1">
+          mdi-{{ getBy(filter.param, 'icon') }}
         </v-icon>
+        <v-icon size="14">
+          mdi-{{ getCond(filter.type, filter.cond, 'icon') }}
+        </v-icon>
+      </span>
 
-        <!-- ICON MODE -->
-        <span v-if="showIcons" class="d-flex align-center">
-          <v-icon size="14" class="mr-1">
-            mdi-{{ getBy(filter.param, 'icon') }}
-          </v-icon>
-          <v-icon size="14">
-            mdi-{{ getCond(filter.type, filter.cond, 'icon') }}
-          </v-icon>
+      <span v-else>
+        <span class="mr-1">
+          "{{ getBy(filter.param, 'text') }}"
         </span>
+        <span>
+          {{ getCond(filter.type, filter.cond, 'text') }}
+        </span>
+      </span>
 
-        <!-- TEXT MODE -->
-        <span v-else>
-          <span class="mr-1">
-            "{{ getBy(filter.param, 'text') }}"
-          </span>
-          <span>
-            {{ getCond(filter.type, filter.cond, 'text') }}
-          </span>
-        </span>
+      <span v-if="filter.type === 'array'" class="ml-1">
+        <template v-if="filter.param === 'country'">
+          "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
+        </template>
+        <template v-else-if="filter.param === 'ext'">
+          "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
+        </template>
+        <template v-else>
+          "{{ getTagName(filter.param, filter.val) }}"
+        </template>
+      </span>
 
-        <!-- VALUE -->
-        <span v-if="filter.type === 'array'" class="ml-1">
-          <template v-if="filter.param === 'country'">
-            "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
-          </template>
-          <template v-else-if="filter.param === 'ext'">
-            "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
-          </template>
-          <template v-else>
-            "{{ getTagName(filter.param, filter.val) }}"
-          </template>
-        </span>
+      <span v-else-if="filter.type === 'number'" class="ml-1">
+        <span v-html="getValForTypeNumber(filter.param, filter.val)"/>
+      </span>
 
-        <span v-else-if="filter.type === 'number'" class="ml-1">
-          <span v-html="getValForTypeNumber(filter.param, filter.val)"/>
-        </span>
+      <span v-else-if="filter.type === 'date'" class="ml-1">
+        "{{ formatFilterDateDisplay(filter.val, locale) }}"
+      </span>
 
-        <span v-else-if="filter.type === 'date'" class="ml-1">
-          "{{ formatFilterDateDisplay(filter.val, locale) }}"
-        </span>
-
-        <span v-else-if="filter.type !== 'boolean'" class="ml-1">
-          "{{ filter.val }}"
-        </span>
-      </v-chip>
-    </div>
+      <span v-else-if="filter.type !== 'boolean'" class="ml-1">
+        "{{ filter.val }}"
+      </span>
+    </v-chip>
   </div>
 </template>
 
@@ -144,10 +97,6 @@ import {getListCond, getReadableFileSize, getReadableDuration, formatFilterDateD
 import {getDuplicatesModeLabelKey} from '@/utils/mediaSortFilter'
 import type { FilterObject, FilterListParam } from '@/types/common'
 
-/* =========================
- * PROPS
- * ========================= */
-
 const props = defineProps({
   filters: {
     type: Array as PropType<FilterObject[]>,
@@ -165,23 +114,11 @@ const props = defineProps({
 
 const colsCache = ref<FilterListParam[] | null>(null)
 
-/* =========================
- * STORES
- * ========================= */
-
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const eventBus = useEventBus()
 const {t, locale} = useI18n()
-
-/* =========================
- * COMPUTED
- * ========================= */
-
-const activeFilters = computed(() =>
-  props.filters.filter(f => f.active && !f.lock)
-)
 
 const showIcons = computed(() =>
   settingsStore.showIconsInsteadTextOnFiltersChips === '1'
@@ -202,21 +139,15 @@ const duplicatesLabel = computed(() => {
 const meta = computed(() => appStore.meta)
 const tags = computed(() => appStore.tags)
 
-/* =========================
- * METHODS
- * ========================= */
-
 const switchOffDuplicates = () => {
+  if (props.readonly || props.isTooltip) return
   itemsStore.find_duplicates = false
-  eventBus.emit("applyFilters")
-}
-
-const deactivateAll = () => {
-  eventBus.emit("deactivateAllFilters")
+  eventBus.emit('applyFilters')
 }
 
 const deactivate = (index: number) => {
-  eventBus.emit("deactivateFilter", index);
+  if (props.readonly) return
+  eventBus.emit('deactivateFilter', index)
 }
 
 const isFilterRowActive = (filter: FilterObject) => filter.active !== false && !filter.removed
@@ -253,7 +184,6 @@ const getBy = (param: string | number | null, show: string) => {
     return (m?.[key as keyof typeof m] as string) || ''
   }
 
-  // Кешируйте cols для производительности
   if (!colsCache.value) {
     colsCache.value = Object.values(Cols).flat() as FilterListParam[]
   }
@@ -262,7 +192,6 @@ const getBy = (param: string | number | null, show: string) => {
   if (show === 'text' && col?.textKey) return t(col.textKey)
   return (col?.[show as keyof FilterListParam] as string) || ''
 }
-
 
 const getCond = (type: string | null, cond: string | null, show: string) => {
   try {

@@ -20,6 +20,7 @@
       <div class="d-flex align-center justify-space-between filter__header">
         <div class="d-flex align-center min-width-0 filter__title_block">
           <v-btn
+            v-if="editable"
             @click="toggleRemoved"
             color="error"
             class="mr-0 flex-shrink-0"
@@ -39,7 +40,7 @@
           </v-btn>
 
           <v-btn
-            v-if="!is_locked"
+            v-if="editable && !is_locked"
             class="drag-handle flex-shrink-0"
             icon
             size="x-small"
@@ -50,9 +51,12 @@
             <v-icon size="18">mdi-drag</v-icon>
           </v-btn>
 
-          <div class="d-flex align-center min-width-0 filter__title_content">
+          <div
+            class="d-flex align-center min-width-0 filter__title_content"
+            :class="{ 'pl-3': !editable }"
+          >
             <v-icon size="small" class="flex-shrink-0 filter__icon">mdi-{{ icon }}</v-icon>
-            <div class="text-body-2 filter__title">{{ title }}</div>
+            <div class="text-body-2 font-weight-regular filter__title">{{ title }}</div>
           </div>
         </div>
 
@@ -270,7 +274,6 @@ import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import find from 'lodash/find'
-import {useItemsStore} from '@/stores/items'
 import type { FilterObject, FilterListParam } from '@/types/common'
 import type { VForm } from 'vuetify/components'
 import {
@@ -296,7 +299,11 @@ const props = defineProps({
   listBy: {
     type: Array as PropType<FilterListParam[]>,
     default: () => []
-  }
+  },
+  editable: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Emits
@@ -318,7 +325,6 @@ const title = ref('')
 const folderDialog = ref(false)
 
 // Stores and composables
-const itemsStore = useItemsStore()
 const {t, locale} = useI18n()
 
 // Computed properties
@@ -327,7 +333,7 @@ const removed = computed(() => modelFilter.value.removed)
 const parameter = computed(() => modelFilter.value.param)
 const condition = computed(() => modelFilter.value.cond)
 const is_locked = computed(() => modelFilter.value.lock)
-const isDisabled = computed(() => !!(is_locked.value || (itemsStore.environment.media_type_id && itemsStore.find_duplicates)))
+const isDisabled = computed(() => !!is_locked.value)
 const metaIdParam = computed(() => {
   const param = parameter.value
   return typeof param === 'number' ? param : Number(param)
@@ -476,3 +482,8 @@ defineExpose({
   validate,
 })
 </script>
+<style scoped>
+.filter__title {
+  font-weight: 400;
+}
+</style>
