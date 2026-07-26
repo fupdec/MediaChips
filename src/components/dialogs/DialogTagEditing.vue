@@ -73,6 +73,7 @@ import DialogHeader from '@/components/elements/DialogHeader.vue'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
 import {useEventBus} from "@/utils/eventBus"
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 
@@ -273,7 +274,7 @@ const deleteTag = async () => {
       type: 'tag',
     })
 
-    eventBus.emit('getTags', [])
+    void reloadTagsCatalog()
 
     close()
 
@@ -319,7 +320,7 @@ const save = async () => {
   }
 
   if (itemsStore.type === 'media') {
-    eventBus.emit('getTags')
+    void reloadTagsCatalog()
   }
 
   dialogsStore.tagEditing.show = false

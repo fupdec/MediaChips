@@ -164,6 +164,7 @@ import orderBy from 'lodash/orderBy'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {useEventBus} from "@/utils/eventBus"
+import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
 import {
   foundByChars,
   getTextColor,
@@ -508,7 +509,7 @@ const create = async () => {
     setVal(newVal)
     await getTags('')
 
-    eventBus.emit("getTags")
+    void reloadTagsCatalog()
 
     const routeMetaId = router.currentRoute.value.query.metaId
     if (routeMetaId != null && +routeMetaId === props.metaId) {
@@ -606,17 +607,22 @@ const getMeta = async () => {
 }
 
 // Lifecycle hooks
+let unsubscribeTagsCatalog: (() => void) | null = null
+
 onMounted(async () => {
   await getMeta()
 
   val.value = normalizeIds(props.modelValue)
   await getTags('')
-  eventBus.on('getTags', refreshTagsFromEvent)
+  unsubscribeTagsCatalog = onTagsCatalogChanged(() => {
+    void refreshTagsFromEvent()
+  })
 })
 
 onUnmounted(() => {
   runGetTags.cancel()
-  eventBus.off('getTags', refreshTagsFromEvent)
+  unsubscribeTagsCatalog?.()
+  unsubscribeTagsCatalog = null
 })
 
 // Watchers

@@ -3,6 +3,7 @@ import {defineStore} from 'pinia'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
@@ -380,7 +381,7 @@ export const useItemsStore = defineStore('items', {
       })
 
       if (itemType === 'tag') {
-        eventBus.emit('getTags')
+        void reloadTagsCatalog()
       }
     },
 

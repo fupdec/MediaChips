@@ -4,6 +4,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import translate, {type Locale} from '@/utils/translate'
 import {resolveSelectedTags, getAllTagsForMeta} from '@/utils/resolveSelectedTags'
@@ -93,7 +94,7 @@ export function useTmdbPersonAutoScrapeBatch() {
     }
 
     if (successCount) {
-      eventBus.emit('getTags')
+      void reloadTagsCatalog()
       void reloadMetaCatalog()
     }
 

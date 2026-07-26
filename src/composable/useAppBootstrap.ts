@@ -18,6 +18,12 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {registerMetaCatalogLoader} from '@/composable/metaCatalog'
+import {
+  registerTagsCatalogLoader,
+  registerTabsCatalogLoader,
+  registerPlaylistsCatalogLoader,
+  registerMediaTypesCatalogLoader,
+} from '@/composable/appCatalogs'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
 import {openWhatsNewIfNeeded} from '@/composable/useWhatsNew'
@@ -426,22 +432,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     void getMachineId()
   }
 
-  const handleGetMediaTypes: Handler = async () => {
-    await loadList('mediaTypes')
-  }
-
-  const handleGetTags: Handler = async () => {
-    await loadList('tags')
-  }
-
-  const handleGetTabs: Handler = async () => {
-    await loadList('tabs')
-  }
-
-  const handleGetPlaylists: Handler = async () => {
-    await loadList('playlists')
-  }
-
   const handleAddMediaEvent: Handler = (event) => {
     void handleAddMedia(typeof event === 'function' ? event as () => void : undefined)
   }
@@ -469,13 +459,17 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   let unregisterMetaCatalogLoader: (() => void) | null = null
+  let unregisterTagsCatalogLoader: (() => void) | null = null
+  let unregisterTabsCatalogLoader: (() => void) | null = null
+  let unregisterPlaylistsCatalogLoader: (() => void) | null = null
+  let unregisterMediaTypesCatalogLoader: (() => void) | null = null
 
   function bindMainAppEventBus(): void {
     unregisterMetaCatalogLoader = registerMetaCatalogLoader(() => loadList('meta'))
-    eventBus.on('getMediaTypes', handleGetMediaTypes)
-    eventBus.on('getTags', handleGetTags)
-    eventBus.on('getTabs', handleGetTabs)
-    eventBus.on('getPlaylists', handleGetPlaylists)
+    unregisterTagsCatalogLoader = registerTagsCatalogLoader(() => loadList('tags'))
+    unregisterTabsCatalogLoader = registerTabsCatalogLoader(() => loadList('tabs'))
+    unregisterPlaylistsCatalogLoader = registerPlaylistsCatalogLoader(() => loadList('playlists'))
+    unregisterMediaTypesCatalogLoader = registerMediaTypesCatalogLoader(() => loadList('mediaTypes'))
     eventBus.on('update:watcher', handleUpdateWatcher)
     eventBus.on('addMedia', handleAddMediaEvent)
     eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
@@ -486,10 +480,14 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   function unbindMainAppEventBus(): void {
     unregisterMetaCatalogLoader?.()
     unregisterMetaCatalogLoader = null
-    eventBus.off('getMediaTypes', handleGetMediaTypes)
-    eventBus.off('getTags', handleGetTags)
-    eventBus.off('getTabs', handleGetTabs)
-    eventBus.off('getPlaylists', handleGetPlaylists)
+    unregisterTagsCatalogLoader?.()
+    unregisterTagsCatalogLoader = null
+    unregisterTabsCatalogLoader?.()
+    unregisterTabsCatalogLoader = null
+    unregisterPlaylistsCatalogLoader?.()
+    unregisterPlaylistsCatalogLoader = null
+    unregisterMediaTypesCatalogLoader?.()
+    unregisterMediaTypesCatalogLoader = null
     eventBus.off('update:watcher', handleUpdateWatcher)
     eventBus.off('addMedia', handleAddMediaEvent)
     eventBus.off('updateVideoFrames', handleUpdateVideoFrames)

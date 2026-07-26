@@ -71,6 +71,7 @@ import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import {typedApi} from '@/services/typedApi'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {getErrorResponseData} from '@/types/vue'
 import type {Tag} from '@/types/stores'
 
@@ -156,7 +157,7 @@ async function merge() {
       ids: [survivor.id],
       type: 'tag',
     })
-    eventBus.emit('getTags')
+    void reloadTagsCatalog()
 
     itemsStore.selection = []
     itemsStore.isSelect = false

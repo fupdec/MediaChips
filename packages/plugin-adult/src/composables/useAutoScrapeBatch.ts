@@ -3,6 +3,7 @@ import { useScraperStore } from '../stores/scraper'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
 import { useEventBus } from '@/utils/eventBus'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import translate, { type Locale } from '@/utils/translate'
 import { getAllTagsForMeta, resolveSelectedTags } from '@/utils/resolveSelectedTags'
 import type { Meta, Tag } from '@/types/stores'
@@ -57,7 +58,7 @@ export function useAutoScrapeBatch() {
         ids: successfulIds,
         type: 'tag',
       })
-      eventBus.emit('getTags')
+      void reloadTagsCatalog()
     }
 
     if (clearSelection) {

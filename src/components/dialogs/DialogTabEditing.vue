@@ -34,7 +34,7 @@ import {ref, computed, watch, defineAsyncComponent} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useEventBus} from "@/utils/eventBus"
+import {reloadTabsCatalog} from '@/composable/appCatalogs'
 import {validateName as validateNameFormat} from '@/services/formatUtils'
 
 import DialogHeader from "@/components/elements/DialogHeader.vue"
@@ -48,7 +48,6 @@ interface EditingTab {
 }
 
 const dialogsStore = useDialogsStore()
-const eventBus = useEventBus()
 
 const valid = ref(false)
 const dialogIcons = ref(false)
@@ -104,7 +103,7 @@ const save = async () => {
       icon: icon.value,
     })
 
-    eventBus.emit('getTabs')
+    void reloadTabsCatalog()
   } catch (error) {
     console.error('Error saving tab:', error)
   }

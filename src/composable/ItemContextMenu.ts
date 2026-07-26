@@ -8,6 +8,7 @@ import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useRegistrationStore} from '@/stores/registration'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
 import {
   getCurrentMediaType,
@@ -537,7 +538,7 @@ export default function useItemContextMenu(
 
       if (result.success) {
         eventBus.emit('getItemsFromDb', { ids: [item.id], type: 'tag' })
-        eventBus.emit('getTags')
+        void reloadTagsCatalog()
       }
     } finally {
       dialogsStore.process.show = false
@@ -578,7 +579,7 @@ export default function useItemContextMenu(
 
       if (result.success) {
         eventBus.emit('getItemsFromDb', { ids: [item.id], type: 'tag' })
-        eventBus.emit('getTags')
+        void reloadTagsCatalog()
       }
     } finally {
       dialogsStore.process.show = false
@@ -616,7 +617,7 @@ export default function useItemContextMenu(
         metaId: meta?.id,
         mediaTypeId: getDefaultMediaTypeId(store.mediaTypes),
       })
-      eventBus.emit('getTabs')
+      void reloadTabsCatalog()
     } catch (e) {
       console.error(e)
     }
@@ -831,7 +832,7 @@ export default function useItemContextMenu(
       })
 
       if (type === 'tag') {
-        eventBus.emit('getTags', [])
+        void reloadTagsCatalog()
       }
 
       if (type === 'media') {

@@ -44,7 +44,7 @@ import {validateName} from '@/services/formatUtils';
 import {setNotification} from '@/services/notificationService';
 import DialogHeader from '@/components/elements/DialogHeader.vue';
 import {useItemsStore} from '@/stores/items';
-import {useEventBus} from '@/utils/eventBus';
+import {reloadPlaylistsCatalog} from '@/composable/appCatalogs';
 
 const props = defineProps({
   dialog: Boolean,
@@ -59,7 +59,6 @@ const emit = defineEmits(['close', 'add']);
 const {smAndDown} = useDisplay()
 const itemsStore = useItemsStore()
 const {t} = useI18n()
-const eventBus = useEventBus()
 
 const dialogLocal = ref(props.dialog);
 const name = ref('');
@@ -112,7 +111,7 @@ const addPlaylist = async () => {
     }
 
     name.value = '';
-    eventBus.emit('getPlaylists')
+    void reloadPlaylistsCatalog()
 
     if (props.mediaIds.length > 0) {
       setNotification({

@@ -16,7 +16,7 @@ import { useItemsStore } from '@/stores/items'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {typedApi} from '@/services/typedApi'
 import {getTabUrl} from '@/services/routeService'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadTabsCatalog} from '@/composable/appCatalogs'
 import type { TabLike } from '@/types/common'
 
 /* ---------------- STORES ---------------- */
@@ -28,7 +28,6 @@ const items = useItemsStore()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
-const eventBus = useEventBus()
 
 const ENV = items.environment
 
@@ -51,7 +50,7 @@ async function add() {
     router.push(url)
 
     // заменяет $root.$emit("getTabs")
-    eventBus.emit('getTabs')
+    void reloadTabsCatalog()
 
   } catch (e) {
     console.error(e)

@@ -203,6 +203,7 @@ import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {shouldReloadListAfterBulkAction} from '@/utils/resolveSelection'
 import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
@@ -487,7 +488,7 @@ const save = async () => {
 
     const hasTagChanges = changes.some((change) => change.metaType === 'array')
     if (hasTagChanges) {
-      eventBus.emit('getTags')
+      void reloadTagsCatalog()
     }
 
     itemsStore.selection = []

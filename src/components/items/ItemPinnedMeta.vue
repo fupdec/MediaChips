@@ -217,6 +217,7 @@ import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 
 import {useEventBus} from "@/utils/eventBus"
+import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import translate, {toLocale} from '@/utils/translate'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
@@ -577,7 +578,7 @@ const openNewTab = (tag: TagWithMeta): void => {
     metaId: tag.metaId,
   })
     .then(() => {
-      eventBus.emit('getTabs')
+      void reloadTabsCatalog()
     })
     .catch((e) => {
       console.error(e)
@@ -653,7 +654,7 @@ const autoScrapeTpdbTag = async (tag: TagWithMeta): Promise<void> => {
     if (result.success) {
       refreshTagThumbDisplay(itemsStore, appStore.dbPath, meta.id, tag.id)
       eventBus.emit('getItemsFromDb', {ids: [tag.id], type: 'tag'})
-      eventBus.emit('getTags')
+      void reloadTagsCatalog()
     }
   } finally {
     dialogsStore.process.show = false
@@ -692,7 +693,7 @@ const autoScrapeTmdbTag = async (tag: TagWithMeta): Promise<void> => {
     if (result.success) {
       refreshTagThumbDisplay(itemsStore, appStore.dbPath, meta.id, tag.id)
       eventBus.emit('getItemsFromDb', {ids: [tag.id], type: 'tag'})
-      eventBus.emit('getTags')
+      void reloadTagsCatalog()
     }
   } finally {
     dialogsStore.process.show = false

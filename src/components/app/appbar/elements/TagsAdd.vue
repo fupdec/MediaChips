@@ -89,6 +89,7 @@ import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from "@/stores/notifications"
 
 import {useEventBus} from '@/utils/eventBus'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
 
 /* ---------------- INIT ---------------- */
@@ -194,7 +195,7 @@ async function add() {
       })
 
       // 🔥 заменяет $root.$emit("getTags")
-      eventBus.emit('getTags')
+      void reloadTagsCatalog()
 
       // 🔥 заменяет $root.$emit("getItemsFromDb")
       eventBus.emit('getItemsFromDb', {

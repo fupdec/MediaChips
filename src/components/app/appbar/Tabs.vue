@@ -56,7 +56,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useRouter, useRoute} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadTabsCatalog} from '@/composable/appCatalogs'
 import {useI18n} from 'vue-i18n'
 import {getTabUrl} from '@/services/routeService'
 import type { Tab } from '@/types/stores'
@@ -68,7 +68,6 @@ const router = useRouter()
 const route = useRoute()
 const contextMenuStore = useContextMenu()
 const dialogsStore = useDialogsStore()
-const eventBus = useEventBus()
 const {t} = useI18n()
 
 const tabs = ref<Tab[]>([])
@@ -150,7 +149,7 @@ const deleteTabs = async (tabsToDelete: Tab[]) => {
     }
   }
 
-  eventBus.emit('getTabs')
+  void reloadTabsCatalog()
 }
 
 const closeTab = async (e: Event, tabId: number | string) => {
@@ -160,7 +159,7 @@ const closeTab = async (e: Event, tabId: number | string) => {
     router.push('/')
   }
   await typedApi.deleteTab(Number(tabId))
-  eventBus.emit('getTabs')
+  void reloadTabsCatalog()
 }
 
 const editTab = (index: number) => {
@@ -183,7 +182,7 @@ const endDrag = async () => {
       .map((tab) => typedApi.updateTab(tab.id, tab))
 
     await Promise.all(updatePromises)
-    eventBus.emit('getTabs')
+    void reloadTabsCatalog()
   } catch (error) {
     console.error('Error reordering tabs:', error)
   }

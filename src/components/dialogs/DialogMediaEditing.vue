@@ -104,6 +104,7 @@ import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import {useEventBus} from "@/utils/eventBus"
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
 import {
   getCurrentMediaType,
@@ -307,7 +308,7 @@ async function save() {
   }
 
   if (itemsStore.type === 'media') {
-    eventBus.emit('getTags')
+    void reloadTagsCatalog()
   }
 
   dialogsStore.mediaEditing.show = false

@@ -51,7 +51,7 @@
 import {ref, computed, onMounted, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
-import {useEventBus} from '@/utils/eventBus'
+import {reloadMediaTypesCatalog} from '@/composable/appCatalogs'
 import orderBy from 'lodash/orderBy'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isEditableMediaType} from '@/utils/mediaType'
@@ -70,7 +70,6 @@ const DialogMediaTypeEdit = defineAsyncComponent(() =>
 )
 
 const appStore = useAppStore()
-const eventBus = useEventBus()
 const {t} = useI18n()
 
 const selected = ref<EditableMediaType | undefined>(undefined)
@@ -81,12 +80,12 @@ const mediaTypes = computed(() => appStore.mediaTypes)
 const sortedMediaTypesList = computed(() => orderBy(mediaTypes.value, ['order', 'name']))
 
 onMounted(() => {
-  eventBus.emit('getMediaTypes')
+  void reloadMediaTypesCatalog()
 })
 
 function finishAdding() {
   dialogAdd.value = false
-  eventBus.emit('getMediaTypes')
+  void reloadMediaTypesCatalog()
 }
 
 function open(media: EditableMediaType) {
@@ -96,7 +95,7 @@ function open(media: EditableMediaType) {
 }
 
 function updateMediaTypes() {
-  eventBus.emit('getMediaTypes')
+  void reloadMediaTypesCatalog()
   dialogEdit.value = false
 }
 </script>

@@ -6,10 +6,6 @@ import type {
 } from '../api/responses'
 
 export type EventBusMap = {
-  getMediaTypes: void
-  getTags: void | unknown[]
-  getTabs: void
-  getPlaylists: void
   getTag: void
   getItemsFromDb: GetItemsFromDbEvent
   removeEntitiesFromState: RemoveEntitiesEvent
