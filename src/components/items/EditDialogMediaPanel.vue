@@ -95,9 +95,6 @@
         </div>
 
         <div class="edit-dialog-media-panel__thumb-actions">
-          <div class="text-medium-emphasis text-caption px-1">
-            {{ currentImage?.type || t('image.thumbnail') }}
-          </div>
           <DialogImageEditing
             v-if="currentImage"
             detached
