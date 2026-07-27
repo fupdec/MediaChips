@@ -9,7 +9,7 @@ import {useAppShell} from '@/composable/appShell'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {setOption} from '@/services/settingsService'
-import {openPath} from '@/services/shellService'
+import {openPath, openExternal} from '@/services/shellService'
 import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type {SystemMenuAction} from '@/types/systemMenu'
@@ -137,7 +137,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
       case 'checkUpdates':
         await ensureInitialized()
         if (!isSupported.value) {
-          window.open('https://github.com/fupdec/MediaChips/releases/latest', '_blank', 'noopener,noreferrer')
+          await openExternal('https://github.com/fupdec/MediaChips/releases/latest')
           break
         }
         await check({manual: true})
@@ -146,7 +146,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         dialogsStore.versions = true
         break
       case 'website':
-        window.open(WEBSITE_URL, '_blank', 'noopener,noreferrer')
+        await openExternal(WEBSITE_URL)
         break
       case 'toggleDevTools':
         await window.electronAPI?.invoke?.('toggleDevTools')

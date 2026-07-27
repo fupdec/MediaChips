@@ -22,6 +22,7 @@ export const IPC_SEND_CHANNELS = [
 
 export const IPC_INVOKE_CHANNELS = [
   'openPath',
+  'openExternal',
   'showOpenDialog',
   'getDateForDB',
   'get-config',
@@ -31,6 +32,9 @@ export const IPC_INVOKE_CHANNELS = [
   'deleteLocalFile',
   'createThumb',
   'setNotification',
+  'showOsNotification',
+  'setDockBadge',
+  'setProgressBar',
   'maximize',
   'unmaximize',
   'minimize',
@@ -49,6 +53,7 @@ export const IPC_INVOKE_CHANNELS = [
   'checkFileExists',
   'set-minimize-to-tray',
   'focusMainWindow',
+  'isMainWindowFocused',
 ] as const
 
 export const IPC_ON_CHANNELS = [
@@ -108,6 +113,32 @@ export interface OpenPathResult {
   success?: boolean
 }
 
+export interface OpenExternalResult {
+  error?: string
+  success?: boolean
+}
+
+export interface OsNotificationPayload {
+  title: string
+  body?: string
+  silent?: boolean
+}
+
+export interface OsNotificationResult {
+  error?: string
+  success?: boolean
+  supported?: boolean
+}
+
+export interface SetDockBadgePayload {
+  count: number
+}
+
+export interface SetProgressBarPayload {
+  /** 0–1 for progress, null/-1 to clear */
+  value: number | null
+}
+
 export type CheckFileExistsPayload = string | {
   path: string
   skipDir?: boolean
@@ -165,6 +196,7 @@ export interface ElectronUpdaterAPI {
 
 export interface IpcInvokePayloads {
   openPath: OpenPathPayload | string
+  openExternal: string
   showOpenDialog: string[] | string | Record<string, boolean | unknown>
   getDateForDB: void
   'get-config': void
@@ -174,6 +206,9 @@ export interface IpcInvokePayloads {
   deleteLocalFile: string
   createThumb: CreateThumbIpcPayload
   setNotification: unknown
+  showOsNotification: OsNotificationPayload
+  setDockBadge: SetDockBadgePayload | number
+  setProgressBar: SetProgressBarPayload | number | null
   maximize: unknown
   unmaximize: unknown
   minimize: unknown
@@ -192,10 +227,12 @@ export interface IpcInvokePayloads {
   checkFileExists: CheckFileExistsPayload
   'set-minimize-to-tray': boolean
   focusMainWindow: void
+  isMainWindowFocused: void
 }
 
 export interface IpcInvokeResults {
   openPath: OpenPathResult
+  openExternal: OpenExternalResult
   showOpenDialog: OpenDialogResult
   getDateForDB: string
   'get-config': Record<string, unknown>
@@ -205,6 +242,9 @@ export interface IpcInvokeResults {
   deleteLocalFile: unknown
   createThumb: unknown
   setNotification: unknown
+  showOsNotification: OsNotificationResult
+  setDockBadge: boolean
+  setProgressBar: boolean
   maximize: unknown
   unmaximize: unknown
   minimize: unknown
@@ -223,6 +263,7 @@ export interface IpcInvokeResults {
   checkFileExists: boolean
   'set-minimize-to-tray': boolean
   focusMainWindow: boolean
+  isMainWindowFocused: boolean
 }
 
 export interface IpcSendPayloads {

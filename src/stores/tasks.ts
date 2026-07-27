@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { getRandomId } from '@/services/formatUtils'
 import type { TaskItem } from '@/types/stores'
+import { scheduleDesktopChromeSync } from '@/services/desktopChrome'
 
 export interface AddedMediaEntry {
   path: string
@@ -87,6 +88,7 @@ export const useTasksStore = defineStore('useTasksStore', {
     setTask({ title, subtitle, icon, click, action, progress }: Partial<TaskItem> = {}) {
       const id = `task_${getRandomId()}`
       this.list.push({ id, title, subtitle, icon, click, action, progress })
+      scheduleDesktopChromeSync()
       return id
     },
     updateTask(id: string, data: Partial<TaskItem>) {
@@ -95,11 +97,19 @@ export const useTasksStore = defineStore('useTasksStore', {
         for (const k in data) {
           this.list[x][k] = data[k]
         }
+        scheduleDesktopChromeSync()
       }
     },
     removeTask(id: string) {
       const x = this.list.findIndex(i => i.id === id)
-      if (x > -1) this.list.splice(x, 1)
+      if (x > -1) {
+        this.list.splice(x, 1)
+        scheduleDesktopChromeSync()
+      }
+    },
+    /** Keep taskbar/dock progress in sync when media-adding updates progress outside updateTask. */
+    syncDesktopChrome() {
+      scheduleDesktopChromeSync()
     },
   },
 })

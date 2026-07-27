@@ -123,6 +123,7 @@ import {useI18n} from 'vue-i18n'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openChangelogDialog} from '@/composable/useWhatsNew'
 import {getChangelogEntry} from '@/services/changelog'
+import {openExternal} from '@/services/shellService'
 
 const appStore = useAppStore()
 const {t} = useI18n()
@@ -329,7 +330,7 @@ async function handleSkipVersion() {
 }
 
 function openReleases() {
-  window.open(String(status.value.releasesUrl || releasesUrl), '_blank', 'noopener,noreferrer')
+  void openExternal(String(status.value.releasesUrl || releasesUrl))
 }
 
 onMounted(() => {

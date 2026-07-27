@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { NotificationInput } from '@/services/notificationService'
+import { maybeShowOsNotification, scheduleDesktopChromeSync } from '@/services/desktopChrome'
 
 interface NotificationTypeSettings {
   icon: string
@@ -68,17 +69,22 @@ export const useNotificationsStore = defineStore('notifications', {
         }, newNotification.timeout)
       }
 
+      void maybeShowOsNotification(newNotification)
+      scheduleDesktopChromeSync()
+
       return newNotification.id
     },
 
     closeNotification(notificationId: number) {
       this.notifications = this.notifications.filter(n => n.id !== notificationId)
+      scheduleDesktopChromeSync()
     },
 
     hideNotification(notificationId: number) {
       const found = this.notifications.find(i => i.id === notificationId)
       if (found) {
         found.hidden = true
+        scheduleDesktopChromeSync()
       }
     },
 
@@ -87,11 +93,13 @@ export const useNotificationsStore = defineStore('notifications', {
         i.hidden = true
         return i
       })
+      scheduleDesktopChromeSync()
     },
 
     closeAllNotifications() {
       this.notifications = []
       this.show = false
+      scheduleDesktopChromeSync()
     },
 
     showNextNotification() {

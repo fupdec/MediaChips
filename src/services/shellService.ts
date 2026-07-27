@@ -1,6 +1,6 @@
 import { typedApi } from '@/services/typedApi'
 import { setNotification } from '@/services/notificationService'
-import { getElectronOperable } from '@/services/electronBridge'
+import { getElectronAPI, getElectronOperable } from '@/services/electronBridge'
 
 interface AxiosLikeError {
   response?: { data?: { message?: string } }
@@ -50,4 +50,21 @@ export async function openPath(entryPath: string, isDirectory?: boolean) {
     notifyOpenPathError(message)
     throw error
   }
+}
+
+/** Open http(s)/mailto links in the system browser (Electron) or a new tab (web). */
+export async function openExternal(url: string): Promise<void> {
+  const normalized = String(url || '').trim()
+  if (!normalized) return
+
+  const api = getElectronAPI()
+  if (api?.invoke) {
+    const result = await api.invoke('openExternal', normalized)
+    if (result?.error) {
+      throw new Error(result.error)
+    }
+    return
+  }
+
+  window.open(normalized, '_blank', 'noopener,noreferrer')
 }

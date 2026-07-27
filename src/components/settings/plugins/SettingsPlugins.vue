@@ -176,6 +176,7 @@ import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {usePluginsStore} from '@/stores/plugins'
 import {showElectronOpenDialog} from '@/services/electronBridge'
+import {openExternal} from '@/services/shellService'
 import type {PluginCatalogEntry, PluginInstallState, PluginPermission} from '@shared/plugins'
 
 const PLUGINS_SITE_URL = 'https://mediachips.app/plugins'
@@ -191,7 +192,7 @@ const installedEntries = computed(() =>
 )
 
 function openPluginsSite() {
-  window.open(PLUGINS_SITE_URL, '_blank')
+  void openExternal(PLUGINS_SITE_URL)
 }
 
 async function installFromZip() {

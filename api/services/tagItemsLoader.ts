@@ -335,7 +335,9 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   let totalUnfiltered: number | null = null
   let totalFiltered: number | null = null
 
-  if (!skipTotals) {
+  // Same as media: id-scoped refreshes must not report list totals.
+  const hasIdScope = ids.length > 0
+  if (!skipTotals && !hasIdScope) {
     const [totalsRows, unfilteredRows] = await Promise.all([
       queryAllAsync<{totalFiltered: number}>(db, buildFilteredCountSql(fromClause, whereClause, needsDistinct), replacements),
       queryAllAsync<{totalUnfiltered: number}>(db, `SELECT COUNT(*) AS totalUnfiltered

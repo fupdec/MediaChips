@@ -1,47 +1,42 @@
 <template>
-  <div class="window-controls">
-    <v-btn
+  <div
+    class="window-controls"
+    :class="{ 'windows-style': windowsStyle }"
+  >
+    <button
+      type="button"
+      class="window-control-btn"
+      :aria-label="'Minimize'"
       @click="minimize"
-      width="46"
-      height="32"
-      variant="plain"
-      size="small"
-      class="window-control-btn"
     >
-      <v-icon>mdi-minus</v-icon>
-    </v-btn>
-    <v-btn
+      <v-icon size="16">mdi-minus</v-icon>
+    </button>
+    <button
       v-if="maximized"
+      type="button"
+      class="window-control-btn"
+      :aria-label="'Restore'"
       @click="unmaximize"
-      width="46"
-      height="32"
-      variant="plain"
-      size="small"
-      class="window-control-btn"
     >
-      <v-icon>mdi-window-restore</v-icon>
-    </v-btn>
-    <v-btn
+      <v-icon size="14">mdi-window-restore</v-icon>
+    </button>
+    <button
       v-else
-      @click="maximize"
-      width="46"
-      height="32"
-      variant="plain"
-      size="small"
+      type="button"
       class="window-control-btn"
+      :aria-label="'Maximize'"
+      @click="maximize"
     >
-      <v-icon>mdi-square-outline</v-icon>
-    </v-btn>
-    <v-btn
-      @click="close"
-      width="46"
-      height="32"
+      <v-icon size="14">mdi-square-outline</v-icon>
+    </button>
+    <button
+      type="button"
       class="window-control-btn close-app-btn"
-      variant="plain"
-      size="small"
+      :aria-label="'Close'"
+      @click="close"
     >
-      <v-icon>mdi-window-close</v-icon>
-    </v-btn>
+      <v-icon size="16">mdi-window-close</v-icon>
+    </button>
   </div>
 </template>
 
@@ -54,7 +49,11 @@ const props = defineProps({
   windowType: {
     type: String,
     default: 'main' // 'main' или 'player'
-  }
+  },
+  windowsStyle: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const route = useRoute()
@@ -120,40 +119,70 @@ onUnmounted(() => {
   position: relative;
   z-index: 3;
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  height: 100%;
   -webkit-app-region: no-drag;
 
   &.windows-style {
     .window-control-btn {
-      min-width: 0;
+      width: 46px;
+      min-width: 46px;
+      height: 100%;
+      min-height: 32px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      -webkit-app-region: no-drag;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.12);
+      }
+
+      &:active {
+        background-color: rgba(255, 255, 255, 0.08);
+      }
     }
 
     .close-app-btn {
       &:hover {
-        background-color: #d70000;
+        background-color: #c42b1c;
+        color: #fff;
+      }
 
-        .v-icon {
-          color: #fff !important;
-        }
+      &:active {
+        background-color: #b22518;
+        color: #fff;
       }
     }
   }
 
-  .window-control-btn {
-    min-width: 0;
-    border-radius: 0 !important;
-    -webkit-app-region: no-drag;
+  &:not(.windows-style) {
+    .window-control-btn {
+      width: 46px;
+      height: 32px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
 
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.1);
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
     }
-  }
 
-  .close-app-btn:hover {
-    background-color: #d70000 !important;
-
-    .v-icon {
-      color: #fff !important;
+    .close-app-btn:hover {
+      background-color: #d70000;
+      color: #fff;
     }
   }
 }

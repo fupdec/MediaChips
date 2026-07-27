@@ -244,7 +244,8 @@ export function useItemsPage({
     }
 
     if (ids && ids.length > 0) {
-      query.filters = []
+      // Refresh card payloads only — never recompute/cache library totals.
+      query.skipTotals = true
       try {
         const res = await typedApi.postItemsList(url, query)
 

@@ -115,6 +115,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {getProjectDependencies} from '@/utils/projectDependencies'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
+import {openExternal} from '@/services/shellService'
 
 const {t} = useI18n()
 const appStore = useAppStore()
@@ -141,7 +142,7 @@ const logoPath = computed(() => {
 })
 
 const openLink = (link: string) => {
-  window.open(link, '_blank', 'noopener,noreferrer')
+  void openExternal(link)
 }
 
 const openReleases = () => {

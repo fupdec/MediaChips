@@ -2,6 +2,7 @@ import {computed, nextTick} from 'vue'
 import {i18n} from '@/i18n/loadLocale'
 import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
+import {scheduleDesktopChromeSync} from '@/services/desktopChrome'
 import {parseFilePath} from '@/services/pathTagParser'
 import {getReadableDuration, transformTextToArray} from '@/services/formatUtils'
 import {useAppStore} from '@/stores/app'
@@ -169,6 +170,7 @@ export const useMediaAdding = () => {
     task.value.skipFileScan = false
     task.value.directFiles = []
     task.value.media_type_id = savedMediaTypeId
+    scheduleDesktopChromeSync()
 
     const taskData = {
       title: 'Adding files',
@@ -634,6 +636,7 @@ export const useMediaAdding = () => {
           if (event.current) {
             task.value.status = `${task.value.status}: ${event.current}`
           }
+          scheduleDesktopChromeSync()
         }
 
         if (event.type === 'complete') {

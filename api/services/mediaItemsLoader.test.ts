@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, afterEach } from 'vitest'
 
 vi.mock('../utils/country', () => ({
   COUNTRY_DELIMITER: '\x1E',
@@ -17,6 +17,11 @@ vi.mock('../../app/tasks/items', () => ({
 
 import { queryAllAsync } from '../db/utils/rawQuery'
 import { loadMediaItems } from './mediaItemsLoader'
+import {
+  clearMediaListTotalsCache,
+  getCachedFilteredTotals,
+  buildFilteredTotalsCacheKey,
+} from './mediaListTotalsCache'
 import type { ApiDb } from '../types/db'
 
 const mockDb = {
@@ -26,6 +31,11 @@ const mockDb = {
 } as ApiDb
 
 describe('loadMediaItems', () => {
+  afterEach(() => {
+    clearMediaListTotalsCache()
+    vi.clearAllMocks()
+  })
+
   it('uses SQL pagination with limit and offset replacements', async () => {
     vi.mocked(queryAllAsync).mockImplementation(async (_db, sql, replacements) => {
       if (sql.includes('LIMIT :limit')) {
@@ -130,5 +140,76 @@ describe('loadMediaItems', () => {
       { tagId: 11, metaId: 7 },
       { tagId: 42, metaId: 7, fromFolder: true },
     ]))
+  })
+
+  it('does not poison filtered totals cache on id-scoped refresh', async () => {
+    clearMediaListTotalsCache()
+    const cacheKey = buildFilteredTotalsCacheKey({ mediaTypeId: 1, filters: [] })
+
+    vi.mocked(queryAllAsync).mockImplementation(async (_db, sql, replacements) => {
+      if (sql.includes('SELECT') && sql.includes('FROM media') && sql.includes('ORDER BY') && !sql.includes('totalFilesize') && !sql.includes('totalUnfiltered') && !sql.includes('WHERE media.id IN')) {
+        // Id-scoped list: no LIMIT when ids are provided.
+        expect(replacements).toMatchObject({ ids: [7] })
+        return [{ id: 7 }]
+      }
+      if (sql.includes('totalFilesize')) {
+        // Would be wrong if id-scoped totals were written (COUNT for id=7 → 1).
+        return [{ totalFiltered: 1, totalFilesize: 500 }]
+      }
+      if (sql.includes('totalUnfiltered')) {
+        return [{ totalUnfiltered: 18999 }]
+      }
+      if (sql.includes('WHERE media.id IN')) {
+        return [{ id: 7, mediaTypeId: 1, path: '/one.mp4', name: 'one.mp4', filesize: 500 }]
+      }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
+      if (sql.includes('tagsInMedia') || sql.includes('valuesInMedia')) return []
+      return []
+    })
+
+    const scoped = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      ids: [7],
+      page: 1,
+      limit: 25,
+    })
+
+    expect(scoped.items).toHaveLength(1)
+    expect(scoped.totalFiltered).toBeNull()
+    expect(getCachedFilteredTotals(cacheKey)).toBeNull()
+
+    // Full list after id-scoped refresh must still compute real totals.
+    vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
+      if (sql.includes('LIMIT :limit')) {
+        return [{ id: 1 }, { id: 2 }]
+      }
+      if (sql.includes('totalFilesize')) {
+        return [{ totalFiltered: 18999, totalFilesize: 999999 }]
+      }
+      if (sql.includes('totalUnfiltered')) {
+        return [{ totalUnfiltered: 18999 }]
+      }
+      if (sql.includes('WHERE media.id IN')) {
+        return [
+          { id: 1, mediaTypeId: 1, path: '/a.mp4', name: 'a.mp4', filesize: 1000 },
+          { id: 2, mediaTypeId: 1, path: '/b.mp4', name: 'b.mp4', filesize: 2000 },
+        ]
+      }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
+      if (sql.includes('tagsInMedia') || sql.includes('valuesInMedia')) return []
+      return []
+    })
+
+    const full = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      page: 1,
+      limit: 25,
+    })
+
+    expect(full.totalFiltered).toBe(18999)
+    expect(getCachedFilteredTotals(cacheKey)).toEqual({
+      totalFiltered: 18999,
+      totalFilesize: 999999,
+    })
   })
 })

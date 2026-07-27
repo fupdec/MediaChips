@@ -8,6 +8,8 @@ import {
   nativeImage,
   dialog,
   shell,
+  screen,
+  Notification,
 } from 'electron'
 import os from 'os'
 import fs from 'fs'
@@ -18,10 +20,19 @@ import { apiErrorMessage } from './api/types/errors'
 import { initAppUpdater } from './electron/autoUpdater'
 import { normalizeMediaPath } from './api/utils/normalizeUserPath'
 import { resolveExistingPath } from './api/services/contentHash'
+import { saveConfigFile } from './app/server/configFile'
+
+type WindowBoundsConfig = {
+  height?: number
+  width?: number
+  x?: number
+  y?: number
+  maximized?: boolean
+}
 
 type ServerWindowConfig = {
-  win?: { height?: number; width?: number }
-  player?: { height?: number; width?: number }
+  win?: WindowBoundsConfig
+  player?: WindowBoundsConfig
 }
 
 type AppServerExports = {
@@ -103,6 +114,94 @@ const waitForBackend = async (port: number, timeoutMs = 30000) => {
   console.warn(`Backend not ready on port ${serverConfig.port || port} after ${timeoutMs}ms; loading renderer anyway`)
 }
 
+function getElectronConfigPath(): string {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) {
+    return path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'config.json')
+  }
+  return path.join(app.getPath('userData'), 'config.json')
+}
+
+function clampWindowBounds(bounds: { x: number; y: number; width: number; height: number }) {
+  const width = Math.max(400, Math.round(bounds.width) || 1280)
+  const height = Math.max(300, Math.round(bounds.height) || 720)
+  const displays = screen.getAllDisplays()
+  const intersects = displays.some((display) => {
+    const area = display.workArea
+    return (
+      bounds.x < area.x + area.width
+      && bounds.x + width > area.x
+      && bounds.y < area.y + area.height
+      && bounds.y + height > area.y
+    )
+  })
+
+  if (intersects && Number.isFinite(bounds.x) && Number.isFinite(bounds.y)) {
+    return { x: Math.round(bounds.x), y: Math.round(bounds.y), width, height }
+  }
+
+  const { workArea } = screen.getPrimaryDisplay()
+  return {
+    x: Math.round(workArea.x + Math.max(0, (workArea.width - width) / 2)),
+    y: Math.round(workArea.y + Math.max(0, (workArea.height - height) / 2)),
+    width,
+    height,
+  }
+}
+
+function readStoredWindowBounds(kind: 'win' | 'player', fallbackWidth: number, fallbackHeight: number) {
+  const stored = serverConfig[kind] || {}
+  return clampWindowBounds({
+    x: typeof stored.x === 'number' ? stored.x : Number.NaN,
+    y: typeof stored.y === 'number' ? stored.y : Number.NaN,
+    width: typeof stored.width === 'number' ? stored.width : fallbackWidth,
+    height: typeof stored.height === 'number' ? stored.height : fallbackHeight,
+  })
+}
+
+const windowBoundsSaveTimers: Partial<Record<'win' | 'player', ReturnType<typeof setTimeout>>> = {}
+
+function persistWindowBounds(kind: 'win' | 'player', browserWindow: BrowserWindowInstance) {
+  if (!browserWindow || browserWindow.isDestroyed()) return
+
+  const isMaximized = browserWindow.isMaximized()
+  const bounds = (
+    isMaximized && typeof browserWindow.getNormalBounds === 'function'
+      ? browserWindow.getNormalBounds()
+      : browserWindow.getBounds()
+  )
+
+  serverConfig[kind] = {
+    ...(serverConfig[kind] || {}),
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    maximized: isMaximized,
+  }
+
+  try {
+    saveConfigFile(getElectronConfigPath(), serverConfig)
+  } catch (error) {
+    console.warn('Failed to persist window bounds:', error)
+  }
+}
+
+function schedulePersistWindowBounds(kind: 'win' | 'player', browserWindow: BrowserWindowInstance) {
+  const existing = windowBoundsSaveTimers[kind]
+  if (existing) clearTimeout(existing)
+  windowBoundsSaveTimers[kind] = setTimeout(() => {
+    persistWindowBounds(kind, browserWindow)
+  }, 400)
+}
+
+function bindWindowBoundsPersistence(kind: 'win' | 'player', browserWindow: BrowserWindowInstance) {
+  const save = () => schedulePersistWindowBounds(kind, browserWindow)
+  browserWindow.on('move', save)
+  browserWindow.on('resize', save)
+  browserWindow.on('maximize', save)
+  browserWindow.on('unmaximize', save)
+}
+
 const getRendererUrl = (search = '') => {
   const port = useViteDevServer
     ? Number(process.env.VITE_DEV_SERVER_PORT || 3000)
@@ -179,12 +278,18 @@ const createWindow = () => {
   // Allow reveal again when the window is recreated after close (e.g. macOS Dock click).
   isMainWindowRevealed = false
 
+  const bounds = readStoredWindowBounds('win', 1280, 720)
+  const shouldMaximize = Boolean(serverConfig.win?.maximized)
+
   win = new BrowserWindow({
     show: false,
-    height: serverConfig.win?.height || 720,
-    width: serverConfig.win?.width || 1280,
+    x: bounds.x,
+    y: bounds.y,
+    height: bounds.height,
+    width: bounds.width,
     frame: !useWinElectronFrame,
     thickFrame: useWinElectronFrame,
+    autoHideMenuBar: useWinElectronFrame,
     titleBarStyle: (os.type() === 'Darwin' && !useWinElectronFrame ? 'hidden' : 'default') as 'hidden' | 'default',
     trafficLightPosition: os.type() === 'Darwin' && !useWinElectronFrame ? {x: 18, y: 15} : undefined,
     backgroundColor: '#333',
@@ -197,6 +302,10 @@ const createWindow = () => {
     },
   })
   const mainWindow = win!
+  if (shouldMaximize) {
+    mainWindow.maximize()
+  }
+  bindWindowBoundsPersistence('win', mainWindow)
   bindRendererLoadRetry(mainWindow.webContents, () => getRendererUrl())
   mainWindow.loadURL(getRendererUrl())
   mainWindow.on('close', (event: Electron.Event) => {
@@ -222,10 +331,28 @@ const createWindow = () => {
     mainWindow.webContents.send('leave-full-screen')
   })
   mainWindow.on('blur', () => {
-    mainWindow.webContents.send('blur')
+    emitMainWindowUserFacingState(mainWindow)
   })
   mainWindow.on('focus', () => {
-    mainWindow.webContents.send('focus')
+    emitMainWindowUserFacingState(mainWindow)
+  })
+  mainWindow.on('show', () => {
+    emitMainWindowUserFacingState(mainWindow)
+  })
+  mainWindow.on('hide', () => {
+    emitMainWindowUserFacingState(mainWindow)
+  })
+  mainWindow.on('minimize', () => {
+    emitMainWindowUserFacingState(mainWindow)
+  })
+  mainWindow.on('restore', () => {
+    emitMainWindowUserFacingState(mainWindow)
+  })
+  // macOS Spaces / fullscreen apps: window can stay "alive" but be occluded on another desktop.
+  ;(mainWindow as BrowserWindowInstance & {
+    on(event: 'occlusion-state-changed', listener: () => void): BrowserWindowInstance
+  }).on('occlusion-state-changed', () => {
+    emitMainWindowUserFacingState(mainWindow)
   })
   bindZoomChangedListener(mainWindow)
   bindMainWindowLoadedHandler(mainWindow)
@@ -269,13 +396,42 @@ ipcMain.handle('openPath', async (_event: IpcMainInvokeEvent, data: Record<strin
   const rawPath = typeof data === 'string' ? data : data?.path
   if (rawPath == null || rawPath === '') return {error: 'Path is required'}
 
-  let entryPath = path.normalize(String(rawPath))
+  const entryPath = path.normalize(String(rawPath))
+  // Reveal the file in Finder/Explorer instead of only opening the parent folder.
   if (typeof data === 'object' && data !== null && data.isDir) {
-    entryPath = path.dirname(entryPath)
+    try {
+      shell.showItemInFolder(entryPath)
+      return {success: true}
+    } catch (error) {
+      return {error: error instanceof Error ? error.message : String(error)}
+    }
   }
 
   const error = await shell.openPath(entryPath)
   return error ? {error} : {success: true}
+})
+
+ipcMain.handle('openExternal', async (_event: IpcMainInvokeEvent, rawUrl: unknown) => {
+  const url = String(rawUrl || '').trim()
+  if (!url) return {error: 'URL is required'}
+
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return {error: 'Invalid URL'}
+  }
+
+  if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+    return {error: 'Unsupported URL protocol'}
+  }
+
+  try {
+    await shell.openExternal(parsed.toString())
+    return {success: true}
+  } catch (error) {
+    return {error: error instanceof Error ? error.message : String(error)}
+  }
 })
 
 ipcMain.handle('dialog:saveFile', async (_event: IpcMainInvokeEvent, options: { defaultPath?: string; content?: string; filters?: Array<{ name: string; extensions: string[] }> } = {}) => {
@@ -550,6 +706,109 @@ ipcMain.handle('focusMainWindow', () => {
   win.focus()
   return true
 })
+
+function focusMainWindowFromNotification() {
+  if (!win || win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+/** True only when the user can actually see/interact with the main window. */
+function isBrowserWindowUserFacing(browserWindow: BrowserWindowInstance | null): boolean {
+  if (!browserWindow || browserWindow.isDestroyed()) return false
+  if (!browserWindow.isVisible()) return false
+  if (browserWindow.isMinimized()) return false
+  if (process.platform === 'darwin' && typeof app.isHidden === 'function' && app.isHidden()) {
+    return false
+  }
+  try {
+    const occluded = (browserWindow as BrowserWindowInstance & { isOccluded?: () => boolean }).isOccluded
+    if (typeof occluded === 'function' && occluded.call(browserWindow)) {
+      return false
+    }
+  } catch {
+    // Older Electron builds may not expose occlusion APIs.
+  }
+  return browserWindow.isFocused()
+}
+
+function emitMainWindowUserFacingState(browserWindow: BrowserWindowInstance) {
+  if (!browserWindow || browserWindow.isDestroyed()) return
+  const facing = isBrowserWindowUserFacing(browserWindow)
+  browserWindow.webContents.send(facing ? 'focus' : 'blur')
+}
+
+ipcMain.handle('isMainWindowFocused', () => {
+  return isBrowserWindowUserFacing(win)
+})
+
+ipcMain.handle('showOsNotification', (_event: IpcMainInvokeEvent, raw: unknown) => {
+  const payload = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+  const title = String(payload.title || '').trim() || 'MediaChips'
+  const body = String(payload.body || '').trim()
+  const silent = Boolean(payload.silent)
+
+  if (!Notification.isSupported()) {
+    return {success: false, supported: false, error: 'Notifications are not supported'}
+  }
+
+  try {
+    const notification = new Notification({
+      title,
+      body,
+      silent,
+    })
+    notification.on('click', () => {
+      focusMainWindowFromNotification()
+    })
+    notification.show()
+    return {success: true, supported: true}
+  } catch (error) {
+    return {
+      success: false,
+      supported: true,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+})
+
+ipcMain.handle('setDockBadge', (_event: IpcMainInvokeEvent, raw: unknown) => {
+  const count = typeof raw === 'number'
+    ? raw
+    : Number((raw as {count?: unknown} | null)?.count ?? 0)
+  const normalized = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setBadge(normalized > 0 ? String(normalized) : '')
+    return true
+  }
+
+  // Windows overlay badge is limited; clear/set a simple count via progress mode unused.
+  // Keep API no-op success so renderer can call unconditionally.
+  return true
+})
+
+ipcMain.handle('setProgressBar', (_event: IpcMainInvokeEvent, raw: unknown) => {
+  if (!win || win.isDestroyed()) return false
+
+  let value: number | null = null
+  if (typeof raw === 'number') {
+    value = raw
+  } else if (raw && typeof raw === 'object' && 'value' in (raw as object)) {
+    const next = (raw as {value: unknown}).value
+    value = next == null ? null : Number(next)
+  }
+
+  if (value == null || !Number.isFinite(value) || value < 0) {
+    win.setProgressBar(-1)
+    return true
+  }
+
+  win.setProgressBar(Math.min(1, Math.max(0, value)))
+  return true
+})
+
 ipcMain.handle('relaunch', () => {
   app.relaunch()
   app.exit()
@@ -646,7 +905,7 @@ const viewMenu = {
 const appMenu = {
   label: 'App',
   submenu: [
-    menuActionItem('Settings', 'settings', 'CommandOrControl+,'),
+    ...(!isMac ? [menuActionItem('Settings', 'settings', 'CommandOrControl+,')] : []),
     {
       label: 'Lock',
       id: 'lock',
@@ -694,8 +953,10 @@ const helpMenu = {
       accelerator: 'CommandOrControl+Shift+I',
       role: 'toggleDevTools' as const,
     },
-    {type: 'separator' as const},
-    menuActionItem('About', 'about'),
+    ...(!isMac ? [
+      {type: 'separator' as const},
+      menuActionItem('About', 'about'),
+    ] : []),
   ],
 }
 
@@ -703,6 +964,10 @@ const systemMenu = Menu.buildFromTemplate([
   ...(isMac ? [{
     label: app.name,
     submenu: [
+      menuActionItem('About MediaChips', 'about'),
+      {type: 'separator' as const},
+      menuActionItem('Settings...', 'settings', 'CommandOrControl+,'),
+      {type: 'separator' as const},
       {role: 'services' as const},
       {type: 'separator' as const},
       {role: 'hide' as const},
@@ -802,12 +1067,15 @@ let isPlayerRendererReady = false
 let playerWarmupTimer: ReturnType<typeof setTimeout> | null = null
 
 function getPlayerWindowOptions() {
+  const bounds = readStoredWindowBounds('player', 1280, 720)
   return {
     frame: false,
     thickFrame: isWindows,
     show: false,
-    height: serverConfig.player?.height || 720,
-    width: serverConfig.player?.width || 1280,
+    x: bounds.x,
+    y: bounds.y,
+    height: bounds.height,
+    width: bounds.width,
     titleBarStyle: 'hidden' as const,
     trafficLightPosition: os.type() === 'Darwin' ? {x: 12, y: 8} : undefined,
     backgroundColor: '#000000',
@@ -822,6 +1090,8 @@ function getPlayerWindowOptions() {
 }
 
 function setupPlayerWindowEvents(browserWindow: BrowserWindowInstance) {
+  bindWindowBoundsPersistence('player', browserWindow)
+
   browserWindow.on('maximize', () => {
     browserWindow.webContents.send('maximize')
   })
@@ -866,6 +1136,9 @@ function createPlayerWindow() {
   isPlayerRendererReady = false
   player = new BrowserWindow(getPlayerWindowOptions() as Electron.BrowserWindowConstructorOptions)
   const playerWindow = player!
+  if (serverConfig.player?.maximized) {
+    playerWindow.maximize()
+  }
   setupPlayerWindowEvents(playerWindow)
   bindRendererLoadRetry(playerWindow.webContents, () => getRendererUrl('?player=true'))
   playerWindow.loadURL(getRendererUrl('?player=true'))

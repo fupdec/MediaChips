@@ -12,7 +12,9 @@
         v-for="menu in SYSTEM_MENUS"
         :key="menu.id"
         :menu="menu"
+        :open-menu-id="openMenuId"
         :is-action-disabled="isActionDisabled"
+        @update:open-menu-id="openMenuId = $event"
         @action="handleMenuAction"
       />
     </div>
@@ -25,6 +27,7 @@
     <v-spacer></v-spacer>
 
     <WindowControls
+      windows-style
       @minimize="minimize"
       @maximize="maximize"
       @unmaximize="unmaximize"
@@ -55,6 +58,7 @@ const emit = defineEmits<{
 }>()
 
 const maximized = ref(false)
+const openMenuId = ref<string | null>(null)
 
 const router = useRouter()
 const appStore = useAppStore()

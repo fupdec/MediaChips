@@ -16,8 +16,6 @@
     <!--      <v-img :src="''" :gradient="gradient" cover/>-->
     <!--    </template>-->
 
-    <div class="darwin-buttons-background"
-      v-if="isMac && is_electron && !fullscreen"></div>
     <div class="darwin-buttons"
       v-if="isMac && is_electron && !fullscreen"></div>
 
@@ -38,7 +36,11 @@
 
         <ItemsFilter v-if="itemsStore.type"/>
 
-        <v-menu location="bottom">
+        <v-menu
+          location="bottom"
+          :transition="false"
+          content-class="app-bar-more-menu"
+        >
           <template #activator="{ props: menuProps }">
             <v-btn
               v-bind="menuProps"
@@ -51,29 +53,40 @@
             </v-btn>
           </template>
 
-          <v-list density="compact" min-width="220">
+          <v-list
+            density="compact"
+            class="context-menu"
+            :lines="false"
+            nav
+            rounded="lg"
+            min-width="180"
+          >
             <v-list-item
               :disabled="itemsStore.entities.length == 0"
-              :title="t('appbar.buttons.select')"
+              link
               prepend-icon="mdi-checkbox-marked-outline"
+              :title="t('appbar.buttons.select')"
               @click="itemsStore.toggleSelectMode()"
             />
             <v-list-item
               :disabled="route.path === '/tag'"
-              :title="t('appbar.buttons.create_tab')"
+              link
               prepend-icon="mdi-tab"
+              :title="t('appbar.buttons.create_tab')"
               @click="createTab"
             />
             <v-list-item
               v-if="itemsStore.type == 'tag'"
-              :title="t('appbar.buttons.edit_meta')"
+              link
               prepend-icon="mdi-wrench-cog"
+              :title="t('appbar.buttons.edit_meta')"
               @click="editMetaFromMenu"
             />
             <v-list-item
               :disabled="itemsStore.entities.length == 0"
-              :title="t('appbar.buttons.open_random')"
+              link
               prepend-icon="mdi-dice-5"
+              :title="t('appbar.buttons.open_random')"
               @click="openRandomItem"
             />
           </v-list>
@@ -248,16 +261,7 @@ onUnmounted(() => {
   height: 36px;
   border-radius: 25px;
   margin-left: 5px;
-}
-
-.darwin-buttons-background {
-  position: fixed;
-  z-index: 5000;
-  left: 10px;
-  top: 10px;
-  border-radius: 15px;
-  width: 76px;
-  height: 25px;
+  flex-shrink: 0;
 }
 
 .scrollable {
@@ -276,5 +280,40 @@ onUnmounted(() => {
 .scrollable-child {
   display: flex;
   align-items: center;
+}
+</style>
+
+<!-- Teleported menu — must be unscoped to match SystemBar density. -->
+<style lang="scss">
+.app-bar-more-menu {
+  min-width: 180px !important;
+
+  .v-list {
+    padding: 4px !important;
+  }
+
+  .v-list-item {
+    min-height: 32px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-inline: 8px !important;
+  }
+
+  .v-list-item__prepend {
+    margin-inline-end: 10px !important;
+
+    > .v-icon {
+      font-size: 18px !important;
+    }
+
+    .v-list-item__spacer {
+      width: 10px !important;
+    }
+  }
+
+  .v-list-item-title {
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+  }
 }
 </style>

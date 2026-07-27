@@ -13,6 +13,7 @@
     <!-- Импортируем компонент кнопок окна -->
     <WindowControls
       v-if="platform.win || platform.linux"
+      windows-style
       @minimize="minimize"
       @maximize="maximize"
       @unmaximize="unmaximize"

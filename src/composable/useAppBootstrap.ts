@@ -37,7 +37,7 @@ import {
   readMinimizeToTrayFromStore,
   type GlobalAppConfigKey,
 } from '@/services/globalAppConfig'
-import {syncMinimizeToTray} from '@/services/electronBridge'
+import {syncMinimizeToTray, getElectronAPI} from '@/services/electronBridge'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
 import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
@@ -53,6 +53,7 @@ import {
 } from '@/utils/windowFocus'
 import {debounce} from '@/utils/debounce'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
+import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
 
 interface UseAppBootstrapOptions {
   isPlayerWindow: Ref<boolean>
@@ -80,6 +81,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     onLock: lockApp,
   })
   const {applyTheme} = useAppTheme()
+  const {isWindowMaximized} = useWindowMaximizedState()
 
   let handleAddMedia = async (_action?: () => void): Promise<void> => {}
   let cleanupMediaAdding: (() => void) | null = null
@@ -270,6 +272,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       [app_window]: {
         height: window.outerHeight,
         width: window.outerWidth,
+        x: window.screenX,
+        y: window.screenY,
+        maximized: isWindowMaximized.value,
       },
     }
     void updateConfig(data)
@@ -331,16 +336,23 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   function setupWindowFocusTracking(): void {
-    syncAppWindowFocusedFromDocument()
+    if (store.isElectron) {
+      // Electron blur/focus/occlusion from main is authoritative (macOS Spaces safe).
+      // Document focus alone is unreliable when MediaChips sits on another desktop.
+      unsubscribeWindowBlur = subscribeElectronIpc('blur', () => setAppWindowFocused(false))
+      unsubscribeWindowFocus = subscribeElectronIpc('focus', () => setAppWindowFocused(true))
+      void getElectronAPI()?.invoke?.('isMainWindowFocused').then((facing) => {
+        setAppWindowFocused(Boolean(facing))
+      }).catch(() => {
+        setAppWindowFocused(false)
+      })
+      return
+    }
 
+    syncAppWindowFocusedFromDocument()
     window.addEventListener('focus', syncAppWindowFocusedFromDocument)
     window.addEventListener('blur', syncAppWindowFocusedFromDocument)
     document.addEventListener('visibilitychange', syncAppWindowFocusedFromDocument)
-
-    if (store.isElectron) {
-      unsubscribeWindowBlur = subscribeElectronIpc('blur', () => setAppWindowFocused(false))
-      unsubscribeWindowFocus = subscribeElectronIpc('focus', () => setAppWindowFocused(true))
-    }
   }
 
   function teardownWindowFocusTracking(): void {

@@ -83,14 +83,19 @@ export default function createTasksFileController(shared: TaskControllerShared) 
   }
 
   const openPath = async function (req: ApiRequest, res: ApiResponse) {
-    let entryPath = path.normalize(req.body.path)
-    if (req.body.isDir) entryPath = path.dirname(entryPath)
+    const rawPath = path.normalize(req.body.path)
+    const revealInFolder = Boolean(req.body.isDir)
+    const entryPath = revealInFolder ? path.dirname(rawPath) : rawPath
 
     const fail = (message: string) => res.status(400).send({message})
 
     try {
       const electron = await import('electron').catch(() => null)
       if (electron?.shell) {
+        if (revealInFolder) {
+          electron.shell.showItemInFolder(rawPath)
+          return res.sendStatus(201)
+        }
         const error = await electron.shell.openPath(entryPath)
         if (error) return fail(error)
         return res.sendStatus(201)
@@ -100,9 +105,13 @@ export default function createTasksFileController(shared: TaskControllerShared) 
     }
 
     const command = process.platform === 'darwin'
-      ? `open ${JSON.stringify(entryPath)}`
+      ? (revealInFolder
+        ? `open -R ${JSON.stringify(rawPath)}`
+        : `open ${JSON.stringify(entryPath)}`)
       : process.platform === 'win32'
-        ? `start "" ${JSON.stringify(entryPath)}`
+        ? (revealInFolder
+          ? `explorer /select,${JSON.stringify(rawPath)}`
+          : `start "" ${JSON.stringify(entryPath)}`)
         : `xdg-open ${JSON.stringify(entryPath)}`
 
     exec(command, (err: unknown) => {

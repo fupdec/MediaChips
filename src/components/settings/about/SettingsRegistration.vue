@@ -360,6 +360,7 @@ import {useNotificationsStore} from '@/stores/notifications'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {isMsStoreBuild} from '@/utils/sfwBuild'
+import {openExternal} from '@/services/shellService'
 import type {VFormInstance} from '@/types/vue'
 import type {LicenseInfo} from '@/types/stores'
 
@@ -476,7 +477,7 @@ const closeDialog = () => {
 }
 
 const openLink = (link: string) => {
-  window.open(link, '_blank')
+  void openExternal(link)
 }
 
 const calculateActivations = (data: LicenseInfo) => {

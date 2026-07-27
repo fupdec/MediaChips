@@ -620,7 +620,11 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   let totalFiltered: number | null = null
   let totalFilesize: number | null = null
 
-  if (!skipTotals) {
+  // Id-scoped refreshes (select-mode bulk edit, scrape, etc.) must not compute or
+  // cache totals: the cache key ignores `ids`, so writing COUNT for one selected
+  // item would poison the next full library list as "1 of N".
+  const hasIdScope = ids.length > 0
+  if (!skipTotals && !hasIdScope) {
     const cachedFilteredTotals = getCachedFilteredTotals(totalsCacheKey)
     const cachedUnfilteredTotal = getCachedUnfilteredTotal(mediaTypeId as number | string)
 
