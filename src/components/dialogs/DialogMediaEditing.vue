@@ -1,14 +1,15 @@
 <template>
   <v-dialog
-    v-model="dialogsStore.mediaEditing.show"
+    :model-value="dialogsStore.mediaEditing.show"
     :fullscreen="xs"
     :width="xl ? 1400 : 1000"
     :persistent="keepDialogOpen"
     scrollable
+    @update:model-value="onDialogVisibilityChange"
   >
-    <v-card>
+    <v-card class="edit-dialog-card">
       <DialogHeader
-        @close="dialogsStore.mediaEditing.show = false"
+        @close="requestClose"
         :header="t('common.editing')"
         :subheader="fileName"
         :subheader-copy-text="fileName"
@@ -22,7 +23,8 @@
           v-if="media"
           :key="media.id"
           layout="hero"
-          @close="dialogsStore.mediaEditing.show = false"
+          @close="requestClose"
+          @dirty-change="formDirty = $event"
           :media="media"
           ref="editingComponent"
         >
@@ -80,11 +82,20 @@
         </EditPinnedMetaValues>
       </v-card-text>
     </v-card>
+
+    <DialogConfirm
+      v-if="is_show_unsaved_confirm"
+      variant="confirm"
+      :dialog="is_show_unsaved_confirm"
+      @confirm="forceClose"
+      @close="is_show_unsaved_confirm = false"
+      :text="t('editing.discard_unsaved_confirm')"
+    />
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent} from 'vue'
 import type {MediaItem} from '@/types/stores'
 import type {MediaType} from '@/types/media'
 import {useI18n} from 'vue-i18n'
@@ -92,18 +103,17 @@ import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
-import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
 import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {isTmdbUiAvailable} from '@/services/tmdbFeatures'
 import {typedApi} from '@/services/typedApi'
 import {loadImageDisplayUrl} from '@/utils/imageSource'
 import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/fileService'
-import {isThumbUnavailable, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
+import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
-import {useEventBus} from "@/utils/eventBus"
+import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
@@ -128,6 +138,7 @@ interface DialogHeaderButton {
 
 interface EditComponentInstance {
   save?: () => Promise<boolean>
+  isDirty?: () => boolean
 }
 
 const props = defineProps<{
@@ -137,12 +148,10 @@ const props = defineProps<{
 }>()
 
 const {xs, xl} = useDisplay()
-const eventBus = useEventBus()
-  const listSync = useItemsListSync()
+const listSync = useItemsListSync()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
-const settingsStore = useSettingsStore()
 const contextMenuStore = useContextMenu()
 const {t} = useI18n()
 const thumb = ref<string | null>(null)
@@ -151,6 +160,8 @@ const isFileExists = ref(true)
 const bigPreviewOpen = ref(false)
 const buttons = ref<DialogHeaderButton[]>([])
 const editingComponent = ref<EditComponentInstance | null>(null)
+const formDirty = ref(false)
+const is_show_unsaved_confirm = ref(false)
 const cropperOps = ref({
   aspectRatio: 16 / 9,
 })
@@ -313,7 +324,29 @@ async function save() {
     void reloadTagsCatalog()
   }
 
+  forceClose()
+}
+
+function forceClose() {
+  is_show_unsaved_confirm.value = false
+  formDirty.value = false
   dialogsStore.mediaEditing.show = false
+}
+
+function requestClose() {
+  if (formDirty.value || editingComponent.value?.isDirty?.()) {
+    is_show_unsaved_confirm.value = true
+    return
+  }
+  forceClose()
+}
+
+function onDialogVisibilityChange(show: boolean) {
+  if (show) {
+    dialogsStore.mediaEditing.show = true
+    return
+  }
+  requestClose()
 }
 
 function deleteMedia() {
@@ -339,27 +372,39 @@ function deleteMedia() {
       }
     })
 
-    close()
+    forceClose()
   }
 }
 
-function close() {
-  dialogsStore.mediaEditing.show = false
+function onSaveHotkey(event: KeyboardEvent) {
+  if (!dialogsStore.mediaEditing.show) return
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') return
+  event.preventDefault()
+  void save()
 }
 
 onMounted(() => {
   initButtons()
   void getImage()
+  window.addEventListener('keydown', onSaveHotkey)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onSaveHotkey)
 })
 
 watch(() => media.value?.id, (mediaId, previousId) => {
   if (mediaId == null || mediaId === previousId) return
   bigPreviewOpen.value = false
+  formDirty.value = false
   void getImage()
 })
 
 watch(() => dialogsStore.mediaEditing.show, (show) => {
-  if (!show) bigPreviewOpen.value = false
+  if (!show) {
+    bigPreviewOpen.value = false
+    formDirty.value = false
+  }
 })
 
 watch(

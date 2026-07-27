@@ -1,13 +1,14 @@
 <template>
   <v-dialog
-    v-model="dialogsStore.tagEditing.show"
+    :model-value="dialogsStore.tagEditing.show"
     :fullscreen="xs"
     :width="xl ? 1400 : 1000"
     scrollable
+    @update:model-value="onDialogVisibilityChange"
   >
-    <v-card>
+    <v-card class="edit-dialog-card">
       <DialogHeader
-        @close="dialogsStore.tagEditing.show = false"
+        @close="requestClose"
         :header="'Editing'"
         :subheader="tag?.name"
         :subheader-copy-text="tag?.name"
@@ -21,7 +22,8 @@
           v-if="tag && meta"
           :key="`${tag.id}-${editReloadKey}`"
           layout="hero"
-          @close="close"
+          @close="requestClose"
+          @dirty-change="formDirty = $event"
           :tag="tag"
           :meta="meta"
           ref="editingComponent"
@@ -46,6 +48,15 @@
       @delete="deleteTag"
       @close="is_show_dialog_delete_confirm = false"
       text="Delete tag?"
+    />
+
+    <DialogConfirm
+      v-if="is_show_unsaved_confirm"
+      variant="confirm"
+      :dialog="is_show_unsaved_confirm"
+      @confirm="forceClose"
+      @close="is_show_unsaved_confirm = false"
+      :text="t('editing.discard_unsaved_confirm')"
     />
   </v-dialog>
 </template>
@@ -102,6 +113,7 @@ interface EditComponentInstance {
   save?: () => Promise<boolean>
   tryApplyAutoColorFromImage?: (color: string) => void
   reload?: () => Promise<void>
+  isDirty?: () => boolean
 }
 
 const {xl, xs} = useDisplay()
@@ -119,9 +131,11 @@ const images = ref<TagImage[]>([])
 const buttons = ref<DialogHeaderButton[]>([])
 const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const is_show_dialog_delete_confirm = ref(false)
+const is_show_unsaved_confirm = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
 const currentIndex = shallowRef(0)
 const editReloadKey = ref(0)
+const formDirty = ref(false)
 
 const tag = computed(() => dialogsStore.tagEditing.tag)
 const meta = computed(() => dialogsStore.tagEditing.meta)
@@ -180,7 +194,7 @@ const initButtons = () => {
     text: t('common.save'),
     color: 'success',
     variant: 'flat',
-    action: save
+    action: save,
   })
 }
 
@@ -279,7 +293,7 @@ const deleteTag = async () => {
 
     void reloadTagsCatalog()
 
-    close()
+    forceClose()
 
     notificationsStore.setNotification({
       type: 'info',
@@ -326,11 +340,29 @@ const save = async () => {
     void reloadTagsCatalog()
   }
 
+  forceClose()
+}
+
+const forceClose = () => {
+  is_show_unsaved_confirm.value = false
+  formDirty.value = false
   dialogsStore.tagEditing.show = false
 }
 
-const close = () => {
-  dialogsStore.tagEditing.show = false
+const requestClose = () => {
+  if (formDirty.value || editingComponent.value?.isDirty?.()) {
+    is_show_unsaved_confirm.value = true
+    return
+  }
+  forceClose()
+}
+
+const onDialogVisibilityChange = (show: boolean) => {
+  if (show) {
+    dialogsStore.tagEditing.show = true
+    return
+  }
+  requestClose()
 }
 
 const openScraper = () => {
@@ -442,6 +474,13 @@ const handleScraperImages = () => {
   listSync.getItemsFromDb({ids: [tag.value.id], type: 'tag'})
 }
 
+const onSaveHotkey = (event: KeyboardEvent) => {
+  if (!dialogsStore.tagEditing.show) return
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') return
+  event.preventDefault()
+  void save()
+}
+
 watch(
   () => dialogsStore.tmdbPersonScraper.show,
   async (show, wasShow) => {
@@ -470,10 +509,12 @@ onMounted(() => {
   getImages()
 
   eventBus.on('scraperGotImages', handleScraperImages)
+  window.addEventListener('keydown', onSaveHotkey)
 })
 
 onBeforeUnmount(() => {
   eventBus.off('scraperGotImages', handleScraperImages)
+  window.removeEventListener('keydown', onSaveHotkey)
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
 })
 </script>

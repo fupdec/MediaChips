@@ -1928,6 +1928,77 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
+.editing-form {
+  padding-top: 4px !important;
+}
+
+.editing-section {
+  & + & {
+    margin-top: 16px;
+  }
+
+  &__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(var(--v-theme-on-surface), 0.6);
+    margin-bottom: 8px;
+  }
+
+  &__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 12px;
+
+    .editing-section__title {
+      margin-bottom: 0;
+      margin-right: 4px;
+    }
+  }
+
+  &__search {
+    flex: 1 1 180px;
+    max-width: 280px;
+    min-width: 140px;
+  }
+
+  &__filters {
+    flex: 0 1 auto;
+  }
+
+  &__empty {
+    padding: 12px 4px 4px;
+  }
+}
+
+.editing-identity {
+  .v-input {
+    margin-bottom: 0;
+  }
+}
+
+.edit-dialog-card {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.edit-dialog-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
+  flex-shrink: 0;
+
+  &__dirty {
+    min-height: 20px;
+  }
+}
+
 .edit-pinned-overview {
   &__block {
     margin-bottom: 12px;

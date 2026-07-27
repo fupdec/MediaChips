@@ -30,6 +30,36 @@
     <!-- Main form -->
     <v-form v-model="valid" ref="form" @submit.prevent>
       <v-container fluid>
+        <div v-if="showFieldToolbar" class="editing-section__toolbar mb-3">
+          <v-text-field
+            v-model="fieldSearch"
+            :label="t('editing.search_fields')"
+            prepend-inner-icon="mdi-magnify"
+            density="compact"
+            hide-details
+            clearable
+            rounded="xl"
+            variant="outlined"
+            class="editing-section__search"
+          />
+          <v-chip-group
+            v-model="fieldFilter"
+            class="editing-section__filters"
+            selected-class="text-primary"
+            mandatory
+          >
+            <v-chip value="all" filter size="small" variant="tonal">
+              {{ t('editing.filter_all') }}
+            </v-chip>
+            <v-chip value="filled" filter size="small" variant="tonal">
+              {{ t('editing.filter_filled') }}
+            </v-chip>
+            <v-chip value="empty" filter size="small" variant="tonal">
+              {{ t('editing.filter_empty', {count: emptyPinnedCount}) }}
+            </v-chip>
+          </v-chip-group>
+        </div>
+
         <v-row>
           <!-- Name field - only for tags -->
           <v-col v-if="isTag && meta" cols="12" md="6" xl="4" class="field">
@@ -81,7 +111,7 @@
           </v-col>
 
           <!-- Rating & Favorite -->
-          <v-col v-if="ratingEnabled || favoriteEnabled" cols="12" md="6" xl="4">
+          <v-col v-if="ratingEnabled || favoriteEnabled" cols="12" md="6" xl="4" class="field">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <div class="d-flex justify-space-between">
                 <div v-if="ratingEnabled" class="text-medium-emphasis text-caption">
@@ -104,7 +134,7 @@
                   density="compact"
                   class="pt-2"
                   hover
-                ></v-rating>
+                />
                 <v-checkbox
                   v-if="favoriteEnabled"
                   v-model="vals.favorite"
@@ -117,11 +147,22 @@
                   class="fav-btn"
                 />
               </div>
+              <v-btn
+                v-if="!equalOld('rating') || !equalOld('favorite')"
+                @click="restoreIdentityRatingFavorite"
+                class="restore"
+                :title="t('common.restore')"
+                variant="plain"
+                size="x-small"
+                icon
+              >
+                <v-icon>mdi-restore</v-icon>
+              </v-btn>
             </v-card>
           </v-col>
 
           <!-- Number of views -->
-          <v-col v-if="settingsStore.count_number_of_views === '1'" cols="12" md="6" xl="4">
+          <v-col v-if="viewsEnabled" cols="12" md="6" xl="4" class="field">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <v-text-field
                 v-model="vals.views"
@@ -131,11 +172,22 @@
                 hide-details
                 variant="filled"
               />
+              <v-btn
+                v-if="!equalOld('views')"
+                @click="restore('views')"
+                class="restore"
+                :title="t('common.restore')"
+                variant="plain"
+                size="x-small"
+                icon
+              >
+                <v-icon>mdi-restore</v-icon>
+              </v-btn>
             </v-card>
           </v-col>
 
           <!-- Color - only for tags -->
-          <v-col v-if="isTag && meta?.color" cols="12" md="6" xl="4">
+          <v-col v-if="isTag && meta?.color" cols="12" md="6" xl="4" class="field">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <div class="text-medium-emphasis text-caption">{{ t('meta.default_names.color') }}</div>
               <div class="d-flex flex-wrap align-center ga-2 mt-1">
@@ -154,11 +206,22 @@
                   {{ t('meta.settings.color_from_image') }}
                 </v-btn>
               </div>
+              <v-btn
+                v-if="!equalOld('color')"
+                @click="restore('color')"
+                class="restore"
+                :title="t('common.restore')"
+                variant="plain"
+                size="x-small"
+                icon
+              >
+                <v-icon>mdi-restore</v-icon>
+              </v-btn>
             </v-card>
           </v-col>
 
           <!-- Country - only for tags -->
-          <v-col v-if="isTag && showCountryField" cols="12" md="6" xl="4">
+          <v-col v-if="isTag && showCountryField" cols="12" md="6" xl="4" class="field">
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
               <MetaInputCountry
                 @update:model-value="setValByKey($event, 'country')"
@@ -166,18 +229,28 @@
                 variant="filled"
                 hide-details
               />
+              <v-btn
+                v-if="!equalOld('country', 'array')"
+                @click="restore('country')"
+                class="restore"
+                :title="t('common.restore')"
+                variant="plain"
+                size="x-small"
+                icon
+              >
+                <v-icon>mdi-restore</v-icon>
+              </v-btn>
             </v-card>
           </v-col>
 
           <!-- Assigned/Pinned metadata -->
           <v-col
-            v-for="item in assignedItems"
+            v-for="item in visibleAssignedItems"
             :key="`${currentItemId}_${item.pinnedMetaId || item.metaId}`"
             cols="12" md="6" xl="4"
             class="field"
           >
             <v-card class="rounded-xl pa-4" color="rgba(150, 150, 150, 0.09)" variant="flat">
-              <!-- Array type meta -->
               <MetaInputArray
                 v-if="item.meta?.type === 'array'"
                 @update:model-value="setVal($event, getItemKey(item))"
@@ -188,7 +261,6 @@
                 multiple
               />
 
-              <!-- Number type meta -->
               <v-text-field
                 v-if="item.meta?.type === 'number'"
                 :model-value="getNumberVal(item)"
@@ -202,7 +274,6 @@
                 variant="filled"
               />
 
-              <!-- String type meta -->
               <v-text-field
                 v-if="item.meta?.type === 'string'"
                 :model-value="getStringVal(item)"
@@ -215,7 +286,6 @@
                 variant="filled"
               />
 
-              <!-- Boolean type meta -->
               <v-checkbox
                 v-if="item.meta?.type === 'boolean'"
                 :model-value="getBooleanVal(item)"
@@ -226,7 +296,6 @@
                 persistent-hint
               />
 
-              <!-- Date type meta -->
               <v-text-field
                 v-if="item.meta?.type === 'date'"
                 @click="pickDate(getItemKey(item))"
@@ -240,7 +309,6 @@
                 variant="filled"
               />
 
-              <!-- Rating type meta -->
               <div v-if="item.meta?.type === 'rating'" class="d-flex flex-column">
                 <div class="text-medium-emphasis text-caption" :class="[{ 'pl-9': showIcons }]">
                   {{ metaName(item) }}
@@ -260,7 +328,7 @@
                     density="compact"
                     clearable
                     hover
-                  ></v-rating>
+                  />
                 </div>
                 <div class="text-medium-emphasis text-caption" :class="[{ 'pl-9': showIcons }]">
                   {{ metaHint(item) }}
@@ -308,6 +376,13 @@
             </v-card>
           </v-col>
         </v-row>
+
+        <div
+          v-if="showFieldToolbar && visibleAssignedItems.length === 0 && assignedItems.length > 0"
+          class="editing-section__empty text-medium-emphasis text-body-2 mt-2"
+        >
+          {{ t('editing.no_matching_fields') }}
+        </div>
       </v-container>
     </v-form>
 
@@ -455,8 +530,9 @@ const props = withDefaults(defineProps<{
   media: null,
 })
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
+  'dirty-change': [dirty: boolean]
 }>()
 
 const isTag = computed(() => !!props.tag)
@@ -537,6 +613,74 @@ const favoriteEnabled = computed(() => {
 
 const showSynonymsField = computed(() => Boolean(props.meta?.synonyms || props.meta?.scraper))
 const showCountryField = computed(() => Boolean(props.meta?.country || props.meta?.scraper))
+
+type FieldFilter = 'all' | 'filled' | 'empty'
+const FIELD_TOOLBAR_MIN_PINNED = 4
+const fieldFilter = ref<FieldFilter>('all')
+const fieldSearch = ref('')
+
+const viewsEnabled = computed(() => settingsStore.count_number_of_views === '1')
+const showFieldToolbar = computed(() => assignedItems.value.length > FIELD_TOOLBAR_MIN_PINNED)
+
+const isValueFilled = (val: MetaFieldValue, type?: string): boolean => {
+  if (val === undefined || val === null || val === '') return false
+  if (type === 'boolean' || typeof val === 'boolean') return true
+  if (type === 'number' || type === 'rating' || typeof val === 'number') {
+    const n = Number(val)
+    return Number.isFinite(n) && n > 0
+  }
+  if (typeof val === 'string' || Array.isArray(val)) return val.length > 0
+  return false
+}
+
+const matchesFieldSearch = (label: string): boolean => {
+  const query = fieldSearch.value.trim().toLowerCase()
+  if (!query) return true
+  return label.toLowerCase().includes(query)
+}
+
+const shouldShowPinnedField = (options: {
+  label: string
+  filled: boolean
+  dirty: boolean
+}): boolean => {
+  if (!showFieldToolbar.value) return true
+  if (!matchesFieldSearch(options.label)) return false
+  if (options.dirty) return true
+  if (fieldFilter.value === 'all') return true
+  if (fieldFilter.value === 'filled') return options.filled
+  return !options.filled
+}
+
+const visibleAssignedItems = computed(() =>
+  assignedItems.value.filter((item) => {
+    const key = getItemKey(item)
+    return shouldShowPinnedField({
+      label: metaName(item) || '',
+      filled: isValueFilled(vals.value[key], item.meta?.type),
+      dirty: !equalOld(key, item.meta?.type),
+    })
+  }),
+)
+
+const emptyPinnedCount = computed(() =>
+  assignedItems.value.filter((item) =>
+    !isValueFilled(vals.value[getItemKey(item)], item.meta?.type),
+  ).length,
+)
+
+const isDirty = computed(() => {
+  const keys = new Set<string>([
+    ...Object.keys(vals.value),
+    ...Object.keys(old.value),
+  ])
+  for (const key of keys) {
+    const assigned = assignedItems.value.find((item) => String(getItemKey(item)) === key)
+    const type = assigned?.meta?.type ?? (key === 'country' ? 'array' : undefined)
+    if (!equalOld(key, type)) return true
+  }
+  return false
+})
 
 // Methods
 
@@ -735,6 +879,19 @@ const equalOld = (metaId: string | number, metaType?: string) => {
 const restore = (key: string | number) => {
   vals.value[key] = cloneMetaFieldValue(old.value[key])
 }
+
+const restoreIdentityRatingFavorite = () => {
+  if (ratingEnabled.value) restore('rating')
+  if (favoriteEnabled.value) restore('favorite')
+}
+
+const discard = () => {
+  vals.value = cloneMetaValues(old.value)
+}
+
+const getIsDirty = () => isDirty.value
+
+watch(isDirty, (dirty) => emit('dirty-change', dirty), {immediate: true})
 
 const applyMediaFileInfo = (fileInfo: Partial<MediaItem> | null) => {
   if (!fileInfo || !isMedia.value) return
@@ -1228,6 +1385,8 @@ const completionStatus = computed(() => {
 defineExpose({
   save,
   tryApplyAutoColorFromImage,
+  discard,
+  isDirty: getIsDirty,
 })
 </script>
 
@@ -1236,6 +1395,24 @@ defineExpose({
   .v-selection-control,
   .v-checkbox-btn {
     min-height: 24px !important;
+  }
+}
+
+.editing {
+  .field {
+    position: relative;
+
+    .restore {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+    }
+
+    &:hover .restore,
+    &:focus-within .restore {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 }
 
