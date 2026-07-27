@@ -23,8 +23,21 @@
 
     <!-- LEFT AREA -->
     <div class="app-bar-container px-1 d-flex align-center flex-1">
-      <!--      <div class="scrollable">-->
-      <!--        <div class="scrollable-child d-flex align-center">-->
+      <router-link
+        v-if="!itemsStore.isSelect && !itemsStore.type"
+        to="/"
+        class="app-bar-brand"
+        :title="'MediaChips'"
+      >
+        <img
+          src="/icons/logo.png"
+          alt=""
+          class="app-bar-brand__logo"
+          draggable="false"
+        >
+        <span class="app-bar-brand__name">MediaChips</span>
+      </router-link>
+
       <ItemsSelection v-if="itemsStore.isSelect"/>
 
       <div
@@ -224,6 +237,44 @@ onUnmounted(() => {
   border-radius: 15px;
   width: 76px;
   height: 25px;
+}
+
+.app-bar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 999px;
+  text-decoration: none;
+  color: inherit;
+  -webkit-app-region: no-drag;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &__logo {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    border-radius: 7px;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  &__name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    white-space: nowrap;
+  }
 }
 
 .scrollable {

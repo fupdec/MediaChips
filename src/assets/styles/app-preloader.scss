@@ -12,18 +12,58 @@ body {
   inset: 0;
   z-index: 2400;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #333;
+  gap: 10px;
+  background:
+    radial-gradient(ellipse 70% 55% at 28% 18%, rgba(122, 110, 240, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 78% 78%, rgba(240, 161, 26, 0.1), transparent 55%),
+    linear-gradient(160deg, #f7f6fb 0%, #f3f1f8 48%, #faf9fc 100%);
   pointer-events: none;
+  overflow: hidden;
+}
+
+.app-startup-splash__glow {
+  position: absolute;
+  width: min(70vw, 420px);
+  height: min(70vw, 420px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(155, 147, 232, 0.16), transparent 68%);
+  filter: blur(8px);
+  animation: app-startup-glow 3.2s ease-in-out infinite;
 }
 
 .app-startup-splash__logo {
-  width: min(42vw, 220px);
+  position: relative;
+  width: min(34vw, 168px);
   height: auto;
+  border-radius: 28px;
   user-select: none;
   -webkit-user-drag: none;
-  animation: app-startup-pulse 2s infinite;
+  filter: drop-shadow(0 8px 18px rgba(80, 70, 140, 0.12));
+  animation: app-startup-pulse 2.4s ease-in-out infinite;
+}
+
+.app-startup-splash__name {
+  position: relative;
+  margin-top: 6px;
+  font-family: Helvetica, Roboto, sans-serif;
+  font-size: clamp(1.35rem, 3.4vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #2c2940;
+  animation: app-startup-fade 0.7s ease both;
+}
+
+.app-startup-splash__tagline {
+  position: relative;
+  font-family: Helvetica, Roboto, sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(44, 41, 64, 0.5);
+  animation: app-startup-fade 0.9s ease 0.08s both;
 }
 
 .app-content-loading {
@@ -35,16 +75,38 @@ body {
 }
 
 @keyframes app-startup-pulse {
-  0% {
-    transform: scale(1);
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
   }
 
   50% {
-    transform: scale(1.05);
+    transform: translateY(-4px) scale(1.04);
+  }
+}
+
+@keyframes app-startup-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
   }
 
-  100% {
-    transform: scale(1);
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes app-startup-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

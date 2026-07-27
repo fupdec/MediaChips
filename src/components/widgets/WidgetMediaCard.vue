@@ -68,6 +68,7 @@
     <v-progress-linear
       v-if="variant === 'continue' && progress > 0"
       :model-value="progress"
+      class="home-media-card__progress"
       color="primary"
       height="3"
     />
@@ -278,8 +279,21 @@ function handleBodyClick() {
     z-index: 3;
   }
 
+  &__progress {
+    :deep(.v-progress-linear__background) {
+      opacity: 1 !important;
+      background: rgba(0, 0, 0, 0.2) !important;
+    }
+  }
+
   &__body {
     min-height: 48px;
+  }
+}
+
+.v-theme--dark .home-media-card__progress {
+  :deep(.v-progress-linear__background) {
+    background: rgba(255, 255, 255, 0.24) !important;
   }
 }
 </style>

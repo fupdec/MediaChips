@@ -2,14 +2,19 @@
   <v-container>
     <v-card
       v-if="settingsStore.show_salutation === '1'"
-      class="rounded-lg mb-6"
+      class="home-welcome rounded-lg mb-6"
       color="primary"
       variant="tonal"
     >
-      <v-card-text class="pa-3">
-        <div class="d-flex align-center text-body-1 font-weight-medium mb-2">
-          <v-icon class="mr-2" size="20">mdi-hand-wave-outline</v-icon>
-          {{ t('home.welcome') }}
+      <v-card-text class="pa-4">
+        <div class="home-welcome__title d-flex align-center mb-2">
+          <img
+            src="/icons/logo.png"
+            alt=""
+            class="home-welcome__logo"
+            draggable="false"
+          >
+          <span>{{ t('home.welcome') }}</span>
         </div>
 
         <div class="text-body-2 text-medium-emphasis mb-3">
@@ -257,3 +262,30 @@ onBeforeUnmount(() => {
   setOption('0', "show_salutation")
 })
 </script>
+
+<style scoped lang="scss">
+.home-welcome {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-primary), 0.18);
+  background:
+    radial-gradient(ellipse 90% 120% at 0% 0%, rgba(var(--v-theme-secondary), 0.16), transparent 55%),
+    rgba(var(--v-theme-primary), 0.08);
+
+  &__title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  &__logo {
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
+    border-radius: 8px;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+}
+</style>

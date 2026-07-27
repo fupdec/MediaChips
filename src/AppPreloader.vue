@@ -71,11 +71,14 @@
       class="app-startup-splash"
       aria-hidden="true"
     >
+      <div class="app-startup-splash__glow"></div>
       <img
         src="/icons/logo.png"
         alt=""
         class="app-startup-splash__logo"
       >
+      <div class="app-startup-splash__name">MediaChips</div>
+      <div class="app-startup-splash__tagline">Organize your media</div>
     </div>
 
     <v-overlay :model-value="isPlayerWindow && !isAppReady"

@@ -878,7 +878,17 @@
     margin-top: -1px;
     position: relative;
     z-index: 1;
+
+    .v-progress-linear__background {
+      opacity: 1 !important;
+      // Plain rgba — Sass breaks rgba(var(--v-theme-*), …)
+      background: rgba(0, 0, 0, 0.2) !important;
+    }
   }
+}
+
+.v-theme--dark .item .v-progress-linear .v-progress-linear__background {
+  background: rgba(255, 255, 255, 0.24) !important;
 }
 
 .error-load-thumb {
