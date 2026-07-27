@@ -1914,17 +1914,26 @@ body > .video-preview-container.video-preview-container--expanded {
 .editing {
   &.show-icons {
     .restore {
-      top: 5px;
-      left: 11px;
+      top: 8px;
+      right: 8px;
+      left: auto;
     }
   }
+
+  .editing-field-card {
+    overflow: visible;
+  }
+
   .field {
     position: relative;
+    overflow: visible;
   }
+
   .restore {
     position: absolute;
-    top: 0px;
-    left: 0px;
+    top: 4px;
+    right: 4px;
+    left: auto;
   }
 }
 

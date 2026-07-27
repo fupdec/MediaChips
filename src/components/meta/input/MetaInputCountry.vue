@@ -7,13 +7,13 @@
     :custom-filter="filterCountryForAutocomplete"
     :rules="[rules]"
     :disabled="disabled"
-    :prepend-icon="showIcons && !purpose ? 'mdi-flag' : ''"
+    :prepend-icon="showIcons && !purpose ? 'mdi-flag' : undefined"
     :label="purpose === 'filter' ? '' : 'Country'"
     :hide-details="purpose ? true : false"
     :rounded="view.rounded"
     :variant="view.filled ? 'filled' : 'outlined'"
     :density="view.dense ? 'compact' : 'default'"
-    :append-icon="view.hideIcon ? '' : 'mdi-chevron-down'"
+    :append-icon="undefined"
     item-text="name"
     item-value="name"
     ref="field"
@@ -101,7 +101,7 @@ const view = ref({
 })
 
 const showIcons = computed(() =>
-  settingsStore.showIconsInsteadTextOnFiltersChips === '1'
+  settingsStore.showIconsOfMetaInEditingDialog === '1'
 )
 
 const typingFiltersDefault = computed(() =>
