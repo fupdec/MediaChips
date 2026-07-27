@@ -214,6 +214,27 @@ function addPhrase(
     })
   }
 
+  if (tokens.length > 1) {
+    // Contiguous multi-token subphrases so "Silvia Saint" matches inside
+    // "Silvia Saint QTGMC" / "Silvia Saint and Nikita Denise".
+    for (let len = 2; len < tokens.length; len += 1) {
+      for (let start = 0; start <= tokens.length - len; start += 1) {
+        const sub = tokens.slice(start, start + len)
+        if (sub.some((token) => STOP_WORDS.has(token))) continue
+        const subKey = phraseKey(sub)
+        if (seen.has(subKey)) continue
+        seen.add(subKey)
+        phrases.push({
+          tokens: [...sub],
+          source,
+          segment,
+          raw: sub.join(' '),
+          kind: 'full',
+        })
+      }
+    }
+  }
+
   if (tokens.length > 1 && precisionConfig.emitSubphraseSingles) {
     for (const token of tokens) {
       if (isNoiseToken(token, precisionConfig.singleTokenMinLength)) continue

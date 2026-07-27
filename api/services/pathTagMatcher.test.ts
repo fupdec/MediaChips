@@ -225,6 +225,35 @@ describe('path tag matching', () => {
     expect(matchNames('/library/Avi Love/scene.mp4', tags)).toEqual(['Avi Love'])
   })
 
+  it('T16: matches multi-word performer inside longer folder name', () => {
+    const tags = [
+      tag(1, 'Silvia Saint'),
+      tag(2, 'QTGMC', websiteMeta),
+    ]
+
+    expect(matchNames(
+      '/Volumes/pron/#!torrents/Silvia Saint QTGMC/Silvia Saint and Nikita Denise - 100 Percent Silvia Scene 1.mkv',
+      tags,
+    )).toEqual(['Silvia Saint'])
+    expect(matchNames(
+      '/Volumes/pron/#!torrents/Silvia Saint QTGMC/Silvia Saint and Nikita Denise - 100 Percent Silvia Scene 1.mkv',
+      tags,
+      websiteMeta,
+    )).toEqual(['QTGMC'])
+  })
+
+  it('T17: matches both performers joined by and in filename', () => {
+    const tags = [
+      tag(1, 'Silvia Saint'),
+      tag(2, 'Nikita Denise'),
+    ]
+
+    expect(matchNames(
+      '/library/Silvia Saint and Nikita Denise - Scene 1.mkv',
+      tags,
+    )).toEqual(['Silvia Saint', 'Nikita Denise'])
+  })
+
   it('T13b: matches V Monroe from dedicated folder segment', () => {
     const tags = [tag(1, 'V Monroe')]
 
