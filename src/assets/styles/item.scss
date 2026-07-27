@@ -987,6 +987,7 @@
       opacity: 1;
       animation: none;
       transition-duration: 0s;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
       // Let blurred thumb show through letterbox / side insets.
       background-color: transparent;
       // Transform on this shell breaks overflow clipping of hardware
@@ -1049,6 +1050,7 @@
         opacity: 1 !important;
         transition: opacity 350ms ease-in !important;
         background-color: transparent !important;
+        box-shadow: none;
 
         video {
           width: 100% !important;
