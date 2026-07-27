@@ -1,13 +1,13 @@
 import Database from 'better-sqlite3'
 import { applySqlitePragmas } from './pragmas'
 import { seedDefaults } from './seedDefaults'
-import { seedDemoMetadata } from './seedDemoMetadata'
+import { seedStarterMeta } from './seedStarterMeta'
 import { runLegacyUpgrades } from './legacyUpgrades'
 import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from './schemaRepair'
 import { ensureSearchFtsIndex } from './searchFts'
 
 export type PostMigrationOptions = {
-  /** When false, skip sample Color tags seed (e.g. during LowDB migration). Default true. */
+  /** When false, skip starter Tags/Rating/Favorite seed (e.g. during LowDB migration). Default true. */
   seedDemo?: boolean
 }
 
@@ -19,7 +19,7 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
     applySqlitePragmas(sqlite)
     seedDefaults(sqlite)
     if (seedDemo) {
-      seedDemoMetadata(sqlite)
+      seedStarterMeta(sqlite)
     }
     const repairedColumns = repairSchemaColumns(sqlite)
     if (repairedColumns.length) {

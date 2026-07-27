@@ -378,7 +378,7 @@ const cn = {
     show_documentation: '显示文档',
     show_onboarding: '入门指南',
     customize_widgets: '自定义小部件',
-    keyboard_hint: '按 / 搜索 · ? 查看快捷键',
+    keyboard_hint: '按 {search} 搜索 · {shortcuts} 查看快捷键',
     new_tool: '新工具！',
     quick_tags_tool_hint: '您可以使用文件路径中最常见的词快速添加标签！',
     available_under_tools: '也可在“设置 -> 媒体库”中使用。',

@@ -378,7 +378,7 @@ const es = {
     show_documentation: 'Mostrar documentación',
     show_onboarding: 'Primeros pasos',
     customize_widgets: 'Personalizar widgets',
-    keyboard_hint: 'Pulsa / para buscar · ? para atajos',
+    keyboard_hint: 'Pulsa {search} para buscar · {shortcuts} para atajos',
     new_tool: '¡Nueva herramienta!',
     quick_tags_tool_hint: 'Puede agregar etiquetas rápidamente usando las palabras más populares encontradas en las rutas de archivos.',
     available_under_tools: 'También disponible en "Configuración -> Biblioteca".',

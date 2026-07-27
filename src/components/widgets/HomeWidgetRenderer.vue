@@ -85,7 +85,6 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'topTags'"
-    min-height="240px"
   >
     <WidgetTopTags :limit="limits?.topTags ?? 10"/>
   </WidgetLazyMount>

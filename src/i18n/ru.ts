@@ -377,7 +377,7 @@ const ru = {
     show_documentation: 'Показать документацию',
     show_onboarding: 'Первые шаги',
     customize_widgets: 'Настроить виджеты',
-    keyboard_hint: 'Нажмите / для поиска · ? для горячих клавиш',
+    keyboard_hint: 'Нажмите {search} для поиска · {shortcuts} для горячих клавиш',
     new_tool: 'Новый инструмент!',
     quick_tags_tool_hint: 'Вы можете быстро добавлять теги по самым популярным словам, найденным в путях файлов!',
     available_under_tools: 'Также доступно в разделе "Настройки -> Библиотека".',

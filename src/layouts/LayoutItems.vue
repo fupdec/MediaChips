@@ -19,7 +19,6 @@
 
       <div class="d-flex align-end flex-wrap ga-2">
         <ToolbarSort></ToolbarSort>
-        <ToolbarGroupBy></ToolbarGroupBy>
 
         <v-btn @click="toggleCustomization"
           v-tooltip:top="t('appbar.buttons.customize')"
@@ -278,7 +277,6 @@ import Loading from '@/components/elements/Loading.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
-import ToolbarGroupBy from '@/components/app/toolbar/ToolbarGroupBy.vue'
 import ToolbarAppearance from "@/components/app/toolbar/ToolbarAppearance.vue";
 import DialogMediaAdding from '@/components/dialogs/DialogMediaAdding.vue'
 import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'

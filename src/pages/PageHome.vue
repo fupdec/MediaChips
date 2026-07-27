@@ -3,8 +3,7 @@
     <v-card
       v-if="settingsStore.show_salutation === '1'"
       class="home-welcome rounded-lg mb-6"
-      color="primary"
-      variant="tonal"
+      variant="flat"
     >
       <v-card-text class="pa-4">
         <div class="home-welcome__title d-flex align-center mb-2">
@@ -21,9 +20,18 @@
           {{ t('home.documentation_hint') }}
         </div>
 
-        <div class="text-caption text-medium-emphasis mb-3">
-          {{ t('home.keyboard_hint') }}
-        </div>
+        <i18n-t
+          keypath="home.keyboard_hint"
+          tag="div"
+          class="text-caption text-medium-emphasis mb-3 d-flex align-center flex-wrap ga-1"
+        >
+          <template #search>
+            <v-hotkey keys="slash" variant="flat"/>
+          </template>
+          <template #shortcuts>
+            <v-hotkey keys="?" variant="flat"/>
+          </template>
+        </i18n-t>
 
         <div class="d-flex flex-wrap ga-2">
           <v-btn
@@ -266,10 +274,20 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .home-welcome {
   overflow: hidden;
-  border: 1px solid rgba(var(--v-theme-primary), 0.18);
+  // Logo palette: magenta-violet → amber-gold
+  --welcome-violet: #7a3ea8;
+  --welcome-magenta: #a3368d;
+  --welcome-gold: #ffc511;
+  --welcome-amber: #f7941d;
+  border: 1px solid color-mix(in srgb, var(--welcome-violet) 22%, transparent);
   background:
-    radial-gradient(ellipse 90% 120% at 0% 0%, rgba(var(--v-theme-secondary), 0.16), transparent 55%),
-    rgba(var(--v-theme-primary), 0.08);
+    radial-gradient(ellipse 80% 110% at 0% -10%, color-mix(in srgb, var(--welcome-magenta) 28%, transparent), transparent 58%),
+    radial-gradient(ellipse 70% 100% at 100% 110%, color-mix(in srgb, var(--welcome-amber) 26%, transparent), transparent 55%),
+    linear-gradient(
+      125deg,
+      color-mix(in srgb, var(--welcome-violet) 10%, rgb(var(--v-theme-surface))) 0%,
+      color-mix(in srgb, var(--welcome-gold) 8%, rgb(var(--v-theme-surface))) 100%
+    );
 
   &__title {
     font-size: 1.15rem;

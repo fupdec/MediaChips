@@ -255,7 +255,7 @@ export const defaultSettingsState = (): SettingsState => ({
   meta_sort_mode: 'menu',
   system_dark_mode: '1',
   open_player_in_separate_window: '1',
-  show_quick_action_button: '1',
+  show_quick_action_button: '0',
   play_sound_on_video_preview: '1',
   big_video_preview: '1',
   big_video_preview_delay: '2000',

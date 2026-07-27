@@ -44,13 +44,15 @@ const DEFAULT_MEDIA_TYPES = [
 ] as const
 
 const MIGRATION_SETTINGS = [
-  {option: 'ratingAndFavoriteInCard', value: '0'},
+  {option: 'ratingAndFavoriteInCard', value: '1'},
   {option: 'group_chips_in_card_description', value: '1'},
   {option: 'show_preset_metadata_in_card', value: '1'},
   {option: 'count_number_of_views', value: '1'},
   {option: 'system_dark_mode', value: '1'},
   {option: 'open_player_in_separate_window', value: '0'},
-  {option: 'show_quick_action_button', value: '1'},
+  {option: 'show_quick_action_button', value: '0'},
+  {option: 'showPlaylistsInNavigation', value: '1'},
+  {option: 'showMarkersInNavigation', value: '1'},
   {option: 'play_sound_on_video_preview', value: '0'},
   {option: 'big_video_preview', value: '1'},
   {option: 'big_video_preview_delay', value: '2000'},

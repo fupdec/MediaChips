@@ -5,6 +5,16 @@
         <div>{{ t('aboutApp.version', {version: appVersion}) }}</div>
         <div>{{ t('aboutApp.contributors') }}</div>
         <v-btn
+          @click="dialogs.feedback = true"
+          class="px-5 mt-2 mr-2"
+          color="primary"
+          rounded
+          variant="flat"
+        >
+          <v-icon start>mdi-message-text-outline</v-icon>
+          {{ t('systemBar.send_feedback') }}
+        </v-btn>
+        <v-btn
           @click="dialogs.versions = true"
           class="px-5 mt-2 mr-2"
           color="primary"

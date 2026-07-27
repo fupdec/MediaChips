@@ -77,21 +77,6 @@
         </section>
       </WidgetLazyMount>
     </template>
-
-    <div
-      v-else
-      class="widget-top-tags__skeleton"
-      aria-hidden="true"
-    >
-      <div class="widget-top-tags__skeleton-title"/>
-      <div class="widget-top-tags__scroll">
-        <div
-          v-for="index in 5"
-          :key="index"
-          class="widget-top-tags__skeleton-card"
-        />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -312,26 +297,6 @@ onMounted(() => {
       background: rgba(var(--v-theme-primary), 0.08);
       border-color: rgba(var(--v-theme-primary), 0.7);
     }
-  }
-
-  &__skeleton {
-    min-height: 220px;
-  }
-
-  &__skeleton-title {
-    width: 160px;
-    height: 24px;
-    margin-bottom: 12px;
-    border-radius: 6px;
-    background: rgba(var(--v-theme-on-surface), 0.06);
-  }
-
-  &__skeleton-card {
-    width: 104px;
-    flex: 0 0 104px;
-    aspect-ratio: 3 / 4;
-    border-radius: 12px;
-    background: rgba(var(--v-theme-on-surface), 0.06);
   }
 }
 </style>

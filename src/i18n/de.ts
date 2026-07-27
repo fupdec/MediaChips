@@ -377,7 +377,7 @@ const de = {
     show_documentation: "Dokumentation anzeigen",
     show_onboarding: "Erste Schritte",
     customize_widgets: "Widgets anpassen",
-    keyboard_hint: "Drücken Sie / zum Suchen · ? für Tastenkürzel",
+    keyboard_hint: "Drücken Sie {search} zum Suchen · {shortcuts} für Tastenkürzel",
     new_tool: "Neues Werkzeug!",
     quick_tags_tool_hint: "Sie können schnell Tags hinzufügen, indem Sie die beliebtesten Wörter in Dateipfaden verwenden!",
     available_under_tools: "Auch verfügbar unter „Einstellungen -> Bibliothek“.",

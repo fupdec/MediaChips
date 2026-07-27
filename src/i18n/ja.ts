@@ -390,7 +390,7 @@ const ja = {
     show_documentation: "ドキュメントを表示する",
     show_onboarding: "はじめる",
     customize_widgets: "ウィジェットをカスタマイズする",
-    keyboard_hint: "検索は / · ショートカットは ?",
+    keyboard_hint: "検索は {search} · ショートカットは {shortcuts}",
     new_tool: "新しいツール！",
     quick_tags_tool_hint:
       "ファイル パスで見つかった最も一般的な単語を使用して、タグをすばやく追加できます。",

@@ -1,6 +1,7 @@
 <template>
   <div>
     <AppBarButton
+      v-if="button"
       :action="editMeta"
       :text="t('appbar.buttons.edit_meta')"
       icon="wrench-cog"
@@ -28,6 +29,10 @@ import {useRouter} from 'vue-router'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {defineAsyncComponent} from 'vue'
 import type { Meta } from '@/types/stores'
+
+defineProps({
+  button: {type: Boolean, default: true},
+})
 
 const MetaManager = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMetaManager.vue')
@@ -60,4 +65,6 @@ const deleteMeta = async () => {
 const emitUpdate = () => {
   void reloadMetaCatalog()
 }
+
+defineExpose({editMeta})
 </script>

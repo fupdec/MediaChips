@@ -42,14 +42,28 @@
           <div v-if="task.finished" class="d-flex flex-wrap ga-2 mb-4">
             <v-btn
               v-if="task.suggestedTags?.length"
-              @click="openSuggestedTags"
+              @click="acceptAllSuggestedTags"
+              :loading="acceptingSuggestedTags"
+              :disabled="acceptingSuggestedTags"
               color="primary"
               rounded
               variant="flat"
             >
+              <v-icon icon="mdi-tag-check-outline"
+                start/>
+              {{ t('media.adding.accept_all_suggested_tags') }}
+            </v-btn>
+
+            <v-btn
+              v-if="task.suggestedTags?.length"
+              @click="openSuggestedTags"
+              color="primary"
+              rounded
+              variant="outlined"
+            >
               <v-icon icon="mdi-tag-plus-outline"
                 start/>
-              {{ t('media.adding.add_suggested_tags') }}
+              {{ t('media.adding.review_suggested_tags') }}
             </v-btn>
 
             <v-btn
@@ -357,6 +371,8 @@ import {useMediaAdding} from '@/composable/AddingMedia'
 import {deleteLocalFile} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {getErrorResponseData} from '@/types/vue'
+import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 
 interface DialogHeaderButton {
   icon?: string
@@ -430,6 +446,7 @@ const is_show_duplicates_by_path = ref(false)
 const is_show_errors = ref(false)
 const clipModelStatus = ref('unknown')
 const clipModelDownloading = ref(false)
+const acceptingSuggestedTags = ref(false)
 
 const duplicateMarkers = {
   inLibrary: {
@@ -638,8 +655,56 @@ const relinkMovedFiles = async () => {
 const openSuggestedTags = () => {
   appShell.openTagsAddWithNames({
     names: task.value.suggestedTags || [],
+    metaId: getDefaultParserTagsMetaId(appStore.meta) ?? undefined,
     title: t('media.adding.suggested_tags_from_added_files'),
   })
+}
+
+const acceptAllSuggestedTags = async () => {
+  const names = uniqueNames(task.value.suggestedTags || [])
+  if (!names.length) return
+
+  const metaId = getDefaultParserTagsMetaId(appStore.meta)
+  if (!metaId) {
+    openSuggestedTags()
+    return
+  }
+
+  acceptingSuggestedTags.value = true
+  try {
+    const existing = new Set(
+      (appStore.tags || []).map((tag) => String(tag.name || '').trim().toLowerCase()),
+    )
+    const toCreate = names.filter((name) => !existing.has(name.toLowerCase()))
+
+    if (toCreate.length > 0) {
+      await typedApi.createTags(
+        toCreate.map((name) => ({
+          name,
+          metaId,
+        })),
+      )
+      await reloadTagsCatalog()
+    }
+
+    task.value.suggestedTags = []
+    setNotification({
+      type: 'success',
+      title: t('media.adding.accept_all_suggested_tags'),
+      text: t('notifications_text.added_list', {
+        items: (toCreate.length ? toCreate : names).join(', '),
+      }),
+    })
+  } catch (error) {
+    console.error('Error accepting suggested tags:', error)
+    setNotification({
+      type: 'error',
+      title: t('media.adding.accept_all_suggested_tags'),
+      text: getErrorMessage(error),
+    })
+  } finally {
+    acceptingSuggestedTags.value = false
+  }
 }
 
 const uniqueNames = (items: string[]) => {

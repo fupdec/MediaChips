@@ -23,7 +23,6 @@
 
     <!-- LEFT AREA -->
     <div class="app-bar-container px-1 d-flex align-center flex-1">
-
       <ItemsSelection v-if="itemsStore.isSelect"/>
 
       <div
@@ -39,42 +38,52 @@
 
         <ItemsFilter v-if="itemsStore.type"/>
 
-        <!-- Sort -->
-<!--        <AppBarButton-->
-<!--          :icon="itemsStore.sortDir === 'asc' ? 'sort-ascending' : 'sort-descending'"-->
-<!--          :text="t('appbar.buttons.sort')"-->
-<!--          :active="toolbar.sort.show"-->
-<!--          @click="toggleSort"-->
-<!--        />-->
+        <v-menu location="bottom">
+          <template #activator="{ props: menuProps }">
+            <v-btn
+              v-bind="menuProps"
+              icon
+              variant="text"
+              class="ml-1"
+              :aria-label="t('appbar.buttons.more')"
+            >
+              <v-icon>mdi-dots-vertical</v-icon>
+            </v-btn>
+          </template>
 
-<!--        &lt;!&ndash; Customize &ndash;&gt;-->
-<!--        <AppBarButton-->
-<!--          icon="tune"-->
-<!--          :text="t('appbar.buttons.customize')"-->
-<!--          :active="toolbar.appearance.show"-->
-<!--          @click="toggleCustomization"-->
-<!--        />-->
-        <AppBarButton
-          :disabled="itemsStore.entities.length == 0"
-          :action="() => itemsStore.toggleSelectMode()"
-          :text="$t('appbar.buttons.select')"
-          icon="checkbox-marked-outline"
-          :active="itemsStore.isSelect"
-        ></AppBarButton>
+          <v-list density="compact" min-width="220">
+            <v-list-item
+              :disabled="itemsStore.entities.length == 0"
+              :title="t('appbar.buttons.select')"
+              prepend-icon="mdi-checkbox-marked-outline"
+              @click="itemsStore.toggleSelectMode()"
+            />
+            <v-list-item
+              :disabled="route.path === '/tag'"
+              :title="t('appbar.buttons.create_tab')"
+              prepend-icon="mdi-tab"
+              @click="createTab"
+            />
+            <v-list-item
+              v-if="itemsStore.type == 'tag'"
+              :title="t('appbar.buttons.edit_meta')"
+              prepend-icon="mdi-wrench-cog"
+              @click="editMetaFromMenu"
+            />
+            <v-list-item
+              :disabled="itemsStore.entities.length == 0"
+              :title="t('appbar.buttons.open_random')"
+              prepend-icon="mdi-dice-5"
+              @click="openRandomItem"
+            />
+          </v-list>
+        </v-menu>
 
-        <TabAdd/>
-
-        <ItemsEditMeta v-if="itemsStore.type == 'tag'"/>
-
-        <!-- Random -->
-        <AppBarButton
-          :disabled="itemsStore.entities.length == 0"
-          icon="dice-5"
-          :text="t('appbar.buttons.open_random')"
-          :action="openRandomItem"
+        <ItemsEditMeta
+          v-if="itemsStore.type == 'tag'"
+          ref="itemsEditMetaRef"
+          :button="false"
         />
-        <!--          </div>-->
-        <!--        </div>-->
       </div>
 
       <v-spacer/>
@@ -99,7 +108,6 @@
         <div class="mr-1">
           <GlobalSearch/>
         </div>
-        <Feedback/>
         <Documentation/>
         <Notifications/>
       </div>
@@ -128,19 +136,20 @@ import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
+import {typedApi} from '@/services/typedApi'
+import {getTabUrl} from '@/services/routeService'
+import {reloadTabsCatalog} from '@/composable/appCatalogs'
+import type { TabLike } from '@/types/common'
 
 /* Components */
 const ItemsSelection = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsSelection.vue'))
-import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 const ItemsFilter = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsFilter.vue'))
-const TabAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TabAdd.vue'))
 const TagsAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TagsAdd.vue'))
 const DialogMediaAdding = defineAsyncComponent(() => import('@/components/dialogs/DialogMediaAdding.vue'))
 const ItemsEditMeta = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsEditMeta.vue'))
 const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))
-const Feedback = defineAsyncComponent(() => import('@/components/app/appbar/Feedback.vue'))
-const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
 const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
+const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
 const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 
@@ -165,6 +174,7 @@ const is_electron = platform.value.electron
 
 /* Fullscreen state */
 const fullscreen = ref(false)
+const itemsEditMetaRef = ref<{editMeta: () => void} | null>(null)
 
 /* Colors */
 const tabs = computed(() => app.tabs)
@@ -175,6 +185,31 @@ function openRandomItem() {
   if (ids.length > 0) {
     const rand = Math.floor(Math.random() * ids.length)
     pageCommands.openRandomItem(ids[rand])
+  }
+}
+
+function editMetaFromMenu() {
+  itemsEditMetaRef.value?.editMeta()
+}
+
+async function createTab() {
+  if (route.path === '/tag') return
+
+  try {
+    const { data } = await typedApi.createTab({
+      name: itemsStore.name,
+      icon: itemsStore.icon,
+      url: route.path,
+      tagId: itemsStore.environment.tag_id,
+      mediaTypeId: itemsStore.environment.media_type_id,
+      metaId: itemsStore.environment.meta_id,
+    })
+
+    const url = getTabUrl(data as TabLike)
+    router.push(url)
+    void reloadTabsCatalog()
+  } catch (error) {
+    console.error(error)
   }
 }
 
@@ -224,7 +259,6 @@ onUnmounted(() => {
   width: 76px;
   height: 25px;
 }
-
 
 .scrollable {
   overflow-x: auto;

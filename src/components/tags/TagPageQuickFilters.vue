@@ -169,7 +169,9 @@ const applyingFilters = ref(false)
 const collapsed = ref(false)
 
 const shouldShow = computed(() =>
-  Boolean(props.tagId) && props.mediaTypeId != null,
+  Boolean(props.tagId)
+  && props.mediaTypeId != null
+  && (loading.value || groups.value.length > 0),
 )
 
 const defaultChipVariant = computed((): ChipVariant =>

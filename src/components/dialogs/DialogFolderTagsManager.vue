@@ -31,12 +31,16 @@
           {{ t('common.loading') }}
         </div>
 
-        <div
+        <v-alert
           v-else-if="!folders.length"
-          class="text-medium-emphasis py-6"
+          type="info"
+          variant="tonal"
+          density="compact"
+          class="text-caption"
+          rounded="lg"
         >
           {{ t('media.adding.folder_tags_manager_empty') }}
-        </div>
+        </v-alert>
 
         <div
           v-else-if="!filteredFolders.length"

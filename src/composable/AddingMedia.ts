@@ -20,6 +20,7 @@ import {
   inferMediaTypeFromPaths,
   parseMediaTypeExtensions,
 } from '@/utils/mediaType'
+import {completeOnboarding, shouldShowOnboarding} from '@/composable/useOnboarding'
 
 
 
@@ -375,6 +376,10 @@ export const useMediaAdding = () => {
           text: t('media.adding.added_count', {count: task.value.added.length}),
           actions: [openProcessAction()],
         })
+
+        if (shouldShowOnboarding(false)) {
+          void completeOnboarding()
+        }
       } else {
         task.value.finished = true
         task.value.active = false

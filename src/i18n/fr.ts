@@ -377,7 +377,7 @@ const fr = {
     show_documentation: 'Afficher la documentation',
     show_onboarding: 'Commencer',
     customize_widgets: 'Personnaliser les widgets',
-    keyboard_hint: 'Appuyez sur / pour chercher · ? pour les raccourcis',
+    keyboard_hint: 'Appuyez sur {search} pour chercher · {shortcuts} pour les raccourcis',
     new_tool: 'Nouvel outil !',
     quick_tags_tool_hint: 'Vous pouvez rapidement ajouter des balises en utilisant les mots les plus populaires trouvés dans les chemins de fichiers !',
     available_under_tools: 'Également disponible sous "Paramètres -> Bibliothèque".',

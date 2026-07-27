@@ -217,7 +217,12 @@ async function add() {
 function openWithNames(payload: { names?: string | string[]; metaId?: number } = {}) {
   const incomingNames = Array.isArray(payload.names) ? payload.names : String(payload.names || '').split('\n')
   names.value = incomingNames.filter(Boolean).join('\n')
-  selectedMetaId.value = payload.metaId || fixedMetaId.value || metas.value[0]?.id || null
+  const parserMeta = metas.value.find((meta) => Boolean(meta.parser))
+  selectedMetaId.value = payload.metaId
+    || fixedMetaId.value
+    || parserMeta?.id
+    || metas.value[0]?.id
+    || null
   dialogNames.value = true
 }
 

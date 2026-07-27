@@ -7,9 +7,8 @@
     rounded="xl"
     variant="outlined"
     density="compact"
-    min-width="200"
+    width="100%"
     :label="t('items.group_by')"
-    class="mr-4"
     hide-details
     :disabled="!itemsStore.isFiltersLoaded"
   >

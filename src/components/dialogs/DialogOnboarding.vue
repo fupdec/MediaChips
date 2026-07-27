@@ -37,6 +37,20 @@
 
         <div class="text-h6 mb-2">{{ currentStep.title }}</div>
         <p class="text-body-2 text-medium-emphasis mb-0">{{ currentStep.body }}</p>
+
+        <v-list
+          v-if="currentStep.action === 'starter'"
+          class="mt-4 bg-transparent"
+          density="compact"
+        >
+          <v-list-item
+            v-for="item in starterItems"
+            :key="item.title"
+            :prepend-icon="item.icon"
+            :title="item.title"
+            :subtitle="item.subtitle"
+          />
+        </v-list>
       </v-card-text>
 
       <v-card-actions class="px-4 pb-4 pt-4">
@@ -58,21 +72,23 @@
         </v-btn>
 
         <v-btn
-          v-if="currentStep.action === 'settings'"
+          v-if="currentStep.action === 'starter'"
           color="primary"
           variant="tonal"
-          @click="openSettings"
+          :loading="applyingStarter"
+          :disabled="applyingStarter"
+          @click="applyStarter"
         >
-          {{ t('onboarding.open_settings') }}
+          {{ t('onboarding.apply_starter') }}
         </v-btn>
 
         <v-btn
           v-if="currentStep.action === 'media'"
           color="primary"
           variant="tonal"
-          @click="openMediaLibrary"
+          @click="openAddFiles"
         >
-          {{ t('onboarding.open_library') }}
+          {{ t('onboarding.add_files') }}
         </v-btn>
 
         <v-btn
@@ -94,7 +110,7 @@
         </v-btn>
 
         <v-btn
-          v-else
+          v-else-if="currentStep.action !== 'starter'"
           color="primary"
           variant="flat"
           @click="next"
@@ -113,7 +129,12 @@ import {useRouter} from 'vue-router'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
+import {useSettingsStore} from '@/stores/settings'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
+import {useAppShell} from '@/composable/appShell'
+import {ensureStarterMeta} from '@/services/ensureStarterMeta'
+import {setNotification} from '@/services/notificationService'
+import {typedApi} from '@/services/typedApi'
 import {
   completeOnboarding,
   dismissOnboarding,
@@ -126,8 +147,11 @@ const {t} = useI18n()
 const router = useRouter()
 const dialogs = useDialogsStore()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
+const appShell = useAppShell()
 
 const stepIndex = ref(getOnboardingStep())
+const applyingStarter = ref(false)
 
 watch(
   () => dialogs.onboarding.show,
@@ -138,7 +162,25 @@ watch(
   },
 )
 
-type OnboardingAction = 'settings' | 'media' | 'plugins' | null
+type OnboardingAction = 'starter' | 'media' | 'plugins' | null
+
+const starterItems = computed(() => [
+  {
+    icon: 'mdi-tag-multiple-outline',
+    title: t('onboarding.starter.tags_title'),
+    subtitle: t('onboarding.starter.tags_subtitle'),
+  },
+  {
+    icon: 'mdi-star-outline',
+    title: t('onboarding.starter.rating_title'),
+    subtitle: t('onboarding.starter.rating_subtitle'),
+  },
+  {
+    icon: 'mdi-heart-outline',
+    title: t('onboarding.starter.favorite_title'),
+    subtitle: t('onboarding.starter.favorite_subtitle'),
+  },
+])
 
 const steps = computed(() => [
   {
@@ -151,7 +193,7 @@ const steps = computed(() => [
     title: t('onboarding.steps.library.title'),
     body: t('onboarding.steps.library.body'),
     image: '/images/onboarding/02-fields.png',
-    action: 'settings' as OnboardingAction,
+    action: 'starter' as OnboardingAction,
   },
   {
     title: t('onboarding.steps.media.title'),
@@ -201,11 +243,40 @@ function onDialogToggle(value: boolean) {
   }
 }
 
-async function openSettings() {
-  const nextStep = stepIndex.value + 1
-  await dismissOnboarding(nextStep)
-  stepIndex.value = 0
-  await router.push({path: '/settings', query: {tab: 'library'}})
+async function applyStarter() {
+  applyingStarter.value = true
+  try {
+    const mediaTypeIds = (appStore.mediaTypes || [])
+      .filter((mediaType) => mediaType.type === 'video' || mediaType.type === 'image')
+      .map((mediaType) => Number(mediaType.id))
+      .filter((id) => id > 0)
+
+    const result = await ensureStarterMeta({mediaTypeIds})
+
+    if (settingsStore.ratingAndFavoriteInCard !== '1') {
+      settingsStore.updateState({key: 'ratingAndFavoriteInCard', value: '1'})
+      await typedApi.putSetting('ratingAndFavoriteInCard', '1')
+    }
+
+    setNotification({
+      type: 'success',
+      title: t('onboarding.apply_starter'),
+      text: result.alreadyReady
+        ? t('onboarding.starter.already_ready')
+        : t('onboarding.starter.applied'),
+    })
+
+    await next()
+  } catch (error) {
+    console.error('Failed to apply starter library:', error)
+    setNotification({
+      type: 'error',
+      title: t('onboarding.apply_starter'),
+      text: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    applyingStarter.value = false
+  }
 }
 
 async function openPlugins() {
@@ -214,7 +285,7 @@ async function openPlugins() {
   await router.push({path: '/settings', query: {tab: 'plugins'}})
 }
 
-async function openMediaLibrary() {
+async function openAddFiles() {
   const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
   const nextStep = stepIndex.value + 1
   await dismissOnboarding(nextStep)
@@ -222,10 +293,11 @@ async function openMediaLibrary() {
 
   if (mediaTypeId) {
     await router.push(`/media?mediaTypeId=${mediaTypeId}`)
-    return
+  } else {
+    await router.push('/')
   }
 
-  await router.push('/')
+  appShell.showAddMediaDialog()
 }
 </script>
 

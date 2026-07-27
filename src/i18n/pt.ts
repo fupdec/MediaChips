@@ -377,7 +377,7 @@ const pt = {
     show_documentation: 'Mostrar documentação',
     show_onboarding: 'Primeiros passos',
     customize_widgets: 'Personalizar widgets',
-    keyboard_hint: 'Pressione / para buscar · ? para atalhos',
+    keyboard_hint: 'Pressione {search} para buscar · {shortcuts} para atalhos',
     new_tool: 'Nova ferramenta!',
     quick_tags_tool_hint: 'Você pode adicionar tags rapidamente usando as palavras mais populares encontradas em caminhos de arquivo!',
     available_under_tools: 'Também disponível em "Configurações -> Biblioteca".',

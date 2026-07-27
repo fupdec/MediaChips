@@ -1,0 +1,143 @@
+import { typedApi } from '@/services/typedApi'
+import type { Meta } from '@/types/stores'
+import type { AssignedMeta } from '@shared/entities/meta'
+import { reloadMetaCatalog } from '@/composable/metaCatalog'
+import { reloadTagsCatalog } from '@/composable/appCatalogs'
+
+export interface EnsureStarterMetaResult {
+  createdFields: number
+  pinnedFields: number
+  alreadyReady: boolean
+}
+
+type StarterField = {
+  key: 'tags' | 'rating' | 'favorite'
+  name: string
+  type: string
+  icon: string
+  hint: string
+  extra?: Record<string, unknown>
+}
+
+const STARTER_FIELDS: StarterField[] = [
+  {
+    key: 'tags',
+    name: 'Tags',
+    type: 'array',
+    icon: 'tag-multiple-outline',
+    hint: 'Tags from file paths and folders — rename or extend as you like',
+    extra: {
+      parser: true,
+      pageSetting: {page: 1},
+    },
+  },
+  {
+    key: 'rating',
+    name: 'Rating',
+    type: 'rating',
+    icon: 'star-outline',
+    hint: 'Score media from 1 to 5',
+    extra: {
+      ratingMax: 5,
+    },
+  },
+  {
+    key: 'favorite',
+    name: 'Favorite',
+    type: 'boolean',
+    icon: 'heart-outline',
+    hint: 'Mark media as favorite',
+  },
+]
+
+function normalizeName(value: unknown): string {
+  return String(value || '').trim().toLowerCase()
+}
+
+function findStarterMeta(metas: Meta[], field: StarterField): Meta | undefined {
+  return metas.find(
+    (meta) => meta.type === field.type && normalizeName(meta.name) === normalizeName(field.name),
+  )
+}
+
+function findParserTagsMeta(metas: Meta[]): Meta | undefined {
+  return metas.find((meta) => meta.type === 'array' && Boolean(meta.parser))
+    || metas.find((meta) => meta.type === 'array' && normalizeName(meta.name) === 'tags')
+    || metas.find((meta) => meta.type === 'array')
+}
+
+/**
+ * Creates starter Tags (parser), Rating, and Favorite if missing,
+ * and pins them to the given media types. Safe to call repeatedly.
+ */
+export async function ensureStarterMeta({
+  mediaTypeIds,
+}: {
+  mediaTypeIds: number[]
+}): Promise<EnsureStarterMetaResult> {
+  const targets = mediaTypeIds.filter((id) => Number.isFinite(id) && id > 0)
+  const metaResponse = await typedApi.getMeta()
+  let allMeta = metaResponse.data || []
+
+  let createdFields = 0
+  let pinnedFields = 0
+
+  const ensured: Meta[] = []
+
+  for (const field of STARTER_FIELDS) {
+    let meta = findStarterMeta(allMeta, field)
+    if (!meta) {
+      const created = await typedApi.createMeta({
+        type: field.type,
+        name: field.name,
+        icon: field.icon,
+        hint: field.hint,
+        ...(field.extra || {}),
+      })
+      meta = created.data
+      allMeta = [...allMeta, meta]
+      createdFields += 1
+    }
+    ensured.push(meta)
+  }
+
+  for (const mediaTypeId of targets) {
+    const assignedResponse = await typedApi.getAssignedMetaForMediaType(mediaTypeId)
+    const assigned: AssignedMeta[] = assignedResponse.data || []
+    const assignedMetaIds = new Set(
+      assigned
+        .filter((row) => row.metaId != null)
+        .map((row) => Number(row.metaId)),
+    )
+    let order = assigned.length
+
+    for (const meta of ensured) {
+      if (assignedMetaIds.has(Number(meta.id))) continue
+      await typedApi.pinMetaToMediaType({
+        metaId: meta.id,
+        mediaTypeId,
+        order,
+      })
+      order += 1
+      pinnedFields += 1
+      assignedMetaIds.add(Number(meta.id))
+    }
+  }
+
+  if (createdFields > 0 || pinnedFields > 0) {
+    await reloadMetaCatalog()
+    await reloadTagsCatalog()
+  }
+
+  return {
+    createdFields,
+    pinnedFields,
+    alreadyReady: createdFields === 0 && pinnedFields === 0,
+  }
+}
+
+/** Prefer parser-enabled Tags category for import suggestions. */
+export function getDefaultParserTagsMetaId(metas: Meta[] | undefined | null): number | null {
+  const meta = findParserTagsMeta(metas || [])
+  return meta?.id ?? null
+}
