@@ -672,6 +672,11 @@ const fr = {
     play_clips_shuffle: 'Mélanger les clips',
     play_clips_empty_title: 'Aucun extrait',
     play_clips_empty_text: 'Cette balise n\'a pas encore de plages temporelles sur la timeline.',
+    quick_filters: 'Filtres rapides',
+    quick_filters_hint: 'Cliquez sur une puce pour filtrer médias / balises',
+    quick_filters_loading: 'Préparation des filtres rapides…',
+    quick_filters_collapse: 'Masquer',
+    quick_filters_expand: 'Afficher',
   },
   editing: {
     progress_filling_data: 'Progression du remplissage des données',

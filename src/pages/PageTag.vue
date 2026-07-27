@@ -298,6 +298,13 @@
         </v-tabs>
       </div>
 
+      <TagPageQuickFilters
+        v-if="is_init && activeMediaTypeId != null && tag.id"
+        :tag-id="Number(tag.id)"
+        :media-type-id="activeMediaTypeId"
+        :page-tag-id="Number(tag.id)"
+      />
+
       <v-window v-if="is_init" v-model="tab" class="fullwidth-tabs transparent-tabs-only">
         <template v-for="i in pinnedMedia" :key="'media_type_tab_item'+i.mediaType.id">
           <v-window-item :value="`media_${i.mediaType.id}`">
@@ -353,6 +360,7 @@ import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
+import TagPageQuickFilters from '@/components/tags/TagPageQuickFilters.vue'
 import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
 import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import path from 'path-browserify';
@@ -457,6 +465,11 @@ const filtersDocked = computed(() =>
   Boolean(appStore.filters.visible)
   && width.value >= SIDEBAR_WIDTH + FILTERS_DRAWER_WIDTH + MIN_CONTENT_WIDTH,
 )
+const activeMediaTypeId = computed((): number | null => {
+  if (!tab.value || !tab.value.startsWith('media_')) return null
+  const id = Number(tab.value.replace('media_', ''))
+  return Number.isFinite(id) ? id : null
+})
 const headerAspectRatio = computed(() => getTagPageHeaderAspectRatio(tagPageDesign.value))
 const avatarSize = computed(() => {
   if (tagPageDesign.value === 'minimal') {

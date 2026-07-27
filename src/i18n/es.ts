@@ -673,6 +673,11 @@ const es = {
     play_clips_shuffle: 'Mezclar clips',
     play_clips_empty_title: 'Sin clips',
     play_clips_empty_text: 'Esta etiqueta aún no tiene rangos temporizados en la línea de tiempo.',
+    quick_filters: 'Filtros rápidos',
+    quick_filters_hint: 'Haz clic en un chip para filtrar medios / etiquetas',
+    quick_filters_loading: 'Preparando filtros rápidos…',
+    quick_filters_collapse: 'Ocultar',
+    quick_filters_expand: 'Mostrar',
   },
   editing: {
     progress_filling_data: 'Progreso de llenado de datos',

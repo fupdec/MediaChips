@@ -672,6 +672,11 @@ const de = {
     play_clips_shuffle: "Clips mischen",
     play_clips_empty_title: "Keine Clips",
     play_clips_empty_text: "Für dieses Tag gibt es noch keine Zeitbereiche auf der Timeline.",
+    quick_filters: "Schnellfilter",
+    quick_filters_hint: "Chip anklicken, um Medien / Tags zu filtern",
+    quick_filters_loading: "Schnellfilter werden vorbereitet…",
+    quick_filters_collapse: "Ausblenden",
+    quick_filters_expand: "Anzeigen",
   },
   editing: {
     progress_filling_data: "Fortschritt beim Füllen der Daten",

@@ -672,6 +672,11 @@ const ru = {
     play_clips_shuffle: 'В случайном порядке',
     play_clips_empty_title: 'Нет клипов',
     play_clips_empty_text: 'У этого тега пока нет диапазонов на таймлайне.',
+    quick_filters: 'Быстрые фильтры',
+    quick_filters_hint: 'Нажмите на чип, чтобы отфильтровать медиа / теги',
+    quick_filters_loading: 'Быстрые фильтры готовятся…',
+    quick_filters_collapse: 'Скрыть',
+    quick_filters_expand: 'Показать',
   },
   editing: {
     progress_filling_data: 'Прогресс заполнения данных',

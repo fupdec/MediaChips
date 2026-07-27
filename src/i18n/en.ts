@@ -672,6 +672,11 @@ const en = {
     play_clips_shuffle: 'Shuffle clips',
     play_clips_empty_title: 'No clips',
     play_clips_empty_text: 'This tag has no timed ranges on the timeline yet.',
+    quick_filters: 'Quick filters',
+    quick_filters_hint: 'Click a chip to filter media / tags',
+    quick_filters_loading: 'Preparing quick filters…',
+    quick_filters_collapse: 'Hide',
+    quick_filters_expand: 'Show',
   },
   editing: {
     progress_filling_data: 'Progress of filling data',

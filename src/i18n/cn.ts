@@ -673,6 +673,11 @@ const cn = {
     play_clips_shuffle: '随机播放片段',
     play_clips_empty_title: '没有片段',
     play_clips_empty_text: '此标签在时间轴上还没有时间范围标记。',
+    quick_filters: '快捷筛选',
+    quick_filters_hint: '点击标签以筛选媒体 / 标签',
+    quick_filters_loading: '正在准备快捷筛选…',
+    quick_filters_collapse: '隐藏',
+    quick_filters_expand: '显示',
   },
   editing: {
     progress_filling_data: '数据填写进度',

@@ -706,6 +706,11 @@ const ja = {
     play_clips_empty_title: "クリップなし",
     play_clips_empty_text:
       "このタグには、タイムライン上にまだ時間範囲がありません。",
+    quick_filters: "クイックフィルター",
+    quick_filters_hint: "チップをクリックしてメディア / タグをフィルター",
+    quick_filters_loading: "クイックフィルターを準備中…",
+    quick_filters_collapse: "隠す",
+    quick_filters_expand: "表示",
   },
   editing: {
     progress_filling_data: "データ埋めの進捗状況",

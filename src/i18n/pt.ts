@@ -672,6 +672,11 @@ const pt = {
     play_clips_shuffle: 'Embaralhar clipes',
     play_clips_empty_title: 'Sem clipes',
     play_clips_empty_text: 'Esta tag ainda não possui intervalos de tempo na linha do tempo.',
+    quick_filters: 'Filtros rápidos',
+    quick_filters_hint: 'Clique no chip para filtrar mídia / tags',
+    quick_filters_loading: 'Preparando filtros rápidos…',
+    quick_filters_collapse: 'Ocultar',
+    quick_filters_expand: 'Mostrar',
   },
   editing: {
     progress_filling_data: 'Progresso do preenchimento dos dados',

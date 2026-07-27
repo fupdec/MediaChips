@@ -16,6 +16,7 @@ import {
 } from '../services/localAssetCleanup'
 import { mergeTagsInCategory, TagMergeError } from '../services/tagMerge'
 import { loadTagItems } from '../services/tagItemsLoader'
+import { findCooccurringTags } from '../services/tagCooccurrence'
 import {
   mapWithConcurrency,
   readImageAsDataUrl,
@@ -87,6 +88,35 @@ export default function (db: ApiDb) {
     } catch (err: unknown) {
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while retrieving media."
+      })
+    }
+  };
+
+  const getCooccurring = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const tagId = Number(req.params.id)
+      if (!Number.isFinite(tagId) || tagId <= 0) {
+        return res.status(400).send({
+          message: 'tag id is required',
+        })
+      }
+
+      const mediaTypeRaw = req.query.mediaTypeId
+      const mediaTypeId = mediaTypeRaw != null && mediaTypeRaw !== ''
+        ? Number(mediaTypeRaw)
+        : null
+
+      if (mediaTypeId != null && !Number.isFinite(mediaTypeId)) {
+        return res.status(400).send({
+          message: 'mediaTypeId must be a number',
+        })
+      }
+
+      const data = findCooccurringTags(db, tagId, mediaTypeId)
+      res.status(200).send(data)
+    } catch (err: unknown) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while retrieving co-occurring tags.',
       })
     }
   };
@@ -234,6 +264,7 @@ export default function (db: ApiDb) {
     getThumbs,
     getAll,
     findOne,
+    getCooccurring,
     update,
     merge,
     deleteOne,

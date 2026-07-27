@@ -2,6 +2,8 @@ import type { SetItemsFiltersEvent } from '../../shared/api/responses'
 
 export type ItemsPageCommands = {
   setFilters: (event: SetItemsFiltersEvent) => void | Promise<void>
+  /** Reload the current list from DB using filters already in the items store. */
+  reloadItems: () => void | Promise<void>
   setLimit: (limit: number) => void
   setSortBy: (sortBy: string) => void
   setSortDir: (sortDir: string) => void
@@ -24,6 +26,7 @@ export function registerItemsPageCommands(api: ItemsPageCommands) {
 export function useItemsPageCommands(): ItemsPageCommands {
   return {
     setFilters: (event) => active?.setFilters(event),
+    reloadItems: () => active?.reloadItems(),
     setLimit: (limit) => active?.setLimit(limit),
     setSortBy: (sortBy) => active?.setSortBy(sortBy),
     setSortDir: (sortDir) => active?.setSortDir(sortDir),

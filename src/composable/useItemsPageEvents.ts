@@ -114,6 +114,11 @@ export function useItemsPageEvents({
     await getItemsFromDb()
   }
 
+  const handleReloadItems = async () => {
+    itemsStore.updateState({key: 'page', value: 1})
+    await getItemsFromDb()
+  }
+
   const handleSetItemsLimit = (event: number) => {
     const val = Number(event)
     itemsStore.updateState({
@@ -299,6 +304,7 @@ export function useItemsPageEvents({
   const bindEvents = (): void => {
     unregisterPageCommands = registerItemsPageCommands({
       setFilters: handleSetItemsFilters,
+      reloadItems: handleReloadItems,
       setLimit: handleSetItemsLimit,
       setSortBy: handleSetItemsSortBy,
       setSortDir: handleSetItemsSortDir,

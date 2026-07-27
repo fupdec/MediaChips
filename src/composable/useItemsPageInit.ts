@@ -6,6 +6,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {typedApi} from '@/services/typedApi'
 import {getFilterObject} from '@/services/formatUtils'
+import {isTagPageQuickFilter} from '@/constants/tagPageQuickFilter'
 import {getSavedFilters} from '@/services/filterService'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isImageMediaType} from '@/utils/mediaType'
@@ -193,6 +194,8 @@ export function useItemsPageInit({
   }
 
   const getFilters = async (): Promise<void> => {
+    const preservedQuickFilters = ITEMS.value.filters.filter(isTagPageQuickFilter)
+
     const {filters, savedFilter} = await fetchSavedFilterBundle()
 
     itemsStore.updateMultiple({
@@ -208,6 +211,14 @@ export function useItemsPageInit({
           value: [...ITEMS.value.filters, tagFilter],
         })
       }
+    }
+
+    if (preservedQuickFilters.length) {
+      const base = ITEMS.value.filters.filter((filter) => !isTagPageQuickFilter(filter))
+      itemsStore.updateState({
+        key: 'filters',
+        value: [...base, ...preservedQuickFilters],
+      })
     }
 
     itemsStore.updateState({key: 'isFiltersLoaded', value: true})

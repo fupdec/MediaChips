@@ -20,6 +20,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   // Merge duplicate tags within one category
   router.post("/merge", validateBody(MergeTagsRequestSchema), Tag.merge);
 
+  // Tags that co-occur on media having this tag (optional ?mediaTypeId=)
+  router.get("/:id/cooccurring", Tag.getCooccurring);
+
   // Retrieve a single Tag with id
   router.get("/:id", Tag.findOne);
 

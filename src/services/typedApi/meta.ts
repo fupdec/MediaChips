@@ -14,6 +14,7 @@ import {
   apiPinnedMetaByPinned,
   apiPinnedMetaDelete,
   apiRemoveTagFromItem,
+  apiTagCooccurring,
   apiTagsInMedia,
   apiTagsInFolder,
   apiTagsInTag,
@@ -144,6 +145,18 @@ export const metaApi = {
     return apiClient.get(apiTagsInTag(tagId)).then((res) => ({
       ...res,
       data: validated(parseTagInTagEntries, res.data),
+    }))
+  },
+
+  getTagCooccurring(tagId: number, mediaTypeId?: number | null) {
+    return apiClient.get(apiTagCooccurring(tagId, mediaTypeId)).then((res) => ({
+      ...res,
+      data: (Array.isArray(res.data) ? res.data : []) as Array<{
+        id: number
+        name: string
+        metaId: number
+        color: string | null
+      }>,
     }))
   },
 

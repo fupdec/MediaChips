@@ -157,6 +157,12 @@ export function apiTagsInTag(tagId: number | string) {
   return `/api/TagsInTag?tagId=${tagId}`
 }
 
+export function apiTagCooccurring(tagId: number | string, mediaTypeId?: number | string | null) {
+  const base = `/api/Tag/${tagId}/cooccurring`
+  if (mediaTypeId == null || mediaTypeId === '') return base
+  return `${base}?mediaTypeId=${mediaTypeId}`
+}
+
 export function apiValuesInTag(tagId: number | string) {
   return `/api/ValuesInTag?tagId=${tagId}`
 }
