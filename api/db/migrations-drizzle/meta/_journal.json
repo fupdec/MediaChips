@@ -85,6 +85,13 @@
       "when": 1782789600000,
       "tag": "0011_folder_paths_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1782793200000,
+      "tag": "0012_faces",
+      "breakpoints": true
     }
   ]
 }

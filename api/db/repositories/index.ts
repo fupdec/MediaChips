@@ -1,5 +1,6 @@
 export {createFilterRowsInSavedFiltersRepository} from './filterRowsInSavedFilters'
 export {createFilterRowsRepository, type FilterRowInsert, type FilterRowRecord} from './filterRows'
+export {createFacesRepository, type FaceInsert, type FaceRow} from './faces'
 export {createImageMetadataRepository} from './imageMetadata'
 export {createMarksRepository, type MarkInsert, type MarkRow} from './marks'
 export {createMediaInPlaylistsRepository, type MediaInPlaylistInsert, type MediaInPlaylistRow} from './mediaInPlaylists'

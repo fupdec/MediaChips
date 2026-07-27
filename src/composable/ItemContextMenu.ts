@@ -7,6 +7,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useRegistrationStore} from '@/stores/registration'
+import {useTasksStore} from '@/stores/tasks'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
@@ -253,6 +254,16 @@ export default function useItemContextMenu(
         disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
         action: updateFileInfo,
       })
+
+      if (isVideoMediaType(currentMediaType.value)) {
+        contextMenu.push({
+          name: t('context_menu.detect_faces'),
+          type: 'item',
+          icon: 'face-recognition',
+          disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
+          action: detectFacesForSelection,
+        })
+      }
 
       if (canSceneAutoScrape && isMediaPageItem(item, type)) {
         contextMenu.push({
@@ -702,6 +713,118 @@ export default function useItemContextMenu(
         ids: updated,
         type: 'media',
       })
+    }
+  }
+
+  const detectFacesForSelection = async (): Promise<void> => {
+    let ids = [Number(item.id)]
+    if (isSelectMode()) ids = itemsStore.selection.map(Number).filter((id) => Number.isFinite(id))
+    if (!ids.length) return
+
+    const currentLocale = settingsStore.locale as Locale
+    const tr = (key: string, params: Record<string, string | number> = {}) => translate(key, params, currentLocale)
+    const tasksStore = useTasksStore()
+    const controller = new AbortController()
+    const taskId = tasksStore.setTask({
+      title: tr('context_menu.detect_faces'),
+      subtitle: tr('media.adding.face_detection_progress', {
+        processed: 0,
+        total: ids.length,
+        remaining: ids.length,
+      }),
+      icon: 'face-recognition',
+      progress: 0,
+      action: () => controller.abort(),
+    })
+
+    try {
+      const modelStatus = await typedApi.getFaceModelStatus()
+      const status = String(modelStatus.data?.status || '')
+      if (!['downloaded', 'loaded'].includes(status)) {
+        await typedApi.downloadFaceModel()
+      }
+
+      const {buildApiUrl} = await import('@/services/apiClient')
+      const {getAuthToken} = await import('@/services/authSession')
+      const token = getAuthToken()
+      const response = await fetch(buildApiUrl('/api/Task/streamFaceDetection'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? {Authorization: `Bearer ${token}`} : {}),
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          mediaIds: ids,
+          force: true,
+        }),
+      })
+
+      if (!response.ok || !response.body) {
+        throw new Error(response.statusText || 'Face detection request failed')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let faces = 0
+
+      while (true) {
+        const {value, done} = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, {stream: true})
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          const event = JSON.parse(line) as Record<string, unknown>
+          if (event.type === 'progress') {
+            faces = Number(event.faces || faces)
+            const processed = Number(event.processed || 0)
+            const total = Number(event.total || ids.length)
+            tasksStore.updateTask(taskId, {
+              subtitle: tr('media.adding.face_detection_progress', {
+                processed,
+                total,
+                remaining: Math.max(total - processed, 0),
+              }),
+              progress: total ? Math.min((processed / total) * 100, 100) : 0,
+            })
+          }
+          if (event.type === 'complete') {
+            faces = Number(event.faces || faces)
+          }
+          if (event.type === 'error') {
+            throw new Error(String(event.message || 'Face detection failed'))
+          }
+        }
+      }
+
+      tasksStore.updateTask(taskId, {
+        subtitle: tr('media.adding.faces_found', {count: faces}),
+        progress: 100,
+        color: 'success',
+        done: true,
+        action: () => {},
+      })
+      setNotification({
+        type: 'success',
+        text: tr('media.adding.faces_found', {count: faces}),
+      })
+    } catch (error) {
+      const isAbortError = error instanceof Error && error.name === 'AbortError'
+      tasksStore.updateTask(taskId, {
+        subtitle: isAbortError ? tr('common.stop') : tr('media.adding.face_detection_failed'),
+        color: isAbortError ? 'warning' : 'error',
+        done: true,
+        action: () => {},
+      })
+      if (!isAbortError) {
+        setNotification({
+          type: 'error',
+          text: error instanceof Error ? error.message : String(error),
+        })
+      }
     }
   }
 

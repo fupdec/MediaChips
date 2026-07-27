@@ -260,6 +260,33 @@ export const tasksApi = {
     }))
   },
 
+  getFaceModelStatus() {
+    return apiClient.get(API_ROUTES.taskFaceModelStatus).then((res) => ({
+      ...res,
+      data: validated(parseClipModelStatus, res.data),
+    }))
+  },
+
+  downloadFaceModel(body: BackupNamePayload = {}) {
+    return apiClient.post(API_ROUTES.taskDownloadFaceModel, body).then((res) => ({
+      ...res,
+      data: validated(parseClipModelStatus, res.data),
+    }))
+  },
+
+  getFaceDetectionStatus() {
+    return apiClient.get(API_ROUTES.taskFaceDetectionStatus)
+  },
+
+  detectFacesForMedia(body: {
+    mediaId: number
+    force?: boolean
+    framesPerVideo?: number
+    minScore?: number
+  }) {
+    return apiClient.post(API_ROUTES.taskDetectFacesForMedia, body)
+  },
+
   createTab(body: TabCreatePayload) {
     return apiClient.post(API_ROUTES.tab, body).then((res) => ({
       ...res,

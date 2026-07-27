@@ -118,6 +118,12 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('get', '/clipModelStatus', 'clipModelStatus')
   register('post', '/downloadClipModel', 'downloadClipModel', validateBody(BackupNameRequestSchema))
 
+  register('get', '/faceModelStatus', 'faceModelStatus')
+  register('post', '/downloadFaceModel', 'downloadFaceModel', validateBody(BackupNameRequestSchema))
+  register('get', '/faceDetectionStatus', 'faceDetectionStatus')
+  register('post', '/detectFacesForMedia', 'detectFacesForMedia')
+  register('post', '/streamFaceDetection', 'streamFaceDetection')
+
   register('post', '/parsePathTags', 'parsePathTags', validateBody(ParsePathTagsRequestSchema))
   register('get', '/parseLibraryTagsStatus', 'parseLibraryTagsStatus')
   register('post', '/streamParseLibraryTagsPreview', 'streamParseLibraryTagsPreview')

@@ -39,6 +39,12 @@ export interface MediaAddingState {
   objectRecognitionProcessed: number
   objectRecognitionTotal: number
   objectRecognitionRemaining: number
+  detectingFaces: boolean
+  faceDetectionProgress: number
+  faceDetectionProcessed: number
+  faceDetectionTotal: number
+  faceDetectionRemaining: number
+  facesFound: number
   media_type_id: number | null
   is_parsing: boolean
   is_exclude: boolean
@@ -76,6 +82,12 @@ export const useTasksStore = defineStore('useTasksStore', {
       objectRecognitionProcessed: 0,
       objectRecognitionTotal: 0,
       objectRecognitionRemaining: 0,
+      detectingFaces: false,
+      faceDetectionProgress: 0,
+      faceDetectionProcessed: 0,
+      faceDetectionTotal: 0,
+      faceDetectionRemaining: 0,
+      facesFound: 0,
       media_type_id: null,
       is_parsing: true,
       is_exclude: false,

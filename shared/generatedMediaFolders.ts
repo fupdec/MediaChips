@@ -2,6 +2,7 @@ export const GENERATED_MEDIA_FOLDERS = {
   thumbs: 'media/videos/thumbs',
   grids: 'media/videos/grids',
   marks: 'media/videos/marks',
+  faces: 'media/videos/faces',
   'image-thumbs': 'media/images/thumbs',
 } as const
 

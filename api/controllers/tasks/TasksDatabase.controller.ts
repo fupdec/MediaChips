@@ -70,7 +70,8 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
   }
 
   const clearData = async function (req: ApiRequest, res: ApiResponse) {
-    const delPath = resolveGeneratedFolderPath(String(req.body.imageType ?? ''))
+    const imageType = String(req.body.imageType ?? '')
+    const delPath = resolveGeneratedFolderPath(imageType)
 
     if (!delPath) {
       res.status(400).send({message: 'Unknown folder type'})
@@ -80,6 +81,9 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     try {
       await rmrf(delPath)
       if (!fs.existsSync(delPath)) fs.mkdirSync(delPath, {recursive: true})
+      if (imageType === 'faces' && db.sqlite) {
+        db.sqlite.prepare('DELETE FROM faces').run()
+      }
       res.sendStatus(201)
     } catch (err) {
       res.status(400).send({message: apiErrorMessage(err)})

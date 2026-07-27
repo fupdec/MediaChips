@@ -99,6 +99,8 @@ function pruneSharpPackages(pattern, removed) {
 function pruneModels(removed) {
   const faceApiDir = join(root, 'models/face-api')
   removePath(faceApiDir, 'models/face-api', removed)
+  const ultrafaceDir = join(root, 'models/ultraface-rfb-320')
+  removePath(ultrafaceDir, 'models/ultraface-rfb-320', removed)
 }
 
 function formatBytes(bytes) {

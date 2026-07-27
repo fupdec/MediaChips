@@ -5,6 +5,8 @@ import { readdir } from 'fs/promises'
 import { resolveExistingPath } from './contentHash'
 import { getMediaDeleteAssetFolder } from '../utils/mediaType'
 import { createMarksRepository } from '../db/repositories/marks'
+import { createFacesRepository } from '../db/repositories/faces'
+import { rimraf } from 'rimraf'
 
 const TIMELINE_PARTS = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
 const TAG_IMAGE_SUFFIXES = ['main', 'avatar', 'alt', 'header', 'custom1', 'custom2']
@@ -36,6 +38,11 @@ function deleteVideoGeneratedAssets(dbPath: string, mediaId: unknown, markIds: u
 
   for (const markId of markIds) {
     deleteMarkGeneratedAsset(dbPath, markId)
+  }
+
+  const facesDir = path.join(mediaPath, 'faces', String(mediaId))
+  if (fs.existsSync(facesDir)) {
+    void rimraf(facesDir)
   }
 }
 
@@ -92,6 +99,7 @@ async function deleteMediaGeneratedAssets(
       media.id,
       marks.map((mark: {id: number}) => mark.id),
     )
+    createFacesRepository(db.drizzle).deleteByMediaId(Number(media.id))
     return
   }
 

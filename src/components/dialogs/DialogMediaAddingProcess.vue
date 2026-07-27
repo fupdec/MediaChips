@@ -115,6 +115,32 @@
               v-if="canRecognizeObjects"
               id="media.video_object_recognition"
             />
+
+            <v-btn
+              v-if="canDetectFaces && faceModelNeedsDownload"
+              @click="downloadFaceModel"
+              :loading="faceModelDownloading"
+              :disabled="faceModelDownloading || task.detectingFaces"
+              color="secondary"
+              rounded
+              variant="outlined"
+            >
+              <v-icon icon="mdi-download" start/>
+              {{ t('media.adding.download_face_model') }}
+            </v-btn>
+
+            <v-btn
+              v-if="canDetectFaces && faceModelReady"
+              @click="detectFacesInAddedVideos"
+              :loading="task.detectingFaces"
+              :disabled="task.detectingFaces || task.recognizingObjects"
+              color="secondary"
+              rounded
+              variant="flat"
+            >
+              <v-icon icon="mdi-face-recognition" start/>
+              {{ t('media.adding.detect_faces') }}
+            </v-btn>
           </div>
 
           <div
@@ -122,6 +148,13 @@
             class="text-caption text-medium-emphasis mb-4"
           >
             {{ t('media.adding.download_video_recognition_model_hint') }}
+          </div>
+
+          <div
+            v-if="canDetectFaces && faceModelNeedsDownload"
+            class="text-caption text-medium-emphasis mb-4"
+          >
+            {{ t('media.adding.download_face_model_hint') }}
           </div>
 
           <div v-if="task.recognizingObjects || task.objectRecognitionTotal > 0" class="mb-4">
@@ -141,6 +174,27 @@
                 processed: task.objectRecognitionProcessed,
                 total: task.objectRecognitionTotal,
                 remaining: task.objectRecognitionRemaining,
+              }) }}
+            </div>
+          </div>
+
+          <div v-if="task.detectingFaces || task.faceDetectionTotal > 0" class="mb-4">
+            <v-progress-linear
+              v-model="task.faceDetectionProgress"
+              color="secondary"
+              height="18"
+              rounded
+              :striped="task.detectingFaces"
+            >
+              <template #default="{ value }">
+                <strong class="process-percents">{{ Math.ceil(value) }} %</strong>
+              </template>
+            </v-progress-linear>
+            <div class="text-caption text-medium-emphasis mt-1">
+              {{ t('media.adding.face_detection_progress', {
+                processed: task.faceDetectionProcessed,
+                total: task.faceDetectionTotal,
+                remaining: task.faceDetectionRemaining,
               }) }}
             </div>
           </div>
@@ -446,6 +500,8 @@ const is_show_duplicates_by_path = ref(false)
 const is_show_errors = ref(false)
 const clipModelStatus = ref('unknown')
 const clipModelDownloading = ref(false)
+const faceModelStatus = ref('unknown')
+const faceModelDownloading = ref(false)
 const acceptingSuggestedTags = ref(false)
 
 const duplicateMarkers = {
@@ -486,6 +542,7 @@ const canRecognizeObjects = computed(() => (
   task.value.added.length > 0 &&
   String(task.value.addedMediaType || '').toLowerCase() === 'video'
 ))
+const canDetectFaces = canRecognizeObjects
 const canReparseTags = computed(() => (
   task.value.finished &&
   task.value.addedMedia.length > 0
@@ -493,6 +550,10 @@ const canReparseTags = computed(() => (
 const clipModelReady = computed(() => ['downloaded', 'loaded'].includes(clipModelStatus.value))
 const clipModelNeedsDownload = computed(() => (
   !clipModelReady.value && !['loading'].includes(clipModelStatus.value)
+))
+const faceModelReady = computed(() => ['downloaded', 'loaded'].includes(faceModelStatus.value))
+const faceModelNeedsDownload = computed(() => (
+  !faceModelReady.value && !['loading'].includes(faceModelStatus.value)
 ))
 
 const duplicates_by_path = computed((): string[] => {
@@ -929,6 +990,194 @@ const recognizeVideoObjects = async () => {
   }
 }
 
+const fetchFaceModelStatus = async () => {
+  try {
+    const response = await typedApi.getFaceModelStatus()
+    faceModelStatus.value = response.data?.status || 'unknown'
+  } catch (error) {
+    console.error('Error checking face model status:', error)
+    faceModelStatus.value = 'error'
+  }
+}
+
+const downloadFaceModel = async () => {
+  faceModelDownloading.value = true
+  faceModelStatus.value = 'loading'
+
+  try {
+    const response = await typedApi.downloadFaceModel()
+    faceModelStatus.value = response.data?.status || 'downloaded'
+    setNotification({
+      type: 'success',
+      title: t('media.adding.download_face_model'),
+      text: t('settings.path_parser.statuses.downloaded'),
+    })
+  } catch (error) {
+    console.error('Error downloading face model:', error)
+    faceModelStatus.value = 'error'
+    setNotification({
+      type: 'error',
+      title: t('media.adding.download_face_model'),
+      text: getErrorMessage(error),
+    })
+  } finally {
+    faceModelDownloading.value = false
+  }
+}
+
+const detectFacesInAddedVideos = async () => {
+  if (!faceModelReady.value) {
+    setNotification({
+      type: 'warning',
+      title: t('media.adding.detect_faces'),
+      text: t('media.adding.download_face_model_hint'),
+    })
+    return
+  }
+
+  task.value.detectingFaces = true
+  task.value.faceDetectionProgress = 0
+  task.value.faceDetectionProcessed = 0
+  task.value.faceDetectionTotal = task.value.added.length
+  task.value.faceDetectionRemaining = task.value.added.length
+  task.value.facesFound = 0
+
+  const previousStatus = task.value.status
+  task.value.status = t('media.adding.detect_faces')
+  const controller = new AbortController()
+  const detectionTaskId = tasksStore.setTask({
+    title: t('media.adding.detect_faces'),
+    subtitle: t('media.adding.face_detection_progress', {
+      processed: 0,
+      total: task.value.added.length,
+      remaining: task.value.added.length,
+    }),
+    icon: 'face-recognition',
+    progress: 0,
+    click: () => {
+      task.value.dialogProcess = true
+    },
+    action: () => {
+      controller.abort()
+    },
+  })
+
+  try {
+    const response = await fetch(`${appStore.localhost}/api/Task/streamFaceDetection`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      signal: controller.signal,
+      body: JSON.stringify({
+        paths: task.value.added,
+        force: false,
+        framesPerVideo: 6,
+      }),
+    })
+
+    if (!response.ok || !response.body) {
+      throw new Error(response.statusText || 'Face detection request failed')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    const handleEvent = (event: Record<string, unknown>) => {
+      if (event.type === 'progress') {
+        task.value.faceDetectionProcessed = Number(event.processed || 0)
+        task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal || 0)
+        task.value.faceDetectionRemaining = Number(
+          event.remaining ?? Math.max(task.value.faceDetectionTotal - task.value.faceDetectionProcessed, 0),
+        )
+        task.value.facesFound = Number(event.faces || 0)
+        task.value.faceDetectionProgress = task.value.faceDetectionTotal
+          ? Math.min((task.value.faceDetectionProcessed / task.value.faceDetectionTotal) * 100, 100)
+          : 0
+        tasksStore.updateTask(detectionTaskId, {
+          subtitle: t('media.adding.face_detection_progress', {
+            processed: task.value.faceDetectionProcessed,
+            total: task.value.faceDetectionTotal,
+            remaining: task.value.faceDetectionRemaining,
+          }),
+          progress: task.value.faceDetectionProgress,
+        })
+      }
+
+      if (event.type === 'complete') {
+        task.value.faceDetectionProcessed = Number(event.processed || task.value.faceDetectionTotal)
+        task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal)
+        task.value.faceDetectionRemaining = 0
+        task.value.faceDetectionProgress = 100
+        task.value.facesFound = Number(event.faces || 0)
+        tasksStore.updateTask(detectionTaskId, {
+          subtitle: t('media.adding.faces_found', {count: task.value.facesFound}),
+          progress: 100,
+          color: 'success',
+          done: true,
+          action: () => {},
+        })
+      }
+
+      if (event.type === 'error') {
+        throw new Error(String(event.message || 'Face detection failed'))
+      }
+    }
+
+    while (true) {
+      const {value, done} = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, {stream: true})
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        handleEvent(JSON.parse(line))
+      }
+    }
+
+    if (buffer.trim()) {
+      handleEvent(JSON.parse(buffer))
+    }
+
+    if (task.value.facesFound > 0) {
+      setNotification({
+        type: 'success',
+        title: t('media.adding.face_detection_complete'),
+        text: t('media.adding.faces_found', {count: task.value.facesFound}),
+        actions: [openProcessAction()],
+      })
+    } else {
+      setNotification({
+        type: 'info',
+        title: t('media.adding.face_detection_complete'),
+        text: t('media.adding.faces_not_found'),
+        actions: [openProcessAction()],
+      })
+    }
+  } catch (error) {
+    console.error('Error detecting faces:', error)
+    const isAbortError = error instanceof Error && error.name === 'AbortError'
+    tasksStore.updateTask(detectionTaskId, {
+      subtitle: isAbortError
+        ? t('common.stop')
+        : t('media.adding.face_detection_failed'),
+      color: isAbortError ? 'warning' : 'error',
+      done: true,
+      action: () => {},
+    })
+    setNotification({
+      type: 'error',
+      title: t('media.adding.face_detection_failed'),
+      text: getErrorMessage(error),
+    })
+  } finally {
+    task.value.status = previousStatus
+    task.value.detectingFaces = false
+  }
+}
+
 
 // Lifecycle
 onMounted(() => {
@@ -950,6 +1199,7 @@ watch(() => task.value?.finished, (finished) => {
       String(task.value.addedMediaType || '').toLowerCase() === 'video'
     ) {
       fetchClipModelStatus()
+      fetchFaceModelStatus()
     }
   }
 })
@@ -957,6 +1207,7 @@ watch(() => task.value?.finished, (finished) => {
 watch(canRecognizeObjects, (enabled) => {
   if (enabled) {
     fetchClipModelStatus()
+    fetchFaceModelStatus()
   }
 })
 </script>

@@ -6,6 +6,7 @@ import createTasksMediaController from './tasks/TasksMedia.controller'
 import createTasksVideoPreviewController from './tasks/TasksVideoPreview.controller'
 import createTasksDatabaseController from './tasks/TasksDatabase.controller'
 import createTasksTaggingController from './tasks/TasksTagging.controller'
+import createTasksFacesController from './tasks/TasksFaces.controller'
 import createTasksMaintenanceController from './tasks/TasksMaintenance.controller'
 
 export default function createTaskController(db: ApiDb) {
@@ -22,6 +23,7 @@ export default function createTaskController(db: ApiDb) {
     ...createTasksVideoPreviewController(shared),
     ...createTasksDatabaseController(shared),
     ...createTasksTaggingController(shared),
+    ...createTasksFacesController(shared),
     ...createTasksMaintenanceController(shared),
   }
 }

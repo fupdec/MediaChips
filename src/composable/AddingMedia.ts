@@ -167,6 +167,12 @@ export const useMediaAdding = () => {
     task.value.objectRecognitionProcessed = 0
     task.value.objectRecognitionTotal = 0
     task.value.objectRecognitionRemaining = 0
+    task.value.detectingFaces = false
+    task.value.faceDetectionProgress = 0
+    task.value.faceDetectionProcessed = 0
+    task.value.faceDetectionTotal = 0
+    task.value.faceDetectionRemaining = 0
+    task.value.facesFound = 0
     task.value.skipFileScan = false
     task.value.directFiles = []
     task.value.media_type_id = savedMediaTypeId

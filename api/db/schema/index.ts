@@ -1,3 +1,4 @@
+export {faces} from './faces'
 export {media} from './media'
 export {meta} from './meta'
 export {metaInMediaTypes} from './metaInMediaTypes'

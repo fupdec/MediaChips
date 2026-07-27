@@ -11,6 +11,9 @@
     <SettingsGenerateVideoImages/>
 
     <v-divider class="mx-4 mb-2"/>
+    <SettingsDetectFaces/>
+
+    <v-divider class="mx-4 mb-2"/>
     <SettingsGenerateImageThumbs/>
 
     <v-divider class="mx-4 mb-2"/>
@@ -31,6 +34,9 @@ const SettingsFindMissingMedia = defineAsyncComponent(() =>
 )
 const SettingsGenerateVideoImages = defineAsyncComponent(() =>
   import('@/components/settings/database/SettingsGenerateVideoImages.vue'),
+)
+const SettingsDetectFaces = defineAsyncComponent(() =>
+  import('@/components/settings/database/SettingsDetectFaces.vue'),
 )
 const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
   import('@/components/settings/database/SettingsGenerateImageThumbs.vue'),

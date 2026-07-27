@@ -80,6 +80,7 @@ const folders: GeneratedFolderConfig[] = [
   {id: 'thumbs', labelKey: 'settings_labels.database.video_thumbnails'},
   {id: 'grids', labelKey: 'settings_labels.database.grids'},
   {id: 'marks', labelKey: 'settings_labels.database.marks'},
+  {id: 'faces', labelKey: 'settings_labels.database.faces'},
   {id: 'image-thumbs', labelKey: 'settings_labels.database.image_thumbnails'},
 ]
 

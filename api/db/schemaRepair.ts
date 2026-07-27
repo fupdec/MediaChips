@@ -131,6 +131,18 @@ const MISSING_TABLE_DDL: Record<string, string> = {
     "metaId" integer NOT NULL,
     PRIMARY KEY("folderId", "tagId", "metaId")
   )`,
+  faces: `CREATE TABLE "faces" (
+    "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    "mediaId" integer NOT NULL,
+    "timestamp" text,
+    "score" real DEFAULT 0 NOT NULL,
+    "x" real DEFAULT 0 NOT NULL,
+    "y" real DEFAULT 0 NOT NULL,
+    "width" real DEFAULT 0 NOT NULL,
+    "height" real DEFAULT 0 NOT NULL,
+    "cropPath" text,
+    "createdAt" text NOT NULL
+  )`,
 }
 
 function createTableIfMissing(sqlite: Database.Database, tableName: string): boolean {
@@ -260,6 +272,13 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE UNIQUE INDEX IF NOT EXISTS "folder_paths_path_unique_idx" ON "folderPaths" ("path")',
     )
     repaired.push('folder_paths_path_unique_idx')
+  }
+
+  if (hasTable(sqlite, 'faces') && !hasIndex(sqlite, 'faces_media_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "faces_media_id_idx" ON "faces" ("mediaId")',
+    )
+    repaired.push('faces_media_id_idx')
   }
 
   for (const spec of JOIN_UNIQUE_INDEXES) {
