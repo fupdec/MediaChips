@@ -9,11 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Face recognition** — detect faces in videos, enroll people from tag photos, match and auto-tag; enrollment quality checks, reference-photo tips, and CamGirlFinder-friendly review UX
+- **Gender filter** — optionally keep only women or men when scanning video faces (InsightFace genderage, ~1.3 MB on demand)
+- **Virtual folder tags** — folder tags with inheritance, manager UI, and compact settings lists
 - **Player** — turn off live transcoding mid-playback and switch to direct play (or pick a quality to turn it back on)
+- **Connection recovery** — banner when the server is lost, with Electron auto-relaunch after prolonged downtime
+- **Global search** — Tab-to-pin tags with filtered results
+
+### Changed
+
+- **Library chrome** — simpler first-run setup, shared SideBar/BottomBar nav, unified maintenance tools, decluttered edit dialogs (field search, unsaved-close guard)
+- **Filters** — edit mode for add/reorder/delete, improved filter sets and category-style group dividers
+- **App tabs** — align to the left and append new tabs at the end
+- **Context menus** — clearer separators, source-card highlight while open, divide/edge positioning fixes
+- **Branding** — refresh chrome, derive page background from primary; remove logo/name from the app bar
+- **Shell architecture** — route more UI/catalog sync off the global event bus onto typed app catalogs and commands
 
 ### Fixed
 
 - **Live transcode** — encode in short windows again (not to EOF) so scrubbing/seeking does not thrash the CPU; hand off on the actual playback position to avoid skipped frames
+- **Big preview** — soft drop shadow; do not open while a context menu is active
+- **Tag page** — restore quick filters with co-occurrence API; offset header when filters are docked; compact mobile layout
+- **Performer pictures** — stop reverting after replace due to get-file HTTP cache
+- **Path parser** — match multi-word tags inside longer path chunks
+- **Hover cards** — keep fully inside the viewport with cursor-aware placement
+- **Select mode** — list totals and related Electron desktop chrome polish
+- **Tag chips** — collapse long lists on media cards
+- **Tag edit dialog** — no longer closes immediately on open
 
 ## [1.3.4] - 2026-07-20
 

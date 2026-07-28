@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {
+  GENDER_MIN_CONFIDENCE,
   normalizeGenderFilter,
   passesGenderFilter,
 } from './faceGender'
@@ -27,5 +28,11 @@ describe('faceGender filter helpers', () => {
     expect(passesGenderFilter('male', 'male')).toBe(true)
     expect(passesGenderFilter('female', 'male')).toBe(false)
     expect(passesGenderFilter(undefined, 'male')).toBe(true)
+  })
+
+  it('keeps low-confidence predictions instead of filtering them out', () => {
+    expect(passesGenderFilter('male', 'female', GENDER_MIN_CONFIDENCE - 0.01)).toBe(true)
+    expect(passesGenderFilter('male', 'female', GENDER_MIN_CONFIDENCE)).toBe(false)
+    expect(passesGenderFilter('female', 'female', GENDER_MIN_CONFIDENCE)).toBe(true)
   })
 })

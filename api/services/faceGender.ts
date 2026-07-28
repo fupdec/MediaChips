@@ -15,6 +15,8 @@ const GENDER_MEAN = 127.5
 const GENDER_STD = 128
 /** InsightFace default when session metadata is unavailable. */
 const DEFAULT_INPUT_SIZE = 96
+/** Below this softmax confidence, treat gender as unknown and keep the face. */
+const GENDER_MIN_CONFIDENCE = 0.6
 
 export type FaceGender = 'female' | 'male'
 export type FaceGenderFilter = 'both' | FaceGender
@@ -166,10 +168,14 @@ function normalizeGenderFilter(value: unknown): FaceGenderFilter {
 function passesGenderFilter(
   gender: FaceGender | null | undefined,
   filter: FaceGenderFilter,
+  confidence?: number | null,
 ): boolean {
   if (filter === 'both') return true
-  // Keep the face when gender is unknown so a model blip does not wipe detections.
+  // Keep the face when gender is unknown/uncertain so a model blip does not wipe detections.
   if (!gender) return true
+  if (confidence != null && Number.isFinite(confidence) && confidence < GENDER_MIN_CONFIDENCE) {
+    return true
+  }
   return gender === filter
 }
 
@@ -309,6 +315,7 @@ async function estimateGender(
 }
 
 export {
+  GENDER_MIN_CONFIDENCE,
   GENDER_MODEL_ID,
   GENDER_MODEL_SIZE_MB,
   estimateGender,

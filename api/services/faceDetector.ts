@@ -1081,7 +1081,7 @@ async function detectMedia(
         if (genderReady && genderFilter !== 'both') {
           try {
             const predicted = await estimateGender(sourceImage, detection.box)
-            if (!passesGenderFilter(predicted?.gender, genderFilter)) continue
+            if (!passesGenderFilter(predicted?.gender, genderFilter, predicted?.confidence)) continue
           } catch {
             // Keep the face when gender inference fails.
           }

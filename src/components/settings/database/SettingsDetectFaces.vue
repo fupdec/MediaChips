@@ -588,9 +588,9 @@ const minConfidence = ref(Number(settingsStore['faceMatch.minConfidence'] || 0.5
 const candidateLimit = ref(Number(settingsStore['faceMatch.candidateLimit'] || 10))
 const detectMinScore = ref(Math.min(0.75, Math.max(0.5, Number(settingsStore['faceDetect.minScore'] || 0.5))))
 const framesPerVideo = ref(Number(settingsStore['faceDetect.framesPerVideo'] || 6))
-const genderFilter = ref(
+const genderFilter = ref<'both' | 'female' | 'male'>(
   ['both', 'female', 'male'].includes(String(settingsStore['faceDetect.genderFilter'] || 'both'))
-    ? String(settingsStore['faceDetect.genderFilter'] || 'both')
+    ? (String(settingsStore['faceDetect.genderFilter'] || 'both') as 'both' | 'female' | 'male')
     : 'both',
 )
 const matchMode = ref(String(settingsStore['faceMatch.mode'] || 'auto'))
@@ -829,7 +829,7 @@ const saveFramesPerVideo = () => {
 
 const saveGenderFilter = (value: string | null) => {
   if (!value || !['both', 'female', 'male'].includes(value)) return
-  genderFilter.value = value
+  genderFilter.value = value as 'both' | 'female' | 'male'
   void setOption(value, 'faceDetect.genderFilter')
 }
 
