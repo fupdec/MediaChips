@@ -1092,7 +1092,7 @@ const runStreamJob = async (options: {
           continue
         }
         if (event.type === 'progress') {
-          counters.value = {...event} as Record<string, number>
+          counters.value = {...event} as unknown as Record<string, number>
           currentPath.value = event.current || ''
           progress.value = event.total
             ? Math.min(((event.processed || 0) / event.total) * 100, 100)
@@ -1105,7 +1105,7 @@ const runStreamJob = async (options: {
           }
         }
         if (event.type === 'complete') {
-          counters.value = {...event} as Record<string, number>
+          counters.value = {...event} as unknown as Record<string, number>
           lastSummary.value = t(options.completeKey, counters.value)
           lastCompletedJob.value = options.job
           progress.value = 100

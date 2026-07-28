@@ -127,8 +127,8 @@ export function useLibraryNavItems() {
     metaLink: (meta: Meta): LibraryNavLink => ({
       key: `meta-${meta.id}`,
       to: metaPath(meta.id),
-      icon: `mdi-${meta.icon}`,
-      title: meta.name,
+      icon: `mdi-${meta.icon || 'tag'}`,
+      title: meta.name || String(meta.id),
       exact: true,
     }),
   }

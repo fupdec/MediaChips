@@ -198,7 +198,7 @@ export async function applyCamGirlFinderPerformer({
     const scrapeResult = await autoApplyScrapedTagData({
       tag,
       meta,
-      performer: performerForApply as ScraperPerformer,
+      performer: performerForApply as unknown as ScraperPerformer,
       dbPath,
       allTags: appStore.tags || [],
     })

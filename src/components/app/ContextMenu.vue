@@ -139,7 +139,7 @@ const menuStyle = computed(() => ({
   left: `${adjustedPos.value.x}px`,
   top: `${adjustedPos.value.y}px`,
   zIndex: CONTEXT_MENU_Z_INDEX,
-  visibility: isPositioned.value ? 'visible' : 'hidden',
+  visibility: (isPositioned.value ? 'visible' : 'hidden') as 'visible' | 'hidden',
 }))
 
 const spotlightStyle = computed(() => {

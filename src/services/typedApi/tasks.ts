@@ -275,15 +275,33 @@ export const tasksApi = {
   },
 
   getFaceDetectionStatus() {
-    return apiClient.get(API_ROUTES.taskFaceDetectionStatus)
+    return apiClient.get<{
+      total?: number
+      pending?: number
+      generated?: number
+      faces?: number
+    }>(API_ROUTES.taskFaceDetectionStatus)
   },
 
   getFaceMatchStatus() {
-    return apiClient.get(API_ROUTES.taskFaceMatchStatus)
+    return apiClient.get<{
+      performerTags?: number
+      enrolledTags?: number
+      enrolledFaces?: number
+      faces?: number
+      matchedFaces?: number
+      embedModel?: {status?: string} | null
+      settings?: {
+        minConfidence?: number
+        candidateLimit?: number
+        mode?: string
+        matchAfterDetect?: boolean | number | string
+      } | null
+    }>(API_ROUTES.taskFaceMatchStatus)
   },
 
   getFacesForMedia(mediaId: number, options: {ensureCrops?: boolean} = {}) {
-    return apiClient.get(API_ROUTES.taskFacesForMedia, {
+    return apiClient.get<{faces?: Array<Record<string, unknown>>}>(API_ROUTES.taskFacesForMedia, {
       params: {
         mediaId,
         ...(options.ensureCrops === false ? {ensureCrops: false} : {}),
@@ -326,11 +344,11 @@ export const tasksApi = {
     applyTag?: boolean
     matchScore?: number | null
   }) {
-    return apiClient.post(API_ROUTES.taskAssignFacePerformer, body)
+    return apiClient.post<{mediaId?: number}>(API_ROUTES.taskAssignFacePerformer, body)
   },
 
   clearFacePerformer(body: {faceId: number}) {
-    return apiClient.post(API_ROUTES.taskClearFacePerformer, body)
+    return apiClient.post<{mediaId?: number}>(API_ROUTES.taskClearFacePerformer, body)
   },
 
   getEnrollmentQualityForTag(tagId: number) {

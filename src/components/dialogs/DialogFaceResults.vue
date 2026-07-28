@@ -1051,13 +1051,15 @@ const canCreateTag = (face: FaceResult) => {
   return needsReview(face) || !face.tagId
 }
 
-const setAssignMenu = (face: FaceResult, open: boolean) => {
+const setAssignMenu = (face: FaceResult | null | undefined, open: boolean) => {
+  if (!face) return
   creatingFaceId.value = null
   newTagName.value = ''
   assigningFaceId.value = open ? face.id : null
 }
 
-const setCreateMenu = (face: FaceResult, open: boolean) => {
+const setCreateMenu = (face: FaceResult | null | undefined, open: boolean) => {
+  if (!face) return
   assigningFaceId.value = null
   if (!open) {
     if (creatingFaceId.value === face.id) {
@@ -1157,7 +1159,9 @@ const loadFaces = async ({silent = false}: {silent?: boolean} = {}) => {
     // Fast first paint: skip ffmpeg crop rebuild; fill thumbs in a follow-up if needed.
     const response = await typedApi.getFacesForMedia(mediaId, {ensureCrops: false})
     if (Number(media.value?.id) !== mediaId) return
-    faces.value = Array.isArray(response.data?.faces) ? response.data.faces : []
+    faces.value = Array.isArray(response.data?.faces)
+      ? (response.data.faces as unknown as FaceResult[])
+      : []
     applyDefaultFilter()
     if (detailFaceId.value != null && !faces.value.some((face) => face.id === detailFaceId.value)) {
       detailFaceId.value = null
@@ -1168,7 +1172,9 @@ const loadFaces = async ({silent = false}: {silent?: boolean} = {}) => {
     if (needsCrops) {
       const withCrops = await typedApi.getFacesForMedia(mediaId)
       if (Number(media.value?.id) !== mediaId) return
-      faces.value = Array.isArray(withCrops.data?.faces) ? withCrops.data.faces : faces.value
+      faces.value = Array.isArray(withCrops.data?.faces)
+        ? (withCrops.data.faces as unknown as FaceResult[])
+        : faces.value
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -1329,7 +1335,8 @@ const confirmAllSuggested = async () => {
   }
 }
 
-const onAssign = async (face: FaceResult, value: number[] | number) => {
+const onAssign = async (face: FaceResult | null | undefined, value: number[] | number) => {
+  if (!face) return
   const tagId = Number(Array.isArray(value) ? value[0] : value)
   if (!Number.isFinite(tagId) || tagId <= 0) return
   assigningFaceId.value = null
