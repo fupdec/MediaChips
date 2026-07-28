@@ -68,6 +68,7 @@ export interface FaceMatchProgressEvent {
   skipped?: number
   failed?: number
   current?: string
+  mediaId?: number
   message?: string
   sizeMb?: number
   stopped?: boolean
@@ -1478,6 +1479,7 @@ async function* iterateFaceMatching(
       skipped,
       failed,
       current: media?.path || String(mediaId),
+      mediaId: Number(mediaId),
     }
   }
 

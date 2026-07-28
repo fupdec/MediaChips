@@ -39,6 +39,11 @@ export interface FaceDetectorOptions {
   persist?: boolean
   /** Persist face crop JPEGs under media/videos/faces/{mediaId}. Manual review only. */
   persistCrops?: boolean
+  /**
+   * When false, post-detect matching only suggests performers and does not write tags.
+   * Used when a review dialog will open so the user applies tags explicitly.
+   */
+  applyTags?: boolean
 }
 
 export interface FaceDetectorMediaResult {

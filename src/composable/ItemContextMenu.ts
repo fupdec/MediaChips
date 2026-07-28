@@ -764,6 +764,8 @@ export default function useItemContextMenu(
         body: JSON.stringify({
           mediaIds: ids,
           force: true,
+          // Single-item opens the review dialog — suggest only; user applies tags there.
+          applyTags: ids.length !== 1,
         }),
       })
 
@@ -885,6 +887,10 @@ export default function useItemContextMenu(
         useDialogsStore().openFaceResults(mediaItem as never, {taskId})
       } else {
         tasksStore.removeTask(taskId)
+        listSync.getItemsFromDb({
+          ids,
+          type: 'media',
+        })
       }
     } catch (error) {
       const isAbortError = error instanceof Error && error.name === 'AbortError'

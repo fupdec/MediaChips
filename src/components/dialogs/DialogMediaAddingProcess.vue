@@ -1151,6 +1151,7 @@ const detectFacesInAddedVideos = async () => {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    const refreshedMediaIds = new Set<number>()
 
     const handleEvent = (event: Record<string, unknown>) => {
       if (event.type === 'status') {
@@ -1216,6 +1217,8 @@ const detectFacesInAddedVideos = async () => {
       }
 
       if (event.type === 'progress') {
+        const mediaId = Number(event.mediaId)
+        if (Number.isFinite(mediaId) && mediaId > 0) refreshedMediaIds.add(mediaId)
         task.value.faceDetectionProcessed = Number(event.processed || 0)
         task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal || 0)
         task.value.faceDetectionRemaining = Number(
@@ -1271,6 +1274,13 @@ const detectFacesInAddedVideos = async () => {
 
     if (buffer.trim()) {
       handleEvent(JSON.parse(buffer))
+    }
+
+    if (refreshedMediaIds.size) {
+      listSync.getItemsFromDb({
+        ids: [...refreshedMediaIds],
+        type: 'media',
+      })
     }
 
     if (task.value.facesFound > 0) {

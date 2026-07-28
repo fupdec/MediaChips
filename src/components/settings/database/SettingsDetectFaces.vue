@@ -498,6 +498,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 import {useTasksStore} from '@/stores/tasks'
+import {useItemsListSync} from '@/composable/itemsListSync'
 import {buildApiUrl} from '@/services/apiClient'
 import {getAuthToken} from '@/services/authSession'
 import {setOption} from '@/services/settingsService'
@@ -529,6 +530,7 @@ interface StreamEvent {
   matched?: number
   applied?: number
   current?: string
+  mediaId?: number
   message?: string
   sizeMb?: number
   stopped?: boolean
@@ -539,6 +541,7 @@ const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
+const listSync = useItemsListSync()
 
 const buildRequestHeaders = (withJson = false): Record<string, string> => {
   const token = getAuthToken()
@@ -991,6 +994,7 @@ const runStreamJob = async (options: {
     progress: 0,
     action: stopJob,
   })
+  const refreshedMediaIds = new Set<number>()
 
   try {
     const response = await fetch(buildApiUrl(options.url), {
@@ -1092,6 +1096,8 @@ const runStreamJob = async (options: {
           continue
         }
         if (event.type === 'progress') {
+          const mediaId = Number(event.mediaId)
+          if (Number.isFinite(mediaId) && mediaId > 0) refreshedMediaIds.add(mediaId)
           counters.value = {...event} as unknown as Record<string, number>
           currentPath.value = event.current || ''
           progress.value = event.total
@@ -1114,6 +1120,13 @@ const runStreamJob = async (options: {
           throw new Error(event.message || t('settings_labels.database.detect_faces_api_unavailable'))
         }
       }
+    }
+
+    if (refreshedMediaIds.size && (options.job === 'detect' || options.job === 'match')) {
+      listSync.getItemsFromDb({
+        ids: [...refreshedMediaIds],
+        type: 'media',
+      })
     }
 
     setNotification({type: 'success', text: lastSummary.value || options.title})

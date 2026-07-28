@@ -13,6 +13,7 @@ import {
   clearFaceMatch,
   enrollTagFaces,
   getEmbedStatus,
+  getFaceMatchSettings,
   getFaceMatchStatus,
   iterateEnrollFromPerformerImages,
   iterateFaceMatching,
@@ -170,7 +171,20 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         res.status(400).send({message: 'mediaId is required'})
         return
       }
-      const result = await matchMediaFaces(db, mediaId, {force: Boolean(req.body?.force)})
+      const applyTagsRaw = req.body?.applyTags
+      const applyTags = !(
+        applyTagsRaw === false
+        || applyTagsRaw === 'false'
+        || applyTagsRaw === 0
+        || applyTagsRaw === '0'
+      )
+      const settings = applyTags
+        ? undefined
+        : {...getFaceMatchSettings(db), mode: 'suggest' as const}
+      const result = await matchMediaFaces(db, mediaId, {
+        force: Boolean(req.body?.force),
+        settings,
+      })
       res.status(201).send(result)
     } catch (err) {
       res.status(500).send({
@@ -303,6 +317,13 @@ export default function createTasksFacesController(shared: TaskControllerShared)
           typeof item === 'string' ? item : (item as {path?: string})?.path
         )).filter(Boolean)
         : undefined
+      const applyTagsRaw = req.body?.applyTags
+      const applyTags = !(
+        applyTagsRaw === false
+        || applyTagsRaw === 'false'
+        || applyTagsRaw === 0
+        || applyTagsRaw === '0'
+      )
 
       for await (const event of iterateFaceDetection(db, {
         shouldStop,
@@ -311,6 +332,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         paths,
         framesPerVideo: req.body?.framesPerVideo,
         minScore: req.body?.minScore,
+        applyTags,
       })) {
         writeEvent(event as unknown as Record<string, unknown>)
       }

@@ -1173,7 +1173,10 @@ async function detectMedia(
         } = require('./faceRecognition') as typeof import('./faceRecognition')
         const matchSettings = getFaceMatchSettings(db)
         if (matchSettings.matchAfterDetect && matchSettings.performerMetaId) {
-          await matchMediaFaces(db, mediaId, {force: Boolean(options.force), settings: matchSettings})
+          const settings = options.applyTags === false
+            ? {...matchSettings, mode: 'suggest' as const}
+            : matchSettings
+          await matchMediaFaces(db, mediaId, {force: Boolean(options.force), settings})
         }
       } catch {
         // Matching is optional and should not fail detection.
@@ -1230,6 +1233,7 @@ async function* iterateFaceDetection(
     framesPerVideo,
     minScore,
     persistCrops = false,
+    applyTags,
   }: FaceDetectorOptions & {
     shouldStop?: () => boolean
     mediaIds?: Array<number | string>
@@ -1335,6 +1339,7 @@ async function* iterateFaceDetection(
       minScore: resolvedMinScore,
       persist: true,
       persistCrops: Boolean(persistCrops),
+      applyTags,
     })
 
     processed += 1

@@ -1203,7 +1203,7 @@ const rematch = async () => {
         text: t('settings_labels.database.face_match_embed_downloaded'),
       })
     }
-    await typedApi.matchFacesForMedia({mediaId, force: true})
+    await typedApi.matchFacesForMedia({mediaId, force: true, applyTags: false})
     filterInitialized.value = false
     await loadFaces()
   } catch (err) {

@@ -333,7 +333,7 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskDetectFacesForMedia, body)
   },
 
-  matchFacesForMedia(body: {mediaId: number; force?: boolean}) {
+  matchFacesForMedia(body: {mediaId: number; force?: boolean; applyTags?: boolean}) {
     return apiClient.post(API_ROUTES.taskMatchFacesForMedia, body)
   },
 
