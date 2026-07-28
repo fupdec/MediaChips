@@ -373,7 +373,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
           progress: 100,
           color: event.stopped ? 'warning' : 'success',
           done: true,
-          action: () => {},
+          action: undefined,
         })
 
         if (!event.stopped) {
@@ -430,7 +430,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
           subtitle: err.message,
           color: 'error',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
     } else if (taskId) {
@@ -438,7 +438,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
         subtitle: t('common.stop'),
         color: 'warning',
         done: true,
-        action: () => {},
+        action: undefined,
       })
     }
   } finally {

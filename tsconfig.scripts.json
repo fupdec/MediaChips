@@ -13,5 +13,9 @@
     "ignoreDeprecations": "6.0",
     "types": ["node"]
   },
-  "include": ["scripts/sign-native-modules.ts", "scripts/download-parser-model.ts"]
+  "include": [
+    "scripts/sign-native-modules.ts",
+    "scripts/download-parser-model.ts",
+    "scripts/download-face-models.ts"
+  ]
 }

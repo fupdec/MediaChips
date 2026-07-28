@@ -11,6 +11,7 @@ export interface FaceDetection {
   timestamp: string | null
   cropPath: string | null
   cropRelativePath: string | null
+  embedding?: string | null
 }
 
 export interface FaceDetectorMediaItem {
@@ -26,6 +27,8 @@ export interface FaceDetectorOptions {
   maxFacesPerFrame?: number
   force?: boolean
   persist?: boolean
+  /** Persist face crop JPEGs under media/videos/faces/{mediaId}. Manual review only. */
+  persistCrops?: boolean
 }
 
 export interface FaceDetectorMediaResult {

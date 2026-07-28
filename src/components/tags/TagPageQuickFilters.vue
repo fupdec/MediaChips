@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="shouldShow"
-    class="tag-quick-filters pa-4"
+    class="tag-quick-filters"
   >
     <v-alert
       v-if="loading"
@@ -22,92 +22,88 @@
       />
     </v-alert>
 
-    <template v-else-if="groups.length > 0">
-      <div
-        class="tag-quick-filters__header d-flex align-center justify-space-between mb-2"
-        role="button"
-        tabindex="0"
-        :title="collapsed ? t('tags.quick_filters_expand') : t('tags.quick_filters_collapse')"
-        @click="collapsed = !collapsed"
-        @keydown.enter.prevent="collapsed = !collapsed"
-        @keydown.space.prevent="collapsed = !collapsed"
-      >
-        <div class="d-inline-flex align-center">
-          <v-icon
-            class="mr-1"
-            size="small"
-            icon="mdi-filter-outline"
-          />
-          <span>{{ t('tags.quick_filters') }}</span>
-          <span
-            v-if="activeChipsCount > 0"
-            class="tag-quick-filters__active-count ml-1"
-          >{{ activeChipsCount }}</span>
-          <v-tooltip location="top">
-            <template #activator="{ props: tipProps }">
-              <v-icon
-                v-bind="tipProps"
-                class="ml-1"
-                size="small"
-                icon="mdi-help-circle-outline"
-                @click.stop
-              />
-            </template>
-            <span>{{ t('tags.quick_filters_hint') }}</span>
-          </v-tooltip>
-        </div>
-        <v-icon
-          size="small"
-          :icon="collapsed ? 'mdi-chevron-down' : 'mdi-chevron-up'"
-        />
-      </div>
-      <div v-show="!collapsed">
-        <div
-          v-for="(group, groupIndex) in groups"
-          :key="group.metaId"
-          class="tag-quick-filters__group"
-        >
-          <div
-            class="tag-quick-filters__group-label"
-            :class="{'tag-quick-filters__group-label--first': groupIndex === 0}"
-          >
-            <v-icon size="small" class="mr-1">mdi-{{ group.meta.icon || 'tag' }}</v-icon>
-            <span>{{ group.meta.name }}</span>
-          </div>
-          <div class="d-flex flex-wrap align-center justify-start py-1">
+    <v-expansion-panels
+      v-else-if="groups.length > 0"
+      v-model="panel"
+      variant="accordion"
+      rounded="xl"
+      class="tag-quick-filters__panels"
+    >
+      <v-expansion-panel rounded="xl">
+        <v-expansion-panel-title>
+          <div class="tag-quick-filters__title d-inline-flex align-center">
+            <v-icon
+              class="mr-2"
+              size="small"
+              icon="mdi-filter-outline"
+            />
+            <span>{{ t('tags.quick_filters') }}</span>
             <span
-              v-for="chip in group.chips"
-              :key="chip.id"
-              class="tag-quick-filters__chip-wrap mr-2 mb-1"
-              :class="{
-                'tag-quick-filters__chip-wrap--active': isSelected(group.metaId, chip.id),
-                'tag-quick-filters__chip-wrap--label': chip.label,
-              }"
-            >
-              <v-chip
-                :size="isSelected(group.metaId, chip.id) ? 'large' : 'small'"
-                filter
-                :label="chip.label"
-                :variant="chip.variant"
-                :color="chip.color"
-                :style="chip.textColor ? { color: chip.textColor } : undefined"
-                :prepend-icon="isSelected(group.metaId, chip.id) ? 'mdi-check' : undefined"
-                :class="[
-                  chip.className,
-                  isSelected(group.metaId, chip.id) ? 'active-chip px-3' : 'px-2',
-                ]"
-                :disabled="chip.id === pageTagId"
-                @click="toggleChip(group.metaId, chip.id)"
-                @mouseover.stop="onChipHover($event, group.metaId, chip.id)"
-                @mouseleave.stop="hideHoverImage()"
-              >
-                {{ chip.name }}
-              </v-chip>
-            </span>
+              v-if="activeChipsCount > 0"
+              class="tag-quick-filters__active-count ml-1"
+            >{{ activeChipsCount }}</span>
+            <v-tooltip location="top">
+              <template #activator="{ props: tipProps }">
+                <v-icon
+                  v-bind="tipProps"
+                  class="ml-1"
+                  size="small"
+                  icon="mdi-help-circle-outline"
+                  @click.stop
+                />
+              </template>
+              <span>{{ t('tags.quick_filters_hint') }}</span>
+            </v-tooltip>
           </div>
-        </div>
-      </div>
-    </template>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text :eager="true">
+          <div
+            v-for="(group, groupIndex) in groups"
+            :key="group.metaId"
+            class="tag-quick-filters__group"
+          >
+            <div
+              class="tag-quick-filters__group-label"
+              :class="{'tag-quick-filters__group-label--first': groupIndex === 0}"
+            >
+              <v-icon size="small" class="mr-1">mdi-{{ group.meta.icon || 'tag' }}</v-icon>
+              <span>{{ group.meta.name }}</span>
+            </div>
+            <div class="d-flex flex-wrap align-center justify-start py-1">
+              <span
+                v-for="chip in group.chips"
+                :key="chip.id"
+                class="tag-quick-filters__chip-wrap mr-2 mb-1"
+                :class="{
+                  'tag-quick-filters__chip-wrap--active': isSelected(group.metaId, chip.id),
+                  'tag-quick-filters__chip-wrap--label': chip.label,
+                }"
+              >
+                <v-chip
+                  :size="isSelected(group.metaId, chip.id) ? 'large' : 'small'"
+                  filter
+                  :label="chip.label"
+                  :variant="chip.variant"
+                  :color="chip.color"
+                  :style="chip.textColor ? { color: chip.textColor } : undefined"
+                  :prepend-icon="isSelected(group.metaId, chip.id) ? 'mdi-check' : undefined"
+                  :class="[
+                    chip.className,
+                    isSelected(group.metaId, chip.id) ? 'active-chip px-3' : 'px-2',
+                  ]"
+                  :disabled="chip.id === pageTagId"
+                  @click="toggleChip(group.metaId, chip.id)"
+                  @mouseover.stop="onChipHover($event, group.metaId, chip.id)"
+                  @mouseleave.stop="hideHoverImage()"
+                >
+                  {{ chip.name }}
+                </v-chip>
+              </span>
+            </div>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </div>
 </template>
 
@@ -166,7 +162,8 @@ const selections = ref<Record<number, number[]>>({})
 const loadToken = ref(0)
 const loading = ref(true)
 const applyingFilters = ref(false)
-const collapsed = ref(false)
+/** Open by default (same as previous expand state). */
+const panel = ref<number | undefined>(0)
 
 const shouldShow = computed(() =>
   Boolean(props.tagId)

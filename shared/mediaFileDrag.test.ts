@@ -17,9 +17,14 @@ describe('isLikelyExternalFileDrag', () => {
     expect(isLikelyExternalFileDrag(createDragEvent(['files']))).toBe(true)
   })
 
-  it('detects uri-list and moz file drags', () => {
+  it('detects bare uri-list and moz file drags', () => {
     expect(isLikelyExternalFileDrag(createDragEvent(['text/uri-list']))).toBe(true)
     expect(isLikelyExternalFileDrag(createDragEvent(['application/x-moz-file']))).toBe(true)
+  })
+
+  it('ignores in-app link drags that expose uri-list with text payloads', () => {
+    expect(isLikelyExternalFileDrag(createDragEvent(['text/uri-list', 'text/plain', 'text/html']))).toBe(false)
+    expect(isLikelyExternalFileDrag(createDragEvent(['text/uri-list', 'text/plain']))).toBe(false)
   })
 
   it('treats empty drag types as external file drags in Electron', () => {

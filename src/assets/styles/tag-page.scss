@@ -596,25 +596,42 @@
 
 .tag-quick-filters {
   overflow: visible;
-  background: rgba(var(--v-theme-on-surface), 0.04);
-  border-radius: 12px;
   margin: 12px 16px;
 
-  .tag-quick-filters__header {
-    cursor: pointer;
-    user-select: none;
-    border-radius: 16px;
-    min-height: 48px;
-    padding: 12px 16px;
+  .tag-quick-filters__panels {
+    background: transparent;
+  }
 
-    &:hover {
-      background: rgba(var(--v-theme-on-surface), 0.04);
-    }
+  .tag-quick-filters__panels :deep(.v-expansion-panel) {
+    background: rgba(var(--v-theme-on-surface), 0.04);
+  }
+
+  .tag-quick-filters__panels :deep(.v-expansion-panel-title) {
+    font-size: 0.95rem;
+    min-height: 48px;
+  }
+
+  .tag-quick-filters__title {
+    font-weight: 500;
   }
 
   .tag-quick-filters__active-count {
     font-size: 0.75rem;
     opacity: 0.6;
+  }
+
+  // Instant open/close — no expand transition.
+  .tag-quick-filters__panels :deep(.v-expansion-panel-text),
+  .tag-quick-filters__panels :deep(.v-expansion-panel-text__wrapper),
+  .tag-quick-filters__panels :deep(.v-expand-transition-enter-active),
+  .tag-quick-filters__panels :deep(.v-expand-transition-leave-active),
+  .tag-quick-filters__panels :deep(.v-expand-transition-enter-from),
+  .tag-quick-filters__panels :deep(.v-expand-transition-leave-to) {
+    transition: none !important;
+  }
+
+  .tag-quick-filters__panels :deep(.v-expansion-panel-title__icon) {
+    transition: none !important;
   }
 
   .d-flex {

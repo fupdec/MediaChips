@@ -45,6 +45,8 @@ export interface MediaAddingState {
   faceDetectionTotal: number
   faceDetectionRemaining: number
   facesFound: number
+  /** Task id in the notifications/tasks list for this add run. */
+  notificationTaskId: string | null
   media_type_id: number | null
   is_parsing: boolean
   is_exclude: boolean
@@ -88,6 +90,7 @@ export const useTasksStore = defineStore('useTasksStore', {
       faceDetectionTotal: 0,
       faceDetectionRemaining: 0,
       facesFound: 0,
+      notificationTaskId: null,
       media_type_id: null,
       is_parsing: true,
       is_exclude: false,

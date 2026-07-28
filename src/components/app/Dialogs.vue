@@ -57,6 +57,16 @@
       @close="dialogsStore.mediaEditing.show = false"
     />
 
+    <DialogFaceResults
+      v-if="dialogsStore.faceResults.show"
+      @close="dialogsStore.closeFaceResults()"
+    />
+
+    <DialogEnrollmentQuality
+      v-if="dialogsStore.enrollmentQuality.show"
+      @close="dialogsStore.closeEnrollmentQuality()"
+    />
+
     <DialogBulkEditingItems
       v-if="dialogsStore.bulkEditingItems"
       @close="dialogsStore.bulkEditingItems = false"
@@ -240,6 +250,12 @@ const DialogOrganizeMediaByTag = defineAsyncComponent(() =>
 )
 const DialogMediaEditing = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaEditing.vue')
+)
+const DialogFaceResults = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogFaceResults.vue')
+)
+const DialogEnrollmentQuality = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogEnrollmentQuality.vue')
 )
 const DialogTagEditing = defineAsyncComponent({
   loader: () => import('@/components/dialogs/DialogTagEditing.vue'),

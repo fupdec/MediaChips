@@ -2,6 +2,7 @@
   <v-card
     class="settings-section"
     :class="sectionClass"
+    :id="id"
     rounded="xl"
     variant="flat"
   >
@@ -16,6 +17,10 @@ const props = defineProps({
   padded: {
     type: Boolean,
     default: false,
+  },
+  id: {
+    type: String,
+    default: undefined,
   },
 })
 

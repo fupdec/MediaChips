@@ -16,6 +16,7 @@ export {
   createFilterRowsInSavedFiltersRepository,
   createFilterRowsRepository,
   createFacesRepository,
+  createFaceEnrollmentsRepository,
   createImageMetadataRepository,
   createMarksRepository,
   createMediaInPlaylistsRepository,

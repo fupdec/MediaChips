@@ -39,6 +39,7 @@ const {
           v-bind="props"
           :to="link.to"
           :exact="link.exact"
+          draggable="false"
           variant="text"
           color="primary"
         >
@@ -58,6 +59,7 @@ const {
         <v-btn
           v-bind="props"
           :to="metaPath(item.id)"
+          draggable="false"
           variant="text"
           color="primary"
           exact
@@ -97,6 +99,7 @@ const {
           density="compact"
           exact
           link
+          draggable="false"
         >
           <template #prepend>
             <v-icon>{{ `mdi-${item.icon}` }}</v-icon>
@@ -113,6 +116,7 @@ const {
         <v-btn
           v-bind="props"
           :to="settingsLink.to"
+          draggable="false"
           color="primary"
           variant="text"
         >

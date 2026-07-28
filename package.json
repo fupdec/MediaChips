@@ -158,8 +158,7 @@
         "filter": [
           "**/*",
           "!**/clip-vit-base-patch32/**",
-          "!**/face-api/**",
-          "!**/ultraface-rfb-320/**"
+          "!**/face-api/**"
         ]
       }
     ],

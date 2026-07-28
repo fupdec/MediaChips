@@ -126,7 +126,7 @@ cd mediaChips
 npm install
 ```
 
-The ML path tag parser model is downloaded automatically when building distribution packages. For local development it is optional — run `node scripts/compile.mjs scripts && node .scripts-build/download-parser-model.js` if you use path-based tag suggestions.
+The ML path tag parser model and face recognition models are downloaded automatically when building distribution packages. For local development they are optional — run `node scripts/compile.mjs scripts && node .scripts-build/download-parser-model.js && node .scripts-build/download-face-models.js` if you use path-based tag suggestions or face recognition.
 
 ### Production
 
@@ -263,7 +263,7 @@ dist/           Production frontend build (generated)
 electron/       Electron preload scripts
 public/         Static assets, dev config (`config.json`)
 src/            Vue 3 frontend source
-models/         ML model files for path tag parser
+models/         ML model files (path tag parser, face detection/recognition)
 scripts/        Build and utility scripts
 ```
 

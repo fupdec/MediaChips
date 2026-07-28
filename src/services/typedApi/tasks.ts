@@ -278,13 +278,57 @@ export const tasksApi = {
     return apiClient.get(API_ROUTES.taskFaceDetectionStatus)
   },
 
+  getFaceMatchStatus() {
+    return apiClient.get(API_ROUTES.taskFaceMatchStatus)
+  },
+
+  getFacesForMedia(mediaId: number) {
+    return apiClient.get(API_ROUTES.taskFacesForMedia, {params: {mediaId}})
+  },
+
+  getFaceEmbedModelStatus() {
+    return apiClient.get(API_ROUTES.taskFaceEmbedModelStatus).then((res) => ({
+      ...res,
+      data: validated(parseClipModelStatus, res.data),
+    }))
+  },
+
+  downloadFaceEmbedModel(body: BackupNamePayload = {}) {
+    return apiClient.post(API_ROUTES.taskDownloadFaceEmbedModel, body).then((res) => ({
+      ...res,
+      data: validated(parseClipModelStatus, res.data),
+    }))
+  },
+
   detectFacesForMedia(body: {
     mediaId: number
     force?: boolean
     framesPerVideo?: number
     minScore?: number
+    match?: boolean
   }) {
     return apiClient.post(API_ROUTES.taskDetectFacesForMedia, body)
+  },
+
+  matchFacesForMedia(body: {mediaId: number; force?: boolean}) {
+    return apiClient.post(API_ROUTES.taskMatchFacesForMedia, body)
+  },
+
+  assignFacePerformer(body: {
+    faceId: number
+    tagId: number
+    enroll?: boolean
+    applyTag?: boolean
+  }) {
+    return apiClient.post(API_ROUTES.taskAssignFacePerformer, body)
+  },
+
+  clearFacePerformer(body: {faceId: number}) {
+    return apiClient.post(API_ROUTES.taskClearFacePerformer, body)
+  },
+
+  getEnrollmentQualityForTag(tagId: number) {
+    return apiClient.get(API_ROUTES.taskEnrollmentQualityForTag, {params: {tagId}})
   },
 
   createTab(body: TabCreatePayload) {

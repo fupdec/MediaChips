@@ -173,6 +173,7 @@ export const useMediaAdding = () => {
     task.value.faceDetectionTotal = 0
     task.value.faceDetectionRemaining = 0
     task.value.facesFound = 0
+    task.value.notificationTaskId = null
     task.value.skipFileScan = false
     task.value.directFiles = []
     task.value.media_type_id = savedMediaTypeId
@@ -190,6 +191,7 @@ export const useMediaAdding = () => {
     }
 
     const taskId = await tasksStore.setTask(taskData)
+    task.value.notificationTaskId = taskId
     let keepTaskAfterComplete = false
 
     const pathsForType = transformTextToArray(task.value.paths)
@@ -204,6 +206,8 @@ export const useMediaAdding = () => {
       console.error('Media type not found')
       task.value.finished = true
       task.value.active = false
+      tasksStore.removeTask(taskId)
+      task.value.notificationTaskId = null
       setNotification({
         title: 'Error',
         text: 'Media type not found',
@@ -374,7 +378,7 @@ export const useMediaAdding = () => {
             progress: 100,
             color: 'success',
             done: true,
-            action: () => {},
+            action: undefined,
           })
         }
 
@@ -435,6 +439,15 @@ export const useMediaAdding = () => {
       addMediaInProgress = false
       if (!keepTaskAfterComplete) {
         await tasksStore.removeTask(taskId)
+        if (task.value.notificationTaskId === taskId) {
+          task.value.notificationTaskId = null
+        }
+      } else {
+        // Completed: never keep a Stop action in notifications.
+        await tasksStore.updateTask(taskId, {
+          done: true,
+          action: undefined,
+        })
       }
     }
   }

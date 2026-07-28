@@ -114,7 +114,7 @@
 
                   <v-btn
                     v-if="selected.selector"
-                    @click="highlightElement(selected.selector)"
+                    @click="highlightElement(selected)"
                     variant="text"
                     size="small"
                     prepend-icon="mdi-creation-outline"
@@ -346,8 +346,10 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDisplay } from 'vuetify'
+import { useRouter } from 'vue-router'
 import { registerAppShellHandler } from '@/composable/appShell'
 import { useDialogsStore } from '@/stores/dialogs'
+import { useElementSpotlightStore } from '@/stores/elementSpotlight'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 import Documentation from "@/assets/Documentation"
 import { localizeDocumentation } from "@/assets/DocumentationTranslations"
@@ -361,6 +363,8 @@ interface DocumentationItem {
   description?: string
   link?: string
   selector?: string | string[]
+  /** Route to open before spotlighting (e.g. settings tab/section). */
+  navigate?: string
   content?: string
   children?: DocumentationItem[]
   [key: string]: unknown
@@ -369,11 +373,14 @@ interface DocumentationItem {
 // Инициализация
 const { xs } = useDisplay()
 const { t, locale } = useI18n()
+const router = useRouter()
 const dialogsStore = useDialogsStore()
+const elementSpotlight = useElementSpotlightStore()
 
 // Реактивные данные
 const isOpenAll = ref(false)
 const errorSelector = ref(false)
+const keepSelectionOnClose = ref(false)
 const activatedIds = ref<string[]>([])
 const openedIds = ref<string[]>([])
 const selected = ref<Partial<DocumentationItem>>({})
@@ -424,31 +431,35 @@ const getDocIcon = (item: DocumentationItem) => {
   return item.icon || 'mdi-file'
 }
 
-const highlightElement = (selectors: string | string[]) => {
+const highlightElement = async (item: Partial<DocumentationItem>) => {
+  const selectors = item.selector
+  if (!selectors) return
+
   errorSelector.value = false
+  keepSelectionOnClose.value = true
   dialogs.value.documentation = false
 
-  let isMatch = false
-  const selectorArray = Array.isArray(selectors) ? selectors : [selectors]
-
-  selectorArray.forEach((selector) => {
-    const elements = document.querySelectorAll(selector)
-    if (elements.length) {
-      isMatch = true
-      elements.forEach((el) => {
-        el.classList.add("doc-highlighted")
-
-        setTimeout(() => {
-          el.classList.remove("doc-highlighted")
-          dialogs.value.documentation = true
-        }, 3000)
-      })
+  const navigateTo = typeof item.navigate === 'string' ? item.navigate.trim() : ''
+  if (navigateTo) {
+    try {
+      await router.push(navigateTo)
+      await nextTick()
+    } catch (error) {
+      console.error(error)
     }
+  }
+
+  const matched = await elementSpotlight.spotlight(selectors, {
+    durationMs: 3200,
+    settleMs: navigateTo ? 520 : 280,
+    onDone: () => {
+      dialogs.value.documentation = true
+    },
   })
 
-  if (!isMatch) {
+  if (!matched) {
+    // spotlight() already ran onDone and reopened the dialog when nothing matched.
     errorSelector.value = true
-    dialogs.value.documentation = true
   }
 }
 
@@ -495,6 +506,10 @@ const updateActivated = (ids: string[]) => {
 }
 
 const resetSelection = () => {
+  if (keepSelectionOnClose.value) {
+    keepSelectionOnClose.value = false
+    return
+  }
   activatedIds.value = []
   openedIds.value = []
   selected.value = {}
@@ -754,23 +769,6 @@ onBeforeUnmount(() => {
   overflow-x: auto;
   margin: 16px 0;
   border: 1px solid rgba(var(--v-border-color), 0.3);
-}
-
-/* Анимация выделения */
-@keyframes highlight {
-  0% {
-    box-shadow: 0 0 0 0 red;
-  }
-  50% {
-    box-shadow: 0 0 0 5px red;
-  }
-  100% {
-    box-shadow: 0 0 0 3px red;
-  }
-}
-
-.doc-highlighted {
-  animation: highlight 3s ease;
 }
 
 /* Адаптивность */

@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: models
-          key: mediachips-models-${{ hashFiles('scripts/download-parser-model.ts') }}
+          key: mediachips-models-${{ hashFiles('scripts/download-parser-model.ts', 'scripts/download-face-models.ts') }}
 
       - name: Install dependencies
         run: npm ci

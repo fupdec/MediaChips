@@ -89,6 +89,7 @@
     </v-overlay>
 
     <ContextMenu v-if="isShellReady && !isPlayerWindow"/>
+    <ElementSpotlight v-if="isShellReady && !isPlayerWindow"/>
 
     <div
       v-if="isElectron && !isPlayerWindow"
@@ -132,6 +133,7 @@ const ImageViewer = defineAsyncComponent(() => import('@/components/app/ImageVie
 const HoverImage = defineAsyncComponent(() => import('@/components/app/HoverImage.vue'))
 const NotificationsPool = defineAsyncComponent(() => import('@/components/app/NotificationsPool.vue'))
 const ContextMenu = defineAsyncComponent(() => import('@/components/app/ContextMenu.vue'))
+const ElementSpotlight = defineAsyncComponent(() => import('@/components/app/ElementSpotlight.vue'))
 const AutoUpdater = defineAsyncComponent(() => import('@/components/app/AutoUpdater.vue'))
 
 const settingsStore = useSettingsStore()

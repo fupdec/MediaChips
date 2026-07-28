@@ -399,7 +399,7 @@ const updateParseLibraryTagsTask = (data: {
   progress?: number
   color?: string
   done?: boolean
-  action?: () => void
+  action?: (() => void) | undefined
 }) => {
   if (!taskId) return
   tasksStore.updateTask(taskId, data)
@@ -857,7 +857,7 @@ const startParsing = async () => {
           progress: 100,
           color: 'success',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
 
@@ -895,14 +895,14 @@ const startParsing = async () => {
         subtitle: String(error),
         color: 'error',
         done: true,
-        action: () => {},
+        action: undefined,
       })
     } else if (currentTaskId) {
       updateParseLibraryTagsTask({
         subtitle: t('common.stop'),
         color: 'warning',
         done: true,
-        action: () => {},
+        action: undefined,
       })
     }
     scanFinished.value = true
@@ -912,7 +912,7 @@ const startParsing = async () => {
     if (taskId === currentTaskId && !scanFinished.value) {
       updateParseLibraryTagsTask({
         done: true,
-        action: () => {},
+        action: undefined,
       })
     }
   }

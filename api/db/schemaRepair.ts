@@ -90,6 +90,10 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'tags', column: 'viewedAt', definition: 'text'},
   {table: 'tags', column: 'metaId', definition: 'integer'},
   {table: 'filterRows', column: 'order', definition: 'integer DEFAULT 0'},
+  {table: 'faces', column: 'tagId', definition: 'integer'},
+  {table: 'faces', column: 'matchScore', definition: 'real'},
+  {table: 'faces', column: 'matchStatus', definition: 'text'},
+  {table: 'faces', column: 'embedding', definition: 'text'},
 ]
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {
@@ -141,6 +145,19 @@ const MISSING_TABLE_DDL: Record<string, string> = {
     "width" real DEFAULT 0 NOT NULL,
     "height" real DEFAULT 0 NOT NULL,
     "cropPath" text,
+    "embedding" text,
+    "tagId" integer,
+    "matchScore" real,
+    "matchStatus" text,
+    "createdAt" text NOT NULL
+  )`,
+  faceEnrollments: `CREATE TABLE "faceEnrollments" (
+    "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    "tagId" integer NOT NULL,
+    "metaId" integer NOT NULL,
+    "source" text NOT NULL,
+    "sourcePath" text,
+    "embedding" text NOT NULL,
     "createdAt" text NOT NULL
   )`,
 }
@@ -279,6 +296,20 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE INDEX IF NOT EXISTS "faces_media_id_idx" ON "faces" ("mediaId")',
     )
     repaired.push('faces_media_id_idx')
+  }
+
+  if (hasTable(sqlite, 'faceEnrollments') && !hasIndex(sqlite, 'face_enrollments_tag_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "face_enrollments_tag_id_idx" ON "faceEnrollments" ("tagId")',
+    )
+    repaired.push('face_enrollments_tag_id_idx')
+  }
+
+  if (hasTable(sqlite, 'faceEnrollments') && !hasIndex(sqlite, 'face_enrollments_meta_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "face_enrollments_meta_id_idx" ON "faceEnrollments" ("metaId")',
+    )
+    repaired.push('face_enrollments_meta_id_idx')
   }
 
   for (const spec of JOIN_UNIQUE_INDEXES) {

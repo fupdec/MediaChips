@@ -36,6 +36,12 @@
               @update:current-index="currentIndex = $event"
               @edited="onImageEdited"
             />
+            <TagEnrollmentQuality
+              v-if="tag?.id && meta?.id"
+              ref="enrollmentQualityRef"
+              :tag-id="Number(tag.id)"
+              :meta-id="Number(meta.id)"
+            />
           </template>
         </EditPinnedMetaValues>
       </v-card-text>
@@ -83,6 +89,7 @@ import path from 'path-browserify'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
+import TagEnrollmentQuality from '@/components/tags/TagEnrollmentQuality.vue'
 import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
@@ -133,6 +140,7 @@ const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const is_show_dialog_delete_confirm = ref(false)
 const is_show_unsaved_confirm = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
+const enrollmentQualityRef = ref<{reload?: () => Promise<void>} | null>(null)
 const currentIndex = shallowRef(0)
 const editReloadKey = ref(0)
 const formDirty = ref(false)
@@ -254,6 +262,7 @@ const onImageEdited = (payload?: ImageEditedPayload) => {
     refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
   }
   getImages({cacheBust: true})
+  void enrollmentQualityRef.value?.reload?.()
   if (payload?.extractedColor) {
     editingComponent.value?.tryApplyAutoColorFromImage?.(payload.extractedColor)
   }

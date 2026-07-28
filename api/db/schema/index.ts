@@ -1,4 +1,5 @@
 export {faces} from './faces'
+export {faceEnrollments} from './faceEnrollments'
 export {media} from './media'
 export {meta} from './meta'
 export {metaInMediaTypes} from './metaInMediaTypes'

@@ -286,7 +286,7 @@ const startGeneration = async (force = false) => {
           progress: 100,
           color: event.stopped ? 'warning' : 'success',
           done: true,
-          action: () => {},
+          action: undefined,
         })
 
         if (!event.stopped) {
@@ -337,7 +337,7 @@ const startGeneration = async (force = false) => {
           subtitle: error.message,
           color: 'error',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
     } else if (taskId) {
@@ -345,7 +345,7 @@ const startGeneration = async (force = false) => {
         subtitle: t('common.stop'),
         color: 'warning',
         done: true,
-        action: () => {},
+        action: undefined,
       })
     }
   } finally {

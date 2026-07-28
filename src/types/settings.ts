@@ -190,6 +190,14 @@ export type SettingsState = {
   'pathParser.clusterThreshold': string
   'pathParser.preferLongestMatch': string
   'pathParser.matchPrecision': string
+  'faceMatch.performerMetaId': string
+  'faceMatch.minConfidence': string
+  'faceMatch.candidateLimit': string
+  'faceMatch.mode': string
+  'faceMatch.matchAfterDetect': string
+  'faceMatch.embedModelId': string
+  'faceDetect.minScore': string
+  'faceDetect.framesPerVideo': string
 }
 
 export const defaultSettingsState = (): SettingsState => ({
@@ -285,4 +293,12 @@ export const defaultSettingsState = (): SettingsState => ({
   'pathParser.clusterThreshold': '0.88',
   'pathParser.preferLongestMatch': 'true',
   'pathParser.matchPrecision': '0.5',
+  'faceMatch.performerMetaId': '',
+  'faceMatch.minConfidence': '0.55',
+  'faceMatch.candidateLimit': '10',
+  'faceMatch.mode': 'auto',
+  'faceMatch.matchAfterDetect': '1',
+  'faceMatch.embedModelId': 'insightface-mbf-v2',
+  'faceDetect.minScore': '0.9',
+  'faceDetect.framesPerVideo': '6',
 })

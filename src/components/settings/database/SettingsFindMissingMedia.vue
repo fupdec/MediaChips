@@ -437,7 +437,7 @@ const startSearch = async () => {
             progress: 100,
             color: event.stopped ? 'warning' : 'success',
             done: true,
-            action: () => {},
+            action: undefined,
           })
         }
       }
@@ -481,7 +481,7 @@ const startSearch = async () => {
           subtitle: err.message,
           color: 'error',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
     } else if (taskId) {
@@ -489,7 +489,7 @@ const startSearch = async () => {
         subtitle: t('common.stop'),
         color: 'warning',
         done: true,
-        action: () => {},
+        action: undefined,
       })
     }
   } finally {

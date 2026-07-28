@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
+import { useTasksStore } from '@/stores/tasks'
 import { getCurrentMediaType } from '@/utils/mediaType'
 import { BASE_MARK_TYPES, findAssignedMeta, isMetaMarkType, normalizeMarkTime } from '@/utils/markAdding'
 import type { MediaItem, Meta, Tag } from '@/types/stores'
@@ -31,6 +32,8 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       seenVersion: '',
     },
     mediaEditing: { show: false, media: null as MediaItem | null, mediaType: {} as Partial<MediaType> },
+    faceResults: { show: false, media: null as MediaItem | null, taskId: null as string | null },
+    enrollmentQuality: { show: false, metaId: null as number | null },
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     tagMerge: { show: false, tags: [] as Tag[], meta: null as Meta | null },
     tagCategoryMerge: { show: false, categories: [] as Meta[] },
@@ -77,6 +80,33 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.mediaEditing.show = true
       this.mediaEditing.media = media ? { ...media } : null
       this.mediaEditing.mediaType = (resolvedMediaType || {}) as Partial<MediaType>
+    },
+    openFaceResults(media: MediaItem | null, options: {taskId?: string | null} = {}) {
+      this.faceResults.media = media ? { ...media } : null
+      this.faceResults.taskId = options.taskId || null
+      this.faceResults.show = true
+    },
+    closeFaceResults() {
+      const taskId = this.faceResults.taskId
+      this.faceResults.show = false
+      this.faceResults.media = null
+      this.faceResults.taskId = null
+      if (taskId) {
+        const tasksStore = useTasksStore()
+        const task = tasksStore.list.find((item) => item.id === taskId)
+        if (task && !task.done && typeof task.action === 'function') {
+          task.action()
+        }
+        tasksStore.removeTask(taskId)
+      }
+    },
+    openEnrollmentQuality(metaId: number | null = null) {
+      this.enrollmentQuality.metaId = metaId != null && Number.isFinite(metaId) ? Number(metaId) : null
+      this.enrollmentQuality.show = true
+    },
+    closeEnrollmentQuality() {
+      this.enrollmentQuality.show = false
+      this.enrollmentQuality.metaId = null
     },
     editTag(tag: Tag, meta: Meta) {
       this.tagEditing.tag = tag

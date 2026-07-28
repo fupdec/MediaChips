@@ -8,7 +8,7 @@
   >
     <v-card>
       <DialogHeader
-        @close="tasksStore.mediaAdding.dialogProcess = false"
+        @close="closeProcessDialog"
         :header="t('media.adding.files')"
         :buttons="buttons"
         closable
@@ -504,6 +504,46 @@ const faceModelStatus = ref('unknown')
 const faceModelDownloading = ref(false)
 const acceptingSuggestedTags = ref(false)
 
+let objectRecognitionAbort: AbortController | null = null
+let objectRecognitionTaskId: string | null = null
+let faceDetectionAbort: AbortController | null = null
+let faceDetectionTaskId: string | null = null
+
+const stopBackgroundJobs = () => {
+  if (objectRecognitionAbort) {
+    objectRecognitionAbort.abort()
+    objectRecognitionAbort = null
+  }
+  if (objectRecognitionTaskId) {
+    tasksStore.removeTask(objectRecognitionTaskId)
+    objectRecognitionTaskId = null
+  }
+  if (faceDetectionAbort) {
+    faceDetectionAbort.abort()
+    faceDetectionAbort = null
+  }
+  if (faceDetectionTaskId) {
+    tasksStore.removeTask(faceDetectionTaskId)
+    faceDetectionTaskId = null
+  }
+  task.value.recognizingObjects = false
+  task.value.detectingFaces = false
+}
+
+const closeProcessDialog = () => {
+  stopBackgroundJobs()
+  // When adding is idle, dismiss the related notification/task with the dialog.
+  if (!task.value.active) {
+    const notificationTaskId = task.value.notificationTaskId
+    if (notificationTaskId) {
+      tasksStore.removeTask(notificationTaskId)
+      task.value.notificationTaskId = null
+    }
+  }
+  tasksStore.mediaAdding.dialogProcess = false
+  emit('close')
+}
+
 const duplicateMarkers = {
   inLibrary: {
     icon: 'mdi-database-check',
@@ -596,9 +636,30 @@ const initButtons = () => {
   }]
 }
 
+const clearStopButton = () => {
+  buttons.value = []
+}
+
+const syncStopButton = () => {
+  const running = Boolean(task.value?.active && !task.value?.finished && !task.value?.stopped)
+  if (running) {
+    if (!buttons.value.length) initButtons()
+    return
+  }
+  clearStopButton()
+}
+
 const stop = () => {
   tasksStore.mediaAdding.stopped = true
-  buttons.value = []
+  clearStopButton()
+  const notificationTaskId = task.value.notificationTaskId
+  if (notificationTaskId) {
+    tasksStore.updateTask(notificationTaskId, {
+      action: undefined,
+      done: true,
+      subtitle: t('common.stop'),
+    })
+  }
 }
 
 const reparseTags = async () => {
@@ -844,6 +905,7 @@ const recognizeVideoObjects = async () => {
   const previousStatus = task.value.status
   task.value.status = t('media.adding.recognizing_video_objects')
   const controller = new AbortController()
+  objectRecognitionAbort = controller
   const recognitionTaskId = tasksStore.setTask({
     title: t('media.adding.recognizing_video_objects'),
     subtitle: t('media.adding.video_object_recognition_progress', {
@@ -860,6 +922,7 @@ const recognizeVideoObjects = async () => {
       controller.abort()
     },
   })
+  objectRecognitionTaskId = recognitionTaskId
 
   try {
     const response = await fetch(`${appStore.localhost}/api/Task/streamVideoObjectRecognition`, {
@@ -920,7 +983,7 @@ const recognizeVideoObjects = async () => {
           progress: 100,
           color: 'success',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
 
@@ -971,20 +1034,25 @@ const recognizeVideoObjects = async () => {
   } catch (error) {
     console.error('Error recognizing video objects:', error)
     const isAbortError = error instanceof Error && error.name === 'AbortError'
-    tasksStore.updateTask(recognitionTaskId, {
-      subtitle: isAbortError
-        ? t('common.stop')
-        : t('media.adding.video_object_recognition_failed'),
-      color: isAbortError ? 'warning' : 'error',
-      done: true,
-      action: () => {},
-    })
-    setNotification({
-      type: 'error',
-      title: t('media.adding.video_object_recognition_failed'),
-      text: getErrorMessage(error),
-    })
+    if (isAbortError) {
+      if (objectRecognitionTaskId === recognitionTaskId) {
+        tasksStore.removeTask(recognitionTaskId)
+      }
+    } else {
+      tasksStore.updateTask(recognitionTaskId, {
+        subtitle: t('media.adding.video_object_recognition_failed'),
+        color: 'error',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'error',
+        title: t('media.adding.video_object_recognition_failed'),
+        text: getErrorMessage(error),
+      })
+    }
   } finally {
+    if (objectRecognitionAbort === controller) objectRecognitionAbort = null
     task.value.status = previousStatus
     task.value.recognizingObjects = false
   }
@@ -1045,6 +1113,7 @@ const detectFacesInAddedVideos = async () => {
   const previousStatus = task.value.status
   task.value.status = t('media.adding.detect_faces')
   const controller = new AbortController()
+  faceDetectionAbort = controller
   const detectionTaskId = tasksStore.setTask({
     title: t('media.adding.detect_faces'),
     subtitle: t('media.adding.face_detection_progress', {
@@ -1061,6 +1130,7 @@ const detectFacesInAddedVideos = async () => {
       controller.abort()
     },
   })
+  faceDetectionTaskId = detectionTaskId
 
   try {
     const response = await fetch(`${appStore.localhost}/api/Task/streamFaceDetection`, {
@@ -1114,7 +1184,7 @@ const detectFacesInAddedVideos = async () => {
           progress: 100,
           color: 'success',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
 
@@ -1159,20 +1229,25 @@ const detectFacesInAddedVideos = async () => {
   } catch (error) {
     console.error('Error detecting faces:', error)
     const isAbortError = error instanceof Error && error.name === 'AbortError'
-    tasksStore.updateTask(detectionTaskId, {
-      subtitle: isAbortError
-        ? t('common.stop')
-        : t('media.adding.face_detection_failed'),
-      color: isAbortError ? 'warning' : 'error',
-      done: true,
-      action: () => {},
-    })
-    setNotification({
-      type: 'error',
-      title: t('media.adding.face_detection_failed'),
-      text: getErrorMessage(error),
-    })
+    if (isAbortError) {
+      if (faceDetectionTaskId === detectionTaskId) {
+        tasksStore.removeTask(detectionTaskId)
+      }
+    } else {
+      tasksStore.updateTask(detectionTaskId, {
+        subtitle: t('media.adding.face_detection_failed'),
+        color: 'error',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'error',
+        title: t('media.adding.face_detection_failed'),
+        text: getErrorMessage(error),
+      })
+    }
   } finally {
+    if (faceDetectionAbort === controller) faceDetectionAbort = null
     task.value.status = previousStatus
     task.value.detectingFaces = false
   }
@@ -1181,18 +1256,45 @@ const detectFacesInAddedVideos = async () => {
 
 // Lifecycle
 onMounted(() => {
-  initButtons()
+  syncStopButton()
   if (task.value && !task.value.finished) {
     task.value.active = true
   }
 })
 
 // Watchers
+watch(() => tasksStore.mediaAdding.dialogProcess, (open, wasOpen) => {
+  if (wasOpen && !open) {
+    stopBackgroundJobs()
+    if (!task.value.active) {
+      const notificationTaskId = task.value.notificationTaskId
+      if (notificationTaskId) {
+        tasksStore.removeTask(notificationTaskId)
+        task.value.notificationTaskId = null
+      }
+    }
+  }
+})
+
+watch(
+  () => [task.value?.active, task.value?.finished, task.value?.stopped] as const,
+  () => {
+    syncStopButton()
+  },
+)
+
 watch(() => task.value?.finished, (finished) => {
   if (finished) {
-    buttons.value = []
+    clearStopButton()
     if (task.value) {
       task.value.progress = 100
+    }
+    const notificationTaskId = task.value?.notificationTaskId
+    if (notificationTaskId) {
+      tasksStore.updateTask(notificationTaskId, {
+        done: true,
+        action: undefined,
+      })
     }
     if (
       task.value.added.length > 0 &&

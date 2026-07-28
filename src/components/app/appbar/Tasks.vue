@@ -72,7 +72,7 @@
               {{ t('media.adding.open_process_dialog') }}
             </v-btn>
             <v-btn
-              v-if="task.action"
+              v-if="task.action && !task.done"
               @click.stop="remove(task.action, task.id)"
               color="error"
               variant="text"

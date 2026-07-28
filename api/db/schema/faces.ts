@@ -10,5 +10,9 @@ export const faces = sqliteTable('faces', {
   width: real('width').notNull().default(0),
   height: real('height').notNull().default(0),
   cropPath: text('cropPath'),
+  embedding: text('embedding'),
+  tagId: integer('tagId'),
+  matchScore: real('matchScore'),
+  matchStatus: text('matchStatus'),
   createdAt: text('createdAt').notNull(),
 })

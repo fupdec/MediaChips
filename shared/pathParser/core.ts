@@ -153,8 +153,8 @@ function tokenizeTagTerm(text: string) {
     .filter(Boolean)
 }
 
-function splitIntoChunks(segment: string) {
-  const chunks: string[] = []
+function splitPhraseParts(segment: string) {
+  const parts: string[] = []
   let rest = String(segment || '')
 
   const parenPattern = /[([{]([^)\]}]+)[)\]}]/g
@@ -162,21 +162,31 @@ function splitIntoChunks(segment: string) {
   while ((match = parenPattern.exec(rest)) !== null) {
     for (const part of match[1].split(PHRASE_DELIMITERS)) {
       const trimmed = part.trim()
-      if (trimmed) chunks.push(trimmed)
+      if (trimmed) parts.push(trimmed)
     }
   }
   rest = rest.replace(parenPattern, ' ')
 
   for (const part of rest.split(PHRASE_DELIMITERS)) {
     const trimmed = part.trim()
-    if (!trimmed) continue
-    for (const structural of trimmed.split(STRUCTURAL_DELIMITERS)) {
-      const piece = structural.trim()
-      if (piece) chunks.push(piece)
-    }
+    if (trimmed) parts.push(trimmed)
   }
 
-  return chunks.filter(Boolean)
+  return parts
+}
+
+function splitStructuralChunks(part: string) {
+  return String(part || '')
+    .split(STRUCTURAL_DELIMITERS)
+    .map((piece) => piece.trim())
+    .filter(Boolean)
+}
+
+function isJoinableStructuralChunk(chunk: string) {
+  if (!chunk || isNumericOnlyChunk(chunk)) return false
+  const tokens = tokenizeTagTerm(chunk)
+  if (tokens.length !== 1) return false
+  return !isNoiseToken(tokens[0])
 }
 
 function phraseKey(tokens: string[]) {
@@ -278,8 +288,32 @@ function extractPhrasesFromSegment(
   const phrases: PathPhrase[] = []
   const seen = new Set<string>()
 
-  for (const chunk of splitIntoChunks(segment)) {
-    addPhrase(phrases, seen, chunk, source, segment, minLength, precisionConfig)
+  for (const part of splitPhraseParts(segment)) {
+    const structuralChunks = splitStructuralChunks(part)
+
+    for (const chunk of structuralChunks) {
+      addPhrase(phrases, seen, chunk, source, segment, minLength, precisionConfig)
+    }
+
+    // Recombine First.Last / First_Last / First-Last across structural delimiters.
+    // Only single-token non-noise chunks join, so CamelCase site names and quality
+    // tokens still break adjacency (MomsTeachSex.Koda.Monroe.1080p → "Koda Monroe").
+    let joinRun: string[] = []
+    const flushJoinRun = () => {
+      if (joinRun.length >= 2) {
+        addPhrase(phrases, seen, joinRun.join(' '), source, segment, minLength, precisionConfig)
+      }
+      joinRun = []
+    }
+
+    for (const chunk of structuralChunks) {
+      if (isJoinableStructuralChunk(chunk)) {
+        joinRun.push(chunk)
+        continue
+      }
+      flushJoinRun()
+    }
+    flushJoinRun()
   }
 
   return phrases

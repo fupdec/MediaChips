@@ -98,25 +98,6 @@ header {
   z-index: 1000 !important;
 }
 
-.doc-highlighted {
-  animation: highlighted 0.75s infinite linear;
-}
-
-@keyframes highlighted {
-  0% {
-    //scale: 1;
-    box-shadow: inset 0px 0px 0px 0px #ff1010, 0px 0px 0px 0px #ff1010;
-  }
-  50% {
-    //scale: 1.5;
-    box-shadow: inset 0px 0px 10px 5px #ff1010, 0px 0px 10px 5px #ff1010;
-  }
-  100% {
-    //scale: 1;
-    box-shadow: inset 0px 0px 0px 0px #ff1010, 0px 0px 0px 0px #ff1010;
-  }
-}
-
 .v-app-bar--fixed {
   .v-badge__badge {
     pointer-events: none;

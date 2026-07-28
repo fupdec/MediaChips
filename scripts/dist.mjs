@@ -111,6 +111,7 @@ if (msStoreTarget) {
 }
 run('npm', ['run', 'build:app'], childEnv)
 run('node', ['.scripts-build/download-parser-model.js'], childEnv)
+run('node', ['.scripts-build/download-face-models.js'], childEnv)
 run('node', ['scripts/ensure-electron-native.mjs', '--force'], childEnv)
 pruneNativeBinaries(target)
 

@@ -58,6 +58,16 @@ describe('extractPathPhrases', () => {
     expect(tokens).toContain('100')
     expect(tokens).not.toContain('10')
   })
+
+  it('recombines dotted First.Last performer names in filenames', () => {
+    const parsed = extractPathPhrases(
+      '/Volumes/pron/#!torrents/2026.01.23/MomsTeachSex.26.01.03.Koda.Monroe.1080p.mp4',
+    )
+    const phraseTokens = parsed.phrases.map((phrase) => phrase.tokens.join(' '))
+
+    expect(phraseTokens).toContain('koda monroe')
+    expect(phraseTokens).toContain('moms teach sex')
+  })
 })
 
 describe('path tag matching', () => {
@@ -274,6 +284,31 @@ describe('path tag matching', () => {
     expect(matchNames('/library/onlyfans/Sending love.mp4', tags, performerMeta, {
       matchPrecision: 1,
     })).toEqual(['Love'])
+  })
+
+  it('T18: matches dotted First.Last performer in adult release filename', () => {
+    const tags = [
+      tag(1, 'Koda Monroe'),
+      tag(2, 'Arianny Koda'),
+      tag(3, 'Moms Teach Sex', websiteMeta),
+    ]
+
+    expect(matchNames(
+      '/Volumes/pron/#!torrents/2026.01.23/MomsTeachSex.26.01.03.Koda.Monroe.1080p.mp4',
+      tags,
+    )).toEqual(['Koda Monroe'])
+    expect(matchNames(
+      '/Volumes/pron/#!torrents/2026.01.23/MomsTeachSex.26.01.03.Koda.Monroe.1080p.mp4',
+      tags,
+      websiteMeta,
+    )).toEqual(['Moms Teach Sex'])
+  })
+
+  it('T19: matches hyphen and underscore First-Last / First_Last names', () => {
+    const tags = [tag(1, 'Koda Monroe')]
+
+    expect(matchNames('/library/Koda-Monroe.1080p.mp4', tags)).toEqual(['Koda Monroe'])
+    expect(matchNames('/library/Koda_Monroe_1080p.mp4', tags)).toEqual(['Koda Monroe'])
   })
 
   it('batch matching matches per-path matching', () => {

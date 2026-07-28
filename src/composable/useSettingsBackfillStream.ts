@@ -329,7 +329,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
             progress: 100,
             color: event.stopped ? 'warning' : 'success',
             done: true,
-            action: () => {},
+            action: undefined,
           })
 
           if (!event.stopped) {
@@ -364,7 +364,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
             subtitle: err.message,
             color: 'error',
             done: true,
-            action: () => {},
+            action: undefined,
           })
         }
       } else if (taskId) {
@@ -372,7 +372,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
           subtitle: t('common.stop'),
           color: 'warning',
           done: true,
-          action: () => {},
+          action: undefined,
         })
       }
     } finally {

@@ -805,21 +805,31 @@ export default function useItemContextMenu(
         progress: 100,
         color: 'success',
         done: true,
-        action: () => {},
+        action: undefined,
       })
       setNotification({
         type: 'success',
         text: tr('media.adding.faces_found', {count: faces}),
       })
+      if (faces > 0 && ids.length === 1) {
+        const mediaItem = isMediaPageItem(item, type)
+          ? item
+          : {id: ids[0]}
+        useDialogsStore().openFaceResults(mediaItem as never, {taskId})
+      } else {
+        tasksStore.removeTask(taskId)
+      }
     } catch (error) {
       const isAbortError = error instanceof Error && error.name === 'AbortError'
-      tasksStore.updateTask(taskId, {
-        subtitle: isAbortError ? tr('common.stop') : tr('media.adding.face_detection_failed'),
-        color: isAbortError ? 'warning' : 'error',
-        done: true,
-        action: () => {},
-      })
-      if (!isAbortError) {
+      if (isAbortError) {
+        tasksStore.removeTask(taskId)
+      } else {
+        tasksStore.updateTask(taskId, {
+          subtitle: tr('media.adding.face_detection_failed'),
+          color: 'error',
+          done: true,
+          action: undefined,
+        })
         setNotification({
           type: 'error',
           text: error instanceof Error ? error.message : String(error),

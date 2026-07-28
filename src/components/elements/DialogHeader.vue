@@ -62,6 +62,7 @@
           :variant="btn.outlined ? 'outlined' : 'flat'"
           :disabled="btn.disabled"
           :size="smAndDown ? 'small' : 'default'"
+          :title="btn.title"
           @click="run(btn)"
         >
           <v-icon
@@ -88,6 +89,7 @@ import {copyToClipboard} from '@/utils/copyToClipboard'
 interface DialogHeaderButton {
   icon?: string
   text?: string
+  title?: string
   color?: string
   outlined?: boolean
   disabled?: boolean

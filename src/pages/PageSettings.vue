@@ -18,25 +18,25 @@
 
           <div v-if="tab === 'general'">
             <SettingsList>
-              <SettingsSection>
+              <SettingsSection id="settings-general">
                 <SettingsGeneral/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-locale">
                 <SettingsLocale/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-login">
                 <SettingsLogin/>
               </SettingsSection>
 
               <SettingsGroupLabel :title="t('settings.groups.playback')"/>
 
-              <SettingsSection>
+              <SettingsSection id="settings-video-player">
                 <SettingsVideoPlayer/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-video-preview">
                 <SettingsVideoPreview/>
               </SettingsSection>
             </SettingsList>
@@ -44,24 +44,24 @@
 
           <div v-else-if="tab === 'appearance'">
             <SettingsList>
-              <SettingsSection padded>
+              <SettingsSection id="settings-appearance-theme" padded>
                 <SettingsAppearanceDarkMode/>
                 <SettingsAppearanceZoom/>
               </SettingsSection>
 
-              <SettingsSection padded>
+              <SettingsSection id="settings-appearance-colors" padded>
                 <SettingsAppearanceThemeColors/>
               </SettingsSection>
 
-              <SettingsSection padded>
+              <SettingsSection id="settings-appearance-cards" padded>
                 <SettingsAppearanceCards/>
               </SettingsSection>
 
-              <SettingsSection padded>
+              <SettingsSection id="settings-appearance-page" padded>
                 <SettingsAppearancePage/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-appearance-sfw">
                 <SettingsSfwMode/>
               </SettingsSection>
             </SettingsList>
@@ -69,13 +69,18 @@
 
           <div v-else-if="tab === 'library'">
             <SettingsList>
-              <SettingsMeta/>
+              <div id="settings-meta">
+                <SettingsMeta/>
+              </div>
 
-              <SettingsMediaTypes/>
+              <div id="settings-media-types">
+                <SettingsMediaTypes/>
+              </div>
 
               <SettingsMetaAssignment/>
 
               <v-switch
+                id="settings-library-advanced"
                 v-model="libraryAdvanced"
                 color="primary"
                 class="mt-0 mb-2 settings-library-advanced-switch"
@@ -92,11 +97,11 @@
               </v-switch>
 
               <template v-if="libraryAdvanced">
-                <SettingsSection>
+                <SettingsSection id="settings-quick-tags-section">
                   <SettingsQuickTags/>
                 </SettingsSection>
 
-                <SettingsSection>
+                <SettingsSection id="settings-parse-library-tags">
                   <SettingsParseLibraryTags/>
                 </SettingsSection>
               </template>
@@ -117,15 +122,15 @@
 
           <div v-else-if="tab === 'files'">
             <SettingsList>
-              <SettingsSection>
+              <SettingsSection id="settings-bulk-paths">
                 <SettingsBulkPathEditing/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-folder-tags">
                 <SettingsFolderTags/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-watched-folders">
                 <SettingsWatchedFolders/>
               </SettingsSection>
             </SettingsList>
@@ -135,25 +140,53 @@
             <SettingsList>
               <SettingsGroupLabel :title="t('settings.groups.storage')"/>
 
-              <SettingsSection>
+              <SettingsSection id="settings-open-data-folder">
                 <SettingsOpenDataFolder/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-databases">
                 <SettingsDatabases/>
               </SettingsSection>
 
-              <SettingsGroupLabel :title="t('settings.groups.maintenance')"/>
+              <SettingsGroupLabel :title="t('settings.groups.maintenance_backfill')"/>
 
               <SettingsSection>
-                <SettingsMaintenancePanel/>
+                <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
+                <v-divider class="mx-4 mb-2"/>
+                <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
+              </SettingsSection>
+
+              <SettingsSection id="settings-find-missing-media">
+                <SettingsFindMissingMedia/>
+              </SettingsSection>
+
+              <SettingsGroupLabel :title="t('settings.groups.maintenance_media')"/>
+
+              <SettingsSection>
+                <SettingsGenerateVideoImages/>
+              </SettingsSection>
+
+              <SettingsSection>
+                <SettingsGenerateImageThumbs/>
+              </SettingsSection>
+
+              <SettingsGroupLabel :title="t('settings.groups.maintenance_faces')"/>
+
+              <SettingsSection>
+                <SettingsDetectFaces/>
+              </SettingsSection>
+
+              <SettingsGroupLabel :title="t('settings.groups.maintenance_cleanup')"/>
+
+              <SettingsSection id="settings-clear-generated-images">
+                <SettingsClearGeneratedImages/>
               </SettingsSection>
             </SettingsList>
           </div>
 
           <div v-else-if="tab === 'plugins'">
             <SettingsList>
-              <SettingsSection>
+              <SettingsSection id="settings-plugins">
                 <SettingsPlugins/>
               </SettingsSection>
 
@@ -169,11 +202,11 @@
 
           <div v-else-if="tab === 'about'">
             <SettingsList>
-              <SettingsSection>
+              <SettingsSection id="settings-registration">
                 <SettingsRegistration/>
               </SettingsSection>
 
-              <SettingsSection>
+              <SettingsSection id="settings-about">
                 <About/>
               </SettingsSection>
             </SettingsList>
@@ -207,6 +240,10 @@ import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
 import {usePluginsStore} from "@/stores/plugins"
 import {resolvePluginComponentLoader} from "@/services/pluginHost"
+import {
+  FINGERPRINT_BACKFILL,
+  VIDEO_CODEC_BACKFILL,
+} from "@/composable/useSettingsBackfillStream"
 
 const SettingsWatchedFolders = defineAsyncComponent(() =>
   import("@/components/settings/tools/SettingsWatchedFolders.vue")
@@ -247,8 +284,23 @@ const SettingsOpenDataFolder = defineAsyncComponent(() =>
 const SettingsDatabases = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDatabases.vue")
 )
-const SettingsMaintenancePanel = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsMaintenancePanel.vue")
+const SettingsBackfillTask = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsBackfillTask.vue")
+)
+const SettingsFindMissingMedia = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsFindMissingMedia.vue")
+)
+const SettingsGenerateVideoImages = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsGenerateVideoImages.vue")
+)
+const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsGenerateImageThumbs.vue")
+)
+const SettingsDetectFaces = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsDetectFaces.vue")
+)
+const SettingsClearGeneratedImages = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsClearGeneratedImages.vue")
 )
 const SettingsGeneral = defineAsyncComponent(() =>
   import("@/components/settings/general/SettingsGeneral.vue")
@@ -402,16 +454,41 @@ watch(
 )
 
 const SETTINGS_SECTION_IDS: Record<string, string> = {
+  general_app: "settings-general",
+  locale: "settings-locale",
+  login: "settings-login",
+  video_player: "settings-video-player",
+  video_preview: "video_preview",
+  appearance_theme: "settings-appearance-theme",
+  appearance_colors: "settings-appearance-colors",
+  appearance_cards: "settings-appearance-cards",
+  appearance_page: "settings-appearance-page",
+  appearance_sfw: "settings-appearance-sfw",
+  meta: "settings-meta",
+  media_types: "settings-media-types",
+  field_pinning: "settings-meta-assignment",
+  quick_tags: "settings-quick-tags",
+  parse_library_tags: "settings-parse-library-tags",
+  bulk_paths: "settings-bulk-paths",
+  folder_tags: "settings-folder-tags",
+  watched_folders: "settings-watched-folders",
+  open_data_folder: "settings-open-data-folder",
+  databases: "settings-databases",
   generate_video_images: "settings-generate-video-images",
   generate_image_thumbs: "settings-generate-image-thumbs",
+  detect_faces: "settings-detect-faces",
   video_codec_backfill: "settings-video-codec-backfill",
   oshash_backfill: "settings-fingerprint-backfill",
   fingerprint_backfill: "settings-fingerprint-backfill",
   content_hash_backfill: "settings-fingerprint-backfill",
-  field_pinning: "settings-meta-assignment",
-  video_preview: "video_preview",
+  find_missing: "settings-find-missing-media",
+  clear_generated: "settings-clear-generated-images",
   backups: "database_backups",
+  database_add: "database_add",
+  plugins_list: "settings-plugins",
   adult_scraper: "settings-adult-scraper",
+  registration: "settings-registration",
+  about: "settings-about",
 }
 
 function resolveTab(routeTab: string) {
@@ -451,27 +528,89 @@ function scrollToSettingsSection(sectionId: string, attempts = 12) {
   })
 }
 
+const GENERAL_SECTIONS = new Set([
+  "general_app",
+  "locale",
+  "login",
+  "video_player",
+  "video_preview",
+])
+
+const APPEARANCE_SECTIONS = new Set([
+  "appearance_theme",
+  "appearance_colors",
+  "appearance_cards",
+  "appearance_page",
+  "appearance_sfw",
+])
+
+const LIBRARY_SECTIONS = new Set([
+  "meta",
+  "media_types",
+  "field_pinning",
+  "quick_tags",
+  "parse_library_tags",
+])
+
+const LIBRARY_ADVANCED_SECTIONS = new Set([
+  "quick_tags",
+  "parse_library_tags",
+])
+
+const FILES_SECTIONS = new Set([
+  "bulk_paths",
+  "folder_tags",
+  "watched_folders",
+])
+
+const DATABASE_SECTIONS = new Set([
+  "open_data_folder",
+  "databases",
+  "database_add",
+  "generate_video_images",
+  "generate_image_thumbs",
+  "detect_faces",
+  "video_codec_backfill",
+  "oshash_backfill",
+  "fingerprint_backfill",
+  "content_hash_backfill",
+  "find_missing",
+  "clear_generated",
+  "backups",
+])
+
+const PLUGINS_SECTIONS = new Set([
+  "plugins_list",
+  "adult_scraper",
+])
+
+const ABOUT_SECTIONS = new Set([
+  "registration",
+  "about",
+])
+
 function applyRouteSettings() {
   applyingRoute.value = true
 
   const section = String(route.query.section || "")
 
-  if (
-    section === "generate_video_images"
-    || section === "generate_image_thumbs"
-    || section === "video_codec_backfill"
-    || section === "oshash_backfill"
-    || section === "fingerprint_backfill"
-    || section === "content_hash_backfill"
-    || section === "backups"
-  ) {
-    tab.value = "database"
-  } else if (section === "field_pinning") {
-    tab.value = "library"
-  } else if (section === "adult_scraper") {
-    tab.value = "plugins"
-  } else if (section === "video_preview") {
+  if (GENERAL_SECTIONS.has(section)) {
     tab.value = "general"
+  } else if (APPEARANCE_SECTIONS.has(section)) {
+    tab.value = "appearance"
+  } else if (LIBRARY_SECTIONS.has(section)) {
+    tab.value = "library"
+    if (LIBRARY_ADVANCED_SECTIONS.has(section)) {
+      libraryAdvanced.value = true
+    }
+  } else if (FILES_SECTIONS.has(section)) {
+    tab.value = "files"
+  } else if (DATABASE_SECTIONS.has(section)) {
+    tab.value = "database"
+  } else if (PLUGINS_SECTIONS.has(section)) {
+    tab.value = "plugins"
+  } else if (ABOUT_SECTIONS.has(section)) {
+    tab.value = "about"
   } else if (route.query.tab) {
     tab.value = resolveTab(String(route.query.tab))
   }

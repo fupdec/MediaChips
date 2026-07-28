@@ -828,7 +828,7 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
         type: 'item',
         icon: 'folder-outline',
         disabled: true,
-        action: () => {},
+        action: undefined,
       }
       : {
         name: t('common.remove'),
