@@ -905,6 +905,17 @@
   }
 }
 
+.transcode-spinner {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: #fff;
+}
+
 // ── Side panels (playlist & marks) ──────────────────────────
 
 .player-sidebar {

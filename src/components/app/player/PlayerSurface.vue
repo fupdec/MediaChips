@@ -111,6 +111,15 @@
             </div>
           </div>
 
+          <div v-if="showTranscodeSpinner" class="transcode-spinner">
+            <v-progress-circular
+              indeterminate
+              size="56"
+              width="3"
+              color="white"
+            />
+          </div>
+
           <div
             v-show="player.displayStatusText"
             class="status-text"
@@ -167,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import {inject} from 'vue'
+import {computed, inject} from 'vue'
 import {useI18n} from 'vue-i18n'
 import Controls from '@/components/app/player/Controls.vue'
 import Playlist from '@/components/app/player/Playlist.vue'
@@ -175,6 +184,7 @@ import Marks from '@/components/app/player/Marks.vue'
 import SystemBarPlayer from '@/components/app/SystemBarPlayer.vue'
 import DialogMarkAdding from '@/components/dialogs/DialogMarkAdding.vue'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
+import {isTranscodeBusy} from '@/utils/playerTranscodeStatus'
 
 const {t} = useI18n()
 const session = inject(PLAYER_SESSION_KEY)!
@@ -212,6 +222,8 @@ const {
   nextVideo,
   updateItemVideo,
 } = session
+
+const showTranscodeSpinner = computed(() => isTranscodeBusy(player.value))
 
 const setVideoPlayerRef = (el: unknown) => {
   const video = el as HTMLVideoElement | null

@@ -119,7 +119,8 @@ function buildFfmpegLiveArgs({
     )
     const videoFilters: string[] = []
     if (maxHeight) {
-      videoFilters.push(`scale='min(${maxHeight},iw)':-2`)
+      // Cap by height and never upscale past the source (ih).
+      videoFilters.push(`scale=-2:'min(ih,${maxHeight})'`)
     }
     if (useAbsoluteTimelineSeek) {
       videoFilters.push('setpts=PTS-STARTPTS')

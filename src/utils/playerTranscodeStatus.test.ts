@@ -1,19 +1,23 @@
 import { describe, it, expect } from 'vitest'
-import { getTranscodePlayerStatus } from '@/utils/playerTranscodeStatus'
+import { getTranscodePlayerStatus, isTranscodeBusy } from '@/utils/playerTranscodeStatus'
 
 const t = (key: string) => key
+
+const busyBase = {
+  active: true,
+  playbackError: false,
+  usesLiveTranscode: true,
+  liveTranscodeStarted: false,
+  isLiveStreamSeeking: false,
+  isStreamWaiting: false,
+  transcodeStatus: 'stream',
+  transcodeError: null,
+}
 
 describe('getTranscodePlayerStatus', () => {
   it('returns preparing state before live transcode starts', () => {
     expect(getTranscodePlayerStatus({
-      active: true,
-      playbackError: false,
-      usesLiveTranscode: true,
-      liveTranscodeStarted: false,
-      isLiveStreamSeeking: false,
-      isStreamWaiting: false,
-      transcodeStatus: 'stream',
-      transcodeError: null,
+      ...busyBase,
     }, t)).toEqual({
       text: 'player.transcode_preparing',
       icon: 'video',
@@ -22,14 +26,9 @@ describe('getTranscodePlayerStatus', () => {
 
   it('returns buffering state during seek', () => {
     expect(getTranscodePlayerStatus({
-      active: true,
-      playbackError: false,
-      usesLiveTranscode: true,
+      ...busyBase,
       liveTranscodeStarted: true,
       isLiveStreamSeeking: true,
-      isStreamWaiting: false,
-      transcodeStatus: 'stream',
-      transcodeError: null,
     }, t)).toEqual({
       text: 'player.transcode_buffering',
       icon: 'cached',
@@ -38,12 +37,7 @@ describe('getTranscodePlayerStatus', () => {
 
   it('returns transcode error status when stream fails', () => {
     expect(getTranscodePlayerStatus({
-      active: true,
-      playbackError: false,
-      usesLiveTranscode: true,
-      liveTranscodeStarted: false,
-      isLiveStreamSeeking: false,
-      isStreamWaiting: false,
+      ...busyBase,
       transcodeStatus: 'error',
       transcodeError: 'ffmpeg exited',
     }, t)).toEqual({
@@ -54,17 +48,44 @@ describe('getTranscodePlayerStatus', () => {
 
   it('returns buffering state while stream is waiting', () => {
     expect(getTranscodePlayerStatus({
-      active: true,
-      playbackError: false,
-      usesLiveTranscode: true,
+      ...busyBase,
       liveTranscodeStarted: true,
-      isLiveStreamSeeking: false,
       isStreamWaiting: true,
-      transcodeStatus: 'stream',
-      transcodeError: null,
     }, t)).toEqual({
       text: 'player.transcode_buffering',
       icon: 'cached',
     })
+  })
+})
+
+describe('isTranscodeBusy', () => {
+  it('is true while preparing or buffering', () => {
+    expect(isTranscodeBusy(busyBase)).toBe(true)
+    expect(isTranscodeBusy({
+      ...busyBase,
+      liveTranscodeStarted: true,
+      isLiveStreamSeeking: true,
+    })).toBe(true)
+    expect(isTranscodeBusy({
+      ...busyBase,
+      liveTranscodeStarted: true,
+      isStreamWaiting: true,
+    })).toBe(true)
+  })
+
+  it('is false once streaming or on error', () => {
+    expect(isTranscodeBusy({
+      ...busyBase,
+      liveTranscodeStarted: true,
+    })).toBe(false)
+    expect(isTranscodeBusy({
+      ...busyBase,
+      transcodeStatus: 'error',
+      transcodeError: 'ffmpeg exited',
+    })).toBe(false)
+    expect(isTranscodeBusy({
+      ...busyBase,
+      usesLiveTranscode: false,
+    })).toBe(false)
   })
 })

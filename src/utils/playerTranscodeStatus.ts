@@ -16,6 +16,13 @@ export interface TranscodePlayerStatus {
 
 type TranslateFn = (key: string) => string
 
+/** Preparing or buffering live transcode — show a centered spinner. */
+export function isTranscodeBusy(state: TranscodePlayerState | null | undefined): boolean {
+  if (!state?.active || state.playbackError || !state.usesLiveTranscode) return false
+  if (state.transcodeStatus === 'error') return false
+  return !state.liveTranscodeStarted || Boolean(state.isLiveStreamSeeking) || Boolean(state.isStreamWaiting)
+}
+
 export function getTranscodePlayerStatus(
   state: TranscodePlayerState | null | undefined,
   t: TranslateFn,

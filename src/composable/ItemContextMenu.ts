@@ -174,33 +174,6 @@ export default function useItemContextMenu(
       }
     }
 
-    if (!isSelectMode()) {
-      if (type === 'media' && isMediaPageItem(item, type)) {
-        contextMenu.push({type: 'divider'})
-        contextMenu.push({
-          name: t('context_menu.copy_name'),
-          type: 'item',
-          icon: 'content-copy',
-          action: copyItemName,
-        })
-        contextMenu.push({
-          name: t('context_menu.copy_path'),
-          type: 'item',
-          icon: 'content-copy',
-          disabled: !mediaPageItemPath(item, type),
-          action: copyItemPath,
-        })
-      } else if (type === 'tag' && isTagPageItem(item, type)) {
-        contextMenu.push({type: 'divider'})
-        contextMenu.push({
-          name: t('context_menu.copy_name'),
-          type: 'item',
-          icon: 'content-copy',
-          action: copyItemName,
-        })
-      }
-    }
-
     if (type === 'tag') {
       if (!isSelectMode()) {
         if (canAutoScrape && isTagPageItem(item, type) && meta) {
@@ -247,14 +220,6 @@ export default function useItemContextMenu(
         action: parseMetadata,
       })
 
-      contextMenu.push({
-        name: t('context_menu.update_file_info'),
-        type: 'item',
-        icon: 'file-sync-outline',
-        disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
-        action: updateFileInfo,
-      })
-
       if (isVideoMediaType(currentMediaType.value)) {
         contextMenu.push({
           name: t('context_menu.detect_faces'),
@@ -277,7 +242,18 @@ export default function useItemContextMenu(
         })
       }
 
-      // Playback / open
+      contextMenu.push({
+        name: t('context_menu.update_file_info'),
+        type: 'item',
+        icon: 'file-sync-outline',
+        disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
+        action: updateFileInfo,
+      })
+
+      // Playback + playlist
+      const isPlaylistMedia = isVideoMediaType(currentMediaType.value)
+        || isAudioMediaType(currentMediaType.value)
+
       if (!isSelectMode()) {
         contextMenu.push({type: 'divider'})
 
@@ -396,40 +372,13 @@ export default function useItemContextMenu(
             },
           })
         }
-
-        contextMenu.push({
-          name: t('context_menu.open_files_folder'),
-          type: 'item',
-          icon: 'folder-open',
-          disabled: !is_file_exists,
-          action: () => {
-            openPath(mediaPageItemPath(item, type), true)
-          },
-        })
       }
 
-      // File management
-      contextMenu.push({type: 'divider'})
-      contextMenu.push({
-        name: t('context_menu.move_file_to'),
-        type: 'item',
-        icon: 'file-move',
-        disabled: (isSelectMode() && itemsStore.selection.length === 0) || !is_file_exists || operationsStore.moving.active,
-        action: moveTo,
-      })
-
-      contextMenu.push({
-        name: t('context_menu.organize_by_tag'),
-        type: 'item',
-        icon: 'folder-plus',
-        disabled: (isSelectMode() && itemsStore.selection.length === 0) || !is_file_exists,
-        action: organizeFolderByTag,
-      })
-
-      const isPlaylistMedia = isVideoMediaType(currentMediaType.value)
-        || isAudioMediaType(currentMediaType.value)
-
       if (isPlaylistMedia) {
+        if (isSelectMode()) {
+          contextMenu.push({type: 'divider'})
+        }
+
         const getMediaIdsForPlaylist = (): number[] => {
           if (isSelectMode()) return [...itemsStore.selection]
           return [item.id]
@@ -467,11 +416,69 @@ export default function useItemContextMenu(
         })
       }
 
+      // File location / management
       contextMenu.push({type: 'divider'})
+      if (!isSelectMode()) {
+        contextMenu.push({
+          name: t('context_menu.open_files_folder'),
+          type: 'item',
+          icon: 'folder-open',
+          disabled: !is_file_exists,
+          action: () => {
+            openPath(mediaPageItemPath(item, type), true)
+          },
+        })
+      }
+      contextMenu.push({
+        name: t('context_menu.move_file_to'),
+        type: 'item',
+        icon: 'file-move',
+        disabled: (isSelectMode() && itemsStore.selection.length === 0) || !is_file_exists || operationsStore.moving.active,
+        action: moveTo,
+      })
+
+      contextMenu.push({
+        name: t('context_menu.organize_by_tag'),
+        type: 'item',
+        icon: 'folder-plus',
+        disabled: (isSelectMode() && itemsStore.selection.length === 0) || !is_file_exists,
+        action: organizeFolderByTag,
+      })
+
+      contextMenu.push({type: 'divider'})
+    }
+
+    if (!isSelectMode()) {
+      if (type === 'media' && isMediaPageItem(item, type)) {
+        contextMenu.push({
+          name: t('context_menu.copy_name'),
+          type: 'item',
+          icon: 'content-copy',
+          action: copyItemName,
+        })
+        contextMenu.push({
+          name: t('context_menu.copy_path'),
+          type: 'item',
+          icon: 'content-copy',
+          disabled: !mediaPageItemPath(item, type),
+          action: copyItemPath,
+        })
+      } else if (type === 'tag' && isTagPageItem(item, type)) {
+        contextMenu.push({
+          name: t('context_menu.copy_name'),
+          type: 'item',
+          icon: 'content-copy',
+          action: copyItemName,
+        })
+      }
     }
 
     const is_selected = itemsStore.selection.includes(item.id)
     if (!options.singleItem) {
+      const last = contextMenu[contextMenu.length - 1]
+      if (last?.type !== 'divider') {
+        contextMenu.push({type: 'divider'})
+      }
       contextMenu.push({
         name: is_selected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),
         icon: is_selected ? 'checkbox-blank-outline' : 'checkbox-marked-outline',

@@ -133,8 +133,32 @@ describe('buildFfmpegLiveArgs', () => {
     expect(args).toContain('-frag_duration')
     expect(args[args.indexOf('-frag_duration') + 1]).toBe('1000000')
   })
-})
 
+  it('caps output height without upscaling past the source', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 0,
+      duration: 30,
+      copyCodecs: false,
+      maxHeight: 1080,
+    })
+
+    const vf = args[args.indexOf('-vf') + 1]
+    expect(vf).toBe("scale=-2:'min(ih,1080)'")
+  })
+
+  it('omits scale filter when max height is unset (keep source resolution)', () => {
+    const args = buildFfmpegLiveArgs({
+      inputPath: '/videos/sample.mp4',
+      startTime: 0,
+      duration: 30,
+      copyCodecs: false,
+      maxHeight: null,
+    })
+
+    expect(args).not.toContain('-vf')
+  })
+})
 describe('shouldRejectDuplicateStream', () => {
   it('rejects duplicate stream within 5 seconds', () => {
     const now = 10_000

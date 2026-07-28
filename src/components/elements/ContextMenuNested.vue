@@ -1,117 +1,115 @@
 <template>
-  <div>
-    <v-list v-if="xs" class="py-0 px-0" density="compact" rounded>
-      <v-list-group :prepend-icon="'mdi-' + item.icon">
-        <template v-slot:activator="{ props }">
-          <v-list-item
-            v-bind="props"
-            :disabled="item.disabled"
-          >
-            <v-list-item-title style="font-size: inherit">
-              {{ item.name }}
-            </v-list-item-title>
-          </v-list-item>
-        </template>
-
-        <div v-for="(sub, i) in item.menu" :key="i" style="padding-left: 10px">
-          <v-list-item
-            v-if="sub.type == 'item'"
-            @click="activate(sub.action)"
-            :active="false"
-          >
-            <template v-slot:prepend>
-              <v-icon :color="sub.color">mdi-{{ sub.icon }}</v-icon>
-            </template>
-            <v-list-item-title v-text="sub.name" style="font-size: inherit"></v-list-item-title>
-          </v-list-item>
-
-          <div
-            v-else-if="sub.type == 'divider'"
-            class="context-menu__divider"
-            role="separator"
-          />
-
-          <ContextMenuNested v-else-if="sub.type == 'menu'" :item="sub"/>
-        </div>
-      </v-list-group>
-    </v-list>
-
-    <template v-else>
-      <v-list-item
-        ref="activatorRef"
-        :disabled="item.disabled"
-        class="pr-1"
-        link
-        @mouseenter="open"
-      >
-        <v-list-item-title class="d-flex align-items-center align-center justify-space-between">
-          <div class="d-flex align-items-center align-center">
-            <v-icon class="mr-3" :color="item.color">
-              mdi-{{ item.icon }}
-            </v-icon>
-            {{ item.name }}
-          </div>
-          <v-icon size="22">mdi-menu-right</v-icon>
-        </v-list-item-title>
-      </v-list-item>
-
-      <Teleport to="body">
-        <div
-          v-if="isOpen"
-          ref="submenuRoot"
-          class="app-context-menu app-context-menu--nested"
-          :style="submenuStyle"
-          @mouseenter="open"
-          @pointerdown.stop
-          @mousedown.stop
-          @contextmenu.prevent.stop
+  <v-list v-if="xs" class="py-0 px-0" density="compact" rounded>
+    <v-list-group :prepend-icon="'mdi-' + item.icon">
+      <template v-slot:activator="{ props }">
+        <v-list-item
+          v-bind="props"
+          :disabled="item.disabled"
         >
-          <v-list
-            class="context-menu"
-            density="compact"
-            :lines="false"
-            nav
-            rounded="lg"
-            elevation="8"
-          >
-            <div class="wrapper">
-              <template v-for="(sub, i) in item.menu" :key="i">
-                <v-list-item
-                  v-if="sub.type == 'item'"
-                  @mouseenter="onPlainItemEnter"
-                  @click="activate(sub.action)"
-                  class="pr-1"
-                  link
-                >
-                  <v-list-item-title class="d-flex align-items-center align-center justify-space-between">
-                    <div class="d-flex align-items-center align-center">
-                      <v-icon class="mr-3" :color="sub.color">
-                        mdi-{{ sub.icon }}
-                      </v-icon>
-                      <span class="pr-4">{{ sub.name }}</span>
-                    </div>
-                  </v-list-item-title>
-                </v-list-item>
+          <v-list-item-title style="font-size: inherit">
+            {{ item.name }}
+          </v-list-item-title>
+        </v-list-item>
+      </template>
 
-                <div
-                  v-else-if="sub.type == 'divider'"
-                  class="context-menu__divider"
-                  role="separator"
-                />
+      <div v-for="(sub, i) in item.menu" :key="i" style="padding-left: 10px">
+        <v-list-item
+          v-if="sub.type == 'item'"
+          @click="activate(sub.action)"
+          :active="false"
+        >
+          <template v-slot:prepend>
+            <v-icon :color="sub.color">mdi-{{ sub.icon }}</v-icon>
+          </template>
+          <v-list-item-title v-text="sub.name" style="font-size: inherit"></v-list-item-title>
+        </v-list-item>
 
-                <ContextMenuNested
-                  v-else-if="sub.type == 'menu'"
-                  @show-parent="showCurrent"
-                  @close-siblings="hideChildNested"
-                  :item="sub"
-                />
-              </template>
-            </div>
-          </v-list>
+        <div
+          v-else-if="sub.type == 'divider'"
+          class="context-menu__divider"
+          role="separator"
+        />
+
+        <ContextMenuNested v-else-if="sub.type == 'menu'" :item="sub"/>
+      </div>
+    </v-list-group>
+  </v-list>
+
+  <template v-else>
+    <v-list-item
+      ref="activatorRef"
+      :disabled="item.disabled"
+      class="pr-3"
+      link
+      @mouseenter="open"
+    >
+      <v-list-item-title class="d-flex align-items-center align-center justify-space-between">
+        <div class="d-flex align-items-center align-center">
+          <v-icon class="mr-3" :color="item.color">
+            mdi-{{ item.icon }}
+          </v-icon>
+          {{ item.name }}
         </div>
-      </Teleport>
-    </template>
-  </div>
+        <v-icon size="22">mdi-menu-right</v-icon>
+      </v-list-item-title>
+    </v-list-item>
+
+    <Teleport to="body">
+      <div
+        v-if="isOpen"
+        ref="submenuRoot"
+        class="app-context-menu app-context-menu--nested"
+        :style="submenuStyle"
+        @mouseenter="open"
+        @pointerdown.stop
+        @mousedown.stop
+        @contextmenu.prevent.stop
+      >
+        <v-list
+          class="context-menu"
+          density="compact"
+          :lines="false"
+          nav
+          rounded="lg"
+          elevation="8"
+        >
+          <div class="wrapper">
+            <template v-for="(sub, i) in item.menu" :key="i">
+              <v-list-item
+                v-if="sub.type == 'item'"
+                @mouseenter="onPlainItemEnter"
+                @click="activate(sub.action)"
+                class="pr-3"
+                link
+              >
+                <v-list-item-title class="d-flex align-items-center align-center justify-space-between">
+                  <div class="d-flex align-items-center align-center">
+                    <v-icon class="mr-3" :color="sub.color">
+                      mdi-{{ sub.icon }}
+                    </v-icon>
+                    <span class="pr-4">{{ sub.name }}</span>
+                  </div>
+                </v-list-item-title>
+              </v-list-item>
+
+              <div
+                v-else-if="sub.type == 'divider'"
+                class="context-menu__divider"
+                role="separator"
+              />
+
+              <ContextMenuNested
+                v-else-if="sub.type == 'menu'"
+                @show-parent="showCurrent"
+                @close-siblings="hideChildNested"
+                :item="sub"
+              />
+            </template>
+          </div>
+        </v-list>
+      </div>
+    </Teleport>
+  </template>
 </template>
 
 <script setup lang="ts">
