@@ -46,6 +46,6 @@ export async function searchCamGirlFinder(
     return response.data as CamGirlFinderSearchResponse
   } catch (error) {
     console.error('searchCamGirlFinder error', error)
-    throw new Error(extractApiErrorMessage(error))
+    throw new Error(extractApiErrorMessage(error), {cause: error})
   }
 }
