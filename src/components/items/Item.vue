@@ -10,6 +10,7 @@
       {'item-media': type === 'media'},
       {'item-tag': type === 'tag'},
       {'item--selecting': itemsStore.isSelect},
+      {'item--context-target': is_context_target},
       `item__size-${itemsStore.size}`,
       `item-view-${itemsStore.view}`,
     ]"
@@ -331,6 +332,13 @@ const is_selected = computed(() => {
   return itemsStore.selection.includes(props.item.id)
 })
 
+const is_context_target = computed(() => {
+  return contextMenuStore.show
+    && contextMenuStore.targetNestedTagId == null
+    && contextMenuStore.targetItemId != null
+    && Number(contextMenuStore.targetItemId) === Number(props.item.id)
+})
+
 const card_color = computed(() => {
   // Media cards must stay uncolored; only tag category cards may use a tint.
   if (props.type !== 'tag' || !props.meta?.color) return ''
@@ -393,6 +401,7 @@ const showContextMenu = (e: MouseEvent) => {
     x: e.clientX,
     y: e.clientY,
     tagMeta: props.meta,
+    targetItemId: props.item.id,
   })
 }
 

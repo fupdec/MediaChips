@@ -56,17 +56,25 @@
       >
         <div v-if="category.kind === 'tags'" class="tag-page-param__value">
           <v-chip-group column>
-            <v-chip
+            <span
               v-for="tag in category.items"
               :key="`${tag.id}_${item.id}`"
-              v-bind="getTagChipBind(tag)"
-              @click.stop.prevent="openTagPage(tag)"
-              @contextmenu.stop.prevent="showMenu($event, tag)"
-              @mouseenter="onTagHover($event, tag)"
-              @mouseleave="hideHoverImage"
+              class="nested-tag-chip-wrap"
+              :class="{
+                'nested-tag-chip-wrap--active': isNestedTagContextTarget(tag.id),
+                'nested-tag-chip-wrap--label': getMetaChipLabel(tag.meta),
+              }"
             >
-              {{ tag.name }}
-            </v-chip>
+              <v-chip
+                v-bind="getTagChipBind(tag)"
+                @click.stop.prevent="openTagPage(tag)"
+                @contextmenu.stop.prevent="showMenu($event, tag)"
+                @mouseenter="onTagHover($event, tag)"
+                @mouseleave="hideHoverImage"
+              >
+                {{ tag.name }}
+              </v-chip>
+            </span>
           </v-chip-group>
         </div>
 
@@ -117,16 +125,24 @@
         </div>
 
         <template v-if="category.kind === 'tags'">
-          <v-chip
+          <span
             v-for="tag in category.items"
             :key="`${tag.id}_${item.id}`"
-            v-bind="getTagChipBind(tag)"
-            :text="tag.name"
-            @click.stop.prevent="openTagPage(tag)"
-            @contextmenu.stop.prevent="showMenu($event, tag)"
-            @mouseenter="onTagHover($event, tag)"
-            @mouseleave="hideHoverImage"
-          ></v-chip>
+            class="nested-tag-chip-wrap"
+            :class="{
+              'nested-tag-chip-wrap--active': isNestedTagContextTarget(tag.id),
+              'nested-tag-chip-wrap--label': getMetaChipLabel(tag.meta),
+            }"
+          >
+            <v-chip
+              v-bind="getTagChipBind(tag)"
+              :text="tag.name"
+              @click.stop.prevent="openTagPage(tag)"
+              @contextmenu.stop.prevent="showMenu($event, tag)"
+              @mouseenter="onTagHover($event, tag)"
+              @mouseleave="hideHoverImage"
+            ></v-chip>
+          </span>
         </template>
 
         <template v-else>
@@ -168,16 +184,24 @@
 
       <!-- PINNED FIELDS FLAT -->
       <template v-for="entry in visibleFlatEntries" :key="`${entry.kind}_${entry.metaId}_${entry.data.id || entry.data.name}_${item.id}`">
-        <v-chip
+        <span
           v-if="entry.kind === 'tag'"
-          v-bind="getTagChipBind(entry.data)"
-          :prepend-icon="getTagChipPrependIcon(entry.data)"
-          :text="entry.data.name"
-          @click.stop.prevent="openTagPage(entry.data)"
-          @contextmenu.stop.prevent="showMenu($event, entry.data)"
-          @mouseenter="onTagHover($event, entry.data)"
-          @mouseleave="hideHoverImage"
-        ></v-chip>
+          class="nested-tag-chip-wrap"
+          :class="{
+            'nested-tag-chip-wrap--active': isNestedTagContextTarget(entry.data.id),
+            'nested-tag-chip-wrap--label': getMetaChipLabel(entry.data.meta),
+          }"
+        >
+          <v-chip
+            v-bind="getTagChipBind(entry.data)"
+            :prepend-icon="getTagChipPrependIcon(entry.data)"
+            :text="entry.data.name"
+            @click.stop.prevent="openTagPage(entry.data)"
+            @contextmenu.stop.prevent="showMenu($event, entry.data)"
+            @mouseenter="onTagHover($event, entry.data)"
+            @mouseleave="hideHoverImage"
+          ></v-chip>
+        </span>
 
         <v-chip
           v-else
@@ -313,7 +337,16 @@ const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
   return typeof label === 'boolean' ? label : undefined
 }
 
+const isNestedTagContextTarget = (tagId: number): boolean => {
+  return contextMenuStore.show
+    && contextMenuStore.targetNestedTagId != null
+    && Number(contextMenuStore.targetNestedTagId) === Number(tagId)
+    && contextMenuStore.targetItemId != null
+    && Number(contextMenuStore.targetItemId) === Number(props.item.id)
+}
+
 const getTagChipBind = (tag: TagWithMeta) => {
+  const active = isNestedTagContextTarget(tag.id)
   const variant: ChipVariant = tag.fromFolder
     ? 'tonal'
     : (toChipVariant(tag.meta?.chipVariant) ?? 'flat')
@@ -330,10 +363,13 @@ const getTagChipBind = (tag: TagWithMeta) => {
     textColor: colored ? getTextColor(color, variant === 'outlined') || undefined : undefined,
     label: getMetaChipLabel(tag.meta),
     title: fromFolderTitle || tag.name || undefined,
+    size: active ? 'large' : undefined,
+    filter: active || undefined,
     prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
     class: [
       colored ? 'tag-chip--colored' : undefined,
       tag.fromFolder ? 'tag-chip--from-folder' : undefined,
+      active ? 'active-chip' : undefined,
     ].filter(Boolean).join(' ') || undefined,
   }
 }
@@ -810,6 +846,8 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
     y: clientY,
     content: contextMenu,
     tagMeta: tag,
+    targetItemId: props.item.id,
+    targetNestedTagId: tag.id,
   })
 }
 </script>

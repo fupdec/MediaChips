@@ -1,4 +1,14 @@
 <template>
+  <!-- Spotlight works for both desktop menu and mobile bottom sheet. -->
+  <Teleport to="body">
+    <div
+      v-if="spotlightVisible"
+      class="context-menu-spotlight"
+      :style="spotlightStyle"
+      aria-hidden="true"
+    />
+  </Teleport>
+
   <v-bottom-sheet
     v-if="xs"
     v-model="contextMenu.show"
@@ -98,14 +108,32 @@ import ContextMenuNested from '@/components/elements/ContextMenuNested.vue'
 import type {ContextMenuEntry} from '@/types/stores'
 
 const CONTEXT_MENU_Z_INDEX = 30000
+const SPOTLIGHT_Z_INDEX = 29900
+const SPOTLIGHT_PAD = 1
 
 const {xs} = useDisplay()
 const contextMenu = useContextMenu()
 const menuRoot = ref<HTMLElement | null>(null)
 const adjustedPos = ref({x: 0, y: 0})
 const isPositioned = ref(false)
+const spotlightRect = ref<{
+  left: number
+  top: number
+  width: number
+  height: number
+  radius: string
+} | null>(null)
 
 const menu = computed(() => contextMenu)
+
+// Nested tags use the quick-filter active chip treatment instead of a spotlight hole.
+const hasSpotlightTarget = computed(() =>
+  contextMenu.targetItemId != null && contextMenu.targetNestedTagId == null,
+)
+
+const spotlightVisible = computed(() =>
+  contextMenu.show && hasSpotlightTarget.value && spotlightRect.value != null,
+)
 
 const menuStyle = computed(() => ({
   left: `${adjustedPos.value.x}px`,
@@ -113,6 +141,19 @@ const menuStyle = computed(() => ({
   zIndex: CONTEXT_MENU_Z_INDEX,
   visibility: isPositioned.value ? 'visible' : 'hidden',
 }))
+
+const spotlightStyle = computed(() => {
+  const rect = spotlightRect.value
+  if (!rect) return {}
+  return {
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    borderRadius: rect.radius,
+    zIndex: SPOTLIGHT_Z_INDEX,
+  }
+})
 
 const activate = (originalFunction: unknown) => {
   if (typeof originalFunction === 'function') {
@@ -126,6 +167,41 @@ const hideNested = () => {
     if (item.type == 'menu') {
       item.show = false
     }
+  }
+}
+
+const clearSpotlight = () => {
+  spotlightRect.value = null
+}
+
+const updateSpotlight = async () => {
+  if (!contextMenu.show || !hasSpotlightTarget.value) {
+    clearSpotlight()
+    return
+  }
+
+  await nextTick()
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+  const el = document.querySelector('.item.item--context-target') as HTMLElement | null
+  if (!el) {
+    clearSpotlight()
+    return
+  }
+
+  const visual = (el.querySelector('.tag-chip-view, .item_wrapper') as HTMLElement | null) || el
+  const box = visual.getBoundingClientRect()
+  const styles = window.getComputedStyle(visual)
+  const radius = styles.borderRadius && styles.borderRadius !== '0px'
+    ? styles.borderRadius
+    : '16px'
+
+  spotlightRect.value = {
+    left: box.left - SPOTLIGHT_PAD,
+    top: box.top - SPOTLIGHT_PAD,
+    width: box.width + SPOTLIGHT_PAD * 2,
+    height: box.height + SPOTLIGHT_PAD * 2,
+    radius,
   }
 }
 
@@ -188,22 +264,39 @@ const onKeyDown = (event: KeyboardEvent) => {
   }
 }
 
+const onViewportChange = () => {
+  if (!contextMenu.show || !hasSpotlightTarget.value) return
+  void updateSpotlight()
+}
+
 watch(
   () => contextMenu.show,
   async (show) => {
     if (!show) {
       isPositioned.value = false
+      contextMenu.targetItemId = null
+      contextMenu.targetNestedTagId = null
+      clearSpotlight()
       return
     }
+    await updateSpotlight()
     if (xs.value) return
     await clampToViewport()
   },
 )
 
 watch(
-  () => [contextMenu.x, contextMenu.y, contextMenu.show] as const,
+  () => [
+    contextMenu.x,
+    contextMenu.y,
+    contextMenu.show,
+    contextMenu.targetItemId,
+    contextMenu.targetNestedTagId,
+  ] as const,
   async ([, , show]) => {
-    if (!show || xs.value) return
+    if (!show) return
+    await updateSpotlight()
+    if (xs.value) return
     await clampToViewport()
   },
 )
@@ -211,12 +304,16 @@ watch(
 if (typeof window !== 'undefined') {
   window.addEventListener('pointerdown', onPointerDownOutside, true)
   window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('resize', onViewportChange)
+  window.addEventListener('scroll', onViewportChange, true)
 }
 
 onBeforeUnmount(() => {
   if (typeof window === 'undefined') return
   window.removeEventListener('pointerdown', onPointerDownOutside, true)
   window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('resize', onViewportChange)
+  window.removeEventListener('scroll', onViewportChange, true)
 })
 </script>
 
@@ -240,5 +337,11 @@ onBeforeUnmount(() => {
   .context-menu {
     background: rgb(var(--v-theme-surface));
   }
+}
+
+.context-menu-spotlight {
+  position: fixed;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.1);
 }
 </style>

@@ -678,6 +678,7 @@ async function showResultContextMenu(event: MouseEvent, row: FlatResultRow, inde
     x: event.clientX,
     y: event.clientY,
     tagMeta,
+    targetItemId: Number(item.id) || null,
   })
 }
 

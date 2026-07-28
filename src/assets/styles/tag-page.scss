@@ -640,82 +640,119 @@
       padding-top: 4px;
     }
   }
+}
 
-  .tag-quick-filters__chip-wrap {
-    position: relative;
-    display: inline-flex;
-    vertical-align: middle;
-    overflow: visible;
-    z-index: 0;
+// Shared active chip treatment (quick filters + nested tag context menu).
+.tag-quick-filters__chip-wrap,
+.nested-tag-chip-wrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  overflow: visible;
+  z-index: 0;
+
+  &:hover {
+    z-index: 10;
+  }
+
+  &--active {
+    // Above neighboring chips so the blur ring covers ones to the right/below.
+    z-index: 5;
 
     &:hover {
-      z-index: 10;
+      z-index: 20;
     }
 
-    &--active {
-      // Above neighboring chips so the blur ring covers ones to the right/below.
-      z-index: 5;
-
-      &:hover {
-        z-index: 20;
-      }
-
-      &::before {
-        content: '';
-        position: absolute;
-        inset: -10px -15px;
-        box-sizing: border-box;
-        padding: 15px;
-        border-radius: 9999px;
-        z-index: 0;
-        pointer-events: none;
-        background: transparent !important;
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        -webkit-mask:
-          linear-gradient(#fff 0 0) content-box,
-          linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask:
-          linear-gradient(#fff 0 0) content-box,
-          linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-      }
-    }
-
-    &--label.tag-quick-filters__chip-wrap--active::before {
-      border-radius: 6px;
-    }
-
-    .v-chip {
-      position: relative;
-      z-index: 1;
-      transition: filter 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
-
-      &:hover:not(.v-chip--disabled):not(.active-chip) {
-        filter: brightness(1.18);
-        opacity: 0.92;
-      }
-
-      &.active-chip:hover:not(.v-chip--disabled) {
-        filter: brightness(1.1);
-      }
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -10px -15px;
+      box-sizing: border-box;
+      padding: 15px;
+      border-radius: 9999px;
+      z-index: 0;
+      pointer-events: none;
+      background: transparent !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      mask-composite: exclude;
     }
   }
 
-  .active-chip {
-    outline: none;
-    box-shadow: none !important;
-    transform: scale(1.06);
-    padding-inline-start: 14px !important;
+  &--label.tag-quick-filters__chip-wrap--active::before,
+  &--label.nested-tag-chip-wrap--active::before {
+    border-radius: 6px;
+  }
 
-    .v-chip__prepend {
-      margin-inline-start: 0 !important;
-      margin-inline-end: 6px !important;
+  .v-chip {
+    position: relative;
+    z-index: 1;
+    transition: filter 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+
+    &:hover:not(.v-chip--disabled):not(.active-chip) {
+      filter: brightness(1.18);
+      opacity: 0.92;
     }
 
-    .v-icon--start {
-      margin-inline-start: 0 !important;
+    &.active-chip:hover:not(.v-chip--disabled) {
+      filter: brightness(1.1);
     }
+  }
+}
+
+.nested-tag-chip-wrap .v-chip {
+  transition: transform 0.15s ease;
+
+  &:hover:not(.v-chip--disabled):not(.active-chip),
+  &.active-chip:hover:not(.v-chip--disabled) {
+    filter: none;
+    opacity: 1;
+  }
+}
+
+.nested-tag-chip-wrap:hover {
+  z-index: 0;
+}
+
+.nested-tag-chip-wrap--active,
+.nested-tag-chip-wrap--active:hover {
+  z-index: 30;
+}
+
+.nested-tag-chip-wrap--active::before {
+  inset: -5px -10px;
+  padding: 5px 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.tag-quick-filters .active-chip,
+.nested-tags .active-chip {
+  outline: none;
+  box-shadow: none !important;
+  transform: scale(1.06);
+}
+
+.nested-tags .active-chip {
+  transform: scale(1.22);
+}
+
+.tag-quick-filters .active-chip {
+  padding-inline-start: 14px !important;
+
+  .v-chip__prepend {
+    margin-inline-start: 0 !important;
+    margin-inline-end: 6px !important;
+  }
+
+  .v-icon--start {
+    margin-inline-start: 0 !important;
   }
 }

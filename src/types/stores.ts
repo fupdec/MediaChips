@@ -107,6 +107,10 @@ export interface ContextMenuPayload {
   y?: number
   content?: ContextMenuEntry[]
   tagMeta?: unknown
+  /** Card/item to spotlight, or parent card when highlighting a nested tag. */
+  targetItemId?: number | null
+  /** Nested tag chip inside the card (requires targetItemId of that card). */
+  targetNestedTagId?: number | null
 }
 
 export interface TaskItem {

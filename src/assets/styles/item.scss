@@ -41,6 +41,10 @@
     }
   }
 
+  &.item--context-target {
+    z-index: 40;
+  }
+
   & > .v-card {
     z-index: initial;
   }
