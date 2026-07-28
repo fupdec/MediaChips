@@ -54,14 +54,14 @@ describe('tabs repository', () => {
     expect(repo.findAll()).toEqual([])
   })
 
-  it('inserts new tab at the beginning by default', () => {
+  it('appends new tab at the end by default', () => {
     const repo = createTabsRepository(db)
     const first = repo.create({name: 'First'})
     const second = repo.create({name: 'Second'})
 
     expect(first.order).toBe(0)
-    expect(second.order).toBe(0)
-    expect(repo.findAll().find((tab) => tab.id === first.id)?.order).toBe(1)
-    expect(repo.findAll().find((tab) => tab.id === second.id)?.order).toBe(0)
+    expect(second.order).toBe(1)
+    expect(repo.findAll().find((tab) => tab.id === first.id)?.order).toBe(0)
+    expect(repo.findAll().find((tab) => tab.id === second.id)?.order).toBe(1)
   })
 })

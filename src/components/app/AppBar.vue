@@ -274,7 +274,7 @@ onUnmounted(() => {
   height: auto;
   width: 100%;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .scrollable-child {

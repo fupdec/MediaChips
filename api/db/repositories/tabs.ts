@@ -10,15 +10,14 @@ export function createTabsRepository(db: DrizzleClient) {
   return {
     create(data: Partial<TabInsert>): TabRow {
       const timestamp = nowIso()
-      const insertAtBeginning = data.order === undefined
+      let order = data.order
 
-      if (insertAtBeginning) {
-        db.update(tabs)
-          .set({
-            order: sql`${tabs.order} + 1`,
-            updatedAt: timestamp,
-          })
-          .run()
+      if (order === undefined) {
+        const maxOrder = db
+          .select({value: sql<number | null>`max(${tabs.order})`})
+          .from(tabs)
+          .get()?.value
+        order = (maxOrder ?? -1) + 1
       }
 
       const result = db.insert(tabs)
@@ -26,7 +25,7 @@ export function createTabsRepository(db: DrizzleClient) {
           name: data.name ?? null,
           icon: data.icon ?? null,
           url: data.url ?? null,
-          order: data.order ?? 0,
+          order,
           metaId: data.metaId ?? null,
           mediaTypeId: data.mediaTypeId ?? null,
           tagId: data.tagId ?? null,
