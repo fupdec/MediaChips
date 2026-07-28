@@ -726,7 +726,7 @@ const openGridBigPreview = async () => {
   const opened = await gridBigPreview.startExpand(() => getPreviewEl(), sourceRect)
   bigPreviewAnimation.value = false
 
-  if (!opened) {
+  if (!opened || contextMenuStore.show) {
     resetBigPreviewOpen()
     return
   }
@@ -1044,7 +1044,8 @@ const canOpenBigPreview = () =>
   !playbackError.value &&
   hoverPreviewReady.value &&
   isVideoPreviewEnabled.value &&
-  SETTINGS.value.big_video_preview === '1'
+  SETTINGS.value.big_video_preview === '1' &&
+  !contextMenuStore.show
 
 const handlePreviewClick = () => {
   if (gridBigPreview.isCollapsing.value || isShrinking.value) return
@@ -1861,7 +1862,14 @@ watch(
 )
 
 watch(() => contextMenuStore.show, (show) => {
-  if (show) return
+  if (show) {
+    // Don't expand into big preview while any context menu is open.
+    clearTimeout(timeouts.cinema)
+    if (bigPreviewAnimation.value || gridBigPreview.isExpanding.value) {
+      resetBigPreviewOpen()
+    }
+    return
+  }
   if (!bigPreviewMenuActive.value) return
 
   nextTick(() => {
