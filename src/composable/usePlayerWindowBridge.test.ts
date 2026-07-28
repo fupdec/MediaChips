@@ -12,6 +12,7 @@ const routeRef = ref<{ query: Record<string, string> }>({query: {}})
 const appState = {app_title: 'MediaChips Test'}
 const playerState = {mediaWindowTitle: ''}
 const emitMock = vi.fn()
+const getItemsFromDbMock = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRoute: () => routeRef.value,
@@ -35,6 +36,12 @@ vi.mock('@/utils/eventBus', () => ({
   }),
 }))
 
+vi.mock('@/composable/itemsListSync', () => ({
+  useItemsListSync: () => ({
+    getItemsFromDb: getItemsFromDbMock,
+  }),
+}))
+
 describe('usePlayerWindowBridge', () => {
   const originalElectronApi = window.electronAPI
   const originalOs = window.os
@@ -45,6 +52,7 @@ describe('usePlayerWindowBridge', () => {
     playerState.mediaWindowTitle = ''
     document.title = 'initial'
     emitMock.mockReset()
+    getItemsFromDbMock.mockReset()
     delete window.electronAPI
     delete window.os
   })
@@ -87,25 +95,27 @@ describe('usePlayerWindowBridge', () => {
     expect(playerState.mediaWindowTitle).toBe('')
   })
 
-  it('emits getItemsFromDb through event bus in inline mode', () => {
+  it('loads items through list sync in inline mode', () => {
     const {updateItemVideo} = usePlayerWindowBridge()
     updateItemVideo(42)
 
-    expect(emitMock).toHaveBeenCalledWith('getItemsFromDb', {
+    expect(getItemsFromDbMock).toHaveBeenCalledWith({
       ids: [42],
       type: 'media',
     })
+    expect(emitMock).not.toHaveBeenCalled()
   })
 
-  it('emits getItemsFromDb with optional patch', () => {
+  it('loads items through list sync with optional patch', () => {
     const {updateItemVideo} = usePlayerWindowBridge()
     updateItemVideo(42, {time: 123})
 
-    expect(emitMock).toHaveBeenCalledWith('getItemsFromDb', {
+    expect(getItemsFromDbMock).toHaveBeenCalledWith({
       ids: [42],
       type: 'media',
       patch: {time: 123},
     })
+    expect(emitMock).not.toHaveBeenCalled()
   })
 
   it('sends getItemsFromDb through electron in standalone mode', () => {
@@ -121,6 +131,7 @@ describe('usePlayerWindowBridge', () => {
       type: 'media',
       patch: {time: 45},
     })
+    expect(getItemsFromDbMock).not.toHaveBeenCalled()
     expect(emitMock).not.toHaveBeenCalled()
   })
 
