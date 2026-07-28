@@ -1153,6 +1153,8 @@ header {
   padding: 4px !important;
   .wrapper {
     max-height: calc(100vh - 100px);
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   .v-list-item {
     .v-list-item-title {
@@ -1168,6 +1170,19 @@ header {
       margin-right: 50px;
     }
   }
+}
+
+.context-menu__divider {
+  display: block;
+  flex: 0 0 auto;
+  height: 0;
+  max-height: 0;
+  margin: 4px;
+  border: 0;
+  border-top: thin solid currentColor;
+  color: inherit;
+  opacity: var(--v-border-opacity);
+  background: transparent;
 }
 
 .bottom-menu-mobile {

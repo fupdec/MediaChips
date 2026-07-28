@@ -25,6 +25,12 @@
             <v-list-item-title v-text="sub.name" style="font-size: inherit"></v-list-item-title>
           </v-list-item>
 
+          <div
+            v-else-if="sub.type == 'divider'"
+            class="context-menu__divider"
+            role="separator"
+          />
+
           <ContextMenuNested v-else-if="sub.type == 'menu'" :item="sub"/>
         </div>
       </v-list-group>
@@ -69,7 +75,7 @@
             elevation="8"
           >
             <div class="wrapper">
-              <div v-for="(sub, i) in item.menu" :key="i">
+              <template v-for="(sub, i) in item.menu" :key="i">
                 <v-list-item
                   v-if="sub.type == 'item'"
                   @mouseenter="onPlainItemEnter"
@@ -87,7 +93,11 @@
                   </v-list-item-title>
                 </v-list-item>
 
-                <v-divider v-else-if="sub.type == 'divider'" class="ma-1"/>
+                <div
+                  v-else-if="sub.type == 'divider'"
+                  class="context-menu__divider"
+                  role="separator"
+                />
 
                 <ContextMenuNested
                   v-else-if="sub.type == 'menu'"
@@ -95,7 +105,7 @@
                   @close-siblings="hideChildNested"
                   :item="sub"
                 />
-              </div>
+              </template>
             </div>
           </v-list>
         </div>
@@ -229,7 +239,9 @@ const showCurrent = () => {
 
 .app-context-menu--nested {
   position: fixed;
-  min-width: 150px;
+  width: max-content;
+  min-width: 180px;
+  max-width: min(320px, calc(100vw - 16px));
   pointer-events: auto;
 
   .context-menu {

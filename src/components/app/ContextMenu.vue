@@ -8,7 +8,7 @@
   >
     <v-card max-height="80vh" class="menu">
       <v-list density="compact" class="px-2">
-        <div v-for="(item, i) in menu.content" :key="i">
+        <template v-for="(item, i) in menu.content" :key="i">
           <v-list-item
             v-if="item.type == 'item'"
             @mouseup="activate(item.action)"
@@ -23,13 +23,17 @@
             <v-list-item-title v-html="item.name" class="text-subtitle-1"/>
           </v-list-item>
 
-          <v-divider v-else-if="item.type == 'divider'" class="ma-1"/>
+          <div
+            v-else-if="item.type == 'divider'"
+            class="context-menu__divider"
+            role="separator"
+          />
 
           <ContextMenuNested
             v-else-if="item.type == 'menu'"
             :item="item"
           />
-        </div>
+        </template>
       </v-list>
     </v-card>
   </v-bottom-sheet>
@@ -50,7 +54,7 @@
     >
       <v-list density="compact" class="context-menu" :lines="false" nav rounded="lg" elevation="8">
         <div class="wrapper">
-          <div v-for="(item, i) in menu.content" :key="i">
+          <template v-for="(item, i) in menu.content" :key="i">
             <v-list-item
               v-if="item.type == 'item'"
               @mouseover="hideNested"
@@ -68,14 +72,18 @@
               </v-list-item-title>
             </v-list-item>
 
-            <v-divider v-else-if="item.type == 'divider'" class="ma-1"/>
+            <div
+              v-else-if="item.type == 'divider'"
+              class="context-menu__divider"
+              role="separator"
+            />
 
             <ContextMenuNested
               v-else-if="item.type == 'menu'"
               :item="item"
               @close-siblings="hideNested"
             />
-          </div>
+          </template>
         </div>
       </v-list>
     </div>
@@ -95,6 +103,7 @@ const {xs} = useDisplay()
 const contextMenu = useContextMenu()
 const menuRoot = ref<HTMLElement | null>(null)
 const adjustedPos = ref({x: 0, y: 0})
+const isPositioned = ref(false)
 
 const menu = computed(() => contextMenu)
 
@@ -102,6 +111,7 @@ const menuStyle = computed(() => ({
   left: `${adjustedPos.value.x}px`,
   top: `${adjustedPos.value.y}px`,
   zIndex: CONTEXT_MENU_Z_INDEX,
+  visibility: isPositioned.value ? 'visible' : 'hidden',
 }))
 
 const activate = (originalFunction: unknown) => {
@@ -120,29 +130,46 @@ const hideNested = () => {
 }
 
 const clampToViewport = async () => {
-  adjustedPos.value = {
-    x: menu.value.x || 0,
-    y: menu.value.y || 0,
-  }
+  const cursorX = menu.value.x || 0
+  const cursorY = menu.value.y || 0
+  const pad = 8
+  isPositioned.value = false
 
+  // Measure at a safe origin so fixed shrink-to-fit is not crushed against the edge.
+  adjustedPos.value = {x: pad, y: pad}
   await nextTick()
 
   const el = menuRoot.value
-  if (!el) return
-
-  const rect = el.getBoundingClientRect()
-  const pad = 8
-  let x = adjustedPos.value.x
-  let y = adjustedPos.value.y
-
-  if (x + rect.width > window.innerWidth - pad) {
-    x = Math.max(pad, window.innerWidth - rect.width - pad)
+  if (!el) {
+    isPositioned.value = true
+    return
   }
-  if (y + rect.height > window.innerHeight - pad) {
-    y = Math.max(pad, window.innerHeight - rect.height - pad)
+
+  const w = el.offsetWidth
+  const h = el.offsetHeight
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  let x = cursorX
+  let y = cursorY
+
+  // Prefer opening to the right of the cursor; flip left when it does not fit.
+  if (x + w > vw - pad) {
+    x = cursorX - w
   }
+  if (x < pad) x = pad
+  if (x + w > vw - pad) x = Math.max(pad, vw - w - pad)
+
+  // Prefer opening below the cursor; flip above when it does not fit.
+  if (y + h > vh - pad) {
+    y = cursorY - h
+  }
+  if (y < pad) y = pad
+  if (y + h > vh - pad) y = Math.max(pad, vh - h - pad)
 
   adjustedPos.value = {x, y}
+  await nextTick()
+  isPositioned.value = true
 }
 
 const onPointerDownOutside = (event: PointerEvent) => {
@@ -164,7 +191,11 @@ const onKeyDown = (event: KeyboardEvent) => {
 watch(
   () => contextMenu.show,
   async (show) => {
-    if (!show || xs.value) return
+    if (!show) {
+      isPositioned.value = false
+      return
+    }
+    if (xs.value) return
     await clampToViewport()
   },
 )
@@ -201,7 +232,8 @@ onBeforeUnmount(() => {
 
 .app-context-menu {
   position: fixed;
-  min-width: 150px;
+  width: max-content;
+  min-width: 180px;
   max-width: min(320px, calc(100vw - 16px));
   pointer-events: auto;
 
