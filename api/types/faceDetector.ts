@@ -61,7 +61,7 @@ export interface FaceDetectionGenerationStatus {
 
 export interface FaceDetectionProgressEvent {
   type: 'progress' | 'complete' | 'error' | 'status'
-  phase?: 'downloading_embed' | 'embed_ready' | 'downloading_align' | 'downloading_detect' | 'detect_ready'
+  phase?: 'downloading_embed' | 'embed_ready' | 'downloading_align' | 'downloading_detect' | 'detect_ready' | 'downloading_gender' | 'gender_ready'
   processed?: number
   total?: number
   remaining?: number

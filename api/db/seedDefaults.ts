@@ -86,6 +86,7 @@ const MIGRATION_SETTINGS = [
   {option: 'faceMatch.embedModelId', value: 'insightface-r50-scrfd-kps-v1'},
   {option: 'faceDetect.minScore', value: '0.5'},
   {option: 'faceDetect.framesPerVideo', value: '6'},
+  {option: 'faceDetect.genderFilter', value: 'both'},
   {option: 'meta_sort_mode', value: 'menu'},
   {
     option: 'home_widgets_config',

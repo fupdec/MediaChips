@@ -433,6 +433,29 @@
 
           <div class="face-advanced__group">
             <div class="face-advanced__title">
+              {{ t('settings_labels.database.face_detect_gender') }}
+            </div>
+            <div class="face-advanced__hint">
+              {{ t('settings_labels.database.face_detect_gender_hint') }}
+            </div>
+            <div class="d-flex flex-wrap ga-2 mb-2">
+              <v-btn
+                v-for="preset in genderFilterPresets"
+                :key="preset.value"
+                size="small"
+                rounded
+                :variant="genderFilter === preset.value ? 'flat' : 'outlined'"
+                :color="genderFilter === preset.value ? 'primary' : 'secondary'"
+                :disabled="busy"
+                @click="saveGenderFilter(preset.value)"
+              >
+                {{ t(preset.labelKey) }}
+              </v-btn>
+            </div>
+          </div>
+
+          <div class="face-advanced__group">
+            <div class="face-advanced__title">
               {{ t('settings_labels.database.face_match_mode') }}
             </div>
             <div class="face-advanced__hint">
@@ -494,7 +517,7 @@ interface DetectionStatus {
 
 interface StreamEvent {
   type: 'progress' | 'complete' | 'error' | 'status'
-  phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready' | 'downloading_detect' | 'detect_ready'
+  phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready' | 'downloading_detect' | 'detect_ready' | 'downloading_gender' | 'gender_ready'
   processed?: number
   total?: number
   created?: number
@@ -536,6 +559,12 @@ const detectStrictnessPresets = [
   {value: 0.7, labelKey: 'settings_labels.database.face_detect_strictness_strict'},
 ]
 
+const genderFilterPresets = [
+  {value: 'both', labelKey: 'settings_labels.database.face_detect_gender_both'},
+  {value: 'female', labelKey: 'settings_labels.database.face_detect_gender_female'},
+  {value: 'male', labelKey: 'settings_labels.database.face_detect_gender_male'},
+]
+
 const emptyStatus: DetectionStatus = {total: 0, pending: 0, generated: 0, faces: 0}
 const status = ref<DetectionStatus>({...emptyStatus})
 const statusLoading = ref(false)
@@ -559,6 +588,11 @@ const minConfidence = ref(Number(settingsStore['faceMatch.minConfidence'] || 0.5
 const candidateLimit = ref(Number(settingsStore['faceMatch.candidateLimit'] || 10))
 const detectMinScore = ref(Math.min(0.75, Math.max(0.5, Number(settingsStore['faceDetect.minScore'] || 0.5))))
 const framesPerVideo = ref(Number(settingsStore['faceDetect.framesPerVideo'] || 6))
+const genderFilter = ref(
+  ['both', 'female', 'male'].includes(String(settingsStore['faceDetect.genderFilter'] || 'both'))
+    ? String(settingsStore['faceDetect.genderFilter'] || 'both')
+    : 'both',
+)
 const matchMode = ref(String(settingsStore['faceMatch.mode'] || 'auto'))
 const matchAfterDetect = ref(String(settingsStore['faceMatch.matchAfterDetect'] || '1') === '1')
 
@@ -793,6 +827,12 @@ const saveFramesPerVideo = () => {
   void setOption(String(value), 'faceDetect.framesPerVideo')
 }
 
+const saveGenderFilter = (value: string | null) => {
+  if (!value || !['both', 'female', 'male'].includes(value)) return
+  genderFilter.value = value
+  void setOption(value, 'faceDetect.genderFilter')
+}
+
 const saveMatchMode = (value: string | null) => {
   if (!value) return
   matchMode.value = value
@@ -995,6 +1035,24 @@ const runStreamJob = async (options: {
             setNotification({
               type: 'success',
               text: t('settings_labels.database.face_detect_model_downloaded'),
+            })
+          }
+          if (event.phase === 'downloading_gender') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_detect_gender_downloading'),
+            })
+            if (taskId.value) {
+              tasksStore.updateTask(taskId.value, {
+                subtitle: t('settings_labels.database.face_detect_gender_downloading'),
+                progress: 0,
+              })
+            }
+          }
+          if (event.phase === 'gender_ready') {
+            setNotification({
+              type: 'success',
+              text: t('settings_labels.database.face_detect_gender_downloaded'),
             })
           }
           if (event.phase === 'downloading_align') {

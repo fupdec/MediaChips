@@ -23,6 +23,14 @@ import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createSettingsRepository } from '../db/repositories/settings'
 import { resolveExistingPath } from './contentHash'
 import { assessMatchability } from './matchGates'
+import {
+  estimateGender,
+  loadGenderModel,
+  normalizeGenderFilter,
+  passesGenderFilter,
+  prepareGenderModel,
+  type FaceGenderFilter,
+} from './faceGender'
 
 const FACE_MODEL_ID = 'scrfd-10g'
 const FACE_MODEL_FILENAME = 'det_10g.onnx'
@@ -48,12 +56,14 @@ const SCRFD_NUM_ANCHORS = 2
 export interface FaceDetectSettings {
   minScore: number
   framesPerVideo: number
+  genderFilter: FaceGenderFilter
 }
 
 function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
   const rows = createSettingsRepository(db.drizzle).findByOptions([
     'faceDetect.minScore',
     'faceDetect.framesPerVideo',
+    'faceDetect.genderFilter',
   ])
   const map = new Map(rows.map((row) => [String(row.option), row.value]))
   const minScoreRaw = Number(map.get('faceDetect.minScore') ?? DEFAULT_MIN_SCORE)
@@ -65,6 +75,7 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
     framesPerVideo: Number.isFinite(framesRaw)
       ? Math.min(Math.max(Math.round(framesRaw), 1), 99)
       : 6,
+    genderFilter: normalizeGenderFilter(map.get('faceDetect.genderFilter')),
   }
 }
 
@@ -1049,12 +1060,33 @@ async function detectMedia(
       // Embedding is optional during detect; matching will skip faces without vectors.
     }
 
+    const genderFilter = detectSettings.genderFilter
+    let genderReady = false
+    if (genderFilter !== 'both') {
+      try {
+        await loadGenderModel(db)
+        genderReady = true
+      } catch {
+        // Gender filter is best-effort; keep faces if the model cannot load.
+        genderReady = false
+      }
+    }
+
     for (const frame of extracted.frames) {
       const detections = await detectFacesInFrame(model, frame.framePath, resolvedOptions)
       if (!detections.length) continue
 
       const sourceImage = await Jimp.read(frame.framePath)
       for (const detection of detections) {
+        if (genderReady && genderFilter !== 'both') {
+          try {
+            const predicted = await estimateGender(sourceImage, detection.box)
+            if (!passesGenderFilter(predicted?.gender, genderFilter)) continue
+          } catch {
+            // Keep the face when gender inference fails.
+          }
+        }
+
         let cropPath: string | null = null
         let cropRelativePath: string | null = null
         let embedding: string | null = null
@@ -1236,6 +1268,18 @@ async function* iterateFaceDetection(
       message: error instanceof Error ? error.message : 'Face detection model is unavailable.',
     }
     return
+  }
+
+  if (detectSettings.genderFilter !== 'both') {
+    try {
+      yield* prepareGenderModel(db)
+    } catch (error: unknown) {
+      yield {
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Face gender model is unavailable.',
+      }
+      return
+    }
   }
 
   try {

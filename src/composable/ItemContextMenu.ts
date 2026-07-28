@@ -808,6 +808,22 @@ export default function useItemContextMenu(
                 text: tr('settings_labels.database.face_detect_model_downloaded'),
               })
             }
+            if (event.phase === 'downloading_gender') {
+              setNotification({
+                type: 'info',
+                text: tr('settings_labels.database.face_detect_gender_downloading'),
+              })
+              tasksStore.updateTask(taskId, {
+                subtitle: tr('settings_labels.database.face_detect_gender_downloading'),
+                progress: 0,
+              })
+            }
+            if (event.phase === 'gender_ready') {
+              setNotification({
+                type: 'success',
+                text: tr('settings_labels.database.face_detect_gender_downloaded'),
+              })
+            }
             if (event.phase === 'downloading_align') {
               setNotification({
                 type: 'info',

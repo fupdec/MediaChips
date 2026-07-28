@@ -198,6 +198,7 @@ export type SettingsState = {
   'faceMatch.embedModelId': string
   'faceDetect.minScore': string
   'faceDetect.framesPerVideo': string
+  'faceDetect.genderFilter': string
 }
 
 export const defaultSettingsState = (): SettingsState => ({
@@ -301,4 +302,5 @@ export const defaultSettingsState = (): SettingsState => ({
   'faceMatch.embedModelId': 'insightface-r50-scrfd-kps-v1',
   'faceDetect.minScore': '0.5',
   'faceDetect.framesPerVideo': '6',
+  'faceDetect.genderFilter': 'both',
 })
