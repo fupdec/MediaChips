@@ -10,6 +10,7 @@ export const ADULT_COMPONENT_KEYS = {
   dialogScraperMultiple: 'DialogScraperMultiple',
   dialogSceneScraper: 'DialogSceneScraper',
   dialogSceneScraperMultiple: 'DialogSceneScraperMultiple',
+  dialogCamGirlFinder: 'DialogCamGirlFinder',
 } as const
 
 export type AdultComponentKey =
@@ -22,7 +23,7 @@ export const adultPluginManifest: PluginManifest = {
   name: 'Adult features',
   version: '0.1.0',
   description:
-    'Performer and scene scrapers, ThePornDB integration, and related adult tools.',
+    'Performer and scene scrapers, ThePornDB / CamGirlFinder integration, and related adult tools.',
   author: 'MediaChips',
   icon: 'shield-alert',
   engines: {mediachips: '>=1.0.0'},
@@ -60,6 +61,10 @@ export function activateAdultPlugin(api: PluginApi): void {
   api.dialogs.register({
     id: 'sceneScraperMultiple',
     componentKey: ADULT_COMPONENT_KEYS.dialogSceneScraperMultiple,
+  })
+  api.dialogs.register({
+    id: 'camgirlFinder',
+    componentKey: ADULT_COMPONENT_KEYS.dialogCamGirlFinder,
   })
 }
 

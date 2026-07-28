@@ -240,6 +240,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
       if (downloadUrl) {
         buf = await downloadRemoteImage(downloadUrl)
+      } else if (typeof image === 'string' && path.isAbsolute(image) && fs.existsSync(image)) {
+        buf = await fs.promises.readFile(image)
       } else {
         buf = Buffer.from(req.body.image, 'base64')
       }

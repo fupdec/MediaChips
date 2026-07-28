@@ -6,6 +6,7 @@ export const ADULT_COMPONENT_KEYS = {
   dialogScraperMultiple: 'DialogScraperMultiple',
   dialogSceneScraper: 'DialogSceneScraper',
   dialogSceneScraperMultiple: 'DialogSceneScraperMultiple',
+  dialogCamGirlFinder: 'DialogCamGirlFinder',
 } as const
 
 export type AdultComponentKey =

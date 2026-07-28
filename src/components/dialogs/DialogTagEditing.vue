@@ -29,19 +29,22 @@
           ref="editingComponent"
         >
           <template #media>
-            <EditDialogMediaPanel
-              mode="tag"
-              :images="images"
-              :current-index="currentIndex"
-              @update:current-index="currentIndex = $event"
-              @edited="onImageEdited"
-            />
-            <TagEnrollmentQuality
-              v-if="tag?.id && meta?.id"
-              ref="enrollmentQualityRef"
-              :tag-id="Number(tag.id)"
-              :meta-id="Number(meta.id)"
-            />
+            <div class="tag-edit-media">
+              <EditDialogMediaPanel
+                mode="tag"
+                :images="images"
+                :current-index="currentIndex"
+                @update:current-index="currentIndex = $event"
+                @edited="onImageEdited"
+              />
+              <TagEnrollmentQuality
+                v-if="tag?.id && meta?.id"
+                ref="enrollmentQualityRef"
+                class="tag-edit-media__quality"
+                :tag-id="Number(tag.id)"
+                :meta-id="Number(meta.id)"
+              />
+            </div>
           </template>
         </EditPinnedMetaValues>
       </v-card-text>
@@ -140,7 +143,11 @@ const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const is_show_dialog_delete_confirm = ref(false)
 const is_show_unsaved_confirm = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
-const enrollmentQualityRef = ref<{reload?: () => Promise<void>} | null>(null)
+const enrollmentQualityRef = ref<{
+  reload?: () => Promise<void>
+  applyResult?: (data: Record<string, unknown> | null) => void
+  beginRefresh?: () => void
+} | null>(null)
 const currentIndex = shallowRef(0)
 const editReloadKey = ref(0)
 const formDirty = ref(false)
@@ -170,6 +177,13 @@ const initButtons = () => {
       color: 'info',
       variant: 'flat',
       action: openScraper
+    })
+    buttons.value.push({
+      icon: 'face-recognition',
+      text: t('actions.camgirlfinder'),
+      color: 'info',
+      variant: 'tonal',
+      action: openCamGirlFinder
     })
     buttons.value.push({
       icon: 'cloud-download',
@@ -257,12 +271,38 @@ const getImages = async ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
   }
 }
 
-const onImageEdited = (payload?: ImageEditedPayload) => {
+const onImageEdited = async (payload?: ImageEditedPayload) => {
   if (tag.value && meta.value) {
     refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
   }
-  getImages({cacheBust: true})
-  void enrollmentQualityRef.value?.reload?.()
+  await getImages({cacheBust: true})
+
+  // Rebuild face references in DB for this person, then refresh quality UI.
+  if (tag.value?.id) {
+    enrollmentQualityRef.value?.beginRefresh?.()
+    try {
+      const response = await typedApi.enrollTagFaces({
+        tagId: Number(tag.value.id),
+        force: true,
+      })
+      const data = response.data as {
+        skipped?: boolean
+        quality?: Record<string, unknown> | null
+      } | undefined
+      if (data?.quality) {
+        enrollmentQualityRef.value?.applyResult?.(data.quality)
+      } else if (!data?.skipped) {
+        void enrollmentQualityRef.value?.reload?.()
+      } else {
+        enrollmentQualityRef.value?.applyResult?.(null)
+      }
+    } catch {
+      void enrollmentQualityRef.value?.reload?.()
+    }
+  } else {
+    void enrollmentQualityRef.value?.reload?.()
+  }
+
   if (payload?.extractedColor) {
     editingComponent.value?.tryApplyAutoColorFromImage?.(payload.extractedColor)
   }
@@ -379,6 +419,15 @@ const openScraper = () => {
     scraperStore.query = tag.value.name
   }
   dialogsStore.scraper.show = true
+}
+
+const openCamGirlFinder = () => {
+  if (!tag.value || !meta.value) return
+  dialogsStore.openCamGirlFinder({
+    query: tag.value.name || '',
+    tag: tag.value,
+    meta: meta.value,
+  })
 }
 
 const openTmdbPersonScraper = () => {
@@ -527,3 +576,17 @@ onBeforeUnmount(() => {
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
 })
 </script>
+
+<style scoped>
+.tag-edit-media {
+  position: relative;
+}
+
+.tag-edit-media__quality {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+  margin-top: 0;
+}
+</style>

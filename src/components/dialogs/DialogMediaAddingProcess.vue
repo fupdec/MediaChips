@@ -1153,6 +1153,52 @@ const detectFacesInAddedVideos = async () => {
     let buffer = ''
 
     const handleEvent = (event: Record<string, unknown>) => {
+      if (event.type === 'status') {
+        if (event.phase === 'downloading_detect') {
+          setNotification({
+            type: 'info',
+            text: t('settings_labels.database.face_detect_model_downloading'),
+          })
+          tasksStore.updateTask(detectionTaskId, {
+            subtitle: t('settings_labels.database.face_detect_model_downloading'),
+            progress: 0,
+          })
+        }
+        if (event.phase === 'detect_ready') {
+          setNotification({
+            type: 'success',
+            text: t('settings_labels.database.face_detect_model_downloaded'),
+          })
+        }
+        if (event.phase === 'downloading_align') {
+          setNotification({
+            type: 'info',
+            text: t('settings_labels.database.face_match_align_downloading'),
+          })
+          tasksStore.updateTask(detectionTaskId, {
+            subtitle: t('settings_labels.database.face_match_align_downloading'),
+            progress: 0,
+          })
+        }
+        if (event.phase === 'downloading_embed') {
+          setNotification({
+            type: 'info',
+            text: t('settings_labels.database.face_match_embed_downloading'),
+          })
+          tasksStore.updateTask(detectionTaskId, {
+            subtitle: t('settings_labels.database.face_match_embed_downloading'),
+            progress: 0,
+          })
+        }
+        if (event.phase === 'embed_ready') {
+          setNotification({
+            type: 'success',
+            text: t('settings_labels.database.face_match_embed_downloaded'),
+          })
+        }
+        return
+      }
+
       if (event.type === 'progress') {
         task.value.faceDetectionProcessed = Number(event.processed || 0)
         task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal || 0)

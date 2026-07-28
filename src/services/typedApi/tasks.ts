@@ -282,8 +282,13 @@ export const tasksApi = {
     return apiClient.get(API_ROUTES.taskFaceMatchStatus)
   },
 
-  getFacesForMedia(mediaId: number) {
-    return apiClient.get(API_ROUTES.taskFacesForMedia, {params: {mediaId}})
+  getFacesForMedia(mediaId: number, options: {ensureCrops?: boolean} = {}) {
+    return apiClient.get(API_ROUTES.taskFacesForMedia, {
+      params: {
+        mediaId,
+        ...(options.ensureCrops === false ? {ensureCrops: false} : {}),
+      },
+    })
   },
 
   getFaceEmbedModelStatus() {
@@ -319,6 +324,7 @@ export const tasksApi = {
     tagId: number
     enroll?: boolean
     applyTag?: boolean
+    matchScore?: number | null
   }) {
     return apiClient.post(API_ROUTES.taskAssignFacePerformer, body)
   },
@@ -329,6 +335,10 @@ export const tasksApi = {
 
   getEnrollmentQualityForTag(tagId: number) {
     return apiClient.get(API_ROUTES.taskEnrollmentQualityForTag, {params: {tagId}})
+  },
+
+  enrollTagFaces(body: {tagId: number; force?: boolean}) {
+    return apiClient.post(API_ROUTES.taskEnrollTagFaces, body)
   },
 
   createTab(body: TabCreatePayload) {

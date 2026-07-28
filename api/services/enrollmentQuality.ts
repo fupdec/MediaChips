@@ -6,6 +6,10 @@ import { detectFacesInFrame, loadModel } from './faceDetector'
 import { createFaceEnrollmentsRepository } from '../db/repositories/faceEnrollments'
 import { createTagsRepository } from '../db/repositories/tags'
 import { getFaceMatchSettings } from './faceRecognition'
+import {
+  ENROLL_MIN_DETECT_SCORE,
+  ENROLL_MIN_FACE_AREA_RATIO,
+} from './enrollmentGates'
 
 export type EnrollmentIssue =
   | 'missing_file'
@@ -47,9 +51,9 @@ export interface EnrollmentTagQuality {
 }
 
 const PREFERRED_IMAGE_TYPES = ['main', 'avatar', 'alt', 'custom1', 'custom2', 'header']
-const LOW_DETECT_SCORE = 0.55
+const LOW_DETECT_SCORE = ENROLL_MIN_DETECT_SCORE
 const GOOD_DETECT_SCORE = 0.7
-const MIN_FACE_AREA_RATIO = 0.04
+const MIN_FACE_AREA_RATIO = ENROLL_MIN_FACE_AREA_RATIO
 const INTRA_WEAK = 0.4
 const CONFUSION_WARN = 0.55
 

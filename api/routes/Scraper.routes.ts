@@ -7,6 +7,7 @@ import {
   SceneSearchRequestSchema,
   SceneMarkersApplyRequestSchema,
   SceneMarkersRequestSchema,
+  CamGirlFinderSearchRequestSchema,
 } from '../../shared/schemas/requests'
 import createScraperController from '../plugins/adult/Scraper.controller'
 
@@ -20,6 +21,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/scenes/match', validateBody(SceneMatchRequestSchema), Scraper.matchScenes)
   router.post('/scenes/markers', validateBody(SceneMarkersRequestSchema), Scraper.getSceneMarkers)
   router.post('/scenes/markers/apply', validateBody(SceneMarkersApplyRequestSchema), Scraper.applySceneMarkers)
+  router.post('/camgirlfinder/search', validateBody(CamGirlFinderSearchRequestSchema), Scraper.searchCamGirlFinder)
 
   app.use('/api/scraper', router)
 }

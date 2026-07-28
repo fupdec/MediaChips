@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import type { ApiDb } from '../../../../api/types/db'
 import { apiErrorMessage } from '../../../../api/types/errors'
 import type { ApiRequest, ApiResponse } from '../../../../api/types/http'
@@ -11,6 +13,17 @@ import {
   searchTpdbPerformers,
   searchTpdbScenes,
 } from './theporndbApi'
+import {
+  getCamGirlFinderSimilar,
+  searchCamGirlFinderByImage,
+  searchCamGirlFinderByUrl,
+  searchCamGirlFinderModels,
+} from './camgirlfinderApi'
+import {
+  flattenSimilarPredictions,
+  mapFaceSearchJobToPerformers,
+  mapNameSearchAccountsToPerformers,
+} from './camgirlfinderMap'
 import {
   adultPluginDisabledMessage,
   isAdultPluginEnabled,
@@ -39,6 +52,27 @@ interface SceneMarkersApplyRequestBody {
   mediaId?: number | string
   merge?: 'merge' | 'replace'
   markerMetaId?: number | string | null
+}
+
+interface CamGirlFinderSearchRequestBody {
+  mode?: 'face' | 'name'
+  query?: string
+  cropPath?: string
+  imageUrl?: string
+  platform?: string
+  gender?: string
+  includeSimilar?: boolean
+  limit?: number
+}
+
+function resolveSafeDbFilePath(dbPath: string, relativePath: string): string | null {
+  const root = path.resolve(dbPath)
+  const absolute = path.resolve(root, relativePath)
+  const relative = path.relative(root, absolute)
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    return null
+  }
+  return absolute
 }
 
 function parseLimit(value: unknown, fallback = 24): number {
@@ -261,6 +295,120 @@ export default function (db: ApiDb) {
     }
   }
 
+  const searchCamGirlFinder = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      if (rejectIfPluginDisabled(db, res)) return
+
+      const body = getRequestBody<CamGirlFinderSearchRequestBody>(req)
+      const query = String(body.query || '').trim()
+      const cropPath = String(body.cropPath || '').trim()
+      const imageUrl = String(body.imageUrl || '').trim()
+      const platform = String(body.platform || '').trim()
+      const gender = String(body.gender || '').trim()
+      const includeSimilar = body.includeSimilar !== false
+      const limit = parseLimit(body.limit, 24)
+      const mode = body.mode === 'name' || body.mode === 'face'
+        ? body.mode
+        : (cropPath || imageUrl ? 'face' : 'name')
+
+      if (mode === 'face') {
+        if (!cropPath && !imageUrl) {
+          res.status(400).send({message: 'cropPath or imageUrl is required for face search'})
+          return
+        }
+
+        let job
+        if (cropPath) {
+          const dbPath = String(db.path || '').trim()
+          if (!dbPath) {
+            res.status(500).send({message: 'Database path is unavailable'})
+            return
+          }
+
+          const absoluteCrop = resolveSafeDbFilePath(dbPath, cropPath)
+          if (!absoluteCrop) {
+            res.status(400).send({message: 'Invalid cropPath'})
+            return
+          }
+          if (!fs.existsSync(absoluteCrop)) {
+            res.status(404).send({message: 'Face crop not found'})
+            return
+          }
+
+          const image = fs.readFileSync(absoluteCrop)
+          job = await searchCamGirlFinderByImage(image, path.basename(absoluteCrop))
+        } else {
+          job = await searchCamGirlFinderByUrl(imageUrl)
+        }
+
+        if (job.status === 'noface') {
+          res.status(200).send({
+            mode: 'face',
+            jobId: job.id,
+            status: job.status,
+            data: [],
+            message: 'No face detected in the image',
+          })
+          return
+        }
+
+        if (job.status === 'failed') {
+          res.status(502).send({
+            message: job.error || 'CamGirlFinder face search failed',
+          })
+          return
+        }
+
+        res.status(200).send({
+          mode: 'face',
+          jobId: job.id,
+          status: job.status,
+          duration: job.duration,
+          urls: job.urls,
+          data: mapFaceSearchJobToPerformers(job, {limit}),
+        })
+        return
+      }
+
+      if (query.length < 3) {
+        res.status(400).send({message: 'query must be at least 3 characters'})
+        return
+      }
+
+      const accounts = await searchCamGirlFinderModels({
+        model: query,
+        platform: platform || undefined,
+        gender: gender || undefined,
+      })
+
+      const similarByAccount: Record<string, ReturnType<typeof flattenSimilarPredictions>> = {}
+      if (includeSimilar) {
+        const top = accounts.slice(0, Math.min(5, accounts.length))
+        await Promise.all(top.map(async (account) => {
+          try {
+            const similar = await getCamGirlFinderSimilar(account.platform, account.name)
+            similarByAccount[`${String(account.platform).toLowerCase()}::${String(account.name).toLowerCase()}`] =
+              flattenSimilarPredictions(similar)
+          } catch {
+            // Name search still works without similar accounts.
+          }
+        }))
+      }
+
+      res.status(200).send({
+        mode: 'name',
+        data: mapNameSearchAccountsToPerformers(accounts, {
+          similarByAccount,
+          limit,
+        }),
+      })
+    } catch (err: unknown) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Failed to search CamGirlFinder.',
+      })
+    }
+  }
+
   return {
     searchPerformers,
     searchScenes,
@@ -268,5 +416,6 @@ export default function (db: ApiDb) {
     status,
     getSceneMarkers,
     applySceneMarkers,
+    searchCamGirlFinder,
   }
 }

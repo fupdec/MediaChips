@@ -1,7 +1,9 @@
 <template>
   <div class="edit-pinned-overview">
     <v-card class="edit-pinned-overview__block rounded-xl px-2" color="rgba(150, 150, 150, 0.09)" flat>
-      <div class="text-medium-emphasis text-caption pt-2 mx-2">{{ t('editing.media_file_information') }}</div>
+      <div class="text-medium-emphasis text-caption pt-2 mx-2">
+        {{ isMedia ? t('editing.media_file_information') : t('editing.tag_information') }}
+      </div>
       <v-chip-group column class="px-2 mb-2 edit-pinned-overview__chips">
         <v-chip v-for="i in presetMeta" :key="i.name" size="small" :ripple="false" @click.prevent>
           <v-icon size="small" start>mdi-{{ i.icon }}</v-icon>

@@ -17,6 +17,7 @@
     :hide-no-data="!search"
     hide-selected
     multiple
+    :autofocus="autofocus"
     @keydown.enter="onEnter"
     @blur="onBlur"
   >
@@ -185,8 +186,10 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   cond?: string | null
   menuProps?: Record<string, unknown>
+  autofocus?: boolean
 }>(), {
   cond: null,
+  autofocus: false,
   menuProps: () => ({
     contentClass: "custom-list",
   }),
@@ -608,6 +611,20 @@ const getMeta = async () => {
   }
 }
 
+const focusField = async () => {
+  await nextTick()
+  const input = field.value as {
+    focus?: () => void
+    $el?: HTMLElement
+  } | null
+  if (input?.focus) {
+    input.focus()
+    return
+  }
+  const el = input?.$el?.querySelector?.('input') as HTMLInputElement | null | undefined
+  el?.focus?.()
+}
+
 // Lifecycle hooks
 let unsubscribeTagsCatalog: (() => void) | null = null
 
@@ -619,6 +636,13 @@ onMounted(async () => {
   unsubscribeTagsCatalog = onTagsCatalogChanged(() => {
     void refreshTagsFromEvent()
   })
+
+  if (props.autofocus) {
+    // Wait for parent menu/dialog transition so focus sticks.
+    window.setTimeout(() => {
+      void focusField()
+    }, 50)
+  }
 })
 
 onUnmounted(() => {
@@ -626,6 +650,8 @@ onUnmounted(() => {
   unsubscribeTagsCatalog?.()
   unsubscribeTagsCatalog = null
 })
+
+defineExpose({focus: focusField})
 
 // Watchers
 watch(() => props.modelValue, (newVal: number[] | number | undefined) => {

@@ -298,7 +298,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'faceMatch.candidateLimit': '10',
   'faceMatch.mode': 'auto',
   'faceMatch.matchAfterDetect': '1',
-  'faceMatch.embedModelId': 'insightface-mbf-v2',
-  'faceDetect.minScore': '0.9',
+  'faceMatch.embedModelId': 'insightface-r50-scrfd-kps-v1',
+  'faceDetect.minScore': '0.5',
   'faceDetect.framesPerVideo': '6',
 })

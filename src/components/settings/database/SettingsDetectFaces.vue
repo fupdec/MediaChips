@@ -108,7 +108,7 @@
               rounded
               variant="flat"
               class="pr-4"
-              :disabled="busy || !selectedPerformerMeta || !modelsReady"
+              :disabled="busy || !selectedPerformerMeta || !modelReady"
               @click="startEnrollment(false)"
             >
               <v-icon icon="mdi-account-box-multiple" start/>
@@ -120,7 +120,7 @@
               rounded
               variant="outlined"
               class="pr-4"
-              :disabled="busy || !selectedPerformerMeta || !modelsReady"
+              :disabled="busy || !selectedPerformerMeta || !modelReady"
               @click="startEnrollment(true)"
             >
               <v-icon icon="mdi-refresh" start/>
@@ -137,6 +137,43 @@
               <v-icon icon="mdi-clipboard-check-outline" start/>
               {{ t('settings_labels.database.face_match_enrollment_quality') }}
             </v-btn>
+          </div>
+
+          <div
+            v-if="step.id === 'enroll' && (activeJob === 'enroll' || (lastCompletedJob === 'enroll' && lastSummary && !activeJob))"
+            class="mt-3"
+          >
+            <v-progress-linear
+              v-if="activeJob === 'enroll'"
+              :model-value="progress"
+              color="primary"
+              height="8"
+              rounded
+              striped
+              class="mb-2"
+            />
+            <div v-if="activeJob === 'enroll' && currentPath" class="text-caption text-medium-emphasis mb-1 selectable">
+              {{ currentPath }}
+            </div>
+            <div v-if="activeJob === 'enroll'" class="text-caption text-medium-emphasis">
+              {{ activeProgressLabel }}
+            </div>
+            <div v-if="lastCompletedJob === 'enroll' && lastSummary && !activeJob" class="text-body-2">
+              {{ lastSummary }}
+            </div>
+            <div v-if="activeJob === 'enroll'" class="mt-2">
+              <v-btn
+                @click="stopJob"
+                color="error"
+                rounded
+                variant="flat"
+                size="small"
+                class="pr-3"
+              >
+                <v-icon icon="mdi-stop" start/>
+                {{ t('common.stop') }}
+              </v-btn>
+            </div>
           </div>
 
           <div
@@ -184,40 +221,95 @@
             </v-btn>
           </div>
 
+          <div
+            v-if="step.id === 'detect' && (activeJob === 'detect' || (lastCompletedJob === 'detect' && lastSummary && !activeJob))"
+            class="mt-3"
+          >
+            <v-progress-linear
+              v-if="activeJob === 'detect'"
+              :model-value="progress"
+              color="primary"
+              height="8"
+              rounded
+              striped
+              class="mb-2"
+            />
+            <div v-if="activeJob === 'detect' && currentPath" class="text-caption text-medium-emphasis mb-1 selectable">
+              {{ currentPath }}
+            </div>
+            <div v-if="activeJob === 'detect'" class="text-caption text-medium-emphasis">
+              {{ activeProgressLabel }}
+            </div>
+            <div v-if="lastCompletedJob === 'detect' && lastSummary && !activeJob" class="text-body-2">
+              {{ lastSummary }}
+            </div>
+            <div v-if="activeJob === 'detect'" class="mt-2">
+              <v-btn
+                @click="stopJob"
+                color="error"
+                rounded
+                variant="flat"
+                size="small"
+                class="pr-3"
+              >
+                <v-icon icon="mdi-stop" start/>
+                {{ t('common.stop') }}
+              </v-btn>
+            </div>
+          </div>
+
           <div v-if="step.id === 'match'" class="mt-3 d-flex flex-wrap ga-2">
             <v-btn
               color="primary"
               rounded
               variant="flat"
               class="pr-4"
-              :disabled="busy || !embedReady || matchStatusView.enrolledTags === 0 || matchStatusView.faces === 0"
+              :disabled="busy || matchStatusView.enrolledTags === 0 || matchStatusView.faces === 0"
               @click="startMatching(false)"
             >
               <v-icon icon="mdi-link-variant" start/>
               {{ t('settings_labels.database.face_match_run') }}
             </v-btn>
           </div>
+
+          <div
+            v-if="step.id === 'match' && (activeJob === 'match' || (lastCompletedJob === 'match' && lastSummary && !activeJob))"
+            class="mt-3"
+          >
+            <v-progress-linear
+              v-if="activeJob === 'match'"
+              :model-value="progress"
+              color="primary"
+              height="8"
+              rounded
+              striped
+              class="mb-2"
+            />
+            <div v-if="activeJob === 'match' && currentPath" class="text-caption text-medium-emphasis mb-1 selectable">
+              {{ currentPath }}
+            </div>
+            <div v-if="activeJob === 'match'" class="text-caption text-medium-emphasis">
+              {{ activeProgressLabel }}
+            </div>
+            <div v-if="lastCompletedJob === 'match' && lastSummary && !activeJob" class="text-body-2">
+              {{ lastSummary }}
+            </div>
+            <div v-if="activeJob === 'match'" class="mt-2">
+              <v-btn
+                @click="stopJob"
+                color="error"
+                rounded
+                variant="flat"
+                size="small"
+                class="pr-3"
+              >
+                <v-icon icon="mdi-stop" start/>
+                {{ t('common.stop') }}
+              </v-btn>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <v-progress-linear
-      v-if="busy && activeJob"
-      :model-value="progress"
-      color="primary"
-      height="8"
-      rounded
-      striped
-      class="mb-2"
-    />
-    <div v-if="busy && currentPath" class="text-caption text-medium-emphasis mb-1 selectable">
-      {{ currentPath }}
-    </div>
-    <div v-if="busy && activeJob" class="text-caption text-medium-emphasis mb-4">
-      {{ activeProgressLabel }}
-    </div>
-    <div v-if="lastSummary" class="text-body-2 mb-4">
-      {{ lastSummary }}
     </div>
 
     <div class="d-flex flex-wrap ga-2 mb-4">
@@ -233,17 +325,6 @@
         <v-icon icon="mdi-refresh" start/>
         {{ t('settings_labels.database.refresh_status') }}
       </v-btn>
-      <v-btn
-        v-if="busy && activeJob"
-        @click="stopJob"
-        color="error"
-        rounded
-        variant="flat"
-        class="pr-4"
-      >
-        <v-icon icon="mdi-stop" start/>
-        {{ t('common.stop') }}
-      </v-btn>
     </div>
 
     <v-expansion-panels variant="accordion" rounded="xl" class="face-advanced">
@@ -254,41 +335,44 @@
         <v-expansion-panel-text>
           <div class="face-advanced__group">
             <div class="face-advanced__title">
-              {{ t('settings_labels.database.face_detect_strictness') }}: {{ Number(detectMinScore).toFixed(2) }}
+              {{ t('settings_labels.database.face_detect_strictness') }}: {{ asPercent(detectMinScore) }}
             </div>
             <div class="face-advanced__hint">
               {{ t('settings_labels.database.face_detect_strictness_hint') }}
             </div>
-            <v-slider
-              v-model="detectMinScore"
-              :min="0.5"
-              :max="0.98"
-              :step="0.02"
-              color="primary"
-              thumb-label
-              class="mb-2"
-              :disabled="busy"
-              @end="saveDetectMinScore"
-            />
-            <div class="d-flex flex-wrap ga-2">
+            <div class="d-flex flex-wrap ga-2 mb-2">
               <v-btn
                 v-for="preset in detectStrictnessPresets"
                 :key="preset.value"
                 size="small"
                 rounded
-                :variant="Number(detectMinScore) === preset.value ? 'flat' : 'outlined'"
-                :color="Number(detectMinScore) === preset.value ? 'primary' : 'secondary'"
+                :variant="Math.abs(detectMinScore - preset.value) < 0.01 ? 'flat' : 'outlined'"
+                :color="Math.abs(detectMinScore - preset.value) < 0.01 ? 'primary' : 'secondary'"
                 :disabled="busy"
-                @click="applyDetectStrictnessPreset(preset.value)"
+                @click="saveDetectMinScorePreset(preset.value)"
               >
                 {{ t(preset.labelKey) }}
               </v-btn>
             </div>
+            <v-slider
+              v-model="detectMinScore"
+              :min="0.5"
+              :max="0.75"
+              :step="0.01"
+              color="primary"
+              thumb-label
+              :disabled="busy"
+              @end="saveDetectMinScore"
+            >
+              <template #thumb-label="{ modelValue }">
+                {{ asPercent(modelValue) }}
+              </template>
+            </v-slider>
           </div>
 
           <div class="face-advanced__group">
             <div class="face-advanced__title">
-              {{ t('settings_labels.database.face_match_confidence') }}: {{ Number(minConfidence).toFixed(2) }}
+              {{ t('settings_labels.database.face_match_confidence') }}: {{ asPercent(minConfidence) }}
             </div>
             <div class="face-advanced__hint">
               {{ t('settings_labels.database.face_match_confidence_hint') }}
@@ -300,24 +384,13 @@
               :step="0.05"
               color="primary"
               thumb-label
-              class="mb-2"
               :disabled="busy"
               @end="saveConfidence"
-            />
-            <div class="d-flex flex-wrap ga-2">
-              <v-btn
-                v-for="preset in confidencePresets"
-                :key="preset.value"
-                size="small"
-                rounded
-                :variant="Number(minConfidence) === preset.value ? 'flat' : 'outlined'"
-                :color="Number(minConfidence) === preset.value ? 'primary' : 'secondary'"
-                :disabled="busy"
-                @click="applyConfidencePreset(preset.value)"
-              >
-                {{ t(preset.labelKey) }}
-              </v-btn>
-            </div>
+            >
+              <template #thumb-label="{ modelValue }">
+                {{ asPercent(modelValue) }}
+              </template>
+            </v-slider>
           </div>
 
           <div class="face-advanced__group">
@@ -379,7 +452,7 @@
                 {{ t(preset.labelKey) }}
               </v-btn>
             </div>
-            <div class="mt-6">
+            <div class="mt-10">
               <settings-switch
                 option="faceMatch.matchAfterDetect"
                 :title="t('settings_labels.database.face_match_after_detect')"
@@ -420,7 +493,8 @@ interface DetectionStatus {
 }
 
 interface StreamEvent {
-  type: 'progress' | 'complete' | 'error'
+  type: 'progress' | 'complete' | 'error' | 'status'
+  phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready' | 'downloading_detect' | 'detect_ready'
   processed?: number
   total?: number
   created?: number
@@ -433,6 +507,7 @@ interface StreamEvent {
   applied?: number
   current?: string
   message?: string
+  sizeMb?: number
   stopped?: boolean
 }
 
@@ -450,21 +525,15 @@ const buildRequestHeaders = (withJson = false): Record<string, string> => {
   }
 }
 
-const confidencePresets = [
-  {value: 0.45, labelKey: 'settings_labels.database.face_match_confidence_loose'},
-  {value: 0.55, labelKey: 'settings_labels.database.face_match_confidence_balanced'},
-  {value: 0.7, labelKey: 'settings_labels.database.face_match_confidence_strict'},
-]
-
 const matchModePresets = [
   {value: 'auto', labelKey: 'settings_labels.database.face_match_mode_auto'},
   {value: 'suggest', labelKey: 'settings_labels.database.face_match_mode_suggest'},
 ]
 
 const detectStrictnessPresets = [
-  {value: 0.7, labelKey: 'settings_labels.database.face_detect_strictness_loose'},
-  {value: 0.85, labelKey: 'settings_labels.database.face_detect_strictness_balanced'},
-  {value: 0.9, labelKey: 'settings_labels.database.face_detect_strictness_strict'},
+  {value: 0.5, labelKey: 'settings_labels.database.face_detect_strictness_loose'},
+  {value: 0.6, labelKey: 'settings_labels.database.face_detect_strictness_balanced'},
+  {value: 0.7, labelKey: 'settings_labels.database.face_detect_strictness_strict'},
 ]
 
 const emptyStatus: DetectionStatus = {total: 0, pending: 0, generated: 0, faces: 0}
@@ -473,6 +542,7 @@ const statusLoading = ref(false)
 const statusLoaded = ref(false)
 const statusError = ref('')
 const activeJob = ref<'detect' | 'enroll' | 'match' | null>(null)
+const lastCompletedJob = ref<'detect' | 'enroll' | 'match' | null>(null)
 const progress = ref(0)
 const currentPath = ref('')
 const lastSummary = ref('')
@@ -487,11 +557,14 @@ const counters = ref<Record<string, number>>({})
 const selectedPerformerMeta = ref<Meta | null>(null)
 const minConfidence = ref(Number(settingsStore['faceMatch.minConfidence'] || 0.55))
 const candidateLimit = ref(Number(settingsStore['faceMatch.candidateLimit'] || 10))
-const detectMinScore = ref(Number(settingsStore['faceDetect.minScore'] || 0.9))
+const detectMinScore = ref(Math.min(0.75, Math.max(0.5, Number(settingsStore['faceDetect.minScore'] || 0.5))))
 const framesPerVideo = ref(Number(settingsStore['faceDetect.framesPerVideo'] || 6))
 const matchMode = ref(String(settingsStore['faceMatch.mode'] || 'auto'))
 const matchAfterDetect = ref(String(settingsStore['faceMatch.matchAfterDetect'] || '1') === '1')
 
+const asPercent = (value: number | string | null | undefined) => (
+  `${Math.round(Number(value || 0) * 100)}%`
+)
 const matchStatusView = ref({
   performerTags: 0,
   enrolledTags: 0,
@@ -697,11 +770,6 @@ const saveConfidence = () => {
   void setOption(String(minConfidence.value), 'faceMatch.minConfidence')
 }
 
-const applyConfidencePreset = (value: number) => {
-  minConfidence.value = value
-  saveConfidence()
-}
-
 const saveCandidateLimit = () => {
   const value = Math.min(20, Math.max(3, Math.round(Number(candidateLimit.value) || 10)))
   candidateLimit.value = value
@@ -709,12 +777,12 @@ const saveCandidateLimit = () => {
 }
 
 const saveDetectMinScore = () => {
-  const value = Math.min(0.98, Math.max(0.5, Number(detectMinScore.value) || 0.9))
+  const value = Math.min(0.75, Math.max(0.5, Number(detectMinScore.value) || 0.5))
   detectMinScore.value = value
   void setOption(String(value), 'faceDetect.minScore')
 }
 
-const applyDetectStrictnessPreset = (value: number) => {
+const saveDetectMinScorePreset = (value: number) => {
   detectMinScore.value = value
   saveDetectMinScore()
 }
@@ -791,9 +859,17 @@ const downloadModel = async () => {
 const downloadEmbedModel = async () => {
   embedDownloading.value = true
   embedStatus.value = 'loading'
+  setNotification({
+    type: 'info',
+    text: t('settings_labels.database.face_match_embed_downloading'),
+  })
   try {
     const response = await typedApi.downloadFaceEmbedModel()
     embedStatus.value = response.data?.status || 'downloaded'
+    setNotification({
+      type: 'success',
+      text: t('settings_labels.database.face_match_embed_downloaded'),
+    })
   } catch {
     embedStatus.value = 'error'
     throw new Error(t('settings_labels.database.face_match_embed_failed'))
@@ -806,7 +882,7 @@ const downloadAllModels = async () => {
   try {
     if (!modelReady.value) await downloadModel()
     if (!embedReady.value) await downloadEmbedModel()
-    setNotification({type: 'success', text: t('settings.path_parser.statuses.downloaded')})
+    else setNotification({type: 'success', text: t('settings.path_parser.statuses.downloaded')})
   } catch (error: unknown) {
     setNotification({
       type: 'error',
@@ -864,6 +940,7 @@ const runStreamJob = async (options: {
   progress.value = 0
   currentPath.value = ''
   lastSummary.value = ''
+  lastCompletedJob.value = null
   counters.value = {processed: 0, total: 0}
 
   abortController.value = new AbortController()
@@ -901,6 +978,61 @@ const runStreamJob = async (options: {
       for (const line of lines) {
         if (!line.trim()) continue
         const event = JSON.parse(line) as StreamEvent
+        if (event.type === 'status') {
+          if (event.phase === 'downloading_detect') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_detect_model_downloading'),
+            })
+            if (taskId.value) {
+              tasksStore.updateTask(taskId.value, {
+                subtitle: t('settings_labels.database.face_detect_model_downloading'),
+                progress: 0,
+              })
+            }
+          }
+          if (event.phase === 'detect_ready') {
+            setNotification({
+              type: 'success',
+              text: t('settings_labels.database.face_detect_model_downloaded'),
+            })
+          }
+          if (event.phase === 'downloading_align') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_match_align_downloading'),
+            })
+            if (taskId.value) {
+              tasksStore.updateTask(taskId.value, {
+                subtitle: t('settings_labels.database.face_match_align_downloading'),
+                progress: 0,
+              })
+            }
+          }
+          if (event.phase === 'downloading_embed') {
+            embedDownloading.value = true
+            embedStatus.value = 'loading'
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_match_embed_downloading'),
+            })
+            if (taskId.value) {
+              tasksStore.updateTask(taskId.value, {
+                subtitle: t('settings_labels.database.face_match_embed_downloading'),
+                progress: 0,
+              })
+            }
+          }
+          if (event.phase === 'embed_ready') {
+            embedDownloading.value = false
+            embedStatus.value = 'downloaded'
+            setNotification({
+              type: 'success',
+              text: t('settings_labels.database.face_match_embed_downloaded'),
+            })
+          }
+          continue
+        }
         if (event.type === 'progress') {
           counters.value = {...event} as Record<string, number>
           currentPath.value = event.current || ''
@@ -917,6 +1049,7 @@ const runStreamJob = async (options: {
         if (event.type === 'complete') {
           counters.value = {...event} as Record<string, number>
           lastSummary.value = t(options.completeKey, counters.value)
+          lastCompletedJob.value = options.job
           progress.value = 100
         }
         if (event.type === 'error') {
@@ -981,6 +1114,10 @@ const startMatching = (force: boolean) => runStreamJob({
 })
 
 onMounted(() => {
+  const storedStrictness = Number(settingsStore['faceDetect.minScore'] || 0.5)
+  if (Number.isFinite(storedStrictness) && storedStrictness > 0.75) {
+    saveDetectMinScore()
+  }
   void refreshStatus()
 })
 </script>
@@ -1052,12 +1189,10 @@ onMounted(() => {
 
 .face-advanced__group {
   padding: 14px 0;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 
 .face-advanced__group:first-child {
   padding-top: 4px;
-  border-top: none;
 }
 
 .face-advanced__group:last-child {

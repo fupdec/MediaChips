@@ -185,10 +185,10 @@
                   @mouseover.stop="onTagHover($event, face.tagMetaId, face.tagId, face.tagName)"
                   @mouseleave.stop="hideHoverImage"
                 >
-                  <v-avatar v-if="tagThumb(face.tagMetaId, face.tagId)" size="32" rounded="lg">
+                  <v-avatar v-if="tagThumb(face.tagMetaId, face.tagId)" size="32" rounded="circle">
                     <v-img :src="tagThumb(face.tagMetaId, face.tagId)" cover/>
                   </v-avatar>
-                  <v-avatar v-else size="32" rounded="lg" color="surface-variant">
+                  <v-avatar v-else size="32" rounded="circle" color="surface-variant">
                     <v-icon size="16" icon="mdi-account"/>
                   </v-avatar>
                   <div class="text-body-2 font-weight-medium text-truncate">
@@ -216,7 +216,7 @@
                       :class="{'face-card__candidate--active': candidate.tagId === face.tagId}"
                       :disabled="busy"
                       :title="scoreTooltip(candidate.score, candidate.tagName)"
-                      @click="assignCandidate(face, candidate.tagId)"
+                      @click="assignCandidate(face, candidate.tagId, {matchScore: candidate.score})"
                       @mouseover.stop="onTagHover($event, candidate.tagMetaId, candidate.tagId, candidate.tagName)"
                       @mouseleave.stop="hideHoverImage"
                     >
@@ -244,39 +244,96 @@
                   </div>
                 </div>
 
-                <div v-if="assigningFaceId === face.id" class="mb-2">
-                  <MetaInputArray
-                    :key="`assign-${face.id}-${performerMetaId}`"
-                    :meta-id="performerMetaId"
-                    :model-value="[]"
-                    @update:model-value="(value) => onAssign(face, value)"
-                  />
-                </div>
-
-                <div class="d-flex flex-wrap ga-2">
-                  <v-btn
-                    v-if="face.matchStatus === 'suggested' && face.tagId"
-                    size="small"
-                    color="primary"
-                    rounded
-                    variant="flat"
-                    :loading="busyFaceId === face.id"
-                    :disabled="busy"
-                    @click="confirmSuggested(face)"
-                  >
-                    {{ t('face_results.confirm') }}
-                  </v-btn>
-                  <v-btn
+                <div class="face-card__actions d-flex flex-wrap ga-2">
+                  <v-menu
                     v-if="needsReview(face) || face.matchStatus === 'matched' || face.matchStatus === 'manual'"
-                    size="small"
-                    color="secondary"
-                    rounded
-                    variant="outlined"
-                    :disabled="busy || !performerMetaId"
-                    @click="toggleAssign(face)"
+                    :model-value="detailFaceId == null && assigningFaceId === face.id"
+                    :close-on-content-click="false"
+                    location="bottom"
+                    offset="8"
+                    @update:model-value="(open) => setAssignMenu(face, open)"
                   >
-                    {{ assignActionLabel(face) }}
-                  </v-btn>
+                    <template #activator="{props: menuProps}">
+                      <v-btn
+                        v-bind="menuProps"
+                        size="small"
+                        color="secondary"
+                        rounded
+                        variant="outlined"
+                        :disabled="busy || !performerMetaId"
+                      >
+                        {{ assignActionLabel(face) }}
+                      </v-btn>
+                    </template>
+                    <v-card min-width="280" max-width="360" rounded="xl" class="pa-3">
+                      <MetaInputArray
+                        :key="`assign-${face.id}-${performerMetaId}`"
+                        :meta-id="performerMetaId"
+                        :model-value="[]"
+                        autofocus
+                        @update:model-value="(value) => onAssign(face, value)"
+                      />
+                    </v-card>
+                  </v-menu>
+                  <v-menu
+                    v-if="canCreateTag(face)"
+                    :model-value="detailFaceId == null && creatingFaceId === face.id"
+                    :close-on-content-click="false"
+                    location="bottom"
+                    offset="8"
+                    @update:model-value="(open) => setCreateMenu(face, open)"
+                  >
+                    <template #activator="{props: menuProps}">
+                      <v-btn
+                        v-bind="menuProps"
+                        size="small"
+                        color="success"
+                        rounded
+                        variant="tonal"
+                        :disabled="busy || !performerMetaId"
+                      >
+                        {{ t('face_results.create_tag') }}
+                      </v-btn>
+                    </template>
+                    <v-card min-width="260" max-width="320" rounded="xl" class="pa-3">
+                      <div class="text-caption text-medium-emphasis mb-2">
+                        {{ t('face_results.create_tag_hint') }}
+                      </div>
+                      <v-text-field
+                        v-model="newTagName"
+                        :label="t('face_results.create_tag_name')"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        autofocus
+                        :disabled="busy"
+                        @keydown.enter.prevent="createTagFromFace(face)"
+                      />
+                      <div class="d-flex flex-wrap ga-2 mt-3">
+                        <v-btn
+                          size="small"
+                          color="success"
+                          rounded
+                          variant="flat"
+                          :loading="busyFaceId === face.id"
+                          :disabled="busy || !newTagName.trim()"
+                          @click="createTagFromFace(face)"
+                        >
+                          {{ t('face_results.create_tag_submit') }}
+                        </v-btn>
+                        <v-btn
+                          size="small"
+                          color="secondary"
+                          rounded
+                          variant="text"
+                          :disabled="busy"
+                          @click="setCreateMenu(face, false)"
+                        >
+                          {{ t('common.cancel') }}
+                        </v-btn>
+                      </div>
+                    </v-card>
+                  </v-menu>
                   <v-btn
                     v-if="face.tagId && (face.matchStatus === 'matched' || face.matchStatus === 'manual')"
                     size="small"
@@ -288,6 +345,17 @@
                     @click="clearMatch(face)"
                   >
                     {{ t('face_results.clear') }}
+                  </v-btn>
+                  <v-btn
+                    v-if="adultUiAvailable && face.cropPath"
+                    size="small"
+                    color="info"
+                    rounded
+                    variant="tonal"
+                    :disabled="busy"
+                    @click="openCamGirlFinder(face)"
+                  >
+                    {{ t('actions.camgirlfinder') }}
                   </v-btn>
                 </div>
               </div>
@@ -386,7 +454,7 @@
             @mouseover.stop="onTagHover($event, detailFace.tagMetaId, detailFace.tagId, detailFace.tagName)"
             @mouseleave.stop="hideHoverImage"
           >
-            <v-avatar v-if="tagThumb(detailFace.tagMetaId, detailFace.tagId)" size="40" rounded="lg">
+            <v-avatar v-if="tagThumb(detailFace.tagMetaId, detailFace.tagId)" size="40" rounded="circle">
               <v-img :src="tagThumb(detailFace.tagMetaId, detailFace.tagId)" cover/>
             </v-avatar>
             <div>
@@ -416,7 +484,7 @@
                 :class="{'face-card__candidate--active': candidate.tagId === detailFace.tagId}"
                 :disabled="busy"
                 :title="scoreTooltip(candidate.score, candidate.tagName)"
-                @click="assignCandidate(detailFace, candidate.tagId)"
+                @click="assignCandidate(detailFace, candidate.tagId, {matchScore: candidate.score})"
                 @mouseover.stop="onTagHover($event, candidate.tagMetaId, candidate.tagId, candidate.tagName)"
                 @mouseleave.stop="hideHoverImage"
               >
@@ -444,36 +512,91 @@
             </div>
           </div>
 
-          <div v-if="assigningFaceId === detailFace.id" class="mb-3">
-            <MetaInputArray
-              :key="`detail-assign-${detailFace.id}-${performerMetaId}`"
-              :meta-id="performerMetaId"
-              :model-value="[]"
-              @update:model-value="(value) => onAssign(detailFace, value)"
-            />
-          </div>
-
-          <div class="d-flex flex-wrap ga-2">
-            <v-btn
-              v-if="detailFace.matchStatus === 'suggested' && detailFace.tagId"
-              color="primary"
-              rounded
-              variant="flat"
-              :loading="busyFaceId === detailFace.id"
-              :disabled="busy"
-              @click="confirmSuggested(detailFace)"
+          <div class="face-card__actions d-flex flex-wrap ga-2">
+            <v-menu
+              :model-value="assigningFaceId === detailFace.id"
+              :close-on-content-click="false"
+              location="bottom"
+              offset="8"
+              @update:model-value="(open) => setAssignMenu(detailFace, open)"
             >
-              {{ t('face_results.confirm') }}
-            </v-btn>
-            <v-btn
-              color="secondary"
-              rounded
-              variant="outlined"
-              :disabled="busy || !performerMetaId"
-              @click="toggleAssign(detailFace)"
+              <template #activator="{props: menuProps}">
+                <v-btn
+                  v-bind="menuProps"
+                  color="secondary"
+                  rounded
+                  variant="outlined"
+                  :disabled="busy || !performerMetaId"
+                >
+                  {{ assignActionLabel(detailFace) }}
+                </v-btn>
+              </template>
+              <v-card min-width="280" max-width="360" rounded="xl" class="pa-3">
+                <MetaInputArray
+                  :key="`detail-assign-${detailFace.id}-${performerMetaId}`"
+                  :meta-id="performerMetaId"
+                  :model-value="[]"
+                  autofocus
+                  @update:model-value="(value) => onAssign(detailFace, value)"
+                />
+              </v-card>
+            </v-menu>
+            <v-menu
+              v-if="canCreateTag(detailFace)"
+              :model-value="creatingFaceId === detailFace.id"
+              :close-on-content-click="false"
+              location="bottom"
+              offset="8"
+              @update:model-value="(open) => setCreateMenu(detailFace, open)"
             >
-              {{ assignActionLabel(detailFace) }}
-            </v-btn>
+              <template #activator="{props: menuProps}">
+                <v-btn
+                  v-bind="menuProps"
+                  color="success"
+                  rounded
+                  variant="tonal"
+                  :disabled="busy || !performerMetaId"
+                >
+                  {{ t('face_results.create_tag') }}
+                </v-btn>
+              </template>
+              <v-card min-width="280" max-width="340" rounded="xl" class="pa-3">
+                <div class="text-caption text-medium-emphasis mb-2">
+                  {{ t('face_results.create_tag_hint') }}
+                </div>
+                <v-text-field
+                  v-model="newTagName"
+                  :label="t('face_results.create_tag_name')"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  autofocus
+                  :disabled="busy"
+                  @keydown.enter.prevent="createTagFromFace(detailFace)"
+                />
+                <div class="d-flex flex-wrap ga-2 mt-3">
+                  <v-btn
+                    color="success"
+                    rounded
+                    variant="flat"
+                    :loading="busyFaceId === detailFace.id"
+                    :disabled="busy || !newTagName.trim()"
+                    @click="createTagFromFace(detailFace)"
+                  >
+                    {{ t('face_results.create_tag_submit') }}
+                  </v-btn>
+                  <v-btn
+                    color="secondary"
+                    rounded
+                    variant="text"
+                    :disabled="busy"
+                    @click="setCreateMenu(detailFace, false)"
+                  >
+                    {{ t('common.cancel') }}
+                  </v-btn>
+                </div>
+              </v-card>
+            </v-menu>
             <v-btn
               v-if="detailFace.tagId"
               color="secondary"
@@ -484,6 +607,16 @@
               @click="clearMatch(detailFace)"
             >
               {{ t('face_results.clear') }}
+            </v-btn>
+            <v-btn
+              v-if="adultUiAvailable && detailFace.cropPath"
+              color="info"
+              rounded
+              variant="tonal"
+              :disabled="busy"
+              @click="openCamGirlFinder(detailFace)"
+            >
+              {{ t('actions.camgirlfinder') }}
             </v-btn>
           </div>
         </v-card-text>
@@ -501,11 +634,17 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 import {typedApi} from '@/services/typedApi'
-import {buildLocalFileUrl} from '@/services/fileService'
+import {buildLocalFileUrl, createImage} from '@/services/fileService'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {setNotification} from '@/services/notificationService'
 import {useItemsListSync} from '@/composable/itemsListSync'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {isAdultUiAvailable} from '@/services/adultFeatures'
+import {useEventBus} from '@/utils/eventBus'
+import {useItemsStore} from '@/stores/items'
+import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
+import {TAG_IMAGE_SAVE_WIDTH} from '@shared/tagImages'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 
@@ -542,15 +681,20 @@ const {xs, xl} = useDisplay()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
+const itemsStore = useItemsStore()
 const listSync = useItemsListSync()
+const eventBus = useEventBus()
 
 const loading = ref(false)
 const rematching = ref(false)
+const confirmingAll = ref(false)
 const error = ref('')
 const faces = ref<FaceResult[]>([])
 const filter = ref<FaceFilter>('needs_review')
 const filterInitialized = ref(false)
 const assigningFaceId = ref<number | null>(null)
+const creatingFaceId = ref<number | null>(null)
+const newTagName = ref('')
 const busyFaceId = ref<number | null>(null)
 const detailFaceId = ref<number | null>(null)
 
@@ -559,7 +703,7 @@ const fileName = computed(() => {
   const mediaPath = media.value?.path || ''
   return mediaPath.split(/[/\\]/).pop() || mediaPath || String(media.value?.id || '')
 })
-const busy = computed(() => busyFaceId.value != null || rematching.value)
+const busy = computed(() => busyFaceId.value != null || rematching.value || confirmingAll.value)
 
 const performerMetaId = computed(() => {
   const configured = Number(settingsStore['faceMatch.performerMetaId'] || 0)
@@ -572,11 +716,38 @@ const peopleMeta = computed(() => (
   (appStore.meta || []).find((meta) => Number(meta.id) === performerMetaId.value) || null
 ))
 
+const adultUiAvailable = computed(() => isAdultUiAvailable())
+
+const resolveFaceTagContext = (face: FaceResult) => {
+  const metaId = Number(face.tagMetaId || performerMetaId.value || 0)
+  const tagId = Number(face.tagId || 0)
+  const meta = (appStore.meta || []).find((item) => Number(item.id) === metaId) || peopleMeta.value
+  const tag = tagId
+    ? (appStore.tags || []).find((item) => Number(item.id) === tagId) || null
+    : null
+  return {meta, tag}
+}
+
+const openCamGirlFinder = (face: FaceResult) => {
+  if (!adultUiAvailable.value || !face.cropPath) return
+  const {meta, tag} = resolveFaceTagContext(face)
+  const members = clusterMembers(face)
+  dialogsStore.openCamGirlFinder({
+    query: face.tagName || tag?.name || '',
+    cropPath: face.cropPath,
+    tag,
+    meta: meta || peopleMeta.value,
+    faceId: face.id,
+    clusterFaceIds: members.map((member) => member.id),
+    mediaId: Number(face.mediaId || media.value?.id || 0) || null,
+  })
+}
+
 const clusterKey = (face: FaceResult) => (
   face.clusterId != null ? `c:${face.clusterId}` : `f:${face.id}`
 )
 
-const CLUSTER_THUMB_LIMIT = 4
+const CLUSTER_THUMB_LIMIT = 1
 
 const clusterMembers = (face: FaceResult) => {
   const ids = face.clusterFaceIds?.length
@@ -697,6 +868,26 @@ const detailFace = computed(() => (
   faces.value.find((face) => face.id === detailFaceId.value) || null
 ))
 
+const suggestedFacesToConfirm = computed(() => {
+  const groups = new Map<string, FaceResult[]>()
+  for (const face of faces.value) {
+    const key = clusterKey(face)
+    const list = groups.get(key) || []
+    list.push(face)
+    groups.set(key, list)
+  }
+
+  const rows: FaceResult[] = []
+  for (const members of groups.values()) {
+    const suggested = members.find((face) => (
+      statusKey(face.matchStatus) === 'suggested' && Number(face.tagId) > 0
+    ))
+    if (!suggested) continue
+    rows.push(enrichClusterFace(suggested))
+  }
+  return rows
+})
+
 const headerButtons = computed(() => ([
   {
     text: t('face_results.rematch'),
@@ -704,8 +895,19 @@ const headerButtons = computed(() => ([
     icon: 'refresh',
     color: 'secondary',
     outlined: true,
+    order: 1,
     disabled: busy.value || !media.value?.id,
     action: rematch,
+  },
+  {
+    text: t('face_results.apply_tags'),
+    title: t('face_results.apply_tags_hint'),
+    icon: 'tag-plus',
+    color: 'primary',
+    outlined: false,
+    order: 2,
+    disabled: busy.value || !suggestedFacesToConfirm.value.length,
+    action: confirmAllSuggested,
   },
 ]))
 
@@ -772,6 +974,8 @@ const visibleCandidates = (face: FaceResult) => (
 
 const tagThumb = (metaId: number | null | undefined, tagId: number | null | undefined) => {
   if (!metaId || !tagId || !appStore.dbPath) return ''
+  // Subscribe to store refresh so chips update after creating a tag image.
+  void itemsStore.thumbRefreshKeys[Number(tagId)]
   return resolveTagThumbDisplayUrl({
     dbPath: appStore.dbPath,
     metaId,
@@ -783,6 +987,31 @@ const tagThumb = (metaId: number | null | undefined, tagId: number | null | unde
 const cropUrl = (face: FaceResult) => {
   if (!face.cropPath || !appStore.dbPath) return ''
   return buildLocalFileUrl(path.join(appStore.dbPath, face.cropPath))
+}
+
+const absoluteCropPath = (face: FaceResult) => {
+  if (!face.cropPath || !appStore.dbPath) return ''
+  return path.join(appStore.dbPath, face.cropPath)
+}
+
+const saveTagMainFromFaceCrop = async (face: FaceResult, metaId: number, tagId: number) => {
+  const cropSource = absoluteCropPath(face)
+  if (!cropSource || !appStore.dbPath) return false
+  const imagePath = path.join(
+    appStore.dbPath,
+    'meta',
+    String(metaId),
+    `${tagId}_main.jpg`,
+  )
+  const aspectRatio = Number(peopleMeta.value?.imageAspectRatio) || 1
+  const sizes = {
+    width: TAG_IMAGE_SAVE_WIDTH,
+    height: TAG_IMAGE_SAVE_WIDTH / aspectRatio,
+  }
+  const imageResult = await createImage(cropSource, imagePath, sizes)
+  if (imageResult.status !== 201) return false
+  refreshTagThumbDisplay(itemsStore, appStore.dbPath, metaId, tagId)
+  return true
 }
 
 const onTagHover = (
@@ -817,21 +1046,48 @@ const assignActionLabel = (face: FaceResult) => {
   return t('face_results.assign')
 }
 
-const toggleAssign = (face: FaceResult) => {
-  assigningFaceId.value = assigningFaceId.value === face.id ? null : face.id
+const canCreateTag = (face: FaceResult) => {
+  if (!performerMetaId.value) return false
+  return needsReview(face) || !face.tagId
+}
+
+const setAssignMenu = (face: FaceResult, open: boolean) => {
+  creatingFaceId.value = null
+  newTagName.value = ''
+  assigningFaceId.value = open ? face.id : null
+}
+
+const setCreateMenu = (face: FaceResult, open: boolean) => {
+  assigningFaceId.value = null
+  if (!open) {
+    if (creatingFaceId.value === face.id) {
+      creatingFaceId.value = null
+      newTagName.value = ''
+    }
+    return
+  }
+  creatingFaceId.value = face.id
+  newTagName.value = String(face.tagName || '').trim()
 }
 
 const openDetail = (face: FaceResult) => {
-  detailFaceId.value = face.id
   assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
+  detailFaceId.value = face.id
 }
 
 const openDetailMember = (_face: FaceResult, member: FaceResult) => {
-  detailFaceId.value = member.id
   assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
+  detailFaceId.value = member.id
 }
 
 const closeDetail = () => {
+  assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
   detailFaceId.value = null
   hideHoverImage()
 }
@@ -898,11 +1154,21 @@ const loadFaces = async ({silent = false}: {silent?: boolean} = {}) => {
   if (!silent) loading.value = true
   error.value = ''
   try {
-    const response = await typedApi.getFacesForMedia(mediaId)
+    // Fast first paint: skip ffmpeg crop rebuild; fill thumbs in a follow-up if needed.
+    const response = await typedApi.getFacesForMedia(mediaId, {ensureCrops: false})
+    if (Number(media.value?.id) !== mediaId) return
     faces.value = Array.isArray(response.data?.faces) ? response.data.faces : []
     applyDefaultFilter()
     if (detailFaceId.value != null && !faces.value.some((face) => face.id === detailFaceId.value)) {
       detailFaceId.value = null
+    }
+    if (!silent) loading.value = false
+
+    const needsCrops = faces.value.some((face) => !face.cropPath)
+    if (needsCrops) {
+      const withCrops = await typedApi.getFacesForMedia(mediaId)
+      if (Number(media.value?.id) !== mediaId) return
+      faces.value = Array.isArray(withCrops.data?.faces) ? withCrops.data.faces : faces.value
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -918,6 +1184,19 @@ const rematch = async () => {
   rematching.value = true
   error.value = ''
   try {
+    const embedStatus = await typedApi.getFaceEmbedModelStatus()
+    const status = String(embedStatus.data?.status || '')
+    if (!['downloaded', 'loaded'].includes(status)) {
+      setNotification({
+        type: 'info',
+        text: t('settings_labels.database.face_match_embed_downloading'),
+      })
+      await typedApi.downloadFaceEmbedModel()
+      setNotification({
+        type: 'success',
+        text: t('settings_labels.database.face_match_embed_downloaded'),
+      })
+    }
     await typedApi.matchFacesForMedia({mediaId, force: true})
     filterInitialized.value = false
     await loadFaces()
@@ -928,58 +1207,199 @@ const rematch = async () => {
   }
 }
 
-const assignCandidate = async (face: FaceResult, tagId: number) => {
-  if (!tagId || busy.value) return
-  busyFaceId.value = face.id
+const assignCandidate = async (
+  face: FaceResult,
+  tagId: number,
+  options: {commit?: boolean; matchScore?: number | null} = {},
+) => {
+  if (!tagId) return
   hideHoverImage()
+  const commit = options.commit === true
   const members = clusterMembers(face)
   const memberIds = members.map((member) => member.id)
+  const tagInfo = resolveTagInfo(tagId)
+  const matchScore = options.matchScore != null
+    ? Number(options.matchScore)
+    : (commit ? 1 : face.matchScore)
+  const matchStatus = commit ? 'manual' : 'suggested'
+
+  // Optimistic UI — draft picks must feel instant.
+  for (const faceId of memberIds) {
+    patchFaceLocally(faceId, {
+      tagId,
+      tagName: tagInfo.tagName,
+      tagMetaId: tagInfo.tagMetaId,
+      matchScore,
+      matchStatus,
+    })
+  }
+  assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
+
+  if (!commit) {
+    void Promise.all(memberIds.map((faceId) => typedApi.assignFacePerformer({
+      faceId,
+      tagId,
+      enroll: false,
+      applyTag: false,
+      matchScore: options.matchScore,
+    }))).catch((err) => {
+      setNotification({
+        type: 'error',
+        text: err instanceof Error ? err.message : String(err),
+      })
+      void loadFaces({silent: true})
+    })
+    return
+  }
+
+  if (busyFaceId.value != null) return
+  busyFaceId.value = face.id
   try {
     let mediaId = Number(face.mediaId || media.value?.id)
-    for (let index = 0; index < memberIds.length; index++) {
-      const faceId = memberIds[index]
+    await Promise.all(memberIds.map(async (faceId, index) => {
       const response = await typedApi.assignFacePerformer({
         faceId,
         tagId,
         enroll: index === 0,
         applyTag: index === 0,
+        matchScore: options.matchScore,
       })
       mediaId = Number(response.data?.mediaId || mediaId)
-    }
-    const tagInfo = resolveTagInfo(tagId)
-    for (const faceId of memberIds) {
-      patchFaceLocally(faceId, {
-        tagId,
-        tagName: tagInfo.tagName,
-        tagMetaId: tagInfo.tagMetaId,
-        matchScore: 1,
-        matchStatus: 'manual',
-      })
-    }
-    assigningFaceId.value = null
+    }))
     refreshMediaCard(mediaId)
-    await loadFaces({silent: true})
   } catch (err) {
     setNotification({
       type: 'error',
       text: err instanceof Error ? err.message : String(err),
     })
     await loadFaces({silent: true})
+    throw err
   } finally {
     busyFaceId.value = null
   }
 }
 
-const confirmSuggested = async (face: FaceResult) => {
-  if (!face.tagId) return
-  await assignCandidate(face, face.tagId)
+const confirmAllSuggested = async () => {
+  const pending = suggestedFacesToConfirm.value
+  if (!pending.length || confirmingAll.value) return
+
+  const jobs = pending
+    .filter((face) => Number(face.tagId) > 0)
+    .map((face) => ({
+      tagId: Number(face.tagId),
+      matchScore: face.matchScore,
+      memberIds: clusterMembers(face).map((member) => member.id),
+      mediaId: Number(face.mediaId || media.value?.id),
+    }))
+  if (!jobs.length) return
+
+  confirmingAll.value = true
+  close()
+
+  let applied = 0
+  let mediaId = jobs[0].mediaId
+  try {
+    for (const job of jobs) {
+      for (let index = 0; index < job.memberIds.length; index++) {
+        const response = await typedApi.assignFacePerformer({
+          faceId: job.memberIds[index],
+          tagId: job.tagId,
+          enroll: index === 0,
+          applyTag: index === 0,
+          matchScore: job.matchScore,
+        })
+        mediaId = Number(response.data?.mediaId || job.mediaId || mediaId)
+      }
+      applied += 1
+    }
+    if (Number.isFinite(mediaId) && mediaId > 0) refreshMediaCard(mediaId)
+    if (applied > 0) {
+      setNotification({
+        type: 'success',
+        text: t('face_results.apply_tags_done', {count: applied}),
+      })
+    }
+  } catch (err) {
+    setNotification({
+      type: 'error',
+      text: err instanceof Error ? err.message : String(err),
+    })
+  }
 }
 
 const onAssign = async (face: FaceResult, value: number[] | number) => {
   const tagId = Number(Array.isArray(value) ? value[0] : value)
   if (!Number.isFinite(tagId) || tagId <= 0) return
   assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
   await assignCandidate(face, tagId)
+}
+
+const createTagFromFace = async (face: FaceResult) => {
+  const name = newTagName.value.trim()
+  const metaId = performerMetaId.value
+  if (!name || !metaId || busyFaceId.value != null) return
+
+  const existing = (appStore.tags || []).find((tag) => (
+    Number(tag.metaId) === metaId
+    && String(tag.name || '').trim().toLowerCase() === name.toLowerCase()
+  ))
+  if (existing?.id) {
+    creatingFaceId.value = null
+    newTagName.value = ''
+    await assignCandidate(face, Number(existing.id))
+    setNotification({
+      type: 'success',
+      text: t('face_results.create_tag_existing', {name}),
+    })
+    return
+  }
+
+  busyFaceId.value = face.id
+  hideHoverImage()
+  try {
+    const response = await typedApi.createTags([{name, metaId}])
+    const tagId = Number(response.data?.[0]?.id)
+    if (!Number.isFinite(tagId) || tagId <= 0) {
+      throw new Error(t('face_results.create_tag_failed'))
+    }
+
+    await reloadTagsCatalog()
+    await saveTagMainFromFaceCrop(face, metaId, tagId)
+
+    creatingFaceId.value = null
+    newTagName.value = ''
+    busyFaceId.value = null
+    await assignCandidate(face, tagId)
+    // Keep the new person visible among variants with the fresh crop thumb.
+    const members = clusterMembers(face)
+    for (const member of members) {
+      const nextCandidates = [
+        {
+          tagId,
+          score: 1,
+          tagName: name,
+          tagMetaId: metaId,
+        },
+        ...(member.candidates || []).filter((entry) => Number(entry.tagId) !== tagId),
+      ].slice(0, 5)
+      patchFaceLocally(member.id, {candidates: nextCandidates})
+    }
+    setNotification({
+      type: 'success',
+      text: t('face_results.create_tag_done', {name}),
+    })
+  } catch (err) {
+    setNotification({
+      type: 'error',
+      text: err instanceof Error ? err.message : String(err),
+    })
+  } finally {
+    busyFaceId.value = null
+  }
 }
 
 const clearMatch = async (face: FaceResult) => {
@@ -1001,6 +1421,8 @@ const clearMatch = async (face: FaceResult) => {
       })
     }
     assigningFaceId.value = null
+    creatingFaceId.value = null
+    newTagName.value = ''
     refreshMediaCard(mediaId)
     await loadFaces({silent: true})
   } catch (err) {
@@ -1017,6 +1439,8 @@ const clearMatch = async (face: FaceResult) => {
 const close = () => {
   hideHoverImage()
   detailFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
   dialogsStore.closeFaceResults()
   emit('close')
 }
@@ -1027,6 +1451,8 @@ const onVisibilityChange = (open: boolean) => {
 
 watch(() => media.value?.id, () => {
   assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
   detailFaceId.value = null
   filterInitialized.value = false
   hideHoverImage()
@@ -1035,11 +1461,26 @@ watch(() => media.value?.id, () => {
 
 onMounted(() => {
   void loadFaces()
+  eventBus.on('camgirlFinderApplied', onCamGirlFinderApplied)
 })
 
 onBeforeUnmount(() => {
+  eventBus.off('camgirlFinderApplied', onCamGirlFinderApplied)
   hideHoverImage()
 })
+
+async function onCamGirlFinderApplied(payload?: {
+  faceIds?: number[]
+  tagId?: number
+  mediaId?: number | null
+}) {
+  const mediaId = Number(payload?.mediaId || media.value?.id || 0)
+  if (mediaId) refreshMediaCard(mediaId)
+  assigningFaceId.value = null
+  creatingFaceId.value = null
+  newTagName.value = ''
+  await loadFaces({silent: true})
+}
 </script>
 
 <style scoped lang="scss">
@@ -1245,6 +1686,10 @@ onBeforeUnmount(() => {
 .face-card__tag {
   cursor: default;
   border-radius: 8px;
+
+  :deep(.v-img__img) {
+    object-position: top center;
+  }
 }
 
 .face-card__empty {
@@ -1310,24 +1755,27 @@ onBeforeUnmount(() => {
 
 .face-card__candidate-thumb {
   width: 32px;
-  height: 100%;
+  height: 32px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: 50%;
   background: rgba(var(--v-theme-on-surface), 0.08);
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: top center;
     display: block;
   }
 }
 
 .face-card__candidate--detail .face-card__candidate-thumb {
   width: 36px;
+  height: 36px;
 }
 
 .face-card__candidate-name {
@@ -1340,6 +1788,10 @@ onBeforeUnmount(() => {
 .face-card__candidate-score {
   flex: 0 0 auto;
   margin-left: 2px;
+}
+
+.face-card__actions {
+  margin-top: 24px;
 }
 
 .face-detail__frame {

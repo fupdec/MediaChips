@@ -11,6 +11,7 @@ import {
 import {
   assignFaceToPerformer,
   clearFaceMatch,
+  enrollTagFaces,
   getEmbedStatus,
   getFaceMatchStatus,
   iterateEnrollFromPerformerImages,
@@ -103,7 +104,14 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         res.status(400).send({message: 'mediaId is required'})
         return
       }
-      res.status(201).send(await listFacesForMedia(db, mediaId))
+      const ensureCropsRaw = req.query?.ensureCrops ?? req.body?.ensureCrops
+      const ensureCrops = !(
+        ensureCropsRaw === false
+        || ensureCropsRaw === 'false'
+        || ensureCropsRaw === '0'
+        || ensureCropsRaw === 0
+      )
+      res.status(201).send(await listFacesForMedia(db, mediaId, {ensureCrops}))
     } catch (err) {
       res.status(500).send({
         message: apiErrorMessage(err) || 'Some error occurred while loading faces.',
@@ -180,8 +188,9 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         return
       }
       const result = await assignFaceToPerformer(db, faceId, tagId, {
-        enroll: req.body?.enroll !== false,
-        applyTag: req.body?.applyTag !== false,
+        enroll: req.body?.enroll === true,
+        applyTag: req.body?.applyTag === true,
+        matchScore: req.body?.matchScore != null ? Number(req.body.matchScore) : undefined,
       })
       res.status(201).send(result)
     } catch (err) {
@@ -217,6 +226,30 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     } catch (err) {
       res.status(500).send({
         message: apiErrorMessage(err) || 'Some error occurred while checking enrollment quality.',
+      })
+    }
+  }
+
+  const enrollTagFacesForTag = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const tagId = Number(req.body?.tagId || req.query?.tagId)
+      if (!Number.isFinite(tagId) || tagId <= 0) {
+        res.status(400).send({message: 'tagId is required'})
+        return
+      }
+      const enroll = await enrollTagFaces(db, tagId, {force: req.body?.force !== false})
+      let quality = null
+      if (!enroll.skipped || enroll.reason !== 'not_people_category') {
+        try {
+          quality = await getEnrollmentQualityForTag(db, tagId)
+        } catch {
+          quality = null
+        }
+      }
+      res.status(201).send({...enroll, quality})
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while enrolling tag faces.',
       })
     }
   }
@@ -369,6 +402,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     assignFacePerformer,
     clearFacePerformer,
     enrollmentQualityForTag,
+    enrollTagFacesForTag,
     streamEnrollmentQualityReport,
     streamFaceDetection,
     streamFaceEnrollment,

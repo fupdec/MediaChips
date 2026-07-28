@@ -14,6 +14,11 @@ export type EventBusMap = {
   transferScrapedInfo: void
   transferSceneScrapedInfo: void
   scraperGotImages: void
+  camgirlFinderApplied: {
+    faceIds?: number[]
+    tagId?: number
+    mediaId?: number | null
+  }
   'app:database-changed': void
 } & Record<string, unknown>
 

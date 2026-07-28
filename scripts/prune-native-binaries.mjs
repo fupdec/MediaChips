@@ -97,9 +97,14 @@ function pruneSharpPackages(pattern, removed) {
 }
 
 function pruneModels(removed) {
-  // Keep ultraface-rfb-320 and insightface-mbf: bundled for offline face recognition.
+  // Face detection (SCRFD) and recognition (R50) download on demand — strip any cached copies from dist.
   const faceApiDir = join(root, 'models/face-api')
   removePath(faceApiDir, 'models/face-api', removed)
+  removePath(join(root, 'models/ultraface-rfb-320'), 'models/ultraface-rfb-320', removed)
+  removePath(join(root, 'models/scrfd-10g'), 'models/scrfd-10g', removed)
+  removePath(join(root, 'models/insightface-mbf'), 'models/insightface-mbf', removed)
+  removePath(join(root, 'models/insightface-r50'), 'models/insightface-r50', removed)
+  removePath(join(root, 'models/insightface-2d106'), 'models/insightface-2d106', removed)
 }
 
 function formatBytes(bytes) {

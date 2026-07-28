@@ -67,6 +67,24 @@
 
     <section class="scraper-block mb-6">
       <div class="text-subtitle-1 font-weight-medium mb-1">
+        {{ t('camgirlfinder.title') }}
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-2">
+        {{ t('camgirlfinder.hint') }}
+      </div>
+      <div class="text-body-2 text-medium-emphasis">
+        <a
+          href="https://api.camgirlfinder.to/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >api.camgirlfinder.to</a>
+      </div>
+    </section>
+
+    <v-divider class="mb-6"/>
+
+    <section class="scraper-block mb-6">
+      <div class="text-subtitle-1 font-weight-medium mb-1">
         {{ t('settings_labels.tools.scene_scraper') }}
       </div>
       <div class="text-body-2 text-medium-emphasis mb-4">

@@ -126,7 +126,7 @@ cd mediaChips
 npm install
 ```
 
-The ML path tag parser model and face recognition models are downloaded automatically when building distribution packages. For local development they are optional — run `node scripts/compile.mjs scripts && node .scripts-build/download-parser-model.js && node .scripts-build/download-face-models.js` if you use path-based tag suggestions or face recognition.
+The ML path tag parser model is downloaded when building distribution packages. Face detection (SCRFD ~16 MB) and recognition (InsightFace R50 ~170 MB) are **not** bundled — users download them once from Face settings (or they download automatically on first detect/enroll/match). For local development, run `node scripts/compile.mjs scripts && node .scripts-build/download-parser-model.js` if you use path-based tag suggestions.
 
 ### Production
 

@@ -130,6 +130,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/assignFacePerformer', 'assignFacePerformer')
   register('post', '/clearFacePerformer', 'clearFacePerformer')
   register('get', '/enrollmentQualityForTag', 'enrollmentQualityForTag')
+  register('post', '/enrollTagFaces', 'enrollTagFacesForTag')
   register('post', '/streamEnrollmentQualityReport', 'streamEnrollmentQualityReport')
   register('post', '/streamFaceDetection', 'streamFaceDetection')
   register('post', '/streamFaceEnrollment', 'streamFaceEnrollment')

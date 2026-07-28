@@ -1,6 +1,6 @@
 # @mediachips/plugin-adult
 
-Bundled MediaChips plugin for adult scrapers / ThePornDB.
+Bundled MediaChips plugin for adult scrapers / ThePornDB / CamGirlFinder.
 
 Lives under `packages/` for co-development; can be extracted to a separate repo later.
 
@@ -46,6 +46,10 @@ Host bridging: `src/plugins/adult/hostBridge`. App code imports adult UI/stores 
 
 Users set a personal ThePornDB API key in Adult settings; requests go directly to
 `api.theporndb.net` / GraphQL. `TPDB_API_KEY` env remains a fallback.
+
+CamGirlFinder needs no API key. Face/name search uses `api.camgirlfinder.to`
+(`POST /api/scraper/camgirlfinder/search`) and maps matches into performer
+aliases, gender, photos, and profile links.
 
 ## Develop against the app
 

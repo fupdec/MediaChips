@@ -51,9 +51,12 @@ import 'viewerjs/dist/viewer.css'
 import {api as viewerApi} from 'v-viewer'
 import type { ScraperSelectedResult } from '../../types/scraper'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   selected: ScraperSelectedResult
-}>()
+  defaultSelectFirst?: boolean
+}>(), {
+  defaultSelectFirst: false,
+})
 
 const selected_images = ref<number[]>([])
 const dialogsStore = useDialogsStore()
@@ -75,7 +78,18 @@ watch(selected_images, (val) => {
   const urls = val.map((i) => posters[i]?.url).filter(Boolean)
   dialogsStore.scraper.images = urls
 })
-</script>
+
+watch(
+  () => props.selected,
+  () => {
+    if (!props.defaultSelectFirst) {
+      selected_images.value = []
+      return
+    }
+    selected_images.value = images.value.length ? [0] : []
+  },
+  {immediate: true},
+)</script>
 
 <style lang="scss">
 .scraper-selected-image {

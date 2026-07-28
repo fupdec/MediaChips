@@ -58,6 +58,16 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     adultOnboarding: { show: false },
     scraperConfig: { show: false },
     scraper: { show: false, images: [] as string[] },
+    camgirlFinder: {
+      show: false,
+      query: '',
+      cropPath: null as string | null,
+      tag: null as Tag | null,
+      meta: null as Meta | null,
+      faceId: null as number | null,
+      clusterFaceIds: [] as number[],
+      mediaId: null as number | null,
+    },
     scraperMultiple: { show: false, performers: [] as ScraperMultiplePerformer[], progress: 0 },
     sceneScraper: { show: false, media: null as MediaItem | null },
     sceneScraperMultiple: { show: false, items: [] as SceneScraperBatchItem[], progress: 0 },
@@ -112,6 +122,40 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.tagEditing.tag = tag
       this.tagEditing.meta = meta
       this.tagEditing.show = true
+    },
+    openCamGirlFinder(options: {
+      query?: string
+      cropPath?: string | null
+      tag?: Tag | null
+      meta?: Meta | null
+      faceId?: number | null
+      clusterFaceIds?: number[]
+      mediaId?: number | null
+    } = {}) {
+      this.camgirlFinder.query = String(options.query || '').trim()
+      this.camgirlFinder.cropPath = options.cropPath ? String(options.cropPath) : null
+      this.camgirlFinder.tag = options.tag ? {...options.tag} : null
+      this.camgirlFinder.meta = options.meta ? {...options.meta} : null
+      this.camgirlFinder.faceId = options.faceId != null && Number.isFinite(Number(options.faceId))
+        ? Number(options.faceId)
+        : null
+      this.camgirlFinder.clusterFaceIds = Array.isArray(options.clusterFaceIds)
+        ? options.clusterFaceIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+        : []
+      this.camgirlFinder.mediaId = options.mediaId != null && Number.isFinite(Number(options.mediaId))
+        ? Number(options.mediaId)
+        : null
+      this.camgirlFinder.show = true
+    },
+    closeCamGirlFinder() {
+      this.camgirlFinder.show = false
+      this.camgirlFinder.query = ''
+      this.camgirlFinder.cropPath = null
+      this.camgirlFinder.tag = null
+      this.camgirlFinder.meta = null
+      this.camgirlFinder.faceId = null
+      this.camgirlFinder.clusterFaceIds = []
+      this.camgirlFinder.mediaId = null
     },
     openTagMerge(tags: Tag[], meta: Meta) {
       this.tagMerge.tags = tags

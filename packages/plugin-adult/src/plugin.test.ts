@@ -29,7 +29,7 @@ describe('@mediachips/plugin-adult', () => {
       tab: 'plugins',
       componentKey: ADULT_COMPONENT_KEYS.settingsDataScraper,
     }))
-    expect(register).toHaveBeenCalledTimes(4)
+    expect(register).toHaveBeenCalledTimes(5)
   })
 
   it('builds a component map from host loaders', () => {
@@ -40,9 +40,10 @@ describe('@mediachips/plugin-adult', () => {
       [ADULT_COMPONENT_KEYS.dialogScraperMultiple]: loader,
       [ADULT_COMPONENT_KEYS.dialogSceneScraper]: loader,
       [ADULT_COMPONENT_KEYS.dialogSceneScraperMultiple]: loader,
+      [ADULT_COMPONENT_KEYS.dialogCamGirlFinder]: loader,
     })
 
-    expect(Object.keys(map)).toHaveLength(5)
+    expect(Object.keys(map)).toHaveLength(6)
     expect(map[ADULT_COMPONENT_KEYS.settingsDataScraper]).toBe(loader)
   })
 })

@@ -791,6 +791,50 @@ export default function useItemContextMenu(
               progress: total ? Math.min((processed / total) * 100, 100) : 0,
             })
           }
+          if (event.type === 'status') {
+            if (event.phase === 'downloading_detect') {
+              setNotification({
+                type: 'info',
+                text: tr('settings_labels.database.face_detect_model_downloading'),
+              })
+              tasksStore.updateTask(taskId, {
+                subtitle: tr('settings_labels.database.face_detect_model_downloading'),
+                progress: 0,
+              })
+            }
+            if (event.phase === 'detect_ready') {
+              setNotification({
+                type: 'success',
+                text: tr('settings_labels.database.face_detect_model_downloaded'),
+              })
+            }
+            if (event.phase === 'downloading_align') {
+              setNotification({
+                type: 'info',
+                text: tr('settings_labels.database.face_match_align_downloading'),
+              })
+              tasksStore.updateTask(taskId, {
+                subtitle: tr('settings_labels.database.face_match_align_downloading'),
+                progress: 0,
+              })
+            }
+            if (event.phase === 'downloading_embed') {
+              setNotification({
+                type: 'info',
+                text: tr('settings_labels.database.face_match_embed_downloading'),
+              })
+              tasksStore.updateTask(taskId, {
+                subtitle: tr('settings_labels.database.face_match_embed_downloading'),
+                progress: 0,
+              })
+            }
+            if (event.phase === 'embed_ready') {
+              setNotification({
+                type: 'success',
+                text: tr('settings_labels.database.face_match_embed_downloaded'),
+              })
+            }
+          }
           if (event.type === 'complete') {
             faces = Number(event.faces || faces)
           }

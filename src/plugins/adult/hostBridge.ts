@@ -20,6 +20,8 @@ export const adultHostComponentMap: PluginComponentMap = createAdultComponentMap
     import('@mediachips/plugin-adult/components/DialogSceneScraper.vue'),
   [ADULT_COMPONENT_KEYS.dialogSceneScraperMultiple]: () =>
     import('@mediachips/plugin-adult/components/DialogSceneScraperMultiple.vue'),
+  [ADULT_COMPONENT_KEYS.dialogCamGirlFinder]: () =>
+    import('@mediachips/plugin-adult/components/DialogCamGirlFinder.vue'),
 })
 
 export {

@@ -83,6 +83,17 @@ export const SceneMarkersApplyRequestSchema = z.object({
   markerMetaId: z.union([z.number(), z.string()]).nullable().optional(),
 }).passthrough()
 
+export const CamGirlFinderSearchRequestSchema = z.object({
+  mode: z.enum(['face', 'name']).optional(),
+  query: z.string().trim().optional(),
+  cropPath: z.string().trim().optional(),
+  imageUrl: z.string().trim().optional(),
+  platform: z.string().trim().optional(),
+  gender: z.string().trim().optional(),
+  includeSimilar: z.boolean().optional(),
+  limit: optionalCoercedNumber,
+}).passthrough()
+
 export const MediaPathUpdateRequestSchema = z.object({
   id: z.union([z.number(), z.string()]),
   path: z.string().min(1),

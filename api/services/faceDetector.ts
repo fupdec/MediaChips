@@ -8,6 +8,7 @@ import type {
   FaceDetectorMediaItem,
   FaceDetectorMediaResult,
   FaceDetectorOptions,
+  FaceLandmark5,
 } from '../types/faceDetector'
 import fs from 'fs'
 import https from 'https'
@@ -21,22 +22,28 @@ import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createSettingsRepository } from '../db/repositories/settings'
 import { resolveExistingPath } from './contentHash'
+import { assessMatchability } from './matchGates'
 
-const FACE_MODEL_ID = 'ultraface-rfb-320'
-const FACE_MODEL_FILENAME = 'version-RFB-320.onnx'
-const FACE_MODEL_URL = 'https://github.com/onnx/models/raw/main/validated/vision/body_analysis/ultraface/models/version-RFB-320.onnx'
-const INPUT_WIDTH = 320
-const INPUT_HEIGHT = 240
-const DEFAULT_MIN_SCORE = 0.9
-const DEFAULT_IOU = 0.3
+const FACE_MODEL_ID = 'scrfd-10g'
+const FACE_MODEL_FILENAME = 'det_10g.onnx'
+const FACE_MODEL_URL = 'https://huggingface.co/deepghs/insightface/resolve/main/buffalo_l/det_10g.onnx'
+/** Rough size shown in UI (~buffalo_l SCRFD-10G). */
+const FACE_MODEL_SIZE_MB = 16
+const DET_INPUT_SIZE = 640
+const DEFAULT_MIN_SCORE = 0.5
+const DEFAULT_IOU = 0.4
 const DEFAULT_MAX_FACES = 20
 const CROP_PADDING = 0.2
 /** Extract video frames wide enough that face crops stay usable for recognition. */
 const DEFAULT_FRAME_WIDTH = 1280
 /** Ignore tiny boxes — usually body/skin false positives on low-res frames. */
-const MIN_FACE_SIDE_PX = 80
-const MIN_FACE_SIDE_RATIO = 0.08
-const MAX_FACE_ASPECT = 1.7
+const MIN_FACE_SIDE_PX = 48
+const MIN_FACE_SIDE_RATIO = 0.04
+const MAX_FACE_ASPECT = 1.85
+const SCRFD_MEAN = 127.5
+const SCRFD_STD = 128
+const SCRFD_STRIDES = [8, 16, 32] as const
+const SCRFD_NUM_ANCHORS = 2
 
 export interface FaceDetectSettings {
   minScore: number
@@ -53,7 +60,7 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
   const framesRaw = Number(map.get('faceDetect.framesPerVideo') ?? 6)
   return {
     minScore: Number.isFinite(minScoreRaw)
-      ? Math.min(Math.max(minScoreRaw, 0.5), 0.98)
+      ? Math.min(Math.max(minScoreRaw, 0.5), 0.75)
       : DEFAULT_MIN_SCORE,
     framesPerVideo: Number.isFinite(framesRaw)
       ? Math.min(Math.max(Math.round(framesRaw), 1), 99)
@@ -62,14 +69,15 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
 }
 
 function qualityGatesForScore(minScore: number) {
-  // Loose (~0.5) → almost no skin/area gates; strict (~0.9+) → current aggressive gates.
-  const t = Math.min(1, Math.max(0, (minScore - 0.55) / 0.4))
+  // Loose (~0.5) → almost no skin/area gates; strict (~0.75) → moderate gates.
+  // Keep the curve gentle: high scores alone already reject weak boxes.
+  const t = Math.min(1, Math.max(0, (minScore - 0.55) / 0.2))
   return {
-    maxSkinRatio: 0.95 - (t * 0.17),
-    minUpperDarkRatio: 0.02 + (t * 0.04),
-    maxAreaRatio: 0.5 - (t * 0.22),
-    minLumaStd: 12 + (t * 4),
-    applySkinFilter: minScore >= 0.65,
+    maxSkinRatio: 0.95 - (t * 0.12),
+    minUpperDarkRatio: 0.02 + (t * 0.03),
+    maxAreaRatio: 0.5 - (t * 0.15),
+    minLumaStd: 12 + (t * 3),
+    applySkinFilter: minScore >= 0.7,
   }
 }
 
@@ -81,6 +89,7 @@ let ortModule: OrtModule | null = null
 let session: OrtSession | null = null
 let loadingPromise: Promise<OrtSession> | null = null
 let lastError: Error | null = null
+const centerCache = new Map<string, Float32Array>()
 
 function getOrt(): OrtModule {
   if (!ortModule) {
@@ -94,19 +103,10 @@ function getWritableModelCacheDir(db: ApiDb) {
   return path.join(base, 'models', FACE_MODEL_ID)
 }
 
-function getBundledModelPath() {
-  const candidates = [
-    process.resourcesPath ? path.join(process.resourcesPath, 'models', FACE_MODEL_ID, FACE_MODEL_FILENAME) : null,
-    path.join(__dirname, '..', '..', 'models', FACE_MODEL_ID, FACE_MODEL_FILENAME),
-  ].filter(Boolean) as string[]
-
-  return candidates.find((candidate) => fs.existsSync(candidate)) || null
-}
-
 function getModelPath(db: ApiDb) {
+  // SCRFD is not bundled — only the user-data cache counts.
   const cached = path.join(getWritableModelCacheDir(db), FACE_MODEL_FILENAME)
-  if (fs.existsSync(cached)) return cached
-  return getBundledModelPath()
+  return fs.existsSync(cached) ? cached : null
 }
 
 function hasDownloadedModel(db: ApiDb) {
@@ -116,7 +116,11 @@ function hasDownloadedModel(db: ApiDb) {
 function downloadFile(url: string, destination: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http
-    const request = client.get(url, (response) => {
+    const request = client.get(url, {
+      headers: {
+        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
+      },
+    }, (response) => {
       if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         response.resume()
         downloadFile(response.headers.location, destination).then(resolve, reject)
@@ -152,15 +156,15 @@ function downloadFile(url: string, destination: string): Promise<void> {
   })
 }
 
-async function ensureModelFile(db: ApiDb): Promise<string> {
+async function ensureModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
   const existing = getModelPath(db)
-  if (existing) return existing
+  if (existing) return {path: existing, downloaded: false}
 
   const cacheDir = getWritableModelCacheDir(db)
   fs.mkdirSync(cacheDir, {recursive: true})
   const destination = path.join(cacheDir, FACE_MODEL_FILENAME)
   await downloadFile(FACE_MODEL_URL, destination)
-  return destination
+  return {path: destination, downloaded: true}
 }
 
 async function loadModel(db: ApiDb): Promise<OrtSession> {
@@ -169,7 +173,7 @@ async function loadModel(db: ApiDb): Promise<OrtSession> {
 
   loadingPromise = (async () => {
     try {
-      const modelPath = await ensureModelFile(db)
+      const {path: modelPath} = await ensureModelFile(db)
       const ort = getOrt()
       session = await ort.InferenceSession.create(modelPath)
       lastError = null
@@ -183,6 +187,34 @@ async function loadModel(db: ApiDb): Promise<OrtSession> {
   })()
 
   return loadingPromise
+}
+
+type DetectPrepEvent = {
+  type: 'status'
+  phase: 'downloading_detect' | 'detect_ready'
+  message: string
+  sizeMb?: number
+}
+
+async function* prepareDetectModel(db: ApiDb): AsyncGenerator<DetectPrepEvent> {
+  const needsDownload = !hasDownloadedModel(db)
+  if (needsDownload) {
+    yield {
+      type: 'status',
+      phase: 'downloading_detect',
+      message: `Downloading face detection model (~${FACE_MODEL_SIZE_MB} MB)…`,
+      sizeMb: FACE_MODEL_SIZE_MB,
+    }
+  }
+  await loadModel(db)
+  if (needsDownload) {
+    yield {
+      type: 'status',
+      phase: 'detect_ready',
+      message: 'Face detection model downloaded.',
+      sizeMb: FACE_MODEL_SIZE_MB,
+    }
+  }
 }
 
 function getStatus(db: ApiDb, enabled: boolean = true): ModelStatus {
@@ -222,16 +254,79 @@ function cleanupDir(dirPath: string | null) {
 }
 
 function formatTimestamp(seconds: number) {
-  return new Date(Math.floor(seconds) * 1000).toISOString().substr(11, 8)
+  return new Date(Math.floor(Math.max(0, seconds)) * 1000).toISOString().substr(11, 8)
 }
 
+/**
+ * Bias samples toward the first ~2/3 of usable runtime (faces rarely appear in credits),
+ * and pad away from pure black intro/outro frames.
+ */
 function getFrameTimestamps(duration: number, count: number) {
   const safeCount = Math.max(1, Math.min(Number(count || 6), 99))
-  const ratios = safeCount === 1
-    ? [0.5]
-    : Array.from({length: safeCount}, (_, index) => 0.12 + (0.76 * (index / (safeCount - 1))))
+  const safeDuration = Math.max(0.1, Number(duration) || 0.1)
+  if (safeCount === 1) {
+    return [formatTimestamp(safeDuration * 0.42)]
+  }
 
-  return ratios.map((ratio) => formatTimestamp(duration * ratio))
+  const startPad = safeDuration < 20 ? 0.08 : 0.05
+  const endPad = safeDuration < 20 ? 0.1 : 0.14
+  const usable = Math.max(0.25, 1 - startPad - endPad)
+
+  return Array.from({length: safeCount}, (_, index) => {
+    const u = index / (safeCount - 1)
+    // Power < 1 → denser early/mid samples.
+    const biased = Math.pow(u, 0.72)
+    return formatTimestamp(safeDuration * (startPad + usable * biased))
+  })
+}
+
+/** Average-hash fingerprint for cheap near-duplicate frame rejection. */
+async function frameFingerprint(framePath: string): Promise<string> {
+  const image = await Jimp.read(framePath)
+  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
+  const {data, width, height} = tiny.bitmap
+  const values: number[] = []
+  let sum = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const v = data[(y * width + x) * 4]
+      values.push(v)
+      sum += v
+    }
+  }
+  const avg = sum / Math.max(values.length, 1)
+  return values.map((v) => (v >= avg ? '1' : '0')).join('')
+}
+
+function hammingDistance(a: string, b: string) {
+  const n = Math.min(a.length, b.length)
+  let d = 0
+  for (let i = 0; i < n; i++) {
+    if (a[i] !== b[i]) d += 1
+  }
+  return d + Math.abs(a.length - b.length)
+}
+
+/**
+ * Keep frames that look different enough (aHash Hamming ≥ threshold).
+ * Falls back to originals if almost everything collides.
+ */
+function pickDiverseFrames<T extends {fingerprint: string}>(
+  frames: T[],
+  limit: number,
+  minDistance: number = 10,
+): T[] {
+  if (frames.length <= limit) return frames
+  const kept: T[] = []
+  for (const frame of frames) {
+    if (kept.every((other) => hammingDistance(frame.fingerprint, other.fingerprint) >= minDistance)) {
+      kept.push(frame)
+    }
+    if (kept.length >= limit) break
+  }
+  if (kept.length >= Math.min(limit, Math.ceil(limit * 0.5))) return kept.slice(0, limit)
+  // Too aggressive — keep first N candidates in planned order.
+  return frames.slice(0, limit)
 }
 
 function resolveStoredCropPath(dbPath: string, cropPath: string | null | undefined) {
@@ -272,14 +367,14 @@ async function ensureFaceCropsForMedia(db: ApiDb, mediaId: number): Promise<numb
   const facesRepo = createFacesRepository(db.drizzle)
   const mediaRepo = createMediaRepository(db.drizzle)
   const faceRows = facesRepo.findByMediaId(mediaId)
-  if (!faceRows.length) {
-    purgeOtherMediaFaceCrops(db, mediaId)
-    return 0
-  }
+  if (!faceRows.length) return 0
 
   const missing = faceRows.filter((face) => !resolveStoredCropPath(String(db.path), face.cropPath))
-  purgeOtherMediaFaceCrops(db, mediaId)
+  // Fast path: crops already on disk — do not purge/re-extract on every dialog open.
   if (!missing.length) return 0
+
+  // Free disk before writing new review crops for this media.
+  purgeOtherMediaFaceCrops(db, mediaId)
 
   const media = mediaRepo.findById(mediaId)
   if (!media?.path) return 0
@@ -300,10 +395,9 @@ async function ensureFaceCropsForMedia(db: ApiDb, mediaId: number): Promise<numb
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-face-crops-'))
   let created = 0
   try {
-    let frameIndex = 0
-    for (const [timestamp, facesAtTs] of byTimestamp) {
+    const timestampEntries = [...byTimestamp.entries()]
+    const frames = await Promise.all(timestampEntries.map(async ([timestamp, facesAtTs], frameIndex) => {
       const framePath = path.join(tmpDir, `frame_${frameIndex}.jpg`)
-      frameIndex += 1
       try {
         await extractVideoFrame({
           input: String(resolvedPath),
@@ -311,23 +405,21 @@ async function ensureFaceCropsForMedia(db: ApiDb, mediaId: number): Promise<numb
           timestamp,
           vf: `scale=${DEFAULT_FRAME_WIDTH}:-1`,
         })
+        const sourceImage = await Jimp.read(framePath)
+        return {facesAtTs, sourceImage}
       } catch {
-        continue
+        return null
       }
+    }))
 
-      let sourceImage: Awaited<ReturnType<typeof Jimp.read>>
-      try {
-        sourceImage = await Jimp.read(framePath)
-      } catch {
-        continue
-      }
-
-      for (const face of facesAtTs) {
+    for (const frame of frames) {
+      if (!frame) continue
+      for (const face of frame.facesAtTs) {
         const filename = `face_${String(face.id).padStart(3, '0')}.jpg`
         const absoluteCrop = path.join(facesDir, filename)
         const relativeCrop = path.join('media/videos/faces', String(mediaId), filename)
         try {
-          await saveFaceCrop(sourceImage, {
+          await saveFaceCrop(frame.sourceImage, {
             x: Number(face.x || 0),
             y: Number(face.y || 0),
             width: Number(face.width || 0),
@@ -364,13 +456,13 @@ function iou(a: FaceBox, b: FaceBox) {
   return union > 0 ? inter / union : 0
 }
 
-function hardNms(
-  detections: Array<{score: number; box: FaceBox}>,
+function hardNms<T extends {score: number; box: FaceBox}>(
+  detections: T[],
   iouThreshold: number,
   topK: number,
-) {
+): T[] {
   const sorted = [...detections].sort((a, b) => b.score - a.score)
-  const kept: Array<{score: number; box: FaceBox}> = []
+  const kept: T[] = []
 
   for (const candidate of sorted) {
     if (kept.some((existing) => iou(existing.box, candidate.box) > iouThreshold)) continue
@@ -381,7 +473,54 @@ function hardNms(
   return kept
 }
 
-/** Reject flat skin / body blobs that UltraFace often scores as faces. */
+/** Rough Laplacian variance on the face crop — higher means sharper. */
+function estimateBlurVariance(
+  image: Awaited<ReturnType<typeof Jimp.read>>,
+  box: FaceBox,
+): number {
+  const left = Math.max(0, Math.floor(box.x))
+  const top = Math.max(0, Math.floor(box.y))
+  const right = Math.min(image.width, Math.ceil(box.x + box.width))
+  const bottom = Math.min(image.height, Math.ceil(box.y + box.height))
+  const width = right - left
+  const height = bottom - top
+  if (width < 8 || height < 8) return 0
+
+  const stepX = Math.max(1, Math.floor(width / 32))
+  const stepY = Math.max(1, Math.floor(height / 32))
+  const {data} = image.bitmap
+  const lumaAt = (x: number, y: number) => {
+    const idx = (y * image.width + x) * 4
+    return 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]
+  }
+
+  const values: number[] = []
+  for (let y = top + stepY; y < bottom - stepY; y += stepY) {
+    for (let x = left + stepX; x < right - stepX; x += stepX) {
+      const c = lumaAt(x, y)
+      const lap = (
+        lumaAt(x, y - stepY)
+        + lumaAt(x - stepX, y)
+        + lumaAt(x + stepX, y)
+        + lumaAt(x, y + stepY)
+        - 4 * c
+      )
+      values.push(lap)
+    }
+  }
+  if (values.length < 4) return 0
+  let mean = 0
+  for (const v of values) mean += v
+  mean /= values.length
+  let varSum = 0
+  for (const v of values) {
+    const d = v - mean
+    varSum += d * d
+  }
+  return varSum / values.length
+}
+
+/** Reject flat skin / body blobs that detectors sometimes score as faces. */
 function isLikelySkinPixel(r: number, g: number, b: number) {
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
@@ -476,34 +615,109 @@ function boxLooksLikeFace(
   return true
 }
 
-async function imageToInputTensor(framePath: string): Promise<{
+function getAnchorCenters(height: number, width: number, stride: number): Float32Array {
+  const key = `${height}x${width}@${stride}`
+  const cached = centerCache.get(key)
+  if (cached) return cached
+
+  const spatial = height * width
+  const centers = new Float32Array(spatial * SCRFD_NUM_ANCHORS * 2)
+  let o = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const cx = x * stride
+      const cy = y * stride
+      for (let a = 0; a < SCRFD_NUM_ANCHORS; a++) {
+        centers[o++] = cx
+        centers[o++] = cy
+      }
+    }
+  }
+  if (centerCache.size < 100) centerCache.set(key, centers)
+  return centers
+}
+
+function tensorAsRows(tensor: OrtTensor, expectedCols: number): {rows: number; data: Float32Array} {
+  const data = tensor.data as Float32Array
+  const dims = tensor.dims
+  if (dims.length === 3) {
+    // [batch, N, C]
+    return {rows: Number(dims[1]), data}
+  }
+  if (dims.length === 2) {
+    const rows = Number(dims[0])
+    const cols = Number(dims[1])
+    if (cols === expectedCols) return {rows, data}
+    // Flat scores as [1, N]
+    if (rows === 1 && expectedCols === 1) return {rows: cols, data}
+    return {rows, data}
+  }
+  return {rows: Math.floor(data.length / Math.max(expectedCols, 1)), data}
+}
+
+function scoreAt(tensor: OrtTensor, index: number): number {
+  const data = tensor.data as Float32Array
+  const dims = tensor.dims
+  if (dims.length === 3) {
+    const cols = Number(dims[2])
+    if (cols <= 1) return data[index]
+    return data[index * cols + (cols - 1)]
+  }
+  if (dims.length === 2) {
+    const rows = Number(dims[0])
+    const cols = Number(dims[1])
+    if (cols <= 1) return data[index]
+    if (rows === 1) return data[index]
+    return data[index * cols + (cols - 1)]
+  }
+  return data[index]
+}
+
+async function imageToScrfdInput(framePath: string): Promise<{
   tensor: OrtTensor
   width: number
   height: number
+  detScale: number
   image: Awaited<ReturnType<typeof Jimp.read>>
 }> {
   const ort = getOrt()
   const image = await Jimp.read(framePath)
   const width = image.width
   const height = image.height
-  const resized = image.clone().resize({w: INPUT_WIDTH, h: INPUT_HEIGHT})
-  const {data} = resized.bitmap
-  const floatData = new Float32Array(1 * 3 * INPUT_HEIGHT * INPUT_WIDTH)
 
-  for (let y = 0; y < INPUT_HEIGHT; y++) {
-    for (let x = 0; x < INPUT_WIDTH; x++) {
-      const idx = (y * INPUT_WIDTH + x) * 4
-      const offset = y * INPUT_WIDTH + x
-      floatData[offset] = (data[idx] - 127) / 128
-      floatData[INPUT_WIDTH * INPUT_HEIGHT + offset] = (data[idx + 1] - 127) / 128
-      floatData[2 * INPUT_WIDTH * INPUT_HEIGHT + offset] = (data[idx + 2] - 127) / 128
+  const imRatio = height / Math.max(width, 1)
+  const modelRatio = 1
+  let newWidth: number
+  let newHeight: number
+  if (imRatio > modelRatio) {
+    newHeight = DET_INPUT_SIZE
+    newWidth = Math.max(1, Math.round(newHeight / imRatio))
+  } else {
+    newWidth = DET_INPUT_SIZE
+    newHeight = Math.max(1, Math.round(newWidth * imRatio))
+  }
+  const detScale = newHeight / Math.max(height, 1)
+
+  const resized = image.clone().resize({w: newWidth, h: newHeight})
+  const floatData = new Float32Array(1 * 3 * DET_INPUT_SIZE * DET_INPUT_SIZE)
+  const plane = DET_INPUT_SIZE * DET_INPUT_SIZE
+  const {data} = resized.bitmap
+
+  for (let y = 0; y < newHeight; y++) {
+    for (let x = 0; x < newWidth; x++) {
+      const src = (y * newWidth + x) * 4
+      const dst = y * DET_INPUT_SIZE + x
+      floatData[dst] = (data[src] - SCRFD_MEAN) / SCRFD_STD
+      floatData[plane + dst] = (data[src + 1] - SCRFD_MEAN) / SCRFD_STD
+      floatData[2 * plane + dst] = (data[src + 2] - SCRFD_MEAN) / SCRFD_STD
     }
   }
 
   return {
-    tensor: new ort.Tensor('float32', floatData, [1, 3, INPUT_HEIGHT, INPUT_WIDTH]),
+    tensor: new ort.Tensor('float32', floatData, [1, 3, DET_INPUT_SIZE, DET_INPUT_SIZE]),
     width,
     height,
+    detScale,
     image,
   }
 }
@@ -512,53 +726,88 @@ async function detectFacesInFrame(
   model: OrtSession,
   framePath: string,
   options: FaceDetectorOptions = {},
-): Promise<Array<{score: number; box: FaceBox}>> {
+): Promise<Array<{score: number; box: FaceBox; kps: FaceLandmark5 | null}>> {
   const minScore = Number(options.minScore ?? DEFAULT_MIN_SCORE)
   const iouThreshold = Number(options.iouThreshold ?? DEFAULT_IOU)
   const maxFaces = Number(options.maxFacesPerFrame ?? DEFAULT_MAX_FACES)
-  const {tensor, width, height, image} = await imageToInputTensor(framePath)
-  const inputName = model.inputNames[0] || 'input'
+  const {tensor, width, height, detScale, image} = await imageToScrfdInput(framePath)
+  const inputName = model.inputNames[0] || 'input.1'
   const outputs = await model.run({[inputName]: tensor})
-  const scoresTensor = outputs.scores || outputs[model.outputNames.find((name) => /score/i.test(name)) || '']
-  const boxesTensor = outputs.boxes || outputs[model.outputNames.find((name) => /box/i.test(name)) || '']
-
-  if (!scoresTensor || !boxesTensor) {
-    throw new Error('Face model returned unexpected outputs.')
+  const names = model.outputNames
+  if (names.length < 6) {
+    throw new Error(`SCRFD model returned unexpected outputs (${names.length}).`)
   }
 
-  const scores = scoresTensor.data as Float32Array
-  const boxes = boxesTensor.data as Float32Array
-  const num = boxesTensor.dims[1] || Math.floor(boxes.length / 4)
+  const fmc = 3
+  const useKps = names.length >= 9
+  const candidates: Array<{score: number; box: FaceBox; kps: FaceLandmark5 | null}> = []
   const frameArea = Math.max(1, width * height)
   const gates = qualityGatesForScore(minScore)
-  const candidates: Array<{score: number; box: FaceBox}> = []
 
-  for (let i = 0; i < num; i++) {
-    const score = scores[i * 2 + 1]
-    if (!(score >= minScore)) continue
+  for (let idx = 0; idx < fmc; idx++) {
+    const stride = SCRFD_STRIDES[idx]
+    const scoreTensor = outputs[names[idx]]
+    const bboxTensor = outputs[names[idx + fmc]]
+    const kpsTensor = useKps ? outputs[names[idx + fmc * 2]] : null
+    if (!scoreTensor || !bboxTensor) continue
 
-    const xMin = Math.max(0, Math.min(1, boxes[i * 4])) * width
-    const yMin = Math.max(0, Math.min(1, boxes[i * 4 + 1])) * height
-    const xMax = Math.max(0, Math.min(1, boxes[i * 4 + 2])) * width
-    const yMax = Math.max(0, Math.min(1, boxes[i * 4 + 3])) * height
-    const boxWidth = xMax - xMin
-    const boxHeight = yMax - yMin
-    const minSide = Math.min(boxWidth, boxHeight)
-    const maxSide = Math.max(boxWidth, boxHeight)
-    const frameMin = Math.min(width, height)
-    if (minSide < MIN_FACE_SIDE_PX && minSide < frameMin * MIN_FACE_SIDE_RATIO) continue
-    if (maxSide / Math.max(minSide, 1) > MAX_FACE_ASPECT) continue
-    if ((boxWidth * boxHeight) / frameArea > gates.maxAreaRatio) continue
+    const featH = Math.floor(DET_INPUT_SIZE / stride)
+    const featW = Math.floor(DET_INPUT_SIZE / stride)
+    const centers = getAnchorCenters(featH, featW, stride)
+    const expected = featH * featW * SCRFD_NUM_ANCHORS
 
-    const box = {
-      x: xMin,
-      y: yMin,
-      width: boxWidth,
-      height: boxHeight,
+    const scores = tensorAsRows(scoreTensor, 1)
+    const bboxes = tensorAsRows(bboxTensor, 4)
+    const kpsRows = kpsTensor ? tensorAsRows(kpsTensor, 10) : null
+    const n = Math.min(expected, scores.rows, bboxes.rows, kpsRows ? kpsRows.rows : expected)
+
+    for (let i = 0; i < n; i++) {
+      const score = scoreAt(scoreTensor, i)
+      if (!(score >= minScore)) continue
+
+      const cx = centers[i * 2]
+      const cy = centers[i * 2 + 1]
+      const d0 = bboxes.data[i * 4] * stride
+      const d1 = bboxes.data[i * 4 + 1] * stride
+      const d2 = bboxes.data[i * 4 + 2] * stride
+      const d3 = bboxes.data[i * 4 + 3] * stride
+
+      let x1 = (cx - d0) / detScale
+      let y1 = (cy - d1) / detScale
+      let x2 = (cx + d2) / detScale
+      let y2 = (cy + d3) / detScale
+
+      x1 = Math.max(0, Math.min(width, x1))
+      y1 = Math.max(0, Math.min(height, y1))
+      x2 = Math.max(0, Math.min(width, x2))
+      y2 = Math.max(0, Math.min(height, y2))
+
+      const boxWidth = x2 - x1
+      const boxHeight = y2 - y1
+      if (boxWidth < 1 || boxHeight < 1) continue
+
+      const minSide = Math.min(boxWidth, boxHeight)
+      const maxSide = Math.max(boxWidth, boxHeight)
+      const frameMin = Math.min(width, height)
+      if (minSide < MIN_FACE_SIDE_PX && minSide < frameMin * MIN_FACE_SIDE_RATIO) continue
+      if (maxSide / Math.max(minSide, 1) > MAX_FACE_ASPECT) continue
+      if ((boxWidth * boxHeight) / frameArea > gates.maxAreaRatio) continue
+
+      const box = {x: x1, y: y1, width: boxWidth, height: boxHeight}
+      if (!boxLooksLikeFace(image, box, minScore)) continue
+
+      let kps: FaceLandmark5 | null = null
+      if (kpsRows) {
+        const base = i * 10
+        const points = [0, 1, 2, 3, 4].map((p) => ({
+          x: (cx + kpsRows.data[base + p * 2] * stride) / detScale,
+          y: (cy + kpsRows.data[base + p * 2 + 1] * stride) / detScale,
+        }))
+        kps = points as FaceLandmark5
+      }
+
+      candidates.push({score, box, kps})
     }
-    if (!boxLooksLikeFace(image, box, minScore)) continue
-
-    candidates.push({score, box})
   }
 
   return hardNms(candidates, iouThreshold, maxFaces)
@@ -636,7 +885,12 @@ async function extractFramesForMedia(
     return {tmpDir, frames}
   }
 
-  const timestamps = getFrameTimestamps(duration, framesPerVideo)
+  // Oversample then drop near-duplicates so N kept frames cover more of the video.
+  const targetCount = Math.max(1, Math.min(99, Math.round(framesPerVideo) || 6))
+  const candidateCount = Math.min(99, Math.max(targetCount, Math.ceil(targetCount * 1.75)))
+  const timestamps = getFrameTimestamps(duration, candidateCount)
+  const candidates: Array<{framePath: string; timestamp: string; fingerprint: string}> = []
+
   for (let index = 0; index < timestamps.length; index++) {
     const output = path.join(tmpDir, `${item.id || 'media'}_${index}.jpg`)
     try {
@@ -646,10 +900,26 @@ async function extractFramesForMedia(
         timestamp: timestamps[index],
         vf: `scale=${frameWidth}:-1`,
       })
-      frames.push({framePath: output, timestamp: timestamps[index]})
+      const fingerprint = await frameFingerprint(output)
+      candidates.push({framePath: output, timestamp: timestamps[index], fingerprint})
     } catch {
       // Skip broken frames.
     }
+  }
+
+  const selected = pickDiverseFrames(candidates, targetCount)
+  const selectedPaths = new Set(selected.map((frame) => frame.framePath))
+  for (const candidate of candidates) {
+    if (selectedPaths.has(candidate.framePath)) continue
+    try {
+      fs.unlinkSync(candidate.framePath)
+    } catch {
+      // Ignore cleanup errors.
+    }
+  }
+
+  for (const frame of selected) {
+    frames.push({framePath: frame.framePath, timestamp: frame.timestamp})
   }
 
   return {tmpDir, frames}
@@ -699,7 +969,7 @@ async function detectMedia(
       ? Math.min(99, Math.max(1, Math.round(framesRaw)))
       : detectSettings.framesPerVideo,
     minScore: Number.isFinite(scoreRaw)
-      ? Math.min(0.98, Math.max(0.5, scoreRaw))
+      ? Math.min(0.75, Math.max(0.5, scoreRaw))
       : detectSettings.minScore,
   }
 
@@ -763,7 +1033,12 @@ async function detectMedia(
       return facesDir
     }
 
-    let embedImage: ((db: ApiDb, imagePath: string) => Promise<Float32Array>) | null = null
+    let embedImage: ((
+      db: ApiDb,
+      imagePath: string,
+      box?: FaceBox | null,
+      kps?: FaceLandmark5 | null,
+    ) => Promise<Float32Array>) | null = null
     let embeddingToJson: ((embedding: Float32Array) => string) | null = null
     try {
       const faceRecognition = require('./faceRecognition') as typeof import('./faceRecognition')
@@ -804,9 +1079,25 @@ async function detectMedia(
             cropRelativePath = null
           }
 
-          if (absoluteCrop && fs.existsSync(absoluteCrop) && embedImage && embeddingToJson) {
+          const blurVariance = estimateBlurVariance(sourceImage, detection.box)
+          const matchable = assessMatchability({
+            score: detection.score,
+            box: detection.box,
+            frameWidth: sourceImage.width,
+            frameHeight: sourceImage.height,
+            blurVariance,
+          })
+
+          // Weak detections stay visible in review, but do not get embeddings / auto-match.
+          if (
+            matchable.ok
+            && absoluteCrop
+            && fs.existsSync(absoluteCrop)
+            && embedImage
+            && embeddingToJson
+          ) {
             try {
-              const vector = await embedImage(db, absoluteCrop)
+              const vector = await embedImage(db, frame.framePath, detection.box, detection.kps)
               embedding = embeddingToJson(vector)
             } catch {
               embedding = null
@@ -817,6 +1108,7 @@ async function detectMedia(
         faces.push({
           score: detection.score,
           box: detection.box,
+          kps: detection.kps,
           timestamp: frame.timestamp,
           cropPath,
           cropRelativePath,
@@ -936,6 +1228,23 @@ async function* iterateFaceDetection(
     purgeAllFaceCrops(db)
   }
 
+  try {
+    yield* prepareDetectModel(db)
+  } catch (error: unknown) {
+    yield {
+      type: 'error',
+      message: error instanceof Error ? error.message : 'Face detection model is unavailable.',
+    }
+    return
+  }
+
+  try {
+    const faceRecognition = require('./faceRecognition') as typeof import('./faceRecognition')
+    yield* faceRecognition.prepareEmbedModel(db)
+  } catch {
+    // Embedding is optional during detect; matching will skip faces without vectors.
+  }
+
   const total = items.length
   let processed = 0
   let created = 0
@@ -1022,6 +1331,7 @@ async function* iterateFaceDetection(
 
 export {
   FACE_MODEL_ID,
+  FACE_MODEL_SIZE_MB,
   detectFacesInFrame,
   detectMedia,
   ensureFaceCropsForMedia,
@@ -1031,6 +1341,7 @@ export {
   hasDownloadedModel,
   iterateFaceDetection,
   loadModel,
+  prepareDetectModel,
   purgeAllFaceCrops,
   purgeOtherMediaFaceCrops,
   saveFaceCrop,

@@ -126,6 +126,11 @@
       @close="dialogsStore.scraper.show = false"
     />
 
+    <DialogCamGirlFinder
+      v-if="adultUiAvailable && dialogsStore.camgirlFinder.show"
+      @close="dialogsStore.closeCamGirlFinder()"
+    />
+
     <DialogScraperMultiple
       v-if="adultUiAvailable && dialogsStore.scraperMultiple.show"
       @close="dialogsStore.scraperMultiple.show = false"
@@ -223,6 +228,9 @@ const DialogProcess = defineAsyncComponent(() =>
 )
 const DialogScraper = defineAsyncComponent(() =>
   import('@mediachips/plugin-adult/components/DialogScraper.vue')
+)
+const DialogCamGirlFinder = defineAsyncComponent(() =>
+  import('@mediachips/plugin-adult/components/DialogCamGirlFinder.vue')
 )
 const DialogScraperMultiple = defineAsyncComponent(() =>
   import('@mediachips/plugin-adult/components/DialogScraperMultiple.vue')

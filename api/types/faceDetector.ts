@@ -5,9 +5,19 @@ export interface FaceBox {
   height: number
 }
 
+/** SCRFD / ArcFace 5-point landmarks: L-eye, R-eye, nose, L-mouth, R-mouth. */
+export type FaceLandmark5 = [
+  {x: number; y: number},
+  {x: number; y: number},
+  {x: number; y: number},
+  {x: number; y: number},
+  {x: number; y: number},
+]
+
 export interface FaceDetection {
   score: number
   box: FaceBox
+  kps?: FaceLandmark5 | null
   timestamp: string | null
   cropPath: string | null
   cropRelativePath: string | null
@@ -50,7 +60,8 @@ export interface FaceDetectionGenerationStatus {
 }
 
 export interface FaceDetectionProgressEvent {
-  type: 'progress' | 'complete' | 'error'
+  type: 'progress' | 'complete' | 'error' | 'status'
+  phase?: 'downloading_embed' | 'embed_ready' | 'downloading_align' | 'downloading_detect' | 'detect_ready'
   processed?: number
   total?: number
   remaining?: number
@@ -61,6 +72,7 @@ export interface FaceDetectionProgressEvent {
   faces?: number
   current?: string
   message?: string
+  sizeMb?: number
   stopped?: boolean
   mediaId?: number | string | null
 }

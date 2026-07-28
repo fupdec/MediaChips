@@ -83,8 +83,8 @@ const MIGRATION_SETTINGS = [
   {option: 'faceMatch.candidateLimit', value: '10'},
   {option: 'faceMatch.mode', value: 'auto'},
   {option: 'faceMatch.matchAfterDetect', value: '1'},
-  {option: 'faceMatch.embedModelId', value: 'insightface-mbf-v2'},
-  {option: 'faceDetect.minScore', value: '0.9'},
+  {option: 'faceMatch.embedModelId', value: 'insightface-r50-scrfd-kps-v1'},
+  {option: 'faceDetect.minScore', value: '0.5'},
   {option: 'faceDetect.framesPerVideo', value: '6'},
   {option: 'meta_sort_mode', value: 'menu'},
   {

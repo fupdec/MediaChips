@@ -1,6 +1,6 @@
 import type { ApiDb } from '../types/db'
 import type { ModelStatus } from '../types/mlModels'
-import type { FaceBox } from '../types/faceDetector'
+import type { FaceBox, FaceLandmark5 } from '../types/faceDetector'
 import fs from 'fs'
 import https from 'https'
 import http from 'http'
@@ -19,13 +19,24 @@ import {
   loadModel as loadDetectionModel,
   saveFaceCrop,
 } from './faceDetector'
+import {
+  alignFaceRgb112,
+} from './faceAlign'
+import {
+  MAX_ENROLLMENTS_PER_TAG,
+  assessEnrollmentDetections,
+  isNearDuplicateEmbedding,
+} from './enrollmentGates'
+import { isMatchableStoredFace } from './matchGates'
 
-const EMBED_MODEL_ID = 'insightface-mbf'
-/** Bump when preprocess/ranking changes so stale enrollments are wiped. */
-const EMBED_SPACE_ID = 'insightface-mbf-v2'
-const EMBED_MODEL_FILENAME = 'w600k_mbf.onnx'
-const EMBED_MODEL_URL = 'https://huggingface.co/deepghs/insightface/resolve/main/buffalo_s/w600k_mbf.onnx'
+const EMBED_MODEL_ID = 'insightface-r50'
+/** Bump when preprocess/ranking/model changes so stale enrollments are wiped. */
+const EMBED_SPACE_ID = 'insightface-r50-scrfd-kps-v1'
+const EMBED_MODEL_FILENAME = 'w600k_r50.onnx'
+const EMBED_MODEL_URL = 'https://huggingface.co/deepghs/insightface/resolve/main/buffalo_l/w600k_r50.onnx'
 const EMBED_MODEL_SETTING = 'faceMatch.embedModelId'
+/** Rough download size shown in UI copy (~buffalo_l recognition head). */
+const EMBED_MODEL_SIZE_MB = 170
 const EMBED_SIZE = 112
 const EMBED_DIM = 512
 const EMBED_INPUT_MEAN = 127.5
@@ -46,7 +57,8 @@ export interface FaceMatchSettings {
 }
 
 export interface FaceMatchProgressEvent {
-  type: 'progress' | 'complete' | 'error'
+  type: 'progress' | 'complete' | 'error' | 'status'
+  phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready'
   processed?: number
   total?: number
   remaining?: number
@@ -57,6 +69,7 @@ export interface FaceMatchProgressEvent {
   failed?: number
   current?: string
   message?: string
+  sizeMb?: number
   stopped?: boolean
 }
 
@@ -78,18 +91,10 @@ function getWritableModelCacheDir(db: ApiDb) {
   return path.join(base, 'models', EMBED_MODEL_ID)
 }
 
-function getBundledModelPath() {
-  const candidates = [
-    process.resourcesPath ? path.join(process.resourcesPath, 'models', EMBED_MODEL_ID, EMBED_MODEL_FILENAME) : null,
-    path.join(__dirname, '..', '..', 'models', EMBED_MODEL_ID, EMBED_MODEL_FILENAME),
-  ].filter(Boolean) as string[]
-  return candidates.find((candidate) => fs.existsSync(candidate)) || null
-}
-
 function getModelPath(db: ApiDb) {
+  // R50 is not bundled with the app — only the user-data cache counts.
   const cached = path.join(getWritableModelCacheDir(db), EMBED_MODEL_FILENAME)
-  if (fs.existsSync(cached)) return cached
-  return getBundledModelPath()
+  return fs.existsSync(cached) ? cached : null
 }
 
 function hasDownloadedEmbedModel(db: ApiDb) {
@@ -112,7 +117,11 @@ function migrateEmbedModelIfNeeded(db: ApiDb) {
 function downloadFile(url: string, destination: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http
-    const request = client.get(url, (response) => {
+    const request = client.get(url, {
+      headers: {
+        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
+      },
+    }, (response) => {
       if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         response.resume()
         downloadFile(response.headers.location, destination).then(resolve, reject)
@@ -145,14 +154,14 @@ function downloadFile(url: string, destination: string): Promise<void> {
   })
 }
 
-async function ensureEmbedModelFile(db: ApiDb): Promise<string> {
+async function ensureEmbedModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
   const existing = getModelPath(db)
-  if (existing) return existing
+  if (existing) return {path: existing, downloaded: false}
   const cacheDir = getWritableModelCacheDir(db)
   fs.mkdirSync(cacheDir, {recursive: true})
   const destination = path.join(cacheDir, EMBED_MODEL_FILENAME)
   await downloadFile(EMBED_MODEL_URL, destination)
-  return destination
+  return {path: destination, downloaded: true}
 }
 
 async function loadEmbedModel(db: ApiDb): Promise<OrtSession> {
@@ -162,7 +171,7 @@ async function loadEmbedModel(db: ApiDb): Promise<OrtSession> {
   loadingPromise = (async () => {
     try {
       migrateEmbedModelIfNeeded(db)
-      const modelPath = await ensureEmbedModelFile(db)
+      const {path: modelPath} = await ensureEmbedModelFile(db)
       const ort = getOrt()
       embedSession = await ort.InferenceSession.create(modelPath)
       lastError = null
@@ -176,6 +185,38 @@ async function loadEmbedModel(db: ApiDb): Promise<OrtSession> {
   })()
 
   return loadingPromise
+}
+
+type EmbedPrepEvent = {
+  type: 'status'
+  phase: 'downloading_embed' | 'downloading_align' | 'embed_ready'
+  message: string
+  sizeMb?: number
+}
+
+async function* prepareEmbedModel(db: ApiDb): AsyncGenerator<EmbedPrepEvent> {
+  migrateEmbedModelIfNeeded(db)
+
+  // Alignment uses SCRFD 5-point landmarks from detection (no separate 2d106 download).
+
+  const needsDownload = !hasDownloadedEmbedModel(db)
+  if (needsDownload) {
+    yield {
+      type: 'status',
+      phase: 'downloading_embed',
+      message: `Downloading face recognition model (~${EMBED_MODEL_SIZE_MB} MB)…`,
+      sizeMb: EMBED_MODEL_SIZE_MB,
+    }
+  }
+  await loadEmbedModel(db)
+  if (needsDownload) {
+    yield {
+      type: 'status',
+      phase: 'embed_ready',
+      message: 'Face recognition model downloaded.',
+      sizeMb: EMBED_MODEL_SIZE_MB,
+    }
+  }
 }
 
 function getEmbedStatus(db: ApiDb): ModelStatus {
@@ -273,26 +314,58 @@ function embeddingFromJson(value: string): Float32Array {
   }
 }
 
-async function imageToEmbedTensor(imagePath: string) {
+function rgbToEmbedTensor(rgb: Uint8Array, width: number, height: number) {
   const ort = getOrt()
+  const floatData = new Float32Array(1 * 3 * width * height)
+  const plane = width * height
+  for (let i = 0; i < plane; i++) {
+    floatData[i] = (rgb[i * 3] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
+    floatData[plane + i] = (rgb[i * 3 + 1] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
+    floatData[2 * plane + i] = (rgb[i * 3 + 2] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
+  }
+  return new ort.Tensor('float32', floatData, [1, 3, height, width])
+}
+
+async function imageToEmbedTensorLetterbox(imagePath: string) {
   const image = await Jimp.read(imagePath)
-  // Letterbox (contain) — never center-crop through the face like cover() does.
-  // InsightFace ArcFace: RGB NCHW, (x - 127.5) / 127.5
+  // Letterbox fallback when landmarks are unavailable.
   const resized = image.clone().contain({w: EMBED_SIZE, h: EMBED_SIZE})
   const {data} = resized.bitmap
-  const floatData = new Float32Array(1 * 3 * EMBED_SIZE * EMBED_SIZE)
-
-  for (let y = 0; y < EMBED_SIZE; y++) {
-    for (let x = 0; x < EMBED_SIZE; x++) {
-      const idx = (y * EMBED_SIZE + x) * 4
-      const offset = y * EMBED_SIZE + x
-      floatData[offset] = (data[idx] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
-      floatData[EMBED_SIZE * EMBED_SIZE + offset] = (data[idx + 1] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
-      floatData[2 * EMBED_SIZE * EMBED_SIZE + offset] = (data[idx + 2] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
-    }
+  const rgb = new Uint8Array(EMBED_SIZE * EMBED_SIZE * 3)
+  for (let i = 0; i < EMBED_SIZE * EMBED_SIZE; i++) {
+    rgb[i * 3] = data[i * 4]
+    rgb[i * 3 + 1] = data[i * 4 + 1]
+    rgb[i * 3 + 2] = data[i * 4 + 2]
   }
+  return rgbToEmbedTensor(rgb, EMBED_SIZE, EMBED_SIZE)
+}
 
-  return new ort.Tensor('float32', floatData, [1, 3, EMBED_SIZE, EMBED_SIZE])
+async function embedImage(
+  db: ApiDb,
+  imagePath: string,
+  box?: FaceBox | null,
+  kps?: FaceLandmark5 | null,
+): Promise<Float32Array> {
+  const model = await loadEmbedModel(db)
+  let tensor
+  if (box && Number(box.width) > 1 && Number(box.height) > 1) {
+    try {
+      const image = await Jimp.read(imagePath)
+      const aligned = await alignFaceRgb112(db, image, box, kps)
+      tensor = aligned
+        ? rgbToEmbedTensor(aligned, EMBED_SIZE, EMBED_SIZE)
+        : await imageToEmbedTensorLetterbox(imagePath)
+    } catch {
+      tensor = await imageToEmbedTensorLetterbox(imagePath)
+    }
+  } else {
+    tensor = await imageToEmbedTensorLetterbox(imagePath)
+  }
+  const inputName = model.inputNames[0] || 'input'
+  const outputs = await model.run({[inputName]: tensor})
+  const embeddingTensor = outputs.embedding || outputs[model.outputNames[0]]
+  if (!embeddingTensor) throw new Error('Face embed model returned no embedding.')
+  return l2Normalize(embeddingTensor.data as Float32Array)
 }
 
 function averageEmbeddings(embeddings: Array<Float32Array | null | undefined>): Float32Array | null {
@@ -308,16 +381,6 @@ function averageEmbeddings(embeddings: Array<Float32Array | null | undefined>): 
   const scale = 1 / usable.length
   for (let i = 0; i < dim; i++) sum[i] *= scale
   return l2Normalize(sum)
-}
-
-async function embedImage(db: ApiDb, imagePath: string): Promise<Float32Array> {
-  const model = await loadEmbedModel(db)
-  const tensor = await imageToEmbedTensor(imagePath)
-  const inputName = model.inputNames[0] || 'input'
-  const outputs = await model.run({[inputName]: tensor})
-  const embeddingTensor = outputs.embedding || outputs[model.outputNames[0]]
-  if (!embeddingTensor) throw new Error('Face embed model returned no embedding.')
-  return l2Normalize(embeddingTensor.data as Float32Array)
 }
 
 function resolveAbsoluteCropPath(db: ApiDb, cropPath: string | null | undefined) {
@@ -419,28 +482,34 @@ async function enrollTagImage(
   metaId: number,
   imagePath: string,
   source: 'tagImage' | 'faceCrop' | 'upload' = 'tagImage',
-  options: {fallbackWholeImage?: boolean} = {},
+  options: {
+    existingEmbeddings?: Float32Array[]
+  } = {},
 ) {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-face-enroll-'))
-  const cropPath = path.join(tmpDir, `tag_${tagId}.jpg`)
-  try {
-    const cropped = await extractLargestFaceCrop(db, imagePath, cropPath, {
-      fallbackWholeImage: options.fallbackWholeImage,
-      minScore: 0.55,
-    })
-    if (!cropped) return false
-    const embedding = await embedImage(db, cropPath)
-    createFaceEnrollmentsRepository(db.drizzle).create({
-      tagId,
-      metaId,
-      source,
-      sourcePath: toEnrollmentSourcePath(db, imagePath),
-      embedding: embeddingToJson(embedding),
-    })
-    return true
-  } finally {
-    fs.rmSync(tmpDir, {recursive: true, force: true})
+  const detector = await loadDetectionModel(db)
+  const detections = await detectFacesInFrame(detector, imagePath, {
+    minScore: 0.5,
+    maxFacesPerFrame: 5,
+  })
+  const image = await Jimp.read(imagePath)
+  const assessment = assessEnrollmentDetections(detections, image.width, image.height)
+  // Skip weak / group / tiny / no-face refs — they pollute ranking more than they help.
+  if (!assessment.ok) return false
+
+  const box = assessment.best.box as FaceBox
+  const embedding = await embedImage(db, imagePath, box, assessment.best.kps || null)
+  if (options.existingEmbeddings && isNearDuplicateEmbedding(embedding, options.existingEmbeddings)) {
+    return false
   }
+  createFaceEnrollmentsRepository(db.drizzle).create({
+    tagId,
+    metaId,
+    source,
+    sourcePath: toEnrollmentSourcePath(db, imagePath),
+    embedding: embeddingToJson(embedding),
+  })
+  options.existingEmbeddings?.push(embedding)
+  return true
 }
 
 async function enrollTagFromAllImages(
@@ -456,27 +525,35 @@ async function enrollTagFromAllImages(
     enrollmentsRepo.deleteByTagId(tagId)
   }
 
+  const enrolledRows = options.force ? [] : existing
   const enrolledSources = new Set(
-    (options.force ? [] : existing)
+    enrolledRows
       .map((row) => String(row.sourcePath || ''))
       .filter(Boolean),
   )
 
+  const existingEmbeddings: Float32Array[] = []
+  for (const row of enrolledRows) {
+    try {
+      existingEmbeddings.push(embeddingFromJson(String(row.embedding)))
+    } catch {
+      // Ignore corrupt rows.
+    }
+  }
+
   let created = 0
   for (const imagePath of imagePaths) {
+    if (enrolledRows.length + created >= MAX_ENROLLMENTS_PER_TAG) break
     const sourcePath = toEnrollmentSourcePath(db, imagePath)
     if (enrolledSources.has(sourcePath) || enrolledSources.has(imagePath)) continue
     const ok = await enrollTagImage(db, tagId, metaId, imagePath, 'tagImage', {
-      // Prefer real face crops; whole-image fallback only as last resort below.
-      fallbackWholeImage: false,
+      existingEmbeddings,
     })
     if (ok) {
       created += 1
       enrolledSources.add(sourcePath)
     }
   }
-
-  // Do not enroll whole images when no face is detected — noisy gallery kills ranking.
 
   return created
 }
@@ -501,7 +578,7 @@ async function* iterateEnrollFromPerformerImages(
   }
 
   await loadDetectionModel(db)
-  await loadEmbedModel(db)
+  yield* prepareEmbedModel(db)
 
   const tags = createTagsRepository(db.drizzle, db.sqlite).findByMetaIds([metaId])
   const enrollmentsRepo = createFaceEnrollmentsRepository(db.drizzle)
@@ -591,14 +668,17 @@ async function* iterateEnrollFromPerformerImages(
 
 function scoreEnrollmentTags(
   embedding: Float32Array,
-  enrollments: Array<{tagId: number; embedding: string}>,
+  enrollments: Array<{tagId: number; embedding: string | Float32Array}>,
 ): Map<number, number> {
   const scoresByTag = new Map<number, number[]>()
 
   for (const enrollment of enrollments) {
     const tagId = Number(enrollment.tagId)
     if (!Number.isFinite(tagId) || tagId <= 0) continue
-    const ref = embeddingFromJson(enrollment.embedding)
+    const ref = typeof enrollment.embedding === 'string'
+      ? embeddingFromJson(enrollment.embedding)
+      : enrollment.embedding
+    if (!ref?.length) continue
     const score = cosineSimilarity(embedding, ref)
     const list = scoresByTag.get(tagId)
     if (list) list.push(score)
@@ -617,9 +697,27 @@ function scoreEnrollmentTags(
   return result
 }
 
+function parseEnrollmentRefs(
+  enrollments: Array<{tagId: number; embedding: string}>,
+): Array<{tagId: number; embedding: Float32Array}> {
+  const parsed: Array<{tagId: number; embedding: Float32Array}> = []
+  for (const enrollment of enrollments) {
+    const tagId = Number(enrollment.tagId)
+    if (!Number.isFinite(tagId) || tagId <= 0) continue
+    try {
+      const embedding = embeddingFromJson(String(enrollment.embedding || ''))
+      if (!embedding.length) continue
+      parsed.push({tagId, embedding})
+    } catch {
+      // Skip corrupt gallery vectors.
+    }
+  }
+  return parsed
+}
+
 function findTopEnrollmentMatches(
   embedding: Float32Array,
-  enrollments: Array<{tagId: number; embedding: string}>,
+  enrollments: Array<{tagId: number; embedding: string | Float32Array}>,
   limit = DEFAULT_CANDIDATE_LIMIT,
 ) {
   return [...scoreEnrollmentTags(embedding, enrollments).entries()]
@@ -635,7 +733,7 @@ function findTopEnrollmentMatches(
  */
 function findTopEnrollmentMatchesForEmbeddings(
   embeddings: Array<Float32Array | null | undefined>,
-  enrollments: Array<{tagId: number; embedding: string}>,
+  enrollments: Array<{tagId: number; embedding: string | Float32Array}>,
   limit = DEFAULT_CANDIDATE_LIMIT,
 ) {
   const usable = embeddings.filter((item): item is Float32Array => Boolean(item && item.length))
@@ -701,7 +799,9 @@ async function matchMediaFaces(
   const faces = facesRepo.findByMediaId(mediaId)
   if (!faces.length) return {matched: 0, applied: 0, skipped: 0, faces: 0}
 
-  const enrollments = createFaceEnrollmentsRepository(db.drizzle).findByMetaId(metaId)
+  const enrollments = parseEnrollmentRefs(
+    createFaceEnrollmentsRepository(db.drizzle).findByMetaId(metaId),
+  )
   if (!enrollments.length) {
     return {matched: 0, applied: 0, skipped: faces.length, faces: faces.length, error: 'No enrolled performer faces.'}
   }
@@ -718,6 +818,7 @@ async function matchMediaFaces(
     tagId: number | null
     matchScore: number | null
     score: number
+    timestamp: string | null
     skip: boolean
     candidates?: Array<{tagId: number; score: number}>
     embedding?: Float32Array | null
@@ -727,6 +828,7 @@ async function matchMediaFaces(
 
   for (const face of faces) {
     const faceId = Number(face.id)
+    const timestamp = face.timestamp ?? null
     if (face.tagId && !options.force) {
       skipped += 1
       prepared.push({
@@ -734,6 +836,21 @@ async function matchMediaFaces(
         tagId: Number(face.tagId),
         matchScore: face.matchScore,
         score: Number(face.score) || 0,
+        timestamp,
+        skip: true,
+        embedding: null,
+      })
+      continue
+    }
+
+    if (!isMatchableStoredFace(face)) {
+      skipped += 1
+      prepared.push({
+        id: faceId,
+        tagId: null,
+        matchScore: null,
+        score: Number(face.score) || 0,
+        timestamp,
         skip: true,
         embedding: null,
       })
@@ -749,6 +866,7 @@ async function matchMediaFaces(
           tagId: null,
           matchScore: null,
           score: Number(face.score) || 0,
+          timestamp,
           skip: true,
           embedding: null,
         })
@@ -760,6 +878,7 @@ async function matchMediaFaces(
         tagId: null,
         matchScore: null,
         score: Number(face.score) || 0,
+        timestamp,
         skip: false,
         candidates,
         embedding,
@@ -771,6 +890,7 @@ async function matchMediaFaces(
         tagId: null,
         matchScore: null,
         score: Number(face.score) || 0,
+        timestamp,
         skip: true,
         embedding: null,
       })
@@ -841,7 +961,7 @@ async function assignFaceToPerformer(
   db: ApiDb,
   faceId: number,
   tagId: number,
-  options: {enroll?: boolean; applyTag?: boolean} = {},
+  options: {enroll?: boolean; applyTag?: boolean; matchScore?: number | null} = {},
 ) {
   const facesRepo = createFacesRepository(db.drizzle)
   const face = facesRepo.findById(faceId)
@@ -851,13 +971,20 @@ async function assignFaceToPerformer(
   if (!tag?.metaId) throw new Error('Performer tag not found')
 
   const metaId = Number(tag.metaId)
+  // Opt-in: picking a face only binds suggestion unless applyTag is explicitly true.
+  const applyTag = options.applyTag === true
+  const enroll = options.enroll === true
+  const matchScore = options.matchScore != null
+    ? Number(options.matchScore)
+    : (applyTag ? 1 : (Number(face.matchScore) || 1))
   facesRepo.updateMatch(faceId, {
     tagId,
-    matchScore: 1,
-    matchStatus: 'manual',
+    matchScore,
+    // Draft pick stays suggested until the user commits tags to media.
+    matchStatus: applyTag ? 'manual' : 'suggested',
   })
 
-  if (options.applyTag !== false) {
+  if (applyTag) {
     createTagsInMediaRepository(db.drizzle).bulkCreate([{
       mediaId: Number(face.mediaId),
       tagId,
@@ -865,7 +992,7 @@ async function assignFaceToPerformer(
     }])
   }
 
-  if (options.enroll !== false) {
+  if (enroll) {
     try {
       let embeddingJson: string | null = face.embedding ? String(face.embedding) : null
       if (!embeddingJson) {
@@ -911,16 +1038,36 @@ function clearFaceMatch(db: ApiDb, faceId: number) {
   }
 }
 
-/** Same-person link for different poses/lighting in one video (MobileFaceNet, no alignment). */
+/** Same-person link for different poses/lighting in one video (R50 + landmark align). */
 const FACE_CLUSTER_SIMILARITY = 0.34
+/** Softer link when neither face has an assigned tag yet. */
+const FACE_CLUSTER_UNMATCHED_SIMILARITY = 0.28
+/** Even softer when two unmatched faces are close in time (open-mouth / profile drift). */
+const FACE_CLUSTER_TEMPORAL_SIMILARITY = 0.22
+/** Seconds between timestamps to use the temporal threshold. */
+const FACE_CLUSTER_TEMPORAL_WINDOW_SEC = 20
 /** Soft gate when both faces share a gallery tag suggestion. */
 const FACE_CLUSTER_CANDIDATE_SCORE = 0.28
+
+function parseFaceTimestampSeconds(value: string | null | undefined): number | null {
+  if (!value) return null
+  const parts = String(value).trim().split(':').map((part) => Number(part))
+  if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  }
+  if (parts.length === 2 && parts.every((part) => Number.isFinite(part))) {
+    return parts[0] * 60 + parts[1]
+  }
+  const asNumber = Number(value)
+  return Number.isFinite(asNumber) ? asNumber : null
+}
 
 function clusterFacesInMedia<T extends {
   id: number
   tagId: number | null
   matchScore: number | null
   score: number
+  timestamp?: string | null
   candidates?: Array<{tagId: number; score: number}>
   embedding?: Float32Array | null
 }>(items: T[]) {
@@ -972,6 +1119,28 @@ function clusterFacesInMedia<T extends {
     return false
   }
 
+  const embeddingThreshold = (left: T, right: T) => {
+    const leftTag = left.tagId != null && left.tagId > 0 ? left.tagId : null
+    const rightTag = right.tagId != null && right.tagId > 0 ? right.tagId : null
+    // Never soft-merge faces that already disagree on assigned people.
+    if (leftTag && rightTag && leftTag !== rightTag) return Number.POSITIVE_INFINITY
+
+    const bothUnmatched = !leftTag && !rightTag
+    if (bothUnmatched) {
+      const leftTs = parseFaceTimestampSeconds(left.timestamp)
+      const rightTs = parseFaceTimestampSeconds(right.timestamp)
+      if (
+        leftTs != null
+        && rightTs != null
+        && Math.abs(leftTs - rightTs) <= FACE_CLUSTER_TEMPORAL_WINDOW_SEC
+      ) {
+        return FACE_CLUSTER_TEMPORAL_SIMILARITY
+      }
+      return FACE_CLUSTER_UNMATCHED_SIMILARITY
+    }
+    return FACE_CLUSTER_SIMILARITY
+  }
+
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const left = items[i]
@@ -983,6 +1152,9 @@ function clusterFacesInMedia<T extends {
         union(i, j)
         continue
       }
+
+      // Conflicting assigned tags stay separate.
+      if (leftTag && rightTag && leftTag !== rightTag) continue
 
       // Assigned tag on one side + matching suggestion on the other.
       if (leftTag) {
@@ -1024,7 +1196,7 @@ function clusterFacesInMedia<T extends {
 
       if (left.embedding && right.embedding) {
         const similarity = cosineSimilarity(left.embedding, right.embedding)
-        if (similarity >= FACE_CLUSTER_SIMILARITY) union(i, j)
+        if (similarity >= embeddingThreshold(left, right)) union(i, j)
       }
     }
   }
@@ -1073,28 +1245,46 @@ function clusterFacesInMedia<T extends {
   return result
 }
 
-async function listFacesForMedia(db: ApiDb, mediaId: number, options: {candidates?: boolean} = {}) {
+async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
+  candidates?: boolean
+  ensureCrops?: boolean
+} = {}) {
   const facesRepo = createFacesRepository(db.drizzle)
   const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
   const settings = getFaceMatchSettings(db)
 
   // Review UI needs crops for this video only; rebuild if auto-scan skipped them.
-  try {
-    const {ensureFaceCropsForMedia} = require('./faceDetector') as typeof import('./faceDetector')
-    await ensureFaceCropsForMedia(db, mediaId)
-  } catch {
-    // Listing should still work without preview crops.
+  // Callers can skip this for a fast first paint, then request crops in a follow-up.
+  if (options.ensureCrops !== false) {
+    try {
+      const {ensureFaceCropsForMedia} = require('./faceDetector') as typeof import('./faceDetector')
+      await ensureFaceCropsForMedia(db, mediaId)
+    } catch {
+      // Listing should still work without preview crops.
+    }
   }
 
+  // Re-read after crop paths may have been written.
   const faceRows = facesRepo.findByMediaId(mediaId)
-  const enrollments = settings.performerMetaId && options.candidates !== false
-    ? createFaceEnrollmentsRepository(db.drizzle).findByMetaId(settings.performerMetaId)
+  const enrollmentRefs = settings.performerMetaId && options.candidates !== false
+    ? parseEnrollmentRefs(
+      createFaceEnrollmentsRepository(db.drizzle).findByMetaId(settings.performerMetaId),
+    )
     : []
 
-  try {
-    await loadEmbedModel(db)
-  } catch {
-    // Candidates/clustering stay limited if embed model is unavailable.
+  // Prefer stored vectors for listing — never warm the ONNX embed model here.
+  const tagsById = new Map(
+    (settings.performerMetaId
+      ? tagsRepo.findByMetaIds([settings.performerMetaId])
+      : []
+    ).map((tag) => [Number(tag.id), tag]),
+  )
+  const resolveTag = (tagId: number) => {
+    const cached = tagsById.get(tagId)
+    if (cached) return cached
+    const tag = tagsRepo.findById(tagId)
+    if (tag) tagsById.set(tagId, tag)
+    return tag
   }
 
   const prepared: Array<{
@@ -1120,28 +1310,29 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {candidate
   for (const face of faceRows) {
     let candidates: Array<{tagId: number; score: number; tagName: string | null; tagMetaId: number | null}> = []
     let embedding: Float32Array | null = null
-    try {
-      embedding = await loadFaceEmbedding(db, face)
-      if (embedding && enrollments.length) {
-        const top = findTopEnrollmentMatches(embedding, enrollments, settings.candidateLimit)
-        candidates = top.map((item) => {
-          const tag = tagsRepo.findById(item.tagId)
-          return {
-            tagId: item.tagId,
-            score: item.score,
-            tagName: tag?.name ?? null,
-            tagMetaId: tag?.metaId != null ? Number(tag.metaId) : null,
-          }
-        })
+    if (face.embedding) {
+      try {
+        embedding = embeddingFromJson(String(face.embedding))
+      } catch {
+        embedding = null
       }
-    } catch {
-      embedding = null
-      candidates = []
+    }
+    if (embedding && enrollmentRefs.length && isMatchableStoredFace(face)) {
+      const top = findTopEnrollmentMatches(embedding, enrollmentRefs, settings.candidateLimit)
+      candidates = top.map((item) => {
+        const tag = resolveTag(item.tagId)
+        return {
+          tagId: item.tagId,
+          score: item.score,
+          tagName: tag?.name ?? null,
+          tagMetaId: tag?.metaId != null ? Number(tag.metaId) : null,
+        }
+      })
     }
 
     const assignedTagId = face.tagId != null ? Number(face.tagId) : null
     const primaryTagId = assignedTagId ?? (candidates[0]?.tagId ?? null)
-    const tag = primaryTagId != null ? tagsRepo.findById(primaryTagId) : undefined
+    const tag = primaryTagId != null ? resolveTag(primaryTagId) : undefined
     prepared.push({
       id: Number(face.id),
       mediaId: Number(face.mediaId),
@@ -1166,7 +1357,7 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {candidate
   const clustered = clusterFacesInMedia(prepared)
 
   // Re-rank candidates from all frames in the cluster (best-frame + consistency).
-  if (enrollments.length) {
+  if (enrollmentRefs.length) {
     const byCluster = new Map<number, typeof clustered>()
     for (const face of clustered) {
       const list = byCluster.get(face.clusterId) || []
@@ -1181,12 +1372,12 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {candidate
       ]
       const top = findTopEnrollmentMatchesForEmbeddings(
         queryEmbeddings,
-        enrollments,
+        enrollmentRefs,
         settings.candidateLimit,
       )
       if (!top.length) continue
       const candidates = top.map((item) => {
-        const tag = tagsRepo.findById(item.tagId)
+        const tag = resolveTag(item.tagId)
         return {
           tagId: item.tagId,
           score: item.score,
@@ -1230,7 +1421,7 @@ async function* iterateFaceMatching(
     return
   }
 
-  await loadEmbedModel(db)
+  yield* prepareEmbedModel(db)
 
   const facesRepo = createFacesRepository(db.drizzle)
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -1302,6 +1493,46 @@ async function* iterateFaceMatching(
   }
 }
 
+async function enrollTagFaces(
+  db: ApiDb,
+  tagId: number,
+  options: {force?: boolean} = {},
+): Promise<{
+  tagId: number
+  metaId: number
+  created: number
+  skipped: boolean
+  reason?: string
+}> {
+  const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
+  const tag = tagsRepo.findById(tagId)
+  if (!tag?.metaId) {
+    return {tagId, metaId: 0, created: 0, skipped: true, reason: 'tag_not_found'}
+  }
+
+  const metaId = Number(tag.metaId)
+  const settings = getFaceMatchSettings(db)
+  if (!settings.performerMetaId || settings.performerMetaId !== metaId) {
+    return {tagId, metaId, created: 0, skipped: true, reason: 'not_people_category'}
+  }
+
+  const imagePaths = findTagImagePaths(String(db.path), metaId, tagId)
+  if (!imagePaths.length) {
+    // Photo removed — clear stale references for this tag.
+    if (options.force !== false) {
+      createFaceEnrollmentsRepository(db.drizzle).deleteByTagId(tagId)
+    }
+    return {tagId, metaId, created: 0, skipped: false}
+  }
+
+  await loadDetectionModel(db)
+  await loadEmbedModel(db)
+  const created = await enrollTagFromAllImages(db, tagId, metaId, imagePaths, {
+    force: options.force !== false,
+  })
+  return {tagId, metaId, created, skipped: false}
+}
+
 function getFaceMatchStatus(db: ApiDb) {
   const settings = getFaceMatchSettings(db)
   const facesRepo = createFacesRepository(db.drizzle)
@@ -1324,10 +1555,12 @@ function getFaceMatchStatus(db: ApiDb) {
 
 export {
   EMBED_MODEL_ID,
+  EMBED_MODEL_SIZE_MB,
   assignFaceToPerformer,
   clearFaceMatch,
   embedImage,
   embeddingToJson,
+  enrollTagFaces,
   getEmbedStatus,
   getFaceMatchSettings,
   getFaceMatchStatus,
@@ -1337,5 +1570,6 @@ export {
   listFacesForMedia,
   loadEmbedModel,
   matchMediaFaces,
+  prepareEmbedModel,
   resolvePerformerMetaId,
 }
