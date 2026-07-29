@@ -158,6 +158,7 @@ export type SettingsState = {
   show_preset_metadata_in_card: string
   count_number_of_views: string
   meta_sort_mode: string
+  meta_group_by: string
   system_dark_mode: string
   open_player_in_separate_window: string
   show_quick_action_button: string
@@ -262,6 +263,7 @@ export const defaultSettingsState = (): SettingsState => ({
   show_preset_metadata_in_card: '1',
   count_number_of_views: '1',
   meta_sort_mode: 'menu',
+  meta_group_by: 'none',
   system_dark_mode: '1',
   open_player_in_separate_window: '1',
   show_quick_action_button: '0',

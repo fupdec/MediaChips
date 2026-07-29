@@ -15,18 +15,11 @@
         :key="m.id"
         :disabled="!isEditableMediaType(m)"
         class="media-types-settings__chip"
+        :class="{'media-types-settings__chip--hidden': m.hidden}"
         @click="open(m)"
       >
         <v-icon start size="18">mdi-{{ m.icon }}</v-icon>
         <span>{{ getMediaTypeName(m, t) }}</span>
-        <v-icon
-          v-if="!m.hidden"
-          end
-          size="14"
-          :title="t('media.type.show_in_navbar')"
-        >
-          mdi-eye-outline
-        </v-icon>
       </v-chip>
     </v-chip-group>
 
@@ -116,5 +109,9 @@ function updateMediaTypes() {
 
 .media-types-settings__chip {
   justify-content: flex-start;
+}
+
+.media-types-settings__chip--hidden {
+  opacity: 0.55;
 }
 </style>

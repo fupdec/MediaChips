@@ -17,6 +17,17 @@
         ></v-btn>
 
         <v-btn
+          v-if="tagCategories.length >= 2"
+          variant="tonal"
+          color="primary"
+          class="text-none"
+          rounded="xl"
+          prepend-icon="mdi-set-merge"
+          :text="t('meta.dialogs.merge_categories_title')"
+          @click="openCategoryMerge"
+        />
+
+        <v-btn
           variant="text"
           size="small"
           color="primary"
@@ -28,30 +39,40 @@
         </v-btn>
       </div>
 
-      <div v-if="initiated && meta.length" class="meta-toolbar__filters d-flex align-center flex-wrap ga-4">
-        <v-text-field
-          v-model="search"
-          append-inner-icon="mdi-magnify"
-          :placeholder="t('common.quick_search_placeholder')"
-          hide-details
-          autofocus
-          clearable
-          variant="filled"
-          density="compact"
-          max-width="300"
-        ></v-text-field>
+      <template v-if="initiated && meta.length">
+        <div class="meta-fields-section mt-6">
+          <div class="meta-fields__caption text-caption text-medium-emphasis mb-2">
+            {{ t('meta.dialogs.fields_section_label') }}
+          </div>
 
-        <v-select
-          :model-value="sortMode"
-          @update:model-value="setSortMode"
-          :items="sortOptions"
-          :label="t('settings_labels.meta.sort_label')"
-          hide-details
-          variant="filled"
-          density="compact"
-          max-width="260"
-        ></v-select>
-      </div>
+          <div class="meta-toolbar__filters d-flex align-center flex-wrap ga-4 mb-4">
+            <v-text-field
+              v-model="search"
+              append-inner-icon="mdi-magnify"
+              :placeholder="t('common.quick_search_placeholder')"
+              hide-details
+              autofocus
+              clearable
+              variant="solo-filled"
+              flat
+              density="compact"
+              rounded="pill"
+              max-width="420"
+            ></v-text-field>
+
+            <v-switch
+              :model-value="groupMode === META_GROUP_BY_MODES.type"
+              :label="t('settings_labels.meta.group_label')"
+              hide-details
+              density="compact"
+              color="primary"
+              inset
+              class="meta-toolbar__group-by flex-grow-0"
+              @update:model-value="setGroupByType"
+            />
+          </div>
+        </div>
+      </template>
     </div>
 
     <div v-if="!meta.length" class="meta-empty text-medium-emphasis mt-3">
@@ -59,45 +80,71 @@
     </div>
 
     <template v-else-if="!isSearchEmpty">
-      <div class="meta-fields__caption text-caption text-medium-emphasis mt-3 mb-1">
-        {{ t('meta.dialogs.fields_section_label') }}
+      <div
+        v-if="groupMode !== META_GROUP_BY_MODES.type"
+        class="meta-type-filters d-flex flex-wrap ga-2 mb-3"
+      >
+        <v-chip
+          size="small"
+          label
+          :color="typeFilter === null ? 'primary' : undefined"
+          :variant="typeFilter === null ? 'flat' : 'outlined'"
+          @click="typeFilter = null"
+        >
+          {{ t('settings_labels.meta.filter_all_types') }}
+        </v-chip>
+        <v-chip
+          v-for="typeOption in availableTypeFilters"
+          :key="typeOption.value"
+          size="small"
+          label
+          :color="typeFilter === typeOption.value ? 'primary' : undefined"
+          :variant="typeFilter === typeOption.value ? 'flat' : 'outlined'"
+          @click="typeFilter = typeOption.value"
+        >
+          <v-icon start size="16">{{ typeOption.icon }}</v-icon>
+          {{ typeOption.title }}
+        </v-chip>
       </div>
 
-      <v-card
-        v-for="(group, param) in filteredMeta"
-        :key="`key_${metaKey}_param_${param}`"
-        class="meta-group pa-2 mb-3 mt-3 rounded-xl"
-        variant="flat"
-      >
-        <div class="meta-group__label d-flex align-center text-subtitle-2 text-medium-emphasis ps-2 mb-1">
-          <v-icon color="grey" start>{{ getIconDataType(param) }}</v-icon>
-          <span>{{ formatDataType(param) }}</span>
-          <v-spacer />
-          <v-btn
-            v-if="param === 'array' && tagCategories.length >= 2"
-            size="small"
-            variant="tonal"
-            color="primary"
-            class="text-none"
-            rounded="xl"
-            prepend-icon="mdi-set-merge"
-            :text="t('meta.dialogs.merge_categories_title')"
-            @click="openCategoryMerge"
-          />
-        </div>
+      <template v-if="groupMode === META_GROUP_BY_MODES.type">
+        <div
+          v-for="group in groupedFields"
+          :key="`key_${metaKey}_param_${group.type}`"
+          class="meta-group mb-3"
+        >
+          <div class="meta-group__label d-flex align-center text-subtitle-2 text-medium-emphasis ps-2 mb-1">
+            <v-icon color="grey" start>{{ getIconDataType(group.type) }}</v-icon>
+            <span>{{ formatDataType(group.type) }}</span>
+          </div>
 
-        <v-chip-group column>
-          <v-chip
-            v-for="m in group"
-            :key="`key_${metaKey}__id_${m.id}`"
-            @click="openEditDialog(m)"
-            class="ma-1"
-          >
-            <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
-            <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
-          </v-chip>
-        </v-chip-group>
-      </v-card>
+          <v-chip-group column>
+            <v-chip
+              v-for="m in group.items"
+              :key="`key_${metaKey}__id_${m.id}`"
+              class="ma-1"
+              :class="{'meta-field-chip--hidden': m.hidden && m.type === 'array'}"
+              @click="openEditDialog(m)"
+            >
+              <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
+              <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
+            </v-chip>
+          </v-chip-group>
+        </div>
+      </template>
+
+      <v-chip-group v-else column class="meta-fields-flat mb-3">
+        <v-chip
+          v-for="m in flatFields"
+          :key="`key_${metaKey}__id_${m.id}`"
+          class="ma-1"
+          :class="{'meta-field-chip--hidden': m.hidden && m.type === 'array'}"
+          @click="openEditDialog(m)"
+        >
+          <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
+          <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
+        </v-chip>
+      </v-chip-group>
     </template>
 
     <div v-if="meta.length && isSearchEmpty" class="meta-empty text-medium-emphasis mt-4">
@@ -126,7 +173,14 @@ import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import isEmpty from 'lodash/isEmpty'
 import MetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
-import {getMetaSortOptions, groupMetaByType, META_SORT_MODES, type MetaSortMode} from '@/utils/metaSort'
+import {
+  groupMetaByType,
+  META_GROUP_BY_MODES,
+  META_SORT_MODES,
+  META_TYPE_ORDER,
+  sortMetaItems,
+  type MetaGroupByMode,
+} from '@/utils/metaSort'
 import {highlightChars} from '@/services/formatUtils'
 import {getIconDataType, getTextDataType} from '@/services/metaTypeUtils'
 import {setOption} from '@/services/settingsService'
@@ -142,37 +196,69 @@ const formatDataType = (type: string) => getTextDataType(type, {te, t})
 
 const meta = ref<Meta[]>([])
 const search = ref('')
+const typeFilter = ref<string | null>(null)
 const initiated = ref(false)
 const selectedMeta = ref<Meta | null>(null)
 const editDialog = ref(false)
 const editMode = ref(false)
 const metaKey = ref(0)
 
-const sortMode = computed((): MetaSortMode =>
-  (settingsStore.meta_sort_mode as MetaSortMode) || META_SORT_MODES.menu,
+const groupMode = computed((): MetaGroupByMode =>
+  (settingsStore.meta_group_by as MetaGroupByMode) || META_GROUP_BY_MODES.none,
 )
-const sortOptions = computed(() => getMetaSortOptions(t))
 
 const tagCategories = computed(() =>
   meta.value.filter((item) => item.type === 'array'),
 )
 
-const filteredMeta = computed(() => {
+const searchedMeta = computed(() => {
   const searchTerm = search.value?.toLowerCase() || ''
-
-  const filtered = meta.value.filter(item => {
+  return meta.value.filter((item) => {
     if (!searchTerm) return true
     return (item.name ?? '').toLowerCase().includes(searchTerm)
   })
-
-  return groupMetaByType(filtered, sortMode.value)
 })
 
-const setSortMode = (value: MetaSortMode) => {
-  setOption(value, 'meta_sort_mode')
+const availableTypeFilters = computed(() => {
+  const present = new Set(
+    meta.value
+      .map((item) => String(item.type || ''))
+      .filter(Boolean),
+  )
+  const ordered = [
+    ...META_TYPE_ORDER.filter((type) => present.has(type)),
+    ...[...present].filter((type) => !META_TYPE_ORDER.includes(type)).sort(),
+  ]
+  return ordered.map((type) => ({
+    value: type,
+    title: formatDataType(type),
+    icon: getIconDataType(type) || 'mdi-shape-outline',
+  }))
+})
+
+const visibleMeta = computed(() => {
+  const filtered = typeFilter.value
+    ? searchedMeta.value.filter((item) => item.type === typeFilter.value)
+    : searchedMeta.value
+  return sortMetaItems(filtered, META_SORT_MODES.alphabet)
+})
+
+const flatFields = computed(() => visibleMeta.value)
+
+const groupedFields = computed(() => {
+  const grouped = groupMetaByType(visibleMeta.value, META_SORT_MODES.alphabet)
+  return Object.entries(grouped).map(([type, items]) => ({type, items}))
+})
+
+const setGroupByType = (value: boolean | null) => {
+  if (value) typeFilter.value = null
+  setOption(
+    value ? META_GROUP_BY_MODES.type : META_GROUP_BY_MODES.none,
+    'meta_group_by',
+  )
 }
 
-const isSearchEmpty = computed(() => isEmpty(filteredMeta.value))
+const isSearchEmpty = computed(() => isEmpty(visibleMeta.value))
 
 const getMeta = async (_type?: string) => {
   try {
@@ -217,6 +303,12 @@ watch(
   },
 )
 
+watch(availableTypeFilters, (filters) => {
+  if (typeFilter.value && !filters.some((item) => item.value === typeFilter.value)) {
+    typeFilter.value = null
+  }
+})
+
 const showMetaDocs = () => {
   appShell.showDocumentation('meta')
 }
@@ -230,20 +322,29 @@ onMounted(async () => {
 .meta-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   margin-bottom: 8px;
+}
+
+.meta-fields-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .meta-empty {
   text-align: center;
 }
 
-.meta-group {
-  background-color: rgb(120 120 120 / 5%) !important;
+.meta-group__label {
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
 
-  &__label {
-    line-height: 1.2;
-    letter-spacing: 0.02em;
-  }
+.meta-type-filters .v-chip {
+  cursor: pointer;
+}
+
+.meta-field-chip--hidden {
+  opacity: 0.55;
 }
 </style>

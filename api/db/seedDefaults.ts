@@ -88,6 +88,7 @@ const MIGRATION_SETTINGS = [
   {option: 'faceDetect.framesPerVideo', value: '6'},
   {option: 'faceDetect.genderFilter', value: 'both'},
   {option: 'meta_sort_mode', value: 'menu'},
+  {option: 'meta_group_by', value: 'none'},
   {
     option: 'home_widgets_config',
     value: JSON.stringify({

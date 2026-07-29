@@ -8,7 +8,14 @@ export const META_SORT_MODES = {
 
 export type MetaSortMode = typeof META_SORT_MODES[keyof typeof META_SORT_MODES]
 
-const META_TYPE_ORDER = ['array', 'number', 'date', 'string', 'rating']
+export const META_GROUP_BY_MODES = {
+  none: 'none',
+  type: 'type',
+} as const
+
+export type MetaGroupByMode = typeof META_GROUP_BY_MODES[keyof typeof META_GROUP_BY_MODES]
+
+export const META_TYPE_ORDER = ['array', 'number', 'date', 'string', 'rating', 'boolean']
 
 interface MetaSortableItem {
   views?: number
