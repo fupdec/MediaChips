@@ -6,7 +6,7 @@ import {
   parseChangelogSections,
   type ChangelogEntry,
 } from '@/utils/changelogParser'
-import { markdownChangelogToHtml } from '@/utils/changelogMarkdown'
+import { changelogNotesToHtml, markdownChangelogToHtml } from '@/utils/changelogMarkdown'
 import legacyHistory from '@/assets/Version_Histrory'
 
 export type VersionHistoryEntry = {
@@ -65,7 +65,7 @@ export function getChangelogHtml(version: string, fallbackMarkdown = ''): string
   }
 
   if (fallbackMarkdown.trim()) {
-    return markdownChangelogToHtml(fallbackMarkdown)
+    return changelogNotesToHtml(fallbackMarkdown)
   }
 
   return ''

@@ -1,9 +1,21 @@
+const SECTION_HEADERS = /^(Added|Changed|Fixed|Removed|Deprecated|Security)$/i
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
 }
 
 function formatInlineMarkdown(value: string): string {
@@ -14,6 +26,48 @@ function formatInlineMarkdown(value: string): string {
   result = result.replace(/`([^`]+)`/g, '<code>$1</code>')
 
   return result
+}
+
+export function looksLikeHtmlChangelog(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value.trim())
+}
+
+/** GitHub/electron-updater often send HTML release notes; keep-a-changelog locally is markdown. */
+export function changelogNotesToHtml(notes: string): string {
+  const trimmed = notes.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (looksLikeHtmlChangelog(trimmed)) {
+    return trimmed
+  }
+
+  return markdownChangelogToHtml(trimmed)
+}
+
+export function changelogNotesToPlainPreview(notes: string): string {
+  const trimmed = notes.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const plain = decodeHtmlEntities(
+    trimmed
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+  )
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*/g, '')
+    .replace(/^[-*]\s*/gm, '')
+
+  const line = plain
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .find((item) => item.length > 0 && !SECTION_HEADERS.test(item))
+
+  return line?.replace(/ — .+$/, '') || ''
 }
 
 export function markdownChangelogToHtml(markdown: string): string {

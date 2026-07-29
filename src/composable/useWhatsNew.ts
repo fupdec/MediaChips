@@ -11,7 +11,7 @@ import {
   persistLastSeenVersion,
 } from '@/services/updatePreferences'
 import { normalizeVersion } from '@/utils/changelogParser'
-import { markdownChangelogToHtml } from '@/utils/changelogMarkdown'
+import { changelogNotesToHtml } from '@/utils/changelogMarkdown'
 
 export function openChangelogDialog(options: {
   version: string
@@ -29,7 +29,7 @@ export function openChangelogDialog(options: {
       version: entry?.version || (options.version.startsWith('v') ? options.version : `v${options.version}`),
       name: entry?.name || '',
       date: entry?.date || '',
-      content: entry?.content || markdownChangelogToHtml(options.markdown || ''),
+      content: entry?.content || changelogNotesToHtml(options.markdown || ''),
     }],
     markSeenOnClose: false,
     seenVersion: '',

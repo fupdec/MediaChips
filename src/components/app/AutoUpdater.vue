@@ -124,6 +124,7 @@ import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openChangelogDialog} from '@/composable/useWhatsNew'
 import {getChangelogEntry} from '@/services/changelog'
 import {openExternal} from '@/services/shellService'
+import {changelogNotesToPlainPreview} from '@/utils/changelogMarkdown'
 
 const appStore = useAppStore()
 const {t} = useI18n()
@@ -252,19 +253,7 @@ const releaseNotesPreview = computed(() => {
     return bundled.name
   }
 
-  const notes = String(status.value.releaseNotes || '').trim()
-  if (!notes) {
-    return ''
-  }
-
-  return notes
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => line.length > 0)
-    ?.replace(/^[-*]\s*/, '')
-    ?.replace(/\*\*/g, '')
-    ?.replace(/ — .+$/, '')
-    || ''
+  return changelogNotesToPlainPreview(String(status.value.releaseNotes || ''))
 })
 
 const showReleaseNotesPreview = computed(() => (

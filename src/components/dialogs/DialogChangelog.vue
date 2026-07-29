@@ -4,6 +4,7 @@
     :fullscreen="xs"
     scrollable
     width="800"
+    :z-index="11000"
     @after-leave="handleAfterLeave"
   >
     <v-card>

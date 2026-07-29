@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { parseChangelogSections, compareSemver, getEntriesBetween } from '@/utils/changelogParser'
-import { markdownChangelogToHtml } from '@/utils/changelogMarkdown'
+import {
+  changelogNotesToHtml,
+  changelogNotesToPlainPreview,
+  markdownChangelogToHtml,
+} from '@/utils/changelogMarkdown'
 
 const sample = `# Changelog
 
@@ -52,5 +56,30 @@ describe('markdownChangelogToHtml', () => {
     expect(html).toContain('<h3>Added</h3>')
     expect(html).toContain('<strong>Feature</strong>')
     expect(html).toContain('<li>')
+  })
+})
+
+describe('changelogNotesToHtml', () => {
+  it('passes through HTML release notes from GitHub', () => {
+    const html = '<h3>Added</h3>\n<ul><li><strong>Face recognition</strong></li></ul>'
+    expect(changelogNotesToHtml(html)).toBe(html)
+  })
+
+  it('converts markdown release notes', () => {
+    expect(changelogNotesToHtml('### Added\n\n- **Feature** — details')).toContain('<h3>Added</h3>')
+  })
+})
+
+describe('changelogNotesToPlainPreview', () => {
+  it('strips HTML and skips section headers', () => {
+    const preview = changelogNotesToPlainPreview(
+      '<h3>Added</h3>\n<ul>\n<li><strong>Face recognition</strong> — detect faces</li>\n</ul>',
+    )
+
+    expect(preview).toBe('Face recognition')
+  })
+
+  it('handles markdown bullets', () => {
+    expect(changelogNotesToPlainPreview('### Added\n\n- **Feature** — details')).toBe('Feature')
   })
 })
