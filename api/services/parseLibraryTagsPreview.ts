@@ -1,4 +1,4 @@
-import type { ApiDb } from '../types/db'
+import type { ApiDb, TagLike } from '../types/db'
 import type { ParserSettings } from '../types/tasks'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMetaRepository } from '../db/repositories/meta'
@@ -9,6 +9,8 @@ import {
   extractPathPhrases,
   matchPathToTagsFromPhrasesWithIndex,
 } from '../../shared/pathParser/core'
+import { extractPathRegexTagNames } from '../../shared/pathParser/regexMeta'
+import { findTagByNameOrSynonym } from './pathRegexTagResolver'
 
 export interface ParseLibraryTagsPreviewTag {
   tagId: number
@@ -16,6 +18,7 @@ export interface ParseLibraryTagsPreviewTag {
   tagName: string
   metaName: string
   isNew: boolean
+  willCreate?: boolean
 }
 
 export interface ParseLibraryTagsPreviewItem {
@@ -38,6 +41,14 @@ export interface ParseLibraryTagsSummary {
   stopped: boolean
 }
 
+export type ParseLibraryTagsAssignment = {
+  mediaId: number
+  metaId: number
+  tagId?: number
+  tagName?: string
+  willCreate?: boolean
+}
+
 type PreviewEvent =
   | { type: 'progress'; processed: number; total: number; current?: string }
   | { type: 'item'; item: ParseLibraryTagsPreviewItem }
@@ -46,6 +57,13 @@ type PreviewEvent =
 
 function assignmentKey(mediaId: number, metaId: number, tagId: number) {
   return `${mediaId}:${metaId}:${tagId}`
+}
+
+function previewTagKey(tag: Pick<ParseLibraryTagsPreviewTag, 'metaId' | 'tagId' | 'tagName' | 'willCreate'>) {
+  if (tag.willCreate) {
+    return `new:${tag.metaId}:${String(tag.tagName || '').trim().toLowerCase()}`
+  }
+  return `id:${tag.metaId}:${tag.tagId}`
 }
 
 export function getParseLibraryTagsStatus(db: ApiDb): ParseLibraryTagsStatus {
@@ -97,6 +115,7 @@ export async function* iterateParseLibraryTagsPreview(
 
   const metaNameById = new Map(parserMetas.map((meta) => [Number(meta.id), String(meta.name || '')]))
   const tags = tagsRepo.findByMetaIds(parserMetaIds)
+  const tagLikes = tags as TagLike[]
   const tagById = new Map(tags.map((tag) => [Number(tag.id), tag]))
 
   const currentRows = db.sqlite!.prepare(`
@@ -138,7 +157,8 @@ export async function* iterateParseLibraryTagsPreview(
     }
 
     const mediaItem = mediaItems[processed]
-    const parsed = extractPathPhrases(String(mediaItem.path || ''), matchOptions)
+    const filePath = String(mediaItem.path || '')
+    const parsed = extractPathPhrases(filePath, matchOptions)
     const matches = matchPathToTagsFromPhrasesWithIndex(
       parsed,
       mediaItem.id,
@@ -146,28 +166,69 @@ export async function* iterateParseLibraryTagsPreview(
       matchOptions,
     )
 
-    const tagsForMedia: ParseLibraryTagsPreviewTag[] = matches.map((match) => {
+    const tagsForMedia: ParseLibraryTagsPreviewTag[] = []
+    const seenPreviewKeys = new Set<string>()
+
+    const pushPreviewTag = (tag: ParseLibraryTagsPreviewTag) => {
+      const key = previewTagKey(tag)
+      if (seenPreviewKeys.has(key)) return
+      seenPreviewKeys.add(key)
+
+      if (tag.isNew) totalNewTags += 1
+      totalProposedTags += 1
+      tagsForMedia.push(tag)
+    }
+
+    for (const match of matches) {
       const tagId = Number(match.tagId)
       const metaId = Number(match.metaId)
       const tag = tagById.get(tagId)
       const key = assignmentKey(Number(mediaItem.id), metaId, tagId)
-      const isNew = !currentKeys.has(key)
-      if (isNew) totalNewTags += 1
-      totalProposedTags += 1
-
-      return {
+      pushPreviewTag({
         tagId,
         metaId,
         tagName: String(tag?.name || tagId),
         metaName: metaNameById.get(metaId) || String(metaId),
-        isNew,
+        isNew: !currentKeys.has(key),
+        willCreate: false,
+      })
+    }
+
+    const regexExtracts = extractPathRegexTagNames(filePath, parserMetas)
+    for (const extract of regexExtracts) {
+      const metaId = Number(extract.metaId)
+      const existing = findTagByNameOrSynonym(tagLikes, metaId, extract.tagName)
+
+      if (existing?.id != null) {
+        const tagId = Number(existing.id)
+        const key = assignmentKey(Number(mediaItem.id), metaId, tagId)
+        pushPreviewTag({
+          tagId,
+          metaId,
+          tagName: String(existing.name || extract.tagName),
+          metaName: metaNameById.get(metaId) || String(metaId),
+          isNew: !currentKeys.has(key),
+          willCreate: false,
+        })
+        continue
       }
-    })
+
+      if (!extract.createTags) continue
+
+      pushPreviewTag({
+        tagId: 0,
+        metaId,
+        tagName: extract.tagName,
+        metaName: metaNameById.get(metaId) || String(metaId),
+        isNew: true,
+        willCreate: true,
+      })
+    }
 
     if (tagsForMedia.some((tag) => tag.isNew)) {
       const item: ParseLibraryTagsPreviewItem = {
         mediaId: Number(mediaItem.id),
-        path: String(mediaItem.path || ''),
+        path: filePath,
         tags: tagsForMedia,
       }
       items.push(item)
@@ -179,7 +240,7 @@ export async function* iterateParseLibraryTagsPreview(
         type: 'progress',
         processed: processed + 1,
         total,
-        current: String(mediaItem.path || ''),
+        current: filePath,
       }
     }
   }
@@ -199,16 +260,44 @@ export async function* iterateParseLibraryTagsPreview(
 
 export function applyParseLibraryTags(
   db: ApiDb,
-  assignments: Array<{ mediaId: number; tagId: number; metaId: number }>,
+  assignments: ParseLibraryTagsAssignment[],
 ) {
+  const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
   const tagsInMediaRepo = createTagsInMediaRepository(db.drizzle)
   const unique = new Map<string, { mediaId: number; tagId: number; metaId: number }>()
+  const tagsByMetaId = new Map<number, TagLike[]>()
+
+  const getTagsForMeta = (metaId: number): TagLike[] => {
+    let list = tagsByMetaId.get(metaId)
+    if (!list) {
+      list = tagsRepo.findByMetaIds([metaId]) as TagLike[]
+      tagsByMetaId.set(metaId, list)
+    }
+    return list
+  }
 
   for (const item of assignments) {
     const mediaId = Number(item.mediaId)
-    const tagId = Number(item.tagId)
     const metaId = Number(item.metaId)
-    if (!mediaId || !tagId || !metaId) continue
+    if (!mediaId || !metaId) continue
+
+    let tagId = Number(item.tagId || 0)
+    const tagName = String(item.tagName || '').trim()
+    const willCreate = Boolean(item.willCreate) || tagId <= 0
+
+    if (willCreate) {
+      if (!tagName) continue
+      const tags = getTagsForMeta(metaId)
+      let tag = findTagByNameOrSynonym(tags, metaId, tagName)
+      if (!tag) {
+        const [created] = tagsRepo.bulkCreate([{metaId, name: tagName}])
+        tag = created as TagLike
+        tags.push(tag)
+      }
+      tagId = Number(tag.id)
+    }
+
+    if (!tagId) continue
     unique.set(assignmentKey(mediaId, metaId, tagId), { mediaId, tagId, metaId })
   }
 

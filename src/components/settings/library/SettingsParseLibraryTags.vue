@@ -328,6 +328,7 @@ import { useTasksStore } from '@/stores/tasks'
 import type {
   ApplyParseLibraryTagsResponse,
   ParseLibraryTagsPreviewItem,
+  ParseLibraryTagsPreviewTag,
   ParseLibraryTagsSearchEvent,
   ParseLibraryTagsStatus,
   ParseLibraryTagsSummary,
@@ -343,10 +344,37 @@ type UniqueNewTag = {
   metaName: string
   metaIcon: string
   mediaCount: number
+  willCreate: boolean
 }
 
-const assignmentKey = (mediaId: number, metaId: number, tagId: number) => `${mediaId}:${metaId}:${tagId}`
-const globalTagKey = (metaId: number, tagId: number) => `${metaId}:${tagId}`
+type ParseLibraryTagsAssignment = {
+  mediaId: number
+  metaId: number
+  tagId: number
+  tagName?: string
+  willCreate?: boolean
+}
+
+const assignmentKey = (mediaId: number, metaId: number, tagId: number, tagName = '', willCreate = false) => (
+  willCreate
+    ? `${mediaId}:${metaId}:new:${String(tagName).trim().toLowerCase()}`
+    : `${mediaId}:${metaId}:${tagId}`
+)
+
+const globalTagKey = (
+  metaId: number,
+  tagId: number,
+  tagName = '',
+  willCreate = false,
+) => (
+  willCreate
+    ? `${metaId}:new:${String(tagName).trim().toLowerCase()}`
+    : `${metaId}:${tagId}`
+)
+
+const previewTagGlobalKey = (tag: Pick<ParseLibraryTagsPreviewTag, 'metaId' | 'tagId' | 'tagName' | 'willCreate'>) => (
+  globalTagKey(tag.metaId, tag.tagId, tag.tagName, Boolean(tag.willCreate))
+)
 
 const { t } = useI18n()
 const router = useRouter()
@@ -474,7 +502,7 @@ const uniqueNewTags = computed(() => {
   for (const item of items.value) {
     for (const tag of item.tags) {
       if (!tag.isNew) continue
-      const key = globalTagKey(tag.metaId, tag.tagId)
+      const key = previewTagGlobalKey(tag)
       const existing = map.get(key)
       if (existing) {
         existing.mediaCount += 1
@@ -487,6 +515,7 @@ const uniqueNewTags = computed(() => {
           metaName: tag.metaName,
           metaIcon: metaIcon(tag.metaId),
           mediaCount: 1,
+          willCreate: Boolean(tag.willCreate),
         })
       }
     }
@@ -562,7 +591,7 @@ const selectedGlobalAssignmentCount = computed(() => {
   for (const item of items.value) {
     for (const tag of item.tags) {
       if (!tag.isNew) continue
-      if (selected.has(globalTagKey(tag.metaId, tag.tagId))) count += 1
+      if (selected.has(previewTagGlobalKey(tag))) count += 1
     }
   }
   return count
@@ -654,7 +683,7 @@ const toggleSelectAllTags = (value: boolean | null) => {
 
 const buildAssignmentsFromMedia = (mediaIds: number[]) => {
   const selected = new Set(mediaIds)
-  const assignments: Array<{ mediaId: number; tagId: number; metaId: number }> = []
+  const assignments: ParseLibraryTagsAssignment[] = []
 
   for (const item of items.value) {
     if (!selected.has(item.mediaId)) continue
@@ -664,6 +693,8 @@ const buildAssignmentsFromMedia = (mediaIds: number[]) => {
         mediaId: item.mediaId,
         tagId: tag.tagId,
         metaId: tag.metaId,
+        tagName: tag.tagName,
+        willCreate: Boolean(tag.willCreate),
       })
     }
   }
@@ -673,16 +704,18 @@ const buildAssignmentsFromMedia = (mediaIds: number[]) => {
 
 const buildAssignmentsFromGlobalTags = (tagKeys: string[]) => {
   const selected = new Set(tagKeys)
-  const assignments: Array<{ mediaId: number; tagId: number; metaId: number }> = []
+  const assignments: ParseLibraryTagsAssignment[] = []
 
   for (const item of items.value) {
     for (const tag of item.tags) {
       if (!tag.isNew) continue
-      if (!selected.has(globalTagKey(tag.metaId, tag.tagId))) continue
+      if (!selected.has(previewTagGlobalKey(tag))) continue
       assignments.push({
         mediaId: item.mediaId,
         tagId: tag.tagId,
         metaId: tag.metaId,
+        tagName: tag.tagName,
+        willCreate: Boolean(tag.willCreate),
       })
     }
   }
@@ -690,7 +723,7 @@ const buildAssignmentsFromGlobalTags = (tagKeys: string[]) => {
   return assignments
 }
 
-const applyAssignments = async (assignments: Array<{ mediaId: number; tagId: number; metaId: number }>) => {
+const applyAssignments = async (assignments: ParseLibraryTagsAssignment[]) => {
   if (!assignments.length) return
 
   applying.value = true
@@ -705,13 +738,17 @@ const applyAssignments = async (assignments: Array<{ mediaId: number; tagId: num
       }),
     })
 
-    const appliedKeys = new Set(assignments.map((item) => assignmentKey(item.mediaId, item.metaId, item.tagId)))
+    const appliedKeys = new Set(assignments.map((item) => (
+      assignmentKey(item.mediaId, item.metaId, item.tagId, item.tagName, Boolean(item.willCreate))
+    )))
     items.value = items.value
       .map((item) => ({
         ...item,
         tags: item.tags.map((tag) => ({
           ...tag,
-          isNew: appliedKeys.has(assignmentKey(item.mediaId, tag.metaId, tag.tagId)) ? false : tag.isNew,
+          isNew: appliedKeys.has(
+            assignmentKey(item.mediaId, tag.metaId, tag.tagId, tag.tagName, Boolean(tag.willCreate)),
+          ) ? false : tag.isNew,
         })),
       }))
       .filter((item) => item.tags.some((tag) => tag.isNew))
@@ -719,7 +756,7 @@ const applyAssignments = async (assignments: Array<{ mediaId: number; tagId: num
     selectedIds.value = selectedIds.value.filter((id) => items.value.some((item) => item.mediaId === id))
     selectedGlobalTagKeys.value = selectedGlobalTagKeys.value.filter((key) => (
       items.value.some((item) => item.tags.some((tag) => (
-        tag.isNew && globalTagKey(tag.metaId, tag.tagId) === key
+        tag.isNew && previewTagGlobalKey(tag) === key
       )))
     ))
     selectAllMedia.value = selectedIds.value.length === searchedDisplayItems.value.length

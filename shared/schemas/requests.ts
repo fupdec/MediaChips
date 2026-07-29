@@ -157,8 +157,10 @@ export const ParsePathTagsRequestSchema = z.object({
 export const ApplyParseLibraryTagsRequestSchema = z.object({
   assignments: z.array(z.object({
     mediaId: z.number(),
-    tagId: z.number(),
     metaId: z.number(),
+    tagId: z.number().optional(),
+    tagName: z.string().optional(),
+    willCreate: z.boolean().optional(),
   })).optional().default([]),
 }).passthrough()
 

@@ -110,7 +110,7 @@
 
       <div v-if="showsFilterValue" class="filter__body">
         <v-text-field
-          v-if="is_value_required && isPathFilter"
+          v-if="is_value_required && isPathFilter && !isRegexFilter"
           v-model="filterValue"
           :disabled="is_locked || !is_value_required"
           class="ma-1 pt-0"
@@ -128,6 +128,29 @@
               :disabled="is_locked"
               :title="t('media.adding.browse_folders')"
               @click.stop="openFolderDialog"
+            />
+          </template>
+        </v-text-field>
+
+        <v-text-field
+          v-else-if="is_value_required && isRegexFilter"
+          v-model="filterValue"
+          :disabled="is_locked || !is_value_required"
+          class="ma-1 pt-0"
+          hide-details
+          density="compact"
+          variant="outlined"
+          rounded
+          :placeholder="t('regex_builder.pattern')"
+        >
+          <template #append-inner>
+            <v-btn
+              icon="mdi-regex"
+              size="x-small"
+              variant="text"
+              :disabled="is_locked"
+              :title="t('regex_builder.dialog_title')"
+              @click.stop="regexDialog = true"
             />
           </template>
         </v-text-field>
@@ -265,6 +288,13 @@
       :initial-path="pathDialogInitial"
       @confirm="onFolderPicked"
     />
+
+    <DialogRegexBuilder
+      v-if="isRegexFilter"
+      v-model="regexDialog"
+      :pattern="filterValString"
+      @apply="onRegexApplied"
+    />
   </v-form>
 </template>
 
@@ -286,6 +316,7 @@ import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
 import MetaInputRating from '@/components/meta/input/MetaInputRating.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
+import DialogRegexBuilder from '@/components/dialogs/DialogRegexBuilder.vue'
 // Props
 const props = defineProps({
   filter: {
@@ -323,6 +354,7 @@ const active = ref(false)
 const icon = ref('shape')
 const title = ref('')
 const folderDialog = ref(false)
+const regexDialog = ref(false)
 
 // Stores and composables
 const {t, locale} = useI18n()
@@ -347,6 +379,10 @@ const filterDateDisplay = computed(() =>
 const paramAsString = computed(() => String(parameter.value ?? ''))
 const is_value_required = computed(() => !['is null', 'not null'].includes(condition.value ?? ''))
 const isPathFilter = computed(() => parameter.value === 'path')
+const isRegexFilter = computed(() => (
+  (modelFilter.value.type === 'string' || modelFilter.value.type === null)
+  && condition.value === 'regex'
+))
 const pathDialogInitial = computed(() => {
   const raw = Array.isArray(modelFilter.value.val)
     ? String(modelFilter.value.val[0] ?? '')
@@ -419,6 +455,10 @@ const onFolderPicked = (paths: string[]) => {
   if (condition.value !== 'under folder') {
     emit('setCondition', 'under folder')
   }
+}
+
+const onRegexApplied = (pattern: string) => {
+  emit('setValue', pattern)
 }
 
 const setValue = (val: unknown) => {

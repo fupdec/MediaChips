@@ -5,6 +5,9 @@ export interface Meta {
   id: number
   name?: string
   parser?: boolean
+  pathRegex?: string | null
+  pathRegexReplace?: string | null
+  pathRegexCreateTags?: boolean
   icon?: string
   chipVariant?: string
   color?: boolean

@@ -10,8 +10,16 @@ import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMedia
 import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
 import { mergeTagCategories, MetaCategoryMergeError } from '../services/metaCategoryMerge'
 import { applyMeasurementUnitChange } from '../services/measurementUnitChange'
+import { validatePathRegex } from '../../shared/pathParser/regexMeta'
 import fs from 'fs'
 import path from 'path'
+
+function validateMetaPathRegex(body: MetaWritePayload): string | null {
+  const pattern = body.pathRegex
+  if (pattern == null || String(pattern).trim() === '') return null
+  const result = validatePathRegex(String(pattern))
+  return result.ok ? null : result.message
+}
 
 export default function (db: ApiDb) {
   const metaRepo = createMetaRepository(db.drizzle)
@@ -22,6 +30,10 @@ export default function (db: ApiDb) {
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MetaWritePayload>(req)
+      const pathRegexError = validateMetaPathRegex(body)
+      if (pathRegexError) {
+        return res.status(400).send({message: pathRegexError})
+      }
       const data = metaRepo.create(body as Record<string, unknown>)
 
       if (data.type === 'array') {
@@ -74,6 +86,10 @@ export default function (db: ApiDb) {
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MetaWritePayload>(req)
+      const pathRegexError = validateMetaPathRegex(body)
+      if (pathRegexError) {
+        return res.status(400).send({message: pathRegexError})
+      }
       const metaId = parseInt(paramString(req.params.id), 10)
       const conversion = Object.prototype.hasOwnProperty.call(body, 'measurementUnit')
         ? applyMeasurementUnitChange(db.drizzle, metaId, body.measurementUnit)

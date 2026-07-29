@@ -11,7 +11,9 @@ export type MetaInsert = typeof meta.$inferInsert
 
 const META_COLUMNS = new Set([
   'type', 'name', 'icon', 'hint', 'order', 'views', 'oldId',
-  'synonyms', 'hidden', 'nested', 'marks', 'bookmark', 'parser', 'country', 'career',
+  'synonyms', 'hidden', 'nested', 'marks', 'bookmark', 'parser',
+  'pathRegex', 'pathRegexReplace', 'pathRegexCreateTags',
+  'country', 'career',
   'scraper', 'rating', 'favorite', 'chipVariant', 'chipLabel', 'color', 'autoColorFromImage',
   'imageAspectRatio', 'tagPageDesign', 'measurementUnit', 'isLink', 'ratingIcon', 'ratingIconEmpty', 'ratingIconHalf',
   'ratingMax', 'ratingColor', 'ratingHalf', 'sortBy', 'sortDir',

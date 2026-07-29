@@ -188,6 +188,9 @@ interface MetaSettingsForm {
   isLink: boolean
   hidden: boolean
   parser: boolean
+  pathRegex: string
+  pathRegexReplace: string
+  pathRegexCreateTags: boolean
   imageAspectRatio: number
   tagPageDesign: string
   measurementUnit: string | null
@@ -267,6 +270,9 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   // Настройки для типа array
   hidden: false,
   parser: false,
+  pathRegex: '',
+  pathRegexReplace: '$1',
+  pathRegexCreateTags: true,
   imageAspectRatio: 1,
   tagPageDesign: 'profile',
   measurementUnit: null,

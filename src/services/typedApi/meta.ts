@@ -270,7 +270,15 @@ export const metaApi = {
     return apiClient.get(API_ROUTES.taskParseLibraryTagsStatus)
   },
 
-  applyParseLibraryTags(body: { assignments: Array<{ mediaId: number; tagId: number; metaId: number }> }) {
+  applyParseLibraryTags(body: {
+    assignments: Array<{
+      mediaId: number
+      metaId: number
+      tagId?: number
+      tagName?: string
+      willCreate?: boolean
+    }>
+  }) {
     return apiClient.post(API_ROUTES.taskApplyParseLibraryTags, body)
   },
 

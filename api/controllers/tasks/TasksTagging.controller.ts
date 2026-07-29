@@ -13,6 +13,8 @@ import {
   iterateParseLibraryTagsPreview,
 } from '../../services/parseLibraryTagsPreview'
 import { suggestTagsFromMedia } from '../../services/tagSuggester'
+import { extractPathRegexTagNames } from '../../../shared/pathParser/regexMeta'
+import { resolvePathRegexTagExtracts } from '../../services/pathRegexTagResolver'
 
 export default function createTasksTaggingController(shared: TaskControllerShared) {
   const {
@@ -196,28 +198,57 @@ export default function createTasksTaggingController(shared: TaskControllerShare
       const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
       const metaRepo = createMetaRepository(db.drizzle)
       const metas = metaRepo.findAll()
-      const parserMetaIds = metas
-        .filter((meta) => meta.parser)
-        .map((meta) => Number(meta.id))
+      const parserMetas = metas.filter((meta) => meta.parser)
+      const parserMetaIds = parserMetas.map((meta) => Number(meta.id))
       const requestedMetaIds = Array.isArray(req.body.metaIds) && req.body.metaIds.length
         ? req.body.metaIds.map(Number)
         : null
       const metaIds = requestedMetaIds?.length
         ? parserMetaIds.filter((metaId) => requestedMetaIds.includes(metaId))
         : parserMetaIds
-      const tags = tagsRepo.findByMetaIds(metaIds)
+      const tags = tagsRepo.findByMetaIds(metaIds) as TagLike[]
+      const regexMetas = parserMetas.filter((meta) => (
+        !requestedMetaIds?.length || requestedMetaIds.includes(Number(meta.id))
+      ))
 
       const eligiblePaths = paths.filter((item: AnyRecord) => item?.path && item?.mediaId)
-      const values = matchPathsToTags(eligiblePaths, tags as TagLike[], metas as MetaLike[], {
+      const values = matchPathsToTags(eligiblePaths, tags, metas as MetaLike[], {
         ...settings,
         metaIds: req.body.metaIds,
       })
 
-      res.status(201).send(values.map((i: AnyRecord) => ({
-        tagId: i.tagId,
-        metaId: i.metaId,
-        mediaId: i.mediaId,
-      })) as ParsePathTagEntry[])
+      const merged = new Map<string, ParsePathTagEntry>()
+      for (const item of values) {
+        const mediaId = Number(item.mediaId)
+        const tagId = Number(item.tagId)
+        const metaId = Number(item.metaId)
+        if (!mediaId || !tagId || !metaId) continue
+        merged.set(`${mediaId}:${metaId}:${tagId}`, {mediaId, tagId, metaId})
+      }
+
+      for (const item of eligiblePaths) {
+        const mediaId = Number(item.mediaId)
+        const filePath = String(item.path || '')
+        const extracts = extractPathRegexTagNames(filePath, regexMetas)
+        if (!extracts.length) continue
+
+        const resolved = resolvePathRegexTagExtracts(extracts, tags, {
+          createTag: (metaId, tagName) => {
+            const [created] = tagsRepo.bulkCreate([{metaId, name: tagName}])
+            return created as TagLike
+          },
+        })
+
+        for (const match of resolved) {
+          merged.set(`${mediaId}:${match.metaId}:${match.tagId}`, {
+            mediaId,
+            tagId: match.tagId,
+            metaId: match.metaId,
+          })
+        }
+      }
+
+      res.status(201).send([...merged.values()])
     } catch (err) {
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while parsing tags."

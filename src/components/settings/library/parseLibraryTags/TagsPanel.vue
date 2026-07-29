@@ -100,6 +100,14 @@
               <v-icon :icon="`mdi-${item.metaIcon}`" start size="16"/>
               {{ item.tagName }}
             </v-chip>
+            <v-chip
+              v-if="item.willCreate"
+              size="x-small"
+              variant="tonal"
+              color="warning"
+            >
+              {{ t('settings_labels.library.parse_library_tags_will_create') }}
+            </v-chip>
             <v-chip size="x-small" variant="tonal" class="global-tag-row__count">
               {{ item.mediaCount }}
             </v-chip>
@@ -124,6 +132,7 @@ type TagItem = {
   tagName: string
   metaIcon: string
   mediaCount: number
+  willCreate?: boolean
 }
 
 type MetaItem = {

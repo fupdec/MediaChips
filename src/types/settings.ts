@@ -67,6 +67,7 @@ export type ParseLibraryTagsPreviewTag = {
   tagName: string
   metaName: string
   isNew: boolean
+  willCreate?: boolean
 }
 
 export type ParseLibraryTagsPreviewItem = {

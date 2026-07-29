@@ -44,6 +44,57 @@
       </template>
     </v-switch>
 
+    <div
+      v-if="editMode && settings.parser && isPinnedForMediaParser"
+      class="mt-4 path-regex-settings"
+    >
+      <v-expansion-panels
+        v-model="pathRegexSettingsPanel"
+        variant="accordion"
+        rounded="xl"
+        class="path-regex-settings-panels"
+      >
+        <v-expansion-panel rounded="xl">
+          <v-expansion-panel-title>
+            <div class="d-inline-flex align-center">
+              <v-icon class="mr-2" size="small" icon="mdi-regex"/>
+              <span>{{ t('meta.settings.path_regex_settings') }}</span>
+            </div>
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <RegexBuilder
+              mode="extract"
+              :pattern="settings.pathRegex"
+              :replace="settings.pathRegexReplace"
+              :sample="pathRegexSamplePath"
+              :capture-text="pathRegexCaptureText"
+              :intro="t('meta.settings.path_regex_intro')"
+              class="mb-4"
+              @update:pattern="settings.pathRegex = $event"
+              @update:replace="settings.pathRegexReplace = $event"
+              @update:sample="pathRegexSamplePath = $event"
+              @update:capture-text="pathRegexCaptureText = $event"
+            />
+
+            <v-switch
+              v-model="settings.pathRegexCreateTags"
+              inset
+              hide-details
+            >
+              <template #label>
+                <div class="d-flex flex-column ml-2">
+                  <div>{{ t('meta.settings.path_regex_create_tags') }}</div>
+                  <div class="text-caption mt-1">
+                    {{ t('meta.settings.path_regex_create_tags_hint') }}
+                  </div>
+                </div>
+              </template>
+            </v-switch>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+    </div>
+
     <v-alert
       v-if="editMode && !isPinnedForMediaParser"
       type="info"
@@ -327,6 +378,8 @@ import {typedApi} from '@/services/typedApi'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
+import RegexBuilder from '@/components/regex/RegexBuilder.vue'
+import {getDefaultPathRegexSample} from '@shared/pathParser/regexGenerator'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
 
@@ -343,6 +396,9 @@ interface AspectRatioPreset {
 interface MetaSettings {
   hidden: boolean
   parser: boolean
+  pathRegex: string
+  pathRegexReplace: string
+  pathRegexCreateTags: boolean
   imageAspectRatio: number
   chipLabel: boolean
   chipVariant: ChipVariant
@@ -393,6 +449,9 @@ const {t} = useI18n()
 const settings = ref<MetaSettings>({
   hidden: false,
   parser: false,
+  pathRegex: '',
+  pathRegexReplace: '$1',
+  pathRegexCreateTags: true,
   imageAspectRatio: 1,
   chipLabel: false,
   chipVariant: 'flat',
@@ -408,6 +467,11 @@ const settings = ref<MetaSettings>({
   nested: false,
   marks: false
 })
+
+const defaultPathRegexSample = getDefaultPathRegexSample()
+const pathRegexSamplePath = ref(defaultPathRegexSample.samplePath)
+const pathRegexCaptureText = ref(defaultPathRegexSample.captureText)
+const pathRegexSettingsPanel = ref<number[]>([])
 
 const selectedPresetId = ref<AspectPresetId>('1:1')
 const customWidth = ref(3)
@@ -430,6 +494,7 @@ const randomColor = ref('#000000')
 const BOOLEAN_SETTING_KEYS = new Set<keyof MetaSettings>([
   'hidden',
   'parser',
+  'pathRegexCreateTags',
   'chipLabel',
   'color',
   'autoColorFromImage',
@@ -525,11 +590,18 @@ const initSettings = () => {
 
   for (const key of Object.keys(nextSettings) as Array<keyof MetaSettings>) {
     const value = props.meta[key]
-    if (value === undefined) continue
+    if (value === undefined || value === null) continue
 
     ;(nextSettings as Record<string, unknown>)[key] = BOOLEAN_SETTING_KEYS.has(key)
       ? Boolean(value)
       : value
+  }
+
+  if (!nextSettings.pathRegexReplace) {
+    nextSettings.pathRegexReplace = '$1'
+  }
+  if (props.meta.pathRegexCreateTags === undefined || props.meta.pathRegexCreateTags === null) {
+    nextSettings.pathRegexCreateTags = true
   }
 
   settings.value = nextSettings
@@ -663,5 +735,15 @@ watch(() => props.meta?.id, () => {
 
 .aspect-ratio-sample--live {
   margin-left: 4px;
+}
+
+.path-regex-settings-panels :deep(.v-expansion-panel-title) {
+  min-height: 44px;
+  padding-inline: 12px;
+  font-size: 0.9375rem;
+}
+
+.path-regex-settings-panels :deep(.v-expansion-panel-text__wrapper) {
+  padding-top: 4px;
 }
 </style>
