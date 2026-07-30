@@ -154,7 +154,7 @@ const en = {
       appearance: 'Theme, colors and interface layout',
       library: 'Metadata fields, media types and tagging',
       files: 'Watched folders and file paths',
-      database: 'Databases, backups and library maintenance',
+      database: 'Backups, restore and maintenance',
       plugins: 'Extensions and optional feature packs',
       adult: 'Scrapers and adult content options',
       about: 'Registration and app information',

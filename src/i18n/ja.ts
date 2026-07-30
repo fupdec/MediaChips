@@ -158,7 +158,7 @@ const ja = {
       appearance: "テーマ、色、インターフェースのレイアウト",
       library: "メタデータフィールド、メディアタイプ、タグ付け",
       files: "監視フォルダーとファイルパス",
-      database: "データベース、バックアップ、ライブラリのメンテナンス",
+      database: "バックアップ、復元、メンテナンス",
       plugins: "拡張機能とオプションの機能パック",
       adult: "スクレイパーとアダルト コンテンツのオプション",
       about: "登録とアプリ情報",
@@ -1309,8 +1309,8 @@ const ja = {
       parse_library_tags_apply_all: "すべてに適用 ({count})",
       parse_library_tags_apply_done: "適用されたタグ",
       parse_library_tags_apply_done_text:
-      parse_library_tags_will_create: 'New',
         "{count} タグ割り当てが追加されました",
+      parse_library_tags_will_create: "新規",
       parse_library_tags_no_results: "ファイルパスに新しいタグが見つかりません",
       parse_library_tags_tag_new: "新しい",
       parse_library_tags_tag_existing: "すでに割り当てられています",
@@ -1327,11 +1327,10 @@ const ja = {
       pinned_fields_count: "{count} 固定フィールド",
       pinned_assignments_hint:
         "{media} メディア タイプ、{children} 子フィールド",
-    
       hint: "フィールドをメディアタイプとタグカテゴリにピン留めします。カード上の順序と表示はいつでも変更できます。",
       assigned_fields_count: "ピン留めフィールド {count} 件",
       child_fields_count: "ピン留めフィールド {count} 件",
-},
+    },
     appearance: {
       title: "外観",
       items_per_page: "ページごとのアイテム数",
