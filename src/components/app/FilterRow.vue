@@ -137,11 +137,13 @@
           v-model="filterValue"
           :disabled="is_locked || !is_value_required"
           class="ma-1 pt-0"
-          hide-details
           density="compact"
           variant="outlined"
           rounded
           :placeholder="t('regex_builder.pattern')"
+          :error="Boolean(regexPatternError)"
+          :error-messages="regexPatternError"
+          hide-details="auto"
         >
           <template #append-inner>
             <v-btn
@@ -293,6 +295,7 @@
       v-if="isRegexFilter"
       v-model="regexDialog"
       :pattern="filterValString"
+      :filter-parameter="parameter"
       @apply="onRegexApplied"
     />
   </v-form>
@@ -317,6 +320,7 @@ import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
 import MetaInputRating from '@/components/meta/input/MetaInputRating.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import DialogRegexBuilder from '@/components/dialogs/DialogRegexBuilder.vue'
+import {validateRegexPattern} from '@shared/pathParser/regexMeta'
 // Props
 const props = defineProps({
   filter: {
@@ -383,6 +387,16 @@ const isRegexFilter = computed(() => (
   (modelFilter.value.type === 'string' || modelFilter.value.type === null)
   && condition.value === 'regex'
 ))
+const regexPatternError = computed(() => {
+  if (!isRegexFilter.value) return ''
+  const pattern = filterValString.value.trim()
+  if (!pattern) return ''
+  const result = validateRegexPattern(pattern, 'i')
+  if (result.ok) return ''
+  return result.code === 'empty'
+    ? t('regex_builder.validation_empty_title')
+    : t('regex_builder.validation_invalid_text')
+})
 const pathDialogInitial = computed(() => {
   const raw = Array.isArray(modelFilter.value.val)
     ? String(modelFilter.value.val[0] ?? '')

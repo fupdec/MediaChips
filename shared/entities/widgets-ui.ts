@@ -52,6 +52,12 @@ export interface HomeHealthDataUi {
   generatedImages: { byType: Record<string, HomeHealthGeneratedTypeUi>; totalPending: number }
   imageThumbs: HomeHealthImageThumbsUi
   database: { id: number | null; name: string | null; bytes: number | null }
+  tagImageAiUpscale: {
+    done: boolean
+    pendingCount: number
+    suggested: boolean
+    downloadSizeMb: number
+  }
 }
 
 export function toExtendedStatsUi(data: ParsedExtendedStats): ExtendedStatsUi {
@@ -97,6 +103,12 @@ export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
     },
     imageThumbs: data.imageThumbs ?? { total: 0, generated: 0, pending: 0 },
     database: data.database ?? { id: null, name: null, bytes: null },
+    tagImageAiUpscale: {
+      done: data.tagImageAiUpscale?.done ?? true,
+      pendingCount: data.tagImageAiUpscale?.pendingCount ?? 0,
+      suggested: data.tagImageAiUpscale?.suggested ?? false,
+      downloadSizeMb: data.tagImageAiUpscale?.downloadSizeMb ?? 50,
+    },
   }
 }
 
@@ -121,4 +133,5 @@ export const emptyHomeHealthUi = (): HomeHealthDataUi => ({
   generatedImages: { byType: {}, totalPending: 0 },
   imageThumbs: { total: 0, generated: 0, pending: 0 },
   database: { id: null, name: null, bytes: null },
+  tagImageAiUpscale: { done: true, pendingCount: 0, suggested: false, downloadSizeMb: 50 },
 })

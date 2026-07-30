@@ -17,6 +17,7 @@ import {
   GlobalSearchTagsResponseSchema,
   GlobalSearchResponseSchema,
   HomeHealthSchema,
+  HomeHealthLiteSchema,
   HomeMarkersSchema,
   HomeMediaResponseSchema,
   HomeMediaStatsSchema,
@@ -147,6 +148,10 @@ export function parseExtendedStats(data: unknown) {
 
 export function parseHomeHealth(data: unknown) {
   return HomeHealthSchema.parse(data)
+}
+
+export function parseHomeHealthLite(data: unknown) {
+  return HomeHealthLiteSchema.parse(data)
 }
 
 export function parseHomeMarkers(data: unknown) {
@@ -410,6 +415,7 @@ export {
 export {
   ExtendedStatsSchema,
   HomeHealthSchema,
+  HomeHealthLiteSchema,
   HomeMarkersSchema,
   HomeMediaResponseSchema,
   HomeMediaStatsSchema,

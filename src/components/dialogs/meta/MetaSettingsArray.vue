@@ -201,12 +201,13 @@
         <template v-if="settings.pathRegexEnabled">
           <RegexBuilder
             mode="extract"
+            preset-kind="path"
             :pattern="settings.pathRegex"
             :replace="settings.pathRegexReplace"
             :sample="pathRegexSamplePath"
             :capture-text="pathRegexCaptureText"
-            presets-first
             :show-intro="false"
+            :show-replace="false"
             class="mb-3"
             @update:pattern="settings.pathRegex = $event"
             @update:replace="settings.pathRegexReplace = $event"
@@ -217,9 +218,27 @@
           <v-switch
             v-model="settings.pathRegexCreateTags"
             inset
-            hide-details
+            hide-details="auto"
+            class="mb-2"
+          >
+            <template #label>
+              <div class="d-flex flex-column ml-2">
+                <div>{{ t('meta.settings.path_regex_create_tags') }}</div>
+                <div class="text-caption mt-1">
+                  {{ t('meta.settings.path_regex_create_tags_hint') }}
+                </div>
+              </div>
+            </template>
+          </v-switch>
+
+          <RegexReplaceTemplateEditor
+            v-if="settings.pathRegexCreateTags"
+            :model-value="settings.pathRegexReplace"
+            :groups="pathRegexReplaceGroups"
+            :label="t('regex_builder.replace')"
+            :hint="t('regex_builder.replace_hint')"
             class="mb-4"
-            :label="t('meta.settings.path_regex_create_tags')"
+            @update:model-value="settings.pathRegexReplace = $event"
           />
         </template>
 
@@ -229,8 +248,7 @@
           rounded="lg"
           class="mt-2"
           prepend-icon="mdi-tag-search-outline"
-          :to="parseLibraryLink"
-          @click="emit('close')"
+          @click="goToLibraryParser"
         >
           {{ t('meta.settings.run_library_path_scan') }}
         </v-btn>
@@ -417,6 +435,7 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, watch, nextTick} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute, useRouter} from 'vue-router'
 import {isVideoMediaType, isImageMediaType, isAudioMediaType, isTextMediaType} from '@/utils/mediaType'
 import {approxAspectRatioParts} from '@/utils/aspectRatioParts'
 import {typedApi} from '@/services/typedApi'
@@ -424,7 +443,9 @@ import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import RegexBuilder from '@/components/regex/RegexBuilder.vue'
+import RegexReplaceTemplateEditor from '@/components/regex/RegexReplaceTemplateEditor.vue'
 import {getDefaultPathRegexSample} from '@shared/pathParser/regexGenerator'
+import {testRegexMatch} from '@shared/pathParser/regexMeta'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
 
@@ -521,6 +542,11 @@ const defaultPathRegexSample = getDefaultPathRegexSample()
 const pathRegexSamplePath = ref(defaultPathRegexSample.samplePath)
 const pathRegexCaptureText = ref(defaultPathRegexSample.captureText)
 
+const pathRegexReplaceGroups = computed(() => {
+  const result = testRegexMatch(settings.value.pathRegex, pathRegexSamplePath.value, 'iu')
+  return result.ok ? result.groups : []
+})
+
 const selectedPresetId = ref<AspectPresetId>('1:1')
 const customWidth = ref(3)
 const customHeight = ref(4)
@@ -539,13 +565,33 @@ const showCapabilities = computed(() => props.sections.includes('capabilities'))
 const showAppearance = computed(() => props.sections.includes('appearance'))
 const showFromPath = computed(() => props.sections.includes('from-path'))
 
-const parseLibraryLink = computed(() => ({
+const parseLibraryLink = {
   path: '/settings',
   query: {
     tab: 'library',
     section: 'parse_library_tags',
   },
-}))
+}
+
+const route = useRoute()
+const router = useRouter()
+
+async function goToLibraryParser() {
+  emit('close')
+  await nextTick()
+
+  const alreadyThere = route.path === '/settings'
+    && String(route.query.tab || '') === 'library'
+    && String(route.query.section || '') === 'parse_library_tags'
+
+  if (alreadyThere) {
+    // Same URL: force PageSettings to re-apply expand + scroll.
+    await router.replace({path: '/settings', query: {tab: 'library'}})
+    await nextTick()
+  }
+
+  await router.push(parseLibraryLink)
+}
 
 const BOOLEAN_SETTING_KEYS = new Set<keyof MetaSettings>([
   'hidden',

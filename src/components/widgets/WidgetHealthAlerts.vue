@@ -105,14 +105,16 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
+import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
+import {isStartupHealthNotificationsEnabled} from '@/composable/useStartupHealthNotifications'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import type { HealthAlertItem, HomeHealthData } from '@/types/widgets'
@@ -123,7 +125,12 @@ const router = useRouter()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const tasksStore = useTasksStore()
+const settingsStore = useSettingsStore()
 const appShell = useAppShell()
+
+const autoCheckEnabled = computed(() =>
+  isStartupHealthNotificationsEnabled(settingsStore.startupHealthNotifications),
+)
 
 const checked = ref(false)
 const loading = ref(false)
@@ -238,6 +245,21 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
     })
   }
 
+  const tagUpscale = health.value.tagImageAiUpscale
+  if (tagUpscale && !tagUpscale.done && (tagUpscale.suggested || Number(tagUpscale.pendingCount) > 0)) {
+    alerts.push({
+      id: 'tag-ai-upscale',
+      type: 'info',
+      icon: 'mdi-image-auto-adjust',
+      text: t('home.widgets.health_tag_image_ai_upscale', {
+        size: tagUpscale.downloadSizeMb || 50,
+        count: tagUpscale.pendingCount || 0,
+      }),
+      actionLabel: t('home.widgets.health_open_tag_image_ai_upscale'),
+      action: openTagImageAiUpscaleSettings,
+    })
+  }
+
   if (activeTasksCount.value > 0) {
     alerts.push({
       id: 'tasks',
@@ -277,6 +299,16 @@ function openImageThumbsGenerationSettings() {
     query: {
       tab: 'database',
       section: 'generate_image_thumbs',
+    },
+  })
+}
+
+function openTagImageAiUpscaleSettings() {
+  router.push({
+    path: '/settings',
+    query: {
+      tab: 'database',
+      section: 'tag_image_ai_upscale',
     },
   })
 }
@@ -333,6 +365,12 @@ async function runCheck() {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  if (autoCheckEnabled.value) {
+    void runCheck()
+  }
+})
 </script>
 
 <style lang="scss" scoped>

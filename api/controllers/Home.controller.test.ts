@@ -5,6 +5,7 @@ const {
   getHomeMedia,
   getRandomMarks,
   getHomeHealth,
+  getHomeHealthLite,
   getHomeExtendedStats,
   searchMediaByName,
   searchTagsByName,
@@ -13,6 +14,7 @@ const {
   getHomeMedia: vi.fn(),
   getRandomMarks: vi.fn(),
   getHomeHealth: vi.fn(),
+  getHomeHealthLite: vi.fn(),
   getHomeExtendedStats: vi.fn(),
   searchMediaByName: vi.fn(),
   searchTagsByName: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock('../services/homeMarkers', () => ({
 
 vi.mock('../services/homeHealth', () => ({
   getHomeHealth,
+  getHomeHealthLite,
 }))
 
 vi.mock('../services/homeExtendedStats', () => ({

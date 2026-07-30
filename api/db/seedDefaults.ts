@@ -60,6 +60,7 @@ const MIGRATION_SETTINGS = [
   {option: 'show_salutation', value: '1'},
   {option: 'show_ip_at_home_screen', value: '1'},
   {option: 'show_alert_new_tool_words', value: '1'},
+  {option: 'startupHealthNotifications', value: '1'},
   {option: 'show_default_meta_outlined', value: '1'},
   {option: 'show_default_meta_label', value: '1'},
   {option: 'show_default_meta_filesize', value: '1'},

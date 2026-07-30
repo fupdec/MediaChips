@@ -156,6 +156,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/streamVideoImagesGeneration', 'streamVideoImagesGeneration')
   register('get', '/imageThumbsGenerationStatus', 'imageThumbsGenerationStatus')
   register('post', '/streamImageThumbsGeneration', 'streamImageThumbsGeneration')
+  register('get', '/tagImageAiUpscaleStatus', 'tagImageAiUpscaleStatus')
+  register('post', '/streamTagImageAiUpscale', 'streamTagImageAiUpscale')
   register('get', '/missingMediaStatus', 'missingMediaStatus')
   register('post', '/streamFindMissingMedia', 'streamFindMissingMedia')
   register('post', '/relinkMissingMedia', 'relinkMissingMedia')

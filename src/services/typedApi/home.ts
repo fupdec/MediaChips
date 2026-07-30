@@ -8,6 +8,7 @@ import {
   parseGlobalSearchTagsResponse,
   parseGlobalSearchResponse,
   parseHomeHealth,
+  parseHomeHealthLite,
   parseHomeMarkers,
   parseHomeMediaResponse,
   parseHomeMediaStats,
@@ -58,6 +59,13 @@ export const homeApi = {
     return apiClient.get(API_ROUTES.homeHealth).then((res) => ({
       ...res,
       data: validated(parseHomeHealth, res.data),
+    }))
+  },
+
+  getHomeHealthLite() {
+    return apiClient.get(API_ROUTES.homeHealthLite).then((res) => ({
+      ...res,
+      data: validated(parseHomeHealthLite, res.data),
     }))
   },
 

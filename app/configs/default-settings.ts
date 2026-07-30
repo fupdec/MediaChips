@@ -127,6 +127,10 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "startupHealthNotifications",
+    "value": 1
+  },
+  {
     "option": "showIconsOfMetaInEditingDialog",
     "value": 1
   },

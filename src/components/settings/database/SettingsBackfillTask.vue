@@ -56,21 +56,8 @@
     <div class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="!active"
-        :loading="statusLoading"
-        :disabled="statusLoading"
-        color="secondary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-        @click="refreshStatus"
-      >
-        <v-icon icon="mdi-refresh" start/>
-        {{ t('settings_labels.database.refresh_status') }}
-      </v-btn>
-
-      <v-btn
-        v-if="!active"
         :disabled="!canStart"
+        :loading="statusLoading"
         color="primary"
         rounded
         variant="flat"
@@ -83,7 +70,7 @@
 
       <v-btn
         v-if="!active"
-        :disabled="!canRecalculate"
+        :disabled="!canRecalculate || statusLoading"
         color="secondary"
         rounded
         variant="outlined"
@@ -146,6 +133,9 @@ const titleKey = computed(() => `settings_labels.database.${config.i18nKey}`)
 const hintKey = computed(() => `settings_labels.database.${config.i18nKey}_hint`)
 const startKey = computed(() => `settings_labels.database.${config.i18nKey}_start`)
 const recalculateKey = computed(() => `settings_labels.database.${config.i18nKey}_recalculate`)
+
+// Status is a cheap SQL count — load automatically when the section opens.
+void refreshStatus()
 </script>
 
 <style scoped>

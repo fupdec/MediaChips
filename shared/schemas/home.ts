@@ -89,7 +89,44 @@ export const HomeHealthSchema = z.object({
     name: z.string().nullable(),
     bytes: z.number().nullable(),
   }).optional(),
+  tagImageAiUpscale: z.object({
+    done: z.boolean(),
+    pendingCount: z.number().optional(),
+    suggested: z.boolean(),
+    downloadSizeMb: z.number().optional(),
+  }).optional(),
 }).passthrough()
+
+export const HomeHealthLiteSchema = z.object({
+  fingerprint: z.object({
+    total: z.number(),
+    pending: z.number(),
+    hashed: z.number(),
+  }).optional(),
+  contentHash: z.object({
+    total: z.number(),
+    pending: z.number(),
+    hashed: z.number(),
+  }).optional(),
+  oshash: z.object({
+    total: z.number(),
+    pending: z.number(),
+    hashed: z.number(),
+  }).optional(),
+  videoCodec: z.object({
+    total: z.number(),
+    pending: z.number(),
+    filled: z.number(),
+  }).optional(),
+  tagImageAiUpscale: z.object({
+    done: z.boolean(),
+    pendingCount: z.number().optional(),
+    suggested: z.boolean(),
+    downloadSizeMb: z.number().optional(),
+  }).optional(),
+}).passthrough()
+
+export type ParsedHomeHealthLite = z.infer<typeof HomeHealthLiteSchema>
 
 export const HomeMarkersSchema = z.object({
   marks: z.array(z.object({ id: z.number() }).passthrough()).optional(),

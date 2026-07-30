@@ -36,6 +36,7 @@ import {useAppStore} from "@/stores/app"
 import AutoConnect from "@/AutoConnect.vue"
 import {getLocalBackendUrl, resolveDirectBackendUrl} from "@/utils/apiBaseUrl"
 import type {AppConfig, ServerConfigPayload, ServerInfo} from "@/types/common"
+import {useStartupHealthNotifications} from "@/composable/useStartupHealthNotifications"
 
 const FIXED_PORT = import.meta.env.VITE_PORT || 12321
 const PING_INTERVAL_MS = 30000
@@ -48,6 +49,8 @@ const AUTO_RELAUNCH_TICK_MS = 1000
 const {t} = useI18n()
 const isConfigLoaded = ref(false)
 const app = useAppStore()
+const {runStartupHealthCheck} = useStartupHealthNotifications()
+let startupHealthTimer: ReturnType<typeof setTimeout> | null = null
 
 const isDevBrowser = import.meta.env.DEV && !window.electronAPI
 const isElectronHost = Boolean(window.electronAPI)
@@ -124,6 +127,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (healthCheckTimer) clearInterval(healthCheckTimer)
+  if (startupHealthTimer) clearTimeout(startupHealthTimer)
   stopReconnectLoop()
   clearAutoRelaunchTimers()
 })
@@ -424,6 +428,13 @@ function applyConfig(config: ServerConfigPayload) {
 
   if (!wasLoaded) {
     isConfigLoaded.value = true
+    if (!isPlayerWindow.value) {
+      if (startupHealthTimer) clearTimeout(startupHealthTimer)
+      startupHealthTimer = setTimeout(() => {
+        startupHealthTimer = null
+        void runStartupHealthCheck(app.config?.id ?? null)
+      }, 2500)
+    }
   }
 }
 

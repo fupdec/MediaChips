@@ -17,6 +17,12 @@ export interface PathRegexTagExtract {
   source: 'regex'
 }
 
+export type RegexValidationCode = 'empty' | 'invalid'
+
+export type RegexValidateResult =
+  | {ok: true}
+  | {ok: false; code: RegexValidationCode; message: string; detail?: string}
+
 export function normalizePathForRegex(filePath: string): string {
   return String(filePath || '').replace(/\\/g, '/')
 }
@@ -32,24 +38,39 @@ export function compileRegexPattern(pattern: string, flags = 'iu'): RegExp {
 export function validateRegexPattern(
   pattern: string,
   flags = 'iu',
-): {ok: true} | {ok: false; message: string} {
+): RegexValidateResult {
   const trimmed = String(pattern || '').trim()
   if (!trimmed) {
-    return {ok: false, message: 'Regex must not be empty'}
+    return {
+      ok: false,
+      code: 'empty',
+      message: 'Regex must not be empty',
+    }
   }
 
   try {
     compileRegexPattern(trimmed, flags)
     return {ok: true}
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {ok: false, message: `Invalid regex: ${message}`}
+    const detail = error instanceof Error ? error.message : String(error)
+    return {
+      ok: false,
+      code: 'invalid',
+      message: `Invalid regex: ${detail}`,
+      detail,
+    }
   }
 }
 
 export type RegexMatchTestResult =
   | {ok: true; matched: string; groups: string[]}
-  | {ok: false; reason: 'empty' | 'invalid' | 'no_match'; message: string}
+  | {
+    ok: false
+    reason: 'empty' | 'invalid' | 'no_match'
+    code: 'empty' | 'invalid' | 'no_match'
+    message: string
+    detail?: string
+  }
 
 export function testRegexMatch(
   pattern: string,
@@ -58,20 +79,36 @@ export function testRegexMatch(
 ): RegexMatchTestResult {
   const trimmed = String(pattern || '').trim()
   if (!trimmed) {
-    return {ok: false, reason: 'empty', message: 'Regex must not be empty'}
+    return {
+      ok: false,
+      reason: 'empty',
+      code: 'empty',
+      message: 'Regex must not be empty',
+    }
   }
 
   let regex: RegExp
   try {
     regex = compileRegexPattern(trimmed, flags)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {ok: false, reason: 'invalid', message: `Invalid regex: ${message}`}
+    const detail = error instanceof Error ? error.message : String(error)
+    return {
+      ok: false,
+      reason: 'invalid',
+      code: 'invalid',
+      message: `Invalid regex: ${detail}`,
+      detail,
+    }
   }
 
   const match = regex.exec(String(sample || ''))
   if (!match) {
-    return {ok: false, reason: 'no_match', message: 'No match in the sample text'}
+    return {
+      ok: false,
+      reason: 'no_match',
+      code: 'no_match',
+      message: 'No match in the sample text',
+    }
   }
 
   return {
@@ -81,7 +118,7 @@ export function testRegexMatch(
   }
 }
 
-export function validatePathRegex(pattern: string): {ok: true} | {ok: false; message: string} {
+export function validatePathRegex(pattern: string): RegexValidateResult {
   return validateRegexPattern(pattern, 'iu')
 }
 

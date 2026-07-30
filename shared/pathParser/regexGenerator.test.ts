@@ -4,11 +4,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  MATCH_REGEX_PRESETS,
   buildPathRegexPresets,
   detectPathOsStyle,
+  generateMatchRegexFromSample,
   generatePathRegexFromSample,
 } from './regexGenerator'
-import { extractPathRegexTagName } from './regexMeta'
+import { extractPathRegexTagName, testRegexMatch } from './regexMeta'
 
 describe('pathParser/regexGenerator', () => {
   it('detects windows and unix styles', () => {
@@ -62,5 +64,30 @@ describe('pathParser/regexGenerator', () => {
 
   it('returns null when capture text is not in the path', () => {
     expect(generatePathRegexFromSample('/a/b.mp4', 'Missing')).toBeNull()
+  })
+
+  it('generates escaped match pattern from sample', () => {
+    const generated = generateMatchRegexFromSample('My Studio Show', 'Studio')
+    expect(generated).toEqual({pattern: 'Studio', kind: 'literal'})
+    expect(testRegexMatch(generated!.pattern, 'My Studio Show', 'i').ok).toBe(true)
+  })
+
+  it('escapes special characters in match generator', () => {
+    const generated = generateMatchRegexFromSample('file (1).mp4', '(1)')
+    expect(generated?.pattern).toBe('\\(1\\)')
+    expect(testRegexMatch(generated!.pattern, 'file (1).mp4', 'i').ok).toBe(true)
+  })
+
+  it('returns null when match capture is missing', () => {
+    expect(generateMatchRegexFromSample('abc', 'xyz')).toBeNull()
+  })
+
+  it('exposes generic match presets', () => {
+    expect(MATCH_REGEX_PRESETS.map((preset) => preset.id)).toEqual([
+      'contains',
+      'startsWith',
+      'endsWith',
+      'wholeWord',
+    ])
   })
 })

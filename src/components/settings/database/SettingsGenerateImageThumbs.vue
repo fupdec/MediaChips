@@ -66,22 +66,9 @@
     <div class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="!active"
-        @click="refreshStatus"
-        :loading="statusLoading"
-        :disabled="statusLoading"
-        color="secondary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-      >
-        <v-icon icon="mdi-refresh" start/>
-        {{ t('settings_labels.database.refresh_status') }}
-      </v-btn>
-
-      <v-btn
-        v-if="!active"
         @click="startGeneration(false)"
         :disabled="!statusLoaded || statusLoading || status.pending === 0"
+        :loading="statusLoading"
         color="primary"
         rounded
         variant="flat"
@@ -120,7 +107,7 @@
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {buildApiUrl} from '@/services/apiClient'
@@ -355,6 +342,10 @@ const startGeneration = async (force = false) => {
     await fetchStatus().catch(() => {})
   }
 }
+
+onMounted(() => {
+  void refreshStatus()
+})
 </script>
 
 <style scoped>

@@ -78,7 +78,9 @@ describe('pathParser/regexMeta', () => {
     const result = validatePathRegex('(')
     expect(result.ok).toBe(false)
     if (!result.ok) {
+      expect(result.code).toBe('invalid')
       expect(result.message).toContain('Invalid regex')
+      expect(result.detail).toBeTruthy()
     }
   })
 

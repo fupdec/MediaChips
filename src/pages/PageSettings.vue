@@ -160,6 +160,10 @@
                 <SettingsFindMissingMedia/>
               </SettingsSection>
 
+              <SettingsSection id="settings-tag-image-ai-upscale">
+                <SettingsTagImageAiUpscale/>
+              </SettingsSection>
+
               <SettingsGroupLabel :title="t('settings.groups.maintenance_media')"/>
 
               <SettingsSection>
@@ -295,6 +299,9 @@ const SettingsGenerateVideoImages = defineAsyncComponent(() =>
 )
 const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateImageThumbs.vue")
+)
+const SettingsTagImageAiUpscale = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsTagImageAiUpscale.vue")
 )
 const SettingsDetectFaces = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDetectFaces.vue")
@@ -476,6 +483,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   databases: "settings-databases",
   generate_video_images: "settings-generate-video-images",
   generate_image_thumbs: "settings-generate-image-thumbs",
+  tag_image_ai_upscale: "settings-tag-image-ai-upscale",
   detect_faces: "settings-detect-faces",
   video_codec_backfill: "settings-video-codec-backfill",
   oshash_backfill: "settings-fingerprint-backfill",
@@ -506,7 +514,7 @@ function getScrollContainer(): HTMLElement | null {
   return contentRef.value.closest('.main-scroll') as HTMLElement | null
 }
 
-function scrollToSettingsSection(sectionId: string, attempts = 12) {
+function scrollToSettingsSection(sectionId: string, attempts = 24) {
   const scrollContainer = getScrollContainer()
   const element = document.getElementById(sectionId)
   if (scrollContainer && element) {
@@ -525,6 +533,15 @@ function scrollToSettingsSection(sectionId: string, attempts = 12) {
 
   requestAnimationFrame(() => {
     scrollToSettingsSection(sectionId, attempts - 1)
+  })
+}
+
+function scheduleScrollToSection(sectionId: string) {
+  // Advanced library sections mount behind v-if; wait for layout after expand.
+  nextTick(() => {
+    nextTick(() => {
+      scrollToSettingsSection(sectionId)
+    })
   })
 }
 
@@ -629,7 +646,7 @@ function applyRouteSettings() {
 
   nextTick(() => {
     if (sectionId) {
-      scrollToSettingsSection(sectionId)
+      scheduleScrollToSection(sectionId)
     }
     applyingRoute.value = false
   })
@@ -637,24 +654,24 @@ function applyRouteSettings() {
 
 function syncTabToRoute(nextTab: string) {
   const currentTab = resolveTab(String(route.query.tab || "general"))
-  const currentSection = String(route.query.section || "")
 
-  if (currentTab === nextTab && !currentSection) return
+  // Same tab: keep current query (including section deep-links).
+  if (currentTab === nextTab) return
 
-  const query: Record<string, string> = {tab: nextTab}
-
-  router.replace({path: "/settings", query})
+  router.replace({path: "/settings", query: {tab: nextTab}})
 }
 
 onMounted(applyRouteSettings)
 
 watch(tab, (nextTab) => {
-  const scrollContainer = getScrollContainer()
-  if (scrollContainer) {
-    scrollContainer.scrollTop = 0
+  if (!applyingRoute.value) {
+    const scrollContainer = getScrollContainer()
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0
+    }
+    syncTabToRoute(nextTab)
+    return
   }
-  if (applyingRoute.value) return
-  syncTabToRoute(nextTab)
 })
 
 watch(() => route.fullPath, applyRouteSettings)

@@ -2,18 +2,25 @@
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import RegexReplaceTemplateEditor from '@/components/regex/RegexReplaceTemplateEditor.vue'
+import {typedApi} from '@/services/typedApi'
+import {useAppStore} from '@/stores/app'
 import {
   extractPathRegexTagName,
   testRegexMatch,
   validateRegexPattern,
 } from '@shared/pathParser/regexMeta'
 import {
+  MATCH_REGEX_PRESETS,
   PATH_REGEX_PRESETS,
+  generateMatchRegexFromSample,
   generatePathRegexFromSample,
+  type MatchRegexPreset,
   type PathRegexPreset,
 } from '@shared/pathParser/regexGenerator'
 
 export type RegexBuilderMode = 'match' | 'extract'
+export type RegexPresetKind = 'path' | 'generic' | 'none'
 
 const props = withDefaults(defineProps<{
   mode?: RegexBuilderMode
@@ -25,8 +32,9 @@ const props = withDefaults(defineProps<{
   showPresets?: boolean
   showReplace?: boolean
   showIntro?: boolean
-  /** Prefer presets + example generator; tuck raw pattern under Custom */
+  /** @deprecated Always uses example-first + Advanced accordion */
   presetsFirst?: boolean
+  presetKind?: RegexPresetKind
   flags?: string
 }>(), {
   mode: 'match',
@@ -39,6 +47,7 @@ const props = withDefaults(defineProps<{
   showReplace: undefined,
   showIntro: true,
   presetsFirst: false,
+  presetKind: undefined,
   flags: undefined,
 })
 
@@ -56,7 +65,7 @@ const localReplace = ref(props.replace || '$1')
 const localSample = ref(props.sample)
 const localCapture = ref(props.captureText)
 const generatorMessage = ref<{type: 'success' | 'error' | 'info'; text: string} | null>(null)
-const customPanel = ref<number[]>(props.pattern?.trim() ? [0] : [])
+const randomizingSample = ref(false)
 
 watch(() => props.pattern, (value) => {
   if (value !== localPattern.value) localPattern.value = value || ''
@@ -77,17 +86,64 @@ const showReplaceField = computed(() => (
 ))
 const regexFlags = computed(() => props.flags || (isExtract.value ? 'iu' : 'i'))
 
-type PresetView = PathRegexPreset & {labelKey: string}
-const presets: PresetView[] = PATH_REGEX_PRESETS.map((preset) => ({
-  ...preset,
-  labelKey: `regex_builder.preset_${preset.id}`,
-}))
+const resolvedPresetKind = computed<RegexPresetKind>(() => {
+  if (props.presetKind) return props.presetKind
+  if (!props.showPresets) return 'none'
+  return isExtract.value ? 'path' : 'generic'
+})
+
+type PresetView = {
+  id: string
+  labelKey: string
+  pattern: string
+  replace: string
+  sample: string
+  capture: string
+}
+
+function mapPathPreset(preset: PathRegexPreset): PresetView {
+  return {
+    id: preset.id,
+    labelKey: `regex_builder.preset_${preset.id}`,
+    pattern: preset.pathRegex,
+    replace: preset.pathRegexReplace,
+    sample: preset.samplePath,
+    capture: preset.captureExample,
+  }
+}
+
+function mapMatchPreset(preset: MatchRegexPreset): PresetView {
+  return {
+    id: preset.id,
+    labelKey: `regex_builder.preset_${preset.id}`,
+    pattern: preset.pattern,
+    replace: '$1',
+    sample: preset.sampleText,
+    capture: preset.captureExample,
+  }
+}
+
+const presets = computed<PresetView[]>(() => {
+  if (resolvedPresetKind.value === 'path') {
+    return PATH_REGEX_PRESETS.map(mapPathPreset)
+  }
+  if (resolvedPresetKind.value === 'generic') {
+    return MATCH_REGEX_PRESETS.map(mapMatchPreset)
+  }
+  return []
+})
+
+const patternErrorCode = computed(() => {
+  const pattern = localPattern.value.trim()
+  if (!pattern) return '' as const
+  const result = validateRegexPattern(pattern, regexFlags.value)
+  return result.ok ? ('' as const) : result.code
+})
 
 const patternError = computed(() => {
-  const pattern = localPattern.value.trim()
-  if (!pattern) return ''
-  const result = validateRegexPattern(pattern, regexFlags.value)
-  return result.ok ? '' : result.message
+  if (!patternErrorCode.value) return ''
+  if (patternErrorCode.value === 'empty') return t('regex_builder.validation_empty_title')
+  return t('regex_builder.validation_invalid_text')
 })
 
 const canGenerate = computed(() => (
@@ -97,7 +153,7 @@ const canGenerate = computed(() => (
 const extractedName = computed(() => {
   if (!isExtract.value) return null
   const pattern = localPattern.value.trim()
-  if (!pattern || patternError.value) return null
+  if (!pattern || patternErrorCode.value) return null
   return extractPathRegexTagName(localSample.value, {
     id: 1,
     type: 'array',
@@ -112,6 +168,17 @@ const matchResult = computed(() => {
   return testRegexMatch(localPattern.value, localSample.value, regexFlags.value)
 })
 
+const extractMatchResult = computed(() => {
+  if (!isExtract.value) return null
+  return testRegexMatch(localPattern.value, localSample.value, regexFlags.value)
+})
+
+const replaceGroups = computed(() => {
+  const result = extractMatchResult.value
+  if (!result || !result.ok) return [] as string[]
+  return result.groups
+})
+
 const validation = computed(() => {
   const pattern = localPattern.value.trim()
   if (!pattern) {
@@ -121,11 +188,11 @@ const validation = computed(() => {
       text: t('regex_builder.validation_empty_text'),
     }
   }
-  if (patternError.value) {
+  if (patternErrorCode.value) {
     return {
       type: 'error' as const,
       title: t('regex_builder.validation_invalid_title'),
-      text: patternError.value,
+      text: t('regex_builder.validation_invalid_text'),
     }
   }
 
@@ -153,7 +220,7 @@ const validation = computed(() => {
     }
   }
   if (!result.ok) {
-    if (result.reason === 'no_match') {
+    if (result.code === 'no_match') {
       return {
         type: 'warning' as const,
         title: t('regex_builder.validation_no_match_title'),
@@ -163,7 +230,7 @@ const validation = computed(() => {
     return {
       type: 'error' as const,
       title: t('regex_builder.validation_invalid_title'),
-      text: result.message,
+      text: t('regex_builder.validation_invalid_text'),
     }
   }
 
@@ -182,9 +249,15 @@ const introText = computed(() => (
   || (isExtract.value ? t('regex_builder.intro_extract') : t('regex_builder.intro_match'))
 ))
 
+const captureLabel = computed(() => (
+  isExtract.value
+    ? t('regex_builder.capture_text_extract')
+    : t('regex_builder.capture_text')
+))
+
 const isPresetActive = (preset: PresetView) => (
-  localPattern.value === preset.pathRegex
-  && (!showReplaceField.value || (localReplace.value || '$1') === preset.pathRegexReplace)
+  localPattern.value === preset.pattern
+  && (!showReplaceField.value || (localReplace.value || '$1') === preset.replace)
 )
 
 function setPattern(value: string) {
@@ -208,10 +281,10 @@ function setCapture(value: string) {
 }
 
 function applyPreset(preset: PresetView) {
-  setPattern(preset.pathRegex)
-  if (showReplaceField.value) setReplace(preset.pathRegexReplace)
-  setSample(preset.samplePath)
-  setCapture(preset.captureExample)
+  setPattern(preset.pattern)
+  if (showReplaceField.value) setReplace(preset.replace)
+  setSample(preset.sample)
+  setCapture(preset.capture)
   generatorMessage.value = {
     type: 'info',
     text: t('regex_builder.preset_applied', {name: t(preset.labelKey)}),
@@ -219,7 +292,25 @@ function applyPreset(preset: PresetView) {
 }
 
 function generate() {
-  const generated = generatePathRegexFromSample(localSample.value, localCapture.value)
+  if (isExtract.value) {
+    const generated = generatePathRegexFromSample(localSample.value, localCapture.value)
+    if (!generated) {
+      generatorMessage.value = {
+        type: 'error',
+        text: t('regex_builder.generate_not_found'),
+      }
+      return
+    }
+    setPattern(generated.pathRegex)
+    if (showReplaceField.value) setReplace(generated.pathRegexReplace)
+    generatorMessage.value = {
+      type: 'success',
+      text: t(`regex_builder.generate_kind_${generated.kind}`),
+    }
+    return
+  }
+
+  const generated = generateMatchRegexFromSample(localSample.value, localCapture.value)
   if (!generated) {
     generatorMessage.value = {
       type: 'error',
@@ -227,18 +318,98 @@ function generate() {
     }
     return
   }
-  setPattern(generated.pathRegex)
-  if (showReplaceField.value) setReplace(generated.pathRegexReplace)
+  setPattern(generated.pattern)
   generatorMessage.value = {
     type: 'success',
-    text: t(`regex_builder.generate_kind_${generated.kind}`),
+    text: t('regex_builder.generate_kind_literal'),
+  }
+}
+
+async function pickRandomSamplePath() {
+  if (randomizingSample.value) return
+  randomizingSample.value = true
+  generatorMessage.value = null
+  try {
+    const appStore = useAppStore()
+    let mediaTypes = (appStore.mediaTypes || [])
+      .map((item) => Number(item?.id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+
+    if (!mediaTypes.length) {
+      const {data} = await typedApi.getMediaTypes()
+      mediaTypes = (Array.isArray(data) ? data : [])
+        .map((item) => Number(item?.id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    }
+
+    if (!mediaTypes.length) {
+      generatorMessage.value = {
+        type: 'error',
+        text: t('regex_builder.sample_random_empty'),
+      }
+      return
+    }
+
+    // Shuffle types so we don't always pick from the first media type.
+    for (let i = mediaTypes.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [mediaTypes[i], mediaTypes[j]] = [mediaTypes[j], mediaTypes[i]]
+    }
+
+    for (const mediaTypeId of mediaTypes) {
+      const probe = await typedApi.getMediaItems({
+        mediaTypeId,
+        page: 1,
+        limit: 1,
+        sortBy: 'id',
+        direction: 'asc',
+        skipTotals: false,
+      })
+      const total = Number(probe.data?.totalFiltered ?? 0)
+      if (total <= 0) continue
+
+      const page = Math.floor(Math.random() * total) + 1
+      const pageRes = page === 1
+        ? probe
+        : await typedApi.getMediaItems({
+            mediaTypeId,
+            page,
+            limit: 1,
+            sortBy: 'id',
+            direction: 'asc',
+            skipTotals: true,
+          })
+
+      const path = String(pageRes.data?.items?.[0]?.path || '').trim()
+      if (!path) continue
+
+      setSample(path)
+      generatorMessage.value = {
+        type: 'info',
+        text: t('regex_builder.sample_random_ok'),
+      }
+      return
+    }
+
+    generatorMessage.value = {
+      type: 'error',
+      text: t('regex_builder.sample_random_empty'),
+    }
+  } catch (error) {
+    console.error(error)
+    generatorMessage.value = {
+      type: 'error',
+      text: t('regex_builder.sample_random_error'),
+    }
+  } finally {
+    randomizingSample.value = false
   }
 }
 
 defineExpose({
   pattern: localPattern,
   replace: localReplace,
-  isValid: computed(() => Boolean(localPattern.value.trim() && !patternError.value)),
+  isValid: computed(() => Boolean(localPattern.value.trim() && !patternErrorCode.value)),
   patternError,
 })
 </script>
@@ -256,7 +427,7 @@ defineExpose({
       {{ introText }}
     </v-alert>
 
-    <template v-if="showPresets">
+    <template v-if="presets.length">
       <div class="text-caption text-medium-emphasis mb-2">
         {{ t('regex_builder.presets') }}
       </div>
@@ -276,12 +447,41 @@ defineExpose({
       </div>
     </template>
 
+    <div class="regex-builder__advanced mb-3">
+      <v-text-field
+        :model-value="localPattern"
+        :label="t('regex_builder.pattern')"
+        :hint="t('regex_builder.pattern_hint')"
+        :error-messages="patternError"
+        persistent-hint
+        density="compact"
+        variant="outlined"
+        rounded="lg"
+        hide-details="auto"
+        class="mb-3"
+        @update:model-value="setPattern(String($event ?? ''))"
+      />
+
+      <RegexReplaceTemplateEditor
+        v-if="showReplaceField"
+        :model-value="localReplace"
+        :groups="replaceGroups"
+        :label="t('regex_builder.replace')"
+        :hint="t('regex_builder.replace_hint')"
+        class="mb-1"
+        @update:model-value="setReplace"
+      />
+    </div>
+
     <settings-category-divider
       icon="auto-fix"
       compact
       :title="t('regex_builder.generator')"
       class="mb-2"
     />
+    <div class="text-caption text-medium-emphasis mb-3">
+      {{ t('regex_builder.generator_hint') }}
+    </div>
 
     <v-text-field
       :model-value="localSample"
@@ -292,14 +492,26 @@ defineExpose({
       hide-details="auto"
       class="mb-3"
       @update:model-value="setSample(String($event ?? ''))"
-    />
+    >
+      <template v-if="isExtract" #append-inner>
+        <v-btn
+          icon="mdi-dice-multiple"
+          size="x-small"
+          variant="text"
+          :loading="randomizingSample"
+          :disabled="randomizingSample"
+          :title="t('regex_builder.sample_random')"
+          @click.stop="pickRandomSamplePath"
+        />
+      </template>
+    </v-text-field>
 
     <div class="d-flex flex-wrap align-start ga-2 mb-3">
       <v-text-field
         :model-value="localCapture"
-        :label="t('regex_builder.capture_text')"
-        :hint="presetsFirst ? undefined : t('regex_builder.capture_text_hint')"
-        :persistent-hint="!presetsFirst"
+        :label="captureLabel"
+        :hint="t('regex_builder.capture_text_hint')"
+        persistent-hint
         density="compact"
         variant="outlined"
         rounded="lg"
@@ -309,7 +521,7 @@ defineExpose({
       />
       <v-btn
         color="primary"
-        variant="tonal"
+        variant="flat"
         rounded="lg"
         class="mt-1"
         :disabled="!canGenerate"
@@ -330,88 +542,15 @@ defineExpose({
       {{ generatorMessage.text }}
     </v-alert>
 
-    <template v-if="presetsFirst">
-      <v-expansion-panels
-        v-model="customPanel"
-        variant="accordion"
-        rounded="lg"
-        class="mb-3 regex-builder__custom"
-      >
-        <v-expansion-panel rounded="lg">
-          <v-expansion-panel-title>
-            {{ t('regex_builder.custom_pattern') }}
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <v-text-field
-              :model-value="localPattern"
-              :label="t('regex_builder.pattern')"
-              :error-messages="patternError"
-              density="compact"
-              variant="outlined"
-              rounded="lg"
-              hide-details="auto"
-              class="mb-3"
-              @update:model-value="setPattern(String($event ?? ''))"
-            />
-
-            <v-text-field
-              v-if="showReplaceField"
-              :model-value="localReplace"
-              :label="t('regex_builder.replace')"
-              density="compact"
-              variant="outlined"
-              rounded="lg"
-              hide-details="auto"
-              class="mb-1"
-              placeholder="$1"
-              @update:model-value="setReplace(String($event ?? ''))"
-            />
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
-    </template>
-
-    <template v-else>
-      <v-text-field
-        :model-value="localPattern"
-        :label="t('regex_builder.pattern')"
-        :hint="t('regex_builder.pattern_hint')"
-        :error-messages="patternError"
-        persistent-hint
-        density="compact"
-        variant="outlined"
-        rounded="lg"
-        hide-details="auto"
-        class="mb-3"
-        @update:model-value="setPattern(String($event ?? ''))"
-      />
-
-      <v-text-field
-        v-if="showReplaceField"
-        :model-value="localReplace"
-        :label="t('regex_builder.replace')"
-        :hint="t('regex_builder.replace_hint')"
-        persistent-hint
-        density="compact"
-        variant="outlined"
-        rounded="lg"
-        hide-details="auto"
-        class="mb-3"
-        placeholder="$1"
-        @update:model-value="setReplace(String($event ?? ''))"
-      />
-    </template>
-
     <v-alert
-      v-if="!presetsFirst || localPattern.trim() || validation.type !== 'info'"
       :type="validation.type"
       variant="tonal"
-      density="compact"
+      density="comfortable"
       rounded="lg"
-      class="text-caption"
+      class="regex-builder__result"
     >
-      <div class="font-weight-medium">{{ validation.title }}</div>
-      <div class="mt-1">{{ validation.text }}</div>
+      <div class="font-weight-medium text-body-2">{{ validation.title }}</div>
+      <div class="mt-1 text-caption">{{ validation.text }}</div>
     </v-alert>
   </div>
 </template>
@@ -423,5 +562,9 @@ defineExpose({
 
 .regex-builder__capture {
   min-width: 220px;
+}
+
+.regex-builder__result {
+  border-width: 1px;
 }
 </style>

@@ -28,6 +28,7 @@
           v-model:sample="draftSample"
           v-model:capture-text="draftCapture"
           mode="match"
+          :preset-kind="presetKind"
           :intro="t('regex_builder.intro_match')"
         />
       </v-card-text>
@@ -40,14 +41,19 @@ import {computed, ref, watch} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import RegexBuilder from '@/components/regex/RegexBuilder.vue'
-import {getDefaultPathRegexSample} from '@shared/pathParser/regexGenerator'
+import RegexBuilder, {type RegexPresetKind} from '@/components/regex/RegexBuilder.vue'
+import {
+  getDefaultMatchRegexSample,
+  getDefaultPathRegexSample,
+} from '@shared/pathParser/regexGenerator'
 import {validateRegexPattern} from '@shared/pathParser/regexMeta'
 
 const props = defineProps<{
   modelValue: boolean
   pattern?: string
   header?: string
+  /** Filter parameter — path filters get path presets */
+  filterParameter?: string | number | null
 }>()
 
 const emit = defineEmits<{
@@ -58,10 +64,17 @@ const emit = defineEmits<{
 const {t} = useI18n()
 const {smAndDown} = useDisplay()
 
-const defaults = getDefaultPathRegexSample()
+const isPathParameter = computed(() => String(props.filterParameter ?? '') === 'path')
+const presetKind = computed<RegexPresetKind>(() => (
+  isPathParameter.value ? 'path' : 'generic'
+))
+
+const pathDefaults = getDefaultPathRegexSample()
+const matchDefaults = getDefaultMatchRegexSample()
+
 const draftPattern = ref('')
-const draftSample = ref(defaults.samplePath)
-const draftCapture = ref(defaults.captureText)
+const draftSample = ref(matchDefaults.sampleText)
+const draftCapture = ref(matchDefaults.captureText)
 
 const dialogLocal = computed({
   get: () => props.modelValue,
@@ -77,12 +90,11 @@ const canApply = computed(() => {
 watch(() => props.modelValue, (open) => {
   if (!open) return
   draftPattern.value = String(props.pattern || '')
-  if (!draftSample.value) {
-    draftSample.value = defaults.samplePath
-  }
-  if (!draftCapture.value) {
-    draftCapture.value = defaults.captureText
-  }
+  const defaults = isPathParameter.value
+    ? {sample: pathDefaults.samplePath, capture: pathDefaults.captureText}
+    : {sample: matchDefaults.sampleText, capture: matchDefaults.captureText}
+  draftSample.value = defaults.sample
+  draftCapture.value = defaults.capture
 })
 
 function apply() {

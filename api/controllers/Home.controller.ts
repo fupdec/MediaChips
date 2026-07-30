@@ -3,7 +3,7 @@ import { apiErrorMessage } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getHomeMedia } from '../services/homeMedia'
 import { getRandomMarks } from '../services/homeMarkers'
-import { getHomeHealth } from '../services/homeHealth'
+import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 
@@ -47,6 +47,17 @@ export default (db: ApiDb) => {
     } catch (err) {
       res.status(500).send({
         message: apiErrorMessage(err) || 'Some error occurred while retrieving home health.',
+      })
+    }
+  }
+
+  const getHealthLite = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const data = await getHomeHealthLite(db)
+      res.status(200).send(data)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while retrieving lite home health.',
       })
     }
   }
@@ -109,6 +120,7 @@ export default (db: ApiDb) => {
     getMedia,
     getMarkers,
     getHealth,
+    getHealthLite,
     getExtendedStats,
     searchMedia,
     searchTags,

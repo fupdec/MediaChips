@@ -1,5 +1,5 @@
 import type { ApiDb, AnyRecord } from '../types/db'
-import type { ParsedHomeHealth } from '@shared/schemas/home'
+import type { ParsedHomeHealth, ParsedHomeHealthLite } from '@shared/schemas/home'
 import fs from 'fs'
 import path from 'path'
 import { readdir, stat } from 'fs/promises'
@@ -11,6 +11,12 @@ import {
 import { getVideoCodecBackfillStatus } from './videoCodecBackfill'
 import { getVideoImagesGenerationStatus } from './videoImagesGeneration'
 import { getImageThumbsGenerationStatus } from './imageThumbsGeneration'
+import {
+  getTagImageAiUpscaleStatus,
+  hasAnyUpscaleCandidateFiles,
+  isTagImageAiUpscaleDone,
+  TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB,
+} from './tagImageAiUpscale'
 import { queryGet } from '../db/utils/rawQuery'
 
 async function getDirectorySize(directory: string): Promise<number> {
@@ -89,10 +95,47 @@ async function getDuplicateCounts(db: ApiDb) {
   }
 }
 
+async function getTagImageAiUpscaleLiteHint(db: ApiDb) {
+  const done = isTagImageAiUpscaleDone(db)
+  if (done) {
+    return {
+      done: true,
+      suggested: false,
+      downloadSizeMb: TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB,
+    }
+  }
+
+  const dbPath = db.path
+  const suggested = dbPath ? await hasAnyUpscaleCandidateFiles(dbPath) : false
+  return {
+    done: false,
+    suggested,
+    downloadSizeMb: TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB,
+  }
+}
+
+async function getHomeHealthLite(db: ApiDb): Promise<ParsedHomeHealthLite> {
+  const [fingerprint, contentHash, oshash, videoCodec, tagImageAiUpscale] = await Promise.all([
+    getFingerprintBackfillStatus(db),
+    getContentHashBackfillStatus(db),
+    getOshashBackfillStatus(db),
+    getVideoCodecBackfillStatus(db),
+    getTagImageAiUpscaleLiteHint(db),
+  ])
+
+  return {
+    fingerprint,
+    contentHash,
+    oshash,
+    videoCodec,
+    tagImageAiUpscale,
+  } as ParsedHomeHealthLite
+}
+
 async function getHomeHealth(db: ApiDb): Promise<ParsedHomeHealth> {
   const getDbPath = () => db.path!
   const dbPath = getDbPath()
-  const [duplicates, fingerprint, contentHash, oshash, videoCodec, videoImages, imageThumbs, database] = await Promise.all([
+  const [duplicates, fingerprint, contentHash, oshash, videoCodec, videoImages, imageThumbs, database, tagImageAiUpscale] = await Promise.all([
     getDuplicateCounts(db),
     getFingerprintBackfillStatus(db),
     getContentHashBackfillStatus(db),
@@ -101,6 +144,7 @@ async function getHomeHealth(db: ApiDb): Promise<ParsedHomeHealth> {
     getVideoImagesGenerationStatus(db, dbPath),
     getImageThumbsGenerationStatus(db, dbPath),
     getActiveDatabaseSize(db),
+    getTagImageAiUpscaleStatus(db),
   ])
 
   const generatedImages = summarizeGeneratedImagesStatus({
@@ -117,7 +161,13 @@ async function getHomeHealth(db: ApiDb): Promise<ParsedHomeHealth> {
     generatedImages,
     imageThumbs,
     database,
+    tagImageAiUpscale: {
+      done: tagImageAiUpscale.done,
+      pendingCount: tagImageAiUpscale.pendingCount,
+      suggested: tagImageAiUpscale.suggested,
+      downloadSizeMb: tagImageAiUpscale.downloadSizeMb,
+    },
   } as ParsedHomeHealth
 }
 
-export { getHomeHealth, getDuplicateCounts }
+export { getHomeHealth, getHomeHealthLite, getDuplicateCounts }

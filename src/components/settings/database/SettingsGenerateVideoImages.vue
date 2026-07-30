@@ -32,21 +32,6 @@
       </span>
     </v-alert>
 
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-btn
-        @click="refreshStatus"
-        :loading="statusLoading"
-        :disabled="statusLoading || !!activeType"
-        color="secondary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-      >
-        <v-icon icon="mdi-refresh" start/>
-        {{ t('settings_labels.database.refresh_status') }}
-      </v-btn>
-    </div>
-
     <v-progress-linear
       v-if="activeType"
       :model-value="progress"
@@ -136,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {buildApiUrl} from '@/services/apiClient'
@@ -448,6 +433,10 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
     await fetchStatus().catch(() => {})
   }
 }
+
+onMounted(() => {
+  void refreshStatus()
+})
 </script>
 
 <style scoped>

@@ -19,38 +19,38 @@ describe('videoPreview', () => {
     expect(VIDEO_THUMB_JPEG_QUALITY).toBe(4)
     expect(VIDEO_MARK_HEIGHT).toBe(180)
     expect(VIDEO_MARK_JPEG_QUALITY).toBe(4)
-    expect(VIDEO_GRID_JPEG_QUALITY).toBe(6)
+    expect(VIDEO_GRID_JPEG_QUALITY).toBe(4)
     expect(VIDEO_GRID_SPRITE).toEqual({
       cols: 3,
       rows: 3,
-      tileWidth: 360,
+      tileWidth: 480,
     })
-    expect(getVideoGridSpriteWidth(VIDEO_GRID_REFERENCE_ASPECT_RATIO)).toBe(1080)
+    expect(getVideoGridSpriteWidth(VIDEO_GRID_REFERENCE_ASPECT_RATIO)).toBe(1440)
   })
 
   it('keeps 16:9 tiles at the reference size', () => {
     expect(getGridTileDimensions(16 / 9)).toEqual({
-      tileWidth: 360,
-      tileHeight: 203,
+      tileWidth: 480,
+      tileHeight: 270,
     })
     expect(getGridSpriteDimensions(16 / 9)).toEqual({
-      tileWidth: 360,
-      tileHeight: 203,
-      width: 1080,
-      height: 609,
+      tileWidth: 480,
+      tileHeight: 270,
+      width: 1440,
+      height: 810,
     })
   })
 
   it('limits portrait tiles by reference height instead of width', () => {
     expect(getGridTileDimensions(9 / 16)).toEqual({
-      tileWidth: 114,
-      tileHeight: 203,
+      tileWidth: 152,
+      tileHeight: 270,
     })
     expect(getGridSpriteDimensions(9 / 16)).toEqual({
-      tileWidth: 114,
-      tileHeight: 203,
-      width: 342,
-      height: 609,
+      tileWidth: 152,
+      tileHeight: 270,
+      width: 456,
+      height: 810,
     })
   })
 
@@ -58,7 +58,7 @@ describe('videoPreview', () => {
     expect(buildVideoGridTaskParams('/in.mp4', '1.jpg')).toEqual({
       input: '/in.mp4',
       output: '1.jpg',
-      width: 360,
+      width: 480,
       cols: 3,
       rows: 3,
     })

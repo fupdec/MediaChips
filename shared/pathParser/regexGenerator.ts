@@ -6,6 +6,12 @@ export type PathRegexPresetId =
   | 'season'
   | 'folder'
 
+export type MatchRegexPresetId =
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith'
+  | 'wholeWord'
+
 export type PathOsStyle = 'unix' | 'windows'
 
 export interface PathRegexPreset {
@@ -16,10 +22,22 @@ export interface PathRegexPreset {
   captureExample: string
 }
 
+export interface MatchRegexPreset {
+  id: MatchRegexPresetId
+  pattern: string
+  sampleText: string
+  captureExample: string
+}
+
 export interface GeneratedPathRegex {
   pathRegex: string
   pathRegexReplace: string
   kind: 'brackets' | 'parentheses' | 'season' | 'literal'
+}
+
+export interface GeneratedMatchRegex {
+  pattern: string
+  kind: 'literal'
 }
 
 export function detectPathOsStyle(
@@ -92,11 +110,46 @@ export function buildPathRegexPresets(os: PathOsStyle = detectPathOsStyle()): Pa
 /** Default presets for the current environment. */
 export const PATH_REGEX_PRESETS: PathRegexPreset[] = buildPathRegexPresets()
 
+export const MATCH_REGEX_PRESETS: MatchRegexPreset[] = [
+  {
+    id: 'contains',
+    pattern: 'Studio',
+    sampleText: 'My Studio Show Episode',
+    captureExample: 'Studio',
+  },
+  {
+    id: 'startsWith',
+    pattern: '^Show',
+    sampleText: 'Show Name - Episode 01',
+    captureExample: 'Show',
+  },
+  {
+    id: 'endsWith',
+    pattern: 'final$',
+    sampleText: 'Season finale final',
+    captureExample: 'final',
+  },
+  {
+    id: 'wholeWord',
+    pattern: '\\bclip\\b',
+    sampleText: 'movie clip reel',
+    captureExample: 'clip',
+  },
+]
+
 export function getDefaultPathRegexSample(os: PathOsStyle = detectPathOsStyle()) {
   const [brackets] = buildPathRegexPresets(os)
   return {
     samplePath: brackets.samplePath,
     captureText: brackets.captureExample,
+  }
+}
+
+export function getDefaultMatchRegexSample() {
+  const [contains] = MATCH_REGEX_PRESETS
+  return {
+    sampleText: contains.sampleText,
+    captureText: contains.captureExample,
   }
 }
 
@@ -164,6 +217,25 @@ export function generatePathRegexFromSample(
   return {
     pathRegex: `(${escapeRegExp(needle)})`,
     pathRegexReplace: '$1',
+    kind: 'literal',
+  }
+}
+
+/**
+ * Build a match regex from sample text and the fragment that should match.
+ */
+export function generateMatchRegexFromSample(
+  sampleText: string,
+  captureText: string,
+): GeneratedMatchRegex | null {
+  const needle = String(captureText || '').trim()
+  if (!needle) return null
+
+  const sample = String(sampleText || '')
+  if (!sample.toLowerCase().includes(needle.toLowerCase())) return null
+
+  return {
+    pattern: escapeRegExp(needle),
     kind: 'literal',
   }
 }

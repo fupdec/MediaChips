@@ -99,6 +99,11 @@ import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
+import {
+  TAG_AVATAR_SAVE_WIDTH,
+  TAG_HEADER_SAVE_WIDTH,
+  TAG_IMAGE_SAVE_WIDTH,
+} from '@shared/tagImages'
 
 interface TagImage {
   type: string
@@ -225,12 +230,12 @@ const getImages = async ({cacheBust = false}: {cacheBust?: boolean} = {}) => {
   if (!tag.value || !meta.value) return
 
   const imageTypes = [
-    {type: 'main', aspectRatio: meta.value.imageAspectRatio || 1, width: 300},
-    {type: 'alt', aspectRatio: meta.value.imageAspectRatio || 1, width: 300},
-    {type: 'custom1', aspectRatio: meta.value.imageAspectRatio || 1, width: 300},
-    {type: 'custom2', aspectRatio: meta.value.imageAspectRatio || 1, width: 300},
-    {type: 'avatar', aspectRatio: 1, width: 164},
-    {type: 'header', aspectRatio: 2.3, width: 1400}
+    {type: 'main', aspectRatio: meta.value.imageAspectRatio || 1, width: TAG_IMAGE_SAVE_WIDTH},
+    {type: 'alt', aspectRatio: meta.value.imageAspectRatio || 1, width: TAG_IMAGE_SAVE_WIDTH},
+    {type: 'custom1', aspectRatio: meta.value.imageAspectRatio || 1, width: TAG_IMAGE_SAVE_WIDTH},
+    {type: 'custom2', aspectRatio: meta.value.imageAspectRatio || 1, width: TAG_IMAGE_SAVE_WIDTH},
+    {type: 'avatar', aspectRatio: 1, width: TAG_AVATAR_SAVE_WIDTH},
+    {type: 'header', aspectRatio: 2.3, width: TAG_HEADER_SAVE_WIDTH},
   ]
 
   for (const imgType of imageTypes) {

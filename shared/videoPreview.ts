@@ -6,14 +6,17 @@ export const VIDEO_MARK_JPEG_QUALITY = 4
 
 export const VIDEO_GRID_REFERENCE_ASPECT_RATIO = 16 / 9
 
-export const VIDEO_GRID_JPEG_QUALITY = 6
+export const VIDEO_GRID_JPEG_QUALITY = 4
 
 /** 3x3 sprite sheet used for grid cards and timeline hover previews. */
 export const VIDEO_GRID_SPRITE = {
   cols: 3,
   rows: 3,
-  /** Tile width for 16:9 videos. Portrait and narrower formats scale down proportionally. */
-  tileWidth: 360,
+  /**
+   * Tile width for 16:9 videos. Sized for full-card hover scrub near Retina
+   * default card width. Portrait and narrower formats scale down proportionally.
+   */
+  tileWidth: 480,
 } as const
 
 export interface GridTileDimensions {

@@ -25,6 +25,10 @@ import {
   iterateImageThumbsGeneration,
 } from '../../services/imageThumbsGeneration'
 import { iterateScanFolderDuplicates } from '../../services/scanFolderDuplicates'
+import {
+  getTagImageAiUpscaleStatus,
+  iterateTagImageAiUpscale,
+} from '../../services/tagImageAiUpscale'
 
 export default function createTasksMaintenanceController(shared: TaskControllerShared) {
   const {
@@ -394,6 +398,43 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     }
   }
 
+  const tagImageAiUpscaleStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getTagImageAiUpscaleStatus(db)
+      res.status(200).send(status)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while checking tag image AI upscale status.',
+      })
+    }
+  }
+
+  const streamTagImageAiUpscale = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const shouldStop = createStreamAbortSignal(req, res)
+
+      for await (const event of iterateTagImageAiUpscale(db, {shouldStop})) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Some error occurred while upscaling tag images.',
+      })
+      res.end()
+    }
+  }
+
   return {
     contentHashBackfillStatus,
     oshashBackfillStatus,
@@ -411,5 +452,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamFindMissingMedia,
     streamScanFolderDuplicates,
     relinkMissingMedia,
+    tagImageAiUpscaleStatus,
+    streamTagImageAiUpscale,
   }
 }

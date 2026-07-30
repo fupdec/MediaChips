@@ -131,6 +131,7 @@ export type SettingsState = {
   selectedDisk: string
   zoom: string
   checkForUpdatesAtStartup: string
+  startupHealthNotifications: string
   showIconsOfMetaInEditingDialog: string
   showEmptyMetaValueInCard: string
   showIconsInsteadTextOnFiltersChips: string
@@ -236,6 +237,7 @@ export const defaultSettingsState = (): SettingsState => ({
   selectedDisk: '',
   zoom: '1',
   checkForUpdatesAtStartup: '1',
+  startupHealthNotifications: '1',
   showIconsOfMetaInEditingDialog: '1',
   showEmptyMetaValueInCard: '1',
   showIconsInsteadTextOnFiltersChips: '0',

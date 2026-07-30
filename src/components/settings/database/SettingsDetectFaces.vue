@@ -312,21 +312,6 @@
       </div>
     </div>
 
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-btn
-        @click="refreshStatus"
-        :loading="statusLoading"
-        :disabled="busy && !activeJob"
-        color="secondary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-      >
-        <v-icon icon="mdi-refresh" start/>
-        {{ t('settings_labels.database.refresh_status') }}
-      </v-btn>
-    </div>
-
     <v-expansion-panels variant="accordion" rounded="xl" class="face-advanced">
       <v-expansion-panel>
         <v-expansion-panel-title>

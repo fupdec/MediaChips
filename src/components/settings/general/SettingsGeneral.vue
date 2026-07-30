@@ -66,6 +66,12 @@
       :hint="t('settings_labels.general.count_views_hint')"
     ></settings-switch>
 
+    <settings-switch
+      option="startupHealthNotifications"
+      :title="t('settings_labels.general.startup_health_notifications')"
+      :hint="t('settings_labels.general.startup_health_notifications_hint')"
+    />
+
     <SettingsMinimizeToTray v-if="showTraySetting"/>
   </div>
 </template>
