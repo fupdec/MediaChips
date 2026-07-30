@@ -8,7 +8,7 @@ describe('notifications store', () => {
     expect(ids.size).toBe(20)
   })
 
-  it('auto-closes visible toasts after timeout', async () => {
+  it('setNotification returns id and keeps toast visible in pool', () => {
     setActivePinia(createPinia())
     const store = useNotificationsStore()
 
@@ -20,11 +20,11 @@ describe('notifications store', () => {
     })
 
     expect(store.getNotifications.some(n => n.id === id)).toBe(true)
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(store.notifications.some(n => n.id === id)).toBe(false)
+    // Auto-dismiss is owned by Notification.vue (rAF + hover pause), not the store.
+    expect(store.notifications.some(n => n.id === id && !n.hidden)).toBe(true)
   })
 
-  it('keeps manually hidden notifications after timeout', async () => {
+  it('hideNotification archives toast without removing it', () => {
     setActivePinia(createPinia())
     const store = useNotificationsStore()
 
@@ -36,7 +36,19 @@ describe('notifications store', () => {
     })
     store.hideNotification(id)
 
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(store.getNotifications.some(n => n.id === id)).toBe(false)
     expect(store.notifications.some(n => n.id === id && n.hidden)).toBe(true)
+  })
+
+  it('closeAllNotifications clears pool and menu', () => {
+    setActivePinia(createPinia())
+    const store = useNotificationsStore()
+
+    store.setNotification({type: 'info', title: 'A', text: '1', timeout: 0})
+    store.setNotification({type: 'success', title: 'B', text: '2', timeout: 0})
+    store.closeAllNotifications()
+
+    expect(store.notifications).toHaveLength(0)
+    expect(store.show).toBe(false)
   })
 })

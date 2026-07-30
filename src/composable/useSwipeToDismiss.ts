@@ -36,10 +36,16 @@ export function useSwipeToDismiss(onDismiss: () => void) {
   let wheelEl: HTMLElement | null = null
   let overscrollLocked = false
 
-  const swipeStyle = computed(() => ({
-    transform: `translateX(${offsetX.value}px)`,
-    opacity: String(Math.max(0.2, 1 - offsetX.value / (DISMISS_PX * 1.6))),
-  }))
+  const swipeStyle = computed(() => {
+    // Idle: no inline transform/opacity so CSS leave/enter transitions can run.
+    if (!isDragging.value && offsetX.value === 0 && !dismissing.value) {
+      return undefined
+    }
+    return {
+      transform: `translateX(${offsetX.value}px)`,
+      opacity: String(Math.max(0.2, 1 - offsetX.value / (DISMISS_PX * 1.6))),
+    }
+  })
 
   const swipeClass = computed(() => ({
     'swipe-dismiss--swiping': isDragging.value,

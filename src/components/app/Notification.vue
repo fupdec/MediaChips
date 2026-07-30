@@ -73,14 +73,19 @@
       v-html="formattedTimestamp"
     ></div>
 
-    <v-progress-linear
+    <div
       v-else
-      :model-value="progress"
       class="notification__timeout"
-      :color="notification.color"
-      height="2"
-      style="transition: none;"
-    ></v-progress-linear>
+      aria-hidden="true"
+    >
+      <div
+        class="notification__timeout-bar"
+        :style="{
+          transform: `scaleX(${Math.max(0, progress) / 100})`,
+          backgroundColor: `rgb(var(--v-theme-${notification.color || 'primary'}))`,
+        }"
+      ></div>
+    </div>
   </v-card>
 </template>
 
@@ -130,9 +135,11 @@ const props = defineProps<{
 }>()
 
 const cardRef = ref<{ $el?: HTMLElement } | null>(null)
-const interval = ref<ReturnType<typeof setInterval> | null>(null)
 const progress = ref(100)
 const collapsed = ref(true)
+let rafId = 0
+let periodMs = 5000
+let endsAt = 0
 
 const notificationsStore = useNotificationsStore()
 
@@ -162,11 +169,15 @@ const {
 })
 
 const notificationSwipeStyle = computed(() => {
-  const baseHiddenShift = isHidden.value || progress.value >= 5 ? 0 : 20
-  const translate = offsetX.value + (offsetX.value > 0 ? 0 : baseHiddenShift)
+  // Idle: no inline transform — pool leave CSS must be able to slide right.
+  // (Previously a near-end translateX(20px) blocked auto-hide leave animation.)
+  if (!isDragging.value && offsetX.value === 0 && !dismissing.value) {
+    return undefined
+  }
+
   return {
-    transform: `translateX(${translate}px)`,
-    opacity: swipeStyle.value.opacity,
+    transform: `translateX(${offsetX.value}px)`,
+    opacity: swipeStyle.value?.opacity,
   }
 })
 
@@ -212,38 +223,52 @@ const runAction = (action: NotificationAction) => {
   }
 }
 
-const runTimer = () => {
-  if (isHidden.value || dismissing.value) {
-    if (interval.value) clearInterval(interval.value)
+const tick = (now: number) => {
+  const left = Math.max(0, endsAt - now)
+  progress.value = periodMs > 0 ? (left / periodMs) * 100 : 0
+  if (left <= 0) {
+    rafId = 0
+    hideNotification()
     return
   }
-
-  const timeoutMs = props.notification.timeout || 5000
-  if (timeoutMs <= 0) return
-
-  const step = timeoutMs / 100
-
-  if (interval.value) clearInterval(interval.value)
-
-  interval.value = setInterval(() => {
-    progress.value--
-    if (progress.value < 1) {
-      // Match store auto-dismiss: remove from pool entirely.
-      closeNotification()
-    }
-  }, step)
+  rafId = requestAnimationFrame(tick)
 }
 
 const stopTimer = () => {
-  if (interval.value) clearInterval(interval.value)
-  interval.value = null
+  if (!rafId) return
+  cancelAnimationFrame(rafId)
+  rafId = 0
+  // Freeze remaining fraction so resume continues from here.
+  if (periodMs > 0 && endsAt > 0) {
+    const left = Math.max(0, endsAt - performance.now())
+    progress.value = (left / periodMs) * 100
+  }
+}
+
+const runTimer = () => {
+  if (isHidden.value || dismissing.value) {
+    stopTimer()
+    return
+  }
+
+  periodMs = props.notification.timeout || 5000
+  if (periodMs <= 0) return
+
+  stopTimer()
+  const remaining = Math.max(0, (progress.value / 100) * periodMs)
+  if (remaining <= 0) {
+    hideNotification()
+    return
+  }
+  endsAt = performance.now() + remaining
+  rafId = requestAnimationFrame(tick)
 }
 
 const resumeTimer = () => {
   if (dismissing.value || isDragging.value || offsetX.value > 0) return
   if (isHidden.value) return
   if (!props.notification.timeout || props.notification.timeout <= 0) return
-  if (!interval.value && progress.value >= 1) {
+  if (!rafId && progress.value > 0) {
     runTimer()
   }
 }
@@ -273,7 +298,8 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   min-height: 90px;
-  width: 370px;
+  width: var(--toast-width, 370px);
+  max-width: 100%;
   margin: 0 0 16px;
   padding: 16px 16px 25px;
   border-radius: 4px;
@@ -283,7 +309,8 @@ onUnmounted(() => {
   pointer-events: all;
   touch-action: pan-y;
   overscroll-behavior-x: none;
-  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.3s ease;
+  // Swipe uses inline transform; leave slide is driven by the pool transition.
+  transition: box-shadow 0.3s ease;
   will-change: transform, opacity;
   cursor: grab;
 
@@ -294,6 +321,7 @@ onUnmounted(() => {
 
   &.swipe-dismiss--active {
     user-select: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
   &__body {
@@ -352,8 +380,18 @@ onUnmounted(() => {
   &__timeout {
     position: absolute;
     left: 0;
+    right: 0;
     bottom: 0;
-    margin: 0;
+    height: 2px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  &__timeout-bar {
+    width: 100%;
+    height: 100%;
+    transform-origin: left center;
+    will-change: transform;
   }
 
   &__timestamp {
@@ -387,8 +425,6 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .notification {
-    max-width: 250px;
-
     &__title,
     &__text {
       max-width: 160px;

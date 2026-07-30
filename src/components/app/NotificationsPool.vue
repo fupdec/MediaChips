@@ -1,6 +1,6 @@
 <template>
   <div class="notifications-pool">
-    <transition name="slide-x-transition">
+    <transition name="toast-slide">
       <div
         v-if="taskSummaryItem"
         ref="taskSummaryEl"
@@ -33,25 +33,44 @@
       </div>
     </transition>
 
-    <transition-group name="slide-x-transition">
+    <transition-group
+      name="toast-slide"
+      tag="div"
+      class="notifications-pool__stack"
+      @before-leave="onBeforeLeave"
+    >
       <Notification
-        v-for="(item, index) in notificationPoolItems"
+        v-for="item in visibleNotificationPoolItems"
         :key="item.key"
         :notification="item.notification"
-        :class="{'d-none': index + (taskSummaryItem ? 1 : 0) > 1}"
       />
     </transition-group>
 
-    <v-btn
-      v-if="poolItems.length > 2"
-      @click="showAll"
-      style="width: 300px; pointer-events: all;"
-      color="primary"
-      elevation="10"
-      rounded
+    <div
+      v-if="hiddenUnderCutCount > 0"
+      class="notifications-pool__actions"
     >
-      Show all notifications (+{{ poolItems.length - 2 }})
-    </v-btn>
+      <v-btn
+        @click="showAll"
+        class="notifications-pool__action-btn"
+        color="primary"
+        elevation="10"
+        rounded
+      >
+        <v-icon start>mdi-bell-outline</v-icon>
+        {{ t('appbar.showAllNotifications', {count: hiddenUnderCutCount}) }}
+      </v-btn>
+      <v-btn
+        @click="closeAll"
+        class="notifications-pool__action-btn"
+        color="secondary"
+        elevation="10"
+        rounded
+      >
+        <v-icon start>mdi-notification-clear-all</v-icon>
+        {{ t('appbar.closeAll') }}
+      </v-btn>
+    </div>
   </div>
 </template>
 
@@ -81,8 +100,6 @@ interface NotificationPoolItem extends PoolItemBase {
   notification: PoolNotification
   timestamp: number
 }
-
-type PoolItem = TaskSummaryItem | NotificationPoolItem
 
 const notificationsStore = useNotificationsStore()
 const tasksStore = useTasksStore()
@@ -143,15 +160,37 @@ const notificationPoolItems = computed((): NotificationPoolItem[] =>
   })),
 )
 
-const poolItems = computed((): PoolItem[] => {
-  const summary = taskSummaryItem.value
-  return summary ? [summary, ...notificationPoolItems.value] : [...notificationPoolItems.value]
+/** Max 2 pool slots total (task summary counts as one). */
+const visibleNotificationPoolItems = computed((): NotificationPoolItem[] => {
+  const maxNotifications = taskSummaryItem.value ? 1 : 2
+  return notificationPoolItems.value.slice(0, maxNotifications)
 })
+
+const poolItemsCount = computed(() => (
+  (taskSummaryItem.value ? 1 : 0) + notificationPoolItems.value.length
+))
+
+const hiddenUnderCutCount = computed(() => Math.max(0, poolItemsCount.value - 2))
 
 const showAll = () => {
   hideTaskSummary()
   notificationsStore.show = true
   notificationsStore.hideAllNotifications()
+}
+
+const closeAll = () => {
+  hideTaskSummary()
+  notificationsStore.closeAllNotifications()
+}
+
+/** Lock vertical offset so leave doesn't jump to the stack's top-right corner. */
+const onBeforeLeave = (el: Element) => {
+  const node = el as HTMLElement
+  node.style.top = `${node.offsetTop}px`
+  node.style.right = '0'
+  node.style.left = 'auto'
+  node.style.width = `${node.offsetWidth}px`
+  node.style.margin = '0'
 }
 
 watch(taskSummaryEl, (el) => {
@@ -203,33 +242,62 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .notifications-pool {
+  --toast-width: 370px;
+
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  align-content: flex-end;
+  align-items: stretch;
   justify-content: flex-start;
+  gap: 0;
   position: fixed;
   top: 55px;
   right: 15px;
-  width: 100%;
-  height: calc(100vh - 65px);
+  // Only as wide/tall as visible toasts — not a full-window overlay.
+  width: fit-content;
+  max-width: min(var(--toast-width), calc(100vw - 30px));
+  height: auto;
+  max-height: calc(100vh - 65px);
+  overflow: visible;
   z-index: 10005;
   pointer-events: none;
   overscroll-behavior-x: none;
-
   padding: 10px;
   box-sizing: border-box;
 }
 
-.d-none {
-  display: none !important;
+.notifications-pool__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.notifications-pool__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: var(--toast-width);
+  max-width: 100%;
+  margin-top: 4px;
+  pointer-events: all;
+}
+
+.notifications-pool__action-btn {
+  width: 100%;
 }
 
 .task-summary {
   display: flex;
   align-items: flex-start;
   min-height: 90px;
-  width: 370px;
+  width: var(--toast-width);
+  max-width: 100%;
   margin: 0 0 16px;
   padding: 16px 16px 25px;
   position: relative;
@@ -240,7 +308,7 @@ onUnmounted(() => {
   border-radius: 8px;
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease;
   will-change: transform, opacity;
   cursor: grab;
 
@@ -251,6 +319,7 @@ onUnmounted(() => {
 
   &.swipe-dismiss--active {
     user-select: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
   &__body {
@@ -295,44 +364,46 @@ onUnmounted(() => {
   }
 }
 
-.slide-x-transition-enter-active,
-.slide-x-transition-leave-active {
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+// Unique name — avoid Vuetify's global slide-x (slides LEFT via translateX(-15px)).
+.toast-slide-enter-active,
+.toast-slide-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
 }
 
-.slide-x-transition-enter-from {
+.toast-slide-leave-active {
+  position: absolute;
+  right: 0;
+  left: auto;
+  width: var(--toast-width);
+  max-width: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.toast-slide-enter-from,
+.toast-slide-leave-to {
   opacity: 0;
-  transform: translateX(100px) scale(0.8);
+  transform: translateX(120%);
 }
 
-.slide-x-transition-leave-to {
-  opacity: 0;
-  transform: translateX(100px) scale(0.8);
-}
-
-.slide-x-transition-move {
-  transition: transform 0.4s ease;
+.toast-slide-move {
+  transition: transform 0.28s ease;
 }
 
 @media (max-width: 768px) {
   .notifications-pool {
     top: 45px;
     right: 10px;
-    height: calc(100vh - 55px);
+    max-height: calc(100vh - 55px);
   }
 }
 
 @media (max-width: 480px) {
   .notifications-pool {
+    --toast-width: 300px;
     top: 40px;
     right: 5px;
-    left: 5px;
-    align-items: center;
-
-    .v-btn {
-      width: 100%;
-      max-width: 300px;
-    }
+    max-width: calc(100vw - 10px);
   }
 }
 </style>

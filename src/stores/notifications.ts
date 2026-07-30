@@ -71,15 +71,8 @@ export const useNotificationsStore = defineStore('notifications', {
 
       this.notifications.push(newNotification)
 
-      if (newNotification.timeout && newNotification.timeout > 0) {
-        const id = newNotification.id
-        setTimeout(() => {
-          // Close toast-pool entries so they leave the screen; skip if already archived.
-          const found = this.notifications.find(n => n.id === id)
-          if (!found || found.hidden) return
-          this.closeNotification(id)
-        }, newNotification.timeout)
-      }
+      // Auto-dismiss is owned by Notification.vue (rAF + hover pause).
+      // A store setTimeout ignored pause and raced the leave animation.
 
       void maybeShowOsNotification(newNotification)
       scheduleDesktopChromeSync()
