@@ -6,6 +6,14 @@
   --item-fav-inset-top: 6px;
   --item-fav-inset-right: 6px;
 
+  // Keep native card drag-out; don't let preview <img> steal HTML5 drag.
+  img,
+  picture,
+  video {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+
   &--selecting {
     overflow: hidden;
   }

@@ -43,6 +43,7 @@ export const IPC_INVOKE_CHANNELS = [
   'destroyPlayer',
   'toggleDevTools',
   'toggleMainFullscreen',
+  'isMainFullscreen',
   'updater:check',
   'updater:download',
   'updater:install',
@@ -217,6 +218,7 @@ export interface IpcInvokePayloads {
   destroyPlayer: void
   toggleDevTools: void
   toggleMainFullscreen: void
+  isMainFullscreen: void
   'updater:check': void
   'updater:download': void
   'updater:install': void
@@ -252,7 +254,8 @@ export interface IpcInvokeResults {
   closePlayer: void
   destroyPlayer: void
   toggleDevTools: void
-  toggleMainFullscreen: void
+  toggleMainFullscreen: boolean
+  isMainFullscreen: boolean
   'updater:check': UpdaterState
   'updater:download': UpdaterState
   'updater:install': void

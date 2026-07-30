@@ -2,8 +2,10 @@
   <div
     ref="itemRootRef"
     :disabled="!reg && x > 14"
+    :draggable="isMediaDragEnabled"
     @contextmenu.stop="showContextMenu"
-    @mousedown="stopSmoothScroll($event)"
+    @mousedown="onItemMouseDown"
+    @dragstart="onMediaDragStart"
     :class="[
       {favorite: is_favorite_active && item.favorite},
       {'big-preview': big_preview},
@@ -201,7 +203,9 @@
 
     <div
       v-if="itemsStore.isSelect"
+      :draggable="isMediaDragEnabled"
       @click.stop="toggleSelect"
+      @dragstart.stop="onMediaDragStart"
       :class="{ 'item-select-overlay--selected': is_selected }"
       class="item-select-overlay"
     >
@@ -231,15 +235,26 @@ import ItemRating from '@/components/items/ItemRating.vue'
 import ItemFavorite from '@/components/items/ItemFavorite.vue'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useLazyInView} from '@/composable/useLazyInView'
-import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
+import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {hexToRgba} from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
+import {
+  canNativeMediaDragOut,
+  collectMediaDragPaths,
+  isOutboundMediaDragActive,
+  onOutboundMediaDragChange,
+  setOutboundMediaDragActive,
+  startNativeMediaDragOut,
+} from '@/utils/mediaDragOut'
+import {buildMediaDragGhostDataUrl} from '@/utils/mediaDragGhost'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {toChipVariant} from '@/utils/chipVariant'
 import {resolveTagChipColor} from '@shared/tagChipColor'
+import {useAppStore} from '@/stores/app'
+import path from 'path-browserify'
 import type {MediaType} from '@/types/media'
 import type {ContextMenuEntry, MediaItem, Meta, Tag} from '@/types/stores'
 
@@ -268,6 +283,7 @@ const emit = defineEmits<{
 const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
+const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 
 const contextMenu = computed(() => contextMenuStore)
@@ -332,6 +348,139 @@ const is_selected = computed(() => {
   return itemsStore.selection.includes(props.item.id)
 })
 
+const isMediaDragEnabled = computed(() => (
+  props.type === 'media'
+  && canNativeMediaDragOut()
+  && Boolean(mediaItem.value?.path)
+  && is_file_exists.value !== false
+))
+
+/** Suppress the synthetic click that fires when a native drag ends over the card. */
+let suppressEditClicks = false
+let suppressEditClickListener: ((event: MouseEvent) => void) | null = null
+let suppressEditMouseUpListener: ((event: MouseEvent) => void) | null = null
+let suppressEditTimeout: ReturnType<typeof setTimeout> | null = null
+let suppressOutboundUnsub: (() => void) | null = null
+
+function clearEditClickSuppress() {
+  suppressEditClicks = false
+  if (suppressEditClickListener) {
+    window.removeEventListener('click', suppressEditClickListener, true)
+    suppressEditClickListener = null
+  }
+  if (suppressEditMouseUpListener) {
+    window.removeEventListener('mouseup', suppressEditMouseUpListener, true)
+    suppressEditMouseUpListener = null
+  }
+  if (suppressOutboundUnsub) {
+    suppressOutboundUnsub()
+    suppressOutboundUnsub = null
+  }
+  if (suppressEditTimeout) {
+    clearTimeout(suppressEditTimeout)
+    suppressEditTimeout = null
+  }
+}
+
+function scheduleEditClickDisarm(ms: number) {
+  if (suppressEditTimeout) clearTimeout(suppressEditTimeout)
+  suppressEditTimeout = setTimeout(() => {
+    clearEditClickSuppress()
+  }, ms)
+}
+
+function armEditClickSuppress() {
+  clearEditClickSuppress()
+  suppressEditClicks = true
+
+  // Capture-phase: block the click that follows releasing a drag over the card.
+  suppressEditClickListener = (event: MouseEvent) => {
+    if (!suppressEditClicks) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.stopImmediatePropagation()
+  }
+
+  // Do not disarm on mouseup while OS outbound drag is active — macOS can
+  // deliver mouseup mid-drag / at startDrag, which previously cleared suppress
+  // before the user released over the description.
+  suppressEditMouseUpListener = () => {
+    if (isOutboundMediaDragActive()) return
+    scheduleEditClickDisarm(600)
+  }
+
+  // Only disarm when outbound transitions true → false. Ignore the initial
+  // sync callback (mousemove arms suppress before outbound starts).
+  let sawOutbound = isOutboundMediaDragActive()
+  suppressOutboundUnsub = onOutboundMediaDragChange((active) => {
+    if (active) {
+      sawOutbound = true
+      if (suppressEditTimeout) {
+        clearTimeout(suppressEditTimeout)
+        suppressEditTimeout = null
+      }
+      return
+    }
+    if (!sawOutbound) return
+    scheduleEditClickDisarm(750)
+  })
+
+  window.addEventListener('click', suppressEditClickListener, true)
+  window.addEventListener('mouseup', suppressEditMouseUpListener, true)
+}
+
+const onMediaDragStart = (event: DragEvent) => {
+  // Suppress drop-in overlay immediately — dragenter can race with this handler.
+  // On macOS startDrag returns early; keep this flag until mouseup/blur.
+  setOutboundMediaDragActive(true)
+  window.mediaDragAPI?.beginOutboundDrag?.()
+  armEditClickSuppress()
+
+  if (!isMediaDragEnabled.value || !mediaItem.value) {
+    event.preventDefault()
+    setOutboundMediaDragActive(false)
+    window.mediaDragAPI?.endOutboundDrag?.()
+    return
+  }
+
+  const paths = collectMediaDragPaths(
+    mediaItem.value,
+    itemsStore.selection,
+    {
+      getItemById: itemsStore.getItemById,
+      itemsOnPage: itemsStore.itemsOnPage,
+      entities: itemsStore.entities,
+    },
+  )
+
+  if (paths.length === 0) {
+    event.preventDefault()
+    setOutboundMediaDragActive(false)
+    window.mediaDragAPI?.endOutboundDrag?.()
+    return
+  }
+
+  // Hand off to Electron native file drag; do not use HTML5 Files transfer.
+  event.preventDefault()
+  const folder = getMediaDeleteAssetFolder(props.mediaType ?? undefined) || 'videos'
+  const thumbPath = appStore.mediaPath
+    ? path.join(appStore.mediaPath, folder, 'thumbs', `${mediaItem.value.id}.jpg`)
+    : null
+  // Main builds the rounded card ghost (with thumb) via sharp; renderer icon is fallback only.
+  const iconDataUrl = buildMediaDragGhostDataUrl({
+    cardEl: itemRootRef.value,
+    title: mediaItem.value.name,
+    count: paths.length,
+    thumbPath,
+  })
+  startNativeMediaDragOut(paths, {
+    iconDataUrl,
+    thumbPath,
+    title: mediaItem.value.name,
+    count: paths.length,
+  })
+}
+
 const is_context_target = computed(() => {
   return contextMenuStore.show
     && contextMenuStore.targetNestedTagId == null
@@ -375,7 +524,27 @@ const stopSmoothScroll = (event: MouseEvent) => {
   event.stopPropagation()
 }
 
+const onItemMouseDown = (event: MouseEvent) => {
+  stopSmoothScroll(event)
+  if (event.button !== 0 || !isMediaDragEnabled.value) return
+
+  const startX = event.clientX
+  const startY = event.clientY
+  const onMove = (moveEvent: MouseEvent) => {
+    if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 5) return
+    armEditClickSuppress()
+    cleanup()
+  }
+  const cleanup = () => {
+    window.removeEventListener('mousemove', onMove, true)
+    window.removeEventListener('mouseup', cleanup, true)
+  }
+  window.addEventListener('mousemove', onMove, true)
+  window.addEventListener('mouseup', cleanup, true)
+}
+
 const editItem = () => {
+  if (suppressEditClicks) return
   if (isMediaPageItem(props.item, props.type)) {
     dialogsStore.editMedia(props.item, props.mediaType ?? undefined)
   } else if (isTagPageItem(props.item, props.type) && props.meta) {
@@ -418,6 +587,7 @@ watch(isInView, (visible) => {
 
 onBeforeUnmount(() => {
   markItemHidden(Number(props.item.id))
+  clearEditClickSuppress()
 })
 
 watch(

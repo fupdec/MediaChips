@@ -2,7 +2,7 @@
   <v-app-bar
     :color="colorRGBA"
     :class="{
-      'os-darwin': isMac && !fullscreen,
+      'os-darwin': showDarwinTrafficLightSpacer,
       'os-windows-electron': isWinElectron,
     }"
     density="compact"
@@ -17,7 +17,7 @@
     <!--    </template>-->
 
     <div class="darwin-buttons"
-      v-if="isMac && is_electron && !fullscreen"></div>
+      v-if="showDarwinTrafficLightSpacer"></div>
 
     <!-- LEFT AREA -->
     <div class="app-bar-container px-1 d-flex align-center flex-1">
@@ -35,6 +35,14 @@
         <TagsAdd v-else :button="false"/>
 
         <ItemsFilter v-if="itemsStore.type"/>
+
+        <AppBarButton
+          :disabled="itemsStore.entities.length == 0"
+          :action="() => itemsStore.toggleSelectMode()"
+          :text="t('appbar.buttons.select')"
+          icon="checkbox-marked-outline"
+          :active="itemsStore.isSelect"
+        />
 
         <v-menu
           location="bottom"
@@ -61,13 +69,6 @@
             rounded="lg"
             min-width="180"
           >
-            <v-list-item
-              :disabled="itemsStore.entities.length == 0"
-              link
-              prepend-icon="mdi-checkbox-marked-outline"
-              :title="t('appbar.buttons.select')"
-              @click="itemsStore.toggleSelectMode()"
-            />
             <v-list-item
               :disabled="route.path === '/tag'"
               link
@@ -148,6 +149,7 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
+import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {typedApi} from '@/services/typedApi'
 import {getTabUrl} from '@/services/routeService'
@@ -160,6 +162,7 @@ const ItemsFilter = defineAsyncComponent(() => import('@/components/app/appbar/e
 const TagsAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TagsAdd.vue'))
 const DialogMediaAdding = defineAsyncComponent(() => import('@/components/dialogs/DialogMediaAdding.vue'))
 const ItemsEditMeta = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsEditMeta.vue'))
+const AppBarButton = defineAsyncComponent(() => import('@/components/app/appbar/AppBarButton.vue'))
 const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))
 const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
 const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
@@ -178,20 +181,31 @@ const router = useRouter()
 const {t} = useI18n()
 
 /* Vuetify display */
-const {platform, xs} = useDisplay()
+const {xs} = useDisplay()
 const {colorRGBA, gradient, isWinElectron} = useHeaderBarStyle('app')
+const {isMac, isElectron} = useAppPlatform()
 
-/* macOS detection */
-const isMac = platform.value.mac
-const is_electron = platform.value.electron
-
-/* Fullscreen state */
+/* Fullscreen state — hide traffic-light spacer in native fullscreen */
 const fullscreen = ref(false)
 const itemsEditMetaRef = ref<{editMeta: () => void} | null>(null)
 
 /* Colors */
 const tabs = computed(() => app.tabs)
 const reg = computed(() => registrationStore.reg)
+
+const showDarwinTrafficLightSpacer = computed(() => (
+  isMac && isElectron && !fullscreen.value
+))
+
+async function syncFullscreenState() {
+  if (!isElectron || !window.electronAPI?.invoke) return
+  try {
+    const value = await window.electronAPI.invoke('isMainFullscreen')
+    fullscreen.value = value === true
+  } catch {
+    // ignore — keep last known state
+  }
+}
 
 function openRandomItem() {
   const ids = itemsStore.entities.map(i => i.id)
@@ -244,13 +258,16 @@ let unsubscribeEnterFullScreen: (() => void) | undefined
 let unsubscribeLeaveFullScreen: (() => void) | undefined
 
 onMounted(() => {
+  void syncFullscreenState()
   unsubscribeEnterFullScreen = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
   unsubscribeLeaveFullScreen = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
+  window.addEventListener('focus', syncFullscreenState)
 })
 
 onUnmounted(() => {
   unsubscribeEnterFullScreen?.()
   unsubscribeLeaveFullScreen?.()
+  window.removeEventListener('focus', syncFullscreenState)
 })
 </script>
 

@@ -11,6 +11,10 @@ import {
   containsDroppedFiles,
   startDroppedMediaAdding,
 } from '@/utils/mediaDrop'
+import {
+  isOutboundMediaDragActive,
+  onOutboundMediaDragChange,
+} from '@/utils/mediaDragOut'
 import {getDefaultMediaTypeId, inferMediaTypeFromPaths} from '@/utils/mediaType'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
@@ -45,6 +49,7 @@ export function useGlobalMediaDrop() {
 
   const dropzoneActive = ref(false)
   let unsubscribeHover: (() => void) | undefined
+  let unsubscribeOutbound: (() => void) | undefined
   let usedFallbackListeners = false
 
   const resetDropzone = () => {
@@ -53,6 +58,10 @@ export function useGlobalMediaDrop() {
   }
 
   const showDropzone = () => {
+    if (isOutboundMediaDragActive()) {
+      resetDropzone()
+      return
+    }
     dropzoneActive.value = true
   }
 
@@ -72,6 +81,11 @@ export function useGlobalMediaDrop() {
   }
 
   const handleHoverDragEnter = (event: DragEvent) => {
+    if (isOutboundMediaDragActive()) {
+      event.preventDefault()
+      resetDropzone()
+      return
+    }
     if (!containsDroppedFiles(event)) return
     event.preventDefault()
     showDropzone()
@@ -79,6 +93,12 @@ export function useGlobalMediaDrop() {
   }
 
   const handleHoverDragOver = (event: DragEvent) => {
+    if (isOutboundMediaDragActive()) {
+      event.preventDefault()
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
+      resetDropzone()
+      return
+    }
     if (!containsDroppedFiles(event)) return
     event.preventDefault()
     if (event.dataTransfer) {
@@ -88,6 +108,10 @@ export function useGlobalMediaDrop() {
   }
 
   const handleDrop = (event: DragEvent) => {
+    if (isOutboundMediaDragActive()) {
+      resetDropzone()
+      return
+    }
     if (!isElectronApp || !containsDroppedFiles(event)) return
     if (isExcludedDropTarget(event.target)) return
 
@@ -126,20 +150,25 @@ export function useGlobalMediaDrop() {
   onMounted(() => {
     if (!isElectronApp || isStandalonePlayerRoute(route)) return
 
+    unsubscribeOutbound = onOutboundMediaDragChange((active) => {
+      if (active) resetDropzone()
+    })
+
     if (window.mediaDragAPI?.onHoverChange) {
       unsubscribeHover = window.mediaDragAPI.onHoverChange((active) => {
         if (active) {
           showDropzone()
-          requestMainWindowFocus()
+          if (!isOutboundMediaDragActive()) requestMainWindowFocus()
         } else {
           resetDropzone()
         }
       })
-    } else {
-      usedFallbackListeners = true
-      document.addEventListener('dragenter', handleHoverDragEnter, true)
-      document.addEventListener('dragover', handleHoverDragOver, true)
     }
+
+    // Always listen in renderer too — preload hover can race on macOS re-entry.
+    usedFallbackListeners = true
+    document.addEventListener('dragenter', handleHoverDragEnter, true)
+    document.addEventListener('dragover', handleHoverDragOver, true)
 
     document.addEventListener('drop', handleDrop, true)
     window.addEventListener('dragend', resetDropzone)
@@ -147,6 +176,7 @@ export function useGlobalMediaDrop() {
 
   onBeforeUnmount(() => {
     unsubscribeHover?.()
+    unsubscribeOutbound?.()
 
     if (usedFallbackListeners) {
       document.removeEventListener('dragenter', handleHoverDragEnter, true)

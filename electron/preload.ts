@@ -61,6 +61,10 @@ function ipcWarn(...args: unknown[]): void {
 type MediaDragHoverListener = (active: boolean) => void
 const mediaDragHoverListeners = new Set<MediaDragHoverListener>()
 let mediaDragHoverActive = false
+/** True while native card drag-out is in progress — do not show drop-in UI. */
+let mediaDragOutboundActive = false
+let clearOutboundTimer: ReturnType<typeof setTimeout> | null = null
+const isDarwin = process.platform === 'darwin'
 
 function setMediaDragHover(active: boolean, options?: {forceNotify?: boolean}) {
   if (mediaDragHoverActive === active && !options?.forceNotify) return
@@ -70,7 +74,56 @@ function setMediaDragHover(active: boolean, options?: {forceNotify?: boolean}) {
   }
 }
 
+function clearMediaDragOutbound() {
+  if (clearOutboundTimer) {
+    clearTimeout(clearOutboundTimer)
+    clearOutboundTimer = null
+  }
+  mediaDragOutboundActive = false
+  resetMediaDragHover()
+}
+
+function beginMediaDragOutbound() {
+  if (clearOutboundTimer) {
+    clearTimeout(clearOutboundTimer)
+    clearOutboundTimer = null
+  }
+  mediaDragOutboundActive = true
+  resetMediaDragHover()
+}
+
+/**
+ * On macOS startDrag returns immediately while the OS drag continues.
+ * Keep suppression until mouseup/drop/dragend (NOT blur — hovering Finder
+ * blurs the window mid-drag and would re-enable the drop-in overlay).
+ * On Windows/Linux startDrag blocks until the drag ends — clear soon after.
+ */
+function finishMediaDragOutboundAfterStartDrag() {
+  resetMediaDragHover()
+  if (isDarwin) {
+    mediaDragOutboundActive = true
+    if (clearOutboundTimer) clearTimeout(clearOutboundTimer)
+    clearOutboundTimer = setTimeout(() => {
+      clearOutboundTimer = null
+      clearMediaDragOutbound()
+    }, 120_000)
+    return
+  }
+
+  if (clearOutboundTimer) clearTimeout(clearOutboundTimer)
+  clearOutboundTimer = setTimeout(() => {
+    clearOutboundTimer = null
+    clearMediaDragOutbound()
+  }, 150)
+}
+
 function handlePreloadDragEnter(event: Event) {
+  if (mediaDragOutboundActive) {
+    event.preventDefault()
+    resetMediaDragHover()
+    return
+  }
+
   const dragEvent = event as DragEvent
   if (!isLikelyExternalFileDrag(dragEvent)) return
 
@@ -79,6 +132,15 @@ function handlePreloadDragEnter(event: Event) {
 }
 
 function handlePreloadDragOver(event: Event) {
+  if (mediaDragOutboundActive) {
+    event.preventDefault()
+    if ((event as DragEvent).dataTransfer) {
+      ;(event as DragEvent).dataTransfer!.dropEffect = 'none'
+    }
+    resetMediaDragHover()
+    return
+  }
+
   const dragEvent = event as DragEvent
   if (!isLikelyExternalFileDrag(dragEvent)) return
 
@@ -93,10 +155,17 @@ function resetMediaDragHover() {
   setMediaDragHover(false)
 }
 
+function handleOutboundDragEnded() {
+  if (mediaDragOutboundActive) clearMediaDragOutbound()
+}
+
 window.addEventListener('dragenter', handlePreloadDragEnter, true)
 window.addEventListener('dragover', handlePreloadDragOver, true)
-window.addEventListener('drop', resetMediaDragHover, true)
-window.addEventListener('dragend', resetMediaDragHover, true)
+window.addEventListener('drop', handleOutboundDragEnded, true)
+window.addEventListener('dragend', handleOutboundDragEnded, true)
+window.addEventListener('mouseup', handleOutboundDragEnded, true)
+// After a drop outside the app, the next click inside clears outbound suppression.
+window.addEventListener('mousedown', handleOutboundDragEnded, true)
 
 // Экспортируем API с разными пространствами имен
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -346,5 +415,26 @@ contextBridge.exposeInMainWorld('mediaDragAPI', {
   },
   resetHover() {
     resetMediaDragHover()
+  },
+  beginOutboundDrag() {
+    beginMediaDragOutbound()
+  },
+  endOutboundDrag() {
+    clearMediaDragOutbound()
+  },
+  isOutboundDrag() {
+    return mediaDragOutboundActive
+  },
+  readLocalDataUrl(filePath: string) {
+    if (typeof filePath !== 'string' || !filePath) return null
+    const result = ipcRenderer.sendSync('media-drag:read-data-url', filePath)
+    return typeof result === 'string' ? result : null
+  },
+  // Fire-and-forget: main builds the card icon (sharp) then calls startDrag.
+  // Matches Electron's official drag-out example (send, not sendSync).
+  startDrag(payload: string | { path: string; iconDataUrl?: string; thumbPath?: string; title?: string; count?: number } | { paths: string[]; iconDataUrl?: string; thumbPath?: string; title?: string; count?: number }) {
+    beginMediaDragOutbound()
+    ipcRenderer.send('media-drag:start', payload)
+    finishMediaDragOutboundAfterStartDrag()
   },
 });
