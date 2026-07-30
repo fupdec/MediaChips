@@ -253,6 +253,7 @@ import {usePresetMeta} from "@/composable/ItemPresetMeta"
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getFilterObject, getTextColor} from '@/services/formatUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
+import {copyToClipboard} from '@/utils/copyToClipboard'
 import {
   formatMeasurementDisplay,
   normalizeMeasurementUnit,
@@ -763,6 +764,16 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
       action: () => {
         const meta = appStore.getMetaById(tag.metaId)
         if (meta) dialogsStore.editTag(tag, meta)
+      },
+    },
+    {
+      name: t('context_menu.copy_tag'),
+      type: 'item',
+      icon: 'content-copy',
+      action: () => {
+        void copyToClipboard(String(tag.name ?? ''), {
+          successText: t('common.copied'),
+        })
       },
     },
   ]

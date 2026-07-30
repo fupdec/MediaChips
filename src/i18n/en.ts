@@ -346,6 +346,7 @@ const en = {
     filter_by_tag: 'Filter by tag',
     open_page: 'Open page',
     copy_name: 'Copy name',
+    copy_tag: 'Copy tag',
     copy_path: 'Copy path',
   },
   face_results: {

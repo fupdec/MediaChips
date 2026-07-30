@@ -346,6 +346,7 @@ const ru = {
     filter_by_tag: 'Фильтровать по тегу',
     open_page: 'Открыть страницу',
     copy_name: 'Копировать имя',
+    copy_tag: 'Скопировать тег',
     copy_path: 'Копировать путь',
   },
   face_results: {

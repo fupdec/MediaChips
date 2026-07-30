@@ -350,6 +350,7 @@ const ja = {
     filter_by_tag: "タグでフィルタリングする",
     open_page: "ページを開く",
     copy_name: "名前をコピーする",
+    copy_tag: "Copy tag",
     copy_path: "パスをコピーする",
   },
   face_results: {

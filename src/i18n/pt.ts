@@ -345,6 +345,7 @@ const pt = {
     filter_by_tag: 'Filtrar por tag',
     open_page: 'Abrir página',
     copy_name: 'Copiar nome',
+    copy_tag: 'Copy tag',
     copy_path: 'Copiar caminho',
   },
   face_results: {

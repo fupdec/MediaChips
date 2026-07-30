@@ -345,6 +345,7 @@ const cn = {
     filter_by_tag: '按标签筛选',
     open_page: '打开页面',
     copy_name: '复制名称',
+    copy_tag: 'Copy tag',
     copy_path: '复制路径',
   },
   face_results: {

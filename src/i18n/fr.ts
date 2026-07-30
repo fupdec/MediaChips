@@ -345,6 +345,7 @@ const fr = {
     filter_by_tag: 'Filtrer par balise',
     open_page: 'Ouvrir la page',
     copy_name: 'Copier le nom',
+    copy_tag: 'Copy tag',
     copy_path: 'Copier le chemin',
   },
   face_results: {
