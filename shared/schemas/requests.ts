@@ -56,6 +56,12 @@ export const MergeTagsRequestSchema = z.object({
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
 })
 
+export const MoveTagsToCategoryRequestSchema = z.object({
+  tagIds: z.array(z.union([z.number(), z.string()])).min(1),
+  targetMetaId: z.union([z.number(), z.string()]),
+  onConflict: z.enum(['merge', 'abort']),
+})
+
 export const MergeCategoriesRequestSchema = z.object({
   survivorId: z.union([z.number(), z.string()]),
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),

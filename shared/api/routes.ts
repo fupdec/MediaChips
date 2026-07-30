@@ -2,6 +2,7 @@ export const API_ROUTES = {
   mediaType: '/api/mediaType',
   tag: '/api/tag',
   tagMerge: '/api/Tag/merge',
+  tagMoveToCategory: '/api/Tag/moveToCategory',
   meta: '/api/meta',
   metaMergeCategories: '/api/Meta/mergeCategories',
   tab: '/api/tab',

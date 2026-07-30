@@ -5,6 +5,7 @@ import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/re
 import type {
   CreateTagPayload,
   MergeTagsPayload,
+  MoveTagsToCategoryPayload,
   TagItemsListRequest,
   TagThumbsRequestPayload,
 } from '@shared/api/payloads'
@@ -15,6 +16,10 @@ import {
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
 import { mergeTagsInCategory, TagMergeError } from '../services/tagMerge'
+import {
+  moveTagsToCategory,
+  TagMoveToCategoryError,
+} from '../services/tagMoveToCategory'
 import { loadTagItems } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
 import {
@@ -177,6 +182,30 @@ export default function (db: ApiDb) {
     }
   }
 
+  const moveToCategory = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<MoveTagsToCategoryPayload>(req)
+      const result = await moveTagsToCategory(db, {
+        tagIds: Array.isArray(body.tagIds) ? body.tagIds : [],
+        targetMetaId: Number(body.targetMetaId),
+        onConflict: body.onConflict === 'merge' ? 'merge' : 'abort',
+      })
+      res.status(200).send(result)
+    } catch (err: unknown) {
+      if (err instanceof TagMoveToCategoryError) {
+        return res.status(err.status).send({
+          message: err.message,
+          code: err.code,
+          conflicts: err.conflicts,
+          unassignedMediaTypes: err.unassignedMediaTypes,
+        })
+      }
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while moving tags.',
+      })
+    }
+  }
+
   const deleteOne = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<DeleteEntityOnePayload>(req)
     const id = body.id
@@ -267,6 +296,7 @@ export default function (db: ApiDb) {
     getCooccurring,
     update,
     merge,
+    moveToCategory,
     deleteOne,
   }
 }

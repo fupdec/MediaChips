@@ -279,6 +279,30 @@ export interface MergeTagsResult {
   }
 }
 
+export interface TagNameConflict {
+  tagId: number
+  name: string
+  existingTagId: number
+}
+
+export interface UnassignedMediaTypeInfo {
+  id: number
+  name: string
+}
+
+export interface MoveTagsToCategoryResult {
+  movedIds: number[]
+  mergedIds: number[]
+  targetMetaId: number
+  survivors: Array<{
+    id: number
+    name: string
+    synonyms?: string | null
+    metaId?: number | null
+    [key: string]: unknown
+  }>
+}
+
 export interface MergeCategoriesResult {
   survivor: {
     id: number

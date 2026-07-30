@@ -2,7 +2,11 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import { validateBody } from '../middleware/validateBody'
-import { MergeTagsRequestSchema, TagThumbsRequestSchema } from '../../shared/schemas/requests'
+import {
+  MergeTagsRequestSchema,
+  MoveTagsToCategoryRequestSchema,
+  TagThumbsRequestSchema,
+} from '../../shared/schemas/requests'
 import createTagController from '../controllers/Tag.controller'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
@@ -19,6 +23,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   // Merge duplicate tags within one category
   router.post("/merge", validateBody(MergeTagsRequestSchema), Tag.merge);
+
+  // Move tags into another category
+  router.post("/moveToCategory", validateBody(MoveTagsToCategoryRequestSchema), Tag.moveToCategory);
 
   // Tags that co-occur on media having this tag (optional ?mediaTypeId=)
   router.get("/:id/cooccurring", Tag.getCooccurring);

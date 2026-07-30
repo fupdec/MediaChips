@@ -30,12 +30,18 @@ import type {
   MergeCategoriesPayload,
   MetaAssignmentOrderPayload,
   MetaAssignmentUpdatePayload,
+  MoveTagsToCategoryPayload,
   ParsePathTagsPayload,
   PinChildMetaPayload,
   PinMetaAssignmentPayload,
   PostTagItemsPayload,
 } from '@shared/api/payloads'
-import type { MergeTagsResult, MergeCategoriesResult, RemoveTagFromItemPayload } from '@shared/api/responses'
+import type {
+  MergeTagsResult,
+  MergeCategoriesResult,
+  MoveTagsToCategoryResult,
+  RemoveTagFromItemPayload,
+} from '@shared/api/responses'
 import {
   parseAssignedMetaList,
   parseMeta,
@@ -309,6 +315,10 @@ export const metaApi = {
 
   mergeTags(body: MergeTagsPayload) {
     return apiClient.post<MergeTagsResult>(API_ROUTES.tagMerge, body)
+  },
+
+  moveTagsToCategory(body: MoveTagsToCategoryPayload) {
+    return apiClient.post<MoveTagsToCategoryResult>(API_ROUTES.tagMoveToCategory, body)
   },
 
   mergeCategories(body: MergeCategoriesPayload) {

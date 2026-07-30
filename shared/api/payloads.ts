@@ -45,6 +45,12 @@ export interface MergeTagsPayload {
   sourceIds: number[]
 }
 
+export interface MoveTagsToCategoryPayload {
+  tagIds: number[]
+  targetMetaId: number
+  onConflict: 'merge' | 'abort'
+}
+
 export interface MergeCategoriesPayload {
   survivorId: number
   sourceIds: number[]
