@@ -31,6 +31,7 @@ const ja = {
     notifications: "通知",
     noNotifications: "新しい通知はありません",
     closeAll: "すべて閉じる",
+    showAllNotifications: "すべて表示 (+{count})",
     processStarted: "プロセスが開始されました",
     openProcessInNotifications: "通知リストで詳細を確認できます",
     activeProcessesCount:
@@ -975,7 +976,16 @@ const ja = {
     fields_title: "スクレーパーフィールド",
     images_import: "画像のインポート",
     open_gallery: "ギャラリーを開く",
-    select_images_hint: "画像を選択してください。最大 {count}。",
+    select_images_hint: "Click a photo to assign the next free slot (up to {count}). Use the slot chip to reassign or clear.",
+    clear_image_slot: "Clear slot",
+    image_slots: {
+      main: "Main",
+      alt: "Alt",
+      custom1: "Custom 1",
+      custom2: "Custom 2",
+      avatar: "Avatar",
+      header: "Header",
+    },
     error: "スクレーパーエラー",
     image_cannot_be_obtained: "画像が取得できません",
     images_import_partial:

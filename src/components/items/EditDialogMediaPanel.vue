@@ -59,7 +59,12 @@
 
       <template v-else-if="mode === 'media'">
         <div class="edit-dialog-media-panel__image-wrap" :style="imageWrapStyle">
-          <v-img :src="imageSrc ?? undefined" cover class="edit-dialog-media-panel__image">
+          <v-img
+            :src="imageSrc ?? undefined"
+            cover
+            position="top center"
+            class="edit-dialog-media-panel__image"
+          >
             <DialogImageEditing
               v-if="imageSrc"
               :image="imageSrc"
@@ -82,6 +87,7 @@
             v-if="currentImage?.src"
             :src="currentImage.src"
             cover
+            position="top center"
             class="edit-dialog-media-panel__image"
           />
           <v-sheet

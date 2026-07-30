@@ -2075,6 +2075,12 @@ body > .video-preview-container.video-preview-container--expanded {
     max-height: 200px;
   }
 
+  &__image {
+    .v-img__img {
+      object-position: top center;
+    }
+  }
+
   &__image-wrap {
     position: relative;
     background: rgb(var(--v-theme-surface-variant));

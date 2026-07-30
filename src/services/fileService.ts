@@ -229,3 +229,11 @@ export async function createImage(
 
   return lastResponse!
 }
+
+/** Save the app's placeholder poster when a scraper has no usable image. */
+export async function createUnavailableImage(
+  outputPath: string,
+  sizes?: unknown,
+) {
+  return createImage('/images/unavailable.png', outputPath, sizes)
+}

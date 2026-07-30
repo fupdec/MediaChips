@@ -1,6 +1,6 @@
 import path from 'path-browserify'
 import { typedApi } from '@/services/typedApi'
-import { createImage } from '@/services/fileService'
+import { createImage, createUnavailableImage, checkFileExists } from '@/services/fileService'
 import { setNotification } from '@/services/notificationService'
 import { useSettingsStore } from '@/stores/settings'
 import translate, { type Locale } from '@/utils/translate'
@@ -93,7 +93,6 @@ async function downloadMainImage({
   const posters = getOrderedScraperPosters(
     Array.isArray(performer.posters) ? performer.posters as ScraperPoster[] : [],
   )
-  if (!posters.length) return false
 
   const imagePath = path.join(
     dbPath,
@@ -104,10 +103,7 @@ async function downloadMainImage({
   const aspectRatio = Number(meta.imageAspectRatio) || 1
   const sizes = {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / aspectRatio}
 
-  for (const poster of posters) {
-    const response = await createImage(poster.url, imagePath, sizes)
-    if (response.status !== 201) continue
-
+  const applyAutoColor = async () => {
     if (
       meta.autoColorFromImage
       && meta.color
@@ -118,7 +114,23 @@ async function downloadMainImage({
         vals.color = color
       }
     }
+  }
 
+  for (const poster of posters) {
+    const response = await createImage(poster.url, imagePath, sizes)
+    if (response.status !== 201) continue
+
+    await applyAutoColor()
+    return true
+  }
+
+  // No usable poster from TPDB — seed a placeholder only when the tag has no main image yet.
+  if (await checkFileExists(imagePath)) {
+    return false
+  }
+
+  const fallback = await createUnavailableImage(imagePath, sizes)
+  if (fallback.status === 201) {
     return true
   }
 

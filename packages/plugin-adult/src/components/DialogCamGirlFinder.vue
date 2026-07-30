@@ -256,6 +256,7 @@ import ScraperDataTransfer from './scraper/ScraperDataTransfer.vue'
 import ScraperSelectImages from './scraper/ScraperSelectImages.vue'
 import {searchCamGirlFinder} from '../services/camgirlfinderApi'
 import {applyCamGirlFinderPerformer} from '../services/camgirlfinderApply'
+import {assignmentsFromPosterUrls} from '../utils/scraperPosters'
 import type {CamGirlFinderMappedPerformer} from '../types/camgirlfinder'
 
 interface DialogHeaderButton {
@@ -478,10 +479,10 @@ async function applySelected() {
 
   // Prefer the open tag editor transfer path so the user controls field/image picks.
   if (dialogsStore.tagEditing.show && dialogsStore.tagEditing.tag?.id) {
-    dialogsStore.scraper.images = (selected.value.posters || [])
-      .map((poster) => String(poster?.url || '').trim())
-      .filter(Boolean)
-      .slice(0, 4)
+    dialogsStore.scraper.images = assignmentsFromPosterUrls(
+      (selected.value.posters || []).map((poster) => String(poster?.url || '')),
+      4,
+    )
     dialogDataTransfer.value = false
     close()
     eventBus.emit('transferScrapedInfo')
@@ -506,7 +507,7 @@ async function applySelected() {
       meta,
       tag: existingTag,
       faceIds: faceIds.value,
-      imageUrls: dialogsStore.scraper.images || [],
+      imageUrls: (dialogsStore.scraper.images || []).map((item) => item.url),
       dbPath: appStore.dbPath,
     })
 

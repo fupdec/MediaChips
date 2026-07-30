@@ -11,10 +11,28 @@ export interface ScraperPerformerSearchResponse {
   [key: string]: unknown
 }
 
+export const SCRAPER_IMAGE_SLOTS = [
+  'main',
+  'alt',
+  'custom1',
+  'custom2',
+  'avatar',
+  'header',
+] as const
+
+export type ScraperImageSlot = (typeof SCRAPER_IMAGE_SLOTS)[number]
+
 export interface ScraperPoster {
   id: string | number
   url: string
   size: number
+  width?: number
+  height?: number
+}
+
+export interface ScraperImageAssignment {
+  url: string
+  type: ScraperImageSlot
 }
 
 export interface ScraperSelectedResult {

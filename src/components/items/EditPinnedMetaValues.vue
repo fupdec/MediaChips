@@ -459,7 +459,7 @@ import {useSceneScraperStore} from '@mediachips/plugin-adult/stores/sceneScraper
 import {useEventBus} from '@/utils/eventBus'
 import {parseCountries, serializeCountries} from '@/utils/country'
 import {typedApi} from '@/services/typedApi'
-import {createImage} from '@/services/fileService'
+import {createImage, createUnavailableImage, checkFileExists} from '@/services/fileService'
 import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {setNotification} from '@/services/notificationService'
 import {
@@ -489,9 +489,19 @@ import {
 import {getCachedThumb, tagThumbKey} from '@/utils/thumbDisplayCache'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
-import {TAG_IMAGE_SAVE_WIDTH} from '@shared/tagImages'
+import {
+  TAG_AVATAR_SAVE_WIDTH,
+  TAG_HEADER_SAVE_WIDTH,
+  TAG_IMAGE_SAVE_WIDTH,
+} from '@shared/tagImages'
 import type {PresetMetaProps} from '@/types/itemsPage'
-import type { ScraperPinnedItem, ScraperTransferField } from '@mediachips/plugin-adult/types/scraper'
+import type {
+  ScraperImageAssignment,
+  ScraperImageSlot,
+  ScraperPinnedItem,
+  ScraperTransferField,
+} from '@mediachips/plugin-adult/types/scraper'
+import {isScraperImageSlot} from '@mediachips/plugin-adult/utils/scraperPosters'
 import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
 import type { TagInTagEntry, ValueInTagEntry, EntityUpdatePayload } from '@shared/api/responses'
 import type {VFormInstance} from '@/types/vue'
@@ -1250,36 +1260,56 @@ const transferSceneScrapedInfo = async () => {
   await loadEditingState()
 }
 
+function saveSizesForScraperSlot(type: ScraperImageSlot, metaAspectRatio: number) {
+  if (type === 'avatar') {
+    return {width: TAG_AVATAR_SAVE_WIDTH, height: TAG_AVATAR_SAVE_WIDTH}
+  }
+  if (type === 'header') {
+    return {width: TAG_HEADER_SAVE_WIDTH, height: TAG_HEADER_SAVE_WIDTH / 2.3}
+  }
+  const ar = Number(metaAspectRatio) || 1
+  return {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / ar}
+}
+
 const transferScrapedInfo = async () => {
   if (!isTag.value || !props.meta || !props.tag) return
 
-  const images = (dialogsStore.scraper?.images || []) as string[]
+  const images = (dialogsStore.scraper?.images || [])
+    .filter((item): item is ScraperImageAssignment => (
+      Boolean(item?.url)
+      && isScraperImageSlot(item?.type)
+    ))
+  const ar = Number(props.meta.imageAspectRatio) || 1
+  const mainSizes = saveSizesForScraperSlot('main', ar)
+  const mainImagePath = path.join(
+    appStore.dbPath,
+    'meta',
+    `${props.meta.id}`,
+    `${props.tag.id}_main.jpg`,
+  )
+
+  let mainSaved = false
 
   if (images.length > 0) {
-    const imageTypes = ['main', 'alt', 'custom1', 'custom2']
-    let index = 0
-    let mainImageUrl: string | null = null
     let failedCount = 0
 
-    for (const url of images) {
-      const imageType = imageTypes[index]
-      if (!imageType) break
-
+    for (const assignment of images) {
       const imagePath = path.join(
         appStore.dbPath,
         'meta',
         `${props.meta.id}`,
-        `${props.tag.id}_${imageType}.jpg`,
+        `${props.tag.id}_${assignment.type}.jpg`,
       )
-      ++index
-      const ar = Number(props.meta.imageAspectRatio) || 1
-      const sizes = {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / ar}
 
-      const res = await createImage(url, imagePath, sizes)
+      const res = await createImage(
+        assignment.url,
+        imagePath,
+        saveSizesForScraperSlot(assignment.type, ar),
+      )
       if (res.status != 201) {
         ++failedCount
-      } else if (imageType === 'main') {
-        mainImageUrl = url
+      } else if (assignment.type === 'main') {
+        mainSaved = true
       }
     }
 
@@ -1293,25 +1323,29 @@ const transferScrapedInfo = async () => {
         }),
       })
     }
+  }
 
-    if (
-      mainImageUrl
-      && props.meta.autoColorFromImage
-      && props.meta.color
-      && isDefaultTagColor(vals.value.color)
-    ) {
-      const mainPath = path.join(
-        appStore.dbPath,
-        'meta',
-        `${props.meta.id}`,
-        `${props.tag.id}_main.jpg`,
-      )
-      const color = await extractColorFromLocalFile(mainPath)
-      if (!isDefaultTagColor(color)) {
-        vals.value.color = color
-      }
+  if (!mainSaved) {
+    const alreadyHasMain = await checkFileExists(mainImagePath)
+    if (!alreadyHasMain) {
+      const fallback = await createUnavailableImage(mainImagePath, mainSizes)
+      mainSaved = fallback.status === 201
     }
+  }
 
+  if (
+    mainSaved
+    && props.meta.autoColorFromImage
+    && props.meta.color
+    && isDefaultTagColor(vals.value.color)
+  ) {
+    const color = await extractColorFromLocalFile(mainImagePath)
+    if (!isDefaultTagColor(color)) {
+      vals.value.color = color
+    }
+  }
+
+  if (images.length > 0 || mainSaved) {
     eventBus.emit('scraperGotImages')
     dialogsStore.scraper.images = []
     refreshTagThumbDisplay(itemsStore, appStore.dbPath, props.meta.id, props.tag.id)

@@ -9,7 +9,7 @@ import type { AssignedMeta } from '@shared/entities/meta'
 import type { ValueInTagEntry } from '@shared/api/responses'
 import type { Tab } from '@shared/entities/tab'
 import type { MediaType } from '@/types/media'
-import type { ScraperMultiplePerformer } from '@mediachips/plugin-adult/types/scraper'
+import type { ScraperImageAssignment, ScraperMultiplePerformer } from '@mediachips/plugin-adult/types/scraper'
 import type { SceneScraperBatchItem } from '@mediachips/plugin-adult/types/sceneScraper'
 
 export const useDialogsStore = defineStore('useDialogsStore', {
@@ -57,7 +57,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     onboarding: { show: false },
     adultOnboarding: { show: false },
     scraperConfig: { show: false },
-    scraper: { show: false, images: [] as string[] },
+    scraper: { show: false, images: [] as ScraperImageAssignment[] },
     camgirlFinder: {
       show: false,
       query: '',
