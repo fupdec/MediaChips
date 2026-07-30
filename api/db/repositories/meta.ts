@@ -78,6 +78,15 @@ export function createMetaRepository(db: DrizzleClient) {
       }).from(meta).all()
     },
 
+    findAllIds(): Array<{id: number}> {
+      return db.select({id: meta.id}).from(meta).all()
+    },
+
+    /** Tag category fields (`type = 'array'`) that own a meta/{id} image folder. */
+    findArrayIds(): Array<{id: number}> {
+      return db.select({id: meta.id}).from(meta).where(eq(meta.type, 'array')).all()
+    },
+
     create(body: Record<string, unknown>): MetaRow {
       const {pageSetting, pageSettings: pageSettingsList, metaSetting, ...rest} = body
 

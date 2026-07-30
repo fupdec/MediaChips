@@ -1,45 +1,45 @@
 <template>
   <div class="notifications-pool">
-    <transition-group name="slide-x-transition">
-      <template
-        v-for="(item, index) in limitedItems"
-        :key="item.key"
+    <transition name="slide-x-transition">
+      <div
+        v-if="taskSummaryItem"
+        ref="taskSummaryEl"
+        :key="taskSummaryItem.key"
+        class="task-summary"
+        :class="swipeClass"
+        :style="swipeStyle"
+        @pointerdown="onSwipePointerDown"
       >
-        <v-card
-          v-if="item.kind === 'task-summary'"
-          :class="{'d-none': index > 1}"
-          class="task-summary"
-          elevation="9"
-          rounded="lg"
-        >
-          <v-btn color="secondary" class="task-summary__icon" variant="tonal" icon>
-            <v-icon>mdi-progress-clock</v-icon>
-          </v-btn>
+        <v-btn color="secondary" class="task-summary__icon" variant="tonal" icon>
+          <v-icon>mdi-progress-clock</v-icon>
+        </v-btn>
 
-          <div class="task-summary__body">
-            <div class="task-summary__title">{{ item.title }}</div>
-            <div class="task-summary__text">{{ item.text }}</div>
-            <div class="task-summary__actions">
-              <v-btn
-                @click="showAll"
-                color="secondary"
-                variant="text"
-                size="small"
-                class="task-summary__action"
-              >
-                <v-icon start>mdi-bell-outline</v-icon>
-                {{ t('appbar.openNotificationsList') }}
-              </v-btn>
-            </div>
+        <div class="task-summary__body">
+          <div class="task-summary__title">{{ taskSummaryItem.title }}</div>
+          <div class="task-summary__text">{{ taskSummaryItem.text }}</div>
+          <div class="task-summary__actions">
+            <v-btn
+              @click="showAll"
+              color="secondary"
+              variant="text"
+              size="small"
+              class="task-summary__action"
+            >
+              <v-icon start>mdi-bell-outline</v-icon>
+              {{ t('appbar.openNotificationsList') }}
+            </v-btn>
           </div>
-        </v-card>
+        </div>
+      </div>
+    </transition>
 
-        <Notification
-          v-else
-          :notification="item.notification"
-          :class="{'d-none': index > 1}"
-        />
-      </template>
+    <transition-group name="slide-x-transition">
+      <Notification
+        v-for="(item, index) in notificationPoolItems"
+        :key="item.key"
+        :notification="item.notification"
+        :class="{'d-none': index + (taskSummaryItem ? 1 : 0) > 1}"
+      />
     </transition-group>
 
     <v-btn
@@ -56,14 +56,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useTasksStore } from '@/stores/tasks'
-import { useI18n } from 'vue-i18n'
+import {computed, nextTick, onUnmounted, ref, watch} from 'vue'
+import {useNotificationsStore} from '@/stores/notifications'
+import {useTasksStore} from '@/stores/tasks'
+import {useI18n} from 'vue-i18n'
+import {useSwipeToDismiss} from '@/composable/useSwipeToDismiss'
 import Notification from '@/components/app/Notification.vue'
-import type { NotificationInput } from '@/services/notificationService'
+import type {NotificationInput} from '@/services/notificationService'
 
-type PoolNotification = NotificationInput & { id: number; timestamp?: number; title?: string }
+type PoolNotification = NotificationInput & {id: number; timestamp?: number; title?: string}
 
 interface PoolItemBase {
   key: string
@@ -83,56 +84,33 @@ interface NotificationPoolItem extends PoolItemBase {
 
 type PoolItem = TaskSummaryItem | NotificationPoolItem
 
-// Store
 const notificationsStore = useNotificationsStore()
 const tasksStore = useTasksStore()
 const {t} = useI18n()
 const taskSummaryVisible = ref(false)
 const knownTaskIds = ref(new Set<string>())
 const taskSummaryTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const taskSummaryEl = ref<HTMLElement | null>(null)
 
-// Computed properties
-const notifications = computed(() => notificationsStore.getNotifications)
-const tasks = computed(() => tasksStore.list)
-
-const poolItems = computed((): PoolItem[] => {
-  const notificationItems: NotificationPoolItem[] = notifications.value.map(notification => ({
-    kind: 'notification',
-    key: `notification-${notification.id}`,
-    notification: notification as PoolNotification,
-    timestamp: notification.timestamp || 0,
-  }))
-
-  const taskSummary: TaskSummaryItem[] = tasks.value.length > 0
-    && taskSummaryVisible.value
-    ? [{
-      kind: 'task-summary' as const,
-      key: 'task-summary',
-      title: t('appbar.processStarted'),
-      text: tasks.value.length === 1
-        ? t('appbar.openProcessInNotifications')
-        : t('appbar.activeProcessesCount', {count: tasks.value.length}),
-    }]
-    : []
-
-  return [
-    ...taskSummary,
-    ...notificationItems,
-  ]
-})
-
-const limitedItems = computed(() => {
-  return poolItems.value.slice(0, 2)
-})
-
-// Methods
 const hideTaskSummary = () => {
   taskSummaryVisible.value = false
   if (taskSummaryTimer.value) clearTimeout(taskSummaryTimer.value)
   taskSummaryTimer.value = null
 }
 
+const {
+  swipeStyle,
+  swipeClass,
+  onPointerDown: onSwipePointerDown,
+  bindWheel,
+  unbindWheel,
+  reset: resetSwipe,
+} = useSwipeToDismiss(() => {
+  hideTaskSummary()
+})
+
 const showTaskSummary = () => {
+  resetSwipe()
   taskSummaryVisible.value = true
   if (taskSummaryTimer.value) clearTimeout(taskSummaryTimer.value)
   taskSummaryTimer.value = setTimeout(() => {
@@ -141,15 +119,56 @@ const showTaskSummary = () => {
   }, 5000)
 }
 
+const notifications = computed(() => notificationsStore.getNotifications)
+const tasks = computed(() => tasksStore.list)
+
+const taskSummaryItem = computed((): TaskSummaryItem | null => {
+  if (!taskSummaryVisible.value || tasks.value.length === 0) return null
+  return {
+    kind: 'task-summary',
+    key: 'task-summary',
+    title: t('appbar.processStarted'),
+    text: tasks.value.length === 1
+      ? t('appbar.openProcessInNotifications')
+      : t('appbar.activeProcessesCount', {count: tasks.value.length}),
+  }
+})
+
+const notificationPoolItems = computed((): NotificationPoolItem[] =>
+  notifications.value.map(notification => ({
+    kind: 'notification' as const,
+    key: `notification-${notification.id}`,
+    notification: notification as PoolNotification,
+    timestamp: notification.timestamp || 0,
+  })),
+)
+
+const poolItems = computed((): PoolItem[] => {
+  const summary = taskSummaryItem.value
+  return summary ? [summary, ...notificationPoolItems.value] : [...notificationPoolItems.value]
+})
+
 const showAll = () => {
   hideTaskSummary()
-
-  // Показываем все уведомления
   notificationsStore.show = true
-
-  // Помечаем все уведомления как скрытые (чтобы показать их все в панели)
   notificationsStore.hideAllNotifications()
 }
+
+watch(taskSummaryEl, (el) => {
+  if (el) bindWheel(el)
+  else unbindWheel()
+})
+
+watch(taskSummaryVisible, async (visible) => {
+  if (!visible) {
+    unbindWheel()
+    return
+  }
+  await nextTick()
+  if (taskSummaryEl.value) {
+    bindWheel(taskSummaryEl.value)
+  }
+})
 
 watch(
   () => tasks.value.map(task => task.id),
@@ -167,14 +186,14 @@ watch(
       showTaskSummary()
     }
   },
-  {immediate: true}
+  {immediate: true},
 )
 
 watch(
   () => notificationsStore.show,
   (show) => {
     if (show) hideTaskSummary()
-  }
+  },
 )
 
 onUnmounted(() => {
@@ -196,8 +215,8 @@ onUnmounted(() => {
   height: calc(100vh - 65px);
   z-index: 10005;
   pointer-events: none;
+  overscroll-behavior-x: none;
 
-  // Добавляем отступы для анимаций
   padding: 10px;
   box-sizing: border-box;
 }
@@ -216,7 +235,23 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   pointer-events: all;
-  transition: all 0.3s ease;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.3s ease;
+  will-change: transform, opacity;
+  cursor: grab;
+
+  &.swipe-dismiss--swiping {
+    transition: none;
+    cursor: grabbing;
+  }
+
+  &.swipe-dismiss--active {
+    user-select: none;
+  }
 
   &__body {
     padding-right: 25px;
@@ -260,7 +295,6 @@ onUnmounted(() => {
   }
 }
 
-// Анимации для transition-group
 .slide-x-transition-enter-active,
 .slide-x-transition-leave-active {
   transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
@@ -280,7 +314,6 @@ onUnmounted(() => {
   transition: transform 0.4s ease;
 }
 
-// Адаптивность
 @media (max-width: 768px) {
   .notifications-pool {
     top: 45px;

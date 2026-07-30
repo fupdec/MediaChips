@@ -24,6 +24,14 @@ interface NotificationsState {
   types: Record<'info' | 'success' | 'warning' | 'error', NotificationTypeSettings>
 }
 
+/** Monotonic ids — avoid Date.now()*factor (unsafe int) and same-ms collisions. */
+let nextId = Date.now()
+
+export function nextNotificationId(): number {
+  nextId += 1
+  return nextId
+}
+
 export const useNotificationsStore = defineStore('notifications', {
   state: (): NotificationsState => ({
     show: false,
@@ -50,11 +58,11 @@ export const useNotificationsStore = defineStore('notifications', {
       const typeSettings = notification.type ? this.types[notification.type] || {} : {}
 
       const newNotification: Notification = {
-        id: Date.now(),
-        timestamp: Date.now(),
         ...this.options,
         ...typeSettings,
         ...notification,
+        id: nextNotificationId(),
+        timestamp: Date.now(),
       }
 
       if (this.show) {
@@ -64,8 +72,12 @@ export const useNotificationsStore = defineStore('notifications', {
       this.notifications.push(newNotification)
 
       if (newNotification.timeout && newNotification.timeout > 0) {
+        const id = newNotification.id
         setTimeout(() => {
-          this.hideNotification(newNotification.id)
+          // Close toast-pool entries so they leave the screen; skip if already archived.
+          const found = this.notifications.find(n => n.id === id)
+          if (!found || found.hidden) return
+          this.closeNotification(id)
         }, newNotification.timeout)
       }
 

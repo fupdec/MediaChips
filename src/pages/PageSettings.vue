@@ -160,9 +160,7 @@
                 <SettingsFindMissingMedia/>
               </SettingsSection>
 
-              <SettingsSection id="settings-tag-image-ai-upscale">
-                <SettingsTagImageAiUpscale/>
-              </SettingsSection>
+              <SettingsTagImageAiUpscale/>
 
               <SettingsGroupLabel :title="t('settings.groups.maintenance_media')"/>
 

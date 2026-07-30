@@ -10,6 +10,12 @@
 html {
   //overflow-y: hidden !important;
   -webkit-font-smoothing: subpixel-antialiased !important;
+  // Prevent Chrome/macOS trackpad "swipe between pages" from stealing horizontal gestures.
+  overscroll-behavior-x: none;
+}
+
+body {
+  overscroll-behavior-x: none;
 }
 
 pre {
