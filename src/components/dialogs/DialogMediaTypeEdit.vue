@@ -5,7 +5,7 @@
       @update:model-value="dialogModel = false"
       :fullscreen="xs"
       scrollable
-      width="600"
+      width="830"
     >
       <v-card>
         <DialogHeader
@@ -62,6 +62,25 @@
             hide-details
             inset
           />
+
+          <SettingsSection v-if="previewMediaType?.id" padded class="mt-6">
+            <settings-category-divider
+              icon="pin-outline"
+              compact
+              :title="translate('meta.settings.assigned_fields')"
+            />
+            <div class="text-caption text-medium-emphasis mb-3">
+              {{ translate('meta.settings.media_card_pinned_fields_layout') }}
+            </div>
+
+            <MetaAssignmentPanel
+              :key="`media-type-pins_${previewMediaType.id}`"
+              mode="from-media-type"
+              :media-type="previewMediaType"
+              :show-warning="false"
+              :show-anchor="false"
+            />
+          </SettingsSection>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -88,6 +107,9 @@ import {validateName} from '@/services/formatUtils'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
+import SettingsSection from '@/components/ui/SettingsSection.vue'
+import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import MetaAssignmentPanel from '@/components/meta/assignment/MetaAssignmentPanel.vue'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import type {MediaType} from '@/types/media'
 
@@ -134,6 +156,16 @@ const buttons = ref<DialogHeaderButton[]>([])
 
 const textDialogDelete = computed(() => {
   return `${translate('media.type.delete_confirm')}\n${translate('common.are_you_sure')}`
+})
+
+const previewMediaType = computed(() => {
+  if (!props.media) return null
+  return {
+    ...props.media,
+    name: name.value || props.media.name,
+    icon: icon.value || props.media.icon,
+    hidden: hidden.value,
+  }
 })
 
 onMounted(() => {

@@ -105,6 +105,18 @@ describe('pathParser/regexMeta', () => {
     expect(results).toEqual([])
   })
 
+  it('skips metas with pathRegexEnabled turned off', () => {
+    const results = extractPathRegexTagNames('/Media/Library/[StudioName]clip.mp4', [{
+      id: 6,
+      type: 'array',
+      parser: true,
+      pathRegex: '\\[([^\\]]+)\\]',
+      pathRegexReplace: '$1',
+      pathRegexEnabled: false,
+    }])
+    expect(results).toEqual([])
+  })
+
   it('returns createTags flag from meta setting', () => {
     const [hit] = extractPathRegexTagNames('/Media/Library/[StudioName]clip.mp4', [{
       id: 5,

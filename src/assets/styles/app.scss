@@ -197,7 +197,45 @@ header {
 }
 
 .dialog-position-start {
-  align-self: flex-start;
+  align-self: flex-start !important;
+}
+
+.v-overlay:not(.v-dialog--fullscreen) > .v-overlay__content.dialog-position-start,
+.v-overlay:not(.v-dialog--fullscreen) .v-overlay__content.dialog-position-start {
+  margin-top: 40px;
+  margin-bottom: 24px;
+}
+
+.v-overlay:not(.v-dialog--fullscreen) .v-overlay__content.dialog-position-start.meta-manager-dialog {
+  max-height: calc(100% - 64px);
+}
+
+.meta-manager-tabs-layout {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  &--vertical {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+
+    .meta-manager-tabs {
+      flex: 0 0 auto;
+      width: 168px;
+      margin-bottom: 0;
+
+      .v-tab {
+        justify-content: flex-start;
+        min-height: 40px;
+      }
+    }
+
+    .dialog-settings-stack {
+      flex: 1;
+      min-width: 0;
+    }
+  }
 }
 
 // .v-dialog {
@@ -1571,6 +1609,5 @@ header {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 560px;
-  margin-inline: auto;
+  width: 100%;
 }

@@ -120,7 +120,7 @@
               v-model="dbName"
               :label="t('common.name')"
               autofocus
-              :rules="[v => validateName(v)]"
+              :rules="[v => { const r = validateName(v); return r === true || t(r) }]"
             />
 
             <DialogIcons

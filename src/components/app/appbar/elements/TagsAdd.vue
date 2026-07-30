@@ -248,7 +248,7 @@ function nameRules(string: string) {
 
   for (const name of arr) {
     const valid = validateName(name)
-    if (valid !== true) return valid
+    if (valid !== true) return t(valid)
   }
 
   return true

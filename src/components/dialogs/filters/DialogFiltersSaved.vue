@@ -92,7 +92,7 @@
             <v-text-field
               v-model="filterName"
               :label="t('filters.filter_name')"
-              :rules="[v => validateName(v) || t('validation.name_required')]"
+              :rules="[v => { const r = validateName(v); return r === true || t(r) }]"
               autofocus
               variant="filled"
             />
@@ -175,11 +175,7 @@ const submitCreate = () => {
   }
   const nameCheck = validateName(name)
   if (nameCheck !== true) {
-    createError.value = nameCheck === 'Name is required'
-      ? t('validation.name_required')
-      : nameCheck === 'Name must be 50 characters or fewer'
-        ? t('validation.name_max_length')
-        : t('validation.incorrect_value')
+    createError.value = t(nameCheck)
     return
   }
   emit('save', name)

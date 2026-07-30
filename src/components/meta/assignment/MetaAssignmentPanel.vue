@@ -12,13 +12,13 @@
     <v-alert
       v-if="showWarning"
       color="info"
-      icon="mdi-content-save-alert"
+      icon="mdi-information-outline"
       class="text-caption mb-4"
       variant="tonal"
       rounded="xl"
       density="compact"
     >
-      {{ t('settings_labels.media_type_added_meta.irreversible_changes') }}
+      {{ t('settings_labels.field_pinning.hint') }}
       <div v-if="mode === 'from-meta' && !isMetaTypeArray" class="mt-1">
         {{ t('meta.settings.only_array_child_meta') }}
       </div>
@@ -39,6 +39,7 @@
           @unpin-meta="confirmUnpinMetaFromType"
           @reorder="onMetaItemsReorder"
           @toggle-show="toggleMetaInMediaTypeShow"
+          @create-field="openCreateFieldDialog"
         />
 
         <MetaToMetaBoard
@@ -50,9 +51,18 @@
           @unpin="confirmUnpinChildMeta"
           @reorder="onChildMetaReorder"
           @toggle-show="toggleChildMetaShow"
+          @create-field="openCreateFieldDialog"
         />
       </v-card-text>
     </v-card>
+
+    <DialogMetaManager
+      :dialog="createFieldDialog"
+      :edit-mode="false"
+      :meta="null"
+      @created="onFieldCreated"
+      @close="createFieldDialog = false"
+    />
 
     <DialogConfirm
       v-if="confirmDialog"
@@ -71,11 +81,12 @@ import {useI18n} from 'vue-i18n'
 import {getTextDataType} from '@/services/metaTypeUtils'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {useMetaAssignment} from '@/composable/useMetaAssignment'
-import {onMetaCatalogChanged} from '@/composable/metaCatalog'
+import {onMetaCatalogChanged, reloadMetaCatalog} from '@/composable/metaCatalog'
 import MetaAssignmentAnchor from './MetaAssignmentAnchor.vue'
 import MetaToMediaBoard from './MetaToMediaBoard.vue'
 import MetaToMetaBoard from './MetaToMetaBoard.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
+import DialogMetaManager from '@/components/dialogs/DialogMetaManager.vue'
 
 import type {
   MediaType,
@@ -96,7 +107,7 @@ const props = withDefaults(defineProps<{
   mode: 'from-meta',
   meta: null,
   mediaType: null,
-  showWarning: true,
+  showWarning: false,
   showAnchor: true,
 })
 
@@ -125,6 +136,7 @@ const pinnedMetaItems = ref<MetaInMediaTypeRow[]>([])
 const allMeta = ref<Meta[]>([])
 const confirmDialog = ref(false)
 const pendingAction = ref<ConfirmAction | null>(null)
+const createFieldDialog = ref(false)
 
 const isMetaTypeArray = computed(() => props.meta?.type === 'array')
 
@@ -252,6 +264,29 @@ const confirmPinChildMeta = async (childMeta: Meta) => {
     await loadPinnedChildMeta()
   } catch (e) {
     console.error('Error pinning child meta:', e)
+  }
+}
+
+const openCreateFieldDialog = () => {
+  createFieldDialog.value = true
+}
+
+const onFieldCatalogUpdated = async () => {
+  await reloadMetaCatalog()
+  await refresh()
+}
+
+const onFieldCreated = async (created: Meta) => {
+  await onFieldCatalogUpdated()
+  if (!created?.id) return
+
+  if (showMediaBoard.value) {
+    await confirmPinMetaToType(created)
+    return
+  }
+
+  if (showTagsBoard.value) {
+    await confirmPinChildMeta(created)
   }
 }
 

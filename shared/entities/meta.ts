@@ -8,6 +8,7 @@ export interface Meta {
   pathRegex?: string | null
   pathRegexReplace?: string | null
   pathRegexCreateTags?: boolean
+  pathRegexEnabled?: boolean
   icon?: string
   chipVariant?: string
   color?: boolean

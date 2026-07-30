@@ -375,10 +375,10 @@ export function getListCond(type: string | null | undefined): FilterCondition[] 
 
 export function validateName(str: string): true | string {
   const trimmed = str.trim().toLowerCase()
-  if (trimmed.length === 0) return 'Name is required'
-  if (trimmed.length > 50) return 'Name must be 50 characters or fewer'
+  if (trimmed.length === 0) return 'validation.name_required'
+  if (trimmed.length > 50) return 'validation.name_too_long'
   if (/[\\\/\%"?<>{}\[\]]/g.test(trimmed)) {
-    return 'Name must not content \\/\\%\"<>{}\[\]'
+    return 'validation.name_invalid_chars'
   }
   return true
 }

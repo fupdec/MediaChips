@@ -224,7 +224,8 @@ const initButtons = () => {
 };
 
 const nameRules = (value: string) => {
-  return validateName(value)
+  const result = validateName(value)
+  return result === true ? true : t(result)
 };
 
 const apply = async () => {

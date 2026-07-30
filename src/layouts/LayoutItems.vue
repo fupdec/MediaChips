@@ -1,8 +1,8 @@
 <template>
   <v-container ref="container">
 
-    <div class="items-page-header text-h4 text-md-h2 d-flex align-end justify-space-between flex-wrap ga-4 mt-6 mb-8">
-      <div class="d-flex align-baseline items-page-header__title">
+    <div class="items-page-header text-h4 text-md-h2 d-flex align-center justify-space-between flex-wrap ga-4 mt-6 mb-8">
+      <div class="d-flex align-center items-page-header__title">
         <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
         {{ pageTitle }}
         <span v-if="!loader.is_busy && total > 0">
@@ -17,7 +17,7 @@
         </span>
       </div>
 
-      <div class="d-flex align-end flex-wrap ga-2">
+      <div class="d-flex align-center flex-wrap ga-2">
         <ToolbarSort></ToolbarSort>
 
         <v-btn @click="toggleCustomization"
@@ -778,7 +778,7 @@ defineEmits<{
   }
 
   &__title {
-    margin-bottom: 4px;
+    line-height: 1.2;
   }
 }
 </style>

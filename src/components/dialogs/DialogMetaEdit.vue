@@ -194,13 +194,13 @@ const changeIcon = (icon: string) => {
 
 const nameRules = (value: string) => {
   if (!value || value.trim().length === 0) {
-    return 'Name is required'
+    return t('validation.name_required')
   }
   if (value.length < 2) {
-    return 'Name must be at least 2 characters'
+    return t('validation.name_too_short')
   }
   if (value.length > 100) {
-    return 'Name must be less than 100 characters'
+    return t('validation.name_max_length')
   }
   return true
 }

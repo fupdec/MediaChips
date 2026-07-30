@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import {ref, computed, watch, defineAsyncComponent} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {VFormInstance} from '@/types/vue'
 import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -48,6 +49,7 @@ interface EditingTab {
 }
 
 const dialogsStore = useDialogsStore()
+const {t} = useI18n()
 
 const valid = ref(false)
 const dialogIcons = ref(false)
@@ -76,8 +78,10 @@ const dialog = computed({
 })
 
 const nameRules = [
-  (v: string) => !!v || 'Name is required',
-  (v: string) => validateName(v) || 'Invalid name format'
+  (v: string) => {
+    const result = validateNameFormat(v || '')
+    return result === true ? true : t(result)
+  },
 ]
 
 // Methods
@@ -116,12 +120,6 @@ const closeDialog = () => {
   dialogsStore.tabEditing.tab = null
   tabName.value = ''
   icon.value = ''
-}
-
-const validateName = (string: string) => {
-  // Замените на вашу реализацию $validateName
-  if (!string) return false
-  return validateNameFormat(string) === true
 }
 
 // Watchers

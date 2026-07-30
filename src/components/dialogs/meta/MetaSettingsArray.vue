@@ -1,376 +1,421 @@
 <template>
-  <SettingsSection padded>
+  <!-- Basics: hide in nav (create + basics tab) -->
+  <SettingsSection v-if="showBasics" padded>
     <v-switch
       v-model="settings.hidden"
       hide-details
       inset
     >
-      <template v-slot:label>
+      <template #label>
         <div class="d-flex flex-column ml-2">
           <div>{{ t('meta.settings.hide_in_navigation') }}</div>
         </div>
       </template>
     </v-switch>
+  </SettingsSection>
 
-    <v-switch inset
-      v-if="editMode"
-      :disabled="!isPinnedToVideos"
-      v-model="settings.marks"
-      hide-details
-      class="mt-2">
-      <template v-slot:label>
-        <div class="d-flex flex-column ml-2">
-          <div>{{ t('meta.settings.marks_in_player') }}</div>
-          <div class="text-caption mt-1">
-            {{ t('meta.settings.marks_in_player_hint') }}
-          </div>
-        </div>
-      </template>
-    </v-switch>
+  <!-- Capabilities: built-in tag fields, then marks (last) -->
+  <template v-if="showCapabilities && editMode">
+    <SettingsSection padded>
+      <settings-category-divider
+        icon="shape"
+        compact
+        :title="t('meta.settings.preset_meta_in_tags')"
+      />
 
-    <v-switch inset
-      v-if="editMode"
-      :disabled="!isPinnedForMediaParser"
-      v-model="settings.parser"
-      hide-details
-      class="mt-2">
-      <template v-slot:label>
-        <div class="d-flex flex-column ml-2">
-          <div>
-            {{ t('meta.settings.parse_media_for_tags') }}
-            <button-documentation id="media.parser"></button-documentation>
-          </div>
-        </div>
-      </template>
-    </v-switch>
+      <v-row>
+        <v-col cols="12" sm="5">
+          <v-switch inset v-model="settings.rating">
+            <template #label>
+              <v-icon color="yellow-darken-2">mdi-star</v-icon>
+              <div class="ml-2">{{ t('meta.types.rating') }}</div>
+            </template>
+          </v-switch>
 
-    <div
-      v-if="editMode && settings.parser && isPinnedForMediaParser"
-      class="mt-4 path-regex-settings"
-    >
-      <v-expansion-panels
-        v-model="pathRegexSettingsPanel"
-        variant="accordion"
-        rounded="xl"
-        class="path-regex-settings-panels"
-      >
-        <v-expansion-panel rounded="xl">
-          <v-expansion-panel-title>
-            <div class="d-inline-flex align-center">
-              <v-icon class="mr-2" size="small" icon="mdi-regex"/>
-              <span>{{ t('meta.settings.path_regex_settings') }}</span>
-            </div>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <RegexBuilder
-              mode="extract"
-              :pattern="settings.pathRegex"
-              :replace="settings.pathRegexReplace"
-              :sample="pathRegexSamplePath"
-              :capture-text="pathRegexCaptureText"
-              :intro="t('meta.settings.path_regex_intro')"
-              class="mb-4"
-              @update:pattern="settings.pathRegex = $event"
-              @update:replace="settings.pathRegexReplace = $event"
-              @update:sample="pathRegexSamplePath = $event"
-              @update:capture-text="pathRegexCaptureText = $event"
-            />
+          <v-switch inset v-model="settings.favorite" hide-details>
+            <template #label>
+              <v-icon color="pink">mdi-heart</v-icon>
+              <div class="ml-2">{{ t('meta.sorting.favorite') }}</div>
+            </template>
+          </v-switch>
 
-            <v-switch
-              v-model="settings.pathRegexCreateTags"
-              inset
-              hide-details
-            >
-              <template #label>
-                <div class="d-flex flex-column ml-2">
-                  <div>{{ t('meta.settings.path_regex_create_tags') }}</div>
-                  <div class="text-caption mt-1">
-                    {{ t('meta.settings.path_regex_create_tags_hint') }}
-                  </div>
+          <v-switch inset v-model="settings.synonyms" class="mt-6" hide-details>
+            <template #label>
+              <div class="d-flex flex-column ml-2">
+                <div>
+                  <v-icon color="grey">mdi-alphabetical</v-icon>
+                  {{ t('filters.sort.synonyms') }}
                 </div>
-              </template>
-            </v-switch>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
-    </div>
-
-    <v-alert
-      v-if="editMode && !isPinnedForMediaParser"
-      type="info"
-      class="text-caption mt-4 mb-4"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      closable
-    >
-      {{ t('meta.settings.active_after_pinning_media') }}
-    </v-alert>
-  </SettingsSection>
-
-  <SettingsSection padded>
-    <settings-category-divider
-      icon="shape"
-      compact
-      :title="t('meta.settings.preset_meta_in_tags')"
-    />
-
-    <v-row>
-      <v-col cols="12"
-        sm="5">
-        <v-switch inset
-          v-model="settings.rating">
-          <template v-slot:label>
-            <v-icon color="yellow-darken-2">mdi-star</v-icon>
-            <div class=" ml-2">{{ t('meta.types.rating') }}</div>
-          </template>
-        </v-switch>
-
-        <v-switch inset
-          v-model="settings.favorite"
-          hide-details>
-          <template v-slot:label>
-            <v-icon color="pink">mdi-heart</v-icon>
-            <div class=" ml-2">{{ t('meta.sorting.favorite') }}</div>
-          </template>
-        </v-switch>
-
-        <v-switch inset
-          v-model="settings.synonyms"
-          class="mt-0"
-          hide-details>
-          <template v-slot:label>
-            <div class="d-flex flex-column ml-2">
-              <div>
-                <v-icon color="grey">mdi-alphabetical</v-icon>
-                {{ t('filters.sort.synonyms') }}
+                <div class="text-caption mt-1">{{ t('editing.synonyms_hint') }}</div>
               </div>
-              <div class="text-caption mt-1">{{ t('editing.synonyms_hint') }}</div>
-            </div>
-          </template>
-        </v-switch>
-      </v-col>
-      <v-col cols="12"
-        sm="7">
-        <v-switch inset
-          v-model="settings.bookmark"
-          class="mt-0"
-        >
-          <template v-slot:label>
-            <div class="d-flex flex-column ml-2">
-              <div>
-                <v-icon color="red">mdi-bookmark</v-icon>
-                {{ t('player.controls.bookmark') }}
+            </template>
+          </v-switch>
+        </v-col>
+        <v-col cols="12" sm="7">
+          <v-switch inset v-model="settings.bookmark" class="mt-0">
+            <template #label>
+              <div class="d-flex flex-column ml-2">
+                <div>
+                  <v-icon color="red">mdi-bookmark</v-icon>
+                  {{ t('player.controls.bookmark') }}
+                </div>
+                <div class="text-caption mt-1">{{ t('meta.settings.bookmark_hint') }}</div>
               </div>
-              <div class="text-caption mt-1">{{ t('meta.settings.bookmark_hint') }}</div>
-            </div>
-          </template>
-        </v-switch>
+            </template>
+          </v-switch>
 
-        <v-switch inset
-          v-model="settings.country"
-          class="mt-0"
-          hide-details>
-          <template v-slot:label>
-            <div class="d-flex flex-column ml-2">
-              <div>
-                <v-icon color="grey">mdi-flag</v-icon>
-                {{ t('meta.types.country') }}
+          <v-switch inset v-model="settings.country" class="mt-0" hide-details>
+            <template #label>
+              <div class="d-flex flex-column ml-2">
+                <div>
+                  <v-icon color="grey">mdi-flag</v-icon>
+                  {{ t('meta.types.country') }}
+                </div>
+                <div class="text-caption mt-1">{{ t('meta.settings.country_hint') }}</div>
               </div>
-              <div class="text-caption mt-1">{{ t('meta.settings.country_hint') }}</div>
-            </div>
-          </template>
-        </v-switch>
-      </v-col>
-    </v-row>
-  </SettingsSection>
+            </template>
+          </v-switch>
+        </v-col>
+      </v-row>
+    </SettingsSection>
 
-  <SettingsSection padded>
-    <settings-category-divider
-      icon="tag"
-      compact
-      :title="t('meta.settings.chips_appearance')"
-    />
+    <SettingsSection padded>
+      <settings-category-divider
+        icon="tune"
+        compact
+        :title="t('meta.settings.capabilities')"
+      />
 
-    <div class="d-flex align-center flex-wrap justify-space-between mt-4 mb-4">
-      <div class="text-body-1 text-high-emphasis mr-6">
-        <v-icon start>mdi-label</v-icon>
-        {{ t('settings_labels.appearance.chip_variant') }}
-      </div>
-
-      <v-chip-group column>
-        <v-chip
-          v-for="variant in chipVariants"
-          :key="variant"
-          @click="settings.chipVariant = variant"
-          :label="settings.chipLabel"
-          :variant="variant"
-          :base-color="settings.color ? randomColor : ''"
-        >
-          <v-icon v-if="settings.chipVariant == variant"
-            start>mdi-check
-          </v-icon>
-          <span>{{ variant }}</span>
-        </v-chip>
-      </v-chip-group>
-
-      <v-btn
-        v-if="settings.color"
-        @click="generateRandomColor"
-        color="settings.color"
-        icon
+      <v-alert
+        type="info"
+        variant="tonal"
+        density="compact"
+        rounded="xl"
+        class="text-caption mb-3"
       >
-        <v-icon>mdi-dice-5</v-icon>
-      </v-btn>
-    </div>
+        {{ t('meta.settings.marks_in_player_requirement') }}
+      </v-alert>
 
-    <v-row>
-      <v-col cols="12"
-        sm="5">
-        <v-switch v-model="settings.color"
-          :label="t('settings_labels.appearance.colors')"
-          class="my-0"
-          hide-details
-          inset/>
-      </v-col>
-
-      <v-col cols="12"
-        sm="7">
-        <v-switch v-model="settings.chipLabel"
-          :label="t('meta.settings.label')"
-          class="my-0"
-          hide-details
-          inset/>
-      </v-col>
-    </v-row>
-
-    <v-switch
-      v-model="settings.autoColorFromImage"
-      :disabled="!settings.color"
-      class="mt-2"
-      hide-details
-      inset
-    >
-      <template #label>
-        <div class="d-flex flex-column ml-2">
-          <div>{{ t('meta.settings.auto_color_from_image') }}</div>
-          <div class="text-caption mt-1">
-            {{ t('meta.settings.auto_color_from_image_hint') }}
+      <v-switch
+        inset
+        :disabled="!isPinnedToVideos"
+        v-model="settings.marks"
+        hide-details
+      >
+        <template #label>
+          <div class="d-flex flex-column ml-2">
+            <div>{{ t('meta.settings.marks_in_player') }}</div>
+            <div class="text-caption mt-1">
+              {{ t('meta.settings.marks_in_player_hint') }}
+            </div>
           </div>
-        </div>
-      </template>
-    </v-switch>
-  </SettingsSection>
+        </template>
+      </v-switch>
 
-  <SettingsSection padded>
-    <settings-category-divider
-      icon="post"
-      compact
-      :title="t('meta.settings.cards_appearance')"
-    />
-    <div class="text-high-emphasis">{{ t('meta.settings.image_aspect_ratio') }}</div>
-
-    <v-alert
-      color="info"
-      icon="mdi-content-save-alert"
-      class="text-caption mb-4 mt-2"
-      variant="tonal"
-      rounded="xl"
-      density="compact"
-      closable
-    >
-      {{ t('meta.settings.image_aspect_ratio_hint') }}
-    </v-alert>
-
-    <div class="aspect-ratio-cards mt-2">
-      <button
-        v-for="preset in aspectRatioPresets"
-        :key="preset.id"
-        type="button"
-        class="aspect-ratio-card"
-        :class="{'aspect-ratio-card--active': selectedPresetId === preset.id}"
-        @click="selectPreset(preset.id)"
-      >
-        <span
-          class="aspect-ratio-sample"
-          :style="getSampleStyle(preset.value)"
-        >
-          <v-icon size="small">{{ preset.icon }}</v-icon>
-        </span>
-        <span class="aspect-ratio-card__label">{{ preset.label }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="aspect-ratio-card"
-        :class="{'aspect-ratio-card--active': selectedPresetId === 'custom'}"
-        @click="selectPreset('custom')"
-      >
-        <span
-          class="aspect-ratio-sample aspect-ratio-sample--custom"
-          :style="customSampleStyle"
-        >
-          <v-icon size="small">mdi-pencil-outline</v-icon>
-        </span>
-        <span class="aspect-ratio-card__label">
-          {{ t('meta.settings.image_aspect_ratio_custom') }}
-        </span>
-      </button>
-    </div>
-
-    <div
-      v-if="selectedPresetId === 'custom'"
-      class="aspect-ratio-custom mt-4"
-    >
-      <div class="aspect-ratio-custom__inputs">
-        <v-text-field
-          v-model.number="customWidth"
-          type="number"
-          min="1"
-          step="1"
-          density="compact"
-          variant="outlined"
-          hide-details="auto"
-          :label="t('meta.settings.image_aspect_ratio_width')"
-          class="aspect-ratio-custom__field"
-          @update:model-value="applyCustomRatio"
-        />
-        <span class="aspect-ratio-custom__sep text-medium-emphasis">:</span>
-        <v-text-field
-          v-model.number="customHeight"
-          type="number"
-          min="1"
-          step="1"
-          density="compact"
-          variant="outlined"
-          hide-details="auto"
-          :label="t('meta.settings.image_aspect_ratio_height')"
-          class="aspect-ratio-custom__field"
-          @update:model-value="applyCustomRatio"
-        />
-        <span
-          class="aspect-ratio-sample aspect-ratio-sample--live"
-          :style="customSampleStyle"
-        >
-          <v-icon size="small">mdi-image-outline</v-icon>
-        </span>
-      </div>
-      <div class="text-caption text-medium-emphasis mt-2">
-        {{ t('meta.settings.image_aspect_ratio_custom_hint') }}
-      </div>
       <div
-        v-if="customRatioError"
-        class="text-caption text-error mt-1"
+        v-if="!isPinnedToVideos"
+        class="mt-3 d-flex flex-wrap align-center ga-2"
       >
-        {{ customRatioError }}
+        <div class="text-caption text-medium-emphasis">
+          {{ t('meta.settings.assign_before_marks') }}
+        </div>
+        <v-btn
+          size="x-small"
+          variant="tonal"
+          color="primary"
+          rounded="lg"
+          @click="emit('request-assign')"
+        >
+          {{ t('meta.settings.add_to_media_type') }}
+        </v-btn>
       </div>
-    </div>
+    </SettingsSection>
+  </template>
+
+  <!-- From path: compact enable + optional pattern -->
+  <SettingsSection v-if="showFromPath && editMode" padded>
+    <settings-category-divider
+      icon="folder-search-outline"
+      compact
+      :title="t('meta.settings.tags_from_path')"
+    >
+      <template #actions>
+        <button-documentation id="media.parser" />
+      </template>
+    </settings-category-divider>
+
+    <template v-if="!isPinnedForMediaParser">
+      <div class="text-caption text-medium-emphasis mb-3">
+        {{ t('meta.settings.assign_before_parser') }}
+      </div>
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="primary"
+        rounded="lg"
+        prepend-icon="mdi-plus"
+        @click="emit('request-assign')"
+      >
+        {{ t('meta.settings.add_to_media_type') }}
+      </v-btn>
+    </template>
+
+    <template v-else>
+      <v-switch
+        inset
+        v-model="settings.parser"
+        hide-details
+        class="mb-2"
+      >
+        <template #label>
+          <div class="d-flex flex-column ml-2">
+            <div>{{ t('meta.settings.parse_media_for_tags') }}</div>
+            <div class="text-caption mt-1">
+              {{ t('meta.settings.parse_media_for_tags_hint') }}
+            </div>
+          </div>
+        </template>
+      </v-switch>
+
+      <template v-if="settings.parser">
+        <div class="text-caption text-medium-emphasis mb-3">
+          {{ t('meta.settings.path_find_fuzzy_hint') }}
+        </div>
+
+        <v-switch
+          v-model="settings.pathRegexEnabled"
+          inset
+          hide-details
+          class="mb-2"
+        >
+          <template #label>
+            <div class="d-flex flex-column ml-2">
+              <div>{{ t('meta.settings.path_regex_enable') }}</div>
+              <div class="text-caption mt-1">
+                {{ t('meta.settings.path_regex_enable_hint') }}
+              </div>
+            </div>
+          </template>
+        </v-switch>
+
+        <template v-if="settings.pathRegexEnabled">
+          <RegexBuilder
+            mode="extract"
+            :pattern="settings.pathRegex"
+            :replace="settings.pathRegexReplace"
+            :sample="pathRegexSamplePath"
+            :capture-text="pathRegexCaptureText"
+            presets-first
+            :show-intro="false"
+            class="mb-3"
+            @update:pattern="settings.pathRegex = $event"
+            @update:replace="settings.pathRegexReplace = $event"
+            @update:sample="pathRegexSamplePath = $event"
+            @update:capture-text="pathRegexCaptureText = $event"
+          />
+
+          <v-switch
+            v-model="settings.pathRegexCreateTags"
+            inset
+            hide-details
+            class="mb-4"
+            :label="t('meta.settings.path_regex_create_tags')"
+          />
+        </template>
+
+        <v-btn
+          color="primary"
+          variant="tonal"
+          rounded="lg"
+          class="mt-2"
+          prepend-icon="mdi-tag-search-outline"
+          :to="parseLibraryLink"
+          @click="emit('close')"
+        >
+          {{ t('meta.settings.run_library_path_scan') }}
+        </v-btn>
+      </template>
+    </template>
   </SettingsSection>
+
+  <!-- Appearance: chips + aspect ratio -->
+  <template v-if="showAppearance">
+    <SettingsSection padded>
+      <settings-category-divider
+        icon="tag"
+        compact
+        :title="t('meta.settings.chips_appearance')"
+      />
+
+      <div class="d-flex align-center flex-wrap justify-space-between mt-4 mb-4">
+        <div class="text-body-1 text-high-emphasis mr-6">
+          <v-icon start>mdi-label</v-icon>
+          {{ t('settings_labels.appearance.chip_variant') }}
+        </div>
+
+        <v-chip-group column>
+          <v-chip
+            v-for="variant in chipVariants"
+            :key="variant"
+            @click="settings.chipVariant = variant"
+            :label="settings.chipLabel"
+            :variant="variant"
+            :base-color="settings.color ? randomColor : ''"
+          >
+            <v-icon v-if="settings.chipVariant == variant" start>mdi-check</v-icon>
+            <span>{{ variant }}</span>
+          </v-chip>
+        </v-chip-group>
+
+        <v-btn
+          v-if="settings.color"
+          @click="generateRandomColor"
+          color="settings.color"
+          icon
+        >
+          <v-icon>mdi-dice-5</v-icon>
+        </v-btn>
+      </div>
+
+      <v-row>
+        <v-col cols="12" sm="5">
+          <v-switch
+            v-model="settings.color"
+            :label="t('settings_labels.appearance.colors')"
+            class="my-0"
+            hide-details
+            inset
+          />
+        </v-col>
+        <v-col cols="12" sm="7">
+          <v-switch
+            v-model="settings.chipLabel"
+            :label="t('meta.settings.label')"
+            class="my-0"
+            hide-details
+            inset
+          />
+        </v-col>
+      </v-row>
+
+      <v-switch
+        v-model="settings.autoColorFromImage"
+        :disabled="!settings.color"
+        class="mt-2"
+        hide-details
+        inset
+      >
+        <template #label>
+          <div class="d-flex flex-column ml-2">
+            <div>{{ t('meta.settings.auto_color_from_image') }}</div>
+            <div class="text-caption mt-1">
+              {{ t('meta.settings.auto_color_from_image_hint') }}
+            </div>
+          </div>
+        </template>
+      </v-switch>
+    </SettingsSection>
+
+    <SettingsSection padded>
+      <settings-category-divider
+        icon="post"
+        compact
+        :title="t('meta.settings.cards_appearance')"
+      />
+      <div class="text-high-emphasis">{{ t('meta.settings.image_aspect_ratio') }}</div>
+
+      <v-alert
+        color="info"
+        icon="mdi-information-outline"
+        class="text-caption mb-4 mt-2"
+        variant="tonal"
+        rounded="xl"
+        density="compact"
+        closable
+      >
+        {{ t('meta.settings.image_aspect_ratio_hint') }}
+      </v-alert>
+
+      <div class="aspect-ratio-cards mt-2">
+        <button
+          v-for="preset in aspectRatioPresets"
+          :key="preset.id"
+          type="button"
+          class="aspect-ratio-card"
+          :class="{'aspect-ratio-card--active': selectedPresetId === preset.id}"
+          @click="selectPreset(preset.id)"
+        >
+          <span class="aspect-ratio-sample" :style="getSampleStyle(preset.value)">
+            <v-icon size="small">{{ preset.icon }}</v-icon>
+          </span>
+          <span class="aspect-ratio-card__label">{{ preset.label }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="aspect-ratio-card"
+          :class="{'aspect-ratio-card--active': selectedPresetId === 'custom'}"
+          @click="selectPreset('custom')"
+        >
+          <span
+            class="aspect-ratio-sample aspect-ratio-sample--custom"
+            :style="customSampleStyle"
+          >
+            <v-icon size="small">mdi-pencil-outline</v-icon>
+          </span>
+          <span class="aspect-ratio-card__label">
+            {{ t('meta.settings.image_aspect_ratio_custom') }}
+          </span>
+        </button>
+      </div>
+
+      <div v-if="selectedPresetId === 'custom'" class="aspect-ratio-custom mt-4">
+        <div class="aspect-ratio-custom__inputs">
+          <v-text-field
+            v-model.number="customWidth"
+            type="number"
+            min="1"
+            step="1"
+            density="compact"
+            variant="outlined"
+            hide-details="auto"
+            :label="t('meta.settings.image_aspect_ratio_width')"
+            class="aspect-ratio-custom__field"
+            @update:model-value="applyCustomRatio"
+          />
+          <span class="aspect-ratio-custom__sep text-medium-emphasis">:</span>
+          <v-text-field
+            v-model.number="customHeight"
+            type="number"
+            min="1"
+            step="1"
+            density="compact"
+            variant="outlined"
+            hide-details="auto"
+            :label="t('meta.settings.image_aspect_ratio_height')"
+            class="aspect-ratio-custom__field"
+            @update:model-value="applyCustomRatio"
+          />
+          <span
+            class="aspect-ratio-sample aspect-ratio-sample--live"
+            :style="customSampleStyle"
+          >
+            <v-icon size="small">mdi-image-outline</v-icon>
+          </span>
+        </div>
+        <div class="text-caption text-medium-emphasis mt-2">
+          {{ t('meta.settings.image_aspect_ratio_custom_hint') }}
+        </div>
+        <div v-if="customRatioError" class="text-caption text-error mt-1">
+          {{ customRatioError }}
+        </div>
+      </div>
+    </SettingsSection>
+  </template>
 </template>
 
 <script setup lang="ts">
 import {ref, computed, onMounted, watch, nextTick} from 'vue'
-import type {PropType} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {isVideoMediaType, isImageMediaType, isAudioMediaType, isTextMediaType} from '@/utils/mediaType'
 import {approxAspectRatioParts} from '@/utils/aspectRatioParts'
@@ -382,6 +427,8 @@ import RegexBuilder from '@/components/regex/RegexBuilder.vue'
 import {getDefaultPathRegexSample} from '@shared/pathParser/regexGenerator'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
+
+export type MetaArraySection = 'basics' | 'capabilities' | 'appearance' | 'from-path'
 
 type ChipVariant = 'flat' | 'tonal' | 'outlined' | 'text'
 type AspectPresetId = '1:1' | '5:8' | '2:3' | '16:9' | 'custom'
@@ -399,6 +446,7 @@ interface MetaSettings {
   pathRegex: string
   pathRegexReplace: string
   pathRegexCreateTags: boolean
+  pathRegexEnabled: boolean
   imageAspectRatio: number
   chipLabel: boolean
   chipVariant: ChipVariant
@@ -428,30 +476,31 @@ const aspectRatioPresets: AspectRatioPreset[] = [
 const toMediaType = (mediaType: MediaType | string | undefined): MediaType | undefined =>
   typeof mediaType === 'string' ? undefined : mediaType
 
-const props = defineProps({
-  meta: {
-    type: Object as PropType<Meta>,
-    required: true
-  },
-  // Режим работы: создание (false) или редактирование (true)
-  editMode: {
-    type: Boolean,
-    default: false
-  },
+const props = withDefaults(defineProps<{
+  meta: Meta
+  editMode?: boolean
+  sections?: MetaArraySection[]
+}>(), {
+  editMode: false,
+  sections: () => ['basics', 'capabilities', 'appearance', 'from-path'],
 })
 
-// Emits
-const emit = defineEmits(['update'])
+const emit = defineEmits<{
+  update: [settings: MetaSettings]
+  'request-assign': []
+  'pin-state-changed': [state: {marks: boolean; parser: boolean}]
+  close: []
+}>()
 
 const {t} = useI18n()
 
-// Refs
 const settings = ref<MetaSettings>({
   hidden: false,
   parser: false,
   pathRegex: '',
   pathRegexReplace: '$1',
   pathRegexCreateTags: true,
+  pathRegexEnabled: false,
   imageAspectRatio: 1,
   chipLabel: false,
   chipVariant: 'flat',
@@ -465,13 +514,12 @@ const settings = ref<MetaSettings>({
   career: false,
   scraper: false,
   nested: false,
-  marks: false
+  marks: false,
 })
 
 const defaultPathRegexSample = getDefaultPathRegexSample()
 const pathRegexSamplePath = ref(defaultPathRegexSample.samplePath)
 const pathRegexCaptureText = ref(defaultPathRegexSample.captureText)
-const pathRegexSettingsPanel = ref<number[]>([])
 
 const selectedPresetId = ref<AspectPresetId>('1:1')
 const customWidth = ref(3)
@@ -480,21 +528,30 @@ const lastCustomWidth = ref(3)
 const lastCustomHeight = ref(4)
 const customRatioError = ref('')
 
-const chipVariants: ChipVariant[] = [
-  'flat',
-  'tonal',
-  'outlined',
-  'text',
-]
+const chipVariants: ChipVariant[] = ['flat', 'tonal', 'outlined', 'text']
 
 const isPinnedToVideos = ref(false)
 const isPinnedForMediaParser = ref(false)
 const randomColor = ref('#000000')
 
+const showBasics = computed(() => props.sections.includes('basics'))
+const showCapabilities = computed(() => props.sections.includes('capabilities'))
+const showAppearance = computed(() => props.sections.includes('appearance'))
+const showFromPath = computed(() => props.sections.includes('from-path'))
+
+const parseLibraryLink = computed(() => ({
+  path: '/settings',
+  query: {
+    tab: 'library',
+    section: 'parse_library_tags',
+  },
+}))
+
 const BOOLEAN_SETTING_KEYS = new Set<keyof MetaSettings>([
   'hidden',
   'parser',
   'pathRegexCreateTags',
+  'pathRegexEnabled',
   'chipLabel',
   'color',
   'autoColorFromImage',
@@ -603,6 +660,10 @@ const initSettings = () => {
   if (props.meta.pathRegexCreateTags === undefined || props.meta.pathRegexCreateTags === null) {
     nextSettings.pathRegexCreateTags = true
   }
+  if (props.meta.pathRegexEnabled === undefined || props.meta.pathRegexEnabled === null) {
+    // Legacy: pattern present means extract was on.
+    nextSettings.pathRegexEnabled = Boolean(String(nextSettings.pathRegex || '').trim())
+  }
 
   settings.value = nextSettings
   syncAspectRatioUi(Number(nextSettings.imageAspectRatio) || 1)
@@ -630,6 +691,10 @@ const checkPinnedMediaTypes = async () => {
       isAudioMediaType(toMediaType(item.mediaType)) ||
       isTextMediaType(toMediaType(item.mediaType))
     )
+    emit('pin-state-changed', {
+      marks: isPinnedToVideos.value,
+      parser: isPinnedForMediaParser.value,
+    })
   } catch (error) {
     console.error('Error checking pinned media:', error)
     isPinnedToVideos.value = false
@@ -637,7 +702,8 @@ const checkPinnedMediaTypes = async () => {
   }
 }
 
-// Lifecycle
+const refreshPinState = () => checkPinnedMediaTypes()
+
 onMounted(() => {
   nextTick(() => {
     initSettings()
@@ -646,7 +712,6 @@ onMounted(() => {
   })
 })
 
-// Watchers
 watch(settings, () => {
   emit('update', settings.value)
 }, {deep: true})
@@ -661,6 +726,8 @@ watch(() => props.meta?.id, () => {
   initSettings()
   checkPinnedMediaTypes()
 }, {immediate: true})
+
+defineExpose({refreshPinState})
 </script>
 
 <style scoped>
@@ -735,15 +802,5 @@ watch(() => props.meta?.id, () => {
 
 .aspect-ratio-sample--live {
   margin-left: 4px;
-}
-
-.path-regex-settings-panels :deep(.v-expansion-panel-title) {
-  min-height: 44px;
-  padding-inline: 12px;
-  font-size: 0.9375rem;
-}
-
-.path-regex-settings-panels :deep(.v-expansion-panel-text__wrapper) {
-  padding-top: 4px;
 }
 </style>

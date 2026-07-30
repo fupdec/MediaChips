@@ -1,5 +1,6 @@
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
+import orderBy from 'lodash/orderBy'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useWatcherStore} from '@/stores/watcher'
@@ -25,6 +26,10 @@ export function metaPath(id: number | string) {
   return `/meta?metaId=${id}`
 }
 
+function sortMetaNavItems(items: Meta[]) {
+  return orderBy(items, ['hidden', 'order'], ['asc', 'asc'])
+}
+
 export function useLibraryNavItems() {
   const {t} = useI18n()
   const appStore = useAppStore()
@@ -41,7 +46,7 @@ export function useLibraryNavItems() {
   )
 
   const metaArray = computed(() =>
-    appStore.meta.filter((item) => item.type === 'array'),
+    sortMetaNavItems(appStore.meta.filter((item) => item.type === 'array')),
   )
 
   const metaVisible = computed(() =>

@@ -10,16 +10,9 @@
         </template>
       </SettingsCategoryDivider>
 
-      <v-alert
-        color="info"
-        icon="mdi-content-save-alert"
-        class="text-caption"
-        variant="tonal"
-        rounded="xl"
-        density="compact"
-      >
-        {{ t('settings_labels.media_type_added_meta.irreversible_changes') }}
-      </v-alert>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('settings_labels.field_pinning.hint') }}
+      </div>
     </div>
 
     <v-btn-toggle
@@ -86,7 +79,7 @@
 
       <main class="settings-meta-assignment__panel">
         <div v-if="!selectedItem" class="settings-meta-assignment__placeholder">
-          <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-pin-outline</v-icon>
+          <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-eye-outline</v-icon>
           <div class="text-body-1 text-medium-emphasis">
             {{ viewMode === 'media'
               ? t('settings_labels.field_pinning.select_media_type')
@@ -145,15 +138,12 @@ interface AssignmentListItem {
   raw: MediaType | Meta
 }
 
-
-
 const {t} = useI18n()
 const route = useRoute()
 
 const viewMode = ref<AssignmentViewMode>('media')
 const selectedIds = ref<number[]>([])
 const pinnedFieldsByMediaType = ref<Record<number, number>>({})
-const pinnedMediaByMeta = ref<Record<number, number>>({})
 const childPinnedByMeta = ref<Record<number, number>>({})
 
 const mediaTypes = computed(() => useAppStore().mediaTypes || [])
@@ -175,25 +165,20 @@ const listItems = computed((): AssignmentListItem[] => {
         icon: mt.icon,
         title: getMediaTypeName(mt, t),
         pinnedCount,
-        pinnedCountHint: t('settings_labels.field_pinning.pinned_fields_count', {count: pinnedCount}),
+        pinnedCountHint: t('settings_labels.field_pinning.assigned_fields_count', {count: pinnedCount}),
         raw: mt,
       }
     })
   }
 
   return tagCategories.value.map((meta: Meta) => {
-    const mediaCount = pinnedMediaByMeta.value[Number(meta.id)] || 0
     const childCount = childPinnedByMeta.value[Number(meta.id)] || 0
-    const pinnedCount = mediaCount + childCount
     return {
       id: meta.id,
       icon: meta.icon,
       title: meta.name ?? '',
-      pinnedCount,
-      pinnedCountHint: t('settings_labels.field_pinning.pinned_assignments_hint', {
-        media: mediaCount,
-        children: childCount,
-      }),
+      pinnedCount: childCount,
+      pinnedCountHint: t('settings_labels.field_pinning.child_fields_count', {count: childCount}),
       raw: meta,
     }
   })
@@ -229,13 +214,10 @@ const loadAssignmentCounts = async () => {
     ])
 
     const fieldsByMedia: Record<number, number> = {}
-    const mediaByMeta: Record<number, number> = {}
 
     for (const row of mediaTypeRows.data || []) {
       const mediaTypeId = Number(row.mediaTypeId)
-      const metaId = Number(row.metaId)
       fieldsByMedia[mediaTypeId] = (fieldsByMedia[mediaTypeId] || 0) + 1
-      mediaByMeta[metaId] = (mediaByMeta[metaId] || 0) + 1
     }
 
     const childByMeta: Record<number, number> = {}
@@ -245,7 +227,6 @@ const loadAssignmentCounts = async () => {
     }
 
     pinnedFieldsByMediaType.value = fieldsByMedia
-    pinnedMediaByMeta.value = mediaByMeta
     childPinnedByMeta.value = childByMeta
   } catch (e) {
     console.error('Error loading assignment counts:', e)

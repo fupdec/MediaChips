@@ -77,8 +77,6 @@
                 <SettingsMediaTypes/>
               </div>
 
-              <SettingsMetaAssignment/>
-
               <v-switch
                 id="settings-library-advanced"
                 v-model="libraryAdvanced"
@@ -97,6 +95,8 @@
               </v-switch>
 
               <template v-if="libraryAdvanced">
+                <SettingsMetaAssignment/>
+
                 <SettingsSection id="settings-quick-tags-section">
                   <SettingsQuickTags/>
                 </SettingsSection>
@@ -553,6 +553,7 @@ const LIBRARY_SECTIONS = new Set([
 ])
 
 const LIBRARY_ADVANCED_SECTIONS = new Set([
+  "field_pinning",
   "quick_tags",
   "parse_library_tags",
 ])
@@ -613,6 +614,15 @@ function applyRouteSettings() {
     tab.value = "about"
   } else if (route.query.tab) {
     tab.value = resolveTab(String(route.query.tab))
+  }
+
+  // Deep-links into field pinning may use view/mediaTypeId/metaId without section
+  if (
+    resolveTab(String(route.query.tab || tab.value)) === "library"
+    && (route.query.view === "media" || route.query.view === "tags"
+      || route.query.mediaTypeId || route.query.metaId)
+  ) {
+    libraryAdvanced.value = true
   }
 
   const sectionId = SETTINGS_SECTION_IDS[section]

@@ -125,6 +125,7 @@
               class="ma-1"
               :class="{'meta-field-chip--hidden': m.hidden && m.type === 'array'}"
               @click="openEditDialog(m)"
+              @contextmenu.prevent.stop="showMetaChipMenu($event, m)"
             >
               <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
               <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
@@ -140,6 +141,7 @@
           class="ma-1"
           :class="{'meta-field-chip--hidden': m.hidden && m.type === 'array'}"
           @click="openEditDialog(m)"
+          @contextmenu.prevent.stop="showMetaChipMenu($event, m)"
         >
           <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
           <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
@@ -156,8 +158,20 @@
       :edit-mode="editMode"
       :meta="selectedMeta"
       :dialog="editDialog"
+      :initial-tab="initialEditTab"
       @updated="getMeta"
       @close="closeEditDialog"
+      @request-edit="onRequestEdit"
+      @delete="getMeta"
+    />
+
+    <DialogConfirm
+      v-if="deleteConfirmDialog"
+      variant="delete"
+      :dialog="deleteConfirmDialog"
+      :text="deleteConfirmText"
+      @close="cancelDeleteMeta"
+      @delete="confirmDeleteMeta"
     />
   </div>
 </template>
@@ -165,13 +179,18 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRouter} from 'vue-router'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
+import {useContextMenu} from '@/stores/contextMenu'
 import {useAppShell} from '@/composable/appShell'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
+import {typedApi} from '@/services/typedApi'
+import {setNotification} from '@/services/notificationService'
 import isEmpty from 'lodash/isEmpty'
 import MetaManager from '@/components/dialogs/DialogMetaManager.vue'
+import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {
   groupMetaByType,
@@ -184,12 +203,14 @@ import {
 import {highlightChars} from '@/services/formatUtils'
 import {getIconDataType, getTextDataType} from '@/services/metaTypeUtils'
 import {setOption} from '@/services/settingsService'
-import type {Meta} from '@/types/stores'
+import type {ContextMenuEntry, Meta} from '@/types/stores'
 
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
+const contextMenuStore = useContextMenu()
 const appShell = useAppShell()
+const router = useRouter()
 const {t, te} = useI18n()
 
 const formatDataType = (type: string) => getTextDataType(type, {te, t})
@@ -201,7 +222,10 @@ const initiated = ref(false)
 const selectedMeta = ref<Meta | null>(null)
 const editDialog = ref(false)
 const editMode = ref(false)
+const initialEditTab = ref<'basics' | 'where' | 'appearance' | 'capabilities' | 'from-path' | null>(null)
 const metaKey = ref(0)
+const deleteConfirmDialog = ref(false)
+const metaPendingDelete = ref<Meta | null>(null)
 
 const groupMode = computed((): MetaGroupByMode =>
   (settingsStore.meta_group_by as MetaGroupByMode) || META_GROUP_BY_MODES.none,
@@ -250,6 +274,17 @@ const groupedFields = computed(() => {
   return Object.entries(grouped).map(([type, items]) => ({type, items}))
 })
 
+const deleteConfirmText = computed(() => {
+  const item = metaPendingDelete.value
+  if (!item) return ''
+  let text = t('meta.dialogs.delete_meta_assigned_confirm') + '\n'
+  if (item.type === 'array') {
+    text += t('meta.dialogs.delete_meta_tags_confirm') + '\n'
+  }
+  text += t('common.are_you_sure')
+  return text
+})
+
 const setGroupByType = (value: boolean | null) => {
   if (value) typeFilter.value = null
   setOption(
@@ -277,18 +312,220 @@ const getMeta = async (_type?: string) => {
 
 const openCreateDialog = () => {
   editMode.value = false
+  selectedMeta.value = null
+  initialEditTab.value = null
   editDialog.value = true
 }
 
-const openEditDialog = (metaItem: Meta) => {
+const openEditDialog = (
+  metaItem: Meta,
+  tab: 'basics' | 'where' | 'appearance' | 'capabilities' | 'from-path' | null = null,
+) => {
   selectedMeta.value = metaItem
   editMode.value = true
+  initialEditTab.value = tab
   editDialog.value = true
 }
 
 const closeEditDialog = () => {
   editDialog.value = false
   selectedMeta.value = null
+  initialEditTab.value = null
+}
+
+const onRequestEdit = async (payload: {
+  meta: Meta
+  tab?: 'basics' | 'where' | 'appearance' | 'capabilities' | 'from-path'
+}) => {
+  await getMeta()
+  const fresh = meta.value.find((item) => item.id === payload.meta.id) || payload.meta
+  openEditDialog(fresh, payload.tab || 'basics')
+}
+
+const requestDeleteMeta = (metaItem: Meta) => {
+  metaPendingDelete.value = metaItem
+  deleteConfirmDialog.value = true
+}
+
+const cancelDeleteMeta = () => {
+  deleteConfirmDialog.value = false
+  metaPendingDelete.value = null
+}
+
+const confirmDeleteMeta = async () => {
+  const item = metaPendingDelete.value
+  deleteConfirmDialog.value = false
+  metaPendingDelete.value = null
+  if (!item?.id) return
+
+  try {
+    await typedApi.deleteMeta(item.id)
+    setNotification({
+      type: 'success',
+      title: t('meta.dialogs.meta_deleted', {name: item.name}),
+    })
+    await getMeta()
+  } catch (error) {
+    console.error('Error deleting meta:', error)
+    setNotification({
+      type: 'error',
+      text: t('meta.dialogs.failed_delete'),
+    })
+  }
+}
+
+const showMetaChipMenu = (e: MouseEvent, metaItem: Meta) => {
+  const isArray = metaItem.type === 'array'
+  const content: ContextMenuEntry[] = [
+    {
+      name: t('common.edit'),
+      type: 'item',
+      icon: 'pencil',
+      action: () => openEditDialog(metaItem),
+    },
+  ]
+
+  if (isArray) {
+    content.push({
+      name: t('context_menu.open_page'),
+      type: 'item',
+      icon: 'open-in-app',
+      action: () => {
+        void router.push({path: '/meta', query: {metaId: metaItem.id}})
+      },
+    })
+  }
+
+  content.push({type: 'divider'})
+
+  if (isArray) {
+    content.push({
+      name: metaItem.hidden
+        ? t('meta.settings.show_in_navigation')
+        : t('meta.settings.hide_in_navigation'),
+      type: 'item',
+      icon: metaItem.hidden ? 'eye' : 'eye-off',
+      action: () => {
+        void updateMetaFlag(metaItem, 'hidden', !metaItem.hidden)
+      },
+    })
+    content.push({type: 'divider'})
+  }
+
+  content.push({
+    name: t('meta.dialogs.tab_where'),
+    type: 'item',
+    icon: 'pin',
+    action: () => openEditDialog(metaItem, 'where'),
+  })
+
+  if (isArray) {
+    content.push({
+      name: t('meta.dialogs.tab_appearance'),
+      type: 'item',
+      icon: 'palette-outline',
+      action: () => openEditDialog(metaItem, 'appearance'),
+    })
+    content.push({
+      name: t('meta.dialogs.tab_capabilities'),
+      type: 'item',
+      icon: 'tune',
+      action: () => openEditDialog(metaItem, 'capabilities'),
+    })
+    content.push({
+      name: t('meta.dialogs.tab_from_path'),
+      type: 'item',
+      icon: 'folder-search-outline',
+      action: () => openEditDialog(metaItem, 'from-path'),
+    })
+
+    content.push({type: 'divider'})
+
+    content.push({
+      name: t('meta.settings.preset_meta_in_tags'),
+      type: 'menu',
+      icon: 'shape',
+      menu: [
+        flagMenuItem(metaItem, 'rating', t('meta.types.rating')),
+        flagMenuItem(metaItem, 'favorite', t('meta.sorting.favorite')),
+        flagMenuItem(metaItem, 'synonyms', t('filters.sort.synonyms')),
+        flagMenuItem(metaItem, 'bookmark', t('player.controls.bookmark')),
+        flagMenuItem(metaItem, 'country', t('meta.types.country')),
+      ],
+    })
+
+    content.push({
+      name: t('meta.settings.capabilities'),
+      type: 'menu',
+      icon: 'cog-outline',
+      menu: [
+        flagMenuItem(
+          metaItem,
+          'parser',
+          t('meta.settings.parse_media_for_tags'),
+        ),
+        flagMenuItem(
+          metaItem,
+          'marks',
+          t('meta.settings.marks_in_player'),
+        ),
+      ],
+    })
+  }
+
+  content.push(
+    {type: 'divider'},
+    {
+      name: t('common.delete'),
+      type: 'item',
+      icon: 'delete',
+      color: 'error',
+      action: () => requestDeleteMeta(metaItem),
+    },
+  )
+
+  contextMenuStore.showContextMenu({
+    x: e.clientX,
+    y: e.clientY,
+    content,
+  })
+}
+
+const flagMenuItem = (
+  metaItem: Meta,
+  key: MetaToggleKey,
+  name: string,
+): ContextMenuEntry => {
+  const enabled = Boolean(metaItem[key])
+  return {
+    name,
+    type: 'item',
+    icon: enabled ? 'checkbox-marked' : 'checkbox-blank-outline',
+    action: () => {
+      void updateMetaFlag(metaItem, key, !enabled)
+    },
+  }
+}
+
+type MetaToggleKey = 'hidden' | 'rating' | 'favorite' | 'synonyms' | 'bookmark' | 'country' | 'parser' | 'marks'
+
+const updateMetaFlag = async (
+  metaItem: Meta,
+  key: MetaToggleKey,
+  value: boolean,
+) => {
+  if (!metaItem.id) return
+  try {
+    await typedApi.updateMeta(metaItem.id, {[key]: value})
+    await reloadMetaCatalog()
+    await getMeta()
+  } catch (error) {
+    console.error(`Failed updating meta.${key}`, error)
+    setNotification({
+      type: 'error',
+      text: t('meta.dialogs.failed_add'),
+    })
+  }
 }
 
 const openCategoryMerge = () => {

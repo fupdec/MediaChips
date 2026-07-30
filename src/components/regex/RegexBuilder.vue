@@ -24,6 +24,9 @@ const props = withDefaults(defineProps<{
   intro?: string
   showPresets?: boolean
   showReplace?: boolean
+  showIntro?: boolean
+  /** Prefer presets + example generator; tuck raw pattern under Custom */
+  presetsFirst?: boolean
   flags?: string
 }>(), {
   mode: 'match',
@@ -34,6 +37,8 @@ const props = withDefaults(defineProps<{
   intro: '',
   showPresets: true,
   showReplace: undefined,
+  showIntro: true,
+  presetsFirst: false,
   flags: undefined,
 })
 
@@ -51,6 +56,7 @@ const localReplace = ref(props.replace || '$1')
 const localSample = ref(props.sample)
 const localCapture = ref(props.captureText)
 const generatorMessage = ref<{type: 'success' | 'error' | 'info'; text: string} | null>(null)
+const customPanel = ref<number[]>(props.pattern?.trim() ? [0] : [])
 
 watch(() => props.pattern, (value) => {
   if (value !== localPattern.value) localPattern.value = value || ''
@@ -240,6 +246,7 @@ defineExpose({
 <template>
   <div class="regex-builder">
     <v-alert
+      v-if="showIntro"
       type="info"
       variant="tonal"
       density="compact"
@@ -253,7 +260,7 @@ defineExpose({
       <div class="text-caption text-medium-emphasis mb-2">
         {{ t('regex_builder.presets') }}
       </div>
-      <div class="d-flex flex-wrap ga-2 mb-4">
+      <div class="d-flex flex-wrap ga-2 mb-3">
         <v-chip
           v-for="preset in presets"
           :key="preset.id"
@@ -269,45 +276,12 @@ defineExpose({
       </div>
     </template>
 
-    <v-text-field
-      :model-value="localPattern"
-      :label="t('regex_builder.pattern')"
-      :hint="t('regex_builder.pattern_hint')"
-      :error-messages="patternError"
-      persistent-hint
-      density="compact"
-      variant="outlined"
-      rounded="lg"
-      hide-details="auto"
-      class="mb-3"
-      @update:model-value="setPattern(String($event ?? ''))"
-    />
-
-    <v-text-field
-      v-if="showReplaceField"
-      :model-value="localReplace"
-      :label="t('regex_builder.replace')"
-      :hint="t('regex_builder.replace_hint')"
-      persistent-hint
-      density="compact"
-      variant="outlined"
-      rounded="lg"
-      hide-details="auto"
-      class="mb-3"
-      placeholder="$1"
-      @update:model-value="setReplace(String($event ?? ''))"
-    />
-
     <settings-category-divider
       icon="auto-fix"
       compact
       :title="t('regex_builder.generator')"
-      class="mb-3"
+      class="mb-2"
     />
-
-    <div class="text-caption text-medium-emphasis mb-3">
-      {{ t('regex_builder.generator_hint') }}
-    </div>
 
     <v-text-field
       :model-value="localSample"
@@ -324,8 +298,8 @@ defineExpose({
       <v-text-field
         :model-value="localCapture"
         :label="t('regex_builder.capture_text')"
-        :hint="t('regex_builder.capture_text_hint')"
-        persistent-hint
+        :hint="presetsFirst ? undefined : t('regex_builder.capture_text_hint')"
+        :persistent-hint="!presetsFirst"
         density="compact"
         variant="outlined"
         rounded="lg"
@@ -356,7 +330,80 @@ defineExpose({
       {{ generatorMessage.text }}
     </v-alert>
 
+    <template v-if="presetsFirst">
+      <v-expansion-panels
+        v-model="customPanel"
+        variant="accordion"
+        rounded="lg"
+        class="mb-3 regex-builder__custom"
+      >
+        <v-expansion-panel rounded="lg">
+          <v-expansion-panel-title>
+            {{ t('regex_builder.custom_pattern') }}
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <v-text-field
+              :model-value="localPattern"
+              :label="t('regex_builder.pattern')"
+              :error-messages="patternError"
+              density="compact"
+              variant="outlined"
+              rounded="lg"
+              hide-details="auto"
+              class="mb-3"
+              @update:model-value="setPattern(String($event ?? ''))"
+            />
+
+            <v-text-field
+              v-if="showReplaceField"
+              :model-value="localReplace"
+              :label="t('regex_builder.replace')"
+              density="compact"
+              variant="outlined"
+              rounded="lg"
+              hide-details="auto"
+              class="mb-1"
+              placeholder="$1"
+              @update:model-value="setReplace(String($event ?? ''))"
+            />
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+    </template>
+
+    <template v-else>
+      <v-text-field
+        :model-value="localPattern"
+        :label="t('regex_builder.pattern')"
+        :hint="t('regex_builder.pattern_hint')"
+        :error-messages="patternError"
+        persistent-hint
+        density="compact"
+        variant="outlined"
+        rounded="lg"
+        hide-details="auto"
+        class="mb-3"
+        @update:model-value="setPattern(String($event ?? ''))"
+      />
+
+      <v-text-field
+        v-if="showReplaceField"
+        :model-value="localReplace"
+        :label="t('regex_builder.replace')"
+        :hint="t('regex_builder.replace_hint')"
+        persistent-hint
+        density="compact"
+        variant="outlined"
+        rounded="lg"
+        hide-details="auto"
+        class="mb-3"
+        placeholder="$1"
+        @update:model-value="setReplace(String($event ?? ''))"
+      />
+    </template>
+
     <v-alert
+      v-if="!presetsFirst || localPattern.trim() || validation.type !== 'info'"
       :type="validation.type"
       variant="tonal"
       density="compact"

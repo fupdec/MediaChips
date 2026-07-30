@@ -18,6 +18,7 @@ export const meta = sqliteTable('meta', {
   pathRegex: text('pathRegex'),
   pathRegexReplace: text('pathRegexReplace').default('$1'),
   pathRegexCreateTags: integer('pathRegexCreateTags', {mode: 'boolean'}).default(true),
+  pathRegexEnabled: integer('pathRegexEnabled', {mode: 'boolean'}).default(false),
   country: integer('country', {mode: 'boolean'}).default(false),
   career: integer('career', {mode: 'boolean'}).default(false),
   scraper: integer('scraper', {mode: 'boolean'}).default(false),

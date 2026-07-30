@@ -1,10 +1,10 @@
 <template>
-  <!-- Диалог для управления метой -->
   <v-dialog
     v-model="internalDialog"
     :fullscreen="xs"
     scrollable
-    :width="600"
+    :width="dialogWidth"
+    content-class="dialog-position-start meta-manager-dialog"
     @after-leave="resetDialogState"
   >
     <v-card>
@@ -15,126 +15,219 @@
         closable
       />
 
-      <v-card-text :key="metaKey" class="px-4 pb-6 pt-6 meta-manager-dialog-content">
-        <div class="dialog-settings-stack">
-          <SettingsSection padded>
-            <MetaFieldFormPreview
-              v-if="metaSettings.type"
+      <v-card-text :key="metaKey" class="px-4 pb-6 pt-4 meta-manager-dialog-content">
+        <div
+          class="meta-manager-tabs-layout"
+          :class="{'meta-manager-tabs-layout--vertical': showEditTabs && mdAndUp}"
+        >
+          <v-tabs
+            v-if="showEditTabs"
+            v-model="editTab"
+            :direction="mdAndUp ? 'vertical' : undefined"
+            density="compact"
+            class="meta-manager-tabs"
+            :class="mdAndUp ? '' : 'mb-4'"
+            color="primary"
+            :grow="!mdAndUp"
+          >
+            <v-tab value="basics" prepend-icon="mdi-cog-outline">
+              {{ t('meta.dialogs.tab_basics') }}
+            </v-tab>
+            <v-tab value="where" prepend-icon="mdi-pin-outline">
+              {{ t('meta.dialogs.tab_where') }}
+            </v-tab>
+            <v-tab
+              v-if="isArrayType"
+              value="appearance"
+              prepend-icon="mdi-palette-outline"
+            >
+              {{ t('meta.dialogs.tab_appearance') }}
+            </v-tab>
+            <v-tab
+              v-if="isArrayType"
+              value="from-path"
+              prepend-icon="mdi-folder-search-outline"
+            >
+              {{ t('meta.dialogs.tab_from_path') }}
+            </v-tab>
+            <v-tab
+              v-if="isArrayType"
+              value="capabilities"
+              prepend-icon="mdi-tune"
+            >
+              {{ t('meta.dialogs.tab_capabilities') }}
+            </v-tab>
+          </v-tabs>
+
+          <div class="dialog-settings-stack">
+          <!-- Basics (always for create; tab for array edit) -->
+          <template v-if="showBasicsPanel">
+            <SettingsSection padded>
+              <v-form
+                v-model="valid"
+                ref="form"
+                class="flex-grow-1"
+                @submit.prevent
+              >
+                <div v-if="!editMode" class="mb-4">
+                  <div class="text-caption text-medium-emphasis mb-2">
+                    {{ t('common.type') }}
+                  </div>
+                  <div class="meta-type-filters d-flex flex-wrap ga-2 mb-3">
+                    <v-chip
+                      v-for="typeOption in metaTypes"
+                      :key="typeOption.value"
+                      size="small"
+                      label
+                      :color="metaSettings.type === typeOption.value ? 'primary' : undefined"
+                      :variant="metaSettings.type === typeOption.value ? 'flat' : 'outlined'"
+                      @click="selectMetaType(typeOption.value)"
+                    >
+                      <v-icon start size="16">{{ typeOption.icon }}</v-icon>
+                      {{ typeOption.text }}
+                    </v-chip>
+                  </div>
+                  <v-alert
+                    type="info"
+                    variant="tonal"
+                    density="compact"
+                    rounded="xl"
+                    class="text-caption"
+                  >
+                    {{ metaSettings.type === 'array'
+                      ? t('meta.dialogs.array_meta_info')
+                      : getHint() }}
+                  </v-alert>
+                </div>
+
+                <v-text-field
+                  v-model="metaSettings.name"
+                  :rules="[nameRules]"
+                  :label="t('common.name')"
+                  class="mb-3"
+                  density="comfortable"
+                />
+
+                <v-text-field
+                  v-model="metaSettings.hint"
+                  :label="t('common.hint')"
+                  :hint="t('meta.fields.hint_help')"
+                  persistent-hint
+                  class="mb-3"
+                  density="comfortable"
+                />
+
+                <DialogIcons
+                  :icon="metaSettings.icon"
+                  @apply="changeIcon"
+                />
+              </v-form>
+
+              <MetaFieldFormPreview
+                v-if="metaSettings.type"
+                :meta="metaSettingsAsMeta"
+                class="mt-4"
+              />
+            </SettingsSection>
+
+            <!-- Create: only hide-in-nav for array -->
+            <MetaSettingsArray
+              v-if="!editMode && metaSettings.type === 'array'"
+              :meta="metaSettingsAsMeta"
+              :edit-mode="false"
+              :sections="['basics']"
+              @update="updateMetaSettings"
+            />
+
+            <!-- Edit basics tab: hide-in-nav -->
+            <MetaSettingsArray
+              v-if="editMode && metaSettings.type === 'array' && editTab === 'basics'"
+              ref="arrayBasicsRef"
+              :meta="metaSettingsAsMeta"
+              :edit-mode="true"
+              :sections="['basics']"
+              @update="updateMetaSettings"
+              @request-assign="focusWhereTab"
+            />
+
+            <MetaSettingsRating
+              v-if="showBasicsPanel && metaSettings.type === 'rating'"
+              @update="updateMetaSettings"
               :meta="metaSettingsAsMeta"
             />
 
-            <v-alert
-              v-if="!editMode && metaSettings.type === 'array'"
-              type="info"
-              class="text-caption mb-4 mt-2"
-              variant="tonal"
-              density="compact"
-              rounded="xl"
-            >
-              {{ t('meta.dialogs.array_meta_info') }}
-            </v-alert>
-
-            <v-form
-              v-model="valid"
-              ref="form"
-              class="flex-grow-1"
-              @submit.prevent
-            >
-              <v-select
-                v-if="!editMode"
-                v-model="metaSettings.type"
-                :items="metaTypes"
-                item-title="text"
-                item-value="value"
-                :rules="[(v) => !!v || t('validation.type_required')]"
-                :menu-props="{ attach: '.meta-manager-dialog-content' }"
-                persistent-hint
-                :hint="getHint()"
-                :label="t('common.type')"
-                class="mb-3"
-              >
-                <template v-slot:selection="{ item }">
-                  <v-icon :icon="item.raw.icon" size="16" start />
-                  <span class="text-body-2">{{ item.raw.text }}</span>
-                </template>
-
-                <template v-slot:item="{ props, item }">
-                  <v-list-item
-                    v-bind="props"
-                    :prepend-icon="item.raw.icon"
-                    :title="item.raw.text"
-                    density="compact"
-                  />
-                </template>
-              </v-select>
-
-              <v-text-field
-                v-model="metaSettings.name"
-                :rules="[nameRules]"
-                :label="t('common.name')"
-                class="mb-3"
-                density="comfortable"
-              />
-
-              <v-text-field
-                v-model="metaSettings.hint"
-                :label="t('common.hint')"
-                :hint="t('meta.fields.hint_help')"
-                persistent-hint
-                class="mb-3"
-                density="comfortable"
-              />
-
-              <DialogIcons
-                :icon="metaSettings.icon"
-                @apply="changeIcon"
-              />
-            </v-form>
-          </SettingsSection>
-
-          <MetaSettingsArray
-            v-if="metaSettings.type === 'array'"
-            @update="updateMetaSettings"
-            :meta="metaSettingsAsMeta"
-            :edit-mode="editMode"
-          />
-
-          <MetaSettingsRating
-            v-if="metaSettings.type === 'rating'"
-            @update="updateMetaSettings"
-            :meta="metaSettingsAsMeta"
-          />
-
-          <MetaSettingsNumber
-            v-if="metaSettings.type === 'number'"
-            @update="updateMetaSettings"
-            :meta="metaSettingsAsMeta"
-          />
-
-          <SettingsSection v-if="metaSettings.type === 'string'" padded>
-            <settings-category-divider icon="link-variant" compact :title="t('meta.fields.link')"/>
-            <v-switch
-              v-model="metaSettings.isLink"
-              :label="t('meta.fields.link')"
-              hide-details
-              inset
+            <MetaSettingsNumber
+              v-if="showBasicsPanel && metaSettings.type === 'number'"
+              @update="updateMetaSettings"
+              :meta="metaSettingsAsMeta"
             />
-          </SettingsSection>
 
-          <SettingsSection
-            v-if="!editMode && !hasOptions"
-            padded
-            class="d-flex flex-column justify-center align-center text-center"
-          >
-            <v-icon size="48" color="grey-lighten-1" class="mb-2">mdi-cog</v-icon>
-            <div>{{ t('meta.fields.no_additional_settings') }}</div>
-          </SettingsSection>
+            <SettingsSection v-if="showBasicsPanel && metaSettings.type === 'string'" padded>
+              <settings-category-divider icon="link-variant" compact :title="t('meta.fields.link')"/>
+              <v-switch
+                v-model="metaSettings.isLink"
+                :label="t('meta.fields.link')"
+                hide-details
+                inset
+              />
+            </SettingsSection>
+
+            <SettingsSection
+              v-if="showBasicsPanel && !editMode && !hasOptions"
+              padded
+              class="d-flex flex-column justify-center align-center text-center"
+            >
+              <v-icon size="48" color="grey-lighten-1" class="mb-2">mdi-cog</v-icon>
+              <div>{{ t('meta.fields.no_additional_settings') }}</div>
+            </SettingsSection>
+          </template>
+
+          <!-- Where it appears (edit only) -->
+          <MetaWhereAppears
+            v-if="showWherePanel"
+            ref="whereAppearsRef"
+            :meta="metaSettingsAsMeta"
+            @updated="onAssignmentsUpdated"
+            @close="closeDialog"
+          />
+
+          <!-- Appearance tab -->
+          <MetaSettingsArray
+            v-if="editMode && metaSettings.type === 'array' && editTab === 'appearance'"
+            :meta="metaSettingsAsMeta"
+            :edit-mode="true"
+            :sections="['appearance']"
+            @update="updateMetaSettings"
+          />
+
+          <!-- From path tab -->
+          <MetaSettingsArray
+            v-if="editMode && metaSettings.type === 'array' && editTab === 'from-path'"
+            ref="arrayFromPathRef"
+            :meta="metaSettingsAsMeta"
+            :edit-mode="true"
+            :sections="['from-path']"
+            @update="updateMetaSettings"
+            @request-assign="focusWhereTab"
+            @close="closeDialog"
+          />
+
+          <!-- Capabilities tab (last) -->
+          <MetaSettingsArray
+            v-if="editMode && metaSettings.type === 'array' && editTab === 'capabilities'"
+            ref="arrayCapabilitiesRef"
+            :meta="metaSettingsAsMeta"
+            :edit-mode="true"
+            :sections="['capabilities']"
+            @update="updateMetaSettings"
+            @request-assign="focusWhereTab"
+          />
+          </div>
         </div>
       </v-card-text>
     </v-card>
   </v-dialog>
 
-  <!-- Диалог подтверждения удаления (только в режиме редактирования) -->
   <DialogConfirm
     v-if="editMode && dialogDeleteMeta"
     variant="delete"
@@ -142,11 +235,19 @@
     @delete="deleteMeta"
     @close="dialogDeleteMeta=false"
     :text="textDialogDelete"
-  ></DialogConfirm>
+  />
+
+  <DialogMetaNextSteps
+    :dialog="nextStepsDialog"
+    :meta="createdMeta"
+    @close="nextStepsDialog = false"
+    @assign="onNextStepsAssign"
+    @edit-path="onNextStepsEditPath"
+  />
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, defineAsyncComponent} from 'vue'
+import {ref, computed, watch, defineAsyncComponent, nextTick} from 'vue'
 import type {PropType} from 'vue'
 import type {VFormInstance} from '@/types/vue'
 import {getErrorResponseData} from '@/types/vue'
@@ -155,10 +256,12 @@ import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
+import DialogMetaNextSteps from '@/components/dialogs/DialogMetaNextSteps.vue'
 import MetaSettingsArray from '@/components/dialogs/meta/MetaSettingsArray.vue'
 import MetaSettingsRating from '@/components/dialogs/meta/MetaSettingsRating.vue'
 import MetaSettingsNumber from '@/components/dialogs/meta/MetaSettingsNumber.vue'
 import MetaFieldFormPreview from '@/components/dialogs/meta/MetaFieldFormPreview.vue'
+import MetaWhereAppears from '@/components/dialogs/meta/MetaWhereAppears.vue'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import MetaTypes from '@/assets/MetaTypes'
@@ -171,6 +274,8 @@ import {
 } from '@shared/measurementUnits'
 import type {Meta} from '@/types/stores'
 import type { MetaWritePayload } from '@shared/entities/meta'
+
+type EditTab = 'basics' | 'where' | 'appearance' | 'capabilities' | 'from-path'
 
 interface DialogHeaderButton {
   icon?: string
@@ -191,6 +296,7 @@ interface MetaSettingsForm {
   pathRegex: string
   pathRegexReplace: string
   pathRegexCreateTags: boolean
+  pathRegexEnabled: boolean
   imageAspectRatio: number
   tagPageDesign: string
   measurementUnit: string | null
@@ -217,39 +323,44 @@ interface MetaSettingsForm {
   [key: string]: unknown
 }
 
-// Props
 const props = defineProps({
   dialog: {
     type: Boolean,
     default: false
   },
-  // Для режима редактирования
   meta: {
     type: Object as PropType<Meta | null>,
     default: null
   },
-  // Режим работы: создание (false) или редактирование (true)
   editMode: {
     type: Boolean,
     default: false
-  }
+  },
+  /** When opening edit, jump to a specific tab (e.g. from-path after next steps) */
+  initialTab: {
+    type: String as PropType<EditTab | null>,
+    default: null,
+  },
 })
 
-// Emits
-const emit = defineEmits(['updated', 'close', 'delete'])
+const emit = defineEmits(['updated', 'close', 'delete', 'created', 'request-edit'])
 
-// Stores
-const {xs} = useDisplay()
+const {xs, mdAndUp} = useDisplay()
 const {t} = useI18n()
 
-// Refs
 const form = ref<VFormInstance>(null)
 const internalDialog = ref(false)
 const dialogIcons = ref(false)
 const dialogDeleteMeta = ref(false)
 const valid = ref(false)
+const editTab = ref<EditTab>('basics')
+const nextStepsDialog = ref(false)
+const createdMeta = ref<Meta | null>(null)
+const whereAppearsRef = ref<{refresh: () => Promise<void>} | null>(null)
+const arrayBasicsRef = ref<{refreshPinState: () => Promise<void>} | null>(null)
+const arrayCapabilitiesRef = ref<{refreshPinState: () => Promise<void>} | null>(null)
+const arrayFromPathRef = ref<{refreshPinState: () => Promise<void>} | null>(null)
 
-// Meta data
 const metaTypes = computed(() => MetaTypes.map(type => ({
   ...type,
   text: t(`meta.types.${type.value}`),
@@ -257,22 +368,17 @@ const metaTypes = computed(() => MetaTypes.map(type => ({
 })))
 
 const metaSettingsDefault = ref<MetaSettingsForm>({
-
-  // Основные настройки для всех типов
   type: 'array',
   name: '',
   hint: '',
   icon: 'shape',
-
-  // Настройки для типа string
   isLink: false,
-
-  // Настройки для типа array
   hidden: false,
   parser: false,
   pathRegex: '',
   pathRegexReplace: '$1',
   pathRegexCreateTags: true,
+  pathRegexEnabled: false,
   imageAspectRatio: 1,
   tagPageDesign: 'profile',
   measurementUnit: null,
@@ -289,8 +395,6 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   scraper: false,
   nested: false,
   marks: false,
-
-  // Настройки для типа rating
   ratingIcon: "star",
   ratingIconEmpty: "star-outline",
   ratingIconHalf: "star-half-full",
@@ -309,15 +413,35 @@ function toMetaPreview(form: MetaSettingsForm): Meta {
 }
 
 const metaSettingsAsMeta = computed(() => toMetaPreview(metaSettings.value))
-
-// Keys для принудительного перерисовывания
 const metaKey = ref(0)
-
-// Buttons for DialogHeader
 const buttons = ref<DialogHeaderButton[]>([])
 
-// Computed
 const hasOptions = computed(() => ['array', 'rating', 'string', 'number'].includes(metaSettings.value.type))
+const isArrayType = computed(() => metaSettings.value.type === 'array')
+
+const dialogWidth = computed(() => {
+  if (!props.editMode) return 550
+  return 830
+})
+
+const showEditTabs = computed(() => props.editMode)
+
+const availableEditTabs = computed((): EditTab[] => {
+  if (isArrayType.value) {
+    return ['basics', 'where', 'appearance', 'from-path', 'capabilities']
+  }
+  return ['basics', 'where']
+})
+
+const showBasicsPanel = computed(() => {
+  if (!props.editMode) return true
+  return editTab.value === 'basics'
+})
+
+const showWherePanel = computed(() => {
+  if (!props.editMode || !metaSettings.value.id) return false
+  return editTab.value === 'where'
+})
 
 const dialogHeader = computed(() => {
   return props.editMode ? t('media.type.editing_meta') : t('meta.dialogs.adding_meta')
@@ -334,7 +458,6 @@ const textDialogDelete = computed(() => {
   return text
 })
 
-// Methods
 const initButtons = () => {
   if (props.editMode && props.meta) {
     buttons.value = [
@@ -373,45 +496,89 @@ const changeIcon = (icon: string) => {
   metaSettings.value.icon = icon
 }
 
+const selectMetaType = (type: string) => {
+  if (metaSettings.value.type === type) return
+  metaSettings.value.type = type
+  const typeMeta = MetaTypes.find((item) => item.value === type)
+  if (typeMeta?.icon) {
+    // MetaTypes icons are mdi-*; form stores bare name
+    metaSettings.value.icon = typeMeta.icon.replace(/^mdi-/, '')
+  }
+}
+
 const nameRules = (value: string) => {
-  return validateName(value)
+  const result = validateName(value)
+  return result === true ? true : t(result)
+}
+
+const focusWhereTab = () => {
+  editTab.value = 'where'
+}
+
+const onAssignmentsUpdated = async () => {
+  await Promise.all([
+    arrayBasicsRef.value?.refreshPinState(),
+    arrayCapabilitiesRef.value?.refreshPinState(),
+    arrayFromPathRef.value?.refreshPinState(),
+  ])
 }
 
 const buildMetaCreatePayload = (): MetaWritePayload => {
-  const form = metaSettings.value
+  const formData = metaSettings.value
   const base: MetaWritePayload = {
-    type: form.type,
-    name: form.name,
-    hint: form.hint,
-    icon: form.icon,
+    type: formData.type,
+    name: formData.name,
+    hint: formData.hint,
+    icon: formData.icon,
   }
 
-  if (form.type === 'string') {
+  if (formData.type === 'string') {
     return {
       ...base,
-      isLink: form.isLink,
+      isLink: formData.isLink,
     }
   }
 
-  if (form.type === 'number') {
+  if (formData.type === 'number') {
     return {
       ...base,
-      measurementUnit: form.measurementUnit,
+      measurementUnit: formData.measurementUnit,
     }
   }
 
-  if (form.type === 'rating' || form.type === 'array') {
-    return {...form}
+  if (formData.type === 'array') {
+    return {
+      ...base,
+      hidden: formData.hidden,
+    }
+  }
+
+  if (formData.type === 'rating') {
+    return {...formData}
   }
 
   return base
 }
 
 const sendForm = async () => {
-  if (!form.value) return
+  if (!form.value && showBasicsPanel.value) {
+    // Form may be unmounted on non-basics tabs; skip name validation only when basics not visible
+  }
 
-  const {valid: formValid} = await form.value.validate()
-  if (!formValid) return
+  if (showBasicsPanel.value && form.value) {
+    const {valid: formValid} = await form.value.validate()
+    if (!formValid) {
+      editTab.value = 'basics'
+      return
+    }
+  } else if (!metaSettings.value.name?.trim()) {
+    editTab.value = 'basics'
+    await nextTick()
+    if (form.value) {
+      await form.value.validate()
+    }
+    return
+  }
 
   if (props.editMode && props.meta?.id && metaSettings.value.type === 'number') {
     const fromUnit = normalizeMeasurementUnit(props.meta.measurementUnit)
@@ -447,6 +614,17 @@ const sendForm = async () => {
           type: 'success',
           title: t('meta.dialogs.meta_added', {name: metaSettings.value.name})
         })
+
+        const created = response.data as Meta
+        emit('created', created)
+        emit('updated', metaSettings.value.type)
+        closeDialog()
+
+        if (created.type === 'array') {
+          createdMeta.value = created
+          nextStepsDialog.value = true
+        }
+        return
       }
 
       emit('updated', metaSettings.value.type)
@@ -480,11 +658,26 @@ const closeDialog = () => {
 const resetDialogState = () => {
   metaSettings.value = {...metaSettingsDefault.value}
   valid.value = false
+  editTab.value = 'basics'
 
   if (form.value) {
     form.value.reset()
     form.value.resetValidation()
   }
+}
+
+const openCreatedForPath = (meta: Meta) => {
+  nextStepsDialog.value = false
+  emit('request-edit', {meta, tab: 'from-path' as EditTab})
+}
+
+const onNextStepsEditPath = (meta: Meta) => {
+  openCreatedForPath(meta)
+}
+
+const onNextStepsAssign = (meta: Meta) => {
+  nextStepsDialog.value = false
+  emit('request-edit', {meta, tab: 'where' as EditTab})
 }
 
 const deleteMeta = async () => {
@@ -516,7 +709,6 @@ const getHint = () => {
   return metaTypes.value.find(type => type.value === metaSettings.value.type)?.hint || t('meta.dialogs.select_meta_type')
 }
 
-// Watchers
 watch(() => props.dialog, (newVal) => {
   internalDialog.value = newVal
   initButtons()
@@ -527,6 +719,26 @@ watch(() => props.dialog, (newVal) => {
     metaSettings.value = {...metaSettingsDefault.value, ...props.meta}
   }
 
+  const requested = props.initialTab || 'basics'
+  editTab.value = availableEditTabs.value.includes(requested) ? requested : 'basics'
   metaKey.value++
 })
-</script>
+
+watch(internalDialog, (open) => {
+  // Outside click / Esc closes v-dialog without going through closeDialog().
+  if (!open && props.dialog) {
+    emit('close')
+  }
+})
+
+watch(() => props.initialTab, (tab) => {
+  if (tab && props.dialog) {
+    editTab.value = availableEditTabs.value.includes(tab) ? tab : 'basics'
+  }
+})
+
+watch(availableEditTabs, (tabs) => {
+  if (!tabs.includes(editTab.value)) {
+    editTab.value = 'basics'
+  }
+})</script>

@@ -7,6 +7,7 @@ export interface PathRegexMetaLike {
   pathRegex?: string | null
   pathRegexReplace?: string | null
   pathRegexCreateTags?: boolean | number | string | null
+  pathRegexEnabled?: boolean | number | string | null
 }
 
 export interface PathRegexTagExtract {
@@ -100,7 +101,10 @@ export function isPathRegexMetaEligible(meta: PathRegexMetaLike): boolean {
   if (meta.id == null) return false
   if (String(meta.type || '') !== 'array') return false
   if (!isMetaTruthyValue(meta.parser)) return false
-  return Boolean(String(meta.pathRegex || '').trim())
+  if (!Boolean(String(meta.pathRegex || '').trim())) return false
+  // Missing flag = legacy rows: treat as enabled when a pattern exists.
+  if (meta.pathRegexEnabled === undefined || meta.pathRegexEnabled === null) return true
+  return isMetaTruthyValue(meta.pathRegexEnabled)
 }
 
 export function shouldCreatePathRegexTags(meta: PathRegexMetaLike): boolean {

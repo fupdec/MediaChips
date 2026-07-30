@@ -25,10 +25,16 @@
 
     <div class="media-type-preview-card__preview">
       <div class="media-type-preview-card__thumb">
-        <v-icon v-if="hero" size="20" color="primary">mdi-{{ mediaType.icon }}</v-icon>
+        <v-icon v-if="hero" size="28" color="primary">mdi-{{ mediaType.icon }}</v-icon>
       </div>
       <div class="media-type-preview-card__lines">
-        <div class="media-type-preview-card__line media-type-preview-card__line--title"/>
+        <div
+          v-if="hero"
+          class="media-type-preview-card__caption text-caption font-weight-medium text-truncate"
+        >
+          {{ headerTitle }}
+        </div>
+        <div v-else class="media-type-preview-card__line media-type-preview-card__line--title"/>
 
         <draggable
           v-if="editable"

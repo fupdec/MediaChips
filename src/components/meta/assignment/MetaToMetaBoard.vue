@@ -2,9 +2,25 @@
   <div class="meta-to-meta-board">
     <div class="meta-assignment-board">
       <aside class="meta-assignment-board__pool">
+        <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
+          <div class="text-caption text-medium-emphasis">
+            {{ t('meta.settings.available_fields') }}
+          </div>
+          <v-btn
+            size="x-small"
+            variant="tonal"
+            color="primary"
+            rounded="lg"
+            prepend-icon="mdi-plus"
+            @click="$emit('create-field')"
+          >
+            {{ t('meta.settings.add_field') }}
+          </v-btn>
+        </div>
+
         <div class="text-caption text-medium-emphasis mb-3">
-          <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('meta.settings.assignment_fields_drag_hint') }}
+          <v-icon size="14" start>mdi-gesture-tap</v-icon>
+          {{ t('meta.settings.assignment_fields_add_hint') }}
         </div>
 
         <MetaFieldPool
@@ -12,6 +28,7 @@
           :exclude-ids="excludedIds"
           :disabled-ids="disabledMetaIds"
           drag-group="child-meta-assign"
+          :compact="true"
           :empty-text="t('meta.settings.all_meta_pinned')"
           @select="$emit('pin', $event)"
         />
@@ -22,17 +39,18 @@
           {{ t('meta.settings.pinned_fields') }}
         </div>
 
-        <div class="media-type-preview-card-hero">
+        <div class="media-type-preview-card-hero media-type-preview-card-hero--square">
           <div class="media-type-preview-card__preview">
             <div class="media-type-preview-card__thumb">
-              <v-icon size="20" color="primary">mdi-{{ parentMeta.icon }}</v-icon>
+              <v-icon size="28" color="primary">mdi-{{ parentMeta.icon || 'tag-multiple' }}</v-icon>
             </div>
 
             <div class="media-type-preview-card__lines">
-              <div class="media-type-preview-card__line media-type-preview-card__line--title"/>
+              <div class="media-type-preview-card__caption text-caption font-weight-medium text-truncate">
+                {{ parentMeta.name }}
+              </div>
 
               <draggable
-                v-if="pinnedItems.length"
                 :model-value="pinnedItems"
                 item-key="pinnedMetaId"
                 v-bind="dragOptions"
@@ -45,33 +63,29 @@
                     :name="element.meta?.name"
                     compact
                     :hidden="isHidden(element)"
+                    show-visibility-toggle
                     @unpin="$emit('unpin', element)"
                     @toggle-show="$emit('toggle-show', element)"
                   />
                 </template>
 
                 <template #footer>
-                  <div class="media-type-preview-card__drop-slot">
+                  <div
+                    class="media-type-preview-card__drop-slot"
+                    :class="{'media-type-preview-card__drop-slot--active': pinnedItems.length === 0}"
+                  >
                     <v-icon size="14" class="mr-1">mdi-arrow-down-bold</v-icon>
                     {{ t('meta.settings.drop_field_here') }}
                   </div>
                 </template>
               </draggable>
-
-              <div
-                v-else
-                class="media-type-preview-card__drop-slot media-type-preview-card__drop-slot--active"
-              >
-                <v-icon size="14" class="mr-1">mdi-arrow-down-bold</v-icon>
-                {{ t('meta.settings.drop_field_here') }}
-              </div>
             </div>
           </div>
         </div>
 
         <div v-if="pinnedItems.length" class="text-caption text-medium-emphasis mt-3">
           <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('meta.settings.drag_to_reorder_or_unpin') }}
+          {{ t('meta.settings.drag_to_reorder_or_remove') }}
         </div>
       </main>
     </div>
@@ -100,6 +114,7 @@ const emit = defineEmits<{
   unpin: [item: PinnedChildMetaAssignment]
   reorder: [items: PinnedChildMetaAssignment[]]
   'toggle-show': [item: PinnedChildMetaAssignment]
+  'create-field': []
 }>()
 
 const {t} = useI18n()

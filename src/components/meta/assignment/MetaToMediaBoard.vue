@@ -2,9 +2,25 @@
   <div class="meta-to-media-board">
     <div class="meta-assignment-board">
       <aside class="meta-assignment-board__pool">
+        <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
+          <div class="text-caption text-medium-emphasis">
+            {{ t('meta.settings.available_fields') }}
+          </div>
+          <v-btn
+            size="x-small"
+            variant="tonal"
+            color="primary"
+            rounded="lg"
+            prepend-icon="mdi-plus"
+            @click="$emit('create-field')"
+          >
+            {{ t('meta.settings.add_field') }}
+          </v-btn>
+        </div>
+
         <div class="text-caption text-medium-emphasis mb-3">
-          <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('meta.settings.assignment_fields_drag_hint') }}
+          <v-icon size="14" start>mdi-gesture-tap</v-icon>
+          {{ t('meta.settings.assignment_fields_add_hint') }}
         </div>
 
         <MetaFieldPool
@@ -19,7 +35,7 @@
 
       <main class="meta-assignment-board__target">
         <div class="meta-assignment-board__target-header text-caption text-medium-emphasis mb-2">
-          {{ t('meta.settings.pinned_fields') }}
+          {{ t('meta.settings.assigned_fields') }}
         </div>
 
         <MediaTypePreviewCard
@@ -38,7 +54,7 @@
 
         <div v-if="pinnedItems.length" class="text-caption text-medium-emphasis mt-3">
           <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('meta.settings.drag_to_reorder_or_unpin') }}
+          {{ t('meta.settings.drag_to_reorder_or_remove') }}
         </div>
       </main>
     </div>
@@ -71,6 +87,7 @@ const emit = defineEmits<{
   'unpin-meta': [item: MetaInMediaTypeRow]
   reorder: [items: MetaInMediaTypeRow[]]
   'toggle-show': [item: MetaInMediaTypeRow]
+  'create-field': []
 }>()
 
 const {t} = useI18n()

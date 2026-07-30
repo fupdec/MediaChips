@@ -29,7 +29,11 @@ const props = withDefaults(defineProps<{
 const {t} = useI18n()
 
 const link = computed(() => {
-  const query: Record<string, string | number> = {tab: 'library', view: props.view}
+  const query: Record<string, string | number> = {
+    tab: 'library',
+    section: 'field_pinning',
+    view: props.view,
+  }
   if (props.mediaTypeId) query.mediaTypeId = props.mediaTypeId
   if (props.metaId) query.metaId = props.metaId
   return {path: '/settings', query}

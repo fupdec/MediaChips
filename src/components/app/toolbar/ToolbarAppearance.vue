@@ -44,7 +44,6 @@
                 @click="updateLimit(limit)"
                 :variant="limit === itemsStore.limit ? 'flat' : 'outlined'"
                 base-color="primary"
-                size="small"
               >
                 <span v-if="limit > 100">∞</span>
                 <span v-else>{{ limit }}</span>
@@ -65,7 +64,6 @@
                 @click="updateSize(index + 1)"
                 :variant="index + 1 === itemsStore.size ? 'flat' : 'outlined'"
                 base-color="primary"
-                size="small"
               >
                 <span>{{ label }}</span>
               </v-chip>
@@ -87,7 +85,7 @@
     <v-dialog
       v-model="dialogEditingPinnedMeta"
       @update:model-value="updatePinnedMeta"
-      max-width="960"
+      max-width="860"
       width="95vw"
       scrollable
     >

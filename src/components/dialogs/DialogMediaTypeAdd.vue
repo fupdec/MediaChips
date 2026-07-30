@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { VFormInstance } from '@/types/vue'
 import { typedApi } from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
@@ -92,6 +93,7 @@ defineProps({
 
 const emit = defineEmits(['close', 'added'])
 
+const {t} = useI18n()
 const form = ref<VFormInstance>(null)
 
 const dialogIcons = ref(false)
@@ -114,7 +116,8 @@ function changeIcon(selectedIcon: string) {
 }
 
 function nameRules(string: string) {
-  return validateName(string)
+  const result = validateName(string)
+  return result === true ? true : t(result)
 }
 
 async function addMeta() {

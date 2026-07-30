@@ -161,7 +161,10 @@ watch(dialogLocal, (newVal) => {
   if (!newVal) close()
 })
 
-const nameRules = (value: string) => validateName(value)
+const nameRules = (value: string) => {
+  const result = validateName(value)
+  return result === true ? true : t(result)
+}
 
 const close = () => emit('close')
 

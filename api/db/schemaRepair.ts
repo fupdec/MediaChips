@@ -48,6 +48,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'meta', column: 'pathRegex', definition: 'text'},
   {table: 'meta', column: 'pathRegexReplace', definition: "text DEFAULT '$1'"},
   {table: 'meta', column: 'pathRegexCreateTags', definition: 'integer DEFAULT 1'},
+  {table: 'meta', column: 'pathRegexEnabled', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'country', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'career', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'scraper', definition: 'integer DEFAULT 0'},
@@ -106,6 +107,14 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
     if (addColumnIfMissing(sqlite, spec.table, spec.column, spec.definition)) {
       repaired.push(`${spec.table}.${spec.column}`)
     }
+  }
+
+  if (repaired.includes('meta.pathRegexEnabled') && hasTable(sqlite, 'meta')) {
+    sqlite.exec(`
+      UPDATE "meta"
+      SET "pathRegexEnabled" = 1
+      WHERE "pathRegex" IS NOT NULL AND TRIM("pathRegex") != ''
+    `)
   }
 
   return repaired
