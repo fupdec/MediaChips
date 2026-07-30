@@ -5,12 +5,7 @@
     @mouseenter="stopTimer"
     @mouseleave="resumeTimer"
     class="notification"
-    :class="[
-      swipeClass,
-      {
-        'notification-hidden': progress < 5 && !isHidden,
-      },
-    ]"
+    :class="swipeClass"
     :style="notificationSwipeStyle"
     :elevation="isHidden ? 3 : 9"
     rounded="lg"
@@ -417,10 +412,6 @@ onUnmounted(() => {
     font-size: 16px;
     margin-top: 4px;
   }
-}
-
-.notification-hidden {
-  opacity: 0.7;
 }
 
 @media (max-width: 480px) {
