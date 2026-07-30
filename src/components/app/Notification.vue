@@ -1,9 +1,16 @@
 <template>
   <v-card
+    ref="cardRef"
+    @pointerdown="onPointerDown"
     @mouseenter="stopTimer"
     @mouseleave="resumeTimer"
     class="notification"
-    :class="{'notification-hidden': progress < 5 && !isHidden}"
+    :class="{
+      'notification-hidden': progress < 5 && !isHidden,
+      'notification--swiping': isDragging,
+      'notification--swipe-active': offsetX > 0,
+    }"
+    :style="swipeStyle"
     :elevation="isHidden ? 3 : 9"
     rounded="lg"
   >
@@ -110,6 +117,10 @@ type PoolNotification = NotificationInput & {
   actions?: NotificationAction[]
 }
 
+const DISMISS_PX = 96
+const MAX_OFFSET_PX = 420
+const WHEEL_SETTLE_MS = 140
+
 const settingsStore = useSettingsStore()
 const locale = settingsStore.locale == 'cn' ? 'zh-cn' : settingsStore.locale == 'pt' ? 'pt-br' : settingsStore.locale
 
@@ -120,17 +131,32 @@ const props = defineProps<{
   notification: PoolNotification
 }>()
 
-// Reactive state
+const cardRef = ref<{ $el?: HTMLElement } | null>(null)
 const interval = ref<ReturnType<typeof setInterval> | null>(null)
 const progress = ref(100)
 const collapsed = ref(true)
+const offsetX = ref(0)
+const isDragging = ref(false)
+const dismissing = ref(false)
 
-// Store
+let dragPointerId: number | null = null
+let dragStartX = 0
+let dragOriginOffset = 0
+let wheelSettleTimer: ReturnType<typeof setTimeout> | null = null
+
 const notificationsStore = useNotificationsStore()
 
-// Computed properties
 const isHidden = computed(() => props.notification.hidden)
 const actions = computed(() => Array.isArray(props.notification.actions) ? props.notification.actions : [])
+
+const swipeStyle = computed(() => {
+  const baseHiddenShift = isHidden.value || progress.value >= 5 ? 0 : 20
+  const x = offsetX.value + (offsetX.value > 0 ? 0 : baseHiddenShift)
+  return {
+    transform: `translateX(${x}px)`,
+    opacity: String(Math.max(0.2, 1 - offsetX.value / (DISMISS_PX * 1.6))),
+  }
+})
 
 const displayText = computed(() => {
   let text = props.notification.text || ''
@@ -140,7 +166,6 @@ const displayText = computed(() => {
   return text
 })
 
-// Метод для безопасного форматирования (альтернатива)
 const getSafeFormattedTimestamp = (timestamp?: number) => {
   try {
     if (!timestamp) return ''
@@ -150,7 +175,6 @@ const getSafeFormattedTimestamp = (timestamp?: number) => {
       return date.fromNow()
     }
 
-    // Fallback: форматируем как обычную дату
     return new Date(timestamp).toLocaleTimeString()
   } catch (error) {
     console.error('Error in getSafeFormattedTimestamp:', error)
@@ -158,18 +182,108 @@ const getSafeFormattedTimestamp = (timestamp?: number) => {
   }
 }
 
-// Альтернативное computed свойство с безопасным форматированием
 const formattedTimestamp = computed(() => {
   return getSafeFormattedTimestamp(props.notification.timestamp)
 })
 
-// Methods
 const closeNotification = () => {
   notificationsStore.closeNotification(props.notification.id)
 }
 
 const hideNotification = () => {
   notificationsStore.hideNotification(props.notification.id)
+}
+
+const dismissBySwipe = () => {
+  if (dismissing.value) return
+  dismissing.value = true
+  offsetX.value = MAX_OFFSET_PX
+  stopTimer()
+  window.setTimeout(() => {
+    if (isHidden.value) {
+      closeNotification()
+    } else {
+      hideNotification()
+    }
+  }, 160)
+}
+
+const snapBack = () => {
+  offsetX.value = 0
+}
+
+const finishDrag = (clientX: number) => {
+  if (!isDragging.value) return
+  isDragging.value = false
+  dragPointerId = null
+  const delta = clientX - dragStartX
+  offsetX.value = Math.max(0, Math.min(MAX_OFFSET_PX, dragOriginOffset + delta))
+  if (offsetX.value >= DISMISS_PX) {
+    dismissBySwipe()
+  } else {
+    snapBack()
+  }
+}
+
+const onPointerDown = (event: PointerEvent) => {
+  if (dismissing.value || event.button !== 0) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, a, .v-btn, .notification__action')) return
+
+  dragPointerId = event.pointerId
+  isDragging.value = true
+  dragStartX = event.clientX
+  dragOriginOffset = offsetX.value
+  stopTimer()
+
+  const el = event.currentTarget as HTMLElement | null
+  el?.setPointerCapture?.(event.pointerId)
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerUp)
+}
+
+const onPointerMove = (event: PointerEvent) => {
+  if (!isDragging.value || event.pointerId !== dragPointerId) return
+  const delta = event.clientX - dragStartX
+  offsetX.value = Math.max(0, Math.min(MAX_OFFSET_PX, dragOriginOffset + delta))
+}
+
+const onPointerUp = (event: PointerEvent) => {
+  if (dragPointerId != null && event.pointerId !== dragPointerId) return
+  window.removeEventListener('pointermove', onPointerMove)
+  window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('pointercancel', onPointerUp)
+  finishDrag(event.clientX)
+}
+
+const onWheel = (event: WheelEvent) => {
+  if (dismissing.value) return
+
+  // Mac trackpad two-finger swipe: horizontal delta dominates.
+  if (Math.abs(event.deltaX) <= Math.abs(event.deltaY) + 0.5) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  stopTimer()
+
+  // Natural scroll: fingers right → deltaX < 0 → toast moves right (off-screen).
+  offsetX.value = Math.max(0, Math.min(MAX_OFFSET_PX, offsetX.value - event.deltaX))
+
+  if (wheelSettleTimer) clearTimeout(wheelSettleTimer)
+
+  if (offsetX.value >= DISMISS_PX) {
+    dismissBySwipe()
+    return
+  }
+
+  wheelSettleTimer = setTimeout(() => {
+    wheelSettleTimer = null
+    if (!dismissing.value && offsetX.value < DISMISS_PX) {
+      snapBack()
+      resumeTimer()
+    }
+  }, WHEEL_SETTLE_MS)
 }
 
 const runAction = (action: NotificationAction) => {
@@ -187,7 +301,7 @@ const runAction = (action: NotificationAction) => {
 }
 
 const runTimer = (percent?: number) => {
-  if (isHidden.value) {
+  if (isHidden.value || dismissing.value) {
     if (interval.value) clearInterval(interval.value)
     return
   }
@@ -210,20 +324,34 @@ const stopTimer = () => {
 }
 
 const resumeTimer = () => {
+  if (dismissing.value || isDragging.value || offsetX.value > 0) return
   if (!interval.value) {
     runTimer()
   }
 }
 
-// Lifecycle hooks
+const getCardEl = () => {
+  const refValue = cardRef.value
+  if (!refValue) return null
+  return (refValue.$el as HTMLElement | undefined) || (refValue as unknown as HTMLElement)
+}
+
 onMounted(() => {
   if (!props.notification.hidden && props.notification.timeout && props.notification.timeout > 0) {
     runTimer()
   }
+  const el = getCardEl()
+  el?.addEventListener('wheel', onWheel, {passive: false})
 })
 
 onUnmounted(() => {
   stopTimer()
+  if (wheelSettleTimer) clearTimeout(wheelSettleTimer)
+  window.removeEventListener('pointermove', onPointerMove)
+  window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('pointercancel', onPointerUp)
+  const el = getCardEl()
+  el?.removeEventListener('wheel', onWheel)
 })
 </script>
 
@@ -240,7 +368,19 @@ onUnmounted(() => {
   overflow: hidden;
   z-index: 50000;
   pointer-events: all;
-  transition: all 0.3s ease;
+  touch-action: pan-y;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.3s ease;
+  will-change: transform, opacity;
+  cursor: grab;
+
+  &--swiping {
+    transition: none;
+    cursor: grabbing;
+  }
+
+  &--swipe-active {
+    user-select: none;
+  }
 
   &__body {
     padding-right: 25px;
@@ -329,7 +469,6 @@ onUnmounted(() => {
 
 .notification-hidden {
   opacity: 0.7;
-  transform: translateX(20px);
 }
 
 @media (max-width: 480px) {

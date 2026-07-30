@@ -122,16 +122,16 @@
 
           <div v-else-if="tab === 'files'">
             <SettingsList>
+              <SettingsSection id="settings-watched-folders">
+                <SettingsWatchedFolders/>
+              </SettingsSection>
+
               <SettingsSection id="settings-bulk-paths">
                 <SettingsBulkPathEditing/>
               </SettingsSection>
 
               <SettingsSection id="settings-folder-tags">
                 <SettingsFolderTags/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-watched-folders">
-                <SettingsWatchedFolders/>
               </SettingsSection>
             </SettingsList>
           </div>
@@ -140,12 +140,12 @@
             <SettingsList>
               <SettingsGroupLabel :title="t('settings.groups.storage')"/>
 
-              <SettingsSection id="settings-open-data-folder">
-                <SettingsOpenDataFolder/>
-              </SettingsSection>
-
               <SettingsSection id="settings-databases">
                 <SettingsDatabases/>
+              </SettingsSection>
+
+              <SettingsSection id="settings-open-data-folder">
+                <SettingsOpenDataFolder/>
               </SettingsSection>
 
               <SettingsGroupLabel :title="t('settings.groups.maintenance_backfill')"/>
