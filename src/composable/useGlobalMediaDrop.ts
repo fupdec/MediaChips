@@ -51,8 +51,26 @@ export function useGlobalMediaDrop() {
   let unsubscribeHover: (() => void) | undefined
   let unsubscribeOutbound: (() => void) | undefined
   let usedFallbackListeners = false
+  /** dragover stops when the cursor leaves the window; clear stuck overlay. */
+  let hideIfStaleTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearHideIfStaleTimer = () => {
+    if (hideIfStaleTimer) {
+      clearTimeout(hideIfStaleTimer)
+      hideIfStaleTimer = null
+    }
+  }
+
+  const scheduleHideIfStale = () => {
+    clearHideIfStaleTimer()
+    hideIfStaleTimer = setTimeout(() => {
+      hideIfStaleTimer = null
+      resetDropzone()
+    }, 200)
+  }
 
   const resetDropzone = () => {
+    clearHideIfStaleTimer()
     dropzoneActive.value = false
     window.mediaDragAPI?.resetHover?.()
   }
@@ -63,6 +81,21 @@ export function useGlobalMediaDrop() {
       return
     }
     dropzoneActive.value = true
+    scheduleHideIfStale()
+  }
+
+  const isLeavingWindow = (event: DragEvent) => {
+    const next = event.relatedTarget
+    if (next instanceof Node && document.documentElement.contains(next)) {
+      return false
+    }
+    const {clientX, clientY} = event
+    return (
+      clientX <= 0
+      || clientY <= 0
+      || clientX >= window.innerWidth
+      || clientY >= window.innerHeight
+    )
   }
 
   const resolveMediaTypeId = (paths: string[]) => {
@@ -105,6 +138,17 @@ export function useGlobalMediaDrop() {
       event.dataTransfer.dropEffect = 'copy'
     }
     showDropzone()
+  }
+
+  const handleHoverDragLeave = (event: DragEvent) => {
+    if (isOutboundMediaDragActive()) {
+      resetDropzone()
+      return
+    }
+    if (!containsDroppedFiles(event)) return
+    if (isLeavingWindow(event)) {
+      resetDropzone()
+    }
   }
 
   const handleDrop = (event: DragEvent) => {
@@ -169,6 +213,7 @@ export function useGlobalMediaDrop() {
     usedFallbackListeners = true
     document.addEventListener('dragenter', handleHoverDragEnter, true)
     document.addEventListener('dragover', handleHoverDragOver, true)
+    document.addEventListener('dragleave', handleHoverDragLeave, true)
 
     document.addEventListener('drop', handleDrop, true)
     window.addEventListener('dragend', resetDropzone)
@@ -177,10 +222,12 @@ export function useGlobalMediaDrop() {
   onBeforeUnmount(() => {
     unsubscribeHover?.()
     unsubscribeOutbound?.()
+    clearHideIfStaleTimer()
 
     if (usedFallbackListeners) {
       document.removeEventListener('dragenter', handleHoverDragEnter, true)
       document.removeEventListener('dragover', handleHoverDragOver, true)
+      document.removeEventListener('dragleave', handleHoverDragLeave, true)
     }
 
     document.removeEventListener('drop', handleDrop, true)

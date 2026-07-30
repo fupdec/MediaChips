@@ -9,6 +9,7 @@ import { createMediaRepository } from '../../db/repositories/media'
 import os from 'os'
 import fs from 'fs'
 import { downloadRemoteImage } from '../../services/remoteImageDownload'
+import { resolveBundledPublicFile } from '../../utils/publicAssets'
 import path from 'path'
 import {
   combineVideoFrames,
@@ -242,6 +243,13 @@ export default function createTasksVideoPreviewController(shared: TaskController
         buf = await downloadRemoteImage(downloadUrl)
       } else if (typeof image === 'string' && path.isAbsolute(image) && fs.existsSync(image)) {
         buf = await fs.promises.readFile(image)
+      } else if (typeof image === 'string') {
+        const bundled = resolveBundledPublicFile(image)
+        if (bundled) {
+          buf = await fs.promises.readFile(bundled)
+        } else {
+          buf = Buffer.from(req.body.image, 'base64')
+        }
       } else {
         buf = Buffer.from(req.body.image, 'base64')
       }

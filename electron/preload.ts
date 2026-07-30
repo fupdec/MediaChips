@@ -64,6 +64,8 @@ let mediaDragHoverActive = false
 /** True while native card drag-out is in progress — do not show drop-in UI. */
 let mediaDragOutboundActive = false
 let clearOutboundTimer: ReturnType<typeof setTimeout> | null = null
+/** Clears hover if dragover stops (cursor left the window / drag cancelled). */
+let mediaDragHoverStaleTimer: ReturnType<typeof setTimeout> | null = null
 const isDarwin = process.platform === 'darwin'
 
 function setMediaDragHover(active: boolean, options?: {forceNotify?: boolean}) {
@@ -72,6 +74,35 @@ function setMediaDragHover(active: boolean, options?: {forceNotify?: boolean}) {
   for (const listener of mediaDragHoverListeners) {
     listener(active)
   }
+}
+
+function clearMediaDragHoverStaleTimer() {
+  if (mediaDragHoverStaleTimer) {
+    clearTimeout(mediaDragHoverStaleTimer)
+    mediaDragHoverStaleTimer = null
+  }
+}
+
+function scheduleMediaDragHoverStaleReset() {
+  clearMediaDragHoverStaleTimer()
+  mediaDragHoverStaleTimer = setTimeout(() => {
+    mediaDragHoverStaleTimer = null
+    resetMediaDragHover()
+  }, 200)
+}
+
+function isDragLeavingWindow(event: DragEvent): boolean {
+  const next = event.relatedTarget
+  if (next instanceof Node && document.documentElement.contains(next)) {
+    return false
+  }
+  const {clientX, clientY} = event
+  return (
+    clientX <= 0
+    || clientY <= 0
+    || clientX >= window.innerWidth
+    || clientY >= window.innerHeight
+  )
 }
 
 function clearMediaDragOutbound() {
@@ -129,6 +160,7 @@ function handlePreloadDragEnter(event: Event) {
 
   event.preventDefault()
   setMediaDragHover(true, {forceNotify: true})
+  scheduleMediaDragHoverStaleReset()
 }
 
 function handlePreloadDragOver(event: Event) {
@@ -149,9 +181,24 @@ function handlePreloadDragOver(event: Event) {
     dragEvent.dataTransfer.dropEffect = 'copy'
   }
   setMediaDragHover(true)
+  scheduleMediaDragHoverStaleReset()
+}
+
+function handlePreloadDragLeave(event: Event) {
+  if (mediaDragOutboundActive) {
+    resetMediaDragHover()
+    return
+  }
+
+  const dragEvent = event as DragEvent
+  if (!isLikelyExternalFileDrag(dragEvent)) return
+  if (isDragLeavingWindow(dragEvent)) {
+    resetMediaDragHover()
+  }
 }
 
 function resetMediaDragHover() {
+  clearMediaDragHoverStaleTimer()
   setMediaDragHover(false)
 }
 
@@ -159,10 +206,16 @@ function handleOutboundDragEnded() {
   if (mediaDragOutboundActive) clearMediaDragOutbound()
 }
 
+function handlePreloadDropOrDragEnd() {
+  resetMediaDragHover()
+  handleOutboundDragEnded()
+}
+
 window.addEventListener('dragenter', handlePreloadDragEnter, true)
 window.addEventListener('dragover', handlePreloadDragOver, true)
-window.addEventListener('drop', handleOutboundDragEnded, true)
-window.addEventListener('dragend', handleOutboundDragEnded, true)
+window.addEventListener('dragleave', handlePreloadDragLeave, true)
+window.addEventListener('drop', handlePreloadDropOrDragEnd, true)
+window.addEventListener('dragend', handlePreloadDropOrDragEnd, true)
 window.addEventListener('mouseup', handleOutboundDragEnded, true)
 // After a drop outside the app, the next click inside clears outbound suppression.
 window.addEventListener('mousedown', handleOutboundDragEnded, true)
