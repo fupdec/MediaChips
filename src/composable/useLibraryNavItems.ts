@@ -105,6 +105,14 @@ export function useLibraryNavItems() {
     title: t('navigation.settings'),
   }))
 
+  const allTagsLink = computed((): LibraryNavLink => ({
+    key: 'all-tags',
+    to: '/tags',
+    icon: 'mdi-tag-multiple-outline',
+    title: t('navigation.all_tags'),
+    exact: true,
+  }))
+
   function openDialogFolder(folder: WatcherFilesEntry) {
     watcherStore.folder = folder
     watcherStore.dialogFolder = true
@@ -124,6 +132,7 @@ export function useLibraryNavItems() {
     watcherBadgeCountsByFolderId,
     libraryLinks,
     settingsLink,
+    allTagsLink,
     watcherBusy: computed(() => watcherStore.busy),
     openDialogFolder,
     mediaTypePath,

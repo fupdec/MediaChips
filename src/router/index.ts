@@ -23,6 +23,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/PageMarkers.vue'),
   },
   {
+    path: '/tags',
+    name: 'AllTags',
+    component: () => import('@/pages/PageAllTags.vue'),
+  },
+  {
     path: '/tag',
     name: 'Tag',
     component: () => import('@/pages/PageTag.vue'),

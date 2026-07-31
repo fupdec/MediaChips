@@ -11,6 +11,7 @@ const {
   metaHidden,
   libraryLinks,
   settingsLink,
+  allTagsLink,
   watcherFiles,
   showWatcherFolders,
   watcherBadgeCountsByFolderId,
@@ -48,6 +49,23 @@ const {
         </v-btn>
       </template>
       {{ link.title }}
+    </v-tooltip>
+
+    <v-tooltip location="top">
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          :to="allTagsLink.to"
+          :exact="allTagsLink.exact"
+          draggable="false"
+          variant="text"
+          color="primary"
+        >
+          <v-icon>{{ allTagsLink.icon }}</v-icon>
+          <span>{{ allTagsLink.title }}</span>
+        </v-btn>
+      </template>
+      {{ allTagsLink.title }}
     </v-tooltip>
 
     <v-tooltip

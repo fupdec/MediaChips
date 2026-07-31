@@ -34,11 +34,27 @@
             </v-tooltip>
           </v-list-item>
 
-          <template v-if="meta_arr.length">
-            <v-list-subheader class="sidebar-section">
-              {{ t('navigation.section_tags') }}
-            </v-list-subheader>
+          <v-list-subheader class="sidebar-section">
+            {{ t('navigation.section_tags') }}
+          </v-list-subheader>
 
+          <div class="mb-1">
+            <v-list-item
+              :to="allTagsLink.to"
+              :prepend-icon="allTagsLink.icon"
+              :title="allTagsLink.title"
+              :exact="allTagsLink.exact"
+              draggable="false"
+              color="primary"
+              link
+            >
+              <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+                {{ allTagsLink.title }}
+              </v-tooltip>
+            </v-list-item>
+          </div>
+
+          <template v-if="meta_arr.length">
             <Draggable
               v-model="meta_arr"
               @start="drag = true"
@@ -182,6 +198,7 @@ const {
   metaArray,
   libraryLinks,
   settingsLink,
+  allTagsLink,
   watcherFiles,
   showWatcherFolders,
   watcherBadgeCountsByFolderId,
