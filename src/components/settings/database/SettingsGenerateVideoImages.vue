@@ -371,7 +371,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
               missing: summary.missing,
               failed: summary.failed,
             }),
-            icon: 'mdi-image-auto-adjust',
+            icon: 'image-auto-adjust',
           })
         }
       }

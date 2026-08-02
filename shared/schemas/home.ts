@@ -42,6 +42,7 @@ export const HomeHealthSchema = z.object({
     byContentHash: z.number(),
     byOshash: z.number().optional(),
     byFingerprint: z.number().optional(),
+    byVisualHash: z.number().optional(),
   }).optional(),
   fingerprint: z.object({
     total: z.number(),

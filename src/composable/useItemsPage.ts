@@ -206,7 +206,7 @@ export function useItemsPage({
     query.find_duplicates = ITEMS.value.find_duplicates || false
 
     if (props.items_type === 'media') {
-      query.duplicates_by = getDuplicatesGroupKey(mediaType.value)
+      query.duplicates_by = getDuplicatesGroupKey(mediaType.value, ITEMS.value.duplicates_by)
     }
 
     query.ids = ids || []
@@ -377,6 +377,11 @@ export function useItemsPage({
     } finally {
       if (requestSeq === listFetchSeq) {
         loader.value.is_busy = false
+        // Active request must never leave filters/toolbar overlays spinning after it ends
+        // (empty-page retry failure, non-list item types, etc.). Superseded requests skip this.
+        if (!itemsStore.isFiltersLoaded) {
+          itemsStore.updateState({key: 'isFiltersLoaded', value: true})
+        }
       }
     }
   }

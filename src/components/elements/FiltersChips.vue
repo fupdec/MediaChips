@@ -124,16 +124,29 @@ const showIcons = computed(() =>
   settingsStore.showIconsInsteadTextOnFiltersChips === '1'
 )
 
+const hasActiveScopeFilters = computed(() =>
+  (itemsStore.filters || []).some((filter) =>
+    filter.active !== false
+    && !filter.removed
+    && filter.cond != null
+    && filter.cond !== '',
+  ),
+)
+
 const duplicatesLabel = computed(() => {
   if (itemsStore.type !== 'media') {
-    return t('filters.show_only_duplicates_by_filesize')
+    return hasActiveScopeFilters.value
+      ? t('filters.show_only_duplicates_by_filesize_within_filter')
+      : t('filters.show_only_duplicates_by_filesize')
   }
 
   const mediaType = getCurrentMediaType(
     appStore.mediaTypes,
     itemsStore.environment?.media_type_id
   )
-  return t(getDuplicatesModeLabelKey(mediaType))
+  return t(getDuplicatesModeLabelKey(mediaType, itemsStore.duplicates_by, {
+    withinFilter: hasActiveScopeFilters.value,
+  }))
 })
 
 const meta = computed(() => appStore.meta)
@@ -142,6 +155,7 @@ const tags = computed(() => appStore.tags)
 const switchOffDuplicates = () => {
   if (props.readonly || props.isTooltip) return
   itemsStore.find_duplicates = false
+  itemsStore.duplicates_by = null
   void filtersController.apply()
 }
 

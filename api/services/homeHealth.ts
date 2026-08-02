@@ -8,6 +8,7 @@ import {
   getFingerprintBackfillStatus,
   getOshashBackfillStatus,
 } from './mediaFingerprintBackfill'
+import { findVisualNearDuplicateIds } from './visualHashBackfill'
 import { getVideoCodecBackfillStatus } from './videoCodecBackfill'
 import { getVideoImagesGenerationStatus } from './videoImagesGeneration'
 import { getImageThumbsGenerationStatus } from './imageThumbsGeneration'
@@ -86,12 +87,14 @@ async function getDuplicateCounts(db: ApiDb) {
   `) as {count?: number} | undefined
 
   const byFingerprint = Number(byOshash?.count || 0)
+  const byVisualHash = findVisualNearDuplicateIds(db).length
 
   return {
     byFilesize: Number(byFilesize?.count || 0),
     byContentHash: 0,
     byOshash: Number(byOshash?.count || 0),
     byFingerprint,
+    byVisualHash,
   }
 }
 

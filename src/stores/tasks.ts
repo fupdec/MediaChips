@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { getRandomId } from '@/services/formatUtils'
 import type { TaskItem } from '@/types/stores'
 import { scheduleDesktopChromeSync } from '@/services/desktopChrome'
+import { normalizeMdiIconName } from '@/utils/mdiIcon'
 
 export interface AddedMediaEntry {
   path: string
@@ -102,15 +103,27 @@ export const useTasksStore = defineStore('useTasksStore', {
   actions: {
     setTask({ title, subtitle, icon, click, action, progress }: Partial<TaskItem> = {}) {
       const id = `task_${getRandomId()}`
-      this.list.push({ id, title, subtitle, icon, click, action, progress })
+      this.list.push({
+        id,
+        title,
+        subtitle,
+        icon: icon != null ? normalizeMdiIconName(icon, 'cog') : icon,
+        click,
+        action,
+        progress,
+      })
       scheduleDesktopChromeSync()
       return id
     },
     updateTask(id: string, data: Partial<TaskItem>) {
       const x = this.list.findIndex(i => i.id === id)
       if (x > -1) {
-        for (const k in data) {
-          this.list[x][k] = data[k]
+        const patch = {...data}
+        if (typeof patch.icon === 'string') {
+          patch.icon = normalizeMdiIconName(patch.icon, 'cog')
+        }
+        for (const k in patch) {
+          this.list[x][k] = patch[k]
         }
         scheduleDesktopChromeSync()
       }

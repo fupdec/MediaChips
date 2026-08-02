@@ -101,6 +101,7 @@ router.beforeEach((to, from, next) => {
     itemsStore.selected_last = null
     itemsStore.type = ''
     itemsStore.find_duplicates = false
+    itemsStore.duplicates_by = null
   }
   next()
 })

@@ -39,6 +39,7 @@
               <SettingsSection id="settings-video-preview">
                 <SettingsVideoPreview/>
               </SettingsSection>
+
             </SettingsList>
           </div>
 
@@ -153,6 +154,8 @@
               <SettingsSection>
                 <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
                 <v-divider class="mx-4 mb-2"/>
+                <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
+                <v-divider class="mx-4 mb-2"/>
                 <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
               </SettingsSection>
 
@@ -244,6 +247,7 @@ import {usePluginsStore} from "@/stores/plugins"
 import {resolvePluginComponentLoader} from "@/services/pluginHost"
 import {
   FINGERPRINT_BACKFILL,
+  VISUAL_HASH_BACKFILL,
   VIDEO_CODEC_BACKFILL,
 } from "@/composable/useSettingsBackfillStream"
 
@@ -486,6 +490,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   video_codec_backfill: "settings-video-codec-backfill",
   oshash_backfill: "settings-fingerprint-backfill",
   fingerprint_backfill: "settings-fingerprint-backfill",
+  visual_hash_backfill: "settings-visual-hash-backfill",
   content_hash_backfill: "settings-fingerprint-backfill",
   find_missing: "settings-find-missing-media",
   clear_generated: "settings-clear-generated-images",
@@ -589,10 +594,12 @@ const DATABASE_SECTIONS = new Set([
   "video_codec_backfill",
   "oshash_backfill",
   "fingerprint_backfill",
+  "visual_hash_backfill",
   "content_hash_backfill",
   "find_missing",
   "clear_generated",
   "backups",
+  "tag_image_ai_upscale",
 ])
 
 const PLUGINS_SECTIONS = new Set([

@@ -76,6 +76,8 @@ function createItemsStoreState() {
     assigned: [] as AssignedMeta[],
     isFiltersLoaded: false,
     find_duplicates: false,
+    /** Override for duplicate grouping: fingerprint | visualHash | path | filesize */
+    duplicates_by: null as string | null,
     thumbRefreshKeys: {} as Record<number, number>,
     thumbRegenerateKeys: {} as Record<number, number>,
     viewerLoadMoreHandler: null as (() => Promise<boolean>) | null,
@@ -618,7 +620,7 @@ export const useItemsStore = defineStore('items', {
           sortBy: this.sortBy,
           direction: this.sortDir,
           find_duplicates: this.find_duplicates,
-          duplicates_by: getDuplicatesGroupKey(mediaType),
+          duplicates_by: getDuplicatesGroupKey(mediaType, this.duplicates_by),
         })
 
         this.selection = response.data.ids || []

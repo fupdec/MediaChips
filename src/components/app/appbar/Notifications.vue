@@ -95,7 +95,7 @@
                     {{ t('media.adding.open_process_dialog') }}
                   </v-btn>
                   <v-btn
-                    v-if="item.action"
+                    v-if="item.action || item.done"
                     @click.stop="stopTask(item)"
                     :color="item.done ? 'secondary' : 'error'"
                     variant="text"

@@ -367,6 +367,7 @@ export function useItemsPageEvents({
     })
 
     itemsStore.find_duplicates = false
+    itemsStore.duplicates_by = null
 
     unbindEvents()
   })

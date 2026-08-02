@@ -21,7 +21,7 @@ export interface SettingsBackfillConfig {
 export const FINGERPRINT_BACKFILL: SettingsBackfillConfig = {
   elementId: 'settings-fingerprint-backfill',
   icon: 'fingerprint',
-  notificationIcon: 'mdi-fingerprint',
+  notificationIcon: 'fingerprint',
   statusPath: '/api/Task/fingerprintBackfillStatus',
   streamPath: '/api/Task/streamFingerprintBackfill',
   i18nKey: 'fingerprint_backfill',
@@ -29,10 +29,21 @@ export const FINGERPRINT_BACKFILL: SettingsBackfillConfig = {
   includeSkipped: true,
 }
 
+export const VISUAL_HASH_BACKFILL: SettingsBackfillConfig = {
+  elementId: 'settings-visual-hash-backfill',
+  icon: 'image-multiple',
+  notificationIcon: 'image-multiple',
+  statusPath: '/api/Task/visualHashBackfillStatus',
+  streamPath: '/api/Task/streamVisualHashBackfill',
+  i18nKey: 'visual_hash_backfill',
+  mode: 'hash',
+  includeSkipped: true,
+}
+
 export const VIDEO_CODEC_BACKFILL: SettingsBackfillConfig = {
   elementId: 'settings-video-codec-backfill',
   icon: 'movie-filter',
-  notificationIcon: 'mdi-movie-filter',
+  notificationIcon: 'movie-filter',
   statusPath: '/api/Task/videoCodecBackfillStatus',
   streamPath: '/api/Task/streamVideoCodecBackfill',
   i18nKey: 'video_codec_backfill',
@@ -185,6 +196,24 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
 
   let abortController: AbortController | null = null
   let taskId: string | null = null
+  let removeTaskTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearRemoveTaskTimer = () => {
+    if (removeTaskTimer) {
+      clearTimeout(removeTaskTimer)
+      removeTaskTimer = null
+    }
+  }
+
+  const scheduleRemoveTask = (id: string | null, delayMs = 1200) => {
+    if (!id) return
+    clearRemoveTaskTimer()
+    removeTaskTimer = setTimeout(() => {
+      tasksStore.removeTask(id)
+      if (taskId === id) taskId = null
+      removeTaskTimer = null
+    }, delayMs)
+  }
 
   const statusText = computed(() => {
     if (!statusLoaded.value) {
@@ -248,6 +277,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
     if (active.value) return
     if (!force && status.value.pending === 0) return
 
+    clearRemoveTaskTimer()
     active.value = true
     progress.value = 0
     currentPath.value = ''
@@ -331,6 +361,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
             done: true,
             action: undefined,
           })
+          scheduleRemoveTask(currentTaskId, event.stopped ? 800 : 1500)
 
           if (!event.stopped) {
             setNotification({
@@ -366,6 +397,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
             done: true,
             action: undefined,
           })
+          scheduleRemoveTask(taskId, 2500)
         }
       } else if (taskId) {
         tasksStore.updateTask(taskId, {
@@ -374,6 +406,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
           done: true,
           action: undefined,
         })
+        scheduleRemoveTask(taskId, 800)
       }
     } finally {
       active.value = false

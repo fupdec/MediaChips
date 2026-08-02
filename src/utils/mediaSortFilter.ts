@@ -349,13 +349,38 @@ export function sanitizeFiltersForMediaType(
   })
 }
 
-export function getDuplicatesGroupKey(mediaType: MediaType | null | undefined) {
+export function getDuplicatesGroupKey(
+  mediaType: MediaType | null | undefined,
+  override?: string | null,
+) {
+  if (override) return override
   return isImageMediaType(mediaType) ? 'path' : 'fingerprint'
 }
 
-export function getDuplicatesModeLabelKey(mediaType: MediaType | null | undefined) {
-  return isImageMediaType(mediaType)
-    ? 'filters.show_only_duplicates_by_path'
+export function getDuplicatesModeLabelKey(
+  mediaType: MediaType | null | undefined,
+  override?: string | null,
+  options: {withinFilter?: boolean} = {},
+) {
+  const key = getDuplicatesGroupKey(mediaType, override)
+  const within = Boolean(options.withinFilter)
+  if (key === 'visualHash' || key === 'visual' || key === 'visualHashNear') {
+    return within
+      ? 'filters.show_only_duplicates_by_visual_within_filter'
+      : 'filters.show_only_duplicates_by_visual'
+  }
+  if (key === 'path') {
+    return within
+      ? 'filters.show_only_duplicates_by_path_within_filter'
+      : 'filters.show_only_duplicates_by_path'
+  }
+  if (key === 'filesize') {
+    return within
+      ? 'filters.show_only_duplicates_by_filesize_within_filter'
+      : 'filters.show_only_duplicates_by_filesize'
+  }
+  return within
+    ? 'filters.show_only_duplicates_by_fingerprint_within_filter'
     : 'filters.show_only_duplicates_by_fingerprint'
 }
 

@@ -11,16 +11,6 @@
   >
     <v-card variant="tonal" color="primary" class="filter-block" rounded="xl">
 
-      <v-overlay
-        :model-value="!ITEMS.isFiltersLoaded"
-        :opacity="0.1"
-        contained
-        persistent
-        class="d-flex justify-center align-center"
-      >
-        <v-progress-circular indeterminate size="170" width="10" color="primary"/>
-      </v-overlay>
-
       <v-card-actions class="pt-3 pb-6">
         <div class="d-flex align-center ga-3 min-width-0">
           <div class="d-flex align-center">
@@ -77,6 +67,40 @@
             <v-icon start size="small">mdi-check</v-icon>
             {{ t('common.apply') }}
           </v-btn>
+        </div>
+
+        <div v-if="ITEMS.type === 'media'" class="mb-2">
+          <v-menu location="bottom">
+            <template #activator="{ props: menuProps }">
+              <v-btn
+                v-bind="menuProps"
+                variant="tonal"
+                rounded="xl"
+                size="small"
+                color="primary"
+                block
+              >
+                <v-icon start size="small">mdi-content-duplicate</v-icon>
+                {{ duplicatesMenuLabel }}
+                <v-icon end size="small">mdi-menu-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list density="compact" nav>
+              <v-list-item
+                v-if="ITEMS.find_duplicates"
+                :title="t('filters.duplicates_menu_off')"
+                @click="clearDuplicates"
+              />
+              <v-divider v-if="ITEMS.find_duplicates" class="my-1" />
+              <v-list-item
+                v-for="mode in duplicateMenuModes"
+                :key="mode.value"
+                :title="t(mode.labelKey)"
+                :active="ITEMS.find_duplicates && isDuplicateModeActive(mode.value)"
+                @click="findDuplicates(mode.value)"
+              />
+            </v-list>
+          </v-menu>
         </div>
 
         <FiltersAdd
@@ -186,6 +210,7 @@ import {
 } from '@/utils/mediaType'
 import {
   sanitizeFiltersForMediaType,
+  getDuplicatesGroupKey,
 } from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
@@ -236,6 +261,7 @@ const filtersFloating = computed(() =>
 // Reactive data
 const updKey = ref(0)
 const filters = ref<FilterObject[]>([])
+
 const listBy = ref<FilterListParam[]>([])
 const valid = ref(true)
 const datePicker = ref<{
@@ -281,6 +307,47 @@ const is_filters_changed = computed(() =>
 const hasSavableFilters = computed(() =>
   filters.value.some((filter) => !filter.removed && !filter.lock),
 )
+
+const hasActiveScopeFilters = computed(() =>
+  filters.value.some((filter) =>
+    filter.active !== false
+    && !filter.removed
+    && filter.cond != null
+    && filter.cond !== '',
+  ),
+)
+
+const duplicatesMenuLabel = computed(() =>
+  hasActiveScopeFilters.value
+    ? t('filters.find_duplicates_within_filtered')
+    : t('filters.find_duplicates'),
+)
+
+const duplicateMenuModes = computed(() => {
+  if (isImageMediaType(currentMediaType.value)) {
+    return [
+      {value: 'path', labelKey: 'filters.duplicates_menu_path'},
+      {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize'},
+    ]
+  }
+
+  return [
+    {value: 'fingerprint', labelKey: 'filters.duplicates_menu_fingerprint'},
+    {value: 'visualHash', labelKey: 'filters.duplicates_menu_visual'},
+    {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize'},
+  ]
+})
+
+const isDuplicateModeActive = (mode: string) => {
+  const current = getDuplicatesGroupKey(currentMediaType.value, itemsStore.duplicates_by)
+  if (mode === 'visualHash') {
+    return current === 'visualHash' || current === 'visual' || current === 'visualHashNear'
+  }
+  if (mode === 'fingerprint') {
+    return current === 'fingerprint' || current === 'oshash'
+  }
+  return current === mode
+}
 
 // Methods
 const filterTextKeys: Record<string, string> = {
@@ -472,6 +539,18 @@ const apply = async () => {
 
   itemsStore.updateState({key: "filters", value: cloneFilters(filters.value)})
   void pageCommands.setFilters({filters: filters.value})
+}
+
+const findDuplicates = async (mode: string) => {
+  itemsStore.find_duplicates = true
+  itemsStore.duplicates_by = mode
+  await apply()
+}
+
+const clearDuplicates = async () => {
+  itemsStore.find_duplicates = false
+  itemsStore.duplicates_by = null
+  await apply()
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {

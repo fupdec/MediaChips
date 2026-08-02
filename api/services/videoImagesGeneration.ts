@@ -22,6 +22,7 @@ import {
   getVideoStreamDimensions,
 } from '../utils/ffmpeg'
 import { resolveExistingPath } from './contentHash'
+import { upsertVisualHashForMedia } from './visualHashBackfill'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createMarksRepository } from '../db/repositories/marks'
@@ -423,7 +424,16 @@ async function* iterateVideoImagesGeneration(
     const result = await generateVideoImage(dbPath, imageType, item, {force})
     processed += 1
 
-    if (result.status === 'created') created += 1
+    if (result.status === 'created') {
+      created += 1
+      if (imageType === 'grid') {
+        try {
+          await upsertVisualHashForMedia(db, Number(item.id))
+        } catch {
+          // Grid is usable; hash can be filled via Settings → visual hash backfill.
+        }
+      }
+    }
     else if (result.status === 'skipped') skipped += 1
     else if (result.status === 'missing') missing += 1
     else failed += 1

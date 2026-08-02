@@ -76,6 +76,8 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'media', column: 'filesize', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'contentHash', definition: 'text'},
   {table: 'media', column: 'oshash', definition: 'text'},
+  {table: 'media', column: 'visualHash', definition: 'text'},
+  {table: 'media', column: 'visualHashTiles', definition: 'text'},
   {table: 'media', column: 'rating', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'favorite', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'bookmark', definition: 'text'},
@@ -322,6 +324,13 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE INDEX IF NOT EXISTS "face_enrollments_meta_id_idx" ON "faceEnrollments" ("metaId")',
     )
     repaired.push('face_enrollments_meta_id_idx')
+  }
+
+  if (hasTable(sqlite, 'media') && !hasIndex(sqlite, 'media_media_type_id_visual_hash_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "media_media_type_id_visual_hash_idx" ON "media" ("mediaTypeId", "visualHash")',
+    )
+    repaired.push('media_media_type_id_visual_hash_idx')
   }
 
   for (const spec of JOIN_UNIQUE_INDEXES) {

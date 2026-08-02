@@ -20,8 +20,21 @@ import {
 import { resolveExistingPath } from '../../services/contentHash'
 import { resolveActiveDbFilePath } from '../../services/mediaPathResolver'
 import { buildVideoGridTaskParams, getGridSpriteDimensions, VIDEO_GRID_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
+import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
 
 const formatMarkTimestamp = (time: number) => new Date(1000 * time).toISOString().substr(11, 12)
+
+function resolveMediaIdFromGridRequest(body: ApiRequest['body']): number | null {
+  if (body?.id != null && body.id !== '') {
+    const fromId = Number(body.id)
+    if (Number.isFinite(fromId) && fromId > 0) return fromId
+  }
+  const output = String(body?.output || '')
+  const match = /^(\d+)\.jpe?g$/i.exec(path.basename(output))
+  if (!match) return null
+  const fromOutput = Number(match[1])
+  return Number.isFinite(fromOutput) && fromOutput > 0 ? fromOutput : null
+}
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
   const {db, dbPath, createThumbMiddle, createThumbCustom, getImageMedia} = shared
@@ -201,10 +214,26 @@ export default function createTasksVideoPreviewController(shared: TaskController
     }
 
     const gridPath = path.join(gridsPath, req.body.output);
+    const mediaId = resolveMediaIdFromGridRequest(req.body)
+
+    const ensureVisualHash = async (force = false) => {
+      if (!mediaId) return
+      try {
+        if (!force) {
+          const existing = mediaRepo.findById(mediaId)
+          if (existing?.visualHash) return
+        }
+        await upsertVisualHashForMedia(db, mediaId)
+      } catch {
+        // Grid is usable; hash can be filled via Settings → visual hash backfill.
+      }
+    }
+
     if (!fs.existsSync(gridPath)) {
       const grid = new Grid(req.body)
       const result = await grid.generate()
       if (result) {
+        await ensureVisualHash(true)
         res.status(201).send(result)
       } else {
         res.status(400).send({
@@ -212,6 +241,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         });
       }
     } else {
+      // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
+      await ensureVisualHash(false)
       res.status(400).send({
         message: 'Grid already exists'
       });

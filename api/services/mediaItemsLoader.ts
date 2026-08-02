@@ -9,6 +9,7 @@ import type { ParsedItem } from '../../app/types/items'
 import { queryAllAsync } from '../db/utils/rawQuery'
 import { chunkArray } from '../db/utils/chunk'
 import {
+  buildMediaFilterQuery,
   getMediaFilterSqlFallbackReason,
   getMediaFromClause,
   getNavigationSelect,
@@ -18,6 +19,8 @@ import {
   requiresMetadataJoinForSort,
   resolveMediaFilterQuery,
 } from './mediaFilterSql'
+import type { MediaFilterQueryResult } from '../types/mediaFilter'
+import { findVisualNearDuplicateIds } from './visualHashBackfill'
 import {
   buildFilteredTotalsCacheKey,
   getCachedFilteredTotals,
@@ -161,6 +164,83 @@ function buildFilteredCountSql(fromClause: string, whereClause: string, needsDis
       ${fromClause}
       ${whereClause}
     )`
+}
+
+function usesVisualNearDuplicates(options: MediaLoadOptions = {}) {
+  if (!options.find_duplicates) return false
+  const duplicatesBy = String(options.duplicates_by || '')
+  return duplicatesBy === 'visualHash'
+    || duplicatesBy === 'visual'
+    || duplicatesBy === 'visualHashNear'
+}
+
+async function resolveVisualNearDuplicateFilterQuery(
+  db: ApiDb,
+  options: MediaLoadOptions = {},
+): Promise<MediaFilterQueryResult> {
+  const {
+    mediaTypeId,
+    ids = [],
+    filters = [],
+  } = options
+
+  if (mediaTypeId == null || mediaTypeId === '') {
+    return {ok: false, reason: 'Missing mediaTypeId'}
+  }
+
+  let candidateIds: number[] | undefined
+  const activeFilters = normalizeActiveFilters(filters)
+  if (activeFilters.length > 0) {
+    const scope = buildMediaFilterQuery(filters, {mediaTypeId, ids: []})
+    if (!scope.ok) return scope
+
+    const joinForFilters = requiresMetadataJoinForFilters(filters)
+    const fromClause = getMediaFromClause(joinForFilters, scope.joinSql)
+    const idSelect = buildMediaIdSelect(scope.needsDistinct)
+    const rows = await queryAllAsync(db, `${idSelect}
+      ${fromClause}
+      WHERE ${scope.whereSql}`, scope.replacements)
+    candidateIds = rows.map((row: AnyRecord) => Number(row.id)).filter((id) => Number.isFinite(id))
+  }
+
+  const nearIds = findVisualNearDuplicateIds(db, mediaTypeId, {candidateIds})
+  const scopedIds = ids.length
+    ? ids.map(Number).filter((id) => nearIds.includes(id))
+    : nearIds
+
+  const replacements: AnyRecord = {mediaTypeId}
+  const clauses = ['media.mediaTypeId = :mediaTypeId']
+  if (!scopedIds.length) {
+    clauses.push('0 = 1')
+  } else {
+    replacements.visualNearIds = scopedIds
+    clauses.push('media.id IN (:visualNearIds)')
+  }
+
+  return {
+    ok: true,
+    whereSql: clauses.join(' AND '),
+    joinSql: '',
+    needsDistinct: false,
+    replacements,
+  }
+}
+
+async function resolveMediaListFilterQuery(
+  db: ApiDb,
+  options: MediaLoadOptions = {},
+): Promise<MediaFilterQueryResult> {
+  if (usesVisualNearDuplicates(options)) {
+    return resolveVisualNearDuplicateFilterQuery(db, options)
+  }
+
+  return resolveMediaFilterQuery({
+    mediaTypeId: options.mediaTypeId,
+    ids: options.ids || [],
+    filters: options.filters || [],
+    find_duplicates: options.find_duplicates,
+    duplicates_by: options.duplicates_by,
+  })
 }
 
 function buildMediaIdSelect(needsDistinct: boolean) {
@@ -513,13 +593,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     skipTotals = false,
   } = options
 
-  const filterQuery = resolveMediaFilterQuery({
-    mediaTypeId,
-    ids,
-    filters,
-    find_duplicates: options.find_duplicates,
-    duplicates_by: options.duplicates_by,
-  })
+  const filterQuery = await resolveMediaListFilterQuery(db, options)
   if (!filterQuery.ok) {
     return loadMediaItemsLegacy(db, options, filterQuery.reason)
   }
@@ -756,7 +830,7 @@ async function getFilteredMediaSummary(db: ApiDb, options: MediaLoadOptions = {}
     }
   }
 
-  const filterQuery = resolveMediaFilterQuery({
+  const filterQuery = await resolveMediaListFilterQuery(db, {
     mediaTypeId,
     filters,
     find_duplicates,
@@ -830,7 +904,7 @@ async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
     filters = [],
   } = options
 
-  const filterQuery = resolveMediaFilterQuery({
+  const filterQuery = await resolveMediaListFilterQuery(db, {
     mediaTypeId,
     filters,
     ids: [],

@@ -210,7 +210,7 @@ const startGeneration = async (force = false) => {
   taskId = tasksStore.setTask({
     title: t('settings_labels.database.generate_image_thumbs'),
     subtitle: t('settings_labels.database.generate_image_thumbs_progress', counters.value),
-    icon: 'mdi-image-outline',
+    icon: 'image-outline',
     progress: 0,
     action: stopGeneration,
   })
@@ -281,7 +281,7 @@ const startGeneration = async (force = false) => {
             type: summary.created > 0 ? 'success' : 'info',
             title: t('settings_labels.database.generate_image_thumbs'),
             text: t('settings_labels.database.generate_image_thumbs_complete', summary),
-            icon: 'mdi-image-outline',
+            icon: 'image-outline',
           })
         }
       }

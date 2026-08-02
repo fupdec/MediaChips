@@ -29,6 +29,10 @@ import {
   getTagImageAiUpscaleStatus,
   iterateTagImageAiUpscale,
 } from '../../services/tagImageAiUpscale'
+import {
+  getVisualHashBackfillStatus,
+  iterateVisualHashBackfill,
+} from '../../services/visualHashBackfill'
 
 export default function createTasksMaintenanceController(shared: TaskControllerShared) {
   const {
@@ -285,6 +289,46 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     }
   }
 
+  const visualHashBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getVisualHashBackfillStatus(db)
+      res.status(201).send(status)
+    } catch (err) {
+      res.status(500).send({
+        message: apiErrorMessage(err) || 'Some error occurred while checking visual hash status.',
+      })
+    }
+  }
+
+  const streamVisualHashBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const shouldStop = createStreamAbortSignal(req, res)
+
+      for await (const event of iterateVisualHashBackfill(db, {
+        shouldStop,
+        force: String(req.query.force || '').toLowerCase() === 'true',
+      })) {
+        writeEvent(event)
+      }
+
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Some error occurred while backfilling visual hashes.',
+      })
+      res.end()
+    }
+  }
+
   const missingMediaStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const full = String(req.query?.full || '').toLowerCase() === 'true'
@@ -442,6 +486,8 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamContentHashBackfill,
     streamOshashBackfill,
     streamFingerprintBackfill,
+    visualHashBackfillStatus,
+    streamVisualHashBackfill,
     videoCodecBackfillStatus,
     streamVideoCodecBackfill,
     imageThumbsGenerationStatus,

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { NotificationInput } from '@/services/notificationService'
 import { maybeShowOsNotification, scheduleDesktopChromeSync } from '@/services/desktopChrome'
+import { normalizeMdiIconName } from '@/utils/mdiIcon'
 
 interface NotificationTypeSettings {
   icon: string
@@ -64,6 +65,9 @@ export const useNotificationsStore = defineStore('notifications', {
         id: nextNotificationId(),
         timestamp: Date.now(),
       }
+      newNotification.icon = normalizeMdiIconName(
+        typeof newNotification.icon === 'string' ? newNotification.icon : undefined,
+      )
 
       if (this.show) {
         newNotification.hidden = true

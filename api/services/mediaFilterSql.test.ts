@@ -226,9 +226,43 @@ describe('resolveMediaFilterQuery', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.whereSql).toContain('GROUP BY filesize')
+    expect(result.whereSql).toContain('GROUP BY dupVal')
     expect(result.whereSql).toContain('HAVING COUNT(*) > 1')
     expect(result.whereSql).toContain('media.filesize IN')
+  })
+
+  it('builds visualHash exact duplicate filter SQL', () => {
+    const result = resolveMediaFilterQuery({
+      mediaTypeId: 1,
+      find_duplicates: true,
+      duplicates_by: 'visualHash',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toContain('media.visualHash AS dupVal')
+    expect(result.whereSql).toContain('media.visualHash IN')
+  })
+
+  it('scopes exact duplicate discovery to active filters', () => {
+    const result = resolveMediaFilterQuery({
+      mediaTypeId: 1,
+      find_duplicates: true,
+      duplicates_by: 'fingerprint',
+      filters: [
+        {active: true, param: 17, type: 'array', cond: 'in', val: [1050]},
+      ],
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('tagsInMedia')
+    expect(result.whereSql).toContain('scoped_candidates')
+    expect(result.whereSql).toContain('tagsInMedia')
+    expect(result.whereSql).toContain('media.oshash IN')
+    expect(result.replacements).toMatchObject({mediaTypeId: 1, f0: 17, f1: 1050})
   })
 
   it('matches canUseSqlMediaLoader', () => {

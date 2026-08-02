@@ -183,6 +183,19 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
     })
   }
 
+  if (health.value.duplicates.byVisualHash > 0) {
+    alerts.push({
+      id: 'duplicates-visual',
+      type: 'warning',
+      icon: 'mdi-image-multiple',
+      text: t('home.widgets.health_duplicates_visual', {
+        count: health.value.duplicates.byVisualHash,
+      }),
+      actionLabel: t('home.widgets.health_show_duplicates'),
+      action: openVisualDuplicates,
+    })
+  }
+
   const fingerprintPending = Number(health.value.fingerprint?.pending ?? (
     Number(health.value.contentHash?.pending || 0) + Number(health.value.oshash?.pending || 0)
   ))
@@ -340,6 +353,14 @@ function openTasks() {
 function openDuplicates() {
   const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
   itemsStore.find_duplicates = true
+  itemsStore.duplicates_by = null
+  router.push(`/media?mediaTypeId=${mediaTypeId ?? ''}`)
+}
+
+function openVisualDuplicates() {
+  const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
+  itemsStore.find_duplicates = true
+  itemsStore.duplicates_by = 'visualHash'
   router.push(`/media?mediaTypeId=${mediaTypeId ?? ''}`)
 }
 

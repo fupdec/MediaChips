@@ -44,6 +44,7 @@ export interface HomeHealthDataUi {
     byContentHash: number
     byOshash: number
     byFingerprint: number
+    byVisualHash: number
   }
   fingerprint: { total: number; pending: number; hashed: number }
   contentHash: { total: number; pending: number; hashed: number }
@@ -80,6 +81,7 @@ export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
     byContentHash: 0,
     byOshash: 0,
     byFingerprint: 0,
+    byVisualHash: 0,
   }
   return {
     duplicates: {
@@ -88,6 +90,7 @@ export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
       byOshash: duplicates.byOshash ?? 0,
       byFingerprint: duplicates.byFingerprint
         ?? (duplicates.byOshash ?? 0),
+      byVisualHash: duplicates.byVisualHash ?? 0,
     },
     fingerprint: data.fingerprint ?? {
       total: data.oshash?.total ?? 0,
@@ -125,7 +128,7 @@ export const emptyExtendedStatsUi = (): ExtendedStatsUi => ({
 })
 
 export const emptyHomeHealthUi = (): HomeHealthDataUi => ({
-  duplicates: { byFilesize: 0, byContentHash: 0, byOshash: 0, byFingerprint: 0 },
+  duplicates: { byFilesize: 0, byContentHash: 0, byOshash: 0, byFingerprint: 0, byVisualHash: 0 },
   fingerprint: { total: 0, pending: 0, hashed: 0 },
   contentHash: { total: 0, pending: 0, hashed: 0 },
   oshash: { total: 0, pending: 0, hashed: 0 },

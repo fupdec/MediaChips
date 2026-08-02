@@ -9,6 +9,10 @@ export const media = sqliteTable('media', {
   filesize: integer('filesize').default(0),
   contentHash: text('contentHash'),
   oshash: text('oshash'),
+  /** Perceptual aHash of the video's 3×3 grid JPEG (16 hex chars). */
+  visualHash: text('visualHash'),
+  /** Colon-separated per-tile aHashes from the grid (row-major). */
+  visualHashTiles: text('visualHashTiles'),
   rating: integer('rating').default(0),
   favorite: integer('favorite', {mode: 'boolean'}).default(false),
   bookmark: text('bookmark'),

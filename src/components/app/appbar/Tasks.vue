@@ -72,14 +72,14 @@
               {{ t('media.adding.open_process_dialog') }}
             </v-btn>
             <v-btn
-              v-if="task.action && !task.done"
+              v-if="task.action || task.done"
               @click.stop="remove(task.action, task.id)"
-              color="error"
+              :color="task.done ? 'secondary' : 'error'"
               variant="text"
               class="px-4"
             >
-              <v-icon start>mdi-close-octagon</v-icon>
-              Stop
+              <v-icon start>{{ task.done ? 'mdi-close' : 'mdi-close-octagon' }}</v-icon>
+              {{ task.done ? t('common.close') : t('common.stop') }}
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -134,7 +134,8 @@ const open = (action: unknown) => {
 }
 
 const remove = (action: unknown, id: string | number) => {
-  if (typeof action === 'function') {
+  const task = tasksStore.list.find((item) => item.id === String(id))
+  if (!task?.done && typeof action === 'function') {
     action()
   }
   const taskId = String(id)

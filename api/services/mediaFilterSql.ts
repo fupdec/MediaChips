@@ -470,91 +470,80 @@ function missingMediaTypeResult(): MediaFilterQueryResult {
   return { ok: false, reason: 'Missing mediaTypeId' }
 }
 
+type DuplicateColumn = 'path' | 'oshash' | 'visualHash' | 'contentHash' | 'filesize'
+
+function resolveDuplicateColumn(duplicatesBy: string): DuplicateColumn {
+  if (duplicatesBy === 'path') return 'path'
+  if (duplicatesBy === 'fingerprint' || duplicatesBy === 'oshash') return 'oshash'
+  if (duplicatesBy === 'visualHash' || duplicatesBy === 'visual') return 'visualHash'
+  if (duplicatesBy === 'contentHash') return 'contentHash'
+  return 'filesize'
+}
+
+/**
+ * Duplicate value groups among candidates only (current filters + media type).
+ * DISTINCT by media.id avoids join fan-out inflating HAVING COUNT(*).
+ */
 function buildDuplicateValuesSubquery(
   duplicatesBy: string,
-  scopeSql: string,
+  joinSql: string,
+  whereSql: string,
 ): string {
-  if (duplicatesBy === 'path') {
-    return `SELECT path
-      FROM media
-      WHERE ${scopeSql}
-        AND path IS NOT NULL
-        AND path != ''
-      GROUP BY path
-      HAVING COUNT(*) > 1`
-  }
+  const column = resolveDuplicateColumn(duplicatesBy)
+  const fromSql = joinSql ? `media\n${joinSql}` : 'media'
+  const valueNotEmpty = column === 'filesize'
+    ? 'media.filesize > 0'
+    : `media.${column} IS NOT NULL AND media.${column} != ''`
 
-  if (duplicatesBy === 'fingerprint' || duplicatesBy === 'oshash') {
-    return `SELECT oshash
-      FROM media
-      WHERE ${scopeSql}
-        AND oshash IS NOT NULL
-        AND oshash != ''
-      GROUP BY oshash
-      HAVING COUNT(*) > 1`
-  }
-
-  if (duplicatesBy === 'contentHash') {
-    // Legacy filter: content-hash duplicates are no longer maintained.
-    return `SELECT contentHash
-      FROM media
-      WHERE ${scopeSql}
-        AND contentHash IS NOT NULL
-        AND contentHash != ''
-      GROUP BY contentHash
-      HAVING COUNT(*) > 1`
-  }
-
-  return `SELECT filesize
-    FROM media
-    WHERE ${scopeSql}
-      AND filesize > 0
-    GROUP BY filesize
+  return `SELECT dupVal
+    FROM (
+      SELECT DISTINCT media.id AS id, media.${column} AS dupVal
+      FROM ${fromSql}
+      WHERE ${whereSql}
+        AND ${valueNotEmpty}
+    ) AS scoped_candidates
+    GROUP BY dupVal
     HAVING COUNT(*) > 1`
 }
 
 function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_by?: string } = {}): MediaFilterQueryResult {
-  const {mediaTypeId, ids = []} = options
+  const {ids = []} = options
   const duplicatesBy = options.duplicates_by || 'filesize'
 
-  if (mediaTypeId == null || mediaTypeId === '') {
-    return missingMediaTypeResult()
-  }
+  // Candidate set = active filters within media type (ids are applied after).
+  const scope = buildMediaFilterQuery(options.filters || [], {
+    mediaTypeId: options.mediaTypeId,
+    ids: [],
+  })
+  if (!scope.ok) return scope
 
-  const replacements: AnyRecord = {mediaTypeId}
-  const clauses = ['media.mediaTypeId = :mediaTypeId']
+  const replacements: AnyRecord = {...scope.replacements}
+  const clauses = [scope.whereSql]
+  const duplicateValuesSubquery = buildDuplicateValuesSubquery(
+    duplicatesBy,
+    scope.joinSql,
+    scope.whereSql,
+  )
+  const column = resolveDuplicateColumn(duplicatesBy)
+
+  if (column === 'filesize') {
+    clauses.push('media.filesize > 0')
+    clauses.push(`media.filesize IN (${duplicateValuesSubquery})`)
+  } else {
+    clauses.push(`media.${column} IS NOT NULL AND media.${column} != ''`)
+    clauses.push(`media.${column} IN (${duplicateValuesSubquery})`)
+  }
 
   if (ids.length) {
     replacements.ids = ids
     clauses.push('media.id IN (:ids)')
   }
 
-  const scopeSql = 'mediaTypeId = :mediaTypeId'
-
-  if (duplicatesBy === 'fingerprint' || duplicatesBy === 'oshash') {
-    const oshashDupes = buildDuplicateValuesSubquery('oshash', scopeSql)
-    clauses.push(`media.oshash IS NOT NULL AND media.oshash != ''`)
-    clauses.push(`media.oshash IN (${oshashDupes})`)
-  } else {
-    const duplicateValuesSubquery = buildDuplicateValuesSubquery(duplicatesBy, scopeSql)
-
-    if (duplicatesBy === 'path') {
-      clauses.push(`media.path IS NOT NULL AND media.path != ''`)
-      clauses.push(`media.path IN (${duplicateValuesSubquery})`)
-    } else if (duplicatesBy === 'contentHash') {
-      clauses.push(`media.contentHash IS NOT NULL AND media.contentHash != ''`)
-      clauses.push(`media.contentHash IN (${duplicateValuesSubquery})`)
-    } else {
-      clauses.push(`media.filesize > 0`)
-      clauses.push(`media.filesize IN (${duplicateValuesSubquery})`)
-    }
-  }
-
   return {
     ok: true,
     whereSql: clauses.join(' AND '),
-    joinSql: '',
-    needsDistinct: false,
+    joinSql: scope.joinSql,
+    needsDistinct: scope.needsDistinct,
     replacements,
   }
 }
