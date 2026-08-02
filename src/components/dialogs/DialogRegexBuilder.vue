@@ -29,7 +29,6 @@
           v-model:capture-text="draftCapture"
           mode="match"
           :preset-kind="presetKind"
-          :intro="t('regex_builder.intro_match')"
         />
       </v-card-text>
     </v-card>

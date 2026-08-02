@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import RegexReplaceTemplateEditor from '@/components/regex/RegexReplaceTemplateEditor.vue'
+import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {
@@ -13,10 +13,12 @@ import {
 import {
   MATCH_REGEX_PRESETS,
   PATH_REGEX_PRESETS,
+  REGEX_HELPER_SNIPPETS,
   generateMatchRegexFromSample,
   generatePathRegexFromSample,
   type MatchRegexPreset,
   type PathRegexPreset,
+  type RegexHelperSnippet,
 } from '@shared/pathParser/regexGenerator'
 
 export type RegexBuilderMode = 'match' | 'extract'
@@ -32,7 +34,7 @@ const props = withDefaults(defineProps<{
   showPresets?: boolean
   showReplace?: boolean
   showIntro?: boolean
-  /** @deprecated Always uses example-first + Advanced accordion */
+  /** @deprecated Always uses example-first layout */
   presetsFirst?: boolean
   presetKind?: RegexPresetKind
   flags?: string
@@ -45,7 +47,7 @@ const props = withDefaults(defineProps<{
   intro: '',
   showPresets: true,
   showReplace: undefined,
-  showIntro: true,
+  showIntro: false,
   presetsFirst: false,
   presetKind: undefined,
   flags: undefined,
@@ -64,8 +66,11 @@ const localPattern = ref(props.pattern)
 const localReplace = ref(props.replace || '$1')
 const localSample = ref(props.sample)
 const localCapture = ref(props.captureText)
-const generatorMessage = ref<{type: 'success' | 'error' | 'info'; text: string} | null>(null)
+const flashMessage = ref<{type: 'error' | 'info'; text: string} | null>(null)
+const flashTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const randomizingSample = ref(false)
+const patternField = ref<{$el?: HTMLElement} | null>(null)
+const lastCaret = ref<number | null>(null)
 
 watch(() => props.pattern, (value) => {
   if (value !== localPattern.value) localPattern.value = value || ''
@@ -85,12 +90,17 @@ const showReplaceField = computed(() => (
   props.showReplace === undefined ? isExtract.value : props.showReplace
 ))
 const regexFlags = computed(() => props.flags || (isExtract.value ? 'iu' : 'i'))
+const helperSnippets = REGEX_HELPER_SNIPPETS
 
 const resolvedPresetKind = computed<RegexPresetKind>(() => {
   if (props.presetKind) return props.presetKind
   if (!props.showPresets) return 'none'
   return isExtract.value ? 'path' : 'generic'
 })
+
+const isPathSample = computed(() => (
+  isExtract.value || resolvedPresetKind.value === 'path'
+))
 
 type PresetView = {
   id: string
@@ -142,13 +152,50 @@ const patternErrorCode = computed(() => {
 
 const patternError = computed(() => {
   if (!patternErrorCode.value) return ''
-  if (patternErrorCode.value === 'empty') return t('regex_builder.validation_empty_title')
-  return t('regex_builder.validation_invalid_text')
+  return t('regex_builder.validation_invalid')
 })
 
 const canGenerate = computed(() => (
   Boolean(localSample.value.trim() && localCapture.value.trim())
 ))
+
+const aiPrompt = computed(() => {
+  const sample = localSample.value.trim()
+  const capture = localCapture.value.trim()
+  if (isExtract.value) {
+    return [
+      'Suggest a path regex for MediaChips tag extraction.',
+      sample ? `Sample path: ${sample}` : 'Sample path is empty — invent a typical media path example.',
+      capture ? `Capture this text as the tag: ${capture}` : 'Choose a sensible capture group for a studio/name segment.',
+      'Return JSON with pattern, replace, explanation.',
+    ].join('\n')
+  }
+  return [
+    'Suggest a JavaScript RegExp that matches the sample.',
+    sample ? `Sample: ${sample}` : 'Sample is empty — invent a short example.',
+    capture ? `Should match/capture: ${capture}` : '',
+    'Return JSON with pattern, replace, explanation.',
+  ].filter(Boolean).join('\n')
+})
+
+const aiContext = computed(() => ({
+  mode: props.mode,
+  pattern: localPattern.value,
+  replace: localReplace.value,
+  sample: localSample.value,
+  captureText: localCapture.value,
+  flags: regexFlags.value,
+}))
+
+function onAiApply(value: Record<string, unknown>) {
+  if (typeof value.pattern === 'string' && value.pattern.trim()) {
+    setPattern(value.pattern.trim())
+  }
+  if (typeof value.replace === 'string' && showReplaceField.value) {
+    setReplace(value.replace)
+  }
+  showFlash('info', String(value.explanation || t('settings_labels.local_ai.assist_apply')))
+}
 
 const extractedName = computed(() => {
   if (!isExtract.value) return null
@@ -163,85 +210,82 @@ const extractedName = computed(() => {
   })
 })
 
-const matchResult = computed(() => {
-  if (isExtract.value) return null
-  return testRegexMatch(localPattern.value, localSample.value, regexFlags.value)
-})
-
-const extractMatchResult = computed(() => {
-  if (!isExtract.value) return null
+const activeMatch = computed(() => {
+  const pattern = localPattern.value.trim()
+  if (!pattern || patternErrorCode.value) return null
   return testRegexMatch(localPattern.value, localSample.value, regexFlags.value)
 })
 
 const replaceGroups = computed(() => {
-  const result = extractMatchResult.value
+  const result = activeMatch.value
   if (!result || !result.ok) return [] as string[]
   return result.groups
 })
 
-const validation = computed(() => {
+type CompactResult = {
+  type: 'success' | 'warning' | 'error'
+  text: string
+} | null
+
+const compactResult = computed<CompactResult>(() => {
   const pattern = localPattern.value.trim()
-  if (!pattern) {
-    return {
-      type: 'info' as const,
-      title: t('regex_builder.validation_empty_title'),
-      text: t('regex_builder.validation_empty_text'),
-    }
-  }
+  if (!pattern) return null
+
   if (patternErrorCode.value) {
     return {
-      type: 'error' as const,
-      title: t('regex_builder.validation_invalid_title'),
-      text: t('regex_builder.validation_invalid_text'),
+      type: 'error',
+      text: t('regex_builder.validation_invalid'),
     }
   }
 
   if (isExtract.value) {
     if (!extractedName.value) {
       return {
-        type: 'warning' as const,
-        title: t('regex_builder.validation_no_match_title'),
-        text: t('regex_builder.validation_no_match_extract'),
+        type: 'warning',
+        text: t('regex_builder.validation_no_match'),
       }
     }
     return {
-      type: 'success' as const,
-      title: t('regex_builder.validation_ok_title'),
+      type: 'success',
       text: t('regex_builder.validation_extract_ok', {name: extractedName.value}),
     }
   }
 
-  const result = matchResult.value
-  if (!result) {
+  const result = activeMatch.value
+  if (!result || !result.ok) {
     return {
-      type: 'info' as const,
-      title: t('regex_builder.validation_empty_title'),
-      text: t('regex_builder.validation_empty_text'),
-    }
-  }
-  if (!result.ok) {
-    if (result.code === 'no_match') {
-      return {
-        type: 'warning' as const,
-        title: t('regex_builder.validation_no_match_title'),
-        text: t('regex_builder.validation_no_match_text'),
-      }
-    }
-    return {
-      type: 'error' as const,
-      title: t('regex_builder.validation_invalid_title'),
-      text: t('regex_builder.validation_invalid_text'),
+      type: 'warning',
+      text: t('regex_builder.validation_no_match'),
     }
   }
 
-  const groupsText = result.groups.filter(Boolean).length
-    ? ` (${result.groups.filter(Boolean).join(', ')})`
-    : ''
   return {
-    type: 'success' as const,
-    title: t('regex_builder.validation_ok_title'),
-    text: t('regex_builder.validation_match_ok', {matched: result.matched}) + groupsText,
+    type: 'success',
+    text: t('regex_builder.validation_match_ok', {matched: result.matched}),
   }
+})
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+const highlightHtml = computed(() => {
+  const sample = localSample.value
+  const result = activeMatch.value
+  if (!sample || !result || !result.ok || !result.matched) return ''
+
+  const matched = result.matched
+  const index = sample.indexOf(matched)
+  if (index < 0) return escapeHtml(sample)
+
+  const before = escapeHtml(sample.slice(0, index))
+  const middle = escapeHtml(matched)
+  const after = escapeHtml(sample.slice(index + matched.length))
+  return `${before}<mark class="regex-builder__mark">${middle}</mark>${after}`
 })
 
 const introText = computed(() => (
@@ -255,9 +299,27 @@ const captureLabel = computed(() => (
     : t('regex_builder.capture_text')
 ))
 
+const sampleLabel = computed(() => (
+  isPathSample.value
+    ? t('regex_builder.sample_path')
+    : t('regex_builder.sample_text')
+))
+
+const sampleTip = computed(() => (
+  isPathSample.value
+    ? t('regex_builder.sample_path_tip')
+    : t('regex_builder.sample_text_tip')
+))
+
+const captureTip = computed(() => (
+  isExtract.value
+    ? t('regex_builder.capture_extract_tip')
+    : t('regex_builder.capture_tip')
+))
+
 const isPresetActive = (preset: PresetView) => (
   localPattern.value === preset.pattern
-  && (!showReplaceField.value || (localReplace.value || '$1') === preset.replace)
+  && (!isExtract.value || (localReplace.value || '$1') === preset.replace)
 )
 
 function setPattern(value: string) {
@@ -280,55 +342,94 @@ function setCapture(value: string) {
   emit('update:captureText', value)
 }
 
+function showFlash(type: 'error' | 'info', text: string, ms = 2000) {
+  if (flashTimer.value) clearTimeout(flashTimer.value)
+  flashMessage.value = {type, text}
+  flashTimer.value = setTimeout(() => {
+    flashMessage.value = null
+    flashTimer.value = null
+  }, ms)
+}
+
 function applyPreset(preset: PresetView) {
   setPattern(preset.pattern)
-  if (showReplaceField.value) setReplace(preset.replace)
+  // Always sync replace in extract mode — MetaSettings hides the field but still stores it.
+  if (showReplaceField.value || isExtract.value) setReplace(preset.replace)
   setSample(preset.sample)
   setCapture(preset.capture)
-  generatorMessage.value = {
-    type: 'info',
-    text: t('regex_builder.preset_applied', {name: t(preset.labelKey)}),
-  }
 }
 
 function generate() {
   if (isExtract.value) {
     const generated = generatePathRegexFromSample(localSample.value, localCapture.value)
     if (!generated) {
-      generatorMessage.value = {
-        type: 'error',
-        text: t('regex_builder.generate_not_found'),
-      }
+      showFlash('error', t('regex_builder.generate_not_found'))
       return
     }
     setPattern(generated.pathRegex)
-    if (showReplaceField.value) setReplace(generated.pathRegexReplace)
-    generatorMessage.value = {
-      type: 'success',
-      text: t(`regex_builder.generate_kind_${generated.kind}`),
-    }
+    setReplace(generated.pathRegexReplace)
     return
   }
 
   const generated = generateMatchRegexFromSample(localSample.value, localCapture.value)
   if (!generated) {
-    generatorMessage.value = {
-      type: 'error',
-      text: t('regex_builder.generate_not_found'),
-    }
+    showFlash('error', t('regex_builder.generate_not_found'))
     return
   }
   setPattern(generated.pattern)
-  generatorMessage.value = {
-    type: 'success',
-    text: t('regex_builder.generate_kind_literal'),
+}
+
+function getPatternInput(): HTMLInputElement | null {
+  const root = patternField.value?.$el
+  if (!root) return null
+  return root.querySelector('input') as HTMLInputElement | null
+}
+
+function rememberCaret() {
+  const input = getPatternInput()
+  if (!input) return
+  lastCaret.value = input.selectionStart ?? input.value.length
+}
+
+function insertSnippet(snippet: string, at?: number | null) {
+  const current = localPattern.value || ''
+  const input = getPatternInput()
+  let start = at
+  if (start == null || start < 0) {
+    if (input && document.activeElement === input) {
+      start = input.selectionStart ?? current.length
+    } else if (lastCaret.value != null) {
+      start = lastCaret.value
+    } else {
+      start = current.length
+    }
   }
+  start = Math.max(0, Math.min(start, current.length))
+  const end = (input && document.activeElement === input)
+    ? (input.selectionEnd ?? start)
+    : start
+  const safeEnd = Math.max(start, Math.min(end, current.length))
+  const next = current.slice(0, start) + snippet + current.slice(safeEnd)
+  const caret = start + snippet.length
+  setPattern(next)
+  lastCaret.value = caret
+  nextTick(() => {
+    const el = getPatternInput()
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(caret, caret)
+    lastCaret.value = caret
+  })
+}
+
+function onHelperClick(snippet: RegexHelperSnippet) {
+  insertSnippet(snippet.insert)
 }
 
 async function pickRandomSamplePath() {
   if (randomizingSample.value) return
   randomizingSample.value = true
-  generatorMessage.value = null
+  flashMessage.value = null
   try {
     const appStore = useAppStore()
     let mediaTypes = (appStore.mediaTypes || [])
@@ -343,14 +444,10 @@ async function pickRandomSamplePath() {
     }
 
     if (!mediaTypes.length) {
-      generatorMessage.value = {
-        type: 'error',
-        text: t('regex_builder.sample_random_empty'),
-      }
+      showFlash('error', t('regex_builder.sample_random_empty'))
       return
     }
 
-    // Shuffle types so we don't always pick from the first media type.
     for (let i = mediaTypes.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [mediaTypes[i], mediaTypes[j]] = [mediaTypes[j], mediaTypes[i]]
@@ -384,23 +481,13 @@ async function pickRandomSamplePath() {
       if (!path) continue
 
       setSample(path)
-      generatorMessage.value = {
-        type: 'info',
-        text: t('regex_builder.sample_random_ok'),
-      }
       return
     }
 
-    generatorMessage.value = {
-      type: 'error',
-      text: t('regex_builder.sample_random_empty'),
-    }
+    showFlash('error', t('regex_builder.sample_random_empty'))
   } catch (error) {
     console.error(error)
-    generatorMessage.value = {
-      type: 'error',
-      text: t('regex_builder.sample_random_error'),
-    }
+    showFlash('error', t('regex_builder.sample_random_error'))
   } finally {
     randomizingSample.value = false
   }
@@ -421,79 +508,42 @@ defineExpose({
       type="info"
       variant="tonal"
       density="compact"
-      rounded="lg"
-      class="mb-4 text-caption"
+      rounded="pill"
+      class="text-caption"
     >
       {{ introText }}
     </v-alert>
 
-    <template v-if="presets.length">
-      <div class="text-caption text-medium-emphasis mb-2">
-        {{ t('regex_builder.presets') }}
-      </div>
-      <div class="d-flex flex-wrap ga-2 mb-3">
-        <v-chip
-          v-for="preset in presets"
-          :key="preset.id"
-          size="small"
-          label
-          :color="isPresetActive(preset) ? 'primary' : undefined"
-          :variant="isPresetActive(preset) ? 'flat' : 'outlined'"
-          class="regex-builder__preset"
-          @click="applyPreset(preset)"
-        >
-          {{ t(preset.labelKey) }}
-        </v-chip>
-      </div>
-    </template>
-
-    <div class="regex-builder__advanced mb-3">
-      <v-text-field
-        :model-value="localPattern"
-        :label="t('regex_builder.pattern')"
-        :hint="t('regex_builder.pattern_hint')"
-        :error-messages="patternError"
-        persistent-hint
-        density="compact"
-        variant="outlined"
-        rounded="lg"
-        hide-details="auto"
-        class="mb-3"
-        @update:model-value="setPattern(String($event ?? ''))"
-      />
-
-      <RegexReplaceTemplateEditor
-        v-if="showReplaceField"
-        :model-value="localReplace"
-        :groups="replaceGroups"
-        :label="t('regex_builder.replace')"
-        :hint="t('regex_builder.replace_hint')"
-        class="mb-1"
-        @update:model-value="setReplace"
-      />
-    </div>
-
-    <settings-category-divider
-      icon="auto-fix"
-      compact
-      :title="t('regex_builder.generator')"
-      class="mb-2"
-    />
-    <div class="text-caption text-medium-emphasis mb-3">
-      {{ t('regex_builder.generator_hint') }}
+    <div
+      v-if="presets.length"
+      class="d-flex flex-wrap ga-2"
+      :aria-label="t('regex_builder.presets')"
+    >
+      <v-chip
+        v-for="preset in presets"
+        :key="preset.id"
+        size="small"
+        label
+        :color="isPresetActive(preset) ? 'primary' : undefined"
+        :variant="isPresetActive(preset) ? 'flat' : 'outlined'"
+        class="regex-builder__preset"
+        @click="applyPreset(preset)"
+      >
+        {{ t(preset.labelKey) }}
+      </v-chip>
     </div>
 
     <v-text-field
       :model-value="localSample"
-      :label="isExtract ? t('regex_builder.sample_path') : t('regex_builder.sample_text')"
+      :label="sampleLabel"
       density="compact"
       variant="outlined"
-      rounded="lg"
+      rounded="pill"
+      clearable
       hide-details="auto"
-      class="mb-3"
       @update:model-value="setSample(String($event ?? ''))"
     >
-      <template v-if="isExtract" #append-inner>
+      <template v-if="isPathSample" #prepend-inner>
         <v-btn
           icon="mdi-dice-multiple"
           size="x-small"
@@ -504,27 +554,154 @@ defineExpose({
           @click.stop="pickRandomSamplePath"
         />
       </template>
+      <template #append-inner>
+        <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
+          <template #activator="{props: tipProps}">
+            <v-btn
+              v-bind="tipProps"
+              icon="mdi-help-circle-outline"
+              size="x-small"
+              variant="text"
+              class="regex-builder__tip-btn"
+              tabindex="-1"
+              @click.stop.prevent
+            />
+          </template>
+          <span>{{ sampleTip }}</span>
+        </v-tooltip>
+      </template>
     </v-text-field>
 
-    <div class="d-flex flex-wrap align-start ga-2 mb-3">
+    <div
+      v-if="highlightHtml"
+      class="regex-builder__preview text-caption"
+      v-html="highlightHtml"
+    />
+
+    <div class="regex-builder__pattern-block">
+      <div
+        class="d-flex flex-wrap align-center ga-2 mb-2"
+        :aria-label="t('regex_builder.helpers')"
+      >
+        <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
+          <template #activator="{props: tipProps}">
+            <v-btn
+              v-bind="tipProps"
+              icon="mdi-help-circle-outline"
+              size="x-small"
+              variant="text"
+              class="regex-builder__tip-btn"
+              @click.stop.prevent
+            />
+          </template>
+          <span>{{ t('regex_builder.helpers_tip') }}</span>
+        </v-tooltip>
+        <v-chip
+          v-for="snippet in helperSnippets"
+          :key="snippet.id"
+          size="small"
+          label
+          variant="outlined"
+          class="regex-builder__helper"
+          :title="t(`regex_builder.helper_${snippet.id}_tip`)"
+          @click="onHelperClick(snippet)"
+        >
+          {{ t(`regex_builder.helper_${snippet.id}`) }}
+        </v-chip>
+      </div>
+
+      <v-text-field
+        ref="patternField"
+        :model-value="localPattern"
+        :label="t('regex_builder.pattern')"
+        :error-messages="patternError"
+        density="compact"
+        variant="outlined"
+        rounded="pill"
+        clearable
+        hide-details="auto"
+        @update:model-value="setPattern(String($event ?? ''))"
+        @click="rememberCaret"
+        @keyup="rememberCaret"
+        @select="rememberCaret"
+        @focus="rememberCaret"
+      >
+        <template #append-inner>
+          <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
+            <template #activator="{props: tipProps}">
+              <v-btn
+                v-bind="tipProps"
+                icon="mdi-help-circle-outline"
+                size="x-small"
+                variant="text"
+                class="regex-builder__tip-btn"
+                tabindex="-1"
+                @click.stop.prevent
+              />
+            </template>
+            <span>{{ t('regex_builder.pattern_tip') }}</span>
+          </v-tooltip>
+        </template>
+      </v-text-field>
+    </div>
+
+    <RegexReplaceTemplateEditor
+      v-if="showReplaceField"
+      :model-value="localReplace"
+      :groups="replaceGroups"
+      :label="t('regex_builder.replace')"
+      :hint="t('regex_builder.replace_hint')"
+      @update:model-value="setReplace"
+    />
+
+    <v-alert
+      v-if="compactResult"
+      :type="compactResult.type"
+      variant="tonal"
+      density="compact"
+      rounded="pill"
+      class="regex-builder__result text-caption"
+    >
+      {{ compactResult.text }}
+    </v-alert>
+
+    <div class="d-flex flex-wrap align-start ga-2">
       <v-text-field
         :model-value="localCapture"
         :label="captureLabel"
-        :hint="t('regex_builder.capture_text_hint')"
-        persistent-hint
+        :placeholder="t('regex_builder.capture_placeholder')"
         density="compact"
         variant="outlined"
-        rounded="lg"
+        rounded="pill"
+        clearable
         hide-details="auto"
         class="flex-grow-1 regex-builder__capture"
         @update:model-value="setCapture(String($event ?? ''))"
-      />
+      >
+        <template #append-inner>
+          <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
+            <template #activator="{props: tipProps}">
+              <v-btn
+                v-bind="tipProps"
+                icon="mdi-help-circle-outline"
+                size="x-small"
+                variant="text"
+                class="regex-builder__tip-btn"
+                tabindex="-1"
+                @click.stop.prevent
+              />
+            </template>
+            <span>{{ captureTip }}</span>
+          </v-tooltip>
+        </template>
+      </v-text-field>
       <v-btn
         color="primary"
         variant="flat"
-        rounded="lg"
+        rounded="pill"
         class="mt-1"
         :disabled="!canGenerate"
+        :title="t('regex_builder.generate_tip')"
         @click="generate"
       >
         {{ t('regex_builder.generate') }}
@@ -532,36 +709,67 @@ defineExpose({
     </div>
 
     <v-alert
-      v-if="generatorMessage"
-      :type="generatorMessage.type"
+      v-if="flashMessage"
+      :type="flashMessage.type"
       variant="tonal"
       density="compact"
-      rounded="lg"
-      class="mb-3 text-caption"
+      rounded="pill"
+      class="text-caption"
     >
-      {{ generatorMessage.text }}
+      {{ flashMessage.text }}
     </v-alert>
 
-    <v-alert
-      :type="validation.type"
-      variant="tonal"
-      density="comfortable"
-      rounded="lg"
-      class="regex-builder__result"
-    >
-      <div class="font-weight-medium text-body-2">{{ validation.title }}</div>
-      <div class="mt-1 text-caption">{{ validation.text }}</div>
-    </v-alert>
+    <LocalAiAssistPanel
+      mode="regex"
+      :prompt="aiPrompt"
+      :context="aiContext"
+      @apply="onAiApply"
+    />
   </div>
 </template>
 
 <style scoped>
+.regex-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .regex-builder__preset {
   cursor: pointer;
 }
 
+.regex-builder__tip-btn {
+  opacity: 0.55;
+}
+
+.regex-builder__tip-btn:hover,
+.regex-builder__tip-btn:focus-visible {
+  opacity: 1;
+}
+
+.regex-builder__helper {
+  cursor: pointer;
+  user-select: none;
+}
+
 .regex-builder__capture {
   min-width: 220px;
+}
+
+.regex-builder__preview {
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  word-break: break-all;
+  line-height: 1.45;
+}
+
+.regex-builder__preview :deep(.regex-builder__mark) {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: rgba(var(--v-theme-primary), 0.22);
+  color: inherit;
 }
 
 .regex-builder__result {

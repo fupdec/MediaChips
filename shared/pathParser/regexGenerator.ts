@@ -99,7 +99,8 @@ export function buildPathRegexPresets(os: PathOsStyle = detectPathOsStyle()): Pa
     },
     {
       id: 'folder',
-      pathRegex: '/([^/]+)/[^/]+$',
+      // Match only the immediate parent folder name (not `/folder/file.ext`).
+      pathRegex: '([^/]+)(?=/[^/]+$)',
       pathRegexReplace: '$1',
       samplePath: `${root}/Shows/ShowName/episode.mp4`,
       captureExample: 'ShowName',
@@ -239,3 +240,32 @@ export function generateMatchRegexFromSample(
     kind: 'literal',
   }
 }
+
+export type RegexHelperSnippetId =
+  | 'any'
+  | 'digits'
+  | 'word'
+  | 'capture'
+  | 'slash'
+  | 'litOpen'
+  | 'litClose'
+  | 'optional'
+  | 'or'
+
+export interface RegexHelperSnippet {
+  id: RegexHelperSnippetId
+  insert: string
+}
+
+/** Common regex fragments for the pattern helper chips. */
+export const REGEX_HELPER_SNIPPETS: RegexHelperSnippet[] = [
+  {id: 'any', insert: '.*?'},
+  {id: 'digits', insert: '\\d+'},
+  {id: 'word', insert: '\\w+'},
+  {id: 'capture', insert: '(.*?)'},
+  {id: 'slash', insert: '/'},
+  {id: 'litOpen', insert: '\\['},
+  {id: 'litClose', insert: '\\]'},
+  {id: 'optional', insert: '?'},
+  {id: 'or', insert: '|'},
+]

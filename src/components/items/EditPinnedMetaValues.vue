@@ -273,6 +273,41 @@
             </v-card>
           </v-col>
 
+          <!-- Combined tags from all pinned array categories -->
+          <v-col
+            v-if="showMixedTagsField"
+            cols="12"
+            class="field"
+          >
+            <v-card
+              class="editing-field-card rounded-xl"
+              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
+              variant="flat"
+            >
+              <MetaInputMixedTags
+                :key="`mixed_${currentItemId}`"
+                :ref="setMixedTagsRef"
+                :meta-ids="mixedMetaIds"
+                :model-value="mixedTagsValue"
+                @update:model-value="setMixedTagsValue"
+                variant="filled"
+                hide-details
+              />
+              <v-btn
+                v-if="mixedTagsDirty"
+                @click="restoreMixedTags"
+                class="restore"
+                :title="t('common.restore')"
+                variant="plain"
+                size="x-small"
+                icon
+              >
+                <v-icon>mdi-restore</v-icon>
+              </v-btn>
+            </v-card>
+          </v-col>
+
           <!-- Assigned/Pinned metadata -->
           <v-col
             v-for="item in visibleAssignedItems"
@@ -418,7 +453,7 @@
         </v-row>
 
         <div
-          v-if="showFieldToolbar && visibleAssignedItems.length === 0 && assignedItems.length > 0"
+          v-if="showFieldToolbar && visibleAssignedItems.length === 0 && !showMixedTagsField && assignedItems.length > 0"
           class="editing-section__empty text-medium-emphasis text-body-2 mt-2"
         >
           {{ t('editing.no_matching_fields') }}
@@ -512,6 +547,7 @@ import {
 
 // Components
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
+import MetaInputMixedTags from '@/components/meta/input/MetaInputMixedTags.vue'
 import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
 import EditPinnedOverview from '@/components/items/EditPinnedOverview.vue'
 import ColorPicker from '@/components/elements/ColorPicker.vue'
@@ -566,6 +602,10 @@ interface MetaInputArrayInstance {
   create: (name: string) => void
 }
 
+interface MetaInputMixedTagsInstance {
+  create: (name?: string, metaId?: number) => void | Promise<void>
+}
+
 const props = withDefaults(defineProps<{
   layout?: EditLayout
   showOverview?: boolean
@@ -616,6 +656,7 @@ const vals = ref<PinnedMetaValues>({})
 const old = ref<PinnedMetaValues>({})
 const assignedItems = ref<PinnedMetaAssignment[]>([])
 const metaInputRefs = ref<Record<string | number, MetaInputArrayInstance>>({})
+const mixedTagsInputRef = ref<MetaInputMixedTagsInstance | null>(null)
 
 const presetMetaInput = reactive<PresetMetaProps>({
   get type() {
@@ -702,8 +743,11 @@ const shouldShowPinnedField = (options: {
   return !options.filled
 }
 
+const useMixedTagsInput = computed(() => settingsStore.mixedTagsInputInEditingDialog === '1')
+
 const visibleAssignedItems = computed(() =>
   assignedItems.value.filter((item) => {
+    if (useMixedTagsInput.value && item.meta?.type === 'array') return false
     const key = getItemKey(item)
     return shouldShowPinnedField({
       label: metaName(item) || '',
@@ -712,6 +756,73 @@ const visibleAssignedItems = computed(() =>
     })
   }),
 )
+
+const arrayAssignedItems = computed(() =>
+  assignedItems.value.filter((item) => item.meta?.type === 'array'),
+)
+
+const mixedMetaIds = computed(() =>
+  arrayAssignedItems.value
+    .map((item) => getMetaIdNumber(item))
+    .filter((id) => Number.isFinite(id) && id > 0),
+)
+
+const mixedTagsValue = computed(() => {
+  const keys: string[] = []
+  for (const item of arrayAssignedItems.value) {
+    const metaId = getMetaIdNumber(item)
+    const tagIds = getArrayVal(item) || []
+    for (const tagId of tagIds) {
+      const id = Number(tagId)
+      if (!Number.isFinite(id)) continue
+      keys.push(`${metaId}:${id}`)
+    }
+  }
+  return keys
+})
+
+const mixedTagsDirty = computed(() =>
+  arrayAssignedItems.value.some((item) => !equalOld(getItemKey(item), 'array')),
+)
+
+const mixedTagsFilled = computed(() =>
+  arrayAssignedItems.value.some((item) =>
+    isValueFilled(vals.value[getItemKey(item)], 'array'),
+  ),
+)
+
+const showMixedTagsField = computed(() => {
+  if (!useMixedTagsInput.value || !arrayAssignedItems.value.length) return false
+  return shouldShowPinnedField({
+    label: t('meta.fields.mixed_tags_label'),
+    filled: mixedTagsFilled.value,
+    dirty: mixedTagsDirty.value,
+  })
+})
+
+const setMixedTagsValue = (keys: string[]) => {
+  const byMeta = new Map<number, number[]>()
+  for (const key of keys) {
+    const [metaPart, tagPart] = String(key).split(':')
+    const metaId = Number(metaPart)
+    const tagId = Number(tagPart)
+    if (!metaId || !tagId) continue
+    const list = byMeta.get(metaId) || []
+    if (!list.includes(tagId)) list.push(tagId)
+    byMeta.set(metaId, list)
+  }
+
+  for (const item of arrayAssignedItems.value) {
+    const metaId = getMetaIdNumber(item)
+    setVal(byMeta.get(metaId) || [], getItemKey(item))
+  }
+}
+
+const restoreMixedTags = () => {
+  for (const item of arrayAssignedItems.value) {
+    restore(getItemKey(item))
+  }
+}
 
 const emptyPinnedCount = computed(() =>
   assignedItems.value.filter((item) =>
@@ -981,6 +1092,10 @@ const setMetaInputRef = (el: unknown, metaId: string | number) => {
   if (el) {
     metaInputRefs.value[metaId] = el as MetaInputArrayInstance
   }
+}
+
+const setMixedTagsRef = (el: unknown) => {
+  mixedTagsInputRef.value = el ? el as MetaInputMixedTagsInstance : null
 }
 
 const getMetaValues = async () => {
@@ -1371,10 +1486,16 @@ const transferScrapedInfo = async () => {
             }
           }
         } else {
-          const input = metaInputRefs.value[metaId]
           const scraperName = String(field.valueScraper ?? '').trim()
-          if (input?.create && scraperName) {
-            input.create(scraperName)
+          if (!scraperName) {
+            // skip
+          } else if (useMixedTagsInput.value) {
+            void mixedTagsInputRef.value?.create(scraperName, metaId)
+          } else {
+            const input = metaInputRefs.value[metaId]
+            if (input?.create) {
+              input.create(scraperName)
+            }
           }
         }
       } else if (field.dataType === 'country') {

@@ -230,7 +230,7 @@ function onDraftBackspace() {
   min-height: 40px;
   padding: 6px 10px;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
+  border-radius: 9999px;
   background: transparent;
 }
 

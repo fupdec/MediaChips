@@ -124,6 +124,9 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
       case 'documentation':
         appShell.showDocumentation('app')
         break
+      case 'localAi':
+        dialogsStore.localAi.show = true
+        break
       case 'gettingStarted':
         await saveOnboardingStep(0)
         openOnboarding()

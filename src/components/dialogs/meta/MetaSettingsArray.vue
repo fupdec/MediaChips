@@ -1,6 +1,13 @@
 <template>
   <!-- Basics: hide in nav (create + basics tab) -->
   <SettingsSection v-if="showBasics" padded>
+    <LocalAiAssistPanel
+      class="mb-4"
+      mode="meta"
+      :prompt="metaAiPrompt"
+      :context="metaAiContext"
+      @apply="onMetaAiApply"
+    />
     <v-switch
       v-model="settings.hidden"
       hide-details
@@ -165,7 +172,7 @@
         inset
         v-model="settings.parser"
         hide-details
-        class="mb-2"
+        class="mb-4"
       >
         <template #label>
           <div class="d-flex flex-column ml-2">
@@ -178,7 +185,7 @@
       </v-switch>
 
       <template v-if="settings.parser">
-        <div class="text-caption text-medium-emphasis mb-3">
+        <div class="text-caption text-medium-emphasis mb-4">
           {{ t('meta.settings.path_find_fuzzy_hint') }}
         </div>
 
@@ -186,7 +193,7 @@
           v-model="settings.pathRegexEnabled"
           inset
           hide-details
-          class="mb-2"
+          class="mb-4"
         >
           <template #label>
             <div class="d-flex flex-column ml-2">
@@ -206,9 +213,8 @@
             :replace="settings.pathRegexReplace"
             :sample="pathRegexSamplePath"
             :capture-text="pathRegexCaptureText"
-            :show-intro="false"
             :show-replace="false"
-            class="mb-3"
+            class="mb-4"
             @update:pattern="settings.pathRegex = $event"
             @update:replace="settings.pathRegexReplace = $event"
             @update:sample="pathRegexSamplePath = $event"
@@ -219,7 +225,7 @@
             v-model="settings.pathRegexCreateTags"
             inset
             hide-details="auto"
-            class="mb-2"
+            class="mb-4"
           >
             <template #label>
               <div class="d-flex flex-column ml-2">
@@ -442,6 +448,7 @@ import {typedApi} from '@/services/typedApi'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
+import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
 import RegexBuilder from '@/components/regex/RegexBuilder.vue'
 import RegexReplaceTemplateEditor from '@/components/regex/RegexReplaceTemplateEditor.vue'
 import {getDefaultPathRegexSample} from '@shared/pathParser/regexGenerator'
@@ -541,6 +548,18 @@ const settings = ref<MetaSettings>({
 const defaultPathRegexSample = getDefaultPathRegexSample()
 const pathRegexSamplePath = ref(defaultPathRegexSample.samplePath)
 const pathRegexCaptureText = ref(defaultPathRegexSample.captureText)
+
+const metaAiPrompt = computed(() => (
+  'Suggest how to configure this MediaChips metadata category (chips). Return JSON with summary, suggestions, explanation.'
+))
+const metaAiContext = computed(() => ({
+  name: props.meta?.name,
+  type: props.meta?.type,
+  settings: settings.value,
+}))
+function onMetaAiApply(_value: Record<string, unknown>) {
+  // Advisory only — user reads suggestions in the panel; no auto-toggle of settings.
+}
 
 const pathRegexReplaceGroups = computed(() => {
   const result = testRegexMatch(settings.value.pathRegex, pathRegexSamplePath.value, 'iu')

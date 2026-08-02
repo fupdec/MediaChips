@@ -40,6 +40,8 @@
                 <SettingsVideoPreview/>
               </SettingsSection>
 
+              <SettingsGroupLabel :title="t('settings.groups.local_ai')"/>
+              <SettingsLocalAi/>
             </SettingsList>
           </div>
 
@@ -305,6 +307,9 @@ const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
 const SettingsTagImageAiUpscale = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsTagImageAiUpscale.vue")
 )
+const SettingsLocalAi = defineAsyncComponent(() =>
+  import("@/components/settings/general/SettingsLocalAi.vue")
+)
 const SettingsDetectFaces = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDetectFaces.vue")
 )
@@ -486,6 +491,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   generate_video_images: "settings-generate-video-images",
   generate_image_thumbs: "settings-generate-image-thumbs",
   tag_image_ai_upscale: "settings-tag-image-ai-upscale",
+  local_ai: "settings-local-ai",
   detect_faces: "settings-detect-faces",
   video_codec_backfill: "settings-video-codec-backfill",
   oshash_backfill: "settings-fingerprint-backfill",
@@ -554,6 +560,7 @@ const GENERAL_SECTIONS = new Set([
   "login",
   "video_player",
   "video_preview",
+  "local_ai",
 ])
 
 const APPEARANCE_SECTIONS = new Set([

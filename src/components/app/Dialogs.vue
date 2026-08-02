@@ -24,6 +24,7 @@
     <DialogOnboarding v-if="dialogsStore.onboarding.show"/>
     <DialogAdultOnboarding v-if="adultUiAvailable && dialogsStore.adultOnboarding.show"/>
     <DialogDocumentation v-show="dialogsStore.documentation"/>
+    <DialogLocalAiAssistant v-if="dialogsStore.localAi.show"/>
     <DialogFeedback v-if="dialogsStore.feedback"/>
     <DialogVersionHistory v-if="dialogsStore.versions"/>
     <DialogChangelog v-if="dialogsStore.changelog.show"/>
@@ -201,6 +202,9 @@ const DialogAdultOnboarding = defineAsyncComponent(() =>
 )
 const DialogDocumentation = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogDocumentation.vue')
+)
+const DialogLocalAiAssistant = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogLocalAiAssistant.vue')
 )
 const DialogFeedback = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogFeedback.vue')

@@ -8,6 +8,7 @@ import createTasksDatabaseController from './tasks/TasksDatabase.controller'
 import createTasksTaggingController from './tasks/TasksTagging.controller'
 import createTasksFacesController from './tasks/TasksFaces.controller'
 import createTasksMaintenanceController from './tasks/TasksMaintenance.controller'
+import createTasksLocalAiController from './tasks/TasksLocalAi.controller'
 
 export default function createTaskController(db: ApiDb) {
   const shared = createTaskControllerShared(db)
@@ -25,5 +26,6 @@ export default function createTaskController(db: ApiDb) {
     ...createTasksTaggingController(shared),
     ...createTasksFacesController(shared),
     ...createTasksMaintenanceController(shared),
+    ...createTasksLocalAiController(shared),
   }
 }

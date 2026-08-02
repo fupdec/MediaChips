@@ -1194,6 +1194,7 @@ const helpMenu = {
   label: 'Help',
   submenu: [
     menuActionItem('Documentation', 'documentation'),
+    menuActionItem('Local AI', 'localAi'),
     menuActionItem('Getting Started', 'gettingStarted'),
     menuActionItem('Send Feedback', 'sendFeedback'),
     menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),

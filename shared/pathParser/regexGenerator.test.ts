@@ -90,4 +90,31 @@ describe('pathParser/regexGenerator', () => {
       'wholeWord',
     ])
   })
+
+  it('folder preset extracts the parent folder name of the file', () => {
+    const folder = buildPathRegexPresets('unix').find((preset) => preset.id === 'folder')
+    expect(folder).toBeTruthy()
+    expect(testRegexMatch(folder!.pathRegex, folder!.samplePath, 'iu')).toEqual({
+      ok: true,
+      matched: 'ShowName',
+      groups: ['ShowName'],
+    })
+    expect(extractPathRegexTagName(folder!.samplePath, {
+      id: 1,
+      type: 'array',
+      parser: true,
+      pathRegex: folder!.pathRegex,
+      pathRegexReplace: folder!.pathRegexReplace,
+    })).toBe('ShowName')
+    expect(extractPathRegexTagName(
+      'C:\\Media\\Shows\\ShowName\\episode.mp4',
+      {
+        id: 1,
+        type: 'array',
+        parser: true,
+        pathRegex: folder!.pathRegex,
+        pathRegexReplace: folder!.pathRegexReplace,
+      },
+    )).toBe('ShowName')
+  })
 })

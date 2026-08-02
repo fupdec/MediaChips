@@ -43,6 +43,46 @@
       </v-card-actions>
 
       <div class="px-2">
+        <LocalAiAssistPanel
+          class="mb-3"
+          mode="filter"
+          :prompt="filterAiPrompt"
+          :context="filterAiContext"
+          @apply="onFilterAiApply"
+        >
+          <template v-if="ITEMS.type === 'media'" #actions>
+            <v-menu location="bottom">
+              <template #activator="{ props: menuProps }">
+                <v-btn
+                  v-bind="menuProps"
+                  variant="tonal"
+                  rounded="xl"
+                  size="small"
+                  color="primary"
+                >
+                  <v-icon start size="small">mdi-content-duplicate</v-icon>
+                  {{ duplicatesMenuLabel }}
+                  <v-icon end size="small">mdi-menu-down</v-icon>
+                </v-btn>
+              </template>
+              <v-list density="compact" nav>
+                <v-list-item
+                  v-if="ITEMS.find_duplicates"
+                  :title="t('filters.duplicates_menu_off')"
+                  @click="clearDuplicates"
+                />
+                <v-divider v-if="ITEMS.find_duplicates" class="my-1" />
+                <v-list-item
+                  v-for="mode in duplicateMenuModes"
+                  :key="mode.value"
+                  :title="t(mode.labelKey)"
+                  :active="ITEMS.find_duplicates && isDuplicateModeActive(mode.value)"
+                  @click="findDuplicates(mode.value)"
+                />
+              </v-list>
+            </v-menu>
+          </template>
+        </LocalAiAssistPanel>
         <div class="d-flex align-center mb-2 ga-2" :class="editMode ? 'justify-space-between' : ''">
           <v-btn
             v-if="editMode"
@@ -67,40 +107,6 @@
             <v-icon start size="small">mdi-check</v-icon>
             {{ t('common.apply') }}
           </v-btn>
-        </div>
-
-        <div v-if="ITEMS.type === 'media'" class="mb-2">
-          <v-menu location="bottom">
-            <template #activator="{ props: menuProps }">
-              <v-btn
-                v-bind="menuProps"
-                variant="tonal"
-                rounded="xl"
-                size="small"
-                color="primary"
-                block
-              >
-                <v-icon start size="small">mdi-content-duplicate</v-icon>
-                {{ duplicatesMenuLabel }}
-                <v-icon end size="small">mdi-menu-down</v-icon>
-              </v-btn>
-            </template>
-            <v-list density="compact" nav>
-              <v-list-item
-                v-if="ITEMS.find_duplicates"
-                :title="t('filters.duplicates_menu_off')"
-                @click="clearDuplicates"
-              />
-              <v-divider v-if="ITEMS.find_duplicates" class="my-1" />
-              <v-list-item
-                v-for="mode in duplicateMenuModes"
-                :key="mode.value"
-                :title="t(mode.labelKey)"
-                :active="ITEMS.find_duplicates && isDuplicateModeActive(mode.value)"
-                @click="findDuplicates(mode.value)"
-              />
-            </v-list>
-          </v-menu>
         </div>
 
         <FiltersAdd
@@ -221,6 +227,7 @@ import cols from '../../../app/configs/filter-cols'
 import FilterRow from '@/components/app/FilterRow.vue'
 import DialogFiltersSaved from '@/components/dialogs/filters/DialogFiltersSaved.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
+import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
@@ -262,6 +269,21 @@ const filtersFloating = computed(() =>
 const updKey = ref(0)
 const filters = ref<FilterObject[]>([])
 
+const filterAiPrompt = computed(() => (
+  'Help me design MediaChips filters for my library. Return JSON with summary, suggestions (string array), explanation.'
+))
+const filterAiContext = computed(() => ({
+  filters: filters.value.map((row) => ({
+    param: row.param,
+    type: row.type,
+    cond: row.cond,
+    val: row.val,
+    active: row.active,
+  })),
+}))
+function onFilterAiApply(_value: Record<string, unknown>) {
+  // Advisory only for now.
+}
 const listBy = ref<FilterListParam[]>([])
 const valid = ref(true)
 const datePicker = ref<{

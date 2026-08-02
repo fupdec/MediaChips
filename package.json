@@ -82,6 +82,7 @@
     "jimp": "^1.6.1",
     "lodash": "^4.17.21",
     "mitt": "^3.0.1",
+    "node-llama-cpp": "^3.19.1",
     "node-machine-id": "^1.1.12",
     "node-stream-zip": "^1.15.0",
     "path-browserify": "^1.0.1",
@@ -149,7 +150,9 @@
       "**/node_modules/ffprobe-static/**",
       "**/node_modules/sharp/**",
       "**/node_modules/@img/**",
-      "**/node_modules/better-sqlite3/**"
+      "**/node_modules/better-sqlite3/**",
+      "**/node_modules/node-llama-cpp/**",
+      "**/node_modules/@node-llama-cpp/**"
     ],
     "extraResources": [
       {

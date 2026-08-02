@@ -53,6 +53,12 @@ const {t} = useI18n();
   </settings-switch>
 
   <settings-switch
+    option="mixedTagsInputInEditingDialog"
+    :title="t('settings_labels.appearance.mixed_tags_input')"
+    :hint="t('settings_labels.appearance.mixed_tags_input_hint')"
+  />
+
+  <settings-switch
     option="showIconsInsteadTextOnFiltersChips"
     :hide-details="false"
   >

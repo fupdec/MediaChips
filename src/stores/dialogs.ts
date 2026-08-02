@@ -15,6 +15,10 @@ import type { SceneScraperBatchItem } from '@mediachips/plugin-adult/types/scene
 export const useDialogsStore = defineStore('useDialogsStore', {
   state: () => ({
     documentation: false,
+    localAi: {
+      show: false,
+      seedPrompt: '',
+    },
     feedback: false,
     feedbackPreset: null as { subject?: string; message?: string } | null,
     versions: false,

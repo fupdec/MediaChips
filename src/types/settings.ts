@@ -133,6 +133,7 @@ export type SettingsState = {
   checkForUpdatesAtStartup: string
   startupHealthNotifications: string
   showIconsOfMetaInEditingDialog: string
+  mixedTagsInputInEditingDialog: string
   showEmptyMetaValueInCard: string
   showIconsInsteadTextOnFiltersChips: string
   showHeaderImageAboveProfile: string
@@ -202,6 +203,7 @@ export type SettingsState = {
   'faceDetect.minScore': string
   'faceDetect.framesPerVideo': string
   'faceDetect.genderFilter': string
+  'localAi.enabled': string
 }
 
 export const defaultSettingsState = (): SettingsState => ({
@@ -239,6 +241,7 @@ export const defaultSettingsState = (): SettingsState => ({
   checkForUpdatesAtStartup: '1',
   startupHealthNotifications: '1',
   showIconsOfMetaInEditingDialog: '1',
+  mixedTagsInputInEditingDialog: '0',
   showEmptyMetaValueInCard: '1',
   showIconsInsteadTextOnFiltersChips: '0',
   showHeaderImageAboveProfile: '1',
@@ -308,4 +311,5 @@ export const defaultSettingsState = (): SettingsState => ({
   'faceDetect.minScore': '0.5',
   'faceDetect.framesPerVideo': '6',
   'faceDetect.genderFilter': 'both',
+  'localAi.enabled': '0',
 })
