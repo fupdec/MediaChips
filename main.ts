@@ -642,22 +642,48 @@ ipcMain.on('media-drag:start', (event: IpcMainEvent, raw: unknown) => {
 })
 
 ipcMain.handle('openPath', async (_event: IpcMainInvokeEvent, data: Record<string, unknown> | string) => {
-  const rawPath = typeof data === 'string' ? data : data?.path
-  if (rawPath == null || rawPath === '') return {error: 'Path is required'}
+  // Always return a cloneable result — unhandled throws/hangs surface as
+  // "Error invoking remote method 'openPath': reply was never sent".
+  try {
+    const rawPath = typeof data === 'string' ? data : data?.path
+    if (rawPath == null || rawPath === '') return {error: 'Path is required'}
 
-  const entryPath = path.normalize(String(rawPath))
-  // Reveal the file in Finder/Explorer instead of only opening the parent folder.
-  if (typeof data === 'object' && data !== null && data.isDir) {
-    try {
-      shell.showItemInFolder(entryPath)
+    const entryPath = normalizeMediaPath(String(rawPath))
+    const existingPath = await resolveExistingPath(entryPath)
+    if (!existingPath) return {error: 'Path does not exist'}
+
+    // Reveal the file in Finder/Explorer instead of only opening the parent folder.
+    if (typeof data === 'object' && data !== null && data.isDir) {
+      shell.showItemInFolder(existingPath)
       return {success: true}
-    } catch (error) {
-      return {error: error instanceof Error ? error.message : String(error)}
     }
-  }
 
-  const error = await shell.openPath(entryPath)
-  return error ? {error} : {success: true}
+    // shell.openPath can hang on some platforms/Launch Services states.
+    // Reply after a short wait so IPC never stalls; keep the open running.
+    const OPEN_PATH_REPLY_MS = 2_500
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const openPromise = shell.openPath(existingPath)
+    try {
+      const error = await Promise.race([
+        openPromise,
+        new Promise<string>((resolve) => {
+          timeoutId = setTimeout(() => resolve(''), OPEN_PATH_REPLY_MS)
+        }),
+      ])
+      if (error) return {error: String(error)}
+      return {success: true}
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      void openPromise.then((error) => {
+        if (error) console.warn('openPath deferred error:', error)
+      }).catch((error) => {
+        console.warn('openPath deferred rejection:', error)
+      })
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || 'Failed to open path')
+    return {error: message || 'Failed to open path'}
+  }
 })
 
 ipcMain.handle('openExternal', async (_event: IpcMainInvokeEvent, rawUrl: unknown) => {

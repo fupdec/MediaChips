@@ -15,6 +15,21 @@ function notifyOpenPathError(message: string): void {
   })
 }
 
+function isElectronIpcFailure(message: string): boolean {
+  return (
+    message.includes('reply was never sent')
+    || message.includes('No handler registered')
+    || message.includes('Error invoking remote method')
+  )
+}
+
+async function openPathViaHttp(normalizedPath: string, isDirectory?: boolean) {
+  return typedApi.openPath({
+    path: normalizedPath,
+    isDir: isDirectory,
+  })
+}
+
 export async function openPath(entryPath: string, isDirectory?: boolean) {
   const normalizedPath = String(entryPath || '').trim()
   if (!normalizedPath) {
@@ -34,16 +49,26 @@ export async function openPath(entryPath: string, isDirectory?: boolean) {
     } catch (error) {
       const err = error as AxiosLikeError
       const message = err.message || 'Failed to open path'
+      // Prefer the HTTP task endpoint when IPC dies mid-call (common after
+      // main-process restarts or when shell.openPath never replies).
+      if (isElectronIpcFailure(message)) {
+        try {
+          return await openPathViaHttp(normalizedPath, isDirectory)
+        } catch (fallbackError) {
+          const fallback = fallbackError as AxiosLikeError
+          const fallbackMessage =
+            fallback.response?.data?.message || fallback.message || message
+          notifyOpenPathError(fallbackMessage)
+          throw fallbackError
+        }
+      }
       notifyOpenPathError(message)
       throw error
     }
   }
 
   try {
-    return await typedApi.openPath({
-      path: normalizedPath,
-      isDir: isDirectory,
-    })
+    return await openPathViaHttp(normalizedPath, isDirectory)
   } catch (error) {
     const err = error as AxiosLikeError
     const message = err.response?.data?.message || err.message || 'Failed to open path'
