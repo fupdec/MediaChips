@@ -28,27 +28,49 @@
             link
           />
 
-          <template v-if="metaVisible.length">
-            <v-list-subheader class="sidebar-section">
-              {{ t('navigation.section_tags') }}
-            </v-list-subheader>
-
-            <v-list-item
-              :to="allTagsLink.to"
-              :prepend-icon="allTagsLink.icon"
-              :title="allTagsLink.title"
-              :exact="allTagsLink.exact"
-              color="primary"
-              link
-            />
+          <template v-if="metaArray.length">
+            <div class="sidebar-section sidebar-section--actions">
+              <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
+              <div class="sidebar-section__actions">
+                <v-btn
+                  icon
+                  size="x-small"
+                  :variant="tagsEditMode ? 'flat' : 'text'"
+                  :color="tagsEditMode ? 'primary' : undefined"
+                  :aria-label="tagsEditMode
+                    ? t('all_tags.done_editing_categories')
+                    : t('all_tags.edit_categories')"
+                  :title="tagsEditMode
+                    ? t('all_tags.done_editing_categories')
+                    : t('all_tags.edit_categories')"
+                  @click="tagsEditMode = !tagsEditMode"
+                >
+                  <v-icon size="16">
+                    {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                  </v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="x-small"
+                  :to="allTagsLink.to"
+                  :exact="allTagsLink.exact"
+                  :variant="isAllTagsActive ? 'flat' : 'text'"
+                  :color="isAllTagsActive ? 'primary' : undefined"
+                  :aria-label="allTagsLink.title"
+                  :title="allTagsLink.title"
+                >
+                  <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
+                </v-btn>
+              </div>
+            </div>
           </template>
         </v-list>
 
         <div
-          v-if="metaVisible.length"
+          v-if="metaArray.length"
           class="sidebar-browser__tags-panel"
         >
-          <SidebarTagsBrowser />
+          <SidebarTagsBrowser :edit-mode="tagsEditMode" />
         </div>
 
         <v-list
@@ -113,16 +135,19 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue'
+import {computed, ref} from 'vue'
+import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
 const folderHovered = ref(false)
+const tagsEditMode = ref(false)
 const {t} = useI18n()
+const route = useRoute()
 
 const {
-  metaVisible,
+  metaArray,
   libraryLinks,
   settingsLink,
   allTagsLink,
@@ -132,11 +157,22 @@ const {
   watcherBusy,
   openDialogFolder,
 } = useLibraryNavItems()
+
+const isAllTagsActive = computed(() => route.path === '/tags')
 </script>
 
 <style scoped lang="scss">
 .sidebar-browser {
   border-right: 1px solid rgba(var(--v-theme-on-surface), 0.08) !important;
+
+  :deep(a.v-list-item),
+  :deep(.v-list-item--link) {
+    text-decoration: none;
+  }
+
+  :deep(.sidebar-browser__nav) {
+    padding-bottom: 0;
+  }
 }
 
 .sidebar-browser__scroll {
@@ -158,11 +194,34 @@ const {
   opacity: 0.55;
 }
 
+.sidebar-section--actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  height: auto;
+  min-height: 32px;
+  margin-bottom: 4px;
+  opacity: 1;
+  padding-inline: 8px 4px;
+  overflow: visible;
+}
+
+.sidebar-section__label {
+  opacity: 0.55;
+  min-width: 0;
+}
+
+.sidebar-section__actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
 .sidebar-browser__tags-panel {
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  margin: 4px 0;
-  padding-bottom: 4px;
+  margin: 2px 0 4px;
+  padding-inline: 8px;
 }
 
 .sidebar-browser__system {

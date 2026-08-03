@@ -14,6 +14,7 @@
     :variant="view.filled ? 'filled' : 'outlined'"
     :density="view.dense ? 'compact' : 'default'"
     :append-icon="undefined"
+    :menu-props="{zIndex: 2800}"
     item-text="name"
     item-value="name"
     ref="field"

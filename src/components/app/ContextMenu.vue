@@ -108,7 +108,8 @@ import ContextMenuNested from '@/components/elements/ContextMenuNested.vue'
 import type {ContextMenuEntry} from '@/types/stores'
 
 const CONTEXT_MENU_Z_INDEX = 30000
-const SPOTLIGHT_Z_INDEX = 29900
+// Keep dimming under app bar / nav chrome (~1000) so the header stays readable.
+const SPOTLIGHT_Z_INDEX = 900
 const SPOTLIGHT_PAD = 1
 
 const {xs} = useDisplay()

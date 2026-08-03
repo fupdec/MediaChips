@@ -121,12 +121,13 @@
             />
             <v-btn
               @click="editImage"
+              :disabled="viewer.isSourcesMode"
               icon="mdi-pencil"
               :title="t('common.edit')"
             />
             <v-btn
               @click="openInSystem"
-              :disabled="!viewer.isFileExists"
+              :disabled="viewer.isSourcesMode || !viewer.isFileExists"
               icon="mdi-open-in-new"
               :title="t('image.viewer.open_external')"
             />
@@ -344,7 +345,9 @@ let ownsObjectUrl = false
 let loadToken = 0
 let playlistExtendPromise: Promise<boolean> | null = null
 
-const currentName = computed(() => viewer.currentImage?.name || '')
+const currentName = computed(() =>
+  viewer.currentSource?.name || viewer.currentImage?.name || '',
+)
 
 const zoomLabel = computed(() => `${Math.round(viewer.scale * 100)}%`)
 
@@ -359,6 +362,15 @@ const transformStyle = computed(() => {
 })
 
 const infoLine = computed(() => {
+  const source = viewer.currentSource
+  if (source) {
+    const parts = []
+    if (source.width && source.height) {
+      parts.push(`${source.width}×${source.height}`)
+    }
+    return parts.join(' · ')
+  }
+
   const image = viewer.currentImage
   if (!image) return ''
 
@@ -410,8 +422,23 @@ const adoptLoadedSrc = (src: string | null | undefined, token: number): string |
 
 const loadCurrentImage = async () => {
   const token = ++loadToken
-  const image = viewer.currentImage
   loadFailed.value = false
+
+  if (viewer.isSourcesMode) {
+    const source = viewer.currentSource
+    clearObjectUrl()
+    if (!source?.src) {
+      loadFailed.value = true
+      viewer.setLoading(false)
+      return
+    }
+    setDisplaySrc(source.src, {owned: false})
+    viewer.setFileExists(true)
+    viewer.setLoading(false)
+    return
+  }
+
+  const image = viewer.currentImage
 
   if (!image) {
     clearObjectUrl()
@@ -481,6 +508,7 @@ const onDialogToggle = (value: boolean) => {
 }
 
 const syncPlaylistFromStore = (anchorId?: number) => {
+  if (viewer.isSourcesMode) return
   const image = viewer.currentImage ?? viewer.fallbackImage
   if (!image) return
 
@@ -491,6 +519,7 @@ const syncPlaylistFromStore = (anchorId?: number) => {
 }
 
 const ensurePlaylistExtended = async (): Promise<boolean> => {
+  if (viewer.isSourcesMode) return false
   if (viewer.index < viewer.imageIds.length - 1) return true
   if (!itemsStore.canLoadMoreForViewer) return false
   if (playlistExtendPromise) return playlistExtendPromise
@@ -515,7 +544,7 @@ const ensurePlaylistExtended = async (): Promise<boolean> => {
 }
 
 const maybePrefetchPlaylist = () => {
-  if (!viewer.active) return
+  if (!viewer.active || viewer.isSourcesMode) return
   if (viewer.index !== viewer.imageIds.length - 1) return
   if (!itemsStore.canLoadMoreForViewer) return
   void ensurePlaylistExtended()
@@ -629,6 +658,7 @@ const onDoubleClick = () => {
 }
 
 const editImage = () => {
+  if (viewer.isSourcesMode) return
   const image = viewer.currentImage
   if (!image) return
 
@@ -636,6 +666,7 @@ const editImage = () => {
 }
 
 const openInSystem = () => {
+  if (viewer.isSourcesMode) return
   const image = viewer.currentImage
   if (!image?.path || !viewer.isFileExists) return
   openPath(image.path)
@@ -690,10 +721,24 @@ interface ViewImagePayload {
   index?: number
   fallbackImage?: MediaItem | null
   previewSrc?: string | null
+  sources?: Array<{src: string; name?: string; width?: number; height?: number}>
 }
 
 const openFromEvent = (payload: unknown) => {
-  const {imageIds, index = 0, fallbackImage = null, previewSrc = null} = payload as ViewImagePayload
+  const {
+    imageIds,
+    index = 0,
+    fallbackImage = null,
+    previewSrc = null,
+    sources,
+  } = payload as ViewImagePayload
+
+  if (sources?.length) {
+    viewer.openSources({sources, index})
+    void loadCurrentImage()
+    return
+  }
+
   if (!imageIds?.length) return
 
   viewer.open({imageIds, index, fallbackImage, previewSrc})

@@ -295,12 +295,14 @@ const props = withDefaults(defineProps<{
   type: ItemsPageType | string
   tagPage?: boolean
   isShowAll?: boolean
+  showPreset?: boolean
   assignment?: PinnedMetaAssignment[]
 }>(), {
   tags: () => [],
   values: () => [],
   tagPage: false,
   isShowAll: false,
+  showPreset: true,
   assignment: () => [],
 })
 
@@ -310,7 +312,8 @@ const presetMetaProps: PresetMetaProps = {
   isShowAll: props.isShowAll,
 }
 
-const {preset_meta} = usePresetMeta(presetMetaProps)
+const {preset_meta: presetMetaSource} = usePresetMeta(presetMetaProps)
+const preset_meta = computed(() => (props.showPreset ? presetMetaSource.value : []))
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
@@ -516,7 +519,7 @@ watch(() => props.item.id, () => {
   chipsExpanded.value = false
 })
 
-const collapseEnabled = computed(() => !props.tagPage)
+const collapseEnabled = computed(() => !props.tagPage && !props.isShowAll)
 
 const totalChipCount = computed((): number => {
   if (isGrouped.value) {
@@ -583,7 +586,7 @@ const toggleChipsExpanded = (): void => {
 }
 
 const checkShow = (metaId: number): boolean => {
-  if (props.tagPage) {
+  if (props.tagPage || props.isShowAll) {
     return true
   }
   const assigned = itemsStore.safeAssigned

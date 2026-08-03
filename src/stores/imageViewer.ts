@@ -2,10 +2,18 @@ import { defineStore } from 'pinia'
 import { useItemsStore } from '@/stores/items'
 import type { MediaItem } from '@/types/stores'
 
+export type ImageViewerSource = {
+  src: string
+  name?: string
+  width?: number
+  height?: number
+}
+
 export const useImageViewerStore = defineStore('imageViewer', {
   state: () => ({
     active: false,
     imageIds: [] as number[],
+    sources: [] as ImageViewerSource[],
     fallbackImage: null as MediaItem | null,
     previewSrc: null as string | null,
     index: 0,
@@ -23,7 +31,15 @@ export const useImageViewerStore = defineStore('imageViewer', {
   }),
 
   getters: {
+    isSourcesMode(state): boolean {
+      return state.sources.length > 0
+    },
+    currentSource(state): ImageViewerSource | null {
+      return state.sources[state.index] ?? null
+    },
     currentImage(state): MediaItem | null {
+      if (state.sources.length) return null
+
       const id = state.imageIds[state.index]
       if (id == null) return state.fallbackImage
 
@@ -39,15 +55,22 @@ export const useImageViewerStore = defineStore('imageViewer', {
       return state.index > 0
     },
     hasNext(state): boolean {
-      return state.index < state.imageIds.length - 1
+      const total = state.sources.length || state.imageIds.length
+      return state.index < total - 1
     },
     hasNextOrMore(state): boolean {
+      if (state.sources.length) {
+        return state.index < state.sources.length - 1
+      }
       if (state.index < state.imageIds.length - 1) return true
 
       const itemsStore = useItemsStore()
       return itemsStore.canLoadMoreForViewer
     },
     counter(state): string {
+      if (state.sources.length) {
+        return `${state.index + 1} / ${state.sources.length}`
+      }
       if (!state.imageIds.length) return ''
 
       const itemsStore = useItemsStore()
@@ -71,6 +94,7 @@ export const useImageViewerStore = defineStore('imageViewer', {
       fallbackImage?: MediaItem | null
       previewSrc?: string | null
     }) {
+      this.sources = []
       this.imageIds = imageIds
       this.fallbackImage = fallbackImage
       this.previewSrc = previewSrc
@@ -80,8 +104,27 @@ export const useImageViewerStore = defineStore('imageViewer', {
       this.resetTransform()
     },
 
+    openSources({
+      sources,
+      index = 0,
+    }: {
+      sources: ImageViewerSource[]
+      index?: number
+    }) {
+      if (!sources.length) return
+
+      this.imageIds = []
+      this.fallbackImage = null
+      this.previewSrc = null
+      this.sources = sources
+      this.index = Math.min(Math.max(index, 0), sources.length - 1)
+      this.active = true
+      this.isFileExists = true
+      this.resetTransform()
+    },
+
     setPlaylist(imageIds: number[], index: number) {
-      if (!imageIds?.length) return
+      if (!imageIds?.length || this.sources.length) return
 
       this.imageIds = imageIds
       this.index = Math.min(Math.max(index, 0), Math.max(imageIds.length - 1, 0))
@@ -91,6 +134,7 @@ export const useImageViewerStore = defineStore('imageViewer', {
       this.active = false
       this.fullscreen = false
       this.imageIds = []
+      this.sources = []
       this.fallbackImage = null
       this.previewSrc = null
       this.index = 0

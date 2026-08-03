@@ -510,6 +510,7 @@ const onMediaDragStart = (event: DragEvent) => {
 const isInspectorFocused = computed(() =>
   browserLayoutActive.value
   && !itemsStore.isSelect
+  && itemsStore.selection.length === 1
   && is_selected.value,
 )
 

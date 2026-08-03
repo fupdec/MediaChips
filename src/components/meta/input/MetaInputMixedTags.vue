@@ -97,7 +97,7 @@
         class="mixed-tags__category"
       >
         <v-icon
-          size="16"
+          size="18"
           class="mixed-tags__category-icon"
         >
           mdi-{{ item.raw.icon || 'tag-multiple-outline' }}
@@ -105,9 +105,9 @@
         <span class="mixed-tags__category-title">{{ item.raw.title }}</span>
         <v-chip
           size="x-small"
-          variant="tonal"
+          variant="flat"
           color="primary"
-          class="ml-2"
+          class="mixed-tags__category-count"
         >
           {{ item.raw.count }}
         </v-chip>
@@ -234,6 +234,7 @@ const props = withDefaults(defineProps<{
   menuProps: () => ({
     contentClass: 'custom-list mixed-tags-dropdown',
     maxHeight: 360,
+    zIndex: 2800,
   }),
 })
 
@@ -790,15 +791,38 @@ defineExpose({
 .mixed-tags__category {
   display: flex;
   align-items: center;
-  padding: 8px 16px 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  gap: 8px;
+  margin: 6px 8px 4px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.1);
+  border: 1px solid rgba(var(--v-theme-primary), 0.2);
   pointer-events: none;
+  user-select: none;
 }
 
 .mixed-tags__category-icon {
-  margin-right: 6px;
+  flex-shrink: 0;
+  color: rgb(var(--v-theme-primary));
+  opacity: 0.95;
+}
+
+.mixed-tags__category-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mixed-tags__category-count {
+  flex-shrink: 0;
+  font-weight: 700;
 }
 
 .mixed-tags__tag--zebra {

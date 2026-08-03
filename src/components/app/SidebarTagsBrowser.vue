@@ -1,5 +1,8 @@
 <template>
-  <div class="sidebar-tags-browser">
+  <div
+    class="sidebar-tags-browser"
+    :class="{'sidebar-tags-browser--editing': editMode}"
+  >
     <div class="sidebar-tags-browser__toolbar">
       <v-text-field
         :model-value="search"
@@ -30,119 +33,200 @@
     </div>
 
     <div
-      v-if="!categories.length"
+      v-if="!hasVisibleCategories"
       class="sidebar-tags-browser__empty text-medium-emphasis"
     >
-      {{ t('browser_layout.tags_empty') }}
+      {{ search.trim() ? t('browser_layout.no_matching_tags') : t('browser_layout.tags_empty') }}
     </div>
 
-    <div
-      v-for="category in categories"
-      :key="category.meta.id"
-      class="sidebar-tags-browser__category"
+    <Draggable
+      v-model="categoryRows"
+      item-key="id"
+      handle=".sidebar-tags-browser__category-drag"
+      :animation="200"
+      ghost-class="sidebar-tags-browser__category-ghost"
+      :disabled="!editMode || Boolean(search.trim())"
+      @start="categoryDragging = true"
+      @end="onCategoryReorderEnd"
     >
-      <div class="sidebar-tags-browser__category-header">
-        <button
-          type="button"
-          class="sidebar-tags-browser__category-toggle"
-          :aria-expanded="isExpanded(category.meta.id)"
-          :aria-label="category.meta.name"
-          @click="toggleCategory(category.meta.id)"
-        >
-          <v-icon size="18">
-            {{ isExpanded(category.meta.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
-          </v-icon>
-        </button>
-
-        <button
-          type="button"
-          class="sidebar-tags-browser__category-link"
-          :class="{'sidebar-tags-browser__category-link--active': isCategoryPageActive(category.meta.id)}"
-          :title="t('all_tags.open_category')"
-          @click="openCategoryPage(category.meta.id)"
-        >
-          <v-icon
-            v-if="category.meta.icon"
-            size="16"
-            class="mr-1 opacity-70"
-          >
-            mdi-{{ category.meta.icon }}
-          </v-icon>
-          <span class="sidebar-tags-browser__category-name">{{ category.meta.name }}</span>
-          <span class="sidebar-tags-browser__category-count">{{ category.tags.length }}</span>
-          <v-icon
-            size="14"
-            class="sidebar-tags-browser__category-open"
-          >
-            mdi-open-in-new
-          </v-icon>
-        </button>
-      </div>
-
-      <div
-        v-if="isExpanded(category.meta.id)"
-        class="sidebar-tags-browser__tags"
-      >
-        <button
-          v-for="tag in category.tags"
-          :key="tag.id"
-          type="button"
-          class="sidebar-tags-browser__tag"
-          :class="{
-            'sidebar-tags-browser__tag--active': isTagFilterActive(tag.id),
-            'sidebar-tags-browser__tag--favorite': tag.favorite,
-          }"
-          :title="tag.name"
-          @click="onTagClick(tag)"
-          @dblclick.prevent="openTagPage(tag)"
-        >
-          <span
-            v-if="tag.color"
-            class="sidebar-tags-browser__tag-swatch"
-            :style="{backgroundColor: tag.color}"
-          />
-          <span class="sidebar-tags-browser__tag-name">{{ tag.name }}</span>
-          <v-icon
-            v-if="tag.favorite"
-            size="12"
-            color="pink"
-            class="ml-auto"
-          >
-            mdi-heart
-          </v-icon>
-        </button>
-
+      <template #item="{element: category}">
         <div
-          v-if="!category.tags.length"
-          class="sidebar-tags-browser__empty text-caption text-medium-emphasis px-3 py-1"
+          v-show="shouldShowCategory(category)"
+          class="sidebar-tags-browser__category"
+          :class="{
+            'sidebar-tags-browser__category--hidden': category.hidden,
+            'sidebar-tags-browser__category--editing': editMode,
+          }"
         >
-          {{ t('browser_layout.no_matching_tags') }}
+          <div class="sidebar-tags-browser__category-header">
+            <v-icon
+              v-if="editMode"
+              size="16"
+              class="sidebar-tags-browser__category-drag text-medium-emphasis"
+              :class="{'sidebar-tags-browser__category-drag--disabled': Boolean(search.trim())}"
+              :aria-label="t('all_tags.reorder_category')"
+            >
+              mdi-drag-vertical
+            </v-icon>
+
+            <button
+              type="button"
+              class="sidebar-tags-browser__category-toggle"
+              :aria-expanded="isExpanded(category.id)"
+              :aria-label="category.name"
+              @click="toggleCategory(category.id)"
+            >
+              <v-icon size="18">
+                {{ isExpanded(category.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
+              </v-icon>
+            </button>
+
+            <button
+              type="button"
+              class="sidebar-tags-browser__category-link"
+              :class="{'sidebar-tags-browser__category-link--active': isCategoryPageActive(category.id)}"
+              :title="t('all_tags.open_category')"
+              @click="openCategoryPage(category.id)"
+            >
+              <v-icon
+                v-if="category.icon"
+                size="16"
+                class="mr-2 opacity-70"
+              >
+                mdi-{{ category.icon }}
+              </v-icon>
+              <span class="sidebar-tags-browser__category-name">{{ category.name }}</span>
+              <span class="sidebar-tags-browser__category-count">
+                {{ tagsForMeta(category.id).length }}
+              </span>
+            </button>
+
+            <div
+              v-if="editMode"
+              class="sidebar-tags-browser__category-actions"
+              @click.stop
+            >
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="category.hidden
+                  ? t('meta.settings.show_in_navigation')
+                  : t('meta.settings.hide_in_navigation')"
+                :disabled="togglingHiddenId === category.id"
+                @click="toggleCategoryHidden(category)"
+              >
+                <v-icon size="16">
+                  {{ category.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="t('all_tags.edit_category')"
+                @click="openEditCategory(category)"
+              >
+                <v-icon size="16">mdi-cog-outline</v-icon>
+              </v-btn>
+            </div>
+          </div>
+
+          <div
+            v-if="isExpanded(category.id)"
+            class="sidebar-tags-browser__tags"
+          >
+            <button
+              v-for="tag in tagsForMeta(category.id)"
+              :key="tag.id"
+              type="button"
+              class="sidebar-tags-browser__tag"
+              :class="{
+                'sidebar-tags-browser__tag--active': isTagFilterActive(tag.id),
+                'sidebar-tags-browser__tag--favorite': tag.favorite,
+              }"
+              :title="tag.name"
+              @click="onTagClick(tag, $event)"
+              @mouseenter="onTagHover($event, tag, category)"
+              @mouseleave="hideHoverImage"
+            >
+              <span
+                v-if="tag.color"
+                class="sidebar-tags-browser__tag-swatch"
+                :style="{backgroundColor: tag.color}"
+              />
+              <span class="sidebar-tags-browser__tag-name">{{ tag.name }}</span>
+              <v-icon
+                v-if="tag.favorite"
+                size="12"
+                color="pink"
+                class="ml-auto"
+              >
+                mdi-heart
+              </v-icon>
+            </button>
+
+            <div
+              v-if="!tagsForMeta(category.id).length"
+              class="sidebar-tags-browser__empty text-caption text-medium-emphasis px-3 py-1"
+            >
+              {{ t('browser_layout.no_matching_tags') }}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </Draggable>
+
+    <DialogMetaManager
+      :edit-mode="true"
+      :meta="metaForDialog"
+      :dialog="metaDialog"
+      :allowed-types="['array']"
+      @updated="onMetaUpdated"
+      @created="onMetaUpdated"
+      @close="closeMetaDialog"
+      @delete="onMetaUpdated"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
+import DialogMetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import {useAppStore} from '@/stores/app'
 import {metaPath, useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
+import {hideHoverImage, showHoverImage} from '@/services/hoverService'
+import {typedApi} from '@/services/typedApi'
 import type {Meta, Tag} from '@/types/stores'
 
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
+
 const STORAGE_KEY = 'mediachips.browserTagsExpanded'
+
+const props = withDefaults(defineProps<{
+  editMode?: boolean
+}>(), {
+  editMode: false,
+})
 
 const {t} = useI18n()
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
-const {metaVisible} = useLibraryNavItems()
+const {metaArray} = useLibraryNavItems()
 const {isTagFilterActive, filterByTag} = useBrowserTagFilter()
 
 const search = ref('')
 const expanded = reactive<Record<number, boolean>>({})
+const categoryRows = ref<Meta[]>([])
+const categoryDragging = ref(false)
+const togglingHiddenId = ref<number | null>(null)
+const metaDialog = ref(false)
+const metaForDialog = ref<Meta | null>(null)
 
 function onSearchInput(value: string | null): void {
   search.value = value ?? ''
@@ -173,29 +257,49 @@ function persistExpanded(): void {
   }
 }
 
+function categoriesEqual(a: Meta[], b: Meta[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false
+    if (a[i].order !== b[i].order) return false
+    if (Boolean(a[i].hidden) !== Boolean(b[i].hidden)) return false
+    if (a[i].name !== b[i].name) return false
+    if (a[i].icon !== b[i].icon) return false
+  }
+  return true
+}
+
+function syncCategoryRows(items: Meta[]): void {
+  categoryRows.value = items.map((item) => ({...item}))
+}
+
 loadExpanded()
 
-watch(metaVisible, (metas) => {
+watch(metaArray, (metas) => {
   for (const meta of metas) {
     if (expanded[meta.id] === undefined) {
       expanded[meta.id] = true
     }
   }
   persistExpanded()
+
+  if (categoryDragging.value) return
+  if (categoriesEqual(categoryRows.value, metas)) return
+  syncCategoryRows(metas)
 }, {immediate: true})
 
-const categories = computed(() => {
+const tagsByMetaId = computed(() => {
   const query = search.value.trim().toLowerCase()
+  const map = new Map<number, Tag[]>()
 
-  return metaVisible.value.map((meta: Meta) => {
-    let tags = appStore.getTagsByMetaId(meta.id) as Tag[]
+  for (const category of categoryRows.value) {
+    let tags = appStore.getTagsByMetaId(category.id) as Tag[]
     tags = [...tags].sort((a, b) => {
       if (Boolean(a.favorite) !== Boolean(b.favorite)) {
         return a.favorite ? -1 : 1
       }
       return String(a.name || '').localeCompare(String(b.name || ''), undefined, {sensitivity: 'base'})
     })
-
     if (query) {
       tags = tags.filter((tag) => {
         const name = String(tag.name || '').toLowerCase()
@@ -203,10 +307,28 @@ const categories = computed(() => {
         return name.includes(query) || synonyms.includes(query)
       })
     }
-
-    return {meta, tags}
-  }).filter((category) => !query || category.tags.length > 0 || String(category.meta.name || '').toLowerCase().includes(query))
+    map.set(category.id, tags)
+  }
+  return map
 })
+
+function shouldShowCategory(category: Meta): boolean {
+  if (!props.editMode && category.hidden) return false
+
+  const query = search.value.trim().toLowerCase()
+  if (!query) return true
+
+  const tags = tagsByMetaId.value.get(category.id) || []
+  return tags.length > 0 || String(category.name || '').toLowerCase().includes(query)
+}
+
+const hasVisibleCategories = computed(() =>
+  categoryRows.value.some((category) => shouldShowCategory(category)),
+)
+
+function tagsForMeta(metaId: number): Tag[] {
+  return tagsByMetaId.value.get(metaId) || []
+}
 
 function isExpanded(metaId: number): boolean {
   return expanded[metaId] !== false
@@ -222,16 +344,75 @@ function isCategoryPageActive(metaId: number): boolean {
 }
 
 function openCategoryPage(metaId: number): void {
+  hideHoverImage()
   void router.push(metaPath(metaId))
 }
 
-async function onTagClick(tag: Tag): Promise<void> {
-  await filterByTag(tag)
+function onTagHover(event: MouseEvent, tag: Tag, category: Meta): void {
+  const metaId = tag.metaId ?? category.id
+  showHoverImage(event, metaId, tag.id, 'tag', {
+    label: tag.name,
+    imageAspectRatio: category.imageAspectRatio,
+  })
+}
+
+async function onTagClick(tag: Tag, event?: MouseEvent): Promise<void> {
+  hideHoverImage()
+  if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
+    await filterByTag(tag)
+    return
+  }
+  openTagPage(tag)
 }
 
 function openTagPage(tag: Tag): void {
   if (tag.metaId == null) return
+  hideHoverImage()
   void router.push(`/tag?metaId=${tag.metaId}&tagId=${tag.id}`)
+}
+
+async function onCategoryReorderEnd(): Promise<void> {
+  categoryDragging.value = false
+
+  await Promise.all(
+    categoryRows.value.map(async (category, index) => {
+      try {
+        await typedApi.updateMeta(category.id, {order: index})
+      } catch (error) {
+        console.error('Failed updating meta order', category.id, error)
+      }
+    }),
+  )
+
+  await reloadMetaCatalog()
+}
+
+async function toggleCategoryHidden(category: Meta): Promise<void> {
+  if (!category.id || togglingHiddenId.value === category.id) return
+  togglingHiddenId.value = category.id
+  try {
+    await typedApi.updateMeta(category.id, {hidden: !category.hidden})
+    await reloadMetaCatalog()
+  } catch (error) {
+    console.error('Failed updating meta.hidden', error)
+  } finally {
+    togglingHiddenId.value = null
+  }
+}
+
+function openEditCategory(category: Meta): void {
+  metaForDialog.value = category
+  metaDialog.value = true
+}
+
+function closeMetaDialog(): void {
+  metaDialog.value = false
+  metaForDialog.value = null
+}
+
+async function onMetaUpdated(): Promise<void> {
+  await reloadMetaCatalog()
+  closeMetaDialog()
 }
 </script>
 
@@ -243,7 +424,7 @@ function openTagPage(tag: Tag): void {
 }
 
 .sidebar-tags-browser__toolbar {
-  padding: 8px 10px 10px;
+  padding: 0 0 8px;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -251,24 +432,47 @@ function openTagPage(tag: Tag): void {
 }
 
 .sidebar-tags-browser__search {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 
-  :deep(.v-field) {
-    background: rgba(var(--v-theme-on-surface), 0.04);
+  :deep(.v-input__control) {
+    min-height: 28px;
   }
 
-  :deep(.v-field--focused) {
-    background: transparent;
+  :deep(.v-field) {
+    background: transparent !important;
+    --v-field-padding-top: 0;
+    --v-field-padding-bottom: 0;
+    --v-input-control-height: 28px;
+  }
+
+  :deep(.v-field__field) {
+    --v-field-input-padding-top: 0;
+    --v-field-input-padding-bottom: 0;
   }
 
   :deep(.v-field__input) {
-    min-height: 34px;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    min-height: 28px !important;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0.75rem;
+  }
+
+  :deep(.v-field__prepend-inner) {
+    padding-top: 0;
+    padding-inline-end: 2px;
+    align-self: center;
+  }
+
+  :deep(.v-field__prepend-inner > .v-icon),
+  :deep(.v-field__append-inner > .v-icon) {
+    font-size: 15px !important;
+    width: 15px;
+    height: 15px;
+    opacity: 0.5;
   }
 
   :deep(.v-field__outline) {
-    --v-field-border-opacity: 0.22;
+    --v-field-border-opacity: 0.18;
   }
 
   :deep(.v-field--focused .v-field__outline) {
@@ -286,12 +490,20 @@ function openTagPage(tag: Tag): void {
 }
 
 .sidebar-tags-browser__empty {
-  padding: 8px 12px;
+  padding: 8px 4px;
   font-size: 0.75rem;
 }
 
 .sidebar-tags-browser__category {
   margin-bottom: 2px;
+
+  &--hidden {
+    opacity: 0.55;
+  }
+}
+
+.sidebar-tags-browser__category-ghost {
+  opacity: 0.45;
 }
 
 .sidebar-tags-browser__category-header {
@@ -299,7 +511,17 @@ function openTagPage(tag: Tag): void {
   align-items: center;
   width: 100%;
   gap: 2px;
-  padding: 2px 4px;
+  padding: 2px 0;
+}
+
+.sidebar-tags-browser__category-drag {
+  flex-shrink: 0;
+  cursor: grab;
+
+  &--disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
 }
 
 .sidebar-tags-browser__category-toggle {
@@ -334,19 +556,15 @@ function openTagPage(tag: Tag): void {
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  opacity: 0.72;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0.9;
 
   &:hover {
     opacity: 1;
     background: rgba(var(--v-theme-on-surface), 0.05);
-
-    .sidebar-tags-browser__category-open {
-      opacity: 0.7;
-    }
   }
 
   &--active {
@@ -372,11 +590,11 @@ function openTagPage(tag: Tag): void {
   margin-left: 6px;
 }
 
-.sidebar-tags-browser__category-open {
+.sidebar-tags-browser__category-actions {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
-  margin-left: 4px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
+  margin-left: 2px;
 }
 
 .sidebar-tags-browser__tags {
@@ -388,7 +606,7 @@ function openTagPage(tag: Tag): void {
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 3px 8px 3px 22px;
+  padding: 3px 8px 3px 28px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -411,6 +629,10 @@ function openTagPage(tag: Tag): void {
   &--favorite .sidebar-tags-browser__tag-name {
     font-weight: 500;
   }
+}
+
+.sidebar-tags-browser--editing .sidebar-tags-browser__tag {
+  padding-left: 36px;
 }
 
 .sidebar-tags-browser__tag-swatch {

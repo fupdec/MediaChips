@@ -14,6 +14,18 @@
           class="flex-grow-1"
         />
         <v-btn
+          v-tooltip:top="categoriesEditMode
+            ? t('all_tags.done_editing_categories')
+            : t('all_tags.edit_categories')"
+          icon
+          size="small"
+          :variant="categoriesEditMode ? 'flat' : 'tonal'"
+          :color="categoriesEditMode ? 'primary' : undefined"
+          @click="categoriesEditMode = !categoriesEditMode"
+        >
+          <v-icon>{{ categoriesEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}</v-icon>
+        </v-btn>
+        <v-btn
           v-tooltip:top="t('all_tags.add_category')"
           icon
           size="small"
@@ -26,7 +38,7 @@
       </div>
 
       <div
-        v-if="!filteredCategories.length"
+        v-if="!categoryRows.length"
         class="all-tags-board__empty text-center pa-6"
       >
         <v-icon size="40" class="mb-2 text-medium-emphasis">mdi-tag-off-outline</v-icon>
@@ -45,24 +57,46 @@
       </div>
 
       <div
+        v-else-if="!filteredCategories.length"
+        class="all-tags-board__empty text-center pa-6"
+      >
+        <v-icon size="40" class="mb-2 text-medium-emphasis">mdi-magnify</v-icon>
+        <div class="text-body-2 text-medium-emphasis">{{ t('all_tags.no_categories_filtered') }}</div>
+      </div>
+
+      <div
         v-else
         ref="categoryListRef"
         class="all-tags-board__category-list"
       >
-        <v-virtual-scroll
-          :items="filteredCategories"
-          :item-height="CATEGORY_ROW_HEIGHT"
-          :height="categoryListHeight"
-          :bench="8"
-          item-key="id"
-          class="all-tags-board__virtual-scroll"
+        <div
+          v-if="categoriesEditMode && !categorySearch.trim()"
+          class="text-caption text-medium-emphasis mb-2 px-1"
         >
-          <template #default="{ item: category }">
+          <v-icon size="14" start>mdi-drag</v-icon>
+          {{ t('all_tags.reorder_categories_hint') }}
+        </div>
+
+        <Draggable
+          v-model="categoryRows"
+          item-key="id"
+          handle=".all-tags-board__category-drag"
+          :animation="200"
+          ghost-class="all-tags-board__category-ghost"
+          class="all-tags-board__category-scroll"
+          :disabled="!categoriesEditMode || Boolean(categorySearch.trim())"
+          @start="categoryDragging = true"
+          @end="onCategoryReorderEnd"
+        >
+          <template #item="{element: category}">
             <div
+              v-show="categoryMatchesSearch(category)"
               class="all-tags-board__category"
               :class="{
                 'all-tags-board__category--active': selectedMetaId === category.id,
                 'all-tags-board__category--drop': dropTargetMetaId === category.id,
+                'all-tags-board__category--hidden': category.hidden,
+                'all-tags-board__category--editing': categoriesEditMode,
               }"
               :data-meta-id="category.id"
               @click="selectCategory(category.id)"
@@ -71,7 +105,16 @@
               @drop.prevent="onDropToCategory(category)"
             >
               <div class="all-tags-board__category-row">
-                <v-icon size="20" class="mr-2 flex-shrink-0">mdi-{{ category.icon || 'tag' }}</v-icon>
+                <v-icon
+                  v-if="categoriesEditMode"
+                  size="16"
+                  class="all-tags-board__category-drag text-medium-emphasis"
+                  :class="{'all-tags-board__category-drag--disabled': Boolean(categorySearch.trim())}"
+                  :aria-label="t('all_tags.reorder_category')"
+                >
+                  mdi-drag-vertical
+                </v-icon>
+                <v-icon size="20" class="all-tags-board__category-icon flex-shrink-0">mdi-{{ category.icon || 'tag' }}</v-icon>
                 <div class="all-tags-board__category-main">
                   <span class="text-body-2 font-weight-medium text-truncate">
                     {{ category.name }}
@@ -89,30 +132,39 @@
                     mdi-star
                   </v-icon>
                 </div>
-                <div class="all-tags-board__category-actions" @click.stop>
+                <div
+                  v-if="categoriesEditMode"
+                  class="all-tags-board__category-actions"
+                  @click.stop
+                >
                   <v-btn
-                    v-tooltip:top="t('all_tags.edit_category')"
                     icon
                     size="x-small"
                     variant="text"
+                    :aria-label="category.hidden
+                      ? t('meta.settings.show_in_navigation')
+                      : t('meta.settings.hide_in_navigation')"
+                    :disabled="togglingHiddenId === category.id"
+                    @click="toggleCategoryHidden(category)"
+                  >
+                    <v-icon size="16">
+                      {{ category.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
+                    </v-icon>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    :aria-label="t('all_tags.edit_category')"
                     @click="openEditCategory(category)"
                   >
                     <v-icon size="16">mdi-cog-outline</v-icon>
-                  </v-btn>
-                  <v-btn
-                    v-tooltip:top="t('all_tags.open_category')"
-                    icon
-                    size="x-small"
-                    variant="text"
-                    :to="metaPath(category.id)"
-                  >
-                    <v-icon size="16">mdi-open-in-new</v-icon>
                   </v-btn>
                 </div>
               </div>
             </div>
           </template>
-        </v-virtual-scroll>
+        </Draggable>
       </div>
     </aside>
 
@@ -280,6 +332,7 @@
       :edit-mode="metaEditMode"
       :meta="metaForDialog"
       :dialog="metaDialog"
+      :allowed-types="['array']"
       @updated="onMetaUpdated"
       @created="onMetaCreated"
       @close="closeMetaDialog"
@@ -289,7 +342,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import orderBy from 'lodash/orderBy'
 import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
@@ -302,10 +355,12 @@ import {useAutoListHeight} from '@/composable/useAutoListHeight'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {useSettingsStore} from '@/stores/settings'
+import {typedApi} from '@/services/typedApi'
 import type {Meta, Tag} from '@/types/stores'
 
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
+
 const TAG_ROW_HEIGHT = 52
-const CATEGORY_ROW_HEIGHT = 44
 
 const {t} = useI18n()
 const appStore = useAppStore()
@@ -319,9 +374,12 @@ const selectedMetaId = ref<number | null>(null)
 const selectedIds = ref<number[]>([])
 const dropTargetMetaId = ref<number | null>(null)
 const draggingTagIds = ref<number[]>([])
+const categoryDragging = ref(false)
+const categoriesEditMode = ref(false)
+const categoryRows = ref<Meta[]>([])
+const togglingHiddenId = ref<number | null>(null)
 const categoryListRef = ref<HTMLElement | null>(null)
 const tagListRef = ref<HTMLElement | null>(null)
-const {listHeight: categoryListHeight} = useAutoListHeight(categoryListRef)
 const {listHeight: tagListHeight} = useAutoListHeight(tagListRef)
 
 const metaDialog = ref(false)
@@ -331,18 +389,46 @@ const metaForDialog = ref<Meta | null>(null)
 const categories = computed(() =>
   orderBy(
     appStore.meta.filter((item) => item.type === 'array'),
-    ['hidden', 'order', 'name'],
-    ['asc', 'asc', 'asc'],
+    ['order', 'name'],
+    ['asc', 'asc'],
   ),
 )
 
+function categoriesEqual(a: Meta[], b: Meta[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false
+    if (a[i].order !== b[i].order) return false
+    if (Boolean(a[i].hidden) !== Boolean(b[i].hidden)) return false
+    if (a[i].name !== b[i].name) return false
+    if (a[i].icon !== b[i].icon) return false
+  }
+  return true
+}
+
+function syncCategoryRows(items: Meta[]): void {
+  categoryRows.value = items.map((item) => ({...item}))
+}
+
+watch(categories, (items) => {
+  if (categoryDragging.value) return
+  if (categoriesEqual(categoryRows.value, items)) return
+  syncCategoryRows(items)
+}, {immediate: true})
+
 const filteredCategories = computed(() => {
   const query = categorySearch.value.trim().toLowerCase()
-  if (!query) return categories.value
-  return categories.value.filter((category) =>
+  if (!query) return categoryRows.value
+  return categoryRows.value.filter((category) =>
     String(category.name ?? '').toLowerCase().includes(query),
   )
 })
+
+function categoryMatchesSearch(category: Meta): boolean {
+  const query = categorySearch.value.trim().toLowerCase()
+  if (!query) return true
+  return String(category.name ?? '').toLowerCase().includes(query)
+}
 
 const defaultCategoryId = computed(() =>
   getDefaultTagCategoryId(appStore.meta, settingsStore.defaultTagCategoryId),
@@ -359,7 +445,7 @@ const tagCountByMetaId = computed(() => {
 })
 
 const selectedCategory = computed(() =>
-  categories.value.find((category) => category.id === selectedMetaId.value) ?? null,
+  categoryRows.value.find((category) => category.id === selectedMetaId.value) ?? null,
 )
 
 const categoryTags = computed(() => {
@@ -387,16 +473,6 @@ watch(
     await nextTick()
     if (tagListRef.value) {
       tagListHeight.value = Math.max(120, tagListRef.value.clientHeight)
-    }
-  },
-)
-
-watch(
-  () => filteredCategories.value.length,
-  async () => {
-    await nextTick()
-    if (categoryListRef.value) {
-      categoryListHeight.value = Math.max(120, categoryListRef.value.clientHeight)
     }
   },
 )
@@ -528,6 +604,35 @@ function onDropToCategory(category: Meta) {
   selectedIds.value = []
 }
 
+async function onCategoryReorderEnd(): Promise<void> {
+  categoryDragging.value = false
+
+  await Promise.all(
+    categoryRows.value.map(async (category, index) => {
+      try {
+        await typedApi.updateMeta(category.id, {order: index})
+      } catch (error) {
+        console.error('Failed updating meta order', category.id, error)
+      }
+    }),
+  )
+
+  await reloadMetaCatalog()
+}
+
+async function toggleCategoryHidden(category: Meta): Promise<void> {
+  if (!category.id || togglingHiddenId.value === category.id) return
+  togglingHiddenId.value = category.id
+  try {
+    await typedApi.updateMeta(category.id, {hidden: !category.hidden})
+    await reloadMetaCatalog()
+  } catch (error) {
+    console.error('Failed updating meta.hidden', error)
+  } finally {
+    togglingHiddenId.value = null
+  }
+}
+
 function editTag(tag: Tag) {
   if (!selectedCategory.value) return
   dialogsStore.editTag(tag, selectedCategory.value)
@@ -604,7 +709,15 @@ async function onMetaDeleted() {
 .all-tags-board__category-list {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+
+.all-tags-board__category-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .all-tags-board__tag-list {
@@ -620,7 +733,7 @@ async function onMetaDeleted() {
 .all-tags-board__category {
   height: 44px;
   border-radius: 12px;
-  transition: background-color 0.15s ease, outline-color 0.15s ease;
+  transition: background-color 0.15s ease, outline-color 0.15s ease, opacity 0.15s ease;
   cursor: pointer;
 
   &:hover {
@@ -635,14 +748,41 @@ async function onMetaDeleted() {
     outline: 2px dashed rgb(var(--v-theme-primary));
     outline-offset: -2px;
   }
+
+  &--hidden {
+    opacity: 0.55;
+  }
+}
+
+.all-tags-board__category-ghost {
+  opacity: 0.55;
 }
 
 .all-tags-board__category-row {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 6px 8px;
   gap: 4px;
   height: 100%;
+}
+
+.all-tags-board__category-icon {
+  margin-right: 8px;
+}
+
+.all-tags-board__category-drag {
+  flex: 0 0 auto;
+  cursor: grab;
+  opacity: 0.45;
+
+  &:hover {
+    opacity: 0.85;
+  }
+
+  &--disabled {
+    cursor: default;
+    opacity: 0.2;
+  }
 }
 
 .all-tags-board__category-main {
@@ -662,11 +802,11 @@ async function onMetaDeleted() {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  opacity: 0.55;
+  opacity: 0.7;
 }
 
-.all-tags-board__category:hover .all-tags-board__category-actions,
-.all-tags-board__category--active .all-tags-board__category-actions {
+.all-tags-board__category--editing:hover .all-tags-board__category-actions,
+.all-tags-board__category--editing.all-tags-board__category--active .all-tags-board__category-actions {
   opacity: 1;
 }
 

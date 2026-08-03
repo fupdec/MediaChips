@@ -92,6 +92,11 @@ header {
   border-radius: 16px !important;
 }
 
+/* Autocomplete/select menus must sit above modal dialogs (default menu 2000 < dialog 2400). */
+.v-overlay.v-menu {
+  z-index: 2800 !important;
+}
+
 //.v-main__wrap {
 //  overflow-y: auto;
 //}

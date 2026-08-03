@@ -193,7 +193,8 @@ const props = withDefaults(defineProps<{
   cond: null,
   autofocus: false,
   menuProps: () => ({
-    contentClass: "custom-list",
+    contentClass: 'custom-list',
+    zIndex: 2800,
   }),
 })
 
