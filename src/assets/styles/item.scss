@@ -18,7 +18,8 @@
     overflow: hidden;
   }
 
-  &--inspector-focused {
+  &--inspector-focused,
+  &--keyboard-cursor {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
     border-radius: 14px;

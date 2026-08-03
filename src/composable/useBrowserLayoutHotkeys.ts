@@ -174,6 +174,97 @@ export function useBrowserLayoutHotkeys() {
     if (next) focusById(Number(next.id))
   }
 
+  function selectRangeOnPage(fromId: number, toId: number) {
+    const page = itemsStore.itemsOnPage
+    const fromIndex = page.findIndex((item) => Number(item.id) === fromId)
+    const toIndex = page.findIndex((item) => Number(item.id) === toId)
+    if (fromIndex < 0 || toIndex < 0) {
+      itemsStore.selection = [toId]
+      itemsStore.selected_last = toId
+      return
+    }
+    const start = Math.min(fromIndex, toIndex)
+    const end = Math.max(fromIndex, toIndex)
+    itemsStore.selection = page.slice(start, end + 1).map((item) => item.id)
+    itemsStore.selected_last = toId
+  }
+
+  function resolveNeighborId(fromId: number, direction: BrowserNavDirection): number | null {
+    const currentEl = findItemElementById(fromId)
+    if (currentEl) {
+      const neighbor = findNeighborItemElement(currentEl, direction)
+      if (neighbor) {
+        const nextId = Number(neighbor.dataset.itemId)
+        if (Number.isFinite(nextId)) return nextId
+      }
+    }
+    const page = itemsStore.itemsOnPage
+    const index = page.findIndex((item) => Number(item.id) === fromId)
+    if (index < 0) return null
+    const delta = direction === 'left' || direction === 'up' ? -1 : 1
+    const next = page[index + delta]
+    return next ? Number(next.id) : null
+  }
+
+  /** Enter select mode and extend a range with Shift+arrows from the focused card. */
+  function extendSelection(direction: BrowserNavDirection) {
+    const page = itemsStore.itemsOnPage
+    if (!page.length) return
+
+    let current = focusedId()
+    if (current == null) {
+      current = Number(page[0].id)
+      itemsStore.selectionAnchor = current
+      itemsStore.isSelect = true
+      itemsStore.selection = [current]
+      itemsStore.selected_last = current
+      return
+    }
+
+    if (!itemsStore.isSelect) {
+      itemsStore.isSelect = true
+      if (!itemsStore.selection.includes(current)) {
+        itemsStore.selection = [current]
+      }
+      itemsStore.selectionAnchor = current
+    } else if (itemsStore.selectionAnchor == null) {
+      itemsStore.selectionAnchor = current
+    }
+
+    const nextId = resolveNeighborId(current, direction)
+    if (nextId == null) return
+    selectRangeOnPage(Number(itemsStore.selectionAnchor), nextId)
+    requestAnimationFrame(() => {
+      const el = findItemElementById(nextId)
+      if (el) scrollItemIntoView(el)
+    })
+  }
+
+  function toggleFocusedSelection() {
+    const page = itemsStore.itemsOnPage
+    let id = focusedId()
+    if (id == null) {
+      if (!page.length) return
+      id = Number(page[0].id)
+    }
+
+    if (!itemsStore.isSelect) {
+      itemsStore.isSelect = true
+      itemsStore.selection = [id]
+      itemsStore.selected_last = id
+      itemsStore.selectionAnchor = id
+      requestAnimationFrame(() => {
+        const el = findItemElementById(id!)
+        if (el) scrollItemIntoView(el)
+      })
+      return
+    }
+
+    itemsStore.toggleSelect(null, {id})
+    itemsStore.selected_last = id
+    itemsStore.selectionAnchor = id
+  }
+
   function openEdit() {
     const item = focusedEntity()
     if (!item) return
@@ -230,12 +321,67 @@ export function useBrowserLayoutHotkeys() {
     if (contextMenuStore.show) return false
     if (isBlockingOverlayOpen()) return false
     if (isTypingTarget(event.target)) return false
-    if (event.ctrlKey || event.metaKey || event.altKey) return false
     return true
   }
 
   function onKeyDown(event: KeyboardEvent) {
+    if (!browserLayoutActive.value) return
+    if (!isItemsGridRoute(router.currentRoute.value.path)) return
+    if (playerStore.active) return
+    if (contextMenuStore.show) return
+    if (isBlockingOverlayOpen()) return
+    if (isTypingTarget(event.target)) return
+
+    // While bulk-select is active, ItemsSelection owns keyboard handling.
+    if (itemsStore.isSelect) return
+
+    const isArrow = event.code === 'ArrowLeft'
+      || event.code === 'ArrowRight'
+      || event.code === 'ArrowUp'
+      || event.code === 'ArrowDown'
+      || event.code === 'KeyJ'
+      || event.code === 'KeyK'
+      || event.code === 'Home'
+      || event.code === 'End'
+
+    // Shift+arrows start / extend a multi-select range from the focused card.
+    if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && isArrow) {
+      event.preventDefault()
+      if (event.code === 'Home') {
+        const page = itemsStore.itemsOnPage
+        if (!page.length) return
+        const current = focusedId() ?? Number(page[0].id)
+        if (!itemsStore.isSelect) {
+          itemsStore.isSelect = true
+          itemsStore.selection = [current]
+        }
+        if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
+        selectRangeOnPage(Number(itemsStore.selectionAnchor), Number(page[0].id))
+        return
+      }
+      if (event.code === 'End') {
+        const page = itemsStore.itemsOnPage
+        if (!page.length) return
+        const current = focusedId() ?? Number(page[0].id)
+        if (!itemsStore.isSelect) {
+          itemsStore.isSelect = true
+          itemsStore.selection = [current]
+        }
+        if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
+        selectRangeOnPage(Number(itemsStore.selectionAnchor), Number(page[page.length - 1].id))
+        return
+      }
+      const direction: BrowserNavDirection =
+        event.code === 'ArrowLeft' ? 'left'
+          : event.code === 'ArrowRight' ? 'right'
+            : event.code === 'ArrowUp' || event.code === 'KeyK' ? 'up'
+              : 'down'
+      extendSelection(direction)
+      return
+    }
+
     if (!canHandle(event)) return
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
 
     switch (event.code) {
       case 'ArrowLeft':
@@ -274,6 +420,10 @@ export function useBrowserLayoutHotkeys() {
         if (!focusedId() || itemsStore.type !== 'media') return
         event.preventDefault()
         playFocused()
+        return
+      case 'KeyX':
+        event.preventDefault()
+        toggleFocusedSelection()
         return
       case 'Escape':
         if (!focusedId()) return

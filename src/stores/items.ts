@@ -68,6 +68,8 @@ function createItemsStoreState() {
     icon: 'shape',
     isSelect: false,
     selected_last: null as number | null,
+    /** Anchor id for Shift+keyboard / Shift+click range selection. */
+    selectionAnchor: null as number | null,
     selection: [] as number[],
     savedFilter: {} as SavedFilter,
     filters: [] as FilterObject[],
@@ -639,6 +641,7 @@ export const useItemsStore = defineStore('items', {
     clearSelection() {
       this.selection = []
       this.selected_last = null
+      this.selectionAnchor = null
       this.isSelect = false
     },
 
@@ -646,12 +649,14 @@ export const useItemsStore = defineStore('items', {
     focusForInspector(item: { id: number }) {
       this.selection = [item.id]
       this.selected_last = item.id
+      this.selectionAnchor = null
     },
 
     /** Clear inspector focus without toggling bulk-select chrome. */
     clearInspectorFocus() {
       this.selection = []
       this.selected_last = null
+      this.selectionAnchor = null
     },
 
     // Переключить режим выбора
@@ -672,7 +677,7 @@ export const useItemsStore = defineStore('items', {
       const selection = this.selection;
       // выделяем предметы при зажатой кнопке shift
       if (e && e.shiftKey) {
-        const last = this.selected_last;
+        const last = this.selectionAnchor ?? this.selected_last;
         if (last && selection.length) {
           const index_last = this.entities.findIndex(i => i.id === last);
           const index_current = this.entities.findIndex(i => i.id === id);
@@ -699,7 +704,11 @@ export const useItemsStore = defineStore('items', {
             }
           }
         }
+        if (this.selectionAnchor == null) {
+          this.selectionAnchor = this.selected_last ?? id
+        }
       } else {
+        this.selectionAnchor = id
         if (selection.includes(id)) {
           const x = selection.findIndex((i) => i == id);
           if (x > -1) selection.splice(x, 1);

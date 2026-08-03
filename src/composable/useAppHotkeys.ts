@@ -17,6 +17,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 function isItemsLibraryRoute(path: string): boolean {
   return path === '/media' || path.startsWith('/media/')
     || path === '/meta' || path.startsWith('/meta/')
+    || path === '/tag' || path.startsWith('/tag/')
 }
 
 export function useAppHotkeys() {
@@ -74,6 +75,7 @@ export function useAppHotkeys() {
       if (!itemsStore.isSelect) {
         itemsStore.selection = []
         itemsStore.selected_last = null
+        itemsStore.selectionAnchor = null
       }
     }
   }

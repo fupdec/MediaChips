@@ -13,6 +13,7 @@
       {'item-tag': type === 'tag'},
       {'item--selecting': itemsStore.isSelect},
       {'item--inspector-focused': isInspectorFocused},
+      {'item--keyboard-cursor': isKeyboardCursor},
       {'item--context-target': is_context_target},
       `item__size-${itemsStore.size}`,
       `item-view-${itemsStore.view}`,
@@ -510,6 +511,12 @@ const isInspectorFocused = computed(() =>
   browserLayoutActive.value
   && !itemsStore.isSelect
   && is_selected.value,
+)
+
+const isKeyboardCursor = computed(() =>
+  itemsStore.isSelect
+  && itemsStore.selected_last != null
+  && Number(itemsStore.selected_last) === Number(props.item.id),
 )
 
 const is_context_target = computed(() => {

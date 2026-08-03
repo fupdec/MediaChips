@@ -37,22 +37,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useItemsStore } from '@/stores/items'
-import { useAppStore } from '@/stores/app'
-import { useDialogsStore } from '@/stores/dialogs'
-import { useContextMenu } from '@/stores/contextMenu'
+import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
+import {useItemsStore} from '@/stores/items'
+import {useAppStore} from '@/stores/app'
+import {useDialogsStore} from '@/stores/dialogs'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
-import { getReadableFileSize } from '@/services/formatUtils'
-import type { MediaItem, Tag } from '@/types/stores'
+import {getReadableFileSize} from '@/services/formatUtils'
+import type {MediaItem, Tag} from '@/types/stores'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
-const contextMenu = useContextMenu()
-const { t } = useI18n()
+const {t} = useI18n()
 
 const selectionMeta = computed(() => {
   const metaId = itemsStore.environment.meta_id
@@ -66,7 +64,7 @@ function resolveRepresentativeItem(): MediaItem | Tag {
     const fromPage = itemsStore.entities.find((entry) => Number(entry.id) === Number(id))
     if (fromPage) return fromPage
   }
-  return (itemsStore.entities[0] ?? { id: 0, name: '' }) as MediaItem | Tag
+  return (itemsStore.entities[0] ?? {id: 0, name: ''}) as MediaItem | Tag
 }
 
 const filesizes = computed(() => {
@@ -105,6 +103,7 @@ function toggleSelect() {
   itemsStore.isSelect = !itemsStore.isSelect
   itemsStore.selection = []
   itemsStore.selected_last = null
+  itemsStore.selectionAnchor = null
 }
 
 function openBulkEdit() {
@@ -115,7 +114,7 @@ function openBulkEdit() {
 
 function openDelete() {
   if (itemsStore.selection.length === 0) return
-  const { deleteItem } = useItemContextMenu(
+  const {deleteItem} = useItemContextMenu(
     resolveRepresentativeItem(),
     itemsStore.type,
     selectionMeta.value,
@@ -125,51 +124,12 @@ function openDelete() {
   deleteItem()
 }
 
-function onKeyDown(event: KeyboardEvent) {
-  if (event.defaultPrevented) return
-  if (contextMenu.show) return
-  if (document.querySelector('.v-overlay--active')) return
-
-  const target = event.target
-  if (target instanceof Element) {
-    const tag = target.tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || (target as HTMLElement).isContentEditable) {
-      return
-    }
-  }
-
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    toggleSelect()
-    return
-  }
-
-  if (!itemsStore.selection.length) return
-
-  if (event.code === 'KeyE') {
-    if (event.ctrlKey || event.metaKey || event.altKey) return
-    event.preventDefault()
-    openBulkEdit()
-    return
-  }
-
-  if (event.code === 'Delete' || event.code === 'Backspace') {
-    if (event.ctrlKey || event.metaKey || event.altKey) return
-    event.preventDefault()
-    openDelete()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', onKeyDown)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeyDown)
-})
-
 function selectVisible() {
   itemsStore.selection = itemsStore.itemsOnPage.map((i) => i.id)
+  if (itemsStore.selection.length) {
+    itemsStore.selected_last = itemsStore.selection[itemsStore.selection.length - 1] ?? null
+  }
+  itemsStore.selectionAnchor = null
 }
 
 async function selectAll() {

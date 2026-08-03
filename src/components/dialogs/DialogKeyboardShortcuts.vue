@@ -104,12 +104,19 @@ const browserRows = computed(() => [
   {keys: 'enter', label: t('keyboard_shortcuts.browser_edit')},
   {keys: 'e', label: t('keyboard_shortcuts.browser_edit')},
   {keys: 'space', label: t('keyboard_shortcuts.browser_play')},
+  {keys: 'x', label: t('keyboard_shortcuts.browser_select')},
+  {keys: 'shift+arrowup shift+arrowdown shift+arrowleft shift+arrowright', label: t('keyboard_shortcuts.browser_select_range')},
   {keys: 't', label: t('keyboard_shortcuts.browser_tags')},
   {keys: 'delete', label: t('keyboard_shortcuts.browser_delete')},
   {keys: 'esc', label: t('keyboard_shortcuts.browser_clear')},
 ])
 
 const selectRows = computed(() => [
+  {keys: 'arrowup arrowdown arrowleft arrowright', label: t('keyboard_shortcuts.select_navigate')},
+  {keys: 'j k', label: t('keyboard_shortcuts.select_jk')},
+  {keys: 'space', label: t('keyboard_shortcuts.select_toggle')},
+  {keys: 'shift+arrowup shift+arrowdown shift+arrowleft shift+arrowright', label: t('keyboard_shortcuts.select_range')},
+  {keys: 'ctrl+a', label: t('keyboard_shortcuts.select_visible')},
   {keys: 'e', label: t('keyboard_shortcuts.bulk_edit')},
   {keys: 'delete', label: t('keyboard_shortcuts.delete')},
   {keys: 'esc', label: t('keyboard_shortcuts.exit_select')},

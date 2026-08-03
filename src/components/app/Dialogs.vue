@@ -189,8 +189,11 @@ import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
 import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
+import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'
+import useItemContextMenu from '@/composable/ItemContextMenu'
 import {registerAppShellHandler} from '@/composable/appShell'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
+import type {MediaItem, Tag} from '@/types/stores'
 
 // Async components
 const DialogLogin = defineAsyncComponent(() =>
@@ -313,6 +316,49 @@ const pluginsStore = usePluginsStore()
 const {t} = useI18n()
 const { showShortcuts: showKeyboardShortcuts, openPlayerDocs: openPlayerHotkeyDocs } = useAppHotkeys()
 useBrowserLayoutHotkeys()
+
+function exitSelectMode() {
+  itemsStore.isSelect = false
+  itemsStore.selection = []
+  itemsStore.selected_last = null
+  itemsStore.selectionAnchor = null
+}
+
+function openBulkEditFromHotkey() {
+  if (itemsStore.selection.length === 0) return
+  dialogsStore.bulkEditingItems = true
+  itemsStore.isSelect = false
+}
+
+function openDeleteFromHotkey() {
+  if (itemsStore.selection.length === 0) return
+  const id = itemsStore.selection[0]
+  const item = (itemsStore.entities.find((entry) => Number(entry.id) === Number(id))
+    ?? itemsStore.entities[0]
+    ?? {id: 0, name: ''}) as MediaItem | Tag
+  const metaId = itemsStore.environment.meta_id
+  const meta = metaId
+    ? appStore.meta.find((entry) => entry.id === metaId) ?? null
+    : null
+  const {deleteItem} = useItemContextMenu(item, itemsStore.type, meta, true, null)
+  deleteItem()
+}
+
+function selectVisibleFromHotkey() {
+  itemsStore.selection = itemsStore.itemsOnPage.map((item) => item.id)
+  if (itemsStore.selection.length) {
+    itemsStore.selected_last = itemsStore.selection[itemsStore.selection.length - 1] ?? null
+  }
+  itemsStore.selectionAnchor = null
+}
+
+useItemsSelectionHotkeys({
+  onExitSelect: exitSelectMode,
+  onBulkEdit: openBulkEditFromHotkey,
+  onDelete: openDeleteFromHotkey,
+  onSelectVisible: selectVisibleFromHotkey,
+})
+
 const addMediaDialogOpen = ref(false)
 
 function openAddMediaDialog() {
