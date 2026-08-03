@@ -26,6 +26,7 @@
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
         @contextmenu="handlePreviewContextMenu"
+        @mousedown="handlePreviewMouseDown"
         @mouseleave="handleMouseLeave"
         @mousemove="changePreviewTime"
         @mouseenter="handleMouseEnter"
@@ -1175,6 +1176,9 @@ const handlePreviewContextMenu = (e: MouseEvent) => {
   e.preventDefault()
   e.stopPropagation()
 
+  // Cancel any pending leave-dismiss from the right-click mouseleave race.
+  clearTimeout(timeouts.leave)
+  clearTimeout(timeouts.contextMenuGuard)
   bigPreviewMenuActive.value = true
 
   // Keep the cinema layer under the global context menu while it is open.
@@ -1186,6 +1190,21 @@ const handlePreviewContextMenu = (e: MouseEvent) => {
     y: e.clientY,
     content: buildBigPreviewContextMenu(),
   })
+}
+
+const handlePreviewMouseDown = (e: MouseEvent) => {
+  // Right-click can fire mouseleave before contextmenu. Mark keep-open early
+  // so a soft leave timer cannot dismiss the preview and wipe the current frame.
+  if (e.button !== 2) return
+  if (!gridBigPreview.isVisual.value || gridBigPreview.isCollapsing.value) return
+  clearTimeout(timeouts.leave)
+  bigPreviewMenuActive.value = true
+  clearTimeout(timeouts.contextMenuGuard)
+  timeouts.contextMenuGuard = setTimeout(() => {
+    if (!contextMenuStore.show) {
+      bigPreviewMenuActive.value = false
+    }
+  }, 400)
 }
 
 const play = (_inApp?: unknown) => {
@@ -1761,6 +1780,17 @@ const handleMouseLeave = () => {
 
   if (isShrinking.value || bigPreviewAnimation.value) return
 
+  // Big preview: do not tear down the <video> on leave. Right-click often
+  // fires mouseleave before/while the context menu opens; aborting playback
+  // clears src and makes "set current frame as thumb" impossible.
+  if (gridBigPreview.isVisual.value || isBigPreviewOpen.value || bigPreviewMenuActive.value) {
+    clearTimeout(timeouts.leave)
+    timeouts.leave = setTimeout(() => {
+      stopPlayingPreview()
+    }, 120)
+    return
+  }
+
   // Unmount <video> immediately — do not wait for the CSS leave grace timer.
   previewPlaybackToken += 1
   resetHoverPreviewReady()
@@ -1870,6 +1900,7 @@ watch(() => contextMenuStore.show, (show) => {
   if (show) {
     // Don't expand into big preview while any context menu is open.
     clearTimeout(timeouts.cinema)
+    clearTimeout(timeouts.leave)
     if (bigPreviewAnimation.value || gridBigPreview.isExpanding.value) {
       resetBigPreviewOpen()
     }
@@ -1882,6 +1913,10 @@ watch(() => contextMenuStore.show, (show) => {
     const preview = getPreviewEl()
     if (preview && gridBigPreview.isVisual.value) {
       preview.style.zIndex = '3000'
+    }
+    // If the pointer already left while the menu was open, finish dismiss now.
+    if (!isHovered.value && gridBigPreview.isVisual.value) {
+      stopPlayingPreview()
     }
   })
 })
