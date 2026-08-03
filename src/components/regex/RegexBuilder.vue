@@ -15,7 +15,6 @@ import {
   MATCH_REGEX_PRESETS,
   PATH_REGEX_PRESETS,
   REGEX_HELPER_SNIPPETS,
-  REGEX_SYMBOL_SNIPPETS,
   type MatchRegexPreset,
   type PathRegexPreset,
   type RegexHelperSnippet,
@@ -33,6 +32,8 @@ const props = withDefaults(defineProps<{
   intro?: string
   showPresets?: boolean
   showReplace?: boolean
+  /** When false, extract mode shows match status only (tag name lives in replace editor). */
+  showExtractedName?: boolean
   showIntro?: boolean
   /** @deprecated Always uses example-first layout */
   presetsFirst?: boolean
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<{
   intro: '',
   showPresets: true,
   showReplace: undefined,
+  showExtractedName: true,
   showIntro: false,
   presetsFirst: false,
   presetKind: undefined,
@@ -92,7 +94,11 @@ const showReplaceField = computed(() => (
 ))
 const regexFlags = computed(() => props.flags || (isExtract.value ? 'iu' : 'i'))
 const helperSnippets = REGEX_HELPER_SNIPPETS
-const symbolSnippets = REGEX_SYMBOL_SNIPPETS
+const SYMBOL_HELPER_LABELS: Partial<Record<RegexHelperSnippet['id'], string>> = {
+  start: '^',
+  end: '$',
+  dot: '.',
+}
 
 const resolvedPresetKind = computed<RegexPresetKind>(() => {
   if (props.presetKind) return props.presetKind
@@ -245,15 +251,31 @@ const compactResult = computed<CompactResult>(() => {
   }
 
   if (isExtract.value) {
-    if (!extractedName.value) {
+    const result = activeMatch.value
+    if (!result || !result.ok) {
       return {
         type: 'warning',
         text: t('regex_builder.validation_no_match'),
       }
     }
+
+    const showName = props.showExtractedName && !showReplaceField.value
+    if (showName) {
+      if (!extractedName.value) {
+        return {
+          type: 'warning',
+          text: t('regex_builder.validation_no_match_extract'),
+        }
+      }
+      return {
+        type: 'success',
+        text: t('regex_builder.validation_extract_ok', {name: extractedName.value}),
+      }
+    }
+
     return {
       type: 'success',
-      text: t('regex_builder.validation_extract_ok', {name: extractedName.value}),
+      text: t('regex_builder.validation_match_ok', {matched: result.matched}),
     }
   }
 
@@ -546,19 +568,7 @@ defineExpose({
             :title="t(`regex_builder.helper_${snippet.id}_tip`)"
             @click="onHelperClick(snippet)"
           >
-            {{ t(`regex_builder.helper_${snippet.id}`) }}
-          </v-chip>
-          <v-chip
-            v-for="snippet in symbolSnippets"
-            :key="snippet.id"
-            size="small"
-            label
-            variant="outlined"
-            class="regex-builder__helper"
-            :title="t(`regex_builder.helper_${snippet.id}_tip`)"
-            @click="onHelperClick(snippet)"
-          >
-            {{ snippet.insert }}
+            {{ SYMBOL_HELPER_LABELS[snippet.id] ?? t(`regex_builder.helper_${snippet.id}`) }}
           </v-chip>
         </div>
       </div>
@@ -695,12 +705,14 @@ defineExpose({
       rounded="lg"
       class="regex-builder__result text-caption"
     >
-      <div>{{ compactResult.text }}</div>
-      <div
-        v-if="highlightHtml"
-        class="regex-builder__preview text-caption mt-2"
-        v-html="highlightHtml"
-      />
+      <div class="regex-builder__result-row">
+        <span class="regex-builder__result-text">{{ compactResult.text }}</span>
+        <span
+          v-if="highlightHtml"
+          class="regex-builder__preview"
+          v-html="highlightHtml"
+        />
+      </div>
     </v-alert>
   </div>
 </template>
@@ -748,10 +760,14 @@ defineExpose({
 }
 
 .regex-builder__preview {
-  padding: 8px 12px;
-  border-radius: 20px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 10px;
+  border-radius: 9999px;
   background: rgba(var(--v-theme-on-surface), 0.04);
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.45;
 }
 
@@ -764,5 +780,17 @@ defineExpose({
 
 .regex-builder__result {
   border-width: 1px;
+}
+
+.regex-builder__result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.regex-builder__result-text {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 </style>

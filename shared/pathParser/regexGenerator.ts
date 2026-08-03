@@ -1,10 +1,16 @@
 import { normalizePathForRegex } from './regexMeta'
 
+/** One path segment; works with `/` and `\` without pre-normalization. */
+export const PATH_SEGMENT_CLASS = '[^/\\\\]+'
+/** `/` or `\` path separator in a stored regex string. */
+export const PATH_SEP_CLASS = '[/\\\\]'
+
 export type PathRegexPresetId =
   | 'brackets'
   | 'parentheses'
   | 'season'
   | 'folder'
+  | 'folderGrandparent'
   | 'year'
   | 'date'
   | 'resolution'
@@ -100,11 +106,19 @@ export function buildPathRegexPresets(os: PathOsStyle = detectPathOsStyle()): Pa
     },
     {
       id: 'folder',
-      // Match only the immediate parent folder name (not `/folder/file.ext`).
-      pathRegex: '([^/]+)(?=/[^/]+$)',
+      // Immediate parent folder; works with `/` and `\`.
+      pathRegex: `(${PATH_SEGMENT_CLASS})(?=${PATH_SEP_CLASS}${PATH_SEGMENT_CLASS}$)`,
       pathRegexReplace: '$1',
       samplePath: `${root}/Shows/ShowName/episode.mp4`,
       captureExample: 'ShowName',
+    },
+    {
+      id: 'folderGrandparent',
+      // Folder two levels above the file; works with `/` and `\`.
+      pathRegex: `(${PATH_SEGMENT_CLASS})(?=${PATH_SEP_CLASS}${PATH_SEGMENT_CLASS}${PATH_SEP_CLASS}${PATH_SEGMENT_CLASS}$)`,
+      pathRegexReplace: '$1',
+      samplePath: `${root}/Library/Shows/ShowName/episode.mp4`,
+      captureExample: 'Shows',
     },
     {
       id: 'year',
@@ -260,10 +274,13 @@ export function generatePathRegexFromSample(
     }
   }
 
-  const folderMatch = /\/([^/]+)\/[^/]+$/.exec(normalized)
+  const folderMatch = new RegExp(
+    `${PATH_SEP_CLASS}(${PATH_SEGMENT_CLASS})${PATH_SEP_CLASS}${PATH_SEGMENT_CLASS}$`,
+    'i',
+  ).exec(normalized)
   if (folderMatch && folderMatch[1].toLowerCase() === lowerNeedle) {
     return {
-      pathRegex: '/([^/]+)/[^/]+$',
+      pathRegex: `(${PATH_SEGMENT_CLASS})(?=${PATH_SEP_CLASS}${PATH_SEGMENT_CLASS}$)`,
       pathRegexReplace: '$1',
       kind: 'literal',
     }
@@ -304,13 +321,8 @@ export type RegexHelperSnippetId =
   | 'space'
   | 'optional'
   | 'or'
-  | 'slash'
-  | 'litOpen'
-  | 'litClose'
-  | 'parenOpen'
-  | 'parenClose'
-  | 'dot'
   | 'start'
+  | 'dot'
   | 'end'
 
 export interface RegexHelperSnippet {
@@ -323,21 +335,12 @@ export const REGEX_HELPER_SNIPPETS: RegexHelperSnippet[] = [
   {id: 'any', insert: '.*?'},
   {id: 'digits', insert: '\\d+'},
   {id: 'word', insert: '\\w+'},
-  {id: 'segment', insert: '[^/]+'},
+  {id: 'segment', insert: PATH_SEGMENT_CLASS},
   {id: 'capture', insert: '(.*?)'},
   {id: 'space', insert: '\\s+'},
   {id: 'optional', insert: '?'},
   {id: 'or', insert: '|'},
-]
-
-/** Single-character / escaped symbols behind one “special symbol” menu chip. */
-export const REGEX_SYMBOL_SNIPPETS: RegexHelperSnippet[] = [
-  {id: 'slash', insert: '/'},
-  {id: 'litOpen', insert: '\\['},
-  {id: 'litClose', insert: '\\]'},
-  {id: 'parenOpen', insert: '\\('},
-  {id: 'parenClose', insert: '\\)'},
-  {id: 'dot', insert: '\\.'},
   {id: 'start', insert: '^'},
   {id: 'end', insert: '$'},
+  {id: 'dot', insert: '\\.'},
 ]

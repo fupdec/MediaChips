@@ -100,6 +100,7 @@ describe('pathParser/regexGenerator', () => {
       'brackets',
       'season',
       'folder',
+      'folderGrandparent',
       'year',
       'date',
       'resolution',
@@ -129,6 +130,15 @@ describe('pathParser/regexGenerator', () => {
       matched: 'ShowName',
       groups: ['ShowName'],
     })
+    expect(testRegexMatch(
+      folder!.pathRegex,
+      'C:\\Media\\Shows\\ShowName\\episode.mp4',
+      'iu',
+    )).toEqual({
+      ok: true,
+      matched: 'ShowName',
+      groups: ['ShowName'],
+    })
     expect(extractPathRegexTagName(folder!.samplePath, {
       id: 1,
       type: 'array',
@@ -146,5 +156,63 @@ describe('pathParser/regexGenerator', () => {
         pathRegexReplace: folder!.pathRegexReplace,
       },
     )).toBe('ShowName')
+  })
+
+  it('folderGrandparent preset extracts the grandparent folder name', () => {
+    const preset = buildPathRegexPresets('unix').find((item) => item.id === 'folderGrandparent')
+    expect(preset).toBeTruthy()
+    expect(testRegexMatch(preset!.pathRegex, preset!.samplePath, 'iu')).toEqual({
+      ok: true,
+      matched: 'Shows',
+      groups: ['Shows'],
+    })
+    expect(testRegexMatch(
+      preset!.pathRegex,
+      'C:\\Media\\Library\\Shows\\ShowName\\episode.mp4',
+      'iu',
+    )).toEqual({
+      ok: true,
+      matched: 'Shows',
+      groups: ['Shows'],
+    })
+    expect(extractPathRegexTagName(preset!.samplePath, {
+      id: 1,
+      type: 'array',
+      parser: true,
+      pathRegex: preset!.pathRegex,
+      pathRegexReplace: preset!.pathRegexReplace,
+    })).toBe('Shows')
+    expect(extractPathRegexTagName(
+      'C:\\Media\\Library\\Shows\\ShowName\\episode.mp4',
+      {
+        id: 1,
+        type: 'array',
+        parser: true,
+        pathRegex: preset!.pathRegex,
+        pathRegexReplace: preset!.pathRegexReplace,
+      },
+    )).toBe('Shows')
+  })
+
+  it('path presets work for both unix and windows sample roots', () => {
+    for (const os of ['unix', 'windows'] as const) {
+      const presets = buildPathRegexPresets(os)
+      for (const preset of presets) {
+        const result = testRegexMatch(preset.pathRegex, preset.samplePath, 'iu')
+        expect(result.ok, `${os}:${preset.id}`).toBe(true)
+        if (result.ok) {
+          expect(result.groups[0] || result.matched).toBe(preset.captureExample)
+        }
+        expect(extractPathRegexTagName(preset.samplePath, {
+          id: 1,
+          type: 'array',
+          parser: true,
+          pathRegex: preset.pathRegex,
+          pathRegexReplace: preset.pathRegexReplace,
+        })).toBe(
+          preset.id === 'season' ? `Season ${preset.captureExample}` : preset.captureExample,
+        )
+      }
+    }
   })
 })

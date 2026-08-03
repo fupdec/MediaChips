@@ -214,6 +214,7 @@
             :sample="pathRegexSamplePath"
             :capture-text="pathRegexCaptureText"
             :show-replace="false"
+            :show-extracted-name="!settings.pathRegexCreateTags"
             class="mb-4"
             @update:pattern="settings.pathRegex = $event"
             @update:replace="settings.pathRegexReplace = $event"

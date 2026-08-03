@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-
-export type ReplaceToken =
-  | {type: 'text'; value: string}
-  | {type: 'group'; index: number}
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -25,23 +21,22 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 
-const tokens = ref<ReplaceToken[]>(parseReplaceTemplate(props.modelValue || '$1'))
-const draftText = ref('')
+const localValue = ref(props.modelValue || '$1')
+const fieldRef = ref<{ $el?: HTMLElement } | null>(null)
 const syncingFromProps = ref(false)
 
 watch(() => props.modelValue, (value) => {
   const next = value || '$1'
-  const serialized = serializeReplaceTokens(tokens.value)
-  if (next === serialized) return
+  if (next === localValue.value) return
   syncingFromProps.value = true
-  tokens.value = parseReplaceTemplate(next)
+  localValue.value = next
   syncingFromProps.value = false
 })
 
-watch(tokens, () => {
+watch(localValue, (value) => {
   if (syncingFromProps.value) return
-  emit('update:modelValue', serializeReplaceTokens(tokens.value) || '$1')
-}, {deep: true})
+  emit('update:modelValue', value || '$1')
+})
 
 const availableGroups = computed(() => {
   const fromMatch = props.groups
@@ -53,10 +48,12 @@ const availableGroups = computed(() => {
 
   if (fromMatch.length) return fromMatch
 
-  // Fallback: groups referenced in the current template
   const indexes = new Set<number>()
-  for (const token of tokens.value) {
-    if (token.type === 'group' && token.index > 0) indexes.add(token.index)
+  const re = /\$(\d+)/g
+  let match: RegExpExecArray | null
+  const source = localValue.value || ''
+  while ((match = re.exec(source))) {
+    indexes.add(Number(match[1]))
   }
   if (!indexes.size) indexes.add(1)
   return [...indexes].sort((a, b) => a - b).map((index) => ({
@@ -65,87 +62,69 @@ const availableGroups = computed(() => {
   }))
 })
 
+const resultPreview = computed(() => {
+  const groups = props.groups
+  if (!groups.length) {
+    return {
+      type: 'warning' as const,
+      text: t('regex_builder.validation_no_match'),
+    }
+  }
+
+  const name = applyGroupsToTemplate(localValue.value || '$1', groups).trim()
+  if (!name) {
+    return {
+      type: 'warning' as const,
+      text: t('regex_builder.validation_no_match_extract'),
+    }
+  }
+
+  return {
+    type: 'success' as const,
+    text: t('regex_builder.validation_extract_ok', {name}),
+  }
+})
+
+function applyGroupsToTemplate(template: string, groups: string[]): string {
+  return String(template || '$1').replace(/\$(\d+|\$)/g, (token, group: string) => {
+    if (group === '$') return '$'
+    const index = Number(group)
+    if (!Number.isFinite(index) || index < 1) return token
+    return groups[index - 1] ?? ''
+  })
+}
+
 function groupLabel(index: number, value?: string) {
   const text = String(value ?? props.groups[index - 1] ?? '').trim()
   return text || `$${index}`
 }
 
-function parseReplaceTemplate(template: string): ReplaceToken[] {
-  const source = String(template || '')
-  if (!source.trim()) return [{type: 'group', index: 1}]
-
-  const result: ReplaceToken[] = []
-  const re = /\$(\d+|\$)/g
-  let lastIndex = 0
-  let match: RegExpExecArray | null
-
-  while ((match = re.exec(source))) {
-    if (match.index > lastIndex) {
-      result.push({type: 'text', value: source.slice(lastIndex, match.index)})
-    }
-    if (match[1] === '$') {
-      result.push({type: 'text', value: '$'})
-    } else {
-      result.push({type: 'group', index: Number(match[1])})
-    }
-    lastIndex = match.index + match[0].length
-  }
-
-  if (lastIndex < source.length) {
-    result.push({type: 'text', value: source.slice(lastIndex)})
-  }
-
-  return result.length ? result : [{type: 'group', index: 1}]
+function getInput(): HTMLInputElement | null {
+  const root = fieldRef.value?.$el
+  if (!root) return null
+  return root.querySelector('input')
 }
 
-function serializeReplaceTokens(list: ReplaceToken[]): string {
-  return list.map((token) => (
-    token.type === 'group' ? `$${token.index}` : token.value
-  )).join('')
-}
+function insertGroup(index: number) {
+  const snippet = `$${index}`
+  const el = getInput()
+  const current = localValue.value || ''
 
-function appendGroup(index: number) {
-  flushDraftText()
-  tokens.value = [...tokens.value, {type: 'group', index}]
-}
-
-function removeToken(index: number) {
-  const next = tokens.value.filter((_, i) => i !== index)
-  tokens.value = next.length ? next : [{type: 'group', index: 1}]
-}
-
-function updateTextToken(index: number, value: string) {
-  const next = [...tokens.value]
-  const token = next[index]
-  if (!token || token.type !== 'text') return
-  if (!value) {
-    next.splice(index, 1)
-    tokens.value = next.length ? next : [{type: 'group', index: 1}]
+  if (!el) {
+    localValue.value = `${current}${snippet}`
     return
   }
-  next[index] = {type: 'text', value}
-  tokens.value = next
-}
 
-function flushDraftText() {
-  const value = draftText.value
-  if (!value) return
-  tokens.value = [...tokens.value, {type: 'text', value}]
-  draftText.value = ''
-}
+  const start = el.selectionStart ?? current.length
+  const end = el.selectionEnd ?? current.length
+  const next = `${current.slice(0, start)}${snippet}${current.slice(end)}`
+  localValue.value = next
 
-function onDraftEnter(event: KeyboardEvent) {
-  event.preventDefault()
-  flushDraftText()
-}
-
-function onDraftBackspace() {
-  if (draftText.value) return
-  if (!tokens.value.length) return
-  const last = tokens.value[tokens.value.length - 1]
-  if (last.type === 'group') {
-    removeToken(tokens.value.length - 1)
-  }
+  const caret = start + snippet.length
+  nextTick(() => {
+    el.focus()
+    el.setSelectionRange(caret, caret)
+  })
 }
 </script>
 
@@ -170,95 +149,41 @@ function onDraftBackspace() {
         color="primary"
         variant="tonal"
         class="regex-replace-editor__avail"
-        @click="appendGroup(group.index)"
+        @click="insertGroup(group.index)"
       >
         {{ groupLabel(group.index, group.value) }}
       </v-chip>
     </div>
 
-    <div class="regex-replace-editor__field">
-      <template v-for="(token, index) in tokens" :key="`${token.type}-${index}`">
-        <v-chip
-          v-if="token.type === 'group'"
-          size="small"
-          label
-          color="primary"
-          variant="flat"
-          closable
-          class="regex-replace-editor__chip"
-          @click:close="removeToken(index)"
-        >
-          {{ groupLabel(token.index) }}
-        </v-chip>
-        <input
-          v-else
-          class="regex-replace-editor__text"
-          :value="token.value"
-          :style="{width: `${Math.max(2, token.value.length + 1)}ch`}"
-          :aria-label="t('regex_builder.replace_text')"
-          @input="updateTextToken(index, String(($event.target as HTMLInputElement).value))"
-        >
-      </template>
-
-      <input
-        v-model="draftText"
-        class="regex-replace-editor__draft"
-        :placeholder="tokens.length ? '' : t('regex_builder.replace_text_placeholder')"
-        :aria-label="t('regex_builder.replace_text')"
-        @keydown.enter="onDraftEnter"
-        @keydown.backspace="onDraftBackspace"
-        @blur="flushDraftText"
-      >
-    </div>
+    <v-text-field
+      ref="fieldRef"
+      v-model="localValue"
+      density="compact"
+      variant="outlined"
+      rounded="lg"
+      hide-details="auto"
+      :placeholder="t('regex_builder.replace_text_placeholder')"
+      :aria-label="label || t('regex_builder.replace')"
+    />
 
     <div v-if="hint" class="text-caption text-medium-emphasis mt-1">
       {{ hint }}
     </div>
+
+    <v-alert
+      :type="resultPreview.type"
+      variant="tonal"
+      density="compact"
+      rounded="lg"
+      class="text-caption mt-3"
+    >
+      {{ resultPreview.text }}
+    </v-alert>
   </div>
 </template>
 
 <style scoped>
 .regex-replace-editor__avail {
   cursor: pointer;
-}
-
-.regex-replace-editor__field {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 6px 10px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 9999px;
-  background: transparent;
-}
-
-.regex-replace-editor__field:focus-within {
-  border-color: rgb(var(--v-theme-primary));
-}
-
-.regex-replace-editor__chip {
-  flex: 0 0 auto;
-}
-
-.regex-replace-editor__text,
-.regex-replace-editor__draft {
-  flex: 1 1 48px;
-  min-width: 48px;
-  max-width: 100%;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  line-height: 1.4;
-  padding: 2px 0;
-}
-
-.regex-replace-editor__text {
-  flex: 0 1 auto;
-  min-width: 24px;
-  width: auto;
 }
 </style>

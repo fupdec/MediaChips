@@ -114,7 +114,10 @@ export function testRegexMatch(
   return {
     ok: true,
     matched: match[0],
-    groups: match.slice(1).map((value) => (value == null ? '' : String(value))),
+    // No capturing groups → expose the full match as $1 so replace templates work.
+    groups: match.length > 1
+      ? match.slice(1).map((value) => (value == null ? '' : String(value)))
+      : [String(match[0])],
   }
 }
 
@@ -129,6 +132,9 @@ export function applyPathRegexReplace(match: RegExpExecArray, template?: string 
     if (group === '$') return '$'
     const index = Number(group)
     if (!Number.isFinite(index) || index < 0) return token
+    if (index === 1 && match.length <= 1) {
+      return match[0] == null ? '' : String(match[0])
+    }
     const value = match[index]
     return value == null ? '' : String(value)
   })
