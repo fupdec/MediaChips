@@ -121,6 +121,8 @@ export type SettingsState = {
   textFont: string
   headerFont: string
   bottomBar: string
+  /** Eagle-style layout: expanded tags sidebar + right inspector panel. */
+  browserLayout: string
   showPlaylistsInNavigation: string
   showMarkersInNavigation: string
   numberOfPagesLimit: string
@@ -230,6 +232,7 @@ export const defaultSettingsState = (): SettingsState => ({
   textFont: 'Roboto',
   headerFont: 'Roboto',
   bottomBar: '0',
+  browserLayout: '1',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',
   numberOfPagesLimit: '7',

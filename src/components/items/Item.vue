@@ -12,6 +12,7 @@
       {'item-media': type === 'media'},
       {'item-tag': type === 'tag'},
       {'item--selecting': itemsStore.isSelect},
+      {'item--inspector-focused': isInspectorFocused},
       {'item--context-target': is_context_target},
       `item__size-${itemsStore.size}`,
       `item-view-${itemsStore.view}`,
@@ -74,7 +75,8 @@
       <div
         v-if="isMasonryImage && showPreview"
         class="masonry-meta-overlay"
-        @click.stop="editItem"
+        @click.stop="handleCardActivate"
+        @dblclick.stop="editItem"
       >
         <div
           v-if="settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
@@ -120,7 +122,8 @@
 
       <div
         v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && itemsStore.view == 3)"
-        @click="editItem"
+        @click="handleCardActivate"
+        @dblclick="editItem"
         v-ripple="{ class: `text-primary` }"
         class="description"
       >
@@ -205,7 +208,8 @@
       <ItemPreviewTag v-if="tagItem && showPreview"
                       :tag="tagItem"
                       :meta="previewMeta"></ItemPreviewTag>
-      <div @click="editItem"
+      <div @click="handleCardActivate"
+           @dblclick="editItem"
            class="tag-chip-view__label">{{ item.name }}
       </div>
     </v-chip>
@@ -244,6 +248,7 @@ import ItemRating from '@/components/items/ItemRating.vue'
 import ItemFavorite from '@/components/items/ItemFavorite.vue'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useLazyInView} from '@/composable/useLazyInView'
+import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {hexToRgba} from '@/services/formatUtils'
@@ -294,6 +299,7 @@ const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
+const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 
 const contextMenu = computed(() => contextMenuStore)
 
@@ -499,6 +505,12 @@ const onMediaDragStart = (event: DragEvent) => {
   })
 }
 
+const isInspectorFocused = computed(() =>
+  browserLayoutActive.value
+  && !itemsStore.isSelect
+  && is_selected.value,
+)
+
 const is_context_target = computed(() => {
   return contextMenuStore.show
     && contextMenuStore.targetNestedTagId == null
@@ -568,6 +580,24 @@ const editItem = () => {
   } else if (isTagPageItem(props.item, props.type) && props.meta) {
     dialogsStore.editTag(props.item, props.meta)
   }
+}
+
+const handleCardActivate = (e?: MouseEvent) => {
+  if (itemsStore.isSelect) {
+    itemsStore.toggleSelect(e ?? null, props.item)
+    return
+  }
+
+  if (browserLayoutActive.value) {
+    if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+      itemsStore.toggleSelect(e, props.item)
+      return
+    }
+    itemsStore.focusForInspector(props.item)
+    return
+  }
+
+  editItem()
 }
 
 const showContextMenu = (e: MouseEvent) => {

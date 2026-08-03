@@ -17,7 +17,9 @@
 
       <component :is="AppBar"/>
 
-      <component :is="useBottomBar ? BottomBar : SideBar"/>
+      <component :is="navigationComponent"/>
+
+      <InspectorPanel v-if="useBrowserLayout"/>
     </template>
 
     <component :is="Player" v-if="isShellReady || isPlayerWindow"/>
@@ -112,6 +114,7 @@ import {computed, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute} from 'vue-router'
 import {useNavigationLayout} from '@/composable/useNavigationLayout'
+import {useBrowserLayout as useBrowserLayoutMode} from '@/composable/useBrowserLayout'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppPlatform} from '@/composable/useAppPlatform'
@@ -126,7 +129,9 @@ import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
 
 const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))
 const SideBar = defineAsyncComponent(() => import('@/components/app/SideBar.vue'))
+const SideBarBrowser = defineAsyncComponent(() => import('@/components/app/SideBarBrowser.vue'))
 const BottomBar = defineAsyncComponent(() => import('@/components/app/BottomBar.vue'))
+const InspectorPanel = defineAsyncComponent(() => import('@/components/app/InspectorPanel.vue'))
 const Player = defineAsyncComponent(() => import('@/components/app/Player.vue'))
 const Dialogs = defineAsyncComponent(() => import('@/components/app/Dialogs.vue'))
 const ImageViewer = defineAsyncComponent(() => import('@/components/app/ImageViewer.vue'))
@@ -141,6 +146,13 @@ const store = useAppStore()
 const route = useRoute()
 const {t} = useI18n()
 const {useBottomBar} = useNavigationLayout()
+const {useBrowserLayout} = useBrowserLayoutMode()
+
+const navigationComponent = computed(() => {
+  if (useBottomBar.value) return BottomBar
+  if (useBrowserLayout.value) return SideBarBrowser
+  return SideBar
+})
 
 const {isElectron, isMac, isWin} = useAppPlatform()
 const isPlayerWindow = computed(() => isStandalonePlayerRoute(route))
@@ -161,6 +173,7 @@ const addedTopClasses = computed(() => ({
 const mainLayoutClasses = computed(() => ({
   ...addedTopClasses.value,
   'has-bottom-bar': useBottomBar.value,
+  'has-browser-layout': useBrowserLayout.value,
 }))
 
 const isSettingsPage = computed(() => route.path === '/settings')

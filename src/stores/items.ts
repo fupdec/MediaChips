@@ -642,6 +642,18 @@ export const useItemsStore = defineStore('items', {
       this.isSelect = false
     },
 
+    /** Focus a single item for the browser inspector without entering bulk-select mode. */
+    focusForInspector(item: { id: number }) {
+      this.selection = [item.id]
+      this.selected_last = item.id
+    },
+
+    /** Clear inspector focus without toggling bulk-select chrome. */
+    clearInspectorFocus() {
+      this.selection = []
+      this.selected_last = null
+    },
+
     // Переключить режим выбора
     toggleSelectMode() {
       this.isSelect = !this.isSelect

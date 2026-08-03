@@ -18,6 +18,13 @@
     overflow: hidden;
   }
 
+  &--inspector-focused {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+    border-radius: 14px;
+    z-index: 1;
+  }
+
   .item-select-overlay {
     position: absolute;
     inset: 0;
