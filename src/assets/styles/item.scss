@@ -939,7 +939,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    pointer-events: auto;
     cursor: pointer;
     transition: none !important;
 
@@ -954,21 +953,24 @@
     }
     .thumb {
       max-height: none;
-      pointer-events: none;
       width: 200%;
       min-width: 200%;
       height: 200%;
       position: absolute;
-      filter: blur(50px);
       left: -50%;
       top: -50%;
+      opacity: 1;
+      filter: blur(50px);
       background-color: transparent;
+      will-change: filter, opacity;
       transition:
         width 350ms ease-in-out,
         min-width 350ms ease-in-out,
         height 350ms ease-in-out,
         left 350ms ease-in-out,
-        top 350ms ease-in-out;
+        top 350ms ease-in-out,
+        filter 350ms ease-in-out,
+        opacity 280ms ease-in-out;
 
       // Cover the stage so card letterbox blacks don't read as bars
       // behind the centered video plate.
@@ -980,7 +982,10 @@
 
     &.video-preview-container--expanding {
       .thumb {
+        // Blur in parallel with the FLIP expand (not after it).
         filter: blur(0);
+        opacity: 0.96;
+        animation: video-big-preview-thumb-blur-in 350ms ease-out forwards;
       }
 
       .preview,
@@ -991,10 +996,7 @@
     }
 
     .preview {
-      // Receive click / contextmenu on the video surface. (With
-      // pointer-events: none, Chromium often lets hits fall through the
-      // transparent expanded stage entirely past the container.)
-      pointer-events: auto;
+      cursor: pointer;
       border-radius: 16px;
       overflow: hidden;
       display: inline-flex;
@@ -1010,7 +1012,7 @@
       animation: none;
       transition-duration: 0s;
       box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
-      // Let blurred thumb show through letterbox / side insets.
+      // Let blurred thumb/grid show through letterbox / side insets.
       background-color: transparent;
       // Transform on this shell breaks overflow clipping of hardware
       // <video> in Electron — round + clip the video element itself.
@@ -1038,7 +1040,8 @@
 
     &.video-preview-container--collapsing {
       .thumb {
-        filter: none !important;
+        animation: none;
+        filter: blur(0);
         width: 100%;
         min-width: 100%;
         height: 100%;
@@ -1051,7 +1054,9 @@
           min-width 350ms ease-in-out,
           height 350ms ease-in-out,
           left 350ms ease-in-out,
-          top 350ms ease-in-out;
+          top 350ms ease-in-out,
+          filter 280ms ease-in,
+          opacity 220ms ease-in;
       }
 
       .preview {
@@ -1147,6 +1152,7 @@
     .preview-playback-timeline {
       z-index: 1010;
       padding: 16px 24px 20px;
+      pointer-events: auto;
 
       &__track {
         height: 4px;
@@ -1263,7 +1269,6 @@
   &.video-preview-container--expanded {
     .thumb {
       z-index: auto;
-      transition: none;
     }
 
     .preview {
@@ -1373,6 +1378,17 @@
   }
 }
 
+@keyframes video-big-preview-thumb-blur-in {
+  from {
+    filter: blur(0);
+    opacity: 0.96;
+  }
+  to {
+    filter: blur(50px);
+    opacity: 1;
+  }
+}
+
 body > .video-preview-container.video-preview-container--expanded {
   z-index: 3000;
 }
@@ -1425,6 +1441,13 @@ body > .video-preview-container.video-preview-container--expanded {
 .item-tag.item-view-4 {
   .item_wrapper {
     overflow: hidden;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .item_wrapper > .v-card__underlay {
+    display: none;
   }
 
   .description {
@@ -1433,6 +1456,28 @@ body > .video-preview-container.video-preview-container--expanded {
 
   .item_preview {
     border-radius: inherit;
+    background-color: transparent;
+  }
+
+  .video-preview-container,
+  .video-preview-host,
+  .item_preview__placeholder {
+    background-color: transparent !important;
+  }
+
+  .item-minimal-filename {
+    margin-top: 6px;
+    min-width: 0;
+    padding-left: 17px;
+    padding-right: 2px;
+    cursor: pointer;
+  }
+
+  .item-minimal-filename__text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -2145,6 +2190,9 @@ body > .video-preview-container.video-preview-container--expanded {
   .video-preview-host__anchor-thumb {
     width: 100%;
     height: 100%;
+    // Layout placeholder only — hide so the sharp card twin doesn't
+    // sit under / beside the portaled expanding plate.
+    opacity: 0;
   }
 
   &:has(.video-preview-host__anchor) {
@@ -2170,6 +2218,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .video-preview-host__anchor-thumb {
     width: 100%;
     height: 100%;
+    opacity: 0;
   }
 
   .embedded-play-hint {
@@ -2255,7 +2304,6 @@ body > .video-preview-container.video-preview-container--expanded {
     &.video-preview-container--expanded {
       .thumb {
         z-index: auto;
-        transition: none;
       }
 
       .preview {
@@ -2284,6 +2332,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .video-preview-host__anchor-thumb {
     width: 100%;
     height: 100%;
+    opacity: 0;
   }
 
   .video-preview-container {
@@ -2359,7 +2408,6 @@ body > .video-preview-container.video-preview-container--expanded {
     &.video-preview-container--expanded {
       .thumb {
         z-index: auto;
-        transition: none;
       }
 
       .preview {

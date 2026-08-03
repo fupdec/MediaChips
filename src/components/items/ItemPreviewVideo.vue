@@ -843,8 +843,13 @@ const finalizePreviewStop = () => {
 }
 
 // Модифицированные методы
+/** Grid only on library cards — never in edit dialog (embedded) or when forced thumbs. */
 const getStaticPreviewSubfolder = (): 'thumbs' | 'grids' =>
-  settingsStore.videoPreviewStatic === 'grid' && isViewCard.value ? 'grids' : 'thumbs'
+  settingsStore.videoPreviewStatic === 'grid'
+  && isViewCard.value
+  && !isEmbeddedHost.value
+    ? 'grids'
+    : 'thumbs'
 
 const onThumbLoad = () => {
   thumbFallbackStage.value = 0
@@ -1754,7 +1759,7 @@ const stopPlayingPreview = ({force = false} = {}) => {
 const handleMouseLeave = () => {
   clearTimeout(timeouts.hoverCooldown)
 
-  if (gridBigPreview.isActive.value || isShrinking.value || bigPreviewAnimation.value) return
+  if (isShrinking.value || bigPreviewAnimation.value) return
 
   // Unmount <video> immediately — do not wait for the CSS leave grace timer.
   previewPlaybackToken += 1
