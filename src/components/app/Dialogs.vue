@@ -24,7 +24,7 @@
     <DialogOnboarding v-if="dialogsStore.onboarding.show"/>
     <DialogAdultOnboarding v-if="adultUiAvailable && dialogsStore.adultOnboarding.show"/>
     <DialogDocumentation v-show="dialogsStore.documentation"/>
-    <DialogLocalAiAssistant v-if="dialogsStore.localAi.show"/>
+    <DialogLocalAiAssistant v-if="LOCAL_AI_UI_ENABLED && dialogsStore.localAi.show"/>
     <DialogFeedback v-if="dialogsStore.feedback"/>
     <DialogVersionHistory v-if="dialogsStore.versions"/>
     <DialogChangelog v-if="dialogsStore.changelog.show"/>
@@ -189,6 +189,7 @@ import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
 import {registerAppShellHandler} from '@/composable/appShell'
+import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 
 // Async components
 const DialogLogin = defineAsyncComponent(() =>

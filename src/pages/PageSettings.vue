@@ -40,8 +40,10 @@
                 <SettingsVideoPreview/>
               </SettingsSection>
 
-              <SettingsGroupLabel :title="t('settings.groups.local_ai')"/>
-              <SettingsLocalAi/>
+              <template v-if="LOCAL_AI_UI_ENABLED">
+                <SettingsGroupLabel :title="t('settings.groups.local_ai')"/>
+                <SettingsLocalAi/>
+              </template>
             </SettingsList>
           </div>
 
@@ -247,6 +249,7 @@ import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
 import {usePluginsStore} from "@/stores/plugins"
 import {resolvePluginComponentLoader} from "@/services/pluginHost"
+import {LOCAL_AI_UI_ENABLED} from "@shared/features"
 import {
   FINGERPRINT_BACKFILL,
   VISUAL_HASH_BACKFILL,
@@ -560,7 +563,7 @@ const GENERAL_SECTIONS = new Set([
   "login",
   "video_player",
   "video_preview",
-  "local_ai",
+  ...(LOCAL_AI_UI_ENABLED ? ["local_ai"] as const : []),
 ])
 
 const APPEARANCE_SECTIONS = new Set([

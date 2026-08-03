@@ -21,6 +21,7 @@ import { initAppUpdater } from './electron/autoUpdater'
 import { normalizeMediaPath } from './api/utils/normalizeUserPath'
 import { resolveExistingPath } from './api/services/contentHash'
 import { saveConfigFile } from './app/server/configFile'
+import { LOCAL_AI_UI_ENABLED } from './shared/features'
 
 function escapeXml(value: string): string {
   return value
@@ -1220,7 +1221,7 @@ const helpMenu = {
   label: 'Help',
   submenu: [
     menuActionItem('Documentation', 'documentation'),
-    menuActionItem('Local AI', 'localAi'),
+    ...(LOCAL_AI_UI_ENABLED ? [menuActionItem('Local AI', 'localAi')] : []),
     menuActionItem('Getting Started', 'gettingStarted'),
     menuActionItem('Send Feedback', 'sendFeedback'),
     menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),

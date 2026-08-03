@@ -6,6 +6,12 @@ import http from 'http'
 import https from 'https'
 import {createSettingsRepository} from '../db/repositories/settings'
 import {formatDocsForPrompt, searchDocs} from './docRetrieval'
+import {
+  buildFilterAssistPrompt,
+  buildMetaAssistPrompt,
+  buildRegexAssistPrompt,
+  normalizeAssistParsed,
+} from './localAiAssist'
 
 export const LOCAL_AI_MODEL_ID = 'qwen25-1_5b-instruct'
 export const LOCAL_AI_MODEL_FILENAME = 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
@@ -382,30 +388,11 @@ function buildSystemPrompt(req: LocalAiChatRequest, docsText: string): string {
   }
 
   if (mode === 'regex') {
-    const ctx = (req.context || {}) as Record<string, unknown>
-    parts.push(
-      'Task: invent a JavaScript RegExp that extracts or matches the capture text inside the sample path/name for MediaChips.',
-      'Do NOT echo the context object. Do NOT put file paths into "pattern".',
-      'pattern = regex SOURCE only (no /slashes/), with at least one capturing group when extracting a tag.',
-      'replace = template using $1, $2, … (or "$1" if only one group).',
-      'explanation = short human explanation of how the regex works.',
-      'Return ONLY a JSON object (no markdown fences) with keys: pattern, replace, explanation.',
-      `Sample path/text: ${JSON.stringify(String(ctx.sample || ''))}`,
-      `Text to capture / match: ${JSON.stringify(String(ctx.captureText || ''))}`,
-      `Current pattern (may be empty): ${JSON.stringify(String(ctx.pattern || ''))}`,
-      `Current replace (may be empty): ${JSON.stringify(String(ctx.replace || '$1'))}`,
-      `Mode: ${String(ctx.mode || 'extract')}`,
-    )
+    parts.push(...buildRegexAssistPrompt((req.context || {}) as Record<string, unknown>))
   } else if (mode === 'filter') {
-    parts.push(
-      'Help the user design a MediaChips filter. Return JSON only with keys: summary, suggestions (string array), explanation.',
-      `Context: ${JSON.stringify(req.context || {})}`,
-    )
+    parts.push(...buildFilterAssistPrompt((req.context || {}) as Record<string, unknown>))
   } else if (mode === 'meta') {
-    parts.push(
-      'Help configure MediaChips metadata fields (chips). Return JSON only with keys: summary, suggestions (string array), explanation.',
-      `Context: ${JSON.stringify(req.context || {})}`,
-    )
+    parts.push(...buildMetaAssistPrompt((req.context || {}) as Record<string, unknown>))
   } else {
     parts.push(
       'You can answer product questions from documentation and help with library organization.',
@@ -497,7 +484,7 @@ export async function* iterateLocalAiChat(
     let genDone = false
 
     const generation = session.prompt(prompt, {
-      maxTokens: req.mode && req.mode !== 'chat' ? 512 : 768,
+      maxTokens: req.mode && req.mode !== 'chat' ? 640 : 768,
       signal: abortController.signal,
       stopOnAbortSignal: true,
       onTextChunk: (chunk: string) => {
@@ -545,7 +532,10 @@ export async function* iterateLocalAiChat(
     await generation
     if (genError) throw genError
     const text = full || finalText
-    const parsed = req.mode && req.mode !== 'chat' ? extractJsonObject(text) : null
+    const rawParsed = req.mode && req.mode !== 'chat' ? extractJsonObject(text) : null
+    const parsed = req.mode && req.mode !== 'chat'
+      ? normalizeAssistParsed(req.mode, rawParsed, (req.context || {}) as Record<string, unknown>)
+      : null
     const citedIds = extractDocIds(text)
     const uniqueDocs = [
       ...new Map([

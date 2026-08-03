@@ -3,6 +3,7 @@ import {computed, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import RegexReplaceTemplateEditor from '@/components/regex/RegexReplaceTemplateEditor.vue'
 import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
+import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {
@@ -14,8 +15,7 @@ import {
   MATCH_REGEX_PRESETS,
   PATH_REGEX_PRESETS,
   REGEX_HELPER_SNIPPETS,
-  generateMatchRegexFromSample,
-  generatePathRegexFromSample,
+  REGEX_SYMBOL_SNIPPETS,
   type MatchRegexPreset,
   type PathRegexPreset,
   type RegexHelperSnippet,
@@ -66,6 +66,7 @@ const localPattern = ref(props.pattern)
 const localReplace = ref(props.replace || '$1')
 const localSample = ref(props.sample)
 const localCapture = ref(props.captureText)
+const aiGoal = ref('')
 const flashMessage = ref<{type: 'error' | 'info'; text: string} | null>(null)
 const flashTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const randomizingSample = ref(false)
@@ -91,6 +92,7 @@ const showReplaceField = computed(() => (
 ))
 const regexFlags = computed(() => props.flags || (isExtract.value ? 'iu' : 'i'))
 const helperSnippets = REGEX_HELPER_SNIPPETS
+const symbolSnippets = REGEX_SYMBOL_SNIPPETS
 
 const resolvedPresetKind = computed<RegexPresetKind>(() => {
   if (props.presetKind) return props.presetKind
@@ -155,37 +157,41 @@ const patternError = computed(() => {
   return t('regex_builder.validation_invalid')
 })
 
-const canGenerate = computed(() => (
-  Boolean(localSample.value.trim() && localCapture.value.trim())
+const canRunAi = computed(() => (
+  Boolean(aiGoal.value.trim() || localSample.value.trim())
 ))
 
 const aiPrompt = computed(() => {
-  const sample = localSample.value.trim()
-  const capture = localCapture.value.trim()
-  if (isExtract.value) {
-    return [
-      'Suggest a path regex for MediaChips tag extraction.',
-      sample ? `Sample path: ${sample}` : 'Sample path is empty — invent a typical media path example.',
-      capture ? `Capture this text as the tag: ${capture}` : 'Choose a sensible capture group for a studio/name segment.',
-      'Return JSON with pattern, replace, explanation.',
-    ].join('\n')
+  const goal = aiGoal.value.trim()
+  const lines: string[] = []
+  if (goal) {
+    lines.push(`PRIMARY REQUEST: ${goal}`)
+    lines.push('Return a SHORT regex fragment only (not a full file path).')
+    lines.push('Good: (\\d{4}) or (19|20)\\d{2}. Bad: /Media/Library/...(\\d{4})\\.mp4')
+  } else {
+    lines.push(
+      isExtract.value
+        ? 'Create a MediaChips path-tag regex.'
+        : 'Create a JavaScript RegExp for MediaChips matching.',
+    )
   }
-  return [
-    'Suggest a JavaScript RegExp that matches the sample.',
-    sample ? `Sample: ${sample}` : 'Sample is empty — invent a short example.',
-    capture ? `Should match/capture: ${capture}` : '',
-    'Return JSON with pattern, replace, explanation.',
-  ].filter(Boolean).join('\n')
+  lines.push('Return ONLY JSON: {"pattern":"...","replace":"$1","explanation":"..."}')
+  return lines.join('\n')
 })
 
-const aiContext = computed(() => ({
-  mode: props.mode,
-  pattern: localPattern.value,
-  replace: localReplace.value,
-  sample: localSample.value,
-  captureText: localCapture.value,
-  flags: regexFlags.value,
-}))
+const aiContext = computed(() => {
+  const goal = aiGoal.value.trim()
+  return {
+    mode: props.mode,
+    goal,
+    // When the user typed a request, omit sample/pattern — they bias the model into path templates.
+    pattern: goal ? '' : localPattern.value,
+    replace: goal ? '$1' : localReplace.value,
+    sample: goal ? '' : localSample.value,
+    captureText: goal ? '' : localCapture.value,
+    flags: regexFlags.value,
+  }
+})
 
 function onAiApply(value: Record<string, unknown>) {
   if (typeof value.pattern === 'string' && value.pattern.trim()) {
@@ -293,12 +299,6 @@ const introText = computed(() => (
   || (isExtract.value ? t('regex_builder.intro_extract') : t('regex_builder.intro_match'))
 ))
 
-const captureLabel = computed(() => (
-  isExtract.value
-    ? t('regex_builder.capture_text_extract')
-    : t('regex_builder.capture_text')
-))
-
 const sampleLabel = computed(() => (
   isPathSample.value
     ? t('regex_builder.sample_path')
@@ -309,12 +309,6 @@ const sampleTip = computed(() => (
   isPathSample.value
     ? t('regex_builder.sample_path_tip')
     : t('regex_builder.sample_text_tip')
-))
-
-const captureTip = computed(() => (
-  isExtract.value
-    ? t('regex_builder.capture_extract_tip')
-    : t('regex_builder.capture_tip')
 ))
 
 const isPresetActive = (preset: PresetView) => (
@@ -357,26 +351,6 @@ function applyPreset(preset: PresetView) {
   if (showReplaceField.value || isExtract.value) setReplace(preset.replace)
   setSample(preset.sample)
   setCapture(preset.capture)
-}
-
-function generate() {
-  if (isExtract.value) {
-    const generated = generatePathRegexFromSample(localSample.value, localCapture.value)
-    if (!generated) {
-      showFlash('error', t('regex_builder.generate_not_found'))
-      return
-    }
-    setPattern(generated.pathRegex)
-    setReplace(generated.pathRegexReplace)
-    return
-  }
-
-  const generated = generateMatchRegexFromSample(localSample.value, localCapture.value)
-  if (!generated) {
-    showFlash('error', t('regex_builder.generate_not_found'))
-    return
-  }
-  setPattern(generated.pattern)
 }
 
 function getPatternInput(): HTMLInputElement | null {
@@ -514,104 +488,84 @@ defineExpose({
       {{ introText }}
     </v-alert>
 
-    <div
-      v-if="presets.length"
-      class="d-flex flex-wrap ga-2"
-      :aria-label="t('regex_builder.presets')"
-    >
-      <v-chip
-        v-for="preset in presets"
-        :key="preset.id"
-        size="small"
-        label
-        :color="isPresetActive(preset) ? 'primary' : undefined"
-        :variant="isPresetActive(preset) ? 'flat' : 'outlined'"
-        class="regex-builder__preset"
-        @click="applyPreset(preset)"
-      >
-        {{ t(preset.labelKey) }}
-      </v-chip>
-    </div>
-
-    <v-text-field
-      :model-value="localSample"
-      :label="sampleLabel"
-      density="compact"
-      variant="outlined"
-      rounded="pill"
-      clearable
-      hide-details="auto"
-      @update:model-value="setSample(String($event ?? ''))"
-    >
-      <template v-if="isPathSample" #prepend-inner>
-        <v-btn
-          icon="mdi-dice-multiple"
-          size="x-small"
-          variant="text"
-          :loading="randomizingSample"
-          :disabled="randomizingSample"
-          :title="t('regex_builder.sample_random')"
-          @click.stop="pickRandomSamplePath"
-        />
-      </template>
-      <template #append-inner>
-        <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
-          <template #activator="{props: tipProps}">
-            <v-btn
-              v-bind="tipProps"
-              icon="mdi-help-circle-outline"
-              size="x-small"
-              variant="text"
-              class="regex-builder__tip-btn"
-              tabindex="-1"
-              @click.stop.prevent
-            />
-          </template>
-          <span>{{ sampleTip }}</span>
-        </v-tooltip>
-      </template>
-    </v-text-field>
-
-    <div
-      v-if="highlightHtml"
-      class="regex-builder__preview text-caption"
-      v-html="highlightHtml"
-    />
-
+    <!-- 1. Regex pattern -->
     <div class="regex-builder__pattern-block">
-      <div
-        class="d-flex flex-wrap align-center ga-2 mb-2"
-        :aria-label="t('regex_builder.helpers')"
-      >
-        <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
-          <template #activator="{props: tipProps}">
-            <v-btn
-              v-bind="tipProps"
-              icon="mdi-help-circle-outline"
-              size="x-small"
-              variant="text"
-              class="regex-builder__tip-btn"
-              @click.stop.prevent
-            />
-          </template>
-          <span>{{ t('regex_builder.helpers_tip') }}</span>
-        </v-tooltip>
-        <v-chip
-          v-for="snippet in helperSnippets"
-          :key="snippet.id"
-          size="small"
-          label
-          variant="outlined"
-          class="regex-builder__helper"
-          :title="t(`regex_builder.helper_${snippet.id}_tip`)"
-          @click="onHelperClick(snippet)"
+      <div v-if="presets.length" class="mb-2">
+        <div class="text-caption text-medium-emphasis mb-1">
+          {{ t('regex_builder.presets') }}
+        </div>
+        <div
+          class="d-flex flex-wrap ga-2"
+          :aria-label="t('regex_builder.presets')"
         >
-          {{ t(`regex_builder.helper_${snippet.id}`) }}
-        </v-chip>
+          <v-chip
+            v-for="preset in presets"
+            :key="preset.id"
+            size="small"
+            label
+            :color="isPresetActive(preset) ? 'primary' : undefined"
+            :variant="isPresetActive(preset) ? 'flat' : 'outlined'"
+            class="regex-builder__preset"
+            @click="applyPreset(preset)"
+          >
+            {{ t(preset.labelKey) }}
+          </v-chip>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <div class="d-flex align-center ga-1 mb-1">
+          <div class="text-caption text-medium-emphasis">
+            {{ t('regex_builder.helpers') }}
+          </div>
+          <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
+            <template #activator="{props: tipProps}">
+              <v-btn
+                v-bind="tipProps"
+                icon="mdi-help-circle-outline"
+                size="x-small"
+                variant="text"
+                class="regex-builder__tip-btn"
+                @click.stop.prevent
+              />
+            </template>
+            <span>{{ t('regex_builder.helpers_tip') }}</span>
+          </v-tooltip>
+        </div>
+        <div
+          class="d-flex flex-wrap align-center ga-2"
+          :aria-label="t('regex_builder.helpers')"
+        >
+          <v-chip
+            v-for="snippet in helperSnippets"
+            :key="snippet.id"
+            size="small"
+            label
+            variant="outlined"
+            class="regex-builder__helper"
+            :title="t(`regex_builder.helper_${snippet.id}_tip`)"
+            @click="onHelperClick(snippet)"
+          >
+            {{ t(`regex_builder.helper_${snippet.id}`) }}
+          </v-chip>
+          <v-chip
+            v-for="snippet in symbolSnippets"
+            :key="snippet.id"
+            size="small"
+            label
+            variant="outlined"
+            class="regex-builder__helper"
+            :title="t(`regex_builder.helper_${snippet.id}_tip`)"
+            @click="onHelperClick(snippet)"
+          >
+            {{ snippet.insert }}
+          </v-chip>
+        </div>
       </div>
 
       <v-text-field
         ref="patternField"
+        class="regex-builder__pattern-field"
         :model-value="localPattern"
         :label="t('regex_builder.pattern')"
         :error-messages="patternError"
@@ -654,77 +608,100 @@ defineExpose({
       @update:model-value="setReplace"
     />
 
-    <v-alert
-      v-if="compactResult"
-      :type="compactResult.type"
-      variant="tonal"
-      density="compact"
-      rounded="pill"
-      class="regex-builder__result text-caption"
-    >
-      {{ compactResult.text }}
-    </v-alert>
-
-    <div class="d-flex flex-wrap align-start ga-2">
+    <!-- 2. AI hint -->
+    <div v-if="LOCAL_AI_UI_ENABLED" class="regex-builder__ai">
+      <div class="text-caption text-medium-emphasis mb-1">
+        {{ t('regex_builder.ai_goal_title') }}
+      </div>
       <v-text-field
-        :model-value="localCapture"
-        :label="captureLabel"
-        :placeholder="t('regex_builder.capture_placeholder')"
+        v-model="aiGoal"
+        :label="t('regex_builder.ai_goal')"
+        :placeholder="t('regex_builder.ai_goal_placeholder')"
+        :hint="t('regex_builder.ai_goal_hint')"
+        persistent-hint
         density="compact"
         variant="outlined"
         rounded="pill"
         clearable
         hide-details="auto"
-        class="flex-grow-1 regex-builder__capture"
-        @update:model-value="setCapture(String($event ?? ''))"
-      >
-        <template #append-inner>
-          <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
-            <template #activator="{props: tipProps}">
-              <v-btn
-                v-bind="tipProps"
-                icon="mdi-help-circle-outline"
-                size="x-small"
-                variant="text"
-                class="regex-builder__tip-btn"
-                tabindex="-1"
-                @click.stop.prevent
-              />
-            </template>
-            <span>{{ captureTip }}</span>
-          </v-tooltip>
-        </template>
-      </v-text-field>
-      <v-btn
-        color="primary"
-        variant="flat"
-        rounded="pill"
-        class="mt-1"
-        :disabled="!canGenerate"
-        :title="t('regex_builder.generate_tip')"
-        @click="generate"
-      >
-        {{ t('regex_builder.generate') }}
-      </v-btn>
+      />
+      <LocalAiAssistPanel
+        mode="regex"
+        :prompt="aiPrompt"
+        :context="aiContext"
+        :can-run="canRunAi"
+        :run-hint="t('regex_builder.ai_goal_required')"
+        @apply="onAiApply"
+      />
     </div>
 
+    <!-- 3. Sample text -->
+    <v-text-field
+      :model-value="localSample"
+      :label="sampleLabel"
+      density="compact"
+      variant="outlined"
+      rounded="pill"
+      clearable
+      hide-details="auto"
+      @update:model-value="setSample(String($event ?? ''))"
+    >
+      <template v-if="isPathSample" #prepend-inner>
+        <v-btn
+          icon="mdi-dice-multiple"
+          size="x-small"
+          variant="text"
+          :loading="randomizingSample"
+          :disabled="randomizingSample"
+          :title="t('regex_builder.sample_random')"
+          @click.stop="pickRandomSamplePath"
+        />
+      </template>
+      <template #append-inner>
+        <v-tooltip location="top" max-width="280" open-on-hover open-on-click>
+          <template #activator="{props: tipProps}">
+            <v-btn
+              v-bind="tipProps"
+              icon="mdi-help-circle-outline"
+              size="x-small"
+              variant="text"
+              class="regex-builder__tip-btn"
+              tabindex="-1"
+              @click.stop.prevent
+            />
+          </template>
+          <span>{{ sampleTip }}</span>
+        </v-tooltip>
+      </template>
+    </v-text-field>
+
+    <!-- 4. Result alert -->
     <v-alert
       v-if="flashMessage"
       :type="flashMessage.type"
       variant="tonal"
       density="compact"
-      rounded="pill"
+      rounded="lg"
       class="text-caption"
     >
       {{ flashMessage.text }}
     </v-alert>
 
-    <LocalAiAssistPanel
-      mode="regex"
-      :prompt="aiPrompt"
-      :context="aiContext"
-      @apply="onAiApply"
-    />
+    <v-alert
+      v-if="compactResult"
+      :type="compactResult.type"
+      variant="tonal"
+      density="compact"
+      rounded="lg"
+      class="regex-builder__result text-caption"
+    >
+      <div>{{ compactResult.text }}</div>
+      <div
+        v-if="highlightHtml"
+        class="regex-builder__preview text-caption mt-2"
+        v-html="highlightHtml"
+      />
+    </v-alert>
   </div>
 </template>
 
@@ -753,8 +730,21 @@ defineExpose({
   user-select: none;
 }
 
-.regex-builder__capture {
-  min-width: 220px;
+.regex-builder__pattern-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.regex-builder__pattern-field {
+  /* Room for the outlined floating label above the field border */
+  margin-top: 10px !important;
+}
+
+.regex-builder__ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .regex-builder__preview {

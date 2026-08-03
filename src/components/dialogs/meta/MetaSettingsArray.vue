@@ -2,11 +2,11 @@
   <!-- Basics: hide in nav (create + basics tab) -->
   <SettingsSection v-if="showBasics" padded>
     <LocalAiAssistPanel
+      v-if="LOCAL_AI_UI_ENABLED"
       class="mb-4"
       mode="meta"
       :prompt="metaAiPrompt"
       :context="metaAiContext"
-      @apply="onMetaAiApply"
     />
     <v-switch
       v-model="settings.hidden"
@@ -449,6 +449,7 @@ import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
+import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import RegexBuilder from '@/components/regex/RegexBuilder.vue'
 import RegexReplaceTemplateEditor from '@/components/regex/RegexReplaceTemplateEditor.vue'
 import {getDefaultPathRegexSample} from '@shared/pathParser/regexGenerator'
@@ -557,9 +558,6 @@ const metaAiContext = computed(() => ({
   type: props.meta?.type,
   settings: settings.value,
 }))
-function onMetaAiApply(_value: Record<string, unknown>) {
-  // Advisory only — user reads suggestions in the panel; no auto-toggle of settings.
-}
 
 const pathRegexReplaceGroups = computed(() => {
   const result = testRegexMatch(settings.value.pathRegex, pathRegexSamplePath.value, 'iu')

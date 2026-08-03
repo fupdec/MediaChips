@@ -13,6 +13,7 @@ import {openPath, openExternal} from '@/services/shellService'
 import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type {SystemMenuAction} from '@/types/systemMenu'
+import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 
 const WEBSITE_URL = 'https://mediachips.app/'
 
@@ -125,7 +126,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         appShell.showDocumentation('app')
         break
       case 'localAi':
-        dialogsStore.localAi.show = true
+        if (LOCAL_AI_UI_ENABLED) dialogsStore.localAi.show = true
         break
       case 'gettingStarted':
         await saveOnboardingStep(0)

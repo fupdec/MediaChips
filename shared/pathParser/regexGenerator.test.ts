@@ -88,7 +88,37 @@ describe('pathParser/regexGenerator', () => {
       'startsWith',
       'endsWith',
       'wholeWord',
+      'year',
+      'digits',
+      'emailLike',
     ])
+  })
+
+  it('exposes diverse path presets with a single studio option', () => {
+    const ids = buildPathRegexPresets('unix').map((preset) => preset.id)
+    expect(ids).toEqual([
+      'brackets',
+      'season',
+      'folder',
+      'year',
+      'date',
+      'resolution',
+      'id',
+      'ext',
+    ])
+    expect(ids.filter((id) => id === 'brackets' || id === 'parentheses')).toEqual(['brackets'])
+  })
+
+  it('year preset extracts a 4-digit year', () => {
+    const year = buildPathRegexPresets('unix').find((preset) => preset.id === 'year')
+    expect(year).toBeTruthy()
+    expect(extractPathRegexTagName(year!.samplePath, {
+      id: 1,
+      type: 'array',
+      parser: true,
+      pathRegex: year!.pathRegex,
+      pathRegexReplace: year!.pathRegexReplace,
+    })).toBe('2019')
   })
 
   it('folder preset extracts the parent folder name of the file', () => {

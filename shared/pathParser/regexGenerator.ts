@@ -5,12 +5,20 @@ export type PathRegexPresetId =
   | 'parentheses'
   | 'season'
   | 'folder'
+  | 'year'
+  | 'date'
+  | 'resolution'
+  | 'id'
+  | 'ext'
 
 export type MatchRegexPresetId =
   | 'contains'
   | 'startsWith'
   | 'endsWith'
   | 'wholeWord'
+  | 'year'
+  | 'emailLike'
+  | 'digits'
 
 export type PathOsStyle = 'unix' | 'windows'
 
@@ -84,13 +92,6 @@ export function buildPathRegexPresets(os: PathOsStyle = detectPathOsStyle()): Pa
       captureExample: 'StudioName',
     },
     {
-      id: 'parentheses',
-      pathRegex: '\\(([^)]+)\\)',
-      pathRegexReplace: '$1',
-      samplePath: `${root}/Library/(NetworkName)/scene_01.mp4`,
-      captureExample: 'NetworkName',
-    },
-    {
       id: 'season',
       pathRegex: 's(\\d+)e\\d+',
       pathRegexReplace: 'Season $1',
@@ -104,6 +105,41 @@ export function buildPathRegexPresets(os: PathOsStyle = detectPathOsStyle()): Pa
       pathRegexReplace: '$1',
       samplePath: `${root}/Shows/ShowName/episode.mp4`,
       captureExample: 'ShowName',
+    },
+    {
+      id: 'year',
+      pathRegex: '((?:19|20)\\d{2})',
+      pathRegexReplace: '$1',
+      samplePath: `${root}/Movies/Film.Name.2019.1080p.mkv`,
+      captureExample: '2019',
+    },
+    {
+      id: 'date',
+      pathRegex: '(\\d{4}-\\d{2}-\\d{2})',
+      pathRegexReplace: '$1',
+      samplePath: `${root}/Camera/2024-03-15_trip.mp4`,
+      captureExample: '2024-03-15',
+    },
+    {
+      id: 'resolution',
+      pathRegex: '(\\d{3,4}p)',
+      pathRegexReplace: '$1',
+      samplePath: `${root}/Movies/Movie.Name.1080p.BluRay.mkv`,
+      captureExample: '1080p',
+    },
+    {
+      id: 'id',
+      pathRegex: '_(\\d+)\\.',
+      pathRegexReplace: '$1',
+      samplePath: `${root}/Library/clip_0042.final.mp4`,
+      captureExample: '0042',
+    },
+    {
+      id: 'ext',
+      pathRegex: '\\.([a-z0-9]+)$',
+      pathRegexReplace: '$1',
+      samplePath: `${root}/Videos/holiday.mkv`,
+      captureExample: 'mkv',
     },
   ]
 }
@@ -135,6 +171,24 @@ export const MATCH_REGEX_PRESETS: MatchRegexPreset[] = [
     pattern: '\\bclip\\b',
     sampleText: 'movie clip reel',
     captureExample: 'clip',
+  },
+  {
+    id: 'year',
+    pattern: '((?:19|20)\\d{2})',
+    sampleText: 'Best of 2019 awards',
+    captureExample: '2019',
+  },
+  {
+    id: 'digits',
+    pattern: '\\d+',
+    sampleText: 'Episode 12 extended',
+    captureExample: '12',
+  },
+  {
+    id: 'emailLike',
+    pattern: '[\\w.+-]+@[\\w.-]+\\.[a-z]{2,}',
+    sampleText: 'Contact editor@example.com today',
+    captureExample: 'editor@example.com',
   },
 ]
 
@@ -246,26 +300,44 @@ export type RegexHelperSnippetId =
   | 'digits'
   | 'word'
   | 'capture'
+  | 'segment'
+  | 'space'
+  | 'optional'
+  | 'or'
   | 'slash'
   | 'litOpen'
   | 'litClose'
-  | 'optional'
-  | 'or'
+  | 'parenOpen'
+  | 'parenClose'
+  | 'dot'
+  | 'start'
+  | 'end'
 
 export interface RegexHelperSnippet {
   id: RegexHelperSnippetId
   insert: string
 }
 
-/** Common regex fragments for the pattern helper chips. */
+/** Named helper chips shown in the pattern toolbar. */
 export const REGEX_HELPER_SNIPPETS: RegexHelperSnippet[] = [
   {id: 'any', insert: '.*?'},
   {id: 'digits', insert: '\\d+'},
   {id: 'word', insert: '\\w+'},
+  {id: 'segment', insert: '[^/]+'},
   {id: 'capture', insert: '(.*?)'},
+  {id: 'space', insert: '\\s+'},
+  {id: 'optional', insert: '?'},
+  {id: 'or', insert: '|'},
+]
+
+/** Single-character / escaped symbols behind one “special symbol” menu chip. */
+export const REGEX_SYMBOL_SNIPPETS: RegexHelperSnippet[] = [
   {id: 'slash', insert: '/'},
   {id: 'litOpen', insert: '\\['},
   {id: 'litClose', insert: '\\]'},
-  {id: 'optional', insert: '?'},
-  {id: 'or', insert: '|'},
+  {id: 'parenOpen', insert: '\\('},
+  {id: 'parenClose', insert: '\\)'},
+  {id: 'dot', insert: '\\.'},
+  {id: 'start', insert: '^'},
+  {id: 'end', insert: '$'},
 ]
