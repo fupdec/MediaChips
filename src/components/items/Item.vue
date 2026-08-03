@@ -18,6 +18,7 @@
       `item-view-${itemsStore.view}`,
     ]"
     class="item"
+    :data-item-id="item.id"
   >
     <v-card
       v-if="showCardView"

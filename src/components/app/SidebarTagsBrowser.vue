@@ -2,16 +2,31 @@
   <div class="sidebar-tags-browser">
     <div class="sidebar-tags-browser__toolbar">
       <v-text-field
-        v-model="search"
+        :model-value="search"
         density="compact"
-        variant="plain"
+        variant="outlined"
         hide-details
         single-line
-        clearable
+        rounded="lg"
         :placeholder="t('browser_layout.tags_search')"
         prepend-inner-icon="mdi-magnify"
         class="sidebar-tags-browser__search"
-      />
+        @update:model-value="onSearchInput"
+      >
+        <template
+          v-if="search"
+          #append-inner
+        >
+          <v-icon
+            icon="mdi-close-circle"
+            size="small"
+            class="sidebar-tags-browser__clear"
+            :aria-label="t('browser_layout.clear_search')"
+            @mousedown.prevent.stop
+            @click.stop="clearSearch"
+          />
+        </template>
+      </v-text-field>
     </div>
 
     <div
@@ -26,24 +41,43 @@
       :key="category.meta.id"
       class="sidebar-tags-browser__category"
     >
-      <button
-        type="button"
-        class="sidebar-tags-browser__category-header"
-        @click="toggleCategory(category.meta.id)"
-      >
-        <v-icon size="18" class="mr-1">
-          {{ isExpanded(category.meta.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
-        </v-icon>
-        <v-icon
-          v-if="category.meta.icon"
-          size="16"
-          class="mr-1 opacity-70"
+      <div class="sidebar-tags-browser__category-header">
+        <button
+          type="button"
+          class="sidebar-tags-browser__category-toggle"
+          :aria-expanded="isExpanded(category.meta.id)"
+          :aria-label="category.meta.name"
+          @click="toggleCategory(category.meta.id)"
         >
-          mdi-{{ category.meta.icon }}
-        </v-icon>
-        <span class="sidebar-tags-browser__category-name">{{ category.meta.name }}</span>
-        <span class="sidebar-tags-browser__category-count">{{ category.tags.length }}</span>
-      </button>
+          <v-icon size="18">
+            {{ isExpanded(category.meta.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
+          </v-icon>
+        </button>
+
+        <button
+          type="button"
+          class="sidebar-tags-browser__category-link"
+          :class="{'sidebar-tags-browser__category-link--active': isCategoryPageActive(category.meta.id)}"
+          :title="t('all_tags.open_category')"
+          @click="openCategoryPage(category.meta.id)"
+        >
+          <v-icon
+            v-if="category.meta.icon"
+            size="16"
+            class="mr-1 opacity-70"
+          >
+            mdi-{{ category.meta.icon }}
+          </v-icon>
+          <span class="sidebar-tags-browser__category-name">{{ category.meta.name }}</span>
+          <span class="sidebar-tags-browser__category-count">{{ category.tags.length }}</span>
+          <v-icon
+            size="14"
+            class="sidebar-tags-browser__category-open"
+          >
+            mdi-open-in-new
+          </v-icon>
+        </button>
+      </div>
 
       <div
         v-if="isExpanded(category.meta.id)"
@@ -91,16 +125,17 @@
 
 <script setup lang="ts">
 import {computed, reactive, ref, watch} from 'vue'
-import {useRouter} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
-import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
+import {metaPath, useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
 import type {Meta, Tag} from '@/types/stores'
 
 const STORAGE_KEY = 'mediachips.browserTagsExpanded'
 
 const {t} = useI18n()
+const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const {metaVisible} = useLibraryNavItems()
@@ -108,6 +143,14 @@ const {isTagFilterActive, filterByTag} = useBrowserTagFilter()
 
 const search = ref('')
 const expanded = reactive<Record<number, boolean>>({})
+
+function onSearchInput(value: string | null): void {
+  search.value = value ?? ''
+}
+
+function clearSearch(): void {
+  search.value = ''
+}
 
 function loadExpanded(): void {
   try {
@@ -174,6 +217,14 @@ function toggleCategory(metaId: number): void {
   persistExpanded()
 }
 
+function isCategoryPageActive(metaId: number): boolean {
+  return route.path === '/meta' && String(route.query.metaId) === String(metaId)
+}
+
+function openCategoryPage(metaId: number): void {
+  void router.push(metaPath(metaId))
+}
+
 async function onTagClick(tag: Tag): Promise<void> {
   await filterByTag(tag)
 }
@@ -192,7 +243,7 @@ function openTagPage(tag: Tag): void {
 }
 
 .sidebar-tags-browser__toolbar {
-  padding: 4px 8px 8px;
+  padding: 8px 10px 10px;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -200,12 +251,37 @@ function openTagPage(tag: Tag): void {
 }
 
 .sidebar-tags-browser__search {
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
+
+  :deep(.v-field) {
+    background: rgba(var(--v-theme-on-surface), 0.04);
+  }
+
+  :deep(.v-field--focused) {
+    background: transparent;
+  }
 
   :deep(.v-field__input) {
-    min-height: 28px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    min-height: 34px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  :deep(.v-field__outline) {
+    --v-field-border-opacity: 0.22;
+  }
+
+  :deep(.v-field--focused .v-field__outline) {
+    --v-field-border-opacity: 1;
+  }
+}
+
+.sidebar-tags-browser__clear {
+  cursor: pointer;
+  opacity: 0.55;
+
+  &:hover {
+    opacity: 1;
   }
 }
 
@@ -222,8 +298,39 @@ function openTagPage(tag: Tag): void {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 4px 8px;
+  gap: 2px;
+  padding: 2px 4px;
+}
+
+.sidebar-tags-browser__category-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.65;
+
+  &:hover {
+    opacity: 1;
+    background: rgba(var(--v-theme-on-surface), 0.06);
+  }
+}
+
+.sidebar-tags-browser__category-link {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -232,11 +339,20 @@ function openTagPage(tag: Tag): void {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   opacity: 0.72;
-  border-radius: 6px;
 
   &:hover {
     opacity: 1;
     background: rgba(var(--v-theme-on-surface), 0.05);
+
+    .sidebar-tags-browser__category-open {
+      opacity: 0.7;
+    }
+  }
+
+  &--active {
+    opacity: 1;
+    background: rgba(var(--v-theme-primary), 0.12);
+    color: rgb(var(--v-theme-primary));
   }
 }
 
@@ -254,6 +370,13 @@ function openTagPage(tag: Tag): void {
   opacity: 0.55;
   font-variant-numeric: tabular-nums;
   margin-left: 6px;
+}
+
+.sidebar-tags-browser__category-open {
+  flex-shrink: 0;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
 .sidebar-tags-browser__tags {

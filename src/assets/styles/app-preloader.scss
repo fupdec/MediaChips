@@ -183,6 +183,42 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Browser layout: keep cards/sidebar/inspector from highlighting text while navigating. */
+.app-main-layout.has-browser-layout {
+  .main-scroll,
+  .main-scroll-inner,
+  .items-page-grid,
+  .items-masonry-grid,
+  .item {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .main-scroll input,
+  .main-scroll textarea,
+  .main-scroll [contenteditable="true"],
+  .main-scroll .selectable,
+  .main-scroll .v-field__input {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+.sidebar-browser,
+.inspector-panel {
+  -webkit-user-select: none;
+  user-select: none;
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .selectable,
+  .v-field__input {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 .app-main-layout.has-bottom-bar .main-scroll-inner {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }

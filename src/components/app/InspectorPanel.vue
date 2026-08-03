@@ -122,9 +122,11 @@
                 v-for="tag in group.tags"
                 :key="tag.id"
                 size="small"
-                label
                 class="ma-1"
-                :color="tag.color || undefined"
+                :label="Boolean(tag.meta?.chipLabel)"
+                :variant="chipVariantFor(tag.meta)"
+                :color="chipColorFor(tag)"
+                :text-color="chipTextColorFor(tag)"
                 closable
                 @click="filterByTag(tag)"
                 @click:close="removeTag(tag)"
@@ -161,6 +163,9 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {typedApi} from '@/services/typedApi'
+import {getTextColor} from '@/services/formatUtils'
+import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
+import {resolveTagChipColor} from '@shared/tagChipColor'
 import {
   isAudioMediaType,
   isImageMediaType,
@@ -279,6 +284,20 @@ const tagGroups = computed(() => {
 
   return [...groups.values()]
 })
+
+function chipVariantFor(metaEntry?: Meta | null): ChipVariant {
+  return toChipVariant(metaEntry?.chipVariant) || 'flat'
+}
+
+function chipColorFor(tag: InspectorTag): string | undefined {
+  return resolveTagChipColor(tag.meta?.color, tag.color) || undefined
+}
+
+function chipTextColorFor(tag: InspectorTag): string {
+  const color = chipColorFor(tag)
+  if (!color) return ''
+  return getTextColor(color, chipVariantFor(tag.meta) === 'outlined')
+}
 
 watch(focusedItem, () => {
   thumbFailed.value = false

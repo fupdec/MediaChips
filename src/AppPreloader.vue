@@ -19,7 +19,7 @@
 
       <component :is="navigationComponent"/>
 
-      <InspectorPanel v-if="useBrowserLayout"/>
+      <InspectorPanel v-if="showInspector"/>
     </template>
 
     <component :is="Player" v-if="isShellReady || isPlayerWindow"/>
@@ -146,7 +146,7 @@ const store = useAppStore()
 const route = useRoute()
 const {t} = useI18n()
 const {useBottomBar} = useNavigationLayout()
-const {useBrowserLayout} = useBrowserLayoutMode()
+const {useBrowserLayout, showInspector} = useBrowserLayoutMode()
 
 const navigationComponent = computed(() => {
   if (useBottomBar.value) return BottomBar

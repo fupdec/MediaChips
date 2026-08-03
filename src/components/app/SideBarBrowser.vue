@@ -34,14 +34,11 @@
             </v-list-subheader>
 
             <v-list-item
-              v-for="item in metaVisible"
-              :key="item.id"
-              :to="metaPath(item.id)"
-              :prepend-icon="`mdi-${item.icon || 'tag-outline'}`"
-              :title="item.name"
-              :active="route.query.metaId == String(item.id) && route.path === '/meta'"
+              :to="allTagsLink.to"
+              :prepend-icon="allTagsLink.icon"
+              :title="allTagsLink.title"
+              :exact="allTagsLink.exact"
               color="primary"
-              exact
               link
             />
           </template>
@@ -51,9 +48,6 @@
           v-if="metaVisible.length"
           class="sidebar-browser__tags-panel"
         >
-          <div class="sidebar-browser__tags-heading">
-            {{ t('browser_layout.all_tags') }}
-          </div>
           <SidebarTagsBrowser />
         </div>
 
@@ -120,25 +114,23 @@
 
 <script setup lang="ts">
 import {ref} from 'vue'
-import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
 const folderHovered = ref(false)
-const route = useRoute()
 const {t} = useI18n()
 
 const {
   metaVisible,
   libraryLinks,
   settingsLink,
+  allTagsLink,
   watcherFiles,
   showWatcherFolders,
   watcherBadgeCountsByFolderId,
   watcherBusy,
   openDialogFolder,
-  metaPath,
 } = useLibraryNavItems()
 </script>
 
@@ -171,15 +163,6 @@ const {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   margin: 4px 0;
   padding-bottom: 4px;
-}
-
-.sidebar-browser__tags-heading {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 10px 16px 2px;
-  opacity: 0.55;
 }
 
 .sidebar-browser__system {

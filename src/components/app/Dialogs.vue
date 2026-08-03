@@ -188,6 +188,7 @@ import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
+import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
 import {registerAppShellHandler} from '@/composable/appShell'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 
@@ -311,6 +312,7 @@ const itemsStore = useItemsStore()
 const pluginsStore = usePluginsStore()
 const {t} = useI18n()
 const { showShortcuts: showKeyboardShortcuts, openPlayerDocs: openPlayerHotkeyDocs } = useAppHotkeys()
+useBrowserLayoutHotkeys()
 const addMediaDialogOpen = ref(false)
 
 function openAddMediaDialog() {
