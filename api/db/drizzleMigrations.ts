@@ -5,6 +5,7 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { applySqlitePragmas } from './pragmas'
+import { renameDuplicateTagNames } from './ensureGlobalUniqueTagNames'
 
 const MIGRATIONS_FOLDER = path.join(__dirname, 'migrations-drizzle')
 const JOURNAL_PATH = path.join(MIGRATIONS_FOLDER, 'meta/_journal.json')
@@ -120,6 +121,11 @@ export function runDrizzleMigrations(dbPath: string) {
   try {
     applySqlitePragmas(sqlite)
     ensureLegacyDrizzleBaseline(sqlite)
+    // Must run before unique index migration so CREATE UNIQUE INDEX succeeds.
+    const renamed = renameDuplicateTagNames(sqlite)
+    if (renamed > 0) {
+      console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed ${renamed} duplicate tag name(s) for global uniqueness`)
+    }
 
     const db = drizzle(sqlite)
     migrate(db, {migrationsFolder: MIGRATIONS_FOLDER})

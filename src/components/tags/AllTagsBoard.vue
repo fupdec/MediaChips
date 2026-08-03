@@ -44,53 +44,75 @@
         </v-btn>
       </div>
 
-      <div v-else class="all-tags-board__category-list">
-        <div
-          v-for="category in filteredCategories"
-          :key="category.id"
-          class="all-tags-board__category"
-          :class="{
-            'all-tags-board__category--active': selectedMetaId === category.id,
-            'all-tags-board__category--drop': dropTargetMetaId === category.id,
-          }"
-          :data-meta-id="category.id"
-          @click="selectCategory(category.id)"
-          @dragover.prevent="onCategoryDragOver(category, $event)"
-          @dragleave="onCategoryDragLeave(category, $event)"
-          @drop.prevent="onDropToCategory(category)"
+      <div
+        v-else
+        ref="categoryListRef"
+        class="all-tags-board__category-list"
+      >
+        <v-virtual-scroll
+          :items="filteredCategories"
+          :item-height="CATEGORY_ROW_HEIGHT"
+          :height="categoryListHeight"
+          :bench="8"
+          item-key="id"
+          class="all-tags-board__virtual-scroll"
         >
-          <div class="all-tags-board__category-row">
-            <v-icon size="20" class="mr-2">mdi-{{ category.icon || 'tag' }}</v-icon>
-            <div class="all-tags-board__category-main">
-              <div class="text-body-2 font-weight-medium text-truncate">
-                {{ category.name }}
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{ t('all_tags.tags_count', {count: tagCountByMetaId[category.id] || 0}) }}
+          <template #default="{ item: category }">
+            <div
+              class="all-tags-board__category"
+              :class="{
+                'all-tags-board__category--active': selectedMetaId === category.id,
+                'all-tags-board__category--drop': dropTargetMetaId === category.id,
+              }"
+              :data-meta-id="category.id"
+              @click="selectCategory(category.id)"
+              @dragover.prevent="onCategoryDragOver(category, $event)"
+              @dragleave="onCategoryDragLeave(category, $event)"
+              @drop.prevent="onDropToCategory(category)"
+            >
+              <div class="all-tags-board__category-row">
+                <v-icon size="20" class="mr-2 flex-shrink-0">mdi-{{ category.icon || 'tag' }}</v-icon>
+                <div class="all-tags-board__category-main">
+                  <span class="text-body-2 font-weight-medium text-truncate">
+                    {{ category.name }}
+                  </span>
+                  <span class="all-tags-board__category-count text-caption text-medium-emphasis">
+                    ({{ tagCountByMetaId[category.id] || 0 }})
+                  </span>
+                  <v-icon
+                    v-if="defaultCategoryId === category.id"
+                    v-tooltip:top="t('all_tags.default_category')"
+                    size="14"
+                    class="all-tags-board__category-default flex-shrink-0"
+                    color="primary"
+                  >
+                    mdi-star
+                  </v-icon>
+                </div>
+                <div class="all-tags-board__category-actions" @click.stop>
+                  <v-btn
+                    v-tooltip:top="t('all_tags.edit_category')"
+                    icon
+                    size="x-small"
+                    variant="text"
+                    @click="openEditCategory(category)"
+                  >
+                    <v-icon size="16">mdi-cog-outline</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-tooltip:top="t('all_tags.open_category')"
+                    icon
+                    size="x-small"
+                    variant="text"
+                    :to="metaPath(category.id)"
+                  >
+                    <v-icon size="16">mdi-open-in-new</v-icon>
+                  </v-btn>
+                </div>
               </div>
             </div>
-            <div class="all-tags-board__category-actions" @click.stop>
-              <v-btn
-                v-tooltip:top="t('all_tags.edit_category')"
-                icon
-                size="x-small"
-                variant="text"
-                @click="openEditCategory(category)"
-              >
-                <v-icon size="16">mdi-cog-outline</v-icon>
-              </v-btn>
-              <v-btn
-                v-tooltip:top="t('all_tags.open_category')"
-                icon
-                size="x-small"
-                variant="text"
-                :to="metaPath(category.id)"
-              >
-                <v-icon size="16">mdi-open-in-new</v-icon>
-              </v-btn>
-            </div>
-          </div>
-        </div>
+          </template>
+        </v-virtual-scroll>
       </div>
     </aside>
 
@@ -112,7 +134,7 @@
               variant="text"
               :to="metaPath(selectedCategory.id)"
             >
-              <v-icon>mdi-view-grid-outline</v-icon>
+              <v-icon>mdi-open-in-new</v-icon>
             </v-btn>
             <v-btn
               v-tooltip:top="t('all_tags.edit_category')"
@@ -211,7 +233,7 @@
                   :model-value="selectedIds.includes(tag.id)"
                   density="compact"
                   color="primary"
-                  class="mr-1"
+                  class="all-tags-board__tag-check"
                   @click.stop="toggleTagSelection(tag.id)"
                 />
                 <div class="all-tags-board__tag-main">
@@ -278,12 +300,16 @@ import {metaPath} from '@/composable/useLibraryNavItems'
 import {useMoveTagsToCategory} from '@/composable/useMoveTagsToCategory'
 import {useAutoListHeight} from '@/composable/useAutoListHeight'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
+import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
+import {useSettingsStore} from '@/stores/settings'
 import type {Meta, Tag} from '@/types/stores'
 
 const TAG_ROW_HEIGHT = 52
+const CATEGORY_ROW_HEIGHT = 44
 
 const {t} = useI18n()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const {moveTagsToCategory} = useMoveTagsToCategory()
 
@@ -293,7 +319,9 @@ const selectedMetaId = ref<number | null>(null)
 const selectedIds = ref<number[]>([])
 const dropTargetMetaId = ref<number | null>(null)
 const draggingTagIds = ref<number[]>([])
+const categoryListRef = ref<HTMLElement | null>(null)
 const tagListRef = ref<HTMLElement | null>(null)
+const {listHeight: categoryListHeight} = useAutoListHeight(categoryListRef)
 const {listHeight: tagListHeight} = useAutoListHeight(tagListRef)
 
 const metaDialog = ref(false)
@@ -315,6 +343,10 @@ const filteredCategories = computed(() => {
     String(category.name ?? '').toLowerCase().includes(query),
   )
 })
+
+const defaultCategoryId = computed(() =>
+  getDefaultTagCategoryId(appStore.meta, settingsStore.defaultTagCategoryId),
+)
 
 const tagCountByMetaId = computed(() => {
   const counts: Record<number, number> = {}
@@ -355,6 +387,16 @@ watch(
     await nextTick()
     if (tagListRef.value) {
       tagListHeight.value = Math.max(120, tagListRef.value.clientHeight)
+    }
+  },
+)
+
+watch(
+  () => filteredCategories.value.length,
+  async () => {
+    await nextTick()
+    if (categoryListRef.value) {
+      categoryListHeight.value = Math.max(120, categoryListRef.value.clientHeight)
     }
   },
 )
@@ -561,8 +603,8 @@ async function onMetaDeleted() {
 
 .all-tags-board__category-list {
   flex: 1;
-  overflow: auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .all-tags-board__tag-list {
@@ -576,8 +618,8 @@ async function onMetaDeleted() {
 }
 
 .all-tags-board__category {
+  height: 44px;
   border-radius: 12px;
-  margin-bottom: 6px;
   transition: background-color 0.15s ease, outline-color 0.15s ease;
   cursor: pointer;
 
@@ -598,19 +640,28 @@ async function onMetaDeleted() {
 .all-tags-board__category-row {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 10px;
   gap: 4px;
-  min-height: 48px;
+  height: 100%;
 }
 
 .all-tags-board__category-main {
   min-width: 0;
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.all-tags-board__category-count {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .all-tags-board__category-actions {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   opacity: 0.55;
 }
 
@@ -638,12 +689,29 @@ async function onMetaDeleted() {
   }
 }
 
+.all-tags-board__tag-check {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
+
+  :deep(.v-selection-control) {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  :deep(.v-selection-control__wrapper) {
+    width: auto;
+  }
+}
+
 .all-tags-board__tag-main {
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
 }
 
 .all-tags-board__drag-handle {
+  flex: 0 0 auto;
   cursor: grab;
 }
 

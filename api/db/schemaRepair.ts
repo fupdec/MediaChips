@@ -1,4 +1,8 @@
 import type Database from 'better-sqlite3'
+import {
+  ensureTagsNameNormalizedUniqueIndex,
+  TAGS_NAME_NORMALIZED_UNIQUE_INDEX,
+} from './ensureGlobalUniqueTagNames'
 
 type ColumnRepairSpec = {
   table: string
@@ -331,6 +335,10 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE INDEX IF NOT EXISTS "media_media_type_id_visual_hash_idx" ON "media" ("mediaTypeId", "visualHash")',
     )
     repaired.push('media_media_type_id_visual_hash_idx')
+  }
+
+  if (ensureTagsNameNormalizedUniqueIndex(sqlite)) {
+    repaired.push(TAGS_NAME_NORMALIZED_UNIQUE_INDEX)
   }
 
   for (const spec of JOIN_UNIQUE_INDEXES) {

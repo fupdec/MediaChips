@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3'
+import { renameDuplicateTagNames } from './ensureGlobalUniqueTagNames'
 
 const IMAGE_EXTENSIONS = 'jpg,jpeg,bmp,png,webp,gif,tiff,tif,heic,avif,svg'
 const LEGACY_IMAGE_EXTENSIONS = 'jpg,jpeg,bmp,png'
@@ -95,5 +96,9 @@ export function runLegacyUpgrades(sqlite: Database.Database) {
   upgradeImageMediaType(sqlite)
   copyVideoMetaAssignmentsToImage(sqlite)
   dedupeDefaultMediaTypes(sqlite)
+  const renamed = renameDuplicateTagNames(sqlite)
+  if (renamed > 0) {
+    console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed ${renamed} duplicate tag name(s) for global uniqueness`)
+  }
 }
 

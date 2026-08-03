@@ -120,6 +120,13 @@
       "when": 1782807600000,
       "tag": "0016_media_visual_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1782811200000,
+      "tag": "0017_tags_name_normalized_unique",
+      "breakpoints": true
     }
   ]
 }

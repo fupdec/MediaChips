@@ -107,6 +107,33 @@ describe('schemaRepair', () => {
     expect(index.sql).toMatch(/UNIQUE/i)
   })
 
+  it('renames duplicate tag names and adds normalized unique index', () => {
+    sqlite.exec(`
+      CREATE TABLE tags (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        metaId INTEGER,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO meta (id, type, name, createdAt, updatedAt) VALUES
+        (1, 'array', 'Tags', 't', 't'),
+        (2, 'array', 'People', 't', 't');
+      INSERT INTO tags (id, name, metaId) VALUES
+        (1, 'Alice', 1),
+        (2, 'alice', 2);
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired).toContain('tags_name_normalized_unique')
+    const names = sqlite.prepare('SELECT id, name FROM tags ORDER BY id').all() as Array<{id: number; name: string}>
+    expect(names).toEqual([
+      {id: 1, name: 'Alice'},
+      {id: 2, name: 'alice (People)'},
+    ])
+    expect(repairMissingIndexes(sqlite)).not.toContain('tags_name_normalized_unique')
+  })
+
   it('dedupes tagsInTags and adds a unique index for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE tagsInTags (

@@ -36,7 +36,7 @@
 
       <main class="meta-assignment-board__target">
         <div class="meta-assignment-board__target-header text-caption text-medium-emphasis mb-2">
-          {{ t('meta.settings.pinned_fields') }}
+          {{ t('meta.settings.tag_card_pinned_fields_layout') }}
         </div>
 
         <div class="media-type-preview-card-hero media-type-preview-card-hero--square">
@@ -47,7 +47,7 @@
 
             <div class="media-type-preview-card__lines">
               <div class="media-type-preview-card__caption text-caption font-weight-medium text-truncate">
-                {{ parentMeta.name }}
+                {{ t('meta.settings.tag_card_preview_sample_name') }}
               </div>
 
               <draggable

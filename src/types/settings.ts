@@ -194,6 +194,7 @@ export type SettingsState = {
   'pathParser.clusterThreshold': string
   'pathParser.preferLongestMatch': string
   'pathParser.matchPrecision': string
+  defaultTagCategoryId: string
   'faceMatch.performerMetaId': string
   'faceMatch.minConfidence': string
   'faceMatch.candidateLimit': string
@@ -302,6 +303,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'pathParser.clusterThreshold': '0.88',
   'pathParser.preferLongestMatch': 'true',
   'pathParser.matchPrecision': '0.5',
+  defaultTagCategoryId: '',
   'faceMatch.performerMetaId': '',
   'faceMatch.minConfidence': '0.55',
   'faceMatch.candidateLimit': '10',

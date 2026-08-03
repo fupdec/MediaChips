@@ -1,4 +1,5 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const tags = sqliteTable('tags', {
   id: integer('id').primaryKey({autoIncrement: true}),
@@ -15,4 +16,6 @@ export const tags = sqliteTable('tags', {
   metaId: integer('metaId'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
-})
+}, () => ({
+  nameNormalizedUnique: uniqueIndex('tags_name_normalized_unique').on(sql`lower(trim("name"))`),
+}))

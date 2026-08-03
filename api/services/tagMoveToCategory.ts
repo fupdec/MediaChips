@@ -94,9 +94,7 @@ function uniqueByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
 
 /**
  * Find tags that would collide by normalized name.
- *
- * TODO(global-tag-names): switch call sites to scope:'global', migrate
- * cross-category duplicates, then add a UNIQUE constraint on normalized name.
+ * Prefer scope:'global' — tag names are unique across categories.
  */
 export function findTagNameConflicts(
   tx: MoveTx,
@@ -416,8 +414,7 @@ export async function moveTagsToCategory(
     const conflicts = findTagNameConflicts(tx, {
       candidates: toMove.map((row) => ({tagId: row.id, name: String(row.name ?? '')})),
       excludeTagIds: toMoveIds,
-      scope: 'category',
-      metaId: targetMetaId,
+      scope: 'global',
     })
 
     if (conflicts.length && onConflict === 'abort') {

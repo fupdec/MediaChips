@@ -110,6 +110,8 @@ function createTestDb() {
       filesize INTEGER DEFAULT 0,
       contentHash TEXT,
       oshash TEXT,
+      visualHash TEXT,
+      visualHashTiles TEXT,
       rating INTEGER DEFAULT 0,
       favorite INTEGER DEFAULT 0,
       bookmark TEXT,

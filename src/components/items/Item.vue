@@ -175,6 +175,15 @@
         <v-icon size="x-large"
                 icon="mdi-dots-vertical"></v-icon>
       </v-btn>
+
+      <div
+        v-if="isImageOnlyView"
+        class="item-minimal-filename text-caption"
+        :title="minimalFilename"
+        @click="editItem"
+      >
+        <span class="item-minimal-filename__text">{{ minimalFilename }}</span>
+      </div>
     </v-card>
 
     <v-chip
@@ -324,6 +333,15 @@ const tagItem = computed((): Tag | null => (
 const mediaItem = computed((): MediaItem | null => (
   isMediaPageItem(props.item, props.type) ? props.item : null
 ))
+
+const minimalFilename = computed(() => {
+  if (mediaItem.value) {
+    if (mediaItem.value.basename) return mediaItem.value.basename
+    if (mediaItem.value.path) return path.basename(mediaItem.value.path)
+    return mediaItem.value.name || ''
+  }
+  return props.item.name || ''
+})
 
 const tagMetaId = computed((): number | null => {
   if (props.meta?.id) return props.meta.id

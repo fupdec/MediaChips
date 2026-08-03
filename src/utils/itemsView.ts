@@ -29,7 +29,7 @@ export function normalizeItemsView(
   return 1
 }
 
-/** Image-only grid: thumbnail without card chrome (video + tags). */
+/** Minimal grid: thumbnail with filename under the card (video + tags). */
 export function isImageOnlyItemsView(view: number | string | null | undefined): boolean {
   return Number(view) === 4
 }

@@ -13,6 +13,16 @@
         </v-btn>
 
         <v-btn
+          @click="openAddTag"
+          color="success"
+          rounded
+          variant="tonal"
+        >
+          <v-icon start>mdi-tag-plus</v-icon>
+          {{ t('home.widgets.add_tag') }}
+        </v-btn>
+
+        <v-btn
           @click="openSearch"
           color="primary"
           rounded
@@ -104,6 +114,10 @@ const visibleMetas = computed(() =>
 function openAddDialog() {
   tasksStore.mediaAdding.media_type_id = itemsStore.environment?.media_type_id ?? null
   addDialogOpen.value = true
+}
+
+function openAddTag() {
+  appShell.openTagsAddWithNames({})
 }
 
 function openSearch() {

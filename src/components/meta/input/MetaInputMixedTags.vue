@@ -186,6 +186,9 @@ import {
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {debounce} from '@/utils/debounce'
+import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
+import {useNotificationsStore} from '@/stores/notifications'
+import {getApiErrorMessage} from '@/types/vue'
 import type {ArrayMeta, TagListItem} from '@/types/metaInput'
 
 export type MixedTagKey = string
@@ -240,6 +243,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
+const notificationsStore = useNotificationsStore()
 const {t} = useI18n()
 
 const AUTOCOMPLETE_LIMIT = 50
@@ -297,11 +301,8 @@ function normalizeName(value: unknown): string {
 const defaultMetaId = computed(() => {
   const ids = normalizedMetaIds.value
   if (!ids.length) return null
-  const list = metas.value
-  const parser = list.find((meta) => Boolean(meta.parser))
-  if (parser?.id != null) return Number(parser.id)
-  const named = list.find((meta) => normalizeName(meta.name) === 'tags')
-  if (named?.id != null) return Number(named.id)
+  const preferred = getDefaultTagCategoryId(appStore.meta, settingsStore.defaultTagCategoryId)
+  if (preferred != null && ids.includes(preferred)) return preferred
   return ids[0]
 })
 
@@ -662,12 +663,27 @@ async function create(name?: string, metaId?: number) {
   const targetMetaId = Number(metaId ?? defaultMetaId.value)
   if (!targetMetaId) return
 
-  const existsInTarget = tagOptions.value.some(
-    (option) =>
-      option.metaId === targetMetaId
-      && option.name.toLowerCase() === searchText.toLowerCase(),
+  const normalized = normalizeName(searchText)
+  const existingGlobal = (appStore.tags || []).find(
+    (tag) => normalizeName(tag.name) === normalized,
   )
-  if (existsInTarget) return
+  if (existingGlobal?.id != null) {
+    const existingMetaId = Number(existingGlobal.metaId) || targetMetaId
+    if (idsIncludeMeta(existingMetaId)) {
+      const key = makeKey(existingMetaId, Number(existingGlobal.id))
+      if (!normalizeKeys(val.value).includes(key)) {
+        setVal([...normalizeKeys(val.value), key])
+      }
+      search.value = ''
+      return
+    }
+    notificationsStore.setNotification({
+      type: 'warning',
+      title: t('meta.dialogs.adding_tags_complete'),
+      text: t('notifications_text.duplicates_list', {items: searchText}),
+    })
+    return
+  }
 
   try {
     const res = await typedApi.createTags([{
@@ -685,7 +701,16 @@ async function create(name?: string, metaId?: number) {
     void reloadTagsCatalog()
   } catch (error) {
     console.error(error)
+    notificationsStore.setNotification({
+      type: 'error',
+      title: t('meta.dialogs.adding_tags_complete'),
+      text: getApiErrorMessage(error, t('notifications_text.server_error_logs')),
+    })
   }
+}
+
+function idsIncludeMeta(metaId: number): boolean {
+  return normalizedMetaIds.value.includes(metaId)
 }
 
 function onEnter(event: KeyboardEvent) {

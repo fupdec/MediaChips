@@ -15,11 +15,17 @@ import { createMarksRepository } from '../db/repositories/marks'
 import {
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
+import { findDefaultTagCategoryId } from '../services/defaultTagCategory'
 import { mergeTagsInCategory, TagMergeError } from '../services/tagMerge'
 import {
   moveTagsToCategory,
   TagMoveToCategoryError,
 } from '../services/tagMoveToCategory'
+import {
+  assertTagNameAvailable,
+  assertTagNamesAvailable,
+  TagNameConflictError,
+} from '../services/tagNameUniqueness'
 import { loadTagItems } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
 import {
@@ -77,9 +83,43 @@ export default function (db: ApiDb) {
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<CreateTagPayload[]>(req)
-      const data = tagsRepo.bulkCreate(body)
+      if (!Array.isArray(body) || !body.length) {
+        return res.status(400).send({message: 'At least one tag is required'})
+      }
+
+      const defaultMetaId = findDefaultTagCategoryId(db.sqlite)
+      const items = body.map((item) => {
+        const requested = Number(item.metaId)
+        const metaId = Number.isFinite(requested) && requested > 0
+          ? requested
+          : defaultMetaId
+        return {
+          ...item,
+          metaId: metaId != null && Number(metaId) > 0 ? Number(metaId) : null,
+        }
+      })
+
+      if (items.some((item) => item.metaId == null)) {
+        return res.status(400).send({
+          message: 'Tag category is required. Create a Tags category first.',
+        })
+      }
+
+      assertTagNamesAvailable(
+        db.sqlite,
+        items.map((item) => String(item.name ?? '')),
+      )
+
+      const data = tagsRepo.bulkCreate(items)
       res.status(201).send(data)
     } catch (err: unknown) {
+      if (err instanceof TagNameConflictError) {
+        return res.status(err.status).send({
+          message: err.message,
+          code: err.code,
+          conflictingTagId: err.conflictingTagId,
+        })
+      }
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while performing query."
       })
@@ -152,9 +192,20 @@ export default function (db: ApiDb) {
     try {
       const body = getRequestBody<EntityUpdatePayload>(req)
       const { silent, ...updates } = body
-      tagsRepo.updateById(Number(req.params.id), updates as Record<string, unknown>, {silent: Boolean(silent)})
+      const tagId = Number(req.params.id)
+      if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+        assertTagNameAvailable(db.sqlite, String((updates as {name?: unknown}).name ?? ''), tagId)
+      }
+      tagsRepo.updateById(tagId, updates as Record<string, unknown>, {silent: Boolean(silent)})
       res.status(201).send([1])
     } catch (err: unknown) {
+      if (err instanceof TagNameConflictError) {
+        return res.status(err.status).send({
+          message: err.message,
+          code: err.code,
+          conflictingTagId: err.conflictingTagId,
+        })
+      }
       res.status(500).send({
         message: apiErrorMessage(err) || "Some error occurred while retrieving media."
       })

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="mx-4">
     <SettingsCategoryDivider
       :title="t('settings.tabs.meta')"
       icon="shape-outline"
@@ -15,17 +15,6 @@
           :text="t('meta.dialogs.add_new_meta')"
           @click="openCreateDialog"
         ></v-btn>
-
-        <v-btn
-          v-if="tagCategories.length >= 2"
-          variant="tonal"
-          color="primary"
-          class="text-none"
-          rounded="xl"
-          prepend-icon="mdi-set-merge"
-          :text="t('meta.dialogs.merge_categories_title')"
-          @click="openCategoryMerge"
-        />
 
         <v-btn
           variant="text"
@@ -48,15 +37,16 @@
           <div class="meta-toolbar__filters d-flex align-center flex-wrap ga-4 mb-4">
             <v-text-field
               v-model="search"
-              append-inner-icon="mdi-magnify"
+              class="meta-toolbar__search"
+              prepend-inner-icon="mdi-magnify"
               :placeholder="t('common.quick_search_placeholder')"
               hide-details
               autofocus
               clearable
-              variant="solo-filled"
-              flat
+              variant="outlined"
               density="compact"
               rounded="pill"
+              bg-color="surface"
               max-width="420"
             ></v-text-field>
 
@@ -123,7 +113,6 @@
               v-for="m in group.items"
               :key="`key_${metaKey}__id_${m.id}`"
               class="ma-1"
-              :class="{'meta-field-chip--hidden': m.hidden && m.type === 'array'}"
               @click="openEditDialog(m)"
               @contextmenu.prevent.stop="showMetaChipMenu($event, m)"
             >
@@ -139,7 +128,6 @@
           v-for="m in flatFields"
           :key="`key_${metaKey}__id_${m.id}`"
           class="ma-1"
-          :class="{'meta-field-chip--hidden': m.hidden && m.type === 'array'}"
           @click="openEditDialog(m)"
           @contextmenu.prevent.stop="showMetaChipMenu($event, m)"
         >
@@ -159,6 +147,7 @@
       :meta="selectedMeta"
       :dialog="editDialog"
       :initial-tab="initialEditTab"
+      :allowed-types="META_FIELD_TYPES"
       @updated="getMeta"
       @close="closeEditDialog"
       @request-edit="onRequestEdit"
@@ -181,7 +170,6 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {useSettingsStore} from '@/stores/settings'
-import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useAppShell} from '@/composable/appShell'
@@ -206,12 +194,14 @@ import {setOption} from '@/services/settingsService'
 import type {ContextMenuEntry, Meta} from '@/types/stores'
 
 const settingsStore = useSettingsStore()
-const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 const appShell = useAppShell()
 const router = useRouter()
 const {t, te} = useI18n()
+
+/** Tag categories (`array`) live in Settings → Tag categories. */
+const META_FIELD_TYPES = ['string', 'number', 'boolean', 'date', 'rating'] as const
 
 const formatDataType = (type: string) => getTextDataType(type, {te, t})
 
@@ -229,10 +219,6 @@ const metaPendingDelete = ref<Meta | null>(null)
 
 const groupMode = computed((): MetaGroupByMode =>
   (settingsStore.meta_group_by as MetaGroupByMode) || META_GROUP_BY_MODES.none,
-)
-
-const tagCategories = computed(() =>
-  meta.value.filter((item) => item.type === 'array'),
 )
 
 const searchedMeta = computed(() => {
@@ -300,7 +286,7 @@ const getMeta = async (_type?: string) => {
     initiated.value = false
 
     await reloadMetaCatalog()
-    meta.value = [...appStore.meta]
+    meta.value = appStore.meta.filter((item) => item.type !== 'array')
 
     metaKey.value = Date.now()
   } catch (error) {
@@ -528,18 +514,6 @@ const updateMetaFlag = async (
   }
 }
 
-const openCategoryMerge = () => {
-  if (tagCategories.value.length < 2) return
-  dialogsStore.openTagCategoryMerge(tagCategories.value)
-}
-
-watch(
-  () => dialogsStore.tagCategoryMerge.show,
-  async (show, wasShown) => {
-    if (wasShown && !show) await getMeta('array')
-  },
-)
-
 watch(availableTypeFilters, (filters) => {
   if (typeFilter.value && !filters.some((item) => item.value === typeFilter.value)) {
     typeFilter.value = null
@@ -560,6 +534,11 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   margin-bottom: 8px;
+}
+
+.meta-toolbar__search {
+  flex: 1 1 240px;
+  min-width: 200px;
 }
 
 .meta-fields-section {

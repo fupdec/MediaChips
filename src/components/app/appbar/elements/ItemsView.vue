@@ -66,8 +66,8 @@ const initViewOptions = () => {
     })
     viewOptions.value.push({
       val: 4,
-      icon: 'image-outline',
-      textKey: 'items.view.image',
+      icon: 'view-compact-outline',
+      textKey: 'items.view.minimal',
     })
   } else if (itemsStore.type === 'media' && isImageMediaType(currentMediaType.value)) {
     viewOptions.value.push({
@@ -83,8 +83,8 @@ const initViewOptions = () => {
     })
     viewOptions.value.push({
       val: 4,
-      icon: 'image-outline',
-      textKey: 'items.view.image',
+      icon: 'view-compact-outline',
+      textKey: 'items.view.minimal',
     })
   }
 

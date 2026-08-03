@@ -426,6 +426,7 @@ import {deleteLocalFile} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {getErrorResponseData} from '@/types/vue'
 import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
+import {useSettingsStore} from '@/stores/settings'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 
 interface DialogHeaderButton {
@@ -484,6 +485,7 @@ const emit = defineEmits(['close'])
 const {xs} = useDisplay()
 const {t, locale} = useI18n()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
@@ -777,7 +779,7 @@ const relinkMovedFiles = async () => {
 const openSuggestedTags = () => {
   appShell.openTagsAddWithNames({
     names: task.value.suggestedTags || [],
-    metaId: getDefaultParserTagsMetaId(appStore.meta) ?? undefined,
+    metaId: getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId) ?? undefined,
     title: t('media.adding.suggested_tags_from_added_files'),
   })
 }
@@ -786,7 +788,7 @@ const acceptAllSuggestedTags = async () => {
   const names = uniqueNames(task.value.suggestedTags || [])
   if (!names.length) return
 
-  const metaId = getDefaultParserTagsMetaId(appStore.meta)
+  const metaId = getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId)
   if (!metaId) {
     openSuggestedTags()
     return

@@ -1,7 +1,7 @@
 <template>
   <AppBarButton
     v-if="button"
-    :action="() => (dialogNames = true)"
+    :action="openDialog"
     :text="t('appbar.buttons.add_tags')"
     :color="buttonColor"
     :size="buttonSize"
@@ -87,12 +87,14 @@ import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 /* ---------------- STORES ---------------- */
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from "@/stores/notifications"
+import {useSettingsStore} from '@/stores/settings'
 
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {registerAppShellHandler} from '@/composable/appShell'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
+import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 
 /* ---------------- INIT ---------------- */
 
@@ -117,6 +119,7 @@ const {t} = useI18n()
 const route = useRoute()
 
 const app = useAppStore()
+const settingsStore = useSettingsStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
   const listSync = useItemsListSync()
@@ -178,8 +181,11 @@ async function add() {
     })
   }
 
-  const metaId = fixedMetaId.value || selectedMetaId.value
+  const metaId = fixedMetaId.value
+    || selectedMetaId.value
+    || getDefaultTagCategoryId(app.meta, settingsStore.defaultTagCategoryId)
   if (!metaId) return
+  selectedMetaId.value = metaId
 
   // отправляем на сервер только уникальные
   if (added.value.length > 0) {
@@ -214,14 +220,21 @@ async function add() {
   closeDialog()
 }
 
+function resolveDefaultMetaId(): number | null {
+  return fixedMetaId.value
+    || getDefaultTagCategoryId(app.meta, settingsStore.defaultTagCategoryId)
+}
+
+function openDialog() {
+  selectedMetaId.value = resolveDefaultMetaId()
+  dialogNames.value = true
+}
+
 function openWithNames(payload: { names?: string | string[]; metaId?: number } = {}) {
   const incomingNames = Array.isArray(payload.names) ? payload.names : String(payload.names || '').split('\n')
   names.value = incomingNames.filter(Boolean).join('\n')
-  const parserMeta = metas.value.find((meta) => Boolean(meta.parser))
   selectedMetaId.value = payload.metaId
-    || fixedMetaId.value
-    || parserMeta?.id
-    || metas.value[0]?.id
+    || resolveDefaultMetaId()
     || null
   dialogNames.value = true
 }
@@ -235,7 +248,7 @@ function resetForm() {
   names.value = ''
   dups.value = []
   added.value = []
-  selectedMetaId.value = fixedMetaId.value || null
+  selectedMetaId.value = resolveDefaultMetaId()
   valid.value = false
 
   nextTick(() => {

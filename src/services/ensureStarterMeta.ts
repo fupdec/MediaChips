@@ -136,8 +136,28 @@ export async function ensureStarterMeta({
   }
 }
 
-/** Prefer parser-enabled Tags category for import suggestions. */
-export function getDefaultParserTagsMetaId(metas: Meta[] | undefined | null): number | null {
-  const meta = findParserTagsMeta(metas || [])
+/**
+ * Prefer explicitly configured default category, then parser/name "tags"/first array.
+ * `configuredId` is typically settings.defaultTagCategoryId.
+ */
+export function getDefaultTagCategoryId(
+  metas: Meta[] | undefined | null,
+  configuredId?: number | string | null,
+): number | null {
+  const list = metas || []
+  const configured = Number(configuredId)
+  if (Number.isFinite(configured) && configured > 0) {
+    const match = list.find((meta) => meta.type === 'array' && Number(meta.id) === configured)
+    if (match?.id != null) return Number(match.id)
+  }
+  const meta = findParserTagsMeta(list)
   return meta?.id ?? null
+}
+
+/** @deprecated Prefer getDefaultTagCategoryId */
+export function getDefaultParserTagsMetaId(
+  metas: Meta[] | undefined | null,
+  configuredId?: number | string | null,
+): number | null {
+  return getDefaultTagCategoryId(metas, configuredId)
 }

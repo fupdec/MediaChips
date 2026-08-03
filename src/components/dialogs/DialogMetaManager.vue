@@ -70,23 +70,25 @@
                 @submit.prevent
               >
                 <div v-if="!editMode" class="mb-4">
-                  <div class="text-caption text-medium-emphasis mb-2">
-                    {{ t('common.type') }}
-                  </div>
-                  <div class="meta-type-filters d-flex flex-wrap ga-2 mb-3">
-                    <v-chip
-                      v-for="typeOption in metaTypes"
-                      :key="typeOption.value"
-                      size="small"
-                      label
-                      :color="metaSettings.type === typeOption.value ? 'primary' : undefined"
-                      :variant="metaSettings.type === typeOption.value ? 'flat' : 'outlined'"
-                      @click="selectMetaType(typeOption.value)"
-                    >
-                      <v-icon start size="16">{{ typeOption.icon }}</v-icon>
-                      {{ typeOption.text }}
-                    </v-chip>
-                  </div>
+                  <template v-if="showTypePicker">
+                    <div class="text-caption text-medium-emphasis mb-2">
+                      {{ t('common.type') }}
+                    </div>
+                    <div class="meta-type-filters d-flex flex-wrap ga-2 mb-3">
+                      <v-chip
+                        v-for="typeOption in metaTypes"
+                        :key="typeOption.value"
+                        size="small"
+                        label
+                        :color="metaSettings.type === typeOption.value ? 'primary' : undefined"
+                        :variant="metaSettings.type === typeOption.value ? 'flat' : 'outlined'"
+                        @click="selectMetaType(typeOption.value)"
+                      >
+                        <v-icon start size="16">{{ typeOption.icon }}</v-icon>
+                        {{ typeOption.text }}
+                      </v-chip>
+                    </div>
+                  </template>
                   <v-alert
                     type="info"
                     variant="tonal"
@@ -341,6 +343,11 @@ const props = defineProps({
     type: String as PropType<EditTab | null>,
     default: null,
   },
+  /** Limit creatable types (e.g. only `array` for tag categories). Null = all types. */
+  allowedTypes: {
+    type: Array as PropType<string[] | null>,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['updated', 'close', 'delete', 'created', 'request-edit'])
@@ -361,11 +368,32 @@ const arrayBasicsRef = ref<{refreshPinState: () => Promise<void>} | null>(null)
 const arrayCapabilitiesRef = ref<{refreshPinState: () => Promise<void>} | null>(null)
 const arrayFromPathRef = ref<{refreshPinState: () => Promise<void>} | null>(null)
 
-const metaTypes = computed(() => MetaTypes.map(type => ({
-  ...type,
-  text: t(`meta.types.${type.value}`),
-  hint: t(`meta.hints.${type.value}`),
-})))
+const metaTypes = computed(() => {
+  const allowed = props.allowedTypes
+  const source = allowed?.length
+    ? MetaTypes.filter((type) => allowed.includes(type.value))
+    : MetaTypes
+  return source.map((type) => ({
+    ...type,
+    text: t(`meta.types.${type.value}`),
+    hint: t(`meta.hints.${type.value}`),
+  }))
+})
+
+const showTypePicker = computed(() => !props.editMode && metaTypes.value.length > 1)
+
+function buildCreateDefaults(): MetaSettingsForm {
+  const defaults: MetaSettingsForm = {...metaSettingsDefault.value}
+  const allowed = props.allowedTypes
+  if (allowed?.length && !allowed.includes(String(defaults.type))) {
+    const first = MetaTypes.find((type) => allowed.includes(type.value))
+    if (first) {
+      defaults.type = first.value
+      defaults.icon = first.icon.replace(/^mdi-/, '')
+    }
+  }
+  return defaults
+}
 
 const metaSettingsDefault = ref<MetaSettingsForm>({
   type: 'array',
@@ -656,7 +684,7 @@ const closeDialog = () => {
 }
 
 const resetDialogState = () => {
-  metaSettings.value = {...metaSettingsDefault.value}
+  metaSettings.value = buildCreateDefaults()
   valid.value = false
   editTab.value = 'basics'
 
@@ -713,7 +741,7 @@ watch(() => props.dialog, (newVal) => {
   internalDialog.value = newVal
   initButtons()
 
-  metaSettings.value = {...metaSettingsDefault.value}
+  metaSettings.value = buildCreateDefaults()
 
   if (props.meta) {
     metaSettings.value = {...metaSettingsDefault.value, ...props.meta}

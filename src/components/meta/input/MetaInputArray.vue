@@ -164,6 +164,8 @@ import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
+import {useNotificationsStore} from '@/stores/notifications'
+import {getApiErrorMessage} from '@/types/vue'
 import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
@@ -201,6 +203,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
+const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
   const listSync = useItemsListSync()
 const router = useRouter()
@@ -498,6 +501,18 @@ const create = async () => {
 
   if (isExists) return
 
+  const existingGlobal = (appStore.tags || []).find(
+    (tag) => String(tag.name || '').trim().toLowerCase() === searchText.toLowerCase(),
+  )
+  if (existingGlobal) {
+    notificationsStore.setNotification({
+      type: 'warning',
+      title: t('meta.dialogs.adding_tags_complete'),
+      text: t('notifications_text.duplicates_list', {items: searchText}),
+    })
+    return
+  }
+
   try {
     const res = await typedApi.createTags([{
       name: searchText,
@@ -531,6 +546,11 @@ const create = async () => {
     }
   } catch (e) {
     console.error(e)
+    notificationsStore.setNotification({
+      type: 'error',
+      title: t('meta.dialogs.adding_tags_complete'),
+      text: getApiErrorMessage(e, t('notifications_text.server_error_logs')),
+    })
   }
 }
 

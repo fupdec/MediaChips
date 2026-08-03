@@ -74,13 +74,17 @@
 
           <div v-else-if="tab === 'library'">
             <SettingsList>
-              <div id="settings-meta">
-                <SettingsMeta/>
-              </div>
+              <SettingsSection id="settings-tag-categories">
+                <SettingsTagCategories/>
+              </SettingsSection>
 
-              <div id="settings-media-types">
+              <SettingsSection id="settings-meta">
+                <SettingsMeta/>
+              </SettingsSection>
+
+              <SettingsSection id="settings-media-types">
                 <SettingsMediaTypes/>
-              </div>
+              </SettingsSection>
 
               <v-switch
                 id="settings-library-advanced"
@@ -273,6 +277,9 @@ const SettingsMetaAssignment = defineAsyncComponent(() =>
 )
 const SettingsMediaTypes = defineAsyncComponent(() =>
   import("@/components/settings/SettingsMediaTypes.vue")
+)
+const SettingsTagCategories = defineAsyncComponent(() =>
+  import("@/components/settings/library/SettingsTagCategories.vue")
 )
 const SettingsQuickTags = defineAsyncComponent(() =>
   import("@/components/settings/library/SettingsQuickTags.vue")
@@ -482,6 +489,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   appearance_page: "settings-appearance-page",
   appearance_sfw: "settings-appearance-sfw",
   meta: "settings-meta",
+  tag_categories: "settings-tag-categories",
   media_types: "settings-media-types",
   field_pinning: "settings-meta-assignment",
   quick_tags: "settings-quick-tags",
@@ -576,6 +584,7 @@ const APPEARANCE_SECTIONS = new Set([
 
 const LIBRARY_SECTIONS = new Set([
   "meta",
+  "tag_categories",
   "media_types",
   "field_pinning",
   "quick_tags",
