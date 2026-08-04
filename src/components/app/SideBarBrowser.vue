@@ -3,19 +3,184 @@
     app
     clipped
     permanent
-    width="260"
+    :width="collapsed ? railWidth : fullWidth"
     class="sidebar-browser"
+    :class="{'sidebar-browser--rail': collapsed}"
   >
-    <div class="sidebar-browser__scroll scrollable vertical">
+    <div
+      v-if="collapsed"
+      class="sidebar-browser__rail"
+    >
+      <v-btn
+        class="sidebar-browser__rail-btn"
+        icon
+        variant="text"
+        size="small"
+        v-tooltip:end="t('browser_layout.expand_sidebar')"
+        :aria-label="t('browser_layout.expand_sidebar')"
+        @click="toggleCollapsed"
+      >
+        <v-icon size="18">mdi-chevron-right</v-icon>
+      </v-btn>
+
+      <v-tooltip
+        v-for="link in libraryLinks"
+        :key="link.key"
+        location="end"
+      >
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            :to="link.to"
+            icon
+            :variant="isNavLinkActive(link) ? 'flat' : 'text'"
+            :color="isNavLinkActive(link) ? 'primary' : undefined"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :aria-label="link.title"
+          >
+            <v-icon
+              size="20"
+              :icon="link.icon"
+            />
+          </v-btn>
+        </template>
+        <span>{{ link.title }}</span>
+      </v-tooltip>
+
+      <div
+        v-if="metaCategoryLinks.length"
+        class="sidebar-browser__rail-divider"
+      />
+
+      <v-tooltip
+        v-for="link in metaCategoryLinks"
+        :key="link.key"
+        location="end"
+      >
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            :to="link.to"
+            :exact="link.exact"
+            icon
+            :variant="isNavLinkActive(link) ? 'flat' : 'text'"
+            :color="isNavLinkActive(link) ? 'primary' : undefined"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :aria-label="link.title"
+          >
+            <v-icon
+              size="20"
+              :icon="link.icon"
+            />
+          </v-btn>
+        </template>
+        <span>{{ link.title }}</span>
+      </v-tooltip>
+
+      <div class="sidebar-browser__rail-spacer" />
+
+      <v-tooltip
+        v-if="metaArray.length"
+        location="end"
+      >
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            :to="allTagsLink.to"
+            :exact="allTagsLink.exact"
+            icon
+            :variant="isAllTagsActive ? 'flat' : 'text'"
+            :color="isAllTagsActive ? 'primary' : undefined"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :aria-label="allTagsLink.title"
+          >
+            <v-icon
+              size="20"
+              :icon="allTagsLink.icon"
+            />
+          </v-btn>
+        </template>
+        <span>{{ allTagsLink.title }}</span>
+      </v-tooltip>
+
+      <v-tooltip location="end">
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            :to="settingsLink.to"
+            icon
+            :variant="isSettingsActive ? 'flat' : 'text'"
+            :color="isSettingsActive ? 'primary' : undefined"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :aria-label="settingsLink.title"
+          >
+            <v-icon
+              size="20"
+              :icon="settingsLink.icon"
+            />
+          </v-btn>
+        </template>
+        <span>{{ settingsLink.title }}</span>
+      </v-tooltip>
+
+      <div
+        v-if="showWatcherFolders"
+        class="sidebar-browser__rail-divider"
+      />
+
+      <v-tooltip
+        v-for="entry in watcherFiles"
+        :key="`watcher-${entry.folder.id}`"
+        location="end"
+      >
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            icon
+            variant="text"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :disabled="watcherBusy"
+            :aria-label="String(entry.folder.name || '')"
+            @click="openDialogFolder(entry)"
+          >
+            <v-icon
+              size="20"
+              :icon="watcherBusy ? 'mdi-folder-sync-outline' : 'mdi-folder-outline'"
+            />
+          </v-btn>
+        </template>
+        <span>{{ entry.folder.name }}</span>
+      </v-tooltip>
+    </div>
+
+    <div
+      v-else
+      class="sidebar-browser__scroll scrollable vertical"
+    >
       <div class="scrollable-child">
         <v-list
           nav
           density="compact"
           class="sidebar-browser__nav"
         >
-          <v-list-subheader class="sidebar-section">
-            {{ t('navigation.section_library') }}
-          </v-list-subheader>
+          <div class="sidebar-section sidebar-section--actions sidebar-section--library">
+            <span class="sidebar-section__label">{{ t('navigation.section_library') }}</span>
+            <v-btn
+              icon
+              size="x-small"
+              variant="text"
+              v-tooltip:bottom="t('browser_layout.collapse_sidebar')"
+              :aria-label="t('browser_layout.collapse_sidebar')"
+              @click="toggleCollapsed"
+            >
+              <v-icon size="16">mdi-chevron-left</v-icon>
+            </v-btn>
+          </div>
 
           <v-list-item
             v-for="link in libraryLinks"
@@ -168,7 +333,9 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useMarksStore} from '@/stores/marks'
-import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
+import {useSettingsStore} from '@/stores/settings'
+import {setOption} from '@/services/settingsService'
+import {useLibraryNavItems, type LibraryNavLink} from '@/composable/useLibraryNavItems'
 import {typedApi} from '@/services/typedApi'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
@@ -188,19 +355,50 @@ const route = useRoute()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const marksStore = useMarksStore()
+const settingsStore = useSettingsStore()
+
+const fullWidth = 260
+const railWidth = 52
+
+const collapsed = computed(() => settingsStore.sidebarCollapsed === '1')
+
+function toggleCollapsed(): void {
+  void setOption(collapsed.value ? '0' : '1', 'sidebarCollapsed')
+}
+
+function isNavLinkActive(link: LibraryNavLink): boolean {
+  const targetPath = link.to.split('?')[0]
+  const targetQuery = new URL(link.to, 'http://local').searchParams
+
+  if (route.path !== targetPath) return false
+  if (!link.to.includes('?')) return link.exact ? route.path === targetPath : true
+
+  for (const [key, value] of targetQuery.entries()) {
+    if (String(route.query[key] ?? '') !== value) return false
+  }
+  return true
+}
+
+const isSettingsActive = computed(() => route.path.startsWith('/settings'))
 
 const {
   metaArray,
+  metaVisible,
   mediaTypes,
   libraryLinks,
   settingsLink,
   allTagsLink,
+  metaLink,
   watcherFiles,
   showWatcherFolders,
   watcherBadgeCountsByFolderId,
   watcherBusy,
   openDialogFolder,
 } = useLibraryNavItems()
+
+const metaCategoryLinks = computed(() =>
+  metaVisible.value.map((meta) => metaLink(meta)),
+)
 
 const isAllTagsActive = computed(() => route.path === '/tags')
 
@@ -399,17 +597,56 @@ watch(
     text-decoration: none;
   }
 
+  :deep(.v-navigation-drawer__content) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
   :deep(.sidebar-browser__nav) {
     padding-bottom: 0;
   }
 }
 
-.sidebar-browser__scroll {
-  height: 100%;
+.sidebar-browser--rail {
+  :deep(.v-navigation-drawer__content) {
+    overflow: hidden;
+  }
 }
 
-:deep(.v-navigation-drawer__content) {
-  overflow: hidden;
+.sidebar-browser__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  padding: 8px 0 12px;
+  box-sizing: border-box;
+}
+
+.sidebar-browser__rail-spacer {
+  flex: 1 1 auto;
+  min-height: 8px;
+}
+
+.sidebar-browser__rail-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+}
+
+.sidebar-browser__rail-divider {
+  width: 24px;
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  flex-shrink: 0;
+}
+
+.sidebar-browser__scroll {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 
 .sidebar-section {
@@ -421,6 +658,10 @@ watch(
   min-height: 28px;
   padding-inline: 16px;
   opacity: 0.55;
+}
+
+.sidebar-section--library {
+  margin-top: 4px;
 }
 
 .sidebar-section--actions {

@@ -125,6 +125,8 @@ export type SettingsState = {
   browserLayout: string
   /** '1' when the browser-layout inspector panel is collapsed. */
   inspectorCollapsed: string
+  /** '1' when the browser-layout sidebar is collapsed. */
+  sidebarCollapsed: string
   showPlaylistsInNavigation: string
   showMarkersInNavigation: string
   numberOfPagesLimit: string
@@ -236,6 +238,7 @@ export const defaultSettingsState = (): SettingsState => ({
   bottomBar: '0',
   browserLayout: '1',
   inspectorCollapsed: '0',
+  sidebarCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',
   numberOfPagesLimit: '7',
