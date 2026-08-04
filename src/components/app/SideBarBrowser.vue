@@ -127,35 +127,34 @@
         <span>{{ settingsLink.title }}</span>
       </v-tooltip>
 
-      <div
-        v-if="showWatcherFolders"
-        class="sidebar-browser__rail-divider"
-      />
+      <template v-if="showWatcherFolders">
+        <div class="sidebar-browser__rail-divider" />
 
-      <v-tooltip
-        v-for="entry in watcherFiles"
-        :key="`watcher-${entry.folder.id}`"
-        location="end"
-      >
-        <template #activator="{ props: tipProps }">
-          <v-btn
-            v-bind="tipProps"
-            icon
-            variant="text"
-            size="small"
-            class="sidebar-browser__rail-btn"
-            :disabled="watcherBusy"
-            :aria-label="String(entry.folder.name || '')"
-            @click="openDialogFolder(entry)"
-          >
-            <v-icon
-              size="20"
-              :icon="watcherBusy ? 'mdi-folder-sync-outline' : 'mdi-folder-outline'"
-            />
-          </v-btn>
-        </template>
-        <span>{{ entry.folder.name }}</span>
-      </v-tooltip>
+        <v-tooltip
+          v-for="entry in watcherFiles"
+          :key="`watcher-${entry.folder.id}`"
+          location="end"
+        >
+          <template #activator="{ props: tipProps }">
+            <v-btn
+              v-bind="tipProps"
+              icon
+              variant="text"
+              size="small"
+              class="sidebar-browser__rail-btn"
+              :disabled="watcherBusy"
+              :aria-label="String(entry.folder.name || '')"
+              @click="openDialogFolder(entry)"
+            >
+              <v-icon
+                size="20"
+                :icon="watcherBusy ? 'mdi-folder-sync-outline' : 'mdi-folder-outline'"
+              />
+            </v-btn>
+          </template>
+          <span>{{ entry.folder.name }}</span>
+        </v-tooltip>
+      </template>
     </div>
 
     <div

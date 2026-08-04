@@ -22,6 +22,25 @@ function buildWatcherMenuEntries(folders: WatchedFolderEntry[]): WatcherFilesEnt
     }))
 }
 
+function filterTrackedMenuEntries(
+  entries: WatcherFilesEntry[],
+  folders: WatchedFolderEntry[],
+): WatcherFilesEntry[] {
+  if (folders.length > 0) {
+    const activeIds = new Set(
+      getActiveWatchedFolders(folders)
+        .map((folder) => Number(folder.id ?? folder.folderId))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    )
+
+    return entries.filter((entry) => activeIds.has(Number(entry.folder.id)))
+  }
+
+  return entries.filter((entry) =>
+    entry.folder.watch !== false && entry.folder.watch !== 0,
+  )
+}
+
 export const useWatcherStore = defineStore('watcher', {
   state: () => ({
     ws: null as WebSocket | null,
@@ -36,7 +55,7 @@ export const useWatcherStore = defineStore('watcher', {
     watchedFolders: (state) => getActiveWatchedFolders(state.folders),
     menuEntries(state): WatcherFilesEntry[] {
       if (state.files.length > 0) {
-        return state.files
+        return filterTrackedMenuEntries(state.files, state.folders)
       }
 
       return buildWatcherMenuEntries(getActiveWatchedFolders(state.folders))

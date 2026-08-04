@@ -61,10 +61,10 @@ export function useLibraryNavItems() {
   const showMarkers = computed(() => settingsStore.showMarkersInNavigation === '1')
   const showWatchFolders = computed(() => settingsStore.watchFolders === '1')
 
-  const watcherFiles = computed(() => watcherStore.menuEntries)
-  const showWatcherFolders = computed(() =>
-    Boolean(watcherFiles.value.length && showWatchFolders.value),
+  const watcherFiles = computed(() =>
+    showWatchFolders.value ? watcherStore.menuEntries : [],
   )
+  const showWatcherFolders = computed(() => watcherFiles.value.length > 0)
 
   const libraryLinks = computed((): LibraryNavLink[] => {
     const links: LibraryNavLink[] = [
