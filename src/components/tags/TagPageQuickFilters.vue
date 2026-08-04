@@ -22,41 +22,61 @@
       />
     </v-alert>
 
-    <v-expansion-panels
+    <div
       v-else-if="groups.length > 0"
-      v-model="panel"
-      variant="accordion"
-      rounded="xl"
-      class="tag-quick-filters__panels"
+      class="tag-quick-filters__shell"
     >
-      <v-expansion-panel rounded="xl">
-        <v-expansion-panel-title>
-          <div class="tag-quick-filters__title d-inline-flex align-center">
-            <v-icon
-              class="mr-2"
-              size="small"
-              icon="mdi-filter-outline"
-            />
-            <span>{{ t('tags.quick_filters') }}</span>
-            <span
-              v-if="activeChipsCount > 0"
-              class="tag-quick-filters__active-count ml-1"
-            >{{ activeChipsCount }}</span>
-            <v-tooltip location="top">
-              <template #activator="{ props: tipProps }">
-                <v-icon
-                  v-bind="tipProps"
-                  class="ml-1"
-                  size="small"
-                  icon="mdi-help-circle-outline"
-                  @click.stop
-                />
-              </template>
-              <span>{{ t('tags.quick_filters_hint') }}</span>
-            </v-tooltip>
-          </div>
-        </v-expansion-panel-title>
-        <v-expansion-panel-text :eager="true">
+      <button
+        type="button"
+        class="tag-quick-filters__chrome"
+        :aria-expanded="expanded"
+        @click="expanded = !expanded"
+      >
+        <div class="tag-quick-filters__chrome-start">
+          <v-icon
+            size="18"
+            icon="mdi-filter-outline"
+          />
+          <span class="tag-quick-filters__chrome-title">{{ t('tags.quick_filters') }}</span>
+          <v-chip
+            v-if="activeChipsCount > 0"
+            size="x-small"
+            color="primary"
+            variant="flat"
+            class="tag-quick-filters__active-count"
+          >
+            {{ activeChipsCount }}
+          </v-chip>
+          <v-tooltip location="top">
+            <template #activator="{ props: tipProps }">
+              <v-btn
+                v-bind="tipProps"
+                icon
+                variant="text"
+                size="x-small"
+                :aria-label="t('tags.quick_filters_hint')"
+                @click.stop
+              >
+                <v-icon size="16">mdi-help-circle-outline</v-icon>
+              </v-btn>
+            </template>
+            <span>{{ t('tags.quick_filters_hint') }}</span>
+          </v-tooltip>
+        </div>
+
+        <v-icon
+          class="tag-quick-filters__chevron"
+          size="18"
+        >
+          {{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+        </v-icon>
+      </button>
+
+      <v-expand-transition>
+        <div
+          v-if="expanded"
+          class="tag-quick-filters__body"
+        >
           <div
             v-for="(group, groupIndex) in groups"
             :key="group.metaId"
@@ -69,11 +89,11 @@
               <v-icon size="small" class="mr-1">mdi-{{ group.meta.icon || 'tag' }}</v-icon>
               <span>{{ group.meta.name }}</span>
             </div>
-            <div class="d-flex flex-wrap align-center justify-start py-1">
+            <div class="tag-quick-filters__chips">
               <span
                 v-for="chip in group.chips"
                 :key="chip.id"
-                class="tag-quick-filters__chip-wrap mr-2 mb-1"
+                class="tag-quick-filters__chip-wrap"
                 :class="{
                   'tag-quick-filters__chip-wrap--active': isSelected(group.metaId, chip.id),
                   'tag-quick-filters__chip-wrap--label': chip.label,
@@ -101,9 +121,9 @@
               </span>
             </div>
           </div>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
+        </div>
+      </v-expand-transition>
+    </div>
   </div>
 </template>
 
@@ -163,7 +183,7 @@ const loadToken = ref(0)
 const loading = ref(true)
 const applyingFilters = ref(false)
 /** Open by default (same as previous expand state). */
-const panel = ref<number | undefined>(0)
+const expanded = ref(true)
 
 const shouldShow = computed(() =>
   Boolean(props.tagId)

@@ -3,7 +3,6 @@
     :class="[
       'tag-page',
       `tag-page--${tagPageDesign}`,
-      {'tag-page--filters-docked': filtersDocked},
     ]"
   >
     <v-container v-if="loadError" class="py-4">
@@ -400,16 +399,11 @@ interface TagImages {
 }
 const route = useRoute()
 const router = useRouter()
-const {lg, md, sm, xs, width} = useDisplay()
+const {lg, md, sm, xs} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const {t} = useI18n()
-
-/** Keep in sync with Filters.vue dock breakpoint. */
-const FILTERS_DRAWER_WIDTH = 450
-const SIDEBAR_WIDTH = 280
-const MIN_CONTENT_WIDTH = 640
 
 // Refs
 const upd = ref(0)
@@ -461,10 +455,6 @@ function notifyLoadError(error: unknown): void {
 // Computed
 const ENV = computed(() => itemsStore.environment)
 const tagPageDesign = computed(() => normalizeTagPageDesign(meta.value.tagPageDesign))
-const filtersDocked = computed(() =>
-  Boolean(appStore.filters.visible)
-  && width.value >= SIDEBAR_WIDTH + FILTERS_DRAWER_WIDTH + MIN_CONTENT_WIDTH,
-)
 const activeMediaTypeId = computed((): number | null => {
   if (!tab.value || !tab.value.startsWith('media_')) return null
   const id = Number(tab.value.replace('media_', ''))
