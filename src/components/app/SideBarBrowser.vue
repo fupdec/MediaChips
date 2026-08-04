@@ -32,6 +32,8 @@
           <v-btn
             v-bind="tipProps"
             :to="link.to"
+            :exact="Boolean(link.exact)"
+            :active="isNavLinkActive(link)"
             icon
             :variant="isNavLinkActive(link) ? 'flat' : 'text'"
             :color="isNavLinkActive(link) ? 'primary' : undefined"
@@ -63,6 +65,7 @@
             v-bind="tipProps"
             :to="link.to"
             :exact="link.exact"
+            :active="isNavLinkActive(link)"
             icon
             :variant="isNavLinkActive(link) ? 'flat' : 'text'"
             :color="isNavLinkActive(link) ? 'primary' : undefined"
@@ -90,6 +93,7 @@
             v-bind="tipProps"
             :to="allTagsLink.to"
             :exact="allTagsLink.exact"
+            :active="isAllTagsActive"
             icon
             :variant="isAllTagsActive ? 'flat' : 'text'"
             :color="isAllTagsActive ? 'primary' : undefined"
@@ -111,6 +115,7 @@
           <v-btn
             v-bind="tipProps"
             :to="settingsLink.to"
+            :active="isSettingsActive"
             icon
             :variant="isSettingsActive ? 'flat' : 'text'"
             :color="isSettingsActive ? 'primary' : undefined"
@@ -200,7 +205,7 @@
           </v-list-item>
 
           <template v-if="metaArray.length">
-            <div class="sidebar-section sidebar-section--actions">
+            <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
               <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
               <div class="sidebar-section__actions">
                 <v-btn
@@ -632,6 +637,14 @@ watch(
   width: 40px !important;
   height: 40px !important;
   min-width: 40px !important;
+
+  &.v-btn--variant-text.v-btn--active {
+    color: inherit;
+
+    .v-btn__overlay {
+      opacity: 0;
+    }
+  }
 }
 
 .sidebar-browser__rail-divider {
@@ -661,6 +674,10 @@ watch(
 
 .sidebar-section--library {
   margin-top: 4px;
+}
+
+.sidebar-section--tags {
+  margin-top: 12px;
 }
 
 .sidebar-section--actions {
