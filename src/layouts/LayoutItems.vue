@@ -2,6 +2,7 @@
   <v-container ref="container">
 
     <div
+      id="items-control-deck"
       class="items-control-deck"
       :class="{
         'items-control-deck--browser': browserLayoutActive,
@@ -89,6 +90,7 @@
       <v-expand-transition>
         <div
           v-if="toolbarStore.appearance.show"
+          id="items-control-deck-appearance"
           class="items-control-deck__appearance"
           :class="{'items-control-deck__section': browserLayoutActive}"
         >

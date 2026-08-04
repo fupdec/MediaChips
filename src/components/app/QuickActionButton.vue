@@ -117,12 +117,13 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, nextTick} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useToolbarStore} from '@/stores/toolbar'
-import {scrollMainTo} from '@/utils/mainScroll'
+import {useBrowserLayout} from '@/composable/useBrowserLayout'
+import {scrollMainTo, scrollMainToSelector} from '@/utils/mainScroll'
 
 // i18n
 const {t} = useI18n()
@@ -131,6 +132,7 @@ const {t} = useI18n()
 const filtersStore = useAppStore().filters
 const itemsStore = useItemsStore()
 const toolbarStore = useToolbarStore()
+const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 
 // Reactive data
 const direction = ref('top')
@@ -149,14 +151,33 @@ const toolbarAppearanceShow = computed(() => toolbarStore.appearance.show)
 
 // Methods
 const toggleFilters = () => {
-  filtersStore.visible = !filtersStore.visible
+  if (filtersStore.visible) {
+    filtersStore.visible = false
+    return
+  }
+
+  filtersStore.visible = true
+  scheduleScrollToDeckSection(
+    browserLayoutActive.value ? '#items-filters-top-host' : '#items-control-deck',
+  )
 }
 
 const toggleCustomizeToolbar = () => {
-  toolbarStore.toggleAppearance()
   if (toolbarStore.appearance.show) {
-    scrollTop()
+    toolbarStore.toggleAppearance()
+    return
   }
+
+  toolbarStore.toggleAppearance()
+  scheduleScrollToDeckSection('#items-control-deck-appearance')
+}
+
+const scheduleScrollToDeckSection = (selector: string) => {
+  nextTick(() => {
+    nextTick(() => {
+      scrollMainToSelector(selector)
+    })
+  })
 }
 
 const scrollTop = () => {
