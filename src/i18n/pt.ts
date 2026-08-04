@@ -2474,6 +2474,7 @@ const pt = {
     no_filters: 'Sem filtros',
     simple: 'Simples',
     advanced: 'Avançado',
+    full: 'Completo',
     drag_to_reorder: 'Arraste para reordenar',
     edit_mode: 'Editar',
     edit_mode_hint: 'Adicionar, remover, reordenar e gerenciar conjuntos salvos',

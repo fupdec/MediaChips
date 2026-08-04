@@ -2474,6 +2474,7 @@ const es = {
     no_filters: 'Sin filtros',
     simple: 'Simple',
     advanced: 'Avanzado',
+    full: 'Completo',
     drag_to_reorder: 'Arrastra para reordenar',
     edit_mode: 'Editar',
     edit_mode_hint: 'Añadir, eliminar, reordenar y gestionar conjuntos guardados',

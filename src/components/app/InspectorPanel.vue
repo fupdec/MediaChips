@@ -1,5 +1,6 @@
 <template>
   <v-navigation-drawer
+    v-if="!collapsed"
     app
     clipped
     permanent
@@ -11,17 +12,32 @@
     <div class="inspector-panel__inner">
       <div class="inspector-panel__header">
         <span class="inspector-panel__title">{{ t('browser_layout.inspector') }}</span>
-        <v-btn
-          v-if="focusedItem"
-          class="inspector-panel__close"
-          icon
-          variant="text"
-          size="x-small"
-          :aria-label="t('browser_layout.clear_selection')"
-          @click="clearFocus"
-        >
-          <v-icon size="16">mdi-close</v-icon>
-        </v-btn>
+
+        <div class="inspector-panel__header-actions">
+          <v-btn
+            v-if="focusedItem"
+            class="inspector-panel__close"
+            icon
+            variant="text"
+            size="x-small"
+            :aria-label="t('browser_layout.clear_selection')"
+            @click="clearFocus"
+          >
+            <v-icon size="16">mdi-close</v-icon>
+          </v-btn>
+
+          <v-btn
+            class="inspector-panel__toggle"
+            icon
+            variant="text"
+            size="x-small"
+            v-tooltip:top="t('browser_layout.collapse_inspector')"
+            :aria-label="t('browser_layout.collapse_inspector')"
+            @click="toggleCollapsed"
+          >
+            <v-icon size="18">mdi-chevron-right</v-icon>
+          </v-btn>
+        </div>
       </div>
 
       <div
@@ -221,6 +237,20 @@
       </template>
     </div>
   </v-navigation-drawer>
+
+  <v-btn
+    v-else
+    class="inspector-panel__expand-rail"
+    icon
+    variant="text"
+    size="small"
+    :style="{top: `${expandRailTop}px`}"
+    v-tooltip:bottom="t('browser_layout.expand_inspector')"
+    :aria-label="t('browser_layout.expand_inspector')"
+    @click="toggleCollapsed"
+  >
+    <v-icon size="18">mdi-chevron-left</v-icon>
+  </v-btn>
 </template>
 
 <script setup lang="ts">
@@ -230,9 +260,12 @@ import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import {useAppStore} from '@/stores/app'
+import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
+import {useAppPlatform} from '@/composable/useAppPlatform'
+import {setOption} from '@/services/settingsService'
 import {checkFileExists} from '@/services/fileService'
 import {
   getReadableBitrate,
@@ -271,9 +304,20 @@ type InspectorFact = {
 
 const {t} = useI18n()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
+const {isElectron, isWin} = useAppPlatform()
+
+const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
+
+const expandRailTop = computed(() => {
+  let top = 48
+  if (isWin && isElectron) top += 32
+  if (appStore.tabs.length) top += 28
+  return top
+})
 
 const thumbFailed = ref(false)
 const detectedWidth = ref(0)
@@ -405,7 +449,6 @@ const mediaFacts = computed((): InspectorFact[] => {
     pushFact(facts, 'views', t('settings_labels.appearance.number_of_views'), String(views))
   }
 
-  pushFact(facts, 'basename', t('meta.default_names.file_name'), media.basename)
   pushFact(facts, 'createdAt', t('editing.added'), formatInspectorDate(media.createdAt))
   pushFact(facts, 'updatedAt', t('editing.last_edit'), formatInspectorDate(media.updatedAt))
   pushFact(facts, 'viewedAt', t('editing.last_view'), formatInspectorDate(media.viewedAt))
@@ -534,6 +577,10 @@ function clearFocus(): void {
   itemsStore.clearInspectorFocus()
 }
 
+function toggleCollapsed(): void {
+  void setOption(collapsed.value ? '0' : '1', 'inspectorCollapsed')
+}
+
 function openPreviewViewer(): void {
   if (!previewSrc.value || !focusedItem.value) return
 
@@ -588,6 +635,26 @@ function openEdit(): void {
   border-left: 1px solid rgba(var(--v-theme-on-surface), 0.08) !important;
 }
 
+.inspector-panel__expand-rail {
+  position: fixed;
+  right: 0;
+  z-index: 1004;
+  width: 32px !important;
+  height: 40px !important;
+  min-width: 32px !important;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  background: rgb(var(--v-theme-surface)) !important;
+  color: rgba(var(--v-theme-on-surface), 0.65);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.06);
+
+  &:hover {
+    color: rgb(var(--v-theme-primary));
+    background: rgba(var(--v-theme-primary), 0.06) !important;
+  }
+}
+
 .inspector-panel__inner {
   display: flex;
   flex-direction: column;
@@ -598,13 +665,17 @@ function openEdit(): void {
 .inspector-panel__header {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
   position: sticky;
   top: 0;
   z-index: 1;
   background: rgb(var(--v-theme-surface));
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
-  min-height: 0;
+  min-height: 40px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .inspector-panel__title {
@@ -614,13 +685,20 @@ function openEdit(): void {
   text-transform: uppercase;
   opacity: 0.6;
   line-height: 1.2;
+  min-width: 0;
 }
 
-.inspector-panel__close {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
+.inspector-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.inspector-panel__close,
+.inspector-panel__toggle {
+  flex-shrink: 0;
 }
 
 .inspector-panel__empty {
@@ -836,7 +914,7 @@ function openEdit(): void {
 
   :deep(.category-name) {
     font-size: 0.68rem;
-    font-weight: 600;
+    font-weight: 400;
     opacity: 0.65;
     margin-bottom: 0;
     margin-right: 6px;

@@ -32,12 +32,14 @@
         <ItemPreviewVideo
           v-if="type === 'media' && isVideoMedia"
           @update-big-preview="(val) => big_preview = val"
+          @activate="handleCardActivate"
           :media="item"
           :is-file-exists="is_file_exists"
           :preview-active="showPreview"
         />
         <ItemPreviewImage
           v-else-if="type === 'media' && isImageMedia"
+          @activate="handleCardActivate"
           :media="item"
           :is-file-exists="is_file_exists"
           :preview-active="showPreview"
@@ -185,7 +187,8 @@
         v-if="isImageOnlyView"
         class="item-minimal-filename text-caption"
         :title="minimalFilename"
-        @click="editItem"
+        @click.stop="handleCardActivate"
+        @dblclick.stop="editItem"
       >
         <span class="item-minimal-filename__text">{{ minimalFilename }}</span>
       </div>

@@ -123,6 +123,8 @@ export type SettingsState = {
   bottomBar: string
   /** Eagle-style layout: expanded tags sidebar + right inspector panel. */
   browserLayout: string
+  /** '1' when the browser-layout inspector panel is collapsed. */
+  inspectorCollapsed: string
   showPlaylistsInNavigation: string
   showMarkersInNavigation: string
   numberOfPagesLimit: string
@@ -233,6 +235,7 @@ export const defaultSettingsState = (): SettingsState => ({
   headerFont: 'Roboto',
   bottomBar: '0',
   browserLayout: '1',
+  inspectorCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',
   numberOfPagesLimit: '7',

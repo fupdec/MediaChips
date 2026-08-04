@@ -6,31 +6,59 @@
     :items="filtersGrouped"
     :disabled="disabled"
     hide-details
-    :label="t('filters.add_new_filter')"
+    :label="hideFloatingLabel ? undefined : t('filters.add_new_filter')"
+    :placeholder="hideFloatingLabel ? t('filters.add_new_filter') : undefined"
+    :aria-label="t('filters.add_new_filter')"
     density="compact"
     variant="outlined"
     color="primary"
-    rounded
+    :rounded="hideFloatingLabel ? 'xl' : true"
     return-object
+    :single-line="hideFloatingLabel"
+    :class="{'filters-add--compact': hideFloatingLabel}"
     :custom-filter="acceptFilterItem"
     :menu-props="{ contentClass: 'custom-list filters-add-menu' }"
     @click:append="add"
     @keyup.enter="add"
+    @update:menu="onMenuToggle"
   >
     <!-- APPEND -->
     <template v-if="selectedFilter" #append>
-      <v-btn @click="add" color="success" rounded="xl" variant="flat">
-        <v-icon start>mdi-plus</v-icon>
-        {{ t('common.add') }}
+      <v-btn
+        @click="add"
+        color="success"
+        rounded="xl"
+        variant="flat"
+        :size="hideFloatingLabel ? 'x-small' : 'small'"
+        :icon="hideFloatingLabel"
+        :aria-label="t('common.add')"
+        :title="t('common.add')"
+      >
+        <v-icon
+          :start="!hideFloatingLabel"
+          :size="hideFloatingLabel ? 16 : 18"
+        >
+          mdi-plus
+        </v-icon>
+        <template v-if="!hideFloatingLabel">
+          {{ t('common.add') }}
+        </template>
       </v-btn>
     </template>
 
     <!-- SELECTED -->
     <template #selection="{ item }">
-      <v-icon size="16" class="mr-1">
-        mdi-{{ getFilterParam(item.raw).icon }}
-      </v-icon>
-      <span class="text-body-2">{{ getFilterText(getFilterParam(item.raw)) }}</span>
+      <div
+        class="filters-add__selection"
+        :class="{'filters-add__selection--compact': hideFloatingLabel}"
+      >
+        <v-icon :size="hideFloatingLabel ? 14 : 16">
+          mdi-{{ getFilterParam(item.raw).icon }}
+        </v-icon>
+        <span class="filters-add__selection-label">
+          {{ getFilterText(getFilterParam(item.raw)) }}
+        </span>
+      </div>
     </template>
 
     <!-- ITEM -->
@@ -128,6 +156,7 @@ const props = defineProps({
     required: true,
   },
   disabled: Boolean,
+  hideFloatingLabel: Boolean,
 })
 
 const emit = defineEmits(['add'])
@@ -210,7 +239,12 @@ const add = () => {
 
   emit('add', [selectedFilter.value])
   selectedFilter.value = null
+  search.value = ''
   filtersRef.value?.blur?.()
+}
+
+const onMenuToggle = (open: boolean) => {
+  if (open) search.value = ''
 }
 
 const getTypeIcon = (type?: string) => getIconDataType(type || '')
@@ -221,3 +255,83 @@ const highlight = (text: string) =>
 const getTypeText = (type?: string) =>
   t(`meta.types.${type}`, type || '')
 </script>
+
+<style scoped lang="scss">
+.filters-add__selection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.filters-add__selection-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.filters-add__selection--compact {
+  gap: 4px;
+
+  .filters-add__selection-label {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+}
+
+.filters-add--compact {
+  :deep(.v-field) {
+    --v-input-control-height: 28px;
+    min-height: 28px !important;
+    height: 28px !important;
+  }
+
+  :deep(.v-field__field) {
+    height: 28px;
+  }
+
+  :deep(.v-field__input) {
+    min-height: 28px !important;
+    max-height: 28px !important;
+    height: 28px !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-inline: 10px 8px !important;
+    align-items: center;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+  }
+
+  :deep(.v-autocomplete__selection) {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline-end: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  :deep(.v-field__input input) {
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
+  :deep(.v-field__append-inner) {
+    padding-top: 0;
+    align-self: center;
+  }
+
+  :deep(.v-input__append .v-btn) {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+}
+</style>

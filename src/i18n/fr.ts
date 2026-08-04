@@ -2474,6 +2474,7 @@ const fr = {
     no_filters: 'Aucun filtre',
     simple: 'Simple',
     advanced: 'Avancé',
+    full: 'Complet',
     drag_to_reorder: 'Faites glisser pour réorganiser',
     edit_mode: 'Modifier',
     edit_mode_hint: 'Ajouter, supprimer, réordonner et gérer les jeux enregistrés',

@@ -8,7 +8,7 @@
       v-ripple="{ class: 'text-primary' }"
       :aspect-ratio="previewAspectRatio"
       class="image-preview-container"
-      @click.stop="openViewer"
+      @click.stop="handlePreviewClick"
     >
       <v-img
         :src="thumb || undefined"
@@ -35,6 +35,7 @@ import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
+import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import { loadImageDisplayUrl, revokeImageObjectUrl, IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
 import {getMediaAspectRatio} from '@/utils/gridLayout'
 import {getCachedThumb, isPersistentThumbUrl, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
@@ -49,8 +50,13 @@ const props = withDefaults(defineProps<{
   previewActive: true,
 })
 
+const emit = defineEmits<{
+  activate: []
+}>()
+
 const store = useAppStore()
 const itemsStore = useItemsStore()
+const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 
 const thumb = ref<string | null>(null)
 const detectedWidth = ref(0)
@@ -231,6 +237,14 @@ const openViewer = () => {
     image: props.media,
     previewSrc: thumb.value || null,
   })
+}
+
+const handlePreviewClick = () => {
+  if (browserLayoutActive.value) {
+    emit('activate')
+    return
+  }
+  openViewer()
 }
 
 onMounted(() => {

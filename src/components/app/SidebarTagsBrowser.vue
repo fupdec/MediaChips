@@ -213,6 +213,10 @@ const props = withDefaults(defineProps<{
   editMode: false,
 })
 
+const emit = defineEmits<{
+  'all-expanded-change': [value: boolean]
+}>()
+
 const {t} = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -338,6 +342,41 @@ function toggleCategory(metaId: number): void {
   expanded[metaId] = !isExpanded(metaId)
   persistExpanded()
 }
+
+const visibleCategories = computed(() =>
+  categoryRows.value.filter((category) => shouldShowCategory(category)),
+)
+
+const allCategoriesExpanded = computed(() => {
+  const visible = visibleCategories.value
+  if (!visible.length) return false
+  return visible.every((category) => isExpanded(category.id))
+})
+
+function setAllCategoriesExpanded(value: boolean): void {
+  for (const category of visibleCategories.value) {
+    expanded[category.id] = value
+  }
+  persistExpanded()
+}
+
+function toggleAllCategories(): void {
+  setAllCategoriesExpanded(!allCategoriesExpanded.value)
+}
+
+watch(
+  allCategoriesExpanded,
+  (value) => {
+    emit('all-expanded-change', value)
+  },
+  {immediate: true},
+)
+
+defineExpose({
+  allCategoriesExpanded,
+  toggleAllCategories,
+  setAllCategoriesExpanded,
+})
 
 function isCategoryPageActive(metaId: number): boolean {
   return route.path === '/meta' && String(route.query.metaId) === String(metaId)

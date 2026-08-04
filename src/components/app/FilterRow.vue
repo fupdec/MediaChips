@@ -277,6 +277,7 @@
             multiple
             chips
             closable-chips
+            :chip-props="{ size: 'x-small', closeIcon: 'mdi-close' }"
           />
         </div>
       </div>

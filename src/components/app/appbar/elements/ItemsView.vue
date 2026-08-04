@@ -1,5 +1,24 @@
 <template>
-  <v-chip-group column>
+  <div
+    v-if="dense"
+    class="items-view-track"
+  >
+    <button
+      v-for="(item, index) in viewOptions"
+      :key="index"
+      type="button"
+      class="items-view-opt"
+      :class="{'items-view-opt--active': currentView == item.val}"
+      @click="updateView(item.val)"
+    >
+      <v-icon size="15">mdi-{{ item.icon }}</v-icon>
+      <span>{{ t(item.textKey) }}</span>
+    </button>
+  </div>
+  <v-chip-group
+    v-else
+    column
+  >
     <v-chip
       v-for="(item, index) in viewOptions"
       @click="updateView(item.val)"
@@ -23,6 +42,13 @@ import { normalizeItemsView } from '@/utils/itemsView'
 import { useItemsPageCommands } from '@/composable/itemsPageCommands'
 
 const pageCommands = useItemsPageCommands()
+
+defineProps({
+  dense: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 // Store
 const itemsStore = useItemsStore()
@@ -129,3 +155,53 @@ watch(
   {deep: true},
 )
 </script>
+
+<style scoped lang="scss">
+.items-view-track {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-surface), 0.9);
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
+}
+
+.items-view-opt {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(var(--v-theme-primary), 0.72);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.08);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  &--active {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+
+    &:hover {
+      background: rgb(var(--v-theme-primary));
+      color: rgb(var(--v-theme-on-primary));
+    }
+  }
+}
+</style>

@@ -43,16 +43,19 @@
         :color="chipColorFor(item.raw)"
         :text-color="chipTextColorFor(item.raw)"
         closable
-        class="ma-1"
-        size="small"
+        close-icon="mdi-close"
+        :class="purpose === 'filter' ? 'ma-0 filter-form-chip' : 'ma-1'"
+        :size="purpose === 'filter' ? 'x-small' : 'small'"
       >
         <span>{{ item.raw.name || item.title }}</span>
       </v-chip>
       <v-chip
         v-else
         @click:close="removeTag(item.value)"
-        class="ma-1"
+        :class="purpose === 'filter' ? 'ma-0 filter-form-chip' : 'ma-1'"
         closable
+        close-icon="mdi-close"
+        :size="purpose === 'filter' ? 'x-small' : 'small'"
       >
         <!-- Если raw недоступен, ищем тег в listTags -->
         <span>{{ findTagName(item.value) }}</span>
@@ -694,5 +697,24 @@ watch(search, (query) => {
 .synonyms {
   font-size: 0.85em;
   color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.filter-form-chip {
+  :deep(.v-chip__close) {
+    width: 12px !important;
+    height: 12px !important;
+    min-width: 12px !important;
+    margin-inline: 0 2px !important;
+    padding: 0 !important;
+    color: currentColor !important;
+    opacity: 1 !important;
+
+    .v-icon {
+      font-size: 10px !important;
+      width: 10px !important;
+      height: 10px !important;
+      color: currentColor !important;
+    }
+  }
 }
 </style>

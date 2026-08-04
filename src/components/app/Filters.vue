@@ -1,198 +1,209 @@
 <template>
-  <v-navigation-drawer
-    v-model="filtersVisible"
-    class="filters-drawer"
-    :class="{'temporary': filtersFloating}"
-    :temporary="filtersFloating"
-    :floating="filtersFloating"
-    :scrim="false"
-    disable-resize-watcher
-    width="450"
+  <Teleport
+    to="#items-filters-top-host"
+    :disabled="!useTopPanel"
   >
-    <v-card variant="tonal" color="primary" class="filter-block" rounded="xl">
+    <div
+      v-if="useTopPanel"
+      class="filters-top"
+    >
+      <div
+        v-if="showTopShell"
+        class="filters-top__shell"
+        :class="{
+          'filters-top__shell--panel': isPanelView,
+          'filters-top__shell--full': filtersViewMode === 'full',
+          'filters-top__shell--simple': !isPanelView,
+        }"
+      >
+        <div class="filters-top__chrome">
+          <div class="filters-top__chrome-start">
+            <v-icon size="18">mdi-filter</v-icon>
+            <span class="filters-top__chrome-title">{{ t('filters.title') }}</span>
 
-      <v-card-actions class="pt-3 pb-6">
-        <div class="d-flex align-center ga-3 min-width-0">
-          <div class="d-flex align-center">
-            <v-icon start>mdi-filter</v-icon>
-            <span class="text-h5">{{ t('filters.title') }}</span>
+            <v-btn-toggle
+              :model-value="filtersViewMode"
+              class="filters-top__mode"
+              color="primary"
+              density="compact"
+              variant="outlined"
+              divided
+              mandatory
+              @update:model-value="setFiltersViewMode"
+            >
+              <v-btn
+                value="simple"
+                size="small"
+                :disabled="!showTopChips && isPanelView"
+              >
+                {{ t('filters.simple') }}
+              </v-btn>
+              <v-btn
+                value="advanced"
+                size="small"
+              >
+                {{ t('filters.advanced') }}
+              </v-btn>
+              <v-btn
+                value="full"
+                size="small"
+                v-tooltip:top="t('filters.edit_mode_hint')"
+              >
+                {{ t('filters.full') }}
+              </v-btn>
+            </v-btn-toggle>
           </div>
 
-          <v-switch
-            v-if="filters.length >= 1"
-            v-model="editMode"
-            color="primary"
-            density="compact"
-            hide-details
-            inset
-            class="flex-grow-0 ma-0 filters-edit-switch"
-            :aria-label="t('filters.edit_mode')"
-            :title="t('filters.edit_mode_hint')"
-          >
-            <template #thumb>
-              <v-icon v-if="editMode" size="x-small">mdi-pencil</v-icon>
-            </template>
-          </v-switch>
-        </div>
-
-        <v-spacer></v-spacer>
-
-        <v-btn @click="filtersStore.visible = false" variant="text" icon size="small">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-actions>
-
-      <div class="px-2">
-        <LocalAiAssistPanel
-          v-if="LOCAL_AI_UI_ENABLED"
-          class="mb-3"
-          mode="filter"
-          :prompt="filterAiPrompt"
-          :context="filterAiContext"
-        />
-        <div class="d-flex align-center mb-2 ga-2" :class="editMode ? 'justify-space-between' : ''">
-          <v-btn
-            v-if="editMode"
-            variant="tonal"
-            rounded="xl"
-            size="small"
-            color="primary"
-            @click="dialogSaved = true"
-          >
-            <v-icon start size="small">mdi-content-save</v-icon>
-            {{ t('filters.saved_short') }}
-          </v-btn>
-
-          <v-btn
-            @click="apply"
-            :color="is_filters_changed ? 'success' : 'primary'"
-            rounded="xl"
-            variant="flat"
-            :block="!editMode"
-            :class="{ 'flex-grow-1': !editMode }"
-          >
-            <v-icon start size="small">mdi-check</v-icon>
-            {{ t('common.apply') }}
-          </v-btn>
-        </div>
-
-        <v-menu v-if="editMode && ITEMS.type === 'media'" location="bottom">
-          <template #activator="{ props: menuProps }">
+          <div class="filters-top__chrome-end">
             <v-btn
-              v-bind="menuProps"
-              class="mb-2"
-              variant="tonal"
+              v-if="isPanelView"
+              :color="is_filters_changed ? 'success' : 'primary'"
               rounded="xl"
+              variant="flat"
+              size="small"
+              @click="apply"
+            >
+              <v-icon
+                start
+                size="small"
+              >
+                mdi-check
+              </v-icon>
+              {{ t('common.apply') }}
+            </v-btn>
+
+            <v-btn
+              v-if="showTopChips"
+              variant="text"
               size="small"
               color="primary"
+              @click="handleDeactivateAllFilters"
             >
-              <v-icon start size="small">mdi-content-duplicate</v-icon>
-              {{ duplicatesMenuLabel }}
-              <v-icon end size="small">mdi-menu-down</v-icon>
+              {{ t('filters.deactivate_all_filters') }}
             </v-btn>
-          </template>
-          <v-list density="compact" nav>
-            <v-list-item
-              v-if="ITEMS.find_duplicates"
-              :title="t('filters.duplicates_menu_off')"
-              @click="clearDuplicates"
-            />
-            <v-divider v-if="ITEMS.find_duplicates" class="my-1" />
-            <v-list-item
-              v-for="mode in duplicateMenuModes"
-              :key="mode.value"
-              :title="t(mode.labelKey)"
-              :active="ITEMS.find_duplicates && isDuplicateModeActive(mode.value)"
-              @click="findDuplicates(mode.value)"
-            />
-          </v-list>
-        </v-menu>
 
-        <FiltersAdd
-          v-if="isReady && (editMode || filters.length === 0)"
-          @add="add"
-          :params="listBy"
-          class="my-2"
-        />
-      </div>
+            <v-btn
+              v-if="isPanelView"
+              variant="text"
+              icon
+              size="small"
+              :aria-label="t('appbar.buttons.hide_filters')"
+              @click="closeTopFilters"
+            >
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </div>
+        </div>
 
-      <v-card-text v-if="isReady" class="filters-list">
-        <Draggable
-          v-if="filters.length > 0 && editMode"
-          v-model="filters"
-          v-bind="dragOptions"
-          :item-key="dragItemKey"
-          handle=".drag-handle"
-          @end="onReorder"
-          class="filters-draggable"
+        <div
+          v-if="!isPanelView"
+          class="filters-top__brief"
         >
-          <template #item="{ element: f, index: i }">
-            <FilterRow
-              :filter="f"
-              :index="i"
-              :list-by="listBy"
-              editable
-              @set-by="setBy($event, i)"
-              @set-condition="setCondition($event, i)"
-              @set-value="setValue($event, i)"
-              @set-active="setActive($event, i)"
-              @remove="remove(i)"
-              @pick-date="pickDate(i)"
+          <FiltersChips
+            :filters="ITEMS.filters"
+            class="filters-top__chips"
+          />
+        </div>
+
+        <v-expand-transition>
+          <div
+            v-if="isPanelView"
+            class="filters-top__panel"
+          >
+            <FiltersPanel
+              variant="top"
+              hide-header
+              v-bind="panelBindings"
+              @update:edit-mode="editMode = $event"
+              @update:filters="filters = $event"
+              @close="closeTopFilters"
+              @apply="apply"
+              @add="add"
+              @reorder="onReorder"
+              @open-saved="dialogSaved = true"
+              @clear-duplicates="clearDuplicates"
+              @find-duplicates="findDuplicates"
+              @set-by="setBy"
+              @set-condition="setCondition"
+              @set-value="setValue"
+              @set-active="setActive"
+              @remove="remove"
+              @pick-date="pickDate"
               @valid="validate"
             />
-          </template>
-        </Draggable>
+          </div>
+        </v-expand-transition>
+      </div>
+    </div>
 
-        <template v-else-if="filters.length > 0">
-          <FilterRow
-            v-for="(f, i) in filters"
-            :key="String(f.id ?? f.clientKey ?? i)"
-            :filter="f"
-            :index="i"
-            :list-by="listBy"
-            @set-by="setBy($event, i)"
-            @set-condition="setCondition($event, i)"
-            @set-value="setValue($event, i)"
-            @set-active="setActive($event, i)"
-            @remove="remove(i)"
-            @pick-date="pickDate(i)"
-            @valid="validate"
-            ref="filterRows"
-          />
-        </template>
-
-        <div v-else class="text-center py-6 overline">
-          <v-img src="/images/filters/filters-none.svg" class="my-4" contain/>
-          <div>{{ t('filters.no_filters') }}</div>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Saved filters management -->
-    <DialogFiltersSaved
-      v-if="dialogSaved"
-      :dialog="dialogSaved"
-      :can-create="hasSavableFilters"
-      @close="dialogSaved = false"
-      @apply="loadSavedFilter"
-      @save="saveCurrentAsNamed"
-    />
-
-    <!-- Date Picker Dialog -->
-    <v-dialog v-model="datePicker.dialog" width="auto">
-      <v-date-picker
-        @update:model-value="setDate"
-        :model-value="datePicker.value"
-        :title="t('filters.select_date')"
+    <v-navigation-drawer
+      v-else
+      v-model="filtersVisible"
+      class="filters-drawer"
+      :class="{'temporary': filtersFloating}"
+      :temporary="filtersFloating"
+      :floating="filtersFloating"
+      :scrim="false"
+      disable-resize-watcher
+      width="450"
+    >
+      <v-card
+        variant="tonal"
         color="primary"
+        class="filter-block"
         rounded="xl"
-      />
-    </v-dialog>
-  </v-navigation-drawer>
+      >
+        <FiltersPanel
+          variant="drawer"
+          v-bind="panelBindings"
+          @update:edit-mode="editMode = $event"
+          @update:filters="filters = $event"
+          @close="filtersStore.visible = false"
+          @apply="apply"
+          @add="add"
+          @reorder="onReorder"
+          @open-saved="dialogSaved = true"
+          @clear-duplicates="clearDuplicates"
+          @find-duplicates="findDuplicates"
+          @set-by="setBy"
+          @set-condition="setCondition"
+          @set-value="setValue"
+          @set-active="setActive"
+          @remove="remove"
+          @pick-date="pickDate"
+          @valid="validate"
+        />
+      </v-card>
+    </v-navigation-drawer>
+  </Teleport>
+
+  <!-- Saved filters management -->
+  <DialogFiltersSaved
+    v-if="dialogSaved"
+    :dialog="dialogSaved"
+    :can-create="hasSavableFilters"
+    @close="dialogSaved = false"
+    @apply="loadSavedFilter"
+    @save="saveCurrentAsNamed"
+  />
+
+  <!-- Date Picker Dialog -->
+  <v-dialog
+    v-model="datePicker.dialog"
+    width="auto"
+  >
+    <v-date-picker
+      :model-value="datePicker.value"
+      :title="t('filters.select_date')"
+      color="primary"
+      rounded="xl"
+      @update:model-value="setDate"
+    />
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent} from 'vue'
+import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
 import dayjs from 'dayjs'
@@ -219,17 +230,13 @@ import {
 } from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {useBrowserLayout} from '@/composable/useBrowserLayout'
+import FiltersPanel from '@/components/app/FiltersPanel.vue'
+import FiltersChips from '@/components/elements/FiltersChips.vue'
 
 import cols from '../../../app/configs/filter-cols'
 
-// Components
-import FilterRow from '@/components/app/FilterRow.vue'
 import DialogFiltersSaved from '@/components/dialogs/filters/DialogFiltersSaved.vue'
-import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
-import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
-import {LOCAL_AI_UI_ENABLED} from '@shared/features'
-
-const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
 /**
  обозначения ключей для объекта "фильтр":
@@ -256,6 +263,9 @@ const itemsStore = useItemsStore()
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 const {width} = useDisplay()
+const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+
+const useTopPanel = computed(() => browserLayoutActive.value)
 
 /** Dock filters when there is room for sidebar + drawer + content; otherwise float. */
 const FILTERS_DRAWER_WIDTH = 450
@@ -334,7 +344,6 @@ const datePicker = ref<{
   value: null
 })
 const dialogSaved = ref(false)
-const filterRows = ref<Array<InstanceType<typeof FilterRow>> | null>(null)
 const filtersPreviousState = ref<FilterObject[]>([])
 const editMode = ref(false)
 
@@ -342,8 +351,6 @@ const dragOptions = {
   animation: 200,
   ghostClass: 'filter-ghost',
 }
-
-const dragItemKey = (filter: FilterObject) => String(filter.id ?? filter.clientKey)
 
 // Computed
 const filtersVisible = computed({
@@ -355,6 +362,50 @@ const filtersVisible = computed({
 
 const ITEMS = computed(() => itemsStore)
 const ENV = computed(() => ITEMS.value.environment)
+
+const showTopChips = computed(() => {
+  const hasActive = (ITEMS.value.filters || []).some((filter) => filter && filter.active)
+  const hasDuplicates = Boolean(ENV.value.media_type_id && ITEMS.value.find_duplicates)
+  return hasActive || hasDuplicates
+})
+
+const showTopShell = computed(() => filtersVisible.value || showTopChips.value)
+
+type TopFiltersMode = 'simple' | 'advanced' | 'full'
+const topFiltersMode = ref<TopFiltersMode>('simple')
+
+const isPanelView = computed(() =>
+  topFiltersMode.value === 'advanced' || topFiltersMode.value === 'full',
+)
+const filtersViewMode = computed(() => topFiltersMode.value)
+
+const setFiltersViewMode = (mode: unknown) => {
+  if (mode !== 'simple' && mode !== 'advanced' && mode !== 'full') return
+  topFiltersMode.value = mode
+  if (mode === 'simple') {
+    filtersStore.visible = false
+    editMode.value = false
+    return
+  }
+  filtersStore.visible = true
+  editMode.value = mode === 'full'
+}
+
+const panelBindings = computed(() => ({
+  editMode: editMode.value,
+  filters: filters.value,
+  listBy: listBy.value,
+  isReady: props.isReady,
+  isFiltersChanged: is_filters_changed.value,
+  itemsType: ITEMS.value.type,
+  findDuplicatesActive: Boolean(ITEMS.value.find_duplicates),
+  duplicatesMenuLabel: duplicatesMenuLabel.value,
+  duplicateMenuModes: duplicateMenuModes.value,
+  isDuplicateModeActive,
+  filterAiPrompt: filterAiPrompt.value,
+  filterAiContext: filterAiContext.value as Record<string, unknown>,
+  dragOptions,
+}))
 
 const currentMediaType = computed(() =>
   getCurrentMediaType(appStore.mediaTypes, ENV.value.media_type_id)
@@ -711,6 +762,10 @@ const handleDeactivateAllFilters = () => {
   void apply()
 }
 
+const closeTopFilters = () => {
+  filtersStore.visible = false
+}
+
 let unregisterFiltersController: (() => void) | null = null
 
 // Lifecycle
@@ -750,11 +805,123 @@ watch(() => filters.value.length, (length) => {
 })
 
 watch(filtersVisible, (visible) => {
-  if (!visible) editMode.value = false
+  if (!visible) {
+    editMode.value = false
+    if (topFiltersMode.value !== 'simple') {
+      topFiltersMode.value = 'simple'
+    }
+    return
+  }
+  if (topFiltersMode.value === 'simple') {
+    topFiltersMode.value = 'advanced'
+    editMode.value = false
+  }
 })
 </script>
 
 <style lang="scss">
+.filters-top {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.filters-top__shell {
+  width: 100%;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  overflow: hidden;
+}
+
+.items-control-deck--browser .filters-top {
+  margin-bottom: 0;
+}
+
+.items-control-deck--browser .filters-top__shell {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.filters-top__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  min-height: 44px;
+}
+
+.filters-top__chrome-start,
+.filters-top__chrome-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.filters-top__chrome-end {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.filters-top__chrome-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.filters-top__mode {
+  align-self: center;
+  height: 28px !important;
+  min-height: 28px !important;
+
+  .v-btn {
+    height: 28px !important;
+    min-height: 28px !important;
+    min-width: 0;
+    padding-inline: 10px;
+    font-size: 0.75rem;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+}
+
+.filters-top__brief {
+  padding: 2px 10px 10px;
+}
+
+.items-control-deck--browser .filters-top__panel {
+  padding: 0 14px 8px;
+  max-height: none;
+}
+
+.items-control-deck--browser .filters-top__panel .filters-panel {
+  max-height: none;
+  padding: 0 !important;
+}
+
+.filters-top__panel {
+  max-height: min(42vh, 440px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .filters-panel {
+    min-height: 0;
+    max-height: min(42vh, 440px);
+  }
+}
+
+.filters-top__chips {
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 4px;
+}
+
 .filters-drawer {
   z-index: 1200;
   max-height: 100%;
@@ -773,9 +940,7 @@ watch(filtersVisible, (visible) => {
   .filter-block {
     pointer-events: all;
     background-color: rgb(var(--v-theme-background)) !important;
-    padding: 8px 8px 16px;
-    display: grid;
-    grid-template-rows: auto auto 1fr;
+    padding: 0;
     overflow: hidden;
     max-height: 100%;
     height: 100%;
@@ -785,7 +950,6 @@ watch(filtersVisible, (visible) => {
       -3px 9px 14px 1px var(--v-shadow-key-penumbra-opacity, rgba(0, 0, 0, 0.14)),
       5px 5px 18px 3px var(--v-shadow-key-ambient-opacity, rgba(0, 0, 0, 0.12));
 
-    // tonal underlay would paint a primary tint over the solid background
     > .v-card__underlay {
       opacity: 0 !important;
     }
@@ -795,7 +959,6 @@ watch(filtersVisible, (visible) => {
     opacity: 1;
   }
 
-  // Clip leftovers when fully closed, but keep content visible during fade/slide.
   &:not(.v-navigation-drawer--active) {
     overflow: hidden !important;
 
@@ -813,48 +976,8 @@ watch(filtersVisible, (visible) => {
     overflow: visible !important;
   }
 
-  // Docked: no gutter strip beside the card
   &:not(.temporary) {
     padding: 16px 0 16px 16px;
-  }
-}
-
-.filters-list {
-  overflow-y: auto;
-  min-height: 0;
-  padding: 4px 12px 0 8px;
-  scrollbar-gutter: stable;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  .filters-draggable {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .filter-ghost {
-    opacity: 0.5;
-  }
-
-  .filter-form .filter {
-    margin-bottom: 0 !important;
-  }
-}
-
-.filters-edit-switch {
-  transform: scale(0.82);
-  transform-origin: left center;
-
-  :deep(.v-selection-control) {
-    min-height: 28px;
-  }
-
-  :deep(.v-switch__thumb) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 }
 </style>

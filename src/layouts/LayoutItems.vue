@@ -1,46 +1,115 @@
 <template>
   <v-container ref="container">
 
-    <div class="items-page-header text-h4 text-md-h2 d-flex align-center justify-space-between flex-wrap ga-4 mt-6 mb-8">
-      <div class="d-flex align-center items-page-header__title">
-        <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
-        {{ pageTitle }}
-        <span v-if="!loader.is_busy && total > 0">
-        <span v-if="total != totalInDb"
-          class="text-h6 text-md-h5 ml-2">
-          ({{ total }} of {{ totalInDb }})
-        </span>
-        <span v-else
-          class="text-h6 text-md-h5 ml-2">({{ total }})</span>
-        <span v-if="filesize_all"
-          class="text-subtitle-1 text-md-h6 ml-2">({{ filesize_all }})</span>
-        </span>
+    <div
+      class="items-control-deck"
+      :class="{
+        'items-control-deck--browser': browserLayoutActive,
+        'items-control-deck--classic': !browserLayoutActive,
+      }"
+    >
+      <div
+        class="items-page-header d-flex align-center justify-space-between flex-wrap ga-3"
+        :class="browserLayoutActive
+          ? 'items-control-deck__header items-page-header--deck'
+          : 'text-h4 text-md-h2 mt-6 mb-8'"
+      >
+        <div class="d-flex align-center items-page-header__title min-width-0">
+          <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
+          <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
+          <span
+            v-if="!loader.is_busy && total > 0"
+            class="items-page-header__meta"
+          >
+            <span v-if="total != totalInDb">({{ total }} of {{ totalInDb }})</span>
+            <span v-else>({{ total }})</span>
+            <span v-if="filesize_all"> · {{ filesize_all }}</span>
+          </span>
+        </div>
+
+        <div class="d-flex align-center flex-wrap ga-2 items-control-deck__controls">
+          <ToolbarSort
+            deck
+            class="items-control-deck__field items-control-deck__sort"
+          />
+
+          <ToolbarGroupBy
+            v-if="browserLayoutActive"
+            compact
+            :class="isGroupByOff
+              ? 'items-control-deck__group-by-icon'
+              : 'items-control-deck__field items-control-deck__group-by'"
+          />
+
+          <v-btn
+            v-if="browserLayoutActive"
+            @click="dialogEditingPinnedMeta = true"
+            v-tooltip:top="t('meta.settings.edit_pinned_meta')"
+            color="primary"
+            variant="tonal"
+            size="small"
+            icon
+          >
+            <v-icon size="18">mdi-pencil-outline</v-icon>
+          </v-btn>
+
+          <v-btn
+            @click="toggleCustomization"
+            v-tooltip:top="t('appbar.buttons.customize')"
+            color="primary"
+            :variant="toolbarStore.appearance.show ? 'flat' : (browserLayoutActive ? 'tonal' : 'flat')"
+            :size="browserLayoutActive ? 'small' : undefined"
+            icon
+          >
+            <v-icon :size="browserLayoutActive ? 18 : undefined">mdi-tune</v-icon>
+          </v-btn>
+
+          <v-btn
+            v-if="browserLayoutActive"
+            @click="toggleFiltersPanel"
+            v-tooltip:top="t('appbar.buttons.filter')"
+            color="primary"
+            :variant="filtersPanelOpen ? 'flat' : 'tonal'"
+            size="small"
+            icon
+          >
+            <v-badge
+              v-if="activeFiltersCount > 0"
+              :content="activeFiltersCount"
+              color="secondary"
+              floating
+            >
+              <v-icon size="18">mdi-filter-outline</v-icon>
+            </v-badge>
+            <v-icon v-else size="18">mdi-filter-outline</v-icon>
+          </v-btn>
+        </div>
       </div>
 
-      <div class="d-flex align-center flex-wrap ga-2">
-        <ToolbarSort></ToolbarSort>
+      <v-expand-transition>
+        <div
+          v-if="toolbarStore.appearance.show"
+          class="items-control-deck__appearance"
+          :class="{'items-control-deck__section': browserLayoutActive}"
+        >
+          <ToolbarAppearance :embedded="browserLayoutActive"/>
+        </div>
+      </v-expand-transition>
 
-        <v-btn @click="toggleCustomization"
-          v-tooltip:top="t('appbar.buttons.customize')"
-          color="primary"
-          variant="flat"
-          icon>
-          <v-icon>mdi-tune</v-icon>
-        </v-btn>
-      </div>
+      <div
+        id="items-filters-top-host"
+        class="items-filters-top-host"
+        :class="{'items-control-deck__filters-host': browserLayoutActive}"
+      />
     </div>
-
-    <v-expand-transition>
-      <ToolbarAppearance v-if="toolbarStore.appearance.show"></ToolbarAppearance>
-    </v-expand-transition>
 
     <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
 
-    <!-- боковая панель -->
+    <!-- Filters: top panel (browser layout) or side drawer (classic) -->
     <Filters v-if="pageInitialized" :isReady="isFiltersReady"/>
 
     <FiltersChips
-      v-if="pageInitialized && (activeFilters.length > 0 || (ENV.media_type_id ? ITEMS.find_duplicates : false))"
+      v-if="pageInitialized && showStandaloneFilterChips"
       :filters="ITEMS.filters"
       class="my-4"
     />
@@ -246,6 +315,34 @@
     </div>
 
     <QuickActionButton v-if="SETTINGS.show_quick_action_button == '1'"/>
+
+    <v-dialog
+      v-if="browserLayoutActive"
+      v-model="dialogEditingPinnedMeta"
+      @update:model-value="updatePinnedMeta"
+      max-width="860"
+      width="95vw"
+      scrollable
+    >
+      <v-card>
+        <DialogHeader
+          @close="closePinnedMetaDialog"
+          :header="t('meta.settings.editing_pinned_meta')"
+          closable
+        />
+
+        <v-card-text class="py-4 px-2 px-sm-4">
+          <SettingsMediaTypeAddedMeta
+            v-if="itemsStore.type === 'media' && mediaType"
+            :media-type="mediaType"
+          />
+          <MetaSettingsPinned
+            v-if="itemsStore.type === 'tag' && meta"
+            :meta="meta"
+          />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -277,9 +374,13 @@ import Loading from '@/components/elements/Loading.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
+import ToolbarGroupBy from '@/components/app/toolbar/ToolbarGroupBy.vue'
 import ToolbarAppearance from "@/components/app/toolbar/ToolbarAppearance.vue";
 import DialogMediaAdding from '@/components/dialogs/DialogMediaAdding.vue'
 import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
+import SettingsMediaTypeAddedMeta from '@/components/settings/SettingsMediaTypeAddedMeta.vue'
+import MetaSettingsPinned from '@/components/dialogs/meta/MetaSettingsPinned.vue'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isVideoMediaType, isImageMediaType} from '@/utils/mediaType'
 import {getReadableFileSize} from '@/services/formatUtils'
@@ -287,12 +388,16 @@ import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {useBrowserLayout} from '@/composable/useBrowserLayout'
+import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
+import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
 import {
   buildItemGroups,
   getGroupKeyAndLabel,
+  normalizeItemsGroupBy,
   resolveActiveItemsGroupBy,
   type ItemsGroupSection,
 } from '@/utils/itemsGroupBy'
@@ -310,6 +415,7 @@ const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
+const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
@@ -323,6 +429,7 @@ const mediaType = ref<MediaType | null>(null)
 const meta = ref<Meta | null>(null)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
+const dialogEditingPinnedMeta = ref(false)
 
 const {
   isFiltersReady,
@@ -419,6 +526,18 @@ const activeFilters = computed(() => {
   }
   return ITEMS.value.filters.filter(i => i && i.active);
 });
+
+const showStandaloneFilterChips = computed(() => {
+  if (browserLayoutActive.value) return false
+  return activeFilters.value.length > 0
+    || Boolean(ENV.value.media_type_id && ITEMS.value.find_duplicates)
+})
+
+const filtersPanelOpen = computed(() => Boolean(appStore.filters.visible))
+const activeFiltersCount = computed(() => activeFilters.value.length)
+const isGroupByOff = computed(() =>
+  normalizeItemsGroupBy(ITEMS.value.groupBy) === 'none',
+)
 const isImageGrid = computed(() =>
   props.items_type === 'media' && mediaType.value?.type === 'image' && ITEMS.value.view == 1
 )
@@ -675,6 +794,23 @@ const toggleCustomization = () => {
   toolbarStore.appearance.show = !toolbarStore.appearance.show
 }
 
+const toggleFiltersPanel = () => {
+  appStore.filters.visible = !appStore.filters.visible
+}
+
+const updatePinnedMeta = () => {
+  if (itemsStore.type === 'tag') {
+    void reloadMetaCatalog()
+  }
+  void pageCommands.refreshAssignedMeta()
+  remountPageTagLayoutItems()
+}
+
+const closePinnedMetaDialog = () => {
+  dialogEditingPinnedMeta.value = false
+  updatePinnedMeta()
+}
+
 defineEmits<{
   addMedia: []
   playVideo: [payload: unknown]
@@ -762,7 +898,7 @@ defineEmits<{
 }
 
 .items-page-header {
-  row-gap: 16px;
+  row-gap: 12px;
 
   &__icon {
     font-size: 32px !important;
@@ -780,5 +916,193 @@ defineEmits<{
   &__title {
     line-height: 1.2;
   }
+
+  &__name {
+    font-weight: 600;
+  }
+
+  &__meta {
+    margin-inline-start: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    opacity: 0.65;
+    white-space: nowrap;
+  }
+
+  &--deck {
+    .items-page-header__icon {
+      font-size: 22px !important;
+      width: 22px !important;
+      height: 22px !important;
+      margin-inline-end: 6px;
+    }
+
+    .items-page-header__name {
+      font-size: 1.125rem;
+      line-height: 1.3;
+    }
+
+    .items-page-header__meta {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+.items-control-deck {
+  width: 100%;
+
+  &--browser {
+    --deck-pad-x: 14px;
+    --deck-gap: 10px;
+    --deck-radius: 16px;
+    --deck-control-h: 40px;
+
+    margin-top: 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(var(--v-theme-primary), 0.12);
+    border-radius: var(--deck-radius);
+    background: rgb(var(--v-theme-surface));
+    box-shadow: 0 1px 0 rgba(var(--v-theme-primary), 0.04);
+    overflow: hidden;
+  }
+
+  &--classic {
+    display: contents;
+  }
+
+  &__header {
+    padding: 10px var(--deck-pad-x);
+    margin: 0;
+    min-height: 52px;
+  }
+
+  &__section {
+    border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  }
+
+  &__appearance {
+    min-width: 0;
+  }
+
+  &__filters-host {
+    min-width: 0;
+  }
+
+  &__field {
+    margin-inline: 0 !important;
+    flex: 0 0 auto;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+
+    :deep(.v-field) {
+      --v-input-control-height: var(--deck-control-h);
+      font-size: 0.8125rem;
+    }
+
+    :deep(.v-field__input) {
+      min-height: var(--deck-control-h) !important;
+      max-height: var(--deck-control-h);
+      font-size: 0.8125rem !important;
+      line-height: 1.25 !important;
+      flex-wrap: nowrap;
+      overflow: hidden;
+      align-items: center;
+    }
+
+    :deep(.v-autocomplete__selection),
+    :deep(.v-autocomplete__selection-text),
+    :deep(.v-autocomplete__selection .pl-2),
+    :deep(.v-select__selection),
+    :deep(.v-select__selection-text),
+    :deep(.v-select__selection .pl-2) {
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap !important;
+      text-overflow: ellipsis;
+      font-size: 0.8125rem !important;
+      line-height: 1.25 !important;
+    }
+
+    :deep(.v-label) {
+      font-size: 0.75rem;
+    }
+
+    :deep(.v-input--density-compact) {
+      --v-input-padding-top: 0;
+    }
+  }
+
+  &__sort {
+    width: 260px;
+    min-width: 240px;
+    max-width: 280px;
+
+    :deep(.v-field) {
+      --v-input-control-height: var(--deck-control-h);
+      font-size: 0.75rem;
+    }
+
+    :deep(.v-field__input) {
+      min-height: var(--deck-control-h) !important;
+      max-height: var(--deck-control-h);
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    :deep(.v-autocomplete__selection),
+    :deep(.v-autocomplete__selection-text),
+    :deep(.v-select__selection),
+    :deep(.v-select__selection-text) {
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    :deep(.v-input__prepend .v-btn) {
+      width: var(--deck-control-h) !important;
+      height: var(--deck-control-h) !important;
+    }
+  }
+
+  &__group-by {
+    width: 190px;
+    min-width: 170px;
+    max-width: 200px;
+
+    :deep(.v-field) {
+      --v-input-control-height: var(--deck-control-h);
+      font-size: 0.75rem;
+    }
+
+    :deep(.v-field__input) {
+      min-height: var(--deck-control-h) !important;
+      max-height: var(--deck-control-h);
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    :deep(.v-autocomplete__selection),
+    :deep(.v-autocomplete__selection-text),
+    :deep(.v-select__selection),
+    :deep(.v-select__selection-text) {
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+  }
+
+  &__controls {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: var(--deck-control-h);
+
+    :deep(.v-btn--icon.v-btn--size-small) {
+      width: var(--deck-control-h);
+      height: var(--deck-control-h);
+    }
+  }
+}
+
+.items-filters-top-host {
+  width: 100%;
 }
 </style>

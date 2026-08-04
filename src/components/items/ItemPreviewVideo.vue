@@ -289,6 +289,7 @@ import {isAppWindowFocused} from '@/utils/windowFocus'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
+import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import type {MediaItem} from '@/types/stores'
 
 type BigVideoPreviewSize = 'original' | 'full_height' | 'two_thirds' | 'half'
@@ -395,6 +396,7 @@ const previewContainerClasses = computed(() => {
 
 const emit = defineEmits<{
   'update-big-preview': [value: boolean]
+  activate: []
 }>()
 
 // store
@@ -408,6 +410,7 @@ const eventBus = useEventBus()
   const listSync = useItemsListSync()
 const {t} = useI18n()
 const gridBigPreview = useVideoBigPreview()
+const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
@@ -1062,6 +1065,10 @@ const handlePreviewClick = () => {
     stopPlayingPreview()
     return
   }
+  if (browserLayoutActive.value) {
+    emit('activate')
+    return
+  }
   stopPlayingPreview()
 }
 
@@ -1071,6 +1078,10 @@ const handleMediaClick = () => {
     contextMenuStore.show = false
     bigPreviewMenuActive.value = false
     stopPlayingPreview()
+    return
+  }
+  if (browserLayoutActive.value) {
+    emit('activate')
     return
   }
   play()

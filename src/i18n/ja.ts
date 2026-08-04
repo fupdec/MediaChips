@@ -2673,6 +2673,7 @@ const ja = {
     no_filters: "フィルターなし",
     simple: "シンプル",
     advanced: "詳細",
+    full: "フル",
     drag_to_reorder: "ドラッグして並べ替えます",
     edit_mode: "編集",
     edit_mode_hint: "追加・削除・並べ替えと保存セットの管理",

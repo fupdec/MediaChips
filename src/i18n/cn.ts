@@ -2474,6 +2474,7 @@ const cn = {
     no_filters: '没有筛选器',
     simple: '简单',
     advanced: '高级',
+    full: '完整',
     drag_to_reorder: '拖动以更改顺序',
     edit_mode: '编辑',
     edit_mode_hint: '添加、删除、排序并管理已保存的筛选集',

@@ -1,79 +1,88 @@
 <template>
   <div class="dialog-header">
     <div class="content">
-      <!-- Title -->
-      <div
-        class="headline d-flex align-center ma-sm-4 ma-2"
-        :class="{ 'my-sm-2': subheader }"
-      >
-        <v-icon v-if="icon"
-          class="mr-4"
-          :icon="`mdi-${icon}`"/>
+      <div class="headline">
+        <v-icon
+          v-if="icon"
+          class="headline__icon"
+          size="small"
+          :icon="`mdi-${icon}`"
+        />
 
-        <div v-if="subheader">
-          <div class="text-h6">{{ header }}</div>
-          <div class="text-caption text-medium-emphasis d-inline-flex align-center">
-            <span class="text-truncate">{{ subheader }}</span>
+        <div
+          v-if="subheader"
+          class="headline__text"
+        >
+          <div
+            class="headline__title"
+            :title="header"
+          >
+            {{ header }}
+          </div>
+          <div class="headline__subheader text-medium-emphasis">
+            <span
+              class="headline__subheader-text"
+              :title="subheader"
+            >{{ subheader }}</span>
             <v-btn
               v-if="subheaderCopyText"
-              @click.stop="copySubheader"
+              class="flex-shrink-0"
               variant="text"
               icon
               size="x-small"
               :title="subheaderCopyTitle || t('common.copy_name')"
-              class="ml-1 flex-shrink-0"
+              @click.stop="copySubheader"
             >
-              <v-icon icon="mdi-content-copy" size="small" />
+              <v-icon
+                icon="mdi-content-copy"
+                size="small"
+              />
             </v-btn>
           </div>
         </div>
 
         <span
           v-else
-          class="text-h6"
-          :class="{ 'text-body-1': smAndDown }"
+          class="headline__title"
+          :title="header"
         >
           {{ header }}
         </span>
       </div>
 
-      <!-- Actions -->
       <div
-        class="actions mx-sm-4 mx-2"
-        :class="{ 'flex-wrap': xs }"
+        v-if="buttonsOrdered.length"
+        class="actions"
       >
-        <v-btn
-          v-if="closable"
-          class="my-2"
-          variant="outlined"
-          :size="smAndDown ? 'small' : 'default'"
-          @click="emit('close')"
-        >
-          <v-icon icon="mdi-close"
-            start/>
-          {{ t('common.close') }}
-        </v-btn>
-
         <v-btn
           v-for="(btn, index) in buttonsOrdered"
           :key="index"
-          class="ml-sm-4 ml-2 my-2"
           :color="btn.color"
           :variant="btn.outlined ? 'outlined' : 'flat'"
           :disabled="btn.disabled"
-          :size="smAndDown ? 'small' : 'default'"
           :title="btn.title"
           @click="run(btn)"
         >
           <v-icon
             v-if="btn.icon"
-            class="mr-2"
             :icon="`mdi-${btn.icon}`"
             start
           />
           {{ btn.text }}
         </v-btn>
       </div>
+
+      <v-btn
+        v-if="closable"
+        class="dialog-header__close"
+        icon
+        variant="text"
+        :aria-label="t('common.close')"
+        :title="t('common.close')"
+        @click="emit('close')"
+      >
+        <v-icon icon="mdi-close" />
+      </v-btn>
     </div>
   </div>
 </template>
@@ -81,7 +90,6 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import type { PropType } from 'vue'
-import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import sortBy from 'lodash/sortBy'
 import {copyToClipboard} from '@/utils/copyToClipboard'
@@ -116,8 +124,6 @@ const props = defineProps({
   closable: Boolean,
 })
 
-/* Vuetify 3 breakpoints */
-const {xs, smAndDown} = useDisplay()
 const {t} = useI18n()
 
 const buttonsOrdered = computed(() =>
@@ -165,19 +171,16 @@ const dragWindow = (headerSelector: string, dialogSelector: string) => {
     initialLeft = rect.left
     initialTop = rect.top
 
-    // Устанавливаем стили для перетаскивания
     dragElement.style.position = 'fixed'
     dragElement.style.margin = '0'
     dragElement.style.left = `${initialLeft}px`
     dragElement.style.top = `${initialTop}px`
     dragElement.style.zIndex = '9999'
 
-    // Сохраняем оригинальный transition
     const oldTransition = dragElement.style.transition
     dragElement.style.transition = 'none'
     dragElement.dataset.oldTransition = oldTransition
 
-    // Предотвращаем выделение текста при перетаскивании
     e.preventDefault()
   }
 
@@ -198,7 +201,6 @@ const dragWindow = (headerSelector: string, dialogSelector: string) => {
     newLeft = Math.max(0, Math.min(newLeft, windowWidth - elementWidth))
     newTop = Math.max(0, Math.min(newTop, windowHeight - elementHeight))
 
-    // Применяем новую позицию
     dragElement.style.left = `${newLeft}px`
     dragElement.style.top = `${newTop}px`
   }
@@ -206,7 +208,6 @@ const dragWindow = (headerSelector: string, dialogSelector: string) => {
   const onMouseUp = () => {
     if (!isDragging || !dragElement) return
 
-    // Восстанавливаем transition
     if (dragElement.dataset.oldTransition !== undefined) {
       dragElement.style.transition = dragElement.dataset.oldTransition
     }
@@ -215,12 +216,10 @@ const dragWindow = (headerSelector: string, dialogSelector: string) => {
     dragElement = null
   }
 
-  // Добавляем обработчики
   document.addEventListener('mousedown', onMouseDown)
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mouseup', onMouseUp)
 
-  // Функция для очистки
   return () => {
     document.removeEventListener('mousedown', onMouseDown)
     document.removeEventListener('mousemove', onMouseMove)
@@ -231,12 +230,10 @@ const dragWindow = (headerSelector: string, dialogSelector: string) => {
 const cleanupDragWindow = ref<(() => void) | null>(null)
 
 onMounted(() => {
-  // Инициализируем перетаскивание
   cleanupDragWindow.value = dragWindow('.dialog-header', '.v-overlay__content')
 })
 
 onBeforeUnmount(() => {
-  // Очищаем обработчики
   if (cleanupDragWindow.value) {
     cleanupDragWindow.value()
   }
@@ -247,43 +244,88 @@ onBeforeUnmount(() => {
 .dialog-header {
   -webkit-app-region: no-drag;
   cursor: grab;
+  z-index: 1;
   background-color: rgba(150, 150, 150, 0.1);
   box-shadow: 0 2px 10px #0000002b;
-  z-index: 1;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
 
   .content {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    min-width: 0;
   }
 
   .headline {
-    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Shrinks first so action buttons keep a single row */
+    flex: 1 1 0;
+    min-width: 7.5rem;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+
+    &__icon {
+      flex-shrink: 0;
+      opacity: 0.72;
+    }
+
+    &__text {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    &__title {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__subheader {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      min-width: 0;
+      max-width: 100%;
+      font-size: 0.75rem;
+      line-height: 1.3;
+    }
+
+    &__subheader-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .actions {
     display: flex;
-    justify-content: flex-end;
-    width: 100%;
+    align-items: center;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  &__close {
+    flex: 0 0 auto;
   }
 }
 
 @media (max-width: 480px) {
-  .dialog-header {
-    .content {
-      flex-direction: column;
-    }
-
-    .headline {
-      margin-bottom: 0 !important;
-    }
-
-    .actions {
-      justify-content: space-between;
-    }
+  .dialog-header .content {
+    padding: 10px 12px;
+    gap: 8px;
   }
 }
 </style>

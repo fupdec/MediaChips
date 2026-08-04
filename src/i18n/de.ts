@@ -2474,6 +2474,7 @@ const de = {
     no_filters: "Keine Filter",
     simple: "Einfach",
     advanced: "Erweitert",
+    full: "Voll",
     drag_to_reorder: "Zum Neuanordnen ziehen",
     edit_mode: "Bearbeiten",
     edit_mode_hint: "Hinzufügen, entfernen, sortieren und gespeicherte Sets verwalten",

@@ -28,10 +28,11 @@
     <template v-slot:chip="{ item }">
       <v-chip
         @click:close="remove(item)"
-        class="pl-0 ma-1"
+        :class="purpose === 'filter' ? 'pl-0 ma-0 filter-form-chip' : 'pl-0 ma-1'"
         label
-        size="small"
+        :size="purpose === 'filter' ? 'x-small' : 'small'"
         closable
+        close-icon="mdi-close"
       >
         <country-flag :country="item.raw.code" size="normal" class="lang-flag"/>
         <span>{{ item.value }}</span>

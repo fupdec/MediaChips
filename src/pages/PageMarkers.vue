@@ -212,7 +212,7 @@ const appStore = useAppStore()
 
 useMarkImageGenerator()
 
-const searchInput = ref('')
+const searchInput = ref(marksStore.search || '')
 const showInfiniteLoader = ref(false)
 
 function openLibrary() {
@@ -258,6 +258,7 @@ const scrollTop = () => {
 }
 
 onMounted(async () => {
+  searchInput.value = marksStore.search || ''
   await marksStore.loadFilterMetas()
   await marksStore.fetchMarks()
 
