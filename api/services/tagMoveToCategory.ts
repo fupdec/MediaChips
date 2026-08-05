@@ -18,6 +18,10 @@ import type {TagRow} from '../db/repositories/tags'
 import {uniquePositiveIds} from '../utils/uniqueIds'
 import {normalizeTagLookupName} from '../../shared/tagLookupName'
 import {
+  buildExistingNameIndex,
+  detectTagNameConflicts,
+} from './tagNameConflictDetect'
+import {
   remapFilterRowTagLinksMetaId,
   remapFolderTagLinksMetaId,
   remapMediaTagLinksMetaId,
@@ -120,28 +124,8 @@ export function findTagNameConflicts(
     existingRows = tx.select({id: tags.id, name: tags.name}).from(tags).all()
   }
 
-  const byName = new Map<string, number>()
-  for (const row of existingRows) {
-    if (exclude.has(row.id)) continue
-    const key = normalizeTagName(row.name)
-    if (!key || byName.has(key)) continue
-    byName.set(key, row.id)
-  }
-
-  const conflicts: TagNameConflict[] = []
-  const seen = new Set<number>()
-  for (const candidate of candidateKeys) {
-    if (seen.has(candidate.tagId)) continue
-    const existingTagId = byName.get(candidate.key)
-    if (!existingTagId || existingTagId === candidate.tagId) continue
-    seen.add(candidate.tagId)
-    conflicts.push({
-      tagId: candidate.tagId,
-      name: candidate.name,
-      existingTagId,
-    })
-  }
-  return conflicts
+  const byName = buildExistingNameIndex(existingRows, exclude, normalizeTagName)
+  return detectTagNameConflicts(candidateKeys, byName)
 }
 
 /**

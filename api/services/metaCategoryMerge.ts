@@ -28,6 +28,10 @@ import {
   remapMediaTagLinksMetaId,
   remapNestedTagLinksMetaId,
 } from './tagLinkRemap'
+import {
+  groupTagIdsByNormalizedName,
+  orderMergeGroup,
+} from './tagNameConflictDetect'
 
 export class MetaCategoryMergeError extends Error {
   status: number
@@ -383,27 +387,14 @@ export async function mergeTagCategories(
       .where(eq(tags.metaId, survivorId))
       .all()
 
-    const byName = new Map<string, number[]>()
-    for (const tag of categoryTags) {
-      const key = normalizeTagName(tag.name)
-      if (!key) continue
-      const group = byName.get(key)
-      if (group) group.push(tag.id)
-      else byName.set(key, [tag.id])
-    }
+    const byName = groupTagIdsByNormalizedName(categoryTags, normalizeTagName)
 
     for (const ids of byName.values()) {
       if (ids.length < 2) continue
 
-      ids.sort((a, b) => {
-        const aPreferred = originalSurvivorTagIds.has(a) ? 0 : 1
-        const bPreferred = originalSurvivorTagIds.has(b) ? 0 : 1
-        if (aPreferred !== bPreferred) return aPreferred - bPreferred
-        return a - b
-      })
-
-      const keepId = ids[0]
-      const mergeIds = ids.slice(1)
+      const ordered = orderMergeGroup(ids, originalSurvivorTagIds)
+      const keepId = ordered[0]
+      const mergeIds = ordered.slice(1)
       const mergeResult = mergeTagsInCategoryTx(tx, {
         metaId: survivorId,
         survivorId: keepId,
