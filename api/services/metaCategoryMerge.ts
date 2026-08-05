@@ -20,7 +20,14 @@ import type {MetaRow} from '../db/repositories/meta'
 import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
 import {normalizeTagName} from './tagMoveToCategory'
-import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
+import {uniquePositiveIds} from '../utils/uniqueIds'
+import {
+  orBooleanFlags,
+  remapFilterRowTagLinksMetaId,
+  remapFolderTagLinksMetaId,
+  remapMediaTagLinksMetaId,
+  remapNestedTagLinksMetaId,
+} from './tagLinkRemap'
 
 export class MetaCategoryMergeError extends Error {
   status: number
@@ -100,14 +107,7 @@ function remapTagsInMediaMetaId(
   const rows = tx.select().from(tagsInMedia).where(eq(tagsInMedia.metaId, sourceMetaId)).all()
   if (!rows.length) return 0
 
-  const remapped = uniqueByKey(
-    rows.map((row) => ({
-      mediaId: row.mediaId,
-      tagId: row.tagId,
-      metaId: survivorMetaId,
-    })),
-    (row) => `${row.mediaId}:${row.tagId}:${row.metaId}`,
-  )
+  const remapped = remapMediaTagLinksMetaId(rows, survivorMetaId)
   tx.insert(tagsInMedia).values(remapped).onConflictDoNothing().run()
   tx.delete(tagsInMedia).where(eq(tagsInMedia.metaId, sourceMetaId)).run()
   return remapped.length
@@ -121,14 +121,7 @@ function remapTagsInFoldersMetaId(
   const rows = tx.select().from(tagsInFolders).where(eq(tagsInFolders.metaId, sourceMetaId)).all()
   if (!rows.length) return 0
 
-  const remapped = uniqueByKey(
-    rows.map((row) => ({
-      folderId: row.folderId,
-      tagId: row.tagId,
-      metaId: survivorMetaId,
-    })),
-    (row) => `${row.folderId}:${row.tagId}:${row.metaId}`,
-  )
+  const remapped = remapFolderTagLinksMetaId(rows, survivorMetaId)
   tx.insert(tagsInFolders).values(remapped).onConflictDoNothing().run()
   tx.delete(tagsInFolders).where(eq(tagsInFolders.metaId, sourceMetaId)).run()
   return remapped.length
@@ -142,14 +135,7 @@ function remapTagsInTagsMetaId(
   const rows = tx.select().from(tagsInTags).where(eq(tagsInTags.metaId, sourceMetaId)).all()
   if (!rows.length) return 0
 
-  const remapped = uniqueByKey(
-    rows.map((row) => ({
-      parentTagId: row.parentTagId,
-      tagId: row.tagId,
-      metaId: survivorMetaId,
-    })),
-    (row) => `${row.parentTagId}:${row.tagId}:${row.metaId}`,
-  )
+  const remapped = remapNestedTagLinksMetaId(rows, survivorMetaId)
   tx.insert(tagsInTags).values(remapped).onConflictDoNothing().run()
   tx.delete(tagsInTags).where(eq(tagsInTags.metaId, sourceMetaId)).run()
   return remapped.length
@@ -166,34 +152,10 @@ function remapTagsInFilterRowsMetaId(
     .all()
   if (!rows.length) return 0
 
-  const remapped = uniqueByKey(
-    rows.map((row) => ({
-      tagId: row.tagId,
-      rowId: row.rowId,
-      metaId: survivorMetaId,
-    })),
-    (row) => `${row.tagId}:${row.rowId}:${row.metaId}`,
-  )
+  const remapped = remapFilterRowTagLinksMetaId(rows, survivorMetaId)
   tx.insert(tagsInFilterRows).values(remapped).onConflictDoNothing().run()
   tx.delete(tagsInFilterRows).where(eq(tagsInFilterRows.metaId, sourceMetaId)).run()
   return remapped.length
-}
-
-function orBooleanFlags<T extends Record<string, unknown>>(
-  survivor: T,
-  sources: T[],
-  keys: readonly string[],
-): Partial<T> {
-  const patch: Record<string, unknown> = {}
-  for (const key of keys) {
-    const anyEnabled = Boolean(survivor[key]) || sources.some((row) => Boolean(row[key]))
-    if (anyEnabled !== Boolean(survivor[key])) {
-      patch[key] = anyEnabled
-    } else if (anyEnabled) {
-      patch[key] = true
-    }
-  }
-  return patch as Partial<T>
 }
 
 async function moveTagAssetsToSurvivor(

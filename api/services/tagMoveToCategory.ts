@@ -15,8 +15,14 @@ import {nowIso} from '../db/utils/timestamps'
 import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
 import type {TagRow} from '../db/repositories/tags'
-import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
+import {uniquePositiveIds} from '../utils/uniqueIds'
 import {normalizeTagLookupName} from '../../shared/tagLookupName'
+import {
+  remapFilterRowTagLinksMetaId,
+  remapFolderTagLinksMetaId,
+  remapMediaTagLinksMetaId,
+  remapNestedTagLinksMetaId,
+} from './tagLinkRemap'
 
 export interface TagNameConflict {
   tagId: number
@@ -200,14 +206,7 @@ function remapLinksForTags(
     ))
     .all()
   if (mediaLinks.length) {
-    const remapped = uniqueByKey(
-      mediaLinks.map((row) => ({
-        mediaId: row.mediaId,
-        tagId: row.tagId,
-        metaId: targetMetaId,
-      })),
-      (row) => `${row.mediaId}:${row.tagId}:${row.metaId}`,
-    )
+    const remapped = remapMediaTagLinksMetaId(mediaLinks, targetMetaId)
     tx.insert(tagsInMedia).values(remapped).onConflictDoNothing().run()
     tx.delete(tagsInMedia)
       .where(and(
@@ -225,14 +224,7 @@ function remapLinksForTags(
     ))
     .all()
   if (folderLinks.length) {
-    const remapped = uniqueByKey(
-      folderLinks.map((row) => ({
-        folderId: row.folderId,
-        tagId: row.tagId,
-        metaId: targetMetaId,
-      })),
-      (row) => `${row.folderId}:${row.tagId}:${row.metaId}`,
-    )
+    const remapped = remapFolderTagLinksMetaId(folderLinks, targetMetaId)
     tx.insert(tagsInFolders).values(remapped).onConflictDoNothing().run()
     tx.delete(tagsInFolders)
       .where(and(
@@ -250,14 +242,7 @@ function remapLinksForTags(
     ))
     .all()
   if (nestedAsChild.length) {
-    const remapped = uniqueByKey(
-      nestedAsChild.map((row) => ({
-        parentTagId: row.parentTagId,
-        tagId: row.tagId,
-        metaId: targetMetaId,
-      })),
-      (row) => `${row.parentTagId}:${row.tagId}:${row.metaId}`,
-    )
+    const remapped = remapNestedTagLinksMetaId(nestedAsChild, targetMetaId)
     tx.insert(tagsInTags).values(remapped).onConflictDoNothing().run()
     tx.delete(tagsInTags)
       .where(and(
@@ -275,14 +260,7 @@ function remapLinksForTags(
     ))
     .all()
   if (filterLinks.length) {
-    const remapped = uniqueByKey(
-      filterLinks.map((row) => ({
-        tagId: row.tagId,
-        rowId: row.rowId,
-        metaId: targetMetaId,
-      })),
-      (row) => `${row.tagId}:${row.rowId}:${row.metaId}`,
-    )
+    const remapped = remapFilterRowTagLinksMetaId(filterLinks, targetMetaId)
     tx.insert(tagsInFilterRows).values(remapped).onConflictDoNothing().run()
     tx.delete(tagsInFilterRows)
       .where(and(
