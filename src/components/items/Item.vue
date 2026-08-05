@@ -38,7 +38,6 @@
         />
         <ItemPreviewImage
           v-else-if="type === 'media' && isImageMedia"
-          @activate="handleCardActivate"
           :media="item"
           :is-file-exists="is_file_exists"
           :preview-active="showPreview"
