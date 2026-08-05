@@ -22,8 +22,6 @@ import {ensureMarkThumb, getMarkImagePath} from '@/utils/markThumb'
 import {isIgnorablePlaybackError, getAbsolutePlaybackTime} from '@/utils/playerBuffer'
 import {
   getContinuousNextChunkStart,
-  LIVE_STREAM_CHUNK_HANDOFF_SECONDS,
-  LIVE_STREAM_CHUNK_SECONDS,
   resolveLiveFileDuration,
 } from '@/utils/liveStreamChunk'
 import {
@@ -49,12 +47,19 @@ import {
   metadataNumber,
   normalizeTranscodeMaxHeight,
   playbackErrorMessage,
+  resolveEndedLiveNextStart,
+  resolveLiveChunkEndMark,
   resolveLiveChunkRelativeSeekTarget,
   resolveLiveHandoffElapsed,
+  resolveLiveSeekStrategy,
   resolveLiveStreamCopyCompatible,
+  resolveLiveTranscodeOfferable,
   resolvePlayableVideo,
+  resolvePlaybackStartTime,
   shouldAdvanceAtSegmentEnd,
+  shouldHandOffLiveStreamChunk,
   shouldPreferDirectPlayback,
+  shouldSkipLiveQualityChange,
 } from '@/utils/playerPlaybackResolve'
 
 export {
@@ -238,25 +243,23 @@ export function usePlayerPlayback({
         const fileDuration = getLiveFileDuration()
         // Continue from the last shown frame — never jump ahead on a fixed grid.
         const handoffElapsed = resolveLiveHandoffElapsed(playerStore.player)
-        let nextStart = getContinuousNextChunkStart(
+        const continuousNextStart = getContinuousNextChunkStart(
           playerStore.liveStreamOffset,
           handoffElapsed,
           fileDuration,
         )
 
         const current = playerStore.playlist[playerStore.nowPlaying]
-        const segmentEnd = getSegmentEnd(current)
         const absoluteTime = getAbsolutePlaybackTime({
           usesLiveTranscode: true,
           liveStreamOffset: playerStore.liveStreamOffset,
           playerCurrentTime: playerStore.player?.currentTime,
         })
-        const stillInsideSegment = segmentEnd != null && absoluteTime < segmentEnd - 0.25
-
-        // Mid-clip: keep streaming the next chunk even if duration is unknown/wrong.
-        if (nextStart == null && stillInsideSegment) {
-          nextStart = absoluteTime
-        }
+        const {nextStart, stillInsideSegment} = resolveEndedLiveNextStart({
+          continuousNextStart,
+          absoluteTime,
+          segmentEnd: getSegmentEnd(current),
+        })
 
         if (nextStart != null) {
           const advanced = await switchLiveStreamChunk(nextStart)
@@ -728,21 +731,22 @@ export function usePlayerPlayback({
   }
 
   const maybeAdvanceLiveStreamChunk = debounce(async () => {
-    if (!playerStore.usesLiveTranscode || !playerStore.player || !playerStore.active || isAdvancingChunk) {
+    const relativeTime = playerStore.player?.currentTime || 0
+    const endMark = resolveLiveChunkEndMark(Number(playerStore.player?.duration))
+    if (!shouldHandOffLiveStreamChunk({
+      usesLiveTranscode: playerStore.usesLiveTranscode,
+      hasPlayer: Boolean(playerStore.player),
+      active: playerStore.active,
+      isAdvancingChunk,
+      isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
+      paused: playerStore.paused,
+      relativeTime,
+      endMark,
+    })) {
       return
     }
-    if (playerStore.isLiveStreamSeeking || playerStore.paused) return
 
     const chunkStart = playerStore.liveStreamOffset
-    const relativeTime = playerStore.player.currentTime || 0
-    const segmentDuration = Number(playerStore.player.duration)
-    const endMark = Number.isFinite(segmentDuration) && segmentDuration > 0.5
-      ? segmentDuration
-      : LIVE_STREAM_CHUNK_SECONDS
-
-    // Hand off only at the real end. Never switch early onto a fixed +30 grid.
-    if (relativeTime < endMark - LIVE_STREAM_CHUNK_HANDOFF_SECONDS) return
-
     // Continue from the frame that is on screen (currentTime), not claimed duration.
     const nextStart = getContinuousNextChunkStart(
       chunkStart,
@@ -764,13 +768,20 @@ export function usePlayerPlayback({
     const seekTime = Math.max(0, Number(time) || 0)
     const streamStart = playerStore.liveStreamOffset
     const relative = getLiveChunkRelativeTime(seekTime, streamStart)
+    const bufferedEnd = playerStore.player.buffered?.length
+      ? playerStore.player.buffered.end(playerStore.player.buffered.length - 1)
+      : 0
+    const strategy = resolveLiveSeekStrategy({
+      seekTime,
+      streamStart,
+      relative,
+      bufferedEnd,
+      hasSrc: Boolean(playerStore.player.src),
+      isAdvancingChunk,
+    })
 
     // Already on a stream that starts at this exact position.
-    if (
-      Math.abs(seekTime - streamStart) <= 0.05
-      && playerStore.player.src
-      && !isAdvancingChunk
-    ) {
+    if (strategy.kind === 'noop-at-stream-start') {
       playerStore.currentTime = seekTime
       playerStore.syncPlaybackState()
       return
@@ -778,15 +789,7 @@ export function usePlayerPlayback({
 
     // Forward seek inside the current non-seekable pipe only works once
     // that time is already buffered; otherwise restart ffmpeg at the exact time.
-    const bufferedEnd = playerStore.player.buffered?.length
-      ? playerStore.player.buffered.end(playerStore.player.buffered.length - 1)
-      : 0
-    if (
-      relative > 0.05
-      && relative <= bufferedEnd + 0.25
-      && playerStore.player.src
-      && !isAdvancingChunk
-    ) {
+    if (strategy.kind === 'relative-in-buffer') {
       applyLiveChunkRelativeSeek(playerStore.player, seekTime, streamStart)
       playerStore.currentTime = seekTime
       playerStore.syncPlaybackState()
@@ -864,9 +867,11 @@ export function usePlayerPlayback({
     }
 
     const streamStart = Math.max(0, Number(startTime) || 0)
-    const canLiveTranscode = Boolean(playable.transcodeRequired)
-      && settingsStore.transcodeUnsupportedFormats === '1'
-    playerStore.liveTranscodeOfferable = canLiveTranscode || playable.mode === 'stream'
+    playerStore.liveTranscodeOfferable = resolveLiveTranscodeOfferable({
+      transcodeRequired: Boolean(playable.transcodeRequired),
+      transcodeUnsupportedFormatsEnabled: settingsStore.transcodeUnsupportedFormats === '1',
+      playableMode: playable.mode,
+    })
 
     // Prefer direct playback whenever the browser can handle the file.
     // Forcing live re-encode just for clip marks made every clip start wait on ffmpeg.
@@ -951,7 +956,13 @@ export function usePlayerPlayback({
       return
     }
 
-    if (normalized === playerStore.liveTranscodeMaxHeight && !liveStreamCopyCompatible) return
+    if (shouldSkipLiveQualityChange({
+      normalizedMaxHeight: normalized,
+      currentMaxHeight: playerStore.liveTranscodeMaxHeight,
+      liveStreamCopyCompatible,
+    })) {
+      return
+    }
 
     seekLiveStream.cancel?.()
     maybeAdvanceLiveStreamChunk.cancel?.()
@@ -1086,19 +1097,14 @@ export function usePlayerPlayback({
 
     const playingClip = requestedClip || isClipPlaylistItem(media)
     const segmentStart = getSegmentStart(media) ?? requestedSegmentStart
-    let targetStartTime = 0
-    if (explicitStart != null) {
-      targetStartTime = explicitStart
-    } else if (segmentStart != null) {
-      targetStartTime = segmentStart
-    } else if (!playingClip && settingsStore.restorePlaybackTime == '1') {
-      const metaTime = metadataNumber(playerStore.metadata, 'time')
-      if (metaTime != null && metadataDuration != null) {
-        if (!(metadataDuration - metaTime < 5)) {
-          targetStartTime = metaTime
-        }
-      }
-    }
+    const targetStartTime = resolvePlaybackStartTime({
+      explicitStart,
+      segmentStart,
+      playingClip,
+      restorePlaybackTime: settingsStore.restorePlaybackTime == '1',
+      metaTime: metadataNumber(playerStore.metadata, 'time'),
+      metadataDuration,
+    })
 
     // Show clip/resume time immediately — do not wait on marks/thumbs.
     playerStore.media = media

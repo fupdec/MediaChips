@@ -5,12 +5,19 @@ import {
   isLoadSrcSessionStale,
   normalizeTranscodeMaxHeight,
   playbackErrorMessage,
+  resolveEndedLiveNextStart,
+  resolveLiveChunkEndMark,
   resolveLiveChunkRelativeSeekTarget,
   resolveLiveHandoffElapsedFromTimes,
+  resolveLiveSeekStrategy,
   resolveLiveStreamCopyCompatible,
+  resolveLiveTranscodeOfferable,
   resolvePlayableVideo,
+  resolvePlaybackStartTime,
   shouldAdvanceAtSegmentEnd,
+  shouldHandOffLiveStreamChunk,
   shouldPreferDirectPlayback,
+  shouldSkipLiveQualityChange,
 } from './playerPlaybackResolve'
 
 describe('isLoadSrcSessionStale', () => {
@@ -119,6 +126,115 @@ describe('shouldAdvanceAtSegmentEnd', () => {
       segmentEnd: 10,
       currentTime: 9.9,
     })).toBe(false)
+  })
+})
+
+describe('live handoff / seek / start-time decisions', () => {
+  it('resolves chunk end mark and handoff readiness', () => {
+    expect(resolveLiveChunkEndMark(28)).toBe(28)
+    expect(resolveLiveChunkEndMark(0.2)).toBe(30)
+    expect(shouldHandOffLiveStreamChunk({
+      usesLiveTranscode: true,
+      hasPlayer: true,
+      active: true,
+      isAdvancingChunk: false,
+      isLiveStreamSeeking: false,
+      paused: false,
+      relativeTime: 29.9,
+      endMark: 30,
+    })).toBe(true)
+    expect(shouldHandOffLiveStreamChunk({
+      usesLiveTranscode: true,
+      hasPlayer: true,
+      active: true,
+      isAdvancingChunk: false,
+      isLiveStreamSeeking: false,
+      paused: false,
+      relativeTime: 20,
+      endMark: 30,
+    })).toBe(false)
+  })
+
+  it('picks live seek strategy from buffer state', () => {
+    expect(resolveLiveSeekStrategy({
+      seekTime: 60,
+      streamStart: 60,
+      relative: 0,
+      bufferedEnd: 0,
+      hasSrc: true,
+      isAdvancingChunk: false,
+    }).kind).toBe('noop-at-stream-start')
+
+    expect(resolveLiveSeekStrategy({
+      seekTime: 70,
+      streamStart: 60,
+      relative: 10,
+      bufferedEnd: 12,
+      hasSrc: true,
+      isAdvancingChunk: false,
+    }).kind).toBe('relative-in-buffer')
+
+    expect(resolveLiveSeekStrategy({
+      seekTime: 90,
+      streamStart: 60,
+      relative: 30,
+      bufferedEnd: 5,
+      hasSrc: true,
+      isAdvancingChunk: false,
+    }).kind).toBe('restart-stream')
+  })
+
+  it('resolves loadSrc start time and offerable/quality gates', () => {
+    expect(resolvePlaybackStartTime({
+      explicitStart: 12,
+      segmentStart: 3,
+      playingClip: false,
+      restorePlaybackTime: true,
+      metaTime: 40,
+      metadataDuration: 100,
+    })).toBe(12)
+
+    expect(resolvePlaybackStartTime({
+      segmentStart: null,
+      playingClip: false,
+      restorePlaybackTime: true,
+      metaTime: 40,
+      metadataDuration: 100,
+    })).toBe(40)
+
+    expect(resolvePlaybackStartTime({
+      segmentStart: null,
+      playingClip: false,
+      restorePlaybackTime: true,
+      metaTime: 98,
+      metadataDuration: 100,
+    })).toBe(0)
+
+    expect(resolveLiveTranscodeOfferable({
+      transcodeRequired: true,
+      transcodeUnsupportedFormatsEnabled: true,
+      playableMode: 'direct',
+    })).toBe(true)
+
+    expect(shouldSkipLiveQualityChange({
+      normalizedMaxHeight: '720',
+      currentMaxHeight: '720',
+      liveStreamCopyCompatible: false,
+    })).toBe(true)
+  })
+
+  it('keeps mid-clip live next start when continuous handoff is unknown', () => {
+    expect(resolveEndedLiveNextStart({
+      continuousNextStart: null,
+      absoluteTime: 42,
+      segmentEnd: 90,
+    })).toEqual({nextStart: 42, stillInsideSegment: true})
+
+    expect(resolveEndedLiveNextStart({
+      continuousNextStart: 60,
+      absoluteTime: 42,
+      segmentEnd: null,
+    })).toEqual({nextStart: 60, stillInsideSegment: false})
   })
 })
 

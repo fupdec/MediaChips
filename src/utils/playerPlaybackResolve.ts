@@ -1,5 +1,8 @@
 import findIndex from 'lodash/findIndex'
-import { LIVE_STREAM_CHUNK_SECONDS } from '@/utils/liveStreamChunk'
+import {
+  LIVE_STREAM_CHUNK_HANDOFF_SECONDS,
+  LIVE_STREAM_CHUNK_SECONDS,
+} from '@/utils/liveStreamChunk'
 import type { MediaItem } from '@/types/stores'
 import type { ResolvedPlayableVideo } from '@/types/player'
 
@@ -121,6 +124,135 @@ export function shouldAdvanceAtSegmentEnd(input: {
   if (input.segmentEnd == null) return false
   if (!Number.isFinite(input.currentTime) || input.currentTime < input.segmentEnd) return false
   return true
+}
+
+/** Prefer measured segment duration; fall back to the fixed live chunk window. */
+export function resolveLiveChunkEndMark(
+  segmentDuration: number,
+  fallback = LIVE_STREAM_CHUNK_SECONDS,
+): number {
+  return Number.isFinite(segmentDuration) && segmentDuration > 0.5
+    ? segmentDuration
+    : fallback
+}
+
+/** Whether the live pipe is close enough to EOF to hand off the next chunk. */
+export function shouldHandOffLiveStreamChunk(input: {
+  usesLiveTranscode: boolean
+  hasPlayer: boolean
+  active: boolean
+  isAdvancingChunk: boolean
+  isLiveStreamSeeking: boolean
+  paused: boolean
+  relativeTime: number
+  endMark: number
+  handoffSeconds?: number
+}): boolean {
+  if (
+    !input.usesLiveTranscode
+    || !input.hasPlayer
+    || !input.active
+    || input.isAdvancingChunk
+    || input.isLiveStreamSeeking
+    || input.paused
+  ) {
+    return false
+  }
+  const handoff = input.handoffSeconds ?? LIVE_STREAM_CHUNK_HANDOFF_SECONDS
+  return input.relativeTime >= input.endMark - handoff
+}
+
+export type LiveSeekStrategy =
+  | {kind: 'noop-at-stream-start'}
+  | {kind: 'relative-in-buffer'}
+  | {kind: 'restart-stream'}
+
+/** Choose how a live timeline seek should be applied to the current ffmpeg pipe. */
+export function resolveLiveSeekStrategy(input: {
+  seekTime: number
+  streamStart: number
+  relative: number
+  bufferedEnd: number
+  hasSrc: boolean
+  isAdvancingChunk: boolean
+}): LiveSeekStrategy {
+  if (
+    Math.abs(input.seekTime - input.streamStart) <= 0.05
+    && input.hasSrc
+    && !input.isAdvancingChunk
+  ) {
+    return {kind: 'noop-at-stream-start'}
+  }
+
+  if (
+    input.relative > 0.05
+    && input.relative <= input.bufferedEnd + 0.25
+    && input.hasSrc
+    && !input.isAdvancingChunk
+  ) {
+    return {kind: 'relative-in-buffer'}
+  }
+
+  return {kind: 'restart-stream'}
+}
+
+/** Clip start / explicit seek / restore playback time for loadSrc. */
+export function resolvePlaybackStartTime(input: {
+  explicitStart?: number
+  segmentStart?: number | null
+  playingClip: boolean
+  restorePlaybackTime: boolean
+  metaTime: number | null
+  metadataDuration: number | null
+}): number {
+  if (input.explicitStart != null) return input.explicitStart
+  if (input.segmentStart != null) return input.segmentStart
+  if (
+    !input.playingClip
+    && input.restorePlaybackTime
+    && input.metaTime != null
+    && input.metadataDuration != null
+    && !(input.metadataDuration - input.metaTime < 5)
+  ) {
+    return input.metaTime
+  }
+  return 0
+}
+
+export function resolveLiveTranscodeOfferable(input: {
+  transcodeRequired: boolean
+  transcodeUnsupportedFormatsEnabled: boolean
+  playableMode?: string
+}): boolean {
+  const canLiveTranscode = input.transcodeRequired && input.transcodeUnsupportedFormatsEnabled
+  return canLiveTranscode || input.playableMode === 'stream'
+}
+
+export function shouldSkipLiveQualityChange(input: {
+  normalizedMaxHeight: string
+  currentMaxHeight: string
+  liveStreamCopyCompatible: boolean
+}): boolean {
+  return input.normalizedMaxHeight === input.currentMaxHeight
+    && !input.liveStreamCopyCompatible
+}
+
+/**
+ * After a live segment ends, continue mid-clip even when file duration is unknown.
+ * Returns whether playlist autoplay should still be blocked.
+ */
+export function resolveEndedLiveNextStart(input: {
+  continuousNextStart: number | null
+  absoluteTime: number
+  segmentEnd: number | null | undefined
+}): {nextStart: number | null; stillInsideSegment: boolean} {
+  const stillInsideSegment = input.segmentEnd != null
+    && input.absoluteTime < input.segmentEnd - 0.25
+  let nextStart = input.continuousNextStart
+  if (nextStart == null && stillInsideSegment) {
+    nextStart = input.absoluteTime
+  }
+  return {nextStart, stillInsideSegment}
 }
 
 function matchesInitialPlayable(item: MediaItem, initialVideo: MediaItem): boolean {
