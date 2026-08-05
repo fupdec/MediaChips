@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {formatDocsForPrompt, searchDocs} from './docRetrieval'
 
 describe('docRetrieval', () => {
-  it('finds documentation chunks for english queries', () => {
+  it('re-exports shared search for english queries', () => {
     const chunks = searchDocs('add media', 'en', 3)
     expect(chunks.length).toBeGreaterThan(0)
     expect(chunks.some((chunk) => chunk.id.includes('media'))).toBe(true)
