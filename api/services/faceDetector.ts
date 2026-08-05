@@ -47,6 +47,7 @@ import {
   buildFaceDetectErrorEvent,
   buildFaceDetectProgressEvent,
   createFaceDetectIterateCounters,
+  resolveFaceDetectIterateItems,
   resolveMatchSettingsAfterDetect,
 } from './faceDetectIterate'
 import {
@@ -81,6 +82,7 @@ import {
   buildCachedModelReadyEvent,
   resolveCachedModelStatus,
 } from './faceModelStatus'
+import {buildFaceDetectionStatusSnapshot} from './faceStatusSnapshots'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
@@ -480,12 +482,11 @@ async function getFaceDetectionStatus(db: ApiDb): Promise<FaceDetectionGeneratio
   const videoTypeId = await getVideoMediaTypeId(db)
   const total = videoTypeId ? mediaRepo.countByMediaType(videoTypeId) : 0
   const generated = facesRepo.countDistinctMediaIds()
-  return {
+  return buildFaceDetectionStatusSnapshot({
     total,
     generated,
-    pending: Math.max(total - generated, 0),
     faces: facesRepo.countAll(),
-  }
+  })
 }
 
 async function* iterateFaceDetection(
@@ -511,18 +512,14 @@ async function* iterateFaceDetection(
   const resolvedFramesPerVideo = Number(framesPerVideo ?? detectSettings.framesPerVideo)
   const resolvedMinScore = Number(minScore ?? detectSettings.minScore)
 
-  let items: FaceDetectorMediaItem[] = []
-  if (Array.isArray(mediaIds) && mediaIds.length) {
-    items = mediaIds
-      .map((id) => mediaRepo.findById(Number(id)))
-      .filter(Boolean)
-      .map((row) => ({id: row!.id, path: row!.path}))
-  } else if (Array.isArray(paths) && paths.length) {
-    items = mediaRepo.findByPaths(paths, videoTypeId || undefined)
-      .map((row) => ({id: row.id, path: row.path}))
-  } else if (videoTypeId) {
-    items = mediaRepo.findByMediaType(videoTypeId).map((row) => ({id: row.id, path: row.path}))
-  }
+  const items = resolveFaceDetectIterateItems({
+    mediaIds,
+    paths,
+    videoTypeId,
+    findById: (id) => mediaRepo.findById(id),
+    findByPaths: (pathList, typeId) => mediaRepo.findByPaths(pathList, typeId),
+    findByMediaType: (typeId) => mediaRepo.findByMediaType(typeId),
+  })
 
   // Auto-scan never keeps crop galleries — free disk from older runs.
   if (!persistCrops) {

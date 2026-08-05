@@ -5,6 +5,7 @@ import {
   buildFaceDetectErrorEvent,
   buildFaceDetectProgressEvent,
   createFaceDetectIterateCounters,
+  resolveFaceDetectIterateItems,
   resolveMatchSettingsAfterDetect,
 } from './faceDetectIterate'
 
@@ -98,5 +99,46 @@ describe('resolveMatchSettingsAfterDetect', () => {
     expect(resolveMatchSettingsAfterDetect({
       matchSettings: base,
     })).toBe(base)
+  })
+})
+
+describe('resolveFaceDetectIterateItems', () => {
+  it('resolves by ids, paths, or video media type', () => {
+    const findById = (id: number) => (id === 1 ? {id: 1, path: '/a'} : null)
+    const findByPaths = (paths: string[]) => paths.map((path, i) => ({id: i + 10, path}))
+    const findByMediaType = (typeId: number) => [{id: typeId, path: '/all'}]
+
+    expect(resolveFaceDetectIterateItems({
+      mediaIds: [1, 99],
+      videoTypeId: 5,
+      findById,
+      findByPaths,
+      findByMediaType,
+    })).toEqual([{id: 1, path: '/a'}])
+
+    expect(resolveFaceDetectIterateItems({
+      paths: ['/x', '/y'],
+      videoTypeId: 5,
+      findById,
+      findByPaths,
+      findByMediaType,
+    })).toEqual([
+      {id: 10, path: '/x'},
+      {id: 11, path: '/y'},
+    ])
+
+    expect(resolveFaceDetectIterateItems({
+      videoTypeId: 5,
+      findById,
+      findByPaths,
+      findByMediaType,
+    })).toEqual([{id: 5, path: '/all'}])
+
+    expect(resolveFaceDetectIterateItems({
+      videoTypeId: null,
+      findById,
+      findByPaths,
+      findByMediaType,
+    })).toEqual([])
   })
 })

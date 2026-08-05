@@ -50,6 +50,10 @@ import {
   resolveCachedModelStatus,
 } from './faceModelStatus'
 import {
+  buildFaceMatchStatusSnapshot,
+  resolveConfiguredOrScraperMetaId,
+} from './faceStatusSnapshots'
+import {
   packInterleavedRgbToNchw,
   rgbaBitmapToInterleavedRgb,
 } from './faceTensorPrep'
@@ -225,10 +229,10 @@ function getEmbedStatus(db: ApiDb): ModelStatus {
 }
 
 function resolvePerformerMetaId(db: ApiDb, configuredId?: number | null): number | null {
-  if (configuredId && Number.isFinite(configuredId) && configuredId > 0) return configuredId
-  const metaRepo = createMetaRepository(db.drizzle)
-  const scraperMeta = metaRepo.findAll().find((meta) => Boolean(meta.scraper) && meta.type === 'array')
-  return scraperMeta?.id != null ? Number(scraperMeta.id) : null
+  return resolveConfiguredOrScraperMetaId(
+    configuredId,
+    createMetaRepository(db.drizzle).findAll(),
+  )
 }
 
 function getFaceMatchSettings(db: ApiDb): FaceMatchSettings {
@@ -711,7 +715,7 @@ function getFaceMatchStatus(db: ApiDb) {
     ? createTagsRepository(db.drizzle, db.sqlite).findByMetaIds([metaId]).length
     : 0
 
-  return {
+  return buildFaceMatchStatusSnapshot({
     settings,
     embedModel: getEmbedStatus(db),
     faces: facesRepo.countAll(),
@@ -719,7 +723,7 @@ function getFaceMatchStatus(db: ApiDb) {
     performerTags,
     enrolledFaces: metaId ? enrollmentsRepo.countByMetaId(metaId) : 0,
     enrolledTags: metaId ? enrollmentsRepo.countDistinctTagsByMetaId(metaId) : 0,
-  }
+  })
 }
 
 export {

@@ -99,3 +99,31 @@ export function resolveMatchSettingsAfterDetect<T extends {
   }
   return matchSettings
 }
+
+type DetectIterateMediaRow = {id?: number | string | null; path?: string | null}
+
+/** Choose which media rows iterateFaceDetection will process. */
+export function resolveFaceDetectIterateItems(input: {
+  mediaIds?: Array<number | string>
+  paths?: string[]
+  videoTypeId: number | null | undefined
+  findById: (id: number) => DetectIterateMediaRow | null | undefined
+  findByPaths: (paths: string[], videoTypeId?: number) => DetectIterateMediaRow[]
+  findByMediaType: (videoTypeId: number) => DetectIterateMediaRow[]
+}): Array<{id: number | string | null | undefined; path: string | null | undefined}> {
+  if (Array.isArray(input.mediaIds) && input.mediaIds.length) {
+    return input.mediaIds
+      .map((id) => input.findById(Number(id)))
+      .filter(Boolean)
+      .map((row) => ({id: row!.id, path: row!.path}))
+  }
+  if (Array.isArray(input.paths) && input.paths.length) {
+    return input.findByPaths(input.paths, input.videoTypeId || undefined)
+      .map((row) => ({id: row.id, path: row.path}))
+  }
+  if (input.videoTypeId) {
+    return input.findByMediaType(input.videoTypeId)
+      .map((row) => ({id: row.id, path: row.path}))
+  }
+  return []
+}
