@@ -108,6 +108,27 @@ describe('typedApi', () => {
     expect(directory.data.entries[0]?.name).toBe('a.mp4')
   })
 
+  it('reads backfill status through typed routes', async () => {
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      total: 10,
+      pending: 3,
+      hashed: 7,
+    }))
+    const fingerprint = await typedApi.getBackfillStatus('fingerprint')
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskFingerprintBackfillStatus)
+    expect(fingerprint.data.pending).toBe(3)
+    expect(fingerprint.data.hashed).toBe(7)
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      total: 8,
+      pending: 2,
+      filled: 6,
+    }))
+    const codec = await typedApi.getBackfillStatus('videoCodec')
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskVideoCodecBackfillStatus)
+    expect(codec.data.filled).toBe(6)
+  })
+
   it('reads and updates Local AI status through typed routes', async () => {
     mockGet.mockResolvedValueOnce(mockAxiosResponse({
       status: 'downloaded',

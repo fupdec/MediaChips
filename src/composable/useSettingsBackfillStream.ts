@@ -1,17 +1,17 @@
-import {ref, computed} from 'vue'
+import {ref, computed, type Ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
-import {fetchApiJson, postApiNdjsonStream} from '@/services/ndjsonStream'
+import {typedApi} from '@/services/typedApi'
+import type {BackfillKind, BackfillStreamEvent} from '@/services/typedApi/backfill'
 
 export type SettingsBackfillMode = 'hash' | 'codec'
 
 export interface SettingsBackfillConfig {
+  kind: BackfillKind
   elementId: string
   icon: string
   notificationIcon: string
-  statusPath: string
-  streamPath: string
   /** Key under settings_labels.database, e.g. fingerprint_backfill */
   i18nKey: string
   mode: SettingsBackfillMode
@@ -19,33 +19,30 @@ export interface SettingsBackfillConfig {
 }
 
 export const FINGERPRINT_BACKFILL: SettingsBackfillConfig = {
+  kind: 'fingerprint',
   elementId: 'settings-fingerprint-backfill',
   icon: 'fingerprint',
   notificationIcon: 'fingerprint',
-  statusPath: '/api/Task/fingerprintBackfillStatus',
-  streamPath: '/api/Task/streamFingerprintBackfill',
   i18nKey: 'fingerprint_backfill',
   mode: 'hash',
   includeSkipped: true,
 }
 
 export const VISUAL_HASH_BACKFILL: SettingsBackfillConfig = {
+  kind: 'visualHash',
   elementId: 'settings-visual-hash-backfill',
   icon: 'image-multiple',
   notificationIcon: 'image-multiple',
-  statusPath: '/api/Task/visualHashBackfillStatus',
-  streamPath: '/api/Task/streamVisualHashBackfill',
   i18nKey: 'visual_hash_backfill',
   mode: 'hash',
   includeSkipped: true,
 }
 
 export const VIDEO_CODEC_BACKFILL: SettingsBackfillConfig = {
+  kind: 'videoCodec',
   elementId: 'settings-video-codec-backfill',
   icon: 'movie-filter',
   notificationIcon: 'movie-filter',
-  statusPath: '/api/Task/videoCodecBackfillStatus',
-  streamPath: '/api/Task/streamVideoCodecBackfill',
   i18nKey: 'video_codec_backfill',
   mode: 'codec',
   includeSkipped: false,
@@ -74,25 +71,11 @@ interface BackfillSummary {
   stopped: boolean
 }
 
-interface BackfillEvent {
-  type: 'progress' | 'complete' | 'error'
-  processed?: number
-  total?: number
-  hashed?: number
-  updated?: number
-  missing?: number
-  failed?: number
-  skipped?: number
-  current?: string
-  message?: string
-  stopped?: boolean
-}
-
 function dbKey(config: SettingsBackfillConfig, suffix = '') {
   return `settings_labels.database.${config.i18nKey}${suffix}`
 }
 
-function eventDoneCount(event: BackfillEvent, mode: SettingsBackfillMode) {
+function eventDoneCount(event: BackfillStreamEvent, mode: SettingsBackfillMode) {
   return mode === 'codec' ? (event.updated || 0) : (event.hashed || 0)
 }
 
@@ -145,8 +128,6 @@ function formatComplete(
   }
   return t(dbKey(config, '_complete'), params)
 }
-
-export {readNdjsonStream} from '@/services/ndjsonStream'
 
 export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
   const {t} = useI18n()
@@ -214,12 +195,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
   })
 
   async function fetchStatus() {
-    const data = await fetchApiJson<{
-      total?: number
-      pending?: number
-      hashed?: number
-      filled?: number
-    }>(config.statusPath)
+    const data = (await typedApi.getBackfillStatus(config.kind)).data
     status.value = {
       total: data.total || 0,
       pending: data.pending || 0,
@@ -276,7 +252,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
     const currentTaskId = taskId
 
     try {
-      const handleEvent = (event: BackfillEvent) => {
+      const handleEvent = (event: BackfillStreamEvent) => {
         if (event.type === 'progress') {
           counters.value = {
             processed: event.processed || 0,
@@ -334,12 +310,11 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
         }
       }
 
-      await postApiNdjsonStream(
-        config.streamPath,
+      await typedApi.streamBackfill(
+        config.kind,
         {
           signal: abortController.signal,
-          query: {force: force === true},
-          errorMessage: `${config.i18nKey} request failed`,
+          force: force === true,
         },
         handleEvent,
       )

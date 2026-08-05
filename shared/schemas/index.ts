@@ -53,6 +53,7 @@ import {
   LocalAiDeleteResponseSchema,
   LocalAiStatusSchema,
 } from './localAi'
+import {BackfillStatusSchema} from './backfill'
 import {
   PluginCatalogEntrySchema,
   PluginCatalogListSchema,
@@ -512,6 +513,8 @@ export {
   LocalAiStatusSchema,
 } from './localAi'
 
+export {BackfillStatusSchema} from './backfill'
+
 export function parsePluginCatalogEntry(data: unknown) {
   return PluginCatalogEntrySchema.parse(data)
 }
@@ -542,4 +545,8 @@ export function parseLocalAiStatus(data: unknown) {
 
 export function parseLocalAiDeleteResponse(data: unknown) {
   return LocalAiDeleteResponseSchema.parse(data)
+}
+
+export function parseBackfillStatus(data: unknown) {
+  return BackfillStatusSchema.parse(data)
 }

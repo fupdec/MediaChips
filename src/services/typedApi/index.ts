@@ -14,7 +14,8 @@ type LazyApi = typeof import('./home').homeApi &
   typeof import('./transcode').transcodeApi &
   typeof import('./plugins').pluginsApi &
   typeof import('./browse').browseApi &
-  typeof import('./localAi').localAiApi
+  typeof import('./localAi').localAiApi &
+  typeof import('./backfill').backfillApi
 
 type CoreApi = typeof coreApi
 
@@ -33,7 +34,8 @@ function loadLazyApi(): Promise<LazyApi> {
     import('./plugins'),
     import('./browse'),
     import('./localAi'),
-  ]).then(([home, pages, media, meta, tasks, transcode, plugins, browse, localAi]) => ({
+    import('./backfill'),
+  ]).then(([home, pages, media, meta, tasks, transcode, plugins, browse, localAi, backfill]) => ({
     ...home.homeApi,
     ...pages.pagesApi,
     ...media.mediaApi,
@@ -43,6 +45,7 @@ function loadLazyApi(): Promise<LazyApi> {
     ...plugins.pluginsApi,
     ...browse.browseApi,
     ...localAi.localAiApi,
+    ...backfill.backfillApi,
   }))
 
   return lazyApiPromise
