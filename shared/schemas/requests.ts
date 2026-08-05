@@ -412,6 +412,12 @@ export const TagsInMediaLinkSchema = z.object({
   metaId: coercedId,
 }).passthrough()
 
+/** Accept flat link or legacy `{ data: link }` wrappers from older clients. */
+export const TagsInMediaCreateOneRequestSchema = z.union([
+  TagsInMediaLinkSchema,
+  z.object({data: TagsInMediaLinkSchema}).passthrough().transform((body) => body.data),
+])
+
 export const TagsInMediaBulkCreateRequestSchema = z.array(TagsInMediaLinkSchema)
 
 export const TagsInMediaDeleteFromMediaRequestSchema = z.object({

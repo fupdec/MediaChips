@@ -104,6 +104,25 @@ describe('path tag matching', () => {
     ])
   })
 
+  it('matches performer from zip basename on virtual zip paths under # folders', () => {
+    const tags = [
+      tag(1, 'Allie Foster'),
+      tag(2, 'Interracial', websiteMeta, 'DogFart'),
+    ]
+    const path = '/Volumes/pron/_photo/#DogFart/allie_foster.zip!/001.jpg'
+    expect(matchNames(path, tags)).toEqual(['Allie Foster'])
+    expect(matchNames(path, tags, websiteMeta)).toEqual(['Interracial'])
+    const batch = matchPathsToTagsBatch(
+      [
+        { path, mediaId: 10 },
+        { path: '/Volumes/pron/_photo/#DogFart/allie_foster.zip!/002.jpg', mediaId: 11 },
+      ],
+      tags,
+      { preferLongestMatch: true, minTokenLength: 2 },
+    )
+    expect(batch.filter((m) => m.tagId === 1).map((m) => m.mediaId).sort()).toEqual([10, 11])
+  })
+
   it('T05: matches Series 100 but not Series 10 for #100 folder', () => {
     const tags = [
       tag(1, 'Series 10'),

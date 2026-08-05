@@ -26,6 +26,18 @@ describe('schema coercion helpers', () => {
     expect(() => optionalCoercedNumberSchema.parse('abc')).toThrow(z.ZodError)
   })
 
+  it('accepts flat and legacy wrapped TagsInMedia createOne bodies', async () => {
+    const {TagsInMediaCreateOneRequestSchema} = await import('./requests')
+    expect(TagsInMediaCreateOneRequestSchema.parse({
+      mediaId: '10',
+      tagId: 2,
+      metaId: 3,
+    })).toEqual({mediaId: 10, tagId: 2, metaId: 3})
+    expect(TagsInMediaCreateOneRequestSchema.parse({
+      data: {mediaId: 10, tagId: 2, metaId: 3},
+    })).toEqual({mediaId: 10, tagId: 2, metaId: 3})
+  })
+
   it('parses stored meta checkbox values', () => {
     expect(parseMetaBooleanValue(true)).toBe(true)
     expect(parseMetaBooleanValue('true')).toBe(true)

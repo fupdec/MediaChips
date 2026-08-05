@@ -549,7 +549,8 @@ export const useMediaAdding = () => {
 
         if (onlyNew) {
           for (const item of valsChunk) {
-            const response = await typedApi.createTagsInMediaOne({data: item})
+            // createOne expects a flat {mediaId, tagId, metaId} body (not {data: item}).
+            const response = await typedApi.createTagsInMediaOne(item)
             if (response.data?.[1]) parsedCount += 1
           }
         } else {
