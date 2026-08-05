@@ -267,9 +267,7 @@ function getTagSortExpression(sortBy: string, sortMetaType?: string | null) {
   return SORT_COLUMNS[sortBy] || SORT_COLUMNS.id
 }
 
-function buildTagIdSelect(needsDistinct: boolean) {
-  return needsDistinct ? 'SELECT DISTINCT tags.id' : 'SELECT tags.id'
-}
+import {buildTagIdSelect} from './filteredListSql'
 
 export {
   buildTagFilterQuery,

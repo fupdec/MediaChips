@@ -47,22 +47,18 @@ import {
 } from '../../shared/itemsGroupBy'
 import { createMetaRepository } from '../db/repositories/meta'
 import { buildMediaPathUnderFolderSql } from './mediaTagFilterSql'
-
-type MediaTagLink = {tagId: number; metaId: number; fromFolder?: boolean}
-
-function pushUniqueTagLink(
-  map: Map<number, MediaTagLink[]>,
-  mediaId: number,
-  tagId: number,
-  metaId: number,
-  fromFolder = false,
-) {
-  if (!Number.isFinite(mediaId) || !Number.isFinite(tagId) || !Number.isFinite(metaId)) return
-  if (!map.has(mediaId)) map.set(mediaId, [])
-  const list = map.get(mediaId)!
-  if (list.some((row) => row.tagId === tagId && row.metaId === metaId)) return
-  list.push(fromFolder ? {tagId, metaId, fromFolder: true} : {tagId, metaId})
-}
+import {
+  buildFilteredCountSql,
+  buildFilteredTotalsSql,
+  buildMediaIdSelect,
+} from './filteredListSql'
+import {
+  createItemShell,
+  pushUniqueTagLink,
+  toNavigationItem,
+  usesVisualNearDuplicates,
+  type MediaTagLinkRow,
+} from './mediaItemsPresentation'
 
 async function loadInheritedFolderTagsByMediaIds(
   db: ApiDb,
@@ -135,46 +131,6 @@ function warnLegacyMediaLoader(reason: string, options: MediaLoadOptions = {}) {
   )
 }
 
-function buildFilteredTotalsSql(fromClause: string, whereClause: string, needsDistinct: boolean) {
-  if (!needsDistinct) {
-    return `SELECT COUNT(*) AS totalFiltered,
-      COALESCE(SUM(media.filesize), 0) AS totalFilesize
-      ${fromClause}
-      ${whereClause}`
-  }
-
-  return `SELECT COUNT(*) AS totalFiltered,
-    COALESCE(SUM(filesize), 0) AS totalFilesize
-    FROM (
-      SELECT DISTINCT media.id, media.filesize
-      ${fromClause}
-      ${whereClause}
-    )`
-}
-
-function buildFilteredCountSql(fromClause: string, whereClause: string, needsDistinct: boolean) {
-  if (!needsDistinct) {
-    return `SELECT COUNT(*) AS totalFiltered
-      ${fromClause}
-      ${whereClause}`
-  }
-
-  return `SELECT COUNT(*) AS totalFiltered
-    FROM (
-      SELECT DISTINCT media.id
-      ${fromClause}
-      ${whereClause}
-    )`
-}
-
-function usesVisualNearDuplicates(options: MediaLoadOptions = {}) {
-  if (!options.find_duplicates) return false
-  const duplicatesBy = String(options.duplicates_by || '')
-  return duplicatesBy === 'visualHash'
-    || duplicatesBy === 'visual'
-    || duplicatesBy === 'visualHashNear'
-}
-
 async function resolveVisualNearDuplicateFilterQuery(
   db: ApiDb,
   options: MediaLoadOptions = {},
@@ -244,10 +200,6 @@ async function resolveMediaListFilterQuery(
   })
 }
 
-function buildMediaIdSelect(needsDistinct: boolean) {
-  return needsDistinct ? 'SELECT DISTINCT media.id' : 'SELECT media.id'
-}
-
 const MEDIA_BASE_SELECT = `SELECT media.*,
   videoMetadata.duration,
   videoMetadata.bitrate,
@@ -260,31 +212,6 @@ const MEDIA_BASE_SELECT = `SELECT media.*,
 FROM media
 LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
 LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
-
-const toNavigationItem = (item: NavigationMediaItem) => ({
-  id: item.id,
-  path: item.path,
-  name: item.name,
-  basename: item.basename,
-  ext: item.ext,
-  mediaTypeId: item.mediaTypeId,
-  filesize: item.filesize,
-  width: item.width,
-  height: item.height,
-  duration: item.duration,
-  rating: item.rating,
-  favorite: item.favorite,
-  views: item.views,
-  viewedAt: item.viewedAt,
-  time: item.time,
-})
-
-const createItemShell = (row: AnyRecord): LoadedMediaItem => ({
-  ...row,
-  tags: [],
-  values: [],
-  key: String(row.id),
-})
 
 async function attachPinnedMetaForGrouping(
   db: ApiDb,
@@ -301,7 +228,7 @@ async function attachPinnedMetaForGrouping(
 
   const type = String(metaType || '')
   const isTagMeta = !type || type === 'array' || type === 'select'
-  const tagsByMediaId = new Map<number, MediaTagLink[]>()
+  const tagsByMediaId = new Map<number, MediaTagLinkRow[]>()
   const valuesByMediaId = new Map<number, Array<{metaId: number; value: unknown}>>()
   const tagNameById = new Map<number, string>()
 
@@ -450,7 +377,7 @@ async function attachMediaRelations(db: ApiDb, items: LoadedMediaItem[], mediaTy
   const tagRows = await queryAllAsync(db, tagQuery, replacements)
   const valueRows = await queryAllAsync(db, valueQuery, replacements)
 
-  const tagsByMediaId = new Map<number, MediaTagLink[]>()
+  const tagsByMediaId = new Map<number, MediaTagLinkRow[]>()
   const valuesByMediaId = new Map()
 
   for (const row of tagRows) {
@@ -984,5 +911,6 @@ export {
   loadMediaBasicsByIds,
   loadMediaPlaylistItems,
   loadMediaForPlayback,
-  toNavigationItem,
 }
+
+export {toNavigationItem} from './mediaItemsPresentation'

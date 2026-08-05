@@ -13,6 +13,7 @@ import {
   getTagSortExpression,
   resolveTagFilterQuery,
 } from './tagFilterSql'
+import {buildFilteredCountSql} from './filteredListSql'
 import {
   resolvePageLimit,
   shouldPaginateMediaList,
@@ -211,21 +212,6 @@ function warnLegacyTagLoader(reason: string, options: TagLoadOptions = {} as Tag
   )
 }
 
-function buildFilteredCountSql(fromClause: string, whereClause: string, needsDistinct: boolean) {
-  if (!needsDistinct) {
-    return `SELECT COUNT(*) AS totalFiltered
-      ${fromClause}
-      ${whereClause}`
-  }
-
-  return `SELECT COUNT(*) AS totalFiltered
-    FROM (
-      SELECT DISTINCT tags.id
-      ${fromClause}
-      ${whereClause}
-    )`
-}
-
 async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   const {
     metaId,
@@ -327,7 +313,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   const hasIdScope = ids.length > 0
   if (!skipTotals && !hasIdScope) {
     const [totalsRows, unfilteredRows] = await Promise.all([
-      queryAllAsync<{totalFiltered: number}>(db, buildFilteredCountSql(fromClause, whereClause, needsDistinct), replacements),
+      queryAllAsync<{totalFiltered: number}>(db, buildFilteredCountSql(fromClause, whereClause, needsDistinct, 'tags.id'), replacements),
       queryAllAsync<{totalUnfiltered: number}>(db, `SELECT COUNT(*) AS totalUnfiltered
          FROM tags
          WHERE tags.metaId = :metaId`, {metaId}),
