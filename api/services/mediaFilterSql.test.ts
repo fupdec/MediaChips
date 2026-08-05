@@ -56,7 +56,23 @@ describe('buildMediaFilterQuery', () => {
     expect(result.joinSql).toContain('tagsInFolders')
     expect(result.joinSql).toContain('metaId = :f0')
     expect(result.joinSql).toContain('tagId IN (:f1)')
+    expect(result.needsDistinct).toBe(false)
     expect(result.replacements).toMatchObject({ mediaTypeId: 1, f0: 17, f1: 1050 })
+  })
+
+  it('keeps needsDistinct false for multi-tag in joins that are already unique-keyed', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'in', val: [1050, 1051, 1052] },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.needsDistinct).toBe(false)
+    expect(result.joinSql).toContain('SELECT DISTINCT mediaId')
+    expect(result.joinSql).toContain('UNION')
+    expect(result.joinSql).toContain('tagId IN (:f1)')
+    expect(result.replacements).toMatchObject({mediaTypeId: 1, f0: 17, f1: [1050, 1051, 1052]})
   })
 
   it('matches media under a tagged folder for tag in-filter', () => {

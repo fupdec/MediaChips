@@ -215,4 +215,64 @@ describe('loadMediaItems', () => {
       totalFilesize: 999999,
     })
   })
+
+  it('groups multi-tag filters with one slim query (no DISTINCT id rehydrate phase)', async () => {
+    const sqlCalls: string[] = []
+    vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
+      sqlCalls.push(String(sql))
+      if (sql.includes('videoMetadata.duration') && sql.includes('FROM media')) {
+        return [
+          {id: 1, path: '/a/x.mp4', name: 'x', filesize: 1, mediaTypeId: 1},
+          {id: 2, path: '/b/y.mp4', name: 'y', filesize: 2, mediaTypeId: 1},
+        ]
+      }
+      if (sql.includes('totalFilesize')) {
+        return [{totalFiltered: 2, totalFilesize: 3}]
+      }
+      if (sql.includes('totalUnfiltered')) {
+        return [{totalUnfiltered: 2}]
+      }
+      if (sql.includes('WHERE media.id IN')) {
+        return [
+          {id: 1, mediaTypeId: 1, path: '/a/x.mp4', name: 'x', filesize: 1},
+          {id: 2, mediaTypeId: 1, path: '/b/y.mp4', name: 'y', filesize: 2},
+        ]
+      }
+      if (sql.includes('SELECT id, path FROM media')) {
+        return [
+          {id: 1, path: '/a/x.mp4'},
+          {id: 2, path: '/b/y.mp4'},
+        ]
+      }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
+      if (sql.includes('tagsInMedia') || sql.includes('valuesInMedia')) return []
+      return []
+    })
+
+    const result = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      groupBy: 'path',
+      page: 1,
+      limit: 25,
+      filters: [{
+        active: true,
+        param: 17,
+        type: 'array',
+        cond: 'in',
+        val: [1050, 1051],
+      }],
+    })
+
+    expect(result.groups?.length).toBeGreaterThan(0)
+    expect(sqlCalls.some((sql) => (
+      sql.includes('videoMetadata.duration')
+      && sql.includes('tagsInMedia')
+    ))).toBe(true)
+    // Join subqueries may SELECT DISTINCT media.id AS mediaId; the old
+    // two-phase path selected DISTINCT media.id as the outer id list.
+    expect(sqlCalls.some((sql) => (
+      /^\s*SELECT\s+DISTINCT\s+media\.id\s*$/im.test(sql)
+      || /^\s*SELECT\s+DISTINCT\s+media\.id\s*\n/im.test(sql)
+    ))).toBe(false)
+  })
 })

@@ -286,7 +286,10 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
   const clauses: string[] = ['media.mediaTypeId = :mediaTypeId']
   const joins: string[] = []
   let joinIndex = 0
-  let needsDistinct = false
+  // Media tag joins are unique-keyed (SELECT DISTINCT mediaId / GROUP BY mediaId),
+  // so multi-tag `in` must not force DISTINCT list/totals or the two-phase
+  // grouping path. Tag-list filters still set needsDistinct when tagsInTags fan out.
+  const needsDistinct = false
 
   if (ids.length) {
     replacements.ids = ids
@@ -304,11 +307,6 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
         if (join) {
           applyTagArrayJoinResult(join, joins, clauses)
           joinIndex += 1
-          if (filter.cond === 'in') {
-            if (tagIds.length > 1) {
-              needsDistinct = true
-            }
-          }
           continue
         }
       }

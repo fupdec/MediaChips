@@ -52,6 +52,18 @@ describe('buildTagFilterQuery', () => {
     expect(result.replacements).toMatchObject({ metaId: 17, f0: 3, f1: 1050 })
   })
 
+  it('still marks multi-tag in joins as needsDistinct (tagsInTags can fan out)', () => {
+    const result = buildTagFilterQuery([
+      { active: true, param: 3, type: 'array', cond: 'in', val: [1050, 1051] },
+    ], { metaId: 17 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.needsDistinct).toBe(true)
+    expect(result.joinSql).toContain('tagsInTags')
+  })
+
   it('builds rating filter on tag column', () => {
     const result = buildTagFilterQuery([
       { active: true, param: 'rating', type: 'number', cond: '>=', val: 4 },
