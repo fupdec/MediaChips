@@ -17,6 +17,7 @@ import {
   resolveHoverScrubProgressUpdate,
   resolvePreviewUrlStartSeconds,
   shouldComputeHoverPreviewPointerTime,
+  resolveHoverPreviewTeardownPlan,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   createHoverSeekCoalescer,
@@ -168,6 +169,35 @@ describe('hoverPreviewPlayback', () => {
 
     expect(resolvePreviewUrlStartSeconds(50, false, 30)).toBeCloseTo(29.9, 5)
     expect(resolvePreviewUrlStartSeconds(50, true, 30)).toBe(50)
+  })
+
+  it('plans hover teardown recipes without side effects', () => {
+    expect(resolveHoverPreviewTeardownPlan('yield-decoder')).toMatchObject({
+      bumpToken: true,
+      releaseSession: false,
+      abortVideo: true,
+      clearSeekCoalescer: true,
+    })
+    expect(resolveHoverPreviewTeardownPlan('unavailable')).toMatchObject({
+      setPlaybackError: true,
+      releaseSession: true,
+      bumpToken: false,
+    })
+    expect(resolveHoverPreviewTeardownPlan('finalize-stop')).toMatchObject({
+      clearPlaybackError: true,
+      zeroPlaybackTime: true,
+      releaseSession: true,
+    })
+    expect(resolveHoverPreviewTeardownPlan('preview-hidden')).toMatchObject({
+      bumpToken: false,
+      releaseSession: true,
+      clearAllowHoverVideo: false,
+    })
+    expect(resolveHoverPreviewTeardownPlan('playback-error')).toMatchObject({
+      bumpToken: true,
+      releaseSession: false,
+      clearDelayTimer: true,
+    })
   })
 
   it('gates hover-ready marking', () => {

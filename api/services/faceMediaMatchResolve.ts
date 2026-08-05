@@ -2,10 +2,12 @@
 
 import {
   averageEmbeddings,
+  findTopEnrollmentMatches,
   findTopEnrollmentMatchesForEmbeddings,
   pickMatchFromCandidates,
 } from './faceMatchScoring'
 import {
+  classifyStoredFaceForMatch,
   resolveClusterMatchUpdate,
   type FaceMatchMode,
   type FaceMatchUpdate,
@@ -60,6 +62,79 @@ export function buildReadyMatchPreparedFace(
     candidates,
     embedding,
   }
+}
+
+export type MatchFaceSource = {
+  id: number | string
+  score?: number | null
+  timestamp?: string | null
+  tagId?: number | string | null
+  matchScore?: number | null
+  width?: number | null
+  height?: number | null
+  embedding?: string | null
+  cropPath?: string | null
+}
+
+/**
+ * Gate each stored face into skip/ready prepare records.
+ * Embedding load stays injectable so ORT/DB stay in the caller.
+ */
+export async function prepareMatchFacesForMedia(input: {
+  faces: MatchFaceSource[]
+  force?: boolean
+  enrollments: Array<{tagId: number; embedding: Float32Array}>
+  candidateLimit: number
+  loadEmbedding: (face: MatchFaceSource) => Promise<Float32Array | null>
+  isMatchable: (face: MatchFaceSource) => boolean
+}): Promise<{prepared: MatchPreparedFace[]; skipped: number}> {
+  const {faces, force, enrollments, candidateLimit, loadEmbedding, isMatchable} = input
+  const prepared: MatchPreparedFace[] = []
+  let skipped = 0
+
+  for (const face of faces) {
+    const base = {
+      id: Number(face.id),
+      score: Number(face.score) || 0,
+      timestamp: face.timestamp ?? null,
+    }
+    const gate = classifyStoredFaceForMatch({
+      hasTagId: Boolean(face.tagId),
+      force,
+      isMatchable: isMatchable(face),
+    })
+
+    if (gate === 'skip-assigned') {
+      skipped += 1
+      prepared.push(buildSkippedMatchPreparedFace(base, {
+        tagId: Number(face.tagId),
+        matchScore: face.matchScore ?? null,
+      }))
+      continue
+    }
+
+    if (gate === 'skip-unmatchable') {
+      skipped += 1
+      prepared.push(buildSkippedMatchPreparedFace(base))
+      continue
+    }
+
+    try {
+      const embedding = await loadEmbedding(face)
+      if (!embedding) {
+        skipped += 1
+        prepared.push(buildSkippedMatchPreparedFace(base))
+        continue
+      }
+      const candidates = findTopEnrollmentMatches(embedding, enrollments, candidateLimit)
+      prepared.push(buildReadyMatchPreparedFace(base, candidates, embedding))
+    } catch {
+      skipped += 1
+      prepared.push(buildSkippedMatchPreparedFace(base))
+    }
+  }
+
+  return {prepared, skipped}
 }
 
 /** Member frames plus centroid — same query shape used by match and list re-rank. */

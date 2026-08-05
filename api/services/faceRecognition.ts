@@ -20,7 +20,6 @@ import {clusterFacesInMedia} from './faceCluster'
 import {
   embeddingFromJson,
   embeddingToJson,
-  findTopEnrollmentMatches,
   l2Normalize,
   parseEnrollmentRefs,
 } from './faceMatchScoring'
@@ -30,13 +29,11 @@ import {
   resolveAbsoluteCropPath as resolveAbsoluteCropPathFromDb,
 } from './faceEnrollmentPaths'
 import {
-  classifyStoredFaceForMatch,
   uniqueMediaTagApplies,
   type FaceMatchMode,
 } from './faceMatchApply'
 import {
-  buildReadyMatchPreparedFace,
-  buildSkippedMatchPreparedFace,
+  prepareMatchFacesForMedia,
   resolveClusterMatchesForMedia,
 } from './faceMediaMatchResolve'
 import {
@@ -419,52 +416,16 @@ async function matchMediaFaces(
 
   await loadEmbedModel(db)
 
+  const {prepared, skipped} = await prepareMatchFacesForMedia({
+    faces,
+    force: options.force,
+    enrollments,
+    candidateLimit: settings.candidateLimit,
+    loadEmbedding: (face) => loadFaceEmbedding(db, face),
+    isMatchable: isMatchableStoredFace,
+  })
+
   let applied = 0
-  let skipped = 0
-  const prepared = []
-
-  for (const face of faces) {
-    const base = {
-      id: Number(face.id),
-      score: Number(face.score) || 0,
-      timestamp: face.timestamp ?? null,
-    }
-    const gate = classifyStoredFaceForMatch({
-      hasTagId: Boolean(face.tagId),
-      force: options.force,
-      isMatchable: isMatchableStoredFace(face),
-    })
-
-    if (gate === 'skip-assigned') {
-      skipped += 1
-      prepared.push(buildSkippedMatchPreparedFace(base, {
-        tagId: Number(face.tagId),
-        matchScore: face.matchScore,
-      }))
-      continue
-    }
-
-    if (gate === 'skip-unmatchable') {
-      skipped += 1
-      prepared.push(buildSkippedMatchPreparedFace(base))
-      continue
-    }
-
-    try {
-      const embedding = await loadFaceEmbedding(db, face)
-      if (!embedding) {
-        skipped += 1
-        prepared.push(buildSkippedMatchPreparedFace(base))
-        continue
-      }
-      const candidates = findTopEnrollmentMatches(embedding, enrollments, settings.candidateLimit)
-      prepared.push(buildReadyMatchPreparedFace(base, candidates, embedding))
-    } catch {
-      skipped += 1
-      prepared.push(buildSkippedMatchPreparedFace(base))
-    }
-  }
-
   const clustered = clusterFacesInMedia(prepared)
   const {updates, tagsToApply, matched} = resolveClusterMatchesForMedia({
     clustered,

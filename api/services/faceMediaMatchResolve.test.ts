@@ -3,6 +3,7 @@ import {
   buildClusterQueryEmbeddings,
   buildReadyMatchPreparedFace,
   buildSkippedMatchPreparedFace,
+  prepareMatchFacesForMedia,
   resolveClusterMatchesForMedia,
   type ClusteredMatchFace,
 } from './faceMediaMatchResolve'
@@ -177,5 +178,47 @@ describe('resolveClusterMatchesForMedia', () => {
       matchStatus: 'unmatched',
     })
     expect(result.tagsToApply).toEqual([])
+  })
+})
+
+describe('prepareMatchFacesForMedia', () => {
+  it('skips assigned and unmatchable faces without loading embeddings', async () => {
+    let loads = 0
+    const result = await prepareMatchFacesForMedia({
+      faces: [
+        {id: 1, score: 0.9, timestamp: null, tagId: 3, matchScore: 0.8},
+        {id: 2, score: 0.1, timestamp: null, tagId: null, matchScore: null, width: 10, height: 10},
+      ],
+      enrollments: [{tagId: 3, embedding: unit([1, 0])}],
+      candidateLimit: 5,
+      loadEmbedding: async () => {
+        loads += 1
+        return unit([1, 0])
+      },
+      isMatchable: (face) => Number(face.score) >= 0.5,
+    })
+
+    expect(loads).toBe(0)
+    expect(result.skipped).toBe(2)
+    expect(result.prepared.map((face) => face.skip)).toEqual([true, true])
+    expect(result.prepared[0].tagId).toBe(3)
+  })
+
+  it('loads embeddings for matchable faces and marks null embeds as skipped', async () => {
+    const result = await prepareMatchFacesForMedia({
+      faces: [
+        {id: 1, score: 0.9, timestamp: '0:01', tagId: null},
+        {id: 2, score: 0.9, timestamp: null, tagId: null},
+      ],
+      force: true,
+      enrollments: [{tagId: 9, embedding: unit([1, 0])}],
+      candidateLimit: 5,
+      loadEmbedding: async (face) => (Number(face.id) === 1 ? unit([1, 0]) : null),
+      isMatchable: () => true,
+    })
+
+    expect(result.skipped).toBe(1)
+    expect(result.prepared[0]).toMatchObject({id: 1, skip: false, candidates: [{tagId: 9}]})
+    expect(result.prepared[1].skip).toBe(true)
   })
 })

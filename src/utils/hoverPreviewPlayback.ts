@@ -175,6 +175,124 @@ export function resolvePreviewUrlStartSeconds(
     : Math.min(targetTime, chunkSeconds - 0.1)
 }
 
+export type HoverPreviewTeardownKind =
+  | 'yield-decoder'
+  | 'unavailable'
+  | 'hide-immediate'
+  | 'finalize-stop'
+  | 'cancel-hover'
+  | 'preview-hidden'
+  | 'playback-error'
+
+export type HoverPreviewTeardownPlan = {
+  bumpToken: boolean
+  resetReady: boolean
+  clearAllowHoverVideo: boolean
+  clearSeekCoalescer: boolean
+  clearDelayTimer: boolean
+  stopLive: boolean
+  releaseSession: boolean
+  abortVideo: boolean
+  setPlaybackError: boolean
+  clearPlaybackError: boolean
+  zeroPlaybackTime: boolean
+}
+
+const TEARDOWN_NONE: HoverPreviewTeardownPlan = {
+  bumpToken: false,
+  resetReady: false,
+  clearAllowHoverVideo: false,
+  clearSeekCoalescer: false,
+  clearDelayTimer: false,
+  stopLive: false,
+  releaseSession: false,
+  abortVideo: false,
+  setPlaybackError: false,
+  clearPlaybackError: false,
+  zeroPlaybackTime: false,
+}
+
+/** Pure action bag for the seven near-duplicate hover teardown recipes. */
+export function resolveHoverPreviewTeardownPlan(
+  kind: HoverPreviewTeardownKind,
+): HoverPreviewTeardownPlan {
+  switch (kind) {
+    case 'yield-decoder':
+      return {
+        ...TEARDOWN_NONE,
+        bumpToken: true,
+        resetReady: true,
+        clearAllowHoverVideo: true,
+        clearSeekCoalescer: true,
+        clearDelayTimer: true,
+        stopLive: true,
+        abortVideo: true,
+      }
+    case 'unavailable':
+      return {
+        ...TEARDOWN_NONE,
+        setPlaybackError: true,
+        clearAllowHoverVideo: true,
+        resetReady: true,
+        stopLive: true,
+        abortVideo: true,
+        releaseSession: true,
+      }
+    case 'hide-immediate':
+      return {
+        ...TEARDOWN_NONE,
+        bumpToken: true,
+        resetReady: true,
+        clearAllowHoverVideo: true,
+        stopLive: true,
+        releaseSession: true,
+        abortVideo: true,
+      }
+    case 'finalize-stop':
+      return {
+        ...TEARDOWN_NONE,
+        bumpToken: true,
+        clearPlaybackError: true,
+        zeroPlaybackTime: true,
+        resetReady: true,
+        clearAllowHoverVideo: true,
+        stopLive: true,
+        releaseSession: true,
+        abortVideo: true,
+      }
+    case 'cancel-hover':
+      return {
+        ...TEARDOWN_NONE,
+        bumpToken: true,
+        resetReady: true,
+        clearAllowHoverVideo: true,
+        clearSeekCoalescer: true,
+        clearDelayTimer: true,
+        stopLive: true,
+        releaseSession: true,
+        abortVideo: true,
+      }
+    case 'preview-hidden':
+      return {
+        ...TEARDOWN_NONE,
+        resetReady: true,
+        stopLive: true,
+        releaseSession: true,
+        abortVideo: true,
+      }
+    case 'playback-error':
+      return {
+        ...TEARDOWN_NONE,
+        bumpToken: true,
+        clearDelayTimer: true,
+        clearAllowHoverVideo: true,
+        resetReady: true,
+        stopLive: true,
+        abortVideo: true,
+      }
+  }
+}
+
 export type PreviewUrlSeekPlan =
   | {
     kind: 'live'

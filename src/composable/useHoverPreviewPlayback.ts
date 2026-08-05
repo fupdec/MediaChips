@@ -20,6 +20,7 @@ import {
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
   resolveHoverScrubProgressUpdate,
+  resolveHoverPreviewTeardownPlan,
   resolvePreviewUrlStartSeconds,
   planPreviewUrlSeek,
   shouldApplyPreviewSeek,
@@ -27,6 +28,7 @@ import {
   shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
+  type HoverPreviewTeardownKind,
 } from '@/utils/hoverPreviewPlayback'
 import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
@@ -292,23 +294,27 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     syncPlaybackTimeFromVideo()
   }
 
+  const applyHoverTeardown = (kind: HoverPreviewTeardownKind) => {
+    const plan = resolveHoverPreviewTeardownPlan(kind)
+    if (plan.bumpToken) previewPlaybackToken += 1
+    if (plan.setPlaybackError) playbackError.value = true
+    if (plan.clearPlaybackError) playbackError.value = false
+    if (plan.zeroPlaybackTime) playbackTime.value = 0
+    if (plan.resetReady) resetHoverPreviewReady()
+    if (plan.clearAllowHoverVideo) allowHoverVideoElement.value = false
+    if (plan.clearSeekCoalescer) hoverSeekCoalescer.clear()
+    if (plan.clearDelayTimer) clearPreviewDelayTimer()
+    if (plan.stopLive) stopPreviewLiveTranscode()
+    if (plan.releaseSession) releaseHoverVideoPreview(toValue(options.mediaId))
+    if (plan.abortVideo) abortVideoPlayback(videoRef.value)
+  }
+
   const yieldHoverVideoDecoder = () => {
-    previewPlaybackToken += 1
-    resetHoverPreviewReady()
-    allowHoverVideoElement.value = false
-    hoverSeekCoalescer.clear()
-    clearPreviewDelayTimer()
-    stopPreviewLiveTranscode()
-    abortVideoPlayback(videoRef.value)
+    applyHoverTeardown('yield-decoder')
   }
 
   const markPreviewUnavailable = () => {
-    playbackError.value = true
-    allowHoverVideoElement.value = false
-    resetHoverPreviewReady()
-    stopPreviewLiveTranscode()
-    abortVideoPlayback(videoRef.value)
-    releaseHoverVideoPreview(toValue(options.mediaId))
+    applyHoverTeardown('unavailable')
   }
 
   const startPreviewPlayback = async () => {
@@ -446,24 +452,12 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const hidePreviewVideoImmediately = () => {
-    previewPlaybackToken += 1
-    resetHoverPreviewReady()
-    allowHoverVideoElement.value = false
-    stopPreviewLiveTranscode()
-    releaseHoverVideoPreview(toValue(options.mediaId))
-    abortVideoPlayback(videoRef.value)
+    applyHoverTeardown('hide-immediate')
   }
 
   /** Video teardown half of stop / removeClasses. */
   const finalizePreviewStop = () => {
-    previewPlaybackToken += 1
-    playbackError.value = false
-    playbackTime.value = 0
-    resetHoverPreviewReady()
-    allowHoverVideoElement.value = false
-    stopPreviewLiveTranscode()
-    releaseHoverVideoPreview(toValue(options.mediaId))
-    abortVideoPlayback(videoRef.value)
+    applyHoverTeardown('finalize-stop')
   }
 
   /**
@@ -471,32 +465,17 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
    * release session. Caller still owns cinema / leave timers.
    */
   const cancelHoverPlayback = () => {
-    previewPlaybackToken += 1
-    resetHoverPreviewReady()
-    allowHoverVideoElement.value = false
-    hoverSeekCoalescer.clear()
-    clearPreviewDelayTimer()
-    stopPreviewLiveTranscode()
-    releaseHoverVideoPreview(toValue(options.mediaId))
-    abortVideoPlayback(videoRef.value)
+    applyHoverTeardown('cancel-hover')
   }
 
   /** Teardown when showVideoPreview becomes inactive. */
   const teardownWhenPreviewHidden = () => {
-    resetHoverPreviewReady()
-    stopPreviewLiveTranscode()
-    releaseHoverVideoPreview(toValue(options.mediaId))
-    abortVideoPlayback(videoRef.value)
+    applyHoverTeardown('preview-hidden')
   }
 
   /** Token bump + video teardown when playbackError flips true (SFC owns cinema / big preview). */
   const invalidateOnPlaybackError = () => {
-    previewPlaybackToken += 1
-    clearPreviewDelayTimer()
-    allowHoverVideoElement.value = false
-    resetHoverPreviewReady()
-    stopPreviewLiveTranscode()
-    abortVideoPlayback(videoRef.value)
+    applyHoverTeardown('playback-error')
   }
 
   return {
