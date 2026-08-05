@@ -5,6 +5,7 @@ import {
   buildSkippedMatchPreparedFace,
   prepareMatchFacesForMedia,
   resolveClusterMatchesForMedia,
+  resolveMatchMediaFacesGate,
   type ClusteredMatchFace,
 } from './faceMediaMatchResolve'
 
@@ -220,5 +221,51 @@ describe('prepareMatchFacesForMedia', () => {
     expect(result.skipped).toBe(1)
     expect(result.prepared[0]).toMatchObject({id: 1, skip: false, candidates: [{tagId: 9}]})
     expect(result.prepared[1].skip).toBe(true)
+  })
+})
+
+describe('resolveMatchMediaFacesGate', () => {
+  it('blocks missing performer meta, empty faces, and empty enrollments', () => {
+    expect(resolveMatchMediaFacesGate({
+      metaId: null,
+      facesCount: 0,
+      enrollmentsCount: 0,
+    })).toEqual({
+      ok: false,
+      result: {
+        matched: 0,
+        applied: 0,
+        skipped: 0,
+        faces: 0,
+        error: 'Performer category is not configured.',
+      },
+    })
+
+    expect(resolveMatchMediaFacesGate({
+      metaId: 1,
+      facesCount: 0,
+      enrollmentsCount: 0,
+    })).toEqual({ok: false, result: {matched: 0, applied: 0, skipped: 0, faces: 0}})
+
+    expect(resolveMatchMediaFacesGate({
+      metaId: 1,
+      facesCount: 4,
+      enrollmentsCount: 0,
+    })).toEqual({
+      ok: false,
+      result: {
+        matched: 0,
+        applied: 0,
+        skipped: 4,
+        faces: 4,
+        error: 'No enrolled performer faces.',
+      },
+    })
+
+    expect(resolveMatchMediaFacesGate({
+      metaId: 1,
+      facesCount: 4,
+      enrollmentsCount: 2,
+    })).toEqual({ok: true})
   })
 })

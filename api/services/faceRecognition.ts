@@ -35,6 +35,7 @@ import {
 import {
   prepareMatchFacesForMedia,
   resolveClusterMatchesForMedia,
+  resolveMatchMediaFacesGate,
 } from './faceMediaMatchResolve'
 import {
   buildClearedFaceMatchUpdate,
@@ -399,20 +400,20 @@ async function matchMediaFaces(
 ) {
   const settings = options.settings || getFaceMatchSettings(db)
   const metaId = settings.performerMetaId
-  if (!metaId) {
-    return {matched: 0, applied: 0, skipped: 0, faces: 0, error: 'Performer category is not configured.'}
-  }
-
   const facesRepo = createFacesRepository(db.drizzle)
-  const faces = facesRepo.findByMediaId(mediaId)
-  if (!faces.length) return {matched: 0, applied: 0, skipped: 0, faces: 0}
+  const faces = metaId ? facesRepo.findByMediaId(mediaId) : []
+  const enrollments = metaId && faces.length
+    ? parseEnrollmentRefs(
+      createFaceEnrollmentsRepository(db.drizzle).findByMetaId(metaId),
+    )
+    : []
 
-  const enrollments = parseEnrollmentRefs(
-    createFaceEnrollmentsRepository(db.drizzle).findByMetaId(metaId),
-  )
-  if (!enrollments.length) {
-    return {matched: 0, applied: 0, skipped: faces.length, faces: faces.length, error: 'No enrolled performer faces.'}
-  }
+  const gate = resolveMatchMediaFacesGate({
+    metaId,
+    facesCount: faces.length,
+    enrollmentsCount: enrollments.length,
+  })
+  if (!gate.ok) return gate.result
 
   await loadEmbedModel(db)
 
@@ -434,7 +435,7 @@ async function matchMediaFaces(
     minConfidence: settings.minConfidence,
     mode: settings.mode,
     mediaId,
-    metaId,
+    metaId: Number(metaId),
   })
 
   for (const {faceId, update} of updates) {

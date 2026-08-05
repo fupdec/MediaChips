@@ -293,6 +293,75 @@ export function resolveHoverPreviewTeardownPlan(
   }
 }
 
+export type HoverPreviewStartGate = 'proceed' | 'unavailable' | 'abort'
+
+export function resolveHoverPreviewStartGate(input: {
+  hasVideo: boolean
+  isPreviewVisible: boolean
+  isFocused: boolean
+  tokenMatches: boolean
+  isHovered: boolean
+  playerBlocksLive: boolean
+}): HoverPreviewStartGate {
+  if (!input.hasVideo || !input.isPreviewVisible || !input.isFocused) {
+    return input.tokenMatches && input.isHovered ? 'unavailable' : 'abort'
+  }
+  if (input.playerBlocksLive) return 'abort'
+  return 'proceed'
+}
+
+export type HoverPreviewUrlReadyGate = 'continue' | 'abort' | 'unavailable'
+
+export function resolveHoverPreviewUrlReadyGate(input: {
+  isHovered: boolean
+  isFocused: boolean
+  hasPreviewUrl: boolean
+}): HoverPreviewUrlReadyGate {
+  if (!input.isHovered || !input.isFocused) return 'abort'
+  if (!input.hasPreviewUrl) return 'unavailable'
+  return 'continue'
+}
+
+export type HoverPreviewAfterMountGate = 'start' | 'teardown-stale' | 'unavailable'
+
+export function resolveHoverPreviewAfterMountGate(input: {
+  isHovered: boolean
+  isFocused: boolean
+  allowHoverVideo: boolean
+  hasVideoEl: boolean
+}): HoverPreviewAfterMountGate {
+  if (!input.isHovered || !input.isFocused || !input.allowHoverVideo) return 'teardown-stale'
+  if (!input.hasVideoEl) return 'unavailable'
+  return 'start'
+}
+
+export type HoverPreviewAfterPositionGate = 'play' | 'unavailable' | 'release' | 'abort'
+
+export function resolveHoverPreviewAfterPositionGate(input: {
+  positioned: boolean
+  tokenMatches: boolean
+  isPreviewVisible: boolean
+  isFocused: boolean
+}): HoverPreviewAfterPositionGate {
+  if (!input.positioned) {
+    return input.tokenMatches ? 'unavailable' : 'abort'
+  }
+  if (!input.tokenMatches || !input.isPreviewVisible || !input.isFocused) {
+    return input.tokenMatches ? 'release' : 'abort'
+  }
+  return 'play'
+}
+
+export type HoverPreviewPlaybackErrorGate = 'release' | 'unavailable'
+
+export function resolveHoverPreviewPlaybackErrorGate(input: {
+  tokenMatches: boolean
+  ignorable: boolean
+}): HoverPreviewPlaybackErrorGate {
+  if (!input.tokenMatches || input.ignorable) return 'release'
+  return 'unavailable'
+}
+
 export type PreviewUrlSeekPlan =
   | {
     kind: 'live'

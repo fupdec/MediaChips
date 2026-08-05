@@ -18,6 +18,11 @@ import {
   resolvePreviewUrlStartSeconds,
   shouldComputeHoverPreviewPointerTime,
   resolveHoverPreviewTeardownPlan,
+  resolveHoverPreviewStartGate,
+  resolveHoverPreviewUrlReadyGate,
+  resolveHoverPreviewAfterMountGate,
+  resolveHoverPreviewAfterPositionGate,
+  resolveHoverPreviewPlaybackErrorGate,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   createHoverSeekCoalescer,
@@ -198,6 +203,79 @@ describe('hoverPreviewPlayback', () => {
       releaseSession: false,
       clearDelayTimer: true,
     })
+  })
+
+  it('gates hover start, mount, position, and playback errors', () => {
+    expect(resolveHoverPreviewStartGate({
+      hasVideo: false,
+      isPreviewVisible: true,
+      isFocused: true,
+      tokenMatches: true,
+      isHovered: true,
+      playerBlocksLive: false,
+    })).toBe('unavailable')
+    expect(resolveHoverPreviewStartGate({
+      hasVideo: true,
+      isPreviewVisible: true,
+      isFocused: true,
+      tokenMatches: true,
+      isHovered: true,
+      playerBlocksLive: true,
+    })).toBe('abort')
+    expect(resolveHoverPreviewStartGate({
+      hasVideo: true,
+      isPreviewVisible: true,
+      isFocused: true,
+      tokenMatches: true,
+      isHovered: true,
+      playerBlocksLive: false,
+    })).toBe('proceed')
+
+    expect(resolveHoverPreviewUrlReadyGate({
+      isHovered: true,
+      isFocused: true,
+      hasPreviewUrl: false,
+    })).toBe('unavailable')
+    expect(resolveHoverPreviewAfterMountGate({
+      isHovered: false,
+      isFocused: true,
+      allowHoverVideo: true,
+      hasVideoEl: true,
+    })).toBe('teardown-stale')
+    expect(resolveHoverPreviewAfterMountGate({
+      isHovered: true,
+      isFocused: true,
+      allowHoverVideo: true,
+      hasVideoEl: true,
+    })).toBe('start')
+
+    expect(resolveHoverPreviewAfterPositionGate({
+      positioned: false,
+      tokenMatches: true,
+      isPreviewVisible: true,
+      isFocused: true,
+    })).toBe('unavailable')
+    expect(resolveHoverPreviewAfterPositionGate({
+      positioned: true,
+      tokenMatches: true,
+      isPreviewVisible: false,
+      isFocused: true,
+    })).toBe('release')
+    expect(resolveHoverPreviewAfterPositionGate({
+      positioned: true,
+      tokenMatches: true,
+      isPreviewVisible: true,
+      isFocused: true,
+    })).toBe('play')
+
+    expect(resolveHoverPreviewPlaybackErrorGate({
+      tokenMatches: true,
+      ignorable: true,
+    })).toBe('release')
+    expect(resolveHoverPreviewPlaybackErrorGate({
+      tokenMatches: true,
+      ignorable: false,
+    })).toBe('unavailable')
   })
 
   it('gates hover-ready marking', () => {

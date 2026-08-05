@@ -157,6 +157,54 @@ export type ClusterMatchResolveResult = {
   matched: number
 }
 
+export type MatchMediaFacesResult = {
+  matched: number
+  applied: number
+  skipped: number
+  faces: number
+  error?: string
+}
+
+export type MatchMediaFacesGate =
+  | {ok: true}
+  | {ok: false; result: MatchMediaFacesResult}
+
+/** Early-exit gates before embedding / prepare for matchMediaFaces. */
+export function resolveMatchMediaFacesGate(input: {
+  metaId: number | null | undefined
+  facesCount: number
+  enrollmentsCount: number
+}): MatchMediaFacesGate {
+  if (!input.metaId) {
+    return {
+      ok: false,
+      result: {
+        matched: 0,
+        applied: 0,
+        skipped: 0,
+        faces: 0,
+        error: 'Performer category is not configured.',
+      },
+    }
+  }
+  if (!input.facesCount) {
+    return {ok: false, result: {matched: 0, applied: 0, skipped: 0, faces: 0}}
+  }
+  if (!input.enrollmentsCount) {
+    return {
+      ok: false,
+      result: {
+        matched: 0,
+        applied: 0,
+        skipped: input.facesCount,
+        faces: input.facesCount,
+        error: 'No enrolled performer faces.',
+      },
+    }
+  }
+  return {ok: true}
+}
+
 /**
  * For each unskipped cluster, pick an enrollment and emit per-member updates + optional tag applies.
  * Persistence stays in the caller.

@@ -21,6 +21,11 @@ import {
   resolveHoverPreviewTargetTime,
   resolveHoverScrubProgressUpdate,
   resolveHoverPreviewTeardownPlan,
+  resolveHoverPreviewStartGate,
+  resolveHoverPreviewUrlReadyGate,
+  resolveHoverPreviewAfterMountGate,
+  resolveHoverPreviewAfterPositionGate,
+  resolveHoverPreviewPlaybackErrorGate,
   resolvePreviewUrlStartSeconds,
   planPreviewUrlSeek,
   shouldApplyPreviewSeek,
@@ -320,13 +325,21 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const startPreviewPlayback = async () => {
     const token = ++previewPlaybackToken
     const video = videoRef.value
-    if (!video || !toValue(options.isPreviewVisible) || !isAppWindowFocused()) {
-      if (token === previewPlaybackToken && toValue(options.isHovered)) {
-        markPreviewUnavailable()
-      }
+    const startGate = resolveHoverPreviewStartGate({
+      hasVideo: Boolean(video),
+      isPreviewVisible: toValue(options.isPreviewVisible),
+      isFocused: isAppWindowFocused(),
+      tokenMatches: token === previewPlaybackToken,
+      isHovered: toValue(options.isHovered),
+      playerBlocksLive: Boolean(
+        playerStore.active && playerStore.liveTranscodeMediaId === toValue(options.mediaId),
+      ),
+    })
+    if (startGate === 'unavailable') {
+      markPreviewUnavailable()
       return
     }
-    if (playerStore.active && playerStore.liveTranscodeMediaId === toValue(options.mediaId)) return
+    if (startGate === 'abort' || !video) return
 
     const mediaId = toValue(options.mediaId)
     claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
@@ -347,28 +360,32 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       const positioned = await syncPreviewVideoPosition(targetTime, {
         allowLiveChunkSwitch: true,
       })
-      if (!positioned) {
-        if (token === previewPlaybackToken) {
-          markPreviewUnavailable()
-        }
+      const afterPosition = resolveHoverPreviewAfterPositionGate({
+        positioned,
+        tokenMatches: token === previewPlaybackToken,
+        isPreviewVisible: toValue(options.isPreviewVisible),
+        isFocused: isAppWindowFocused(),
+      })
+      if (afterPosition === 'unavailable') {
+        markPreviewUnavailable()
         return
       }
-
-      if (
-        token !== previewPlaybackToken ||
-        !toValue(options.isPreviewVisible) ||
-        !isAppWindowFocused()
-      ) {
-        if (token === previewPlaybackToken) releaseHoverVideoPreview(mediaId)
+      if (afterPosition === 'release') {
+        releaseHoverVideoPreview(mediaId)
         return
       }
+      if (afterPosition !== 'play') return
 
       await video.play()
       playbackError.value = false
       syncPlaybackTimeFromVideo()
       markHoverPreviewReady()
     } catch (error) {
-      if (token !== previewPlaybackToken || isIgnorablePreviewError(error)) {
+      const errorGate = resolveHoverPreviewPlaybackErrorGate({
+        tokenMatches: token === previewPlaybackToken,
+        ignorable: isIgnorablePreviewError(error),
+      })
+      if (errorGate === 'release') {
         if (token === previewPlaybackToken) releaseHoverVideoPreview(mediaId)
         return
       }
@@ -394,8 +411,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         mediaId,
         progress.value || 0,
       )
-      if (!toValue(options.isHovered) || !isAppWindowFocused()) return
-      if (!previewUrl) {
+      const urlGate = resolveHoverPreviewUrlReadyGate({
+        isHovered: toValue(options.isHovered),
+        isFocused: isAppWindowFocused(),
+        hasPreviewUrl: Boolean(previewUrl),
+      })
+      if (urlGate === 'abort') return
+      if (urlGate === 'unavailable') {
         markPreviewUnavailable()
         return
       }
@@ -405,18 +427,19 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       allowHoverVideoElement.value = true
       await nextTick()
 
-      if (
-        !toValue(options.isHovered) ||
-        !isAppWindowFocused() ||
-        !allowHoverVideoElement.value
-      ) {
+      const afterMount = resolveHoverPreviewAfterMountGate({
+        isHovered: toValue(options.isHovered),
+        isFocused: isAppWindowFocused(),
+        allowHoverVideo: allowHoverVideoElement.value,
+        hasVideoEl: Boolean(videoRef.value),
+      })
+      if (afterMount === 'teardown-stale') {
         allowHoverVideoElement.value = false
         releaseHoverVideoPreview(mediaId)
         abortVideoPlayback(videoRef.value)
         return
       }
-
-      if (!videoRef.value) {
+      if (afterMount === 'unavailable') {
         markPreviewUnavailable()
         return
       }
