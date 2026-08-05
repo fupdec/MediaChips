@@ -1,5 +1,5 @@
 import type {ApiDb} from '../types/db'
-import {HttpError, apiErrorMessage, sendControllerError} from '../types/errors'
+import {HttpError, apiErrorMessage, sendControllerError, sendCreated, sendOk} from '../types/errors'
 import type {ApiRequest, ApiResponse} from '../types/http'
 import {
   installPluginFromPath,
@@ -22,7 +22,7 @@ export default function createPluginController(_db: ApiDb) {
             }
           })()
         : []
-      res.status(200).send(listInstalledUserPlugins(enabledPlugins))
+      sendOk(res, listInstalledUserPlugins(enabledPlugins))
     } catch (err: unknown) {
       sendControllerError(res, err, 'Failed to list plugins')
     }
@@ -33,7 +33,7 @@ export default function createPluginController(_db: ApiDb) {
       const sourcePath = String(req.body.path || '').trim()
       const entry = await installPluginFromPath(sourcePath)
       remountPluginMainsAfterInstall()
-      res.status(201).send(entry)
+      sendCreated(res, entry)
     } catch (err: unknown) {
       sendControllerError(
         res,
@@ -47,7 +47,7 @@ export default function createPluginController(_db: ApiDb) {
     try {
       const pluginId = String(req.body.id || req.params.id || '').trim()
       await uninstallPlugin(pluginId)
-      res.status(200).send({ok: true})
+      sendOk(res, {ok: true})
     } catch (err: unknown) {
       sendControllerError(
         res,

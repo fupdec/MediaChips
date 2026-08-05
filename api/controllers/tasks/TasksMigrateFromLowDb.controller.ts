@@ -5,7 +5,7 @@ import type {
   OldIdMapping,
 } from '../../types/migration'
 import type { ApiRequest, ApiResponse } from '../../types/http'
-import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import fs from 'fs'
 import fse from 'fs-extra'
 import path from 'path'
@@ -72,7 +72,7 @@ export default function (db: ApiDb) {
     const pathSettings = path.join(pathUserData, 'dbs.json')
     const isSettingsExists = fs.existsSync(pathSettings)
     if (isSettingsExists) {
-      res.sendStatus(201)
+      sendOk(res)
     } else {
       res.sendStatus(400)
     }
@@ -82,7 +82,7 @@ export default function (db: ApiDb) {
     try {
       await rmrf(pathUserData)
       console.log('\x1b[36m%s\x1b[0m', 'Old data was cleared successfully.', 'color: #bada55');
-      res.status(201).send('deleted')
+      sendOk(res, 'deleted')
     } catch (err) {
       console.error(err)
       sendControllerError(
@@ -138,7 +138,7 @@ export default function (db: ApiDb) {
       }
 
       // Keep legacy userfiles until migrateFromLowDb succeeds so a failed restore can be retried.
-      res.status(201).send(backupName)
+      sendOk(res, backupName)
     });
     archive.on("error", (err: unknown) => {
       console.error(err);

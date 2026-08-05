@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { DatabaseSizesResponse } from '@shared/api/responses'
 import fs from 'fs'
@@ -19,7 +19,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     const dbDir = path.join(db.path_databases ?? '', String(req.body.id))
     try {
       await rmrf(dbDir)
-      res.status(201).send('successfully deleted')
+      sendOk(res, 'successfully deleted')
     } catch (err) {
       sendControllerError(
         res,
@@ -56,7 +56,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
         sizes![id] = await getDirectorySize(dbDir)
       }))
       const payload: DatabaseSizesResponse = { sizes }
-      res.status(201).send(payload)
+      sendOk(res, payload)
     } catch (err) {
       sendControllerError(
         res,
@@ -74,7 +74,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     }
 
     const size = await getDirectorySize(dirPath)
-    res.status(201).send({size})
+    sendOk(res, {size})
   }
 
   const clearData = async function (req: ApiRequest, res: ApiResponse) {
@@ -92,7 +92,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       if (imageType === 'faces' && db.sqlite) {
         db.sqlite.prepare('DELETE FROM faces').run()
       }
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err) {
       sendControllerError(
         res,

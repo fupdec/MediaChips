@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, apiErrorMessage, asApiError, sendControllerError } from '../../types/errors'
+import { HttpError, apiErrorMessage, asApiError, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import path from 'path'
 import { exec } from 'child_process'
@@ -69,7 +69,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       }
 
       if (prepared.skip) {
-        return res.sendStatus(201)
+        return sendOk(res)
       }
 
       const diskSpaceError = await checkRenameDiskSpace(prepared)
@@ -84,7 +84,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       }
 
       await moveFile(old_path, new_path)
-      res.sendStatus(201)
+      sendOk(res)
     } catch (error: unknown) {
       const apiErr = asApiError(error)
       console.log('ERROR: ' + apiErr.message)
@@ -119,11 +119,11 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       if (electron?.shell) {
         if (revealInFolder) {
           electron.shell.showItemInFolder(rawPath)
-          return res.sendStatus(201)
+          return sendOk(res)
         }
         const error = await electron.shell.openPath(entryPath)
         if (error) return fail(error)
-        return res.sendStatus(201)
+        return sendOk(res)
       }
     } catch (_) {
       // Non-Electron environment (e.g. standalone API dev server)
@@ -141,7 +141,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
     exec(command, (err: unknown) => {
       if (err) return fail(apiErrorMessage(err))
-      res.sendStatus(201)
+      sendOk(res)
     })
   }
 
@@ -176,7 +176,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
         mediaPath,
         chapters,
       })
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err: unknown) {
       if (err instanceof ExternalPlayerError) {
         sendControllerError(res, new HttpError(400, err.message, {code: err.code}), err.message)
@@ -208,7 +208,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
         extensions,
         expandZips: expandZips && extensions.length > 0,
       })
-      res.status(201).send({ files, skippedZips })
+      sendOk(res, { files, skippedZips })
     } catch (error: unknown) {
       const message = apiErrorMessage(error) || String(error)
       if (message === 'not directory') {
@@ -239,7 +239,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
         })
       }
 
-      res.status(201).send({
+      sendOk(res, {
         message: 'successfully deleted local file',
       })
     } catch (err) {

@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { MetaAssignmentOrderPayload, PinMetaAssignmentPayload } from '@shared/api/payloads'
@@ -18,7 +18,7 @@ export default function (db: ApiDb) {
         mediaTypeId: Number(body.mediaTypeId),
         order: body.order == null ? null : Number(body.order),
       })
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -34,7 +34,7 @@ export default function (db: ApiDb) {
           ? metaInMediaTypesRepo.findByMetaId(metaId)
           : metaInMediaTypesRepo.findAll()
 
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -48,7 +48,7 @@ export default function (db: ApiDb) {
         Number(body.mediaTypeId),
         body.data,
       )
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -60,7 +60,7 @@ export default function (db: ApiDb) {
         parseInt(String(req.query.metaId ?? ''), 10),
         parseInt(String(req.query.mediaTypeId ?? ''), 10),
       )
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

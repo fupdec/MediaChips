@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createFolderPathsRepository } from '../db/repositories/folderPaths'
 import { createTagsInFoldersRepository } from '../db/repositories/tagsInFolders'
@@ -20,7 +20,7 @@ export default function (db: ApiDb) {
         tagId: Number(item.tagId),
         metaId: Number(item.metaId),
       })))
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -33,7 +33,7 @@ export default function (db: ApiDb) {
         tagId: Number(req.body.tagId),
         metaId: Number(req.body.metaId),
       })
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -43,7 +43,7 @@ export default function (db: ApiDb) {
     try {
       const path = String(req.query.path ?? '')
       const data = tagsInFoldersRepo.findAllByPath(path)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -53,7 +53,7 @@ export default function (db: ApiDb) {
     try {
       const paths = Array.isArray(req.body?.paths) ? req.body.paths.map(String) : []
       const data = tagsInFoldersRepo.findAllByPaths(paths)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -62,7 +62,7 @@ export default function (db: ApiDb) {
   const listAll = function (_req: ApiRequest, res: ApiResponse) {
     try {
       const data = tagsInFoldersRepo.findAllWithTags()
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -71,7 +71,7 @@ export default function (db: ApiDb) {
   const clearAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const cleared = tagsInFoldersRepo.clearAllByPath(String(req.body.path ?? ''))
-      res.status(201).send({cleared})
+      sendOk(res, {cleared})
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -80,7 +80,7 @@ export default function (db: ApiDb) {
   const deleteFromFolder = function (req: ApiRequest, res: ApiResponse) {
     try {
       tagsInFoldersRepo.deleteOne(String(req.body.path ?? ''), Number(req.body.tagId))
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -89,7 +89,7 @@ export default function (db: ApiDb) {
   const deleteAllTagsByMetaId = function (req: ApiRequest, res: ApiResponse) {
     try {
       tagsInFoldersRepo.deleteByPathAndMeta(String(req.body.path ?? ''), Number(req.body.metaId))
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -103,7 +103,7 @@ export default function (db: ApiDb) {
         Number(req.body.metaId),
         tagIds,
       )
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -114,7 +114,7 @@ export default function (db: ApiDb) {
       const find = String(req.body.find ?? '')
       const replace = String(req.body.replace ?? '')
       const changed = folderPathsRepo.remapPathFragment(find, replace)
-      res.status(201).send({changed})
+      sendOk(res, {changed})
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

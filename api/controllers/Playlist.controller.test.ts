@@ -94,7 +94,7 @@ describe('Playlist.controller', () => {
 
     controller.findAll(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([
       {id: 1, name: 'A', mediaInPlaylists: [{mediaId: 10}]},
       {id: 2, name: 'B', mediaInPlaylists: []},
@@ -110,7 +110,7 @@ describe('Playlist.controller', () => {
     await controller.findSummary(req, res)
 
     expect(getManualPlaylistsSummary).toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 1, count: 5}])
   })
 
@@ -124,7 +124,7 @@ describe('Playlist.controller', () => {
     controller.update(req, res)
 
     expect(updateById).toHaveBeenCalledWith(4, {name: 'Updated'})
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('deletes a playlist by id', () => {
@@ -134,7 +134,7 @@ describe('Playlist.controller', () => {
     controller.deleteOne(req, res)
 
     expect(deleteById).toHaveBeenCalledWith(9)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('returns 500 when summary lookup fails', async () => {

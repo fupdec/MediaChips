@@ -1,5 +1,5 @@
 import type { ApiDb, AnyRecord } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 import { createFilterRowsRepository } from '../db/repositories/filterRows'
@@ -76,7 +76,7 @@ export default function (db: ApiDb) {
         }
       }
 
-      res.status(201).send(filterRow)
+      sendCreated(res, filterRow)
       invalidateMediaDerivedCaches()
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -86,7 +86,7 @@ export default function (db: ApiDb) {
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = filterRowsRepo.findById(Number(req.params.id)) ?? null
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -96,7 +96,7 @@ export default function (db: ApiDb) {
     try {
       filterRowsRepo.updateById(Number(req.params.id), req.body)
       invalidateMediaDerivedCaches()
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -106,7 +106,7 @@ export default function (db: ApiDb) {
     try {
       filterRowsRepo.deleteById(Number(req.params.id))
       invalidateMediaDerivedCaches()
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

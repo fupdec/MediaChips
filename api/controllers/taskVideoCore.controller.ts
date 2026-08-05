@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { HttpError, apiErrorMessage, sendControllerError } from '../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { runNdjsonAsyncGenerator } from './tasks/ndjsonStreamRunner'
 import fs from 'fs'
@@ -70,8 +70,13 @@ export default function taskVideoCoreController(db: ApiDb) {
         path: resolvedVideoPath,
       })
 
-      if (result.status === 'created' || result.status === 'skipped') {
-        res.status(201).send(result)
+      if (result.status === 'created') {
+        sendCreated(res, result)
+        return
+      }
+
+      if (result.status === 'skipped') {
+        sendOk(res, result)
         return
       }
 
@@ -88,7 +93,7 @@ export default function taskVideoCoreController(db: ApiDb) {
   const imageThumbsGenerationStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const status = await getImageThumbsGenerationStatus(db, getDbPath())
-      res.status(201).send(status)
+      sendOk(res, status)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking image thumbnails generation status.')
     }
@@ -110,7 +115,7 @@ export default function taskVideoCoreController(db: ApiDb) {
   const videoImagesGenerationStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const status = await getVideoImagesGenerationStatus(db, getDbPath())
-      res.status(201).send(status)
+      sendOk(res, status)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking video images generation status.')
     }

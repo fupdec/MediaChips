@@ -46,7 +46,7 @@ describe('createOwnerValuesController', () => {
       listRes,
     )
     expect(repo.findAllByOwner).toHaveBeenCalledWith(9)
-    expect(listRes.statusCode).toBe(201)
+    expect(listRes.statusCode).toBe(200)
 
     const deleteRes = mockRes()
     await controller.deleteAllValuesByTagId(
@@ -54,6 +54,6 @@ describe('createOwnerValuesController', () => {
       deleteRes,
     )
     expect(repo.deleteByOwner).toHaveBeenCalledWith(3)
-    expect(deleteRes.statusCode).toBe(201)
+    expect(deleteRes.statusCode).toBe(200)
   })
 })

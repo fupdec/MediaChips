@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError, paramString } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { MetaAssignmentOrderPayload, PinChildMetaPayload } from '@shared/api/payloads'
@@ -18,7 +18,7 @@ export default function (db: ApiDb) {
         pinnedMetaId: Number(body.pinnedMetaId),
         order: body.order == null ? null : Number(body.order),
       })
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -31,7 +31,7 @@ export default function (db: ApiDb) {
         pinnedMetaId: parseOptionalInt(req.query.pinnedMetaId),
       }
       const data = pinnedMetaRepo.findAll(filters)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -43,7 +43,7 @@ export default function (db: ApiDb) {
       const data = pinnedMetaId == null
         ? []
         : pinnedMetaRepo.findAllByPinnedMetaId(pinnedMetaId)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -57,7 +57,7 @@ export default function (db: ApiDb) {
         Number(body.pinnedMetaId),
         body.data,
       )
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -69,7 +69,7 @@ export default function (db: ApiDb) {
         parseInt(paramString(req.params.id), 10),
         parseInt(String(req.query.metaId ?? ''), 10),
       )
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError, paramString } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { ParsedDynamicPlaylistSummary } from '@shared/schemas/filters'
 
@@ -14,7 +14,7 @@ export default function (db: ApiDb) {
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = playlistsRepo.create(req.body)
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -28,7 +28,7 @@ export default function (db: ApiDb) {
         ...playlist,
         mediaInPlaylists: grouped.get(playlist.id) ?? [],
       }))
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -37,7 +37,7 @@ export default function (db: ApiDb) {
   const findSummary = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data: ParsedDynamicPlaylistSummary[] = await getManualPlaylistsSummary(db)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving playlists.')
     }
@@ -46,7 +46,7 @@ export default function (db: ApiDb) {
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
       playlistsRepo.updateById(parseInt(paramString(req.params.id), 10), req.body)
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -55,7 +55,7 @@ export default function (db: ApiDb) {
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       playlistsRepo.deleteById(parseInt(paramString(req.params.id), 10))
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

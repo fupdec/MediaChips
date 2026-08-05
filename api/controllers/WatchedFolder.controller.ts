@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 import { createWatchedFoldersRepository } from '../db/repositories/watchedFolders'
@@ -17,7 +17,7 @@ export default function (db: ApiDb) {
         folder,
         Array.isArray(types) ? types.map((type: unknown) => Number(type)) : [],
       )
-      res.sendStatus(201)
+      sendCreated(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -26,7 +26,7 @@ export default function (db: ApiDb) {
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
       watchedFoldersRepo.updateById(Number(req.params.id), req.body)
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -35,7 +35,7 @@ export default function (db: ApiDb) {
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       watchedFoldersRepo.deleteById(Number(req.params.id))
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

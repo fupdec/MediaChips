@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -28,7 +28,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
     const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
     createThumbMiddle(req.body.path, req.body.id, seekRatio)
       .then((result: string) => {
-        res.status(201).send(result)
+        sendOk(res, result)
       })
       .catch((e: unknown) => {
         sendControllerError(
@@ -76,7 +76,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         req.body.width,
       )
-      res.status(201).send(thumbResult)
+      sendOk(res, thumbResult)
     } catch (e) {
       sendControllerError(
         res,
@@ -117,7 +117,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         const result = await generateVideoGrid(req.body, dbPath ?? '')
         if (result) {
           await ensureVisualHash(true)
-          res.status(201).send(result)
+          sendOk(res, result)
         } else {
           res.status(400).send({
             message: 'Unable to probe video duration',
@@ -180,7 +180,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         sizes,
       })
-      res.status(201).send({outputPath: result})
+      sendOk(res, {outputPath: result})
     } catch (e) {
       console.log(e)
       const message = e instanceof Error
@@ -239,7 +239,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         VIDEO_MARK_HEIGHT,
         VIDEO_MARK_JPEG_QUALITY,
       )
-      res.status(201).send('success')
+      sendOk(res, 'success')
     } catch (e) {
       sendControllerError(
         res,

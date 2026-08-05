@@ -115,7 +115,7 @@ describe('Task.controller', () => {
 
     await controller.contentHashBackfillStatus(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({pending: 2, total: 5})
   })
 })

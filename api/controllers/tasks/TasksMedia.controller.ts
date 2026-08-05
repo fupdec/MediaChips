@@ -1,6 +1,6 @@
 import type { TaskControllerShared, FfprobeInfo } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
-import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError, sendCreated, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { MediaPathFile } from '@shared/api/responses'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -355,7 +355,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const sendAddMediaResponse = (res: ApiResponse, result: AnyRecord) => {
     const {media, isCreated, duplicate} = result
     if (isCreated) {
-      res.status(201).send(media)
+      sendCreated(res, media)
       return
     }
 
@@ -419,7 +419,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         }
       }
 
-      res.status(201).send('success')
+      sendOk(res, 'success')
     } catch (error) {
       sendControllerError(
         res,
@@ -432,7 +432,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const searchMediaByPath = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = mediaRepo.searchByPathLike(String(req.body.query || ''))
-      res.status(201).send(data as unknown as MediaPathFile[])
+      sendOk(res, data as unknown as MediaPathFile[])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -471,7 +471,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       }
 
       invalidateMediaDerivedCaches()
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while updating media paths.')
     }
@@ -498,7 +498,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         }
       })
 
-      res.status(201).send(parsed)
+      sendOk(res, parsed)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }

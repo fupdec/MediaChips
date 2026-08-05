@@ -1,5 +1,5 @@
 import type { Express } from 'express'
-import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { BackupEntry } from '@shared/api/responses'
 import type { ApiDb } from '../../types/db'
@@ -43,7 +43,7 @@ export default function (app: Express, db: ApiDb) {
     const outputPath = path.join(getBackupsPath(), backupName + '.zip')
     const output = fs.createWriteStream(outputPath)
     output.on('close', function () {
-      res.sendStatus(201)
+      sendOk(res)
     })
     archive.on('error', function () {
       res.sendStatus(500)
@@ -62,7 +62,7 @@ export default function (app: Express, db: ApiDb) {
     const backups: BackupEntry[] = []
     const backupsPath = getBackupsPath()
     if (!fs.existsSync(backupsPath)) {
-      res.status(201).send(backups)
+      sendOk(res, backups)
       return
     }
     fs.readdirSync(backupsPath).forEach((file) => {
@@ -76,7 +76,7 @@ export default function (app: Express, db: ApiDb) {
       }
       backups.push(info)
     })
-    res.status(201).send(backups)
+    sendOk(res, backups)
   };
 
   const deleteBackup = function (req: ApiRequest, res: ApiResponse) {
@@ -84,7 +84,7 @@ export default function (app: Express, db: ApiDb) {
     fs.unlink(backupPath, (err: unknown) => {
       if (err) {
         sendControllerError(res, err, 'Failed to delete backup')
-      } else res.sendStatus(201)
+      } else sendOk(res)
     })
   }
 
@@ -124,7 +124,7 @@ export default function (app: Express, db: ApiDb) {
         const tasksLowDb = createTasksMigrateFromLowDbController(db)
         await tasksLowDb.migrateFromLowDb(backupPath)
         await getDatabaseManager().reloadCurrentDatabase()
-        res.sendStatus(201)
+        sendOk(res)
         return
       }
 
@@ -140,7 +140,7 @@ export default function (app: Express, db: ApiDb) {
       await zip.close()
 
       await getDatabaseManager().reloadCurrentDatabase()
-      res.sendStatus(201)
+      sendOk(res)
     } catch (e: unknown) {
       console.error('restoreBackup failed:', e)
       try {
@@ -171,7 +171,7 @@ export default function (app: Express, db: ApiDb) {
       const archive = path.basename(fromPath)
       const toPath = path.join(getBackupsPath(), archive)
       fse.copySync(fromPath, toPath, {overwrite: false})
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err) {
       sendControllerError(
         res,
@@ -196,7 +196,7 @@ export default function (app: Express, db: ApiDb) {
       }
 
       await fse.copy(fromPath, toPath, { overwrite: true })
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err) {
       sendControllerError(
         res,

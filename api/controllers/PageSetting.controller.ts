@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 import { createPageSettingsRepository } from '../db/repositories/pageSettings'
@@ -9,7 +9,7 @@ export default function (db: ApiDb) {
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = pageSettingsRepo.findOrCreate(req.body)
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -21,7 +21,7 @@ export default function (db: ApiDb) {
         metaId: req.query.metaId || null,
         mediaTypeId: req.query.mediaTypeId || null,
       }) ?? null
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -30,7 +30,7 @@ export default function (db: ApiDb) {
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
       pageSettingsRepo.update(req.body.query, req.body.data)
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }

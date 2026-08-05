@@ -1,6 +1,6 @@
 import type { TagLike, AnyRecord, MetaLike } from '../../types/db'
 import type { TaskControllerShared, TagSuggestionItem } from '../../types/tasks'
-import { apiErrorMessage, sendControllerError } from '../../types/errors'
+import { apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import {
   runNdjsonAsyncGenerator,
   setNdjsonStreamHeaders,
@@ -49,7 +49,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
         excludeExisting: req.body?.excludeExisting,
       })
 
-      res.status(201).send({
+      sendOk(res, {
         words: suggestions.map((i: TagSuggestionItem) => [i.word, Math.round(Number(i.occurrences || 0))]),
         suggestions,
       })
@@ -86,7 +86,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
         excludeExisting: req.body?.excludeExisting,
       })
 
-      res.status(201).send({
+      sendOk(res, {
         words: result.suggestions.map((i: TagSuggestionItem) => [i.word, i.occurrences]),
         suggestions: result.suggestions,
         frames: result.frames,
@@ -246,7 +246,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
         }
       }
 
-      res.status(201).send([...merged.values()])
+      sendOk(res, [...merged.values()])
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while parsing tags.")
     }
@@ -255,7 +255,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
   const parserStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const settings = await getParserSettings()
-      res.status(201).send(getEmbeddingModel().getStatus(db, settings.useML))
+      sendOk(res, getEmbeddingModel().getStatus(db, settings.useML))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while checking parser status.")
     }
@@ -264,7 +264,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
   const downloadParserModel = async (req: ApiRequest, res: ApiResponse) => {
     try {
       await getEmbeddingModel().loadModel(db)
-      res.status(201).send(getEmbeddingModel().getStatus(db, true))
+      sendOk(res, getEmbeddingModel().getStatus(db, true))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while downloading parser model.")
     }
@@ -272,7 +272,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
 
   const clipModelStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(201).send(getVideoClipTagger().getStatus(db))
+      sendOk(res, getVideoClipTagger().getStatus(db))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while checking CLIP model status.")
     }
@@ -281,7 +281,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
   const downloadClipModel = async (req: ApiRequest, res: ApiResponse) => {
     try {
       await getVideoClipTagger().loadModel(db)
-      res.status(201).send(getVideoClipTagger().getStatus(db))
+      sendOk(res, getVideoClipTagger().getStatus(db))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while downloading CLIP model.")
     }
@@ -289,7 +289,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
 
   const parseLibraryTagsStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(201).send(getParseLibraryTagsStatus(db))
+      sendOk(res, getParseLibraryTagsStatus(db))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while checking parse library tags status.")
     }
@@ -312,7 +312,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
     try {
       const assignments = Array.isArray(req.body?.assignments) ? req.body.assignments : []
       const result = applyParseLibraryTags(db, assignments)
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while applying parsed library tags.")
     }

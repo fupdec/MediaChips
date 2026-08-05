@@ -55,7 +55,7 @@ describe('VideoMetadata.controller', () => {
     controller.findOne(req, res)
 
     expect(findByMediaId).toHaveBeenCalledWith(12)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({mediaId: 12, duration: 120})
   })
 
@@ -67,7 +67,7 @@ describe('VideoMetadata.controller', () => {
 
     controller.findOne(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toBeNull()
   })
 
@@ -85,7 +85,7 @@ describe('VideoMetadata.controller', () => {
       width: 1920,
       height: 1080,
     })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('returns 500 when lookup fails', () => {

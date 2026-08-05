@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 const QUERY_ERROR = 'Some error occurred while performing query.'
@@ -27,7 +27,7 @@ export function createOwnerTagsController(options: OwnerTagsControllerOptions) {
     const bulkCreate = function (req: ApiRequest, res: ApiResponse) {
       try {
         const data = repo.bulkCreate(req.body)
-        res.status(201).send(data)
+        sendCreated(res, data)
       } catch (err: unknown) {
         sendControllerError(res, err, QUERY_ERROR)
       }
@@ -36,7 +36,7 @@ export function createOwnerTagsController(options: OwnerTagsControllerOptions) {
     const create = function (req: ApiRequest, res: ApiResponse) {
       try {
         const data = repo.findOrCreate(req.body)
-        res.status(201).send(data)
+        sendCreated(res, data)
       } catch (err: unknown) {
         sendControllerError(res, err, QUERY_ERROR)
       }
@@ -45,7 +45,7 @@ export function createOwnerTagsController(options: OwnerTagsControllerOptions) {
     const findAll = function (req: ApiRequest, res: ApiResponse) {
       try {
         const data = repo.findAllByOwner(Number(req.query[options.ownerQueryKey]))
-        res.status(201).send(data)
+        sendOk(res, data)
       } catch (err: unknown) {
         sendControllerError(res, err, QUERY_ERROR)
       }
@@ -54,7 +54,7 @@ export function createOwnerTagsController(options: OwnerTagsControllerOptions) {
     const deleteOne = function (req: ApiRequest, res: ApiResponse) {
       try {
         repo.deleteByOwner(Number(req.params.id))
-        res.sendStatus(201)
+        sendOk(res)
       } catch (err: unknown) {
         sendControllerError(res, err, QUERY_ERROR)
       }
@@ -66,7 +66,7 @@ export function createOwnerTagsController(options: OwnerTagsControllerOptions) {
           Number(req.body[options.deleteOwnerBodyKey]),
           Number(req.body.tagId),
         )
-        res.sendStatus(201)
+        sendOk(res)
       } catch (err: unknown) {
         sendControllerError(res, err, QUERY_ERROR)
       }
@@ -75,7 +75,7 @@ export function createOwnerTagsController(options: OwnerTagsControllerOptions) {
     const deleteAllTagsByMetaId = function (req: ApiRequest, res: ApiResponse) {
       try {
         repo.deleteByOwnerAndMeta(Number(req.body.itemId), Number(req.body.metaId))
-        res.sendStatus(201)
+        sendOk(res)
       } catch (err: unknown) {
         sendControllerError(res, err, QUERY_ERROR)
       }
