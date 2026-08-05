@@ -50,6 +50,49 @@ import {
   PathPayloadSchema,
 } from '@shared/schemas/requests'
 import { validated, validateRequest } from './validate'
+import {ApiHttpError, fetchApiJson, postApiNdjsonStream} from '../ndjsonStream'
+
+export type VideoImagesGenerationStatus = Record<'preview' | 'grid' | 'marks', {
+  total?: number
+  pending?: number
+  generated?: number
+}>
+
+export type ImageThumbsGenerationStatus = {
+  total?: number
+  pending?: number
+  generated?: number
+}
+
+export type TagImageAiUpscaleStatus = {
+  done?: boolean
+  pendingCount?: number
+  byType?: Record<string, number>
+  downloadSizeMb?: number
+  suggested?: boolean
+}
+
+export type GenerationStreamEvent = {
+  type: string
+  processed?: number
+  total?: number
+  created?: number
+  skipped?: number
+  missing?: number
+  failed?: number
+  upscaled?: number
+  current?: string
+  path?: string
+  message?: string
+  stopped?: boolean
+  downloadSizeMb?: number
+  orphansDeleted?: number
+  foldersRemoved?: number
+  foldersCreated?: number
+  imagesResized?: number
+}
+
+export {ApiHttpError}
 
 export const tasksApi = {
   checkFileExists(path: string) {
@@ -357,6 +400,63 @@ export const tasksApi = {
 
   enrollTagFaces(body: {tagId: number; force?: boolean}) {
     return apiClient.post(API_ROUTES.taskEnrollTagFaces, body)
+  },
+
+  getVideoImagesGenerationStatus() {
+    return fetchApiJson<VideoImagesGenerationStatus>(API_ROUTES.taskVideoImagesGenerationStatus)
+  },
+
+  streamVideoImagesGeneration(
+    options: {type: 'preview' | 'grid' | 'marks'; force?: boolean; signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamVideoImagesGeneration,
+      {
+        signal: options.signal,
+        query: {type: options.type, force: options.force === true},
+        errorMessage: 'Video images generation request failed',
+      },
+      onEvent,
+    )
+  },
+
+  getImageThumbsGenerationStatus() {
+    return fetchApiJson<ImageThumbsGenerationStatus>(API_ROUTES.taskImageThumbsGenerationStatus)
+  },
+
+  streamImageThumbsGeneration(
+    options: {force?: boolean; signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamImageThumbsGeneration,
+      {
+        signal: options.signal,
+        query: {force: options.force === true},
+        errorMessage: 'Image thumbnails generation request failed',
+      },
+      onEvent,
+    )
+  },
+
+  getTagImageAiUpscaleStatus() {
+    return fetchApiJson<TagImageAiUpscaleStatus>(API_ROUTES.taskTagImageAiUpscaleStatus)
+  },
+
+  streamTagImageAiUpscale(
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamTagImageAiUpscale,
+      {
+        signal: options.signal,
+        ignoreMalformed: true,
+        errorMessage: 'Tag image AI upscale request failed',
+      },
+      onEvent,
+    )
   },
 
   createTab(body: TabCreatePayload) {

@@ -1,6 +1,9 @@
-import {buildApiUrl} from '@/services/apiClient'
-import {getAuthToken} from '@/services/authSession'
 import {API_ROUTES} from '@shared/api/routes'
+import {
+  fetchApiJson,
+  postApiNdjsonStream,
+  readNdjsonStream,
+} from '@/services/ndjsonStream'
 
 export type LocalAiStatus = {
   status: string
@@ -33,83 +36,35 @@ export type LocalAiStreamEvent = {
   ok?: boolean
 }
 
-function buildRequestHeaders(withJson = false) {
-  const token = getAuthToken()
-  return {
-    ...(withJson ? {'Content-Type': 'application/json'} : {}),
-    ...(token ? {Authorization: `Bearer ${token}`} : {}),
-  }
-}
-
-export async function readLocalAiNdjsonStream(
-  body: ReadableStream<Uint8Array>,
-  onEvent: (event: LocalAiStreamEvent) => void,
-) {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const {value, done} = await reader.read()
-    if (done) break
-
-    buffer += decoder.decode(value, {stream: true})
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-
-    for (const line of lines) {
-      if (!line.trim()) continue
-      onEvent(JSON.parse(line) as LocalAiStreamEvent)
-    }
-  }
-
-  if (buffer.trim()) {
-    onEvent(JSON.parse(buffer) as LocalAiStreamEvent)
-  }
-}
+export {readNdjsonStream as readLocalAiNdjsonStream}
 
 export async function fetchLocalAiStatus(): Promise<LocalAiStatus> {
-  const response = await fetch(buildApiUrl(API_ROUTES.taskLocalAiStatus), {
-    headers: buildRequestHeaders(),
-  })
-  if (!response.ok) throw new Error(response.statusText || 'Local AI status failed')
-  return response.json()
+  return fetchApiJson<LocalAiStatus>(API_ROUTES.taskLocalAiStatus)
 }
 
 export async function setLocalAiEnabled(enabled: boolean): Promise<LocalAiStatus> {
-  const response = await fetch(buildApiUrl(API_ROUTES.taskSetLocalAiEnabled), {
+  return fetchApiJson<LocalAiStatus>(API_ROUTES.taskSetLocalAiEnabled, {
     method: 'POST',
-    headers: buildRequestHeaders(true),
-    body: JSON.stringify({enabled}),
+    body: {enabled},
   })
-  if (!response.ok) throw new Error(response.statusText || 'Failed to update Local AI')
-  return response.json()
 }
 
 export async function deleteLocalAiModel(): Promise<{deleted: boolean; status: LocalAiStatus}> {
-  const response = await fetch(buildApiUrl(API_ROUTES.taskDeleteLocalAi), {
+  return fetchApiJson(API_ROUTES.taskDeleteLocalAi, {
     method: 'POST',
-    headers: buildRequestHeaders(true),
-    body: JSON.stringify({}),
+    body: {},
   })
-  if (!response.ok) throw new Error(response.statusText || 'Failed to delete Local AI model')
-  return response.json()
 }
 
 export async function streamLocalAiDownload(
   signal: AbortSignal,
   onEvent: (event: LocalAiStreamEvent) => void,
 ) {
-  const response = await fetch(buildApiUrl(API_ROUTES.taskStreamDownloadLocalAi), {
-    method: 'POST',
-    headers: buildRequestHeaders(true),
-    signal,
-    body: JSON.stringify({}),
-  })
-  if (!response.ok || !response.body) {
-    throw new Error(response.statusText || 'Local AI download failed')
-  }
-  await readLocalAiNdjsonStream(response.body, onEvent)
+  await postApiNdjsonStream(
+    API_ROUTES.taskStreamDownloadLocalAi,
+    {signal, errorMessage: 'Local AI download failed'},
+    onEvent,
+  )
 }
 
 export async function streamLocalAiChat(
@@ -125,14 +80,9 @@ export async function streamLocalAiChat(
   signal: AbortSignal,
   onEvent: (event: LocalAiStreamEvent) => void,
 ) {
-  const response = await fetch(buildApiUrl(API_ROUTES.taskStreamLocalAiChat), {
-    method: 'POST',
-    headers: buildRequestHeaders(true),
-    signal,
-    body: JSON.stringify(body),
-  })
-  if (!response.ok || !response.body) {
-    throw new Error(response.statusText || 'Local AI chat failed')
-  }
-  await readLocalAiNdjsonStream(response.body, onEvent)
+  await postApiNdjsonStream(
+    API_ROUTES.taskStreamLocalAiChat,
+    {body, signal, errorMessage: 'Local AI chat failed'},
+    onEvent,
+  )
 }

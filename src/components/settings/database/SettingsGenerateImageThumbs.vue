@@ -110,20 +110,12 @@
 import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
-import {buildApiUrl} from '@/services/apiClient'
-import {getAuthToken} from '@/services/authSession'
+import {typedApi} from '@/services/typedApi'
+import {ApiHttpError} from '@/services/ndjsonStream'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 
 const {t} = useI18n()
 const tasksStore = useTasksStore()
-
-const buildRequestHeaders = (withJson = false) => {
-  const token = getAuthToken()
-  return {
-    ...(withJson ? {'Content-Type': 'application/json'} : {}),
-    ...(token ? {Authorization: `Bearer ${token}`} : {}),
-  }
-}
 
 const emptyStatus = {total: 0, pending: 0, generated: 0}
 
@@ -152,22 +144,15 @@ const fetchStatus = async () => {
   statusError.value = ''
 
   try {
-    const response = await fetch(
-      buildApiUrl('/api/Task/imageThumbsGenerationStatus'),
-      {headers: buildRequestHeaders()},
-    )
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(t('settings_labels.database.generate_image_thumbs_api_unavailable'))
-      }
-      throw new Error(response.statusText || 'Failed to load image thumbnails generation status')
-    }
-
-    status.value = await response.json()
+    const data = await typedApi.getImageThumbsGenerationStatus()
+    status.value = {...emptyStatus, ...data}
     statusLoaded.value = true
   } catch (error) {
-    statusError.value = error.message
+    if (error instanceof ApiHttpError && error.status === 404) {
+      statusError.value = t('settings_labels.database.generate_image_thumbs_api_unavailable')
+    } else {
+      statusError.value = error.message
+    }
     throw error
   } finally {
     statusLoading.value = false
@@ -216,24 +201,6 @@ const startGeneration = async (force = false) => {
   })
 
   try {
-    const response = await fetch(
-      buildApiUrl(`/api/Task/streamImageThumbsGeneration?force=${force ? 'true' : 'false'}`),
-      {
-        method: 'POST',
-        headers: buildRequestHeaders(true),
-        signal: abortController.signal,
-        body: JSON.stringify({}),
-      },
-    )
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Image thumbnails generation request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
     const handleEvent = (event) => {
       if (event.type === 'progress') {
         counters.value = {
@@ -291,23 +258,10 @@ const startGeneration = async (force = false) => {
       }
     }
 
-    while (true) {
-      const {value, done} = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        handleEvent(JSON.parse(line))
-      }
-    }
-
-    if (buffer.trim()) {
-      handleEvent(JSON.parse(buffer))
-    }
+    await typedApi.streamImageThumbsGeneration(
+      {force, signal: abortController.signal},
+      handleEvent,
+    )
 
     await fetchStatus()
   } catch (error) {

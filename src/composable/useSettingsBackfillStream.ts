@@ -1,8 +1,8 @@
-import {ref, computed, type Ref} from 'vue'
+import {ref, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
+import {fetchApiJson, postApiNdjsonStream} from '@/services/ndjsonStream'
 
 export type SettingsBackfillMode = 'hash' | 'codec'
 
@@ -146,36 +146,10 @@ function formatComplete(
   return t(dbKey(config, '_complete'), params)
 }
 
-export async function readNdjsonStream(
-  body: ReadableStream<Uint8Array>,
-  onEvent: (event: BackfillEvent) => void,
-) {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const {value, done} = await reader.read()
-    if (done) break
-
-    buffer += decoder.decode(value, {stream: true})
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-
-    for (const line of lines) {
-      if (!line.trim()) continue
-      onEvent(JSON.parse(line) as BackfillEvent)
-    }
-  }
-
-  if (buffer.trim()) {
-    onEvent(JSON.parse(buffer) as BackfillEvent)
-  }
-}
+export {readNdjsonStream} from '@/services/ndjsonStream'
 
 export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
   const {t} = useI18n()
-  const appStore = useAppStore()
   const tasksStore = useTasksStore()
 
   const status = ref<BackfillStatus>({total: 0, pending: 0, done: 0})
@@ -240,16 +214,12 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
   })
 
   async function fetchStatus() {
-    const response = await fetch(`${appStore.localhost}${config.statusPath}`)
-    if (!response.ok) {
-      throw new Error(response.statusText || `Failed to load ${config.i18nKey} status`)
-    }
-    const data = await response.json() as {
+    const data = await fetchApiJson<{
       total?: number
       pending?: number
       hashed?: number
       filled?: number
-    }
+    }>(config.statusPath)
     status.value = {
       total: data.total || 0,
       pending: data.pending || 0,
@@ -306,20 +276,6 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
     const currentTaskId = taskId
 
     try {
-      const response = await fetch(
-        `${appStore.localhost}${config.streamPath}?force=${force ? 'true' : 'false'}`,
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          signal: abortController.signal,
-          body: JSON.stringify({}),
-        },
-      )
-
-      if (!response.ok || !response.body) {
-        throw new Error(response.statusText || `${config.i18nKey} request failed`)
-      }
-
       const handleEvent = (event: BackfillEvent) => {
         if (event.type === 'progress') {
           counters.value = {
@@ -378,7 +334,15 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
         }
       }
 
-      await readNdjsonStream(response.body, handleEvent)
+      await postApiNdjsonStream(
+        config.streamPath,
+        {
+          signal: abortController.signal,
+          query: {force: force === true},
+          errorMessage: `${config.i18nKey} request failed`,
+        },
+        handleEvent,
+      )
       await fetchStatus()
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))

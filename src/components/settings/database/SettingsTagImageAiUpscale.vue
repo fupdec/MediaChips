@@ -111,8 +111,8 @@
 import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
-import {buildApiUrl} from '@/services/apiClient'
-import {getAuthToken} from '@/services/authSession'
+import {typedApi} from '@/services/typedApi'
+import {ApiHttpError} from '@/services/ndjsonStream'
 import {setNotification} from '@/services/notificationService'
 import {getReadableDuration} from '@/services/formatUtils'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
@@ -121,14 +121,6 @@ import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 
 const {t} = useI18n()
 const tasksStore = useTasksStore()
-
-const buildRequestHeaders = (withJson = false) => {
-  const token = getAuthToken()
-  return {
-    ...(withJson ? {'Content-Type': 'application/json'} : {}),
-    ...(token ? {Authorization: `Bearer ${token}`} : {}),
-  }
-}
 
 /** Hidden until status says the one-time upgrade is still needed. */
 const visible = ref(false)
@@ -209,24 +201,23 @@ const fetchStatus = async () => {
   statusError.value = ''
 
   try {
-    const response = await fetch(
-      buildApiUrl('/api/Task/tagImageAiUpscaleStatus'),
-      {headers: buildRequestHeaders()},
-    )
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(t('settings_labels.database.tag_image_ai_upscale_api_unavailable'))
-      }
-      throw new Error(response.statusText || 'Failed to load tag image AI upscale status')
+    status.value = {
+      done: false,
+      pendingCount: 0,
+      byType: {},
+      downloadSizeMb: 50,
+      suggested: false,
+      ...(await typedApi.getTagImageAiUpscaleStatus()),
     }
-
-    status.value = await response.json()
     statusLoaded.value = true
     visible.value = !status.value.done
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    statusError.value = err.message
+    if (error instanceof ApiHttpError && error.status === 404) {
+      statusError.value = t('settings_labels.database.tag_image_ai_upscale_api_unavailable')
+    } else {
+      statusError.value = err.message
+    }
     // Keep a visible error card only if upgrade might still be relevant.
     if (!status.value.done) {
       visible.value = true
@@ -285,41 +276,9 @@ const startUpscale = async () => {
   let finishedWithDone = false
 
   try {
-    const response = await fetch(
-      buildApiUrl('/api/Task/streamTagImageAiUpscale'),
-      {
-        method: 'POST',
-        headers: buildRequestHeaders(true),
-        signal: abortController.signal,
-        body: JSON.stringify({}),
-      },
-    )
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Tag image AI upscale request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const {done, value} = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        let event
-        try {
-          event = JSON.parse(line)
-        } catch {
-          continue
-        }
-
+    await typedApi.streamTagImageAiUpscale(
+      {signal: abortController.signal},
+      (event) => {
         if (event.type === 'downloading') {
           phaseLabel.value = t('settings_labels.database.tag_image_ai_upscale_downloading', {
             size: event.downloadSizeMb || status.value.downloadSizeMb || 50,
@@ -392,8 +351,8 @@ const startUpscale = async () => {
         if (event.type === 'aborted') {
           phaseLabel.value = t('common.stop')
         }
-      }
-    }
+      },
+    )
 
     if (!finishedWithDone) {
       await refreshStatus()

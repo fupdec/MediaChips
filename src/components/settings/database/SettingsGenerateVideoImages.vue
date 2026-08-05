@@ -124,8 +124,8 @@
 import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
-import {buildApiUrl} from '@/services/apiClient'
-import {getAuthToken} from '@/services/authSession'
+import {typedApi} from '@/services/typedApi'
+import {ApiHttpError} from '@/services/ndjsonStream'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
 
@@ -175,14 +175,6 @@ interface GenerationEvent {
 const {t} = useI18n()
 const tasksStore = useTasksStore()
 
-const buildRequestHeaders = (withJson = false): Record<string, string> => {
-  const token = getAuthToken()
-  return {
-    ...(withJson ? {'Content-Type': 'application/json'} : {}),
-    ...(token ? {Authorization: `Bearer ${token}`} : {}),
-  }
-}
-
 const imageTypes: ImageTypeConfig[] = [
   {id: 'preview', titleKey: 'settings_labels.database.generate_video_images_preview'},
   {id: 'grid', titleKey: 'settings_labels.database.generate_video_images_grid'},
@@ -226,23 +218,20 @@ const fetchStatus = async () => {
   statusError.value = ''
 
   try {
-    const response = await fetch(
-      buildApiUrl('/api/Task/videoImagesGenerationStatus'),
-      {headers: buildRequestHeaders()},
-    )
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(t('settings_labels.database.generate_video_images_api_unavailable'))
-      }
-      throw new Error(response.statusText || 'Failed to load video images generation status')
+    const data = await typedApi.getVideoImagesGenerationStatus()
+    status.value = {
+      preview: {...emptyStatus, ...(data.preview || {})},
+      grid: {...emptyStatus, ...(data.grid || {})},
+      marks: {...emptyStatus, ...(data.marks || {})},
     }
-
-    status.value = await response.json() as Record<ImageTypeId, ImageTypeStatus>
     statusLoaded.value = true
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    statusError.value = err.message
+    if (error instanceof ApiHttpError && error.status === 404) {
+      statusError.value = t('settings_labels.database.generate_video_images_api_unavailable')
+    } else {
+      statusError.value = err.message
+    }
     throw err
   } finally {
     statusLoading.value = false
@@ -296,24 +285,6 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
   const currentTaskId = taskId
 
   try {
-    const response = await fetch(
-      buildApiUrl(`/api/Task/streamVideoImagesGeneration?type=${imageType}&force=${force ? 'true' : 'false'}`),
-      {
-        method: 'POST',
-        headers: buildRequestHeaders(true),
-        signal: abortController.signal,
-        body: JSON.stringify({}),
-      },
-    )
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Video images generation request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
     const handleEvent = (event: GenerationEvent) => {
       if (event.type === 'progress') {
         counters.value = {
@@ -381,23 +352,10 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
       }
     }
 
-    while (true) {
-      const {value, done} = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        handleEvent(JSON.parse(line))
-      }
-    }
-
-    if (buffer.trim()) {
-      handleEvent(JSON.parse(buffer))
-    }
+    await typedApi.streamVideoImagesGeneration(
+      {type: imageType, force, signal: abortController.signal},
+      handleEvent,
+    )
 
     await fetchStatus()
   } catch (error) {
