@@ -53,6 +53,16 @@ import {
   type MediaTagApply,
 } from './faceMatchApply'
 import {
+  groupFacesByClusterId,
+  mapEnrollmentCandidateWithTag,
+  pickPrimaryTagId,
+  stripEmbeddingsFromFaces,
+} from './faceListPresentation'
+import {
+  packInterleavedRgbToNchw,
+  rgbaBitmapToInterleavedRgb,
+} from './faceTensorPrep'
+import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -251,13 +261,13 @@ function getFaceMatchSettings(db: ApiDb): FaceMatchSettings {
 
 function rgbToEmbedTensor(rgb: Uint8Array, width: number, height: number) {
   const ort = getOrt()
-  const floatData = new Float32Array(1 * 3 * width * height)
-  const plane = width * height
-  for (let i = 0; i < plane; i++) {
-    floatData[i] = (rgb[i * 3] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
-    floatData[plane + i] = (rgb[i * 3 + 1] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
-    floatData[2 * plane + i] = (rgb[i * 3 + 2] - EMBED_INPUT_MEAN) / EMBED_INPUT_STD
-  }
+  const floatData = packInterleavedRgbToNchw(
+    rgb,
+    width,
+    height,
+    EMBED_INPUT_MEAN,
+    EMBED_INPUT_STD,
+  )
   return new ort.Tensor('float32', floatData, [1, 3, height, width])
 }
 
@@ -265,13 +275,7 @@ async function imageToEmbedTensorLetterbox(imagePath: string) {
   const image = await Jimp.read(imagePath)
   // Letterbox fallback when landmarks are unavailable.
   const resized = image.clone().contain({w: EMBED_SIZE, h: EMBED_SIZE})
-  const {data} = resized.bitmap
-  const rgb = new Uint8Array(EMBED_SIZE * EMBED_SIZE * 3)
-  for (let i = 0; i < EMBED_SIZE * EMBED_SIZE; i++) {
-    rgb[i * 3] = data[i * 4]
-    rgb[i * 3 + 1] = data[i * 4 + 1]
-    rgb[i * 3 + 2] = data[i * 4 + 2]
-  }
+  const rgb = rgbaBitmapToInterleavedRgb(resized.bitmap.data, EMBED_SIZE * EMBED_SIZE)
   return rgbToEmbedTensor(rgb, EMBED_SIZE, EMBED_SIZE)
 }
 
@@ -860,19 +864,11 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
     }
     if (embedding && enrollmentRefs.length && isMatchableStoredFace(face)) {
       const top = findTopEnrollmentMatches(embedding, enrollmentRefs, settings.candidateLimit)
-      candidates = top.map((item) => {
-        const tag = resolveTag(item.tagId)
-        return {
-          tagId: item.tagId,
-          score: item.score,
-          tagName: tag?.name ?? null,
-          tagMetaId: tag?.metaId != null ? Number(tag.metaId) : null,
-        }
-      })
+      candidates = top.map((item) => mapEnrollmentCandidateWithTag(item, resolveTag(item.tagId)))
     }
 
     const assignedTagId = face.tagId != null ? Number(face.tagId) : null
-    const primaryTagId = assignedTagId ?? (candidates[0]?.tagId ?? null)
+    const primaryTagId = pickPrimaryTagId(assignedTagId, candidates)
     const tag = primaryTagId != null ? resolveTag(primaryTagId) : undefined
     prepared.push({
       id: Number(face.id),
@@ -899,14 +895,7 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
 
   // Re-rank candidates from all frames in the cluster (best-frame + consistency).
   if (enrollmentRefs.length) {
-    const byCluster = new Map<number, typeof clustered>()
-    for (const face of clustered) {
-      const list = byCluster.get(face.clusterId) || []
-      list.push(face)
-      byCluster.set(face.clusterId, list)
-    }
-
-    for (const members of byCluster.values()) {
+    for (const members of groupFacesByClusterId(clustered).values()) {
       const queryEmbeddings = [
         ...members.map((member) => member.embedding),
         averageEmbeddings(members.map((member) => member.embedding)),
@@ -917,24 +906,14 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
         settings.candidateLimit,
       )
       if (!top.length) continue
-      const candidates = top.map((item) => {
-        const tag = resolveTag(item.tagId)
-        return {
-          tagId: item.tagId,
-          score: item.score,
-          tagName: tag?.name ?? null,
-          tagMetaId: tag?.metaId != null ? Number(tag.metaId) : null,
-        }
-      })
+      const candidates = top.map((item) => mapEnrollmentCandidateWithTag(item, resolveTag(item.tagId)))
       for (const member of members) {
         member.candidates = candidates
       }
     }
   }
 
-  const faces = clustered.map(({embedding: _embedding, ...face}) => face)
-
-  return {mediaId, faces}
+  return {mediaId, faces: stripEmbeddingsFromFaces(clustered)}
 }
 
 async function* iterateFaceMatching(
