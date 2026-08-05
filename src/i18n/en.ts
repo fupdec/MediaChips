@@ -960,6 +960,8 @@ const en = {
     move_rename_file: 'Move / rename file',
     also_delete_files: 'Also delete files',
     delete_with_file: 'Delete with file',
+    delete_zip_gallery: 'Delete entire ZIP gallery',
+    delete_zip_file: 'Also permanently delete ZIP archive from disk',
     open_page: 'Open page',
     camgirlfinder: 'CamGirlFinder',
   },
@@ -2047,6 +2049,7 @@ const en = {
       renaming_failed: 'File renaming failed',
     },
     delete_from_app_confirm: 'Delete media from app?',
+    delete_zip_confirm: 'Delete selected media from app?<br><br>ZIP gallery: <b>{archives}</b>',
     organize: {
       title: 'Organize files on drive by tag',
       root_folder: 'Root folder',

@@ -960,6 +960,8 @@ const ru = {
     move_rename_file: 'Переместить / переименовать файл',
     also_delete_files: 'Также удалить файлы',
     delete_with_file: 'Удалить вместе с файлом',
+    delete_zip_gallery: 'Удалить всю ZIP-галерею',
+    delete_zip_file: 'Также безвозвратно удалить ZIP-архив с диска',
     open_page: 'Открыть страницу',
     camgirlfinder: 'CamGirlFinder',
   },
@@ -2048,6 +2050,7 @@ const ru = {
       renaming_failed: 'Не удалось переименовать файл',
     },
     delete_from_app_confirm: 'Удалить медиа из приложения?',
+    delete_zip_confirm: 'Удалить выбранное медиа из приложения?<br><br>ZIP-галерея: <b>{archives}</b>',
     organize: {
       title: 'Организовать файлы на диске по тегу',
       root_folder: 'Корневая папка',

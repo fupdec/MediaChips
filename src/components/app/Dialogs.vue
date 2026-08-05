@@ -93,7 +93,11 @@
       :text="dialogsStore.confirm.text || ''"
       :check-box-text="dialogsStore.confirm.checkBoxText"
       :check-box="dialogsStore.confirm.checkBox"
+      :check-box2-text="dialogsStore.confirm.checkBox2Text"
+      :check-box2="dialogsStore.confirm.checkBox2"
+      :check-box2-requires-primary="dialogsStore.confirm.checkBox2RequiresPrimary"
       @update:check-box="dialogsStore.confirm.checkBox = $event"
+      @update:check-box2="dialogsStore.confirm.checkBox2 = $event"
       @close="closeConfirmDialog"
       @confirm="runConfirmDialog"
     />
@@ -394,6 +398,9 @@ function closeConfirmDialog() {
   dialogsStore.confirm.show = false
   dialogsStore.confirm.checkBoxText = ''
   dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBox2RequiresPrimary = false
 }
 
 function runConfirmDialog() {

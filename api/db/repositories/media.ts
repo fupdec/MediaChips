@@ -124,6 +124,22 @@ export function createMediaRepository(db: DrizzleClient) {
         .all()
     },
 
+    /** All media rows whose path starts with `zipPath!/` (ZIP gallery entries). */
+    findByZipArchivePrefix(zipPath: string): MediaRow[] {
+      const prefix = String(zipPath || '')
+      if (!prefix) return []
+
+      const escaped = prefix
+        .replace(/\\/g, '\\\\')
+        .replace(/%/g, '\\%')
+        .replace(/_/g, '\\_')
+
+      return db.select()
+        .from(media)
+        .where(sql`${media.path} LIKE ${`${escaped}!/%`} ESCAPE '\\'`)
+        .all()
+    },
+
     findByPathVariants(variants: string[]): MediaRow | undefined {
       if (!variants.length) return undefined
 

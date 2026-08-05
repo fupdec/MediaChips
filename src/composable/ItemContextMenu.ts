@@ -42,9 +42,15 @@ import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
 import type { MediaItem, Meta, Playlist, Tag } from '@/types/stores'
+import {
+  getZipArchivePath,
+  zipArchiveBasename,
+} from '@shared/zipPath'
 
 interface DeleteItemPayload extends DeleteEntityOnePayload {
   with_file: boolean
+  delete_zip_gallery?: boolean
+  delete_zip_file?: boolean
 }
 
 export interface ItemContextMenuOptions {
@@ -1009,15 +1015,48 @@ export default function useItemContextMenu(
   }
 
   const deleteItem = (): void => {
-    const deleteItems = async (): Promise<void> => {
-      const is_checked = dialogsStore.confirm.checkBox
+    const locale = settingsStore.locale as Locale
 
+    const previewCandidates: Array<MediaItem | Tag> = []
+    if (type === 'media') {
+      if (isSelectMode()) {
+        for (const id of itemsStore.selection) {
+          const found = resolveItemById(id)
+          if (found) previewCandidates.push(found)
+        }
+      } else {
+        previewCandidates.push(item)
+      }
+    }
+
+    const zipArchiveNames = [...new Set(
+      previewCandidates
+        .map((entry) => {
+          if (!isMediaPageItem(entry, type)) return null
+          const zipPath = getZipArchivePath(mediaPageItemPath(entry, type))
+          return zipPath ? zipArchiveBasename(zipPath) : null
+        })
+        .filter((name): name is string => Boolean(name)),
+    )]
+    const hasZipGallery = zipArchiveNames.length > 0
+
+    const runDelete = async ({
+      withFile,
+      deleteZipGallery,
+      deleteZipFile,
+    }: {
+      withFile: boolean
+      deleteZipGallery: boolean
+      deleteZipFile: boolean
+    }): Promise<void> => {
       let ids = [item.id]
       if (isSelectMode()) {
         ids = itemsStore.selection
       }
 
       const deleted_items_names: string[] = []
+      const deletedIds = new Set<number>()
+      const handledZipArchives = new Set<string>()
       const itemsToDelete = type === 'media' && isSelectMode()
         ? await resolveSelectedMedia(ids)
         : ids
@@ -1028,7 +1067,7 @@ export default function useItemContextMenu(
         deleted_items_names.push(String(found.name ?? ''))
 
         const itemData: DeleteItemPayload = {
-          with_file: is_checked,
+          with_file: withFile,
           id: found.id,
         }
 
@@ -1039,14 +1078,32 @@ export default function useItemContextMenu(
           itemData.path = found.path
           const mediaType = getCurrentMediaType(store.mediaTypes, found.mediaTypeId)
           itemData.type = getMediaDeleteAssetFolder(mediaType) ?? undefined
+
+          const zipPath = getZipArchivePath(found.path)
+          if (deleteZipGallery && zipPath) {
+            if (handledZipArchives.has(zipPath)) continue
+            handledZipArchives.add(zipPath)
+            itemData.delete_zip_gallery = true
+            itemData.delete_zip_file = deleteZipFile
+            itemData.with_file = false
+          }
         }
 
         try {
-          await typedApi.deleteEntityOne(type, itemData)
+          const response = await typedApi.deleteEntityOne(type, itemData)
+          const responseIds = Array.isArray((response.data as {deletedIds?: unknown} | undefined)?.deletedIds)
+            ? (response.data as {deletedIds: number[]}).deletedIds
+            : [found.id]
+          for (const deletedId of responseIds) {
+            deletedIds.add(Number(deletedId))
+          }
         } catch (e) {
           console.error(e)
+          deletedIds.add(found.id)
         }
       }
+
+      const removedIds = deletedIds.size ? [...deletedIds] : ids
 
       itemsStore.selection = []
       itemsStore.selected_last = null
@@ -1059,7 +1116,7 @@ export default function useItemContextMenu(
       })
 
       listSync.removeEntitiesFromState({
-        ids,
+        ids: removedIds,
         type,
       })
 
@@ -1072,9 +1129,38 @@ export default function useItemContextMenu(
       }
     }
 
-    dialogsStore.confirm.text = 'Delete selected ' + type + ' from app?'
-    dialogsStore.confirm.checkBoxText = type === 'media' ? 'Also delete files' : ''
-    dialogsStore.confirm.action = deleteItems
+    const archives = zipArchiveNames.join(', ')
+    dialogsStore.confirm.checkBox = false
+    dialogsStore.confirm.checkBox2 = false
+    dialogsStore.confirm.checkBox2RequiresPrimary = false
+
+    if (hasZipGallery) {
+      dialogsStore.confirm.text = translate(
+        'media.delete_zip_confirm',
+        { archives },
+        locale,
+      )
+      dialogsStore.confirm.checkBoxText = translate('actions.delete_zip_gallery', {}, locale)
+      dialogsStore.confirm.checkBox2Text = translate('actions.delete_zip_file', {}, locale)
+      dialogsStore.confirm.checkBox2RequiresPrimary = true
+    } else {
+      dialogsStore.confirm.text = translate('media.delete_from_app_confirm', {}, locale)
+      dialogsStore.confirm.checkBoxText = type === 'media'
+        ? translate('actions.also_delete_files', {}, locale)
+        : ''
+      dialogsStore.confirm.checkBox2Text = ''
+    }
+
+    dialogsStore.confirm.action = () => {
+      const deleteZipGallery = hasZipGallery && dialogsStore.confirm.checkBox
+      const deleteZipFile = deleteZipGallery && dialogsStore.confirm.checkBox2
+
+      void runDelete({
+        withFile: !hasZipGallery && dialogsStore.confirm.checkBox,
+        deleteZipGallery,
+        deleteZipFile,
+      })
+    }
     dialogsStore.confirm.show = true
   }
 

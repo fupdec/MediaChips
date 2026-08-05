@@ -25,8 +25,19 @@
           color="error"
           hide-details
           density="compact"
-          class="mt-2"
-          @update:model-value="emit('update:checkBox', Boolean($event))"
+          class="mt-2 text-left"
+          @update:model-value="onPrimaryCheck(Boolean($event))"
+        />
+        <v-checkbox
+          v-if="checkBox2Text"
+          :model-value="checkBox2"
+          :label="checkBox2Text"
+          :disabled="checkBox2RequiresPrimary && !checkBox"
+          color="error"
+          hide-details
+          density="compact"
+          class="mt-1 text-left"
+          @update:model-value="onSecondaryCheck(Boolean($event))"
         />
       </v-card-text>
 
@@ -65,6 +76,7 @@ import {computed} from 'vue'
 const emit = defineEmits<{
   'update:dialog': [value: boolean]
   'update:checkBox': [value: boolean]
+  'update:checkBox2': [value: boolean]
   close: []
   confirm: []
   delete: []
@@ -79,6 +91,10 @@ const props = withDefaults(defineProps<{
   variant?: 'confirm' | 'delete'
   checkBoxText?: string
   checkBox?: boolean
+  checkBox2Text?: string
+  checkBox2?: boolean
+  /** When true, secondary checkbox is disabled until primary is checked. */
+  checkBox2RequiresPrimary?: boolean
 }>(), {
   text: '',
   persistent: false,
@@ -86,6 +102,9 @@ const props = withDefaults(defineProps<{
   variant: 'confirm',
   checkBoxText: '',
   checkBox: false,
+  checkBox2Text: '',
+  checkBox2: false,
+  checkBox2RequiresPrimary: false,
 })
 
 const isPersistent = computed(() =>
@@ -107,6 +126,20 @@ const model = computed({
     if (!val) emit('close')
   },
 })
+
+function onPrimaryCheck(value: boolean) {
+  emit('update:checkBox', value)
+  if (!value && props.checkBox2RequiresPrimary && props.checkBox2) {
+    emit('update:checkBox2', false)
+  }
+}
+
+function onSecondaryCheck(value: boolean) {
+  emit('update:checkBox2', value)
+  if (value && props.checkBox2RequiresPrimary && !props.checkBox) {
+    emit('update:checkBox', true)
+  }
+}
 
 function close() {
   model.value = false
@@ -131,5 +164,9 @@ pre {
 
 .error-text {
   color: rgb(var(--v-theme-error));
+}
+
+.text-left {
+  text-align: left;
 }
 </style>

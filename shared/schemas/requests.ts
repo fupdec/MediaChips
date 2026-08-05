@@ -111,6 +111,8 @@ export const DeleteEntityOneRequestSchema = z.object({
   id: z.union([z.number(), z.string()]),
   metaId: z.union([z.number(), z.string()]).nullable().optional(),
   with_file: z.boolean().optional(),
+  delete_zip_gallery: z.boolean().optional(),
+  delete_zip_file: z.boolean().optional(),
   path: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
 }).passthrough()

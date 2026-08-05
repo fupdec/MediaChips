@@ -5,6 +5,7 @@ const {
   findById,
   updateById,
   deleteById,
+  findByZipArchivePrefix,
   getStats,
   countWithTag,
   findMediaTypeById,
@@ -20,6 +21,7 @@ const {
   findById: vi.fn(),
   updateById: vi.fn(),
   deleteById: vi.fn(),
+  findByZipArchivePrefix: vi.fn(),
   getStats: vi.fn(),
   countWithTag: vi.fn(),
   findMediaTypeById: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock('../db/repositories/media', () => ({
     findById,
     updateById,
     deleteById,
+    findByZipArchivePrefix,
     getStats,
     countWithTag,
   }),
@@ -240,6 +243,64 @@ describe('Media.controller', () => {
     expect(deleteById).toHaveBeenCalledWith(5)
     expect(invalidateMediaDerivedCaches).toHaveBeenCalled()
     expect(res.statusCode).toBe(201)
+    expect(res.body).toEqual({deletedIds: [5], zipFileDeleted: false})
+  })
+
+  it('deletes entire ZIP gallery when delete_zip_gallery is set', async () => {
+    findById.mockReturnValue({
+      id: 5,
+      mediaTypeId: 2,
+      path: '/media/album.zip!/a.jpg',
+    })
+    findMediaTypeById.mockReturnValue({type: 'image'})
+    findByZipArchivePrefix.mockReturnValue([
+      {id: 5, mediaTypeId: 2, path: '/media/album.zip!/a.jpg'},
+      {id: 6, mediaTypeId: 2, path: '/media/album.zip!/b.jpg'},
+    ])
+
+    const req = {
+      body: {
+        id: 5,
+        delete_zip_gallery: true,
+      },
+    } as ApiRequest
+    const res = createResponse()
+
+    await controller.deleteOne(req, res)
+
+    expect(findByZipArchivePrefix).toHaveBeenCalledWith('/media/album.zip')
+    expect(deleteById).toHaveBeenCalledWith(5)
+    expect(deleteById).toHaveBeenCalledWith(6)
+    expect(unlinkResolvedPath).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(201)
+    expect(res.body).toEqual({deletedIds: [5, 6], zipFileDeleted: false})
+  })
+
+  it('deletes ZIP archive from disk when delete_zip_file is set', async () => {
+    findById.mockReturnValue({
+      id: 5,
+      mediaTypeId: 2,
+      path: '/media/album.zip!/a.jpg',
+    })
+    findMediaTypeById.mockReturnValue({type: 'image'})
+    findByZipArchivePrefix.mockReturnValue([
+      {id: 5, mediaTypeId: 2, path: '/media/album.zip!/a.jpg'},
+    ])
+
+    const req = {
+      body: {
+        id: 5,
+        delete_zip_gallery: true,
+        delete_zip_file: true,
+      },
+    } as ApiRequest
+    const res = createResponse()
+
+    await controller.deleteOne(req, res)
+
+    expect(unlinkResolvedPath).toHaveBeenCalledWith('/media/album.zip')
+    expect(res.statusCode).toBe(201)
+    expect(res.body).toEqual({deletedIds: [5], zipFileDeleted: true})
   })
 
   it('counts media linked to a tag', () => {

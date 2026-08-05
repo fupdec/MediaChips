@@ -22,6 +22,7 @@ import {
   mapWithConcurrency,
   readFirstExistingImageDataUrl,
 } from '../services/thumbEncoding'
+import { getZipArchivePath, isVirtualZipPath } from '../../shared/zipPath'
 
 export default function (db: ApiDb) {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -173,28 +174,60 @@ export default function (db: ApiDb) {
         })
       }
 
-      const mediaType = media.mediaTypeId
-        ? mediaTypesRepo.findById(media.mediaTypeId)
-        : undefined
+      const mediaPath = String(media.path || body.path || '')
+      const deleteZipGallery = Boolean(body.delete_zip_gallery) && isVirtualZipPath(mediaPath)
+      const zipArchivePath = deleteZipGallery ? getZipArchivePath(mediaPath) : null
+      const deleteZipFile = Boolean(body.delete_zip_file) && Boolean(zipArchivePath)
 
-      await deleteMediaGeneratedAssets(db, getDbPath(), media, mediaType?.type || '')
+      const targets = (() => {
+        if (!zipArchivePath) return [media]
+        const gallery = mediaRepo.findByZipArchivePrefix(zipArchivePath)
+        return gallery.length ? gallery : [media]
+      })()
 
-      if (body.with_file) {
-        const filePath = media.path || body.path
+      const deletedIds: number[] = []
 
+      for (const target of targets) {
+        const targetId = Number(target.id)
+        if (!Number.isFinite(targetId) || targetId <= 0) continue
+
+        const mediaType = target.mediaTypeId
+          ? mediaTypesRepo.findById(Number(target.mediaTypeId))
+          : undefined
+
+        await deleteMediaGeneratedAssets(db, getDbPath(), target, mediaType?.type || '')
+
+        // ZIP entries are read-only on disk; only unlink real files when requested.
+        if (body.with_file && !isVirtualZipPath(String(target.path || ''))) {
+          const filePath = target.path || body.path
+          try {
+            const deleted = await unlinkResolvedPath(String(filePath ?? ''))
+            if (!deleted) {
+              console.log(`${filePath} is unavailable.`)
+            }
+          } catch (error) {
+            console.error(`Failed to delete media file ${filePath}:`, apiErrorMessage(error))
+          }
+        }
+
+        mediaRepo.deleteById(targetId)
+        deletedIds.push(targetId)
+      }
+
+      let zipFileDeleted = false
+      if (deleteZipFile && zipArchivePath) {
         try {
-          const deleted = await unlinkResolvedPath(String(filePath ?? ''))
-          if (!deleted) {
-            console.log(`${filePath} is unavailable.`)
+          zipFileDeleted = Boolean(await unlinkResolvedPath(zipArchivePath))
+          if (!zipFileDeleted) {
+            console.log(`ZIP archive unavailable for delete: ${zipArchivePath}`)
           }
         } catch (error) {
-          console.error(`Failed to delete media file ${filePath}:`, apiErrorMessage(error))
+          console.error(`Failed to delete ZIP archive ${zipArchivePath}:`, apiErrorMessage(error))
         }
       }
 
-      mediaRepo.deleteById(Number(id))
       invalidateMediaDerivedCaches()
-      res.sendStatus(201)
+      res.status(201).send({ deletedIds, zipFileDeleted })
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
