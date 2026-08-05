@@ -2,22 +2,21 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createValuesInTagController from '../controllers/ValuesInTag.controller'
+import { validateBody, validateQuery } from '../middleware/validateBody'
+import {
+  ValuesInTagBulkCreateRequestSchema,
+  ValuesInTagDeleteRequestSchema,
+  ValuesInTagQuerySchema,
+} from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const ValuesInTag = createValuesInTagController(db);
-  const router = express.Router();
+  const ValuesInTag = createValuesInTagController(db)
+  const router = express.Router()
 
-  // Create a new ValuesInTag
-  router.post("/", ValuesInTag.create);
+  router.post('/', validateBody(ValuesInTagBulkCreateRequestSchema), ValuesInTag.create)
+  router.get('/', validateQuery(ValuesInTagQuerySchema), ValuesInTag.findAll)
+  router.post('/delete', validateBody(ValuesInTagDeleteRequestSchema), ValuesInTag.deleteOne)
+  router.delete('/:id', ValuesInTag.deleteAllValuesByTagId)
 
-  // Retrieve all ValuesInTag
-  router.get("/", ValuesInTag.findAll);
-
-  // Удалить одну запись
-  router.post("/delete", ValuesInTag.deleteOne);
-
-  // Delete a ValuesInTag with id
-  router.delete("/:id", ValuesInTag.deleteAllValuesByTagId);
-
-  app.use('/api/ValuesInTag', router);
+  app.use('/api/ValuesInTag', router)
 }

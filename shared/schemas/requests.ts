@@ -360,6 +360,169 @@ export const MediaTagCountQuerySchema = z.object({
   tagId: z.coerce.number(),
 })
 
+export const PlaylistWriteRequestSchema = z.object({
+  name: z.string().nullable().optional(),
+  favorite: z.boolean().optional(),
+}).passthrough()
+
+export const TabWriteRequestSchema = z.object({
+  name: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
+  url: z.string().nullable().optional(),
+  order: optionalCoercedNumber,
+  tagId: optionalNullableCoercedNumberSchema,
+  metaId: optionalNullableCoercedNumberSchema,
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const SavedFilterWriteRequestSchema = z.object({
+  name: z.string().nullable().optional(),
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+  metaId: optionalNullableCoercedNumberSchema,
+  tagId: optionalNullableCoercedNumberSchema,
+  tabId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const SettingUpdateRequestSchema = z.object({
+  value: z.union([z.string(), z.number(), z.boolean(), z.null()]),
+}).passthrough()
+
+export const WatchedFolderCreateRequestSchema = z.object({
+  folder: z.object({
+    path: z.string().min(1),
+    name: z.string().nullable().optional(),
+  }).passthrough(),
+  types: z.array(z.union([z.number(), z.string()])).optional().default([]),
+}).passthrough()
+
+export const WatchedFolderUpdateRequestSchema = z.object({
+  path: z.string().min(1).optional(),
+  name: z.string().nullable().optional(),
+  watch: z.boolean().optional(),
+}).passthrough()
+
+const coercedId = z.coerce.number()
+
+export const TagsInMediaLinkSchema = z.object({
+  mediaId: coercedId,
+  tagId: coercedId,
+  metaId: coercedId,
+}).passthrough()
+
+export const TagsInMediaBulkCreateRequestSchema = z.array(TagsInMediaLinkSchema)
+
+export const TagsInMediaDeleteFromMediaRequestSchema = z.object({
+  mediaId: coercedId,
+  tagId: coercedId,
+}).passthrough()
+
+export const TagsInMediaDeleteByMetaRequestSchema = z.object({
+  itemId: coercedId,
+  metaId: coercedId,
+}).passthrough()
+
+export const TagsInMediaQuerySchema = z.object({
+  mediaId: coercedId,
+}).passthrough()
+
+export const TagsInTagLinkSchema = z.object({
+  parentTagId: coercedId,
+  tagId: coercedId,
+  metaId: coercedId,
+}).passthrough()
+
+export const TagsInTagBulkCreateRequestSchema = z.array(TagsInTagLinkSchema)
+
+export const TagsInTagDeleteFromTagRequestSchema = z.object({
+  parentTagId: coercedId,
+  tagId: coercedId,
+}).passthrough()
+
+export const TagsInTagDeleteByMetaRequestSchema = TagsInMediaDeleteByMetaRequestSchema
+
+export const TagsInTagQuerySchema = z.object({
+  tagId: coercedId,
+}).passthrough()
+
+export const ValuesInMediaItemSchema = z.object({
+  mediaId: coercedId,
+  metaId: coercedId,
+  value: z.unknown().optional(),
+}).passthrough()
+
+export const ValuesInMediaBulkCreateRequestSchema = z.array(ValuesInMediaItemSchema)
+
+export const ValuesInMediaDeleteRequestSchema = z.object({
+  itemId: coercedId,
+  metaId: coercedId,
+}).passthrough()
+
+export const ValuesInMediaQuerySchema = z.object({
+  mediaId: coercedId,
+}).passthrough()
+
+export const ValuesInTagItemSchema = z.object({
+  tagId: coercedId,
+  metaId: coercedId,
+  value: z.unknown().optional(),
+}).passthrough()
+
+export const ValuesInTagBulkCreateRequestSchema = z.array(ValuesInTagItemSchema)
+
+export const ValuesInTagDeleteRequestSchema = ValuesInMediaDeleteRequestSchema
+
+export const ValuesInTagQuerySchema = z.object({
+  tagId: coercedId,
+}).passthrough()
+
+export const MediaInPlaylistCreateRequestSchema = z.object({
+  mediaId: coercedId,
+  playlistId: coercedId,
+  order: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const MediaInPlaylistsUpdateRequestSchema = z.array(z.object({
+  mediaId: coercedId,
+  playlistId: coercedId,
+  order: optionalNullableCoercedNumberSchema,
+}).passthrough())
+
+export const MediaInPlaylistsDeleteRequestSchema = z.object({
+  mediaId: coercedId,
+  playlistId: coercedId,
+}).passthrough()
+
+export const FilterRowCreateRequestSchema = z.object({
+  filter: z.object({
+    id: z.union([z.number(), z.string()]).nullable().optional(),
+    param: z.union([z.string(), z.number()]).nullable().optional(),
+    type: z.string().nullable().optional(),
+    cond: z.string().nullable().optional(),
+    val: z.unknown().optional(),
+    note: z.string().nullable().optional(),
+    active: optionalCoercedBoolean,
+    lock: optionalCoercedBoolean,
+    order: optionalNullableCoercedNumberSchema,
+    metaId: optionalNullableCoercedNumberSchema,
+  }).passthrough(),
+  filterId: optionalNullableCoercedNumberSchema,
+  rowId: optionalNullableCoercedNumberSchema,
+  savedFilterId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const FilterRowUpdateRequestSchema = z.object({
+  param: z.union([z.string(), z.number()]).nullable().optional(),
+  type: z.string().nullable().optional(),
+  cond: z.string().nullable().optional(),
+  val: z.unknown().optional(),
+  note: z.string().nullable().optional(),
+  active: optionalCoercedBoolean,
+  lock: optionalCoercedBoolean,
+  order: optionalNullableCoercedNumberSchema,
+  union: z.unknown().optional(),
+  metaId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
 export type ParsedItemsListRequest = z.infer<typeof ItemsListRequestSchema>
 export type ParsedBulkMetaApplyRequest = z.infer<typeof BulkMetaApplyRequestSchema>
 export type ParsedGlobalSearchRequest = z.infer<typeof GlobalSearchRequestSchema>
@@ -367,3 +530,9 @@ export type ParsedPathPayload = z.infer<typeof PathPayloadSchema>
 export type ParsedAddMediaRequest = z.infer<typeof AddMediaRequestSchema>
 export type ParsedParsePathTagsRequest = z.infer<typeof ParsePathTagsRequestSchema>
 export type ParsedApplyParseLibraryTagsRequest = z.infer<typeof ApplyParseLibraryTagsRequestSchema>
+export type ParsedPlaylistWriteRequest = z.infer<typeof PlaylistWriteRequestSchema>
+export type ParsedTabWriteRequest = z.infer<typeof TabWriteRequestSchema>
+export type ParsedSavedFilterWriteRequest = z.infer<typeof SavedFilterWriteRequestSchema>
+export type ParsedSettingUpdateRequest = z.infer<typeof SettingUpdateRequestSchema>
+export type ParsedWatchedFolderCreateRequest = z.infer<typeof WatchedFolderCreateRequestSchema>
+export type ParsedWatchedFolderUpdateRequest = z.infer<typeof WatchedFolderUpdateRequestSchema>

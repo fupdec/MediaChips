@@ -2,9 +2,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { validateBody, validateQuery } from './validateBody'
 import {
   BulkMetaApplyRequestSchema,
+  FilterRowCreateRequestSchema,
   HomeMediaQuerySchema,
+  MediaInPlaylistCreateRequestSchema,
   MediaTagCountQuerySchema,
   PathPayloadSchema,
+  PlaylistWriteRequestSchema,
+  SettingUpdateRequestSchema,
+  TagsInMediaBulkCreateRequestSchema,
+  TagsInMediaLinkSchema,
+  ValuesInMediaBulkCreateRequestSchema,
+  WatchedFolderCreateRequestSchema,
 } from '../../shared/schemas/requests'
 
 function createMockResponse() {
@@ -88,6 +96,141 @@ describe('validateBody', () => {
 
     expect(next).not.toHaveBeenCalled()
     expect(res.statusCode).toBe(400)
+  })
+
+  it('accepts playlist write payloads', () => {
+    const middleware = validateBody(PlaylistWriteRequestSchema)
+    const req = {body: {name: 'Watch later', favorite: true}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.body).toEqual({name: 'Watch later', favorite: true})
+  })
+
+  it('requires setting update value', () => {
+    const middleware = validateBody(SettingUpdateRequestSchema)
+    const req = {body: {}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+    expect(res.body).toMatchObject({
+      message: 'Invalid request body',
+      errors: expect.arrayContaining([
+        expect.objectContaining({path: 'value'}),
+      ]),
+    })
+  })
+
+  it('requires watched folder path on create', () => {
+    const middleware = validateBody(WatchedFolderCreateRequestSchema)
+    const req = {body: {folder: {name: 'Videos'}, types: [1]}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('defaults watched folder types to an empty array', () => {
+    const middleware = validateBody(WatchedFolderCreateRequestSchema)
+    const req = {body: {folder: {path: '/media/shows'}}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.body).toEqual({
+      folder: {path: '/media/shows'},
+      types: [],
+    })
+  })
+
+  it('coerces tags-in-media link ids', () => {
+    const middleware = validateBody(TagsInMediaLinkSchema)
+    const req = {body: {mediaId: '12', tagId: '3', metaId: '7'}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.body).toEqual({mediaId: 12, tagId: 3, metaId: 7})
+  })
+
+  it('rejects tags-in-media bulk create when body is not an array', () => {
+    const middleware = validateBody(TagsInMediaBulkCreateRequestSchema)
+    const req = {body: {mediaId: 1, tagId: 2, metaId: 3}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('accepts values-in-media bulk create arrays', () => {
+    const middleware = validateBody(ValuesInMediaBulkCreateRequestSchema)
+    const req = {body: [{mediaId: 1, metaId: 2, value: 'yes'}]}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.body).toEqual([{mediaId: 1, metaId: 2, value: 'yes'}])
+  })
+
+  it('requires media and playlist ids when adding playlist media', () => {
+    const middleware = validateBody(MediaInPlaylistCreateRequestSchema)
+    const req = {body: {mediaId: 5}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires filter object when creating a filter row', () => {
+    const middleware = validateBody(FilterRowCreateRequestSchema)
+    const req = {body: {filterId: 1}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('accepts filter row create payloads', () => {
+    const middleware = validateBody(FilterRowCreateRequestSchema)
+    const req = {
+      body: {
+        filter: {param: 'favorite', type: 'boolean', cond: 'true', val: null, active: true, lock: false},
+        filterId: '9',
+        rowId: null,
+      },
+    }
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.body.filterId).toBe(9)
   })
 })
 

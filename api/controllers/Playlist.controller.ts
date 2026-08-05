@@ -1,8 +1,7 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { ParsedDynamicPlaylistSummary } from '@shared/schemas/filters'
-import { paramString } from '../types/errors'
 
 import { createPlaylistsRepository } from '../db/repositories/playlists'
 import { createMediaInPlaylistsRepository } from '../db/repositories/mediaInPlaylists'
@@ -17,11 +16,9 @@ export default function (db: ApiDb) {
       const data = playlistsRepo.create(req.body)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -33,44 +30,36 @@ export default function (db: ApiDb) {
       }))
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const findSummary = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data: ParsedDynamicPlaylistSummary[] = await getManualPlaylistsSummary(db)
       res.status(201).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving playlists.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving playlists.')
     }
-  };
+  }
 
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
       playlistsRepo.updateById(parseInt(paramString(req.params.id), 10), req.body)
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       playlistsRepo.deleteById(parseInt(paramString(req.params.id), 10))
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   return {
     create,

@@ -2,25 +2,18 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createPlaylistController from '../controllers/Playlist.controller'
+import { validateBody } from '../middleware/validateBody'
+import { PlaylistWriteRequestSchema } from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const Playlist = createPlaylistController(db);
-  const router = express.Router();
+  const Playlist = createPlaylistController(db)
+  const router = express.Router()
 
-  // Create a new Playlist
-  router.post("/", Playlist.create);
+  router.post('/', validateBody(PlaylistWriteRequestSchema), Playlist.create)
+  router.get('/', Playlist.findAll)
+  router.get('/summary', Playlist.findSummary)
+  router.put('/:id', validateBody(PlaylistWriteRequestSchema), Playlist.update)
+  router.delete('/:id', Playlist.deleteOne)
 
-  // Retrieve all Playlist
-  router.get("/", Playlist.findAll);
-
-  // Lightweight playlist list for the playlists page
-  router.get("/summary", Playlist.findSummary);
-
-  // Update a Playlist with id
-  router.put("/:id", Playlist.update);
-
-  // Delete a Playlist with id
-  router.delete("/:id", Playlist.deleteOne);
-
-  app.use('/api/Playlist', router);
+  app.use('/api/Playlist', router)
 }

@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tag image upscale** — hardening and status UX
 - **Settings nav** — icon alignment and locale strings
 - **Update snackbar** — HTML preview and changelog dialog stacking
+- **Build pipeline** — TypeScript, ESLint, test schema drift, and postinstall compile failures that blocked CI and Release
+- **API errors** — correct HTTP status and JSON for tag name conflicts, LAN access locks, and other domain errors
+- **Request validation** — body schemas on settings, tabs, playlists, saved filters, and watched-folder routes
 
 ## [1.4.0] - 2026-07-28
 

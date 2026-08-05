@@ -2,22 +2,17 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createTabController from '../controllers/Tab.controller'
+import { validateBody } from '../middleware/validateBody'
+import { TabWriteRequestSchema } from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const Tab = createTabController(db);
-  const router = express.Router();
+  const Tab = createTabController(db)
+  const router = express.Router()
 
-  // Create a new Tab
-  router.post("/", Tab.create);
+  router.post('/', validateBody(TabWriteRequestSchema), Tab.create)
+  router.get('/', Tab.findAll)
+  router.put('/:id', validateBody(TabWriteRequestSchema), Tab.update)
+  router.delete('/:id', Tab.deleteOne)
 
-  // Retrieve all Tab
-  router.get("/", Tab.findAll);
-
-  // Update a Tab with id
-  router.put("/:id", Tab.update);
-
-  // Delete a Tab with id
-  router.delete("/:id", Tab.deleteOne);
-
-  app.use('/api/Tab', router);
+  app.use('/api/Tab', router)
 }

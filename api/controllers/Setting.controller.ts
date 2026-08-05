@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage, paramString } from '../types/errors'
+import { HttpError, sendControllerError, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 import { createSettingsRepository } from '../db/repositories/settings'
@@ -24,11 +24,9 @@ export default function (db: ApiDb) {
       )
       res.status(201).send(sanitized)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const findOne = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -42,15 +40,11 @@ export default function (db: ApiDb) {
       )
       res.status(201).send(sanitized)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const update = async function (req: ApiRequest, res: ApiResponse) {
-    if (!req.body) return res.sendStatus(400)
-
     const option = paramString(req.params.option)
 
     try {
@@ -64,9 +58,7 @@ export default function (db: ApiDb) {
 
         if (option === 'allowLanAccess') {
           if (isLanAccessEnvLocked()) {
-            return res.status(409).send({
-              message: 'LAN access is controlled by MEDIA_CHIPS_ALLOW_LAN environment variable',
-            })
+            throw new HttpError(409, 'LAN access is controlled by MEDIA_CHIPS_ALLOW_LAN environment variable')
           }
 
           const enabled = value === '1' || req.body.value === 1 || req.body.value === true
@@ -75,9 +67,7 @@ export default function (db: ApiDb) {
           const configPath = getAppConfigPath()
           const loaded = loadConfigFile(configPath)
           if (!loaded.config) {
-            return res.status(500).send({
-              message: 'Failed to load application config',
-            })
+            throw new HttpError(500, 'Failed to load application config')
           }
 
           loaded.config[option] = value
@@ -101,11 +91,9 @@ export default function (db: ApiDb) {
 
       res.status(201).send([1])
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   return {
     findAll,

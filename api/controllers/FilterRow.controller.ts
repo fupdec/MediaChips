@@ -1,5 +1,5 @@
 import type { ApiDb, AnyRecord } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 import { createFilterRowsRepository } from '../db/repositories/filterRows'
@@ -79,23 +79,18 @@ export default function (db: ApiDb) {
       res.status(201).send(filterRow)
       invalidateMediaDerivedCaches()
     } catch (err) {
-      console.log(err)
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = filterRowsRepo.findById(Number(req.params.id)) ?? null
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -103,11 +98,9 @@ export default function (db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -115,16 +108,14 @@ export default function (db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   return {
     create,
     findOne,
     update,
-    deleteOne
+    deleteOne,
   }
 }

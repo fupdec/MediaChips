@@ -1,8 +1,7 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { SavedFilterMediaResponse, SavedFilterSummaryResponse } from '@shared/api/responses'
-import { paramString } from '../types/errors'
 
 import { createSavedFiltersRepository } from '../db/repositories/savedFilters'
 import {
@@ -39,33 +38,27 @@ export default function (db: ApiDb) {
       res.status(201).send(result)
       invalidateMediaDerivedCaches()
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = savedFiltersRepo.findById(Number(req.params.id)) ?? null
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = savedFiltersRepo.findAllNamed(req.body || {})
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -73,11 +66,9 @@ export default function (db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -85,22 +76,18 @@ export default function (db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findAllHydrated = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getSavedFiltersHydrated(db, req.body || {})
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findOrCreateHydrated = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -115,33 +102,27 @@ export default function (db: ApiDb) {
       const { savedFilter, created } = await findOrCreateSavedFilterHydrated(db, payload)
       res.status(201).send([savedFilter, created])
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const dynamicPlaylistsBasic = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getDynamicPlaylistsBasic(db)
       res.status(201).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving dynamic playlists."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving dynamic playlists.')
     }
-  };
+  }
 
   const dynamicPlaylistsSummary = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getDynamicPlaylistsSummary(db)
       res.status(201).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving dynamic playlists."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving dynamic playlists.')
     }
-  };
+  }
 
   const getPlaylistSummary = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -152,11 +133,9 @@ export default function (db: ApiDb) {
       }
       res.status(201).send(payload)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving playlist summary."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving playlist summary.')
     }
-  };
+  }
 
   const getPlaylistMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -170,11 +149,9 @@ export default function (db: ApiDb) {
       }
       res.status(201).send(payload)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving playlist media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving playlist media.')
     }
-  };
+  }
 
   return {
     create,

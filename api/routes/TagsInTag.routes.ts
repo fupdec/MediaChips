@@ -2,28 +2,25 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createTagsInTagController from '../controllers/TagsInTag.controller'
+import { validateBody, validateQuery } from '../middleware/validateBody'
+import {
+  TagsInTagBulkCreateRequestSchema,
+  TagsInTagDeleteByMetaRequestSchema,
+  TagsInTagDeleteFromTagRequestSchema,
+  TagsInTagLinkSchema,
+  TagsInTagQuerySchema,
+} from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const TagsInTag = createTagsInTagController(db);
-  const router = express.Router();
+  const TagsInTag = createTagsInTagController(db)
+  const router = express.Router()
 
-  // Create a new TagsInTag
-  router.post("/", TagsInTag.bulkCreate);
+  router.post('/', validateBody(TagsInTagBulkCreateRequestSchema), TagsInTag.bulkCreate)
+  router.post('/createOne', validateBody(TagsInTagLinkSchema), TagsInTag.create)
+  router.get('/', validateQuery(TagsInTagQuerySchema), TagsInTag.findAll)
+  router.delete('/:id', TagsInTag.deleteOne)
+  router.post('/deleteAllTagsByMetaId', validateBody(TagsInTagDeleteByMetaRequestSchema), TagsInTag.deleteAllTagsByMetaId)
+  router.post('/deleteFromTag', validateBody(TagsInTagDeleteFromTagRequestSchema), TagsInTag.deleteFromTag)
 
-  // find or create a new TagsInTag
-  router.post("/createOne", TagsInTag.create);
-
-  // Retrieve all TagsInTag
-  router.get("/", TagsInTag.findAll);
-
-  // Delete a TagsInTag with id
-  router.delete("/:id", TagsInTag.deleteOne);
-
-  // delete specific tag for specific tag
-  router.post("/deleteAllTagsByMetaId", TagsInTag.deleteAllTagsByMetaId);
-
-  // delete specific tag for specific tag
-  router.post("/deleteFromTag", TagsInTag.deleteFromTag);
-
-  app.use('/api/TagsInTag', router);
+  app.use('/api/TagsInTag', router)
 }

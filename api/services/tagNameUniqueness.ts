@@ -1,13 +1,13 @@
 import type Database from 'better-sqlite3'
+import { HttpError } from '../types/errors'
 import { normalizeTagName } from './tagMoveToCategory'
 
-export class TagNameConflictError extends Error {
-  status = 409
+export class TagNameConflictError extends HttpError {
   code = 'name_conflict' as const
   conflictingTagId: number | null
 
   constructor(message: string, conflictingTagId: number | null = null) {
-    super(message)
+    super(409, message, {code: 'name_conflict', conflictingTagId})
     this.name = 'TagNameConflictError'
     this.conflictingTagId = conflictingTagId
   }

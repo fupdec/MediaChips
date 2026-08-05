@@ -110,16 +110,6 @@ describe('Setting.controller', () => {
     expect(res.body).toEqual({option: 'theme', value: 'dark'})
   })
 
-  it('rejects updates without a body', async () => {
-    const req = {} as ApiRequest
-    const res = createResponse()
-
-    await controller.update(req, res)
-
-    expect(res.statusCode).toBe(400)
-    expect(upsertByOption).not.toHaveBeenCalled()
-  })
-
   it('updates a setting and invalidates auth cache for password options', async () => {
     const req = {
       params: {option: 'passwordProtection'},
