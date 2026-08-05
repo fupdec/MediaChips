@@ -143,7 +143,8 @@ import {resolveLanShareUrl} from "@/utils/apiBaseUrl"
 import {useHomeWidgets} from '@/composable/useHomeWidgets'
 import {invalidateHomeMediaCache, useHomeMedia} from '@/composable/useHomeMedia'
 import {useOpenMediaList} from "@/utils/openMediaList"
-import {findMediaTypeById, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from "@/utils/mediaType"
+import {findMediaTypeById, isAudioMediaType, isVideoMediaType} from "@/utils/mediaType"
+import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import HomeWidgetRenderer from '@/components/widgets/HomeWidgetRenderer.vue'
 import DialogHomeWidgets from '@/components/dialogs/DialogHomeWidgets.vue'
 import {openPath} from '@/services/shellService'
@@ -189,8 +190,9 @@ async function reloadHomeMediaIfNeeded() {
 
 async function openMediaItem(item: MediaItem) {
   const mediaType = findMediaTypeById(store.mediaTypes, item.mediaTypeId)
+  const kind = resolveOpenMediaKind(mediaType)
 
-  if (isVideoMediaType(mediaType) || isAudioMediaType(mediaType)) {
+  if (kind === 'play-av') {
     await itemsStore.playVideo({
       video: item,
       videos: [item],
@@ -198,12 +200,12 @@ async function openMediaItem(item: MediaItem) {
     return
   }
 
-  if (isImageMediaType(mediaType)) {
+  if (kind === 'view-image') {
     itemsStore.viewImage({image: item})
     return
   }
 
-  if (isTextMediaType(mediaType) && item.path) {
+  if (kind === 'open-path' && item.path) {
     await openPath(item.path)
     return
   }

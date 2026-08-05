@@ -8,13 +8,8 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useBrowserLayout, isItemsGridRoute} from '@/composable/useBrowserLayout'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {openPath} from '@/services/shellService'
-import {
-  findMediaTypeById,
-  isAudioMediaType,
-  isImageMediaType,
-  isTextMediaType,
-  isVideoMediaType,
-} from '@/utils/mediaType'
+import {findMediaTypeById} from '@/utils/mediaType'
+import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
@@ -310,18 +305,19 @@ export function useBrowserLayoutHotkeys() {
       appStore.mediaTypes,
       itemsStore.environment?.media_type_id ?? media.mediaTypeId,
     )
+    const kind = resolveOpenMediaKind(mediaType, {missingAsPlay: true})
 
-    if (isImageMediaType(mediaType)) {
+    if (kind === 'view-image') {
       itemsStore.viewImage({image: media})
       return
     }
 
-    if (isTextMediaType(mediaType)) {
+    if (kind === 'open-path') {
       if (media.path) void openPath(media.path)
       return
     }
 
-    if (isVideoMediaType(mediaType) || isAudioMediaType(mediaType) || !mediaType) {
+    if (kind === 'play-av') {
       void itemsStore.playVideo({
         video: media,
         player: 'builtin',
