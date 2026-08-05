@@ -65,7 +65,7 @@ export function buildReadyMatchPreparedFace(
 /** Member frames plus centroid — same query shape used by match and list re-rank. */
 export function buildClusterQueryEmbeddings(
   embeddings: Array<Float32Array | null | undefined>,
-): Array<Float32Array | null> {
+): Array<Float32Array | null | undefined> {
   return [
     ...embeddings,
     averageEmbeddings(embeddings),

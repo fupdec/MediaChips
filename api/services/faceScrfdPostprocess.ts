@@ -71,7 +71,7 @@ export function passesScrfdGeometryGates(
 
 export function collectScrfdCandidates(input: {
   outputs: Record<string, OrtTensorLike | undefined>
-  outputNames: string[]
+  outputNames: readonly string[]
   detScale: number
   width: number
   height: number
