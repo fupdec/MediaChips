@@ -491,6 +491,15 @@ import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {setNotification} from '@/services/notificationService'
 import type { Meta } from '@/types/stores'
+import {
+  clampFaceDetectFramesPerVideoForm,
+  clampFaceDetectMinScoreForm,
+  clampFaceMatchCandidateLimitForm,
+  clampFaceMatchConfidenceForm,
+  normalizeFaceGenderFilterForm,
+  parseFaceMatchModeForm,
+  parseMatchAfterDetectForm,
+} from '@/utils/faceSettingsForm'
 
 interface DetectionStatus {
   total: number
@@ -562,17 +571,13 @@ const taskId = ref<string | null>(null)
 const counters = ref<Record<string, number>>({})
 
 const selectedPerformerMeta = ref<Meta | null>(null)
-const minConfidence = ref(Number(settingsStore['faceMatch.minConfidence'] || 0.55))
-const candidateLimit = ref(Number(settingsStore['faceMatch.candidateLimit'] || 10))
-const detectMinScore = ref(Math.min(0.75, Math.max(0.5, Number(settingsStore['faceDetect.minScore'] || 0.5))))
-const framesPerVideo = ref(Number(settingsStore['faceDetect.framesPerVideo'] || 6))
-const genderFilter = ref<'both' | 'female' | 'male'>(
-  ['both', 'female', 'male'].includes(String(settingsStore['faceDetect.genderFilter'] || 'both'))
-    ? (String(settingsStore['faceDetect.genderFilter'] || 'both') as 'both' | 'female' | 'male')
-    : 'both',
-)
-const matchMode = ref(String(settingsStore['faceMatch.mode'] || 'auto'))
-const matchAfterDetect = ref(String(settingsStore['faceMatch.matchAfterDetect'] || '1') === '1')
+const minConfidence = ref(clampFaceMatchConfidenceForm(settingsStore['faceMatch.minConfidence']))
+const candidateLimit = ref(clampFaceMatchCandidateLimitForm(settingsStore['faceMatch.candidateLimit']))
+const detectMinScore = ref(clampFaceDetectMinScoreForm(settingsStore['faceDetect.minScore']))
+const framesPerVideo = ref(clampFaceDetectFramesPerVideoForm(settingsStore['faceDetect.framesPerVideo']))
+const genderFilter = ref(normalizeFaceGenderFilterForm(settingsStore['faceDetect.genderFilter']))
+const matchMode = ref(parseFaceMatchModeForm(settingsStore['faceMatch.mode']))
+const matchAfterDetect = ref(parseMatchAfterDetectForm(settingsStore['faceMatch.matchAfterDetect']))
 
 const asPercent = (value: number | string | null | undefined) => (
   `${Math.round(Number(value || 0) * 100)}%`
@@ -779,17 +784,19 @@ const onPerformerMetaChange = (meta: Meta | null) => {
 }
 
 const saveConfidence = () => {
-  void setOption(String(minConfidence.value), 'faceMatch.minConfidence')
+  const value = clampFaceMatchConfidenceForm(minConfidence.value)
+  minConfidence.value = value
+  void setOption(String(value), 'faceMatch.minConfidence')
 }
 
 const saveCandidateLimit = () => {
-  const value = Math.min(20, Math.max(3, Math.round(Number(candidateLimit.value) || 10)))
+  const value = clampFaceMatchCandidateLimitForm(candidateLimit.value)
   candidateLimit.value = value
   void setOption(String(value), 'faceMatch.candidateLimit')
 }
 
 const saveDetectMinScore = () => {
-  const value = Math.min(0.75, Math.max(0.5, Number(detectMinScore.value) || 0.5))
+  const value = clampFaceDetectMinScoreForm(detectMinScore.value)
   detectMinScore.value = value
   void setOption(String(value), 'faceDetect.minScore')
 }
@@ -800,25 +807,26 @@ const saveDetectMinScorePreset = (value: number) => {
 }
 
 const saveFramesPerVideo = () => {
-  const value = Math.min(99, Math.max(1, Math.round(Number(framesPerVideo.value) || 6)))
+  const value = clampFaceDetectFramesPerVideoForm(framesPerVideo.value)
   framesPerVideo.value = value
   void setOption(String(value), 'faceDetect.framesPerVideo')
 }
 
 const saveGenderFilter = (value: string | null) => {
   if (!value || !['both', 'female', 'male'].includes(value)) return
-  genderFilter.value = value as 'both' | 'female' | 'male'
-  void setOption(value, 'faceDetect.genderFilter')
+  genderFilter.value = normalizeFaceGenderFilterForm(value)
+  void setOption(genderFilter.value, 'faceDetect.genderFilter')
 }
 
 const saveMatchMode = (value: string | null) => {
   if (!value) return
-  matchMode.value = value
-  void setOption(value, 'faceMatch.mode')
+  const mode = parseFaceMatchModeForm(value)
+  matchMode.value = mode
+  void setOption(mode, 'faceMatch.mode')
 }
 
 const saveMatchAfterDetect = (value: string | number | boolean) => {
-  matchAfterDetect.value = value === true || value === '1' || value === 1
+  matchAfterDetect.value = parseMatchAfterDetectForm(value, false)
 }
 
 const refreshModelStatus = async () => {
@@ -851,10 +859,16 @@ const refreshMatchStatus = async () => {
       matchedFaces: Number(data.matchedFaces || 0),
     }
     if (data.embedModel?.status) embedStatus.value = String(data.embedModel.status)
-    if (data.settings?.minConfidence != null) minConfidence.value = Number(data.settings.minConfidence)
-    if (data.settings?.candidateLimit != null) candidateLimit.value = Number(data.settings.candidateLimit)
-    if (data.settings?.mode) matchMode.value = String(data.settings.mode)
-    if (data.settings?.matchAfterDetect != null) matchAfterDetect.value = Boolean(data.settings.matchAfterDetect)
+    if (data.settings?.minConfidence != null) {
+      minConfidence.value = clampFaceMatchConfidenceForm(data.settings.minConfidence)
+    }
+    if (data.settings?.candidateLimit != null) {
+      candidateLimit.value = clampFaceMatchCandidateLimitForm(data.settings.candidateLimit)
+    }
+    if (data.settings?.mode) matchMode.value = parseFaceMatchModeForm(data.settings.mode)
+    if (data.settings?.matchAfterDetect != null) {
+      matchAfterDetect.value = parseMatchAfterDetectForm(data.settings.matchAfterDetect)
+    }
   } catch {
     // Keep previous values.
   }
