@@ -20,6 +20,11 @@ import {
   resolveLocalAiPromptText,
   shouldRetrieveLocalAiDocs,
 } from './localLlmChat'
+import {
+  buildLocalAiDownloadProgressMessage,
+  buildLocalAiDownloadStartMessage,
+  resolveDownloadPercent,
+} from './localLlmDownload'
 import {parseBooleanSetting} from '../../shared/parseBooleanSetting'
 
 export const LOCAL_AI_MODEL_ID = 'qwen25-1_5b-instruct'
@@ -266,7 +271,7 @@ export async function* iterateDownloadLocalAi(
   yield {
     type: 'status',
     phase: 'downloading',
-    message: `Downloading Local AI model (~${LOCAL_AI_MODEL_SIZE_MB} MB)…`,
+    message: buildLocalAiDownloadStartMessage(LOCAL_AI_MODEL_SIZE_MB),
     percent: 0,
   }
 
@@ -298,15 +303,17 @@ export async function* iterateDownloadLocalAi(
       yield {type: 'aborted'}
       return
     }
-    const percent = progressState.total
-      ? Math.min(99, Math.round((progressState.loaded / progressState.total) * 100))
-      : Math.min(99, Math.round((progressState.loaded / (LOCAL_AI_MODEL_SIZE_MB * 1024 * 1024)) * 100))
+    const percent = resolveDownloadPercent({
+      loaded: progressState.loaded,
+      total: progressState.total,
+      expectedBytes: LOCAL_AI_MODEL_SIZE_MB * 1024 * 1024,
+    })
     if (percent !== lastPercent) {
       lastPercent = percent
       yield {
         type: 'status',
         phase: 'downloading',
-        message: `Downloading Local AI model… ${percent}%`,
+        message: buildLocalAiDownloadProgressMessage(percent),
         percent,
       }
     }
