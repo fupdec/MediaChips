@@ -11,10 +11,8 @@ import {
 } from './tagArrayFilterSql'
 import { resolveMetaId } from '../utils/metaId'
 import { buildTagMetaSortExpression } from '../utils/metaValueSort'
-import {
-  buildTagCountryMatchSql,
-  normalizeActiveFilters,
-} from './mediaFilterSql'
+import {normalizeActiveFilters} from './mediaFilterSql'
+import {buildTagCountryArrayClause} from './countryFilterSql'
 import {
   buildTypedEntityColumnClause,
   buildTypedMetaValueClause,
@@ -59,53 +57,6 @@ function isTagRelationArrayFilter(filter: FilterLike) {
   return (filter.type === 'array' || filter.type === 'select')
     && filter.param !== 'country'
     && resolveMetaId(filter.param) !== null
-}
-
-function buildTagCountryArrayClause(filter: FilterLike, nextParam: SqlParamBinder) {
-  const {cond, val} = filter
-  const countries = Array.isArray(val)
-    ? val.filter((entry: unknown) => entry !== null && entry !== undefined && entry !== '')
-    : []
-
-  const countryExistsSql = `(tags.country IS NOT NULL AND tags.country != '')`
-
-  if (cond === 'is null') {
-    return `NOT ${countryExistsSql}`
-  }
-
-  if (cond === 'not null') {
-    return countryExistsSql
-  }
-
-  if (!countries.length) {
-    if (cond === 'not in') return '1 = 1'
-    if (cond === 'not in all') return countryExistsSql
-    return '0 = 1'
-  }
-
-  const countryMatchClauses = countries.map((country: unknown) => {
-    const countryKey = nextParam(String(country))
-    return buildTagCountryMatchSql('tags', countryKey)
-  })
-
-  if (cond === 'in') {
-    return `(${countryMatchClauses.join(' OR ')})`
-  }
-
-  if (cond === 'not in') {
-    return `NOT (${countryMatchClauses.join(' OR ')})`
-  }
-
-  if (cond === 'in all') {
-    return countryMatchClauses.map((clause) => `(${clause})`).join(' AND ')
-  }
-
-  if (cond === 'not in all') {
-    const matchAllSql = countryMatchClauses.map((clause) => `(${clause})`).join(' AND ')
-    return `NOT (${matchAllSql})`
-  }
-
-  return null
 }
 
 function buildTagRelationJoin(filter: FilterLike, alias: string, nextParam: SqlParamBinder) {

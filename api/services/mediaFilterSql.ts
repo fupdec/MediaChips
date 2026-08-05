@@ -15,8 +15,6 @@ import {
 } from './mediaTagFilterSql'
 import { resolveMetaId } from '../utils/metaId'
 import { buildMediaMetaSortExpression } from '../utils/metaValueSort'
-import { parseExtList } from '../utils/ext'
-import { COUNTRY_DELIMITER } from '../utils/country'
 import {
   buildStringComparison,
 } from './filterSqlCompare'
@@ -24,8 +22,15 @@ import {
   buildTypedEntityColumnClause,
   buildTypedMetaValueClause,
 } from './filterTypedColumnSql'
-
-const COUNTRY_DELIMITER_SQL = `char(${COUNTRY_DELIMITER.charCodeAt(0)})`
+import {
+  buildCountryArrayClause,
+  buildTagCountryMatchSql,
+} from './countryFilterSql'
+import {buildExtArrayClause} from './extFilterSql'
+import {
+  buildDuplicateMatchClauses,
+  buildDuplicateValuesSubquery,
+} from './mediaDuplicatesFilterSql'
 
 const MEDIA_COLUMNS = new Set([
   'rating',
@@ -125,134 +130,6 @@ function isTagArrayFilter(filter: FilterLike) {
     && resolveMetaId(filter.param) !== null
 }
 
-function buildTagCountryMatchSql(tagAlias: string, countryKey: string) {
-  const countryColumn = `${tagAlias}.country`
-
-  return `(
-    ${countryColumn} = ${countryKey}
-    OR ${countryColumn} LIKE ${countryKey} || ${COUNTRY_DELIMITER_SQL} || '%'
-    OR ${countryColumn} LIKE '%' || ${COUNTRY_DELIMITER_SQL} || ${countryKey} || ${COUNTRY_DELIMITER_SQL} || '%'
-    OR ${countryColumn} LIKE '%' || ${COUNTRY_DELIMITER_SQL} || ${countryKey}
-    OR ${countryColumn} LIKE ${countryKey} || ',%'
-    OR ${countryColumn} LIKE '%,' || ${countryKey} || ',%'
-    OR ${countryColumn} LIKE '%,' || ${countryKey}
-  )`
-}
-
-function buildCountryArrayClause(filter: FilterLike, nextParam: SqlParamBinder) {
-  const {cond, val} = filter
-  const countries = Array.isArray(val)
-    ? val.filter((entry: unknown) => entry !== null && entry !== undefined && entry !== '')
-    : []
-
-  const countryExistsSql = `EXISTS (
-    SELECT 1 FROM tagsInMedia tim
-    INNER JOIN tags t ON t.id = tim.tagId
-    WHERE tim.mediaId = media.id
-      AND t.country IS NOT NULL
-      AND t.country != ''
-  )`
-
-  if (cond === 'is null') {
-    return `NOT ${countryExistsSql}`
-  }
-
-  if (cond === 'not null') {
-    return countryExistsSql
-  }
-
-  if (!countries.length) {
-    if (cond === 'not in') return '1 = 1'
-    if (cond === 'not in all') {
-      return countryExistsSql
-    }
-    return '0 = 1'
-  }
-
-  const countryMatchClauses = countries.map((country: unknown) => {
-    const countryKey = nextParam(String(country))
-    return buildTagCountryMatchSql('t', countryKey)
-  })
-
-  const countryMatchAnySql = `EXISTS (
-    SELECT 1 FROM tagsInMedia tim
-    INNER JOIN tags t ON t.id = tim.tagId
-    WHERE tim.mediaId = media.id
-      AND (${countryMatchClauses.join(' OR ')})
-  )`
-
-  if (cond === 'in') {
-    return countryMatchAnySql
-  }
-
-  if (cond === 'not in') {
-    return `NOT ${countryMatchAnySql}`
-  }
-
-  if (cond === 'in all') {
-    return countryMatchClauses.map((clause) => `EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      INNER JOIN tags t ON t.id = tim.tagId
-      WHERE tim.mediaId = media.id
-        AND (${clause})
-    )`).join(' AND ')
-  }
-
-  if (cond === 'not in all') {
-    const matchAllSql = countryMatchClauses.map((clause) => `EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      INNER JOIN tags t ON t.id = tim.tagId
-      WHERE tim.mediaId = media.id
-        AND (${clause})
-    )`).join(' AND ')
-
-    return `NOT (${matchAllSql})`
-  }
-
-  return null
-}
-
-function buildExtArrayClause(filter: FilterLike, nextParam: SqlParamBinder) {
-  const {cond, val} = filter
-  const exts = parseExtList(val as string | string[] | null | undefined)
-
-  if (cond === 'is null') {
-    return `(media.ext IS NULL OR media.ext = '')`
-  }
-  if (cond === 'not null') {
-    return `(media.ext IS NOT NULL AND media.ext != '')`
-  }
-  if (!exts.length) {
-    if (cond === 'in' || cond === 'in all') return '0 = 1'
-    if (cond === 'not in') return '1 = 1'
-    if (cond === 'not in all') {
-      return `(media.ext IS NOT NULL AND media.ext != '')`
-    }
-    return null
-  }
-
-  const extKeys = exts.map((ext: unknown) => nextParam(ext))
-  const listExpr = extKeys.join(', ')
-  const columnExpr = `LOWER(media.ext)`
-
-  switch (cond) {
-    case 'in':
-      return `${columnExpr} IN (${listExpr})`
-    case 'not in':
-      return `(${columnExpr} NOT IN (${listExpr}) OR media.ext IS NULL OR media.ext = '')`
-    case 'in all':
-      if (exts.length === 1) return `${columnExpr} IN (${listExpr})`
-      return '0 = 1'
-    case 'not in all':
-      if (exts.length === 1) {
-        return `(${columnExpr} != ${extKeys[0]} OR media.ext IS NULL OR media.ext = '')`
-      }
-      return `(${columnExpr} NOT IN (${listExpr}) OR media.ext IS NULL OR media.ext = '')`
-    default:
-      return null
-  }
-}
-
 function buildTagArrayJoin(filter: FilterLike, alias: string, nextParam: SqlParamBinder) {
   const metaId = resolveMetaId(filter.param)
   if (metaId === null) return null
@@ -309,42 +186,6 @@ function missingMediaTypeResult(): MediaFilterQueryResult {
   return { ok: false, reason: 'Missing mediaTypeId' }
 }
 
-type DuplicateColumn = 'path' | 'oshash' | 'visualHash' | 'contentHash' | 'filesize'
-
-function resolveDuplicateColumn(duplicatesBy: string): DuplicateColumn {
-  if (duplicatesBy === 'path') return 'path'
-  if (duplicatesBy === 'fingerprint' || duplicatesBy === 'oshash') return 'oshash'
-  if (duplicatesBy === 'visualHash' || duplicatesBy === 'visual') return 'visualHash'
-  if (duplicatesBy === 'contentHash') return 'contentHash'
-  return 'filesize'
-}
-
-/**
- * Duplicate value groups among candidates only (current filters + media type).
- * DISTINCT by media.id avoids join fan-out inflating HAVING COUNT(*).
- */
-function buildDuplicateValuesSubquery(
-  duplicatesBy: string,
-  joinSql: string,
-  whereSql: string,
-): string {
-  const column = resolveDuplicateColumn(duplicatesBy)
-  const fromSql = joinSql ? `media\n${joinSql}` : 'media'
-  const valueNotEmpty = column === 'filesize'
-    ? 'media.filesize > 0'
-    : `media.${column} IS NOT NULL AND media.${column} != ''`
-
-  return `SELECT dupVal
-    FROM (
-      SELECT DISTINCT media.id AS id, media.${column} AS dupVal
-      FROM ${fromSql}
-      WHERE ${whereSql}
-        AND ${valueNotEmpty}
-    ) AS scoped_candidates
-    GROUP BY dupVal
-    HAVING COUNT(*) > 1`
-}
-
 function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_by?: string } = {}): MediaFilterQueryResult {
   const {ids = []} = options
   const duplicatesBy = options.duplicates_by || 'filesize'
@@ -363,15 +204,7 @@ function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_b
     scope.joinSql,
     scope.whereSql,
   )
-  const column = resolveDuplicateColumn(duplicatesBy)
-
-  if (column === 'filesize') {
-    clauses.push('media.filesize > 0')
-    clauses.push(`media.filesize IN (${duplicateValuesSubquery})`)
-  } else {
-    clauses.push(`media.${column} IS NOT NULL AND media.${column} != ''`)
-    clauses.push(`media.${column} IN (${duplicateValuesSubquery})`)
-  }
+  clauses.push(...buildDuplicateMatchClauses(duplicatesBy, duplicateValuesSubquery))
 
   if (ids.length) {
     replacements.ids = ids
