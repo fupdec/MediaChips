@@ -1,6 +1,5 @@
 import type { FilterLike, AnyRecord } from '../types/db'
 import type {
-  FilterCondition,
   MediaFilterOptions,
   MediaFilterQueryResult,
   SqlParamBinder,
@@ -18,7 +17,11 @@ import { resolveMetaId } from '../utils/metaId'
 import { buildMediaMetaSortExpression } from '../utils/metaValueSort'
 import { parseExtList } from '../utils/ext'
 import { COUNTRY_DELIMITER } from '../utils/country'
-import { buildFolderPathLikePatterns } from '../utils/watcherFolderPaths'
+import {
+  buildDateComparison,
+  buildStringComparison,
+  compareNumberSql,
+} from './filterSqlCompare'
 
 const COUNTRY_DELIMITER_SQL = `char(${COUNTRY_DELIMITER.charCodeAt(0)})`
 
@@ -104,114 +107,6 @@ function sqlColumn(param: string | number) {
     return `COALESCE(videoMetadata.${key}, imageMetadata.${key})`
   }
   if (IMAGE_ONLY_COLUMNS.has(key)) return `imageMetadata.${key}`
-  return null
-}
-
-function compareNumberSql(columnExpr: string, cond: FilterCondition, valueKey: string) {
-  const valueExpr = `CAST(${columnExpr} AS REAL)`
-  switch (cond) {
-    case 'equal':
-    case '=':
-      return `${valueExpr} = CAST(${valueKey} AS REAL)`
-    case 'not equal':
-    case '!==':
-      return `${valueExpr} != CAST(${valueKey} AS REAL)`
-    case 'greater than':
-    case '>':
-      return `${valueExpr} > CAST(${valueKey} AS REAL)`
-    case 'less than':
-    case '<':
-      return `${valueExpr} < CAST(${valueKey} AS REAL)`
-    case 'greater than or equal':
-    case '>=':
-      return `${valueExpr} >= CAST(${valueKey} AS REAL)`
-    case 'less than or equal':
-    case '<=':
-      return `${valueExpr} <= CAST(${valueKey} AS REAL)`
-    default:
-      return null
-  }
-}
-
-function buildDateComparison(columnExpr: string, cond: FilterCondition, value: unknown, nextParam: SqlParamBinder) {
-  const valueKey = nextParam(value)
-  const columnTime = `CAST(strftime('%s', ${columnExpr}) AS INTEGER)`
-  const filterTime = `CAST(strftime('%s', ${valueKey}) AS INTEGER)`
-
-  switch (cond) {
-    case 'equal':
-    case '=':
-      return `${columnTime} = ${filterTime}`
-    case 'not equal':
-    case '!==':
-      return `${columnTime} != ${filterTime}`
-    case 'greater than':
-    case '>':
-      return `${columnTime} > ${filterTime}`
-    case 'less than':
-    case '<':
-      return `${columnTime} < ${filterTime}`
-    case 'greater than or equal':
-    case '>=':
-      return `${columnTime} >= ${filterTime}`
-    case 'less than or equal':
-    case '<=':
-      return `${columnTime} <= ${filterTime}`
-    default:
-      return null
-  }
-}
-
-function stringFilterValue(val: unknown): string {
-  if (Array.isArray(val)) return String(val[0] ?? '')
-  return String(val ?? '')
-}
-
-function buildStringComparison(columnExpr: string, cond: FilterCondition, val: unknown, nextParam: SqlParamBinder) {
-  if (cond === 'is null') {
-    return `(${columnExpr} IS NULL OR ${columnExpr} = '')`
-  }
-  if (cond === 'not null') {
-    return `(${columnExpr} IS NOT NULL AND ${columnExpr} != '')`
-  }
-  if (cond === 'regex') {
-    const patternKey = nextParam(stringFilterValue(val))
-    return `regexp(${patternKey}, ${columnExpr})`
-  }
-
-  if (cond === 'equal' || cond === '=') {
-    const valueKey = nextParam(stringFilterValue(val))
-    return `LOWER(${columnExpr}) = LOWER(${valueKey})`
-  }
-  if (cond === 'not equal' || cond === '!==') {
-    const valueKey = nextParam(stringFilterValue(val))
-    return `(${columnExpr} IS NULL OR LOWER(${columnExpr}) != LOWER(${valueKey}))`
-  }
-
-  if (cond === 'under folder') {
-    const patterns = buildFolderPathLikePatterns(stringFilterValue(val))
-    if (!patterns.length) return '0 = 1'
-    const clauses = patterns.map((pattern) => `${columnExpr} LIKE ${nextParam(pattern)}`)
-    return `(${clauses.join(' OR ')})`
-  }
-
-  if (cond === 'starts with') {
-    const prefix = stringFilterValue(val).toLowerCase().trim()
-    if (!prefix) return '0 = 1'
-    const patternKey = nextParam(`${prefix}%`)
-    return `LOWER(${columnExpr}) LIKE ${patternKey}`
-  }
-
-  const normalized = stringFilterValue(val).toLowerCase().trim()
-  const patternKey = nextParam(`%${normalized}%`)
-
-  if (cond === 'includes' || cond === 'like') {
-    return `LOWER(${columnExpr}) LIKE ${patternKey}`
-  }
-  if (cond === 'excludes' || cond === 'not like') {
-    return `(${columnExpr} IS NULL OR LOWER(${columnExpr}) NOT LIKE ${patternKey})`
-  }
-
   return null
 }
 

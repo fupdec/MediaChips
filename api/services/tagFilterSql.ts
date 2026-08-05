@@ -1,5 +1,5 @@
 import type { FilterLike } from '../types/db'
-import type { FilterCondition, TagFilterOptions, TagFilterQueryResult } from '../types/tagFilter'
+import type { TagFilterOptions, TagFilterQueryResult } from '../types/tagFilter'
 import type { SqlParamBinder } from '../types/mediaFilter'
 import {
   applyTagArrayJoinResult,
@@ -16,6 +16,10 @@ import {
   buildTagCountryMatchSql,
   normalizeActiveFilters,
 } from './mediaFilterSql'
+import {
+  buildDateComparison,
+  compareNumberSql,
+} from './filterSqlCompare'
 
 const TAG_COLUMNS = new Set([
   'rating',
@@ -50,61 +54,6 @@ function sqlColumn(param: string | number) {
   const key = String(param)
   if (TAG_COLUMNS.has(key)) return `tags.${key}`
   return null
-}
-
-function compareNumberSql(columnExpr: string, cond: FilterCondition, valueKey: string) {
-  const valueExpr = `CAST(${columnExpr} AS REAL)`
-  switch (cond) {
-    case 'equal':
-    case '=':
-      return `${valueExpr} = CAST(${valueKey} AS REAL)`
-    case 'not equal':
-    case '!==':
-      return `${valueExpr} != CAST(${valueKey} AS REAL)`
-    case 'greater than':
-    case '>':
-      return `${valueExpr} > CAST(${valueKey} AS REAL)`
-    case 'less than':
-    case '<':
-      return `${valueExpr} < CAST(${valueKey} AS REAL)`
-    case 'greater than or equal':
-    case '>=':
-      return `${valueExpr} >= CAST(${valueKey} AS REAL)`
-    case 'less than or equal':
-    case '<=':
-      return `${valueExpr} <= CAST(${valueKey} AS REAL)`
-    default:
-      return null
-  }
-}
-
-function buildDateComparison(columnExpr: string, cond: FilterCondition, value: unknown, nextParam: SqlParamBinder) {
-  const valueKey = nextParam(value)
-  const columnTime = `CAST(strftime('%s', ${columnExpr}) AS INTEGER)`
-  const filterTime = `CAST(strftime('%s', ${valueKey}) AS INTEGER)`
-
-  switch (cond) {
-    case 'equal':
-    case '=':
-      return `${columnTime} = ${filterTime}`
-    case 'not equal':
-    case '!==':
-      return `${columnTime} != ${filterTime}`
-    case 'greater than':
-    case '>':
-      return `${columnTime} > ${filterTime}`
-    case 'less than':
-    case '<':
-      return `${columnTime} < ${filterTime}`
-    case 'greater than or equal':
-    case '>=':
-      return `${columnTime} >= ${filterTime}`
-    case 'less than or equal':
-    case '<=':
-      return `${columnTime} <= ${filterTime}`
-    default:
-      return null
-  }
 }
 
 function isTagRelationArrayFilter(filter: FilterLike) {
