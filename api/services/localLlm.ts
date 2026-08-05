@@ -12,8 +12,13 @@ import {
   buildLocalAiSystemPrompt,
   extractDocIds,
   extractJsonObject,
+  filterLocalAiChatHistory,
   mergeCitedLocalAiDocs,
+  pickLastUserMessageContent,
+  resolveLocalAiMaxTokens,
   resolveLocalAiModelStatus,
+  resolveLocalAiPromptText,
+  shouldRetrieveLocalAiDocs,
 } from './localLlmChat'
 import {parseBooleanSetting} from '../../shared/parseBooleanSetting'
 
@@ -370,8 +375,8 @@ export async function* iterateLocalAiChat(
     }
 
     const locale = String(req.locale || 'en')
-    const userText = [...(req.messages || [])].reverse().find((m) => m.role === 'user')?.content || ''
-    const docs = !req.mode || req.mode === 'chat'
+    const userText = pickLastUserMessageContent(req.messages)
+    const docs = shouldRetrieveLocalAiDocs(req.mode)
       ? searchDocs(userText, locale, 4)
       : []
     const docsText = formatDocsForPrompt(docs)
@@ -384,9 +389,8 @@ export async function* iterateLocalAiChat(
       systemPrompt,
     })
 
-    const history = (req.messages || []).filter((m) => m.role === 'user' || m.role === 'assistant')
-    const lastUser = history.length ? history[history.length - 1] : null
-    const prompt = lastUser?.content || userText || 'Help me with MediaChips.'
+    const history = filterLocalAiChatHistory(req.messages)
+    const prompt = resolveLocalAiPromptText({history, userText})
 
     type QueueItem = LocalAiStreamEvent | {type: '__end'} | {type: '__fail'; error: Error}
     const queue: QueueItem[] = []
@@ -402,7 +406,7 @@ export async function* iterateLocalAiChat(
     let genDone = false
 
     const generation = session.prompt(prompt, {
-      maxTokens: req.mode && req.mode !== 'chat' ? 640 : 768,
+      maxTokens: resolveLocalAiMaxTokens(req.mode),
       signal: abortController.signal,
       stopOnAbortSignal: true,
       onTextChunk: (chunk: string) => {

@@ -143,3 +143,35 @@ export function resolveLocalAiModelStatus(input: {
     status: input.downloaded ? 'downloaded' : 'not_downloaded',
   }
 }
+
+export function pickLastUserMessageContent(
+  messages?: Array<{role: string; content: string}> | null,
+): string {
+  return [...(messages || [])].reverse().find((m) => m.role === 'user')?.content || ''
+}
+
+export function shouldRetrieveLocalAiDocs(mode?: string | null): boolean {
+  return !mode || mode === 'chat'
+}
+
+export function filterLocalAiChatHistory(
+  messages?: Array<{role: string; content: string}> | null,
+): Array<{role: 'user' | 'assistant'; content: string}> {
+  return (messages || []).filter(
+    (m): m is {role: 'user' | 'assistant'; content: string} =>
+      m.role === 'user' || m.role === 'assistant',
+  )
+}
+
+export function resolveLocalAiPromptText(input: {
+  history: Array<{role: string; content: string}>
+  userText: string
+  fallback?: string
+}): string {
+  const lastUser = input.history.length ? input.history[input.history.length - 1] : null
+  return lastUser?.content || input.userText || input.fallback || 'Help me with MediaChips.'
+}
+
+export function resolveLocalAiMaxTokens(mode?: string | null): number {
+  return mode && mode !== 'chat' ? 640 : 768
+}

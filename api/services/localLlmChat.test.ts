@@ -3,9 +3,14 @@ import {
   buildLocalAiSystemPrompt,
   extractDocIds,
   extractJsonObject,
+  filterLocalAiChatHistory,
   languageInstruction,
   mergeCitedLocalAiDocs,
+  pickLastUserMessageContent,
+  resolveLocalAiMaxTokens,
   resolveLocalAiModelStatus,
+  resolveLocalAiPromptText,
+  shouldRetrieveLocalAiDocs,
 } from './localLlmChat'
 
 describe('localLlmChat', () => {
@@ -74,5 +79,30 @@ describe('localLlmChat', () => {
     })).toMatchObject({status: 'error', message: 'boom'})
     expect(resolveLocalAiModelStatus({...base, downloaded: true}).status).toBe('downloaded')
     expect(resolveLocalAiModelStatus(base).status).toBe('not_downloaded')
+  })
+
+  it('shapes chat request prep helpers', () => {
+    expect(pickLastUserMessageContent([
+      {role: 'assistant', content: 'hi'},
+      {role: 'user', content: 'help'},
+      {role: 'system', content: 'x'},
+    ])).toBe('help')
+    expect(shouldRetrieveLocalAiDocs('chat')).toBe(true)
+    expect(shouldRetrieveLocalAiDocs('regex')).toBe(false)
+    expect(filterLocalAiChatHistory([
+      {role: 'system', content: 's'},
+      {role: 'user', content: 'u'},
+      {role: 'assistant', content: 'a'},
+    ])).toEqual([
+      {role: 'user', content: 'u'},
+      {role: 'assistant', content: 'a'},
+    ])
+    expect(resolveLocalAiPromptText({
+      history: [{role: 'user', content: 'last'}],
+      userText: 'earlier',
+    })).toBe('last')
+    expect(resolveLocalAiPromptText({history: [], userText: ''})).toBe('Help me with MediaChips.')
+    expect(resolveLocalAiMaxTokens('chat')).toBe(768)
+    expect(resolveLocalAiMaxTokens('filter')).toBe(640)
   })
 })
