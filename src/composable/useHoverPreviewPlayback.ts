@@ -15,14 +15,12 @@ import {
   createHoverSeekCoalescer,
   decideInPlacePreviewSeek,
   getLoadedPreviewMediaId,
-  getPreviewStreamStart,
   isIgnorablePreviewError,
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
-  resolveLivePreviewRelativeTime,
+  planPreviewUrlSeek,
   shouldApplyPreviewSeek,
-  shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
@@ -215,27 +213,26 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     )
     if (!url) return false
     if (token !== previewPlaybackToken) return false
-    const isLive = url.includes('/transcode/stream')
 
-    if (isLive) {
+    const plan = planPreviewUrlSeek({
+      url,
+      loadedMediaId,
+      mediaId,
+      activeSrc,
+      targetTime,
+      videoDuration: video.duration || 0,
+    })
+
+    if (plan.kind === 'live') {
       previewUsesLiveStream.value = true
-      const nextStart = getPreviewStreamStart(url)
-
-      if (shouldReloadLivePreviewSrc({
-        loadedMediaId,
-        mediaId,
-        activeSrc,
-        nextUrl: url,
-      })) {
+      if (plan.reload) {
         video.src = url
         await waitForPreviewCanPlay(video, isPreviewCancelled(token), {live: true})
       }
 
       if (token !== previewPlaybackToken) return false
-      const streamStart = Number(nextStart) || 0
-      const relative = resolveLivePreviewRelativeTime(targetTime, streamStart)
-      if (shouldApplyPreviewSeek(video.currentTime, relative)) {
-        video.currentTime = relative
+      if (shouldApplyPreviewSeek(video.currentTime, plan.relative)) {
+        video.currentTime = plan.relative
         await waitForPreviewSeek(video, isPreviewCancelled(token))
         if (token !== previewPlaybackToken) return false
       }
@@ -244,15 +241,14 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     }
 
     previewUsesLiveStream.value = false
-    if (loadedMediaId !== mediaId) {
+    if (plan.reload) {
       video.src = url
       await waitForPreviewCanPlay(video, isPreviewCancelled(token))
     }
 
     if (token !== previewPlaybackToken) return false
-    const nextTime = Math.min(targetTime, video.duration || targetTime)
-    if (shouldApplyPreviewSeek(video.currentTime, nextTime)) {
-      video.currentTime = nextTime
+    if (shouldApplyPreviewSeek(video.currentTime, plan.nextTime)) {
+      video.currentTime = plan.nextTime
       await waitForPreviewSeek(video, isPreviewCancelled(token))
       if (token !== previewPlaybackToken) return false
     }

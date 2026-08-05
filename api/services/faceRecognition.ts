@@ -56,6 +56,7 @@ import {
 import {
   enrollTagFromAllImages,
 } from './faceEnrollTag'
+import {resolveCachedModelStatus} from './faceModelStatus'
 import {
   packInterleavedRgbToNchw,
   rgbaBitmapToInterleavedRgb,
@@ -216,21 +217,14 @@ async function* prepareEmbedModel(db: ApiDb): AsyncGenerator<EmbedPrepEvent> {
 
 function getEmbedStatus(db: ApiDb): ModelStatus {
   migrateEmbedModelIfNeeded(db)
-  if (embedSession) return {status: 'loaded', model: EMBED_MODEL_ID, path: getWritableModelCacheDir(db)}
-  if (loadingPromise) return {status: 'loading', model: EMBED_MODEL_ID, path: getWritableModelCacheDir(db)}
-  if (lastError) {
-    return {
-      status: 'error',
-      model: EMBED_MODEL_ID,
-      path: getWritableModelCacheDir(db),
-      message: lastError.message,
-    }
-  }
-  return {
-    status: hasDownloadedEmbedModel(db) ? 'downloaded' : 'not_downloaded',
-    model: EMBED_MODEL_ID,
+  return resolveCachedModelStatus({
+    modelId: EMBED_MODEL_ID,
     path: getWritableModelCacheDir(db),
-  }
+    sessionLoaded: Boolean(embedSession),
+    loading: Boolean(loadingPromise),
+    lastError,
+    downloaded: hasDownloadedEmbedModel(db),
+  })
 }
 
 function resolvePerformerMetaId(db: ApiDb, configuredId?: number | null): number | null {

@@ -13,6 +13,7 @@ import {
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
   resolveLivePreviewRelativeTime,
+  planPreviewUrlSeek,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   createHoverSeekCoalescer,
@@ -99,6 +100,35 @@ describe('hoverPreviewPlayback', () => {
 
     expect(resolveLivePreviewRelativeTime(15.5, 10)).toBe(5.5)
     expect(resolveLivePreviewRelativeTime(8, 10)).toBe(0)
+  })
+
+  it('plans live and file preview seeks after a url is known', () => {
+    expect(planPreviewUrlSeek({
+      url: 'http://x/api/video/1/transcode/stream?start=10',
+      loadedMediaId: 1,
+      mediaId: 1,
+      activeSrc: 'http://x/api/video/1/transcode/stream?start=10',
+      targetTime: 15,
+      videoDuration: 100,
+    })).toEqual({
+      kind: 'live',
+      reload: false,
+      streamStart: 10,
+      relative: 5,
+    })
+
+    expect(planPreviewUrlSeek({
+      url: 'http://x/api/video/1/file.mp4',
+      loadedMediaId: null,
+      mediaId: 1,
+      activeSrc: '',
+      targetTime: 12,
+      videoDuration: 100,
+    })).toEqual({
+      kind: 'file',
+      reload: true,
+      nextTime: 12,
+    })
   })
 
   it('gates hover-ready marking', () => {

@@ -140,6 +140,50 @@ export function resolveLivePreviewRelativeTime(
   return Math.max(0, targetTime - streamStart)
 }
 
+export type PreviewUrlSeekPlan =
+  | {
+    kind: 'live'
+    reload: boolean
+    streamStart: number
+    relative: number
+  }
+  | {
+    kind: 'file'
+    reload: boolean
+    nextTime: number
+  }
+
+/** After a preview URL is known, decide live vs file seek/reload. */
+export function planPreviewUrlSeek(input: {
+  url: string
+  loadedMediaId: number | null
+  mediaId: number
+  activeSrc: string
+  targetTime: number
+  videoDuration: number
+}): PreviewUrlSeekPlan {
+  const isLive = input.url.includes('/transcode/stream')
+  if (isLive) {
+    const streamStart = Number(getPreviewStreamStart(input.url) || 0)
+    return {
+      kind: 'live',
+      reload: shouldReloadLivePreviewSrc({
+        loadedMediaId: input.loadedMediaId,
+        mediaId: input.mediaId,
+        activeSrc: input.activeSrc,
+        nextUrl: input.url,
+      }),
+      streamStart,
+      relative: resolveLivePreviewRelativeTime(input.targetTime, streamStart),
+    }
+  }
+  return {
+    kind: 'file',
+    reload: input.loadedMediaId !== input.mediaId,
+    nextTime: Math.min(input.targetTime, input.videoDuration || input.targetTime),
+  }
+}
+
 export function getLoadedPreviewMediaId(
   video: Pick<HTMLVideoElement, 'currentSrc'>,
   pageHref = typeof window !== 'undefined' ? window.location.href : '',

@@ -68,6 +68,7 @@ import {
   resolveDetectCropOutputPaths,
 } from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
+import {resolveCachedModelStatus} from './faceModelStatus'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
@@ -182,23 +183,15 @@ async function* prepareDetectModel(db: ApiDb): AsyncGenerator<DetectPrepEvent> {
 }
 
 function getStatus(db: ApiDb, enabled: boolean = true): ModelStatus {
-  if (!enabled) return {status: 'disabled', model: FACE_MODEL_ID}
-  if (session) return {status: 'loaded', model: FACE_MODEL_ID, path: getWritableModelCacheDir(db)}
-  if (loadingPromise) return {status: 'loading', model: FACE_MODEL_ID, path: getWritableModelCacheDir(db)}
-  if (lastError) {
-    return {
-      status: 'error',
-      model: FACE_MODEL_ID,
-      path: getWritableModelCacheDir(db),
-      message: lastError.message,
-    }
-  }
-
-  return {
-    status: hasDownloadedModel(db) ? 'downloaded' : 'not_downloaded',
-    model: FACE_MODEL_ID,
+  return resolveCachedModelStatus({
+    modelId: FACE_MODEL_ID,
     path: getWritableModelCacheDir(db),
-  }
+    sessionLoaded: Boolean(session),
+    loading: Boolean(loadingPromise),
+    lastError,
+    downloaded: hasDownloadedModel(db),
+    enabled,
+  })
 }
 
 async function imageToScrfdInput(framePath: string): Promise<{
