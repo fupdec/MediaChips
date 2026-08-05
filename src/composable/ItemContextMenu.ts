@@ -367,7 +367,7 @@ export default function useItemContextMenu(
           })
         }
 
-        if (isImageMediaType(currentMediaType.value)) {
+        if (resolveOpenMediaKind(currentMediaType.value) === 'view-image') {
           contextMenu.push({
             name: t('context_menu.view_image'),
             type: 'item',
@@ -390,7 +390,7 @@ export default function useItemContextMenu(
           })
         }
 
-        if (isTextMediaType(currentMediaType.value)) {
+        if (resolveOpenMediaKind(currentMediaType.value) === 'open-path') {
           contextMenu.push({
             name: t('context_menu.open_text_file'),
             type: 'item',
