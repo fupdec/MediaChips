@@ -3,14 +3,12 @@ import { typedApi } from '@/services/typedApi'
 import { buildLocalFileUrl, checkFileExists, createThumb } from '@/services/fileService'
 import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
 
+export { formatMarkTimestamp } from '@shared/markTimestamp'
+
 export interface MarkThumbTarget {
   id?: number
   time?: number
   [key: string]: unknown
-}
-
-export function formatMarkTimestamp(time: number): string {
-  return new Date(1000 * time).toISOString().substr(11, 12)
 }
 
 export function getMarkImagePath(mediaPath: string | null | undefined, markId: number | string): string {

@@ -21,8 +21,7 @@ import { resolveExistingPath } from '../../services/contentHash'
 import { resolveActiveDbFilePath } from '../../services/mediaPathResolver'
 import { buildVideoGridTaskParams, getGridSpriteDimensions, VIDEO_GRID_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
 import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
-
-const formatMarkTimestamp = (time: number) => new Date(1000 * time).toISOString().substr(11, 12)
+import { formatMarkTimestamp } from '@shared/markTimestamp'
 
 function resolveMediaIdFromGridRequest(body: ApiRequest['body']): number | null {
   if (body?.id != null && body.id !== '') {

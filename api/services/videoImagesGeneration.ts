@@ -26,6 +26,7 @@ import { upsertVisualHashForMedia } from './visualHashBackfill'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createMarksRepository } from '../db/repositories/marks'
+import { formatMarkTimestamp } from '@shared/markTimestamp'
 import {
   VIDEO_GRID_JPEG_QUALITY,
   VIDEO_GRID_SPRITE,
@@ -50,8 +51,6 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise
     setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
   }),
 ])
-
-const formatMarkTimestamp = (time: number) => new Date(1000 * time).toISOString().substr(11, 12)
 
 const getPreviewPath = (dbPath: string, id: unknown) => path.join(dbPath, 'media/videos/thumbs', `${id}.jpg`)
 const getGridPath = (dbPath: string, id: unknown) => path.join(dbPath, 'media/videos/grids', `${id}.jpg`)
