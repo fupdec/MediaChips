@@ -11,6 +11,7 @@ import {
   requiresMetadataJoinForSort,
 } from './mediaFilterSql'
 import { buildMediaIdSelect } from './filteredListSql'
+import { slicePage } from './mediaItemsPagination'
 
 /** Pure where-builder for visual near-duplicate lists (DB lookup stays in the loader). */
 export function buildVisualNearDuplicateFilterSuccess(
@@ -228,4 +229,18 @@ export function parseListTotalsRows(
     totalFiltered: Number(totalsRow?.totalFiltered) || 0,
     totalFilesize: Number(totalsRow?.totalFilesize) || 0,
   }
+}
+
+/** Page id window after group aggregation (or full ordered id list). */
+export function resolveGroupedPageIds(
+  orderedIds: Array<number | string>,
+  options: {
+    shouldPaginate: boolean
+    page: number
+    limit: number | null
+  },
+): Array<number | string> {
+  return options.shouldPaginate
+    ? slicePage(orderedIds, options.page, options.limit)
+    : orderedIds
 }

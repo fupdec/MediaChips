@@ -10,6 +10,7 @@ import {
   buildVisualNearDuplicateFilterSuccess,
   parseListTotalsRows,
   resolveCachedListTotals,
+  resolveGroupedPageIds,
   resolveMediaListSqlParts,
   shouldComputeListTotals,
 } from './mediaItemsListSql'
@@ -175,5 +176,20 @@ describe('list totals cache helpers', () => {
       totalFiltered: 4,
       totalFilesize: 50,
     })
+  })
+})
+
+describe('resolveGroupedPageIds', () => {
+  it('pages grouped ordered ids when pagination is on', () => {
+    expect(resolveGroupedPageIds([1, 2, 3, 4, 5], {
+      shouldPaginate: true,
+      page: 2,
+      limit: 2,
+    })).toEqual([3, 4])
+    expect(resolveGroupedPageIds([1, 2, 3], {
+      shouldPaginate: false,
+      page: 1,
+      limit: 1,
+    })).toEqual([1, 2, 3])
   })
 })

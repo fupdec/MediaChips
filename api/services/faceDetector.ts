@@ -64,6 +64,7 @@ import {
   saveFaceCrop,
 } from './faceCropStore'
 import {
+  SCRFD_DEFAULT_MIN_SCORE,
   buildDetectedFaceEntry,
   buildEmptyFaceDetectResult,
   buildFailedFaceDetectResult,
@@ -71,6 +72,9 @@ import {
   buildSkippedExistingFaceResult,
   mapDetectionsToPersistedFaceRows,
   resolveDetectCropOutputPaths,
+  resolveDetectMediaIdentity,
+  resolveDetectMediaPreflight,
+  resolveScrfdFrameDetectParams,
   shouldAttemptDetectionEmbedding,
   shouldPrepareGenderFilter,
 } from './faceDetectPersist'
@@ -97,9 +101,6 @@ const FACE_MODEL_URL = 'https://huggingface.co/deepghs/insightface/resolve/main/
 /** Rough size shown in UI (~buffalo_l SCRFD-10G). */
 const FACE_MODEL_SIZE_MB = 16
 const DET_INPUT_SIZE = 640
-const DEFAULT_MIN_SCORE = 0.5
-const DEFAULT_IOU = 0.4
-const DEFAULT_MAX_FACES = 20
 const SCRFD_MEAN = 127.5
 const SCRFD_STD = 128
 export interface FaceDetectSettings {
@@ -115,7 +116,7 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
     'faceDetect.genderFilter',
   ])
   const map = new Map(rows.map((row) => [String(row.option), row.value]))
-  return parseFaceDetectSettingsFromMap(map, DEFAULT_MIN_SCORE)
+  return parseFaceDetectSettingsFromMap(map, SCRFD_DEFAULT_MIN_SCORE)
 }
 
 let session: OrtSession | null = null
@@ -238,9 +239,7 @@ async function detectFacesInFrame(
   framePath: string,
   options: FaceDetectorOptions = {},
 ): Promise<Array<{score: number; box: FaceBox; kps: FaceLandmark5 | null}>> {
-  const minScore = Number(options.minScore ?? DEFAULT_MIN_SCORE)
-  const iouThreshold = Number(options.iouThreshold ?? DEFAULT_IOU)
-  const maxFaces = Number(options.maxFacesPerFrame ?? DEFAULT_MAX_FACES)
+  const {minScore, iouThreshold, maxFaces} = resolveScrfdFrameDetectParams(options)
   const {tensor, width, height, detScale, image} = await imageToScrfdInput(framePath)
   const inputName = model.inputNames[0] || 'input.1'
   const outputs = await model.run({[inputName]: tensor})
@@ -270,28 +269,35 @@ async function detectMedia(
   item: FaceDetectorMediaItem,
   options: FaceDetectorOptions = {},
 ): Promise<FaceDetectorMediaResult> {
-  const mediaId = item?.id != null ? Number(item.id) : null
-  const mediaPath = item?.path ? String(item.path) : null
+  const {mediaId, mediaPath} = resolveDetectMediaIdentity(item)
   const persist = options.persist !== false
   // Crops are for manual review visuals only — auto-scan stores embeddings, not JPEGs.
   const detectSettings = getFaceDetectSettings(db)
   const resolvedOptions = resolveFaceDetectRuntimeOptions(options, detectSettings)
   const persistCrops = resolvedOptions.persistCrops
 
-  if (!mediaPath || !fs.existsSync(mediaPath)) {
-    return buildMissingFaceDetectResult(mediaId, mediaPath)
+  const existing = mediaId != null && !options.force
+    ? createFacesRepository(db.drizzle).findByMediaId(mediaId)
+    : []
+  const preflight = resolveDetectMediaPreflight({
+    mediaId,
+    mediaPath,
+    pathExists: Boolean(mediaPath && fs.existsSync(mediaPath)),
+    force: options.force,
+    existingCount: existing.length,
+  })
+
+  if (preflight.kind === 'missing') {
+    return buildMissingFaceDetectResult(preflight.mediaId, preflight.mediaPath)
   }
 
-  if (mediaId != null && !options.force) {
-    const existing = createFacesRepository(db.drizzle).findByMediaId(mediaId)
-    if (existing.length) {
-      return buildSkippedExistingFaceResult({
-        mediaId,
-        mediaPath,
-        existing,
-        dbPath: db.path,
-      })
-    }
+  if (preflight.kind === 'skip-existing') {
+    return buildSkippedExistingFaceResult({
+      mediaId: preflight.mediaId,
+      mediaPath: preflight.mediaPath,
+      existing,
+      dbPath: db.path,
+    })
   }
 
   let tmpDir: string | null = null

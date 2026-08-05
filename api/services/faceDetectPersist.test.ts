@@ -7,6 +7,9 @@ import {
   buildSkippedExistingFaceResult,
   mapDetectionsToPersistedFaceRows,
   resolveDetectCropOutputPaths,
+  resolveDetectMediaIdentity,
+  resolveDetectMediaPreflight,
+  resolveScrfdFrameDetectParams,
   shouldAttemptDetectionEmbedding,
   shouldPrepareGenderFilter,
 } from './faceDetectPersist'
@@ -119,5 +122,54 @@ describe('detect result helpers', () => {
 
     expect(shouldPrepareGenderFilter('both')).toBe(false)
     expect(shouldPrepareGenderFilter('female')).toBe(true)
+  })
+})
+
+describe('detect media preflight / SCRFD frame params', () => {
+  it('resolves identity and preflight gates', () => {
+    expect(resolveDetectMediaIdentity({id: '7', path: '/v.mp4'})).toEqual({
+      mediaId: 7,
+      mediaPath: '/v.mp4',
+    })
+
+    expect(resolveDetectMediaPreflight({
+      mediaId: 1,
+      mediaPath: null,
+      pathExists: false,
+      existingCount: 0,
+    }).kind).toBe('missing')
+
+    expect(resolveDetectMediaPreflight({
+      mediaId: 1,
+      mediaPath: '/v.mp4',
+      pathExists: true,
+      force: false,
+      existingCount: 2,
+    })).toEqual({kind: 'skip-existing', mediaId: 1, mediaPath: '/v.mp4'})
+
+    expect(resolveDetectMediaPreflight({
+      mediaId: 1,
+      mediaPath: '/v.mp4',
+      pathExists: true,
+      force: true,
+      existingCount: 2,
+    }).kind).toBe('run')
+  })
+
+  it('normalizes SCRFD frame detect thresholds', () => {
+    expect(resolveScrfdFrameDetectParams({})).toEqual({
+      minScore: 0.5,
+      iouThreshold: 0.4,
+      maxFaces: 20,
+    })
+    expect(resolveScrfdFrameDetectParams({
+      minScore: 0.8,
+      iouThreshold: 0.3,
+      maxFacesPerFrame: 5,
+    })).toEqual({
+      minScore: 0.8,
+      iouThreshold: 0.3,
+      maxFaces: 5,
+    })
   })
 })

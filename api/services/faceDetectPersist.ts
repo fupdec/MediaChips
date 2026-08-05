@@ -156,3 +156,52 @@ export function buildDetectedFaceEntry(input: {
 export function shouldPrepareGenderFilter(genderFilter: string): boolean {
   return genderFilter !== 'both'
 }
+
+export function resolveDetectMediaIdentity(item: {
+  id?: unknown
+  path?: unknown
+} | null | undefined): {mediaId: number | null; mediaPath: string | null} {
+  return {
+    mediaId: item?.id != null ? Number(item.id) : null,
+    mediaPath: item?.path ? String(item.path) : null,
+  }
+}
+
+export type DetectMediaPreflight =
+  | {kind: 'missing'; mediaId: number | null; mediaPath: string | null}
+  | {kind: 'skip-existing'; mediaId: number; mediaPath: string | null}
+  | {kind: 'run'; mediaId: number | null; mediaPath: string}
+
+/** Gate before frame extract / ONNX: missing file or already-detected media. */
+export function resolveDetectMediaPreflight(input: {
+  mediaId: number | null
+  mediaPath: string | null
+  pathExists: boolean
+  force?: boolean
+  existingCount: number
+}): DetectMediaPreflight {
+  if (!input.mediaPath || !input.pathExists) {
+    return {kind: 'missing', mediaId: input.mediaId, mediaPath: input.mediaPath}
+  }
+  if (input.mediaId != null && !input.force && input.existingCount > 0) {
+    return {kind: 'skip-existing', mediaId: input.mediaId, mediaPath: input.mediaPath}
+  }
+  return {kind: 'run', mediaId: input.mediaId, mediaPath: input.mediaPath}
+}
+
+export const SCRFD_DEFAULT_MIN_SCORE = 0.5
+export const SCRFD_DEFAULT_IOU = 0.4
+export const SCRFD_DEFAULT_MAX_FACES = 20
+
+/** Normalize per-frame SCRFD thresholds from detector options. */
+export function resolveScrfdFrameDetectParams(options: {
+  minScore?: number
+  iouThreshold?: number
+  maxFacesPerFrame?: number
+} = {}): {minScore: number; iouThreshold: number; maxFaces: number} {
+  return {
+    minScore: Number(options.minScore ?? SCRFD_DEFAULT_MIN_SCORE),
+    iouThreshold: Number(options.iouThreshold ?? SCRFD_DEFAULT_IOU),
+    maxFaces: Number(options.maxFacesPerFrame ?? SCRFD_DEFAULT_MAX_FACES),
+  }
+}

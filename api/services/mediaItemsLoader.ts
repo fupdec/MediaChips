@@ -63,6 +63,7 @@ import {
   buildVisualNearDuplicateFilterSuccess,
   parseListTotalsRows,
   resolveCachedListTotals,
+  resolveGroupedPageIds,
   resolveMediaListSqlParts,
   shouldComputeListTotals,
 } from './mediaItemsListSql'
@@ -179,12 +180,14 @@ async function loadMediaItemsLegacy(
       direction,
     )
     groups = aggregated.groups
-    const pageIds = shouldPaginate
-      ? slicePage(aggregated.orderedIds, page, limit)
-      : aggregated.orderedIds
+    const pageIds = resolveGroupedPageIds(aggregated.orderedIds, {
+      shouldPaginate,
+      page,
+      limit,
+    })
     const byId = new Map(filtered.map((item) => [Number(item.id), item]))
     pageItems = pageIds
-      .map((id) => byId.get(id))
+      .map((id) => byId.get(Number(id)))
       .filter((item): item is typeof filtered[number] => item != null)
   } else if (shouldPaginate) {
     pageItems = slicePage(filtered, page, limit)
@@ -275,9 +278,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
           rowsById.set(row.id as MediaId, row)
         }
       }
-      slimRows = allIds
-        .map((id) => rowsById.get(id))
-        .filter((row): row is AnyRecord => row != null)
+      slimRows = orderRowsByIds([...rowsById.values()], allIds)
     } else {
       slimRows = await queryAllAsync(db, `${GROUP_SLIM_SELECT}
         ${fromForSort}
@@ -294,9 +295,11 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
       direction,
     )
     groups = aggregated.groups
-    pageIds = shouldPaginate
-      ? slicePage(aggregated.orderedIds, safePage, limit)
-      : aggregated.orderedIds
+    pageIds = resolveGroupedPageIds(aggregated.orderedIds, {
+      shouldPaginate,
+      page: safePage,
+      limit,
+    }) as MediaId[]
   } else {
     const idQuery = appendIdQueryLimitOffset(
       `${idSelect}
