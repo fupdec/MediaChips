@@ -15,6 +15,15 @@ import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import type {TagRow} from '../db/repositories/tags'
 import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
 import {mergeSynonymLists} from './tagSynonymMerge'
+import {
+  planNestedNameDedupeDeletes,
+  planTagValuesToInsert,
+  remapFilterRowLinksToSurvivor,
+  remapFolderLinksToSurvivor,
+  remapMediaLinksToSurvivor,
+  remapNestedChildLinksToSurvivor,
+  remapNestedParentLinksToSurvivor,
+} from './tagMergeRemap'
 
 export {mergeSynonymLists} from './tagSynonymMerge'
 
@@ -100,37 +109,15 @@ export function dedupeNestedTagsByName(
     childRows.map((row) => [row.id, String(row.name ?? '').trim().toLowerCase()]),
   )
 
-  const groups = new Map<string, typeof links>()
-  for (const link of links) {
-    const name = nameById.get(link.tagId)
-    if (!name) continue
-    const key = `${link.metaId}:${name}`
-    const group = groups.get(key)
-    if (group) group.push(link)
-    else groups.set(key, [link])
-  }
-
-  for (const group of groups.values()) {
-    const unique = [...new Map(group.map((link) => [link.tagId, link])).values()]
-    if (unique.length < 2) continue
-
-    unique.sort((a, b) => {
-      const aPreferred = preferredChildIds.has(a.tagId) ? 0 : 1
-      const bPreferred = preferredChildIds.has(b.tagId) ? 0 : 1
-      if (aPreferred !== bPreferred) return aPreferred - bPreferred
-      return a.tagId - b.tagId
-    })
-
-    for (const link of unique.slice(1)) {
-      tx.delete(tagsInTags)
-        .where(and(
-          eq(tagsInTags.parentTagId, survivorId),
-          eq(tagsInTags.tagId, link.tagId),
-          eq(tagsInTags.metaId, link.metaId),
-        ))
-        .run()
-      removed += 1
-    }
+  for (const link of planNestedNameDedupeDeletes(links, nameById, preferredChildIds)) {
+    tx.delete(tagsInTags)
+      .where(and(
+        eq(tagsInTags.parentTagId, survivorId),
+        eq(tagsInTags.tagId, link.tagId),
+        eq(tagsInTags.metaId, link.metaId),
+      ))
+      .run()
+    removed += 1
   }
 
   return removed
@@ -200,14 +187,7 @@ export function mergeTagsInCategoryTx(
     .all()
 
   if (mediaLinks.length) {
-    const mediaRows = uniqueByKey(
-      mediaLinks.map((row) => ({
-        mediaId: row.mediaId,
-        tagId: survivorId,
-        metaId: row.metaId,
-      })),
-      (row) => `${row.mediaId}:${row.tagId}:${row.metaId}`,
-    )
+    const mediaRows = remapMediaLinksToSurvivor(mediaLinks, survivorId)
     const inserted = tx.insert(tagsInMedia)
       .values(mediaRows)
       .onConflictDoNothing()
@@ -224,14 +204,7 @@ export function mergeTagsInCategoryTx(
     .all()
 
   if (folderLinks.length) {
-    const folderRows = uniqueByKey(
-      folderLinks.map((row) => ({
-        folderId: row.folderId,
-        tagId: survivorId,
-        metaId: row.metaId,
-      })),
-      (row) => `${row.folderId}:${row.tagId}:${row.metaId}`,
-    )
+    const folderRows = remapFolderLinksToSurvivor(folderLinks, survivorId)
     tx.insert(tagsInFolders)
       .values(folderRows)
       .onConflictDoNothing()
@@ -246,16 +219,7 @@ export function mergeTagsInCategoryTx(
     .all()
 
   if (nestedAsChild.length) {
-    const childRows = uniqueByKey(
-      nestedAsChild
-        .filter((row) => row.parentTagId !== survivorId)
-        .map((row) => ({
-          parentTagId: row.parentTagId,
-          tagId: survivorId,
-          metaId: row.metaId,
-        })),
-      (row) => `${row.parentTagId}:${row.tagId}:${row.metaId}`,
-    )
+    const childRows = remapNestedChildLinksToSurvivor(nestedAsChild, survivorId)
 
     if (childRows.length) {
       const inserted = tx.insert(tagsInTags)
@@ -275,16 +239,7 @@ export function mergeTagsInCategoryTx(
     .all()
 
   if (nestedAsParent.length) {
-    const parentRows = uniqueByKey(
-      nestedAsParent
-        .filter((row) => row.tagId !== survivorId)
-        .map((row) => ({
-          parentTagId: survivorId,
-          tagId: row.tagId,
-          metaId: row.metaId,
-        })),
-      (row) => `${row.parentTagId}:${row.tagId}:${row.metaId}`,
-    )
+    const parentRows = remapNestedParentLinksToSurvivor(nestedAsParent, survivorId)
 
     if (parentRows.length) {
       const inserted = tx.insert(tagsInTags)
@@ -316,11 +271,7 @@ export function mergeTagsInCategoryTx(
 
   if (filterLinks.length) {
     const inserted = tx.insert(tagsInFilterRows)
-      .values(filterLinks.map((row) => ({
-        tagId: survivorId,
-        rowId: row.rowId,
-        metaId: row.metaId,
-      })))
+      .values(remapFilterRowLinksToSurvivor(filterLinks, survivorId))
       .onConflictDoNothing()
       .returning()
       .all()
@@ -340,17 +291,7 @@ export function mergeTagsInCategoryTx(
     .where(inArray(valuesInTags.tagId, sourceIds))
     .all()
 
-  const valuesToInsert = []
-  const seenMetaIds = new Set<number>()
-  for (const row of sourceValues) {
-    if (survivorMetaIds.has(row.metaId) || seenMetaIds.has(row.metaId)) continue
-    seenMetaIds.add(row.metaId)
-    valuesToInsert.push({
-      tagId: survivorId,
-      metaId: row.metaId,
-      value: row.value,
-    })
-  }
+  const valuesToInsert = planTagValuesToInsert(sourceValues, survivorId, survivorMetaIds)
 
   if (valuesToInsert.length) {
     const inserted = tx.insert(valuesInTags)
