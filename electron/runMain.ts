@@ -1,10 +1,9 @@
 /**
  * Electron entry bootstrap.
  *
- * Dev / postinstall (`compile.mjs dev-artifacts`) emit backend to `.backend-build`
- * without copy-back. Rewrites main.js's relative `./api|app|shared/...` requires
- * onto that tree. Packaged builds omit `.backend-build` and keep using
- * source-tree JS produced by `backend-copy` (`compile.mjs artifacts`).
+ * Dev, postinstall, and pack all emit backend JS to `.backend-build` (no
+ * api/app/shared copy-back). Rewrites main.js's relative `./api|app|shared/...`
+ * requires onto that tree when present.
  */
 import fs from 'fs'
 import path from 'path'

@@ -94,20 +94,20 @@ if (msStoreTarget) {
 run('node', ['scripts/compile.mjs', 'artifacts'], childEnv)
 if (storeBuild || msStoreTarget) {
   restoreCompiledFlagSources()
-  const bakedSfw = readFileSync(join(root, 'shared/sfwCompiled.js'), 'utf8')
+  const bakedSfw = readFileSync(join(root, '.backend-build/shared/sfwCompiled.js'), 'utf8')
   if (!/\bSFW_COMPILED\s*=\s*true\b/.test(bakedSfw) && !/exports\.SFW_COMPILED\s*=\s*true/.test(bakedSfw)) {
-    console.error('[dist] shared/sfwCompiled.js was not baked with SFW_COMPILED=true')
+    console.error('[dist] .backend-build/shared/sfwCompiled.js was not baked with SFW_COMPILED=true')
     process.exit(1)
   }
-  console.log('[dist] verified shared/sfwCompiled.js has SFW_COMPILED=true')
+  console.log('[dist] verified .backend-build/shared/sfwCompiled.js has SFW_COMPILED=true')
 }
 if (msStoreTarget) {
-  const bakedMs = readFileSync(join(root, 'shared/msStoreCompiled.js'), 'utf8')
+  const bakedMs = readFileSync(join(root, '.backend-build/shared/msStoreCompiled.js'), 'utf8')
   if (!/\bMSSTORE_COMPILED\s*=\s*true\b/.test(bakedMs) && !/exports\.MSSTORE_COMPILED\s*=\s*true/.test(bakedMs)) {
-    console.error('[dist] shared/msStoreCompiled.js was not baked with MSSTORE_COMPILED=true')
+    console.error('[dist] .backend-build/shared/msStoreCompiled.js was not baked with MSSTORE_COMPILED=true')
     process.exit(1)
   }
-  console.log('[dist] verified shared/msStoreCompiled.js has MSSTORE_COMPILED=true')
+  console.log('[dist] verified .backend-build/shared/msStoreCompiled.js has MSSTORE_COMPILED=true')
 }
 run('npm', ['run', 'build:app'], childEnv)
 run('node', ['.scripts-build/download-parser-model.js'], childEnv)

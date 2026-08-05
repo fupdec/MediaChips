@@ -190,6 +190,8 @@ async function runGroup(name) {
       runTarget('backend')
       return
     case 'backend-copy':
+      // Optional legacy: copy .backend-build into api/app/shared for tooling that still
+      // expects source-tree JS. Packaged apps and daily DX use .backend-build directly.
       runTarget('backend')
       copyBackendArtifacts()
       return
@@ -200,8 +202,9 @@ async function runGroup(name) {
       await runParallel(['electron', 'main'])
       return
     case 'electron-artifacts':
+      // Pack + electron-dev: emit backend to .backend-build; electron/main entrypoints only.
+      runTarget('backend')
       await runParallel(['electron', 'main'])
-      await runGroup('backend-copy')
       return
     case 'artifacts':
       runTarget('scripts')

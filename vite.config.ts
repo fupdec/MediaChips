@@ -113,7 +113,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       'app/**/*.test.ts',
       'electron/**/*.test.ts',
       'packages/**/*.test.ts',
-      'scripts/**/*.test.mjs',
+      'scripts/**/*.test.{mjs,ts}',
     ],
     coverage: {
       provider: 'v8',

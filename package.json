@@ -141,10 +141,12 @@
       "output": "release"
     },
     "files": [
+      ".backend-build/**/*",
+      "!.backend-build/**/*.test.js",
+      "!.backend-build/**/*.tsbuildinfo",
       "!databases",
       "!app_storage",
       "!src",
-      "!.backend-build",
       "!.api-build",
       "!.app-build",
       "!.shared-build",
