@@ -22,3 +22,31 @@ export function buildClearedFaceMatchUpdate() {
     matchStatus: 'unmatched' as const,
   }
 }
+
+export type AssignFaceToPerformerGate =
+  | {ok: true; metaId: number}
+  | {ok: false; error: string}
+
+/** Validate face + performer tag before writing match fields. */
+export function resolveAssignFaceToPerformerGate(input: {
+  faceFound: boolean
+  tagMetaId: number | null | undefined
+}): AssignFaceToPerformerGate {
+  if (!input.faceFound) {
+    return {ok: false, error: 'Face not found'}
+  }
+  if (input.tagMetaId == null) {
+    return {ok: false, error: 'Performer tag not found'}
+  }
+  return {ok: true, metaId: Number(input.tagMetaId)}
+}
+
+/** Keep only media ids that still exist in the library. */
+export function filterExistingMediaIds(
+  mediaIds: Array<number | string>,
+  exists: (id: number) => boolean,
+): number[] {
+  return mediaIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && exists(id))
+}

@@ -39,6 +39,8 @@ import {
 } from './faceMediaMatchResolve'
 import {
   buildClearedFaceMatchUpdate,
+  filterExistingMediaIds,
+  resolveAssignFaceToPerformerGate,
   resolveAssignMatchFields,
 } from './faceAssignMatch'
 import {
@@ -470,19 +472,21 @@ async function assignFaceToPerformer(
 ) {
   const facesRepo = createFacesRepository(db.drizzle)
   const face = facesRepo.findById(faceId)
-  if (!face) throw new Error('Face not found')
-
   const tag = createTagsRepository(db.drizzle, db.sqlite).findById(tagId)
-  if (!tag?.metaId) throw new Error('Performer tag not found')
+  const gate = resolveAssignFaceToPerformerGate({
+    faceFound: Boolean(face),
+    tagMetaId: tag?.metaId != null ? Number(tag.metaId) : null,
+  })
+  if (!gate.ok) throw new Error(gate.error)
 
-  const metaId = Number(tag.metaId)
+  const metaId = gate.metaId
   // Opt-in: picking a face only binds suggestion unless applyTag is explicitly true.
   const applyTag = options.applyTag === true
   const enroll = options.enroll === true
   const fields = resolveAssignMatchFields({
     applyTag,
     matchScore: options.matchScore,
-    existingMatchScore: face.matchScore,
+    existingMatchScore: face!.matchScore,
   })
   facesRepo.updateMatch(faceId, {
     tagId,
@@ -491,7 +495,7 @@ async function assignFaceToPerformer(
 
   if (applyTag) {
     createTagsInMediaRepository(db.drizzle).bulkCreate([{
-      mediaId: Number(face.mediaId),
+      mediaId: Number(face!.mediaId),
       tagId,
       metaId,
     }])
@@ -499,9 +503,9 @@ async function assignFaceToPerformer(
 
   if (enroll) {
     try {
-      let embeddingJson: string | null = face.embedding ? String(face.embedding) : null
+      let embeddingJson: string | null = face!.embedding ? String(face!.embedding) : null
       if (!embeddingJson) {
-        const cropPath = resolveAbsoluteCropPath(db, face.cropPath)
+        const cropPath = resolveAbsoluteCropPath(db, face!.cropPath)
         if (cropPath) {
           const embedding = await embedImage(db, cropPath)
           embeddingJson = embeddingToJson(embedding)
@@ -512,7 +516,7 @@ async function assignFaceToPerformer(
           tagId,
           metaId,
           source: 'faceCrop',
-          sourcePath: face.cropPath || `face:${faceId}`,
+          sourcePath: face!.cropPath || `face:${faceId}`,
           embedding: embeddingJson,
         })
       }
@@ -521,7 +525,7 @@ async function assignFaceToPerformer(
     }
   }
 
-  return {faceId, tagId, metaId, mediaId: Number(face.mediaId)}
+  return {faceId, tagId, metaId, mediaId: Number(face!.mediaId)}
 }
 
 function clearFaceMatch(db: ApiDb, faceId: number) {
@@ -626,12 +630,10 @@ async function* iterateFaceMatching(
 
   const facesRepo = createFacesRepository(db.drizzle)
   const mediaRepo = createMediaRepository(db.drizzle)
-  let ids = mediaIds?.length
-    ? mediaIds
-    : facesRepo.findDistinctMediaIds()
-
-  // Keep only existing media
-  ids = ids.filter((id) => Boolean(mediaRepo.findById(Number(id))))
+  const ids = filterExistingMediaIds(
+    mediaIds?.length ? mediaIds : facesRepo.findDistinctMediaIds(),
+    (id) => Boolean(mediaRepo.findById(id)),
+  )
 
   const total = ids.length
   let counters = createFaceMatchIterateCounters()
@@ -645,16 +647,16 @@ async function* iterateFaceMatching(
     }
 
     try {
-      const result = await matchMediaFaces(db, Number(mediaId), {force, settings})
+      const result = await matchMediaFaces(db, mediaId, {force, settings})
       counters = applyFaceMatchMediaResult(counters, result)
     } catch {
       counters = markFaceMatchIterateFailed(counters)
     }
 
-    const media = mediaRepo.findById(Number(mediaId))
+    const media = mediaRepo.findById(mediaId)
     yield buildFaceMatchProgressEvent(counters, total, {
       current: media?.path || String(mediaId),
-      mediaId: Number(mediaId),
+      mediaId,
     })
   }
 
