@@ -61,6 +61,17 @@ import {
   ServerConfigSchema,
 } from './system'
 import {
+  CamGirlFinderSearchResponseSchema,
+  SceneScraperMarkersApplyResultSchema,
+  SceneScraperMarkersResponseSchema,
+  SceneScraperSearchResponseSchema,
+  ScraperPerformerSearchResponseSchema,
+  TmdbExtrasResponseSchema,
+  TmdbPersonSearchResponseSchema,
+  TmdbSearchResponseSchema,
+  TmdbStatusSchema,
+} from './scrapers'
+import {
   PluginCatalogEntrySchema,
   PluginCatalogListSchema,
   PluginUninstallResponseSchema,
@@ -532,6 +543,18 @@ export {
   ServerConfigSchema,
 } from './system'
 
+export {
+  CamGirlFinderSearchResponseSchema,
+  SceneScraperMarkersApplyResultSchema,
+  SceneScraperMarkersResponseSchema,
+  SceneScraperSearchResponseSchema,
+  ScraperPerformerSearchResponseSchema,
+  TmdbExtrasResponseSchema,
+  TmdbPersonSearchResponseSchema,
+  TmdbSearchResponseSchema,
+  TmdbStatusSchema,
+} from './scrapers'
+
 export function parsePluginCatalogEntry(data: unknown) {
   return PluginCatalogEntrySchema.parse(data)
 }
@@ -582,4 +605,40 @@ export function parseServerConfig(data: unknown) {
 
 export function parseMachineId(data: unknown) {
   return MachineIdSchema.parse(data)
+}
+
+export function parseScraperPerformerSearchResponse(data: unknown) {
+  return ScraperPerformerSearchResponseSchema.parse(data)
+}
+
+export function parseSceneScraperSearchResponse(data: unknown) {
+  return SceneScraperSearchResponseSchema.parse(data)
+}
+
+export function parseSceneScraperMarkersResponse(data: unknown) {
+  return SceneScraperMarkersResponseSchema.parse(data)
+}
+
+export function parseSceneScraperMarkersApplyResult(data: unknown) {
+  return SceneScraperMarkersApplyResultSchema.parse(data)
+}
+
+export function parseCamGirlFinderSearchResponse(data: unknown) {
+  return CamGirlFinderSearchResponseSchema.parse(data)
+}
+
+export function parseTmdbStatus(data: unknown) {
+  return TmdbStatusSchema.parse(data)
+}
+
+export function parseTmdbSearchResponse(data: unknown) {
+  return TmdbSearchResponseSchema.parse(data)
+}
+
+export function parseTmdbPersonSearchResponse(data: unknown) {
+  return TmdbPersonSearchResponseSchema.parse(data)
+}
+
+export function parseTmdbExtrasResponse(data: unknown) {
+  return TmdbExtrasResponseSchema.parse(data)
 }

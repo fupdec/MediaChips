@@ -1,9 +1,8 @@
-import { apiClient } from '@/services/apiClient'
-import { API_ROUTES } from '@shared/api/routes'
-import { parseSceneScraperSearchResponse } from '../schemas/sceneScraper'
+import {typedApi} from '@/services/typedApi'
 import {
   parseSceneScraperMarkersApplyResult,
   parseSceneScraperMarkersResponse,
+  parseSceneScraperSearchResponse,
 } from '../schemas/sceneScraper'
 import type {
   SceneScraperMarkersApplyResult,
@@ -22,26 +21,16 @@ function extractApiErrorMessage(error: unknown): string {
   return 'Scene search failed'
 }
 
-async function postSceneScraperRequest(
-  route: string,
-  body: Record<string, unknown>,
-): Promise<SceneScraperSearchResponse> {
-  try {
-    const response = await apiClient.post(route, body)
-    return parseSceneScraperSearchResponse(response.data)
-  } catch (error) {
-    throw new Error(extractApiErrorMessage(error), { cause: error })
-  }
-}
-
 export async function searchScraperScenes(
   query: string,
   {limit = 24}: {limit?: number} = {},
 ): Promise<SceneScraperSearchResponse> {
-  return postSceneScraperRequest(API_ROUTES.scraperSearchScenes, {
-    query,
-    limit,
-  })
+  try {
+    const {data} = await typedApi.searchScraperScenes({query, limit})
+    return parseSceneScraperSearchResponse(data)
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error), {cause: error})
+  }
 }
 
 export async function matchScraperScenes({
@@ -53,19 +42,20 @@ export async function matchScraperScenes({
   query?: string
   limit?: number
 }): Promise<SceneScraperSearchResponse> {
-  return postSceneScraperRequest(API_ROUTES.scraperMatchScenes, {
-    mediaId,
-    query,
-    limit,
-  })
+  try {
+    const {data} = await typedApi.matchScraperScenes({mediaId, query, limit})
+    return parseSceneScraperSearchResponse(data)
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error), {cause: error})
+  }
 }
 
 export async function fetchSceneMarkers(sceneId: string): Promise<SceneScraperMarkersResponse> {
   try {
-    const response = await apiClient.post(API_ROUTES.scraperSceneMarkers, { sceneId })
-    return parseSceneScraperMarkersResponse(response.data)
+    const {data} = await typedApi.fetchSceneMarkers(sceneId)
+    return parseSceneScraperMarkersResponse(data)
   } catch (error) {
-    throw new Error(extractApiErrorMessage(error), { cause: error })
+    throw new Error(extractApiErrorMessage(error), {cause: error})
   }
 }
 
@@ -81,14 +71,14 @@ export async function applySceneMarkersFromTpdb({
   markerMetaId?: number | null
 }): Promise<SceneScraperMarkersApplyResult> {
   try {
-    const response = await apiClient.post(API_ROUTES.scraperSceneMarkersApply, {
+    const {data} = await typedApi.applySceneMarkers({
       sceneId,
       mediaId,
       merge,
       markerMetaId,
     })
-    return parseSceneScraperMarkersApplyResult(response.data)
+    return parseSceneScraperMarkersApplyResult(data)
   } catch (error) {
-    throw new Error(extractApiErrorMessage(error), { cause: error })
+    throw new Error(extractApiErrorMessage(error), {cause: error})
   }
 }

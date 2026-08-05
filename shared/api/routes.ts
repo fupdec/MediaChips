@@ -335,6 +335,22 @@ export function apiVideoTranscodeStream(id: number | string) {
   return `/api/video/${id}/transcode/stream`
 }
 
+export function apiTmdbMovie(id: number | string) {
+  return `${API_ROUTES.tmdbMovie}/${id}`
+}
+
+export function apiTmdbTitle(mediaType: string, id: number | string) {
+  return `${API_ROUTES.tmdbTitle}/${mediaType}/${id}`
+}
+
+export function apiTmdbFindImdb(imdbId: string) {
+  return `${API_ROUTES.tmdbFindImdb}/${encodeURIComponent(imdbId)}`
+}
+
+export function apiTmdbPerson(id: number | string) {
+  return `${API_ROUTES.tmdbPerson}/${id}`
+}
+
 export function apiPluginList(enabledPlugins: string[]) {
   const params = new URLSearchParams({
     enabledPlugins: JSON.stringify(enabledPlugins),

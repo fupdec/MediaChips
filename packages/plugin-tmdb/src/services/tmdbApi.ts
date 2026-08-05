@@ -1,5 +1,4 @@
-import {apiClient} from '@/services/apiClient'
-import {API_ROUTES} from '@shared/api/routes'
+import {typedApi} from '@/services/typedApi'
 import type {TmdbExtras} from './tmdbApply'
 import type {TmdbPersonExtras} from './tmdbPersonApply'
 
@@ -26,8 +25,8 @@ export interface TmdbPersonSearchHit {
 }
 
 export async function getTmdbStatus(): Promise<{configured: boolean}> {
-  const response = await apiClient.get<{configured: boolean}>(API_ROUTES.tmdbStatus)
-  return response.data
+  const {data} = await typedApi.getTmdbStatus()
+  return data
 }
 
 export async function searchTmdbMovies(payload: {
@@ -35,13 +34,13 @@ export async function searchTmdbMovies(payload: {
   year?: string | number
   limit?: number
 }): Promise<{results: TmdbSearchHit[]}> {
-  const response = await apiClient.post<{results: TmdbSearchHit[]}>(API_ROUTES.tmdbSearch, payload)
-  return response.data
+  const {data} = await typedApi.searchTmdbMovies(payload)
+  return data as {results: TmdbSearchHit[]}
 }
 
 export async function getTmdbMovie(id: number | string): Promise<{extras: TmdbExtras}> {
-  const response = await apiClient.get<{extras: TmdbExtras}>(`${API_ROUTES.tmdbMovie}/${id}`)
-  return response.data
+  const {data} = await typedApi.getTmdbMovie(id)
+  return data as {extras: TmdbExtras}
 }
 
 export async function getTmdbTitle(
@@ -49,35 +48,24 @@ export async function getTmdbTitle(
   id: number | string,
   options: {season?: number; episode?: number; hint?: string} = {},
 ): Promise<{extras: TmdbExtras}> {
-  const response = await apiClient.get<{extras: TmdbExtras}>(`${API_ROUTES.tmdbTitle}/${mediaType}/${id}`, {
-    params: {
-      season: options.season,
-      episode: options.episode,
-      hint: options.hint,
-    },
-  })
-  return response.data
+  const {data} = await typedApi.getTmdbTitle(mediaType, id, options)
+  return data as {extras: TmdbExtras}
 }
 
 export async function findTmdbByImdb(imdbId: string): Promise<{extras: TmdbExtras}> {
-  const response = await apiClient.get<{extras: TmdbExtras}>(
-    `${API_ROUTES.tmdbFindImdb}/${encodeURIComponent(imdbId)}`,
-  )
-  return response.data
+  const {data} = await typedApi.findTmdbByImdb(imdbId)
+  return data as {extras: TmdbExtras}
 }
 
 export async function searchTmdbPeople(payload: {
   query: string
   limit?: number
 }): Promise<{results: TmdbPersonSearchHit[]}> {
-  const response = await apiClient.post<{results: TmdbPersonSearchHit[]}>(
-    API_ROUTES.tmdbPersonSearch,
-    payload,
-  )
-  return response.data
+  const {data} = await typedApi.searchTmdbPeople(payload)
+  return data as {results: TmdbPersonSearchHit[]}
 }
 
 export async function getTmdbPerson(id: number | string): Promise<{extras: TmdbPersonExtras}> {
-  const response = await apiClient.get<{extras: TmdbPersonExtras}>(`${API_ROUTES.tmdbPerson}/${id}`)
-  return response.data
+  const {data} = await typedApi.getTmdbPerson(id)
+  return data as {extras: TmdbPersonExtras}
 }

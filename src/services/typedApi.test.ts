@@ -108,6 +108,49 @@ describe('typedApi', () => {
     expect(directory.data.entries[0]?.name).toBe('a.mp4')
   })
 
+  it('searches scrapers and tmdb through typed routes', async () => {
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      data: [{slug: 'alice', posters: []}],
+    }))
+    const performers = await typedApi.searchScraperPerformers({q: 'alice'})
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.scraperSearchPerformers, {
+      params: {q: 'alice'},
+    })
+    expect(performers.data.data?.[0]?.slug).toBe('alice')
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      data: [{id: 'scene-1', title: 'Demo'}],
+      matchMethod: 'search',
+    }))
+    const scenes = await typedApi.searchScraperScenes({query: 'demo', limit: 10})
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.scraperSearchScenes, {
+      query: 'demo',
+      limit: 10,
+    })
+    expect(scenes.data.data?.[0]?.id).toBe('scene-1')
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({configured: true}))
+    const status = await typedApi.getTmdbStatus()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.tmdbStatus)
+    expect(status.data.configured).toBe(true)
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      results: [{
+        id: 9,
+        mediaType: 'movie',
+        title: 'Demo Movie',
+        originalTitle: null,
+        overview: null,
+        releaseDate: null,
+        posterUrl: null,
+        voteAverage: null,
+      }],
+    }))
+    const movies = await typedApi.searchTmdbMovies({query: 'Demo'})
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.tmdbSearch, {query: 'Demo'})
+    expect(movies.data.results[0]?.title).toBe('Demo Movie')
+  })
+
   it('pings and loads server config through typed routes', async () => {
     mockGet.mockResolvedValueOnce(mockAxiosResponse({
       pong: 1,

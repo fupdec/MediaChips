@@ -1,5 +1,4 @@
-import {apiClient} from '@/services/apiClient'
-import {API_ROUTES} from '@shared/api/routes'
+import {typedApi} from '@/services/typedApi'
 import axios from 'axios'
 import type {CamGirlFinderMappedPerformer} from '../types/camgirlfinder'
 
@@ -42,8 +41,8 @@ export async function searchCamGirlFinder(
   params: CamGirlFinderSearchParams,
 ): Promise<CamGirlFinderSearchResponse> {
   try {
-    const response = await apiClient.post(API_ROUTES.scraperCamGirlFinderSearch, params)
-    return response.data as CamGirlFinderSearchResponse
+    const {data} = await typedApi.searchCamGirlFinder(params)
+    return data as CamGirlFinderSearchResponse
   } catch (error) {
     console.error('searchCamGirlFinder error', error)
     throw new Error(extractApiErrorMessage(error), {cause: error})
