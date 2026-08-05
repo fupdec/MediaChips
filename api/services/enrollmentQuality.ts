@@ -10,6 +10,11 @@ import {
   ENROLL_MIN_DETECT_SCORE,
   ENROLL_MIN_FACE_AREA_RATIO,
 } from './enrollmentGates'
+import {
+  averageEmbeddings,
+  cosineSimilarity,
+  embeddingFromJson,
+} from './faceMatchScoring'
 
 export type EnrollmentIssue =
   | 'missing_file'
@@ -56,34 +61,6 @@ const GOOD_DETECT_SCORE = 0.7
 const MIN_FACE_AREA_RATIO = ENROLL_MIN_FACE_AREA_RATIO
 const INTRA_WEAK = 0.4
 const CONFUSION_WARN = 0.55
-
-function embeddingFromJson(value: string): Float32Array {
-  const parsed = JSON.parse(value) as number[]
-  return Float32Array.from(parsed)
-}
-
-function cosineSimilarity(a: Float32Array, b: Float32Array) {
-  const len = Math.min(a.length, b.length)
-  let sum = 0
-  for (let i = 0; i < len; i++) sum += a[i] * b[i]
-  return sum
-}
-
-function averageEmbeddings(embeddings: Float32Array[]): Float32Array | null {
-  if (!embeddings.length) return null
-  const dim = embeddings[0].length
-  const out = new Float32Array(dim)
-  for (const emb of embeddings) {
-    for (let i = 0; i < dim; i++) out[i] += emb[i]
-  }
-  const n = embeddings.length
-  for (let i = 0; i < dim; i++) out[i] /= n
-  let norm = 0
-  for (let i = 0; i < dim; i++) norm += out[i] * out[i]
-  norm = Math.sqrt(norm) || 1
-  for (let i = 0; i < dim; i++) out[i] /= norm
-  return out
-}
 
 function findTagImageEntries(dbPath: string, metaId: number, tagId: number): Array<{type: string; absolutePath: string; sourcePath: string}> {
   const base = path.join(dbPath, 'meta', String(metaId))
