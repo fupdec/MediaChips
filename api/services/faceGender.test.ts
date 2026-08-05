@@ -5,34 +5,9 @@ import {
   passesGenderFilter,
 } from './faceGender'
 
-describe('faceGender filter helpers', () => {
-  it('normalizes unknown values to both', () => {
-    expect(normalizeGenderFilter(undefined)).toBe('both')
-    expect(normalizeGenderFilter('')).toBe('both')
-    expect(normalizeGenderFilter('ALL')).toBe('both')
-    expect(normalizeGenderFilter('Female')).toBe('female')
-    expect(normalizeGenderFilter('MALE')).toBe('male')
-  })
-
-  it('keeps both genders when filter is both', () => {
-    expect(passesGenderFilter('female', 'both')).toBe(true)
-    expect(passesGenderFilter('male', 'both')).toBe(true)
-    expect(passesGenderFilter(null, 'both')).toBe(true)
-  })
-
-  it('filters to the selected gender and keeps unknowns', () => {
-    expect(passesGenderFilter('female', 'female')).toBe(true)
-    expect(passesGenderFilter('male', 'female')).toBe(false)
-    expect(passesGenderFilter(null, 'female')).toBe(true)
-
-    expect(passesGenderFilter('male', 'male')).toBe(true)
-    expect(passesGenderFilter('female', 'male')).toBe(false)
-    expect(passesGenderFilter(undefined, 'male')).toBe(true)
-  })
-
-  it('keeps low-confidence predictions instead of filtering them out', () => {
-    expect(passesGenderFilter('male', 'female', GENDER_MIN_CONFIDENCE - 0.01)).toBe(true)
+describe('faceGender re-exports filter helpers', () => {
+  it('keeps the public filter API stable', () => {
+    expect(normalizeGenderFilter('female')).toBe('female')
     expect(passesGenderFilter('male', 'female', GENDER_MIN_CONFIDENCE)).toBe(false)
-    expect(passesGenderFilter('female', 'female', GENDER_MIN_CONFIDENCE)).toBe(true)
   })
 })

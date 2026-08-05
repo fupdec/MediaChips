@@ -8,6 +8,14 @@ import {
   type Affine2x3,
 } from './faceAlignMath'
 import {
+  GENDER_MIN_CONFIDENCE,
+  normalizeGenderFilter,
+  passesGenderFilter,
+  softmax2,
+  type FaceGender,
+  type FaceGenderFilter,
+} from './faceGenderFilter'
+import {
   ensureCachedModelFile,
   getOrt,
   resolveCachedModelPath,
@@ -23,11 +31,8 @@ const GENDER_MEAN = 127.5
 const GENDER_STD = 128
 /** InsightFace default when session metadata is unavailable. */
 const DEFAULT_INPUT_SIZE = 96
-/** Below this softmax confidence, treat gender as unknown and keep the face. */
-const GENDER_MIN_CONFIDENCE = 0.6
 
-export type FaceGender = 'female' | 'male'
-export type FaceGenderFilter = 'both' | FaceGender
+export type {FaceGender, FaceGenderFilter}
 
 export interface FaceGenderEstimate {
   gender: FaceGender
@@ -106,26 +111,6 @@ async function* prepareGenderModel(db: ApiDb): AsyncGenerator<GenderPrepEvent> {
   }
 }
 
-function normalizeGenderFilter(value: unknown): FaceGenderFilter {
-  const raw = String(value ?? 'both').trim().toLowerCase()
-  if (raw === 'female' || raw === 'male') return raw
-  return 'both'
-}
-
-function passesGenderFilter(
-  gender: FaceGender | null | undefined,
-  filter: FaceGenderFilter,
-  confidence?: number | null,
-): boolean {
-  if (filter === 'both') return true
-  // Keep the face when gender is unknown/uncertain so a model blip does not wipe detections.
-  if (!gender) return true
-  if (confidence != null && Number.isFinite(confidence) && confidence < GENDER_MIN_CONFIDENCE) {
-    return true
-  }
-  return gender === filter
-}
-
 function sampleBilinear(image: JimpImage, x: number, y: number): [number, number, number] {
   const clampX = Math.max(0, Math.min(image.width - 1, x))
   const clampY = Math.max(0, Math.min(image.height - 1, y))
@@ -173,14 +158,6 @@ function warpAffineRgb(
     }
   }
   return out
-}
-
-function softmax2(a: number, b: number): [number, number] {
-  const max = Math.max(a, b)
-  const ea = Math.exp(a - max)
-  const eb = Math.exp(b - max)
-  const sum = ea + eb
-  return [ea / sum, eb / sum]
 }
 
 /**

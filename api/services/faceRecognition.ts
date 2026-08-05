@@ -1,8 +1,6 @@
 import type { ApiDb } from '../types/db'
 import type { ModelStatus } from '../types/mlModels'
 import type { FaceBox, FaceLandmark5 } from '../types/faceDetector'
-import fs from 'fs'
-import path from 'path'
 import { Jimp } from 'jimp'
 import { createFaceEnrollmentsRepository } from '../db/repositories/faceEnrollments'
 import { createFacesRepository } from '../db/repositories/faces'
@@ -51,6 +49,10 @@ import {
   pickPrimaryTagId,
   reRankListedClusterCandidates,
 } from './faceListMatchEnrich'
+import {
+  buildClearedFaceMatchUpdate,
+  resolveAssignMatchFields,
+} from './faceAssignMatch'
 import {
   enrollTagFromAllImages,
 } from './faceEnrollTag'
@@ -515,14 +517,14 @@ async function assignFaceToPerformer(
   // Opt-in: picking a face only binds suggestion unless applyTag is explicitly true.
   const applyTag = options.applyTag === true
   const enroll = options.enroll === true
-  const matchScore = options.matchScore != null
-    ? Number(options.matchScore)
-    : (applyTag ? 1 : (Number(face.matchScore) || 1))
+  const fields = resolveAssignMatchFields({
+    applyTag,
+    matchScore: options.matchScore,
+    existingMatchScore: face.matchScore,
+  })
   facesRepo.updateMatch(faceId, {
     tagId,
-    matchScore,
-    // Draft pick stays suggested until the user commits tags to media.
-    matchStatus: applyTag ? 'manual' : 'suggested',
+    ...fields,
   })
 
   if (applyTag) {
@@ -565,11 +567,7 @@ function clearFaceMatch(db: ApiDb, faceId: number) {
   const face = facesRepo.findById(faceId)
   if (!face) throw new Error('Face not found')
 
-  facesRepo.updateMatch(faceId, {
-    tagId: null,
-    matchScore: null,
-    matchStatus: 'unmatched',
-  })
+  facesRepo.updateMatch(faceId, buildClearedFaceMatchUpdate())
 
   return {
     faceId,

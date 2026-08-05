@@ -11,7 +11,6 @@ import type {
   FaceLandmark5,
 } from '../types/faceDetector'
 import fs from 'fs'
-import path from 'path'
 import { Jimp } from 'jimp'
 import { createFacesRepository } from '../db/repositories/faces'
 import { createMediaRepository } from '../db/repositories/media'
@@ -60,10 +59,14 @@ import {
   getFacesDir,
   purgeAllFaceCrops,
   purgeOtherMediaFaceCrops,
-  relativeFaceCropPath,
   removeExistingFaceAssets,
   saveFaceCrop,
 } from './faceCropStore'
+import {
+  buildSkippedExistingFaceResult,
+  mapDetectionsToPersistedFaceRows,
+  resolveDetectCropOutputPaths,
+} from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
@@ -289,26 +292,12 @@ async function detectMedia(
   if (mediaId != null && !options.force) {
     const existing = createFacesRepository(db.drizzle).findByMediaId(mediaId)
     if (existing.length) {
-      return {
+      return buildSkippedExistingFaceResult({
         mediaId,
         mediaPath,
-        frames: 0,
-        faces: existing.map((face) => ({
-          score: Number(face.score || 0),
-          box: {
-            x: Number(face.x || 0),
-            y: Number(face.y || 0),
-            width: Number(face.width || 0),
-            height: Number(face.height || 0),
-          },
-          timestamp: face.timestamp,
-          cropPath: face.cropPath
-            ? (path.isAbsolute(face.cropPath) ? face.cropPath : path.join(String(db.path), face.cropPath))
-            : null,
-          cropRelativePath: face.cropPath,
-        })),
-        skipped: true,
-      }
+        existing,
+        dbPath: db.path,
+      })
     }
   }
 
@@ -387,15 +376,18 @@ async function detectMedia(
         cropIndex += 1
         const dir = ensureFacesDir()
         // Persist only for manual review; otherwise write a temp crop just for embedding.
-        const absoluteCrop = dir
-          ? path.join(dir, filename)
-          : (tmpDir ? path.join(tmpDir, filename) : null)
+        const {absoluteCrop, cropRelativePath: relativeCrop} = resolveDetectCropOutputPaths({
+          facesDir: dir,
+          tmpDir,
+          filename,
+          mediaId,
+        })
+        cropRelativePath = relativeCrop
 
         if (absoluteCrop) {
           try {
             await saveFaceCrop(sourceImage, detection.box, absoluteCrop)
-            if (dir && mediaId != null) {
-              cropRelativePath = relativeFaceCropPath(mediaId, filename)
+            if (relativeCrop) {
               cropPath = absoluteCrop
             }
           } catch {
@@ -442,17 +434,9 @@ async function detectMedia(
     }
 
     if (persist && mediaId != null && faces.length) {
-      createFacesRepository(db.drizzle).bulkCreate(faces.map((face) => ({
-        mediaId,
-        timestamp: face.timestamp,
-        score: face.score,
-        x: face.box.x,
-        y: face.box.y,
-        width: face.box.width,
-        height: face.box.height,
-        cropPath: persistCrops ? face.cropRelativePath : null,
-        embedding: face.embedding ?? null,
-      })))
+      createFacesRepository(db.drizzle).bulkCreate(
+        mapDetectionsToPersistedFaceRows(mediaId, faces, Boolean(persistCrops)),
+      )
 
       if (persistCrops) {
         purgeOtherMediaFaceCrops(db, mediaId)
