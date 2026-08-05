@@ -38,6 +38,18 @@ import {
   pickDiverseFrames,
   qualityGatesForScore,
 } from './faceDetectorMath'
+import {
+  boxLooksLikeFace,
+  estimateBlurVariance,
+} from './faceBoxQuality'
+import {
+  SCRFD_NUM_ANCHORS,
+  SCRFD_STRIDES,
+  getAnchorCenters,
+  scoreAt,
+  tensorAsRows,
+  type OrtTensorLike,
+} from './faceScrfdDecode'
 
 const FACE_MODEL_ID = 'scrfd-10g'
 const FACE_MODEL_FILENAME = 'det_10g.onnx'
@@ -57,9 +69,6 @@ const MIN_FACE_SIDE_RATIO = 0.04
 const MAX_FACE_ASPECT = 1.85
 const SCRFD_MEAN = 127.5
 const SCRFD_STD = 128
-const SCRFD_STRIDES = [8, 16, 32] as const
-const SCRFD_NUM_ANCHORS = 2
-
 export interface FaceDetectSettings {
   minScore: number
   framesPerVideo: number
@@ -94,7 +103,6 @@ let ortModule: OrtModule | null = null
 let session: OrtSession | null = null
 let loadingPromise: Promise<OrtSession> | null = null
 let lastError: Error | null = null
-const centerCache = new Map<string, Float32Array>()
 
 function getOrt(): OrtModule {
   if (!ortModule) {
@@ -393,206 +401,6 @@ async function getVideoDuration(filePath: string) {
   return duration
 }
 
-/** Rough Laplacian variance on the face crop — higher means sharper. */
-function estimateBlurVariance(
-  image: Awaited<ReturnType<typeof Jimp.read>>,
-  box: FaceBox,
-): number {
-  const left = Math.max(0, Math.floor(box.x))
-  const top = Math.max(0, Math.floor(box.y))
-  const right = Math.min(image.width, Math.ceil(box.x + box.width))
-  const bottom = Math.min(image.height, Math.ceil(box.y + box.height))
-  const width = right - left
-  const height = bottom - top
-  if (width < 8 || height < 8) return 0
-
-  const stepX = Math.max(1, Math.floor(width / 32))
-  const stepY = Math.max(1, Math.floor(height / 32))
-  const {data} = image.bitmap
-  const lumaAt = (x: number, y: number) => {
-    const idx = (y * image.width + x) * 4
-    return 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]
-  }
-
-  const values: number[] = []
-  for (let y = top + stepY; y < bottom - stepY; y += stepY) {
-    for (let x = left + stepX; x < right - stepX; x += stepX) {
-      const c = lumaAt(x, y)
-      const lap = (
-        lumaAt(x, y - stepY)
-        + lumaAt(x - stepX, y)
-        + lumaAt(x + stepX, y)
-        + lumaAt(x, y + stepY)
-        - 4 * c
-      )
-      values.push(lap)
-    }
-  }
-  if (values.length < 4) return 0
-  let mean = 0
-  for (const v of values) mean += v
-  mean /= values.length
-  let varSum = 0
-  for (const v of values) {
-    const d = v - mean
-    varSum += d * d
-  }
-  return varSum / values.length
-}
-
-/** Reject flat skin / body blobs that detectors sometimes score as faces. */
-function isLikelySkinPixel(r: number, g: number, b: number) {
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  // Broad RGB skin heuristic — catches body FPs without needing HSV.
-  return (
-    r > 60
-    && g > 30
-    && b > 15
-    && r >= g
-    && r > b
-    && (r - g) >= 8
-    && (max - min) >= 12
-  )
-}
-
-function boxLooksLikeFace(
-  image: Awaited<ReturnType<typeof Jimp.read>>,
-  box: FaceBox,
-  minScore: number = DEFAULT_MIN_SCORE,
-): boolean {
-  const gates = qualityGatesForScore(minScore)
-  const left = Math.max(0, Math.floor(box.x))
-  const top = Math.max(0, Math.floor(box.y))
-  const right = Math.min(image.width, Math.ceil(box.x + box.width))
-  const bottom = Math.min(image.height, Math.ceil(box.y + box.height))
-  const width = right - left
-  const height = bottom - top
-  if (width < 8 || height < 8) return false
-
-  const stepX = Math.max(1, Math.floor(width / 28))
-  const stepY = Math.max(1, Math.floor(height / 28))
-  const samples: number[] = []
-  let skinCount = 0
-  let upperDark = 0
-  let upperCount = 0
-  let lowerCount = 0
-  let upperSum = 0
-  let lowerSum = 0
-  const upperCut = top + height * 0.4
-  const midY = top + height * 0.5
-
-  for (let y = top; y < bottom; y += stepY) {
-    for (let x = left; x < right; x += stepX) {
-      const rgba = image.getPixelColor(x, y) >>> 0
-      const r = (rgba >> 24) & 0xff
-      const g = (rgba >> 16) & 0xff
-      const b = (rgba >> 8) & 0xff
-      const luma = 0.299 * r + 0.587 * g + 0.114 * b
-      samples.push(luma)
-      if (isLikelySkinPixel(r, g, b)) skinCount += 1
-      if (y < midY) {
-        upperSum += luma
-        upperCount += 1
-      } else {
-        lowerSum += luma
-        lowerCount += 1
-      }
-      if (y < upperCut && luma < 90) upperDark += 1
-    }
-  }
-
-  const count = samples.length
-  if (count < 16) return false
-
-  let sum = 0
-  for (const luma of samples) sum += luma
-  const mean = sum / count
-  let sumSq = 0
-  for (const luma of samples) sumSq += (luma - mean) * (luma - mean)
-  const std = Math.sqrt(sumSq / count)
-  if (std < gates.minLumaStd) return false
-
-  if (!gates.applySkinFilter) return true
-
-  const skinRatio = skinCount / count
-  const upperSamples = Math.max(1, Math.ceil(count * 0.4))
-  const upperDarkRatio = upperDark / upperSamples
-
-  if (skinRatio >= gates.maxSkinRatio && upperDarkRatio < gates.minUpperDarkRatio * 2) {
-    return false
-  }
-  if (skinRatio >= 0.92) return false
-  if (upperDarkRatio < gates.minUpperDarkRatio && skinRatio >= 0.55) return false
-
-  if (upperCount > 0 && lowerCount > 0) {
-    const upperMean = upperSum / upperCount
-    const lowerMean = lowerSum / lowerCount
-    const verticalGap = Math.abs(upperMean - lowerMean)
-    if (verticalGap < 5 && std < 24 && skinRatio >= 0.5) return false
-  }
-
-  return true
-}
-
-function getAnchorCenters(height: number, width: number, stride: number): Float32Array {
-  const key = `${height}x${width}@${stride}`
-  const cached = centerCache.get(key)
-  if (cached) return cached
-
-  const spatial = height * width
-  const centers = new Float32Array(spatial * SCRFD_NUM_ANCHORS * 2)
-  let o = 0
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const cx = x * stride
-      const cy = y * stride
-      for (let a = 0; a < SCRFD_NUM_ANCHORS; a++) {
-        centers[o++] = cx
-        centers[o++] = cy
-      }
-    }
-  }
-  if (centerCache.size < 100) centerCache.set(key, centers)
-  return centers
-}
-
-function tensorAsRows(tensor: OrtTensor, expectedCols: number): {rows: number; data: Float32Array} {
-  const data = tensor.data as Float32Array
-  const dims = tensor.dims
-  if (dims.length === 3) {
-    // [batch, N, C]
-    return {rows: Number(dims[1]), data}
-  }
-  if (dims.length === 2) {
-    const rows = Number(dims[0])
-    const cols = Number(dims[1])
-    if (cols === expectedCols) return {rows, data}
-    // Flat scores as [1, N]
-    if (rows === 1 && expectedCols === 1) return {rows: cols, data}
-    return {rows, data}
-  }
-  return {rows: Math.floor(data.length / Math.max(expectedCols, 1)), data}
-}
-
-function scoreAt(tensor: OrtTensor, index: number): number {
-  const data = tensor.data as Float32Array
-  const dims = tensor.dims
-  if (dims.length === 3) {
-    const cols = Number(dims[2])
-    if (cols <= 1) return data[index]
-    return data[index * cols + (cols - 1)]
-  }
-  if (dims.length === 2) {
-    const rows = Number(dims[0])
-    const cols = Number(dims[1])
-    if (cols <= 1) return data[index]
-    if (rows === 1) return data[index]
-    return data[index * cols + (cols - 1)]
-  }
-  return data[index]
-}
-
 async function imageToScrfdInput(framePath: string): Promise<{
   tensor: OrtTensor
   width: number
@@ -676,13 +484,13 @@ async function detectFacesInFrame(
     const centers = getAnchorCenters(featH, featW, stride)
     const expected = featH * featW * SCRFD_NUM_ANCHORS
 
-    const scores = tensorAsRows(scoreTensor, 1)
-    const bboxes = tensorAsRows(bboxTensor, 4)
-    const kpsRows = kpsTensor ? tensorAsRows(kpsTensor, 10) : null
+    const scores = tensorAsRows(scoreTensor as OrtTensorLike, 1)
+    const bboxes = tensorAsRows(bboxTensor as OrtTensorLike, 4)
+    const kpsRows = kpsTensor ? tensorAsRows(kpsTensor as OrtTensorLike, 10) : null
     const n = Math.min(expected, scores.rows, bboxes.rows, kpsRows ? kpsRows.rows : expected)
 
     for (let i = 0; i < n; i++) {
-      const score = scoreAt(scoreTensor, i)
+      const score = scoreAt(scoreTensor as OrtTensorLike, i)
       if (!(score >= minScore)) continue
 
       const cx = centers[i * 2]
