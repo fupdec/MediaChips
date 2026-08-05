@@ -191,7 +191,8 @@ import {useMediaAdding} from '@/composable/AddingMedia'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {collectDroppedPaths} from '@/utils/mediaDrop'
 import {showOpenDialog} from '@/services/electronDialogService'
-import {fetchBrowsePlaces, type BrowsePlace} from '@/services/browsePlacesService'
+import {typedApi} from '@/services/typedApi'
+import type {BrowsePlace} from '@/services/typedApi/browse'
 import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
 import {transformTextToArray} from '@/services/formatUtils'
 
@@ -352,9 +353,9 @@ function defaultBrowsePath(places: BrowsePlace[]): string {
 
 async function loadBrowsePlaces() {
   try {
-    const result = await fetchBrowsePlaces(appStore.localhost || '')
-    browsePlaces.value = result.places
-    isContainerRuntime.value = result.container
+    const {data} = await typedApi.listBrowsePlaces()
+    browsePlaces.value = data.places
+    isContainerRuntime.value = data.container
     if (!browsePath.value && browsePlaces.value.length) {
       browsePath.value = defaultBrowsePath(browsePlaces.value)
     }

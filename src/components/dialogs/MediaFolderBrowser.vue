@@ -342,15 +342,11 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {
-  fetchBrowseDirectory,
-  type BrowseDirectoryEntry,
-} from '@/services/browseDirectoryService'
-import type {BrowsePlace} from '@/services/browsePlacesService'
+import {typedApi} from '@/services/typedApi'
+import type {BrowseDirectoryEntry, BrowsePlace} from '@/services/typedApi/browse'
 import {getReadableFileSize} from '@/services/formatUtils'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
 import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
-import {typedApi} from '@/services/typedApi'
 
 const props = withDefaults(defineProps<{
   baseUrl: string
@@ -582,19 +578,19 @@ async function loadDirectory(targetPath: string) {
   loading.value = true
   error.value = ''
   try {
-    const result = await fetchBrowseDirectory(props.baseUrl, {
+    const {data} = await typedApi.listBrowseDirectory({
       path: targetPath,
       extensions: props.extensions,
       showHidden: showHidden.value,
     })
-    currentPath.value = result.currentPath
-    parentPath.value = result.parentPath
-    rootPath.value = result.rootPath
-    truncated.value = result.truncated
-    serverPlatform.value = result.platform
-    entries.value = result.entries
-    if (result.currentPath !== props.path) {
-      emit('update:path', result.currentPath)
+    currentPath.value = data.currentPath
+    parentPath.value = data.parentPath
+    rootPath.value = data.rootPath
+    truncated.value = data.truncated
+    serverPlatform.value = data.platform
+    entries.value = data.entries
+    if (data.currentPath !== props.path) {
+      emit('update:path', data.currentPath)
     }
     await reloadFolderTags()
   } catch (err: unknown) {

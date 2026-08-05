@@ -72,6 +72,42 @@ describe('typedApi', () => {
     })
   })
 
+  it('lists browse places and directories through typed routes', async () => {
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      places: [{id: 'home', path: '/home', name: 'Home', icon: 'home'}],
+      container: false,
+    }))
+    const places = await typedApi.listBrowsePlaces()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.browsePlaces, {timeout: 5000})
+    expect(places.data.places[0]?.id).toBe('home')
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      currentPath: '/videos',
+      parentPath: '/',
+      rootPath: '/',
+      truncated: false,
+      platform: 'darwin',
+      entries: [{
+        name: 'a.mp4',
+        path: '/videos/a.mp4',
+        isDirectory: false,
+        size: 10,
+        mtimeMs: 1,
+        extension: 'mp4',
+        inLibrary: false,
+        addable: true,
+        mediaId: null,
+      }],
+    }))
+    const directory = await typedApi.listBrowseDirectory({path: '/videos'})
+    expect(mockPost).toHaveBeenCalledWith(
+      API_ROUTES.browseListDirectory,
+      {path: '/videos', extensions: undefined, showHidden: undefined},
+      {timeout: 10000},
+    )
+    expect(directory.data.entries[0]?.name).toBe('a.mp4')
+  })
+
   it('lists and installs plugins through typed routes', async () => {
     const entry = {
       manifest: {

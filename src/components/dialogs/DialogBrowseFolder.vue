@@ -114,7 +114,8 @@ import DialogHeader from '@/components/elements/DialogHeader.vue'
 import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
 import {checkFileExists} from '@/services/fileService'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
-import {fetchBrowsePlaces, type BrowsePlace} from '@/services/browsePlacesService'
+import {typedApi} from '@/services/typedApi'
+import type {BrowsePlace} from '@/services/typedApi/browse'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -234,8 +235,8 @@ async function chooseDirNative() {
 
 async function loadPlaces() {
   try {
-    const result = await fetchBrowsePlaces(appStore.localhost || '')
-    places.value = result.places
+    const {data} = await typedApi.listBrowsePlaces()
+    places.value = data.places
     const preferred = (props.pathInput ? folderPath.value.trim() : '')
       || props.initialPath?.trim()
       || defaultBrowsePath(places.value)

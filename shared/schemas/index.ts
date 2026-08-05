@@ -45,6 +45,11 @@ import {
   WatchedFolderLinkSchema,
 } from './tasks'
 import {
+  BrowseDirectoryResultSchema,
+  BrowsePlacesResponseSchema,
+  MediaRootsResponseSchema,
+} from './browse'
+import {
   PluginCatalogEntrySchema,
   PluginCatalogListSchema,
   PluginUninstallResponseSchema,
@@ -487,6 +492,15 @@ export {
   PluginUninstallResponseSchema,
 } from './plugins'
 
+export {
+  BrowseDirectoryEntrySchema,
+  BrowseDirectoryResultSchema,
+  BrowsePlaceSchema,
+  BrowsePlacesResponseSchema,
+  MediaRootEntrySchema,
+  MediaRootsResponseSchema,
+} from './browse'
+
 export function parsePluginCatalogEntry(data: unknown) {
   return PluginCatalogEntrySchema.parse(data)
 }
@@ -497,4 +511,16 @@ export function parsePluginCatalogList(data: unknown) {
 
 export function parsePluginUninstallResponse(data: unknown) {
   return PluginUninstallResponseSchema.parse(data)
+}
+
+export function parseBrowsePlacesResponse(data: unknown) {
+  return BrowsePlacesResponseSchema.parse(data)
+}
+
+export function parseBrowseDirectoryResult(data: unknown) {
+  return BrowseDirectoryResultSchema.parse(data)
+}
+
+export function parseMediaRootsResponse(data: unknown) {
+  return MediaRootsResponseSchema.parse(data)
 }
