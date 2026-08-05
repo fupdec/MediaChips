@@ -179,11 +179,9 @@ export function assembleMediaListResult(args: {
   return result
 }
 
-type IdRow = {id: unknown}
-
 /** Shape playlist/filter-card summary from a full legacy list result. */
 export function buildMediaSummaryFromListResult(
-  result: {totalFiltered: number; items: IdRow[]},
+  result: {totalFiltered: number; items: ReadonlyArray<AnyRecord>},
   previewLimit: number,
 ): {count: number; previewIds: unknown[]} {
   return {
@@ -194,7 +192,7 @@ export function buildMediaSummaryFromListResult(
 
 /** Shape select-all / bulk-edit id payload from a full legacy list result. */
 export function buildFilteredIdsFromListResult(result: {
-  items: IdRow[]
+  items: ReadonlyArray<AnyRecord>
   totalFiltered: number
   totalFilesize: number
 }): {ids: unknown[]; totalFiltered: number; totalFilesize: number} {
