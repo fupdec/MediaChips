@@ -5,19 +5,25 @@ import {
   isLoadSrcSessionStale,
   normalizeTranscodeMaxHeight,
   playbackErrorMessage,
+  resolveCurrentPlaybackMediaId,
+  resolveDirectPlaybackFallbackBegin,
   resolveEndedLiveNextStart,
+  resolveFallbackResumeStreamStart,
   resolveLiveChunkEndMark,
   resolveLiveChunkRelativeSeekTarget,
   resolveLiveHandoffElapsedFromTimes,
   resolveLiveSeekStrategy,
   resolveLiveStreamCopyCompatible,
+  resolveLiveStreamUrlOptions,
   resolveLiveTranscodeOfferable,
   resolvePlayableVideo,
   resolvePlaybackStartTime,
   shouldAdvanceAtSegmentEnd,
+  shouldArmDirectSeekStallWatch,
   shouldHandOffLiveStreamChunk,
   shouldPreferDirectPlayback,
   shouldSkipLiveQualityChange,
+  shouldTriggerDirectSeekStallFallback,
 } from './playerPlaybackResolve'
 
 describe('isLoadSrcSessionStale', () => {
@@ -235,6 +241,67 @@ describe('live handoff / seek / start-time decisions', () => {
       absoluteTime: 42,
       segmentEnd: null,
     })).toEqual({nextStart: 60, stillInsideSegment: false})
+  })
+})
+
+describe('direct seek stall / fallback gates', () => {
+  it('arms and triggers stall fallback only on stuck direct decode', () => {
+    expect(shouldArmDirectSeekStallWatch({
+      usesLiveTranscode: false,
+      fallbackAttempted: false,
+    })).toBe(true)
+    expect(shouldArmDirectSeekStallWatch({
+      usesLiveTranscode: true,
+      fallbackAttempted: false,
+    })).toBe(false)
+
+    expect(shouldTriggerDirectSeekStallFallback({
+      active: true,
+      usesLiveTranscode: false,
+      hasSrc: true,
+      seeking: true,
+      readyState: 4,
+    })).toBe(true)
+    expect(shouldTriggerDirectSeekStallFallback({
+      active: true,
+      usesLiveTranscode: false,
+      hasSrc: true,
+      seeking: false,
+      readyState: 4,
+    })).toBe(false)
+  })
+
+  it('resolves fallback begin/resume/media id/url options', () => {
+    expect(resolveDirectPlaybackFallbackBegin({
+      inFlight: true,
+      liveTranscodeDisabled: false,
+      forceDirectPlayback: false,
+    }).kind).toBe('busy')
+    expect(resolveDirectPlaybackFallbackBegin({
+      inFlight: false,
+      liveTranscodeDisabled: true,
+      forceDirectPlayback: false,
+    }).kind).toBe('blocked')
+    expect(resolveDirectPlaybackFallbackBegin({
+      inFlight: false,
+      liveTranscodeDisabled: false,
+      forceDirectPlayback: false,
+    }).kind).toBe('ok')
+
+    expect(resolveFallbackResumeStreamStart(12.5, 3)).toBe(12.5)
+    expect(resolveFallbackResumeStreamStart(0, 8)).toBe(8)
+
+    expect(resolveCurrentPlaybackMediaId({
+      currentLiveMediaId: null,
+      liveTranscodeMediaId: null,
+      mediaId: 9,
+      playlistItemId: 2,
+    })).toBe(9)
+
+    expect(resolveLiveStreamUrlOptions({
+      copyCompatible: true,
+      accurateSeek: false,
+    })).toEqual({copyCompatible: true})
   })
 })
 

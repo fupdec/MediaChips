@@ -255,6 +255,75 @@ export function resolveEndedLiveNextStart(input: {
   return {nextStart, stillInsideSegment}
 }
 
+/** Arm stall watch only while still on direct decode and before any fallback. */
+export function shouldArmDirectSeekStallWatch(input: {
+  usesLiveTranscode: boolean
+  fallbackAttempted: boolean
+}): boolean {
+  return !input.usesLiveTranscode && !input.fallbackAttempted
+}
+
+/** Still seeking / not HAVE_FUTURE_DATA on direct path → force remux fallback. */
+export function shouldTriggerDirectSeekStallFallback(input: {
+  active: boolean
+  usesLiveTranscode: boolean
+  hasSrc: boolean
+  seeking: boolean
+  readyState: number
+}): boolean {
+  if (!input.active || input.usesLiveTranscode || !input.hasSrc) return false
+  return input.seeking || input.readyState < 3
+}
+
+export type DirectPlaybackFallbackBegin =
+  | {kind: 'busy'}
+  | {kind: 'blocked'}
+  | {kind: 'ok'}
+
+/** Pre-check before shouldAttemptDirectPlaybackFallback / mediaId wiring. */
+export function resolveDirectPlaybackFallbackBegin(input: {
+  inFlight: boolean
+  liveTranscodeDisabled: boolean
+  forceDirectPlayback: boolean
+}): DirectPlaybackFallbackBegin {
+  if (input.inFlight) return {kind: 'busy'}
+  if (input.liveTranscodeDisabled || input.forceDirectPlayback) return {kind: 'blocked'}
+  return {kind: 'ok'}
+}
+
+export function resolveFallbackResumeStreamStart(
+  playerCurrentTime: number,
+  storeCurrentTime: number,
+): number {
+  const resumeTime = Number.isFinite(playerCurrentTime) && playerCurrentTime > 0
+    ? playerCurrentTime
+    : storeCurrentTime || 0
+  return Math.max(0, Number(resumeTime) || 0)
+}
+
+export function resolveCurrentPlaybackMediaId(input: {
+  currentLiveMediaId: number | null
+  liveTranscodeMediaId?: number | null
+  mediaId?: number | null
+  playlistItemId?: number | null
+}): number | null {
+  return input.currentLiveMediaId
+    ?? input.liveTranscodeMediaId
+    ?? input.mediaId
+    ?? input.playlistItemId
+    ?? null
+}
+
+export function resolveLiveStreamUrlOptions(input: {
+  copyCompatible: boolean
+  accurateSeek: boolean
+}): {copyCompatible?: true; accurateSeek?: true} {
+  return {
+    ...(input.copyCompatible ? {copyCompatible: true as const} : {}),
+    ...(input.accurateSeek ? {accurateSeek: true as const} : {}),
+  }
+}
+
 function matchesInitialPlayable(item: MediaItem, initialVideo: MediaItem): boolean {
   if (initialVideo.key && item.key) return item.key === initialVideo.key
   if (initialVideo.markId != null && item.markId != null) {

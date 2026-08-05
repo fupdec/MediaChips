@@ -55,11 +55,17 @@ import {
   resolveLiveStreamCopyCompatible,
   resolveLiveTranscodeOfferable,
   resolvePlayableVideo,
+  resolveCurrentPlaybackMediaId,
+  resolveDirectPlaybackFallbackBegin,
+  resolveFallbackResumeStreamStart,
+  resolveLiveStreamUrlOptions,
   resolvePlaybackStartTime,
   shouldAdvanceAtSegmentEnd,
+  shouldArmDirectSeekStallWatch,
   shouldHandOffLiveStreamChunk,
   shouldPreferDirectPlayback,
   shouldSkipLiveQualityChange,
+  shouldTriggerDirectSeekStallFallback,
 } from '@/utils/playerPlaybackResolve'
 
 export {
@@ -412,17 +418,27 @@ export function usePlayerPlayback({
   }
 
   const armDirectSeekStallWatch = (delayMs = 2500) => {
-    if (playerStore.usesLiveTranscode || directPlaybackFallbackAttempted) return
+    if (!shouldArmDirectSeekStallWatch({
+      usesLiveTranscode: playerStore.usesLiveTranscode,
+      fallbackAttempted: directPlaybackFallbackAttempted,
+    })) {
+      return
+    }
     clearDirectSeekStallWatch()
     directSeekStallTimer = setTimeout(() => {
       directSeekStallTimer = null
-      if (!playerStore.active || playerStore.usesLiveTranscode) return
       const videoEl = playerStore.player
-      if (!videoEl?.src) return
-      // Still seeking/waiting with no error → force remux path.
-      if (videoEl.seeking || videoEl.readyState < 3) {
-        void tryFallbackDirectToLiveTranscode(3)
+      if (!shouldTriggerDirectSeekStallFallback({
+        active: playerStore.active,
+        usesLiveTranscode: playerStore.usesLiveTranscode,
+        hasSrc: Boolean(videoEl?.src),
+        seeking: Boolean(videoEl?.seeking),
+        readyState: Number(videoEl?.readyState) || 0,
+      })) {
+        return
       }
+      // Still seeking/waiting with no error → force remux path.
+      void tryFallbackDirectToLiveTranscode(3)
     }, delayMs)
   }
 
@@ -431,9 +447,9 @@ export function usePlayerPlayback({
     playerStore.transcodeError = null
   }
 
-  const liveStreamUrlOptions = () => ({
-    ...(liveStreamCopyCompatible ? {copyCompatible: true} : {}),
-    ...(liveStreamAccurateSeek ? {accurateSeek: true} : {}),
+  const liveStreamUrlOptions = () => resolveLiveStreamUrlOptions({
+    copyCompatible: liveStreamCopyCompatible,
+    accurateSeek: liveStreamAccurateSeek,
   })
 
   const failTranscode = (message?: string) => {
@@ -463,17 +479,19 @@ export function usePlayerPlayback({
   }
 
   const tryFallbackDirectToLiveTranscode = async (mediaErrorCode?: number) => {
-    if (directPlaybackFallbackInFlight) return true
+    const begin = resolveDirectPlaybackFallbackBegin({
+      inFlight: directPlaybackFallbackInFlight,
+      liveTranscodeDisabled: playerStore.liveTranscodeDisabled,
+      forceDirectPlayback,
+    })
+    if (begin.kind === 'busy') return true
+    if (begin.kind === 'blocked') return false
 
     const media = playerStore.media
       || playerStore.playlist[playerStore.nowPlaying]
       || null
     const mediaId = media?.id ?? currentLiveMediaId
     const transcodeEnabled = settingsStore.transcodeUnsupportedFormats === '1'
-
-    if (playerStore.liveTranscodeDisabled || forceDirectPlayback) {
-      return false
-    }
 
     if (!shouldAttemptDirectPlaybackFallback({
       usesLiveTranscode: playerStore.usesLiveTranscode,
@@ -489,10 +507,10 @@ export function usePlayerPlayback({
     directPlaybackFallbackAttempted = true
     directPlaybackFallbackInFlight = true
 
-    const resumeTime = Number.isFinite(playerStore.player.currentTime) && playerStore.player.currentTime > 0
-      ? playerStore.player.currentTime
-      : playerStore.currentTime || 0
-    const streamStart = Math.max(0, Number(resumeTime) || 0)
+    const streamStart = resolveFallbackResumeStreamStart(
+      playerStore.player.currentTime,
+      playerStore.currentTime || 0,
+    )
 
     try {
       currentLiveMediaId = mediaId
@@ -574,11 +592,12 @@ export function usePlayerPlayback({
   }
 
   const resolveCurrentMediaId = (): number | null => {
-    return currentLiveMediaId
-      ?? playerStore.liveTranscodeMediaId
-      ?? playerStore.media?.id
-      ?? playerStore.playlist[playerStore.nowPlaying]?.id
-      ?? null
+    return resolveCurrentPlaybackMediaId({
+      currentLiveMediaId,
+      liveTranscodeMediaId: playerStore.liveTranscodeMediaId,
+      mediaId: playerStore.media?.id,
+      playlistItemId: playerStore.playlist[playerStore.nowPlaying]?.id,
+    })
   }
 
   const startLiveTranscodeAt = async (mediaId: number, startTime: number, maxHeight: string) => {
