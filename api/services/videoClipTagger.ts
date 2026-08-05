@@ -22,6 +22,7 @@ import {
   tags,
 } from './videoClipTagDictionary'
 import { createTagsRepository } from '../db/repositories/tags'
+import {getClipFrameTimestamps, normalizeClipTagName} from './videoClipFrameSample'
 
 const CLIP_MODEL = 'Xenova/clip-vit-base-patch32'
 
@@ -142,19 +143,6 @@ function createFrame(input: string, output: string, timestamp: string, width: nu
   })
 }
 
-function formatTimestamp(seconds: number) {
-  return new Date(Math.floor(seconds) * 1000).toISOString().substr(11, 8)
-}
-
-function getFrameTimestamps(duration: number, count: number) {
-  const safeCount = Math.max(1, Math.min(Number(count || 4), 10))
-  const ratios = safeCount === 1
-    ? [0.5]
-    : Array.from({length: safeCount}, (_, index) => 0.15 + (0.75 * (index / (safeCount - 1))))
-
-  return ratios.map(ratio => formatTimestamp(duration * ratio))
-}
-
 async function extractFrames(
   media: ClipTaggerMediaItem[],
   options: ClipTaggerOptions = {},
@@ -174,7 +162,7 @@ async function extractFrames(
       continue
     }
 
-    const timestamps = getFrameTimestamps(duration, framesPerVideo)
+    const timestamps = getClipFrameTimestamps(duration, framesPerVideo)
     for (let index = 0; index < timestamps.length; index++) {
       const output = path.join(tmpDir, `${item.id ?? index}_${index}.jpg`)
       try {
@@ -212,7 +200,7 @@ async function extractFramesForMedia(
     return {tmpDir, frames}
   }
 
-  const timestamps = getFrameTimestamps(duration, framesPerVideo)
+  const timestamps = getClipFrameTimestamps(duration, framesPerVideo)
   for (let index = 0; index < timestamps.length; index++) {
     const output = path.join(tmpDir, `${item.id || 'media'}_${index}.jpg`)
     try {
@@ -229,12 +217,6 @@ async function extractFramesForMedia(
   }
 
   return {tmpDir, frames}
-}
-
-function normalizeName(value: unknown) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
 }
 
 async function classifyFrame(
@@ -278,7 +260,7 @@ function aggregateFrameResults(
   locale: string,
   existingTags: Array<{ name?: string }> = [],
 ): ClipTagSuggestion[] {
-  const existing = new Set(existingTags.map((tag) => normalizeName(tag.name)))
+  const existing = new Set(existingTags.map((tag) => normalizeClipTagName(tag.name)))
   const tagByKey = new Map(tags.map((tag: { key: string }) => [tag.key, tag]))
   const grouped = new Map<string, ClipTagSuggestion>()
 
@@ -287,7 +269,7 @@ function aggregateFrameResults(
     if (!tag) continue
 
     const label = getLocalizedLabel(tag, locale)
-    if (existing.has(normalizeName(label))) continue
+    if (existing.has(normalizeClipTagName(label))) continue
 
     const current = grouped.get(row.key) || {
       key: row.key,
