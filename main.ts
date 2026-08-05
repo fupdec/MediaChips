@@ -3,7 +3,6 @@ import {
   app,
   BrowserWindow,
   ipcMain,
-  Menu,
   dialog,
   shell,
   Notification,
@@ -17,6 +16,8 @@ import { apiErrorMessage } from './api/types/errors'
 import { initAppUpdater } from './electron/autoUpdater'
 import { registerMediaDragIpc } from './electron/mediaDrag'
 import { createAppTrayController } from './electron/appTray'
+import { createAppMenuController } from './electron/appMenu'
+import { createLoadingWindowController } from './electron/loadingWindow'
 import { createPlayerWindowController } from './electron/playerWindow'
 import {
   createWindowBoundsPersistence,
@@ -25,7 +26,6 @@ import {
 import { normalizeMediaPath } from './api/utils/normalizeUserPath'
 import { resolveExistingPath } from './api/services/contentHash'
 import { saveConfigFile } from './app/server/configFile'
-import { LOCAL_AI_UI_ENABLED } from './shared/features'
 
 type ServerWindowConfig = {
   win?: WindowBoundsConfig
@@ -72,7 +72,6 @@ const isWindows = os.type() === 'Windows_NT'
 const useWinElectronFrame = isWindows
 
 let win: BrowserWindowInstance | null = null
-let loading: BrowserWindowInstance | null = null
 // Distinguishes an explicit quit (tray menu / File → Exit) from a window close
 // that should be intercepted and turned into "hide to tray".
 let isQuitting = false
@@ -207,6 +206,19 @@ const bindRendererLoadRetry = (
 }
 
 
+const loadingWindow = createLoadingWindowController({
+  getMainWindow: () => win,
+  getLoadingPageUrl,
+  getAppRoot: () => path.join(__dirname),
+  onReadyLog: () => { devLog('App ready') },
+})
+
+const {
+  createLoadingWindow,
+  revealMainWindow,
+  bindMainWindowLoadedHandler,
+} = loadingWindow
+
 const playerWindow = createPlayerWindowController({
   isWindows,
   getAppRoot: () => path.join(__dirname),
@@ -217,13 +229,13 @@ const playerWindow = createPlayerWindowController({
   sendConfigToWindow,
   bindZoomChangedListener,
   isPlayerMaximizedPreferred: () => Boolean(serverConfig.player?.maximized),
-  isMainWindowRevealed: () => isMainWindowRevealed,
+  isMainWindowRevealed: () => loadingWindow.isMainWindowRevealed(),
 })
 playerWindow.registerIpc()
 
 const createWindow = () => {
   // Allow reveal again when the window is recreated after close (e.g. macOS Dock click).
-  isMainWindowRevealed = false
+  loadingWindow.resetRevealState()
 
   const bounds = readStoredWindowBounds('win', 1280, 720)
   const shouldMaximize = Boolean(serverConfig.win?.maximized)
@@ -428,80 +440,6 @@ ipcMain.handle('toggleDevTools', () => {
     win.webContents.toggleDevTools()
   }
 })
-
-// Keep splash visible until the renderer reports the UI shell is painted.
-const MAIN_APP_READY_TIMEOUT_MS = 60_000
-
-let isMainWindowRevealed = false
-let mainRevealFallbackTimer: ReturnType<typeof setTimeout> | null = null
-
-function hideLoadingWindow(): void {
-  if (loading && !loading.isDestroyed()) {
-    loading.hide()
-    loading.close()
-    loading = null
-  }
-}
-
-function revealMainWindow(): void {
-  if (!win || win.isDestroyed() || isMainWindowRevealed) return
-
-  isMainWindowRevealed = true
-
-  if (mainRevealFallbackTimer) {
-    clearTimeout(mainRevealFallbackTimer)
-    mainRevealFallbackTimer = null
-  }
-
-  devLog('App ready')
-  hideLoadingWindow()
-  win.show()
-}
-
-const bindMainWindowLoadedHandler = (mainWindow: BrowserWindowInstance) => {
-  if (mainRevealFallbackTimer) {
-    clearTimeout(mainRevealFallbackTimer)
-  }
-
-  mainRevealFallbackTimer = setTimeout(() => {
-    console.warn('main-app-ready timeout, revealing main window')
-    revealMainWindow()
-  }, MAIN_APP_READY_TIMEOUT_MS)
-
-  if (!mainWindow.webContents.isLoading()) {
-    return
-  }
-
-  mainWindow.webContents.once('did-finish-load', () => {
-    // Window reveal is deferred until renderer sends main-app-ready.
-  })
-}
-
-const createLoadingWindow = () => {
-  loading = new BrowserWindow({
-    width: 320,
-    height: 320,
-    show: false,
-    frame: false,
-    resizable: false,
-    alwaysOnTop: false,
-    backgroundColor: '#333',
-    icon: __dirname + `/icons/icon.png`,
-    webPreferences: {
-      nodeIntegration: true,
-      nodeIntegrationInWorker: true,
-      webSecurity: false,
-      contextIsolation: false
-    },
-  })
-  const loadingWindow = loading!
-
-  loadingWindow.once('ready-to-show', () => {
-    loadingWindow.show()
-  })
-
-  loadingWindow.loadURL(getLoadingPageUrl())
-}
 
 app.on('second-instance', () => {
   if (win) {
@@ -725,175 +663,15 @@ ipcMain.handle('isMainFullscreen', () => {
   return win.isFullScreen()
 })
 
-function sendMenuAction(action: string) {
-  win?.webContents.send('menuAction', action)
-}
-
-function menuActionItem(label: string, action: string, accelerator?: string) {
-  return {
-    label,
-    ...(accelerator ? {accelerator} : {}),
-    click() {
-      sendMenuAction(action)
-    },
-  }
-}
-
-const isMac = process.platform === 'darwin'
-
-const fileMenu = {
-  label: 'File',
-  submenu: [
-    menuActionItem('Add Media', 'addMedia'),
-    {type: 'separator' as const},
-    menuActionItem('Import Backup...', 'importBackup'),
-    menuActionItem('Export Backup...', 'exportBackup'),
-    {type: 'separator' as const},
-    menuActionItem('Open Data Folder', 'openDataFolder'),
-    {type: 'separator' as const},
-    {role: 'close' as const},
-  ],
-}
-
-const editMenu = {
-  label: 'Edit',
-  submenu: [
-    {
-      label: 'Undo',
-      accelerator: 'CommandOrControl+Z',
-      role: 'undo' as const,
-    },
-    {
-      label: 'Redo',
-      accelerator: 'CommandOrControl+Y',
-      role: 'redo' as const,
-    },
-    {type: 'separator' as const},
-    {
-      label: 'Cut',
-      accelerator: 'CommandOrControl+X',
-      role: 'cut' as const,
-    },
-    {
-      label: 'Copy',
-      accelerator: 'CommandOrControl+C',
-      role: 'copy' as const,
-    },
-    {
-      label: 'Paste',
-      accelerator: 'CommandOrControl+V',
-      role: 'paste' as const,
-    },
-    {type: 'separator' as const},
-    {
-      label: 'Select all',
-      accelerator: 'CommandOrControl+A',
-      role: 'selectAll' as const,
-    },
-    menuActionItem('Global Search', 'globalSearch', 'CommandOrControl+F'),
-  ],
-}
-
-const viewMenu = {
-  label: 'View',
-  submenu: [
-    menuActionItem('Toggle Theme', 'toggleTheme'),
-    {type: 'separator' as const},
-    {role: 'zoomIn' as const},
-    {role: 'zoomOut' as const},
-    {role: 'resetZoom' as const},
-    {type: 'separator' as const},
-    {role: 'togglefullscreen' as const},
-  ],
-}
-
-const appMenu = {
-  label: 'App',
-  submenu: [
-    ...(!isMac ? [menuActionItem('Settings', 'settings', 'CommandOrControl+,')] : []),
-    {
-      label: 'Lock',
-      id: 'lock',
-      enabled: true,
-      click() {
-        lockApp()
-      },
-    },
-    {type: 'separator' as const},
-    menuActionItem('Restart', 'restart'),
-    ...(!isMac ? [{
-      label: 'Exit',
-      accelerator: 'CommandOrControl+Q',
-      click() {
-        app.exit()
-      },
-    }] : []),
-  ],
-}
-
-const windowMenu = {
-  label: 'Window',
-  submenu: [
-    {role: 'minimize' as const},
-    {role: 'zoom' as const},
-    {type: 'separator' as const},
-    {role: 'front' as const},
-  ],
-}
-
-const helpMenu = {
-  label: 'Help',
-  submenu: [
-    menuActionItem('Documentation', 'documentation'),
-    ...(LOCAL_AI_UI_ENABLED ? [menuActionItem('Local AI', 'localAi')] : []),
-    menuActionItem('Getting Started', 'gettingStarted'),
-    menuActionItem('Send Feedback', 'sendFeedback'),
-    menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),
-    {type: 'separator' as const},
-    menuActionItem('Check for Updates', 'checkUpdates'),
-    menuActionItem('Version History', 'versionHistory'),
-    menuActionItem('Website', 'website'),
-    {type: 'separator' as const},
-    {
-      label: 'Toggle Developer Tools',
-      accelerator: 'CommandOrControl+Shift+I',
-      role: 'toggleDevTools' as const,
-    },
-    ...(!isMac ? [
-      {type: 'separator' as const},
-      menuActionItem('About', 'about'),
-    ] : []),
-  ],
-}
-
-const systemMenu = Menu.buildFromTemplate([
-  ...(isMac ? [{
-    label: app.name,
-    submenu: [
-      menuActionItem('About MediaChips', 'about'),
-      {type: 'separator' as const},
-      menuActionItem('Settings...', 'settings', 'CommandOrControl+,'),
-      {type: 'separator' as const},
-      {role: 'services' as const},
-      {type: 'separator' as const},
-      {role: 'hide' as const},
-      {role: 'hideOthers' as const},
-      {role: 'unhide' as const},
-      {type: 'separator' as const},
-      {role: 'quit' as const},
-    ],
-  }] : []),
-  ...(isMac
-    ? [fileMenu, editMenu, viewMenu, appMenu, windowMenu, helpMenu]
-    : [appMenu, fileMenu, viewMenu, helpMenu]),
-])
-
-Menu.setApplicationMenu(systemMenu)
-
 function lockApp() {
   win?.webContents.send('lockApp')
   playerWindow.stopPlayerPlayback()
 }
+
+createAppMenuController({
+  getMainWindow: () => win,
+  onLock: () => lockApp(),
+}).install()
 
 process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {
