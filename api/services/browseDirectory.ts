@@ -6,6 +6,7 @@ import {
   SKIP_DIR_NAMES,
 } from './mediaRoots'
 import {buildPathLookupVariants, normalizeMediaPath} from '../utils/normalizeUserPath'
+import {parseMediaExtensions} from '../utils/mediaExtensions'
 
 export type BrowseDirectoryEntry = {
   name: string
@@ -38,14 +39,7 @@ type MediaRepository = {
 }
 
 function parseExtensions(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim().toLowerCase().replace(/^\./, '')).filter(Boolean)
-  }
-  if (typeof value !== 'string' || !value.trim()) return []
-  return value
-    .split(',')
-    .map((item) => item.trim().toLowerCase().replace(/^\./, ''))
-    .filter(Boolean)
+  return parseMediaExtensions(value)
 }
 
 function resolveParentPath(currentPath: string, rootPath: string | null, envValue?: string): string | null {

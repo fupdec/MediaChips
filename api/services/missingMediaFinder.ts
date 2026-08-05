@@ -6,6 +6,7 @@ import { fileExists } from './contentHash'
 import { computeOshashForPath } from './oshash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
+import { buildExtensionRegexFromMediaTypes } from '../utils/mediaExtensions'
 
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -51,24 +52,6 @@ async function getMissingMediaStatus(db: ApiDb, {full = false} = {}) {
     withHash: missing.filter((item: AnyRecord) => item.oshash).length,
     withoutHash: missing.filter((item: AnyRecord) => !item.oshash).length,
   }
-}
-
-function buildExtensionRegex(mediaTypes: Array<{ extensions?: string }>) {
-  const extensions = new Set()
-
-  for (const mediaType of mediaTypes) {
-    String(mediaType.extensions || '')
-      .split(',')
-      .map((ext: string) => ext.trim().toLowerCase())
-      .filter(Boolean)
-      .forEach((ext: string) => extensions.add(ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
-  }
-
-  if (!extensions.size) {
-    return /\.[^./\\]+$/i
-  }
-
-  return new RegExp(`\\.(${Array.from(extensions).join('|')})$`, 'i')
 }
 
 async function* walkMediaFiles(
@@ -219,7 +202,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
   const mediaTypes = mediaTypesRepo.findAll()
   const {byOshash, bySizeNoHash, targetSizes} = buildMissingIndexes(missingMedia)
-  const extensionRegex = buildExtensionRegex(mediaTypes as Array<{ extensions?: string }>)
+  const extensionRegex = buildExtensionRegexFromMediaTypes(mediaTypes as Array<{ extensions?: string }>)
   const knownPaths = new Set(
     mediaRepo.findPaths().map((item: string) => String(item || '').toLowerCase()),
   )

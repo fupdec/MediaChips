@@ -13,20 +13,15 @@ import {
   pathsEquivalent,
   normalizeMediaPath,
 } from '../../api/utils/normalizeUserPath'
+import {
+  fileMatchesExtensions,
+  parseMediaExtensions,
+} from '../../api/utils/mediaExtensions'
 
 const pathsMatch = (left: string, right: string) => pathsEquivalent(left, right)
 
 function parseExtensions(extensions: string): string[] {
-  return String(extensions || '')
-    .split(',')
-    .map((ext: string) => ext.trim().toLowerCase())
-    .filter(Boolean)
-}
-
-function fileMatchesExtensions(filePath: string, extensions: string[]): boolean {
-  if (!extensions.length) return true
-  const fileExt = path.extname(filePath).toLowerCase().slice(1)
-  return extensions.includes(fileExt)
+  return parseMediaExtensions(extensions)
 }
 
 function sortPaths(paths: string[]): string[] {

@@ -3,6 +3,7 @@ import path from 'path'
 import { readdir, stat } from 'fs/promises'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { pathsEquivalent } from '../utils/normalizeUserPath'
+import { buildExtensionRegex } from '../utils/mediaExtensions'
 import { computeFingerprint } from './mediaFingerprint'
 import { queryAll } from '../db/utils/rawQuery'
 
@@ -27,20 +28,6 @@ type LibraryHit = {
   filesize: number | null
   oshash: string | null
   contentHash: string | null
-}
-
-function buildExtensionRegex(extensions: string | null | undefined) {
-  const parts = String(extensions || '')
-    .split(',')
-    .map((ext) => ext.trim().toLowerCase())
-    .filter(Boolean)
-    .map((ext) => ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-
-  if (!parts.length) {
-    return /\.[^./\\]+$/i
-  }
-
-  return new RegExp(`\\.(${parts.join('|')})$`, 'i')
 }
 
 async function listFilesFromRoots(
