@@ -50,6 +50,12 @@ import {
   computeScrfdLetterboxSize,
 } from './faceScrfdPostprocess'
 import {
+  applyFaceDetectMediaResult,
+  buildFaceDetectCompleteEvent,
+  buildFaceDetectProgressEvent,
+  createFaceDetectIterateCounters,
+} from './faceDetectIterate'
+import {
   clampFaceDetectFramesPerVideo,
   clampFaceDetectMinScore,
   resolveFaceDetectRuntimeOptions,
@@ -818,38 +824,13 @@ async function* iterateFaceDetection(
   }
 
   const total = items.length
-  let processed = 0
-  let created = 0
-  let skipped = 0
-  let missing = 0
-  let failed = 0
-  let faces = 0
+  let counters = createFaceDetectIterateCounters()
 
-  yield {
-    type: 'progress',
-    processed,
-    total,
-    remaining: total,
-    created,
-    skipped,
-    missing,
-    failed,
-    faces,
-  }
+  yield buildFaceDetectProgressEvent(counters, total)
 
   for (const item of items) {
     if (shouldStop()) {
-      yield {
-        type: 'complete',
-        processed,
-        total,
-        created,
-        skipped,
-        missing,
-        failed,
-        faces,
-        stopped: true,
-      }
+      yield buildFaceDetectCompleteEvent(counters, total, true)
       return
     }
 
@@ -866,40 +847,20 @@ async function* iterateFaceDetection(
       applyTags,
     })
 
-    processed += 1
-    faces += result.faces.length
+    counters = applyFaceDetectMediaResult(counters, {
+      missing: result.missing,
+      failed: result.failed,
+      skipped: result.skipped,
+      facesLength: result.faces.length,
+    })
 
-    if (result.missing) missing += 1
-    else if (result.failed) failed += 1
-    else if (result.skipped) skipped += 1
-    else created += 1
-
-    yield {
-      type: 'progress',
-      processed,
-      total,
-      remaining: Math.max(total - processed, 0),
-      created,
-      skipped,
-      missing,
-      failed,
-      faces,
+    yield buildFaceDetectProgressEvent(counters, total, {
       current: result.mediaPath || undefined,
       mediaId: result.mediaId,
-    }
+    })
   }
 
-  yield {
-    type: 'complete',
-    processed,
-    total,
-    created,
-    skipped,
-    missing,
-    failed,
-    faces,
-    stopped: false,
-  }
+  yield buildFaceDetectCompleteEvent(counters, total, false)
 }
 
 export {
