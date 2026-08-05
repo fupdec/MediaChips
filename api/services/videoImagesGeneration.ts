@@ -39,6 +39,11 @@ import {
   makeXstackLayout,
   planGridTileTimestamps,
 } from '../../shared/videoPreview'
+import {
+  buildVideoImageStatus,
+  collectJpgStemIds,
+  countGeneratedImages,
+} from './videoImagesStatus'
 
 async function getVideoMediaTypeId(db: ApiDb) {
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -264,24 +269,6 @@ const GENERATED_DIR_BY_TYPE: Record<VideoImageType, string> = {
   marks: 'media/videos/marks',
 }
 
-function buildStatus(total: number, generated: number): VideoImageTypeStatus {
-  return {
-    total,
-    generated,
-    pending: Math.max(total - generated, 0),
-  }
-}
-
-function countGenerated(items: Array<{ id?: unknown }>, existingIds: Set<string>) {
-  let generated = 0
-
-  for (const item of items) {
-    if (existingIds.has(String(item.id))) generated += 1
-  }
-
-  return generated
-}
-
 async function loadGeneratedIdSet(dbPath: string, imageType: VideoImageType): Promise<Set<string>> {
   const relativeDir = GENERATED_DIR_BY_TYPE[imageType]
   if (!relativeDir) return new Set()
@@ -290,15 +277,7 @@ async function loadGeneratedIdSet(dbPath: string, imageType: VideoImageType): Pr
   if (!fs.existsSync(dirPath)) return new Set()
 
   const files = await readdir(dirPath)
-  const ids = new Set<string>()
-
-  for (const file of files) {
-    if (file.endsWith('.jpg')) {
-      ids.add(file.slice(0, -4))
-    }
-  }
-
-  return ids
+  return collectJpgStemIds(files)
 }
 
 async function getVideoImagesGenerationStatus(db: ApiDb, dbPath: string): Promise<VideoImagesGenerationStatus> {
@@ -323,9 +302,9 @@ async function getVideoImagesGenerationStatus(db: ApiDb, dbPath: string): Promis
   const marksTotal = markRows.length
 
   return {
-    preview: buildStatus(videoTotal, countGenerated(videoRows as Array<{ id?: unknown }>, previewIds)),
-    grid: buildStatus(videoTotal, countGenerated(videoRows as Array<{ id?: unknown }>, gridIds)),
-    marks: buildStatus(marksTotal, countGenerated(markRows as Array<{ id?: unknown }>, markImageIds)),
+    preview: buildVideoImageStatus(videoTotal, countGeneratedImages(videoRows as Array<{ id?: unknown }>, previewIds)),
+    grid: buildVideoImageStatus(videoTotal, countGeneratedImages(videoRows as Array<{ id?: unknown }>, gridIds)),
+    marks: buildVideoImageStatus(marksTotal, countGeneratedImages(markRows as Array<{ id?: unknown }>, markImageIds)),
   }
 }
 

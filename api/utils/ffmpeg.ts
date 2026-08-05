@@ -1,23 +1,19 @@
 import { spawn } from 'child_process'
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
+import {
+  acceptKeyframeHit,
+  normalizeFfprobePayload,
+  pickBestKeyframeFromPackets,
+  pickBestKeyframePts,
+  resolveThumbnailSeekSeconds,
+  type FfprobePayload,
+} from './ffprobeMath'
 
-interface FfprobeStream {
-  codec_type?: string
-  codec_name?: string
-  width?: number | string
-  height?: number | string
-  nb_frames?: number | string
-  [key: string]: unknown
-}
-
-interface FfprobePayload {
-  format?: {
-    duration?: number | string
-    bit_rate?: number | string
-    [key: string]: unknown
-  }
-  streams?: FfprobeStream[]
-}
+export {
+  getVideoStreamDimensions,
+  normalizeFfprobePayload,
+  resolveThumbnailSeekSeconds,
+} from './ffprobeMath'
 
 function runProcess(binary: string, args: string[]): Promise<{stdout: string; stderr: string}> {
   return new Promise((resolve, reject) => {
@@ -41,23 +37,6 @@ function runProcess(binary: string, args: string[]): Promise<{stdout: string; st
       reject(new Error(stderr.trim() || `${binary} exited with code ${code}`))
     })
   })
-}
-
-function normalizeFfprobePayload(data: FfprobePayload) {
-  const format = {
-    ...(data.format || {}),
-    duration: Number(data.format?.duration || 0),
-    bit_rate: data.format?.bit_rate,
-  }
-
-  const streams = (data.streams || []).map((stream) => ({
-    ...stream,
-    width: stream.width != null ? Number(stream.width) : undefined,
-    height: stream.height != null ? Number(stream.height) : undefined,
-    nb_frames: stream.nb_frames != null ? Number(stream.nb_frames) : undefined,
-  }))
-
-  return {format, streams}
 }
 
 async function ffprobe(filePath: string) {
@@ -100,15 +79,7 @@ async function findPreviousKeyframeTime(
       '-read_intervals', interval,
       filePath,
     ])
-    let best: number | null = null
-    for (const line of stdout.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      const pts = Number(trimmed)
-      if (!Number.isFinite(pts) || pts < 0 || pts > target + 0.05) continue
-      if (best == null || pts > best) best = pts
-    }
-    return best
+    return pickBestKeyframePts(stdout, target)
   }
 
   const fromPackets = async () => {
@@ -120,24 +91,15 @@ async function findPreviousKeyframeTime(
       '-read_intervals', interval,
       filePath,
     ])
-    let best: number | null = null
-    for (const line of stdout.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      const [ptsRaw, flags = ''] = trimmed.split(',')
-      if (!ptsRaw || !flags.includes('K')) continue
-      const pts = Number(ptsRaw)
-      if (!Number.isFinite(pts) || pts < 0 || pts > target + 0.05) continue
-      if (best == null || pts > best) best = pts
-    }
-    return best
+    return pickBestKeyframeFromPackets(stdout, target)
   }
 
   try {
     const frameKey = await fromFrames()
     // Empty ffprobe lines parse as 0; ignore a bogus t=0 hit for mid-file targets.
-    if (frameKey != null && !(frameKey < 0.05 && target > 1)) {
-      return frameKey
+    const accepted = acceptKeyframeHit(frameKey, target)
+    if (accepted != null) {
+      return accepted
     }
   } catch {
     // Fall through to packet scan.
@@ -172,29 +134,6 @@ async function ffprobePlayability(filePath: string) {
   ])
 
   return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
-}
-
-function getVideoStreamDimensions(
-  probe: {streams?: FfprobeStream[]},
-  fallbackAspectRatio = 16 / 9,
-) {
-  const videoStream = probe.streams?.find((stream) => stream.codec_type === 'video')
-  const width = Number(videoStream?.width) || 0
-  const height = Number(videoStream?.height) || 0
-
-  if (width > 0 && height > 0) {
-    return {
-      width,
-      height,
-      aspectRatio: width / height,
-    }
-  }
-
-  return {
-    width: 0,
-    height: 0,
-    aspectRatio: fallbackAspectRatio,
-  }
 }
 
 async function runFfmpeg(args: string[]) {
@@ -233,20 +172,6 @@ async function extractVideoFrame({
   args.push('-y', output)
   await runFfmpeg(args)
   return output
-}
-
-function resolveThumbnailSeekSeconds(duration: number | string | null | undefined, seekRatio = 0.5) {
-  const normalizedDuration = Number(duration || 0)
-
-  if (!Number.isFinite(normalizedDuration) || normalizedDuration <= 0.1) {
-    return 1
-  }
-
-  const seekSeconds = normalizedDuration * seekRatio
-  return Math.min(
-    Math.max(seekSeconds, 0),
-    Math.max(normalizedDuration - 0.1, 0),
-  )
 }
 
 async function extractVideoThumbnail({
@@ -328,6 +253,4 @@ export {
   extractVideoFrame,
   extractVideoThumbnail,
   combineVideoFrames,
-  resolveThumbnailSeekSeconds,
-  getVideoStreamDimensions,
 }
