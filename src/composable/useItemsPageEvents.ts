@@ -8,11 +8,9 @@ import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
 import {
   getDefaultMediaTypeId,
-  isAudioMediaType,
   isImageMediaType,
-  isTextMediaType,
-  isVideoMediaType,
 } from '@/utils/mediaType'
+import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openPath} from '@/services/shellService'
 import type {
   GetItemsFromDbEvent,
@@ -274,13 +272,14 @@ export function useItemsPageEvents({
     } else if (props.items_type === 'media') {
       const media = navigationPool.find((i) => i.id === id)
       if (!media) return
-      if (isImageMediaType(mediaType.value)) {
+      const kind = resolveOpenMediaKind(mediaType.value)
+      if (kind === 'view-image') {
         itemsStore.viewImage({image: media})
-      } else if (isVideoMediaType(mediaType.value) || isAudioMediaType(mediaType.value)) {
+      } else if (kind === 'play-av') {
         itemsStore.playVideo({
           video: media,
         })
-      } else if (isTextMediaType(mediaType.value) && media?.path) {
+      } else if (kind === 'open-path' && media.path) {
         void openPath(media.path)
       }
     }

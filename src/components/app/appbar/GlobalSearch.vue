@@ -13,7 +13,8 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useImageViewerStore} from '@/stores/imageViewer'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import {getDefaultMediaTypeId, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
+import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
+import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {highlightGlobalSearchText, textMatchesGlobalSearchQuery} from '@/services/formatUtils'
 import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -513,12 +514,13 @@ function openGroup(group: SearchGroup) {
 function openMedia(media: GlobalSearchMedia, mediaTypeId?: number) {
   closeThenNavigate(() => {
     const type = mediaTypes.value.find(item => item.id === Number(mediaTypeId || media.mediaTypeId))
+    const kind = resolveOpenMediaKind(type)
 
-    if (isImageMediaType(type)) {
+    if (kind === 'view-image') {
       itemsStore.viewImage({image: media})
-    } else if (isVideoMediaType(type) || isAudioMediaType(type)) {
+    } else if (kind === 'play-av') {
       itemsStore.playVideo({video: media})
-    } else if (isTextMediaType(type) && media.path) {
+    } else if (kind === 'open-path' && media.path) {
       openPath(media.path)
     } else {
       router.push(`/media?mediaTypeId=${mediaTypeId || media.mediaTypeId}`)

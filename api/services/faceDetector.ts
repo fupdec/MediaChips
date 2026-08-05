@@ -21,7 +21,6 @@ import { assessMatchability } from './matchGates'
 import {
   estimateGender,
   loadGenderModel,
-  normalizeGenderFilter,
   passesGenderFilter,
   prepareGenderModel,
   type FaceGenderFilter,
@@ -51,8 +50,7 @@ import {
   resolveMatchSettingsAfterDetect,
 } from './faceDetectIterate'
 import {
-  clampFaceDetectFramesPerVideo,
-  clampFaceDetectMinScore,
+  parseFaceDetectSettingsFromMap,
   resolveFaceDetectRuntimeOptions,
 } from './faceSettingsParse'
 import {
@@ -117,11 +115,7 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
     'faceDetect.genderFilter',
   ])
   const map = new Map(rows.map((row) => [String(row.option), row.value]))
-  return {
-    minScore: clampFaceDetectMinScore(map.get('faceDetect.minScore'), DEFAULT_MIN_SCORE),
-    framesPerVideo: clampFaceDetectFramesPerVideo(map.get('faceDetect.framesPerVideo'), 6),
-    genderFilter: normalizeGenderFilter(map.get('faceDetect.genderFilter')),
-  }
+  return parseFaceDetectSettingsFromMap(map, DEFAULT_MIN_SCORE)
 }
 
 let session: OrtSession | null = null

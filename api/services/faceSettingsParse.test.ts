@@ -3,6 +3,7 @@ import {
   clampFaceDetectFramesPerVideo,
   clampFaceDetectMinScore,
   clampFaceMatchConfidence,
+  parseFaceDetectSettingsFromMap,
   parseFaceMatchMode,
   parseFaceMatchSettingsFromMap,
   resolveFaceDetectRuntimeOptions,
@@ -36,6 +37,18 @@ describe('faceSettingsParse', () => {
       candidateLimit: 5,
       mode: 'suggest',
       matchAfterDetect: false,
+    })
+  })
+
+  it('builds detect settings from a settings map', () => {
+    expect(parseFaceDetectSettingsFromMap(new Map([
+      ['faceDetect.minScore', '0.6'],
+      ['faceDetect.framesPerVideo', '12'],
+      ['faceDetect.genderFilter', 'female'],
+    ]))).toEqual({
+      minScore: 0.6,
+      framesPerVideo: 12,
+      genderFilter: 'female',
     })
   })
 

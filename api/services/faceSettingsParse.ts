@@ -4,6 +4,10 @@ import {
 } from './faceMatchScoring'
 import type {FaceMatchMode} from './faceMatchApply'
 import {parseBooleanSetting} from '../utils/parseBooleanSetting'
+import {
+  normalizeGenderFilter,
+  type FaceGenderFilter,
+} from './faceGenderFilter'
 
 export type FaceMatchSettingsValues = {
   performerMetaId: number | null
@@ -11,6 +15,12 @@ export type FaceMatchSettingsValues = {
   candidateLimit: number
   mode: FaceMatchMode
   matchAfterDetect: boolean
+}
+
+export type FaceDetectSettingsValues = {
+  minScore: number
+  framesPerVideo: number
+  genderFilter: FaceGenderFilter
 }
 
 export function parseFaceMatchMode(value: unknown): FaceMatchMode {
@@ -47,6 +57,17 @@ export function clampFaceDetectFramesPerVideo(value: unknown, fallback = 6): num
   const framesRaw = Number(value ?? fallback)
   if (!Number.isFinite(framesRaw)) return fallback
   return Math.min(Math.max(Math.round(framesRaw), 1), 99)
+}
+
+export function parseFaceDetectSettingsFromMap(
+  map: Map<string, unknown>,
+  defaultMinScore = 0.5,
+): FaceDetectSettingsValues {
+  return {
+    minScore: clampFaceDetectMinScore(map.get('faceDetect.minScore'), defaultMinScore),
+    framesPerVideo: clampFaceDetectFramesPerVideo(map.get('faceDetect.framesPerVideo'), 6),
+    genderFilter: normalizeGenderFilter(map.get('faceDetect.genderFilter')),
+  }
 }
 
 export function resolveFaceDetectRuntimeOptions<T extends {
