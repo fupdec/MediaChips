@@ -3,6 +3,12 @@ import {createMediaRepository} from '../db/repositories/media'
 import {createMetaRepository} from '../db/repositories/meta'
 import {createTagsRepository} from '../db/repositories/tags'
 import {searchDocs} from './docRetrieval'
+import {
+  clampAssistantToolLimit,
+  filterMediaRowsByQuery,
+  filterTagRowsByQuery,
+  resolveAssistantToolQuery,
+} from './assistantToolQueries'
 
 export type AssistantToolName = 'search_docs' | 'search_media' | 'list_meta' | 'list_tags'
 
@@ -50,28 +56,25 @@ export async function executeAssistantTool(
   const args = call.arguments || {}
 
   if (name === 'search_docs') {
-    const query = String(args.query || args.q || '')
-    const chunks = searchDocs(query, String(options.locale || 'en'), Number(args.limit) || 5)
+    const query = resolveAssistantToolQuery(args)
+    const chunks = searchDocs(
+      query,
+      String(options.locale || 'en'),
+      clampAssistantToolLimit(args.limit, {max: 20, fallback: 5}),
+    )
     return {ok: true, result: {chunks}}
   }
 
   if (name === 'search_media') {
-    const query = String(args.query || args.q || '').trim().toLowerCase()
+    const query = resolveAssistantToolQuery(args)
     const mediaRepo = createMediaRepository(db.drizzle)
     const all = mediaRepo.findAllRaw()
-    const limit = Math.min(20, Math.max(1, Number(args.limit) || 10))
-    const matches = all
-      .filter((row) => {
-        if (!query) return false
-        const hay = `${row.name || ''} ${row.path || ''}`.toLowerCase()
-        return hay.includes(query)
-      })
-      .slice(0, limit)
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        path: row.path,
-      }))
+    const limit = clampAssistantToolLimit(args.limit, {max: 20, fallback: 10})
+    const matches = filterMediaRowsByQuery(all, query, limit).map((row) => ({
+      id: row.id,
+      name: row.name,
+      path: row.path,
+    }))
     return {ok: true, result: {items: matches, count: matches.length}}
   }
 
@@ -91,18 +94,15 @@ export async function executeAssistantTool(
   }
 
   if (name === 'list_tags') {
-    const query = String(args.query || args.q || '').trim().toLowerCase()
+    const query = resolveAssistantToolQuery(args)
     const tagRepo = createTagsRepository(db.drizzle, db.sqlite)
     const rows = tagRepo.findAllRaw()
-    const limit = Math.min(50, Math.max(1, Number(args.limit) || 20))
-    const items = rows
-      .filter((row) => !query || String(row.name || '').toLowerCase().includes(query))
-      .slice(0, limit)
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        metaId: row.metaId,
-      }))
+    const limit = clampAssistantToolLimit(args.limit, {max: 50, fallback: 20})
+    const items = filterTagRowsByQuery(rows, query, limit).map((row) => ({
+      id: row.id,
+      name: row.name,
+      metaId: row.metaId,
+    }))
     return {ok: true, result: {items, count: items.length}}
   }
 
