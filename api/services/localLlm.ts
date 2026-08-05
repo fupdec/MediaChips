@@ -7,12 +7,13 @@ import http from 'http'
 import https from 'https'
 import {createSettingsRepository} from '../db/repositories/settings'
 import {formatDocsForPrompt, searchDocs} from './docRetrieval'
+import {normalizeAssistParsed} from './localAiAssist'
 import {
-  buildFilterAssistPrompt,
-  buildMetaAssistPrompt,
-  buildRegexAssistPrompt,
-  normalizeAssistParsed,
-} from './localAiAssist'
+  buildLocalAiSystemPrompt,
+  extractDocIds,
+  extractJsonObject,
+  mergeCitedLocalAiDocs,
+} from './localLlmChat'
 
 export const LOCAL_AI_MODEL_ID = 'qwen25-1_5b-instruct'
 export const LOCAL_AI_MODEL_FILENAME = 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
@@ -356,81 +357,6 @@ export function deleteLocalAiModel(db: ApiDb): {deleted: boolean; path: string} 
   return {deleted: true, path: cacheDir}
 }
 
-function languageInstruction(locale: string): string {
-  const map: Record<string, string> = {
-    en: 'English',
-    ru: 'Russian',
-    de: 'German',
-    fr: 'French',
-    es: 'Spanish',
-    pt: 'Portuguese',
-    ja: 'Japanese',
-    cn: 'Simplified Chinese',
-  }
-  const lang = map[locale] || map.en
-  return `Reply in ${lang}. If the user writes in another language, reply in that language instead.`
-}
-
-function buildSystemPrompt(req: LocalAiChatRequest, docsText: string): string {
-  const locale = String(req.locale || 'en')
-  const mode = req.mode || 'chat'
-  const parts = [
-    'You are MediaChips Local AI assistant. Stay local-only: never suggest cloud AI services.',
-    languageInstruction(locale),
-    'Be concise and practical.',
-  ]
-
-  if (docsText) {
-    parts.push(
-      'Use ONLY the documentation excerpts below for how-to / product questions. If they are insufficient, say you are unsure and suggest opening Documentation.',
-      'When you cite a section, mention its id like docs:section.id so the UI can open it.',
-      'Documentation excerpts:\n' + docsText,
-    )
-  }
-
-  if (mode === 'regex') {
-    parts.push(...buildRegexAssistPrompt((req.context || {}) as Record<string, unknown>))
-  } else if (mode === 'filter') {
-    parts.push(...buildFilterAssistPrompt((req.context || {}) as Record<string, unknown>))
-  } else if (mode === 'meta') {
-    parts.push(...buildMetaAssistPrompt((req.context || {}) as Record<string, unknown>))
-  } else {
-    parts.push(
-      'You can answer product questions from documentation and help with library organization.',
-      'Do not invent app features that are not in the documentation excerpts.',
-    )
-  }
-
-  if (req.system) parts.push(String(req.system))
-  return parts.join('\n\n')
-}
-
-function extractJsonObject(text: string): Record<string, unknown> | null {
-  const trimmed = String(text || '').trim()
-  if (!trimmed) return null
-  try {
-    return JSON.parse(trimmed) as Record<string, unknown>
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/)
-    if (!match) return null
-    try {
-      return JSON.parse(match[0]) as Record<string, unknown>
-    } catch {
-      return null
-    }
-  }
-}
-
-function extractDocIds(text: string): string[] {
-  const ids = new Set<string>()
-  const re = /docs:([a-z0-9_.-]+)/gi
-  let match: RegExpExecArray | null
-  while ((match = re.exec(text))) {
-    ids.add(match[1])
-  }
-  return [...ids]
-}
-
 export async function* iterateLocalAiChat(
   db: ApiDb,
   req: LocalAiChatRequest,
@@ -459,7 +385,7 @@ export async function* iterateLocalAiChat(
       : []
     const docsText = formatDocsForPrompt(docs)
 
-    const systemPrompt = buildSystemPrompt(req, docsText)
+    const systemPrompt = buildLocalAiSystemPrompt(req, docsText)
     const context = await loadedModel.createContext({contextSize: 4096})
     const sequence = context.getSequence()
     const session = new llamaModule.LlamaChatSession({
@@ -538,12 +464,7 @@ export async function* iterateLocalAiChat(
       ? normalizeAssistParsed(req.mode, rawParsed, (req.context || {}) as Record<string, unknown>)
       : null
     const citedIds = extractDocIds(text)
-    const uniqueDocs = [
-      ...new Map([
-        ...docs.filter((d) => citedIds.includes(d.id)).map((d) => [d.id, {id: d.id, title: d.title}] as const),
-        ...docs.slice(0, 3).map((d) => [d.id, {id: d.id, title: d.title}] as const),
-      ]).values(),
-    ]
+    const uniqueDocs = mergeCitedLocalAiDocs(docs, citedIds)
 
     yield {
       type: 'done',
