@@ -1,6 +1,6 @@
 import type { ApiDb, FilterLike } from '../types/db'
 import type { DbItemRow } from '../../app/types/items'
-import { parseItemsFromDb } from '../../app/tasks/items'
+import { parseItemsFromDb } from './filterItems'
 import { runFilterItemsAsync } from './filterItemsWorkerRunner'
 import { createTagsRepository } from '../db/repositories/tags'
 import { createMetaRepository } from '../db/repositories/meta'

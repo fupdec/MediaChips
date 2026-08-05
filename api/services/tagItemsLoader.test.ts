@@ -21,7 +21,7 @@ vi.mock('./tagFilterSql', () => ({
   buildTagIdSelect: () => 'SELECT tags.id',
 }))
 
-vi.mock('../../app/tasks/items', () => ({
+vi.mock('./filterItems', () => ({
   parseItemsFromDb: (rows: unknown[]) => rows,
   filterItems: (
     _filters: unknown[],

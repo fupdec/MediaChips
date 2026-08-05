@@ -10,7 +10,7 @@ const { filterItemsMock } = vi.hoisted(() => ({
   ),
 }))
 
-vi.mock('../../app/tasks/items', () => ({
+vi.mock('./filterItems', () => ({
   filterItems: filterItemsMock,
 }))
 

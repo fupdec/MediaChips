@@ -1,6 +1,6 @@
 import { Worker } from 'worker_threads'
 import path from 'path'
-import { filterItems } from '../../app/tasks/items'
+import { filterItems } from './filterItems'
 import type { FilterLike } from '../types/db'
 import type { ParsedItem } from '../../app/types/items'
 import type {

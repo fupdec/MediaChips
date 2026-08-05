@@ -1,5 +1,5 @@
 import { parentPort } from 'worker_threads'
-import { filterItems } from '../../app/tasks/items'
+import { filterItems } from '../services/filterItems'
 import type {
   FilterItemsWorkerRequest,
   FilterItemsWorkerResponse,

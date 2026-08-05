@@ -11,7 +11,7 @@ vi.mock('../db/utils/rawQuery', () => ({
   queryAllAsync: vi.fn(),
 }))
 
-vi.mock('../../app/tasks/items', () => ({
+vi.mock('./filterItems', () => ({
   filterItems: vi.fn((_filters, _type, items) => items),
 }))
 
