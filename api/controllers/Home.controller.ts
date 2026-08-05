@@ -6,18 +6,15 @@ import { getRandomMarks } from '../services/homeMarkers'
 import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
-
-function parseLimit(value: unknown, fallback: number, max = 24) {
-  return Math.min(Math.max(Number(value) || fallback, 1), max)
-}
+import { parseClampedLimit } from '../utils/parseRequestNumber'
 
 export default (db: ApiDb) => {
   const getMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const limits = {
-        continue: parseLimit(req.query.continueLimit ?? req.query.limit, 12),
-        favorites: parseLimit(req.query.favoritesLimit ?? req.query.limit, 12),
-        topViews: parseLimit(req.query.topViewsLimit ?? req.query.limit, 12),
+        continue: parseClampedLimit(req.query.continueLimit ?? req.query.limit, 12),
+        favorites: parseClampedLimit(req.query.favoritesLimit ?? req.query.limit, 12),
+        topViews: parseClampedLimit(req.query.topViewsLimit ?? req.query.limit, 12),
       }
       const data = await getHomeMedia(db, limits)
       res.status(200).send(data)
@@ -28,7 +25,7 @@ export default (db: ApiDb) => {
 
   const getMarkers = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      const limit = parseLimit(req.query.limit, 8, 16)
+      const limit = parseClampedLimit(req.query.limit, 8, 16)
       const marks = await getRandomMarks(db, limit)
       res.status(200).send({marks})
     } catch (err) {

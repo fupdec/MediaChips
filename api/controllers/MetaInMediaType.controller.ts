@@ -5,12 +5,7 @@ import { getRequestBody } from '../types/http'
 import type { MetaAssignmentOrderPayload, PinMetaAssignmentPayload } from '@shared/api/payloads'
 
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
-
-function parseOptionalInt(value: unknown): number | undefined {
-  if (value == null || value === '') return undefined
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
+import { parseOptionalInt } from '../utils/parseRequestNumber'
 
 export default function (db: ApiDb) {
   const metaInMediaTypesRepo = createMetaInMediaTypesRepository(db.drizzle)
