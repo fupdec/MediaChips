@@ -51,6 +51,7 @@ import {
   clampFaceDetectFramesPerVideo,
   clampFaceDetectMinScore,
 } from './faceSettingsParse'
+import {computePaddedSquareCropRect, DEFAULT_FACE_CROP_PADDING} from './faceCropGeometry'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
@@ -70,7 +71,7 @@ const DET_INPUT_SIZE = 640
 const DEFAULT_MIN_SCORE = 0.5
 const DEFAULT_IOU = 0.4
 const DEFAULT_MAX_FACES = 20
-const CROP_PADDING = 0.2
+const CROP_PADDING = DEFAULT_FACE_CROP_PADDING
 /** Extract video frames wide enough that face crops stay usable for recognition. */
 const DEFAULT_FRAME_WIDTH = 1280
 /** Ignore tiny boxes — usually body/skin false positives on low-res frames. */
@@ -482,49 +483,18 @@ async function saveFaceCrop(
   box: FaceBox,
   outputPath: string,
 ) {
-  const padX = box.width * CROP_PADDING
-  const padY = box.height * CROP_PADDING
-  let left = box.x - padX
-  let top = box.y - padY
-  let right = box.x + box.width + padX
-  let bottom = box.y + box.height + padY
-
-  // Expand to a square around the face so resize does not distort/crop features.
-  const width = right - left
-  const height = bottom - top
-  const side = Math.max(width, height)
-  const cx = (left + right) / 2
-  const cy = (top + bottom) / 2
-  left = cx - side / 2
-  top = cy - side / 2
-  right = cx + side / 2
-  bottom = cy + side / 2
-
-  // Keep as much of the square as fits in the frame (shift inward near edges).
-  if (left < 0) {
-    right -= left
-    left = 0
-  }
-  if (top < 0) {
-    bottom -= top
-    top = 0
-  }
-  if (right > sourceImage.width) {
-    left -= right - sourceImage.width
-    right = sourceImage.width
-  }
-  if (bottom > sourceImage.height) {
-    top -= bottom - sourceImage.height
-    bottom = sourceImage.height
-  }
-  left = Math.max(0, Math.floor(left))
-  top = Math.max(0, Math.floor(top))
-  right = Math.min(sourceImage.width, Math.ceil(right))
-  bottom = Math.min(sourceImage.height, Math.ceil(bottom))
-
-  const cropW = Math.max(1, right - left)
-  const cropH = Math.max(1, bottom - top)
-  const crop = sourceImage.clone().crop({x: left, y: top, w: cropW, h: cropH})
+  const rect = computePaddedSquareCropRect(
+    box,
+    sourceImage.width,
+    sourceImage.height,
+    CROP_PADDING,
+  )
+  const crop = sourceImage.clone().crop({
+    x: rect.left,
+    y: rect.top,
+    w: rect.width,
+    h: rect.height,
+  })
   const buffer = await crop.getBuffer('image/jpeg', {quality: 90})
   await fs.promises.writeFile(outputPath, buffer)
 }

@@ -22,6 +22,63 @@ export function isIgnorablePreviewError(error: unknown): boolean {
   return name === 'AbortError' || name === 'NotAllowedError'
 }
 
+export const PREVIEW_SEEK_EPSILON = 0.12
+
+export function shouldApplyPreviewSeek(
+  currentTime: number,
+  nextTime: number,
+  epsilon = PREVIEW_SEEK_EPSILON,
+): boolean {
+  return Number.isFinite(nextTime) && Math.abs(currentTime - nextTime) > epsilon
+}
+
+export type InPlacePreviewSeekDecision =
+  | {kind: 'not-applicable'}
+  | {kind: 'noop'}
+  | {kind: 'busy'}
+  | {kind: 'seek'; time: number}
+  | {kind: 'needs-reload'}
+
+export function decideInPlacePreviewSeek(input: {
+  loadedMediaId: number | null
+  mediaId: number
+  activeSrc: string
+  targetTime: number
+  allowLiveChunkSwitch: boolean
+  currentTime: number
+  seeking: boolean
+  videoDuration: number
+}): InPlacePreviewSeekDecision {
+  if (input.loadedMediaId !== input.mediaId || !input.activeSrc) {
+    return {kind: 'not-applicable'}
+  }
+
+  const isLiveSrc = input.activeSrc.includes('/transcode/stream')
+  if (isLiveSrc) {
+    const currentStart = Number(getPreviewStreamStart(input.activeSrc) || 0)
+    const {withinCurrentSegment, relativeTime} = clampLiveChunkSeek(
+      input.targetTime,
+      currentStart,
+    )
+    if (!(withinCurrentSegment || !input.allowLiveChunkSwitch)) {
+      return {kind: 'needs-reload'}
+    }
+    if (!shouldApplyPreviewSeek(input.currentTime, relativeTime)) {
+      return {kind: 'noop'}
+    }
+    if (input.seeking) return {kind: 'busy'}
+    return {kind: 'seek', time: relativeTime}
+  }
+
+  const nextTime = Math.min(input.targetTime, input.videoDuration || input.targetTime)
+  if (!shouldApplyPreviewSeek(input.currentTime, nextTime)) {
+    return {kind: 'noop'}
+  }
+  if (input.seeking) return {kind: 'busy'}
+  return {kind: 'seek', time: nextTime}
+}
+
+
 export function canMarkHoverPreviewReady(input: {
   isHovered: boolean
   isPreviewVisible: boolean

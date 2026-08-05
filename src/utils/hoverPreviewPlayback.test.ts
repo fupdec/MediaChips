@@ -3,6 +3,7 @@ import {
   armHoverPreviewCooldown,
   canMarkHoverPreviewReady,
   clampLiveChunkSeek,
+  decideInPlacePreviewSeek,
   getHoverPreviewCooldownRemaining,
   getLoadedPreviewMediaId,
   getPreviewStreamStart,
@@ -35,6 +36,41 @@ describe('hoverPreviewPlayback', () => {
     expect(isIgnorablePreviewError({name: 'AbortError'})).toBe(true)
     expect(isIgnorablePreviewError({name: 'NotAllowedError'})).toBe(true)
     expect(isIgnorablePreviewError({name: 'NotSupportedError'})).toBe(false)
+  })
+
+  it('decides in-place seeks for direct and live sources', () => {
+    expect(decideInPlacePreviewSeek({
+      loadedMediaId: 1,
+      mediaId: 1,
+      activeSrc: 'http://x/api/video/1/file.mp4',
+      targetTime: 12,
+      allowLiveChunkSwitch: false,
+      currentTime: 1,
+      seeking: false,
+      videoDuration: 100,
+    })).toEqual({kind: 'seek', time: 12})
+
+    expect(decideInPlacePreviewSeek({
+      loadedMediaId: 1,
+      mediaId: 1,
+      activeSrc: 'http://x/api/video/1/transcode/stream?start=10',
+      targetTime: 50,
+      allowLiveChunkSwitch: true,
+      currentTime: 1,
+      seeking: false,
+      videoDuration: 100,
+    })).toEqual({kind: 'needs-reload'})
+
+    expect(decideInPlacePreviewSeek({
+      loadedMediaId: null,
+      mediaId: 1,
+      activeSrc: '',
+      targetTime: 12,
+      allowLiveChunkSwitch: false,
+      currentTime: 0,
+      seeking: false,
+      videoDuration: 100,
+    })).toEqual({kind: 'not-applicable'})
   })
 
   it('gates hover-ready marking', () => {

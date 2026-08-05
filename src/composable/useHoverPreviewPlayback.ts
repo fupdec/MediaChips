@@ -12,14 +12,15 @@ import {
 } from '@/utils/hoverPreviewSession'
 import {
   canMarkHoverPreviewReady,
-  clampLiveChunkSeek,
   createHoverSeekCoalescer,
+  decideInPlacePreviewSeek,
   getLoadedPreviewMediaId,
   getPreviewStreamStart,
   isIgnorablePreviewError,
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
+  shouldApplyPreviewSeek,
   shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
@@ -178,35 +179,31 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
     // Prefer cheap in-place seeks. Reassigning src (esp. live chunks) starts a
     // download/encode storm while scrubbing.
-    if (loadedMediaId === mediaId && activeSrc) {
-      const isLiveSrc = activeSrc.includes('/transcode/stream')
-      if (isLiveSrc) {
-        const currentStart = Number(getPreviewStreamStart(activeSrc) || 0)
-        const {withinCurrentSegment, relativeTime} = clampLiveChunkSeek(targetTime, currentStart)
-        if (withinCurrentSegment || !allowLiveChunkSwitch) {
-          if (Math.abs(video.currentTime - relativeTime) > 0.12) {
-            if (video.seeking) {
-              return true
-            }
-            video.currentTime = relativeTime
-            await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
-          }
-          syncPlaybackTimeFromVideo()
-          return true
-        }
-      } else {
-        const nextTime = Math.min(targetTime, video.duration || targetTime)
-        if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.12) {
-          if (video.seeking) {
-            return true
-          }
-          video.currentTime = nextTime
-          await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
-        }
-        syncPlaybackTimeFromVideo()
-        return true
-      }
+    const inPlace = decideInPlacePreviewSeek({
+      loadedMediaId,
+      mediaId,
+      activeSrc,
+      targetTime,
+      allowLiveChunkSwitch,
+      currentTime: video.currentTime,
+      seeking: video.seeking,
+      videoDuration: video.duration || 0,
+    })
+    if (inPlace.kind === 'busy') return true
+    if (inPlace.kind === 'noop') {
+      syncPlaybackTimeFromVideo()
+      return true
     }
+    if (inPlace.kind === 'seek') {
+      video.currentTime = inPlace.time
+      await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
+      syncPlaybackTimeFromVideo()
+      return true
+    }
+    if (inPlace.kind !== 'needs-reload' && inPlace.kind !== 'not-applicable') {
+      return false
+    }
+    // needs-reload or not-applicable → fall through to src reload below.
 
     const token = previewPlaybackToken
     const url = await buildPreviewVideoUrl(
@@ -233,7 +230,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       if (token !== previewPlaybackToken) return false
       const streamStart = Number(nextStart) || 0
       const relative = Math.max(0, targetTime - streamStart)
-      if (Math.abs(video.currentTime - relative) > 0.12) {
+      if (shouldApplyPreviewSeek(video.currentTime, relative)) {
         video.currentTime = relative
         await waitForPreviewSeek(video, isPreviewCancelled(token))
         if (token !== previewPlaybackToken) return false
@@ -250,7 +247,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
     if (token !== previewPlaybackToken) return false
     const nextTime = Math.min(targetTime, video.duration || targetTime)
-    if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.12) {
+    if (shouldApplyPreviewSeek(video.currentTime, nextTime)) {
       video.currentTime = nextTime
       await waitForPreviewSeek(video, isPreviewCancelled(token))
       if (token !== previewPlaybackToken) return false
