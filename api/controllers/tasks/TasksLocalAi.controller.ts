@@ -11,16 +11,17 @@ import {
   type LocalAiChatRequest,
 } from '../../services/localLlm'
 import {ASSISTANT_TOOLS, executeAssistantTool, type AssistantToolCall} from '../../services/assistantTools'
+import {
+  createStreamAbortSignal,
+  runNdjsonAsyncGenerator,
+  setNdjsonStreamHeaders,
+  writeNdjson,
+} from './ndjsonStreamRunner'
 
 export default function createTasksLocalAiController(shared: TaskControllerShared) {
   const {
     db,
-    createStreamAbortSignal,
   } = shared
-
-  const writeNdjson = (res: ApiResponse, event: Record<string, unknown>) => {
-    res.write(`${JSON.stringify(event)}\n`)
-  }
 
   const localAiStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
@@ -41,22 +42,10 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
   }
 
   const streamDownloadLocalAi = async (req: ApiRequest, res: ApiResponse) => {
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-      const shouldStop = createStreamAbortSignal(req, res)
-      for await (const event of iterateDownloadLocalAi(db, {shouldStop})) {
-        writeNdjson(res, event)
-      }
-      res.end()
-    } catch (err) {
-      writeNdjson(res, {
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while downloading Local AI model.',
-      })
-      res.end()
-    }
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while downloading Local AI model.',
+      iterate: (shouldStop) => iterateDownloadLocalAi(db, {shouldStop}),
+    })
   }
 
   const deleteLocalAi = async (_req: ApiRequest, res: ApiResponse) => {
@@ -73,9 +62,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
 
   const streamLocalAiChat = async (req: ApiRequest, res: ApiResponse) => {
     try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
+      setNdjsonStreamHeaders(res)
       const shouldStop = createStreamAbortSignal(req, res)
 
       const chatReq: LocalAiChatRequest = {

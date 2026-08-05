@@ -1,6 +1,7 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage, sendControllerError } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
+import { runNdjsonAsyncGenerator } from './tasks/ndjsonStreamRunner'
 import fs from 'fs'
 import path from 'path'
 import { machineId } from 'node-machine-id'
@@ -22,22 +23,6 @@ import { getImageMetadata, createImageThumb } from '../services/imageMedia'
 
 export default function taskVideoCoreController(db: ApiDb) {
   const getDbPath = () => db.path!
-
-  const createStreamAbortSignal = (req: ApiRequest, res: ApiResponse) => {
-    let stopped = false
-    const stop = () => {
-      stopped = true
-    }
-
-    req.on('aborted', stop)
-    res.on('close', () => {
-      if (!res.writableFinished) {
-        stop()
-      }
-    })
-
-    return () => stopped
-  }
 
   const checkFileExists = async (req: ApiRequest, res: ApiResponse) => {
     const filePath = normalizeMediaPath(req.body.path)
@@ -106,35 +91,16 @@ export default function taskVideoCoreController(db: ApiDb) {
   }
 
   const streamImageThumbsGeneration = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateImageThumbsGeneration(db, getDbPath(), {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while generating image thumbnails.',
+      iterate: (shouldStop) => iterateImageThumbsGeneration(db, getDbPath(), {
         getImageMetadata,
         createImageThumb: createImageThumb as unknown as (path: string, id: unknown, dbPath: string) => Promise<void>,
       }, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event as unknown as Record<string, unknown>)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while generating image thumbnails.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const videoImagesGenerationStatus = async (req: ApiRequest, res: ApiResponse) => {
@@ -148,32 +114,13 @@ export default function taskVideoCoreController(db: ApiDb) {
 
   const streamVideoImagesGeneration = async (req: ApiRequest, res: ApiResponse) => {
     const imageType = String(req.query.type || '').toLowerCase() as VideoImageType
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateVideoImagesGeneration(db, getDbPath(), imageType, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while generating video images.',
+      iterate: (shouldStop) => iterateVideoImagesGeneration(db, getDbPath(), imageType, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event as unknown as Record<string, unknown>)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while generating video images.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   return {

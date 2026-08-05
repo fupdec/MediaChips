@@ -5,7 +5,6 @@ import type {
   VideoClipTaggerService,
   VideoImagesGenerationService,
 } from '../../types/tasks'
-import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { ApiDb } from '../../types/db'
 import path from 'path'
 import {
@@ -20,6 +19,7 @@ import {
 } from '../../../shared/generatedMediaFolders'
 import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
 import {parseBooleanSetting} from '../../utils/parseBooleanSetting'
+import { createStreamAbortSignal } from './ndjsonStreamRunner'
 
 function lazyService<T = AnyRecord>(modulePath: string) {
   let cached: T | undefined
@@ -49,24 +49,6 @@ export default function createTaskControllerShared(db: ApiDb) {
       setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
     }),
   ])
-
-  const createStreamAbortSignal = (req: ApiRequest, res: ApiResponse) => {
-    let stopped = false
-    const stop = () => {
-      stopped = true
-    }
-
-    // Do not use req 'close': on Windows it fires once the POST body is read,
-    // which cancels long-running stream tasks before any work starts.
-    req.on('aborted', stop)
-    res.on('close', () => {
-      if (!res.writableFinished) {
-        stop()
-      }
-    })
-
-    return () => stopped
-  }
 
   const parserSettingDefaults = {
     'pathParser.useML': true,

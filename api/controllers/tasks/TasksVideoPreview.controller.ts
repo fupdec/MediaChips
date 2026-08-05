@@ -1,36 +1,21 @@
 import type { TaskControllerShared } from '../../types/tasks'
 import type { ApiRequest, ApiResponse } from '../../types/http'
-import type {
-  FfprobeDurationInfo,
-  VideoGridOptions,
-} from '../../types/videoImagesGeneration'
 import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
-import os from 'os'
 import fs from 'fs'
 import { downloadRemoteImage } from '../../services/remoteImageDownload'
 import { resolveBundledPublicFile } from '../../utils/publicAssets'
 import path from 'path'
-import {
-  combineVideoFrames,
-  extractVideoFrame,
-  ffprobe,
-  getVideoStreamDimensions,
-} from '../../utils/ffmpeg'
 import { resolveExistingPath } from '../../services/contentHash'
 import { resolveActiveDbFilePath } from '../../services/mediaPathResolver'
 import {
-  buildGridCombineInputs,
   buildVideoGridTaskParams,
-  getGridSpriteDimensions,
-  makeXstackLayout,
-  planGridTileTimestamps,
-  VIDEO_GRID_JPEG_QUALITY,
   VIDEO_MARK_HEIGHT,
   VIDEO_MARK_JPEG_QUALITY,
 } from '../../../shared/videoPreview'
 import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
+import { generateVideoGrid } from '../../services/videoGrid'
 
 function resolveMediaIdFromGridRequest(body: ApiRequest['body']): number | null {
   if (body?.id != null && body.id !== '') {
@@ -113,101 +98,6 @@ export default function createTasksVideoPreviewController(shared: TaskController
       return
     }
 
-    class Grid {
-      tmpDir: string
-      input: string
-      output: string
-      cols: number
-      rows: number
-      width: number
-      tileCount: number
-
-      constructor(opts: VideoGridOptions) {
-        this.tmpDir = os.tmpdir()
-        this.input = opts.input
-        this.output = opts.output
-        this.cols = opts.cols
-        this.rows = opts.rows
-        this.width = opts.width
-        this.tileCount = this.rows * this.cols
-      }
-
-      async getVideoInfo(pathToFile: string) {
-        const info = await ffprobe(pathToFile)
-        const {aspectRatio} = getVideoStreamDimensions(info)
-
-        return {
-          duration: (info as FfprobeDurationInfo).format.duration,
-          aspectRatio,
-        }
-      }
-
-      makeLayout(i: number) {
-        return makeXstackLayout(i, this.cols)
-      }
-
-      async ffmpegSeekP(timestamp: string, intermediateOutput: string) {
-        return extractVideoFrame({
-          input: this.input,
-          output: intermediateOutput,
-          timestamp,
-        }).then((output: unknown) => new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(output)
-          }, 500)
-        }))
-      }
-
-      async ffmpegCombineP(
-        inputFiles: string[],
-        streams: string[],
-        layouts: string[],
-        spriteWidth: number,
-        spriteHeight: number,
-      ) {
-        return combineVideoFrames({
-          inputs: inputFiles,
-          filterComplex: `${streams.join('')}xstack=inputs=${this.tileCount}:layout=${layouts.join('|')}[v];[v]scale=${spriteWidth}:${spriteHeight}:flags=lanczos[scaled]`,
-          output: path.join(gridsPath, this.output),
-          jpegQuality: VIDEO_GRID_JPEG_QUALITY,
-        })
-      }
-
-      async generate() {
-        const {duration, aspectRatio} = await this.getVideoInfo(this.input)
-        if (typeof duration !== 'number') return false
-
-        const sprite = getGridSpriteDimensions(aspectRatio, this.cols, this.rows)
-        const {timestamps} = planGridTileTimestamps(duration, this.tileCount)
-
-        const framePromises: Promise<unknown>[] = []
-        for (let i = 0; i < this.tileCount; i++) {
-          const intermediateOutput = path.join(this.tmpDir, `thumb${i}.png`)
-          framePromises.push(this.ffmpegSeekP(timestamps[i], intermediateOutput))
-        }
-
-        await Promise.all(framePromises)
-          .catch((_err: unknown) => {
-            // console.log(_err)
-          })
-
-        const {inputFiles, streams, layouts} = buildGridCombineInputs(
-          this.tmpDir,
-          this.tileCount,
-          this.cols,
-          path.join,
-        )
-        await this.ffmpegCombineP(inputFiles, streams, layouts, sprite.width, sprite.height)
-          .catch((err: unknown) => {
-            console.log(err)
-          })
-
-        return {
-          output: this.output
-        }
-      }
-    }
-
     const gridPath = path.join(gridsPath, req.body.output);
     const mediaId = resolveMediaIdFromGridRequest(req.body)
 
@@ -225,15 +115,20 @@ export default function createTasksVideoPreviewController(shared: TaskController
     }
 
     if (!fs.existsSync(gridPath)) {
-      const grid = new Grid(req.body)
-      const result = await grid.generate()
-      if (result) {
-        await ensureVisualHash(true)
-        res.status(201).send(result)
-      } else {
+      try {
+        const result = await generateVideoGrid(req.body, dbPath ?? '')
+        if (result) {
+          await ensureVisualHash(true)
+          res.status(201).send(result)
+        } else {
+          res.status(400).send({
+            message: 'Unable to probe video duration',
+          })
+        }
+      } catch (err) {
         res.status(400).send({
-          message: 'Grid already exists'
-        });
+          message: err instanceof Error ? err.message : String(err),
+        })
       }
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.

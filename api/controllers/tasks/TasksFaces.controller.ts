@@ -1,6 +1,7 @@
 import type { TaskControllerShared } from '../../types/tasks'
 import type { ApiRequest, ApiResponse } from '../../types/http'
-import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
+import { HttpError, sendControllerError } from '../../types/errors'
+import { runNdjsonAsyncGenerator } from './ndjsonStreamRunner'
 import {
   detectMedia,
   getFaceDetectionStatus,
@@ -29,10 +30,7 @@ import { createMediaRepository } from '../../db/repositories/media'
 import { resolveExistingPath } from '../../services/contentHash'
 
 export default function createTasksFacesController(shared: TaskControllerShared) {
-  const {
-    db,
-    createStreamAbortSignal,
-  } = shared
+  const {db} = shared
 
   const mediaRepo = createMediaRepository(db.drizzle)
 
@@ -235,63 +233,35 @@ export default function createTasksFacesController(shared: TaskControllerShared)
   }
 
   const streamEnrollmentQualityReport = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-      const metaIdRaw = req.body?.metaId ?? req.query?.metaId
-      const metaId = metaIdRaw != null && metaIdRaw !== '' ? Number(metaIdRaw) : null
-
-      for await (const event of iterateEnrollmentQualityReport(db, {
+    const metaIdRaw = req.body?.metaId ?? req.query?.metaId
+    const metaId = metaIdRaw != null && metaIdRaw !== '' ? Number(metaIdRaw) : null
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while checking enrollment quality.',
+      iterate: (shouldStop) => iterateEnrollmentQualityReport(db, {
         shouldStop,
         metaId: Number.isFinite(metaId as number) ? Number(metaId) : null,
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while checking enrollment quality.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamFaceDetection = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-      const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
-      const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : undefined
-      const paths = Array.isArray(req.body?.paths)
-        ? req.body.paths.map((item: unknown) => (
-          typeof item === 'string' ? item : (item as {path?: string})?.path
-        )).filter(Boolean)
-        : undefined
-      const applyTagsRaw = req.body?.applyTags
-      const applyTags = !(
-        applyTagsRaw === false
-        || applyTagsRaw === 'false'
-        || applyTagsRaw === 0
-        || applyTagsRaw === '0'
-      )
-
-      for await (const event of iterateFaceDetection(db, {
+    const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
+    const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : undefined
+    const paths = Array.isArray(req.body?.paths)
+      ? req.body.paths.map((item: unknown) => (
+        typeof item === 'string' ? item : (item as {path?: string})?.path
+      )).filter(Boolean)
+      : undefined
+    const applyTagsRaw = req.body?.applyTags
+    const applyTags = !(
+      applyTagsRaw === false
+      || applyTagsRaw === 'false'
+      || applyTagsRaw === 0
+      || applyTagsRaw === '0'
+    )
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while detecting faces.',
+      iterate: (shouldStop) => iterateFaceDetection(db, {
         shouldStop,
         force,
         mediaIds,
@@ -299,82 +269,34 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         framesPerVideo: req.body?.framesPerVideo,
         minScore: req.body?.minScore,
         applyTags,
-      })) {
-        writeEvent(event as unknown as Record<string, unknown>)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while detecting faces.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamFaceEnrollment = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-      const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
-      const metaId = req.body?.metaId != null ? Number(req.body.metaId) : undefined
-
-      for await (const event of iterateEnrollFromPerformerImages(db, {
+    const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
+    const metaId = req.body?.metaId != null ? Number(req.body.metaId) : undefined
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while enrolling performer faces.',
+      iterate: (shouldStop) => iterateEnrollFromPerformerImages(db, {
         shouldStop,
         force,
         metaId,
-      })) {
-        writeEvent(event as unknown as Record<string, unknown>)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while enrolling performer faces.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamFaceMatching = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-      const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
-      const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds.map(Number) : undefined
-
-      for await (const event of iterateFaceMatching(db, {
+    const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
+    const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds.map(Number) : undefined
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while matching faces.',
+      iterate: (shouldStop) => iterateFaceMatching(db, {
         shouldStop,
         force,
         mediaIds,
-      })) {
-        writeEvent(event as unknown as Record<string, unknown>)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while matching faces.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   return {

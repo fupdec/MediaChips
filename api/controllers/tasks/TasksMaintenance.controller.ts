@@ -1,7 +1,8 @@
 import type { TaskControllerShared } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
-import { apiErrorMessage, sendControllerError } from '../../types/errors'
+import { sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
+import { runNdjsonAsyncGenerator } from './ndjsonStreamRunner'
 import { createMediaRepository } from '../../db/repositories/media'
 import { parseMediaFilePath } from '../../../shared/mediaPath'
 import {
@@ -38,7 +39,6 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   const {
     db,
     getDbPath,
-    createStreamAbortSignal,
     getVideoImagesGeneration,
     getImageMedia,
   } = shared
@@ -82,32 +82,13 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   }
 
   const streamVideoCodecBackfill = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateVideoCodecBackfill(db, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling video codecs.',
+      iterate: (shouldStop) => iterateVideoCodecBackfill(db, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while backfilling video codecs.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const imageThumbsGenerationStatus = async (req: ApiRequest, res: ApiResponse) => {
@@ -120,35 +101,16 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   }
 
   const streamImageThumbsGeneration = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateImageThumbsGeneration(db, getDbPath() ?? '', getImageMedia() as unknown as {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while generating image thumbnails.',
+      iterate: (shouldStop) => iterateImageThumbsGeneration(db, getDbPath() ?? '', getImageMedia() as unknown as {
         getImageMetadata: (path: string) => Promise<unknown>
         createImageThumb: (path: string, id: unknown, dbPath: string) => Promise<void>
       }, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while generating image thumbnails.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const videoImagesGenerationStatus = async (req: ApiRequest, res: ApiResponse) => {
@@ -162,119 +124,43 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
   const streamVideoImagesGeneration = async (req: ApiRequest, res: ApiResponse) => {
     const imageType = String(req.query.type || '').toLowerCase()
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of getVideoImagesGeneration().iterateVideoImagesGeneration(db, getDbPath(), imageType, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while generating video images.',
+      iterate: (shouldStop) => getVideoImagesGeneration().iterateVideoImagesGeneration(db, getDbPath(), imageType, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while generating video images.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamContentHashBackfill = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateContentHashBackfill(db, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling content hashes.',
+      iterate: (shouldStop) => iterateContentHashBackfill(db, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || "Some error occurred while backfilling content hashes."
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamOshashBackfill = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateOshashBackfill(db, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling oshash values.',
+      iterate: (shouldStop) => iterateOshashBackfill(db, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while backfilling oshash values.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamFingerprintBackfill = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateFingerprintBackfill(db, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling fingerprints.',
+      iterate: (shouldStop) => iterateFingerprintBackfill(db, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while backfilling fingerprints.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const visualHashBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
@@ -287,32 +173,13 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   }
 
   const streamVisualHashBackfill = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateVisualHashBackfill(db, {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling visual hashes.',
+      iterate: (shouldStop) => iterateVisualHashBackfill(db, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while backfilling visual hashes.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const missingMediaStatus = async (req: ApiRequest, res: ApiResponse) => {
@@ -326,68 +193,30 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   }
 
   const streamFindMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateMissingMediaSearch(db, {
+    const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while searching for missing media.',
+      iterate: (shouldStop) => iterateMissingMediaSearch(db, {
         folders,
         shouldStop,
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || "Some error occurred while searching for missing media."
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const streamScanFolderDuplicates = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-      const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
-      const paths = Array.isArray(req.body?.paths) ? req.body.paths : []
-      const excluded = Array.isArray(req.body?.excluded) ? req.body.excluded : []
-
-      for await (const event of iterateScanFolderDuplicates(db, {
+    const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
+    const paths = Array.isArray(req.body?.paths) ? req.body.paths : []
+    const excluded = Array.isArray(req.body?.excluded) ? req.body.excluded : []
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while scanning folder duplicates.',
+      iterate: (shouldStop) => iterateScanFolderDuplicates(db, {
         folders,
         paths,
         excluded,
         mediaTypeId: req.body?.mediaTypeId ?? req.body?.type?.id ?? null,
         shouldStop,
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while scanning folder duplicates.',
-      })
-      res.end()
-    }
+      }),
+    })
   }
 
   const relinkMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
@@ -434,29 +263,10 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   }
 
   const streamTagImageAiUpscale = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateTagImageAiUpscale(db, {shouldStop})) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || 'Some error occurred while upscaling tag images.',
-      })
-      res.end()
-    }
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while upscaling tag images.',
+      iterate: (shouldStop) => iterateTagImageAiUpscale(db, {shouldStop}),
+    })
   }
 
   return {

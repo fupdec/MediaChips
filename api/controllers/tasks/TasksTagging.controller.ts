@@ -1,6 +1,11 @@
 import type { TagLike, AnyRecord, MetaLike } from '../../types/db'
 import type { TaskControllerShared, TagSuggestionItem } from '../../types/tasks'
 import { apiErrorMessage, sendControllerError } from '../../types/errors'
+import {
+  runNdjsonAsyncGenerator,
+  setNdjsonStreamHeaders,
+  writeNdjson,
+} from './ndjsonStreamRunner'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { ParsePathTagEntry } from '@shared/api/responses'
 import { createTagsRepository } from '../../db/repositories/tags'
@@ -22,7 +27,6 @@ export default function createTasksTaggingController(shared: TaskControllerShare
     getParserSettings,
     getVideoClipTagger,
     getEmbeddingModel,
-    createStreamAbortSignal,
   } = shared
 
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -96,13 +100,11 @@ export default function createTasksTaggingController(shared: TaskControllerShare
 
   const streamVideoObjectRecognition = async (req: ApiRequest, res: ApiResponse) => {
     const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
+      writeNdjson(res, event)
     }
 
     try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
+      setNdjsonStreamHeaders(res)
 
       const requestPaths = Array.isArray(req.body?.paths) ? req.body.paths : []
       const mediaTypeId = Number(req.body?.mediaTypeId || 1)
@@ -294,33 +296,16 @@ export default function createTasksTaggingController(shared: TaskControllerShare
   }
 
   const streamParseLibraryTagsPreview = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      res.write(`${JSON.stringify(event)}\n`)
-    }
-
-    try {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('X-Accel-Buffering', 'no')
-
-      const settings = await getParserSettings(req.body?.settings || {})
-      const shouldStop = createStreamAbortSignal(req, res)
-
-      for await (const event of iterateParseLibraryTagsPreview(db, {
-        settings,
-        shouldStop,
-      })) {
-        writeEvent(event)
-      }
-
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || "Some error occurred while parsing library tags."
-      })
-      res.end()
-    }
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while parsing library tags.',
+      iterate: async (shouldStop) => {
+        const settings = await getParserSettings(req.body?.settings || {})
+        return iterateParseLibraryTagsPreview(db, {
+          settings,
+          shouldStop,
+        })
+      },
+    })
   }
 
   const applyParseLibraryTagsPreview = async (req: ApiRequest, res: ApiResponse) => {
