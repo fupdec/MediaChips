@@ -11,10 +11,8 @@ import type {
   FaceLandmark5,
 } from '../types/faceDetector'
 import fs from 'fs'
-import os from 'os'
 import path from 'path'
 import { Jimp } from 'jimp'
-import { extractVideoFrame, ffprobe } from '../utils/ffmpeg'
 import { createFacesRepository } from '../db/repositories/faces'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
@@ -30,12 +28,8 @@ import {
   type FaceGenderFilter,
 } from './faceGender'
 import {
-  getFrameTimestamps,
   hardNms,
-  pickDiverseFrames,
   qualityGatesForScore,
-  averageHashFromLumaValues,
-  computeOversampledFrameCount,
 } from './faceDetectorMath'
 import {
   boxLooksLikeFace,
@@ -63,7 +57,6 @@ import {
   cleanupDir,
   ensureDir,
   ensureFaceCropsForMedia,
-  FACE_CROP_FRAME_WIDTH,
   getFacesDir,
   purgeAllFaceCrops,
   purgeOtherMediaFaceCrops,
@@ -71,6 +64,7 @@ import {
   removeExistingFaceAssets,
   saveFaceCrop,
 } from './faceCropStore'
+import {extractFramesForMedia} from './faceFrameExtract'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
@@ -90,7 +84,6 @@ const DET_INPUT_SIZE = 640
 const DEFAULT_MIN_SCORE = 0.5
 const DEFAULT_IOU = 0.4
 const DEFAULT_MAX_FACES = 20
-const DEFAULT_FRAME_WIDTH = FACE_CROP_FRAME_WIDTH
 const SCRFD_MEAN = 127.5
 const SCRFD_STD = 128
 export interface FaceDetectSettings {
@@ -205,27 +198,6 @@ function getStatus(db: ApiDb, enabled: boolean = true): ModelStatus {
   }
 }
 
-/** Average-hash fingerprint for cheap near-duplicate frame rejection. */
-async function frameFingerprint(framePath: string): Promise<string> {
-  const image = await Jimp.read(framePath)
-  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
-  const {data, width, height} = tiny.bitmap
-  const values: number[] = []
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      values.push(data[(y * width + x) * 4])
-    }
-  }
-  return averageHashFromLumaValues(values)
-}
-
-async function getVideoDuration(filePath: string) {
-  const info = await ffprobe(filePath)
-  const duration = Number(info?.format?.duration || 0)
-  if (!duration) throw new Error('Video duration is unavailable.')
-  return duration
-}
-
 async function imageToScrfdInput(framePath: string): Promise<{
   tensor: OrtTensor
   width: number
@@ -289,65 +261,6 @@ async function detectFacesInFrame(
   })
 
   return hardNms(candidates, iouThreshold, maxFaces)
-}
-
-async function extractFramesForMedia(
-  item: FaceDetectorMediaItem,
-  options: FaceDetectorOptions = {},
-) {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-faces-'))
-  const frames: Array<{framePath: string; timestamp: string}> = []
-  const frameWidth = Number(options.frameWidth || DEFAULT_FRAME_WIDTH)
-  const framesPerVideo = Number(options.framesPerVideo || 6)
-
-  if (!item?.path || !fs.existsSync(String(item.path))) {
-    return {tmpDir, frames}
-  }
-
-  let duration: number
-  try {
-    duration = await getVideoDuration(String(item.path))
-  } catch {
-    return {tmpDir, frames}
-  }
-
-  // Oversample then drop near-duplicates so N kept frames cover more of the video.
-  const {targetCount, candidateCount} = computeOversampledFrameCount(framesPerVideo)
-  const timestamps = getFrameTimestamps(duration, candidateCount)
-  const candidates: Array<{framePath: string; timestamp: string; fingerprint: string}> = []
-
-  for (let index = 0; index < timestamps.length; index++) {
-    const output = path.join(tmpDir, `${item.id || 'media'}_${index}.jpg`)
-    try {
-      await extractVideoFrame({
-        input: String(item.path),
-        output,
-        timestamp: timestamps[index],
-        vf: `scale=${frameWidth}:-1`,
-      })
-      const fingerprint = await frameFingerprint(output)
-      candidates.push({framePath: output, timestamp: timestamps[index], fingerprint})
-    } catch {
-      // Skip broken frames.
-    }
-  }
-
-  const selected = pickDiverseFrames(candidates, targetCount)
-  const selectedPaths = new Set(selected.map((frame) => frame.framePath))
-  for (const candidate of candidates) {
-    if (selectedPaths.has(candidate.framePath)) continue
-    try {
-      fs.unlinkSync(candidate.framePath)
-    } catch {
-      // Ignore cleanup errors.
-    }
-  }
-
-  for (const frame of selected) {
-    frames.push({framePath: frame.framePath, timestamp: frame.timestamp})
-  }
-
-  return {tmpDir, frames}
 }
 
 async function detectMedia(
