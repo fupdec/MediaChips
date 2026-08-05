@@ -1,16 +1,23 @@
 import {describe, expect, it} from 'vitest'
 import {
+  buildDetectCropFilename,
   buildDetectedFaceEntry,
   buildEmptyFaceDetectResult,
   buildFailedFaceDetectResult,
   buildMissingFaceDetectResult,
   buildSkippedExistingFaceResult,
+  buildSuccessfulFaceDetectResult,
   mapDetectionsToPersistedFaceRows,
+  resolveCropPathsAfterSaveAttempt,
   resolveDetectCropOutputPaths,
   resolveDetectMediaIdentity,
   resolveDetectMediaPreflight,
   resolveScrfdFrameDetectParams,
+  shouldApplyGenderFilterGate,
   shouldAttemptDetectionEmbedding,
+  shouldClearExistingFaceAssets,
+  shouldEnsureDetectFacesDir,
+  shouldPersistDetectedFaces,
   shouldPrepareGenderFilter,
 } from './faceDetectPersist'
 import {FACE_CROPS_RELATIVE_ROOT} from './faceCropStore'
@@ -170,6 +177,77 @@ describe('detect media preflight / SCRFD frame params', () => {
       minScore: 0.8,
       iouThreshold: 0.3,
       maxFaces: 5,
+    })
+  })
+})
+
+describe('detectMedia loop helpers', () => {
+  it('builds crop filenames and persist/gender gates', () => {
+    expect(buildDetectCropFilename(0)).toBe('face_000.jpg')
+    expect(buildDetectCropFilename(12)).toBe('face_012.jpg')
+
+    expect(shouldEnsureDetectFacesDir({
+      persist: true,
+      persistCrops: true,
+      mediaId: 1,
+      dbPath: '/db',
+    })).toBe(true)
+    expect(shouldClearExistingFaceAssets({
+      persist: true,
+      mediaId: 1,
+      force: true,
+    })).toBe(true)
+    expect(shouldPersistDetectedFaces({
+      persist: true,
+      mediaId: 1,
+      facesLength: 2,
+    })).toBe(true)
+    expect(shouldApplyGenderFilterGate({
+      genderReady: true,
+      genderFilter: 'female',
+    })).toBe(true)
+    expect(shouldApplyGenderFilterGate({
+      genderReady: false,
+      genderFilter: 'female',
+    })).toBe(false)
+  })
+
+  it('resolves crop paths after save and success payload', () => {
+    expect(resolveCropPathsAfterSaveAttempt({
+      saveSucceeded: true,
+      absoluteCrop: '/abs/face.jpg',
+      relativeCrop: 'faces/1/face.jpg',
+    })).toEqual({
+      cropPath: '/abs/face.jpg',
+      cropRelativePath: 'faces/1/face.jpg',
+    })
+    expect(resolveCropPathsAfterSaveAttempt({
+      saveSucceeded: true,
+      absoluteCrop: '/tmp/face.jpg',
+      relativeCrop: null,
+    })).toEqual({
+      cropPath: null,
+      cropRelativePath: null,
+    })
+    expect(resolveCropPathsAfterSaveAttempt({
+      saveSucceeded: false,
+      absoluteCrop: '/abs/face.jpg',
+      relativeCrop: 'faces/1/face.jpg',
+    })).toEqual({
+      cropPath: null,
+      cropRelativePath: null,
+    })
+
+    expect(buildSuccessfulFaceDetectResult({
+      mediaId: 1,
+      mediaPath: '/v.mp4',
+      frames: 3,
+      faces: [],
+    })).toEqual({
+      mediaId: 1,
+      mediaPath: '/v.mp4',
+      frames: 3,
+      faces: [],
     })
   })
 })

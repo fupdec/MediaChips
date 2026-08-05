@@ -65,17 +65,24 @@ import {
 } from './faceCropStore'
 import {
   SCRFD_DEFAULT_MIN_SCORE,
+  buildDetectCropFilename,
   buildDetectedFaceEntry,
   buildEmptyFaceDetectResult,
   buildFailedFaceDetectResult,
   buildMissingFaceDetectResult,
   buildSkippedExistingFaceResult,
+  buildSuccessfulFaceDetectResult,
   mapDetectionsToPersistedFaceRows,
+  resolveCropPathsAfterSaveAttempt,
   resolveDetectCropOutputPaths,
   resolveDetectMediaIdentity,
   resolveDetectMediaPreflight,
   resolveScrfdFrameDetectParams,
+  shouldApplyGenderFilterGate,
   shouldAttemptDetectionEmbedding,
+  shouldClearExistingFaceAssets,
+  shouldEnsureDetectFacesDir,
+  shouldPersistDetectedFaces,
   shouldPrepareGenderFilter,
 } from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
@@ -310,16 +317,23 @@ async function detectMedia(
       return buildEmptyFaceDetectResult(mediaId, mediaPath)
     }
 
-    if (persist && mediaId != null && options.force) {
-      removeExistingFaceAssets(db, mediaId)
+    if (shouldClearExistingFaceAssets({persist, mediaId, force: options.force})) {
+      removeExistingFaceAssets(db, mediaId!)
     }
 
     const faces: FaceDetection[] = []
     let cropIndex = 0
     let facesDir: string | null = null
     const ensureFacesDir = () => {
-      if (facesDir || !(persist && persistCrops && mediaId != null && db.path)) return facesDir
-      facesDir = getFacesDir(db.path, mediaId)
+      if (facesDir || !shouldEnsureDetectFacesDir({
+        persist,
+        persistCrops,
+        mediaId,
+        dbPath: db.path,
+      })) {
+        return facesDir
+      }
+      facesDir = getFacesDir(db.path!, mediaId!)
       ensureDir(facesDir)
       return facesDir
     }
@@ -358,7 +372,7 @@ async function detectMedia(
 
       const sourceImage = await Jimp.read(frame.framePath)
       for (const detection of detections) {
-        if (genderReady && shouldPrepareGenderFilter(genderFilter)) {
+        if (shouldApplyGenderFilterGate({genderReady, genderFilter})) {
           try {
             const predicted = await estimateGender(sourceImage, detection.box)
             if (!passesGenderFilter(predicted?.gender, genderFilter, predicted?.confidence)) continue
@@ -367,11 +381,8 @@ async function detectMedia(
           }
         }
 
-        let cropPath: string | null = null
-        let cropRelativePath: string | null = null
         let embedding: string | null = null
-
-        const filename = `face_${String(cropIndex).padStart(3, '0')}.jpg`
+        const filename = buildDetectCropFilename(cropIndex)
         cropIndex += 1
         const dir = ensureFacesDir()
         // Persist only for manual review; otherwise write a temp crop just for embedding.
@@ -381,19 +392,24 @@ async function detectMedia(
           filename,
           mediaId,
         })
-        cropRelativePath = relativeCrop
 
+        let saveSucceeded = false
         if (absoluteCrop) {
           try {
             await saveFaceCrop(sourceImage, detection.box, absoluteCrop)
-            if (relativeCrop) {
-              cropPath = absoluteCrop
-            }
+            saveSucceeded = true
           } catch {
-            cropPath = null
-            cropRelativePath = null
+            saveSucceeded = false
           }
+        }
 
+        const {cropPath, cropRelativePath} = resolveCropPathsAfterSaveAttempt({
+          saveSucceeded,
+          absoluteCrop,
+          relativeCrop,
+        })
+
+        if (absoluteCrop && saveSucceeded) {
           const blurVariance = estimateBlurVariance(sourceImage, detection.box)
           const matchable = assessMatchability({
             score: detection.score,
@@ -431,13 +447,13 @@ async function detectMedia(
       }
     }
 
-    if (persist && mediaId != null && faces.length) {
+    if (shouldPersistDetectedFaces({persist, mediaId, facesLength: faces.length})) {
       createFacesRepository(db.drizzle).bulkCreate(
-        mapDetectionsToPersistedFaceRows(mediaId, faces, Boolean(persistCrops)),
+        mapDetectionsToPersistedFaceRows(mediaId!, faces, Boolean(persistCrops)),
       )
 
       if (persistCrops) {
-        purgeOtherMediaFaceCrops(db, mediaId)
+        purgeOtherMediaFaceCrops(db, mediaId!)
       }
 
       try {
@@ -450,19 +466,19 @@ async function detectMedia(
           applyTags: options.applyTags,
         })
         if (settings) {
-          await matchMediaFaces(db, mediaId, {force: Boolean(options.force), settings})
+          await matchMediaFaces(db, mediaId!, {force: Boolean(options.force), settings})
         }
       } catch {
         // Matching is optional and should not fail detection.
       }
     }
 
-    return {
+    return buildSuccessfulFaceDetectResult({
       mediaId,
       mediaPath,
       frames: extracted.frames.length,
       faces,
-    }
+    })
   } catch (error: unknown) {
     return buildFailedFaceDetectResult(mediaId, mediaPath, error)
   } finally {

@@ -205,3 +205,72 @@ export function resolveScrfdFrameDetectParams(options: {
     maxFaces: Number(options.maxFacesPerFrame ?? SCRFD_DEFAULT_MAX_FACES),
   }
 }
+
+export function buildDetectCropFilename(cropIndex: number): string {
+  return `face_${String(cropIndex).padStart(3, '0')}.jpg`
+}
+
+/** Review crops need a persistent faces/ dir; otherwise temp crops are enough. */
+export function shouldEnsureDetectFacesDir(input: {
+  persist: boolean
+  persistCrops: boolean
+  mediaId: number | null
+  dbPath?: string | null
+}): boolean {
+  return Boolean(input.persist && input.persistCrops && input.mediaId != null && input.dbPath)
+}
+
+export function shouldClearExistingFaceAssets(input: {
+  persist: boolean
+  mediaId: number | null
+  force?: boolean
+}): boolean {
+  return Boolean(input.persist && input.mediaId != null && input.force)
+}
+
+export function shouldPersistDetectedFaces(input: {
+  persist: boolean
+  mediaId: number | null
+  facesLength: number
+}): boolean {
+  return Boolean(input.persist && input.mediaId != null && input.facesLength > 0)
+}
+
+export function shouldApplyGenderFilterGate(input: {
+  genderReady: boolean
+  genderFilter: string
+}): boolean {
+  return input.genderReady && shouldPrepareGenderFilter(input.genderFilter)
+}
+
+/**
+ * After saveFaceCrop: keep absolute cropPath only when a relative review path exists.
+ * Failed saves clear both paths.
+ */
+export function resolveCropPathsAfterSaveAttempt(input: {
+  saveSucceeded: boolean
+  absoluteCrop: string | null
+  relativeCrop: string | null
+}): {cropPath: string | null; cropRelativePath: string | null} {
+  if (!input.saveSucceeded) {
+    return {cropPath: null, cropRelativePath: null}
+  }
+  return {
+    cropPath: input.relativeCrop ? input.absoluteCrop : null,
+    cropRelativePath: input.relativeCrop,
+  }
+}
+
+export function buildSuccessfulFaceDetectResult(input: {
+  mediaId: number | null
+  mediaPath: string | null
+  frames: number
+  faces: FaceDetection[]
+}) {
+  return {
+    mediaId: input.mediaId,
+    mediaPath: input.mediaPath,
+    frames: input.frames,
+    faces: input.faces,
+  }
+}
