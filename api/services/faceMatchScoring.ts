@@ -1,16 +1,21 @@
 /** Pure face-match scoring helpers (no ORT / filesystem). */
 
+import {
+  DEFAULT_FACE_CANDIDATE_LIMIT,
+  MAX_FACE_CANDIDATE_LIMIT,
+  MIN_FACE_CANDIDATE_LIMIT,
+  clampFaceCandidateLimit,
+} from '../../shared/faceSettings'
+
 export const EMBED_DIM = 512
-export const DEFAULT_CANDIDATE_LIMIT = 10
-export const MIN_CANDIDATE_LIMIT = 3
-export const MAX_CANDIDATE_LIMIT = 20
+export const DEFAULT_CANDIDATE_LIMIT = DEFAULT_FACE_CANDIDATE_LIMIT
+export const MIN_CANDIDATE_LIMIT = MIN_FACE_CANDIDATE_LIMIT
+export const MAX_CANDIDATE_LIMIT = MAX_FACE_CANDIDATE_LIMIT
 /** Require a clear winner so near-ties do not become false positives. */
 export const MATCH_SCORE_MARGIN = 0.08
 
 export function clampCandidateLimit(value: unknown): number {
-  const raw = Number(value)
-  if (!Number.isFinite(raw)) return DEFAULT_CANDIDATE_LIMIT
-  return Math.min(MAX_CANDIDATE_LIMIT, Math.max(MIN_CANDIDATE_LIMIT, Math.round(raw)))
+  return clampFaceCandidateLimit(value)
 }
 
 export function l2Normalize(values: Float32Array | number[]) {

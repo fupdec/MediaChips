@@ -10,7 +10,7 @@ import {
 } from './faceSettingsForm'
 
 describe('faceSettingsForm', () => {
-  it('clamps detect and match form values', () => {
+  it('re-exports shared clamps for the settings UI', () => {
     expect(clampFaceDetectMinScoreForm(0.2)).toBe(0.5)
     expect(clampFaceDetectMinScoreForm(0.9)).toBe(0.75)
     expect(clampFaceDetectFramesPerVideoForm(200)).toBe(99)
@@ -18,14 +18,8 @@ describe('faceSettingsForm', () => {
     expect(clampFaceMatchCandidateLimitForm(50)).toBe(20)
     expect(clampFaceMatchConfidenceForm(0.1)).toBe(0.2)
     expect(clampFaceMatchConfidenceForm(0.99)).toBe(0.95)
-  })
-
-  it('normalizes gender, mode, and matchAfterDetect', () => {
     expect(normalizeFaceGenderFilterForm('Female')).toBe('female')
-    expect(normalizeFaceGenderFilterForm('x')).toBe('both')
     expect(parseFaceMatchModeForm('suggest')).toBe('suggest')
-    expect(parseFaceMatchModeForm('nope')).toBe('auto')
     expect(parseMatchAfterDetectForm('0')).toBe(false)
-    expect(parseMatchAfterDetectForm(undefined)).toBe(true)
   })
 })

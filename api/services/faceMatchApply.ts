@@ -1,4 +1,5 @@
-export type FaceMatchMode = 'suggest' | 'auto'
+export type {FaceMatchMode} from '../../shared/faceSettings'
+import type {FaceMatchMode} from '../../shared/faceSettings'
 
 export type MatchCandidatePick = {
   accepted: boolean

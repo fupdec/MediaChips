@@ -1,13 +1,27 @@
 import {
-  DEFAULT_CANDIDATE_LIMIT,
-  clampCandidateLimit,
-} from './faceMatchScoring'
-import type {FaceMatchMode} from './faceMatchApply'
-import {parseBooleanSetting} from '../utils/parseBooleanSetting'
-import {
+  DEFAULT_FACE_CANDIDATE_LIMIT,
+  clampFaceCandidateLimit,
+  clampFaceDetectFramesPerVideo,
+  clampFaceDetectMinScore,
+  clampFaceMatchConfidence,
   normalizeGenderFilter,
+  parseFaceMatchAfterDetect,
+  parseFaceMatchMode,
   type FaceGenderFilter,
-} from './faceGenderFilter'
+  type FaceMatchMode,
+} from '../../shared/faceSettings'
+
+export {
+  clampFaceCandidateLimit as clampCandidateLimit,
+  clampFaceDetectFramesPerVideo,
+  clampFaceDetectMinScore,
+  clampFaceMatchConfidence,
+  normalizeGenderFilter,
+  parseFaceMatchMode,
+  parseFaceMatchAfterDetect,
+  DEFAULT_FACE_CANDIDATE_LIMIT as DEFAULT_CANDIDATE_LIMIT,
+}
+export type {FaceGenderFilter, FaceMatchMode}
 
 export type FaceMatchSettingsValues = {
   performerMetaId: number | null
@@ -23,16 +37,6 @@ export type FaceDetectSettingsValues = {
   genderFilter: FaceGenderFilter
 }
 
-export function parseFaceMatchMode(value: unknown): FaceMatchMode {
-  return String(value || 'auto') === 'suggest' ? 'suggest' : 'auto'
-}
-
-export function clampFaceMatchConfidence(value: unknown, fallback = 0.55): number {
-  const minConfidence = Number(value ?? fallback)
-  if (!Number.isFinite(minConfidence)) return fallback
-  return Math.min(Math.max(minConfidence, 0.2), 0.95)
-}
-
 export function parseFaceMatchSettingsFromMap(
   map: Map<string, unknown>,
   resolvePerformerMetaId: (configuredId: number | null) => number | null,
@@ -41,22 +45,12 @@ export function parseFaceMatchSettingsFromMap(
   return {
     performerMetaId: resolvePerformerMetaId(configuredMeta || null),
     minConfidence: clampFaceMatchConfidence(map.get('faceMatch.minConfidence')),
-    candidateLimit: clampCandidateLimit(map.get('faceMatch.candidateLimit') ?? DEFAULT_CANDIDATE_LIMIT),
+    candidateLimit: clampFaceCandidateLimit(
+      map.get('faceMatch.candidateLimit') ?? DEFAULT_FACE_CANDIDATE_LIMIT,
+    ),
     mode: parseFaceMatchMode(map.get('faceMatch.mode')),
-    matchAfterDetect: parseBooleanSetting(map.get('faceMatch.matchAfterDetect'), true),
+    matchAfterDetect: parseFaceMatchAfterDetect(map.get('faceMatch.matchAfterDetect'), true),
   }
-}
-
-export function clampFaceDetectMinScore(value: unknown, fallback = 0.5): number {
-  const minScoreRaw = Number(value ?? fallback)
-  if (!Number.isFinite(minScoreRaw)) return fallback
-  return Math.min(Math.max(minScoreRaw, 0.5), 0.75)
-}
-
-export function clampFaceDetectFramesPerVideo(value: unknown, fallback = 6): number {
-  const framesRaw = Number(value ?? fallback)
-  if (!Number.isFinite(framesRaw)) return fallback
-  return Math.min(Math.max(Math.round(framesRaw), 1), 99)
 }
 
 export function parseFaceDetectSettingsFromMap(

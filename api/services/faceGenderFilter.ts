@@ -1,16 +1,18 @@
 /** Pure gender filter / softmax helpers (no ORT). */
 
-export type FaceGender = 'female' | 'male'
-export type FaceGenderFilter = 'both' | FaceGender
+export {
+  normalizeGenderFilter,
+  type FaceGender,
+  type FaceGenderFilter,
+} from '../../shared/faceSettings'
+
+import {
+  type FaceGender,
+  type FaceGenderFilter,
+} from '../../shared/faceSettings'
 
 /** Below this softmax confidence, treat gender as unknown and keep the face. */
 export const GENDER_MIN_CONFIDENCE = 0.6
-
-export function normalizeGenderFilter(value: unknown): FaceGenderFilter {
-  const raw = String(value ?? 'both').trim().toLowerCase()
-  if (raw === 'female' || raw === 'male') return raw
-  return 'both'
-}
 
 export function passesGenderFilter(
   gender: FaceGender | null | undefined,
