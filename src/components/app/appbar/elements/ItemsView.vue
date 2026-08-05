@@ -39,9 +39,6 @@ import { useItemsStore } from '@/stores/items'
 import { useAppStore } from '@/stores/app'
 import { getCurrentMediaType, isVideoMediaType, isImageMediaType } from '@/utils/mediaType'
 import { normalizeItemsView } from '@/utils/itemsView'
-import { useItemsPageCommands } from '@/composable/itemsPageCommands'
-
-const pageCommands = useItemsPageCommands()
 
 defineProps({
   dense: {
@@ -74,6 +71,14 @@ const currentMediaType = computed(() => {
 
 // Methods
 const initViewOptions = () => {
+  const itemsType = itemsStore.type === 'tag' ? 'tag' : itemsStore.type === 'media' ? 'media' : null
+
+  // Wait until the page type (and media type for media pages) is known.
+  // Otherwise normalizeItemsView(..., 'media', null) collapses saved views like 4 → 1
+  // and can persist that reset before init finishes loading page settings.
+  if (!itemsType) return
+  if (itemsType === 'media' && !currentMediaType.value) return
+
   // Сбрасываем к базовому варианту
   viewOptions.value = [
     {
@@ -84,7 +89,7 @@ const initViewOptions = () => {
   ]
 
   // Таймлайн доступен только для видео
-  if (itemsStore.type === 'media' && isVideoMediaType(currentMediaType.value)) {
+  if (itemsType === 'media' && isVideoMediaType(currentMediaType.value)) {
     viewOptions.value.push({
       val: 2,
       icon: "view-sequential",
@@ -95,13 +100,13 @@ const initViewOptions = () => {
       icon: 'view-compact-outline',
       textKey: 'items.view.minimal',
     })
-  } else if (itemsStore.type === 'media' && isImageMediaType(currentMediaType.value)) {
+  } else if (itemsType === 'media' && isImageMediaType(currentMediaType.value)) {
     viewOptions.value.push({
       val: 3,
       icon: 'view-dashboard',
       textKey: 'items.view.masonry',
     })
-  } else if (itemsStore.type === 'tag') {
+  } else if (itemsType === 'tag') {
     viewOptions.value.push({
       val: 2,
       icon: "format-line-style",
@@ -116,25 +121,22 @@ const initViewOptions = () => {
 
   const normalizedView = normalizeItemsView(
     currentView.value,
-    itemsStore.type === 'tag' ? 'tag' : 'media',
+    itemsType,
     currentMediaType.value,
   )
-  if (normalizedView !== currentView.value) {
-    updateView(normalizedView)
+  if (normalizedView !== Number(currentView.value)) {
+    // Store only — page settings watcher / page init persist the correction.
+    itemsStore.updateState({key: 'view', value: normalizedView})
   }
 }
 
 const updateView = (val: number) => {
-  // Обновляем в хранилище
-  itemsStore.updateState({ key: 'view', value: val })
+  // Persistence is handled by the items-page view watcher (same as card size).
+  itemsStore.updateState({key: 'view', value: val})
 
-  pageCommands.setView(val)
-
-  // Или отправляем кастомное событие
-  const viewChangedEvent = new CustomEvent('items-view-changed', {
-    detail: { view: val }
-  })
-  window.dispatchEvent(viewChangedEvent)
+  window.dispatchEvent(new CustomEvent('items-view-changed', {
+    detail: {view: val},
+  }))
 }
 
 // Lifecycle

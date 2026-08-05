@@ -335,7 +335,9 @@
       >
         <v-img
           src="/images/filters/filters-none.svg"
-          class="my-4"
+          max-height="120"
+          max-width="200"
+          class="my-2 mx-auto"
           contain
         />
         <div>{{ t('filters.no_filters') }}</div>

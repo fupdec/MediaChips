@@ -377,6 +377,12 @@ export function useItemsPageEvents({
     void updatePageSetting({size: val})
   })
 
+  watch(() => ITEMS.value.view, (val, old) => {
+    if (val === old) return
+    if (val == null) return
+    void updatePageSetting({view: val})
+  })
+
   watch(is_infinite_scroll, () => {
     bindMediaInfiniteScroll()
   })
