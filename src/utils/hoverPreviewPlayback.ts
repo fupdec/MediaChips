@@ -22,6 +22,37 @@ export function isIgnorablePreviewError(error: unknown): boolean {
   return name === 'AbortError' || name === 'NotAllowedError'
 }
 
+export function canMarkHoverPreviewReady(input: {
+  isHovered: boolean
+  isPreviewVisible: boolean
+  isBigPreviewVisual: boolean
+}): boolean {
+  return input.isHovered && input.isPreviewVisible && !input.isBigPreviewVisual
+}
+
+export function shouldRestartFixedPreviewClip(input: {
+  previewStartTime?: number | null
+  previewEndTime?: number | null
+  playbackTime: number
+}): boolean {
+  return (
+    input.previewEndTime != null &&
+    input.previewStartTime != null &&
+    input.playbackTime > input.previewEndTime
+  )
+}
+
+export function resolveHoverPreviewTargetTime(input: {
+  hasFixedPreviewTime: boolean
+  previewStartTime?: number | null
+  progress: number
+}): number {
+  if (input.hasFixedPreviewTime && input.previewStartTime != null) {
+    return input.previewStartTime
+  }
+  return input.progress
+}
+
 export function getPreviewStreamStart(url: string): string | null {
   try {
     return new URL(url).searchParams.get('start')

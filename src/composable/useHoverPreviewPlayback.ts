@@ -11,6 +11,7 @@ import {
   releaseHoverVideoPreview,
 } from '@/utils/hoverPreviewSession'
 import {
+  canMarkHoverPreviewReady,
   clampLiveChunkSeek,
   createHoverSeekCoalescer,
   getLoadedPreviewMediaId,
@@ -18,6 +19,8 @@ import {
   isIgnorablePreviewError,
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
+  resolveHoverPreviewTargetTime,
+  shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
 } from '@/utils/hoverPreviewPlayback'
@@ -62,11 +65,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const markHoverPreviewReady = () => {
-    if (
-      !toValue(options.isHovered) ||
-      !toValue(options.isPreviewVisible) ||
-      toValue(options.isBigPreviewVisual)
-    ) {
+    if (!canMarkHoverPreviewReady({
+      isHovered: toValue(options.isHovered),
+      isPreviewVisible: toValue(options.isPreviewVisible),
+      isBigPreviewVisual: toValue(options.isBigPreviewVisual),
+    })) {
       return
     }
     hoverPreviewReady.value = true
@@ -271,11 +274,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const handleVideoTimeUpdate = () => {
     const previewEndTime = toValue(options.previewEndTime)
     const previewStartTime = toValue(options.previewStartTime)
-    if (
-      previewEndTime != null &&
-      previewStartTime != null &&
-      resolvePreviewPlaybackTime() > previewEndTime
-    ) {
+    if (shouldRestartFixedPreviewClip({
+      previewStartTime,
+      previewEndTime,
+      playbackTime: resolvePreviewPlaybackTime(),
+    }) && previewStartTime != null) {
       void syncPreviewVideoPosition(previewStartTime)
       return
     }
@@ -317,9 +320,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
 
     const previewStartTime = toValue(options.previewStartTime)
-    const targetTime = toValue(options.hasFixedPreviewTime) && previewStartTime != null
-      ? previewStartTime
-      : progress.value
+    const targetTime = resolveHoverPreviewTargetTime({
+      hasFixedPreviewTime: toValue(options.hasFixedPreviewTime),
+      previewStartTime,
+      progress: progress.value,
+    })
 
     if (toValue(options.hasFixedPreviewTime) && previewStartTime != null) {
       progress.value = previewStartTime

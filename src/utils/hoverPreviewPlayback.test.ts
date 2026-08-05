@@ -1,6 +1,7 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest'
 import {
   armHoverPreviewCooldown,
+  canMarkHoverPreviewReady,
   clampLiveChunkSeek,
   getHoverPreviewCooldownRemaining,
   getLoadedPreviewMediaId,
@@ -9,6 +10,8 @@ import {
   pointerRatioToPreviewTime,
   resetHoverPreviewCooldownForTests,
   resolveAbsolutePreviewTime,
+  resolveHoverPreviewTargetTime,
+  shouldRestartFixedPreviewClip,
   createHoverSeekCoalescer,
   waitForPreviewSeek,
   waitForPreviewCanPlay,
@@ -32,6 +35,45 @@ describe('hoverPreviewPlayback', () => {
     expect(isIgnorablePreviewError({name: 'AbortError'})).toBe(true)
     expect(isIgnorablePreviewError({name: 'NotAllowedError'})).toBe(true)
     expect(isIgnorablePreviewError({name: 'NotSupportedError'})).toBe(false)
+  })
+
+  it('gates hover-ready marking', () => {
+    expect(canMarkHoverPreviewReady({
+      isHovered: true,
+      isPreviewVisible: true,
+      isBigPreviewVisual: false,
+    })).toBe(true)
+    expect(canMarkHoverPreviewReady({
+      isHovered: true,
+      isPreviewVisible: true,
+      isBigPreviewVisual: true,
+    })).toBe(false)
+  })
+
+  it('restarts fixed preview clips past the end time', () => {
+    expect(shouldRestartFixedPreviewClip({
+      previewStartTime: 1,
+      previewEndTime: 5,
+      playbackTime: 5.1,
+    })).toBe(true)
+    expect(shouldRestartFixedPreviewClip({
+      previewStartTime: 1,
+      previewEndTime: 5,
+      playbackTime: 4,
+    })).toBe(false)
+  })
+
+  it('resolves hover preview target time', () => {
+    expect(resolveHoverPreviewTargetTime({
+      hasFixedPreviewTime: true,
+      previewStartTime: 12,
+      progress: 3,
+    })).toBe(12)
+    expect(resolveHoverPreviewTargetTime({
+      hasFixedPreviewTime: false,
+      previewStartTime: 12,
+      progress: 3,
+    })).toBe(3)
   })
 
   it('reads stream start from url', () => {
