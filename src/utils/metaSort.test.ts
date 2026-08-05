@@ -1,0 +1,90 @@
+import {describe, expect, it} from 'vitest'
+import {
+  META_SORT_MODES,
+  META_TYPE_ORDER,
+  getMetaSortOptions,
+  getTopTagsSubtitleKey,
+  groupMetaByType,
+  sortMetaItems,
+  sortTagItems,
+} from './metaSort'
+
+describe('getMetaSortOptions', () => {
+  it('maps translate keys to sort mode values', () => {
+    const options = getMetaSortOptions((key) => `t:${key}`)
+    expect(options).toEqual([
+      {title: 't:settings_labels.meta.sort_popularity', value: 'popularity'},
+      {title: 't:settings_labels.meta.sort_menu', value: 'menu'},
+      {title: 't:settings_labels.meta.sort_alphabet', value: 'alphabet'},
+    ])
+  })
+})
+
+describe('sortMetaItems', () => {
+  const items = [
+    {name: 'Bravo', views: 1, order: 2},
+    {name: 'alpha', views: 5, order: 3},
+    {name: 'Charlie', views: 5, order: 1},
+  ]
+
+  it('sorts by popularity then name', () => {
+    expect(sortMetaItems(items, META_SORT_MODES.popularity).map((i) => i.name))
+      .toEqual(['alpha', 'Charlie', 'Bravo'])
+  })
+
+  it('sorts alphabetically case-insensitively', () => {
+    expect(sortMetaItems(items, META_SORT_MODES.alphabet).map((i) => i.name))
+      .toEqual(['alpha', 'Bravo', 'Charlie'])
+  })
+
+  it('defaults to menu order then name', () => {
+    expect(sortMetaItems(items).map((i) => i.name)).toEqual(['Charlie', 'Bravo', 'alpha'])
+    expect(sortMetaItems(items, 'unknown' as never).map((i) => i.name))
+      .toEqual(['Charlie', 'Bravo', 'alpha'])
+  })
+})
+
+describe('sortTagItems', () => {
+  const tags = [
+    {id: 3, name: 'C', views: 1},
+    {id: 1, name: 'a', views: 9},
+    {id: 2, name: 'B', views: 9},
+  ]
+
+  it('sorts popularity and alphabet like meta', () => {
+    expect(sortTagItems(tags, META_SORT_MODES.popularity).map((t) => t.name))
+      .toEqual(['a', 'B', 'C'])
+    expect(sortTagItems(tags, META_SORT_MODES.alphabet).map((t) => t.name))
+      .toEqual(['a', 'B', 'C'])
+  })
+
+  it('defaults to id order for menu', () => {
+    expect(sortTagItems(tags).map((t) => t.id)).toEqual([1, 2, 3])
+  })
+})
+
+describe('groupMetaByType', () => {
+  it('groups known types in META_TYPE_ORDER and drops unknown', () => {
+    const grouped = groupMetaByType([
+      {type: 'string', name: 'B', order: 2},
+      {type: 'array', name: 'A', order: 1},
+      {type: 'custom', name: 'X', order: 0},
+      {type: 'string', name: 'A', order: 1},
+    ])
+    expect(Object.keys(grouped)).toEqual(['array', 'string'])
+    expect(META_TYPE_ORDER.filter((type) => type in grouped)).toEqual(['array', 'string'])
+    expect(grouped.string.map((i) => i.name)).toEqual(['A', 'B'])
+    expect(grouped.array.map((i) => i.name)).toEqual(['A'])
+  })
+})
+
+describe('getTopTagsSubtitleKey', () => {
+  it.each([
+    ['popularity', 'widgets.top_tags.top_by_views'],
+    ['alphabet', 'widgets.top_tags.top_alphabet'],
+    ['menu', 'widgets.top_tags.top_by_menu'],
+    ['other', 'widgets.top_tags.top_by_menu'],
+  ] as const)('%s → %s', (mode, key) => {
+    expect(getTopTagsSubtitleKey(mode as never)).toBe(key)
+  })
+})
