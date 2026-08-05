@@ -7,6 +7,7 @@ import { computeOshashForPath } from './oshash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { buildExtensionRegexFromMediaTypes } from '../utils/mediaExtensions'
+import { buildMissingIndexes, pickWeakCandidate } from './missingMediaMatch'
 
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -89,48 +90,6 @@ async function* walkMediaFiles(
       }
     }
   }
-}
-
-function buildMissingIndexes(missingMedia: AnyRecord[]) {
-  const byOshash = new Map()
-  const bySizeNoHash = new Map()
-  const targetSizes = new Set()
-
-  for (const item of missingMedia) {
-    const size = Number(item.filesize) || 0
-    targetSizes.add(size)
-
-    if (item.oshash) {
-      if (!byOshash.has(item.oshash)) {
-        byOshash.set(item.oshash, [])
-      }
-      byOshash.get(item.oshash).push(item)
-      continue
-    }
-
-    if (!bySizeNoHash.has(size)) {
-      bySizeNoHash.set(size, [])
-    }
-    bySizeNoHash.get(size).push(item)
-  }
-
-  return {byOshash, bySizeNoHash, targetSizes}
-}
-
-function pickWeakCandidate(candidates: AnyRecord[], foundPath: string) {
-  if (!candidates.length) return null
-  if (candidates.length === 1) return candidates[0]
-
-  const foundBasename = path.basename(foundPath).toLowerCase()
-  const basenameMatches = candidates.filter(
-    (item) => path.basename(String(item.path)).toLowerCase() === foundBasename,
-  )
-
-  if (basenameMatches.length === 1) {
-    return basenameMatches[0]
-  }
-
-  return null
 }
 
 async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearchOptions = {}) {
@@ -282,7 +241,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
     let confidence = null
 
     if (oshash && byOshash.has(oshash)) {
-      const candidates = byOshash.get(oshash)
+      const candidates = (byOshash.get(oshash) || [])
         .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
       if (candidates.length === 1) {
         match = candidates[0]
