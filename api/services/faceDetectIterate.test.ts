@@ -2,8 +2,10 @@ import {describe, expect, it} from 'vitest'
 import {
   applyFaceDetectMediaResult,
   buildFaceDetectCompleteEvent,
+  buildFaceDetectErrorEvent,
   buildFaceDetectProgressEvent,
   createFaceDetectIterateCounters,
+  resolveMatchSettingsAfterDetect,
 } from './faceDetectIterate'
 
 describe('applyFaceDetectMediaResult', () => {
@@ -57,5 +59,44 @@ describe('detect progress events', () => {
       created: 1,
       faces: 4,
     })
+  })
+
+  it('builds model error events', () => {
+    expect(buildFaceDetectErrorEvent(new Error('down'), 'fallback')).toEqual({
+      type: 'error',
+      message: 'down',
+    })
+    expect(buildFaceDetectErrorEvent('x', 'Face detection model is unavailable.')).toEqual({
+      type: 'error',
+      message: 'Face detection model is unavailable.',
+    })
+  })
+})
+
+describe('resolveMatchSettingsAfterDetect', () => {
+  const base = {
+    matchAfterDetect: true,
+    performerMetaId: 1 as number | null,
+    mode: 'auto',
+    minConfidence: 0.55,
+  }
+
+  it('skips when matching is disabled or meta missing', () => {
+    expect(resolveMatchSettingsAfterDetect({
+      matchSettings: {...base, matchAfterDetect: false},
+    })).toBeNull()
+    expect(resolveMatchSettingsAfterDetect({
+      matchSettings: {...base, performerMetaId: null},
+    })).toBeNull()
+  })
+
+  it('forces suggest mode when applyTags is false', () => {
+    expect(resolveMatchSettingsAfterDetect({
+      matchSettings: base,
+      applyTags: false,
+    })).toMatchObject({mode: 'suggest', performerMetaId: 1})
+    expect(resolveMatchSettingsAfterDetect({
+      matchSettings: base,
+    })).toBe(base)
   })
 })

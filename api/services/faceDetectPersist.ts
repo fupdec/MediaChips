@@ -151,3 +151,8 @@ export function buildDetectedFaceEntry(input: {
     embedding: input.embedding,
   }
 }
+
+/** Whether gender filtering should run for this detect pass. */
+export function shouldPrepareGenderFilter(genderFilter: string): boolean {
+  return genderFilter !== 'both'
+}

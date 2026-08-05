@@ -44,7 +44,11 @@ import {
 import {
   enrollTagFromAllImages,
 } from './faceEnrollTag'
-import {resolveCachedModelStatus} from './faceModelStatus'
+import {
+  buildCachedModelDownloadEvent,
+  buildCachedModelReadyEvent,
+  resolveCachedModelStatus,
+} from './faceModelStatus'
 import {
   packInterleavedRgbToNchw,
   rgbaBitmapToInterleavedRgb,
@@ -66,6 +70,7 @@ import {
   createFaceEnrollIterateCounters,
   getEnrollTagSkipReason,
   resolveEnrollTagFacesPlan,
+  resolveIterateEnrollGate,
 } from './faceEnrollIterate'
 import {
   assembleListedFacesForMedia,
@@ -191,21 +196,19 @@ async function* prepareEmbedModel(db: ApiDb): AsyncGenerator<EmbedPrepEvent> {
 
   const needsDownload = !hasDownloadedEmbedModel(db)
   if (needsDownload) {
-    yield {
-      type: 'status',
+    yield buildCachedModelDownloadEvent({
       phase: 'downloading_embed',
-      message: `Downloading face recognition model (~${EMBED_MODEL_SIZE_MB} MB)…`,
       sizeMb: EMBED_MODEL_SIZE_MB,
-    }
+      kind: 'face recognition',
+    })
   }
   await loadEmbedModel(db)
   if (needsDownload) {
-    yield {
-      type: 'status',
+    yield buildCachedModelReadyEvent({
       phase: 'embed_ready',
-      message: 'Face recognition model downloaded.',
       sizeMb: EMBED_MODEL_SIZE_MB,
-    }
+      kind: 'face recognition',
+    })
   }
 }
 
@@ -329,11 +332,14 @@ async function* iterateEnrollFromPerformerImages(
   } = {},
 ): AsyncGenerator<FaceMatchProgressEvent> {
   const settings = getFaceMatchSettings(db)
-  const metaId = resolvePerformerMetaId(db, metaIdOverride ?? settings.performerMetaId)
-  if (!metaId) {
-    yield {type: 'error', message: 'Performer category is not configured.'}
+  const gate = resolveIterateEnrollGate({
+    performerMetaId: resolvePerformerMetaId(db, metaIdOverride ?? settings.performerMetaId),
+  })
+  if (!gate.ok) {
+    yield gate.event
     return
   }
+  const {metaId} = gate
 
   await loadDetectionModel(db)
   yield* prepareEmbedModel(db)

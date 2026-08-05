@@ -1,5 +1,9 @@
 import {describe, expect, it} from 'vitest'
-import {resolveCachedModelStatus} from './faceModelStatus'
+import {
+  buildCachedModelDownloadEvent,
+  buildCachedModelReadyEvent,
+  resolveCachedModelStatus,
+} from './faceModelStatus'
 
 describe('resolveCachedModelStatus', () => {
   const base = {
@@ -24,5 +28,30 @@ describe('resolveCachedModelStatus', () => {
     })).toMatchObject({status: 'error', message: 'boom'})
     expect(resolveCachedModelStatus({...base, downloaded: true}).status).toBe('downloaded')
     expect(resolveCachedModelStatus(base).status).toBe('not_downloaded')
+  })
+})
+
+describe('cached model prep events', () => {
+  it('builds download and ready status payloads', () => {
+    expect(buildCachedModelDownloadEvent({
+      phase: 'downloading_embed',
+      sizeMb: 170,
+      kind: 'face recognition',
+    })).toEqual({
+      type: 'status',
+      phase: 'downloading_embed',
+      message: 'Downloading face recognition model (~170 MB)…',
+      sizeMb: 170,
+    })
+    expect(buildCachedModelReadyEvent({
+      phase: 'embed_ready',
+      sizeMb: 170,
+      kind: 'face recognition',
+    })).toEqual({
+      type: 'status',
+      phase: 'embed_ready',
+      message: 'Face recognition model downloaded.',
+      sizeMb: 170,
+    })
   })
 })

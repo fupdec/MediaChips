@@ -114,3 +114,20 @@ export function resolveEnrollTagFacesPlan(input: {
   }
   return {kind: 'enroll', metaId, imagePaths: input.imagePaths}
 }
+
+export type IterateEnrollGate =
+  | {ok: true; metaId: number}
+  | {ok: false; event: FaceMatchProgressEvent}
+
+/** Preflight before prepareEmbedModel / tag loop in iterateEnrollFromPerformerImages. */
+export function resolveIterateEnrollGate(input: {
+  performerMetaId: number | null | undefined
+}): IterateEnrollGate {
+  if (!input.performerMetaId) {
+    return {
+      ok: false,
+      event: {type: 'error', message: 'Performer category is not configured.'},
+    }
+  }
+  return {ok: true, metaId: Number(input.performerMetaId)}
+}

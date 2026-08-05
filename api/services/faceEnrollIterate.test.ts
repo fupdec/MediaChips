@@ -7,6 +7,7 @@ import {
   createFaceEnrollIterateCounters,
   getEnrollTagSkipReason,
   resolveEnrollTagFacesPlan,
+  resolveIterateEnrollGate,
 } from './faceEnrollIterate'
 
 describe('getEnrollTagSkipReason', () => {
@@ -94,5 +95,18 @@ describe('resolveEnrollTagFacesPlan', () => {
       performerMetaId: 1,
       imagePaths: ['a.jpg'],
     })).toEqual({kind: 'enroll', metaId: 1, imagePaths: ['a.jpg']})
+  })
+})
+
+describe('resolveIterateEnrollGate', () => {
+  it('requires a configured performer category', () => {
+    expect(resolveIterateEnrollGate({performerMetaId: null})).toEqual({
+      ok: false,
+      event: {type: 'error', message: 'Performer category is not configured.'},
+    })
+    expect(resolveIterateEnrollGate({performerMetaId: 4})).toEqual({
+      ok: true,
+      metaId: 4,
+    })
   })
 })

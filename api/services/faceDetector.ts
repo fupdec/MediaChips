@@ -44,8 +44,10 @@ import {
 import {
   applyFaceDetectMediaResult,
   buildFaceDetectCompleteEvent,
+  buildFaceDetectErrorEvent,
   buildFaceDetectProgressEvent,
   createFaceDetectIterateCounters,
+  resolveMatchSettingsAfterDetect,
 } from './faceDetectIterate'
 import {
   clampFaceDetectFramesPerVideo,
@@ -71,9 +73,14 @@ import {
   mapDetectionsToPersistedFaceRows,
   resolveDetectCropOutputPaths,
   shouldAttemptDetectionEmbedding,
+  shouldPrepareGenderFilter,
 } from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
-import {resolveCachedModelStatus} from './faceModelStatus'
+import {
+  buildCachedModelDownloadEvent,
+  buildCachedModelReadyEvent,
+  resolveCachedModelStatus,
+} from './faceModelStatus'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
@@ -169,21 +176,19 @@ type DetectPrepEvent = {
 async function* prepareDetectModel(db: ApiDb): AsyncGenerator<DetectPrepEvent> {
   const needsDownload = !hasDownloadedModel(db)
   if (needsDownload) {
-    yield {
-      type: 'status',
+    yield buildCachedModelDownloadEvent({
       phase: 'downloading_detect',
-      message: `Downloading face detection model (~${FACE_MODEL_SIZE_MB} MB)…`,
       sizeMb: FACE_MODEL_SIZE_MB,
-    }
+      kind: 'face detection',
+    })
   }
   await loadModel(db)
   if (needsDownload) {
-    yield {
-      type: 'status',
+    yield buildCachedModelReadyEvent({
       phase: 'detect_ready',
-      message: 'Face detection model downloaded.',
       sizeMb: FACE_MODEL_SIZE_MB,
-    }
+      kind: 'face detection',
+    })
   }
 }
 
@@ -335,7 +340,7 @@ async function detectMedia(
 
     const genderFilter = detectSettings.genderFilter
     let genderReady = false
-    if (genderFilter !== 'both') {
+    if (shouldPrepareGenderFilter(genderFilter)) {
       try {
         await loadGenderModel(db)
         genderReady = true
@@ -351,7 +356,7 @@ async function detectMedia(
 
       const sourceImage = await Jimp.read(frame.framePath)
       for (const detection of detections) {
-        if (genderReady && genderFilter !== 'both') {
+        if (genderReady && shouldPrepareGenderFilter(genderFilter)) {
           try {
             const predicted = await estimateGender(sourceImage, detection.box)
             if (!passesGenderFilter(predicted?.gender, genderFilter, predicted?.confidence)) continue
@@ -438,11 +443,11 @@ async function detectMedia(
           getFaceMatchSettings,
           matchMediaFaces,
         } = require('./faceRecognition') as typeof import('./faceRecognition')
-        const matchSettings = getFaceMatchSettings(db)
-        if (matchSettings.matchAfterDetect && matchSettings.performerMetaId) {
-          const settings = options.applyTags === false
-            ? {...matchSettings, mode: 'suggest' as const}
-            : matchSettings
+        const settings = resolveMatchSettingsAfterDetect({
+          matchSettings: getFaceMatchSettings(db),
+          applyTags: options.applyTags,
+        })
+        if (settings) {
           await matchMediaFaces(db, mediaId, {force: Boolean(options.force), settings})
         }
       } catch {
@@ -527,21 +532,15 @@ async function* iterateFaceDetection(
   try {
     yield* prepareDetectModel(db)
   } catch (error: unknown) {
-    yield {
-      type: 'error',
-      message: error instanceof Error ? error.message : 'Face detection model is unavailable.',
-    }
+    yield buildFaceDetectErrorEvent(error, 'Face detection model is unavailable.')
     return
   }
 
-  if (detectSettings.genderFilter !== 'both') {
+  if (shouldPrepareGenderFilter(detectSettings.genderFilter)) {
     try {
       yield* prepareGenderModel(db)
     } catch (error: unknown) {
-      yield {
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Face gender model is unavailable.',
-      }
+      yield buildFaceDetectErrorEvent(error, 'Face gender model is unavailable.')
       return
     }
   }

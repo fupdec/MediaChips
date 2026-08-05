@@ -20,6 +20,10 @@ import {
   resolveCachedModelPath,
   type OrtSession,
 } from './faceOrtRuntime'
+import {
+  buildCachedModelDownloadEvent,
+  buildCachedModelReadyEvent,
+} from './faceModelStatus'
 
 const GENDER_MODEL_ID = 'insightface-genderage'
 const GENDER_MODEL_FILENAME = 'genderage.onnx'
@@ -84,21 +88,19 @@ type GenderPrepEvent = {
 async function* prepareGenderModel(db: ApiDb): AsyncGenerator<GenderPrepEvent> {
   const needsDownload = !hasDownloadedGenderModel(db)
   if (needsDownload) {
-    yield {
-      type: 'status',
+    yield buildCachedModelDownloadEvent({
       phase: 'downloading_gender',
-      message: `Downloading face gender model (~${GENDER_MODEL_SIZE_MB} MB)…`,
       sizeMb: GENDER_MODEL_SIZE_MB,
-    }
+      kind: 'face gender',
+    })
   }
   await loadGenderModel(db)
   if (needsDownload) {
-    yield {
-      type: 'status',
+    yield buildCachedModelReadyEvent({
       phase: 'gender_ready',
-      message: 'Face gender model downloaded.',
       sizeMb: GENDER_MODEL_SIZE_MB,
-    }
+      kind: 'face gender',
+    })
   }
 }
 

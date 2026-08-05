@@ -72,3 +72,30 @@ export function buildFaceDetectCompleteEvent(
     stopped,
   }
 }
+
+export function buildFaceDetectErrorEvent(
+  error: unknown,
+  fallback: string,
+): FaceDetectionProgressEvent {
+  return {
+    type: 'error',
+    message: error instanceof Error ? error.message : fallback,
+  }
+}
+
+/** Settings passed to matchMediaFaces after detect, or null when matching is skipped. */
+export function resolveMatchSettingsAfterDetect<T extends {
+  matchAfterDetect: boolean
+  performerMetaId: number | null
+  mode: string
+}>(input: {
+  matchSettings: T
+  applyTags?: boolean
+}): T | null {
+  const {matchSettings} = input
+  if (!matchSettings.matchAfterDetect || !matchSettings.performerMetaId) return null
+  if (input.applyTags === false) {
+    return {...matchSettings, mode: 'suggest' as T['mode']}
+  }
+  return matchSettings
+}

@@ -8,6 +8,7 @@ import {
   mapDetectionsToPersistedFaceRows,
   resolveDetectCropOutputPaths,
   shouldAttemptDetectionEmbedding,
+  shouldPrepareGenderFilter,
 } from './faceDetectPersist'
 import {FACE_CROPS_RELATIVE_ROOT} from './faceCropStore'
 import path from 'path'
@@ -115,5 +116,8 @@ describe('detect result helpers', () => {
       cropRelativePath: 'rel',
       embedding: '[]',
     })
+
+    expect(shouldPrepareGenderFilter('both')).toBe(false)
+    expect(shouldPrepareGenderFilter('female')).toBe(true)
   })
 })
