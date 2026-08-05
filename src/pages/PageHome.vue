@@ -143,7 +143,7 @@ import {resolveLanShareUrl} from "@/utils/apiBaseUrl"
 import {useHomeWidgets} from '@/composable/useHomeWidgets'
 import {invalidateHomeMediaCache, useHomeMedia} from '@/composable/useHomeMedia'
 import {useOpenMediaList} from "@/utils/openMediaList"
-import {findMediaTypeById, isAudioMediaType, isTextMediaType, isVideoMediaType} from "@/utils/mediaType"
+import {findMediaTypeById, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from "@/utils/mediaType"
 import HomeWidgetRenderer from '@/components/widgets/HomeWidgetRenderer.vue'
 import DialogHomeWidgets from '@/components/dialogs/DialogHomeWidgets.vue'
 import {openPath} from '@/services/shellService'
@@ -195,6 +195,11 @@ async function openMediaItem(item: MediaItem) {
       video: item,
       videos: [item],
     })
+    return
+  }
+
+  if (isImageMediaType(mediaType)) {
+    itemsStore.viewImage({image: item})
     return
   }
 

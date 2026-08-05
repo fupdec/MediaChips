@@ -7,6 +7,14 @@ import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useBrowserLayout, isItemsGridRoute} from '@/composable/useBrowserLayout'
 import useItemContextMenu from '@/composable/ItemContextMenu'
+import {openPath} from '@/services/shellService'
+import {
+  findMediaTypeById,
+  isAudioMediaType,
+  isImageMediaType,
+  isTextMediaType,
+  isVideoMediaType,
+} from '@/utils/mediaType'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
@@ -297,10 +305,28 @@ export function useBrowserLayoutHotkeys() {
   function playFocused() {
     const item = focusedEntity()
     if (!item || itemsStore.type !== 'media') return
-    void itemsStore.playVideo({
-      video: item as MediaItem,
-      player: 'builtin',
-    })
+    const media = item as MediaItem
+    const mediaType = findMediaTypeById(
+      appStore.mediaTypes,
+      itemsStore.environment?.media_type_id ?? media.mediaTypeId,
+    )
+
+    if (isImageMediaType(mediaType)) {
+      itemsStore.viewImage({image: media})
+      return
+    }
+
+    if (isTextMediaType(mediaType)) {
+      if (media.path) void openPath(media.path)
+      return
+    }
+
+    if (isVideoMediaType(mediaType) || isAudioMediaType(mediaType) || !mediaType) {
+      void itemsStore.playVideo({
+        video: media,
+        player: 'builtin',
+      })
+    }
   }
 
   function focusTagsSearch() {

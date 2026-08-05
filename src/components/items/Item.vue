@@ -77,7 +77,7 @@
       <div
         v-if="isMasonryImage && showPreview"
         class="masonry-meta-overlay"
-        @click.stop="handleCardActivate"
+        @click.stop="openMasonryImage"
         @dblclick.stop="editItem"
       >
         <div
@@ -104,6 +104,7 @@
         <div
           class="masonry-meta-overlay__title"
           :title="item.name"
+          @click.stop="handleCardActivate"
         >
           {{ item.name }}
         </div>
@@ -608,6 +609,12 @@ const handleCardActivate = (e?: MouseEvent) => {
   }
 
   editItem()
+}
+
+/** Masonry thumb / overlay click opens the viewer; title still activates the inspector. */
+const openMasonryImage = () => {
+  if (!is_file_exists.value || !mediaItem.value) return
+  itemsStore.viewImage({image: mediaItem.value})
 }
 
 const showContextMenu = (e: MouseEvent) => {
