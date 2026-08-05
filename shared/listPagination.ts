@@ -28,6 +28,17 @@ export function slicePage<T>(items: T[], page: number, limit: number | null | un
   return items.slice(offset, offset + pageLimit)
 }
 
+/** Reorder fetched rows to match an id list; drop missing ids. */
+export function orderRowsByIds<T extends {id?: unknown}>(
+  rows: T[],
+  ids: Array<number | string>,
+): T[] {
+  const rowsById = new Map(rows.map((row) => [Number(row.id), row]))
+  return ids
+    .map((id) => rowsById.get(Number(id)))
+    .filter((row): row is T => row != null)
+}
+
 export function trimInfiniteScrollItems<T>(
   items: T[],
   maxItems: number = INFINITE_SCROLL_MAX_ITEMS,

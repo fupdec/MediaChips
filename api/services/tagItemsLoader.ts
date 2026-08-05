@@ -17,6 +17,7 @@ import {
   resolvePageLimit,
   shouldPaginateMediaList,
   slicePage,
+  orderRowsByIds,
 } from './mediaItemsPagination'
 import { resolveSortMetaType } from './resolveSortMetaType'
 import { searchTagsByName } from './globalSearch'
@@ -54,14 +55,6 @@ const TAG_GROUP_SLIM_SELECT = `SELECT
   tags.createdAt,
   tags.updatedAt,
   tags.metaId`
-
-function sliceOrderedIds(orderedIds: number[], page: number, limit: number | null | undefined): number[] {
-  const pageLimit = resolvePageLimit(limit)
-  if (pageLimit == null) return orderedIds
-  const safePage = Math.max(1, Number(page) || 1)
-  const start = (safePage - 1) * pageLimit
-  return orderedIds.slice(start, start + pageLimit)
-}
 
 async function attachTagPinnedMetaForGrouping(
   db: ApiDb,
@@ -233,11 +226,6 @@ function buildFilteredCountSql(fromClause: string, whereClause: string, needsDis
     )`
 }
 
-function orderRowsByIds(rows: DbItemRow[], ids: number[]): DbItemRow[] {
-  const rowsById = new Map(rows.map((row) => [Number(row.id), row]))
-  return ids.map((id) => rowsById.get(id)).filter((row): row is DbItemRow => row != null)
-}
-
 async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   const {
     metaId,
@@ -314,7 +302,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
     )
     groups = aggregated.groups
     pageIds = shouldPaginate
-      ? sliceOrderedIds(aggregated.orderedIds, safePage, limit)
+      ? slicePage(aggregated.orderedIds, safePage, limit)
       : aggregated.orderedIds
   } else {
     let idQuery = `${idSelect}
@@ -430,7 +418,7 @@ async function loadTagItemsLegacy(
     )
     groups = aggregated.groups
     const pageIds = shouldPaginate
-      ? sliceOrderedIds(aggregated.orderedIds, safePage, limit)
+      ? slicePage(aggregated.orderedIds, safePage, limit)
       : aggregated.orderedIds
     const byId = new Map(itemsFiltered.map((item) => [Number(item.id), item]))
     pageItems = pageIds

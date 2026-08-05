@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   INFINITE_SCROLL_MAX_ITEMS,
   INFINITE_SCROLL_PAGE_SIZE,
+  orderRowsByIds,
   resolvePageLimit,
   shouldPaginateMediaList,
   slicePage,
@@ -38,6 +39,13 @@ describe('mediaItemsPagination', () => {
     expect(slicePage(items, 1, 25)).toHaveLength(25)
     expect(slicePage(items, 2, 25)).toEqual([26, 27, 28, 29, 30])
     expect(slicePage(items, 1, 101)).toHaveLength(INFINITE_SCROLL_PAGE_SIZE)
+  })
+
+  it('orders rows by id list and skips missing ids', () => {
+    expect(orderRowsByIds(
+      [{id: 2, name: 'b'}, {id: '1', name: 'a'}],
+      [1, 3, 2],
+    )).toEqual([{id: '1', name: 'a'}, {id: 2, name: 'b'}])
   })
 
   it('trims infinite-scroll items to the configured window', () => {

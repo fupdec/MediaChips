@@ -34,6 +34,7 @@ import {
   resolvePageLimit,
   shouldPaginateMediaList,
   slicePage,
+  orderRowsByIds,
 } from './mediaItemsPagination'
 import { resolveSortMetaType } from './resolveSortMetaType'
 import {
@@ -403,14 +404,6 @@ async function buildMediaGroupsFromSlimRows(
   return aggregateGroupedItems(items, groupBy, sortBy, options)
 }
 
-function sliceOrderedIds(orderedIds: number[], page: number, limit: number | null | undefined): number[] {
-  const pageLimit = resolvePageLimit(limit)
-  if (pageLimit == null) return orderedIds
-  const safePage = Math.max(1, Number(page) || 1)
-  const start = (safePage - 1) * pageLimit
-  return orderedIds.slice(start, start + pageLimit)
-}
-
 async function fetchBaseMediaRows(db: ApiDb, mediaTypeId: MediaId | null | undefined, ids: MediaId[] = []) {
   if (ids.length) {
     const rows = await queryAllAsync(db,
@@ -493,11 +486,6 @@ async function attachMediaRelations(db: ApiDb, items: LoadedMediaItem[], mediaTy
   return items
 }
 
-function orderRowsByIds(rows: AnyRecord[], ids: MediaId[]): AnyRecord[] {
-  const rowsById = new Map(rows.map((row: AnyRecord) => [row.id, row]))
-  return ids.map((id: MediaId) => rowsById.get(id)).filter((row): row is AnyRecord => row != null)
-}
-
 async function loadMediaItemsLegacy(
   db: ApiDb,
   options: MediaLoadOptions = {},
@@ -555,7 +543,7 @@ async function loadMediaItemsLegacy(
     )
     groups = aggregated.groups
     const pageIds = shouldPaginate
-      ? sliceOrderedIds(aggregated.orderedIds, page, limit)
+      ? slicePage(aggregated.orderedIds, page, limit)
       : aggregated.orderedIds
     const byId = new Map(filtered.map((item) => [Number(item.id), item]))
     pageItems = pageIds
@@ -665,7 +653,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     )
     groups = aggregated.groups
     pageIds = shouldPaginate
-      ? sliceOrderedIds(aggregated.orderedIds, safePage, limit)
+      ? slicePage(aggregated.orderedIds, safePage, limit)
       : aggregated.orderedIds
   } else {
     let idQuery = `${idSelect}

@@ -5,5 +5,6 @@ export {
   resolvePageLimit,
   shouldPaginateMediaList,
   slicePage,
+  orderRowsByIds,
   trimInfiniteScrollItems,
 } from '../../shared/listPagination'
