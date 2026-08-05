@@ -941,6 +941,18 @@ function openEdit(): void {
       line-height: 1.2;
     }
 
+    &:has(.v-chip__prepend) {
+      .v-chip__prepend {
+        margin-left: 6px !important;
+        margin-right: 2px !important;
+      }
+
+      .v-chip__content {
+        padding-left: 0 !important;
+        padding-right: 6px !important;
+      }
+    }
+
     .v-chip__close {
       font-size: 14px;
       margin-inline: 0 2px;
