@@ -30,7 +30,6 @@ import {
   embeddingFromJson,
   embeddingToJson,
   findTopEnrollmentMatches,
-  findTopEnrollmentMatchesForEmbeddings,
   l2Normalize,
   parseEnrollmentRefs,
 } from './faceMatchScoring'
@@ -47,17 +46,20 @@ import {
   type FaceMatchMode,
 } from './faceMatchApply'
 import {
-  buildClusterQueryEmbeddings,
   buildReadyMatchPreparedFace,
   buildSkippedMatchPreparedFace,
   resolveClusterMatchesForMedia,
 } from './faceMediaMatchResolve'
 import {
-  groupFacesByClusterId,
   mapEnrollmentCandidateWithTag,
-  pickPrimaryTagId,
   stripEmbeddingsFromFaces,
 } from './faceListPresentation'
+import {
+  buildListedPreparedFace,
+  parseStoredFaceEmbedding,
+  pickPrimaryTagId,
+  reRankListedClusterCandidates,
+} from './faceListMatchEnrich'
 import {
   packInterleavedRgbToNchw,
   rgbaBitmapToInterleavedRgb,
@@ -732,36 +734,11 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
     return tag
   }
 
-  const prepared: Array<{
-    id: number
-    mediaId: number
-    timestamp: string | null
-    score: number
-    x: number
-    y: number
-    width: number
-    height: number
-    cropPath: string | null
-    tagId: number | null
-    matchScore: number | null
-    matchStatus: string | null
-    createdAt: string | null
-    tagName: string | null
-    tagMetaId: number | null
-    candidates: Array<{tagId: number; score: number; tagName: string | null; tagMetaId: number | null}>
-    embedding: Float32Array | null
-  }> = []
+  const prepared = []
 
   for (const face of faceRows) {
     let candidates: Array<{tagId: number; score: number; tagName: string | null; tagMetaId: number | null}> = []
-    let embedding: Float32Array | null = null
-    if (face.embedding) {
-      try {
-        embedding = embeddingFromJson(String(face.embedding))
-      } catch {
-        embedding = null
-      }
-    }
+    const embedding = parseStoredFaceEmbedding(face.embedding)
     if (embedding && enrollmentRefs.length && isMatchableStoredFace(face)) {
       const top = findTopEnrollmentMatches(embedding, enrollmentRefs, settings.candidateLimit)
       candidates = top.map((item) => mapEnrollmentCandidateWithTag(item, resolveTag(item.tagId)))
@@ -770,44 +747,24 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
     const assignedTagId = face.tagId != null ? Number(face.tagId) : null
     const primaryTagId = pickPrimaryTagId(assignedTagId, candidates)
     const tag = primaryTagId != null ? resolveTag(primaryTagId) : undefined
-    prepared.push({
-      id: Number(face.id),
-      mediaId: Number(face.mediaId),
-      timestamp: face.timestamp,
-      score: face.score,
-      x: face.x,
-      y: face.y,
-      width: face.width,
-      height: face.height,
-      cropPath: face.cropPath,
-      tagId: assignedTagId,
-      matchScore: face.matchScore,
-      matchStatus: face.matchStatus,
-      createdAt: face.createdAt,
-      tagName: assignedTagId != null ? (tag?.name ?? null) : null,
-      tagMetaId: assignedTagId != null && tag?.metaId != null ? Number(tag.metaId) : null,
+    prepared.push(buildListedPreparedFace({
+      face,
+      assignedTagId,
+      tag,
       candidates,
       embedding,
-    })
+    }))
   }
 
   const clustered = clusterFacesInMedia(prepared)
 
   // Re-rank candidates from all frames in the cluster (best-frame + consistency).
-  if (enrollmentRefs.length) {
-    for (const members of groupFacesByClusterId(clustered).values()) {
-      const top = findTopEnrollmentMatchesForEmbeddings(
-        buildClusterQueryEmbeddings(members.map((member) => member.embedding)),
-        enrollmentRefs,
-        settings.candidateLimit,
-      )
-      if (!top.length) continue
-      const candidates = top.map((item) => mapEnrollmentCandidateWithTag(item, resolveTag(item.tagId)))
-      for (const member of members) {
-        member.candidates = candidates
-      }
-    }
-  }
+  reRankListedClusterCandidates(
+    clustered,
+    enrollmentRefs,
+    settings.candidateLimit,
+    resolveTag,
+  )
 
   return {mediaId, faces: stripEmbeddingsFromFaces(clustered)}
 }
