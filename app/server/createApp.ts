@@ -1,5 +1,5 @@
 import type { Express, Request, Response, NextFunction } from 'express'
-import path from 'path'
+import {projectPath} from '../../shared/projectRoot'
 import history from 'connect-history-api-fallback'
 import express from 'express'
 import { normalizeApiPath } from '../../api/utils/normalizeApiPath'
@@ -56,7 +56,7 @@ function createExpressApp() {
 }
 
 function setupStaticApp(app: Express) {
-  const src = path.join(__dirname, '../../dist')
+  const src = projectPath('dist')
   const spaHistory = history({
     disableDotRule: true,
     verbose: false,

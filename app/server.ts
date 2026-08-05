@@ -1,6 +1,6 @@
 import type { ServerDatabaseEntry, NetworkIpInfo } from './types/server'
+import {projectPath} from '../shared/projectRoot'
 import type { TranscodeManager } from './types/builtinRoutes'
-import path from 'path'
 import dotenv from 'dotenv'
 import { apiErrorMessage } from '../api/types/errors'
 import { getBestLocalIp, getAllIps } from './server/network'
@@ -26,7 +26,7 @@ import { createTranscodeManager } from '../api/services/transcode/transcodeServi
 import registerWebSockets from './tasks/websockets'
 
 dotenv.config({
-  path: path.join(__dirname, '../.env'),
+  path: projectPath('.env'),
 })
 
 const networkHelpers = {

@@ -1,4 +1,5 @@
 import type { ApiDb } from '../types/db'
+import {projectPath} from '../../shared/projectRoot'
 import type { ModelStatus } from '../types/mlModels'
 import type {
   FaceBox,
@@ -103,7 +104,7 @@ function getOrt(): OrtModule {
 }
 
 function getWritableModelCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || path.join(__dirname, '../../app_storage')
+  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
   return path.join(base, 'models', FACE_MODEL_ID)
 }
 

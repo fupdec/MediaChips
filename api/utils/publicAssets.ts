@@ -1,4 +1,5 @@
 import fs from 'fs'
+import {projectPath} from '../../shared/projectRoot'
 import path from 'path'
 
 /**
@@ -24,8 +25,8 @@ export function resolveBundledPublicFile(webPath: string): string | null {
   }
 
   const roots = [
-    path.join(__dirname, '../../public'),
-    path.join(__dirname, '../../dist'),
+    projectPath('public'),
+    projectPath('dist'),
     path.join(process.cwd(), 'public'),
     path.join(process.cwd(), 'dist'),
   ]

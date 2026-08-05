@@ -9,6 +9,7 @@ node_modules
 /.electron-build
 /.app-build
 /.api-build
+/.backend-build
 /.main-build
 /.scripts-build
 /.cache

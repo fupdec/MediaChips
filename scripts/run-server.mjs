@@ -31,7 +31,7 @@ if (args.has('--lan')) {
   env.MEDIA_CHIPS_ALLOW_LAN = '1'
 }
 
-const result = spawnSync('node', ['app/server.js'], {
+const result = spawnSync('node', ['.backend-build/app/server.js'], {
   cwd: root,
   stdio: 'inherit',
   env,

@@ -1,4 +1,5 @@
 import type { ApiDb } from '../types/db'
+import {projectPath} from '../../shared/projectRoot'
 import fs from 'fs'
 import fse from 'fs-extra'
 import http from 'http'
@@ -99,7 +100,7 @@ export function markTagImageAiUpscaleDone(db: ApiDb): void {
 }
 
 function getModelsRoot(db: ApiDb): string {
-  return db.path_databases || process.app_folder || path.join(__dirname, '../../app_storage')
+  return db.path_databases || process.app_folder || projectPath('app_storage')
 }
 
 export function getTagUpscaleCacheDir(db: ApiDb): string {

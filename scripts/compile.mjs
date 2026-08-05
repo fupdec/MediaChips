@@ -69,16 +69,12 @@ const TARGETS = {
     tsc: sfwBuild ? 'tsconfig.api.sfw.json' : 'tsconfig.api.json',
     copy: () => {
       copyDirContents(join(root, '.api-build/api'), join(root, 'api'))
-      const pluginIds = sfwBuild
-        ? ['plugin-tmdb']
-        : ['plugin-adult', 'plugin-stash', 'plugin-jellyfin', 'plugin-plex', 'plugin-emby', 'plugin-tmdb']
-      for (const pluginId of pluginIds) {
-        const serverOut = join(root, `.api-build/packages/${pluginId}/src/server`)
-        if (existsSync(serverOut)) {
-          copyDirContents(serverOut, join(root, `packages/${pluginId}/src/server`))
-        }
-      }
+      copyPluginServerArtifacts(join(root, '.api-build'))
     },
+  },
+  /** Unified api+app+shared emit for running without source-tree copy-back. */
+  backend: {
+    tsc: sfwBuild ? 'tsconfig.backend.sfw.json' : 'tsconfig.backend.json',
   },
   electron: {
     tsc: 'tsconfig.electron.json',
@@ -91,6 +87,27 @@ const TARGETS = {
   scripts: {
     tsc: 'tsconfig.scripts.json',
   },
+}
+
+function copyPluginServerArtifacts(buildRoot) {
+  const pluginIds = sfwBuild
+    ? ['plugin-tmdb']
+    : ['plugin-adult', 'plugin-stash', 'plugin-jellyfin', 'plugin-plex', 'plugin-emby', 'plugin-tmdb']
+  for (const pluginId of pluginIds) {
+    const serverOut = join(buildRoot, `packages/${pluginId}/src/server`)
+    if (existsSync(serverOut)) {
+      copyDirContents(serverOut, join(root, `packages/${pluginId}/src/server`))
+    }
+  }
+}
+
+/** Copy unified backend emit into source trees (Electron packaging / main.js require). */
+function copyBackendArtifacts() {
+  const buildRoot = join(root, '.backend-build')
+  copyDirContents(join(buildRoot, 'api'), join(root, 'api'))
+  copyDirContents(join(buildRoot, 'app'), join(root, 'app'))
+  copyDirContents(join(buildRoot, 'shared'), join(root, 'shared'))
+  copyPluginServerArtifacts(buildRoot)
 }
 
 function copyDirContents(srcDir, destDir) {
@@ -137,7 +154,7 @@ function runTarget(name) {
   const target = TARGETS[name]
   if (!target) {
     console.error(`Unknown compile target: ${name}`)
-    console.error(`Available: ${Object.keys(TARGETS).join(', ')}, backend, electron-artifacts, artifacts`)
+    console.error(`Available: ${Object.keys(TARGETS).join(', ')}, backend, backend-copy, electron-artifacts, artifacts`)
     process.exit(1)
   }
 
@@ -170,12 +187,16 @@ async function runParallel(names) {
 async function runGroup(name) {
   switch (name) {
     case 'backend':
-      runTarget('shared')
-      await runParallel(['app', 'api'])
+      // Emit to .backend-build only — no source-tree copy-back (DX for `npm run server`).
+      runTarget('backend')
+      return
+    case 'backend-copy':
+      runTarget('backend')
+      copyBackendArtifacts()
       return
     case 'electron-artifacts':
       await runParallel(['electron', 'main'])
-      await runGroup('backend')
+      await runGroup('backend-copy')
       return
     case 'artifacts':
       runTarget('scripts')

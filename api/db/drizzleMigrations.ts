@@ -1,4 +1,5 @@
 import fs from 'fs'
+import {projectPath} from '../../shared/projectRoot'
 import path from 'path'
 import crypto from 'crypto'
 import Database from 'better-sqlite3'
@@ -7,7 +8,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { applySqlitePragmas } from './pragmas'
 import { renameDuplicateTagNames } from './ensureGlobalUniqueTagNames'
 
-const MIGRATIONS_FOLDER = path.join(__dirname, 'migrations-drizzle')
+const MIGRATIONS_FOLDER = projectPath('api', 'db', 'migrations-drizzle')
 const JOURNAL_PATH = path.join(MIGRATIONS_FOLDER, 'meta/_journal.json')
 
 type JournalEntry = {

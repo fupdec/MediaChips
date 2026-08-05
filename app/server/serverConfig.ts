@@ -1,4 +1,5 @@
 import type { ServerConfig, ServerDatabaseEntry, NetworkIpInfo, NetworkHelpers } from '../types/server'
+import {projectPath} from '../../shared/projectRoot'
 import { apiErrorMessage } from '../../api/types/errors'
 import path from 'path'
 import fs from 'fs'
@@ -37,7 +38,7 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   if (app_folder) {
     configPath = path.join(app_folder, 'config.json')
   } else {
-    configPath = path.join(__dirname, '../../public/config.json')
+    configPath = projectPath('public', 'config.json')
   }
 
   console.log('\x1b[33m%s\x1b[0m', '=== SERVER SETUP ===')
@@ -92,7 +93,7 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   if (app_folder) {
     databasesPath = path.join(app_folder, 'app_storage')
   } else {
-    databasesPath = path.join(__dirname, '../../app_storage')
+    databasesPath = projectPath('app_storage')
   }
 
   const currentActiveDb = config.databases.find((db: ServerDatabaseEntry) => db.active)

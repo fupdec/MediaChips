@@ -7,8 +7,9 @@ import {
   ensureLegacyDrizzleBaseline,
   runDrizzleMigrations,
 } from './drizzleMigrations'
+import {projectPath} from '../../shared/projectRoot'
 
-const MIGRATIONS_DIR = path.join(__dirname, 'migrations-drizzle')
+const MIGRATIONS_DIR = projectPath('api', 'db', 'migrations-drizzle')
 
 function getMigrationCount(): number {
   return fs.readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith('.sql')).length

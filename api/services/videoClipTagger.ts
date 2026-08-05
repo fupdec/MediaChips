@@ -1,4 +1,5 @@
 import type { ApiDb } from '../types/db'
+import {projectPath} from '../../shared/projectRoot'
 import type { ClipClassifierModel, ModelStatus } from '../types/mlModels'
 import type {
   ClipClassificationRow,
@@ -29,7 +30,7 @@ let loadingPromise: Promise<ClipClassifierModel> | null = null
 let lastError: Error | null = null
 
 function getWritableModelCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || path.join(__dirname, '../../app_storage')
+  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
   return path.join(base, 'models')
 }
 
@@ -39,7 +40,7 @@ function getBundledModelsDir() {
     if (fs.existsSync(bundled)) return bundled
   }
 
-  const projectModels = path.join(__dirname, '..', '..', 'models')
+  const projectModels = projectPath('models')
   if (fs.existsSync(projectModels)) return projectModels
 
   return null

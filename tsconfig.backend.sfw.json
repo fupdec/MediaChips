@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.backend.json",
+  "include": [
+    "api/**/*.ts",
+    "api/types/**/*.d.ts",
+    "app/**/*.ts",
+    "app/types/**/*.d.ts",
+    "shared/**/*.ts",
+    "packages/plugin-tmdb/src/server/**/*.ts"
+  ]
+}

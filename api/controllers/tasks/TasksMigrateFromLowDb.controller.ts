@@ -1,4 +1,5 @@
 import type { ApiDb, AnyRecord } from '../../types/db'
+import {projectPath} from '../../../shared/projectRoot'
 import type {
   LowDbImportObject,
   OldIdMapping,
@@ -59,7 +60,7 @@ export default function (db: ApiDb) {
   const pathApp = process.app_folder
   let pathUserData;
   if (!pathApp) {
-    pathUserData = path.join(__dirname, '../../../', 'userfiles')
+    pathUserData = projectPath('userfiles')
   } else {
     pathUserData = path.join(pathApp, 'userfiles')
   }

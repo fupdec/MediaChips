@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": ".backend-build",
+    "rootDir": ".",
+    "moduleDetection": "force",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsc/backend.tsbuildinfo",
+    "ignoreDeprecations": "6.0",
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
+  },
+  "include": [
+    "api/**/*.ts",
+    "api/types/**/*.d.ts",
+    "app/**/*.ts",
+    "app/types/**/*.d.ts",
+    "shared/**/*.ts",
+    "packages/plugin-adult/src/server/**/*.ts",
+    "packages/plugin-stash/src/server/**/*.ts",
+    "packages/plugin-jellyfin/src/server/**/*.ts",
+    "packages/plugin-plex/src/server/**/*.ts",
+    "packages/plugin-emby/src/server/**/*.ts",
+    "packages/plugin-tmdb/src/server/**/*.ts"
+  ]
+}

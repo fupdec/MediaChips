@@ -1,4 +1,5 @@
 import type {ApiDb} from '../types/db'
+import {projectPath} from '../../shared/projectRoot'
 import type {ModelStatus} from '../types/mlModels'
 import fs from 'fs'
 import path from 'path'
@@ -54,7 +55,7 @@ let lastError: Error | null = null
 let downloadPromise: Promise<void> | null = null
 
 function getWritableModelCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || path.join(__dirname, '../../app_storage')
+  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
   return path.join(base, 'models', LOCAL_AI_MODEL_ID)
 }
 

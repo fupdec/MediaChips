@@ -79,7 +79,7 @@ if (!process.env.SKIP_E2E_BUILD) {
 run('node', ['scripts/run-server.mjs', '--prepare'])
 ensureE2eConfig()
 
-const server = spawn('node', ['app/server.js'], {
+const server = spawn('node', ['.backend-build/app/server.js'], {
   cwd: root,
   stdio: 'inherit',
   shell: true,
