@@ -1,17 +1,17 @@
-import type { BrowserWindow as BrowserWindowInstance, IpcMainEvent } from 'electron'
-import {
-  app,
-  ipcMain,
-  dialog,
-} from 'electron'
+import type { BrowserWindow as BrowserWindowInstance } from 'electron'
+import { app } from 'electron'
 import os from 'os'
 import path from 'path'
-import { machineId } from 'node-machine-id'
 
 import { initAppUpdater } from './electron/autoUpdater'
 import { registerMediaDragIpc } from './electron/mediaDrag'
 import { createAppTrayController } from './electron/appTray'
 import { createAppMenuController } from './electron/appMenu'
+import {
+  createAppLifecycleController,
+  resolveElectronConfigPath,
+  shouldDisableHardwareAcceleration,
+} from './electron/appLifecycle'
 import { createLoadingWindowController } from './electron/loadingWindow'
 import { createMainWindowController } from './electron/mainWindow'
 import { createPlayerWindowController } from './electron/playerWindow'
@@ -64,21 +64,16 @@ const serverModule = require('./app/server.js') as AppServerExports & { default?
 const server = (serverModule.default ?? serverModule) as AppServerExports
 const serverConfig = server.config
 
-if (process.platform === 'win32') {
-  const disableGpu = ['1', 'true', 'yes', 'on'].includes(
-    String(process.env.MEDIA_CHIPS_DISABLE_GPU || '').toLowerCase()
-  )
-  if (disableGpu) {
-    app.disableHardwareAcceleration()
-  }
+if (
+  process.platform === 'win32'
+  && shouldDisableHardwareAcceleration(process.env.MEDIA_CHIPS_DISABLE_GPU)
+) {
+  app.disableHardwareAcceleration()
 }
 
 const isWindows = os.type() === 'Windows_NT'
 const useWinElectronFrame = isWindows
 
-// Distinguishes an explicit quit (tray menu / File → Exit) from a window close
-// that should be intercepted and turned into "hide to tray".
-let isQuitting = false
 // Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
 const isDevelopment = !app.isPackaged && process.env.NODE_ENV !== 'production'
 const devLog = (...args: unknown[]) => {
@@ -91,19 +86,15 @@ const waitForBackend = createWaitForBackend({
   getPort: () => serverConfig.port,
 })
 
-function getElectronConfigPath(): string {
-  if (process.env.PORTABLE_EXECUTABLE_DIR) {
-    return path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'config.json')
-  }
-  return path.join(app.getPath('userData'), 'config.json')
-}
-
 const {
   readStoredWindowBounds,
   bindWindowBoundsPersistence,
 } = createWindowBoundsPersistence({
   getStore: () => serverConfig,
-  getConfigPath: getElectronConfigPath,
+  getConfigPath: () => resolveElectronConfigPath({
+    portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
+    userDataPath: app.getPath('userData'),
+  }),
   saveConfig: (configPath) => {
     saveConfigFile(configPath, serverConfig)
   },
@@ -163,7 +154,7 @@ const mainWindow = createMainWindowController({
   sendConfigToWindow,
   bindZoomChangedListener,
   isMaximizedPreferred: () => Boolean(serverConfig.win?.maximized),
-  shouldHideOnClose: () => isWindows && appTray.getMinimizeToTray() && !isQuitting,
+  shouldHideOnClose: () => appLifecycle.shouldHideOnClose(),
   resetRevealState: () => loadingWindow.resetRevealState(),
   bindMainWindowLoadedHandler,
   waitForBackend,
@@ -176,8 +167,8 @@ const appTray = createAppTrayController({
   isWindows,
   getMainWindow: () => mainWindow.getWindow(),
   showMainWindow: () => showMainWindow(),
-  quitApp: () => quitApp(),
-  setIsQuitting: (value) => { isQuitting = value },
+  quitApp: () => appLifecycle.quitApp(),
+  setIsQuitting: (value) => { appLifecycle.setIsQuitting(value) },
   getAppRoot: () => path.join(__dirname),
 })
 appTray.registerIpc()
@@ -196,9 +187,25 @@ const playerWindow = createPlayerWindowController({
 })
 playerWindow.registerIpc()
 
-ipcMain.handle('get-config', () => server.config)
-
-ipcMain.handle('get-machine-id', async () => machineId())
+const appLifecycle = createAppLifecycleController({
+  isWindows,
+  getPort: () => serverConfig.port,
+  getConfig: () => server.config,
+  isMinimizeToTrayPreferred: () => serverConfig.minimizeToTray === '1',
+  waitForBackend,
+  createLoadingWindow,
+  createWindow,
+  getMainWindow: () => mainWindow.getWindow(),
+  setMinimizeToTray: (enabled) => { appTray.setMinimizeToTray(enabled) },
+  destroyTray: () => appTray.destroyTray(),
+  destroyPlayerWindow: () => playerWindow.destroyPlayerWindow(),
+  stopPlayerPlayback: () => playerWindow.stopPlayerPlayback(),
+  schedulePlayerWarmup: () => playerWindow.schedulePlayerWarmup(),
+  revealMainWindow,
+  closeServerListener: () => { server.listener?.close() },
+  initAppUpdater: () => initAppUpdater({getWindow: () => mainWindow.getWindow()}),
+  getMinimizeToTray: () => appTray.getMinimizeToTray(),
+})
 
 registerWindowChromeIpc({
   getMainWindow: () => mainWindow.getWindow(),
@@ -216,101 +223,9 @@ registerShellIpc({ log: devLog })
 registerMediaDragIpc()
 registerBridgeIpc({ getMainWindow: () => mainWindow.getWindow() })
 
-app.on('second-instance', () => {
-  const win = mainWindow.getWindow()
-  if (win) {
-    if (win.isMinimized()) win.restore()
-    if (!win.isVisible()) win.show()
-    win.focus()
-  }
-})
-
-app.on('ready', async () => {
-  // Wait for the API before any UI chrome. The port-in-use prompt may run first;
-  // showing the splash behind it left a stuck logo with no main window.
-  await waitForBackend(serverConfig.port, 600000)
-
-  createLoadingWindow()
-  createWindow()
-
-  // config.json is the source of truth for the tray preference. Initialize the
-  // in-memory flag and create the tray icon before the renderer has loaded.
-  if (isWindows && serverConfig.minimizeToTray === '1') {
-    appTray.setMinimizeToTray(true)
-  }
-
-  initAppUpdater({getWindow: () => mainWindow.getWindow()})
-})
-
-app.on("activate", async () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (mainWindow.getWindow() === null) {
-    await waitForBackend(serverConfig.port, 600000)
-    createWindow()
-  }
-});
-
-function quitApp() {
-  isQuitting = true
-  appTray.destroyTray()
-  playerWindow.destroyPlayerWindow()
-  const win = mainWindow.getWindow()
-  if (win && !win.isDestroyed()) {
-    win.close()
-  }
-  if (server.listener) {
-    server.listener.close()
-  }
-  app.quit()
-}
-
-// window events from render process. When "minimize to tray" is enabled on
-// Windows, the in-app close button hides the window instead of quitting.
-function handleCloseAppRequest() {
-  if (isWindows && appTray.getMinimizeToTray() && !isQuitting) {
-    const win = mainWindow.getWindow()
-    if (win && !win.isDestroyed()) win.hide()
-    return
-  }
-  quitApp()
-}
-
-ipcMain.on('closeApp', handleCloseAppRequest)
-
-app.on('window-all-closed', () => {
-  if (process.platform !== "darwin") // close if not macOS
-    app.quit();
-});
-
-function lockApp() {
-  mainWindow.getWindow()?.webContents.send('lockApp')
-  playerWindow.stopPlayerPlayback()
-}
-
 createAppMenuController({
   getMainWindow: () => mainWindow.getWindow(),
-  onLock: () => lockApp(),
+  onLock: () => appLifecycle.lockApp(),
 }).install()
 
-process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE') {
-    // Port conflicts are normally handled during server startup with a native
-    // port-input dialog. This is only a last-resort safety net.
-    const port = serverConfig.port || 12321
-    dialog.showErrorBox('Startup Error',
-      `Port ${port} is already in use.\n\n` +
-      `Please close other applications using this port and restart the application.`
-    );
-    app.quit();
-  } else {
-    console.error('Uncaught Exception:', error);
-  }
-});
-
-ipcMain.on('main-app-ready', (event: IpcMainEvent) => {
-  const win = mainWindow.getWindow()
-  if (!win || win.isDestroyed() || event.sender !== win.webContents) return
-  revealMainWindow()
-  playerWindow.schedulePlayerWarmup()
-})
+appLifecycle.register()
