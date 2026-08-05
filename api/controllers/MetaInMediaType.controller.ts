@@ -1,10 +1,11 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { MetaAssignmentOrderPayload, PinMetaAssignmentPayload } from '@shared/api/payloads'
 
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
+
 function parseOptionalInt(value: unknown): number | undefined {
   if (value == null || value === '') return undefined
   const parsed = Number(value)
@@ -24,11 +25,9 @@ export default function (db: ApiDb) {
       })
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -42,12 +41,9 @@ export default function (db: ApiDb) {
 
       res.status(201).send(data)
     } catch (err: unknown) {
-      console.log(err)
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -59,11 +55,9 @@ export default function (db: ApiDb) {
       )
       res.status(201).send([1])
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -73,11 +67,9 @@ export default function (db: ApiDb) {
       )
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   return {
     create,

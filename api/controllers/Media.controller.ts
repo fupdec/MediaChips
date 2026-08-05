@@ -1,5 +1,5 @@
 import type { ApiDb, FilterLike } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { apiErrorMessage, sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
@@ -172,11 +172,9 @@ export default function (db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.status(201).send([1])
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const deleteOne = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<DeleteEntityOnePayload>(req)

@@ -1,11 +1,11 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { MetaAssignmentOrderPayload, PinChildMetaPayload } from '@shared/api/payloads'
-import { paramString } from '../types/errors'
 
 import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
+
 function parseOptionalInt(value: unknown): number | undefined {
   if (value == null || value === '') return undefined
   const parsed = Number(value)
@@ -25,11 +25,9 @@ export default function (db: ApiDb) {
       })
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -40,11 +38,9 @@ export default function (db: ApiDb) {
       const data = pinnedMetaRepo.findAll(filters)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const findAllByPinnedMetaId = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -54,11 +50,9 @@ export default function (db: ApiDb) {
         : pinnedMetaRepo.findAllByPinnedMetaId(pinnedMetaId)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -70,11 +64,9 @@ export default function (db: ApiDb) {
       )
       res.status(201).send([1])
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
-  };
+  }
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -84,11 +76,9 @@ export default function (db: ApiDb) {
       )
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   return {
     create,

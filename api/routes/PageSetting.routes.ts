@@ -2,19 +2,20 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createPageSettingController from '../controllers/PageSetting.controller'
+import { validateBody, validateQuery } from '../middleware/validateBody'
+import {
+  PageSettingCreateRequestSchema,
+  PageSettingFindQuerySchema,
+  PageSettingUpdateRequestSchema,
+} from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const PageSetting = createPageSettingController(db);
-  const router = express.Router();
+  const PageSetting = createPageSettingController(db)
+  const router = express.Router()
 
-  // Find or Create a new PageSetting
-  router.post("/", PageSetting.create);
+  router.post('/', validateBody(PageSettingCreateRequestSchema), PageSetting.create)
+  router.get('/', validateQuery(PageSettingFindQuerySchema), PageSetting.findOne)
+  router.put('/', validateBody(PageSettingUpdateRequestSchema), PageSetting.update)
 
-  // Retrieve all settings for one page
-  router.get("/", PageSetting.findOne);
-
-  // Update a single option with a name and value in the request
-  router.put("/", PageSetting.update);
-
-  app.use('/api/PageSetting', router);
+  app.use('/api/PageSetting', router)
 }

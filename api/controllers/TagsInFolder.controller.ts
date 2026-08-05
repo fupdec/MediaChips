@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createFolderPathsRepository } from '../db/repositories/folderPaths'
 import { createTagsInFoldersRepository } from '../db/repositories/tagsInFolders'
@@ -22,9 +22,7 @@ export default function (db: ApiDb) {
       })))
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -37,9 +35,7 @@ export default function (db: ApiDb) {
       })
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -49,9 +45,7 @@ export default function (db: ApiDb) {
       const data = tagsInFoldersRepo.findAllByPath(path)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -61,9 +55,7 @@ export default function (db: ApiDb) {
       const data = tagsInFoldersRepo.findAllByPaths(paths)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -72,9 +64,7 @@ export default function (db: ApiDb) {
       const data = tagsInFoldersRepo.findAllWithTags()
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -83,9 +73,7 @@ export default function (db: ApiDb) {
       const cleared = tagsInFoldersRepo.clearAllByPath(String(req.body.path ?? ''))
       res.status(201).send({cleared})
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -94,9 +82,7 @@ export default function (db: ApiDb) {
       tagsInFoldersRepo.deleteOne(String(req.body.path ?? ''), Number(req.body.tagId))
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -105,9 +91,7 @@ export default function (db: ApiDb) {
       tagsInFoldersRepo.deleteByPathAndMeta(String(req.body.path ?? ''), Number(req.body.metaId))
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -121,9 +105,7 @@ export default function (db: ApiDb) {
       )
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -134,9 +116,7 @@ export default function (db: ApiDb) {
       const changed = folderPathsRepo.remapPathFragment(find, replace)
       res.status(201).send({changed})
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 

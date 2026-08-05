@@ -26,6 +26,15 @@ import {
   VideoPreviewTaskRequestSchema,
   SuggestTagsRequestSchema,
   BackupNameRequestSchema,
+  FaceMediaIdRequestSchema,
+  FaceAssignRequestSchema,
+  FaceClearRequestSchema,
+  FaceTagIdRequestSchema,
+  FaceTagIdQuerySchema,
+  FaceStreamDetectionRequestSchema,
+  FaceStreamEnrollmentRequestSchema,
+  FaceStreamMatchingRequestSchema,
+  FaceEnrollmentQualityReportRequestSchema,
 } from '../../shared/schemas/requests'
 import createTaskController from '../controllers/Task.controller'
 import createTaskVideoCoreController from '../controllers/taskVideoCore.controller'
@@ -124,17 +133,17 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/downloadFaceEmbedModel', 'downloadFaceEmbedModel', validateBody(BackupNameRequestSchema))
   register('get', '/faceDetectionStatus', 'faceDetectionStatus')
   register('get', '/faceMatchStatus', 'faceMatchStatus')
-  register('get', '/facesForMedia', 'facesForMedia')
-  register('post', '/detectFacesForMedia', 'detectFacesForMedia')
-  register('post', '/matchFacesForMedia', 'matchFacesForMedia')
-  register('post', '/assignFacePerformer', 'assignFacePerformer')
-  register('post', '/clearFacePerformer', 'clearFacePerformer')
-  register('get', '/enrollmentQualityForTag', 'enrollmentQualityForTag')
-  register('post', '/enrollTagFaces', 'enrollTagFacesForTag')
-  register('post', '/streamEnrollmentQualityReport', 'streamEnrollmentQualityReport')
-  register('post', '/streamFaceDetection', 'streamFaceDetection')
-  register('post', '/streamFaceEnrollment', 'streamFaceEnrollment')
-  register('post', '/streamFaceMatching', 'streamFaceMatching')
+  register('get', '/facesForMedia', 'facesForMedia', validateQuery(FaceMediaIdRequestSchema))
+  register('post', '/detectFacesForMedia', 'detectFacesForMedia', validateBody(FaceMediaIdRequestSchema))
+  register('post', '/matchFacesForMedia', 'matchFacesForMedia', validateBody(FaceMediaIdRequestSchema))
+  register('post', '/assignFacePerformer', 'assignFacePerformer', validateBody(FaceAssignRequestSchema))
+  register('post', '/clearFacePerformer', 'clearFacePerformer', validateBody(FaceClearRequestSchema))
+  register('get', '/enrollmentQualityForTag', 'enrollmentQualityForTag', validateQuery(FaceTagIdQuerySchema))
+  register('post', '/enrollTagFaces', 'enrollTagFacesForTag', validateBody(FaceTagIdRequestSchema))
+  register('post', '/streamEnrollmentQualityReport', 'streamEnrollmentQualityReport', validateBody(FaceEnrollmentQualityReportRequestSchema))
+  register('post', '/streamFaceDetection', 'streamFaceDetection', validateBody(FaceStreamDetectionRequestSchema))
+  register('post', '/streamFaceEnrollment', 'streamFaceEnrollment', validateBody(FaceStreamEnrollmentRequestSchema))
+  register('post', '/streamFaceMatching', 'streamFaceMatching', validateBody(FaceStreamMatchingRequestSchema))
 
   register('post', '/parsePathTags', 'parsePathTags', validateBody(ParsePathTagsRequestSchema))
   register('get', '/parseLibraryTagsStatus', 'parseLibraryTagsStatus')

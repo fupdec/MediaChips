@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { apiErrorMessage, sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { Meta, MetaWritePayload } from '@shared/entities/meta'
@@ -44,9 +44,7 @@ export default function (db: ApiDb) {
 
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -55,9 +53,7 @@ export default function (db: ApiDb) {
       const data = metaRepo.findAll()
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -66,9 +62,7 @@ export default function (db: ApiDb) {
       const data = metaRepo.findById(Number(req.params.id)) ?? null
       res.status(201).send(data as Meta | null)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -77,9 +71,7 @@ export default function (db: ApiDb) {
       const data = metaRepo.findLatest(1)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -97,9 +89,7 @@ export default function (db: ApiDb) {
       metaRepo.updateById(metaId, body as Record<string, unknown>)
       res.status(201).send(conversion ? {conversion} : {})
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 

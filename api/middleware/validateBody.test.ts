@@ -2,13 +2,21 @@ import { describe, expect, it, vi } from 'vitest'
 import { validateBody, validateQuery } from './validateBody'
 import {
   BulkMetaApplyRequestSchema,
+  CreateTagsRequestSchema,
+  FaceAssignRequestSchema,
+  FaceMediaIdRequestSchema,
   FilterRowCreateRequestSchema,
   HomeMediaQuerySchema,
   MediaInPlaylistCreateRequestSchema,
   MediaTagCountQuerySchema,
+  MetaInMediaTypeOrderRequestSchema,
   PathPayloadSchema,
+  PinMetaAssignmentRequestSchema,
   PlaylistWriteRequestSchema,
+  PluginUninstallRequestSchema,
   SettingUpdateRequestSchema,
+  TagItemsRequestSchema,
+  TagsInFolderLinkSchema,
   TagsInMediaBulkCreateRequestSchema,
   TagsInMediaLinkSchema,
   ValuesInMediaBulkCreateRequestSchema,
@@ -231,6 +239,102 @@ describe('validateBody', () => {
 
     expect(next).toHaveBeenCalledOnce()
     expect(req.body.filterId).toBe(9)
+  })
+
+  it('requires meta and media type ids for meta assignment', () => {
+    const middleware = validateBody(PinMetaAssignmentRequestSchema)
+    const req = {body: {metaId: 1}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires nested order data for meta-in-media-type updates', () => {
+    const middleware = validateBody(MetaInMediaTypeOrderRequestSchema)
+    const req = {body: {metaId: 1, mediaTypeId: 2, data: {order: '4'}}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.body).toEqual({metaId: 1, mediaTypeId: 2, data: {order: 4}})
+  })
+
+  it('requires plugin uninstall id', () => {
+    const middleware = validateBody(PluginUninstallRequestSchema)
+    const req = {body: {}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires folder path for tags-in-folder links', () => {
+    const middleware = validateBody(TagsInFolderLinkSchema)
+    const req = {body: {tagId: 1, metaId: 2}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires faceId and tagId for face assignment', () => {
+    const middleware = validateBody(FaceAssignRequestSchema)
+    const req = {body: {faceId: 1}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires mediaId when detecting faces', () => {
+    const middleware = validateBody(FaceMediaIdRequestSchema)
+    const req = {body: {force: true}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires at least one tag name on create', () => {
+    const middleware = validateBody(CreateTagsRequestSchema)
+    const req = {body: []}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('requires metaId for tag items listing', () => {
+    const middleware = validateBody(TagItemsRequestSchema)
+    const req = {body: {page: 1}}
+    const res = createMockResponse()
+    const next = vi.fn()
+
+    middleware(req as never, res as never, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
   })
 })
 

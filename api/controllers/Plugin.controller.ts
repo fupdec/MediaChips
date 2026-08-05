@@ -1,5 +1,5 @@
 import type {ApiDb} from '../types/db'
-import {apiErrorMessage} from '../types/errors'
+import {HttpError, apiErrorMessage, sendControllerError} from '../types/errors'
 import type {ApiRequest, ApiResponse} from '../types/http'
 import {
   installPluginFromPath,
@@ -24,36 +24,36 @@ export default function createPluginController(_db: ApiDb) {
         : []
       res.status(200).send(listInstalledUserPlugins(enabledPlugins))
     } catch (err: unknown) {
-      res.status(500).send({message: apiErrorMessage(err) || 'Failed to list plugins'})
+      sendControllerError(res, err, 'Failed to list plugins')
     }
   }
 
   const install = async (req: ApiRequest, res: ApiResponse) => {
     try {
-      const sourcePath = String(req.body?.path || '').trim()
-      if (!sourcePath) {
-        res.status(400).send({message: 'path is required'})
-        return
-      }
+      const sourcePath = String(req.body.path || '').trim()
       const entry = await installPluginFromPath(sourcePath)
       remountPluginMainsAfterInstall()
       res.status(201).send(entry)
     } catch (err: unknown) {
-      res.status(400).send({message: apiErrorMessage(err) || 'Failed to install plugin'})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || 'Failed to install plugin'),
+        'Failed to install plugin',
+      )
     }
   }
 
   const uninstall = async (req: ApiRequest, res: ApiResponse) => {
     try {
-      const pluginId = String(req.body?.id || req.params?.id || '').trim()
-      if (!pluginId) {
-        res.status(400).send({message: 'id is required'})
-        return
-      }
+      const pluginId = String(req.body.id || req.params.id || '').trim()
       await uninstallPlugin(pluginId)
       res.status(200).send({ok: true})
     } catch (err: unknown) {
-      res.status(400).send({message: apiErrorMessage(err) || 'Failed to uninstall plugin'})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || 'Failed to uninstall plugin'),
+        'Failed to uninstall plugin',
+      )
     }
   }
 

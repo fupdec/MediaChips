@@ -2,25 +2,18 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createMediaTypeController from '../controllers/MediaType.controller'
+import { validateBody } from '../middleware/validateBody'
+import { MediaTypeWriteRequestSchema } from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const MediaType = createMediaTypeController(db);
-  const router = express.Router();
+  const MediaType = createMediaTypeController(db)
+  const router = express.Router()
 
-  // Create a new MediaType
-  router.post("/", MediaType.create);
+  router.post('/', validateBody(MediaTypeWriteRequestSchema), MediaType.create)
+  router.get('/', MediaType.findAll)
+  router.get('/:id', MediaType.findOne)
+  router.put('/:id', validateBody(MediaTypeWriteRequestSchema), MediaType.update)
+  router.delete('/:id', MediaType.deleteOne)
 
-  // Retrieve all MediaType
-  router.get("/", MediaType.findAll);
-
-  // Retrieve a single MediaType with id
-  router.get("/:id", MediaType.findOne);
-
-  // Update a MediaType with id
-  router.put("/:id", MediaType.update);
-
-  // Delete a MediaType with id
-  router.delete("/:id", MediaType.deleteOne);
-
-  app.use('/api/MediaType', router);
+  app.use('/api/MediaType', router)
 }

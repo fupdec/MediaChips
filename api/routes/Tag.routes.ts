@@ -3,47 +3,31 @@ import type { Express } from 'express'
 import express from 'express'
 import { validateBody } from '../middleware/validateBody'
 import {
+  CreateTagsRequestSchema,
+  DeleteEntityOneRequestSchema,
+  EntityUpdateRequestSchema,
   MergeTagsRequestSchema,
   MoveTagsToCategoryRequestSchema,
+  TagItemsRequestSchema,
   TagThumbsRequestSchema,
 } from '../../shared/schemas/requests'
 import createTagController from '../controllers/Tag.controller'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
-  const Tag = createTagController(db);
-  const router = express.Router();
+  const Tag = createTagController(db)
+  const router = express.Router()
 
-  // Create a new Tag
-  router.post("/", Tag.create);
+  router.post('/', validateBody(CreateTagsRequestSchema), Tag.create)
+  router.get('/count', Tag.getCount)
+  router.post('/thumbs', validateBody(TagThumbsRequestSchema), Tag.getThumbs)
+  router.post('/merge', validateBody(MergeTagsRequestSchema), Tag.merge)
+  router.post('/moveToCategory', validateBody(MoveTagsToCategoryRequestSchema), Tag.moveToCategory)
+  router.get('/:id/cooccurring', Tag.getCooccurring)
+  router.get('/:id', Tag.findOne)
+  router.get('/', Tag.getAll)
+  router.post('/items', validateBody(TagItemsRequestSchema), Tag.getAllForItems)
+  router.put('/:id', validateBody(EntityUpdateRequestSchema), Tag.update)
+  router.post('/deleteOne', validateBody(DeleteEntityOneRequestSchema), Tag.deleteOne)
 
-  // Retrieve tag count
-  router.get("/count", Tag.getCount);
-
-  router.post("/thumbs", validateBody(TagThumbsRequestSchema), Tag.getThumbs);
-
-  // Merge duplicate tags within one category
-  router.post("/merge", validateBody(MergeTagsRequestSchema), Tag.merge);
-
-  // Move tags into another category
-  router.post("/moveToCategory", validateBody(MoveTagsToCategoryRequestSchema), Tag.moveToCategory);
-
-  // Tags that co-occur on media having this tag (optional ?mediaTypeId=)
-  router.get("/:id/cooccurring", Tag.getCooccurring);
-
-  // Retrieve a single Tag with id
-  router.get("/:id", Tag.findOne);
-
-  // Retrieve all Tags
-  router.get("/", Tag.getAll);
-
-  // Retrieve all Tags by metaId
-  router.post("/items", Tag.getAllForItems);
-
-  // Update a Tag with id
-  router.put("/:id", Tag.update);
-
-  // delete an Tag with id
-  router.post("/deleteOne", Tag.deleteOne);
-
-  app.use('/api/Tag', router);
+  app.use('/api/Tag', router)
 }

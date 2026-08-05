@@ -1,6 +1,6 @@
 import shuffle from 'lodash/shuffle'
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { apiErrorMessage, sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createMarksRepository } from '../db/repositories/marks'
 import { getMarkFilterMetas, loadMarkItems } from '../services/markItemsLoader'
@@ -16,11 +16,9 @@ export default function (db: ApiDb) {
       const data = marksRepo.create(req.body)
       res.status(201).send(data)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
-  };
+  }
 
   const getClips = function (req: ApiRequest, res: ApiResponse) {
     try {

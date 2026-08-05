@@ -1,5 +1,5 @@
 import type { Express } from 'express'
-import { apiErrorMessage } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { BackupEntry } from '@shared/api/responses'
 import type { ApiDb } from '../../types/db'
@@ -83,11 +83,10 @@ export default function (app: Express, db: ApiDb) {
     const backupPath = path.join(getBackupsPath(), String(req.body.name) + '.zip')
     fs.unlink(backupPath, (err: unknown) => {
       if (err) {
-        console.log(err)
-        res.sendStatus(500)
+        sendControllerError(res, err, 'Failed to delete backup')
       } else res.sendStatus(201)
     })
-  };
+  }
 
   const restoreBackup = async (req: ApiRequest, res: ApiResponse) => {
     const dbPath = getDbPath()
@@ -149,7 +148,11 @@ export default function (app: Express, db: ApiDb) {
       } catch (reloadErr: unknown) {
         console.error('restoreBackup reload failed:', reloadErr)
       }
-      res.status(400).send({message: apiErrorMessage(e) || String(e)})
+      sendControllerError(
+        res,
+        new HttpError(400, apiErrorMessage(e) || String(e)),
+        'Failed to restore backup',
+      )
     } finally {
       try {
         await zip.close()
@@ -160,54 +163,48 @@ export default function (app: Express, db: ApiDb) {
   };
 
   const importBackup = async (req: ApiRequest, res: ApiResponse) => {
-    const fromPath = normalizeUserPath(String(req.body.path ?? ''))
-    if (typeof fromPath !== 'string' || !fromPath || !fs.existsSync(fromPath)) {
-      res.status(400).send({message: 'File not found'})
-      return
-    }
-    const archive = path.basename(fromPath)
-    const toPath = path.join(getBackupsPath(), archive)
     try {
+      const fromPath = normalizeUserPath(String(req.body.path ?? ''))
+      if (typeof fromPath !== 'string' || !fromPath || !fs.existsSync(fromPath)) {
+        throw new HttpError(400, 'File not found')
+      }
+      const archive = path.basename(fromPath)
+      const toPath = path.join(getBackupsPath(), archive)
       fse.copySync(fromPath, toPath, {overwrite: false})
       res.sendStatus(201)
-      console.log("Successfully imported.")
     } catch (err) {
-      console.error(err)
-      res.status(400).send({message: apiErrorMessage(err)})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || 'Failed to import backup'),
+        'Failed to import backup',
+      )
     }
-  };
+  }
 
   const exportBackup = async (req: ApiRequest, res: ApiResponse) => {
-    const archiveName = String(req.body?.archive ?? '')
-    const destDir = String(req.body?.path ?? '')
-
-    if (!archiveName || !destDir) {
-      res.status(400).send({ message: 'Archive name and destination path are required' })
-      return
-    }
-
-    const fromPath = path.join(getBackupsPath(), archiveName + '.zip')
-    const toPath = path.join(destDir, archiveName + '.zip')
-
-    if (!fs.existsSync(fromPath)) {
-      res.status(400).send({ message: `Backup not found: ${archiveName}` })
-      return
-    }
-
-    if (!fs.existsSync(destDir)) {
-      res.status(400).send({ message: `Destination folder not found: ${destDir}` })
-      return
-    }
-
     try {
+      const archiveName = String(req.body.archive ?? '')
+      const destDir = String(req.body.path ?? '')
+      const fromPath = path.join(getBackupsPath(), archiveName + '.zip')
+      const toPath = path.join(destDir, archiveName + '.zip')
+
+      if (!fs.existsSync(fromPath)) {
+        throw new HttpError(400, `Backup not found: ${archiveName}`)
+      }
+      if (!fs.existsSync(destDir)) {
+        throw new HttpError(400, `Destination folder not found: ${destDir}`)
+      }
+
       await fse.copy(fromPath, toPath, { overwrite: true })
       res.sendStatus(201)
-      console.log('Successfully exported backup to', toPath)
     } catch (err) {
-      console.error('exportBackup error:', err)
-      res.status(400).send({ message: apiErrorMessage(err) || String(err) })
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+        'Failed to export backup',
+      )
     }
-  };
+  }
 
   return {
     createBackup,

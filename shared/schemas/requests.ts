@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { FilterObjectSchema } from './entities'
+import { FilterObjectSchema, MetaSchema } from './entities'
+import { MetaSettingSchema } from './media-meta'
 import {
   optionalCoercedBooleanSchema,
   optionalCoercedNumberSchema,
@@ -521,6 +522,258 @@ export const FilterRowUpdateRequestSchema = z.object({
   order: optionalNullableCoercedNumberSchema,
   union: z.unknown().optional(),
   metaId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const MediaTypeWriteRequestSchema = z.object({
+  name: z.string().optional(),
+  extensions: z.string().optional(),
+  icon: z.string().optional(),
+  hidden: z.union([z.boolean(), z.number()]).optional(),
+  order: optionalCoercedNumber,
+  custom: z.boolean().optional(),
+}).passthrough()
+
+export const PinMetaAssignmentRequestSchema = z.object({
+  metaId: coercedId,
+  mediaTypeId: coercedId,
+  order: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const PinChildMetaRequestSchema = z.object({
+  metaId: coercedId,
+  pinnedMetaId: coercedId,
+  order: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const MetaInMediaTypeOrderRequestSchema = z.object({
+  metaId: coercedId,
+  mediaTypeId: coercedId,
+  data: z.object({
+    order: coercedId,
+  }).passthrough(),
+}).passthrough()
+
+export const PinnedMetaOrderRequestSchema = z.object({
+  metaId: coercedId,
+  pinnedMetaId: coercedId,
+  data: z.object({
+    order: coercedId,
+  }).passthrough(),
+}).passthrough()
+
+export const MetaInMediaTypeFindQuerySchema = z.object({
+  mediaTypeId: coercedId.optional(),
+  metaId: coercedId.optional(),
+}).passthrough()
+
+export const MetaInMediaTypeDeleteQuerySchema = z.object({
+  metaId: coercedId,
+  mediaTypeId: coercedId,
+})
+
+export const PinnedMetaFindQuerySchema = z.object({
+  metaId: coercedId.optional(),
+  pinnedMetaId: coercedId.optional(),
+}).passthrough()
+
+export const PinnedMetaDeleteQuerySchema = z.object({
+  metaId: coercedId,
+})
+
+export const PluginUninstallRequestSchema = z.object({
+  id: z.string().trim().min(1),
+}).passthrough()
+
+export const TagsInFolderLinkSchema = z.object({
+  path: z.string().min(1),
+  tagId: coercedId,
+  metaId: coercedId,
+}).passthrough()
+
+export const TagsInFolderBulkCreateRequestSchema = z.array(TagsInFolderLinkSchema)
+
+export const TagsInFolderPathQuerySchema = z.object({
+  path: z.string().optional(),
+}).passthrough()
+
+export const TagsInFolderByPathsRequestSchema = z.object({
+  paths: z.array(z.string()).optional().default([]),
+}).passthrough()
+
+export const TagsInFolderPathRequestSchema = z.object({
+  path: z.string().min(1),
+}).passthrough()
+
+export const TagsInFolderDeleteFromFolderRequestSchema = z.object({
+  path: z.string().min(1),
+  tagId: coercedId,
+}).passthrough()
+
+export const TagsInFolderDeleteByMetaRequestSchema = z.object({
+  path: z.string().min(1),
+  metaId: coercedId,
+}).passthrough()
+
+export const TagsInFolderReplaceForMetaRequestSchema = z.object({
+  path: z.string().min(1),
+  metaId: coercedId,
+  tagIds: z.array(z.union([z.number(), z.string()])).optional().default([]),
+}).passthrough()
+
+export const TagsInFolderRemapPathsRequestSchema = z.object({
+  find: z.string().min(1),
+  replace: z.string(),
+}).passthrough()
+
+export const BackupNameRequiredRequestSchema = z.object({
+  name: z.string().min(1),
+}).passthrough()
+
+export const BackupExportRequestSchema = z.object({
+  archive: z.string().min(1),
+  path: z.string().min(1),
+}).passthrough()
+
+export const PageSettingCriteriaSchema = z.object({
+  page: optionalCoercedNumber,
+  size: optionalCoercedNumber,
+  view: z.union([z.number(), z.string()]).optional(),
+  limit: optionalCoercedNumber,
+  sortBy: z.string().optional(),
+  sortDir: z.string().optional(),
+  firstChar: z.string().optional(),
+  colors: z.unknown().optional(),
+  metaId: optionalNullableCoercedNumberSchema,
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+  tagId: optionalNullableCoercedNumberSchema,
+  filterId: optionalNullableCoercedNumberSchema,
+  tabId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const PageSettingCreateRequestSchema = PageSettingCriteriaSchema
+
+export const PageSettingFindQuerySchema = z.object({
+  metaId: optionalNullableCoercedNumberSchema,
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const PageSettingUpdateRequestSchema = z.object({
+  query: PageSettingCriteriaSchema,
+  data: PageSettingCriteriaSchema,
+}).passthrough()
+
+export const VideoMetadataUpdateRequestSchema = z.object({
+  duration: optionalNullableCoercedNumberSchema,
+  width: optionalNullableCoercedNumberSchema,
+  height: optionalNullableCoercedNumberSchema,
+  bitrate: optionalNullableCoercedNumberSchema,
+  codec: z.string().nullable().optional(),
+  fps: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const MetaSettingUpdateRequestSchema = MetaSettingSchema
+
+export const CreateTagItemRequestSchema = z.object({
+  name: z.string().min(1),
+  metaId: optionalNullableCoercedNumberSchema,
+  color: z.string().optional(),
+  synonyms: z.string().optional(),
+}).passthrough()
+
+export const CreateTagsRequestSchema = z.array(CreateTagItemRequestSchema).min(1)
+
+export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
+  metaId: coercedId,
+  search: z.string().optional(),
+  query: z.string().optional(),
+  find_duplicates: optionalCoercedBoolean,
+})
+
+export const EntityUpdateRequestSchema = z.object({
+  name: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  synonyms: z.string().nullable().optional(),
+  rating: optionalCoercedNumber,
+  favorite: optionalCoercedBoolean,
+  views: optionalCoercedNumber,
+  bookmark: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  viewedAt: z.string().optional(),
+  silent: optionalCoercedBoolean,
+}).passthrough()
+
+export const MetaWriteRequestSchema = MetaSchema.omit({id: true}).partial().passthrough()
+
+export const EmptyObjectRequestSchema = z.object({}).passthrough()
+
+export const MarkCreateRequestSchema = z.object({
+  type: z.string().nullable().optional(),
+  text: z.string().nullable().optional(),
+  time: optionalNullableCoercedNumberSchema,
+  end: optionalNullableCoercedNumberSchema,
+  tagId: optionalNullableCoercedNumberSchema,
+  mediaId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
+export const FaceMediaIdRequestSchema = z.object({
+  mediaId: coercedId.optional(),
+  id: coercedId.optional(),
+  force: optionalCoercedBoolean,
+  framesPerVideo: optionalCoercedNumber,
+  minScore: optionalCoercedNumber,
+  match: optionalCoercedBoolean,
+  applyTags: z.union([z.boolean(), z.string()]).optional(),
+  ensureCrops: z.union([z.boolean(), z.string()]).optional(),
+}).passthrough().refine(
+  (value) => value.mediaId != null || value.id != null,
+  {message: 'mediaId is required'},
+)
+
+export const FaceAssignRequestSchema = z.object({
+  faceId: coercedId,
+  tagId: coercedId,
+  enroll: optionalCoercedBoolean,
+  applyTag: optionalCoercedBoolean,
+  matchScore: optionalCoercedNumber,
+}).passthrough()
+
+export const FaceClearRequestSchema = z.object({
+  faceId: coercedId,
+}).passthrough()
+
+export const FaceTagIdRequestSchema = z.object({
+  tagId: coercedId,
+  force: optionalCoercedBoolean,
+}).passthrough()
+
+export const FaceTagIdQuerySchema = z.object({
+  tagId: coercedId,
+}).passthrough()
+
+export const FaceStreamDetectionRequestSchema = z.object({
+  force: optionalCoercedBoolean,
+  mediaIds: z.array(z.union([z.number(), z.string()])).optional(),
+  paths: z.array(z.union([
+    z.string(),
+    z.object({path: z.string()}).passthrough(),
+  ])).optional(),
+  applyTags: z.union([z.boolean(), z.string()]).optional(),
+  framesPerVideo: optionalCoercedNumber,
+  minScore: optionalCoercedNumber,
+}).passthrough()
+
+export const FaceStreamEnrollmentRequestSchema = z.object({
+  force: optionalCoercedBoolean,
+  metaId: optionalCoercedNumber,
+}).passthrough()
+
+export const FaceStreamMatchingRequestSchema = z.object({
+  force: optionalCoercedBoolean,
+  mediaIds: z.array(z.union([z.number(), z.string()])).optional(),
+}).passthrough()
+
+export const FaceEnrollmentQualityReportRequestSchema = z.object({
+  metaId: optionalCoercedNumber,
 }).passthrough()
 
 export type ParsedItemsListRequest = z.infer<typeof ItemsListRequestSchema>
