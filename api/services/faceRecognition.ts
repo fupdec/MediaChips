@@ -40,16 +40,6 @@ import {
   resolveClusterMatchesForMedia,
 } from './faceMediaMatchResolve'
 import {
-  mapEnrollmentCandidateWithTag,
-  stripEmbeddingsFromFaces,
-} from './faceListPresentation'
-import {
-  buildListedPreparedFace,
-  parseStoredFaceEmbedding,
-  pickPrimaryTagId,
-  reRankListedClusterCandidates,
-} from './faceListMatchEnrich'
-import {
   buildClearedFaceMatchUpdate,
   resolveAssignMatchFields,
 } from './faceAssignMatch'
@@ -77,6 +67,10 @@ import {
   createFaceEnrollIterateCounters,
   getEnrollTagSkipReason,
 } from './faceEnrollIterate'
+import {
+  assembleListedFacesForMedia,
+  buildListedPreparedFacesFromRows,
+} from './faceListBuild'
 import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
@@ -613,39 +607,20 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
     return tag
   }
 
-  const prepared = []
-
-  for (const face of faceRows) {
-    let candidates: Array<{tagId: number; score: number; tagName: string | null; tagMetaId: number | null}> = []
-    const embedding = parseStoredFaceEmbedding(face.embedding)
-    if (embedding && enrollmentRefs.length && isMatchableStoredFace(face)) {
-      const top = findTopEnrollmentMatches(embedding, enrollmentRefs, settings.candidateLimit)
-      candidates = top.map((item) => mapEnrollmentCandidateWithTag(item, resolveTag(item.tagId)))
-    }
-
-    const assignedTagId = face.tagId != null ? Number(face.tagId) : null
-    const primaryTagId = pickPrimaryTagId(assignedTagId, candidates)
-    const tag = primaryTagId != null ? resolveTag(primaryTagId) : undefined
-    prepared.push(buildListedPreparedFace({
-      face,
-      assignedTagId,
-      tag,
-      candidates,
-      embedding,
-    }))
-  }
-
-  const clustered = clusterFacesInMedia(prepared)
-
-  // Re-rank candidates from all frames in the cluster (best-frame + consistency).
-  reRankListedClusterCandidates(
-    clustered,
+  const prepared = buildListedPreparedFacesFromRows({
+    faceRows,
     enrollmentRefs,
-    settings.candidateLimit,
+    candidateLimit: settings.candidateLimit,
     resolveTag,
-  )
+  })
 
-  return {mediaId, faces: stripEmbeddingsFromFaces(clustered)}
+  return assembleListedFacesForMedia({
+    mediaId,
+    prepared,
+    enrollmentRefs,
+    candidateLimit: settings.candidateLimit,
+    resolveTag,
+  })
 }
 
 async function* iterateFaceMatching(

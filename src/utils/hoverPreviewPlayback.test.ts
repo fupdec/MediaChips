@@ -14,6 +14,9 @@ import {
   resolveHoverPreviewTargetTime,
   resolveLivePreviewRelativeTime,
   planPreviewUrlSeek,
+  resolveHoverScrubProgressUpdate,
+  resolvePreviewUrlStartSeconds,
+  shouldComputeHoverPreviewPointerTime,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   createHoverSeekCoalescer,
@@ -129,6 +132,42 @@ describe('hoverPreviewPlayback', () => {
       reload: true,
       nextTime: 12,
     })
+  })
+
+  it('gates pointer scrubbing and progress updates', () => {
+    expect(shouldComputeHoverPreviewPointerTime({
+      hasFixedPreviewTime: false,
+      isFileExists: true,
+      playbackError: false,
+      videoPreviewHover: 'video',
+      mediaDuration: 10,
+    })).toBe(true)
+    expect(shouldComputeHoverPreviewPointerTime({
+      hasFixedPreviewTime: true,
+      isFileExists: true,
+      playbackError: false,
+      videoPreviewHover: 'video',
+      mediaDuration: 10,
+    })).toBe(false)
+
+    expect(resolveHoverScrubProgressUpdate({
+      progressValue: 5,
+      currentProgress: 5,
+      showPlaybackTimeline: false,
+    })).toBeNull()
+    expect(resolveHoverScrubProgressUpdate({
+      progressValue: 6,
+      currentProgress: 5,
+      showPlaybackTimeline: false,
+    })).toEqual({progress: 6, playbackTime: 6})
+    expect(resolveHoverScrubProgressUpdate({
+      progressValue: 6,
+      currentProgress: 5,
+      showPlaybackTimeline: true,
+    })).toEqual({progress: 6})
+
+    expect(resolvePreviewUrlStartSeconds(50, false, 30)).toBeCloseTo(29.9, 5)
+    expect(resolvePreviewUrlStartSeconds(50, true, 30)).toBe(50)
   })
 
   it('gates hover-ready marking', () => {

@@ -1,8 +1,13 @@
 import {describe, expect, it} from 'vitest'
 import {
+  buildDetectedFaceEntry,
+  buildEmptyFaceDetectResult,
+  buildFailedFaceDetectResult,
+  buildMissingFaceDetectResult,
   buildSkippedExistingFaceResult,
   mapDetectionsToPersistedFaceRows,
   resolveDetectCropOutputPaths,
+  shouldAttemptDetectionEmbedding,
 } from './faceDetectPersist'
 import {FACE_CROPS_RELATIVE_ROOT} from './faceCropStore'
 import path from 'path'
@@ -70,5 +75,45 @@ describe('buildSkippedExistingFaceResult', () => {
     expect(result.skipped).toBe(true)
     expect(result.faces[0].cropPath).toBe(path.join('/db', 'media/videos/faces/3/face.jpg'))
     expect(result.faces[0].box).toEqual({x: 1, y: 2, width: 10, height: 12})
+  })
+})
+
+describe('detect result helpers', () => {
+  it('builds missing / empty / failed payloads', () => {
+    expect(buildMissingFaceDetectResult(1, '/a')).toMatchObject({missing: true, faces: []})
+    expect(buildEmptyFaceDetectResult(1, '/a')).toEqual({mediaId: 1, mediaPath: '/a', frames: 0, faces: []})
+    expect(buildFailedFaceDetectResult(1, '/a', new Error('x'))).toMatchObject({
+      failed: true,
+      error: 'x',
+    })
+  })
+
+  it('gates embedding attempts and builds detection entries', () => {
+    expect(shouldAttemptDetectionEmbedding({
+      matchableOk: true,
+      absoluteCrop: '/c.jpg',
+      cropExists: true,
+      hasEmbedApi: true,
+    })).toBe(true)
+    expect(shouldAttemptDetectionEmbedding({
+      matchableOk: false,
+      absoluteCrop: '/c.jpg',
+      cropExists: true,
+      hasEmbedApi: true,
+    })).toBe(false)
+
+    expect(buildDetectedFaceEntry({
+      score: 0.9,
+      box: {x: 1, y: 2, width: 3, height: 4},
+      kps: null,
+      timestamp: '0:01',
+      cropPath: '/abs',
+      cropRelativePath: 'rel',
+      embedding: '[]',
+    })).toMatchObject({
+      score: 0.9,
+      cropRelativePath: 'rel',
+      embedding: '[]',
+    })
   })
 })

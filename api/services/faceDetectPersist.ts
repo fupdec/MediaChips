@@ -77,3 +77,77 @@ export function buildSkippedExistingFaceResult(input: {
     skipped: true,
   }
 }
+
+export function buildMissingFaceDetectResult(
+  mediaId: number | null,
+  mediaPath: string | null,
+) {
+  return {
+    mediaId,
+    mediaPath,
+    frames: 0,
+    faces: [] as FaceDetection[],
+    missing: true as const,
+  }
+}
+
+export function buildEmptyFaceDetectResult(
+  mediaId: number | null,
+  mediaPath: string | null,
+) {
+  return {
+    mediaId,
+    mediaPath,
+    frames: 0,
+    faces: [] as FaceDetection[],
+  }
+}
+
+export function buildFailedFaceDetectResult(
+  mediaId: number | null,
+  mediaPath: string | null,
+  error: unknown,
+) {
+  return {
+    mediaId,
+    mediaPath,
+    frames: 0,
+    faces: [] as FaceDetection[],
+    failed: true as const,
+    error: error instanceof Error ? error.message : String(error),
+  }
+}
+
+export function shouldAttemptDetectionEmbedding(input: {
+  matchableOk: boolean
+  absoluteCrop: string | null
+  cropExists: boolean
+  hasEmbedApi: boolean
+}): boolean {
+  return Boolean(
+    input.matchableOk
+    && input.absoluteCrop
+    && input.cropExists
+    && input.hasEmbedApi,
+  )
+}
+
+export function buildDetectedFaceEntry(input: {
+  score: number
+  box: FaceBox
+  kps: FaceLandmark5 | null
+  timestamp: string | null
+  cropPath: string | null
+  cropRelativePath: string | null
+  embedding: string | null
+}): FaceDetection {
+  return {
+    score: input.score,
+    box: input.box,
+    kps: input.kps,
+    timestamp: input.timestamp,
+    cropPath: input.cropPath,
+    cropRelativePath: input.cropRelativePath,
+    embedding: input.embedding,
+  }
+}

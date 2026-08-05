@@ -19,8 +19,11 @@ import {
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
+  resolveHoverScrubProgressUpdate,
+  resolvePreviewUrlStartSeconds,
   planPreviewUrlSeek,
   shouldApplyPreviewSeek,
+  shouldComputeHoverPreviewPointerTime,
   shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
@@ -126,12 +129,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const getPreviewTimeFromPointer = (clientX: number): number | null => {
-    if (toValue(options.hasFixedPreviewTime)) return null
-    if (!toValue(options.isFileExists) || playbackError.value) return null
-    if (settingsStore.videoPreviewHover !== 'video') return null
-
-    const duration = toValue(options.mediaDuration)
-    if (!duration) return null
+    if (!shouldComputeHoverPreviewPointerTime({
+      hasFixedPreviewTime: toValue(options.hasFixedPreviewTime),
+      isFileExists: toValue(options.isFileExists),
+      playbackError: playbackError.value,
+      videoPreviewHover: settingsStore.videoPreviewHover,
+      mediaDuration: toValue(options.mediaDuration),
+    })) return null
 
     const preview = options.getPreviewEl()
     if (!preview) return null
@@ -139,7 +143,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     return pointerRatioToPreviewTime(
       clientX,
       preview.getBoundingClientRect(),
-      duration,
+      toValue(options.mediaDuration),
     )
   }
 
@@ -150,12 +154,15 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     const progressValue = getPreviewTimeFromPointer(e.clientX)
     if (progressValue == null) return
 
-    if (progress.value !== progressValue) {
-      progress.value = progressValue
-      // Keep the playback timeline on the real video playhead; pointer only
-      // drives hover scrubbing (`progress`) and deferred seeks.
-      if (!toValue(options.showPlaybackTimeline)) {
-        playbackTime.value = progressValue
+    const update = resolveHoverScrubProgressUpdate({
+      progressValue,
+      currentProgress: progress.value,
+      showPlaybackTimeline: toValue(options.showPlaybackTimeline),
+    })
+    if (update) {
+      progress.value = update.progress
+      if (update.playbackTime != null) {
+        playbackTime.value = update.playbackTime
       }
     }
 
@@ -207,9 +214,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
     const token = previewPlaybackToken
     const url = await buildPreviewVideoUrl(
-      allowLiveChunkSwitch
-        ? targetTime
-        : Math.min(targetTime, LIVE_STREAM_CHUNK_SECONDS - 0.1),
+      resolvePreviewUrlStartSeconds(
+        targetTime,
+        allowLiveChunkSwitch,
+        LIVE_STREAM_CHUNK_SECONDS,
+      ),
     )
     if (!url) return false
     if (token !== previewPlaybackToken) return false

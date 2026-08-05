@@ -140,6 +140,41 @@ export function resolveLivePreviewRelativeTime(
   return Math.max(0, targetTime - streamStart)
 }
 
+export function shouldComputeHoverPreviewPointerTime(input: {
+  hasFixedPreviewTime: boolean
+  isFileExists: boolean
+  playbackError: boolean
+  videoPreviewHover: string
+  mediaDuration: number
+}): boolean {
+  if (input.hasFixedPreviewTime) return false
+  if (!input.isFileExists || input.playbackError) return false
+  if (input.videoPreviewHover !== 'video') return false
+  return Boolean(input.mediaDuration)
+}
+
+export function resolveHoverScrubProgressUpdate(input: {
+  progressValue: number
+  currentProgress: number
+  showPlaybackTimeline: boolean
+}): {progress: number; playbackTime?: number} | null {
+  if (input.currentProgress === input.progressValue) return null
+  return {
+    progress: input.progressValue,
+    ...(input.showPlaybackTimeline ? {} : {playbackTime: input.progressValue}),
+  }
+}
+
+export function resolvePreviewUrlStartSeconds(
+  targetTime: number,
+  allowLiveChunkSwitch: boolean,
+  chunkSeconds: number,
+): number {
+  return allowLiveChunkSwitch
+    ? targetTime
+    : Math.min(targetTime, chunkSeconds - 0.1)
+}
+
 export type PreviewUrlSeekPlan =
   | {
     kind: 'live'

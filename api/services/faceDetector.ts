@@ -63,9 +63,14 @@ import {
   saveFaceCrop,
 } from './faceCropStore'
 import {
+  buildDetectedFaceEntry,
+  buildEmptyFaceDetectResult,
+  buildFailedFaceDetectResult,
+  buildMissingFaceDetectResult,
   buildSkippedExistingFaceResult,
   mapDetectionsToPersistedFaceRows,
   resolveDetectCropOutputPaths,
+  shouldAttemptDetectionEmbedding,
 } from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
 import {resolveCachedModelStatus} from './faceModelStatus'
@@ -273,13 +278,7 @@ async function detectMedia(
   const persistCrops = resolvedOptions.persistCrops
 
   if (!mediaPath || !fs.existsSync(mediaPath)) {
-    return {
-      mediaId,
-      mediaPath,
-      frames: 0,
-      faces: [],
-      missing: true,
-    }
+    return buildMissingFaceDetectResult(mediaId, mediaPath)
   }
 
   if (mediaId != null && !options.force) {
@@ -301,7 +300,7 @@ async function detectMedia(
     tmpDir = extracted.tmpDir
 
     if (!extracted.frames.length) {
-      return {mediaId, mediaPath, frames: 0, faces: []}
+      return buildEmptyFaceDetectResult(mediaId, mediaPath)
     }
 
     if (persist && mediaId != null && options.force) {
@@ -398,23 +397,22 @@ async function detectMedia(
           })
 
           // Weak detections stay visible in review, but do not get embeddings / auto-match.
-          if (
-            matchable.ok
-            && absoluteCrop
-            && fs.existsSync(absoluteCrop)
-            && embedImage
-            && embeddingToJson
-          ) {
+          if (shouldAttemptDetectionEmbedding({
+            matchableOk: matchable.ok,
+            absoluteCrop,
+            cropExists: fs.existsSync(absoluteCrop),
+            hasEmbedApi: Boolean(embedImage && embeddingToJson),
+          })) {
             try {
-              const vector = await embedImage(db, frame.framePath, detection.box, detection.kps)
-              embedding = embeddingToJson(vector)
+              const vector = await embedImage!(db, frame.framePath, detection.box, detection.kps)
+              embedding = embeddingToJson!(vector)
             } catch {
               embedding = null
             }
           }
         }
 
-        faces.push({
+        faces.push(buildDetectedFaceEntry({
           score: detection.score,
           box: detection.box,
           kps: detection.kps,
@@ -422,7 +420,7 @@ async function detectMedia(
           cropPath,
           cropRelativePath,
           embedding,
-        })
+        }))
       }
     }
 
@@ -459,14 +457,7 @@ async function detectMedia(
       faces,
     }
   } catch (error: unknown) {
-    return {
-      mediaId,
-      mediaPath,
-      frames: 0,
-      faces: [],
-      failed: true,
-      error: error instanceof Error ? error.message : String(error),
-    }
+    return buildFailedFaceDetectResult(mediaId, mediaPath, error)
   } finally {
     cleanupDir(tmpDir)
   }
