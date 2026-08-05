@@ -5,8 +5,14 @@ import {
   isPathInsideMediaRoots,
   SKIP_DIR_NAMES,
 } from './mediaRoots'
-import {buildPathLookupVariants, normalizeMediaPath} from '../utils/normalizeUserPath'
+import {normalizeMediaPath} from '../utils/normalizeUserPath'
 import {parseMediaExtensions} from '../utils/mediaExtensions'
+import {
+  fileExtension,
+  isAddableBrowseFile,
+  markEntriesInLibrary,
+  resolveParentPath,
+} from './browseDirectoryMatch'
 
 export type BrowseDirectoryEntry = {
   name: string
@@ -40,23 +46,6 @@ type MediaRepository = {
 
 function parseExtensions(value: unknown): string[] {
   return parseMediaExtensions(value)
-}
-
-function resolveParentPath(currentPath: string, rootPath: string | null, envValue?: string): string | null {
-  if (!rootPath) return null
-  const normalizedCurrent = path.resolve(currentPath)
-  const normalizedRoot = path.resolve(rootPath)
-  if (normalizedCurrent === normalizedRoot) return null
-
-  const parent = path.dirname(normalizedCurrent)
-  if (parent === normalizedCurrent) return null
-  if (!isPathInsideMediaRoots(parent, envValue) && parent !== normalizedRoot) return null
-  return parent
-}
-
-function fileExtension(fileName: string): string | null {
-  const ext = path.extname(fileName).replace(/^\./, '').toLowerCase()
-  return ext || null
 }
 
 export function listBrowseDirectory(
@@ -137,8 +126,7 @@ export function listBrowseDirectory(
     }
 
     const extension = isFile ? fileExtension(name) : null
-    const addable = isFile
-      && (!allowedExtensions.size || (extension != null && allowedExtensions.has(extension)))
+    const addable = isAddableBrowseFile(isFile, extension, allowedExtensions)
 
     const entry: BrowseDirectoryEntry = {
       name,
@@ -169,43 +157,5 @@ export function listBrowseDirectory(
     truncated,
     platform: process.platform,
     entries,
-  }
-}
-
-function markEntriesInLibrary(
-  entries: BrowseDirectoryEntry[],
-  mediaRepo: MediaRepository | null | undefined,
-): void {
-  if (!mediaRepo) return
-
-  const files = entries.filter((entry) => !entry.isDirectory)
-  if (!files.length) return
-
-  const variantToEntry = new Map<string, BrowseDirectoryEntry>()
-  const lookupPaths: string[] = []
-
-  for (const entry of files) {
-    for (const variant of buildPathLookupVariants(entry.path)) {
-      if (!variantToEntry.has(variant)) {
-        variantToEntry.set(variant, entry)
-        lookupPaths.push(variant)
-      }
-    }
-  }
-
-  // Path is globally unique in media table — do not filter by mediaTypeId.
-  const found = mediaRepo.findByPaths(lookupPaths)
-
-  const variantToEntryLower = new Map(
-    [...variantToEntry.entries()].map(([variant, entry]) => [variant.toLowerCase(), entry]),
-  )
-
-  for (const row of found) {
-    const dbPath = String(row.path || '')
-    const entry = variantToEntry.get(dbPath) || variantToEntryLower.get(dbPath.toLowerCase())
-    if (!entry) continue
-    entry.inLibrary = true
-    entry.addable = false
-    entry.mediaId = row.id
   }
 }
