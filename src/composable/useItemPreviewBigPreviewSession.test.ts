@@ -3,9 +3,18 @@ import {
   applyBigPreviewMetrics,
   canOpenBigPreview,
   hasActivePreviewState,
+  normalizeBigPreviewSize,
   restorePreviewLayout,
   shouldKeepBigPreviewOpen,
 } from './useItemPreviewBigPreviewSession'
+
+describe('normalizeBigPreviewSize', () => {
+  it('migrates legacy sizes and defaults unknowns', () => {
+    expect(normalizeBigPreviewSize('three_quarters')).toBe('two_thirds')
+    expect(normalizeBigPreviewSize('original')).toBe('original')
+    expect(normalizeBigPreviewSize('x')).toBe('full_height')
+  })
+})
 
 describe('canOpenBigPreview', () => {
   const baseInput = {

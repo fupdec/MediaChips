@@ -15,6 +15,20 @@ export const BIG_PREVIEW_SIZE_CLASSES: Record<BigVideoPreviewSize, string> = {
   half: 'big-preview-size-half',
 }
 
+export function normalizeBigPreviewSize(value: string | undefined): BigVideoPreviewSize {
+  if (
+    value === 'original' ||
+    value === 'full_height' ||
+    value === 'two_thirds' ||
+    value === 'half'
+  ) {
+    return value
+  }
+  // Migrate legacy option names.
+  if (value === 'three_quarters') return 'two_thirds'
+  return 'full_height'
+}
+
 export type CanOpenBigPreviewInput = {
   isHovered: boolean
   isWindowFocused: boolean
