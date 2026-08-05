@@ -8,9 +8,7 @@ import { createMetaRepository } from '../db/repositories/meta'
 import { queryAllAsync } from '../db/utils/rawQuery'
 import { chunkArray } from '../db/utils/chunk'
 import {
-  buildTagIdSelect,
   getTagFilterSqlFallbackReason,
-  getTagFromClause,
   getTagSortExpression,
   resolveTagFilterQuery,
 } from './tagFilterSql'
@@ -21,6 +19,11 @@ import {
   slicePage,
   orderRowsByIds,
 } from './mediaItemsPagination'
+import {
+  appendIdQueryLimitOffset,
+  shouldComputeListTotals,
+} from './mediaItemsListSql'
+import {assembleTagListResult, resolveTagListSqlParts} from './tagItemsListSql'
 import { resolveSortMetaType } from './resolveSortMetaType'
 import { searchTagsByName } from './globalSearch'
 import {
@@ -175,19 +178,15 @@ function emptyTagItemsResult(options: TagLoadOptions, totalUnfiltered: number | 
   const shouldPaginate = shouldPaginateMediaList({ids: options.ids, limit: options.limit ?? null})
   const safePage = Math.max(1, Number(options.page) || 1)
 
-  const result: Record<string, unknown> = {
+  return assembleTagListResult({
     items: [],
-    total: totalUnfiltered,
+    totalUnfiltered,
     totalFiltered: 0,
-    page: shouldPaginate ? safePage : 1,
-    limit: shouldPaginate ? pageLimit : 0,
-  }
-
-  if (!options.skipTotals && shouldPaginate && pageLimit != null) {
-    result.pages = 1
-  }
-
-  return result
+    shouldPaginate,
+    safePage,
+    pageLimit,
+    skipTotals: options.skipTotals,
+  })
 }
 
 async function resolveSearchTagIds(db: ApiDb, metaId: number, search: string): Promise<number[]> {
@@ -216,12 +215,19 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
-  const whereClause = `WHERE ${whereSql}`
-  const fromClause = getTagFromClause(joinSql)
   const sortMetaType = resolveSortMetaType(db, sortBy)
   const sortExpr = getTagSortExpression(sortBy, sortMetaType)
-  const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
-  const idSelect = buildTagIdSelect(needsDistinct)
+  const {
+    whereClause,
+    fromClause,
+    idSelect,
+    sortDir,
+  } = resolveTagListSqlParts({
+    whereSql,
+    joinSql,
+    needsDistinct,
+    direction,
+  })
 
   const pageLimit = resolvePageLimit(limit)
   const shouldPaginate = shouldPaginateMediaList({ids, limit})
@@ -277,16 +283,14 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
       ? slicePage(aggregated.orderedIds, safePage, limit)
       : aggregated.orderedIds
   } else {
-    let idQuery = `${idSelect}
+    const idQuery = appendIdQueryLimitOffset(
+      `${idSelect}
       ${fromClause}
       ${whereClause}
-      ORDER BY ${sortExpr} ${sortDir}`
-
-    if (shouldPaginate && pageLimit != null) {
-      queryReplacements.limit = pageLimit
-      queryReplacements.offset = (safePage - 1) * pageLimit
-      idQuery += ' LIMIT :limit OFFSET :offset'
-    }
+      ORDER BY ${sortExpr} ${sortDir}`,
+      queryReplacements,
+      {shouldPaginate, pageLimit, safePage},
+    )
 
     const idRows = await queryAllAsync<{id: number}>(db, idQuery, queryReplacements)
     pageIds = idRows.map((row) => Number(row.id))
@@ -296,8 +300,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   let totalFiltered: number | null = null
 
   // Same as media: id-scoped refreshes must not report list totals.
-  const hasIdScope = ids.length > 0
-  if (!skipTotals && !hasIdScope) {
+  if (shouldComputeListTotals({skipTotals, ids})) {
     const [totalsRows, unfilteredRows] = await Promise.all([
       queryAllAsync<{totalFiltered: number}>(db, buildFilteredCountSql(fromClause, whereClause, needsDistinct, 'tags.id'), replacements),
       queryAllAsync<{totalUnfiltered: number}>(db, `SELECT COUNT(*) AS totalUnfiltered
@@ -315,23 +318,16 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   const orderedRows = orderRowsByIds(rawRows, pageIds)
   const items = parseItemsFromDb(orderedRows)
 
-  const result: Record<string, unknown> = {
+  return assembleTagListResult({
     items,
-    total: totalUnfiltered,
+    totalUnfiltered,
     totalFiltered,
-    page: shouldPaginate ? safePage : 1,
-    limit: shouldPaginate ? pageLimit : (totalFiltered ?? items.length),
-  }
-
-  if (groups) {
-    result.groups = groups
-  }
-
-  if (!skipTotals && shouldPaginate && totalFiltered != null && pageLimit != null) {
-    result.pages = Math.max(1, Math.ceil(totalFiltered / pageLimit))
-  }
-
-  return result
+    groups,
+    shouldPaginate,
+    safePage,
+    pageLimit,
+    skipTotals,
+  })
 }
 
 /** @deprecated Quarantined JS filter-worker path — prefer SQL; gated by legacyListLoaderGate. */
@@ -405,23 +401,16 @@ async function loadTagItemsLegacy(
     pageItems = slicePage(itemsFiltered, page, limit)
   }
 
-  const result: Record<string, unknown> = {
+  return assembleTagListResult({
     items: pageItems,
-    total: totalUnfiltered,
+    totalUnfiltered,
     totalFiltered,
-    page: shouldPaginate ? safePage : 1,
-    limit: shouldPaginate ? pageLimit : totalFiltered,
-  }
-
-  if (groups) {
-    result.groups = groups
-  }
-
-  if (!skipTotals && shouldPaginate && pageLimit != null) {
-    result.pages = Math.max(1, Math.ceil(totalFiltered / pageLimit))
-  }
-
-  return result
+    groups,
+    shouldPaginate,
+    safePage,
+    pageLimit,
+    skipTotals,
+  })
 }
 
 async function loadTagItems(db: ApiDb, options: TagLoadOptions) {

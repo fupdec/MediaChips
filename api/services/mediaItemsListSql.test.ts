@@ -7,7 +7,7 @@ import {
   assembleMediaListResult,
   buildVisualNearDuplicateFilterSuccess,
   resolveMediaListSqlParts,
-  shouldComputeMediaListTotals,
+  shouldComputeListTotals,
 } from './mediaItemsListSql'
 
 describe('buildVisualNearDuplicateFilterSuccess', () => {
@@ -61,12 +61,12 @@ describe('resolveMediaListSqlParts', () => {
   })
 })
 
-describe('shouldComputeMediaListTotals', () => {
+describe('shouldComputeListTotals', () => {
   it('skips totals for id-scoped or skipTotals requests', () => {
-    expect(shouldComputeMediaListTotals({skipTotals: true, ids: []})).toBe(false)
-    expect(shouldComputeMediaListTotals({skipTotals: false, ids: [1]})).toBe(false)
-    expect(shouldComputeMediaListTotals({skipTotals: false, ids: []})).toBe(true)
-    expect(shouldComputeMediaListTotals({})).toBe(true)
+    expect(shouldComputeListTotals({skipTotals: true, ids: []})).toBe(false)
+    expect(shouldComputeListTotals({skipTotals: false, ids: [1]})).toBe(false)
+    expect(shouldComputeListTotals({skipTotals: false, ids: []})).toBe(true)
+    expect(shouldComputeListTotals({})).toBe(true)
   })
 })
 

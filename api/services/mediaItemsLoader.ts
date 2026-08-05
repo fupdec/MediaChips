@@ -62,7 +62,7 @@ import {
   assembleMediaListResult,
   buildVisualNearDuplicateFilterSuccess,
   resolveMediaListSqlParts,
-  shouldComputeMediaListTotals,
+  shouldComputeListTotals,
 } from './mediaItemsListSql'
 
 async function resolveVisualNearDuplicateFilterQuery(
@@ -323,7 +323,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   // Id-scoped refreshes (select-mode bulk edit, scrape, etc.) must not compute or
   // cache totals: the cache key ignores `ids`, so writing COUNT for one selected
   // item would poison the next full library list as "1 of N".
-  if (shouldComputeMediaListTotals({skipTotals, ids})) {
+  if (shouldComputeListTotals({skipTotals, ids})) {
     const cachedFilteredTotals = getCachedFilteredTotals(totalsCacheKey)
     const cachedUnfilteredTotal = getCachedUnfilteredTotal(mediaTypeId as number | string)
 

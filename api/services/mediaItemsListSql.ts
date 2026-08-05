@@ -87,12 +87,15 @@ export function resolveMediaListSqlParts(input: MediaListSqlPartsInput): MediaLi
 }
 
 /** Id-scoped refreshes must not compute/cache totals (cache key ignores `ids`). */
-export function shouldComputeMediaListTotals(options: {
+export function shouldComputeListTotals(options: {
   skipTotals?: boolean
   ids?: unknown[]
 }): boolean {
   return !options.skipTotals && !(options.ids?.length)
 }
+
+/** @deprecated Prefer shouldComputeListTotals — shared by media and tag loaders. */
+export const shouldComputeMediaListTotals = shouldComputeListTotals
 
 export function appendIdQueryLimitOffset(
   sql: string,
