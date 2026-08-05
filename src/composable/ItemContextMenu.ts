@@ -19,10 +19,9 @@ import {
   getDefaultMediaTypeId,
   getMediaDeleteAssetFolder,
   isAudioMediaType,
-  isImageMediaType,
-  isTextMediaType,
   isVideoMediaType,
 } from '@/utils/mediaType'
+import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {setNotification} from '@/services/notificationService'
 import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {openPath} from '@/services/shellService'
