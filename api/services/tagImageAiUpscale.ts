@@ -28,6 +28,7 @@ import {
   type TagAiUpscaleType,
 } from '../../shared/tagImages'
 import {parseBooleanSetting} from '../utils/parseBooleanSetting'
+import {isPathInside} from '../utils/isPathInside'
 
 const execFile = promisify(execFileCb)
 
@@ -553,11 +554,6 @@ export async function downloadFile(url: string, destination: string): Promise<vo
     `Failed to download Real-ESRGAN from GitHub after ${DOWNLOAD_ATTEMPTS} attempts `
     + `(VPN/proxy/TLS issues are common). Try again, or briefly disable VPN. (${detail})`,
   )
-}
-
-function isPathInside(parent: string, child: string): boolean {
-  const relative = path.relative(path.resolve(parent), path.resolve(child))
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
 async function extractZip(zipPath: string, dest: string): Promise<void> {

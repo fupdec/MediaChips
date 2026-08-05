@@ -5,6 +5,7 @@ import path from 'path'
 import StreamZip from 'node-stream-zip'
 import type {PluginCatalogEntry, PluginManifest, PluginPermission} from '../../shared/plugins'
 import {normalizeMediaPath} from '../utils/normalizeUserPath'
+import {isPathInside} from '../utils/isPathInside'
 
 const MANIFEST_NAMES = ['plugin.json', 'mediachips.plugin.json'] as const
 const ALLOWED_PERMISSIONS = new Set<PluginPermission>([
@@ -31,11 +32,6 @@ export function ensurePluginsRoot(): string {
 
 function isSafePluginId(id: string): boolean {
   return /^[a-z0-9]+(\.[a-z0-9_-]+)+$/i.test(id) && !id.includes('..')
-}
-
-function isPathInside(parent: string, child: string): boolean {
-  const relative = path.relative(path.resolve(parent), path.resolve(child))
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
 function parseRelativeEntry(raw: unknown): string | null {
