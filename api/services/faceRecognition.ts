@@ -27,9 +27,7 @@ import {
 import { isMatchableStoredFace } from './matchGates'
 import {clusterFacesInMedia} from './faceCluster'
 import {
-  DEFAULT_CANDIDATE_LIMIT,
   averageEmbeddings,
-  clampCandidateLimit,
   embeddingFromJson,
   embeddingToJson,
   findTopEnrollmentMatches,
@@ -62,6 +60,7 @@ import {
   packInterleavedRgbToNchw,
   rgbaBitmapToInterleavedRgb,
 } from './faceTensorPrep'
+import {parseFaceMatchSettingsFromMap} from './faceSettingsParse'
 import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
@@ -219,14 +218,6 @@ function getEmbedStatus(db: ApiDb): ModelStatus {
   }
 }
 
-function parseBooleanSetting(value: unknown, fallback = false) {
-  if (value == null || value === '') return fallback
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value === 1
-  const normalized = String(value).toLowerCase()
-  return normalized === 'true' || normalized === '1'
-}
-
 function resolvePerformerMetaId(db: ApiDb, configuredId?: number | null): number | null {
   if (configuredId && Number.isFinite(configuredId) && configuredId > 0) return configuredId
   const metaRepo = createMetaRepository(db.drizzle)
@@ -244,19 +235,9 @@ function getFaceMatchSettings(db: ApiDb): FaceMatchSettings {
   ]
   const rows = createSettingsRepository(db.drizzle).findByOptions(options)
   const map = new Map(rows.map((row) => [String(row.option), row.value]))
-
-  const configuredMeta = Number(map.get('faceMatch.performerMetaId') || 0)
-  const minConfidence = Number(map.get('faceMatch.minConfidence') ?? 0.55)
-  const modeRaw = String(map.get('faceMatch.mode') || 'auto')
-  const mode: FaceMatchMode = modeRaw === 'suggest' ? 'suggest' : 'auto'
-
-  return {
-    performerMetaId: resolvePerformerMetaId(db, configuredMeta || null),
-    minConfidence: Number.isFinite(minConfidence) ? Math.min(Math.max(minConfidence, 0.2), 0.95) : 0.55,
-    candidateLimit: clampCandidateLimit(map.get('faceMatch.candidateLimit') ?? DEFAULT_CANDIDATE_LIMIT),
-    mode,
-    matchAfterDetect: parseBooleanSetting(map.get('faceMatch.matchAfterDetect'), true),
-  }
+  return parseFaceMatchSettingsFromMap(map, (configuredId) =>
+    resolvePerformerMetaId(db, configuredId),
+  )
 }
 
 function rgbToEmbedTensor(rgb: Uint8Array, width: number, height: number) {

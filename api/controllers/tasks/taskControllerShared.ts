@@ -19,6 +19,7 @@ import {
   type GeneratedMediaFolderKey,
 } from '../../../shared/generatedMediaFolders'
 import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
+import {parseBooleanSetting} from '../../utils/parseBooleanSetting'
 
 function lazyService<T = AnyRecord>(modulePath: string) {
   let cached: T | undefined
@@ -74,12 +75,6 @@ export default function createTaskControllerShared(db: ApiDb) {
     'pathParser.clusterThreshold': 0.88,
     'pathParser.preferLongestMatch': true,
     'pathParser.matchPrecision': 0.5,
-  }
-
-  const parseBooleanSetting = (value: unknown) => {
-    if (typeof value === 'boolean') return value
-    if (typeof value === 'number') return value === 1
-    return String(value).toLowerCase() === 'true'
   }
 
   const getParserSettings = async (overrides: AnyRecord = {}) => {

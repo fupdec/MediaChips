@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { readdir, rmdir, unlink } from 'fs/promises'
 import { createSettingsRepository } from '../db/repositories/settings'
+import {parseBooleanSetting} from '../utils/parseBooleanSetting'
 
 export const LEGACY_TIMELINES_CLEANED_SETTING = 'migrations.legacyTimelinesCleaned'
 
@@ -20,12 +21,6 @@ export function isLegacyTimelineFile(fileName: string): boolean {
 
 export function getLegacyTimelinesDir(dbPath: string): string {
   return path.join(dbPath, 'media/videos/timelines')
-}
-
-function parseBooleanSetting(value: unknown): boolean {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value === 1
-  return String(value).toLowerCase() === 'true' || String(value) === '1'
 }
 
 export function isLegacyTimelineCleanupDone(db: ApiDb): boolean {

@@ -1,0 +1,40 @@
+import {describe, expect, it} from 'vitest'
+import {
+  clampFaceDetectFramesPerVideo,
+  clampFaceDetectMinScore,
+  clampFaceMatchConfidence,
+  parseFaceMatchMode,
+  parseFaceMatchSettingsFromMap,
+} from './faceSettingsParse'
+
+describe('faceSettingsParse', () => {
+  it('parses match mode', () => {
+    expect(parseFaceMatchMode('suggest')).toBe('suggest')
+    expect(parseFaceMatchMode('auto')).toBe('auto')
+    expect(parseFaceMatchMode('nope')).toBe('auto')
+  })
+
+  it('clamps confidence and detect gates', () => {
+    expect(clampFaceMatchConfidence(0.1)).toBe(0.2)
+    expect(clampFaceMatchConfidence(0.99)).toBe(0.95)
+    expect(clampFaceDetectMinScore(0.2)).toBe(0.5)
+    expect(clampFaceDetectFramesPerVideo(200)).toBe(99)
+  })
+
+  it('builds match settings from a settings map', () => {
+    const map = new Map<string, unknown>([
+      ['faceMatch.performerMetaId', '12'],
+      ['faceMatch.minConfidence', '0.7'],
+      ['faceMatch.candidateLimit', '5'],
+      ['faceMatch.mode', 'suggest'],
+      ['faceMatch.matchAfterDetect', '0'],
+    ])
+    expect(parseFaceMatchSettingsFromMap(map, (id) => id)).toEqual({
+      performerMetaId: 12,
+      minConfidence: 0.7,
+      candidateLimit: 5,
+      mode: 'suggest',
+      matchAfterDetect: false,
+    })
+  })
+})

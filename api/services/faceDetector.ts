@@ -48,6 +48,10 @@ import {
   type OrtTensorLike,
 } from './faceScrfdDecode'
 import {
+  clampFaceDetectFramesPerVideo,
+  clampFaceDetectMinScore,
+} from './faceSettingsParse'
+import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -87,15 +91,9 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
     'faceDetect.genderFilter',
   ])
   const map = new Map(rows.map((row) => [String(row.option), row.value]))
-  const minScoreRaw = Number(map.get('faceDetect.minScore') ?? DEFAULT_MIN_SCORE)
-  const framesRaw = Number(map.get('faceDetect.framesPerVideo') ?? 6)
   return {
-    minScore: Number.isFinite(minScoreRaw)
-      ? Math.min(Math.max(minScoreRaw, 0.5), 0.75)
-      : DEFAULT_MIN_SCORE,
-    framesPerVideo: Number.isFinite(framesRaw)
-      ? Math.min(Math.max(Math.round(framesRaw), 1), 99)
-      : 6,
+    minScore: clampFaceDetectMinScore(map.get('faceDetect.minScore'), DEFAULT_MIN_SCORE),
+    framesPerVideo: clampFaceDetectFramesPerVideo(map.get('faceDetect.framesPerVideo'), 6),
     genderFilter: normalizeGenderFilter(map.get('faceDetect.genderFilter')),
   }
 }

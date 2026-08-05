@@ -27,6 +27,7 @@ import {
   parseTagImageFileName,
   type TagAiUpscaleType,
 } from '../../shared/tagImages'
+import {parseBooleanSetting} from '../utils/parseBooleanSetting'
 
 const execFile = promisify(execFileCb)
 
@@ -81,12 +82,6 @@ export interface TagImageAiUpscaleStatus {
   byType: Record<string, number>
   downloadSizeMb: number
   suggested: boolean
-}
-
-function parseBooleanSetting(value: unknown): boolean {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value === 1
-  return String(value).toLowerCase() === 'true' || String(value) === '1'
 }
 
 export function isTagImageAiUpscaleDone(db: ApiDb): boolean {
