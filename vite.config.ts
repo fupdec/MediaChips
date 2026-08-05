@@ -111,6 +111,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       'shared/**/*.test.ts',
       'api/**/*.test.ts',
       'app/**/*.test.ts',
+      'electron/**/*.test.ts',
       'packages/**/*.test.ts',
       'scripts/**/*.test.mjs',
     ],

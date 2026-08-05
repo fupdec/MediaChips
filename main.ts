@@ -4,11 +4,8 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
-  Tray,
-  nativeImage,
   dialog,
   shell,
-  screen,
   Notification,
 } from 'electron'
 import os from 'os'
@@ -19,22 +16,20 @@ import { machineId } from 'node-machine-id'
 import { apiErrorMessage } from './api/types/errors'
 import { initAppUpdater } from './electron/autoUpdater'
 import { registerMediaDragIpc } from './electron/mediaDrag'
+import { createAppTrayController } from './electron/appTray'
+import {
+  createWindowBoundsPersistence,
+  type WindowBoundsConfig,
+} from './electron/windowBounds'
 import { normalizeMediaPath } from './api/utils/normalizeUserPath'
 import { resolveExistingPath } from './api/services/contentHash'
 import { saveConfigFile } from './app/server/configFile'
 import { LOCAL_AI_UI_ENABLED } from './shared/features'
 
-type WindowBoundsConfig = {
-  height?: number
-  width?: number
-  x?: number
-  y?: number
-  maximized?: boolean
-}
-
 type ServerWindowConfig = {
   win?: WindowBoundsConfig
   player?: WindowBoundsConfig
+  minimizeToTray?: string
 }
 
 type AppServerExports = {
@@ -78,11 +73,6 @@ const useWinElectronFrame = isWindows
 let win: BrowserWindowInstance | null = null
 let loading: BrowserWindowInstance | null = null
 let player: BrowserWindowInstance | null = null
-let tray: Electron.Tray | null = null
-// When enabled (Windows only), closing the main window hides it to the system
-// tray instead of quitting. Persisted in config.json (`minimizeToTray`); the
-// renderer notifies the main process of runtime changes via `set-minimize-to-tray`.
-let minimizeToTray = false
 // Distinguishes an explicit quit (tray menu / File → Exit) from a window close
 // that should be intercepted and turned into "hide to tray".
 let isQuitting = false
@@ -123,86 +113,27 @@ function getElectronConfigPath(): string {
   return path.join(app.getPath('userData'), 'config.json')
 }
 
-function clampWindowBounds(bounds: { x: number; y: number; width: number; height: number }) {
-  const width = Math.max(400, Math.round(bounds.width) || 1280)
-  const height = Math.max(300, Math.round(bounds.height) || 720)
-  const displays = screen.getAllDisplays()
-  const intersects = displays.some((display) => {
-    const area = display.workArea
-    return (
-      bounds.x < area.x + area.width
-      && bounds.x + width > area.x
-      && bounds.y < area.y + area.height
-      && bounds.y + height > area.y
-    )
-  })
+const {
+  readStoredWindowBounds,
+  bindWindowBoundsPersistence,
+} = createWindowBoundsPersistence({
+  getStore: () => serverConfig,
+  getConfigPath: getElectronConfigPath,
+  saveConfig: (configPath) => {
+    saveConfigFile(configPath, serverConfig)
+  },
+})
 
-  if (intersects && Number.isFinite(bounds.x) && Number.isFinite(bounds.y)) {
-    return { x: Math.round(bounds.x), y: Math.round(bounds.y), width, height }
-  }
+const appTray = createAppTrayController({
+  isWindows,
+  getMainWindow: () => win,
+  showMainWindow: () => showMainWindow(),
+  quitApp: () => quitApp(),
+  setIsQuitting: (value) => { isQuitting = value },
+  getAppRoot: () => path.join(__dirname),
+})
+appTray.registerIpc()
 
-  const { workArea } = screen.getPrimaryDisplay()
-  return {
-    x: Math.round(workArea.x + Math.max(0, (workArea.width - width) / 2)),
-    y: Math.round(workArea.y + Math.max(0, (workArea.height - height) / 2)),
-    width,
-    height,
-  }
-}
-
-function readStoredWindowBounds(kind: 'win' | 'player', fallbackWidth: number, fallbackHeight: number) {
-  const stored = serverConfig[kind] || {}
-  return clampWindowBounds({
-    x: typeof stored.x === 'number' ? stored.x : Number.NaN,
-    y: typeof stored.y === 'number' ? stored.y : Number.NaN,
-    width: typeof stored.width === 'number' ? stored.width : fallbackWidth,
-    height: typeof stored.height === 'number' ? stored.height : fallbackHeight,
-  })
-}
-
-const windowBoundsSaveTimers: Partial<Record<'win' | 'player', ReturnType<typeof setTimeout>>> = {}
-
-function persistWindowBounds(kind: 'win' | 'player', browserWindow: BrowserWindowInstance) {
-  if (!browserWindow || browserWindow.isDestroyed()) return
-
-  const isMaximized = browserWindow.isMaximized()
-  const bounds = (
-    isMaximized && typeof browserWindow.getNormalBounds === 'function'
-      ? browserWindow.getNormalBounds()
-      : browserWindow.getBounds()
-  )
-
-  serverConfig[kind] = {
-    ...(serverConfig[kind] || {}),
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
-    maximized: isMaximized,
-  }
-
-  try {
-    saveConfigFile(getElectronConfigPath(), serverConfig)
-  } catch (error) {
-    console.warn('Failed to persist window bounds:', error)
-  }
-}
-
-function schedulePersistWindowBounds(kind: 'win' | 'player', browserWindow: BrowserWindowInstance) {
-  const existing = windowBoundsSaveTimers[kind]
-  if (existing) clearTimeout(existing)
-  windowBoundsSaveTimers[kind] = setTimeout(() => {
-    persistWindowBounds(kind, browserWindow)
-  }, 400)
-}
-
-function bindWindowBoundsPersistence(kind: 'win' | 'player', browserWindow: BrowserWindowInstance) {
-  const save = () => schedulePersistWindowBounds(kind, browserWindow)
-  browserWindow.on('move', save)
-  browserWindow.on('resize', save)
-  browserWindow.on('maximize', save)
-  browserWindow.on('unmaximize', save)
-}
 
 const getRendererUrl = (search = '') => {
   const port = useViteDevServer
@@ -311,7 +242,7 @@ const createWindow = () => {
   bindRendererLoadRetry(mainWindow.webContents, () => getRendererUrl())
   mainWindow.loadURL(getRendererUrl())
   mainWindow.on('close', (event: Electron.Event) => {
-    if (isWindows && minimizeToTray && !isQuitting) {
+    if (isWindows && appTray.getMinimizeToTray() && !isQuitting) {
       event.preventDefault()
       mainWindow.hide()
     }
@@ -576,8 +507,9 @@ app.on('ready', async () => {
 
   // config.json is the source of truth for the tray preference. Initialize the
   // in-memory flag and create the tray icon before the renderer has loaded.
-  minimizeToTray = isWindows && serverConfig.minimizeToTray === '1'
-  if (minimizeToTray) createTray()
+  if (isWindows && serverConfig.minimizeToTray === '1') {
+    appTray.setMinimizeToTray(true)
+  }
 
   initAppUpdater({getWindow: () => win})
 })
@@ -593,7 +525,7 @@ app.on("activate", async () => {
 
 function quitApp() {
   isQuitting = true
-  destroyTray()
+  appTray.destroyTray()
   if (playerWarmupTimer) {
     clearTimeout(playerWarmupTimer)
     playerWarmupTimer = null
@@ -614,7 +546,7 @@ function quitApp() {
 // window events from render process. When "minimize to tray" is enabled on
 // Windows, the in-app close button hides the window instead of quitting.
 function handleCloseAppRequest() {
-  if (isWindows && minimizeToTray && !isQuitting) {
+  if (isWindows && appTray.getMinimizeToTray() && !isQuitting) {
     if (win && !win.isDestroyed()) win.hide()
     return
   }
@@ -633,62 +565,6 @@ function showMainWindow() {
   win.focus()
 }
 
-function createTray() {
-  if (tray || !isWindows) return
-
-  try {
-    // Prefer the multi-size .ico (16/32/48) so Windows can pick the crispest
-    // variant for the current DPI; fall back to the PNG if it is missing.
-    const iconDir = path.join(__dirname, 'dist/icons')
-    const icoPath = path.join(iconDir, 'favicon.ico')
-    const pngPath = path.join(iconDir, 'icon.png')
-    const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath
-    const image = nativeImage.createFromPath(iconPath)
-    tray = new Tray(image.isEmpty() ? iconPath : image)
-    tray.setToolTip('MediaChips')
-    tray.setContextMenu(Menu.buildFromTemplate([
-      {label: 'Open MediaChips', click: () => showMainWindow()},
-      {type: 'separator'},
-      {label: 'Exit', click: () => { isQuitting = true; quitApp() }},
-    ]))
-    tray.on('click', () => {
-      if (win && !win.isDestroyed() && win.isVisible()) {
-        win.hide()
-      } else {
-        showMainWindow()
-      }
-    })
-    tray.on('double-click', () => showMainWindow())
-  } catch (error) {
-    console.warn('Failed to create tray icon:', error)
-    tray = null
-  }
-}
-
-function destroyTray() {
-  if (tray) {
-    tray.destroy()
-    tray = null
-  }
-}
-
-ipcMain.handle('set-minimize-to-tray', (_event: IpcMainInvokeEvent, enabled: unknown) => {
-  minimizeToTray = Boolean(enabled)
-
-  if (!isWindows) return minimizeToTray
-
-  if (minimizeToTray) {
-    createTray()
-  } else {
-    destroyTray()
-    // Without a tray icon a hidden window would be unreachable, so restore it.
-    if (win && !win.isDestroyed() && !win.isVisible()) {
-      win.show()
-    }
-  }
-
-  return minimizeToTray
-})
 
 app.on('window-all-closed', () => {
   if (process.platform !== "darwin") // close if not macOS
