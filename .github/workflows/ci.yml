@@ -44,6 +44,8 @@ jobs:
       - name: Lint
         run: npx eslint .
 
+      # Pack (`npm run pack`) still needs source-tree JS via backend-copy.
+      # Daily DX / postinstall uses `dev-artifacts` (no api/app/shared copy-back).
       - name: Build backend and Electron artifacts
         run: node scripts/compile.mjs artifacts
 

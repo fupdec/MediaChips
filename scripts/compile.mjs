@@ -57,20 +57,15 @@ function syncMsStoreCompiledFlag() {
 }
 
 const TARGETS = {
+  /** Emit-only legacy split builds (no source-tree copy-back). Prefer `backend`. */
   shared: {
     tsc: 'tsconfig.shared-build.json',
-    copy: () => copyDirContents(join(root, '.shared-build/shared'), join(root, 'shared')),
   },
   app: {
     tsc: 'tsconfig.app.json',
-    copy: () => copyDirContents(join(root, '.app-build/app'), join(root, 'app')),
   },
   api: {
     tsc: sfwBuild ? 'tsconfig.api.sfw.json' : 'tsconfig.api.json',
-    copy: () => {
-      copyDirContents(join(root, '.api-build/api'), join(root, 'api'))
-      copyPluginServerArtifacts(join(root, '.api-build'))
-    },
   },
   /** Unified api+app+shared emit for running without source-tree copy-back. */
   backend: {
@@ -154,7 +149,11 @@ function runTarget(name) {
   const target = TARGETS[name]
   if (!target) {
     console.error(`Unknown compile target: ${name}`)
-    console.error(`Available: ${Object.keys(TARGETS).join(', ')}, backend, backend-copy, electron-artifacts, artifacts`)
+    console.error(
+      'Available:',
+      Object.keys(TARGETS).join(', '),
+      '+ groups: backend, backend-copy, dev-artifacts, electron-artifacts, artifacts',
+    )
     process.exit(1)
   }
 
@@ -193,6 +192,12 @@ async function runGroup(name) {
     case 'backend-copy':
       runTarget('backend')
       copyBackendArtifacts()
+      return
+    case 'dev-artifacts':
+      // Daily DX / postinstall: backend emit + Electron entrypoints, no api/app/shared copy-back.
+      runTarget('scripts')
+      runTarget('backend')
+      await runParallel(['electron', 'main'])
       return
     case 'electron-artifacts':
       await runParallel(['electron', 'main'])

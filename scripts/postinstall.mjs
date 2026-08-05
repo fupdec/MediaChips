@@ -20,4 +20,6 @@ function run(command, args = []) {
 run('npm', ['rebuild', 'better-sqlite3'])
 run('node', ['scripts/install-electron.mjs'])
 run('node', ['scripts/ensure-electron-native.mjs'])
-run('node', ['scripts/compile.mjs', 'artifacts'])
+// Emit backend to .backend-build + Electron entrypoints only (no api/app/shared copy-back).
+// Packaging still uses `compile.mjs artifacts` / `backend-copy` via dist/CI.
+run('node', ['scripts/compile.mjs', 'dev-artifacts'])

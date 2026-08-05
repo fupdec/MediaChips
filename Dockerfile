@@ -47,13 +47,12 @@ COPY packages/plugin-tmdb/package.json ./packages/plugin-tmdb/
 RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-COPY --from=builder /app/app ./app
-COPY --from=builder /app/api ./api
-COPY --from=builder /app/shared ./shared
+# Runtime JS lives in .backend-build (no source-tree copy-back).
+COPY --from=builder /app/.backend-build ./.backend-build
+# SQL migrations are not emitted by tsc — resolve via projectPath('api','db','migrations-drizzle').
+COPY --from=builder /app/api/db/migrations-drizzle ./api/db/migrations-drizzle
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/packages/plugin-adult/src/server ./packages/plugin-adult/src/server
-COPY --from=builder /app/packages/plugin-adult/package.json ./packages/plugin-adult/package.json
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Prefer Alpine system binaries over glibc ffmpeg-static / ffprobe-static.
@@ -77,4 +76,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- http://127.0.0.1:12321/api/health >/dev/null || exit 1
 
 ENTRYPOINT ["tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
-CMD ["node", "app/server.js"]
+CMD ["node", ".backend-build/app/server.js"]
