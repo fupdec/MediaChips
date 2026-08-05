@@ -9,6 +9,11 @@ export type InheritedFolderTagRow = {
   metaId: number
 }
 
+export type MediaPathRow = {
+  id: number | string
+  path?: string | null
+}
+
 type TaggedFolderRow = {
   folderPath: string
   tagId: number
@@ -37,6 +42,66 @@ export function isMediaPathUnderFolder(mediaPath: string, folderPath: string): b
   return media.startsWith(`${prefix}/`)
 }
 
+async function loadTaggedFolders(
+  db: ApiDb,
+  metaId?: number | null,
+): Promise<Array<{folderPath: string; tagId: number; metaId: number}>> {
+  const folderRows = await queryAllAsync(db, `
+    SELECT fp.path AS folderPath, tif.tagId AS tagId, tif.metaId AS metaId
+    FROM folderPaths fp
+    INNER JOIN tagsInFolders tif ON tif.folderId = fp.id${metaId != null ? ' AND tif.metaId = :metaId' : ''}
+  `, metaId != null ? {metaId} : {}) as TaggedFolderRow[]
+
+  return folderRows.map((row) => ({
+    folderPath: String(row.folderPath || ''),
+    tagId: Number(row.tagId),
+    metaId: Number(row.metaId),
+  })).filter((row) => (
+    row.folderPath
+    && Number.isFinite(row.tagId)
+    && Number.isFinite(row.metaId)
+  ))
+}
+
+function matchInheritedFolderTags(
+  mediaRows: MediaPathRow[],
+  folders: Array<{folderPath: string; tagId: number; metaId: number}>,
+): InheritedFolderTagRow[] {
+  const rows: InheritedFolderTagRow[] = []
+  for (const media of mediaRows) {
+    const mediaId = Number(media.id)
+    const mediaPath = String(media.path || '')
+    if (!Number.isFinite(mediaId) || !mediaPath) continue
+
+    for (const folder of folders) {
+      if (!isMediaPathUnderFolder(mediaPath, folder.folderPath)) continue
+      rows.push({
+        mediaId,
+        tagId: folder.tagId,
+        metaId: folder.metaId,
+      })
+    }
+  }
+  return rows
+}
+
+/**
+ * Resolve folder-inherited tags using already-loaded media paths (list hydrate).
+ * Only queries tagged folders — skips the redundant `SELECT id, path FROM media`.
+ */
+export async function loadInheritedFolderTagsForMediaRows(
+  db: ApiDb,
+  mediaRows: MediaPathRow[],
+  metaId?: number | null,
+): Promise<InheritedFolderTagRow[]> {
+  if (!mediaRows.length) return []
+
+  const folders = await loadTaggedFolders(db, metaId)
+  if (!folders.length) return []
+
+  return matchInheritedFolderTags(mediaRows, folders)
+}
+
 /**
  * Resolve folder-inherited tags for a page of media ids.
  * Loads tagged folders once, then matches media paths in memory — avoids the
@@ -49,47 +114,16 @@ export async function loadInheritedFolderTagsByMediaIds(
 ): Promise<InheritedFolderTagRow[]> {
   if (!mediaIds.length) return []
 
-  const folderRows = await queryAllAsync(db, `
-    SELECT fp.path AS folderPath, tif.tagId AS tagId, tif.metaId AS metaId
-    FROM folderPaths fp
-    INNER JOIN tagsInFolders tif ON tif.folderId = fp.id${metaId != null ? ' AND tif.metaId = :metaId' : ''}
-  `, metaId != null ? {metaId} : {}) as TaggedFolderRow[]
-
-  if (!folderRows.length) return []
-
-  const folders = folderRows.map((row) => ({
-    folderPath: String(row.folderPath || ''),
-    tagId: Number(row.tagId),
-    metaId: Number(row.metaId),
-  })).filter((row) => (
-    row.folderPath
-    && Number.isFinite(row.tagId)
-    && Number.isFinite(row.metaId)
-  ))
-
+  const folders = await loadTaggedFolders(db, metaId)
   if (!folders.length) return []
 
-  const rows: InheritedFolderTagRow[] = []
+  const mediaRows: MediaPathRow[] = []
   for (const chunk of chunkArray(mediaIds)) {
-    const mediaRows = await queryAllAsync(db, `
+    const rows = await queryAllAsync(db, `
       SELECT id, path FROM media WHERE id IN (:mediaIds)
     `, {mediaIds: chunk}) as Array<{id: number; path: string}>
-
-    for (const media of mediaRows) {
-      const mediaId = Number(media.id)
-      const mediaPath = String(media.path || '')
-      if (!Number.isFinite(mediaId) || !mediaPath) continue
-
-      for (const folder of folders) {
-        if (!isMediaPathUnderFolder(mediaPath, folder.folderPath)) continue
-        rows.push({
-          mediaId,
-          tagId: folder.tagId,
-          metaId: folder.metaId,
-        })
-      }
-    }
+    mediaRows.push(...rows)
   }
 
-  return rows
+  return matchInheritedFolderTags(mediaRows, folders)
 }

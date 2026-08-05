@@ -59,7 +59,7 @@ import {
   usesVisualNearDuplicates,
   type MediaTagLinkRow,
 } from './mediaItemsPresentation'
-import { loadInheritedFolderTagsByMediaIds } from './mediaInheritedFolderTags'
+import { loadInheritedFolderTagsForMediaRows } from './mediaInheritedFolderTags'
 
 const GROUP_SLIM_SELECT = `SELECT
   media.id,
@@ -218,7 +218,7 @@ async function attachPinnedMetaForGrouping(
   }
 
   if (isTagMeta) {
-    const inherited = await loadInheritedFolderTagsByMediaIds(db, mediaIds, metaId)
+    const inherited = await loadInheritedFolderTagsForMediaRows(db, items, metaId)
     for (const row of inherited) {
       pushUniqueTagLink(tagsByMediaId, row.mediaId, row.tagId, row.metaId, true)
     }
@@ -351,7 +351,7 @@ async function attachMediaRelations(db: ApiDb, items: LoadedMediaItem[], mediaTy
     })
   }
 
-  const inherited = await loadInheritedFolderTagsByMediaIds(db, mediaIds as MediaId[])
+  const inherited = await loadInheritedFolderTagsForMediaRows(db, items)
   for (const row of inherited) {
     if (!idSet.has(row.mediaId)) continue
     pushUniqueTagLink(tagsByMediaId, row.mediaId, row.tagId, row.metaId, true)
