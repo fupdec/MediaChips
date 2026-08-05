@@ -27,14 +27,12 @@ import {
 import { isMatchableStoredFace } from './matchGates'
 import {clusterFacesInMedia} from './faceCluster'
 import {
-  averageEmbeddings,
   embeddingFromJson,
   embeddingToJson,
   findTopEnrollmentMatches,
   findTopEnrollmentMatchesForEmbeddings,
   l2Normalize,
   parseEnrollmentRefs,
-  pickMatchFromCandidates,
 } from './faceMatchScoring'
 import {
   collectExistingEmbeddings,
@@ -45,11 +43,15 @@ import {
 } from './faceEnrollmentPaths'
 import {
   classifyStoredFaceForMatch,
-  resolveClusterMatchUpdate,
   uniqueMediaTagApplies,
   type FaceMatchMode,
-  type MediaTagApply,
 } from './faceMatchApply'
+import {
+  buildClusterQueryEmbeddings,
+  buildReadyMatchPreparedFace,
+  buildSkippedMatchPreparedFace,
+  resolveClusterMatchesForMedia,
+} from './faceMediaMatchResolve'
 import {
   groupFacesByClusterId,
   mapEnrollmentCandidateWithTag,
@@ -537,27 +539,16 @@ async function matchMediaFaces(
 
   await loadEmbedModel(db)
 
-  let matched = 0
   let applied = 0
   let skipped = 0
-  const tagsToApply: MediaTagApply[] = []
-
-  type PreparedFace = {
-    id: number
-    tagId: number | null
-    matchScore: number | null
-    score: number
-    timestamp: string | null
-    skip: boolean
-    candidates?: Array<{tagId: number; score: number}>
-    embedding?: Float32Array | null
-  }
-
-  const prepared: PreparedFace[] = []
+  const prepared = []
 
   for (const face of faces) {
-    const faceId = Number(face.id)
-    const timestamp = face.timestamp ?? null
+    const base = {
+      id: Number(face.id),
+      score: Number(face.score) || 0,
+      timestamp: face.timestamp ?? null,
+    }
     const gate = classifyStoredFaceForMatch({
       hasTagId: Boolean(face.tagId),
       force: options.force,
@@ -566,29 +557,16 @@ async function matchMediaFaces(
 
     if (gate === 'skip-assigned') {
       skipped += 1
-      prepared.push({
-        id: faceId,
+      prepared.push(buildSkippedMatchPreparedFace(base, {
         tagId: Number(face.tagId),
         matchScore: face.matchScore,
-        score: Number(face.score) || 0,
-        timestamp,
-        skip: true,
-        embedding: null,
-      })
+      }))
       continue
     }
 
     if (gate === 'skip-unmatchable') {
       skipped += 1
-      prepared.push({
-        id: faceId,
-        tagId: null,
-        matchScore: null,
-        score: Number(face.score) || 0,
-        timestamp,
-        skip: true,
-        embedding: null,
-      })
+      prepared.push(buildSkippedMatchPreparedFace(base))
       continue
     }
 
@@ -596,74 +574,30 @@ async function matchMediaFaces(
       const embedding = await loadFaceEmbedding(db, face)
       if (!embedding) {
         skipped += 1
-        prepared.push({
-          id: faceId,
-          tagId: null,
-          matchScore: null,
-          score: Number(face.score) || 0,
-          timestamp,
-          skip: true,
-          embedding: null,
-        })
+        prepared.push(buildSkippedMatchPreparedFace(base))
         continue
       }
       const candidates = findTopEnrollmentMatches(embedding, enrollments, settings.candidateLimit)
-      prepared.push({
-        id: faceId,
-        tagId: null,
-        matchScore: null,
-        score: Number(face.score) || 0,
-        timestamp,
-        skip: false,
-        candidates,
-        embedding,
-      })
+      prepared.push(buildReadyMatchPreparedFace(base, candidates, embedding))
     } catch {
       skipped += 1
-      prepared.push({
-        id: faceId,
-        tagId: null,
-        matchScore: null,
-        score: Number(face.score) || 0,
-        timestamp,
-        skip: true,
-        embedding: null,
-      })
+      prepared.push(buildSkippedMatchPreparedFace(base))
     }
   }
 
   const clustered = clusterFacesInMedia(prepared)
-  const handledClusters = new Set<number>()
+  const {updates, tagsToApply, matched} = resolveClusterMatchesForMedia({
+    clustered,
+    enrollments,
+    candidateLimit: settings.candidateLimit,
+    minConfidence: settings.minConfidence,
+    mode: settings.mode,
+    mediaId,
+    metaId,
+  })
 
-  for (const face of clustered) {
-    if (face.skip || handledClusters.has(face.clusterId)) continue
-    handledClusters.add(face.clusterId)
-
-    const members = clustered.filter((entry) => entry.clusterId === face.clusterId && !entry.skip)
-    if (!members.length) continue
-
-    const centroid = averageEmbeddings(members.map((member) => member.embedding))
-    const queryEmbeddings = [
-      ...members.map((member) => member.embedding),
-      centroid,
-    ]
-    const candidates = findTopEnrollmentMatchesForEmbeddings(
-      queryEmbeddings,
-      enrollments,
-      settings.candidateLimit,
-    )
-    const pick = pickMatchFromCandidates(candidates, settings.minConfidence)
-    const update = resolveClusterMatchUpdate(pick, settings.mode)
-
-    for (const member of members) {
-      facesRepo.updateMatch(member.id, update)
-      if (pick.best && (pick.accepted || pick.ambiguous)) {
-        matched += 1
-        if (pick.accepted && settings.mode === 'auto' && update.tagId != null) {
-          tagsToApply.push({mediaId, tagId: update.tagId, metaId})
-        }
-      }
-    }
+  for (const {faceId, update} of updates) {
+    facesRepo.updateMatch(faceId, update)
   }
 
   if (tagsToApply.length) {
@@ -862,12 +796,8 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
   // Re-rank candidates from all frames in the cluster (best-frame + consistency).
   if (enrollmentRefs.length) {
     for (const members of groupFacesByClusterId(clustered).values()) {
-      const queryEmbeddings = [
-        ...members.map((member) => member.embedding),
-        averageEmbeddings(members.map((member) => member.embedding)),
-      ]
       const top = findTopEnrollmentMatchesForEmbeddings(
-        queryEmbeddings,
+        buildClusterQueryEmbeddings(members.map((member) => member.embedding)),
         enrollmentRefs,
         settings.candidateLimit,
       )
