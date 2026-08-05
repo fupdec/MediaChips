@@ -11,24 +11,46 @@ export const TAG_IMAGE_PREFERRED_ORDER = [
   'header',
 ] as const
 
+export type TagImageEntry = {
+  type: string
+  absolutePath: string
+  sourcePath: string
+}
+
 /** Order discovered tag images: preferred suffixes first, then the rest. */
 export function orderFoundTagImages(found: Map<string, string>): string[] {
-  const ordered: string[] = []
+  return orderFoundTagImageEntries(found, '').map((entry) => entry.absolutePath)
+}
+
+function orderFoundTagImageEntries(
+  found: Map<string, string>,
+  dbPath: string,
+): TagImageEntry[] {
+  const ordered: TagImageEntry[] = []
   const remaining = new Map(found)
+  const push = (type: string, absolutePath: string) => {
+    ordered.push({
+      type,
+      absolutePath,
+      sourcePath: dbPath
+        ? path.relative(dbPath, absolutePath).split(path.sep).join('/')
+        : absolutePath,
+    })
+  }
   for (const key of TAG_IMAGE_PREFERRED_ORDER) {
     const item = remaining.get(key)
     if (item) {
-      ordered.push(item)
+      push(key, item)
       remaining.delete(key)
     }
   }
-  for (const item of remaining.values()) ordered.push(item)
+  for (const [type, item] of remaining) push(type, item)
   return ordered
 }
 
-export function findTagImagePaths(dbPath: string, metaId: number, tagId: number): string[] {
+function scanTagImageMap(dbPath: string, metaId: number, tagId: number): Map<string, string> {
   const base = path.join(dbPath, 'meta', String(metaId))
-  if (!fs.existsSync(base)) return []
+  if (!fs.existsSync(base)) return new Map()
 
   const prefix = `${tagId}_`
   const found = new Map<string, string>()
@@ -41,7 +63,19 @@ export function findTagImagePaths(dbPath: string, metaId: number, tagId: number)
     found.set(suffix, absolute)
   }
 
-  return orderFoundTagImages(found)
+  return found
+}
+
+export function findTagImageEntries(
+  dbPath: string,
+  metaId: number,
+  tagId: number,
+): TagImageEntry[] {
+  return orderFoundTagImageEntries(scanTagImageMap(dbPath, metaId, tagId), dbPath)
+}
+
+export function findTagImagePaths(dbPath: string, metaId: number, tagId: number): string[] {
+  return findTagImageEntries(dbPath, metaId, tagId).map((entry) => entry.absolutePath)
 }
 
 export function toEnrollmentSourcePath(dbPath: string, imagePath: string): string {

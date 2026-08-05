@@ -23,6 +23,7 @@ import {
   type EnrollmentGrade,
   type EnrollmentIssue,
 } from './enrollmentQualityGrading'
+import {findTagImageEntries} from './faceEnrollmentPaths'
 
 export type {EnrollmentGrade, EnrollmentIssue} from './enrollmentQualityGrading'
 
@@ -51,41 +52,6 @@ export interface EnrollmentTagQuality {
   images: EnrollmentImageQuality[]
   issues: EnrollmentIssue[]
   grade: EnrollmentGrade
-}
-
-const PREFERRED_IMAGE_TYPES = ['main', 'avatar', 'alt', 'custom1', 'custom2', 'header']
-
-function findTagImageEntries(dbPath: string, metaId: number, tagId: number): Array<{type: string; absolutePath: string; sourcePath: string}> {
-  const base = path.join(dbPath, 'meta', String(metaId))
-  if (!fs.existsSync(base)) return []
-
-  const prefix = `${tagId}_`
-  const found = new Map<string, string>()
-  for (const name of fs.readdirSync(base)) {
-    if (!name.startsWith(prefix) || !/\.jpe?g$/i.test(name)) continue
-    const absolute = path.join(base, name)
-    if (!fs.statSync(absolute).isFile()) continue
-    const suffix = name.slice(prefix.length).replace(/\.jpe?g$/i, '').toLowerCase()
-    found.set(suffix, absolute)
-  }
-
-  const ordered: Array<{type: string; absolutePath: string; sourcePath: string}> = []
-  const push = (type: string, absolutePath: string) => {
-    ordered.push({
-      type,
-      absolutePath,
-      sourcePath: path.relative(dbPath, absolutePath).split(path.sep).join('/'),
-    })
-  }
-
-  for (const type of PREFERRED_IMAGE_TYPES) {
-    const absolute = found.get(type)
-    if (!absolute) continue
-    push(type, absolute)
-    found.delete(type)
-  }
-  for (const [type, absolute] of found) push(type, absolute)
-  return ordered
 }
 
 async function analyzeImage(
