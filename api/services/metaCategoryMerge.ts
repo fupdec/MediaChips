@@ -19,6 +19,8 @@ import {nowIso} from '../db/utils/timestamps'
 import type {MetaRow} from '../db/repositories/meta'
 import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
+import {normalizeTagName} from './tagMoveToCategory'
+import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
 
 export class MetaCategoryMergeError extends Error {
   status: number
@@ -89,28 +91,6 @@ const OR_SETTING_FLAGS = [
   'color',
   'isLink',
 ] as const
-
-function uniquePositiveIds(ids: unknown[]): number[] {
-  const seen = new Set<number>()
-  const result: number[] = []
-  for (const raw of ids) {
-    const id = Number(raw)
-    if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue
-    seen.add(id)
-    result.push(id)
-  }
-  return result
-}
-
-function tagNameKey(name: string | null | undefined): string {
-  return String(name ?? '').trim().toLowerCase()
-}
-
-function uniqueByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
-  const map = new Map<string, T>()
-  for (const item of items) map.set(keyFn(item), item)
-  return [...map.values()]
-}
 
 function remapTagsInMediaMetaId(
   tx: MergeTx,
@@ -443,7 +423,7 @@ export async function mergeTagCategories(
 
     const byName = new Map<string, number[]>()
     for (const tag of categoryTags) {
-      const key = tagNameKey(tag.name)
+      const key = normalizeTagName(tag.name)
       if (!key) continue
       const group = byName.get(key)
       if (group) group.push(tag.id)

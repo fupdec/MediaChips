@@ -15,6 +15,7 @@ import {nowIso} from '../db/utils/timestamps'
 import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
 import type {TagRow} from '../db/repositories/tags'
+import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
 
 export interface TagNameConflict {
   tagId: number
@@ -72,24 +73,6 @@ type MoveTx = Parameters<Parameters<ApiDb['drizzle']['transaction']>[0]>[0]
 
 export function normalizeTagName(name: string | null | undefined): string {
   return String(name ?? '').trim().toLowerCase()
-}
-
-function uniquePositiveIds(ids: unknown[]): number[] {
-  const seen = new Set<number>()
-  const result: number[] = []
-  for (const raw of ids) {
-    const id = Number(raw)
-    if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue
-    seen.add(id)
-    result.push(id)
-  }
-  return result
-}
-
-function uniqueByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
-  const map = new Map<string, T>()
-  for (const item of items) map.set(keyFn(item), item)
-  return [...map.values()]
 }
 
 /**
