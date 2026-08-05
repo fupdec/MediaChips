@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest'
-import { getCenterCropRect } from './imageMedia'
+import {describe, expect, it} from 'vitest'
+import {getCenterCropRect, getDisplayDimensions} from './imageGeometry'
+
+describe('getDisplayDimensions', () => {
+  it('keeps dimensions for normal orientations', () => {
+    expect(getDisplayDimensions(1920, 1080, 1)).toEqual({width: 1920, height: 1080})
+    expect(getDisplayDimensions(1920, 1080, 3)).toEqual({width: 1920, height: 1080})
+  })
+
+  it('swaps width and height for 90°-family EXIF orientations', () => {
+    for (const orientation of [5, 6, 7, 8]) {
+      expect(getDisplayDimensions(1920, 1080, orientation)).toEqual({
+        width: 1080,
+        height: 1920,
+      })
+    }
+  })
+})
 
 describe('getCenterCropRect', () => {
   it('crops tall images to a wider target aspect ratio', () => {

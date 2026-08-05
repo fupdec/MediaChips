@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import exifr from 'exifr'
 import { Jimp } from 'jimp'
+import {getCenterCropRect, getDisplayDimensions} from './imageGeometry'
 
 const THUMB_HEIGHT = 320
 const THUMB_JPEG_QUALITY = 85
@@ -41,14 +42,6 @@ async function readExifOrientation(pathToFile: string): Promise<number> {
   }
 
   return 1
-}
-
-function getDisplayDimensions(width: number, height: number, orientation: number) {
-  if ([5, 6, 7, 8].includes(orientation)) {
-    return {width: height, height: width}
-  }
-
-  return {width, height}
 }
 
 async function applyExifOrientation(image: JimpImage, orientation: number) {
@@ -184,40 +177,6 @@ const createImageThumb = async (pathToFile: string, id: string | number, dbPath:
 
   await writeJpeg(image, outputPath)
   return outputPath
-}
-
-function getCenterCropRect(
-  width: number,
-  height: number,
-  targetAspectRatio: number,
-): {x: number; y: number; w: number; h: number} {
-  const aspectRatio = width / height
-
-  let cropWidth: number
-  let cropHeight: number
-
-  if (aspectRatio > targetAspectRatio) {
-    cropHeight = height
-    cropWidth = height * targetAspectRatio
-  } else {
-    cropWidth = width
-    cropHeight = width / targetAspectRatio
-  }
-
-  cropWidth = Math.min(cropWidth, width)
-  cropHeight = Math.min(cropHeight, height)
-
-  const x = Math.max(0, (width - cropWidth) / 2)
-  const y = Math.max(0, (height - cropHeight) / 2)
-  const flooredX = Math.floor(x)
-  const flooredY = Math.floor(y)
-
-  return {
-    x: flooredX,
-    y: flooredY,
-    w: Math.min(Math.floor(cropWidth), width - flooredX),
-    h: Math.min(Math.floor(cropHeight), height - flooredY),
-  }
 }
 
 async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveImageOptions) {
