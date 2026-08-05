@@ -1,98 +1,25 @@
-import type { ApiDb, AnyRecord, MediaLike, TagLike } from '../types/db'
-import type { PathToken, TokenizeOptions } from '../types/pathTokenizer'
-import { cosineSimilarity, embedText } from './embeddingModel'
-import { tokenizeFilePath } from './pathTokenizer'
-import { createTagsRepository } from '../db/repositories/tags'
-
-interface TagCandidate {
-  word: string
-  source: string
-  sample: string
-  words: number
-  weight: number
-  occurrences?: number
-  cluster?: string[]
-}
-
-interface PathTokenCount {
-  word: string
-  occurrences: number
-  sample?: string
-  words: number
-}
+import type {ApiDb, AnyRecord, MediaLike, TagLike} from '../types/db'
+import {cosineSimilarity, embedText} from './embeddingModel'
+import {createTagsRepository} from '../db/repositories/tags'
+import {
+  countPathTokens,
+  filterExistingTags,
+  getCandidatePhrases,
+  type PathTokenCount,
+  type TagPhraseCandidate,
+} from './tagSuggesterPhrases'
 
 interface TagCluster {
   word: string
   occurrences: number
   sample: string
-  best: TagCandidate
+  best: TagPhraseCandidate
   embedding: number[]
   words: string[]
 }
 
-function getCandidatePhrases(filePath: string, options: TokenizeOptions & { maxWords?: number } = {}) {
-  const parsed = tokenizeFilePath(filePath, options)
-  const grouped = new Map<string, PathToken[]>()
-
-  for (const entry of parsed.tokens) {
-    const key = `${entry.source}:${entry.segment}`
-    if (!grouped.has(key)) grouped.set(key, [])
-    grouped.get(key)!.push(entry)
-  }
-
-  const candidates: TagCandidate[] = []
-  for (const entries of grouped.values()) {
-    const maxWords = Math.min(Number(options.maxWords || 3), 3)
-    for (let size = 1; size <= maxWords; size++) {
-      for (let i = 0; i <= entries.length - size; i++) {
-        const phraseEntries = entries.slice(i, i + size)
-        const word = phraseEntries.map((entry) => entry.token).join(' ')
-        const weight = phraseEntries.reduce((sum, entry) => sum + entry.weight, 0) / size
-        candidates.push({
-          word,
-          source: phraseEntries[0].source,
-          sample: phraseEntries[0].segment,
-          words: size,
-          weight,
-        })
-      }
-    }
-  }
-
-  return candidates
-}
-
-function countPathTokens(media: MediaLike[], options: TokenizeOptions & { maxWords?: number } = {}): PathTokenCount[] {
-  const counts = new Map<string, number>()
-  const samples = new Map<string, string>()
-  const wordsCount = new Map<string, number>()
-
-  for (const item of media) {
-    for (const candidate of getCandidatePhrases(String(item.path), options)) {
-      const current = counts.get(candidate.word) || 0
-      counts.set(candidate.word, current + candidate.weight)
-      if (!samples.has(candidate.word)) samples.set(candidate.word, candidate.sample)
-      if (!wordsCount.has(candidate.word)) wordsCount.set(candidate.word, candidate.words)
-    }
-  }
-
-  return [...counts.entries()]
-    .map(([word, occurrences]) => ({
-      word,
-      occurrences,
-      sample: samples.get(word),
-      words: wordsCount.get(word) || 1,
-    }))
-    .sort((a, b) => b.occurrences - a.occurrences)
-}
-
-function filterExistingTags(candidates: PathTokenCount[], tags: TagLike[] = []) {
-  const existing = new Set(tags.map((tag) => String(tag.name || '').trim().toLowerCase()))
-  return candidates.filter(candidate => !existing.has(String(candidate.word || '').toLowerCase()))
-}
-
 async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settings: AnyRecord = {}) {
-  if (!settings.useML) return candidates.map((i) => ({ ...i, cluster: [i.word] }))
+  if (!settings.useML) return candidates.map((i) => ({...i, cluster: [i.word]}))
 
   const threshold = Number(settings.clusterThreshold || 0.88)
   const clusters: TagCluster[] = []
@@ -144,7 +71,7 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
   }
 
   return clusters
-    .map(({ embedding: _embedding, best: _best, ...cluster }) => ({
+    .map(({embedding: _embedding, best: _best, ...cluster}) => ({
       ...cluster,
       cluster: cluster.words,
     }))
@@ -169,4 +96,4 @@ async function suggestTagsFromMedia(db: ApiDb, media: MediaLike[], settings: Any
   return clustered.slice(0, limit)
 }
 
-export { countPathTokens, getCandidatePhrases, suggestTagsFromMedia }
+export {countPathTokens, getCandidatePhrases, suggestTagsFromMedia}
