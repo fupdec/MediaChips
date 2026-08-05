@@ -5,6 +5,7 @@ import {
   buildFaceMatchProgressEvent,
   createFaceMatchIterateCounters,
   markFaceMatchIterateFailed,
+  resolveIterateFaceMatchingGate,
 } from './faceMatchIterate'
 
 describe('faceMatchIterate counters', () => {
@@ -64,5 +65,29 @@ describe('faceMatchIterate counters', () => {
       stopped: true,
       matched: 4,
     })
+  })
+
+  it('gates iterateFaceMatching before model warm-up', () => {
+    expect(resolveIterateFaceMatchingGate({
+      performerMetaId: null,
+      enrollmentsCount: 0,
+    })).toEqual({
+      ok: false,
+      event: {type: 'error', message: 'Performer category is not configured.'},
+    })
+    expect(resolveIterateFaceMatchingGate({
+      performerMetaId: 1,
+      enrollmentsCount: 0,
+    })).toEqual({
+      ok: false,
+      event: {
+        type: 'error',
+        message: 'No enrolled performer faces. Enroll from performer images first.',
+      },
+    })
+    expect(resolveIterateFaceMatchingGate({
+      performerMetaId: 1,
+      enrollmentsCount: 3,
+    })).toEqual({ok: true})
   })
 })

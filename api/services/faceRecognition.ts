@@ -56,6 +56,7 @@ import {
   buildFaceMatchProgressEvent,
   createFaceMatchIterateCounters,
   markFaceMatchIterateFailed,
+  resolveIterateFaceMatchingGate,
 } from './faceMatchIterate'
 import {
   applyFaceEnrollTagOutcome,
@@ -599,15 +600,15 @@ async function* iterateFaceMatching(
   } = {},
 ): AsyncGenerator<FaceMatchProgressEvent> {
   const settings = getFaceMatchSettings(db)
-  if (!settings.performerMetaId) {
-    yield {type: 'error', message: 'Performer category is not configured.'}
-    return
-  }
-
-  const enrollmentsCount = createFaceEnrollmentsRepository(db.drizzle)
-    .countByMetaId(settings.performerMetaId)
-  if (!enrollmentsCount) {
-    yield {type: 'error', message: 'No enrolled performer faces. Enroll from performer images first.'}
+  const enrollmentsCount = settings.performerMetaId
+    ? createFaceEnrollmentsRepository(db.drizzle).countByMetaId(settings.performerMetaId)
+    : 0
+  const gate = resolveIterateFaceMatchingGate({
+    performerMetaId: settings.performerMetaId,
+    enrollmentsCount,
+  })
+  if (!gate.ok) {
+    yield gate.event
     return
   }
 

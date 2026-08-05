@@ -77,3 +77,30 @@ export function buildFaceMatchCompleteEvent(
     stopped,
   }
 }
+
+export type IterateFaceMatchingGate =
+  | {ok: true}
+  | {ok: false; event: FaceMatchProgressEvent}
+
+/** Preflight before prepareEmbedModel / media loop in iterateFaceMatching. */
+export function resolveIterateFaceMatchingGate(input: {
+  performerMetaId: number | null | undefined
+  enrollmentsCount: number
+}): IterateFaceMatchingGate {
+  if (!input.performerMetaId) {
+    return {
+      ok: false,
+      event: {type: 'error', message: 'Performer category is not configured.'},
+    }
+  }
+  if (!input.enrollmentsCount) {
+    return {
+      ok: false,
+      event: {
+        type: 'error',
+        message: 'No enrolled performer faces. Enroll from performer images first.',
+      },
+    }
+  }
+  return {ok: true}
+}
