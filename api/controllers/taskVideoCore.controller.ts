@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { runNdjsonAsyncGenerator } from './tasks/ndjsonStreamRunner'
 import fs from 'fs'
@@ -77,7 +77,11 @@ export default function taskVideoCoreController(db: ApiDb) {
 
       res.status(400).send({message: result.message || 'Failed to create grid'})
     } catch (error) {
-      res.status(400).send({message: error})
+      sendControllerError(
+        res,
+        error instanceof HttpError ? error : new HttpError(400, apiErrorMessage(error) || String(error)),
+        'Failed to create timeline grid',
+      )
     }
   }
 

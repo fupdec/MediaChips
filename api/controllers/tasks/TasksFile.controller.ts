@@ -88,14 +88,17 @@ export default function createTasksFileController(shared: TaskControllerShared) 
     } catch (error: unknown) {
       const apiErr = asApiError(error)
       console.log('ERROR: ' + apiErr.message)
-      res.status(400).send({
-        code: apiErr.code || 'UNKNOWN',
-        message: apiErr.message,
-        required: apiErr.required,
-        available: apiErr.available,
-        fileName: path.basename(new_path),
-        folder: path.dirname(new_path),
-      })
+      sendControllerError(
+        res,
+        new HttpError(400, apiErr.message || 'Failed to rename file', {
+          code: apiErr.code || 'UNKNOWN',
+          required: apiErr.required,
+          available: apiErr.available,
+          fileName: path.basename(new_path),
+          folder: path.dirname(new_path),
+        }),
+        'Failed to rename file',
+      )
     }
   }
 
@@ -209,10 +212,14 @@ export default function createTasksFileController(shared: TaskControllerShared) 
     } catch (error: unknown) {
       const message = apiErrorMessage(error) || String(error)
       if (message === 'not directory') {
-        res.status(400).send({ message: 'not directory' })
+        sendControllerError(res, new HttpError(400, 'not directory'), 'not directory')
         return
       }
-      res.status(400).send({ message: error instanceof Error ? error : message })
+      sendControllerError(
+        res,
+        error instanceof HttpError ? error : new HttpError(400, message),
+        'Failed to list files',
+      )
     }
   }
 
@@ -239,7 +246,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       sendControllerError(
         res,
         err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Failed to list files',
+        'Failed to delete file',
       )
     }
   }

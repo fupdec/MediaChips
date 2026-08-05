@@ -1,4 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
+import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -30,7 +31,11 @@ export default function createTasksVideoPreviewController(shared: TaskController
         res.status(201).send(result)
       })
       .catch((e: unknown) => {
-        res.status(400).send(e)
+        sendControllerError(
+          res,
+          e instanceof HttpError ? e : new HttpError(400, apiErrorMessage(e) || String(e)),
+          'Failed to create video thumbnail',
+        )
       })
   }
 
@@ -73,7 +78,11 @@ export default function createTasksVideoPreviewController(shared: TaskController
       )
       res.status(201).send(thumbResult)
     } catch (e) {
-      res.status(400).send(e)
+      sendControllerError(
+        res,
+        e instanceof HttpError ? e : new HttpError(400, apiErrorMessage(e) || String(e)),
+        'Failed to create thumbnail',
+      )
     }
   }
 
@@ -115,9 +124,11 @@ export default function createTasksVideoPreviewController(shared: TaskController
           })
         }
       } catch (err) {
-        res.status(400).send({
-          message: err instanceof Error ? err.message : String(err),
-        })
+        sendControllerError(
+          res,
+          err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+          'Failed to create video grid',
+        )
       }
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
@@ -175,7 +186,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
       const message = e instanceof Error
         ? e.message
         : 'Failed to download or save image'
-      res.status(202).send({message})
+      // Soft failure: UI treats 202 as non-fatal image save issues.
+      sendControllerError(res, new HttpError(202, message), message)
     }
   }
 
@@ -229,7 +241,11 @@ export default function createTasksVideoPreviewController(shared: TaskController
       )
       res.status(201).send('success')
     } catch (e) {
-      res.status(400).send(e)
+      sendControllerError(
+        res,
+        e instanceof HttpError ? e : new HttpError(400, apiErrorMessage(e) || String(e)),
+        'Failed to create mark thumbnail',
+      )
     }
   }
 
