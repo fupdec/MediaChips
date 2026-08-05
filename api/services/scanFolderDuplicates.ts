@@ -6,6 +6,7 @@ import { pathsEquivalent } from '../utils/normalizeUserPath'
 import { buildExtensionRegex } from '../utils/mediaExtensions'
 import { computeFingerprint } from './mediaFingerprint'
 import { queryAll } from '../db/utils/rawQuery'
+import { addToSizeBasenameIndex, sizeBasenameKey } from './scanFolderDuplicateIndex'
 
 type ScanFolderOptions = {
   folders?: string[]
@@ -79,10 +80,6 @@ async function listFilesFromRoots(
   }
 
   return fileList
-}
-
-function sizeBasenameKey(filesize: number, basename: string) {
-  return `${filesize}::${basename.toLowerCase()}`
 }
 
 async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOptions = {}) {
@@ -162,10 +159,7 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
   for (const file of files) {
     if (!bySize.has(file.filesize)) bySize.set(file.filesize, [])
     bySize.get(file.filesize)!.push(file)
-
-    const key = sizeBasenameKey(file.filesize, file.basename)
-    if (!bySizeBasename.has(key)) bySizeBasename.set(key, [])
-    bySizeBasename.get(key)!.push(file)
+    addToSizeBasenameIndex(bySizeBasename, file.filesize, file.basename, file)
   }
 
   const withinFolderSizeGroups = [...bySize.entries()]
@@ -194,9 +188,12 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     `, {mediaTypeId: typeId})
 
     for (const row of rows) {
-      const key = sizeBasenameKey(Number(row.filesize) || 0, String(row.basename || path.basename(String(row.path || ''))))
-      if (!libraryBySizeBasename.has(key)) libraryBySizeBasename.set(key, [])
-      libraryBySizeBasename.get(key)!.push(row)
+      addToSizeBasenameIndex(
+        libraryBySizeBasename,
+        Number(row.filesize) || 0,
+        String(row.basename || path.basename(String(row.path || ''))),
+        row,
+      )
 
       const oshash = String(row.oshash || '').trim()
       if (oshash) {
