@@ -299,10 +299,11 @@ watch(() => items.value.isFiltersLoaded, normalizeSortBy)
 function filterSortItems(
   _itemTitle: string,
   queryText: string,
-  item: {raw: unknown},
+  item?: {raw: unknown},
 ): boolean {
   const query = String(queryText || '').trim().toLowerCase()
   if (!query) return true
+  if (!item) return false
 
   const raw = item.raw
   if (isSortGroupHeader(raw) || isSortGroupDivider(raw)) return false

@@ -88,37 +88,37 @@ export function useStartupHealthNotifications() {
       })
     }
 
-    if (Number(data.fingerprint?.pending) > 0) {
+    if (Number(data.fingerprint?.pending ?? 0) > 0) {
       notify(
         'fingerprint',
-        t('home.widgets.health_fingerprint_pending', {count: data.fingerprint.pending}),
+        t('home.widgets.health_fingerprint_pending', {count: data.fingerprint!.pending}),
         'fingerprint_backfill',
         t('home.widgets.health_open_settings'),
       )
     }
 
-    if (Number(data.oshash?.pending) > 0) {
+    if (Number(data.oshash?.pending ?? 0) > 0) {
       notify(
         'oshash',
-        t('home.widgets.health_oshash_pending', {count: data.oshash.pending}),
+        t('home.widgets.health_oshash_pending', {count: data.oshash!.pending}),
         'oshash_backfill',
         t('home.widgets.health_open_settings'),
       )
     }
 
-    if (Number(data.contentHash?.pending) > 0) {
+    if (Number(data.contentHash?.pending ?? 0) > 0) {
       notify(
         'content-hash',
-        t('home.widgets.health_content_hash_pending', {count: data.contentHash.pending}),
+        t('home.widgets.health_content_hash_pending', {count: data.contentHash!.pending}),
         'content_hash_backfill',
         t('home.widgets.health_open_settings'),
       )
     }
 
-    if (Number(data.videoCodec?.pending) > 0) {
+    if (Number(data.videoCodec?.pending ?? 0) > 0) {
       notify(
         'video-codec',
-        t('home.widgets.health_video_codec_pending', {count: data.videoCodec.pending}),
+        t('home.widgets.health_video_codec_pending', {count: data.videoCodec!.pending}),
         'video_codec_backfill',
         t('home.widgets.health_open_video_codec_backfill'),
       )

@@ -432,7 +432,10 @@ function applyConfig(config: ServerConfigPayload) {
       if (startupHealthTimer) clearTimeout(startupHealthTimer)
       startupHealthTimer = setTimeout(() => {
         startupHealthTimer = null
-        void runStartupHealthCheck(app.config?.id ?? null)
+        const dbId = app.config?.id
+        void runStartupHealthCheck(
+          typeof dbId === 'string' || typeof dbId === 'number' ? dbId : null,
+        )
       }, 2500)
     }
   }

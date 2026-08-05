@@ -1,4 +1,4 @@
-import type {ScraperSelectedResult} from './scraper'
+import type {ScraperSelectedResult, ScraperPoster} from './scraper'
 import type {
   CamGirlFinderMappedAccount as ServerMappedAccount,
   CamGirlFinderMappedPerformer as ServerMappedPerformer,
@@ -6,4 +6,8 @@ import type {
 
 export type CamGirlFinderMappedAccount = ServerMappedAccount
 
-export interface CamGirlFinderMappedPerformer extends ScraperSelectedResult, ServerMappedPerformer {}
+export interface CamGirlFinderMappedPerformer
+  extends Omit<ServerMappedPerformer, 'posters'>,
+    Omit<ScraperSelectedResult, 'posters'> {
+  posters?: ScraperPoster[]
+}

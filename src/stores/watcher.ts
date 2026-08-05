@@ -36,9 +36,7 @@ function filterTrackedMenuEntries(
     return entries.filter((entry) => activeIds.has(Number(entry.folder.id)))
   }
 
-  return entries.filter((entry) =>
-    entry.folder.watch !== false && entry.folder.watch !== 0,
-  )
+  return entries.filter((entry) => entry.folder.watch !== false)
 }
 
 export const useWatcherStore = defineStore('watcher', {

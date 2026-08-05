@@ -209,7 +209,7 @@ const previewMediaType = computed(() => {
     ...props.media,
     name: name.value || props.media.name,
     icon: icon.value || props.media.icon,
-    hidden: hidden.value,
+    hidden: Boolean(hidden.value),
   }
 })
 

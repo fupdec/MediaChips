@@ -671,10 +671,10 @@ const sendForm = async () => {
   }
 }
 
-const updateMetaSettings = (newSettings: Partial<MetaSettingsForm>) => {
+const updateMetaSettings = (newSettings: unknown) => {
   metaSettings.value = {
     ...metaSettings.value,
-    ...newSettings
+    ...(newSettings as Partial<MetaSettingsForm>),
   }
 }
 
@@ -744,7 +744,12 @@ watch(() => props.dialog, (newVal) => {
   metaSettings.value = buildCreateDefaults()
 
   if (props.meta) {
-    metaSettings.value = {...metaSettingsDefault.value, ...props.meta}
+    metaSettings.value = {
+      ...metaSettingsDefault.value,
+      ...props.meta,
+      pathRegex: props.meta.pathRegex ?? '',
+      pathRegexReplace: props.meta.pathRegexReplace ?? '',
+    }
   }
 
   const requested = props.initialTab || 'basics'

@@ -270,10 +270,11 @@ function getOptionLabel(option: GroupByMenuOption) {
 function filterGroupByItems(
   _itemTitle: string,
   queryText: string,
-  item: {raw: unknown},
+  item?: {raw: unknown},
 ): boolean {
   const query = String(queryText || '').trim().toLowerCase()
   if (!query) return true
+  if (!item) return false
 
   const raw = item.raw
   if (isGroupByGroupHeader(raw) || isGroupByGroupDivider(raw)) return false

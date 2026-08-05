@@ -155,10 +155,10 @@ const counters = ref({
   failed: 0,
 })
 
-let abortController = null
-let taskId = null
+let abortController: AbortController | null = null
+let taskId: string | null = null
 /** Wall-clock start of the upscale loop (after download). */
-let progressStartedAt = null
+let progressStartedAt: number | null = null
 
 const formatProgressLabel = () => {
   const {processed, total, upscaled, failed} = counters.value
@@ -225,7 +225,8 @@ const fetchStatus = async () => {
     statusLoaded.value = true
     visible.value = !status.value.done
   } catch (error) {
-    statusError.value = error.message
+    const err = error instanceof Error ? error : new Error(String(error))
+    statusError.value = err.message
     // Keep a visible error card only if upgrade might still be relevant.
     if (!status.value.done) {
       visible.value = true
@@ -398,7 +399,7 @@ const startUpscale = async () => {
       await refreshStatus()
     }
   } catch (error) {
-    if (error?.name !== 'AbortError') {
+    if (error instanceof Error && error.name !== 'AbortError') {
       const message = error.message || String(error)
       statusError.value = message
       setNotification({type: 'error', text: message})

@@ -266,8 +266,8 @@ const updateRating = (ratingData: Record<string, unknown>) => {
   rating.value = ratingData
 }
 
-const updateSettingsArray = (settings: Record<string, unknown>) => {
-  settingsArray.value = settings
+const updateSettingsArray = (settings: unknown) => {
+  settingsArray.value = settings as Record<string, unknown>
 }
 
 const closeDialog = () => {

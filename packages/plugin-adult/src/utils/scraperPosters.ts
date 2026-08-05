@@ -103,7 +103,7 @@ export function assignScraperImageSlot(
 /** Map ordered poster URLs into the first N default slots (CamGirlFinder quick-apply). */
 export function assignmentsFromPosterUrls(
   urls: string[],
-  limit = SCRAPER_IMAGE_SLOTS.length,
+  limit: number = SCRAPER_IMAGE_SLOTS.length,
 ): ScraperImageAssignment[] {
   const assignments: ScraperImageAssignment[] = []
   for (const url of urls) {

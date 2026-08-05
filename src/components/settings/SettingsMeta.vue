@@ -147,7 +147,7 @@
       :meta="selectedMeta"
       :dialog="editDialog"
       :initial-tab="initialEditTab"
-      :allowed-types="META_FIELD_TYPES"
+      :allowed-types="[...META_FIELD_TYPES]"
       @updated="getMeta"
       @close="closeEditDialog"
       @request-edit="onRequestEdit"
