@@ -29,6 +29,24 @@ import {
 } from '../../shared/tagImages'
 import {parseBooleanSetting} from '../utils/parseBooleanSetting'
 import {isPathInside} from '../utils/isPathInside'
+import {
+  REALESRGAN_NCNN_BUILD,
+  REALESRGAN_NCNN_RELEASE,
+  getRealesrganZipFileName,
+  getRealesrganZipUrl,
+  isTransientDownloadError,
+  needsTagAiUpscale,
+  targetHeightFor,
+} from './realesrganDownload'
+
+export {
+  REALESRGAN_NCNN_BUILD,
+  REALESRGAN_NCNN_RELEASE,
+  getRealesrganZipFileName,
+  getRealesrganZipUrl,
+  isTransientDownloadError,
+  needsTagAiUpscale,
+} from './realesrganDownload'
 
 const execFile = promisify(execFileCb)
 
@@ -36,8 +54,6 @@ const execFile = promisify(execFileCb)
 export const TAG_IMAGES_AI_UPSCALED_SETTING = 'migrations.tagImagesAiUpscaledV5'
 
 /** Portable Real-ESRGAN ncnn-vulkan release (includes binary + models). */
-export const REALESRGAN_NCNN_RELEASE = 'v0.2.5.0'
-export const REALESRGAN_NCNN_BUILD = '20220424'
 export const REALESRGAN_MODEL_NAME = 'realesrgan-x4plus'
 /**
  * x4plus only supports scale 4 in ncnn-vulkan.
@@ -57,14 +73,6 @@ const DOWNLOAD_TIMEOUT_MS = 180_000
 const DOWNLOAD_MAX_REDIRECTS = 8
 /** Packages are ~45–52 MB; reject truncated caches below this. */
 const MIN_ZIP_BYTES = 20 * 1024 * 1024
-
-type PlatformZipKey = 'darwin' | 'win32' | 'linux'
-
-const PLATFORM_ZIP: Record<PlatformZipKey, string> = {
-  darwin: `realesrgan-ncnn-vulkan-${REALESRGAN_NCNN_BUILD}-macos.zip`,
-  win32: `realesrgan-ncnn-vulkan-${REALESRGAN_NCNN_BUILD}-windows.zip`,
-  linux: `realesrgan-ncnn-vulkan-${REALESRGAN_NCNN_BUILD}-ubuntu.zip`,
-}
 
 export interface TagImagePendingItem {
   path: string
@@ -108,37 +116,6 @@ export function getTagUpscaleZipCacheDir(db: ApiDb): string {
   return path.join(getModelsRoot(db), 'models', 'tag-upscale-cache')
 }
 
-export function getRealesrganZipFileName(platform: NodeJS.Platform = process.platform): string {
-  const key = (platform === 'darwin' || platform === 'win32' || platform === 'linux')
-    ? platform
-    : 'linux'
-  return PLATFORM_ZIP[key]
-}
-
-export function getRealesrganZipUrl(platform: NodeJS.Platform = process.platform): string {
-  const file = getRealesrganZipFileName(platform)
-  return `https://github.com/xinntao/Real-ESRGAN/releases/download/${REALESRGAN_NCNN_RELEASE}/${file}`
-}
-
-export function isTransientDownloadError(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code
-  if (
-    code === 'ECONNRESET'
-    || code === 'ETIMEDOUT'
-    || code === 'ECONNREFUSED'
-    || code === 'ENOTFOUND'
-    || code === 'EAI_AGAIN'
-    || code === 'EPIPE'
-    || code === 'ECONNABORTED'
-    || code === 'UND_ERR_SOCKET'
-    || code === 'UND_ERR_CONNECT_TIMEOUT'
-  ) {
-    return true
-  }
-  const message = error instanceof Error ? error.message : String(error)
-  return /TLS|socket disconnected|socket hang up|network|ECONNRESET|ETIMEDOUT|timed out/i.test(message)
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -149,23 +126,6 @@ function hasUsableZip(zipPath: string): boolean {
   } catch {
     return false
   }
-}
-
-export function needsTagAiUpscale(
-  width: number,
-  height: number,
-  targetWidth: number,
-): boolean {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return false
-  }
-  return Math.max(width, height) < targetWidth
-}
-
-function targetHeightFor(width: number, height: number, targetWidth: number): number {
-  const aspect = width / height
-  if (!Number.isFinite(aspect) || aspect <= 0) return targetWidth
-  return Math.max(1, Math.round(targetWidth / aspect))
 }
 
 function emptyByType(): Record<string, number> {
