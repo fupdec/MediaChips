@@ -128,11 +128,18 @@ export function buildTagArrayJoinResult(
 
   const tagsKey = nextParam(tagIds.length === 1 ? tagIds[0] : tagIds)
   if (tagIds.length === 1) {
+    // PK (entityId, tagId, metaId) makes a single-tag equality join unique-keyed.
     return `INNER JOIN ${ctx.table} ${alias} ON ${alias}.${ctx.idColumn} = ${ctx.entityRef} AND ${alias}.metaId = ${metaKey} AND ${alias}.tagId = ${tagsKey}`
   }
 
   if (cond === 'in') {
-    return `INNER JOIN ${ctx.table} ${alias} ON ${alias}.${ctx.idColumn} = ${ctx.entityRef} AND ${alias}.metaId = ${metaKey} AND ${alias}.tagId IN (${tagsKey})`
+    // Multi-tag OR would otherwise fan out one row per matching child tag.
+    // Distinct id subquery keeps list/count paths off needsDistinct.
+    return `INNER JOIN (
+      SELECT DISTINCT ${ctx.idColumn}
+      FROM ${ctx.table}
+      WHERE metaId = ${metaKey} AND tagId IN (${tagsKey})
+    ) ${alias} ON ${alias}.${ctx.idColumn} = ${ctx.entityRef}`
   }
 
   return null

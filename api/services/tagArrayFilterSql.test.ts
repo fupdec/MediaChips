@@ -59,6 +59,37 @@ describe('buildTagArrayJoinResult', () => {
     expect(result).toContain('INNER JOIN')
     expect(result).toContain('COUNT(DISTINCT CASE WHEN tagId IN')
   })
+
+  it('unique-keys multi-tag in joins with SELECT DISTINCT', () => {
+    const result = buildTagArrayJoinResult(
+      TAG_RELATION_LINK,
+      { cond: 'in', val: [5, 6] },
+      'tf0',
+      ':meta',
+      (value) => (Array.isArray(value) ? `:${value.join('_')}` : `:${String(value)}`),
+    )
+
+    expect(typeof result).toBe('string')
+    if (typeof result !== 'string') return
+
+    expect(result).toContain('SELECT DISTINCT parentTagId')
+    expect(result).toContain('tagId IN (:5_6)')
+    expect(result).not.toMatch(/INNER JOIN tagsInTags tf0 ON/)
+  })
+
+  it('keeps single-tag in as a direct equality join', () => {
+    const result = buildTagArrayJoinResult(
+      TAG_RELATION_LINK,
+      { cond: 'in', val: [5] },
+      'tf0',
+      ':meta',
+      (value) => `:${String(value)}`,
+    )
+
+    expect(result).toBe(
+      'INNER JOIN tagsInTags tf0 ON tf0.parentTagId = tags.id AND tf0.metaId = :meta AND tf0.tagId = :5',
+    )
+  })
 })
 
 describe('buildTagArrayFilterClause', () => {

@@ -52,7 +52,7 @@ describe('buildTagFilterQuery', () => {
     expect(result.replacements).toMatchObject({ metaId: 17, f0: 3, f1: 1050 })
   })
 
-  it('still marks multi-tag in joins as needsDistinct (tagsInTags can fan out)', () => {
+  it('keeps needsDistinct false for multi-tag in joins that are already unique-keyed', () => {
     const result = buildTagFilterQuery([
       { active: true, param: 3, type: 'array', cond: 'in', val: [1050, 1051] },
     ], { metaId: 17 })
@@ -60,8 +60,11 @@ describe('buildTagFilterQuery', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.needsDistinct).toBe(true)
+    expect(result.needsDistinct).toBe(false)
     expect(result.joinSql).toContain('tagsInTags')
+    expect(result.joinSql).toContain('SELECT DISTINCT parentTagId')
+    expect(result.joinSql).toContain('tagId IN (:f1)')
+    expect(result.replacements).toMatchObject({metaId: 17, f0: 3, f1: [1050, 1051]})
   })
 
   it('builds rating filter on tag column', () => {

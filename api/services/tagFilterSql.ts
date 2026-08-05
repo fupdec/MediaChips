@@ -140,7 +140,10 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
   const clauses = ['tags.metaId = :metaId']
   const joins: string[] = []
   let joinIndex = 0
-  let needsDistinct = false
+  // Tag relation joins are unique-keyed (single-tag PK equality or SELECT DISTINCT
+  // parentTagId for multi-tag `in` / GROUP BY for in-all/in-only), so list/totals
+  // must not force DISTINCT or the two-phase grouping rehydrate path.
+  const needsDistinct = false
 
   if (ids.length) {
     replacements.ids = ids
@@ -158,11 +161,6 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
         if (join) {
           applyTagArrayJoinResult(join, joins, clauses)
           joinIndex += 1
-          if (filter.cond === 'in') {
-            if (tagIds.length > 1) {
-              needsDistinct = true
-            }
-          }
           continue
         }
       }
