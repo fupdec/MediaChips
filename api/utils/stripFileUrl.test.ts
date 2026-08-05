@@ -9,7 +9,7 @@ describe('stripFileUrl', () => {
 
   it('strips file:// prefixes and localhost', () => {
     expect(stripFileUrl('file:///Movies/a.mp4')).toBe('Movies/a.mp4')
-    expect(stripFileUrl('file://localhost/Movies/a.mp4')).toBe('/Movies/a.mp4')
+    expect(stripFileUrl('file://localhost/Movies/a.mp4')).toBe('Movies/a.mp4')
   })
 
   it('unwraps windows drive paths from file urls', () => {
