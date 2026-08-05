@@ -17,6 +17,7 @@ import { apiErrorMessage } from './api/types/errors'
 import { initAppUpdater } from './electron/autoUpdater'
 import { registerMediaDragIpc } from './electron/mediaDrag'
 import { createAppTrayController } from './electron/appTray'
+import { createPlayerWindowController } from './electron/playerWindow'
 import {
   createWindowBoundsPersistence,
   type WindowBoundsConfig,
@@ -72,11 +73,9 @@ const useWinElectronFrame = isWindows
 
 let win: BrowserWindowInstance | null = null
 let loading: BrowserWindowInstance | null = null
-let player: BrowserWindowInstance | null = null
 // Distinguishes an explicit quit (tray menu / File → Exit) from a window close
 // that should be intercepted and turned into "hide to tray".
 let isQuitting = false
-let suppressPlayerWarmup = false
 let suppressZoomChangedEvent = false
 // Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
 const isDevelopment = !app.isPackaged && process.env.NODE_ENV !== 'production'
@@ -206,6 +205,21 @@ const bindRendererLoadRetry = (
     })()
   })
 }
+
+
+const playerWindow = createPlayerWindowController({
+  isWindows,
+  getAppRoot: () => path.join(__dirname),
+  getRendererUrl,
+  readStoredWindowBounds,
+  bindWindowBoundsPersistence,
+  bindRendererLoadRetry,
+  sendConfigToWindow,
+  bindZoomChangedListener,
+  isPlayerMaximizedPreferred: () => Boolean(serverConfig.player?.maximized),
+  isMainWindowRevealed: () => isMainWindowRevealed,
+})
+playerWindow.registerIpc()
 
 const createWindow = () => {
   // Allow reveal again when the window is recreated after close (e.g. macOS Dock click).
@@ -526,14 +540,7 @@ app.on("activate", async () => {
 function quitApp() {
   isQuitting = true
   appTray.destroyTray()
-  if (playerWarmupTimer) {
-    clearTimeout(playerWarmupTimer)
-    playerWarmupTimer = null
-  }
-  if (player && !player.isDestroyed()) {
-    player.destroy()
-    player = null
-  }
+  playerWindow.destroyPlayerWindow()
   if (win && !win.isDestroyed()) {
     win.close()
   }
@@ -571,36 +578,23 @@ app.on('window-all-closed', () => {
     app.quit();
 });
 
-function stopPlayerPlayback() {
-  if (player && !player.isDestroyed()) {
-    player.webContents.send('stop-playing-video')
-  }
-}
-
-ipcMain.handle('closePlayer', () => {
-  stopPlayerPlayback()
-  if (player && !player.isDestroyed()) {
-    player.hide()
-  }
-})
-
 ipcMain.handle('maximize', (_event: IpcMainInvokeEvent, args: unknown) => {
   if (args === 'player') {
-    player?.maximize()
+    playerWindow.getWindow()?.maximize()
   } else {
     win?.maximize()
   }
 })
 ipcMain.handle('unmaximize', (_event: IpcMainInvokeEvent, args: unknown) => {
   if (args === 'player') {
-    player?.unmaximize()
+    playerWindow.getWindow()?.unmaximize()
   } else {
     win?.unmaximize()
   }
 })
 ipcMain.handle('minimize', (_event: IpcMainInvokeEvent, args: unknown) => {
   if (args === 'player') {
-    player?.minimize()
+    playerWindow.getWindow()?.minimize()
   } else {
     win?.minimize()
   }
@@ -898,7 +892,7 @@ Menu.setApplicationMenu(systemMenu)
 
 function lockApp() {
   win?.webContents.send('lockApp')
-  player?.webContents.send('stop-playing-video')
+  playerWindow.stopPlayerPlayback()
 }
 
 process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
@@ -973,164 +967,12 @@ ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: 
   }
 });
 
-// player window
-let pendingPlayerPayload: unknown = null
-let isPlayerRendererReady = false
-let playerWarmupTimer: ReturnType<typeof setTimeout> | null = null
-
-function getPlayerWindowOptions() {
-  const bounds = readStoredWindowBounds('player', 1280, 720)
-  return {
-    frame: false,
-    thickFrame: isWindows,
-    show: false,
-    x: bounds.x,
-    y: bounds.y,
-    height: bounds.height,
-    width: bounds.width,
-    titleBarStyle: 'hidden' as const,
-    trafficLightPosition: os.type() === 'Darwin' ? {x: 12, y: 8} : undefined,
-    backgroundColor: '#000000',
-    icon: path.join(__dirname, 'dist/icons', 'icon.png'),
-    webPreferences: {
-      preload: path.join(__dirname, './electron/preload.js'),
-      contextIsolation: true,
-      sandbox: false,
-      backgroundThrottling: false,
-    },
-  }
-}
-
-function setupPlayerWindowEvents(browserWindow: BrowserWindowInstance) {
-  bindWindowBoundsPersistence('player', browserWindow)
-
-  browserWindow.on('maximize', () => {
-    browserWindow.webContents.send('maximize')
-  })
-
-  browserWindow.on('unmaximize', () => {
-    browserWindow.webContents.send('unmaximize')
-  })
-
-  browserWindow.on('close', () => {
-    stopPlayerPlayback()
-  })
-
-  browserWindow.on('closed', () => {
-    player = null
-    isPlayerRendererReady = false
-    pendingPlayerPayload = null
-    if (suppressPlayerWarmup) {
-      suppressPlayerWarmup = false
-      return
-    }
-    schedulePlayerWarmup()
-  })
-
-  browserWindow.on('enter-full-screen', () => {
-    browserWindow.webContents.send('enter-full-screen')
-  })
-
-  browserWindow.on('leave-full-screen', () => {
-    browserWindow.webContents.send('leave-full-screen')
-  })
-
-  browserWindow.webContents.on('did-finish-load', () => {
-    sendConfigToWindow(browserWindow)
-  })
-
-  bindZoomChangedListener(browserWindow)
-}
-
-function createPlayerWindow() {
-  if (player && !player.isDestroyed()) return player
-
-  isPlayerRendererReady = false
-  player = new BrowserWindow(getPlayerWindowOptions() as Electron.BrowserWindowConstructorOptions)
-  const playerWindow = player!
-  if (serverConfig.player?.maximized) {
-    playerWindow.maximize()
-  }
-  setupPlayerWindowEvents(playerWindow)
-  bindRendererLoadRetry(playerWindow.webContents, () => getRendererUrl('?player=true'))
-  playerWindow.loadURL(getRendererUrl('?player=true'))
-  return playerWindow
-}
-
-function deliverPlayerPayload(data: unknown) {
-  if (!player || player.isDestroyed()) return
-
-  sendConfigToWindow(player)
-  player.webContents.send('play-video', data)
-  if (!player.isVisible()) player.show()
-  player.focus()
-}
-
-function schedulePlayerWarmup() {
-  if (playerWarmupTimer || !isMainWindowRevealed) return
-
-  playerWarmupTimer = setTimeout(() => {
-    playerWarmupTimer = null
-    if (!player || player.isDestroyed()) {
-      createPlayerWindow()
-    }
-  }, 30_000)
-}
-
-function destroyPlayerWindow() {
-  if (playerWarmupTimer) {
-    clearTimeout(playerWarmupTimer)
-    playerWarmupTimer = null
-  }
-
-  stopPlayerPlayback()
-
-  if (player && !player.isDestroyed()) {
-    suppressPlayerWarmup = true
-    player.destroy()
-  }
-
-  player = null
-  isPlayerRendererReady = false
-  pendingPlayerPayload = null
-}
-
-ipcMain.handle('destroyPlayer', () => {
-  destroyPlayerWindow()
-})
-
 ipcMain.on('main-app-ready', (event: IpcMainEvent) => {
   if (!win || win.isDestroyed() || event.sender !== win.webContents) return
   revealMainWindow()
-  schedulePlayerWarmup()
+  playerWindow.schedulePlayerWarmup()
 })
 
-ipcMain.on('player-ready', (event: IpcMainEvent) => {
-  if (!player || player.isDestroyed() || event.sender !== player.webContents) return
-
-  isPlayerRendererReady = true
-
-  if (pendingPlayerPayload) {
-    deliverPlayerPayload(pendingPlayerPayload)
-    pendingPlayerPayload = null
-  }
-})
-
-ipcMain.on('open-player', async (_event: IpcMainEvent, data: Record<string, unknown>) => {
-  if (!player || player.isDestroyed()) {
-    pendingPlayerPayload = data
-    createPlayerWindow()
-    return
-  }
-
-  if (isPlayerRendererReady) {
-    deliverPlayerPayload(data)
-    return
-  }
-
-  pendingPlayerPayload = data
-  if (!player.isVisible()) player.show()
-})
 ipcMain.on('getItemsFromDb', async (_event: IpcMainEvent, data: unknown) => {
   win?.webContents.send('getItemsFromDb', data)
 })
@@ -1139,10 +981,4 @@ ipcMain.on('updateVideoFrames', async (_event: IpcMainEvent, id: unknown) => {
 })
 ipcMain.on('removeEntitiesFromState', async (_event: IpcMainEvent, data: unknown) => {
   win?.webContents.send('removeEntitiesFromState', data)
-})
-ipcMain.on('stop-playing-video', async () => {
-  player?.webContents.send('stop-playing-video')
-})
-ipcMain.on('setFullScreen', async () => {
-  player?.setFullScreen(false)
 })
