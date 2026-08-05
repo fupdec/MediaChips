@@ -3,7 +3,7 @@ import {
   buildFfmpegLiveArgs,
   buildSessionKey,
   shouldRejectDuplicateStream,
-} from '../../api/services/transcode/liveStreamTranscode.js'
+} from '../../api/services/transcode/liveStreamFfmpegArgs.js'
 
 describe('liveStreamTranscode session keys', () => {
   it('includes start time and max height in the session key', () => {
