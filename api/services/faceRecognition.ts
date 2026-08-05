@@ -62,6 +62,13 @@ import {
 } from './faceTensorPrep'
 import {parseFaceMatchSettingsFromMap} from './faceSettingsParse'
 import {
+  applyFaceMatchMediaResult,
+  buildFaceMatchCompleteEvent,
+  buildFaceMatchProgressEvent,
+  createFaceMatchIterateCounters,
+  markFaceMatchIterateFailed,
+} from './faceMatchIterate'
+import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -934,65 +941,31 @@ async function* iterateFaceMatching(
   ids = ids.filter((id) => Boolean(mediaRepo.findById(Number(id))))
 
   const total = ids.length
-  let processed = 0
-  let matched = 0
-  let applied = 0
-  let skipped = 0
-  let failed = 0
+  let counters = createFaceMatchIterateCounters()
 
-  yield {type: 'progress', processed, total, remaining: total, matched, applied, skipped, failed}
+  yield buildFaceMatchProgressEvent(counters, total)
 
   for (const mediaId of ids) {
     if (shouldStop()) {
-      yield {
-        type: 'complete',
-        processed,
-        total,
-        matched,
-        applied,
-        skipped,
-        failed,
-        stopped: true,
-      }
+      yield buildFaceMatchCompleteEvent(counters, total, true)
       return
     }
 
     try {
       const result = await matchMediaFaces(db, Number(mediaId), {force, settings})
-      matched += result.matched
-      applied += result.applied
-      skipped += result.skipped
-      if (result.error && !result.faces) failed += 1
+      counters = applyFaceMatchMediaResult(counters, result)
     } catch {
-      failed += 1
+      counters = markFaceMatchIterateFailed(counters)
     }
 
-    processed += 1
     const media = mediaRepo.findById(Number(mediaId))
-    yield {
-      type: 'progress',
-      processed,
-      total,
-      remaining: Math.max(total - processed, 0),
-      matched,
-      applied,
-      skipped,
-      failed,
+    yield buildFaceMatchProgressEvent(counters, total, {
       current: media?.path || String(mediaId),
       mediaId: Number(mediaId),
-    }
+    })
   }
 
-  yield {
-    type: 'complete',
-    processed,
-    total,
-    matched,
-    applied,
-    skipped,
-    failed,
-    stopped: false,
-  }
+  yield buildFaceMatchCompleteEvent(counters, total, false)
 }
 
 async function enrollTagFaces(
