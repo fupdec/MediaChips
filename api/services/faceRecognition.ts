@@ -39,6 +39,20 @@ import {
   pickMatchFromCandidates,
 } from './faceMatchScoring'
 import {
+  collectExistingEmbeddings,
+  filterPendingEnrollmentPaths,
+  findTagImagePaths,
+  resolveAbsoluteCropPath as resolveAbsoluteCropPathFromDb,
+  toEnrollmentSourcePath as toEnrollmentSourcePathFromDb,
+} from './faceEnrollmentPaths'
+import {
+  classifyStoredFaceForMatch,
+  resolveClusterMatchUpdate,
+  uniqueMediaTagApplies,
+  type FaceMatchMode,
+  type MediaTagApply,
+} from './faceMatchApply'
+import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -58,7 +72,7 @@ const EMBED_SIZE = 112
 const EMBED_INPUT_MEAN = 127.5
 const EMBED_INPUT_STD = 127.5
 
-export type FaceMatchMode = 'suggest' | 'auto'
+export type {FaceMatchMode}
 
 export interface FaceMatchSettings {
   performerMetaId: number | null
@@ -290,10 +304,7 @@ async function embedImage(
 }
 
 function resolveAbsoluteCropPath(db: ApiDb, cropPath: string | null | undefined) {
-  if (!cropPath) return null
-  if (path.isAbsolute(cropPath)) return fs.existsSync(cropPath) ? cropPath : null
-  const absolute = path.join(String(db.path), cropPath)
-  return fs.existsSync(absolute) ? absolute : null
+  return resolveAbsoluteCropPathFromDb(String(db.path || ''), cropPath)
 }
 
 /** Prefer stored embedding; fall back to legacy crop files. */
@@ -317,41 +328,8 @@ async function loadFaceEmbedding(
   }
 }
 
-function findTagImagePaths(dbPath: string, metaId: number, tagId: number): string[] {
-  const base = path.join(dbPath, 'meta', String(metaId))
-  if (!fs.existsSync(base)) return []
-
-  const preferredOrder = ['main', 'avatar', 'alt', 'custom1', 'custom2', 'header']
-  const prefix = `${tagId}_`
-  const found = new Map<string, string>()
-
-  for (const name of fs.readdirSync(base)) {
-    if (!name.startsWith(prefix) || !/\.jpe?g$/i.test(name)) continue
-    const absolute = path.join(base, name)
-    if (!fs.statSync(absolute).isFile()) continue
-    const suffix = name.slice(prefix.length).replace(/\.jpe?g$/i, '').toLowerCase()
-    found.set(suffix, absolute)
-  }
-
-  const ordered: string[] = []
-  for (const key of preferredOrder) {
-    const item = found.get(key)
-    if (item) {
-      ordered.push(item)
-      found.delete(key)
-    }
-  }
-  // Any other tag images (future suffixes) still help enrollment diversity.
-  for (const item of found.values()) ordered.push(item)
-  return ordered
-}
-
 function toEnrollmentSourcePath(db: ApiDb, imagePath: string) {
-  const dbPath = String(db.path || '')
-  if (dbPath && imagePath.startsWith(dbPath)) {
-    return path.relative(dbPath, imagePath)
-  }
-  return imagePath
+  return toEnrollmentSourcePathFromDb(String(db.path || ''), imagePath)
 }
 
 async function extractLargestFaceCrop(
@@ -438,14 +416,7 @@ async function enrollTagFromAllImages(
       .filter(Boolean),
   )
 
-  const existingEmbeddings: Float32Array[] = []
-  for (const row of enrolledRows) {
-    try {
-      existingEmbeddings.push(embeddingFromJson(String(row.embedding)))
-    } catch {
-      // Ignore corrupt rows.
-    }
-  }
+  const existingEmbeddings = collectExistingEmbeddings(enrolledRows, embeddingFromJson)
 
   let created = 0
   for (const imagePath of imagePaths) {
@@ -525,12 +496,12 @@ async function* iterateEnrollFromPerformerImages(
     const existingSources = new Set(
       existing.map((row) => String(row.sourcePath || '')).filter(Boolean),
     )
-    const pendingPaths = force
-      ? imagePaths
-      : imagePaths.filter((imagePath) => {
-        const sourcePath = toEnrollmentSourcePath(db, imagePath)
-        return !existingSources.has(sourcePath) && !existingSources.has(imagePath)
-      })
+    const pendingPaths = filterPendingEnrollmentPaths({
+      imagePaths,
+      existingSourcePaths: existingSources,
+      dbPath: String(db.path || ''),
+      force,
+    })
 
     if (!pendingPaths.length) {
       skipped += 1
@@ -599,7 +570,7 @@ async function matchMediaFaces(
   let matched = 0
   let applied = 0
   let skipped = 0
-  const tagsToApply: Array<{mediaId: number; tagId: number; metaId: number}> = []
+  const tagsToApply: MediaTagApply[] = []
 
   type PreparedFace = {
     id: number
@@ -617,7 +588,13 @@ async function matchMediaFaces(
   for (const face of faces) {
     const faceId = Number(face.id)
     const timestamp = face.timestamp ?? null
-    if (face.tagId && !options.force) {
+    const gate = classifyStoredFaceForMatch({
+      hasTagId: Boolean(face.tagId),
+      force: options.force,
+      isMatchable: isMatchableStoredFace(face),
+    })
+
+    if (gate === 'skip-assigned') {
       skipped += 1
       prepared.push({
         id: faceId,
@@ -631,7 +608,7 @@ async function matchMediaFaces(
       continue
     }
 
-    if (!isMatchableStoredFace(face)) {
+    if (gate === 'skip-unmatchable') {
       skipped += 1
       prepared.push({
         id: faceId,
@@ -706,40 +683,23 @@ async function matchMediaFaces(
       settings.candidateLimit,
     )
     const pick = pickMatchFromCandidates(candidates, settings.minConfidence)
+    const update = resolveClusterMatchUpdate(pick, settings.mode)
 
     for (const member of members) {
-      if (pick.best && pick.accepted) {
-        facesRepo.updateMatch(member.id, {
-          tagId: pick.best.tagId,
-          matchScore: pick.best.score,
-          matchStatus: settings.mode === 'auto' ? 'matched' : 'suggested',
-        })
+      facesRepo.updateMatch(member.id, update)
+      if (pick.best && (pick.accepted || pick.ambiguous)) {
         matched += 1
-        if (settings.mode === 'auto') {
-          tagsToApply.push({mediaId, tagId: pick.best.tagId, metaId})
+        if (pick.accepted && settings.mode === 'auto' && update.tagId != null) {
+          tagsToApply.push({mediaId, tagId: update.tagId, metaId})
         }
-      } else if (pick.best && pick.ambiguous) {
-        facesRepo.updateMatch(member.id, {
-          tagId: pick.best.tagId,
-          matchScore: pick.best.score,
-          matchStatus: 'suggested',
-        })
-        matched += 1
-      } else {
-        facesRepo.updateMatch(member.id, {
-          tagId: null,
-          matchScore: pick.best && pick.best.score > 0 ? pick.best.score : null,
-          matchStatus: 'unmatched',
-        })
       }
     }
   }
 
   if (tagsToApply.length) {
-    const unique = new Map<string, {mediaId: number; tagId: number; metaId: number}>()
-    for (const item of tagsToApply) unique.set(`${item.mediaId}:${item.tagId}:${item.metaId}`, item)
-    createTagsInMediaRepository(db.drizzle).bulkCreate([...unique.values()])
-    applied = unique.size
+    const unique = uniqueMediaTagApplies(tagsToApply)
+    createTagsInMediaRepository(db.drizzle).bulkCreate(unique)
+    applied = unique.length
   }
 
   return {matched, applied, skipped, faces: faces.length}
