@@ -1,4 +1,15 @@
 import type Database from 'better-sqlite3'
+import {
+  matchesGlobalSearchName,
+  splitGlobalSearchTokens,
+} from '../../shared/globalSearchMatch'
+
+export {
+  matchesGlobalSearchName,
+  splitGlobalSearchTokens,
+  tokenMatchesQueryPart,
+  textMatchesGlobalSearchQuery,
+} from '../../shared/globalSearchMatch'
 
 export interface FtsMatchOptions {
   /** Allow prefix token matching (e.g. "act" → "action"). */
@@ -40,53 +51,6 @@ export function parseSynonymList(synonyms: string | null | undefined): string[] 
     .filter(Boolean)
 }
 
-const WORD_TOKEN_SPLIT = /[^\p{L}\p{N}]+/u
-
-/**
- * Split a name into searchable tokens, including CamelCase / PascalCase parts
- * so "JulesJordan" yields both "julesjordan" and ["jules", "jordan"].
- */
-export function splitGlobalSearchTokens(text: string | null | undefined): string[] {
-  const source = String(text || '')
-  if (!source.trim()) return []
-
-  const withCamelBoundaries = source
-    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, '$1 $2')
-    .replace(/(\p{Lu}+)(\p{Lu}\p{Ll})/gu, '$1 $2')
-
-  const tokens = [
-    ...withCamelBoundaries.toLowerCase().split(WORD_TOKEN_SPLIT),
-    ...source.toLowerCase().split(WORD_TOKEN_SPLIT),
-  ].filter(Boolean)
-
-  return [...new Set(tokens)]
-}
-
-function tokenMatchesQueryPart(token: string, part: string): boolean {
-  if (token === part) return true
-  if (!token.startsWith(part)) return false
-
-  // Short queries keep autocomplete behaviour ("act" → "action").
-  if (part.length <= 3) return true
-
-  // Longer queries avoid incidental prefixes ("anal" should not match "analise").
-  return token.length <= part.length + 2
-}
-
-export function matchesGlobalSearchName(
-  name: string | null | undefined,
-  rawQuery: string,
-): boolean {
-  const query = String(rawQuery || '').trim().toLowerCase()
-  if (!query) return false
-
-  const tokens = splitGlobalSearchTokens(name)
-  if (!tokens.length) return false
-
-  const parts = query.split(/\s+/).filter(Boolean)
-  return parts.every((part) => tokens.some((token) => tokenMatchesQueryPart(token, part)))
-}
-
 export function matchesGlobalSearchSynonyms(
   synonyms: string | null | undefined,
   rawQuery: string,
@@ -97,9 +61,7 @@ export function matchesGlobalSearchSynonyms(
   const matchedSynonyms: string[] = []
 
   for (const synonym of parseSynonymList(synonyms)) {
-    const tokens = splitGlobalSearchTokens(synonym)
-
-    if (parts.every((part) => tokens.some((token) => tokenMatchesQueryPart(token, part)))) {
+    if (matchesGlobalSearchName(synonym, rawQuery)) {
       matchedSynonyms.push(synonym)
     }
   }
@@ -158,6 +120,5 @@ export function isFtsSearchAvailable(sqlite: Database.Database): boolean {
   const row = sqlite.prepare(
     `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'media_fts' LIMIT 1`,
   ).get() as { name?: string } | undefined
-
   return Boolean(row?.name)
 }
