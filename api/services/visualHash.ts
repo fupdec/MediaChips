@@ -1,6 +1,7 @@
 import { Jimp } from 'jimp'
 import { VIDEO_GRID_SPRITE } from '../../shared/videoPreview'
 import {
+  averageHashFromBitmap,
   bitsToHex,
   type VisualFingerprint,
   type VisualHashHex,
@@ -17,6 +18,7 @@ export type {
 export {
   DEFAULT_VISUAL_SIMILARITY,
   areVisuallySimilar,
+  averageHashFromBitmap,
   clusterVisualNearDuplicates,
   countMatchingTiles,
   decodeVisualHashTiles,
@@ -24,28 +26,6 @@ export {
   flattenVisualDuplicateIds,
   hammingDistanceHex,
 } from './visualHashSimilarity'
-
-function averageHashFromBitmap(data: Buffer, width: number, height: number): string {
-  const values: number[] = []
-  let sum = 0
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const v = data[(y * width + x) * 4]
-      values.push(v)
-      sum += v
-    }
-  }
-  const avg = sum / Math.max(values.length, 1)
-  return values.map((v) => (v >= avg ? '1' : '0')).join('')
-}
-
-/** Average-hash (aHash) of an image → 16-char hex. */
-export async function computeAHashHex(imagePath: string): Promise<VisualHashHex> {
-  const image = await Jimp.read(imagePath)
-  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
-  const {data, width, height} = tiny.bitmap
-  return bitsToHex(averageHashFromBitmap(data, width, height))
-}
 
 type JimpLike = {
   clone: () => {
@@ -55,6 +35,14 @@ type JimpLike = {
       }
     }
   }
+}
+
+/** Average-hash (aHash) of an image → 16-char hex. */
+export async function computeAHashHex(imagePath: string): Promise<VisualHashHex> {
+  const image = await Jimp.read(imagePath)
+  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
+  const {data, width, height} = tiny.bitmap
+  return bitsToHex(averageHashFromBitmap(data, width, height))
 }
 
 async function computeAHashHexFromImage(image: JimpLike): Promise<VisualHashHex> {

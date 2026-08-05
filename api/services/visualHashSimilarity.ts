@@ -46,6 +46,25 @@ export function bitsToHex(bits: string): VisualHashHex {
   return hex.padStart(HEX_LEN, '0').slice(0, HEX_LEN)
 }
 
+/** Average-hash bits from RGBA bitmap data (uses R channel). */
+export function averageHashFromBitmap(
+  data: Buffer | Uint8Array | number[],
+  width: number,
+  height: number,
+): string {
+  const values: number[] = []
+  let sum = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const v = data[(y * width + x) * 4]
+      values.push(v)
+      sum += v
+    }
+  }
+  const avg = sum / Math.max(values.length, 1)
+  return values.map((v) => (v >= avg ? '1' : '0')).join('')
+}
+
 export function hexToBits(hex: string): string {
   const normalized = String(hex || '').trim().toLowerCase()
   if (!/^[0-9a-f]+$/.test(normalized)) return ''
