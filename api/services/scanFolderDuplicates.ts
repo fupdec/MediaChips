@@ -7,6 +7,15 @@ import { buildExtensionRegex } from '../utils/mediaExtensions'
 import { computeFingerprint } from './mediaFingerprint'
 import { queryAll } from '../db/utils/rawQuery'
 import { addToSizeBasenameIndex, sizeBasenameKey } from './scanFolderDuplicateIndex'
+import {
+  buildWithinFolderSizeGroups,
+  confirmWithinFolderByFingerprint,
+  dedupeInLibraryHits,
+  groupScannedFilesBySize,
+  selectDuplicateCandidatePaths,
+  type InLibraryHit,
+  type ScannedFile,
+} from './scanFolderDuplicateMatch'
 
 type ScanFolderOptions = {
   folders?: string[]
@@ -14,12 +23,6 @@ type ScanFolderOptions = {
   excluded?: string[]
   mediaTypeId?: number | string | null
   shouldStop?: () => boolean
-}
-
-type ScannedFile = {
-  path: string
-  basename: string
-  filesize: number
 }
 
 type LibraryHit = {
@@ -154,20 +157,13 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     return
   }
 
-  const bySize = new Map<number, ScannedFile[]>()
+  const bySize = groupScannedFilesBySize(files)
   const bySizeBasename = new Map<string, ScannedFile[]>()
   for (const file of files) {
-    if (!bySize.has(file.filesize)) bySize.set(file.filesize, [])
-    bySize.get(file.filesize)!.push(file)
     addToSizeBasenameIndex(bySizeBasename, file.filesize, file.basename, file)
   }
 
-  const withinFolderSizeGroups = [...bySize.entries()]
-    .filter(([, group]) => group.length > 1)
-    .map(([filesize, group]) => ({
-      filesize,
-      paths: group.map((item) => item.path),
-    }))
+  const withinFolderSizeGroups = buildWithinFolderSizeGroups(bySize)
 
   yield {
     type: 'progress',
@@ -203,33 +199,9 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     }
   }
 
-  const candidateSet = new Set<string>()
-  for (const [, group] of bySize) {
-    if (group.length > 1) {
-      for (const item of group) candidateSet.add(item.path)
-    }
-  }
-  for (const file of files) {
-    const key = sizeBasenameKey(file.filesize, file.basename)
-    const libraryHits = libraryBySizeBasename.get(key) || []
-    if (libraryHits.some((hit) => !pathsEquivalent(String(hit.path), file.path))) {
-      candidateSet.add(file.path)
-    }
-  }
-
+  const candidateSet = selectDuplicateCandidatePaths(files, bySize, libraryBySizeBasename)
   const candidates = files.filter((file) => candidateSet.has(file.path))
-  const inLibrary: Array<{
-    path: string
-    libraryPath: string
-    libraryId: number
-    parameter: 'basename_filesize' | 'oshash'
-  }> = []
-  const withinFolderConfirmed: Array<{
-    filesize: number
-    paths: string[]
-    kind?: string
-    value?: string
-  }> = []
+  const inLibrary: InLibraryHit[] = []
 
   const fingerprintByPath = new Map<string, {kind: string; value: string}>()
 
@@ -300,42 +272,8 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     }
   }
 
-  for (const [filesize, group] of bySize) {
-    if (group.length < 2) continue
-    const byValue = new Map<string, string[]>()
-    let anyFingerprint = false
-
-    for (const item of group) {
-      const fp = fingerprintByPath.get(item.path)
-      if (!fp) continue
-      anyFingerprint = true
-      const mapKey = `${fp.kind}:${fp.value}`
-      if (!byValue.has(mapKey)) byValue.set(mapKey, [])
-      byValue.get(mapKey)!.push(item.path)
-    }
-
-    if (anyFingerprint) {
-      for (const [mapKey, paths] of byValue) {
-        if (paths.length < 2) continue
-        const [kind, value] = mapKey.split(':')
-        withinFolderConfirmed.push({filesize, paths, kind, value})
-      }
-    } else {
-      withinFolderConfirmed.push({
-        filesize,
-        paths: group.map((item) => item.path),
-      })
-    }
-  }
-
-  // Deduplicate inLibrary by path+libraryId
-  const seenLibrary = new Set<string>()
-  const uniqueInLibrary = inLibrary.filter((item) => {
-    const key = `${item.path}::${item.libraryId}`
-    if (seenLibrary.has(key)) return false
-    seenLibrary.add(key)
-    return true
-  })
+  const withinFolderConfirmed = confirmWithinFolderByFingerprint(bySize, fingerprintByPath)
+  const uniqueInLibrary = dedupeInLibraryHits(inLibrary)
 
   yield {
     type: 'complete',
