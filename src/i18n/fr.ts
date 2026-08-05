@@ -2190,7 +2190,7 @@ const fr = {
       cards_appearance: 'Apparition des cartes',
       tag_page_design: 'Mise en page des balises',
       tag_page_design_hint: 'Disposition par défaut pour les pages de balises de cette catégorie. Vous pouvez également changer de mise en page sur n’importe quelle page de balises.',
-      tag_page_design_profile: 'Profil',
+      tag_page_design_profile: 'Complet',
       tag_page_design_profile_hint: 'Grand en-tête de héros avec image d\'arrière-plan et affiche',
       tag_page_design_compact: 'Compacte',
       tag_page_design_compact_hint: 'Collecteur plus court avec un bloc de profil plus serré',

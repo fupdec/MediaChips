@@ -2190,7 +2190,7 @@ const de = {
       cards_appearance: "Aussehen der Karten",
       tag_page_design: "Tag-Seitenlayout",
       tag_page_design_hint: "Standardlayout für Tag-Seiten in dieser Kategorie. Sie können auch das Layout auf jeder Tag-Seite wechseln.",
-      tag_page_design_profile: "Profil",
+      tag_page_design_profile: "Voll",
       tag_page_design_profile_hint: "Großer Helden-Header mit Hintergrundbild und Poster",
       tag_page_design_compact: "Kompakt",
       tag_page_design_compact_hint: "Kürzeres Header mit engerem Profilblock",

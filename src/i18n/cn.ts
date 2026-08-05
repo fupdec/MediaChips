@@ -2190,7 +2190,7 @@ const cn = {
       cards_appearance: '卡片外观',
       tag_page_design: '标签页布局',
       tag_page_design_hint: '此类别标签页的默认布局。也可在任意标签页上切换。',
-      tag_page_design_profile: '资料页',
+      tag_page_design_profile: '完整',
       tag_page_design_profile_hint: '带背景图和海报的大标题区',
       tag_page_design_compact: '紧凑',
       tag_page_design_compact_hint: '较矮的标题区和更紧凑的资料块',

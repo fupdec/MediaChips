@@ -2253,7 +2253,7 @@ const ru = {
       cards_appearance: 'Внешний вид карточек',
       tag_page_design: 'Макет страницы тега',
       tag_page_design_hint: 'Макет по умолчанию для страниц тегов этой категории. Его также можно переключить на любой странице тега.',
-      tag_page_design_profile: 'Профиль',
+      tag_page_design_profile: 'Полный',
       tag_page_design_profile_hint: 'Крупная шапка с фоновым изображением и постером',
       tag_page_design_compact: 'Компактный',
       tag_page_design_compact_hint: 'Низкая шапка с более плотным блоком профиля',

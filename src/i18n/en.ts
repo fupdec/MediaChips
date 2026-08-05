@@ -2252,7 +2252,7 @@ const en = {
       cards_appearance: 'Cards appearance',
       tag_page_design: 'Tag page layout',
       tag_page_design_hint: 'Default layout for tag pages in this category. You can also switch layouts on any tag page.',
-      tag_page_design_profile: 'Profile',
+      tag_page_design_profile: 'Full',
       tag_page_design_profile_hint: 'Large hero header with background image and poster',
       tag_page_design_compact: 'Compact',
       tag_page_design_compact_hint: 'Shorter header with a tighter profile block',

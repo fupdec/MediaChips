@@ -2190,7 +2190,7 @@ const pt = {
       cards_appearance: 'Aparência dos cartões',
       tag_page_design: 'Layout da página de tags',
       tag_page_design_hint: 'Layout padrão para páginas de tags nesta categoria. Você também pode alternar layouts em qualquer página de tag.',
-      tag_page_design_profile: 'Perfil',
+      tag_page_design_profile: 'Completo',
       tag_page_design_profile_hint: 'Grande cabeçalho de herói com imagem de fundo e pôster',
       tag_page_design_compact: 'Compacto',
       tag_page_design_compact_hint: 'Cabeçalho mais curto com bloco de perfil mais apertado',

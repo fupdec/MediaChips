@@ -2190,7 +2190,7 @@ const es = {
       cards_appearance: 'Apariencia de tarjetas',
       tag_page_design: 'Diseño de la página de etiqueta',
       tag_page_design_hint: 'Diseño predeterminado para las páginas de etiquetas de esta categoría. También puedes cambiarlo en cualquier página de etiqueta.',
-      tag_page_design_profile: 'Perfil',
+      tag_page_design_profile: 'Completo',
       tag_page_design_profile_hint: 'Encabezado grande con imagen de fondo y póster',
       tag_page_design_compact: 'Compacto',
       tag_page_design_compact_hint: 'Encabezado más bajo con un bloque de perfil más compacto',

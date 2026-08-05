@@ -2371,7 +2371,7 @@ const ja = {
       tag_page_design: "タグページのレイアウト",
       tag_page_design_hint:
         "このカテゴリのタグ ページのデフォルト レイアウト。任意のタグ ページでレイアウトを切り替えることもできます。",
-      tag_page_design_profile: "プロフィール",
+      tag_page_design_profile: "フル",
       tag_page_design_profile_hint:
         "背景画像とポスターを備えた大きなヒーロー ヘッダー",
       tag_page_design_compact: "コンパクト",

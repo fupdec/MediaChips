@@ -17,7 +17,7 @@
       class="tag-header-minimal py-4"
     >
       <v-row align="center">
-        <v-col cols="12" lg="6">
+        <v-col cols="12">
           <v-btn
             @click="openMetaPage"
             :title="t('actions.open_page')"
@@ -29,13 +29,6 @@
             <div class="text">{{ meta.name }}</div>
             <v-icon end>mdi-arrow-left</v-icon>
           </v-btn>
-        </v-col>
-        <v-col cols="12" lg="6" class="d-flex justify-lg-end">
-          <TagPageDesignSwitcher
-            :model-value="tagPageDesign"
-            :loading="designSaving"
-            @update:model-value="changeTagPageDesign"
-          />
         </v-col>
       </v-row>
 
@@ -121,7 +114,6 @@
         'tag-header--has-bg': Boolean(headerBackgroundSrc),
         'tag-header--color-bg': headerUsesColorBg,
         'tag-header--no-gallery': !hasGalleryImages,
-        'tag-header--compact': tagPageDesign === 'compact',
       }"
       :style="headerBackgroundStyle"
     >
@@ -138,7 +130,7 @@
         :class="hasGalleryImages ? 'my-6' : 'mt-6 mb-0'"
       >
         <v-row align="center">
-          <v-col cols="12" lg="6">
+          <v-col cols="12">
             <v-btn
               @click="openMetaPage"
               :title="t('actions.open_page')"
@@ -151,20 +143,12 @@
               <v-icon end>mdi-arrow-left</v-icon>
             </v-btn>
           </v-col>
-          <v-col cols="12" lg="6" class="d-flex justify-lg-end">
-            <TagPageDesignSwitcher
-              :model-value="tagPageDesign"
-              :loading="designSaving"
-              @update:model-value="changeTagPageDesign"
-            />
-          </v-col>
         </v-row>
 
         <v-row style="position: relative;">
           <v-col cols="12">
             <v-card
-              class="tag-profile-heading"
-              :class="tagPageDesign === 'compact' ? 'text-h3' : 'text-md-h2 text-xl-h1'"
+              class="tag-profile-heading text-md-h2 text-xl-h1"
               variant="text"
             >
               <v-avatar
@@ -192,31 +176,29 @@
           </v-col>
         </v-row>
 
-        <v-row align="start" :class="{'tag-profile-body--compact': tagPageDesign === 'compact'}">
+        <v-row align="start">
           <v-col
             v-if="galleryImages.length > 0"
-            :cols="tagPageDesign === 'compact' ? 12 : 12"
-            :md="tagPageDesign === 'compact' ? 'auto' : 3"
+            cols="12"
+            md="3"
             class="d-flex align-self-start"
-            :class="tagPageDesign === 'compact' ? 'justify-start mb-4' : ''"
           >
             <TagPageGallery
               :images="galleryImages"
               :aspect-ratio="meta?.imageAspectRatio"
-              :max-width="tagPageDesign === 'compact' ? 180 : undefined"
               :hover-reveal="is_header_exists"
             />
           </v-col>
           <v-col
             cols="12"
-            :md="hasGalleryImages && tagPageDesign !== 'compact' ? 9 : 12"
+            :md="hasGalleryImages ? 9 : 12"
             style="position:relative;"
           >
             <v-expansion-panels v-model="panel" multiple focusable>
               <v-expansion-panel class="rounded-xl tag-panel" :key="0">
-                <v-expansion-panel-title class="pa-6" ripple hide-actions style="position: relative">
+                <v-expansion-panel-title class="tag-panel__title" ripple hide-actions style="position: relative">
                   <div class="buttons-right">
-                    <v-btn @click.stop="editMetaTag" color="primary" class="pr-4" rounded depressed>
+                    <v-btn @click.stop="editMetaTag" color="primary" class="pr-4" rounded size="small" variant="flat">
                       <v-icon start>mdi-pencil</v-icon>
                       {{ t('common.edit') }}
                     </v-btn>
@@ -239,7 +221,7 @@
                     :is-show-all="true"
                     type="tag"
                     tag-page
-                    class="mt-4"
+                    class="mt-3"
                   />
                 </v-expansion-panel-text>
                 <div class="profile-hover-btn show">
@@ -357,7 +339,6 @@ import {typedApi} from '@/services/typedApi'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
-import TagPageDesignSwitcher from '@/components/tags/TagPageDesignSwitcher.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
 import TagPageQuickFilters from '@/components/tags/TagPageQuickFilters.vue'
 import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
@@ -371,7 +352,7 @@ import {setNotification} from '@/services/notificationService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {
   getTagPageHeaderAspectRatio,
-  normalizeTagPageDesign,
+  resolveAutoTagPageDesign,
   type TagPageDesign,
 } from '@/utils/tagPageDesign'
 import { DEFAULT_TAG_COLOR, isDefaultTagColor } from '@/utils/colorFromImage'
@@ -435,7 +416,6 @@ const galleryFileExists = ref<Record<TagGalleryImageType, boolean>>({
   custom1: false,
   custom2: false,
 })
-const designSaving = ref(false)
 const clipCount = ref(0)
 const playingClips = ref(false)
 
@@ -454,7 +434,13 @@ function notifyLoadError(error: unknown): void {
 
 // Computed
 const ENV = computed(() => itemsStore.environment)
-const tagPageDesign = computed(() => normalizeTagPageDesign(meta.value.tagPageDesign))
+const tagPageDesign = computed((): TagPageDesign =>
+  resolveAutoTagPageDesign({
+    hasHeader: headerFileExists.value,
+    hasMain: mainFileExists.value,
+    hasAlt: galleryFileExists.value.alt,
+  }),
+)
 const activeMediaTypeId = computed((): number | null => {
   if (!tab.value || !tab.value.startsWith('media_')) return null
   const id = Number(tab.value.replace('media_', ''))
@@ -464,9 +450,6 @@ const headerAspectRatio = computed(() => getTagPageHeaderAspectRatio(tagPageDesi
 const avatarSize = computed(() => {
   if (tagPageDesign.value === 'minimal') {
     return 48
-  }
-  if (tagPageDesign.value === 'compact') {
-    return lg.value ? 80 : md.value ? 64 : sm.value ? 52 : xs.value ? 40 : 96
   }
   return lg.value ? 120 : md.value ? 80 : sm.value ? 60 : xs.value ? 40 : 160
 })
@@ -890,23 +873,6 @@ const syncMetaInStore = (patch: Partial<Meta>) => {
   }
 }
 
-const changeTagPageDesign = async (design: TagPageDesign) => {
-  if (!meta.value.id || design === tagPageDesign.value || designSaving.value) {
-    return
-  }
-
-  designSaving.value = true
-  try {
-    await typedApi.updateMeta(meta.value.id, {tagPageDesign: design})
-    syncMetaInStore({tagPageDesign: design})
-  } catch (error) {
-    notifyLoadError(error)
-  } finally {
-    designSaving.value = false
-  }
-}
-
-// Event handlers
 const handleGetTag = async () => {
   await getTag()
   await getImages()
