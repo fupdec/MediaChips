@@ -83,3 +83,49 @@ export function buildVideoGridTaskParams(input: string, output: string) {
     rows: VIDEO_GRID_SPRITE.rows,
   }
 }
+
+/** ffmpeg xstack layout cell for tile index `i` in a `cols`-wide grid. */
+export function makeXstackLayout(i: number, cols: number): string {
+  const currentColumn = i % cols
+  const currentRow = Math.floor(i / cols)
+  const colSide: string[] = []
+  const rowSide: string[] = []
+  if (currentColumn === 0) colSide.push('0')
+  else for (let j = 0; j < currentColumn; j++) colSide.push('w0')
+  if (currentRow === 0) rowSide.push('0')
+  else for (let k = 0; k < currentRow; k++) rowSide.push('h0')
+  return `${colSide.join('+')}_${rowSide.join('+')}`
+}
+
+/** Mid-slice timestamps (HH:MM:SS) for evenly sampling `tileCount` frames. */
+export function planGridTileTimestamps(durationSec: number, tileCount: number): {
+  durSlice: number
+  timestamps: string[]
+} {
+  const durSlice = Number.parseInt(String(durationSec / tileCount), 10)
+  const timestamps: string[] = []
+  for (let i = 0; i < tileCount; i++) {
+    timestamps.push(
+      new Date(1000 * (i + 0.5) * durSlice).toISOString().substr(11, 8),
+    )
+  }
+  return {durSlice, timestamps}
+}
+
+/** Paths, stream labels, and xstack layouts for combining tile PNGs. */
+export function buildGridCombineInputs(
+  tmpDir: string,
+  tileCount: number,
+  cols: number,
+  joinPath: (dir: string, name: string) => string = (dir, name) => `${dir}/${name}`,
+): {inputFiles: string[]; streams: string[]; layouts: string[]} {
+  const inputFiles: string[] = []
+  const streams: string[] = []
+  const layouts: string[] = []
+  for (let l = 0; l < tileCount; l++) {
+    inputFiles.push(joinPath(tmpDir, `thumb${l}.png`))
+    streams.push(`[${l}:v]`)
+    layouts.push(makeXstackLayout(l, cols))
+  }
+  return {inputFiles, streams, layouts}
+}

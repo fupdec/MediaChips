@@ -7,10 +7,13 @@ import {
   VIDEO_MARK_JPEG_QUALITY,
   VIDEO_THUMB_HEIGHT,
   VIDEO_THUMB_JPEG_QUALITY,
+  buildGridCombineInputs,
   buildVideoGridTaskParams,
   getGridSpriteDimensions,
   getGridTileDimensions,
   getVideoGridSpriteWidth,
+  makeXstackLayout,
+  planGridTileTimestamps,
 } from './videoPreview'
 
 describe('videoPreview', () => {
@@ -61,6 +64,25 @@ describe('videoPreview', () => {
       width: 480,
       cols: 3,
       rows: 3,
+    })
+  })
+
+  it('plans xstack layouts and mid-slice timestamps', () => {
+    expect(makeXstackLayout(0, 3)).toBe('0_0')
+    expect(makeXstackLayout(4, 3)).toBe('w0_h0')
+    expect(makeXstackLayout(8, 3)).toBe('w0+w0_h0+h0')
+
+    const {durSlice, timestamps} = planGridTileTimestamps(90, 9)
+    expect(durSlice).toBe(10)
+    expect(timestamps).toHaveLength(9)
+    expect(timestamps[0]).toBe('00:00:05')
+    expect(timestamps[8]).toBe('00:01:25')
+
+    const combine = buildGridCombineInputs('/tmp/g', 2, 3, (dir, name) => `${dir}/${name}`)
+    expect(combine).toEqual({
+      inputFiles: ['/tmp/g/thumb0.png', '/tmp/g/thumb1.png'],
+      streams: ['[0:v]', '[1:v]'],
+      layouts: ['0_0', 'w0_0'],
     })
   })
 })

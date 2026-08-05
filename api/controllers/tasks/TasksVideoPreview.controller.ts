@@ -19,7 +19,16 @@ import {
 } from '../../utils/ffmpeg'
 import { resolveExistingPath } from '../../services/contentHash'
 import { resolveActiveDbFilePath } from '../../services/mediaPathResolver'
-import { buildVideoGridTaskParams, getGridSpriteDimensions, VIDEO_GRID_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
+import {
+  buildGridCombineInputs,
+  buildVideoGridTaskParams,
+  getGridSpriteDimensions,
+  makeXstackLayout,
+  planGridTileTimestamps,
+  VIDEO_GRID_JPEG_QUALITY,
+  VIDEO_MARK_HEIGHT,
+  VIDEO_MARK_JPEG_QUALITY,
+} from '../../../shared/videoPreview'
 import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 
@@ -134,17 +143,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
       }
 
       makeLayout(i: number) {
-        const currentColumn = i % this.cols
-        const currentRow = Math.floor(i / this.cols)
-        const colSide: string[] = []
-        const rowSide: string[] = []
-        if (currentColumn === 0) colSide.push('0')
-        else
-          for (let j = 0; j < currentColumn; j++) colSide.push('w0')
-        if (currentRow === 0) rowSide.push('0')
-        else
-          for (let k = 0; k < currentRow; k++) rowSide.push('h0')
-        return `${colSide.join('+')}_${rowSide.join('+')}`
+        return makeXstackLayout(i, this.cols)
       }
 
       async ffmpegSeekP(timestamp: string, intermediateOutput: string) {
@@ -179,13 +178,12 @@ export default function createTasksVideoPreviewController(shared: TaskController
         if (typeof duration !== 'number') return false
 
         const sprite = getGridSpriteDimensions(aspectRatio, this.cols, this.rows)
-        const durSlice = parseInt(String(duration / this.tileCount), 10)
+        const {timestamps} = planGridTileTimestamps(duration, this.tileCount)
 
         const framePromises: Promise<unknown>[] = []
         for (let i = 0; i < this.tileCount; i++) {
-          const timestamp = new Date(1000 * (i + 0.5) * durSlice).toISOString().substr(11, 8)
           const intermediateOutput = path.join(this.tmpDir, `thumb${i}.png`)
-          framePromises.push(this.ffmpegSeekP(timestamp, intermediateOutput))
+          framePromises.push(this.ffmpegSeekP(timestamps[i], intermediateOutput))
         }
 
         await Promise.all(framePromises)
@@ -193,14 +191,12 @@ export default function createTasksVideoPreviewController(shared: TaskController
             // console.log(_err)
           })
 
-        const inputFiles: string[] = []
-        const streams: string[] = []
-        const layouts: string[] = []
-        for (let l = 0; l < this.tileCount; l++) {
-          inputFiles.push(`${this.tmpDir}/thumb${l}.png`)
-          streams.push(`[${l}:v]`)
-          layouts.push(this.makeLayout(l))
-        }
+        const {inputFiles, streams, layouts} = buildGridCombineInputs(
+          this.tmpDir,
+          this.tileCount,
+          this.cols,
+          path.join,
+        )
         await this.ffmpegCombineP(inputFiles, streams, layouts, sprite.width, sprite.height)
           .catch((err: unknown) => {
             console.log(err)
