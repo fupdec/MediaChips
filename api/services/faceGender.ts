@@ -2,6 +2,12 @@ import type { ApiDb } from '../types/db'
 import type { FaceBox } from '../types/faceDetector'
 import { Jimp } from 'jimp'
 import {
+  applyAffine,
+  buildScaleTranslate,
+  invertAffine,
+  type Affine2x3,
+} from './faceAlignMath'
+import {
   ensureCachedModelFile,
   getOrt,
   resolveCachedModelPath,
@@ -31,8 +37,6 @@ export interface FaceGenderEstimate {
 }
 
 type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
-type Affine2x3 = [[number, number, number], [number, number, number]]
-type Point2 = {x: number; y: number}
 
 let genderSession: OrtSession | null = null
 let genderLoading: Promise<OrtSession> | null = null
@@ -148,48 +152,7 @@ function sampleBilinear(image: JimpImage, x: number, y: number): [number, number
   return out
 }
 
-/** InsightFace attribute transform with rotate=0. */
-function buildScaleTranslate(
-  centerX: number,
-  centerY: number,
-  scale: number,
-  outputSize: number,
-): Affine2x3 {
-  const tx = outputSize / 2 - centerX * scale
-  const ty = outputSize / 2 - centerY * scale
-  return [
-    [scale, 0, tx],
-    [0, scale, ty],
-  ]
-}
-
-function invertAffine(M: Affine2x3): Affine2x3 {
-  const [[a, b, tx], [c, d, ty]] = M
-  const det = a * d - b * c
-  if (Math.abs(det) < 1e-12) {
-    return [
-      [1, 0, 0],
-      [0, 1, 0],
-    ]
-  }
-  const invDet = 1 / det
-  const ia = d * invDet
-  const ib = -b * invDet
-  const ic = -c * invDet
-  const id = a * invDet
-  return [
-    [ia, ib, -(ia * tx + ib * ty)],
-    [ic, id, -(ic * tx + id * ty)],
-  ]
-}
-
-function applyAffine(M: Affine2x3, x: number, y: number): Point2 {
-  return {
-    x: M[0][0] * x + M[0][1] * y + M[0][2],
-    y: M[1][0] * x + M[1][1] * y + M[1][2],
-  }
-}
-
+/** InsightFace attribute warp → normalized NCHW float blob. */
 function warpAffineRgb(
   image: JimpImage,
   M: Affine2x3,
