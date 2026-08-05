@@ -11,6 +11,11 @@ import {
 } from '../../shared/pathParser/core'
 import { extractPathRegexTagNames } from '../../shared/pathParser/regexMeta'
 import { findTagByNameOrSynonym } from './pathRegexTagResolver'
+import {
+  assignmentKey,
+  buildParseLibraryTagsSummary,
+  createPreviewTagCollector,
+} from './parseLibraryTagsPreviewHelpers'
 
 export interface ParseLibraryTagsPreviewTag {
   tagId: number
@@ -55,17 +60,6 @@ type PreviewEvent =
   | { type: 'complete'; summary: ParseLibraryTagsSummary; items: ParseLibraryTagsPreviewItem[] }
   | { type: 'error'; message: string }
 
-function assignmentKey(mediaId: number, metaId: number, tagId: number) {
-  return `${mediaId}:${metaId}:${tagId}`
-}
-
-function previewTagKey(tag: Pick<ParseLibraryTagsPreviewTag, 'metaId' | 'tagId' | 'tagName' | 'willCreate'>) {
-  if (tag.willCreate) {
-    return `new:${tag.metaId}:${String(tag.tagName || '').trim().toLowerCase()}`
-  }
-  return `id:${tag.metaId}:${tag.tagId}`
-}
-
 export function getParseLibraryTagsStatus(db: ApiDb): ParseLibraryTagsStatus {
   const mediaRepo = createMediaRepository(db.drizzle)
   const metaRepo = createMetaRepository(db.drizzle)
@@ -101,13 +95,13 @@ export async function* iterateParseLibraryTagsPreview(
   if (!parserMetaIds.length) {
     yield {
       type: 'complete',
-      summary: {
+      summary: buildParseLibraryTagsSummary({
         totalMedia: 0,
         mediaWithNewTags: 0,
         totalNewTags: 0,
         totalProposedTags: 0,
         stopped: false,
-      },
+      }),
       items: [],
     }
     return
@@ -144,13 +138,13 @@ export async function* iterateParseLibraryTagsPreview(
     if (options.shouldStop?.()) {
       yield {
         type: 'complete',
-        summary: {
+        summary: buildParseLibraryTagsSummary({
           totalMedia: total,
           mediaWithNewTags: items.length,
           totalNewTags,
           totalProposedTags,
           stopped: true,
-        },
+        }),
         items,
       }
       return
@@ -166,25 +160,14 @@ export async function* iterateParseLibraryTagsPreview(
       matchOptions,
     )
 
-    const tagsForMedia: ParseLibraryTagsPreviewTag[] = []
-    const seenPreviewKeys = new Set<string>()
-
-    const pushPreviewTag = (tag: ParseLibraryTagsPreviewTag) => {
-      const key = previewTagKey(tag)
-      if (seenPreviewKeys.has(key)) return
-      seenPreviewKeys.add(key)
-
-      if (tag.isNew) totalNewTags += 1
-      totalProposedTags += 1
-      tagsForMedia.push(tag)
-    }
+    const collector = createPreviewTagCollector()
 
     for (const match of matches) {
       const tagId = Number(match.tagId)
       const metaId = Number(match.metaId)
       const tag = tagById.get(tagId)
       const key = assignmentKey(Number(mediaItem.id), metaId, tagId)
-      pushPreviewTag({
+      collector.push({
         tagId,
         metaId,
         tagName: String(tag?.name || tagId),
@@ -202,7 +185,7 @@ export async function* iterateParseLibraryTagsPreview(
       if (existing?.id != null) {
         const tagId = Number(existing.id)
         const key = assignmentKey(Number(mediaItem.id), metaId, tagId)
-        pushPreviewTag({
+        collector.push({
           tagId,
           metaId,
           tagName: String(existing.name || extract.tagName),
@@ -215,7 +198,7 @@ export async function* iterateParseLibraryTagsPreview(
 
       if (!extract.createTags) continue
 
-      pushPreviewTag({
+      collector.push({
         tagId: 0,
         metaId,
         tagName: extract.tagName,
@@ -225,11 +208,14 @@ export async function* iterateParseLibraryTagsPreview(
       })
     }
 
-    if (tagsForMedia.some((tag) => tag.isNew)) {
+    totalNewTags += collector.totalNewTags
+    totalProposedTags += collector.totalProposedTags
+
+    if (collector.hasNew()) {
       const item: ParseLibraryTagsPreviewItem = {
         mediaId: Number(mediaItem.id),
         path: filePath,
-        tags: tagsForMedia,
+        tags: collector.tags as ParseLibraryTagsPreviewTag[],
       }
       items.push(item)
       yield { type: 'item', item }
@@ -247,13 +233,13 @@ export async function* iterateParseLibraryTagsPreview(
 
   yield {
     type: 'complete',
-    summary: {
+    summary: buildParseLibraryTagsSummary({
       totalMedia: total,
       mediaWithNewTags: items.length,
       totalNewTags,
       totalProposedTags,
       stopped: false,
-    },
+    }),
     items,
   }
 }
