@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {
   packInterleavedRgbToNchw,
+  packLetterboxedRgbaToNchw,
   packRgbaBitmapToNchw,
   rgbaBitmapToInterleavedRgb,
 } from './faceTensorPrep'
@@ -31,5 +32,15 @@ describe('faceTensorPrep', () => {
     expect(out[0]).toBeCloseTo(1)
     expect(out[1]).toBeCloseTo(0)
     expect(out[2]).toBeCloseTo(-1)
+  })
+
+  it('letterboxes a smaller RGBA image into a square canvas', () => {
+    const rgba = new Uint8Array([255, 127.5, 0, 255])
+    const out = packLetterboxedRgbaToNchw(rgba, 1, 1, 2, 127.5, 127.5)
+    expect(out.length).toBe(12)
+    expect(out[0]).toBeCloseTo(1) // r at (0,0)
+    expect(out[1]).toBeCloseTo(0) // r at (1,0) empty
+    expect(out[4]).toBeCloseTo(0) // g at (0,0)
+    expect(out[8]).toBeCloseTo(-1) // b at (0,0)
   })
 })

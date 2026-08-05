@@ -51,6 +51,7 @@ import {
   clampFaceDetectFramesPerVideo,
   clampFaceDetectMinScore,
 } from './faceSettingsParse'
+import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
@@ -367,19 +368,14 @@ async function imageToScrfdInput(framePath: string): Promise<{
   const detScale = newHeight / Math.max(height, 1)
 
   const resized = image.clone().resize({w: newWidth, h: newHeight})
-  const floatData = new Float32Array(1 * 3 * DET_INPUT_SIZE * DET_INPUT_SIZE)
-  const plane = DET_INPUT_SIZE * DET_INPUT_SIZE
-  const {data} = resized.bitmap
-
-  for (let y = 0; y < newHeight; y++) {
-    for (let x = 0; x < newWidth; x++) {
-      const src = (y * newWidth + x) * 4
-      const dst = y * DET_INPUT_SIZE + x
-      floatData[dst] = (data[src] - SCRFD_MEAN) / SCRFD_STD
-      floatData[plane + dst] = (data[src + 1] - SCRFD_MEAN) / SCRFD_STD
-      floatData[2 * plane + dst] = (data[src + 2] - SCRFD_MEAN) / SCRFD_STD
-    }
-  }
+  const floatData = packLetterboxedRgbaToNchw(
+    resized.bitmap.data,
+    newWidth,
+    newHeight,
+    DET_INPUT_SIZE,
+    SCRFD_MEAN,
+    SCRFD_STD,
+  )
 
   return {
     tensor: new ort.Tensor('float32', floatData, [1, 3, DET_INPUT_SIZE, DET_INPUT_SIZE]),
