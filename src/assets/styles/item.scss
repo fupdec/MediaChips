@@ -1272,6 +1272,14 @@
       pointer-events: none;
       transition: opacity 520ms ease-in;
     }
+
+    // Keep the playing surface above the faded thumb so clicks open the
+    // player instead of falling through a pointer-events:none layer.
+    .preview,
+    .timeline {
+      z-index: 2;
+      pointer-events: auto;
+    }
   }
 
   &.video-preview-container--expanded {
@@ -2307,6 +2315,12 @@ body > .video-preview-container.video-preview-container--expanded {
         pointer-events: none;
         transition: opacity 520ms ease-in;
       }
+
+      .preview,
+      .timeline {
+        z-index: 2;
+        pointer-events: auto;
+      }
     }
 
     &.video-preview-container--expanded {
@@ -2410,6 +2424,12 @@ body > .video-preview-container.video-preview-container--expanded {
         opacity: 0;
         pointer-events: none;
         transition: opacity 520ms ease-in;
+      }
+
+      .preview,
+      .timeline {
+        z-index: 2;
+        pointer-events: auto;
       }
     }
 

@@ -25,6 +25,7 @@
         :style="previewAppearStyle"
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
+        @dblclick.stop="handlePreviewDblClick"
         @contextmenu="handlePreviewContextMenu"
         @mousedown="handlePreviewMouseDown"
         @mouseleave="handleMouseLeave"
@@ -39,6 +40,7 @@
         :contain="!isCompactHost && !gridBigPreview.isVisual.value"
         :cover="isCompactHost || gridBigPreview.isVisual.value"
         @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
         @load="onThumbLoad"
         @error="onThumbError"
       />
@@ -73,6 +75,7 @@
         v-if="showPreviewUnavailableNotice"
         class="preview-unavailable-notice"
         @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
         @contextmenu="handlePreviewContextMenu"
       >
         <v-icon size="18" class="preview-unavailable-notice__icon">mdi-alert-outline</v-icon>
@@ -84,6 +87,7 @@
         v-if="showVideoPreview && !playbackError"
         class="preview"
         @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
         @contextmenu="handlePreviewContextMenu"
       >
         <video
@@ -128,6 +132,7 @@
         :class="{ 'no-frame': isFrameLost }"
         class="timeline"
         @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
       >
         <div v-if="isFrameLost"
           class="text-gen">
@@ -188,6 +193,7 @@
         v-ripple="{ class: `text-primary` }"
         class="story"
         @click="play"
+        @dblclick.stop="handlePreviewDblClick"
         @mouseleave="stopScrollStory"
         @mousemove.capture="scrollStory"
       >
@@ -263,7 +269,6 @@ import {useItemPreviewLifecycle} from '@/composable/useItemPreviewLifecycle'
 import {useItemPreviewTimelineFrames} from '@/composable/useItemPreviewTimelineFrames'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
-import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import type {MediaItem} from '@/types/stores'
 import type {HoverSessionTimeoutMap} from '@/composable/useItemPreviewHoverSession'
 
@@ -286,7 +291,6 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update-big-preview': [value: boolean]
-  activate: []
 }>()
 
 const store = useAppStore()
@@ -298,7 +302,6 @@ const eventBus = useEventBus()
 const listSync = useItemsListSync()
 const {t} = useI18n()
 const gridBigPreview = useVideoBigPreview()
-const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 
 const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
@@ -615,6 +618,7 @@ const {
 const {
   handlePreviewClick,
   handleMediaClick,
+  handlePreviewDblClick,
   handlePreviewBlur,
   play,
   restartImageGeneration,
@@ -625,12 +629,10 @@ const {
   isBigPreviewOpen: () => isBigPreviewOpen.value,
   gridBigPreview,
   bigPreviewMenuActive,
-  browserLayoutActive: () => browserLayoutActive.value,
   stopPlayingPreview,
   clearContextMenu: () => {
     contextMenuStore.show = false
   },
-  onActivate: () => emit('activate'),
   playVideo: (payload) => itemsStore.playVideo(payload),
   syncMediaItem: (mediaId) => {
     listSync.getItemsFromDb({ids: [mediaId], type: 'media'})

@@ -32,7 +32,6 @@
         <ItemPreviewVideo
           v-if="type === 'media' && isVideoMedia"
           @update-big-preview="(val) => big_preview = val"
-          @activate="handleCardActivate"
           :media="item"
           :is-file-exists="is_file_exists"
           :preview-active="showPreview"
