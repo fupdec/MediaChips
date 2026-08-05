@@ -1,5 +1,4 @@
 import {nextTick} from 'vue'
-import findIndex from 'lodash/findIndex'
 import { debounce } from '@/utils/debounce'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -41,36 +40,29 @@ import {
   clearLiveTranscodeSessionMark,
 } from '@/utils/liveTranscodeLifecycle'
 import type { MediaItem, PlayerPlaylistItem } from '@/types/stores'
-import type { ResolvedPlayableVideo, UsePlayerPlaybackOptions } from '@/types/player'
+import type { UsePlayerPlaybackOptions } from '@/types/player'
 import { getSegmentEnd, getSegmentStart, isClipPlaylistItem, mergeClipFields, playlistItemKey } from '@/utils/mediaItem'
 import { isPlaylistNavDisabled } from '@/composable/usePlayerTransportPlayback'
+import {
+  getLiveChunkRelativeTime,
+  isLoadSrcSessionStale,
+  metadataNumber,
+  normalizeTranscodeMaxHeight,
+  playbackErrorMessage,
+  resolveLiveChunkRelativeSeekTarget,
+  resolveLiveHandoffElapsed,
+  resolveLiveStreamCopyCompatible,
+  resolvePlayableVideo,
+  shouldAdvanceAtSegmentEnd,
+  shouldPreferDirectPlayback,
+} from '@/utils/playerPlaybackResolve'
 
-function metadataNumber(metadata: Record<string, unknown>, key: string): number | null {
-  const value = Number(metadata[key])
-  return Number.isFinite(value) ? value : null
-}
-
-/** Relative time inside a live chunk for an absolute timeline position. */
-export function getLiveChunkRelativeTime(absoluteTime: number, chunkStart: number): number {
-  const relative = Number(absoluteTime) - Number(chunkStart)
-  if (!Number.isFinite(relative) || relative <= 0) return 0
-  return relative
-}
-
-/**
- * How far the current live segment actually played.
- * Prefer currentTime over duration — fMP4 often reports a full -t window even
- * when the last frames were never delivered.
- */
-export function resolveLiveHandoffElapsed(videoEl: HTMLVideoElement | null | undefined): number {
-  const currentTime = Number(videoEl?.currentTime)
-  if (Number.isFinite(currentTime) && currentTime > 0.05) return currentTime
-
-  const duration = Number(videoEl?.duration)
-  if (Number.isFinite(duration) && duration > 0.05) return duration
-
-  return LIVE_STREAM_CHUNK_SECONDS
-}
+export {
+  getLiveChunkRelativeTime,
+  isLoadSrcSessionStale,
+  resolveLiveHandoffElapsed,
+  resolvePlayableVideo,
+} from '@/utils/playerPlaybackResolve'
 
 function applyLiveChunkRelativeSeek(
   videoEl: HTMLVideoElement | null | undefined,
@@ -78,9 +70,12 @@ function applyLiveChunkRelativeSeek(
   chunkStart: number,
 ) {
   if (!videoEl) return
-  const relative = getLiveChunkRelativeTime(absoluteTime, chunkStart)
-  if (relative <= 0.05) return
-  if (Math.abs((videoEl.currentTime || 0) - relative) <= 0.12) return
+  const relative = resolveLiveChunkRelativeSeekTarget(
+    videoEl.currentTime || 0,
+    absoluteTime,
+    chunkStart,
+  )
+  if (relative == null) return
   videoEl.currentTime = relative
 }
 
@@ -122,77 +117,6 @@ async function seekDirectPlaybackTo(
   await waitForMediaEvent(videoEl, 'seeked', 4000)
 }
 
-function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message || fallback
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    const message = (error as { message?: unknown }).message
-    if (typeof message === 'string') return message
-  }
-  return fallback
-}
-
-export function isLoadSrcSessionStale(
-  session: number,
-  currentSession: number,
-  isActive: boolean,
-): boolean {
-  return session !== currentSession || !isActive
-}
-
-export async function resolvePlayableVideo(
-  playlist: MediaItem[],
-  initialVideo: MediaItem,
-  checkFileExistsFn: (filePath: string) => Promise<boolean>,
-): Promise<ResolvedPlayableVideo | null> {
-  const candidates = []
-
-  const matchesInitial = (item: MediaItem) => {
-    if (initialVideo.key && item.key) return item.key === initialVideo.key
-    if (initialVideo.markId != null && item.markId != null) {
-      return Number(item.markId) === Number(initialVideo.markId)
-    }
-    return item.id == initialVideo.id
-  }
-
-  if (playlist.length > 0) {
-    const foundIndex = findIndex(playlist, matchesInitial)
-
-    if (foundIndex >= 0) {
-      for (let offset = 0; offset < playlist.length; offset++) {
-        const index = (foundIndex + offset) % playlist.length
-        candidates.push({video: playlist[index], index})
-      }
-    } else if (initialVideo?.path || initialVideo?.id) {
-      candidates.push({video: initialVideo, index: 0})
-    }
-  } else if (initialVideo?.path) {
-    candidates.push({video: initialVideo, index: 0})
-  }
-
-  for (const {video: candidate, index} of candidates) {
-    if (!candidate?.path) continue
-
-    if (await checkFileExistsFn(candidate.path)) {
-      return {video: candidate, index}
-    }
-  }
-
-  if (initialVideo?.id) {
-    const index = playlist.length > 0
-      ? Math.max(0, findIndex(playlist, matchesInitial))
-      : 0
-    return {video: initialVideo, index}
-  }
-
-  return null
-}
-
-function normalizeTranscodeMaxHeight(value: unknown): string {
-  const num = Number(value)
-  if (!Number.isFinite(num) || num <= 0) return '0'
-  return String(num)
-}
-
 export function usePlayerPlayback({
   isReady,
   videoPlayer,
@@ -214,15 +138,19 @@ export function usePlayerPlayback({
   let segmentAdvancePending = false
 
   const maybeAdvanceSegmentPlaylist = () => {
-    if (segmentAdvancePending || !playerStore.active || !controls.value) return
-    if (playerStore.isLiveStreamSeeking || isAdvancingChunk) return
-
     const current = playerStore.playlist[playerStore.nowPlaying]
     const segmentEnd = getSegmentEnd(current)
-    if (segmentEnd == null) return
-
-    const currentTime = Number(playerStore.currentTime)
-    if (!Number.isFinite(currentTime) || currentTime < segmentEnd) return
+    if (!shouldAdvanceAtSegmentEnd({
+      segmentAdvancePending,
+      active: playerStore.active,
+      hasControls: Boolean(controls.value),
+      isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
+      isAdvancingChunk,
+      segmentEnd,
+      currentTime: Number(playerStore.currentTime),
+    })) {
+      return
+    }
 
     const stopAtSegmentEnd = () => {
       playerStore.playerPause()
@@ -600,7 +528,7 @@ export function usePlayerPlayback({
       return true
     } catch (error) {
       console.warn('Direct playback re-encode fallback failed:', error)
-      failTranscode(errorMessage(error, 'Playback failed after transcode fallback'))
+      failTranscode(playbackErrorMessage(error, 'Playback failed after transcode fallback'))
       return true
     } finally {
       directPlaybackFallbackInFlight = false
@@ -942,7 +870,11 @@ export function usePlayerPlayback({
 
     // Prefer direct playback whenever the browser can handle the file.
     // Forcing live re-encode just for clip marks made every clip start wait on ffmpeg.
-    if (!playable.transcodeRequired || forceDirectPlayback || playerStore.liveTranscodeDisabled) {
+    if (shouldPreferDirectPlayback({
+      transcodeRequired: Boolean(playable.transcodeRequired),
+      forceDirectPlayback,
+      liveTranscodeDisabled: playerStore.liveTranscodeDisabled,
+    })) {
       resetTranscodeState()
       liveStreamAccurateSeek = false
       if (playable.transcodeRequired) {
@@ -959,9 +891,11 @@ export function usePlayerPlayback({
 
     currentLiveMediaId = mediaId
     // container_layout needs full re-encode; remux-copy paints black video in Chromium.
-    liveStreamCopyCompatible = playable.remuxCopy === true
-      && playable.reason !== 'container_layout'
-      && streamStart < 0.05
+    liveStreamCopyCompatible = resolveLiveStreamCopyCompatible({
+      remuxCopy: playable.remuxCopy,
+      reason: playable.reason,
+      streamStart,
+    })
     liveStreamAccurateSeek = false
     playerStore.usesLiveTranscode = true
     playerStore.liveTranscodeDisabled = false
@@ -1011,7 +945,7 @@ export function usePlayerPlayback({
         }
       } catch (error) {
         if (seekGeneration !== liveStreamSeekGeneration || !playerStore.active) return
-        failTranscode(errorMessage(error, 'Failed to enable live transcode'))
+        failTranscode(playbackErrorMessage(error, 'Failed to enable live transcode'))
         console.warn('Failed to enable live transcode:', error)
       }
       return
@@ -1070,7 +1004,7 @@ export function usePlayerPlayback({
         isLiveStreamSeeking: true,
         mediaErrorCode: playerStore.player.error?.code,
       })) {
-        failTranscode(errorMessage(error, 'Failed to change transcode quality'))
+        failTranscode(playbackErrorMessage(error, 'Failed to change transcode quality'))
         console.warn('Failed to change transcode quality:', error)
       }
     } finally {
@@ -1180,7 +1114,7 @@ export function usePlayerPlayback({
       if (error instanceof UnsupportedPlaybackError) {
         playerStore.playbackError = true
       } else {
-        failTranscode(errorMessage(error, 'Failed to prepare video source'))
+        failTranscode(playbackErrorMessage(error, 'Failed to prepare video source'))
       }
       isReady.value = true
       return
@@ -1259,7 +1193,7 @@ export function usePlayerPlayback({
         mediaErrorCode: videoEl.error?.code,
       })) {
         if (playerStore.usesLiveTranscode) {
-          failTranscode(errorMessage(e, 'Live transcode playback failed'))
+          failTranscode(playbackErrorMessage(e, 'Live transcode playback failed'))
         }
         console.log(e)
       }
