@@ -41,10 +41,13 @@
         :label="meta?.chipLabel"
         :variant="chipVariant"
         :color="chipColorFor(item.raw)"
-        :text-color="chipTextColorFor(item.raw)"
+        :style="chipStyleFor(item.raw)"
         closable
         close-icon="mdi-close"
-        :class="purpose === 'filter' ? 'ma-0 filter-form-chip' : 'ma-1'"
+        :class="[
+          purpose === 'filter' ? 'ma-0 filter-form-chip' : 'ma-1',
+          chipClassFor(item.raw),
+        ]"
         :size="purpose === 'filter' ? 'x-small' : 'small'"
       >
         <span>{{ item.raw.name || item.title }}</span>
@@ -178,6 +181,7 @@ import {
   highlightChars,
 } from '@/services/formatUtils'
 import {resolveTagChipColor} from '@shared/tagChipColor'
+import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {debounce} from '@/utils/debounce'
 import type { ArrayMeta, TagListItem } from '@/types/metaInput'
@@ -267,6 +271,20 @@ const chipTextColorFor = (tag?: TagListItem | null) => {
   const color = chipColorFor(tag)
   if (!color) return ''
   return getTextColor(color, chipVariant.value === 'outlined')
+}
+
+const chipStyleFor = (tag?: TagListItem | null) => {
+  const textColor = chipTextColorFor(tag)
+  return textColor ? {color: textColor} : undefined
+}
+
+const chipClassFor = (tag?: TagListItem | null) => {
+  const color = chipColorFor(tag)
+  if (!color) return undefined
+  return [
+    'tag-chip--colored',
+    isNearWhiteColor(color) ? 'tag-chip--light' : undefined,
+  ].filter(Boolean).join(' ')
 }
 
 interface TagFilterItem {

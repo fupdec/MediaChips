@@ -71,11 +71,11 @@
         :label="metaById(item.raw.metaId)?.chipLabel"
         :variant="chipVariantFor(item.raw.metaId)"
         :color="chipColorFor(item.raw)"
-        :text-color="chipTextColorFor(item.raw)"
+        :style="chipStyleFor(item.raw)"
         :prepend-icon="`mdi-${item.raw.metaIcon}`"
         :title="item.raw.metaName"
         closable
-        class="ma-1"
+        :class="['ma-1', chipClassFor(item.raw)]"
         size="small"
       >
         <span>{{ item.raw.name }}</span>
@@ -184,6 +184,7 @@ import {
   highlightChars,
 } from '@/services/formatUtils'
 import {resolveTagChipColor} from '@shared/tagChipColor'
+import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {debounce} from '@/utils/debounce'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
@@ -378,6 +379,20 @@ function chipTextColorFor(tag?: TagOption | null) {
   const color = chipColorFor(tag)
   if (!color) return ''
   return getTextColor(color, chipVariantFor(tag.metaId) === 'outlined')
+}
+
+function chipStyleFor(tag?: TagOption | null) {
+  const textColor = chipTextColorFor(tag)
+  return textColor ? {color: textColor} : undefined
+}
+
+function chipClassFor(tag?: TagOption | null) {
+  const color = chipColorFor(tag)
+  if (!color) return undefined
+  return [
+    'tag-chip--colored',
+    isNearWhiteColor(color) ? 'tag-chip--light' : undefined,
+  ].filter(Boolean).join(' ')
 }
 
 function findKeyLabel(key: string) {

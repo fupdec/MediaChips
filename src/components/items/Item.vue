@@ -203,10 +203,11 @@
       @mouseleave.stop="hideHoverImage"
       :variant="tagChipVariant"
       :color="tagChipColor"
+      :style="tagChipStyle"
       :size="getChipSize"
       :label="meta?.chipLabel === true"
       :rounded="meta?.chipLabel === true ? false : 'pill'"
-      class="tag-chip-view"
+      :class="['tag-chip-view', tagChipClass]"
     >
       <ItemPreviewTag v-if="tagItem && showPreview"
                       :tag="tagItem"
@@ -254,7 +255,8 @@ import {useLazyInView} from '@/composable/useLazyInView'
 import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
-import {hexToRgba} from '@/services/formatUtils'
+import {getTextColor, hexToRgba} from '@/services/formatUtils'
+import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {
@@ -369,6 +371,22 @@ const tagChipVariant = computed((): ChipVariant | undefined =>
 const tagChipColor = computed((): string | undefined => {
   if (props.type !== 'tag') return undefined
   return resolveTagChipColor(props.meta?.color, props.item.color)
+})
+
+const tagChipStyle = computed(() => {
+  const color = tagChipColor.value
+  if (!color) return undefined
+  const textColor = getTextColor(color, tagChipVariant.value === 'outlined')
+  return textColor ? {color: textColor} : undefined
+})
+
+const tagChipClass = computed(() => {
+  const color = tagChipColor.value
+  if (!color) return undefined
+  return [
+    'tag-chip--colored',
+    isNearWhiteColor(color) ? 'tag-chip--light' : undefined,
+  ].filter(Boolean).join(' ')
 })
 
 const is_selected = computed(() => {

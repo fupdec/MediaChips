@@ -1,5 +1,5 @@
 import type { FilterCondition, FilterObject, ReadableFileSize } from '@/types/common'
-import { checkColorForDarkText } from '@/utils/headerColorUtils'
+import {checkColorForDarkText, hexToRgba as hexToRgbaFromHeader, isNearWhiteColor} from '@/utils/headerColorUtils'
 import {textMatchesGlobalSearchQuery, tokenMatchesQueryPart} from '@shared/globalSearchMatch'
 
 export {textMatchesGlobalSearchQuery} from '@shared/globalSearchMatch'
@@ -287,8 +287,9 @@ export function highlightGlobalSearchText(text: string, rawQuery: string): strin
 
 export function getTextColor(color: string | null | undefined, is_outlined?: boolean): string {
   if (!color) return ''
+  // Near-white outlines disappear on light surfaces — fall back to dark ink.
   if (is_outlined) {
-    return color
+    return isNearWhiteColor(color) ? '#424242' : color
   }
 
   return checkColorForDarkText(color) ? 'white' : 'black'
@@ -356,12 +357,7 @@ export function transformTextToArray(str: string): string[] {
 }
 
 export function hexToRgba(hex: string, opacity?: number): string {
-  const normalized = hex.replace('#', '')
-  const num = parseInt(normalized, 16)
-  const r = (num >> 16) & 255
-  const g = (num >> 8) & 255
-  const b = num & 255
-  return `rgb(${r} ${g} ${b} / ${opacity || 100}%)`
+  return hexToRgbaFromHeader(hex, opacity)
 }
 
 export function cloneObject<T>(obj: T): T {

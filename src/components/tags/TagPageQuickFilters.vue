@@ -140,6 +140,7 @@ import {TAG_PAGE_QUICK_FILTER_NOTE} from '@/constants/tagPageQuickFilter'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
+import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import type {Meta} from '@/types/stores'
 
 interface CooccurringTag {
@@ -236,6 +237,7 @@ function buildChip(tag: CooccurringTag, meta: Meta): QuickFilterChip {
   const color = resolveTagChipColor(meta.color, tag.color)
   const colored = Boolean(color)
   const label = typeof meta.chipLabel === 'boolean' ? meta.chipLabel : undefined
+  const light = colored && isNearWhiteColor(color)
 
   return {
     id: tag.id,
@@ -244,7 +246,10 @@ function buildChip(tag: CooccurringTag, meta: Meta): QuickFilterChip {
     variant,
     color: colored ? color : undefined,
     textColor: colored ? getTextColor(color, variant === 'outlined') || undefined : undefined,
-    className: colored ? 'tag-chip--colored' : undefined,
+    className: [
+      colored ? 'tag-chip--colored' : undefined,
+      light ? 'tag-chip--light' : undefined,
+    ].filter(Boolean).join(' ') || undefined,
   }
 }
 

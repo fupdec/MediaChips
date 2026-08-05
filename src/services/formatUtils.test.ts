@@ -24,6 +24,9 @@ describe('formatUtils', () => {
   it('detects dark text on dark backgrounds', () => {
     expect(getTextColor('#000000')).toBe('white')
     expect(getTextColor('#ffffff')).toBe('black')
+    // Short hex must expand — otherwise #fff was treated as dark and got white text.
+    expect(getTextColor('#fff')).toBe('black')
+    expect(getTextColor('#fff', true)).toBe('#424242')
   })
 
   it('calculates hover preview dimensions', () => {

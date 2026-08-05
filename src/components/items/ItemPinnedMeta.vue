@@ -252,6 +252,7 @@ import {useRouter} from "vue-router"
 import {usePresetMeta} from "@/composable/ItemPresetMeta"
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getFilterObject, getTextColor} from '@/services/formatUtils'
+import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {
@@ -356,6 +357,8 @@ const getTagChipBind = (tag: TagWithMeta) => {
     : (toChipVariant(tag.meta?.chipVariant) ?? 'flat')
   const color = resolveTagChipColor(tag.meta?.color, tag.color)
   const colored = Boolean(color)
+  const light = colored && isNearWhiteColor(color)
+  const textColor = colored ? getTextColor(color, variant === 'outlined') || undefined : undefined
   const locale = toLocale(settingsStore.locale)
   const fromFolderTitle = tag.fromFolder
     ? translate('items.tag_from_folder', {}, locale)
@@ -364,7 +367,8 @@ const getTagChipBind = (tag: TagWithMeta) => {
   return {
     variant,
     color: colored ? color : undefined,
-    textColor: colored ? getTextColor(color, variant === 'outlined') || undefined : undefined,
+    // Vuetify 3 has no text-color prop — force contrast via inline style.
+    style: textColor ? {color: textColor} : undefined,
     label: getMetaChipLabel(tag.meta),
     title: fromFolderTitle || tag.name || undefined,
     size: active ? 'large' : undefined,
@@ -372,6 +376,7 @@ const getTagChipBind = (tag: TagWithMeta) => {
     prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
     class: [
       colored ? 'tag-chip--colored' : undefined,
+      light ? 'tag-chip--light' : undefined,
       tag.fromFolder ? 'tag-chip--from-folder' : undefined,
       active ? 'active-chip' : undefined,
     ].filter(Boolean).join(' ') || undefined,
