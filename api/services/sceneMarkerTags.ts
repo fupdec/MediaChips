@@ -1,43 +1,8 @@
 import type { TagRow } from '../db/repositories/tags'
 import { createTagsRepository } from '../db/repositories/tags'
+import {tagMatchesLookupName} from '@shared/tagLookupName'
 
 type TagsRepository = ReturnType<typeof createTagsRepository>
-
-function normalizeTagLookupName(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase()
-}
-
-function compactTagLookupName(value: unknown): string {
-  return normalizeTagLookupName(value).replace(/\s+/g, '')
-}
-
-function getTagLookupNames(tag: TagRow): string[] {
-  const names = new Set<string>()
-  const primaryName = normalizeTagLookupName(tag.name)
-  if (primaryName) names.add(primaryName)
-
-  if (tag.synonyms) {
-    for (const synonym of String(tag.synonyms).split(',')) {
-      const normalized = normalizeTagLookupName(synonym)
-      if (normalized) names.add(normalized)
-    }
-  }
-
-  return [...names]
-}
-
-function tagMatchesLookupName(tag: TagRow, lookupName: string): boolean {
-  const normalized = normalizeTagLookupName(lookupName)
-  if (!normalized) return false
-
-  const lookupNames = getTagLookupNames(tag)
-  if (lookupNames.includes(normalized)) return true
-
-  const compactLookup = compactTagLookupName(lookupName)
-  if (!compactLookup) return false
-
-  return lookupNames.some((name) => compactTagLookupName(name) === compactLookup)
-}
 
 export function findTagForMarkerTitle(title: string, allTags: TagRow[]): TagRow | undefined {
   const trimmed = String(title || '').trim()

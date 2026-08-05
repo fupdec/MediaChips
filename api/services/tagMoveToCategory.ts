@@ -16,6 +16,7 @@ import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
 import type {TagRow} from '../db/repositories/tags'
 import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
+import {normalizeTagLookupName} from '@shared/tagLookupName'
 
 export interface TagNameConflict {
   tagId: number
@@ -72,7 +73,7 @@ export interface MoveTagsToCategoryResult {
 type MoveTx = Parameters<Parameters<ApiDb['drizzle']['transaction']>[0]>[0]
 
 export function normalizeTagName(name: string | null | undefined): string {
-  return String(name ?? '').trim().toLowerCase()
+  return normalizeTagLookupName(name)
 }
 
 /**

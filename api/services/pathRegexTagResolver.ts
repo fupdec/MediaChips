@@ -1,20 +1,9 @@
 import type { TagLike } from '../types/db'
 import type { PathRegexTagExtract } from '../../shared/pathParser/regexMeta'
-
-function normalizeTagLookupName(value: unknown): string {
-  return String(value || '').trim().toLowerCase()
-}
-
-function getTagLookupTerms(tag: TagLike): string[] {
-  const synonyms = String(tag.synonyms || '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-
-  return [tag.name, ...synonyms]
-    .map(normalizeTagLookupName)
-    .filter(Boolean)
-}
+import {
+  getTagLookupTerms,
+  normalizeTagLookupName,
+} from '@shared/tagLookupName'
 
 export function findTagByNameOrSynonym(
   tags: TagLike[],
