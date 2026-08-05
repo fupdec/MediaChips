@@ -1,6 +1,6 @@
 import shuffle from 'lodash/shuffle'
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage, sendControllerError } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createMarksRepository } from '../db/repositories/marks'
 import { getMarkFilterMetas, loadMarkItems } from '../services/markItemsLoader'
@@ -46,10 +46,8 @@ export default function (db: ApiDb) {
         items,
         count: items.length,
       })
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   };
 
@@ -57,10 +55,8 @@ export default function (db: ApiDb) {
     try {
       const marks = marksRepo.findAllForVideo(Number(req.params.id))
       res.status(201).send(marks)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   };
 
@@ -74,10 +70,8 @@ export default function (db: ApiDb) {
 
       const result = resolveMarkChaptersForPath(db, pathValue)
       res.status(200).send(result)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   };
 
@@ -85,10 +79,8 @@ export default function (db: ApiDb) {
     try {
       const marks = marksRepo.findAllWithRelations()
       res.status(201).send(marks)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   };
 
@@ -98,9 +90,7 @@ export default function (db: ApiDb) {
         res.status(201).send(data)
       })
       .catch((err: unknown) => {
-        res.status(500).send({
-          message: apiErrorMessage(err) || "Some error occurred while performing query."
-        })
+        sendControllerError(res, err, 'Some error occurred while performing query.')
       })
   }
 
@@ -110,9 +100,7 @@ export default function (db: ApiDb) {
         res.status(201).send(data)
       })
       .catch((err: unknown) => {
-        res.status(500).send({
-          message: apiErrorMessage(err) || "Some error occurred while performing query."
-        })
+        sendControllerError(res, err, 'Some error occurred while performing query.')
       })
   }
 
@@ -124,10 +112,8 @@ export default function (db: ApiDb) {
     try {
       marksRepo.deleteById(Number(markId))
       res.sendStatus(201)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   };
 

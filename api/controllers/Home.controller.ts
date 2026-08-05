@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getHomeMedia } from '../services/homeMedia'
 import { getRandomMarks } from '../services/homeMarkers'
@@ -22,9 +22,7 @@ export default (db: ApiDb) => {
       const data = await getHomeMedia(db, limits)
       res.status(200).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving home media.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving home media.')
     }
   }
 
@@ -34,9 +32,7 @@ export default (db: ApiDb) => {
       const marks = await getRandomMarks(db, limit)
       res.status(200).send({marks})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving home markers.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving home markers.')
     }
   }
 
@@ -45,9 +41,7 @@ export default (db: ApiDb) => {
       const data = await getHomeHealth(db)
       res.status(200).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving home health.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving home health.')
     }
   }
 
@@ -56,9 +50,7 @@ export default (db: ApiDb) => {
       const data = await getHomeHealthLite(db)
       res.status(200).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving lite home health.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving lite home health.')
     }
   }
 
@@ -67,9 +59,7 @@ export default (db: ApiDb) => {
       const data = await getHomeExtendedStats(db)
       res.status(200).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving extended stats.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving extended stats.')
     }
   }
 
@@ -79,9 +69,7 @@ export default (db: ApiDb) => {
       const items = await searchMediaByName(db, String(q || ''), req.body?.limit)
       res.status(200).send({items})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while searching media.',
-      })
+      sendControllerError(res, err, 'Some error occurred while searching media.')
     }
   }
 
@@ -95,9 +83,7 @@ export default (db: ApiDb) => {
       })
       res.status(200).send({items})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while searching tags.',
-      })
+      sendControllerError(res, err, 'Some error occurred while searching tags.')
     }
   }
 
@@ -110,9 +96,7 @@ export default (db: ApiDb) => {
       })
       res.status(200).send(data)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while searching.',
-      })
+      sendControllerError(res, err, 'Some error occurred while searching.')
     }
   }
 

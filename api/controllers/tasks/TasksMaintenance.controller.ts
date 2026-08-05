@@ -1,6 +1,6 @@
 import type { TaskControllerShared } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
-import { apiErrorMessage } from '../../types/errors'
+import { apiErrorMessage, sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMediaRepository } from '../../db/repositories/media'
 import { parseMediaFilePath } from '../../../shared/mediaPath'
@@ -50,9 +50,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getContentHashBackfillStatus(db)
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while checking content hash status."
-      })
+      sendControllerError(res, err, "Some error occurred while checking content hash status.")
     }
   }
 
@@ -61,9 +59,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getOshashBackfillStatus(db)
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking oshash status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking oshash status.')
     }
   }
 
@@ -72,9 +68,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getFingerprintBackfillStatus(db)
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking fingerprint status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking fingerprint status.')
     }
   }
 
@@ -83,9 +77,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getVideoCodecBackfillStatus(db)
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking video codec status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking video codec status.')
     }
   }
 
@@ -123,9 +115,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getImageThumbsGenerationStatus(db, getDbPath() ?? '')
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking image thumbnails generation status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking image thumbnails generation status.')
     }
   }
 
@@ -166,9 +156,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getVideoImagesGeneration().getVideoImagesGenerationStatus(db, getDbPath())
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking video images generation status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking video images generation status.')
     }
   }
 
@@ -294,9 +282,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getVisualHashBackfillStatus(db)
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking visual hash status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking visual hash status.')
     }
   }
 
@@ -335,9 +321,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getMissingMediaStatus(db, {full})
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while checking missing media status."
-      })
+      sendControllerError(res, err, "Some error occurred while checking missing media status.")
     }
   }
 
@@ -436,9 +420,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
       res.status(201).send({updated})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while relinking missing media."
-      })
+      sendControllerError(res, err, "Some error occurred while relinking missing media.")
     }
   }
 
@@ -447,9 +429,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       const status = await getTagImageAiUpscaleStatus(db)
       res.status(200).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking tag image AI upscale status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking tag image AI upscale status.')
     }
   }
 

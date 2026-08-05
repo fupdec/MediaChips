@@ -524,6 +524,14 @@ export const FilterRowUpdateRequestSchema = z.object({
   metaId: optionalNullableCoercedNumberSchema,
 }).passthrough()
 
+export const FilterRowsInSavedFilterQuerySchema = z.object({
+  filterId: coercedId,
+}).passthrough()
+
+export const TagsInFilterRowQuerySchema = z.object({
+  rowId: coercedId,
+}).passthrough()
+
 export const MediaTypeWriteRequestSchema = z.object({
   name: z.string().optional(),
   extensions: z.string().optional(),

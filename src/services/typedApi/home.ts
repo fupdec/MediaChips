@@ -99,9 +99,8 @@ export const homeApi = {
     }))
   },
 
-  postMediaThumbs(body: Record<string, unknown>, capitalized = false) {
-    const route = capitalized ? API_ROUTES.mediaThumbsCapital : API_ROUTES.mediaThumbs
-    return apiClient.post(route, body).then((res) => ({
+  postMediaThumbs(body: Record<string, unknown>) {
+    return apiClient.post(API_ROUTES.mediaThumbs, body).then((res) => ({
       ...res,
       data: validated(parseMediaThumbsResponse, res.data),
     }))

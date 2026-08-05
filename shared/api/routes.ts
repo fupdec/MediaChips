@@ -1,19 +1,21 @@
+import {normalizeApiPath} from './normalizeApiPath'
+
 export const API_ROUTES = {
-  mediaType: '/api/mediaType',
-  tag: '/api/tag',
+  mediaType: '/api/MediaType',
+  tag: '/api/Tag',
   tagMerge: '/api/Tag/merge',
   tagMoveToCategory: '/api/Tag/moveToCategory',
-  meta: '/api/meta',
+  meta: '/api/Meta',
   metaMergeCategories: '/api/Meta/mergeCategories',
-  tab: '/api/tab',
-  playlist: '/api/playlist',
+  tab: '/api/Tab',
+  playlist: '/api/Playlist',
   setting: '/api/Setting',
-  mediaItems: '/api/media/items',
+  mediaItems: '/api/Media/items',
   pageSetting: '/api/PageSetting',
   savedFilter: '/api/SavedFilter',
   homeMedia: '/api/home/media',
-  mark: '/api/mark',
-  markByPath: '/api/mark/by-path',
+  mark: '/api/Mark',
+  markByPath: '/api/Mark/by-path',
   tagsInMediaCreateOne: '/api/TagsInMedia/createOne',
   tagsInFolder: '/api/TagsInFolder',
   tagsInFolderCreateOne: '/api/TagsInFolder/createOne',
@@ -33,12 +35,12 @@ export const API_ROUTES = {
   tagsInFilterRow: '/api/TagsInFilterRow',
   filterRow: '/api/FilterRow',
   mediaBasics: '/api/Media/basics',
-  mediaIds: '/api/media/ids',
+  mediaIds: '/api/Media/ids',
   playlistSummary: '/api/Playlist/summary',
-  mediaInPlaylists: '/api/mediaInPlaylists',
-  mediaInPlaylistsUpdate: '/api/mediaInPlaylists/update',
-  mediaUpdatePath: '/api/media/updatePath',
-  mediaDeleteOne: '/api/media/deleteOne',
+  mediaInPlaylists: '/api/MediaInPlaylists',
+  mediaInPlaylistsUpdate: '/api/MediaInPlaylists/update',
+  mediaUpdatePath: '/api/Media/updatePath',
+  mediaDeleteOne: '/api/Media/deleteOne',
   resolvePath: '/api/resolve-path',
   getFile: '/api/get-file',
   updateConfig: '/api/update-config',
@@ -63,8 +65,8 @@ export const API_ROUTES = {
   tasksBackupsImportBackup: '/api/TasksBackups/importBackup',
   tasksBackupsExportBackup: '/api/TasksBackups/exportBackup',
   homeExtendedStats: '/api/home/extended-stats',
-  mediaGetStats: '/api/media/get-stats',
-  tagCount: '/api/tag/count',
+  mediaGetStats: '/api/Media/get-stats',
+  tagCount: '/api/Tag/count',
   homeMarkers: '/api/home/markers',
   homeHealth: '/api/home/health',
   homeHealthLite: '/api/home/health-lite',
@@ -74,9 +76,8 @@ export const API_ROUTES = {
   authStatus: '/api/auth/status',
   authLogin: '/api/auth/login',
   authLogout: '/api/auth/logout',
-  mediaThumbs: '/api/media/thumbs',
-  mediaThumbsCapital: '/api/Media/thumbs',
-  tagThumbs: '/api/tag/thumbs',
+  mediaThumbs: '/api/Media/thumbs',
+  tagThumbs: '/api/Tag/thumbs',
   markItems: '/api/Mark/items',
   markClips: '/api/Mark/clips',
   markFilterMetas: '/api/Mark/filter-metas',
@@ -146,7 +147,7 @@ export const API_ROUTES = {
   taskStreamFaceDetection: '/api/Task/streamFaceDetection',
   taskStreamFaceEnrollment: '/api/Task/streamFaceEnrollment',
   taskStreamFaceMatching: '/api/Task/streamFaceMatching',
-  mediaNumberOfMediaWithTag: '/api/media/numberOfMediaWithTag',
+  mediaNumberOfMediaWithTag: '/api/Media/numberOfMediaWithTag',
   scraperSearchPerformers: '/api/scraper/performers',
   scraperSearchScenes: '/api/scraper/scenes/search',
   scraperMatchScenes: '/api/scraper/scenes/match',
@@ -166,7 +167,7 @@ export const API_ROUTES = {
 export type ApiRouteKey = keyof typeof API_ROUTES
 
 export function apiMeta(id: number | string) {
-  return `/api/meta/${id}`
+  return `/api/Meta/${id}`
 }
 
 export function apiMetaSetting(id: number | string) {
@@ -178,15 +179,15 @@ export function apiMediaType(id: number | string) {
 }
 
 export function apiMark(id: number | string) {
-  return `/api/mark/${id}`
+  return `/api/Mark/${id}`
 }
 
 export function apiVideoMetadata(id: number | string) {
-  return `/api/videoMetadata/${id}`
+  return `/api/VideoMetadata/${id}`
 }
 
 export function apiEntity(model: string, id: number | string) {
-  return `/api/${model}/${id}`
+  return normalizeApiPath(`/api/${model}/${id}`)
 }
 
 export function apiTagsInTag(tagId: number | string) {
@@ -216,11 +217,11 @@ export function apiValuesInMedia(mediaId: number | string) {
 }
 
 export function apiItemTagsEndpoint(endpoint: string) {
-  return `/api/${endpoint}`
+  return normalizeApiPath(`/api/${endpoint}`)
 }
 
 export function apiItemTagsEndpointDelete(endpoint: string, id: number | string) {
-  return `/api/${endpoint}/${id}`
+  return normalizeApiPath(`/api/${endpoint}/${id}`)
 }
 
 export function apiRemoveTagFromItem(type: string) {
@@ -268,7 +269,7 @@ export function apiSetting(option: string) {
 }
 
 export function apiPlaylist(id: number | string) {
-  return `/api/playlist/${id}`
+  return `/api/Playlist/${id}`
 }
 
 export function apiSavedFilter(id: number | string) {
@@ -292,7 +293,7 @@ export function apiMarksForVideo(id: number | string) {
 }
 
 export function apiTab(id: number | string) {
-  return `/api/tab/${id}`
+  return `/api/Tab/${id}`
 }
 
 export function apiWatchedFolder(id: number | string) {
@@ -300,7 +301,7 @@ export function apiWatchedFolder(id: number | string) {
 }
 
 export function apiMediaInPlaylists(id: number | string) {
-  return `/api/mediaInPlaylists/${id}`
+  return `/api/MediaInPlaylists/${id}`
 }
 
 export function apiVideoPlayable(id: number | string) {

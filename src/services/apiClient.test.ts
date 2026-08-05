@@ -12,8 +12,8 @@ describe('apiClient helpers', () => {
   })
 
   it('builds api urls from relative paths', () => {
-    expect(buildApiUrl('/api/media/items', 'http://localhost:12321'))
-      .toBe('http://localhost:12321/api/media/items')
+    expect(buildApiUrl('/api/Media/items', 'http://localhost:12321'))
+      .toBe('http://localhost:12321/api/Media/items')
     expect(buildApiUrl('api/ping', 'http://localhost:12321/'))
       .toBe('http://localhost:12321/api/ping')
   })

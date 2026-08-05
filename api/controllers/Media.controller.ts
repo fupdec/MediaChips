@@ -52,9 +52,7 @@ export default function (db: ApiDb) {
 
       res.status(201).send(result)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
@@ -72,9 +70,7 @@ export default function (db: ApiDb) {
 
       res.status(201).send(result)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving media ids.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media ids.')
     }
   }
 
@@ -84,9 +80,7 @@ export default function (db: ApiDb) {
       const items = await loadMediaBasicsByIds(db, ids)
       res.status(201).send({items})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving media.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
   }
 
@@ -112,9 +106,7 @@ export default function (db: ApiDb) {
 
       res.status(200).send({thumbs})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving thumbnails.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving thumbnails.')
     }
   }
 
@@ -122,9 +114,7 @@ export default function (db: ApiDb) {
     try {
       res.status(200).send(mediaRepo.getStats(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -132,10 +122,8 @@ export default function (db: ApiDb) {
     try {
       const data = mediaRepo.findById(Number(req.params.id)) ?? null
       res.status(201).send(data)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
@@ -143,10 +131,8 @@ export default function (db: ApiDb) {
     try {
       const count = mediaRepo.countWithTag(req.query.mediaTypeId, req.query.tagId)
       res.status(201).send({count})
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   };
 
@@ -158,10 +144,8 @@ export default function (db: ApiDb) {
       mediaRepo.updateById(Number(body.id), data, {silent: true})
       invalidateMediaDerivedCaches()
       res.status(201).send([1])
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
@@ -212,9 +196,7 @@ export default function (db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.sendStatus(201)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   };
 

@@ -1,6 +1,6 @@
 import type { TaskControllerShared, FfprobeInfo } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
-import { apiErrorMessage } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { MediaPathFile } from '@shared/api/responses'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -354,9 +354,11 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       sendAddMediaResponse(res, result)
     } catch (error) {
       console.error('addMedia failed:', error)
-      res.status(400).send({
-        message: apiErrorMessage(error) || String(error),
-      })
+      sendControllerError(
+        res,
+        error instanceof HttpError ? error : new HttpError(400, apiErrorMessage(error) || String(error)),
+        'Some error occurred while adding media.',
+      )
     }
   }
 
@@ -386,7 +388,11 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       res.status(201).send('success')
     } catch (error) {
-      res.status(400).send({message: apiErrorMessage(error)})
+      sendControllerError(
+        res,
+        error instanceof HttpError ? error : new HttpError(400, apiErrorMessage(error) || String(error)),
+        'Some error occurred while updating media info.',
+      )
     }
   }
 
@@ -395,9 +401,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       const data = mediaRepo.searchByPathLike(String(req.body.query || ''))
       res.status(201).send(data as unknown as MediaPathFile[])
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -436,9 +440,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       invalidateMediaDerivedCaches()
       res.sendStatus(201)
     } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while updating media paths.',
-      })
+      sendControllerError(res, err, 'Some error occurred while updating media paths.')
     }
   }
 
@@ -465,9 +467,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       res.status(201).send(parsed)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   }
 

@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { apiErrorMessage, asApiError } from '../../types/errors'
+import { HttpError, apiErrorMessage, asApiError, sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import path from 'path'
 import { exec } from 'child_process'
@@ -154,10 +154,14 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       res.status(201).send(result)
     } catch (err: unknown) {
       if (err instanceof ExternalPlayerError) {
-        res.status(400).send({message: err.message, code: err.code})
+        sendControllerError(res, new HttpError(400, err.message, {code: err.code}), err.message)
         return
       }
-      res.status(400).send({message: apiErrorMessage(err)})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+        'Failed to open in external player',
+      )
     }
   }
 
@@ -244,7 +248,11 @@ export default function createTasksFileController(shared: TaskControllerShared) 
         message: 'successfully deleted local file',
       })
     } catch (err) {
-      res.status(400).send({message: apiErrorMessage(err)})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+        'Failed to list files',
+      )
     }
   }
 

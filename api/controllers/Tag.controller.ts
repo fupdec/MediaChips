@@ -1,5 +1,5 @@
 import type { ApiDb, FilterLike } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
 import type {
@@ -16,15 +16,13 @@ import {
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
 import { findDefaultTagCategoryId } from '../services/defaultTagCategory'
-import { mergeTagsInCategory, TagMergeError } from '../services/tagMerge'
+import { mergeTagsInCategory } from '../services/tagMerge'
 import {
   moveTagsToCategory,
-  TagMoveToCategoryError,
 } from '../services/tagMoveToCategory'
 import {
   assertTagNameAvailable,
   assertTagNamesAvailable,
-  TagNameConflictError,
 } from '../services/tagNameUniqueness'
 import { loadTagItems } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
@@ -73,10 +71,7 @@ export default function (db: ApiDb) {
       res.status(201).send(result)
     } catch (err) {
       console.log(err)
-
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
   };
 
@@ -113,16 +108,7 @@ export default function (db: ApiDb) {
       const data = tagsRepo.bulkCreate(items)
       res.status(201).send(data)
     } catch (err: unknown) {
-      if (err instanceof TagNameConflictError) {
-        return res.status(err.status).send({
-          message: err.message,
-          code: err.code,
-          conflictingTagId: err.conflictingTagId,
-        })
-      }
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   };
 
@@ -130,10 +116,8 @@ export default function (db: ApiDb) {
     try {
       const data = tagsRepo.findById(Number(req.params.id)) ?? null
       res.status(201).send(data)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
@@ -159,10 +143,8 @@ export default function (db: ApiDb) {
 
       const data = findCooccurringTags(db, tagId, mediaTypeId)
       res.status(200).send(data)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving co-occurring tags.',
-      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving co-occurring tags.')
     }
   };
 
@@ -171,9 +153,7 @@ export default function (db: ApiDb) {
       const count = tagsRepo.countAll()
       res.status(200).send({count})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   }
 
@@ -181,10 +161,8 @@ export default function (db: ApiDb) {
     try {
       const data = tagsRepo.findAllRaw()
       res.status(201).send(data)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
@@ -199,16 +177,7 @@ export default function (db: ApiDb) {
       tagsRepo.updateById(tagId, updates as Record<string, unknown>, {silent: Boolean(silent)})
       res.status(201).send([1])
     } catch (err: unknown) {
-      if (err instanceof TagNameConflictError) {
-        return res.status(err.status).send({
-          message: err.message,
-          code: err.code,
-          conflictingTagId: err.conflictingTagId,
-        })
-      }
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while retrieving media."
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
   };
 
@@ -222,14 +191,7 @@ export default function (db: ApiDb) {
       })
       res.status(200).send(result)
     } catch (err: unknown) {
-      if (err instanceof TagMergeError) {
-        return res.status(err.status).send({
-          message: err.message,
-        })
-      }
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while merging tags.',
-      })
+      sendControllerError(res, err, 'Some error occurred while merging tags.')
     }
   }
 
@@ -243,17 +205,7 @@ export default function (db: ApiDb) {
       })
       res.status(200).send(result)
     } catch (err: unknown) {
-      if (err instanceof TagMoveToCategoryError) {
-        return res.status(err.status).send({
-          message: err.message,
-          code: err.code,
-          conflicts: err.conflicts,
-          unassignedMediaTypes: err.unassignedMediaTypes,
-        })
-      }
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while moving tags.',
-      })
+      sendControllerError(res, err, 'Some error occurred while moving tags.')
     }
   }
 
@@ -285,9 +237,7 @@ export default function (db: ApiDb) {
       tagsRepo.deleteById(Number(id))
       res.sendStatus(201)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while performing query.',
-      })
+      sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   };
 
@@ -331,9 +281,7 @@ export default function (db: ApiDb) {
 
       res.status(200).send({thumbs})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while retrieving tag thumbnails.',
-      })
+      sendControllerError(res, err, 'Some error occurred while retrieving tag thumbnails.')
     }
   }
 

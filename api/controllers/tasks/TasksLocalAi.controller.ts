@@ -1,6 +1,6 @@
 import type {TaskControllerShared} from '../../types/tasks'
 import type {ApiRequest, ApiResponse} from '../../types/http'
-import {apiErrorMessage} from '../../types/errors'
+import { apiErrorMessage, sendControllerError } from '../../types/errors'
 import {
   deleteLocalAiModel,
   getLocalAiStatus,
@@ -26,9 +26,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
     try {
       res.status(200).send(getLocalAiStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking Local AI status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking Local AI status.')
     }
   }
 
@@ -38,9 +36,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
       setLocalAiEnabled(db, enabled)
       res.status(200).send(getLocalAiStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while updating Local AI settings.',
-      })
+      sendControllerError(res, err, 'Some error occurred while updating Local AI settings.')
     }
   }
 
@@ -71,9 +67,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
       const result = deleteLocalAiModel(db)
       res.status(200).send({...result, status: getLocalAiStatus(db)})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while deleting Local AI model.',
-      })
+      sendControllerError(res, err, 'Some error occurred while deleting Local AI model.')
     }
   }
 
@@ -137,9 +131,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
     try {
       res.status(200).send({tools: ASSISTANT_TOOLS})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while listing Local AI tools.',
-      })
+      sendControllerError(res, err, 'Some error occurred while listing Local AI tools.')
     }
   }
 

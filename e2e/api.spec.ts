@@ -63,11 +63,16 @@ test.describe('API', () => {
   })
 
   test('media types list responds', async ({ request }) => {
-    const response = await request.get('/api/mediaType')
+    const response = await request.get('/api/MediaType')
     expect(response.ok()).toBeTruthy()
 
     const body = await response.json()
     expect(Array.isArray(body)).toBe(true)
     expect(body.length).toBeGreaterThan(0)
+  })
+
+  test('legacy mediaType casing still resolves via normalizeApiPath', async ({ request }) => {
+    const response = await request.get('/api/mediaType')
+    expect(response.ok()).toBeTruthy()
   })
 })

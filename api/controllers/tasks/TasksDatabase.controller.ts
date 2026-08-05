@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { apiErrorMessage } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { DatabaseSizesResponse } from '@shared/api/responses'
 import fs from 'fs'
@@ -21,7 +21,11 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       await rmrf(dbDir)
       res.status(201).send('successfully deleted')
     } catch (err) {
-      res.status(400).send({message: apiErrorMessage(err)})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+        'Request failed',
+      )
     }
   }
 
@@ -54,7 +58,11 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       const payload: DatabaseSizesResponse = { sizes }
       res.status(201).send(payload)
     } catch (err) {
-      res.status(400).send({message: apiErrorMessage(err) || String(err)})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+        'Request failed',
+      )
     }
   }
 
@@ -86,7 +94,11 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       }
       res.sendStatus(201)
     } catch (err) {
-      res.status(400).send({message: apiErrorMessage(err)})
+      sendControllerError(
+        res,
+        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
+        'Request failed',
+      )
     }
   }
 
@@ -97,7 +109,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       const config_json = result.config || createDefaultConfig()
       res.status(200).json(config_json)
     } catch (error) {
-      res.status(500).json({message: apiErrorMessage(error) || 'Failed to read config'})
+      sendControllerError(res, error, 'Failed to read config')
     }
   }
 
@@ -107,7 +119,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       res.status(200).send(id)
     } catch (error) {
       console.error('getMachineId failed:', error)
-      res.status(500).send({message: 'Failed to get machine id'})
+      sendControllerError(res, error, 'Failed to get machine id')
     }
   }
 
