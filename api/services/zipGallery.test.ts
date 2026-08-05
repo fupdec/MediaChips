@@ -59,6 +59,13 @@ describe('zipGallery path helpers', () => {
     })
   })
 
+  it('does not treat ordinary folders with ! as zip virtual paths', () => {
+    const folderBang = '/Volumes/disk/Back Out Again!/01.jpg'
+    expect(isVirtualZipPath(folderBang)).toBe(false)
+    expect(parseVirtualZipPath(folderBang)).toBeNull()
+    expect(isVirtualZipPath('/media/album.zip!/a.jpg')).toBe(true)
+  })
+
   it('rejects unsafe entry names', () => {
     expect(isSafeZipEntryName('../secret.jpg')).toBe(false)
     expect(isSafeZipEntryName('/abs/photo.jpg')).toBe(false)

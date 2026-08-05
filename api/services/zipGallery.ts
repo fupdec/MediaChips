@@ -69,8 +69,16 @@ export function isZipFilePath(filePath: string): boolean {
   return path.extname(String(filePath || '')).toLowerCase() === '.zip'
 }
 
+/**
+ * True only for `something.zip!/entry` paths.
+ * Do not treat ordinary folders that contain `!` (e.g. `Back Out Again!/01.jpg`) as zip virtual paths.
+ */
 export function isVirtualZipPath(filePath: string): boolean {
-  return typeof filePath === 'string' && filePath.includes(ZIP_VIRTUAL_SEP)
+  if (typeof filePath !== 'string') return false
+  const idx = filePath.indexOf(ZIP_VIRTUAL_SEP)
+  if (idx <= 0) return false
+  const zipPart = filePath.slice(0, idx).replace(/\\/g, '/')
+  return /\.zip$/i.test(zipPart)
 }
 
 export function buildVirtualZipPath(zipPath: string, entryName: string): string {
@@ -90,7 +98,7 @@ export function parseVirtualZipPath(filePath: string): { zipPath: string; entryN
 
   const zipPath = normalizeMediaPath(filePath.slice(0, idx))
   const entryName = normalizeZipEntryName(filePath.slice(idx + ZIP_VIRTUAL_SEP.length))
-  if (!zipPath || !entryName || !isSafeZipEntryName(entryName)) {
+  if (!zipPath || !isZipFilePath(zipPath) || !entryName || !isSafeZipEntryName(entryName)) {
     return null
   }
 

@@ -59,6 +59,7 @@ const isMounted = ref(false)
 let thumbObjectUrl: string | null = null
 let thumbLoadStarted = false
 let thumbFallbackStage = 0
+let loadGeneration = 0
 
 const ITEMS = computed(() => itemsStore)
 
@@ -131,6 +132,7 @@ const clearThumbUrl = () => {
 
 const probeImageDimensions = (src: string) => {
   if (Number(props.media?.width) > 0 && Number(props.media?.height) > 0) return
+  if (!src || src.includes('unavailable.png')) return
 
   const img = new Image()
   img.onload = () => {
@@ -157,51 +159,66 @@ const regenerateThumb = async () => {
   await typedApi.updateMediaInfo(props.media.id)
 }
 
-const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
-  if (!props.media?.id) return
-  if (thumbLoadStarted && !cacheBust) return
-  thumbLoadStarted = true
-  clearThumbUrl()
-
-  const src = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust, preferFull})
-
-  if (!isMounted.value) {
+const applyLoadedSrc = (src: string, generation: number) => {
+  if (generation !== loadGeneration) {
     revokeImageObjectUrl(src?.startsWith?.('blob:') ? src : null)
-    return
+    return false
   }
 
   if (!src.includes('unavailable.png')) {
     thumbObjectUrl = src.startsWith('blob:') ? src : null
     thumb.value = src
     probeImageDimensions(src)
+    return true
+  }
+
+  return false
+}
+
+const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
+  if (!props.media?.id) return
+  if (!store.mediaPath && !preferFull) return
+  if (thumbLoadStarted && !cacheBust) return
+  thumbLoadStarted = true
+  const generation = ++loadGeneration
+  clearThumbUrl()
+
+  const src = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust, preferFull})
+
+  if (!isMounted.value) {
+    // Keep the result if we are still the latest load; apply once mounted.
+    if (generation !== loadGeneration) {
+      revokeImageObjectUrl(src?.startsWith?.('blob:') ? src : null)
+      return
+    }
+    if (!src.includes('unavailable.png')) {
+      thumbObjectUrl = src.startsWith('blob:') ? src : null
+      thumb.value = src
+    }
     return
   }
 
+  if (applyLoadedSrc(src, generation)) return
+
+  // Generated thumbs live under mediaPath even when the source file is missing.
   if (props.isFileExists) {
     try {
       await regenerateThumb()
       const regenerated = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust: true})
-      if (!isMounted.value) {
-        revokeImageObjectUrl(regenerated?.startsWith?.('blob:') ? regenerated : null)
-        return
-      }
-      if (!regenerated.includes('unavailable.png')) {
-        thumbObjectUrl = regenerated.startsWith('blob:') ? regenerated : null
-        thumb.value = regenerated
-        probeImageDimensions(regenerated)
-        return
-      }
+      if (applyLoadedSrc(regenerated, generation)) return
+      revokeImageObjectUrl(regenerated?.startsWith?.('blob:') ? regenerated : null)
     } catch (error) {
       console.error('Image thumbnail regeneration failed:', error)
     }
   }
 
+  if (generation !== loadGeneration) return
   thumbObjectUrl = null
   thumb.value = IMAGE_UNAVAILABLE_URL
 }
 
 const requestThumb = () => {
-  if (!props.previewActive || !props.isFileExists) return
+  if (!props.previewActive) return
   if (applyCachedThumb()) return
   thumbLoadStarted = false
   thumbFallbackStage = 0
@@ -209,6 +226,7 @@ const requestThumb = () => {
 }
 
 const clearLoadedThumb = () => {
+  loadGeneration += 1
   clearThumbUrl()
   thumb.value = null
   detectedWidth.value = 0
@@ -241,20 +259,21 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   isMounted.value = false
+  loadGeneration += 1
   clearThumbUrl()
 })
 
 watch(
-  () => [props.media?.id, props.isFileExists] as const,
-  ([, exists]) => {
-    if (!exists) {
-      thumb.value = IMAGE_UNAVAILABLE_URL
-      return
-    }
-
-    thumb.value = null
+  () => [props.media?.id, props.isFileExists, store.mediaPath] as const,
+  () => {
+    // Source-file existence only affects the no-file styling / open gate.
+    // Thumbs still load from mediaPath/images/thumbs independently.
     detectedWidth.value = 0
     detectedHeight.value = 0
+    if (!props.previewActive) {
+      thumb.value = null
+      return
+    }
     requestThumb()
   },
 )

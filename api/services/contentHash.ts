@@ -20,8 +20,12 @@ const pathVariants = (pathToFile: string): string[] => {
 
 const resolveExistingPath = async (pathToFile: string): Promise<string | null> => {
   // Virtual ZIP paths are not real filesystem paths.
+  // Only consult zip helpers when `!/` is present — and require `.zip!/` (not `Folder!/file`).
   if (typeof pathToFile === 'string' && pathToFile.includes('!/')) {
-    return null
+    const { isVirtualZipPath } = await import('./zipGallery')
+    if (isVirtualZipPath(pathToFile)) {
+      return null
+    }
   }
 
   for (const variant of pathVariants(pathToFile)) {
@@ -38,8 +42,10 @@ const resolveExistingPath = async (pathToFile: string): Promise<string | null> =
 
 const fileExists = async (pathToFile: string) => {
   if (typeof pathToFile === 'string' && pathToFile.includes('!/')) {
-    const { zipEntryExists } = await import('./zipGallery')
-    return zipEntryExists(pathToFile)
+    const { isVirtualZipPath, zipEntryExists } = await import('./zipGallery')
+    if (isVirtualZipPath(pathToFile)) {
+      return zipEntryExists(pathToFile)
+    }
   }
 
   return Boolean(await resolveExistingPath(pathToFile))

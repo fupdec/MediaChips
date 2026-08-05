@@ -406,10 +406,17 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
         await mediaPostProcess.refreshMediaInfo(media, mediaType)
 
-        const stats = fs.statSync(String(media.path))
-        const filesize = stats.size
-
-        mediaRepo.updateById(Number(media_id), {filesize})
+        const {isVirtualZipPath, getZipEntryInfo} = await import('../../services/zipGallery')
+        if (!isVirtualZipPath(String(media.path || ''))) {
+          const stats = fs.statSync(String(media.path))
+          const filesize = stats.size
+          mediaRepo.updateById(Number(media_id), {filesize})
+        } else {
+          const entryInfo = await getZipEntryInfo(String(media.path))
+          if (entryInfo?.filesize != null) {
+            mediaRepo.updateById(Number(media_id), {filesize: entryInfo.filesize})
+          }
+        }
       }
 
       res.status(201).send('success')

@@ -46,10 +46,14 @@ describe('checkFilesExist', () => {
       await writeZip(zipPath, { 'a.jpg': 'x' })
       const virtual = buildVirtualZipPath(zipPath, 'a.jpg')
       const missing = buildVirtualZipPath(zipPath, 'missing.jpg')
+      const folderBang = path.join(tempDir, 'Back Out Again!', 'photo.jpg')
+      await fs.promises.mkdir(path.dirname(folderBang), { recursive: true })
+      await fs.promises.writeFile(folderBang, 'y')
 
-      const results = await checkFilesExist([virtual, missing])
+      const results = await checkFilesExist([virtual, missing, folderBang])
       expect(results[virtual]).toBe(true)
       expect(results[missing]).toBe(false)
+      expect(results[folderBang]).toBe(true)
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }

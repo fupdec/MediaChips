@@ -116,8 +116,8 @@ const getImageMetadataFromBuffer = async (buffer: Buffer) => {
 
 const getImageMetadata = async (pathToFile: string) => {
   try {
-    if (pathToFile.includes('!/')) {
-      const { readZipEntryBuffer } = await import('./zipGallery')
+    const { isVirtualZipPath, readZipEntryBuffer } = await import('./zipGallery')
+    if (isVirtualZipPath(pathToFile)) {
       const entry = await readZipEntryBuffer(pathToFile)
       if (!entry) return null
       return getImageMetadataFromBuffer(entry.buffer)
@@ -162,8 +162,8 @@ const createImageThumbFromBuffer = async (buffer: Buffer, id: string | number, d
 }
 
 const createImageThumb = async (pathToFile: string, id: string | number, dbPath: string) => {
-  if (pathToFile.includes('!/')) {
-    const { readZipEntryBuffer } = await import('./zipGallery')
+  const { isVirtualZipPath, readZipEntryBuffer } = await import('./zipGallery')
+  if (isVirtualZipPath(pathToFile)) {
     const entry = await readZipEntryBuffer(pathToFile)
     if (!entry) {
       throw new Error(`ZIP entry not found: ${pathToFile}`)
