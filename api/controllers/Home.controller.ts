@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getHomeMedia } from '../services/homeMedia'
 import { getRandomMarks } from '../services/homeMarkers'
@@ -17,7 +17,7 @@ export default (db: ApiDb) => {
         topViews: parseClampedLimit(req.query.topViewsLimit ?? req.query.limit, 12),
       }
       const data = await getHomeMedia(db, limits)
-      res.status(200).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving home media.')
     }
@@ -27,7 +27,7 @@ export default (db: ApiDb) => {
     try {
       const limit = parseClampedLimit(req.query.limit, 8, 16)
       const marks = await getRandomMarks(db, limit)
-      res.status(200).send({marks})
+      sendOk(res, {marks})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving home markers.')
     }
@@ -36,7 +36,7 @@ export default (db: ApiDb) => {
   const getHealth = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getHomeHealth(db)
-      res.status(200).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving home health.')
     }
@@ -45,7 +45,7 @@ export default (db: ApiDb) => {
   const getHealthLite = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getHomeHealthLite(db)
-      res.status(200).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving lite home health.')
     }
@@ -54,7 +54,7 @@ export default (db: ApiDb) => {
   const getExtendedStats = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getHomeExtendedStats(db)
-      res.status(200).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving extended stats.')
     }
@@ -64,7 +64,7 @@ export default (db: ApiDb) => {
     try {
       const q = req.body?.q ?? req.body?.query
       const items = await searchMediaByName(db, String(q || ''), req.body?.limit)
-      res.status(200).send({items})
+      sendOk(res, {items})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while searching media.')
     }
@@ -78,7 +78,7 @@ export default (db: ApiDb) => {
         limit: req.body?.limit,
         metaId: metaId == null || metaId === '' ? null : Number(metaId),
       })
-      res.status(200).send({items})
+      sendOk(res, {items})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while searching tags.')
     }
@@ -91,7 +91,7 @@ export default (db: ApiDb) => {
         limit: req.body?.limit,
         tagIds: req.body?.tagIds,
       })
-      res.status(200).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while searching.')
     }

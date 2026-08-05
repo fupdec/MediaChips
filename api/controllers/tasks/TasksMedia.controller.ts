@@ -1,6 +1,13 @@
 import type { TaskControllerShared, FfprobeInfo } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
-import { HttpError, apiErrorMessage, sendControllerError, sendCreated, sendOk } from '../../types/errors'
+import {
+  HttpError,
+  apiErrorMessage,
+  sendAsClientError,
+  sendControllerError,
+  sendCreated,
+  sendOk,
+} from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { MediaPathFile } from '@shared/api/responses'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -359,10 +366,11 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       return
     }
 
-    res.status(202).send({
-      message: 'Media already added.',
-      duplicate,
-    })
+    sendControllerError(
+      res,
+      new HttpError(202, 'Media already added.', {duplicate}),
+      'Media already added.',
+    )
   }
 
   const addMedia = async function (req: ApiRequest, res: ApiResponse) {
@@ -380,11 +388,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       sendAddMediaResponse(res, result)
     } catch (error) {
       console.error('addMedia failed:', error)
-      sendControllerError(
-        res,
-        error instanceof HttpError ? error : new HttpError(400, apiErrorMessage(error) || String(error)),
-        'Some error occurred while adding media.',
-      )
+      sendAsClientError(res, error, 'Some error occurred while adding media.')
     }
   }
 
@@ -421,11 +425,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       sendOk(res, 'success')
     } catch (error) {
-      sendControllerError(
-        res,
-        error instanceof HttpError ? error : new HttpError(400, apiErrorMessage(error) || String(error)),
-        'Some error occurred while updating media info.',
-      )
+      sendAsClientError(res, error, 'Some error occurred while updating media info.')
     }
   }
 

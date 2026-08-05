@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   HttpError,
   httpStatusFromError,
+  sendAsClientError,
+  sendBadRequest,
   sendControllerError,
   sendCreated,
+  sendNotFound,
   sendOk,
 } from './errors'
 
@@ -83,5 +86,29 @@ describe('HttpError / sendControllerError', () => {
     expect(httpStatusFromError({status: 200})).toBe(500)
     expect(httpStatusFromError({status: 404})).toBe(404)
     expect(httpStatusFromError(new Error('x'))).toBe(500)
+  })
+
+  it('sendBadRequest / sendNotFound use HttpError mapping', () => {
+    const bad = createResponse()
+    sendBadRequest(bad as never, 'bad input', {code: 'BAD'})
+    expect(bad.statusCode).toBe(400)
+    expect(bad.body).toEqual({message: 'bad input', code: 'BAD'})
+
+    const missing = createResponse()
+    sendNotFound(missing as never, 'gone')
+    expect(missing.statusCode).toBe(404)
+    expect(missing.body).toEqual({message: 'gone'})
+  })
+
+  it('sendAsClientError wraps plain errors as 400 and preserves HttpError', () => {
+    const plain = createResponse()
+    sendAsClientError(plain as never, new Error('disk full'), 'fallback')
+    expect(plain.statusCode).toBe(400)
+    expect(plain.body).toEqual({message: 'disk full'})
+
+    const typed = createResponse()
+    sendAsClientError(typed as never, new HttpError(409, 'conflict'), 'fallback')
+    expect(typed.statusCode).toBe(409)
+    expect(typed.body).toEqual({message: 'conflict'})
   })
 })

@@ -1,5 +1,5 @@
 import type { ApiDb, FilterLike } from '../types/db'
-import { sendControllerError, sendCreated, sendOk } from '../types/errors'
+import { sendBadRequest, sendControllerError, sendCreated, sendNotFound, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
 import type {
@@ -41,9 +41,7 @@ export default function (db: ApiDb) {
     const body = getRequestBody<TagItemsListRequest>(req)
     const metaId = Number(body.metaId)
     if (!Number.isFinite(metaId)) {
-      return res.status(400).send({
-        message: 'metaId is required',
-      })
+      return sendBadRequest(res, 'metaId is required')
     }
 
     const ids = Array.isArray(body.ids)
@@ -79,7 +77,7 @@ export default function (db: ApiDb) {
     try {
       const body = getRequestBody<CreateTagPayload[]>(req)
       if (!Array.isArray(body) || !body.length) {
-        return res.status(400).send({message: 'At least one tag is required'})
+        return sendBadRequest(res, 'At least one tag is required')
       }
 
       const defaultMetaId = findDefaultTagCategoryId(db.sqlite)
@@ -95,9 +93,7 @@ export default function (db: ApiDb) {
       })
 
       if (items.some((item) => item.metaId == null)) {
-        return res.status(400).send({
-          message: 'Tag category is required. Create a Tags category first.',
-        })
+        return sendBadRequest(res, 'Tag category is required. Create a Tags category first.')
       }
 
       assertTagNamesAvailable(
@@ -125,9 +121,7 @@ export default function (db: ApiDb) {
     try {
       const tagId = Number(req.params.id)
       if (!Number.isFinite(tagId) || tagId <= 0) {
-        return res.status(400).send({
-          message: 'tag id is required',
-        })
+        return sendBadRequest(res, 'tag id is required')
       }
 
       const mediaTypeRaw = req.query.mediaTypeId
@@ -136,9 +130,7 @@ export default function (db: ApiDb) {
         : null
 
       if (mediaTypeId != null && !Number.isFinite(mediaTypeId)) {
-        return res.status(400).send({
-          message: 'mediaTypeId must be a number',
-        })
+        return sendBadRequest(res, 'mediaTypeId must be a number')
       }
 
       const data = findCooccurringTags(db, tagId, mediaTypeId)
@@ -217,16 +209,12 @@ export default function (db: ApiDb) {
       const tag = tagsRepo.findById(Number(id))
 
       if (!tag) {
-        return res.status(404).send({
-          message: 'Tag not found.',
-        })
+        return sendNotFound(res, 'Tag not found.')
       }
 
       const metaId = req.body.metaId || tag.metaId
       if (!metaId) {
-        return res.status(400).send({
-          message: 'metaId is required to delete tag assets.',
-        })
+        return sendBadRequest(res, 'metaId is required to delete tag assets.')
       }
 
       const tagName = typeof tag.name === 'string' ? tag.name.trim() : ''
@@ -246,7 +234,7 @@ export default function (db: ApiDb) {
       const body = getRequestBody<TagThumbsRequestPayload>(req)
       const metaId = Number(body.metaId)
       if (!Number.isFinite(metaId)) {
-        return res.status(400).send({message: 'metaId is required'})
+        return sendBadRequest(res, 'metaId is required')
       }
 
       const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean) : []

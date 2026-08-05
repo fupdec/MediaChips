@@ -1,5 +1,14 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, apiErrorMessage, asApiError, sendControllerError, sendOk } from '../../types/errors'
+import {
+  HttpError,
+  apiErrorMessage,
+  asApiError,
+  sendAsClientError,
+  sendBadRequest,
+  sendControllerError,
+  sendNotFound,
+  sendOk,
+} from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import path from 'path'
 import { exec } from 'child_process'
@@ -32,26 +41,25 @@ export default function createTasksFileController(shared: TaskControllerShared) 
   const checkFileExists = async function (req: ApiRequest, res: ApiResponse) {
     const filePath = normalizeMediaPath(req.body.path)
     if (isVirtualZipPath(filePath)) {
-      res.status(200).json({ exists: await zipEntryExists(filePath) })
+      sendOk(res, { exists: await zipEntryExists(filePath) })
       return
     }
     const resolved = filePath ? await resolveExistingPath(filePath) : null
-    res.status(200).json({ exists: Boolean(resolved) })
+    sendOk(res, { exists: Boolean(resolved) })
   }
 
   const checkFilesExists = async function (req: ApiRequest, res: ApiResponse) {
     const paths = Array.isArray(req.body.paths) ? req.body.paths : []
     const results = await checkFilesExist(paths)
-    res.status(200).json({ results })
+    sendOk(res, { results })
   }
 
   const renameFile = async function (req: ApiRequest, res: ApiResponse) {
     const { old_path, new_path } = req.body
 
     if (isVirtualZipPath(String(old_path || '')) || isVirtualZipPath(String(new_path || ''))) {
-      return res.status(400).send({
+      return sendBadRequest(res, 'Files inside ZIP archives are read-only', {
         code: 'ZIP_READONLY',
-        message: 'Files inside ZIP archives are read-only',
         fileName: path.basename(String(old_path || new_path || '')),
         folder: path.dirname(String(old_path || new_path || '')),
       })
@@ -61,7 +69,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       const prepared = await prepareRename(old_path, new_path)
 
       if (prepared.error) {
-        return res.status(400).send({
+        return sendBadRequest(res, String(prepared.error.code || 'Rename failed'), {
           code: prepared.error.code,
           fileName: prepared.fileName,
           folder: prepared.folder,
@@ -74,7 +82,7 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
       const diskSpaceError = await checkRenameDiskSpace(prepared)
       if (diskSpaceError) {
-        return res.status(400).send({
+        return sendBadRequest(res, 'NO_SPACE', {
           code: 'NO_SPACE',
           required: diskSpaceError.required,
           available: diskSpaceError.available,
@@ -105,14 +113,12 @@ export default function createTasksFileController(shared: TaskControllerShared) 
   const openPath = async function (req: ApiRequest, res: ApiResponse) {
     const rawPath = path.normalize(req.body.path)
     if (isVirtualZipPath(String(req.body.path || '')) || isVirtualZipPath(rawPath)) {
-      return res.status(400).send({
-        message: 'Cannot open files inside ZIP archives in the system file manager',
-      })
+      return sendBadRequest(res, 'Cannot open files inside ZIP archives in the system file manager')
     }
     const revealInFolder = Boolean(req.body.isDir)
     const entryPath = revealInFolder ? path.dirname(rawPath) : rawPath
 
-    const fail = (message: string) => res.status(400).send({message})
+    const fail = (message: string) => sendBadRequest(res, message)
 
     try {
       const electron = await import('electron').catch(() => null)
@@ -154,12 +160,12 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       : Number(mediaIdRaw)
 
     if (player !== 'mpv' && player !== 'iina') {
-      res.status(400).send({message: 'player must be mpv or iina'})
+      sendBadRequest(res, 'player must be mpv or iina')
       return
     }
 
     if (!mediaPath) {
-      res.status(400).send({message: 'path is required'})
+      sendBadRequest(res, 'path is required')
       return
     }
 
@@ -179,14 +185,10 @@ export default function createTasksFileController(shared: TaskControllerShared) 
       sendOk(res, result)
     } catch (err: unknown) {
       if (err instanceof ExternalPlayerError) {
-        sendControllerError(res, new HttpError(400, err.message, {code: err.code}), err.message)
+        sendBadRequest(res, err.message, {code: err.code})
         return
       }
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Failed to open in external player',
-      )
+      sendAsClientError(res, err, 'Failed to open in external player')
     }
   }
 
@@ -212,42 +214,30 @@ export default function createTasksFileController(shared: TaskControllerShared) 
     } catch (error: unknown) {
       const message = apiErrorMessage(error) || String(error)
       if (message === 'not directory') {
-        sendControllerError(res, new HttpError(400, 'not directory'), 'not directory')
+        sendBadRequest(res, 'not directory')
         return
       }
-      sendControllerError(
-        res,
-        error instanceof HttpError ? error : new HttpError(400, message),
-        'Failed to list files',
-      )
+      sendAsClientError(res, error, 'Failed to list files')
     }
   }
 
   const deleteFile = async function (req: ApiRequest, res: ApiResponse) {
     try {
       if (isVirtualZipPath(String(req.body.path || ''))) {
-        return res.status(400).send({
-          message: 'Files inside ZIP archives are read-only',
-        })
+        return sendBadRequest(res, 'Files inside ZIP archives are read-only')
       }
 
       const deleted = await unlinkResolvedPath(req.body.path)
 
       if (!deleted) {
-        return res.status(404).send({
-          message: 'File not found.',
-        })
+        return sendNotFound(res, 'File not found.')
       }
 
       sendOk(res, {
         message: 'successfully deleted local file',
       })
     } catch (err) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Failed to delete file',
-      )
+      sendAsClientError(res, err, 'Failed to delete file')
     }
   }
 

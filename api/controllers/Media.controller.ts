@@ -1,5 +1,5 @@
 import type { ApiDb, FilterLike } from '../types/db'
-import { apiErrorMessage, sendControllerError, sendOk } from '../types/errors'
+import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
@@ -169,9 +169,7 @@ export default function (db: ApiDb) {
       const media = mediaRepo.findById(Number(id))
 
       if (!media) {
-        return res.status(404).send({
-          message: 'Media not found.',
-        })
+        return sendNotFound(res, 'Media not found.')
       }
 
       const mediaPath = String(media.path || body.path || '')

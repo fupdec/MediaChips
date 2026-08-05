@@ -84,6 +84,43 @@ export function sendControllerError(
   return res.status(500).send({message})
 }
 
+/** Validation / client-input rejection. */
+export function sendBadRequest(
+  res: Response,
+  message: string,
+  body: Record<string, unknown> = {},
+): Response {
+  return sendControllerError(res, new HttpError(400, message, body), message)
+}
+
+/** Missing resource rejection. */
+export function sendNotFound(
+  res: Response,
+  message: string,
+  body: Record<string, unknown> = {},
+): Response {
+  return sendControllerError(res, new HttpError(404, message, body), message)
+}
+
+/**
+ * Task/IO handlers historically map unexpected failures to 400.
+ * Preserves HttpError status; wraps plain errors as HttpError(400).
+ */
+export function sendAsClientError(
+  res: Response,
+  err: unknown,
+  fallbackMessage: string,
+): Response {
+  if (err instanceof HttpError) {
+    return sendControllerError(res, err, fallbackMessage)
+  }
+  return sendControllerError(
+    res,
+    new HttpError(400, apiErrorMessage(err) || fallbackMessage),
+    fallbackMessage,
+  )
+}
+
 export function asApiError(error: unknown): ApiErrorLike & { message: string } {
   if (error && typeof error === 'object') {
     const record = error as ApiErrorLike

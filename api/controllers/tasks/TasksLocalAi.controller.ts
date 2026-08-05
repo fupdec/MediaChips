@@ -1,6 +1,6 @@
 import type {TaskControllerShared} from '../../types/tasks'
 import type {ApiRequest, ApiResponse} from '../../types/http'
-import { apiErrorMessage, sendControllerError } from '../../types/errors'
+import { apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import {
   deleteLocalAiModel,
   getLocalAiStatus,
@@ -25,7 +25,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
 
   const localAiStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(200).send(getLocalAiStatus(db))
+      sendOk(res, getLocalAiStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking Local AI status.')
     }
@@ -35,7 +35,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
     try {
       const enabled = Boolean(req.body?.enabled)
       setLocalAiEnabled(db, enabled)
-      res.status(200).send(getLocalAiStatus(db))
+      sendOk(res, getLocalAiStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while updating Local AI settings.')
     }
@@ -54,7 +54,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
         // Allow delete even when disabled so users can free disk space.
       }
       const result = deleteLocalAiModel(db)
-      res.status(200).send({...result, status: getLocalAiStatus(db)})
+      sendOk(res, {...result, status: getLocalAiStatus(db)})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while deleting Local AI model.')
     }
@@ -116,7 +116,7 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
 
   const localAiTools = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(200).send({tools: ASSISTANT_TOOLS})
+      sendOk(res, {tools: ASSISTANT_TOOLS})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while listing Local AI tools.')
     }

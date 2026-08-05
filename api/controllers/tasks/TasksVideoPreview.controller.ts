@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
+import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -31,11 +31,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         sendOk(res, result)
       })
       .catch((e: unknown) => {
-        sendControllerError(
-          res,
-          e instanceof HttpError ? e : new HttpError(400, apiErrorMessage(e) || String(e)),
-          'Failed to create video thumbnail',
-        )
+        sendAsClientError(res, e, 'Failed to create video thumbnail')
       })
   }
 
@@ -43,25 +39,19 @@ export default function createTasksVideoPreviewController(shared: TaskController
     try {
       const resolvedInputPath = resolveActiveDbFilePath(req.body.inputPath, dbPath)
       if (!resolvedInputPath) {
-        res.status(400).send({
-          message: "The video does not exist."
-        })
+        sendBadRequest(res, 'The video does not exist.')
         return
       }
 
       const outputPath = req.body.outputPath
       if (!outputPath) {
-        res.status(400).send({
-          message: "No output path provided."
-        })
+        sendBadRequest(res, 'No output path provided.')
         return
       }
 
       const outputExists = await resolveExistingPath(outputPath)
       if (!req.body.overwrite && outputExists) {
-        res.status(400).send({
-          message: "The image already exists."
-        })
+        sendBadRequest(res, 'The image already exists.')
         return
       }
 
@@ -78,11 +68,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
       )
       sendOk(res, thumbResult)
     } catch (e) {
-      sendControllerError(
-        res,
-        e instanceof HttpError ? e : new HttpError(400, apiErrorMessage(e) || String(e)),
-        'Failed to create thumbnail',
-      )
+      sendAsClientError(res, e, 'Failed to create thumbnail')
     }
   }
 
@@ -90,9 +76,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
     const gridsPath = path.join(dbPath ?? '', '/media/videos/grids/')
 
     if (!fs.existsSync(req.body.input)) {
-      res.status(400).send({
-        message: "The video does not exist."
-      })
+      sendBadRequest(res, 'The video does not exist.')
       return
     }
 
@@ -119,30 +103,22 @@ export default function createTasksVideoPreviewController(shared: TaskController
           await ensureVisualHash(true)
           sendOk(res, result)
         } else {
-          res.status(400).send({
-            message: 'Unable to probe video duration',
-          })
+          sendBadRequest(res, 'Unable to probe video duration')
         }
       } catch (err) {
-        sendControllerError(
-          res,
-          err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-          'Failed to create video grid',
-        )
+        sendAsClientError(res, err, 'Failed to create video grid')
       }
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
       await ensureVisualHash(false)
-      res.status(400).send({
-        message: 'Grid already exists'
-      });
+      sendBadRequest(res, 'Grid already exists')
     }
   }
 
   const createTimeline = async function (req: ApiRequest, res: ApiResponse) {
     const resolvedVideoPath = await resolveExistingPath(req.body.path)
     if (!resolvedVideoPath) {
-      res.status(400).send({message: 'The video does not exist.'})
+      sendBadRequest(res, 'The video does not exist.')
       return
     }
 
@@ -197,27 +173,27 @@ export default function createTasksVideoPreviewController(shared: TaskController
       const mediaId = Number(req.body.mediaId)
 
       if (!markId || !mediaId) {
-        res.status(400).send({message: 'markId and mediaId are required'})
+        sendBadRequest(res, 'markId and mediaId are required')
         return
       }
 
       const mark = marksRepo.findByIdAndMediaId(markId, mediaId)
 
       if (!mark) {
-        res.status(404).send({message: 'Mark not found'})
+        sendNotFound(res, 'Mark not found')
         return
       }
 
       const media = mediaRepo.findById(mediaId)
 
       if (!media?.path) {
-        res.status(404).send({message: 'Media not found'})
+        sendNotFound(res, 'Media not found')
         return
       }
 
       const resolvedInputPath = resolveActiveDbFilePath(media.path, dbPath)
       if (!resolvedInputPath) {
-        res.status(400).send({message: 'The video does not exist.'})
+        sendBadRequest(res, 'The video does not exist.')
         return
       }
 
@@ -228,7 +204,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
       const outputPath = path.join(marksDir, `${markId}.jpg`)
       if (!req.body.overwrite && fs.existsSync(outputPath)) {
-        res.status(400).send({message: 'The image already exists.'})
+        sendBadRequest(res, 'The image already exists.')
         return
       }
 
@@ -241,11 +217,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
       )
       sendOk(res, 'success')
     } catch (e) {
-      sendControllerError(
-        res,
-        e instanceof HttpError ? e : new HttpError(400, apiErrorMessage(e) || String(e)),
-        'Failed to create mark thumbnail',
-      )
+      sendAsClientError(res, e, 'Failed to create mark thumbnail')
     }
   }
 

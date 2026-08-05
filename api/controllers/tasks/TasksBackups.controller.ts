@@ -1,5 +1,5 @@
 import type { Express } from 'express'
-import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
+import { HttpError, sendAsClientError, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { BackupEntry } from '@shared/api/responses'
 import type { ApiDb } from '../../types/db'
@@ -148,11 +148,7 @@ export default function (app: Express, db: ApiDb) {
       } catch (reloadErr: unknown) {
         console.error('restoreBackup reload failed:', reloadErr)
       }
-      sendControllerError(
-        res,
-        new HttpError(400, apiErrorMessage(e) || String(e)),
-        'Failed to restore backup',
-      )
+      sendAsClientError(res, e, 'Failed to restore backup')
     } finally {
       try {
         await zip.close()
@@ -173,11 +169,7 @@ export default function (app: Express, db: ApiDb) {
       fse.copySync(fromPath, toPath, {overwrite: false})
       sendOk(res)
     } catch (err) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || 'Failed to import backup'),
-        'Failed to import backup',
-      )
+      sendAsClientError(res, err, 'Failed to import backup')
     }
   }
 
@@ -198,11 +190,7 @@ export default function (app: Express, db: ApiDb) {
       await fse.copy(fromPath, toPath, { overwrite: true })
       sendOk(res)
     } catch (err) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Failed to export backup',
-      )
+      sendAsClientError(res, err, 'Failed to export backup')
     }
   }
 

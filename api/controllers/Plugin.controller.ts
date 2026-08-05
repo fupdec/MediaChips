@@ -1,5 +1,5 @@
 import type {ApiDb} from '../types/db'
-import {HttpError, apiErrorMessage, sendControllerError, sendCreated, sendOk} from '../types/errors'
+import {sendAsClientError, sendControllerError, sendCreated, sendOk} from '../types/errors'
 import type {ApiRequest, ApiResponse} from '../types/http'
 import {
   installPluginFromPath,
@@ -35,11 +35,7 @@ export default function createPluginController(_db: ApiDb) {
       remountPluginMainsAfterInstall()
       sendCreated(res, entry)
     } catch (err: unknown) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || 'Failed to install plugin'),
-        'Failed to install plugin',
-      )
+      sendAsClientError(res, err, 'Failed to install plugin')
     }
   }
 
@@ -49,11 +45,7 @@ export default function createPluginController(_db: ApiDb) {
       await uninstallPlugin(pluginId)
       sendOk(res, {ok: true})
     } catch (err: unknown) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || 'Failed to uninstall plugin'),
-        'Failed to uninstall plugin',
-      )
+      sendAsClientError(res, err, 'Failed to uninstall plugin')
     }
   }
 

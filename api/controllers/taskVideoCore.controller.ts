@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { HttpError, apiErrorMessage, sendControllerError, sendCreated, sendOk } from '../types/errors'
+import { sendAsClientError, sendBadRequest, sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { runNdjsonAsyncGenerator } from './tasks/ndjsonStreamRunner'
 import fs from 'fs'
@@ -27,7 +27,7 @@ export default function taskVideoCoreController(db: ApiDb) {
   const checkFileExists = async (req: ApiRequest, res: ApiResponse) => {
     const filePath = normalizeMediaPath(req.body.path)
     const resolved = filePath ? await resolveExistingPath(filePath) : null
-    res.status(200).json({ exists: Boolean(resolved) })
+    sendOk(res, { exists: Boolean(resolved) })
   }
 
   const getConfig = async (req: ApiRequest, res: ApiResponse) => {
@@ -35,7 +35,7 @@ export default function taskVideoCoreController(db: ApiDb) {
       const configPath = getAppConfigPath()
       const result = loadConfigFile(configPath)
       const configJson = result.config || createDefaultConfig()
-      res.status(200).json(configJson)
+      sendOk(res, configJson)
     } catch (error) {
       sendControllerError(res, error, 'Failed to read config')
     }
@@ -44,7 +44,7 @@ export default function taskVideoCoreController(db: ApiDb) {
   const getMachineId = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const id = await machineId()
-      res.status(200).send(id)
+      sendOk(res, id)
     } catch (error) {
       console.error('getMachineId failed:', error)
       sendControllerError(res, error, 'Failed to get machine id')
@@ -54,13 +54,13 @@ export default function taskVideoCoreController(db: ApiDb) {
   const createTimeline = async (req: ApiRequest, res: ApiResponse) => {
     const resolvedVideoPath = await resolveExistingPath(req.body.path)
     if (!resolvedVideoPath) {
-      res.status(400).send({message: 'The video does not exist.'})
+      sendBadRequest(res, 'The video does not exist.')
       return
     }
 
     const gridPath = path.join(getDbPath(), 'media', 'videos', 'grids', `${req.body.id}.jpg`)
     if (fs.existsSync(gridPath)) {
-      res.status(400).send({message: 'Grid already exists'})
+      sendBadRequest(res, 'Grid already exists')
       return
     }
 
@@ -80,13 +80,9 @@ export default function taskVideoCoreController(db: ApiDb) {
         return
       }
 
-      res.status(400).send({message: result.message || 'Failed to create grid'})
+      sendBadRequest(res, result.message || 'Failed to create grid')
     } catch (error) {
-      sendControllerError(
-        res,
-        error instanceof HttpError ? error : new HttpError(400, apiErrorMessage(error) || String(error)),
-        'Failed to create timeline grid',
-      )
+      sendAsClientError(res, error, 'Failed to create timeline grid')
     }
   }
 

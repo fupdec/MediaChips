@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { paramString, sendControllerError, sendCreated, sendOk } from '../types/errors'
+import { paramString, sendBadRequest, sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { Meta, MetaWritePayload } from '@shared/entities/meta'
@@ -31,7 +31,7 @@ export default function (db: ApiDb) {
       const body = getRequestBody<MetaWritePayload>(req)
       const pathRegexError = validateMetaPathRegex(body)
       if (pathRegexError) {
-        return res.status(400).send({message: pathRegexError})
+        return sendBadRequest(res, pathRegexError)
       }
       const data = metaRepo.create(body as Record<string, unknown>)
 
@@ -79,7 +79,7 @@ export default function (db: ApiDb) {
       const body = getRequestBody<MetaWritePayload>(req)
       const pathRegexError = validateMetaPathRegex(body)
       if (pathRegexError) {
-        return res.status(400).send({message: pathRegexError})
+        return sendBadRequest(res, pathRegexError)
       }
       const metaId = parseInt(paramString(req.params.id), 10)
       const conversion = Object.prototype.hasOwnProperty.call(body, 'measurementUnit')

@@ -5,7 +5,7 @@ import type {
   OldIdMapping,
 } from '../../types/migration'
 import type { ApiRequest, ApiResponse } from '../../types/http'
-import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
+import { apiErrorMessage, sendAsClientError, sendOk } from '../../types/errors'
 import fs from 'fs'
 import fse from 'fs-extra'
 import path from 'path'
@@ -85,11 +85,7 @@ export default function (db: ApiDb) {
       sendOk(res, 'deleted')
     } catch (err) {
       console.error(err)
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Failed to clear legacy LowDB data',
-      )
+      sendAsClientError(res, err, 'Failed to clear legacy LowDB data')
     }
   }
 
@@ -127,11 +123,7 @@ export default function (db: ApiDb) {
             console.log('\x1b[36m%s\x1b[0m', 'Backups copied successfully.', 'color: #bada55');
           } catch (err) {
             console.error(err)
-            sendControllerError(
-              res,
-              err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-              'Failed to copy legacy backups',
-            )
+            sendAsClientError(res, err, 'Failed to copy legacy backups')
             return
           }
         }
@@ -142,11 +134,7 @@ export default function (db: ApiDb) {
     });
     archive.on("error", (err: unknown) => {
       console.error(err);
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Failed to create LowDB backup archive',
-      )
+      sendAsClientError(res, err, 'Failed to create LowDB backup archive')
     });
     archive.pipe(output);
     archive.directory(currentDB, "databases");

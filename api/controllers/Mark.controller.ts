@@ -1,6 +1,6 @@
 import shuffle from 'lodash/shuffle'
 import type { ApiDb } from '../types/db'
-import { sendControllerError, sendCreated, sendOk } from '../types/errors'
+import { sendBadRequest, sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createMarksRepository } from '../db/repositories/marks'
 import { getMarkFilterMetas, loadMarkItems } from '../services/markItemsLoader'
@@ -24,7 +24,7 @@ export default function (db: ApiDb) {
     try {
       const tagId = Number(req.body?.tagId)
       if (!Number.isFinite(tagId) || tagId <= 0) {
-        res.status(400).send({message: 'tagId is required'})
+        sendBadRequest(res, 'tagId is required')
         return
       }
 
@@ -64,7 +64,7 @@ export default function (db: ApiDb) {
     try {
       const pathValue = String(req.body?.path || '').trim()
       if (!pathValue) {
-        res.status(400).send({message: 'path is required'})
+        sendBadRequest(res, 'path is required')
         return
       }
 

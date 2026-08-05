@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
+import { sendAsClientError, sendBadRequest, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { DatabaseSizesResponse } from '@shared/api/responses'
 import fs from 'fs'
@@ -21,11 +21,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       await rmrf(dbDir)
       sendOk(res, 'successfully deleted')
     } catch (err) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Request failed',
-      )
+      sendAsClientError(res, err, 'Request failed')
     }
   }
 
@@ -58,18 +54,14 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       const payload: DatabaseSizesResponse = { sizes }
       sendOk(res, payload)
     } catch (err) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Request failed',
-      )
+      sendAsClientError(res, err, 'Request failed')
     }
   }
 
   const getFolderSize = async function (req: ApiRequest, res: ApiResponse) {
     const dirPath = resolveGeneratedFolderPath(req.body.folder)
     if (!dirPath) {
-      res.status(400).send({message: 'Unknown folder type'})
+      sendBadRequest(res, 'Unknown folder type')
       return
     }
 
@@ -82,7 +74,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     const delPath = resolveGeneratedFolderPath(imageType)
 
     if (!delPath) {
-      res.status(400).send({message: 'Unknown folder type'})
+      sendBadRequest(res, 'Unknown folder type')
       return
     }
 
@@ -94,11 +86,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       }
       sendOk(res)
     } catch (err) {
-      sendControllerError(
-        res,
-        err instanceof HttpError ? err : new HttpError(400, apiErrorMessage(err) || String(err)),
-        'Request failed',
-      )
+      sendAsClientError(res, err, 'Request failed')
     }
   }
 
@@ -107,7 +95,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       const configPath = getAppConfigPath()
       const result = loadConfigFile(configPath)
       const config_json = result.config || createDefaultConfig()
-      res.status(200).json(config_json)
+      sendOk(res, config_json)
     } catch (error) {
       sendControllerError(res, error, 'Failed to read config')
     }
@@ -116,7 +104,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
   const getMachineId = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const id = await machineId()
-      res.status(200).send(id)
+      sendOk(res, id)
     } catch (error) {
       console.error('getMachineId failed:', error)
       sendControllerError(res, error, 'Failed to get machine id')
