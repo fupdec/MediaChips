@@ -83,8 +83,46 @@ async function applyExifOrientation(image: JimpImage, orientation: number) {
   return image
 }
 
+async function readExifOrientationFromBuffer(buffer: Buffer): Promise<number> {
+  try {
+    const orientation = await exifr.orientation(buffer)
+    if (typeof orientation === 'number' && Number.isInteger(orientation) && orientation >= 1 && orientation <= 8) {
+      return orientation
+    }
+  } catch {
+    // EXIF is optional; fall back to the default orientation.
+  }
+
+  return 1
+}
+
+const getImageMetadataFromBuffer = async (buffer: Buffer) => {
+  try {
+    const image = await decodeImageBuffer(buffer)
+    const orientation = await readExifOrientationFromBuffer(buffer)
+    const display = getDisplayDimensions(image.width, image.height, orientation)
+
+    return {
+      width: display.width,
+      height: display.height,
+      orientation,
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Image metadata extraction failed for buffer:', message)
+    return null
+  }
+}
+
 const getImageMetadata = async (pathToFile: string) => {
   try {
+    if (pathToFile.includes('!/')) {
+      const { readZipEntryBuffer } = await import('./zipGallery')
+      const entry = await readZipEntryBuffer(pathToFile)
+      if (!entry) return null
+      return getImageMetadataFromBuffer(entry.buffer)
+    }
+
     const image = await Jimp.read(pathToFile) as unknown as JimpImage
     const orientation = await readExifOrientation(pathToFile)
     const display = getDisplayDimensions(image.width, image.height, orientation)
@@ -107,7 +145,32 @@ const ensureImageThumbDir = (dbPath: string) => {
   return outputDir
 }
 
+const createImageThumbFromBuffer = async (buffer: Buffer, id: string | number, dbPath: string) => {
+  const outputDir = ensureImageThumbDir(dbPath)
+  const outputPath = path.join(outputDir, `${id}.jpg`)
+  const orientation = await readExifOrientationFromBuffer(buffer)
+  const image = await decodeImageBuffer(buffer)
+
+  await applyExifOrientation(image, orientation)
+
+  if (image.height > THUMB_HEIGHT) {
+    await image.resize({h: THUMB_HEIGHT})
+  }
+
+  await writeJpeg(image, outputPath)
+  return outputPath
+}
+
 const createImageThumb = async (pathToFile: string, id: string | number, dbPath: string) => {
+  if (pathToFile.includes('!/')) {
+    const { readZipEntryBuffer } = await import('./zipGallery')
+    const entry = await readZipEntryBuffer(pathToFile)
+    if (!entry) {
+      throw new Error(`ZIP entry not found: ${pathToFile}`)
+    }
+    return createImageThumbFromBuffer(entry.buffer, id, dbPath)
+  }
+
   const outputDir = ensureImageThumbDir(dbPath)
   const outputPath = path.join(outputDir, `${id}.jpg`)
   const orientation = await readExifOrientation(pathToFile)
@@ -185,7 +248,9 @@ async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveIm
 
 export {
   getImageMetadata,
+  getImageMetadataFromBuffer,
   createImageThumb,
+  createImageThumbFromBuffer,
   ensureImageThumbDir,
   getCenterCropRect,
   processAndSaveImage,

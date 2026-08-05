@@ -35,7 +35,14 @@ export const ResolvePathResponseSchema = z.object({
   exists: z.boolean().optional(),
 }).passthrough()
 
-export const FileListResponseSchema = z.array(z.string())
+export const FileListResponseSchema = z.object({
+  files: z.array(z.string()),
+  skippedZips: z.array(z.object({
+    path: z.string(),
+    reason: z.string(),
+    message: z.string().optional(),
+  }).passthrough()).optional().default([]),
+}).passthrough()
 
 export const FolderSizeResponseSchema = z.object({
   size: z.number(),

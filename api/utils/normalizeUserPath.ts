@@ -23,12 +23,25 @@ function normalizeUserPath(value: unknown): unknown {
   return result
 }
 
+const ZIP_VIRTUAL_SEP = '!/'
+
 function normalizeMediaPath(value: unknown): string {
   if (value == null || typeof value !== 'string') return String(value ?? '')
 
   const userPath = normalizeUserPath(value)
   if (typeof userPath !== 'string') {
     return String(userPath ?? '')
+  }
+
+  const zipSepIndex = userPath.indexOf(ZIP_VIRTUAL_SEP)
+  if (zipSepIndex > 0) {
+    let zipPart = path.normalize(userPath.slice(0, zipSepIndex))
+    let entryPart = userPath.slice(zipSepIndex + ZIP_VIRTUAL_SEP.length).replace(/\\/g, '/')
+    if (typeof zipPart.normalize === 'function') {
+      zipPart = zipPart.normalize('NFC')
+      entryPart = entryPart.normalize('NFC')
+    }
+    return `${zipPart}${ZIP_VIRTUAL_SEP}${entryPart}`
   }
 
   let result: string = path.normalize(userPath)

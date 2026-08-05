@@ -20,7 +20,13 @@ describe('task schemas', () => {
   })
 
   it('parses file list and folder size', () => {
-    expect(parseFileListResponse(['/a.mp4', '/b.mp4'])).toEqual(['/a.mp4', '/b.mp4'])
+    expect(parseFileListResponse({
+      files: ['/a.mp4', '/b.mp4'],
+      skippedZips: [],
+    })).toEqual({
+      files: ['/a.mp4', '/b.mp4'],
+      skippedZips: [],
+    })
     expect(parseFolderSizeResponse({ size: 2048 }).size).toBe(2048)
   })
 
@@ -36,6 +42,7 @@ describe('task schemas', () => {
 
   it('rejects invalid file list', () => {
     expect(() => parseFileListResponse({ bad: true })).toThrow()
+    expect(() => parseFileListResponse(['/a.mp4'])).toThrow()
   })
 
   it('parses database sizes and watched folder links', () => {

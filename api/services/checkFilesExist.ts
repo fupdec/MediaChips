@@ -1,5 +1,6 @@
 import { normalizeMediaPath } from '../utils/normalizeUserPath'
 import { resolveExistingPath } from './contentHash'
+import { isVirtualZipPath, zipEntryExists } from './zipGallery'
 
 const MAX_BATCH_SIZE = 100
 
@@ -14,6 +15,10 @@ export async function checkFilesExist(paths: string[]): Promise<Record<string, b
 
   await Promise.all(uniquePaths.map(async (path) => {
     const normalized = normalizeMediaPath(path)
+    if (isVirtualZipPath(normalized)) {
+      results[path] = await zipEntryExists(normalized)
+      return
+    }
     const resolved = normalized ? await resolveExistingPath(normalized) : null
     results[path] = Boolean(resolved)
   }))

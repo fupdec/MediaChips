@@ -20,6 +20,7 @@ import {
   getDefaultMediaTypeId,
   inferMediaTypeFromPaths,
   parseMediaTypeExtensions,
+  isImageMediaType,
 } from '@/utils/mediaType'
 import {completeOnboarding, shouldShowOnboarding} from '@/composable/useOnboarding'
 
@@ -220,18 +221,59 @@ export const useMediaAdding = () => {
     task.value.addedMediaType = mediaType.type ?? null
 
     const extensions = mediaType.extensions ?? ''
+    const extensionList = parseMediaTypeExtensions(extensions)
     const regexString = JSON.stringify(buildExtensionPathRegex(extensions))
+    const expandZips = isImageMediaType(mediaType)
 
     const paths = pathsForType
     const excluded = transformTextToArray(task.value.excluded)
 
     let files: string[] = []
+    const skippedZipMessages: string[] = []
+
+    const appendFileListResponse = (responseData: {
+      files?: string[]
+      skippedZips?: Array<{ path?: string; reason?: string; message?: string }>
+    } | string[]) => {
+      // Backward-compatible if an older server still returns a bare array.
+      if (Array.isArray(responseData)) {
+        files = files.concat(responseData)
+        return
+      }
+      files = files.concat(Array.isArray(responseData.files) ? responseData.files : [])
+      for (const skipped of responseData.skippedZips || []) {
+        skippedZipMessages.push(skipped.message || `Skipped ZIP: ${skipped.path || 'unknown'}`)
+      }
+    }
+
+    const isZipPath = (filePath: string) => /\.zip$/i.test(filePath)
 
     try {
       // skipFileScan: direct file drops/additions already have full paths;
       // avoid getFileList/lstat (which can surface OS access-denied errors).
+      // ZIP drops still need expansion when adding images.
       if (skipFileScan && directFiles.length > 0) {
-        files = filterPathsByExtensions(directFiles, extensions)
+        const looseFiles = filterPathsByExtensions(directFiles, extensions)
+        const zipFiles = expandZips ? directFiles.filter(isZipPath) : []
+        files = [...looseFiles]
+
+        for (let zipIndex = 0; zipIndex < zipFiles.length; zipIndex += 1) {
+          const zipPath = zipFiles[zipIndex]
+          task.value.status = t('media.adding.scanning_files')
+          task.value.processed = t('media.adding.in_progress', {
+            current: zipIndex + 1,
+            total: zipFiles.length,
+          })
+          const response = await typedApi.getFileList({
+            path: zipPath,
+            filter: regexString,
+            excluded: task.value.is_exclude ? excluded : [],
+            expandZips: true,
+            extensions: extensionList,
+          })
+          appendFileListResponse(response.data)
+        }
+
         task.value.status = t('media.adding.preparing_files', {count: files.length})
       } else {
         for (let pathIndex = 0; pathIndex < paths.length; pathIndex += 1) {
@@ -248,23 +290,40 @@ export const useMediaAdding = () => {
             path: entryPath,
             filter: regexString,
             excluded: task.value.is_exclude ? excluded : [],
+            expandZips,
+            extensions: extensionList,
           })
 
-          files = files.concat(response.data)
+          appendFileListResponse(response.data)
         }
 
         if (directFiles.length > 0) {
-          files = [...new Set([
-            ...files,
-            ...filterPathsByExtensions(directFiles, extensions),
-          ])]
+          const looseFiles = filterPathsByExtensions(directFiles, extensions)
+          files = [...new Set([...files, ...looseFiles])]
+
+          if (expandZips) {
+            for (const zipPath of directFiles.filter(isZipPath)) {
+              const response = await typedApi.getFileList({
+                path: zipPath,
+                filter: regexString,
+                excluded: task.value.is_exclude ? excluded : [],
+                expandZips: true,
+                extensions: extensionList,
+              })
+              appendFileListResponse(response.data)
+            }
+          }
         }
       }
 
-      files = files.filter((filePath: string) => {
+      files = [...new Set(files)].filter((filePath: string) => {
         const filename = filePath.split('\\').pop()?.split('/').pop() ?? ''
         return !filename.match(/^\._/)
       })
+
+      for (const message of skippedZipMessages) {
+        task.value.errors.push(message)
+      }
 
       task.value.status = t('media.adding.gathering_metadata')
       task.value.total = files.length

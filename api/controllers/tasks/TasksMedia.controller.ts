@@ -144,18 +144,42 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     is_check_duplicates: boolean,
   ) => {
     const pathToFile = normalizeMediaPath(rawPathToFile)
-    const resolvedPath = await resolveExistingPath(pathToFile)
+    const { isVirtualZipPath, getZipEntryInfo } = await import('../../services/zipGallery')
+    const virtualZip = isVirtualZipPath(pathToFile)
 
-    if (!resolvedPath) {
-      const dockerHint = process.env.MEDIA_CHIPS_DATA_DIR
-        ? ' In Docker/NAS, mount the host folder and use the in-container path (for example /media/movies/...).'
-        : ''
-      throw new Error(`File not found: ${pathToFile}.${dockerHint}`)
+    let resolvedPath: string | null = null
+    let filesize = 0
+    let basename = ''
+    let storedPath = pathToFile
+    let ext = ''
+
+    if (virtualZip) {
+      const entryInfo = await getZipEntryInfo(pathToFile)
+      if (!entryInfo) {
+        throw new Error(`File not found: ${pathToFile}`)
+      }
+      filesize = entryInfo.filesize
+      basename = entryInfo.basename
+      ext = entryInfo.ext
+      storedPath = pathToFile
+      resolvedPath = entryInfo.zipPath
+    } else {
+      resolvedPath = await resolveExistingPath(pathToFile)
+
+      if (!resolvedPath) {
+        const dockerHint = process.env.MEDIA_CHIPS_DATA_DIR
+          ? ' In Docker/NAS, mount the host folder and use the in-container path (for example /media/movies/...).'
+          : ''
+        throw new Error(`File not found: ${pathToFile}.${dockerHint}`)
+      }
+
+      const stats = await stat(resolvedPath)
+      filesize = stats.size
+      basename = path.basename(resolvedPath)
+      storedPath = resolvedPath
+      ext = path.extname(storedPath)
     }
 
-    const stats = await stat(resolvedPath)
-    const filesize = stats.size
-    const basename = path.basename(resolvedPath)
     const duplicateKey = buildMediaDuplicateKey(mediaType.id, filesize, basename)
 
     const mediaTypeRow = mediaType.type != null
@@ -184,32 +208,32 @@ export default function createTasksMediaController(shared: TaskControllerShared)
           )
         }
 
-        const fingerprintMatch = await findFingerprintDuplicate(
-          pathToFile,
-          resolvedPath,
-          filesize,
-          {id: mediaType.id, type: mediaTypeName},
-        )
-        computedFingerprint = fingerprintMatch?.fingerprint || null
-
-        if (fingerprintMatch?.duplicate) {
-          const existingPathExists = await fileExists(String(fingerprintMatch.duplicate.path))
-          return buildDuplicateResponse(
-            fingerprintMatch.duplicate,
+        if (!virtualZip && resolvedPath) {
+          const fingerprintMatch = await findFingerprintDuplicate(
             pathToFile,
-            fingerprintMatch.parameter,
-            existingPathExists ? 'duplicate' : 'moved',
+            resolvedPath,
+            filesize,
+            {id: mediaType.id, type: mediaTypeName},
           )
+          computedFingerprint = fingerprintMatch?.fingerprint || null
+
+          if (fingerprintMatch?.duplicate) {
+            const existingPathExists = await fileExists(String(fingerprintMatch.duplicate.path))
+            return buildDuplicateResponse(
+              fingerprintMatch.duplicate,
+              pathToFile,
+              fingerprintMatch.parameter,
+              existingPathExists ? 'duplicate' : 'moved',
+            )
+          }
         }
       }
 
-      const storedPath = resolvedPath
-
       const defaults: AnyRecord = {
         filesize: filesize,
-        ext: path.extname(storedPath),
+        ext,
         basename,
-        name: path.parse(storedPath).name,
+        name: path.parse(basename).name,
         mediaTypeId: mediaType.id,
       }
 
@@ -229,17 +253,19 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         })
       }
 
-      try {
-        const fingerprint = computedFingerprint || await computeFingerprint({
-          path: resolvedPath,
-          filesize,
-          mediaType: mediaTypeName,
-        })
-        if (fingerprint) {
-          mediaRepo.updateById(Number(media.id), fingerprint.patch)
+      if (!virtualZip && resolvedPath) {
+        try {
+          const fingerprint = computedFingerprint || await computeFingerprint({
+            path: resolvedPath,
+            filesize,
+            mediaType: mediaTypeName,
+          })
+          if (fingerprint) {
+            mediaRepo.updateById(Number(media.id), fingerprint.patch)
+          }
+        } catch (error: unknown) {
+          console.error(`Fingerprint failed for ${pathToFile}:`, apiErrorMessage(error))
         }
-      } catch (error: unknown) {
-        console.error(`Fingerprint failed for ${pathToFile}:`, apiErrorMessage(error))
       }
 
       return {

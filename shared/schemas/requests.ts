@@ -195,6 +195,8 @@ export const GetFileListRequestSchema = z.object({
   path: z.string().min(1),
   filter: z.string().min(1),
   excluded: z.array(z.string()).optional(),
+  expandZips: z.boolean().optional(),
+  extensions: z.array(z.string()).optional(),
 })
 
 export const UpdateMediaInfoRequestSchema = z.object({

@@ -26,6 +26,7 @@ import { getDatabaseManager } from './databaseRegistry'
 import { createStorageDirectories } from './serverConfig'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
 import { resolveVideoThumbFilePath } from '../../api/services/videoPreviewThumb'
+import { isVirtualZipPath, readZipEntryBuffer } from '../../api/services/zipGallery'
 import packageJson from '../../package.json'
 import {
   GLOBAL_APP_CONFIG_KEYS,
@@ -245,6 +246,10 @@ function registerBuiltinRoutes({
     '.webp': 'image/webp',
     '.bmp': 'image/bmp',
     '.svg': 'image/svg+xml',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+    '.heic': 'image/heic',
+    '.avif': 'image/avif',
     '.mp4': 'video/mp4',
     '.webm': 'video/webm',
     '.ogg': 'video/ogg',
@@ -288,6 +293,41 @@ function registerBuiltinRoutes({
     }
 
     try {
+      if (isVirtualZipPath(originalFilePath)) {
+        const entry = await readZipEntryBuffer(originalFilePath)
+        if (!entry) {
+          console.error('ZIP entry not found:', originalFilePath)
+          return res.status(404).json({
+            error: 'File not found',
+            resolved: false,
+          })
+        }
+
+        const ext = path.extname(entry.entryName).toLowerCase()
+        const contentType = FILE_MIME_TYPES[ext as keyof typeof FILE_MIME_TYPES] || 'application/octet-stream'
+        const etag = `W/"zip-${entry.filesize}-${Math.trunc(entry.zipMtimeMs)}-${entry.entryName}"`
+
+        res.setHeader('Content-Type', contentType)
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+        res.setHeader('ETag', etag)
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+        res.setHeader('Content-Length', entry.buffer.length)
+
+        const ifNoneMatch = req.headers['if-none-match']
+        if (typeof ifNoneMatch === 'string') {
+          const tags = ifNoneMatch.split(',').map((tag) => tag.trim())
+          if (tags.includes(etag) || tags.includes('*')) {
+            return res.status(304).end()
+          }
+        }
+
+        if (headOnly) {
+          return res.status(200).end()
+        }
+
+        return res.status(200).end(entry.buffer)
+      }
+
       const resolvedPath = await resolveVideoThumbFilePath(originalFilePath, db, resolveFilePath)
 
       if (!resolvedPath) {

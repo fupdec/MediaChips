@@ -58,12 +58,18 @@ describe('typedApi', () => {
   })
 
   it('validates task file list', async () => {
-    mockPost.mockResolvedValue(mockAxiosResponse(['/videos/a.mp4']))
+    mockPost.mockResolvedValue(mockAxiosResponse({
+      files: ['/videos/a.mp4'],
+      skippedZips: [],
+    }))
 
     const response = await typedApi.getFileList({ path: '/videos' })
 
     expect(mockPost).toHaveBeenCalledWith(API_ROUTES.taskGetFileList, { path: '/videos' })
-    expect(response.data).toEqual(['/videos/a.mp4'])
+    expect(response.data).toEqual({
+      files: ['/videos/a.mp4'],
+      skippedZips: [],
+    })
   })
 
   it('falls back when bootstrap validation fails', async () => {

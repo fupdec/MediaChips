@@ -3,7 +3,6 @@ import { HttpError, apiErrorMessage, asApiError, sendControllerError } from '../
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import path from 'path'
 import { exec } from 'child_process'
-import { readdir, lstat } from 'fs/promises'
 import { resolveExistingPath } from '../../services/contentHash'
 import { checkFilesExist } from '../../services/checkFilesExist'
 import { normalizeMediaPath } from '../../utils/normalizeUserPath'
@@ -20,6 +19,11 @@ import {
   launchExternalPlayer,
   type ExternalPlayerKind,
 } from '../../services/externalPlayerLaunch'
+import {
+  collectFilesWithZipGalleries,
+  isVirtualZipPath,
+  zipEntryExists,
+} from '../../services/zipGallery'
 
 export default function createTasksFileController(shared: TaskControllerShared) {
   const { db } = shared
@@ -27,6 +31,10 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
   const checkFileExists = async function (req: ApiRequest, res: ApiResponse) {
     const filePath = normalizeMediaPath(req.body.path)
+    if (isVirtualZipPath(filePath)) {
+      res.status(200).json({ exists: await zipEntryExists(filePath) })
+      return
+    }
     const resolved = filePath ? await resolveExistingPath(filePath) : null
     res.status(200).json({ exists: Boolean(resolved) })
   }
@@ -39,6 +47,15 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
   const renameFile = async function (req: ApiRequest, res: ApiResponse) {
     const { old_path, new_path } = req.body
+
+    if (isVirtualZipPath(String(old_path || '')) || isVirtualZipPath(String(new_path || ''))) {
+      return res.status(400).send({
+        code: 'ZIP_READONLY',
+        message: 'Files inside ZIP archives are read-only',
+        fileName: path.basename(String(old_path || new_path || '')),
+        folder: path.dirname(String(old_path || new_path || '')),
+      })
+    }
 
     try {
       const prepared = await prepareRename(old_path, new_path)
@@ -84,6 +101,11 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
   const openPath = async function (req: ApiRequest, res: ApiResponse) {
     const rawPath = path.normalize(req.body.path)
+    if (isVirtualZipPath(String(req.body.path || '')) || isVirtualZipPath(rawPath)) {
+      return res.status(400).send({
+        message: 'Cannot open files inside ZIP archives in the system file manager',
+      })
+    }
     const revealInFolder = Boolean(req.body.isDir)
     const entryPath = revealInFolder ? path.dirname(rawPath) : rawPath
 
@@ -166,76 +188,42 @@ export default function createTasksFileController(shared: TaskControllerShared) 
   }
 
   const getFileList = async function (req: ApiRequest, res: ApiResponse) {
-    async function findInDir(rootDir: string, regex: RegExp, excluded: string[]) {
-      const fileList = []
-      const stack = [rootDir]
-      let scanned = 0
+    const entryPath = normalizeMediaPath(req.body.path)
+    const regexObj = JSON.parse(req.body.filter)
+    const excluded = Array.isArray(req.body.excluded) ? req.body.excluded : []
+    const regex = new RegExp(regexObj)
+    const expandZips = Boolean(req.body.expandZips)
+    const extensions = Array.isArray(req.body.extensions)
+      ? req.body.extensions.map((ext: unknown) => String(ext || '').trim().toLowerCase().replace(/^\./, '')).filter(Boolean)
+      : []
 
-      while (stack.length) {
-        const dir = stack.pop()
-        if (!dir) continue
-        let files
-
-        try {
-          files = await readdir(dir, {withFileTypes: true})
-        } catch (_err) {
-          continue
-        }
-
-        for (const file of files) {
-          const filePath = path.join(dir, file.name)
-
-          if (excluded.some((exclude: string) => filePath.includes(exclude))) {
-            continue
-          }
-
-          if (file.isDirectory()) {
-            stack.push(filePath)
-          } else if (file.isFile() && regex.test(filePath.toLowerCase())) {
-            fileList.push(filePath)
-          }
-
-          scanned += 1
-          if (scanned % 500 === 0) {
-            await new Promise(resolve => setImmediate(resolve))
-          }
-        }
-      }
-
-      return fileList
-    }
-
-    const entryPath = path.join(req.body.path);
-    const regexObj = JSON.parse(req.body.filter);
-    const excluded = Array.isArray(req.body.excluded) ? req.body.excluded : [];
-    const regex = new RegExp(regexObj);
-
-    let fileStat
     try {
-      fileStat = await lstat(entryPath)
-    } catch (error) {
-      res.status(400).send({
-        message: error
+      const { files, skippedZips } = await collectFilesWithZipGalleries({
+        entryPath,
+        regex,
+        excluded,
+        extensions,
+        expandZips: expandZips && extensions.length > 0,
       })
-      return
+      res.status(201).send({ files, skippedZips })
+    } catch (error: unknown) {
+      const message = apiErrorMessage(error) || String(error)
+      if (message === 'not directory') {
+        res.status(400).send({ message: 'not directory' })
+        return
+      }
+      res.status(400).send({ message: error instanceof Error ? error : message })
     }
-
-    if (fileStat.isFile() && regex.test(entryPath.toLowerCase())) {
-      res.status(201).send([entryPath])
-      return
-    } else if (!fileStat.isDirectory()) {
-      res.status(400).send({
-        message: "not directory"
-      })
-      return
-    }
-
-    const fileList = await findInDir(entryPath, regex, excluded)
-    res.status(201).send(fileList)
   }
 
   const deleteFile = async function (req: ApiRequest, res: ApiResponse) {
     try {
+      if (isVirtualZipPath(String(req.body.path || ''))) {
+        return res.status(400).send({
+          message: 'Files inside ZIP archives are read-only',
+        })
+      }
+
       const deleted = await unlinkResolvedPath(req.body.path)
 
       if (!deleted) {
