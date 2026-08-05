@@ -16,7 +16,6 @@ import {
   getSortExpression,
   normalizeActiveFilters,
   requiresMetadataJoinForFilters,
-  requiresMetadataJoinForSort,
   resolveMediaFilterQuery,
 } from './mediaFilterSql'
 import type { MediaFilterQueryResult } from '../types/mediaFilter'
@@ -58,6 +57,13 @@ import {
   buildMediaGroupsFromSlimRows,
   fetchBaseMediaRows,
 } from './mediaItemsRelations'
+import {
+  appendIdQueryLimitOffset,
+  assembleMediaListResult,
+  buildVisualNearDuplicateFilterSuccess,
+  resolveMediaListSqlParts,
+  shouldComputeMediaListTotals,
+} from './mediaItemsListSql'
 
 async function resolveVisualNearDuplicateFilterQuery(
   db: ApiDb,
@@ -89,26 +95,7 @@ async function resolveVisualNearDuplicateFilterQuery(
   }
 
   const nearIds = findVisualNearDuplicateIds(db, mediaTypeId, {candidateIds})
-  const scopedIds = ids.length
-    ? ids.map(Number).filter((id) => nearIds.includes(id))
-    : nearIds
-
-  const replacements: AnyRecord = {mediaTypeId}
-  const clauses = ['media.mediaTypeId = :mediaTypeId']
-  if (!scopedIds.length) {
-    clauses.push('0 = 1')
-  } else {
-    replacements.visualNearIds = scopedIds
-    clauses.push('media.id IN (:visualNearIds)')
-  }
-
-  return {
-    ok: true,
-    whereSql: clauses.join(' AND '),
-    joinSql: '',
-    needsDistinct: false,
-    replacements,
-  }
+  return buildVisualNearDuplicateFilterSuccess(mediaTypeId, nearIds, ids)
 }
 
 async function resolveMediaListFilterQuery(
@@ -235,21 +222,26 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
-  const whereClause = `WHERE ${whereSql}`
   const sortMetaType = resolveSortMetaType(db, sortBy)
   const sortExpr = getSortExpression(sortBy, sortMetaType)
-  const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
-  const joinForFilters = requiresMetadataJoinForFilters(filters)
-  const joinForSort = requiresMetadataJoinForSort(sortBy)
   const {groupBy, metaId: groupMetaId} = resolveListGroupBy(options.groupBy, 'media')
   const groupingActive = groupBy !== 'none'
   // GROUP_SLIM_SELECT always reads video/image metadata columns.
-  const fromForCount = getMediaFromClause(joinForFilters, joinSql)
-  const fromForSort = getMediaFromClause(
-    joinForFilters || joinForSort || groupingActive,
+  const {
+    whereClause,
+    fromForCount,
+    fromForSort,
+    idSelect,
+    sortDir,
+  } = resolveMediaListSqlParts({
+    whereSql,
     joinSql,
-  )
-  const idSelect = buildMediaIdSelect(needsDistinct)
+    needsDistinct,
+    filters,
+    sortBy,
+    direction,
+    includeGroupingJoin: groupingActive,
+  })
 
   const pageLimit = resolvePageLimit(limit)
   const shouldPaginate = shouldPaginateMediaList({ ids, limit })
@@ -304,16 +296,14 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
       ? slicePage(aggregated.orderedIds, safePage, limit)
       : aggregated.orderedIds
   } else {
-    let idQuery = `${idSelect}
+    const idQuery = appendIdQueryLimitOffset(
+      `${idSelect}
       ${fromForSort}
       ${whereClause}
-      ORDER BY ${sortExpr} ${sortDir}`
-
-    if (shouldPaginate && pageLimit != null) {
-      queryReplacements.limit = pageLimit
-      queryReplacements.offset = (safePage - 1) * pageLimit
-      idQuery += ' LIMIT :limit OFFSET :offset'
-    }
+      ORDER BY ${sortExpr} ${sortDir}`,
+      queryReplacements,
+      {shouldPaginate, pageLimit, safePage},
+    )
 
     const idRows = await queryAllAsync(db, idQuery, queryReplacements)
     pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
@@ -333,8 +323,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   // Id-scoped refreshes (select-mode bulk edit, scrape, etc.) must not compute or
   // cache totals: the cache key ignores `ids`, so writing COUNT for one selected
   // item would poison the next full library list as "1 of N".
-  const hasIdScope = ids.length > 0
-  if (!skipTotals && !hasIdScope) {
+  if (shouldComputeMediaListTotals({skipTotals, ids})) {
     const cachedFilteredTotals = getCachedFilteredTotals(totalsCacheKey)
     const cachedUnfilteredTotal = getCachedUnfilteredTotal(mediaTypeId as number | string)
 
@@ -381,35 +370,18 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   const items = orderedRows.map(createItemShell)
   await attachMediaRelations(db, items, mediaTypeId, pageIds)
 
-  const result: {
-    items: LoadedMediaItem[]
-    total: number | null
-    totalFiltered: number | null
-    totalFilesize: number | null
-    navigation?: NavigationMediaItem[]
-    page: number
-    limit: number | null
-    pages?: number
-    groups?: ItemsGroupSummary[]
-  } = {
+  return assembleMediaListResult({
     items,
-    total: totalUnfiltered,
+    totalUnfiltered,
     totalFiltered,
     totalFilesize,
     navigation,
-    page: shouldPaginate ? safePage : 1,
-    limit: shouldPaginate ? pageLimit : (totalFiltered ?? items.length),
-  }
-
-  if (groups) {
-    result.groups = groups
-  }
-
-  if (!skipTotals && shouldPaginate && totalFiltered != null && pageLimit != null) {
-    result.pages = Math.max(1, Math.ceil(totalFiltered / pageLimit))
-  }
-
-  return result
+    groups,
+    shouldPaginate,
+    safePage,
+    pageLimit,
+    skipTotals,
+  })
 }
 
 async function loadMediaItems(db: ApiDb, options: MediaLoadOptions = {}) {
@@ -486,15 +458,22 @@ async function getFilteredMediaSummary(db: ApiDb, options: MediaLoadOptions = {}
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
-  const whereClause = `WHERE ${whereSql}`
-  const joinForFilters = requiresMetadataJoinForFilters(filters)
-  const joinForSort = requiresMetadataJoinForSort(sortBy)
-  const fromForCount = getMediaFromClause(joinForFilters, joinSql)
-  const fromForSort = getMediaFromClause(joinForFilters || joinForSort, joinSql)
   const sortMetaType = resolveSortMetaType(db, sortBy)
   const sortExpr = getSortExpression(sortBy, sortMetaType)
-  const sortDir = direction === 'asc' ? 'ASC' : 'DESC'
-  const idSelect = buildMediaIdSelect(needsDistinct)
+  const {
+    whereClause,
+    fromForCount,
+    fromForSort,
+    idSelect,
+    sortDir,
+  } = resolveMediaListSqlParts({
+    whereSql,
+    joinSql,
+    needsDistinct,
+    filters,
+    sortBy,
+    direction,
+  })
 
   const [countRows, previewRows] = await Promise.all([
     queryAllAsync(db, buildFilteredCountSql(fromForCount, whereClause, needsDistinct), replacements),
@@ -562,15 +541,23 @@ async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
-  const whereClause = `WHERE ${whereSql}`
-  const joinForFilters = requiresMetadataJoinForFilters(options.filters || [])
-  const joinForSort = requiresMetadataJoinForSort(options.sortBy || 'id')
-  const fromForCount = getMediaFromClause(joinForFilters, joinSql)
-  const fromForSort = getMediaFromClause(joinForFilters || joinForSort, joinSql)
-  const idSelect = buildMediaIdSelect(needsDistinct)
-  const sortMetaType = resolveSortMetaType(db, options.sortBy || 'id')
-  const sortExpr = getSortExpression(options.sortBy || 'id', sortMetaType)
-  const sortDir = options.direction === 'asc' ? 'ASC' : 'DESC'
+  const sortBy = options.sortBy || 'id'
+  const sortMetaType = resolveSortMetaType(db, sortBy)
+  const sortExpr = getSortExpression(sortBy, sortMetaType)
+  const {
+    whereClause,
+    fromForCount,
+    fromForSort,
+    idSelect,
+    sortDir,
+  } = resolveMediaListSqlParts({
+    whereSql,
+    joinSql,
+    needsDistinct,
+    filters: options.filters || [],
+    sortBy,
+    direction: options.direction,
+  })
 
   const [countRows, idRows] = await Promise.all([
     queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
