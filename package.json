@@ -46,7 +46,7 @@
     "pack:plugins": "npm run pack:plugin-adult && npm run pack:plugin-stash && npm run pack:plugin-jellyfin && npm run pack:plugin-plex && npm run pack:plugin-emby && npm run pack:plugin-tmdb",
     "postinstall": "node scripts/postinstall.mjs"
   },
-  "main": "main.js",
+  "main": "electron/runMain.js",
   "overrides": {
     "sharp": "^0.34.5"
   },
@@ -143,7 +143,14 @@
     "files": [
       "!databases",
       "!app_storage",
-      "!src"
+      "!src",
+      "!.backend-build",
+      "!.api-build",
+      "!.app-build",
+      "!.shared-build",
+      "!.electron-build",
+      "!.main-build",
+      "!.cache"
     ],
     "asarUnpack": [
       "**/node_modules/ffmpeg-static/**",

@@ -106,9 +106,13 @@ function startElectron() {
 function classifyChange(filePath) {
   if (filePath === 'main.ts') return 'main'
   if (filePath.startsWith('electron/')) return 'electron'
-  if (filePath.startsWith('shared/')) return 'shared'
-  if (filePath.startsWith('app/')) return 'app'
-  if (filePath.startsWith('api/')) return 'api'
+  if (
+    filePath.startsWith('shared/')
+    || filePath.startsWith('app/')
+    || filePath.startsWith('api/')
+  ) {
+    return 'backend'
+  }
   return null
 }
 
@@ -123,11 +127,10 @@ function resolveIncrementalBuildScripts(changedPaths) {
   const sequential = []
   const parallel = []
 
-  if (groups.has('shared')) sequential.push('shared')
+  // Unified backend emit — no source-tree copy-back in electron-dev.
+  if (groups.has('backend')) sequential.push('backend')
   if (groups.has('main')) parallel.push('main')
   if (groups.has('electron')) parallel.push('electron')
-  if (groups.has('app')) parallel.push('app')
-  if (groups.has('api')) parallel.push('api')
 
   return {sequential, parallel}
 }
@@ -156,8 +159,8 @@ async function rebuildBackend(changedPaths = []) {
     const {sequential, parallel} = changedPaths.length
       ? resolveIncrementalBuildScripts(changedPaths)
       : {
-        sequential: ['shared'],
-        parallel: ['electron', 'main', 'app', 'api'],
+        sequential: ['backend'],
+        parallel: ['electron', 'main'],
       }
 
     const label = changedPaths.length
@@ -224,8 +227,10 @@ function cleanup(code = 0) {
 }
 
 async function main() {
-  console.log('[electron-dev] initial backend build...')
-  runSync('node', ['scripts/compile.mjs', 'electron-artifacts'])
+  console.log('[electron-dev] initial backend build (no copy-back)...')
+  // backend → .backend-build only; electron/main still copy into place for the entrypoints.
+  runSync('node', ['scripts/compile.mjs', 'backend'])
+  runSync('node', ['scripts/compile.mjs', '--parallel', 'electron', 'main'])
   runSync('node', ['scripts/ensure-electron-native.mjs'])
 
   console.log(`[electron-dev] starting Vite on port ${vitePort}...`)
