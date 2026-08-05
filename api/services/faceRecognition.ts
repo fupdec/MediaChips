@@ -18,7 +18,6 @@ import {
 import { isMatchableStoredFace } from './matchGates'
 import {clusterFacesInMedia} from './faceCluster'
 import {
-  embeddingFromJson,
   embeddingToJson,
   l2Normalize,
   parseEnrollmentRefs,
@@ -57,10 +56,13 @@ import {
   buildFaceMatchStatusSnapshot,
   resolveConfiguredOrScraperMetaId,
 } from './faceStatusSnapshots'
+import { rgbaBitmapToInterleavedRgb } from './faceTensorPrep'
 import {
-  packInterleavedRgbToNchw,
-  rgbaBitmapToInterleavedRgb,
-} from './faceTensorPrep'
+  EMBED_SIZE,
+  buildEmbedFloatData,
+  shouldAlignForEmbed,
+} from './faceEmbedPrep'
+import { resolveFaceEmbedding } from './faceEmbedLoad'
 import {parseFaceMatchSettingsFromMap} from './faceSettingsParse'
 import {
   applyFaceMatchMediaResult,
@@ -101,9 +103,6 @@ const EMBED_MODEL_URL = 'https://huggingface.co/deepghs/insightface/resolve/main
 const EMBED_MODEL_SETTING = 'faceMatch.embedModelId'
 /** Rough download size shown in UI copy (~buffalo_l recognition head). */
 const EMBED_MODEL_SIZE_MB = 170
-const EMBED_SIZE = 112
-const EMBED_INPUT_MEAN = 127.5
-const EMBED_INPUT_STD = 127.5
 
 export type {FaceMatchMode}
 
@@ -257,14 +256,7 @@ function getFaceMatchSettings(db: ApiDb): FaceMatchSettings {
 
 function rgbToEmbedTensor(rgb: Uint8Array, width: number, height: number) {
   const ort = getOrt()
-  const floatData = packInterleavedRgbToNchw(
-    rgb,
-    width,
-    height,
-    EMBED_INPUT_MEAN,
-    EMBED_INPUT_STD,
-  )
-  return new ort.Tensor('float32', floatData, [1, 3, height, width])
+  return new ort.Tensor('float32', buildEmbedFloatData(rgb, width, height), [1, 3, height, width])
 }
 
 async function imageToEmbedTensorLetterbox(imagePath: string) {
@@ -283,10 +275,10 @@ async function embedImage(
 ): Promise<Float32Array> {
   const model = await loadEmbedModel(db)
   let tensor
-  if (box && Number(box.width) > 1 && Number(box.height) > 1) {
+  if (shouldAlignForEmbed(box)) {
     try {
       const image = await Jimp.read(imagePath)
-      const aligned = await alignFaceRgb112(db, image, box, kps)
+      const aligned = await alignFaceRgb112(db, image, box!, kps)
       tensor = aligned
         ? rgbToEmbedTensor(aligned, EMBED_SIZE, EMBED_SIZE)
         : await imageToEmbedTensorLetterbox(imagePath)
@@ -312,20 +304,12 @@ async function loadFaceEmbedding(
   db: ApiDb,
   face: {embedding?: string | null; cropPath?: string | null},
 ): Promise<Float32Array | null> {
-  if (face.embedding) {
-    try {
-      return embeddingFromJson(String(face.embedding))
-    } catch {
-      // Fall through to crop.
-    }
-  }
-  const cropPath = resolveAbsoluteCropPath(db, face.cropPath)
-  if (!cropPath) return null
-  try {
-    return await embedImage(db, cropPath)
-  } catch {
-    return null
-  }
+  return resolveFaceEmbedding({
+    embedding: face.embedding,
+    cropPath: face.cropPath,
+    resolveCropPath: (cropPath) => resolveAbsoluteCropPath(db, cropPath),
+    embedFromPath: (path) => embedImage(db, path),
+  })
 }
 
 async function* iterateEnrollFromPerformerImages(

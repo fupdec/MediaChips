@@ -178,3 +178,56 @@ export function assembleMediaListResult(args: {
 
   return result
 }
+
+type IdRow = {id: unknown}
+
+/** Shape playlist/filter-card summary from a full legacy list result. */
+export function buildMediaSummaryFromListResult(
+  result: {totalFiltered: number; items: IdRow[]},
+  previewLimit: number,
+): {count: number; previewIds: unknown[]} {
+  return {
+    count: result.totalFiltered,
+    previewIds: result.items.slice(0, previewLimit).map((item) => item.id),
+  }
+}
+
+/** Shape select-all / bulk-edit id payload from a full legacy list result. */
+export function buildFilteredIdsFromListResult(result: {
+  items: IdRow[]
+  totalFiltered: number
+  totalFilesize: number
+}): {ids: unknown[]; totalFiltered: number; totalFilesize: number} {
+  return {
+    ids: result.items.map((item) => item.id),
+    totalFiltered: result.totalFiltered,
+    totalFilesize: result.totalFilesize,
+  }
+}
+
+/** Hit the in-memory totals cache when both filtered + unfiltered entries exist. */
+export function resolveCachedListTotals(input: {
+  cachedFilteredTotals: {totalFiltered: number; totalFilesize: number} | null | undefined
+  cachedUnfilteredTotal: number | null | undefined
+}): {totalUnfiltered: number; totalFiltered: number; totalFilesize: number} | null {
+  if (input.cachedFilteredTotals && input.cachedUnfilteredTotal != null) {
+    return {
+      totalUnfiltered: input.cachedUnfilteredTotal,
+      totalFiltered: input.cachedFilteredTotals.totalFiltered,
+      totalFilesize: input.cachedFilteredTotals.totalFilesize,
+    }
+  }
+  return null
+}
+
+/** Normalize COUNT / SUM rows from filtered-list totals queries. */
+export function parseListTotalsRows(
+  totalsRow: AnyRecord | undefined,
+  unfilteredRow: AnyRecord | undefined,
+): {totalUnfiltered: number; totalFiltered: number; totalFilesize: number} {
+  return {
+    totalUnfiltered: Number(unfilteredRow?.totalUnfiltered) || 0,
+    totalFiltered: Number(totalsRow?.totalFiltered) || 0,
+    totalFilesize: Number(totalsRow?.totalFilesize) || 0,
+  }
+}

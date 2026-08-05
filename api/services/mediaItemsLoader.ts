@@ -1,9 +1,7 @@
 import type { ApiDb, AnyRecord } from '../types/db'
 import type {
-  LoadedMediaItem,
   MediaId,
   MediaLoadOptions,
-  NavigationMediaItem,
 } from '../types/mediaFilter'
 import type { ParsedItem } from '../../app/types/items'
 import { queryAllAsync } from '../db/utils/rawQuery'
@@ -60,7 +58,11 @@ import {
 import {
   appendIdQueryLimitOffset,
   assembleMediaListResult,
+  buildFilteredIdsFromListResult,
+  buildMediaSummaryFromListResult,
   buildVisualNearDuplicateFilterSuccess,
+  parseListTotalsRows,
+  resolveCachedListTotals,
   resolveMediaListSqlParts,
   shouldComputeListTotals,
 } from './mediaItemsListSql'
@@ -324,13 +326,15 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   // cache totals: the cache key ignores `ids`, so writing COUNT for one selected
   // item would poison the next full library list as "1 of N".
   if (shouldComputeListTotals({skipTotals, ids})) {
-    const cachedFilteredTotals = getCachedFilteredTotals(totalsCacheKey)
-    const cachedUnfilteredTotal = getCachedUnfilteredTotal(mediaTypeId as number | string)
+    const cached = resolveCachedListTotals({
+      cachedFilteredTotals: getCachedFilteredTotals(totalsCacheKey),
+      cachedUnfilteredTotal: getCachedUnfilteredTotal(mediaTypeId as number | string),
+    })
 
-    if (cachedFilteredTotals && cachedUnfilteredTotal != null) {
-      totalUnfiltered = cachedUnfilteredTotal
-      totalFiltered = cachedFilteredTotals.totalFiltered
-      totalFilesize = cachedFilteredTotals.totalFilesize
+    if (cached) {
+      totalUnfiltered = cached.totalUnfiltered
+      totalFiltered = cached.totalFiltered
+      totalFilesize = cached.totalFilesize
     } else {
       const [totalsRows, unfilteredRows] = await Promise.all([
         queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
@@ -338,11 +342,10 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
            FROM media
            WHERE media.mediaTypeId = :mediaTypeId`, {mediaTypeId}),
       ])
-      const totals = totalsRows?.[0] || {}
-      const unfiltered = unfilteredRows?.[0] || {}
-      totalUnfiltered = Number(unfiltered.totalUnfiltered) || 0
-      totalFiltered = Number(totals.totalFiltered) || 0
-      totalFilesize = Number(totals.totalFilesize) || 0
+      const parsed = parseListTotalsRows(totalsRows?.[0], unfilteredRows?.[0])
+      totalUnfiltered = parsed.totalUnfiltered
+      totalFiltered = parsed.totalFiltered
+      totalFilesize = parsed.totalFilesize
       setCachedFilteredTotals(totalsCacheKey, {
         totalFiltered,
         totalFilesize,
@@ -432,10 +435,7 @@ async function getFilteredMediaSummary(db: ApiDb, options: MediaLoadOptions = {}
       includeNavigation: false,
     }, fallbackReason)
 
-    return {
-      count: result.totalFiltered,
-      previewIds: result.items.slice(0, previewLimit).map((item: LoadedMediaItem | NavigationMediaItem | AnyRecord) => item.id),
-    }
+    return buildMediaSummaryFromListResult(result, previewLimit)
   }
 
   const filterQuery = await resolveMediaListFilterQuery(db, {
@@ -451,10 +451,7 @@ async function getFilteredMediaSummary(db: ApiDb, options: MediaLoadOptions = {}
       includeNavigation: false,
     }, filterQuery.reason)
 
-    return {
-      count: result.totalFiltered,
-      previewIds: result.items.slice(0, previewLimit).map((item: LoadedMediaItem | NavigationMediaItem | AnyRecord) => item.id),
-    }
+    return buildMediaSummaryFromListResult(result, previewLimit)
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
@@ -507,11 +504,7 @@ async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
       includeNavigation: false,
     }, fallbackReason)
 
-    return {
-      ids: result.items.map((item: LoadedMediaItem | NavigationMediaItem | AnyRecord) => item.id),
-      totalFiltered: result.totalFiltered,
-      totalFilesize: result.totalFilesize,
-    }
+    return buildFilteredIdsFromListResult(result)
   }
 
   const {
@@ -533,11 +526,7 @@ async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
       includeNavigation: false,
     }, filterQuery.reason)
 
-    return {
-      ids: result.items.map((item: LoadedMediaItem | NavigationMediaItem | AnyRecord) => item.id),
-      totalFiltered: result.totalFiltered,
-      totalFilesize: result.totalFilesize,
-    }
+    return buildFilteredIdsFromListResult(result)
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery

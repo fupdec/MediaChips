@@ -5,7 +5,11 @@ import {describe, expect, it} from 'vitest'
 import {
   appendIdQueryLimitOffset,
   assembleMediaListResult,
+  buildFilteredIdsFromListResult,
+  buildMediaSummaryFromListResult,
   buildVisualNearDuplicateFilterSuccess,
+  parseListTotalsRows,
+  resolveCachedListTotals,
   resolveMediaListSqlParts,
   shouldComputeListTotals,
 } from './mediaItemsListSql'
@@ -124,5 +128,52 @@ describe('assembleMediaListResult', () => {
     })
     expect(result.pages).toBeUndefined()
     expect(result.page).toBe(1)
+  })
+})
+
+describe('legacy list result shapes', () => {
+  it('builds summary and filtered-id payloads', () => {
+    const list = {
+      totalFiltered: 3,
+      totalFilesize: 900,
+      items: [{id: 1}, {id: 2}, {id: 3}],
+    }
+    expect(buildMediaSummaryFromListResult(list, 2)).toEqual({
+      count: 3,
+      previewIds: [1, 2],
+    })
+    expect(buildFilteredIdsFromListResult(list)).toEqual({
+      ids: [1, 2, 3],
+      totalFiltered: 3,
+      totalFilesize: 900,
+    })
+  })
+})
+
+describe('list totals cache helpers', () => {
+  it('returns cached totals only when both entries exist', () => {
+    expect(resolveCachedListTotals({
+      cachedFilteredTotals: {totalFiltered: 5, totalFilesize: 100},
+      cachedUnfilteredTotal: 10,
+    })).toEqual({
+      totalUnfiltered: 10,
+      totalFiltered: 5,
+      totalFilesize: 100,
+    })
+    expect(resolveCachedListTotals({
+      cachedFilteredTotals: {totalFiltered: 5, totalFilesize: 100},
+      cachedUnfilteredTotal: null,
+    })).toBeNull()
+  })
+
+  it('parses SQL total rows with numeric coercion', () => {
+    expect(parseListTotalsRows(
+      {totalFiltered: '4', totalFilesize: '50'},
+      {totalUnfiltered: '9'},
+    )).toEqual({
+      totalUnfiltered: 9,
+      totalFiltered: 4,
+      totalFilesize: 50,
+    })
   })
 })
