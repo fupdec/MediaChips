@@ -1,7 +1,10 @@
 import {describe, expect, it} from 'vitest'
 import {
+  averageHashFromLumaValues,
+  computeOversampledFrameCount,
   formatTimestamp,
   getFrameTimestamps,
+  groupItemsByKey,
   hardNms,
   hammingDistance,
   iou,
@@ -21,6 +24,30 @@ describe('faceDetectorMath', () => {
 
   it('samples a single timestamp near mid-video', () => {
     expect(getFrameTimestamps(100, 1)).toEqual([formatTimestamp(42)])
+  })
+
+  it('oversamples frame candidates for diversity filtering', () => {
+    expect(computeOversampledFrameCount(6)).toEqual({
+      targetCount: 6,
+      candidateCount: 11,
+    })
+    expect(computeOversampledFrameCount(1)).toEqual({
+      targetCount: 1,
+      candidateCount: 2,
+    })
+  })
+
+  it('builds average-hash fingerprints from luma samples', () => {
+    expect(averageHashFromLumaValues([0, 0, 255, 255])).toBe('0011')
+    expect(averageHashFromLumaValues([])).toBe('')
+  })
+
+  it('groups items by key', () => {
+    const groups = groupItemsByKey(
+      [{t: 'a', id: 1}, {t: 'b', id: 2}, {t: 'a', id: 3}],
+      (item) => item.t,
+    )
+    expect(groups.get('a')?.map((item) => item.id)).toEqual([1, 3])
   })
 
   it('returns biased multi-frame timestamps within duration', () => {

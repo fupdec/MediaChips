@@ -34,6 +34,9 @@ import {
   hardNms,
   pickDiverseFrames,
   qualityGatesForScore,
+  averageHashFromLumaValues,
+  computeOversampledFrameCount,
+  groupItemsByKey,
 } from './faceDetectorMath'
 import {
   boxLooksLikeFace,
@@ -52,6 +55,7 @@ import {
   clampFaceDetectMinScore,
 } from './faceSettingsParse'
 import {computePaddedSquareCropRect, DEFAULT_FACE_CROP_PADDING} from './faceCropGeometry'
+import {resolveAbsoluteCropPath} from './faceEnrollmentPaths'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {
   ensureCachedModelFile,
@@ -214,23 +218,16 @@ async function frameFingerprint(framePath: string): Promise<string> {
   const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
   const {data, width, height} = tiny.bitmap
   const values: number[] = []
-  let sum = 0
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const v = data[(y * width + x) * 4]
-      values.push(v)
-      sum += v
+      values.push(data[(y * width + x) * 4])
     }
   }
-  const avg = sum / Math.max(values.length, 1)
-  return values.map((v) => (v >= avg ? '1' : '0')).join('')
+  return averageHashFromLumaValues(values)
 }
 
 function resolveStoredCropPath(dbPath: string, cropPath: string | null | undefined) {
-  if (!cropPath) return null
-  if (path.isAbsolute(cropPath)) return fs.existsSync(cropPath) ? cropPath : null
-  const absolute = path.join(dbPath, cropPath)
-  return fs.existsSync(absolute) ? absolute : null
+  return resolveAbsoluteCropPath(dbPath, cropPath)
 }
 
 /** Remove all on-disk face crops (library auto-scan does not keep them). */
@@ -281,13 +278,7 @@ async function ensureFaceCropsForMedia(db: ApiDb, mediaId: number): Promise<numb
   const facesDir = getFacesDir(String(db.path), mediaId)
   ensureDir(facesDir)
 
-  const byTimestamp = new Map<string, typeof missing>()
-  for (const face of missing) {
-    const key = face.timestamp || '00:00:00'
-    const list = byTimestamp.get(key) || []
-    list.push(face)
-    byTimestamp.set(key, list)
-  }
+  const byTimestamp = groupItemsByKey(missing, (face) => face.timestamp || '00:00:00')
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-face-crops-'))
   let created = 0
@@ -520,8 +511,7 @@ async function extractFramesForMedia(
   }
 
   // Oversample then drop near-duplicates so N kept frames cover more of the video.
-  const targetCount = Math.max(1, Math.min(99, Math.round(framesPerVideo) || 6))
-  const candidateCount = Math.min(99, Math.max(targetCount, Math.ceil(targetCount * 1.75)))
+  const {targetCount, candidateCount} = computeOversampledFrameCount(framesPerVideo)
   const timestamps = getFrameTimestamps(duration, candidateCount)
   const candidates: Array<{framePath: string; timestamp: string; fingerprint: string}> = []
 

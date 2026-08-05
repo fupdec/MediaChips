@@ -42,6 +42,39 @@ export function getFrameTimestamps(duration: number, count: number) {
   })
 }
 
+/** Oversample timestamps, then keep `targetCount` diverse frames. */
+export function computeOversampledFrameCount(framesPerVideo: number): {
+  targetCount: number
+  candidateCount: number
+} {
+  const targetCount = Math.max(1, Math.min(99, Math.round(framesPerVideo) || 6))
+  const candidateCount = Math.min(99, Math.max(targetCount, Math.ceil(targetCount * 1.75)))
+  return {targetCount, candidateCount}
+}
+
+/** Average-hash bitstring from luma samples (e.g. 8x8 greyscale pixels). */
+export function averageHashFromLumaValues(values: number[]): string {
+  if (!values.length) return ''
+  let sum = 0
+  for (const value of values) sum += value
+  const avg = sum / values.length
+  return values.map((value) => (value >= avg ? '1' : '0')).join('')
+}
+
+export function groupItemsByKey<T>(
+  items: T[],
+  getKey: (item: T) => string,
+): Map<string, T[]> {
+  const groups = new Map<string, T[]>()
+  for (const item of items) {
+    const key = getKey(item)
+    const list = groups.get(key) || []
+    list.push(item)
+    groups.set(key, list)
+  }
+  return groups
+}
+
 export function hammingDistance(a: string, b: string) {
   const n = Math.min(a.length, b.length)
   let d = 0
