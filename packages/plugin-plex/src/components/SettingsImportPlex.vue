@@ -167,15 +167,11 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useAppStore} from '@/stores/app'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
-
-const LIST_LIBRARIES_PATH = '/api/plex/listLibraries'
-const STREAM_IMPORT_PATH = '/api/plex/streamImport'
+import {typedApi} from '@/services/typedApi'
 
 const {t} = useI18n()
-const appStore = useAppStore()
 
 const baseUrl = ref('')
 const token = ref('')
@@ -219,23 +215,11 @@ const loadLibraries = async () => {
   loadingLibraries.value = true
   lastError.value = ''
   try {
-    const response = await fetch(`${appStore.localhost}${LIST_LIBRARIES_PATH}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        baseUrl: baseUrl.value.trim(),
-        token: token.value.trim(),
-      }),
+    const {data} = await typedApi.listMediaServerLibraries('plex', {
+      baseUrl: baseUrl.value.trim(),
+      token: token.value.trim(),
     })
-    const payload = await response.json() as {
-      ok?: boolean
-      libraries?: Array<{id: string; name: string}>
-      error?: string
-    }
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || response.statusText || 'Failed to load libraries')
-    }
-    libraries.value = payload.libraries || []
+    libraries.value = data.libraries || []
     selectedLibraryIds.value = libraries.value.map((lib) => lib.id)
   } catch (error) {
     lastError.value = (error as Error)?.message || String(error)
@@ -258,43 +242,16 @@ const startImport = async () => {
   abortController = new AbortController()
 
   try {
-    const response = await fetch(`${appStore.localhost}${STREAM_IMPORT_PATH}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: abortController.signal,
-      body: JSON.stringify({
+    await typedApi.streamMediaServerImport(
+      'plex',
+      {
         baseUrl: baseUrl.value.trim(),
         token: token.value.trim(),
         libraryIds: selectedLibraryIds.value.length ? selectedLibraryIds.value : undefined,
         createMissingMedia: createMissingMedia.value,
-      }),
-    })
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Plex import failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const {done, value} = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-        let event: Record<string, unknown>
-        try {
-          event = JSON.parse(trimmed) as Record<string, unknown>
-        } catch {
-          continue
-        }
-
+      },
+      {signal: abortController.signal},
+      (event) => {
         if (event.type === 'progress') {
           phase.value = String(event.phase || '')
           counters.value = {
@@ -321,8 +278,8 @@ const startImport = async () => {
         } else if (event.type === 'error') {
           lastError.value = String(event.message || 'Plex import failed')
         }
-      }
-    }
+      },
+    )
   } catch (error) {
     if ((error as Error)?.name === 'AbortError') {
       lastError.value = t('settings_labels.database.import_plex_cancelled')

@@ -108,6 +108,36 @@ describe('typedApi', () => {
     expect(directory.data.entries[0]?.name).toBe('a.mp4')
   })
 
+  it('lists media-server libraries through typed routes', async () => {
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      ok: true,
+      libraries: [{id: '1', name: 'Movies'}],
+    }))
+    const jellyfin = await typedApi.listMediaServerLibraries('jellyfin', {
+      baseUrl: 'http://jellyfin.local',
+      apiKey: 'key',
+    })
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.jellyfinListLibraries, {
+      baseUrl: 'http://jellyfin.local',
+      apiKey: 'key',
+    })
+    expect(jellyfin.data.libraries?.[0]?.name).toBe('Movies')
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      ok: true,
+      libraries: [{id: '2', name: 'TV'}],
+    }))
+    const plex = await typedApi.listMediaServerLibraries('plex', {
+      baseUrl: 'http://plex.local',
+      token: 'token',
+    })
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.plexListLibraries, {
+      baseUrl: 'http://plex.local',
+      token: 'token',
+    })
+    expect(plex.data.libraries?.[0]?.id).toBe('2')
+  })
+
   it('reads backfill status through typed routes', async () => {
     mockGet.mockResolvedValueOnce(mockAxiosResponse({
       total: 10,

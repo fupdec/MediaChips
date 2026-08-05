@@ -165,7 +165,7 @@ import {showOpenDialog} from '@/services/electronDialogService'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
-const STASH_STREAM_IMPORT_PATH = '/api/stash/streamImport'
+import {typedApi} from '@/services/typedApi'
 
 const {t} = useI18n()
 const appStore = useAppStore()
@@ -247,41 +247,13 @@ const startImport = async () => {
   abortController = new AbortController()
 
   try {
-    const response = await fetch(`${appStore.localhost}${STASH_STREAM_IMPORT_PATH}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: abortController.signal,
-      body: JSON.stringify({
+    await typedApi.streamStashImport(
+      {
         path: dbPath.value,
         createMissingMedia: createMissingMedia.value,
-      }),
-    })
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Stash import failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const {done, value} = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-        let event: Record<string, unknown>
-        try {
-          event = JSON.parse(trimmed) as Record<string, unknown>
-        } catch {
-          continue
-        }
-
+      },
+      {signal: abortController.signal},
+      (event) => {
         if (event.type === 'progress') {
           phase.value = String(event.phase || '')
           counters.value = {
@@ -307,8 +279,8 @@ const startImport = async () => {
         } else if (event.type === 'error') {
           lastError.value = String(event.message || 'Stash import failed')
         }
-      }
-    }
+      },
+    )
   } catch (error) {
     if ((error as Error)?.name === 'AbortError') {
       lastError.value = t('settings_labels.database.import_stash_cancelled')

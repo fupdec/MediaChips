@@ -54,6 +54,7 @@ import {
   LocalAiStatusSchema,
 } from './localAi'
 import {BackfillStatusSchema} from './backfill'
+import {MediaServerLibrariesResponseSchema} from './imports'
 import {
   PluginCatalogEntrySchema,
   PluginCatalogListSchema,
@@ -515,6 +516,11 @@ export {
 
 export {BackfillStatusSchema} from './backfill'
 
+export {
+  MediaServerLibrariesResponseSchema,
+  MediaServerLibrarySchema,
+} from './imports'
+
 export function parsePluginCatalogEntry(data: unknown) {
   return PluginCatalogEntrySchema.parse(data)
 }
@@ -549,4 +555,8 @@ export function parseLocalAiDeleteResponse(data: unknown) {
 
 export function parseBackfillStatus(data: unknown) {
   return BackfillStatusSchema.parse(data)
+}
+
+export function parseMediaServerLibrariesResponse(data: unknown) {
+  return MediaServerLibrariesResponseSchema.parse(data)
 }
