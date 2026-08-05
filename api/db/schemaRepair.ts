@@ -337,6 +337,20 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('media_media_type_id_visual_hash_idx')
   }
 
+  if (hasTable(sqlite, 'tagsInFolders') && !hasIndex(sqlite, 'tags_in_folders_meta_tag_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_folders_meta_tag_idx" ON "tagsInFolders" ("metaId", "tagId")',
+    )
+    repaired.push('tags_in_folders_meta_tag_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInMedia') && !hasIndex(sqlite, 'tags_in_media_meta_media_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_media_meta_media_idx" ON "tagsInMedia" ("metaId", "mediaId")',
+    )
+    repaired.push('tags_in_media_meta_media_idx')
+  }
+
   if (ensureTagsNameNormalizedUniqueIndex(sqlite)) {
     repaired.push(TAGS_NAME_NORMALIZED_UNIQUE_INDEX)
   }

@@ -134,6 +134,29 @@ describe('schemaRepair', () => {
     expect(repairMissingIndexes(sqlite)).not.toContain('tags_name_normalized_unique')
   })
 
+  it('adds folder/media tag filter indexes for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE tagsInFolders (
+        folderId INTEGER NOT NULL,
+        tagId INTEGER NOT NULL,
+        metaId INTEGER NOT NULL,
+        PRIMARY KEY (folderId, tagId, metaId)
+      );
+      CREATE TABLE tagsInMedia (
+        mediaId INTEGER NOT NULL,
+        tagId INTEGER NOT NULL,
+        metaId INTEGER NOT NULL,
+        PRIMARY KEY (mediaId, tagId, metaId)
+      );
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired).toContain('tags_in_folders_meta_tag_idx')
+    expect(repaired).toContain('tags_in_media_meta_media_idx')
+    expect(repairMissingIndexes(sqlite)).toEqual([])
+  })
+
   it('dedupes tagsInTags and adds a unique index for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE tagsInTags (

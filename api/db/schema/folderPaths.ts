@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const folderPaths = sqliteTable('folderPaths', {
   id: integer('id').primaryKey({autoIncrement: true}),
@@ -15,4 +15,5 @@ export const tagsInFolders = sqliteTable('tagsInFolders', {
   metaId: integer('metaId').notNull(),
 }, (table) => ({
   pk: primaryKey({columns: [table.folderId, table.tagId, table.metaId]}),
+  metaTagIdx: index('tags_in_folders_meta_tag_idx').on(table.metaId, table.tagId),
 }))
