@@ -3,6 +3,7 @@ import {
   clampAssistantToolLimit,
   filterMediaRowsByQuery,
   filterTagRowsByQuery,
+  projectMetaRowsForAssistant,
   resolveAssistantToolQuery,
 } from './assistantToolQueries'
 
@@ -29,5 +30,12 @@ describe('assistantToolQueries', () => {
     ]
     expect(filterTagRowsByQuery(tags, 'bo', 10)).toEqual([tags[1]])
     expect(filterTagRowsByQuery(tags, '', 1)).toEqual([tags[0]])
+
+    expect(projectMetaRowsForAssistant([
+      {id: 1, name: 'People', type: 'array', extra: true},
+      {id: 2, name: 'Year', type: 'number'},
+    ], 1)).toEqual([
+      {id: 1, name: 'People', type: 'array'},
+    ])
   })
 })

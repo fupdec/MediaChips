@@ -2,6 +2,7 @@ import type { ApiDb } from '../types/db'
 import { createMarksRepository } from '../db/repositories/marks'
 import { createMediaRepository } from '../db/repositories/media'
 import { buildPathLookupVariants } from '../utils/normalizeUserPath'
+import { stripFileUrl } from '../utils/stripFileUrl'
 import {chapterTitleFromMark} from './markChapterTitle'
 
 export interface PlayerChapter {
@@ -24,27 +25,6 @@ type MarkForChapter = {
   tagId?: number | null
   'tag.name'?: string | null
   tag?: {name?: string | null} | null
-}
-
-function stripFileUrl(value: string): string {
-  let result = value.trim()
-  if (!/^file:/i.test(result)) return result
-
-  try {
-    result = decodeURIComponent(result)
-  } catch {
-    // keep undecoded path
-  }
-
-  result = result.replace(/^file:\/\/\/?/i, '')
-  result = result.replace(/^localhost\//i, '')
-
-  // file:///C:/video.mp4 → /C:/video.mp4 on some platforms
-  if (/^\/[A-Za-z]:[\\/]/.test(result)) {
-    result = result.slice(1)
-  }
-
-  return result
 }
 
 export {chapterTitleFromMark}

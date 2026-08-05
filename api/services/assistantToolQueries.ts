@@ -36,3 +36,15 @@ export function filterTagRowsByQuery<T extends {name?: string | null}>(
     .filter((row) => !normalized || String(row.name || '').toLowerCase().includes(normalized))
     .slice(0, limit)
 }
+
+export function projectMetaRowsForAssistant<T extends {
+  id?: unknown
+  name?: string | null
+  type?: string | null
+}>(rows: T[], limit = 100): Array<{id: unknown; name: string | null | undefined; type: string | null | undefined}> {
+  return rows.slice(0, limit).map((row) => ({
+    id: row.id,
+    name: row.name,
+    type: row.type,
+  }))
+}

@@ -1,5 +1,6 @@
 import type { PathToken, TokenizeOptions, TokenizeResult } from '../types/pathTokenizer'
 import path from 'path'
+import {PATH_STOP_WORDS} from '../../shared/pathParser/stopWords'
 
 const NOISE_PATTERNS = [
   /^(?:19|20)\d{2}$/,
@@ -25,13 +26,6 @@ const NOISE_PATTERNS = [
   /^https$/,
 ]
 
-const STOP_WORDS = new Set([
-  'the', 'there', 'by', 'at', 'and', 'so', 'if', 'than', 'but', 'about',
-  'in', 'on', 'was', 'for', 'that', 'said', 'a', 'or', 'of', 'to', 'will',
-  'be', 'what', 'get', 'go', 'think', 'just', 'every', 'are', 'it', 'were',
-  'had', 'i', 'very',
-])
-
 function normalizeToken(value: unknown) {
   return String(value || '')
     .normalize('NFKD')
@@ -52,7 +46,7 @@ function splitSegment(segment: unknown) {
 function isNoiseToken(token: string, options: TokenizeOptions = {}) {
   const minLength = options.minLength || 3
   if (!token || token.length < minLength) return true
-  if (STOP_WORDS.has(token)) return true
+  if (PATH_STOP_WORDS.has(token)) return true
   return NOISE_PATTERNS.some(pattern => pattern.test(token))
 }
 
@@ -96,7 +90,7 @@ function cleanComparable(value: unknown) {
 }
 
 export {
-  STOP_WORDS,
+  PATH_STOP_WORDS as STOP_WORDS,
   cleanComparable,
   isNoiseToken,
   normalizeToken,

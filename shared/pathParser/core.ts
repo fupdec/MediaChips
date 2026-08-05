@@ -1,3 +1,5 @@
+import {PATH_STOP_WORDS} from './stopWords'
+
 export interface PathPhrase {
   tokens: string[]
   source: 'folder' | 'file'
@@ -90,6 +92,9 @@ export interface TagPathIndex {
   termCount: number
 }
 
+/** @deprecated Prefer PATH_STOP_WORDS; kept for existing pathParser callers. */
+const STOP_WORDS = PATH_STOP_WORDS
+
 const NOISE_PATTERNS = [
   /^(?:19|20)\d{2}$/,
   /^\d{3,4}p$/,
@@ -104,13 +109,6 @@ const NOISE_PATTERNS = [
   /^mov$/,
   /^webm$/,
 ]
-
-const STOP_WORDS = new Set([
-  'the', 'there', 'by', 'at', 'and', 'so', 'if', 'than', 'but', 'about',
-  'in', 'on', 'was', 'for', 'that', 'said', 'a', 'or', 'of', 'to', 'will',
-  'be', 'what', 'get', 'go', 'think', 'just', 'every', 'are', 'it', 'were',
-  'had', 'i', 'very',
-])
 
 const PHRASE_DELIMITERS = /[,;&+|/]+/
 const STRUCTURAL_DELIMITERS = /[_\-.]+/
@@ -131,7 +129,7 @@ function splitCamelCase(value: string) {
 
 function isNoiseToken(token: string, minLength = 2) {
   if (!token || token.length < minLength) return true
-  if (STOP_WORDS.has(token)) return true
+  if (PATH_STOP_WORDS.has(token)) return true
   return NOISE_PATTERNS.some((pattern) => pattern.test(token))
 }
 

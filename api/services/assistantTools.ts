@@ -7,6 +7,7 @@ import {
   clampAssistantToolLimit,
   filterMediaRowsByQuery,
   filterTagRowsByQuery,
+  projectMetaRowsForAssistant,
   resolveAssistantToolQuery,
 } from './assistantToolQueries'
 
@@ -84,11 +85,7 @@ export async function executeAssistantTool(
     return {
       ok: true,
       result: {
-        items: rows.slice(0, 100).map((row) => ({
-          id: row.id,
-          name: row.name,
-          type: row.type,
-        })),
+        items: projectMetaRowsForAssistant(rows),
       },
     }
   }
