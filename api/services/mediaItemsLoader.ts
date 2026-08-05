@@ -47,7 +47,6 @@ import {
   type ItemsGroupSummary,
 } from '../../shared/itemsGroupBy'
 import { createMetaRepository } from '../db/repositories/meta'
-import { buildMediaPathUnderFolderSql } from './mediaTagFilterSql'
 import {
   buildFilteredCountSql,
   buildFilteredTotalsSql,
@@ -60,39 +59,7 @@ import {
   usesVisualNearDuplicates,
   type MediaTagLinkRow,
 } from './mediaItemsPresentation'
-
-async function loadInheritedFolderTagsByMediaIds(
-  db: ApiDb,
-  mediaIds: MediaId[],
-  metaId?: number | null,
-): Promise<Array<{mediaId: number; tagId: number; metaId: number}>> {
-  if (!mediaIds.length) return []
-
-  const pathMatch = buildMediaPathUnderFolderSql('m.path', 'fp.path')
-  const metaClause = metaId != null ? ' AND tif.metaId = :metaId' : ''
-  const rows: Array<{mediaId: number; tagId: number; metaId: number}> = []
-
-  for (const chunk of chunkArray(mediaIds)) {
-    const chunkRows = await queryAllAsync(db, `
-      SELECT m.id AS mediaId, tif.tagId AS tagId, tif.metaId AS metaId
-      FROM media m
-      INNER JOIN folderPaths fp
-      INNER JOIN tagsInFolders tif ON tif.folderId = fp.id${metaClause}
-      WHERE m.id IN (:mediaIds)
-        AND ${pathMatch}
-    `, metaId != null ? {mediaIds: chunk, metaId} : {mediaIds: chunk})
-
-    for (const row of chunkRows) {
-      rows.push({
-        mediaId: Number(row.mediaId),
-        tagId: Number(row.tagId),
-        metaId: Number(row.metaId),
-      })
-    }
-  }
-
-  return rows
-}
+import { loadInheritedFolderTagsByMediaIds } from './mediaInheritedFolderTags'
 
 const GROUP_SLIM_SELECT = `SELECT
   media.id,

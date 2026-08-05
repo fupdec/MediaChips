@@ -1,51 +1,17 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
-import type { ApiRequest, ApiResponse } from '../types/http'
-
 import { createValuesInTagRepository } from '../db/repositories/valuesInTag'
-export default function (db: ApiDb) {
-  const valuesInTagRepo = createValuesInTagRepository(db.drizzle)
+import { createOwnerValuesController } from './createOwnerValuesController'
 
-  const create = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      const data = valuesInTagRepo.bulkCreate(req.body)
-      res.status(201).send(data)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
+export default createOwnerValuesController({
+  ownerQueryKey: 'tagId',
+  deleteAllMethodName: 'deleteAllValuesByTagId',
+  createRepository: (db: ApiDb) => {
+    const repo = createValuesInTagRepository(db.drizzle)
+    return {
+      bulkCreate: (body) => repo.bulkCreate(body as never),
+      findAllByOwner: (ownerId) => repo.findAllByTagId(ownerId),
+      deleteOne: (itemId, metaId) => repo.deleteOne(itemId, metaId),
+      deleteByOwner: (ownerId) => repo.deleteByTagId(ownerId),
     }
-  }
-
-  const findAll = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      const data = valuesInTagRepo.findAllByTagId(Number(req.query.tagId))
-      res.status(201).send(data)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
-    }
-  }
-
-  const deleteOne = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      valuesInTagRepo.deleteOne(Number(req.body.itemId), Number(req.body.metaId))
-      res.sendStatus(201)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
-    }
-  }
-
-  const deleteAllValuesByTagId = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      valuesInTagRepo.deleteByTagId(Number(req.params.id))
-      res.sendStatus(201)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
-    }
-  }
-
-  return {
-    create,
-    findAll,
-    deleteOne,
-    deleteAllValuesByTagId,
-  }
-}
+  },
+})

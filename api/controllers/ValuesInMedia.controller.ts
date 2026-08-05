@@ -1,51 +1,17 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
-import type { ApiRequest, ApiResponse } from '../types/http'
-
 import { createValuesInMediaRepository } from '../db/repositories/valuesInMedia'
-export default function (db: ApiDb) {
-  const valuesInMediaRepo = createValuesInMediaRepository(db.drizzle)
+import { createOwnerValuesController } from './createOwnerValuesController'
 
-  const create = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      const data = valuesInMediaRepo.bulkCreate(req.body)
-      res.status(201).send(data)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
+export default createOwnerValuesController({
+  ownerQueryKey: 'mediaId',
+  deleteAllMethodName: 'deleteAllValuesByMediaId',
+  createRepository: (db: ApiDb) => {
+    const repo = createValuesInMediaRepository(db.drizzle)
+    return {
+      bulkCreate: (body) => repo.bulkCreate(body as never),
+      findAllByOwner: (ownerId) => repo.findAllByMediaId(ownerId),
+      deleteOne: (itemId, metaId) => repo.deleteOne(itemId, metaId),
+      deleteByOwner: (ownerId) => repo.deleteByMediaId(ownerId),
     }
-  }
-
-  const findAll = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      const data = valuesInMediaRepo.findAllByMediaId(Number(req.query.mediaId))
-      res.status(201).send(data)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
-    }
-  }
-
-  const deleteOne = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      valuesInMediaRepo.deleteOne(Number(req.body.itemId), Number(req.body.metaId))
-      res.sendStatus(201)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
-    }
-  }
-
-  const deleteAllValuesByMediaId = function (req: ApiRequest, res: ApiResponse) {
-    try {
-      valuesInMediaRepo.deleteByMediaId(Number(req.params.id))
-      res.sendStatus(201)
-    } catch (err: unknown) {
-      sendControllerError(res, err, 'Some error occurred while performing query.')
-    }
-  }
-
-  return {
-    create,
-    findAll,
-    deleteOne,
-    deleteAllValuesByMediaId,
-  }
-}
+  },
+})

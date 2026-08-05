@@ -16,18 +16,7 @@ import {
 import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import { generateVideoGrid } from '../../services/videoGrid'
-
-function resolveMediaIdFromGridRequest(body: ApiRequest['body']): number | null {
-  if (body?.id != null && body.id !== '') {
-    const fromId = Number(body.id)
-    if (Number.isFinite(fromId) && fromId > 0) return fromId
-  }
-  const output = String(body?.output || '')
-  const match = /^(\d+)\.jpe?g$/i.exec(path.basename(output))
-  if (!match) return null
-  const fromOutput = Number(match[1])
-  return Number.isFinite(fromOutput) && fromOutput > 0 ? fromOutput : null
-}
+import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
   const {db, dbPath, createThumbMiddle, createThumbCustom, getImageMedia} = shared

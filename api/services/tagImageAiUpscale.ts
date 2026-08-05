@@ -29,6 +29,7 @@ import {
 import {parseBooleanSetting} from '../utils/parseBooleanSetting'
 import {isPathInside} from '../utils/isPathInside'
 import {
+  getRealesrganZipFileName,
   getRealesrganZipUrl,
   needsTagAiUpscale,
   targetHeightFor,

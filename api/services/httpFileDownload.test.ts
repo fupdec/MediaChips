@@ -122,7 +122,7 @@ describe('httpFileDownload', () => {
     await downloadHttpFile(`${baseUrl}/p`, dest, {
       onProgress: (value) => loaded.push(value),
     })
-    expect(loaded.at(-1)).toBe(6)
+    expect(loaded[loaded.length - 1]).toBe(6)
     expect(loaded[0]).toBeGreaterThan(0)
   })
 

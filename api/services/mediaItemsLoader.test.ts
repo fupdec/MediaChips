@@ -120,7 +120,10 @@ describe('loadMediaItems', () => {
         return [{ id: 10, mediaTypeId: 1, path: '/media/show/ep.mp4', name: 'ep.mp4', filesize: 1000 }]
       }
       if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) {
-        return [{ mediaId: 10, tagId: 42, metaId: 7 }]
+        return [{ folderPath: '/media/show', tagId: 42, metaId: 7 }]
+      }
+      if (sql.includes('SELECT id, path FROM media')) {
+        return [{ id: 10, path: '/media/show/ep.mp4' }]
       }
       if (sql.includes('FROM tagsInMedia') || sql.includes('tagsInMedia WHERE')) {
         return [{ mediaId: 10, tagId: 11, metaId: 7 }]
