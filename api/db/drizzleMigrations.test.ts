@@ -7,6 +7,7 @@ import {
   ensureLegacyDrizzleBaseline,
   runDrizzleMigrations,
 } from './drizzleMigrations'
+import journal from './migrations-drizzle/meta/_journal.json'
 
 describe('drizzleMigrations', () => {
   const tempFiles: string[] = []
@@ -31,7 +32,7 @@ describe('drizzleMigrations', () => {
     const sqlite = new Database(dbPath)
     try {
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 15})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: journal.entries.length})
     } finally {
       sqlite.close()
     }
@@ -47,7 +48,7 @@ describe('drizzleMigrations', () => {
       sqlite.exec(`INSERT INTO SequelizeMeta (name) VALUES ('00_initial.js')`)
       sqlite.exec(`DELETE FROM __drizzle_migrations`)
       ensureLegacyDrizzleBaseline(sqlite)
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 15})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: journal.entries.length})
     } finally {
       sqlite.close()
     }
@@ -56,7 +57,7 @@ describe('drizzleMigrations', () => {
 
     const reopened = new Database(dbPath)
     try {
-      expect(reopened.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 15})
+      expect(reopened.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: journal.entries.length})
     } finally {
       reopened.close()
     }

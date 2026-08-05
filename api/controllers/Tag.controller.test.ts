@@ -57,6 +57,12 @@ vi.mock('../services/thumbEncoding', () => ({
   readImageAsDataUrl,
 }))
 
+vi.mock('../services/tagNameUniqueness', () => ({
+  assertTagNameAvailable: vi.fn(),
+  assertTagNamesAvailable: vi.fn(),
+  TagNameConflictError: class TagNameConflictError extends Error {},
+}))
+
 import createTagController from './Tag.controller'
 
 function createResponse() {
