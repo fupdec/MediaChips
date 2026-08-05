@@ -31,6 +31,8 @@ export function getTagArrayFilterTagIds(filter: FilterLike) {
   return normalizeTagIds(filter.val)
 }
 
+export {normalizeTagIds as normalizeFilterTagIds}
+
 export function canUseTagArrayJoin(filter: FilterLike, hasTagIds: boolean) {
   const {cond} = filter
   if (cond === 'is null' || cond === 'not null') return true

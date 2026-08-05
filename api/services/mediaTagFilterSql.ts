@@ -1,6 +1,7 @@
 import type { FilterLike } from '../types/db'
 import type { SqlParamBinder } from '../types/mediaFilter'
 import type { TagArrayJoinResult } from './tagArrayFilterSql'
+import {normalizeFilterTagIds} from './tagArrayFilterSql'
 
 /** SQL: media.path is under folderPaths.path (separator-normalized). */
 export function buildMediaPathUnderFolderSql(
@@ -8,12 +9,6 @@ export function buildMediaPathUnderFolderSql(
   folderPathExpr = 'fp.path',
 ): string {
   return `REPLACE(${mediaPathExpr}, '\\', '/') LIKE RTRIM(REPLACE(${folderPathExpr}, '\\', '/'), '/') || '/%'`
-}
-
-function normalizeTagIds(val: unknown) {
-  return Array.isArray(val)
-    ? val.filter((id: unknown) => id !== null && id !== undefined && id !== '')
-    : []
 }
 
 /**
@@ -76,7 +71,7 @@ export function buildMediaTagArrayJoinResult(
   nextParam: SqlParamBinder,
 ): TagArrayJoinResult | null {
   const {cond, val} = filter
-  const tagIds = normalizeTagIds(val)
+  const tagIds = normalizeFilterTagIds(val)
 
   if (cond === 'is null') {
     return {
@@ -151,7 +146,7 @@ export function buildMediaTagArrayFilterClause(
   nextParam: SqlParamBinder,
 ): string | null {
   const {cond, val} = filter
-  const tagIds = normalizeTagIds(val)
+  const tagIds = normalizeFilterTagIds(val)
 
   if (cond === 'is null') {
     return `media.id NOT IN ${buildMediaIdsWithAnyMetaTagSql(metaKey)}`
