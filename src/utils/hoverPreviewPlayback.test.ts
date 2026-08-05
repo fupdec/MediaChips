@@ -12,6 +12,8 @@ import {
   resetHoverPreviewCooldownForTests,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
+  resolveLivePreviewRelativeTime,
+  shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   createHoverSeekCoalescer,
   waitForPreviewSeek,
@@ -71,6 +73,32 @@ describe('hoverPreviewPlayback', () => {
       seeking: false,
       videoDuration: 100,
     })).toEqual({kind: 'not-applicable'})
+  })
+
+  it('decides when live preview src must reload', () => {
+    expect(shouldReloadLivePreviewSrc({
+      loadedMediaId: 1,
+      mediaId: 1,
+      activeSrc: 'http://x/api/video/1/transcode/stream?start=10',
+      nextUrl: 'http://x/api/video/1/transcode/stream?start=10',
+    })).toBe(false)
+
+    expect(shouldReloadLivePreviewSrc({
+      loadedMediaId: 1,
+      mediaId: 1,
+      activeSrc: 'http://x/api/video/1/transcode/stream?start=10',
+      nextUrl: 'http://x/api/video/1/transcode/stream?start=40',
+    })).toBe(true)
+
+    expect(shouldReloadLivePreviewSrc({
+      loadedMediaId: 2,
+      mediaId: 1,
+      activeSrc: 'http://x/api/video/2/transcode/stream?start=10',
+      nextUrl: 'http://x/api/video/1/transcode/stream?start=10',
+    })).toBe(true)
+
+    expect(resolveLivePreviewRelativeTime(15.5, 10)).toBe(5.5)
+    expect(resolveLivePreviewRelativeTime(8, 10)).toBe(0)
   })
 
   it('gates hover-ready marking', () => {

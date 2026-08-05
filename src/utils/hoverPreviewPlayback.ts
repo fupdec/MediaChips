@@ -118,6 +118,28 @@ export function getPreviewStreamStart(url: string): string | null {
   }
 }
 
+/** Whether a live-stream preview URL must replace the current video src. */
+export function shouldReloadLivePreviewSrc(input: {
+  loadedMediaId: number | null
+  mediaId: number
+  activeSrc: string
+  nextUrl: string
+}): boolean {
+  const nextStart = getPreviewStreamStart(input.nextUrl)
+  const currentStart = input.activeSrc.includes('/transcode/stream')
+    && input.loadedMediaId === input.mediaId
+    ? getPreviewStreamStart(input.activeSrc)
+    : null
+  return input.loadedMediaId !== input.mediaId || currentStart !== nextStart
+}
+
+export function resolveLivePreviewRelativeTime(
+  targetTime: number,
+  streamStart: number,
+): number {
+  return Math.max(0, targetTime - streamStart)
+}
+
 export function getLoadedPreviewMediaId(
   video: Pick<HTMLVideoElement, 'currentSrc'>,
   pageHref = typeof window !== 'undefined' ? window.location.href : '',

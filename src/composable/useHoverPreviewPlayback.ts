@@ -20,7 +20,9 @@ import {
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
+  resolveLivePreviewRelativeTime,
   shouldApplyPreviewSeek,
+  shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
@@ -218,18 +220,20 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     if (isLive) {
       previewUsesLiveStream.value = true
       const nextStart = getPreviewStreamStart(url)
-      const currentStart = activeSrc.includes('/transcode/stream') && loadedMediaId === mediaId
-        ? getPreviewStreamStart(activeSrc)
-        : null
 
-      if (loadedMediaId !== mediaId || currentStart !== nextStart) {
+      if (shouldReloadLivePreviewSrc({
+        loadedMediaId,
+        mediaId,
+        activeSrc,
+        nextUrl: url,
+      })) {
         video.src = url
         await waitForPreviewCanPlay(video, isPreviewCancelled(token), {live: true})
       }
 
       if (token !== previewPlaybackToken) return false
       const streamStart = Number(nextStart) || 0
-      const relative = Math.max(0, targetTime - streamStart)
+      const relative = resolveLivePreviewRelativeTime(targetTime, streamStart)
       if (shouldApplyPreviewSeek(video.currentTime, relative)) {
         video.currentTime = relative
         await waitForPreviewSeek(video, isPreviewCancelled(token))
