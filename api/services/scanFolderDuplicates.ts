@@ -1,6 +1,6 @@
 import type { ApiDb } from '../types/db'
 import path from 'path'
-import { readdir, stat } from 'fs/promises'
+import { stat } from 'fs/promises'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { pathsEquivalent } from '../utils/normalizeUserPath'
 import { buildExtensionRegex } from '../utils/mediaExtensions'
@@ -16,6 +16,7 @@ import {
   type InLibraryHit,
   type ScannedFile,
 } from './scanFolderDuplicateMatch'
+import {listMediaFilesFromRoots} from './mediaFileWalk'
 
 type ScanFolderOptions = {
   folders?: string[]
@@ -32,57 +33,6 @@ type LibraryHit = {
   filesize: number | null
   oshash: string | null
   contentHash: string | null
-}
-
-async function listFilesFromRoots(
-  roots: string[],
-  {
-    extensionRegex,
-    excluded = [],
-    shouldStop = () => false,
-  }: {
-    extensionRegex: RegExp
-    excluded?: string[]
-    shouldStop?: () => boolean
-  },
-): Promise<string[]> {
-  const fileList: string[] = []
-  const stack = [...roots]
-  let scanned = 0
-
-  while (stack.length && !shouldStop()) {
-    const dir = stack.pop()
-    if (!dir) continue
-
-    let entries
-    try {
-      entries = await readdir(dir, {withFileTypes: true})
-    } catch {
-      continue
-    }
-
-    for (const entry of entries) {
-      if (shouldStop()) break
-      const filePath = path.join(dir, entry.name)
-
-      if (excluded.some((exclude) => filePath.includes(exclude))) {
-        continue
-      }
-
-      if (entry.isDirectory()) {
-        stack.push(filePath)
-      } else if (entry.isFile() && extensionRegex.test(filePath.toLowerCase())) {
-        fileList.push(filePath)
-      }
-
-      scanned += 1
-      if (scanned % 500 === 0) {
-        await new Promise((resolve) => setImmediate(resolve))
-      }
-    }
-  }
-
-  return fileList
 }
 
 async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOptions = {}) {
@@ -112,7 +62,7 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
 
   const listed = seedPaths.length
     ? seedPaths.filter((filePath) => extensionRegex.test(filePath.toLowerCase()))
-    : await listFilesFromRoots(roots, {extensionRegex, excluded, shouldStop})
+    : await listMediaFilesFromRoots(roots, {extensionRegex, excluded, shouldStop})
 
   if (shouldStop()) {
     yield {type: 'complete', stopped: true, total: listed.length, withinFolder: [], inLibrary: []}

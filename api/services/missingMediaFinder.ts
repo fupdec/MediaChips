@@ -1,13 +1,14 @@
 import type { ApiDb, AnyRecord } from '../types/db'
 import type { MissingMediaSearchOptions } from '../types/missingMediaFinder'
 import path from 'path'
-import { readdir, stat } from 'fs/promises'
+import { stat } from 'fs/promises'
 import { fileExists } from './contentHash'
 import { computeOshashForPath } from './oshash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { buildExtensionRegexFromMediaTypes } from '../utils/mediaExtensions'
 import { buildMissingIndexes, pickWeakCandidate } from './missingMediaMatch'
+import {walkMatchedMediaFiles} from './mediaFileWalk'
 
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -52,43 +53,6 @@ async function getMissingMediaStatus(db: ApiDb, {full = false} = {}) {
     missing: missing.length,
     withHash: missing.filter((item: AnyRecord) => item.oshash).length,
     withoutHash: missing.filter((item: AnyRecord) => !item.oshash).length,
-  }
-}
-
-async function* walkMediaFiles(
-  rootDirs: string[],
-  {extensionRegex, shouldStop = () => false}: {extensionRegex: RegExp; shouldStop?: () => boolean},
-) {
-  const stack = [...rootDirs]
-  let scanned = 0
-
-  while (stack.length && !shouldStop()) {
-    const dir = stack.pop()
-    if (!dir) continue
-    let entries
-
-    try {
-      entries = await readdir(dir, {withFileTypes: true})
-    } catch {
-      continue
-    }
-
-    for (const entry of entries) {
-      if (shouldStop()) return
-
-      const filePath = path.join(dir, entry.name)
-
-      if (entry.isDirectory()) {
-        stack.push(filePath)
-      } else if (entry.isFile() && extensionRegex.test(filePath)) {
-        scanned += 1
-        yield {path: filePath, scanned}
-
-        if (scanned % 200 === 0) {
-          await new Promise((resolve) => setImmediate(resolve))
-        }
-      }
-    }
   }
 }
 
@@ -180,7 +144,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
     current: rootDirs[0],
   }
 
-  for await (const {path: filePath} of walkMediaFiles(rootDirs, {extensionRegex, shouldStop})) {
+  for await (const {path: filePath} of walkMatchedMediaFiles(rootDirs, {extensionRegex, shouldStop, yieldEvery: 200})) {
     if (shouldStop()) break
 
     scanned += 1

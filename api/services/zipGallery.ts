@@ -24,6 +24,7 @@ import {
   type ZipSkipReason,
   type ZipSkipped,
 } from './zipVirtualPath'
+import {collectMediaFilesFromRoots} from './mediaFileWalk'
 
 export {
   ZIP_VIRTUAL_SEP,
@@ -350,44 +351,15 @@ export async function collectFilesWithZipGalleries(options: {
     throw new Error('not directory')
   }
 
-  const stack = [root]
-  const zipPaths: string[] = []
-  let scanned = 0
-
-  while (stack.length) {
-    const dir = stack.pop()
-    if (!dir) continue
-
-    let dirents: fs.Dirent[]
-    try {
-      dirents = await fs.promises.readdir(dir, { withFileTypes: true })
-    } catch {
-      continue
-    }
-
-    for (const dirent of dirents) {
-      const filePath = path.join(dir, dirent.name)
-
-      if (excluded.some((exclude) => filePath.includes(exclude))) {
-        continue
-      }
-
-      if (dirent.isDirectory()) {
-        stack.push(filePath)
-      } else if (dirent.isFile()) {
-        if (expandZips && isZipFilePath(filePath)) {
-          zipPaths.push(filePath)
-        } else if (regex.test(filePath.toLowerCase())) {
-          files.push(filePath)
-        }
-      }
-
-      scanned += 1
-      if (scanned % 500 === 0) {
-        await new Promise((resolve) => setImmediate(resolve))
-      }
-    }
-  }
+  const {files: walkedFiles, extras: zipPaths} = await collectMediaFilesFromRoots([root], {
+    excluded,
+    classifyFile: (filePath) => {
+      if (expandZips && isZipFilePath(filePath)) return 'extra'
+      if (regex.test(filePath.toLowerCase())) return 'match'
+      return 'skip'
+    },
+  })
+  files.push(...walkedFiles)
 
   if (expandZips) {
     for (const zipPath of zipPaths) {
