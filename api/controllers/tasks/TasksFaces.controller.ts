@@ -1,6 +1,6 @@
 import type { TaskControllerShared } from '../../types/tasks'
 import type { ApiRequest, ApiResponse } from '../../types/http'
-import { apiErrorMessage } from '../../types/errors'
+import { HttpError, apiErrorMessage, sendControllerError } from '../../types/errors'
 import {
   detectMedia,
   getFaceDetectionStatus,
@@ -40,9 +40,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       res.status(201).send(getStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking face model status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking face model status.')
     }
   }
 
@@ -51,9 +49,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       await loadModel(db)
       res.status(201).send(getStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while downloading face model.',
-      })
+      sendControllerError(res, err, 'Some error occurred while downloading face model.')
     }
   }
 
@@ -61,9 +57,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       res.status(201).send(getEmbedStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking face embed model status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking face embed model status.')
     }
   }
 
@@ -72,9 +66,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       await loadEmbedModel(db)
       res.status(201).send(getEmbedStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while downloading face embed model.',
-      })
+      sendControllerError(res, err, 'Some error occurred while downloading face embed model.')
     }
   }
 
@@ -82,9 +74,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       res.status(201).send(await getFaceDetectionStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking face detection status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking face detection status.')
     }
   }
 
@@ -92,9 +82,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       res.status(201).send(getFaceMatchStatus(db))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking face match status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking face match status.')
     }
   }
 
@@ -102,8 +90,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       const mediaId = Number(req.query?.mediaId || req.body?.mediaId || req.body?.id)
       if (!Number.isFinite(mediaId) || mediaId <= 0) {
-        res.status(400).send({message: 'mediaId is required'})
-        return
+        throw new HttpError(400, 'mediaId is required')
       }
       const ensureCropsRaw = req.query?.ensureCrops ?? req.body?.ensureCrops
       const ensureCrops = !(
@@ -114,9 +101,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       )
       res.status(201).send(await listFacesForMedia(db, mediaId, {ensureCrops}))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while loading faces.',
-      })
+      sendControllerError(res, err, 'Some error occurred while loading faces.')
     }
   }
 
@@ -124,14 +109,12 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       const mediaId = Number(req.body?.mediaId || req.body?.id)
       if (!Number.isFinite(mediaId) || mediaId <= 0) {
-        res.status(400).send({message: 'mediaId is required'})
-        return
+        throw new HttpError(400, 'mediaId is required')
       }
 
       const media = mediaRepo.findById(mediaId)
       if (!media) {
-        res.status(404).send({message: 'Media not found'})
-        return
+        throw new HttpError(404, 'Media not found')
       }
 
       const resolvedPath = media.path ? await resolveExistingPath(String(media.path)) : null
@@ -158,9 +141,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
 
       res.status(201).send({...result, match})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while detecting faces.',
-      })
+      sendControllerError(res, err, 'Some error occurred while detecting faces.')
     }
   }
 
@@ -168,8 +149,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       const mediaId = Number(req.body?.mediaId || req.body?.id)
       if (!Number.isFinite(mediaId) || mediaId <= 0) {
-        res.status(400).send({message: 'mediaId is required'})
-        return
+        throw new HttpError(400, 'mediaId is required')
       }
       const applyTagsRaw = req.body?.applyTags
       const applyTags = !(
@@ -187,9 +167,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       })
       res.status(201).send(result)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while matching faces.',
-      })
+      sendControllerError(res, err, 'Some error occurred while matching faces.')
     }
   }
 
@@ -198,8 +176,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       const faceId = Number(req.body?.faceId)
       const tagId = Number(req.body?.tagId)
       if (!Number.isFinite(faceId) || !Number.isFinite(tagId)) {
-        res.status(400).send({message: 'faceId and tagId are required'})
-        return
+        throw new HttpError(400, 'faceId and tagId are required')
       }
       const result = await assignFaceToPerformer(db, faceId, tagId, {
         enroll: req.body?.enroll === true,
@@ -208,9 +185,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       })
       res.status(201).send(result)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while assigning face to performer.',
-      })
+      sendControllerError(res, err, 'Some error occurred while assigning face to performer.')
     }
   }
 
@@ -218,14 +193,11 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       const faceId = Number(req.body?.faceId)
       if (!Number.isFinite(faceId) || faceId <= 0) {
-        res.status(400).send({message: 'faceId is required'})
-        return
+        throw new HttpError(400, 'faceId is required')
       }
       res.status(201).send(clearFaceMatch(db, faceId))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while clearing face match.',
-      })
+      sendControllerError(res, err, 'Some error occurred while clearing face match.')
     }
   }
 
@@ -233,14 +205,11 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       const tagId = Number(req.query?.tagId || req.body?.tagId)
       if (!Number.isFinite(tagId) || tagId <= 0) {
-        res.status(400).send({message: 'tagId is required'})
-        return
+        throw new HttpError(400, 'tagId is required')
       }
       res.status(201).send(await getEnrollmentQualityForTag(db, tagId))
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking enrollment quality.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking enrollment quality.')
     }
   }
 
@@ -248,8 +217,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     try {
       const tagId = Number(req.body?.tagId || req.query?.tagId)
       if (!Number.isFinite(tagId) || tagId <= 0) {
-        res.status(400).send({message: 'tagId is required'})
-        return
+        throw new HttpError(400, 'tagId is required')
       }
       const enroll = await enrollTagFaces(db, tagId, {force: req.body?.force !== false})
       let quality = null
@@ -262,9 +230,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       }
       res.status(201).send({...enroll, quality})
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while enrolling tag faces.',
-      })
+      sendControllerError(res, err, 'Some error occurred while enrolling tag faces.')
     }
   }
 

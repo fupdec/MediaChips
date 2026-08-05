@@ -31,6 +31,12 @@ import {
   prepareGenderModel,
   type FaceGenderFilter,
 } from './faceGender'
+import {
+  getFrameTimestamps,
+  hardNms,
+  pickDiverseFrames,
+  qualityGatesForScore,
+} from './faceDetectorMath'
 
 const FACE_MODEL_ID = 'scrfd-10g'
 const FACE_MODEL_FILENAME = 'det_10g.onnx'
@@ -76,19 +82,6 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
       ? Math.min(Math.max(Math.round(framesRaw), 1), 99)
       : 6,
     genderFilter: normalizeGenderFilter(map.get('faceDetect.genderFilter')),
-  }
-}
-
-function qualityGatesForScore(minScore: number) {
-  // Loose (~0.5) → almost no skin/area gates; strict (~0.75) → moderate gates.
-  // Keep the curve gentle: high scores alone already reject weak boxes.
-  const t = Math.min(1, Math.max(0, (minScore - 0.55) / 0.2))
-  return {
-    maxSkinRatio: 0.95 - (t * 0.12),
-    minUpperDarkRatio: 0.02 + (t * 0.03),
-    maxAreaRatio: 0.5 - (t * 0.15),
-    minLumaStd: 12 + (t * 3),
-    applySkinFilter: minScore >= 0.7,
   }
 }
 
@@ -264,33 +257,6 @@ function cleanupDir(dirPath: string | null) {
   }
 }
 
-function formatTimestamp(seconds: number) {
-  return new Date(Math.floor(Math.max(0, seconds)) * 1000).toISOString().substr(11, 8)
-}
-
-/**
- * Bias samples toward the first ~2/3 of usable runtime (faces rarely appear in credits),
- * and pad away from pure black intro/outro frames.
- */
-function getFrameTimestamps(duration: number, count: number) {
-  const safeCount = Math.max(1, Math.min(Number(count || 6), 99))
-  const safeDuration = Math.max(0.1, Number(duration) || 0.1)
-  if (safeCount === 1) {
-    return [formatTimestamp(safeDuration * 0.42)]
-  }
-
-  const startPad = safeDuration < 20 ? 0.08 : 0.05
-  const endPad = safeDuration < 20 ? 0.1 : 0.14
-  const usable = Math.max(0.25, 1 - startPad - endPad)
-
-  return Array.from({length: safeCount}, (_, index) => {
-    const u = index / (safeCount - 1)
-    // Power < 1 → denser early/mid samples.
-    const biased = Math.pow(u, 0.72)
-    return formatTimestamp(safeDuration * (startPad + usable * biased))
-  })
-}
-
 /** Average-hash fingerprint for cheap near-duplicate frame rejection. */
 async function frameFingerprint(framePath: string): Promise<string> {
   const image = await Jimp.read(framePath)
@@ -307,37 +273,6 @@ async function frameFingerprint(framePath: string): Promise<string> {
   }
   const avg = sum / Math.max(values.length, 1)
   return values.map((v) => (v >= avg ? '1' : '0')).join('')
-}
-
-function hammingDistance(a: string, b: string) {
-  const n = Math.min(a.length, b.length)
-  let d = 0
-  for (let i = 0; i < n; i++) {
-    if (a[i] !== b[i]) d += 1
-  }
-  return d + Math.abs(a.length - b.length)
-}
-
-/**
- * Keep frames that look different enough (aHash Hamming ≥ threshold).
- * Falls back to originals if almost everything collides.
- */
-function pickDiverseFrames<T extends {fingerprint: string}>(
-  frames: T[],
-  limit: number,
-  minDistance: number = 10,
-): T[] {
-  if (frames.length <= limit) return frames
-  const kept: T[] = []
-  for (const frame of frames) {
-    if (kept.every((other) => hammingDistance(frame.fingerprint, other.fingerprint) >= minDistance)) {
-      kept.push(frame)
-    }
-    if (kept.length >= limit) break
-  }
-  if (kept.length >= Math.min(limit, Math.ceil(limit * 0.5))) return kept.slice(0, limit)
-  // Too aggressive — keep first N candidates in planned order.
-  return frames.slice(0, limit)
 }
 
 function resolveStoredCropPath(dbPath: string, cropPath: string | null | undefined) {
@@ -455,33 +390,6 @@ async function getVideoDuration(filePath: string) {
   const duration = Number(info?.format?.duration || 0)
   if (!duration) throw new Error('Video duration is unavailable.')
   return duration
-}
-
-function iou(a: FaceBox, b: FaceBox) {
-  const x1 = Math.max(a.x, b.x)
-  const y1 = Math.max(a.y, b.y)
-  const x2 = Math.min(a.x + a.width, b.x + b.width)
-  const y2 = Math.min(a.y + a.height, b.y + b.height)
-  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1)
-  const union = a.width * a.height + b.width * b.height - inter
-  return union > 0 ? inter / union : 0
-}
-
-function hardNms<T extends {score: number; box: FaceBox}>(
-  detections: T[],
-  iouThreshold: number,
-  topK: number,
-): T[] {
-  const sorted = [...detections].sort((a, b) => b.score - a.score)
-  const kept: T[] = []
-
-  for (const candidate of sorted) {
-    if (kept.some((existing) => iou(existing.box, candidate.box) > iouThreshold)) continue
-    kept.push(candidate)
-    if (kept.length >= topK) break
-  }
-
-  return kept
 }
 
 /** Rough Laplacian variance on the face crop — higher means sharper. */
