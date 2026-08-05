@@ -76,13 +76,22 @@ export type GenerationStreamEvent = {
   type: string
   processed?: number
   total?: number
+  remaining?: number
   created?: number
   skipped?: number
   missing?: number
   failed?: number
   upscaled?: number
+  scanned?: number
+  matched?: number
+  faces?: number
+  enrolled?: number
+  applied?: number
+  mediaId?: number
+  media?: number
   current?: string
   path?: string
+  phase?: string
   message?: string
   stopped?: boolean
   downloadSizeMb?: number
@@ -90,6 +99,20 @@ export type GenerationStreamEvent = {
   foldersRemoved?: number
   foldersCreated?: number
   imagesResized?: number
+  match?: unknown
+  matches?: unknown[]
+  item?: unknown
+  items?: unknown[]
+  tag?: unknown
+  summary?: Record<string, unknown>
+  suggestions?: Array<{word?: string}>
+  inLibrary?: unknown[]
+  withinFolder?: unknown[]
+  good?: number
+  ok?: number
+  weak?: number
+  bad?: number
+  none?: number
 }
 
 export {ApiHttpError}
@@ -454,6 +477,158 @@ export const tasksApi = {
         signal: options.signal,
         ignoreMalformed: true,
         errorMessage: 'Tag image AI upscale request failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamFaceDetection(
+    body: Record<string, unknown>,
+    options: {signal?: AbortSignal; errorMessage?: string},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamFaceDetection,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: options.errorMessage || 'Face detection request failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamFaceEnrollment(
+    body: Record<string, unknown>,
+    options: {signal?: AbortSignal; errorMessage?: string},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamFaceEnrollment,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: options.errorMessage || 'Face enrollment request failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamFaceMatching(
+    body: Record<string, unknown>,
+    options: {signal?: AbortSignal; errorMessage?: string},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamFaceMatching,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: options.errorMessage || 'Face matching request failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamEnrollmentQualityReport(
+    body: {metaId?: number | null},
+    options: {
+      signal?: AbortSignal
+      beforeRead?: () => void | Promise<void>
+      errorMessage?: string
+    },
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamEnrollmentQualityReport,
+      {
+        body,
+        signal: options.signal,
+        beforeRead: options.beforeRead,
+        errorMessage: options.errorMessage || 'Enrollment quality request failed',
+      },
+      onEvent,
+    )
+  },
+
+  getMissingMediaStatus(full = true) {
+    return fetchApiJson<{
+      total?: number
+      missing?: number
+      present?: number
+    }>(API_ROUTES.taskMissingMediaStatus, {
+      query: full ? {full: true} : undefined,
+    })
+  },
+
+  streamFindMissingMedia(
+    body: {folders: string[]},
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamFindMissingMedia,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Missing media search request failed',
+      },
+      onEvent,
+    )
+  },
+
+  relinkMissingMedia(body: {matches: unknown[]}) {
+    return fetchApiJson<{updated?: number}>(API_ROUTES.taskRelinkMissingMedia, {
+      method: 'POST',
+      body,
+    })
+  },
+
+  streamParseLibraryTagsPreview(
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamParseLibraryTagsPreview,
+      {
+        signal: options.signal,
+        errorMessage: 'Parse library tags request failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamScanFolderDuplicates(
+    body: {
+      folders: string[]
+      excluded?: string[]
+      mediaTypeId: number
+    },
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamScanFolderDuplicates,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Folder duplicate scan failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamVideoObjectRecognition(
+    body: Record<string, unknown>,
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamVideoObjectRecognition,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Object recognition request failed',
       },
       onEvent,
     )

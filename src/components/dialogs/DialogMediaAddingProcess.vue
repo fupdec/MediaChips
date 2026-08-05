@@ -927,90 +927,62 @@ const recognizeVideoObjects = async () => {
   objectRecognitionTaskId = recognitionTaskId
 
   try {
-    const response = await fetch(`${appStore.localhost}/api/Task/streamVideoObjectRecognition`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: controller.signal,
-      body: JSON.stringify({
+    let names: string[] = []
+
+    await typedApi.streamVideoObjectRecognition(
+      {
         paths: task.value.added,
         mediaTypeId: task.value.addedMediaTypeId,
         locale: locale.value,
         framesPerVideo: 4,
         limit: 50,
         excludeExisting: true,
-      })
-    })
+      },
+      {signal: controller.signal},
+      (event: RecognitionEvent) => {
+        if (event.type === 'progress') {
+          task.value.objectRecognitionProcessed = event.processed || 0
+          task.value.objectRecognitionTotal = event.total || task.value.objectRecognitionTotal || 0
+          task.value.objectRecognitionRemaining = event.remaining ?? Math.max(task.value.objectRecognitionTotal - task.value.objectRecognitionProcessed, 0)
+          task.value.objectRecognitionProgress = task.value.objectRecognitionTotal
+            ? Math.min((task.value.objectRecognitionProcessed / task.value.objectRecognitionTotal) * 100, 100)
+            : 0
 
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Object recognition request failed')
-    }
+          tasksStore.updateTask(recognitionTaskId, {
+            subtitle: t('media.adding.video_object_recognition_progress', {
+              processed: task.value.objectRecognitionProcessed,
+              total: task.value.objectRecognitionTotal,
+              remaining: task.value.objectRecognitionRemaining,
+            }),
+            progress: task.value.objectRecognitionProgress,
+          })
+        }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let names: string[] = []
+        if (event.type === 'complete') {
+          names = (event.suggestions || [])
+            .map((item: { word?: string }) => item.word)
+            .filter((word): word is string => Boolean(word))
+            .slice(0, 50)
 
-    const handleEvent = (event: RecognitionEvent) => {
-      if (event.type === 'progress') {
-        task.value.objectRecognitionProcessed = event.processed || 0
-        task.value.objectRecognitionTotal = event.total || task.value.objectRecognitionTotal || 0
-        task.value.objectRecognitionRemaining = event.remaining ?? Math.max(task.value.objectRecognitionTotal - task.value.objectRecognitionProcessed, 0)
-        task.value.objectRecognitionProgress = task.value.objectRecognitionTotal
-          ? Math.min((task.value.objectRecognitionProcessed / task.value.objectRecognitionTotal) * 100, 100)
-          : 0
+          task.value.objectRecognitionProcessed = event.media || task.value.objectRecognitionTotal
+          task.value.objectRecognitionTotal = event.media || task.value.objectRecognitionTotal
+          task.value.objectRecognitionRemaining = 0
+          task.value.objectRecognitionProgress = 100
 
-        tasksStore.updateTask(recognitionTaskId, {
-          subtitle: t('media.adding.video_object_recognition_progress', {
-            processed: task.value.objectRecognitionProcessed,
-            total: task.value.objectRecognitionTotal,
-            remaining: task.value.objectRecognitionRemaining,
-          }),
-          progress: task.value.objectRecognitionProgress,
-        })
-      }
+          tasksStore.updateTask(recognitionTaskId, {
+            subtitle: t('media.adding.video_object_recognition_complete'),
+            progress: 100,
+            color: 'success',
+            done: true,
+            action: undefined,
+          })
+        }
 
-      if (event.type === 'complete') {
-        names = (event.suggestions || [])
-          .map((item: { word?: string }) => item.word)
-          .filter((word): word is string => Boolean(word))
-          .slice(0, 50)
-
-        task.value.objectRecognitionProcessed = event.media || task.value.objectRecognitionTotal
-        task.value.objectRecognitionTotal = event.media || task.value.objectRecognitionTotal
-        task.value.objectRecognitionRemaining = 0
-        task.value.objectRecognitionProgress = 100
-
-        tasksStore.updateTask(recognitionTaskId, {
-          subtitle: t('media.adding.video_object_recognition_complete'),
-          progress: 100,
-          color: 'success',
-          done: true,
-          action: undefined,
-        })
-      }
-
-      if (event.type === 'error') {
-        throw new Error(event.message || 'Object recognition failed')
-      }
-    }
-
-    while (true) {
-      const {value, done} = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        handleEvent(JSON.parse(line))
-      }
-    }
-
-    if (buffer.trim()) {
-      handleEvent(JSON.parse(buffer))
-    }
+        if (event.type === 'error') {
+          throw new Error(event.message || 'Object recognition failed')
+        }
+      },
+    )
 
     task.value.videoSuggestedTags = names
     task.value.suggestedTags = uniqueNames([
@@ -1135,148 +1107,120 @@ const detectFacesInAddedVideos = async () => {
   faceDetectionTaskId = detectionTaskId
 
   try {
-    const response = await fetch(`${appStore.localhost}/api/Task/streamFaceDetection`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: controller.signal,
-      body: JSON.stringify({
+    const refreshedMediaIds = new Set<number>()
+
+    await typedApi.streamFaceDetection(
+      {
         paths: task.value.added,
         force: false,
         framesPerVideo: 6,
-      }),
-    })
+      },
+      {signal: controller.signal},
+      (event: Record<string, unknown>) => {
+        if (event.type === 'status') {
+          if (event.phase === 'downloading_detect') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_detect_model_downloading'),
+            })
+            tasksStore.updateTask(detectionTaskId, {
+              subtitle: t('settings_labels.database.face_detect_model_downloading'),
+              progress: 0,
+            })
+          }
+          if (event.phase === 'detect_ready') {
+            setNotification({
+              type: 'success',
+              text: t('settings_labels.database.face_detect_model_downloaded'),
+            })
+          }
+          if (event.phase === 'downloading_gender') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_detect_gender_downloading'),
+            })
+            tasksStore.updateTask(detectionTaskId, {
+              subtitle: t('settings_labels.database.face_detect_gender_downloading'),
+              progress: 0,
+            })
+          }
+          if (event.phase === 'gender_ready') {
+            setNotification({
+              type: 'success',
+              text: t('settings_labels.database.face_detect_gender_downloaded'),
+            })
+          }
+          if (event.phase === 'downloading_align') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_match_align_downloading'),
+            })
+            tasksStore.updateTask(detectionTaskId, {
+              subtitle: t('settings_labels.database.face_match_align_downloading'),
+              progress: 0,
+            })
+          }
+          if (event.phase === 'downloading_embed') {
+            setNotification({
+              type: 'info',
+              text: t('settings_labels.database.face_match_embed_downloading'),
+            })
+            tasksStore.updateTask(detectionTaskId, {
+              subtitle: t('settings_labels.database.face_match_embed_downloading'),
+              progress: 0,
+            })
+          }
+          if (event.phase === 'embed_ready') {
+            setNotification({
+              type: 'success',
+              text: t('settings_labels.database.face_match_embed_downloaded'),
+            })
+          }
+          return
+        }
 
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Face detection request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    const refreshedMediaIds = new Set<number>()
-
-    const handleEvent = (event: Record<string, unknown>) => {
-      if (event.type === 'status') {
-        if (event.phase === 'downloading_detect') {
-          setNotification({
-            type: 'info',
-            text: t('settings_labels.database.face_detect_model_downloading'),
-          })
+        if (event.type === 'progress') {
+          const mediaId = Number(event.mediaId)
+          if (Number.isFinite(mediaId) && mediaId > 0) refreshedMediaIds.add(mediaId)
+          task.value.faceDetectionProcessed = Number(event.processed || 0)
+          task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal || 0)
+          task.value.faceDetectionRemaining = Number(
+            event.remaining ?? Math.max(task.value.faceDetectionTotal - task.value.faceDetectionProcessed, 0),
+          )
+          task.value.facesFound = Number(event.faces || 0)
+          task.value.faceDetectionProgress = task.value.faceDetectionTotal
+            ? Math.min((task.value.faceDetectionProcessed / task.value.faceDetectionTotal) * 100, 100)
+            : 0
           tasksStore.updateTask(detectionTaskId, {
-            subtitle: t('settings_labels.database.face_detect_model_downloading'),
-            progress: 0,
+            subtitle: t('media.adding.face_detection_progress', {
+              processed: task.value.faceDetectionProcessed,
+              total: task.value.faceDetectionTotal,
+              remaining: task.value.faceDetectionRemaining,
+            }),
+            progress: task.value.faceDetectionProgress,
           })
         }
-        if (event.phase === 'detect_ready') {
-          setNotification({
-            type: 'success',
-            text: t('settings_labels.database.face_detect_model_downloaded'),
-          })
-        }
-        if (event.phase === 'downloading_gender') {
-          setNotification({
-            type: 'info',
-            text: t('settings_labels.database.face_detect_gender_downloading'),
-          })
+
+        if (event.type === 'complete') {
+          task.value.faceDetectionProcessed = Number(event.processed || task.value.faceDetectionTotal)
+          task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal)
+          task.value.faceDetectionRemaining = 0
+          task.value.faceDetectionProgress = 100
+          task.value.facesFound = Number(event.faces || 0)
           tasksStore.updateTask(detectionTaskId, {
-            subtitle: t('settings_labels.database.face_detect_gender_downloading'),
-            progress: 0,
+            subtitle: t('media.adding.faces_found', {count: task.value.facesFound}),
+            progress: 100,
+            color: 'success',
+            done: true,
+            action: undefined,
           })
         }
-        if (event.phase === 'gender_ready') {
-          setNotification({
-            type: 'success',
-            text: t('settings_labels.database.face_detect_gender_downloaded'),
-          })
+
+        if (event.type === 'error') {
+          throw new Error(String(event.message || 'Face detection failed'))
         }
-        if (event.phase === 'downloading_align') {
-          setNotification({
-            type: 'info',
-            text: t('settings_labels.database.face_match_align_downloading'),
-          })
-          tasksStore.updateTask(detectionTaskId, {
-            subtitle: t('settings_labels.database.face_match_align_downloading'),
-            progress: 0,
-          })
-        }
-        if (event.phase === 'downloading_embed') {
-          setNotification({
-            type: 'info',
-            text: t('settings_labels.database.face_match_embed_downloading'),
-          })
-          tasksStore.updateTask(detectionTaskId, {
-            subtitle: t('settings_labels.database.face_match_embed_downloading'),
-            progress: 0,
-          })
-        }
-        if (event.phase === 'embed_ready') {
-          setNotification({
-            type: 'success',
-            text: t('settings_labels.database.face_match_embed_downloaded'),
-          })
-        }
-        return
-      }
-
-      if (event.type === 'progress') {
-        const mediaId = Number(event.mediaId)
-        if (Number.isFinite(mediaId) && mediaId > 0) refreshedMediaIds.add(mediaId)
-        task.value.faceDetectionProcessed = Number(event.processed || 0)
-        task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal || 0)
-        task.value.faceDetectionRemaining = Number(
-          event.remaining ?? Math.max(task.value.faceDetectionTotal - task.value.faceDetectionProcessed, 0),
-        )
-        task.value.facesFound = Number(event.faces || 0)
-        task.value.faceDetectionProgress = task.value.faceDetectionTotal
-          ? Math.min((task.value.faceDetectionProcessed / task.value.faceDetectionTotal) * 100, 100)
-          : 0
-        tasksStore.updateTask(detectionTaskId, {
-          subtitle: t('media.adding.face_detection_progress', {
-            processed: task.value.faceDetectionProcessed,
-            total: task.value.faceDetectionTotal,
-            remaining: task.value.faceDetectionRemaining,
-          }),
-          progress: task.value.faceDetectionProgress,
-        })
-      }
-
-      if (event.type === 'complete') {
-        task.value.faceDetectionProcessed = Number(event.processed || task.value.faceDetectionTotal)
-        task.value.faceDetectionTotal = Number(event.total || task.value.faceDetectionTotal)
-        task.value.faceDetectionRemaining = 0
-        task.value.faceDetectionProgress = 100
-        task.value.facesFound = Number(event.faces || 0)
-        tasksStore.updateTask(detectionTaskId, {
-          subtitle: t('media.adding.faces_found', {count: task.value.facesFound}),
-          progress: 100,
-          color: 'success',
-          done: true,
-          action: undefined,
-        })
-      }
-
-      if (event.type === 'error') {
-        throw new Error(String(event.message || 'Face detection failed'))
-      }
-    }
-
-    while (true) {
-      const {value, done} = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        handleEvent(JSON.parse(line))
-      }
-    }
-
-    if (buffer.trim()) {
-      handleEvent(JSON.parse(buffer))
-    }
+      },
+    )
 
     if (refreshedMediaIds.size) {
       listSync.getItemsFromDb({

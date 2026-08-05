@@ -484,8 +484,6 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 import {useTasksStore} from '@/stores/tasks'
 import {useItemsListSync} from '@/composable/itemsListSync'
-import {buildApiUrl} from '@/services/apiClient'
-import {getAuthToken} from '@/services/authSession'
 import {setOption} from '@/services/settingsService'
 import {typedApi} from '@/services/typedApi'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
@@ -527,14 +525,6 @@ const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
 const listSync = useItemsListSync()
-
-const buildRequestHeaders = (withJson = false): Record<string, string> => {
-  const token = getAuthToken()
-  return {
-    ...(withJson ? {'Content-Type': 'application/json'} : {}),
-    ...(token ? {Authorization: `Bearer ${token}`} : {}),
-  }
-}
 
 const matchModePresets = [
   {value: 'auto', labelKey: 'settings_labels.database.face_match_mode_auto'},
@@ -957,7 +947,11 @@ onBeforeUnmount(() => {
 
 const runStreamJob = async (options: {
   job: 'detect' | 'enroll' | 'match'
-  url: string
+  stream: (
+    body: Record<string, unknown>,
+    opts: {signal?: AbortSignal; errorMessage?: string},
+    onEvent: (event: StreamEvent) => void,
+  ) => Promise<void>
   body: Record<string, unknown>
   title: string
   progressKey: string
@@ -982,31 +976,13 @@ const runStreamJob = async (options: {
   const refreshedMediaIds = new Set<number>()
 
   try {
-    const response = await fetch(buildApiUrl(options.url), {
-      method: 'POST',
-      headers: buildRequestHeaders(true),
-      body: JSON.stringify(options.body),
-      signal: abortController.value.signal,
-    })
-
-    if (!response.ok || !response.body) {
-      throw new Error(t('settings_labels.database.detect_faces_api_unavailable'))
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const {done, value} = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        const event = JSON.parse(line) as StreamEvent
+    await options.stream(
+      options.body,
+      {
+        signal: abortController.value.signal,
+        errorMessage: t('settings_labels.database.detect_faces_api_unavailable'),
+      },
+      (event) => {
         if (event.type === 'status') {
           if (event.phase === 'downloading_detect') {
             setNotification({
@@ -1078,7 +1054,7 @@ const runStreamJob = async (options: {
               text: t('settings_labels.database.face_match_embed_downloaded'),
             })
           }
-          continue
+          return
         }
         if (event.type === 'progress') {
           const mediaId = Number(event.mediaId)
@@ -1104,8 +1080,8 @@ const runStreamJob = async (options: {
         if (event.type === 'error') {
           throw new Error(event.message || t('settings_labels.database.detect_faces_api_unavailable'))
         }
-      }
-    }
+      },
+    )
 
     if (refreshedMediaIds.size && (options.job === 'detect' || options.job === 'match')) {
       listSync.getItemsFromDb({
@@ -1135,7 +1111,7 @@ const runStreamJob = async (options: {
 
 const startDetection = (force: boolean) => runStreamJob({
   job: 'detect',
-  url: '/api/Task/streamFaceDetection',
+  stream: typedApi.streamFaceDetection,
   body: {force},
   title: t('settings_labels.database.detect_faces'),
   progressKey: 'settings_labels.database.detect_faces_progress',
@@ -1144,7 +1120,7 @@ const startDetection = (force: boolean) => runStreamJob({
 
 const startEnrollment = (force: boolean) => runStreamJob({
   job: 'enroll',
-  url: '/api/Task/streamFaceEnrollment',
+  stream: typedApi.streamFaceEnrollment,
   body: {
     force,
     metaId: selectedPerformerMeta.value?.id || undefined,
@@ -1162,7 +1138,7 @@ const openEnrollmentQuality = () => {
 
 const startMatching = (force: boolean) => runStreamJob({
   job: 'match',
-  url: '/api/Task/streamFaceMatching',
+  stream: typedApi.streamFaceMatching,
   body: {force},
   title: t('settings_labels.database.face_match_run'),
   progressKey: 'settings_labels.database.face_match_run_progress',

@@ -802,42 +802,16 @@ export default function useItemContextMenu(
         await typedApi.downloadFaceModel()
       }
 
-      const {buildApiUrl} = await import('@/services/apiClient')
-      const {getAuthToken} = await import('@/services/authSession')
-      const token = getAuthToken()
-      const response = await fetch(buildApiUrl('/api/Task/streamFaceDetection'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? {Authorization: `Bearer ${token}`} : {}),
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
+      let faces = 0
+      await typedApi.streamFaceDetection(
+        {
           mediaIds: ids,
           force: true,
           // Single-item opens the review dialog — suggest only; user applies tags there.
           applyTags: ids.length !== 1,
-        }),
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error(response.statusText || 'Face detection request failed')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let faces = 0
-
-      while (true) {
-        const {value, done} = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, {stream: true})
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          const event = JSON.parse(line) as Record<string, unknown>
+        },
+        {signal: controller.signal},
+        (event) => {
           if (event.type === 'progress') {
             faces = Number(event.faces || faces)
             const processed = Number(event.processed || 0)
@@ -917,8 +891,8 @@ export default function useItemContextMenu(
           if (event.type === 'error') {
             throw new Error(String(event.message || 'Face detection failed'))
           }
-        }
-      }
+        },
+      )
 
       tasksStore.updateTask(taskId, {
         subtitle: tr('media.adding.faces_found', {count: faces}),

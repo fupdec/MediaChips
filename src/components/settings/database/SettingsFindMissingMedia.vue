@@ -213,6 +213,7 @@ import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
+import {typedApi} from '@/services/typedApi'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
@@ -283,14 +284,7 @@ const parsePaths = () => searchPaths.value
   .filter(Boolean)
 
 const fetchStatus = async (full = true) => {
-  const query = full ? '?full=true' : ''
-  const response = await fetch(`${appStore.localhost}/api/Task/missingMediaStatus${query}`)
-
-  if (!response.ok) {
-    throw new Error(response.statusText || 'Failed to load missing media status')
-  }
-
-  status.value = await response.json() as MissingMediaStatus
+  status.value = await typedApi.getMissingMediaStatus(full) as MissingMediaStatus
   statusLoaded.value = true
 }
 
@@ -372,21 +366,6 @@ const startSearch = async () => {
   })
 
   try {
-    const response = await fetch(`${appStore.localhost}/api/Task/streamFindMissingMedia`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: abortController.signal,
-      body: JSON.stringify({folders}),
-    })
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Missing media search request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
     const handleEvent = (event: MissingMediaSearchEvent) => {
       if (event.type === 'progress') {
         currentPhase.value = event.phase || currentPhase.value
@@ -447,23 +426,11 @@ const startSearch = async () => {
       }
     }
 
-    while (true) {
-      const {value, done} = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        handleEvent(JSON.parse(line) as MissingMediaSearchEvent)
-      }
-    }
-
-    if (buffer.trim()) {
-      handleEvent(JSON.parse(buffer) as MissingMediaSearchEvent)
-    }
+    await typedApi.streamFindMissingMedia(
+      {folders},
+      {signal: abortController.signal},
+      handleEvent,
+    )
 
     await fetchStatus()
   } catch (error) {
@@ -507,17 +474,7 @@ const relinkSelected = async () => {
   relinking.value = true
 
   try {
-    const response = await fetch(`${appStore.localhost}/api/Task/relinkMissingMedia`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({matches: selectedMatches}),
-    })
-
-    if (!response.ok) {
-      throw new Error(response.statusText || 'Failed to relink media paths')
-    }
-
-    const data = await response.json() as RelinkMissingMediaResponse
+    const data = await typedApi.relinkMissingMedia({matches: selectedMatches}) as RelinkMissingMediaResponse
     const relinkedIds = new Set(selectedMatches.map((item) => item.id))
     matches.value = matches.value.filter((item) => !relinkedIds.has(item.id))
     selectedIds.value = matches.value.map((item) => item.id)

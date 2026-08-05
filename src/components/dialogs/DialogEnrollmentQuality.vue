@@ -224,8 +224,7 @@ import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
-import {buildApiUrl} from '@/services/apiClient'
-import {getAuthToken} from '@/services/authSession'
+import {typedApi} from '@/services/typedApi'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 
 const ITEM_HEIGHT = 156
@@ -468,34 +467,13 @@ const startScan = async () => {
   ) || null
 
   try {
-    const token = getAuthToken()
-    const response = await fetch(buildApiUrl('/api/Task/streamEnrollmentQualityReport'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? {Authorization: `Bearer ${token}`} : {}),
+    await typedApi.streamEnrollmentQualityReport(
+      {metaId},
+      {
+        signal: controller.signal,
+        beforeRead: () => waitWhilePaused(controller.signal),
       },
-      signal: controller.signal,
-      body: JSON.stringify({metaId}),
-    })
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Enrollment quality request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      await waitWhilePaused(controller.signal)
-      const {value, done} = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, {stream: true})
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        if (!line.trim()) continue
-        const event = JSON.parse(line) as Record<string, unknown>
+      (event) => {
         if (event.type === 'progress') {
           processed.value = Number(event.processed || 0)
           total.value = Number(event.total || 0)
@@ -513,8 +491,8 @@ const startScan = async () => {
         if (event.type === 'error') {
           throw new Error(String(event.message || 'Enrollment quality failed'))
         }
-      }
-    }
+      },
+    )
   } catch (err) {
     if (!(err instanceof Error && err.name === 'AbortError')) {
       error.value = err instanceof Error ? err.message : String(err)

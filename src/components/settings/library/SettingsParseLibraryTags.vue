@@ -835,21 +835,6 @@ const startParsing = async () => {
   const currentTaskId = taskId
 
   try {
-    const response = await fetch(`${appStore.localhost}/api/Task/streamParseLibraryTagsPreview`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: abortController.signal,
-      body: JSON.stringify({}),
-    })
-
-    if (!response.ok || !response.body) {
-      throw new Error(response.statusText || 'Parse library tags request failed')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
     const handleEvent = (event: ParseLibraryTagsSearchEvent) => {
       if (event.type === 'progress') {
         counters.value = {
@@ -903,23 +888,10 @@ const startParsing = async () => {
       }
     }
 
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        handleEvent(JSON.parse(line) as ParseLibraryTagsSearchEvent)
-      }
-    }
-
-    if (buffer.trim()) {
-      handleEvent(JSON.parse(buffer) as ParseLibraryTagsSearchEvent)
-    }
+    await typedApi.streamParseLibraryTagsPreview(
+      {signal: abortController.signal},
+      handleEvent,
+    )
   } catch (error) {
     if ((error as Error).name !== 'AbortError') {
       console.error('Parse library tags failed:', error)

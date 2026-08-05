@@ -621,28 +621,6 @@ export const useMediaAdding = () => {
     }, 200)
 
     try {
-      const response = await fetch(
-        `${appStore.localhost}/api/Task/streamScanFolderDuplicates`,
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          signal: abortController.signal,
-          body: JSON.stringify({
-            folders: paths,
-            excluded: task.value.is_exclude ? excluded : [],
-            mediaTypeId: mediaType.id,
-          }),
-        },
-      )
-
-      if (!response.ok || !response.body) {
-        throw new Error(response.statusText || 'Folder duplicate scan failed')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
       const handleEvent = (event: Record<string, unknown>) => {
         if (event.type === 'progress') {
           const processed = Number(event.processed || 0)
@@ -708,20 +686,15 @@ export const useMediaAdding = () => {
         }
       }
 
-      while (true) {
-        const {value, done} = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, {stream: true})
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          handleEvent(JSON.parse(line))
-        }
-      }
-      if (buffer.trim()) {
-        handleEvent(JSON.parse(buffer))
-      }
+      await typedApi.streamScanFolderDuplicates(
+        {
+          folders: paths,
+          excluded: task.value.is_exclude ? excluded : [],
+          mediaTypeId: mediaType.id,
+        },
+        {signal: abortController.signal},
+        handleEvent,
+      )
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
       if (err.name !== 'AbortError') {

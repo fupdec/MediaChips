@@ -36,7 +36,10 @@ function withQuery(
 export async function readNdjsonStream<T = unknown>(
   body: ReadableStream<Uint8Array>,
   onEvent: (event: T) => void,
-  options: {ignoreMalformed?: boolean} = {},
+  options: {
+    ignoreMalformed?: boolean
+    beforeRead?: () => void | Promise<void>
+  } = {},
 ) {
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -53,6 +56,7 @@ export async function readNdjsonStream<T = unknown>(
   }
 
   while (true) {
+    if (options.beforeRead) await options.beforeRead()
     const {value, done} = await reader.read()
     if (done) break
 
@@ -98,6 +102,7 @@ export async function postApiNdjsonStream<T = unknown>(
     signal?: AbortSignal
     query?: Record<string, string | number | boolean | undefined | null>
     ignoreMalformed?: boolean
+    beforeRead?: () => void | Promise<void>
     errorMessage?: string
   },
   onEvent: (event: T) => void,
@@ -118,5 +123,6 @@ export async function postApiNdjsonStream<T = unknown>(
 
   await readNdjsonStream(response.body, onEvent, {
     ignoreMalformed: options.ignoreMalformed,
+    beforeRead: options.beforeRead,
   })
 }
