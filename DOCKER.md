@@ -54,11 +54,11 @@ Pre-built images (after a release/CI push):
 ```text
 # Docker Hub (existing public repo)
 vinsdoe/mediachips:latest
-vinsdoe/mediachips:1.4.0
+vinsdoe/mediachips:1.5.0
 
 # GitHub Container Registry
 ghcr.io/fupdec/mediachips:latest
-ghcr.io/fupdec/mediachips:1.4.0
+ghcr.io/fupdec/mediachips:1.5.0
 ```
 
 Image architectures: `linux/amd64`, `linux/arm64`.

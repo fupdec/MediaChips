@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-05
+
+### Added
+
+- **Browser layout** — Eagle-style library view with tags sidebar, inspector panel, compact control deck, and docked filters panel
+- **Collapsible sidebar** — icon rail with library links, tag categories, settings, and tracked folders
+- **All Tags page** — manage categories and move tags in bulk
+- **Local AI assistant** — regex builder and meta assist (feature-flagged)
+- **Duplicate finder** — scoped duplicate search and visual grid fingerprinting
+- **Grid multi-select** — keyboard range and shift selection in item grids
+- **Path-regex tags** — extract tags from paths in array meta fields with multi-OS presets
+- **Mixed tag input** — combined tag entry UX
+- **Native drag-out** — drag media cards to the desktop with a compact ghost
+- **TPDB photo slots** — assign photos by size and resolution
+- **Context menu** — copy tag name; move tags between categories
+
+### Changed
+
+- **Tag page** — auto full/minimal layout from hero images; remove compact mode and manual design switcher; polish quick filters and metadata panel
+- **Inspector and filters** — collapsible inspector, compact filter chips, unified sort and group-by controls
+- **Settings** — regex builder UX, video preview settings, toast swipe-to-dismiss, reordered sections
+- **Meta editing** — Basics/Pinning tabs on media types; improved field editing and path-regex UX
+- **Tag names** — enforce global uniqueness; default category settings
+
+### Fixed
+
+- **Watched folders** — hide untracked or disabled folders in navigation; fix false active state on sidebar rail links
+- **Big preview** — keep video alive on right-click for thumb capture; smoother blur and backdrop dismiss
+- **openPath IPC** — failures that showed "reply was never sent"
+- **Toasts** — leave animation, timeout progress, and pre-hide flash
+- **Media drop overlay** — clear stuck state; resolve bundled preview images
+- **Tag image AI upscale** — hardening and status UX
+- **Settings nav** — icon alignment and locale strings
+- **Update snackbar** — HTML preview and changelog dialog stacking
+
 ## [1.4.0] - 2026-07-28
 
 ### Added
