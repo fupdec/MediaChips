@@ -83,7 +83,8 @@ describe('buildMediaFilterQuery', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.joinSql).toContain('tagsInFolders')
+    expect(result.joinSql).toContain('FROM tagsInFolders tif')
+    expect(result.joinSql).toContain('media.mediaTypeId = :mediaTypeId')
     expect(result.joinSql).toContain("LIKE RTRIM(REPLACE(fp.path")
     expect(result.joinSql).toContain('UNION')
   })

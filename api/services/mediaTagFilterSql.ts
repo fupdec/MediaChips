@@ -12,6 +12,38 @@ export function buildMediaPathUnderFolderSql(
 }
 
 /**
+ * Folder-inherited media ids: start from tagged folders (selective) → path match,
+ * scoped to the current library type. Avoids media × folderPaths cross join.
+ * Relies on `:mediaTypeId` already present in mediaFilterSql replacements.
+ */
+function buildFolderInheritedMediaSelectSql(
+  metaKey: string,
+  {
+    distinct = false,
+    tagPredicate = '',
+    selectTagId = false,
+  }: {
+    distinct?: boolean
+    /** Appended after tif.metaId check; use `tif.tagId` column names. */
+    tagPredicate?: string
+    selectTagId?: boolean
+  } = {},
+): string {
+  const selectList = selectTagId
+    ? 'media.id AS mediaId, tif.tagId AS tagId'
+    : 'media.id AS mediaId'
+  const distinctKw = distinct ? 'DISTINCT ' : ''
+  return `
+    SELECT ${distinctKw}${selectList}
+    FROM tagsInFolders tif
+    INNER JOIN folderPaths fp ON fp.id = tif.folderId
+    INNER JOIN media
+      ON media.mediaTypeId = :mediaTypeId
+      AND ${buildMediaPathUnderFolderSql('media.path', 'fp.path')}
+    WHERE tif.metaId = ${metaKey}${tagPredicate}`
+}
+
+/**
  * Build UNION of (mediaId, tagId) for direct tagsInMedia + inherited folder tags.
  * tagPredicate is appended after metaId check, using bare `tagId` column name for tagsInMedia
  * and rewritten to `tif.tagId` for the folder branch.
@@ -24,13 +56,7 @@ function buildEffectiveMediaTagPairsSql(metaKey: string, tagPredicate = ''): str
     SELECT mediaId, tagId FROM tagsInMedia
     WHERE metaId = ${metaKey}${mediaPred}
     UNION
-    SELECT media.id AS mediaId, tif.tagId AS tagId
-    FROM media
-    INNER JOIN folderPaths fp
-    INNER JOIN tagsInFolders tif
-      ON tif.folderId = fp.id
-      AND tif.metaId = ${metaKey}${folderPred}
-    WHERE ${buildMediaPathUnderFolderSql('media.path', 'fp.path')}
+    ${buildFolderInheritedMediaSelectSql(metaKey, {selectTagId: true, tagPredicate: folderPred})}
   )`
 }
 
@@ -38,13 +64,7 @@ function buildMediaIdsWithAnyMetaTagSql(metaKey: string): string {
   return `(
     SELECT DISTINCT mediaId FROM tagsInMedia WHERE metaId = ${metaKey}
     UNION
-    SELECT DISTINCT media.id AS mediaId
-    FROM media
-    INNER JOIN folderPaths fp
-    INNER JOIN tagsInFolders tif
-      ON tif.folderId = fp.id
-      AND tif.metaId = ${metaKey}
-    WHERE ${buildMediaPathUnderFolderSql('media.path', 'fp.path')}
+    ${buildFolderInheritedMediaSelectSql(metaKey, {distinct: true})}
   )`
 }
 
@@ -53,14 +73,10 @@ function buildMediaIdsWithTagIdsSql(metaKey: string, tagsKey: string): string {
     SELECT DISTINCT mediaId FROM tagsInMedia
     WHERE metaId = ${metaKey} AND tagId IN (${tagsKey})
     UNION
-    SELECT DISTINCT media.id AS mediaId
-    FROM media
-    INNER JOIN folderPaths fp
-    INNER JOIN tagsInFolders tif
-      ON tif.folderId = fp.id
-      AND tif.metaId = ${metaKey}
-      AND tif.tagId IN (${tagsKey})
-    WHERE ${buildMediaPathUnderFolderSql('media.path', 'fp.path')}
+    ${buildFolderInheritedMediaSelectSql(metaKey, {
+      distinct: true,
+      tagPredicate: ` AND tif.tagId IN (${tagsKey})`,
+    })}
   )`
 }
 

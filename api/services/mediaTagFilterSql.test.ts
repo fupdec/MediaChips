@@ -27,7 +27,7 @@ describe('buildMediaTagArrayJoinResult', () => {
     }
   })()
 
-  it('includes folder inheritance for in-filter', () => {
+  it('includes folder inheritance for in-filter without media×folders cross join', () => {
     const result = buildMediaTagArrayJoinResult(
       {cond: 'in', val: [7]},
       'tf0',
@@ -36,10 +36,13 @@ describe('buildMediaTagArrayJoinResult', () => {
     )
 
     expect(typeof result).toBe('string')
-    expect(String(result)).toContain('tagsInMedia')
-    expect(String(result)).toContain('tagsInFolders')
-    expect(String(result)).toContain('folderPaths')
-    expect(String(result)).toContain('UNION')
+    const sql = String(result)
+    expect(sql).toContain('tagsInMedia')
+    expect(sql).toContain('FROM tagsInFolders tif')
+    expect(sql).toContain('INNER JOIN folderPaths fp ON fp.id = tif.folderId')
+    expect(sql).toContain('media.mediaTypeId = :mediaTypeId')
+    expect(sql).toContain('UNION')
+    expect(sql).not.toMatch(/FROM media\s+INNER JOIN folderPaths/)
   })
 
   it('builds not in as anti-join over direct and inherited tags', () => {
@@ -81,7 +84,8 @@ describe('buildMediaTagArrayFilterClause', () => {
     }, nextParam)
 
     expect(clause).toContain('HAVING COUNT(DISTINCT tagId)')
-    expect(clause).toContain('tagsInFolders')
+    expect(clause).toContain('FROM tagsInFolders tif')
+    expect(clause).toContain('media.mediaTypeId = :mediaTypeId')
     expect(clause).toContain('UNION')
   })
 })
