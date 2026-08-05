@@ -2,14 +2,10 @@ import {toValue, type MaybeRefOrGetter, type Ref} from 'vue'
 import type {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import type {MediaItem} from '@/types/stores'
 
-/** Delay single-click play so a double-click can cancel and open the system player. */
+/** Delay single-click play so a double-click can open the system player instead. */
 export const PREVIEW_PLAY_CLICK_DELAY_MS = 220
 
-export type PreviewPlayer = 'builtin' | 'system'
-
-export function resolvePreviewPlayer(value: unknown): PreviewPlayer {
-  return value === 'system' ? 'system' : 'builtin'
-}
+export type PreviewPlayer = 'default' | 'builtin' | 'system'
 
 export type PreviewClickAction = 'ignore' | 'dismiss-big-preview' | 'play'
 
@@ -45,6 +41,11 @@ export function resolvePreviewDblClickAction(input: {
   return 'play-system'
 }
 
+export function resolvePreviewPlayer(player: unknown): PreviewPlayer {
+  if (player === 'system' || player === 'default' || player === 'builtin') return player
+  return 'builtin'
+}
+
 export type ItemPreviewCardActionsOptions = {
   media: MaybeRefOrGetter<MediaItem>
   playTime: MaybeRefOrGetter<number | undefined>
@@ -57,7 +58,7 @@ export type ItemPreviewCardActionsOptions = {
   playVideo: (payload: {
     video: MediaItem
     time?: number
-    player?: 'default' | 'builtin' | 'system'
+    player?: PreviewPlayer
   }) => void
   syncMediaItem: (mediaId: number) => void
 }
@@ -65,17 +66,17 @@ export type ItemPreviewCardActionsOptions = {
 export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions) {
   let playClickTimer: ReturnType<typeof setTimeout> | undefined
 
+  const clearPlayClickTimer = () => {
+    if (playClickTimer == null) return
+    clearTimeout(playClickTimer)
+    playClickTimer = undefined
+  }
+
   const clickInput = (): PreviewClickInput => ({
     isCollapsing: options.gridBigPreview.isCollapsing.value,
     isShrinking: toValue(options.isShrinking),
     isBigPreviewVisual: options.gridBigPreview.isVisual.value,
   })
-
-  const clearPlayClickTimer = () => {
-    if (!playClickTimer) return
-    clearTimeout(playClickTimer)
-    playClickTimer = undefined
-  }
 
   const dismissBigPreview = () => {
     clearPlayClickTimer()
@@ -84,7 +85,7 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     options.stopPlayingPreview()
   }
 
-  const play = (player: 'default' | 'builtin' | 'system' | unknown = 'builtin') => {
+  const play = (player?: unknown) => {
     clearPlayClickTimer()
     // Always open the real player from an explicit thumb click / dblclick.
     options.stopPlayingPreview({force: true})
@@ -97,29 +98,31 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     })
   }
 
-  const scheduleBuiltinPlay = () => {
+  const schedulePlay = (player: PreviewPlayer = 'builtin') => {
     clearPlayClickTimer()
     playClickTimer = setTimeout(() => {
       playClickTimer = undefined
-      play('builtin')
+      play(player)
     }, PREVIEW_PLAY_CLICK_DELAY_MS)
   }
 
-  const runClickAction = (action: PreviewClickAction) => {
+  const runClickAction = (action: PreviewClickAction, event?: MouseEvent) => {
     if (action === 'ignore') return
     if (action === 'dismiss-big-preview') {
       dismissBigPreview()
       return
     }
-    scheduleBuiltinPlay()
+    // Second click of a double-click — wait for dblclick handler.
+    if (event && event.detail > 1) return
+    schedulePlay('builtin')
   }
 
-  const handlePreviewClick = () => {
-    runClickAction(resolvePreviewClickAction(clickInput()))
+  const handlePreviewClick = (event?: MouseEvent) => {
+    runClickAction(resolvePreviewClickAction(clickInput()), event)
   }
 
-  const handleMediaClick = () => {
-    runClickAction(resolveMediaClickAction(clickInput()))
+  const handleMediaClick = (event?: MouseEvent) => {
+    runClickAction(resolveMediaClickAction(clickInput()), event)
   }
 
   const handlePreviewDblClick = () => {
@@ -134,7 +137,6 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
 
   const handlePreviewBlur = () => {
     if (toValue(options.isBigPreviewOpen)) return
-    clearPlayClickTimer()
     options.stopPlayingPreview()
   }
 
@@ -149,6 +151,5 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     handlePreviewBlur,
     play,
     restartImageGeneration,
-    clearPlayClickTimer,
   }
 }
