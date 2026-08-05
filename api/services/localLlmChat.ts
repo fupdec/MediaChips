@@ -3,6 +3,7 @@ import {
   buildMetaAssistPrompt,
   buildRegexAssistPrompt,
 } from './localAiAssist'
+import type {ModelStatus} from '../types/mlModels'
 
 export type LocalAiChatPromptRequest = {
   mode?: 'chat' | 'regex' | 'filter' | 'meta'
@@ -98,4 +99,47 @@ export function mergeCitedLocalAiDocs<T extends {id: string; title: string}>(
       ...docs.slice(0, fallbackLimit).map((d) => [d.id, {id: d.id, title: d.title}] as const),
     ]).values(),
   ]
+}
+
+export type LocalAiStatusExtras = {
+  enabled: boolean
+  sizeMb: number
+  filename: string
+}
+
+/** Pure status for Local AI model load / download state. */
+export function resolveLocalAiModelStatus(input: {
+  enabled: boolean
+  modelId: string
+  path: string
+  sizeMb: number
+  filename: string
+  sessionLoaded: boolean
+  loading: boolean
+  lastError: Error | null
+  downloaded: boolean
+}): ModelStatus & LocalAiStatusExtras {
+  const base = {
+    model: input.modelId,
+    path: input.path,
+    enabled: input.enabled,
+    sizeMb: input.sizeMb,
+    filename: input.filename,
+  }
+  if (!input.enabled) {
+    return {...base, status: 'disabled'}
+  }
+  if (input.sessionLoaded) {
+    return {...base, status: 'loaded'}
+  }
+  if (input.loading) {
+    return {...base, status: 'loading'}
+  }
+  if (input.lastError) {
+    return {...base, status: 'error', message: input.lastError.message}
+  }
+  return {
+    ...base,
+    status: input.downloaded ? 'downloaded' : 'not_downloaded',
+  }
 }

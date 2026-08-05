@@ -5,6 +5,7 @@ import {
   extractJsonObject,
   languageInstruction,
   mergeCitedLocalAiDocs,
+  resolveLocalAiModelStatus,
 } from './localLlmChat'
 
 describe('localLlmChat', () => {
@@ -50,5 +51,28 @@ describe('localLlmChat', () => {
       {id: 'a', title: 'A'},
       {id: 'b', title: 'B'},
     ])
+  })
+
+  it('resolves local AI model status states', () => {
+    const base = {
+      enabled: true,
+      modelId: 'm',
+      path: '/cache',
+      sizeMb: 1,
+      filename: 'm.gguf',
+      sessionLoaded: false,
+      loading: false,
+      lastError: null as Error | null,
+      downloaded: false,
+    }
+    expect(resolveLocalAiModelStatus({...base, enabled: false}).status).toBe('disabled')
+    expect(resolveLocalAiModelStatus({...base, sessionLoaded: true}).status).toBe('loaded')
+    expect(resolveLocalAiModelStatus({...base, loading: true}).status).toBe('loading')
+    expect(resolveLocalAiModelStatus({
+      ...base,
+      lastError: new Error('boom'),
+    })).toMatchObject({status: 'error', message: 'boom'})
+    expect(resolveLocalAiModelStatus({...base, downloaded: true}).status).toBe('downloaded')
+    expect(resolveLocalAiModelStatus(base).status).toBe('not_downloaded')
   })
 })
