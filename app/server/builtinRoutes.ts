@@ -28,6 +28,7 @@ import { checkFilesExist } from '../../api/services/checkFilesExist'
 import { resolveVideoThumbFilePath } from '../../api/services/videoPreviewThumb'
 import { isVirtualZipPath, readZipEntryBuffer } from '../../api/services/zipGallery'
 import packageJson from '../../package.json'
+import { parseBooleanSetting } from '../../shared/parseBooleanSetting'
 import {
   GLOBAL_APP_CONFIG_KEYS,
   readGlobalConfigString,
@@ -42,16 +43,6 @@ function buildGlobalSettingsPayload(config: ServerConfig) {
   }
 
   return payload
-}
-
-function parseBooleanSetting(value: unknown, fallback: boolean): boolean {
-  if (value === undefined || value === null || value === '') return fallback
-  if (value === true || value === 1) return true
-  if (value === false || value === 0) return false
-  const normalized = String(value).toLowerCase()
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
-  return fallback
 }
 
 function resolveMediaVideoPath(

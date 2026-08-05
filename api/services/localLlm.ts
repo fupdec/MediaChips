@@ -13,7 +13,9 @@ import {
   extractDocIds,
   extractJsonObject,
   mergeCitedLocalAiDocs,
+  resolveLocalAiModelStatus,
 } from './localLlmChat'
+import {parseBooleanSetting} from '../../shared/parseBooleanSetting'
 
 export const LOCAL_AI_MODEL_ID = 'qwen25-1_5b-instruct'
 export const LOCAL_AI_MODEL_FILENAME = 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
@@ -72,7 +74,7 @@ function hasDownloadedModel(db: ApiDb) {
 export function isLocalAiEnabled(db: ApiDb): boolean {
   const settingsRepo = createSettingsRepository(db.drizzle)
   const value = settingsRepo.findByOption(LOCAL_AI_ENABLED_OPTION)?.value
-  return value === '1' || value === 'true'
+  return parseBooleanSetting(value, false)
 }
 
 export function setLocalAiEnabled(db: ApiDb, enabled: boolean) {
@@ -86,31 +88,20 @@ export function getLocalAiStatus(db: ApiDb): ModelStatus & {
   filename: string
 } {
   const enabled = isLocalAiEnabled(db)
-  const base = {
-    model: LOCAL_AI_MODEL_ID,
-    path: getWritableModelCacheDir(db),
-    enabled,
-    sizeMb: LOCAL_AI_MODEL_SIZE_MB,
-    filename: LOCAL_AI_MODEL_FILENAME,
-  }
-
   if (!enabled) {
     lastError = null
-    return {...base, status: 'disabled'}
   }
-  if (loadedModel && loadedModelPath === getModelPath(db)) {
-    return {...base, status: 'loaded'}
-  }
-  if (loadingPromise || downloadPromise) {
-    return {...base, status: 'loading'}
-  }
-  if (lastError) {
-    return {...base, status: 'error', message: lastError.message}
-  }
-  return {
-    ...base,
-    status: hasDownloadedModel(db) ? 'downloaded' : 'not_downloaded',
-  }
+  return resolveLocalAiModelStatus({
+    enabled,
+    modelId: LOCAL_AI_MODEL_ID,
+    path: getWritableModelCacheDir(db),
+    sizeMb: LOCAL_AI_MODEL_SIZE_MB,
+    filename: LOCAL_AI_MODEL_FILENAME,
+    sessionLoaded: Boolean(loadedModel && loadedModelPath === getModelPath(db)),
+    loading: Boolean(loadingPromise || downloadPromise),
+    lastError,
+    downloaded: hasDownloadedModel(db),
+  })
 }
 
 function downloadFileWithProgress(

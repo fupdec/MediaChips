@@ -1,5 +1,7 @@
 /** Shared face detect/match setting clamps (api + settings UI). */
 
+import {parseBooleanSetting} from './parseBooleanSetting'
+
 export type FaceMatchMode = 'suggest' | 'auto'
 export type FaceGender = 'female' | 'male'
 export type FaceGenderFilter = 'both' | FaceGender
@@ -44,9 +46,5 @@ export function normalizeGenderFilter(value: unknown): FaceGenderFilter {
 
 /** Coerce faceMatch.matchAfterDetect (and similar) setting values. */
 export function parseFaceMatchAfterDetect(value: unknown, fallback = true): boolean {
-  if (value == null || value === '') return fallback
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value === 1
-  const normalized = String(value).toLowerCase()
-  return normalized === 'true' || normalized === '1'
+  return parseBooleanSetting(value, fallback)
 }

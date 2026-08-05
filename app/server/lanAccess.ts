@@ -4,6 +4,7 @@ import os from 'os'
 import { createSettingsRepository } from '../../api/db/repositories/settings'
 import { saveConfigFile } from './configFile'
 import { pickPublicHost } from './publicHost'
+import { parseBooleanSetting } from '../../shared/parseBooleanSetting'
 
 const LAN_ENABLED_VALUES = ['1', 'true', 'yes', 'on']
 
@@ -23,16 +24,6 @@ interface ServerNetworkDeps {
 let lanEnabled = true
 let envLocked = false
 let serverDeps: ServerNetworkDeps | null = null
-
-function parseBooleanSetting(value: unknown, fallback: boolean): boolean {
-  if (value === undefined || value === null || value === '') return fallback
-  if (value === true || value === 1) return true
-  if (value === false || value === 0) return false
-  const normalized = String(value).toLowerCase()
-  if (LAN_ENABLED_VALUES.includes(normalized)) return true
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
-  return fallback
-}
 
 function readEnvLanAccess(): boolean | null {
   const envVal = process.env.MEDIA_CHIPS_ALLOW_LAN
