@@ -18,10 +18,12 @@ import { buildMediaMetaSortExpression } from '../utils/metaValueSort'
 import { parseExtList } from '../utils/ext'
 import { COUNTRY_DELIMITER } from '../utils/country'
 import {
-  buildDateComparison,
   buildStringComparison,
-  compareNumberSql,
 } from './filterSqlCompare'
+import {
+  buildTypedEntityColumnClause,
+  buildTypedMetaValueClause,
+} from './filterTypedColumnSql'
 
 const COUNTRY_DELIMITER_SQL = `char(${COUNTRY_DELIMITER.charCodeAt(0)})`
 
@@ -111,41 +113,9 @@ function sqlColumn(param: string | number) {
 }
 
 function buildMetaValueClause(metaId: number | string, filter: FilterLike, nextParam: SqlParamBinder) {
-  const {type, cond, val} = filter
   const metaKey = nextParam(metaId)
   const valueColumn = `(SELECT vim.value FROM valuesInMedia vim WHERE vim.mediaId = media.id AND vim.metaId = ${metaKey} LIMIT 1)`
-
-  if (type === 'boolean') {
-    if (cond === '!=') {
-      return `NOT (COALESCE(${valueColumn}, '') IN ('1', 1, 'true', 'TRUE'))`
-    }
-    return `COALESCE(${valueColumn}, '') IN ('1', 1, 'true', 'TRUE')`
-  }
-
-  if (type === 'date') {
-    const clause = buildDateComparison(valueColumn, cond, val, nextParam)
-    return clause ? `(${clause})` : null
-  }
-
-  if (type === 'number' || type === 'rating') {
-    if (val === null || val === undefined || val === '') return '0 = 1'
-    const valueKey = nextParam(val)
-    const clause = compareNumberSql(
-      `CAST(${valueColumn} AS REAL)`,
-      cond,
-      valueKey,
-    )
-    return clause
-      ? `(${valueColumn} IS NOT NULL AND ${valueColumn} != '' AND ${clause})`
-      : null
-  }
-
-  if (type === 'string') {
-    const clause = buildStringComparison(valueColumn, cond, val, nextParam)
-    return clause ? `(${clause})` : null
-  }
-
-  return null
+  return buildTypedMetaValueClause(valueColumn, filter, nextParam)
 }
 
 function isTagArrayFilter(filter: FilterLike) {
@@ -315,33 +285,7 @@ function buildFilterClause(filter: FilterLike, nextParam: SqlParamBinder) {
   const columnExpr = sqlColumn(param)
   if (!columnExpr) return null
 
-  if (type === 'boolean') {
-    if (cond === '!=') {
-      return `NOT (COALESCE(${columnExpr}, 0) IN (1, '1', 'true', 'TRUE'))`
-    }
-    return `COALESCE(${columnExpr}, 0) IN (1, '1', 'true', 'TRUE')`
-  }
-
-  if (type === 'date') {
-    const clause = buildDateComparison(columnExpr, cond, val, nextParam)
-    return clause || null
-  }
-
-  if (type === 'number' || type === 'rating') {
-    if (val === null || val === undefined || val === '') return '0 = 1'
-    const valueKey = nextParam(val)
-    const clause = compareNumberSql(columnExpr, cond, valueKey)
-    return clause
-      ? `(${columnExpr} IS NOT NULL AND ${columnExpr} != '' AND ${clause})`
-      : null
-  }
-
-  if (type === 'string') {
-    const clause = buildStringComparison(columnExpr, cond, val, nextParam)
-    return clause || null
-  }
-
-  return null
+  return buildTypedEntityColumnClause(columnExpr, filter, nextParam)
 }
 
 function unsupportedFilterResult(
