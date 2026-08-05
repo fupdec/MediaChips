@@ -248,7 +248,6 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import type {Handler} from 'mitt'
-import {buildApiUrl} from '@/services/apiClient'
 import {typedApi} from '@/services/typedApi'
 import {createThumb as createVideoThumb} from '@/services/fileService'
 import {invalidateVideoThumbCaches, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
@@ -272,33 +271,16 @@ import {
 } from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
-import {usePlayerStore} from '@/stores/player'
-import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
-import {
-  claimHoverVideoPreview,
-  releaseHoverVideoPreview,
-} from '@/utils/hoverPreviewSession'
 import {
   armHoverPreviewCooldown,
-  clampLiveChunkSeek,
-  createHoverSeekCoalescer,
   getHoverPreviewCooldownRemaining,
-  getLoadedPreviewMediaId,
-  getPreviewStreamStart,
-  isIgnorablePreviewError,
-  pointerRatioToPreviewTime,
-  resolveAbsolutePreviewTime,
-  waitForPreviewCanPlay,
-  waitForPreviewSeek,
 } from '@/utils/hoverPreviewPlayback'
+import {releaseHoverVideoPreview} from '@/utils/hoverPreviewSession'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
-import {
-  resolvePreviewVideoUrl,
-  stopLiveTranscode,
-} from '@/services/transcodeService'
 import {isAppWindowFocused} from '@/utils/windowFocus'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
+import {useHoverPreviewPlayback} from '@/composable/useHoverPreviewPlayback'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
 import {useBrowserLayout} from '@/composable/useBrowserLayout'
@@ -329,7 +311,6 @@ const normalizeBigPreviewSize = (value: string | undefined): BigVideoPreviewSize
 
 type TimeoutMap = {
   shrink?: ReturnType<typeof setTimeout>
-  z?: ReturnType<typeof setTimeout>
   leave?: ReturnType<typeof setTimeout>
   cinema?: ReturnType<typeof setTimeout>
   hoverCooldown?: ReturnType<typeof setTimeout>
@@ -404,7 +385,6 @@ const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
 const contextMenuStore = useContextMenu()
-const playerStore = usePlayerStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
 const {t} = useI18n()
@@ -453,7 +433,6 @@ const {
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
-const videoRef = ref<HTMLVideoElement | null>(null)
 const storyRef = ref<HTMLElement | null>(null)
 const storyWrapperRef = ref<HTMLElement | null>(null)
 
@@ -461,20 +440,14 @@ const isHovered = ref(false)
 const hoverFrameIndex = ref(0)
 const gridSpriteUrl = ref<string | null>(null)
 const storyUsesThumbFallback = ref(false)
-const progress = ref(0)
-const playbackTime = ref(0)
 
 const timeouts: TimeoutMap = {}
 const bigPreviewAnimation = ref(false)
-const playbackError = ref(false)
 const isSettingThumb = ref(false)
 const bigPreviewMenuActive = ref(false)
 const isShrinking = ref(false)
 const holdPreviewVideoDuringCollapse = ref(false)
 const collapsePreviewFading = ref(false)
-const hoverPreviewReady = ref(false)
-/** When false, <video> unmounts immediately (leave) without waiting for CSS hover grace. */
-const allowHoverVideoElement = ref(false)
 const isBigPreviewOpen = computed(() => gridBigPreview.isExpanded.value)
 let initFramesToken = 0
 
@@ -495,6 +468,43 @@ const mediaHeight = computed(() => Number(props.media.height) || 0)
 const mediaDuration = computed(() => Number(props.media.duration) || 0)
 
 const SETTINGS = computed(() => settingsStore)
+
+const {
+  videoRef,
+  progress,
+  playbackTime,
+  playbackError,
+  allowHoverVideoElement,
+  hoverPreviewReady,
+  changePreviewTime,
+  handleVideoError,
+  handleVideoLoaded,
+  handleVideoTimeUpdate,
+  applyPreviewTimeFromPointer,
+  applyFixedPreviewTime,
+  scheduleHoverPreviewUi,
+  syncPreviewVideoPosition,
+  hidePreviewVideoImmediately,
+  finalizePreviewStop,
+  cancelHoverPlayback,
+  clearPreviewDelayTimer,
+  stopPreviewLiveTranscode,
+  teardownWhenPreviewHidden,
+  invalidateOnPlaybackError,
+} = useHoverPreviewPlayback({
+  mediaId: () => Number(props.media.id),
+  mediaDuration: () => mediaDuration.value,
+  isFileExists: () => props.isFileExists,
+  previewStartTime: () => props.previewStartTime,
+  previewEndTime: () => props.previewEndTime,
+  hasFixedPreviewTime: () => hasFixedPreviewTime.value,
+  isHovered: () => isHovered.value,
+  isPreviewVisible: () => showVideoPreview.value,
+  getPreviewEl,
+  showPlaybackTimeline: () => showPlaybackTimeline.value,
+  isBigPreviewVisual: () => gridBigPreview.isVisual.value,
+  onHoverPreviewReady: () => scheduleBigPreviewAfterHoverReady(),
+})
 
 const muted = computed(() => SETTINGS.value.play_sound_on_video_preview !== '1')
 
@@ -592,8 +602,6 @@ const isShowProgress = computed(() =>
   !playbackError.value,
 )
 
-const isImageOnlyView = computed(() => isImageOnlyItemsView(ITEMS.value.view))
-
 const is_window_focused = computed(() => store.window.focused)
 
 const previewAppearStyle = computed(() => {
@@ -602,16 +610,6 @@ const previewAppearStyle = computed(() => {
     '--preview-appear-delay': `${delay}ms`,
   }
 })
-
-const markHoverPreviewReady = () => {
-  if (!isHovered.value || !showVideoPreview.value || gridBigPreview.isVisual.value) return
-  hoverPreviewReady.value = true
-  scheduleBigPreviewAfterHoverReady()
-}
-
-const resetHoverPreviewReady = () => {
-  hoverPreviewReady.value = false
-}
 
 const scheduleBigPreviewAfterHoverReady = () => {
   if (SETTINGS.value.big_video_preview !== '1') return
@@ -673,15 +671,6 @@ const playbackTimelineTimeLabel = computed(() => {
   const current = getReadableDuration(Math.floor(playbackTime.value))
   return `${current} / ${duration.value}`
 })
-
-const hidePreviewVideoImmediately = () => {
-  previewPlaybackToken += 1
-  resetHoverPreviewReady()
-  allowHoverVideoElement.value = false
-  stopPreviewLiveTranscode()
-  releaseHoverVideoPreview(Number(props.media.id))
-  abortVideoPlayback(videoRef.value)
-}
 
 const pausePreviewVideoOnly = () => {
   if (videoRef.value) {
@@ -821,6 +810,7 @@ const removeClasses = () => {
   for (const timeout in timeouts) {
     clearTimeout(timeouts[timeout])
   }
+  clearPreviewDelayTimer()
 
   armHoverPreviewCooldown()
 
@@ -828,17 +818,6 @@ const removeClasses = () => {
     resetPreviewContainer()
     finalizePreviewStop()
   })
-}
-
-const finalizePreviewStop = () => {
-  previewPlaybackToken += 1
-  playbackError.value = false
-  playbackTime.value = 0
-  resetHoverPreviewReady()
-  allowHoverVideoElement.value = false
-  stopPreviewLiveTranscode()
-  releaseHoverVideoPreview(Number(props.media.id))
-  abortVideoPlayback(videoRef.value)
 }
 
 // Модифицированные методы
@@ -1076,349 +1055,8 @@ const play = (_inApp?: unknown) => {
   })
 }
 
-const handleVideoError = () => {
-  playbackError.value = true
-  allowHoverVideoElement.value = false
-  resetHoverPreviewReady()
-  abortVideoPlayback(videoRef.value)
-  releaseHoverVideoPreview(Number(props.media.id))
-}
-
 const restartImageGeneration = () => {
   listSync.getItemsFromDb({ids: [props.media.id], type: 'media'})
-}
-
-const handleVideoLoaded = () => {
-  playbackError.value = false
-  syncPlaybackTimeFromVideo()
-}
-
-const resolvePreviewPlaybackTime = (): number => {
-  const video = videoRef.value
-  if (!video || !Number.isFinite(video.currentTime)) {
-    return progress.value
-  }
-
-  return resolveAbsolutePreviewTime(video.currentTime, {
-    live: previewUsesLiveStream.value,
-    streamUrl: video.src || null,
-  })
-}
-
-const syncPlaybackTimeFromVideo = () => {
-  if (!showVideoPreview.value) return
-
-  const total = mediaDuration.value
-  if (!total) return
-
-  playbackTime.value = Math.min(Math.max(0, resolvePreviewPlaybackTime()), total)
-}
-
-const handleVideoTimeUpdate = () => {
-  if (
-    props.previewEndTime != null &&
-    props.previewStartTime != null &&
-    resolvePreviewPlaybackTime() > props.previewEndTime
-  ) {
-    void syncPreviewVideoPosition(props.previewStartTime)
-    return
-  }
-
-  syncPlaybackTimeFromVideo()
-}
-
-let hoverSeekCoalescer = createHoverSeekCoalescer({
-  resolveTime: (clientX) => getPreviewTimeFromPointer(clientX),
-  sync: (targetTime) => syncPreviewVideoPosition(targetTime, {allowLiveChunkSwitch: false}),
-  delayMs: 220,
-})
-
-const changePreviewTime = (e: MouseEvent) => {
-  // Progress UI updates immediately; actual seeks are coalesced below.
-  applyPreviewTimeFromPointer(e, {seek: false})
-  hoverSeekCoalescer.schedule(e.clientX)
-}
-
-const getPreviewTimeFromPointer = (clientX: number): number | null => {
-  if (hasFixedPreviewTime.value) return null
-  if (!props.isFileExists || playbackError.value) return null
-  if (SETTINGS.value.videoPreviewHover !== 'video') return null
-  if (!mediaDuration.value) return null
-
-  const preview = getPreviewEl()
-  if (!preview) return null
-
-  return pointerRatioToPreviewTime(
-    clientX,
-    preview.getBoundingClientRect(),
-    mediaDuration.value,
-  )
-}
-
-const applyPreviewTimeFromPointer = (
-  e: Pick<MouseEvent, 'clientX'>,
-  {seek = false}: {seek?: boolean} = {},
-) => {
-  const progressValue = getPreviewTimeFromPointer(e.clientX)
-  if (progressValue == null) return
-
-  if (progress.value !== progressValue) {
-    progress.value = progressValue
-    // Keep the playback timeline on the real video playhead; pointer only
-    // drives hover scrubbing (`progress`) and deferred seeks.
-    if (!showPlaybackTimeline.value) {
-      playbackTime.value = progressValue
-    }
-  }
-
-  if (seek) {
-    hoverSeekCoalescer.flush(progressValue)
-  }
-}
-
-let previewPlaybackToken = 0
-const previewUsesLiveStream = ref(false)
-
-const scheduleHoverPreviewUi = () => {
-  if (!isHovered.value || !isAppWindowFocused()) return
-
-  if (isVideoPreviewEnabled.value) {
-    schedulePreviewPlayback()
-  }
-  // Big preview is armed from markHoverPreviewReady after hover video plays.
-}
-
-const buildPreviewVideoUrl = (startSeconds = progress.value || 0) =>
-  resolvePreviewVideoUrl(buildApiUrl, props.media.id, startSeconds)
-
-const stopPreviewLiveTranscode = () => {
-  if (!previewUsesLiveStream.value) return
-  previewUsesLiveStream.value = false
-  stopLiveTranscode(props.media.id).catch(() => {})
-}
-
-const yieldHoverVideoDecoder = () => {
-  previewPlaybackToken += 1
-  resetHoverPreviewReady()
-  allowHoverVideoElement.value = false
-  hoverSeekCoalescer.clear()
-  clearTimeout(timeouts.z)
-  stopPreviewLiveTranscode()
-  abortVideoPlayback(videoRef.value)
-}
-
-const isPreviewCancelled = (token: number) => () => token !== previewPlaybackToken
-
-const syncPreviewVideoPosition = async (
-  targetTime: number,
-  {allowLiveChunkSwitch = false}: {allowLiveChunkSwitch?: boolean} = {},
-): Promise<boolean> => {
-  const video = videoRef.value
-  if (!video || !showVideoPreview.value) return false
-
-  const mediaId = Number(props.media.id)
-  const loadedMediaId = getLoadedPreviewMediaId(video)
-  const activeSrc = video.currentSrc || ''
-
-  // Prefer cheap in-place seeks. Reassigning src (esp. live chunks) starts a
-  // download/encode storm while scrubbing.
-  if (loadedMediaId === mediaId && activeSrc) {
-    const isLiveSrc = activeSrc.includes('/transcode/stream')
-    if (isLiveSrc) {
-      const currentStart = Number(getPreviewStreamStart(activeSrc) || 0)
-      const {withinCurrentSegment, relativeTime} = clampLiveChunkSeek(targetTime, currentStart)
-      if (withinCurrentSegment || !allowLiveChunkSwitch) {
-        if (Math.abs(video.currentTime - relativeTime) > 0.12) {
-          if (video.seeking) {
-            return true
-          }
-          video.currentTime = relativeTime
-          await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
-        }
-        syncPlaybackTimeFromVideo()
-        return true
-      }
-    } else {
-      const nextTime = Math.min(targetTime, video.duration || targetTime)
-      if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.12) {
-        if (video.seeking) {
-          return true
-        }
-        video.currentTime = nextTime
-        await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
-      }
-      syncPlaybackTimeFromVideo()
-      return true
-    }
-  }
-
-  const token = previewPlaybackToken
-  const url = await buildPreviewVideoUrl(allowLiveChunkSwitch ? targetTime : Math.min(targetTime, LIVE_STREAM_CHUNK_SECONDS - 0.1))
-  if (!url) return false
-  if (token !== previewPlaybackToken) return false
-  const isLive = url.includes('/transcode/stream')
-
-  if (isLive) {
-    previewUsesLiveStream.value = true
-    const nextStart = getPreviewStreamStart(url)
-    const currentStart = activeSrc.includes('/transcode/stream') && loadedMediaId === mediaId
-      ? getPreviewStreamStart(activeSrc)
-      : null
-
-    if (loadedMediaId !== mediaId || currentStart !== nextStart) {
-      video.src = url
-      await waitForPreviewCanPlay(video, isPreviewCancelled(token), {live: true})
-    }
-
-    if (token !== previewPlaybackToken) return false
-    const streamStart = Number(nextStart) || 0
-    const relative = Math.max(0, targetTime - streamStart)
-    if (Math.abs(video.currentTime - relative) > 0.12) {
-      video.currentTime = relative
-      await waitForPreviewSeek(video, isPreviewCancelled(token))
-      if (token !== previewPlaybackToken) return false
-    }
-    syncPlaybackTimeFromVideo()
-    return true
-  }
-
-  previewUsesLiveStream.value = false
-  if (loadedMediaId !== mediaId) {
-    video.src = url
-    await waitForPreviewCanPlay(video, isPreviewCancelled(token))
-  }
-
-  if (token !== previewPlaybackToken) return false
-  const nextTime = Math.min(targetTime, video.duration || targetTime)
-  if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.12) {
-    video.currentTime = nextTime
-    await waitForPreviewSeek(video, isPreviewCancelled(token))
-    if (token !== previewPlaybackToken) return false
-  }
-  syncPlaybackTimeFromVideo()
-  return true
-}
-
-const startPreviewPlayback = async () => {
-  const token = ++previewPlaybackToken
-  const video = videoRef.value
-  if (!video || !showVideoPreview.value || !isAppWindowFocused()) {
-    if (token === previewPlaybackToken && isHovered.value) {
-      markPreviewUnavailable()
-    }
-    return
-  }
-  if (playerStore.active && playerStore.liveTranscodeMediaId === props.media.id) return
-
-  const mediaId = Number(props.media.id)
-  claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
-
-  const targetTime = hasFixedPreviewTime.value && props.previewStartTime != null
-    ? props.previewStartTime
-    : progress.value
-
-  if (hasFixedPreviewTime.value && props.previewStartTime != null) {
-    progress.value = props.previewStartTime
-    playbackTime.value = props.previewStartTime
-  }
-
-  try {
-    const positioned = await syncPreviewVideoPosition(targetTime, {
-      allowLiveChunkSwitch: true,
-    })
-    if (!positioned) {
-      if (token === previewPlaybackToken) {
-        markPreviewUnavailable()
-      }
-      return
-    }
-
-    if (token !== previewPlaybackToken || !showVideoPreview.value || !isAppWindowFocused()) {
-      if (token === previewPlaybackToken) releaseHoverVideoPreview(mediaId)
-      return
-    }
-
-    await video.play()
-    playbackError.value = false
-    syncPlaybackTimeFromVideo()
-    markHoverPreviewReady()
-  } catch (error) {
-    if (token !== previewPlaybackToken || isIgnorablePreviewError(error)) {
-      if (token === previewPlaybackToken) releaseHoverVideoPreview(mediaId)
-      return
-    }
-
-    console.error('Video playback error:', error)
-    markPreviewUnavailable()
-  }
-}
-
-const markPreviewUnavailable = () => {
-  playbackError.value = true
-  allowHoverVideoElement.value = false
-  resetHoverPreviewReady()
-  stopPreviewLiveTranscode()
-  abortVideoPlayback(videoRef.value)
-  releaseHoverVideoPreview(Number(props.media.id))
-}
-
-const schedulePreviewPlayback = () => {
-  clearTimeout(timeouts.z)
-  if (!isAppWindowFocused()) return
-  if (SETTINGS.value.videoPreviewHover !== 'video' || !props.isFileExists) return
-
-  const startHoverVideo = async () => {
-    if (!isHovered.value || !isAppWindowFocused()) return
-
-    const mediaId = Number(props.media.id)
-
-    // Resolve before mounting — unsupported formats get the notice immediately.
-    const previewUrl = await resolvePreviewVideoUrl(
-      buildApiUrl,
-      mediaId,
-      progress.value || 0,
-    )
-    if (!isHovered.value || !isAppWindowFocused()) return
-    if (!previewUrl) {
-      markPreviewUnavailable()
-      return
-    }
-
-    // Claim before mounting so another card's decoder is torn down first.
-    claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
-    allowHoverVideoElement.value = true
-    await nextTick()
-
-    if (!isHovered.value || !isAppWindowFocused() || !allowHoverVideoElement.value) {
-      allowHoverVideoElement.value = false
-      releaseHoverVideoPreview(mediaId)
-      abortVideoPlayback(videoRef.value)
-      return
-    }
-
-    if (!videoRef.value) {
-      markPreviewUnavailable()
-      return
-    }
-
-    void startPreviewPlayback()
-  }
-
-  const delay = Math.max(0, Number(SETTINGS.value.delayVideoPreview) || 0)
-  if (delay === 0) {
-    void startHoverVideo()
-    return
-  }
-  timeouts.z = setTimeout(() => {
-    void startHoverVideo()
-  }, delay)
-}
-
-const applyFixedPreviewTime = () => {
-  if (props.previewStartTime == null) return
-
-  progress.value = props.previewStartTime
-  playbackTime.value = props.previewStartTime
 }
 
 let lastHoverClientX: number | null = null
@@ -1482,7 +1120,7 @@ const stopPlayingPreview = ({force = false} = {}) => {
   const shouldShrink = !force && isBigPreviewOpen.value
 
   if (shouldShrink) {
-    clearTimeout(timeouts.z)
+    clearPreviewDelayTimer()
     bigPreviewAnimation.value = false
 
     void closeGridBigPreview().finally(() => {
@@ -1491,7 +1129,7 @@ const stopPlayingPreview = ({force = false} = {}) => {
     return
   }
 
-  clearTimeout(timeouts.z)
+  clearPreviewDelayTimer()
   clearTimeout(timeouts.shrink)
   hidePreviewVideoImmediately()
   stopPreviewLiveTranscode()
@@ -1526,15 +1164,8 @@ const handleMouseLeave = () => {
   }
 
   // Unmount <video> immediately — do not wait for the CSS leave grace timer.
-  previewPlaybackToken += 1
-  resetHoverPreviewReady()
-  allowHoverVideoElement.value = false
-  hoverSeekCoalescer.clear()
-  clearTimeout(timeouts.z)
+  cancelHoverPlayback()
   clearTimeout(timeouts.cinema)
-  stopPreviewLiveTranscode()
-  releaseHoverVideoPreview(Number(props.media.id))
-  abortVideoPlayback(videoRef.value)
 
   clearTimeout(timeouts.leave)
   timeouts.leave = setTimeout(() => {
@@ -1605,10 +1236,7 @@ watch(() => showTimelinePreview.value, (active) => {
 
 watch(showVideoPreview, (active) => {
   if (active) return
-  resetHoverPreviewReady()
-  stopPreviewLiveTranscode()
-  releaseHoverVideoPreview(Number(props.media.id))
-  abortVideoPlayback(videoRef.value)
+  teardownWhenPreviewHidden()
 })
 
 // Наблюдатели
@@ -1664,12 +1292,7 @@ watch(() => props.isFileExists, (exists) => {
 watch(playbackError, (error) => {
   if (!error) return
   clearTimeout(timeouts.cinema)
-  clearTimeout(timeouts.z)
-  previewPlaybackToken += 1
-  allowHoverVideoElement.value = false
-  resetHoverPreviewReady()
-  stopPreviewLiveTranscode()
-  abortVideoPlayback(videoRef.value)
+  invalidateOnPlaybackError()
   if (isBigPreviewOpen.value) {
     contextMenuStore.show = false
     bigPreviewMenuActive.value = false
