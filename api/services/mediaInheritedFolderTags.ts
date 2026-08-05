@@ -10,7 +10,7 @@ export type InheritedFolderTagRow = {
 }
 
 export type MediaPathRow = {
-  id: number | string
+  id?: number | string | null
   path?: string | null
 }
 
