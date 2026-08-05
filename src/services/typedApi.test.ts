@@ -72,6 +72,38 @@ describe('typedApi', () => {
     })
   })
 
+  it('lists and installs plugins through typed routes', async () => {
+    const entry = {
+      manifest: {
+        id: 'mediachips.demo',
+        name: 'Demo',
+        version: '1.0.0',
+        engines: {mediachips: '>=1.0.0'},
+        permissions: [],
+      },
+      source: 'user' as const,
+      state: 'installed' as const,
+      enabled: true,
+    }
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse([entry]))
+    const list = await typedApi.listPlugins(['mediachips.demo'])
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.plugin, {
+      params: {enabledPlugins: JSON.stringify(['mediachips.demo'])},
+    })
+    expect(list.data[0]?.manifest.id).toBe('mediachips.demo')
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse(entry))
+    const installed = await typedApi.installPlugin('/tmp/plugin.zip')
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.pluginInstall, {path: '/tmp/plugin.zip'})
+    expect(installed.data.manifest.id).toBe('mediachips.demo')
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({ok: true as const}))
+    const uninstalled = await typedApi.uninstallPlugin('mediachips.demo')
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.pluginUninstall, {id: 'mediachips.demo'})
+    expect(uninstalled.data).toEqual({ok: true})
+  })
+
   it('falls back when bootstrap validation fails', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockGet.mockResolvedValue(mockAxiosResponse([{ id: 'invalid' }]))

@@ -16,7 +16,7 @@ import {
 } from '@/services/pluginHost'
 import {setOption} from '@/services/settingsService'
 import {useSettingsStore} from '@/stores/settings'
-import {apiClient} from '@/services/apiClient'
+import {typedApi} from '@/services/typedApi'
 
 function syncFromRegistry() {
   const snapshot = getPluginRegistry().snapshot()
@@ -82,9 +82,7 @@ export const usePluginsStore = defineStore('usePluginsStore', {
       this.installing = true
       this.installError = null
       try {
-        const {data} = await apiClient.post<PluginCatalogEntry>('/api/Plugin/install', {
-          path: sourcePath,
-        })
+        const {data} = await typedApi.installPlugin(sourcePath)
         await this.bootstrap()
         return data
       } catch (error: unknown) {
@@ -97,7 +95,7 @@ export const usePluginsStore = defineStore('usePluginsStore', {
       }
     },
     async uninstall(pluginId: string) {
-      await apiClient.post('/api/Plugin/uninstall', {id: pluginId})
+      await typedApi.uninstallPlugin(pluginId)
       if (this.enabledPluginIds.includes(pluginId)) {
         await deactivatePlugin(pluginId)
         await this.persistEnabled()

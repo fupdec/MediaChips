@@ -45,6 +45,11 @@ import {
   WatchedFolderLinkSchema,
 } from './tasks'
 import {
+  PluginCatalogEntrySchema,
+  PluginCatalogListSchema,
+  PluginUninstallResponseSchema,
+} from './plugins'
+import {
   DynamicPlaylistSummarySchema,
   FilterRowInSavedFilterSchema,
   SavedFilterBasicSchema,
@@ -475,3 +480,21 @@ export {
   ValueInTagEntrySchema,
   VideoMetadataSchema,
 } from './media-meta'
+
+export {
+  PluginCatalogEntrySchema,
+  PluginCatalogListSchema,
+  PluginUninstallResponseSchema,
+} from './plugins'
+
+export function parsePluginCatalogEntry(data: unknown) {
+  return PluginCatalogEntrySchema.parse(data)
+}
+
+export function parsePluginCatalogList(data: unknown) {
+  return PluginCatalogListSchema.parse(data)
+}
+
+export function parsePluginUninstallResponse(data: unknown) {
+  return PluginUninstallResponseSchema.parse(data)
+}

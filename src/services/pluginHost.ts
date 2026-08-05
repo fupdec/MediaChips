@@ -9,7 +9,7 @@ import {plexPlugin, plexHostComponentMap} from '@/plugins/plex/hostBridge'
 import {embyPlugin, embyHostComponentMap} from '@/plugins/emby/hostBridge'
 import {tmdbPlugin, tmdbHostComponentMap} from '@/plugins/tmdb/hostBridge'
 import {isSfwBuild} from '@/utils/sfwBuild'
-import {apiClient} from '@/services/apiClient'
+import {typedApi} from '@/services/typedApi'
 
 const DEFAULT_ENABLED_PLUGINS = [
   BUILTIN_PLUGIN_IDS.adult,
@@ -278,9 +278,7 @@ export function serializeEnabledPlugins(pluginIds: string[]): string {
 
 async function fetchUserPluginCatalog(enabledPluginIds: string[]): Promise<PluginCatalogEntry[]> {
   try {
-    const {data} = await apiClient.get<PluginCatalogEntry[]>('/api/Plugin', {
-      params: {enabledPlugins: JSON.stringify(enabledPluginIds)},
-    })
+    const {data} = await typedApi.listPlugins(enabledPluginIds)
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.warn('Failed to load installed user plugins', error)

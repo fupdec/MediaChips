@@ -162,6 +162,9 @@ export const API_ROUTES = {
   tmdbFindImdb: '/api/tmdb/find/imdb',
   tmdbPersonSearch: '/api/tmdb/person/search',
   tmdbPerson: '/api/tmdb/person',
+  plugin: '/api/Plugin',
+  pluginInstall: '/api/Plugin/install',
+  pluginUninstall: '/api/Plugin/uninstall',
 } as const
 
 export type ApiRouteKey = keyof typeof API_ROUTES
@@ -314,4 +317,11 @@ export function apiVideoStream(id: number | string) {
 
 export function apiVideoTranscodeStream(id: number | string) {
   return `/api/video/${id}/transcode/stream`
+}
+
+export function apiPluginList(enabledPlugins: string[]) {
+  const params = new URLSearchParams({
+    enabledPlugins: JSON.stringify(enabledPlugins),
+  })
+  return `${API_ROUTES.plugin}?${params.toString()}`
 }
