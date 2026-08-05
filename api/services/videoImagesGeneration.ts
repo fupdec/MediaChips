@@ -26,7 +26,7 @@ import { upsertVisualHashForMedia } from './visualHashBackfill'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createMarksRepository } from '../db/repositories/marks'
-import { formatMarkTimestamp } from '@shared/markTimestamp'
+import { formatMarkTimestamp } from '../../shared/markTimestamp'
 import {
   VIDEO_GRID_JPEG_QUALITY,
   VIDEO_GRID_SPRITE,

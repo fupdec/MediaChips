@@ -16,7 +16,7 @@ import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
 import type {TagRow} from '../db/repositories/tags'
 import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
-import {normalizeTagLookupName} from '@shared/tagLookupName'
+import {normalizeTagLookupName} from '../../shared/tagLookupName'
 
 export interface TagNameConflict {
   tagId: number

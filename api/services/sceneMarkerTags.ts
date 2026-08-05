@@ -1,6 +1,6 @@
 import type { TagRow } from '../db/repositories/tags'
 import { createTagsRepository } from '../db/repositories/tags'
-import {tagMatchesLookupName} from '@shared/tagLookupName'
+import {tagMatchesLookupName} from '../../shared/tagLookupName'
 
 type TagsRepository = ReturnType<typeof createTagsRepository>
 

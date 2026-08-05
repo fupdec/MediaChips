@@ -3,7 +3,7 @@ import type { PathRegexTagExtract } from '../../shared/pathParser/regexMeta'
 import {
   getTagLookupTerms,
   normalizeTagLookupName,
-} from '@shared/tagLookupName'
+} from '../../shared/tagLookupName'
 
 export function findTagByNameOrSynonym(
   tags: TagLike[],

@@ -1,7 +1,7 @@
 import type {MediaLike, TagLike} from '../types/db'
 import type {PathToken, TokenizeOptions} from '../types/pathTokenizer'
 import {tokenizeFilePath} from './pathTokenizer'
-import {normalizeTagLookupName} from '@shared/tagLookupName'
+import {normalizeTagLookupName} from '../../shared/tagLookupName'
 
 export interface TagPhraseCandidate {
   word: string
