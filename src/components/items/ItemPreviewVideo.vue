@@ -278,6 +278,19 @@ import {
   claimHoverVideoPreview,
   releaseHoverVideoPreview,
 } from '@/utils/hoverPreviewSession'
+import {
+  armHoverPreviewCooldown,
+  clampLiveChunkSeek,
+  createHoverSeekCoalescer,
+  getHoverPreviewCooldownRemaining,
+  getLoadedPreviewMediaId,
+  getPreviewStreamStart,
+  isIgnorablePreviewError,
+  pointerRatioToPreviewTime,
+  resolveAbsolutePreviewTime,
+  waitForPreviewCanPlay,
+  waitForPreviewSeek,
+} from '@/utils/hoverPreviewPlayback'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
 import {
   resolvePreviewVideoUrl,
@@ -322,16 +335,6 @@ type TimeoutMap = {
   hoverCooldown?: ReturnType<typeof setTimeout>
   [key: string]: ReturnType<typeof setTimeout> | undefined
 }
-
-const HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS = 500
-let hoverPreviewReadyAt = 0
-
-const armHoverPreviewCooldown = () => {
-  hoverPreviewReadyAt = Date.now() + HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS
-}
-
-const getHoverPreviewCooldownRemaining = () =>
-  Math.max(0, hoverPreviewReadyAt - Date.now())
 
 const props = withDefaults(defineProps<{
   media: MediaItem
@@ -1096,13 +1099,10 @@ const resolvePreviewPlaybackTime = (): number => {
     return progress.value
   }
 
-  if (previewUsesLiveStream.value) {
-    const startParam = video.src ? getPreviewStreamStart(video.src) : null
-    const streamStart = startParam != null ? Number(startParam) : 0
-    return streamStart + video.currentTime
-  }
-
-  return video.currentTime
+  return resolveAbsolutePreviewTime(video.currentTime, {
+    live: previewUsesLiveStream.value,
+    streamUrl: video.src || null,
+  })
 }
 
 const syncPlaybackTimeFromVideo = () => {
@@ -1127,41 +1127,16 @@ const handleVideoTimeUpdate = () => {
   syncPlaybackTimeFromVideo()
 }
 
+let hoverSeekCoalescer = createHoverSeekCoalescer({
+  resolveTime: (clientX) => getPreviewTimeFromPointer(clientX),
+  sync: (targetTime) => syncPreviewVideoPosition(targetTime, {allowLiveChunkSwitch: false}),
+  delayMs: 220,
+})
+
 const changePreviewTime = (e: MouseEvent) => {
   // Progress UI updates immediately; actual seeks are coalesced below.
   applyPreviewTimeFromPointer(e, {seek: false})
-  scheduleHoverPreviewSeek(e)
-}
-
-let hoverSeekTimer: ReturnType<typeof setTimeout> | null = null
-let hoverSeekInFlight = false
-let hoverSeekPending: number | null = null
-
-const flushHoverPreviewSeek = (targetTime: number) => {
-  if (hoverSeekInFlight) {
-    hoverSeekPending = targetTime
-    return
-  }
-  hoverSeekInFlight = true
-  void syncPreviewVideoPosition(targetTime, {allowLiveChunkSwitch: false})
-    .catch(() => {})
-    .finally(() => {
-      hoverSeekInFlight = false
-      if (hoverSeekPending == null) return
-      const next = hoverSeekPending
-      hoverSeekPending = null
-      flushHoverPreviewSeek(next)
-    })
-}
-
-const scheduleHoverPreviewSeek = (e: Pick<MouseEvent, 'clientX'>) => {
-  if (hoverSeekTimer) clearTimeout(hoverSeekTimer)
-  hoverSeekTimer = setTimeout(() => {
-    hoverSeekTimer = null
-    const progressValue = getPreviewTimeFromPointer(e.clientX)
-    if (progressValue == null) return
-    flushHoverPreviewSeek(progressValue)
-  }, 220)
+  hoverSeekCoalescer.schedule(e.clientX)
 }
 
 const getPreviewTimeFromPointer = (clientX: number): number | null => {
@@ -1173,11 +1148,11 @@ const getPreviewTimeFromPointer = (clientX: number): number | null => {
   const preview = getPreviewEl()
   if (!preview) return null
 
-  const rect = preview.getBoundingClientRect()
-  if (rect.width <= 0) return null
-
-  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-  return Math.floor(mediaDuration.value * ratio)
+  return pointerRatioToPreviewTime(
+    clientX,
+    preview.getBoundingClientRect(),
+    mediaDuration.value,
+  )
 }
 
 const applyPreviewTimeFromPointer = (
@@ -1197,17 +1172,12 @@ const applyPreviewTimeFromPointer = (
   }
 
   if (seek) {
-    flushHoverPreviewSeek(progressValue)
+    hoverSeekCoalescer.flush(progressValue)
   }
 }
 
 let previewPlaybackToken = 0
 const previewUsesLiveStream = ref(false)
-
-const isIgnorablePreviewError = (error: unknown): boolean => {
-  const name = (error as { name?: string })?.name || ''
-  return name === 'AbortError' || name === 'NotAllowedError'
-}
 
 const scheduleHoverPreviewUi = () => {
   if (!isHovered.value || !isAppWindowFocused()) return
@@ -1221,14 +1191,6 @@ const scheduleHoverPreviewUi = () => {
 const buildPreviewVideoUrl = (startSeconds = progress.value || 0) =>
   resolvePreviewVideoUrl(buildApiUrl, props.media.id, startSeconds)
 
-const getPreviewStreamStart = (url: string): string | null => {
-  try {
-    return new URL(url).searchParams.get('start')
-  } catch {
-    return null
-  }
-}
-
 const stopPreviewLiveTranscode = () => {
   if (!previewUsesLiveStream.value) return
   previewUsesLiveStream.value = false
@@ -1239,48 +1201,13 @@ const yieldHoverVideoDecoder = () => {
   previewPlaybackToken += 1
   resetHoverPreviewReady()
   allowHoverVideoElement.value = false
-  hoverSeekInFlight = false
-  hoverSeekPending = null
-  if (hoverSeekTimer) {
-    clearTimeout(hoverSeekTimer)
-    hoverSeekTimer = null
-  }
+  hoverSeekCoalescer.clear()
   clearTimeout(timeouts.z)
   stopPreviewLiveTranscode()
   abortVideoPlayback(videoRef.value)
 }
 
-const getLoadedPreviewMediaId = (video: HTMLVideoElement): number | null => {
-  // Prefer currentSrc — after abort(), .src falls back to the page URL and can
-  // falsely match media ids that appear in the host/port (e.g. 3000).
-  const raw = video.currentSrc || ''
-  if (!raw || raw === window.location.href) return null
-  const match = raw.match(/\/api\/video\/(\d+)(?:\/|\?|$)/)
-  if (!match) return null
-  return Number(match[1])
-}
-
-const waitForPreviewSeek = (video: HTMLVideoElement, token: number): Promise<void> => new Promise((resolve) => {
-  if (token !== previewPlaybackToken) {
-    resolve()
-    return
-  }
-
-  if (video.seeking) {
-    const onSeeked = () => {
-      clearTimeout(timeoutId)
-      resolve()
-    }
-    const timeoutId = setTimeout(() => {
-      video.removeEventListener('seeked', onSeeked)
-      resolve()
-    }, 400)
-    video.addEventListener('seeked', onSeeked, {once: true})
-    return
-  }
-
-  resolve()
-})
+const isPreviewCancelled = (token: number) => () => token !== previewPlaybackToken
 
 const syncPreviewVideoPosition = async (
   targetTime: number,
@@ -1299,20 +1226,14 @@ const syncPreviewVideoPosition = async (
     const isLiveSrc = activeSrc.includes('/transcode/stream')
     if (isLiveSrc) {
       const currentStart = Number(getPreviewStreamStart(activeSrc) || 0)
-      const maxInChunk = currentStart + LIVE_STREAM_CHUNK_SECONDS - 0.05
-      const withinCurrentSegment = targetTime >= currentStart - 0.05 && targetTime <= maxInChunk
+      const {withinCurrentSegment, relativeTime} = clampLiveChunkSeek(targetTime, currentStart)
       if (withinCurrentSegment || !allowLiveChunkSwitch) {
-        const clamped = Math.min(
-          Math.max(targetTime, currentStart),
-          Math.max(currentStart, maxInChunk),
-        )
-        const relative = Math.max(0, clamped - currentStart)
-        if (Math.abs(video.currentTime - relative) > 0.12) {
+        if (Math.abs(video.currentTime - relativeTime) > 0.12) {
           if (video.seeking) {
             return true
           }
-          video.currentTime = relative
-          await waitForPreviewSeek(video, previewPlaybackToken)
+          video.currentTime = relativeTime
+          await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
         }
         syncPlaybackTimeFromVideo()
         return true
@@ -1324,7 +1245,7 @@ const syncPreviewVideoPosition = async (
           return true
         }
         video.currentTime = nextTime
-        await waitForPreviewSeek(video, previewPlaybackToken)
+        await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
       }
       syncPlaybackTimeFromVideo()
       return true
@@ -1346,7 +1267,7 @@ const syncPreviewVideoPosition = async (
 
     if (loadedMediaId !== mediaId || currentStart !== nextStart) {
       video.src = url
-      await waitForPreviewCanPlay(video, token, {live: true})
+      await waitForPreviewCanPlay(video, isPreviewCancelled(token), {live: true})
     }
 
     if (token !== previewPlaybackToken) return false
@@ -1354,7 +1275,7 @@ const syncPreviewVideoPosition = async (
     const relative = Math.max(0, targetTime - streamStart)
     if (Math.abs(video.currentTime - relative) > 0.12) {
       video.currentTime = relative
-      await waitForPreviewSeek(video, token)
+      await waitForPreviewSeek(video, isPreviewCancelled(token))
       if (token !== previewPlaybackToken) return false
     }
     syncPlaybackTimeFromVideo()
@@ -1364,60 +1285,19 @@ const syncPreviewVideoPosition = async (
   previewUsesLiveStream.value = false
   if (loadedMediaId !== mediaId) {
     video.src = url
-    await waitForPreviewCanPlay(video, token)
+    await waitForPreviewCanPlay(video, isPreviewCancelled(token))
   }
 
   if (token !== previewPlaybackToken) return false
   const nextTime = Math.min(targetTime, video.duration || targetTime)
   if (Number.isFinite(nextTime) && Math.abs(video.currentTime - nextTime) > 0.12) {
     video.currentTime = nextTime
-    await waitForPreviewSeek(video, token)
+    await waitForPreviewSeek(video, isPreviewCancelled(token))
     if (token !== previewPlaybackToken) return false
   }
   syncPlaybackTimeFromVideo()
   return true
 }
-
-const waitForPreviewCanPlay = (
-  video: HTMLVideoElement,
-  token: number,
-  {live = false}: {live?: boolean} = {},
-): Promise<void> => new Promise((resolve, reject) => {
-  if (token !== previewPlaybackToken) {
-    reject(new Error('Preview playback cancelled'))
-    return
-  }
-
-  if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-    resolve()
-    return
-  }
-
-  const cleanup = () => {
-    clearTimeout(timeoutId)
-    video.removeEventListener('canplay', onCanPlay)
-    video.removeEventListener('error', onError)
-  }
-
-  const onCanPlay = () => {
-    cleanup()
-    resolve()
-  }
-
-  const onError = () => {
-    cleanup()
-    reject(video.error || new Error('Video failed to load'))
-  }
-
-  // Live FFmpeg warm-up often exceeds the direct-play window.
-  const timeoutId = setTimeout(() => {
-    cleanup()
-    reject(new Error('Preview playback timed out'))
-  }, live ? 45000 : 8000)
-
-  video.addEventListener('canplay', onCanPlay, {once: true})
-  video.addEventListener('error', onError, {once: true})
-})
 
 const startPreviewPlayback = async () => {
   const token = ++previewPlaybackToken
@@ -1649,12 +1529,7 @@ const handleMouseLeave = () => {
   previewPlaybackToken += 1
   resetHoverPreviewReady()
   allowHoverVideoElement.value = false
-  hoverSeekInFlight = false
-  hoverSeekPending = null
-  if (hoverSeekTimer) {
-    clearTimeout(hoverSeekTimer)
-    hoverSeekTimer = null
-  }
+  hoverSeekCoalescer.clear()
   clearTimeout(timeouts.z)
   clearTimeout(timeouts.cinema)
   stopPreviewLiveTranscode()
