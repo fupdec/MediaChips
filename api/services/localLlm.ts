@@ -3,8 +3,7 @@ import {projectPath} from '../../shared/projectRoot'
 import type {ModelStatus} from '../types/mlModels'
 import fs from 'fs'
 import path from 'path'
-import http from 'http'
-import https from 'https'
+import {downloadHttpFile} from './httpFileDownload'
 import {createSettingsRepository} from '../db/repositories/settings'
 import {formatDocsForPrompt, searchDocs} from './docRetrieval'
 import {normalizeAssistParsed} from './localAiAssist'
@@ -120,66 +119,10 @@ function downloadFileWithProgress(
   onProgress?: (loaded: number, total: number | null) => void,
   signal?: {aborted: boolean},
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-    const request = client.get(url, {
-      headers: {
-        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
-      },
-    }, (response) => {
-      if (signal?.aborted) {
-        response.resume()
-        reject(new Error('aborted'))
-        return
-      }
-
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        response.resume()
-        downloadFileWithProgress(response.headers.location, destination, onProgress, signal).then(resolve, reject)
-        return
-      }
-
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`Failed to download local AI model (HTTP ${response.statusCode})`))
-        return
-      }
-
-      const total = Number(response.headers['content-length'] || 0) || null
-      let loaded = 0
-      const tmpPath = `${destination}.download`
-      const file = fs.createWriteStream(tmpPath)
-
-      response.on('data', (chunk: Buffer) => {
-        if (signal?.aborted) {
-          request.destroy()
-          file.destroy()
-          try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-          reject(new Error('aborted'))
-          return
-        }
-        loaded += chunk.length
-        onProgress?.(loaded, total)
-      })
-
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            fs.renameSync(tmpPath, destination)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-      file.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-    })
-
-    request.on('error', reject)
+  return downloadHttpFile(url, destination, {
+    errorLabel: 'local AI model',
+    onProgress,
+    signal,
   })
 }
 

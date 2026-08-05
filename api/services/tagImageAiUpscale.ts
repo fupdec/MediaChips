@@ -2,9 +2,8 @@ import type { ApiDb } from '../types/db'
 import {projectPath} from '../../shared/projectRoot'
 import fs from 'fs'
 import fse from 'fs-extra'
-import http from 'http'
-import https from 'https'
 import path from 'path'
+import {downloadHttpFileWithRetries} from './httpFileDownload'
 import {promisify} from 'util'
 import {execFile as execFileCb} from 'child_process'
 import {readdir} from 'fs/promises'
@@ -30,11 +29,7 @@ import {
 import {parseBooleanSetting} from '../utils/parseBooleanSetting'
 import {isPathInside} from '../utils/isPathInside'
 import {
-  REALESRGAN_NCNN_BUILD,
-  REALESRGAN_NCNN_RELEASE,
-  getRealesrganZipFileName,
   getRealesrganZipUrl,
-  isTransientDownloadError,
   needsTagAiUpscale,
   targetHeightFor,
 } from './realesrganDownload'
@@ -114,10 +109,6 @@ export function getTagUpscaleCacheDir(db: ApiDb): string {
 /** Persists across failed runs so a TLS flake does not force a full re-download. */
 export function getTagUpscaleZipCacheDir(db: ApiDb): string {
   return path.join(getModelsRoot(db), 'models', 'tag-upscale-cache')
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function hasUsableZip(zipPath: string): boolean {
@@ -426,94 +417,20 @@ export async function getTagImageAiUpscaleStatus(db: ApiDb): Promise<TagImageAiU
   return value
 }
 
-function downloadFileOnce(url: string, destination: string, redirectDepth = 0): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (redirectDepth > DOWNLOAD_MAX_REDIRECTS) {
-      reject(new Error('Too many redirects while downloading Real-ESRGAN package'))
-      return
-    }
-
-    const client = url.startsWith('https') ? https : http
-    const request = client.get(url, {
-      headers: {
-        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
-        Accept: '*/*',
-      },
-      timeout: DOWNLOAD_TIMEOUT_MS,
-    }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        response.resume()
-        downloadFileOnce(response.headers.location, destination, redirectDepth + 1).then(resolve, reject)
-        return
-      }
-
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`Failed to download Real-ESRGAN package (HTTP ${response.statusCode})`))
-        return
-      }
-
-      const tmpPath = `${destination}.download`
-      const file = fs.createWriteStream(tmpPath)
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            const size = fs.statSync(tmpPath).size
-            if (size < MIN_ZIP_BYTES) {
-              try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-              reject(new Error(`Downloaded Real-ESRGAN package is too small (${size} bytes)`))
-              return
-            }
-            fs.renameSync(tmpPath, destination)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-      file.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-      response.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-    })
-
-    request.on('timeout', () => {
-      request.destroy(new Error(`Download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s`))
-    })
-    request.on('error', reject)
-  })
-}
-
 export async function downloadFile(url: string, destination: string): Promise<void> {
-  fs.mkdirSync(path.dirname(destination), {recursive: true})
-  let lastError: unknown
-
-  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt++) {
-    try {
-      await downloadFileOnce(url, destination)
-      return
-    } catch (error) {
-      lastError = error
-      for (const stale of [`${destination}.download`, destination]) {
-        try { fs.unlinkSync(stale) } catch { /* ignore */ }
-      }
-      if (attempt >= DOWNLOAD_ATTEMPTS || !isTransientDownloadError(error)) {
-        break
-      }
-      await sleep(1000 * attempt * attempt)
-    }
-  }
-
-  const detail = lastError instanceof Error ? lastError.message : String(lastError)
-  throw new Error(
-    `Failed to download Real-ESRGAN from GitHub after ${DOWNLOAD_ATTEMPTS} attempts `
-    + `(VPN/proxy/TLS issues are common). Try again, or briefly disable VPN. (${detail})`,
-  )
+  await downloadHttpFileWithRetries(url, destination, {
+    errorLabel: 'Real-ESRGAN package',
+    headers: {Accept: '*/*'},
+    timeoutMs: DOWNLOAD_TIMEOUT_MS,
+    minBytes: MIN_ZIP_BYTES,
+    maxRedirects: DOWNLOAD_MAX_REDIRECTS,
+    attempts: DOWNLOAD_ATTEMPTS,
+    retryDelayMs: 1000,
+    retryErrorMessage: (detail, attempts) => (
+      `Failed to download Real-ESRGAN from GitHub after ${attempts} attempts `
+      + `(VPN/proxy/TLS issues are common). Try again, or briefly disable VPN. (${detail})`
+    ),
+  })
 }
 
 async function extractZip(zipPath: string, dest: string): Promise<void> {
