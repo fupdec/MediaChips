@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { apiErrorMessage, sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import fs from 'fs'
 import path from 'path'
@@ -52,7 +52,7 @@ export default function taskVideoCoreController(db: ApiDb) {
       const configJson = result.config || createDefaultConfig()
       res.status(200).json(configJson)
     } catch (error) {
-      res.status(500).json({message: apiErrorMessage(error) || 'Failed to read config'})
+      sendControllerError(res, error, 'Failed to read config')
     }
   }
 
@@ -62,7 +62,7 @@ export default function taskVideoCoreController(db: ApiDb) {
       res.status(200).send(id)
     } catch (error) {
       console.error('getMachineId failed:', error)
-      res.status(500).send({message: 'Failed to get machine id'})
+      sendControllerError(res, error, 'Failed to get machine id')
     }
   }
 
@@ -101,9 +101,7 @@ export default function taskVideoCoreController(db: ApiDb) {
       const status = await getImageThumbsGenerationStatus(db, getDbPath())
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking image thumbnails generation status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking image thumbnails generation status.')
     }
   }
 
@@ -144,9 +142,7 @@ export default function taskVideoCoreController(db: ApiDb) {
       const status = await getVideoImagesGenerationStatus(db, getDbPath())
       res.status(201).send(status)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while checking video images generation status.',
-      })
+      sendControllerError(res, err, 'Some error occurred while checking video images generation status.')
     }
   }
 

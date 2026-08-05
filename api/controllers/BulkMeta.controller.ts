@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage } from '../types/errors'
+import { sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { applyBulkMetaEdit } from '../services/bulkMetaEdit'
 import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
@@ -19,9 +19,7 @@ export default function createBulkMetaController(db: ApiDb) {
       invalidateMediaDerivedCaches()
       res.status(201).send(result)
     } catch (err) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while applying bulk edits.',
-      })
+      sendControllerError(res, err, 'Some error occurred while applying bulk edits.')
     }
   }
 

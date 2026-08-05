@@ -1,14 +1,13 @@
 import type { ApiDb } from '../types/db'
-import { apiErrorMessage, sendControllerError } from '../types/errors'
+import { paramString, sendControllerError } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { Meta, MetaWritePayload } from '@shared/entities/meta'
 import type { MergeCategoriesPayload } from '@shared/api/payloads'
-import { paramString } from '../types/errors'
 import { createMetaRepository } from '../db/repositories/meta'
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
 import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
-import { mergeTagCategories, MetaCategoryMergeError } from '../services/metaCategoryMerge'
+import { mergeTagCategories } from '../services/metaCategoryMerge'
 import { applyMeasurementUnitChange } from '../services/measurementUnitChange'
 import { validatePathRegex } from '../../shared/pathParser/regexMeta'
 import fs from 'fs'
@@ -102,14 +101,7 @@ export default function (db: ApiDb) {
       })
       res.status(200).send(result)
     } catch (err: unknown) {
-      if (err instanceof MetaCategoryMergeError) {
-        return res.status(err.status).send({
-          message: err.message,
-        })
-      }
-      res.status(500).send({
-        message: apiErrorMessage(err) || 'Some error occurred while merging categories.',
-      })
+      sendControllerError(res, err, 'Some error occurred while merging categories.')
     }
   }
 
@@ -125,10 +117,8 @@ export default function (db: ApiDb) {
         force: true
       })
       res.sendStatus(201)
-    } catch (err: unknown) {
-      res.status(500).send({
-        message: apiErrorMessage(err) || "Some error occurred while performing query."
-      })
+    } catch (err) {
+      sendControllerError(res, err, "Some error occurred while performing query.")
     }
   }
 
