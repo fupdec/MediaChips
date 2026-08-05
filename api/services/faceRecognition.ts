@@ -66,6 +66,7 @@ import {
   classifyEnrollAttempt,
   createFaceEnrollIterateCounters,
   getEnrollTagSkipReason,
+  resolveEnrollTagFacesPlan,
 } from './faceEnrollIterate'
 import {
   assembleListedFacesForMedia,
@@ -700,31 +701,36 @@ async function enrollTagFaces(
 }> {
   const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
   const tag = tagsRepo.findById(tagId)
-  if (!tag?.metaId) {
-    return {tagId, metaId: 0, created: 0, skipped: true, reason: 'tag_not_found'}
-  }
-
-  const metaId = Number(tag.metaId)
   const settings = getFaceMatchSettings(db)
-  if (!settings.performerMetaId || settings.performerMetaId !== metaId) {
-    return {tagId, metaId, created: 0, skipped: true, reason: 'not_people_category'}
+  const imagePaths = tag?.metaId
+    ? findTagImagePaths(String(db.path), Number(tag.metaId), tagId)
+    : []
+  const plan = resolveEnrollTagFacesPlan({
+    tagFound: Boolean(tag?.metaId),
+    metaId: tag?.metaId != null ? Number(tag.metaId) : null,
+    performerMetaId: settings.performerMetaId,
+    imagePaths,
+    force: options.force,
+  })
+
+  if (plan.kind === 'skip') {
+    return {tagId, metaId: plan.metaId, created: 0, skipped: true, reason: plan.reason}
   }
 
-  const imagePaths = findTagImagePaths(String(db.path), metaId, tagId)
-  if (!imagePaths.length) {
+  if (plan.kind === 'clear-empty') {
     // Photo removed — clear stale references for this tag.
-    if (options.force !== false) {
+    if (plan.clearEnrollments) {
       createFaceEnrollmentsRepository(db.drizzle).deleteByTagId(tagId)
     }
-    return {tagId, metaId, created: 0, skipped: false}
+    return {tagId, metaId: plan.metaId, created: 0, skipped: false}
   }
 
   await loadDetectionModel(db)
   await loadEmbedModel(db)
-  const created = await enrollTagFromAllImages(db, tagId, metaId, imagePaths, {
+  const created = await enrollTagFromAllImages(db, tagId, plan.metaId, plan.imagePaths, {
     force: options.force !== false,
   })
-  return {tagId, metaId, created, skipped: false}
+  return {tagId, metaId: plan.metaId, created, skipped: false}
 }
 
 function getFaceMatchStatus(db: ApiDb) {

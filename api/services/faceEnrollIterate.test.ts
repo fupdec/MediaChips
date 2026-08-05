@@ -6,6 +6,7 @@ import {
   classifyEnrollAttempt,
   createFaceEnrollIterateCounters,
   getEnrollTagSkipReason,
+  resolveEnrollTagFacesPlan,
 } from './faceEnrollIterate'
 
 describe('getEnrollTagSkipReason', () => {
@@ -58,5 +59,40 @@ describe('enroll progress events', () => {
       stopped: true,
       enrolled: 1,
     })
+  })
+})
+
+describe('resolveEnrollTagFacesPlan', () => {
+  it('skips missing tags and non-people categories', () => {
+    expect(resolveEnrollTagFacesPlan({
+      tagFound: false,
+      metaId: null,
+      performerMetaId: 1,
+      imagePaths: [],
+    })).toEqual({kind: 'skip', reason: 'tag_not_found', metaId: 0})
+
+    expect(resolveEnrollTagFacesPlan({
+      tagFound: true,
+      metaId: 2,
+      performerMetaId: 1,
+      imagePaths: ['a.jpg'],
+    })).toEqual({kind: 'skip', reason: 'not_people_category', metaId: 2})
+  })
+
+  it('clears empty galleries and enrolls when images exist', () => {
+    expect(resolveEnrollTagFacesPlan({
+      tagFound: true,
+      metaId: 1,
+      performerMetaId: 1,
+      imagePaths: [],
+      force: true,
+    })).toEqual({kind: 'clear-empty', metaId: 1, clearEnrollments: true})
+
+    expect(resolveEnrollTagFacesPlan({
+      tagFound: true,
+      metaId: 1,
+      performerMetaId: 1,
+      imagePaths: ['a.jpg'],
+    })).toEqual({kind: 'enroll', metaId: 1, imagePaths: ['a.jpg']})
   })
 })

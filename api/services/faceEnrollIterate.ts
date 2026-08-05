@@ -84,3 +84,33 @@ export function buildFaceEnrollCompleteEvent(
     stopped,
   }
 }
+
+export type EnrollTagFacesPlan =
+  | {kind: 'skip'; reason: 'tag_not_found' | 'not_people_category'; metaId: number}
+  | {kind: 'clear-empty'; metaId: number; clearEnrollments: boolean}
+  | {kind: 'enroll'; metaId: number; imagePaths: string[]}
+
+/** Decide enrollTagFaces work before loading detection/embed models. */
+export function resolveEnrollTagFacesPlan(input: {
+  tagFound: boolean
+  metaId: number | null | undefined
+  performerMetaId: number | null | undefined
+  imagePaths: string[]
+  force?: boolean
+}): EnrollTagFacesPlan {
+  if (!input.tagFound || input.metaId == null) {
+    return {kind: 'skip', reason: 'tag_not_found', metaId: 0}
+  }
+  const metaId = Number(input.metaId)
+  if (!input.performerMetaId || input.performerMetaId !== metaId) {
+    return {kind: 'skip', reason: 'not_people_category', metaId}
+  }
+  if (!input.imagePaths.length) {
+    return {
+      kind: 'clear-empty',
+      metaId,
+      clearEnrollments: input.force !== false,
+    }
+  }
+  return {kind: 'enroll', metaId, imagePaths: input.imagePaths}
+}
