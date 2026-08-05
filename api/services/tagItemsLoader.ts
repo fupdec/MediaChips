@@ -2,6 +2,7 @@ import type { ApiDb, FilterLike } from '../types/db'
 import type { DbItemRow } from '../../app/types/items'
 import { parseItemsFromDb } from './filterItems'
 import { runFilterItemsAsync } from './filterItemsWorkerRunner'
+import { enterLegacyListLoader } from './legacyListLoaderGate'
 import { createTagsRepository } from '../db/repositories/tags'
 import { createMetaRepository } from '../db/repositories/meta'
 import { queryAllAsync } from '../db/utils/rawQuery'
@@ -197,21 +198,6 @@ async function resolveSearchTagIds(db: ApiDb, metaId: number, search: string): P
   return matched.map((tag) => tag.id)
 }
 
-function shouldLogLegacyTagLoader() {
-  return process.env.NODE_ENV !== 'production'
-    || process.env.MEDIA_CHIPS_LOG_LEGACY_TAG_LOADER === '1'
-}
-
-function warnLegacyTagLoader(reason: string, options: TagLoadOptions = {} as TagLoadOptions) {
-  if (!shouldLogLegacyTagLoader()) return
-
-  console.warn(
-    '[tagItemsLoader] Using legacy JS filter path:',
-    reason,
-    `(metaId=${options.metaId ?? 'none'}, sortBy=${options.sortBy ?? 'id'})`,
-  )
-}
-
 async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   const {
     metaId,
@@ -348,13 +334,18 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   return result
 }
 
+/** @deprecated Quarantined JS filter-worker path — prefer SQL; gated by legacyListLoaderGate. */
 async function loadTagItemsLegacy(
   db: ApiDb,
   options: TagLoadOptions,
   fallbackReason?: string,
 ) {
   if (fallbackReason) {
-    warnLegacyTagLoader(fallbackReason, options)
+    enterLegacyListLoader(
+      'tag',
+      fallbackReason,
+      `(metaId=${options.metaId ?? 'none'}, sortBy=${options.sortBy ?? 'id'})`,
+    )
   }
 
   const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
@@ -479,6 +470,5 @@ async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
 
 export {
   loadTagItems,
-  loadTagItemsLegacy,
   loadTagItemsSql,
 }

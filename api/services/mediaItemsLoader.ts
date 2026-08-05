@@ -30,6 +30,7 @@ import {
 } from './mediaListTotalsCache'
 
 import { runFilterItemsAsync } from './filterItemsWorkerRunner'
+import { enterLegacyListLoader } from './legacyListLoaderGate'
 import {
   resolvePageLimit,
   shouldPaginateMediaList,
@@ -114,22 +115,6 @@ const GROUP_SLIM_SELECT = `SELECT
   videoMetadata.codec,
   videoMetadata.fps,
   videoMetadata.time`
-
-function shouldLogLegacyMediaLoader() {
-  return process.env.NODE_ENV !== 'production'
-    || process.env.MEDIA_CHIPS_LOG_LEGACY_MEDIA_LOADER === '1'
-}
-
-function warnLegacyMediaLoader(reason: string, options: MediaLoadOptions = {}) {
-  if (!shouldLogLegacyMediaLoader()) return
-
-  const activeFilterCount = normalizeActiveFilters(options.filters).length
-  console.warn(
-    '[mediaItemsLoader] Using legacy JS filter path:',
-    reason,
-    `(mediaTypeId=${options.mediaTypeId ?? 'none'}, activeFilters=${activeFilterCount}, sortBy=${options.sortBy ?? 'id'})`,
-  )
-}
 
 async function resolveVisualNearDuplicateFilterQuery(
   db: ApiDb,
@@ -413,13 +398,19 @@ async function attachMediaRelations(db: ApiDb, items: LoadedMediaItem[], mediaTy
   return items
 }
 
+/** @deprecated Quarantined JS filter-worker path — prefer SQL; gated by legacyListLoaderGate. */
 async function loadMediaItemsLegacy(
   db: ApiDb,
   options: MediaLoadOptions = {},
   fallbackReason?: string,
 ) {
   if (fallbackReason) {
-    warnLegacyMediaLoader(fallbackReason, options)
+    const activeFilterCount = normalizeActiveFilters(options.filters).length
+    enterLegacyListLoader(
+      'media',
+      fallbackReason,
+      `(mediaTypeId=${options.mediaTypeId ?? 'none'}, activeFilters=${activeFilterCount}, sortBy=${options.sortBy ?? 'id'})`,
+    )
   }
   const {
     mediaTypeId,
