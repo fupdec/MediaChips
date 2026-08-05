@@ -1,5 +1,5 @@
 import path from 'path'
-import { pathVariants } from '../services/contentHash'
+import { pathVariants } from './pathVariants'
 
 function normalizeUserPath(value: unknown): unknown {
   if (value == null || typeof value !== 'string') return value
