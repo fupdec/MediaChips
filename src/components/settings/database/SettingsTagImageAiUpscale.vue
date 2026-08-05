@@ -112,7 +112,7 @@ import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
-import {ApiHttpError} from '@/services/ndjsonStream'
+import {getErrorStatus} from '@/types/vue'
 import {setNotification} from '@/services/notificationService'
 import {getReadableDuration} from '@/services/formatUtils'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
@@ -201,19 +201,20 @@ const fetchStatus = async () => {
   statusError.value = ''
 
   try {
+    const {data} = await typedApi.getTagImageAiUpscaleStatus()
     status.value = {
       done: false,
       pendingCount: 0,
       byType: {},
       downloadSizeMb: 50,
       suggested: false,
-      ...(await typedApi.getTagImageAiUpscaleStatus()),
+      ...data,
     }
     statusLoaded.value = true
     visible.value = !status.value.done
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    if (error instanceof ApiHttpError && error.status === 404) {
+    if (getErrorStatus(error) === 404) {
       statusError.value = t('settings_labels.database.tag_image_ai_upscale_api_unavailable')
     } else {
       statusError.value = err.message

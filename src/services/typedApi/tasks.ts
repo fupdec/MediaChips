@@ -36,9 +36,13 @@ import {
   parseCheckFilesResponse,
   parseFileListResponse,
   parseFolderSizeResponse,
+  parseImageThumbsGenerationStatus,
   parseMediaPathSearchResults,
+  parseRelinkMissingMediaResponse,
   parseResolvePathResponse,
   parseTab,
+  parseTagImageAiUpscaleStatus,
+  parseVideoImagesGenerationStatus,
   parseWatchedFolderLinks,
 } from '@shared/schemas'
 import {
@@ -49,7 +53,7 @@ import {
   PathPayloadSchema,
 } from '@shared/schemas/requests'
 import { validated, validateRequest } from './validate'
-import {ApiHttpError, fetchApiJson, postApiNdjsonStream} from '../ndjsonStream'
+import {ApiHttpError, postApiNdjsonStream} from '../ndjsonStream'
 
 export type VideoImagesGenerationStatus = Record<'preview' | 'grid' | 'marks', {
   total?: number
@@ -421,7 +425,10 @@ export const tasksApi = {
   },
 
   getVideoImagesGenerationStatus() {
-    return fetchApiJson<VideoImagesGenerationStatus>(API_ROUTES.taskVideoImagesGenerationStatus)
+    return apiClient.get(API_ROUTES.taskVideoImagesGenerationStatus).then((res) => ({
+      ...res,
+      data: validated(parseVideoImagesGenerationStatus, res.data) as VideoImagesGenerationStatus,
+    }))
   },
 
   streamVideoImagesGeneration(
@@ -440,7 +447,10 @@ export const tasksApi = {
   },
 
   getImageThumbsGenerationStatus() {
-    return fetchApiJson<ImageThumbsGenerationStatus>(API_ROUTES.taskImageThumbsGenerationStatus)
+    return apiClient.get(API_ROUTES.taskImageThumbsGenerationStatus).then((res) => ({
+      ...res,
+      data: validated(parseImageThumbsGenerationStatus, res.data) as ImageThumbsGenerationStatus,
+    }))
   },
 
   streamImageThumbsGeneration(
@@ -459,7 +469,10 @@ export const tasksApi = {
   },
 
   getTagImageAiUpscaleStatus() {
-    return fetchApiJson<TagImageAiUpscaleStatus>(API_ROUTES.taskTagImageAiUpscaleStatus)
+    return apiClient.get(API_ROUTES.taskTagImageAiUpscaleStatus).then((res) => ({
+      ...res,
+      data: validated(parseTagImageAiUpscaleStatus, res.data) as TagImageAiUpscaleStatus,
+    }))
   },
 
   streamTagImageAiUpscale(
@@ -546,16 +559,6 @@ export const tasksApi = {
     )
   },
 
-  getMissingMediaStatus(full = true) {
-    return fetchApiJson<{
-      total?: number
-      missing?: number
-      present?: number
-    }>(API_ROUTES.taskMissingMediaStatus, {
-      query: full ? {full: true} : undefined,
-    })
-  },
-
   streamFindMissingMedia(
     body: {folders: string[]},
     options: {signal?: AbortSignal},
@@ -573,10 +576,10 @@ export const tasksApi = {
   },
 
   relinkMissingMedia(body: {matches: unknown[]}) {
-    return fetchApiJson<{updated?: number}>(API_ROUTES.taskRelinkMissingMedia, {
-      method: 'POST',
-      body,
-    })
+    return apiClient.post(API_ROUTES.taskRelinkMissingMedia, body).then((res) => ({
+      ...res,
+      data: validated(parseRelinkMissingMediaResponse, res.data),
+    }))
   },
 
   streamParseLibraryTagsPreview(

@@ -224,7 +224,6 @@ import type {
   MissingMediaSearchEvent,
   MissingMediaStatus,
   MissingMediaSummary,
-  RelinkMissingMediaResponse,
 } from '@/types/settings'
 
 const {t} = useI18n()
@@ -284,7 +283,7 @@ const parsePaths = () => searchPaths.value
   .filter(Boolean)
 
 const fetchStatus = async (full = true) => {
-  status.value = await typedApi.getMissingMediaStatus(full) as MissingMediaStatus
+  status.value = (await typedApi.getMissingMediaStatus({full})).data as MissingMediaStatus
   statusLoaded.value = true
 }
 
@@ -474,7 +473,7 @@ const relinkSelected = async () => {
   relinking.value = true
 
   try {
-    const data = await typedApi.relinkMissingMedia({matches: selectedMatches}) as RelinkMissingMediaResponse
+    const {data} = await typedApi.relinkMissingMedia({matches: selectedMatches})
     const relinkedIds = new Set(selectedMatches.map((item) => item.id))
     matches.value = matches.value.filter((item) => !relinkedIds.has(item.id))
     selectedIds.value = matches.value.map((item) => item.id)

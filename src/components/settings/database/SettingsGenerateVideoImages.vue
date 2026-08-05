@@ -125,7 +125,7 @@ import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
-import {ApiHttpError} from '@/services/ndjsonStream'
+import {getErrorStatus} from '@/types/vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
 
@@ -218,7 +218,7 @@ const fetchStatus = async () => {
   statusError.value = ''
 
   try {
-    const data = await typedApi.getVideoImagesGenerationStatus()
+    const {data} = await typedApi.getVideoImagesGenerationStatus()
     status.value = {
       preview: {...emptyStatus, ...(data.preview || {})},
       grid: {...emptyStatus, ...(data.grid || {})},
@@ -227,7 +227,7 @@ const fetchStatus = async () => {
     statusLoaded.value = true
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    if (error instanceof ApiHttpError && error.status === 404) {
+    if (getErrorStatus(error) === 404) {
       statusError.value = t('settings_labels.database.generate_video_images_api_unavailable')
     } else {
       statusError.value = err.message

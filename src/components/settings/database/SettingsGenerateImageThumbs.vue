@@ -111,7 +111,7 @@ import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
-import {ApiHttpError} from '@/services/ndjsonStream'
+import {getErrorStatus} from '@/types/vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 
 const {t} = useI18n()
@@ -144,14 +144,14 @@ const fetchStatus = async () => {
   statusError.value = ''
 
   try {
-    const data = await typedApi.getImageThumbsGenerationStatus()
+    const {data} = await typedApi.getImageThumbsGenerationStatus()
     status.value = {...emptyStatus, ...data}
     statusLoaded.value = true
   } catch (error) {
-    if (error instanceof ApiHttpError && error.status === 404) {
+    if (getErrorStatus(error) === 404) {
       statusError.value = t('settings_labels.database.generate_image_thumbs_api_unavailable')
     } else {
-      statusError.value = error.message
+      statusError.value = error instanceof Error ? error.message : String(error)
     }
     throw error
   } finally {

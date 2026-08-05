@@ -108,6 +108,47 @@ describe('typedApi', () => {
     expect(directory.data.entries[0]?.name).toBe('a.mp4')
   })
 
+  it('loads generation and missing-media status through typed routes', async () => {
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      preview: {total: 10, pending: 2, generated: 8},
+      grid: {total: 10, pending: 1, generated: 9},
+      marks: {total: 5, pending: 0, generated: 5},
+    }))
+    const videoImages = await typedApi.getVideoImagesGenerationStatus()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskVideoImagesGenerationStatus)
+    expect(videoImages.data.preview?.pending).toBe(2)
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({total: 20, pending: 4, generated: 16}))
+    const thumbs = await typedApi.getImageThumbsGenerationStatus()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskImageThumbsGenerationStatus)
+    expect(thumbs.data.pending).toBe(4)
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      done: false,
+      pendingCount: 3,
+      byType: {main: 2},
+      downloadSizeMb: 50,
+      suggested: true,
+    }))
+    const upscale = await typedApi.getTagImageAiUpscaleStatus()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskTagImageAiUpscaleStatus)
+    expect(upscale.data.pendingCount).toBe(3)
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({total: 100, missing: 7, present: 93}))
+    const missing = await typedApi.getMissingMediaStatus({full: true})
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskMissingMediaStatus, {
+      params: {full: 'true'},
+    })
+    expect(missing.data.missing).toBe(7)
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({updated: 2}))
+    const relinked = await typedApi.relinkMissingMedia({matches: [{id: 1}, {id: 2}]})
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.taskRelinkMissingMedia, {
+      matches: [{id: 1}, {id: 2}],
+    })
+    expect(relinked.data.updated).toBe(2)
+  })
+
   it('searches scrapers and tmdb through typed routes', async () => {
     mockGet.mockResolvedValueOnce(mockAxiosResponse({
       data: [{slug: 'alice', posters: []}],

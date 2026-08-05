@@ -76,6 +76,32 @@ export const AddMediaResponseSchema = z.object({
 
 export const BackupListSchema = z.array(BackupEntrySchema)
 
+export const GenerationCountStatusSchema = z.object({
+  total: z.number().optional(),
+  pending: z.number().optional(),
+  generated: z.number().optional(),
+}).passthrough()
+
+export const VideoImagesGenerationStatusSchema = z.object({
+  preview: GenerationCountStatusSchema.optional(),
+  grid: GenerationCountStatusSchema.optional(),
+  marks: GenerationCountStatusSchema.optional(),
+}).passthrough()
+
+export const ImageThumbsGenerationStatusSchema = GenerationCountStatusSchema
+
+export const TagImageAiUpscaleStatusSchema = z.object({
+  done: z.boolean().optional(),
+  pendingCount: z.number().optional(),
+  byType: z.record(z.string(), z.number()).optional(),
+  downloadSizeMb: z.number().optional(),
+  suggested: z.boolean().optional(),
+}).passthrough()
+
+export const RelinkMissingMediaResponseSchema = z.object({
+  updated: z.number().optional(),
+}).passthrough()
+
 export { MediaIdsResponseSchema }
 
 export type ParsedFileExistsResponse = z.infer<typeof FileExistsResponseSchema>

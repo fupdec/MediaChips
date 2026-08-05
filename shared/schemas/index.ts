@@ -38,10 +38,14 @@ import {
   CheckFilesResponseSchema,
   FileListResponseSchema,
   FolderSizeResponseSchema,
+  ImageThumbsGenerationStatusSchema,
   MediaIdsResponseSchema,
   MediaPathFileSchema,
   AddMediaResponseSchema,
+  RelinkMissingMediaResponseSchema,
   ResolvePathResponseSchema,
+  TagImageAiUpscaleStatusSchema,
+  VideoImagesGenerationStatusSchema,
   WatchedFolderLinkSchema,
 } from './tasks'
 import {
@@ -266,6 +270,22 @@ export function parseClipModelStatus(data: unknown) {
   return ClipModelStatusSchema.parse(data)
 }
 
+export function parseVideoImagesGenerationStatus(data: unknown) {
+  return VideoImagesGenerationStatusSchema.parse(data)
+}
+
+export function parseImageThumbsGenerationStatus(data: unknown) {
+  return ImageThumbsGenerationStatusSchema.parse(data)
+}
+
+export function parseTagImageAiUpscaleStatus(data: unknown) {
+  return TagImageAiUpscaleStatusSchema.parse(data)
+}
+
+export function parseRelinkMissingMediaResponse(data: unknown) {
+  return RelinkMissingMediaResponseSchema.parse(data)
+}
+
 export function parseBackupList(data: unknown): BackupEntry[] {
   return BackupListSchema.parse(data) as BackupEntry[]
 }
@@ -465,10 +485,15 @@ export {
   CheckFilesResponseSchema,
   FileListResponseSchema,
   FolderSizeResponseSchema,
+  GenerationCountStatusSchema,
+  ImageThumbsGenerationStatusSchema,
   MediaIdsResponseSchema,
   MediaPathFileSchema,
   AddMediaResponseSchema,
+  RelinkMissingMediaResponseSchema,
   ResolvePathResponseSchema,
+  TagImageAiUpscaleStatusSchema,
+  VideoImagesGenerationStatusSchema,
   WatchedFolderLinkSchema,
 } from './tasks'
 

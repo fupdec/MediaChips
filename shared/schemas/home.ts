@@ -141,7 +141,9 @@ export const HomeMediaResponseSchema = z.object({
 }).passthrough()
 
 export const MissingMediaStatusSchema = z.object({
+  total: z.number().optional(),
   missing: z.number().optional(),
+  present: z.number().optional(),
 }).passthrough()
 
 export const MediaThumbsResponseSchema = z.object({
