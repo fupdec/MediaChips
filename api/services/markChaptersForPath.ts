@@ -2,6 +2,7 @@ import type { ApiDb } from '../types/db'
 import { createMarksRepository } from '../db/repositories/marks'
 import { createMediaRepository } from '../db/repositories/media'
 import { buildPathLookupVariants } from '../utils/normalizeUserPath'
+import {chapterTitleFromMark} from './markChapterTitle'
 
 export interface PlayerChapter {
   title: string
@@ -46,30 +47,7 @@ function stripFileUrl(value: string): string {
   return result
 }
 
-function stripHtml(value: string): string {
-  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-export function chapterTitleFromMark(mark: MarkForChapter): string {
-  const tagName = mark['tag.name'] || mark.tag?.name
-  if (tagName) return stripHtml(String(tagName))
-
-  const type = String(mark.type || '').toLowerCase()
-  if (type === 'favorite') return 'Favorite'
-  if (type === 'bookmark') {
-    const text = mark.text ? stripHtml(String(mark.text)) : ''
-    return text || 'Bookmark'
-  }
-
-  if (mark.text) {
-    const text = stripHtml(String(mark.text))
-    if (text) return text
-  }
-
-  if (type === 'meta' || mark.tagId) return 'Mark'
-  if (type) return type.charAt(0).toUpperCase() + type.slice(1)
-  return 'Mark'
-}
+export {chapterTitleFromMark}
 
 export function marksToChapters(marks: MarkForChapter[]): PlayerChapter[] {
   return marks
