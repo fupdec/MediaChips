@@ -69,6 +69,14 @@ import {
   markFaceMatchIterateFailed,
 } from './faceMatchIterate'
 import {
+  applyFaceEnrollTagOutcome,
+  buildFaceEnrollCompleteEvent,
+  buildFaceEnrollProgressEvent,
+  classifyEnrollAttempt,
+  createFaceEnrollIterateCounters,
+  getEnrollTagSkipReason,
+} from './faceEnrollIterate'
+import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -452,39 +460,19 @@ async function* iterateEnrollFromPerformerImages(
   const tags = createTagsRepository(db.drizzle, db.sqlite).findByMetaIds([metaId])
   const enrollmentsRepo = createFaceEnrollmentsRepository(db.drizzle)
   const total = tags.length
-  let processed = 0
-  let enrolled = 0
-  let skipped = 0
-  let failed = 0
+  let counters = createFaceEnrollIterateCounters()
 
-  yield {type: 'progress', processed, total, remaining: total, enrolled, skipped, failed}
+  yield buildFaceEnrollProgressEvent(counters, total)
 
   for (const tag of tags) {
     if (shouldStop()) {
-      yield {type: 'complete', processed, total, enrolled, skipped, failed, stopped: true}
+      yield buildFaceEnrollCompleteEvent(counters, total, true)
       return
     }
 
     const tagId = Number(tag.id)
     const existing = enrollmentsRepo.findByTagId(tagId)
     const imagePaths = findTagImagePaths(String(db.path), metaId, tagId)
-
-    if (!imagePaths.length) {
-      skipped += 1
-      processed += 1
-      yield {
-        type: 'progress',
-        processed,
-        total,
-        remaining: Math.max(total - processed, 0),
-        enrolled,
-        skipped,
-        failed,
-        current: tag.name || String(tagId),
-      }
-      continue
-    }
-
     const existingSources = new Set(
       existing.map((row) => String(row.sourcePath || '')).filter(Boolean),
     )
@@ -495,44 +483,34 @@ async function* iterateEnrollFromPerformerImages(
       force,
     })
 
-    if (!pendingPaths.length) {
-      skipped += 1
-      processed += 1
-      yield {
-        type: 'progress',
-        processed,
-        total,
-        remaining: Math.max(total - processed, 0),
-        enrolled,
-        skipped,
-        failed,
+    const skipReason = getEnrollTagSkipReason({
+      imageCount: imagePaths.length,
+      pendingCount: pendingPaths.length,
+    })
+
+    if (skipReason) {
+      counters = applyFaceEnrollTagOutcome(counters, skipReason)
+      yield buildFaceEnrollProgressEvent(counters, total, {
         current: tag.name || String(tagId),
-      }
+      })
       continue
     }
 
+    let outcome: ReturnType<typeof classifyEnrollAttempt>
     try {
       const created = await enrollTagFromAllImages(db, tagId, metaId, imagePaths, {force})
-      if (created > 0) enrolled += 1
-      else skipped += 1
+      outcome = classifyEnrollAttempt({created})
     } catch {
-      failed += 1
+      outcome = 'failed'
     }
 
-    processed += 1
-    yield {
-      type: 'progress',
-      processed,
-      total,
-      remaining: Math.max(total - processed, 0),
-      enrolled,
-      skipped,
-      failed,
+    counters = applyFaceEnrollTagOutcome(counters, outcome)
+    yield buildFaceEnrollProgressEvent(counters, total, {
       current: tag.name || String(tagId),
-    }
+    })
   }
 
-  yield {type: 'complete', processed, total, enrolled, skipped, failed, stopped: false}
+  yield buildFaceEnrollCompleteEvent(counters, total, false)
 }
 
 async function matchMediaFaces(
