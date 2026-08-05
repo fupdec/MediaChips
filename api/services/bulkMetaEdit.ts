@@ -1,6 +1,5 @@
 import type { ApiDb } from '../types/db'
 import type {
-  BulkItemId,
   BulkItemType,
   BulkMetaEditOptions,
   BulkMetaEditResult,
@@ -13,72 +12,17 @@ import { createTagsInMediaRepository } from '../db/repositories/tagsInMedia'
 import { createTagsInTagRepository } from '../db/repositories/tagsInTag'
 import { createValuesInMediaRepository } from '../db/repositories/valuesInMedia'
 import { createValuesInTagRepository } from '../db/repositories/valuesInTag'
-
-const BATCH_SIZE = 200
-
-function chunkArray<T>(items: T[], size: number = BATCH_SIZE): T[][] {
-  const chunks = []
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size))
-  }
-  return chunks
-}
+import { chunkArray } from '../db/utils/chunk'
+import {
+  PRESET_FIELDS,
+  buildMediaValueRows,
+  buildTagRows,
+  buildTagValueRows,
+  normalizePresetValue,
+} from './bulkMetaEditRows'
 
 type MediaTagLinkRow = { mediaId: number; metaId: number; tagId: number }
 type TagTagLinkRow = { parentTagId: number; metaId: number; tagId: number }
-
-function buildTagRows(
-  itemType: BulkItemType,
-  itemIds: number[],
-  metaId: number,
-  tagIds: BulkItemId[],
-) {
-  const rows = []
-
-  for (const itemId of itemIds) {
-    for (const tagId of tagIds) {
-      if (itemType === 'media') {
-        rows.push({mediaId: itemId, metaId, tagId: Number(tagId)})
-      } else {
-        rows.push({parentTagId: itemId, metaId, tagId: Number(tagId)})
-      }
-    }
-  }
-
-  return rows
-}
-
-function buildMediaValueRows(itemIds: number[], metaId: number, value: unknown) {
-  return itemIds.map((itemId) => ({
-    mediaId: itemId,
-    metaId,
-    value: String(value ?? ''),
-  }))
-}
-
-function buildTagValueRows(itemIds: number[], metaId: number, value: unknown) {
-  return itemIds.map((itemId) => ({
-    tagId: itemId,
-    metaId,
-    value: String(value ?? ''),
-  }))
-}
-
-const PRESET_FIELDS = new Set(['rating', 'favorite', 'views'])
-
-function normalizePresetValue(field: string, editType: number, value: unknown) {
-  if (editType === 1) {
-    if (field === 'favorite') return false
-    return 0
-  }
-
-  if (field === 'favorite') {
-    return value === true || value === 1 || value === '1'
-  }
-
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : 0
-}
 
 async function applyPresetBulkEdit(
   db: ApiDb,
