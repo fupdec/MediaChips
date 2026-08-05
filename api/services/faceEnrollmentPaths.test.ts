@@ -3,6 +3,7 @@ import os from 'os'
 import path from 'path'
 import {afterEach, describe, expect, it} from 'vitest'
 import {
+  collectEnrollmentSourcePaths,
   collectExistingEmbeddings,
   filterPendingEnrollmentPaths,
   findTagImagePaths,
@@ -32,6 +33,17 @@ describe('toEnrollmentSourcePath', () => {
 
   it('keeps absolute paths outside the db root', () => {
     expect(toEnrollmentSourcePath('/db', '/other/face.jpg')).toBe('/other/face.jpg')
+  })
+})
+
+describe('collectEnrollmentSourcePaths', () => {
+  it('keeps non-empty source paths', () => {
+    expect([...collectEnrollmentSourcePaths([
+      {sourcePath: 'a.jpg'},
+      {sourcePath: ''},
+      {sourcePath: null},
+      {sourcePath: 'b.jpg'},
+    ])].sort()).toEqual(['a.jpg', 'b.jpg'])
   })
 })
 

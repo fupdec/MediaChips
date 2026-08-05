@@ -27,6 +27,8 @@ import {
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
   shouldScheduleHoverPreviewVideo,
+  resolveHoverPreviewScheduleDelay,
+  resolveFixedPreviewClipState,
   resolvePreviewUrlStartSeconds,
   planPreviewUrlSeek,
   shouldApplyPreviewSeek,
@@ -352,9 +354,12 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       progress: progress.value,
     })
 
-    if (toValue(options.hasFixedPreviewTime) && previewStartTime != null) {
-      progress.value = previewStartTime
-      playbackTime.value = previewStartTime
+    if (toValue(options.hasFixedPreviewTime)) {
+      const clip = resolveFixedPreviewClipState(previewStartTime)
+      if (clip) {
+        progress.value = clip.progress
+        playbackTime.value = clip.playbackTime
+      }
     }
 
     try {
@@ -448,7 +453,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       void startPreviewPlayback()
     }
 
-    const delay = Math.max(0, Number(settingsStore.delayVideoPreview) || 0)
+    const delay = resolveHoverPreviewScheduleDelay(settingsStore.delayVideoPreview)
     if (delay === 0) {
       void startHoverVideo()
       return
@@ -470,11 +475,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const applyFixedPreviewTime = () => {
-    const previewStartTime = toValue(options.previewStartTime)
-    if (previewStartTime == null) return
+    const clip = resolveFixedPreviewClipState(toValue(options.previewStartTime))
+    if (!clip) return
 
-    progress.value = previewStartTime
-    playbackTime.value = previewStartTime
+    progress.value = clip.progress
+    playbackTime.value = clip.playbackTime
   }
 
   const hidePreviewVideoImmediately = () => {

@@ -11,9 +11,11 @@ import {
   isNearDuplicateEmbedding,
 } from './enrollmentGates'
 import {
+  collectEnrollmentSourcePaths,
   collectExistingEmbeddings,
   toEnrollmentSourcePath as toEnrollmentSourcePathFromDb,
 } from './faceEnrollmentPaths'
+import {resolveEnrollSourcePathDecision} from './faceEnrollIterate'
 import {embeddingFromJson} from './faceMatchScoring'
 import {
   detectFacesInFrame,
@@ -116,25 +118,28 @@ export async function enrollTagFromAllImages(
   }
 
   const enrolledRows = options.force ? [] : existing
-  const enrolledSources = new Set(
-    enrolledRows
-      .map((row) => String(row.sourcePath || ''))
-      .filter(Boolean),
-  )
+  const enrolledSources = collectEnrollmentSourcePaths(enrolledRows)
 
   const existingEmbeddings = collectExistingEmbeddings(enrolledRows, embeddingFromJson)
 
   let created = 0
   for (const imagePath of imagePaths) {
-    if (enrolledRows.length + created >= MAX_ENROLLMENTS_PER_TAG) break
     const sourcePath = toEnrollmentSourcePath(db, imagePath)
-    if (enrolledSources.has(sourcePath) || enrolledSources.has(imagePath)) continue
+    const decision = resolveEnrollSourcePathDecision({
+      enrolledCount: enrolledRows.length + created,
+      maxEnrollments: MAX_ENROLLMENTS_PER_TAG,
+      sourcePath,
+      imagePath,
+      enrolledSources,
+    })
+    if (decision.kind === 'stop') break
+    if (decision.kind === 'skip-existing') continue
     const ok = await enrollTagImage(db, tagId, metaId, imagePath, 'tagImage', {
       existingEmbeddings,
     })
     if (ok) {
       created += 1
-      enrolledSources.add(sourcePath)
+      enrolledSources.add(decision.sourcePath)
     }
   }
 

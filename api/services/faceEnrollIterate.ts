@@ -1,4 +1,9 @@
 import type {FaceMatchProgressEvent} from './faceRecognition'
+import {
+  collectEnrollmentSourcePaths,
+  filterPendingEnrollmentPaths,
+} from './faceEnrollmentPaths'
+import {MAX_ENROLLMENTS_PER_TAG} from './enrollmentGates'
 
 export type FaceEnrollIterateCounters = {
   processed: number
@@ -130,4 +135,89 @@ export function resolveIterateEnrollGate(input: {
     }
   }
   return {ok: true, metaId: Number(input.performerMetaId)}
+}
+
+export type EnrollTagPendingPrep = {
+  existingSources: Set<string>
+  pendingPaths: string[]
+  skipReason: FaceEnrollTagSkipReason | null
+}
+
+/** Build pending gallery paths + early skip reason for one tag enroll iteration. */
+export function prepareEnrollTagPending(input: {
+  imagePaths: string[]
+  existingRows: Array<{sourcePath?: string | null}>
+  dbPath: string
+  force?: boolean
+}): EnrollTagPendingPrep {
+  const existingSources = collectEnrollmentSourcePaths(input.existingRows)
+  const pendingPaths = filterPendingEnrollmentPaths({
+    imagePaths: input.imagePaths,
+    existingSourcePaths: existingSources,
+    dbPath: input.dbPath,
+    force: input.force,
+  })
+  return {
+    existingSources,
+    pendingPaths,
+    skipReason: getEnrollTagSkipReason({
+      imageCount: input.imagePaths.length,
+      pendingCount: pendingPaths.length,
+    }),
+  }
+}
+
+export type EnrollSourcePathDecision =
+  | {kind: 'stop'}
+  | {kind: 'skip-existing'}
+  | {kind: 'enroll'; sourcePath: string}
+
+/** Per-image gate inside enrollTagFromAllImages. */
+export function resolveEnrollSourcePathDecision(input: {
+  enrolledCount: number
+  maxEnrollments?: number
+  sourcePath: string
+  imagePath: string
+  enrolledSources: Iterable<string>
+}): EnrollSourcePathDecision {
+  const max = input.maxEnrollments ?? MAX_ENROLLMENTS_PER_TAG
+  if (input.enrolledCount >= max) return {kind: 'stop'}
+  const sources = input.enrolledSources instanceof Set
+    ? input.enrolledSources
+    : new Set(input.enrolledSources)
+  if (sources.has(input.sourcePath) || sources.has(input.imagePath)) {
+    return {kind: 'skip-existing'}
+  }
+  return {kind: 'enroll', sourcePath: input.sourcePath}
+}
+
+export type EnrollTagFacesResult = {
+  tagId: number
+  metaId: number
+  created: number
+  skipped: boolean
+  reason?: string
+}
+
+export function buildEnrollTagFacesSkipResult(
+  tagId: number,
+  metaId: number,
+  reason: string,
+): EnrollTagFacesResult {
+  return {tagId, metaId, created: 0, skipped: true, reason}
+}
+
+export function buildEnrollTagFacesClearResult(
+  tagId: number,
+  metaId: number,
+): EnrollTagFacesResult {
+  return {tagId, metaId, created: 0, skipped: false}
+}
+
+export function buildEnrollTagFacesCreatedResult(
+  tagId: number,
+  metaId: number,
+  created: number,
+): EnrollTagFacesResult {
+  return {tagId, metaId, created, skipped: false}
 }

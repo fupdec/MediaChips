@@ -306,6 +306,19 @@ export function shouldScheduleHoverPreviewVideo(input: {
     && input.videoPreviewHover === 'video'
 }
 
+/** Clamp settings delay for schedulePreviewPlayback. */
+export function resolveHoverPreviewScheduleDelay(delaySetting: unknown): number {
+  return Math.max(0, Number(delaySetting) || 0)
+}
+
+/** Fixed-clip progress/playbackTime values, or null when no start is set. */
+export function resolveFixedPreviewClipState(
+  previewStartTime: number | null | undefined,
+): {progress: number; playbackTime: number} | null {
+  if (previewStartTime == null) return null
+  return {progress: previewStartTime, playbackTime: previewStartTime}
+}
+
 export function resolveHoverPreviewStartGate(input: {
   hasVideo: boolean
   isPreviewVisible: boolean

@@ -26,6 +26,8 @@ import {
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   shouldScheduleHoverPreviewVideo,
+  resolveHoverPreviewScheduleDelay,
+  resolveFixedPreviewClipState,
   createHoverSeekCoalescer,
   waitForPreviewSeek,
   waitForPreviewCanPlay,
@@ -393,5 +395,19 @@ describe('hoverPreviewPlayback', () => {
     coalescer.flush(3)
     await new Promise((r) => setTimeout(r, 30))
     expect(sync.mock.calls.map((call) => call[0])).toEqual([1, 3])
+  })
+
+  it('clamps hover preview schedule delay', () => {
+    expect(resolveHoverPreviewScheduleDelay(-5)).toBe(0)
+    expect(resolveHoverPreviewScheduleDelay('250')).toBe(250)
+    expect(resolveHoverPreviewScheduleDelay(undefined)).toBe(0)
+  })
+
+  it('resolves fixed preview clip state', () => {
+    expect(resolveFixedPreviewClipState(null)).toBeNull()
+    expect(resolveFixedPreviewClipState(12.5)).toEqual({
+      progress: 12.5,
+      playbackTime: 12.5,
+    })
   })
 })

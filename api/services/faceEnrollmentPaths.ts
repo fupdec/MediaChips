@@ -85,6 +85,13 @@ export function toEnrollmentSourcePath(dbPath: string, imagePath: string): strin
   return imagePath
 }
 
+/** Collect non-empty enrollment sourcePath values from DB rows. */
+export function collectEnrollmentSourcePaths(
+  rows: Array<{sourcePath?: string | null}>,
+): Set<string> {
+  return new Set(rows.map((row) => String(row.sourcePath || '')).filter(Boolean))
+}
+
 export function filterPendingEnrollmentPaths(input: {
   imagePaths: string[]
   existingSourcePaths: Iterable<string>

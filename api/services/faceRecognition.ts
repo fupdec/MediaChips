@@ -23,7 +23,6 @@ import {
   parseEnrollmentRefs,
 } from './faceMatchScoring'
 import {
-  filterPendingEnrollmentPaths,
   findTagImagePaths,
   resolveAbsoluteCropPath as resolveAbsoluteCropPathFromDb,
 } from './faceEnrollmentPaths'
@@ -74,11 +73,14 @@ import {
 } from './faceMatchIterate'
 import {
   applyFaceEnrollTagOutcome,
+  buildEnrollTagFacesClearResult,
+  buildEnrollTagFacesCreatedResult,
+  buildEnrollTagFacesSkipResult,
   buildFaceEnrollCompleteEvent,
   buildFaceEnrollProgressEvent,
   classifyEnrollAttempt,
   createFaceEnrollIterateCounters,
-  getEnrollTagSkipReason,
+  prepareEnrollTagPending,
   resolveEnrollTagFacesPlan,
   resolveIterateEnrollGate,
 } from './faceEnrollIterate'
@@ -353,19 +355,11 @@ async function* iterateEnrollFromPerformerImages(
     const tagId = Number(tag.id)
     const existing = enrollmentsRepo.findByTagId(tagId)
     const imagePaths = findTagImagePaths(String(db.path), metaId, tagId)
-    const existingSources = new Set(
-      existing.map((row) => String(row.sourcePath || '')).filter(Boolean),
-    )
-    const pendingPaths = filterPendingEnrollmentPaths({
+    const {skipReason} = prepareEnrollTagPending({
       imagePaths,
-      existingSourcePaths: existingSources,
+      existingRows: existing,
       dbPath: String(db.path || ''),
       force,
-    })
-
-    const skipReason = getEnrollTagSkipReason({
-      imageCount: imagePaths.length,
-      pendingCount: pendingPaths.length,
     })
 
     if (skipReason) {
@@ -647,13 +641,7 @@ async function enrollTagFaces(
   db: ApiDb,
   tagId: number,
   options: {force?: boolean} = {},
-): Promise<{
-  tagId: number
-  metaId: number
-  created: number
-  skipped: boolean
-  reason?: string
-}> {
+) {
   const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
   const tag = tagsRepo.findById(tagId)
   const settings = getFaceMatchSettings(db)
@@ -669,7 +657,7 @@ async function enrollTagFaces(
   })
 
   if (plan.kind === 'skip') {
-    return {tagId, metaId: plan.metaId, created: 0, skipped: true, reason: plan.reason}
+    return buildEnrollTagFacesSkipResult(tagId, plan.metaId, plan.reason)
   }
 
   if (plan.kind === 'clear-empty') {
@@ -677,7 +665,7 @@ async function enrollTagFaces(
     if (plan.clearEnrollments) {
       createFaceEnrollmentsRepository(db.drizzle).deleteByTagId(tagId)
     }
-    return {tagId, metaId: plan.metaId, created: 0, skipped: false}
+    return buildEnrollTagFacesClearResult(tagId, plan.metaId)
   }
 
   await loadDetectionModel(db)
@@ -685,7 +673,7 @@ async function enrollTagFaces(
   const created = await enrollTagFromAllImages(db, tagId, plan.metaId, plan.imagePaths, {
     force: options.force !== false,
   })
-  return {tagId, metaId: plan.metaId, created, skipped: false}
+  return buildEnrollTagFacesCreatedResult(tagId, plan.metaId, created)
 }
 
 function getFaceMatchStatus(db: ApiDb) {
