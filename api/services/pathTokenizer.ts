@@ -1,30 +1,12 @@
 import type { PathToken, TokenizeOptions, TokenizeResult } from '../types/pathTokenizer'
 import path from 'path'
 import {PATH_STOP_WORDS} from '../../shared/pathParser/stopWords'
+import {
+  PATH_NOISE_PATTERNS_TOKENIZER,
+  matchesPathNoise,
+} from '../../shared/pathParser/noisePatterns'
 
-const NOISE_PATTERNS = [
-  /^(?:19|20)\d{2}$/,
-  /^\d{3,4}p$/,
-  /^\d+k$/,
-  /^x26[45]$/,
-  /^h26[45]$/,
-  /^hevc$/,
-  /^avc$/,
-  /^aac$/,
-  /^mp[34]$/,
-  /^mkv$/,
-  /^mov$/,
-  /^avi$/,
-  /^webm$/,
-  /^jpg$/,
-  /^jpeg$/,
-  /^png$/,
-  /^gif$/,
-  /^web$/,
-  /^www$/,
-  /^http$/,
-  /^https$/,
-]
+const NOISE_PATTERNS = PATH_NOISE_PATTERNS_TOKENIZER
 
 function normalizeToken(value: unknown) {
   return String(value || '')
@@ -47,7 +29,7 @@ function isNoiseToken(token: string, options: TokenizeOptions = {}) {
   const minLength = options.minLength || 3
   if (!token || token.length < minLength) return true
   if (PATH_STOP_WORDS.has(token)) return true
-  return NOISE_PATTERNS.some(pattern => pattern.test(token))
+  return matchesPathNoise(token, NOISE_PATTERNS)
 }
 
 function tokenizeSegment(segment: unknown, options: TokenizeOptions = {}) {
