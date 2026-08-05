@@ -176,13 +176,8 @@ import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useDialogsStore} from '@/stores/dialogs'
 import {setNotification} from '@/services/notificationService'
-import {
-  deleteLocalAiModel,
-  fetchLocalAiStatus,
-  setLocalAiEnabled,
-  streamLocalAiDownload,
-  type LocalAiStatus,
-} from '@/services/localAiClient'
+import {typedApi} from '@/services/typedApi'
+import type {LocalAiStatus} from '@/services/typedApi/localAi'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
@@ -219,7 +214,7 @@ async function refreshStatus() {
   statusLoading.value = true
   statusError.value = ''
   try {
-    status.value = await fetchLocalAiStatus()
+    status.value = (await typedApi.getLocalAiStatus()).data
   } catch (error) {
     statusError.value = error instanceof Error ? error.message : String(error)
   } finally {
@@ -231,7 +226,7 @@ async function onToggleEnabled(value: boolean | null) {
   busy.value = true
   statusError.value = ''
   try {
-    status.value = await setLocalAiEnabled(Boolean(value))
+    status.value = (await typedApi.setLocalAiEnabled(Boolean(value))).data
   } catch (error) {
     statusError.value = error instanceof Error ? error.message : String(error)
   } finally {
@@ -269,7 +264,7 @@ async function startDownload() {
   })
 
   try {
-    await streamLocalAiDownload(abortController.signal, (event) => {
+    await typedApi.streamLocalAiDownload(abortController.signal, (event) => {
       if (event.type === 'status') {
         phaseLabel.value = event.message || ''
         if (typeof event.percent === 'number') {
@@ -310,7 +305,7 @@ async function onConfirmDelete() {
   busy.value = true
   statusError.value = ''
   try {
-    const result = await deleteLocalAiModel()
+    const result = (await typedApi.deleteLocalAiModel()).data
     status.value = result.status
     setNotification({type: 'success', text: t('settings_labels.local_ai.delete_done')})
   } catch (error) {

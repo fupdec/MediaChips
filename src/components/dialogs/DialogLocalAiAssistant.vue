@@ -124,11 +124,8 @@ import {useRouter} from 'vue-router'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppShell} from '@/composable/appShell'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import {
-  fetchLocalAiStatus,
-  streamLocalAiChat,
-  type LocalAiChatMessage,
-} from '@/services/localAiClient'
+import {typedApi} from '@/services/typedApi'
+import type {LocalAiChatMessage} from '@/services/typedApi/localAi'
 
 type ChatMsg = LocalAiChatMessage & {
   docs?: Array<{id: string; title: string}>
@@ -162,7 +159,7 @@ function isStatusReady(status: {enabled?: boolean | string | number; status?: st
 async function refreshReady() {
   checking.value = true
   try {
-    const status = await fetchLocalAiStatus()
+    const status = (await typedApi.getLocalAiStatus()).data
     ready.value = isStatusReady(status)
   } catch (err) {
     ready.value = false
@@ -217,7 +214,7 @@ async function send() {
   let docs: Array<{id: string; title: string}> = []
 
   try {
-    await streamLocalAiChat(
+    await typedApi.streamLocalAiChat(
       {
         mode: 'chat',
         locale: String(locale.value || 'en'),

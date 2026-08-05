@@ -50,6 +50,10 @@ import {
   MediaRootsResponseSchema,
 } from './browse'
 import {
+  LocalAiDeleteResponseSchema,
+  LocalAiStatusSchema,
+} from './localAi'
+import {
   PluginCatalogEntrySchema,
   PluginCatalogListSchema,
   PluginUninstallResponseSchema,
@@ -500,6 +504,13 @@ export {
   MediaRootEntrySchema,
   MediaRootsResponseSchema,
 } from './browse'
+export {
+  LocalAiChatMessageSchema,
+  LocalAiChatRequestSchema,
+  LocalAiDeleteResponseSchema,
+  LocalAiSetEnabledRequestSchema,
+  LocalAiStatusSchema,
+} from './localAi'
 
 export function parsePluginCatalogEntry(data: unknown) {
   return PluginCatalogEntrySchema.parse(data)
@@ -523,4 +534,12 @@ export function parseBrowseDirectoryResult(data: unknown) {
 
 export function parseMediaRootsResponse(data: unknown) {
   return MediaRootsResponseSchema.parse(data)
+}
+
+export function parseLocalAiStatus(data: unknown) {
+  return LocalAiStatusSchema.parse(data)
+}
+
+export function parseLocalAiDeleteResponse(data: unknown) {
+  return LocalAiDeleteResponseSchema.parse(data)
 }

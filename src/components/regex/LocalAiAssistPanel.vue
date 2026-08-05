@@ -110,10 +110,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {
-  fetchLocalAiStatus,
-  streamLocalAiChat,
-} from '@/services/localAiClient'
+import {typedApi} from '@/services/typedApi'
 
 const props = defineProps<{
   mode: 'regex' | 'filter' | 'meta'
@@ -154,7 +151,7 @@ function isStatusReady(status: {enabled?: boolean | string | number; status?: st
 
 async function refreshReady() {
   try {
-    const status = await fetchLocalAiStatus()
+    const status = (await typedApi.getLocalAiStatus()).data
     ready.value = isStatusReady(status)
   } catch {
     ready.value = false
@@ -210,7 +207,7 @@ async function run() {
   abortController = new AbortController()
 
   try {
-    await streamLocalAiChat(
+    await typedApi.streamLocalAiChat(
       {
         mode: props.mode,
         locale: String(locale.value || 'en'),

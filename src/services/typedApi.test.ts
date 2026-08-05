@@ -108,6 +108,37 @@ describe('typedApi', () => {
     expect(directory.data.entries[0]?.name).toBe('a.mp4')
   })
 
+  it('reads and updates Local AI status through typed routes', async () => {
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      status: 'downloaded',
+      enabled: true,
+      sizeMb: 1066,
+      filename: 'model.gguf',
+    }))
+    const status = await typedApi.getLocalAiStatus()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.taskLocalAiStatus)
+    expect(status.data.status).toBe('downloaded')
+    expect(status.data.enabled).toBe(true)
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      status: 'disabled',
+      enabled: false,
+      sizeMb: 1066,
+    }))
+    const updated = await typedApi.setLocalAiEnabled(false)
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.taskSetLocalAiEnabled, {enabled: false})
+    expect(updated.data.enabled).toBe(false)
+
+    mockPost.mockResolvedValueOnce(mockAxiosResponse({
+      deleted: true,
+      status: {status: 'not_downloaded', enabled: false, sizeMb: 1066},
+    }))
+    const deleted = await typedApi.deleteLocalAiModel()
+    expect(mockPost).toHaveBeenCalledWith(API_ROUTES.taskDeleteLocalAi, {})
+    expect(deleted.data.deleted).toBe(true)
+    expect(deleted.data.status.status).toBe('not_downloaded')
+  })
+
   it('lists and installs plugins through typed routes', async () => {
     const entry = {
       manifest: {
