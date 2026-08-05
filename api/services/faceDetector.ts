@@ -1,5 +1,4 @@
 import type { ApiDb } from '../types/db'
-import {projectPath} from '../../shared/projectRoot'
 import type { ModelStatus } from '../types/mlModels'
 import type {
   FaceBox,
@@ -12,8 +11,6 @@ import type {
   FaceLandmark5,
 } from '../types/faceDetector'
 import fs from 'fs'
-import https from 'https'
-import http from 'http'
 import os from 'os'
 import path from 'path'
 import { Jimp } from 'jimp'
@@ -50,6 +47,14 @@ import {
   tensorAsRows,
   type OrtTensorLike,
 } from './faceScrfdDecode'
+import {
+  ensureCachedModelFile,
+  getFaceModelCacheDir,
+  getOrt,
+  resolveCachedModelPath,
+  type OrtSession,
+  type OrtTensor,
+} from './faceOrtRuntime'
 
 const FACE_MODEL_ID = 'scrfd-10g'
 const FACE_MODEL_FILENAME = 'det_10g.onnx'
@@ -95,89 +100,26 @@ function getFaceDetectSettings(db: ApiDb): FaceDetectSettings {
   }
 }
 
-type OrtModule = typeof import('onnxruntime-node')
-type OrtSession = import('onnxruntime-node').InferenceSession
-type OrtTensor = import('onnxruntime-node').Tensor
-
-let ortModule: OrtModule | null = null
 let session: OrtSession | null = null
 let loadingPromise: Promise<OrtSession> | null = null
 let lastError: Error | null = null
 
-function getOrt(): OrtModule {
-  if (!ortModule) {
-    ortModule = require('onnxruntime-node') as OrtModule
-  }
-  return ortModule
-}
+const getWritableModelCacheDir = (db: ApiDb) => getFaceModelCacheDir(db, FACE_MODEL_ID)
 
-function getWritableModelCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
-  return path.join(base, 'models', FACE_MODEL_ID)
-}
-
-function getModelPath(db: ApiDb) {
-  // SCRFD is not bundled — only the user-data cache counts.
-  const cached = path.join(getWritableModelCacheDir(db), FACE_MODEL_FILENAME)
-  return fs.existsSync(cached) ? cached : null
-}
+const getModelPath = (db: ApiDb) =>
+  resolveCachedModelPath(db, FACE_MODEL_ID, FACE_MODEL_FILENAME)
 
 function hasDownloadedModel(db: ApiDb) {
   return Boolean(getModelPath(db))
 }
 
-function downloadFile(url: string, destination: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-    const request = client.get(url, {
-      headers: {
-        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
-      },
-    }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        response.resume()
-        downloadFile(response.headers.location, destination).then(resolve, reject)
-        return
-      }
-
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`Failed to download face model (HTTP ${response.statusCode})`))
-        return
-      }
-
-      const tmpPath = `${destination}.download`
-      const file = fs.createWriteStream(tmpPath)
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            fs.renameSync(tmpPath, destination)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-      file.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-    })
-
-    request.on('error', reject)
-  })
-}
-
 async function ensureModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
-  const existing = getModelPath(db)
-  if (existing) return {path: existing, downloaded: false}
-
-  const cacheDir = getWritableModelCacheDir(db)
-  fs.mkdirSync(cacheDir, {recursive: true})
-  const destination = path.join(cacheDir, FACE_MODEL_FILENAME)
-  await downloadFile(FACE_MODEL_URL, destination)
-  return {path: destination, downloaded: true}
+  return ensureCachedModelFile(db, {
+    modelId: FACE_MODEL_ID,
+    filename: FACE_MODEL_FILENAME,
+    url: FACE_MODEL_URL,
+    errorLabel: 'face model',
+  })
 }
 
 async function loadModel(db: ApiDb): Promise<OrtSession> {

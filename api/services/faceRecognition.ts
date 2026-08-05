@@ -1,11 +1,7 @@
 import type { ApiDb } from '../types/db'
-import {projectPath} from '../../shared/projectRoot'
 import type { ModelStatus } from '../types/mlModels'
 import type { FaceBox, FaceLandmark5 } from '../types/faceDetector'
 import fs from 'fs'
-import https from 'https'
-import http from 'http'
-import os from 'os'
 import path from 'path'
 import { Jimp } from 'jimp'
 import { createFaceEnrollmentsRepository } from '../db/repositories/faceEnrollments'
@@ -42,6 +38,13 @@ import {
   parseEnrollmentRefs,
   pickMatchFromCandidates,
 } from './faceMatchScoring'
+import {
+  ensureCachedModelFile,
+  getFaceModelCacheDir,
+  getOrt,
+  resolveCachedModelPath,
+  type OrtSession,
+} from './faceOrtRuntime'
 
 const EMBED_MODEL_ID = 'insightface-r50'
 /** Bump when preprocess/ranking/model changes so stale enrollments are wiped. */
@@ -83,29 +86,14 @@ export interface FaceMatchProgressEvent {
   stopped?: boolean
 }
 
-type OrtModule = typeof import('onnxruntime-node')
-type OrtSession = import('onnxruntime-node').InferenceSession
-
-let ortModule: OrtModule | null = null
 let embedSession: OrtSession | null = null
 let loadingPromise: Promise<OrtSession> | null = null
 let lastError: Error | null = null
 
-function getOrt(): OrtModule {
-  if (!ortModule) ortModule = require('onnxruntime-node') as OrtModule
-  return ortModule
-}
+const getWritableModelCacheDir = (db: ApiDb) => getFaceModelCacheDir(db, EMBED_MODEL_ID)
 
-function getWritableModelCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
-  return path.join(base, 'models', EMBED_MODEL_ID)
-}
-
-function getModelPath(db: ApiDb) {
-  // R50 is not bundled with the app — only the user-data cache counts.
-  const cached = path.join(getWritableModelCacheDir(db), EMBED_MODEL_FILENAME)
-  return fs.existsSync(cached) ? cached : null
-}
+const getModelPath = (db: ApiDb) =>
+  resolveCachedModelPath(db, EMBED_MODEL_ID, EMBED_MODEL_FILENAME)
 
 function hasDownloadedEmbedModel(db: ApiDb) {
   return Boolean(getModelPath(db))
@@ -124,54 +112,13 @@ function migrateEmbedModelIfNeeded(db: ApiDb) {
   lastError = null
 }
 
-function downloadFile(url: string, destination: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-    const request = client.get(url, {
-      headers: {
-        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
-      },
-    }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        response.resume()
-        downloadFile(response.headers.location, destination).then(resolve, reject)
-        return
-      }
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`Failed to download face embed model (HTTP ${response.statusCode})`))
-        return
-      }
-      const tmpPath = `${destination}.download`
-      const file = fs.createWriteStream(tmpPath)
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            fs.renameSync(tmpPath, destination)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-      file.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-    })
-    request.on('error', reject)
-  })
-}
-
 async function ensureEmbedModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
-  const existing = getModelPath(db)
-  if (existing) return {path: existing, downloaded: false}
-  const cacheDir = getWritableModelCacheDir(db)
-  fs.mkdirSync(cacheDir, {recursive: true})
-  const destination = path.join(cacheDir, EMBED_MODEL_FILENAME)
-  await downloadFile(EMBED_MODEL_URL, destination)
-  return {path: destination, downloaded: true}
+  return ensureCachedModelFile(db, {
+    modelId: EMBED_MODEL_ID,
+    filename: EMBED_MODEL_FILENAME,
+    url: EMBED_MODEL_URL,
+    errorLabel: 'face embed model',
+  })
 }
 
 async function loadEmbedModel(db: ApiDb): Promise<OrtSession> {

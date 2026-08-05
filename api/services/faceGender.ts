@@ -1,11 +1,12 @@
 import type { ApiDb } from '../types/db'
-import {projectPath} from '../../shared/projectRoot'
 import type { FaceBox } from '../types/faceDetector'
-import fs from 'fs'
-import https from 'https'
-import http from 'http'
-import path from 'path'
 import { Jimp } from 'jimp'
+import {
+  ensureCachedModelFile,
+  getOrt,
+  resolveCachedModelPath,
+  type OrtSession,
+} from './faceOrtRuntime'
 
 const GENDER_MODEL_ID = 'insightface-genderage'
 const GENDER_MODEL_FILENAME = 'genderage.onnx'
@@ -29,86 +30,27 @@ export interface FaceGenderEstimate {
   confidence: number
 }
 
-type OrtModule = typeof import('onnxruntime-node')
-type OrtSession = import('onnxruntime-node').InferenceSession
 type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
 type Affine2x3 = [[number, number, number], [number, number, number]]
 type Point2 = {x: number; y: number}
 
-let ortModule: OrtModule | null = null
 let genderSession: OrtSession | null = null
 let genderLoading: Promise<OrtSession> | null = null
 let inputSize = DEFAULT_INPUT_SIZE
 let inputName = 'data'
 let outputName = 'fc1'
 
-function getOrt(): OrtModule {
-  if (!ortModule) ortModule = require('onnxruntime-node') as OrtModule
-  return ortModule
-}
-
-function getGenderCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
-  return path.join(base, 'models', GENDER_MODEL_ID)
-}
-
-function getGenderModelPath(db: ApiDb) {
-  const cached = path.join(getGenderCacheDir(db), GENDER_MODEL_FILENAME)
-  return fs.existsSync(cached) ? cached : null
-}
-
 function hasDownloadedGenderModel(db: ApiDb) {
-  return Boolean(getGenderModelPath(db))
-}
-
-function downloadFile(url: string, destination: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-    const request = client.get(url, {
-      headers: {
-        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
-      },
-    }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        response.resume()
-        downloadFile(response.headers.location, destination).then(resolve, reject)
-        return
-      }
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`Failed to download face gender model (HTTP ${response.statusCode})`))
-        return
-      }
-      const tmpPath = `${destination}.download`
-      const file = fs.createWriteStream(tmpPath)
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            fs.renameSync(tmpPath, destination)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-      file.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-    })
-    request.on('error', reject)
-  })
+  return Boolean(resolveCachedModelPath(db, GENDER_MODEL_ID, GENDER_MODEL_FILENAME))
 }
 
 async function ensureGenderModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
-  const existing = getGenderModelPath(db)
-  if (existing) return {path: existing, downloaded: false}
-  const cacheDir = getGenderCacheDir(db)
-  fs.mkdirSync(cacheDir, {recursive: true})
-  const destination = path.join(cacheDir, GENDER_MODEL_FILENAME)
-  await downloadFile(GENDER_MODEL_URL, destination)
-  return {path: destination, downloaded: true}
+  return ensureCachedModelFile(db, {
+    modelId: GENDER_MODEL_ID,
+    filename: GENDER_MODEL_FILENAME,
+    url: GENDER_MODEL_URL,
+    errorLabel: 'face gender model',
+  })
 }
 
 async function loadGenderModel(db: ApiDb): Promise<OrtSession> {

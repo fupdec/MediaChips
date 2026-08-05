@@ -1,11 +1,12 @@
 import type { ApiDb } from '../types/db'
-import {projectPath} from '../../shared/projectRoot'
 import type { FaceBox, FaceLandmark5 } from '../types/faceDetector'
-import fs from 'fs'
-import https from 'https'
-import http from 'http'
-import path from 'path'
 import { Jimp } from 'jimp'
+import {
+  ensureCachedModelFile,
+  getOrt,
+  resolveCachedModelPath,
+  type OrtSession,
+} from './faceOrtRuntime'
 
 const LANDMARK_MODEL_ID = 'insightface-2d106'
 const LANDMARK_MODEL_FILENAME = '2d106det.onnx'
@@ -22,84 +23,25 @@ const ARCFACE_DST = [
   [70.7299, 92.2041],
 ] as const
 
-type OrtModule = typeof import('onnxruntime-node')
-type OrtSession = import('onnxruntime-node').InferenceSession
 type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
 
 type Point2 = {x: number; y: number}
 type Affine2x3 = [[number, number, number], [number, number, number]]
 
-let ortModule: OrtModule | null = null
 let landmarkSession: OrtSession | null = null
 let landmarkLoading: Promise<OrtSession> | null = null
 
-function getOrt(): OrtModule {
-  if (!ortModule) ortModule = require('onnxruntime-node') as OrtModule
-  return ortModule
-}
-
-function getLandmarkCacheDir(db: ApiDb) {
-  const base = db?.path_databases || process.app_folder || projectPath('app_storage')
-  return path.join(base, 'models', LANDMARK_MODEL_ID)
-}
-
-function getLandmarkModelPath(db: ApiDb) {
-  const cached = path.join(getLandmarkCacheDir(db), LANDMARK_MODEL_FILENAME)
-  return fs.existsSync(cached) ? cached : null
-}
-
 function hasDownloadedLandmarkModel(db: ApiDb) {
-  return Boolean(getLandmarkModelPath(db))
-}
-
-function downloadFile(url: string, destination: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-    const request = client.get(url, {
-      headers: {
-        'User-Agent': 'mediachips/1.0 (+https://github.com/fupdec/MediaChips)',
-      },
-    }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        response.resume()
-        downloadFile(response.headers.location, destination).then(resolve, reject)
-        return
-      }
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`Failed to download face landmark model (HTTP ${response.statusCode})`))
-        return
-      }
-      const tmpPath = `${destination}.download`
-      const file = fs.createWriteStream(tmpPath)
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            fs.renameSync(tmpPath, destination)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-      file.on('error', (error) => {
-        try { fs.unlinkSync(tmpPath) } catch { /* ignore */ }
-        reject(error)
-      })
-    })
-    request.on('error', reject)
-  })
+  return Boolean(resolveCachedModelPath(db, LANDMARK_MODEL_ID, LANDMARK_MODEL_FILENAME))
 }
 
 async function ensureLandmarkModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
-  const existing = getLandmarkModelPath(db)
-  if (existing) return {path: existing, downloaded: false}
-  const cacheDir = getLandmarkCacheDir(db)
-  fs.mkdirSync(cacheDir, {recursive: true})
-  const destination = path.join(cacheDir, LANDMARK_MODEL_FILENAME)
-  await downloadFile(LANDMARK_MODEL_URL, destination)
-  return {path: destination, downloaded: true}
+  return ensureCachedModelFile(db, {
+    modelId: LANDMARK_MODEL_ID,
+    filename: LANDMARK_MODEL_FILENAME,
+    url: LANDMARK_MODEL_URL,
+    errorLabel: 'face landmark model',
+  })
 }
 
 async function loadLandmarkModel(db: ApiDb): Promise<OrtSession> {
