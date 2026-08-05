@@ -40,7 +40,7 @@ export type ListZipImageEntriesResult =
   | { ok: true; entries: ZipImageEntry[] }
   | { ok: false; skipped: ZipSkipped }
 
-function skipMessage(zipPath: string, reason: ZipSkipReason): string {
+export function buildZipSkipMessage(zipPath: string, reason: ZipSkipReason): string {
   switch (reason) {
     case 'too_large':
       return `Skipped ZIP (too large, >${MAX_ZIP_BYTES} bytes): ${zipPath}`
@@ -54,6 +54,15 @@ function skipMessage(zipPath: string, reason: ZipSkipReason): string {
     default:
       return `Skipped ZIP (unreadable): ${zipPath}`
   }
+}
+
+function skipMessage(zipPath: string, reason: ZipSkipReason): string {
+  return buildZipSkipMessage(zipPath, reason)
+}
+
+export function isEncryptedZipEntry(entry: { encrypted?: boolean; encryped?: boolean }): boolean {
+  // node-stream-zip historically typo'd this field as `encryped`
+  return Boolean(entry?.encrypted || entry?.encryped)
 }
 
 export function isZipFilePath(filePath: string): boolean {
@@ -126,11 +135,6 @@ function entryExtension(entryName: string): string {
   const dot = base.lastIndexOf('.')
   if (dot <= 0) return ''
   return base.slice(dot + 1).toLowerCase()
-}
-
-function isEncryptedEntry(entry: { encrypted?: boolean; encryped?: boolean }): boolean {
-  // node-stream-zip historically typo'd this field as `encryped`
-  return Boolean(entry.encrypted || entry.encryped)
 }
 
 export type ZipGalleryLimits = {
@@ -215,7 +219,7 @@ export async function listZipImageEntries(
 
     for (const entry of Object.values(allEntries)) {
       if (!entry || entry.isDirectory) continue
-      if (isEncryptedEntry(entry)) {
+      if (isEncryptedZipEntry(entry)) {
         return {
           ok: false,
           skipped: {
@@ -284,7 +288,7 @@ export async function zipEntryExists(virtualPath: string): Promise<boolean> {
   try {
     const entry = await zip.entry(parsed.entryName)
     if (!entry || entry.isDirectory) return false
-    if (isEncryptedEntry(entry)) return false
+    if (isEncryptedZipEntry(entry)) return false
     return true
   } catch {
     // Some builds only resolve with the exact stored name; try listing.
@@ -293,7 +297,7 @@ export async function zipEntryExists(virtualPath: string): Promise<boolean> {
       const hit = Object.values(entries).find((item) => (
         normalizeZipEntryName(String(item?.name || '')) === parsed.entryName
       ))
-      return Boolean(hit && !hit.isDirectory && !isEncryptedEntry(hit))
+      return Boolean(hit && !hit.isDirectory && !isEncryptedZipEntry(hit))
     } catch {
       return false
     }
@@ -331,7 +335,7 @@ export async function readZipEntryBuffer(virtualPath: string): Promise<{
       )) || null
     }
 
-    if (!entry || entry.isDirectory || isEncryptedEntry(entry)) return null
+    if (!entry || entry.isDirectory || isEncryptedZipEntry(entry)) return null
 
     const filesize = Number(entry.size) || 0
     if (filesize > MAX_ENTRY_UNCOMPRESSED_BYTES) return null
@@ -377,7 +381,7 @@ export async function getZipEntryInfo(virtualPath: string): Promise<{
       )) || null
     }
 
-    if (!entry || entry.isDirectory || isEncryptedEntry(entry)) return null
+    if (!entry || entry.isDirectory || isEncryptedZipEntry(entry)) return null
 
     const filesize = Number(entry.size) || 0
     if (filesize <= 0 || filesize > MAX_ENTRY_UNCOMPRESSED_BYTES) return null

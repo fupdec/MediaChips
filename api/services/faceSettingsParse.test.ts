@@ -5,6 +5,7 @@ import {
   clampFaceMatchConfidence,
   parseFaceMatchMode,
   parseFaceMatchSettingsFromMap,
+  resolveFaceDetectRuntimeOptions,
 } from './faceSettingsParse'
 
 describe('faceSettingsParse', () => {
@@ -35,6 +36,26 @@ describe('faceSettingsParse', () => {
       candidateLimit: 5,
       mode: 'suggest',
       matchAfterDetect: false,
+    })
+  })
+
+  it('resolves detect runtime options from overrides and settings', () => {
+    expect(resolveFaceDetectRuntimeOptions(
+      {framesPerVideo: 12, minScore: 0.6, persistCrops: true},
+      {framesPerVideo: 6, minScore: 0.5},
+    )).toMatchObject({
+      framesPerVideo: 12,
+      minScore: 0.6,
+      persistCrops: true,
+    })
+
+    expect(resolveFaceDetectRuntimeOptions(
+      {},
+      {framesPerVideo: 6, minScore: 0.5},
+    )).toMatchObject({
+      framesPerVideo: 6,
+      minScore: 0.5,
+      persistCrops: false,
     })
   })
 })

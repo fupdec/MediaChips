@@ -53,6 +53,7 @@ import {
 import {
   clampFaceDetectFramesPerVideo,
   clampFaceDetectMinScore,
+  resolveFaceDetectRuntimeOptions,
 } from './faceSettingsParse'
 import {computePaddedSquareCropRect, DEFAULT_FACE_CROP_PADDING} from './faceCropGeometry'
 import {resolveAbsoluteCropPath} from './faceEnrollmentPaths'
@@ -578,24 +579,9 @@ async function detectMedia(
   const mediaPath = item?.path ? String(item.path) : null
   const persist = options.persist !== false
   // Crops are for manual review visuals only — auto-scan stores embeddings, not JPEGs.
-  const persistCrops = Boolean(options.persistCrops)
   const detectSettings = getFaceDetectSettings(db)
-  const framesRaw = Number(
-    options.framesPerVideo != null ? options.framesPerVideo : detectSettings.framesPerVideo,
-  )
-  const scoreRaw = Number(
-    options.minScore != null ? options.minScore : detectSettings.minScore,
-  )
-  const resolvedOptions: FaceDetectorOptions = {
-    ...options,
-    persistCrops,
-    framesPerVideo: Number.isFinite(framesRaw)
-      ? Math.min(99, Math.max(1, Math.round(framesRaw)))
-      : detectSettings.framesPerVideo,
-    minScore: Number.isFinite(scoreRaw)
-      ? Math.min(0.75, Math.max(0.5, scoreRaw))
-      : detectSettings.minScore,
-  }
+  const resolvedOptions = resolveFaceDetectRuntimeOptions(options, detectSettings)
+  const persistCrops = resolvedOptions.persistCrops
 
   if (!mediaPath || !fs.existsSync(mediaPath)) {
     return {

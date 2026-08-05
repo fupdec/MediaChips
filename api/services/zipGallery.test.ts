@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import archiver from 'archiver'
 import {
   buildVirtualZipPath,
+  buildZipSkipMessage,
+  isEncryptedZipEntry,
   isSafeZipEntryName,
   isVirtualZipPath,
   listZipImageEntries,
@@ -38,6 +40,14 @@ async function writeZip(zipPath: string, files: Record<string, Buffer | string>)
 }
 
 describe('zipGallery path helpers', () => {
+  it('builds skip messages and detects encrypted entries', () => {
+    expect(buildZipSkipMessage('/a.zip', 'too_large')).toContain('too large')
+    expect(buildZipSkipMessage('/a.zip', 'encrypted')).toContain('encrypted')
+    expect(isEncryptedZipEntry({encrypted: true})).toBe(true)
+    expect(isEncryptedZipEntry({encryped: true})).toBe(true)
+    expect(isEncryptedZipEntry({})).toBe(false)
+  })
+
   it('builds and parses virtual zip paths', () => {
     const zipPath = path.join('/media', 'album.zip')
     const virtual = buildVirtualZipPath(zipPath, 'nested/photo.jpg')

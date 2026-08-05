@@ -48,3 +48,29 @@ export function clampFaceDetectFramesPerVideo(value: unknown, fallback = 6): num
   if (!Number.isFinite(framesRaw)) return fallback
   return Math.min(Math.max(Math.round(framesRaw), 1), 99)
 }
+
+export function resolveFaceDetectRuntimeOptions<T extends {
+  framesPerVideo?: number
+  minScore?: number
+  persistCrops?: boolean
+}>(
+  options: T,
+  settings: {framesPerVideo: number; minScore: number},
+): T & {persistCrops: boolean; framesPerVideo: number; minScore: number} {
+  const framesRaw = Number(
+    options.framesPerVideo != null ? options.framesPerVideo : settings.framesPerVideo,
+  )
+  const scoreRaw = Number(
+    options.minScore != null ? options.minScore : settings.minScore,
+  )
+  return {
+    ...options,
+    persistCrops: Boolean(options.persistCrops),
+    framesPerVideo: Number.isFinite(framesRaw)
+      ? clampFaceDetectFramesPerVideo(framesRaw, settings.framesPerVideo)
+      : settings.framesPerVideo,
+    minScore: Number.isFinite(scoreRaw)
+      ? clampFaceDetectMinScore(scoreRaw, settings.minScore)
+      : settings.minScore,
+  }
+}
