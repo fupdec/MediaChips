@@ -9,9 +9,15 @@ import {
   type GlobalSearchTagMatchSource,
   type GlobalSearchTagResult,
 } from './ftsQuery'
-
-const MAX_LIMIT = 200
-const DEFAULT_LIMIT = 50
+import {
+  escapeLikePattern,
+  mergeMediaSearchRows,
+  mergeTagSearchRows,
+  normalizeSearchLimit,
+  normalizeSearchTagIds,
+  GLOBAL_SEARCH_DEFAULT_LIMIT,
+  GLOBAL_SEARCH_MAX_LIMIT,
+} from './globalSearchMerge'
 
 const MEDIA_SEARCH_SELECT = `SELECT media.id,
             media.name,
@@ -30,24 +36,6 @@ const TAG_SEARCH_SELECT = `SELECT tags.id,
 
 const TAG_BOOKMARK_SEARCH_SELECT = `${TAG_SEARCH_SELECT},
             tags.bookmark`
-
-function escapeLikePattern(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
-function normalizeLimit(value: unknown): number {
-  const limit = Number(value)
-  if (!Number.isFinite(limit) || limit <= 0) return DEFAULT_LIMIT
-  return Math.min(Math.floor(limit), MAX_LIMIT)
-}
-
-function normalizeTagIds(value: unknown): number[] {
-  if (!Array.isArray(value)) return []
-  const ids = value
-    .map((entry) => Number(entry))
-    .filter((id) => Number.isFinite(id) && id > 0)
-  return [...new Set(ids)]
-}
 
 export interface SearchGlobalOptions {
   limit?: unknown
@@ -146,7 +134,7 @@ async function searchMediaByName(
   const trimmed = String(query || '').trim()
   if (!trimmed) return []
 
-  const sqlLimit = normalizeLimit(limit)
+  const sqlLimit = normalizeSearchLimit(limit)
   const matchQuery = buildFtsMatchQuery(trimmed)
 
   let rows: Array<Record<string, unknown>> = []
@@ -175,7 +163,7 @@ async function searchMediaByBookmark(
   const trimmed = String(query || '').trim()
   if (!trimmed) return []
 
-  const sqlLimit = normalizeLimit(limit)
+  const sqlLimit = normalizeSearchLimit(limit)
   const pattern = `%${escapeLikePattern(trimmed)}%`
   const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
   const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
@@ -244,8 +232,8 @@ function buildTagScopeClause(options: SearchTagsByNameOptions): {
   replacements: Record<string, unknown>
 } {
   const metaId = normalizeMetaId(options.metaId)
-  const cooccurWithTagIds = normalizeTagIds(options.cooccurWithTagIds)
-  const excludeTagIds = normalizeTagIds(options.excludeTagIds)
+  const cooccurWithTagIds = normalizeSearchTagIds(options.cooccurWithTagIds)
+  const excludeTagIds = normalizeSearchTagIds(options.excludeTagIds)
   const replacements: Record<string, unknown> = {}
   const parts: string[] = []
 
@@ -353,7 +341,7 @@ async function searchTagsByName(
   if (!trimmed) return []
 
   const options = normalizeSearchTagsOptions(limitOrOptions, maybeOptions)
-  const sqlLimit = normalizeLimit(options.limit)
+  const sqlLimit = normalizeSearchLimit(options.limit)
   const matchQuery = buildTagFtsMatchQuery(trimmed)
 
   let rows: Array<Record<string, unknown>> = []
@@ -385,7 +373,7 @@ async function searchTagsByBookmark(
   if (!trimmed) return []
 
   const options = normalizeSearchTagsOptions(limitOrOptions, maybeOptions)
-  const sqlLimit = normalizeLimit(options.limit)
+  const sqlLimit = normalizeSearchLimit(options.limit)
   const pattern = `%${escapeLikePattern(trimmed)}%`
   const scope = buildTagScopeClause(options)
   const metaClause = scope.clause.replace(/tags\.metaId/g, 'metaId').replace(/tags\.id/g, 'id')
@@ -404,59 +392,6 @@ async function searchTagsByBookmark(
   return rows
     .map((row) => enrichTagSearchRow(row, trimmed))
     .filter((row): row is NonNullable<typeof row> => row != null)
-}
-
-function combineTagMatchSources(
-  a: GlobalSearchTagMatchSource | undefined,
-  b: GlobalSearchTagMatchSource | undefined,
-): GlobalSearchTagMatchSource {
-  if (!a) return b || 'name'
-  if (!b) return a
-  if (a === b) return a
-  return 'both'
-}
-
-function mergeTagSearchRows(
-  primary: GlobalSearchTagResult[],
-  secondary: GlobalSearchTagResult[],
-  limit: unknown,
-): GlobalSearchTagResult[] {
-  const sqlLimit = normalizeLimit(limit)
-  const merged: GlobalSearchTagResult[] = []
-  const byId = new Map<number, GlobalSearchTagResult>()
-
-  for (const row of primary) {
-    if (byId.has(row.id)) continue
-    const next = {...row}
-    byId.set(row.id, next)
-    merged.push(next)
-    if (merged.length >= sqlLimit) return merged
-  }
-
-  for (const row of secondary) {
-    const existing = byId.get(row.id)
-    if (existing) {
-      existing.matchSource = combineTagMatchSources(existing.matchSource, row.matchSource)
-      if (row.matchedSynonyms?.length) {
-        const synonymSet = new Set([
-          ...(existing.matchedSynonyms || []),
-          ...row.matchedSynonyms,
-        ])
-        existing.matchedSynonyms = [...synonymSet]
-      }
-      if (row.matchedBookmark) {
-        existing.matchedBookmark = row.matchedBookmark
-      }
-      continue
-    }
-
-    if (merged.length >= sqlLimit) break
-    const next = {...row}
-    byId.set(row.id, next)
-    merged.push(next)
-  }
-
-  return merged
 }
 
 async function searchMediaByTagIds(
@@ -479,7 +414,7 @@ async function searchMediaByTagIds(
   ).values()]
   if (!uniqueTags.length) return []
 
-  const sqlLimit = normalizeLimit(limit)
+  const sqlLimit = normalizeSearchLimit(limit)
   const tagIds = uniqueTags.map((tag) => Number(tag.id))
   const tagById = new Map(
     uniqueTags.map((tag) => [Number(tag.id), tag]),
@@ -532,79 +467,6 @@ async function searchMediaByTagIds(
   })
 }
 
-type MediaSearchMatchSource = 'name' | 'tag' | 'bookmark' | 'both'
-
-function combineMediaMatchSources(
-  a: MediaSearchMatchSource | undefined,
-  b: MediaSearchMatchSource | undefined,
-): MediaSearchMatchSource {
-  if (!a) return b || 'name'
-  if (!b) return a
-  if (a === b) return a
-  return 'both'
-}
-
-function mergeMediaSearchRows(
-  primary: Array<Record<string, unknown>>,
-  secondary: Array<Record<string, unknown>>,
-  limit: unknown,
-) {
-  const sqlLimit = normalizeLimit(limit)
-  const merged: Array<Record<string, unknown>> = []
-  const byId = new Map<number, Record<string, unknown>>()
-
-  for (const row of primary) {
-    const id = Number(row.id)
-    if (!Number.isFinite(id) || byId.has(id)) continue
-    const next = {
-      ...row,
-      matchSource: (row.matchSource as MediaSearchMatchSource | undefined) || 'name',
-    }
-    byId.set(id, next)
-    merged.push(next)
-    if (merged.length >= sqlLimit) return merged
-  }
-
-  for (const row of secondary) {
-    const id = Number(row.id)
-    if (!Number.isFinite(id)) continue
-
-    const existing = byId.get(id)
-    if (existing) {
-      const existingTags = Array.isArray(existing.matchedTags)
-        ? existing.matchedTags as Array<{id: number; name: string}>
-        : []
-      const nextTags = Array.isArray(row.matchedTags)
-        ? row.matchedTags as Array<{id: number; name: string}>
-        : []
-      const tagById = new Map<number, {id: number; name: string}>()
-      for (const tag of [...existingTags, ...nextTags]) {
-        tagById.set(Number(tag.id), tag)
-      }
-      existing.matchedTags = [...tagById.values()]
-      existing.matchSource = combineMediaMatchSources(
-        existing.matchSource as MediaSearchMatchSource | undefined,
-        (row.matchSource as MediaSearchMatchSource | undefined)
-          || (nextTags.length ? 'tag' : undefined),
-      )
-      if (typeof row.matchedBookmark === 'string' && row.matchedBookmark) {
-        existing.matchedBookmark = row.matchedBookmark
-      }
-      continue
-    }
-
-    if (merged.length >= sqlLimit) break
-    const next = {
-      ...row,
-      matchSource: (row.matchSource as MediaSearchMatchSource | undefined) || 'tag',
-    }
-    byId.set(id, next)
-    merged.push(next)
-  }
-
-  return merged
-}
-
 async function loadPinnedTagSummaries(db: ApiDb, tagIds: number[]) {
   if (!tagIds.length) return []
   return queryAll(db, `${TAG_SEARCH_SELECT}
@@ -613,7 +475,7 @@ async function loadPinnedTagSummaries(db: ApiDb, tagIds: number[]) {
 }
 
 async function searchMediaHavingAllTagIds(db: ApiDb, tagIds: number[], limit: unknown) {
-  const sqlLimit = normalizeLimit(limit)
+  const sqlLimit = normalizeSearchLimit(limit)
   const pinnedTags = await loadPinnedTagSummaries(db, tagIds)
   const tagById = new Map(
     pinnedTags.map((tag) => [Number(tag.id), tag]),
@@ -657,7 +519,7 @@ async function searchCooccurringTags(
   tagIds: number[],
   limit: unknown,
 ): Promise<GlobalSearchTagResult[]> {
-  const sqlLimit = normalizeLimit(limit)
+  const sqlLimit = normalizeSearchLimit(limit)
   const rows = await queryAll(db, `${TAG_SEARCH_SELECT}
      FROM tags
      WHERE 1 = 1
@@ -679,7 +541,7 @@ async function searchCooccurringTags(
 async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) {
   const options = normalizeSearchGlobalOptions(limitOrOptions)
   const limit = options.limit
-  const pinnedTagIds = normalizeTagIds(options.tagIds)
+  const pinnedTagIds = normalizeSearchTagIds(options.tagIds)
   const trimmed = String(query || '').trim()
 
   if (!trimmed && !pinnedTagIds.length) {
@@ -728,6 +590,6 @@ export {
   searchTagsByName,
   searchTagsByBookmark,
   searchGlobal,
-  MAX_LIMIT,
-  DEFAULT_LIMIT,
+  GLOBAL_SEARCH_MAX_LIMIT as MAX_LIMIT,
+  GLOBAL_SEARCH_DEFAULT_LIMIT as DEFAULT_LIMIT,
 }
