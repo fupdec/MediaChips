@@ -37,6 +37,7 @@ import AutoConnect from "@/AutoConnect.vue"
 import {getLocalBackendUrl, resolveDirectBackendUrl} from "@/utils/apiBaseUrl"
 import type {AppConfig, ServerConfigPayload, ServerInfo} from "@/types/common"
 import {useStartupHealthNotifications} from "@/composable/useStartupHealthNotifications"
+import {typedApi} from "@/services/typedApi"
 
 const FIXED_PORT = import.meta.env.VITE_PORT || 12321
 const PING_INTERVAL_MS = 30000
@@ -216,10 +217,12 @@ function getCurrentOriginServer(): ServerInfo | null {
 
 async function checkServerAvailability(server: ServerInfo) {
   try {
-    const response = await fetch(`${server.url}/api/ping`, {
-      signal: AbortSignal.timeout(3000)
-    });
-    return response.ok;
+    await typedApi.ping({
+      baseURL: server.url,
+      timeout: 3000,
+      signal: AbortSignal.timeout(3000),
+    })
+    return true
   } catch (error) {
     console.warn('Server unavailable:', error);
     return false;
@@ -387,18 +390,8 @@ async function fetchConfigFromServer() {
   try {
     // Use current server URL or localhost for player
     const baseUrl = currentServer.value?.url || getLocalBackendUrl(FIXED_PORT);
-    const response = await fetch(`${baseUrl}/api/config`);
-
-    if (response.ok) {
-      const config = await response.json();
-      applyConfig(config);
-    } else {
-      console.error('❌ Error getting config');
-      // For player, try again after 2 seconds
-      if (isPlayerWindow.value) {
-        setTimeout(fetchConfigFromServer, 2000);
-      }
-    }
+    const {data} = await typedApi.getServerConfig({baseURL: baseUrl})
+    applyConfig(data as ServerConfigPayload)
   } catch (error) {
     console.error('❌ Network error while getting config:', error);
     // Retry for player

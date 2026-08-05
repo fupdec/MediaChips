@@ -108,6 +108,30 @@ describe('typedApi', () => {
     expect(directory.data.entries[0]?.name).toBe('a.mp4')
   })
 
+  it('pings and loads server config through typed routes', async () => {
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      pong: 1,
+      message: 'Server is online',
+    }))
+    const ping = await typedApi.ping()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.ping, {})
+    expect(ping.data.message).toBe('Server is online')
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse({
+      appVersion: '1.5.0',
+      path: '/data',
+      databases: [],
+    }))
+    const config = await typedApi.getServerConfig()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.config, {})
+    expect(config.data.appVersion).toBe('1.5.0')
+
+    mockGet.mockResolvedValueOnce(mockAxiosResponse('abcdef0123456789'))
+    const machineId = await typedApi.getMachineId()
+    expect(mockGet).toHaveBeenCalledWith(API_ROUTES.getMachineId, {})
+    expect(machineId.data).toBe('abcdef0123456789')
+  })
+
   it('lists media-server libraries through typed routes', async () => {
     mockPost.mockResolvedValueOnce(mockAxiosResponse({
       ok: true,

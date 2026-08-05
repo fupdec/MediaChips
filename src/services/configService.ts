@@ -1,30 +1,19 @@
 import axios from 'axios'
 import path from 'path-browserify'
 import { resolveDirectBackendUrl } from '@/utils/apiBaseUrl'
-import { buildApiUrl } from '@/services/apiClient'
 import { useAppStore } from '@/stores/app'
 import { typedApi } from '@/services/typedApi'
+import type { ServerConfig } from '@/services/typedApi/system'
 import { destroySeparatePlayerWindow } from '@/utils/playerWindow'
 import eventBus from '@/utils/eventBus'
 import {clearThumbDisplayCache} from '@/utils/thumbDisplayCache'
 import {clearFileExistenceBatchQueue} from '@/utils/fileExistenceBatcher'
 
-interface AppConfigResponse {
-  appVersion?: string
-  path?: string
-  databases?: unknown[]
-  ip?: string
-  port?: number | string
-  allowLanAccess?: boolean
-  allowLanAccessEnvLocked?: boolean
-  [key: string]: unknown
-}
-
 export async function updateConfig(data: Record<string, unknown>) {
   return typedApi.updateConfig(data)
 }
 
-function applyConfigToStore(config: AppConfigResponse) {
+function applyConfigToStore(config: ServerConfig) {
   const store = useAppStore()
   store.localhost = resolveDirectBackendUrl(config)
   store.appVersion = config.appVersion || store.appVersion
@@ -35,29 +24,23 @@ function applyConfigToStore(config: AppConfigResponse) {
 }
 
 export async function refreshServerConfig() {
-  const store = useAppStore()
-  const response = await fetch(buildApiUrl('/api/config'))
-  if (!response.ok) {
-    throw new Error('Failed to refresh server config')
-  }
-
-  const config = await response.json() as AppConfigResponse
-  applyConfigToStore(config)
-  return config
+  const {data} = await typedApi.getServerConfig()
+  applyConfigToStore(data)
+  return data
 }
 
 export async function initConfig() {
-  let config: AppConfigResponse | null = null
+  let config: ServerConfig | null = null
 
   try {
-    const local = await axios.get<AppConfigResponse>('/config.json')
+    const local = await axios.get<ServerConfig>('/config.json')
     config = local.data
   } catch (error) {
     console.error(error)
   }
 
   if (!config) {
-    const remote = await axios.get<AppConfigResponse>(`${window.location.origin}/api/task/getConfig`)
+    const remote = await typedApi.getTaskConfig({baseURL: window.location.origin})
     config = remote.data
   }
 

@@ -1,9 +1,11 @@
 import { bootstrapApi } from './bootstrap'
 import { authApi } from './auth'
+import { systemApi } from './system'
 
 const coreApi = {
   ...bootstrapApi,
   ...authApi,
+  ...systemApi,
 }
 
 type LazyApi = typeof import('./home').homeApi &

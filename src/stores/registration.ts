@@ -6,6 +6,8 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { resolveApiBaseUrl } from '@/utils/apiBaseUrl'
 import { setOption } from '@/services/settingsService'
 import { refreshServerConfig, updateConfig } from '@/services/configService'
+import { typedApi } from '@/services/typedApi'
+import { API_ROUTES } from '@shared/api/routes'
 import { ZodError } from 'zod'
 import {
   parseLicenseActivateResponse,
@@ -17,7 +19,7 @@ import {isMsStoreBuild} from '@/utils/sfwBuild'
 
 const LICENSE_API_BASE_URL = import.meta.env.VITE_LICENSE_API_URL || 'https://mediachips.app/wp-json/mediachips/v1/license'
 
-const MACHINE_ID_PATHS = ['/api/getMachineId', '/api/Task/getMachineId']
+const MACHINE_ID_PATHS = [API_ROUTES.getMachineId, API_ROUTES.taskGetMachineId]
 
 interface AxiosLikeError {
   response?: { status?: number; data?: { message?: string } }
@@ -119,7 +121,10 @@ async function fetchMachineIdViaHttp() {
   for (const base of bases) {
     for (const machineIdPath of MACHINE_ID_PATHS) {
       try {
-        const response = await apiClient.get(machineIdPath, { baseURL: base })
+        const response = await typedApi.getMachineId({
+          baseURL: base,
+          path: machineIdPath,
+        })
         if (isValidMachineId(response.data)) {
           return response.data.trim()
         }

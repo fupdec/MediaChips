@@ -56,6 +56,11 @@ import {
 import {BackfillStatusSchema} from './backfill'
 import {MediaServerLibrariesResponseSchema} from './imports'
 import {
+  MachineIdSchema,
+  PingResponseSchema,
+  ServerConfigSchema,
+} from './system'
+import {
   PluginCatalogEntrySchema,
   PluginCatalogListSchema,
   PluginUninstallResponseSchema,
@@ -521,6 +526,12 @@ export {
   MediaServerLibrarySchema,
 } from './imports'
 
+export {
+  MachineIdSchema,
+  PingResponseSchema,
+  ServerConfigSchema,
+} from './system'
+
 export function parsePluginCatalogEntry(data: unknown) {
   return PluginCatalogEntrySchema.parse(data)
 }
@@ -559,4 +570,16 @@ export function parseBackfillStatus(data: unknown) {
 
 export function parseMediaServerLibrariesResponse(data: unknown) {
   return MediaServerLibrariesResponseSchema.parse(data)
+}
+
+export function parsePingResponse(data: unknown) {
+  return PingResponseSchema.parse(data)
+}
+
+export function parseServerConfig(data: unknown) {
+  return ServerConfigSchema.parse(data)
+}
+
+export function parseMachineId(data: unknown) {
+  return MachineIdSchema.parse(data)
 }

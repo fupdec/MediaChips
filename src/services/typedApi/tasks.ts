@@ -27,7 +27,6 @@ import type {
   UpdateMediaMultiplePayload,
   VideoPreviewTaskPayload,
 } from '@shared/api/payloads'
-import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {
   parseAddMediaResponse,
   parseBackupList,
@@ -188,13 +187,9 @@ export const tasksApi = {
     }))
   },
 
-  postTaskEndpoint<T = unknown>(endpoint: string, body: Record<string, unknown>) {
-    return apiClient.post<T>(`/api/Task/${endpoint}`, body)
-  },
-
   addMedia(body: AddMediaPayload) {
     const payload = validateRequest(AddMediaRequestSchema, body)
-    return apiClient.post('/api/Task/addMedia', payload).then((res) => ({
+    return apiClient.post(API_ROUTES.taskAddMedia, payload).then((res) => ({
       ...res,
       data: validated(parseAddMediaResponse, res.data),
     }))
@@ -205,10 +200,10 @@ export const tasksApi = {
   },
 
   taskCreateTimeline(body: VideoTimelineTaskPayload) {
-    return apiClient.post(
-      API_ROUTES.taskCreateGrid,
-      buildVideoGridTaskParams(body.path ?? '', `${body.id}.jpg`),
-    )
+    return apiClient.post(API_ROUTES.taskCreateTimeline, {
+      path: body.path,
+      id: body.id,
+    })
   },
 
   taskCreateThumbForVideo(body: VideoPreviewTaskPayload) {
