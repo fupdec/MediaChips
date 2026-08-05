@@ -333,7 +333,7 @@ export async function collectFilesWithZipGalleries(options: {
   if (rootStat.isFile()) {
     if (expandZips && isZipFilePath(root)) {
       const listed = await listZipImageEntries(root, extensions)
-      if (listed.ok) {
+      if (listed.ok === true) {
         files.push(...listed.entries.map((entry) => entry.virtualPath))
       } else {
         skippedZips.push(listed.skipped)
@@ -364,7 +364,7 @@ export async function collectFilesWithZipGalleries(options: {
   if (expandZips) {
     for (const zipPath of zipPaths) {
       const listed = await listZipImageEntries(zipPath, extensions)
-      if (listed.ok) {
+      if (listed.ok === true) {
         files.push(...listed.entries.map((entry) => entry.virtualPath))
       } else {
         skippedZips.push(listed.skipped)

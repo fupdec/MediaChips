@@ -1,30 +1,30 @@
-import type { BrowserWindow as BrowserWindowInstance, WebContents, IpcMainInvokeEvent, IpcMainEvent } from 'electron'
+import type { BrowserWindow as BrowserWindowInstance, WebContents, IpcMainEvent } from 'electron'
 import {
   app,
   BrowserWindow,
   ipcMain,
   dialog,
-  shell,
-  Notification,
 } from 'electron'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import { machineId } from 'node-machine-id'
 
-import { apiErrorMessage } from './api/types/errors'
 import { initAppUpdater } from './electron/autoUpdater'
 import { registerMediaDragIpc } from './electron/mediaDrag'
 import { createAppTrayController } from './electron/appTray'
 import { createAppMenuController } from './electron/appMenu'
 import { createLoadingWindowController } from './electron/loadingWindow'
 import { createPlayerWindowController } from './electron/playerWindow'
+import { registerShellIpc } from './electron/shellIpc'
+import {
+  emitMainWindowUserFacingState,
+  registerWindowChromeIpc,
+} from './electron/windowChromeIpc'
 import {
   createWindowBoundsPersistence,
   type WindowBoundsConfig,
 } from './electron/windowBounds'
-import { normalizeMediaPath } from './api/utils/normalizeUserPath'
-import { resolveExistingPath } from './api/services/contentHash'
 import { saveConfigFile } from './app/server/configFile'
 
 type ServerWindowConfig = {
@@ -327,119 +327,19 @@ ipcMain.handle('get-config', () => server.config)
 
 ipcMain.handle('get-machine-id', async () => machineId())
 
-ipcMain.handle('setZoomFactor', (event: IpcMainInvokeEvent, factor: unknown) => {
-  const browserWindow = BrowserWindow.fromWebContents(event.sender)
-  if (!browserWindow || browserWindow.isDestroyed()) return 1
-  return setWebContentsZoomFactor(browserWindow.webContents, factor)
+registerWindowChromeIpc({
+  getMainWindow: () => win,
+  getPlayerWindow: () => playerWindow.getWindow(),
+  focusMainWindow: () => {
+    if (!win || win.isDestroyed()) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  },
+  setWebContentsZoomFactor,
 })
-
-ipcMain.handle('getZoomFactor', (event: IpcMainInvokeEvent) => {
-  const browserWindow = BrowserWindow.fromWebContents(event.sender)
-  if (!browserWindow || browserWindow.isDestroyed()) return 1
-  return browserWindow.webContents.getZoomFactor()
-})
-
-ipcMain.handle('checkFileExists', async (_event: IpcMainInvokeEvent, data: Record<string, unknown>) => {
-  const rawPath = typeof data === 'string' ? data : data?.path
-  if (!rawPath) return false
-
-  try {
-    const filePath = normalizeMediaPath(rawPath)
-    return Boolean(await resolveExistingPath(filePath))
-  } catch {
-    return false
-  }
-})
-
+registerShellIpc({ log: devLog })
 registerMediaDragIpc()
-
-ipcMain.handle('openPath', async (_event: IpcMainInvokeEvent, data: Record<string, unknown> | string) => {
-  // Always return a cloneable result — unhandled throws/hangs surface as
-  // "Error invoking remote method 'openPath': reply was never sent".
-  try {
-    const rawPath = typeof data === 'string' ? data : data?.path
-    if (rawPath == null || rawPath === '') return {error: 'Path is required'}
-
-    const entryPath = normalizeMediaPath(String(rawPath))
-    const existingPath = await resolveExistingPath(entryPath)
-    if (!existingPath) return {error: 'Path does not exist'}
-
-    // Reveal the file in Finder/Explorer instead of only opening the parent folder.
-    if (typeof data === 'object' && data !== null && data.isDir) {
-      shell.showItemInFolder(existingPath)
-      return {success: true}
-    }
-
-    // shell.openPath can hang on some platforms/Launch Services states.
-    // Reply after a short wait so IPC never stalls; keep the open running.
-    const OPEN_PATH_REPLY_MS = 2_500
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
-    const openPromise = shell.openPath(existingPath)
-    try {
-      const error = await Promise.race([
-        openPromise,
-        new Promise<string>((resolve) => {
-          timeoutId = setTimeout(() => resolve(''), OPEN_PATH_REPLY_MS)
-        }),
-      ])
-      if (error) return {error: String(error)}
-      return {success: true}
-    } finally {
-      if (timeoutId !== undefined) clearTimeout(timeoutId)
-      void openPromise.then((error) => {
-        if (error) console.warn('openPath deferred error:', error)
-      }).catch((error) => {
-        console.warn('openPath deferred rejection:', error)
-      })
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error || 'Failed to open path')
-    return {error: message || 'Failed to open path'}
-  }
-})
-
-ipcMain.handle('openExternal', async (_event: IpcMainInvokeEvent, rawUrl: unknown) => {
-  const url = String(rawUrl || '').trim()
-  if (!url) return {error: 'URL is required'}
-
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return {error: 'Invalid URL'}
-  }
-
-  if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
-    return {error: 'Unsupported URL protocol'}
-  }
-
-  try {
-    await shell.openExternal(parsed.toString())
-    return {success: true}
-  } catch (error) {
-    return {error: error instanceof Error ? error.message : String(error)}
-  }
-})
-
-ipcMain.handle('dialog:saveFile', async (_event: IpcMainInvokeEvent, options: { defaultPath?: string; content?: string; filters?: Array<{ name: string; extensions: string[] }> } = {}) => {
-  const result = await dialog.showSaveDialog({
-    defaultPath: options.defaultPath,
-    filters: options.filters || [{name: 'All Files', extensions: ['*']}],
-  })
-
-  if (result.canceled || !result.filePath) {
-    return {canceled: true}
-  }
-
-  fs.writeFileSync(result.filePath, options.content ?? '', 'utf8')
-  return {canceled: false, filePath: result.filePath}
-})
-
-ipcMain.handle('toggleDevTools', () => {
-  if (win && !win.isDestroyed()) {
-    win.webContents.toggleDevTools()
-  }
-})
 
 app.on('second-instance', () => {
   if (win) {
@@ -516,153 +416,6 @@ app.on('window-all-closed', () => {
     app.quit();
 });
 
-ipcMain.handle('maximize', (_event: IpcMainInvokeEvent, args: unknown) => {
-  if (args === 'player') {
-    playerWindow.getWindow()?.maximize()
-  } else {
-    win?.maximize()
-  }
-})
-ipcMain.handle('unmaximize', (_event: IpcMainInvokeEvent, args: unknown) => {
-  if (args === 'player') {
-    playerWindow.getWindow()?.unmaximize()
-  } else {
-    win?.unmaximize()
-  }
-})
-ipcMain.handle('minimize', (_event: IpcMainInvokeEvent, args: unknown) => {
-  if (args === 'player') {
-    playerWindow.getWindow()?.minimize()
-  } else {
-    win?.minimize()
-  }
-})
-ipcMain.handle('focusMainWindow', () => {
-  if (!win || win.isDestroyed()) return false
-  if (win.isMinimized()) win.restore()
-  win.show()
-  win.focus()
-  return true
-})
-
-function focusMainWindowFromNotification() {
-  if (!win || win.isDestroyed()) return
-  if (win.isMinimized()) win.restore()
-  win.show()
-  win.focus()
-}
-
-/** True only when the user can actually see/interact with the main window. */
-function isBrowserWindowUserFacing(browserWindow: BrowserWindowInstance | null): boolean {
-  if (!browserWindow || browserWindow.isDestroyed()) return false
-  if (!browserWindow.isVisible()) return false
-  if (browserWindow.isMinimized()) return false
-  if (process.platform === 'darwin' && typeof app.isHidden === 'function' && app.isHidden()) {
-    return false
-  }
-  try {
-    const occluded = (browserWindow as BrowserWindowInstance & { isOccluded?: () => boolean }).isOccluded
-    if (typeof occluded === 'function' && occluded.call(browserWindow)) {
-      return false
-    }
-  } catch {
-    // Older Electron builds may not expose occlusion APIs.
-  }
-  return browserWindow.isFocused()
-}
-
-function emitMainWindowUserFacingState(browserWindow: BrowserWindowInstance) {
-  if (!browserWindow || browserWindow.isDestroyed()) return
-  const facing = isBrowserWindowUserFacing(browserWindow)
-  browserWindow.webContents.send(facing ? 'focus' : 'blur')
-}
-
-ipcMain.handle('isMainWindowFocused', () => {
-  return isBrowserWindowUserFacing(win)
-})
-
-ipcMain.handle('showOsNotification', (_event: IpcMainInvokeEvent, raw: unknown) => {
-  const payload = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
-  const title = String(payload.title || '').trim() || 'MediaChips'
-  const body = String(payload.body || '').trim()
-  const silent = Boolean(payload.silent)
-
-  if (!Notification.isSupported()) {
-    return {success: false, supported: false, error: 'Notifications are not supported'}
-  }
-
-  try {
-    const notification = new Notification({
-      title,
-      body,
-      silent,
-    })
-    notification.on('click', () => {
-      focusMainWindowFromNotification()
-    })
-    notification.show()
-    return {success: true, supported: true}
-  } catch (error) {
-    return {
-      success: false,
-      supported: true,
-      error: error instanceof Error ? error.message : String(error),
-    }
-  }
-})
-
-ipcMain.handle('setDockBadge', (_event: IpcMainInvokeEvent, raw: unknown) => {
-  const count = typeof raw === 'number'
-    ? raw
-    : Number((raw as {count?: unknown} | null)?.count ?? 0)
-  const normalized = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
-
-  if (process.platform === 'darwin' && app.dock) {
-    app.dock.setBadge(normalized > 0 ? String(normalized) : '')
-    return true
-  }
-
-  // Windows overlay badge is limited; clear/set a simple count via progress mode unused.
-  // Keep API no-op success so renderer can call unconditionally.
-  return true
-})
-
-ipcMain.handle('setProgressBar', (_event: IpcMainInvokeEvent, raw: unknown) => {
-  if (!win || win.isDestroyed()) return false
-
-  let value: number | null = null
-  if (typeof raw === 'number') {
-    value = raw
-  } else if (raw && typeof raw === 'object' && 'value' in (raw as object)) {
-    const next = (raw as {value: unknown}).value
-    value = next == null ? null : Number(next)
-  }
-
-  if (value == null || !Number.isFinite(value) || value < 0) {
-    win.setProgressBar(-1)
-    return true
-  }
-
-  win.setProgressBar(Math.min(1, Math.max(0, value)))
-  return true
-})
-
-ipcMain.handle('relaunch', () => {
-  app.relaunch()
-  app.exit()
-})
-
-ipcMain.handle('toggleMainFullscreen', () => {
-  if (!win || win.isDestroyed()) return false
-  win.setFullScreen(!win.isFullScreen())
-  return win.isFullScreen()
-})
-
-ipcMain.handle('isMainFullscreen', () => {
-  if (!win || win.isDestroyed()) return false
-  return win.isFullScreen()
-})
-
 function lockApp() {
   win?.webContents.send('lockApp')
   playerWindow.stopPlayerPlayback()
@@ -685,63 +438,6 @@ process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
     app.quit();
   } else {
     console.error('Uncaught Exception:', error);
-  }
-});
-
-// folder selection dialog and getting their paths
-ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: unknown) => {
-  devLog('showOpenDialog called with properties:', properties);
-
-  let dialogProperties: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles'> = []
-  let filters: Array<{name: string; extensions: string[]}> | undefined
-
-  if (properties && typeof properties === 'object' && !Array.isArray(properties) && 'properties' in (properties as object)) {
-    const options = properties as {properties?: unknown; filters?: unknown}
-    if (Array.isArray(options.properties)) {
-      dialogProperties = options.properties as typeof dialogProperties
-    }
-    if (Array.isArray(options.filters)) {
-      filters = options.filters as typeof filters
-    }
-  } else if (Array.isArray(properties)) {
-    dialogProperties = properties as typeof dialogProperties
-  } else if (typeof properties === 'string') {
-    dialogProperties = [properties as typeof dialogProperties[number]]
-  } else if (typeof properties === 'object' && properties !== null) {
-    dialogProperties = Object.keys(properties).filter(key => (properties as Record<string, unknown>)[key] === true) as typeof dialogProperties
-  }
-
-  devLog('Dialog properties being used:', dialogProperties);
-
-  try {
-    const result = await dialog.showOpenDialog({
-      properties: dialogProperties,
-      ...(filters ? {filters} : {}),
-    });
-
-    devLog('Dialog closed, result:', {
-      canceled: result.canceled,
-      filePaths: result.filePaths,
-      filePathsLength: result.filePaths.length
-    });
-
-    if (result.canceled) {
-      return { canceled: true, filePaths: [] };
-    }
-
-    return {
-      canceled: false,
-      filePaths: result.filePaths,
-      message: 'Directories selected successfully'
-    };
-
-  } catch (error: unknown) {
-    console.error('Error in showOpenDialog:', error);
-    return {
-      error: true,
-      message: error instanceof Error ? apiErrorMessage(error) : String(error),
-      filePaths: []
-    };
   }
 });
 
