@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {
+  createCachedTagResolver,
   groupFacesByClusterId,
   mapEnrollmentCandidateWithTag,
   pickPrimaryTagId,
@@ -46,5 +47,18 @@ describe('faceListPresentation', () => {
     ])
     expect([...groups.keys()].sort()).toEqual([1, 2])
     expect(groups.get(1)?.map((f) => f.id)).toEqual(['a', 'c'])
+  })
+
+  it('caches initial tags and falls back to findById', () => {
+    const findById = (id: number) => (id === 9 ? {id: 9, name: 'late'} : null)
+    const resolve = createCachedTagResolver({
+      initialTags: [{id: 1, name: 'Ada'}],
+      getId: (tag) => tag.id,
+      findById,
+    })
+    expect(resolve(1)).toEqual({id: 1, name: 'Ada'})
+    expect(resolve(9)).toEqual({id: 9, name: 'late'})
+    expect(resolve(9)).toEqual({id: 9, name: 'late'})
+    expect(resolve(3)).toBeNull()
   })
 })

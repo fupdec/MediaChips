@@ -35,6 +35,24 @@ export function stripEmbeddingsFromFaces<T extends {embedding?: unknown}>(
   return faces.map(({embedding: _embedding, ...face}) => face)
 }
 
+/** Cache performer tags for list-faces, with lazy findById fallback. */
+export function createCachedTagResolver<T>(input: {
+  initialTags: T[]
+  getId: (tag: T) => number
+  findById: (tagId: number) => T | null | undefined
+}): (tagId: number) => T | null | undefined {
+  const tagsById = new Map(
+    input.initialTags.map((tag) => [input.getId(tag), tag]),
+  )
+  return (tagId: number) => {
+    const cached = tagsById.get(tagId)
+    if (cached) return cached
+    const tag = input.findById(tagId)
+    if (tag) tagsById.set(tagId, tag)
+    return tag
+  }
+}
+
 export function groupFacesByClusterId<T extends {clusterId: number}>(
   faces: T[],
 ): Map<number, T[]> {

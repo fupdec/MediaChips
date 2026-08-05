@@ -25,6 +25,7 @@ import {
   resolveHoverPreviewPlaybackErrorGate,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
+  shouldScheduleHoverPreviewVideo,
   createHoverSeekCoalescer,
   waitForPreviewSeek,
   waitForPreviewCanPlay,
@@ -206,6 +207,17 @@ describe('hoverPreviewPlayback', () => {
   })
 
   it('gates hover start, mount, position, and playback errors', () => {
+    expect(shouldScheduleHoverPreviewVideo({
+      isHovered: true,
+      isFocused: true,
+      videoPreviewHover: 'video',
+    })).toBe(true)
+    expect(shouldScheduleHoverPreviewVideo({
+      isHovered: true,
+      isFocused: true,
+      videoPreviewHover: 'image',
+    })).toBe(false)
+
     expect(resolveHoverPreviewStartGate({
       hasVideo: false,
       isPreviewVisible: true,

@@ -38,10 +38,12 @@ import {
   resolveMatchMediaFacesGate,
 } from './faceMediaMatchResolve'
 import {
+  buildClearedFaceMatchResult,
   buildClearedFaceMatchUpdate,
   filterExistingMediaIds,
   resolveAssignFaceToPerformerGate,
   resolveAssignMatchFields,
+  resolveFaceFoundGate,
 } from './faceAssignMatch'
 import {
   enrollTagFromAllImages,
@@ -82,6 +84,7 @@ import {
   assembleListedFacesForMedia,
   buildListedPreparedFacesFromRows,
 } from './faceListBuild'
+import {createCachedTagResolver} from './faceListPresentation'
 import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
@@ -531,16 +534,15 @@ async function assignFaceToPerformer(
 function clearFaceMatch(db: ApiDb, faceId: number) {
   const facesRepo = createFacesRepository(db.drizzle)
   const face = facesRepo.findById(faceId)
-  if (!face) throw new Error('Face not found')
+  const gate = resolveFaceFoundGate(Boolean(face))
+  if (!gate.ok) throw new Error(gate.error)
 
   facesRepo.updateMatch(faceId, buildClearedFaceMatchUpdate())
 
-  return {
+  return buildClearedFaceMatchResult({
     faceId,
-    mediaId: Number(face.mediaId),
-    tagId: null,
-    matchStatus: 'unmatched',
-  }
+    mediaId: face!.mediaId,
+  })
 }
 
 async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
@@ -571,19 +573,13 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
     : []
 
   // Prefer stored vectors for listing — never warm the ONNX embed model here.
-  const tagsById = new Map(
-    (settings.performerMetaId
+  const resolveTag = createCachedTagResolver({
+    initialTags: settings.performerMetaId
       ? tagsRepo.findByMetaIds([settings.performerMetaId])
-      : []
-    ).map((tag) => [Number(tag.id), tag]),
-  )
-  const resolveTag = (tagId: number) => {
-    const cached = tagsById.get(tagId)
-    if (cached) return cached
-    const tag = tagsRepo.findById(tagId)
-    if (tag) tagsById.set(tagId, tag)
-    return tag
-  }
+      : [],
+    getId: (tag) => Number(tag.id),
+    findById: (tagId) => tagsRepo.findById(tagId),
+  })
 
   const prepared = buildListedPreparedFacesFromRows({
     faceRows,

@@ -26,6 +26,7 @@ import {
   resolveHoverPreviewAfterMountGate,
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
+  shouldScheduleHoverPreviewVideo,
   resolvePreviewUrlStartSeconds,
   planPreviewUrlSeek,
   shouldApplyPreviewSeek,
@@ -458,11 +459,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const scheduleHoverPreviewUi = () => {
-    if (!toValue(options.isHovered) || !isAppWindowFocused()) return
+    if (!shouldScheduleHoverPreviewVideo({
+      isHovered: toValue(options.isHovered),
+      isFocused: isAppWindowFocused(),
+      videoPreviewHover: settingsStore.videoPreviewHover,
+    })) return
 
-    if (settingsStore.videoPreviewHover === 'video') {
-      schedulePreviewPlayback()
-    }
+    schedulePreviewPlayback()
     // Big preview is armed from markHoverPreviewReady after hover video plays.
   }
 

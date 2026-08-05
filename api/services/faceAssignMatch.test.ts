@@ -1,9 +1,11 @@
 import {describe, expect, it} from 'vitest'
 import {
+  buildClearedFaceMatchResult,
   buildClearedFaceMatchUpdate,
   filterExistingMediaIds,
   resolveAssignFaceToPerformerGate,
   resolveAssignMatchFields,
+  resolveFaceFoundGate,
 } from './faceAssignMatch'
 
 describe('resolveAssignMatchFields', () => {
@@ -39,6 +41,22 @@ describe('buildClearedFaceMatchUpdate', () => {
       matchScore: null,
       matchStatus: 'unmatched',
     })
+  })
+
+  it('builds the clear API result payload', () => {
+    expect(buildClearedFaceMatchResult({faceId: 8, mediaId: '3'})).toEqual({
+      faceId: 8,
+      mediaId: 3,
+      tagId: null,
+      matchStatus: 'unmatched',
+    })
+  })
+})
+
+describe('resolveFaceFoundGate', () => {
+  it('requires a face row', () => {
+    expect(resolveFaceFoundGate(false)).toEqual({ok: false, error: 'Face not found'})
+    expect(resolveFaceFoundGate(true)).toEqual({ok: true})
   })
 })
 

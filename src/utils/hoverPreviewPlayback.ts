@@ -295,6 +295,17 @@ export function resolveHoverPreviewTeardownPlan(
 
 export type HoverPreviewStartGate = 'proceed' | 'unavailable' | 'abort'
 
+/** Whether scheduleHoverPreviewUi should arm delayed video playback. */
+export function shouldScheduleHoverPreviewVideo(input: {
+  isHovered: boolean
+  isFocused: boolean
+  videoPreviewHover: string
+}): boolean {
+  return input.isHovered
+    && input.isFocused
+    && input.videoPreviewHover === 'video'
+}
+
 export function resolveHoverPreviewStartGate(input: {
   hasVideo: boolean
   isPreviewVisible: boolean
