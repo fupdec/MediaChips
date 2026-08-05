@@ -108,7 +108,7 @@ describe('TasksFaces.controller', () => {
     getStatus.mockReturnValue({downloaded: true})
     const res = createResponse()
     await controller.faceModelStatus({} as ApiRequest, res)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({downloaded: true})
   })
 
@@ -132,7 +132,7 @@ describe('TasksFaces.controller', () => {
       12,
       {ensureCrops: true},
     )
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 1}])
   })
 
@@ -158,7 +158,7 @@ describe('TasksFaces.controller', () => {
       8,
       {enroll: true, applyTag: false, matchScore: undefined},
     )
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({ok: true})
   })
 

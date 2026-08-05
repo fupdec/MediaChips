@@ -118,7 +118,7 @@ describe('Meta.controller', () => {
 
     controller.findAll(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 1}, {id: 2}])
   })
 
@@ -131,7 +131,7 @@ describe('Meta.controller', () => {
     controller.findOne(req, res)
 
     expect(findById).toHaveBeenCalledWith(3)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({id: 3, name: 'Performers'})
   })
 
@@ -144,7 +144,7 @@ describe('Meta.controller', () => {
     controller.findLatest(req, res)
 
     expect(findLatest).toHaveBeenCalledWith(1)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 9}])
   })
 
@@ -158,7 +158,7 @@ describe('Meta.controller', () => {
     controller.update(req, res)
 
     expect(updateById).toHaveBeenCalledWith(4, {name: 'Updated'})
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('deletes meta and removes generated folder', () => {
@@ -174,7 +174,7 @@ describe('Meta.controller', () => {
       recursive: true,
       force: true,
     })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('returns 500 when create fails', () => {

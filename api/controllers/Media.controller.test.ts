@@ -137,7 +137,7 @@ describe('Media.controller', () => {
       includeNavigation: false,
       skipTotals: true,
     })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({items: [{id: 1}], total: 1})
   })
 
@@ -163,7 +163,7 @@ describe('Media.controller', () => {
       find_duplicates: true,
       duplicates_by: 'path',
     })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({ids: [1, 2, 3]})
   })
 
@@ -198,7 +198,7 @@ describe('Media.controller', () => {
       ext: '.mp4',
     }, {silent: true})
     expect(invalidateMediaDerivedCaches).toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([1])
   })
 
@@ -242,7 +242,7 @@ describe('Media.controller', () => {
     expect(unlinkResolvedPath).toHaveBeenCalledWith('/media/movies/clip.mp4')
     expect(deleteById).toHaveBeenCalledWith(5)
     expect(invalidateMediaDerivedCaches).toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({deletedIds: [5], zipFileDeleted: false})
   })
 
@@ -272,7 +272,7 @@ describe('Media.controller', () => {
     expect(deleteById).toHaveBeenCalledWith(5)
     expect(deleteById).toHaveBeenCalledWith(6)
     expect(unlinkResolvedPath).not.toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({deletedIds: [5, 6], zipFileDeleted: false})
   })
 
@@ -299,7 +299,7 @@ describe('Media.controller', () => {
     await controller.deleteOne(req, res)
 
     expect(unlinkResolvedPath).toHaveBeenCalledWith('/media/album.zip')
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({deletedIds: [5], zipFileDeleted: true})
   })
 
@@ -317,7 +317,7 @@ describe('Media.controller', () => {
     controller.numberOfMediaWithTag(req, res)
 
     expect(countWithTag).toHaveBeenCalledWith('2', '8')
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({count: 12})
   })
 })

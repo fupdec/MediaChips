@@ -1,5 +1,5 @@
 import type { ApiDb, FilterLike } from '../types/db'
-import { apiErrorMessage, sendControllerError } from '../types/errors'
+import { apiErrorMessage, sendControllerError, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
@@ -51,7 +51,7 @@ export default function (db: ApiDb) {
         groupBy: body.groupBy,
       })
 
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
@@ -69,7 +69,7 @@ export default function (db: ApiDb) {
         duplicates_by: body.duplicates_by || 'filesize',
       })
 
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving media ids.')
     }
@@ -79,7 +79,7 @@ export default function (db: ApiDb) {
     try {
       const ids = Array.isArray(req.body.ids) ? req.body.ids.filter(Boolean) : []
       const items = await loadMediaBasicsByIds(db, ids)
-      res.status(201).send({items})
+      sendOk(res, {items})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -105,7 +105,7 @@ export default function (db: ApiDb) {
         }
       }
 
-      res.status(200).send({thumbs})
+      sendOk(res, {thumbs})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving thumbnails.')
     }
@@ -113,7 +113,7 @@ export default function (db: ApiDb) {
 
   const getStats = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      res.status(200).send(mediaRepo.getStats(db))
+      sendOk(res, mediaRepo.getStats(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -122,7 +122,7 @@ export default function (db: ApiDb) {
   const getOneById = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = mediaRepo.findById(Number(req.params.id)) ?? null
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
@@ -131,7 +131,7 @@ export default function (db: ApiDb) {
   const numberOfMediaWithTag = function (req: ApiRequest, res: ApiResponse) {
     try {
       const count = mediaRepo.countWithTag(req.query.mediaTypeId, req.query.tagId)
-      res.status(201).send({count})
+      sendOk(res, {count})
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }
@@ -144,7 +144,7 @@ export default function (db: ApiDb) {
 
       mediaRepo.updateById(Number(body.id), data, {silent: true})
       invalidateMediaDerivedCaches()
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
@@ -155,7 +155,7 @@ export default function (db: ApiDb) {
       const body = getRequestBody<EntityUpdatePayload>(req)
       mediaRepo.updateById(Number(req.params.id), body, {silent: Boolean(body.silent)})
       invalidateMediaDerivedCaches()
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -227,7 +227,7 @@ export default function (db: ApiDb) {
       }
 
       invalidateMediaDerivedCaches()
-      res.status(201).send({ deletedIds, zipFileDeleted })
+      sendOk(res, { deletedIds, zipFileDeleted })
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }

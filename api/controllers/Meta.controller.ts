@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { paramString, sendControllerError } from '../types/errors'
+import { paramString, sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { Meta, MetaWritePayload } from '@shared/entities/meta'
@@ -41,7 +41,7 @@ export default function (db: ApiDb) {
         metaRepo.ensureArrayMetaResources(data.id)
       }
 
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -50,7 +50,7 @@ export default function (db: ApiDb) {
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = metaRepo.findAll()
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -59,7 +59,7 @@ export default function (db: ApiDb) {
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = metaRepo.findById(Number(req.params.id)) ?? null
-      res.status(201).send(data as Meta | null)
+      sendOk(res, data as Meta | null)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -68,7 +68,7 @@ export default function (db: ApiDb) {
   const findLatest = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = metaRepo.findLatest(1)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -86,7 +86,7 @@ export default function (db: ApiDb) {
         ? applyMeasurementUnitChange(db.drizzle, metaId, body.measurementUnit)
         : null
       metaRepo.updateById(metaId, body as Record<string, unknown>)
-      res.status(201).send(conversion ? {conversion} : {})
+      sendOk(res, conversion ? {conversion} : {})
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -99,7 +99,7 @@ export default function (db: ApiDb) {
         survivorId: Number(body.survivorId),
         sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
       })
-      res.status(200).send(result)
+      sendOk(res, result)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while merging categories.')
     }
@@ -116,7 +116,7 @@ export default function (db: ApiDb) {
         recursive: true,
         force: true
       })
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }

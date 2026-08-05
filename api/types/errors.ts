@@ -44,6 +44,18 @@ export function httpStatusFromError(err: unknown, fallback = 500): number {
  * Map thrown errors to an HTTP JSON response.
  * Supports HttpError, and duck-typed errors with `.status` (e.g. TagNameConflictError).
  */
+/** Successful read / update / action response. */
+export function sendOk(res: Response, body?: unknown): Response {
+  if (body === undefined) return res.sendStatus(200)
+  return res.status(200).send(body)
+}
+
+/** Successful create response (new resource). */
+export function sendCreated(res: Response, body?: unknown): Response {
+  if (body === undefined) return res.sendStatus(201)
+  return res.status(201).send(body)
+}
+
 export function sendControllerError(
   res: Response,
   err: unknown,

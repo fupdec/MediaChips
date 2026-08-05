@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { HttpError, sendControllerError, paramString } from '../types/errors'
+import { HttpError, sendControllerError, sendOk, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 import { createSettingsRepository } from '../db/repositories/settings'
@@ -22,7 +22,7 @@ export default function (db: ApiDb) {
         settings.passwordProtection,
         authService.isRequestAuthenticated(req),
       )
-      res.status(201).send(sanitized)
+      sendOk(res, sanitized)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -38,7 +38,7 @@ export default function (db: ApiDb) {
         settings.passwordProtection,
         authService.isRequestAuthenticated(req),
       )
-      res.status(201).send(sanitized)
+      sendOk(res, sanitized)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -53,7 +53,7 @@ export default function (db: ApiDb) {
 
         if (value === '') {
           settingsRepo.upsertByOption(option, '')
-          return res.status(201).send([1])
+          return sendOk(res, [1])
         }
 
         if (option === 'allowLanAccess') {
@@ -80,7 +80,7 @@ export default function (db: ApiDb) {
         }
 
         settingsRepo.upsertByOption(option, '')
-        return res.status(201).send([1])
+        return sendOk(res, [1])
       }
 
       settingsRepo.upsertByOption(option, req.body.value)
@@ -89,7 +89,7 @@ export default function (db: ApiDb) {
         getAuthService().invalidateSettingsCache()
       }
 
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }

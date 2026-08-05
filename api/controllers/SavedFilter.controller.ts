@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import { sendControllerError, paramString } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { SavedFilterMediaResponse, SavedFilterSummaryResponse } from '@shared/api/responses'
 
@@ -35,7 +35,7 @@ export default function (db: ApiDb) {
           return [row, created]
         })()
 
-      res.status(201).send(result)
+      sendCreated(res, result)
       invalidateMediaDerivedCaches()
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -45,7 +45,7 @@ export default function (db: ApiDb) {
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = savedFiltersRepo.findById(Number(req.params.id)) ?? null
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -54,7 +54,7 @@ export default function (db: ApiDb) {
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = savedFiltersRepo.findAllNamed(req.body || {})
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -64,7 +64,7 @@ export default function (db: ApiDb) {
     try {
       savedFiltersRepo.updateById(Number(req.params.id), req.body)
       invalidateMediaDerivedCaches()
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -74,7 +74,7 @@ export default function (db: ApiDb) {
     try {
       savedFiltersRepo.deleteById(Number(req.params.id))
       invalidateMediaDerivedCaches()
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -83,7 +83,7 @@ export default function (db: ApiDb) {
   const findAllHydrated = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getSavedFiltersHydrated(db, req.body || {})
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -100,7 +100,7 @@ export default function (db: ApiDb) {
       }
 
       const { savedFilter, created } = await findOrCreateSavedFilterHydrated(db, payload)
-      res.status(201).send([savedFilter, created])
+      sendCreated(res, [savedFilter, created])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -109,7 +109,7 @@ export default function (db: ApiDb) {
   const dynamicPlaylistsBasic = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getDynamicPlaylistsBasic(db)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving dynamic playlists.')
     }
@@ -118,7 +118,7 @@ export default function (db: ApiDb) {
   const dynamicPlaylistsSummary = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = await getDynamicPlaylistsSummary(db)
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving dynamic playlists.')
     }
@@ -131,7 +131,7 @@ export default function (db: ApiDb) {
         count: Number(data.count) || 0,
         previewIds: data.previewIds || [],
       }
-      res.status(201).send(payload)
+      sendOk(res, payload)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving playlist summary.')
     }
@@ -147,7 +147,7 @@ export default function (db: ApiDb) {
         items: result.items,
         count: result.count,
       }
-      res.status(201).send(payload)
+      sendOk(res, payload)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving playlist media.')
     }

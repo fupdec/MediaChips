@@ -1,6 +1,6 @@
 import type { TaskControllerShared } from '../../types/tasks'
 import type { ApiRequest, ApiResponse } from '../../types/http'
-import { HttpError, sendControllerError } from '../../types/errors'
+import { HttpError, sendControllerError, sendOk } from '../../types/errors'
 import { runNdjsonAsyncGenerator } from './ndjsonStreamRunner'
 import {
   detectMedia,
@@ -36,7 +36,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
 
   const faceModelStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(201).send(getStatus(db))
+      sendOk(res, getStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking face model status.')
     }
@@ -45,7 +45,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
   const downloadFaceModel = async (_req: ApiRequest, res: ApiResponse) => {
     try {
       await loadModel(db)
-      res.status(201).send(getStatus(db))
+      sendOk(res, getStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while downloading face model.')
     }
@@ -53,7 +53,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
 
   const faceEmbedModelStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(201).send(getEmbedStatus(db))
+      sendOk(res, getEmbedStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking face embed model status.')
     }
@@ -62,7 +62,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
   const downloadFaceEmbedModel = async (_req: ApiRequest, res: ApiResponse) => {
     try {
       await loadEmbedModel(db)
-      res.status(201).send(getEmbedStatus(db))
+      sendOk(res, getEmbedStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while downloading face embed model.')
     }
@@ -70,7 +70,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
 
   const faceDetectionStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(201).send(await getFaceDetectionStatus(db))
+      sendOk(res, await getFaceDetectionStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking face detection status.')
     }
@@ -78,7 +78,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
 
   const faceMatchStatus = async (_req: ApiRequest, res: ApiResponse) => {
     try {
-      res.status(201).send(getFaceMatchStatus(db))
+      sendOk(res, getFaceMatchStatus(db))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking face match status.')
     }
@@ -97,7 +97,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         || ensureCropsRaw === '0'
         || ensureCropsRaw === 0
       )
-      res.status(201).send(await listFacesForMedia(db, mediaId, {ensureCrops}))
+      sendOk(res, await listFacesForMedia(db, mediaId, {ensureCrops}))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while loading faces.')
     }
@@ -137,7 +137,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         }
       }
 
-      res.status(201).send({...result, match})
+      sendOk(res, {...result, match})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while detecting faces.')
     }
@@ -163,7 +163,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         force: Boolean(req.body?.force),
         settings,
       })
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while matching faces.')
     }
@@ -181,7 +181,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         applyTag: req.body?.applyTag === true,
         matchScore: req.body?.matchScore != null ? Number(req.body.matchScore) : undefined,
       })
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while assigning face to performer.')
     }
@@ -193,7 +193,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       if (!Number.isFinite(faceId) || faceId <= 0) {
         throw new HttpError(400, 'faceId is required')
       }
-      res.status(201).send(clearFaceMatch(db, faceId))
+      sendOk(res, clearFaceMatch(db, faceId))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while clearing face match.')
     }
@@ -205,7 +205,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       if (!Number.isFinite(tagId) || tagId <= 0) {
         throw new HttpError(400, 'tagId is required')
       }
-      res.status(201).send(await getEnrollmentQualityForTag(db, tagId))
+      sendOk(res, await getEnrollmentQualityForTag(db, tagId))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while checking enrollment quality.')
     }
@@ -226,7 +226,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
           quality = null
         }
       }
-      res.status(201).send({...enroll, quality})
+      sendOk(res, {...enroll, quality})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while enrolling tag faces.')
     }

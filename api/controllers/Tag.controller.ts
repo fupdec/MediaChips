@@ -1,5 +1,5 @@
 import type { ApiDb, FilterLike } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
 import type {
@@ -68,7 +68,7 @@ export default function (db: ApiDb) {
           : (typeof body.query === 'string' ? body.query : undefined),
         groupBy: body.groupBy,
       })
-      res.status(201).send(result)
+      sendOk(res, result)
     } catch (err) {
       console.log(err)
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
@@ -106,7 +106,7 @@ export default function (db: ApiDb) {
       )
 
       const data = tagsRepo.bulkCreate(items)
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -115,7 +115,7 @@ export default function (db: ApiDb) {
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = tagsRepo.findById(Number(req.params.id)) ?? null
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
@@ -142,16 +142,16 @@ export default function (db: ApiDb) {
       }
 
       const data = findCooccurringTags(db, tagId, mediaTypeId)
-      res.status(200).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving co-occurring tags.')
     }
   };
-
+  
   const getCount = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const count = tagsRepo.countAll()
-      res.status(200).send({count})
+      sendOk(res, {count})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -160,7 +160,7 @@ export default function (db: ApiDb) {
   const getAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = tagsRepo.findAllRaw()
-      res.status(201).send(data)
+      sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
@@ -175,7 +175,7 @@ export default function (db: ApiDb) {
         assertTagNameAvailable(db.sqlite, String((updates as {name?: unknown}).name ?? ''), tagId)
       }
       tagsRepo.updateById(tagId, updates as Record<string, unknown>, {silent: Boolean(silent)})
-      res.status(201).send([1])
+      sendOk(res, [1])
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }
@@ -189,7 +189,7 @@ export default function (db: ApiDb) {
         survivorId: Number(body.survivorId),
         sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
       })
-      res.status(200).send(result)
+      sendOk(res, result)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while merging tags.')
     }
@@ -203,7 +203,7 @@ export default function (db: ApiDb) {
         targetMetaId: Number(body.targetMetaId),
         onConflict: body.onConflict === 'merge' ? 'merge' : 'abort',
       })
-      res.status(200).send(result)
+      sendOk(res, result)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while moving tags.')
     }
@@ -235,7 +235,7 @@ export default function (db: ApiDb) {
       await deleteTagGeneratedAssets(getDbPath(), metaId, id)
 
       tagsRepo.deleteById(Number(id))
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -279,7 +279,7 @@ export default function (db: ApiDb) {
         }
       }
 
-      res.status(200).send({thumbs})
+      sendOk(res, {thumbs})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving tag thumbnails.')
     }

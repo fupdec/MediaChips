@@ -88,7 +88,7 @@ describe('TasksMaintenance.controller', () => {
 
     await controller.contentHashBackfillStatus(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({pending: 3, total: 10})
   })
 
@@ -100,7 +100,7 @@ describe('TasksMaintenance.controller', () => {
 
     await controller.missingMediaStatus(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({missing: 2})
   })
 
@@ -132,7 +132,7 @@ describe('TasksMaintenance.controller', () => {
       name: 'c',
       ext: '.mp4',
     }, {silent: true})
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({updated: 2})
   })
 

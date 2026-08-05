@@ -3,6 +3,8 @@ import {
   HttpError,
   httpStatusFromError,
   sendControllerError,
+  sendCreated,
+  sendOk,
 } from './errors'
 
 function createResponse() {
@@ -20,6 +22,20 @@ function createResponse() {
   }
   return res
 }
+
+describe('sendOk / sendCreated', () => {
+  it('sends 200 and 201 with body', () => {
+    const ok = createResponse()
+    sendOk(ok as never, {ready: true})
+    expect(ok.statusCode).toBe(200)
+    expect(ok.body).toEqual({ready: true})
+
+    const created = createResponse()
+    sendCreated(created as never, {id: 1})
+    expect(created.statusCode).toBe(201)
+    expect(created.body).toEqual({id: 1})
+  })
+})
 
 describe('HttpError / sendControllerError', () => {
   it('reads status from HttpError and merges body fields', () => {

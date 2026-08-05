@@ -138,7 +138,7 @@ describe('Tag.controller', () => {
       skipTotals: false,
       search: undefined,
     })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({items: [{id: 1}], total: 1})
   })
 
@@ -191,7 +191,7 @@ describe('Tag.controller', () => {
     expect(convertMetaMarksToBookmarksByTagId).toHaveBeenCalledWith(5, 'Action')
     expect(deleteTagGeneratedAssets).toHaveBeenCalledWith('/tmp/db', 2, 5)
     expect(deleteById).toHaveBeenCalledWith(5)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('requires metaId for thumbnail requests', async () => {
@@ -215,7 +215,7 @@ describe('Tag.controller', () => {
     controller.update(req, res)
 
     expect(updateById).toHaveBeenCalledWith(7, {name: 'Updated'}, {silent: true})
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([1])
   })
 })

@@ -1,6 +1,6 @@
 import shuffle from 'lodash/shuffle'
 import type { ApiDb } from '../types/db'
-import { sendControllerError } from '../types/errors'
+import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createMarksRepository } from '../db/repositories/marks'
 import { getMarkFilterMetas, loadMarkItems } from '../services/markItemsLoader'
@@ -14,7 +14,7 @@ export default function (db: ApiDb) {
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = marksRepo.create(req.body)
-      res.status(201).send(data)
+      sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
@@ -30,7 +30,7 @@ export default function (db: ApiDb) {
 
       const countOnly = Boolean(req.body?.countOnly)
       if (countOnly) {
-        res.status(201).send({
+        sendOk(res, {
           items: [],
           count: marksRepo.countClipsByTagId(tagId),
         })
@@ -42,7 +42,7 @@ export default function (db: ApiDb) {
         items = shuffle(items)
       }
 
-      res.status(201).send({
+      sendOk(res, {
         items,
         count: items.length,
       })
@@ -54,7 +54,7 @@ export default function (db: ApiDb) {
   const findAllForVideo = function (req: ApiRequest, res: ApiResponse) {
     try {
       const marks = marksRepo.findAllForVideo(Number(req.params.id))
-      res.status(201).send(marks)
+      sendOk(res, marks)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }
@@ -69,7 +69,7 @@ export default function (db: ApiDb) {
       }
 
       const result = resolveMarkChaptersForPath(db, pathValue)
-      res.status(200).send(result)
+      sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }
@@ -78,7 +78,7 @@ export default function (db: ApiDb) {
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const marks = marksRepo.findAllWithRelations()
-      res.status(201).send(marks)
+      sendOk(res, marks)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }
@@ -87,7 +87,7 @@ export default function (db: ApiDb) {
   const getItems = function (req: ApiRequest, res: ApiResponse) {
     loadMarkItems(db, req.body || {})
       .then((data: unknown) => {
-        res.status(201).send(data)
+        sendOk(res, data)
       })
       .catch((err: unknown) => {
         sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -97,7 +97,7 @@ export default function (db: ApiDb) {
   const getFilterMetas = function (req: ApiRequest, res: ApiResponse) {
     getMarkFilterMetas(db)
       .then((data: unknown) => {
-        res.status(201).send(data)
+        sendOk(res, data)
       })
       .catch((err: unknown) => {
         sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -111,7 +111,7 @@ export default function (db: ApiDb) {
 
     try {
       marksRepo.deleteById(Number(markId))
-      res.sendStatus(201)
+      sendOk(res)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }

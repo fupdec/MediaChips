@@ -105,7 +105,7 @@ describe('Mark.controller', () => {
     controller.findAllForVideo(req, res)
 
     expect(findAllForVideo).toHaveBeenCalledWith(42)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 1, time: 3}])
   })
 
@@ -150,7 +150,7 @@ describe('Mark.controller', () => {
 
     controller.findAll(req, res)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 2, tagId: 7}])
   })
 
@@ -162,7 +162,7 @@ describe('Mark.controller', () => {
 
     controller.getItems(req, res)
     await vi.waitFor(() => {
-      expect(res.statusCode).toBe(201)
+      expect(res.statusCode).toBe(200)
     })
 
     expect(loadMarkItems).toHaveBeenCalledWith(
@@ -180,7 +180,7 @@ describe('Mark.controller', () => {
 
     controller.getFilterMetas(req, res)
     await vi.waitFor(() => {
-      expect(res.statusCode).toBe(201)
+      expect(res.statusCode).toBe(200)
     })
 
     expect(getMarkFilterMetas).toHaveBeenCalled()
@@ -198,7 +198,7 @@ describe('Mark.controller', () => {
     controller.getClips(req, res)
 
     expect(findClipsByTagId).toHaveBeenCalledWith(7)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({
       items: [{id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12}],
       count: 1,
@@ -214,7 +214,7 @@ describe('Mark.controller', () => {
     controller.getClips(req, res)
 
     expect(countClipsByTagId).toHaveBeenCalledWith(7)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({items: [], count: 4})
   })
 
@@ -226,7 +226,7 @@ describe('Mark.controller', () => {
 
     expect(deleteMarkGeneratedAsset).toHaveBeenCalledWith('/tmp/db', '8')
     expect(deleteById).toHaveBeenCalledWith(8)
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
   })
 
   it('returns 500 when mark items loading fails', async () => {

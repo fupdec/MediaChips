@@ -92,7 +92,7 @@ describe('Setting.controller', () => {
     await controller.findAll(req, res)
 
     expect(sanitizeSettingRows).toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{option: 'theme', value: 'dark'}])
   })
 
@@ -106,7 +106,7 @@ describe('Setting.controller', () => {
     await controller.findOne(req, res)
 
     expect(findByOption).toHaveBeenCalledWith('theme')
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({option: 'theme', value: 'dark'})
   })
 
@@ -121,7 +121,7 @@ describe('Setting.controller', () => {
 
     expect(upsertByOption).toHaveBeenCalledWith('passwordProtection', '1')
     expect(invalidateSettingsCache).toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([1])
   })
 
@@ -154,7 +154,7 @@ describe('Setting.controller', () => {
 
     expect(upsertByOption).toHaveBeenCalledWith('allowLanAccess', '')
     expect(applyLanAccessChange).not.toHaveBeenCalled()
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([1])
   })
 })
