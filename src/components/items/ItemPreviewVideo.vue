@@ -250,8 +250,8 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import type {Handler} from 'mitt'
 import {buildApiUrl} from '@/services/apiClient'
 import {typedApi} from '@/services/typedApi'
-import {buildLocalFileUrl, createThumb as createVideoThumb} from '@/services/fileService'
-import {getCachedThumb, invalidateVideoThumbCaches, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
+import {createThumb as createVideoThumb} from '@/services/fileService'
+import {invalidateVideoThumbCaches, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
 import {
   GRID_FRAME_INDEXES,
   buildContainedThumbFallbackStyle,
@@ -264,9 +264,7 @@ import {getMediaAspectRatio} from '@/utils/gridLayout'
 import {
   isThumbUnavailable,
   resolveGridSpriteDisplayUrl,
-  resolveMediaThumbDisplayUrl,
 } from '@/utils/thumbSource'
-import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import {
   getReadableDuration,
   getReadableVideoHeight,
@@ -289,6 +287,7 @@ import {isAppWindowFocused} from '@/utils/windowFocus'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
+import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
 import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import type {MediaItem} from '@/types/stores'
 
@@ -300,8 +299,6 @@ const BIG_PREVIEW_SIZE_CLASSES: Record<BigVideoPreviewSize, string> = {
   two_thirds: 'big-preview-size-two-thirds',
   half: 'big-preview-size-half',
 }
-
-const thumbLoadInFlight = new Map<string, Promise<void>>()
 
 const normalizeBigPreviewSize = (value: string | undefined): BigVideoPreviewSize => {
   if (
@@ -355,7 +352,6 @@ const props = withDefaults(defineProps<{
 
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
 const isCompactHost = computed(() => props.previewHost === 'compact')
-const usesExternalThumb = computed(() => props.thumbUrl != null && props.thumbUrl !== '')
 const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
 const showCardAnchor = computed(() =>
   gridBigPreview.isVisual.value || bigPreviewAnimation.value,
@@ -407,10 +403,50 @@ const tasksStore = useTasksStore()
 const contextMenuStore = useContextMenu()
 const playerStore = usePlayerStore()
 const eventBus = useEventBus()
-  const listSync = useItemsListSync()
+const listSync = useItemsListSync()
 const {t} = useI18n()
 const gridBigPreview = useVideoBigPreview()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+
+const ITEMS = computed(() => itemsStore)
+const isImageOnlyView = computed(() => isImageOnlyItemsView(ITEMS.value.view))
+const isViewCard = computed(() =>
+  isEmbeddedHost.value || isCompactHost.value || Number(ITEMS.value.view) === 1 || isImageOnlyView.value,
+)
+const isViewTimeline = computed(() =>
+  !isEmbeddedHost.value && Number(ITEMS.value.view) === 2,
+)
+
+const isMounted = ref(false)
+
+const {
+  thumb,
+  thumbDisplayKey,
+  usesExternalThumb,
+  clearThumbState,
+  resolveThumbFallback,
+  getStaticPreviewSubfolder,
+  onThumbLoad,
+  onThumbError,
+  loadThumb,
+  getImg,
+  requestThumb,
+  runImageProbe,
+} = useVideoPreviewThumb({
+  media: () => props.media,
+  previewActive: () => props.previewActive,
+  isFileExists: () => props.isFileExists,
+  thumbUrl: () => props.thumbUrl,
+  isViewCard: () => isViewCard.value,
+  isEmbeddedHost: () => isEmbeddedHost.value,
+  isMounted: () => isMounted.value,
+  mediaPath: () => store.mediaPath,
+  onThumbRefreshed: () => {
+    if (isViewTimeline.value) {
+      void initFrames()
+    }
+  },
+})
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
@@ -419,10 +455,6 @@ const storyRef = ref<HTMLElement | null>(null)
 const storyWrapperRef = ref<HTMLElement | null>(null)
 
 const isHovered = ref(false)
-const thumb = ref<string | null>(null)
-const thumbDisplayKey = computed(() =>
-  itemsStore.thumbRefreshKeys[Number(props.media.id)] ?? 0,
-)
 const hoverFrameIndex = ref(0)
 const gridSpriteUrl = ref<string | null>(null)
 const storyUsesThumbFallback = ref(false)
@@ -433,10 +465,6 @@ const timeouts: TimeoutMap = {}
 const bigPreviewAnimation = ref(false)
 const playbackError = ref(false)
 const isSettingThumb = ref(false)
-const isCreatingThumb = ref(false)
-const thumbCreateAttempted = ref(false)
-const thumbLoadStarted = ref(false)
-const thumbFallbackStage = ref(0)
 const bigPreviewMenuActive = ref(false)
 const isShrinking = ref(false)
 const holdPreviewVideoDuringCollapse = ref(false)
@@ -445,40 +473,13 @@ const hoverPreviewReady = ref(false)
 /** When false, <video> unmounts immediately (leave) without waiting for CSS hover grace. */
 const allowHoverVideoElement = ref(false)
 const isBigPreviewOpen = computed(() => gridBigPreview.isExpanded.value)
-const isMounted = ref(false)
 let initFramesToken = 0
-let thumbProbeController: AbortController | null = null
-
-const abortThumbProbe = () => {
-  thumbProbeController?.abort()
-  thumbProbeController = null
-}
 
 const clearPreviewResources = () => {
-  abortThumbProbe()
-  thumb.value = null
+  clearThumbState()
   gridSpriteUrl.value = null
   hoverFrameIndex.value = 0
   storyUsesThumbFallback.value = false
-  thumbLoadStarted.value = false
-  thumbCreateAttempted.value = false
-  thumbFallbackStage.value = 0
-}
-
-const resolveThumbFallback = (): string => {
-  if (!props.media?.id) return ''
-
-  if (thumb.value && !isThumbUnavailable(thumb.value)) {
-    return thumb.value
-  }
-
-  const cached = getCachedThumb(mediaThumbKey('videos', props.media.id, 'thumbs'))
-  if (cached && !isThumbUnavailable(cached)) {
-    return cached
-  }
-
-  const url = resolveMediaThumbDisplayUrl(store.mediaPath, 'videos', props.media.id)
-  return url && !isThumbUnavailable(url) ? url : ''
 }
 
 const getPreviewEl = (): HTMLElement | null => {
@@ -490,7 +491,6 @@ const mediaWidth = computed(() => Number(props.media.width) || 0)
 const mediaHeight = computed(() => Number(props.media.height) || 0)
 const mediaDuration = computed(() => Number(props.media.duration) || 0)
 
-const ITEMS = computed(() => itemsStore)
 const SETTINGS = computed(() => settingsStore)
 
 const muted = computed(() => SETTINGS.value.play_sound_on_video_preview !== '1')
@@ -590,14 +590,6 @@ const isShowProgress = computed(() =>
 )
 
 const isImageOnlyView = computed(() => isImageOnlyItemsView(ITEMS.value.view))
-
-const isViewCard = computed(() =>
-  isEmbeddedHost.value || isCompactHost.value || Number(ITEMS.value.view) === 1 || isImageOnlyView.value,
-)
-
-const isViewTimeline = computed(() =>
-  !isEmbeddedHost.value && Number(ITEMS.value.view) === 2,
-)
 
 const is_window_focused = computed(() => store.window.focused)
 
@@ -847,61 +839,6 @@ const finalizePreviewStop = () => {
 }
 
 // Модифицированные методы
-/** Grid only on library cards — never in edit dialog (embedded) or when forced thumbs. */
-const getStaticPreviewSubfolder = (): 'thumbs' | 'grids' =>
-  settingsStore.videoPreviewStatic === 'grid'
-  && isViewCard.value
-  && !isEmbeddedHost.value
-    ? 'grids'
-    : 'thumbs'
-
-const onThumbLoad = () => {
-  thumbFallbackStage.value = 0
-  if (thumb.value && !isThumbUnavailable(thumb.value) && props.media?.id) {
-    setCachedThumb(
-      mediaThumbKey('videos', props.media.id, getStaticPreviewSubfolder()),
-      thumb.value,
-    )
-  }
-}
-
-const onThumbError = () => {
-  if (thumbFallbackStage.value >= 2) {
-    thumb.value = '/images/unavailable.png'
-    return
-  }
-
-  thumbFallbackStage.value += 1
-  thumbCreateAttempted.value = false
-  // First failure: retry load only. Creating on a transient error can overwrite
-  // a scraped/custom poster with an ffmpeg frame from the video.
-  const allowCreate = thumbFallbackStage.value >= 2
-  void getImg({bust: true, allowCreate})
-}
-
-const loadThumb = (subfolder: 'thumbs' | 'grids', {bust = false} = {}) => {
-  if (!props.media?.id) return
-
-  if (bust) {
-    invalidateVideoThumbCaches(props.media.id)
-  }
-
-  const thumbUrl = bust
-    ? buildLocalFileUrl(path.join(
-      store.mediaPath,
-      'videos',
-      subfolder,
-      `${props.media.id}.jpg`,
-    ), false, true)
-    : resolveMediaThumbDisplayUrl(store.mediaPath, 'videos', props.media.id, subfolder)
-
-  thumb.value = thumbUrl
-
-  if (thumbUrl && !isThumbUnavailable(thumbUrl)) {
-    setCachedThumb(mediaThumbKey('videos', props.media.id, subfolder), thumbUrl)
-  }
-}
-
 const refreshGridPreviewIfNeeded = async () => {
   if (settingsStore.videoPreviewStatic !== 'grid' || !props.media.path) return
 
@@ -911,100 +848,6 @@ const refreshGridPreviewIfNeeded = async () => {
     itemsStore.refreshThumb(props.media.id, {regenerate: true})
   } catch (error) {
     console.error(error)
-  }
-}
-
-const maybeCreateMissingThumb = async () => {
-  if (!props.previewActive || !props.isFileExists || !thumb.value) return
-  if (isCreatingThumb.value || thumbCreateAttempted.value) return
-
-  abortThumbProbe()
-  thumbProbeController = new AbortController()
-  const exists = await probeDisplayImageUrl(thumb.value, thumbProbeController.signal)
-  if (!isMounted.value) return
-  if (exists) return
-
-  isCreatingThumb.value = true
-  thumbCreateAttempted.value = true
-  try {
-    await createThumb('')
-    loadThumb('thumbs', {bust: true})
-  } finally {
-    isCreatingThumb.value = false
-  }
-}
-
-const loadImg = async ({bust = false, allowCreate = true} = {}) => {
-  if (!props.previewActive || !isMounted.value || !props.media?.id) return
-
-  if (usesExternalThumb.value) {
-    thumb.value = props.thumbUrl ?? null
-    return
-  }
-
-  const subfolder = getStaticPreviewSubfolder()
-
-  if (!bust) {
-    const cached = getCachedThumb(mediaThumbKey('videos', props.media.id, subfolder))
-    if (cached && !isThumbUnavailable(cached)) {
-      thumb.value = cached
-      return
-    }
-  }
-
-  const is_grid = subfolder === 'grids'
-
-  if (is_grid) {
-    loadThumb('grids', {bust})
-    if (allowCreate && thumb.value) {
-      abortThumbProbe()
-      thumbProbeController = new AbortController()
-      const gridExists = await probeDisplayImageUrl(thumb.value, thumbProbeController.signal)
-      if (!isMounted.value) return
-      if (!gridExists) {
-        loadThumb('thumbs', {bust})
-      }
-    }
-  } else {
-    loadThumb('thumbs', {bust})
-  }
-
-  if (allowCreate) {
-    await maybeCreateMissingThumb()
-  }
-}
-
-const getImg = async ({bust = false, allowCreate = true} = {}) => {
-  if (!props.previewActive || !isMounted.value || !props.media?.id) return
-
-  const subfolder = getStaticPreviewSubfolder()
-  const key = `${props.media.id}:${subfolder}:${bust ? 1 : 0}:${allowCreate ? 1 : 0}`
-  const existing = thumbLoadInFlight.get(key)
-  if (existing) {
-    await existing
-    return
-  }
-
-  const promise = loadImg({bust, allowCreate})
-  thumbLoadInFlight.set(key, promise)
-  try {
-    await promise
-  } finally {
-    thumbLoadInFlight.delete(key)
-  }
-}
-
-const createThumb = async (_imgPath: string) => {
-  try {
-    await typedApi.taskCreateThumbForVideo({
-      path: props.media.path,
-      id: props.media.id,
-    })
-  } catch (e) {
-    // Missing source files after migration are common; avoid spamming the console.
-    if (import.meta.env.DEV) {
-      console.debug('createThumb failed', props.media?.id, e)
-    }
   }
 }
 
@@ -1857,9 +1700,7 @@ const ensureGridSpriteLoaded = async () => {
     return false
   }
 
-  abortThumbProbe()
-  thumbProbeController = new AbortController()
-  const hasGrid = await probeDisplayImageUrl(gridUrl, thumbProbeController.signal)
+  const hasGrid = await runImageProbe(gridUrl)
   if (!hasGrid) {
     storyUsesThumbFallback.value = true
     gridSpriteUrl.value = null
@@ -1961,21 +1802,6 @@ watch(playbackError, (error) => {
   }
 })
 
-watch(() => itemsStore.thumbRefreshKeys[Number(props.media.id)], (version) => {
-  if (version == null) return
-  invalidateVideoThumbCaches(props.media.id)
-  const shouldRegenerate = itemsStore.consumeThumbRegenerate(props.media.id)
-  if (shouldRegenerate) {
-    thumbCreateAttempted.value = false
-    thumbFallbackStage.value = 0
-  }
-  void getImg({bust: true, allowCreate: shouldRegenerate}).then(() => {
-    if (isViewTimeline.value) {
-      void initFrames()
-    }
-  })
-})
-
 watch(() => ITEMS.value.view, (value) => {
   if (Number(value) === 2) {
     void initFrames()
@@ -1984,12 +1810,6 @@ watch(() => ITEMS.value.view, (value) => {
 
   initFramesToken += 1
   void getImg()
-})
-
-watch(() => settingsStore.videoPreviewStatic, () => {
-  thumbFallbackStage.value = 0
-  thumbCreateAttempted.value = false
-  void getImg({bust: true})
 })
 
 watch(isTaskRunning, (running, wasRunning) => {
@@ -2024,18 +1844,6 @@ const handleUpdateVideoFrames: Handler = (event) => {
     void initFrames()
   }
 }
-
-const requestThumb = () => {
-  if (!props.previewActive) return
-  if (thumbLoadStarted.value) return
-  thumbLoadStarted.value = true
-  void getImg()
-}
-
-watch(() => props.thumbUrl, (url) => {
-  if (!usesExternalThumb.value) return
-  thumb.value = url ?? null
-}, {immediate: true})
 
 watch(() => props.previewActive, (active) => {
   if (active) {
