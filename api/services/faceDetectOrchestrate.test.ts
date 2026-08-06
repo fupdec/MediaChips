@@ -150,9 +150,17 @@ describe('iterateFaceDetection match-after-detect', () => {
 
     expect(loadFaceMatchBatchContext).toHaveBeenCalledTimes(1)
     expect(matchMediaFaces).toHaveBeenCalledTimes(2)
-    const firstContext = matchMediaFaces.mock.calls[0]?.[2]?.context
-    const secondContext = matchMediaFaces.mock.calls[1]?.[2]?.context
-    expect(firstContext).toBe(secondContext)
+    const firstCall = matchMediaFaces.mock.calls[0] as unknown as [
+      unknown,
+      number,
+      {context?: unknown}?,
+    ]
+    const secondCall = matchMediaFaces.mock.calls[1] as unknown as [
+      unknown,
+      number,
+      {context?: unknown}?,
+    ]
+    expect(firstCall[2]?.context).toBe(secondCall[2]?.context)
   })
 
   it('skips match when matchAfterDetect is off', async () => {
