@@ -146,8 +146,9 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     const mayNeedRemux = Boolean(analyzed.playable && !audioOnly
       && (extension === '.mp4' || extension === '.m4v'))
     if (mayNeedRemux) {
-      // Defer the sync 8MB layout scan so /playable can return after ffprobe.
-      void Promise.resolve().then(() => {
+      // Defer the sync 8MB layout scan past the current response. setImmediate
+      // yields the event loop so piped video bytes are not stuck behind NAS I/O.
+      setImmediate(() => {
         try {
           if (!needsBrowserRemuxForMp4(filePath)) return
           const cached = playabilityCache.get(cacheKey)
@@ -200,14 +201,24 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     source = 'auto',
     options: Record<string, unknown> = {},
   ) {
+    // Hover / explicit direct must not wait on ffprobe — that alone was 0.5–2s
+    // per card on NAS and stacked behind the previous preview's layout scan.
+    if (source === 'direct') {
+      const directPlan: PlaybackPlan = {
+        mode: 'direct',
+        transcodeRequired: false,
+        transcodeStatus: 'none',
+        progress: 100,
+        error: null,
+        reason: null,
+      }
+      return {filePath, contentType: null, plan: directPlan}
+    }
+
     const settings = (options.settings as Awaited<ReturnType<typeof getTranscodeSettings>> | undefined)
       || await getTranscodeSettings(db)
     const transcodeEnabled = (options.transcodeEnabled as boolean | undefined) ?? isTranscodeEnabled(settings)
     const plan = await getPlaybackPlan(filePath, {settings, transcodeEnabled})
-
-    if (source === 'direct') {
-      return {filePath, contentType: null, plan}
-    }
 
     if (plan.mode === 'direct') {
       if (plan.reason === 'container_layout' || plan.playability?.needsRemux) {

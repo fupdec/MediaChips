@@ -7,6 +7,8 @@ import {
   waitForPreviewCanPlay,
   waitForPreviewSeek,
   seekPreviewVideo,
+  appendPreviewMediaFragment,
+  PREVIEW_INITIAL_SEEK_WAIT_MS,
 } from '@/utils/hoverPreviewPlayback'
 
 export type HoverPreviewPositionResult = 'positioned' | 'cancelled' | 'unavailable'
@@ -20,6 +22,8 @@ export async function positionHoverPreviewVideo(input: {
   mediaId: number
   targetTime: number
   allowLiveChunkSwitch?: boolean
+  /** After src reload, return on first canplay without awaiting mid-file seek. */
+  deferSeek?: boolean
   retriedBusy?: boolean
   isCancelled: () => boolean
   resolveUrl: (startSeconds: number) => Promise<string | null>
@@ -32,6 +36,7 @@ export async function positionHoverPreviewVideo(input: {
     mediaId,
     targetTime,
     allowLiveChunkSwitch = false,
+    deferSeek = false,
     retriedBusy = false,
     isCancelled,
     resolveUrl,
@@ -104,13 +109,16 @@ export async function positionHoverPreviewVideo(input: {
   if (plan.kind === 'live') {
     setLiveMode(true)
     if (plan.reload) {
+      video.removeAttribute('poster')
       video.src = url
       await waitForPreviewCanPlay(video, isCancelled, {live: true})
     }
 
     if (isCancelled()) return 'cancelled'
-    if (shouldApplyPreviewSeek(video.currentTime, plan.relative)) {
-      await seekPreviewVideo(video, plan.relative, isCancelled)
+    if (!deferSeek && shouldApplyPreviewSeek(video.currentTime, plan.relative)) {
+      await seekPreviewVideo(video, plan.relative, isCancelled, {
+        timeoutMs: PREVIEW_INITIAL_SEEK_WAIT_MS,
+      })
       if (isCancelled()) return 'cancelled'
     }
     onPositioned()
@@ -119,13 +127,18 @@ export async function positionHoverPreviewVideo(input: {
 
   setLiveMode(false)
   if (plan.reload) {
-    video.src = url
+    video.removeAttribute('poster')
+    // #t= steers the first decode toward the scrub point when the demuxer allows it.
+    video.src = appendPreviewMediaFragment(url, plan.nextTime)
     await waitForPreviewCanPlay(video, isCancelled)
   }
 
   if (isCancelled()) return 'cancelled'
-  if (shouldApplyPreviewSeek(video.currentTime, plan.nextTime)) {
-    await seekPreviewVideo(video, plan.nextTime, isCancelled)
+  // Mid-file seeks on NAS — thumb stays up (pending) until seek lands.
+  if (!deferSeek && shouldApplyPreviewSeek(video.currentTime, plan.nextTime)) {
+    await seekPreviewVideo(video, plan.nextTime, isCancelled, {
+      timeoutMs: PREVIEW_INITIAL_SEEK_WAIT_MS,
+    })
     if (isCancelled()) return 'cancelled'
   }
   onPositioned()

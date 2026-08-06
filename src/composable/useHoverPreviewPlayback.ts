@@ -1,4 +1,4 @@
-import {nextTick, ref, toValue, type MaybeRefOrGetter} from 'vue'
+import {computed, nextTick, ref, toValue, type MaybeRefOrGetter} from 'vue'
 import {buildApiUrl} from '@/services/apiClient'
 import {
   buildLiveStreamUrl,
@@ -27,17 +27,15 @@ import {
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
   shouldAttemptHoverLiveFallback,
-  shouldApplyPreviewSeek,
-  seekPreviewVideo,
   shouldScheduleHoverPreviewVideo,
   resolveHoverPreviewScheduleDelay,
   resolveFixedPreviewClipState,
   resolveHoverLiveMaxHeight,
   resolveHoverPreviewSourcePlan,
-  resolveLivePreviewRelativeTime,
-  getPreviewStreamStart,
   shouldComputeHoverPreviewPointerTime,
   shouldRestartFixedPreviewClip,
+  HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS,
+  waitForPreviewPresentedFrame,
   type HoverPreviewTeardownKind,
 } from '@/utils/hoverPreviewPlayback'
 import {positionHoverPreviewVideo} from '@/utils/hoverPreviewVideoPositioning'
@@ -72,10 +70,17 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   /** When false, <video> unmounts immediately (leave) without waiting for CSS hover grace. */
   const allowHoverVideoElement = ref(false)
   const hoverPreviewReady = ref(false)
+  /**
+   * True after the scrub frame is on screen (and during leave crossfade).
+   * False only while loading/seeking — drives is-hover-preview-pending.
+   */
+  const hoverPreviewFrameVisible = ref(false)
   const previewUsesLiveStream = ref(false)
 
   let previewPlaybackToken = 0
   let previewDelayTimeout: ReturnType<typeof setTimeout> | undefined
+  let leaveNetworkAbortTimeout: ReturnType<typeof setTimeout> | undefined
+  let leaveNetworkAbortGen = 0
   /** One live FFmpeg attempt after direct hover fails. */
   let previewLiveFallbackAttempted = false
   let preferLivePreview = false
@@ -106,6 +111,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     })) {
       return
     }
+    hoverPreviewFrameVisible.value = true
     hoverPreviewReady.value = true
     options.onHoverPreviewReady()
   }
@@ -113,6 +119,12 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const clearPreviewDelayTimer = () => {
     clearTimeout(previewDelayTimeout)
     previewDelayTimeout = undefined
+  }
+
+  const clearLeaveNetworkAbort = () => {
+    leaveNetworkAbortGen += 1
+    clearTimeout(leaveNetworkAbortTimeout)
+    leaveNetworkAbortTimeout = undefined
   }
 
   const stopPreviewLiveTranscode = () => {
@@ -139,11 +151,12 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         hoverLiveMaxHeight(),
       ))
     }
-    // Hot path: never block hover on /playable (ffprobe on NAS).
+    // Hot path: source=direct skips server ffprobe in resolveStreamPath.
+    // /playable stays lazy (only on direct failure → live / unavailable).
     return Promise.resolve(buildVideoStreamUrl(
       buildApiUrl,
       toValue(options.mediaId),
-      'auto',
+      'direct',
       {bustCache: false},
     ))
   }
@@ -289,7 +302,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     targetTime: number,
     {
       allowLiveChunkSwitch = false,
-    }: {allowLiveChunkSwitch?: boolean} = {},
+      deferSeek = false,
+    }: {allowLiveChunkSwitch?: boolean; deferSeek?: boolean} = {},
   ): Promise<boolean> => {
     const video = videoRef.value
     if (!video || !toValue(options.isPreviewVisible)) return false
@@ -300,6 +314,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       mediaId: toValue(options.mediaId),
       targetTime,
       allowLiveChunkSwitch,
+      deferSeek,
       isCancelled: isPreviewCancelled(token),
       resolveUrl: buildPreviewVideoUrl,
       chunkSeconds: LIVE_STREAM_CHUNK_SECONDS,
@@ -349,7 +364,10 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     // Capture before unmount — aborting src while <video> is still painted under a
     // fading thumb flashes the gray card background (reads as white).
     const videoToAbort = plan.abortVideo ? videoRef.value : null
-    if (plan.clearAllowHoverVideo) allowHoverVideoElement.value = false
+    if (plan.clearAllowHoverVideo) {
+      hoverPreviewFrameVisible.value = false
+      allowHoverVideoElement.value = false
+    }
     if (plan.clearSeekCoalescer) hoverSeekCoalescer.clear()
     if (plan.clearDelayTimer) clearPreviewDelayTimer()
     if (plan.stopLive) {
@@ -358,7 +376,10 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     }
     if (plan.releaseSession) releaseHoverVideoPreview(toValue(options.mediaId))
     if (videoToAbort) {
-      if (plan.clearAllowHoverVideo) {
+      // Yield to another card: abort immediately so the next Range request is
+      // not queued behind the previous NAS read. Other teardowns defer abort
+      // one tick to avoid a gray flash under a still-fading thumb.
+      if (plan.clearAllowHoverVideo && kind !== 'yield-decoder') {
         void nextTick(() => abortVideoPlayback(videoToAbort))
       } else {
         abortVideoPlayback(videoToAbort)
@@ -429,6 +450,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
     const mediaId = toValue(options.mediaId)
     claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
+    // Hide <video> until the scrub frame is presented (not during leave).
+    hoverPreviewFrameVisible.value = false
 
     const previewStartTime = toValue(options.previewStartTime)
     const targetTime = resolveHoverPreviewTargetTime({
@@ -446,6 +469,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     }
 
     try {
+      // Seek to scrub target before revealing — thumb stays opaque until ready,
+      // so the t≈0 keyframe never flashes under the pointer position.
       const positioned = await syncPreviewVideoPosition(targetTime, {
         allowLiveChunkSwitch: true,
       })
@@ -471,26 +496,16 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         return
       }
 
-      // Reveal as soon as playback starts — don't keep the thumb glued on while
-      // a mid-file seek settles (slow volumes made previews look "dead").
+      // One presented frame after play — cheap when #t=/seek already landed.
+      await waitForPreviewPresentedFrame(video, isPreviewCancelled(token))
+      if (token !== previewPlaybackToken) {
+        releaseHoverVideoPreview(mediaId)
+        return
+      }
+
       playbackError.value = false
       syncPlaybackTimeFromVideo()
       markHoverPreviewReady()
-
-      // Live chunks use relative currentTime — never seek to the absolute timeline.
-      const absoluteNow = resolvePreviewPlaybackTime()
-      if (video.seeking || shouldApplyPreviewSeek(absoluteNow, targetTime)) {
-        const streamStart = Number(getPreviewStreamStart(video.src || '') || 0)
-        const seekTo = previewUsesLiveStream.value
-          ? resolveLivePreviewRelativeTime(targetTime, streamStart)
-          : targetTime
-        await seekPreviewVideo(video, seekTo, isPreviewCancelled(token))
-        if (token !== previewPlaybackToken) {
-          releaseHoverVideoPreview(mediaId)
-          return
-        }
-        syncPlaybackTimeFromVideo()
-      }
     } catch (error) {
       const errorGate = resolveHoverPreviewPlaybackErrorGate({
         tokenMatches: token === previewPlaybackToken,
@@ -514,6 +529,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     const startHoverVideo = async () => {
       if (!toValue(options.isHovered) || !isAppWindowFocused()) return
 
+      clearLeaveNetworkAbort()
       const mediaId = toValue(options.mediaId)
       resetPreviewLiveFallbackState()
 
@@ -583,20 +599,39 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const hidePreviewVideoImmediately = () => {
+    clearLeaveNetworkAbort()
     applyHoverTeardown('hide-immediate')
   }
 
   /** Video teardown half of stop / removeClasses. */
   const finalizePreviewStop = () => {
+    clearLeaveNetworkAbort()
     applyHoverTeardown('finalize-stop')
   }
 
   /**
    * Soft mouseleave path: clear pending seeks/delay only.
-   * Video stays mounted until stopPlayingPreview / finalize-stop.
+   * Video element stays mounted for thumb crossfade / re-enter, but the Range
+   * request is dropped after ~100ms (yesterday's leave timing) so the next
+   * card is not stuck behind NAS reads.
    */
   const cancelHoverPlayback = () => {
     applyHoverTeardown('cancel-hover')
+    clearLeaveNetworkAbort()
+    const gen = leaveNetworkAbortGen
+    const video = videoRef.value
+    leaveNetworkAbortTimeout = setTimeout(() => {
+      leaveNetworkAbortTimeout = undefined
+      if (gen !== leaveNetworkAbortGen) return
+      if (!allowHoverVideoElement.value) return
+      // Drop the Range request without blanking to gray under the fading thumb.
+      abortVideoPlayback(video, {preserveFrame: true})
+    }, HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS)
+  }
+
+  /** Re-enter during leave grace: keep the still-loaded stream if present. */
+  const preserveHoverPlaybackAfterLeave = () => {
+    clearLeaveNetworkAbort()
   }
 
   /** Teardown when showVideoPreview becomes inactive. */
@@ -616,6 +651,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     playbackError,
     allowHoverVideoElement,
     hoverPreviewReady,
+    hoverPreviewPending: computed(
+      () => allowHoverVideoElement.value && !hoverPreviewFrameVisible.value,
+    ),
     previewUsesLiveStream,
     changePreviewTime,
     handleVideoError,
@@ -628,6 +666,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     hidePreviewVideoImmediately,
     finalizePreviewStop,
     cancelHoverPlayback,
+    preserveHoverPlaybackAfterLeave,
     clearPreviewDelayTimer,
     stopPreviewLiveTranscode,
     resetHoverPreviewReady,

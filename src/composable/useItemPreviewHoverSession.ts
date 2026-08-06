@@ -74,6 +74,8 @@ export type ItemPreviewHoverSessionOptions = {
   clearCinemaTimeout: () => void
   clearPreviewDelayTimer: () => void
   cancelHoverPlayback: () => void
+  /** Cancel the delayed leave network-abort when re-entering the same card. */
+  preserveHoverPlaybackAfterLeave?: () => void
   hidePreviewVideoImmediately: () => void
   stopPreviewLiveTranscode: () => void
   finalizePreviewStop: () => void
@@ -142,16 +144,29 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
     clearTimeout(options.timeouts.hoverCooldown)
 
     if (action === 'cancel-pending-leave') {
+      options.preserveHoverPlaybackAfterLeave?.()
       // Delay was cleared on leave; reschedule only if video never armed.
       if (!toValue(options.isHoverVideoArmed)) {
         options.scheduleHoverPreviewUi()
-      } else if (options.hoverPreviewReady) {
-        // Reverse the leave crossfade: thumb was covering again, reveal video.
+        return
+      }
+      const video = options.getPreviewEl()?.querySelector('video')
+      const hasPlayableFrame = Boolean(
+        video
+        && (video.currentSrc || video.getAttribute('src'))
+        && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA,
+      )
+      if (!video || !hasPlayableFrame) {
+        // Network may already have been dropped (~100ms leave abort).
+        options.scheduleHoverPreviewUi()
+        return
+      }
+      // Reverse the leave crossfade: thumb was covering again, reveal video.
+      if (options.hoverPreviewReady) {
         options.hoverPreviewReady.value = true
-        const video = options.getPreviewEl()?.querySelector('video')
-        if (video && video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-          void video.play().catch(() => {})
-        }
+      }
+      if (video.paused) {
+        void video.play().catch(() => {})
       }
       return
     }

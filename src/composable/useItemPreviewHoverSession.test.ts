@@ -179,10 +179,19 @@ describe('useItemPreviewHoverSession', () => {
     const cancelHoverPlayback = vi.fn(() => {
       hoverPreviewReady.value = false
     })
+    const preserveHoverPlaybackAfterLeave = vi.fn()
     const hidePreviewVideoImmediately = vi.fn()
     const finalizePreviewStop = vi.fn()
     const scheduleHoverPreviewUi = vi.fn()
     const stopPreviewLiveTranscode = vi.fn()
+    const video = {
+      currentSrc: 'http://local/video',
+      readyState: HTMLMediaElement.HAVE_CURRENT_DATA,
+      paused: true,
+      pause: vi.fn(),
+      play: vi.fn(async () => {}),
+      getAttribute: (name: string) => (name === 'src' ? 'http://local/video' : null),
+    }
 
     const session = useItemPreviewHoverSession({
       isFileExists: true,
@@ -200,10 +209,11 @@ describe('useItemPreviewHoverSession', () => {
       collapsePreviewFading: ref(false),
       timeouts,
       hasFixedPreviewTime: false,
-      getPreviewEl: () => null,
+      getPreviewEl: () => ({querySelector: () => video} as unknown as HTMLElement),
       clearCinemaTimeout: vi.fn(),
       clearPreviewDelayTimer: vi.fn(),
       cancelHoverPlayback,
+      preserveHoverPlaybackAfterLeave,
       hidePreviewVideoImmediately,
       stopPreviewLiveTranscode,
       finalizePreviewStop,
@@ -227,8 +237,10 @@ describe('useItemPreviewHoverSession', () => {
 
     session.handleMouseEnter()
     expect(timeouts.leave).toBeUndefined()
+    expect(preserveHoverPlaybackAfterLeave).toHaveBeenCalled()
     expect(scheduleHoverPreviewUi).not.toHaveBeenCalled()
     expect(hoverPreviewReady.value).toBe(true)
+    expect(video.play).toHaveBeenCalled()
 
     vi.advanceTimersByTime(
       HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS + 50,

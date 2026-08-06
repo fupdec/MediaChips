@@ -930,6 +930,12 @@
   background-color: #7878782b;
   flex: 1 0 auto;
 
+  // While hover video is mounted (including leave crossfade), keep the underlay
+  // black — the default gray reads as a white flash when <video> blanks early.
+  &.is-preview-active:not(.video-preview-container--expanded) {
+    background-color: #000;
+  }
+
   &:not(.video-preview-container--expanded) {
     position: relative !important;
     inset: unset !important;
@@ -1243,6 +1249,13 @@
       object-fit: contain;
       background-color: #000;
       opacity: 1;
+    }
+    // Only hide while seeking to the scrub frame — not during leave crossfade
+    // (ready clears on leave; pending must stay false so the frame stays painted).
+    &.is-hover-preview-pending:not(.video-preview-container--expanded) {
+      video {
+        opacity: 0;
+      }
     }
     .playback-error {
       position: absolute;
@@ -2308,6 +2321,12 @@ body > .video-preview-container.video-preview-container--expanded {
       opacity: 1;
     }
 
+    &.is-hover-preview-pending:not(.video-preview-container--expanded) {
+      .preview video {
+        opacity: 0;
+      }
+    }
+
     &.is-preview-active:not(.video-preview-container--expanded) {
       .timeline {
         opacity: 1;
@@ -2414,6 +2433,12 @@ body > .video-preview-container.video-preview-container--expanded {
       object-fit: contain;
       background-color: transparent;
       opacity: 1;
+    }
+
+    &.is-hover-preview-pending:not(.video-preview-container--expanded) {
+      .preview video {
+        opacity: 0;
+      }
     }
 
     &.is-preview-active:not(.video-preview-container--expanded) {

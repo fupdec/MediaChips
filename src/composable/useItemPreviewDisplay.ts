@@ -22,6 +22,8 @@ export type PreviewContainerClassesInput = {
   showVideoPreview: boolean
   showTimelinePreview: boolean
   hoverPreviewReady: boolean
+  /** Mounted and seeking — hide <video> so t≈0 never shows; leave must NOT set this. */
+  hoverPreviewPending: boolean
   isFullscreenBigPreview: boolean
   isVideoPreviewEnabled: boolean
   isGridExpanding: boolean
@@ -51,6 +53,7 @@ export function buildPreviewContainerClasses(
       input.isShrinking,
     'is-preview-active': input.showVideoPreview || input.showTimelinePreview,
     'is-hover-preview-ready': input.hoverPreviewReady && !input.isFullscreenBigPreview,
+    'is-hover-preview-pending': input.hoverPreviewPending && !input.isFullscreenBigPreview,
     'is-video-preview-enabled': input.isVideoPreviewEnabled,
     'video-preview-container--expanded': input.isFullscreenBigPreview,
     'video-preview-container--expanding': input.isGridExpanding,
@@ -94,6 +97,8 @@ export type ItemPreviewDisplayOptions = {
   isHovered: MaybeRefOrGetter<boolean>
   isShrinking: MaybeRefOrGetter<boolean>
   hoverPreviewReady: MaybeRefOrGetter<boolean>
+  /** True while mounted and still seeking to the scrub frame (hide <video>). */
+  hoverPreviewPending: MaybeRefOrGetter<boolean>
   allowHoverVideoElement: MaybeRefOrGetter<boolean>
   holdPreviewVideoDuringCollapse: MaybeRefOrGetter<boolean>
   collapsePreviewFading: MaybeRefOrGetter<boolean>
@@ -191,6 +196,7 @@ export function useItemPreviewDisplay(options: ItemPreviewDisplayOptions) {
       showVideoPreview: showVideoPreview.value,
       showTimelinePreview: showTimelinePreview.value,
       hoverPreviewReady: toValue(options.hoverPreviewReady),
+      hoverPreviewPending: toValue(options.hoverPreviewPending),
       isFullscreenBigPreview: options.gridBigPreview.isVisual.value,
       isVideoPreviewEnabled: isVideoPreviewEnabled.value,
       isGridExpanding: options.gridBigPreview.isExpanding.value,

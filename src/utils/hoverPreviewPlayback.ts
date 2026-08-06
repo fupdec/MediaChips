@@ -5,6 +5,12 @@ export const HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS = 500
 export const HOVER_PREVIEW_THUMB_CROSSFADE_MS = 520
 /** Extra settle so the thumb is fully opaque before <video> unmounts. */
 export const HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS = 80
+/**
+ * Free the hover Range/NAS read after the thumb mostly covers the video.
+ * Keep this well under the crossfade (~520ms) so the next card is not blocked,
+ * but not so early that a blank/black frame shows through the fade.
+ */
+export const HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS = 360
 
 let hoverPreviewReadyAt = 0
 
@@ -275,11 +281,12 @@ export function resolveHoverPreviewTeardownPlan(
         abortVideo: true,
       }
     case 'cancel-hover':
-      // Soft leave-grace: keep video/session alive until stopPlayingPreview finalizes.
-      // Re-enter within the leave timer can cancel the pending stop without remount.
-      // Reset ready so the thumb covers mid-seek frames during leave.
+      // Soft leave-grace: keep <video> mounted for thumb crossfade / re-enter, but
+      // bump the token so in-flight canplay/seek work cannot mark ready after leave.
+      // Network abort still waits for yield-decoder (other card) or finalize-stop.
       return {
         ...TEARDOWN_NONE,
+        bumpToken: true,
         resetReady: true,
         clearSeekCoalescer: true,
         clearDelayTimer: true,
@@ -536,6 +543,8 @@ export function clampLiveChunkSeek(
 }
 
 const PREVIEW_SEEK_WAIT_MS = 400
+/** Initial hover seek on NAS often exceeds the scrub coalesce budget. */
+export const PREVIEW_INITIAL_SEEK_WAIT_MS = HOVER_PREVIEW_DIRECT_CANPLAY_MS
 
 function waitForSeekedOrTimeout(
   video: HTMLVideoElement,
@@ -585,22 +594,37 @@ export function seekPreviewVideo(
   video: HTMLVideoElement,
   time: number,
   isCancelled: () => boolean,
+  {timeoutMs = PREVIEW_SEEK_WAIT_MS}: {timeoutMs?: number} = {},
 ): Promise<void> {
   if (isCancelled()) return Promise.resolve()
   if (!shouldApplyPreviewSeek(video.currentTime, time)) return Promise.resolve()
 
   return new Promise((resolve) => {
     let settled = false
+    let softTimeoutId: ReturnType<typeof setTimeout> | undefined
+    let hardTimeoutId: ReturnType<typeof setTimeout> | undefined
+
     const finish = () => {
       if (settled) return
       settled = true
-      clearTimeout(timeoutId)
+      if (softTimeoutId != null) clearTimeout(softTimeoutId)
+      if (hardTimeoutId != null) clearTimeout(hardTimeoutId)
       video.removeEventListener('seeked', onSeeked)
       resolve()
     }
 
     const onSeeked = () => finish()
-    const timeoutId = setTimeout(finish, PREVIEW_SEEK_WAIT_MS)
+
+    // Soft budget: resolve early only if we already landed near the target.
+    // Resolving while still at t≈0 was flashing the wrong frame on reveal.
+    softTimeoutId = setTimeout(() => {
+      if (settled) return
+      if (isCancelled() || !shouldApplyPreviewSeek(video.currentTime, time)) {
+        finish()
+      }
+    }, Math.min(timeoutMs, PREVIEW_SEEK_WAIT_MS))
+
+    hardTimeoutId = setTimeout(finish, timeoutMs)
     video.addEventListener('seeked', onSeeked, {once: true})
 
     try {
@@ -610,8 +634,6 @@ export function seekPreviewVideo(
       return
     }
 
-    // Seeking may flip true only on the next microtask; if it never starts and
-    // we are already on-target, resolve without waiting for the timeout.
     queueMicrotask(() => {
       if (settled || isCancelled()) {
         finish()
@@ -622,6 +644,52 @@ export function seekPreviewVideo(
       }
     })
   })
+}
+
+/** Wait until the decoder has presented a frame after seek (avoids one-frame flash). */
+export function waitForPreviewPresentedFrame(
+  video: HTMLVideoElement,
+  isCancelled: () => boolean,
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (isCancelled()) {
+      resolve()
+      return
+    }
+
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      resolve()
+    }
+
+    const timeoutId = setTimeout(finish, 120)
+    const rvfc = (
+      video as HTMLVideoElement & {
+        requestVideoFrameCallback?: (cb: () => void) => number
+      }
+    ).requestVideoFrameCallback
+
+    if (typeof rvfc === 'function') {
+      rvfc.call(video, () => finish())
+      return
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(finish)
+    })
+  })
+}
+
+/** Attach a media-fragment start time so the first decode targets scrub position. */
+export function appendPreviewMediaFragment(url: string, timeSeconds: number): string {
+  const bare = String(url || '').split('#')[0]
+  if (!bare || !Number.isFinite(timeSeconds) || timeSeconds < PREVIEW_SEEK_EPSILON) {
+    return bare
+  }
+  return `${bare}#t=${Math.max(0, timeSeconds).toFixed(3)}`
 }
 
 export function resolveHoverLiveMaxHeight(settingsMaxHeight: unknown): string {

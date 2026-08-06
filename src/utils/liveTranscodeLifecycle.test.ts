@@ -5,6 +5,7 @@ import {
   getMarkedLiveTranscodeMediaId,
   cleanupOrphanedLiveTranscode,
   installLiveTranscodeUnloadGuard,
+  abortVideoPlayback,
 } from '@/utils/liveTranscodeLifecycle'
 
 describe('liveTranscodeLifecycle', () => {
@@ -23,6 +24,28 @@ describe('liveTranscodeLifecycle', () => {
 
     clearLiveTranscodeSessionMark()
     expect(getMarkedLiveTranscodeMediaId()).toBeNull()
+  })
+
+  it('aborts playback and can freeze the last frame as poster', () => {
+    const drawImage = vi.fn()
+    const toDataURL = vi.fn(() => 'data:image/jpeg;base64,frame')
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({drawImage} as never)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(toDataURL)
+
+    const video = document.createElement('video')
+    Object.defineProperty(video, 'videoWidth', {value: 16})
+    Object.defineProperty(video, 'videoHeight', {value: 9})
+    video.src = 'http://local/clip.mp4'
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => {})
+    const load = vi.spyOn(video, 'load').mockImplementation(() => {})
+
+    abortVideoPlayback(video, {preserveFrame: true})
+
+    expect(pause).toHaveBeenCalled()
+    expect(drawImage).toHaveBeenCalled()
+    expect(video.poster).toBe('data:image/jpeg;base64,frame')
+    expect(video.getAttribute('src')).toBeNull()
+    expect(load).toHaveBeenCalled()
   })
 
   it('stops orphaned session on startup cleanup', async () => {

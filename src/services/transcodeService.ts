@@ -171,7 +171,7 @@ export async function resolvePreviewVideoUrl(
     }
 
     if (options.optimistic) {
-      return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto', {bustCache: false})
+      return buildVideoStreamUrl(buildApiUrl, mediaId, 'direct', {bustCache: false})
     }
 
     const playable = await fetchPlayableInfo(mediaId)

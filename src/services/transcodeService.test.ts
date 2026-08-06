@@ -132,7 +132,7 @@ describe('resolvePreviewVideoUrl', () => {
 
   it('optimistic hover url skips playable lookup', async () => {
     const url = await resolvePreviewVideoUrl(buildApiUrl, 99, 0, {optimistic: true})
-    expect(url).toContain('/api/video/99?source=auto')
+    expect(url).toContain('/api/video/99?source=direct')
     expect(mockGetVideoPlayable).not.toHaveBeenCalled()
   })
 

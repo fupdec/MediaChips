@@ -37,6 +37,7 @@ import {
   waitForPreviewSeek,
   waitForPreviewCanPlay,
   seekPreviewVideo,
+  appendPreviewMediaFragment,
 } from './hoverPreviewPlayback'
 
 describe('hoverPreviewPlayback', () => {
@@ -213,7 +214,7 @@ describe('hoverPreviewPlayback', () => {
       clearDelayTimer: true,
     })
     expect(resolveHoverPreviewTeardownPlan('cancel-hover')).toMatchObject({
-      bumpToken: false,
+      bumpToken: true,
       resetReady: true,
       stopLive: false,
       abortVideo: false,
@@ -385,6 +386,14 @@ describe('hoverPreviewPlayback', () => {
   it('waitForPreviewSeek resolves immediately when not seeking', async () => {
     const video = {seeking: false, addEventListener: vi.fn(), removeEventListener: vi.fn()} as unknown as HTMLVideoElement
     await expect(waitForPreviewSeek(video, () => false)).resolves.toBeUndefined()
+  })
+
+  it('appendPreviewMediaFragment steers the first decode to scrub time', () => {
+    expect(appendPreviewMediaFragment('http://local/api/video/1?source=direct', 12.5))
+      .toBe('http://local/api/video/1?source=direct#t=12.500')
+    expect(appendPreviewMediaFragment('http://local/api/video/1?source=direct', 0)).toBe(
+      'http://local/api/video/1?source=direct',
+    )
   })
 
   it('seekPreviewVideo waits for seeked even when seeking flips async', async () => {

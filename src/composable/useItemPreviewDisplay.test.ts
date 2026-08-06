@@ -25,6 +25,7 @@ describe('buildPreviewContainerClasses', () => {
     showVideoPreview: false,
     showTimelinePreview: false,
     hoverPreviewReady: true,
+    hoverPreviewPending: false,
     isFullscreenBigPreview: false,
     isVideoPreviewEnabled: true,
     isGridExpanding: false,
@@ -35,6 +36,19 @@ describe('buildPreviewContainerClasses', () => {
 
   it('marks hover-ready when not fullscreen', () => {
     expect(buildPreviewContainerClasses(base)['is-hover-preview-ready']).toBe(true)
+  })
+
+  it('marks pending only while seeking before first reveal', () => {
+    expect(buildPreviewContainerClasses({
+      ...base,
+      hoverPreviewReady: false,
+      hoverPreviewPending: true,
+    })['is-hover-preview-pending']).toBe(true)
+    expect(buildPreviewContainerClasses({
+      ...base,
+      hoverPreviewReady: false,
+      hoverPreviewPending: false,
+    })['is-hover-preview-pending']).toBe(false)
   })
 
   it('applies size class only for stable fullscreen', () => {
