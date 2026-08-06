@@ -21,6 +21,7 @@ type Fixture = {
   groupBy: ItemsGroupBy
   item: Record<string, unknown>
   columns?: Record<string, unknown>
+  sortBy?: unknown
 }
 
 const FIXTURES: Fixture[] = [
@@ -52,10 +53,24 @@ const FIXTURES: Fixture[] = [
   {groupBy: 'resolution', item: {width: 1080, height: 1920}, columns: {width: 1080, height: 1920}},
   {groupBy: 'resolution', item: {width: 640, height: 480}, columns: {width: 640, height: 480}},
   {groupBy: 'resolution', item: {width: 0, height: 0}, columns: {width: 0, height: 0}},
+  {groupBy: 'dateDay', item: {createdAt: '2024-06-15T12:00:00.000Z'}},
+  {groupBy: 'dateDay', item: {createdAt: '2024-06-15T22:30:00.000Z'}},
+  {groupBy: 'dateDay', item: {createdAt: null}},
+  {groupBy: 'dateMonth', item: {createdAt: '2024-01-01T00:00:00.000Z'}},
+  {groupBy: 'dateYear', item: {createdAt: '2023-12-31T23:30:00.000Z'}},
+  {
+    groupBy: 'dateDay',
+    item: {viewedAt: '2024-06-15T22:30:00.000Z'},
+    sortBy: 'viewedAt',
+  },
 ]
 
-function evalGroupKeySql(groupBy: ItemsGroupBy, columns: Record<string, unknown>): string {
-  const expr = buildMediaGroupKeySqlExpr(groupBy)
+function evalGroupKeySql(
+  groupBy: ItemsGroupBy,
+  columns: Record<string, unknown>,
+  sortBy: unknown = 'id',
+): string {
+  const expr = buildMediaGroupKeySqlExpr(groupBy, sortBy)
   expect(expr).toBeTruthy()
 
   const db = new Database(':memory:')
@@ -66,7 +81,10 @@ function evalGroupKeySql(groupBy: ItemsGroupBy, columns: Record<string, unknown>
       favorite INTEGER,
       ext TEXT,
       filesize INTEGER,
-      views INTEGER
+      views INTEGER,
+      createdAt TEXT,
+      updatedAt TEXT,
+      viewedAt TEXT
     );
     CREATE TABLE videoMetadata (
       mediaId INTEGER PRIMARY KEY,
@@ -85,14 +103,17 @@ function evalGroupKeySql(groupBy: ItemsGroupBy, columns: Record<string, unknown>
   `)
 
   db.prepare(`
-    INSERT INTO media (id, rating, favorite, ext, filesize, views)
-    VALUES (1, @rating, @favorite, @ext, @filesize, @views)
+    INSERT INTO media (id, rating, favorite, ext, filesize, views, createdAt, updatedAt, viewedAt)
+    VALUES (1, @rating, @favorite, @ext, @filesize, @views, @createdAt, @updatedAt, @viewedAt)
   `).run({
     rating: columns.rating ?? null,
     favorite: columns.favorite ?? 0,
     ext: columns.ext ?? null,
     filesize: columns.filesize ?? null,
     views: columns.views ?? null,
+    createdAt: columns.createdAt ?? null,
+    updatedAt: columns.updatedAt ?? null,
+    viewedAt: columns.viewedAt ?? null,
   })
 
   db.prepare(`
@@ -127,21 +148,40 @@ function evalGroupKeySql(groupBy: ItemsGroupBy, columns: Record<string, unknown>
 describe('mediaGroupBySql', () => {
   it('supports the expected column-backed modes', () => {
     expect(supportsSqlMediaGroupBy('rating')).toBe(true)
+    expect(supportsSqlMediaGroupBy('dateDay')).toBe(true)
+    expect(supportsSqlMediaGroupBy('dateMonth')).toBe(true)
+    expect(supportsSqlMediaGroupBy('dateYear')).toBe(true)
     expect(supportsSqlMediaGroupBy('path')).toBe(false)
     expect(supportsSqlMediaGroupBy('pinnedMeta')).toBe(false)
-    expect(supportsSqlMediaGroupBy('dateMonth')).toBe(false)
   })
 
   it('matches shared JS group keys for fixtures', () => {
     for (const fixture of FIXTURES) {
-      const jsKey = getGroupKeyAndLabel(fixture.item, fixture.groupBy, 'id').key
+      const sortBy = fixture.sortBy ?? 'id'
+      const jsKey = getGroupKeyAndLabel(fixture.item, fixture.groupBy, sortBy).key
       const columns = {
         ...fixture.item,
         ...fixture.columns,
       }
-      const sqlKey = evalGroupKeySql(fixture.groupBy, columns)
+      const sqlKey = evalGroupKeySql(fixture.groupBy, columns, sortBy)
       expect(sqlKey, `${fixture.groupBy} item=${JSON.stringify(fixture.item)}`).toBe(jsKey)
     }
+  })
+
+  it('orders date summary rows chronologically with # last', () => {
+    const rows = [
+      {groupKey: '2024-06', count: 1},
+      {groupKey: '#', count: 2},
+      {groupKey: '2023-12', count: 3},
+      {groupKey: '2024-01', count: 4},
+    ]
+    const summaries = buildMediaGroupSummariesFromRows(rows, 'dateMonth', 'createdAt', 'asc')
+    expect(summaries.map((entry) => entry.key)).toEqual([
+      '2023-12',
+      '2024-01',
+      '2024-06',
+      '#',
+    ])
   })
 
   it('orders summary rows with compareGroupKeys parity', () => {

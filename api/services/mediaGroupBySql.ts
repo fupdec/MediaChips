@@ -5,6 +5,7 @@ import {
   VIEWS_BUCKETS,
   compareGroupKeys,
   getGroupKeyAndLabel,
+  resolveDateGroupField,
 } from '../../shared/itemsGroupBy'
 
 /** Modes keyed entirely from media/metadata columns (no path/unicode/tag joins). */
@@ -19,7 +20,29 @@ const SQL_MEDIA_GROUP_BY = new Set<ItemsGroupBy>([
   'fps',
   'bitrate',
   'resolution',
+  'dateDay',
+  'dateMonth',
+  'dateYear',
 ])
+
+function buildDateGroupKeySqlExpr(
+  groupBy: 'dateDay' | 'dateMonth' | 'dateYear',
+  sortBy: unknown,
+): string {
+  const field = resolveDateGroupField(sortBy)
+  const column = `media.${field}`
+  const format = groupBy === 'dateYear'
+    ? '%Y'
+    : groupBy === 'dateMonth'
+      ? '%Y-%m'
+      : '%Y-%m-%d'
+  // Match shared/itemsGroupBy local-timezone Date getters.
+  return `CASE
+    WHEN ${column} IS NULL OR TRIM(${column}) = '' THEN '#'
+    WHEN julianday(${column}) IS NULL THEN '#'
+    ELSE strftime('${format}', ${column}, 'localtime')
+  END`
+}
 
 type BucketSpec = {key: string; maxExclusive: number | null}
 
@@ -60,9 +83,13 @@ export function supportsSqlMediaGroupBy(groupBy: ItemsGroupBy): boolean {
  */
 export function buildMediaGroupKeySqlExpr(
   groupBy: ItemsGroupBy,
-  _sortBy: unknown = 'id',
+  sortBy: unknown = 'id',
 ): string | null {
   switch (groupBy) {
+    case 'dateDay':
+    case 'dateMonth':
+    case 'dateYear':
+      return buildDateGroupKeySqlExpr(groupBy, sortBy)
     case 'rating':
       return `CASE WHEN media.rating IS NULL OR media.rating <= 0 THEN '0' ELSE CAST(media.rating AS TEXT) END`
     case 'favorite':
@@ -175,6 +202,11 @@ export function buildMediaGroupOrderSqlExpr(
     return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, CAST(${groupKeyExpr} AS REAL) ${dirSql}`
   }
 
+  if (groupBy === 'dateDay' || groupBy === 'dateMonth' || groupBy === 'dateYear') {
+    // Lexicographic YYYY / YYYY-MM / YYYY-MM-DD matches chronological order.
+    return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, ${groupKeyExpr} ${dirSql}`
+  }
+
   // codec / ext — localeCompare-ish via NOCASE; '#' last.
   return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, ${groupKeyExpr} COLLATE NOCASE ${dirSql}`
 }
@@ -243,6 +275,12 @@ function stubItemForGroupKey(groupBy: ItemsGroupBy, key: string): Record<string,
       }
       return key === '#' ? {width: 0, height: 0} : samples[key] || {width: 0, height: 0}
     }
+    case 'dateYear':
+      return key === '#' ? {createdAt: null} : {createdAt: `${key}-06-15T12:00:00.000Z`}
+    case 'dateMonth':
+      return key === '#' ? {createdAt: null} : {createdAt: `${key}-15T12:00:00.000Z`}
+    case 'dateDay':
+      return key === '#' ? {createdAt: null} : {createdAt: `${key}T12:00:00.000Z`}
     default:
       return {}
   }
