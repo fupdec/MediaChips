@@ -1190,7 +1190,9 @@
     background-color: #000;
     z-index: 2;
     opacity: 1;
-    transition: none;
+    // Always on so ready→opacity:0 actually crossfades (transition added
+    // in the same rule as opacity:0 does not interpolate).
+    transition: opacity 520ms ease-in;
 
     // Keep vertical letterboxing black while the container stays gray
     // for missing / loading / unavailable placeholders.
@@ -1270,14 +1272,14 @@
     .thumb {
       opacity: 0;
       pointer-events: none;
-      transition: opacity 520ms ease-in;
+      // Stay above .preview (z-index: 1) while fading so the video does not
+      // pop over the thumb in the same frame as ready flips.
     }
 
-    // Keep the playing surface above the faded thumb so clicks open the
-    // player instead of falling through a pointer-events:none layer.
+    // Clicks pass through the fading thumb (pointer-events: none) — do not
+    // raise .preview z-index or the crossfade is skipped.
     .preview,
     .timeline {
-      z-index: 2;
       pointer-events: auto;
     }
   }
@@ -2268,7 +2270,7 @@ body > .video-preview-container.video-preview-container--expanded {
     .thumb {
       z-index: 2;
       opacity: 1;
-      transition: none;
+      transition: opacity 520ms ease-in;
     }
 
     .preview-unavailable-notice {
@@ -2313,12 +2315,10 @@ body > .video-preview-container.video-preview-container--expanded {
       .thumb {
         opacity: 0;
         pointer-events: none;
-        transition: opacity 520ms ease-in;
       }
 
       .preview,
       .timeline {
-        z-index: 2;
         pointer-events: auto;
       }
     }
@@ -2374,7 +2374,7 @@ body > .video-preview-container.video-preview-container--expanded {
     .thumb {
       z-index: 2;
       opacity: 1;
-      transition: none;
+      transition: opacity 520ms ease-in;
 
       .v-img__img {
         object-fit: cover;
@@ -2423,12 +2423,10 @@ body > .video-preview-container.video-preview-container--expanded {
       .thumb {
         opacity: 0;
         pointer-events: none;
-        transition: opacity 520ms ease-in;
       }
 
       .preview,
       .timeline {
-        z-index: 2;
         pointer-events: auto;
       }
     }
