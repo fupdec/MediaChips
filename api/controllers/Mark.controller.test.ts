@@ -232,6 +232,25 @@ describe('Mark.controller', () => {
     })
   })
 
+  it('passes clip offset through to the repository', () => {
+    findClipsByTagId.mockReturnValue([
+      {id: 11, markId: 2, path: '/b.mp4', segmentStart: 8, segmentEnd: 15},
+    ])
+    countClipsByTagId.mockReturnValue(9)
+
+    const req = {body: {tagId: 7, offset: 1, sort: 'time'}} as ApiRequest
+    const res = createResponse()
+
+    controller.getClips(req, res)
+
+    expect(findClipsByTagId).toHaveBeenCalledWith(7, {
+      sort: 'time',
+      limit: undefined,
+      offset: 1,
+    })
+    expect(res.body.count).toBe(9)
+  })
+
   it('returns clip count only when requested', () => {
     countClipsByTagId.mockReturnValue(4)
 

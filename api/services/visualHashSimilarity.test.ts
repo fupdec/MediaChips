@@ -3,6 +3,7 @@ import {
   areVisuallySimilar,
   averageHashFromBitmap,
   bitsToHex,
+  collectVisualNearNeighborIds,
   decodeVisualHashTiles,
   encodeVisualHashTiles,
   hammingDistanceHex,
@@ -50,5 +51,19 @@ describe('visualHashSimilarity', () => {
       {id: 1, visualHash: '', visualHashTiles: null},
       [{id: 2, visualHash: 'ffffffffffffffff', visualHashTiles: null}],
     )).toEqual([])
+  })
+
+  it('collects BK near neighbors without loading far hashes as candidates', () => {
+    const seed = {id: 1, visualHash: 'ffffffffffffffff'}
+    const lean = [
+      seed,
+      {id: 2, visualHash: 'fffffffffffffffe'},
+      {id: 3, visualHash: 'ffffffffffffff00'},
+      {id: 4, visualHash: '0000000000000000'},
+    ]
+    const neighbors = collectVisualNearNeighborIds(seed, lean)
+    expect(neighbors).toContain(2)
+    expect(neighbors).not.toContain(4)
+    expect(neighbors).not.toContain(1)
   })
 })

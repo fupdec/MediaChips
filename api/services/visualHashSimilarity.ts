@@ -188,6 +188,59 @@ export function rankVisualSimilarIds(
   return [seedId, ...scored.slice(0, neighborLimit).map((entry) => entry.id)]
 }
 
+/** BK search radius used for near-dup candidates (grid + near-grid tile path). */
+export function visualSimilarBkRadius(options: VisualSimilarityOptions = {}): number {
+  const opts = {...DEFAULT_VISUAL_SIMILARITY, ...options}
+  return Math.max(opts.maxGridDistance, Math.min(20, opts.maxGridDistance + 8))
+}
+
+/**
+ * Collect media ids whose grid aHash is within the BK near-dup radius of seed.
+ * Operates on lean rows (hash only) so callers can avoid loading tiles for the
+ * full media type, then hydrate tiles only for these candidates.
+ */
+export function collectVisualNearNeighborIds(
+  seed: Pick<VisualHashRow, 'id' | 'visualHash'>,
+  leanRows: Array<Pick<VisualHashRow, 'id' | 'visualHash'>>,
+  options: VisualSimilarityOptions = {},
+): number[] {
+  const seedId = Number(seed.id)
+  const seedHash = String(seed.visualHash || '').trim().toLowerCase()
+  if (!Number.isFinite(seedId) || seedId <= 0 || !seedHash) return []
+
+  const items: ClusterItem[] = []
+  let seedIndex = -1
+
+  const pushItem = (id: number, hash: string) => {
+    const fp = {hash, tiles: [] as VisualHashHex[]}
+    const index = items.length
+    items.push({id, fp, hashInt: hexToHashBigInt(hash)})
+    if (id === seedId) seedIndex = index
+  }
+
+  pushItem(seedId, seedHash)
+  for (const row of leanRows) {
+    const id = Number(row.id)
+    if (!Number.isFinite(id) || id <= 0 || id === seedId) continue
+    const hash = String(row.visualHash || '').trim().toLowerCase()
+    if (!hash) continue
+    pushItem(id, hash)
+  }
+
+  if (items.length <= 1) return []
+
+  const radius = visualSimilarBkRadius(options)
+  let bkRoot: BKNode | null = null
+  for (let i = 0; i < items.length; i += 1) {
+    if (i === seedIndex) continue
+    bkRoot = bkInsert(bkRoot, i, items)
+  }
+
+  const hitIndexes: number[] = []
+  bkQuery(bkRoot, seedIndex, radius, items, hitIndexes)
+  return hitIndexes.map((index) => items[index].id)
+}
+
 type ClusterItem = {
   id: number
   fp: VisualFingerprint

@@ -1,14 +1,10 @@
 import type { ApiDb, AnyRecord } from '../types/db'
 import type { ParsedHomeHealth, ParsedHomeHealthLite } from '@shared/schemas/home'
-import fs from 'fs'
-import path from 'path'
-import { readdir, stat } from 'fs/promises'
 import {
   getContentHashBackfillStatus,
   getFingerprintBackfillStatus,
   getOshashBackfillStatus,
 } from './mediaFingerprintBackfill'
-import { findVisualNearDuplicateIds } from './visualHashBackfill'
 import { getVideoCodecBackfillStatus } from './videoCodecBackfill'
 import { getVideoImagesGenerationStatus } from './videoImagesGeneration'
 import { getImageThumbsGenerationStatus } from './imageThumbsGeneration'
@@ -19,23 +15,7 @@ import {
   TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB,
 } from './tagImageAiUpscale'
 import { queryGet } from '../db/utils/rawQuery'
-
-async function getDirectorySize(directory: string): Promise<number> {
-  if (!fs.existsSync(directory)) return 0
-
-  const entries = await readdir(directory, {withFileTypes: true})
-  const sizes = await Promise.all(entries.map(async (entry: import("fs").Dirent) => {
-    const entryPath = path.join(directory, entry.name)
-    if (entry.isDirectory()) return getDirectorySize(entryPath)
-    if (entry.isFile()) {
-      const {size} = await stat(entryPath)
-      return size
-    }
-    return 0
-  }))
-
-  return sizes.reduce((sum: number, size: number) => sum + size, 0)
-}
+import { getDirectorySize } from './directorySize'
 
 async function getActiveDatabaseSize(db: ApiDb) {
   const bytes = await getDirectorySize(db.path ?? '')
@@ -87,14 +67,30 @@ async function getDuplicateCounts(db: ApiDb) {
   `) as {count?: number} | undefined
 
   const byFingerprint = Number(byOshash?.count || 0)
-  const byVisualHash = findVisualNearDuplicateIds(db).length
+
+  // Exact visualHash groups only — near-dup BK-tree clustering is reserved for
+  // Find Duplicates; the home badge only needs a cheap health signal.
+  const byVisualHash = queryGet(db, `
+    SELECT COUNT(*) AS count
+    FROM media m
+    WHERE m.visualHash IS NOT NULL
+      AND m.visualHash != ''
+      AND m.visualHash IN (
+        SELECT visualHash
+        FROM media
+        WHERE visualHash IS NOT NULL
+          AND visualHash != ''
+        GROUP BY visualHash
+        HAVING COUNT(*) > 1
+      )
+  `) as {count?: number} | undefined
 
   return {
     byFilesize: Number(byFilesize?.count || 0),
     byContentHash: 0,
     byOshash: Number(byOshash?.count || 0),
     byFingerprint,
-    byVisualHash,
+    byVisualHash: Number(byVisualHash?.count || 0),
   }
 }
 

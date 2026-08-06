@@ -20,12 +20,14 @@ export {
   areVisuallySimilar,
   averageHashFromBitmap,
   clusterVisualNearDuplicates,
+  collectVisualNearNeighborIds,
   countMatchingTiles,
   decodeVisualHashTiles,
   encodeVisualHashTiles,
   flattenVisualDuplicateIds,
   hammingDistanceHex,
   rankVisualSimilarIds,
+  visualSimilarBkRadius,
 } from './visualHashSimilarity'
 
 async function getSharp() {

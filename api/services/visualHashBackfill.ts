@@ -6,6 +6,7 @@ import { chunkArray } from '../db/utils/chunk'
 import { createMediaRepository } from '../db/repositories/media'
 import {
   clusterVisualNearDuplicates,
+  collectVisualNearNeighborIds,
   computeGridVisualFingerprint,
   encodeVisualHashTiles,
   flattenVisualDuplicateIds,
@@ -255,6 +256,39 @@ async function* iterateVisualHashBackfill(
   }
 }
 
+function mediaTypeVisualHashClause(mediaTypeId?: number | string | null) {
+  const typeId = mediaTypeId == null || mediaTypeId === ''
+    ? null
+    : Number(mediaTypeId)
+  const hasTypeId = typeId != null && Number.isFinite(typeId)
+  return {
+    hasTypeId,
+    typeId,
+    typeClause: hasTypeId
+      ? 'AND m.mediaTypeId = :mediaTypeId'
+      : `AND mt.type = 'video'`,
+    replacements: hasTypeId ? {mediaTypeId: typeId} : {},
+  }
+}
+
+/** id + visualHash only — used to BK-prefilter before loading tiles. */
+function loadVisualHashLeanRows(
+  db: ApiDb,
+  mediaTypeId?: number | string | null,
+) {
+  const {typeClause, replacements} = mediaTypeVisualHashClause(mediaTypeId)
+  return queryAll<{id: number, visualHash: string}>(db, `
+    SELECT
+      m.id AS id,
+      m.visualHash AS visualHash
+    FROM media m
+    INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
+    WHERE m.visualHash IS NOT NULL
+      AND m.visualHash != ''
+      ${typeClause}
+  `, replacements)
+}
+
 function loadVisualHashRows(
   db: ApiDb,
   mediaTypeId?: number | string | null,
@@ -279,13 +313,7 @@ function loadVisualHashRows(
     return rows
   }
 
-  const typeId = mediaTypeId == null || mediaTypeId === ''
-    ? null
-    : Number(mediaTypeId)
-  const hasTypeId = typeId != null && Number.isFinite(typeId)
-  const typeClause = hasTypeId
-    ? 'AND m.mediaTypeId = :mediaTypeId'
-    : `AND mt.type = 'video'`
+  const {typeClause, replacements} = mediaTypeVisualHashClause(mediaTypeId)
 
   return queryAll<{id: number, visualHash: string, visualHashTiles: string | null}>(db, `
     SELECT
@@ -297,7 +325,7 @@ function loadVisualHashRows(
     WHERE m.visualHash IS NOT NULL
       AND m.visualHash != ''
       ${typeClause}
-  `, hasTypeId ? {mediaTypeId: typeId} : {})
+  `, replacements)
 }
 
 function findVisualNearDuplicateIds(
@@ -337,8 +365,21 @@ function findVisualSimilarIds(
     return {seedId: id, hasVisualHash: false, ids: []}
   }
 
-  const mediaRepo = createMediaRepository(db.drizzle)
-  const seed = mediaRepo.findById(id)
+  const seed = queryGet<{
+    id: number
+    visualHash: string | null
+    visualHashTiles: string | null
+    mediaTypeId: number | null
+  }>(db, `
+    SELECT
+      m.id AS id,
+      m.visualHash AS visualHash,
+      m.visualHashTiles AS visualHashTiles,
+      m.mediaTypeId AS mediaTypeId
+    FROM media m
+    WHERE m.id = :id
+  `, {id})
+
   if (!seed) {
     return {seedId: id, hasVisualHash: false, ids: []}
   }
@@ -348,16 +389,18 @@ function findVisualSimilarIds(
     return {seedId: id, hasVisualHash: false, ids: []}
   }
 
-  const rows = loadVisualHashRows(db, seed.mediaTypeId)
-  const ids = rankVisualSimilarIds(
-    {
-      id: seed.id,
-      visualHash,
-      visualHashTiles: seed.visualHashTiles,
-    },
-    rows,
-    options,
-  )
+  const seedRow = {
+    id: seed.id,
+    visualHash,
+    visualHashTiles: seed.visualHashTiles,
+  }
+
+  // Lean type-wide hash load + BK radius, then hydrate tiles only for neighbors.
+  // Avoids pulling every visualHashTiles blob just to rank a short similar list.
+  const leanRows = loadVisualHashLeanRows(db, seed.mediaTypeId)
+  const neighborIds = collectVisualNearNeighborIds(seedRow, leanRows, options)
+  const rows = loadVisualHashRows(db, null, neighborIds)
+  const ids = rankVisualSimilarIds(seedRow, rows, options)
 
   return {seedId: id, hasVisualHash: true, ids}
 }

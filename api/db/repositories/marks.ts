@@ -200,11 +200,15 @@ export function createMarksRepository(db: DrizzleClient) {
       }
 
       const limit = Number(options.limit)
-      if (Number.isFinite(limit) && limit > 0) {
-        query = query.limit(Math.min(Math.floor(limit), 10_000)) as typeof query
-      }
+      const hasLimit = Number.isFinite(limit) && limit > 0
       const offset = Number(options.offset)
-      if (Number.isFinite(offset) && offset > 0) {
+      const hasOffset = Number.isFinite(offset) && offset > 0
+
+      // SQLite rejects OFFSET without LIMIT; use the same cap as an explicit limit.
+      if (hasLimit || hasOffset) {
+        query = query.limit(hasLimit ? Math.min(Math.floor(limit), 10_000) : 10_000) as typeof query
+      }
+      if (hasOffset) {
         query = query.offset(Math.floor(offset)) as typeof query
       }
 

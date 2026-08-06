@@ -5,10 +5,10 @@ import type { DatabaseSizesResponse } from '@shared/api/responses'
 import fs from 'fs'
 import path from 'path'
 import { rimraf } from 'rimraf'
-import { readdir, stat } from 'fs/promises'
 import { machineId } from 'node-machine-id'
 import { getAppConfigPath } from '../../utils/appConfigPath'
 import { loadConfigFile, createDefaultConfig } from '../../../app/server/configFile'
+import { getDirectorySize } from '../../services/directorySize'
 
 export default function createTasksDatabaseController(shared: TaskControllerShared) {
   const {db, resolveGeneratedFolderPath} = shared
@@ -23,23 +23,6 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     } catch (err) {
       sendAsClientError(res, err, 'Request failed')
     }
-  }
-
-  const getDirectorySize = async (directory: string): Promise<number> => {
-    if (!fs.existsSync(directory)) return 0
-
-    const entries = await readdir(directory, {withFileTypes: true})
-    const sizes = await Promise.all(entries.map(async (entry: import("fs").Dirent) => {
-      const entryPath = path.join(directory, entry.name)
-      if (entry.isDirectory()) return getDirectorySize(entryPath)
-      if (entry.isFile()) {
-        const {size} = await stat(entryPath)
-        return size
-      }
-      return 0
-    }))
-
-    return sizes.reduce((sum: number, size: number) => sum + size, 0)
   }
 
   const getDatabaseSizes = async function (req: ApiRequest, res: ApiResponse) {

@@ -337,6 +337,7 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
 import {typedApi} from '@/services/typedApi'
+import {loadTagClipsForPlayback} from '@/services/tagClipsPlayback'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
@@ -577,15 +578,17 @@ const playClips = async () => {
   playingClips.value = true
   const tagId = Number(tag.value.id)
   try {
-    const firstRes = await typedApi.getMarkClips({
-      tagId,
-      sort: 'time',
-      limit: 1,
-    })
-    const firstClips = firstRes.data?.items || []
-    clipCount.value = Number(firstRes.data?.count ?? firstClips.length)
+    const loaded = await loadTagClipsForPlayback(async (body) => {
+      const res = await typedApi.getMarkClips(body)
+      return {
+        items: res.data?.items || [],
+        count: Number(res.data?.count ?? 0),
+      }
+    }, tagId)
 
-    if (!firstClips.length) {
+    clipCount.value = loaded.count
+
+    if (loaded.empty || !loaded.first) {
       setNotification({
         type: 'warning',
         title: t('tags.play_clips_empty_title'),
@@ -595,22 +598,14 @@ const playClips = async () => {
     }
 
     await itemsStore.playVideo({
-      video: firstClips[0],
-      videos: firstClips,
-      time: firstClips[0].segmentStart,
+      video: loaded.first,
+      videos: [loaded.first],
+      time: loaded.first.segmentStart,
       trustPath: true,
     })
 
-    if (clipCount.value <= 1) return
-
-    const fullRes = await typedApi.getMarkClips({
-      tagId,
-      sort: 'time',
-    })
-    const clips = fullRes.data?.items || []
-    clipCount.value = Number(fullRes.data?.count ?? clips.length)
-    if (clips.length > 1) {
-      playerStore.setPlaylistItems(clips)
+    if (loaded.playlist.length > 1) {
+      playerStore.setPlaylistItems(loaded.playlist)
     }
   } catch (error) {
     notifyLoadError(error)
