@@ -48,6 +48,12 @@ export interface MergeTagsPayload {
 export interface MergeMediaPayload {
   survivorId: number
   sourceIds: number[]
+  with_file?: boolean
+}
+
+export interface MediaDuplicateGroupsPayload {
+  duplicates_by?: string
+  mediaTypeId?: number | string | null
 }
 
 export interface MoveTagsToCategoryPayload {

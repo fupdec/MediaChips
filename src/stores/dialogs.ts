@@ -41,6 +41,11 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     tagMerge: { show: false, tags: [] as Tag[], meta: null as Meta | null },
     mediaMerge: { show: false, items: [] as MediaItem[] },
+    duplicateReview: {
+      show: false,
+      duplicatesBy: null as string | null,
+      mediaTypeId: null as number | null,
+    },
     tagCategoryMerge: { show: false, categories: [] as Meta[] },
     bulkEditingItems: false,
     markAdding: {
@@ -188,6 +193,21 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     closeMediaMerge() {
       this.mediaMerge.show = false
       this.mediaMerge.items = []
+    },
+    openDuplicateReview(options?: {
+      duplicatesBy?: string | null
+      mediaTypeId?: number | null
+    }) {
+      this.duplicateReview.duplicatesBy = options?.duplicatesBy ?? null
+      this.duplicateReview.mediaTypeId = options?.mediaTypeId == null
+        ? null
+        : Number(options.mediaTypeId)
+      this.duplicateReview.show = true
+    },
+    closeDuplicateReview() {
+      this.duplicateReview.show = false
+      this.duplicateReview.duplicatesBy = null
+      this.duplicateReview.mediaTypeId = null
     },
     openTagCategoryMerge(categories: Meta[]) {
       this.tagCategoryMerge.categories = categories

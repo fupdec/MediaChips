@@ -45,6 +45,11 @@ export const MediaSimilarByVisualRequestSchema = z.object({
   limit: z.coerce.number().int().positive().max(200).optional(),
 }).passthrough()
 
+export const MediaDuplicateGroupsRequestSchema = z.object({
+  duplicates_by: z.string().trim().min(1).optional(),
+  mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),
+})
+
 export const MediaThumbsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).optional(),
   mediaType: z.string().optional(),
@@ -65,6 +70,7 @@ export const MergeTagsRequestSchema = z.object({
 export const MergeMediaRequestSchema = z.object({
   survivorId: z.union([z.number(), z.string()]),
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
+  with_file: z.boolean().optional(),
 })
 
 export const MoveTagsToCategoryRequestSchema = z.object({

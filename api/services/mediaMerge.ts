@@ -12,7 +12,9 @@ import {nowIso} from '../db/utils/timestamps'
 import {uniquePositiveIds} from '../utils/uniqueIds'
 import {createMediaTypesRepository} from '../db/repositories/mediaTypes'
 import type {MediaRow} from '../db/repositories/media'
-import {deleteMediaGeneratedAssets} from './localAssetCleanup'
+import {isVirtualZipPath} from '../../shared/zipPath'
+import {apiErrorMessage} from '../types/errors'
+import {deleteMediaGeneratedAssets, unlinkResolvedPath} from './localAssetCleanup'
 import {invalidateMediaDerivedCaches} from './mediaCacheInvalidation'
 import {
   foldMediaPresetFields,
@@ -34,6 +36,39 @@ export class MediaMergeError extends Error {
 export interface MergeMediaInput {
   survivorId: number
   sourceIds: number[]
+  withFile?: boolean
+}
+
+/** Real disk paths for losers; skip empty and virtual ZIP entry paths. */
+export function loserPathsToUnlink(
+  losers: Array<{path?: string | null}>,
+): string[] {
+  const paths: string[] = []
+  for (const row of losers) {
+    const filePath = String(row.path || '')
+    if (!filePath || isVirtualZipPath(filePath)) continue
+    paths.push(filePath)
+  }
+  return paths
+}
+
+export async function maybeUnlinkMergedLoserFiles(
+  withFile: boolean,
+  losers: Array<{path?: string | null}>,
+  unlink: (filePath: string) => Promise<boolean> = unlinkResolvedPath,
+): Promise<void> {
+  if (!withFile) return
+
+  for (const filePath of loserPathsToUnlink(losers)) {
+    try {
+      const deleted = await unlink(filePath)
+      if (!deleted) {
+        console.log(`${filePath} is unavailable.`)
+      }
+    } catch (error) {
+      console.error(`Failed to delete media file ${filePath}:`, apiErrorMessage(error))
+    }
+  }
 }
 
 export interface MergeMediaResult {
@@ -210,6 +245,8 @@ export async function mergeMediaItems(
       await deleteMediaGeneratedAssets(db, db.path!, row, mediaType?.type || '')
     }))
   }
+
+  await maybeUnlinkMergedLoserFiles(Boolean(input.withFile), losers)
 
   invalidateMediaDerivedCaches()
   return result

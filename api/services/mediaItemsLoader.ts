@@ -664,9 +664,24 @@ async function loadMediaBasicsByIds(db: ApiDb, ids: MediaId[] = []) {
   if (!ids.length) return []
 
   return queryAllAsync(db,
-    `SELECT id, path, name, basename, filesize, mediaTypeId
+    `SELECT
+      media.id,
+      media.path,
+      media.name,
+      media.basename,
+      media.filesize,
+      media.mediaTypeId,
+      media.rating,
+      media.views,
+      media.favorite,
+      media.createdAt,
+      videoMetadata.duration,
+      COALESCE(videoMetadata.width, imageMetadata.width) AS width,
+      COALESCE(videoMetadata.height, imageMetadata.height) AS height
      FROM media
-     WHERE id IN (:ids)`,
+     LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+     LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+     WHERE media.id IN (:ids)`,
     {ids},
   )
 }

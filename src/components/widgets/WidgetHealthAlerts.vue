@@ -109,21 +109,16 @@ import {computed, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {useAppStore} from '@/stores/app'
-import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import {isStartupHealthNotificationsEnabled} from '@/composable/useStartupHealthNotifications'
 import {getReadableFileSize} from '@/services/formatUtils'
-import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import type { HealthAlertItem, HomeHealthData } from '@/types/widgets'
 import { emptyHomeHealthUi, toHomeHealthUi } from '@/types/widgets'
 
 const {t} = useI18n()
 const router = useRouter()
-const appStore = useAppStore()
-const itemsStore = useItemsStore()
 const tasksStore = useTasksStore()
 const settingsStore = useSettingsStore()
 const appShell = useAppShell()
@@ -351,17 +346,17 @@ function openTasks() {
 }
 
 function openDuplicates() {
-  const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
-  itemsStore.find_duplicates = true
-  itemsStore.duplicates_by = null
-  router.push(`/media?mediaTypeId=${mediaTypeId ?? ''}`)
+  router.push({
+    path: '/settings',
+    query: {tab: 'database', section: 'find_duplicates'},
+  })
 }
 
 function openVisualDuplicates() {
-  const mediaTypeId = getDefaultMediaTypeId(appStore.mediaTypes)
-  itemsStore.find_duplicates = true
-  itemsStore.duplicates_by = 'visualHash'
-  router.push(`/media?mediaTypeId=${mediaTypeId ?? ''}`)
+  router.push({
+    path: '/settings',
+    query: {tab: 'database', section: 'find_duplicates'},
+  })
 }
 
 async function loadHealth() {

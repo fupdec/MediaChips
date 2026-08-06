@@ -302,6 +302,13 @@ export interface MergeMediaResult {
   }
 }
 
+export interface MediaDuplicateGroupsResult {
+  groups: Array<{
+    key: string
+    itemIds: number[]
+  }>
+}
+
 export interface TagNameConflict {
   tagId: number
   name: string

@@ -10,17 +10,19 @@
     <v-card>
       <DialogHeader
         :header="t('media.dialogs.merge_media_title')"
+        :subheader="t('media.dialogs.merge_media_hint', {count: Math.max(items.length - 1, 0)})"
         icon="set-merge"
+        :buttons="headerButtons"
         closable
         @close="close"
       />
 
       <v-card-text class="pa-4">
-        <div class="text-body-2 text-medium-emphasis mb-4">
-          {{ t('media.dialogs.merge_media_hint', {count: Math.max(items.length - 1, 0)}) }}
-        </div>
-
-        <v-radio-group v-model="survivorId" hide-details class="mt-0">
+        <v-radio-group
+          v-model="survivorId"
+          hide-details
+          class="mt-0"
+        >
           <v-radio
             v-for="item in items"
             :key="item.id"
@@ -52,23 +54,17 @@
         >
           {{ t('media.dialogs.merge_media_keep_note') }}
         </v-alert>
-      </v-card-text>
 
-      <v-card-actions class="px-4 pb-4">
-        <v-btn variant="text" :disabled="saving" @click="close">
-          {{ t('common.cancel') }}
-        </v-btn>
-        <v-spacer/>
-        <v-btn
+        <v-checkbox
+          v-model="withFile"
+          density="compact"
+          hide-details
           color="primary"
-          variant="flat"
-          :loading="saving"
-          :disabled="!canMerge"
-          @click="merge"
-        >
-          {{ t('media.dialogs.merge_media_confirm') }}
-        </v-btn>
-      </v-card-actions>
+          class="mt-3"
+          :label="t('actions.also_delete_files')"
+          :disabled="saving"
+        />
+      </v-card-text>
     </v-card>
   </v-dialog>
 </template>
@@ -94,6 +90,7 @@ const notificationsStore = useNotificationsStore()
 const listSync = useItemsListSync()
 
 const survivorId = ref<number | null>(null)
+const withFile = ref(false)
 const saving = ref(false)
 
 const items = computed(() => dialogsStore.mediaMerge.items)
@@ -104,6 +101,17 @@ const canMerge = computed(() =>
     && !saving.value,
 )
 
+const headerButtons = computed(() => [
+  {
+    icon: 'set-merge',
+    text: t('media.dialogs.merge_media_confirm'),
+    color: 'primary',
+    disabled: !canMerge.value,
+    order: 1,
+    action: () => { void merge() },
+  },
+])
+
 function formatMeta(item: MediaItem) {
   const parts: string[] = []
   parts.push(getReadableFileSize(Number(item.filesize || 0)))
@@ -111,17 +119,6 @@ function formatMeta(item: MediaItem) {
   if (item.views != null) parts.push(`${item.views} views`)
   return parts.join(' · ')
 }
-
-watch(
-  () => dialogsStore.mediaMerge.show,
-  (show) => {
-    if (show) {
-      survivorId.value = pickDefaultSurvivorId(dialogsStore.mediaMerge.items)
-      saving.value = false
-    }
-  },
-  {immediate: true},
-)
 
 function close() {
   if (saving.value) return
@@ -144,6 +141,7 @@ async function merge() {
     const res = await typedApi.mergeMedia({
       survivorId: Number(survivorId.value),
       sourceIds,
+      with_file: withFile.value,
     })
 
     const survivor = res.data.survivor
@@ -183,6 +181,18 @@ async function merge() {
     saving.value = false
   }
 }
+
+watch(
+  () => dialogsStore.mediaMerge.show,
+  (show) => {
+    if (show) {
+      survivorId.value = pickDefaultSurvivorId(dialogsStore.mediaMerge.items)
+      withFile.value = false
+      saving.value = false
+    }
+  },
+  {immediate: true},
+)
 </script>
 
 <style scoped>

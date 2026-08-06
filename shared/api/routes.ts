@@ -38,6 +38,7 @@ export const API_ROUTES = {
   mediaIds: '/api/Media/ids',
   mediaSimilarByVisual: '/api/Media/similarByVisual',
   mediaMerge: '/api/Media/merge',
+  mediaDuplicateGroups: '/api/Media/duplicateGroups',
   playlistSummary: '/api/Playlist/summary',
   mediaInPlaylists: '/api/MediaInPlaylists',
   mediaInPlaylistsUpdate: '/api/MediaInPlaylists/update',

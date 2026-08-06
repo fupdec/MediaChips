@@ -121,8 +121,6 @@
               @add="add"
               @reorder="onReorder"
               @open-saved="dialogSaved = true"
-              @clear-duplicates="clearDuplicates"
-              @find-duplicates="findDuplicates"
               @set-by="setBy"
               @set-condition="setCondition"
               @set-value="setValue"
@@ -163,8 +161,6 @@
           @add="add"
           @reorder="onReorder"
           @open-saved="dialogSaved = true"
-          @clear-duplicates="clearDuplicates"
-          @find-duplicates="findDuplicates"
           @set-by="setBy"
           @set-condition="setCondition"
           @set-value="setValue"
@@ -224,10 +220,7 @@ import {
   isVideoMediaType,
   isAudioMediaType,
 } from '@/utils/mediaType'
-import {
-  sanitizeFiltersForMediaType,
-  getDuplicatesGroupKey,
-} from '@/utils/mediaSortFilter'
+import {sanitizeFiltersForMediaType} from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useBrowserLayout} from '@/composable/useBrowserLayout'
@@ -397,11 +390,6 @@ const panelBindings = computed(() => ({
   listBy: listBy.value,
   isReady: props.isReady,
   isFiltersChanged: is_filters_changed.value,
-  itemsType: ITEMS.value.type,
-  findDuplicatesActive: Boolean(ITEMS.value.find_duplicates),
-  duplicatesMenuLabel: duplicatesMenuLabel.value,
-  duplicateMenuModes: duplicateMenuModes.value,
-  isDuplicateModeActive,
   filterAiPrompt: filterAiPrompt.value,
   filterAiContext: filterAiContext.value as Record<string, unknown>,
   dragOptions,
@@ -418,47 +406,6 @@ const is_filters_changed = computed(() =>
 const hasSavableFilters = computed(() =>
   filters.value.some((filter) => !filter.removed && !filter.lock),
 )
-
-const hasActiveScopeFilters = computed(() =>
-  filters.value.some((filter) =>
-    filter.active !== false
-    && !filter.removed
-    && filter.cond != null
-    && filter.cond !== '',
-  ),
-)
-
-const duplicatesMenuLabel = computed(() =>
-  hasActiveScopeFilters.value
-    ? t('filters.find_duplicates_within_filtered')
-    : t('filters.find_duplicates'),
-)
-
-const duplicateMenuModes = computed(() => {
-  if (isImageMediaType(currentMediaType.value)) {
-    return [
-      {value: 'path', labelKey: 'filters.duplicates_menu_path'},
-      {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize'},
-    ]
-  }
-
-  return [
-    {value: 'fingerprint', labelKey: 'filters.duplicates_menu_fingerprint'},
-    {value: 'visualHash', labelKey: 'filters.duplicates_menu_visual'},
-    {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize'},
-  ]
-})
-
-const isDuplicateModeActive = (mode: string) => {
-  const current = getDuplicatesGroupKey(currentMediaType.value, itemsStore.duplicates_by)
-  if (mode === 'visualHash') {
-    return current === 'visualHash' || current === 'visual' || current === 'visualHashNear'
-  }
-  if (mode === 'fingerprint') {
-    return current === 'fingerprint' || current === 'oshash'
-  }
-  return current === mode
-}
 
 // Methods
 const filterTextKeys: Record<string, string> = {
@@ -650,19 +597,6 @@ const apply = async () => {
 
   itemsStore.updateState({key: "filters", value: cloneFilters(filters.value)})
   void pageCommands.setFilters({filters: filters.value})
-}
-
-const findDuplicates = async (mode: string) => {
-  itemsStore.find_duplicates = true
-  itemsStore.duplicates_by = mode
-  itemsStore.listScopeIds = null
-  await apply()
-}
-
-const clearDuplicates = async () => {
-  itemsStore.find_duplicates = false
-  itemsStore.duplicates_by = null
-  await apply()
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {

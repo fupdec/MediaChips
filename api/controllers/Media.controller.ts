@@ -3,7 +3,13 @@ import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../t
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
-import type { MediaPathUpdatePayload, MediaThumbsRequestPayload, MergeMediaPayload } from '@shared/api/payloads'
+import type {
+  MediaDuplicateGroupsPayload,
+  MediaPathUpdatePayload,
+  MediaThumbsRequestPayload,
+  MergeMediaPayload,
+} from '@shared/api/payloads'
+import {listMediaDuplicateGroups} from '../services/mediaDuplicateGroups'
 import {mergeMediaItems} from '../services/mediaMerge'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
@@ -97,10 +103,25 @@ export default function (db: ApiDb) {
       const result = await mergeMediaItems(db, {
         survivorId: Number(body.survivorId),
         sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
+        withFile: Boolean(body.with_file),
       })
       sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while merging media.')
+    }
+  }
+
+  const duplicateGroups = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<MediaDuplicateGroupsPayload>(req)
+      const mediaTypeId = body.mediaTypeId == null ? null : Number(body.mediaTypeId)
+      const result = listMediaDuplicateGroups(db, {
+        duplicatesBy: String(body.duplicates_by || 'filesize'),
+        mediaTypeId: Number.isFinite(mediaTypeId as number) ? mediaTypeId : null,
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while listing duplicate groups.')
     }
   }
 
@@ -273,5 +294,6 @@ export default function (db: ApiDb) {
     getStats,
     similarByVisual,
     merge,
+    duplicateGroups,
   }
 }

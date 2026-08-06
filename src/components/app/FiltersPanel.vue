@@ -117,57 +117,6 @@
           {{ t('filters.saved_short') }}
         </v-btn>
 
-        <v-menu
-          v-if="editMode && itemsType === 'media'"
-          location="bottom"
-        >
-          <template #activator="{ props: menuProps }">
-            <v-btn
-              v-bind="menuProps"
-              variant="tonal"
-              rounded="xl"
-              size="small"
-              color="primary"
-              class="filters-panel__toolbar-btn"
-            >
-              <v-icon
-                start
-                size="small"
-              >
-                mdi-content-duplicate
-              </v-icon>
-              <span class="text-truncate">{{ duplicatesMenuLabel }}</span>
-              <v-icon
-                end
-                size="small"
-              >
-                mdi-menu-down
-              </v-icon>
-            </v-btn>
-          </template>
-          <v-list
-            density="compact"
-            nav
-          >
-            <v-list-item
-              v-if="findDuplicatesActive"
-              :title="t('filters.duplicates_menu_off')"
-              @click="emit('clear-duplicates')"
-            />
-            <v-divider
-              v-if="findDuplicatesActive"
-              class="my-1"
-            />
-            <v-list-item
-              v-for="mode in duplicateMenuModes"
-              :key="mode.value"
-              :title="t(mode.labelKey)"
-              :active="findDuplicatesActive && isDuplicateModeActive(mode.value)"
-              @click="emit('find-duplicates', mode.value)"
-            />
-          </v-list>
-        </v-menu>
-
         <FiltersAdd
           v-if="isReady && (editMode || filters.length === 0)"
           class="filters-panel__add"
@@ -220,57 +169,6 @@
             {{ t('common.apply') }}
           </v-btn>
         </div>
-
-        <v-menu
-          v-if="editMode && itemsType === 'media'"
-          location="bottom"
-        >
-          <template #activator="{ props: menuProps }">
-            <v-btn
-              v-bind="menuProps"
-              class="mb-2"
-              variant="tonal"
-              rounded="xl"
-              size="small"
-              color="primary"
-            >
-              <v-icon
-                start
-                size="small"
-              >
-                mdi-content-duplicate
-              </v-icon>
-              {{ duplicatesMenuLabel }}
-              <v-icon
-                end
-                size="small"
-              >
-                mdi-menu-down
-              </v-icon>
-            </v-btn>
-          </template>
-          <v-list
-            density="compact"
-            nav
-          >
-            <v-list-item
-              v-if="findDuplicatesActive"
-              :title="t('filters.duplicates_menu_off')"
-              @click="emit('clear-duplicates')"
-            />
-            <v-divider
-              v-if="findDuplicatesActive"
-              class="my-1"
-            />
-            <v-list-item
-              v-for="mode in duplicateMenuModes"
-              :key="mode.value"
-              :title="t(mode.labelKey)"
-              :active="findDuplicatesActive && isDuplicateModeActive(mode.value)"
-              @click="emit('find-duplicates', mode.value)"
-            />
-          </v-list>
-        </v-menu>
 
         <FiltersAdd
           v-if="isReady && (editMode || filters.length === 0)"
@@ -357,11 +255,6 @@ import type {FilterObject, FilterListParam} from '@/types/common'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
-export type DuplicateMenuMode = {
-  value: string
-  labelKey: string
-}
-
 const props = withDefaults(defineProps<{
   variant?: 'drawer' | 'embedded' | 'top'
   hideHeader?: boolean
@@ -370,11 +263,6 @@ const props = withDefaults(defineProps<{
   listBy: FilterListParam[]
   isReady?: boolean
   isFiltersChanged?: boolean
-  itemsType?: string
-  findDuplicatesActive?: boolean
-  duplicatesMenuLabel: string
-  duplicateMenuModes: DuplicateMenuMode[]
-  isDuplicateModeActive: (mode: string) => boolean
   filterAiPrompt: string
   filterAiContext: Record<string, unknown>
   dragOptions: Record<string, unknown>
@@ -383,8 +271,6 @@ const props = withDefaults(defineProps<{
   hideHeader: false,
   isReady: false,
   isFiltersChanged: false,
-  itemsType: 'media',
-  findDuplicatesActive: false,
 })
 
 const emit = defineEmits([
@@ -395,8 +281,6 @@ const emit = defineEmits([
   'add',
   'reorder',
   'open-saved',
-  'clear-duplicates',
-  'find-duplicates',
   'set-by',
   'set-condition',
   'set-value',

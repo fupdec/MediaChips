@@ -171,6 +171,10 @@
                 <SettingsFindMissingMedia/>
               </SettingsSection>
 
+              <SettingsSection id="settings-find-duplicates">
+                <SettingsFindDuplicates/>
+              </SettingsSection>
+
               <SettingsTagImageAiUpscale/>
 
               <SettingsGroupLabel :title="t('settings.groups.maintenance_media')"/>
@@ -307,6 +311,9 @@ const SettingsBackfillTask = defineAsyncComponent(() =>
 )
 const SettingsFindMissingMedia = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsFindMissingMedia.vue")
+)
+const SettingsFindDuplicates = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsFindDuplicates.vue")
 )
 const SettingsGenerateVideoImages = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateVideoImages.vue")
@@ -510,6 +517,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   visual_hash_backfill: "settings-visual-hash-backfill",
   content_hash_backfill: "settings-fingerprint-backfill",
   find_missing: "settings-find-missing-media",
+  find_duplicates: "settings-find-duplicates",
   clear_generated: "settings-clear-generated-images",
   backups: "database_backups",
   database_add: "database_add",
@@ -616,6 +624,7 @@ const DATABASE_SECTIONS = new Set([
   "visual_hash_backfill",
   "content_hash_backfill",
   "find_missing",
+  "find_duplicates",
   "clear_generated",
   "backups",
   "tag_image_ai_upscale",
