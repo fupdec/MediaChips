@@ -395,6 +395,9 @@ export function useItemsPageEvents({
       if (props.items_type === 'tag' && !props.metaId) return
 
       itemsStore.clearSelection()
+      itemsStore.listScopeIds = null
+      itemsStore.find_duplicates = false
+      itemsStore.duplicates_by = null
       await runInitSafely()
     },
   )

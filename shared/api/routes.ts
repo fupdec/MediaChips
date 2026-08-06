@@ -36,6 +36,7 @@ export const API_ROUTES = {
   filterRow: '/api/FilterRow',
   mediaBasics: '/api/Media/basics',
   mediaIds: '/api/Media/ids',
+  mediaSimilarByVisual: '/api/Media/similarByVisual',
   playlistSummary: '/api/Playlist/summary',
   mediaInPlaylists: '/api/MediaInPlaylists',
   mediaInPlaylistsUpdate: '/api/MediaInPlaylists/update',

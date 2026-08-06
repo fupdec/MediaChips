@@ -39,6 +39,7 @@ import {autoScrapeTmdbPersonTag} from '@mediachips/plugin-tmdb/services/tmdbPers
 import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '@/utils/pageItem'
+import {useOpenMediaList} from '@/utils/openMediaList'
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
 import type { MediaItem, Meta, Playlist, Tag } from '@/types/stores'
@@ -83,6 +84,7 @@ export default function useItemContextMenu(
   const eventBus = useEventBus()
   const listSync = useItemsListSync()
   const {moveTagsToCategory} = useMoveTagsToCategory()
+  const {openMediaList} = useOpenMediaList()
 
   const scraperStore = useScraperStore()
   const sceneScraperStore = useSceneScraperStore()
@@ -263,6 +265,15 @@ export default function useItemContextMenu(
           disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
           action: detectFacesForSelection,
         })
+
+        if (!isSelectMode() && isMediaPageItem(item, type)) {
+          contextMenu.push({
+            name: t('context_menu.more_like_this'),
+            type: 'item',
+            icon: 'image-search-outline',
+            action: openMoreLikeThis,
+          })
+        }
       }
 
       if (canSceneAutoScrape && isMediaPageItem(item, type)) {
@@ -771,6 +782,51 @@ export default function useItemContextMenu(
       listSync.getItemsFromDb({
         ids: updated,
         type: 'media',
+      })
+    }
+  }
+
+  const openMoreLikeThis = async (): Promise<void> => {
+    if (!isMediaPageItem(item, type)) return
+    const seedId = Number(item.id)
+    if (!Number.isFinite(seedId) || seedId <= 0) return
+
+    const locale = settingsStore.locale as Locale
+    const tr = (key: string) => translate(key, {}, locale)
+
+    try {
+      const response = await typedApi.similarByVisual({seedId})
+      const data = response.data
+      if (!data?.hasVisualHash) {
+        setNotification({
+          type: 'info',
+          title: tr('context_menu.more_like_this_no_hash'),
+          icon: 'image-search-outline',
+        })
+        return
+      }
+      const ids = Array.isArray(data.ids)
+        ? data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+        : []
+      if (ids.length <= 1) {
+        setNotification({
+          type: 'info',
+          title: tr('context_menu.more_like_this_none'),
+          icon: 'image-search-outline',
+        })
+        return
+      }
+
+      await openMediaList({
+        mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
+        ids,
+      })
+    } catch (error) {
+      console.error('Failed to find similar media:', error)
+      setNotification({
+        type: 'error',
+        title: tr('context_menu.more_like_this_failed'),
+        icon: 'image-search-outline',
       })
     }
   }

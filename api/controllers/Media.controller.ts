@@ -17,6 +17,7 @@ import {
   loadFilteredMediaIds,
   loadMediaBasicsByIds,
 } from '../services/mediaItemsLoader'
+import {findVisualSimilarIds} from '../services/visualHashBackfill'
 import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
 import {
   mapWithConcurrency,
@@ -72,6 +73,20 @@ export default function (db: ApiDb) {
       sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving media ids.')
+    }
+  }
+
+  const similarByVisual = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{seedId?: number, limit?: number}>(req)
+      const seedId = Number(body.seedId)
+      const parsedLimit = body.limit == null ? NaN : Number(body.limit)
+      const result = findVisualSimilarIds(db, seedId, {
+        ...(Number.isFinite(parsedLimit) && parsedLimit > 0 ? {limit: parsedLimit} : {}),
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while finding similar media.')
     }
   }
 
@@ -242,5 +257,6 @@ export default function (db: ApiDb) {
     getBasicsByIds,
     getThumbs,
     getStats,
+    similarByVisual,
   }
 }

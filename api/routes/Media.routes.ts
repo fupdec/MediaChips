@@ -7,6 +7,7 @@ import {
   ItemsListRequestSchema,
   MediaIdsRequestSchema,
   MediaBasicsRequestSchema,
+  MediaSimilarByVisualRequestSchema,
   MediaThumbsRequestSchema,
   MediaPathUpdateRequestSchema,
   DeleteEntityOneRequestSchema,
@@ -25,6 +26,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/ids', validateBody(MediaIdsRequestSchema), Media.getFilteredIds)
   router.post('/basics', validateBody(MediaBasicsRequestSchema), Media.getBasicsByIds)
   router.post('/thumbs', validateBody(MediaThumbsRequestSchema), Media.getThumbs)
+  router.post('/similarByVisual', validateBody(MediaSimilarByVisualRequestSchema), Media.similarByVisual)
 
   router.get('/get-stats', Media.getStats)
 

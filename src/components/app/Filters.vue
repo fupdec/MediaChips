@@ -655,6 +655,7 @@ const apply = async () => {
 const findDuplicates = async (mode: string) => {
   itemsStore.find_duplicates = true
   itemsStore.duplicates_by = mode
+  itemsStore.listScopeIds = null
   await apply()
 }
 

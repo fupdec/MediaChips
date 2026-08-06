@@ -404,6 +404,10 @@ const ru = {
     update_file_info: 'Обновить информацию о файле',
     detect_faces: 'Найти лица',
     view_faces: 'Посмотреть лица',
+    more_like_this: 'Похожие',
+    more_like_this_no_hash: 'Нет визуального отпечатка. Сначала сгенерируйте превью видео / запустите backfill visual hash.',
+    more_like_this_none: 'Похожих видео не найдено',
+    more_like_this_failed: 'Не удалось найти похожие видео',
     play_video_in: 'Воспроизвести видео в',
     play_audio_in: 'Воспроизвести аудио в',
     mediachips_player: 'Плеер MediaChips',
@@ -2549,6 +2553,7 @@ const ru = {
     show_only_duplicates_by_path_within_filter: 'Дубликаты · путь (в фильтре)',
     show_only_duplicates_by_fingerprint_within_filter: 'Дубликаты · fingerprint (в фильтре)',
     show_only_duplicates_by_visual_within_filter: 'Дубликаты · визуальные (в фильтре)',
+    more_like_this_scope: 'Похожие',
     deactivate_all_filters: 'Отключить все фильтры',
     deactivate_filter: 'Отключить фильтр',
     groups: {

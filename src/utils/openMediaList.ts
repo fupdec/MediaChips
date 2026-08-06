@@ -12,6 +12,8 @@ interface OpenMediaListOptions {
   sortDir?: string
   mediaTypeId?: number
   filters?: FilterObject[]
+  /** Scope the media list to these ids (ranked order preserved). */
+  ids?: number[]
 }
 
 async function waitForMediaPageReady() {
@@ -33,6 +35,7 @@ export function useOpenMediaList() {
     sortDir = 'desc',
     mediaTypeId,
     filters,
+    ids,
   }: OpenMediaListOptions = {}) => {
     const targetMediaTypeId = mediaTypeId ?? getDefaultMediaTypeId(appStore.mediaTypes)
     const alreadyOnPage =
@@ -42,6 +45,15 @@ export function useOpenMediaList() {
     if (!alreadyOnPage) {
       await router.push(`/media?mediaTypeId=${targetMediaTypeId}`)
       await waitForMediaPageReady()
+    }
+
+    if (ids?.length) {
+      itemsStore.find_duplicates = false
+      itemsStore.duplicates_by = null
+      itemsStore.listScopeIds = ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    } else if (filters?.length) {
+      // Home View-all / filter navigation should leave More-like-this scope.
+      itemsStore.listScopeIds = null
     }
 
     if (sortBy) {
@@ -56,6 +68,11 @@ export function useOpenMediaList() {
     if (sortBy) {
       pageCommands.setSortBy(sortBy)
       pageCommands.setSortDir(sortDir)
+    }
+
+    if (ids?.length) {
+      itemsStore.updateState({key: 'page', value: 1})
+      await Promise.resolve(pageCommands.reloadItems())
     }
   }
 

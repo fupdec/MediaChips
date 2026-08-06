@@ -23,6 +23,7 @@ import {
   normalizeItemsGroupBy,
   serializeGroupBySetting,
 } from '@/utils/itemsGroupBy'
+import {orderItemsByIds} from '@/utils/orderItemsByIds'
 
 export const INFINITE_PAGE_SIZE = 25
 
@@ -155,6 +156,15 @@ export function useItemsPage({
       ? uniqBy([...ITEMS.value.itemsOnPage, ...pageItems], 'id')
       : pageItems
 
+    const scopeIds = ITEMS.value.listScopeIds
+    if (
+      props.items_type === 'media'
+      && Array.isArray(scopeIds)
+      && scopeIds.length > 0
+    ) {
+      nextItems = orderItemsByIds(nextItems, scopeIds)
+    }
+
     const scrollEl = is_infinite_scroll.value
       ? (getMainScrollEl() as HTMLElement | null)
       : null
@@ -209,7 +219,10 @@ export function useItemsPage({
       query.duplicates_by = getDuplicatesGroupKey(mediaType.value, ITEMS.value.duplicates_by)
     }
 
-    query.ids = ids || []
+    // Explicit `ids` arg = card refresh path. Full list uses listScopeIds when set.
+    query.ids = (ids && ids.length > 0)
+      ? ids
+      : (ITEMS.value.listScopeIds?.length ? [...ITEMS.value.listScopeIds] : [])
 
     const appendListPage = (props.items_type === 'media' || props.items_type === 'tag')
       && is_infinite_scroll.value

@@ -404,6 +404,10 @@ const en = {
     update_file_info: 'Update File Info',
     detect_faces: 'Detect faces',
     view_faces: 'View faces',
+    more_like_this: 'More like this',
+    more_like_this_no_hash: 'No visual fingerprint yet. Generate video previews / run visual hash backfill first.',
+    more_like_this_none: 'No similar videos found',
+    more_like_this_failed: 'Failed to find similar videos',
     play_video_in: 'Play video in',
     play_audio_in: 'Play audio in',
     mediachips_player: 'MediaChips Player',
@@ -2548,6 +2552,7 @@ const en = {
     show_only_duplicates_by_path_within_filter: 'Duplicates · path (within filter)',
     show_only_duplicates_by_fingerprint_within_filter: 'Duplicates · fingerprint (within filter)',
     show_only_duplicates_by_visual_within_filter: 'Duplicates · visual (within filter)',
+    more_like_this_scope: 'More like this',
     deactivate_all_filters: 'Deactivate All Filters',
     deactivate_filter: 'Deactivate filter',
     groups: {

@@ -40,6 +40,11 @@ export const MediaBasicsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).optional(),
 }).passthrough()
 
+export const MediaSimilarByVisualRequestSchema = z.object({
+  seedId: z.coerce.number().int().positive(),
+  limit: z.coerce.number().int().positive().max(200).optional(),
+}).passthrough()
+
 export const MediaThumbsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).optional(),
   mediaType: z.string().optional(),

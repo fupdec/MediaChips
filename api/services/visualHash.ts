@@ -8,6 +8,7 @@ import {
 } from './visualHashSimilarity'
 
 export type {
+  RankVisualSimilarOptions,
   VisualDuplicateCluster,
   VisualFingerprint,
   VisualHashHex,
@@ -25,6 +26,7 @@ export {
   encodeVisualHashTiles,
   flattenVisualDuplicateIds,
   hammingDistanceHex,
+  rankVisualSimilarIds,
 } from './visualHashSimilarity'
 
 type JimpLike = {

@@ -80,6 +80,8 @@ function createItemsStoreState() {
     find_duplicates: false,
     /** Override for duplicate grouping: fingerprint | visualHash | path | filesize */
     duplicates_by: null as string | null,
+    /** When set, media list is scoped to these ids (e.g. More like this). */
+    listScopeIds: null as number[] | null,
     thumbRefreshKeys: {} as Record<number, number>,
     thumbRegenerateKeys: {} as Record<number, number>,
     viewerLoadMoreHandler: null as (() => Promise<boolean>) | null,

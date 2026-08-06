@@ -89,6 +89,14 @@ export const mediaApi = {
     }))
   },
 
+  similarByVisual(body: {seedId: number, limit?: number}) {
+    return apiClient.post<{
+      seedId: number
+      hasVisualHash: boolean
+      ids: number[]
+    }>(API_ROUTES.mediaSimilarByVisual, body)
+  },
+
   getMarksForVideo(id: number) {
     return apiClient.get(apiMarksForVideo(id)).then((res) => ({
       ...res,

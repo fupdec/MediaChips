@@ -9,6 +9,8 @@ import {
   computeGridVisualFingerprint,
   encodeVisualHashTiles,
   flattenVisualDuplicateIds,
+  rankVisualSimilarIds,
+  type RankVisualSimilarOptions,
   type VisualSimilarityOptions,
 } from './visualHash'
 
@@ -319,11 +321,53 @@ function findVisualNearDuplicateClusters(
   return clusterVisualNearDuplicates(rows, similarity)
 }
 
+export interface VisualSimilarBySeedResult {
+  seedId: number
+  hasVisualHash: boolean
+  ids: number[]
+}
+
+function findVisualSimilarIds(
+  db: ApiDb,
+  seedId: number,
+  options: RankVisualSimilarOptions = {},
+): VisualSimilarBySeedResult {
+  const id = Number(seedId)
+  if (!Number.isFinite(id) || id <= 0) {
+    return {seedId: id, hasVisualHash: false, ids: []}
+  }
+
+  const mediaRepo = createMediaRepository(db.drizzle)
+  const seed = mediaRepo.findById(id)
+  if (!seed) {
+    return {seedId: id, hasVisualHash: false, ids: []}
+  }
+
+  const visualHash = String(seed.visualHash || '').trim()
+  if (!visualHash) {
+    return {seedId: id, hasVisualHash: false, ids: []}
+  }
+
+  const rows = loadVisualHashRows(db, seed.mediaTypeId)
+  const ids = rankVisualSimilarIds(
+    {
+      id: seed.id,
+      visualHash,
+      visualHashTiles: seed.visualHashTiles,
+    },
+    rows,
+    options,
+  )
+
+  return {seedId: id, hasVisualHash: true, ids}
+}
+
 export {
   getVisualHashBackfillStatus,
   iterateVisualHashBackfill,
   upsertVisualHashForMedia,
   findVisualNearDuplicateIds,
   findVisualNearDuplicateClusters,
+  findVisualSimilarIds,
   getGridPath,
 }

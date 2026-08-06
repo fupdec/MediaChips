@@ -14,6 +14,19 @@
     </v-chip>
 
     <v-chip
+      v-if="hasListScope"
+      class="ma-1 px-2"
+      color="primary"
+      size="small"
+      variant="flat"
+      :title="t('filters.deactivate_filter')"
+      @click="switchOffListScope"
+    >
+      <v-icon size="14" class="mr-1">mdi-image-search-outline</v-icon>
+      {{ t('filters.more_like_this_scope') }}
+    </v-chip>
+
+    <v-chip
       v-for="(filter, index) in filters"
       :key="index"
       v-show="shouldShowFilter(filter)"
@@ -152,10 +165,20 @@ const duplicatesLabel = computed(() => {
 const meta = computed(() => appStore.meta)
 const tags = computed(() => appStore.tags)
 
+const hasListScope = computed(() =>
+  Array.isArray(itemsStore.listScopeIds) && itemsStore.listScopeIds.length > 0,
+)
+
 const switchOffDuplicates = () => {
   if (props.readonly || props.isTooltip) return
   itemsStore.find_duplicates = false
   itemsStore.duplicates_by = null
+  void filtersController.apply()
+}
+
+const switchOffListScope = () => {
+  if (props.readonly || props.isTooltip) return
+  itemsStore.listScopeIds = null
   void filtersController.apply()
 }
 

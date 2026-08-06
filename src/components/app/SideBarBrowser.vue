@@ -419,7 +419,8 @@ const activeMediaTypeKey = computed(() => {
 
 const hasActiveMediaFilters = computed(() => {
   if ((itemsStore.filters || []).some((filter) => filter?.active)) return true
-  return Boolean(itemsStore.find_duplicates)
+  if (itemsStore.find_duplicates) return true
+  return Boolean(itemsStore.listScopeIds?.length)
 })
 
 const hasActiveMarkerFilters = computed(() => {

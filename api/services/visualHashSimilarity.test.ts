@@ -6,6 +6,7 @@ import {
   decodeVisualHashTiles,
   encodeVisualHashTiles,
   hammingDistanceHex,
+  rankVisualSimilarIds,
 } from './visualHashSimilarity'
 
 describe('visualHashSimilarity', () => {
@@ -30,5 +31,24 @@ describe('visualHashSimilarity', () => {
     ]
     expect(averageHashFromBitmap(data, 2, 2)).toBe('0011')
     expect(bitsToHex('0011001100110011001100110011001100110011001100110011001100110011')).toHaveLength(16)
+  })
+
+  it('ranks similar ids with seed first by hamming distance', () => {
+    const seed = {id: 1, visualHash: 'ffffffffffffffff', visualHashTiles: null}
+    const rows = [
+      seed,
+      {id: 2, visualHash: 'fffffffffffffffe', visualHashTiles: null},
+      {id: 3, visualHash: 'fffffffffffffffc', visualHashTiles: null},
+      {id: 4, visualHash: '0000000000000000', visualHashTiles: null},
+    ]
+    expect(rankVisualSimilarIds(seed, rows, {limit: 10})).toEqual([1, 2, 3])
+    expect(rankVisualSimilarIds(seed, rows, {limit: 1})).toEqual([1, 2])
+  })
+
+  it('returns empty ranking when seed has no hash', () => {
+    expect(rankVisualSimilarIds(
+      {id: 1, visualHash: '', visualHashTiles: null},
+      [{id: 2, visualHash: 'ffffffffffffffff', visualHashTiles: null}],
+    )).toEqual([])
   })
 })

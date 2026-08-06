@@ -152,6 +152,42 @@ function fingerprintFromRow(row: VisualHashRow): VisualFingerprint {
   }
 }
 
+export type RankVisualSimilarOptions = VisualSimilarityOptions & {
+  /** Max neighbors to return (seed is always prepended and not counted). */
+  limit?: number
+}
+
+/**
+ * Rank rows visually similar to seed by grid Hamming distance.
+ * Returns [seedId, ...neighborIds] (seed first). Empty when seed has no hash.
+ */
+export function rankVisualSimilarIds(
+  seed: VisualHashRow,
+  rows: VisualHashRow[],
+  options: RankVisualSimilarOptions = {},
+): number[] {
+  const {limit = 50, ...similarity} = options
+  const seedId = Number(seed.id)
+  if (!Number.isFinite(seedId) || seedId <= 0) return []
+
+  const seedFp = fingerprintFromRow(seed)
+  if (!seedFp.hash) return []
+
+  const scored: Array<{id: number, distance: number}> = []
+  for (const row of rows) {
+    const id = Number(row.id)
+    if (!Number.isFinite(id) || id <= 0 || id === seedId) continue
+    const fp = fingerprintFromRow(row)
+    if (!fp.hash) continue
+    if (!areVisuallySimilar(seedFp, fp, similarity)) continue
+    scored.push({id, distance: hammingDistanceHex(seedFp.hash, fp.hash)})
+  }
+
+  scored.sort((a, b) => a.distance - b.distance || a.id - b.id)
+  const neighborLimit = Math.max(0, Number(limit) || 0)
+  return [seedId, ...scored.slice(0, neighborLimit).map((entry) => entry.id)]
+}
+
 type ClusterItem = {
   id: number
   fp: VisualFingerprint
