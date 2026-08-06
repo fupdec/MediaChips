@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { mediaTypes } from '../schema/mediaTypes'
 import { meta } from '../schema/meta'
@@ -34,7 +34,10 @@ export function createMetaInMediaTypesRepository(db: DrizzleClient) {
         .orderBy(asc(metaInMediaTypes.order))
         .all()
 
-      const metaRows = db.select().from(meta).all()
+      const metaIds = [...new Set(rows.map((row) => row.metaId))]
+      const metaRows = metaIds.length
+        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
+        : []
       const metaById = new Map(metaRows.map((row) => [row.id, row]))
 
       // Legacy DBs may contain duplicate (metaId, mediaTypeId) rows.
@@ -63,7 +66,10 @@ export function createMetaInMediaTypesRepository(db: DrizzleClient) {
         .orderBy(asc(metaInMediaTypes.order))
         .all()
 
-      const mediaTypeRows = db.select().from(mediaTypes).all()
+      const mediaTypeIds = [...new Set(rows.map((row) => row.mediaTypeId))]
+      const mediaTypeRows = mediaTypeIds.length
+        ? db.select().from(mediaTypes).where(inArray(mediaTypes.id, mediaTypeIds)).all()
+        : []
       const mediaTypeById = new Map(mediaTypeRows.map((row) => [row.id, row]))
 
       return rows.map((row) => ({

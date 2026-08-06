@@ -281,6 +281,8 @@ export interface MarkClipsRequestPayload {
   tagId: number
   sort?: 'time' | 'shuffle'
   countOnly?: boolean
+  limit?: number
+  offset?: number
 }
 
 export interface BulkMetaApplyPayload {

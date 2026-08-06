@@ -334,6 +334,7 @@ import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
+import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
 import {typedApi} from '@/services/typedApi'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
@@ -383,6 +384,7 @@ const router = useRouter()
 const {lg, md, sm, xs} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
+const playerStore = usePlayerStore()
 const dialogsStore = useDialogsStore()
 const {t} = useI18n()
 
@@ -573,15 +575,17 @@ const playClips = async () => {
   if (!tag.value?.id || playingClips.value) return
 
   playingClips.value = true
+  const tagId = Number(tag.value.id)
   try {
-    const res = await typedApi.getMarkClips({
-      tagId: Number(tag.value.id),
+    const firstRes = await typedApi.getMarkClips({
+      tagId,
       sort: 'time',
+      limit: 1,
     })
-    const clips = res.data?.items || []
-    clipCount.value = Number(res.data?.count ?? clips.length)
+    const firstClips = firstRes.data?.items || []
+    clipCount.value = Number(firstRes.data?.count ?? firstClips.length)
 
-    if (!clips.length) {
+    if (!firstClips.length) {
       setNotification({
         type: 'warning',
         title: t('tags.play_clips_empty_title'),
@@ -591,11 +595,23 @@ const playClips = async () => {
     }
 
     await itemsStore.playVideo({
-      video: clips[0],
-      videos: clips,
-      time: clips[0].segmentStart,
+      video: firstClips[0],
+      videos: firstClips,
+      time: firstClips[0].segmentStart,
       trustPath: true,
     })
+
+    if (clipCount.value <= 1) return
+
+    const fullRes = await typedApi.getMarkClips({
+      tagId,
+      sort: 'time',
+    })
+    const clips = fullRes.data?.items || []
+    clipCount.value = Number(fullRes.data?.count ?? clips.length)
+    if (clips.length > 1) {
+      playerStore.setPlaylistItems(clips)
+    }
   } catch (error) {
     notifyLoadError(error)
   } finally {

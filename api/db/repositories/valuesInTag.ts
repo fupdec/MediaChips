@@ -33,7 +33,10 @@ export function createValuesInTagRepository(db: DrizzleClient) {
         .where(eq(valuesInTags.tagId, tagId))
         .all()
 
-      const metaRows = db.select().from(meta).all()
+      const metaIds = [...new Set(rows.map((row) => row.metaId).filter((id): id is number => id != null))]
+      const metaRows = metaIds.length
+        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
+        : []
       const metaById = new Map(metaRows.map((row) => [row.id, row]))
 
       return rows.map((row) => ({

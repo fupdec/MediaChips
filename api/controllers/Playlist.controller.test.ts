@@ -6,14 +6,12 @@ const {
   findAll,
   updateById,
   deleteById,
-  findAllGroupedByPlaylist,
   getManualPlaylistsSummary,
 } = vi.hoisted(() => ({
   create: vi.fn(),
   findAll: vi.fn(),
   updateById: vi.fn(),
   deleteById: vi.fn(),
-  findAllGroupedByPlaylist: vi.fn(),
   getManualPlaylistsSummary: vi.fn(),
 }))
 
@@ -23,12 +21,6 @@ vi.mock('../db/repositories/playlists', () => ({
     findAll,
     updateById,
     deleteById,
-  }),
-}))
-
-vi.mock('../db/repositories/mediaInPlaylists', () => ({
-  createMediaInPlaylistsRepository: () => ({
-    findAllGroupedByPlaylist,
   }),
 }))
 
@@ -64,7 +56,6 @@ describe('Playlist.controller', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    findAllGroupedByPlaylist.mockReturnValue(new Map())
   })
 
   it('creates a playlist', () => {
@@ -80,14 +71,11 @@ describe('Playlist.controller', () => {
     expect(res.body).toEqual({id: 3, name: 'Favorites'})
   })
 
-  it('returns playlists with grouped media links', () => {
+  it('returns playlist catalog rows without membership links', () => {
     findAll.mockReturnValue([
       {id: 1, name: 'A'},
       {id: 2, name: 'B'},
     ])
-    findAllGroupedByPlaylist.mockReturnValue(new Map([
-      [1, [{mediaId: 10}]],
-    ]))
 
     const req = {} as ApiRequest
     const res = createResponse()
@@ -96,8 +84,8 @@ describe('Playlist.controller', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([
-      {id: 1, name: 'A', mediaInPlaylists: [{mediaId: 10}]},
-      {id: 2, name: 'B', mediaInPlaylists: []},
+      {id: 1, name: 'A'},
+      {id: 2, name: 'B'},
     ])
   })
 

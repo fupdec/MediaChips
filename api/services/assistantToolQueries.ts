@@ -1,3 +1,7 @@
+import type {ApiDb} from '../types/db'
+import {queryAll} from '../db/utils/rawQuery'
+import {escapeLikePattern} from './globalSearchMerge'
+
 export function resolveAssistantToolQuery(args: Record<string, unknown>): string {
   return String(args.query || args.q || '')
 }
@@ -35,6 +39,50 @@ export function filterTagRowsByQuery<T extends {name?: string | null}>(
   return rows
     .filter((row) => !normalized || String(row.name || '').toLowerCase().includes(normalized))
     .slice(0, limit)
+}
+
+export type AssistantMediaHit = {id: number; name: string | null; path: string | null}
+export type AssistantTagHit = {id: number; name: string | null; metaId: number | null}
+
+/** SQL-limited media search (name/path substring). Empty query → []. */
+export function searchMediaRowsByQuery(
+  db: ApiDb,
+  query: string,
+  limit: number,
+): AssistantMediaHit[] {
+  const trimmed = String(query || '').trim()
+  if (!trimmed) return []
+  const pattern = `%${escapeLikePattern(trimmed)}%`
+  return queryAll<AssistantMediaHit>(db, `
+    SELECT id, name, path
+    FROM media
+    WHERE name LIKE :pattern ESCAPE '\\'
+       OR path LIKE :pattern ESCAPE '\\'
+    LIMIT :limit
+  `, {pattern, limit})
+}
+
+/** SQL-limited tag listing; optional name substring. Empty query → first N rows. */
+export function searchTagRowsByQuery(
+  db: ApiDb,
+  query: string,
+  limit: number,
+): AssistantTagHit[] {
+  const trimmed = String(query || '').trim()
+  if (!trimmed) {
+    return queryAll<AssistantTagHit>(db, `
+      SELECT id, name, metaId
+      FROM tags
+      LIMIT :limit
+    `, {limit})
+  }
+  const pattern = `%${escapeLikePattern(trimmed)}%`
+  return queryAll<AssistantTagHit>(db, `
+    SELECT id, name, metaId
+    FROM tags
+    WHERE name LIKE :pattern ESCAPE '\\'
+    LIMIT :limit
+  `, {pattern, limit})
 }
 
 export function projectMetaRowsForAssistant<T extends {

@@ -5,14 +5,19 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import {afterAll, beforeAll, describe, expect, it} from 'vitest'
-import {createImageThumb, createImageThumbFromBuffer} from './imageMedia'
+import {
+  createImageThumb,
+  createImageThumbFromBuffer,
+  getImageMetadata,
+  processAndSaveImage,
+} from './imageMedia'
 
-async function writeTestPng(filePath: string) {
+async function writeTestPng(filePath: string, width = 640, height = 480) {
   const {default: sharp} = await import('sharp')
   await sharp({
     create: {
-      width: 640,
-      height: 480,
+      width,
+      height,
       channels: 3,
       background: {r: 40, g: 120, b: 200},
     },
@@ -52,5 +57,29 @@ describe('imageMedia thumbs (sharp-first)', () => {
     const out = await createImageThumbFromBuffer(buffer, 202, dbPath)
     expect(fs.existsSync(out)).toBe(true)
     expect(fs.statSync(out).size).toBeGreaterThan(200)
+  })
+
+  it('reads metadata via sharp without jimp', async () => {
+    const meta = await getImageMetadata(samplePng)
+    expect(meta).toEqual({
+      width: 640,
+      height: 480,
+      orientation: 1,
+    })
+  })
+
+  it('processAndSaveImage crops and resizes with sharp', async () => {
+    const buffer = fs.readFileSync(samplePng)
+    const out = path.join(tmpDir, 'processed.jpg')
+    await processAndSaveImage({
+      buffer,
+      outputPath: out,
+      sizes: {width: 100, height: 100},
+    })
+    expect(fs.existsSync(out)).toBe(true)
+    const {default: sharp} = await import('sharp')
+    const meta = await sharp(out).metadata()
+    expect(meta.width).toBe(100)
+    expect(meta.height).toBe(100)
   })
 })

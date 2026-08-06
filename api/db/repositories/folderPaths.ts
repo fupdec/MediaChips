@@ -1,8 +1,9 @@
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { folderPaths, tagsInFolders } from '../schema/folderPaths'
 import { normalizeMediaPath } from '../../utils/normalizeUserPath'
 import { nowIso } from '../utils/timestamps'
+import { mapChunks } from '../utils/chunk'
 
 export type FolderPathRow = typeof folderPaths.$inferSelect
 
@@ -56,9 +57,9 @@ export function createFolderPathsRepository(db: DrizzleClient) {
       const unique = [...new Set(paths.map(canonicalizeFolderPath).filter(Boolean))]
       if (!unique.length) return []
 
-      return unique
-        .map((path) => db.select().from(folderPaths).where(eq(folderPaths.path, path)).get())
-        .filter((row): row is FolderPathRow => Boolean(row))
+      return mapChunks(unique, (chunk) => (
+        db.select().from(folderPaths).where(inArray(folderPaths.path, chunk)).all()
+      ))
     },
 
     /**

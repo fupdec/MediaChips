@@ -29,3 +29,15 @@ export function collectJpgStemIds(files: string[]): Set<string> {
   }
   return ids
 }
+
+/** Parse stem strings to positive integer ids (orphan / non-numeric stems dropped). */
+export function parsePositiveStemIds(stemIds: Iterable<string>): number[] {
+  const ids: number[] = []
+  for (const stem of stemIds) {
+    if (!/^\d+$/.test(stem)) continue
+    const id = Number(stem)
+    if (Number.isSafeInteger(id) && id > 0) ids.push(id)
+  }
+  return ids
+}
+

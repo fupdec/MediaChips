@@ -318,12 +318,65 @@ const applyFullPlaylist = async (videos: MediaItem[]) => {
 }
 
 const play = async (playlist: PagePlaylist) => {
-  if (!playlist.media?.length || playingPlaylistId.value) return
+  if (playingPlaylistId.value) return
 
   playingPlaylistId.value = `manual-${playlist.id}`
+  let started = false
 
   try {
-    await playVideos(playlist.media)
+    const firstId = playlist.previewIds?.[0]
+    if (firstId) {
+      try {
+        const basicsRes = await typedApi.getMediaBasics({
+          ids: [firstId],
+        })
+        const firstVideo = basicsRes.data?.items?.[0]
+        if (firstVideo) {
+          started = await playVideos([enrichMediaItem(firstVideo)])
+        }
+      } catch (e) {
+        console.log('Quick play failed, loading full playlist:', e)
+      }
+    }
+
+    const res = await typedApi.getMediaInPlaylist(playlist.id)
+    const videos = (res.data || [])
+      .map((link) => (link.media || link.medium) as MediaItem | undefined)
+      .filter((item): item is MediaItem => Boolean(item?.id || item?.path))
+      .map(enrichMediaItem)
+
+    const videoCount = videos.length
+    if (playlist.count !== videoCount) {
+      playlist.count = videoCount
+    }
+
+    if (!videos.length) {
+      if (!started) {
+        setNotification({
+          type: 'error',
+          title: t('playlists.no_videos_added'),
+        })
+      }
+      return
+    }
+
+    if (started) {
+      if (await applyFullPlaylist(videos)) return
+    }
+
+    const played = await playVideos(videos)
+    if (!played && !started) {
+      setNotification({
+        type: 'error',
+        title: t('playlists.preparing_playback_failed'),
+      })
+    }
+  } catch (e) {
+    console.log('Error loading playlist videos:', e)
+    setNotification({
+      type: 'error',
+      title: t('playlists.preparing_playback_failed'),
+    })
   } finally {
     playingPlaylistId.value = null
   }

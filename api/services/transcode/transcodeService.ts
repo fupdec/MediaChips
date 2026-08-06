@@ -13,6 +13,7 @@ import {
   getCacheStats,
   clearCache,
 } from './transcodeCache'
+import {ensureProgressiveRemux, lookupRemuxCache} from './remuxCache'
 import {
   getTranscodeSettings,
   isTranscodeEnabled,
@@ -148,6 +149,17 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     return result
   }
 
+  function scheduleLayoutRemux(filePath: string, settings: Awaited<ReturnType<typeof getTranscodeSettings>>) {
+    const dbId = getActiveDbId()
+    if (!dbId) return null
+    return ensureProgressiveRemux({
+      databasesPath,
+      dbId,
+      filePath,
+      maxCacheGb: Number(settings.transcodeCacheMaxGb),
+    })
+  }
+
   async function getPlaybackPlan(filePath: string, options: Record<string, unknown> = {}): Promise<PlaybackPlan> {
     const settings = (options.settings as Awaited<ReturnType<typeof getTranscodeSettings>> | undefined)
       || await getTranscodeSettings(db)
@@ -160,6 +172,10 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     const playability = await analyzePlayability(filePath)
     // Codec-compatible MP4s with bad layout stay on direct first; clients may
     // fall back to live re-encode on Chromium stall (never remux-copy — black frame).
+    // Kick a progressive remux so later opens can serve a seekable cached MP4.
+    if (playability.playable && playability.needsRemux) {
+      scheduleLayoutRemux(filePath, settings)
+    }
     return resolvePlaybackPlanFromPlayability({playability, transcodeEnabled})
   }
 
@@ -178,6 +194,16 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     }
 
     if (plan.mode === 'direct') {
+      if (plan.reason === 'container_layout' || plan.playability?.needsRemux) {
+        const dbId = getActiveDbId()
+        if (dbId) {
+          const cached = lookupRemuxCache(databasesPath, dbId, filePath)
+          if (cached?.ready) {
+            return {filePath: cached.outputPath, contentType: 'video/mp4', plan}
+          }
+          scheduleLayoutRemux(filePath, settings)
+        }
+      }
       return {filePath, contentType: null, plan}
     }
 
@@ -224,6 +250,11 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       needsRemux: playability.needsRemux,
       streamStart,
     })
+
+    // Live fallback for layout issues also warms the progressive remux cache.
+    if (playability.needsRemux) {
+      scheduleLayoutRemux(filePath, settings)
+    }
 
     // Do not probe keyframes or decode-from-zero for "accurate" starts — both add
     // multi-second (sometimes multi-minute) latency before the first frame.

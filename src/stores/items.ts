@@ -19,6 +19,7 @@ import type { PlayableMedia } from '@shared/entities/media'
 import type { AssignedMeta, ItemsEnvironment, MediaItem, Meta, SavedFilter } from '@/types/stores'
 import type { ItemsPageStoreUpdates } from '@/types/itemsPage'
 import { ensureMediaItem, getSegmentStart } from '@/utils/mediaItem'
+import { findFirstPlayableVideo } from '@/utils/findFirstPlayableVideo'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
 
@@ -250,14 +251,7 @@ export const useItemsStore = defineStore('items', {
         .map((item) => ensureMediaItem(toRaw(item)))
         .filter((candidate) => candidate?.path)
 
-      if (!candidates.length) return null
-
-      const existence = await Promise.all(
-        candidates.map((candidate) => checkFileExists(candidate.path!)),
-      )
-
-      const index = existence.findIndex(Boolean)
-      return index >= 0 ? candidates[index] : null
+      return findFirstPlayableVideo(candidates, checkFileExists)
     },
 
     async playVideo({video, time, in_system, player, videos, trustPath = false}: {
@@ -278,10 +272,16 @@ export const useItemsStore = defineStore('items', {
       let targetVideo = ensureMediaItem(toRaw(video))
 
       if (hasPlaylist) {
-        const playable = await this.findFirstPlayableVideo(playlistVideos || [])
-        targetVideo = playable
-          || (playlistVideos || []).find((item) => item?.path)
-          || (playlistVideos || [])[0]
+        if (trustPath) {
+          targetVideo = (playlistVideos || []).find((item) => item?.path)
+            || (playlistVideos || [])[0]
+            || targetVideo
+        } else {
+          const playable = await this.findFirstPlayableVideo(playlistVideos || [])
+          targetVideo = playable
+            || (playlistVideos || []).find((item) => item?.path)
+            || (playlistVideos || [])[0]
+        }
 
         if (!targetVideo) {
           setNotification({
@@ -291,7 +291,7 @@ export const useItemsStore = defineStore('items', {
           })
           return false
         }
-      } else         if (!trustPath && targetVideo.path) {
+      } else if (!trustPath && targetVideo.path) {
         const isFileExists = await checkFileExists(targetVideo.path)
 
         if (!isFileExists) {

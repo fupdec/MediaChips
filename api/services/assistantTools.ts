@@ -1,14 +1,12 @@
 import type {ApiDb} from '../types/db'
-import {createMediaRepository} from '../db/repositories/media'
 import {createMetaRepository} from '../db/repositories/meta'
-import {createTagsRepository} from '../db/repositories/tags'
 import {searchDocs} from './docRetrieval'
 import {
   clampAssistantToolLimit,
-  filterMediaRowsByQuery,
-  filterTagRowsByQuery,
   projectMetaRowsForAssistant,
   resolveAssistantToolQuery,
+  searchMediaRowsByQuery,
+  searchTagRowsByQuery,
 } from './assistantToolQueries'
 
 export type AssistantToolName = 'search_docs' | 'search_media' | 'list_meta' | 'list_tags'
@@ -68,14 +66,8 @@ export async function executeAssistantTool(
 
   if (name === 'search_media') {
     const query = resolveAssistantToolQuery(args)
-    const mediaRepo = createMediaRepository(db.drizzle)
-    const all = mediaRepo.findAllRaw()
     const limit = clampAssistantToolLimit(args.limit, {max: 20, fallback: 10})
-    const matches = filterMediaRowsByQuery(all, query, limit).map((row) => ({
-      id: row.id,
-      name: row.name,
-      path: row.path,
-    }))
+    const matches = searchMediaRowsByQuery(db, query, limit)
     return {ok: true, result: {items: matches, count: matches.length}}
   }
 
@@ -92,14 +84,8 @@ export async function executeAssistantTool(
 
   if (name === 'list_tags') {
     const query = resolveAssistantToolQuery(args)
-    const tagRepo = createTagsRepository(db.drizzle, db.sqlite)
-    const rows = tagRepo.findAllRaw()
     const limit = clampAssistantToolLimit(args.limit, {max: 50, fallback: 20})
-    const items = filterTagRowsByQuery(rows, query, limit).map((row) => ({
-      id: row.id,
-      name: row.name,
-      metaId: row.metaId,
-    }))
+    const items = searchTagRowsByQuery(db, query, limit)
     return {ok: true, result: {items, count: items.length}}
   }
 

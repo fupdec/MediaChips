@@ -88,13 +88,17 @@ export function createTagsInMediaRepository(db: DrizzleClient) {
       const tagRows = tagIds.length
         ? db.select({name: tags.name, color: tags.color, metaId: tags.metaId, id: tags.id})
           .from(tags)
+          .where(inArray(tags.id, tagIds))
           .all()
         : []
       const tagById = new Map(tagRows.map((row) => [row.id, row as TagSummary & {id: number}]))
 
       const metaIds = [...new Set(tagRows.map((row) => row.metaId).filter((id): id is number => id != null))]
       const metaRows = metaIds.length
-        ? db.select({id: meta.id, name: meta.name, icon: meta.icon}).from(meta).all()
+        ? db.select({id: meta.id, name: meta.name, icon: meta.icon})
+          .from(meta)
+          .where(inArray(meta.id, metaIds))
+          .all()
         : []
       const metaById = new Map(metaRows.map((row) => [row.id, row as MetaSummary]))
 

@@ -30,7 +30,7 @@ import {
 import {
   buildVideoImageStatus,
   collectJpgStemIds,
-  countGeneratedImages,
+  parsePositiveStemIds,
 } from './videoImagesStatus'
 import { generateVideoGrid } from './videoGrid'
 
@@ -190,27 +190,26 @@ async function getVideoImagesGenerationStatus(db: ApiDb, dbPath: string): Promis
   const mediaRepo = createMediaRepository(db.drizzle)
   const marksRepo = createMarksRepository(db.drizzle)
   const videoTypeId = await getVideoMediaTypeId(db)
-  const [
-    previewIds,
-    gridIds,
-    markImageIds,
-    videoRows,
-    markRows,
-  ] = await Promise.all([
+  const [previewIds, gridIds, markImageIds, videoTotal, marksTotal] = await Promise.all([
     loadGeneratedIdSet(dbPath, 'preview'),
     loadGeneratedIdSet(dbPath, 'grid'),
     loadGeneratedIdSet(dbPath, 'marks'),
-    Promise.resolve(videoTypeId ? mediaRepo.findIdsByMediaType(videoTypeId) : []),
-    Promise.resolve(marksRepo.findAllIds()),
+    Promise.resolve(videoTypeId ? mediaRepo.countByMediaType(videoTypeId) : 0),
+    Promise.resolve(marksRepo.countAll()),
   ])
 
-  const videoTotal = videoRows.length
-  const marksTotal = markRows.length
+  const previewGenerated = videoTypeId
+    ? mediaRepo.countByIdsAndMediaType(videoTypeId, parsePositiveStemIds(previewIds))
+    : 0
+  const gridGenerated = videoTypeId
+    ? mediaRepo.countByIdsAndMediaType(videoTypeId, parsePositiveStemIds(gridIds))
+    : 0
+  const marksGenerated = marksRepo.countByIds(parsePositiveStemIds(markImageIds))
 
   return {
-    preview: buildVideoImageStatus(videoTotal, countGeneratedImages(videoRows as Array<{ id?: unknown }>, previewIds)),
-    grid: buildVideoImageStatus(videoTotal, countGeneratedImages(videoRows as Array<{ id?: unknown }>, gridIds)),
-    marks: buildVideoImageStatus(marksTotal, countGeneratedImages(markRows as Array<{ id?: unknown }>, markImageIds)),
+    preview: buildVideoImageStatus(videoTotal, previewGenerated),
+    grid: buildVideoImageStatus(videoTotal, gridGenerated),
+    marks: buildVideoImageStatus(marksTotal, marksGenerated),
   }
 }
 

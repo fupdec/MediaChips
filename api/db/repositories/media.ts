@@ -438,6 +438,25 @@ export function createMediaRepository(db: DrizzleClient) {
       return Number(row?.count ?? 0)
     },
 
+    /** How many of `ids` exist for this media type (chunked IN). */
+    countByIdsAndMediaType(mediaTypeId: number, ids: number[]): number {
+      const unique = [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))]
+      if (!unique.length) return 0
+
+      let total = 0
+      forEachChunk(unique, (chunk) => {
+        const row = db.select({count: count()})
+          .from(media)
+          .where(and(
+            eq(media.mediaTypeId, mediaTypeId),
+            inArray(media.id, chunk),
+          ))
+          .get()
+        total += Number(row?.count ?? 0)
+      })
+      return total
+    },
+
     findNextByMediaTypeAfterId(mediaTypeId: number, lastId: number): MediaRow | undefined {
       return db.select()
         .from(media)

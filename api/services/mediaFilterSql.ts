@@ -45,6 +45,9 @@ const MEDIA_COLUMNS = new Set([
   'filesize',
   'basename',
   'ext',
+  'contentHash',
+  'oshash',
+  'visualHash',
 ])
 
 const VIDEO_COLUMNS = new Set(['duration', 'bitrate', 'codec', 'fps', 'time'])

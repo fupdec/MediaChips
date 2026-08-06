@@ -63,7 +63,9 @@ export function buildTypedMetaValueClause(
     return clause ? `(${clause})` : null
   }
 
-  return null
+  // Unknown / legacy meta types (text, url, …): treat as string so saved filters stay on SQL.
+  const clause = buildStringComparison(valueColumn, cond, val, nextParam)
+  return clause ? `(${clause})` : null
 }
 
 /** Typed comparisons for entity columns (media.* / tags.*). */
@@ -97,5 +99,6 @@ export function buildTypedEntityColumnClause(
     return clause || null
   }
 
-  return null
+  // Unknown column filter types: same string semantics (keeps SQL path).
+  return buildStringComparison(columnExpr, cond, val, nextParam) || null
 }

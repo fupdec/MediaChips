@@ -1,7 +1,8 @@
-import type { TagRow } from '../db/repositories/tags'
+import type { TagLookupRow } from '../db/repositories/tags'
 import { createTagsRepository } from '../db/repositories/tags'
 import {
   findTagForMarkerTitle,
+  type MarkerTagLike,
 } from '../../shared/sceneMarkerTags'
 
 export {
@@ -20,7 +21,7 @@ export function resolveOrCreateMarkerTagId({
   tagsRepo,
 }: {
   title: string
-  allTags: TagRow[]
+  allTags: MarkerTagLike[]
   markerMetaId: number
   tagsRepo: TagsRepository
 }): number | null {
@@ -34,6 +35,11 @@ export function resolveOrCreateMarkerTagId({
   const tag = created[0]
   if (!tag?.id) return null
 
-  allTags.push(tag)
+  const lookup: TagLookupRow = {
+    id: tag.id,
+    name: tag.name,
+    synonyms: tag.synonyms,
+  }
+  allTags.push(lookup)
   return tag.id
 }

@@ -4,12 +4,10 @@ import type { ApiRequest, ApiResponse } from '../types/http'
 import type { ParsedDynamicPlaylistSummary } from '@shared/schemas/filters'
 
 import { createPlaylistsRepository } from '../db/repositories/playlists'
-import { createMediaInPlaylistsRepository } from '../db/repositories/mediaInPlaylists'
 import { getManualPlaylistsSummary } from '../services/playlistSummary'
 
 export default function (db: ApiDb) {
   const playlistsRepo = createPlaylistsRepository(db.drizzle)
-  const mediaInPlaylistsRepo = createMediaInPlaylistsRepository(db.drizzle)
 
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -20,15 +18,10 @@ export default function (db: ApiDb) {
     }
   }
 
+  /** Catalog bootstrap: id/name only. Membership via /summary or MediaInPlaylists. */
   const findAll = function (req: ApiRequest, res: ApiResponse) {
     try {
-      const playlists = playlistsRepo.findAll()
-      const grouped = mediaInPlaylistsRepo.findAllGroupedByPlaylist()
-      const data = playlists.map((playlist: {id: number}) => ({
-        ...playlist,
-        mediaInPlaylists: grouped.get(playlist.id) ?? [],
-      }))
-      sendOk(res, data)
+      sendOk(res, playlistsRepo.findAll())
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while retrieving media.')
     }

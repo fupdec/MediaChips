@@ -59,12 +59,22 @@ describe('mediaInPlaylists relation lookups', () => {
     fs.rmSync(dbPath, {force: true})
   })
 
-  it('loads playlist media by linked ids only', () => {
+  it('loads playlist media by linked ids with a slim projection', () => {
     const repo = createMediaInPlaylistsRepository(db)
     const rows = repo.findByPlaylistId(7)
 
     expect(rows).toHaveLength(2)
     expect(rows.map((row) => row.media?.path)).toEqual(['/two.mp4', '/one.mp4'])
-    expect(rows[0]?.playlist?.name).toBe('Favorites')
+    expect(rows[0]?.media).toMatchObject({
+      id: 2,
+      path: '/two.mp4',
+      name: 'Two',
+      basename: 'two.mp4',
+      mediaTypeId: 1,
+    })
+    expect(rows[0]?.media).not.toHaveProperty('visualHash')
+    expect(rows[0]?.media).not.toHaveProperty('contentHash')
+    expect(rows[0]?.media).not.toHaveProperty('oshash')
+    expect(rows[0]).not.toHaveProperty('playlist')
   })
 })

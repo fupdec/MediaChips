@@ -1,90 +1,54 @@
-import type { ApiDb, AnyRecord } from '../types/db'
+import type { ApiDb } from '../types/db'
 import type { ParsedDynamicPlaylistSummary } from '@shared/schemas/filters'
 import { queryAll } from '../db/utils/rawQuery'
 import { createPlaylistsRepository } from '../db/repositories/playlists'
 
+/** Slim card payload: count + up to 4 preview ids (no media/metadata join). */
 async function getManualPlaylistsSummary(db: ApiDb): Promise<ParsedDynamicPlaylistSummary[]> {
   const playlistsRepo = createPlaylistsRepository(db.drizzle)
   const playlists = playlistsRepo.findAll()
 
   if (!playlists.length) return []
 
-  const rows = queryAll(db, `
-    SELECT
-      mip.playlistId,
-      mip.mediaId,
-      mip.\`order\`,
-      media.id,
-      media.path,
-      media.name,
-      media.basename,
-      media.ext,
-      media.mediaTypeId,
-      media.filesize,
-      media.rating,
-      media.favorite,
-      media.views,
-      media.viewedAt,
-      videoMetadata.duration,
-      videoMetadata.time,
-      COALESCE(videoMetadata.width, imageMetadata.width) AS width,
-      COALESCE(videoMetadata.height, imageMetadata.height) AS height
-    FROM mediaInPlaylists mip
-    INNER JOIN media ON media.id = mip.mediaId
-    LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
-    LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
-    ORDER BY mip.playlistId ASC, mip.\`order\` ASC
+  const counts = queryAll<{playlistId: number; count: number}>(db, `
+    SELECT playlistId, COUNT(*) AS count
+    FROM mediaInPlaylists
+    GROUP BY playlistId
+  `)
+  const countById = new Map(
+    counts.map((row) => [Number(row.playlistId), Number(row.count) || 0]),
+  )
+
+  const previewRows = queryAll<{playlistId: number; mediaId: number}>(db, `
+    SELECT playlistId, mediaId
+    FROM (
+      SELECT
+        playlistId,
+        mediaId,
+        ROW_NUMBER() OVER (
+          PARTITION BY playlistId
+          ORDER BY \`order\` ASC, mediaId ASC
+        ) AS rn
+      FROM mediaInPlaylists
+    )
+    WHERE rn <= 4
+    ORDER BY playlistId ASC, rn ASC
   `)
 
-  const grouped = new Map()
-
-  for (const playlist of playlists) {
-    grouped.set(playlist.id, {
-      ...playlist,
-      count: 0,
-      previewIds: [],
-      mediaIds: [],
-      media: [],
-    })
+  const previewById = new Map<number, number[]>()
+  for (const row of previewRows) {
+    const playlistId = Number(row.playlistId)
+    const list = previewById.get(playlistId) || []
+    list.push(Number(row.mediaId))
+    previewById.set(playlistId, list)
   }
 
-  for (const row of rows) {
-    const entry = grouped.get(row.playlistId)
-    if (!entry) continue
-
-    const item = {
-      id: row.id,
-      path: row.path,
-      name: row.name,
-      basename: row.basename,
-      ext: row.ext,
-      mediaTypeId: row.mediaTypeId,
-      filesize: row.filesize,
-      rating: row.rating,
-      favorite: row.favorite,
-      views: row.views,
-      viewedAt: row.viewedAt,
-      duration: row.duration,
-      time: row.time,
-      width: row.width,
-      height: row.height,
-      tags: [],
-      values: [],
-      key: String(row.id),
-    }
-
-    entry.mediaIds.push(row.mediaId)
-    entry.media.push(item)
-    entry.count += 1
-
-    if (entry.previewIds.length < 4) {
-      entry.previewIds.push(row.mediaId)
-    }
-  }
-
-  return playlists
-    .map((playlist: AnyRecord) => grouped.get(playlist.id))
-    .filter(Boolean) as unknown as ParsedDynamicPlaylistSummary[]
+  return playlists.map((playlist) => ({
+    id: Number(playlist.id),
+    name: playlist.name ?? '',
+    count: countById.get(Number(playlist.id)) || 0,
+    previewIds: previewById.get(Number(playlist.id)) || [],
+  }))
 }
 
 export { getManualPlaylistsSummary }

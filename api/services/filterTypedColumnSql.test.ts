@@ -23,4 +23,17 @@ describe('filterTypedColumnSql', () => {
     expect(buildTypedEntityColumnClause('media.name', {type: 'string', cond: 'equal', val: 'Hi'} as never, nextParam))
       .toContain('LOWER(media.name)')
   })
+
+  it('falls back unknown types to string comparisons', () => {
+    const params: unknown[] = []
+    const nextParam = (value: unknown) => {
+      params.push(value)
+      return `:p${params.length}`
+    }
+    expect(buildTypedMetaValueClause('v', {type: 'text', cond: 'includes', val: 'x'} as never, nextParam))
+      .toContain('LOWER(v) LIKE')
+    expect(buildTypedEntityColumnClause('media.oshash', {type: 'url', cond: 'equal', val: 'abc'} as never, nextParam))
+      .toContain('LOWER(media.oshash) = LOWER')
+    expect(params).toEqual(['%x%', 'abc'])
+  })
 })

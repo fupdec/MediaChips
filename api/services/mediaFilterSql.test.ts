@@ -145,6 +145,21 @@ describe('buildMediaFilterQuery', () => {
     expect(result.reason).toContain('param=unknownField')
   })
 
+  it('keeps fingerprint hash columns on the SQL path', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 'oshash', type: 'string', cond: 'equal', val: 'deadbeef' },
+      { active: true, param: 'visualHash', type: 'string', cond: 'includes', val: 'fff' },
+      { active: true, param: 'contentHash', type: 'text', cond: 'equal', val: 'abc' },
+    ], { mediaTypeId: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toContain('LOWER(media.oshash) = LOWER')
+    expect(result.whereSql).toContain('LOWER(media.visualHash) LIKE')
+    expect(result.whereSql).toContain('LOWER(media.contentHash) = LOWER')
+  })
+
   it('supports exact string match conditions', () => {
     const result = buildMediaFilterQuery([
       { active: true, param: 'name', type: 'string', cond: 'equal', val: 'Alpha' },

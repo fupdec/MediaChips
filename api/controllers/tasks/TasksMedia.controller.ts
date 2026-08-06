@@ -476,10 +476,10 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const getMostPopularWordsFromMedia = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const settings = await getParserSettings()
-      const data = mediaRepo.findAllRaw()
+      const paths = mediaRepo.findPaths()
 
-      const parsed = data.map((i: AnyRecord) => {
-        const tokenized = tokenizeFilePath(String(i.path), {
+      const parsed = paths.map((path) => {
+        const tokenized = tokenizeFilePath(String(path), {
           folderWeight: settings.folderWeight,
         })
         return {

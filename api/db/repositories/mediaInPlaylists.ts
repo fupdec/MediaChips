@@ -2,10 +2,24 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { media } from '../schema/media'
 import { mediaInPlaylists } from '../schema/mediaInPlaylists'
-import { playlists } from '../schema/playlists'
 
 export type MediaInPlaylistRow = typeof mediaInPlaylists.$inferSelect
 export type MediaInPlaylistInsert = typeof mediaInPlaylists.$inferInsert
+
+/** Playback / edit dialog projection — no fingerprint/hash columns. */
+const PLAYLIST_MEDIA_COLUMNS = {
+  id: media.id,
+  path: media.path,
+  name: media.name,
+  basename: media.basename,
+  ext: media.ext,
+  mediaTypeId: media.mediaTypeId,
+  filesize: media.filesize,
+  rating: media.rating,
+  favorite: media.favorite,
+  views: media.views,
+  viewedAt: media.viewedAt,
+} as const
 
 export function createMediaInPlaylistsRepository(db: DrizzleClient) {
   return {
@@ -18,15 +32,16 @@ export function createMediaInPlaylistsRepository(db: DrizzleClient) {
 
       const mediaIds = [...new Set(links.map((link) => link.mediaId))]
       const mediaRows = mediaIds.length
-        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
+        ? db.select(PLAYLIST_MEDIA_COLUMNS)
+          .from(media)
+          .where(inArray(media.id, mediaIds))
+          .all()
         : []
-      const playlist = db.select().from(playlists).where(eq(playlists.id, playlistId)).get()
       const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
 
       return links.map((link) => ({
         ...link,
         media: mediaById.get(link.mediaId) ?? null,
-        playlist: playlist ?? null,
       }))
     },
 

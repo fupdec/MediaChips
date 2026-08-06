@@ -78,4 +78,17 @@ describe('marks relation lookups', () => {
     expect(clips.map((clip) => clip.id)).toEqual([100])
     expect(clips[0]?.path).toBe('/a.mp4')
   })
+
+  it('limits clip rows in SQL', () => {
+    sqlite.exec(`
+      INSERT INTO marks (id, type, time, end, tagId, mediaId) VALUES
+        (3, 'clip', 2, 8, 10, 101),
+        (4, 'clip', 3, 9, 10, 999);
+    `)
+
+    const repo = createMarksRepository(db)
+    const clips = repo.findClipsByTagId(10, {limit: 2, sort: 'time'})
+    expect(clips).toHaveLength(2)
+    expect(clips.map((clip) => clip.markId)).toEqual([1, 3])
+  })
 })

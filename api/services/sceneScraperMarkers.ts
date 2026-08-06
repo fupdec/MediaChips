@@ -77,7 +77,7 @@ export async function applyTpdbSceneMarkersToMedia({
     existingSignatures.clear()
   }
 
-  const allTags = tagsRepo.findAllRaw()
+  const allTags = tagsRepo.findAllLookup()
   const inserts = []
   let skipped = 0
 

@@ -374,6 +374,8 @@ export const MarkClipsRequestSchema = z.object({
   tagId: z.coerce.number(),
   sort: z.enum(['time', 'shuffle']).optional(),
   countOnly: optionalCoercedBoolean,
+  limit: optionalCoercedNumber,
+  offset: optionalCoercedNumber,
 }).passthrough()
 
 export const MediaTagCountQuerySchema = z.object({

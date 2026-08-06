@@ -41,7 +41,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
         ? requestPaths.map((item: AnyRecord) => ({
           path: typeof item === 'string' ? item : item.path,
         })).filter((item: AnyRecord) => item.path)
-        : mediaRepo.findAllRaw()
+        : mediaRepo.findPaths().map((path) => ({path}))
       const suggestions = await suggestTagsFromMedia(db, media, {
         ...settings,
         limit: req.query.limit ?? req.body?.limit,
@@ -124,7 +124,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
       const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
       const existingTags = req.body?.excludeExisting === false
         ? []
-        : tagsRepo.findAllRaw()
+        : tagsRepo.findAllNames()
 
       writeEvent({
         type: 'progress',

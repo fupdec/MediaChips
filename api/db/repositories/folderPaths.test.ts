@@ -57,6 +57,27 @@ describe('folderPaths remap', () => {
     ;({db} = createTestDb())
   })
 
+  it('batches findAllByPaths lookups', () => {
+    const folders = createFolderPathsRepository(db)
+    folders.findOrCreateByPath('/media/a')
+    folders.findOrCreateByPath('/media/b')
+    folders.findOrCreateByPath('/media/c')
+
+    const rows = folders.findAllByPaths([
+      '/media/a/',
+      '/media/b',
+      '/media/missing',
+      '/media/c',
+      '/media/a',
+    ])
+
+    expect(rows.map((row) => row.path).sort()).toEqual([
+      '/media/a',
+      '/media/b',
+      '/media/c',
+    ])
+  })
+
   it('remaps path fragment and merges colliding folders', () => {
     const folders = createFolderPathsRepository(db)
     const tags = createTagsInFoldersRepository(db)

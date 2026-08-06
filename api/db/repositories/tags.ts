@@ -14,6 +14,9 @@ export type TagCatalogRow = Pick<
   'id' | 'metaId' | 'name' | 'synonyms' | 'rating' | 'favorite' | 'bookmark' | 'country' | 'color' | 'views'
 >
 
+/** id/name/synonyms for marker title matching and similar lookups. */
+export type TagLookupRow = Pick<TagRow, 'id' | 'name' | 'synonyms'>
+
 const TAG_MUTABLE_COLUMNS = new Set([
   'name',
   'synonyms',
@@ -63,8 +66,11 @@ export function pickTagFields(data: Record<string, unknown>): Partial<TagInsert>
   return picked
 }
 
-const TAG_ITEMS_QUERY = `SELECT tags.*, tags_in_tags.tag_tags, values_in_tags.tag_values
-FROM tags
+const TAG_ITEMS_SELECT = `SELECT tags.*, tags_in_tags.tag_tags, values_in_tags.tag_values
+FROM tags`
+
+/** Full-meta hydrate: aggregates every tagsInTags / valuesInTags row. */
+const TAG_ITEMS_QUERY = `${TAG_ITEMS_SELECT}
          LEFT JOIN (SELECT tagsInTags.parentTagId                                     id,
                            GROUP_CONCAT(tagsInTags.tagId || '^' || tagsInTags.metaId) tag_tags
                     FROM tagsInTags
@@ -74,6 +80,25 @@ FROM tags
                     FROM valuesInTags
                     GROUP BY id) AS values_in_tags ON tags.id = values_in_tags.id
 WHERE tags.metaId = ?`
+
+/** Page hydrate: scope GROUP_CONCAT subqueries to the requested tag ids. */
+function buildTagItemsQueryForIds(ids: number[]): {sql: string; params: number[]} {
+  const placeholders = ids.map(() => '?').join(', ')
+  const sql = `${TAG_ITEMS_SELECT}
+         LEFT JOIN (SELECT tagsInTags.parentTagId                                     id,
+                           GROUP_CONCAT(tagsInTags.tagId || '^' || tagsInTags.metaId) tag_tags
+                    FROM tagsInTags
+                    WHERE tagsInTags.parentTagId IN (${placeholders})
+                    GROUP BY id) AS tags_in_tags ON tags.id = tags_in_tags.id
+         LEFT JOIN (SELECT valuesInTags.tagId                                             id,
+                           GROUP_CONCAT(valuesInTags.value || '^' || valuesInTags.metaId) tag_values
+                    FROM valuesInTags
+                    WHERE valuesInTags.tagId IN (${placeholders})
+                    GROUP BY id) AS values_in_tags ON tags.id = values_in_tags.id
+WHERE tags.metaId = ? AND tags.id IN (${placeholders})`
+  // Bind order: tagsInTags IN, valuesInTags IN, metaId, tags.id IN
+  return {sql, params: [...ids, ...ids]}
+}
 
 export function createTagsRepository(db: DrizzleClient, sqlite: Database.Database) {
   return {
@@ -104,6 +129,22 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
 
     findAllRaw(): TagRow[] {
       return db.select().from(tags).all()
+    },
+
+    /** Name-only projection for exclude-existing / lookup sets. */
+    findAllNames(): Array<{name: string}> {
+      return db.select({name: tags.name}).from(tags).all()
+        .map((row) => ({name: String(row.name || '')}))
+        .filter((row) => Boolean(row.name))
+    },
+
+    /** id/name/synonyms for scene-marker title matching. */
+    findAllLookup(): TagLookupRow[] {
+      return db.select({
+        id: tags.id,
+        name: tags.name,
+        synonyms: tags.synonyms,
+      }).from(tags).all()
     },
 
     findAllCatalog(): TagCatalogRow[] {
@@ -176,8 +217,8 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         return sqlite.prepare(TAG_ITEMS_QUERY).all(metaId)
       }
 
-      const placeholders = ids.map(() => '?').join(', ')
-      return sqlite.prepare(`${TAG_ITEMS_QUERY} AND tags.id IN (${placeholders})`).all(metaId, ...ids)
+      const {sql, params} = buildTagItemsQueryForIds(ids)
+      return sqlite.prepare(sql).all(...params, metaId, ...ids)
     },
   }
 }

@@ -6,6 +6,7 @@ import { resolveExistingPath } from './contentHash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createImageMetadataRepository } from '../db/repositories/imageMetadata'
+import {collectJpgStemIds, parsePositiveStemIds} from './videoImagesStatus'
 
 async function getImageMediaTypeId(db: ApiDb) {
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -32,31 +33,22 @@ async function loadGeneratedThumbIds(dbPath: string) {
   if (!fs.existsSync(dirPath)) return new Set<string>()
 
   const files = await readdir(dirPath)
-  const ids = new Set<string>()
-
-  for (const file of files) {
-    if (file.endsWith('.jpg')) {
-      ids.add(file.slice(0, -4))
-    }
-  }
-
-  return ids
+  return collectJpgStemIds(files)
 }
 
 async function getImageThumbsGenerationStatus(db: ApiDb, dbPath: string) {
   const mediaRepo = createMediaRepository(db.drizzle)
   const imageTypeId = await getImageMediaTypeId(db)
-  const [thumbIds, imageRows] = await Promise.all([
+  const [thumbIds, imageTotal] = await Promise.all([
     loadGeneratedThumbIds(dbPath),
-    Promise.resolve(imageTypeId ? mediaRepo.findIdsByMediaType(imageTypeId) : []),
+    Promise.resolve(imageTypeId ? mediaRepo.countByMediaType(imageTypeId) : 0),
   ])
 
-  let generated = 0
-  for (const row of imageRows) {
-    if (thumbIds.has(String(row.id))) generated += 1
-  }
+  const generated = imageTypeId
+    ? mediaRepo.countByIdsAndMediaType(imageTypeId, parsePositiveStemIds(thumbIds))
+    : 0
 
-  return buildStatus(imageRows.length, generated)
+  return buildStatus(imageTotal, generated)
 }
 
 async function generateImageThumb(
@@ -151,7 +143,13 @@ async function* iterateImageThumbsGeneration(
     const result = await generateImageThumb(db, dbPath, item, imageMedia, {force})
     processed += 1
 
-    if (result.status === 'created') created += 1
+    if (result.status === 'created') {
+      created += 1
+      try {
+      } catch {
+        // Thumb is usable; CLIP embedding can be filled via Settings backfill.
+      }
+    }
     else if (result.status === 'skipped') skipped += 1
     else if (result.status === 'missing') missing += 1
     else failed += 1

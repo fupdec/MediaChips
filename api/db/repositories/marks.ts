@@ -9,6 +9,51 @@ import { forEachChunk } from '../utils/chunk'
 export type MarkRow = typeof marks.$inferSelect
 export type MarkInsert = typeof marks.$inferInsert
 
+type MarkWithRelations = MarkRow & {
+  tag: (typeof tags.$inferSelect & {meta: typeof meta.$inferSelect | null}) | null
+  media: typeof media.$inferSelect | null
+}
+
+function hydrateMarksWithRelations(
+  db: DrizzleClient,
+  rows: MarkRow[],
+): MarkWithRelations[] {
+  if (!rows.length) return []
+
+  const tagIds = [...new Set(rows.map((row) => row.tagId).filter((id): id is number => id != null))]
+  const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
+
+  const tagRows = tagIds.length
+    ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
+    : []
+  const mediaRows = mediaIds.length
+    ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
+    : []
+  const metaIds = [...new Set(tagRows.map((tag) => tag.metaId).filter((id): id is number => id != null))]
+  const metaRows = metaIds.length
+    ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
+    : []
+
+  const tagById = new Map(tagRows.map((tag) => [tag.id, tag]))
+  const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
+  const metaById = new Map(metaRows.map((row) => [row.id, row]))
+
+  return rows.map((row) => {
+    const tag = row.tagId ? tagById.get(row.tagId) : null
+    const medium = row.mediaId ? mediaById.get(row.mediaId) : null
+    return {
+      ...row,
+      tag: tag
+        ? {
+          ...tag,
+          meta: tag.metaId ? metaById.get(tag.metaId) ?? null : null,
+        }
+        : null,
+      media: medium ?? null,
+    }
+  })
+}
+
 export function createMarksRepository(db: DrizzleClient) {
   return {
     create(data: Partial<MarkInsert>): MarkRow {
@@ -65,6 +110,22 @@ export function createMarksRepository(db: DrizzleClient) {
       return Number(row?.count ?? 0)
     },
 
+    /** How many of `ids` exist as marks (chunked IN). */
+    countByIds(ids: number[]): number {
+      const unique = [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))]
+      if (!unique.length) return 0
+
+      let total = 0
+      forEachChunk(unique, (chunk) => {
+        const row = db.select({count: count()})
+          .from(marks)
+          .where(inArray(marks.id, chunk))
+          .get()
+        total += Number(row?.count ?? 0)
+      })
+      return total
+    },
+
     findNextWithMediaAfterId(lastId: number) {
       const row = db.select()
         .from(marks)
@@ -103,48 +164,65 @@ export function createMarksRepository(db: DrizzleClient) {
       return Number(row?.count ?? 0)
     },
 
-    findClipsByTagId(tagId: unknown) {
-      const rows = db.select()
+    findClipsByTagId(
+      tagId: unknown,
+      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle'} = {},
+    ) {
+      const resolvedTagId = Number(tagId)
+      const sort = options.sort === 'shuffle' ? 'shuffle' : 'time'
+
+      let query = db
+        .select({
+          markId: marks.id,
+          time: marks.time,
+          end: marks.end,
+          mediaId: media.id,
+          path: media.path,
+          name: media.name,
+          basename: media.basename,
+          mediaTypeId: media.mediaTypeId,
+        })
         .from(marks)
+        .innerJoin(media, eq(media.id, marks.mediaId))
         .where(and(
-          eq(marks.tagId, Number(tagId)),
+          eq(marks.tagId, resolvedTagId),
           isNotNull(marks.end),
         ))
-        .orderBy(asc(marks.time), asc(marks.id))
-        .all()
 
-      const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
-      const mediaRows = mediaIds.length
-        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
-        : []
-      const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
+      if (sort === 'shuffle') {
+        query = query.orderBy(sql`RANDOM()`) as typeof query
+      } else {
+        query = query.orderBy(
+          asc(marks.time),
+          sql`LOWER(COALESCE(${media.name}, ${media.basename}, ''))`,
+          asc(marks.id),
+        ) as typeof query
+      }
 
-      return rows
-        .map((row) => {
-          const medium = row.mediaId != null ? mediaById.get(row.mediaId) : null
-          if (!medium) return null
-          const segmentStart = Number(row.time) || 0
-          const segmentEnd = Number(row.end)
-          return {
-            id: medium.id,
-            markId: row.id,
-            path: medium.path,
-            name: medium.name || medium.basename || undefined,
-            basename: medium.basename ?? undefined,
-            mediaTypeId: medium.mediaTypeId ?? undefined,
-            segmentStart,
-            segmentEnd,
-            time: segmentStart,
-          }
-        })
-        .filter((item): item is NonNullable<typeof item> => item != null)
-        .sort((a, b) => {
-          if (a.segmentStart !== b.segmentStart) return a.segmentStart - b.segmentStart
-          const nameA = (a.name || '').toLowerCase()
-          const nameB = (b.name || '').toLowerCase()
-          if (nameA !== nameB) return nameA.localeCompare(nameB)
-          return a.markId - b.markId
-        })
+      const limit = Number(options.limit)
+      if (Number.isFinite(limit) && limit > 0) {
+        query = query.limit(Math.min(Math.floor(limit), 10_000)) as typeof query
+      }
+      const offset = Number(options.offset)
+      if (Number.isFinite(offset) && offset > 0) {
+        query = query.offset(Math.floor(offset)) as typeof query
+      }
+
+      return query.all().map((row) => {
+        const segmentStart = Number(row.time) || 0
+        const segmentEnd = Number(row.end)
+        return {
+          id: row.mediaId,
+          markId: row.markId,
+          path: row.path,
+          name: row.name || row.basename || undefined,
+          basename: row.basename ?? undefined,
+          mediaTypeId: row.mediaTypeId ?? undefined,
+          segmentStart,
+          segmentEnd,
+          time: segmentStart,
+        }
+      })
     },
 
     convertMetaMarksToBookmarksByTagId(tagId: unknown, text: string): void {
@@ -192,38 +270,19 @@ export function createMarksRepository(db: DrizzleClient) {
 
     findAllWithRelations() {
       const rows = db.select().from(marks).all()
-      const tagIds = [...new Set(rows.map((row) => row.tagId).filter((id): id is number => id != null))]
-      const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
+      return hydrateMarksWithRelations(db, rows)
+    },
 
-      const tagRows = tagIds.length
-        ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
-        : []
-      const mediaRows = mediaIds.length
-        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
-        : []
-      const metaIds = [...new Set(tagRows.map((tag) => tag.metaId).filter((id): id is number => id != null))]
-      const metaRows = metaIds.length
-        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
-        : []
-
-      const tagById = new Map(tagRows.map((tag) => [tag.id, tag]))
-      const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
-      const metaById = new Map(metaRows.map((row) => [row.id, row]))
-
-      return rows.map((row) => {
-        const tag = row.tagId ? tagById.get(row.tagId) : null
-        const medium = row.mediaId ? mediaById.get(row.mediaId) : null
-        return {
-          ...row,
-          tag: tag
-            ? {
-              ...tag,
-              meta: tag.metaId ? metaById.get(tag.metaId) ?? null : null,
-            }
-            : null,
-          media: medium,
-        }
-      })
+    findByIdsWithRelations(ids: number[]) {
+      if (!ids.length) return []
+      const unique = [...new Set(ids.filter((id) => Number.isFinite(id)))]
+      if (!unique.length) return []
+      const rows = db.select().from(marks).where(inArray(marks.id, unique)).all()
+      const hydrated = hydrateMarksWithRelations(db, rows)
+      const byId = new Map(hydrated.map((row) => [row.id, row]))
+      return ids
+        .map((id) => byId.get(id))
+        .filter((row): row is MarkWithRelations => row != null)
     },
 
     deleteById(id: number): void {
@@ -237,38 +296,7 @@ export function createMarksRepository(db: DrizzleClient) {
         .limit(limit)
         .all()
 
-      const tagIds = [...new Set(rows.map((row) => row.tagId).filter((id): id is number => id != null))]
-      const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
-
-      const tagRows = tagIds.length
-        ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
-        : []
-      const mediaRows = mediaIds.length
-        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
-        : []
-      const metaIds = [...new Set(tagRows.map((tag) => tag.metaId).filter((id): id is number => id != null))]
-      const metaRows = metaIds.length
-        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
-        : []
-
-      const tagById = new Map(tagRows.map((tag) => [tag.id, tag]))
-      const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
-      const metaById = new Map(metaRows.map((row) => [row.id, row]))
-
-      return rows.map((row) => {
-        const tag = row.tagId ? tagById.get(row.tagId) : null
-        const medium = row.mediaId ? mediaById.get(row.mediaId) : null
-        return {
-          ...row,
-          tag: tag
-            ? {
-              ...tag,
-              meta: tag.metaId ? metaById.get(tag.metaId) ?? null : null,
-            }
-            : null,
-          media: medium,
-        }
-      })
+      return hydrateMarksWithRelations(db, rows)
     },
   }
 }

@@ -191,17 +191,44 @@ describe('Mark.controller', () => {
     findClipsByTagId.mockReturnValue([
       {id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12},
     ])
+    countClipsByTagId.mockReturnValue(1)
 
     const req = {body: {tagId: 7}} as ApiRequest
     const res = createResponse()
 
     controller.getClips(req, res)
 
-    expect(findClipsByTagId).toHaveBeenCalledWith(7)
+    expect(findClipsByTagId).toHaveBeenCalledWith(7, {
+      sort: 'time',
+      limit: undefined,
+      offset: undefined,
+    })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({
       items: [{id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12}],
       count: 1,
+    })
+  })
+
+  it('passes clip limit through to the repository', () => {
+    findClipsByTagId.mockReturnValue([
+      {id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12},
+    ])
+    countClipsByTagId.mockReturnValue(9)
+
+    const req = {body: {tagId: 7, limit: 1, sort: 'time'}} as ApiRequest
+    const res = createResponse()
+
+    controller.getClips(req, res)
+
+    expect(findClipsByTagId).toHaveBeenCalledWith(7, {
+      sort: 'time',
+      limit: 1,
+      offset: undefined,
+    })
+    expect(res.body).toEqual({
+      items: [{id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12}],
+      count: 9,
     })
   })
 

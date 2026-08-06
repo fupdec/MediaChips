@@ -1,4 +1,3 @@
-import shuffle from 'lodash/shuffle'
 import type { ApiDb } from '../types/db'
 import { sendBadRequest, sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
@@ -28,23 +27,28 @@ export default function (db: ApiDb) {
         return
       }
 
+      const count = marksRepo.countClipsByTagId(tagId)
       const countOnly = Boolean(req.body?.countOnly)
       if (countOnly) {
         sendOk(res, {
           items: [],
-          count: marksRepo.countClipsByTagId(tagId),
+          count,
         })
         return
       }
 
-      let items = marksRepo.findClipsByTagId(tagId)
-      if (req.body?.sort === 'shuffle') {
-        items = shuffle(items)
-      }
+      const sort = req.body?.sort === 'shuffle' ? 'shuffle' : 'time'
+      const limitRaw = Number(req.body?.limit)
+      const offsetRaw = Number(req.body?.offset)
+      const items = marksRepo.findClipsByTagId(tagId, {
+        sort,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        offset: Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : undefined,
+      })
 
       sendOk(res, {
         items,
-        count: items.length,
+        count,
       })
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
