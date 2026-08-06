@@ -45,13 +45,14 @@ describe('dynamicPlaylistsSummaryCache', () => {
   })
 
   it('discards in-flight results after invalidation', async () => {
-    let resolveLoader: ((value: unknown[]) => void) | null = null
-    const pending = loadDynamicPlaylistsSummaryCached(5, () => new Promise((resolve) => {
+    let resolveLoader: ((value: unknown[]) => void) | undefined
+    const pending = loadDynamicPlaylistsSummaryCached(5, () => new Promise<unknown[]>((resolve) => {
       resolveLoader = resolve
     }))
 
     clearDynamicPlaylistsSummaryCache()
-    resolveLoader?.([{id: 99}])
+    expect(resolveLoader).toBeTypeOf('function')
+    resolveLoader!([{id: 99}])
     await expect(pending).resolves.toEqual([{id: 99}])
     expect(getCachedDynamicPlaylistsSummary(5)).toBeNull()
   })
