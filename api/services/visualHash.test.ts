@@ -121,4 +121,54 @@ describe('visualHash', () => {
     expect(clusters[0].ids).toEqual([1, 2, 4])
     expect(flattenVisualDuplicateIds(clusters)).toEqual([1, 2, 4])
   })
+
+  it('clusters tile-near duplicates even when grid hashes diverge', () => {
+    const sharedTiles = Array.from({length: 9}, () => 'aaaaaaaaaaaaaaaa').join(':')
+    const clusters = clusterVisualNearDuplicates([
+      {
+        id: 10,
+        visualHash: 'ffffffffffffffff',
+        visualHashTiles: sharedTiles,
+      },
+      {
+        id: 11,
+        // Far from fff... in Hamming space, but tiles match.
+        visualHash: '0000000000000000',
+        visualHashTiles: sharedTiles,
+      },
+      {
+        id: 12,
+        visualHash: '0f0f0f0f0f0f0f0f',
+        visualHashTiles: Array.from({length: 9}, () => 'bbbbbbbbbbbbbbbb').join(':'),
+      },
+    ], {
+      maxGridDistance: 2,
+      maxTileDistance: 0,
+      minTileMatches: 6,
+    })
+
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0].ids).toEqual([10, 11])
+  })
+
+  it('clusters a large synthetic set without timing out', () => {
+    const rows = []
+    for (let i = 1; i <= 1200; i++) {
+      // Unique-ish hashes so BK-tree stays selective; sprinkle near-dup pairs.
+      const base = (BigInt(i) * 0x9e3779b97f4a7c15n) & 0xffffffffffffffffn
+      const hex = base.toString(16).padStart(16, '0')
+      rows.push({id: i, visualHash: hex, visualHashTiles: null})
+      if (i % 40 === 0) {
+        // Flip one bit → distance 1 duplicate.
+        const twin = (base ^ 1n).toString(16).padStart(16, '0')
+        rows.push({id: i + 10_000, visualHash: twin, visualHashTiles: null})
+      }
+    }
+
+    const started = Date.now()
+    const clusters = clusterVisualNearDuplicates(rows, {maxGridDistance: 2})
+    expect(Date.now() - started).toBeLessThan(3_000)
+    expect(clusters.length).toBeGreaterThan(20)
+    expect(clusters.every((cluster) => cluster.ids.length >= 2)).toBe(true)
+  })
 })
