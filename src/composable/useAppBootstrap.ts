@@ -177,6 +177,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
             synonyms: tag.synonyms ?? undefined,
             color: tag.color ?? undefined,
             bookmark: tag.bookmark ?? undefined,
+            country: tag.country ?? undefined,
+            rating: tag.rating ?? undefined,
+            views: tag.views ?? undefined,
           }))
           break
         }

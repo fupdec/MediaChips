@@ -137,6 +137,7 @@
     "appId": "com.mediachips.app",
     "productName": "MediaChips",
     "copyright": "Copyright © 2026 MediaChips",
+    "beforePack": "./scripts/electron-before-pack.mjs",
     "directories": {
       "output": "release"
     },

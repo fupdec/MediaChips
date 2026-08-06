@@ -8,6 +8,12 @@ import { mapChunks } from '../utils/chunk'
 export type TagRow = typeof tags.$inferSelect
 export type TagInsert = typeof tags.$inferInsert
 
+/** Slim projection for GET /api/Tag bootstrap / chips catalog (drops oldId + timestamps). */
+export type TagCatalogRow = Pick<
+  TagRow,
+  'id' | 'metaId' | 'name' | 'synonyms' | 'rating' | 'favorite' | 'bookmark' | 'country' | 'color' | 'views'
+>
+
 const TAG_MUTABLE_COLUMNS = new Set([
   'name',
   'synonyms',
@@ -98,6 +104,21 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
 
     findAllRaw(): TagRow[] {
       return db.select().from(tags).all()
+    },
+
+    findAllCatalog(): TagCatalogRow[] {
+      return db.select({
+        id: tags.id,
+        metaId: tags.metaId,
+        name: tags.name,
+        synonyms: tags.synonyms,
+        rating: tags.rating,
+        favorite: tags.favorite,
+        bookmark: tags.bookmark,
+        country: tags.country,
+        color: tags.color,
+        views: tags.views,
+      }).from(tags).all()
     },
 
     findByMetaIds(metaIds: number[]): TagRow[] {

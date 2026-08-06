@@ -8,6 +8,15 @@ import {getCenterCropRect, getDisplayDimensions} from './imageGeometry'
 const THUMB_HEIGHT = 320
 const THUMB_JPEG_QUALITY = 85
 
+async function writeThumbWithSharp(input: string | Buffer, outputPath: string): Promise<void> {
+  const {default: sharp} = await import('sharp')
+  await sharp(input)
+    .rotate()
+    .resize({height: THUMB_HEIGHT, withoutEnlargement: true})
+    .jpeg({quality: THUMB_JPEG_QUALITY, mozjpeg: true})
+    .toFile(outputPath)
+}
+
 async function decodeImageBuffer(buffer: Buffer): Promise<JimpImage> {
   try {
     return await Jimp.read(buffer) as unknown as JimpImage
@@ -138,9 +147,10 @@ const ensureImageThumbDir = (dbPath: string) => {
   return outputDir
 }
 
-const createImageThumbFromBuffer = async (buffer: Buffer, id: string | number, dbPath: string) => {
-  const outputDir = ensureImageThumbDir(dbPath)
-  const outputPath = path.join(outputDir, `${id}.jpg`)
+const createImageThumbFromBufferWithJimp = async (
+  buffer: Buffer,
+  outputPath: string,
+) => {
   const orientation = await readExifOrientationFromBuffer(buffer)
   const image = await decodeImageBuffer(buffer)
 
@@ -152,6 +162,18 @@ const createImageThumbFromBuffer = async (buffer: Buffer, id: string | number, d
 
   await writeJpeg(image, outputPath)
   return outputPath
+}
+
+const createImageThumbFromBuffer = async (buffer: Buffer, id: string | number, dbPath: string) => {
+  const outputDir = ensureImageThumbDir(dbPath)
+  const outputPath = path.join(outputDir, `${id}.jpg`)
+
+  try {
+    await writeThumbWithSharp(buffer, outputPath)
+    return outputPath
+  } catch {
+    return createImageThumbFromBufferWithJimp(buffer, outputPath)
+  }
 }
 
 const createImageThumb = async (pathToFile: string, id: string | number, dbPath: string) => {
@@ -166,17 +188,23 @@ const createImageThumb = async (pathToFile: string, id: string | number, dbPath:
 
   const outputDir = ensureImageThumbDir(dbPath)
   const outputPath = path.join(outputDir, `${id}.jpg`)
-  const orientation = await readExifOrientation(pathToFile)
-  const image = await Jimp.read(pathToFile) as unknown as JimpImage
 
-  await applyExifOrientation(image, orientation)
+  try {
+    await writeThumbWithSharp(pathToFile, outputPath)
+    return outputPath
+  } catch {
+    const orientation = await readExifOrientation(pathToFile)
+    const image = await Jimp.read(pathToFile) as unknown as JimpImage
 
-  if (image.height > THUMB_HEIGHT) {
-    await image.resize({h: THUMB_HEIGHT})
+    await applyExifOrientation(image, orientation)
+
+    if (image.height > THUMB_HEIGHT) {
+      await image.resize({h: THUMB_HEIGHT})
+    }
+
+    await writeJpeg(image, outputPath)
+    return outputPath
   }
-
-  await writeJpeg(image, outputPath)
-  return outputPath
 }
 
 async function processAndSaveImage({buffer, outputPath, sizes}: ProcessAndSaveImageOptions) {

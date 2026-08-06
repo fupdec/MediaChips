@@ -151,7 +151,8 @@ export default function (db: ApiDb) {
 
   const getAll = function (req: ApiRequest, res: ApiResponse) {
     try {
-      const data = tagsRepo.findAllRaw()
+      // Catalog projection: chips/bootstrap don't need oldId or row timestamps.
+      const data = tagsRepo.findAllCatalog()
       sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")

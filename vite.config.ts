@@ -4,6 +4,7 @@ import type { Connect } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 import path from 'path'
+import { stripMdiLegacyFontUrls } from './scripts/strip-mdi-legacy-fonts.mjs'
 
 function normalizePlugins(...items: Array<Plugin | Plugin[]>): Plugin[] {
   return items.flat()
@@ -23,6 +24,21 @@ function invalidUrlMiddleware(): Plugin {
         }
         next()
       })
+    },
+  }
+}
+
+/** Chromium only needs woff2/woff — drop ~2.4MB of MDI eot/ttf from the build graph. */
+function stripMdiLegacyFonts(): Plugin {
+  return {
+    name: 'strip-mdi-legacy-fonts',
+    transform(code, id) {
+      const normalized = id.replace(/\\/g, '/')
+      if (!normalized.includes('@mdi/font/css/materialdesignicons.css')) return null
+
+      const next = stripMdiLegacyFontUrls(code)
+      if (next === code) return null
+      return {code: next, map: null}
     },
   }
 }
@@ -47,6 +63,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     vue(),
     vuetify({ autoImport: true }),
     invalidUrlMiddleware(),
+    stripMdiLegacyFonts(),
   )
 
   if (process.env.ANALYZE === '1') {
