@@ -17,6 +17,12 @@ import {
   type ScannedFile,
 } from './scanFolderDuplicateMatch'
 import {listMediaFilesFromRoots} from './mediaFileWalk'
+import {mapInOrderedBatches} from './orderedAsyncBatches'
+
+/** Parallel `stat` calls while listing folder contents. */
+export const SCAN_FOLDER_STAT_CONCURRENCY = 16
+/** Parallel fingerprint/hash reads — keep low for HDD/network shares. */
+export const SCAN_FOLDER_FINGERPRINT_CONCURRENCY = 4
 
 type ScanFolderOptions = {
   folders?: string[]
@@ -24,6 +30,8 @@ type ScanFolderOptions = {
   excluded?: string[]
   mediaTypeId?: number | string | null
   shouldStop?: () => boolean
+  statConcurrency?: number
+  fingerprintConcurrency?: number
 }
 
 type LibraryHit = {
@@ -42,6 +50,8 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     excluded = [],
     mediaTypeId = null,
     shouldStop = () => false,
+    statConcurrency = SCAN_FOLDER_STAT_CONCURRENCY,
+    fingerprintConcurrency = SCAN_FOLDER_FINGERPRINT_CONCURRENCY,
   } = options
 
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -77,27 +87,38 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
   }
 
   const files: ScannedFile[] = []
-  for (let index = 0; index < listed.length; index += 1) {
-    if (shouldStop()) break
-    const filePath = listed[index]
-    try {
-      const fileStat = await stat(filePath)
-      files.push({
-        path: filePath,
-        basename: path.basename(filePath),
-        filesize: fileStat.size,
-      })
-    } catch {
-      // skip unreadable
-    }
+  const limit = Math.max(1, statConcurrency)
 
-    if (index % 100 === 0 || index === listed.length - 1) {
-      yield {
-        type: 'progress',
-        phase: 'statting',
-        processed: index + 1,
-        total: listed.length,
-        current: filePath,
+  for (let offset = 0; offset < listed.length; offset += limit) {
+    if (shouldStop()) break
+
+    const slice = listed.slice(offset, offset + limit)
+    const batch = await Promise.all(slice.map(async (filePath) => {
+      try {
+        const fileStat = await stat(filePath)
+        return {
+          path: filePath,
+          basename: path.basename(filePath),
+          filesize: fileStat.size,
+        } satisfies ScannedFile
+      } catch {
+        return null
+      }
+    }))
+
+    for (let batchIndex = 0; batchIndex < batch.length; batchIndex += 1) {
+      const file = batch[batchIndex]
+      const index = offset + batchIndex
+      if (file) files.push(file)
+
+      if (index % 100 === 0 || index === listed.length - 1) {
+        yield {
+          type: 'progress',
+          phase: 'statting',
+          processed: index + 1,
+          total: listed.length,
+          current: listed[index],
+        }
       }
     }
   }
@@ -163,16 +184,27 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
     candidates: candidates.length,
   }
 
-  for (let index = 0; index < candidates.length; index += 1) {
-    if (shouldStop()) break
-    const file = candidates[index]
+  const hashLimit = Math.max(1, fingerprintConcurrency)
 
-    try {
-      const fingerprint = await computeFingerprint({
+  for (let offset = 0; offset < candidates.length; offset += hashLimit) {
+    if (shouldStop()) break
+
+    const slice = candidates.slice(offset, offset + hashLimit)
+    const fingerprints = await mapInOrderedBatches(
+      slice,
+      hashLimit,
+      async (file) => computeFingerprint({
         path: file.path,
         filesize: file.filesize,
         mediaType: mediaTypeName,
-      })
+      }),
+    )
+
+    for (let batchIndex = 0; batchIndex < slice.length; batchIndex += 1) {
+      const file = slice[batchIndex]
+      const index = offset + batchIndex
+      const fingerprint = fingerprints[batchIndex]
+
       if (fingerprint) {
         fingerprintByPath.set(file.path, {
           kind: fingerprint.kind,
@@ -191,33 +223,31 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
           })
         }
       }
-    } catch {
-      // ignore hash failures for scan report
-    }
 
-    if (!fingerprintByPath.has(file.path)) {
-      const key = sizeBasenameKey(file.filesize, file.basename)
-      const libraryHits = (libraryBySizeBasename.get(key) || [])
-        .filter((hit) => !pathsEquivalent(String(hit.path), file.path))
-      for (const hit of libraryHits) {
-        inLibrary.push({
-          path: file.path,
-          libraryPath: String(hit.path),
-          libraryId: Number(hit.id),
-          parameter: 'basename_filesize',
-        })
+      if (!fingerprintByPath.has(file.path)) {
+        const key = sizeBasenameKey(file.filesize, file.basename)
+        const libraryHits = (libraryBySizeBasename.get(key) || [])
+          .filter((hit) => !pathsEquivalent(String(hit.path), file.path))
+        for (const hit of libraryHits) {
+          inLibrary.push({
+            path: file.path,
+            libraryPath: String(hit.path),
+            libraryId: Number(hit.id),
+            parameter: 'basename_filesize',
+          })
+        }
       }
-    }
 
-    if (index % 10 === 0 || index === candidates.length - 1) {
-      yield {
-        type: 'progress',
-        phase: 'hashing',
-        processed: index + 1,
-        total: candidates.length,
-        current: file.path,
-        candidates: candidates.length,
-        inLibrary: inLibrary.length,
+      if (index % 10 === 0 || index === candidates.length - 1) {
+        yield {
+          type: 'progress',
+          phase: 'hashing',
+          processed: index + 1,
+          total: candidates.length,
+          current: file.path,
+          candidates: candidates.length,
+          inLibrary: inLibrary.length,
+        }
       }
     }
   }
