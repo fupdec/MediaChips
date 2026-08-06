@@ -38,17 +38,18 @@ async function getVideoMediaTypeId(db: ApiDb) {
 
 async function maybeMatchAfterDetect(
   db: ApiDb,
-  mediaId: number | null | undefined,
+  mediaId: number | string | null | undefined,
   options: {force?: boolean; applyTags?: boolean},
 ) {
-  if (mediaId == null) return
+  const id = mediaId == null ? NaN : Number(mediaId)
+  if (!Number.isFinite(id) || id <= 0) return
   try {
     const settings = resolveMatchSettingsAfterDetect({
       matchSettings: getFaceMatchSettings(db),
       applyTags: options.applyTags,
     })
     if (!settings) return
-    await matchMediaFaces(db, mediaId, {force: Boolean(options.force), settings})
+    await matchMediaFaces(db, id, {force: Boolean(options.force), settings})
   } catch {
     // Matching is optional and should not fail detection.
   }

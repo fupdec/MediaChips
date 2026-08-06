@@ -97,7 +97,7 @@ describe('iterateFaceDetection match-after-detect', () => {
       10,
       expect.objectContaining({force: false}),
     )
-    expect(events.at(-1)).toMatchObject({type: 'complete', stopped: false})
+    expect(events[events.length - 1]).toMatchObject({type: 'complete', stopped: false})
   })
 
   it('skips match when matchAfterDetect is off', async () => {
