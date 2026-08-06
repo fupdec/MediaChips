@@ -59,6 +59,35 @@ export function resolveFaceDetectStatusUi(phase: unknown): FaceDetectStatusUi | 
   return STATUS_UI[String(phase)] || null
 }
 
+/**
+ * Apply shared status-phase notifications/task updates.
+ * Returns the phase string when handled, otherwise null.
+ */
+export function applyFaceDetectStatusEvent(
+  event: {type?: unknown; phase?: unknown},
+  handlers: {
+    notify: (notification: {type: 'info' | 'success'; textKey: string}) => void
+    updateTask?: (update: {subtitleKey: string; progress?: number}) => void
+  },
+): string | null {
+  if (event.type !== 'status') return null
+  const phase = event.phase == null ? '' : String(event.phase)
+  const statusUi = resolveFaceDetectStatusUi(phase)
+  if (!statusUi) return null
+
+  handlers.notify({
+    type: statusUi.notificationType,
+    textKey: statusUi.i18nKey,
+  })
+  if (statusUi.updateTask && handlers.updateTask) {
+    handlers.updateTask({
+      subtitleKey: statusUi.i18nKey,
+      progress: 0,
+    })
+  }
+  return phase
+}
+
 export type FaceDetectStreamState = {
   faces: number
 }

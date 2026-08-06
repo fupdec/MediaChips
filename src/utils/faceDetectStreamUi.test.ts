@@ -1,5 +1,6 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 import {
+  applyFaceDetectStatusEvent,
   isFaceDetectModelReady,
   reduceFaceDetectStreamEvent,
   resolveFaceDetectApplyTags,
@@ -70,5 +71,27 @@ describe('faceDetectStreamUi', () => {
       {faces: 0},
       {defaultTotal: 1},
     ).errorMessage).toBe('boom')
+  })
+
+  it('applies status events through shared handlers', () => {
+    const notify = vi.fn()
+    const updateTask = vi.fn()
+    const phase = applyFaceDetectStatusEvent(
+      {type: 'status', phase: 'downloading_detect'},
+      {notify, updateTask},
+    )
+    expect(phase).toBe('downloading_detect')
+    expect(notify).toHaveBeenCalledWith({
+      type: 'info',
+      textKey: 'settings_labels.database.face_detect_model_downloading',
+    })
+    expect(updateTask).toHaveBeenCalledWith({
+      subtitleKey: 'settings_labels.database.face_detect_model_downloading',
+      progress: 0,
+    })
+    expect(applyFaceDetectStatusEvent(
+      {type: 'progress'},
+      {notify, updateTask},
+    )).toBeNull()
   })
 })

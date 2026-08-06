@@ -424,6 +424,7 @@ import {useAppShell} from '@/composable/appShell'
 import {useMediaAdding} from '@/composable/AddingMedia'
 import {deleteLocalFile} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
+import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
 import {getErrorResponseData} from '@/types/vue'
 import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
 import {useSettingsStore} from '@/stores/settings'
@@ -1117,65 +1118,17 @@ const detectFacesInAddedVideos = async () => {
       },
       {signal: controller.signal},
       (event: Record<string, unknown>) => {
-        if (event.type === 'status') {
-          if (event.phase === 'downloading_detect') {
-            setNotification({
-              type: 'info',
-              text: t('settings_labels.database.face_detect_model_downloading'),
-            })
+        if (applyFaceDetectStatusEvent(event, {
+          notify: ({type, textKey}) => {
+            setNotification({type, text: t(textKey)})
+          },
+          updateTask: ({subtitleKey, progress}) => {
             tasksStore.updateTask(detectionTaskId, {
-              subtitle: t('settings_labels.database.face_detect_model_downloading'),
-              progress: 0,
+              subtitle: t(subtitleKey),
+              ...(progress != null ? {progress} : {}),
             })
-          }
-          if (event.phase === 'detect_ready') {
-            setNotification({
-              type: 'success',
-              text: t('settings_labels.database.face_detect_model_downloaded'),
-            })
-          }
-          if (event.phase === 'downloading_gender') {
-            setNotification({
-              type: 'info',
-              text: t('settings_labels.database.face_detect_gender_downloading'),
-            })
-            tasksStore.updateTask(detectionTaskId, {
-              subtitle: t('settings_labels.database.face_detect_gender_downloading'),
-              progress: 0,
-            })
-          }
-          if (event.phase === 'gender_ready') {
-            setNotification({
-              type: 'success',
-              text: t('settings_labels.database.face_detect_gender_downloaded'),
-            })
-          }
-          if (event.phase === 'downloading_align') {
-            setNotification({
-              type: 'info',
-              text: t('settings_labels.database.face_match_align_downloading'),
-            })
-            tasksStore.updateTask(detectionTaskId, {
-              subtitle: t('settings_labels.database.face_match_align_downloading'),
-              progress: 0,
-            })
-          }
-          if (event.phase === 'downloading_embed') {
-            setNotification({
-              type: 'info',
-              text: t('settings_labels.database.face_match_embed_downloading'),
-            })
-            tasksStore.updateTask(detectionTaskId, {
-              subtitle: t('settings_labels.database.face_match_embed_downloading'),
-              progress: 0,
-            })
-          }
-          if (event.phase === 'embed_ready') {
-            setNotification({
-              type: 'success',
-              text: t('settings_labels.database.face_match_embed_downloaded'),
-            })
-          }
+          },
+        })) {
           return
         }
 
