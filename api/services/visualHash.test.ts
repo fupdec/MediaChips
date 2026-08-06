@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import {Jimp} from 'jimp'
+import sharp from 'sharp'
 import {
   areVisuallySimilar,
   clusterVisualNearDuplicates,
@@ -17,48 +17,45 @@ import {
 async function writeCheckerGrid(filePath: string, tileSize = 32) {
   const cols = 3
   const rows = 3
-  const image = new Jimp({
-    width: tileSize * cols,
-    height: tileSize * rows,
-    color: 0xffffffff,
-  })
-
+  const width = tileSize * cols
+  const height = tileSize * rows
+  const data = Buffer.alloc(width * height * 3)
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const shade = ((row + col) % 2 === 0) ? 0x000000ff : 0xffffffff
+      const shade = ((row + col) % 2 === 0) ? 0 : 255
       for (let y = 0; y < tileSize; y++) {
         for (let x = 0; x < tileSize; x++) {
-          image.setPixelColor(shade, col * tileSize + x, row * tileSize + y)
+          const px = col * tileSize + x
+          const py = row * tileSize + y
+          const idx = (py * width + px) * 3
+          data[idx] = shade
+          data[idx + 1] = shade
+          data[idx + 2] = shade
         }
       }
     }
   }
-
-  await image.write(filePath as `${string}.${string}`)
+  await sharp(data, {raw: {width, height, channels: 3}}).png().toFile(filePath)
 }
 
-async function writeStripeGrid(filePath: string, vertical: boolean, tileSize = 32) {
+/** Half-plane contact sheet — survives 8×8 nearest aHash without aliasing to solid. */
+async function writeHalfPlaneGrid(filePath: string, verticalSplit: boolean, tileSize = 32) {
   const cols = 3
   const rows = 3
-  const image = new Jimp({
-    width: tileSize * cols,
-    height: tileSize * rows,
-    color: 0xffffffff,
-  })
-
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      for (let y = 0; y < tileSize; y++) {
-        for (let x = 0; x < tileSize; x++) {
-          const band = vertical ? Math.floor(x / 4) : Math.floor(y / 4)
-          const shade = band % 2 === 0 ? 0x000000ff : 0xffffffff
-          image.setPixelColor(shade, col * tileSize + x, row * tileSize + y)
-        }
-      }
+  const width = tileSize * cols
+  const height = tileSize * rows
+  const data = Buffer.alloc(width * height * 3)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const dark = verticalSplit ? x < width / 2 : y < height / 2
+      const shade = dark ? 0 : 255
+      const idx = (y * width + x) * 3
+      data[idx] = shade
+      data[idx + 1] = shade
+      data[idx + 2] = shade
     }
   }
-
-  await image.write(filePath as `${string}.${string}`)
+  await sharp(data, {raw: {width, height, channels: 3}}).png().toFile(filePath)
 }
 
 describe('visualHash', () => {
@@ -77,8 +74,8 @@ describe('visualHash', () => {
 
   it('fingerprints identical grids as similar', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-visual-hash-'))
-    const aPath = path.join(dir, 'a.jpg')
-    const bPath = path.join(dir, 'b.jpg')
+    const aPath = path.join(dir, 'a.png')
+    const bPath = path.join(dir, 'b.png')
     await writeCheckerGrid(aPath)
     await writeCheckerGrid(bPath)
 
@@ -94,14 +91,16 @@ describe('visualHash', () => {
 
   it('treats very different grids as dissimilar', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-visual-hash-'))
-    const aPath = path.join(dir, 'a.jpg')
-    const bPath = path.join(dir, 'b.jpg')
-    await writeStripeGrid(aPath, true)
-    await writeStripeGrid(bPath, false)
+    const aPath = path.join(dir, 'a.png')
+    const bPath = path.join(dir, 'b.png')
+    await writeHalfPlaneGrid(aPath, true)
+    await writeHalfPlaneGrid(bPath, false)
 
     const a = await computeGridVisualFingerprint(aPath)
     const b = await computeGridVisualFingerprint(bPath)
 
+    expect(hammingDistanceHex(a.hash, b.hash)).toBeGreaterThan(8)
+    expect(countMatchingTiles(a.tiles, b.tiles, 4)).toBeLessThan(6)
     expect(areVisuallySimilar(a, b, {
       maxGridDistance: 8,
       maxTileDistance: 4,

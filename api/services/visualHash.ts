@@ -1,7 +1,6 @@
-import { Jimp } from 'jimp'
 import { VIDEO_GRID_SPRITE } from '../../shared/videoPreview'
+import {averageHashFromLumaValues} from './faceDetectorMath'
 import {
-  averageHashFromBitmap,
   bitsToHex,
   type VisualFingerprint,
   type VisualHashHex,
@@ -29,28 +28,50 @@ export {
   rankVisualSimilarIds,
 } from './visualHashSimilarity'
 
-type JimpLike = {
-  clone: () => {
-    resize: (opts: {w: number, h: number}) => {
-      greyscale: () => {
-        bitmap: {data: Buffer, width: number, height: number}
-      }
-    }
+async function getSharp() {
+  const {default: sharp} = await import('sharp')
+  return sharp
+}
+
+/** Nearest-neighbor 8×8 keeps high-frequency structure that aHash needs. */
+const AHASH_RESIZE = {fit: 'fill' as const, kernel: 'nearest' as const}
+
+function aHashHexFromRawGrey(
+  data: Buffer,
+  channels: number,
+): VisualHashHex {
+  const values: number[] = []
+  for (let i = 0; i < data.length; i += Math.max(1, channels)) {
+    values.push(data[i])
   }
+  return bitsToHex(averageHashFromLumaValues(values))
 }
 
 /** Average-hash (aHash) of an image → 16-char hex. */
 export async function computeAHashHex(imagePath: string): Promise<VisualHashHex> {
-  const image = await Jimp.read(imagePath)
-  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
-  const {data, width, height} = tiny.bitmap
-  return bitsToHex(averageHashFromBitmap(data, width, height))
+  const sharp = await getSharp()
+  const {data, info} = await sharp(imagePath)
+    .resize(8, 8, AHASH_RESIZE)
+    .greyscale()
+    .raw()
+    .toBuffer({resolveWithObject: true})
+  return aHashHexFromRawGrey(data, info.channels)
 }
 
-async function computeAHashHexFromImage(image: JimpLike): Promise<VisualHashHex> {
-  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
-  const {data, width, height} = tiny.bitmap
-  return bitsToHex(averageHashFromBitmap(data, width, height))
+async function computeAHashHexFromRgba(
+  data: Buffer,
+  width: number,
+  height: number,
+): Promise<VisualHashHex> {
+  const sharp = await getSharp()
+  const {data: tiny, info} = await sharp(data, {
+    raw: {width, height, channels: 4},
+  })
+    .resize(8, 8, AHASH_RESIZE)
+    .greyscale()
+    .raw()
+    .toBuffer({resolveWithObject: true})
+  return aHashHexFromRawGrey(tiny, info.channels)
 }
 
 /**
@@ -61,22 +82,34 @@ export async function computeGridVisualFingerprint(
   cols = VIDEO_GRID_SPRITE.cols,
   rows = VIDEO_GRID_SPRITE.rows,
 ): Promise<VisualFingerprint> {
-  const image = await Jimp.read(gridPath)
-  const hash = await computeAHashHexFromImage(image)
+  const sharp = await getSharp()
+  const {data, info} = await sharp(gridPath)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({resolveWithObject: true})
 
-  const tileW = Math.floor(image.bitmap.width / cols)
-  const tileH = Math.floor(image.bitmap.height / rows)
+  const hash = await computeAHashHexFromRgba(data, info.width, info.height)
+
+  const tileW = Math.floor(info.width / cols)
+  const tileH = Math.floor(info.height / rows)
   const tiles: VisualHashHex[] = []
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const tile = image.clone().crop({
-        x: col * tileW,
-        y: row * tileH,
-        w: tileW,
-        h: tileH,
+      const {data: tiny, info: tinyInfo} = await sharp(data, {
+        raw: {width: info.width, height: info.height, channels: 4},
       })
-      tiles.push(await computeAHashHexFromImage(tile as unknown as JimpLike))
+        .extract({
+          left: col * tileW,
+          top: row * tileH,
+          width: tileW,
+          height: tileH,
+        })
+        .resize(8, 8, AHASH_RESIZE)
+        .greyscale()
+        .raw()
+        .toBuffer({resolveWithObject: true})
+      tiles.push(aHashHexFromRawGrey(tiny, tinyInfo.channels))
     }
   }
 
