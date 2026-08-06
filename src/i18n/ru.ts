@@ -1887,7 +1887,7 @@ const ru = {
       visual_hash_backfill_progress: 'Обработано: {processed}/{total} · hashed: {hashed} · нет файла: {missing} · ошибок: {failed} · пропущено: {skipped}',
       visual_hash_backfill_complete: 'Готово: {hashed} hashed, {missing} без файла, {failed} ошибок, {skipped} пропущено',
       clip_embedding_backfill: 'CLIP семантический индекс',
-      clip_embedding_backfill_hint: 'Строит CLIP-эмбеддинги по video grid / image thumbs для семантического поиска и «семантически похожих». Сначала скачайте CLIP-модель и сгенерируйте превью, если pending остаётся 0.',
+      clip_embedding_backfill_hint: 'Строит CLIP-эмбеддинги по тайлам video grid (3×3) / image thumbs для семантического поиска и «семантически похожих». Сначала скачайте CLIP-модель и сгенерируйте превью, если pending остаётся 0. После обновления перезапустите прогон, чтобы обновить tile-индекс.',
       clip_embedding_backfill_status: '{hashed} из {total} превью проиндексировано ({pending} ожидают)',
       clip_embedding_backfill_start: 'Запустить прогон',
       clip_embedding_backfill_recalculate: 'Пересчитать все CLIP-эмбеддинги',

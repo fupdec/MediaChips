@@ -1886,7 +1886,7 @@ const en = {
       visual_hash_backfill_progress: 'Processed: {processed}/{total} · hashed: {hashed} · missing: {missing} · failed: {failed} · skipped: {skipped}',
       visual_hash_backfill_complete: 'Done: {hashed} hashed, {missing} missing, {failed} failed, {skipped} skipped',
       clip_embedding_backfill: 'CLIP semantic index',
-      clip_embedding_backfill_hint: 'Builds CLIP embeddings from video grids / image thumbs for semantic search and “semantically similar”. Download the CLIP model and generate previews first if pending stays at 0.',
+      clip_embedding_backfill_hint: 'Builds CLIP embeddings from video grid tiles (3×3) / image thumbs for semantic search and “semantically similar”. Download the CLIP model and generate previews first if pending stays at 0. Re-run after upgrading to refresh tile-based indexes.',
       clip_embedding_backfill_status: '{hashed} of {total} previews indexed ({pending} pending)',
       clip_embedding_backfill_start: 'Start backfill',
       clip_embedding_backfill_recalculate: 'Recalculate all CLIP embeddings',

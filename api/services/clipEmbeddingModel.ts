@@ -3,13 +3,17 @@ import type {ModelStatus} from '../types/mlModels'
 import {projectPath} from '../../shared/projectRoot'
 import {resolveProcessResourcesPath} from '../utils/resourcesPath'
 import {
+  getGridTileCropBoxes,
   l2Normalize,
   type ClipEmbeddingVector,
 } from './clipEmbeddingMath'
+import {VIDEO_GRID_SPRITE} from '../../shared/videoPreview'
 import fs from 'fs'
 import path from 'path'
 
 export const CLIP_EMBEDDING_MODEL = 'Xenova/clip-vit-base-patch32'
+/** DB index key — bump suffix when packing/format changes so backfill reindexes. */
+export const CLIP_EMBEDDING_INDEX_KEY = `${CLIP_EMBEDDING_MODEL}#tiles-v1`
 
 type ClipTokenizer = {
   (texts: string[], options?: Record<string, unknown>): Record<string, unknown>
@@ -27,12 +31,18 @@ type ClipVisionModel = {
   (inputs: Record<string, unknown>): Promise<{image_embeds: {data: ArrayLike<number>; dims: number[]}}>
 }
 
+type ClipRawImage = {
+  width: number
+  height: number
+  crop: (box: [number, number, number, number]) => Promise<ClipRawImage>
+}
+
 type ClipRuntime = {
   tokenizer: ClipTokenizer
   textModel: ClipTextModel
   processor: ClipProcessor
   visionModel: ClipVisionModel
-  RawImage: {read: (filePath: string) => Promise<unknown>}
+  RawImage: {read: (filePath: string) => Promise<ClipRawImage>}
 }
 
 let runtime: ClipRuntime | null = null
@@ -151,6 +161,13 @@ async function embedClipText(db: ApiDb, text: string): Promise<ClipEmbeddingVect
   return tensorToVector(text_embeds.data, text_embeds.dims)
 }
 
+async function embedClipRawImage(db: ApiDb, image: ClipRawImage): Promise<ClipEmbeddingVector> {
+  const model = await loadClipEmbeddingRuntime(db)
+  const inputs = await model.processor(image)
+  const {image_embeds} = await model.visionModel(inputs)
+  return tensorToVector(image_embeds.data, image_embeds.dims)
+}
+
 async function embedClipImageFile(db: ApiDb, imagePath: string): Promise<ClipEmbeddingVector> {
   const filePath = String(imagePath || '')
   if (!filePath || !fs.existsSync(filePath)) {
@@ -159,9 +176,43 @@ async function embedClipImageFile(db: ApiDb, imagePath: string): Promise<ClipEmb
 
   const model = await loadClipEmbeddingRuntime(db)
   const image = await model.RawImage.read(filePath)
-  const inputs = await model.processor(image)
-  const {image_embeds} = await model.visionModel(inputs)
-  return tensorToVector(image_embeds.data, image_embeds.dims)
+  return embedClipRawImage(db, image)
+}
+
+/**
+ * Embed a contact-sheet as one vector per tile (max-pooled at search time).
+ * Falls back to a single whole-image embedding if the sheet cannot be split.
+ */
+async function embedClipImageTiles(
+  db: ApiDb,
+  imagePath: string,
+  cols = VIDEO_GRID_SPRITE.cols,
+  rows = VIDEO_GRID_SPRITE.rows,
+): Promise<ClipEmbeddingVector[]> {
+  const filePath = String(imagePath || '')
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error(`CLIP image not found: ${filePath}`)
+  }
+
+  const model = await loadClipEmbeddingRuntime(db)
+  const image = await model.RawImage.read(filePath)
+  const boxes = getGridTileCropBoxes(image.width, image.height, cols, rows)
+  if (!boxes.length) {
+    const whole = await embedClipRawImage(db, image)
+    return whole.length ? [whole] : []
+  }
+
+  const tiles: ClipEmbeddingVector[] = []
+  for (const box of boxes) {
+    const cropped = await image.crop(box)
+    const embedding = await embedClipRawImage(db, cropped)
+    if (embedding.length) tiles.push(embedding)
+  }
+
+  if (tiles.length) return tiles
+
+  const whole = await embedClipRawImage(db, image)
+  return whole.length ? [whole] : []
 }
 
 function getClipEmbeddingStatus(db: ApiDb, enabled = true): ModelStatus {
@@ -185,6 +236,7 @@ function getClipEmbeddingStatus(db: ApiDb, enabled = true): ModelStatus {
 
 export {
   embedClipImageFile,
+  embedClipImageTiles,
   embedClipText,
   getClipEmbeddingStatus,
   getModelCacheDir,

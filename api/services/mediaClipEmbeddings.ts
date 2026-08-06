@@ -4,18 +4,21 @@ import path from 'path'
 import {queryAll, queryGet, bindNamedParameters} from '../db/utils/rawQuery'
 import {chunkArray} from '../db/utils/chunk'
 import {
-  packFloat32Embedding,
-  unpackFloat32Embedding,
-  rankByCosineSimilarity,
+  packFloat32Embeddings,
+  unpackFloat32Embeddings,
+  rankByMaxCosineSimilarity,
+  rankByMaxPairwiseCosineSimilarity,
   type ClipEmbeddingVector,
 } from './clipEmbeddingMath'
 import {
-  CLIP_EMBEDDING_MODEL,
+  CLIP_EMBEDDING_INDEX_KEY,
   embedClipImageFile,
+  embedClipImageTiles,
   embedClipText,
   getClipEmbeddingStatus,
 } from './clipEmbeddingModel'
 import {translateQueryToEnglish} from './semanticQueryTranslate'
+import {VIDEO_GRID_SPRITE} from '../../shared/videoPreview'
 
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
@@ -53,6 +56,11 @@ function getVideoThumbPath(dbPath: string, id: number) {
 
 function getImageThumbPath(dbPath: string, id: number) {
   return path.join(dbPath, 'media/images/thumbs', `${id}.jpg`)
+}
+
+function isVideoGridPreviewPath(previewPath: string) {
+  const normalized = previewPath.replace(/\\/g, '/')
+  return normalized.includes('/media/videos/grids/')
 }
 
 function resolvePreviewImagePath(db: ApiDb, mediaId: number, mediaType?: string | null) {
@@ -132,7 +140,7 @@ function countEmbedded(db: ApiDb, candidateIds: number[]) {
       FROM mediaClipEmbeddings
       WHERE mediaId IN (:ids)
         AND model = :model
-    `, {ids: chunk, model: CLIP_EMBEDDING_MODEL})
+    `, {ids: chunk, model: CLIP_EMBEDDING_INDEX_KEY})
     count += Number(rows[0]?.count || 0)
   }
   return count
@@ -152,8 +160,10 @@ async function getClipEmbeddingBackfillStatus(db: ApiDb) {
   }
 }
 
-function persistEmbedding(db: ApiDb, mediaId: number, embedding: ClipEmbeddingVector) {
-  const packed = packFloat32Embedding(embedding)
+function persistEmbeddings(db: ApiDb, mediaId: number, embeddings: ClipEmbeddingVector[]) {
+  if (!embeddings.length) return
+  const dims = embeddings[0].length
+  const packed = packFloat32Embeddings(embeddings)
   const {text, params} = bindNamedParameters(`
     INSERT INTO mediaClipEmbeddings (mediaId, embedding, dims, model, updatedAt)
     VALUES (:mediaId, :embedding, :dims, :model, :updatedAt)
@@ -165,11 +175,25 @@ function persistEmbedding(db: ApiDb, mediaId: number, embedding: ClipEmbeddingVe
   `, {
     mediaId,
     embedding: packed,
-    dims: embedding.length,
-    model: CLIP_EMBEDDING_MODEL,
+    dims,
+    model: CLIP_EMBEDDING_INDEX_KEY,
     updatedAt: nowIso(),
   })
   db.sqlite.prepare(text).run(...params)
+}
+
+async function embedPreviewPath(db: ApiDb, previewPath: string): Promise<ClipEmbeddingVector[]> {
+  if (isVideoGridPreviewPath(previewPath)) {
+    return embedClipImageTiles(
+      db,
+      previewPath,
+      VIDEO_GRID_SPRITE.cols,
+      VIDEO_GRID_SPRITE.rows,
+    )
+  }
+
+  const embedding = await embedClipImageFile(db, previewPath)
+  return embedding.length ? [embedding] : []
 }
 
 async function upsertClipEmbeddingForMedia(db: ApiDb, mediaId: number) {
@@ -182,11 +206,16 @@ async function upsertClipEmbeddingForMedia(db: ApiDb, mediaId: number) {
   const previewPath = resolvePreviewImagePath(db, id, row.mediaType)
   if (!previewPath) return null
 
-  const embedding = await embedClipImageFile(db, previewPath)
-  if (!embedding.length) return null
+  const embeddings = await embedPreviewPath(db, previewPath)
+  if (!embeddings.length) return null
 
-  persistEmbedding(db, id, embedding)
-  return {mediaId: id, dims: embedding.length, path: previewPath}
+  persistEmbeddings(db, id, embeddings)
+  return {
+    mediaId: id,
+    dims: embeddings[0].length,
+    tileCount: embeddings.length,
+    path: previewPath,
+  }
 }
 
 function findNextClipBackfillId(
@@ -215,7 +244,7 @@ function findNextClipBackfillId(
   `, {
     lastId,
     ids: candidateIds,
-    ...(force ? {} : {model: CLIP_EMBEDDING_MODEL}),
+    ...(force ? {} : {model: CLIP_EMBEDDING_INDEX_KEY}),
   })
 
   return row ? Number(row.id) : null
@@ -325,7 +354,7 @@ async function* iterateClipEmbeddingBackfill(
 function loadStoredEmbeddings(
   db: ApiDb,
   mediaTypeId?: number | null,
-): Array<{id: number; embedding: ClipEmbeddingVector}> {
+): Array<{id: number; embeddings: ClipEmbeddingVector[]}> {
   const typeClause = mediaTypeId != null && Number.isFinite(Number(mediaTypeId)) && Number(mediaTypeId) > 0
     ? 'AND m.mediaTypeId = :mediaTypeId'
     : ''
@@ -341,16 +370,16 @@ function loadStoredEmbeddings(
     WHERE e.model = :model
       ${typeClause}
   `, {
-    model: CLIP_EMBEDDING_MODEL,
+    model: CLIP_EMBEDDING_INDEX_KEY,
     ...(typeClause ? {mediaTypeId: Number(mediaTypeId)} : {}),
   })
 
   return rows
     .map((row) => ({
       id: Number(row.mediaId),
-      embedding: unpackFloat32Embedding(row.embedding),
+      embeddings: unpackFloat32Embeddings(row.embedding, Number(row.dims)),
     }))
-    .filter((row) => row.id > 0 && row.embedding.length > 0)
+    .filter((row) => row.id > 0 && row.embeddings.some((embedding) => embedding.length > 0))
 }
 
 function countMissingEmbeddings(db: ApiDb, mediaTypeId?: number | null) {
@@ -369,7 +398,7 @@ function countMissingEmbeddings(db: ApiDb, mediaTypeId?: number | null) {
         WHERE e.mediaId = m.id AND e.model = :model
       )
   `, {
-    model: CLIP_EMBEDDING_MODEL,
+    model: CLIP_EMBEDDING_INDEX_KEY,
     ...(typeClause ? {mediaTypeId: Number(mediaTypeId)} : {}),
   })
 
@@ -395,7 +424,7 @@ async function semanticSearchMedia(
 
   let missingEmbeddingsCount = 0
   let previewCandidatesCount = 0
-  let candidates: Array<{id: number; embedding: ClipEmbeddingVector}> = []
+  let candidates: Array<{id: number; embeddings: ClipEmbeddingVector[]}> = []
   try {
     missingEmbeddingsCount = countMissingEmbeddings(db, mediaTypeId)
     previewCandidatesCount = listPreviewCandidateIds(db).length
@@ -467,7 +496,7 @@ async function semanticSearchMedia(
       }
     }
 
-    const ids = rankByCosineSimilarity(queryEmbedding, candidates, clampLimit(limit))
+    const ids = rankByMaxCosineSimilarity(queryEmbedding, candidates, clampLimit(limit))
     return {
       ids,
       missingEmbeddingsCount,
@@ -503,7 +532,7 @@ async function findSimilarByClip(
     FROM mediaClipEmbeddings
     WHERE mediaId = :mediaId AND model = :model
     LIMIT 1
-  `, {mediaId: id, model: CLIP_EMBEDDING_MODEL})
+  `, {mediaId: id, model: CLIP_EMBEDDING_INDEX_KEY})
 
   if (!seedRow) {
     // Try to create on demand from preview.
@@ -519,14 +548,14 @@ async function findSimilarByClip(
     FROM mediaClipEmbeddings
     WHERE mediaId = :mediaId AND model = :model
     LIMIT 1
-  `, {mediaId: id, model: CLIP_EMBEDDING_MODEL})
+  `, {mediaId: id, model: CLIP_EMBEDDING_INDEX_KEY})
 
   if (!refreshed) {
     return {seedId: id, hasEmbedding: false, ids: [] as number[]}
   }
 
-  const seedEmbedding = unpackFloat32Embedding(refreshed.embedding)
-  if (!seedEmbedding.length) {
+  const seedEmbeddings = unpackFloat32Embeddings(refreshed.embedding, Number(refreshed.dims))
+  if (!seedEmbeddings.length) {
     return {seedId: id, hasEmbedding: false, ids: [] as number[]}
   }
 
@@ -534,8 +563,8 @@ async function findSimilarByClip(
   const candidates = loadStoredEmbeddings(db, media?.mediaTypeId ?? null)
     .filter((row) => row.id !== id)
 
-  const neighborIds = rankByCosineSimilarity(
-    seedEmbedding,
+  const neighborIds = rankByMaxPairwiseCosineSimilarity(
+    seedEmbeddings,
     candidates,
     Math.max(clampLimit(options.limit) - 1, 0),
   )
@@ -548,9 +577,11 @@ async function findSimilarByClip(
 }
 
 export {
+  CLIP_EMBEDDING_INDEX_KEY,
   findSimilarByClip,
   getClipEmbeddingBackfillStatus,
   iterateClipEmbeddingBackfill,
+  isVideoGridPreviewPath,
   resolvePreviewImagePath,
   semanticSearchMedia,
   upsertClipEmbeddingForMedia,
