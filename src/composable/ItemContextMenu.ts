@@ -869,6 +869,7 @@ export default function useItemContextMenu(
       await openMediaList({
         mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
         ids,
+        scope: {kind: 'visualSimilar'},
       })
     } catch (error) {
       console.error('Failed to find similar media:', error)
@@ -914,6 +915,7 @@ export default function useItemContextMenu(
       await openMediaList({
         mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
         ids,
+        scope: {kind: 'clipSimilar'},
       })
     } catch (error) {
       console.error('Failed to find semantically similar media:', error)

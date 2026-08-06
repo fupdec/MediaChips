@@ -91,7 +91,6 @@ const playerStore = usePlayerStore()
 const imageViewerStore = useImageViewerStore()
 const contextMenuStore = useContextMenu()
 const settingsStore = useSettingsStore()
-const searchMode = ref<'text' | 'semantic'>('text')
 
 type SemanticHealth = {
   modelStatus: string
@@ -373,13 +372,23 @@ const selectedIsTag = computed(() => {
   return Boolean(row && row.kind === 'item' && !row.group.is_media)
 })
 
+const canRunSemanticOnEnter = computed(() =>
+  !loading.value
+  && Boolean(query.value.trim())
+  && !results.value.length
+  && !pinnedTags.value.length
+  && !semanticHealth.value?.searched,
+)
+
 function showSearch() {
   dialog.value = true
   query.value = ''
   pinnedTags.value = []
   results.value = []
+  semanticHealth.value = null
   clearHighlightCache()
   focusSearchField()
+  void refreshSemanticHealth()
 }
 
 let unregisterShowGlobalSearch: (() => void) | null = null
@@ -597,9 +606,18 @@ async function searchSemantic() {
     if (!ids.length) return
 
     dialog.value = false
+    const scopeLabel = String(
+      searchRes.data?.translated
+        ? (searchRes.data?.originalQuery || q)
+        : (searchRes.data?.searchQuery || q),
+    ).trim()
     await openMediaList({
       mediaTypeId: mediaTypeId ?? undefined,
       ids,
+      scope: {
+        kind: 'semantic',
+        label: scopeLabel || q,
+      },
     })
   } catch (e: unknown) {
     const err = e as {code?: string; name?: string}
@@ -612,8 +630,6 @@ async function searchSemantic() {
 }
 
 async function search() {
-  if (searchMode.value === 'semantic') return
-
   const q = query.value.trim()
   const tagIds = pinnedTags.value.map((tag) => tag.id)
   if (!q && !tagIds.length) {
@@ -660,39 +676,15 @@ async function search() {
   }
 }
 
-function onSearchModeChange() {
-  results.value = []
-  resetExpandedGroups()
-  selectedIndex.value = -1
-  abortController?.abort()
-  runSearch.cancel()
-  loading.value = false
-  if (searchMode.value === 'semantic') {
-    void refreshSemanticHealth()
-    return
-  }
-  semanticHealth.value = null
-  if (query.value.trim() || pinnedTags.value.length) {
-    loading.value = true
-    runSearch()
-  }
-}
-
 const runSearch = debounce(search, 250)
 
 function onQueryInput() {
-  if (searchMode.value === 'semantic') {
-    abortController?.abort()
-    runSearch.cancel()
-    loading.value = false
-    if (semanticHealth.value?.searched) {
-      semanticHealth.value = {
-        ...semanticHealth.value,
-        searched: false,
-        failed: false,
-      }
+  if (semanticHealth.value?.searched) {
+    semanticHealth.value = {
+      ...semanticHealth.value,
+      searched: false,
+      failed: false,
     }
-    return
   }
 
   if (!query.value.trim() && !pinnedTags.value.length) {
@@ -874,14 +866,30 @@ function onSearchKeydown(e: KeyboardEvent) {
     moveSelection(-1)
   } else if (e.key === 'Enter') {
     e.preventDefault()
-    if (searchMode.value === 'semantic') {
+    // ⌘/Ctrl+Enter always runs semantic search.
+    if (e.metaKey || e.ctrlKey) {
+      void searchSemantic()
+      return
+    }
+    // No text hits — Enter runs semantic search on the query.
+    if (
+      !loading.value
+      && query.value.trim()
+      && !results.value.length
+      && !pinnedTags.value.length
+    ) {
       void searchSemantic()
       return
     }
     openSelectedResult()
-  } else if (e.key === 'Tab' && selectedIsTag.value) {
+  } else if (e.key === 'Tab') {
     e.preventDefault()
-    pinSelectedTag()
+    if (selectedIsTag.value) {
+      pinSelectedTag()
+      return
+    }
+    // No tag to pin — semantic search on the current query.
+    if (query.value.trim()) void searchSemantic()
   } else if (e.key === 'Backspace' && !query.value && pinnedTags.value.length) {
     e.preventDefault()
     unpinTag(pinnedTags.value[pinnedTags.value.length - 1].id)
@@ -1063,19 +1071,6 @@ function getNameHighlighted(text: string) {
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="d-flex align-center ga-3 min-w-0">
             <div class="text-h6 text-truncate">{{ t('appbar.globalSearch') }}</div>
-            <v-btn-toggle
-              v-model="searchMode"
-              density="compact"
-              color="primary"
-              variant="outlined"
-              divided
-              mandatory
-              class="flex-shrink-0"
-              @update:model-value="onSearchModeChange"
-            >
-              <v-btn value="text" size="small">{{ t('globalSearch.modeText') }}</v-btn>
-              <v-btn value="semantic" size="small">{{ t('globalSearch.modeSemantic') }}</v-btn>
-            </v-btn-toggle>
             <v-chip
               v-if="hasActiveSearch && !loading && totalResults > 0"
               size="small"
@@ -1095,7 +1090,7 @@ function getNameHighlighted(text: string) {
           @mousedown="onInputShellMouseDown"
         >
           <v-icon class="global-search__input-icon text-medium-emphasis" size="20">
-            {{ searchMode === 'semantic' ? 'mdi-brain' : 'mdi-magnify' }}
+            mdi-magnify
           </v-icon>
 
           <div class="global-search__input-body">
@@ -1121,13 +1116,28 @@ function getNameHighlighted(text: string) {
               type="text"
               autocomplete="off"
               spellcheck="false"
-              :placeholder="pinnedTags.length ? '' : (searchMode === 'semantic' ? t('globalSearch.enterSemantic') : t('globalSearch.enterText'))"
+              :placeholder="pinnedTags.length ? '' : t('globalSearch.enterUnified')"
               @input="onQueryInput"
               @keydown="onSearchKeydown"
               @focus="inputFocused = true"
               @blur="inputFocused = false"
             >
           </div>
+
+          <v-btn
+            v-if="query.trim()"
+            class="global-search__input-semantic"
+            icon
+            variant="text"
+            density="compact"
+            size="small"
+            :title="t('globalSearch.hintEnterSemantic')"
+            tabindex="-1"
+            @mousedown.prevent
+            @click.stop="searchSemantic"
+          >
+            <v-icon size="18">mdi-brain</v-icon>
+          </v-btn>
 
           <v-btn
             v-if="query || pinnedTags.length"
@@ -1165,32 +1175,47 @@ function getNameHighlighted(text: string) {
             color="medium-emphasis"
           >
             {{
-              searchMode === 'semantic'
+              semanticHealth?.searched
                 ? 'mdi-brain'
                 : (hasActiveSearch ? 'mdi-file-search-outline' : 'mdi-text-search')
             }}
           </v-icon>
           <div class="text-caption mb-3">
-            <template v-if="searchMode === 'semantic'">
-              {{
-                hasActiveSearch
-                  ? (semanticEmptyHint || t('globalSearch.noResult'))
-                  : t('globalSearch.semanticStartTyping')
-              }}
+            <template v-if="semanticHealth?.searched">
+              {{ semanticEmptyHint || t('globalSearch.noResult') }}
             </template>
             <template v-else>
-              {{ hasActiveSearch ? t('globalSearch.noResult') : t('globalSearch.startTyping') }}
+              {{
+                hasActiveSearch
+                  ? t('globalSearch.noResult')
+                  : t('globalSearch.startTypingUnified')
+              }}
             </template>
           </div>
           <div
-            v-if="searchMode === 'semantic' && semanticTranslatedCaption"
+            v-if="semanticTranslatedCaption"
             class="text-caption text-medium-emphasis mb-3"
           >
             {{ semanticTranslatedCaption }}
           </div>
 
           <div
-            v-if="searchMode === 'semantic' && semanticChecklist.length"
+            v-if="query.trim() && !semanticHealth?.searched"
+            class="mb-3"
+          >
+            <v-btn
+              size="small"
+              color="primary"
+              variant="tonal"
+              prepend-icon="mdi-brain"
+              @click="searchSemantic"
+            >
+              {{ t('globalSearch.runSemantic') }}
+            </v-btn>
+          </div>
+
+          <div
+            v-if="semanticHealth?.searched && semanticChecklist.length"
             class="global-search__health text-left mx-auto"
           >
             <div
@@ -1368,7 +1393,7 @@ function getNameHighlighted(text: string) {
         <v-spacer/>
         <v-hotkey keys="enter" variant="flat"/>
         <span class="ml-1">{{
-          searchMode === 'semantic'
+          canRunSemanticOnEnter
             ? t('globalSearch.hintEnterSemantic')
             : t('globalSearch.hintEnter')
         }}</span>
@@ -1376,6 +1401,19 @@ function getNameHighlighted(text: string) {
           <v-spacer/>
           <v-hotkey keys="tab" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintTab') }}</span>
+        </template>
+        <template v-else-if="query.trim() && !canRunSemanticOnEnter">
+          <v-spacer/>
+          <v-hotkey keys="tab" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
+          <v-spacer/>
+          <v-hotkey keys="meta+enter" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintEnterSemantic') }}</span>
+        </template>
+        <template v-else-if="canRunSemanticOnEnter">
+          <v-spacer/>
+          <v-hotkey keys="tab" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
         </template>
       </v-card-actions>
     </v-card>

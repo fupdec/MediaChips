@@ -1,5 +1,8 @@
 <template>
-  <v-container ref="container">
+  <v-container
+    ref="container"
+    class="items-layout-container"
+  >
 
     <div
       id="items-control-deck"
@@ -10,99 +13,104 @@
       }"
     >
       <div
-        class="items-page-header d-flex align-center justify-space-between flex-wrap ga-3"
-        :class="controlDeckActive
-          ? 'items-control-deck__header items-page-header--deck'
-          : 'text-h4 text-md-h2 mt-6 mb-8'"
+        class="items-control-deck__surface"
+        :class="{'items-control-deck__surface--card': controlDeckActive}"
       >
-        <div class="d-flex align-center items-page-header__title min-width-0">
-          <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
-          <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
-          <span
-            v-if="!loader.is_busy && total > 0"
-            class="items-page-header__meta"
-          >
-            <span v-if="total != totalInDb">({{ total }} of {{ totalInDb }})</span>
-            <span v-else>({{ total }})</span>
-            <span v-if="filesize_all"> · {{ filesize_all }}</span>
-          </span>
-        </div>
-
-        <div class="d-flex align-center flex-wrap ga-2 items-control-deck__controls">
-          <ToolbarSort
-            deck
-            class="items-control-deck__field items-control-deck__sort"
-          />
-
-          <ToolbarGroupBy
-            v-if="controlDeckActive"
-            compact
-            :class="isGroupByOff
-              ? 'items-control-deck__group-by-icon'
-              : 'items-control-deck__field items-control-deck__group-by'"
-          />
-
-          <v-btn
-            v-if="controlDeckActive"
-            @click="dialogEditingPinnedMeta = true"
-            v-tooltip:top="t('meta.settings.edit_pinned_meta')"
-            color="primary"
-            variant="tonal"
-            size="small"
-            icon
-          >
-            <v-icon size="18">mdi-pencil-outline</v-icon>
-          </v-btn>
-
-          <v-btn
-            @click="toggleCustomization"
-            v-tooltip:top="t('appbar.buttons.customize')"
-            color="primary"
-            :variant="toolbarStore.appearance.show ? 'flat' : (controlDeckActive ? 'tonal' : 'flat')"
-            :size="controlDeckActive ? 'small' : undefined"
-            icon
-          >
-            <v-icon :size="controlDeckActive ? 18 : undefined">mdi-tune</v-icon>
-          </v-btn>
-
-          <v-btn
-            v-if="controlDeckActive"
-            @click="toggleFiltersPanel"
-            v-tooltip:top="t('appbar.buttons.filter')"
-            color="primary"
-            :variant="filtersPanelOpen ? 'flat' : 'tonal'"
-            size="small"
-            icon
-          >
-            <v-badge
-              v-if="activeFiltersCount > 0"
-              :content="activeFiltersCount"
-              color="secondary"
-              floating
-            >
-              <v-icon size="18">mdi-filter-outline</v-icon>
-            </v-badge>
-            <v-icon v-else size="18">mdi-filter-outline</v-icon>
-          </v-btn>
-        </div>
-      </div>
-
-      <v-expand-transition>
         <div
-          v-if="toolbarStore.appearance.show"
-          id="items-control-deck-appearance"
-          class="items-control-deck__appearance"
-          :class="{'items-control-deck__section': controlDeckActive}"
+          class="items-page-header d-flex align-center justify-space-between flex-wrap ga-3"
+          :class="controlDeckActive
+            ? 'items-control-deck__header items-page-header--deck'
+            : 'text-h4 text-md-h2 mt-6 mb-8'"
         >
-          <ToolbarAppearance :embedded="controlDeckActive"/>
-        </div>
-      </v-expand-transition>
+          <div class="d-flex align-center items-page-header__title min-width-0">
+            <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
+            <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
+            <span
+              v-if="!loader.is_busy && total > 0"
+              class="items-page-header__meta"
+            >
+              <span v-if="total != totalInDb">({{ total }} of {{ totalInDb }})</span>
+              <span v-else>({{ total }})</span>
+              <span v-if="filesize_all"> · {{ filesize_all }}</span>
+            </span>
+          </div>
 
-      <div
-        id="items-filters-top-host"
-        class="items-filters-top-host"
-        :class="{'items-control-deck__filters-host': controlDeckActive}"
-      />
+          <div class="d-flex align-center flex-wrap ga-2 items-control-deck__controls">
+            <ToolbarSort
+              deck
+              class="items-control-deck__field items-control-deck__sort"
+            />
+
+            <ToolbarGroupBy
+              v-if="controlDeckActive"
+              compact
+              :class="isGroupByOff
+                ? 'items-control-deck__group-by-icon'
+                : 'items-control-deck__field items-control-deck__group-by'"
+            />
+
+            <v-btn
+              v-if="controlDeckActive"
+              @click="dialogEditingPinnedMeta = true"
+              v-tooltip:top="t('meta.settings.edit_pinned_meta')"
+              color="primary"
+              variant="tonal"
+              size="small"
+              icon
+            >
+              <v-icon size="18">mdi-pencil-outline</v-icon>
+            </v-btn>
+
+            <v-btn
+              @click="toggleCustomization"
+              v-tooltip:top="t('appbar.buttons.customize')"
+              color="primary"
+              :variant="toolbarStore.appearance.show ? 'flat' : (controlDeckActive ? 'tonal' : 'flat')"
+              :size="controlDeckActive ? 'small' : undefined"
+              icon
+            >
+              <v-icon :size="controlDeckActive ? 18 : undefined">mdi-tune</v-icon>
+            </v-btn>
+
+            <v-btn
+              v-if="controlDeckActive"
+              @click="toggleFiltersPanel"
+              v-tooltip:top="t('appbar.buttons.filter')"
+              color="primary"
+              :variant="filtersPanelOpen ? 'flat' : 'tonal'"
+              size="small"
+              icon
+            >
+              <v-badge
+                v-if="activeFiltersCount > 0"
+                :content="activeFiltersCount"
+                color="secondary"
+                floating
+              >
+                <v-icon size="18">mdi-filter-outline</v-icon>
+              </v-badge>
+              <v-icon v-else size="18">mdi-filter-outline</v-icon>
+            </v-btn>
+          </div>
+        </div>
+
+        <v-expand-transition>
+          <div
+            v-if="toolbarStore.appearance.show"
+            id="items-control-deck-appearance"
+            class="items-control-deck__appearance"
+            :class="{'items-control-deck__section': controlDeckActive}"
+          >
+            <ToolbarAppearance :embedded="controlDeckActive"/>
+          </div>
+        </v-expand-transition>
+
+        <div
+          id="items-filters-top-host"
+          class="items-filters-top-host"
+          :class="{'items-control-deck__filters-host': controlDeckActive}"
+        ></div>
+      </div>
     </div>
 
     <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
@@ -533,6 +541,7 @@ const showStandaloneFilterChips = computed(() => {
   if (controlDeckActive.value) return false
   return activeFilters.value.length > 0
     || Boolean(ENV.value.media_type_id && ITEMS.value.find_duplicates)
+    || Boolean(ITEMS.value.listScopeIds?.length)
 })
 
 const filtersPanelOpen = computed(() => Boolean(appStore.filters.visible))
@@ -951,14 +960,20 @@ defineEmits<{
 }
 
 /* Classic layout: stick the title/controls row (deck uses sticky on the card). */
-.items-control-deck--classic > .items-page-header {
+.items-control-deck--classic .items-page-header {
   position: sticky;
-  top: 0;
+  top: 8px;
   z-index: 8;
-  background: rgb(var(--v-theme-surface));
+  background: rgba(var(--v-theme-surface), 0.88);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
   padding-block: 12px;
   margin-block: 0 !important;
   box-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.22);
+}
+
+.items-layout-container.v-container {
+  padding-top: 8px;
 }
 
 .items-control-deck {
@@ -969,19 +984,14 @@ defineEmits<{
     --deck-gap: 10px;
     --deck-radius: 16px;
     --deck-control-h: 40px;
+    --deck-sticky-top: 8px;
 
     position: sticky;
-    top: 0;
+    top: var(--deck-sticky-top);
     z-index: 8;
-    margin-top: 16px;
+    margin-top: 0;
     margin-bottom: 16px;
-    border: 1px solid rgba(var(--v-theme-primary), 0.12);
-    border-radius: var(--deck-radius);
-    background: rgb(var(--v-theme-surface));
-    box-shadow:
-      0 1px 0 rgba(var(--v-theme-primary), 0.04),
-      0 10px 28px -16px rgba(0, 0, 0, 0.28);
-    overflow: hidden;
+    background: transparent;
 
     @media (max-width: 959px) {
       --deck-pad-x: 12px;
@@ -992,6 +1002,22 @@ defineEmits<{
 
   &--classic {
     display: contents;
+
+    > .items-control-deck__surface {
+      display: contents;
+    }
+  }
+
+  &__surface--card {
+    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    border-radius: var(--deck-radius, 16px);
+    background: rgba(var(--v-theme-surface), 0.88);
+    box-shadow:
+      0 1px 0 rgba(var(--v-theme-primary), 0.04),
+      0 10px 28px -16px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
   }
 
   &__header {

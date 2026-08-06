@@ -81,8 +81,13 @@ function createItemsStoreState() {
     find_duplicates: false,
     /** Override for duplicate grouping: fingerprint | visualHash | path | filesize */
     duplicates_by: null as string | null,
-    /** When set, media list is scoped to these ids (e.g. More like this). */
+    /** When set, media list is scoped to these ids (e.g. More like this / semantic search). */
     listScopeIds: null as number[] | null,
+    /** Why the list is scoped — drives the filter chip label. */
+    listScope: null as null | {
+      kind: 'semantic' | 'visualSimilar' | 'clipSimilar'
+      label?: string
+    },
     thumbRefreshKeys: {} as Record<number, number>,
     thumbRegenerateKeys: {} as Record<number, number>,
     viewerLoadMoreHandler: null as (() => Promise<boolean>) | null,

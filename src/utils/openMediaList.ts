@@ -7,6 +7,14 @@ import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {useAppStore} from '@/stores/app'
 import type {FilterObject} from '@/types/common'
 
+export type MediaListScopeKind = 'semantic' | 'visualSimilar' | 'clipSimilar'
+
+export type MediaListScope = {
+  kind: MediaListScopeKind
+  /** Optional display text (e.g. semantic query). */
+  label?: string
+}
+
 interface OpenMediaListOptions {
   sortBy?: string
   sortDir?: string
@@ -14,6 +22,8 @@ interface OpenMediaListOptions {
   filters?: FilterObject[]
   /** Scope the media list to these ids (ranked order preserved). */
   ids?: number[]
+  /** Label/kind for the scope chip when `ids` are set. */
+  scope?: MediaListScope | null
 }
 
 async function waitForMediaPageReady() {
@@ -36,6 +46,7 @@ export function useOpenMediaList() {
     mediaTypeId,
     filters,
     ids,
+    scope = null,
   }: OpenMediaListOptions = {}) => {
     const targetMediaTypeId = mediaTypeId ?? getDefaultMediaTypeId(appStore.mediaTypes)
     const alreadyOnPage =
@@ -51,9 +62,13 @@ export function useOpenMediaList() {
       itemsStore.find_duplicates = false
       itemsStore.duplicates_by = null
       itemsStore.listScopeIds = ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+      itemsStore.listScope = scope
+        ? {kind: scope.kind, ...(scope.label ? {label: scope.label} : {})}
+        : {kind: 'visualSimilar'}
     } else if (filters?.length) {
       // Home View-all / filter navigation should leave More-like-this scope.
       itemsStore.listScopeIds = null
+      itemsStore.listScope = null
     }
 
     if (sortBy) {

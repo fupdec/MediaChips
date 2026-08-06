@@ -7,131 +7,137 @@
       v-if="useTopPanel"
       class="filters-top"
     >
-      <div
-        v-if="showTopShell"
-        class="filters-top__shell"
-        :class="{
-          'filters-top__shell--panel': isPanelView,
-          'filters-top__shell--full': filtersViewMode === 'full',
-          'filters-top__shell--simple': !isPanelView,
-        }"
-      >
-        <div class="filters-top__chrome">
-          <div class="filters-top__chrome-start">
-            <v-icon size="18">mdi-filter</v-icon>
-            <span class="filters-top__chrome-title">{{ t('filters.title') }}</span>
-
-            <v-btn-toggle
-              :model-value="filtersViewMode"
-              class="filters-top__mode"
-              color="primary"
-              density="compact"
-              variant="outlined"
-              divided
-              mandatory
-              @update:model-value="setFiltersViewMode"
-            >
-              <v-btn
-                value="simple"
-                size="small"
-                :disabled="!showTopChips && isPanelView"
-              >
-                {{ t('filters.simple') }}
-              </v-btn>
-              <v-btn
-                value="advanced"
-                size="small"
-              >
-                {{ t('filters.advanced') }}
-              </v-btn>
-              <v-btn
-                value="full"
-                size="small"
-                v-tooltip:top="t('filters.edit_mode_hint')"
-              >
-                {{ t('filters.full') }}
-              </v-btn>
-            </v-btn-toggle>
-          </div>
-
-          <div class="filters-top__chrome-end">
-            <v-btn
-              v-if="isPanelView"
-              :color="is_filters_changed ? 'success' : 'primary'"
-              rounded="xl"
-              variant="flat"
-              size="small"
-              @click="apply"
-            >
-              <v-icon
-                start
-                size="small"
-              >
-                mdi-check
-              </v-icon>
-              {{ t('common.apply') }}
-            </v-btn>
-
-            <v-btn
-              v-if="showTopChips"
-              variant="text"
-              size="small"
-              color="primary"
-              @click="handleDeactivateAllFilters"
-            >
-              {{ t('filters.deactivate_all_filters') }}
-            </v-btn>
-
-            <v-btn
-              v-if="isPanelView"
-              variant="text"
-              icon
-              size="small"
-              :aria-label="t('appbar.buttons.hide_filters')"
-              @click="closeTopFilters"
-            >
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </div>
-        </div>
-
+      <v-expand-transition>
         <div
-          v-if="!isPanelView"
-          class="filters-top__brief"
+          v-if="showTopShell"
+          class="filters-top__shell"
+          :class="{
+            'filters-top__shell--panel': isPanelView,
+            'filters-top__shell--full': filtersViewMode === 'full',
+            'filters-top__shell--simple': !isPanelView,
+          }"
         >
-          <FiltersChips
-            :filters="ITEMS.filters"
-            class="filters-top__chips"
-          />
-        </div>
+          <div class="filters-top__chrome">
+            <div class="filters-top__chrome-start">
+              <v-icon size="18">mdi-filter</v-icon>
+              <span class="filters-top__chrome-title">{{ t('filters.title') }}</span>
 
-        <v-expand-transition>
-          <div
-            v-if="isPanelView"
-            class="filters-top__panel"
-          >
-            <FiltersPanel
-              variant="top"
-              hide-header
-              v-bind="panelBindings"
-              @update:edit-mode="editMode = $event"
-              @update:filters="filters = $event"
-              @close="closeTopFilters"
-              @apply="apply"
-              @add="add"
-              @reorder="onReorder"
-              @open-saved="dialogSaved = true"
-              @set-by="setBy"
-              @set-condition="setCondition"
-              @set-value="setValue"
-              @set-active="setActive"
-              @remove="remove"
-              @pick-date="pickDate"
-              @valid="validate"
-            />
+              <v-btn-toggle
+                :model-value="filtersViewMode"
+                class="filters-top__mode"
+                color="primary"
+                density="compact"
+                variant="outlined"
+                divided
+                mandatory
+                @update:model-value="setFiltersViewMode"
+              >
+                <v-btn
+                  value="simple"
+                  size="small"
+                  :disabled="!showTopChips && isPanelView"
+                >
+                  {{ t('filters.simple') }}
+                </v-btn>
+                <v-btn
+                  value="advanced"
+                  size="small"
+                >
+                  {{ t('filters.advanced') }}
+                </v-btn>
+                <v-btn
+                  value="full"
+                  size="small"
+                  v-tooltip:top="t('filters.edit_mode_hint')"
+                >
+                  {{ t('filters.full') }}
+                </v-btn>
+              </v-btn-toggle>
+            </div>
+
+            <div class="filters-top__chrome-end">
+              <v-btn
+                v-if="isPanelView"
+                :color="is_filters_changed ? 'success' : 'primary'"
+                rounded="xl"
+                variant="flat"
+                size="small"
+                @click="apply"
+              >
+                <v-icon
+                  start
+                  size="small"
+                >
+                  mdi-check
+                </v-icon>
+                {{ t('common.apply') }}
+              </v-btn>
+
+              <v-btn
+                v-if="showTopChips"
+                variant="text"
+                size="small"
+                color="primary"
+                @click="handleDeactivateAllFilters"
+              >
+                {{ t('filters.deactivate_all_filters') }}
+              </v-btn>
+
+              <v-btn
+                v-if="isPanelView"
+                variant="text"
+                icon
+                size="small"
+                :aria-label="t('appbar.buttons.hide_filters')"
+                @click="closeTopFilters"
+              >
+                <v-icon>mdi-close</v-icon>
+              </v-btn>
+            </div>
           </div>
-        </v-expand-transition>
-      </div>
+
+          <v-expand-transition>
+            <div
+              v-if="!isPanelView"
+              class="filters-top__brief"
+            >
+              <FiltersChips
+                :filters="ITEMS.filters"
+                class="filters-top__chips"
+              />
+            </div>
+          </v-expand-transition>
+
+          <div
+            class="filters-top__panel-slot"
+            :class="{'filters-top__panel-slot--open': isPanelView}"
+          >
+            <div class="filters-top__panel-slot-inner">
+              <div class="filters-top__panel">
+                <FiltersPanel
+                  variant="top"
+                  hide-header
+                  v-bind="panelBindings"
+                  @update:edit-mode="editMode = $event"
+                  @update:filters="filters = $event"
+                  @close="closeTopFilters"
+                  @apply="apply"
+                  @add="add"
+                  @reorder="onReorder"
+                  @open-saved="dialogSaved = true"
+                  @set-by="setBy"
+                  @set-condition="setCondition"
+                  @set-value="setValue"
+                  @set-active="setActive"
+                  @remove="remove"
+                  @pick-date="pickDate"
+                  @valid="validate"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </v-expand-transition>
     </div>
 
     <v-navigation-drawer
@@ -359,7 +365,8 @@ const ENV = computed(() => ITEMS.value.environment)
 const showTopChips = computed(() => {
   const hasActive = (ITEMS.value.filters || []).some((filter) => filter && filter.active)
   const hasDuplicates = Boolean(ENV.value.media_type_id && ITEMS.value.find_duplicates)
-  return hasActive || hasDuplicates
+  const hasListScope = Boolean(ITEMS.value.listScopeIds?.length)
+  return hasActive || hasDuplicates || hasListScope
 })
 
 const showTopShell = computed(() => filtersVisible.value || showTopChips.value)
@@ -829,6 +836,21 @@ watch(filtersVisible, (visible) => {
   padding: 2px 10px 10px;
 }
 
+.filters-top__panel-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.filters-top__panel-slot--open {
+  grid-template-rows: 1fr;
+}
+
+.filters-top__panel-slot-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .items-control-deck--browser .filters-top__panel {
   padding: 0 14px 8px;
   max-height: none;
@@ -842,10 +864,10 @@ watch(filtersVisible, (visible) => {
 .filters-top__panel {
   max-height: min(42vh, 440px);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 
   .filters-panel {
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     max-height: min(42vh, 440px);
   }

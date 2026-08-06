@@ -22,8 +22,8 @@
       :title="t('filters.deactivate_filter')"
       @click="switchOffListScope"
     >
-      <v-icon size="14" class="mr-1">mdi-image-search-outline</v-icon>
-      {{ t('filters.more_like_this_scope') }}
+      <v-icon size="14" class="mr-1">{{ listScopeIcon }}</v-icon>
+      {{ listScopeLabel }}
     </v-chip>
 
     <v-chip
@@ -169,6 +169,29 @@ const hasListScope = computed(() =>
   Array.isArray(itemsStore.listScopeIds) && itemsStore.listScopeIds.length > 0,
 )
 
+const listScopeKind = computed(() => itemsStore.listScope?.kind || 'visualSimilar')
+
+const listScopeIcon = computed(() => {
+  if (listScopeKind.value === 'semantic' || listScopeKind.value === 'clipSimilar') {
+    return 'mdi-brain'
+  }
+  return 'mdi-image-search-outline'
+})
+
+const listScopeLabel = computed(() => {
+  const label = String(itemsStore.listScope?.label || '').trim()
+  if (listScopeKind.value === 'semantic') {
+    if (label) {
+      return t('filters.semantic_search_scope_query', {query: label})
+    }
+    return t('filters.semantic_search_scope')
+  }
+  if (listScopeKind.value === 'clipSimilar') {
+    return t('filters.semantically_similar_scope')
+  }
+  return t('filters.more_like_this_scope')
+})
+
 const switchOffDuplicates = () => {
   if (props.readonly || props.isTooltip) return
   itemsStore.find_duplicates = false
@@ -179,6 +202,7 @@ const switchOffDuplicates = () => {
 const switchOffListScope = () => {
   if (props.readonly || props.isTooltip) return
   itemsStore.listScopeIds = null
+  itemsStore.listScope = null
   void filtersController.apply()
 }
 

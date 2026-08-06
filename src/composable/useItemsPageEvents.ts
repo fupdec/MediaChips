@@ -396,6 +396,7 @@ export function useItemsPageEvents({
 
       itemsStore.clearSelection()
       itemsStore.listScopeIds = null
+      itemsStore.listScope = null
       itemsStore.find_duplicates = false
       itemsStore.duplicates_by = null
       await runInitSafely()

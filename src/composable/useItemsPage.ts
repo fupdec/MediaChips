@@ -17,7 +17,7 @@ import type {
   MediaListResponse,
   UseItemsPageOptions,
 } from '@/types/itemsPage'
-import {trimInfiniteScrollItems} from '@shared/listPagination'
+import {trimInfiniteScrollItems, resolvePageLimit} from '@shared/listPagination'
 import {compensateScrollAfterTopTrim} from '@/utils/infiniteScrollTrim'
 import {
   normalizeItemsGroupBy,
@@ -152,6 +152,23 @@ export function useItemsPage({
       pages.value = response.data.pages || 1
     }
 
+    // ID-scoped lists (semantic / more-like-this) only fetch one page of ids from the
+    // API, so override totals from the full ranked scope kept on the store.
+    const scopeIdsForTotals = ITEMS.value.listScopeIds
+    if (
+      props.items_type === 'media'
+      && Array.isArray(scopeIdsForTotals)
+      && scopeIdsForTotals.length > 0
+    ) {
+      const scopeTotal = scopeIdsForTotals.length
+      const scopePageLimit = resolvePageLimit(
+        is_infinite_scroll.value ? INFINITE_PAGE_SIZE : ITEMS.value.limit,
+      ) || scopeTotal
+      itemsStore.updateState({key: 'totalFiltered', value: scopeTotal})
+      total.value = scopeTotal
+      pages.value = Math.max(1, Math.ceil(scopeTotal / scopePageLimit))
+    }
+
     let nextItems = append
       ? uniqBy([...ITEMS.value.itemsOnPage, ...pageItems], 'id')
       : pageItems
@@ -220,15 +237,18 @@ export function useItemsPage({
     }
 
     // Explicit `ids` arg = card refresh path. Full list uses listScopeIds when set.
-    query.ids = (ids && ids.length > 0)
-      ? ids
-      : (ITEMS.value.listScopeIds?.length ? [...ITEMS.value.listScopeIds] : [])
+    // For scoped lists, only request the current page of ids so we do not hydrate
+    // hundreds of Item trees at once (main post-semantic-search perf cost).
+    const explicitIds = (ids && ids.length > 0) ? ids : null
+    const scopeIds = (!explicitIds && ITEMS.value.listScopeIds?.length)
+      ? ITEMS.value.listScopeIds
+      : null
 
     const appendListPage = (props.items_type === 'media' || props.items_type === 'tag')
       && is_infinite_scroll.value
       && ITEMS.value.page > 1
       && ITEMS.value.itemsOnPage.length > 0
-      && (!ids || !ids.length)
+      && !explicitIds
 
     if (props.items_type === 'media') {
       query.includeNavigation = false
@@ -237,7 +257,7 @@ export function useItemsPage({
     if (props.items_type === 'media' || props.items_type === 'tag') {
       const pageLimit = is_infinite_scroll.value ? INFINITE_PAGE_SIZE : ITEMS.value.limit
 
-      if (is_infinite_scroll.value && !appendListPage && (!ids || !ids.length)) {
+      if (is_infinite_scroll.value && !appendListPage && !explicitIds) {
         itemsStore.updateState({key: 'page', value: 1})
         query.page = 1
       } else {
@@ -256,13 +276,49 @@ export function useItemsPage({
       }
     }
 
-    if (ids && ids.length > 0) {
+    if (explicitIds) {
+      query.ids = explicitIds
+    } else if (scopeIds) {
+      const pageLimit = resolvePageLimit(
+        Number(query.limit) || (is_infinite_scroll.value ? INFINITE_PAGE_SIZE : ITEMS.value.limit),
+      )
+      const page = Math.max(1, Number(query.page) || 1)
+      if (pageLimit) {
+        const start = (page - 1) * pageLimit
+        query.ids = scopeIds.slice(start, start + pageLimit)
+      } else {
+        query.ids = [...scopeIds]
+      }
+      // Empty page of a scope must not fall through to an unscoped library fetch.
+      if (!query.ids.length) {
+        const scopeTotal = scopeIds.length
+        const scopePageLimit = pageLimit || scopeTotal || 1
+        itemsStore.updateMultiple({
+          entities: appendListPage ? ITEMS.value.itemsOnPage : [],
+          itemsOnPage: appendListPage ? ITEMS.value.itemsOnPage : [],
+          isFiltersLoaded: true,
+          totalFiltered: scopeTotal,
+          ...(!appendListPage ? {groups: []} : {}),
+        })
+        total.value = scopeTotal
+        pages.value = Math.max(1, Math.ceil(scopeTotal / scopePageLimit))
+        if (appendListPage) {
+          infiniteScrollExhausted.value = true
+        }
+        loader.value.is_busy = false
+        return
+      }
+    } else {
+      query.ids = []
+    }
+
+    if (explicitIds) {
       // Refresh card payloads only — never recompute/cache library totals.
       query.skipTotals = true
       try {
         const res = await typedApi.postItemsList(url, query)
 
-        for (const id of ids) {
+        for (const id of explicitIds) {
           const item = res.data.items?.find((entry) => Number(entry.id) === Number(id))
           if (item) {
             itemsStore.updateItem({id, item})
@@ -315,12 +371,24 @@ export function useItemsPage({
         return false
       }
 
-      if (response.data.page != null) {
+      if (ITEMS.value.listScopeIds?.length) {
+        // Backend disables SQL pagination when `ids` are set and always reports page=1.
+        // Keep the client page so infinite-scroll / pager can advance through the scope.
+        itemsStore.updateState({key: 'page', value: requestedPage})
+      } else if (append) {
+        // Keep the page advanced by loadNextInfinitePage; response page can lag.
+      } else if (response.data.page != null) {
         itemsStore.updateState({key: 'page', value: response.data.page})
       }
 
       if (append && (response.data.items?.length ?? 0) === 0) {
         // Reached the end of the filtered set. Keep totalFiltered from the first page.
+        infiniteScrollExhausted.value = true
+      } else if (
+        append
+        && ITEMS.value.listScopeIds?.length
+        && ITEMS.value.itemsOnPage.length >= ITEMS.value.totalFiltered
+      ) {
         infiniteScrollExhausted.value = true
       } else if (append || is_infinite_scroll.value) {
         await nextTick()
