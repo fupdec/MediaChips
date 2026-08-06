@@ -5,13 +5,13 @@
       id="items-control-deck"
       class="items-control-deck"
       :class="{
-        'items-control-deck--browser': browserLayoutActive,
-        'items-control-deck--classic': !browserLayoutActive,
+        'items-control-deck--browser': controlDeckActive,
+        'items-control-deck--classic': !controlDeckActive,
       }"
     >
       <div
         class="items-page-header d-flex align-center justify-space-between flex-wrap ga-3"
-        :class="browserLayoutActive
+        :class="controlDeckActive
           ? 'items-control-deck__header items-page-header--deck'
           : 'text-h4 text-md-h2 mt-6 mb-8'"
       >
@@ -35,7 +35,7 @@
           />
 
           <ToolbarGroupBy
-            v-if="browserLayoutActive"
+            v-if="controlDeckActive"
             compact
             :class="isGroupByOff
               ? 'items-control-deck__group-by-icon'
@@ -43,7 +43,7 @@
           />
 
           <v-btn
-            v-if="browserLayoutActive"
+            v-if="controlDeckActive"
             @click="dialogEditingPinnedMeta = true"
             v-tooltip:top="t('meta.settings.edit_pinned_meta')"
             color="primary"
@@ -58,15 +58,15 @@
             @click="toggleCustomization"
             v-tooltip:top="t('appbar.buttons.customize')"
             color="primary"
-            :variant="toolbarStore.appearance.show ? 'flat' : (browserLayoutActive ? 'tonal' : 'flat')"
-            :size="browserLayoutActive ? 'small' : undefined"
+            :variant="toolbarStore.appearance.show ? 'flat' : (controlDeckActive ? 'tonal' : 'flat')"
+            :size="controlDeckActive ? 'small' : undefined"
             icon
           >
-            <v-icon :size="browserLayoutActive ? 18 : undefined">mdi-tune</v-icon>
+            <v-icon :size="controlDeckActive ? 18 : undefined">mdi-tune</v-icon>
           </v-btn>
 
           <v-btn
-            v-if="browserLayoutActive"
+            v-if="controlDeckActive"
             @click="toggleFiltersPanel"
             v-tooltip:top="t('appbar.buttons.filter')"
             color="primary"
@@ -92,16 +92,16 @@
           v-if="toolbarStore.appearance.show"
           id="items-control-deck-appearance"
           class="items-control-deck__appearance"
-          :class="{'items-control-deck__section': browserLayoutActive}"
+          :class="{'items-control-deck__section': controlDeckActive}"
         >
-          <ToolbarAppearance :embedded="browserLayoutActive"/>
+          <ToolbarAppearance :embedded="controlDeckActive"/>
         </div>
       </v-expand-transition>
 
       <div
         id="items-filters-top-host"
         class="items-filters-top-host"
-        :class="{'items-control-deck__filters-host': browserLayoutActive}"
+        :class="{'items-control-deck__filters-host': controlDeckActive}"
       />
     </div>
 
@@ -319,7 +319,7 @@
     <QuickActionButton v-if="SETTINGS.show_quick_action_button == '1'"/>
 
     <v-dialog
-      v-if="browserLayoutActive"
+      v-if="controlDeckActive"
       v-model="dialogEditingPinnedMeta"
       @update:model-value="updatePinnedMeta"
       max-width="860"
@@ -417,7 +417,7 @@ const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
-const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+const {useItemsControlDeck: controlDeckActive} = useBrowserLayout()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
@@ -530,7 +530,7 @@ const activeFilters = computed(() => {
 });
 
 const showStandaloneFilterChips = computed(() => {
-  if (browserLayoutActive.value) return false
+  if (controlDeckActive.value) return false
   return activeFilters.value.length > 0
     || Boolean(ENV.value.media_type_id && ITEMS.value.find_duplicates)
 })
@@ -950,6 +950,17 @@ defineEmits<{
   }
 }
 
+/* Classic layout: stick the title/controls row (deck uses sticky on the card). */
+.items-control-deck--classic > .items-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: rgb(var(--v-theme-surface));
+  padding-block: 12px;
+  margin-block: 0 !important;
+  box-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.22);
+}
+
 .items-control-deck {
   width: 100%;
 
@@ -959,13 +970,24 @@ defineEmits<{
     --deck-radius: 16px;
     --deck-control-h: 40px;
 
+    position: sticky;
+    top: 0;
+    z-index: 8;
     margin-top: 16px;
     margin-bottom: 16px;
     border: 1px solid rgba(var(--v-theme-primary), 0.12);
     border-radius: var(--deck-radius);
     background: rgb(var(--v-theme-surface));
-    box-shadow: 0 1px 0 rgba(var(--v-theme-primary), 0.04);
+    box-shadow:
+      0 1px 0 rgba(var(--v-theme-primary), 0.04),
+      0 10px 28px -16px rgba(0, 0, 0, 0.28);
     overflow: hidden;
+
+    @media (max-width: 959px) {
+      --deck-pad-x: 12px;
+      --deck-gap: 8px;
+      --deck-control-h: 36px;
+    }
   }
 
   &--classic {
@@ -976,6 +998,12 @@ defineEmits<{
     padding: 10px var(--deck-pad-x);
     margin: 0;
     min-height: 52px;
+
+    @media (max-width: 959px) {
+      .items-page-header__title {
+        flex: 1 1 100%;
+      }
+    }
   }
 
   &__section {
@@ -1063,6 +1091,12 @@ defineEmits<{
       width: var(--deck-control-h) !important;
       height: var(--deck-control-h) !important;
     }
+
+    @media (max-width: 959px) {
+      width: min(100%, 280px);
+      min-width: 0;
+      flex: 1 1 160px;
+    }
   }
 
   &__group-by {
@@ -1089,6 +1123,12 @@ defineEmits<{
       font-size: 0.75rem !important;
       line-height: 1.2 !important;
     }
+
+    @media (max-width: 959px) {
+      width: min(100%, 200px);
+      min-width: 0;
+      flex: 1 1 140px;
+    }
   }
 
   &__controls {
@@ -1100,6 +1140,11 @@ defineEmits<{
     :deep(.v-btn--icon.v-btn--size-small) {
       width: var(--deck-control-h);
       height: var(--deck-control-h);
+    }
+
+    @media (max-width: 959px) {
+      flex: 1 1 100%;
+      justify-content: flex-start;
     }
   }
 }

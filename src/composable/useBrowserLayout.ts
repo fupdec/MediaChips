@@ -20,6 +20,10 @@ export function useBrowserLayout() {
 
   const browserLayoutEnabled = computed(() => settingsStore.browserLayout === '1')
 
+  /** Compact control deck on items pages — follows the setting on all viewports. */
+  const useItemsControlDeck = computed(() => browserLayoutEnabled.value)
+
+  /** Full three-panel chrome (browser sidebar + inspector) — desktop only. */
   const useBrowserLayout = computed(() =>
     browserLayoutEnabled.value && !useBottomBar.value && !mobile.value,
   )
@@ -30,6 +34,7 @@ export function useBrowserLayout() {
 
   return {
     browserLayoutEnabled,
+    useItemsControlDeck,
     useBrowserLayout,
     showInspector,
   }

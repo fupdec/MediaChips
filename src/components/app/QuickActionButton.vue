@@ -132,7 +132,7 @@ const {t} = useI18n()
 const filtersStore = useAppStore().filters
 const itemsStore = useItemsStore()
 const toolbarStore = useToolbarStore()
-const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+const {useItemsControlDeck: controlDeckActive} = useBrowserLayout()
 
 // Reactive data
 const direction = ref('top')
@@ -158,7 +158,7 @@ const toggleFilters = () => {
 
   filtersStore.visible = true
   scheduleScrollToDeckSection(
-    browserLayoutActive.value ? '#items-filters-top-host' : '#items-control-deck',
+    controlDeckActive.value ? '#items-filters-top-host' : '#items-control-deck',
   )
 }
 

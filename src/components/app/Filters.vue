@@ -256,9 +256,9 @@ const itemsStore = useItemsStore()
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 const {width} = useDisplay()
-const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+const {useItemsControlDeck: controlDeckActive} = useBrowserLayout()
 
-const useTopPanel = computed(() => browserLayoutActive.value)
+const useTopPanel = computed(() => controlDeckActive.value)
 
 /** Dock filters when there is room for sidebar + drawer + content; otherwise float. */
 const FILTERS_DRAWER_WIDTH = 450

@@ -84,14 +84,21 @@ export function createMediaRepository(db: DrizzleClient) {
         .all()
     },
 
-    findByPaths(paths: string[], mediaTypeId?: number): MediaRow[] {
+    findByPaths(paths: string[], mediaTypeId?: number): MediaPathEntry[] {
       if (!paths.length) return []
 
       const where = mediaTypeId != null
         ? and(inArray(media.path, paths), eq(media.mediaTypeId, mediaTypeId))
         : inArray(media.path, paths)
 
-      return db.select().from(media).where(where).all()
+      return db.select({
+        id: media.id,
+        path: media.path,
+        mediaTypeId: media.mediaTypeId,
+      })
+        .from(media)
+        .where(where)
+        .all()
     },
 
     findByMediaTypeIds(typeIds: number[]): MediaRow[] {

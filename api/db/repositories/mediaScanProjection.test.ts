@@ -69,4 +69,19 @@ describe('media repository scan projections', () => {
     expect(rows[0]).not.toHaveProperty('bookmark')
     sqlite.close()
   })
+
+  it('findByPaths returns slim path entries without hash blobs', () => {
+    const {sqlite, db} = createTestDb()
+    sqlite.exec(`
+      INSERT INTO media (id, path, mediaTypeId, visualHashTiles, contentHash, createdAt, updatedAt) VALUES
+        (1, '/a.mp4', 1, 'tiles', 'ch', 't', 't'),
+        (2, '/b.mp4', 2, 'tiles', 'ch', 't', 't');
+    `)
+
+    const rows = createMediaRepository(db).findByPaths(['/a.mp4', '/b.mp4', '/missing.mp4'], 1)
+    expect(rows).toEqual([{id: 1, path: '/a.mp4', mediaTypeId: 1}])
+    expect(rows[0]).not.toHaveProperty('visualHashTiles')
+    expect(rows[0]).not.toHaveProperty('contentHash')
+    sqlite.close()
+  })
 })
