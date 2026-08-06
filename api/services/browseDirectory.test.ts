@@ -19,7 +19,7 @@ describe('browseDirectory', () => {
     return dir
   }
 
-  it('lists only current folder contents and sorts directories first', () => {
+  it('lists only current folder contents and sorts directories first', async () => {
     const root = makeTempRoot()
     const movies = path.join(root, 'movies')
     fs.mkdirSync(path.join(movies, 'Action'), {recursive: true})
@@ -28,7 +28,7 @@ describe('browseDirectory', () => {
     fs.writeFileSync(path.join(movies, 'readme.txt'), 'x')
     fs.writeFileSync(path.join(movies, 'nested', 'hidden.mp4'), 'x')
 
-    const result = listBrowseDirectory(movies, {
+    const result = await listBrowseDirectory(movies, {
       envValue: movies,
       extensions: 'mp4,mkv',
     })
@@ -67,17 +67,19 @@ describe('browseDirectory', () => {
     expect(result.entries.some((entry) => entry.name === 'hidden.mp4')).toBe(false)
   })
 
-  it('rejects paths outside media roots', () => {
+  it('rejects paths outside media roots', async () => {
     const root = makeTempRoot()
     const movies = path.join(root, 'movies')
     const other = path.join(root, 'other')
     fs.mkdirSync(movies, {recursive: true})
     fs.mkdirSync(other, {recursive: true})
 
-    expect(() => listBrowseDirectory(other, {envValue: movies})).toThrow(/outside configured media roots/)
+    await expect(listBrowseDirectory(other, {envValue: movies})).rejects.toThrow(
+      /outside configured media roots/,
+    )
   })
 
-  it('marks files already present in the library', () => {
+  it('marks files already present in the library', async () => {
     const root = makeTempRoot()
     const movies = path.join(root, 'movies')
     fs.mkdirSync(movies, {recursive: true})
@@ -86,7 +88,7 @@ describe('browseDirectory', () => {
     fs.writeFileSync(existingPath, 'x')
     fs.writeFileSync(newPath, 'x')
 
-    const result = listBrowseDirectory(movies, {
+    const result = await listBrowseDirectory(movies, {
       envValue: movies,
       extensions: 'mp4',
       mediaRepo: {
@@ -110,18 +112,18 @@ describe('browseDirectory', () => {
     })
   })
 
-  it('returns parent path when browsing into a child folder', () => {
+  it('returns parent path when browsing into a child folder', async () => {
     const root = makeTempRoot()
     const movies = path.join(root, 'movies')
     const action = path.join(movies, 'Action')
     fs.mkdirSync(action, {recursive: true})
 
-    const result = listBrowseDirectory(action, {envValue: movies})
+    const result = await listBrowseDirectory(action, {envValue: movies})
     expect(result.parentPath).toBe(path.resolve(movies))
     expect(result.rootPath).toBe(path.resolve(movies))
   })
 
-  it('hides dotfiles by default and includes them when showHidden is true', () => {
+  it('hides dotfiles by default and includes them when showHidden is true', async () => {
     const root = makeTempRoot()
     const movies = path.join(root, 'movies')
     fs.mkdirSync(movies, {recursive: true})
@@ -129,10 +131,10 @@ describe('browseDirectory', () => {
     fs.writeFileSync(path.join(movies, '.hidden.mp4'), 'x')
     fs.writeFileSync(path.join(movies, 'visible.mp4'), 'x')
 
-    const hidden = listBrowseDirectory(movies, {envValue: movies, extensions: 'mp4'})
+    const hidden = await listBrowseDirectory(movies, {envValue: movies, extensions: 'mp4'})
     expect(hidden.entries.map((entry) => entry.name)).toEqual(['visible.mp4'])
 
-    const shown = listBrowseDirectory(movies, {
+    const shown = await listBrowseDirectory(movies, {
       envValue: movies,
       extensions: 'mp4',
       showHidden: true,
@@ -142,5 +144,23 @@ describe('browseDirectory', () => {
       '.hidden.mp4',
       'visible.mp4',
     ])
+  })
+
+  it('stats entries with bounded concurrency and preserves listing order before sort', async () => {
+    const root = makeTempRoot()
+    const movies = path.join(root, 'movies')
+    fs.mkdirSync(movies, {recursive: true})
+    for (let i = 0; i < 8; i += 1) {
+      fs.writeFileSync(path.join(movies, `f${i}.mp4`), String(i))
+    }
+
+    const result = await listBrowseDirectory(movies, {
+      envValue: movies,
+      extensions: 'mp4',
+      statConcurrency: 3,
+    })
+
+    expect(result.entries).toHaveLength(8)
+    expect(result.entries.every((entry) => typeof entry.size === 'number')).toBe(true)
   })
 })

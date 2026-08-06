@@ -118,9 +118,9 @@ function registerBuiltinRoutes({
     })
   })
 
-  app.post('/api/browse/listDirectory', (req: ApiRequest, res: ApiResponse) => {
+  app.post('/api/browse/listDirectory', async (req: ApiRequest, res: ApiResponse) => {
     try {
-      const result = listBrowseDirectory(req.body?.path, {
+      const result = await listBrowseDirectory(req.body?.path, {
         extensions: req.body?.extensions,
         showHidden: Boolean(req.body?.showHidden),
         mediaRepo: createMediaRepository(db.drizzle),

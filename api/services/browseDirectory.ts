@@ -1,4 +1,5 @@
 import fs from 'fs'
+import fsp from 'fs/promises'
 import path from 'path'
 import {
   findBrowseRootPath,
@@ -13,6 +14,7 @@ import {
   markEntriesInLibrary,
   resolveParentPath,
 } from './browseDirectoryMatch'
+import {mapInOrderedBatches} from './orderedAsyncBatches'
 
 export type BrowseDirectoryEntry = {
   name: string
@@ -37,6 +39,8 @@ export type BrowseDirectoryResult = {
 }
 
 const DEFAULT_ENTRY_LIMIT = 2000
+/** Parallel `stat` calls while listing a folder (network disks benefit most). */
+export const BROWSE_DIRECTORY_STAT_CONCURRENCY = 16
 
 type MediaPathRow = {id: number; path: string}
 
@@ -44,11 +48,18 @@ type MediaRepository = {
   findByPaths(paths: string[], mediaTypeId?: number): MediaPathRow[]
 }
 
+type BrowseCandidate = {
+  name: string
+  entryPath: string
+  isDirectory: boolean
+  isFile: boolean
+}
+
 function parseExtensions(value: unknown): string[] {
   return parseMediaExtensions(value)
 }
 
-export function listBrowseDirectory(
+export async function listBrowseDirectory(
   rawPath: unknown,
   options: {
     envValue?: string
@@ -57,8 +68,9 @@ export function listBrowseDirectory(
     limit?: number
     /** Include names starting with `.` (dotfiles / hidden on Unix). Default false. */
     showHidden?: boolean
+    statConcurrency?: number
   } = {},
-): BrowseDirectoryResult {
+): Promise<BrowseDirectoryResult> {
   if (typeof rawPath !== 'string' || !rawPath.trim()) {
     throw Object.assign(new Error('Path is required'), {status: 400})
   }
@@ -72,7 +84,7 @@ export function listBrowseDirectory(
 
   let stats: fs.Stats
   try {
-    stats = fs.statSync(currentPath)
+    stats = await fsp.stat(currentPath)
   } catch {
     throw Object.assign(new Error('Directory not found'), {status: 404})
   }
@@ -86,20 +98,23 @@ export function listBrowseDirectory(
   const allowedExtensions = new Set(parseExtensions(options.extensions))
   const limit = options.limit ?? DEFAULT_ENTRY_LIMIT
   const showHidden = Boolean(options.showHidden)
+  const statConcurrency = Math.max(
+    1,
+    options.statConcurrency ?? BROWSE_DIRECTORY_STAT_CONCURRENCY,
+  )
 
   let dirents: fs.Dirent[]
   try {
-    dirents = fs.readdirSync(currentPath, {withFileTypes: true})
+    dirents = await fsp.readdir(currentPath, {withFileTypes: true})
   } catch {
     throw Object.assign(new Error('Unable to read directory'), {status: 403})
   }
 
-  const directories: BrowseDirectoryEntry[] = []
-  const files: BrowseDirectoryEntry[] = []
+  const candidates: BrowseCandidate[] = []
   let truncated = false
 
   for (const dirent of dirents) {
-    if (directories.length + files.length >= limit) {
+    if (candidates.length >= limit) {
       truncated = true
       break
     }
@@ -109,38 +124,56 @@ export function listBrowseDirectory(
     if (!showHidden && name.startsWith('.')) continue
     if (SKIP_DIR_NAMES.has(name)) continue
 
-    const entryPath = path.join(currentPath, name)
     const isDirectory = dirent.isDirectory()
     const isFile = dirent.isFile()
     if (!isDirectory && !isFile) continue
 
-    let size: number | null = null
-    let mtimeMs: number | null = null
-    try {
-      const entryStats = fs.statSync(entryPath)
-      mtimeMs = entryStats.mtimeMs
-      if (isFile) size = entryStats.size
-    } catch {
-      size = null
-      mtimeMs = null
-    }
+    candidates.push({
+      name,
+      entryPath: path.join(currentPath, name),
+      isDirectory,
+      isFile,
+    })
+  }
 
-    const extension = isFile ? fileExtension(name) : null
-    const addable = isAddableBrowseFile(isFile, extension, allowedExtensions)
+  const statsByIndex = await mapInOrderedBatches(
+    candidates,
+    statConcurrency,
+    async (candidate) => {
+      try {
+        const entryStats = await fsp.stat(candidate.entryPath)
+        return {
+          size: candidate.isFile ? entryStats.size : null,
+          mtimeMs: entryStats.mtimeMs,
+        }
+      } catch {
+        return {size: null, mtimeMs: null}
+      }
+    },
+  )
+
+  const directories: BrowseDirectoryEntry[] = []
+  const files: BrowseDirectoryEntry[] = []
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index]
+    const entryStats = statsByIndex[index] || {size: null, mtimeMs: null}
+    const extension = candidate.isFile ? fileExtension(candidate.name) : null
+    const addable = isAddableBrowseFile(candidate.isFile, extension, allowedExtensions)
 
     const entry: BrowseDirectoryEntry = {
-      name,
-      path: entryPath,
-      isDirectory,
-      size,
-      mtimeMs,
+      name: candidate.name,
+      path: candidate.entryPath,
+      isDirectory: candidate.isDirectory,
+      size: entryStats.size,
+      mtimeMs: entryStats.mtimeMs,
       extension,
       inLibrary: false,
       addable,
       mediaId: null,
     }
 
-    if (isDirectory) directories.push(entry)
+    if (candidate.isDirectory) directories.push(entry)
     else files.push(entry)
   }
 
