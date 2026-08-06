@@ -109,6 +109,43 @@ describe('folderPaths remap', () => {
     expect(folders.findByPath('/library/b')?.path).toBe('/library/b')
     expect(folders.findByPath('/library/b/nested')?.path).toBe('/library/b/nested')
   })
+
+  it('leaves unrelated folder paths untouched during fragment remap', () => {
+    const folders = createFolderPathsRepository(db)
+    folders.findOrCreateByPath('/media/old/show')
+    folders.findOrCreateByPath('/media/keep/show')
+    folders.findOrCreateByPath('/other')
+
+    expect(folders.remapPathFragment('/media/old', '/media/new')).toBe(1)
+    expect(folders.findByPath('/media/new/show')?.path).toBe('/media/new/show')
+    expect(folders.findByPath('/media/keep/show')?.path).toBe('/media/keep/show')
+    expect(folders.findByPath('/other')?.path).toBe('/other')
+    expect(folders.countAll()).toBe(3)
+  })
+
+  it('treats percent and underscore as literal fragment characters', () => {
+    const folders = createFolderPathsRepository(db)
+    folders.findOrCreateByPath('/media/a%b_c/show')
+    folders.findOrCreateByPath('/media/axbyc/show')
+
+    expect(folders.remapPathFragment('a%b_c', 'safe')).toBe(1)
+    expect(folders.findByPath('/media/safe/show')?.path).toBe('/media/safe/show')
+    expect(folders.findByPath('/media/axbyc/show')?.path).toBe('/media/axbyc/show')
+  })
+
+  it('scopes prefix remap away from sibling paths', () => {
+    const folders = createFolderPathsRepository(db)
+    folders.findOrCreateByPath('/library/a')
+    folders.findOrCreateByPath('/library/a/nested')
+    folders.findOrCreateByPath('/library/ab')
+    folders.findOrCreateByPath('/library/c')
+
+    expect(folders.remapPathPrefix('/library/a', '/library/z')).toBe(2)
+    expect(folders.findByPath('/library/z')?.path).toBe('/library/z')
+    expect(folders.findByPath('/library/z/nested')?.path).toBe('/library/z/nested')
+    expect(folders.findByPath('/library/ab')?.path).toBe('/library/ab')
+    expect(folders.findByPath('/library/c')?.path).toBe('/library/c')
+  })
 })
 
 describe('tagsInFolders list and clear', () => {

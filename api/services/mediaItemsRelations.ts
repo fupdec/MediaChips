@@ -201,7 +201,22 @@ export function groupSlimNeedsMetadataJoin(
   return columns.some((column) => METADATA_GROUP_SLIM_COLUMNS.has(column))
 }
 
-const MEDIA_BASE_SELECT = `SELECT media.*,
+/** List/inspector hydrate — omit fingerprint/hash blobs (use dedicated queries for those). */
+export const MEDIA_BASE_SELECT = `SELECT
+  media.id,
+  media.path,
+  media.basename,
+  media.name,
+  media.ext,
+  media.filesize,
+  media.rating,
+  media.favorite,
+  media.bookmark,
+  media.views,
+  media.viewedAt,
+  media.mediaTypeId,
+  media.createdAt,
+  media.updatedAt,
   videoMetadata.duration,
   videoMetadata.bitrate,
   videoMetadata.codec,

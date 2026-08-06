@@ -128,7 +128,7 @@ export async function* iterateParseLibraryTagsPreview(
     matchPrecision: options.settings?.matchPrecision ?? 0.5,
   }
   const index = buildTagPathIndex(tags, matchOptions)
-  const mediaItems = mediaRepo.findAllOrderedById()
+  const mediaItems = mediaRepo.findAllIdsAndPathsOrderedById()
   const total = mediaItems.length
   const items: ParseLibraryTagsPreviewItem[] = []
   let totalNewTags = 0

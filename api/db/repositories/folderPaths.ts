@@ -1,7 +1,8 @@
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, inArray, or, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { folderPaths, tagsInFolders } from '../schema/folderPaths'
 import { normalizeMediaPath } from '../../utils/normalizeUserPath'
+import { escapeLikePattern } from '../../services/globalSearchMerge'
 import { nowIso } from '../utils/timestamps'
 import { mapChunks } from '../utils/chunk'
 
@@ -12,6 +13,47 @@ function canonicalizeFolderPath(folderPath: string): string {
 }
 
 export function createFolderPathsRepository(db: DrizzleClient) {
+  const mergeFolderOntoSurvivor = (sourceId: number, survivorId: number) => {
+    const linkRows = db.select().from(tagsInFolders)
+      .where(eq(tagsInFolders.folderId, sourceId))
+      .all()
+    if (linkRows.length) {
+      db.insert(tagsInFolders)
+        .values(linkRows.map((link) => ({
+          folderId: survivorId,
+          tagId: link.tagId,
+          metaId: link.metaId,
+        })))
+        .onConflictDoNothing()
+        .run()
+      db.delete(tagsInFolders).where(eq(tagsInFolders.folderId, sourceId)).run()
+    }
+    db.delete(folderPaths).where(eq(folderPaths.id, sourceId)).run()
+  }
+
+  const applyRemappedPath = (
+    row: FolderPathRow,
+    nextPath: string,
+    timestamp: string,
+  ): boolean => {
+    if (!nextPath || nextPath === row.path) return false
+
+    const conflict = db.select().from(folderPaths)
+      .where(eq(folderPaths.path, nextPath))
+      .get()
+
+    if (conflict && conflict.id !== row.id) {
+      mergeFolderOntoSurvivor(row.id, conflict.id)
+      return true
+    }
+
+    db.update(folderPaths)
+      .set({path: nextPath, updatedAt: timestamp})
+      .where(eq(folderPaths.id, row.id))
+      .run()
+    return true
+  }
+
   return {
     canonicalizePath(folderPath: string): string {
       return canonicalizeFolderPath(folderPath)
@@ -69,45 +111,17 @@ export function createFolderPathsRepository(db: DrizzleClient) {
     remapPathFragment(find: string, replace: string): number {
       if (!find) return 0
 
-      const rows = db.select().from(folderPaths).all()
+      // instr keeps JS String.includes semantics (case-sensitive, literal %/_) and
+      // avoids loading the full folderPaths table when only a few rows match.
+      const rows = db.select().from(folderPaths)
+        .where(sql`instr(${folderPaths.path}, ${find}) > 0`)
+        .all()
       let changed = 0
       const timestamp = nowIso()
 
       for (const row of rows) {
-        if (!row.path.includes(find)) continue
         const nextPath = canonicalizeFolderPath(row.path.replace(find, replace))
-        if (!nextPath || nextPath === row.path) continue
-
-        const conflict = db.select().from(folderPaths)
-          .where(eq(folderPaths.path, nextPath))
-          .get()
-
-        if (conflict && conflict.id !== row.id) {
-          // Merge tags onto surviving path, then drop this row
-          const linkRows = db.select().from(tagsInFolders)
-            .where(eq(tagsInFolders.folderId, row.id))
-            .all()
-          if (linkRows.length) {
-            db.insert(tagsInFolders)
-              .values(linkRows.map((link) => ({
-                folderId: conflict.id,
-                tagId: link.tagId,
-                metaId: link.metaId,
-              })))
-              .onConflictDoNothing()
-              .run()
-            db.delete(tagsInFolders).where(eq(tagsInFolders.folderId, row.id)).run()
-          }
-          db.delete(folderPaths).where(eq(folderPaths.id, row.id)).run()
-          changed += 1
-          continue
-        }
-
-        db.update(folderPaths)
-          .set({path: nextPath, updatedAt: timestamp})
-          .where(eq(folderPaths.id, row.id))
-          .run()
-        changed += 1
+        if (applyRemappedPath(row, nextPath, timestamp)) changed += 1
       }
 
       return changed
@@ -118,48 +132,21 @@ export function createFolderPathsRepository(db: DrizzleClient) {
       const to = canonicalizeFolderPath(newPrefix)
       if (!from || from === to) return 0
 
-      const rows = db.select().from(folderPaths).all()
+      const fromNorm = from.replace(/\\/g, '/')
+      const prefixPattern = `${escapeLikePattern(fromNorm)}/%`
+      const rows = db.select().from(folderPaths)
+        .where(or(
+          sql`replace(${folderPaths.path}, '\\', '/') = ${fromNorm}`,
+          sql`replace(${folderPaths.path}, '\\', '/') LIKE ${prefixPattern} ESCAPE '\\'`,
+        ))
+        .all()
       let changed = 0
       const timestamp = nowIso()
-      const fromNorm = from.replace(/\\/g, '/')
 
       for (const row of rows) {
-        const normalized = row.path.replace(/\\/g, '/')
-        if (normalized !== fromNorm && !normalized.startsWith(`${fromNorm}/`)) continue
-
         const nextRaw = to + row.path.slice(from.length)
         const nextPath = canonicalizeFolderPath(nextRaw)
-        if (!nextPath || nextPath === row.path) continue
-
-        const conflict = db.select().from(folderPaths)
-          .where(eq(folderPaths.path, nextPath))
-          .get()
-
-        if (conflict && conflict.id !== row.id) {
-          const linkRows = db.select().from(tagsInFolders)
-            .where(eq(tagsInFolders.folderId, row.id))
-            .all()
-          if (linkRows.length) {
-            db.insert(tagsInFolders)
-              .values(linkRows.map((link) => ({
-                folderId: conflict.id,
-                tagId: link.tagId,
-                metaId: link.metaId,
-              })))
-              .onConflictDoNothing()
-              .run()
-            db.delete(tagsInFolders).where(eq(tagsInFolders.folderId, row.id)).run()
-          }
-          db.delete(folderPaths).where(eq(folderPaths.id, row.id)).run()
-          changed += 1
-          continue
-        }
-
-        db.update(folderPaths)
-          .set({path: nextPath, updatedAt: timestamp})
-          .where(eq(folderPaths.id, row.id))
-          .run()
-        changed += 1
+        if (applyRemappedPath(row, nextPath, timestamp)) changed += 1
       }
 
       return changed

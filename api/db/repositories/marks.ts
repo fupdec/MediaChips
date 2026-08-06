@@ -9,9 +9,28 @@ import { forEachChunk } from '../utils/chunk'
 export type MarkRow = typeof marks.$inferSelect
 export type MarkInsert = typeof marks.$inferInsert
 
+/** Markers / thumb tasks only need identity + path for nested media. */
+const MARK_MEDIA_COLUMNS = {
+  id: media.id,
+  path: media.path,
+  name: media.name,
+  basename: media.basename,
+  ext: media.ext,
+  mediaTypeId: media.mediaTypeId,
+} as const
+
+export type MarkMediaProjection = {
+  id: number
+  path: string
+  name: string | null
+  basename: string | null
+  ext: string | null
+  mediaTypeId: number | null
+}
+
 type MarkWithRelations = MarkRow & {
   tag: (typeof tags.$inferSelect & {meta: typeof meta.$inferSelect | null}) | null
-  media: typeof media.$inferSelect | null
+  media: MarkMediaProjection | null
 }
 
 function hydrateMarksWithRelations(
@@ -27,7 +46,7 @@ function hydrateMarksWithRelations(
     ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
     : []
   const mediaRows = mediaIds.length
-    ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
+    ? db.select(MARK_MEDIA_COLUMNS).from(media).where(inArray(media.id, mediaIds)).all()
     : []
   const metaIds = [...new Set(tagRows.map((tag) => tag.metaId).filter((id): id is number => id != null))]
   const metaRows = metaIds.length
@@ -137,12 +156,12 @@ export function createMarksRepository(db: DrizzleClient) {
       if (!row) return null
 
       const medium = row.mediaId
-        ? db.select().from(media).where(eq(media.id, row.mediaId)).get()
+        ? db.select(MARK_MEDIA_COLUMNS).from(media).where(eq(media.id, row.mediaId)).get()
         : null
 
       return {
         ...row,
-        media: medium,
+        media: medium ?? null,
       }
     },
 

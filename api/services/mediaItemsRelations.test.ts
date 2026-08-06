@@ -1,9 +1,24 @@
 import {describe, expect, it} from 'vitest'
 import {
   GROUP_SLIM_SELECT,
+  MEDIA_BASE_SELECT,
   buildGroupSlimSelect,
   groupSlimNeedsMetadataJoin,
 } from './mediaItemsRelations'
+
+describe('MEDIA_BASE_SELECT', () => {
+  it('projects list fields without fingerprint or hash blobs', () => {
+    expect(MEDIA_BASE_SELECT).toContain('media.bookmark')
+    expect(MEDIA_BASE_SELECT).toContain('videoMetadata.bitrate')
+    expect(MEDIA_BASE_SELECT).toContain('imageMetadata.orientation')
+    expect(MEDIA_BASE_SELECT).not.toContain('media.*')
+    expect(MEDIA_BASE_SELECT).not.toContain('contentHash')
+    expect(MEDIA_BASE_SELECT).not.toContain('oshash')
+    expect(MEDIA_BASE_SELECT).not.toContain('visualHash')
+    expect(MEDIA_BASE_SELECT).not.toContain('visualHashTiles')
+    expect(MEDIA_BASE_SELECT).not.toContain('oldId')
+  })
+})
 
 describe('buildGroupSlimSelect', () => {
   it('keeps the full slim select for pinnedMeta', () => {

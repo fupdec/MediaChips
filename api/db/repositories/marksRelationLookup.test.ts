@@ -92,15 +92,35 @@ describe('marks relation lookups', () => {
     expect(clips.map((clip) => clip.markId)).toEqual([1, 3])
   })
 
-  it('skips the first clip row with offset', () => {
+  it('hydrates findByIdsWithRelations media without hash blobs', () => {
     sqlite.exec(`
-      INSERT INTO marks (id, type, time, end, tagId, mediaId) VALUES
-        (3, 'clip', 2, 8, 10, 101),
-        (4, 'clip', 3, 9, 10, 999);
+      UPDATE media SET visualHashTiles = 'tiles', contentHash = 'ch', oshash = 'oh' WHERE id = 100;
     `)
 
     const repo = createMarksRepository(db)
-    const clips = repo.findClipsByTagId(10, {offset: 1, sort: 'time'})
-    expect(clips.map((clip) => clip.markId)).toEqual([3, 4])
+    const [row] = repo.findByIdsWithRelations([1])
+
+    expect(row?.media).toMatchObject({
+      id: 100,
+      path: '/a.mp4',
+      name: 'A',
+      basename: 'a.mp4',
+    })
+    expect(row?.media).not.toHaveProperty('visualHashTiles')
+    expect(row?.media).not.toHaveProperty('contentHash')
+    expect(row?.media).not.toHaveProperty('oshash')
+  })
+
+  it('findNextWithMediaAfterId returns slim nested media', () => {
+    sqlite.exec(`
+      UPDATE media SET visualHashTiles = 'tiles' WHERE id = 100;
+    `)
+
+    const repo = createMarksRepository(db)
+    const row = repo.findNextWithMediaAfterId(0)
+
+    expect(row?.id).toBe(1)
+    expect(row?.media).toMatchObject({id: 100, path: '/a.mp4'})
+    expect(row?.media).not.toHaveProperty('visualHashTiles')
   })
 })

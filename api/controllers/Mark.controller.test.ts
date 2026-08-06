@@ -248,7 +248,10 @@ describe('Mark.controller', () => {
       limit: undefined,
       offset: 1,
     })
-    expect(res.body.count).toBe(9)
+    expect(res.body).toEqual({
+      items: [{id: 11, markId: 2, path: '/b.mp4', segmentStart: 8, segmentEnd: 15}],
+      count: 9,
+    })
   })
 
   it('returns clip count only when requested', () => {

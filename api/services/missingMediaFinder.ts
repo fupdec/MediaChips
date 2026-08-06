@@ -13,7 +13,7 @@ import {collectMissingMediaByPathExist} from './missingMediaExistScan'
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
   const {shouldStop = () => false, onProgress} = options
-  const all = mediaRepo.findAllOrderedById()
+  const all = mediaRepo.findAllForMissingScanOrderedById()
 
   return collectMissingMediaByPathExist(all, {
     shouldStop,
@@ -67,7 +67,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
   yield {type: 'phase', phase: 'loading_missing'}
 
-  const allMedia = mediaRepo.findAllOrderedById()
+  const allMedia = mediaRepo.findAllForMissingScanOrderedById()
   const missingMedia = []
   // Chunked concurrent existence checks so the UI still gets progress events.
   const existChunkSize = 200

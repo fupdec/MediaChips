@@ -12,6 +12,10 @@ import { buildFolderPathLikePatterns } from '../../utils/watcherFolderPaths'
 export type MediaRow = typeof media.$inferSelect
 export type MediaInsert = typeof media.$inferInsert
 export type MediaPathEntry = Pick<MediaRow, 'id' | 'path' | 'mediaTypeId'>
+/** Path parse / tag preview — identity + path only. */
+export type MediaIdPathRow = Pick<MediaRow, 'id' | 'path'>
+/** Missing-media recovery — existence + oshash/size matching fields. */
+export type MediaMissingScanRow = Pick<MediaRow, 'id' | 'path' | 'filesize' | 'oshash'>
 
 const MEDIA_MUTABLE_COLUMNS = new Set([
   'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'oshash', 'visualHash',
@@ -54,6 +58,30 @@ export function createMediaRepository(db: DrizzleClient) {
 
     findAllOrderedById(): MediaRow[] {
       return db.select().from(media).orderBy(asc(media.id)).all()
+    },
+
+    /** Ordered id+path rows for path parsers (no hash/tiles/bookmark payloads). */
+    findAllIdsAndPathsOrderedById(): MediaIdPathRow[] {
+      return db.select({
+        id: media.id,
+        path: media.path,
+      })
+        .from(media)
+        .orderBy(asc(media.id))
+        .all()
+    },
+
+    /** Ordered missing-media scan rows (path existence + size/oshash match). */
+    findAllForMissingScanOrderedById(): MediaMissingScanRow[] {
+      return db.select({
+        id: media.id,
+        path: media.path,
+        filesize: media.filesize,
+        oshash: media.oshash,
+      })
+        .from(media)
+        .orderBy(asc(media.id))
+        .all()
     },
 
     findByPaths(paths: string[], mediaTypeId?: number): MediaRow[] {
