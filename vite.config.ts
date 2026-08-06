@@ -28,13 +28,14 @@ function invalidUrlMiddleware(): Plugin {
   }
 }
 
-/** Chromium only needs woff2/woff — drop ~2.4MB of MDI eot/ttf from the build graph. */
+/** Chromium/Electron only needs woff2 — drop eot/ttf/woff from the MDI build graph. */
 function stripMdiLegacyFonts(): Plugin {
   return {
     name: 'strip-mdi-legacy-fonts',
     transform(code, id) {
       const normalized = id.replace(/\\/g, '/')
-      if (!normalized.includes('@mdi/font/css/materialdesignicons.css')) return null
+      if (!/materialdesignicons(\.min)?\.css/.test(normalized)) return null
+      if (!normalized.includes('@mdi/font/css/')) return null
 
       const next = stripMdiLegacyFontUrls(code)
       if (next === code) return null

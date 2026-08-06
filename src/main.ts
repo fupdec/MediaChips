@@ -5,7 +5,7 @@ import router from '@/router'
 import { i18n, registerVuetifyForLocales } from '@/i18n/loadLocale'
 
 // ============ VUETIFY SETUP ============
-import '@mdi/font/css/materialdesignicons.css'
+import '@mdi/font/css/materialdesignicons.min.css'
 import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 import { createVueI18nAdapter } from 'vuetify/locale/adapters/vue-i18n'
