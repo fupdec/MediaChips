@@ -164,6 +164,8 @@
                 <v-divider class="mx-4 mb-2"/>
                 <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
                 <v-divider class="mx-4 mb-2"/>
+                <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL"/>
+                <v-divider class="mx-4 mb-2"/>
                 <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
               </SettingsSection>
 
@@ -261,6 +263,7 @@ import {LOCAL_AI_UI_ENABLED} from "@shared/features"
 import {
   FINGERPRINT_BACKFILL,
   VISUAL_HASH_BACKFILL,
+  CLIP_EMBEDDING_BACKFILL,
   VIDEO_CODEC_BACKFILL,
 } from "@/composable/useSettingsBackfillStream"
 
@@ -515,6 +518,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   oshash_backfill: "settings-fingerprint-backfill",
   fingerprint_backfill: "settings-fingerprint-backfill",
   visual_hash_backfill: "settings-visual-hash-backfill",
+  clip_embedding_backfill: "settings-clip-embedding-backfill",
   content_hash_backfill: "settings-fingerprint-backfill",
   find_missing: "settings-find-missing-media",
   find_duplicates: "settings-find-duplicates",

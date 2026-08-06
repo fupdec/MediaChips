@@ -16,6 +16,7 @@ import {
 } from '../utils/ffmpeg'
 import { resolveExistingPath } from './contentHash'
 import { upsertVisualHashForMedia } from './visualHashBackfill'
+import { upsertClipEmbeddingForMedia } from './mediaClipEmbeddings'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createMarksRepository } from '../db/repositories/marks'
@@ -306,6 +307,11 @@ async function* iterateVideoImagesGeneration(
           await upsertVisualHashForMedia(db, Number(item.id))
         } catch {
           // Grid is usable; hash can be filled via Settings → visual hash backfill.
+        }
+        try {
+          await upsertClipEmbeddingForMedia(db, Number(item.id))
+        } catch {
+          // Grid is usable; CLIP embedding can be filled via Settings backfill.
         }
       }
     }

@@ -18,6 +18,7 @@ import {
   getDefaultMediaTypeId,
   getMediaDeleteAssetFolder,
   isAudioMediaType,
+  isImageMediaType,
   isVideoMediaType,
 } from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
@@ -284,6 +285,28 @@ export default function useItemContextMenu(
             action: openMoreLikeThis,
           })
         }
+
+        if (!isSelectMode() && isMediaPageItem(item, type)) {
+          contextMenu.push({
+            name: t('context_menu.semantically_similar'),
+            type: 'item',
+            icon: 'brain',
+            action: openSemanticallySimilar,
+          })
+        }
+      }
+
+      if (
+        isImageMediaType(currentMediaType.value)
+        && !isSelectMode()
+        && isMediaPageItem(item, type)
+      ) {
+        contextMenu.push({
+          name: t('context_menu.semantically_similar'),
+          type: 'item',
+          icon: 'brain',
+          action: openSemanticallySimilar,
+        })
       }
 
       if (canSceneAutoScrape && isMediaPageItem(item, type)) {
@@ -853,6 +876,51 @@ export default function useItemContextMenu(
         type: 'error',
         title: tr('context_menu.more_like_this_failed'),
         icon: 'image-search-outline',
+      })
+    }
+  }
+
+  const openSemanticallySimilar = async (): Promise<void> => {
+    if (!isMediaPageItem(item, type)) return
+    const seedId = Number(item.id)
+    if (!Number.isFinite(seedId) || seedId <= 0) return
+
+    const locale = settingsStore.locale as Locale
+    const tr = (key: string) => translate(key, {}, locale)
+
+    try {
+      const response = await typedApi.similarByClip({seedId})
+      const data = response.data
+      if (!data?.hasEmbedding) {
+        setNotification({
+          type: 'info',
+          title: tr('context_menu.semantically_similar_no_embedding'),
+          icon: 'brain',
+        })
+        return
+      }
+      const ids = Array.isArray(data.ids)
+        ? data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+        : []
+      if (ids.length <= 1) {
+        setNotification({
+          type: 'info',
+          title: tr('context_menu.semantically_similar_none'),
+          icon: 'brain',
+        })
+        return
+      }
+
+      await openMediaList({
+        mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
+        ids,
+      })
+    } catch (error) {
+      console.error('Failed to find semantically similar media:', error)
+      setNotification({
+        type: 'error',
+        title: tr('context_menu.semantically_similar_failed'),
+        icon: 'brain',
       })
     }
   }

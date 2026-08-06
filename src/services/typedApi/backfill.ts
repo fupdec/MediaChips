@@ -9,6 +9,7 @@ export type BackfillKind =
   | 'oshash'
   | 'fingerprint'
   | 'visualHash'
+  | 'clipEmbedding'
   | 'videoCodec'
 
 export type BackfillStatus = {
@@ -48,6 +49,10 @@ const BACKFILL_ROUTES: Record<BackfillKind, {status: string; stream: string}> = 
   visualHash: {
     status: API_ROUTES.taskVisualHashBackfillStatus,
     stream: API_ROUTES.taskStreamVisualHashBackfill,
+  },
+  clipEmbedding: {
+    status: API_ROUTES.taskClipEmbeddingBackfillStatus,
+    stream: API_ROUTES.taskStreamClipEmbeddingBackfill,
   },
   videoCodec: {
     status: API_ROUTES.taskVideoCodecBackfillStatus,

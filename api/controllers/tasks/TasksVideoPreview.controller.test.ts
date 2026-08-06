@@ -37,6 +37,10 @@ vi.mock('../../services/visualHashBackfill', () => ({
   upsertVisualHashForMedia: vi.fn(),
 }))
 
+vi.mock('../../services/mediaClipEmbeddings', () => ({
+  upsertClipEmbeddingForMedia: vi.fn(),
+}))
+
 vi.mock('../../services/videoGrid', () => ({
   generateVideoGrid: vi.fn(),
 }))

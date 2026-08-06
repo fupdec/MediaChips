@@ -6,6 +6,8 @@ import { resolveExistingPath } from './contentHash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createImageMetadataRepository } from '../db/repositories/imageMetadata'
+import { upsertClipEmbeddingForMedia } from './mediaClipEmbeddings'
+
 import {collectJpgStemIds, parsePositiveStemIds} from './videoImagesStatus'
 
 async function getImageMediaTypeId(db: ApiDb) {
@@ -146,6 +148,7 @@ async function* iterateImageThumbsGeneration(
     if (result.status === 'created') {
       created += 1
       try {
+        await upsertClipEmbeddingForMedia(db, Number(item.id))
       } catch {
         // Thumb is usable; CLIP embedding can be filled via Settings backfill.
       }

@@ -178,6 +178,13 @@ const MISSING_TABLE_DDL: Record<string, string> = {
     "embedding" text NOT NULL,
     "createdAt" text NOT NULL
   )`,
+  mediaClipEmbeddings: `CREATE TABLE "mediaClipEmbeddings" (
+    "mediaId" integer PRIMARY KEY NOT NULL,
+    "embedding" blob NOT NULL,
+    "dims" integer NOT NULL,
+    "model" text NOT NULL,
+    "updatedAt" text NOT NULL
+  )`,
 }
 
 function createTableIfMissing(sqlite: Database.Database, tableName: string): boolean {

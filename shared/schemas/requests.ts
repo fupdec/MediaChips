@@ -45,6 +45,18 @@ export const MediaSimilarByVisualRequestSchema = z.object({
   limit: z.coerce.number().int().positive().max(200).optional(),
 }).passthrough()
 
+export const MediaSemanticSearchRequestSchema = z.object({
+  query: z.string().trim().min(1),
+  mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),
+  limit: z.coerce.number().int().positive().max(1000).optional(),
+  locale: z.string().trim().min(1).max(16).optional().nullable(),
+}).passthrough()
+
+export const MediaSimilarByClipRequestSchema = z.object({
+  seedId: z.coerce.number().int().positive(),
+  limit: z.coerce.number().int().positive().max(1000).optional(),
+}).passthrough()
+
 export const MediaDuplicateGroupsRequestSchema = z.object({
   duplicates_by: z.string().trim().min(1).optional(),
   mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),

@@ -15,6 +15,7 @@ import {
   VIDEO_MARK_JPEG_QUALITY,
 } from '../../../shared/videoPreview'
 import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
+import { upsertClipEmbeddingForMedia } from '../../services/mediaClipEmbeddings'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import { generateVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
@@ -96,11 +97,21 @@ export default function createTasksVideoPreviewController(shared: TaskController
       }
     }
 
+    const ensureClipEmbedding = async () => {
+      if (!mediaId) return
+      try {
+        await upsertClipEmbeddingForMedia(db, mediaId)
+      } catch {
+        // Grid is usable; CLIP embedding can be filled via Settings backfill.
+      }
+    }
+
     if (!fs.existsSync(gridPath)) {
       try {
         const result = await generateVideoGrid(req.body, dbPath ?? '')
         if (result) {
           await ensureVisualHash(true)
+          await ensureClipEmbedding()
           sendOk(res, result)
         } else {
           sendBadRequest(res, 'Unable to probe video duration')
@@ -111,6 +122,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
       await ensureVisualHash(false)
+      await ensureClipEmbedding()
       sendBadRequest(res, 'Grid already exists')
     }
   }

@@ -1,6 +1,7 @@
 export {faces} from './faces'
 export {faceEnrollments} from './faceEnrollments'
 export {media} from './media'
+export {mediaClipEmbeddings} from './mediaClipEmbeddings'
 export {meta} from './meta'
 export {metaInMediaTypes} from './metaInMediaTypes'
 export {metaSettings} from './metaSettings'

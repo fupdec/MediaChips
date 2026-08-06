@@ -34,6 +34,10 @@ import {
   getVisualHashBackfillStatus,
   iterateVisualHashBackfill,
 } from '../../services/visualHashBackfill'
+import {
+  getClipEmbeddingBackfillStatus,
+  iterateClipEmbeddingBackfill,
+} from '../../services/mediaClipEmbeddings'
 
 export default function createTasksMaintenanceController(shared: TaskControllerShared) {
   const {
@@ -182,6 +186,25 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     })
   }
 
+  const clipEmbeddingBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getClipEmbeddingBackfillStatus(db)
+      sendOk(res, status)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while checking CLIP embedding status.')
+    }
+  }
+
+  const streamClipEmbeddingBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling CLIP embeddings.',
+      iterate: (shouldStop) => iterateClipEmbeddingBackfill(db, {
+        shouldStop,
+        force: String(req.query.force || '').toLowerCase() === 'true',
+      }),
+    })
+  }
+
   const missingMediaStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const full = String(req.query?.full || '').toLowerCase() === 'true'
@@ -278,6 +301,8 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamFingerprintBackfill,
     visualHashBackfillStatus,
     streamVisualHashBackfill,
+    clipEmbeddingBackfillStatus,
+    streamClipEmbeddingBackfill,
     videoCodecBackfillStatus,
     streamVideoCodecBackfill,
     imageThumbsGenerationStatus,

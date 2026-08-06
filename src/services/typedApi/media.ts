@@ -101,6 +101,28 @@ export const mediaApi = {
     }>(API_ROUTES.mediaSimilarByVisual, body)
   },
 
+  semanticSearch(body: {query: string, mediaTypeId?: number | null, limit?: number, locale?: string | null}) {
+    return apiClient.post<{
+      ids: number[]
+      missingEmbeddingsCount: number
+      indexedCount?: number
+      previewCandidatesCount?: number
+      modelStatus?: string
+      originalQuery?: string
+      searchQuery?: string
+      translated?: boolean
+      sourceLang?: string | null
+    }>(API_ROUTES.mediaSemanticSearch, body)
+  },
+
+  similarByClip(body: {seedId: number, limit?: number}) {
+    return apiClient.post<{
+      seedId: number
+      hasEmbedding: boolean
+      ids: number[]
+    }>(API_ROUTES.mediaSimilarByClip, body)
+  },
+
   mergeMedia(body: MergeMediaPayload) {
     return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body)
   },

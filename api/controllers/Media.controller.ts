@@ -25,6 +25,11 @@ import {
   loadMediaBasicsByIds,
 } from '../services/mediaItemsLoader'
 import {findVisualSimilarIds} from '../services/visualHashBackfill'
+import {
+  findSimilarByClip,
+  semanticSearchMedia,
+} from '../services/mediaClipEmbeddings'
+import {getClipEmbeddingStatus} from '../services/clipEmbeddingModel'
 import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
 import {
   mapWithConcurrency,
@@ -94,6 +99,47 @@ export default function (db: ApiDb) {
       sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while finding similar media.')
+    }
+  }
+
+  const semanticSearch = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{
+        query?: string
+        mediaTypeId?: number | string | null
+        limit?: number
+        locale?: string | null
+      }>(req)
+      const mediaTypeId = body.mediaTypeId == null ? null : Number(body.mediaTypeId)
+      const parsedLimit = body.limit == null ? NaN : Number(body.limit)
+      const locale = body.locale == null ? null : String(body.locale)
+      const result = await semanticSearchMedia(db, {
+        query: String(body.query || ''),
+        mediaTypeId: Number.isFinite(mediaTypeId as number) ? mediaTypeId : null,
+        ...(Number.isFinite(parsedLimit) && parsedLimit > 0 ? {limit: parsedLimit} : {}),
+        locale,
+      })
+      const model = getClipEmbeddingStatus(db)
+      sendOk(res, {
+        ...result,
+        modelStatus: model.status,
+      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while running semantic search.')
+    }
+  }
+
+  const similarByClip = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{seedId?: number, limit?: number}>(req)
+      const seedId = Number(body.seedId)
+      const parsedLimit = body.limit == null ? NaN : Number(body.limit)
+      const result = await findSimilarByClip(db, seedId, {
+        ...(Number.isFinite(parsedLimit) && parsedLimit > 0 ? {limit: parsedLimit} : {}),
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while finding semantically similar media.')
     }
   }
 
@@ -293,6 +339,8 @@ export default function (db: ApiDb) {
     getThumbs,
     getStats,
     similarByVisual,
+    semanticSearch,
+    similarByClip,
     merge,
     duplicateGroups,
   }

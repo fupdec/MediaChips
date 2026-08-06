@@ -38,6 +38,16 @@ export const VISUAL_HASH_BACKFILL: SettingsBackfillConfig = {
   includeSkipped: true,
 }
 
+export const CLIP_EMBEDDING_BACKFILL: SettingsBackfillConfig = {
+  kind: 'clipEmbedding',
+  elementId: 'settings-clip-embedding-backfill',
+  icon: 'brain',
+  notificationIcon: 'brain',
+  i18nKey: 'clip_embedding_backfill',
+  mode: 'hash',
+  includeSkipped: true,
+}
+
 export const VIDEO_CODEC_BACKFILL: SettingsBackfillConfig = {
   kind: 'videoCodec',
   elementId: 'settings-video-codec-backfill',

@@ -11,10 +11,12 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useImageViewerStore} from '@/stores/imageViewer'
+import {useSettingsStore} from '@/stores/settings'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
+import {useOpenMediaList} from '@/utils/openMediaList'
 import {highlightGlobalSearchText, textMatchesGlobalSearchQuery} from '@/services/formatUtils'
 import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -76,6 +78,7 @@ type FlatResultRow =
 
 const {t} = useI18n()
 const router = useRouter()
+const {openMediaList} = useOpenMediaList()
 
 useHotkey('slash', () => {
   if (playerStore.active) return
@@ -87,6 +90,137 @@ const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
 const imageViewerStore = useImageViewerStore()
 const contextMenuStore = useContextMenu()
+const settingsStore = useSettingsStore()
+const searchMode = ref<'text' | 'semantic'>('text')
+
+type SemanticHealth = {
+  modelStatus: string
+  indexedCount: number
+  previewCandidatesCount: number
+  missingEmbeddingsCount: number
+  searched: boolean
+  failed: boolean
+  translated: boolean
+  searchQuery: string
+  originalQuery: string
+}
+
+const semanticHealth = ref<SemanticHealth | null>(null)
+
+const semanticModelReady = computed(() =>
+  ['downloaded', 'loaded', 'ready'].includes(String(semanticHealth.value?.modelStatus || '')),
+)
+
+const semanticHasPreviews = computed(() =>
+  Number(semanticHealth.value?.previewCandidatesCount || 0) > 0,
+)
+
+const semanticHasIndex = computed(() =>
+  Number(semanticHealth.value?.indexedCount || 0) > 0,
+)
+
+const semanticChecklist = computed(() => {
+  const health = semanticHealth.value
+  if (!health) return []
+  return [
+    {
+      id: 'model',
+      ok: semanticModelReady.value,
+      text: semanticModelReady.value
+        ? t('globalSearch.health_model_ok')
+        : t('globalSearch.health_model_missing'),
+    },
+    {
+      id: 'previews',
+      ok: semanticHasPreviews.value,
+      text: semanticHasPreviews.value
+        ? t('globalSearch.health_previews_ok', {count: health.previewCandidatesCount})
+        : t('globalSearch.health_previews_missing'),
+    },
+    {
+      id: 'index',
+      ok: semanticHasIndex.value,
+      text: semanticHasIndex.value
+        ? t('globalSearch.health_index_ok', {count: health.indexedCount})
+        : t('globalSearch.health_index_missing', {pending: health.missingEmbeddingsCount}),
+    },
+    {
+      id: 'translate',
+      ok: true,
+      text: t('globalSearch.health_translate_hint'),
+    },
+  ]
+})
+
+const semanticTranslatedCaption = computed(() => {
+  const health = semanticHealth.value
+  if (!health?.translated || !health.searchQuery) return ''
+  return t('globalSearch.searched_as', {query: health.searchQuery})
+})
+
+const semanticEmptyHint = computed(() => {
+  if (!semanticHealth.value?.searched) return ''
+  if (semanticHealth.value.failed) return t('globalSearch.health_failed')
+  if (!semanticModelReady.value) return t('globalSearch.health_hint_model')
+  if (!semanticHasPreviews.value) return t('globalSearch.health_hint_previews')
+  if (!semanticHasIndex.value) return t('globalSearch.health_hint_index')
+  return t('globalSearch.health_hint_no_match')
+})
+
+function resolveSemanticMediaTypeId() {
+  const fromEnv = Number(itemsStore.environment?.media_type_id)
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv
+  return getDefaultMediaTypeId(mediaTypes.value) ?? null
+}
+
+async function refreshSemanticHealth(partial?: Partial<SemanticHealth>) {
+  try {
+    const [modelRes, backfillRes] = await Promise.all([
+      typedApi.getClipModelStatus(),
+      typedApi.getBackfillStatus('clipEmbedding'),
+    ])
+    semanticHealth.value = {
+      modelStatus: String(modelRes.data?.status || 'unknown'),
+      indexedCount: Number(backfillRes.data?.hashed || 0),
+      previewCandidatesCount: Number(backfillRes.data?.total || 0),
+      missingEmbeddingsCount: Number(backfillRes.data?.pending || 0),
+      searched: false,
+      failed: false,
+      translated: false,
+      searchQuery: '',
+      originalQuery: '',
+      ...partial,
+      ...(partial?.indexedCount != null ? {indexedCount: partial.indexedCount} : {}),
+      ...(partial?.previewCandidatesCount != null
+        ? {previewCandidatesCount: partial.previewCandidatesCount}
+        : {}),
+      ...(partial?.missingEmbeddingsCount != null
+        ? {missingEmbeddingsCount: partial.missingEmbeddingsCount}
+        : {}),
+    }
+  } catch (error) {
+    console.error(error)
+    semanticHealth.value = {
+      modelStatus: 'error',
+      indexedCount: 0,
+      previewCandidatesCount: 0,
+      missingEmbeddingsCount: 0,
+      searched: Boolean(partial?.searched),
+      failed: true,
+      translated: false,
+      searchQuery: '',
+      originalQuery: '',
+    }
+  }
+}
+
+function openSemanticSettings() {
+  dialog.value = false
+  void router.push({
+    path: '/settings',
+    query: {tab: 'database', section: 'clip_embedding_backfill'},
+  })
+}
 const meta = computed(() => app.meta)
 const mediaTypes = computed(() => app.mediaTypes)
 
@@ -104,6 +238,7 @@ const inputFocused = ref(false)
 let abortController: AbortController | null = null
 let pendingNavigation: (() => void) | null = null
 const RESULT_LIMIT = 50
+const SEMANTIC_RESULT_LIMIT = 500
 const GROUP_PREVIEW_LIMIT = 20
 const ROW_HEIGHT = 30
 const RESULTS_MAX_HEIGHT = 480
@@ -389,7 +524,78 @@ function sortGroups(groups: SearchGroup[]) {
   })
 }
 
+async function searchSemantic() {
+  const q = query.value.trim()
+  if (!q) {
+    results.value = []
+    loading.value = false
+    return
+  }
+
+  abortController?.abort()
+  abortController = new AbortController()
+  const {signal} = abortController
+
+  loading.value = true
+  results.value = []
+  resetExpandedGroups()
+  selectedIndex.value = -1
+
+  try {
+    const mediaTypeId = resolveSemanticMediaTypeId()
+    const searchRes = await typedApi.semanticSearch({
+      query: q,
+      mediaTypeId,
+      limit: SEMANTIC_RESULT_LIMIT,
+      locale: settingsStore.locale || 'en',
+    })
+
+    if (signal.aborted) return
+
+    const ids = Array.isArray(searchRes.data?.ids)
+      ? searchRes.data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+      : []
+
+    semanticHealth.value = {
+      modelStatus: String(searchRes.data?.modelStatus || semanticHealth.value?.modelStatus || 'unknown'),
+      indexedCount: Number(searchRes.data?.indexedCount ?? semanticHealth.value?.indexedCount ?? 0),
+      previewCandidatesCount: Number(
+        searchRes.data?.previewCandidatesCount
+        ?? semanticHealth.value?.previewCandidatesCount
+        ?? 0,
+      ),
+      missingEmbeddingsCount: Number(
+        searchRes.data?.missingEmbeddingsCount
+        ?? semanticHealth.value?.missingEmbeddingsCount
+        ?? 0,
+      ),
+      searched: true,
+      failed: false,
+      translated: Boolean(searchRes.data?.translated),
+      searchQuery: String(searchRes.data?.searchQuery || q),
+      originalQuery: String(searchRes.data?.originalQuery || q),
+    }
+
+    if (!ids.length) return
+
+    dialog.value = false
+    await openMediaList({
+      mediaTypeId: mediaTypeId ?? undefined,
+      ids,
+    })
+  } catch (e: unknown) {
+    const err = e as {code?: string; name?: string}
+    if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return
+    console.error(e)
+    await refreshSemanticHealth({searched: true, failed: true})
+  } finally {
+    if (!signal.aborted) loading.value = false
+  }
+}
+
 async function search() {
+  if (searchMode.value === 'semantic') return
+
   const q = query.value.trim()
   const tagIds = pinnedTags.value.map((tag) => tag.id)
   if (!q && !tagIds.length) {
@@ -436,9 +642,41 @@ async function search() {
   }
 }
 
+function onSearchModeChange() {
+  results.value = []
+  resetExpandedGroups()
+  selectedIndex.value = -1
+  abortController?.abort()
+  runSearch.cancel()
+  loading.value = false
+  if (searchMode.value === 'semantic') {
+    void refreshSemanticHealth()
+    return
+  }
+  semanticHealth.value = null
+  if (query.value.trim() || pinnedTags.value.length) {
+    loading.value = true
+    runSearch()
+  }
+}
+
 const runSearch = debounce(search, 250)
 
 function onQueryInput() {
+  if (searchMode.value === 'semantic') {
+    abortController?.abort()
+    runSearch.cancel()
+    loading.value = false
+    if (semanticHealth.value?.searched) {
+      semanticHealth.value = {
+        ...semanticHealth.value,
+        searched: false,
+        failed: false,
+      }
+    }
+    return
+  }
+
   if (!query.value.trim() && !pinnedTags.value.length) {
     abortController?.abort()
     runSearch.cancel()
@@ -618,6 +856,10 @@ function onSearchKeydown(e: KeyboardEvent) {
     moveSelection(-1)
   } else if (e.key === 'Enter') {
     e.preventDefault()
+    if (searchMode.value === 'semantic') {
+      void searchSemantic()
+      return
+    }
     openSelectedResult()
   } else if (e.key === 'Tab' && selectedIsTag.value) {
     e.preventDefault()
@@ -803,6 +1045,19 @@ function getNameHighlighted(text: string) {
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="d-flex align-center ga-3 min-w-0">
             <div class="text-h6 text-truncate">{{ t('appbar.globalSearch') }}</div>
+            <v-btn-toggle
+              v-model="searchMode"
+              density="compact"
+              color="primary"
+              variant="outlined"
+              divided
+              mandatory
+              class="flex-shrink-0"
+              @update:model-value="onSearchModeChange"
+            >
+              <v-btn value="text" size="small">{{ t('globalSearch.modeText') }}</v-btn>
+              <v-btn value="semantic" size="small">{{ t('globalSearch.modeSemantic') }}</v-btn>
+            </v-btn-toggle>
             <v-chip
               v-if="hasActiveSearch && !loading && totalResults > 0"
               size="small"
@@ -822,7 +1077,7 @@ function getNameHighlighted(text: string) {
           @mousedown="onInputShellMouseDown"
         >
           <v-icon class="global-search__input-icon text-medium-emphasis" size="20">
-            mdi-magnify
+            {{ searchMode === 'semantic' ? 'mdi-brain' : 'mdi-magnify' }}
           </v-icon>
 
           <div class="global-search__input-body">
@@ -848,7 +1103,7 @@ function getNameHighlighted(text: string) {
               type="text"
               autocomplete="off"
               spellcheck="false"
-              :placeholder="pinnedTags.length ? '' : t('globalSearch.enterText')"
+              :placeholder="pinnedTags.length ? '' : (searchMode === 'semantic' ? t('globalSearch.enterSemantic') : t('globalSearch.enterText'))"
               @input="onQueryInput"
               @keydown="onSearchKeydown"
               @focus="inputFocused = true"
@@ -891,10 +1146,59 @@ function getNameHighlighted(text: string) {
             size="32"
             color="medium-emphasis"
           >
-            {{ hasActiveSearch ? 'mdi-file-search-outline' : 'mdi-text-search' }}
+            {{
+              searchMode === 'semantic'
+                ? 'mdi-brain'
+                : (hasActiveSearch ? 'mdi-file-search-outline' : 'mdi-text-search')
+            }}
           </v-icon>
-          <div class="text-caption">
-            {{ hasActiveSearch ? t('globalSearch.noResult') : t('globalSearch.startTyping') }}
+          <div class="text-caption mb-3">
+            <template v-if="searchMode === 'semantic'">
+              {{
+                hasActiveSearch
+                  ? (semanticEmptyHint || t('globalSearch.noResult'))
+                  : t('globalSearch.semanticStartTyping')
+              }}
+            </template>
+            <template v-else>
+              {{ hasActiveSearch ? t('globalSearch.noResult') : t('globalSearch.startTyping') }}
+            </template>
+          </div>
+          <div
+            v-if="searchMode === 'semantic' && semanticTranslatedCaption"
+            class="text-caption text-medium-emphasis mb-3"
+          >
+            {{ semanticTranslatedCaption }}
+          </div>
+
+          <div
+            v-if="searchMode === 'semantic' && semanticChecklist.length"
+            class="global-search__health text-left mx-auto"
+          >
+            <div
+              v-for="item in semanticChecklist"
+              :key="item.id"
+              class="global-search__health-row d-flex align-start ga-2 mb-2"
+            >
+              <v-icon
+                size="16"
+                :color="item.ok ? 'success' : 'warning'"
+                class="mt-0"
+              >
+                {{ item.ok ? 'mdi-check-circle' : 'mdi-alert-circle-outline' }}
+              </v-icon>
+              <div class="text-caption">{{ item.text }}</div>
+            </div>
+            <v-btn
+              v-if="!semanticHasIndex || !semanticModelReady || !semanticHasPreviews"
+              class="mt-2"
+              size="small"
+              color="primary"
+              variant="tonal"
+              @click="openSemanticSettings"
+            >
+              {{ t('globalSearch.open_semantic_settings') }}
+            </v-btn>
           </div>
         </div>
 
@@ -1045,7 +1349,11 @@ function getNameHighlighted(text: string) {
         <span class="ml-1">{{ t('globalSearch.hintArrows') }}</span>
         <v-spacer/>
         <v-hotkey keys="enter" variant="flat"/>
-        <span class="ml-1">{{ t('globalSearch.hintEnter') }}</span>
+        <span class="ml-1">{{
+          searchMode === 'semantic'
+            ? t('globalSearch.hintEnterSemantic')
+            : t('globalSearch.hintEnter')
+        }}</span>
         <template v-if="selectedIsTag">
           <v-spacer/>
           <v-hotkey keys="tab" variant="flat"/>
@@ -1062,6 +1370,17 @@ function getNameHighlighted(text: string) {
   top: 0;
   z-index: 2;
   background: rgb(var(--v-theme-surface));
+}
+
+.global-search__health {
+  max-width: 420px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.global-search__health-row {
+  line-height: 1.35;
 }
 
 .global-search__input {
