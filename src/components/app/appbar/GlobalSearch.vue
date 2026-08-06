@@ -173,6 +173,42 @@ const semanticEmptyHint = computed(() => {
   return t('globalSearch.health_hint_no_match')
 })
 
+const semanticExamples = computed(() => [
+  t('globalSearch.example_rain'),
+  t('globalSearch.example_portrait'),
+  t('globalSearch.example_neon'),
+])
+
+const semanticSetupIncomplete = computed(() =>
+  Boolean(semanticHealth.value)
+  && (
+    !semanticModelReady.value
+    || !semanticHasPreviews.value
+    || !semanticHasIndex.value
+  ),
+)
+
+const showSemanticExamples = computed(() =>
+  !loading.value
+  && !hasActiveSearch.value
+  && !semanticHealth.value?.searched
+  && !semanticSetupIncomplete.value,
+)
+
+const showSemanticHealthPanel = computed(() =>
+  Boolean(semanticChecklist.value.length)
+  && (
+    Boolean(semanticHealth.value?.searched)
+    || (semanticSetupIncomplete.value && !hasActiveSearch.value)
+  ),
+)
+
+function runSemanticExample(example: string) {
+  query.value = String(example || '').trim()
+  if (!query.value) return
+  void searchSemantic()
+}
+
 function resolveSemanticMediaTypeId() {
   const fromEnv = Number(itemsStore.environment?.media_type_id)
   if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv
@@ -1200,6 +1236,29 @@ function getNameHighlighted(text: string) {
           </div>
 
           <div
+            v-if="showSemanticExamples"
+            class="global-search__examples mb-3"
+          >
+            <div class="text-caption text-medium-emphasis mb-2">
+              {{ t('globalSearch.examples_label') }}
+            </div>
+            <div class="global-search__examples-row">
+              <v-chip
+                v-for="example in semanticExamples"
+                :key="example"
+                size="small"
+                variant="tonal"
+                color="primary"
+                class="global-search__example-chip"
+                prepend-icon="mdi-brain"
+                @click="runSemanticExample(example)"
+              >
+                {{ example }}
+              </v-chip>
+            </div>
+          </div>
+
+          <div
             v-if="query.trim() && !semanticHealth?.searched"
             class="mb-3"
           >
@@ -1215,9 +1274,15 @@ function getNameHighlighted(text: string) {
           </div>
 
           <div
-            v-if="semanticHealth?.searched && semanticChecklist.length"
+            v-if="showSemanticHealthPanel"
             class="global-search__health text-left mx-auto"
           >
+            <div
+              v-if="!semanticHealth?.searched"
+              class="text-caption font-weight-medium mb-2"
+            >
+              {{ t('globalSearch.health_setup_title') }}
+            </div>
             <div
               v-for="item in semanticChecklist"
               :key="item.id"
@@ -1437,6 +1502,22 @@ function getNameHighlighted(text: string) {
 
 .global-search__health-row {
   line-height: 1.35;
+}
+
+.global-search__examples {
+  max-width: 440px;
+  margin-inline: auto;
+}
+
+.global-search__examples-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.global-search__example-chip {
+  max-width: 100%;
 }
 
 .global-search__input {

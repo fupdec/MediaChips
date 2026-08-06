@@ -172,6 +172,23 @@
         color="red"
       />
 
+      <v-btn
+        v-if="showSimilarAction"
+        class="item-similar-btn"
+        size="small"
+        variant="text"
+        icon
+        :title="similarActionTitle"
+        @mousedown.stop
+        @mouseup.stop.prevent="openSimilarWall"
+        @click.stop.prevent
+      >
+        <v-icon
+          size="x-large"
+          icon="mdi-brain"
+        />
+      </v-btn>
+
       <v-btn @mouseup="showContextMenu"
              class="item-menu-btn"
              size="small"
@@ -238,6 +255,7 @@
 
 <script setup lang="ts">
 import {ref, computed, watch, onBeforeUnmount} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -305,6 +323,7 @@ const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+const {t} = useI18n()
 
 const contextMenu = computed(() => contextMenuStore)
 
@@ -320,6 +339,14 @@ const isVideoMedia = computed(() => isVideoMediaType(props.mediaType ?? undefine
 const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefined))
 const isAudioMedia = computed(() => isAudioMediaType(props.mediaType ?? undefined))
 const isTextMedia = computed(() => isTextMediaType(props.mediaType ?? undefined))
+
+const showSimilarAction = computed(() =>
+  props.type === 'media'
+  && !itemsStore.isSelect
+  && (isVideoMedia.value || isImageMedia.value),
+)
+
+const similarActionTitle = computed(() => t('context_menu.semantically_similar'))
 
 const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 
@@ -608,6 +635,16 @@ const editItem = () => {
   } else if (isTagPageItem(props.item, props.type) && props.meta) {
     dialogsStore.editTag(props.item, props.meta)
   }
+}
+
+const openSimilarWall = () => {
+  if (!isMediaPageItem(props.item, props.type)) return
+  const seedId = Number(props.item.id)
+  if (!Number.isFinite(seedId) || seedId <= 0) return
+  dialogsStore.openSimilarWall({
+    seedId,
+    mediaTypeId: props.item.mediaTypeId || props.mediaType?.id || null,
+  })
 }
 
 const handleCardActivate = (e?: MouseEvent) => {

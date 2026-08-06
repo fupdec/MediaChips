@@ -88,7 +88,8 @@
         opacity: 1;
       }
     }
-    .item-menu-btn {
+    .item-menu-btn,
+    .item-similar-btn {
       opacity: 1;
     }
   }
@@ -595,6 +596,14 @@
   position: absolute;
   bottom: 1px;
   right: 1px;
+  opacity: 0;
+  z-index: 3;
+}
+
+.item-similar-btn {
+  position: absolute;
+  bottom: 1px;
+  right: 34px;
   opacity: 0;
   z-index: 3;
 }
@@ -1521,7 +1530,8 @@ body > .video-preview-container.video-preview-container--expanded {
     overflow: hidden;
   }
 
-  .item-menu-btn {
+  .item-menu-btn,
+  .item-similar-btn {
     opacity: 0.85;
     z-index: 7;
   }
@@ -2509,7 +2519,8 @@ body > .video-preview-container.video-preview-container--expanded {
 }
 
 @media (mobile and max-width: 480px) {
-  .item-menu-btn {
+  .item-menu-btn,
+  .item-similar-btn {
     opacity: 1;
   }
 }
