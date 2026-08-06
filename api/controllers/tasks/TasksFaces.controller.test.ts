@@ -42,6 +42,9 @@ vi.mock('../../services/faceDetector', () => ({
   loadModel,
   getFaceDetectionStatus,
   detectMedia,
+}))
+
+vi.mock('../../services/faceDetectOrchestrate', () => ({
   iterateFaceDetection: vi.fn(),
 }))
 

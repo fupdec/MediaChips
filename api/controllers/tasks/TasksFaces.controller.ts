@@ -6,9 +6,9 @@ import {
   detectMedia,
   getFaceDetectionStatus,
   getStatus,
-  iterateFaceDetection,
   loadModel,
 } from '../../services/faceDetector'
+import {iterateFaceDetection} from '../../services/faceDetectOrchestrate'
 import {
   assignFaceToPerformer,
   clearFaceMatch,

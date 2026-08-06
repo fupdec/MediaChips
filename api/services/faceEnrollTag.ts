@@ -31,8 +31,12 @@ function toEnrollmentSourcePath(db: ApiDb, imagePath: string) {
 }
 
 function getEmbedApi() {
-  // Lazy require avoids a cycle with faceRecognition (which re-exports these helpers).
-  return require('./faceRecognition') as typeof import('./faceRecognition')
+  const runtime = require('./faceEmbedRuntime') as typeof import('./faceEmbedRuntime')
+  const scoring = require('./faceMatchScoring') as typeof import('./faceMatchScoring')
+  return {
+    embedImage: runtime.embedImage,
+    embeddingToJson: scoring.embeddingToJson,
+  }
 }
 
 export function pickLargestDetection<T extends {box: FaceBox}>(detections: T[]): T {

@@ -4,7 +4,6 @@ import type {
   FaceBox,
   FaceDetection,
   FaceDetectionGenerationStatus,
-  FaceDetectionProgressEvent,
   FaceDetectorMediaItem,
   FaceDetectorMediaResult,
   FaceDetectorOptions,
@@ -16,13 +15,11 @@ import { createFacesRepository } from '../db/repositories/faces'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { createSettingsRepository } from '../db/repositories/settings'
-import { resolveExistingPath } from './contentHash'
 import { assessMatchability } from './matchGates'
 import {
   estimateGender,
   loadGenderModel,
   passesGenderFilter,
-  prepareGenderModel,
   type FaceGenderFilter,
 } from './faceGender'
 import {
@@ -40,15 +37,6 @@ import {
   collectScrfdCandidates,
   computeScrfdLetterboxSize,
 } from './faceScrfdPostprocess'
-import {
-  applyFaceDetectMediaResult,
-  buildFaceDetectCompleteEvent,
-  buildFaceDetectErrorEvent,
-  buildFaceDetectProgressEvent,
-  createFaceDetectIterateCounters,
-  resolveFaceDetectIterateItems,
-  resolveMatchSettingsAfterDetect,
-} from './faceDetectIterate'
 import {
   parseFaceDetectSettingsFromMap,
   resolveFaceDetectRuntimeOptions,
@@ -87,6 +75,8 @@ import {
 } from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
 import {mapDetectFramesWithConcurrency} from './faceDetectFrameMap'
+import {embedImage as embedImageRuntime, loadEmbedModel} from './faceEmbedRuntime'
+import {embeddingToJson} from './faceMatchScoring'
 import {
   buildCachedModelDownloadEvent,
   buildCachedModelReadyEvent,
@@ -339,18 +329,12 @@ async function detectMedia(
       return facesDir
     }
 
-    let embedImage: ((
-      db: ApiDb,
-      imagePath: string,
-      box?: FaceBox | null,
-      kps?: FaceLandmark5 | null,
-    ) => Promise<Float32Array>) | null = null
-    let embeddingToJson: ((embedding: Float32Array) => string) | null = null
+    let embedImage: typeof embedImageRuntime | null = null
+    let toJson: typeof embeddingToJson | null = null
     try {
-      const faceRecognition = require('./faceRecognition') as typeof import('./faceRecognition')
-      await faceRecognition.loadEmbedModel(db)
-      embedImage = faceRecognition.embedImage
-      embeddingToJson = faceRecognition.embeddingToJson
+      await loadEmbedModel(db)
+      embedImage = embedImageRuntime
+      toJson = embeddingToJson
     } catch {
       // Embedding is optional during detect; matching will skip faces without vectors.
     }
@@ -432,11 +416,11 @@ async function detectMedia(
             matchableOk: matchable.ok,
             absoluteCrop,
             cropExists: fs.existsSync(absoluteCrop),
-            hasEmbedApi: Boolean(embedImage && embeddingToJson),
+            hasEmbedApi: Boolean(embedImage && toJson),
           })) {
             try {
               const vector = await embedImage!(db, frame.framePath, detection.box, detection.kps)
-              embedding = embeddingToJson!(vector)
+              embedding = toJson!(vector)
             } catch {
               embedding = null
             }
@@ -463,22 +447,8 @@ async function detectMedia(
       if (persistCrops) {
         purgeOtherMediaFaceCrops(db, mediaId!)
       }
-
-      try {
-        const {
-          getFaceMatchSettings,
-          matchMediaFaces,
-        } = require('./faceRecognition') as typeof import('./faceRecognition')
-        const settings = resolveMatchSettingsAfterDetect({
-          matchSettings: getFaceMatchSettings(db),
-          applyTags: options.applyTags,
-        })
-        if (settings) {
-          await matchMediaFaces(db, mediaId!, {force: Boolean(options.force), settings})
-        }
-      } catch {
-        // Matching is optional and should not fail detection.
-      }
+      // Match-after-detect is owned by faceDetectOrchestrate / TasksFaces —
+      // keep this module free of a faceRecognition import cycle.
     }
 
     return buildSuccessfulFaceDetectResult({
@@ -513,106 +483,6 @@ async function getFaceDetectionStatus(db: ApiDb): Promise<FaceDetectionGeneratio
   })
 }
 
-async function* iterateFaceDetection(
-  db: ApiDb,
-  {
-    shouldStop = () => false,
-    force = false,
-    mediaIds,
-    paths,
-    framesPerVideo,
-    minScore,
-    persistCrops = false,
-    applyTags,
-  }: FaceDetectorOptions & {
-    shouldStop?: () => boolean
-    mediaIds?: Array<number | string>
-    paths?: string[]
-  } = {},
-): AsyncGenerator<FaceDetectionProgressEvent> {
-  const mediaRepo = createMediaRepository(db.drizzle)
-  const videoTypeId = await getVideoMediaTypeId(db)
-  const detectSettings = getFaceDetectSettings(db)
-  const resolvedFramesPerVideo = Number(framesPerVideo ?? detectSettings.framesPerVideo)
-  const resolvedMinScore = Number(minScore ?? detectSettings.minScore)
-
-  const items = resolveFaceDetectIterateItems({
-    mediaIds,
-    paths,
-    videoTypeId,
-    findById: (id) => mediaRepo.findById(id),
-    findByPaths: (pathList, typeId) => mediaRepo.findByPaths(pathList, typeId),
-    findByMediaType: (typeId) => mediaRepo.findByMediaType(typeId),
-  })
-
-  // Auto-scan never keeps crop galleries — free disk from older runs.
-  if (!persistCrops) {
-    purgeAllFaceCrops(db)
-  }
-
-  try {
-    yield* prepareDetectModel(db)
-  } catch (error: unknown) {
-    yield buildFaceDetectErrorEvent(error, 'Face detection model is unavailable.')
-    return
-  }
-
-  if (shouldPrepareGenderFilter(detectSettings.genderFilter)) {
-    try {
-      yield* prepareGenderModel(db)
-    } catch (error: unknown) {
-      yield buildFaceDetectErrorEvent(error, 'Face gender model is unavailable.')
-      return
-    }
-  }
-
-  try {
-    const faceRecognition = require('./faceRecognition') as typeof import('./faceRecognition')
-    yield* faceRecognition.prepareEmbedModel(db)
-  } catch {
-    // Embedding is optional during detect; matching will skip faces without vectors.
-  }
-
-  const total = items.length
-  let counters = createFaceDetectIterateCounters()
-
-  yield buildFaceDetectProgressEvent(counters, total)
-
-  for (const item of items) {
-    if (shouldStop()) {
-      yield buildFaceDetectCompleteEvent(counters, total, true)
-      return
-    }
-
-    const resolvedPath = item.path ? await resolveExistingPath(String(item.path)) : null
-    const result = await detectMedia(db, {
-      id: item.id,
-      path: resolvedPath || item.path,
-    }, {
-      force,
-      framesPerVideo: resolvedFramesPerVideo,
-      minScore: resolvedMinScore,
-      persist: true,
-      persistCrops: Boolean(persistCrops),
-      applyTags,
-    })
-
-    counters = applyFaceDetectMediaResult(counters, {
-      missing: result.missing,
-      failed: result.failed,
-      skipped: result.skipped,
-      facesLength: result.faces.length,
-    })
-
-    yield buildFaceDetectProgressEvent(counters, total, {
-      current: result.mediaPath || undefined,
-      mediaId: result.mediaId,
-    })
-  }
-
-  yield buildFaceDetectCompleteEvent(counters, total, false)
-}
-
 export {
   FACE_MODEL_ID,
   FACE_MODEL_SIZE_MB,
@@ -623,7 +493,6 @@ export {
   getFaceDetectionStatus,
   getStatus,
   hasDownloadedModel,
-  iterateFaceDetection,
   loadModel,
   prepareDetectModel,
   purgeAllFaceCrops,

@@ -1,7 +1,4 @@
 import type { ApiDb } from '../types/db'
-import type { ModelStatus } from '../types/mlModels'
-import type { FaceBox, FaceLandmark5 } from '../types/faceDetector'
-import { Jimp } from 'jimp'
 import { createFaceEnrollmentsRepository } from '../db/repositories/faceEnrollments'
 import { createFacesRepository } from '../db/repositories/faces'
 import { createMetaRepository } from '../db/repositories/meta'
@@ -12,16 +9,22 @@ import { createMediaRepository } from '../db/repositories/media'
 import {
   loadModel as loadDetectionModel,
 } from './faceDetector'
-import {
-  alignFaceRgb112,
-} from './faceAlign'
 import { isMatchableStoredFace } from './matchGates'
 import {clusterFacesInMedia} from './faceCluster'
 import {
   embeddingToJson,
-  l2Normalize,
   parseEnrollmentRefs,
 } from './faceMatchScoring'
+import {
+  EMBED_MODEL_ID,
+  EMBED_MODEL_SIZE_MB,
+  embedImage,
+  getEmbedStatus,
+  hasDownloadedEmbedModel,
+  loadEmbedModel,
+  prepareEmbedModel,
+} from './faceEmbedRuntime'
+import {ensureFaceCropsForMedia} from './faceCropStore'
 import {
   findTagImagePaths,
   resolveAbsoluteCropPath as resolveAbsoluteCropPathFromDb,
@@ -47,20 +50,9 @@ import {
   enrollTagFromAllImages,
 } from './faceEnrollTag'
 import {
-  buildCachedModelDownloadEvent,
-  buildCachedModelReadyEvent,
-  resolveCachedModelStatus,
-} from './faceModelStatus'
-import {
   buildFaceMatchStatusSnapshot,
   resolveConfiguredOrScraperMetaId,
 } from './faceStatusSnapshots'
-import { rgbaBitmapToInterleavedRgb } from './faceTensorPrep'
-import {
-  EMBED_SIZE,
-  buildEmbedFloatData,
-  shouldAlignForEmbed,
-} from './faceEmbedPrep'
 import { resolveFaceEmbedding } from './faceEmbedLoad'
 import {parseFaceMatchSettingsFromMap} from './faceSettingsParse'
 import {
@@ -89,22 +81,6 @@ import {
   buildListedPreparedFacesFromRows,
 } from './faceListBuild'
 import {createCachedTagResolver} from './faceListPresentation'
-import {
-  ensureCachedModelFile,
-  getFaceModelCacheDir,
-  getOrt,
-  resolveCachedModelPath,
-  type OrtSession,
-} from './faceOrtRuntime'
-
-const EMBED_MODEL_ID = 'insightface-r50'
-/** Bump when preprocess/ranking/model changes so stale enrollments are wiped. */
-const EMBED_SPACE_ID = 'insightface-r50-scrfd-kps-v1'
-const EMBED_MODEL_FILENAME = 'w600k_r50.onnx'
-const EMBED_MODEL_URL = 'https://huggingface.co/deepghs/insightface/resolve/main/buffalo_l/w600k_r50.onnx'
-const EMBED_MODEL_SETTING = 'faceMatch.embedModelId'
-/** Rough download size shown in UI copy (~buffalo_l recognition head). */
-const EMBED_MODEL_SIZE_MB = 170
 
 export type {FaceMatchMode}
 
@@ -134,106 +110,6 @@ export interface FaceMatchProgressEvent {
   stopped?: boolean
 }
 
-let embedSession: OrtSession | null = null
-let loadingPromise: Promise<OrtSession> | null = null
-let lastError: Error | null = null
-
-const getWritableModelCacheDir = (db: ApiDb) => getFaceModelCacheDir(db, EMBED_MODEL_ID)
-
-const getModelPath = (db: ApiDb) =>
-  resolveCachedModelPath(db, EMBED_MODEL_ID, EMBED_MODEL_FILENAME)
-
-function hasDownloadedEmbedModel(db: ApiDb) {
-  return Boolean(getModelPath(db))
-}
-
-function migrateEmbedModelIfNeeded(db: ApiDb) {
-  const settingsRepo = createSettingsRepository(db.drizzle)
-  const current = String(settingsRepo.findByOption(EMBED_MODEL_SETTING)?.value || '')
-  if (current === EMBED_SPACE_ID) return
-
-  // Old enrollments live in a different embedding space and must be rebuilt.
-  createFaceEnrollmentsRepository(db.drizzle).deleteAll()
-  createFacesRepository(db.drizzle).clearAllMatches()
-  settingsRepo.upsertByOption(EMBED_MODEL_SETTING, EMBED_SPACE_ID)
-  embedSession = null
-  lastError = null
-}
-
-async function ensureEmbedModelFile(db: ApiDb): Promise<{path: string; downloaded: boolean}> {
-  return ensureCachedModelFile(db, {
-    modelId: EMBED_MODEL_ID,
-    filename: EMBED_MODEL_FILENAME,
-    url: EMBED_MODEL_URL,
-    errorLabel: 'face embed model',
-  })
-}
-
-async function loadEmbedModel(db: ApiDb): Promise<OrtSession> {
-  if (embedSession) return embedSession
-  if (loadingPromise) return loadingPromise
-
-  loadingPromise = (async () => {
-    try {
-      migrateEmbedModelIfNeeded(db)
-      const {path: modelPath} = await ensureEmbedModelFile(db)
-      const ort = getOrt()
-      embedSession = await ort.InferenceSession.create(modelPath)
-      lastError = null
-      return embedSession
-    } catch (error: unknown) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-      throw lastError
-    } finally {
-      loadingPromise = null
-    }
-  })()
-
-  return loadingPromise
-}
-
-type EmbedPrepEvent = {
-  type: 'status'
-  phase: 'downloading_embed' | 'downloading_align' | 'embed_ready'
-  message: string
-  sizeMb?: number
-}
-
-async function* prepareEmbedModel(db: ApiDb): AsyncGenerator<EmbedPrepEvent> {
-  migrateEmbedModelIfNeeded(db)
-
-  // Alignment uses SCRFD 5-point landmarks from detection (no separate 2d106 download).
-
-  const needsDownload = !hasDownloadedEmbedModel(db)
-  if (needsDownload) {
-    yield buildCachedModelDownloadEvent({
-      phase: 'downloading_embed',
-      sizeMb: EMBED_MODEL_SIZE_MB,
-      kind: 'face recognition',
-    })
-  }
-  await loadEmbedModel(db)
-  if (needsDownload) {
-    yield buildCachedModelReadyEvent({
-      phase: 'embed_ready',
-      sizeMb: EMBED_MODEL_SIZE_MB,
-      kind: 'face recognition',
-    })
-  }
-}
-
-function getEmbedStatus(db: ApiDb): ModelStatus {
-  migrateEmbedModelIfNeeded(db)
-  return resolveCachedModelStatus({
-    modelId: EMBED_MODEL_ID,
-    path: getWritableModelCacheDir(db),
-    sessionLoaded: Boolean(embedSession),
-    loading: Boolean(loadingPromise),
-    lastError,
-    downloaded: hasDownloadedEmbedModel(db),
-  })
-}
-
 function resolvePerformerMetaId(db: ApiDb, configuredId?: number | null): number | null {
   return resolveConfiguredOrScraperMetaId(
     configuredId,
@@ -254,47 +130,6 @@ function getFaceMatchSettings(db: ApiDb): FaceMatchSettings {
   return parseFaceMatchSettingsFromMap(map, (configuredId) =>
     resolvePerformerMetaId(db, configuredId),
   )
-}
-
-function rgbToEmbedTensor(rgb: Uint8Array, width: number, height: number) {
-  const ort = getOrt()
-  return new ort.Tensor('float32', buildEmbedFloatData(rgb, width, height), [1, 3, height, width])
-}
-
-async function imageToEmbedTensorLetterbox(imagePath: string) {
-  const image = await Jimp.read(imagePath)
-  // Letterbox fallback when landmarks are unavailable.
-  const resized = image.clone().contain({w: EMBED_SIZE, h: EMBED_SIZE})
-  const rgb = rgbaBitmapToInterleavedRgb(resized.bitmap.data, EMBED_SIZE * EMBED_SIZE)
-  return rgbToEmbedTensor(rgb, EMBED_SIZE, EMBED_SIZE)
-}
-
-async function embedImage(
-  db: ApiDb,
-  imagePath: string,
-  box?: FaceBox | null,
-  kps?: FaceLandmark5 | null,
-): Promise<Float32Array> {
-  const model = await loadEmbedModel(db)
-  let tensor
-  if (shouldAlignForEmbed(box)) {
-    try {
-      const image = await Jimp.read(imagePath)
-      const aligned = await alignFaceRgb112(db, image, box!, kps)
-      tensor = aligned
-        ? rgbToEmbedTensor(aligned, EMBED_SIZE, EMBED_SIZE)
-        : await imageToEmbedTensorLetterbox(imagePath)
-    } catch {
-      tensor = await imageToEmbedTensorLetterbox(imagePath)
-    }
-  } else {
-    tensor = await imageToEmbedTensorLetterbox(imagePath)
-  }
-  const inputName = model.inputNames[0] || 'input'
-  const outputs = await model.run({[inputName]: tensor})
-  const embeddingTensor = outputs.embedding || outputs[model.outputNames[0]]
-  if (!embeddingTensor) throw new Error('Face embed model returned no embedding.')
-  return l2Normalize(embeddingTensor.data as Float32Array)
 }
 
 function resolveAbsoluteCropPath(db: ApiDb, cropPath: string | null | undefined) {
@@ -535,7 +370,6 @@ async function listFacesForMedia(db: ApiDb, mediaId: number, options: {
   // Callers can skip this for a fast first paint, then request crops in a follow-up.
   if (options.ensureCrops !== false) {
     try {
-      const {ensureFaceCropsForMedia} = require('./faceDetector') as typeof import('./faceDetector')
       await ensureFaceCropsForMedia(db, mediaId)
     } catch {
       // Listing should still work without preview crops.
