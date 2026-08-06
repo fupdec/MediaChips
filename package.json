@@ -48,7 +48,8 @@
   },
   "main": "electron/runMain.js",
   "overrides": {
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "tar": "7.5.19"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
@@ -136,7 +137,7 @@
   "build": {
     "appId": "com.mediachips.app",
     "productName": "MediaChips",
-    "copyright": "Copyright © 2026 MediaChips",
+    "copyright": "Copyright \u00a9 2026 MediaChips",
     "beforePack": "./scripts/electron-before-pack.mjs",
     "directories": {
       "output": "release"
