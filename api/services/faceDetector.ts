@@ -86,6 +86,7 @@ import {
   shouldPrepareGenderFilter,
 } from './faceDetectPersist'
 import {extractFramesForMedia} from './faceFrameExtract'
+import {mapDetectFramesWithConcurrency} from './faceDetectFrameMap'
 import {
   buildCachedModelDownloadEvent,
   buildCachedModelReadyEvent,
@@ -366,11 +367,18 @@ async function detectMedia(
       }
     }
 
-    for (const frame of extracted.frames) {
-      const detections = await detectFacesInFrame(model, frame.framePath, resolvedOptions)
-      if (!detections.length) continue
+    // Parallelize SCRFD across frames; keep cropIndex / gender / embed / DB serial.
+    const frameBatches = await mapDetectFramesWithConcurrency(
+      extracted.frames,
+      {
+        detect: (frame) => detectFacesInFrame(model, frame.framePath, resolvedOptions),
+        readImage: (framePath) => Jimp.read(framePath),
+      },
+    )
 
-      const sourceImage = await Jimp.read(frame.framePath)
+    for (const {frame, detections, sourceImage} of frameBatches) {
+      if (!detections.length || !sourceImage) continue
+
       for (const detection of detections) {
         if (shouldApplyGenderFilterGate({genderReady, genderFilter})) {
           try {
