@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema'
 import { applySqlitePragmas } from './pragmas'
+import { registerMediaGroupByFunctions } from './mediaGroupByFunctions'
 
 export type DrizzleSchema = typeof schema
 
@@ -15,6 +16,7 @@ export type DrizzleConnection = {
 export function createDrizzleClient(dbPath: string): DrizzleConnection {
   const sqlite = new Database(dbPath)
   applySqlitePragmas(sqlite)
+  registerMediaGroupByFunctions(sqlite)
   const drizzleDb = drizzle(sqlite, {schema})
 
   return {

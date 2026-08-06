@@ -48,7 +48,8 @@ function buildFolderInheritedMediaSelectSql(
  * tagPredicate is appended after metaId check, using bare `tagId` column name for tagsInMedia
  * and rewritten to `tif.tagId` for the folder branch.
  */
-function buildEffectiveMediaTagPairsSql(metaKey: string, tagPredicate = ''): string {
+/** UNION of direct tagsInMedia + folder-inherited (mediaId, tagId) pairs. */
+export function buildEffectiveMediaTagPairsSql(metaKey: string, tagPredicate = ''): string {
   const mediaPred = tagPredicate
   const folderPred = tagPredicate.replace(/\btagId\b/g, 'tif.tagId')
 

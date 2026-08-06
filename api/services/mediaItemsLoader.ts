@@ -73,8 +73,9 @@ import {
   resolveMediaListSqlParts,
   shouldComputeListTotals,
 } from './mediaItemsListSql'
+import {createMetaRepository} from '../db/repositories/meta'
 import {
-  buildMediaGroupKeySqlExpr,
+  buildMediaGroupBySqlPlan,
   buildMediaGroupOrderSqlExpr,
   buildMediaGroupSummariesFromRows,
   buildMediaGroupSummarySql,
@@ -273,6 +274,11 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   let groups: ItemsGroupSummary[] | undefined
 
   if (groupingActive) {
+    let groupByMetaType = options.groupByMetaType || null
+    if (groupBy === 'pinnedMeta' && groupMetaId != null && !groupByMetaType) {
+      groupByMetaType = createMetaRepository(db.drizzle).findById(groupMetaId)?.type || 'array'
+    }
+
     const canCacheGrouping = !ids.length
     const groupingCacheKey = canCacheGrouping
       ? buildMediaListGroupingCacheKey({
@@ -284,29 +290,62 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
           sortBy,
           direction,
           groupMetaId,
-          groupByMetaType: options.groupByMetaType,
+          groupByMetaType,
         })
       : null
     const cachedGrouping = groupingCacheKey
       ? getCachedMediaListGrouping(groupingCacheKey)
       : null
 
-    const groupKeyExpr = supportsSqlMediaGroupBy(groupBy)
-      ? buildMediaGroupKeySqlExpr(groupBy, sortBy)
-      : null
-    const useSqlGrouping = Boolean(groupKeyExpr)
 
-    if (useSqlGrouping && groupKeyExpr) {
+    const groupPlan = supportsSqlMediaGroupBy(groupBy, {
+      metaId: groupMetaId,
+      metaType: groupByMetaType,
+      mediaTypeId,
+    })
+      ? buildMediaGroupBySqlPlan(groupBy, sortBy, {
+          metaId: groupMetaId,
+          metaType: groupByMetaType,
+          mediaTypeId,
+        })
+      : null
+    const useSqlGrouping = Boolean(groupPlan)
+
+    if (useSqlGrouping && groupPlan) {
       // SQL summaries + LIMIT/OFFSET page ids — no full-library slim load.
+      const fromForGroup = groupPlan.joinSql
+        ? `${fromForSort}\n${groupPlan.joinSql}`
+        : fromForSort
+      const groupReplacements = {
+        ...replacements,
+        ...groupPlan.replacements,
+      }
+      Object.assign(queryReplacements, groupPlan.replacements || {})
+
       if (cachedGrouping) {
         groups = cachedGrouping.groups
       } else {
-        const summarySql = buildMediaGroupSummarySql(groupKeyExpr, fromForSort, whereClause)
-        const summaryRows = await queryAllAsync(db, summarySql, replacements) as Array<{
+        const summarySql = buildMediaGroupSummarySql(
+          groupPlan.groupKeyExpr,
+          fromForGroup,
+          whereClause,
+          {labelExpr: groupPlan.labelExpr},
+        )
+        const summaryRows = await queryAllAsync(db, summarySql, groupReplacements) as Array<{
           groupKey?: unknown
           count?: unknown
+          groupLabel?: unknown
         }>
-        groups = buildMediaGroupSummariesFromRows(summaryRows, groupBy, sortBy, direction)
+        groups = buildMediaGroupSummariesFromRows(
+          summaryRows,
+          groupBy,
+          sortBy,
+          direction,
+          {
+            metaId: groupPlan.metaId ?? groupMetaId,
+            metaType: groupPlan.metaType ?? groupByMetaType,
+          },
+        )
         if (groupingCacheKey) {
           setCachedMediaListGrouping(groupingCacheKey, {
             groups,
@@ -315,11 +354,19 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
         }
       }
 
-      const groupOrderExpr = buildMediaGroupOrderSqlExpr(groupKeyExpr, groupBy, direction)
+      const groupOrderExpr = buildMediaGroupOrderSqlExpr(
+        groupPlan.groupKeyExpr,
+        groupBy,
+        direction,
+        {
+          labelExpr: groupPlan.labelExpr,
+          metaType: groupPlan.metaType ?? groupByMetaType,
+        },
+      )
       const idQuery = appendIdQueryLimitOffset(
         buildMediaGroupedIdOrderSql(
           idSelect,
-          fromForSort,
+          fromForGroup,
           whereClause,
           groupOrderExpr,
           sortExpr,
@@ -376,7 +423,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
         groupBy,
         sortBy,
         groupMetaId,
-        options.groupByMetaType,
+        groupByMetaType,
         direction,
       )
       groups = aggregated.groups

@@ -8,9 +8,14 @@ import {
   FILESIZE_BUCKETS,
   VIEWS_BUCKETS,
   getGroupKeyAndLabel,
+  getItemDiskRoot,
+  getItemFirstLetterKey,
+  getItemParentPath,
   type ItemsGroupBy,
 } from '../../shared/itemsGroupBy'
+import {registerMediaGroupByFunctions} from '../db/mediaGroupByFunctions'
 import {
+  buildMediaGroupBySqlPlan,
   buildMediaGroupKeySqlExpr,
   buildMediaGroupOrderSqlExpr,
   buildMediaGroupSummariesFromRows,
@@ -63,6 +68,16 @@ const FIXTURES: Fixture[] = [
     item: {viewedAt: '2024-06-15T22:30:00.000Z'},
     sortBy: 'viewedAt',
   },
+  {groupBy: 'path', item: {path: '/Movies/Action/a.mp4'}},
+  {groupBy: 'path', item: {path: 'C:\\Videos\\clip.mp4'}},
+  {groupBy: 'path', item: {path: 'solo.mp4'}},
+  {groupBy: 'diskRoot', item: {path: 'D:\\Library\\a.mp4'}},
+  {groupBy: 'diskRoot', item: {path: '/Volumes/Disk/a.mp4'}},
+  {groupBy: 'diskRoot', item: {path: '/Users/me/a.mp4'}},
+  {groupBy: 'firstLetter', item: {name: 'alpha'}},
+  {groupBy: 'firstLetter', item: {name: '  beta'}},
+  {groupBy: 'firstLetter', item: {name: '9lives'}},
+  {groupBy: 'firstLetter', item: {name: ''}},
 ]
 
 function evalGroupKeySql(
@@ -74,9 +89,12 @@ function evalGroupKeySql(
   expect(expr).toBeTruthy()
 
   const db = new Database(':memory:')
+  registerMediaGroupByFunctions(db)
   db.exec(`
     CREATE TABLE media (
       id INTEGER PRIMARY KEY,
+      name TEXT,
+      path TEXT,
       rating INTEGER,
       favorite INTEGER,
       ext TEXT,
@@ -103,9 +121,11 @@ function evalGroupKeySql(
   `)
 
   db.prepare(`
-    INSERT INTO media (id, rating, favorite, ext, filesize, views, createdAt, updatedAt, viewedAt)
-    VALUES (1, @rating, @favorite, @ext, @filesize, @views, @createdAt, @updatedAt, @viewedAt)
+    INSERT INTO media (id, name, path, rating, favorite, ext, filesize, views, createdAt, updatedAt, viewedAt)
+    VALUES (1, @name, @path, @rating, @favorite, @ext, @filesize, @views, @createdAt, @updatedAt, @viewedAt)
   `).run({
+    name: columns.name ?? null,
+    path: columns.path ?? null,
     rating: columns.rating ?? null,
     favorite: columns.favorite ?? 0,
     ext: columns.ext ?? null,
@@ -146,13 +166,20 @@ function evalGroupKeySql(
 }
 
 describe('mediaGroupBySql', () => {
-  it('supports the expected column-backed modes', () => {
+  it('supports column, UDF, and pinnedMeta modes', () => {
     expect(supportsSqlMediaGroupBy('rating')).toBe(true)
     expect(supportsSqlMediaGroupBy('dateDay')).toBe(true)
-    expect(supportsSqlMediaGroupBy('dateMonth')).toBe(true)
-    expect(supportsSqlMediaGroupBy('dateYear')).toBe(true)
-    expect(supportsSqlMediaGroupBy('path')).toBe(false)
+    expect(supportsSqlMediaGroupBy('path')).toBe(true)
+    expect(supportsSqlMediaGroupBy('diskRoot')).toBe(true)
+    expect(supportsSqlMediaGroupBy('firstLetter')).toBe(true)
     expect(supportsSqlMediaGroupBy('pinnedMeta')).toBe(false)
+    expect(supportsSqlMediaGroupBy('pinnedMeta', {metaId: 3, metaType: 'string'})).toBe(true)
+    expect(supportsSqlMediaGroupBy('pinnedMeta', {metaId: 3, metaType: 'array'})).toBe(false)
+    expect(supportsSqlMediaGroupBy('pinnedMeta', {
+      metaId: 3,
+      metaType: 'array',
+      mediaTypeId: 1,
+    })).toBe(true)
   })
 
   it('matches shared JS group keys for fixtures', () => {
@@ -166,6 +193,131 @@ describe('mediaGroupBySql', () => {
       const sqlKey = evalGroupKeySql(fixture.groupBy, columns, sortBy)
       expect(sqlKey, `${fixture.groupBy} item=${JSON.stringify(fixture.item)}`).toBe(jsKey)
     }
+  })
+
+  it('UDF helpers match shared path/letter helpers directly', () => {
+    expect(getItemParentPath('/a/b/c.mp4')).toBe('/a/b')
+    expect(getItemDiskRoot('E:\\x\\y.mp4')).toBe('E:\\')
+    expect(getItemFirstLetterKey('zeta')).toBe('Z')
+  })
+
+  it('builds pinnedMeta value plan with valuesInMedia join', () => {
+    const plan = buildMediaGroupBySqlPlan('pinnedMeta', 'id', {
+      metaId: 9,
+      metaType: 'string',
+    })
+    expect(plan).toBeTruthy()
+    expect(plan!.joinSql).toContain('valuesInMedia')
+    expect(plan!.replacements).toEqual({groupMetaId: 9})
+  })
+
+  it('builds pinnedMeta tag plan with folder inheritance union', () => {
+    const plan = buildMediaGroupBySqlPlan('pinnedMeta', 'id', {
+      metaId: 7,
+      metaType: 'array',
+      mediaTypeId: 1,
+    })
+    expect(plan).toBeTruthy()
+    expect(plan!.joinSql).toContain('tagsInMedia')
+    expect(plan!.joinSql).toContain('tagsInFolders')
+    expect(plan!.labelExpr).toContain('groupLabel')
+    expect(plan!.replacements).toMatchObject({groupMetaId: 7, mediaTypeId: 1})
+  })
+
+  it('evaluates pinnedMeta value keys via SQL plan', () => {
+    const plan = buildMediaGroupBySqlPlan('pinnedMeta', 'id', {
+      metaId: 4,
+      metaType: 'number',
+    })
+    expect(plan).toBeTruthy()
+
+    const db = new Database(':memory:')
+    db.exec(`
+      CREATE TABLE media (id INTEGER PRIMARY KEY, mediaTypeId INTEGER);
+      CREATE TABLE valuesInMedia (
+        mediaId INTEGER,
+        metaId INTEGER,
+        value TEXT
+      );
+    `)
+    db.prepare('INSERT INTO media (id, mediaTypeId) VALUES (1, 1), (2, 1)').run()
+    db.prepare(`
+      INSERT INTO valuesInMedia (mediaId, metaId, value) VALUES
+        (1, 4, '12'),
+        (2, 4, '')
+    `).run()
+
+    const rows = db.prepare(`
+      SELECT media.id, ${plan!.groupKeyExpr} AS groupKey
+      FROM media
+      ${plan!.joinSql}
+      ORDER BY media.id
+    `).all({groupMetaId: 4}) as Array<{id: number; groupKey: string}>
+
+    expect(rows).toEqual([
+      {id: 1, groupKey: '12'},
+      {id: 2, groupKey: '#'},
+    ])
+    db.close()
+  })
+
+  it('evaluates pinnedMeta tag primary key with folder inheritance', () => {
+    const plan = buildMediaGroupBySqlPlan('pinnedMeta', 'id', {
+      metaId: 5,
+      metaType: 'array',
+      mediaTypeId: 1,
+    })
+    expect(plan).toBeTruthy()
+
+    const db = new Database(':memory:')
+    db.exec(`
+      CREATE TABLE media (id INTEGER PRIMARY KEY, mediaTypeId INTEGER, path TEXT);
+      CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT);
+      CREATE TABLE tagsInMedia (mediaId INTEGER, tagId INTEGER, metaId INTEGER);
+      CREATE TABLE folderPaths (id INTEGER PRIMARY KEY, path TEXT);
+      CREATE TABLE tagsInFolders (folderId INTEGER, tagId INTEGER, metaId INTEGER);
+    `)
+    db.prepare(`
+      INSERT INTO media (id, mediaTypeId, path) VALUES
+        (1, 1, '/Movies/Action/a.mp4'),
+        (2, 1, '/Movies/Drama/b.mp4'),
+        (3, 1, '/Other/c.mp4')
+    `).run()
+    db.prepare(`
+      INSERT INTO tags (id, name) VALUES
+        (10, 'Zebra'),
+        (11, 'Alpha'),
+        (12, 'FolderTag')
+    `).run()
+    db.prepare(`
+      INSERT INTO tagsInMedia (mediaId, tagId, metaId) VALUES
+        (1, 10, 5),
+        (1, 11, 5)
+    `).run()
+    db.prepare(`INSERT INTO folderPaths (id, path) VALUES (1, '/Movies')`).run()
+    db.prepare(`
+      INSERT INTO tagsInFolders (folderId, tagId, metaId) VALUES (1, 12, 5)
+    `).run()
+
+    const rows = db.prepare(`
+      SELECT media.id,
+        ${plan!.groupKeyExpr} AS groupKey,
+        ${plan!.labelExpr} AS groupLabel
+      FROM media
+      ${plan!.joinSql}
+      ORDER BY media.id
+    `).all({groupMetaId: 5, mediaTypeId: 1}) as Array<{
+      id: number
+      groupKey: string
+      groupLabel: string
+    }>
+
+    // Primary tag is Alpha (name-sorted), not Zebra.
+    expect(rows[0]).toMatchObject({id: 1, groupKey: '11', groupLabel: 'Alpha'})
+    // Inherited folder tag only.
+    expect(rows[1]).toMatchObject({id: 2, groupKey: '12', groupLabel: 'FolderTag'})
+    expect(rows[2]).toMatchObject({id: 3, groupKey: '#', groupLabel: '#'})
+    db.close()
   })
 
   it('orders date summary rows chronologically with # last', () => {
@@ -209,5 +361,21 @@ describe('mediaGroupBySql', () => {
     expect(order).toContain("= '#' THEN 1")
     expect(order).toContain("'lt1m'")
     expect(order).toContain('ASC')
+  })
+
+  it('orders pinnedMeta tags by label expression', () => {
+    const plan = buildMediaGroupBySqlPlan('pinnedMeta', 'id', {
+      metaId: 1,
+      metaType: 'array',
+      mediaTypeId: 1,
+    })
+    const order = buildMediaGroupOrderSqlExpr(
+      plan!.groupKeyExpr,
+      'pinnedMeta',
+      'asc',
+      {labelExpr: plan!.labelExpr, metaType: 'array'},
+    )
+    expect(order).toContain('COLLATE NOCASE')
+    expect(order).toContain('groupLabel')
   })
 })

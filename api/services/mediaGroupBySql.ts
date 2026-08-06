@@ -5,8 +5,10 @@ import {
   VIEWS_BUCKETS,
   compareGroupKeys,
   getGroupKeyAndLabel,
+  getItemPinnedMetaGroup,
   resolveDateGroupField,
 } from '../../shared/itemsGroupBy'
+import {buildEffectiveMediaTagPairsSql} from './mediaTagFilterSql'
 
 /** Modes keyed entirely from media/metadata columns (no path/unicode/tag joins). */
 const SQL_MEDIA_GROUP_BY = new Set<ItemsGroupBy>([
@@ -23,7 +25,37 @@ const SQL_MEDIA_GROUP_BY = new Set<ItemsGroupBy>([
   'dateDay',
   'dateMonth',
   'dateYear',
+  'path',
+  'diskRoot',
+  'firstLetter',
 ])
+
+export type MediaGroupBySqlOptions = {
+  metaId?: number | null
+  metaType?: string | null
+  mediaTypeId?: number | string | null
+}
+
+export type MediaGroupBySqlPlan = {
+  groupKeyExpr: string
+  /** Appended after the list FROM clause (e.g. LEFT JOIN pinnedGroup …). */
+  joinSql?: string
+  replacements?: Record<string, unknown>
+  /** Optional label expression for summary rows (pinnedMeta tag names). */
+  labelExpr?: string
+  metaId?: number | null
+  metaType?: string | null
+}
+
+function isTagMetaType(metaType: string | null | undefined): boolean {
+  const type = String(metaType || '')
+  return !type || type === 'array' || type === 'select'
+}
+
+function isNumericMetaType(metaType: string | null | undefined): boolean {
+  const type = String(metaType || '')
+  return type === 'number' || type === 'rating'
+}
 
 function buildDateGroupKeySqlExpr(
   groupBy: 'dateDay' | 'dateMonth' | 'dateYear',
@@ -73,8 +105,113 @@ function buildFixedOrderCase(groupKeyExpr: string, order: string[]): string {
   return `CASE ${branches.join(' ')} ELSE ${order.length} END`
 }
 
-export function supportsSqlMediaGroupBy(groupBy: ItemsGroupBy): boolean {
-  return SQL_MEDIA_GROUP_BY.has(groupBy)
+function buildPinnedMetaTagPlan(
+  metaId: number,
+  metaType: string | null | undefined,
+  mediaTypeId: number | string | null | undefined,
+): MediaGroupBySqlPlan | null {
+  if (mediaTypeId == null || mediaTypeId === '') return null
+
+  const pairs = buildEffectiveMediaTagPairsSql(':groupMetaId')
+  const joinSql = `LEFT JOIN (
+    SELECT mediaId,
+      CAST(tagId AS TEXT) AS groupKey,
+      name AS groupLabel
+    FROM (
+      SELECT pairs.mediaId AS mediaId,
+        pairs.tagId AS tagId,
+        t.name AS name,
+        ROW_NUMBER() OVER (
+          PARTITION BY pairs.mediaId
+          ORDER BY t.name COLLATE NOCASE ASC, pairs.tagId ASC
+        ) AS rn
+      FROM ${pairs} pairs
+      INNER JOIN tags t ON t.id = pairs.tagId
+    ) ranked
+    WHERE rn = 1
+  ) AS pinnedGroup ON pinnedGroup.mediaId = media.id`
+
+  return {
+    groupKeyExpr: `COALESCE(pinnedGroup.groupKey, '#')`,
+    labelExpr: `CASE
+      WHEN pinnedGroup.groupKey IS NULL THEN '#'
+      ELSE COALESCE(pinnedGroup.groupLabel, '#' || pinnedGroup.groupKey)
+    END`,
+    joinSql,
+    replacements: {
+      groupMetaId: metaId,
+      mediaTypeId,
+    },
+    metaId,
+    metaType: metaType || 'array',
+  }
+}
+
+function buildPinnedMetaValuePlan(
+  metaId: number,
+  metaType: string | null | undefined,
+): MediaGroupBySqlPlan {
+  const joinSql = `LEFT JOIN (
+    SELECT mediaId, CAST(value AS TEXT) AS groupKey
+    FROM (
+      SELECT mediaId,
+        value,
+        ROW_NUMBER() OVER (PARTITION BY mediaId ORDER BY rowid ASC) AS rn
+      FROM valuesInMedia
+      WHERE metaId = :groupMetaId
+        AND value IS NOT NULL
+        AND TRIM(CAST(value AS TEXT)) != ''
+    ) ranked
+    WHERE rn = 1
+  ) AS pinnedGroup ON pinnedGroup.mediaId = media.id`
+
+  return {
+    groupKeyExpr: `COALESCE(pinnedGroup.groupKey, '#')`,
+    labelExpr: `COALESCE(pinnedGroup.groupKey, '#')`,
+    joinSql,
+    replacements: {groupMetaId: metaId},
+    metaId,
+    metaType: metaType || 'string',
+  }
+}
+
+export function supportsSqlMediaGroupBy(
+  groupBy: ItemsGroupBy,
+  options: MediaGroupBySqlOptions = {},
+): boolean {
+  if (SQL_MEDIA_GROUP_BY.has(groupBy)) return true
+  if (groupBy === 'pinnedMeta') {
+    const metaId = Number(options.metaId)
+    if (!Number.isFinite(metaId)) return false
+    if (isTagMetaType(options.metaType)) {
+      return options.mediaTypeId != null && options.mediaTypeId !== ''
+    }
+    return true
+  }
+  return false
+}
+
+/**
+ * Full SQL grouping plan (expression + optional joins/replacements).
+ * Returns null when the mode must stay on the JS slim-row path.
+ */
+export function buildMediaGroupBySqlPlan(
+  groupBy: ItemsGroupBy,
+  sortBy: unknown = 'id',
+  options: MediaGroupBySqlOptions = {},
+): MediaGroupBySqlPlan | null {
+  if (groupBy === 'pinnedMeta') {
+    const metaId = Number(options.metaId)
+    if (!Number.isFinite(metaId)) return null
+    if (isTagMetaType(options.metaType)) {
+      return buildPinnedMetaTagPlan(metaId, options.metaType, options.mediaTypeId)
+    }
+    return buildPinnedMetaValuePlan(metaId, options.metaType)
+  }
+
+  const groupKeyExpr = buildMediaGroupKeySqlExpr(groupBy, sortBy)
+  if (!groupKeyExpr) return null
+  return {groupKeyExpr}
 }
 
 /**
@@ -90,6 +227,12 @@ export function buildMediaGroupKeySqlExpr(
     case 'dateMonth':
     case 'dateYear':
       return buildDateGroupKeySqlExpr(groupBy, sortBy)
+    case 'path':
+      return `mc_group_parent_path(media.path)`
+    case 'diskRoot':
+      return `mc_group_disk_root(media.path)`
+    case 'firstLetter':
+      return `mc_group_first_letter(media.name)`
     case 'rating':
       return `CASE WHEN media.rating IS NULL OR media.rating <= 0 THEN '0' ELSE CAST(media.rating AS TEXT) END`
     case 'favorite':
@@ -166,6 +309,7 @@ export function buildMediaGroupOrderSqlExpr(
   groupKeyExpr: string,
   groupBy: ItemsGroupBy,
   direction: string | null | undefined,
+  options: Pick<MediaGroupBySqlPlan, 'labelExpr' | 'metaType'> = {},
 ): string {
   const desc = String(direction || 'asc').toLowerCase() === 'desc'
   const dirSql = desc ? 'DESC' : 'ASC'
@@ -207,7 +351,16 @@ export function buildMediaGroupOrderSqlExpr(
     return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, ${groupKeyExpr} ${dirSql}`
   }
 
-  // codec / ext — localeCompare-ish via NOCASE; '#' last.
+  if (groupBy === 'pinnedMeta' && isNumericMetaType(options.metaType)) {
+    return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, CAST(${groupKeyExpr} AS REAL) ${dirSql}`
+  }
+
+  if (groupBy === 'pinnedMeta' && isTagMetaType(options.metaType) && options.labelExpr) {
+    // Sort by tag name, not tag id string.
+    return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, ${options.labelExpr} COLLATE NOCASE ${dirSql}`
+  }
+
+  // path / diskRoot / firstLetter / codec / ext / pinnedMeta values — localeCompare-ish via NOCASE; '#' last.
   return `CASE WHEN ${groupKeyExpr} = '#' THEN 1 ELSE 0 END ASC, ${groupKeyExpr} COLLATE NOCASE ${dirSql}`
 }
 
@@ -215,13 +368,45 @@ export function labelForMediaGroupKey(
   groupBy: ItemsGroupBy,
   key: string,
   sortBy: unknown = 'id',
+  options: {
+    metaId?: number | null
+    metaType?: string | null
+    resolveTagName?: (tagId: number) => string
+    groupLabel?: string | null
+  } = {},
 ): string {
+  if (options.groupLabel != null && options.groupLabel !== '') {
+    if (groupBy === 'pinnedMeta' && key === '#') {
+      return getItemPinnedMetaGroup({}, options.metaId, options.metaType).label
+    }
+    if (groupBy === 'pinnedMeta' && key !== '#') {
+      return String(options.groupLabel)
+    }
+  }
+
+  if (groupBy === 'pinnedMeta') {
+    const stub = stubItemForGroupKey(groupBy, key, options)
+    return getGroupKeyAndLabel(stub, groupBy, sortBy, {
+      metaId: options.metaId,
+      metaType: options.metaType,
+      resolveTagName: options.resolveTagName,
+    }).label
+  }
+
   // Reuse shared label rules via a stub item that yields the same key.
   const stub = stubItemForGroupKey(groupBy, key)
   return getGroupKeyAndLabel(stub, groupBy, sortBy).label
 }
 
-function stubItemForGroupKey(groupBy: ItemsGroupBy, key: string): Record<string, unknown> {
+function stubItemForGroupKey(
+  groupBy: ItemsGroupBy,
+  key: string,
+  options: {
+    metaId?: number | null
+    metaType?: string | null
+    resolveTagName?: (tagId: number) => string
+  } = {},
+): Record<string, unknown> {
   switch (groupBy) {
     case 'rating':
       return {rating: key === '0' ? 0 : Number(key)}
@@ -229,6 +414,12 @@ function stubItemForGroupKey(groupBy: ItemsGroupBy, key: string): Record<string,
       return {favorite: key === '1' ? 1 : 0}
     case 'ext':
       return {ext: key === '#' ? '' : key}
+    case 'path':
+      return {path: key === '#' ? '' : `${key}/file.mp4`}
+    case 'diskRoot':
+      return {path: key === '#' ? '' : (key.endsWith('\\') || key.endsWith('/') ? `${key}a.mp4` : `${key}/a.mp4`)}
+    case 'firstLetter':
+      return {name: key === '#' ? '1abc' : `${key}ame`}
     case 'filesize': {
       const bucket = FILESIZE_BUCKETS.find((entry) => entry.key === key)
       if (!bucket) return {filesize: -1}
@@ -281,30 +472,75 @@ function stubItemForGroupKey(groupBy: ItemsGroupBy, key: string): Record<string,
       return key === '#' ? {createdAt: null} : {createdAt: `${key}-15T12:00:00.000Z`}
     case 'dateDay':
       return key === '#' ? {createdAt: null} : {createdAt: `${key}T12:00:00.000Z`}
+    case 'pinnedMeta': {
+      const metaId = Number(options.metaId)
+      if (!Number.isFinite(metaId) || key === '#') {
+        return {tags: [], values: []}
+      }
+      if (isTagMetaType(options.metaType)) {
+        const tagId = Number(key)
+        return {
+          tags: Number.isFinite(tagId) ? [{tagId, metaId}] : [],
+          values: [],
+        }
+      }
+      return {
+        tags: [],
+        values: [{metaId, value: key}],
+      }
+    }
     default:
       return {}
   }
 }
 
 export function buildMediaGroupSummariesFromRows(
-  rows: Array<{groupKey?: unknown; count?: unknown}>,
+  rows: Array<{groupKey?: unknown; count?: unknown; groupLabel?: unknown}>,
   groupBy: ItemsGroupBy,
   sortBy: unknown,
   direction: string | null | undefined,
+  options: {
+    metaId?: number | null
+    metaType?: string | null
+    resolveTagName?: (tagId: number) => string
+  } = {},
 ): ItemsGroupSummary[] {
   const summaries = rows.map((row) => {
     const key = String(row.groupKey ?? '#')
-    return {
+    const groupLabel = row.groupLabel == null ? null : String(row.groupLabel)
+    const label = labelForMediaGroupKey(groupBy, key, sortBy, {
+      ...options,
+      groupLabel,
+    })
+    const summary: ItemsGroupSummary = {
       key,
-      label: labelForMediaGroupKey(groupBy, key, sortBy),
+      label,
       count: Number(row.count) || 0,
     }
+
+    if (groupBy === 'pinnedMeta' && options.metaId != null && Number.isFinite(Number(options.metaId))) {
+      const stub = stubItemForGroupKey(groupBy, key, options)
+      const {filter} = getItemPinnedMetaGroup(
+        stub,
+        options.metaId,
+        options.metaType,
+        {
+          resolveTagName: options.resolveTagName
+            || (groupLabel && key !== '#' ? () => groupLabel : undefined),
+        },
+      )
+      summary.filter = filter
+    }
+
+    return summary
   })
 
   summaries.sort((a, b) => compareGroupKeys(groupBy, a.key, b.key, {
     direction,
+    metaType: options.metaType,
     labelA: a.label,
     labelB: b.label,
+    resolveTagName: options.resolveTagName,
   }))
 
   return summaries
@@ -314,8 +550,12 @@ export function buildMediaGroupSummarySql(
   groupKeyExpr: string,
   fromForSort: string,
   whereClause: string,
+  options: {labelExpr?: string} = {},
 ): string {
-  return `SELECT ${groupKeyExpr} AS groupKey, COUNT(DISTINCT media.id) AS count
+  const labelSelect = options.labelExpr
+    ? `, MAX(${options.labelExpr}) AS groupLabel`
+    : ''
+  return `SELECT ${groupKeyExpr} AS groupKey, COUNT(DISTINCT media.id) AS count${labelSelect}
     ${fromForSort}
     ${whereClause}
     GROUP BY groupKey`

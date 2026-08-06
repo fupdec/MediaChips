@@ -23,6 +23,7 @@ import {
   buildFilteredTotalsCacheKey,
 } from './mediaListTotalsCache'
 import { clearMediaListGroupingCache } from './mediaListGroupingCache'
+import { clearInheritedFolderTagsCache } from './mediaInheritedFolderTags'
 import type { ApiDb } from '../types/db'
 
 const mockDb = {
@@ -35,6 +36,7 @@ describe('loadMediaItems', () => {
   afterEach(() => {
     clearMediaListTotalsCache()
     clearMediaListGroupingCache()
+    clearInheritedFolderTagsCache()
     vi.clearAllMocks()
   })
 
@@ -218,15 +220,18 @@ describe('loadMediaItems', () => {
     })
   })
 
-  it('groups multi-tag filters with one slim query (no DISTINCT id rehydrate phase)', async () => {
+  it('groups multi-tag filters via SQL GROUP BY path (no slim load)', async () => {
     const sqlCalls: string[] = []
     vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
       sqlCalls.push(String(sql))
-      if (sql.includes('media.path') && sql.includes('FROM media') && sql.includes('tagsInMedia')) {
+      if (sql.includes('AS groupKey') && sql.includes('GROUP BY groupKey')) {
         return [
-          {id: 1, path: '/a/x.mp4', name: 'x', filesize: 1, mediaTypeId: 1},
-          {id: 2, path: '/b/y.mp4', name: 'y', filesize: 2, mediaTypeId: 1},
+          {groupKey: '/a', count: 1},
+          {groupKey: '/b', count: 1},
         ]
+      }
+      if (sql.includes('LIMIT :limit') && sql.includes('mc_group_parent_path')) {
+        return [{id: 1}, {id: 2}]
       }
       if (sql.includes('totalFilesize')) {
         return [{totalFiltered: 2, totalFilesize: 3}]
@@ -238,12 +243,6 @@ describe('loadMediaItems', () => {
         return [
           {id: 1, mediaTypeId: 1, path: '/a/x.mp4', name: 'x', filesize: 1},
           {id: 2, mediaTypeId: 1, path: '/b/y.mp4', name: 'y', filesize: 2},
-        ]
-      }
-      if (sql.includes('SELECT id, path FROM media')) {
-        return [
-          {id: 1, path: '/a/x.mp4'},
-          {id: 2, path: '/b/y.mp4'},
         ]
       }
       if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
@@ -265,17 +264,10 @@ describe('loadMediaItems', () => {
       }],
     })
 
-    expect(result.groups?.length).toBeGreaterThan(0)
-    const slimQuery = sqlCalls.find((sql) => (
-      sql.includes('media.path')
-      && sql.includes('tagsInMedia')
-      && sql.includes('FROM media')
-    ))
-    expect(slimQuery).toBeTruthy()
-    expect(slimQuery).not.toContain('videoMetadata.bitrate')
-    expect(slimQuery).not.toContain('videoMetadata.duration')
-    // Join subqueries may SELECT DISTINCT media.id AS mediaId; the old
-    // two-phase path selected DISTINCT media.id as the outer id list.
+    // Default list direction is desc → path keys sort Z→A.
+    expect(result.groups?.map((group) => group.key)).toEqual(['/b', '/a'])
+    expect(sqlCalls.some((sql) => sql.includes('GROUP BY groupKey'))).toBe(true)
+    expect(sqlCalls.some((sql) => sql.includes('mc_group_parent_path'))).toBe(true)
     expect(sqlCalls.some((sql) => (
       /^\s*SELECT\s+DISTINCT\s+media\.id\s*$/im.test(sql)
       || /^\s*SELECT\s+DISTINCT\s+media\.id\s*\n/im.test(sql)
@@ -330,22 +322,20 @@ describe('loadMediaItems', () => {
     ))).toBe(false)
   })
 
-  it('reuses cached grouping orderedIds on the next page', async () => {
-    let slimQueries = 0
+  it('reuses cached SQL path group summaries on the next page', async () => {
+    let summaryQueries = 0
+    let page = 0
     vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
-      if (
-        sql.includes('media.path')
-        && sql.includes('FROM media')
-        && !sql.includes('WHERE media.id IN')
-        && !sql.includes('totalFiltered')
-        && !sql.includes('totalUnfiltered')
-      ) {
-        slimQueries += 1
+      if (sql.includes('AS groupKey') && sql.includes('GROUP BY groupKey')) {
+        summaryQueries += 1
         return [
-          {id: 1, path: '/a/x.mp4'},
-          {id: 2, path: '/a/y.mp4'},
-          {id: 3, path: '/b/z.mp4'},
+          {groupKey: '/a', count: 2},
+          {groupKey: '/b', count: 1},
         ]
+      }
+      if (sql.includes('LIMIT :limit') && sql.includes('mc_group_parent_path')) {
+        page += 1
+        return page === 1 ? [{id: 1}] : [{id: 3}]
       }
       if (sql.includes('totalFilesize')) {
         return [{totalFiltered: 3, totalFilesize: 3}]
@@ -356,7 +346,6 @@ describe('loadMediaItems', () => {
       if (sql.includes('WHERE media.id IN')) {
         return [
           {id: 1, mediaTypeId: 1, path: '/a/x.mp4', name: 'x', filesize: 1},
-          {id: 2, mediaTypeId: 1, path: '/a/y.mp4', name: 'y', filesize: 1},
           {id: 3, mediaTypeId: 1, path: '/b/z.mp4', name: 'z', filesize: 1},
         ]
       }
@@ -378,7 +367,7 @@ describe('loadMediaItems', () => {
       limit: 1,
     })
 
-    expect(slimQueries).toBe(1)
+    expect(summaryQueries).toBe(1)
     expect(page1.groups).toEqual(page2.groups)
     expect(page1.items[0]?.id).not.toBe(page2.items[0]?.id)
   })
