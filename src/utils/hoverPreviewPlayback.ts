@@ -263,8 +263,10 @@ export function resolveHoverPreviewTeardownPlan(
     case 'cancel-hover':
       // Soft leave-grace: keep video/session alive until stopPlayingPreview finalizes.
       // Re-enter within the leave timer can cancel the pending stop without remount.
+      // Reset ready so the thumb covers mid-seek frames during leave.
       return {
         ...TEARDOWN_NONE,
+        resetReady: true,
         clearSeekCoalescer: true,
         clearDelayTimer: true,
       }
@@ -475,9 +477,12 @@ export function clampLiveChunkSeek(
   return {withinCurrentSegment, relativeTime, clampedAbsolute}
 }
 
-export function waitForPreviewSeek(
+const PREVIEW_SEEK_WAIT_MS = 400
+
+function waitForSeekedOrTimeout(
   video: HTMLVideoElement,
   isCancelled: () => boolean,
+  timeoutMs = PREVIEW_SEEK_WAIT_MS,
 ): Promise<void> {
   return new Promise((resolve) => {
     if (isCancelled()) {
@@ -485,20 +490,79 @@ export function waitForPreviewSeek(
       return
     }
 
-    if (video.seeking) {
-      const onSeeked = () => {
-        clearTimeout(timeoutId)
-        resolve()
-      }
-      const timeoutId = setTimeout(() => {
-        video.removeEventListener('seeked', onSeeked)
-        resolve()
-      }, 400)
-      video.addEventListener('seeked', onSeeked, {once: true})
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      video.removeEventListener('seeked', onSeeked)
+      resolve()
+    }
+
+    const onSeeked = () => finish()
+    const timeoutId = setTimeout(finish, timeoutMs)
+    video.addEventListener('seeked', onSeeked, {once: true})
+
+    if (isCancelled()) {
+      finish()
+    }
+  })
+}
+
+/** Wait for an in-flight seek (or resolve immediately when not seeking). */
+export function waitForPreviewSeek(
+  video: HTMLVideoElement,
+  isCancelled: () => boolean,
+): Promise<void> {
+  if (isCancelled()) return Promise.resolve()
+  if (!video.seeking) return Promise.resolve()
+  return waitForSeekedOrTimeout(video, isCancelled)
+}
+
+/**
+ * Seek and wait for settle. Arms `seeked` before assigning currentTime so
+ * Chromium's async seeking flag cannot skip the wait (first-frame flash).
+ */
+export function seekPreviewVideo(
+  video: HTMLVideoElement,
+  time: number,
+  isCancelled: () => boolean,
+): Promise<void> {
+  if (isCancelled()) return Promise.resolve()
+  if (!shouldApplyPreviewSeek(video.currentTime, time)) return Promise.resolve()
+
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      video.removeEventListener('seeked', onSeeked)
+      resolve()
+    }
+
+    const onSeeked = () => finish()
+    const timeoutId = setTimeout(finish, PREVIEW_SEEK_WAIT_MS)
+    video.addEventListener('seeked', onSeeked, {once: true})
+
+    try {
+      video.currentTime = time
+    } catch {
+      finish()
       return
     }
 
-    resolve()
+    // Seeking may flip true only on the next microtask; if it never starts and
+    // we are already on-target, resolve without waiting for the timeout.
+    queueMicrotask(() => {
+      if (settled || isCancelled()) {
+        finish()
+        return
+      }
+      if (!video.seeking && !shouldApplyPreviewSeek(video.currentTime, time)) {
+        finish()
+      }
+    })
   })
 }
 

@@ -31,6 +31,7 @@ import {
   createHoverSeekCoalescer,
   waitForPreviewSeek,
   waitForPreviewCanPlay,
+  seekPreviewVideo,
 } from './hoverPreviewPlayback'
 
 describe('hoverPreviewPlayback', () => {
@@ -208,6 +209,7 @@ describe('hoverPreviewPlayback', () => {
     })
     expect(resolveHoverPreviewTeardownPlan('cancel-hover')).toMatchObject({
       bumpToken: false,
+      resetReady: true,
       stopLive: false,
       abortVideo: false,
       clearAllowHoverVideo: false,
@@ -378,6 +380,45 @@ describe('hoverPreviewPlayback', () => {
   it('waitForPreviewSeek resolves immediately when not seeking', async () => {
     const video = {seeking: false, addEventListener: vi.fn(), removeEventListener: vi.fn()} as unknown as HTMLVideoElement
     await expect(waitForPreviewSeek(video, () => false)).resolves.toBeUndefined()
+  })
+
+  it('seekPreviewVideo waits for seeked even when seeking flips async', async () => {
+    let seeking = false
+    let current = 0
+    const listeners = new Map<string, Set<() => void>>()
+    const video = {
+      get currentTime() {
+        return current
+      },
+      set currentTime(value: number) {
+        // Keep showing the old frame until seeked (matches Chromium race).
+        queueMicrotask(() => {
+          seeking = true
+          queueMicrotask(() => {
+            current = value
+            seeking = false
+            listeners.get('seeked')?.forEach((handler) => handler())
+          })
+        })
+      },
+      get seeking() {
+        return seeking
+      },
+      addEventListener: (type: string, handler: () => void) => {
+        if (!listeners.has(type)) listeners.set(type, new Set())
+        listeners.get(type)!.add(handler)
+      },
+      removeEventListener: (type: string, handler: () => void) => {
+        listeners.get(type)?.delete(handler)
+      },
+    } as unknown as HTMLVideoElement
+
+    const done = seekPreviewVideo(video, 12, () => false)
+    await Promise.resolve()
+    expect(listeners.get('seeked')?.size).toBe(1)
+    expect(current).toBe(0)
+    await done
+    expect(current).toBe(12)
   })
 
   it('waitForPreviewCanPlay resolves when already buffered', async () => {

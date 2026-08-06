@@ -36,6 +36,7 @@ import {
   shouldRestartFixedPreviewClip,
   waitForPreviewCanPlay,
   waitForPreviewSeek,
+  seekPreviewVideo,
   type HoverPreviewTeardownKind,
 } from '@/utils/hoverPreviewPlayback'
 import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
@@ -185,7 +186,10 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
   const syncPreviewVideoPosition = async (
     targetTime: number,
-    {allowLiveChunkSwitch = false}: {allowLiveChunkSwitch?: boolean} = {},
+    {
+      allowLiveChunkSwitch = false,
+      retriedBusy = false,
+    }: {allowLiveChunkSwitch?: boolean; retriedBusy?: boolean} = {},
   ): Promise<boolean> => {
     const video = videoRef.value
     if (!video || !toValue(options.isPreviewVisible)) return false
@@ -206,14 +210,30 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       seeking: video.seeking,
       videoDuration: video.duration || 0,
     })
-    if (inPlace.kind === 'busy') return true
+    if (inPlace.kind === 'busy') {
+      await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
+      if (isPreviewCancelled(previewPlaybackToken)()) return false
+      // Re-decide after the in-flight seek settles; never treat busy as positioned.
+      if (retriedBusy) {
+        syncPlaybackTimeFromVideo()
+        return true
+      }
+      return syncPreviewVideoPosition(targetTime, {
+        allowLiveChunkSwitch,
+        retriedBusy: true,
+      })
+    }
     if (inPlace.kind === 'noop') {
       syncPlaybackTimeFromVideo()
       return true
     }
     if (inPlace.kind === 'seek') {
-      video.currentTime = inPlace.time
-      await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
+      await seekPreviewVideo(
+        video,
+        inPlace.time,
+        isPreviewCancelled(previewPlaybackToken),
+      )
+      if (isPreviewCancelled(previewPlaybackToken)()) return false
       syncPlaybackTimeFromVideo()
       return true
     }
@@ -251,8 +271,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
       if (token !== previewPlaybackToken) return false
       if (shouldApplyPreviewSeek(video.currentTime, plan.relative)) {
-        video.currentTime = plan.relative
-        await waitForPreviewSeek(video, isPreviewCancelled(token))
+        await seekPreviewVideo(video, plan.relative, isPreviewCancelled(token))
         if (token !== previewPlaybackToken) return false
       }
       syncPlaybackTimeFromVideo()
@@ -267,8 +286,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
     if (token !== previewPlaybackToken) return false
     if (shouldApplyPreviewSeek(video.currentTime, plan.nextTime)) {
-      video.currentTime = plan.nextTime
-      await waitForPreviewSeek(video, isPreviewCancelled(token))
+      await seekPreviewVideo(video, plan.nextTime, isPreviewCancelled(token))
       if (token !== previewPlaybackToken) return false
     }
     syncPlaybackTimeFromVideo()
@@ -383,6 +401,23 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       if (afterPosition !== 'play') return
 
       await video.play()
+      if (token !== previewPlaybackToken) {
+        releaseHoverVideoPreview(mediaId)
+        return
+      }
+
+      // Keep the thumb covering until we are actually on the target frame.
+      if (
+        video.seeking
+        || shouldApplyPreviewSeek(video.currentTime, targetTime)
+      ) {
+        await seekPreviewVideo(video, targetTime, isPreviewCancelled(token))
+        if (token !== previewPlaybackToken) {
+          releaseHoverVideoPreview(mediaId)
+          return
+        }
+      }
+
       playbackError.value = false
       syncPlaybackTimeFromVideo()
       markHoverPreviewReady()
