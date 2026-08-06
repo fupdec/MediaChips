@@ -165,9 +165,12 @@ const showRating = computed(() => mediaRating.value > 0)
 const showFavorite = computed(() => Boolean(media.value.favorite))
 const showRatingRow = computed(() => showRating.value || showFavorite.value)
 
-const hasPinnedMeta = computed(() =>
-  Boolean(media.value.tags?.length || media.value.values?.length),
-)
+const hasPinnedMeta = computed(() => {
+  if (media.value.tags?.length) return true
+  return Boolean(
+    media.value.values?.some((entry) => entry && entry.value != null && entry.value !== ''),
+  )
+})
 
 const resolvedImageRatio = computed(() => {
   if (imageNaturalRatio.value && imageNaturalRatio.value > 0) {

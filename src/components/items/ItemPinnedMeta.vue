@@ -402,7 +402,7 @@ const isGrouped = computed(() =>
 )
 
 const usePinnedMetaIdKey = computed(() =>
-  itemsStore.type === 'tag' || props.tagPage
+  props.type === 'tag' || itemsStore.type === 'tag' || props.tagPage
 )
 
 const assignmentRows = computed(() => {
@@ -594,9 +594,9 @@ const checkShow = (metaId: number): boolean => {
   if (props.tagPage || props.isShowAll) {
     return true
   }
-  const assigned = itemsStore.safeAssigned
-  let tagName: 'metaId' | 'pinnedMetaId' = 'metaId'
-  if (itemsStore.type === 'tag') tagName = 'pinnedMetaId'
+  // Prefer explicit assignment (hover cards, tag page) over the current list page.
+  const assigned = assignmentRows.value
+  const tagName: 'metaId' | 'pinnedMetaId' = usePinnedMetaIdKey.value ? 'pinnedMetaId' : 'metaId'
   const x = assigned.findIndex((i) => i[tagName] == metaId)
   if (x > -1) {
     return assigned[x].show === true || assigned[x].show == 1

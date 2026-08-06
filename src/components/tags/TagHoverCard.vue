@@ -91,6 +91,8 @@
         :item="tag"
         :tags="tag.tags"
         :values="tag.values"
+        :assignment="pinnedAssignment"
+        :show-preset="false"
         type="tag"
       />
     </div>
@@ -103,14 +105,20 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import { hexToRgba } from '@/services/formatUtils'
-import { getCachedTagForHover, loadTagForHover } from '@/services/tagHoverCache'
+import {
+  getCachedPinnedChildMetaForHover,
+  getCachedTagForHover,
+  hasVisibleTagHoverPinnedMeta,
+  loadPinnedChildMetaForHover,
+  loadTagForHover,
+} from '@/services/tagHoverCache'
 import { HOVER_CARD_WIDTH } from '@/services/hoverService'
 import { useAppStore } from '@/stores/app'
 import {
   getTagHoverThumbCandidates,
   type TagHoverThumbCandidate,
 } from '@/utils/thumbSource'
-import type { Meta, Tag } from '@/types/stores'
+import type { AssignedMeta, Meta, Tag } from '@/types/stores'
 
 const TAG_HOVER_IMAGE_MAX_WIDTH = 96
 const TAG_HOVER_IMAGE_MAX_HEIGHT = 120
@@ -130,6 +138,9 @@ const appStore = useAppStore()
 
 const cardRef = ref<HTMLElement | null>(null)
 const tag = ref<Tag>({ id: props.tagId, name: props.label ?? undefined })
+const pinnedAssignment = ref<AssignedMeta[]>(
+  getCachedPinnedChildMetaForHover(props.metaId) ?? [],
+)
 const src = ref<string | null>(null)
 const imageLoading = ref(false)
 const candidates = ref<TagHoverThumbCandidate[]>([])
@@ -138,6 +149,7 @@ const activeThumbType = ref('avatar')
 const imageNaturalRatio = ref<number | null>(null)
 let loadToken = 0
 let imageLoadToken = 0
+let assignmentLoadToken = 0
 
 const meta = computed((): Meta | undefined => appStore.getMetaById(props.metaId))
 
@@ -161,7 +173,7 @@ const showFavorite = computed(() => isFavoriteActive.value && Boolean(tag.value.
 const showRatingRow = computed(() => showRating.value || showFavorite.value)
 
 const hasPinnedMeta = computed(() =>
-  Boolean(tag.value.tags?.length || tag.value.values?.length),
+  hasVisibleTagHoverPinnedMeta(tag.value, pinnedAssignment.value),
 )
 
 const resolvedImageRatio = computed(() => {
@@ -270,6 +282,20 @@ function onImageError() {
   emitPreviewSize()
 }
 
+async function loadPinnedAssignment() {
+  const token = ++assignmentLoadToken
+  const cached = getCachedPinnedChildMetaForHover(props.metaId)
+  if (cached) {
+    pinnedAssignment.value = cached
+  }
+
+  const loaded = await loadPinnedChildMetaForHover(props.metaId)
+  if (token !== assignmentLoadToken) return
+
+  pinnedAssignment.value = loaded
+  emitPreviewSize()
+}
+
 async function loadTag() {
   const token = ++loadToken
   const cached = getCachedTagForHover(props.metaId, props.tagId)
@@ -293,14 +319,24 @@ watch(
   () => [props.metaId, props.tagId] as const,
   () => {
     resetImageState()
+    pinnedAssignment.value = getCachedPinnedChildMetaForHover(props.metaId) ?? []
     void loadTag()
+    void loadPinnedAssignment()
     loadImageCandidates()
   },
   { immediate: true },
 )
 
 watch(
-  () => [tag.value.tags, tag.value.values, tag.value.name, tag.value.synonyms, showRatingRow.value] as const,
+  () => [
+    tag.value.tags,
+    tag.value.values,
+    tag.value.name,
+    tag.value.synonyms,
+    showRatingRow.value,
+    hasPinnedMeta.value,
+    pinnedAssignment.value,
+  ] as const,
   () => {
     emitPreviewSize()
   },

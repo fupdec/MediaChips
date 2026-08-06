@@ -581,6 +581,11 @@ header {
     padding: 0 10px 10px;
     border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 
+    // Hide reserved meta block when chips fail to resolve / are filtered out.
+    &:not(:has(.v-chip)) {
+      display: none;
+    }
+
     .nested-tags {
       padding-top: 8px;
       font-size: 0.75rem;
