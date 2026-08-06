@@ -9,6 +9,7 @@ import {chunkArray} from '../db/utils/chunk'
 import {createMetaRepository} from '../db/repositories/meta'
 import {
   aggregateGroupedItems,
+  resolveDateGroupField,
   type BuildItemGroupsOptions,
   type GroupableItem,
   type ItemsGroupBy,
@@ -41,6 +42,164 @@ export const GROUP_SLIM_SELECT = `SELECT
   videoMetadata.codec,
   videoMetadata.fps,
   videoMetadata.time`
+
+type GroupSlimColumn =
+  | 'id'
+  | 'path'
+  | 'name'
+  | 'basename'
+  | 'ext'
+  | 'mediaTypeId'
+  | 'filesize'
+  | 'rating'
+  | 'favorite'
+  | 'views'
+  | 'viewedAt'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'width'
+  | 'height'
+  | 'duration'
+  | 'bitrate'
+  | 'codec'
+  | 'fps'
+  | 'time'
+
+const GROUP_SLIM_COLUMN_ORDER: GroupSlimColumn[] = [
+  'id',
+  'path',
+  'name',
+  'basename',
+  'ext',
+  'mediaTypeId',
+  'filesize',
+  'rating',
+  'favorite',
+  'views',
+  'viewedAt',
+  'createdAt',
+  'updatedAt',
+  'width',
+  'height',
+  'duration',
+  'bitrate',
+  'codec',
+  'fps',
+  'time',
+]
+
+const GROUP_SLIM_COLUMN_SQL: Record<GroupSlimColumn, string> = {
+  id: 'media.id',
+  path: 'media.path',
+  name: 'media.name',
+  basename: 'media.basename',
+  ext: 'media.ext',
+  mediaTypeId: 'media.mediaTypeId',
+  filesize: 'media.filesize',
+  rating: 'media.rating',
+  favorite: 'media.favorite',
+  views: 'media.views',
+  viewedAt: 'media.viewedAt',
+  createdAt: 'media.createdAt',
+  updatedAt: 'media.updatedAt',
+  width: 'COALESCE(videoMetadata.width, imageMetadata.width) AS width',
+  height: 'COALESCE(videoMetadata.height, imageMetadata.height) AS height',
+  duration: 'videoMetadata.duration',
+  bitrate: 'videoMetadata.bitrate',
+  codec: 'videoMetadata.codec',
+  fps: 'videoMetadata.fps',
+  time: 'videoMetadata.time',
+}
+
+const METADATA_GROUP_SLIM_COLUMNS = new Set<GroupSlimColumn>([
+  'width',
+  'height',
+  'duration',
+  'bitrate',
+  'codec',
+  'fps',
+  'time',
+])
+
+function columnsForGroupBy(
+  groupBy: ItemsGroupBy,
+  sortBy: unknown,
+): GroupSlimColumn[] | null {
+  switch (groupBy) {
+    case 'firstLetter':
+      return ['name']
+    case 'dateMonth':
+    case 'dateYear':
+    case 'dateDay':
+      return [resolveDateGroupField(sortBy)]
+    case 'rating':
+      return ['rating']
+    case 'favorite':
+      return ['favorite']
+    case 'path':
+    case 'diskRoot':
+      return ['path']
+    case 'ext':
+      return ['ext']
+    case 'filesize':
+      return ['filesize']
+    case 'duration':
+      return ['duration']
+    case 'views':
+      return ['views']
+    case 'codec':
+      return ['codec']
+    case 'fps':
+      return ['fps']
+    case 'bitrate':
+      return ['bitrate']
+    case 'resolution':
+      return ['width', 'height']
+    case 'pinnedMeta':
+    case 'none':
+    default:
+      return null
+  }
+}
+
+function columnsForSort(sortBy: unknown): GroupSlimColumn[] {
+  const key = String(sortBy || 'id')
+  if (key === 'id' || key === 'shuffle' || key === 'bookmark') return []
+  if ((GROUP_SLIM_COLUMN_ORDER as string[]).includes(key)) {
+    return [key as GroupSlimColumn]
+  }
+  return []
+}
+
+function collectGroupSlimColumns(
+  groupBy: ItemsGroupBy,
+  sortBy: unknown,
+): GroupSlimColumn[] | null {
+  const groupCols = columnsForGroupBy(groupBy, sortBy)
+  if (!groupCols) return null
+  const cols = new Set<GroupSlimColumn>(['id', ...groupCols, ...columnsForSort(sortBy)])
+  return GROUP_SLIM_COLUMN_ORDER.filter((column) => cols.has(column))
+}
+
+/** Slim SELECT for grouping: only id + group/sort columns (full set for pinnedMeta). */
+export function buildGroupSlimSelect(
+  groupBy: ItemsGroupBy,
+  sortBy: unknown = 'id',
+): string {
+  const columns = collectGroupSlimColumns(groupBy, sortBy)
+  if (!columns) return GROUP_SLIM_SELECT
+  return `SELECT\n  ${columns.map((column) => GROUP_SLIM_COLUMN_SQL[column]).join(',\n  ')}`
+}
+
+/** Whether the pruned grouping SELECT needs video/image metadata joins. */
+export function groupSlimNeedsMetadataJoin(
+  groupBy: ItemsGroupBy,
+  sortBy: unknown = 'id',
+): boolean {
+  const columns = collectGroupSlimColumns(groupBy, sortBy)
+  if (!columns) return true
+  return columns.some((column) => METADATA_GROUP_SLIM_COLUMNS.has(column))
+}
 
 const MEDIA_BASE_SELECT = `SELECT media.*,
   videoMetadata.duration,

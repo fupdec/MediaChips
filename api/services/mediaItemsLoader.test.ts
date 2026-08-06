@@ -22,6 +22,7 @@ import {
   getCachedFilteredTotals,
   buildFilteredTotalsCacheKey,
 } from './mediaListTotalsCache'
+import { clearMediaListGroupingCache } from './mediaListGroupingCache'
 import type { ApiDb } from '../types/db'
 
 const mockDb = {
@@ -33,6 +34,7 @@ const mockDb = {
 describe('loadMediaItems', () => {
   afterEach(() => {
     clearMediaListTotalsCache()
+    clearMediaListGroupingCache()
     vi.clearAllMocks()
   })
 
@@ -220,7 +222,7 @@ describe('loadMediaItems', () => {
     const sqlCalls: string[] = []
     vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
       sqlCalls.push(String(sql))
-      if (sql.includes('videoMetadata.duration') && sql.includes('FROM media')) {
+      if (sql.includes('media.path') && sql.includes('FROM media') && sql.includes('tagsInMedia')) {
         return [
           {id: 1, path: '/a/x.mp4', name: 'x', filesize: 1, mediaTypeId: 1},
           {id: 2, path: '/b/y.mp4', name: 'y', filesize: 2, mediaTypeId: 1},
@@ -264,15 +266,72 @@ describe('loadMediaItems', () => {
     })
 
     expect(result.groups?.length).toBeGreaterThan(0)
-    expect(sqlCalls.some((sql) => (
-      sql.includes('videoMetadata.duration')
+    const slimQuery = sqlCalls.find((sql) => (
+      sql.includes('media.path')
       && sql.includes('tagsInMedia')
-    ))).toBe(true)
+      && sql.includes('FROM media')
+    ))
+    expect(slimQuery).toBeTruthy()
+    expect(slimQuery).not.toContain('videoMetadata.bitrate')
+    expect(slimQuery).not.toContain('videoMetadata.duration')
     // Join subqueries may SELECT DISTINCT media.id AS mediaId; the old
     // two-phase path selected DISTINCT media.id as the outer id list.
     expect(sqlCalls.some((sql) => (
       /^\s*SELECT\s+DISTINCT\s+media\.id\s*$/im.test(sql)
       || /^\s*SELECT\s+DISTINCT\s+media\.id\s*\n/im.test(sql)
     ))).toBe(false)
+  })
+
+  it('reuses cached grouping orderedIds on the next page', async () => {
+    let slimQueries = 0
+    vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
+      if (
+        sql.includes('media.path')
+        && sql.includes('FROM media')
+        && !sql.includes('WHERE media.id IN')
+        && !sql.includes('totalFiltered')
+        && !sql.includes('totalUnfiltered')
+      ) {
+        slimQueries += 1
+        return [
+          {id: 1, path: '/a/x.mp4'},
+          {id: 2, path: '/a/y.mp4'},
+          {id: 3, path: '/b/z.mp4'},
+        ]
+      }
+      if (sql.includes('totalFilesize')) {
+        return [{totalFiltered: 3, totalFilesize: 3}]
+      }
+      if (sql.includes('totalUnfiltered')) {
+        return [{totalUnfiltered: 3}]
+      }
+      if (sql.includes('WHERE media.id IN')) {
+        return [
+          {id: 1, mediaTypeId: 1, path: '/a/x.mp4', name: 'x', filesize: 1},
+          {id: 2, mediaTypeId: 1, path: '/a/y.mp4', name: 'y', filesize: 1},
+          {id: 3, mediaTypeId: 1, path: '/b/z.mp4', name: 'z', filesize: 1},
+        ]
+      }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
+      if (sql.includes('tagsInMedia') || sql.includes('valuesInMedia')) return []
+      return []
+    })
+
+    const page1 = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      groupBy: 'path',
+      page: 1,
+      limit: 1,
+    })
+    const page2 = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      groupBy: 'path',
+      page: 2,
+      limit: 1,
+    })
+
+    expect(slimQueries).toBe(1)
+    expect(page1.groups).toEqual(page2.groups)
+    expect(page1.items[0]?.id).not.toBe(page2.items[0]?.id)
   })
 })

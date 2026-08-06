@@ -25,6 +25,11 @@ import {
   setCachedFilteredTotals,
   setCachedUnfilteredTotal,
 } from './mediaListTotalsCache'
+import {
+  buildMediaListGroupingCacheKey,
+  getCachedMediaListGrouping,
+  setCachedMediaListGrouping,
+} from './mediaListGroupingCache'
 
 import { runFilterItemsAsync } from './filterItemsWorkerRunner'
 import { enterLegacyListLoader } from './legacyListLoaderGate'
@@ -50,10 +55,11 @@ import {
   usesVisualNearDuplicates,
 } from './mediaItemsPresentation'
 import {
-  GROUP_SLIM_SELECT,
   attachMediaRelations,
+  buildGroupSlimSelect,
   buildMediaGroupsFromSlimRows,
   fetchBaseMediaRows,
+  groupSlimNeedsMetadataJoin,
 } from './mediaItemsRelations'
 import {
   appendIdQueryLimitOffset,
@@ -231,7 +237,9 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   const sortExpr = getSortExpression(sortBy, sortMetaType)
   const {groupBy, metaId: groupMetaId} = resolveListGroupBy(options.groupBy, 'media')
   const groupingActive = groupBy !== 'none'
-  // GROUP_SLIM_SELECT always reads video/image metadata columns.
+  const groupSlimSelect = groupingActive
+    ? buildGroupSlimSelect(groupBy, sortBy)
+    : ''
   const {
     whereClause,
     fromForCount,
@@ -245,7 +253,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     filters,
     sortBy,
     direction,
-    includeGroupingJoin: groupingActive,
+    includeGroupingJoin: groupingActive && groupSlimNeedsMetadataJoin(groupBy, sortBy),
   })
 
   const pageLimit = resolvePageLimit(limit)
@@ -257,49 +265,86 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   let groups: ItemsGroupSummary[] | undefined
 
   if (groupingActive) {
-    let slimRows: AnyRecord[]
-    if (needsDistinct) {
-      const allIdRows = await queryAllAsync(db, `${idSelect}
-        ${fromForSort}
-        ${whereClause}
-        ORDER BY ${sortExpr} ${sortDir}`, replacements)
-      const allIds = allIdRows.map((row: AnyRecord) => row.id as MediaId)
-      const rowsById = new Map<MediaId, AnyRecord>()
-      for (const chunk of chunkArray(allIds)) {
-        const chunkRows = await queryAllAsync(db,
-          `${GROUP_SLIM_SELECT}
-           FROM media
-           LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
-           LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
-           WHERE media.id IN (:ids)`,
-          {ids: chunk},
-        )
-        for (const row of chunkRows) {
-          rowsById.set(row.id as MediaId, row)
-        }
-      }
-      slimRows = orderRowsByIds([...rowsById.values()], allIds)
+    const canCacheGrouping = !ids.length
+    const groupingCacheKey = canCacheGrouping
+      ? buildMediaListGroupingCacheKey({
+          mediaTypeId,
+          filters,
+          find_duplicates: options.find_duplicates,
+          duplicates_by: options.duplicates_by,
+          groupBy,
+          sortBy,
+          direction,
+          groupMetaId,
+          groupByMetaType: options.groupByMetaType,
+        })
+      : null
+    const cachedGrouping = groupingCacheKey
+      ? getCachedMediaListGrouping(groupingCacheKey)
+      : null
+
+    if (cachedGrouping) {
+      groups = cachedGrouping.groups
+      pageIds = resolveGroupedPageIds(cachedGrouping.orderedIds, {
+        shouldPaginate,
+        page: safePage,
+        limit,
+      }) as MediaId[]
     } else {
-      slimRows = await queryAllAsync(db, `${GROUP_SLIM_SELECT}
-        ${fromForSort}
-        ${whereClause}
-        ORDER BY ${sortExpr} ${sortDir}`, replacements)
+      let slimRows: AnyRecord[]
+      if (needsDistinct) {
+        const allIdRows = await queryAllAsync(db, `${idSelect}
+          ${fromForSort}
+          ${whereClause}
+          ORDER BY ${sortExpr} ${sortDir}`, replacements)
+        const allIds = allIdRows.map((row: AnyRecord) => row.id as MediaId)
+        const rowsById = new Map<MediaId, AnyRecord>()
+        const needsMetaJoin = groupSlimNeedsMetadataJoin(groupBy, sortBy)
+        const rehydrateFrom = needsMetaJoin
+          ? `FROM media
+           LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+           LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
+          : 'FROM media'
+        for (const chunk of chunkArray(allIds)) {
+          const chunkRows = await queryAllAsync(db,
+            `${groupSlimSelect}
+             ${rehydrateFrom}
+             WHERE media.id IN (:ids)`,
+            {ids: chunk},
+          )
+          for (const row of chunkRows) {
+            rowsById.set(row.id as MediaId, row)
+          }
+        }
+        slimRows = orderRowsByIds([...rowsById.values()], allIds)
+      } else {
+        slimRows = await queryAllAsync(db, `${groupSlimSelect}
+          ${fromForSort}
+          ${whereClause}
+          ORDER BY ${sortExpr} ${sortDir}`, replacements)
+      }
+      const aggregated = await buildMediaGroupsFromSlimRows(
+        db,
+        slimRows,
+        groupBy,
+        sortBy,
+        groupMetaId,
+        options.groupByMetaType,
+        direction,
+      )
+      groups = aggregated.groups
+      if (groupingCacheKey) {
+        setCachedMediaListGrouping(groupingCacheKey, {
+          groups: aggregated.groups,
+          orderedIds: aggregated.orderedIds,
+        })
+      }
+      pageIds = resolveGroupedPageIds(aggregated.orderedIds, {
+        shouldPaginate,
+        page: safePage,
+        limit,
+      }) as MediaId[]
     }
-    const aggregated = await buildMediaGroupsFromSlimRows(
-      db,
-      slimRows,
-      groupBy,
-      sortBy,
-      groupMetaId,
-      options.groupByMetaType,
-      direction,
-    )
-    groups = aggregated.groups
-    pageIds = resolveGroupedPageIds(aggregated.orderedIds, {
-      shouldPaginate,
-      page: safePage,
-      limit,
-    }) as MediaId[]
   } else {
     const idQuery = appendIdQueryLimitOffset(
       `${idSelect}
