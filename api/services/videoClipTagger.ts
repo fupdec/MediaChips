@@ -20,6 +20,7 @@ import {
 import { createTagsRepository } from '../db/repositories/tags'
 import {getClipFrameTimestamps} from './videoClipFrameSample'
 import {aggregateFrameResults} from './videoClipTagAggregate'
+import {resolveProcessResourcesPath} from '../utils/resourcesPath'
 
 const CLIP_MODEL = 'Xenova/clip-vit-base-patch32'
 
@@ -33,8 +34,9 @@ function getWritableModelCacheDir(db: ApiDb) {
 }
 
 function getBundledModelsDir() {
-  if (process.resourcesPath) {
-    const bundled = path.join(process.resourcesPath, 'models')
+  const resourcesPath = resolveProcessResourcesPath()
+  if (resourcesPath) {
+    const bundled = path.join(resourcesPath, 'models')
     if (fs.existsSync(bundled)) return bundled
   }
 

@@ -17,7 +17,9 @@ import {
 } from './promptPort'
 import packageJson from '../../package.json'
 
+/** True only in the Electron shell — not in ELECTRON_RUN_AS_NODE API children. */
 const isElectronRuntime = Boolean(process.versions.electron)
+  && process.env.ELECTRON_RUN_AS_NODE !== '1'
 const isVerboseStartup = !isElectronRuntime
 
 interface ServerStarterOptions {
@@ -28,9 +30,7 @@ interface ServerStarterOptions {
 }
 
 function showSystemNotification(title: string, message: string) {
-  const isElectron = process.versions.electron
-
-  if (isElectron) {
+  if (isElectronRuntime) {
     try {
       const {dialog} = require('electron')
       dialog.showErrorBox(title, message)

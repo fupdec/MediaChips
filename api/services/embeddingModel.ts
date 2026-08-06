@@ -7,6 +7,7 @@ import type {
 } from '../types/mlModels'
 import fs from 'fs'
 import path from 'path'
+import {resolveProcessResourcesPath} from '../utils/resourcesPath'
 
 const DEFAULT_MODEL = 'Xenova/all-MiniLM-L6-v2'
 
@@ -27,8 +28,9 @@ function rememberEmbedding(text: string, embedding: EmbeddingVector) {
 }
 
 function getModelsRoot(db: ApiDb) {
-  if (process.resourcesPath) {
-    const bundled = path.join(process.resourcesPath, 'models')
+  const resourcesPath = resolveProcessResourcesPath()
+  if (resourcesPath) {
+    const bundled = path.join(resourcesPath, 'models')
     if (fs.existsSync(bundled)) return bundled
   }
 

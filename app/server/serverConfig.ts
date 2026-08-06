@@ -8,30 +8,63 @@ import { loadConfigFile, createDefaultConfig, saveConfigFile } from './configFil
 import { resolveListenPort } from './ports'
 import { pickPublicHost } from './publicHost'
 
+/** Prefer MEDIA_CHIPS_DATA_DIR so Electron-spawned Node children never need process.electron_app. */
+export function resolveServerAppFolder(options: {
+  dataDir?: string | null
+  isElectron?: boolean
+  portableExecutableDir?: string | null
+  getUserDataPath?: () => string
+} = {}): {appFolder?: string; usedDataDir: boolean} {
+  const dataDir = options.dataDir?.trim()
+    || process.env.MEDIA_CHIPS_DATA_DIR?.trim()
+    || ''
+  if (dataDir) {
+    return {appFolder: path.resolve(dataDir), usedDataDir: true}
+  }
+
+  const isElectron = options.isElectron ?? Boolean(process.versions.electron)
+  if (!isElectron) return {appFolder: undefined, usedDataDir: false}
+
+  const portable = options.portableExecutableDir
+    ?? process.env.PORTABLE_EXECUTABLE_DIR
+    ?? ''
+  if (portable) {
+    return {appFolder: portable, usedDataDir: false}
+  }
+
+  const getUserDataPath = options.getUserDataPath
+    || (() => process.electron_app!.getPath('userData'))
+  return {appFolder: getUserDataPath(), usedDataDir: false}
+}
+
+function migrateLegacyDatabasesFolder(appFolder: string) {
+  const oldDbPath = path.join(appFolder, 'databases')
+  const newDbPath = path.join(appFolder, 'app_storage')
+  if (!fs.existsSync(oldDbPath)) return
+
+  try {
+    fs.renameSync(oldDbPath, newDbPath)
+    console.log('Data successfully preserved and moved to app_storage')
+  } catch (err: unknown) {
+    console.error('Error while preserving data:', err)
+  }
+}
+
 function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   let app_folder: string | undefined
-  const is_electron_running = process.versions.electron
-  const dataDir = process.env.MEDIA_CHIPS_DATA_DIR?.trim()
+  const is_electron_running = Boolean(process.versions.electron)
+  const {appFolder, usedDataDir} = resolveServerAppFolder({
+    isElectron: is_electron_running,
+  })
 
-  if (is_electron_running) {
-    app_folder = process.env.PORTABLE_EXECUTABLE_DIR || process.electron_app!.getPath('userData')
-    process.app_folder = app_folder
-
-    const oldDbPath = path.join(app_folder, 'databases')
-    const newDbPath = path.join(app_folder, 'app_storage')
-
-    if (fs.existsSync(oldDbPath)) {
-      try {
-        fs.renameSync(oldDbPath, newDbPath)
-        console.log('Data successfully preserved and moved to app_storage')
-      } catch (err: unknown) {
-        console.error('Error while preserving data:', err)
-      }
-    }
-  } else if (dataDir) {
-    app_folder = path.resolve(dataDir)
+  if (appFolder) {
+    app_folder = appFolder
     process.app_folder = app_folder
     fs.mkdirSync(app_folder, {recursive: true})
+    // Electron shell and MEDIA_CHIPS_DATA_DIR (child / Docker) share this layout.
+    if (is_electron_running || usedDataDir) {
+      migrateLegacyDatabasesFolder(app_folder)
+    }
   }
 
   let configPath

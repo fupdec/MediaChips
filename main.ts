@@ -30,7 +30,19 @@ import {
   createZoomController,
   sendConfigToWindow as sendConfigToWindowImpl,
 } from './electron/rendererBootstrap'
-import { saveConfigFile } from './app/server/configFile'
+import {
+  resolveElectronDataDir,
+  startServerProcess,
+  stopServerProcess,
+  type ServerProcessHandles,
+} from './electron/serverProcess'
+import {
+  createDefaultConfig,
+  loadConfigFile,
+  saveConfigFile,
+  type ConfigFileRecord,
+} from './app/server/configFile'
+import { resolveListenPort } from './app/server/ports'
 
 type ServerWindowConfig = {
   win?: WindowBoundsConfig
@@ -38,12 +50,7 @@ type ServerWindowConfig = {
   minimizeToTray?: string
 }
 
-type AppServerExports = {
-  config: import('./app/types/server').ServerConfig & ServerWindowConfig
-  app: import('electron').App
-  listener?: { close(): void }
-  resolveFilePath?: unknown
-}
+type ShellConfig = ConfigFileRecord & ServerWindowConfig
 
 process.electron_app = app
 
@@ -59,10 +66,6 @@ if (!gotTheLock) {
   console.warn('MediaChips is already running. Exiting second instance.')
   process.exit(0)
 }
-
-const serverModule = require('./app/server.js') as AppServerExports & { default?: AppServerExports }
-const server = (serverModule.default ?? serverModule) as AppServerExports
-const serverConfig = server.config
 
 if (
   process.platform === 'win32'
@@ -82,40 +85,111 @@ const devLog = (...args: unknown[]) => {
 // Vite is opt-in so `npx electron .` serves the built UI from the embedded backend.
 const useViteDevServer = isDevelopment && process.env.MEDIA_CHIPS_VITE_DEV === '1'
 
-const waitForBackend = createWaitForBackend({
-  getPort: () => serverConfig.port,
+const appRoot = path.join(__dirname)
+const configPath = resolveElectronConfigPath({
+  portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
+  userDataPath: app.getPath('userData'),
 })
+const dataDir = resolveElectronDataDir({
+  portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
+  userDataPath: app.getPath('userData'),
+})
+
+const loaded = loadConfigFile(configPath)
+const shellConfig: ShellConfig = (loaded.config || createDefaultConfig()) as ShellConfig
+shellConfig.port = resolveListenPort(shellConfig.port)
+
+/** Renderer-facing payload from GET /api/config (preferred once the child is up). */
+let apiConfigCache: Record<string, unknown> | null = null
+
+function syncPortFromConfigFile(): number {
+  const fresh = loadConfigFile(configPath).config
+  if (fresh?.port != null) {
+    shellConfig.port = resolveListenPort(fresh.port)
+  }
+  if (fresh && typeof fresh.minimizeToTray === 'string') {
+    shellConfig.minimizeToTray = fresh.minimizeToTray
+  }
+  return resolveListenPort(shellConfig.port)
+}
+
+async function refreshApiConfigCache(): Promise<void> {
+  const port = syncPortFromConfigFile()
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/config`)
+    if (!response.ok) return
+    apiConfigCache = await response.json() as Record<string, unknown>
+  } catch (error) {
+    console.warn('Failed to refresh API config cache:', error)
+  }
+}
+
+function getShellConfigForRenderer(): Record<string, unknown> {
+  if (apiConfigCache) {
+    return {
+      ...apiConfigCache,
+      win: shellConfig.win,
+      player: shellConfig.player,
+    }
+  }
+  return shellConfig as unknown as Record<string, unknown>
+}
+
+const serverProcessHandles: ServerProcessHandles = {child: null}
+
+try {
+  startServerProcess({
+    appRoot,
+    dataDir,
+    resourcesPath: process.resourcesPath,
+    handles: serverProcessHandles,
+    onExit: (code, signal) => {
+      if (code === 0 || signal === 'SIGTERM' || signal === 'SIGKILL') return
+      console.error(`MediaChips API server exited unexpectedly (code=${code}, signal=${signal})`)
+    },
+  })
+} catch (error) {
+  console.error('Failed to start MediaChips API server process:', error)
+  app.quit()
+  process.exit(1)
+}
+
+const waitForBackendInner = createWaitForBackend({
+  getPort: () => syncPortFromConfigFile(),
+})
+
+const waitForBackend = async (port: number, timeoutMs?: number) => {
+  await waitForBackendInner(port, timeoutMs)
+  await refreshApiConfigCache()
+}
 
 const {
   readStoredWindowBounds,
   bindWindowBoundsPersistence,
 } = createWindowBoundsPersistence({
-  getStore: () => serverConfig,
-  getConfigPath: () => resolveElectronConfigPath({
-    portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
-    userDataPath: app.getPath('userData'),
-  }),
-  saveConfig: (configPath) => {
-    saveConfigFile(configPath, serverConfig)
+  getStore: () => shellConfig,
+  getConfigPath: () => configPath,
+  saveConfig: (targetPath) => {
+    saveConfigFile(targetPath, shellConfig)
   },
 })
 
 const getRendererUrl = (search = '') => {
   const port = useViteDevServer
     ? Number(process.env.VITE_DEV_SERVER_PORT || 3000)
-    : serverConfig.port
+    : syncPortFromConfigFile()
   return buildRendererUrl({port, search})
 }
 
 const getLoadingPageUrl = () => buildLoadingPageUrl({
-  appRoot: path.join(__dirname),
+  appRoot,
   useViteDevServer,
 })
 
 const {bindZoomChangedListener, setWebContentsZoomFactor} = createZoomController()
 
 const sendConfigToWindow = (browserWindow: BrowserWindowInstance) => {
-  sendConfigToWindowImpl(browserWindow, server.config)
+  sendConfigToWindowImpl(browserWindow, getShellConfigForRenderer())
 }
 
 const bindRendererLoadRetry = (
@@ -125,14 +199,14 @@ const bindRendererLoadRetry = (
   bindRendererLoadRetryImpl(webContents, getUrl, {
     useViteDevServer,
     waitForBackend,
-    getPort: () => serverConfig.port,
+    getPort: () => syncPortFromConfigFile(),
   })
 }
 
 const loadingWindow = createLoadingWindowController({
   getMainWindow: () => mainWindow.getWindow(),
   getLoadingPageUrl,
-  getAppRoot: () => path.join(__dirname),
+  getAppRoot: () => appRoot,
   onReadyLog: () => { devLog('App ready') },
 })
 
@@ -146,19 +220,19 @@ const mainWindow = createMainWindowController({
   isWindows,
   useWinElectronFrame,
   isDevelopment,
-  getAppRoot: () => path.join(__dirname),
+  getAppRoot: () => appRoot,
   getRendererUrl,
   readStoredWindowBounds,
   bindWindowBoundsPersistence,
   bindRendererLoadRetry,
   sendConfigToWindow,
   bindZoomChangedListener,
-  isMaximizedPreferred: () => Boolean(serverConfig.win?.maximized),
+  isMaximizedPreferred: () => Boolean(shellConfig.win?.maximized),
   shouldHideOnClose: () => appLifecycle.shouldHideOnClose(),
   resetRevealState: () => loadingWindow.resetRevealState(),
   bindMainWindowLoadedHandler,
   waitForBackend,
-  getBackendPort: () => serverConfig.port,
+  getBackendPort: () => syncPortFromConfigFile(),
 })
 
 const {createWindow, showMainWindow} = mainWindow
@@ -169,29 +243,29 @@ const appTray = createAppTrayController({
   showMainWindow: () => showMainWindow(),
   quitApp: () => appLifecycle.quitApp(),
   setIsQuitting: (value) => { appLifecycle.setIsQuitting(value) },
-  getAppRoot: () => path.join(__dirname),
+  getAppRoot: () => appRoot,
 })
 appTray.registerIpc()
 
 const playerWindow = createPlayerWindowController({
   isWindows,
-  getAppRoot: () => path.join(__dirname),
+  getAppRoot: () => appRoot,
   getRendererUrl,
   readStoredWindowBounds,
   bindWindowBoundsPersistence,
   bindRendererLoadRetry,
   sendConfigToWindow,
   bindZoomChangedListener,
-  isPlayerMaximizedPreferred: () => Boolean(serverConfig.player?.maximized),
+  isPlayerMaximizedPreferred: () => Boolean(shellConfig.player?.maximized),
   isMainWindowRevealed: () => loadingWindow.isMainWindowRevealed(),
 })
 playerWindow.registerIpc()
 
 const appLifecycle = createAppLifecycleController({
   isWindows,
-  getPort: () => serverConfig.port,
-  getConfig: () => server.config,
-  isMinimizeToTrayPreferred: () => serverConfig.minimizeToTray === '1',
+  getPort: () => syncPortFromConfigFile(),
+  getConfig: () => getShellConfigForRenderer(),
+  isMinimizeToTrayPreferred: () => shellConfig.minimizeToTray === '1',
   waitForBackend,
   createLoadingWindow,
   createWindow,
@@ -202,7 +276,7 @@ const appLifecycle = createAppLifecycleController({
   stopPlayerPlayback: () => playerWindow.stopPlayerPlayback(),
   schedulePlayerWarmup: () => playerWindow.schedulePlayerWarmup(),
   revealMainWindow,
-  closeServerListener: () => { server.listener?.close() },
+  closeServerListener: () => { stopServerProcess(serverProcessHandles) },
   initAppUpdater: () => initAppUpdater({getWindow: () => mainWindow.getWindow()}),
   getMinimizeToTray: () => appTray.getMinimizeToTray(),
 })
@@ -227,5 +301,9 @@ createAppMenuController({
   getMainWindow: () => mainWindow.getWindow(),
   onLock: () => appLifecycle.lockApp(),
 }).install()
+
+app.on('before-quit', () => {
+  stopServerProcess(serverProcessHandles)
+})
 
 appLifecycle.register()

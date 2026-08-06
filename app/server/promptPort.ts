@@ -94,11 +94,16 @@ function buildPromptHtml(busyPort: number, defaultPort: number, channel: string)
 </html>`
 }
 
+/** Real Electron shell only — not ELECTRON_RUN_AS_NODE API children. */
+function canUseElectronPortUi(): boolean {
+  return Boolean(process.versions.electron) && process.env.ELECTRON_RUN_AS_NODE !== '1'
+}
+
 async function promptPortViaElectronWindow(
   busyPort: number,
   defaultPort: number,
 ): Promise<string | null> {
-  if (!process.versions.electron) {
+  if (!canUseElectronPortUi()) {
     return null
   }
 
@@ -247,23 +252,22 @@ async function promptPortLinux(busyPort: number, defaultPort: number): Promise<s
 }
 
 async function promptPortInput(busyPort: number, defaultPort: number): Promise<string | null> {
-  if (!process.versions.electron) {
-    return null
-  }
-
-  // Prefer an Electron window — native osascript dialogs often appear behind
-  // Electron or fail without Accessibility permissions on macOS.
-  try {
-    const viaWindow = await promptPortViaElectronWindow(busyPort, defaultPort)
-    if (viaWindow != null) {
-      return viaWindow
+  // Prefer an Electron window in the shell process — native dialogs often appear
+  // behind Electron or fail without Accessibility permissions on macOS.
+  if (canUseElectronPortUi()) {
+    try {
+      const viaWindow = await promptPortViaElectronWindow(busyPort, defaultPort)
+      if (viaWindow != null) {
+        return viaWindow
+      }
+      // null can mean the user cancelled; do not fall through to another dialog.
+      return null
+    } catch (err: unknown) {
+      console.error('Electron port prompt window failed, trying native dialog:', err)
     }
-    // null can mean the user cancelled; do not fall through to another dialog.
-    return null
-  } catch (err: unknown) {
-    console.error('Electron port prompt window failed, trying native dialog:', err)
   }
 
+  // Node server / ELECTRON_RUN_AS_NODE child: OS dialogs only.
   if (process.platform === 'darwin') {
     return promptPortDarwin(busyPort, defaultPort)
   }
@@ -277,4 +281,5 @@ export {
   parsePortInput,
   suggestAlternatePort,
   promptPortInput,
+  canUseElectronPortUi,
 }
