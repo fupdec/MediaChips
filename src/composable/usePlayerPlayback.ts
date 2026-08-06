@@ -52,18 +52,20 @@ import {
   resolveLiveChunkRelativeSeekTarget,
   resolveLiveHandoffElapsed,
   resolveLiveSeekStrategy,
-  resolveLiveStreamCopyCompatible,
-  resolveLiveTranscodeOfferable,
+  parseExplicitPlaybackStart,
+  resolveDurationOnLoadedMetadata,
   resolvePlayableVideo,
   resolveCurrentPlaybackMediaId,
   resolveDirectPlaybackFallbackBegin,
   resolveFallbackResumeStreamStart,
   resolveLiveStreamUrlOptions,
   resolvePlaybackStartTime,
+  resolveVideoSourcePlan,
   shouldAdvanceAtSegmentEnd,
   shouldArmDirectSeekStallWatch,
+  shouldBlockUnregisteredPlaylistDepth,
   shouldHandOffLiveStreamChunk,
-  shouldPreferDirectPlayback,
+  shouldSeekDirectOnLoadSrc,
   shouldSkipLiveQualityChange,
   shouldTriggerDirectSeekStallFallback,
 } from '@/utils/playerPlaybackResolve'
@@ -219,17 +221,12 @@ export function usePlayerPlayback({
       const videoEl = playerStore.player
       if (!videoEl) return
 
-      const metadataDuration = metadataNumber(playerStore.metadata, 'duration')
-      if (playerStore.usesLiveTranscode) {
-        // Never trust videoEl.duration for live chunks — it is the segment length.
-        if (metadataDuration != null && metadataDuration > 0) {
-          playerStore.duration = metadataDuration
-        }
-      } else if (Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
-        playerStore.duration = videoEl.duration
-      } else if (metadataDuration != null && metadataDuration > 0) {
-        playerStore.duration = metadataDuration
-      }
+      const duration = resolveDurationOnLoadedMetadata({
+        usesLiveTranscode: playerStore.usesLiveTranscode,
+        metadataDuration: metadataNumber(playerStore.metadata, 'duration'),
+        elementDuration: videoEl.duration,
+      })
+      if (duration != null) playerStore.duration = duration
 
       playerStore.syncPlaybackState()
     })
@@ -880,46 +877,39 @@ export function usePlayerPlayback({
     await clearLiveTranscodeHandlers()
 
     const playable = await fetchPlayableInfo(mediaId)
+    const plan = resolveVideoSourcePlan({
+      playableMode: playable.mode,
+      transcodeRequired: Boolean(playable.transcodeRequired),
+      remuxCopy: playable.remuxCopy,
+      reason: playable.reason,
+      startTime,
+      forceDirectPlayback,
+      liveTranscodeDisabled: playerStore.liveTranscodeDisabled,
+      transcodeUnsupportedFormatsEnabled: settingsStore.transcodeUnsupportedFormats === '1',
+    })
 
-    if (playable.mode === 'unsupported') {
+    if (plan.kind === 'unsupported') {
       throw new UnsupportedPlaybackError()
     }
 
-    const streamStart = Math.max(0, Number(startTime) || 0)
-    playerStore.liveTranscodeOfferable = resolveLiveTranscodeOfferable({
-      transcodeRequired: Boolean(playable.transcodeRequired),
-      transcodeUnsupportedFormatsEnabled: settingsStore.transcodeUnsupportedFormats === '1',
-      playableMode: playable.mode,
-    })
+    playerStore.liveTranscodeOfferable = plan.liveTranscodeOfferable
 
     // Prefer direct playback whenever the browser can handle the file.
     // Forcing live re-encode just for clip marks made every clip start wait on ffmpeg.
-    if (shouldPreferDirectPlayback({
-      transcodeRequired: Boolean(playable.transcodeRequired),
-      forceDirectPlayback,
-      liveTranscodeDisabled: playerStore.liveTranscodeDisabled,
-    })) {
+    if (plan.kind === 'direct') {
       resetTranscodeState()
       liveStreamAccurateSeek = false
-      if (playable.transcodeRequired) {
+      if (plan.lockForcedDirect) {
         playerStore.liveTranscodeDisabled = true
         playerStore.liveTranscodeOfferable = true
         forceDirectPlayback = true
       }
-      return buildVideoStreamUrl(
-        buildApiUrl,
-        mediaId,
-        playable.transcodeRequired ? 'direct' : 'auto',
-      )
+      return buildVideoStreamUrl(buildApiUrl, mediaId, plan.streamMode)
     }
 
     currentLiveMediaId = mediaId
     // container_layout needs full re-encode; remux-copy paints black video in Chromium.
-    liveStreamCopyCompatible = resolveLiveStreamCopyCompatible({
-      remuxCopy: playable.remuxCopy,
-      reason: playable.reason,
-      streamStart,
-    })
+    liveStreamCopyCompatible = plan.copyCompatible
     liveStreamAccurateSeek = false
     playerStore.usesLiveTranscode = true
     playerStore.liveTranscodeDisabled = false
@@ -932,14 +922,14 @@ export function usePlayerPlayback({
       seekLiveStream(time)
     }
 
-    playerStore.liveStreamOffset = streamStart
+    playerStore.liveStreamOffset = plan.streamStart
     resetTranscodeState()
     playerStore.transcodeStatus = 'stream'
     markLiveTranscodeSession(mediaId)
     return buildLiveStreamUrl(
       buildApiUrl,
       mediaId,
-      streamStart,
+      plan.streamStart,
       playerStore.liveTranscodeMaxHeight,
       liveStreamUrlOptions(),
     )
@@ -1092,9 +1082,7 @@ export function usePlayerPlayback({
     const requestedMedia = media
     const requestedClip = isClipPlaylistItem(requestedMedia)
     const requestedSegmentStart = getSegmentStart(requestedMedia)
-    const explicitStart = start_time != null && Number.isFinite(Number(start_time))
-      ? Number(start_time)
-      : undefined
+    const explicitStart = parseExplicitPlaybackStart(start_time)
 
     media = mergeClipFields(resolved.video, requestedMedia)
     const mediaType = findMediaTypeById(appStore.mediaTypes, media.mediaTypeId)
@@ -1153,7 +1141,7 @@ export function usePlayerPlayback({
     videoEl.playbackRate = playerStore.speed
 
     if (!playerStore.usesLiveTranscode) {
-      if (explicitStart != null || targetStartTime > 0 || segmentStart != null) {
+      if (shouldSeekDirectOnLoadSrc({explicitStart, targetStartTime, segmentStart})) {
         await seekDirectPlaybackTo(
           videoEl,
           targetStartTime,
@@ -1182,7 +1170,10 @@ export function usePlayerPlayback({
     playerStore.playbackError = false
     dialogsStore.closeMarkAdding()
 
-    if (!registrationStore.reg && playerStore.nowPlaying > 14) {
+    if (shouldBlockUnregisteredPlaylistDepth({
+      registered: Boolean(registrationStore.reg),
+      nowPlaying: playerStore.nowPlaying,
+    })) {
       await clearLiveTranscodeHandlers()
       videoEl.src = ''
       isReady.value = true

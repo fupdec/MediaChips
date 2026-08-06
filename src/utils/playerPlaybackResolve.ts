@@ -324,6 +324,117 @@ export function resolveLiveStreamUrlOptions(input: {
   }
 }
 
+/** Free-tier playlist depth: indices above this require registration. */
+export const UNREGISTERED_PLAYLIST_MAX_INDEX = 14
+
+export type VideoSourcePlan =
+  | {kind: 'unsupported'}
+  | {
+      kind: 'direct'
+      streamMode: 'direct' | 'auto'
+      /** When transcode is required but we still force direct, lock that choice. */
+      lockForcedDirect: boolean
+      liveTranscodeOfferable: boolean
+    }
+  | {
+      kind: 'live'
+      streamStart: number
+      copyCompatible: boolean
+      liveTranscodeOfferable: true
+    }
+
+/** Pure plan for unsupported / direct / live after playable-info fetch. */
+export function resolveVideoSourcePlan(input: {
+  playableMode: string
+  transcodeRequired: boolean
+  remuxCopy?: boolean
+  reason?: string | null
+  startTime: number
+  forceDirectPlayback: boolean
+  liveTranscodeDisabled: boolean
+  transcodeUnsupportedFormatsEnabled: boolean
+}): VideoSourcePlan {
+  if (input.playableMode === 'unsupported') return {kind: 'unsupported'}
+
+  const streamStart = Math.max(0, Number(input.startTime) || 0)
+  const liveTranscodeOfferable = resolveLiveTranscodeOfferable({
+    transcodeRequired: Boolean(input.transcodeRequired),
+    transcodeUnsupportedFormatsEnabled: input.transcodeUnsupportedFormatsEnabled,
+    playableMode: input.playableMode,
+  })
+
+  if (shouldPreferDirectPlayback({
+    transcodeRequired: Boolean(input.transcodeRequired),
+    forceDirectPlayback: input.forceDirectPlayback,
+    liveTranscodeDisabled: input.liveTranscodeDisabled,
+  })) {
+    return {
+      kind: 'direct',
+      streamMode: input.transcodeRequired ? 'direct' : 'auto',
+      lockForcedDirect: Boolean(input.transcodeRequired),
+      liveTranscodeOfferable: input.transcodeRequired ? true : liveTranscodeOfferable,
+    }
+  }
+
+  return {
+    kind: 'live',
+    streamStart,
+    copyCompatible: resolveLiveStreamCopyCompatible({
+      remuxCopy: input.remuxCopy,
+      reason: input.reason,
+      streamStart,
+    }),
+    liveTranscodeOfferable: true,
+  }
+}
+
+/** Normalize optional loadSrc start_time. */
+export function parseExplicitPlaybackStart(startTime: unknown): number | undefined {
+  if (startTime == null) return undefined
+  const value = Number(startTime)
+  return Number.isFinite(value) ? value : undefined
+}
+
+/** Whether the direct-playback loadSrc path should seek after setting src. */
+export function shouldSeekDirectOnLoadSrc(input: {
+  explicitStart?: number
+  targetStartTime: number
+  segmentStart?: number | null
+}): boolean {
+  return input.explicitStart != null
+    || input.targetStartTime > 0
+    || input.segmentStart != null
+}
+
+/** Free-tier gate: unregistered users cannot play deep playlist indices. */
+export function shouldBlockUnregisteredPlaylistDepth(input: {
+  registered: boolean
+  nowPlaying: number
+  maxIndex?: number
+}): boolean {
+  if (input.registered) return false
+  return input.nowPlaying > (input.maxIndex ?? UNREGISTERED_PLAYLIST_MAX_INDEX)
+}
+
+/** Pick duration on loadedmetadata (never trust live chunk element duration). */
+export function resolveDurationOnLoadedMetadata(input: {
+  usesLiveTranscode: boolean
+  metadataDuration: number | null
+  elementDuration: number
+}): number | null {
+  if (input.usesLiveTranscode) {
+    return input.metadataDuration != null && input.metadataDuration > 0
+      ? input.metadataDuration
+      : null
+  }
+  if (Number.isFinite(input.elementDuration) && input.elementDuration > 0) {
+    return input.elementDuration
+  }
+  return input.metadataDuration != null && input.metadataDuration > 0
+    ? input.metadataDuration
+    : null
+}
+
 function matchesInitialPlayable(item: MediaItem, initialVideo: MediaItem): boolean {
   if (initialVideo.key && item.key) return item.key === initialVideo.key
   if (initialVideo.markId != null && item.markId != null) {

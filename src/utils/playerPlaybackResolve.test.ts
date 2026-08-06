@@ -18,12 +18,18 @@ import {
   resolveLiveTranscodeOfferable,
   resolvePlayableVideo,
   resolvePlaybackStartTime,
+  resolveDurationOnLoadedMetadata,
+  resolveVideoSourcePlan,
+  parseExplicitPlaybackStart,
   shouldAdvanceAtSegmentEnd,
   shouldArmDirectSeekStallWatch,
+  shouldBlockUnregisteredPlaylistDepth,
   shouldHandOffLiveStreamChunk,
   shouldPreferDirectPlayback,
+  shouldSeekDirectOnLoadSrc,
   shouldSkipLiveQualityChange,
   shouldTriggerDirectSeekStallFallback,
+  UNREGISTERED_PLAYLIST_MAX_INDEX,
 } from './playerPlaybackResolve'
 
 describe('isLoadSrcSessionStale', () => {
@@ -302,6 +308,142 @@ describe('direct seek stall / fallback gates', () => {
       copyCompatible: true,
       accurateSeek: false,
     })).toEqual({copyCompatible: true})
+  })
+})
+
+describe('resolveVideoSourcePlan', () => {
+  it('rejects unsupported playable modes', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'unsupported',
+      transcodeRequired: false,
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: true,
+    })).toEqual({kind: 'unsupported'})
+  })
+
+  it('prefers direct auto when browser can decode', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'file',
+      transcodeRequired: false,
+      startTime: 12,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: false,
+    })).toEqual({
+      kind: 'direct',
+      streamMode: 'auto',
+      lockForcedDirect: false,
+      liveTranscodeOfferable: false,
+    })
+  })
+
+  it('locks forced direct when transcode is required but disabled', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'stream',
+      transcodeRequired: true,
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: true,
+      transcodeUnsupportedFormatsEnabled: true,
+    })).toEqual({
+      kind: 'direct',
+      streamMode: 'direct',
+      lockForcedDirect: true,
+      liveTranscodeOfferable: true,
+    })
+  })
+
+  it('plans live remux-copy only near t=0', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'stream',
+      transcodeRequired: true,
+      remuxCopy: true,
+      reason: 'codec',
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: true,
+    })).toMatchObject({
+      kind: 'live',
+      streamStart: 0,
+      copyCompatible: true,
+      liveTranscodeOfferable: true,
+    })
+
+    const layout = resolveVideoSourcePlan({
+      playableMode: 'stream',
+      transcodeRequired: true,
+      remuxCopy: true,
+      reason: 'container_layout',
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: true,
+    })
+    expect(layout).toMatchObject({kind: 'live', copyCompatible: false})
+  })
+})
+
+describe('loadSrc seek / registration / duration gates', () => {
+  it('parses explicit start and decides direct seeks', () => {
+    expect(parseExplicitPlaybackStart(undefined)).toBeUndefined()
+    expect(parseExplicitPlaybackStart('12.5')).toBe(12.5)
+    expect(parseExplicitPlaybackStart('nope')).toBeUndefined()
+
+    expect(shouldSeekDirectOnLoadSrc({
+      explicitStart: undefined,
+      targetStartTime: 0,
+      segmentStart: null,
+    })).toBe(false)
+    expect(shouldSeekDirectOnLoadSrc({
+      explicitStart: 0,
+      targetStartTime: 0,
+      segmentStart: null,
+    })).toBe(true)
+    expect(shouldSeekDirectOnLoadSrc({
+      targetStartTime: 3,
+      segmentStart: null,
+    })).toBe(true)
+  })
+
+  it('blocks deep unregistered playlist indices', () => {
+    expect(shouldBlockUnregisteredPlaylistDepth({
+      registered: false,
+      nowPlaying: UNREGISTERED_PLAYLIST_MAX_INDEX,
+    })).toBe(false)
+    expect(shouldBlockUnregisteredPlaylistDepth({
+      registered: false,
+      nowPlaying: UNREGISTERED_PLAYLIST_MAX_INDEX + 1,
+    })).toBe(true)
+    expect(shouldBlockUnregisteredPlaylistDepth({
+      registered: true,
+      nowPlaying: 99,
+    })).toBe(false)
+  })
+
+  it('resolves loadedmetadata duration without trusting live element duration', () => {
+    expect(resolveDurationOnLoadedMetadata({
+      usesLiveTranscode: true,
+      metadataDuration: 120,
+      elementDuration: 30,
+    })).toBe(120)
+    expect(resolveDurationOnLoadedMetadata({
+      usesLiveTranscode: true,
+      metadataDuration: null,
+      elementDuration: 30,
+    })).toBeNull()
+    expect(resolveDurationOnLoadedMetadata({
+      usesLiveTranscode: false,
+      metadataDuration: 120,
+      elementDuration: 95,
+    })).toBe(95)
+    expect(resolveDurationOnLoadedMetadata({
+      usesLiveTranscode: false,
+      metadataDuration: 120,
+      elementDuration: NaN,
+    })).toBe(120)
   })
 })
 
