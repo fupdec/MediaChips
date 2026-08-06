@@ -9,25 +9,22 @@ import type { MediaId } from '../types/mediaFilter'
 import type { ParsedDynamicPlaylistSummary } from '@shared/schemas/filters'
 import type { SavedFilterMediaResponse, SavedFilterSummaryResponse } from '@shared/api/responses'
 import type { MediaItem } from '@shared/entities/media'
-import {
-  getCachedDynamicPlaylistsSummary,
-  setCachedDynamicPlaylistsSummary,
-} from './dynamicPlaylistsSummaryCache'
+import {loadDynamicPlaylistsSummaryCached} from './dynamicPlaylistsSummaryCache'
 import {createConcurrencyQueue} from './concurrencyQueue'
 import {
   loadFilteredMediaIds,
   loadMediaPlaylistItems,
   getFilteredMediaSummary,
 } from './mediaItemsLoader'
-
-/** Cap parallel summary queries on cold start (was unbounded Promise.all). */
-const dynamicPlaylistSummaryQueue = createConcurrencyQueue(3)
 import { createSavedFiltersRepository } from '../db/repositories/savedFilters'
 import { createFilterRowsInSavedFiltersRepository } from '../db/repositories/filterRowsInSavedFilters'
 import { createFilterRowsRepository } from '../db/repositories/filterRows'
 import { createTagsInFilterRowsRepository } from '../db/repositories/tagsInFilterRows'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { normalizeFilterRow } from './normalizeFilterRow'
+
+/** Cap parallel summary queries on cold start (was unbounded Promise.all). */
+const dynamicPlaylistSummaryQueue = createConcurrencyQueue(3)
 
 async function loadSavedFilterRows(db: ApiDb, savedFilterId: SavedFilterId): Promise<FilterLike[]> {
   const filtersMap = await loadSavedFilterRowsBatch(db, [savedFilterId])
@@ -223,42 +220,40 @@ async function getDynamicPlaylistsSummary(db: ApiDb): Promise<ParsedDynamicPlayl
   const mediaTypeId = await getVideoMediaTypeId(db)
   if (!mediaTypeId) return []
 
-  const cached = getCachedDynamicPlaylistsSummary(Number(mediaTypeId))
-  if (cached) return cached as ParsedDynamicPlaylistSummary[]
+  return loadDynamicPlaylistsSummaryCached(Number(mediaTypeId), async () => {
+    const savedFilters = savedFiltersRepo.findDynamicPlaylistsFull(mediaTypeId)
 
-  const savedFilters = savedFiltersRepo.findDynamicPlaylistsFull(mediaTypeId)
+    if (!savedFilters.length) return [] as ParsedDynamicPlaylistSummary[]
 
-  if (!savedFilters.length) return []
+    const filtersBySavedFilterId = await loadSavedFilterRowsBatch(
+      db,
+      savedFilters.map((savedFilter: {id: number}) => savedFilter.id as SavedFilterId),
+    )
 
-  const filtersBySavedFilterId = await loadSavedFilterRowsBatch(
-    db,
-    savedFilters.map((savedFilter: {id: number}) => savedFilter.id as SavedFilterId),
-  )
+    const summaries = await Promise.all(savedFilters.map((savedFilter: {id: number; name: string | null}) => (
+      dynamicPlaylistSummaryQueue.enqueue(async () => {
+        const filters = filtersBySavedFilterId.get(Number(savedFilter.id)) || []
+        const summary = await getFilteredMediaSummary(db, {
+          mediaTypeId,
+          filters,
+          sortBy: 'id',
+          direction: 'desc',
+          previewLimit: 4,
+          find_duplicates: false,
+          duplicates_by: 'filesize',
+        })
 
-  const summaries = await Promise.all(savedFilters.map((savedFilter: {id: number; name: string | null}) => (
-    dynamicPlaylistSummaryQueue.enqueue(async () => {
-      const filters = filtersBySavedFilterId.get(Number(savedFilter.id)) || []
-      const summary = await getFilteredMediaSummary(db, {
-        mediaTypeId,
-        filters,
-        sortBy: 'id',
-        direction: 'desc',
-        previewLimit: 4,
-        find_duplicates: false,
-        duplicates_by: 'filesize',
+        return {
+          id: savedFilter.id,
+          name: savedFilter.name,
+          count: Number(summary.count) || 0,
+          previewIds: summary.previewIds || [],
+        }
       })
+    )))
 
-      return {
-        id: savedFilter.id,
-        name: savedFilter.name,
-        count: Number(summary.count) || 0,
-        previewIds: summary.previewIds || [],
-      }
-    })
-  )))
-
-  setCachedDynamicPlaylistsSummary(Number(mediaTypeId), summaries)
-  return summaries as unknown as ParsedDynamicPlaylistSummary[]
+    return summaries as unknown as ParsedDynamicPlaylistSummary[]
+  })
 }
 
 async function getFilteredMediaForPlayback(

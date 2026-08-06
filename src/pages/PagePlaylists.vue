@@ -396,49 +396,46 @@ const playDynamic = async (playlist: PagePlaylist) => {
   }
 }
 
+const applyDynamicSummaryMap = (
+  summaries: Map<number, {count?: number; previewIds?: number[]}>,
+) => {
+  for (const playlist of dynamicPlaylists.value) {
+    const match = summaries.get(Number(playlist.id))
+    playlist.count = Number(match?.count) || 0
+    playlist.previewIds = match?.previewIds || []
+    playlist.countLoading = false
+  }
+}
+
 const loadDynamicPlaylistSummaries = async () => {
   if (!dynamicPlaylists.value.length) {
     is_dynamic_thumbs_loaded.value = true
     return
   }
 
-  let legacySummaries: Map<number, PagePlaylist> | null = null
+  // Prefer one aggregate request (server-cached) over per-playlist summary fan-out.
+  try {
+    const res = await typedApi.getDynamicPlaylists()
+    applyDynamicSummaryMap(new Map(
+      (res.data || []).map((item) => [Number(item.id), item]),
+    ))
+  } catch (aggregateError) {
+    console.log('Error loading dynamic playlist summaries; falling back per id:', aggregateError)
 
-  const applySummary = async (playlist: PagePlaylist) => {
-    try {
-      const res = await typedApi.getSavedFilterSummary(playlist.id)
-      playlist.count = Number(res.data?.count) || 0
-      playlist.previewIds = res.data?.previewIds || []
-      return
-    } catch (e: unknown) {
-      const status = (e as { response?: { status?: number } })?.response?.status
-      if (status !== 404) {
+    await Promise.all(dynamicPlaylists.value.map(async (playlist) => {
+      try {
+        const res = await typedApi.getSavedFilterSummary(playlist.id)
+        playlist.count = Number(res.data?.count) || 0
+        playlist.previewIds = res.data?.previewIds || []
+      } catch (e) {
         console.log(`Error loading summary for playlist ${playlist.id}:`, e)
         playlist.count = 0
         playlist.previewIds = []
-        return
+      } finally {
+        playlist.countLoading = false
       }
-    }
-
-    try {
-      if (!legacySummaries) {
-        const res = await typedApi.getDynamicPlaylists()
-        legacySummaries = new Map((res.data || []).map((item) => [item.id, toPagePlaylistFromSummary(item)]))
-      }
-      const match = legacySummaries.get(playlist.id)
-      playlist.count = Number(match?.count) || 0
-      playlist.previewIds = match?.previewIds || []
-    } catch (e) {
-      console.log(`Error loading fallback summary for playlist ${playlist.id}:`, e)
-      playlist.count = 0
-      playlist.previewIds = []
-    }
+    }))
   }
-
-  await Promise.all(dynamicPlaylists.value.map(async (playlist) => {
-    await applySummary(playlist)
-    playlist.countLoading = false
-  }))
 
   try {
     await loadPlaylistThumbs(dynamicPlaylists.value, { mediaPath: appStore.mediaPath })
