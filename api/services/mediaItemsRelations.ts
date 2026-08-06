@@ -382,8 +382,12 @@ export async function attachMediaRelations(
     ? {mediaIds}
     : {mediaTypeId}
 
-  const tagRows = await queryAllAsync(db, tagQuery, replacements)
-  const valueRows = await queryAllAsync(db, valueQuery, replacements)
+  // Tags, values, and folder-inherited tags are independent — fetch in parallel.
+  const [tagRows, valueRows, inherited] = await Promise.all([
+    queryAllAsync(db, tagQuery, replacements),
+    queryAllAsync(db, valueQuery, replacements),
+    loadInheritedFolderTagsForMediaRows(db, items),
+  ])
 
   const tagsByMediaId = new Map<number, MediaTagLinkRow[]>()
   const valuesByMediaId = new Map()
@@ -407,7 +411,6 @@ export async function attachMediaRelations(
     })
   }
 
-  const inherited = await loadInheritedFolderTagsForMediaRows(db, items)
   for (const row of inherited) {
     if (!idSet.has(row.mediaId)) continue
     pushUniqueTagLink(tagsByMediaId, row.mediaId, row.tagId, row.metaId, true)
