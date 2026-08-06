@@ -3,7 +3,8 @@ import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../t
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
-import type { MediaPathUpdatePayload, MediaThumbsRequestPayload } from '@shared/api/payloads'
+import type { MediaPathUpdatePayload, MediaThumbsRequestPayload, MergeMediaPayload } from '@shared/api/payloads'
+import {mergeMediaItems} from '../services/mediaMerge'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import path from 'path'
@@ -87,6 +88,19 @@ export default function (db: ApiDb) {
       sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while finding similar media.')
+    }
+  }
+
+  const merge = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<MergeMediaPayload>(req)
+      const result = await mergeMediaItems(db, {
+        survivorId: Number(body.survivorId),
+        sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while merging media.')
     }
   }
 
@@ -258,5 +272,6 @@ export default function (db: ApiDb) {
     getThumbs,
     getStats,
     similarByVisual,
+    merge,
   }
 }

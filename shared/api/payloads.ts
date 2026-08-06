@@ -45,6 +45,11 @@ export interface MergeTagsPayload {
   sourceIds: number[]
 }
 
+export interface MergeMediaPayload {
+  survivorId: number
+  sourceIds: number[]
+}
+
 export interface MoveTagsToCategoryPayload {
   tagIds: number[]
   targetMetaId: number

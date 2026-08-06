@@ -384,6 +384,7 @@ const en = {
   context_menu: {
     bulk_edit: 'Bulk Edit',
     merge_tags: 'Merge tags',
+    merge_media: 'Merge media',
     move_to_tag_category: 'Move to category',
     move_to_tag_category_conflict: '{count} tag(s) already exist in “{category}”: {names}. Merge into the existing tags?',
     move_to_tag_category_done: 'Tags moved',
@@ -2081,6 +2082,15 @@ const en = {
         two_thirds: '2/3 height',
         half: '1/2 height',
       },
+    },
+    dialogs: {
+      merge_media_title: 'Merge media',
+      merge_media_hint: 'Select which item to keep. The other {count} selected item(s) will be merged into it and removed from the library.',
+      merge_media_keep_note: 'Tags, metadata values, marks and playlist links move to the kept item. Favorite is combined; rating and views take the highest values. Files on disk are not deleted.',
+      merge_media_confirm: 'Merge',
+      merge_media_done: 'Media merged',
+      merge_media_done_text: 'Kept “{name}”, removed {count} duplicate(s)',
+      merge_media_failed: 'Failed to merge media',
     },
   },
   meta: {

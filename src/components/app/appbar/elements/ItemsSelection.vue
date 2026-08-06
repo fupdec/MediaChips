@@ -26,6 +26,14 @@
     />
 
     <AppBarButton
+      v-if="itemsStore.type === 'media'"
+      icon="set-merge"
+      :text="t('context_menu.merge_media')"
+      :disabled="itemsStore.selection.length < 2"
+      :action="openMediaMerge"
+    />
+
+    <AppBarButton
       icon="delete"
       :text="t('common.delete')"
       :disabled="itemsStore.selection.length === 0"
@@ -109,6 +117,16 @@ function toggleSelect() {
 function openBulkEdit() {
   if (itemsStore.selection.length === 0) return
   dialogsStore.bulkEditingItems = true
+  itemsStore.isSelect = false
+}
+
+function openMediaMerge() {
+  if (itemsStore.type !== 'media' || itemsStore.selection.length < 2) return
+  const selectedMedia = itemsStore.selection
+    .map((id) => itemsStore.entities.find((entry) => Number(entry.id) === Number(id)))
+    .filter((item): item is MediaItem => Boolean(item))
+  if (selectedMedia.length < 2) return
+  dialogsStore.openMediaMerge(selectedMedia)
   itemsStore.isSelect = false
 }
 

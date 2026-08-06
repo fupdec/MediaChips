@@ -283,6 +283,25 @@ export interface MergeTagsResult {
   }
 }
 
+export interface MergeMediaResult {
+  survivor: {
+    id: number
+    path?: string | null
+    name?: string | null
+    filesize?: number | null
+    rating?: number | null
+    mediaTypeId?: number | null
+    [key: string]: unknown
+  }
+  deletedIds: number[]
+  migrated: {
+    tagLinks: number
+    values: number
+    marks: number
+    playlists: number
+  }
+}
+
 export interface TagNameConflict {
   tagId: number
   name: string

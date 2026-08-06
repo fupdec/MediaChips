@@ -146,6 +146,16 @@ export default function useItemContextMenu(
         })
       }
 
+      if (type === 'media') {
+        contextMenu.push({
+          name: t('context_menu.merge_media'),
+          type: 'item',
+          icon: 'set-merge',
+          disabled: itemsStore.selection.length < 2,
+          action: openMediaMerge,
+        })
+      }
+
       if (canAutoScrape) {
         contextMenu.push({
           name: t('context_menu.bulk_auto_scrape'),
@@ -569,6 +579,22 @@ export default function useItemContextMenu(
     if (selectedTags.length < 2) return
 
     dialogsStore.openTagMerge(selectedTags, meta)
+    itemsStore.isSelect = false
+  }
+
+  const openMediaMerge = (): void => {
+    if (type !== 'media') return
+
+    const selectedMedia = itemsStore.selection
+      .map((id) => {
+        const fromPage = itemsStore.getItemById(id)
+        return fromPage && isMediaPageItem(fromPage, 'media') ? fromPage : null
+      })
+      .filter((item): item is MediaItem => Boolean(item))
+
+    if (selectedMedia.length < 2) return
+
+    dialogsStore.openMediaMerge(selectedMedia)
     itemsStore.isSelect = false
   }
 

@@ -14,12 +14,14 @@ import type {
   DeleteEntityOnePayload,
   EntityUpdatePayload,
   MarkForVideo,
+  MergeMediaResult,
 } from '@shared/api/responses'
 import type {
   MarkClipsRequestPayload,
   MarkItemsRequestPayload,
   MediaIdsRequestPayload,
   MediaPathUpdatePayload,
+  MergeMediaPayload,
   VideoMetadataUpdatePayload,
 } from '@shared/api/payloads'
 import {
@@ -95,6 +97,10 @@ export const mediaApi = {
       hasVisualHash: boolean
       ids: number[]
     }>(API_ROUTES.mediaSimilarByVisual, body)
+  },
+
+  mergeMedia(body: MergeMediaPayload) {
+    return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body)
   },
 
   getMarksForVideo(id: number) {

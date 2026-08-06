@@ -40,6 +40,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     enrollmentQuality: { show: false, metaId: null as number | null },
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     tagMerge: { show: false, tags: [] as Tag[], meta: null as Meta | null },
+    mediaMerge: { show: false, items: [] as MediaItem[] },
     tagCategoryMerge: { show: false, categories: [] as Meta[] },
     bulkEditingItems: false,
     markAdding: {
@@ -179,6 +180,14 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.tagMerge.show = false
       this.tagMerge.tags = []
       this.tagMerge.meta = null
+    },
+    openMediaMerge(items: MediaItem[]) {
+      this.mediaMerge.items = items
+      this.mediaMerge.show = true
+    },
+    closeMediaMerge() {
+      this.mediaMerge.show = false
+      this.mediaMerge.items = []
     },
     openTagCategoryMerge(categories: Meta[]) {
       this.tagCategoryMerge.categories = categories
