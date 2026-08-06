@@ -1,6 +1,5 @@
 import type { ApiDb } from '../types/db'
 import type { FaceBox, FaceLandmark5 } from '../types/faceDetector'
-import { Jimp } from 'jimp'
 import {
   applyAffine,
   buildScaleTranslate,
@@ -9,6 +8,7 @@ import {
   invertAffine,
   landmarks106To5,
   warpAffineRgb,
+  type AlignSampleImage,
   type Point2,
 } from './faceAlignMath'
 import {
@@ -32,8 +32,6 @@ const ARCFACE_DST = [
   [41.5493, 92.3655],
   [70.7299, 92.2041],
 ] as const
-
-type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
 
 let landmarkSession: OrtSession | null = null
 let landmarkLoading: Promise<OrtSession> | null = null
@@ -71,7 +69,7 @@ async function loadLandmarkModel(db: ApiDb): Promise<OrtSession> {
 
 async function detectLandmarks5(
   db: ApiDb,
-  image: JimpImage,
+  image: AlignSampleImage,
   box: FaceBox,
 ): Promise<Point2[] | null> {
   const session = await loadLandmarkModel(db)
@@ -119,7 +117,7 @@ async function detectLandmarks5(
  */
 async function alignFaceRgb112(
   db: ApiDb,
-  image: JimpImage,
+  image: AlignSampleImage,
   box: FaceBox,
   landmarks5?: FaceLandmark5 | null,
 ): Promise<Uint8Array | null> {

@@ -4,7 +4,6 @@ import type {FaceDetectorMediaItem, FaceDetectorOptions} from '../types/faceDete
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import {Jimp} from 'jimp'
 import {extractVideoFrame, ffprobe} from '../utils/ffmpeg'
 import {
   averageHashFromLumaValues,
@@ -48,20 +47,9 @@ async function frameFingerprintWithSharp(framePath: string): Promise<string> {
   return averageHashFromLumaValues(values)
 }
 
-async function frameFingerprintWithJimp(framePath: string): Promise<string> {
-  const image = await Jimp.read(framePath)
-  const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
-  const {data, width, height} = tiny.bitmap
-  return averageHashFromLumaValues(collectLumaValuesFromRgba(data, width, height))
-}
-
 /** Average-hash fingerprint for cheap near-duplicate frame rejection. */
 export async function frameFingerprint(framePath: string): Promise<string> {
-  try {
-    return await frameFingerprintWithSharp(framePath)
-  } catch {
-    return frameFingerprintWithJimp(framePath)
-  }
+  return frameFingerprintWithSharp(framePath)
 }
 
 export async function getVideoDuration(filePath: string) {

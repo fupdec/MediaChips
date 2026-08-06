@@ -5,7 +5,6 @@ import type {FaceBox} from '../types/faceDetector'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import {Jimp} from 'jimp'
 import {extractVideoFrame} from '../utils/ffmpeg'
 import {createFacesRepository} from '../db/repositories/faces'
 import {createMediaRepository} from '../db/repositories/media'
@@ -13,6 +12,7 @@ import {resolveExistingPath} from './contentHash'
 import {groupItemsByKey} from './faceDetectorMath'
 import {computePaddedSquareCropRect, DEFAULT_FACE_CROP_PADDING} from './faceCropGeometry'
 import {resolveAbsoluteCropPath} from './faceEnrollmentPaths'
+import {cropFaceRasterToJpeg, readFaceRaster, type FaceRasterImage} from './faceRaster'
 
 export const FACE_CROPS_RELATIVE_ROOT = 'media/videos/faces'
 /** Extract video frames wide enough that face crops stay usable for recognition. */
@@ -44,7 +44,7 @@ export function resolveStoredCropPath(dbPath: string, cropPath: string | null | 
 }
 
 export async function saveFaceCrop(
-  sourceImage: Awaited<ReturnType<typeof Jimp.read>>,
+  sourceImage: FaceRasterImage,
   box: FaceBox,
   outputPath: string,
 ) {
@@ -54,14 +54,7 @@ export async function saveFaceCrop(
     sourceImage.height,
     CROP_PADDING,
   )
-  const crop = sourceImage.clone().crop({
-    x: rect.left,
-    y: rect.top,
-    w: rect.width,
-    h: rect.height,
-  })
-  const buffer = await crop.getBuffer('image/jpeg', {quality: 90})
-  await fs.promises.writeFile(outputPath, buffer)
+  await cropFaceRasterToJpeg(sourceImage, rect, outputPath, 90)
 }
 
 /** Remove all on-disk face crops (library auto-scan does not keep them). */
@@ -147,7 +140,7 @@ export async function ensureFaceCropsForMedia(db: ApiDb, mediaId: number): Promi
           timestamp,
           vf: `scale=${FACE_CROP_FRAME_WIDTH}:-1`,
         })
-        const sourceImage = await Jimp.read(framePath)
+        const sourceImage = await readFaceRaster(framePath)
         return {facesAtTs, sourceImage}
       } catch {
         return null

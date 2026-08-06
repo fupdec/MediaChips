@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import { Jimp } from 'jimp'
 import type { ApiDb } from '../types/db'
 import { detectFacesInFrame, loadModel } from './faceDetector'
 import { createFaceEnrollmentsRepository } from '../db/repositories/faceEnrollments'
@@ -24,6 +23,7 @@ import {
   type EnrollmentIssue,
 } from './enrollmentQualityGrading'
 import {findTagImageEntries} from './faceEnrollmentPaths'
+import {readFaceRasterSize} from './faceRaster'
 
 export type {EnrollmentGrade, EnrollmentIssue} from './enrollmentQualityGrading'
 
@@ -83,8 +83,8 @@ async function analyzeImage(
           (a.box.width * a.box.height) >= (b.box.width * b.box.height) ? a : b
         ))
         detectScore = best.score
-        const image = await Jimp.read(entry.absolutePath)
-        const frameArea = Math.max(1, image.width * image.height)
+        const size = await readFaceRasterSize(entry.absolutePath)
+        const frameArea = Math.max(1, size.width * size.height)
         faceAreaRatio = (best.box.width * best.box.height) / frameArea
         if (detectScore < LOW_DETECT_SCORE) issues.push('low_score')
         if (faceCount > 1) issues.push('multi_face')

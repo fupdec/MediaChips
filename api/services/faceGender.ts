@@ -1,7 +1,6 @@
 import type { ApiDb } from '../types/db'
 import type { FaceBox } from '../types/faceDetector'
-import { Jimp } from 'jimp'
-import {buildScaleTranslate} from './faceAlignMath'
+import {buildScaleTranslate, type AlignSampleImage} from './faceAlignMath'
 import {
   GENDER_MIN_CONFIDENCE,
   normalizeGenderFilter,
@@ -35,8 +34,6 @@ const DEFAULT_INPUT_SIZE = 96
 
 export type {FaceGender, FaceGenderFilter, FaceGenderEstimate}
 export {GENDER_MIN_CONFIDENCE, normalizeGenderFilter, passesGenderFilter}
-
-type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
 
 let genderSession: OrtSession | null = null
 let genderLoading: Promise<OrtSession> | null = null
@@ -109,7 +106,7 @@ async function* prepareGenderModel(db: ApiDb): AsyncGenerator<GenderPrepEvent> {
  * Gender codes match InsightFace: 0 = female, 1 = male.
  */
 async function estimateGender(
-  image: JimpImage,
+  image: AlignSampleImage,
   box: FaceBox,
 ): Promise<FaceGenderEstimate | null> {
   if (!genderSession) return null

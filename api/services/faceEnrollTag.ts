@@ -2,8 +2,6 @@
 
 import type {ApiDb} from '../types/db'
 import type {FaceBox} from '../types/faceDetector'
-import fs from 'fs'
-import {Jimp} from 'jimp'
 import {createFaceEnrollmentsRepository} from '../db/repositories/faceEnrollments'
 import {
   MAX_ENROLLMENTS_PER_TAG,
@@ -22,6 +20,7 @@ import {
   loadModel as loadDetectionModel,
   saveFaceCrop,
 } from './faceDetector'
+import {containPathToJpeg, readFaceRaster, readFaceRasterSize} from './faceRaster'
 
 /** ArcFace input size — keep letterbox fallback aligned with embed preprocess. */
 const EMBED_CROP_SIZE = 112
@@ -59,14 +58,12 @@ export async function extractLargestFaceCrop(
   if (!detections.length) {
     if (options.fallbackWholeImage === false) return false
     // Last resort only: letterbox the whole image (still weak — prefer real face crops).
-    const image = await Jimp.read(imagePath)
-    const buffer = await image.clone().contain({w: EMBED_CROP_SIZE, h: EMBED_CROP_SIZE}).getBuffer('image/jpeg', {quality: 90})
-    await fs.promises.writeFile(outputPath, buffer)
+    await containPathToJpeg(imagePath, EMBED_CROP_SIZE, outputPath, 90)
     return true
   }
 
   const best = pickLargestDetection(detections)
-  const sourceImage = await Jimp.read(imagePath)
+  const sourceImage = await readFaceRaster(imagePath)
   await saveFaceCrop(sourceImage, best.box as FaceBox, outputPath)
   return true
 }
@@ -86,8 +83,8 @@ export async function enrollTagImage(
     minScore: 0.5,
     maxFacesPerFrame: 5,
   })
-  const image = await Jimp.read(imagePath)
-  const assessment = assessEnrollmentDetections(detections, image.width, image.height)
+  const {width, height} = await readFaceRasterSize(imagePath)
+  const assessment = assessEnrollmentDetections(detections, width, height)
   // Skip weak / group / tiny / no-face refs — they pollute ranking more than they help.
   if (!assessment.ok) return false
 

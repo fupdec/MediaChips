@@ -3,7 +3,6 @@
 import type {ApiDb} from '../types/db'
 import type {ModelStatus} from '../types/mlModels'
 import type {FaceBox, FaceLandmark5} from '../types/faceDetector'
-import {Jimp} from 'jimp'
 import {createFaceEnrollmentsRepository} from '../db/repositories/faceEnrollments'
 import {createFacesRepository} from '../db/repositories/faces'
 import {createSettingsRepository} from '../db/repositories/settings'
@@ -15,6 +14,7 @@ import {
   resolveCachedModelStatus,
 } from './faceModelStatus'
 import {rgbaBitmapToInterleavedRgb} from './faceTensorPrep'
+import {containFaceRaster, readFaceRaster} from './faceRaster'
 import {
   EMBED_SIZE,
   buildEmbedFloatData,
@@ -141,8 +141,7 @@ function rgbToEmbedTensor(rgb: Uint8Array, width: number, height: number) {
 }
 
 async function imageToEmbedTensorLetterbox(imagePath: string) {
-  const image = await Jimp.read(imagePath)
-  const resized = image.clone().contain({w: EMBED_SIZE, h: EMBED_SIZE})
+  const resized = await containFaceRaster(imagePath, EMBED_SIZE)
   const rgb = rgbaBitmapToInterleavedRgb(resized.bitmap.data, EMBED_SIZE * EMBED_SIZE)
   return rgbToEmbedTensor(rgb, EMBED_SIZE, EMBED_SIZE)
 }
@@ -157,7 +156,7 @@ export async function embedImage(
   let tensor
   if (shouldAlignForEmbed(box)) {
     try {
-      const image = await Jimp.read(imagePath)
+      const image = await readFaceRaster(imagePath)
       const aligned = await alignFaceRgb112(db, image, box!, kps)
       tensor = aligned
         ? rgbToEmbedTensor(aligned, EMBED_SIZE, EMBED_SIZE)

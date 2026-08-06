@@ -10,7 +10,6 @@ import type {
   FaceLandmark5,
 } from '../types/faceDetector'
 import fs from 'fs'
-import { Jimp } from 'jimp'
 import { createFacesRepository } from '../db/repositories/faces'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
@@ -84,6 +83,7 @@ import {
 } from './faceModelStatus'
 import {buildFaceDetectionStatusSnapshot} from './faceStatusSnapshots'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
+import {readFaceRaster, resizeFaceRaster, type FaceRasterImage} from './faceRaster'
 import {
   ensureCachedModelFile,
   getFaceModelCacheDir,
@@ -204,16 +204,16 @@ async function imageToScrfdInput(framePath: string): Promise<{
   width: number
   height: number
   detScale: number
-  image: Awaited<ReturnType<typeof Jimp.read>>
+  image: FaceRasterImage
 }> {
   const ort = getOrt()
-  const image = await Jimp.read(framePath)
+  const image = await readFaceRaster(framePath)
   const width = image.width
   const height = image.height
 
   const {newWidth, newHeight, detScale} = computeScrfdLetterboxSize(width, height, DET_INPUT_SIZE)
 
-  const resized = image.clone().resize({w: newWidth, h: newHeight})
+  const resized = await resizeFaceRaster(image, newWidth, newHeight)
   const floatData = packLetterboxedRgbaToNchw(
     resized.bitmap.data,
     newWidth,
@@ -356,7 +356,7 @@ async function detectMedia(
       extracted.frames,
       {
         detect: (frame) => detectFacesInFrame(model, frame.framePath, resolvedOptions),
-        readImage: (framePath) => Jimp.read(framePath),
+        readImage: (framePath) => readFaceRaster(framePath),
       },
     )
 
