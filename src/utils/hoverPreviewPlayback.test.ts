@@ -206,6 +206,15 @@ describe('hoverPreviewPlayback', () => {
       releaseSession: false,
       clearDelayTimer: true,
     })
+    expect(resolveHoverPreviewTeardownPlan('cancel-hover')).toMatchObject({
+      bumpToken: false,
+      stopLive: false,
+      abortVideo: false,
+      clearAllowHoverVideo: false,
+      releaseSession: false,
+      clearSeekCoalescer: true,
+      clearDelayTimer: true,
+    })
   })
 
   it('gates hover start, mount, position, and playback errors', () => {

@@ -474,6 +474,7 @@ const {
   resetPreviewContainer,
   shouldKeepBigPreviewOpen,
   hasActivePreviewState,
+  isHoverVideoArmed: () => allowHoverVideoElement.value,
   isBigPreviewOpen,
   onBigPreviewChange: (open) => emit('update-big-preview', open),
   clearContextMenu: () => {

@@ -261,16 +261,12 @@ export function resolveHoverPreviewTeardownPlan(
         abortVideo: true,
       }
     case 'cancel-hover':
+      // Soft leave-grace: keep video/session alive until stopPlayingPreview finalizes.
+      // Re-enter within the leave timer can cancel the pending stop without remount.
       return {
         ...TEARDOWN_NONE,
-        bumpToken: true,
-        resetReady: true,
-        clearAllowHoverVideo: true,
         clearSeekCoalescer: true,
         clearDelayTimer: true,
-        stopLive: true,
-        releaseSession: true,
-        abortVideo: true,
       }
     case 'preview-hidden':
       return {

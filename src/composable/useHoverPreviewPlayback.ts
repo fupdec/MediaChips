@@ -492,8 +492,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   /**
-   * Soft mouseleave path: bump token, clear seeks, unmount video, stop live,
-   * release session. Caller still owns cinema / leave timers.
+   * Soft mouseleave path: clear pending seeks/delay only.
+   * Video stays mounted until stopPlayingPreview / finalize-stop.
    */
   const cancelHoverPlayback = () => {
     applyHoverTeardown('cancel-hover')

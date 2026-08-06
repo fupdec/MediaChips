@@ -33,6 +33,21 @@ export function getMouseLeaveDismissDelayMs(softDismiss: boolean): number {
   return softDismiss ? 120 : 100
 }
 
+export type HoverMouseEnterAction = 'cancel-pending-leave' | 'start-hover' | 'ignore'
+
+/** Decide mouseenter during leave-grace vs a fresh hover start. */
+export function resolveHoverMouseEnterAction(input: {
+  isFileExists: boolean
+  isFocused: boolean
+  isHovered: boolean
+  leaveTimerPending: boolean
+}): HoverMouseEnterAction {
+  if (!input.isFileExists || !input.isFocused) return 'ignore'
+  if (input.leaveTimerPending && input.isHovered) return 'cancel-pending-leave'
+  if (input.isHovered) return 'ignore'
+  return 'start-hover'
+}
+
 export type ItemPreviewHoverSessionOptions = {
   isFileExists: MaybeRefOrGetter<boolean>
   isHovered: Ref<boolean>
@@ -59,6 +74,8 @@ export type ItemPreviewHoverSessionOptions = {
   resetPreviewContainer: () => void
   shouldKeepBigPreviewOpen: () => boolean
   hasActivePreviewState: () => boolean
+  /** True when hover <video> is mounted or ready — skip reschedule on leave-grace cancel. */
+  isHoverVideoArmed?: MaybeRefOrGetter<boolean>
   isBigPreviewOpen: MaybeRefOrGetter<boolean>
   onBigPreviewChange: (open: boolean) => void
   clearContextMenu?: () => void
@@ -96,14 +113,29 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
   }
 
   const handleMouseEnter = (e?: MouseEvent) => {
-    if (!toValue(options.isFileExists) || options.isHovered.value || !isAppWindowFocused()) return
-
     if (e) {
       lastHoverClientX = e.clientX
     }
 
+    const action = resolveHoverMouseEnterAction({
+      isFileExists: Boolean(toValue(options.isFileExists)),
+      isFocused: isAppWindowFocused(),
+      isHovered: options.isHovered.value,
+      leaveTimerPending: options.timeouts.leave != null,
+    })
+    if (action === 'ignore') return
+
     clearTimeout(options.timeouts.leave)
+    options.timeouts.leave = undefined
     clearTimeout(options.timeouts.hoverCooldown)
+
+    if (action === 'cancel-pending-leave') {
+      // Delay was cleared on leave; reschedule only if video never armed.
+      if (!toValue(options.isHoverVideoArmed)) {
+        options.scheduleHoverPreviewUi()
+      }
+      return
+    }
 
     const cooldownRemaining = getHoverPreviewCooldownRemaining()
     if (cooldownRemaining > 0) {

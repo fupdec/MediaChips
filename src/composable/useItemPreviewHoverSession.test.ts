@@ -1,11 +1,18 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {nextTick, ref} from 'vue'
+
+vi.mock('@/utils/windowFocus', () => ({
+  isAppWindowFocused: () => true,
+}))
+
 import {
   getMouseLeaveDismissDelayMs,
+  resolveHoverMouseEnterAction,
   shouldIgnoreMouseLeave,
   shouldSoftDismissOnMouseLeave,
   useItemPreviewHoverSession,
 } from './useItemPreviewHoverSession'
+import {resetHoverPreviewCooldownForTests} from '@/utils/hoverPreviewPlayback'
 
 describe('shouldIgnoreMouseLeave', () => {
   const baseInput = {
@@ -53,9 +60,39 @@ describe('getMouseLeaveDismissDelayMs', () => {
   })
 })
 
+describe('resolveHoverMouseEnterAction', () => {
+  it('cancels pending leave during grace while still hovered', () => {
+    expect(resolveHoverMouseEnterAction({
+      isFileExists: true,
+      isFocused: true,
+      isHovered: true,
+      leaveTimerPending: true,
+    })).toBe('cancel-pending-leave')
+  })
+
+  it('starts hover when not hovered', () => {
+    expect(resolveHoverMouseEnterAction({
+      isFileExists: true,
+      isFocused: true,
+      isHovered: false,
+      leaveTimerPending: false,
+    })).toBe('start-hover')
+  })
+
+  it('ignores when already hovered without a leave timer', () => {
+    expect(resolveHoverMouseEnterAction({
+      isFileExists: true,
+      isFocused: true,
+      isHovered: true,
+      leaveTimerPending: false,
+    })).toBe('ignore')
+  })
+})
+
 describe('useItemPreviewHoverSession', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    resetHoverPreviewCooldownForTests()
   })
 
   it('stopPlayingPreview with force during collapse calls removeClasses path', async () => {
@@ -122,5 +159,111 @@ describe('useItemPreviewHoverSession', () => {
     await nextTick()
     expect(resetPreviewContainer).toHaveBeenCalled()
     expect(finalizePreviewStop).toHaveBeenCalled()
+  })
+
+  it('re-enter during leave grace cancels pending stop without remount', () => {
+    const isHovered = ref(true)
+    const timeouts: {leave?: ReturnType<typeof setTimeout>} = {}
+    const cancelHoverPlayback = vi.fn()
+    const hidePreviewVideoImmediately = vi.fn()
+    const finalizePreviewStop = vi.fn()
+    const scheduleHoverPreviewUi = vi.fn()
+    const stopPreviewLiveTranscode = vi.fn()
+
+    const session = useItemPreviewHoverSession({
+      isFileExists: true,
+      isHovered,
+      isShrinking: ref(false),
+      playbackError: ref(false),
+      gridBigPreview: {
+        isCollapsing: ref(false),
+        isVisual: ref(false),
+        forceClose: vi.fn(),
+      } as never,
+      bigPreviewAnimation: ref(false),
+      bigPreviewMenuActive: ref(false),
+      holdPreviewVideoDuringCollapse: ref(false),
+      collapsePreviewFading: ref(false),
+      timeouts,
+      hasFixedPreviewTime: false,
+      getPreviewEl: () => null,
+      clearCinemaTimeout: vi.fn(),
+      clearPreviewDelayTimer: vi.fn(),
+      cancelHoverPlayback,
+      hidePreviewVideoImmediately,
+      stopPreviewLiveTranscode,
+      finalizePreviewStop,
+      scheduleHoverPreviewUi,
+      applyFixedPreviewTime: vi.fn(),
+      applyPreviewTimeFromPointer: vi.fn(),
+      closeGridBigPreview: vi.fn(async () => {}),
+      resetPreviewContainer: vi.fn(),
+      shouldKeepBigPreviewOpen: () => false,
+      hasActivePreviewState: () => true,
+      isHoverVideoArmed: true,
+      isBigPreviewOpen: false,
+      onBigPreviewChange: vi.fn(),
+    })
+
+    session.handleMouseLeave()
+    expect(cancelHoverPlayback).toHaveBeenCalled()
+    expect(timeouts.leave).toBeTruthy()
+
+    session.handleMouseEnter()
+    expect(timeouts.leave).toBeUndefined()
+    expect(scheduleHoverPreviewUi).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(150)
+    expect(hidePreviewVideoImmediately).not.toHaveBeenCalled()
+    expect(finalizePreviewStop).not.toHaveBeenCalled()
+    expect(isHovered.value).toBe(true)
+  })
+
+  it('leave without re-enter still finalizes after grace', () => {
+    const isHovered = ref(true)
+    const timeouts: {leave?: ReturnType<typeof setTimeout>} = {}
+    const hidePreviewVideoImmediately = vi.fn()
+    const finalizePreviewStop = vi.fn()
+
+    const session = useItemPreviewHoverSession({
+      isFileExists: true,
+      isHovered,
+      isShrinking: ref(false),
+      playbackError: ref(false),
+      gridBigPreview: {
+        isCollapsing: ref(false),
+        isVisual: ref(false),
+        forceClose: vi.fn(),
+      } as never,
+      bigPreviewAnimation: ref(false),
+      bigPreviewMenuActive: ref(false),
+      holdPreviewVideoDuringCollapse: ref(false),
+      collapsePreviewFading: ref(false),
+      timeouts,
+      hasFixedPreviewTime: false,
+      getPreviewEl: () => null,
+      clearCinemaTimeout: vi.fn(),
+      clearPreviewDelayTimer: vi.fn(),
+      cancelHoverPlayback: vi.fn(),
+      hidePreviewVideoImmediately,
+      stopPreviewLiveTranscode: vi.fn(),
+      finalizePreviewStop,
+      scheduleHoverPreviewUi: vi.fn(),
+      applyFixedPreviewTime: vi.fn(),
+      applyPreviewTimeFromPointer: vi.fn(),
+      closeGridBigPreview: vi.fn(async () => {}),
+      resetPreviewContainer: vi.fn(),
+      shouldKeepBigPreviewOpen: () => false,
+      hasActivePreviewState: () => true,
+      isHoverVideoArmed: true,
+      isBigPreviewOpen: false,
+      onBigPreviewChange: vi.fn(),
+    })
+
+    session.handleMouseLeave()
+    vi.advanceTimersByTime(100)
+    expect(hidePreviewVideoImmediately).toHaveBeenCalled()
+    expect(finalizePreviewStop).toHaveBeenCalled()
+    expect(isHovered.value).toBe(false)
   })
 })
