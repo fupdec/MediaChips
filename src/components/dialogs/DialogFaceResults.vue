@@ -136,8 +136,10 @@
                     :key="`thumb-${face.id}-${member.id}`"
                     type="button"
                     class="face-card__frame-thumb"
-                    :title="member.timestamp || `#${member.id}`"
-                    @click.stop="openDetailMember(face, member)"
+                    :title="member.timestamp
+                      ? t('face_results.play_from_here_at', {time: member.timestamp})
+                      : `#${member.id}`"
+                    @click.stop="playFromFace(member)"
                   >
                     <img
                       v-if="cropUrl(member)"
@@ -146,6 +148,12 @@
                       loading="lazy"
                     >
                     <v-icon v-else icon="mdi-image-off-outline" size="14"/>
+                    <span
+                      v-if="facePlayableSeconds(member) != null"
+                      class="face-card__frame-thumb-play"
+                    >
+                      <v-icon icon="mdi-play" size="12"/>
+                    </span>
                   </button>
                   <button
                     v-if="clusterThumbsOverflow(face) > 0"
@@ -395,12 +403,17 @@
             >
               {{ t('face_results.cluster_frames', {count: detailFace.clusterSize}) }}
             </div>
-            <div
+            <button
               v-if="detailFace.timestamp"
-              class="face-card__preview-badge face-card__preview-badge--right"
+              type="button"
+              class="face-card__preview-badge face-card__preview-badge--right face-card__preview-badge--play"
+              :title="t('face_results.play_from_here')"
+              :disabled="facePlayableSeconds(detailFace) == null"
+              @click="playFromFace(detailFace)"
             >
+              <v-icon icon="mdi-play" size="12" class="mr-1"/>
               {{ detailFace.timestamp }}
-            </div>
+            </button>
           </div>
 
           <div
@@ -411,24 +424,38 @@
               {{ t('face_results.cluster_timestamps') }}
             </div>
             <div class="d-flex flex-wrap ga-2">
-              <button
+              <div
                 v-for="member in detailClusterFaces"
                 :key="`cluster-ts-${member.id}`"
-                type="button"
                 class="face-detail__cluster-frame"
                 :class="{'face-detail__cluster-frame--active': member.id === detailFace.id}"
-                @click="detailFaceId = member.id"
               >
-                <img
-                  v-if="cropUrl(member)"
-                  :src="cropUrl(member)"
-                  :alt="member.timestamp || `#${member.id}`"
-                  loading="lazy"
+                <button
+                  type="button"
+                  class="face-detail__cluster-frame-main"
+                  :title="member.timestamp || `#${member.id}`"
+                  @click="detailFaceId = member.id"
                 >
-                <span class="face-detail__cluster-frame-ts">
-                  {{ member.timestamp || `#${member.id}` }}
-                </span>
-              </button>
+                  <img
+                    v-if="cropUrl(member)"
+                    :src="cropUrl(member)"
+                    :alt="member.timestamp || `#${member.id}`"
+                    loading="lazy"
+                  >
+                  <span class="face-detail__cluster-frame-ts">
+                    {{ member.timestamp || `#${member.id}` }}
+                  </span>
+                </button>
+                <button
+                  v-if="facePlayableSeconds(member) != null"
+                  type="button"
+                  class="face-detail__cluster-frame-play"
+                  :title="t('face_results.play_from_here')"
+                  @click.stop="playFromFace(member)"
+                >
+                  <v-icon icon="mdi-play" size="16"/>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -513,6 +540,17 @@
           </div>
 
           <div class="face-card__actions d-flex flex-wrap ga-2">
+            <v-btn
+              v-if="facePlayableSeconds(detailFace) != null"
+              color="primary"
+              rounded
+              variant="flat"
+              prepend-icon="mdi-play"
+              :disabled="!media"
+              @click="playFromFace(detailFace)"
+            >
+              {{ t('face_results.play_from_here') }}
+            </v-btn>
             <v-menu
               :model-value="assigningFaceId === detailFace.id"
               :close-on-content-click="false"
@@ -645,6 +683,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsStore} from '@/stores/items'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {TAG_IMAGE_SAVE_WIDTH} from '@shared/tagImages'
+import {parseFaceTimestampSeconds} from '@shared/faceTimestamp'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 
@@ -1079,11 +1118,29 @@ const openDetail = (face: FaceResult) => {
   detailFaceId.value = face.id
 }
 
-const openDetailMember = (_face: FaceResult, member: FaceResult) => {
-  assigningFaceId.value = null
-  creatingFaceId.value = null
-  newTagName.value = ''
-  detailFaceId.value = member.id
+const facePlayableSeconds = (face: Pick<FaceResult, 'timestamp'> | null | undefined) => (
+  parseFaceTimestampSeconds(face?.timestamp)
+)
+
+const playFromFace = async (face: FaceResult) => {
+  const video = media.value
+  if (!video?.id) return
+
+  const time = facePlayableSeconds(face)
+  if (time == null) {
+    setNotification({
+      type: 'info',
+      text: t('face_results.play_from_here_no_time'),
+    })
+    return
+  }
+
+  detailFaceId.value = face.id
+  await itemsStore.playVideo({
+    video,
+    time,
+    videos: [video],
+  })
 }
 
 const closeDetail = () => {
@@ -1621,6 +1678,21 @@ async function onCamGirlFinderApplied(payload?: {
   right: 8px;
 }
 
+.face-card__preview-badge--play {
+  pointer-events: auto;
+  border: 0;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.75);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
 .face-card__frames {
   position: absolute;
   left: auto;
@@ -1641,6 +1713,7 @@ async function onCamGirlFinderApplied(payload?: {
 }
 
 .face-card__frame-thumb {
+  position: relative;
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
@@ -1664,6 +1737,18 @@ async function onCamGirlFinderApplied(payload?: {
   &:hover {
     border-color: #fff;
   }
+}
+
+.face-card__frame-thumb-play {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 .face-card__frame-more {
@@ -1829,6 +1914,15 @@ async function onCamGirlFinderApplied(payload?: {
   border-radius: 12px;
   overflow: hidden;
   background: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.face-detail__cluster-frame-main {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
 
   img {
@@ -1858,5 +1952,27 @@ async function onCamGirlFinderApplied(payload?: {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.face-detail__cluster-frame-play {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--v-theme-primary));
+  }
 }
 </style>
