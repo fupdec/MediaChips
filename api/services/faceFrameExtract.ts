@@ -13,6 +13,10 @@ import {
   pickDiverseFrames,
 } from './faceDetectorMath'
 import {FACE_CROP_FRAME_WIDTH} from './faceCropStore'
+import {mapInOrderedBatches} from './orderedAsyncBatches'
+
+/** Pipeline fingerprint work while the next ffmpeg extract queues. */
+export const FACE_FRAME_EXTRACT_CONCURRENCY = 2
 
 export function collectLumaValuesFromRgba(
   data: Uint8Array | Buffer | number[],
@@ -84,12 +88,20 @@ export function unlinkUnselectedFrameFiles(
 
 export async function extractFramesForMedia(
   item: FaceDetectorMediaItem,
-  options: FaceDetectorOptions = {},
+  options: FaceDetectorOptions & {
+    shouldStop?: () => boolean
+    extractConcurrency?: number
+  } = {},
 ) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-faces-'))
   const frames: Array<{framePath: string; timestamp: string}> = []
   const frameWidth = Number(options.frameWidth || FACE_CROP_FRAME_WIDTH)
   const framesPerVideo = Number(options.framesPerVideo || 6)
+  const shouldStop = options.shouldStop || (() => false)
+  const extractConcurrency = Math.max(
+    1,
+    options.extractConcurrency ?? FACE_FRAME_EXTRACT_CONCURRENCY,
+  )
 
   if (!item?.path || !fs.existsSync(String(item.path))) {
     return {tmpDir, frames}
@@ -105,22 +117,33 @@ export async function extractFramesForMedia(
   // Oversample then drop near-duplicates so N kept frames cover more of the video.
   const {targetCount, candidateCount} = computeOversampledFrameCount(framesPerVideo)
   const timestamps = getFrameTimestamps(duration, candidateCount)
-  const candidates: Array<{framePath: string; timestamp: string; fingerprint: string}> = []
 
-  for (let index = 0; index < timestamps.length; index++) {
-    const output = path.join(tmpDir, `${item.id || 'media'}_${index}.jpg`)
-    try {
+  const extracted = await mapInOrderedBatches(
+    timestamps,
+    extractConcurrency,
+    async (timestamp, index) => {
+      const output = path.join(tmpDir, `${item.id || 'media'}_${index}.jpg`)
       await extractVideoFrame({
         input: String(item.path),
         output,
-        timestamp: timestamps[index],
+        timestamp,
         vf: `scale=${frameWidth}:-1`,
       })
       const fingerprint = await frameFingerprint(output)
-      candidates.push({framePath: output, timestamp: timestamps[index], fingerprint})
-    } catch {
-      // Skip broken frames.
-    }
+      return {framePath: output, timestamp, fingerprint}
+    },
+    {shouldStop},
+  )
+
+  const candidates = extracted.filter(
+    (entry): entry is {framePath: string; timestamp: string; fingerprint: string} => (
+      Boolean(entry)
+    ),
+  )
+
+  if (shouldStop()) {
+    unlinkUnselectedFrameFiles(candidates, [])
+    return {tmpDir, frames}
   }
 
   const selected = pickDiverseFrames(candidates, targetCount)
