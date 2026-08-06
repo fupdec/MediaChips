@@ -133,6 +133,8 @@ const cn = {
     hintTab: '固定标签',
     sectionTags: '可固定标签',
     sectionFiltered: '按标签筛选',
+    health_translate_hint: '非英语查询（CN/DE/ES/FR/JA/PT/RU）会在搜索前翻译成英语',
+    searched_as: '实际搜索：{query}',
   },
   settings: {
     tabs: {

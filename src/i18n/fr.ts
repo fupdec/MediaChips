@@ -133,6 +133,8 @@ const fr = {
     hintTab: 'épingler le tag',
     sectionTags: 'Tags à épingler',
     sectionFiltered: 'Filtré par tags',
+    health_translate_hint: 'Les requêtes non anglaises (CN/DE/ES/FR/JA/PT/RU) sont traduites en anglais avant la recherche',
+    searched_as: 'Recherche : {query}',
   },
   settings: {
     tabs: {

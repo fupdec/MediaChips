@@ -133,6 +133,8 @@ const de = {
     hintTab: "Tag anheften",
     sectionTags: "Tags zum Anheften",
     sectionFiltered: "Nach Tags gefiltert",
+    health_translate_hint: "Nicht-englische Anfragen (CN/DE/ES/FR/JA/PT/RU) werden vor der Suche ins Englische übersetzt",
+    searched_as: "Gesucht als: {query}",
   },
   settings: {
     tabs: {

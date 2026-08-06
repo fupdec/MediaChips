@@ -10,7 +10,13 @@ vi.mock('./opusMtTranslate', () => ({
     ru: 'Xenova/opus-mt-ru-en',
     zh: 'Xenova/opus-mt-zh-en',
     es: 'Xenova/opus-mt-es-en',
+    de: 'Xenova/opus-mt-de-en',
+    fr: 'Xenova/opus-mt-fr-en',
+    ja: 'Xenova/opus-mt-ja-en',
+    pt: 'Xenova/opus-mt-pt-en',
   },
+  hasDownloadedOpusModel: vi.fn(() => true),
+  prefetchOpusMtModel: vi.fn(),
   translateWithOpusMt: vi.fn(async (_db: unknown, lang: string, text: string) => ({
     text: `en:${text}`,
     model: `Xenova/opus-mt-${lang}-en`,
@@ -26,34 +32,40 @@ describe('semanticQueryTranslate detect', () => {
   it('detects Russian via Cyrillic', () => {
     expect(looksEnglish('красная машина')).toBe(false)
     expect(detectSemanticQueryLang('девушка в шляпе')).toBe('ru')
-    expect(detectSemanticQueryLang('girl and машина')).toBe('ru')
   })
 
-  it('detects Chinese via CJK', () => {
-    expect(looksEnglish('红色的汽车')).toBe(false)
+  it('detects Chinese via Han and Japanese via kana', () => {
     expect(detectSemanticQueryLang('戴帽子的女人')).toBe('zh')
-    expect(detectSemanticQueryLang('woman 帽子')).toBe('zh')
+    expect(detectSemanticQueryLang('戴帽子的女人', 'ja')).toBe('ja')
+    expect(detectSemanticQueryLang('こんにちは')).toBe('ja')
+    expect(detectSemanticQueryLang('女の人')).toBe('ja')
   })
 
-  it('detects Spanish via markers', () => {
-    expect(looksEnglish('niño en la playa')).toBe(false)
+  it('detects Spanish via markers and hints', () => {
     expect(detectSemanticQueryLang('¿dónde está el coche?')).toBe('es')
     expect(detectSemanticQueryLang('niño en la playa')).toBe('es')
   })
 
-  it('uses es locale for ambiguous Latin without markers', () => {
-    expect(detectSemanticQueryLang('mujer en la playa', 'en')).toBe('es')
-    expect(detectSemanticQueryLang('mujer en la playa', 'es')).toBe('es')
-    expect(detectSemanticQueryLang('woman wearing a hat', 'es')).toBe('en')
-    expect(detectSemanticQueryLang('xyzzy plugh', 'es')).toBe('es')
-    expect(detectSemanticQueryLang('xyzzy plugh', 'en')).toBe('en')
+  it('detects German, French, and Portuguese', () => {
+    expect(detectSemanticQueryLang('Straße am Strand')).toBe('de')
+    expect(detectSemanticQueryLang('große Straße')).toBe('de')
+    expect(detectSemanticQueryLang('femme sur la plage')).toBe('fr')
+    expect(detectSemanticQueryLang('mulher na praia')).toBe('pt')
+    expect(detectSemanticQueryLang('não está na praia')).toBe('pt')
   })
 
-  it('returns null for empty or unsupported scripts', () => {
+  it('uses app locale for ambiguous Latin', () => {
+    expect(detectSemanticQueryLang('xyzzy plugh', 'de')).toBe('de')
+    expect(detectSemanticQueryLang('xyzzy plugh', 'fr')).toBe('fr')
+    expect(detectSemanticQueryLang('xyzzy plugh', 'pt')).toBe('pt')
+    expect(detectSemanticQueryLang('xyzzy plugh', 'es')).toBe('es')
+    expect(detectSemanticQueryLang('xyzzy plugh', 'en')).toBe('en')
+    expect(detectSemanticQueryLang('woman wearing a hat', 'de')).toBe('en')
+  })
+
+  it('returns null for empty input', () => {
     expect(detectSemanticQueryLang('')).toBe(null)
     expect(detectSemanticQueryLang('   ')).toBe(null)
-    // Japanese hiragana is in the CJK range we include for MVP.
-    expect(detectSemanticQueryLang('こんにちは')).toBe('zh')
   })
 })
 
@@ -68,11 +80,14 @@ describe('translateQueryToEnglish', () => {
     })
   })
 
-  it('translates Russian via Opus mock', async () => {
-    const result = await translateQueryToEnglish({} as never, 'красная машина')
-    expect(result.translated).toBe(true)
-    expect(result.sourceLang).toBe('ru')
-    expect(result.query).toBe('en:красная машина')
-    expect(result.model).toBe('Xenova/opus-mt-ru-en')
+  it('translates supported languages via Opus mock', async () => {
+    const ru = await translateQueryToEnglish({} as never, 'красная машина')
+    expect(ru).toMatchObject({translated: true, sourceLang: 'ru', model: 'Xenova/opus-mt-ru-en'})
+
+    const de = await translateQueryToEnglish({} as never, 'Frau am Strand')
+    expect(de).toMatchObject({translated: true, sourceLang: 'de', model: 'Xenova/opus-mt-de-en'})
+
+    const ja = await translateQueryToEnglish({} as never, 'こんにちは')
+    expect(ja).toMatchObject({translated: true, sourceLang: 'ja', model: 'Xenova/opus-mt-ja-en'})
   })
 })

@@ -112,6 +112,7 @@ export const mediaApi = {
       searchQuery?: string
       translated?: boolean
       sourceLang?: string | null
+      error?: string
     }>(API_ROUTES.mediaSemanticSearch, body)
   },
 

@@ -137,6 +137,8 @@ const ja = {
     hintTab: "タグを固定",
     sectionTags: "固定するタグ",
     sectionFiltered: "タグで絞り込み",
+    health_translate_hint: "英語以外のクエリ（CN/DE/ES/FR/JA/PT/RU）は検索前に英語へ翻訳されます",
+    searched_as: "検索語句: {query}",
   },
   settings: {
     tabs: {

@@ -133,6 +133,8 @@ const es = {
     hintTab: 'fijar etiqueta',
     sectionTags: 'Etiquetas para fijar',
     sectionFiltered: 'Filtrado por etiquetas',
+    health_translate_hint: 'Las consultas no inglesas (CN/DE/ES/FR/JA/PT/RU) se traducen al inglés antes de buscar',
+    searched_as: 'Buscado como: {query}',
   },
   settings: {
     tabs: {

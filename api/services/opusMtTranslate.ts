@@ -1,13 +1,19 @@
 import type {ApiDb} from '../types/db'
 import {getModelCacheDir} from './clipEmbeddingModel'
 import fs from 'fs'
+import path from 'path'
 
-export type OpusSourceLang = 'ru' | 'zh' | 'es'
+/** Source languages we can translate to English before CLIP embed. */
+export type OpusSourceLang = 'ru' | 'zh' | 'es' | 'de' | 'fr' | 'ja' | 'pt'
 
 export const OPUS_MT_MODELS: Record<OpusSourceLang, string> = {
   ru: 'Xenova/opus-mt-ru-en',
   zh: 'Xenova/opus-mt-zh-en',
   es: 'Xenova/opus-mt-es-en',
+  de: 'Xenova/opus-mt-de-en',
+  fr: 'Xenova/opus-mt-fr-en',
+  ja: 'Xenova/opus-mt-ja-en',
+  pt: 'Xenova/opus-mt-pt-en',
 }
 
 type TranslationPipeline = (text: string, options?: Record<string, unknown>) => Promise<
@@ -17,6 +23,37 @@ type TranslationPipeline = (text: string, options?: Record<string, unknown>) => 
 const runtimes = new Map<OpusSourceLang, TranslationPipeline>()
 const loadingPromises = new Map<OpusSourceLang, Promise<TranslationPipeline>>()
 const lastErrors = new Map<OpusSourceLang, Error>()
+
+function opusModelCacheToken(lang: OpusSourceLang): string {
+  return OPUS_MT_MODELS[lang].replace(/^Xenova\//, '')
+}
+
+function hasDownloadedOpusModel(db: ApiDb, lang: OpusSourceLang): boolean {
+  if (runtimes.has(lang)) return true
+  const cacheDir = getModelCacheDir(db)
+  if (!fs.existsSync(cacheDir)) return false
+  const token = opusModelCacheToken(lang)
+  const stack = [cacheDir]
+  while (stack.length) {
+    const dir = stack.pop()
+    if (!dir) continue
+    let entries
+    try {
+      entries = fs.readdirSync(dir, {withFileTypes: true})
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(entryPath)
+      } else if (/\.(onnx|json)$/i.test(entry.name) && entryPath.includes(token)) {
+        return true
+      }
+    }
+  }
+  return false
+}
 
 async function loadOpusMtRuntime(db: ApiDb, lang: OpusSourceLang): Promise<TranslationPipeline> {
   const existing = runtimes.get(lang)
@@ -80,12 +117,22 @@ async function translateWithOpusMt(
   }
 }
 
+/** Warm a translation model in the background without blocking search. */
+function prefetchOpusMtModel(db: ApiDb, lang: OpusSourceLang): void {
+  if (runtimes.has(lang) || loadingPromises.has(lang)) return
+  void loadOpusMtRuntime(db, lang).catch(() => {
+    // Prefetch is best-effort; search can proceed without translation.
+  })
+}
+
 function getOpusMtLastError(lang: OpusSourceLang): Error | null {
   return lastErrors.get(lang) || null
 }
 
 export {
   getOpusMtLastError,
+  hasDownloadedOpusModel,
   loadOpusMtRuntime,
+  prefetchOpusMtModel,
   translateWithOpusMt,
 }

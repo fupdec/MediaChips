@@ -13,6 +13,7 @@ import {
   CLIP_EMBEDDING_MODEL,
   embedClipImageFile,
   embedClipText,
+  getClipEmbeddingStatus,
 } from './clipEmbeddingModel'
 import {translateQueryToEnglish} from './semanticQueryTranslate'
 
@@ -141,10 +142,13 @@ async function getClipEmbeddingBackfillStatus(db: ApiDb) {
   const candidateIds = listPreviewCandidateIds(db)
   const total = candidateIds.length
   const embedded = countEmbedded(db, candidateIds)
+  const model = getClipEmbeddingStatus(db)
   return {
     total,
     hashed: embedded,
     pending: Math.max(total - embedded, 0),
+    modelStatus: model.status,
+    model: model.model,
   }
 }
 
@@ -387,16 +391,37 @@ async function semanticSearchMedia(
   },
 ) {
   const text = String(query || '').trim()
-  const missingEmbeddingsCount = countMissingEmbeddings(db, mediaTypeId)
-  const previewCandidatesCount = listPreviewCandidateIds(db).length
-  const candidates = loadStoredEmbeddings(db, mediaTypeId)
-  const indexedCount = candidates.length
+  const modelStatus = getClipEmbeddingStatus(db).status
 
+  let missingEmbeddingsCount = 0
+  let previewCandidatesCount = 0
+  let candidates: Array<{id: number; embedding: ClipEmbeddingVector}> = []
+  try {
+    missingEmbeddingsCount = countMissingEmbeddings(db, mediaTypeId)
+    previewCandidatesCount = listPreviewCandidateIds(db).length
+    candidates = loadStoredEmbeddings(db, mediaTypeId)
+  } catch (error: unknown) {
+    return {
+      ids: [] as number[],
+      missingEmbeddingsCount: 0,
+      indexedCount: 0,
+      previewCandidatesCount: 0,
+      originalQuery: text,
+      searchQuery: text,
+      translated: false,
+      sourceLang: null as string | null,
+      modelStatus,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+
+  const indexedCount = candidates.length
   const emptyMeta = {
     originalQuery: text,
     searchQuery: text,
     translated: false as boolean,
     sourceLang: null as string | null,
+    modelStatus,
   }
 
   if (!text) {
@@ -409,32 +434,57 @@ async function semanticSearchMedia(
     }
   }
 
-  const prepared = await translateQueryToEnglish(db, text, {locale})
+  let prepared
+  try {
+    prepared = await translateQueryToEnglish(db, text, {locale})
+  } catch {
+    prepared = {
+      query: text,
+      originalQuery: text,
+      translated: false,
+      sourceLang: null as string | null,
+      model: null,
+    }
+  }
+
   const queryMeta = {
     originalQuery: prepared.originalQuery,
     searchQuery: prepared.query,
     translated: prepared.translated,
     sourceLang: prepared.sourceLang,
+    modelStatus: getClipEmbeddingStatus(db).status,
   }
 
-  const queryEmbedding = await embedClipText(db, prepared.query)
-  if (!queryEmbedding.length) {
+  try {
+    const queryEmbedding = await embedClipText(db, prepared.query)
+    if (!queryEmbedding.length) {
+      return {
+        ids: [] as number[],
+        missingEmbeddingsCount,
+        indexedCount,
+        previewCandidatesCount,
+        ...queryMeta,
+      }
+    }
+
+    const ids = rankByCosineSimilarity(queryEmbedding, candidates, clampLimit(limit))
+    return {
+      ids,
+      missingEmbeddingsCount,
+      indexedCount,
+      previewCandidatesCount,
+      ...queryMeta,
+    }
+  } catch (error: unknown) {
     return {
       ids: [] as number[],
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,
       ...queryMeta,
+      modelStatus: getClipEmbeddingStatus(db).status,
+      error: error instanceof Error ? error.message : String(error),
     }
-  }
-
-  const ids = rankByCosineSimilarity(queryEmbedding, candidates, clampLimit(limit))
-  return {
-    ids,
-    missingEmbeddingsCount,
-    indexedCount,
-    previewCandidatesCount,
-    ...queryMeta,
   }
 }
 

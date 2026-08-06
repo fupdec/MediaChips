@@ -122,13 +122,20 @@ const semanticHasIndex = computed(() =>
 const semanticChecklist = computed(() => {
   const health = semanticHealth.value
   if (!health) return []
+  const modelStatus = String(health.modelStatus || '')
+  const modelOk = semanticModelReady.value
+  const modelText = modelOk
+    ? t('globalSearch.health_model_ok')
+    : modelStatus === 'error'
+      ? t('globalSearch.health_model_error')
+      : modelStatus === 'loading'
+        ? t('globalSearch.health_model_loading')
+        : t('globalSearch.health_model_missing')
   return [
     {
       id: 'model',
-      ok: semanticModelReady.value,
-      text: semanticModelReady.value
-        ? t('globalSearch.health_model_ok')
-        : t('globalSearch.health_model_missing'),
+      ok: modelOk,
+      text: modelText,
     },
     {
       id: 'previews',
@@ -174,16 +181,20 @@ function resolveSemanticMediaTypeId() {
 }
 
 async function refreshSemanticHealth(partial?: Partial<SemanticHealth>) {
+  const previous = semanticHealth.value
   try {
-    const [modelRes, backfillRes] = await Promise.all([
-      typedApi.getClipModelStatus(),
-      typedApi.getBackfillStatus('clipEmbedding'),
-    ])
+    // Use CLIP *embedding* backfill status (includes modelStatus), not the
+    // video-tagger clipModelStatus endpoint which is a different pipeline.
+    const backfillRes = await typedApi.getBackfillStatus('clipEmbedding')
     semanticHealth.value = {
-      modelStatus: String(modelRes.data?.status || 'unknown'),
-      indexedCount: Number(backfillRes.data?.hashed || 0),
-      previewCandidatesCount: Number(backfillRes.data?.total || 0),
-      missingEmbeddingsCount: Number(backfillRes.data?.pending || 0),
+      modelStatus: String(
+        backfillRes.data?.modelStatus
+        || previous?.modelStatus
+        || 'unknown',
+      ),
+      indexedCount: Number(backfillRes.data?.hashed ?? previous?.indexedCount ?? 0),
+      previewCandidatesCount: Number(backfillRes.data?.total ?? previous?.previewCandidatesCount ?? 0),
+      missingEmbeddingsCount: Number(backfillRes.data?.pending ?? previous?.missingEmbeddingsCount ?? 0),
       searched: false,
       failed: false,
       translated: false,
@@ -197,19 +208,21 @@ async function refreshSemanticHealth(partial?: Partial<SemanticHealth>) {
       ...(partial?.missingEmbeddingsCount != null
         ? {missingEmbeddingsCount: partial.missingEmbeddingsCount}
         : {}),
+      ...(partial?.modelStatus != null ? {modelStatus: partial.modelStatus} : {}),
     }
   } catch (error) {
     console.error(error)
     semanticHealth.value = {
-      modelStatus: 'error',
-      indexedCount: 0,
-      previewCandidatesCount: 0,
-      missingEmbeddingsCount: 0,
-      searched: Boolean(partial?.searched),
-      failed: true,
-      translated: false,
-      searchQuery: '',
-      originalQuery: '',
+      modelStatus: previous?.modelStatus || 'error',
+      indexedCount: previous?.indexedCount ?? 0,
+      previewCandidatesCount: previous?.previewCandidatesCount ?? 0,
+      missingEmbeddingsCount: previous?.missingEmbeddingsCount ?? 0,
+      searched: Boolean(partial?.searched ?? previous?.searched),
+      failed: partial?.failed ?? true,
+      translated: previous?.translated ?? false,
+      searchQuery: previous?.searchQuery || '',
+      originalQuery: previous?.originalQuery || '',
+      ...partial,
     }
   }
 }
@@ -570,10 +583,15 @@ async function searchSemantic() {
         ?? 0,
       ),
       searched: true,
-      failed: false,
+      failed: Boolean(searchRes.data?.error),
       translated: Boolean(searchRes.data?.translated),
       searchQuery: String(searchRes.data?.searchQuery || q),
       originalQuery: String(searchRes.data?.originalQuery || q),
+    }
+
+    if (searchRes.data?.error) {
+      console.error('Semantic search error:', searchRes.data.error)
+      return
     }
 
     if (!ids.length) return

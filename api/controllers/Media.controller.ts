@@ -122,7 +122,7 @@ export default function (db: ApiDb) {
       const model = getClipEmbeddingStatus(db)
       sendOk(res, {
         ...result,
-        modelStatus: model.status,
+        modelStatus: result.modelStatus || model.status,
       })
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while running semantic search.')

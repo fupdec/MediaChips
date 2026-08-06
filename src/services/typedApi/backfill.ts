@@ -17,6 +17,8 @@ export type BackfillStatus = {
   pending?: number
   hashed?: number
   filled?: number
+  modelStatus?: string
+  model?: string
 }
 
 export type BackfillStreamEvent = {
