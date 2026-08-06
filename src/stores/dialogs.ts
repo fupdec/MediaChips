@@ -46,6 +46,11 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       duplicatesBy: null as string | null,
       mediaTypeId: null as number | null,
     },
+    similarWall: {
+      show: false,
+      seedId: null as number | null,
+      mediaTypeId: null as number | null,
+    },
     tagCategoryMerge: { show: false, categories: [] as Meta[] },
     bulkEditingItems: false,
     markAdding: {
@@ -208,6 +213,28 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.duplicateReview.show = false
       this.duplicateReview.duplicatesBy = null
       this.duplicateReview.mediaTypeId = null
+    },
+    openSimilarWall(options: {
+      seedId: number
+      mediaTypeId?: number | null
+    }) {
+      const seedId = Number(options.seedId)
+      if (!Number.isFinite(seedId) || seedId <= 0) return
+      this.similarWall.seedId = seedId
+      this.similarWall.mediaTypeId = options.mediaTypeId == null
+        ? null
+        : Number(options.mediaTypeId)
+      this.similarWall.show = true
+    },
+    setSimilarWallSeed(seedId: number) {
+      const id = Number(seedId)
+      if (!Number.isFinite(id) || id <= 0) return
+      this.similarWall.seedId = id
+    },
+    closeSimilarWall() {
+      this.similarWall.show = false
+      this.similarWall.seedId = null
+      this.similarWall.mediaTypeId = null
     },
     openTagCategoryMerge(categories: Meta[]) {
       this.tagCategoryMerge.categories = categories

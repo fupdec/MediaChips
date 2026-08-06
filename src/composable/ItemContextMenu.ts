@@ -886,45 +886,10 @@ export default function useItemContextMenu(
     const seedId = Number(item.id)
     if (!Number.isFinite(seedId) || seedId <= 0) return
 
-    const locale = settingsStore.locale as Locale
-    const tr = (key: string) => translate(key, {}, locale)
-
-    try {
-      const response = await typedApi.similarByClip({seedId})
-      const data = response.data
-      if (!data?.hasEmbedding) {
-        setNotification({
-          type: 'info',
-          title: tr('context_menu.semantically_similar_no_embedding'),
-          icon: 'brain',
-        })
-        return
-      }
-      const ids = Array.isArray(data.ids)
-        ? data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
-        : []
-      if (ids.length <= 1) {
-        setNotification({
-          type: 'info',
-          title: tr('context_menu.semantically_similar_none'),
-          icon: 'brain',
-        })
-        return
-      }
-
-      await openMediaList({
-        mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
-        ids,
-        scope: {kind: 'clipSimilar'},
-      })
-    } catch (error) {
-      console.error('Failed to find semantically similar media:', error)
-      setNotification({
-        type: 'error',
-        title: tr('context_menu.semantically_similar_failed'),
-        icon: 'brain',
-      })
-    }
+    dialogsStore.openSimilarWall({
+      seedId,
+      mediaTypeId: item.mediaTypeId || currentMediaType.value?.id || null,
+    })
   }
 
   const detectFacesForSelection = async (): Promise<void> => {
