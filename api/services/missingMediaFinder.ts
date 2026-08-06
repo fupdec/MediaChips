@@ -2,35 +2,27 @@ import type { ApiDb, AnyRecord } from '../types/db'
 import type { MissingMediaSearchOptions } from '../types/missingMediaFinder'
 import path from 'path'
 import { stat } from 'fs/promises'
-import { fileExists } from './contentHash'
 import { computeOshashForPath } from './oshash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { buildExtensionRegexFromMediaTypes } from '../utils/mediaExtensions'
 import { buildMissingIndexes, pickWeakCandidate } from './missingMediaMatch'
 import {walkMatchedMediaFiles} from './mediaFileWalk'
+import {collectMissingMediaByPathExist} from './missingMediaExistScan'
 
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
   const {shouldStop = () => false, onProgress} = options
   const all = mediaRepo.findAllOrderedById()
 
-  const missing = []
-
-  for (let index = 0; index < all.length; index += 1) {
-    if (shouldStop()) break
-
-    const item = all[index]
-    if (!(await fileExists(item.path))) {
-      missing.push(item)
-    }
-
-    if (onProgress && (index % 100 === 0 || index === all.length - 1)) {
-      onProgress(index + 1, all.length)
-    }
-  }
-
-  return missing
+  return collectMissingMediaByPathExist(all, {
+    shouldStop,
+    onProgress: onProgress
+      ? (processed, total) => {
+        onProgress(processed, total)
+      }
+      : undefined,
+  })
 }
 
 async function getMissingMediaStatus(db: ApiDb, {full = false} = {}) {
@@ -76,27 +68,24 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
   yield {type: 'phase', phase: 'loading_missing'}
 
   const allMedia = mediaRepo.findAllOrderedById()
-
   const missingMedia = []
+  // Chunked concurrent existence checks so the UI still gets progress events.
+  const existChunkSize = 200
 
-  for (let index = 0; index < allMedia.length; index += 1) {
+  for (let offset = 0; offset < allMedia.length; offset += existChunkSize) {
     if (shouldStop()) break
 
-    const item = allMedia[index]
+    const chunk = allMedia.slice(offset, offset + existChunkSize)
+    const chunkMissing = await collectMissingMediaByPathExist(chunk, {shouldStop})
+    missingMedia.push(...chunkMissing)
 
-    if (!(await fileExists(item.path))) {
-      missingMedia.push(item)
-    }
-
-    if (index % 100 === 0 || index === allMedia.length - 1) {
-      yield {
-        type: 'progress',
-        phase: 'loading_missing',
-        processed: index + 1,
-        total: allMedia.length,
-        missing: missingMedia.length,
-        matched: 0,
-      }
+    yield {
+      type: 'progress',
+      phase: 'loading_missing',
+      processed: Math.min(offset + chunk.length, allMedia.length),
+      total: allMedia.length,
+      missing: missingMedia.length,
+      matched: 0,
     }
   }
 
