@@ -1,4 +1,8 @@
 import { spawn } from 'child_process'
+import {
+  runWithFfmpegLimit,
+  runWithFfprobeLimit,
+} from '../services/mediaPostProcessQueue'
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
 import {
   acceptKeyframeHit,
@@ -40,17 +44,19 @@ function runProcess(binary: string, args: string[]): Promise<{stdout: string; st
 }
 
 async function ffprobe(filePath: string) {
-  const {stdout} = await runProcess(getFfprobePath(), [
-    '-v',
-    'quiet',
-    '-print_format',
-    'json',
-    '-show_format',
-    '-show_streams',
-    filePath,
-  ])
+  return runWithFfprobeLimit(async () => {
+    const {stdout} = await runProcess(getFfprobePath(), [
+      '-v',
+      'quiet',
+      '-print_format',
+      'json',
+      '-show_format',
+      '-show_streams',
+      filePath,
+    ])
 
-  return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
+    return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
+  })
 }
 
 /**
@@ -62,54 +68,56 @@ async function findPreviousKeyframeTime(
   targetSeconds: number,
   lookbackSeconds = 600,
 ): Promise<number | null> {
-  const target = Math.max(0, Number(targetSeconds) || 0)
-  if (target <= 0.05) return 0
+  return runWithFfprobeLimit(async () => {
+    const target = Math.max(0, Number(targetSeconds) || 0)
+    if (target <= 0.05) return 0
 
-  const windowStart = Math.max(0, target - Math.max(30, lookbackSeconds))
-  const windowDuration = Math.ceil(target - windowStart + 2)
-  const interval = `${windowStart}%+${windowDuration}`
+    const windowStart = Math.max(0, target - Math.max(30, lookbackSeconds))
+    const windowDuration = Math.ceil(target - windowStart + 2)
+    const interval = `${windowStart}%+${windowDuration}`
 
-  const fromFrames = async () => {
-    const {stdout} = await runProcess(getFfprobePath(), [
-      '-v', 'error',
-      '-select_streams', 'v:0',
-      '-skip_frame', 'nokey',
-      '-show_entries', 'frame=pts_time',
-      '-of', 'csv=p=0',
-      '-read_intervals', interval,
-      filePath,
-    ])
-    return pickBestKeyframePts(stdout, target)
-  }
-
-  const fromPackets = async () => {
-    const {stdout} = await runProcess(getFfprobePath(), [
-      '-v', 'error',
-      '-select_streams', 'v:0',
-      '-show_entries', 'packet=pts_time,flags',
-      '-of', 'csv=p=0',
-      '-read_intervals', interval,
-      filePath,
-    ])
-    return pickBestKeyframeFromPackets(stdout, target)
-  }
-
-  try {
-    const frameKey = await fromFrames()
-    // Empty ffprobe lines parse as 0; ignore a bogus t=0 hit for mid-file targets.
-    const accepted = acceptKeyframeHit(frameKey, target)
-    if (accepted != null) {
-      return accepted
+    const fromFrames = async () => {
+      const {stdout} = await runProcess(getFfprobePath(), [
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-skip_frame', 'nokey',
+        '-show_entries', 'frame=pts_time',
+        '-of', 'csv=p=0',
+        '-read_intervals', interval,
+        filePath,
+      ])
+      return pickBestKeyframePts(stdout, target)
     }
-  } catch {
-    // Fall through to packet scan.
-  }
 
-  try {
-    return await fromPackets()
-  } catch {
-    return null
-  }
+    const fromPackets = async () => {
+      const {stdout} = await runProcess(getFfprobePath(), [
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'packet=pts_time,flags',
+        '-of', 'csv=p=0',
+        '-read_intervals', interval,
+        filePath,
+      ])
+      return pickBestKeyframeFromPackets(stdout, target)
+    }
+
+    try {
+      const frameKey = await fromFrames()
+      // Empty ffprobe lines parse as 0; ignore a bogus t=0 hit for mid-file targets.
+      const accepted = acceptKeyframeHit(frameKey, target)
+      if (accepted != null) {
+        return accepted
+      }
+    } catch {
+      // Fall through to packet scan.
+    }
+
+    try {
+      return await fromPackets()
+    } catch {
+      return null
+    }
+  })
 }
 
 /**
@@ -119,25 +127,27 @@ async function findPreviousKeyframeTime(
  * when the result looks incomplete.
  */
 async function ffprobePlayability(filePath: string) {
-  const {stdout} = await runProcess(getFfprobePath(), [
-    '-v',
-    'quiet',
-    '-probesize',
-    '5000000',
-    '-analyzeduration',
-    '5000000',
-    '-show_entries',
-    'stream=codec_type,codec_name:format=duration',
-    '-of',
-    'json',
-    filePath,
-  ])
+  return runWithFfprobeLimit(async () => {
+    const {stdout} = await runProcess(getFfprobePath(), [
+      '-v',
+      'quiet',
+      '-probesize',
+      '5000000',
+      '-analyzeduration',
+      '5000000',
+      '-show_entries',
+      'stream=codec_type,codec_name:format=duration',
+      '-of',
+      'json',
+      filePath,
+    ])
 
-  return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
+    return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
+  })
 }
 
 async function runFfmpeg(args: string[]) {
-  return runProcess(getFfmpegPath(), args)
+  return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args))
 }
 
 async function extractVideoFrame({

@@ -5,7 +5,6 @@ import { createMediaRepository } from '../db/repositories/media'
 import { resolveActiveDbFilePath } from './activeDbFileResolver'
 import { extractVideoThumbnail } from '../utils/ffmpeg'
 import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY } from '../../shared/videoPreview'
-import { runWithFfmpegLimit } from './mediaPostProcessQueue'
 
 const THUMB_GENERATION_TIMEOUT_MS = 120_000
 const inFlight = new Map<number, Promise<string | null>>()
@@ -89,9 +88,8 @@ export async function ensureVideoPreviewThumb(
   const existing = inFlight.get(mediaId)
   if (existing) return existing
 
-  const promise = runWithFfmpegLimit(() =>
-    generateVideoPreviewThumb(mediaId, db, resolveFilePath),
-  ).finally(() => {
+  // ffmpeg/ffprobe concurrency is enforced inside api/utils/ffmpeg.
+  const promise = generateVideoPreviewThumb(mediaId, db, resolveFilePath).finally(() => {
     inFlight.delete(mediaId)
   })
 

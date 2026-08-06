@@ -59,13 +59,12 @@ export class VideoGrid {
   }
 
   ffmpegSeekP(timestamp: string, intermediateOutput: string) {
+    // Concurrency is enforced inside api/utils/ffmpeg (runWithFfmpegLimit).
     return extractVideoFrame({
       input: this.input,
       output: intermediateOutput,
       timestamp,
-    }).then((output: unknown) => new Promise((resolve) => {
-      setTimeout(() => resolve(output), 500)
-    }))
+    })
   }
 
   ffmpegCombineP(

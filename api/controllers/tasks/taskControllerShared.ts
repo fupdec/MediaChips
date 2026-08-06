@@ -11,7 +11,6 @@ import {
   extractVideoFrame,
   extractVideoThumbnail,
 } from '../../utils/ffmpeg'
-import { runWithFfmpegLimit } from '../../services/mediaPostProcessQueue'
 import { createSettingsRepository } from '../../db/repositories/settings'
 import {
   GENERATED_MEDIA_FOLDERS,
@@ -86,11 +85,12 @@ export default function createTaskControllerShared(db: ApiDb) {
     }
   }
 
-  const createThumbMiddle = (pathToFile: string, id: unknown, seekRatio = 0.5) => runWithFfmpegLimit(() => {
+  const createThumbMiddle = (pathToFile: string, id: unknown, seekRatio = 0.5) => {
     const outputPath = path.join(getDbPath(), 'media/videos/thumbs', `${id}.jpg`)
     const normalizedSeekRatio = Number.isFinite(seekRatio)
       ? Math.min(Math.max(Number(seekRatio), 0), 1)
       : 0.5
+    // ffmpeg/ffprobe concurrency is enforced inside api/utils/ffmpeg.
     return withTimeout(
       extractVideoThumbnail({
         input: pathToFile,
@@ -102,7 +102,7 @@ export default function createTaskControllerShared(db: ApiDb) {
       120000,
       'ffmpeg thumbnail',
     ).then(() => 'success')
-  })
+  }
 
   const createThumbCustom = (
     timestamp: unknown,

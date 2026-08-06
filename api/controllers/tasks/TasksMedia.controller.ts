@@ -32,9 +32,6 @@ import {
   computeFingerprint,
 } from '../../services/mediaFingerprint'
 import {
-  runWithFfprobeLimit,
-} from '../../services/mediaPostProcessQueue'
-import {
   normalizeMediaPath,
   pathsEquivalent,
   buildPathLookupVariants,
@@ -289,7 +286,8 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     return withDuplicateLookupLock(duplicateKey, processAdd)
   }
 
-  const getVideoMetadata = async (pathToFile: string) => runWithFfprobeLimit(async () => {
+  // ffprobe concurrency is enforced inside api/utils/ffmpeg.
+  const getVideoMetadata = async (pathToFile: string) => {
     try {
       const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
       if (info.format.duration < 1) {
@@ -320,9 +318,9 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       console.error(error)
       return false
     }
-  })
+  }
 
-  const getAudioMetadata = async (pathToFile: string) => runWithFfprobeLimit(async () => {
+  const getAudioMetadata = async (pathToFile: string) => {
     try {
       const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
       if (!info?.format?.duration || info.format.duration < 1) {
@@ -347,7 +345,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       console.error(error)
       return false
     }
-  })
+  }
 
   const mediaPostProcess = createMediaPostProcessor({
     db,
