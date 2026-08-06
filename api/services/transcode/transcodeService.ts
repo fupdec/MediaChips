@@ -22,32 +22,18 @@ import { createLiveStreamRegistry } from './liveStreamTranscode'
 import {
   getChunkDuration,
 } from './liveStreamChunk'
+import {
+  buildMissingPlaybackPlan,
+  isPlayabilityProbeIncomplete,
+  resolveLiveStreamCopyCodecs,
+  resolvePlaybackPlanFromPlayability,
+  type PlaybackPlan,
+  type PlayabilityResult,
+} from './playbackPlanResolve'
 
 const AUDIO_EXTENSIONS = new Set([
   '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.opus', '.wma',
 ])
-
-interface PlayabilityResult {
-  playable: boolean
-  reason: string | null
-  videoCodec: string | null
-  audioCodec: string | null
-  duration: number
-  needsRemux?: boolean
-}
-
-interface PlaybackPlan {
-  mode: string
-  transcodeRequired: boolean
-  transcodeEnabled?: boolean
-  transcodeStatus: string
-  progress: number
-  error: string | null
-  reason: string | null
-  playability?: PlayabilityResult
-  streamPlayback?: boolean
-  remuxCopy?: boolean
-}
 
 interface TranscodeManagerOptions {
   databasesPath: string
@@ -68,22 +54,6 @@ interface StreamLiveOptions {
 function isAudioFilePath(filePath: string | null | undefined): boolean {
   const ext = path.extname(filePath || '').toLowerCase()
   return AUDIO_EXTENSIONS.has(ext)
-}
-
-function isPlayabilityProbeIncomplete(
-  probe: {streams?: Array<{codec_type?: string; codec_name?: string}>} | null | undefined,
-  options: {audioOnly?: boolean} = {},
-): boolean {
-  const streams = probe?.streams || []
-  if (streams.length === 0) return true
-
-  if (options.audioOnly) {
-    const audio = streams.find((stream) => stream.codec_type === 'audio')
-    return !audio || !audio.codec_name
-  }
-
-  const video = streams.find((stream) => stream.codec_type === 'video')
-  return !video || !video.codec_name
 }
 
 function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeManagerOptions) {
@@ -184,71 +154,13 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     const transcodeEnabled = (options.transcodeEnabled as boolean | undefined) ?? isTranscodeEnabled(settings)
 
     if (!filePath || !fs.existsSync(filePath)) {
-      return {
-        mode: 'missing',
-        transcodeRequired: false,
-        transcodeStatus: 'none',
-        progress: 100,
-        error: 'File not found',
-        reason: 'missing',
-      }
+      return buildMissingPlaybackPlan()
     }
 
     const playability = await analyzePlayability(filePath)
-
     // Codec-compatible MP4s can still freeze Chromium on seek; live-transcode
     // (re-encode) is required — stream-copy remux still yields black video in Chromium.
-    if (playability.playable && playability.needsRemux) {
-      return {
-        mode: 'stream',
-        transcodeRequired: true,
-        transcodeEnabled,
-        transcodeStatus: 'stream',
-        streamPlayback: true,
-        remuxCopy: false,
-        progress: 0,
-        error: null,
-        reason: 'container_layout',
-        playability,
-      }
-    }
-
-    if (playability.playable) {
-      return {
-        mode: 'direct',
-        transcodeRequired: false,
-        transcodeEnabled,
-        transcodeStatus: 'none',
-        progress: 100,
-        error: null,
-        reason: playability.reason,
-        playability,
-      }
-    }
-
-    if (!transcodeEnabled) {
-      return {
-        mode: 'unsupported',
-        transcodeRequired: false,
-        transcodeEnabled: false,
-        transcodeStatus: 'disabled',
-        progress: 100,
-        error: null,
-        reason: playability.reason,
-        playability,
-      }
-    }
-
-    return {
-      mode: 'stream',
-      transcodeRequired: true,
-      transcodeStatus: 'stream',
-      streamPlayback: true,
-      progress: 0,
-      error: null,
-      reason: playability.reason,
-      playability,
-    }
+    return resolvePlaybackPlanFromPlayability({playability, transcodeEnabled})
   }
 
   async function resolveStreamPath(
@@ -304,13 +216,14 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       chunkStart: streamStart,
       fileDuration,
     })
-    const codecsCopySafe = Boolean(playability.playable && !playability.needsRemux)
     // Never stream-copy pathological MP4 layouts: Chromium plays audio with a black frame.
     // Also skip copy when starting mid-file — copy can only cut on keyframes and lands early.
-    const copyCodecs = Boolean(options.copyCodecs)
-      && codecsCopySafe
-      && !playability.needsRemux
-      && streamStart < 0.05
+    const copyCodecs = resolveLiveStreamCopyCodecs({
+      requestedCopy: Boolean(options.copyCodecs),
+      playable: playability.playable,
+      needsRemux: playability.needsRemux,
+      streamStart,
+    })
 
     // Do not probe keyframes or decode-from-zero for "accurate" starts — both add
     // multi-second (sometimes multi-minute) latency before the first frame.
