@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const media = sqliteTable('media', {
   id: integer('id').primaryKey({autoIncrement: true}),
@@ -22,4 +22,6 @@ export const media = sqliteTable('media', {
   mediaTypeId: integer('mediaTypeId'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
-})
+}, (table) => ({
+  favoriteIdIdx: index('media_favorite_id_idx').on(table.favorite, table.id),
+}))

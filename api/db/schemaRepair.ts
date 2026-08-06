@@ -337,6 +337,13 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('media_media_type_id_visual_hash_idx')
   }
 
+  if (hasTable(sqlite, 'media') && !hasIndex(sqlite, 'media_favorite_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "media_favorite_id_idx" ON "media" ("favorite", "id")',
+    )
+    repaired.push('media_favorite_id_idx')
+  }
+
   if (hasTable(sqlite, 'tagsInFolders') && !hasIndex(sqlite, 'tags_in_folders_meta_tag_idx')) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "tags_in_folders_meta_tag_idx" ON "tagsInFolders" ("metaId", "tagId")',

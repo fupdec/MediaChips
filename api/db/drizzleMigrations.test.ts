@@ -38,6 +38,9 @@ describe('drizzleMigrations', () => {
     const sqlite = new Database(dbPath)
     try {
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media'`).get()).toBeTruthy()
+      expect(sqlite.prepare(
+        `SELECT name FROM sqlite_master WHERE type='index' AND name='media_favorite_id_idx'`,
+      ).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: getMigrationCount()})
     } finally {
       sqlite.close()

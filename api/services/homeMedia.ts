@@ -43,6 +43,19 @@ const mapHomeItem = (row: AnyRecord) => ({
   key: String(row.id),
 })
 
+/** Pick a pivot id in [minId, maxId] for circular favorite sampling. */
+export function chooseFavoriteSamplePivot(
+  minId: number,
+  maxId: number,
+  random: () => number = Math.random,
+): number {
+  if (!Number.isFinite(minId) || !Number.isFinite(maxId) || maxId < minId) {
+    return minId
+  }
+  const span = maxId - minId + 1
+  return minId + Math.floor(random() * span)
+}
+
 async function getContinueWatching(db: ApiDb, limit = 12) {
   const rows = queryAll(db, `${MEDIA_HOME_SELECT}
      ${MEDIA_HOME_FROM}
@@ -59,12 +72,39 @@ async function getContinueWatching(db: ApiDb, limit = 12) {
 }
 
 async function getFavoriteMedia(db: ApiDb, limit = 12) {
-  const rows = queryAll(db, `${MEDIA_HOME_SELECT}
+  const bounds = queryAll(db, `
+    SELECT
+      (SELECT id FROM media WHERE favorite = 1 ORDER BY id ASC LIMIT 1) AS minId,
+      (SELECT id FROM media WHERE favorite = 1 ORDER BY id DESC LIMIT 1) AS maxId
+  `)[0] as {minId?: number | null; maxId?: number | null} | undefined
+
+  const minId = Number(bounds?.minId)
+  const maxId = Number(bounds?.maxId)
+  if (!Number.isFinite(minId) || !Number.isFinite(maxId)) {
+    return []
+  }
+
+  const pivot = chooseFavoriteSamplePivot(minId, maxId)
+  const first = queryAll(db, `${MEDIA_HOME_SELECT}
      ${MEDIA_HOME_FROM}
      WHERE media.favorite = 1
-     ORDER BY RANDOM()
-     LIMIT :limit`, {limit})
-  return rows.map(mapHomeItem)
+       AND media.id >= :pivot
+     ORDER BY media.id ASC
+     LIMIT :limit`, {pivot, limit})
+
+  if (first.length >= limit) {
+    return first.map(mapHomeItem)
+  }
+
+  const remaining = limit - first.length
+  const wrap = queryAll(db, `${MEDIA_HOME_SELECT}
+     ${MEDIA_HOME_FROM}
+     WHERE media.favorite = 1
+       AND media.id < :pivot
+     ORDER BY media.id ASC
+     LIMIT :limit`, {pivot, limit: remaining})
+
+  return [...first, ...wrap].map(mapHomeItem)
 }
 
 async function getTopViewedMedia(db: ApiDb, limit = 12) {

@@ -134,6 +134,13 @@
       "when": 1782814800000,
       "tag": "0018_folder_tag_filter_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1782818400000,
+      "tag": "0019_media_favorite_id_idx",
+      "breakpoints": true
     }
   ]
 }

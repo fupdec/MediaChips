@@ -157,6 +157,24 @@ describe('schemaRepair', () => {
     expect(repairMissingIndexes(sqlite)).toEqual([])
   })
 
+  it('adds media favorite+id index for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE media (
+        id INTEGER PRIMARY KEY,
+        path TEXT NOT NULL,
+        favorite INTEGER DEFAULT 0,
+        mediaTypeId INTEGER,
+        visualHash TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+    expect(repaired).toContain('media_favorite_id_idx')
+    expect(repairMissingIndexes(sqlite)).toEqual([])
+  })
+
   it('dedupes tagsInTags and adds a unique index for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE tagsInTags (
