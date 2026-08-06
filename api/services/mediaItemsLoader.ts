@@ -73,6 +73,14 @@ import {
   resolveMediaListSqlParts,
   shouldComputeListTotals,
 } from './mediaItemsListSql'
+import {
+  buildMediaGroupKeySqlExpr,
+  buildMediaGroupOrderSqlExpr,
+  buildMediaGroupSummariesFromRows,
+  buildMediaGroupSummarySql,
+  buildMediaGroupedIdOrderSql,
+  supportsSqlMediaGroupBy,
+} from './mediaGroupBySql'
 
 async function resolveVisualNearDuplicateFilterQuery(
   db: ApiDb,
@@ -283,7 +291,46 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
       ? getCachedMediaListGrouping(groupingCacheKey)
       : null
 
-    if (cachedGrouping) {
+    const groupKeyExpr = supportsSqlMediaGroupBy(groupBy)
+      ? buildMediaGroupKeySqlExpr(groupBy, sortBy)
+      : null
+    const useSqlGrouping = Boolean(groupKeyExpr)
+
+    if (useSqlGrouping && groupKeyExpr) {
+      // SQL summaries + LIMIT/OFFSET page ids — no full-library slim load.
+      if (cachedGrouping) {
+        groups = cachedGrouping.groups
+      } else {
+        const summarySql = buildMediaGroupSummarySql(groupKeyExpr, fromForSort, whereClause)
+        const summaryRows = await queryAllAsync(db, summarySql, replacements) as Array<{
+          groupKey?: unknown
+          count?: unknown
+        }>
+        groups = buildMediaGroupSummariesFromRows(summaryRows, groupBy, sortBy, direction)
+        if (groupingCacheKey) {
+          setCachedMediaListGrouping(groupingCacheKey, {
+            groups,
+            orderedIds: [],
+          })
+        }
+      }
+
+      const groupOrderExpr = buildMediaGroupOrderSqlExpr(groupKeyExpr, groupBy, direction)
+      const idQuery = appendIdQueryLimitOffset(
+        buildMediaGroupedIdOrderSql(
+          idSelect,
+          fromForSort,
+          whereClause,
+          groupOrderExpr,
+          sortExpr,
+          sortDir,
+        ),
+        queryReplacements,
+        {shouldPaginate, pageLimit, safePage},
+      )
+      const idRows = await queryAllAsync(db, idQuery, queryReplacements)
+      pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
+    } else if (cachedGrouping?.orderedIds?.length) {
       groups = cachedGrouping.groups
       pageIds = resolveGroupedPageIds(cachedGrouping.orderedIds, {
         shouldPaginate,

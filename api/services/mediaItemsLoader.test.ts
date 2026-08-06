@@ -282,6 +282,54 @@ describe('loadMediaItems', () => {
     ))).toBe(false)
   })
 
+  it('pages grouped rating lists via SQL GROUP BY + LIMIT (no full slim load)', async () => {
+    const sqlCalls: string[] = []
+    vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
+      sqlCalls.push(String(sql))
+      if (sql.includes('AS groupKey') && sql.includes('GROUP BY groupKey')) {
+        return [
+          {groupKey: '5', count: 2},
+          {groupKey: '0', count: 1},
+        ]
+      }
+      if (sql.includes('LIMIT :limit') && sql.includes('media.rating')) {
+        return [{id: 1}]
+      }
+      if (sql.includes('totalFilesize')) {
+        return [{totalFiltered: 3, totalFilesize: 300}]
+      }
+      if (sql.includes('totalUnfiltered')) {
+        return [{totalUnfiltered: 3}]
+      }
+      if (sql.includes('WHERE media.id IN')) {
+        return [{id: 1, mediaTypeId: 1, path: '/a.mp4', name: 'a', filesize: 100, rating: 5}]
+      }
+      if (sql.includes('tagsInFolders') || sql.includes('folderPaths')) return []
+      if (sql.includes('tagsInMedia') || sql.includes('valuesInMedia')) return []
+      return []
+    })
+
+    const result = await loadMediaItems(mockDb, {
+      mediaTypeId: 1,
+      groupBy: 'rating',
+      page: 1,
+      limit: 1,
+    })
+
+    expect(result.groups?.map((group) => group.key)).toEqual(['5', '0'])
+    expect(result.items).toHaveLength(1)
+    expect(sqlCalls.some((sql) => sql.includes('GROUP BY groupKey'))).toBe(true)
+    expect(sqlCalls.some((sql) => sql.includes('LIMIT :limit'))).toBe(true)
+    // Must not load every slim row for grouping.
+    expect(sqlCalls.some((sql) => (
+      sql.includes('SELECT')
+      && sql.includes('media.rating')
+      && !sql.includes('GROUP BY')
+      && !sql.includes('LIMIT')
+      && !sql.includes('WHERE media.id IN')
+    ))).toBe(false)
+  })
+
   it('reuses cached grouping orderedIds on the next page', async () => {
     let slimQueries = 0
     vi.mocked(queryAllAsync).mockImplementation(async (_db, sql) => {
