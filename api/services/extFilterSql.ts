@@ -17,7 +17,7 @@ export function buildExtArrayClause(
     return `(media.ext IS NOT NULL AND media.ext != '')`
   }
   if (!exts.length) {
-    if (cond === 'in' || cond === 'in all') return '0 = 1'
+    if (cond === 'in' || cond === 'in all' || cond === 'in only') return '0 = 1'
     if (cond === 'not in') return '1 = 1'
     if (cond === 'not in all') {
       return `(media.ext IS NOT NULL AND media.ext != '')`
@@ -35,6 +35,8 @@ export function buildExtArrayClause(
     case 'not in':
       return `(${columnExpr} NOT IN (${listExpr}) OR media.ext IS NULL OR media.ext = '')`
     case 'in all':
+    case 'in only':
+      // media.ext is a single value — exact/"all" only works for one extension.
       if (exts.length === 1) return `${columnExpr} IN (${listExpr})`
       return '0 = 1'
     case 'not in all':

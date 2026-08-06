@@ -39,4 +39,16 @@ describe('countryFilterSql', () => {
     expect(inSql).toContain(' OR ')
     expect(inSql).toContain('tags.country')
   })
+
+  it('builds in only as exact country set for tags and media', () => {
+    const {nextParam} = binder()
+    const tagOnly = buildTagCountryArrayClause({cond: 'in only', val: ['US', 'JP']}, nextParam)
+    expect(tagOnly).toContain(' AND ')
+    expect(tagOnly).toContain('= 2')
+
+    const mediaOnly = buildMediaCountryArrayClause({cond: 'in only', val: ['US']}, nextParam)
+    expect(mediaOnly).toContain('EXISTS')
+    expect(mediaOnly).toContain('NOT EXISTS')
+    expect(mediaOnly).toContain('<')
+  })
 })

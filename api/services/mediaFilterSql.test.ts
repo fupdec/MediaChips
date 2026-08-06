@@ -39,6 +39,17 @@ describe('getMediaFilterSqlFallbackReason', () => {
       filters: [],
     })).toBeNull()
   })
+
+  it('keeps ext/country in only on the SQL path', () => {
+    expect(getMediaFilterSqlFallbackReason({
+      mediaTypeId: 1,
+      filters: [{active: true, param: 'ext', type: 'array', cond: 'in only', val: ['mp4']}],
+    })).toBeNull()
+    expect(getMediaFilterSqlFallbackReason({
+      mediaTypeId: 1,
+      filters: [{active: true, param: 'country', type: 'array', cond: 'in only', val: ['US']}],
+    })).toBeNull()
+  })
 })
 
 describe('buildMediaFilterQuery', () => {

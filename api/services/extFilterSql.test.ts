@@ -24,4 +24,13 @@ describe('extFilterSql', () => {
     )
     expect(buildExtArrayClause({cond: 'not in', val: ['avi']}, nextParam)).toContain('NOT IN')
   })
+
+  it('builds in only as exact single-extension match', () => {
+    const nextParam = binder()
+    expect(buildExtArrayClause({cond: 'in only', val: ['mp4']}, nextParam)).toBe(
+      'LOWER(media.ext) IN (:e1)',
+    )
+    expect(buildExtArrayClause({cond: 'in only', val: ['mp4', 'mkv']}, nextParam)).toBe('0 = 1')
+    expect(buildExtArrayClause({cond: 'in only', val: []}, nextParam)).toBe('0 = 1')
+  })
 })

@@ -18,6 +18,25 @@ export function buildTagCountryMatchSql(tagAlias: string, countryKey: string) {
   )`
 }
 
+/** Token count for delimiter/comma-separated country strings (non-empty → ≥ 1). */
+function buildCountryTokenCountSql(countryColumn: string): string {
+  return `(
+    CASE
+      WHEN ${countryColumn} IS NULL OR TRIM(${countryColumn}) = '' THEN 0
+      ELSE 1 + LENGTH(${countryColumn})
+        - LENGTH(REPLACE(REPLACE(${countryColumn}, ${COUNTRY_DELIMITER_SQL}, ''), ',', ''))
+    END
+  )`
+}
+
+function buildCountryMatchCountSql(
+  countryMatchClauses: string[],
+): string {
+  return countryMatchClauses
+    .map((clause) => `CASE WHEN (${clause}) THEN 1 ELSE 0 END`)
+    .join(' + ')
+}
+
 function normalizeCountryValues(val: unknown): unknown[] {
   return Array.isArray(val)
     ? val.filter((entry: unknown) => entry !== null && entry !== undefined && entry !== '')
@@ -68,6 +87,13 @@ export function buildMediaCountryArrayClause(
       AND (${countryMatchClauses.join(' OR ')})
   )`
 
+  const countryMatchAllSql = countryMatchClauses.map((clause) => `EXISTS (
+    SELECT 1 FROM tagsInMedia tim
+    INNER JOIN tags t ON t.id = tim.tagId
+    WHERE tim.mediaId = media.id
+      AND (${clause})
+  )`).join(' AND ')
+
   if (cond === 'in') {
     return countryMatchAnySql
   }
@@ -77,23 +103,27 @@ export function buildMediaCountryArrayClause(
   }
 
   if (cond === 'in all') {
-    return countryMatchClauses.map((clause) => `EXISTS (
-      SELECT 1 FROM tagsInMedia tim
-      INNER JOIN tags t ON t.id = tim.tagId
-      WHERE tim.mediaId = media.id
-        AND (${clause})
-    )`).join(' AND ')
+    return countryMatchAllSql
   }
 
   if (cond === 'not in all') {
-    const matchAllSql = countryMatchClauses.map((clause) => `EXISTS (
+    return `NOT (${countryMatchAllSql})`
+  }
+
+  if (cond === 'in only') {
+    // Exact country set: every selected country appears, and no linked tag
+    // carries a country token outside the selection.
+    const matchCountSql = buildCountryMatchCountSql(countryMatchClauses)
+    const tokenCountSql = buildCountryTokenCountSql('t.country')
+    const noExtraCountriesSql = `NOT EXISTS (
       SELECT 1 FROM tagsInMedia tim
       INNER JOIN tags t ON t.id = tim.tagId
       WHERE tim.mediaId = media.id
-        AND (${clause})
-    )`).join(' AND ')
-
-    return `NOT (${matchAllSql})`
+        AND t.country IS NOT NULL
+        AND t.country != ''
+        AND (${matchCountSql}) < (${tokenCountSql})
+    )`
+    return `(${countryMatchAllSql}) AND (${noExtraCountriesSql})`
   }
 
   return null
@@ -128,6 +158,8 @@ export function buildTagCountryArrayClause(
     return buildTagCountryMatchSql('tags', countryKey)
   })
 
+  const matchAllSql = countryMatchClauses.map((clause) => `(${clause})`).join(' AND ')
+
   if (cond === 'in') {
     return `(${countryMatchClauses.join(' OR ')})`
   }
@@ -137,12 +169,16 @@ export function buildTagCountryArrayClause(
   }
 
   if (cond === 'in all') {
-    return countryMatchClauses.map((clause) => `(${clause})`).join(' AND ')
+    return matchAllSql
   }
 
   if (cond === 'not in all') {
-    const matchAllSql = countryMatchClauses.map((clause) => `(${clause})`).join(' AND ')
     return `NOT (${matchAllSql})`
+  }
+
+  if (cond === 'in only') {
+    const tokenCountSql = buildCountryTokenCountSql('tags.country')
+    return `(${matchAllSql}) AND (${tokenCountSql}) = ${countries.length}`
   }
 
   return null
