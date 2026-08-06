@@ -6,13 +6,17 @@ vi.mock('@/utils/windowFocus', () => ({
 }))
 
 import {
+  HOVER_PREVIEW_THUMB_CROSSFADE_MS,
+  HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS,
+  resetHoverPreviewCooldownForTests,
+} from '@/utils/hoverPreviewPlayback'
+import {
   getMouseLeaveDismissDelayMs,
   resolveHoverMouseEnterAction,
   shouldIgnoreMouseLeave,
   shouldSoftDismissOnMouseLeave,
   useItemPreviewHoverSession,
 } from './useItemPreviewHoverSession'
-import {resetHoverPreviewCooldownForTests} from '@/utils/hoverPreviewPlayback'
 
 describe('shouldIgnoreMouseLeave', () => {
   const baseInput = {
@@ -57,6 +61,13 @@ describe('getMouseLeaveDismissDelayMs', () => {
   it('uses longer delay for soft dismiss', () => {
     expect(getMouseLeaveDismissDelayMs(true)).toBe(120)
     expect(getMouseLeaveDismissDelayMs(false)).toBe(100)
+  })
+
+  it('holds plain leave for the thumb reverse crossfade', () => {
+    expect(getMouseLeaveDismissDelayMs(false, true)).toBe(
+      HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS,
+    )
+    expect(getMouseLeaveDismissDelayMs(true, true)).toBe(120)
   })
 })
 
@@ -163,8 +174,11 @@ describe('useItemPreviewHoverSession', () => {
 
   it('re-enter during leave grace cancels pending stop without remount', () => {
     const isHovered = ref(true)
+    const hoverPreviewReady = ref(true)
     const timeouts: {leave?: ReturnType<typeof setTimeout>} = {}
-    const cancelHoverPlayback = vi.fn()
+    const cancelHoverPlayback = vi.fn(() => {
+      hoverPreviewReady.value = false
+    })
     const hidePreviewVideoImmediately = vi.fn()
     const finalizePreviewStop = vi.fn()
     const scheduleHoverPreviewUi = vi.fn()
@@ -201,6 +215,7 @@ describe('useItemPreviewHoverSession', () => {
       shouldKeepBigPreviewOpen: () => false,
       hasActivePreviewState: () => true,
       isHoverVideoArmed: true,
+      hoverPreviewReady,
       isBigPreviewOpen: false,
       onBigPreviewChange: vi.fn(),
     })
@@ -208,12 +223,16 @@ describe('useItemPreviewHoverSession', () => {
     session.handleMouseLeave()
     expect(cancelHoverPlayback).toHaveBeenCalled()
     expect(timeouts.leave).toBeTruthy()
+    expect(hoverPreviewReady.value).toBe(false)
 
     session.handleMouseEnter()
     expect(timeouts.leave).toBeUndefined()
     expect(scheduleHoverPreviewUi).not.toHaveBeenCalled()
+    expect(hoverPreviewReady.value).toBe(true)
 
-    vi.advanceTimersByTime(150)
+    vi.advanceTimersByTime(
+      HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS + 50,
+    )
     expect(hidePreviewVideoImmediately).not.toHaveBeenCalled()
     expect(finalizePreviewStop).not.toHaveBeenCalled()
     expect(isHovered.value).toBe(true)
@@ -262,6 +281,66 @@ describe('useItemPreviewHoverSession', () => {
 
     session.handleMouseLeave()
     vi.advanceTimersByTime(100)
+    expect(hidePreviewVideoImmediately).toHaveBeenCalled()
+    expect(finalizePreviewStop).toHaveBeenCalled()
+    expect(isHovered.value).toBe(false)
+  })
+
+  it('keeps video mounted through thumb reverse crossfade when preview was ready', () => {
+    const isHovered = ref(true)
+    const hoverPreviewReady = ref(true)
+    const timeouts: {leave?: ReturnType<typeof setTimeout>} = {}
+    const hidePreviewVideoImmediately = vi.fn()
+    const finalizePreviewStop = vi.fn()
+    const cancelHoverPlayback = vi.fn(() => {
+      hoverPreviewReady.value = false
+    })
+
+    const session = useItemPreviewHoverSession({
+      isFileExists: true,
+      isHovered,
+      isShrinking: ref(false),
+      playbackError: ref(false),
+      gridBigPreview: {
+        isCollapsing: ref(false),
+        isVisual: ref(false),
+        forceClose: vi.fn(),
+      } as never,
+      bigPreviewAnimation: ref(false),
+      bigPreviewMenuActive: ref(false),
+      holdPreviewVideoDuringCollapse: ref(false),
+      collapsePreviewFading: ref(false),
+      timeouts,
+      hasFixedPreviewTime: false,
+      getPreviewEl: () => null,
+      clearCinemaTimeout: vi.fn(),
+      clearPreviewDelayTimer: vi.fn(),
+      cancelHoverPlayback,
+      hidePreviewVideoImmediately,
+      stopPreviewLiveTranscode: vi.fn(),
+      finalizePreviewStop,
+      scheduleHoverPreviewUi: vi.fn(),
+      applyFixedPreviewTime: vi.fn(),
+      applyPreviewTimeFromPointer: vi.fn(),
+      closeGridBigPreview: vi.fn(async () => {}),
+      resetPreviewContainer: vi.fn(),
+      shouldKeepBigPreviewOpen: () => false,
+      hasActivePreviewState: () => true,
+      isHoverVideoArmed: true,
+      hoverPreviewReady,
+      isBigPreviewOpen: false,
+      onBigPreviewChange: vi.fn(),
+    })
+
+    session.handleMouseLeave()
+    expect(hoverPreviewReady.value).toBe(false)
+
+    vi.advanceTimersByTime(100)
+    expect(hidePreviewVideoImmediately).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(
+      HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS,
+    )
     expect(hidePreviewVideoImmediately).toHaveBeenCalled()
     expect(finalizePreviewStop).toHaveBeenCalled()
     expect(isHovered.value).toBe(false)

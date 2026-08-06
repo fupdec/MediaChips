@@ -1182,17 +1182,20 @@
     }
   }
   .thumb {
-    width: 100%;
-    min-width: 101%;
+    // Oversample slightly on both axes — width-only 101% + top:-0.5% left a
+    // 1px black gap along the bottom edge of the card thumb.
     position: absolute;
-    left: -0.5%;
-    top: -0.5%;
+    inset: -1px;
+    width: auto;
+    height: auto;
+    min-width: 0;
     background-color: #000;
     z-index: 2;
     opacity: 1;
-    // Always on so ready→opacity:0 actually crossfades (transition added
+    // Always on so ready↔opacity crossfades both ways (transition added
     // in the same rule as opacity:0 does not interpolate).
-    transition: opacity 520ms ease-in;
+    // ease-in-out: reverse fade-in must not linger near 0 then pop (ease-in).
+    transition: opacity 520ms ease-in-out;
 
     // Keep vertical letterboxing black while the container stays gray
     // for missing / loading / unavailable placeholders.
@@ -2270,7 +2273,7 @@ body > .video-preview-container.video-preview-container--expanded {
     .thumb {
       z-index: 2;
       opacity: 1;
-      transition: opacity 520ms ease-in;
+      transition: opacity 520ms ease-in-out;
     }
 
     .preview-unavailable-notice {
@@ -2374,7 +2377,7 @@ body > .video-preview-container.video-preview-container--expanded {
     .thumb {
       z-index: 2;
       opacity: 1;
-      transition: opacity 520ms ease-in;
+      transition: opacity 520ms ease-in-out;
 
       .v-img__img {
         object-fit: cover;

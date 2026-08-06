@@ -3,6 +3,8 @@ import type {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {
   armHoverPreviewCooldown,
   getHoverPreviewCooldownRemaining,
+  HOVER_PREVIEW_THUMB_CROSSFADE_MS,
+  HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS,
 } from '@/utils/hoverPreviewPlayback'
 import {isAppWindowFocused} from '@/utils/windowFocus'
 
@@ -29,8 +31,16 @@ export function shouldSoftDismissOnMouseLeave(input: MouseLeaveDismissInput): bo
   return input.isBigPreviewVisual || input.isBigPreviewOpen || input.isBigPreviewMenuActive
 }
 
-export function getMouseLeaveDismissDelayMs(softDismiss: boolean): number {
-  return softDismiss ? 120 : 100
+export function getMouseLeaveDismissDelayMs(
+  softDismiss: boolean,
+  holdForThumbCrossfade = false,
+): number {
+  if (softDismiss) return 120
+  // Keep <video> mounted until the thumb finishes fading back in (+ compositor settle).
+  if (holdForThumbCrossfade) {
+    return HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS
+  }
+  return 100
 }
 
 export type HoverMouseEnterAction = 'cancel-pending-leave' | 'start-hover' | 'ignore'
@@ -76,6 +86,8 @@ export type ItemPreviewHoverSessionOptions = {
   hasActivePreviewState: () => boolean
   /** True when hover <video> is mounted or ready — skip reschedule on leave-grace cancel. */
   isHoverVideoArmed?: MaybeRefOrGetter<boolean>
+  /** When set, leave-grace re-entry can restore the thumb→video crossfade. */
+  hoverPreviewReady?: Ref<boolean>
   isBigPreviewOpen: MaybeRefOrGetter<boolean>
   onBigPreviewChange: (open: boolean) => void
   clearContextMenu?: () => void
@@ -133,6 +145,13 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
       // Delay was cleared on leave; reschedule only if video never armed.
       if (!toValue(options.isHoverVideoArmed)) {
         options.scheduleHoverPreviewUi()
+      } else if (options.hoverPreviewReady) {
+        // Reverse the leave crossfade: thumb was covering again, reveal video.
+        options.hoverPreviewReady.value = true
+        const video = options.getPreviewEl()?.querySelector('video')
+        if (video && video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          void video.play().catch(() => {})
+        }
       }
       return
     }
@@ -224,16 +243,20 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
     if (shouldIgnoreMouseLeave(leaveInput)) return
 
     const softDismiss = shouldSoftDismissOnMouseLeave(leaveInput)
+    // Capture before cancel-hover clears ready (that flip starts the thumb fade-in).
+    const holdForThumbCrossfade = !softDismiss && Boolean(options.hoverPreviewReady?.value)
 
     if (!softDismiss) {
       options.cancelHoverPlayback()
       options.clearCinemaTimeout()
+      const video = options.getPreviewEl()?.querySelector('video')
+      video?.pause()
     }
 
     clearTimeout(options.timeouts.leave)
     options.timeouts.leave = setTimeout(() => {
       stopPlayingPreview()
-    }, getMouseLeaveDismissDelayMs(softDismiss))
+    }, getMouseLeaveDismissDelayMs(softDismiss, holdForThumbCrossfade))
   }
 
   return {

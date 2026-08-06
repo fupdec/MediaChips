@@ -59,7 +59,7 @@ describe('resolvePreviewVideoUrl', () => {
     invalidatePlayableInfo()
   })
 
-  it('uses live stream url when codecs need real transcode and it is enabled', async () => {
+  it('returns null for hard-incompat codecs so the thumb shows unavailable', async () => {
     mockGetVideoPlayable.mockResolvedValue({
       data: {
         transcodeRequired: true,
@@ -74,27 +74,8 @@ describe('resolvePreviewVideoUrl', () => {
       config: {} as never,
     })
 
-    const url = await resolvePreviewVideoUrl(buildApiUrl, 15, 30, {transcodeEnabled: true})
-    expect(url).toContain('/api/video/15/transcode/stream')
-    expect(url).toContain('start=30')
-  })
-
-  it('returns null when codecs need transcode but it is disabled', async () => {
-    mockGetVideoPlayable.mockResolvedValue({
-      data: {
-        transcodeRequired: true,
-        mode: 'stream',
-        streamPlayback: true,
-        reason: 'video_codec',
-        playability: {playable: false, videoCodec: 'hevc'},
-      },
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config: {} as never,
-    })
-
-    expect(await resolvePreviewVideoUrl(buildApiUrl, 15, 30, {transcodeEnabled: false})).toBeNull()
+    expect(await resolvePreviewVideoUrl(buildApiUrl, 15, 30, {transcodeEnabled: true})).toBeNull()
+    expect(await resolvePreviewVideoUrl(buildApiUrl, 16, 30, {transcodeEnabled: false})).toBeNull()
   })
 
   it('uses direct file url for container_layout hover (direct first)', async () => {

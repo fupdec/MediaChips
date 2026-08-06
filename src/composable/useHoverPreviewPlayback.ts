@@ -31,6 +31,9 @@ import {
   shouldScheduleHoverPreviewVideo,
   resolveHoverPreviewScheduleDelay,
   resolveFixedPreviewClipState,
+  resolveHoverLiveMaxHeight,
+  resolveLivePreviewRelativeTime,
+  getPreviewStreamStart,
   shouldComputeHoverPreviewPointerTime,
   shouldRestartFixedPreviewClip,
   type HoverPreviewTeardownKind,
@@ -38,7 +41,6 @@ import {
 import {positionHoverPreviewVideo} from '@/utils/hoverPreviewVideoPositioning'
 import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
-import {normalizeTranscodeMaxHeight} from '@/utils/playerPlaybackResolve'
 import {isAppWindowFocused} from '@/utils/windowFocus'
 
 export type HoverPreviewPlaybackOptions = {
@@ -75,10 +77,16 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   /** One live FFmpeg attempt after direct hover fails. */
   let previewLiveFallbackAttempted = false
   let preferLivePreview = false
+  /** Ignore src-change errors while handing off direct → live. */
+  let ignoreVideoErrorsUntil = 0
 
   const isHoverTranscodeEnabled = () => settingsStore.transcodeUnsupportedFormats === '1'
 
-  const hoverLiveMaxHeight = () => normalizeTranscodeMaxHeight(settingsStore.transcodeMaxHeight)
+  const hoverLiveMaxHeight = () => resolveHoverLiveMaxHeight(settingsStore.transcodeMaxHeight)
+
+  const armIgnoreVideoErrors = (ms = 750) => {
+    ignoreVideoErrorsUntil = Date.now() + ms
+  }
 
   const resetHoverPreviewReady = () => {
     hoverPreviewReady.value = false
@@ -110,6 +118,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const resetPreviewLiveFallbackState = () => {
     previewLiveFallbackAttempted = false
     preferLivePreview = false
+    ignoreVideoErrorsUntil = 0
   }
 
   const buildPreviewVideoUrl = (startSeconds = progress.value || 0) => {
@@ -154,6 +163,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const handleVideoLoaded = () => {
+    // Detached elements from a failed handoff must not clear the thumb notice.
+    if (!allowHoverVideoElement.value || videoRef.value == null) return
+    if (Date.now() < ignoreVideoErrorsUntil) return
     playbackError.value = false
     syncPlaybackTimeFromVideo()
   }
@@ -169,6 +181,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     previewLiveFallbackAttempted = true
     preferLivePreview = true
     previewUsesLiveStream.value = true
+    armIgnoreVideoErrors()
     return true
   }
 
@@ -176,7 +189,16 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   let startPreviewPlayback = async () => {}
 
   const handleVideoError = () => {
+    if (Date.now() < ignoreVideoErrorsUntil) return
+
+    const video = videoRef.value
+    // Empty mount / cleared src must not kill the hover session.
+    if (!video?.currentSrc && !video?.getAttribute('src')) return
+
     if (tryHoverLiveFallback()) {
+      // Keep the mounted <video> so live handoff can reuse it.
+      allowHoverVideoElement.value = true
+      playbackError.value = false
       void startPreviewPlayback()
       return
     }
@@ -294,6 +316,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     if (plan.clearPlaybackError) playbackError.value = false
     if (plan.zeroPlaybackTime) playbackTime.value = 0
     if (plan.resetReady) resetHoverPreviewReady()
+    // Capture before unmount — aborting src while <video> is still painted under a
+    // fading thumb flashes the gray card background (reads as white).
+    const videoToAbort = plan.abortVideo ? videoRef.value : null
     if (plan.clearAllowHoverVideo) allowHoverVideoElement.value = false
     if (plan.clearSeekCoalescer) hoverSeekCoalescer.clear()
     if (plan.clearDelayTimer) clearPreviewDelayTimer()
@@ -302,7 +327,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       resetPreviewLiveFallbackState()
     }
     if (plan.releaseSession) releaseHoverVideoPreview(toValue(options.mediaId))
-    if (plan.abortVideo) abortVideoPlayback(videoRef.value)
+    if (videoToAbort) {
+      if (plan.clearAllowHoverVideo) {
+        void nextTick(() => abortVideoPlayback(videoToAbort))
+      } else {
+        abortVideoPlayback(videoToAbort)
+      }
+    }
   }
 
   const yieldHoverVideoDecoder = () => {
@@ -380,21 +411,26 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         return
       }
 
-      // Keep the thumb covering until we are actually on the target frame.
-      if (
-        video.seeking
-        || shouldApplyPreviewSeek(video.currentTime, targetTime)
-      ) {
-        await seekPreviewVideo(video, targetTime, isPreviewCancelled(token))
+      // Reveal as soon as playback starts — don't keep the thumb glued on while
+      // a mid-file seek settles (slow volumes made previews look "dead").
+      playbackError.value = false
+      syncPlaybackTimeFromVideo()
+      markHoverPreviewReady()
+
+      // Live chunks use relative currentTime — never seek to the absolute timeline.
+      const absoluteNow = resolvePreviewPlaybackTime()
+      if (video.seeking || shouldApplyPreviewSeek(absoluteNow, targetTime)) {
+        const streamStart = Number(getPreviewStreamStart(video.src || '') || 0)
+        const seekTo = previewUsesLiveStream.value
+          ? resolveLivePreviewRelativeTime(targetTime, streamStart)
+          : targetTime
+        await seekPreviewVideo(video, seekTo, isPreviewCancelled(token))
         if (token !== previewPlaybackToken) {
           releaseHoverVideoPreview(mediaId)
           return
         }
+        syncPlaybackTimeFromVideo()
       }
-
-      playbackError.value = false
-      syncPlaybackTimeFromVideo()
-      markHoverPreviewReady()
     } catch (error) {
       const errorGate = resolveHoverPreviewPlaybackErrorGate({
         tokenMatches: token === previewPlaybackToken,
@@ -426,8 +462,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       const mediaId = toValue(options.mediaId)
       resetPreviewLiveFallbackState()
 
-      // Resolve before mounting — unsupported formats get the notice immediately.
-      // Codec-incompatible formats may resolve to a live URL when transcode is on.
+      // Resolve URL before mounting — an empty <video> can emit @error and
+      // permanently mark the card unavailable before src is assigned.
       const previewUrl = await buildPreviewVideoUrl(progress.value || 0)
       if (previewUrl?.includes('/transcode/stream')) {
         preferLivePreview = true
@@ -444,7 +480,6 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         return
       }
 
-      // Claim before mounting so another card's decoder is torn down first.
       claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
       allowHoverVideoElement.value = true
       await nextTick()

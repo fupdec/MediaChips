@@ -24,6 +24,9 @@ import {
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
   resolveHoverPreviewSourcePlan,
+  resolveHoverLiveMaxHeight,
+  HOVER_PREVIEW_DIRECT_CANPLAY_MS,
+  HOVER_PREVIEW_LIVE_MAX_HEIGHT,
   shouldAttemptHoverLiveFallback,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
@@ -423,13 +426,20 @@ describe('hoverPreviewPlayback', () => {
     expect(current).toBe(12)
   })
 
-  it('waitForPreviewCanPlay resolves when already buffered', async () => {
+  it('waitForPreviewCanPlay resolves when a current frame is ready', async () => {
     const video = {
-      readyState: HTMLMediaElement.HAVE_FUTURE_DATA,
+      readyState: HTMLMediaElement.HAVE_CURRENT_DATA,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     } as unknown as HTMLVideoElement
     await expect(waitForPreviewCanPlay(video, () => false)).resolves.toBeUndefined()
+  })
+
+  it('caps live hover encode height for faster card previews', () => {
+    expect(resolveHoverLiveMaxHeight(1080)).toBe(String(HOVER_PREVIEW_LIVE_MAX_HEIGHT))
+    expect(resolveHoverLiveMaxHeight(240)).toBe('240')
+    expect(resolveHoverLiveMaxHeight('0')).toBe(String(HOVER_PREVIEW_LIVE_MAX_HEIGHT))
+    expect(HOVER_PREVIEW_DIRECT_CANPLAY_MS).toBe(8_000)
   })
 
   it('coalesces seek flushes while in flight', async () => {
@@ -463,7 +473,7 @@ describe('hoverPreviewPlayback', () => {
     })
   })
 
-  it('plans hover preview source: direct first, live for hard incompat', () => {
+  it('plans hover preview source: direct first, notice for hard incompat', () => {
     expect(resolveHoverPreviewSourcePlan({
       mode: 'direct',
       reason: 'container_layout',
@@ -487,7 +497,7 @@ describe('hoverPreviewPlayback', () => {
       reason: 'video_codec',
       playability: {playable: false},
       transcodeEnabled: true,
-    })).toEqual({kind: 'live'})
+    })).toEqual({kind: 'unavailable'})
 
     expect(resolveHoverPreviewSourcePlan({
       mode: 'stream',

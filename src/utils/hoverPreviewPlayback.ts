@@ -1,6 +1,10 @@
 import {LIVE_STREAM_CHUNK_SECONDS} from './liveStreamChunk'
 
 export const HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS = 500
+/** Must match `.thumb { transition: opacity … }` in item.scss for reverse crossfade. */
+export const HOVER_PREVIEW_THUMB_CROSSFADE_MS = 520
+/** Extra settle so the thumb is fully opaque before <video> unmounts. */
+export const HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS = 80
 
 let hoverPreviewReadyAt = 0
 
@@ -23,6 +27,16 @@ export function isIgnorablePreviewError(error: unknown): boolean {
 }
 
 export const PREVIEW_SEEK_EPSILON = 0.12
+
+/**
+ * Direct hover canplay budget. Too low (e.g. 2.5s) breaks previews on NAS /
+ * /Volumes before the first frame arrives; live fallback then thrash-encodes.
+ */
+export const HOVER_PREVIEW_DIRECT_CANPLAY_MS = 8_000
+/** Live FFmpeg warm-up window for hover previews. */
+export const HOVER_PREVIEW_LIVE_CANPLAY_MS = 45_000
+/** Cap live hover encode height — full player quality is wasted on a card. */
+export const HOVER_PREVIEW_LIVE_MAX_HEIGHT = 360
 
 export function shouldApplyPreviewSeek(
   currentTime: number,
@@ -391,7 +405,8 @@ export type HoverPreviewSourcePlan =
 
 /**
  * Hover preview source: browser-safe codecs always try direct first (including
- * container_layout). Codec-incompatible formats use live when transcode is on.
+ * container_layout). Codec-incompatible formats show the unavailable notice on
+ * the thumb — live FFmpeg stays for the cinema player / direct-fail fallback.
  */
 export function resolveHoverPreviewSourcePlan(input: {
   mode?: string | null
@@ -414,13 +429,7 @@ export function resolveHoverPreviewSourcePlan(input: {
     }
   }
 
-  if (
-    input.transcodeEnabled
-    && (input.transcodeRequired || input.streamPlayback || input.mode === 'stream')
-  ) {
-    return {kind: 'live'}
-  }
-
+  // HEVC / MKV / bad audio: do not auto-start live on the card — show notice.
   return {kind: 'unavailable'}
 }
 
@@ -615,6 +624,12 @@ export function seekPreviewVideo(
   })
 }
 
+export function resolveHoverLiveMaxHeight(settingsMaxHeight: unknown): string {
+  const num = Number(settingsMaxHeight)
+  if (!Number.isFinite(num) || num <= 0) return String(HOVER_PREVIEW_LIVE_MAX_HEIGHT)
+  return String(Math.min(num, HOVER_PREVIEW_LIVE_MAX_HEIGHT))
+}
+
 export function waitForPreviewCanPlay(
   video: HTMLVideoElement,
   isCancelled: () => boolean,
@@ -626,18 +641,21 @@ export function waitForPreviewCanPlay(
       return
     }
 
-    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+    // One decoded frame is enough to reveal the hover card; waiting for
+    // HAVE_FUTURE_DATA added multi-second stalls on slow volumes.
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       resolve()
       return
     }
 
     const cleanup = () => {
       clearTimeout(timeoutId)
-      video.removeEventListener('canplay', onCanPlay)
+      video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('canplay', onReady)
       video.removeEventListener('error', onError)
     }
 
-    const onCanPlay = () => {
+    const onReady = () => {
       cleanup()
       resolve()
     }
@@ -651,9 +669,10 @@ export function waitForPreviewCanPlay(
     const timeoutId = setTimeout(() => {
       cleanup()
       reject(new Error(live ? 'Live preview timed out' : 'Preview timed out'))
-    }, live ? 45_000 : 8_000)
+    }, live ? HOVER_PREVIEW_LIVE_CANPLAY_MS : HOVER_PREVIEW_DIRECT_CANPLAY_MS)
 
-    video.addEventListener('canplay', onCanPlay, {once: true})
+    video.addEventListener('loadeddata', onReady, {once: true})
+    video.addEventListener('canplay', onReady, {once: true})
     video.addEventListener('error', onError, {once: true})
   })
 }
