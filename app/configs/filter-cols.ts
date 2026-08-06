@@ -119,6 +119,13 @@ const Cols = {
       "textKey": "filters.sort.duration"
     },
     {
+      "param": "time",
+      "type": "number",
+      "icon": "clock-outline",
+      "text": "Resume time",
+      "textKey": "filters.sort.resume_time"
+    },
+    {
       "param": "width",
       "type": "number",
       "icon": "monitor-screenshot",

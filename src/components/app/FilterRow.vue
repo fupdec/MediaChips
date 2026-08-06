@@ -407,7 +407,9 @@ const pathDialogInitial = computed(() => {
 const numberHintLabel = computed(() => {
   if (!Number.isFinite(filterValNumber.value)) return ''
   if (parameter.value === 'filesize') return getReadableFileSize(filterValNumber.value)
-  if (parameter.value === 'duration') return getReadableDuration(filterValNumber.value)
+  if (parameter.value === 'duration' || parameter.value === 'time') {
+    return getReadableDuration(filterValNumber.value)
+  }
   return ''
 })
 

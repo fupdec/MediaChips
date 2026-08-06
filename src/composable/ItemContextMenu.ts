@@ -786,6 +786,21 @@ export default function useItemContextMenu(
 
     const currentLocale = settingsStore.locale as Locale
     const tr = (key: string, params: Record<string, string | number> = {}) => translate(key, params, currentLocale)
+
+    // Single video: open saved faces instead of re-scanning when results already exist.
+    if (ids.length === 1 && isMediaPageItem(item, type)) {
+      try {
+        const existing = await typedApi.getFacesForMedia(ids[0], {ensureCrops: false})
+        const faces = Array.isArray(existing.data?.faces) ? existing.data.faces : []
+        if (faces.length > 0) {
+          dialogsStore.openFaceResults(item)
+          return
+        }
+      } catch (error) {
+        console.error('Failed to load existing faces:', error)
+      }
+    }
+
     const tasksStore = useTasksStore()
     const controller = new AbortController()
     const taskId = tasksStore.setTask({

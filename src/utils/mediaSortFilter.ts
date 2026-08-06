@@ -18,7 +18,7 @@ export const SORTABLE_META_TYPES = new Set([
   'boolean',
 ])
 
-export const VIDEO_ONLY_FILTER_PARAMS = ['duration', 'bitrate', 'fps', 'codec']
+export const VIDEO_ONLY_FILTER_PARAMS = ['duration', 'time', 'bitrate', 'fps', 'codec']
 export const AUDIO_ONLY_FILTER_PARAMS = ['duration', 'bitrate', 'codec']
 
 export const MEDIA_SORT_PARAMS = [

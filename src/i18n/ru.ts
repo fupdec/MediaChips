@@ -2597,6 +2597,7 @@ const ru = {
       file_path: 'Путь к файлу',
       file_format: 'Формат файла',
       duration: 'Длительность',
+      resume_time: 'Время продолжения',
       bitrate: 'Битрейт',
       framerate: 'Частота кадров',
       codec: 'Кодек',

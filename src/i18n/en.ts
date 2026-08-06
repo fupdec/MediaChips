@@ -2596,6 +2596,7 @@ const en = {
       file_path: 'File path',
       file_format: 'File format',
       duration: 'Duration',
+      resume_time: 'Resume time',
       bitrate: 'Bitrate',
       framerate: 'Framerate',
       codec: 'Codec',

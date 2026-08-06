@@ -747,9 +747,9 @@ const validate = (val: boolean) => {
 }
 
 // Event listeners
-const handleApplySavedFilter = (filtersPayload: unknown) => {
+const handleApplySavedFilter = async (filtersPayload: unknown) => {
   loadSavedFilter(filtersPayload as FilterObject[])
-  void apply()
+  await apply()
 }
 
 const handleDeactivateFilter = (index: number) => {

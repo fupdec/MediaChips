@@ -143,6 +143,10 @@ import {resolveLanShareUrl} from "@/utils/apiBaseUrl"
 import {useHomeWidgets} from '@/composable/useHomeWidgets'
 import {invalidateHomeMediaCache, useHomeMedia} from '@/composable/useHomeMedia'
 import {useOpenMediaList} from "@/utils/openMediaList"
+import {
+  buildContinueWatchingFilters,
+  buildFavoritesFilters,
+} from "@/utils/homeMediaListFilters"
 import {findMediaTypeById, isAudioMediaType, isVideoMediaType} from "@/utils/mediaType"
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import HomeWidgetRenderer from '@/components/widgets/HomeWidgetRenderer.vue'
@@ -229,15 +233,27 @@ async function openContinueItem(item: MediaItem) {
 }
 
 function openContinueList() {
-  openMediaList({sortBy: 'viewedAt', sortDir: 'desc'})
+  const videoType = store.mediaTypes.find((mediaType) => (
+    isVideoMediaType(mediaType) && !mediaType.hidden
+  ))
+  void openMediaList({
+    sortBy: 'viewedAt',
+    sortDir: 'desc',
+    mediaTypeId: videoType?.id,
+    filters: buildContinueWatchingFilters(),
+  })
 }
 
 function openFavoritesList() {
-  openMediaList({sortBy: 'viewedAt', sortDir: 'desc'})
+  void openMediaList({
+    sortBy: 'viewedAt',
+    sortDir: 'desc',
+    filters: buildFavoritesFilters(),
+  })
 }
 
 function openTopViewsList() {
-  openMediaList({sortBy: 'views', sortDir: 'desc'})
+  void openMediaList({sortBy: 'views', sortDir: 'desc'})
 }
 
 function emitShowDocs() {

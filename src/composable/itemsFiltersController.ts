@@ -2,7 +2,7 @@ import type { FilterObject } from '../../shared/entities/filter'
 
 export type ItemsFiltersController = {
   apply: () => void | Promise<void>
-  applySaved: (filters: FilterObject[] | unknown) => void
+  applySaved: (filters: FilterObject[] | unknown) => void | Promise<void>
   deactivate: (index: number) => void
   deactivateAll: () => void
 }
