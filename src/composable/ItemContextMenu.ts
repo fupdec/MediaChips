@@ -23,7 +23,7 @@ import {
 } from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {setNotification} from '@/services/notificationService'
-import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
+import {refreshMediaFileInfoMany} from '@/services/mediaFileInfoService'
 import {openPath} from '@/services/shellService'
 import {detectAppPlatform} from '@/composable/useAppPlatform'
 import {copyToClipboard} from '@/utils/copyToClipboard'
@@ -759,11 +759,7 @@ export default function useItemContextMenu(
       ids = [item.id]
     }
 
-    const updated: number[] = []
-    for (const id of ids) {
-      const fileInfo = await refreshMediaFileInfo(id)
-      if (fileInfo) updated.push(id)
-    }
+    const updated = await refreshMediaFileInfoMany(ids)
 
     await setNotification({
       type: updated.length > 0 ? 'success' : 'info',

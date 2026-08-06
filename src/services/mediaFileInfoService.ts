@@ -2,6 +2,10 @@ import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import type {MediaItem} from '@/types/stores'
+import {mapWithConcurrency} from '@/utils/mapWithConcurrency'
+
+/** Parallel refresh of selection metadata without flooding the API. */
+export const MEDIA_FILE_INFO_REFRESH_CONCURRENCY = 4
 
 const MEDIA_FILE_INFO_FIELDS = [
   'filesize',
@@ -84,4 +88,20 @@ export async function refreshMediaFileInfo(mediaId: number): Promise<Partial<Med
 
   inFlight.set(id, promise)
   return promise
+}
+
+/** Refresh many media ids with bounded concurrency; returns successfully updated ids. */
+export async function refreshMediaFileInfoMany(
+  mediaIds: number[],
+  concurrency: number = MEDIA_FILE_INFO_REFRESH_CONCURRENCY,
+): Promise<number[]> {
+  const ids = mediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+  if (!ids.length) return []
+
+  const results = await mapWithConcurrency(ids, concurrency, async (id) => {
+    const fileInfo = await refreshMediaFileInfo(id)
+    return fileInfo ? id : null
+  })
+
+  return results.filter((id): id is number => id != null)
 }

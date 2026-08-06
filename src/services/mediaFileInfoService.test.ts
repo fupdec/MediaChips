@@ -1,5 +1,42 @@
-import {describe, expect, it} from 'vitest'
-import {pickMediaFileInfo} from './mediaFileInfoService'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
+
+const {updateMediaInfo, getMediaItems} = vi.hoisted(() => ({
+  updateMediaInfo: vi.fn(async () => ({})),
+  getMediaItems: vi.fn(async ({ids}: {ids: number[]}) => ({
+    data: {
+      items: ids.map((id) => ({
+        id,
+        name: `media-${id}`,
+        path: `/videos/${id}.mp4`,
+        filesize: id * 10,
+      })),
+    },
+  })),
+}))
+
+vi.mock('@/services/typedApi', () => ({
+  typedApi: {
+    updateMediaInfo,
+    getMediaItems,
+  },
+}))
+
+vi.mock('@/stores/dialogs', () => ({
+  useDialogsStore: () => ({
+    mediaEditing: {show: false, media: null},
+  }),
+}))
+
+vi.mock('@/stores/items', () => ({
+  useItemsStore: () => ({
+    updateItem: vi.fn(),
+  }),
+}))
+
+import {
+  pickMediaFileInfo,
+  refreshMediaFileInfoMany,
+} from './mediaFileInfoService'
 
 describe('pickMediaFileInfo', () => {
   it('keeps only file metadata fields', () => {
@@ -33,5 +70,29 @@ describe('pickMediaFileInfo', () => {
       fps: 24,
       orientation: 1,
     })
+  })
+})
+
+describe('refreshMediaFileInfoMany', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('refreshes ids with bounded concurrency and returns successes', async () => {
+    let inFlight = 0
+    let maxInFlight = 0
+    updateMediaInfo.mockImplementation(async () => {
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      inFlight -= 1
+      return {}
+    })
+
+    const updated = await refreshMediaFileInfoMany([1, 2, 3, 4], 2)
+    expect(updated).toEqual([1, 2, 3, 4])
+    expect(maxInFlight).toBeLessThanOrEqual(2)
+    expect(maxInFlight).toBeGreaterThan(1)
+    expect(updateMediaInfo).toHaveBeenCalledTimes(4)
   })
 })
