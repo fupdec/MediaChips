@@ -92,6 +92,12 @@ export interface FaceMatchSettings {
   matchAfterDetect: boolean
 }
 
+/** Preloaded settings + parsed enrollment gallery for multi-media match runs. */
+export type FaceMatchBatchContext = {
+  settings: FaceMatchSettings
+  enrollments: Array<{tagId: number; embedding: Float32Array}>
+}
+
 export interface FaceMatchProgressEvent {
   type: 'progress' | 'complete' | 'error' | 'status'
   phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready'
@@ -222,20 +228,40 @@ async function* iterateEnrollFromPerformerImages(
   yield buildFaceEnrollCompleteEvent(counters, total, false)
 }
 
-async function matchMediaFaces(
+function loadFaceMatchBatchContext(
   db: ApiDb,
-  mediaId: number,
-  options: {force?: boolean; settings?: FaceMatchSettings} = {},
-) {
-  const settings = options.settings || getFaceMatchSettings(db)
-  const metaId = settings.performerMetaId
-  const facesRepo = createFacesRepository(db.drizzle)
-  const faces = metaId ? facesRepo.findByMediaId(mediaId) : []
-  const enrollments = metaId && faces.length
+  settings?: FaceMatchSettings,
+): FaceMatchBatchContext {
+  const resolved = settings || getFaceMatchSettings(db)
+  const metaId = resolved.performerMetaId
+  const enrollments = metaId
     ? parseEnrollmentRefs(
       createFaceEnrollmentsRepository(db.drizzle).findByMetaId(metaId),
     )
     : []
+  return {settings: resolved, enrollments}
+}
+
+async function matchMediaFaces(
+  db: ApiDb,
+  mediaId: number,
+  options: {
+    force?: boolean
+    settings?: FaceMatchSettings
+    context?: FaceMatchBatchContext
+  } = {},
+) {
+  const settings = options.context?.settings || options.settings || getFaceMatchSettings(db)
+  const metaId = settings.performerMetaId
+  const facesRepo = createFacesRepository(db.drizzle)
+  const faces = metaId ? facesRepo.findByMediaId(mediaId) : []
+  const enrollments = options.context
+    ? options.context.enrollments
+    : (metaId && faces.length
+      ? parseEnrollmentRefs(
+        createFaceEnrollmentsRepository(db.drizzle).findByMetaId(metaId),
+      )
+      : [])
 
   const gate = resolveMatchMediaFacesGate({
     metaId,
@@ -436,11 +462,19 @@ async function* iterateFaceMatching(
 
   yield* prepareEmbedModel(db)
 
+  // Load gallery once after model-space migration may have pruned enrollments.
+  const context = loadFaceMatchBatchContext(db, settings)
   const facesRepo = createFacesRepository(db.drizzle)
   const mediaRepo = createMediaRepository(db.drizzle)
+  const requestedIds = mediaIds?.length ? mediaIds : facesRepo.findDistinctMediaIds()
+  const mediaById = new Map(
+    mediaRepo.findByIds(
+      requestedIds.map((id) => Number(id)).filter((id) => Number.isFinite(id)),
+    ).map((row) => [row.id, row]),
+  )
   const ids = filterExistingMediaIds(
-    mediaIds?.length ? mediaIds : facesRepo.findDistinctMediaIds(),
-    (id) => Boolean(mediaRepo.findById(id)),
+    requestedIds,
+    (id) => mediaById.has(id),
   )
 
   const total = ids.length
@@ -455,13 +489,13 @@ async function* iterateFaceMatching(
     }
 
     try {
-      const result = await matchMediaFaces(db, mediaId, {force, settings})
+      const result = await matchMediaFaces(db, mediaId, {force, context})
       counters = applyFaceMatchMediaResult(counters, result)
     } catch {
       counters = markFaceMatchIterateFailed(counters)
     }
 
-    const media = mediaRepo.findById(mediaId)
+    const media = mediaById.get(mediaId)
     yield buildFaceMatchProgressEvent(counters, total, {
       current: media?.path || String(mediaId),
       mediaId,
@@ -546,6 +580,7 @@ export {
   iterateFaceMatching,
   listFacesForMedia,
   loadEmbedModel,
+  loadFaceMatchBatchContext,
   matchMediaFaces,
   prepareEmbedModel,
   resolvePerformerMetaId,

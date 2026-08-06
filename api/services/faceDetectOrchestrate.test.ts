@@ -7,10 +7,12 @@ const {
   purgeAllFaceCrops,
   prepareEmbedModel,
   getFaceMatchSettings,
+  loadFaceMatchBatchContext,
   matchMediaFaces,
   prepareGenderModel,
   resolveExistingPath,
   findByType,
+  findByMediaType,
 } = vi.hoisted(() => ({
   detectMedia: vi.fn(),
   prepareDetectModel: vi.fn(async function* () {}),
@@ -28,10 +30,21 @@ const {
     mode: 'suggest',
     matchAfterDetect: true,
   })),
+  loadFaceMatchBatchContext: vi.fn((_db, settings) => ({
+    settings: settings || {
+      performerMetaId: 1,
+      minConfidence: 0.5,
+      candidateLimit: 5,
+      mode: 'suggest',
+      matchAfterDetect: true,
+    },
+    enrollments: [{tagId: 9, embedding: new Float32Array(512)}],
+  })),
   matchMediaFaces: vi.fn(async () => ({matched: 1})),
   prepareGenderModel: vi.fn(async function* () {}),
   resolveExistingPath: vi.fn(async (path: string) => path),
   findByType: vi.fn(() => ({id: 2})),
+  findByMediaType: vi.fn(() => [{id: 10, path: '/a.mp4'}]),
 }))
 
 vi.mock('./faceDetector', () => ({
@@ -47,6 +60,7 @@ vi.mock('./faceEmbedRuntime', () => ({
 
 vi.mock('./faceRecognition', () => ({
   getFaceMatchSettings,
+  loadFaceMatchBatchContext,
   matchMediaFaces,
 }))
 
@@ -66,7 +80,7 @@ vi.mock('../db/repositories/media', () => ({
   createMediaRepository: () => ({
     findById: vi.fn(),
     findByPaths: vi.fn(),
-    findByMediaType: vi.fn(() => [{id: 10, path: '/a.mp4'}]),
+    findByMediaType,
   }),
 }))
 
@@ -75,6 +89,7 @@ import {iterateFaceDetection} from './faceDetectOrchestrate'
 describe('iterateFaceDetection match-after-detect', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    findByMediaType.mockReturnValue([{id: 10, path: '/a.mp4'}])
     detectMedia.mockResolvedValue({
       mediaId: 10,
       mediaPath: '/a.mp4',
@@ -92,12 +107,52 @@ describe('iterateFaceDetection match-after-detect', () => {
     }
 
     expect(detectMedia).toHaveBeenCalled()
+    expect(loadFaceMatchBatchContext).toHaveBeenCalledTimes(1)
     expect(matchMediaFaces).toHaveBeenCalledWith(
       expect.anything(),
       10,
-      expect.objectContaining({force: false}),
+      expect.objectContaining({
+        force: false,
+        context: expect.objectContaining({
+          settings: expect.objectContaining({performerMetaId: 1}),
+        }),
+      }),
     )
     expect(events[events.length - 1]).toMatchObject({type: 'complete', stopped: false})
+  })
+
+  it('loads match context once across multiple successful detects', async () => {
+    findByMediaType.mockReturnValueOnce([
+      {id: 10, path: '/a.mp4'},
+      {id: 11, path: '/b.mp4'},
+    ])
+    detectMedia
+      .mockResolvedValueOnce({
+        mediaId: 10,
+        mediaPath: '/a.mp4',
+        failed: false,
+        missing: false,
+        skipped: false,
+        faces: [{id: 1}],
+      })
+      .mockResolvedValueOnce({
+        mediaId: 11,
+        mediaPath: '/b.mp4',
+        failed: false,
+        missing: false,
+        skipped: false,
+        faces: [{id: 2}],
+      })
+
+    for await (const _ of iterateFaceDetection({} as never, {})) {
+      // drain
+    }
+
+    expect(loadFaceMatchBatchContext).toHaveBeenCalledTimes(1)
+    expect(matchMediaFaces).toHaveBeenCalledTimes(2)
+    const firstContext = matchMediaFaces.mock.calls[0]?.[2]?.context
+    const secondContext = matchMediaFaces.mock.calls[1]?.[2]?.context
+    expect(firstContext).toBe(secondContext)
   })
 
   it('skips match when matchAfterDetect is off', async () => {
@@ -113,6 +168,7 @@ describe('iterateFaceDetection match-after-detect', () => {
       // drain
     }
 
+    expect(loadFaceMatchBatchContext).not.toHaveBeenCalled()
     expect(matchMediaFaces).not.toHaveBeenCalled()
   })
 })

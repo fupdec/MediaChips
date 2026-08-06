@@ -4,7 +4,7 @@ import { media } from '../schema/media'
 import { tagsInMedia } from '../schema/tagsInMedia'
 import { folderPaths, tagsInFolders } from '../schema/folderPaths'
 import { nowIso } from '../utils/timestamps'
-import { forEachChunk } from '../utils/chunk'
+import { forEachChunk, mapChunks } from '../utils/chunk'
 import { queryGet } from '../utils/rawQuery'
 import type { ApiDb } from '../../types/db'
 import { buildFolderPathLikePatterns } from '../../utils/watcherFolderPaths'
@@ -32,6 +32,20 @@ export function createMediaRepository(db: DrizzleClient) {
   return {
     findById(id: number): MediaRow | undefined {
       return db.select().from(media).where(eq(media.id, id)).get()
+    },
+
+    /** Chunked `IN` lookup; returns rows in `ids` order (duplicates preserved when present). */
+    findByIds(ids: number[]): MediaRow[] {
+      if (!ids.length) return []
+      const unique = [...new Set(ids.filter((id) => Number.isFinite(id)))]
+      if (!unique.length) return []
+      const rows = mapChunks(unique, (chunk) => (
+        db.select().from(media).where(inArray(media.id, chunk)).all()
+      ))
+      const byId = new Map(rows.map((row) => [row.id, row]))
+      return ids
+        .map((id) => byId.get(id))
+        .filter((row): row is MediaRow => row != null)
     },
 
     findAllRaw(): MediaRow[] {

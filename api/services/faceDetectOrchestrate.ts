@@ -28,7 +28,12 @@ import {
 } from './faceDetector'
 import {prepareEmbedModel} from './faceEmbedRuntime'
 import {shouldPrepareGenderFilter} from './faceDetectPersist'
-import {getFaceMatchSettings, matchMediaFaces} from './faceRecognition'
+import {
+  getFaceMatchSettings,
+  loadFaceMatchBatchContext,
+  matchMediaFaces,
+  type FaceMatchBatchContext,
+} from './faceRecognition'
 
 async function getVideoMediaTypeId(db: ApiDb) {
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -36,20 +41,30 @@ async function getVideoMediaTypeId(db: ApiDb) {
   return videoType?.id || null
 }
 
+function resolveMatchContextAfterDetect(
+  db: ApiDb,
+  applyTags?: boolean,
+): FaceMatchBatchContext | null {
+  const settings = resolveMatchSettingsAfterDetect({
+    matchSettings: getFaceMatchSettings(db),
+    applyTags,
+  })
+  if (!settings) return null
+  return loadFaceMatchBatchContext(db, settings)
+}
+
 async function maybeMatchAfterDetect(
   db: ApiDb,
   mediaId: number | string | null | undefined,
-  options: {force?: boolean; applyTags?: boolean},
+  options: {force?: boolean; context?: FaceMatchBatchContext | null},
 ) {
   const id = mediaId == null ? NaN : Number(mediaId)
-  if (!Number.isFinite(id) || id <= 0) return
+  if (!Number.isFinite(id) || id <= 0 || !options.context) return
   try {
-    const settings = resolveMatchSettingsAfterDetect({
-      matchSettings: getFaceMatchSettings(db),
-      applyTags: options.applyTags,
+    await matchMediaFaces(db, id, {
+      force: Boolean(options.force),
+      context: options.context,
     })
-    if (!settings) return
-    await matchMediaFaces(db, id, {force: Boolean(options.force), settings})
   } catch {
     // Matching is optional and should not fail detection.
   }
@@ -116,6 +131,7 @@ export async function* iterateFaceDetection(
 
   const total = items.length
   let counters = createFaceDetectIterateCounters()
+  const matchContext = resolveMatchContextAfterDetect(db, applyTags)
 
   yield buildFaceDetectProgressEvent(counters, total)
 
@@ -139,7 +155,7 @@ export async function* iterateFaceDetection(
     })
 
     if (!result.failed && !result.missing && !result.skipped) {
-      await maybeMatchAfterDetect(db, result.mediaId, {force, applyTags})
+      await maybeMatchAfterDetect(db, result.mediaId, {force, context: matchContext})
     }
 
     counters = applyFaceDetectMediaResult(counters, {
