@@ -13,8 +13,6 @@ import {
 import {
   canMarkHoverPreviewReady,
   createHoverSeekCoalescer,
-  decideInPlacePreviewSeek,
-  getLoadedPreviewMediaId,
   isIgnorablePreviewError,
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
@@ -29,16 +27,11 @@ import {
   shouldScheduleHoverPreviewVideo,
   resolveHoverPreviewScheduleDelay,
   resolveFixedPreviewClipState,
-  resolvePreviewUrlStartSeconds,
-  planPreviewUrlSeek,
-  shouldApplyPreviewSeek,
   shouldComputeHoverPreviewPointerTime,
   shouldRestartFixedPreviewClip,
-  waitForPreviewCanPlay,
-  waitForPreviewSeek,
-  seekPreviewVideo,
   type HoverPreviewTeardownKind,
 } from '@/utils/hoverPreviewPlayback'
+import {positionHoverPreviewVideo} from '@/utils/hoverPreviewVideoPositioning'
 import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
 import {isAppWindowFocused} from '@/utils/windowFocus'
@@ -188,109 +181,27 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     targetTime: number,
     {
       allowLiveChunkSwitch = false,
-      retriedBusy = false,
-    }: {allowLiveChunkSwitch?: boolean; retriedBusy?: boolean} = {},
+    }: {allowLiveChunkSwitch?: boolean} = {},
   ): Promise<boolean> => {
     const video = videoRef.value
     if (!video || !toValue(options.isPreviewVisible)) return false
 
-    const mediaId = toValue(options.mediaId)
-    const loadedMediaId = getLoadedPreviewMediaId(video)
-    const activeSrc = video.currentSrc || ''
-
-    // Prefer cheap in-place seeks. Reassigning src (esp. live chunks) starts a
-    // download/encode storm while scrubbing.
-    const inPlace = decideInPlacePreviewSeek({
-      loadedMediaId,
-      mediaId,
-      activeSrc,
+    const token = previewPlaybackToken
+    const result = await positionHoverPreviewVideo({
+      video,
+      mediaId: toValue(options.mediaId),
       targetTime,
       allowLiveChunkSwitch,
-      currentTime: video.currentTime,
-      seeking: video.seeking,
-      videoDuration: video.duration || 0,
-    })
-    if (inPlace.kind === 'busy') {
-      await waitForPreviewSeek(video, isPreviewCancelled(previewPlaybackToken))
-      if (isPreviewCancelled(previewPlaybackToken)()) return false
-      // Re-decide after the in-flight seek settles; never treat busy as positioned.
-      if (retriedBusy) {
-        syncPlaybackTimeFromVideo()
-        return true
-      }
-      return syncPreviewVideoPosition(targetTime, {
-        allowLiveChunkSwitch,
-        retriedBusy: true,
-      })
-    }
-    if (inPlace.kind === 'noop') {
-      syncPlaybackTimeFromVideo()
-      return true
-    }
-    if (inPlace.kind === 'seek') {
-      await seekPreviewVideo(
-        video,
-        inPlace.time,
-        isPreviewCancelled(previewPlaybackToken),
-      )
-      if (isPreviewCancelled(previewPlaybackToken)()) return false
-      syncPlaybackTimeFromVideo()
-      return true
-    }
-    if (inPlace.kind !== 'needs-reload' && inPlace.kind !== 'not-applicable') {
-      return false
-    }
-    // needs-reload or not-applicable → fall through to src reload below.
-
-    const token = previewPlaybackToken
-    const url = await buildPreviewVideoUrl(
-      resolvePreviewUrlStartSeconds(
-        targetTime,
-        allowLiveChunkSwitch,
-        LIVE_STREAM_CHUNK_SECONDS,
-      ),
-    )
-    if (!url) return false
-    if (token !== previewPlaybackToken) return false
-
-    const plan = planPreviewUrlSeek({
-      url,
-      loadedMediaId,
-      mediaId,
-      activeSrc,
-      targetTime,
-      videoDuration: video.duration || 0,
+      isCancelled: isPreviewCancelled(token),
+      resolveUrl: buildPreviewVideoUrl,
+      chunkSeconds: LIVE_STREAM_CHUNK_SECONDS,
+      setLiveMode: (live) => {
+        previewUsesLiveStream.value = live
+      },
+      onPositioned: syncPlaybackTimeFromVideo,
     })
 
-    if (plan.kind === 'live') {
-      previewUsesLiveStream.value = true
-      if (plan.reload) {
-        video.src = url
-        await waitForPreviewCanPlay(video, isPreviewCancelled(token), {live: true})
-      }
-
-      if (token !== previewPlaybackToken) return false
-      if (shouldApplyPreviewSeek(video.currentTime, plan.relative)) {
-        await seekPreviewVideo(video, plan.relative, isPreviewCancelled(token))
-        if (token !== previewPlaybackToken) return false
-      }
-      syncPlaybackTimeFromVideo()
-      return true
-    }
-
-    previewUsesLiveStream.value = false
-    if (plan.reload) {
-      video.src = url
-      await waitForPreviewCanPlay(video, isPreviewCancelled(token))
-    }
-
-    if (token !== previewPlaybackToken) return false
-    if (shouldApplyPreviewSeek(video.currentTime, plan.nextTime)) {
-      await seekPreviewVideo(video, plan.nextTime, isPreviewCancelled(token))
-      if (token !== previewPlaybackToken) return false
-    }
-    syncPlaybackTimeFromVideo()
-    return true
+    return result === 'positioned'
   }
 
   let hoverSeekCoalescer = createHoverSeekCoalescer({
