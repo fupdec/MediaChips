@@ -3,6 +3,7 @@ import { sendControllerError, sendCreated, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { createFolderPathsRepository } from '../db/repositories/folderPaths'
 import { createTagsInFoldersRepository } from '../db/repositories/tagsInFolders'
+import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
 
 export default function (db: ApiDb) {
   const tagsInFoldersRepo = createTagsInFoldersRepository(db.drizzle)
@@ -20,6 +21,7 @@ export default function (db: ApiDb) {
         tagId: Number(item.tagId),
         metaId: Number(item.metaId),
       })))
+      invalidateMediaDerivedCaches()
       sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -33,6 +35,7 @@ export default function (db: ApiDb) {
         tagId: Number(req.body.tagId),
         metaId: Number(req.body.metaId),
       })
+      invalidateMediaDerivedCaches()
       sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -71,6 +74,7 @@ export default function (db: ApiDb) {
   const clearAll = function (req: ApiRequest, res: ApiResponse) {
     try {
       const cleared = tagsInFoldersRepo.clearAllByPath(String(req.body.path ?? ''))
+      invalidateMediaDerivedCaches()
       sendOk(res, {cleared})
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -80,6 +84,7 @@ export default function (db: ApiDb) {
   const deleteFromFolder = function (req: ApiRequest, res: ApiResponse) {
     try {
       tagsInFoldersRepo.deleteOne(String(req.body.path ?? ''), Number(req.body.tagId))
+      invalidateMediaDerivedCaches()
       sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -89,6 +94,7 @@ export default function (db: ApiDb) {
   const deleteAllTagsByMetaId = function (req: ApiRequest, res: ApiResponse) {
     try {
       tagsInFoldersRepo.deleteByPathAndMeta(String(req.body.path ?? ''), Number(req.body.metaId))
+      invalidateMediaDerivedCaches()
       sendOk(res)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -103,6 +109,7 @@ export default function (db: ApiDb) {
         Number(req.body.metaId),
         tagIds,
       )
+      invalidateMediaDerivedCaches()
       sendOk(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
@@ -114,6 +121,7 @@ export default function (db: ApiDb) {
       const find = String(req.body.find ?? '')
       const replace = String(req.body.replace ?? '')
       const changed = folderPathsRepo.remapPathFragment(find, replace)
+      invalidateMediaDerivedCaches()
       sendOk(res, {changed})
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')

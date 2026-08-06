@@ -20,6 +20,22 @@ type TaggedFolderRow = {
   metaId: number
 }
 
+export type FolderTagPrefixEntry = {
+  tagId: number
+  metaId: number
+}
+
+/** Normalized folder prefix → inherited tag rows (may contain duplicates). */
+export type FolderTagPrefixIndex = Map<string, FolderTagPrefixEntry[]>
+
+type CacheEntry = {
+  generation: number
+  index: FolderTagPrefixIndex
+}
+
+let cacheGeneration = 0
+const cacheBySqlite = new WeakMap<object, CacheEntry>()
+
 /** Mirror SQLite REPLACE(path, '\\', '/') used in folder inheritance SQL. */
 export function normalizeMediaPathSeparators(filePath: string): string {
   return String(filePath || '').replace(/\\/g, '/')
@@ -42,15 +58,75 @@ export function isMediaPathUnderFolder(mediaPath: string, folderPath: string): b
   return media.startsWith(`${prefix}/`)
 }
 
-async function loadTaggedFolders(
-  db: ApiDb,
+export function clearInheritedFolderTagsCache(): void {
+  cacheGeneration += 1
+}
+
+/** Build a prefix map used for O(path-length) inheritance matching. */
+export function buildFolderTagPrefixIndex(
+  folders: Array<{folderPath: string; tagId: number; metaId: number}>,
+): FolderTagPrefixIndex {
+  const index: FolderTagPrefixIndex = new Map()
+  for (const folder of folders) {
+    const prefix = folderPathPrefix(folder.folderPath).toLowerCase()
+    if (!prefix) continue
+    const entry: FolderTagPrefixEntry = {
+      tagId: folder.tagId,
+      metaId: folder.metaId,
+    }
+    const list = index.get(prefix)
+    if (list) list.push(entry)
+    else index.set(prefix, [entry])
+  }
+  return index
+}
+
+/**
+ * Match media paths against a folder-tag prefix index.
+ * Emits one row per (media, folder-tag) — same multiplicity as nested-loop matching.
+ */
+export function matchInheritedFolderTagsWithIndex(
+  mediaRows: MediaPathRow[],
+  index: FolderTagPrefixIndex,
   metaId?: number | null,
-): Promise<Array<{folderPath: string; tagId: number; metaId: number}>> {
+): InheritedFolderTagRow[] {
+  if (!mediaRows.length || !index.size) return []
+
+  const rows: InheritedFolderTagRow[] = []
+  for (const media of mediaRows) {
+    const mediaId = Number(media.id)
+    const mediaPath = String(media.path || '')
+    if (!Number.isFinite(mediaId) || !mediaPath) continue
+
+    const normalized = normalizeMediaPathSeparators(mediaPath).toLowerCase()
+    for (let i = 1; i < normalized.length; i++) {
+      if (normalized[i] !== '/') continue
+      const prefix = normalized.slice(0, i)
+      const entries = index.get(prefix)
+      if (!entries) continue
+      for (const entry of entries) {
+        if (metaId != null && entry.metaId !== metaId) continue
+        rows.push({
+          mediaId,
+          tagId: entry.tagId,
+          metaId: entry.metaId,
+        })
+      }
+    }
+  }
+  return rows
+}
+
+async function loadTaggedFolders(db: ApiDb): Promise<Array<{
+  folderPath: string
+  tagId: number
+  metaId: number
+}>> {
   const folderRows = await queryAllAsync(db, `
     SELECT fp.path AS folderPath, tif.tagId AS tagId, tif.metaId AS metaId
     FROM folderPaths fp
-    INNER JOIN tagsInFolders tif ON tif.folderId = fp.id${metaId != null ? ' AND tif.metaId = :metaId' : ''}
-  `, metaId != null ? {metaId} : {}) as TaggedFolderRow[]
+    INNER JOIN tagsInFolders tif ON tif.folderId = fp.id
+  `) as TaggedFolderRow[]
 
   return folderRows.map((row) => ({
     folderPath: String(row.folderPath || ''),
@@ -63,26 +139,17 @@ async function loadTaggedFolders(
   ))
 }
 
-function matchInheritedFolderTags(
-  mediaRows: MediaPathRow[],
-  folders: Array<{folderPath: string; tagId: number; metaId: number}>,
-): InheritedFolderTagRow[] {
-  const rows: InheritedFolderTagRow[] = []
-  for (const media of mediaRows) {
-    const mediaId = Number(media.id)
-    const mediaPath = String(media.path || '')
-    if (!Number.isFinite(mediaId) || !mediaPath) continue
-
-    for (const folder of folders) {
-      if (!isMediaPathUnderFolder(mediaPath, folder.folderPath)) continue
-      rows.push({
-        mediaId,
-        tagId: folder.tagId,
-        metaId: folder.metaId,
-      })
-    }
+async function getFolderTagPrefixIndex(db: ApiDb): Promise<FolderTagPrefixIndex> {
+  const cacheKey = (db.sqlite || db) as object
+  const cached = cacheBySqlite.get(cacheKey)
+  if (cached && cached.generation === cacheGeneration) {
+    return cached.index
   }
-  return rows
+
+  const folders = await loadTaggedFolders(db)
+  const index = buildFolderTagPrefixIndex(folders)
+  cacheBySqlite.set(cacheKey, {generation: cacheGeneration, index})
+  return index
 }
 
 /**
@@ -96,10 +163,10 @@ export async function loadInheritedFolderTagsForMediaRows(
 ): Promise<InheritedFolderTagRow[]> {
   if (!mediaRows.length) return []
 
-  const folders = await loadTaggedFolders(db, metaId)
-  if (!folders.length) return []
+  const index = await getFolderTagPrefixIndex(db)
+  if (!index.size) return []
 
-  return matchInheritedFolderTags(mediaRows, folders)
+  return matchInheritedFolderTagsWithIndex(mediaRows, index, metaId)
 }
 
 /**
@@ -114,8 +181,8 @@ export async function loadInheritedFolderTagsByMediaIds(
 ): Promise<InheritedFolderTagRow[]> {
   if (!mediaIds.length) return []
 
-  const folders = await loadTaggedFolders(db, metaId)
-  if (!folders.length) return []
+  const index = await getFolderTagPrefixIndex(db)
+  if (!index.size) return []
 
   const mediaRows: MediaPathRow[] = []
   for (const chunk of chunkArray(mediaIds)) {
@@ -125,5 +192,5 @@ export async function loadInheritedFolderTagsByMediaIds(
     mediaRows.push(...rows)
   }
 
-  return matchInheritedFolderTags(mediaRows, folders)
+  return matchInheritedFolderTagsWithIndex(mediaRows, index, metaId)
 }
