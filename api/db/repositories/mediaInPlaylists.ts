@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { media } from '../schema/media'
 import { mediaInPlaylists } from '../schema/mediaInPlaylists'
@@ -16,9 +16,9 @@ export function createMediaInPlaylistsRepository(db: DrizzleClient) {
         .orderBy(asc(mediaInPlaylists.order))
         .all()
 
-      const mediaIds = links.map((link) => link.mediaId)
+      const mediaIds = [...new Set(links.map((link) => link.mediaId))]
       const mediaRows = mediaIds.length
-        ? db.select().from(media).all().filter((item) => mediaIds.includes(item.id))
+        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
         : []
       const playlist = db.select().from(playlists).where(eq(playlists.id, playlistId)).get()
       const mediaById = new Map(mediaRows.map((item) => [item.id, item]))

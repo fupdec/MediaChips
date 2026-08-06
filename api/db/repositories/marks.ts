@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, isNotNull, sql } from 'drizzle-orm'
+import { and, asc, count, eq, gt, inArray, isNotNull, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { marks } from '../schema/marks'
 import { media } from '../schema/media'
@@ -115,7 +115,7 @@ export function createMarksRepository(db: DrizzleClient) {
 
       const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
       const mediaRows = mediaIds.length
-        ? db.select().from(media).all().filter((item) => mediaIds.includes(item.id))
+        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
         : []
       const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
 
@@ -167,13 +167,15 @@ export function createMarksRepository(db: DrizzleClient) {
 
       const tagIds = [...new Set(rows.map((row) => row.tagId).filter((id): id is number => id != null))]
       const allTags = tagIds.length
-        ? db.select().from(tags).all().filter((tag) => tagIds.includes(tag.id))
+        ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
         : []
       const tagById = new Map(allTags.map((tag) => [tag.id, tag]))
 
       const metaIds = [...new Set(allTags.map((tag) => tag.metaId).filter((id): id is number => id != null))]
-      const metaRows = metaIds.length ? db.select().from(meta).all() : []
-      const metaById = new Map(metaRows.filter((row) => metaIds.includes(row.id)).map((row) => [row.id, row]))
+      const metaRows = metaIds.length
+        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
+        : []
+      const metaById = new Map(metaRows.map((row) => [row.id, row]))
 
       return rows.map((row) => {
         const tag = row.tagId ? tagById.get(row.tagId) : null
@@ -193,10 +195,16 @@ export function createMarksRepository(db: DrizzleClient) {
       const tagIds = [...new Set(rows.map((row) => row.tagId).filter((id): id is number => id != null))]
       const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
 
-      const tagRows = tagIds.length ? db.select().from(tags).all().filter((tag) => tagIds.includes(tag.id)) : []
-      const mediaRows = mediaIds.length ? db.select().from(media).all().filter((item) => mediaIds.includes(item.id)) : []
+      const tagRows = tagIds.length
+        ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
+        : []
+      const mediaRows = mediaIds.length
+        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
+        : []
       const metaIds = [...new Set(tagRows.map((tag) => tag.metaId).filter((id): id is number => id != null))]
-      const metaRows = metaIds.length ? db.select().from(meta).all().filter((row) => metaIds.includes(row.id)) : []
+      const metaRows = metaIds.length
+        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
+        : []
 
       const tagById = new Map(tagRows.map((tag) => [tag.id, tag]))
       const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
@@ -232,10 +240,16 @@ export function createMarksRepository(db: DrizzleClient) {
       const tagIds = [...new Set(rows.map((row) => row.tagId).filter((id): id is number => id != null))]
       const mediaIds = [...new Set(rows.map((row) => row.mediaId).filter((id): id is number => id != null))]
 
-      const tagRows = tagIds.length ? db.select().from(tags).all().filter((tag) => tagIds.includes(tag.id)) : []
-      const mediaRows = mediaIds.length ? db.select().from(media).all().filter((item) => mediaIds.includes(item.id)) : []
+      const tagRows = tagIds.length
+        ? db.select().from(tags).where(inArray(tags.id, tagIds)).all()
+        : []
+      const mediaRows = mediaIds.length
+        ? db.select().from(media).where(inArray(media.id, mediaIds)).all()
+        : []
       const metaIds = [...new Set(tagRows.map((tag) => tag.metaId).filter((id): id is number => id != null))]
-      const metaRows = metaIds.length ? db.select().from(meta).all().filter((row) => metaIds.includes(row.id)) : []
+      const metaRows = metaIds.length
+        ? db.select().from(meta).where(inArray(meta.id, metaIds)).all()
+        : []
 
       const tagById = new Map(tagRows.map((tag) => [tag.id, tag]))
       const mediaById = new Map(mediaRows.map((item) => [item.id, item]))
