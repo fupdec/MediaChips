@@ -36,8 +36,11 @@ import {
   pathsEquivalent,
   buildPathLookupVariants,
 } from '../../utils/normalizeUserPath'
-import { mediaNameLooksLikePath, parseMediaFilePath } from '../../../shared/mediaPath'
 import { invalidateMediaDerivedCaches } from '../../services/mediaCacheInvalidation'
+import {
+  buildBulkPathUpdatePatch,
+  normalizeBulkPathUpdateInputs,
+} from '../../services/mediaBulkPathUpdate'
 
 export default function createTasksMediaController(shared: TaskControllerShared) {
   const {
@@ -439,34 +442,29 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const updateMediaMultiple = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const mediaFiles = Array.isArray(req.body.mediaFiles) ? req.body.mediaFiles : []
-
-      for (const item of mediaFiles) {
-        const id = Number(item.id)
-        const filePath = String(item.path ?? '')
-        if (!id || !filePath) continue
-
-        const existing = mediaRepo.findById(id)
-        const parsed = parseMediaFilePath(filePath)
-        const oldStem = existing?.path ? parseMediaFilePath(existing.path).name : ''
-        const stemUnchanged = Boolean(oldStem) && oldStem === parsed.name
-        const existingName = existing?.name != null ? String(existing.name) : ''
-
-        // Preserve custom display titles when only the directory changes.
-        // Always repair names that were previously stored as full paths
-        // (path-browserify bug on Windows bulk edits).
-        const name = stemUnchanged
-          && existingName
-          && !mediaNameLooksLikePath(existingName)
-          ? existingName
-          : parsed.name
-
-        mediaRepo.updateById(id, {
-          path: filePath,
-          basename: parsed.basename,
-          name,
-          ext: parsed.ext,
-        })
+      const updates = normalizeBulkPathUpdateInputs(mediaFiles)
+      if (!updates.length) {
+        sendOk(res)
+        return
       }
+
+      const existingById = new Map(
+        mediaRepo.findByIds(updates.map((item) => item.id)).map((row) => [row.id, row]),
+      )
+      const patches = updates.map((item) => (
+        buildBulkPathUpdatePatch(item, existingById.get(item.id))
+      ))
+
+      db.sqlite.transaction(() => {
+        for (const patch of patches) {
+          mediaRepo.updateById(patch.id, {
+            path: patch.path,
+            basename: patch.basename,
+            name: patch.name,
+            ext: patch.ext,
+          })
+        }
+      })()
 
       invalidateMediaDerivedCaches()
       sendOk(res)
