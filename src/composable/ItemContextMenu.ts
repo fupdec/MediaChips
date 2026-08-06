@@ -8,7 +8,6 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useRegistrationStore} from '@/stores/registration'
-import {useTasksStore} from '@/stores/tasks'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
@@ -24,6 +23,7 @@ import {
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {setNotification} from '@/services/notificationService'
 import {refreshMediaFileInfoMany} from '@/services/mediaFileInfoService'
+import {runFaceDetectionForMediaIds} from '@/composable/useFaceDetectionTask'
 import {openPath} from '@/services/shellService'
 import {detectAppPlatform} from '@/composable/useAppPlatform'
 import {copyToClipboard} from '@/utils/copyToClipboard'
@@ -780,176 +780,17 @@ export default function useItemContextMenu(
     if (isSelectMode()) ids = itemsStore.selection.map(Number).filter((id) => Number.isFinite(id))
     if (!ids.length) return
 
-    const currentLocale = settingsStore.locale as Locale
-    const tr = (key: string, params: Record<string, string | number> = {}) => translate(key, params, currentLocale)
-
-    // Single video: open saved faces instead of re-scanning when results already exist.
-    if (ids.length === 1 && isMediaPageItem(item, type)) {
-      try {
-        const existing = await typedApi.getFacesForMedia(ids[0], {ensureCrops: false})
-        const faces = Array.isArray(existing.data?.faces) ? existing.data.faces : []
-        if (faces.length > 0) {
-          dialogsStore.openFaceResults(item)
-          return
-        }
-      } catch (error) {
-        console.error('Failed to load existing faces:', error)
-      }
-    }
-
-    const tasksStore = useTasksStore()
-    const controller = new AbortController()
-    const taskId = tasksStore.setTask({
-      title: tr('context_menu.detect_faces'),
-      subtitle: tr('media.adding.face_detection_progress', {
-        processed: 0,
-        total: ids.length,
-        remaining: ids.length,
-      }),
-      icon: 'face-recognition',
-      progress: 0,
-      action: () => controller.abort(),
-    })
-
-    try {
-      const modelStatus = await typedApi.getFaceModelStatus()
-      const status = String(modelStatus.data?.status || '')
-      if (!['downloaded', 'loaded'].includes(status)) {
-        await typedApi.downloadFaceModel()
-      }
-
-      let faces = 0
-      await typedApi.streamFaceDetection(
-        {
-          mediaIds: ids,
-          force: true,
-          // Single-item opens the review dialog — suggest only; user applies tags there.
-          applyTags: ids.length !== 1,
-        },
-        {signal: controller.signal},
-        (event) => {
-          if (event.type === 'progress') {
-            faces = Number(event.faces || faces)
-            const processed = Number(event.processed || 0)
-            const total = Number(event.total || ids.length)
-            tasksStore.updateTask(taskId, {
-              subtitle: tr('media.adding.face_detection_progress', {
-                processed,
-                total,
-                remaining: Math.max(total - processed, 0),
-              }),
-              progress: total ? Math.min((processed / total) * 100, 100) : 0,
-            })
-          }
-          if (event.type === 'status') {
-            if (event.phase === 'downloading_detect') {
-              setNotification({
-                type: 'info',
-                text: tr('settings_labels.database.face_detect_model_downloading'),
-              })
-              tasksStore.updateTask(taskId, {
-                subtitle: tr('settings_labels.database.face_detect_model_downloading'),
-                progress: 0,
-              })
-            }
-            if (event.phase === 'detect_ready') {
-              setNotification({
-                type: 'success',
-                text: tr('settings_labels.database.face_detect_model_downloaded'),
-              })
-            }
-            if (event.phase === 'downloading_gender') {
-              setNotification({
-                type: 'info',
-                text: tr('settings_labels.database.face_detect_gender_downloading'),
-              })
-              tasksStore.updateTask(taskId, {
-                subtitle: tr('settings_labels.database.face_detect_gender_downloading'),
-                progress: 0,
-              })
-            }
-            if (event.phase === 'gender_ready') {
-              setNotification({
-                type: 'success',
-                text: tr('settings_labels.database.face_detect_gender_downloaded'),
-              })
-            }
-            if (event.phase === 'downloading_align') {
-              setNotification({
-                type: 'info',
-                text: tr('settings_labels.database.face_match_align_downloading'),
-              })
-              tasksStore.updateTask(taskId, {
-                subtitle: tr('settings_labels.database.face_match_align_downloading'),
-                progress: 0,
-              })
-            }
-            if (event.phase === 'downloading_embed') {
-              setNotification({
-                type: 'info',
-                text: tr('settings_labels.database.face_match_embed_downloading'),
-              })
-              tasksStore.updateTask(taskId, {
-                subtitle: tr('settings_labels.database.face_match_embed_downloading'),
-                progress: 0,
-              })
-            }
-            if (event.phase === 'embed_ready') {
-              setNotification({
-                type: 'success',
-                text: tr('settings_labels.database.face_match_embed_downloaded'),
-              })
-            }
-          }
-          if (event.type === 'complete') {
-            faces = Number(event.faces || faces)
-          }
-          if (event.type === 'error') {
-            throw new Error(String(event.message || 'Face detection failed'))
-          }
-        },
-      )
-
-      tasksStore.updateTask(taskId, {
-        subtitle: tr('media.adding.faces_found', {count: faces}),
-        progress: 100,
-        color: 'success',
-        done: true,
-        action: undefined,
-      })
-      setNotification({
-        type: 'success',
-        text: tr('media.adding.faces_found', {count: faces}),
-      })
-      if (faces > 0 && ids.length === 1) {
-        const mediaItem = isMediaPageItem(item, type)
-          ? item
-          : {id: ids[0]}
-        useDialogsStore().openFaceResults(mediaItem as never, {taskId})
-      } else {
-        tasksStore.removeTask(taskId)
+    await runFaceDetectionForMediaIds({
+      mediaIds: ids,
+      locale: settingsStore.locale as Locale,
+      contextItem: isMediaPageItem(item, type) ? item : null,
+      reloadMediaItems: (mediaIds) => {
         listSync.getItemsFromDb({
-          ids,
+          ids: mediaIds,
           type: 'media',
         })
-      }
-    } catch (error) {
-      const isAbortError = error instanceof Error && error.name === 'AbortError'
-      if (isAbortError) {
-        tasksStore.removeTask(taskId)
-      } else {
-        tasksStore.updateTask(taskId, {
-          subtitle: tr('media.adding.face_detection_failed'),
-          color: 'error',
-          done: true,
-          action: undefined,
-        })
-        setNotification({
-          type: 'error',
-          text: error instanceof Error ? error.message : String(error),
-        })
-      }
-    }
+      },
+    })
   }
 
   const moveTo = (): void => {
