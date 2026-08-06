@@ -130,6 +130,12 @@ describe('resolvePreviewVideoUrl', () => {
     expect(url).toContain('/api/video/15?source=auto')
   })
 
+  it('optimistic hover url skips playable lookup', async () => {
+    const url = await resolvePreviewVideoUrl(buildApiUrl, 99, 0, {optimistic: true})
+    expect(url).toContain('/api/video/99?source=auto')
+    expect(mockGetVideoPlayable).not.toHaveBeenCalled()
+  })
+
   it('reuses cached playable info for subsequent lookups', async () => {
     mockGetVideoPlayable.mockResolvedValue({
       data: {transcodeRequired: false, mode: 'direct', streamPlayback: false},

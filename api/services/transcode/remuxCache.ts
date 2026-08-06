@@ -11,7 +11,7 @@ import {
   trimCacheToLimit,
   writeCacheMeta,
 } from './transcodeCache'
-import {runFfmpeg} from '../../utils/ffmpeg'
+import {runFfmpegBackground} from '../../utils/ffmpeg'
 
 const runningJobs = new Map<string, Promise<string | null>>()
 
@@ -84,7 +84,7 @@ async function runProgressiveRemuxJob(input: {
   try {
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
 
-    await runFfmpeg([
+    await runFfmpegBackground([
       '-y',
       '-i',
       filePath,

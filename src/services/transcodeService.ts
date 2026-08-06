@@ -156,6 +156,8 @@ export async function resolvePreviewVideoUrl(
     transcodeEnabled?: boolean
     preferLive?: boolean
     maxHeight?: number | string | null
+    /** Skip /playable and return auto immediately (hover hot path). */
+    optimistic?: boolean
   } = {},
 ) {
   try {
@@ -166,6 +168,10 @@ export async function resolvePreviewVideoUrl(
         startSeconds,
         options.maxHeight ?? null,
       )
+    }
+
+    if (options.optimistic) {
+      return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto', {bustCache: false})
     }
 
     const playable = await fetchPlayableInfo(mediaId)

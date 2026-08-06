@@ -123,12 +123,9 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       return result
     }
 
-    // Run remux layout scan in parallel with the lightweight codec probe.
-    const mayNeedRemux = !audioOnly && (extension === '.mp4' || extension === '.m4v')
-    const remuxPromise = mayNeedRemux
-      ? Promise.resolve().then(() => needsBrowserRemuxForMp4(filePath))
-      : Promise.resolve(false)
-
+    // Codec probe only — do not await the MP4 layout scan here. Direct-first
+    // playback means needsRemux is advisory; scanning 8MB on NAS made every
+    // hover /playable check take 0.5–1.5s before the first video byte.
     let probe = await ffprobePlayability(filePath)
     if (isPlayabilityProbeIncomplete(probe, {audioOnly})) {
       probe = await ffprobe(filePath)
@@ -136,16 +133,36 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
 
     const duration = Number(probe.format?.duration || 0)
     const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
-    const needsRemux = Boolean(analyzed.playable && !audioOnly && await remuxPromise)
     const result: PlayabilityResult = {
       playable: analyzed.playable,
-      reason: needsRemux ? 'container_layout' : analyzed.reason,
+      reason: analyzed.reason,
       videoCodec: analyzed.videoCodec ?? null,
       audioCodec: analyzed.audioCodec ?? null,
       duration,
-      needsRemux,
+      needsRemux: false,
     }
     setPlayabilityCacheEntry(cacheKey, result)
+
+    const mayNeedRemux = Boolean(analyzed.playable && !audioOnly
+      && (extension === '.mp4' || extension === '.m4v'))
+    if (mayNeedRemux) {
+      // Defer the sync 8MB layout scan so /playable can return after ffprobe.
+      void Promise.resolve().then(() => {
+        try {
+          if (!needsBrowserRemuxForMp4(filePath)) return
+          const cached = playabilityCache.get(cacheKey)
+          if (!cached || cached.needsRemux) return
+          setPlayabilityCacheEntry(cacheKey, {
+            ...cached,
+            needsRemux: true,
+            reason: 'container_layout',
+          })
+        } catch {
+          // ignore layout scan failures
+        }
+      })
+    }
+
     return result
   }
 
@@ -172,10 +189,9 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     const playability = await analyzePlayability(filePath)
     // Codec-compatible MP4s with bad layout stay on direct first; clients may
     // fall back to live re-encode on Chromium stall (never remux-copy — black frame).
-    // Kick a progressive remux so later opens can serve a seekable cached MP4.
-    if (playability.playable && playability.needsRemux) {
-      scheduleLayoutRemux(filePath, settings)
-    }
+    // Progressive remux is scheduled only when a stream is actually opened
+    // (resolveStreamPath / streamLive) so hover/playable checks cannot fill the
+    // remux queue and contend with live playback.
     return resolvePlaybackPlanFromPlayability({playability, transcodeEnabled})
   }
 

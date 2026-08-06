@@ -7,13 +7,13 @@ import path from 'path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 vi.mock('../../utils/ffmpeg', () => ({
-  runFfmpeg: vi.fn(async (args: string[]) => {
+  runFfmpegBackground: vi.fn(async (args: string[]) => {
     const output = args[args.length - 1]
     fs.writeFileSync(output, Buffer.from('remuxed'))
   }),
 }))
 
-import {runFfmpeg} from '../../utils/ffmpeg'
+import {runFfmpegBackground} from '../../utils/ffmpeg'
 import {
   clearRemuxJobRegistryForTests,
   ensureProgressiveRemux,
@@ -30,7 +30,7 @@ describe('remuxCache', () => {
 
   beforeEach(() => {
     clearRemuxJobRegistryForTests()
-    vi.mocked(runFfmpeg).mockClear()
+    vi.mocked(runFfmpegBackground).mockClear()
     rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-remux-cache-'))
     databasesPath = path.join(rootDir, 'databases')
     sourcePath = path.join(rootDir, 'source.mp4')
@@ -60,8 +60,8 @@ describe('remuxCache', () => {
     expect(fs.existsSync(donePath!)).toBe(true)
     expect(lookupRemuxCache(databasesPath, dbId, sourcePath)?.ready).toBe(true)
 
-    expect(runFfmpeg).toHaveBeenCalledTimes(1)
-    const args = vi.mocked(runFfmpeg).mock.calls[0][0]
+    expect(runFfmpegBackground).toHaveBeenCalledTimes(1)
+    const args = vi.mocked(runFfmpegBackground).mock.calls[0][0]
     expect(args).toContain('-c')
     expect(args).toContain('copy')
     expect(args).toContain('+faststart')
@@ -79,7 +79,7 @@ describe('remuxCache', () => {
       maxCacheGb: 1,
     })
     expect(readyPath).toBe(info!.outputPath)
-    expect(runFfmpeg).toHaveBeenCalledTimes(1)
+    expect(runFfmpegBackground).toHaveBeenCalledTimes(1)
   })
 
   it('dedupes concurrent ensure calls for the same source', async () => {
@@ -87,7 +87,7 @@ describe('remuxCache', () => {
     ensureProgressiveRemux({databasesPath, dbId, filePath: sourcePath, maxCacheGb: 1})
     const info = resolveExistingCache(databasesPath, dbId, sourcePath)
     await waitForRemuxJob(info!.cacheKey)
-    expect(runFfmpeg).toHaveBeenCalledTimes(1)
+    expect(runFfmpegBackground).toHaveBeenCalledTimes(1)
     expect(fs.existsSync(getCacheDir(databasesPath, dbId))).toBe(true)
   })
 })

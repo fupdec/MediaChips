@@ -6,7 +6,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import archiver from 'archiver'
-import { checkFilesExist } from './checkFilesExist'
+import { checkFilesExist, CHECK_FILES_EXIST_CONCURRENCY, MAX_BATCH_SIZE } from './checkFilesExist'
 import { buildVirtualZipPath } from './zipGallery'
 
 async function writeZip(zipPath: string, files: Record<string, Buffer | string>) {
@@ -57,5 +57,10 @@ describe('checkFilesExist', () => {
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
+  })
+
+  it('exports bounded concurrency for grid existence checks', () => {
+    expect(CHECK_FILES_EXIST_CONCURRENCY).toBe(16)
+    expect(MAX_BATCH_SIZE).toBe(100)
   })
 })

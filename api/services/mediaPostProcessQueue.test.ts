@@ -7,6 +7,7 @@ import {
   resetMediaPostProcessQueues,
   runWithFfmpegLimit,
   runWithFfprobeLimit,
+  runWithRemuxLimit,
 } from './mediaPostProcessQueue'
 
 const delay = (ms: number) => new Promise<void>((resolve) => {
@@ -62,5 +63,26 @@ describe('mediaPostProcessQueue', () => {
     })))
 
     expect(maxActive).toBeLessThanOrEqual(2)
+  })
+
+  it('keeps remux work off the live ffmpeg queue', async () => {
+    let ffmpegActive = 0
+    let remuxStartedWhileFfmpegBusy = false
+
+    const ffmpegJob = runWithFfmpegLimit(async () => {
+      ffmpegActive += 1
+      await delay(40)
+      ffmpegActive -= 1
+    })
+
+    await delay(5)
+    await runWithRemuxLimit(async () => {
+      remuxStartedWhileFfmpegBusy = ffmpegActive > 0
+      await delay(5)
+    })
+    await ffmpegJob
+
+    expect(remuxStartedWhileFfmpegBusy).toBe(true)
+    expect(getMediaPostProcessQueueStats().remux.active).toBe(0)
   })
 })

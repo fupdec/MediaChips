@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
+  runWithRemuxLimit,
 } from '../services/mediaPostProcessQueue'
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
 import {
@@ -150,6 +151,11 @@ async function runFfmpeg(args: string[]) {
   return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args))
 }
 
+/** Progressive remux / background copy — must not block live playback ffmpeg. */
+async function runFfmpegBackground(args: string[]) {
+  return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args))
+}
+
 async function extractVideoFrame({
   input,
   output,
@@ -260,6 +266,7 @@ export {
   ffprobePlayability,
   findPreviousKeyframeTime,
   runFfmpeg,
+  runFfmpegBackground,
   extractVideoFrame,
   extractVideoThumbnail,
   combineVideoFrames,

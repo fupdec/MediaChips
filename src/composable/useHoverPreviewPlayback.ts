@@ -2,7 +2,8 @@ import {nextTick, ref, toValue, type MaybeRefOrGetter} from 'vue'
 import {buildApiUrl} from '@/services/apiClient'
 import {
   buildLiveStreamUrl,
-  resolvePreviewVideoUrl,
+  buildVideoStreamUrl,
+  fetchPlayableInfo,
   stopLiveTranscode,
 } from '@/services/transcodeService'
 import {usePlayerStore} from '@/stores/player'
@@ -32,6 +33,7 @@ import {
   resolveHoverPreviewScheduleDelay,
   resolveFixedPreviewClipState,
   resolveHoverLiveMaxHeight,
+  resolveHoverPreviewSourcePlan,
   resolveLivePreviewRelativeTime,
   getPreviewStreamStart,
   shouldComputeHoverPreviewPointerTime,
@@ -79,6 +81,10 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   let preferLivePreview = false
   /** Ignore src-change errors while handing off direct → live. */
   let ignoreVideoErrorsUntil = 0
+  /** null = /playable still in flight for this hover. */
+  let hoverPlayableSafe: boolean | null = null
+  let hoverPlayablePromise: Promise<void> | null = null
+  let hoverPlayableToken = 0
 
   const isHoverTranscodeEnabled = () => settingsStore.transcodeUnsupportedFormats === '1'
 
@@ -119,6 +125,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     previewLiveFallbackAttempted = false
     preferLivePreview = false
     ignoreVideoErrorsUntil = 0
+    hoverPlayableSafe = null
+    hoverPlayablePromise = null
+    hoverPlayableToken += 1
   }
 
   const buildPreviewVideoUrl = (startSeconds = progress.value || 0) => {
@@ -130,15 +139,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         hoverLiveMaxHeight(),
       ))
     }
-    return resolvePreviewVideoUrl(
+    // Hot path: never block hover on /playable (ffprobe on NAS).
+    return Promise.resolve(buildVideoStreamUrl(
       buildApiUrl,
       toValue(options.mediaId),
-      startSeconds,
-      {
-        transcodeEnabled: isHoverTranscodeEnabled(),
-        maxHeight: hoverLiveMaxHeight(),
-      },
-    )
+      'auto',
+      {bustCache: false},
+    ))
   }
 
   const resolvePreviewPlaybackTime = (): number => {
@@ -171,6 +178,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const tryHoverLiveFallback = (): boolean => {
+    // Only remux/re-encode after we know the file is browser-codec-safe.
+    if (hoverPlayableSafe !== true) return false
     if (!shouldAttemptHoverLiveFallback({
       alreadyLive: previewUsesLiveStream.value || preferLivePreview,
       fallbackAttempted: previewLiveFallbackAttempted,
@@ -188,6 +197,39 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   // Assigned below; video @error may fire after startPreviewPlayback exists.
   let startPreviewPlayback = async () => {}
 
+  const finishHoverPlaybackFailure = () => {
+    if (tryHoverLiveFallback()) {
+      allowHoverVideoElement.value = true
+      playbackError.value = false
+      void startPreviewPlayback()
+      return
+    }
+    markPreviewUnavailable()
+  }
+
+  const recoverHoverPlaybackFailure = (playbackToken: number) => {
+    if (hoverPlayableSafe === false) {
+      markPreviewUnavailable()
+      return
+    }
+    // Lazy /playable: only probe when direct playback already failed so the
+    // first video bytes are not competing with ffprobe on the same volume.
+    if (hoverPlayableSafe === null) {
+      const gateToken = hoverPlayableToken
+      void beginHoverPlayableGate(toValue(options.mediaId)).finally(() => {
+        if (gateToken !== hoverPlayableToken || playbackToken !== previewPlaybackToken) return
+        if (!toValue(options.isHovered) || hoverPreviewReady.value) return
+        if (hoverPlayableSafe === false) {
+          markPreviewUnavailable()
+          return
+        }
+        finishHoverPlaybackFailure()
+      })
+      return
+    }
+    finishHoverPlaybackFailure()
+  }
+
   const handleVideoError = () => {
     if (Date.now() < ignoreVideoErrorsUntil) return
 
@@ -195,19 +237,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     // Empty mount / cleared src must not kill the hover session.
     if (!video?.currentSrc && !video?.getAttribute('src')) return
 
-    if (tryHoverLiveFallback()) {
-      // Keep the mounted <video> so live handoff can reuse it.
-      allowHoverVideoElement.value = true
-      playbackError.value = false
-      void startPreviewPlayback()
-      return
-    }
-
-    playbackError.value = true
-    allowHoverVideoElement.value = false
-    resetHoverPreviewReady()
-    abortVideoPlayback(videoRef.value)
-    releaseHoverVideoPreview(toValue(options.mediaId))
+    recoverHoverPlaybackFailure(previewPlaybackToken)
   }
 
   const getPreviewTimeFromPointer = (clientX: number): number | null => {
@@ -344,6 +374,40 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     applyHoverTeardown('unavailable')
   }
 
+  const beginHoverPlayableGate = (mediaId: number) => {
+    if (hoverPlayablePromise) return hoverPlayablePromise
+    const token = hoverPlayableToken
+    hoverPlayableSafe = null
+    hoverPlayablePromise = fetchPlayableInfo(mediaId)
+      .then((playable) => {
+        if (token !== hoverPlayableToken || !toValue(options.isHovered)) return
+        const playability = playable.playability as {
+          playable?: boolean
+          needsRemux?: boolean
+        } | undefined
+        const plan = resolveHoverPreviewSourcePlan({
+          mode: playable.mode,
+          transcodeRequired: playable.transcodeRequired,
+          streamPlayback: playable.streamPlayback,
+          reason: playable.reason,
+          playability,
+          transcodeEnabled: isHoverTranscodeEnabled(),
+        })
+        if (plan.kind === 'unavailable') {
+          hoverPlayableSafe = false
+          markPreviewUnavailable()
+          return
+        }
+        hoverPlayableSafe = true
+      })
+      .catch(() => {
+        if (token !== hoverPlayableToken) return
+        // Probe failed — keep optimistic direct playback.
+        hoverPlayableSafe = true
+      })
+    return hoverPlayablePromise
+  }
+
   startPreviewPlayback = async () => {
     const token = ++previewPlaybackToken
     const video = videoRef.value
@@ -392,11 +456,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         isFocused: isAppWindowFocused(),
       })
       if (afterPosition === 'unavailable') {
-        if (token === previewPlaybackToken && tryHoverLiveFallback()) {
-          void startPreviewPlayback()
-          return
-        }
-        markPreviewUnavailable()
+        if (token === previewPlaybackToken) recoverHoverPlaybackFailure(token)
         return
       }
       if (afterPosition === 'release') {
@@ -441,13 +501,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         return
       }
 
-      if (token === previewPlaybackToken && tryHoverLiveFallback()) {
-        void startPreviewPlayback()
-        return
-      }
-
       console.error('Video playback error:', error)
-      markPreviewUnavailable()
+      if (token === previewPlaybackToken) recoverHoverPlaybackFailure(token)
     }
   }
 
@@ -462,13 +517,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       const mediaId = toValue(options.mediaId)
       resetPreviewLiveFallbackState()
 
-      // Resolve URL before mounting — an empty <video> can emit @error and
-      // permanently mark the card unavailable before src is assigned.
       const previewUrl = await buildPreviewVideoUrl(progress.value || 0)
-      if (previewUrl?.includes('/transcode/stream')) {
-        preferLivePreview = true
-        previewUsesLiveStream.value = true
-      }
       const urlGate = resolveHoverPreviewUrlReadyGate({
         isHovered: toValue(options.isHovered),
         isFocused: isAppWindowFocused(),
