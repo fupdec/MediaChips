@@ -6,6 +6,7 @@ import {cleanupDir} from './faceCropStore'
 import {
   collectLumaValuesFromRgba,
   extractFramesForMedia,
+  frameFingerprint,
   unlinkUnselectedFrameFiles,
 } from './faceFrameExtract'
 
@@ -41,6 +42,26 @@ describe('unlinkUnselectedFrameFiles', () => {
     )
     expect(fs.existsSync(keep)).toBe(true)
     expect(fs.existsSync(drop)).toBe(false)
+  })
+})
+
+describe('frameFingerprint', () => {
+  it('returns a 64-bit aHash for a sharp-generated image', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-frame-fp-'))
+    tmpRoots.push(root)
+    const filePath = path.join(root, 'frame.png')
+    const {default: sharp} = await import('sharp')
+    await sharp({
+      create: {
+        width: 64,
+        height: 64,
+        channels: 3,
+        background: {r: 10, g: 10, b: 10},
+      },
+    }).png().toFile(filePath)
+
+    const hash = await frameFingerprint(filePath)
+    expect(hash).toMatch(/^[01]{64}$/)
   })
 })
 

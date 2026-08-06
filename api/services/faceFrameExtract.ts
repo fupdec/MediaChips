@@ -28,12 +28,36 @@ export function collectLumaValuesFromRgba(
   return values
 }
 
-/** Average-hash fingerprint for cheap near-duplicate frame rejection. */
-export async function frameFingerprint(framePath: string): Promise<string> {
+async function frameFingerprintWithSharp(framePath: string): Promise<string> {
+  const {default: sharp} = await import('sharp')
+  // 8×8 greyscale raw → same aHash input as the Jimp path.
+  const {data, info} = await sharp(framePath)
+    .resize(8, 8, {fit: 'fill'})
+    .greyscale()
+    .raw()
+    .toBuffer({resolveWithObject: true})
+
+  const values: number[] = []
+  for (let i = 0; i < data.length; i += info.channels) {
+    values.push(data[i])
+  }
+  return averageHashFromLumaValues(values)
+}
+
+async function frameFingerprintWithJimp(framePath: string): Promise<string> {
   const image = await Jimp.read(framePath)
   const tiny = image.clone().resize({w: 8, h: 8}).greyscale()
   const {data, width, height} = tiny.bitmap
   return averageHashFromLumaValues(collectLumaValuesFromRgba(data, width, height))
+}
+
+/** Average-hash fingerprint for cheap near-duplicate frame rejection. */
+export async function frameFingerprint(framePath: string): Promise<string> {
+  try {
+    return await frameFingerprintWithSharp(framePath)
+  } catch {
+    return frameFingerprintWithJimp(framePath)
+  }
 }
 
 export async function getVideoDuration(filePath: string) {

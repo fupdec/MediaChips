@@ -13,11 +13,15 @@ import {
   getCachedDynamicPlaylistsSummary,
   setCachedDynamicPlaylistsSummary,
 } from './dynamicPlaylistsSummaryCache'
+import {createConcurrencyQueue} from './concurrencyQueue'
 import {
   loadFilteredMediaIds,
   loadMediaPlaylistItems,
   getFilteredMediaSummary,
 } from './mediaItemsLoader'
+
+/** Cap parallel summary queries on cold start (was unbounded Promise.all). */
+const dynamicPlaylistSummaryQueue = createConcurrencyQueue(3)
 import { createSavedFiltersRepository } from '../db/repositories/savedFilters'
 import { createFilterRowsInSavedFiltersRepository } from '../db/repositories/filterRowsInSavedFilters'
 import { createFilterRowsRepository } from '../db/repositories/filterRows'
@@ -231,25 +235,27 @@ async function getDynamicPlaylistsSummary(db: ApiDb): Promise<ParsedDynamicPlayl
     savedFilters.map((savedFilter: {id: number}) => savedFilter.id as SavedFilterId),
   )
 
-  const summaries = await Promise.all(savedFilters.map(async (savedFilter: {id: number; name: string | null}) => {
-    const filters = filtersBySavedFilterId.get(Number(savedFilter.id)) || []
-    const summary = await getFilteredMediaSummary(db, {
-      mediaTypeId,
-      filters,
-      sortBy: 'id',
-      direction: 'desc',
-      previewLimit: 4,
-      find_duplicates: false,
-      duplicates_by: 'filesize',
-    })
+  const summaries = await Promise.all(savedFilters.map((savedFilter: {id: number; name: string | null}) => (
+    dynamicPlaylistSummaryQueue.enqueue(async () => {
+      const filters = filtersBySavedFilterId.get(Number(savedFilter.id)) || []
+      const summary = await getFilteredMediaSummary(db, {
+        mediaTypeId,
+        filters,
+        sortBy: 'id',
+        direction: 'desc',
+        previewLimit: 4,
+        find_duplicates: false,
+        duplicates_by: 'filesize',
+      })
 
-    return {
-      id: savedFilter.id,
-      name: savedFilter.name,
-      count: Number(summary.count) || 0,
-      previewIds: summary.previewIds || [],
-    }
-  }))
+      return {
+        id: savedFilter.id,
+        name: savedFilter.name,
+        count: Number(summary.count) || 0,
+        previewIds: summary.previewIds || [],
+      }
+    })
+  )))
 
   setCachedDynamicPlaylistsSummary(Number(mediaTypeId), summaries)
   return summaries as unknown as ParsedDynamicPlaylistSummary[]
