@@ -158,8 +158,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     }
 
     const playability = await analyzePlayability(filePath)
-    // Codec-compatible MP4s can still freeze Chromium on seek; live-transcode
-    // (re-encode) is required — stream-copy remux still yields black video in Chromium.
+    // Codec-compatible MP4s with bad layout stay on direct first; clients may
+    // fall back to live re-encode on Chromium stall (never remux-copy — black frame).
     return resolvePlaybackPlanFromPlayability({playability, transcodeEnabled})
   }
 

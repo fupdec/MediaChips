@@ -59,7 +59,7 @@ describe('resolvePreviewVideoUrl', () => {
     invalidatePlayableInfo()
   })
 
-  it('returns null when codecs need real transcode (no live hover)', async () => {
+  it('uses live stream url when codecs need real transcode and it is enabled', async () => {
     mockGetVideoPlayable.mockResolvedValue({
       data: {
         transcodeRequired: true,
@@ -74,10 +74,49 @@ describe('resolvePreviewVideoUrl', () => {
       config: {} as never,
     })
 
-    expect(await resolvePreviewVideoUrl(buildApiUrl, 15, 30)).toBeNull()
+    const url = await resolvePreviewVideoUrl(buildApiUrl, 15, 30, {transcodeEnabled: true})
+    expect(url).toContain('/api/video/15/transcode/stream')
+    expect(url).toContain('start=30')
   })
 
-  it('uses direct file url for container_layout hover (no live re-encode)', async () => {
+  it('returns null when codecs need transcode but it is disabled', async () => {
+    mockGetVideoPlayable.mockResolvedValue({
+      data: {
+        transcodeRequired: true,
+        mode: 'stream',
+        streamPlayback: true,
+        reason: 'video_codec',
+        playability: {playable: false, videoCodec: 'hevc'},
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as never,
+    })
+
+    expect(await resolvePreviewVideoUrl(buildApiUrl, 15, 30, {transcodeEnabled: false})).toBeNull()
+  })
+
+  it('uses direct file url for container_layout hover (direct first)', async () => {
+    mockGetVideoPlayable.mockResolvedValue({
+      data: {
+        transcodeRequired: false,
+        mode: 'direct',
+        reason: 'container_layout',
+        playability: {playable: true, needsRemux: true, videoCodec: 'h264', audioCodec: 'aac'},
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as never,
+    })
+
+    const url = await resolvePreviewVideoUrl(buildApiUrl, 15676, 810)
+    expect(url).toContain('/api/video/15676?source=auto')
+    expect(url).not.toContain('/transcode/stream')
+  })
+
+  it('uses direct for stale stream+container_layout playable responses', async () => {
     mockGetVideoPlayable.mockResolvedValue({
       data: {
         transcodeRequired: true,

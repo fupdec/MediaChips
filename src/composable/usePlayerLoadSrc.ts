@@ -126,11 +126,13 @@ export function createPlayerLoadSrc({
   ) => {
     await liveSession.clearLiveTranscodeHandlers()
     const playable = await fetchPlayableInfo(mediaId)
+    const playability = playable.playability as {needsRemux?: boolean} | undefined
     const plan = resolveVideoSourcePlan({
       playableMode: playable.mode || 'unsupported',
       transcodeRequired: Boolean(playable.transcodeRequired),
       remuxCopy: playable.remuxCopy,
       reason: playable.reason,
+      needsRemux: playability?.needsRemux === true,
       startTime,
       forceDirectPlayback: state.forceDirectPlayback,
       liveTranscodeDisabled: playerStore.liveTranscodeDisabled,

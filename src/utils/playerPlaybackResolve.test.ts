@@ -98,6 +98,15 @@ describe('shouldPreferDirectPlayback / resolveLiveStreamCopyCompatible', () => {
     })).toBe(false)
   })
 
+  it('prefers direct for container_layout even when API marks transcode required', () => {
+    expect(shouldPreferDirectPlayback({
+      transcodeRequired: true,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      reason: 'container_layout',
+    })).toBe(true)
+  })
+
   it('allows remux-copy only near t=0 without container_layout', () => {
     expect(resolveLiveStreamCopyCompatible({
       remuxCopy: true,
@@ -227,6 +236,22 @@ describe('live handoff / seek / start-time decisions', () => {
       transcodeUnsupportedFormatsEnabled: true,
       playableMode: 'direct',
     })).toBe(true)
+
+    expect(resolveLiveTranscodeOfferable({
+      transcodeRequired: false,
+      transcodeUnsupportedFormatsEnabled: true,
+      playableMode: 'direct',
+      reason: 'container_layout',
+      needsRemux: true,
+    })).toBe(true)
+
+    expect(resolveLiveTranscodeOfferable({
+      transcodeRequired: false,
+      transcodeUnsupportedFormatsEnabled: false,
+      playableMode: 'direct',
+      reason: 'container_layout',
+      needsRemux: true,
+    })).toBe(false)
 
     expect(shouldSkipLiveQualityChange({
       normalizedMaxHeight: '720',
@@ -371,18 +396,41 @@ describe('resolveVideoSourcePlan', () => {
       copyCompatible: true,
       liveTranscodeOfferable: true,
     })
+  })
 
-    const layout = resolveVideoSourcePlan({
+  it('tries direct first for container_layout and keeps live offerable', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'direct',
+      transcodeRequired: false,
+      reason: 'container_layout',
+      needsRemux: true,
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: true,
+    })).toEqual({
+      kind: 'direct',
+      streamMode: 'auto',
+      lockForcedDirect: false,
+      liveTranscodeOfferable: true,
+    })
+
+    // Stale API: stream + transcodeRequired still starts direct without locking fallback out.
+    expect(resolveVideoSourcePlan({
       playableMode: 'stream',
       transcodeRequired: true,
-      remuxCopy: true,
+      remuxCopy: false,
       reason: 'container_layout',
       startTime: 0,
       forceDirectPlayback: false,
       liveTranscodeDisabled: false,
       transcodeUnsupportedFormatsEnabled: true,
+    })).toEqual({
+      kind: 'direct',
+      streamMode: 'auto',
+      lockForcedDirect: false,
+      liveTranscodeOfferable: true,
     })
-    expect(layout).toMatchObject({kind: 'live', copyCompatible: false})
   })
 })
 

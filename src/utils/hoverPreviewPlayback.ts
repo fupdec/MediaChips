@@ -384,6 +384,55 @@ export function resolveHoverPreviewPlaybackErrorGate(input: {
   return 'unavailable'
 }
 
+export type HoverPreviewSourcePlan =
+  | {kind: 'direct'; streamMode: 'auto' | 'direct'}
+  | {kind: 'live'}
+  | {kind: 'unavailable'}
+
+/**
+ * Hover preview source: browser-safe codecs always try direct first (including
+ * container_layout). Codec-incompatible formats use live when transcode is on.
+ */
+export function resolveHoverPreviewSourcePlan(input: {
+  mode?: string | null
+  transcodeRequired?: boolean
+  streamPlayback?: boolean
+  reason?: string | null
+  playability?: {playable?: boolean; needsRemux?: boolean} | null
+  transcodeEnabled: boolean
+}): HoverPreviewSourcePlan {
+  if (input.mode === 'unsupported') return {kind: 'unavailable'}
+
+  const isLayout = input.reason === 'container_layout'
+    || input.playability?.needsRemux === true
+  const codecsBrowserSafe = input.playability?.playable === true || isLayout
+
+  if (input.mode === 'direct' || codecsBrowserSafe) {
+    return {
+      kind: 'direct',
+      streamMode: input.mode === 'direct' ? 'auto' : 'direct',
+    }
+  }
+
+  if (
+    input.transcodeEnabled
+    && (input.transcodeRequired || input.streamPlayback || input.mode === 'stream')
+  ) {
+    return {kind: 'live'}
+  }
+
+  return {kind: 'unavailable'}
+}
+
+/** After direct hover fails, try one live FFmpeg stream before the unavailable notice. */
+export function shouldAttemptHoverLiveFallback(input: {
+  alreadyLive: boolean
+  fallbackAttempted: boolean
+  transcodeEnabled: boolean
+}): boolean {
+  return !input.alreadyLive && !input.fallbackAttempted && input.transcodeEnabled
+}
+
 export type PreviewUrlSeekPlan =
   | {
     kind: 'live'

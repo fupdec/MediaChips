@@ -1,4 +1,5 @@
 import { abortVideoPlayback } from '@/utils/liveTranscodeLifecycle'
+import { resolveHoverPreviewSourcePlan } from '@/utils/hoverPreviewPlayback'
 import { typedApi } from '@/services/typedApi'
 import {
   apiVideoStream,
@@ -151,31 +152,52 @@ export async function resolvePreviewVideoUrl(
   buildApiUrl: BuildApiUrl,
   mediaId: number,
   startSeconds = 0,
+  options: {
+    transcodeEnabled?: boolean
+    preferLive?: boolean
+    maxHeight?: number | string | null
+  } = {},
 ) {
   try {
-    const playable = await fetchPlayableInfo(mediaId)
-    if (playable.mode === 'unsupported') {
-      return null
-    }
-
-    // Hover / big preview: only browser-direct playback. Live FFmpeg is for the
-    // full player — using it here thrash-encodes and still opens cinema for
-    // formats that should show "preview unavailable".
-    const playability = playable.playability as {playable?: boolean} | undefined
-    const codecsBrowserSafe = playability?.playable === true || playable.reason === 'container_layout'
-    if (playable.mode === 'direct' || codecsBrowserSafe) {
-      return buildVideoStreamUrl(
+    if (options.preferLive) {
+      return buildLiveStreamUrl(
         buildApiUrl,
         mediaId,
-        playable.mode === 'direct' ? 'auto' : 'direct',
-        {bustCache: false},
+        startSeconds,
+        options.maxHeight ?? null,
       )
     }
 
-    if (playable.transcodeRequired || playable.streamPlayback || playable.mode === 'stream') {
-      return null
+    const playable = await fetchPlayableInfo(mediaId)
+    const playability = playable.playability as {
+      playable?: boolean
+      needsRemux?: boolean
+    } | undefined
+    const plan = resolveHoverPreviewSourcePlan({
+      mode: playable.mode,
+      transcodeRequired: playable.transcodeRequired,
+      streamPlayback: playable.streamPlayback,
+      reason: playable.reason,
+      playability,
+      transcodeEnabled: options.transcodeEnabled !== false,
+    })
+
+    if (plan.kind === 'unavailable') return null
+    if (plan.kind === 'live') {
+      return buildLiveStreamUrl(
+        buildApiUrl,
+        mediaId,
+        startSeconds,
+        options.maxHeight ?? null,
+      )
     }
-    return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
+
+    return buildVideoStreamUrl(
+      buildApiUrl,
+      mediaId,
+      plan.streamMode,
+      {bustCache: false},
+    )
   } catch {
     return buildVideoStreamUrl(buildApiUrl, mediaId, 'auto')
   }

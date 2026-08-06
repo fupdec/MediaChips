@@ -33,17 +33,21 @@ describe('buildMissingPlaybackPlan', () => {
 })
 
 describe('resolvePlaybackPlanFromPlayability', () => {
-  it('streams container_layout files that need remux', () => {
-    expect(resolvePlaybackPlanFromPlayability({
+  it('keeps container_layout on direct first (fallback remux is client-side)', () => {
+    const plan = resolvePlaybackPlanFromPlayability({
       playability: playability({needsRemux: true, reason: 'container_layout'}),
       transcodeEnabled: true,
-    })).toMatchObject({
-      mode: 'stream',
-      transcodeRequired: true,
-      remuxCopy: false,
-      reason: 'container_layout',
-      streamPlayback: true,
     })
+    expect(plan).toMatchObject({
+      mode: 'direct',
+      transcodeRequired: false,
+      transcodeStatus: 'none',
+      progress: 100,
+      reason: 'container_layout',
+    })
+    expect(plan.streamPlayback).toBeUndefined()
+    expect(plan.remuxCopy).toBeUndefined()
+    expect(plan.playability?.needsRemux).toBe(true)
   })
 
   it('returns direct for browser-playable files', () => {

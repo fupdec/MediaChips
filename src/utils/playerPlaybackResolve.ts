@@ -83,7 +83,10 @@ export function shouldPreferDirectPlayback(input: {
   transcodeRequired: boolean
   forceDirectPlayback: boolean
   liveTranscodeDisabled: boolean
+  /** Stale APIs may still mark container_layout as transcodeRequired — try direct first. */
+  reason?: string | null
 }): boolean {
+  if (input.reason === 'container_layout') return true
   return !input.transcodeRequired
     || input.forceDirectPlayback
     || input.liveTranscodeDisabled
@@ -223,9 +226,16 @@ export function resolveLiveTranscodeOfferable(input: {
   transcodeRequired: boolean
   transcodeUnsupportedFormatsEnabled: boolean
   playableMode?: string
+  reason?: string | null
+  needsRemux?: boolean
 }): boolean {
-  const canLiveTranscode = input.transcodeRequired && input.transcodeUnsupportedFormatsEnabled
-  return canLiveTranscode || input.playableMode === 'stream'
+  if (!input.transcodeUnsupportedFormatsEnabled) {
+    return input.playableMode === 'stream'
+  }
+  const layoutMayNeedFallback = input.reason === 'container_layout' || input.needsRemux === true
+  return Boolean(input.transcodeRequired)
+    || input.playableMode === 'stream'
+    || layoutMayNeedFallback
 }
 
 export function shouldSkipLiveQualityChange(input: {
@@ -349,6 +359,7 @@ export function resolveVideoSourcePlan(input: {
   transcodeRequired: boolean
   remuxCopy?: boolean
   reason?: string | null
+  needsRemux?: boolean
   startTime: number
   forceDirectPlayback: boolean
   liveTranscodeDisabled: boolean
@@ -357,22 +368,28 @@ export function resolveVideoSourcePlan(input: {
   if (input.playableMode === 'unsupported') return {kind: 'unsupported'}
 
   const streamStart = Math.max(0, Number(input.startTime) || 0)
+  const layoutDirectFirst = input.reason === 'container_layout' || input.needsRemux === true
   const liveTranscodeOfferable = resolveLiveTranscodeOfferable({
     transcodeRequired: Boolean(input.transcodeRequired),
     transcodeUnsupportedFormatsEnabled: input.transcodeUnsupportedFormatsEnabled,
     playableMode: input.playableMode,
+    reason: input.reason,
+    needsRemux: input.needsRemux,
   })
 
   if (shouldPreferDirectPlayback({
     transcodeRequired: Boolean(input.transcodeRequired),
     forceDirectPlayback: input.forceDirectPlayback,
     liveTranscodeDisabled: input.liveTranscodeDisabled,
+    reason: input.reason,
   })) {
+    // container_layout: try Chromium-direct without locking out live fallback.
+    const lockForcedDirect = Boolean(input.transcodeRequired) && !layoutDirectFirst
     return {
       kind: 'direct',
-      streamMode: input.transcodeRequired ? 'direct' : 'auto',
-      lockForcedDirect: Boolean(input.transcodeRequired),
-      liveTranscodeOfferable: input.transcodeRequired ? true : liveTranscodeOfferable,
+      streamMode: lockForcedDirect ? 'direct' : 'auto',
+      lockForcedDirect,
+      liveTranscodeOfferable,
     }
   }
 

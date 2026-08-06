@@ -35,7 +35,8 @@ export function buildMissingPlaybackPlan(): PlaybackPlan {
 
 /**
  * Choose missing/direct/stream/unsupported from analyzed playability.
- * Codec-compatible MP4s with bad layout still need live re-encode (not remux-copy).
+ * Codec-compatible MP4s with bad layout stay on direct first; clients may
+ * fall back to live re-encode if Chromium stalls (never remux-copy).
  */
 export function resolvePlaybackPlanFromPlayability(input: {
   playability: PlayabilityResult
@@ -45,13 +46,11 @@ export function resolvePlaybackPlanFromPlayability(input: {
 
   if (playability.playable && playability.needsRemux) {
     return {
-      mode: 'stream',
-      transcodeRequired: true,
+      mode: 'direct',
+      transcodeRequired: false,
       transcodeEnabled,
-      transcodeStatus: 'stream',
-      streamPlayback: true,
-      remuxCopy: false,
-      progress: 0,
+      transcodeStatus: 'none',
+      progress: 100,
       error: null,
       reason: 'container_layout',
       playability,
