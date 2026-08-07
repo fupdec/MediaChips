@@ -104,6 +104,7 @@ export const mediaApi = {
   semanticSearch(body: {query: string, mediaTypeId?: number | null, limit?: number, locale?: string | null}) {
     return apiClient.post<{
       ids: number[]
+      hits?: Array<{id: number; tileIndex: number | null; time: number | null}>
       missingEmbeddingsCount: number
       indexedCount?: number
       previewCandidatesCount?: number

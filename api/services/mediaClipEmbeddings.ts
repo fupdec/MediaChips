@@ -6,7 +6,7 @@ import {chunkArray} from '../db/utils/chunk'
 import {
   packFloat32Embeddings,
   unpackFloat32Embeddings,
-  rankByMaxCosineSimilarity,
+  rankByMaxCosineSimilarityHits,
   rankByMaxPairwiseCosineSimilarity,
   type ClipEmbeddingVector,
 } from './clipEmbeddingMath'
@@ -18,10 +18,17 @@ import {
   getClipEmbeddingStatus,
 } from './clipEmbeddingModel'
 import {translateQueryToEnglish} from './semanticQueryTranslate'
-import {VIDEO_GRID_SPRITE} from '../../shared/videoPreview'
+import {VIDEO_GRID_SPRITE, gridTileSeekSeconds} from '../../shared/videoPreview'
 
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
+const VIDEO_GRID_TILE_COUNT = VIDEO_GRID_SPRITE.cols * VIDEO_GRID_SPRITE.rows
+
+export type SemanticSearchHit = {
+  id: number
+  tileIndex: number | null
+  time: number | null
+}
 
 type MediaPreviewRow = {
   id: number
@@ -40,6 +47,45 @@ function clampLimit(limit?: number | null) {
   const parsed = Number(limit)
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT
   return Math.min(Math.floor(parsed), MAX_LIMIT)
+}
+
+function loadVideoDurations(db: ApiDb, mediaIds: number[]): Map<number, number> {
+  const map = new Map<number, number>()
+  if (!mediaIds.length) return map
+  for (const chunk of chunkArray(mediaIds)) {
+    const rows = queryAll<{mediaId: number; duration: number | null}>(db, `
+      SELECT mediaId, duration
+      FROM videoMetadata
+      WHERE mediaId IN (:ids)
+    `, {ids: chunk})
+    for (const row of rows) {
+      map.set(Number(row.mediaId), Number(row.duration) || 0)
+    }
+  }
+  return map
+}
+
+function buildSemanticHits(
+  ranked: Array<{id: number; tileIndex: number}>,
+  candidatesById: Map<number, {embeddings: ClipEmbeddingVector[]}>,
+  durations: Map<number, number>,
+): SemanticSearchHit[] {
+  return ranked.map((hit) => {
+    const embeddingsCount = candidatesById.get(hit.id)?.embeddings.length || 0
+    if (embeddingsCount !== VIDEO_GRID_TILE_COUNT) {
+      return {id: hit.id, tileIndex: null, time: null}
+    }
+    const time = gridTileSeekSeconds(
+      durations.get(hit.id) || 0,
+      hit.tileIndex,
+      VIDEO_GRID_TILE_COUNT,
+    )
+    return {
+      id: hit.id,
+      tileIndex: hit.tileIndex,
+      time,
+    }
+  })
 }
 
 function nowIso() {
@@ -455,6 +501,7 @@ async function semanticSearchMedia(
   } catch (error: unknown) {
     return {
       ids: [] as number[],
+      hits: [] as SemanticSearchHit[],
       missingEmbeddingsCount: 0,
       indexedCount: 0,
       previewCandidatesCount: 0,
@@ -479,6 +526,7 @@ async function semanticSearchMedia(
   if (!text) {
     return {
       ids: [] as number[],
+      hits: [] as SemanticSearchHit[],
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,
@@ -512,6 +560,7 @@ async function semanticSearchMedia(
     if (!queryEmbedding.length) {
       return {
         ids: [] as number[],
+        hits: [] as SemanticSearchHit[],
         missingEmbeddingsCount,
         indexedCount,
         previewCandidatesCount,
@@ -519,9 +568,21 @@ async function semanticSearchMedia(
       }
     }
 
-    const ids = rankByMaxCosineSimilarity(queryEmbedding, candidates, clampLimit(limit))
+    const ranked = rankByMaxCosineSimilarityHits(
+      queryEmbedding,
+      candidates,
+      clampLimit(limit),
+    )
+    const ids = ranked.map((row) => row.id)
+    const candidatesById = new Map(
+      candidates.map((candidate) => [candidate.id, candidate] as const),
+    )
+    const durations = loadVideoDurations(db, ids)
+    const hits = buildSemanticHits(ranked, candidatesById, durations)
+
     return {
       ids,
+      hits,
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,
@@ -530,6 +591,7 @@ async function semanticSearchMedia(
   } catch (error: unknown) {
     return {
       ids: [] as number[],
+      hits: [] as SemanticSearchHit[],
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,

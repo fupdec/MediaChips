@@ -9,6 +9,7 @@ import {
   packFloat32Embeddings,
   rankByCosineSimilarity,
   rankByMaxCosineSimilarity,
+  rankByMaxCosineSimilarityHits,
   unpackFloat32Embedding,
   unpackFloat32Embeddings,
 } from './clipEmbeddingMath'
@@ -87,6 +88,42 @@ describe('clipEmbeddingMath', () => {
       l2Normalize([0, 1, 0]),
       l2Normalize([0.95, 0.05, 0]),
     ])).toBeGreaterThan(0.9)
+  })
+
+  it('returns the winning tile index for scene seek', () => {
+    const query = l2Normalize([1, 0, 0])
+    const hits = rankByMaxCosineSimilarityHits(query, [
+      {
+        id: 10,
+        embeddings: [
+          l2Normalize([0, 1, 0]),
+          l2Normalize([0, 0, 1]),
+          l2Normalize([0.99, 0.01, 0]),
+        ],
+      },
+      {
+        id: 11,
+        embeddings: [l2Normalize([0.5, 0.5, 0])],
+      },
+    ], 2)
+    expect(hits[0]).toMatchObject({id: 10, tileIndex: 2})
+    expect(hits[1]).toMatchObject({id: 11, tileIndex: 0})
+    expect(hits.map((hit) => hit.id)).toEqual(
+      rankByMaxCosineSimilarity(query, [
+        {
+          id: 10,
+          embeddings: [
+            l2Normalize([0, 1, 0]),
+            l2Normalize([0, 0, 1]),
+            l2Normalize([0.99, 0.01, 0]),
+          ],
+        },
+        {
+          id: 11,
+          embeddings: [l2Normalize([0.5, 0.5, 0])],
+        },
+      ], 2),
+    )
   })
 
   it('scores similar media by best tile pair', () => {

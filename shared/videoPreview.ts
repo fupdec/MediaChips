@@ -112,6 +112,27 @@ export function planGridTileTimestamps(durationSec: number, tileCount: number): 
   return {durSlice, timestamps}
 }
 
+/**
+ * Seek seconds for a contact-sheet tile — same mid-slice formula as
+ * `planGridTileTimestamps` / ffmpeg grid generation.
+ */
+export function gridTileSeekSeconds(
+  durationSec: number,
+  tileIndex: number,
+  tileCount = VIDEO_GRID_SPRITE.cols * VIDEO_GRID_SPRITE.rows,
+): number | null {
+  const duration = Number(durationSec)
+  const index = Math.floor(Number(tileIndex))
+  const count = Math.floor(Number(tileCount))
+  if (!Number.isFinite(duration) || duration <= 0) return null
+  if (!Number.isFinite(index) || index < 0 || !Number.isFinite(count) || count <= 0 || index >= count) {
+    return null
+  }
+  const durSlice = Number.parseInt(String(duration / count), 10)
+  if (!Number.isFinite(durSlice) || durSlice < 0) return null
+  return (index + 0.5) * durSlice
+}
+
 /** Paths, stream labels, and xstack layouts for combining tile PNGs. */
 export function buildGridCombineInputs(
   tmpDir: string,

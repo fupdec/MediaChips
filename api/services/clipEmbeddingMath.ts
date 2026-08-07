@@ -81,13 +81,28 @@ export function maxCosineSimilarity(
   query: ClipEmbeddingVector,
   embeddings: ClipEmbeddingVector[],
 ): number {
-  if (!query.length || !embeddings.length) return 0
+  return bestTileCosineSimilarity(query, embeddings).score
+}
+
+/** Best matching tile index + score for a query against per-tile embeddings. */
+export function bestTileCosineSimilarity(
+  query: ClipEmbeddingVector,
+  embeddings: ClipEmbeddingVector[],
+): {score: number; tileIndex: number} {
+  if (!query.length || !embeddings.length) return {score: 0, tileIndex: 0}
   let best = -Infinity
-  for (const embedding of embeddings) {
-    const score = cosineSimilarity(query, embedding)
-    if (score > best) best = score
+  let tileIndex = 0
+  for (let i = 0; i < embeddings.length; i++) {
+    const score = cosineSimilarity(query, embeddings[i])
+    if (score > best) {
+      best = score
+      tileIndex = i
+    }
   }
-  return Number.isFinite(best) ? best : 0
+  return {
+    score: Number.isFinite(best) ? best : 0,
+    tileIndex,
+  }
 }
 
 /** Best cosine across any seed tile × any candidate tile (scene-level similar). */
@@ -121,22 +136,41 @@ export function rankByCosineSimilarity(
   )
 }
 
+export type ClipSimilarityHit = {
+  id: number
+  score: number
+  tileIndex: number
+}
+
+/** Rank media by the best matching tile, preserving tile index. */
+export function rankByMaxCosineSimilarityHits(
+  query: ClipEmbeddingVector,
+  candidates: ClipEmbeddingCandidate[],
+  limit: number,
+): ClipSimilarityHit[] {
+  if (!query.length || limit <= 0) return []
+  const scored = candidates
+    .map((candidate) => {
+      const best = bestTileCosineSimilarity(query, candidate.embeddings)
+      return {
+        id: candidate.id,
+        score: best.score,
+        tileIndex: best.tileIndex,
+      }
+    })
+    .filter((row) => Number.isFinite(row.score))
+    .sort((a, b) => b.score - a.score || a.id - b.id)
+
+  return scored.slice(0, limit)
+}
+
 /** Rank media by the best matching tile (max-pooled CLIP score). */
 export function rankByMaxCosineSimilarity(
   query: ClipEmbeddingVector,
   candidates: ClipEmbeddingCandidate[],
   limit: number,
 ): number[] {
-  if (!query.length || limit <= 0) return []
-  const scored = candidates
-    .map((candidate) => ({
-      id: candidate.id,
-      score: maxCosineSimilarity(query, candidate.embeddings),
-    }))
-    .filter((row) => Number.isFinite(row.score))
-    .sort((a, b) => b.score - a.score || a.id - b.id)
-
-  return scored.slice(0, limit).map((row) => row.id)
+  return rankByMaxCosineSimilarityHits(query, candidates, limit).map((row) => row.id)
 }
 
 export function rankByMaxPairwiseCosineSimilarity(

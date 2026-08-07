@@ -14,6 +14,7 @@ import {
   getVideoGridSpriteWidth,
   makeXstackLayout,
   planGridTileTimestamps,
+  gridTileSeekSeconds,
 } from './videoPreview'
 
 describe('videoPreview', () => {
@@ -77,6 +78,12 @@ describe('videoPreview', () => {
     expect(timestamps).toHaveLength(9)
     expect(timestamps[0]).toBe('00:00:05')
     expect(timestamps[8]).toBe('00:01:25')
+
+    expect(gridTileSeekSeconds(90, 0, 9)).toBe(5)
+    expect(gridTileSeekSeconds(90, 8, 9)).toBe(85)
+    expect(gridTileSeekSeconds(900, 4)).toBe(450)
+    expect(gridTileSeekSeconds(0, 0)).toBeNull()
+    expect(gridTileSeekSeconds(100, 9)).toBeNull()
 
     const combine = buildGridCombineInputs('/tmp/g', 2, 3, (dir, name) => `${dir}/${name}`)
     expect(combine).toEqual({

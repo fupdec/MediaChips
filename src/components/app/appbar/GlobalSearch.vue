@@ -22,6 +22,7 @@ import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {openPath} from '@/services/shellService'
 import {checkFileExists} from '@/services/fileService'
+import {setNotification} from '@/services/notificationService'
 import type { ContextMenuEntry, MediaItem, Meta, Tag } from '@/types/stores'
 
 type MatchedSearchTag = {
@@ -614,6 +615,15 @@ async function searchSemantic() {
       ? searchRes.data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
       : []
 
+    const hitTimes = new Map<number, number>()
+    for (const hit of Array.isArray(searchRes.data?.hits) ? searchRes.data.hits : []) {
+      const id = Number(hit?.id)
+      const time = Number(hit?.time)
+      if (Number.isFinite(id) && id > 0 && Number.isFinite(time) && time >= 0) {
+        hitTimes.set(id, time)
+      }
+    }
+
     semanticHealth.value = {
       modelStatus: String(searchRes.data?.modelStatus || semanticHealth.value?.modelStatus || 'unknown'),
       indexedCount: Number(searchRes.data?.indexedCount ?? semanticHealth.value?.indexedCount ?? 0),
@@ -647,13 +657,81 @@ async function searchSemantic() {
         ? (searchRes.data?.originalQuery || q)
         : (searchRes.data?.searchQuery || q),
     ).trim()
-    await openMediaList({
-      mediaTypeId: mediaTypeId ?? undefined,
-      ids,
-      scope: {
-        kind: 'semantic',
-        label: scopeLabel || q,
-      },
+
+    const basicsRes = await typedApi.getMediaBasics({ids})
+    if (signal.aborted) return
+
+    const basicsById = new Map<number, MediaItem>()
+    for (const item of Array.isArray(basicsRes.data?.items) ? basicsRes.data.items : []) {
+      const id = Number(item?.id)
+      if (Number.isFinite(id) && id > 0) basicsById.set(id, item as MediaItem)
+    }
+
+    const playlist = ids
+      .map((id) => {
+        const item = basicsById.get(id)
+        if (!item) return null
+        const type = mediaTypes.value.find((entry) => entry.id === Number(item.mediaTypeId))
+        if (!isVideoMediaType(type)) return null
+        const time = hitTimes.get(id)
+        return {
+          ...item,
+          ...(time != null ? {segmentStart: time} : {}),
+        } as MediaItem
+      })
+      .filter((item): item is MediaItem => Boolean(item?.path))
+
+    const showAllMatches = () => {
+      void openMediaList({
+        mediaTypeId: mediaTypeId ?? undefined,
+        ids,
+        scope: {
+          kind: 'semantic',
+          label: scopeLabel || q,
+        },
+      })
+    }
+
+    if (!playlist.length) {
+      await openMediaList({
+        mediaTypeId: mediaTypeId ?? undefined,
+        ids,
+        scope: {
+          kind: 'semantic',
+          label: scopeLabel || q,
+        },
+      })
+      return
+    }
+
+    const first = playlist[0]
+    const seekTime = Number(first.segmentStart)
+    const hasSeek = Number.isFinite(seekTime) && seekTime > 0
+
+    await itemsStore.playVideo({
+      video: first,
+      time: hasSeek ? seekTime : 0,
+      videos: playlist,
+      trustPath: true,
+    })
+
+    setNotification({
+      type: 'success',
+      title: t('globalSearch.scene_play_title'),
+      text: hasSeek
+        ? t('globalSearch.scene_play_text_at', {time: formatSceneSeekTime(seekTime)})
+        : t('globalSearch.scene_play_text'),
+      icon: 'play-circle-outline',
+      timeout: 10000,
+      actions: [
+        {
+          id: 'show-semantic-matches',
+          text: t('globalSearch.scene_play_show_all'),
+          icon: 'view-grid-outline',
+          action: showAllMatches,
+          hide: true,
+        },
+      ],
     })
   } catch (e: unknown) {
     const err = e as {code?: string; name?: string}
@@ -663,6 +741,15 @@ async function searchSemantic() {
   } finally {
     if (!signal.aborted) loading.value = false
   }
+}
+
+function formatSceneSeekTime(seconds: number): string {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 async function search() {
