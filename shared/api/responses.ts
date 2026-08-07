@@ -117,7 +117,11 @@ export interface ViewImageEvent {
 }
 
 export interface OpenTagsAddWithNamesEvent {
-  names?: string[]
+  names?: string[] | string
+  metaId?: number
+  title?: string
+  /** When set, selected tags are created and assigned to these media (path re-parse). */
+  mediaIds?: number[]
   [key: string]: unknown
 }
 

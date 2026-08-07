@@ -99,6 +99,64 @@ function registerBuiltinRoutes({
     })
   })
 
+  /**
+   * Escape hatch for phones stuck on a cached PWA shell.
+   * Served under /api/ so existing service workers (navigateFallbackDenylist)
+   * fetch it from the network instead of rewriting to index.html.
+   */
+  app.get('/api/clear-cache', (_req: ApiRequest, res: ApiResponse) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.type('html').send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#9875c6"/>
+  <title>MediaChips — clear cache</title>
+  <style>
+    body{font-family:system-ui,sans-serif;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f5f3fa;color:#2c2940;text-align:center}
+    .card{max-width:26rem;padding:1.5rem;border-radius:16px;background:#fff;box-shadow:0 8px 28px rgba(80,70,140,.12)}
+    h1{font-size:1.15rem;margin:0 0 .5rem}
+    p{margin:0 0 1rem;color:#5c5870;font-size:.92rem;line-height:1.4}
+    button{appearance:none;border:0;border-radius:999px;padding:.7rem 1.2rem;background:#9875c6;color:#fff;font:inherit;font-weight:600}
+    .ok{color:#2f6b3a}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Refresh MediaChips</h1>
+    <p id="status">Clearing offline cache…</p>
+    <button id="go" type="button" hidden>Open app</button>
+  </div>
+  <script>
+    (async function () {
+      var status = document.getElementById('status')
+      var go = document.getElementById('go')
+      try {
+        if ('serviceWorker' in navigator) {
+          var regs = await navigator.serviceWorker.getRegistrations()
+          await Promise.all(regs.map(function (r) { return r.unregister() }))
+        }
+        if ('caches' in window) {
+          var keys = await caches.keys()
+          await Promise.all(keys.map(function (k) { return caches.delete(k) }))
+        }
+        status.textContent = 'Cache cleared. Opening app…'
+        status.className = 'ok'
+      } catch (e) {
+        status.textContent = 'Could not clear everything. Tap below to open the app anyway.'
+      }
+      var target = '/?_nocache=' + Date.now()
+      go.hidden = false
+      go.onclick = function () { location.replace(target) }
+      setTimeout(function () { location.replace(target) }, 400)
+    })()
+  </script>
+</body>
+</html>`)
+  })
+
   app.get('/api/getMachineId', async (req: ApiRequest, res: ApiResponse) => {
     try {
       const { machineId } = await import('node-machine-id')

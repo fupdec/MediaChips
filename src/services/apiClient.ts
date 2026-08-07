@@ -85,22 +85,40 @@ export const apiClient = {
   },
 
   get<T = unknown>(url: string, config?: AxiosRequestConfig) {
-    return axios.get<T>(withBaseUrl(url, config), config)
+    return axios.request<T>({
+      ...resolveRequestConfig(url, config),
+      method: 'GET',
+    })
   },
 
   post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) {
-    return axios.post<T>(withBaseUrl(url, config), data, config)
+    return axios.request<T>({
+      ...resolveRequestConfig(url, config),
+      method: 'POST',
+      data,
+    })
   },
 
   put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) {
-    return axios.put<T>(withBaseUrl(url, config), data, config)
+    return axios.request<T>({
+      ...resolveRequestConfig(url, config),
+      method: 'PUT',
+      data,
+    })
   },
 
   delete<T = unknown>(url: string, config?: AxiosRequestConfig) {
-    return axios.delete<T>(withBaseUrl(url, config), config)
+    return axios.request<T>({
+      ...resolveRequestConfig(url, config),
+      method: 'DELETE',
+    })
   },
 
   patch<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) {
-    return axios.patch<T>(withBaseUrl(url, config), data, config)
+    return axios.request<T>({
+      ...resolveRequestConfig(url, config),
+      method: 'PATCH',
+      data,
+    })
   },
 }

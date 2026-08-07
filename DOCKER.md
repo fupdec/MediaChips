@@ -49,6 +49,14 @@ Do **not** paste Mac/Windows host paths (`/Users/...`, `D:\...`) — the contain
    - `TZ`
 4. Start the project, open `http://NAS-IP:12321`.
 
+### Phone companion (PWA)
+
+1. Enable LAN access (or set `MEDIA_CHIPS_ALLOW_LAN=1`).
+2. On your phone, open the share URL from Home / Settings (same Wi‑Fi).
+3. Use the browser menu **Add to Home Screen** for a standalone icon. Chrome’s Install banner usually needs **HTTPS** (put a reverse proxy in front if you want that).
+4. Browse, play, favorite, and tag as usual. Password protection works with API Bearer headers and `?token=` on media streams.
+5. Non-browser codecs rely on host **ffmpeg** live transcode — keep it enabled for phones.
+
 Pre-built images (after a release/CI push):
 
 ```text

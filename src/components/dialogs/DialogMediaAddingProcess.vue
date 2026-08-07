@@ -52,6 +52,9 @@
               {{ t('media.adding.make_library_smart_hint') }}
             </div>
 
+            <div class="text-caption text-medium-emphasis text-uppercase mb-1">
+              {{ t('media.adding.make_library_smart_group_tags') }}
+            </div>
             <v-checkbox
               v-model="smartWizard.pathTags"
               density="compact"
@@ -60,6 +63,18 @@
               :disabled="smartWizardRunning"
               :label="t('media.adding.make_library_smart_path_tags')"
             />
+            <v-checkbox
+              v-model="smartWizard.neighborTags"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_neighbor_tags')"
+            />
+
+            <div class="text-caption text-medium-emphasis text-uppercase mt-3 mb-1">
+              {{ t('media.adding.make_library_smart_group_enrich') }}
+            </div>
             <v-checkbox
               v-model="smartWizard.grids"
               density="compact"
@@ -128,6 +143,10 @@
               :disabled="smartWizardRunning || !isAddedVideo"
               :label="t('media.adding.make_library_smart_chapters')"
             />
+
+            <div class="text-caption text-medium-emphasis text-uppercase mt-3 mb-1">
+              {{ t('media.adding.make_library_smart_group_more') }}
+            </div>
             <v-checkbox
               v-model="smartWizard.organize"
               density="compact"
@@ -135,14 +154,6 @@
               color="primary"
               :disabled="smartWizardRunning"
               :label="t('media.adding.make_library_smart_organize')"
-            />
-            <v-checkbox
-              v-model="smartWizard.neighborTags"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_neighbor_tags')"
             />
             <v-checkbox
               v-if="sceneScrapeAvailable"
@@ -229,121 +240,146 @@
             </div>
           </v-card>
 
-          <div v-if="task.finished" class="d-flex flex-wrap ga-2 mb-4">
-            <v-btn
-              v-if="task.suggestedTags?.length"
-              @click="acceptAllSuggestedTags"
-              :loading="acceptingSuggestedTags"
-              :disabled="acceptingSuggestedTags"
-              color="primary"
-              rounded
-              variant="flat"
+          <div v-if="task.finished" class="mb-4">
+            <div
+              v-if="task.suggestedTags?.length || task.videoSuggestedTags?.length"
+              class="mb-3"
             >
-              <v-icon icon="mdi-tag-check-outline"
-                start/>
-              {{ t('media.adding.accept_all_suggested_tags') }}
-            </v-btn>
+              <div class="text-caption text-medium-emphasis text-uppercase mb-2">
+                {{ t('media.adding.suggested_tags_actions') }}
+              </div>
+              <div class="d-flex flex-wrap ga-2">
+                <v-btn
+                  v-if="task.suggestedTags?.length"
+                  @click="acceptAllSuggestedTags"
+                  :loading="acceptingSuggestedTags"
+                  :disabled="acceptingSuggestedTags"
+                  color="primary"
+                  rounded
+                  variant="flat"
+                >
+                  <v-icon icon="mdi-tag-check-outline" start/>
+                  {{ t('media.adding.accept_all_suggested_tags_count', {
+                    count: task.suggestedTags.length,
+                  }) }}
+                </v-btn>
 
-            <v-btn
-              v-if="task.videoSuggestedTags?.length"
-              @click="applyClipSuggestedTags"
-              :loading="applyingClipSuggestions"
-              :disabled="applyingClipSuggestions"
-              color="primary"
-              rounded
-              variant="tonal"
-            >
-              <v-icon icon="mdi-tag-plus-outline" start/>
-              {{ t('media.adding.apply_clip_suggestions') }}
-            </v-btn>
+                <v-btn
+                  v-if="task.videoSuggestedTags?.length"
+                  @click="applyClipSuggestedTags"
+                  :loading="applyingClipSuggestions"
+                  :disabled="applyingClipSuggestions"
+                  color="primary"
+                  rounded
+                  variant="tonal"
+                >
+                  <v-icon icon="mdi-tag-plus-outline" start/>
+                  {{ t('media.adding.apply_clip_suggestions') }}
+                </v-btn>
 
-            <v-btn
-              v-if="task.suggestedTags?.length"
-              @click="openSuggestedTags"
-              color="primary"
-              rounded
-              variant="outlined"
-            >
-              <v-icon icon="mdi-tag-plus-outline"
-                start/>
-              {{ t('media.adding.review_suggested_tags') }}
-            </v-btn>
+                <v-btn
+                  v-if="task.suggestedTags?.length"
+                  @click="openSuggestedTags"
+                  color="primary"
+                  rounded
+                  variant="outlined"
+                >
+                  <v-icon icon="mdi-tag-plus-outline" start/>
+                  {{ t('media.adding.review_suggested_tags_count', {
+                    count: task.suggestedTags.length,
+                  }) }}
+                </v-btn>
+              </div>
+            </div>
 
-            <v-btn
-              v-if="canReparseTags"
-              @click="reparseTags"
-              :loading="task.parsingTags"
-              :disabled="task.parsingTags"
-              color="primary"
-              rounded
-              variant="outlined"
-            >
-              <v-icon icon="mdi-text-box-search-outline"
-                start/>
-              {{ t('media.adding.reparse_tags') }}
-            </v-btn>
-            <ButtonDocumentation
-              v-if="canReparseTags"
-              id="media.parser"
+            <v-divider
+              v-if="(task.suggestedTags?.length || task.videoSuggestedTags?.length)
+                && (canReparseTags || canRecognizeObjects || canDetectFaces)"
+              class="mb-3"
             />
 
-            <v-btn
-              v-if="canRecognizeObjects && clipModelNeedsDownload"
-              @click="downloadClipModel"
-              :loading="clipModelDownloading"
-              :disabled="clipModelDownloading"
-              color="secondary"
-              rounded
-              variant="outlined"
+            <div
+              v-if="canReparseTags || canRecognizeObjects || canDetectFaces"
+              class="mb-0"
             >
-              <v-icon icon="mdi-download"
-                start/>
-              {{ t('media.adding.download_video_recognition_model') }}
-            </v-btn>
+              <div class="text-caption text-medium-emphasis text-uppercase mb-2">
+                {{ t('media.adding.ai_actions') }}
+              </div>
+              <div class="d-flex flex-wrap ga-2">
+                <v-btn
+                  v-if="canReparseTags"
+                  @click="reparseTags"
+                  :loading="task.parsingTags"
+                  :disabled="task.parsingTags"
+                  color="primary"
+                  rounded
+                  variant="outlined"
+                >
+                  <v-icon icon="mdi-text-box-search-outline" start/>
+                  {{ t('media.adding.reparse_tags') }}
+                </v-btn>
+                <ButtonDocumentation
+                  v-if="canReparseTags"
+                  id="media.parser"
+                />
 
-            <v-btn
-              v-if="canRecognizeObjects && clipModelReady"
-              @click="recognizeVideoObjects"
-              :loading="task.recognizingObjects"
-              :disabled="task.recognizingObjects"
-              color="secondary"
-              rounded
-              variant="flat"
-            >
-              <v-icon icon="mdi-image-search-outline"
-                start/>
-              {{ t('media.adding.recognize_video_objects') }}
-            </v-btn>
-            <ButtonDocumentation
-              v-if="canRecognizeObjects"
-              id="media.video_object_recognition"
-            />
+                <v-btn
+                  v-if="canRecognizeObjects && clipModelNeedsDownload"
+                  @click="downloadClipModel"
+                  :loading="clipModelDownloading"
+                  :disabled="clipModelDownloading"
+                  color="secondary"
+                  rounded
+                  variant="outlined"
+                >
+                  <v-icon icon="mdi-download" start/>
+                  {{ t('media.adding.download_video_recognition_model') }}
+                </v-btn>
 
-            <v-btn
-              v-if="canDetectFaces && faceModelNeedsDownload"
-              @click="downloadFaceModel"
-              :loading="faceModelDownloading"
-              :disabled="faceModelDownloading || task.detectingFaces"
-              color="secondary"
-              rounded
-              variant="outlined"
-            >
-              <v-icon icon="mdi-download" start/>
-              {{ t('media.adding.download_face_model') }}
-            </v-btn>
+                <v-btn
+                  v-if="canRecognizeObjects && clipModelReady"
+                  @click="recognizeVideoObjects"
+                  :loading="task.recognizingObjects"
+                  :disabled="task.recognizingObjects"
+                  color="secondary"
+                  rounded
+                  variant="flat"
+                >
+                  <v-icon icon="mdi-image-search-outline" start/>
+                  {{ t('media.adding.recognize_video_objects') }}
+                </v-btn>
+                <ButtonDocumentation
+                  v-if="canRecognizeObjects"
+                  id="media.video_object_recognition"
+                />
 
-            <v-btn
-              v-if="canDetectFaces && faceModelReady"
-              @click="detectFacesInAddedVideos"
-              :loading="task.detectingFaces"
-              :disabled="task.detectingFaces || task.recognizingObjects"
-              color="secondary"
-              rounded
-              variant="flat"
-            >
-              <v-icon icon="mdi-face-recognition" start/>
-              {{ t('media.adding.detect_faces') }}
-            </v-btn>
+                <v-btn
+                  v-if="canDetectFaces && faceModelNeedsDownload"
+                  @click="downloadFaceModel"
+                  :loading="faceModelDownloading"
+                  :disabled="faceModelDownloading || task.detectingFaces"
+                  color="secondary"
+                  rounded
+                  variant="outlined"
+                >
+                  <v-icon icon="mdi-download" start/>
+                  {{ t('media.adding.download_face_model') }}
+                </v-btn>
+
+                <v-btn
+                  v-if="canDetectFaces && faceModelReady"
+                  @click="detectFacesInAddedVideos"
+                  :loading="task.detectingFaces"
+                  :disabled="task.detectingFaces || task.recognizingObjects"
+                  color="secondary"
+                  rounded
+                  variant="flat"
+                >
+                  <v-icon icon="mdi-face-recognition" start/>
+                  {{ t('media.adding.detect_faces') }}
+                </v-btn>
+              </div>
+            </div>
           </div>
 
           <div
@@ -611,7 +647,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, nextTick, onMounted, watch} from 'vue'
+import {ref, computed, nextTick, onMounted, onUnmounted, watch} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
@@ -1068,6 +1104,7 @@ const openSuggestedTags = () => {
     names: task.value.suggestedTags || [],
     metaId: getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId) ?? undefined,
     title: t('media.adding.suggested_tags_from_added_files'),
+    mediaIds: addedMediaIds(),
   })
 }
 
@@ -1887,11 +1924,32 @@ const runSmartLibraryWizard = async () => {
 
 
 // Lifecycle
+const onSuggestedTagsReviewed = (payload: {
+  names?: string[]
+  mediaIds?: number[]
+  assigned?: boolean
+}) => {
+  const reviewed = new Set(
+    (payload.names || []).map((name) => String(name || '').trim().toLowerCase()).filter(Boolean),
+  )
+  if (!reviewed.size) return
+
+  const remaining = (task.value.suggestedTags || []).filter(
+    (name) => !reviewed.has(String(name || '').trim().toLowerCase()),
+  )
+  task.value.suggestedTags = remaining
+}
+
 onMounted(() => {
   syncStopButton()
+  eventBus.on('tagsAdd:completed', onSuggestedTagsReviewed)
   if (task.value && !task.value.finished) {
     task.value.active = true
   }
+})
+
+onUnmounted(() => {
+  eventBus.off('tagsAdd:completed', onSuggestedTagsReviewed)
 })
 
 // Watchers

@@ -1,5 +1,6 @@
 import { abortVideoPlayback } from '@/utils/liveTranscodeLifecycle'
 import { resolveHoverPreviewSourcePlan } from '@/utils/hoverPreviewPlayback'
+import { getAuthToken } from '@/services/authSession'
 import { typedApi } from '@/services/typedApi'
 import {
   apiVideoStream,
@@ -77,6 +78,11 @@ export function fetchTranscodeCacheStats() {
   return typedApi.getTranscodeCacheStats().then((response) => response.data)
 }
 
+function appendAuthToken(params: URLSearchParams) {
+  const token = getAuthToken()
+  if (token) params.set('token', token)
+}
+
 export function buildVideoStreamUrl(
   buildApiUrl: BuildApiUrl,
   mediaId: number,
@@ -89,6 +95,7 @@ export function buildVideoStreamUrl(
   if (bustCache) {
     params.set('time', String(Math.random()))
   }
+  appendAuthToken(params)
   return `${buildApiUrl(apiVideoStream(mediaId))}?${params.toString()}`
 }
 
@@ -117,6 +124,7 @@ export function buildLiveStreamUrl(
   if (options.accurateSeek) {
     params.set('accurate', '1')
   }
+  appendAuthToken(params)
 
   return `${buildApiUrl(apiVideoTranscodeStream(mediaId))}?${params.toString()}`
 }

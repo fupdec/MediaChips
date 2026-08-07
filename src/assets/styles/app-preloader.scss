@@ -219,8 +219,9 @@ body {
   }
 }
 
+/* Bottom bar height already includes safe-area-inset-bottom via Vuetify layout. */
 .app-main-layout.has-bottom-bar .main-scroll-inner {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: 0;
 }
 
 .main-scroll--settings {

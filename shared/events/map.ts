@@ -19,6 +19,13 @@ export type EventBusMap = {
     tagId?: number
     mediaId?: number | null
   }
+  'tagsAdd:completed': {
+    names?: string[]
+    createdNames?: string[]
+    mediaIds?: number[]
+    assigned?: boolean
+    applied?: number
+  }
   'app:database-changed': void
 } & Record<string, unknown>
 

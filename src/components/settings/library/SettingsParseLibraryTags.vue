@@ -874,6 +874,11 @@ const startParsing = async () => {
         progress.value = 100
         scanFinished.value = true
 
+        // Auto-select all found tags and media for one-click apply.
+        selectedGlobalTagKeys.value = uniqueNewTags.value.map((tag) => tag.key)
+        selectedIds.value = items.value.map((item) => item.mediaId)
+        selectAllMedia.value = selectedIds.value.length > 0
+
         updateParseLibraryTagsTask({
           subtitle: t('settings_labels.library.parse_library_tags_complete', lastSummary.value),
           progress: 100,
@@ -918,6 +923,11 @@ const startParsing = async () => {
   } finally {
     active.value = false
     abortController = null
+    if (items.value.length > 0 && selectedGlobalTagKeys.value.length === 0) {
+      selectedGlobalTagKeys.value = uniqueNewTags.value.map((tag) => tag.key)
+      selectedIds.value = items.value.map((item) => item.mediaId)
+      selectAllMedia.value = selectedIds.value.length > 0
+    }
     if (taskId === currentTaskId && !scanFinished.value) {
       updateParseLibraryTagsTask({
         done: true,

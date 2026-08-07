@@ -15,12 +15,22 @@ vi.mock('@/services/typedApi', () => ({
   },
 }))
 
+vi.mock('@/services/authSession', () => ({
+  getAuthToken: vi.fn(() => null),
+}))
+
 import {typedApi} from '@/services/typedApi'
+import {getAuthToken} from '@/services/authSession'
 
 const mockGetVideoPlayable = vi.mocked(typedApi.getVideoPlayable)
+const mockGetAuthToken = vi.mocked(getAuthToken)
 
 describe('transcodeService urls', () => {
   const buildApiUrl = (path: string) => `http://localhost:12321${path}`
+
+  beforeEach(() => {
+    mockGetAuthToken.mockReturnValue(null)
+  })
 
   it('builds live stream url with exact start offset', () => {
     const url = buildLiveStreamUrl(buildApiUrl, 42, 125.5)
@@ -48,6 +58,14 @@ describe('transcodeService urls', () => {
   it('builds direct video stream url', () => {
     const url = buildVideoStreamUrl(buildApiUrl, 7, 'auto')
     expect(url).toContain('/api/video/7?source=auto')
+  })
+
+  it('appends auth token to video and live stream urls when present', () => {
+    mockGetAuthToken.mockReturnValue('session-token')
+    expect(buildVideoStreamUrl(buildApiUrl, 7, 'auto', {bustCache: false}))
+      .toContain('token=session-token')
+    expect(buildLiveStreamUrl(buildApiUrl, 42, 0))
+      .toContain('token=session-token')
   })
 })
 
