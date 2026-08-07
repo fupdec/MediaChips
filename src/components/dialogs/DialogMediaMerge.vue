@@ -186,7 +186,10 @@ watch(
   () => dialogsStore.mediaMerge.show,
   (show) => {
     if (show) {
-      survivorId.value = pickDefaultSurvivorId(dialogsStore.mediaMerge.items)
+      const preferred = Number(dialogsStore.mediaMerge.survivorId)
+      survivorId.value = Number.isFinite(preferred) && preferred > 0
+        ? preferred
+        : pickDefaultSurvivorId(dialogsStore.mediaMerge.items)
       withFile.value = false
       saving.value = false
     }

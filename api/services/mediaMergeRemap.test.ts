@@ -3,6 +3,7 @@ import {
   foldMediaPresetFields,
   pickDefaultSurvivorId,
   planMediaValuesToInsert,
+  planNearDuplicateMarkIdsToDelete,
   remapMediaTagLinksToSurvivor,
   remapPlaylistLinksToSurvivor,
 } from './mediaMergeRemap'
@@ -40,11 +41,20 @@ describe('mediaMergeRemap', () => {
     )).toEqual([{mediaId: 5, metaId: 2, value: 'b'}])
   })
 
-  it('picks default survivor by filesize then rating then createdAt', () => {
+  it('plans near-duplicate mark deletions within a time window', () => {
+    expect(planNearDuplicateMarkIdsToDelete([
+      {id: 1, type: 'meta', tagId: 9, time: 10, end: 12, text: ''},
+      {id: 2, type: 'meta', tagId: 9, time: 10.5, end: 16, text: 'richer'},
+      {id: 3, type: 'meta', tagId: 9, time: 20, end: 22, text: ''},
+      {id: 4, type: 'favorite', tagId: null, time: 10, end: null, text: ''},
+    ])).toEqual([1])
+  })
+
+  it('picks default survivor by resolution then filesize then rating then createdAt', () => {
     expect(pickDefaultSurvivorId([
-      {id: 1, filesize: 10, rating: 5, createdAt: '2020-01-01'},
-      {id: 2, filesize: 50, rating: 1, createdAt: '2024-01-01'},
-      {id: 3, filesize: 50, rating: 4, createdAt: '2021-01-01'},
+      {id: 1, filesize: 10, rating: 5, createdAt: '2020-01-01', width: 1920, height: 1080},
+      {id: 2, filesize: 50, rating: 1, createdAt: '2024-01-01', width: 1280, height: 720},
+      {id: 3, filesize: 50, rating: 4, createdAt: '2021-01-01', width: 1920, height: 1080},
     ])).toBe(3)
 
     expect(pickDefaultSurvivorId([
@@ -53,7 +63,7 @@ describe('mediaMergeRemap', () => {
     ])).toBe(5)
   })
 
-  it('folds preset fields across survivor and sources', () => {
+  it('folds preset fields across survivor and sources (views sum)', () => {
     expect(foldMediaPresetFields(
       {
         favorite: false,
@@ -76,7 +86,7 @@ describe('mediaMergeRemap', () => {
     )).toEqual({
       favorite: true,
       rating: 5,
-      views: 3,
+      views: 4,
       viewedAt: '2024-01-01',
       bookmark: 'keep',
       createdAt: '2019-01-01',

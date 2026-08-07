@@ -278,11 +278,18 @@ export interface MarkItemsRequestPayload {
 }
 
 export interface MarkClipsRequestPayload {
-  tagId: number
+  tagId?: number
+  markIds?: number[]
   sort?: 'time' | 'shuffle'
   countOnly?: boolean
   limit?: number
   offset?: number
+}
+
+export interface ExportMarkClipsRequestPayload {
+  markIds: number[]
+  outputPath?: string
+  sort?: 'time' | 'shuffle'
 }
 
 export interface BulkMetaApplyPayload {

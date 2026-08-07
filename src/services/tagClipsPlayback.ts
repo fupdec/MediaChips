@@ -1,7 +1,8 @@
 import type {MarkClipItem, MarkClipsResponse} from '@shared/api/responses'
 
 export type FetchMarkClipsPage = (body: {
-  tagId: number
+  tagId?: number
+  markIds?: number[]
   sort?: 'time' | 'shuffle'
   limit?: number
   offset?: number
@@ -22,10 +23,27 @@ export type TagClipsPlaybackLoad = {
 export async function loadTagClipsForPlayback(
   fetchClips: FetchMarkClipsPage,
   tagId: number,
+  sort: 'time' | 'shuffle' = 'time',
 ): Promise<TagClipsPlaybackLoad> {
+  return loadClipsForPlayback(fetchClips, {tagId, sort})
+}
+
+export async function loadMarkIdClipsForPlayback(
+  fetchClips: FetchMarkClipsPage,
+  markIds: number[],
+  sort: 'time' | 'shuffle' = 'time',
+): Promise<TagClipsPlaybackLoad> {
+  return loadClipsForPlayback(fetchClips, {markIds, sort})
+}
+
+async function loadClipsForPlayback(
+  fetchClips: FetchMarkClipsPage,
+  scope: {tagId?: number; markIds?: number[]; sort?: 'time' | 'shuffle'},
+): Promise<TagClipsPlaybackLoad> {
+  const sort = scope.sort === 'shuffle' ? 'shuffle' : 'time'
   const firstPage = await fetchClips({
-    tagId,
-    sort: 'time',
+    ...scope,
+    sort,
     limit: 1,
   })
   const firstClips = firstPage.items || []
@@ -45,8 +63,8 @@ export async function loadTagClipsForPlayback(
   }
 
   const restPage = await fetchClips({
-    tagId,
-    sort: 'time',
+    ...scope,
+    sort,
     offset: 1,
   })
   const restClips = restPage.items || []

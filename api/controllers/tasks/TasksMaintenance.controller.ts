@@ -43,6 +43,7 @@ import {
   getAutoChapterGenerationStatus,
   iterateAutoChapterGeneration,
 } from '../../services/autoChapterDetect'
+import {iterateMarkClipsExport} from '../../services/markClipsExport'
 
 export default function createTasksMaintenanceController(shared: TaskControllerShared) {
   const {
@@ -244,11 +245,13 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   }
 
   const streamClipEmbeddingBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : undefined
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while backfilling CLIP embeddings.',
       iterate: (shouldStop) => iterateClipEmbeddingBackfill(db, {
         shouldStop,
-        force: String(req.query.force || '').toLowerCase() === 'true',
+        force: Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true',
+        mediaIds,
       }),
     })
   }
@@ -340,6 +343,24 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     })
   }
 
+  const exportMarkClips = async (req: ApiRequest, res: ApiResponse) => {
+    const markIds = Array.isArray(req.body?.markIds)
+      ? req.body.markIds.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
+      : []
+    const outputPath = typeof req.body?.outputPath === 'string' ? req.body.outputPath : undefined
+    const sort = req.body?.sort === 'shuffle' ? 'shuffle' as const : 'time' as const
+
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while exporting mark clips.',
+      iterate: (shouldStop) => iterateMarkClipsExport(db, {
+        markIds,
+        outputPath,
+        sort,
+        shouldStop,
+      }),
+    })
+  }
+
   return {
     contentHashBackfillStatus,
     oshashBackfillStatus,
@@ -366,5 +387,6 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     relinkMissingMedia,
     tagImageAiUpscaleStatus,
     streamTagImageAiUpscale,
+    exportMarkClips,
   }
 }

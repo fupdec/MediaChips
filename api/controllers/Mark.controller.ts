@@ -21,13 +21,21 @@ export default function (db: ApiDb) {
 
   const getClips = function (req: ApiRequest, res: ApiResponse) {
     try {
+      const markIds = Array.isArray(req.body?.markIds)
+        ? req.body.markIds.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
+        : []
       const tagId = Number(req.body?.tagId)
-      if (!Number.isFinite(tagId) || tagId <= 0) {
-        sendBadRequest(res, 'tagId is required')
+      const hasMarkIds = markIds.length > 0
+      const hasTagId = Number.isFinite(tagId) && tagId > 0
+
+      if (!hasMarkIds && !hasTagId) {
+        sendBadRequest(res, 'tagId or markIds is required')
         return
       }
 
-      const count = marksRepo.countClipsByTagId(tagId)
+      const count = hasMarkIds
+        ? marksRepo.countClipsByMarkIds(markIds)
+        : marksRepo.countClipsByTagId(tagId)
       const countOnly = Boolean(req.body?.countOnly)
       if (countOnly) {
         sendOk(res, {
@@ -40,11 +48,14 @@ export default function (db: ApiDb) {
       const sort = req.body?.sort === 'shuffle' ? 'shuffle' : 'time'
       const limitRaw = Number(req.body?.limit)
       const offsetRaw = Number(req.body?.offset)
-      const items = marksRepo.findClipsByTagId(tagId, {
-        sort,
+      const options = {
+        sort: sort as 'time' | 'shuffle',
         limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
         offset: Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : undefined,
-      })
+      }
+      const items = hasMarkIds
+        ? marksRepo.findClipsByMarkIds(markIds, options)
+        : marksRepo.findClipsByTagId(tagId, options)
 
       sendOk(res, {
         items,

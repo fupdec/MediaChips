@@ -19,6 +19,7 @@ import {invalidateMediaDerivedCaches} from './mediaCacheInvalidation'
 import {
   foldMediaPresetFields,
   planMediaValuesToInsert,
+  planNearDuplicateMarkIdsToDelete,
   remapMediaTagLinksToSurvivor,
   remapPlaylistLinksToSurvivor,
 } from './mediaMergeRemap'
@@ -180,15 +181,26 @@ export function mergeMediaItemsTx(
     tx.delete(mediaInPlaylists).where(inArray(mediaInPlaylists.mediaId, sourceIds)).run()
   }
 
-  // marks: move to survivor (thumbs keyed by mark id)
+  // marks: move to survivor (thumbs keyed by mark id), then collapse near-duplicates
   const markUpdate = tx.update(marks)
     .set({mediaId: survivorId})
     .where(inArray(marks.mediaId, sourceIds))
     .run()
   migrated.marks = Number(markUpdate.changes ?? 0)
 
+  const survivorMarks = tx.select().from(marks).where(eq(marks.mediaId, survivorId)).all()
+  const duplicateMarkIds = planNearDuplicateMarkIdsToDelete(survivorMarks)
+  if (duplicateMarkIds.length) {
+    tx.delete(marks).where(inArray(marks.id, duplicateMarkIds)).run()
+  }
+
+  // Remap loser faces onto the survivor instead of discarding them
+  tx.update(faces)
+    .set({mediaId: survivorId})
+    .where(inArray(faces.mediaId, sourceIds))
+    .run()
+
   // Drop loser-only rows that are not remapped
-  tx.delete(faces).where(inArray(faces.mediaId, sourceIds)).run()
   tx.delete(videoMetadata).where(inArray(videoMetadata.mediaId, sourceIds)).run()
   tx.delete(imageMetadata).where(inArray(imageMetadata.mediaId, sourceIds)).run()
 

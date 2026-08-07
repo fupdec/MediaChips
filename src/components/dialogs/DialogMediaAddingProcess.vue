@@ -39,6 +39,115 @@
       <v-card-text class="pa-4">
         <!-- Added files -->
         <div v-if="task.added.length > 0" class="mb-4">
+          <v-card
+            v-if="canMakeLibrarySmart"
+            variant="tonal"
+            color="primary"
+            class="pa-4 mb-4"
+          >
+            <div class="text-subtitle-1 font-weight-medium mb-1">
+              {{ t('media.adding.make_library_smart') }}
+            </div>
+            <div class="text-caption text-medium-emphasis mb-3">
+              {{ t('media.adding.make_library_smart_hint') }}
+            </div>
+
+            <v-checkbox
+              v-model="smartWizard.grids"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_grids')"
+            />
+            <v-checkbox
+              v-model="smartWizard.faces"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_faces')"
+            />
+            <v-checkbox
+              v-model="smartWizard.clip"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_clip')"
+            />
+
+            <div
+              v-if="smartWizard.faces && faceModelNeedsDownload"
+              class="text-caption text-medium-emphasis mt-2"
+            >
+              {{ t('media.adding.download_face_model_hint') }}
+            </div>
+            <div
+              v-if="smartWizard.clip && clipModelNeedsDownload"
+              class="text-caption text-medium-emphasis mt-2"
+            >
+              {{ t('media.adding.download_video_recognition_model_hint') }}
+            </div>
+
+            <div class="d-flex flex-wrap ga-2 mt-3">
+              <v-btn
+                v-if="smartWizard.faces && faceModelNeedsDownload"
+                @click="downloadFaceModel"
+                :loading="faceModelDownloading"
+                :disabled="faceModelDownloading || smartWizardRunning"
+                color="secondary"
+                rounded
+                variant="outlined"
+                size="small"
+              >
+                <v-icon icon="mdi-download" start/>
+                {{ t('media.adding.download_face_model') }}
+              </v-btn>
+              <v-btn
+                v-if="smartWizard.clip && clipModelNeedsDownload"
+                @click="downloadClipModel"
+                :loading="clipModelDownloading"
+                :disabled="clipModelDownloading || smartWizardRunning"
+                color="secondary"
+                rounded
+                variant="outlined"
+                size="small"
+              >
+                <v-icon icon="mdi-download" start/>
+                {{ t('media.adding.download_video_recognition_model') }}
+              </v-btn>
+              <v-btn
+                @click="runSmartLibraryWizard"
+                :loading="smartWizardRunning"
+                :disabled="!canRunSmartWizard || smartWizardRunning"
+                color="primary"
+                rounded
+                variant="flat"
+              >
+                <v-icon icon="mdi-auto-fix" start/>
+                {{ t('media.adding.make_library_smart_run') }}
+              </v-btn>
+            </div>
+
+            <div v-if="smartWizardRunning || smartWizardProgress > 0" class="mt-3">
+              <v-progress-linear
+                v-model="smartWizardProgress"
+                color="primary"
+                height="16"
+                rounded
+                :striped="smartWizardRunning"
+              >
+                <template #default="{ value }">
+                  <strong class="process-percents">{{ Math.ceil(value) }} %</strong>
+                </template>
+              </v-progress-linear>
+              <div class="text-caption text-medium-emphasis mt-1">
+                {{ smartWizardStatus }}
+              </div>
+            </div>
+          </v-card>
+
           <div v-if="task.finished" class="d-flex flex-wrap ga-2 mb-4">
             <v-btn
               v-if="task.suggestedTags?.length"
@@ -417,6 +526,7 @@ import DuplicatePathRow from "@/components/dialogs/DuplicatePathRow.vue"
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
+import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
@@ -427,6 +537,7 @@ import {setNotification} from '@/services/notificationService'
 import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
 import {getErrorResponseData} from '@/types/vue'
 import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
+import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useSettingsStore} from '@/stores/settings'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 
@@ -488,10 +599,11 @@ const {t, locale} = useI18n()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
+const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
-  const listSync = useItemsListSync()
-  const appShell = useAppShell()
+const listSync = useItemsListSync()
+const appShell = useAppShell()
 const {reparseTagsForAddedMedia} = useMediaAdding()
 
 // Reactive state
@@ -506,6 +618,16 @@ const clipModelDownloading = ref(false)
 const faceModelStatus = ref('unknown')
 const faceModelDownloading = ref(false)
 const acceptingSuggestedTags = ref(false)
+const smartWizard = ref({
+  grids: true,
+  faces: false,
+  clip: false,
+})
+const smartWizardRunning = ref(false)
+const smartWizardProgress = ref(0)
+const smartWizardStatus = ref('')
+let smartWizardAbort: AbortController | null = null
+let smartWizardTaskId: string | null = null
 
 let objectRecognitionAbort: AbortController | null = null
 let objectRecognitionTaskId: string | null = null
@@ -529,6 +651,15 @@ const stopBackgroundJobs = () => {
     tasksStore.removeTask(faceDetectionTaskId)
     faceDetectionTaskId = null
   }
+  if (smartWizardAbort) {
+    smartWizardAbort.abort()
+    smartWizardAbort = null
+  }
+  if (smartWizardTaskId) {
+    tasksStore.removeTask(smartWizardTaskId)
+    smartWizardTaskId = null
+  }
+  smartWizardRunning.value = false
   task.value.recognizingObjects = false
   task.value.detectingFaces = false
 }
@@ -580,10 +711,13 @@ const duplicateMarkers = {
 
 // Computed properties
 const task = computed(() => tasksStore.mediaAdding)
+const isAddedVideo = computed(() =>
+  String(task.value.addedMediaType || '').toLowerCase() === 'video',
+)
 const canRecognizeObjects = computed(() => (
   task.value.finished &&
   task.value.added.length > 0 &&
-  String(task.value.addedMediaType || '').toLowerCase() === 'video'
+  isAddedVideo.value
 ))
 const canDetectFaces = canRecognizeObjects
 const canReparseTags = computed(() => (
@@ -597,6 +731,17 @@ const clipModelNeedsDownload = computed(() => (
 const faceModelReady = computed(() => ['downloaded', 'loaded'].includes(faceModelStatus.value))
 const faceModelNeedsDownload = computed(() => (
   !faceModelReady.value && !['loading'].includes(faceModelStatus.value)
+))
+const canMakeLibrarySmart = computed(() => (
+  task.value.finished &&
+  task.value.addedMedia.length > 0 &&
+  isAddedVideo.value
+))
+const canRunSmartWizard = computed(() => (
+  canMakeLibrarySmart.value &&
+  (smartWizard.value.grids || smartWizard.value.faces || smartWizard.value.clip) &&
+  !(smartWizard.value.faces && faceModelNeedsDownload.value) &&
+  !(smartWizard.value.clip && clipModelNeedsDownload.value)
 ))
 
 const duplicates_by_path = computed((): string[] => {
@@ -1221,6 +1366,175 @@ const detectFacesInAddedVideos = async () => {
     if (faceDetectionAbort === controller) faceDetectionAbort = null
     task.value.status = previousStatus
     task.value.detectingFaces = false
+  }
+}
+
+const runSmartLibraryWizard = async () => {
+  if (!canRunSmartWizard.value || smartWizardRunning.value) return
+
+  const steps: Array<'grids' | 'faces' | 'clip'> = []
+  if (smartWizard.value.grids) steps.push('grids')
+  if (smartWizard.value.faces) steps.push('faces')
+  if (smartWizard.value.clip) steps.push('clip')
+  if (!steps.length) return
+
+  smartWizardRunning.value = true
+  smartWizardProgress.value = 0
+  smartWizardStatus.value = t('media.adding.make_library_smart')
+  const controller = new AbortController()
+  smartWizardAbort = controller
+  const trayTaskId = tasksStore.setTask({
+    title: t('media.adding.make_library_smart'),
+    subtitle: t('media.adding.make_library_smart_hint'),
+    icon: 'auto-fix',
+    progress: 0,
+    click: () => {
+      task.value.dialogProcess = true
+    },
+    action: () => {
+      controller.abort()
+    },
+  })
+  smartWizardTaskId = trayTaskId
+
+  const mediaEntries = task.value.addedMedia || []
+  const mediaIds = mediaEntries
+    .map((entry) => Number(entry.mediaId))
+    .filter((id) => Number.isFinite(id) && id > 0)
+
+  try {
+    for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
+      if (controller.signal.aborted) break
+      const step = steps[stepIndex]
+      const base = (stepIndex / steps.length) * 100
+      const span = 100 / steps.length
+
+      if (step === 'grids') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_grids')
+        for (let i = 0; i < mediaEntries.length; i++) {
+          if (controller.signal.aborted) break
+          const entry = mediaEntries[i]
+          smartWizardProgress.value = base + ((i + 1) / Math.max(mediaEntries.length, 1)) * span
+          tasksStore.updateTask(trayTaskId, {
+            subtitle: t('media.adding.make_library_smart_grids_progress', {
+              processed: i + 1,
+              total: mediaEntries.length,
+            }),
+            progress: smartWizardProgress.value,
+          })
+          try {
+            await typedApi.taskCreateGrid(buildVideoGridTaskParams(entry.path, `${entry.mediaId}.jpg`))
+            itemsStore.refreshThumb(entry.mediaId, {broadcast: false})
+            eventBus.emit('updateVideoFrames', entry.mediaId)
+            listSync.getItemsFromDb({ids: [entry.mediaId], type: 'media'})
+          } catch (error) {
+            console.error(`Failed to create grid for media ${entry.mediaId}:`, error)
+          }
+        }
+      }
+
+      if (step === 'faces') {
+        smartWizardStatus.value = t('media.adding.detect_faces')
+        await typedApi.streamFaceDetection(
+          {
+            mediaIds,
+            paths: task.value.added,
+            force: false,
+            framesPerVideo: 6,
+          },
+          {signal: controller.signal},
+          (event: Record<string, unknown>) => {
+            if (event.type === 'progress') {
+              const processed = Number(event.processed || 0)
+              const total = Number(event.total || mediaIds.length || 1)
+              smartWizardProgress.value = base + (processed / Math.max(total, 1)) * span
+              task.value.facesFound = Number(event.faces || 0)
+              tasksStore.updateTask(trayTaskId, {
+                subtitle: t('media.adding.face_detection_progress', {
+                  processed,
+                  total,
+                  remaining: Number(event.remaining ?? Math.max(total - processed, 0)),
+                }),
+                progress: smartWizardProgress.value,
+              })
+            }
+            if (event.type === 'error') {
+              throw new Error(String(event.message || 'Face detection failed'))
+            }
+          },
+        )
+        if (mediaIds.length) {
+          listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+        }
+      }
+
+      if (step === 'clip') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_clip')
+        await typedApi.streamBackfill(
+          'clipEmbedding',
+          {mediaIds, signal: controller.signal},
+          (event) => {
+            if (event.type === 'progress') {
+              const processed = Number(event.processed || 0)
+              const total = Number(event.total || mediaIds.length || 1)
+              smartWizardProgress.value = base + (processed / Math.max(total, 1)) * span
+              tasksStore.updateTask(trayTaskId, {
+                subtitle: t('media.adding.make_library_smart_clip_progress', {
+                  processed,
+                  total,
+                }),
+                progress: smartWizardProgress.value,
+              })
+            }
+            if (event.type === 'error') {
+              throw new Error(String(event.message || 'CLIP embedding failed'))
+            }
+          },
+        )
+      }
+    }
+
+    if (!controller.signal.aborted) {
+      smartWizardProgress.value = 100
+      smartWizardStatus.value = t('media.adding.make_library_smart_done')
+      tasksStore.updateTask(trayTaskId, {
+        subtitle: t('media.adding.make_library_smart_done'),
+        progress: 100,
+        color: 'success',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'success',
+        title: t('media.adding.make_library_smart'),
+        text: t('media.adding.make_library_smart_done'),
+        actions: [openProcessAction()],
+      })
+    } else {
+      tasksStore.removeTask(trayTaskId)
+    }
+  } catch (error) {
+    const isAbortError = error instanceof Error && error.name === 'AbortError'
+    if (isAbortError) {
+      tasksStore.removeTask(trayTaskId)
+    } else {
+      console.error('Smart library wizard failed:', error)
+      tasksStore.updateTask(trayTaskId, {
+        subtitle: t('media.adding.make_library_smart_failed'),
+        color: 'error',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'error',
+        title: t('media.adding.make_library_smart_failed'),
+        text: getErrorMessage(error),
+      })
+    }
+  } finally {
+    if (smartWizardAbort === controller) smartWizardAbort = null
+    if (smartWizardTaskId === trayTaskId) smartWizardTaskId = null
+    smartWizardRunning.value = false
   }
 }
 

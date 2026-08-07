@@ -47,8 +47,59 @@ export function remapPlaylistLinksToSurvivor(
   )
 }
 
-export {pickDefaultSurvivorId} from '../../shared/mediaMerge'
+export {pickDefaultSurvivorId, resolutionScoreForMedia} from '../../shared/mediaMerge'
 export type {MediaSurvivorCandidate} from '../../shared/mediaMerge'
+
+/** Near-duplicate marks on the same survivor: same type/tag within ~1.5s → keep the richer one. */
+export function planNearDuplicateMarkIdsToDelete(
+  rows: Array<{
+    id: number
+    type?: string | null
+    tagId?: number | null
+    time?: number | null
+    end?: number | null
+    text?: string | null
+  }>,
+  windowSec = 1.5,
+): number[] {
+  const toDelete = new Set<number>()
+  const groups = new Map<string, typeof rows>()
+
+  for (const row of rows) {
+    const key = `${String(row.type || '')}:${row.tagId == null ? '' : Number(row.tagId)}`
+    const list = groups.get(key) || []
+    list.push(row)
+    groups.set(key, list)
+  }
+
+  const richness = (row: (typeof rows)[number]) => {
+    const start = Number(row.time) || 0
+    const end = row.end == null ? null : Number(row.end)
+    const duration = end != null && Number.isFinite(end) ? Math.max(0, end - start) : 0
+    const textLen = String(row.text || '').trim().length
+    return (duration > 0 ? 1000 + duration : 0) + (textLen > 0 ? 10 + textLen : 0) + (row.tagId != null ? 1 : 0)
+  }
+
+  for (const group of groups.values()) {
+    const sorted = [...group].sort((a, b) => (Number(a.time) || 0) - (Number(b.time) || 0))
+    for (let i = 0; i < sorted.length; i++) {
+      if (toDelete.has(sorted[i].id)) continue
+      for (let j = i + 1; j < sorted.length; j++) {
+        if (toDelete.has(sorted[j].id)) continue
+        const gap = Math.abs((Number(sorted[j].time) || 0) - (Number(sorted[i].time) || 0))
+        if (gap > windowSec) break
+        if (richness(sorted[i]) >= richness(sorted[j])) {
+          toDelete.add(sorted[j].id)
+        } else {
+          toDelete.add(sorted[i].id)
+          break
+        }
+      }
+    }
+  }
+
+  return [...toDelete]
+}
 
 export function foldMediaPresetFields(
   survivor: {
@@ -71,7 +122,7 @@ export function foldMediaPresetFields(
   const all = [survivor, ...sources]
   const favorite = all.some((row) => Boolean(row.favorite))
   const rating = Math.max(0, ...all.map((row) => Number(row.rating || 0)))
-  const views = Math.max(0, ...all.map((row) => Number(row.views || 0)))
+  const views = all.reduce((sum, row) => sum + Math.max(0, Number(row.views || 0)), 0)
 
   let viewedAt: string | null = survivor.viewedAt ?? null
   for (const row of sources) {

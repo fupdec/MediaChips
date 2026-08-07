@@ -37,6 +37,7 @@ import {
   FaceEnrollmentQualityReportRequestSchema,
   AutoChapterStreamRequestSchema,
   GenerateAutoChaptersRequestSchema,
+  ExportMarkClipsRequestSchema,
 } from '../../shared/schemas/requests'
 import createTaskController from '../controllers/Task.controller'
 import createTaskVideoCoreController from '../controllers/taskVideoCore.controller'
@@ -186,6 +187,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/streamFindMissingMedia', 'streamFindMissingMedia')
   register('post', '/relinkMissingMedia', 'relinkMissingMedia')
   register('post', '/streamScanFolderDuplicates', 'streamScanFolderDuplicates')
+  register('post', '/exportMarkClips', 'exportMarkClips', validateBody(ExportMarkClipsRequestSchema))
 
   app.use('/api/Task', router)
 }

@@ -14,7 +14,7 @@
         </span>
       </div>
 
-      <div class="markers-toolbar d-flex align-center ga-3 mt-4">
+      <div class="markers-toolbar d-flex align-center ga-3 mt-4 flex-wrap">
         <v-text-field
           v-model="searchInput"
           :placeholder="t('markers.search_placeholder')"
@@ -74,6 +74,48 @@
             </v-list-item>
           </template>
         </v-autocomplete>
+
+        <v-btn-toggle
+          v-model="clipSort"
+          mandatory
+          density="compact"
+          color="primary"
+          rounded="xl"
+          class="markers-toolbar__clip-sort"
+        >
+          <v-btn value="time" size="small" :title="t('tags.play_clips_in_order')">
+            <v-icon icon="mdi-sort-clock-ascending-outline"/>
+          </v-btn>
+          <v-btn value="shuffle" size="small" :title="t('tags.play_clips_shuffle')">
+            <v-icon icon="mdi-shuffle-variant"/>
+          </v-btn>
+        </v-btn-toggle>
+
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="xl"
+          :disabled="!selectedRangedIds.length || playingClips || exportingClips"
+          :loading="playingClips"
+          @click="playSelectedClips"
+        >
+          <v-icon start>mdi-playlist-play</v-icon>
+          {{ t('markers.play_selected_clips', {count: selectedRangedIds.length}) }}
+        </v-btn>
+        <v-btn
+          color="secondary"
+          variant="tonal"
+          rounded="xl"
+          :disabled="!selectedRangedIds.length || playingClips || exportingClips"
+          :loading="exportingClips"
+          @click="exportSelectedClips"
+        >
+          <v-icon start>mdi-export</v-icon>
+          {{ t('markers.export_selected_clips', {count: selectedRangedIds.length}) }}
+        </v-btn>
+      </div>
+      <div class="text-caption text-medium-emphasis mt-2">
+        {{ t('markers.select_ranged_hint') }}
       </div>
     </div>
 
@@ -114,7 +156,12 @@
         md="3"
         xl="2"
       >
-        <ItemMarker :mark="mark"/>
+        <ItemMarker
+          :mark="mark"
+          selectable
+          :selected="selectedIds.has(Number(mark.id))"
+          @update:selected="toggleSelected(Number(mark.id), $event)"
+        />
       </v-col>
     </v-row>
 
@@ -193,27 +240,58 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {useMarksStore} from '@/stores/marks'
 import {useAppStore} from '@/stores/app'
+import {useItemsStore} from '@/stores/items'
+import {usePlayerStore} from '@/stores/player'
+import {useTasksStore} from '@/stores/tasks'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {MARK_SORT_PARAMS} from '@/utils/markSort'
 import {scrollMainTo} from '@/utils/mainScroll'
 import useMarkImageGenerator from '@/composable/GeneratingThumbsForMarks'
 import ItemMarker from '@/components/items/ItemMarker.vue'
 import Loading from '@/components/elements/Loading.vue'
+import {typedApi} from '@/services/typedApi'
+import {setNotification} from '@/services/notificationService'
+import {loadMarkIdClipsForPlayback} from '@/services/tagClipsPlayback'
+import {getErrorResponseData} from '@/types/vue'
 
 const {t} = useI18n()
 const router = useRouter()
 const marksStore = useMarksStore()
 const appStore = useAppStore()
+const itemsStore = useItemsStore()
+const playerStore = usePlayerStore()
+const tasksStore = useTasksStore()
 
 useMarkImageGenerator()
 
 const searchInput = ref(marksStore.search || '')
 const showInfiniteLoader = ref(false)
+const selectedIds = ref<Set<number>>(new Set())
+const clipSort = ref<'time' | 'shuffle'>('time')
+const playingClips = ref(false)
+const exportingClips = ref(false)
+
+const selectedRangedIds = computed(() => {
+  const ids: number[] = []
+  for (const mark of marksStore.marksOnPage) {
+    const id = Number(mark.id)
+    if (!selectedIds.value.has(id)) continue
+    if (typeof mark.end === 'number') ids.push(id)
+  }
+  return ids
+})
+
+function toggleSelected(id: number, selected: boolean) {
+  const next = new Set(selectedIds.value)
+  if (selected) next.add(id)
+  else next.delete(id)
+  selectedIds.value = next
+}
 
 function openLibrary() {
   const id = getDefaultMediaTypeId(appStore.mediaTypes)
@@ -224,6 +302,7 @@ function clearMarkerFilters() {
   searchInput.value = ''
   marksStore.setSearch('')
   marksStore.setSelectedTypes([])
+  selectedIds.value = new Set()
 }
 
 const onTypesChange = (types: string[]) => {
@@ -255,6 +334,141 @@ const infiniteScrolling = (isIntersecting: boolean) => {
 
 const scrollTop = () => {
   scrollMainTo({top: 0, behavior: 'smooth'})
+}
+
+const playSelectedClips = async () => {
+  if (!selectedRangedIds.value.length || playingClips.value) return
+  playingClips.value = true
+  try {
+    const loaded = await loadMarkIdClipsForPlayback(async (body) => {
+      const res = await typedApi.getMarkClips(body)
+      return {
+        items: res.data?.items || [],
+        count: Number(res.data?.count ?? 0),
+      }
+    }, selectedRangedIds.value, clipSort.value)
+
+    if (loaded.empty || !loaded.first) {
+      setNotification({
+        type: 'warning',
+        title: t('tags.play_clips_empty_title'),
+        text: t('tags.play_clips_empty_text'),
+      })
+      return
+    }
+
+    await itemsStore.playVideo({
+      video: loaded.first,
+      videos: [loaded.first],
+      time: loaded.first.segmentStart,
+      trustPath: true,
+    })
+    if (loaded.playlist.length > 1) {
+      playerStore.setPlaylistItems(loaded.playlist)
+    }
+  } catch (error) {
+    setNotification({
+      type: 'error',
+      title: t('tags.play_clips_empty_title'),
+      text: getErrorResponseData<{message?: string}>(error)?.message
+        || (error instanceof Error ? error.message : String(error)),
+    })
+  } finally {
+    playingClips.value = false
+  }
+}
+
+const exportSelectedClips = async () => {
+  if (!selectedRangedIds.value.length || exportingClips.value) return
+  exportingClips.value = true
+
+  let outputPath: string | undefined
+  try {
+    if (window.electronAPI?.invoke) {
+      const result = await window.electronAPI.invoke('dialog:saveFile', {
+        defaultPath: `mediachips-clips-${Date.now()}.mp4`,
+        content: '',
+        filters: [{name: 'MP4', extensions: ['mp4']}],
+      }) as {canceled?: boolean; filePath?: string}
+      if (result?.canceled || !result?.filePath) {
+        exportingClips.value = false
+        return
+      }
+      outputPath = result.filePath
+    }
+  } catch (error) {
+    console.warn('Save dialog unavailable, using default downloads path', error)
+  }
+
+  const controller = new AbortController()
+  const taskId = tasksStore.setTask({
+    title: t('markers.export_selected_clips', {count: selectedRangedIds.value.length}),
+    subtitle: t('markers.export_clips_progress', {processed: 0, total: selectedRangedIds.value.length}),
+    icon: 'export',
+    progress: 0,
+    action: () => controller.abort(),
+  })
+
+  try {
+    let finalPath = outputPath || ''
+    await typedApi.exportMarkClips(
+      {
+        markIds: selectedRangedIds.value,
+        outputPath,
+        sort: clipSort.value,
+      },
+      {signal: controller.signal},
+      (event) => {
+        if (event.type === 'progress') {
+          const processed = Number(event.processed || 0)
+          const total = Number(event.total || selectedRangedIds.value.length || 1)
+          if (typeof event.outputPath === 'string') finalPath = event.outputPath
+          tasksStore.updateTask(taskId, {
+            subtitle: t('markers.export_clips_progress', {processed, total}),
+            progress: total ? Math.min((processed / total) * 100, 100) : 0,
+          })
+        }
+        if (event.type === 'complete') {
+          if (typeof event.outputPath === 'string') finalPath = event.outputPath
+          tasksStore.updateTask(taskId, {
+            subtitle: finalPath,
+            progress: 100,
+            color: 'success',
+            done: true,
+            action: undefined,
+          })
+        }
+        if (event.type === 'error') {
+          throw new Error(String(event.message || 'Export failed'))
+        }
+      },
+    )
+    setNotification({
+      type: 'success',
+      title: t('markers.export_clips_done'),
+      text: t('markers.export_clips_done_text', {path: finalPath}),
+    })
+  } catch (error) {
+    const isAbort = error instanceof Error && error.name === 'AbortError'
+    if (!isAbort) {
+      tasksStore.updateTask(taskId, {
+        subtitle: t('markers.export_clips_failed'),
+        color: 'error',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'error',
+        title: t('markers.export_clips_failed'),
+        text: getErrorResponseData<{message?: string}>(error)?.message
+          || (error instanceof Error ? error.message : String(error)),
+      })
+    } else {
+      tasksStore.removeTask(taskId)
+    }
+  } finally {
+    exportingClips.value = false
+  }
 }
 
 onMounted(async () => {

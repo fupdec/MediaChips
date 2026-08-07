@@ -6,7 +6,9 @@ const {
   findAllForVideo,
   findAllWithRelations,
   findClipsByTagId,
+  findClipsByMarkIds,
   countClipsByTagId,
+  countClipsByMarkIds,
   deleteById,
   loadMarkItems,
   getMarkFilterMetas,
@@ -17,7 +19,9 @@ const {
   findAllForVideo: vi.fn(),
   findAllWithRelations: vi.fn(),
   findClipsByTagId: vi.fn(),
+  findClipsByMarkIds: vi.fn(),
   countClipsByTagId: vi.fn(),
+  countClipsByMarkIds: vi.fn(),
   deleteById: vi.fn(),
   loadMarkItems: vi.fn(),
   getMarkFilterMetas: vi.fn(),
@@ -31,7 +35,9 @@ vi.mock('../db/repositories/marks', () => ({
     findAllForVideo,
     findAllWithRelations,
     findClipsByTagId,
+    findClipsByMarkIds,
     countClipsByTagId,
+    countClipsByMarkIds,
     deleteById,
   }),
 }))
@@ -185,6 +191,29 @@ describe('Mark.controller', () => {
 
     expect(getMarkFilterMetas).toHaveBeenCalled()
     expect(res.body).toEqual([{id: 3, name: 'Performers'}])
+  })
+
+  it('returns ranged clips for mark ids', () => {
+    findClipsByMarkIds.mockReturnValue([
+      {id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12},
+    ])
+    countClipsByMarkIds.mockReturnValue(1)
+
+    const req = {body: {markIds: [1, 2], sort: 'shuffle'}} as ApiRequest
+    const res = createResponse()
+
+    controller.getClips(req, res)
+
+    expect(findClipsByMarkIds).toHaveBeenCalledWith([1, 2], {
+      sort: 'shuffle',
+      limit: undefined,
+      offset: undefined,
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual({
+      items: [{id: 10, markId: 1, path: '/a.mp4', segmentStart: 5, segmentEnd: 12}],
+      count: 1,
+    })
   })
 
   it('returns ranged clips for a tag', () => {

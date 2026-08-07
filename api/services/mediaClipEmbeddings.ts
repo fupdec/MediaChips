@@ -255,13 +255,36 @@ async function* iterateClipEmbeddingBackfill(
   {
     shouldStop = (): boolean => false,
     force = false,
+    mediaIds,
   }: {
     shouldStop?: () => boolean
     force?: boolean
+    mediaIds?: Array<number | string>
   } = {},
 ) {
-  const candidateIds = listPreviewCandidateIds(db)
-  const status = await getClipEmbeddingBackfillStatus(db)
+  const allCandidates = listPreviewCandidateIds(db)
+  const requested = Array.isArray(mediaIds)
+    ? [...new Set(mediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+    : null
+  const candidateIds = requested?.length
+    ? allCandidates.filter((id) => requested.includes(id))
+    : allCandidates
+
+  const status = requested?.length
+    ? {
+      total: candidateIds.length,
+      pending: force
+        ? candidateIds.length
+        : candidateIds.filter((id) => {
+          const row = queryGet<{id: number}>(db, `
+            SELECT e.mediaId AS id FROM mediaClipEmbeddings e
+            WHERE e.mediaId = :id AND e.model = :model
+            LIMIT 1
+          `, {id, model: CLIP_EMBEDDING_INDEX_KEY})
+          return !row
+        }).length,
+    }
+    : await getClipEmbeddingBackfillStatus(db)
   const total = force ? status.total : status.pending
 
   let processed = 0

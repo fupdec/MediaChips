@@ -90,18 +90,44 @@
         </v-card-text>
       </v-card>
 
-      <div v-if="showPlayClips" class="tag-play-clips mt-4">
+      <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2">
         <v-btn
           color="primary"
           rounded
           variant="flat"
           :loading="playingClips"
           :disabled="clipCount === 0 || playingClips"
-          @click="playClips"
+          @click="playClips('time')"
         >
           <v-icon start>mdi-playlist-play</v-icon>
           {{ t('tags.play_clips', {count: clipCount}) }}
         </v-btn>
+        <v-menu>
+          <template #activator="{ props: menuProps }">
+            <v-btn
+              v-bind="menuProps"
+              color="primary"
+              rounded
+              variant="tonal"
+              icon
+              :disabled="clipCount === 0 || playingClips"
+            >
+              <v-icon>mdi-menu-down</v-icon>
+            </v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item
+              :title="t('tags.play_clips_in_order')"
+              prepend-icon="mdi-sort-clock-ascending-outline"
+              @click="playClips('time')"
+            />
+            <v-list-item
+              :title="t('tags.play_clips_shuffle')"
+              prepend-icon="mdi-shuffle-variant"
+              @click="playClips('shuffle')"
+            />
+          </v-list>
+        </v-menu>
       </div>
     </v-container>
 
@@ -233,18 +259,44 @@
               </v-expansion-panel>
             </v-expansion-panels>
 
-            <div v-if="showPlayClips" class="tag-play-clips mt-4">
+            <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2">
               <v-btn
                 color="primary"
                 rounded
                 variant="flat"
                 :loading="playingClips"
                 :disabled="clipCount === 0 || playingClips"
-                @click="playClips"
+                @click="playClips('time')"
               >
                 <v-icon start>mdi-playlist-play</v-icon>
                 {{ t('tags.play_clips', {count: clipCount}) }}
               </v-btn>
+              <v-menu>
+                <template #activator="{ props: menuProps }">
+                  <v-btn
+                    v-bind="menuProps"
+                    color="primary"
+                    rounded
+                    variant="tonal"
+                    icon
+                    :disabled="clipCount === 0 || playingClips"
+                  >
+                    <v-icon>mdi-menu-down</v-icon>
+                  </v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-item
+                    :title="t('tags.play_clips_in_order')"
+                    prepend-icon="mdi-sort-clock-ascending-outline"
+                    @click="playClips('time')"
+                  />
+                  <v-list-item
+                    :title="t('tags.play_clips_shuffle')"
+                    prepend-icon="mdi-shuffle-variant"
+                    @click="playClips('shuffle')"
+                  />
+                </v-list>
+              </v-menu>
             </div>
           </v-col>
         </v-row>
@@ -572,7 +624,7 @@ const refreshClipCount = async () => {
   }
 }
 
-const playClips = async () => {
+const playClips = async (sort: 'time' | 'shuffle' = 'time') => {
   if (!tag.value?.id || playingClips.value) return
 
   playingClips.value = true
@@ -584,7 +636,7 @@ const playClips = async () => {
         items: res.data?.items || [],
         count: Number(res.data?.count ?? 0),
       }
-    }, tagId)
+    }, tagId, sort)
 
     clipCount.value = loaded.count
 

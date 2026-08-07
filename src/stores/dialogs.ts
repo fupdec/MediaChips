@@ -40,7 +40,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     enrollmentQuality: { show: false, metaId: null as number | null },
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     tagMerge: { show: false, tags: [] as Tag[], meta: null as Meta | null },
-    mediaMerge: { show: false, items: [] as MediaItem[] },
+    mediaMerge: { show: false, items: [] as MediaItem[], survivorId: null as number | null },
     duplicateReview: {
       show: false,
       duplicatesBy: null as string | null,
@@ -191,13 +191,15 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.tagMerge.tags = []
       this.tagMerge.meta = null
     },
-    openMediaMerge(items: MediaItem[]) {
+    openMediaMerge(items: MediaItem[], survivorId?: number | null) {
       this.mediaMerge.items = items
+      this.mediaMerge.survivorId = survivorId == null ? null : Number(survivorId)
       this.mediaMerge.show = true
     },
     closeMediaMerge() {
       this.mediaMerge.show = false
       this.mediaMerge.items = []
+      this.mediaMerge.survivorId = null
     },
     openDuplicateReview(options?: {
       duplicatesBy?: string | null

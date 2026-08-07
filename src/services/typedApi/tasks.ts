@@ -94,7 +94,9 @@ export type GenerationStreamEvent = {
   media?: number
   current?: string
   path?: string
+  outputPath?: string
   phase?: string
+  stage?: string
   message?: string
   stopped?: boolean
   downloadSizeMb?: number
@@ -663,6 +665,22 @@ export const tasksApi = {
         body,
         signal: options.signal,
         errorMessage: 'Object recognition request failed',
+      },
+      onEvent,
+    )
+  },
+
+  exportMarkClips(
+    body: {markIds: number[]; outputPath?: string; sort?: 'time' | 'shuffle'},
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskExportMarkClips,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Mark clips export request failed',
       },
       onEvent,
     )

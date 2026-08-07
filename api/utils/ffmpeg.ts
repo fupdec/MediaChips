@@ -261,6 +261,94 @@ async function combineVideoFrames({
   await runFfmpeg(args)
 }
 
+async function cutVideoSegment({
+  input,
+  outputPath,
+  startSeconds,
+  durationSeconds,
+}: {
+  input: string
+  outputPath: string
+  startSeconds: number
+  durationSeconds: number
+}) {
+  const start = Math.max(0, Number(startSeconds) || 0)
+  const duration = Math.max(0.05, Number(durationSeconds) || 0)
+  const copyArgs = [
+    '-y',
+    '-ss', String(start),
+    '-i', input,
+    '-t', String(duration),
+    '-c', 'copy',
+    '-avoid_negative_ts', 'make_zero',
+    outputPath,
+  ]
+
+  try {
+    await runFfmpeg(copyArgs)
+    return outputPath
+  } catch {
+    await runFfmpeg([
+      '-y',
+      '-ss', String(start),
+      '-i', input,
+      '-t', String(duration),
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-movflags', '+faststart',
+      outputPath,
+    ])
+    return outputPath
+  }
+}
+
+async function concatVideoSegments({
+  segmentPaths,
+  outputPath,
+  listFilePath,
+}: {
+  segmentPaths: string[]
+  outputPath: string
+  listFilePath: string
+}) {
+  const {writeFile} = await import('fs/promises')
+  const listBody = segmentPaths
+    .map((filePath) => `file '${String(filePath).replace(/'/g, `'\\''`)}'`)
+    .join('\n')
+  await writeFile(listFilePath, listBody, 'utf8')
+
+  try {
+    await runFfmpeg([
+      '-y',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', listFilePath,
+      '-c', 'copy',
+      '-movflags', '+faststart',
+      outputPath,
+    ])
+    return outputPath
+  } catch {
+    await runFfmpeg([
+      '-y',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', listFilePath,
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-movflags', '+faststart',
+      outputPath,
+    ])
+    return outputPath
+  }
+}
+
 export {
   ffprobe,
   ffprobePlayability,
@@ -270,4 +358,6 @@ export {
   extractVideoFrame,
   extractVideoThumbnail,
   combineVideoFrames,
+  cutVideoSegment,
+  concatVideoSegments,
 }

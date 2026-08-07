@@ -73,7 +73,7 @@ export const backfillApi = {
 
   streamBackfill(
     kind: BackfillKind,
-    options: {force?: boolean; signal?: AbortSignal},
+    options: {force?: boolean; signal?: AbortSignal; mediaIds?: number[]},
     onEvent: (event: BackfillStreamEvent) => void,
   ) {
     const route = BACKFILL_ROUTES[kind]
@@ -82,6 +82,10 @@ export const backfillApi = {
       {
         signal: options.signal,
         query: {force: options.force === true},
+        body: {
+          force: options.force === true,
+          ...(options.mediaIds?.length ? {mediaIds: options.mediaIds} : {}),
+        },
         errorMessage: `${kind} backfill request failed`,
       },
       onEvent,

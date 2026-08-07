@@ -5,13 +5,30 @@
     :class="{
       'item--plain-card': plainCard,
       'big-preview': bigPreview,
+      'item--selected': selected,
     }"
   >
     <v-card
       class="item-mark"
-      :class="[{ 'no-file': !isFileExists }]"
+      :class="[{ 'no-file': !isFileExists, 'item-mark--selected': selected }]"
       :elevation="plainCard ? 2 : undefined"
+      @click="onCardClick"
     >
+      <div
+        v-if="selectable"
+        class="item-mark__select"
+        @click.stop
+      >
+        <v-checkbox
+          :model-value="selected"
+          @update:model-value="emit('update:selected', Boolean($event))"
+          density="compact"
+          hide-details
+          color="primary"
+          :disabled="!canSelect"
+        />
+      </div>
+
       <div class="item-mark__preview">
         <ItemPreviewVideo
           v-if="videoMedia"
@@ -115,7 +132,19 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  selectable: {
+    type: Boolean,
+    default: false,
+  },
+  selected: {
+    type: Boolean,
+    default: false,
+  },
 })
+
+const emit = defineEmits<{
+  'update:selected': [value: boolean]
+}>()
 
 const appStore = useAppStore()
 const {t} = useI18n()
@@ -134,6 +163,12 @@ const markEnd = computed(() => {
   const end = props.mark.end
   return typeof end === 'number' ? end : null
 })
+const canSelect = computed(() => markEnd.value != null)
+
+const onCardClick = () => {
+  if (!props.selectable || !canSelect.value) return
+  emit('update:selected', !props.selected)
+}
 
 const time = computed(() => {
   const startTime = getReadableDuration(markTime.value)
@@ -188,6 +223,21 @@ onUnmounted(() => {
 
 <style lang="scss">
 .item-mark {
+  position: relative;
+
+  &.item-mark--selected {
+    outline: 2px solid rgb(var(--v-theme-primary));
+  }
+
+  .item-mark__select {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 4;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 8px;
+  }
+
   .item-mark__preview {
     position: relative;
     aspect-ratio: 16 / 9;

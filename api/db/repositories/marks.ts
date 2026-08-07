@@ -33,6 +33,31 @@ type MarkWithRelations = MarkRow & {
   media: MarkMediaProjection | null
 }
 
+function mapClipRow(row: {
+  markId: number
+  time: number | null
+  end: number | null
+  mediaId: number
+  path: string
+  name: string | null
+  basename: string | null
+  mediaTypeId: number | null
+}) {
+  const segmentStart = Number(row.time) || 0
+  const segmentEnd = Number(row.end)
+  return {
+    id: row.mediaId,
+    markId: row.markId,
+    path: row.path,
+    name: row.name || row.basename || undefined,
+    basename: row.basename ?? undefined,
+    mediaTypeId: row.mediaTypeId ?? undefined,
+    segmentStart,
+    segmentEnd,
+    time: segmentStart,
+  }
+}
+
 function hydrateMarksWithRelations(
   db: DrizzleClient,
   rows: MarkRow[],
@@ -183,6 +208,19 @@ export function createMarksRepository(db: DrizzleClient) {
       return Number(row?.count ?? 0)
     },
 
+    countClipsByMarkIds(markIds: number[]): number {
+      const ids = [...new Set(markIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+      if (!ids.length) return 0
+      const row = db.select({count: count()})
+        .from(marks)
+        .where(and(
+          inArray(marks.id, ids),
+          isNotNull(marks.end),
+        ))
+        .get()
+      return Number(row?.count ?? 0)
+    },
+
     findClipsByTagId(
       tagId: unknown,
       options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle'} = {},
@@ -231,21 +269,59 @@ export function createMarksRepository(db: DrizzleClient) {
         query = query.offset(Math.floor(offset)) as typeof query
       }
 
-      return query.all().map((row) => {
-        const segmentStart = Number(row.time) || 0
-        const segmentEnd = Number(row.end)
-        return {
-          id: row.mediaId,
-          markId: row.markId,
-          path: row.path,
-          name: row.name || row.basename || undefined,
-          basename: row.basename ?? undefined,
-          mediaTypeId: row.mediaTypeId ?? undefined,
-          segmentStart,
-          segmentEnd,
-          time: segmentStart,
-        }
-      })
+      return query.all().map(mapClipRow)
+    },
+
+    findClipsByMarkIds(
+      markIds: number[],
+      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle'} = {},
+    ) {
+      const ids = [...new Set(markIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+      if (!ids.length) return []
+
+      const sort = options.sort === 'shuffle' ? 'shuffle' : 'time'
+
+      let query = db
+        .select({
+          markId: marks.id,
+          time: marks.time,
+          end: marks.end,
+          mediaId: media.id,
+          path: media.path,
+          name: media.name,
+          basename: media.basename,
+          mediaTypeId: media.mediaTypeId,
+        })
+        .from(marks)
+        .innerJoin(media, eq(media.id, marks.mediaId))
+        .where(and(
+          inArray(marks.id, ids),
+          isNotNull(marks.end),
+        ))
+
+      if (sort === 'shuffle') {
+        query = query.orderBy(sql`RANDOM()`) as typeof query
+      } else {
+        query = query.orderBy(
+          asc(marks.time),
+          sql`LOWER(COALESCE(${media.name}, ${media.basename}, ''))`,
+          asc(marks.id),
+        ) as typeof query
+      }
+
+      const limit = Number(options.limit)
+      const hasLimit = Number.isFinite(limit) && limit > 0
+      const offset = Number(options.offset)
+      const hasOffset = Number.isFinite(offset) && offset > 0
+
+      if (hasLimit || hasOffset) {
+        query = query.limit(hasLimit ? Math.min(Math.floor(limit), 10_000) : 10_000) as typeof query
+      }
+      if (hasOffset) {
+        query = query.offset(Math.floor(offset)) as typeof query
+      }
+
+      return query.all().map(mapClipRow)
     },
 
     convertMetaMarksToBookmarksByTagId(tagId: unknown, text: string): void {
