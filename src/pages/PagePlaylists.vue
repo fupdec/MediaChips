@@ -16,6 +16,65 @@
       </v-btn>
     </div>
 
+    <v-card
+      class="nl-mix-card mb-6"
+      variant="tonal"
+      color="primary"
+      rounded="lg"
+    >
+      <v-card-text class="pb-3">
+        <div class="text-subtitle-1 font-weight-medium mb-1">
+          {{ t('playlists.mix_title') }}
+        </div>
+        <div class="text-caption text-medium-emphasis mb-3">
+          {{ t('playlists.mix_hint') }}
+        </div>
+        <v-text-field
+          v-model="mixPhrase"
+          :placeholder="t('playlists.mix_placeholder')"
+          density="comfortable"
+          hide-details
+          clearable
+          rounded
+          variant="outlined"
+          bg-color="surface"
+          prepend-inner-icon="mdi-playlist-music"
+          :disabled="mixBusy"
+          @keyup.enter="runMixPlay"
+        />
+        <div
+          v-if="lastMixExplanation"
+          class="text-caption text-medium-emphasis mt-2"
+        >
+          {{ lastMixExplanation }}
+        </div>
+        <div class="d-flex flex-wrap ga-2 mt-3">
+          <v-btn
+            color="primary"
+            rounded
+            variant="flat"
+            :loading="mixBusy"
+            :disabled="!mixPhrase.trim() || mixBusy"
+            @click="runMixPlay"
+          >
+            <v-icon start>mdi-play</v-icon>
+            {{ t('playlists.mix_play') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            rounded
+            variant="tonal"
+            :loading="mixSaving"
+            :disabled="!lastMix || mixBusy || mixSaving"
+            @click="runMixSave"
+          >
+            <v-icon start>mdi-content-save-outline</v-icon>
+            {{ t('playlists.mix_save') }}
+          </v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+
     <section class="smart-playlists-section">
       <div class="section-title text-h5 mb-4 d-flex align-center">
         <v-icon start>mdi-filter-variant</v-icon>
@@ -178,6 +237,13 @@ import {loadPlaylistThumbs} from '@/utils/playlistThumbs'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
 import {getFilters} from '@/services/filterService'
+import {
+  playNlPlaylistMix,
+  resolveNlPlaylistMix,
+  saveNlPlaylistMix,
+  type NlPlaylistMixResult,
+} from '@/services/nlPlaylistMix'
+import {useOpenMediaList} from '@/utils/openMediaList'
 import {useAppShell} from '@/composable/appShell'
 import {getErrorStatus} from '@/types/vue'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
@@ -211,6 +277,140 @@ const settingsStore = useSettingsStore()
 const {t} = useI18n()
 const {width} = useDisplay()
 const appShell = useAppShell()
+const {openMediaList} = useOpenMediaList()
+
+const mixPhrase = ref('')
+const mixBusy = ref(false)
+const mixSaving = ref(false)
+const lastMix = ref<NlPlaylistMixResult | null>(null)
+const lastMixExplanation = ref('')
+
+const mixSourceText = (source: NlPlaylistMixResult['source']) => {
+  if (source === 'hybrid') return t('playlists.mix_source_hybrid')
+  if (source === 'semantic' || source === 'semantic_fallback') return t('playlists.mix_source_semantic')
+  if (source === 'filters_fallback') return t('playlists.mix_source_filters_fallback')
+  return t('playlists.mix_source_filters')
+}
+
+const runMixPlay = async () => {
+  const phrase = mixPhrase.value.trim()
+  if (!phrase || mixBusy.value) return
+
+  mixBusy.value = true
+  lastMixExplanation.value = ''
+  try {
+    const mix = await resolveNlPlaylistMix(phrase, {
+      mediaTypeId: videoMediaType.value?.id ?? getDefaultMediaTypeId(appStore.mediaTypes),
+    })
+    lastMix.value = mix
+
+    if (!mix.videos.length) {
+      setNotification({
+        type: 'info',
+        title: t('playlists.mix_title'),
+        text: t('playlists.mix_empty'),
+      })
+      return
+    }
+
+    lastMixExplanation.value = [
+      mix.explanation,
+      mixSourceText(mix.source),
+      t('playlists.mix_count', {count: mix.videos.length}),
+    ].filter(Boolean).join(' · ')
+
+    const {played, seekTime} = await playNlPlaylistMix(mix)
+    if (!played) {
+      setNotification({
+        type: 'error',
+        title: t('playlists.mix_title'),
+        text: t('playlists.preparing_playback_failed'),
+      })
+      return
+    }
+
+    setNotification({
+      type: 'success',
+      title: t('playlists.mix_play'),
+      text: seekTime > 0
+        ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatMixSeek(seekTime)})
+        : t('playlists.mix_playing', {count: mix.videos.length}),
+      actions: [
+        {
+          id: 'nl-mix-show-list',
+          text: t('playlists.mix_show_list'),
+          icon: 'view-grid-outline',
+          action: () => {
+            void openMediaList({
+              mediaTypeId: videoMediaType.value?.id ?? undefined,
+              ids: mix.ids,
+              filters: mix.filters.length ? mix.filters : undefined,
+              scope: {
+                kind: 'semantic',
+                label: mix.phrase,
+              },
+            })
+          },
+          hide: true,
+        },
+        {
+          id: 'nl-mix-save',
+          text: t('playlists.mix_save'),
+          icon: 'content-save-outline',
+          action: () => {
+            void runMixSave()
+          },
+          hide: true,
+        },
+      ],
+    })
+  } catch (error) {
+    console.error('NL mix failed:', error)
+    setNotification({
+      type: 'error',
+      title: t('playlists.mix_title'),
+      text: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    mixBusy.value = false
+  }
+}
+
+const formatMixSeek = (seconds: number) => {
+  const total = Math.max(0, Math.floor(seconds))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+const runMixSave = async () => {
+  if (!lastMix.value?.ids.length || mixSaving.value) return
+  mixSaving.value = true
+  try {
+    const saved = await saveNlPlaylistMix(lastMix.value, mixPhrase.value.trim() || lastMix.value.phrase)
+    setNotification({
+      type: 'success',
+      title: t('playlists.mix_save'),
+      text: saved.kind === 'smart'
+        ? t('playlists.mix_saved_smart', {name: saved.name})
+        : t('playlists.mix_saved_static', {name: saved.name}),
+    })
+    if (saved.kind === 'smart') {
+      await loadDynamicPlaylists()
+    } else {
+      await getPlaylists()
+    }
+  } catch (error) {
+    console.error('NL mix save failed:', error)
+    setNotification({
+      type: 'error',
+      title: t('playlists.mix_save'),
+      text: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    mixSaving.value = false
+  }
+}
 
 const container = ref<HTMLElement | null>(null)
 const playlists = ref<PagePlaylist[]>([])

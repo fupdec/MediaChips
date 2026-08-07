@@ -23,6 +23,11 @@ import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {openPath} from '@/services/shellService'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
+import {
+  playNlPlaylistMix,
+  resolveNlPlaylistMix,
+  saveNlPlaylistMix,
+} from '@/services/nlPlaylistMix'
 import type { ContextMenuEntry, MediaItem, Meta, Tag } from '@/types/stores'
 
 type MatchedSearchTag = {
@@ -106,6 +111,7 @@ type SemanticHealth = {
 }
 
 const semanticHealth = ref<SemanticHealth | null>(null)
+const mixBusy = ref(false)
 
 const semanticModelReady = computed(() =>
   ['downloaded', 'loaded', 'ready'].includes(String(semanticHealth.value?.modelStatus || '')),
@@ -877,6 +883,107 @@ async function searchSemantic() {
   }
 }
 
+async function playAsMix() {
+  const q = query.value.trim()
+  if (!q || mixBusy.value) return
+
+  mixBusy.value = true
+  dialog.value = false
+  try {
+    const mix = await resolveNlPlaylistMix(q, {
+      mediaTypeId: resolveSemanticMediaTypeId(),
+    })
+    if (!mix.videos.length) {
+      setNotification({
+        type: 'info',
+        title: t('globalSearch.play_mix'),
+        text: t('playlists.mix_empty'),
+      })
+      return
+    }
+
+    const {played, seekTime} = await playNlPlaylistMix(mix)
+    if (!played) {
+      setNotification({
+        type: 'error',
+        title: t('globalSearch.play_mix'),
+        text: t('playlists.preparing_playback_failed'),
+      })
+      return
+    }
+
+    const sourceKey = mix.source === 'hybrid'
+      ? 'playlists.mix_source_hybrid'
+      : (mix.source === 'semantic' || mix.source === 'semantic_fallback')
+        ? 'playlists.mix_source_semantic'
+        : mix.source === 'filters_fallback'
+          ? 'playlists.mix_source_filters_fallback'
+          : 'playlists.mix_source_filters'
+
+    setNotification({
+      type: 'success',
+      title: t('globalSearch.play_mix'),
+      text: [
+        t(sourceKey),
+        seekTime > 0
+          ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatSceneSeekTime(seekTime)})
+          : t('playlists.mix_playing', {count: mix.videos.length}),
+      ].join(' · '),
+      icon: 'playlist-music',
+      timeout: 10000,
+      actions: [
+        {
+          id: 'nl-mix-show-list',
+          text: t('playlists.mix_show_list'),
+          icon: 'view-grid-outline',
+          action: () => {
+            void openMediaList({
+              mediaTypeId: resolveSemanticMediaTypeId() ?? undefined,
+              ids: mix.ids,
+              filters: mix.filters.length ? mix.filters : undefined,
+              scope: {kind: 'semantic', label: mix.phrase},
+            })
+          },
+          hide: true,
+        },
+        {
+          id: 'nl-mix-save',
+          text: t('playlists.mix_save'),
+          icon: 'content-save-outline',
+          action: async () => {
+            try {
+              const saved = await saveNlPlaylistMix(mix)
+              setNotification({
+                type: 'success',
+                title: t('playlists.mix_save'),
+                text: saved.kind === 'smart'
+                  ? t('playlists.mix_saved_smart', {name: saved.name})
+                  : t('playlists.mix_saved_static', {name: saved.name}),
+              })
+            } catch (error) {
+              setNotification({
+                type: 'error',
+                title: t('playlists.mix_save'),
+                text: error instanceof Error ? error.message : String(error),
+              })
+            }
+          },
+          hide: true,
+        },
+      ],
+    })
+  } catch (error) {
+    console.error('Play as mix failed:', error)
+    setNotification({
+      type: 'error',
+      title: t('globalSearch.play_mix'),
+      text: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    mixBusy.value = false
+  }
+}
+
 function formatSceneSeekTime(seconds: number): string {
   const total = Math.max(0, Math.floor(Number(seconds) || 0))
   const h = Math.floor(total / 3600)
@@ -1431,6 +1538,23 @@ function getNameHighlighted(text: string) {
           </v-btn>
 
           <v-btn
+            v-if="query.trim()"
+            class="global-search__input-mix"
+            icon
+            variant="text"
+            density="compact"
+            size="small"
+            :loading="mixBusy"
+            :disabled="mixBusy"
+            :title="t('globalSearch.hintPlayMix')"
+            tabindex="-1"
+            @mousedown.prevent
+            @click.stop="playAsMix"
+          >
+            <v-icon size="18">mdi-playlist-music</v-icon>
+          </v-btn>
+
+          <v-btn
             v-if="query || pinnedTags.length"
             class="global-search__input-clear"
             icon
@@ -1523,7 +1647,7 @@ function getNameHighlighted(text: string) {
 
           <div
             v-if="query.trim() && !semanticHealth?.searched"
-            class="mb-3"
+            class="mb-3 d-flex flex-wrap justify-center ga-2"
           >
             <v-btn
               size="small"
@@ -1533,6 +1657,17 @@ function getNameHighlighted(text: string) {
               @click="searchSemantic"
             >
               {{ t('globalSearch.runSemantic') }}
+            </v-btn>
+            <v-btn
+              size="small"
+              color="primary"
+              variant="flat"
+              prepend-icon="mdi-playlist-music"
+              :loading="mixBusy"
+              :disabled="mixBusy"
+              @click="playAsMix"
+            >
+              {{ t('globalSearch.play_mix') }}
             </v-btn>
           </div>
 
