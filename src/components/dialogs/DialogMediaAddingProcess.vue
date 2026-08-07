@@ -94,6 +94,31 @@
               :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
               :label="t('media.adding.make_library_smart_clip_tags')"
             />
+            <v-checkbox
+              v-model="smartWizard.chapters"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_chapters')"
+            />
+            <v-checkbox
+              v-model="smartWizard.organize"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning"
+              :label="t('media.adding.make_library_smart_organize')"
+            />
+            <v-checkbox
+              v-if="sceneScrapeAvailable"
+              v-model="smartWizard.scrape"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_scrape')"
+            />
 
             <div
               v-if="smartWizard.faces && faceModelNeedsDownload"
@@ -585,7 +610,9 @@ import {
 } from '@/composable/useOnboarding'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useSettingsStore} from '@/stores/settings'
+import {useOperationsStore} from '@/stores/operations'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {useAutoSceneScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
 
 interface DialogHeaderButton {
   icon?: string
@@ -646,6 +673,9 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
 const itemsStore = useItemsStore()
+const operationsStore = useOperationsStore()
+const {runBatch: runSceneScrapeBatch} = useAutoSceneScrapeBatch()
+const sceneScrapeAvailable = computed(() => typeof runSceneScrapeBatch === 'function')
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
@@ -672,6 +702,9 @@ const smartWizard = ref({
   faces: false,
   clip: false,
   clipTags: true,
+  chapters: false,
+  organize: false,
+  scrape: false,
 })
 const smartWizardRunning = ref(false)
 const smartWizardProgress = ref(0)
@@ -790,10 +823,13 @@ const canRunSmartWizard = computed(() =>
   canMakeLibrarySmart.value &&
   (
     smartWizard.value.pathTags
+    || smartWizard.value.organize
     || (isAddedVideo.value && (
       smartWizard.value.grids
       || smartWizard.value.faces
       || smartWizard.value.clip
+      || smartWizard.value.chapters
+      || (sceneScrapeAvailable.value && smartWizard.value.scrape)
     ))
   ) &&
   !(smartWizard.value.faces && faceModelNeedsDownload.value) &&
@@ -1455,11 +1491,14 @@ const detectFacesInAddedVideos = async () => {
 const runSmartLibraryWizard = async () => {
   if (!canRunSmartWizard.value || smartWizardRunning.value) return
 
-  const steps: Array<'pathTags' | 'grids' | 'faces' | 'clip'> = []
+  const steps: Array<'pathTags' | 'grids' | 'faces' | 'clip' | 'chapters' | 'scrape' | 'organize'> = []
   if (smartWizard.value.pathTags) steps.push('pathTags')
   if (isAddedVideo.value && smartWizard.value.grids) steps.push('grids')
   if (isAddedVideo.value && smartWizard.value.faces) steps.push('faces')
   if (isAddedVideo.value && smartWizard.value.clip) steps.push('clip')
+  if (isAddedVideo.value && smartWizard.value.chapters) steps.push('chapters')
+  if (isAddedVideo.value && sceneScrapeAvailable.value && smartWizard.value.scrape) steps.push('scrape')
+  if (smartWizard.value.organize) steps.push('organize')
   if (!steps.length) return
 
   smartWizardRunning.value = true
@@ -1639,6 +1678,82 @@ const runSmartLibraryWizard = async () => {
           }
           smartWizardProgress.value = base + span
         }
+      }
+
+      if (step === 'chapters') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_chapters')
+        tasksStore.updateTask(trayTaskId, {
+          subtitle: t('media.adding.make_library_smart_chapters'),
+          progress: base + span * 0.1,
+        })
+        await typedApi.streamAutoChapterGeneration(
+          {
+            mediaIds,
+            force: true,
+            useSilence: true,
+          },
+          {signal: controller.signal},
+          (event) => {
+            if (event.type === 'progress' || event.type === 'item') {
+              const processed = Number(event.processed || 0)
+              const total = Math.max(1, Number(event.total || mediaIds.length || 1))
+              smartWizardProgress.value = base + (processed / total) * span
+              tasksStore.updateTask(trayTaskId, {
+                subtitle: t('media.adding.make_library_smart_chapters_progress', {
+                  processed,
+                  total,
+                }),
+                progress: smartWizardProgress.value,
+              })
+            }
+            if (event.type === 'error') {
+              throw new Error(String(event.message || 'Auto chapters failed'))
+            }
+          },
+        )
+        smartWizardProgress.value = base + span
+      }
+
+      if (step === 'scrape') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_scrape')
+        tasksStore.updateTask(trayTaskId, {
+          subtitle: t('media.adding.make_library_smart_scrape'),
+          progress: base + span * 0.2,
+        })
+        if (mediaIds.length) {
+          listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+        }
+        const byId = new Map(
+          (itemsStore.entities || []).map((item) => [Number(item.id), item]),
+        )
+        const videoItems = mediaIds.map((id) => {
+          const existing = byId.get(id)
+          if (existing) return existing
+          const entry = (task.value.addedMedia || []).find((row) => Number(row.mediaId) === id)
+          return {
+            id,
+            path: entry?.path,
+            mediaTypeId: task.value.addedMediaTypeId,
+          }
+        })
+        if (videoItems.length) {
+          await runSceneScrapeBatch(videoItems as never[], {clearSelection: false})
+        }
+        smartWizardProgress.value = base + span
+      }
+
+      if (step === 'organize') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_organize')
+        tasksStore.updateTask(trayTaskId, {
+          subtitle: t('media.adding.make_library_smart_organize'),
+          progress: base + span * 0.5,
+        })
+        if (mediaIds.length) {
+          listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+          operationsStore.create_folder_move_media.ids = [...mediaIds]
+          operationsStore.create_folder_move_media.dialog = true
+        }
+        smartWizardProgress.value = base + span
       }
     }
 

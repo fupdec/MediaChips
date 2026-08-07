@@ -1,6 +1,6 @@
 import type {ApiDb} from '../types/db'
 import {spawn} from 'child_process'
-import {and, count, eq, isNull, or, sql} from 'drizzle-orm'
+import {and, count, eq, isNull, sql} from 'drizzle-orm'
 import {createMarksRepository} from '../db/repositories/marks'
 import {createMediaRepository} from '../db/repositories/media'
 import {createMediaTypesRepository} from '../db/repositories/mediaTypes'
@@ -13,16 +13,22 @@ import {getFfmpegPath} from '../utils/ffmpegPaths'
 import {runWithFfmpegLimit} from './mediaPostProcessQueue'
 
 export const AUTO_CHAPTER_TYPE = 'scene'
-export const AUTO_CHAPTER_TEXT_RE = /^Chapter\s+(\d+)$/i
+export const AUTO_CHAPTER_TEXT_RE = /^(Chapter\s+(\d+)|(\d{1,2}:)?\d{1,2}:\d{2})$/i
 
 export const DEFAULT_SCENE_THRESHOLD = 0.35
 export const DEFAULT_MIN_GAP_SEC = 10
 export const DEFAULT_MAX_CHAPTERS = 40
+export const DEFAULT_SILENCE_NOISE_DB = -35
+export const DEFAULT_SILENCE_MIN_DURATION = 0.6
 
 export type AutoChapterDetectOptions = {
   threshold?: number
   minGapSec?: number
   maxChapters?: number
+  /** Also use ffmpeg silencedetect cut points (smarter scene boundaries). */
+  useSilence?: boolean
+  silenceNoiseDb?: number
+  silenceMinDuration?: number
 }
 
 export type AutoChapterProgressEvent = {
@@ -52,14 +58,37 @@ export function isAutoChapterMark(mark: {
   return AUTO_CHAPTER_TEXT_RE.test(text)
 }
 
-export function autoChapterLabel(index: number): string {
-  return `Chapter ${Math.max(1, Math.floor(index))}`
+export function formatChapterClock(seconds: number): string {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** Prefer timestamp labels so chapters are readable in the player. */
+export function autoChapterLabel(index: number, timeSec = 0): string {
+  void index
+  return formatChapterClock(timeSec)
 }
 
 /** Parse ffmpeg showinfo / metadata pts_time lines from stderr/stdout. */
 export function parseScenePtsTimes(logText: string): number[] {
   const times: number[] = []
   const re = /pts_time[:=]\s*(-?\d+(?:\.\d+)?)/gi
+  let match: RegExpExecArray | null
+  while ((match = re.exec(String(logText || ''))) != null) {
+    const value = Number(match[1])
+    if (Number.isFinite(value) && value >= 0) times.push(value)
+  }
+  return times
+}
+
+/** Parse ffmpeg silencedetect silence_end timestamps. */
+export function parseSilenceEndTimes(logText: string): number[] {
+  const times: number[] = []
+  const re = /silence_end:\s*(-?\d+(?:\.\d+)?)/gi
   let match: RegExpExecArray | null
   while ((match = re.exec(String(logText || ''))) != null) {
     const value = Number(match[1])
@@ -134,6 +163,41 @@ async function runFfmpegSceneDetect(
   }))
 }
 
+async function runFfmpegSilenceDetect(
+  filePath: string,
+  noiseDb: number,
+  minDuration: number,
+): Promise<string> {
+  return runWithFfmpegLimit(() => new Promise((resolve, reject) => {
+    const af = `silencedetect=noise=${noiseDb}dB:d=${minDuration}`
+    const args = [
+      '-hide_banner',
+      '-i', filePath,
+      '-vn',
+      '-af', af,
+      '-f', 'null',
+      '-',
+    ]
+    const proc = spawn(getFfmpegPath(), args, {stdio: ['ignore', 'pipe', 'pipe']})
+    let stdout = ''
+    let stderr = ''
+    proc.stdout?.on('data', (chunk: Buffer | string) => {
+      stdout += chunk.toString()
+    })
+    proc.stderr?.on('data', (chunk: Buffer | string) => {
+      stderr += chunk.toString()
+    })
+    proc.on('error', reject)
+    proc.on('close', (code: number | null) => {
+      if (code === 0 || stdout || stderr) {
+        resolve(`${stdout}\n${stderr}`)
+        return
+      }
+      reject(new Error(`ffmpeg silence detect exited with code ${code}`))
+    })
+  }))
+}
+
 export async function detectSceneChapterTimes(
   filePath: string,
   options: AutoChapterDetectOptions = {},
@@ -149,6 +213,20 @@ export async function detectSceneChapterTimes(
 
   const log = await runFfmpegSceneDetect(filePath, threshold)
   const raw = parseScenePtsTimes(log)
+
+  if (options.useSilence) {
+    try {
+      const silenceLog = await runFfmpegSilenceDetect(
+        filePath,
+        Number(options.silenceNoiseDb ?? DEFAULT_SILENCE_NOISE_DB) || DEFAULT_SILENCE_NOISE_DB,
+        Number(options.silenceMinDuration ?? DEFAULT_SILENCE_MIN_DURATION) || DEFAULT_SILENCE_MIN_DURATION,
+      )
+      raw.push(...parseSilenceEndTimes(silenceLog))
+    } catch {
+      // Silence pass is best-effort; scene cuts alone still work.
+    }
+  }
+
   return refineSceneTimestamps(raw, duration, options)
 }
 
@@ -205,7 +283,7 @@ export async function generateAutoChaptersForMedia(
   deletePreviousAutoChapters(db, mediaId)
   marksRepo.bulkCreate(times.map((time, index) => ({
     type: AUTO_CHAPTER_TYPE,
-    text: autoChapterLabel(index + 1),
+    text: autoChapterLabel(index + 1, time),
     time: Math.round(time),
     end: null,
     tagId: null,
@@ -235,7 +313,7 @@ export function getAutoChapterGenerationStatus(db: ApiDb): {
     .get()
   const total = Number(totalRow?.count ?? 0)
 
-  // Media with at least 2 auto-chapter marks (type=scene, no tag, Chapter N / empty text).
+  // Media with at least 2 auto-chapter marks (type=scene, no tag).
   const withRows = db.drizzle
     .select({mediaId: marks.mediaId})
     .from(marks)
@@ -244,11 +322,6 @@ export function getAutoChapterGenerationStatus(db: ApiDb): {
       eq(media.mediaTypeId, videoTypeId),
       eq(marks.type, AUTO_CHAPTER_TYPE),
       isNull(marks.tagId),
-      or(
-        isNull(marks.text),
-        eq(marks.text, ''),
-        sql`${marks.text} LIKE 'Chapter %'`,
-      ),
     ))
     .groupBy(marks.mediaId)
     .having(sql`count(*) >= 2`)
@@ -280,6 +353,9 @@ export async function* iterateAutoChapterGeneration(
     threshold,
     minGapSec,
     maxChapters,
+    useSilence = true,
+    silenceNoiseDb,
+    silenceMinDuration,
   }: AutoChapterDetectOptions & {
     shouldStop?: () => boolean
     force?: boolean
@@ -324,6 +400,9 @@ export async function* iterateAutoChapterGeneration(
         threshold,
         minGapSec,
         maxChapters,
+        useSilence,
+        silenceNoiseDb,
+        silenceMinDuration,
       })
       processed += 1
       if (result.skipped || result.chapters < 2) skipped += 1

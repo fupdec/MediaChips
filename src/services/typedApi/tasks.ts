@@ -469,6 +469,7 @@ export const tasksApi = {
       threshold?: number
       minGapSec?: number
       maxChapters?: number
+      useSilence?: boolean
     },
     options: {signal?: AbortSignal},
     onEvent: (event: GenerationStreamEvent) => void,

@@ -163,6 +163,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
         threshold: req.body?.threshold != null ? Number(req.body.threshold) : undefined,
         minGapSec: req.body?.minGapSec != null ? Number(req.body.minGapSec) : undefined,
         maxChapters: req.body?.maxChapters != null ? Number(req.body.maxChapters) : undefined,
+        useSilence: req.body?.useSilence != null ? Boolean(req.body.useSilence) : true,
       })
       sendOk(res, result)
     } catch (err) {
@@ -182,6 +183,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
         threshold: req.body?.threshold != null ? Number(req.body.threshold) : undefined,
         minGapSec: req.body?.minGapSec != null ? Number(req.body.minGapSec) : undefined,
         maxChapters: req.body?.maxChapters != null ? Number(req.body.maxChapters) : undefined,
+        useSilence: req.body?.useSilence != null ? Boolean(req.body.useSilence) : true,
       }),
     })
   }
