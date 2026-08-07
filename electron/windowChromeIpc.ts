@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   ipcMain,
   Notification,
+  shell,
   type IpcMainInvokeEvent,
 } from 'electron'
 import {emitMainWindowUserFacingState, isBrowserWindowUserFacing} from './windowFocus'
@@ -87,8 +88,16 @@ export function registerWindowChromeIpc(deps: {
         body,
         silent,
       })
+      const revealPath = String(payload.revealPath || '').trim()
       notification.on('click', () => {
         deps.focusMainWindow()
+        if (revealPath) {
+          try {
+            shell.showItemInFolder(revealPath)
+          } catch (error) {
+            console.warn('Failed to reveal exported file from OS notification:', error)
+          }
+        }
       })
       notification.show()
       return {success: true, supported: true}

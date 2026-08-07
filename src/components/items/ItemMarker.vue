@@ -43,6 +43,12 @@
         />
 
         <v-sheet
+          v-if="clipDurationLabel"
+          class="item-mark__duration"
+        >{{ clipDurationLabel }}
+        </v-sheet>
+
+        <v-sheet
           class="time"
           light
           v-html="time"
@@ -143,7 +149,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  'update:selected': [value: boolean]
+  'update:selected': [value: boolean, meta?: {shiftKey?: boolean}]
 }>()
 
 const appStore = useAppStore()
@@ -165,9 +171,9 @@ const markEnd = computed(() => {
 })
 const canSelect = computed(() => markEnd.value != null)
 
-const onCardClick = () => {
+const onCardClick = (event: MouseEvent) => {
   if (!props.selectable || !canSelect.value) return
-  emit('update:selected', !props.selected)
+  emit('update:selected', !props.selected, {shiftKey: event.shiftKey})
 }
 
 const time = computed(() => {
@@ -176,6 +182,16 @@ const time = computed(() => {
     return startTime + " – " + getReadableDuration(markEnd.value)
   }
   return startTime
+})
+
+const clipDurationSec = computed(() => {
+  if (markEnd.value == null) return 0
+  return Math.max(0, markEnd.value - markTime.value)
+})
+
+const clipDurationLabel = computed(() => {
+  if (clipDurationSec.value <= 0) return ''
+  return getReadableDuration(clipDurationSec.value)
 })
 
 const loadThumb = async () => {
@@ -277,6 +293,19 @@ onUnmounted(() => {
     padding: 0 7px;
     border-radius: 15px;
     font-size: 14px;
+    z-index: 3;
+  }
+
+  .item-mark__duration {
+    pointer-events: none;
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    background: rgb(0 0 0 / 72%);
+    color: #fff;
+    padding: 0 7px;
+    border-radius: 15px;
+    font-size: 13px;
     z-index: 3;
   }
 }

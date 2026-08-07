@@ -25,6 +25,7 @@ export interface MarkLoadOptions {
   page?: number
   limit?: number
   search?: string
+  clipsOnly?: boolean
 }
 
 export type MarkSortValue = string | number

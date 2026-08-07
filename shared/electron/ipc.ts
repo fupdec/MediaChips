@@ -95,6 +95,8 @@ export interface OpenDialogResult {
 export interface SaveFileDialogOptions {
   defaultPath?: string
   content?: string
+  /** When false, only pick a path — do not write a file. Default true. */
+  write?: boolean
   filters?: Array<{ name: string; extensions: string[] }>
 }
 
@@ -123,6 +125,8 @@ export interface OsNotificationPayload {
   title: string
   body?: string
   silent?: boolean
+  /** Absolute file path to reveal in Finder/Explorer when the toast is clicked. */
+  revealPath?: string
 }
 
 export interface OsNotificationResult {

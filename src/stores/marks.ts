@@ -11,6 +11,7 @@ export const useMarksStore = defineStore('marks', {
     sortBy: 'time',
     sortDir: 'desc',
     search: '',
+    clipsOnly: false,
     page: 1,
     total: 0,
     totalFiltered: 0,
@@ -59,6 +60,7 @@ export const useMarksStore = defineStore('marks', {
           sortBy: this.sortBy,
           sortDir: this.sortDir,
           search: this.search,
+          clipsOnly: this.clipsOnly,
           page: this.page,
           limit: MARKS_PAGE_LIMIT,
         })
@@ -114,6 +116,11 @@ export const useMarksStore = defineStore('marks', {
 
     async setSearch(search: string) {
       this.search = search
+      await this.reloadMarks()
+    },
+
+    async setClipsOnly(clipsOnly: boolean) {
+      this.clipsOnly = Boolean(clipsOnly)
       await this.reloadMarks()
     },
 

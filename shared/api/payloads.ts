@@ -274,6 +274,7 @@ export interface MediaIdsRequestPayload {
 export interface MarkItemsRequestPayload {
   filters?: FilterObject[]
   metaId?: number
+  clipsOnly?: boolean
   [key: string]: unknown
 }
 

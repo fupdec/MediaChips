@@ -15,6 +15,8 @@ export type MarkListQueryOptions = {
   sortDir?: string
   limit?: number
   offset?: number
+  /** Only marks with a ranged end time (Clip Studio clips). */
+  clipsOnly?: boolean
 }
 
 function buildMarkTypeSql(
@@ -97,6 +99,9 @@ function buildMarkFilterWhere(
   ]
   const searchSql = buildMarkSearchSql(options.search || '', replacements)
   if (searchSql) clauses.push(searchSql)
+  if (options.clipsOnly) {
+    clauses.push('marks.end IS NOT NULL')
+  }
   return clauses.join(' AND ')
 }
 

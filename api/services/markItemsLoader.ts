@@ -23,6 +23,7 @@ async function loadMarkItems(db: ApiDb, options: MarkLoadOptions = {}) {
     page = 1,
     limit = 24,
     search = '',
+    clipsOnly = false,
   } = options
 
   const safePage = Math.max(1, Number(page) || 1)
@@ -36,6 +37,7 @@ async function loadMarkItems(db: ApiDb, options: MarkLoadOptions = {}) {
     sortDir,
     limit: safeLimit,
     offset,
+    clipsOnly: Boolean(clipsOnly),
   }
 
   const total = marksRepo.countAll()

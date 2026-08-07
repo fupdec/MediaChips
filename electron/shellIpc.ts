@@ -104,6 +104,7 @@ export function registerShellIpc(deps: {
   ipcMain.handle('dialog:saveFile', async (_event: IpcMainInvokeEvent, options: {
     defaultPath?: string
     content?: string
+    write?: boolean
     filters?: Array<{name: string; extensions: string[]}>
   } = {}) => {
     const result = await dialog.showSaveDialog({
@@ -115,7 +116,9 @@ export function registerShellIpc(deps: {
       return {canceled: true}
     }
 
-    fs.writeFileSync(result.filePath, options.content ?? '', 'utf8')
+    if (options.write !== false) {
+      fs.writeFileSync(result.filePath, options.content ?? '', 'utf8')
+    }
     return {canceled: false, filePath: result.filePath}
   })
 

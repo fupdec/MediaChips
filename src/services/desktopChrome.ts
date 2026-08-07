@@ -14,6 +14,7 @@ export async function showOsNotification(payload: {
   title: string
   body?: string
   silent?: boolean
+  revealPath?: string
 }): Promise<void> {
   const api = getApi()
   if (!api?.invoke) return
@@ -22,6 +23,7 @@ export async function showOsNotification(payload: {
       title: payload.title,
       body: payload.body || '',
       silent: Boolean(payload.silent),
+      ...(payload.revealPath ? {revealPath: payload.revealPath} : {}),
     })
   } catch (error) {
     console.warn('OS notification failed:', error)
@@ -98,7 +100,14 @@ export async function maybeShowOsNotification(notification: NotificationInput): 
 
   const title = String(notification.title || 'MediaChips').trim() || 'MediaChips'
   const body = String(notification.text || '').trim()
-  await showOsNotification({ title, body })
+  const revealPath = typeof notification.revealPath === 'string'
+    ? notification.revealPath.trim()
+    : ''
+  await showOsNotification({
+    title,
+    body,
+    ...(revealPath ? {revealPath} : {}),
+  })
 }
 
 export type DesktopChromeSnapshot = {

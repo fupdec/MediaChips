@@ -4,8 +4,9 @@
     @pointerdown="onSwipePointerDown"
     @mouseenter="stopTimer"
     @mouseleave="resumeTimer"
+    @click="onCardClick"
     class="notification"
-    :class="swipeClass"
+    :class="[swipeClass, {'notification--clickable': Boolean(notificationClick)}]"
     :style="notificationSwipeStyle"
     :elevation="isHidden ? 3 : 9"
     rounded="lg"
@@ -140,6 +141,10 @@ const notificationsStore = useNotificationsStore()
 
 const isHidden = computed(() => props.notification.hidden)
 const actions = computed(() => Array.isArray(props.notification.actions) ? props.notification.actions : [])
+const notificationClick = computed(() => {
+  const click = props.notification.click
+  return typeof click === 'function' ? click : null
+})
 
 const closeNotification = () => {
   notificationsStore.closeNotification(props.notification.id)
@@ -147,6 +152,16 @@ const closeNotification = () => {
 
 const hideNotification = () => {
   notificationsStore.hideNotification(props.notification.id)
+}
+
+const onCardClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.notification__manage, .notification__actions, .notification__close-btn, .notification__action')) {
+    return
+  }
+  const click = notificationClick.value
+  if (!click) return
+  click()
 }
 
 const {
@@ -308,6 +323,10 @@ onUnmounted(() => {
   transition: box-shadow 0.3s ease;
   will-change: transform, opacity;
   cursor: grab;
+
+  &--clickable {
+    cursor: pointer;
+  }
 
   &.swipe-dismiss--swiping {
     transition: none;

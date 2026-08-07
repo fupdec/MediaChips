@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <v-container :class="{'markers-page--has-selection': selectedIds.size > 0}">
     <div class="my-6">
       <div class="text-md-h2 d-flex align-baseline">
         <v-icon size="42" start>mdi-tooltip-outline</v-icon>
@@ -92,31 +92,33 @@
         </v-btn-toggle>
 
         <v-btn
-          color="primary"
-          variant="flat"
-          rounded="xl"
-          :disabled="!selectedRangedIds.length || playingClips || exportingClips"
-          :loading="playingClips"
-          @click="playSelectedClips"
-        >
-          <v-icon start>mdi-playlist-play</v-icon>
-          {{ t('markers.play_selected_clips', {count: selectedRangedIds.length}) }}
-        </v-btn>
-        <v-btn
-          color="secondary"
           variant="tonal"
           rounded="xl"
-          :disabled="!selectedRangedIds.length || playingClips || exportingClips"
-          :loading="exportingClips"
-          @click="exportSelectedClips"
+          color="secondary"
+          :disabled="!rangedIdsOnPage.length"
+          @click="selectAllRangedOnPage"
         >
-          <v-icon start>mdi-export</v-icon>
-          {{ t('markers.export_selected_clips', {count: selectedRangedIds.length}) }}
+          <v-icon start>mdi-checkbox-multiple-marked-outline</v-icon>
+          {{ t('markers.select_all_clips', {count: rangedIdsOnPage.length}) }}
         </v-btn>
       </div>
       <div class="text-caption text-medium-emphasis mt-2">
         {{ t('markers.select_ranged_hint') }}
+        <span class="ml-1">{{ t('markers.select_range_hint') }}</span>
       </div>
+    </div>
+
+    <div class="d-flex align-center flex-wrap ga-2 mb-2">
+      <v-chip
+        filter
+        size="small"
+        :color="marksStore.clipsOnly ? 'primary' : undefined"
+        :variant="marksStore.clipsOnly ? 'flat' : 'tonal'"
+        prepend-icon="mdi-movie-open-play-outline"
+        @click="toggleClipsOnly"
+      >
+        {{ t('markers.clips_only') }}
+      </v-chip>
     </div>
 
     <v-chip-group
@@ -160,7 +162,7 @@
           :mark="mark"
           selectable
           :selected="selectedIds.has(Number(mark.id))"
-          @update:selected="toggleSelected(Number(mark.id), $event)"
+          @update:selected="(selected, meta) => toggleSelected(Number(mark.id), selected, meta)"
         />
       </v-col>
     </v-row>
@@ -236,18 +238,77 @@
     >
       <Loading v-intersect="infiniteScrolling"/>
     </div>
+
+    <Transition name="markers-selection">
+      <div
+        v-if="selectedIds.size"
+        class="markers-selection-bar"
+      >
+        <div class="markers-selection-bar__inner">
+          <div class="markers-selection-bar__label text-body-2">
+            {{ t('markers.selected_count', {count: selectedIds.size}) }}
+            <span
+              v-if="selectedRangedIds.length !== selectedIds.size"
+              class="text-medium-emphasis"
+            >
+              · {{ t('markers.clips_in_selection', {count: selectedRangedIds.length}) }}
+            </span>
+            <span
+              v-if="selectedClipsDurationLabel"
+              class="text-medium-emphasis"
+            >
+              · {{ selectedClipsDurationLabel }}
+            </span>
+          </div>
+          <div class="markers-selection-bar__actions d-flex align-center ga-2 flex-wrap">
+            <v-btn
+              color="primary"
+              variant="flat"
+              rounded="xl"
+              size="small"
+              :disabled="!selectedRangedIds.length || playingClips || exportingClips"
+              :loading="playingClips"
+              @click="playSelectedClips"
+            >
+              <v-icon start>mdi-playlist-play</v-icon>
+              {{ t('markers.play_selected_clips', {count: selectedRangedIds.length}) }}
+            </v-btn>
+            <v-btn
+              color="secondary"
+              variant="tonal"
+              rounded="xl"
+              size="small"
+              :disabled="!selectedRangedIds.length || playingClips || exportingClips"
+              :loading="exportingClips"
+              @click="exportSelectedClips"
+            >
+              <v-icon start>mdi-export</v-icon>
+              {{ t('markers.export_selected_clips', {count: selectedRangedIds.length}) }}
+            </v-btn>
+            <v-btn
+              variant="text"
+              rounded="xl"
+              size="small"
+              @click="clearSelection"
+            >
+              <v-icon start>mdi-close</v-icon>
+              {{ t('markers.clear_selection') }}
+            </v-btn>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {useMarksStore} from '@/stores/marks'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
-import {useTasksStore} from '@/stores/tasks'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {MARK_SORT_PARAMS} from '@/utils/markSort'
 import {scrollMainTo} from '@/utils/mainScroll'
@@ -256,7 +317,9 @@ import ItemMarker from '@/components/items/ItemMarker.vue'
 import Loading from '@/components/elements/Loading.vue'
 import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
+import {runMarkClipsExport} from '@/services/exportMarkClipsUi'
 import {loadMarkIdClipsForPlayback} from '@/services/tagClipsPlayback'
+import {getReadableDuration} from '@/services/formatUtils'
 import {getErrorResponseData} from '@/types/vue'
 
 const {t} = useI18n()
@@ -265,32 +328,91 @@ const marksStore = useMarksStore()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
-const tasksStore = useTasksStore()
 
 useMarkImageGenerator()
 
 const searchInput = ref(marksStore.search || '')
 const showInfiniteLoader = ref(false)
 const selectedIds = ref<Set<number>>(new Set())
+const lastSelectedId = ref<number | null>(null)
 const clipSort = ref<'time' | 'shuffle'>('time')
 const playingClips = ref(false)
 const exportingClips = ref(false)
 
-const selectedRangedIds = computed(() => {
-  const ids: number[] = []
+const rangedIdsOnPage = computed(() =>
+  marksStore.marksOnPage
+    .filter((mark) => typeof mark.end === 'number')
+    .map((mark) => Number(mark.id))
+    .filter((id) => Number.isFinite(id) && id > 0),
+)
+
+const selectedRangedIds = computed(() =>
+  rangedIdsOnPage.value.filter((id) => selectedIds.value.has(id)),
+)
+
+const selectedClipsDurationSec = computed(() => {
+  let total = 0
   for (const mark of marksStore.marksOnPage) {
     const id = Number(mark.id)
     if (!selectedIds.value.has(id)) continue
-    if (typeof mark.end === 'number') ids.push(id)
+    if (typeof mark.end !== 'number') continue
+    const start = Number(mark.time) || 0
+    total += Math.max(0, mark.end - start)
   }
-  return ids
+  return total
 })
 
-function toggleSelected(id: number, selected: boolean) {
+const selectedClipsDurationLabel = computed(() => {
+  if (selectedClipsDurationSec.value <= 0) return ''
+  return getReadableDuration(selectedClipsDurationSec.value)
+})
+
+function toggleSelected(
+  id: number,
+  selected: boolean,
+  meta?: {shiftKey?: boolean},
+) {
+  if (!Number.isFinite(id) || id <= 0) return
+
+  if (meta?.shiftKey && lastSelectedId.value != null) {
+    const ids = rangedIdsOnPage.value
+    const from = ids.indexOf(lastSelectedId.value)
+    const to = ids.indexOf(id)
+    if (from >= 0 && to >= 0) {
+      const [start, end] = from < to ? [from, to] : [to, from]
+      const next = new Set(selectedIds.value)
+      for (let i = start; i <= end; i += 1) next.add(ids[i]!)
+      selectedIds.value = next
+      lastSelectedId.value = id
+      return
+    }
+  }
+
   const next = new Set(selectedIds.value)
   if (selected) next.add(id)
   else next.delete(id)
   selectedIds.value = next
+  lastSelectedId.value = id
+}
+
+function selectAllRangedOnPage() {
+  const next = new Set(selectedIds.value)
+  for (const id of rangedIdsOnPage.value) next.add(id)
+  selectedIds.value = next
+  lastSelectedId.value = rangedIdsOnPage.value[rangedIdsOnPage.value.length - 1] ?? null
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+  lastSelectedId.value = null
+}
+
+function onSelectionKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return
+  if (!selectedIds.value.size) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest?.('input, textarea, [contenteditable="true"]')) return
+  clearSelection()
 }
 
 function openLibrary() {
@@ -302,6 +424,12 @@ function clearMarkerFilters() {
   searchInput.value = ''
   marksStore.setSearch('')
   marksStore.setSelectedTypes([])
+  if (marksStore.clipsOnly) marksStore.setClipsOnly(false)
+  selectedIds.value = new Set()
+}
+
+const toggleClipsOnly = () => {
+  marksStore.setClipsOnly(!marksStore.clipsOnly)
   selectedIds.value = new Set()
 }
 
@@ -381,91 +509,13 @@ const playSelectedClips = async () => {
 const exportSelectedClips = async () => {
   if (!selectedRangedIds.value.length || exportingClips.value) return
   exportingClips.value = true
-
-  let outputPath: string | undefined
   try {
-    if (window.electronAPI?.invoke) {
-      const result = await window.electronAPI.invoke('dialog:saveFile', {
-        defaultPath: `mediachips-clips-${Date.now()}.mp4`,
-        content: '',
-        filters: [{name: 'MP4', extensions: ['mp4']}],
-      }) as {canceled?: boolean; filePath?: string}
-      if (result?.canceled || !result?.filePath) {
-        exportingClips.value = false
-        return
-      }
-      outputPath = result.filePath
-    }
-  } catch (error) {
-    console.warn('Save dialog unavailable, using default downloads path', error)
-  }
-
-  const controller = new AbortController()
-  const taskId = tasksStore.setTask({
-    title: t('markers.export_selected_clips', {count: selectedRangedIds.value.length}),
-    subtitle: t('markers.export_clips_progress', {processed: 0, total: selectedRangedIds.value.length}),
-    icon: 'export',
-    progress: 0,
-    action: () => controller.abort(),
-  })
-
-  try {
-    let finalPath = outputPath || ''
-    await typedApi.exportMarkClips(
-      {
-        markIds: selectedRangedIds.value,
-        outputPath,
-        sort: clipSort.value,
-      },
-      {signal: controller.signal},
-      (event) => {
-        if (event.type === 'progress') {
-          const processed = Number(event.processed || 0)
-          const total = Number(event.total || selectedRangedIds.value.length || 1)
-          if (typeof event.outputPath === 'string') finalPath = event.outputPath
-          tasksStore.updateTask(taskId, {
-            subtitle: t('markers.export_clips_progress', {processed, total}),
-            progress: total ? Math.min((processed / total) * 100, 100) : 0,
-          })
-        }
-        if (event.type === 'complete') {
-          if (typeof event.outputPath === 'string') finalPath = event.outputPath
-          tasksStore.updateTask(taskId, {
-            subtitle: finalPath,
-            progress: 100,
-            color: 'success',
-            done: true,
-            action: undefined,
-          })
-        }
-        if (event.type === 'error') {
-          throw new Error(String(event.message || 'Export failed'))
-        }
-      },
-    )
-    setNotification({
-      type: 'success',
-      title: t('markers.export_clips_done'),
-      text: t('markers.export_clips_done_text', {path: finalPath}),
+    await runMarkClipsExport({
+      scope: {markIds: selectedRangedIds.value},
+      sort: clipSort.value,
+      countHint: selectedRangedIds.value.length,
+      t: (key, params) => t(key, params),
     })
-  } catch (error) {
-    const isAbort = error instanceof Error && error.name === 'AbortError'
-    if (!isAbort) {
-      tasksStore.updateTask(taskId, {
-        subtitle: t('markers.export_clips_failed'),
-        color: 'error',
-        done: true,
-        action: undefined,
-      })
-      setNotification({
-        type: 'error',
-        title: t('markers.export_clips_failed'),
-        text: getErrorResponseData<{message?: string}>(error)?.message
-          || (error instanceof Error ? error.message : String(error)),
-      })
-    } else {
-      tasksStore.removeTask(taskId)
-    }
   } finally {
     exportingClips.value = false
   }
@@ -473,6 +523,7 @@ const exportSelectedClips = async () => {
 
 onMounted(async () => {
   searchInput.value = marksStore.search || ''
+  window.addEventListener('keydown', onSelectionKeydown)
   await marksStore.loadFilterMetas()
   await marksStore.fetchMarks()
 
@@ -480,9 +531,17 @@ onMounted(async () => {
     showInfiniteLoader.value = true
   }, 500)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onSelectionKeydown)
+})
 </script>
 
 <style lang="scss" scoped>
+.markers-page--has-selection {
+  padding-bottom: 88px;
+}
+
 .markers-toolbar {
   &__search {
     flex: 0 1 400px;
@@ -494,5 +553,46 @@ onMounted(async () => {
     flex: 0 0 auto;
     width: min(100%, 280px);
   }
+}
+
+.markers-selection-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+
+  &__inner {
+    pointer-events: auto;
+    width: min(920px, 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    border-radius: 16px;
+    background: rgb(var(--v-theme-surface));
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    box-shadow: 0 12px 32px -14px rgba(0, 0, 0, 0.35);
+  }
+
+  &__label {
+    min-width: 0;
+  }
+}
+
+.markers-selection-enter-active,
+.markers-selection-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.markers-selection-enter-from,
+.markers-selection-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

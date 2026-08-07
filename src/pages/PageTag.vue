@@ -90,13 +90,13 @@
         </v-card-text>
       </v-card>
 
-      <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2">
+      <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2 flex-wrap">
         <v-btn
           color="primary"
           rounded
           variant="flat"
           :loading="playingClips"
-          :disabled="clipCount === 0 || playingClips"
+          :disabled="clipCount === 0 || playingClips || exportingClips"
           @click="playClips('time')"
         >
           <v-icon start>mdi-playlist-play</v-icon>
@@ -110,7 +110,7 @@
               rounded
               variant="tonal"
               icon
-              :disabled="clipCount === 0 || playingClips"
+              :disabled="clipCount === 0 || playingClips || exportingClips"
             >
               <v-icon>mdi-menu-down</v-icon>
             </v-btn>
@@ -128,6 +128,17 @@
             />
           </v-list>
         </v-menu>
+        <v-btn
+          color="secondary"
+          rounded
+          variant="tonal"
+          :loading="exportingClips"
+          :disabled="clipCount === 0 || playingClips || exportingClips"
+          @click="exportClips('time')"
+        >
+          <v-icon start>mdi-export</v-icon>
+          {{ t('tags.export_clips', {count: clipCount}) }}
+        </v-btn>
       </div>
     </v-container>
 
@@ -259,13 +270,13 @@
               </v-expansion-panel>
             </v-expansion-panels>
 
-            <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2">
+            <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2 flex-wrap">
               <v-btn
                 color="primary"
                 rounded
                 variant="flat"
                 :loading="playingClips"
-                :disabled="clipCount === 0 || playingClips"
+                :disabled="clipCount === 0 || playingClips || exportingClips"
                 @click="playClips('time')"
               >
                 <v-icon start>mdi-playlist-play</v-icon>
@@ -279,7 +290,7 @@
                     rounded
                     variant="tonal"
                     icon
-                    :disabled="clipCount === 0 || playingClips"
+                    :disabled="clipCount === 0 || playingClips || exportingClips"
                   >
                     <v-icon>mdi-menu-down</v-icon>
                   </v-btn>
@@ -297,6 +308,17 @@
                   />
                 </v-list>
               </v-menu>
+              <v-btn
+                color="secondary"
+                rounded
+                variant="tonal"
+                :loading="exportingClips"
+                :disabled="clipCount === 0 || playingClips || exportingClips"
+                @click="exportClips('time')"
+              >
+                <v-icon start>mdi-export</v-icon>
+                {{ t('tags.export_clips', {count: clipCount}) }}
+              </v-btn>
             </div>
           </v-col>
         </v-row>
@@ -390,6 +412,7 @@ import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
 import {typedApi} from '@/services/typedApi'
 import {loadTagClipsForPlayback} from '@/services/tagClipsPlayback'
+import {runMarkClipsExport} from '@/services/exportMarkClipsUi'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
@@ -473,6 +496,7 @@ const galleryFileExists = ref<Record<TagGalleryImageType, boolean>>({
 })
 const clipCount = ref(0)
 const playingClips = ref(false)
+const exportingClips = ref(false)
 
 function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -625,7 +649,7 @@ const refreshClipCount = async () => {
 }
 
 const playClips = async (sort: 'time' | 'shuffle' = 'time') => {
-  if (!tag.value?.id || playingClips.value) return
+  if (!tag.value?.id || playingClips.value || exportingClips.value) return
 
   playingClips.value = true
   const tagId = Number(tag.value.id)
@@ -663,6 +687,21 @@ const playClips = async (sort: 'time' | 'shuffle' = 'time') => {
     notifyLoadError(error)
   } finally {
     playingClips.value = false
+  }
+}
+
+const exportClips = async (sort: 'time' | 'shuffle' = 'time') => {
+  if (!tag.value?.id || exportingClips.value || playingClips.value || clipCount.value <= 0) return
+  exportingClips.value = true
+  try {
+    await runMarkClipsExport({
+      scope: {tagId: Number(tag.value.id)},
+      sort,
+      countHint: clipCount.value,
+      t: (key, params) => t(key, params),
+    })
+  } finally {
+    exportingClips.value = false
   }
 }
 
