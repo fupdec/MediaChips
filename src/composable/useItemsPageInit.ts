@@ -16,6 +16,7 @@ import {
   parseGroupBySetting,
   getGroupByRequiredSort,
 } from '@/utils/itemsGroupBy'
+import {normalizePageSettingCriteria} from '@/utils/pageSettingCriteria'
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
 import type { AssignedMeta, Meta, SavedFilter } from '@/types/stores'
@@ -38,21 +39,25 @@ export function useItemsPageInit({
   const route = useRoute()
 
   const isFiltersReady = ref(false)
+  let pageSettingWriteChain: Promise<void> = Promise.resolve()
 
   const ITEMS = computed(() => itemsStore)
   const ENV = computed(() => ITEMS.value.environment)
   const apiUrl = computed(() => appStore.localhost)
 
   const updatePageSetting = async (data: PageSettingData): Promise<void> => {
-    await typedApi.putPageSetting({
-      data,
-      query: {
-        tagId: props.tagId,
-        mediaTypeId: props.mediaTypeId,
-        metaId: props.metaId,
-        tabId: props.tabId,
-      },
-    })
+    const run = async () => {
+      await typedApi.putPageSetting({
+        data,
+        query: normalizePageSettingCriteria(props),
+      })
+    }
+    pageSettingWriteChain = pageSettingWriteChain.then(run, run)
+    await pageSettingWriteChain
+  }
+
+  const flushPageSettings = async (): Promise<void> => {
+    await pageSettingWriteChain
   }
 
   const buildTagPageFilter = (): FilterObject | null => {
@@ -105,12 +110,7 @@ export function useItemsPageInit({
   }
 
   const fetchPageSettings = async () => {
-    const res = await typedApi.fetchPageSettings({
-      tagId: props.tagId,
-      mediaTypeId: props.mediaTypeId,
-      metaId: props.metaId,
-      tabId: props.tabId,
-    })
+    const res = await typedApi.fetchPageSettings(normalizePageSettingCriteria(props))
 
     return {
       settings: res.data?.[0] || null,
@@ -357,12 +357,21 @@ export function useItemsPageInit({
       await updatePageSetting({view: resolvedView})
     }
 
+    // Only persist sort when groupBy forced a required sort (do not rewrite user sort via normalize).
+    const parsedGroupBy = parseGroupBySetting(pageSettings?.firstChar)
+    const requiredSort = getGroupByRequiredSort(parsedGroupBy.groupBy)
     if (
-      props.items_type === 'media' &&
-      pageSettings?.sortBy &&
-      pageSettings.sortBy !== itemsStore.sortBy
+      props.items_type === 'media'
+      && pageSettings
+      && parsedGroupBy.groupBy !== 'none'
+      && requiredSort
+      && itemsStore.sortBy === requiredSort
+      && pageSettings.sortBy !== requiredSort
     ) {
-      await updatePageSetting({sortBy: itemsStore.sortBy})
+      await updatePageSetting({
+        sortBy: requiredSort,
+        sortDir: itemsStore.sortDir,
+      })
     }
 
     if (shouldLinkFilter) {
@@ -375,6 +384,7 @@ export function useItemsPageInit({
   return {
     isFiltersReady,
     updatePageSetting,
+    flushPageSettings,
     init,
     loadSavedFilters,
     getFilters,

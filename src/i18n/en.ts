@@ -858,12 +858,8 @@ const en = {
     starter: {
       tags_title: 'Tags',
       tags_subtitle: 'Parser-enabled category — auto-fills from folders and filenames on import',
-      rating_title: 'Rating',
-      rating_subtitle: 'Score media with stars',
-      favorite_title: 'Favorite',
-      favorite_subtitle: 'Mark files you want to keep handy',
-      applied: 'Starter fields are ready for Videos and Images.',
-      already_ready: 'Starter fields are already set up.',
+      applied: 'Tags category is ready for Videos and Images.',
+      already_ready: 'Starter Tags are already set up.',
     },
     steps: {
       welcome: {
@@ -872,7 +868,7 @@ const en = {
       },
       library: {
         title: 'Start with useful fields',
-        body: 'We can set up Tags, Rating, and Favorite for Videos and Images right away. The Tags category is parser-enabled: after you add files, MediaChips can create tags from folder and file names and attach them to the media — not only to the tag list.',
+        body: 'We can set up a Tags category for Videos and Images right away. It is parser-enabled: after you add files, MediaChips can create tags from folder and file names and attach them to the media — not only to the tag list. Rating and favorites use the built-in controls on each card.',
       },
       media: {
         title: 'Add your files',

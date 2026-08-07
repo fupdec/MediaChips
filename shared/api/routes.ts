@@ -260,8 +260,8 @@ export function apiRemoveTagFromItem(type: string) {
   return `/api/TagsIn${type}/deleteFrom${type}`
 }
 
-export function apiMediaNumberOfMediaWithTag(mediaTypeId: number | string, tagId: number | string) {
-  return `${API_ROUTES.mediaNumberOfMediaWithTag}?mediaTypeId=${mediaTypeId}&tagId=${tagId}`
+export function apiMediaNumberOfMediaWithTag(tagId: number | string) {
+  return `${API_ROUTES.mediaNumberOfMediaWithTag}?tagId=${tagId}`
 }
 
 export function apiMetaInMediaTypeByMeta(metaId: number | string) {

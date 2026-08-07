@@ -407,7 +407,6 @@ export const ExportMarkClipsRequestSchema = z.object({
 }).passthrough()
 
 export const MediaTagCountQuerySchema = z.object({
-  mediaTypeId: z.coerce.number(),
   tagId: z.coerce.number(),
 })
 

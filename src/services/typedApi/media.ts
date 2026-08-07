@@ -186,8 +186,8 @@ export const mediaApi = {
     }))
   },
 
-  getMediaCountWithTag(mediaTypeId: number, tagId: number) {
-    return apiClient.get(apiMediaNumberOfMediaWithTag(mediaTypeId, tagId)).then((res) => ({
+  getMediaCountWithTag(tagId: number) {
+    return apiClient.get(apiMediaNumberOfMediaWithTag(tagId)).then((res) => ({
       ...res,
       data: validated(parseMediaCountWithTag, res.data),
     }))

@@ -477,6 +477,7 @@ function setupDeckStuckObserver() {
 const {
   isFiltersReady,
   updatePageSetting,
+  flushPageSettings,
   init: runInit,
   loadSavedFilters,
   getFilters,
@@ -758,6 +759,7 @@ onBeforeUnmount(() => {
   teardownDeckStuckObserver()
   clearVisibleItemIds()
   resetVisibilityObserver()
+  void flushPageSettings()
 })
 const itemsGridClasses = computed(() => [
   `item__size-${ITEMS.value.size}`,

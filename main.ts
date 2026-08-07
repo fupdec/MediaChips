@@ -136,6 +136,7 @@ function getShellConfigForRenderer(): Record<string, unknown> {
 }
 
 const serverProcessHandles: ServerProcessHandles = {child: null}
+const startupStartedAt = Date.now()
 
 try {
   startServerProcess({
@@ -148,6 +149,7 @@ try {
       console.error(`MediaChips API server exited unexpectedly (code=${code}, signal=${signal})`)
     },
   })
+  console.log(`[startup] API process spawned (+${Date.now() - startupStartedAt}ms)`)
 } catch (error) {
   console.error('Failed to start MediaChips API server process:', error)
   app.quit()
@@ -159,7 +161,9 @@ const waitForBackendInner = createWaitForBackend({
 })
 
 const waitForBackend = async (port: number, timeoutMs?: number) => {
+  const pingStartedAt = Date.now()
   await waitForBackendInner(port, timeoutMs)
+  console.log(`[startup] /api/ping ok (+${Date.now() - startupStartedAt}ms, wait ${Date.now() - pingStartedAt}ms)`)
   await refreshApiConfigCache()
 }
 
@@ -212,6 +216,7 @@ const loadingWindow = createLoadingWindowController({
 
 const {
   createLoadingWindow,
+  hideLoadingWindow,
   revealMainWindow,
   bindMainWindowLoadedHandler,
 } = loadingWindow
@@ -268,6 +273,7 @@ const appLifecycle = createAppLifecycleController({
   isMinimizeToTrayPreferred: () => shellConfig.minimizeToTray === '1',
   waitForBackend,
   createLoadingWindow,
+  hideLoadingWindow,
   createWindow,
   getMainWindow: () => mainWindow.getWindow(),
   setMinimizeToTray: (enabled) => { appTray.setMinimizeToTray(enabled) },
@@ -279,6 +285,7 @@ const appLifecycle = createAppLifecycleController({
   closeServerListener: () => { stopServerProcess(serverProcessHandles) },
   initAppUpdater: () => initAppUpdater({getWindow: () => mainWindow.getWindow()}),
   getMinimizeToTray: () => appTray.getMinimizeToTray(),
+  logStartup: (message) => { console.log(message) },
 })
 
 registerWindowChromeIpc({
@@ -292,6 +299,7 @@ registerWindowChromeIpc({
     win.focus()
   },
   setWebContentsZoomFactor,
+  beforeRelaunch: () => { stopServerProcess(serverProcessHandles) },
 })
 registerShellIpc({ log: devLog })
 registerMediaDragIpc()

@@ -308,7 +308,6 @@ describe('Media.controller', () => {
 
     const req = {
       query: {
-        mediaTypeId: '2',
         tagId: '8',
       },
     } as unknown as ApiRequest
@@ -316,7 +315,7 @@ describe('Media.controller', () => {
 
     controller.numberOfMediaWithTag(req, res)
 
-    expect(countWithTag).toHaveBeenCalledWith('2', '8')
+    expect(countWithTag).toHaveBeenCalledWith('8')
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({count: 12})
   })

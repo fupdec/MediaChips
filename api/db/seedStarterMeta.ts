@@ -20,21 +20,6 @@ const STARTER_META: StarterMetaField[] = [
     order: 1,
     parser: 1,
   },
-  {
-    type: 'rating',
-    name: 'Rating',
-    icon: 'star-outline',
-    hint: 'Score media from 1 to 5',
-    order: 2,
-    ratingMax: 5,
-  },
-  {
-    type: 'boolean',
-    name: 'Favorite',
-    icon: 'heart-outline',
-    hint: 'Mark media as favorite',
-    order: 3,
-  },
 ]
 
 const STARTER_TAGS = [
@@ -171,9 +156,10 @@ function ensureStarterTagsIfEmpty(sqlite: Database.Database) {
 }
 
 /**
- * Seeds Tags (with path parser), Rating, and Favorite when the meta table is empty.
- * Pins them to Videos and Images and adds a few starter tags. Idempotent for non-empty libraries.
+ * Seeds Tags (with path parser) when the meta table is empty.
+ * Pins to Videos and Images and adds a few starter tags. Idempotent for non-empty libraries.
  * Also backfills starter tags when Tags exists but has none.
+ * Built-in media.rating / media.favorite cover rating and favorites — no duplicate meta fields.
  */
 export function seedStarterMeta(sqlite: Database.Database) {
   const row = sqlite.prepare('SELECT COUNT(*) as count FROM meta').get() as {count: number}

@@ -7,9 +7,7 @@ import {typedApi} from '@/services/typedApi'
 import {
   getCurrentMediaType,
   matchesMediaTypeFilter,
-  getDefaultMediaTypeId,
 } from '@/utils/mediaType'
-import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {
   getReadableBitrate,
   getReadableDuration,
@@ -37,9 +35,6 @@ export function usePresetMeta(props: PresetMetaProps) {
     if (!item) return []
 
     const currentMediaType = getCurrentMediaType(appStore.mediaTypes, ENV.value?.media_type_id)
-    const numberOfMediaLabel = currentMediaType
-      ? getMediaTypeName(currentMediaType, t)
-      : t('settings_labels.appearance.number_of_media')
 
     let params: PresetMetaParam[] = [
       {
@@ -102,8 +97,8 @@ export function usePresetMeta(props: PresetMetaProps) {
       },
       {
         name: 'numberOfMedia',
-        text: numberOfMediaLabel,
-        icon: 'video-outline',
+        text: t('settings_labels.appearance.number_of_media'),
+        icon: 'image-multiple-outline',
         types: ['tag'],
         show: SETTINGS.value.show_default_meta_number_media === '1',
         value: numberOfMedia.value,
@@ -137,11 +132,11 @@ export function usePresetMeta(props: PresetMetaProps) {
   })
 
   const countMediaInTag = (): void => {
-    const mediaTypeId = ENV.value?.media_type_id || getDefaultMediaTypeId(appStore.mediaTypes)
-    if (!mediaTypeId) return
+    const tagId = Number(props.item?.id ?? 0)
+    if (!tagId) return
 
     typedApi
-      .getMediaCountWithTag(mediaTypeId, props.item?.id ?? 0)
+      .getMediaCountWithTag(tagId)
       .then((res) => {
         numberOfMedia.value = res.data.count
       })

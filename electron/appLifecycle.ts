@@ -68,6 +68,7 @@ export function createAppLifecycleController(deps: {
   isMinimizeToTrayPreferred: () => boolean
   waitForBackend: (port: number, timeoutMs?: number) => Promise<void>
   createLoadingWindow: () => void
+  hideLoadingWindow: () => void
   createWindow: () => void
   getMainWindow: () => BrowserWindow | null
   setMinimizeToTray: (enabled: boolean) => void
@@ -79,6 +80,7 @@ export function createAppLifecycleController(deps: {
   closeServerListener: () => void
   initAppUpdater: () => void
   getMinimizeToTray: () => boolean
+  logStartup?: (message: string) => void
 }): AppLifecycleController {
   let quitting = false
 
@@ -146,12 +148,24 @@ export function createAppLifecycleController(deps: {
     })
 
     app.on('ready', async () => {
-      // Wait for the API before any UI chrome. The port-in-use prompt may run first;
-      // showing the splash behind it left a stuck logo with no main window.
-      await deps.waitForBackend(deps.getPort(), 600000)
+      const readyStartedAt = Date.now()
+      const log = deps.logStartup || ((message: string) => console.log(message))
 
+      // Show splash immediately so portable cold starts are not a blank desktop.
+      // Port-in-use prompts still run in the API child; hide splash if startup fails.
       deps.createLoadingWindow()
-      deps.createWindow()
+      log(`[startup] splash shown (+${Date.now() - readyStartedAt}ms)`)
+
+      try {
+        await deps.waitForBackend(deps.getPort(), 600000)
+        log(`[startup] backend ready (+${Date.now() - readyStartedAt}ms)`)
+        deps.createWindow()
+        log(`[startup] main window created (+${Date.now() - readyStartedAt}ms)`)
+      } catch (error) {
+        console.error('Startup failed while waiting for backend:', error)
+        deps.hideLoadingWindow()
+        throw error
+      }
 
       // config.json is the source of truth for the tray preference. Initialize the
       // in-memory flag and create the tray icon before the renderer has loaded.
@@ -181,6 +195,7 @@ export function createAppLifecycleController(deps: {
       if (error.code === 'EADDRINUSE') {
         // Port conflicts are normally handled during server startup with a native
         // port-input dialog. This is only a last-resort safety net.
+        deps.hideLoadingWindow()
         dialog.showErrorBox('Startup Error', formatPortInUseErrorMessage(deps.getPort() || 12321))
         app.quit()
       } else {

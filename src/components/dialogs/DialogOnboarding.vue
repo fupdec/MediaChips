@@ -170,16 +170,6 @@ const starterItems = computed(() => [
     title: t('onboarding.starter.tags_title'),
     subtitle: t('onboarding.starter.tags_subtitle'),
   },
-  {
-    icon: 'mdi-star-outline',
-    title: t('onboarding.starter.rating_title'),
-    subtitle: t('onboarding.starter.rating_subtitle'),
-  },
-  {
-    icon: 'mdi-heart-outline',
-    title: t('onboarding.starter.favorite_title'),
-    subtitle: t('onboarding.starter.favorite_subtitle'),
-  },
 ])
 
 const steps = computed(() => [

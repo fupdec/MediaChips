@@ -400,18 +400,14 @@ export function createMediaRepository(db: DrizzleClient) {
       return this.countPendingContentHash()
     },
 
-    countWithTag(mediaTypeId: unknown, tagId: unknown): number {
-      const typeId = Number(mediaTypeId)
+    countWithTag(tagId: unknown): number {
       const tag = Number(tagId)
       const ids = new Set<number>()
 
       const direct = db.select({id: media.id})
         .from(media)
         .innerJoin(tagsInMedia, eq(tagsInMedia.mediaId, media.id))
-        .where(and(
-          eq(media.mediaTypeId, typeId),
-          eq(tagsInMedia.tagId, tag),
-        ))
+        .where(eq(tagsInMedia.tagId, tag))
         .all()
       for (const row of direct) ids.add(row.id)
 
@@ -427,10 +423,7 @@ export function createMediaRepository(db: DrizzleClient) {
 
         const inherited = db.select({id: media.id})
           .from(media)
-          .where(and(
-            eq(media.mediaTypeId, typeId),
-            or(...patterns.map((pattern) => like(media.path, pattern))),
-          ))
+          .where(or(...patterns.map((pattern) => like(media.path, pattern))))
           .all()
         for (const row of inherited) ids.add(row.id)
       }

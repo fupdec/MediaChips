@@ -11,7 +11,7 @@ export interface EnsureStarterMetaResult {
 }
 
 type StarterField = {
-  key: 'tags' | 'rating' | 'favorite'
+  key: 'tags'
   name: string
   type: string
   icon: string
@@ -30,23 +30,6 @@ const STARTER_FIELDS: StarterField[] = [
       parser: true,
       pageSetting: {page: 1},
     },
-  },
-  {
-    key: 'rating',
-    name: 'Rating',
-    type: 'rating',
-    icon: 'star-outline',
-    hint: 'Score media from 1 to 5',
-    extra: {
-      ratingMax: 5,
-    },
-  },
-  {
-    key: 'favorite',
-    name: 'Favorite',
-    type: 'boolean',
-    icon: 'heart-outline',
-    hint: 'Mark media as favorite',
   },
 ]
 
@@ -67,8 +50,9 @@ function findParserTagsMeta(metas: Meta[]): Meta | undefined {
 }
 
 /**
- * Creates starter Tags (parser), Rating, and Favorite if missing,
- * and pins them to the given media types. Safe to call repeatedly.
+ * Creates starter Tags (parser) if missing and pins them to the given media types.
+ * Rating/Favorite use built-in media columns — not duplicated as meta fields.
+ * Safe to call repeatedly.
  */
 export async function ensureStarterMeta({
   mediaTypeIds,

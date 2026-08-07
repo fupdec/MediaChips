@@ -7,14 +7,18 @@ import {
   type IpcMainInvokeEvent,
 } from 'electron'
 import {emitMainWindowUserFacingState, isBrowserWindowUserFacing} from './windowFocus'
+import {resolveRelaunchExecPath} from './relaunchExecPath'
 
 export {emitMainWindowUserFacingState, isBrowserWindowUserFacing}
+export {resolveRelaunchExecPath}
 
 export function registerWindowChromeIpc(deps: {
   getMainWindow: () => BrowserWindow | null
   getPlayerWindow: () => BrowserWindow | null
   focusMainWindow: () => void
   setWebContentsZoomFactor: (webContents: Electron.WebContents, factor: unknown) => number
+  /** Stop API child / other resources before quit so the relaunched instance can bind the port. */
+  beforeRelaunch?: () => void
 }) {
   ipcMain.handle('setZoomFactor', (event: IpcMainInvokeEvent, factor: unknown) => {
     const browserWindow = BrowserWindow.fromWebContents(event.sender)
@@ -147,8 +151,16 @@ export function registerWindowChromeIpc(deps: {
   })
 
   ipcMain.handle('relaunch', () => {
-    app.relaunch()
-    app.exit()
+    try {
+      deps.beforeRelaunch?.()
+    } catch (error) {
+      console.warn('beforeRelaunch failed:', error)
+    }
+    app.relaunch({
+      execPath: resolveRelaunchExecPath(),
+      args: process.argv.slice(1),
+    })
+    app.quit()
   })
 
   ipcMain.handle('toggleMainFullscreen', () => {

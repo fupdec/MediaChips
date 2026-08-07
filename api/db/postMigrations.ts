@@ -7,7 +7,7 @@ import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from '
 import { ensureSearchFtsIndex } from './searchFts'
 
 export type PostMigrationOptions = {
-  /** When false, skip starter Tags/Rating/Favorite seed (e.g. during LowDB migration). Default true. */
+  /** When false, skip starter Tags seed (e.g. during LowDB migration). Default true. */
   seedDemo?: boolean
 }
 

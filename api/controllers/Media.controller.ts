@@ -262,7 +262,7 @@ export default function (db: ApiDb) {
 
   const numberOfMediaWithTag = function (req: ApiRequest, res: ApiResponse) {
     try {
-      const count = mediaRepo.countWithTag(req.query.mediaTypeId, req.query.tagId)
+      const count = mediaRepo.countWithTag(req.query.tagId)
       sendOk(res, {count})
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")

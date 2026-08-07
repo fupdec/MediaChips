@@ -22,6 +22,7 @@ import { ensureMediaItem, getSegmentStart } from '@/utils/mediaItem'
 import { findFirstPlayableVideo } from '@/utils/findFirstPlayableVideo'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
+import { selectContiguousEntityIds } from '@/utils/itemsSelectionRange'
 
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
@@ -683,50 +684,31 @@ export const useItemsStore = defineStore('items', {
         this.toggleSelectMode()
       }
 
-      const id = item.id;
-      const selection = this.selection;
-      // выделяем предметы при зажатой кнопке shift
+      const id = item.id
+      // Shift+click: set contiguous range from anchor (OS-style), do not toggle members
       if (e && e.shiftKey) {
-        const last = this.selectionAnchor ?? this.selected_last;
-        if (last && selection.length) {
-          const index_last = this.entities.findIndex(i => i.id === last);
-          const index_current = this.entities.findIndex(i => i.id === id);
-
-          if (index_last > -1 && index_current > -1) {
-            let start = index_current;
-            let end = index_last;
-
-            if (index_current > index_last) {
-              start = index_last;
-              end = index_current;
-            }
-
-            const section = this.entities.slice(start, end + 1);
-            const ids = section.map(i => i.id);
-
-            for (const i of ids) {
-              if (selection.includes(i)) {
-                const x = selection.findIndex((j) => j == i);
-                if (x > -1) selection.splice(x, 1);
-              } else {
-                selection.push(i)
-              }
-            }
-          }
-        }
+        const anchor = this.selectionAnchor ?? this.selected_last ?? id
         if (this.selectionAnchor == null) {
-          this.selectionAnchor = this.selected_last ?? id
+          this.selectionAnchor = anchor
         }
-      } else {
-        this.selectionAnchor = id
-        if (selection.includes(id)) {
-          const x = selection.findIndex((i) => i == id);
-          if (x > -1) selection.splice(x, 1);
-        } else selection.push(id);
+
+        this.selection = selectContiguousEntityIds(this.entities, anchor, id)
+        this.selection.sort((a, b) => Number(a) - Number(b))
+        this.selected_last = id
+        return
       }
 
-      selection.sort((a, b) => Number(a) - Number(b));
-      this.selected_last = id;
+      this.selectionAnchor = id
+      const selection = this.selection
+      if (selection.includes(id)) {
+        const x = selection.findIndex((i) => i == id)
+        if (x > -1) selection.splice(x, 1)
+      } else {
+        selection.push(id)
+      }
+
+      selection.sort((a, b) => Number(a) - Number(b))
+      this.selected_last = id
     },
 
     // Добавить фильтр

@@ -44,10 +44,10 @@ export interface PageSettingsRecord extends PageSettingData {
 export interface PageSettingWritePayload {
   data: PageSettingData
   query: {
-    tagId?: number
-    mediaTypeId?: number
-    metaId?: number
-    tabId?: number
+    tagId?: number | null
+    mediaTypeId?: number | null
+    metaId?: number | null
+    tabId?: number | null
   }
 }
 

@@ -352,22 +352,21 @@ describe('validateQuery', () => {
     expect(req.query.limit).toBe(8)
   })
 
-  it('requires media and tag ids for tag count queries', () => {
+  it('requires tag id for tag count queries', () => {
     const middleware = validateQuery(MediaTagCountQuerySchema)
-    const req = { query: { mediaTypeId: '2', tagId: '9' } }
+    const req = { query: { tagId: '9' } }
     const res = createMockResponse()
     const next = vi.fn()
 
     middleware(req as never, res as never, next)
 
     expect(next).toHaveBeenCalledOnce()
-    expect(req.query.mediaTypeId).toBe(2)
     expect(req.query.tagId).toBe(9)
   })
 
   it('returns 400 for invalid query params', () => {
     const middleware = validateQuery(MediaTagCountQuerySchema)
-    const req = { query: { mediaTypeId: 'abc' } }
+    const req = { query: { tagId: 'abc' } }
     const res = createMockResponse()
     const next = vi.fn()
 

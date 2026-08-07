@@ -343,19 +343,26 @@ watch(
     if (activeValue.value === 'none') return
     if (options.some((option) => option.value === activeValue.value)) return
 
-    // Only clear when the active mode is invalid for this page type / media type.
     const active = normalizeItemsGroupBy(itemsStore.groupBy)
-    const stillSupported = options.some((option) => option.groupBy === active)
-    if (!stillSupported) {
-      emitGroupBy('none')
-      return
-    }
 
-    // Pinned meta id went stale — jump to the first available pinned meta.
+    // Pinned meta options appear after assigned meta loads — do not clear early.
     if (active === 'pinnedMeta') {
+      const hasAssigned = Array.isArray(itemsStore.assigned) && itemsStore.assigned.length > 0
+      if (!hasAssigned) return
       const pinned = options.find((option) => option.groupBy === 'pinnedMeta')
       if (pinned?.metaId != null) emitGroupBy('pinnedMeta', pinned.metaId)
       else emitGroupBy('none')
+      return
+    }
+
+    // Only clear base modes that are invalid for this page / media type.
+    const stillSupported = filterGroupByOptions(
+      BASE_GROUP_BY_OPTIONS,
+      itemsStore.type,
+      currentMediaType.value,
+    ).some((option) => option.groupBy === active)
+    if (!stillSupported) {
+      emitGroupBy('none')
     }
   },
 )
