@@ -1,17 +1,16 @@
-import {ffprobe} from '../utils/ffmpeg'
-
-interface FfprobeStream {
-  codec_type?: string
-  codec_name?: string
-  width?: number
-  height?: number
-  nb_frames?: number
-}
+import {ffprobe, resolveFfprobeDuration} from '../utils/ffmpeg'
+import {
+  estimateBitrate,
+  isUsableDuration,
+  resolveStreamFps,
+  type FfprobeStream,
+} from '../utils/ffprobeMath'
 
 interface FfprobeInfo {
   format: {
     duration: number
-    bit_rate: number
+    bit_rate?: number
+    size?: number
   }
   streams: FfprobeStream[]
 }
@@ -35,11 +34,17 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise
 export async function probeVideoMetadata(pathToFile: string): Promise<VideoMetadataProbeResult | false> {
   try {
     const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
-    if (info.format.duration < 1) {
+    const resolvedDuration = await withTimeout(
+      resolveFfprobeDuration(pathToFile, info.format.duration),
+      60000,
+      'ffprobe duration',
+    )
+
+    if (!isUsableDuration(resolvedDuration)) {
       throw new Error('duration less than 1 sec.')
     }
 
-    const duration = Math.floor(info.format.duration)
+    const duration = Math.floor(resolvedDuration)
 
     let width: number | undefined
     let height: number | undefined
@@ -48,16 +53,22 @@ export async function probeVideoMetadata(pathToFile: string): Promise<VideoMetad
 
     for (const stream of info.streams) {
       if (stream.codec_type !== 'video') continue
-      width = stream.width
-      height = stream.height
+      const streamWidth = Number(stream.width)
+      const streamHeight = Number(stream.height)
+      width = Number.isFinite(streamWidth) && streamWidth > 0 ? streamWidth : undefined
+      height = Number.isFinite(streamHeight) && streamHeight > 0 ? streamHeight : undefined
       codec = stream.codec_name
-      fps = Math.ceil((stream.nb_frames ?? 0) / info.format.duration)
+      fps = resolveStreamFps(stream, resolvedDuration)
       break
     }
 
+    const bitrate = Number.isFinite(Number(info.format.bit_rate)) && Number(info.format.bit_rate) > 0
+      ? Number(info.format.bit_rate)
+      : estimateBitrate(info.format.size, resolvedDuration) ?? 0
+
     return {
       duration,
-      bitrate: info.format.bit_rate,
+      bitrate,
       width,
       height,
       codec,

@@ -91,11 +91,39 @@ function dedupeDefaultMediaTypes(sqlite: Database.Database) {
   `)
 }
 
+/** One-shot: stop showing filesize/views/media-count chips on cards by default. */
+function hideDefaultMetaChipsOnCards(sqlite: Database.Database) {
+  const flag = 'migration.hide_card_default_meta_v1'
+  const existing = sqlite.prepare(
+    'SELECT 1 AS ok FROM settings WHERE option = ? LIMIT 1',
+  ).get(flag) as {ok: number} | undefined
+  if (existing) return
+
+  const update = sqlite.prepare(`
+    UPDATE settings
+    SET value = '0', updatedAt = CURRENT_TIMESTAMP
+    WHERE option = ?
+  `)
+  for (const option of [
+    'show_default_meta_filesize',
+    'show_default_meta_number_media',
+    'show_default_meta_number_views',
+  ]) {
+    update.run(option)
+  }
+
+  sqlite.prepare(`
+    INSERT INTO settings (option, value, createdAt, updatedAt)
+    VALUES (?, '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(flag)
+}
+
 export function runLegacyUpgrades(sqlite: Database.Database) {
   backfillMediaNames(sqlite)
   upgradeImageMediaType(sqlite)
   copyVideoMetaAssignmentsToImage(sqlite)
   dedupeDefaultMediaTypes(sqlite)
+  hideDefaultMetaChipsOnCards(sqlite)
   const renamed = renameDuplicateTagNames(sqlite)
   if (renamed > 0) {
     console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed ${renamed} duplicate tag name(s) for global uniqueness`)

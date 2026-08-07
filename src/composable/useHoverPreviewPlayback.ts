@@ -26,6 +26,7 @@ import {
   resolveHoverPreviewAfterMountGate,
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
+  resolveHoverPreviewSeekMissGate,
   shouldAttemptHoverLiveFallback,
   shouldScheduleHoverPreviewVideo,
   resolveHoverPreviewScheduleDelay,
@@ -514,7 +515,12 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
           return
         }
         if (!isHoverPreviewOnTargetFrame(video.currentTime, seekTarget)) {
-          // Still wrong after the seek budget — keep the thumb, don't flash junk.
+          // Seek budget exhausted (common on pathological MP4 layouts).
+          if (resolveHoverPreviewSeekMissGate({
+            tokenMatches: token === previewPlaybackToken,
+          }) === 'unavailable') {
+            markPreviewUnavailable()
+          }
           return
         }
       }
@@ -531,6 +537,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         return
       }
       if (!isHoverPreviewOnTargetFrame(video.currentTime, seekTarget)) {
+        if (resolveHoverPreviewSeekMissGate({
+          tokenMatches: token === previewPlaybackToken,
+        }) === 'unavailable') {
+          markPreviewUnavailable()
+        }
         return
       }
 

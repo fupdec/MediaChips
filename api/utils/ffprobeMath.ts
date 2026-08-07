@@ -4,6 +4,8 @@ export interface FfprobeStream {
   width?: number | string
   height?: number | string
   nb_frames?: number | string
+  avg_frame_rate?: string
+  r_frame_rate?: string
   [key: string]: unknown
 }
 
@@ -11,16 +13,31 @@ export interface FfprobePayload {
   format?: {
     duration?: number | string
     bit_rate?: number | string
+    size?: number | string
     [key: string]: unknown
   }
   streams?: FfprobeStream[]
 }
 
 export function normalizeFfprobePayload(data: FfprobePayload) {
+  const rawDuration = data.format?.duration
+  const parsedDuration = rawDuration == null || rawDuration === ''
+    ? 0
+    : Number(rawDuration)
+  const rawBitRate = data.format?.bit_rate
+  const parsedBitRate = rawBitRate == null || rawBitRate === ''
+    ? undefined
+    : Number(rawBitRate)
+  const rawSize = data.format?.size
+  const parsedSize = rawSize == null || rawSize === ''
+    ? undefined
+    : Number(rawSize)
+
   const format = {
     ...(data.format || {}),
-    duration: Number(data.format?.duration || 0),
-    bit_rate: data.format?.bit_rate,
+    duration: Number.isFinite(parsedDuration) ? parsedDuration : 0,
+    bit_rate: Number.isFinite(parsedBitRate as number) ? parsedBitRate : undefined,
+    size: Number.isFinite(parsedSize as number) ? parsedSize : undefined,
   }
 
   const streams = (data.streams || []).map((stream) => ({
@@ -31,6 +48,87 @@ export function normalizeFfprobePayload(data: FfprobePayload) {
   }))
 
   return {format, streams}
+}
+
+/** Parse ffprobe `avg_frame_rate` / `r_frame_rate` (`30/1`, `1000/33`). */
+export function parseFrameRate(rate: unknown): number | undefined {
+  if (rate == null || rate === '') return undefined
+  if (typeof rate === 'number') {
+    return Number.isFinite(rate) && rate > 0 ? rate : undefined
+  }
+
+  const text = String(rate).trim()
+  const fraction = text.match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/)
+  if (fraction) {
+    const numerator = Number(fraction[1])
+    const denominator = Number(fraction[2])
+    if (denominator > 0 && numerator > 0 && Number.isFinite(numerator / denominator)) {
+      return numerator / denominator
+    }
+    return undefined
+  }
+
+  const value = Number(text)
+  return Number.isFinite(value) && value > 0 ? value : undefined
+}
+
+export function resolveStreamFps(
+  stream: FfprobeStream | undefined,
+  durationSeconds?: number,
+): number | undefined {
+  if (!stream) return undefined
+
+  const fromRate = parseFrameRate(stream.avg_frame_rate) ?? parseFrameRate(stream.r_frame_rate)
+  if (fromRate != null) {
+    return Math.ceil(fromRate)
+  }
+
+  const frames = stream.nb_frames != null ? Number(stream.nb_frames) : NaN
+  const duration = Number(durationSeconds)
+  if (Number.isFinite(frames) && frames > 0 && Number.isFinite(duration) && duration > 0) {
+    return Math.ceil(frames / duration)
+  }
+
+  return undefined
+}
+
+/** Last finite pts_time from ffprobe csv (`p=0`) packet output. */
+export function pickLastPtsFromCsv(stdout: string): number | null {
+  let best: number | null = null
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const pts = Number(trimmed.split(',')[0])
+    if (!Number.isFinite(pts) || pts < 0) continue
+    if (best == null || pts > best) best = pts
+  }
+  return best
+}
+
+export function isUsableDuration(duration: unknown): duration is number {
+  return typeof duration === 'number' && Number.isFinite(duration) && duration >= 1
+}
+
+/** Prefer container duration; fall back to packet PTS (Chrome WebM often omits duration). */
+export function resolveDurationSeconds(
+  formatDuration: unknown,
+  packetPts: number | null | undefined,
+): number | null {
+  if (isUsableDuration(Number(formatDuration))) {
+    return Number(formatDuration)
+  }
+  if (packetPts != null && isUsableDuration(packetPts)) {
+    return packetPts
+  }
+  return null
+}
+
+export function estimateBitrate(sizeBytes: unknown, durationSeconds: number): number | undefined {
+  const size = Number(sizeBytes)
+  if (!Number.isFinite(size) || size <= 0 || !isUsableDuration(durationSeconds)) {
+    return undefined
+  }
+  return Math.round((size * 8) / durationSeconds)
 }
 
 export function getVideoStreamDimensions(

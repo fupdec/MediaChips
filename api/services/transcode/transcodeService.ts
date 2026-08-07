@@ -133,37 +133,25 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
 
     const duration = Number(probe.format?.duration || 0)
     const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
-    const result: PlayabilityResult = {
-      playable: analyzed.playable,
-      reason: analyzed.reason,
-      videoCodec: analyzed.videoCodec ?? null,
-      audioCodec: analyzed.audioCodec ?? null,
-      duration,
-      needsRemux: false,
-    }
-    setPlayabilityCacheEntry(cacheKey, result)
+    let needsRemux = false
+    let reason = analyzed.reason
 
     const mayNeedRemux = Boolean(analyzed.playable && !audioOnly
       && (extension === '.mp4' || extension === '.m4v'))
-    if (mayNeedRemux) {
-      // Defer the sync 8MB layout scan past the current response. setImmediate
-      // yields the event loop so piped video bytes are not stuck behind NAS I/O.
-      setImmediate(() => {
-        try {
-          if (!needsBrowserRemuxForMp4(filePath)) return
-          const cached = playabilityCache.get(cacheKey)
-          if (!cached || cached.needsRemux) return
-          setPlayabilityCacheEntry(cacheKey, {
-            ...cached,
-            needsRemux: true,
-            reason: 'container_layout',
-          })
-        } catch {
-          // ignore layout scan failures
-        }
-      })
+    if (mayNeedRemux && needsBrowserRemuxForMp4(filePath)) {
+      needsRemux = true
+      reason = 'container_layout'
     }
 
+    const result: PlayabilityResult = {
+      playable: analyzed.playable,
+      reason,
+      videoCodec: analyzed.videoCodec ?? null,
+      audioCodec: analyzed.audioCodec ?? null,
+      duration,
+      needsRemux,
+    }
+    setPlayabilityCacheEntry(cacheKey, result)
     return result
   }
 
@@ -188,10 +176,9 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     }
 
     const playability = await analyzePlayability(filePath)
-    // Codec-compatible MP4s with bad layout stay on direct first; clients may
-    // fall back to live re-encode on Chromium stall (never remux-copy — black frame).
+    // Pathological MP4 layouts use live re-encode when transcoding is enabled.
     // Progressive remux is scheduled only when a stream is actually opened
-    // (resolveStreamPath / streamLive) so hover/playable checks cannot fill the
+    // (resolveStreamPath / streamLive) so /playable checks cannot fill the
     // remux queue and contend with live playback.
     return resolvePlaybackPlanFromPlayability({playability, transcodeEnabled})
   }

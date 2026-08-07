@@ -38,6 +38,18 @@ export const PREVIEW_SEEK_EPSILON = 0.12
  * /Volumes before the first frame arrives; live fallback then thrash-encodes.
  */
 export const HOVER_PREVIEW_DIRECT_CANPLAY_MS = 8_000
+
+/**
+ * After the seek budget, currentTime still misses the scrub point.
+ * Show the unavailable notice — live FFmpeg stays for the cinema player.
+ */
+export type HoverPreviewSeekMissGate = 'unavailable' | 'abort'
+
+export function resolveHoverPreviewSeekMissGate(input: {
+  tokenMatches: boolean
+}): HoverPreviewSeekMissGate {
+  return input.tokenMatches ? 'unavailable' : 'abort'
+}
 /** Live FFmpeg warm-up window for hover previews. */
 export const HOVER_PREVIEW_LIVE_CANPLAY_MS = 45_000
 /** Cap live hover encode height — full player quality is wasted on a card. */
@@ -428,9 +440,9 @@ export type HoverPreviewSourcePlan =
   | {kind: 'unavailable'}
 
 /**
- * Hover preview source: browser-safe codecs always try direct first (including
- * container_layout). Codec-incompatible formats show the unavailable notice on
- * the thumb — live FFmpeg stays for the cinema player / direct-fail fallback.
+ * Hover preview source: try direct only for browser-safe files that do not need
+ * remux. Pathological MP4 layouts and codec-incompatible formats show the
+ * unavailable notice — live FFmpeg is for the cinema player only.
  */
 export function resolveHoverPreviewSourcePlan(input: {
   mode?: string | null
@@ -444,9 +456,9 @@ export function resolveHoverPreviewSourcePlan(input: {
 
   const isLayout = input.reason === 'container_layout'
     || input.playability?.needsRemux === true
-  const codecsBrowserSafe = input.playability?.playable === true || isLayout
+  if (isLayout) return {kind: 'unavailable'}
 
-  if (input.mode === 'direct' || codecsBrowserSafe) {
+  if (input.mode === 'direct' || input.playability?.playable === true) {
     return {
       kind: 'direct',
       streamMode: input.mode === 'direct' ? 'auto' : 'direct',
@@ -457,13 +469,13 @@ export function resolveHoverPreviewSourcePlan(input: {
   return {kind: 'unavailable'}
 }
 
-/** After direct hover fails, try one live FFmpeg stream before the unavailable notice. */
-export function shouldAttemptHoverLiveFallback(input: {
+/** Hover cards never live-transcode; failures show the unavailable notice. */
+export function shouldAttemptHoverLiveFallback(_input: {
   alreadyLive: boolean
   fallbackAttempted: boolean
   transcodeEnabled: boolean
 }): boolean {
-  return !input.alreadyLive && !input.fallbackAttempted && input.transcodeEnabled
+  return false
 }
 
 export type PreviewUrlSeekPlan =

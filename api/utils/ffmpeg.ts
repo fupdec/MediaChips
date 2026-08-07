@@ -7,9 +7,11 @@ import {
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
 import {
   acceptKeyframeHit,
+  isUsableDuration,
   normalizeFfprobePayload,
   pickBestKeyframeFromPackets,
   pickBestKeyframePts,
+  pickLastPtsFromCsv,
   resolveThumbnailSeekSeconds,
   type FfprobePayload,
 } from './ffprobeMath'
@@ -58,6 +60,55 @@ async function ffprobe(filePath: string) {
 
     return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
   })
+}
+
+/**
+ * Chrome/WebM (and some live recordings) often omit format.duration.
+ * Seek near EOF by file percentage and read the last packet pts_time.
+ */
+async function ffprobeDurationFromPackets(filePath: string): Promise<number | null> {
+  return runWithFfprobeLimit(async () => {
+    const readLastPts = async (streamSpec: string) => {
+      const {stdout} = await runProcess(getFfprobePath(), [
+        '-v',
+        'error',
+        '-select_streams',
+        streamSpec,
+        '-show_entries',
+        'packet=pts_time',
+        '-of',
+        'csv=p=0',
+        '-read_intervals',
+        '99%',
+        filePath,
+      ])
+      return pickLastPtsFromCsv(stdout)
+    }
+
+    try {
+      const videoPts = await readLastPts('v:0')
+      if (videoPts != null) return videoPts
+    } catch {
+      // Fall through to audio packets.
+    }
+
+    try {
+      return await readLastPts('a:0')
+    } catch {
+      return null
+    }
+  })
+}
+
+/** Container duration when present; otherwise last packet PTS near EOF. */
+async function resolveFfprobeDuration(
+  filePath: string,
+  formatDuration?: number | null,
+): Promise<number | null> {
+  if (isUsableDuration(Number(formatDuration))) {
+    return Number(formatDuration)
+  }
+  return ffprobeDurationFromPackets(filePath)
 }
 
 /**
@@ -207,7 +258,8 @@ async function extractVideoThumbnail({
 
   try {
     const {format} = await ffprobe(input)
-    seekSeconds = resolveThumbnailSeekSeconds(format.duration, seekRatio)
+    const duration = await resolveFfprobeDuration(input, format.duration)
+    seekSeconds = resolveThumbnailSeekSeconds(duration, seekRatio)
   } catch {
     // Skip the common all-black first frame when metadata is unavailable.
   }
@@ -383,6 +435,8 @@ async function concatVideoSegments({
 export {
   ffprobe,
   ffprobePlayability,
+  ffprobeDurationFromPackets,
+  resolveFfprobeDuration,
   findPreviousKeyframeTime,
   runFfmpeg,
   runFfmpegBackground,

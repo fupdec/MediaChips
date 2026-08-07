@@ -23,6 +23,7 @@ import {
   resolveHoverPreviewAfterMountGate,
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
+  resolveHoverPreviewSeekMissGate,
   resolveHoverPreviewSourcePlan,
   resolveHoverLiveMaxHeight,
   HOVER_PREVIEW_DIRECT_CANPLAY_MS,
@@ -309,6 +310,9 @@ describe('hoverPreviewPlayback', () => {
       tokenMatches: true,
       ignorable: false,
     })).toBe('unavailable')
+
+    expect(resolveHoverPreviewSeekMissGate({tokenMatches: true})).toBe('unavailable')
+    expect(resolveHoverPreviewSeekMissGate({tokenMatches: false})).toBe('abort')
   })
 
   it('gates hover-ready marking', () => {
@@ -491,13 +495,13 @@ describe('hoverPreviewPlayback', () => {
     })
   })
 
-  it('plans hover preview source: direct first, notice for hard incompat', () => {
+  it('plans hover preview source: notice for layout and hard incompat', () => {
     expect(resolveHoverPreviewSourcePlan({
       mode: 'direct',
       reason: 'container_layout',
       playability: {playable: true, needsRemux: true},
       transcodeEnabled: true,
-    })).toEqual({kind: 'direct', streamMode: 'auto'})
+    })).toEqual({kind: 'unavailable'})
 
     expect(resolveHoverPreviewSourcePlan({
       mode: 'stream',
@@ -506,7 +510,13 @@ describe('hoverPreviewPlayback', () => {
       reason: 'container_layout',
       playability: {playable: true, needsRemux: true},
       transcodeEnabled: true,
-    })).toEqual({kind: 'direct', streamMode: 'direct'})
+    })).toEqual({kind: 'unavailable'})
+
+    expect(resolveHoverPreviewSourcePlan({
+      mode: 'direct',
+      playability: {playable: true, needsRemux: false},
+      transcodeEnabled: true,
+    })).toEqual({kind: 'direct', streamMode: 'auto'})
 
     expect(resolveHoverPreviewSourcePlan({
       mode: 'stream',
@@ -531,20 +541,10 @@ describe('hoverPreviewPlayback', () => {
     })).toEqual({kind: 'unavailable'})
   })
 
-  it('allows one hover live fallback after direct fails', () => {
+  it('never live-transcodes on hover cards', () => {
     expect(shouldAttemptHoverLiveFallback({
       alreadyLive: false,
       fallbackAttempted: false,
-      transcodeEnabled: true,
-    })).toBe(true)
-    expect(shouldAttemptHoverLiveFallback({
-      alreadyLive: true,
-      fallbackAttempted: false,
-      transcodeEnabled: true,
-    })).toBe(false)
-    expect(shouldAttemptHoverLiveFallback({
-      alreadyLive: false,
-      fallbackAttempted: true,
       transcodeEnabled: true,
     })).toBe(false)
     expect(shouldAttemptHoverLiveFallback({

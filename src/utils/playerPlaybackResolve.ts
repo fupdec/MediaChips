@@ -83,13 +83,15 @@ export function shouldPreferDirectPlayback(input: {
   transcodeRequired: boolean
   forceDirectPlayback: boolean
   liveTranscodeDisabled: boolean
-  /** Stale APIs may still mark container_layout as transcodeRequired — try direct first. */
   reason?: string | null
+  needsRemux?: boolean
+  /** When false, pathological layouts must stay on direct bytes. */
+  transcodeEnabled?: boolean
 }): boolean {
-  if (input.reason === 'container_layout') return true
+  if (input.forceDirectPlayback || input.liveTranscodeDisabled) return true
+  const isLayout = input.reason === 'container_layout' || input.needsRemux === true
+  if (isLayout) return input.transcodeEnabled === false
   return !input.transcodeRequired
-    || input.forceDirectPlayback
-    || input.liveTranscodeDisabled
 }
 
 /**
@@ -368,9 +370,9 @@ export function resolveVideoSourcePlan(input: {
   if (input.playableMode === 'unsupported') return {kind: 'unsupported'}
 
   const streamStart = Math.max(0, Number(input.startTime) || 0)
-  const layoutDirectFirst = input.reason === 'container_layout' || input.needsRemux === true
+  const isLayout = input.reason === 'container_layout' || input.needsRemux === true
   const liveTranscodeOfferable = resolveLiveTranscodeOfferable({
-    transcodeRequired: Boolean(input.transcodeRequired),
+    transcodeRequired: Boolean(input.transcodeRequired) || isLayout,
     transcodeUnsupportedFormatsEnabled: input.transcodeUnsupportedFormatsEnabled,
     playableMode: input.playableMode,
     reason: input.reason,
@@ -378,13 +380,15 @@ export function resolveVideoSourcePlan(input: {
   })
 
   if (shouldPreferDirectPlayback({
-    transcodeRequired: Boolean(input.transcodeRequired),
+    transcodeRequired: Boolean(input.transcodeRequired) || isLayout,
     forceDirectPlayback: input.forceDirectPlayback,
     liveTranscodeDisabled: input.liveTranscodeDisabled,
     reason: input.reason,
+    needsRemux: input.needsRemux,
+    transcodeEnabled: input.transcodeUnsupportedFormatsEnabled,
   })) {
-    // container_layout: try Chromium-direct without locking out live fallback.
-    const lockForcedDirect = Boolean(input.transcodeRequired) && !layoutDirectFirst
+    const lockForcedDirect = Boolean(input.transcodeRequired || isLayout)
+      && (input.forceDirectPlayback || input.liveTranscodeDisabled)
     return {
       kind: 'direct',
       streamMode: lockForcedDirect ? 'direct' : 'auto',

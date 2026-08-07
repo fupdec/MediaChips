@@ -41,7 +41,9 @@ import {
   buildBulkPathUpdatePatch,
   normalizeBulkPathUpdateInputs,
 } from '../../services/mediaBulkPathUpdate'
-import { ffprobe } from '../../utils/ffmpeg'
+import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
+import { isUsableDuration } from '../../utils/ffprobeMath'
+import { probeVideoMetadata } from '../../services/videoMetadataProbe'
 
 export default function createTasksMediaController(shared: TaskControllerShared) {
   const {
@@ -292,47 +294,21 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   }
 
   // ffprobe concurrency is enforced inside api/utils/ffmpeg.
-  const getVideoMetadata = async (pathToFile: string) => {
-    try {
-      const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
-      if (info.format.duration < 1) {
-        throw new Error('duration less than 1 sec.')
-      }
-
-      const duration = Math.floor(info.format.duration)
-
-      let width, height, codec, fps
-      for (const stream of info.streams) {
-        if (stream.codec_type !== 'video') continue
-        width = stream.width
-        height = stream.height
-        codec = stream.codec_name
-        fps = Math.ceil((stream.nb_frames ?? 0) / info.format.duration)
-        break
-      }
-
-      return {
-        duration: duration,
-        bitrate: info.format.bit_rate,
-        width,
-        height,
-        codec,
-        fps,
-      }
-    } catch (error) {
-      console.error(error)
-      return false
-    }
-  }
+  const getVideoMetadata = (pathToFile: string) => probeVideoMetadata(pathToFile)
 
   const getAudioMetadata = async (pathToFile: string) => {
     try {
       const info = await withTimeout(ffprobe(pathToFile), 60000, 'ffprobe') as FfprobeInfo
-      if (!info?.format?.duration || info.format.duration < 1) {
+      const resolvedDuration = await withTimeout(
+        resolveFfprobeDuration(pathToFile, info.format?.duration),
+        60000,
+        'ffprobe duration',
+      )
+      if (!isUsableDuration(resolvedDuration)) {
         throw new Error('duration less than 1 sec.')
       }
 
-      const duration = Math.floor(info.format.duration)
+      const duration = Math.floor(resolvedDuration)
 
       let codec
       for (const stream of info.streams) {
