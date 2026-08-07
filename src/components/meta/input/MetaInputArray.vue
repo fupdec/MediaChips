@@ -45,7 +45,7 @@
         closable
         close-icon="mdi-close"
         :class="[
-          purpose === 'filter' ? 'ma-0 filter-form-chip' : 'ma-1',
+          purpose === 'filter' ? 'ma-0 filter-form-chip' : 'editing-tag-chip',
           chipClassFor(item.raw),
         ]"
         :size="purpose === 'filter' ? 'x-small' : 'small'"
@@ -55,7 +55,7 @@
       <v-chip
         v-else
         @click:close="removeTag(item.value)"
-        :class="purpose === 'filter' ? 'ma-0 filter-form-chip' : 'ma-1'"
+        :class="purpose === 'filter' ? 'ma-0 filter-form-chip' : 'editing-tag-chip'"
         closable
         close-icon="mdi-close"
         :size="purpose === 'filter' ? 'x-small' : 'small'"
@@ -119,14 +119,27 @@
     </template>
 
     <template v-if="purpose != 'filter' && purpose != 'bulk' && showIcons" v-slot:prepend>
-      <v-menu location="top" close-on-click>
-        <template v-slot:activator="{ props }">
-          <v-btn v-bind="props" icon variant="plain" density="compact">
-            <v-icon>mdi-{{ meta.icon }}</v-icon>
+      <v-icon>mdi-{{ meta.icon }}</v-icon>
+    </template>
+
+    <template v-if="showSortButton" #append-inner>
+      <v-menu location="bottom end" :close-on-content-click="false">
+        <template #activator="{ props: menuProps }">
+          <v-btn
+            v-bind="menuProps"
+            class="meta-input-array__sort-btn"
+            icon
+            variant="text"
+            density="compact"
+            size="small"
+            v-tooltip:top="t('meta.sorting.sort_tags_by')"
+            @click.stop
+          >
+            <v-icon size="18">mdi-sort</v-icon>
           </v-btn>
         </template>
 
-        <v-list density="compact">
+        <v-list density="compact" min-width="220">
           <v-list-subheader>{{ t('meta.sorting.sort_direction') }}</v-list-subheader>
           <v-list-item @click="changeSortDir">
             <v-list-item-title>
@@ -142,7 +155,6 @@
           </v-list-item>
 
           <v-list-subheader>{{ t('meta.sorting.sort_tags_by') }}</v-list-subheader>
-
           <v-list-item
             v-for="s in sortBy"
             :key="s.value"
@@ -154,6 +166,17 @@
             <v-list-item-title>
               <v-icon start>mdi-{{ s.icon }}</v-icon>
               {{ s.title }}
+            </v-list-item-title>
+          </v-list-item>
+
+          <v-divider class="my-1"/>
+          <v-list-item
+            :disabled="selectedCount < 2"
+            @click="sortSelectedTags"
+          >
+            <v-list-item-title>
+              <v-icon start>mdi-sort-alphabetical-ascending</v-icon>
+              {{ t('meta.sorting.sort_selected') }}
             </v-list-item-title>
           </v-list-item>
         </v-list>
@@ -257,6 +280,12 @@ const sortBy = computed(() => [
 const showIcons = computed(() =>
   settingsStore.showIconsOfMetaInEditingDialog === '1'
 )
+
+const showSortButton = computed(() =>
+  props.purpose !== 'filter' && props.purpose !== 'bulk',
+)
+
+const selectedCount = computed(() => normalizeIds(val.value).length)
 
 const chipVariant = computed(() =>
   (meta.value?.chipVariant || 'flat') as 'text' | 'flat' | 'elevated' | 'outlined' | 'plain' | 'tonal'
@@ -511,6 +540,38 @@ const sortTags = (tags: TagListItem[]) => {
   return orderBy(sorted, [sortByParam], [sortDir])
 }
 
+const resolveSelectedTag = (tagId: number): TagListItem => {
+  const fromList = listTags.value.find((tag) => Number(tag.id) === tagId)
+  if (fromList) return fromList
+
+  const storeTag = appStore.getTagById(tagId)
+  if (storeTag) {
+    return {
+      id: tagId,
+      name: storeTag.name || String(tagId),
+      favorite: Number(storeTag.favorite) || 0,
+      color: storeTag.color,
+      synonyms: storeTag.synonyms,
+      createdAt: storeTag.createdAt,
+      updatedAt: storeTag.updatedAt,
+    } as TagListItem
+  }
+
+  return {
+    id: tagId,
+    name: String(tagId),
+    favorite: 0,
+  } as TagListItem
+}
+
+const sortSelectedTags = () => {
+  const ids = normalizeIds(val.value)
+  if (ids.length < 2) return
+
+  const sorted = sortTags(ids.map((id) => resolveSelectedTag(id)))
+  setVal(sorted.map((tag) => Number(tag.id)))
+}
+
 const create = async () => {
   if (!search.value) return
 
@@ -710,6 +771,10 @@ watch(search, (query) => {
   display: flex;
   align-items: center;
   width: 100%;
+}
+
+.meta-input-array__sort-btn {
+  margin-inline-end: 2px;
 }
 
 .synonyms {

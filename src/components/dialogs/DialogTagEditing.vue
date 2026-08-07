@@ -14,10 +14,11 @@
         :subheader-copy-text="tag?.name"
         :buttons="buttons"
         icon="pencil"
+        compact
         closable
       />
 
-      <v-card-text class="pa-2 pa-sm-4">
+      <v-card-text class="edit-dialog-card__body">
         <EditPinnedMetaValues
           v-if="tag && meta"
           :key="`${tag.id}-${editReloadKey}`"

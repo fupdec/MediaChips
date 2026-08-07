@@ -1,9 +1,8 @@
 <template>
   <div class="edit-dialog-media-panel">
     <v-card
-      variant="elevated"
+      variant="flat"
       rounded="lg"
-      elevation="3"
       class="edit-dialog-media-panel__card"
       :class="{'edit-dialog-media-panel__card--video': isVideoPanel}"
     >
@@ -19,41 +18,45 @@
             @update-big-preview="$emit('update-big-preview', $event)"
           />
         </div>
-        <div class="edit-dialog-media-panel__thumb-actions">
-          <div class="text-medium-emphasis text-caption px-1">{{ t('image.thumbnail') }}</div>
-          <DialogImageEditing
-            v-if="imageSrc"
-            detached
-            activator-class="edit-dialog-media-panel__thumb-btn"
-            :image="imageSrc"
-            :options="cropperOptions"
-            :image-path="imagePath ?? undefined"
-            :min-width="minWidth"
-            :min-height="mediaMinHeight"
-            @edited="$emit('edited', $event)"
-          />
-          <v-btn
-            size="small"
-            variant="flat"
-            color="primary"
-            rounded="xl"
-            prepend-icon="mdi-dice-5-outline"
-            :text="t('image.create_thumb_random')"
-            :loading="isCreatingThumb === 'random'"
-            :disabled="!canCreateThumb || isCreatingThumb != null"
-            @click="createVideoThumb('random')"
-          />
-          <v-btn
-            size="small"
-            variant="flat"
-            color="primary"
-            rounded="xl"
-            prepend-icon="mdi-image-frame"
-            :text="t('image.create_thumb_default')"
-            :loading="isCreatingThumb === 'default'"
-            :disabled="!canCreateThumb || isCreatingThumb != null"
-            @click="createVideoThumb('default')"
-          />
+        <div class="edit-dialog-media-panel__toolbar">
+          <span class="edit-dialog-media-panel__toolbar-label">{{ t('image.thumbnail') }}</span>
+          <div class="edit-dialog-media-panel__toolbar-actions">
+            <DialogImageEditing
+              v-if="imageSrc"
+              detached
+              compact
+              :image="imageSrc"
+              :options="cropperOptions"
+              :image-path="imagePath ?? undefined"
+              :min-width="minWidth"
+              :min-height="mediaMinHeight"
+              @edited="$emit('edited', $event)"
+            />
+            <v-btn
+              size="small"
+              variant="tonal"
+              color="primary"
+              icon
+              v-tooltip:top="t('image.create_thumb_random')"
+              :loading="isCreatingThumb === 'random'"
+              :disabled="!canCreateThumb || isCreatingThumb != null"
+              @click="createVideoThumb('random')"
+            >
+              <v-icon size="18">mdi-dice-5-outline</v-icon>
+            </v-btn>
+            <v-btn
+              size="small"
+              variant="tonal"
+              color="primary"
+              icon
+              v-tooltip:top="t('image.create_thumb_default')"
+              :loading="isCreatingThumb === 'default'"
+              :disabled="!canCreateThumb || isCreatingThumb != null"
+              @click="createVideoThumb('default')"
+            >
+              <v-icon size="18">mdi-image-frame</v-icon>
+            </v-btn>
+          </div>
         </div>
       </template>
 
@@ -64,9 +67,14 @@
             cover
             position="top center"
             class="edit-dialog-media-panel__image"
-          >
+          />
+        </div>
+        <div v-if="imageSrc" class="edit-dialog-media-panel__toolbar">
+          <span class="edit-dialog-media-panel__toolbar-label">{{ t('image.thumbnail') }}</span>
+          <div class="edit-dialog-media-panel__toolbar-actions">
             <DialogImageEditing
-              v-if="imageSrc"
+              detached
+              compact
               :image="imageSrc"
               :options="cropperOptions"
               :image-path="imagePath ?? undefined"
@@ -74,7 +82,7 @@
               :min-height="mediaMinHeight"
               @edited="$emit('edited', $event)"
             />
-          </v-img>
+          </div>
         </div>
       </template>
 
@@ -99,33 +107,34 @@
             <v-icon size="48" color="grey">mdi-image-off-outline</v-icon>
           </v-sheet>
         </div>
-
-        <div class="edit-dialog-media-panel__thumb-actions">
-          <DialogImageEditing
-            v-if="currentImage"
-            detached
-            activator-class="edit-dialog-media-panel__thumb-btn"
-            :image="currentImage.src || ''"
-            :options="tagCropperOptions"
-            :image-path="currentImage.path"
-            :min-width="currentImage.width"
-            :min-height="currentImage.height"
-            @edited="$emit('edited', $event)"
-          />
+        <div v-if="currentImage" class="edit-dialog-media-panel__toolbar">
+          <span class="edit-dialog-media-panel__toolbar-label">{{ t('image.thumbnail') }}</span>
+          <div class="edit-dialog-media-panel__toolbar-actions">
+            <DialogImageEditing
+              detached
+              compact
+              :image="currentImage.src || ''"
+              :options="tagCropperOptions"
+              :image-path="currentImage.path"
+              :min-width="currentImage.width"
+              :min-height="currentImage.height"
+              @edited="$emit('edited', $event)"
+            />
+          </div>
         </div>
 
         <div v-if="images.length > 1" class="edit-dialog-media-panel__thumbs">
-          <v-btn
+          <button
             v-for="(item, index) in images"
             :key="item.key || `${item.type}-${index}`"
-            :variant="index === currentIndex ? 'flat' : 'text'"
-            :color="index === currentIndex ? 'primary' : undefined"
-            size="x-small"
-            class="text-none"
+            type="button"
+            class="edit-dialog-media-panel__thumb-opt"
+            :class="{'edit-dialog-media-panel__thumb-opt--active': index === currentIndex}"
+            :title="item.type"
             @click="$emit('update:currentIndex', index)"
           >
             {{ item.type }}
-          </v-btn>
+          </button>
         </div>
       </template>
     </v-card>

@@ -1,5 +1,8 @@
 <template>
-  <div class="dialog-header">
+  <div
+    class="dialog-header"
+    :class="{'dialog-header--compact': compact}"
+  >
     <div class="content">
       <div class="headline">
         <v-icon
@@ -59,6 +62,7 @@
           :key="index"
           :color="btn.color"
           :variant="btn.outlined ? 'outlined' : 'flat'"
+          :size="compact ? 'small' : undefined"
           :disabled="btn.disabled"
           :title="btn.title"
           @click="run(btn)"
@@ -66,6 +70,7 @@
           <v-icon
             v-if="btn.icon"
             :icon="`mdi-${btn.icon}`"
+            :size="compact ? 18 : undefined"
             start
           />
           {{ btn.text }}
@@ -77,11 +82,15 @@
         class="dialog-header__close"
         icon
         variant="text"
+        :size="compact ? 'small' : undefined"
         :aria-label="t('common.close')"
         :title="t('common.close')"
         @click="emit('close')"
       >
-        <v-icon icon="mdi-close" />
+        <v-icon
+          icon="mdi-close"
+          :size="compact ? 18 : undefined"
+        />
       </v-btn>
     </div>
   </div>
@@ -122,6 +131,7 @@ const props = defineProps({
     default: () => [],
   },
   closable: Boolean,
+  compact: Boolean,
 })
 
 const {t} = useI18n()
@@ -320,11 +330,52 @@ onBeforeUnmount(() => {
   &__close {
     flex: 0 0 auto;
   }
+
+  &--compact {
+    .content {
+      gap: 10px;
+      padding: 10px 14px;
+      min-height: 52px;
+    }
+
+    .headline {
+      gap: 6px;
+
+      &__title {
+        font-size: 1.125rem;
+        line-height: 1.3;
+      }
+
+      &__subheader {
+        font-size: 0.75rem;
+      }
+    }
+
+    .actions {
+      gap: 6px;
+      min-height: var(--edit-deck-control-h, 40px);
+    }
+
+    .actions .v-btn {
+      min-height: var(--edit-deck-control-h, 40px);
+      font-size: 0.8125rem;
+    }
+
+    .dialog-header__close {
+      width: var(--edit-deck-control-h, 40px);
+      height: var(--edit-deck-control-h, 40px);
+    }
+  }
 }
 
 @media (max-width: 480px) {
   .dialog-header .content {
     padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .dialog-header--compact .content {
+    padding: 8px 12px;
     gap: 8px;
   }
 }

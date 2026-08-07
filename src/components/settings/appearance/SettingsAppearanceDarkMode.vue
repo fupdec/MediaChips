@@ -65,12 +65,6 @@ async function toggleDarkMode(value: string) {
   ></settings-switch>
 
   <settings-switch
-    option="browserLayout"
-    :title="$t('settings_labels.appearance.browser_layout')"
-    :hint="$t('settings_labels.appearance.browser_layout_hint')"
-  ></settings-switch>
-
-  <settings-switch
     option="showPlaylistsInNavigation"
     :title="$t('settings_labels.appearance.show_playlists')"
   ></settings-switch>

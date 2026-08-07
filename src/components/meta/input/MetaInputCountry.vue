@@ -12,7 +12,7 @@
     :hide-details="purpose ? true : false"
     :rounded="view.rounded"
     :variant="view.filled ? 'filled' : 'outlined'"
-    :density="view.dense ? 'compact' : 'default'"
+    :density="fieldDensity"
     :append-icon="undefined"
     :menu-props="{zIndex: 2800}"
     item-text="name"
@@ -105,6 +105,11 @@ const view = ref({
 const showIcons = computed(() =>
   settingsStore.showIconsOfMetaInEditingDialog === '1'
 )
+
+const fieldDensity = computed(() => {
+  if (typeof attrs.density === 'string') return attrs.density
+  return view.value.dense ? 'compact' : 'default'
+})
 
 const typingFiltersDefault = computed(() =>
   settingsStore.typingFiltersDefault === '1'

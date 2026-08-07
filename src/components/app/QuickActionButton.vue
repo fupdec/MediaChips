@@ -122,7 +122,6 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useToolbarStore} from '@/stores/toolbar'
-import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import {scrollMainTo, scrollMainToSelector} from '@/utils/mainScroll'
 
 // i18n
@@ -132,7 +131,6 @@ const {t} = useI18n()
 const filtersStore = useAppStore().filters
 const itemsStore = useItemsStore()
 const toolbarStore = useToolbarStore()
-const {useItemsControlDeck: controlDeckActive} = useBrowserLayout()
 
 // Reactive data
 const direction = ref('top')
@@ -157,9 +155,7 @@ const toggleFilters = () => {
   }
 
   filtersStore.visible = true
-  scheduleScrollToDeckSection(
-    controlDeckActive.value ? '#items-filters-top-host' : '#items-control-deck',
-  )
+  scheduleScrollToDeckSection('#items-filters-top-host')
 }
 
 const toggleCustomizeToolbar = () => {

@@ -128,7 +128,6 @@ import SystemBar from '@/components/app/SystemBar.vue'
 import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
 
 const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))
-const SideBar = defineAsyncComponent(() => import('@/components/app/SideBar.vue'))
 const SideBarBrowser = defineAsyncComponent(() => import('@/components/app/SideBarBrowser.vue'))
 const BottomBar = defineAsyncComponent(() => import('@/components/app/BottomBar.vue'))
 const InspectorPanel = defineAsyncComponent(() => import('@/components/app/InspectorPanel.vue'))
@@ -150,8 +149,7 @@ const {useBrowserLayout, showInspector} = useBrowserLayoutMode()
 
 const navigationComponent = computed(() => {
   if (useBottomBar.value) return BottomBar
-  if (useBrowserLayout.value) return SideBarBrowser
-  return SideBar
+  return SideBarBrowser
 })
 
 const {isElectron, isMac, isWin} = useAppPlatform()

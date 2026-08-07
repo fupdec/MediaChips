@@ -2212,8 +2212,9 @@ const es = {
     },
     sorting: {
       sort_direction: 'Dirección de ordenación',
-      sort_tags_by: 'Ordenar etiquetas por',
-      name: 'Nombre',
+      (sort_tags_by: 'Ordenar etiquetas por',
+      sort_selected: 'Ordenar etiquetas seleccionadas',
+)      name: 'Nombre',
       favorite: 'Favorito',
       date_added: 'Fecha de adición',
       date_updated: 'Fecha de actualización',

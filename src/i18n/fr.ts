@@ -2212,8 +2212,9 @@ const fr = {
     },
     sorting: {
       sort_direction: 'Sens de tri',
-      sort_tags_by: 'Trier les balises par',
-      name: 'Nom',
+      (sort_tags_by: 'Trier les balises par',
+      sort_selected: 'Trier les balises sélectionnées',
+)      name: 'Nom',
       favorite: 'Favoris',
       date_added: 'Date d\'ajout',
       date_updated: 'Date de mise à jour',

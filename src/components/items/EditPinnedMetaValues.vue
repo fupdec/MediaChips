@@ -29,8 +29,8 @@
 
     <!-- Main form -->
     <v-form v-model="valid" ref="form" @submit.prevent>
-      <v-container fluid class="px-0">
-        <div v-if="showFieldToolbar" class="editing-section__toolbar mb-3">
+      <v-container fluid class="px-0 editing-form">
+        <div v-if="showFieldToolbar" class="editing-section__toolbar">
           <v-text-field
             v-model="fieldSearch"
             :label="t('editing.search_fields')"
@@ -60,12 +60,12 @@
           </v-chip-group>
         </div>
 
-        <v-row>
+        <v-row dense>
           <!-- Name field - only for tags -->
           <v-col v-if="isTag && meta" cols="12" md="6" xl="4" class="field">
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -74,6 +74,7 @@
                 :rules="[nameRules]"
                 :prepend-icon="showIcons ? 'mdi-alphabetical-variant' : undefined"
                 :label="t('common.name')"
+                density="compact"
                 variant="filled"
               />
               <v-btn
@@ -94,7 +95,7 @@
           <v-col v-if="isTag && showSynonymsField" cols="12" md="6" xl="4" class="field">
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -103,6 +104,7 @@
                 :prepend-icon="showIcons ? 'mdi-alphabetical' : undefined"
                 :label="t('filters.sort.synonyms')"
                 :hint="t('editing.synonyms_hint')"
+                density="compact"
                 clearable
                 variant="filled"
               />
@@ -123,44 +125,47 @@
           <!-- Rating & Favorite -->
           <v-col v-if="ratingEnabled || favoriteEnabled" cols="12" md="6" xl="4" class="field">
             <v-card
-              class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              class="editing-field-card editing-field-card--rating rounded-xl"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
-              <div class="d-flex justify-space-between">
-                <div v-if="ratingEnabled" class="text-medium-emphasis text-caption">
-                  {{ t('meta.default_names.rating') }}
-                </div>
-                <div v-if="favoriteEnabled" class="text-medium-emphasis text-caption">
-                  {{ t('meta.default_names.favorite') }}
-                </div>
-              </div>
-              <div class="d-flex justify-space-between">
-                <v-rating
-                  v-if="ratingEnabled"
-                  v-model="vals.rating"
-                  color="yellow-darken-3"
-                  background-color="grey-darken-1"
-                  empty-icon="mdi-star-outline"
-                  half-icon="mdi-star-half-full"
-                  half-increments
-                  clearable
-                  density="compact"
-                  class="pt-2"
-                  hover
-                />
-                <v-checkbox
-                  v-if="favoriteEnabled"
-                  v-model="vals.favorite"
-                  :false-value="0"
-                  :true-value="1"
-                  false-icon="mdi-heart-outline"
-                  true-icon="mdi-heart"
-                  color="pink"
-                  hide-details
-                  class="fav-btn"
-                />
+              <div class="editing-rating-field editing-rating-field--identity">
+                <template v-if="ratingEnabled">
+                  <span class="editing-rating-field__name">{{ t('meta.default_names.rating') }}</span>
+                  <v-rating
+                    v-model="vals.rating"
+                    color="yellow-darken-3"
+                    background-color="grey-darken-1"
+                    empty-icon="mdi-star-outline"
+                    half-icon="mdi-star-half-full"
+                    half-increments
+                    clearable
+                    density="compact"
+                    size="28"
+                    hover
+                  />
+                </template>
+                <template v-if="favoriteEnabled">
+                  <span
+                    v-if="ratingEnabled"
+                    class="editing-rating-field__sep"
+                    aria-hidden="true"
+                  />
+                  <span class="editing-rating-field__name">{{ t('meta.default_names.favorite') }}</span>
+                  <v-checkbox
+                    v-model="vals.favorite"
+                    :false-value="0"
+                    :true-value="1"
+                    false-icon="mdi-heart-outline"
+                    true-icon="mdi-heart"
+                    color="pink"
+                    density="compact"
+                    hide-details
+                    class="fav-btn"
+                    v-tooltip:top="t('meta.default_names.favorite')"
+                  />
+                </template>
               </div>
               <v-btn
                 v-if="!equalOld('rating') || !equalOld('favorite')"
@@ -180,7 +185,7 @@
           <v-col v-if="viewsEnabled" cols="12" md="6" xl="4" class="field">
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -189,6 +194,7 @@
                 :label="t('settings_labels.appearance.number_of_views')"
                 :prepend-icon="showIcons ? 'mdi-eye' : undefined"
                 type="number"
+                density="compact"
                 hide-details
                 variant="filled"
               />
@@ -210,14 +216,14 @@
           <v-col v-if="isTag && meta?.color" cols="12" md="6" xl="4" class="field">
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
               <div class="text-medium-emphasis text-caption">{{ t('meta.default_names.color') }}</div>
               <div class="d-flex flex-wrap align-center ga-2 mt-1">
                 <v-icon @click="pickColor" :color="vals.color ?? undefined" start>mdi-circle</v-icon>
-                <v-btn @click="pickColor" color="primary" variant="flat" rounded="xl">
+                <v-btn @click="pickColor" color="primary" variant="flat" rounded="xl" size="small">
                   {{ t('settings_labels.appearance.change_color') }}
                 </v-btn>
                 <v-btn
@@ -226,6 +232,7 @@
                   color="primary"
                   variant="tonal"
                   rounded="xl"
+                  size="small"
                   prepend-icon="mdi-eyedropper"
                 >
                   {{ t('meta.settings.color_from_image') }}
@@ -249,7 +256,7 @@
           <v-col v-if="isTag && showCountryField" cols="12" md="6" xl="4" class="field">
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -257,6 +264,7 @@
                 @update:model-value="setValByKey($event, 'country')"
                 :model-value="vals.country || []"
                 variant="filled"
+                density="compact"
                 hide-details
               />
               <v-btn
@@ -281,7 +289,7 @@
           >
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -292,6 +300,7 @@
                 :model-value="mixedTagsValue"
                 @update:model-value="setMixedTagsValue"
                 variant="filled"
+                density="compact"
                 hide-details
               />
               <v-btn
@@ -317,7 +326,7 @@
           >
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -328,6 +337,7 @@
                 :meta-id="getMetaIdNumber(item)"
                 :key="`${currentItemId}_${getItemKey(item)}`"
                 :ref="el => setMetaInputRef(el, getItemKey(item))"
+                density="compact"
                 multiple
               />
 
@@ -339,6 +349,7 @@
                 :hint="metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 type="number"
+                density="compact"
                 persistent-hint
                 clearable
                 variant="filled"
@@ -351,6 +362,7 @@
                 :label="metaName(item)"
                 :hint="metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
+                density="compact"
                 persistent-hint
                 clearable
                 variant="filled"
@@ -363,6 +375,7 @@
                 :label="metaName(item)"
                 :hint="metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
+                density="compact"
                 persistent-hint
               />
 
@@ -373,18 +386,22 @@
                 :label="metaName(item)"
                 :hint="metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
+                density="compact"
                 persistent-hint
                 readonly
                 clearable
                 variant="filled"
               />
 
-              <div v-if="item.meta?.type === 'rating'" class="d-flex flex-column">
-                <div class="text-medium-emphasis text-caption" :class="[{ 'pl-9': showIcons }]">
-                  {{ metaName(item) }}
-                </div>
-                <div class="d-flex">
-                  <v-icon v-if="showIcons" :icon="`mdi-${metaIcon(item)}`" start/>
+              <div v-if="item.meta?.type === 'rating'" class="editing-rating-field">
+                <v-icon
+                  v-if="showIcons"
+                  class="editing-rating-field__icon"
+                  size="20"
+                  :icon="`mdi-${metaIcon(item)}`"
+                />
+                <span class="editing-rating-field__name">{{ metaName(item) }}</span>
+                <div class="editing-rating-field__rating">
                   <v-rating
                     :model-value="getRatingVal(item)"
                     @update:model-value="setVal($event, getItemKey(item))"
@@ -396,12 +413,16 @@
                     :active-color="metaRatingColor(item)"
                     color="grey-darken-1"
                     density="compact"
+                    size="28"
                     clearable
                     hover
                   />
-                </div>
-                <div class="text-medium-emphasis text-caption" :class="[{ 'pl-9': showIcons }]">
-                  {{ metaHint(item) }}
+                  <div
+                    v-if="metaHint(item)"
+                    class="editing-rating-field__hint"
+                  >
+                    {{ metaHint(item) }}
+                  </div>
                 </div>
               </div>
 
@@ -423,7 +444,7 @@
           <v-col cols="12" md="6" xl="4" class="field">
             <v-card
               class="editing-field-card rounded-xl"
-              :class="showIcons ? 'pa-4' : 'px-1 py-1'"
+              :class="fieldCardClass"
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
@@ -431,6 +452,7 @@
                 v-model="vals.bookmark"
                 :prepend-icon="showIcons ? 'mdi-bookmark' : undefined"
                 :label="t('meta.default_names.bookmark')"
+                density="compact"
                 hide-details
                 clearable
                 auto-grow
@@ -689,6 +711,9 @@ const datePicker = ref<{
 
 const settings = computed(() => settingsStore)
 const showIcons = computed(() => settings.value.showIconsOfMetaInEditingDialog === '1')
+const fieldCardClass = computed(() =>
+  showIcons.value ? 'editing-field-card--icons' : 'editing-field-card--plain',
+)
 
 const ratingEnabled = computed(() => {
   if (isTag.value) return props.meta?.rating

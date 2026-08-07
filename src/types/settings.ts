@@ -121,7 +121,10 @@ export type SettingsState = {
   textFont: string
   headerFont: string
   bottomBar: string
-  /** Eagle-style layout: expanded tags sidebar + right inspector panel. */
+  /**
+   * @deprecated Always-on browser layout. Kept for settings DB compatibility.
+   * Classic layout has been removed.
+   */
   browserLayout: string
   /** '1' when the browser-layout inspector panel is collapsed. */
   inspectorCollapsed: string

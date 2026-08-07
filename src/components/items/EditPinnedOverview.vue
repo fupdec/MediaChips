@@ -1,46 +1,70 @@
 <template>
   <div class="edit-pinned-overview">
-    <v-card class="edit-pinned-overview__block rounded-xl px-2" color="rgba(150, 150, 150, 0.09)" flat>
-      <div class="text-medium-emphasis text-caption pt-2 mx-2">
-        {{ isMedia ? t('editing.media_file_information') : t('editing.tag_information') }}
-      </div>
-      <v-chip-group column class="px-2 mb-2 edit-pinned-overview__chips">
-        <v-chip v-for="i in presetMeta" :key="i.name" size="small" :ripple="false" @click.prevent>
-          <v-icon size="small" start>mdi-{{ i.icon }}</v-icon>
-          <span class="mr-1">{{ i.text }}: </span>
-          <span>{{ i.value || item[i.name] }}</span>
-        </v-chip>
-      </v-chip-group>
-    </v-card>
+    <div class="edit-pinned-overview__surface">
+      <section class="edit-pinned-overview__section">
+        <div class="edit-pinned-overview__label">
+          {{ isMedia ? t('editing.media_file_information') : t('editing.tag_information') }}
+        </div>
+        <div class="edit-pinned-overview__stats">
+          <span
+            v-for="i in presetMeta"
+            :key="i.name"
+            class="edit-pinned-overview__stat"
+          >
+            <v-icon size="14">mdi-{{ i.icon }}</v-icon>
+            <span class="edit-pinned-overview__stat-label">{{ i.text }}:</span>
+            <span class="edit-pinned-overview__stat-value">{{ i.value || item[i.name] }}</span>
+          </span>
+        </div>
+      </section>
 
-    <v-card class="edit-pinned-overview__block rounded-xl px-2" color="rgba(150, 150, 150, 0.09)" variant="flat">
-      <div class="text-medium-emphasis text-caption pt-2 mx-2">{{ t('editing.date_information') }}</div>
-      <v-chip-group column class="px-2 mb-2 edit-pinned-overview__chips">
-        <v-chip :title="getDateByKey('createdAt')" size="small" :ripple="false" @click.prevent>
-          <v-icon start size="small">mdi-calendar-plus</v-icon>
-          {{ t('editing.added') }}: {{ getDateAgoByKey('createdAt') }}
-        </v-chip>
-        <v-chip :title="getDateByKey('updatedAt')" size="small" :ripple="false" @click.prevent>
-          <v-icon start size="small">mdi-calendar-edit</v-icon>
-          {{ t('editing.last_edit') }}: {{ getDateAgoByKey('updatedAt') }}
-        </v-chip>
-        <v-chip :title="getDateByKey('viewedAt')" size="small" :ripple="false" @click.prevent>
-          <v-icon start size="small">mdi-eye</v-icon>
-          {{ t('editing.last_view') }}: {{ getDateAgoByKey('viewedAt') }}
-        </v-chip>
-      </v-chip-group>
-    </v-card>
+      <section class="edit-pinned-overview__section">
+        <div class="edit-pinned-overview__label">{{ t('editing.date_information') }}</div>
+        <div class="edit-pinned-overview__stats">
+          <span
+            class="edit-pinned-overview__stat"
+            :title="getDateByKey('createdAt')"
+          >
+            <v-icon size="14">mdi-calendar-plus</v-icon>
+            <span class="edit-pinned-overview__stat-label">{{ t('editing.added') }}:</span>
+            <span class="edit-pinned-overview__stat-value">{{ getDateAgoByKey('createdAt') }}</span>
+          </span>
+          <span
+            class="edit-pinned-overview__stat"
+            :title="getDateByKey('updatedAt')"
+          >
+            <v-icon size="14">mdi-calendar-edit</v-icon>
+            <span class="edit-pinned-overview__stat-label">{{ t('editing.last_edit') }}:</span>
+            <span class="edit-pinned-overview__stat-value">{{ getDateAgoByKey('updatedAt') }}</span>
+          </span>
+          <span
+            class="edit-pinned-overview__stat"
+            :title="getDateByKey('viewedAt')"
+          >
+            <v-icon size="14">mdi-eye</v-icon>
+            <span class="edit-pinned-overview__stat-label">{{ t('editing.last_view') }}:</span>
+            <span class="edit-pinned-overview__stat-value">{{ getDateAgoByKey('viewedAt') }}</span>
+          </span>
+        </div>
+      </section>
 
-    <div v-if="isMedia" class="edit-pinned-overview__block">
-      <FilePathEditing :media="item" @update="onMediaPathUpdate"/>
+      <section v-if="isMedia" class="edit-pinned-overview__section edit-pinned-overview__section--path">
+        <FilePathEditing :media="item" compact @update="onMediaPathUpdate"/>
+      </section>
+
+      <section class="edit-pinned-overview__section edit-pinned-overview__section--progress">
+        <div class="edit-pinned-overview__label">{{ t('editing.progress_filling_data') }}</div>
+        <div class="edit-pinned-overview__progress">
+          <v-progress-linear
+            :model-value="completionStatus"
+            color="primary"
+            height="4"
+            rounded
+          />
+          <span class="edit-pinned-overview__progress-value">{{ completionStatus }}%</span>
+        </div>
+      </section>
     </div>
-
-    <v-card class="edit-pinned-overview__block rounded-xl" color="rgba(150, 150, 150, 0.09)" variant="flat">
-      <div class="text-medium-emphasis text-caption pt-2 mx-4">{{ t('editing.progress_filling_data') }}</div>
-      <div class="pa-4 pt-2">
-        <v-progress-linear :model-value="completionStatus" color="primary" rounded/>
-      </div>
-    </v-card>
   </div>
 </template>
 

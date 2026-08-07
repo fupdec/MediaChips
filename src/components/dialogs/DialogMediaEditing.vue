@@ -15,10 +15,11 @@
         :subheader-copy-text="fileName"
         :buttons="buttons"
         icon="pencil"
+        compact
         closable
       />
 
-      <v-card-text class="pa-2 pa-sm-4">
+      <v-card-text class="edit-dialog-card__body">
         <EditPinnedMetaValues
           v-if="media"
           :key="media.id"

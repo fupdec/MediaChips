@@ -2212,8 +2212,9 @@ const cn = {
     },
     sorting: {
       sort_direction: '排序方向',
-      sort_tags_by: '按以下方式排序标签',
-      name: '名称',
+      (sort_tags_by: '按以下方式排序标签',
+      sort_selected: '排序已选标签',
+)      name: '名称',
       favorite: '收藏',
       date_added: '添加日期',
       date_updated: '更新日期',

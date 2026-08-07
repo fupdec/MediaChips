@@ -1,7 +1,6 @@
 import {computed} from 'vue'
 import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
-import {useSettingsStore} from '@/stores/settings'
 import {useNavigationLayout} from '@/composable/useNavigationLayout'
 
 /** Pages that render an items grid (media / meta category / tag page). */
@@ -11,21 +10,21 @@ export function isItemsGridRoute(path: string): boolean {
     || path === '/tag' || path.startsWith('/tag/')
 }
 
-/** Eagle-style three-panel browser layout (expanded tags sidebar + inspector). */
+/** Browser layout: tags sidebar + inspector + compact control deck. */
 export function useBrowserLayout() {
-  const settingsStore = useSettingsStore()
   const route = useRoute()
   const {mobile} = useDisplay()
   const {useBottomBar} = useNavigationLayout()
 
-  const browserLayoutEnabled = computed(() => settingsStore.browserLayout === '1')
+  /** Always on — classic layout has been removed. */
+  const browserLayoutEnabled = computed(() => true)
 
-  /** Compact control deck on items pages — follows the setting on all viewports. */
-  const useItemsControlDeck = computed(() => browserLayoutEnabled.value)
+  /** Compact control deck on items pages. */
+  const useItemsControlDeck = computed(() => true)
 
   /** Full three-panel chrome (browser sidebar + inspector) — desktop only. */
   const useBrowserLayout = computed(() =>
-    browserLayoutEnabled.value && !useBottomBar.value && !mobile.value,
+    !useBottomBar.value && !mobile.value,
   )
 
   const showInspector = computed(() =>

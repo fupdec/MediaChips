@@ -2212,8 +2212,9 @@ const de = {
     },
     sorting: {
       sort_direction: "Sortierrichtung",
-      sort_tags_by: "Sortieren Sie die Tags nach",
-      name: "Name",
+      (sort_tags_by: "Sortieren Sie die Tags nach",
+      sort_selected: 'Ausgewählte Tags sortieren',
+)      name: "Name",
       favorite: "Favorit",
       date_added: "Datum hinzugefügt",
       date_updated: "Datum der Aktualisierung",

@@ -2386,8 +2386,9 @@ const ja = {
     },
     sorting: {
       sort_direction: "ソート方向",
-      sort_tags_by: "タグを並べ替える基準",
-      name: "名前",
+      (sort_tags_by: "タグを並べ替える基準",
+      sort_selected: "選択したタグを並べ替え",
+)      name: "名前",
       favorite: "お気に入り",
       date_added: "追加日",
       date_updated: "更新日",

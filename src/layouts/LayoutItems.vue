@@ -11,22 +11,12 @@
     />
     <div
       id="items-control-deck"
-      class="items-control-deck"
-      :class="{
-        'items-control-deck--browser': controlDeckActive,
-        'items-control-deck--classic': !controlDeckActive,
-        'items-control-deck--stuck': controlDeckStuck,
-      }"
+      class="items-control-deck items-control-deck--browser"
+      :class="{'items-control-deck--stuck': controlDeckStuck}"
     >
-      <div
-        class="items-control-deck__surface"
-        :class="{'items-control-deck__surface--card': controlDeckActive}"
-      >
+      <div class="items-control-deck__surface items-control-deck__surface--card">
         <div
-          class="items-page-header d-flex align-center justify-space-between flex-wrap ga-3"
-          :class="controlDeckActive
-            ? 'items-control-deck__header items-page-header--deck'
-            : 'text-h4 text-md-h2 mt-6 mb-8'"
+          class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-wrap ga-3"
         >
           <div class="d-flex align-center items-page-header__title min-width-0">
             <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
@@ -48,7 +38,6 @@
             />
 
             <ToolbarGroupBy
-              v-if="controlDeckActive"
               compact
               :class="isGroupByOff
                 ? 'items-control-deck__group-by-icon'
@@ -56,7 +45,6 @@
             />
 
             <v-btn
-              v-if="controlDeckActive"
               @click="dialogEditingPinnedMeta = true"
               v-tooltip:top="t('meta.settings.edit_pinned_meta')"
               color="primary"
@@ -71,15 +59,14 @@
               @click="toggleCustomization"
               v-tooltip:top="t('appbar.buttons.customize')"
               color="primary"
-              :variant="toolbarStore.appearance.show ? 'flat' : (controlDeckActive ? 'tonal' : 'flat')"
-              :size="controlDeckActive ? 'small' : undefined"
+              :variant="toolbarStore.appearance.show ? 'flat' : 'tonal'"
+              size="small"
               icon
             >
-              <v-icon :size="controlDeckActive ? 18 : undefined">mdi-tune</v-icon>
+              <v-icon size="18">mdi-tune</v-icon>
             </v-btn>
 
             <v-btn
-              v-if="controlDeckActive"
               @click="toggleFiltersPanel"
               v-tooltip:top="t('appbar.buttons.filter')"
               color="primary"
@@ -104,31 +91,23 @@
           <div
             v-if="toolbarStore.appearance.show"
             id="items-control-deck-appearance"
-            class="items-control-deck__appearance"
-            :class="{'items-control-deck__section': controlDeckActive}"
+            class="items-control-deck__appearance items-control-deck__section"
           >
-            <ToolbarAppearance :embedded="controlDeckActive"/>
+            <ToolbarAppearance embedded/>
           </div>
         </v-expand-transition>
 
         <div
           id="items-filters-top-host"
-          class="items-filters-top-host"
-          :class="{'items-control-deck__filters-host': controlDeckActive}"
+          class="items-filters-top-host items-control-deck__filters-host"
         ></div>
       </div>
     </div>
 
     <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
 
-    <!-- Filters: top panel (browser layout) or side drawer (classic) -->
+    <!-- Filters: top panel in the control deck -->
     <Filters v-if="pageInitialized" :isReady="isFiltersReady"/>
-
-    <FiltersChips
-      v-if="pageInitialized && showStandaloneFilterChips"
-      :filters="ITEMS.filters"
-      class="my-4"
-    />
 
     <Loading v-if="loader.is_busy"/>
 
@@ -333,7 +312,6 @@
     <QuickActionButton v-if="SETTINGS.show_quick_action_button == '1'"/>
 
     <v-dialog
-      v-if="controlDeckActive"
       v-model="dialogEditingPinnedMeta"
       @update:model-value="updatePinnedMeta"
       max-width="860"
@@ -386,7 +364,6 @@ import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
 import ItemsMasonryGrid from '@/components/items/ItemsMasonryGrid.vue'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
-import FiltersChips from '@/components/elements/FiltersChips.vue'
 import Loading from '@/components/elements/Loading.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
@@ -405,7 +382,6 @@ import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
-import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -432,7 +408,6 @@ const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
-const {useItemsControlDeck: controlDeckActive} = useBrowserLayout()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
@@ -570,13 +545,6 @@ const activeFilters = computed(() => {
   }
   return ITEMS.value.filters.filter(i => i && i.active);
 });
-
-const showStandaloneFilterChips = computed(() => {
-  if (controlDeckActive.value) return false
-  return activeFilters.value.length > 0
-    || Boolean(ENV.value.media_type_id && ITEMS.value.find_duplicates)
-    || Boolean(ITEMS.value.listScopeIds?.length)
-})
 
 const filtersPanelOpen = computed(() => Boolean(appStore.filters.visible))
 const activeFiltersCount = computed(() => activeFilters.value.length)
@@ -999,24 +967,7 @@ defineEmits<{
   }
 }
 
-/* Classic layout: stick the title/controls row (deck uses sticky on the card). */
-.items-control-deck--classic .items-page-header {
-  position: sticky;
-  top: 8px;
-  z-index: 8;
-  background: rgb(var(--v-theme-surface));
-  padding-block: 12px;
-  margin-block: 0 !important;
-  box-shadow: 0 8px 22px -16px rgba(0, 0, 0, 0.18);
-  transition: box-shadow 180ms ease;
-}
-
-.items-control-deck--classic.items-control-deck--stuck .items-page-header {
-  box-shadow:
-    0 10px 28px -12px rgba(0, 0, 0, 0.36),
-    0 4px 12px -6px rgba(0, 0, 0, 0.16);
-}
-
+/* Classic layout sticky header removed — control deck is always on. */
 .items-layout-container.v-container {
   padding-top: 8px;
 }
@@ -1050,14 +1001,6 @@ defineEmits<{
       --deck-pad-x: 12px;
       --deck-gap: 8px;
       --deck-control-h: 36px;
-    }
-  }
-
-  &--classic {
-    display: contents;
-
-    > .items-control-deck__surface {
-      display: contents;
     }
   }
 

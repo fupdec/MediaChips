@@ -75,7 +75,7 @@
         :prepend-icon="`mdi-${item.raw.metaIcon}`"
         :title="item.raw.metaName"
         closable
-        :class="['ma-1', chipClassFor(item.raw)]"
+        :class="['editing-tag-chip', chipClassFor(item.raw)]"
         size="small"
       >
         <span>{{ item.raw.name }}</span>
@@ -83,7 +83,7 @@
       <v-chip
         v-else
         @click:close="removeKey(item.value)"
-        class="ma-1"
+        class="editing-tag-chip"
         closable
         size="small"
       >

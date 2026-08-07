@@ -1,6 +1,64 @@
 <template>
-  <div class="editing">
-    <v-card class="rounded-xl" color="rgba(150, 150, 150, 0.09)" flat>
+  <div class="file-path-editing" :class="{'file-path-editing--compact': compact}">
+    <template v-if="compact">
+      <div class="file-path-editing__label">{{ t('media.file_path.operations') }}</div>
+      <div class="file-path-editing__row">
+        <div
+          class="file-path-editing__path"
+          :title="display_path"
+        >
+          <span class="file-path-editing__path-prefix">{{ t('media.file_path.full_path') }}</span>
+          <span class="file-path-editing__path-text">{{ display_path }}</span>
+        </div>
+        <div class="file-path-editing__actions">
+          <v-btn
+            @click="openDialogEdit"
+            color="primary"
+            variant="tonal"
+            size="small"
+            icon
+            v-tooltip:top="t('media.file_path.edit_path')"
+          >
+            <v-icon size="18">mdi-folder-edit</v-icon>
+          </v-btn>
+          <v-btn
+            @click="openFolder"
+            :disabled="!is_folder_exists"
+            color="primary"
+            variant="tonal"
+            size="small"
+            icon
+            v-tooltip:top="t('media.file_path.open_directory')"
+          >
+            <v-icon size="18">mdi-folder-open</v-icon>
+          </v-btn>
+          <v-btn
+            @click="copyPath"
+            :disabled="!display_path"
+            color="primary"
+            variant="tonal"
+            size="small"
+            icon
+            v-tooltip:top="t('media.file_path.copy_path')"
+          >
+            <v-icon size="18">mdi-content-copy</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      <v-alert
+        v-if="!is_file_exists"
+        type="error"
+        icon="mdi-file-alert"
+        class="file-path-editing__alert"
+        density="compact"
+        variant="tonal"
+        rounded="lg"
+      >
+        {{ fileMissingAlertMessage }}
+      </v-alert>
+    </template>
+
+    <v-card v-else class="rounded-xl" color="rgba(150, 150, 150, 0.09)" flat>
       <v-card-text class="pb-0">
         <div class="text-medium-emphasis text-caption">{{ t('media.file_path.operations') }}</div>
         <div>
@@ -164,6 +222,10 @@ const props = defineProps({
   media: {
     type: Object as PropType<MediaItem>,
     required: true,
+  },
+  compact: {
+    type: Boolean,
+    default: false,
   },
 })
 const { t } = useI18n()
@@ -409,3 +471,65 @@ watch(display_path, async (filePath) => {
   await refreshPathAvailability(filePath)
 })
 </script>
+
+<style scoped lang="scss">
+.file-path-editing--compact {
+  min-width: 0;
+
+  .file-path-editing__label {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    opacity: 0.55;
+    margin-bottom: 4px;
+  }
+
+  .file-path-editing__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .file-path-editing__path {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    overflow: hidden;
+  }
+
+  .file-path-editing__path-prefix {
+    flex: 0 0 auto;
+    opacity: 0.55;
+    white-space: nowrap;
+  }
+
+  .file-path-editing__path-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-path-editing__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+
+    :deep(.v-btn--icon.v-btn--size-small) {
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  .file-path-editing__alert {
+    margin-top: 6px;
+    margin-bottom: 0;
+    font-size: 0.75rem;
+  }
+}
+</style>

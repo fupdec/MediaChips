@@ -2212,8 +2212,9 @@ const pt = {
     },
     sorting: {
       sort_direction: 'Direção de classificação',
-      sort_tags_by: 'Classificar tags por',
-      name: 'Nome',
+      (sort_tags_by: 'Classificar tags por',
+      sort_selected: 'Classificar tags selecionadas',
+)      name: 'Nome',
       favorite: 'Favorito',
       date_added: 'Data adicionada',
       date_updated: 'Data da atualização',

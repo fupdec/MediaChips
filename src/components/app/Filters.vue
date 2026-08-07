@@ -235,7 +235,6 @@ import {
 import {sanitizeFiltersForMediaType} from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
-import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import FiltersPanel from '@/components/app/FiltersPanel.vue'
 import FiltersChips from '@/components/elements/FiltersChips.vue'
 
@@ -268,9 +267,8 @@ const itemsStore = useItemsStore()
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 const {width} = useDisplay()
-const {useItemsControlDeck: controlDeckActive} = useBrowserLayout()
 
-const useTopPanel = computed(() => controlDeckActive.value)
+const useTopPanel = computed(() => true)
 
 /** Dock filters when there is room for sidebar + drawer + content; otherwise float. */
 const FILTERS_DRAWER_WIDTH = 450

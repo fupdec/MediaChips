@@ -8,6 +8,19 @@
   >
     <template v-slot:activator="{ props: activatorProps }">
       <v-btn
+        v-if="compact"
+        v-bind="activatorProps"
+        :class="activatorClass"
+        size="small"
+        variant="tonal"
+        color="primary"
+        icon
+        v-tooltip:top="t('image.edit_image')"
+      >
+        <v-icon size="18">mdi-image-edit-outline</v-icon>
+      </v-btn>
+      <v-btn
+        v-else
         v-bind="activatorProps"
         size="small"
         variant="flat"
@@ -16,7 +29,7 @@
         :class="activatorClass || 'pa-2 ma-2'"
         prepend-icon="mdi-image-edit-outline"
         :text="t('image.edit_image')"
-      ></v-btn>
+      />
     </template>
     <template v-slot:default="{ isActive }">
       <v-card>
@@ -147,6 +160,10 @@ const props = defineProps({
   activatorClass: {
     type: String,
     default: '',
+  },
+  compact: {
+    type: Boolean,
+    default: false,
   },
 })
 
