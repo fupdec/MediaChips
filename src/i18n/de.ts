@@ -2811,6 +2811,9 @@ const de = {
       rotate_right: "Nach rechts drehen",
       flip_horizontal: "Horizontal spiegeln",
       flip_vertical: "Vertikal spiegeln",
+      slideshow_play: "Diashow starten",
+      slideshow_pause: "Diashow pausieren",
+      toggle_info: "Info ein-/ausblenden",
     },
   },
   notifications_text: {

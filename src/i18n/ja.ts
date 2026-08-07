@@ -3019,6 +3019,9 @@ const ja = {
       rotate_right: "右回転",
       flip_horizontal: "水平方向に反転",
       flip_vertical: "垂直方向に反転",
+      slideshow_play: "スライドショー開始",
+      slideshow_pause: "スライドショー一時停止",
+      toggle_info: "情報の表示切替",
     },
   },
   notifications_text: {

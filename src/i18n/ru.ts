@@ -3016,6 +3016,9 @@ const ru = {
       rotate_right: 'Повернуть вправо',
       flip_horizontal: 'Отразить по горизонтали',
       flip_vertical: 'Отразить по вертикали',
+      slideshow_play: 'Запустить слайдшоу',
+      slideshow_pause: 'Пауза слайдшоу',
+      toggle_info: 'Показать/скрыть информацию',
     },
   },
   notifications_text: {

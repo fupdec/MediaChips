@@ -30,6 +30,25 @@
     box-shadow: none;
   }
 
+  &--chrome-hidden {
+    .image-viewer__close,
+    .image-viewer__toolbar,
+    .image-viewer__dock,
+    .image-viewer__nav,
+    .image-viewer__info {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
+  &__close,
+  &__toolbar,
+  &__dock,
+  &__nav,
+  &__info {
+    transition: opacity 0.25s ease;
+  }
+
   &__close {
     position: absolute;
     top: 12px;
@@ -99,6 +118,7 @@
     justify-content: center;
     overflow: hidden;
     cursor: grab;
+    touch-action: none;
     background:
       radial-gradient(circle at center, rgba(255, 255, 255, 0.04) 0, transparent 55%),
       #000;
@@ -225,6 +245,37 @@
     color: rgba(255, 255, 255, 0.92);
     font-size: 0.9rem;
     pointer-events: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .dialog-image-viewer {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .image-viewer {
+    height: 100vh;
+    border-radius: 0;
+
+    &__toolbar-groups {
+      .image-viewer__group:nth-child(2),
+      .image-viewer__group:nth-child(3) {
+        display: none;
+      }
+    }
+
+    &__dock {
+      bottom: 48px;
+      max-width: calc(100vw - 24px);
+      overflow-x: auto;
+    }
+
+    &__title {
+      max-width: 55%;
+    }
   }
 }
 

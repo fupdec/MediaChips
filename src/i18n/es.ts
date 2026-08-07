@@ -2811,6 +2811,9 @@ const es = {
       rotate_right: 'Girar a la derecha',
       flip_horizontal: 'Voltear horizontalmente',
       flip_vertical: 'Voltear verticalmente',
+      slideshow_play: 'Iniciar presentación',
+      slideshow_pause: 'Pausar presentación',
+      toggle_info: 'Mostrar/ocultar info',
     },
   },
   notifications_text: {

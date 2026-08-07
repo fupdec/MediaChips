@@ -12,9 +12,13 @@
     <div
       v-if="viewer.active"
       ref="viewerRootRef"
-      :class="{ fullscreen: viewer.fullscreen }"
+      :class="{
+        fullscreen: viewer.fullscreen,
+        'image-viewer--chrome-hidden': chromeHidden,
+      }"
       class="image-viewer"
       tabindex="-1"
+      @pointermove="bumpChrome"
     >
       <v-btn
         @click="closeViewer"
@@ -52,6 +56,15 @@
               :disabled="!viewer.hasNextOrMore || viewer.loadingPlaylist"
               icon="mdi-chevron-right"
               :title="t('image.viewer.next')"
+            />
+            <v-btn
+              @click="toggleSlideshow"
+              :disabled="!displaySrc"
+              :color="viewer.slideshowActive ? 'primary' : undefined"
+              :icon="viewer.slideshowActive ? 'mdi-pause' : 'mdi-play'"
+              :title="viewer.slideshowActive
+                ? t('image.viewer.slideshow_pause')
+                : t('image.viewer.slideshow_play')"
             />
           </v-btn-group>
 
@@ -120,6 +133,12 @@
               :title="t('image.viewer.fullscreen')"
             />
             <v-btn
+              @click="viewer.toggleInfoVisible()"
+              :color="viewer.infoVisible ? 'primary' : undefined"
+              icon="mdi-information-outline"
+              :title="t('image.viewer.toggle_info')"
+            />
+            <v-btn
               @click="editImage"
               :disabled="viewer.isSourcesMode"
               icon="mdi-pencil"
@@ -139,7 +158,10 @@
         ref="stageRef"
         class="image-viewer__stage"
         @wheel.prevent="onWheel"
-        @mousedown="onPanStart"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
         @dblclick="onDoubleClick"
       >
         <v-btn
@@ -230,6 +252,18 @@
 
       <div class="image-viewer__dock">
         <v-btn
+          @click="toggleSlideshow"
+          :disabled="!displaySrc"
+          :color="viewer.slideshowActive ? 'primary' : 'white'"
+          :icon="viewer.slideshowActive ? 'mdi-pause' : 'mdi-play'"
+          variant="text"
+          size="small"
+          :title="viewer.slideshowActive
+            ? t('image.viewer.slideshow_pause')
+            : t('image.viewer.slideshow_play')"
+        />
+        <span class="image-viewer__dock-divider" />
+        <v-btn
           @click="zoomOut"
           :disabled="!displaySrc"
           icon="mdi-minus"
@@ -299,7 +333,7 @@
         />
       </div>
 
-      <div v-if="infoLine" class="image-viewer__info">
+      <div v-if="viewer.infoVisible && infoLine" class="image-viewer__info">
         {{ infoLine }}
       </div>
     </div>
@@ -320,6 +354,12 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {openPath} from '@/services/shellService'
 import type { MediaItem } from '@/types/stores'
 
+const SLIDESHOW_MS = 4000
+const CHROME_HIDE_MS = 2000
+const SWIPE_THRESHOLD_PX = 56
+const MIN_ZOOM = 0.2
+const MAX_ZOOM = 8
+
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
@@ -331,25 +371,48 @@ const viewerRootRef = ref<HTMLElement | null>(null)
 const stageRef = ref<HTMLElement | null>(null)
 const displaySrc = ref<string | null>(null)
 const loadFailed = ref(false)
+const chromeVisible = ref(true)
 
 const panState = ref({
   active: false,
+  pointerId: -1,
   startX: 0,
   startY: 0,
   originX: 0,
   originY: 0,
 })
 
+const pointers = new Map<number, {x: number; y: number}>()
+let pinchStartDist = 0
+let pinchStartScale = 1
+let swipeTracking = false
+let swipeStartX = 0
+let swipeStartY = 0
+let swipeMoved = false
+
 let objectUrl: string | null = null
 let ownsObjectUrl = false
 let loadToken = 0
 let playlistExtendPromise: Promise<boolean> | null = null
+let slideshowTimer: ReturnType<typeof setInterval> | null = null
+let chromeHideTimer: ReturnType<typeof setTimeout> | null = null
+
+type NeighborEntry = {
+  thumb?: string
+  full?: string
+  owned: string[]
+}
+const neighborCache = new Map<number, NeighborEntry>()
 
 const currentName = computed(() =>
   viewer.currentSource?.name || viewer.currentImage?.name || '',
 )
 
 const zoomLabel = computed(() => `${Math.round(viewer.scale * 100)}%`)
+
+const chromeHidden = computed(() =>
+  !chromeVisible.value && !loadFailed.value && !viewer.loadingPlaylist,
+)
 
 const transformStyle = computed(() => {
   const transforms = [
@@ -391,6 +454,15 @@ const infoLine = computed(() => {
   return parts.join(' · ')
 })
 
+const bumpChrome = () => {
+  chromeVisible.value = true
+  if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  chromeHideTimer = setTimeout(() => {
+    if (loadFailed.value) return
+    chromeVisible.value = false
+  }, CHROME_HIDE_MS)
+}
+
 const clearObjectUrl = () => {
   if (ownsObjectUrl) {
     revokeImageObjectUrl(objectUrl)
@@ -418,6 +490,67 @@ const adoptLoadedSrc = (src: string | null | undefined, token: number): string |
     return null
   }
   return src
+}
+
+const clearNeighborCache = () => {
+  for (const entry of neighborCache.values()) {
+    for (const url of entry.owned) revokeImageObjectUrl(url)
+  }
+  neighborCache.clear()
+}
+
+const rememberNeighborUrl = (entry: NeighborEntry, src: string | null | undefined, kind: 'thumb' | 'full') => {
+  if (!src || src.includes('unavailable.png')) return
+  entry[kind] = src
+  if (src.startsWith('blob:')) entry.owned.push(src)
+}
+
+const prefetchNeighbors = () => {
+  if (!viewer.active || viewer.isSourcesMode) return
+
+  const indices = [viewer.index - 1, viewer.index + 1]
+    .filter((i) => i >= 0 && i < viewer.imageIds.length)
+
+  for (const i of indices) {
+    const id = viewer.imageIds[i]
+    if (id == null || neighborCache.has(id)) continue
+
+    const media = itemsStore.resolveMediaById(id) || (
+      viewer.fallbackImage?.id === id ? viewer.fallbackImage : null
+    )
+    if (!media) continue
+
+    const entry: NeighborEntry = {owned: []}
+    neighborCache.set(id, entry)
+
+    void (async () => {
+      try {
+        const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
+        rememberNeighborUrl(entry, thumb, 'thumb')
+      } catch (error) {
+        console.error('Failed to prefetch neighbor thumb:', error)
+      }
+
+      try {
+        const full = await loadFullImageDisplayUrl(media)
+        rememberNeighborUrl(entry, full, 'full')
+      } catch (error) {
+        console.error('Failed to prefetch neighbor full image:', error)
+      }
+    })()
+  }
+
+  // Drop entries that are no longer near the current index.
+  const keepIds = new Set(
+    [viewer.index - 1, viewer.index, viewer.index + 1]
+      .filter((i) => i >= 0 && i < viewer.imageIds.length)
+      .map((i) => viewer.imageIds[i]),
+  )
+  for (const [id, entry] of neighborCache) {
+    if (keepIds.has(id)) continue
+    for (const url of entry.owned) revokeImageObjectUrl(url)
+    neighborCache.delete(id)
+  }
 }
 
 const loadCurrentImage = async () => {
@@ -451,14 +584,22 @@ const loadCurrentImage = async () => {
   const previewSrc = viewer.previewSrc
   viewer.previewSrc = null
 
+  const cachedNeighbor = image.id != null ? neighborCache.get(image.id) : undefined
+
   if (previewSrc) {
     setDisplaySrc(previewSrc, {owned: false})
+    viewer.setLoading(false)
+  } else if (cachedNeighbor?.full) {
+    setDisplaySrc(cachedNeighbor.full, {owned: false})
+    viewer.setLoading(false)
+  } else if (cachedNeighbor?.thumb) {
+    setDisplaySrc(cachedNeighbor.thumb, {owned: false})
     viewer.setLoading(false)
   }
 
   const existsPromise = image.path ? checkFileExists(image.path) : Promise.resolve(false)
 
-  if (!previewSrc) {
+  if (!previewSrc && !cachedNeighbor?.full && !cachedNeighbor?.thumb) {
     try {
       const thumbSrc = adoptLoadedSrc(
         await loadThumbDisplayUrl(image, appStore.mediaPath),
@@ -474,9 +615,13 @@ const loadCurrentImage = async () => {
   }
 
   try {
-    const fullSrc = adoptLoadedSrc(await loadFullImageDisplayUrl(image), token)
-    if (fullSrc) {
-      setDisplaySrc(fullSrc, {owned: true})
+    if (cachedNeighbor?.full && displaySrc.value === cachedNeighbor.full) {
+      // Already showing prefetched full resolution.
+    } else {
+      const fullSrc = adoptLoadedSrc(await loadFullImageDisplayUrl(image), token)
+      if (fullSrc) {
+        setDisplaySrc(fullSrc, {owned: true})
+      }
     }
   } catch (error) {
     console.error('Failed to load full image for viewer:', error)
@@ -488,8 +633,52 @@ const loadCurrentImage = async () => {
       if (!displaySrc.value && viewer.active) {
         loadFailed.value = true
       }
+
+      prefetchNeighbors()
     }
   }
+}
+
+const stopSlideshowTimer = () => {
+  if (slideshowTimer) {
+    clearInterval(slideshowTimer)
+    slideshowTimer = null
+  }
+}
+
+const stopSlideshow = () => {
+  stopSlideshowTimer()
+  viewer.setSlideshowActive(false)
+}
+
+const tickSlideshow = async () => {
+  if (!viewer.active || !viewer.slideshowActive) return
+  if (viewer.loading || viewer.loadingPlaylist) return
+
+  if (!viewer.hasNextOrMore) {
+    stopSlideshow()
+    return
+  }
+
+  await goNext()
+
+  if (!viewer.hasNextOrMore && !itemsStore.canLoadMoreForViewer) {
+    stopSlideshow()
+  }
+}
+
+const startSlideshow = () => {
+  stopSlideshowTimer()
+  viewer.setSlideshowActive(true)
+  bumpChrome()
+  slideshowTimer = setInterval(() => {
+    void tickSlideshow()
+  }, SLIDESHOW_MS)
+}
+
+const toggleSlideshow = () => {
+  if (viewer.slideshowActive) stopSlideshow()
+  else startSlideshow()
 }
 
 const closeViewer = () => {
@@ -499,6 +688,11 @@ const closeViewer = () => {
   loadFailed.value = false
   playlistExtendPromise = null
   viewer.setLoadingPlaylist(false)
+  stopSlideshow()
+  if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  chromeHideTimer = null
+  chromeVisible.value = true
+  clearNeighborCache()
   clearObjectUrl()
   viewer.close()
 }
@@ -551,13 +745,17 @@ const maybePrefetchPlaylist = () => {
 }
 
 const goPrev = async () => {
-  if (viewer.prev()) await loadCurrentImage()
+  if (viewer.prev()) {
+    await loadCurrentImage()
+    bumpChrome()
+  }
 }
 
 const goNext = async () => {
   if (viewer.next()) {
     await loadCurrentImage()
     maybePrefetchPlaylist()
+    bumpChrome()
     return
   }
 
@@ -565,6 +763,7 @@ const goNext = async () => {
   if (extended && viewer.next()) {
     await loadCurrentImage()
     maybePrefetchPlaylist()
+    bumpChrome()
   }
 }
 
@@ -577,18 +776,15 @@ const rotateRight = () => viewer.rotateRight()
 const toggleFlipHorizontal = () => viewer.toggleFlipHorizontal()
 const toggleFlipVertical = () => viewer.toggleFlipVertical()
 
-const MIN_ZOOM = 0.2
-const MAX_ZOOM = 8
-
 const clampScale = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 
-const applyZoomAtPointer = (event: WheelEvent, nextScale: number) => {
+const applyZoomAtClientPoint = (clientX: number, clientY: number, nextScale: number) => {
   const stage = stageRef.value
   if (!stage || nextScale === viewer.scale) return
 
   const rect = stage.getBoundingClientRect()
-  const pointerX = event.clientX - rect.left - rect.width / 2
-  const pointerY = event.clientY - rect.top - rect.height / 2
+  const pointerX = clientX - rect.left - rect.width / 2
+  const pointerY = clientY - rect.top - rect.height / 2
   const ratio = nextScale / viewer.scale
 
   viewer.translateX = pointerX - ratio * (pointerX - viewer.translateX)
@@ -596,8 +792,13 @@ const applyZoomAtPointer = (event: WheelEvent, nextScale: number) => {
   viewer.scale = nextScale
 }
 
+const applyZoomAtPointer = (event: WheelEvent, nextScale: number) => {
+  applyZoomAtClientPoint(event.clientX, event.clientY, nextScale)
+}
+
 const onWheel = (event: WheelEvent) => {
   if (!displaySrc.value) return
+  bumpChrome()
 
   const pinchZoom = event.ctrlKey
   const lineWheel = event.deltaMode === WheelEvent.DOM_DELTA_LINE
@@ -608,6 +809,7 @@ const onWheel = (event: WheelEvent) => {
   const shouldZoom = pinchZoom || lineWheel || coarseWheel
 
   if (!shouldZoom) {
+    if (viewer.scale <= 1) return
     viewer.translateX -= event.deltaX
     viewer.translateY -= event.deltaY
     return
@@ -618,39 +820,106 @@ const onWheel = (event: WheelEvent) => {
   applyZoomAtPointer(event, nextScale)
 }
 
-const onPanStart = (event: MouseEvent) => {
-  if (event.button !== 0 || !displaySrc.value) return
+const onPointerDown = (event: PointerEvent) => {
+  if (!displaySrc.value) return
+  bumpChrome()
 
-  panState.value = {
-    active: true,
-    startX: event.clientX,
-    startY: event.clientY,
-    originX: viewer.translateX,
-    originY: viewer.translateY,
+  pointers.set(event.pointerId, {x: event.clientX, y: event.clientY})
+  stageRef.value?.setPointerCapture?.(event.pointerId)
+
+  if (pointers.size === 1) {
+    swipeMoved = false
+    if (viewer.scale <= 1.05) {
+      swipeTracking = true
+      swipeStartX = event.clientX
+      swipeStartY = event.clientY
+    } else if (event.pointerType === 'mouse' ? event.button === 0 : true) {
+      panState.value = {
+        active: true,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: viewer.translateX,
+        originY: viewer.translateY,
+      }
+    }
   }
 
-  window.addEventListener('mousemove', onPanMove)
-  window.addEventListener('mouseup', onPanEnd)
+  if (pointers.size === 2) {
+    swipeTracking = false
+    panState.value.active = false
+    const pts = [...pointers.values()]
+    pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+    pinchStartScale = viewer.scale
+  }
 }
 
-const onPanMove = (event: MouseEvent) => {
-  if (!panState.value.active) return
+const onPointerMove = (event: PointerEvent) => {
+  if (!pointers.has(event.pointerId)) return
+  pointers.set(event.pointerId, {x: event.clientX, y: event.clientY})
+  bumpChrome()
 
-  viewer.translateX = panState.value.originX + (event.clientX - panState.value.startX)
-  viewer.translateY = panState.value.originY + (event.clientY - panState.value.startY)
+  if (pointers.size === 2 && pinchStartDist > 0) {
+    const pts = [...pointers.values()]
+    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+    const midX = (pts[0].x + pts[1].x) / 2
+    const midY = (pts[0].y + pts[1].y) / 2
+    const nextScale = clampScale(pinchStartScale * (dist / pinchStartDist))
+    applyZoomAtClientPoint(midX, midY, nextScale)
+    return
+  }
+
+  if (panState.value.active && panState.value.pointerId === event.pointerId && viewer.scale > 1) {
+    viewer.translateX = panState.value.originX + (event.clientX - panState.value.startX)
+    viewer.translateY = panState.value.originY + (event.clientY - panState.value.startY)
+    return
+  }
+
+  if (swipeTracking) {
+    const dx = event.clientX - swipeStartX
+    const dy = event.clientY - swipeStartY
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) swipeMoved = true
+  }
 }
 
-const onPanEnd = () => {
-  panState.value.active = false
-  window.removeEventListener('mousemove', onPanMove)
-  window.removeEventListener('mouseup', onPanEnd)
+const onPointerUp = (event: PointerEvent) => {
+  if (swipeTracking && pointers.size === 1 && viewer.scale <= 1.05 && swipeMoved) {
+    const dx = event.clientX - swipeStartX
+    const dy = event.clientY - swipeStartY
+    if (Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      if (dx < 0) void goNext()
+      else void goPrev()
+    }
+  }
+
+  pointers.delete(event.pointerId)
+
+  if (panState.value.pointerId === event.pointerId) {
+    panState.value.active = false
+    panState.value.pointerId = -1
+  }
+
+  if (pointers.size < 2) {
+    pinchStartDist = 0
+  }
+
+  if (pointers.size === 0) {
+    swipeTracking = false
+    swipeMoved = false
+  }
+
+  try {
+    stageRef.value?.releasePointerCapture?.(event.pointerId)
+  } catch {
+    // ignore release errors when capture was never set
+  }
 }
 
-const onDoubleClick = () => {
+const onDoubleClick = (event: MouseEvent) => {
   if (!displaySrc.value) return
 
-  if (viewer.scale === 1) {
-    viewer.scale = 2
+  if (viewer.scale <= 1.01) {
+    applyZoomAtClientPoint(event.clientX, event.clientY, 2)
     return
   }
 
@@ -686,6 +955,17 @@ const onKeyDown = (event: KeyboardEvent) => {
     case 'ArrowRight':
       event.preventDefault()
       goNext()
+      break
+    case ' ':
+    case 'Spacebar':
+      event.preventDefault()
+      toggleSlideshow()
+      break
+    case 'i':
+    case 'I':
+      event.preventDefault()
+      viewer.toggleInfoVisible()
+      bumpChrome()
       break
     case '+':
     case '=':
@@ -733,6 +1013,10 @@ const openFromEvent = (payload: unknown) => {
     sources,
   } = payload as ViewImagePayload
 
+  stopSlideshow()
+  clearNeighborCache()
+  bumpChrome()
+
   if (sources?.length) {
     viewer.openSources({sources, index})
     void loadCurrentImage()
@@ -743,11 +1027,14 @@ const openFromEvent = (payload: unknown) => {
 
   viewer.open({imageIds, index, fallbackImage, previewSrc})
 
-  if (fallbackImage) {
+  if (fallbackImage && imageIds.length <= 1) {
     queueMicrotask(() => {
       syncPlaylistFromStore(fallbackImage.id)
       maybePrefetchPlaylist()
+      prefetchNeighbors()
     })
+  } else {
+    maybePrefetchPlaylist()
   }
 
   void loadCurrentImage()
@@ -762,9 +1049,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
-  window.removeEventListener('mousemove', onPanMove)
-  window.removeEventListener('mouseup', onPanEnd)
   eventBus.off('viewImage', viewImageHandler)
+  stopSlideshow()
+  if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  clearNeighborCache()
   clearObjectUrl()
 })
 </script>

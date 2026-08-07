@@ -28,6 +28,8 @@ export const useImageViewerStore = defineStore('imageViewer', {
     loadingPlaylist: false,
     src: null as string | null,
     isFileExists: true,
+    slideshowActive: false,
+    infoVisible: true,
   }),
 
   getters: {
@@ -142,6 +144,8 @@ export const useImageViewerStore = defineStore('imageViewer', {
       this.loadingPlaylist = false
       this.src = null
       this.isFileExists = true
+      this.slideshowActive = false
+      this.infoVisible = true
       this.resetTransform()
     },
 
@@ -210,6 +214,18 @@ export const useImageViewerStore = defineStore('imageViewer', {
 
     toggleFullscreen() {
       this.fullscreen = !this.fullscreen
+    },
+
+    setSlideshowActive(active: boolean) {
+      this.slideshowActive = active
+    },
+
+    toggleSlideshow() {
+      this.slideshowActive = !this.slideshowActive
+    },
+
+    toggleInfoVisible() {
+      this.infoVisible = !this.infoVisible
     },
   },
 })

@@ -3010,6 +3010,9 @@ const en = {
       rotate_right: 'Rotate right',
       flip_horizontal: 'Flip horizontally',
       flip_vertical: 'Flip vertically',
+      slideshow_play: 'Start slideshow',
+      slideshow_pause: 'Pause slideshow',
+      toggle_info: 'Toggle info',
     },
   },
   notifications_text: {

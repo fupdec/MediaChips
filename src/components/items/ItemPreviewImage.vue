@@ -109,20 +109,14 @@ const onThumbLoad = () => {
 }
 
 const onThumbError = () => {
-  if (thumbFallbackStage >= 2) {
+  if (thumbFallbackStage >= 1) {
     thumb.value = IMAGE_UNAVAILABLE_URL
     return
   }
 
   thumbFallbackStage += 1
   thumbLoadStarted = false
-
-  if (thumbFallbackStage === 1) {
-    void loadThumb({cacheBust: true})
-    return
-  }
-
-  void loadThumb({preferFull: true, cacheBust: true})
+  void loadThumb({cacheBust: true})
 }
 
 const clearThumbUrl = () => {
@@ -219,18 +213,21 @@ const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
 
 const requestThumb = () => {
   if (!props.previewActive) return
+  // Keep warm HTTP thumbs across scroll; only (re)load when empty or blob-cleared.
+  if (thumb.value && !thumb.value.includes('unavailable.png') && !thumbObjectUrl) return
   if (applyCachedThumb()) return
   thumbLoadStarted = false
   thumbFallbackStage = 0
   void loadThumb()
 }
 
-const clearLoadedThumb = () => {
+/** Cancel in-flight loads when leaving the viewport, but keep HTTP thumbs warm. */
+const pauseOffscreenThumb = () => {
   loadGeneration += 1
-  clearThumbUrl()
-  thumb.value = null
-  detectedWidth.value = 0
-  detectedHeight.value = 0
+  if (thumbObjectUrl) {
+    clearThumbUrl()
+    thumb.value = null
+  }
   thumbLoadStarted = false
   thumbFallbackStage = 0
 }
@@ -240,7 +237,7 @@ watch(() => props.previewActive, (active) => {
     requestThumb()
     return
   }
-  clearLoadedThumb()
+  pauseOffscreenThumb()
 }, { immediate: true })
 
 /** Thumb click always opens the viewer; browser-layout inspect stays on the card description. */

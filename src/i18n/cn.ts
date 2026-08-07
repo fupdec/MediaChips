@@ -2811,6 +2811,9 @@ const cn = {
       rotate_right: '向右旋转',
       flip_horizontal: '水平翻转',
       flip_vertical: '垂直翻转',
+      slideshow_play: '开始幻灯片',
+      slideshow_pause: '暂停幻灯片',
+      toggle_info: '显示/隐藏信息',
     },
   },
   notifications_text: {

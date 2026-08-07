@@ -40,10 +40,18 @@ describe('thumbDisplayCache', () => {
     expect(getCachedThumb('blob')).toBeUndefined()
   })
 
-  it('ignores authenticated file URLs with token query params', () => {
+  it('stores authenticated file URLs without the session token', () => {
     clearThumbDisplayCache()
-    setCachedThumb('auth', '/api/get-file?url=test.jpg&token=secret')
-    expect(getCachedThumb('auth')).toBeUndefined()
+    setCachedThumb('auth', '/api/get-file?url=test.jpg&cv=1&token=secret')
+    expect(getCachedThumb('auth')).toBe('/api/get-file?url=test.jpg&cv=1')
+  })
+
+  it('re-attaches the current session token when reading cached get-file URLs', () => {
+    clearThumbDisplayCache()
+    sessionStorage.setItem('mediachips_auth_token', 'live-token')
+    setCachedThumb('auth2', '/api/get-file?url=photo.jpg&cv=1&token=old')
+    expect(getCachedThumb('auth2')).toBe('/api/get-file?url=photo.jpg&cv=1&token=live-token')
+    sessionStorage.removeItem('mediachips_auth_token')
   })
 
   it('clears all cached entries', () => {

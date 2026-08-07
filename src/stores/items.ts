@@ -191,9 +191,12 @@ export const useItemsStore = defineStore('items', {
         return
       }
 
+      const imageIds = this.buildImageViewerPlaylistIds(rawImage)
+      const foundIndex = imageIds.indexOf(rawImage.id)
+
       eventBus.emit('viewImage', {
-        imageIds: [rawImage.id],
-        index: 0,
+        imageIds,
+        index: foundIndex < 0 ? 0 : foundIndex,
         fallbackImage: rawImage,
         previewSrc: previewSrc || null,
       })

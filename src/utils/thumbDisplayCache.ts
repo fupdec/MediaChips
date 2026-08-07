@@ -1,3 +1,5 @@
+import { getAuthToken } from '@/services/authSession'
+
 const DEFAULT_MAX_ENTRIES = 400
 
 const cache = new Map<string, string>()
@@ -19,11 +21,39 @@ function evictOldest(): void {
   if (oldestKey !== undefined) cache.delete(oldestKey)
 }
 
+/** Persist URLs without session tokens so the LRU survives auth. */
+export function stripAuthTokenFromUrl(url: string): string {
+  const qIndex = url.indexOf('?')
+  if (qIndex < 0) return url
+
+  const path = url.slice(0, qIndex)
+  const params = new URLSearchParams(url.slice(qIndex + 1))
+  if (!params.has('token')) return url
+
+  params.delete('token')
+  const next = params.toString()
+  return next ? `${path}?${next}` : path
+}
+
+/** Re-attach the current session token when reading cached get-file URLs. */
+export function withAuthToken(url: string): string {
+  const token = getAuthToken()
+  if (!token) return url
+
+  const qIndex = url.indexOf('?')
+  const path = qIndex < 0 ? url : url.slice(0, qIndex)
+  if (!path.includes('get-file')) return url
+
+  const params = new URLSearchParams(qIndex < 0 ? '' : url.slice(qIndex + 1))
+  params.set('token', token)
+  return `${path}?${params.toString()}`
+}
+
 export function getCachedThumb(key: string): string | undefined {
   const url = cache.get(key)
   if (url === undefined) return undefined
   touch(key, url)
-  return url
+  return withAuthToken(url)
 }
 
 const isUnavailable = (src: string | null | undefined): boolean => !src || src.includes('unavailable.png')
@@ -32,13 +62,12 @@ export function isPersistentThumbUrl(url: string | null | undefined): boolean {
   if (isUnavailable(url)) return false
   const value = String(url)
   if (value.startsWith('blob:')) return false
-  if (value.includes('token=')) return false
   return true
 }
 
 export function setCachedThumb(key: string, url: string | null | undefined): void {
   if (!isPersistentThumbUrl(url)) return
-  touch(key, url!)
+  touch(key, stripAuthTokenFromUrl(url!))
   evictOldest()
 }
 
