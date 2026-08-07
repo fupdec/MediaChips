@@ -172,6 +172,7 @@ describe('iterateFaceDetection match-after-detect', () => {
       candidateLimit: 5,
       mode: 'suggest',
       matchAfterDetect: false,
+      autoBlindTags: false,
     })
 
     for await (const _ of iterateFaceDetection({} as never, {})) {

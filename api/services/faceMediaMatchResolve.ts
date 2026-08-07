@@ -162,6 +162,8 @@ export type MatchMediaFacesResult = {
   applied: number
   skipped: number
   faces: number
+  blindTagsCreated?: number
+  blindFacesApplied?: number
   error?: string
 }
 
