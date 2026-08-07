@@ -25,6 +25,24 @@ export const docs = [
         icon: 'mdi-view-compact',
         selector: ['.v-app-bar'],
       },
+      {
+        id: 'ui.control_deck',
+        name: 'Items control deck',
+        icon: 'mdi-view-agenda-outline',
+        selector: ['#items-control-deck'],
+      },
+      {
+        id: 'ui.browser_layout',
+        name: 'Browser layout',
+        icon: 'mdi-view-dashboard-outline',
+        selector: ['.inspector-panel', '.has-browser-layout'],
+      },
+      {
+        id: 'ui.edit_dialogs',
+        name: 'Edit dialogs',
+        icon: 'mdi-pencil-box-outline',
+        selector: ['.edit-dialog-card'],
+      },
       { id: 'ui.tabs', name: 'Tabs', icon: 'mdi-tab' },
       {
         id: 'ui.filters',
@@ -154,6 +172,20 @@ export const docs = [
             navigate: '/settings?tab=general&section=general_app',
           },
           {
+            id: 'settings.general.lan_phone',
+            name: 'LAN phone access',
+            icon: 'mdi-cellphone-link',
+            selector: ['#settings-doc-tab-general', '#settings-general'],
+            navigate: '/settings?tab=general&section=general_app',
+          },
+          {
+            id: 'settings.general.pwa_install',
+            name: 'Install as app (PWA)',
+            icon: 'mdi-cellphone-arrow-down',
+            selector: ['#settings-doc-tab-general', '#settings-general'],
+            navigate: '/settings?tab=general&section=general_app',
+          },
+          {
             id: 'settings.general.locale',
             name: 'Language',
             icon: 'mdi-translate',
@@ -223,6 +255,13 @@ export const docs = [
             name: 'Page layout',
             icon: 'mdi-page-layout-header',
             selector: ['#settings-doc-tab-appearance', '#settings-appearance-page'],
+            navigate: '/settings?tab=appearance&section=appearance_page',
+          },
+          {
+            id: 'settings.appearance.editing_overview',
+            name: 'Editing dialog overview',
+            icon: 'mdi-card-text-outline',
+            selector: ['#settings-doc-tab-appearance', '#settings-appearance-page', '#settings-editing-overview'],
             navigate: '/settings?tab=appearance&section=appearance_page',
           },
           {

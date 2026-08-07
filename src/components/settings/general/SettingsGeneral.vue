@@ -1,5 +1,38 @@
 <template>
   <div class="mx-4">
+    <div class="d-flex align-center flex-wrap mb-2">
+      <ButtonDocumentation id="settings.general.lan_phone"/>
+      <ButtonDocumentation id="settings.general.pwa_install"/>
+    </div>
+
+    <v-alert
+      v-if="!isElectronHost"
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="text-body-2 mb-3"
+      rounded="xl"
+    >
+      <div class="mb-2">
+        {{ t('settings_labels.general.clear_app_cache_hint') }}
+      </div>
+      <div class="d-flex flex-wrap align-center ga-2">
+        <ClearAppCacheButton color="primary"/>
+        <v-btn
+          :href="clearCacheUrl"
+          target="_blank"
+          rel="noopener"
+          color="secondary"
+          rounded
+          size="small"
+          variant="text"
+        >
+          <v-icon icon="mdi-open-in-new" start/>
+          /api/clear-cache
+        </v-btn>
+      </div>
+    </v-alert>
+
     <v-alert
       :type="SETTINGS.allowLanAccess === '1' ? 'info' : 'warning'"
       variant="tonal"
@@ -29,6 +62,8 @@
         <span>{{ t('settings_labels.general.copy_link') }}:</span>
         <b>{{ frontendUrl }}</b>
       </v-btn>
+
+      <LanPhoneAccessHints v-if="SETTINGS.allowLanAccess === '1'"/>
     </v-alert>
 
     <settings-switch
@@ -85,6 +120,9 @@ import {refreshServerConfig} from '@/services/configService'
 import {resolveLanShareUrl} from '@/utils/apiBaseUrl'
 import {isWinElectronUi} from '@/utils/electronUi'
 import SettingsMinimizeToTray from '@/components/settings/general/SettingsMinimizeToTray.vue'
+import LanPhoneAccessHints from '@/components/app/LanPhoneAccessHints.vue'
+import ClearAppCacheButton from '@/components/app/ClearAppCacheButton.vue'
+import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 
@@ -93,6 +131,7 @@ const {t} = useI18n({useScope: 'global'})
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const lanAccessEnvLocked = ref(false)
+const isElectronHost = Boolean(window.electronAPI)
 
 const showTraySetting = isWinElectronUi()
 
@@ -101,6 +140,13 @@ const frontendUrl = computed(() =>
   resolveLanShareUrl(appStore.config as Parameters<typeof resolveLanShareUrl>[0])
   || appStore.localhost,
 )
+const clearCacheUrl = computed(() => {
+  try {
+    return new URL('/api/clear-cache', frontendUrl.value || window.location.origin).toString()
+  } catch {
+    return '/api/clear-cache'
+  }
+})
 const lanAccessHint = computed(() =>
   lanAccessEnvLocked.value
     ? t('settings_labels.general.allow_lan_access_env_locked')

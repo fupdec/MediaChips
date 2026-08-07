@@ -1,5 +1,99 @@
 <template>
+  <v-menu
+    v-if="iconMode"
+    v-model="menuOpen"
+    :close-on-content-click="false"
+    location="bottom"
+  >
+    <template #activator="{ props: activatorProps }">
+      <v-btn
+        v-bind="activatorProps"
+        color="primary"
+        variant="tonal"
+        size="small"
+        icon
+        :disabled="!items.isFiltersLoaded"
+        v-tooltip:top="selectionLabel"
+      >
+        <v-icon size="18">
+          {{
+            items.sortDir === 'asc'
+              ? 'mdi-sort-ascending'
+              : 'mdi-sort-descending'
+          }}
+        </v-icon>
+      </v-btn>
+    </template>
+
+    <v-list
+      density="compact"
+      class="toolbar-sort-menu"
+      max-height="360"
+    >
+      <v-list-item
+        color="primary"
+        density="compact"
+        @click="toggleDir"
+      >
+        <template #prepend>
+          <v-icon size="small">
+            {{
+              items.sortDir === 'asc'
+                ? 'mdi-sort-ascending'
+                : 'mdi-sort-descending'
+            }}
+          </v-icon>
+        </template>
+        <v-list-item-title>{{ t('filters.change_direction') }}</v-list-item-title>
+      </v-list-item>
+
+      <v-divider class="my-1"/>
+
+      <template
+        v-for="(item, index) in sortParamsGrouped"
+        :key="index"
+      >
+        <v-list-subheader v-if="isSortGroupHeader(item)">
+          {{ getGroupText(item.header) }}
+        </v-list-subheader>
+
+        <v-divider v-else-if="isSortGroupDivider(item)"/>
+
+        <v-list-item
+          v-else-if="isSortParamItem(item)"
+          :active="isActiveSortParam(item)"
+          color="primary"
+          density="compact"
+          @click="sortFromMenu(item.param)"
+        >
+          <template #title>
+            <div class="text-body-2 py-1">
+              <v-icon
+                :icon="`mdi-${item.icon}`"
+                size="small"
+              />
+              <span class="pl-4">{{ getSortParamText(item) }}</span>
+            </div>
+          </template>
+          <template
+            v-if="isActiveSortParam(item)"
+            #append
+          >
+            <v-icon size="small">
+              {{
+                items.sortDir === 'asc'
+                  ? 'mdi-sort-ascending'
+                  : 'mdi-sort-descending'
+              }}
+            </v-icon>
+          </template>
+        </v-list-item>
+      </template>
+    </v-list>
+  </v-menu>
+
   <v-autocomplete
+    v-else
     :model-value="items.sortBy"
     @update:model-value="sort"
     v-model:search="search"
@@ -37,7 +131,6 @@
               : 'mdi-sort-descending'
           }}
         </v-icon>
-
       </v-btn>
     </template>
     <template v-slot:selection>
@@ -95,94 +188,12 @@
       </v-list-item>
     </template>
   </v-autocomplete>
-
-<!--  <v-card v-show="false"-->
-<!--    rounded="xl"-->
-<!--    variant="tonal"-->
-<!--    color="primary"-->
-<!--  >-->
-<!--    <v-overlay-->
-<!--      :model-value="!items.isFiltersLoaded"-->
-<!--      :opacity="0.1"-->
-<!--      contained-->
-<!--      persistent-->
-<!--      class="d-flex justify-center align-center"-->
-<!--    >-->
-<!--      <v-progress-circular indeterminate-->
-<!--        size="100"-->
-<!--        width="10"-->
-<!--        color="primary"/>-->
-<!--    </v-overlay>-->
-
-<!--    &lt;!&ndash; HEADER &ndash;&gt;-->
-<!--    <v-card-title class="d-flex align-center">-->
-<!--      <span class="text-h5">-->
-<!--        Sort by-->
-<!--      </span>-->
-
-<!--      <v-btn-->
-<!--        class="ml-4"-->
-<!--        color="primary"-->
-<!--        variant="tonal"-->
-<!--        rounded-->
-<!--        @click="toggleDir"-->
-<!--      >-->
-<!--        <v-icon start>-->
-<!--          {{-->
-<!--            items.sortDir === 'asc'-->
-<!--              ? 'mdi-sort-ascending'-->
-<!--              : 'mdi-sort-descending'-->
-<!--          }}-->
-<!--        </v-icon>-->
-<!--        Change direction-->
-<!--      </v-btn>-->
-
-<!--      <v-spacer/>-->
-
-<!--      <v-btn-->
-<!--        icon-->
-<!--        variant="text"-->
-<!--        @click="toolbarStore.sort.show = false"-->
-<!--      >-->
-<!--        <v-icon>mdi-close</v-icon>-->
-<!--      </v-btn>-->
-<!--    </v-card-title>-->
-
-<!--    &lt;!&ndash; CONTENT &ndash;&gt;-->
-<!--    <v-card-text>-->
-<!--      <v-chip-group column-->
-<!--        class="pb-0">-->
-<!--        <v-chip-->
-<!--          v-for="param in sortParams"-->
-<!--          :key="param.param"-->
-<!--          class="ma-1"-->
-<!--          base-color="primary"-->
-<!--          :variant="param.param === items.sortBy ? 'flat' : 'outlined'"-->
-<!--          @click="sort(param.param)"-->
-<!--        >-->
-<!--          <v-icon start>-->
-<!--            {{ `mdi-${param.icon}` }}-->
-<!--          </v-icon>-->
-
-<!--          <span v-html="param.text"></span>-->
-
-<!--          <v-icon v-if="param.param === items.sortBy"-->
-<!--            end>-->
-<!--            {{-->
-<!--              items.sortDir === 'asc'-->
-<!--                ? 'mdi-sort-ascending'-->
-<!--                : 'mdi-sort-descending'-->
-<!--            }}-->
-<!--          </v-icon>-->
-<!--        </v-chip>-->
-<!--      </v-chip-group>-->
-<!--    </v-card-text>-->
-<!--  </v-card>-->
 </template>
 
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
@@ -196,25 +207,24 @@ import {
   isSortParamItem,
 } from '@/utils/mediaSortFilter'
 
-defineProps({
+const props = defineProps({
   deck: {
     type: Boolean,
     default: false,
   },
 })
 
-/* ================= STORES ================= */
-
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
+const {smAndDown} = useDisplay()
 const search = ref('')
-
-/* ================= COMPUTED ================= */
+const menuOpen = ref(false)
 
 const items = computed(() => itemsStore)
 const env = computed(() => itemsStore.environment)
+const iconMode = computed(() => props.deck && smAndDown.value)
 
 const currentMediaType = computed(() =>
   getCurrentMediaType(appStore.mediaTypes, env.value.media_type_id),
@@ -294,8 +304,6 @@ const normalizeSortBy = () => {
 watch(sortParams, normalizeSortBy)
 watch(() => items.value.isFiltersLoaded, normalizeSortBy)
 
-/* ================= METHODS ================= */
-
 function filterSortItems(
   _itemTitle: string,
   queryText: string,
@@ -365,6 +373,11 @@ function sort(param: string | number) {
   itemsStore.setSortBy(nextSortBy)
   pageCommands.setSortBy(nextSortBy)
 }
+
+function sortFromMenu(param: string | number) {
+  sort(param)
+  menuOpen.value = false
+}
 </script>
 
 <style scoped lang="scss">
@@ -393,6 +406,10 @@ function sort(param: string | number) {
   background: rgba(var(--v-theme-primary), 0.22);
   color: inherit;
   border-radius: 2px;
+}
+
+.toolbar-sort-menu {
+  min-width: 220px;
 }
 
 .toolbar-sort--deck {
@@ -445,18 +462,7 @@ function sort(param: string | number) {
   }
 
   .toolbar-sort__selection {
-    gap: 4px;
-  }
-
-  .toolbar-sort__selection .v-icon {
-    font-size: 14px !important;
-    width: 14px;
-    height: 14px;
-  }
-
-  .toolbar-sort__selection-label {
-    font-size: 0.75rem;
-    line-height: 1.2;
+    max-width: 100%;
   }
 }
 </style>

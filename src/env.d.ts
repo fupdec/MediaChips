@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 /// <reference path="../shared/electron/window.d.ts" />
 
 declare module '*.vue' {

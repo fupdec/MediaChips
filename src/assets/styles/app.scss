@@ -97,6 +97,20 @@ header {
   z-index: 2800 !important;
 }
 
+/* Compact tooltips — denser than Vuetify defaults (0.875rem / 5px 16px).
+   Higher specificity so this wins over vuetify/styles imported in main.ts. */
+.v-overlay.v-tooltip > .v-overlay__content {
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+  background: rgba(var(--v-theme-on-surface), 0.88);
+  color: rgb(var(--v-theme-surface));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  max-width: min(240px, 70vw);
+}
+
 //.v-main__wrap {
 //  overflow-y: auto;
 //}

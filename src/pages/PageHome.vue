@@ -87,6 +87,8 @@
         <span class="text-body-2">{{ t('settings_labels.general.copy_link') }}:</span>
         <span class="text-body-2 font-weight-medium ml-1">{{ apiUrl }}</span>
       </v-btn>
+
+      <LanPhoneAccessHints/>
     </v-alert>
 
     <div class="d-flex justify-end flex-wrap ga-2 mb-2">
@@ -152,6 +154,7 @@ import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
 import HomeWidgetRenderer from '@/components/widgets/HomeWidgetRenderer.vue'
 import DialogHomeWidgets from '@/components/dialogs/DialogHomeWidgets.vue'
+import LanPhoneAccessHints from '@/components/app/LanPhoneAccessHints.vue'
 import {setOption} from '@/services/settingsService'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type { MediaItem } from '@/types/stores'

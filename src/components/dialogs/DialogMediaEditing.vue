@@ -126,14 +126,17 @@ import {
   isTextMediaType,
   isVideoMediaType,
 } from '@/utils/mediaType'
+import {useAppShell} from '@/composable/appShell'
 
 const DialogHeader = defineAsyncComponent(() => import("@/components/elements/DialogHeader.vue"))
 
 interface DialogHeaderButton {
   icon?: string
   text?: string
+  title?: string
   color?: string
   outlined?: boolean
+  order?: number
   action?: () => void | Promise<void>
 }
 
@@ -151,6 +154,7 @@ const props = defineProps<{
 const {xs, xl} = useDisplay()
 const listSync = useItemsListSync()
 const appStore = useAppStore()
+const appShell = useAppShell()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const contextMenuStore = useContextMenu()
@@ -196,6 +200,13 @@ const isVideoMedia = computed(() => isVideoMediaType(currentMediaType.value))
 
 function initButtons() {
   buttons.value = [{
+    icon: 'help-circle-outline',
+    title: t('common.documentation'),
+    color: 'primary',
+    outlined: true,
+    order: -1,
+    action: () => appShell.showDocumentation('ui.edit_dialogs'),
+  }, {
     icon: "delete",
     text: t('common.delete'),
     color: "error",

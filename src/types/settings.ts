@@ -142,6 +142,8 @@ export type SettingsState = {
   checkForUpdatesAtStartup: string
   startupHealthNotifications: string
   showIconsOfMetaInEditingDialog: string
+  /** '1' expands the media/tag overview panel in editing dialogs. */
+  editingOverviewExpanded: string
   mixedTagsInputInEditingDialog: string
   showEmptyMetaValueInCard: string
   showIconsInsteadTextOnFiltersChips: string
@@ -255,6 +257,7 @@ export const defaultSettingsState = (): SettingsState => ({
   checkForUpdatesAtStartup: '1',
   startupHealthNotifications: '1',
   showIconsOfMetaInEditingDialog: '1',
+  editingOverviewExpanded: '0',
   mixedTagsInputInEditingDialog: '0',
   showEmptyMetaValueInCard: '1',
   showIconsInsteadTextOnFiltersChips: '0',

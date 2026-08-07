@@ -112,6 +112,10 @@ app.use(readable, { router, store, i18n })
 router.isReady().then(() => {
   app.mount('#app')
 
+  void import('@/services/registerPwa').then(({registerPwa}) => {
+    void registerPwa()
+  })
+
   if (import.meta.env.DEV) {
     import('@/composable/useOnboarding').then(({openOnboarding}) => {
       ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding

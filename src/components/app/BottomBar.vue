@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import {ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {useDisplay} from 'vuetify'
+import {useI18n} from 'vue-i18n'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
+
+const CONTENT_HEIGHT = 56
 
 const folderHovered = ref(false)
 const hiddenMetaMenu = ref(false)
+const safeAreaBottom = ref(0)
+
+const {mobile} = useDisplay()
+const {t} = useI18n()
 
 const {
   mediaTypesHidden,
@@ -19,27 +27,63 @@ const {
   openDialogFolder,
   metaPath,
 } = useLibraryNavItems()
+
+function readSafeAreaBottom() {
+  if (typeof document === 'undefined') return 0
+  const probe = document.createElement('div')
+  probe.setAttribute('aria-hidden', 'true')
+  probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:env(safe-area-inset-bottom,0px)'
+  document.body.appendChild(probe)
+  const value = probe.getBoundingClientRect().height
+  probe.remove()
+  return Number.isFinite(value) ? value : 0
+}
+
+function updateSafeAreaBottom() {
+  safeAreaBottom.value = readSafeAreaBottom()
+}
+
+/** Include home-indicator inset so Vuetify layout reserves enough space. */
+const navHeight = computed(() => CONTENT_HEIGHT + Math.ceil(safeAreaBottom.value))
+
+onMounted(() => {
+  updateSafeAreaBottom()
+  window.addEventListener('resize', updateSafeAreaBottom)
+  window.visualViewport?.addEventListener('resize', updateSafeAreaBottom)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateSafeAreaBottom)
+  window.visualViewport?.removeEventListener('resize', updateSafeAreaBottom)
+})
 </script>
 
 <template>
   <v-bottom-navigation
     app
     :active="true"
-    mode="shift"
-    density="comfortable"
-    elevation="10"
+    :mode="mobile ? undefined : 'shift'"
+    density="default"
+    :height="navHeight"
+    elevation="8"
+    border
     class="bottom-menu"
+    :class="{'bottom-menu--mobile': mobile}"
   >
     <v-tooltip
       v-for="link in libraryLinks"
       :key="link.key"
       location="top"
+      :disabled="mobile"
+      open-on-hover
     >
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
           :to="link.to"
           :exact="link.exact"
+          :aria-label="link.title"
+          :title="link.title"
           draggable="false"
           variant="text"
           color="primary"
@@ -51,12 +95,18 @@ const {
       {{ link.title }}
     </v-tooltip>
 
-    <v-tooltip location="top">
+    <v-tooltip
+      location="top"
+      :disabled="mobile"
+      open-on-hover
+    >
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
           :to="allTagsLink.to"
           :exact="allTagsLink.exact"
+          :aria-label="allTagsLink.title"
+          :title="allTagsLink.title"
           draggable="false"
           variant="text"
           color="primary"
@@ -72,11 +122,15 @@ const {
       v-for="item in metaVisible"
       :key="item.id"
       location="top"
+      :disabled="mobile"
+      open-on-hover
     >
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
           :to="metaPath(item.id)"
+          :aria-label="item.name"
+          :title="item.name"
           draggable="false"
           variant="text"
           color="primary"
@@ -101,6 +155,7 @@ const {
             @click.prevent
             class="folder btn-hidden"
             variant="text"
+            :aria-label="t('actions.more')"
           >
             <v-icon v-if="hiddenMetaMenu">mdi-chevron-down</v-icon>
             <v-icon v-else>mdi-chevron-up</v-icon>
@@ -129,11 +184,17 @@ const {
       </v-list>
     </v-menu>
 
-    <v-tooltip location="top">
+    <v-tooltip
+      location="top"
+      :disabled="mobile"
+      open-on-hover
+    >
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
           :to="settingsLink.to"
+          :aria-label="settingsLink.title"
+          :title="settingsLink.title"
           draggable="false"
           color="primary"
           variant="text"
@@ -155,6 +216,8 @@ const {
         v-for="entry in watcherFiles"
         :key="entry.folder.id"
         location="top"
+        :disabled="mobile"
+        open-on-hover
       >
         <template #activator="{ props }">
           <div class="folder-wrapper">
@@ -162,6 +225,8 @@ const {
               v-bind="props"
               @click="openDialogFolder(entry)"
               :disabled="watcherBusy"
+              :aria-label="entry.folder.name"
+              :title="entry.folder.name"
               class="folder v-btn--selected v-btn--active"
               variant="text"
             >
@@ -194,22 +259,29 @@ const {
   </v-bottom-navigation>
 </template>
 
-<style
-  lang="scss">
+<style lang="scss">
 .bottom-menu {
   --bottom-bar-height: 56px;
-  height: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box !important;
   width: 100%;
   max-width: 100vw;
   display: flex;
-  background-color: rgba(var(--v-theme-background), 0.85);
+  flex-direction: column;
+  justify-content: flex-start;
+  background-color: rgba(var(--v-theme-surface), 0.94) !important;
   backdrop-filter: blur(25px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  -webkit-backdrop-filter: blur(25px);
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  border-top: thin solid rgba(var(--v-border-color), 0.22);
   z-index: 1004;
 }
 
 .bottom-menu .v-bottom-navigation__content {
+  flex: 0 0 var(--bottom-bar-height);
+  height: var(--bottom-bar-height);
+  max-height: var(--bottom-bar-height);
   justify-content: safe center;
+  align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -222,6 +294,18 @@ const {
 
 .bottom-menu .v-btn {
   flex: 0 0 auto;
+  color: rgba(var(--v-theme-on-surface), 0.72) !important;
+  opacity: 1;
+}
+
+.bottom-menu .v-btn.v-btn--selected,
+.bottom-menu .v-btn.v-btn--active {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.bottom-menu .v-btn .v-icon {
+  opacity: 1;
+  font-size: 1.5rem;
 }
 
 .bottom-menu-wrap {
@@ -268,6 +352,15 @@ const {
 
   .bottom-menu .v-btn .v-btn__content > span {
     display: none;
+  }
+
+  .bottom-menu .v-btn .v-icon {
+    font-size: 1.65rem;
+  }
+
+  /* Shift mode is off on mobile; keep icons centered above the home indicator. */
+  .bottom-menu .v-btn .v-btn__content {
+    transform: none !important;
   }
 
   .bottom-menu .folder,

@@ -3,6 +3,7 @@ import { defineConfig, type Plugin, type UserConfig } from 'vite'
 import type { Connect } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import { stripMdiLegacyFontUrls } from './scripts/strip-mdi-legacy-fonts.mjs'
 
@@ -65,6 +66,59 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     vuetify({ autoImport: true }),
     invalidUrlMiddleware(),
     stripMdiLegacyFonts(),
+    VitePWA({
+      // Manual register in src/services/registerPwa.ts — skip Electron hosts.
+      injectRegister: false,
+      registerType: 'autoUpdate',
+      includeAssets: [
+        'icons/favicon.ico',
+        'icons/apple-touch-icon.png',
+        'icons/android-chrome-192x192.png',
+        'icons/android-chrome-512x512.png',
+        'icons/icon.svg',
+      ],
+      manifest: {
+        id: '/',
+        name: 'MediaChips',
+        short_name: 'MediaChips',
+        description: 'Organize and play your media library from this device or your phone on the LAN.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'any',
+        theme_color: '#9875c6',
+        background_color: '#ffffff',
+        icons: [
+          {
+            src: '/icons/android-chrome-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/android-chrome-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+        ],
+      },
+      workbox: {
+        // App shell + static assets only — never media or API payloads.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/clear-cache(?:\.html)?$/],
+        runtimeCaching: [
+          {
+            urlPattern: ({url}) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
   )
 
   if (process.env.ANALYZE === '1') {

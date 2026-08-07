@@ -16,7 +16,7 @@
     >
       <div class="items-control-deck__surface items-control-deck__surface--card">
         <div
-          class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-wrap ga-3"
+          class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-nowrap ga-2"
         >
           <div class="d-flex align-center items-page-header__title min-width-0">
             <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
@@ -29,17 +29,30 @@
               <span v-else>({{ total }})</span>
               <span v-if="filesize_all"> · {{ filesize_all }}</span>
             </span>
+            <v-btn
+              class="items-control-deck__docs d-none d-sm-inline-flex"
+              color="primary"
+              variant="text"
+              size="small"
+              icon
+              v-tooltip:top="t('common.documentation')"
+              @click="openControlDeckDocs"
+            >
+              <v-icon size="18">mdi-help-circle-outline</v-icon>
+            </v-btn>
           </div>
 
-          <div class="d-flex align-center flex-wrap ga-2 items-control-deck__controls">
+          <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
             <ToolbarSort
               deck
-              class="items-control-deck__field items-control-deck__sort"
+              :class="smAndDown
+                ? 'items-control-deck__sort-icon'
+                : 'items-control-deck__field items-control-deck__sort'"
             />
 
             <ToolbarGroupBy
               compact
-              :class="isGroupByOff
+              :class="isGroupByOff || smAndDown
                 ? 'items-control-deck__group-by-icon'
                 : 'items-control-deck__field items-control-deck__group-by'"
             />
@@ -382,6 +395,7 @@ import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {useAppShell} from '@/composable/appShell'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -408,10 +422,15 @@ const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
+const appShell = useAppShell()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
-const {xs} = useDisplay()
+const {xs, smAndDown} = useDisplay()
+
+function openControlDeckDocs() {
+  appShell.showDocumentation('ui.control_deck')
+}
 
 // Запускает watcher генерации превью в composable
 useVideoImageGenerator()
@@ -992,10 +1011,18 @@ defineEmits<{
 
     position: sticky;
     top: var(--deck-sticky-top);
-    z-index: 8;
+    /*
+      Above item cards and context-menu spotlight (900),
+      below app bar / side chrome (~1000+).
+    */
+    z-index: 950;
     margin-top: 0;
     margin-bottom: 16px;
-    background: transparent;
+    /* Opaque page bg under rounded surface — do not use overflow:hidden here
+       or the stuck elevation shadow gets clipped and the deck blends in. */
+    background: rgb(var(--v-theme-background));
+    border-radius: var(--deck-radius, 16px);
+    isolation: isolate;
 
     @media (max-width: 959px) {
       --deck-pad-x: 12px;
@@ -1012,24 +1039,41 @@ defineEmits<{
       0 1px 0 rgba(var(--v-theme-primary), 0.04),
       0 8px 22px -16px rgba(0, 0, 0, 0.22);
     overflow: hidden;
-    transition: box-shadow 180ms ease;
+    transition: box-shadow 180ms ease, border-color 180ms ease;
+
+    /* No leftover divider under the header when appearance/filters are collapsed. */
+    &:not(:has(.items-control-deck__section)):not(:has(.filters-top__shell)) {
+      border-bottom-color: transparent;
+    }
   }
 
   &--stuck &__surface--card {
+    border-color: rgba(var(--v-theme-primary), 0.28);
     box-shadow:
-      0 1px 0 rgba(var(--v-theme-primary), 0.08),
-      0 14px 36px -12px rgba(0, 0, 0, 0.4),
-      0 6px 16px -8px rgba(0, 0, 0, 0.2);
+      0 0 0 1px rgba(var(--v-theme-primary), 0.08),
+      0 1px 0 rgba(var(--v-theme-on-surface), 0.06),
+      0 10px 28px -10px rgba(0, 0, 0, 0.38),
+      0 4px 14px -6px rgba(0, 0, 0, 0.22);
   }
 
   &__header {
     padding: 10px var(--deck-pad-x);
     margin: 0;
     min-height: 52px;
+    min-width: 0;
 
     @media (max-width: 959px) {
+      padding: 8px 10px;
+      min-height: var(--deck-control-h);
+      gap: 8px !important;
+
       .items-page-header__title {
-        flex: 1 1 100%;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .items-page-header__meta {
+        display: none;
       }
     }
   }
@@ -1160,10 +1204,11 @@ defineEmits<{
   }
 
   &__controls {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     justify-content: flex-end;
     align-items: center;
     min-height: var(--deck-control-h);
+    min-width: 0;
 
     :deep(.v-btn--icon.v-btn--size-small) {
       width: var(--deck-control-h);
@@ -1171,9 +1216,20 @@ defineEmits<{
     }
 
     @media (max-width: 959px) {
-      flex: 1 1 100%;
-      justify-content: flex-start;
+      flex: 0 0 auto;
+      justify-content: flex-end;
+      flex-wrap: nowrap;
     }
+  }
+
+  &__docs {
+    margin-inline-start: 2px !important;
+    flex: 0 0 auto;
+  }
+
+  &__sort-icon,
+  &__group-by-icon {
+    flex: 0 0 auto;
   }
 }
 

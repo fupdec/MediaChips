@@ -135,6 +135,10 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "editingOverviewExpanded",
+    "value": 0
+  },
+  {
     "option": "showEmptyMetaValueInCard",
     "value": 1
   },

@@ -100,6 +100,7 @@ import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
+import {useAppShell} from '@/composable/appShell'
 import {
   TAG_AVATAR_SAVE_WIDTH,
   TAG_HEADER_SAVE_WIDTH,
@@ -120,8 +121,11 @@ interface TagImage {
 interface DialogHeaderButton {
   icon?: string
   text?: string
+  title?: string
   color?: string
   variant?: string
+  outlined?: boolean
+  order?: number
   action?: () => void | Promise<void>
 }
 
@@ -137,10 +141,11 @@ const router = useRouter()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const store = useAppStore()
+const appShell = useAppShell()
 const scraperStore = useScraperStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
-  const listSync = useItemsListSync()
+const listSync = useItemsListSync()
 const {t} = useI18n()
 
 const images = ref<TagImage[]>([])
@@ -165,6 +170,14 @@ const isTagPage = computed(() => checkCurrentPage(router.currentRoute.value, 'ta
 
 const initButtons = () => {
   buttons.value = [
+    {
+      icon: 'help-circle-outline',
+      title: t('common.documentation'),
+      color: 'primary',
+      outlined: true,
+      order: -1,
+      action: () => appShell.showDocumentation('ui.edit_dialogs'),
+    },
     {
       icon: 'delete',
       text: t('common.delete'),

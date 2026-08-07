@@ -64,7 +64,9 @@
           :variant="btn.outlined ? 'outlined' : 'flat'"
           :size="compact ? 'small' : undefined"
           :disabled="btn.disabled"
-          :title="btn.title"
+          :title="btn.title || btn.text"
+          :aria-label="btn.title || btn.text"
+          :class="{'dialog-header__action--icon-only': !!btn.icon}"
           @click="run(btn)"
         >
           <v-icon
@@ -73,7 +75,10 @@
             :size="compact ? 18 : undefined"
             start
           />
-          {{ btn.text }}
+          <span
+            v-if="btn.text"
+            class="dialog-header__action-text"
+          >{{ btn.text }}</span>
         </v-btn>
       </div>
 
@@ -325,6 +330,7 @@ onBeforeUnmount(() => {
     flex: 0 0 auto;
     flex-wrap: nowrap;
     gap: 8px;
+    min-width: 0;
   }
 
   &__close {
@@ -368,15 +374,55 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 480px) {
+/* Narrow phones: title + close on first row, actions wrap on the second. */
+@media (max-width: 600px) {
   .dialog-header .content {
+    flex-wrap: wrap;
+    row-gap: 8px;
     padding: 10px 12px;
     gap: 8px;
+  }
+
+  .dialog-header .headline {
+    order: 1;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .dialog-header__close {
+    order: 2;
+  }
+
+  .dialog-header .actions {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Prefer icon-only when an icon exists — keeps Delete / TPDB / TMDB / Save on one row. */
+  .dialog-header .actions .dialog-header__action--icon-only {
+    min-width: var(--edit-deck-control-h, 40px);
+    padding-inline: 10px;
+
+    :deep(.v-btn__content) {
+      gap: 0;
+    }
+
+    :deep(.v-icon) {
+      margin-inline: 0 !important;
+    }
+
+    .dialog-header__action-text {
+      display: none;
+    }
   }
 
   .dialog-header--compact .content {
     padding: 8px 12px;
     gap: 8px;
+    min-height: 0;
   }
 }
 </style>

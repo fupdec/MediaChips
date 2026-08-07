@@ -15,6 +15,17 @@
 
         <div class="inspector-panel__header-actions">
           <v-btn
+            icon
+            variant="text"
+            size="x-small"
+            v-tooltip:top="t('common.documentation')"
+            :aria-label="t('common.documentation')"
+            @click="openBrowserLayoutDocs"
+          >
+            <v-icon size="16">mdi-help-circle-outline</v-icon>
+          </v-btn>
+
+          <v-btn
             v-if="focusedItem"
             class="inspector-panel__close"
             icon
@@ -265,6 +276,7 @@ import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useAppPlatform} from '@/composable/useAppPlatform'
+import {useAppShell} from '@/composable/appShell'
 import {setOption} from '@/services/settingsService'
 import {checkFileExists} from '@/services/fileService'
 import {
@@ -308,6 +320,7 @@ const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
+const appShell = useAppShell()
 const {isElectron, isWin} = useAppPlatform()
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
@@ -575,6 +588,10 @@ watch(activeGalleryType, () => {
 
 function clearFocus(): void {
   itemsStore.clearInspectorFocus()
+}
+
+function openBrowserLayoutDocs(): void {
+  appShell.showDocumentation('ui.browser_layout')
 }
 
 function toggleCollapsed(): void {

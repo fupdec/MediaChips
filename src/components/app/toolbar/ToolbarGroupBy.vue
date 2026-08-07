@@ -1,6 +1,6 @@
 <template>
   <v-menu
-    v-if="compact && isOff"
+    v-if="compact && (isOff || iconMode)"
     v-model="menuOpen"
     :close-on-content-click="true"
     location="bottom"
@@ -136,6 +136,7 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
@@ -157,12 +158,15 @@ import {
   type GroupByMenuOption,
 } from '@/utils/itemsGroupByMenu'
 
-defineProps({
+const props = defineProps({
   compact: {
     type: Boolean,
     default: false,
   },
 })
+
+const {smAndDown} = useDisplay()
+const iconMode = computed(() => props.compact && smAndDown.value)
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
