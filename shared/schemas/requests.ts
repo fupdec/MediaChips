@@ -822,6 +822,7 @@ export const FaceStreamDetectionRequestSchema = z.object({
     z.object({path: z.string()}).passthrough(),
   ])).optional(),
   applyTags: z.union([z.boolean(), z.string()]).optional(),
+  autoBlindTags: z.union([z.boolean(), z.string()]).optional(),
   framesPerVideo: optionalCoercedNumber,
   minScore: optionalCoercedNumber,
 }).passthrough()

@@ -29,6 +29,7 @@ import {
   findTagImagePaths,
   resolveAbsoluteCropPath as resolveAbsoluteCropPathFromDb,
 } from './faceEnrollmentPaths'
+import {applyBlindPersonTagsForMedia} from './faceBlindAutoTag'
 import {
   uniqueMediaTagApplies,
   type FaceMatchMode,
@@ -90,6 +91,7 @@ export interface FaceMatchSettings {
   candidateLimit: number
   mode: FaceMatchMode
   matchAfterDetect: boolean
+  autoBlindTags: boolean
 }
 
 /** Preloaded settings + parsed enrollment gallery for multi-media match runs. */
@@ -130,6 +132,7 @@ function getFaceMatchSettings(db: ApiDb): FaceMatchSettings {
     'faceMatch.candidateLimit',
     'faceMatch.mode',
     'faceMatch.matchAfterDetect',
+    'faceMatch.autoBlindTags',
   ]
   const rows = createSettingsRepository(db.drizzle).findByOptions(options)
   const map = new Map(rows.map((row) => [String(row.option), row.value]))
@@ -268,42 +271,71 @@ async function matchMediaFaces(
     facesCount: faces.length,
     enrollmentsCount: enrollments.length,
   })
-  if (!gate.ok) return gate.result
+  const canBlind = Boolean(settings.autoBlindTags && metaId && faces.length)
 
-  await loadEmbedModel(db)
+  if (!gate.ok && !canBlind) return gate.result
 
-  const {prepared, skipped} = await prepareMatchFacesForMedia({
-    faces,
-    force: options.force,
-    enrollments,
-    candidateLimit: settings.candidateLimit,
-    loadEmbedding: (face) => loadFaceEmbedding(db, face),
-    isMatchable: isMatchableStoredFace,
-  })
-
+  let matched = 0
   let applied = 0
-  const clustered = clusterFacesInMedia(prepared)
-  const {updates, tagsToApply, matched} = resolveClusterMatchesForMedia({
-    clustered,
-    enrollments,
-    candidateLimit: settings.candidateLimit,
-    minConfidence: settings.minConfidence,
-    mode: settings.mode,
-    mediaId,
-    metaId: Number(metaId),
-  })
+  let skipped = 0
 
-  for (const {faceId, update} of updates) {
-    facesRepo.updateMatch(faceId, update)
+  if (gate.ok) {
+    await loadEmbedModel(db)
+
+    const preparedResult = await prepareMatchFacesForMedia({
+      faces,
+      force: options.force,
+      enrollments,
+      candidateLimit: settings.candidateLimit,
+      loadEmbedding: (face) => loadFaceEmbedding(db, face),
+      isMatchable: isMatchableStoredFace,
+    })
+    skipped = preparedResult.skipped
+
+    const clustered = clusterFacesInMedia(preparedResult.prepared)
+    const resolved = resolveClusterMatchesForMedia({
+      clustered,
+      enrollments,
+      candidateLimit: settings.candidateLimit,
+      minConfidence: settings.minConfidence,
+      mode: settings.mode,
+      mediaId,
+      metaId: Number(metaId),
+    })
+    matched = resolved.matched
+
+    for (const {faceId, update} of resolved.updates) {
+      facesRepo.updateMatch(faceId, update)
+    }
+
+    if (resolved.tagsToApply.length) {
+      const unique = uniqueMediaTagApplies(resolved.tagsToApply)
+      createTagsInMediaRepository(db.drizzle).bulkCreate(unique)
+      applied = unique.length
+    }
+  } else {
+    skipped = faces.length
   }
 
-  if (tagsToApply.length) {
-    const unique = uniqueMediaTagApplies(tagsToApply)
-    createTagsInMediaRepository(db.drizzle).bulkCreate(unique)
-    applied = unique.length
+  let blindTagsCreated = 0
+  let blindFacesApplied = 0
+  if (canBlind) {
+    const blind = applyBlindPersonTagsForMedia(db, mediaId, {
+      metaId: Number(metaId),
+    })
+    blindTagsCreated = blind.createdTags
+    blindFacesApplied = blind.appliedFaces
+    if (blind.createdTags) applied += blind.createdTags
   }
 
-  return {matched, applied, skipped, faces: faces.length}
+  return {
+    matched,
+    applied,
+    skipped,
+    faces: faces.length,
+    blindTagsCreated,
+    blindFacesApplied,
+  }
 }
 
 async function assignFaceToPerformer(

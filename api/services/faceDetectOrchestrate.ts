@@ -33,7 +33,9 @@ import {
   loadFaceMatchBatchContext,
   matchMediaFaces,
   type FaceMatchBatchContext,
+  type FaceMatchSettings,
 } from './faceRecognition'
+import {applyBlindPersonTagsForMedia} from './faceBlindAutoTag'
 
 async function getVideoMediaTypeId(db: ApiDb) {
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -41,32 +43,60 @@ async function getVideoMediaTypeId(db: ApiDb) {
   return videoType?.id || null
 }
 
+function withBlindOverride(
+  settings: FaceMatchSettings,
+  autoBlindTags?: boolean,
+): FaceMatchSettings {
+  if (autoBlindTags !== true) return settings
+  return {...settings, autoBlindTags: true}
+}
+
 function resolveMatchContextAfterDetect(
   db: ApiDb,
   applyTags?: boolean,
+  autoBlindTags?: boolean,
 ): FaceMatchBatchContext | null {
   const settings = resolveMatchSettingsAfterDetect({
     matchSettings: getFaceMatchSettings(db),
     applyTags,
   })
   if (!settings) return null
-  return loadFaceMatchBatchContext(db, settings)
+  return loadFaceMatchBatchContext(db, withBlindOverride(settings, autoBlindTags))
 }
 
 async function maybeMatchAfterDetect(
   db: ApiDb,
   mediaId: number | string | null | undefined,
   options: {force?: boolean; context?: FaceMatchBatchContext | null},
-) {
+): Promise<number> {
   const id = mediaId == null ? NaN : Number(mediaId)
-  if (!Number.isFinite(id) || id <= 0 || !options.context) return
+  if (!Number.isFinite(id) || id <= 0 || !options.context) return 0
   try {
-    await matchMediaFaces(db, id, {
+    const result = await matchMediaFaces(db, id, {
       force: Boolean(options.force),
       context: options.context,
     })
+    return Number(result?.blindTagsCreated) || 0
   } catch {
     // Matching is optional and should not fail detection.
+    return 0
+  }
+}
+
+async function maybeBlindAutoTagAfterDetect(
+  db: ApiDb,
+  mediaId: number | string | null | undefined,
+  settings: FaceMatchSettings,
+): Promise<number> {
+  const id = mediaId == null ? NaN : Number(mediaId)
+  const metaId = settings.performerMetaId
+  if (!settings.autoBlindTags || !metaId || !Number.isFinite(id) || id <= 0) return 0
+  try {
+    const result = applyBlindPersonTagsForMedia(db, id, {metaId: Number(metaId)})
+    return Number(result.createdTags) || 0
+  } catch {
+    // Blind tagging is optional and should not fail detection.
+    return 0
   }
 }
 
@@ -81,6 +111,7 @@ export async function* iterateFaceDetection(
     minScore,
     persistCrops = false,
     applyTags,
+    autoBlindTags,
   }: FaceDetectorOptions & {
     shouldStop?: () => boolean
     mediaIds?: Array<number | string>
@@ -131,7 +162,8 @@ export async function* iterateFaceDetection(
 
   const total = items.length
   let counters = createFaceDetectIterateCounters()
-  const matchContext = resolveMatchContextAfterDetect(db, applyTags)
+  const matchContext = resolveMatchContextAfterDetect(db, applyTags, autoBlindTags)
+  const blindOnlySettings = withBlindOverride(getFaceMatchSettings(db), autoBlindTags)
 
   yield buildFaceDetectProgressEvent(counters, total)
 
@@ -154,8 +186,13 @@ export async function* iterateFaceDetection(
       applyTags,
     })
 
+    let blindTagsCreated = 0
     if (!result.failed && !result.missing && !result.skipped) {
-      await maybeMatchAfterDetect(db, result.mediaId, {force, context: matchContext})
+      if (matchContext) {
+        blindTagsCreated = await maybeMatchAfterDetect(db, result.mediaId, {force, context: matchContext})
+      } else {
+        blindTagsCreated = await maybeBlindAutoTagAfterDetect(db, result.mediaId, blindOnlySettings)
+      }
     }
 
     counters = applyFaceDetectMediaResult(counters, {
@@ -163,6 +200,7 @@ export async function* iterateFaceDetection(
       failed: result.failed,
       skipped: result.skipped,
       facesLength: result.faces.length,
+      blindTagsCreated,
     })
 
     yield buildFaceDetectProgressEvent(counters, total, {

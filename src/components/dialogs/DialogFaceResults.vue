@@ -202,6 +202,15 @@
                   <div class="text-body-2 font-weight-medium text-truncate">
                     {{ face.tagName || t('face_results.unknown') }}
                   </div>
+                  <v-chip
+                    v-if="isBlindPersonTagName(face.tagName)"
+                    size="x-small"
+                    color="secondary"
+                    variant="tonal"
+                    class="flex-shrink-0"
+                  >
+                    {{ t('face_results.auto_named') }}
+                  </v-chip>
                 </div>
                 <div v-else class="face-card__empty mb-2">
                   <v-icon size="18" icon="mdi-account-off-outline" class="face-card__empty-icon"/>
@@ -342,6 +351,18 @@
                       </div>
                     </v-card>
                   </v-menu>
+                  <v-btn
+                    v-if="canQuickPersonTag(face)"
+                    size="small"
+                    color="secondary"
+                    rounded
+                    variant="outlined"
+                    :disabled="busy || !performerMetaId"
+                    :loading="busyFaceId === face.id && quickPersonFaceId === face.id"
+                    @click="quickCreatePersonTag(face)"
+                  >
+                    {{ t('face_results.quick_person', {name: suggestedPersonName}) }}
+                  </v-btn>
                   <v-btn
                     v-if="face.tagId && (face.matchStatus === 'matched' || face.matchStatus === 'manual')"
                     size="small"
@@ -485,11 +506,25 @@
               <v-img :src="tagThumb(detailFace.tagMetaId, detailFace.tagId)" cover/>
             </v-avatar>
             <div>
-              <div class="text-body-1 font-weight-medium">
-                {{ detailFace.tagName || t('face_results.unknown') }}
+              <div class="d-flex align-center ga-2">
+                <div class="text-body-1 font-weight-medium">
+                  {{ detailFace.tagName || t('face_results.unknown') }}
+                </div>
+                <v-chip
+                  v-if="isBlindPersonTagName(detailFace.tagName)"
+                  size="x-small"
+                  color="secondary"
+                  variant="tonal"
+                >
+                  {{ t('face_results.auto_named') }}
+                </v-chip>
               </div>
               <div class="text-caption text-medium-emphasis">
-                {{ t('face_results.current_match') }}
+                {{
+                  isBlindPersonTagName(detailFace.tagName)
+                    ? t('face_results.auto_named_hint')
+                    : t('face_results.current_match')
+                }}
               </div>
             </div>
           </div>
@@ -636,6 +671,17 @@
               </v-card>
             </v-menu>
             <v-btn
+              v-if="canQuickPersonTag(detailFace)"
+              color="secondary"
+              rounded
+              variant="outlined"
+              :disabled="busy || !performerMetaId"
+              :loading="busyFaceId === detailFace.id && quickPersonFaceId === detailFace.id"
+              @click="quickCreatePersonTag(detailFace)"
+            >
+              {{ t('face_results.quick_person', {name: suggestedPersonName}) }}
+            </v-btn>
+            <v-btn
               v-if="detailFace.tagId"
               color="secondary"
               rounded
@@ -684,6 +730,7 @@ import {useItemsStore} from '@/stores/items'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {TAG_IMAGE_SAVE_WIDTH} from '@shared/tagImages'
 import {parseFaceTimestampSeconds} from '@shared/faceTimestamp'
+import {isBlindPersonTagName, nextBlindPersonName} from '@shared/faceSettings'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 
@@ -735,6 +782,7 @@ const assigningFaceId = ref<number | null>(null)
 const creatingFaceId = ref<number | null>(null)
 const newTagName = ref('')
 const busyFaceId = ref<number | null>(null)
+const quickPersonFaceId = ref<number | null>(null)
 const detailFaceId = ref<number | null>(null)
 
 const media = computed(() => dialogsStore.faceResults.media)
@@ -1090,6 +1138,20 @@ const canCreateTag = (face: FaceResult) => {
   return needsReview(face) || !face.tagId
 }
 
+const suggestedPersonName = computed(() => {
+  const metaId = performerMetaId.value
+  const names = (appStore.tags || [])
+    .filter((tag) => metaId == null || Number(tag.metaId) === metaId)
+    .map((tag) => String(tag.name || ''))
+  return nextBlindPersonName(names)
+})
+
+const canQuickPersonTag = (face: FaceResult | null | undefined) => {
+  if (!face || !performerMetaId.value) return false
+  if (face.tagId) return false
+  return Number(face.clusterSize || 1) >= 2 || needsReview(face)
+}
+
 const setAssignMenu = (face: FaceResult | null | undefined, open: boolean) => {
   if (!face) return
   creatingFaceId.value = null
@@ -1108,7 +1170,7 @@ const setCreateMenu = (face: FaceResult | null | undefined, open: boolean) => {
     return
   }
   creatingFaceId.value = face.id
-  newTagName.value = String(face.tagName || '').trim()
+  newTagName.value = String(face.tagName || '').trim() || suggestedPersonName.value
 }
 
 const openDetail = (face: FaceResult) => {
@@ -1463,6 +1525,18 @@ const createTagFromFace = async (face: FaceResult) => {
     })
   } finally {
     busyFaceId.value = null
+  }
+}
+
+const quickCreatePersonTag = async (face: FaceResult) => {
+  if (!canQuickPersonTag(face) || busyFaceId.value != null) return
+  quickPersonFaceId.value = face.id
+  newTagName.value = suggestedPersonName.value
+  creatingFaceId.value = null
+  try {
+    await createTagFromFace(face)
+  } finally {
+    quickPersonFaceId.value = null
   }
 }
 

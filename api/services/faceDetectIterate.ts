@@ -7,6 +7,7 @@ export type FaceDetectIterateCounters = {
   missing: number
   failed: number
   faces: number
+  blindTags: number
 }
 
 export type FaceDetectMediaOutcome = {
@@ -14,10 +15,11 @@ export type FaceDetectMediaOutcome = {
   failed?: boolean
   skipped?: boolean
   facesLength: number
+  blindTagsCreated?: number
 }
 
 export function createFaceDetectIterateCounters(): FaceDetectIterateCounters {
-  return {processed: 0, created: 0, skipped: 0, missing: 0, failed: 0, faces: 0}
+  return {processed: 0, created: 0, skipped: 0, missing: 0, failed: 0, faces: 0, blindTags: 0}
 }
 
 export function applyFaceDetectMediaResult(
@@ -28,6 +30,7 @@ export function applyFaceDetectMediaResult(
     ...counters,
     processed: counters.processed + 1,
     faces: counters.faces + result.facesLength,
+    blindTags: counters.blindTags + (Number(result.blindTagsCreated) || 0),
   }
   if (result.missing) next.missing += 1
   else if (result.failed) next.failed += 1
@@ -51,6 +54,7 @@ export function buildFaceDetectProgressEvent(
     missing: counters.missing,
     failed: counters.failed,
     faces: counters.faces,
+    blindTags: counters.blindTags,
     ...extra,
   }
 }
@@ -69,6 +73,7 @@ export function buildFaceDetectCompleteEvent(
     missing: counters.missing,
     failed: counters.failed,
     faces: counters.faces,
+    blindTags: counters.blindTags,
     stopped,
   }
 }

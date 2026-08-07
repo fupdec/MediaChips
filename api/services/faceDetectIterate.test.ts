@@ -23,7 +23,17 @@ describe('applyFaceDetectMediaResult', () => {
       missing: 1,
       failed: 1,
       faces: 5,
+      blindTags: 0,
     })
+  })
+
+  it('tallies blind Person tags from match/detect finish', () => {
+    const counters = applyFaceDetectMediaResult(createFaceDetectIterateCounters(), {
+      facesLength: 4,
+      blindTagsCreated: 2,
+    })
+    expect(counters.blindTags).toBe(2)
+    expect(counters.faces).toBe(4)
   })
 
   it('prefers missing over failed/skipped when multiple flags are set', () => {
@@ -46,11 +56,13 @@ describe('detect progress events', () => {
       missing: 0,
       failed: 0,
       faces: 4,
+      blindTags: 1,
     }
     expect(buildFaceDetectProgressEvent(counters, 5, {current: '/a.mp4', mediaId: 9})).toMatchObject({
       type: 'progress',
       remaining: 3,
       faces: 4,
+      blindTags: 1,
       current: '/a.mp4',
       mediaId: 9,
     })
@@ -59,6 +71,7 @@ describe('detect progress events', () => {
       stopped: true,
       created: 1,
       faces: 4,
+      blindTags: 1,
     })
   })
 

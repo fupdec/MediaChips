@@ -206,6 +206,7 @@ export type SettingsState = {
   'faceMatch.candidateLimit': string
   'faceMatch.mode': string
   'faceMatch.matchAfterDetect': string
+  'faceMatch.autoBlindTags': string
   'faceMatch.embedModelId': string
   'faceDetect.minScore': string
   'faceDetect.framesPerVideo': string
@@ -318,6 +319,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'faceMatch.candidateLimit': '10',
   'faceMatch.mode': 'auto',
   'faceMatch.matchAfterDetect': '1',
+  'faceMatch.autoBlindTags': '0',
   'faceMatch.embedModelId': 'insightface-r50-scrfd-kps-v1',
   'faceDetect.minScore': '0.5',
   'faceDetect.framesPerVideo': '6',

@@ -48,3 +48,26 @@ export function normalizeGenderFilter(value: unknown): FaceGenderFilter {
 export function parseFaceMatchAfterDetect(value: unknown, fallback = true): boolean {
   return parseBooleanSetting(value, fallback)
 }
+
+/** Create Person N tags for large unlabeled face clusters (off by default). */
+export function parseFaceMatchAutoBlindTags(value: unknown, fallback = false): boolean {
+  return parseBooleanSetting(value, fallback)
+}
+
+export const BLIND_PERSON_NAME_RE = /^Person\s+(\d+)$/i
+
+export function isBlindPersonTagName(name: unknown): boolean {
+  return BLIND_PERSON_NAME_RE.test(String(name || '').trim())
+}
+
+/** Next unused Person N label from an existing people-tag name list. */
+export function nextBlindPersonName(existingNames: string[]): string {
+  let max = 0
+  for (const name of existingNames) {
+    const match = BLIND_PERSON_NAME_RE.exec(String(name || '').trim())
+    if (!match) continue
+    const n = Number(match[1])
+    if (Number.isFinite(n) && n > max) max = n
+  }
+  return `Person ${max + 1}`
+}

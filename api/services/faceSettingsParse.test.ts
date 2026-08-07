@@ -30,6 +30,7 @@ describe('faceSettingsParse', () => {
       ['faceMatch.candidateLimit', '5'],
       ['faceMatch.mode', 'suggest'],
       ['faceMatch.matchAfterDetect', '0'],
+      ['faceMatch.autoBlindTags', '1'],
     ])
     expect(parseFaceMatchSettingsFromMap(map, (id) => id)).toEqual({
       performerMetaId: 12,
@@ -37,6 +38,7 @@ describe('faceSettingsParse', () => {
       candidateLimit: 5,
       mode: 'suggest',
       matchAfterDetect: false,
+      autoBlindTags: true,
     })
   })
 

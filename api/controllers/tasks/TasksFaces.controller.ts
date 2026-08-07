@@ -259,6 +259,13 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       || applyTagsRaw === 0
       || applyTagsRaw === '0'
     )
+    const autoBlindTagsRaw = req.body?.autoBlindTags
+    const autoBlindTags = (
+      autoBlindTagsRaw === true
+      || autoBlindTagsRaw === 'true'
+      || autoBlindTagsRaw === 1
+      || autoBlindTagsRaw === '1'
+    )
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while detecting faces.',
       iterate: (shouldStop) => iterateFaceDetection(db, {
@@ -269,6 +276,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
         framesPerVideo: req.body?.framesPerVideo,
         minScore: req.body?.minScore,
         applyTags,
+        autoBlindTags: autoBlindTags || undefined,
       }),
     })
   }

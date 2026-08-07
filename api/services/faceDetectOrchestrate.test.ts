@@ -29,6 +29,7 @@ const {
     candidateLimit: 5,
     mode: 'suggest',
     matchAfterDetect: true,
+    autoBlindTags: false,
   })),
   loadFaceMatchBatchContext: vi.fn((_db, settings) => ({
     settings: settings || {
@@ -37,6 +38,7 @@ const {
       candidateLimit: 5,
       mode: 'suggest',
       matchAfterDetect: true,
+      autoBlindTags: false,
     },
     enrollments: [{tagId: 9, embedding: new Float32Array(512)}],
   })),

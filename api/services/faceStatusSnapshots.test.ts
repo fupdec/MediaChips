@@ -33,6 +33,7 @@ describe('buildFaceMatchStatusSnapshot', () => {
       candidateLimit: 5,
       mode: 'auto' as const,
       matchAfterDetect: true,
+      autoBlindTags: false,
     }
     expect(buildFaceMatchStatusSnapshot({
       settings,

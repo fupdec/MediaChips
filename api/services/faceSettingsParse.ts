@@ -6,6 +6,7 @@ import {
   clampFaceMatchConfidence,
   normalizeGenderFilter,
   parseFaceMatchAfterDetect,
+  parseFaceMatchAutoBlindTags,
   parseFaceMatchMode,
   type FaceGenderFilter,
   type FaceMatchMode,
@@ -19,6 +20,7 @@ export {
   normalizeGenderFilter,
   parseFaceMatchMode,
   parseFaceMatchAfterDetect,
+  parseFaceMatchAutoBlindTags,
   DEFAULT_FACE_CANDIDATE_LIMIT as DEFAULT_CANDIDATE_LIMIT,
 }
 export type {FaceGenderFilter, FaceMatchMode}
@@ -29,6 +31,7 @@ export type FaceMatchSettingsValues = {
   candidateLimit: number
   mode: FaceMatchMode
   matchAfterDetect: boolean
+  autoBlindTags: boolean
 }
 
 export type FaceDetectSettingsValues = {
@@ -50,6 +53,7 @@ export function parseFaceMatchSettingsFromMap(
     ),
     mode: parseFaceMatchMode(map.get('faceMatch.mode')),
     matchAfterDetect: parseFaceMatchAfterDetect(map.get('faceMatch.matchAfterDetect'), true),
+    autoBlindTags: parseFaceMatchAutoBlindTags(map.get('faceMatch.autoBlindTags'), false),
   }
 }
 

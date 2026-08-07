@@ -21,6 +21,7 @@ const {
     candidateLimit: 5,
     mode: 'suggest',
     matchAfterDetect: true,
+    autoBlindTags: false,
   })),
   parseEnrollmentRefs: vi.fn((rows: Array<{tagId: number}>) => (
     rows.map((row) => ({tagId: row.tagId, embedding: new Float32Array(2)}))

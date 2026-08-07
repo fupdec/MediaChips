@@ -76,6 +76,26 @@
               :disabled="smartWizardRunning || !isAddedVideo"
               :label="t('media.adding.make_library_smart_faces')"
             />
+            <div
+              v-if="smartWizard.faces"
+              class="smart-wizard-nested"
+            >
+              <v-checkbox
+                v-model="smartWizard.blindFaceTags"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo || !hasFacePeopleCategory"
+                :label="t('media.adding.make_library_smart_blind_faces')"
+              />
+              <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
+                {{
+                  hasFacePeopleCategory
+                    ? t('media.adding.make_library_smart_blind_faces_hint')
+                    : t('media.adding.make_library_smart_blind_faces_need_category')
+                }}
+              </div>
+            </div>
             <v-checkbox
               v-model="smartWizard.clip"
               density="compact"
@@ -84,16 +104,22 @@
               :disabled="smartWizardRunning || !isAddedVideo"
               :label="t('media.adding.make_library_smart_clip')"
             />
-            <v-checkbox
+            <div
               v-if="smartWizard.clip"
-              v-model="smartWizard.clipTags"
-              density="compact"
-              hide-details
-              color="primary"
-              class="ml-4"
-              :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
-              :label="t('media.adding.make_library_smart_clip_tags')"
-            />
+              class="smart-wizard-nested"
+            >
+              <v-checkbox
+                v-model="smartWizard.clipTags"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
+                :label="t('media.adding.make_library_smart_clip_tags')"
+              />
+              <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
+                {{ t('media.adding.make_library_smart_clip_tags_hint') }}
+              </div>
+            </div>
             <v-checkbox
               v-model="smartWizard.chapters"
               density="compact"
@@ -610,6 +636,7 @@ import {
   applyClipSuggestionsToMedia,
   applyImportPathAutoTags,
 } from '@/services/importPathAutoTag'
+import {parseMatchAutoBlindTagsForm} from '@/utils/faceSettingsForm'
 import {
   ONBOARDING_STEP_COUNT,
   openOnboarding,
@@ -708,6 +735,7 @@ const smartWizard = ref({
   pathTags: true,
   grids: true,
   faces: false,
+  blindFaceTags: parseMatchAutoBlindTagsForm(settingsStore['faceMatch.autoBlindTags'], true),
   clip: false,
   clipTags: true,
   chapters: false,
@@ -720,6 +748,11 @@ const smartWizardProgress = ref(0)
 const smartWizardStatus = ref('')
 let smartWizardAbort: AbortController | null = null
 let smartWizardTaskId: string | null = null
+
+const hasFacePeopleCategory = computed(() => {
+  const metaId = Number(settingsStore['faceMatch.performerMetaId'] || 0)
+  return Number.isFinite(metaId) && metaId > 0
+})
 
 let objectRecognitionAbort: AbortController | null = null
 let objectRecognitionTaskId: string | null = null
@@ -1596,6 +1629,7 @@ const runSmartLibraryWizard = async () => {
             paths: task.value.added,
             force: false,
             framesPerVideo: 6,
+            autoBlindTags: smartWizard.value.blindFaceTags && hasFacePeopleCategory.value,
           },
           {signal: controller.signal},
           (event: Record<string, unknown>) => {
@@ -1612,6 +1646,19 @@ const runSmartLibraryWizard = async () => {
                 }),
                 progress: smartWizardProgress.value,
               })
+            }
+            if (event.type === 'complete') {
+              const blindTags = Number(event.blindTags || 0)
+              const faces = Number(event.faces || task.value.facesFound || 0)
+              if (blindTags > 0) {
+                setNotification({
+                  type: 'success',
+                  text: t('media.adding.make_library_smart_blind_faces_done', {
+                    tags: blindTags,
+                    faces,
+                  }),
+                })
+              }
             }
             if (event.type === 'error') {
               throw new Error(String(event.message || 'Face detection failed'))
@@ -1931,5 +1978,17 @@ watch(canRecognizeObjects, (enabled) => {
   gap: 4px;
   justify-content: center;
   min-height: 40px;
+}
+
+.smart-wizard-nested {
+  margin: 0 0 4px 12px;
+  padding: 2px 0 4px 12px;
+  border-left: 2px solid rgba(var(--v-theme-primary), 0.28);
+}
+
+.smart-wizard-nested__hint {
+  margin: -2px 0 4px 36px;
+  line-height: 1.35;
+  max-width: 36rem;
 }
 </style>

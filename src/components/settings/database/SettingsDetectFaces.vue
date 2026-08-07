@@ -460,13 +460,23 @@
                 {{ t(preset.labelKey) }}
               </v-btn>
             </div>
-            <div class="mt-10">
+            <div class="mt-4">
               <settings-switch
                 option="faceMatch.matchAfterDetect"
                 :title="t('settings_labels.database.face_match_after_detect')"
                 :hint="t('settings_labels.database.face_match_after_detect_hint')"
                 :disabled="busy"
                 @update="saveMatchAfterDetect"
+              />
+            </div>
+            <div class="mt-4">
+              <settings-switch
+                option="faceMatch.autoBlindTags"
+                :title="t('settings_labels.database.face_auto_blind_tags')"
+                :hint="hasCategory
+                  ? t('settings_labels.database.face_auto_blind_tags_hint')
+                  : t('settings_labels.database.face_auto_blind_tags_need_category')"
+                :disabled="busy || !hasCategory"
               />
             </div>
           </div>

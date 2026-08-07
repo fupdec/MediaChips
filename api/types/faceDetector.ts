@@ -44,6 +44,8 @@ export interface FaceDetectorOptions {
    * Used when a review dialog will open so the user applies tags explicitly.
    */
   applyTags?: boolean
+  /** Create Person N tags for large unlabeled face clusters in this run. */
+  autoBlindTags?: boolean
 }
 
 export interface FaceDetectorMediaResult {
@@ -75,6 +77,8 @@ export interface FaceDetectionProgressEvent {
   missing?: number
   failed?: number
   faces?: number
+  /** Person N tags created from unlabeled clusters during this run. */
+  blindTags?: number
   current?: string
   message?: string
   sizeMb?: number

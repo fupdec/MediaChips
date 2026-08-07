@@ -7,4 +7,7 @@ export {
   normalizeGenderFilter as normalizeFaceGenderFilterForm,
   parseFaceMatchMode as parseFaceMatchModeForm,
   parseFaceMatchAfterDetect as parseMatchAfterDetectForm,
+  parseFaceMatchAutoBlindTags as parseMatchAutoBlindTagsForm,
+  isBlindPersonTagName,
+  nextBlindPersonName,
 } from '@shared/faceSettings'
