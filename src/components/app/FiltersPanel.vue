@@ -94,7 +94,9 @@
         :prompt="filterAiPrompt"
         :context="filterAiContext"
         :active="props.assistActive"
+        :can-undo="canUndoAiFilters"
         @apply="emit('apply-ai-filters', $event)"
+        @undo="emit('undo-ai-filters')"
       />
 
       <!-- Top / full mode: one compact toolbar row -->
@@ -271,12 +273,14 @@ const props = withDefaults(defineProps<{
   dragOptions: Record<string, unknown>
   /** Re-check Local AI when the filters panel is shown. */
   assistActive?: boolean
+  canUndoAiFilters?: boolean
 }>(), {
   variant: 'drawer',
   hideHeader: false,
   isReady: false,
   isFiltersChanged: false,
   assistActive: true,
+  canUndoAiFilters: false,
 })
 
 const emit = defineEmits([
@@ -285,6 +289,7 @@ const emit = defineEmits([
   'close',
   'apply',
   'apply-ai-filters',
+  'undo-ai-filters',
   'add',
   'reorder',
   'open-saved',

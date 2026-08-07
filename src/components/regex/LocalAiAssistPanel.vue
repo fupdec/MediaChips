@@ -9,6 +9,7 @@
     >
       <v-text-field
         v-if="mode === 'filter'"
+        ref="goalField"
         v-model="goal"
         class="local-ai-assist__goal"
         density="compact"
@@ -18,7 +19,9 @@
         clearable
         :placeholder="t('settings_labels.local_ai.assist_filter_goal')"
         :disabled="busy"
-        @keyup.enter="run"
+        @keyup.enter="runFromEnter"
+        @keydown.meta.enter.prevent="runApplyEnter"
+        @keydown.ctrl.enter.prevent="runApplyEnter"
       />
 
       <div class="local-ai-assist__actions d-flex flex-nowrap ga-2 align-center">
@@ -60,7 +63,12 @@
           {{ docsLinkLabel }}
         </v-btn>
         <span v-if="!ready" class="text-caption text-medium-emphasis local-ai-assist__hint">
-          {{ notReadyText }}
+          <template v-if="mode === 'filter'">
+            {{ t('settings_labels.local_ai.assist_local_hint') }}
+          </template>
+          <template v-else>
+            {{ notReadyText }}
+          </template>
           <button
             type="button"
             class="local-ai-assist__settings-link"
@@ -73,6 +81,43 @@
           {{ runHint }}
         </span>
       </div>
+    </div>
+
+    <div
+      v-if="mode === 'filter' && !busy && !suggestion"
+      class="local-ai-assist__examples"
+    >
+      <button
+        v-for="example in filterExamples"
+        :key="example"
+        type="button"
+        class="local-ai-assist__example"
+        :title="t('settings_labels.local_ai.assist_ex_hint')"
+        @click="runExample(example)"
+      >
+        {{ example }}
+      </button>
+      <button
+        v-if="canUndo"
+        type="button"
+        class="local-ai-assist__example local-ai-assist__example--undo"
+        @click="emit('undo')"
+      >
+        {{ t('settings_labels.local_ai.assist_undo') }}
+      </button>
+    </div>
+
+    <div
+      v-else-if="mode === 'filter' && canUndo && !busy"
+      class="local-ai-assist__examples"
+    >
+      <button
+        type="button"
+        class="local-ai-assist__example local-ai-assist__example--undo"
+        @click="emit('undo')"
+      >
+        {{ t('settings_labels.local_ai.assist_undo') }}
+      </button>
     </div>
 
     <v-alert
@@ -93,8 +138,22 @@
       class="pa-3 mb-2 local-ai-assist__card"
     >
       <div class="d-flex align-center justify-space-between ga-2 mb-2">
-        <div class="text-caption text-medium-emphasis">
-          {{ busy ? t('settings_labels.local_ai.assist_busy') : t('settings_labels.local_ai.assist_preview') }}
+        <div class="d-flex align-center ga-2 min-width-0">
+          <div class="text-caption text-medium-emphasis">
+            {{ busy ? t('settings_labels.local_ai.assist_busy') : t('settings_labels.local_ai.assist_preview') }}
+          </div>
+          <span
+            v-if="!busy && suggestion?.local && !suggestion?.partial"
+            class="local-ai-assist__instant"
+          >
+            {{ t('settings_labels.local_ai.assist_instant') }}
+          </span>
+          <span
+            v-else-if="!busy && suggestion?.local && suggestion?.partial"
+            class="local-ai-assist__instant local-ai-assist__instant--partial"
+          >
+            {{ t('settings_labels.local_ai.assist_partial') }}
+          </span>
         </div>
         <v-btn
           v-if="mode !== 'regex' && suggestion && !busy"
@@ -126,7 +185,12 @@
           </div>
         </template>
         <div v-else class="local-ai-assist__response">
-          <div v-if="resultSummary" class="mb-2 selectable">{{ resultSummary }}</div>
+          <div
+            v-if="resultSummary && !suggestion?.local"
+            class="mb-2 selectable"
+          >
+            {{ resultSummary }}
+          </div>
 
           <div
             v-if="resultFilters.length"
@@ -141,13 +205,21 @@
             </div>
           </div>
 
-          <ul v-if="resultSuggestions.length" class="local-ai-assist__suggestions mb-2">
+          <div
+            v-if="suggestion?.local && suggestion?.partial && suggestion?.residual"
+            class="text-caption text-medium-emphasis mb-2"
+          >
+            {{ t('settings_labels.local_ai.assist_partial_hint') }}
+            <span class="selectable">«{{ suggestion.residual }}»</span>
+          </div>
+
+          <ul v-if="resultSuggestions.length && !suggestion?.local" class="local-ai-assist__suggestions mb-2">
             <li v-for="(item, index) in resultSuggestions" :key="index" class="selectable">
               {{ item }}
             </li>
           </ul>
           <div
-            v-if="explanation && explanation !== resultSummary"
+            v-if="explanation && explanation !== resultSummary && !suggestion?.local"
             class="selectable"
           >
             {{ explanation }}
@@ -160,12 +232,22 @@
         class="d-flex flex-wrap ga-2 mt-3"
       >
         <v-btn
+          v-if="mode === 'filter' && resultFilters.length"
           size="small"
           color="primary"
           rounded
           variant="flat"
+          @click="apply(true, true)"
+        >
+          {{ t('settings_labels.local_ai.assist_apply_run') }}
+        </v-btn>
+        <v-btn
+          size="small"
+          color="primary"
+          rounded
+          :variant="mode === 'filter' && resultFilters.length ? 'tonal' : 'flat'"
           :disabled="mode === 'regex' ? !suggestedPattern : !resultFilters.length"
-          @click="apply"
+          @click="apply(false)"
         >
           {{ t('settings_labels.local_ai.assist_apply') }}
         </v-btn>
@@ -178,12 +260,13 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
+import {buildLocalFilterAssistSuggestion} from '@shared/localAiAssistFilterGoal'
 
 const props = withDefaults(defineProps<{
   mode: 'regex' | 'filter' | 'meta'
@@ -198,19 +281,31 @@ const props = withDefaults(defineProps<{
   runHint?: string
   /** When true, re-check Local AI readiness (e.g. filters panel opened). */
   active?: boolean
+  /** Parent can restore filters from the last AI apply. */
+  canUndo?: boolean
 }>(), {
   canRun: true,
   active: false,
+  canUndo: false,
 })
 
 const emit = defineEmits<{
   apply: [value: Record<string, unknown>]
+  undo: []
 }>()
 
 const {t, locale} = useI18n()
 const router = useRouter()
 const settingsStore = useSettingsStore()
 const appShell = useAppShell()
+const goalField = ref<{focus?: () => void} | null>(null)
+
+function focusGoalField() {
+  if (props.mode !== 'filter') return
+  void nextTick(() => {
+    goalField.value?.focus?.()
+  })
+}
 const assistLocale = computed(() =>
   String(settingsStore.locale || locale.value || 'en'),
 )
@@ -252,6 +347,93 @@ async function openSettings() {
   await router.push({path: '/settings', query: {tab: 'general', section: 'local_ai'}})
 }
 
+const RECENT_GOALS_KEY = 'mediachips.localAi.filterGoals'
+const RECENT_GOALS_LIMIT = 5
+
+function loadRecentGoals(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_GOALS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((item) => String(item || '').trim()).filter(Boolean).slice(0, RECENT_GOALS_LIMIT)
+  } catch {
+    return []
+  }
+}
+
+function rememberGoal(text: string) {
+  const goalText = text.trim()
+  if (!goalText) return
+  const next = [goalText, ...loadRecentGoals().filter((item) => item !== goalText)]
+    .slice(0, RECENT_GOALS_LIMIT)
+  try {
+    localStorage.setItem(RECENT_GOALS_KEY, JSON.stringify(next))
+  } catch {
+    // ignore quota / private mode
+  }
+  recentGoals.value = next
+}
+
+const recentGoals = ref<string[]>(loadRecentGoals())
+
+const filterExamples = computed(() => {
+  const fields = Array.isArray(props.context?.availableFields) ? props.context.availableFields : []
+  const hasParam = (param: string) => fields.some((field) => {
+    if (!field || typeof field !== 'object') return false
+    return String((field as Record<string, unknown>).param) === param
+  })
+
+  const dynamic: string[] = []
+  if (hasParam('time')) dynamic.push(t('settings_labels.local_ai.assist_ex_resume'))
+  if (hasParam('createdAt')) dynamic.push(t('settings_labels.local_ai.assist_ex_added'))
+  if (hasParam('duration')) dynamic.push(t('settings_labels.local_ai.assist_ex_duration'))
+  if (hasParam('height')) dynamic.push(t('settings_labels.local_ai.assist_ex_hd'))
+  if (hasParam('views')) dynamic.push(t('settings_labels.local_ai.assist_ex_views'))
+  if (hasParam('codec')) dynamic.push(t('settings_labels.local_ai.assist_ex_codec'))
+  const tagsField = fields.find((field) => {
+    if (!field || typeof field !== 'object') return false
+    const row = field as Record<string, unknown>
+    return String(row.type) === 'array' && /tags?/i.test(String(row.name || ''))
+  }) as Record<string, unknown> | undefined
+  if (tagsField?.name) {
+    dynamic.push(t('settings_labels.local_ai.assist_ex_empty_meta', {field: String(tagsField.name)}))
+  }
+
+  const ordered = [
+    ...recentGoals.value,
+    t('settings_labels.local_ai.assist_ex_unwatched'),
+    t('settings_labels.local_ai.assist_ex_favorite'),
+    ...dynamic,
+  ]
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+
+  const unique: string[] = []
+  for (const item of ordered) {
+    if (!unique.includes(item)) unique.push(item)
+  }
+  return unique.slice(0, 6)
+})
+
+const fieldLabelByParam = computed(() => {
+  const map = new Map<string, string>()
+  const fields = Array.isArray(props.context?.availableFields) ? props.context.availableFields : []
+  for (const field of fields) {
+    if (!field || typeof field !== 'object') continue
+    const row = field as Record<string, unknown>
+    if (row.param == null) continue
+    const label = String(row.name || row.param).trim()
+    if (label) map.set(String(row.param), label)
+  }
+  return map
+})
+
+async function runExample(example: string) {
+  goal.value = example
+  await run({autoApplyRun: true})
+}
+
 function stop() {
   abortController?.abort()
   abortController = null
@@ -272,17 +454,62 @@ const resultFilters = computed(() => {
   return items.filter((item) => item && typeof item === 'object') as Array<Record<string, unknown>>
 })
 
+function formatBytes(value: number): string {
+  if (value >= 1024 ** 3) return `${(value / (1024 ** 3)).toFixed(value % (1024 ** 3) === 0 ? 0 : 1)} GB`
+  if (value >= 1024 ** 2) return `${(value / (1024 ** 2)).toFixed(value % (1024 ** 2) === 0 ? 0 : 1)} MB`
+  if (value >= 1024) return `${Math.round(value / 1024)} KB`
+  return `${value} B`
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds >= 3600) {
+    const hours = seconds / 3600
+    return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h`
+  }
+  if (seconds >= 60) {
+    const mins = seconds / 60
+    return `${Number.isInteger(mins) ? mins : mins.toFixed(1)} min`
+  }
+  return `${seconds} s`
+}
+
+function formatResumeTime(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 function formatFilterPreview(item: Record<string, unknown>) {
-  const param = String(item.param ?? '')
+  const paramKey = String(item.param ?? '')
+  const label = fieldLabelByParam.value.get(paramKey) || paramKey
   const cond = String(item.cond ?? '')
   const type = String(item.type ?? '')
   const val = item.val
   if (type === 'boolean') {
-    return cond === '!=' ? `${param} = no` : `${param} = yes`
+    return cond === '!=' ? `${label} = no` : `${label} = yes`
   }
-  if (cond === 'is null' || cond === 'not null') return `${param} ${cond}`
-  if (Array.isArray(val)) return `${param} ${cond} [${val.join(', ')}]`
-  return `${param} ${cond} ${val ?? ''}`.trim()
+  if (cond === 'is null' || cond === 'not null') return `${label} ${cond}`
+  if (Array.isArray(val)) return `${label} ${cond} [${val.join(', ')}]`
+  if (paramKey === 'filesize' && typeof val === 'number') {
+    return `${label} ${cond} ${formatBytes(val)}`
+  }
+  if (paramKey === 'duration' && typeof val === 'number') {
+    return `${label} ${cond} ${formatDuration(val)}`
+  }
+  if (paramKey === 'time' && typeof val === 'number') {
+    if (val === 0 && (cond === '>' || cond === '=')) {
+      return cond === '>' ? `${label} > 0` : `${label} = 0`
+    }
+    return `${label} ${cond} ${formatResumeTime(val)}`
+  }
+  if (paramKey === 'bitrate' && typeof val === 'number') {
+    if (val >= 1000) return `${label} ${cond} ${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)} Mbps`
+    return `${label} ${cond} ${val} kbps`
+  }
+  return `${label} ${cond} ${val ?? ''}`.trim()
 }
 
 function isStatusReady(status: {
@@ -322,61 +549,7 @@ function discard() {
   error.value = ''
 }
 
-function apply() {
-  if (!suggestion.value) return
-  if (props.mode === 'regex' && !suggestedPattern.value) {
-    error.value = t('settings_labels.local_ai.assist_bad_regex')
-    return
-  }
-  if (props.mode === 'filter' && !resultFilters.value.length) {
-    error.value = t('settings_labels.local_ai.assist_bad_filters')
-    return
-  }
-  emit('apply', suggestion.value)
-  discard()
-}
-
-function looksLikeEchoedContext(parsed: Record<string, unknown> | null): boolean {
-  if (!parsed) return true
-  const pattern = String(parsed.pattern || '').trim()
-  if (!pattern) return true
-  // Absolute paths / full path templates are not usable short regex sources.
-  if (/^(\/Users\/|\/home\/|[A-Za-z]:[\\/])/.test(pattern)) return true
-  if (/^\/Media\//.test(pattern)) return true
-  const unescaped = pattern.replace(/\\(.)/g, '$1')
-  if (/^(\/Users\/|\/home\/|\/Media\/|[A-Za-z]:[\\/])/.test(unescaped)) return true
-  const slashCount = (unescaped.match(/\//g) || []).length
-  if (slashCount >= 2 && unescaped.length > 24) return true
-  return false
-}
-
-function hasAdvisoryResult(parsed: Record<string, unknown> | null): boolean {
-  if (!parsed) return false
-  const summary = String(parsed.summary || '').trim()
-  const explanationText = String(parsed.explanation || '').trim()
-  const suggestions = Array.isArray(parsed.suggestions)
-    ? parsed.suggestions.map((item) => String(item || '').trim()).filter(Boolean)
-    : []
-  const filters = Array.isArray(parsed.filters) ? parsed.filters : []
-  return Boolean(summary || explanationText || suggestions.length || filters.length)
-}
-
-async function run() {
-  if (busy.value || runDisabled.value) return
-  // Always re-check: the panel often stays mounted while Local AI is enabled later.
-  await refreshReady()
-  if (!ready.value) {
-    error.value = notReadyText.value
-    return
-  }
-  busy.value = true
-  error.value = ''
-  suggestion.value = null
-  explanation.value = ''
-  abortController = new AbortController()
-
-  const goalText = goal.value.trim()
-  // Keep context small/plain — large reactive trees can break request validation.
+function buildAssistContext(goalText = goal.value.trim()): Record<string, unknown> {
   const rawContext = props.context || {}
   let context: Record<string, unknown> = {}
   try {
@@ -392,6 +565,127 @@ async function run() {
     }
   }
   if (goalText) context.goal = goalText
+  return context
+}
+
+function updateLiveLocalPreview(goalText: string) {
+  if (props.mode !== 'filter' || busy.value) return
+  const text = goalText.trim()
+  if (!text) {
+    if (suggestion.value?.local) discard()
+    return
+  }
+  // Don't overwrite a model result the user is reviewing.
+  if (suggestion.value && !suggestion.value.local) return
+
+  const local = buildLocalFilterAssistSuggestion(buildAssistContext(text), {allowPartial: true})
+  if (local) {
+    suggestion.value = local
+    explanation.value = String(local.explanation || '').trim()
+    error.value = ''
+  } else if (suggestion.value?.local) {
+    discard()
+  }
+}
+
+let livePreviewTimer: ReturnType<typeof setTimeout> | null = null
+watch(goal, (value) => {
+  if (props.mode !== 'filter') return
+  if (livePreviewTimer != null) clearTimeout(livePreviewTimer)
+  livePreviewTimer = setTimeout(() => {
+    livePreviewTimer = null
+    updateLiveLocalPreview(String(value || ''))
+  }, 180)
+})
+
+async function runFromEnter() {
+  if (props.mode === 'filter' && goal.value.trim()) {
+    const local = buildLocalFilterAssistSuggestion(buildAssistContext())
+    if (local && !local.partial) {
+      await run({autoApplyRun: true})
+      return
+    }
+  }
+  await run()
+}
+
+async function runApplyEnter() {
+  if (props.mode !== 'filter' || busy.value) return
+  if (resultFilters.value.length) {
+    apply(true, true)
+    return
+  }
+  await runFromEnter()
+}
+
+function apply(run = false, replace = false) {
+  if (!suggestion.value) return
+  if (props.mode === 'regex' && !suggestedPattern.value) {
+    error.value = t('settings_labels.local_ai.assist_bad_regex')
+    return
+  }
+  if (props.mode === 'filter' && !resultFilters.value.length) {
+    error.value = t('settings_labels.local_ai.assist_bad_filters')
+    return
+  }
+  if (props.mode === 'filter' && goal.value.trim()) {
+    rememberGoal(goal.value)
+  }
+  emit('apply', {
+    ...suggestion.value,
+    ...(props.mode === 'filter' && run ? {run: true} : {}),
+    ...(props.mode === 'filter' && replace ? {replace: true} : {}),
+  })
+  if (props.mode === 'filter' && run) {
+    goal.value = ''
+  }
+  discard()
+}
+
+async function run(options: {autoApplyRun?: boolean} = {}) {
+  if (busy.value || runDisabled.value) return
+
+  error.value = ''
+  explanation.value = ''
+
+  const goalText = goal.value.trim()
+  const context = buildAssistContext(goalText)
+
+  // Instant local path — full goals work even before the model is ready.
+  if (props.mode === 'filter' && goalText) {
+    const localFull = buildLocalFilterAssistSuggestion(context)
+    if (localFull && !localFull.partial) {
+      suggestion.value = localFull
+      explanation.value = String(localFull.explanation || '').trim()
+      if (options.autoApplyRun) {
+        apply(true, true)
+      }
+      return
+    }
+
+    const localPartial = buildLocalFilterAssistSuggestion(context, {allowPartial: true})
+    if (localPartial) {
+      suggestion.value = localPartial
+      explanation.value = String(localPartial.explanation || '').trim()
+    } else {
+      suggestion.value = null
+    }
+  } else {
+    suggestion.value = null
+  }
+
+  // Always re-check: the panel often stays mounted while Local AI is enabled later.
+  await refreshReady()
+  if (!ready.value) {
+    if (suggestion.value?.local && suggestion.value?.partial) {
+      error.value = t('settings_labels.local_ai.assist_partial_hint')
+      return
+    }
+    error.value = notReadyText.value
+    return
+  }
+  busy.value = true
+  abortController = new AbortController()
 
   const userContent = props.mode === 'filter' && goalText
     ? goalText
@@ -422,6 +716,9 @@ async function run() {
           }
           suggestion.value = parsed
           explanation.value = String(parsed?.explanation || '').trim()
+          if (options.autoApplyRun && props.mode === 'filter' && Array.isArray(parsed?.filters) && parsed.filters.length) {
+            apply(true, true)
+          }
         }
         if (event.type === 'error') {
           error.value = event.message || t('common.error')
@@ -436,6 +733,31 @@ async function run() {
     busy.value = false
     abortController = null
   }
+}
+
+function looksLikeEchoedContext(parsed: Record<string, unknown> | null): boolean {
+  if (!parsed) return true
+  const pattern = String(parsed.pattern || '').trim()
+  if (!pattern) return true
+  // Absolute paths / full path templates are not usable short regex sources.
+  if (/^(\/Users\/|\/home\/|[A-Za-z]:[\\/])/.test(pattern)) return true
+  if (/^\/Media\//.test(pattern)) return true
+  const unescaped = pattern.replace(/\\(.)/g, '$1')
+  if (/^(\/Users\/|\/home\/|\/Media\/|[A-Za-z]:[\\/])/.test(unescaped)) return true
+  const slashCount = (unescaped.match(/\//g) || []).length
+  if (slashCount >= 2 && unescaped.length > 24) return true
+  return false
+}
+
+function hasAdvisoryResult(parsed: Record<string, unknown> | null): boolean {
+  if (!parsed) return false
+  const summary = String(parsed.summary || '').trim()
+  const explanationText = String(parsed.explanation || '').trim()
+  const suggestions = Array.isArray(parsed.suggestions)
+    ? parsed.suggestions.map((item) => String(item || '').trim()).filter(Boolean)
+    : []
+  const filters = Array.isArray(parsed.filters) ? parsed.filters : []
+  return Boolean(summary || explanationText || suggestions.length || filters.length)
 }
 
 let readyPollTimer: ReturnType<typeof setInterval> | null = null
@@ -462,11 +784,13 @@ onMounted(() => {
   busy.value = false
   void refreshReady()
   window.addEventListener('focus', onWindowFocus)
+  if (props.active !== false) focusGoalField()
 })
 
 onBeforeUnmount(() => {
   stop()
   stopReadyPoll()
+  if (livePreviewTimer != null) clearTimeout(livePreviewTimer)
   window.removeEventListener('focus', onWindowFocus)
 })
 
@@ -484,6 +808,7 @@ watch(
     }
     busy.value = false
     void refreshReady()
+    focusGoalField()
   },
 )
 </script>
@@ -504,6 +829,46 @@ watch(
   gap: 8px;
   min-width: 0;
   margin-bottom: 0;
+}
+.local-ai-assist__examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+.local-ai-assist__example {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgba(var(--v-theme-surface), 1);
+  color: rgba(var(--v-theme-on-surface), 0.72);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.local-ai-assist__example:hover {
+  border-color: rgba(var(--v-theme-primary), 0.35);
+  color: rgb(var(--v-theme-primary));
+}
+.local-ai-assist__example--undo {
+  border-color: rgba(var(--v-theme-warning), 0.35);
+  color: rgb(var(--v-theme-warning));
+}
+.local-ai-assist__instant {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-success), 0.12);
+  color: rgb(var(--v-theme-success));
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.local-ai-assist__instant--partial {
+  background: rgba(var(--v-theme-warning), 0.14);
+  color: rgb(var(--v-theme-warning));
 }
 .local-ai-assist__goal {
   flex: 1 1 auto;

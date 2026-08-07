@@ -187,6 +187,41 @@ describe('localAiAssist', () => {
     ])
   })
 
+  it('synthesizes duration ranges, filesize and extensions', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      goal: 'от 10 до 20 минут, размер > 500mb, mp4',
+      availableFields: [
+        {param: 'duration', type: 'number', name: 'Duration'},
+        {param: 'filesize', type: 'number', name: 'File size'},
+        {param: 'ext', type: 'array', name: 'File format'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'duration', type: 'number', cond: '>=', val: 600, active: true},
+      {param: 'duration', type: 'number', cond: '<=', val: 1200, active: true},
+      {param: 'filesize', type: 'number', cond: '>', val: 500 * 1024 * 1024, active: true},
+      {param: 'ext', type: 'array', cond: 'in', val: ['mp4'], active: true},
+    ])
+  })
+
+  it('builds an instant local suggestion when the goal is fully covered', async () => {
+    const {buildLocalFilterAssistSuggestion} = await import('../../shared/localAiAssistFilterGoal')
+    const local = buildLocalFilterAssistSuggestion({
+      today: '2026-08-07',
+      goal: 'не смотрел месяц, избранное, 1080p',
+      availableFields: [
+        {param: 'viewedAt', type: 'date', name: 'Viewed'},
+        {param: 'favorite', type: 'boolean', name: 'Favorite'},
+        {param: 'height', type: 'number', name: 'Height'},
+      ],
+    })
+    expect(local?.local).toBe(true)
+    expect(local?.filters).toEqual([
+      {param: 'favorite', type: 'boolean', cond: '=', val: true, active: true},
+      {param: 'viewedAt', type: 'date', cond: '<', val: '2026-07-08', active: true},
+      {param: 'height', type: 'number', cond: '>=', val: 1080, active: true},
+    ])
+  })
 
   it('repairs bad regex with deterministic path generator when there is no goal', () => {
     const sample = '/Media/Library/[StudioName]clip.mp4'
@@ -315,5 +350,147 @@ describe('localAiAssist', () => {
     expect(filterPrompt).toContain('2026-08-07')
     expect(filterPrompt).toContain('2026-07-08')
     expect(asStringArray(['a', '', 'b', 'c'], 2)).toEqual(['a', 'b'])
+  })
+
+  it('covers one-tap example goals locally', async () => {
+    const {buildLocalFilterAssistSuggestion} = await import('../../shared/localAiAssistFilterGoal')
+    const availableFields = [
+      {param: 'viewedAt', type: 'date', name: 'Viewed'},
+      {param: 'favorite', type: 'boolean', name: 'Favorite'},
+      {param: 'rating', type: 'number', name: 'Rating'},
+      {param: 'duration', type: 'number', name: 'Duration'},
+      {param: 'height', type: 'number', name: 'Height'},
+      {param: 'time', type: 'number', name: 'Resume'},
+      {param: 'views', type: 'number', name: 'Views'},
+      {param: 'createdAt', type: 'date', name: 'Added'},
+      {param: 18, type: 'array', name: 'Tags'},
+    ]
+    for (const goal of [
+      'не смотрел месяц',
+      '10-20 min',
+      'empty Tags',
+      'favorite, rating > 4',
+      '1080p',
+      'недосмотренные',
+      'добавлен на этой неделе',
+      'просмотры > 5',
+    ]) {
+      const local = buildLocalFilterAssistSuggestion({
+        today: '2026-08-07',
+        goal,
+        availableFields,
+      })
+      expect(local, goal).toBeTruthy()
+      const filters = Array.isArray(local?.filters) ? local!.filters : []
+      expect(filters.length).toBeGreaterThan(0)
+      expect(local!.local).toBe(true)
+    }
+  })
+
+  it('builds a partial local suggestion when only part of the goal is covered', async () => {
+    const {buildLocalFilterAssistSuggestion} = await import('../../shared/localAiAssistFilterGoal')
+    const local = buildLocalFilterAssistSuggestion({
+      today: '2026-08-07',
+      goal: 'не смотрел месяц и похожие на sunset vibe',
+      availableFields: [
+        {param: 'viewedAt', type: 'date', name: 'Viewed'},
+      ],
+    }, {allowPartial: true})
+    expect(local).toBeTruthy()
+    expect(local!.partial).toBe(true)
+    const filters = Array.isArray(local?.filters) ? local!.filters : []
+    expect(filters.some((row) => String((row as {param?: unknown}).param) === 'viewedAt')).toBe(true)
+    expect(String(local!.residual || '')).toMatch(/sunset|vibe/i)
+    expect(buildLocalFilterAssistSuggestion({
+      today: '2026-08-07',
+      goal: 'не смотрел месяц и похожие на sunset vibe',
+      availableFields: [
+        {param: 'viewedAt', type: 'date', name: 'Viewed'},
+      ],
+    })).toBeNull()
+  })
+
+  it('synthesizes resume progress, views count and added date', async () => {
+    const {synthesizeFiltersFromGoal, buildLocalFilterAssistSuggestion} = await import('../../shared/localAiAssistFilterGoal')
+    const availableFields = [
+      {param: 'time', type: 'number', name: 'Resume'},
+      {param: 'views', type: 'number', name: 'Views'},
+      {param: 'createdAt', type: 'date', name: 'Added'},
+      {param: 'updatedAt', type: 'date', name: 'Updated'},
+    ]
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'недосмотренные',
+      availableFields,
+    })).toEqual([
+      {param: 'time', type: 'number', cond: '>', val: 0, active: true},
+    ])
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'просмотры > 5',
+      availableFields,
+    })).toEqual([
+      {param: 'views', type: 'number', cond: '>', val: 5, active: true},
+    ])
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'добавлен на этой неделе',
+      availableFields,
+    })).toEqual([
+      {param: 'createdAt', type: 'date', cond: '>=', val: '2026-08-03', active: true},
+    ])
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'редактировал в этом месяце',
+      availableFields,
+    })).toEqual([
+      {param: 'updatedAt', type: 'date', cond: '>=', val: '2026-08-01', active: true},
+    ])
+    const local = buildLocalFilterAssistSuggestion({
+      today: '2026-08-07',
+      goal: 'недосмотренные, просмотры > 1',
+      availableFields,
+    })
+    expect(local?.local).toBe(true)
+    expect(local?.partial).toBe(false)
+  })
+
+  it('synthesizes codec, bitrate, fps, exact height and excluded tags', async () => {
+    const {synthesizeFiltersFromGoal, buildLocalFilterAssistSuggestion} = await import('../../shared/localAiAssistFilterGoal')
+    const availableFields = [
+      {param: 'codec', type: 'string', name: 'Codec'},
+      {param: 'bitrate', type: 'number', name: 'Bitrate'},
+      {param: 'fps', type: 'number', name: 'FPS'},
+      {param: 'height', type: 'number', name: 'Height'},
+      {param: 18, type: 'array', name: 'Tags'},
+    ]
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'hevc, bitrate > 5 mbps, 60 fps',
+      availableFields,
+    })).toEqual([
+      {param: 'codec', type: 'string', cond: 'like', val: 'hevc', active: true},
+      {param: 'bitrate', type: 'number', cond: '>', val: 5000, active: true},
+      {param: 'fps', type: 'number', cond: '>=', val: 60, active: true},
+    ])
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'только 1080p',
+      availableFields,
+    })).toEqual([
+      {param: 'height', type: 'number', cond: '=', val: 1080, active: true},
+    ])
+    expect(synthesizeFiltersFromGoal({
+      today: '2026-08-07',
+      goal: 'кроме Tags: Lara',
+      availableFields,
+    })).toEqual([
+      {param: 18, type: 'array', cond: 'not in', val: ['Lara'], active: true},
+    ])
+    expect(buildLocalFilterAssistSuggestion({
+      today: '2026-08-07',
+      goal: 'hevc, 60 fps',
+      availableFields,
+    })?.local).toBe(true)
   })
 })

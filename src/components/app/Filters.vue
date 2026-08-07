@@ -122,7 +122,8 @@
                   @update:filters="filters = $event"
                   @close="closeTopFilters"
                   @apply="apply"
-                  @apply-ai-filters="applyAiFilters"
+                  @apply-ai-filters="onApplyAiFilters"
+                  @undo-ai-filters="undoAiFilters"
                   @add="add"
                   @reorder="onReorder"
                   @open-saved="dialogSaved = true"
@@ -165,7 +166,8 @@
           @update:filters="filters = $event"
           @close="filtersStore.visible = false"
           @apply="apply"
-          @apply-ai-filters="applyAiFilters"
+          @apply-ai-filters="onApplyAiFilters"
+          @undo-ai-filters="undoAiFilters"
           @add="add"
           @reorder="onReorder"
           @open-saved="dialogSaved = true"
@@ -404,6 +406,7 @@ const panelBindings = computed(() => ({
   assistActive: useTopPanel.value
     ? (showTopShell.value && isPanelView.value)
     : filtersVisible.value,
+  canUndoAiFilters: aiUndoSnapshot.value != null,
 }))
 
 const currentMediaType = computed(() =>
@@ -618,8 +621,20 @@ const applyAiFilters = async (payload: Record<string, unknown>) => {
       : undefined
 
     if (type === 'array' && cond !== 'is null' && cond !== 'not null') {
-      val = await resolveArrayFilterVal(val, metaId)
-      if (!Array.isArray(val) || !val.length) continue
+      if (metaId != null && Number.isFinite(metaId)) {
+        val = await resolveArrayFilterVal(val, metaId)
+        if (!Array.isArray(val) || !val.length) continue
+      } else {
+        const parts = Array.isArray(val)
+          ? val
+          : (typeof val === 'object' && val
+            ? Object.values(val as Record<string, unknown>)
+            : [val])
+        val = parts
+          .map((part) => String(part ?? '').trim().replace(/^\./, '').toLowerCase())
+          .filter(Boolean)
+        if (!Array.isArray(val) || !val.length) continue
+      }
     }
 
     const filter_obj = getFilterObject({
@@ -634,11 +649,38 @@ const applyAiFilters = async (payload: Record<string, unknown>) => {
     filters.value.push(filter_obj)
     added += 1
   }
-  if (!added) return
+  if (!added) return 0
   editMode.value = true
   if (!isPanelView.value) {
     setFiltersViewMode('advanced')
   }
+  return added
+}
+
+const aiUndoSnapshot = ref<FilterObject[] | null>(null)
+
+const onApplyAiFilters = async (payload: Record<string, unknown>) => {
+  aiUndoSnapshot.value = cloneFilters(filters.value)
+  if (payload?.replace === true) {
+    filters.value = filters.value.filter((filter) => Boolean(filter.lock) || Boolean(filter.removed))
+  }
+  const added = await applyAiFilters(payload)
+  if (payload?.run === true) {
+    await apply()
+  }
+  if (added && typeof window !== 'undefined' && window.showNotification) {
+    window.showNotification(
+      t('settings_labels.local_ai.assist_applied', {count: added}),
+      'success',
+    )
+  }
+}
+
+const undoAiFilters = async () => {
+  if (!aiUndoSnapshot.value) return
+  filters.value = cloneFilters(aiUndoSnapshot.value)
+  aiUndoSnapshot.value = null
+  await apply()
 }
 
 const reindexFilterOrder = () => {

@@ -19,4 +19,6 @@ export {
 export {
   mergeFilterSuggestions,
   synthesizeFiltersFromGoal,
-} from './localAiAssistFilterGoal'
+  buildLocalFilterAssistSuggestion,
+  canSatisfyFilterGoalLocally,
+} from '../../shared/localAiAssistFilterGoal'

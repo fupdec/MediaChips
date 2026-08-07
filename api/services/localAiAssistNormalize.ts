@@ -21,7 +21,7 @@ import {
   resolveTodayIso,
   shiftDateIso,
   synthesizeFiltersFromGoal,
-} from './localAiAssistFilterGoal'
+} from '../../shared/localAiAssistFilterGoal'
 
 
 export type AssistMode = 'chat' | 'regex' | 'filter' | 'meta'
