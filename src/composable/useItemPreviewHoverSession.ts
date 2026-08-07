@@ -145,29 +145,12 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
 
     if (action === 'cancel-pending-leave') {
       options.preserveHoverPlaybackAfterLeave?.()
-      // Delay was cleared on leave; reschedule only if video never armed.
-      if (!toValue(options.isHoverVideoArmed)) {
-        options.scheduleHoverPreviewUi()
-        return
+      // Always re-arm from the current pointer — replaying the leave frame
+      // showed the previous scrub position (or a frozen poster) out of place.
+      if (lastHoverClientX != null && !toValue(options.hasFixedPreviewTime)) {
+        options.applyPreviewTimeFromPointer({clientX: lastHoverClientX})
       }
-      const video = options.getPreviewEl()?.querySelector('video')
-      const hasPlayableFrame = Boolean(
-        video
-        && (video.currentSrc || video.getAttribute('src'))
-        && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA,
-      )
-      if (!video || !hasPlayableFrame) {
-        // Network may already have been dropped (~100ms leave abort).
-        options.scheduleHoverPreviewUi()
-        return
-      }
-      // Reverse the leave crossfade: thumb was covering again, reveal video.
-      if (options.hoverPreviewReady) {
-        options.hoverPreviewReady.value = true
-      }
-      if (video.paused) {
-        void video.play().catch(() => {})
-      }
+      options.scheduleHoverPreviewUi()
       return
     }
 

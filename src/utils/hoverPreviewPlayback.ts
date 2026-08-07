@@ -6,11 +6,10 @@ export const HOVER_PREVIEW_THUMB_CROSSFADE_MS = 520
 /** Extra settle so the thumb is fully opaque before <video> unmounts. */
 export const HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS = 80
 /**
- * Free the hover Range/NAS read after the thumb mostly covers the video.
- * Keep this well under the crossfade (~520ms) so the next card is not blocked,
- * but not so early that a blank/black frame shows through the fade.
+ * Free the hover Range after the thumb mostly covers the video (~end of 520ms
+ * ease-in-out). Do not snapshot frames — leave only pauses/clears the <video>.
  */
-export const HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS = 360
+export const HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS = 480
 
 let hoverPreviewReadyAt = 0
 
@@ -50,6 +49,17 @@ export function shouldApplyPreviewSeek(
   epsilon = PREVIEW_SEEK_EPSILON,
 ): boolean {
   return Number.isFinite(nextTime) && Math.abs(currentTime - nextTime) > epsilon
+}
+
+/** True when currentTime is close enough to reveal the hover frame. */
+export function isHoverPreviewOnTargetFrame(
+  currentTime: number,
+  targetTime: number,
+  epsilon = PREVIEW_SEEK_EPSILON,
+): boolean {
+  return Number.isFinite(currentTime)
+    && Number.isFinite(targetTime)
+    && !shouldApplyPreviewSeek(currentTime, targetTime, epsilon)
 }
 
 export type InPlacePreviewSeekDecision =
@@ -325,9 +335,16 @@ export function shouldScheduleHoverPreviewVideo(input: {
     && input.videoPreviewHover === 'video'
 }
 
-/** Clamp settings delay for schedulePreviewPlayback. */
+/**
+ * Minimum settle before hover video mounts. Even with delay=0, rapid card
+ * hopping otherwise starts seeks that flash the wrong frame and saturate NAS.
+ */
+export const HOVER_PREVIEW_SETTLE_DEBOUNCE_MS = 160
+
+/** Clamp settings delay for schedulePreviewPlayback (never below settle debounce). */
 export function resolveHoverPreviewScheduleDelay(delaySetting: unknown): number {
-  return Math.max(0, Number(delaySetting) || 0)
+  const configured = Math.max(0, Number(delaySetting) || 0)
+  return Math.max(configured, HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
 }
 
 /** Fixed-clip progress/playbackTime values, or null when no start is set. */

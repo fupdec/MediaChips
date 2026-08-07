@@ -172,7 +172,7 @@ describe('useItemPreviewHoverSession', () => {
     expect(finalizePreviewStop).toHaveBeenCalled()
   })
 
-  it('re-enter during leave grace cancels pending stop without remount', () => {
+  it('re-enter during leave grace reschedules to the current pointer', () => {
     const isHovered = ref(true)
     const hoverPreviewReady = ref(true)
     const timeouts: {leave?: ReturnType<typeof setTimeout>} = {}
@@ -183,15 +183,8 @@ describe('useItemPreviewHoverSession', () => {
     const hidePreviewVideoImmediately = vi.fn()
     const finalizePreviewStop = vi.fn()
     const scheduleHoverPreviewUi = vi.fn()
+    const applyPreviewTimeFromPointer = vi.fn()
     const stopPreviewLiveTranscode = vi.fn()
-    const video = {
-      currentSrc: 'http://local/video',
-      readyState: HTMLMediaElement.HAVE_CURRENT_DATA,
-      paused: true,
-      pause: vi.fn(),
-      play: vi.fn(async () => {}),
-      getAttribute: (name: string) => (name === 'src' ? 'http://local/video' : null),
-    }
 
     const session = useItemPreviewHoverSession({
       isFileExists: true,
@@ -209,7 +202,7 @@ describe('useItemPreviewHoverSession', () => {
       collapsePreviewFading: ref(false),
       timeouts,
       hasFixedPreviewTime: false,
-      getPreviewEl: () => ({querySelector: () => video} as unknown as HTMLElement),
+      getPreviewEl: () => null,
       clearCinemaTimeout: vi.fn(),
       clearPreviewDelayTimer: vi.fn(),
       cancelHoverPlayback,
@@ -219,7 +212,7 @@ describe('useItemPreviewHoverSession', () => {
       finalizePreviewStop,
       scheduleHoverPreviewUi,
       applyFixedPreviewTime: vi.fn(),
-      applyPreviewTimeFromPointer: vi.fn(),
+      applyPreviewTimeFromPointer,
       closeGridBigPreview: vi.fn(async () => {}),
       resetPreviewContainer: vi.fn(),
       shouldKeepBigPreviewOpen: () => false,
@@ -233,14 +226,12 @@ describe('useItemPreviewHoverSession', () => {
     session.handleMouseLeave()
     expect(cancelHoverPlayback).toHaveBeenCalled()
     expect(timeouts.leave).toBeTruthy()
-    expect(hoverPreviewReady.value).toBe(false)
 
-    session.handleMouseEnter()
+    session.handleMouseEnter({clientX: 40} as MouseEvent)
     expect(timeouts.leave).toBeUndefined()
     expect(preserveHoverPlaybackAfterLeave).toHaveBeenCalled()
-    expect(scheduleHoverPreviewUi).not.toHaveBeenCalled()
-    expect(hoverPreviewReady.value).toBe(true)
-    expect(video.play).toHaveBeenCalled()
+    expect(applyPreviewTimeFromPointer).toHaveBeenCalledWith({clientX: 40})
+    expect(scheduleHoverPreviewUi).toHaveBeenCalled()
 
     vi.advanceTimersByTime(
       HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS + 50,

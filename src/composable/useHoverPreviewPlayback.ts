@@ -36,11 +36,17 @@ import {
   shouldRestartFixedPreviewClip,
   HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS,
   waitForPreviewPresentedFrame,
+  isHoverPreviewOnTargetFrame,
+  shouldApplyPreviewSeek,
+  seekPreviewVideo,
+  resolveLivePreviewRelativeTime,
+  getPreviewStreamStart,
+  PREVIEW_INITIAL_SEEK_WAIT_MS,
   type HoverPreviewTeardownKind,
 } from '@/utils/hoverPreviewPlayback'
 import {positionHoverPreviewVideo} from '@/utils/hoverPreviewVideoPositioning'
 import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
-import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
+import {abortVideoPlayback, clearHoverPreviewSurface} from '@/utils/liveTranscodeLifecycle'
 import {isAppWindowFocused} from '@/utils/windowFocus'
 
 export type HoverPreviewPlaybackOptions = {
@@ -450,8 +456,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
     const mediaId = toValue(options.mediaId)
     claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
-    // Hide <video> until the scrub frame is presented (not during leave).
+    // Hide <video> and wipe any leave-poster / prior decode before loading.
     hoverPreviewFrameVisible.value = false
+    clearHoverPreviewSurface(video)
 
     const previewStartTime = toValue(options.previewStartTime)
     const targetTime = resolveHoverPreviewTargetTime({
@@ -490,16 +497,40 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       }
       if (afterPosition !== 'play') return
 
+      const streamStart = Number(getPreviewStreamStart(video.src || '') || 0)
+      const seekTarget = previewUsesLiveStream.value
+        ? resolveLivePreviewRelativeTime(targetTime, streamStart)
+        : targetTime
+
+      // Hard gate: never fade the thumb until currentTime matches the scrub point.
+      if (!isHoverPreviewOnTargetFrame(video.currentTime, seekTarget)) {
+        if (shouldApplyPreviewSeek(video.currentTime, seekTarget)) {
+          await seekPreviewVideo(video, seekTarget, isPreviewCancelled(token), {
+            timeoutMs: PREVIEW_INITIAL_SEEK_WAIT_MS,
+          })
+        }
+        if (token !== previewPlaybackToken) {
+          releaseHoverVideoPreview(mediaId)
+          return
+        }
+        if (!isHoverPreviewOnTargetFrame(video.currentTime, seekTarget)) {
+          // Still wrong after the seek budget — keep the thumb, don't flash junk.
+          return
+        }
+      }
+
       await video.play()
       if (token !== previewPlaybackToken) {
         releaseHoverVideoPreview(mediaId)
         return
       }
 
-      // One presented frame after play — cheap when #t=/seek already landed.
       await waitForPreviewPresentedFrame(video, isPreviewCancelled(token))
       if (token !== previewPlaybackToken) {
         releaseHoverVideoPreview(mediaId)
+        return
+      }
+      if (!isHoverPreviewOnTargetFrame(video.currentTime, seekTarget)) {
         return
       }
 
@@ -624,8 +655,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       leaveNetworkAbortTimeout = undefined
       if (gen !== leaveNetworkAbortGen) return
       if (!allowHoverVideoElement.value) return
-      // Drop the Range request without blanking to gray under the fading thumb.
-      abortVideoPlayback(video, {preserveFrame: true})
+      // Drop the Range once the thumb covers most of the plate.
+      abortVideoPlayback(video)
     }, HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS)
   }
 

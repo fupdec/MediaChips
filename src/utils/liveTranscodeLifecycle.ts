@@ -26,10 +26,7 @@ export function getMarkedLiveTranscodeMediaId(): string | null {
   }
 }
 
-export function abortVideoPlayback(
-  videoEl: HTMLVideoElement | null | undefined,
-  {preserveFrame = false}: {preserveFrame?: boolean} = {},
-): void {
+export function abortVideoPlayback(videoEl: HTMLVideoElement | null | undefined): void {
   if (!videoEl) return
 
   try {
@@ -38,39 +35,18 @@ export function abortVideoPlayback(
     // ignore
   }
 
-  if (preserveFrame) {
-    try {
-      const width = videoEl.videoWidth
-      const height = videoEl.videoHeight
-      if (width > 0 && height > 0) {
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(videoEl, 0, 0, width, height)
-          // Keep the last decoded frame painted while the thumb crossfades in;
-          // clearing src without a poster flashes the gray card underlay.
-          videoEl.poster = canvas.toDataURL('image/jpeg', 0.85)
-        }
-      }
-    } catch {
-      // ignore capture failures — still drop the network below
-    }
-  } else {
-    try {
-      videoEl.removeAttribute('poster')
-    } catch {
-      // ignore
-    }
-  }
-
   try {
+    videoEl.removeAttribute('poster')
     videoEl.removeAttribute('src')
     videoEl.load()
   } catch {
     // ignore
   }
+}
+
+/** Stop hover <video> and drop any in-memory poster/src before the next load. */
+export function clearHoverPreviewSurface(videoEl: HTMLVideoElement | null | undefined): void {
+  abortVideoPlayback(videoEl)
 }
 
 export function stopLiveTranscodeRequest(

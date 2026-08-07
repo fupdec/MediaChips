@@ -38,6 +38,8 @@ import {
   waitForPreviewCanPlay,
   seekPreviewVideo,
   appendPreviewMediaFragment,
+  isHoverPreviewOnTargetFrame,
+  HOVER_PREVIEW_SETTLE_DEBOUNCE_MS,
 } from './hoverPreviewPlayback'
 
 describe('hoverPreviewPlayback', () => {
@@ -396,6 +398,11 @@ describe('hoverPreviewPlayback', () => {
     )
   })
 
+  it('isHoverPreviewOnTargetFrame rejects frames still far from scrub time', () => {
+    expect(isHoverPreviewOnTargetFrame(0, 12)).toBe(false)
+    expect(isHoverPreviewOnTargetFrame(12.05, 12)).toBe(true)
+  })
+
   it('seekPreviewVideo waits for seeked even when seeking flips async', async () => {
     let seeking = false
     let current = 0
@@ -468,10 +475,12 @@ describe('hoverPreviewPlayback', () => {
     expect(sync.mock.calls.map((call) => call[0])).toEqual([1, 3])
   })
 
-  it('clamps hover preview schedule delay', () => {
-    expect(resolveHoverPreviewScheduleDelay(-5)).toBe(0)
+  it('clamps hover preview schedule delay with a settle debounce floor', () => {
+    expect(resolveHoverPreviewScheduleDelay(-5)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
+    expect(resolveHoverPreviewScheduleDelay(undefined)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
+    expect(resolveHoverPreviewScheduleDelay(0)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
     expect(resolveHoverPreviewScheduleDelay('250')).toBe(250)
-    expect(resolveHoverPreviewScheduleDelay(undefined)).toBe(0)
+    expect(resolveHoverPreviewScheduleDelay(80)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
   })
 
   it('resolves fixed preview clip state', () => {
