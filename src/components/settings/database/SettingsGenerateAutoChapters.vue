@@ -108,7 +108,7 @@ import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
 import SettingsCategoryDivider from '@/components/settings/SettingsCategoryDivider.vue'
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const tasksStore = useTasksStore()
 
 const status = ref({total: 0, withChapters: 0, pending: 0})
@@ -169,7 +169,12 @@ async function startGeneration(force: boolean) {
 
   try {
     await typedApi.streamAutoChapterGeneration(
-      {force},
+      {
+        force,
+        useSilence: true,
+        useLlmTitles: true,
+        locale: String(locale.value || 'en'),
+      },
       {signal: abortController.signal},
       (event) => {
         if (event.type === 'progress' || event.type === 'item') {

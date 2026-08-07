@@ -39,15 +39,15 @@ pts_time=90.25
     expect(refined).toEqual([0, 12, 40, 70])
   })
 
-  it('labels auto chapters with clocks and recognizes replaceable marks', () => {
+  it('labels auto chapters with clocks and treats scene marks without tags as replaceable', () => {
     expect(formatChapterClock(65)).toBe('1:05')
     expect(autoChapterLabel(1, 0)).toBe('0:00')
     expect(autoChapterLabel(2, 125)).toBe('2:05')
     expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Chapter 2', tagId: null})).toBe(true)
     expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: '1:05', tagId: null})).toBe(true)
+    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Opening · Neon', tagId: null})).toBe(true)
     expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: null, tagId: null})).toBe(true)
     expect(isAutoChapterMark({type: 'bookmark', text: 'Chapter 1', tagId: null})).toBe(false)
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Fight', tagId: null})).toBe(false)
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Chapter 1', tagId: 9})).toBe(false)
+    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Fight', tagId: 9})).toBe(false)
   })
 })

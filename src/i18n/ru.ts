@@ -2195,7 +2195,7 @@ const ru = {
       make_library_smart_faces: 'Найти лица',
       make_library_smart_clip: 'Построить CLIP-эмбеддинги',
       make_library_smart_clip_tags: 'Предложить и применить CLIP-теги',
-      make_library_smart_chapters: 'Сгенерировать умные главы (сцена + тишина)',
+      make_library_smart_chapters: 'Сгенерировать умные главы (сцена + тишина + названия)',
       make_library_smart_chapters_progress: 'Главы: {processed} из {total}',
       make_library_smart_organize: 'Открыть раскладку по тегам в папки',
       make_library_smart_neighbor_tags: 'Скопировать теги с визуально похожих',

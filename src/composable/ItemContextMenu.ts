@@ -1000,7 +1000,13 @@ export default function useItemContextMenu(
       let skipped = 0
       let failed = 0
       await typedApi.streamAutoChapterGeneration(
-        {mediaIds: ids, force: true},
+        {
+          mediaIds: ids,
+          force: true,
+          useSilence: true,
+          useLlmTitles: true,
+          locale: String(locale || 'en'),
+        },
         {signal: controller.signal},
         (event) => {
           if (event.type === 'progress' || event.type === 'item') {

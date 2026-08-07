@@ -129,7 +129,12 @@ async function generateChapters() {
 
   generatingChapters.value = true
   try {
-    const result = await typedApi.generateAutoChapters({mediaId, force: true})
+    const result = await typedApi.generateAutoChapters({
+      mediaId,
+      force: true,
+      useSilence: true,
+      useLlmTitles: true,
+    })
     const chapters = Number(result.data?.chapters) || 0
     const res = await typedApi.getMarksForVideo(mediaId)
     playerStore.marks = Array.isArray(res.data) ? res.data : []

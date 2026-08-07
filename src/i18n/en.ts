@@ -2194,7 +2194,7 @@ const en = {
       make_library_smart_faces: 'Detect faces',
       make_library_smart_clip: 'Build CLIP embeddings',
       make_library_smart_clip_tags: 'Suggest and apply CLIP tags',
-      make_library_smart_chapters: 'Generate smarter chapters (scene + silence)',
+      make_library_smart_chapters: 'Generate smarter chapters (scene + silence + titles)',
       make_library_smart_chapters_progress: 'Chapters: {processed} of {total}',
       make_library_smart_organize: 'Open organize-by-tag folders',
       make_library_smart_neighbor_tags: 'Copy tags from visually similar media',

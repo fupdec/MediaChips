@@ -1702,6 +1702,8 @@ const runSmartLibraryWizard = async () => {
             mediaIds,
             force: true,
             useSilence: true,
+            useLlmTitles: true,
+            locale: String(settingsStore.locale || 'en'),
           },
           {signal: controller.signal},
           (event) => {

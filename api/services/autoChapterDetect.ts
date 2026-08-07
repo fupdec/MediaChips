@@ -11,6 +11,7 @@ import {deleteMarkGeneratedAsset} from './localAssetCleanup'
 import {ffprobe} from '../utils/ffmpeg'
 import {getFfmpegPath} from '../utils/ffmpegPaths'
 import {runWithFfmpegLimit} from './mediaPostProcessQueue'
+import {resolveAutoChapterTitles} from './autoChapterTitles'
 
 export const AUTO_CHAPTER_TYPE = 'scene'
 export const AUTO_CHAPTER_TEXT_RE = /^(Chapter\s+(\d+)|(\d{1,2}:)?\d{1,2}:\d{2})$/i
@@ -29,6 +30,10 @@ export type AutoChapterDetectOptions = {
   useSilence?: boolean
   silenceNoiseDb?: number
   silenceMinDuration?: number
+  /** Prefer Local AI titles when the model is ready; always falls back to heuristics. */
+  useLlmTitles?: boolean
+  locale?: string
+  shouldStop?: () => boolean
 }
 
 export type AutoChapterProgressEvent = {
@@ -52,10 +57,8 @@ export function isAutoChapterMark(mark: {
   tagId?: number | null
 }): boolean {
   if (String(mark.type || '').toLowerCase() !== AUTO_CHAPTER_TYPE) return false
-  if (mark.tagId != null) return false
-  const text = String(mark.text || '').trim()
-  if (!text) return true
-  return AUTO_CHAPTER_TEXT_RE.test(text)
+  // Auto chapters are always type=scene with no tag — text may be a clock or LLM title.
+  return mark.tagId == null
 }
 
 export function formatChapterClock(seconds: number): string {
@@ -281,9 +284,16 @@ export async function generateAutoChaptersForMedia(
   }
 
   deletePreviousAutoChapters(db, mediaId)
+  const titles = await resolveAutoChapterTitles(db, {
+    filePathOrName: media.name || media.basename || media.path,
+    times,
+    locale: options.locale,
+    useLlmTitles: Boolean(options.useLlmTitles),
+    shouldStop: options.shouldStop,
+  })
   marksRepo.bulkCreate(times.map((time, index) => ({
     type: AUTO_CHAPTER_TYPE,
-    text: autoChapterLabel(index + 1, time),
+    text: titles[index] || autoChapterLabel(index + 1, time),
     time: Math.round(time),
     end: null,
     tagId: null,
@@ -356,6 +366,8 @@ export async function* iterateAutoChapterGeneration(
     useSilence = true,
     silenceNoiseDb,
     silenceMinDuration,
+    useLlmTitles = false,
+    locale,
   }: AutoChapterDetectOptions & {
     shouldStop?: () => boolean
     force?: boolean
@@ -403,6 +415,9 @@ export async function* iterateAutoChapterGeneration(
         useSilence,
         silenceNoiseDb,
         silenceMinDuration,
+        useLlmTitles,
+        locale,
+        shouldStop,
       })
       processed += 1
       if (result.skipped || result.chapters < 2) skipped += 1

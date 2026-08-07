@@ -458,6 +458,9 @@ export const tasksApi = {
     threshold?: number
     minGapSec?: number
     maxChapters?: number
+    useSilence?: boolean
+    useLlmTitles?: boolean
+    locale?: string
   }) {
     return apiClient.post(API_ROUTES.taskGenerateAutoChapters, body)
   },
@@ -470,6 +473,8 @@ export const tasksApi = {
       minGapSec?: number
       maxChapters?: number
       useSilence?: boolean
+      useLlmTitles?: boolean
+      locale?: string
     },
     options: {signal?: AbortSignal},
     onEvent: (event: GenerationStreamEvent) => void,
