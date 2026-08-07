@@ -92,12 +92,12 @@
         </v-btn>
 
         <v-btn
-          v-if="currentStep.action === 'plugins'"
+          v-if="currentStep.action === 'watched'"
           color="primary"
           variant="tonal"
-          @click="openPlugins"
+          @click="openWatchedFolders"
         >
-          {{ t('onboarding.open_plugins') }}
+          {{ t('onboarding.open_watched_folders') }}
         </v-btn>
 
         <v-btn
@@ -162,7 +162,7 @@ watch(
   },
 )
 
-type OnboardingAction = 'starter' | 'media' | 'plugins' | null
+type OnboardingAction = 'starter' | 'media' | 'watched' | null
 
 const starterItems = computed(() => [
   {
@@ -205,7 +205,7 @@ const steps = computed(() => [
     title: t('onboarding.steps.done.title'),
     body: t('onboarding.steps.done.body'),
     image: '/images/onboarding/04-ready.png',
-    action: 'plugins' as OnboardingAction,
+    action: 'watched' as OnboardingAction,
   },
 ])
 
@@ -279,10 +279,10 @@ async function applyStarter() {
   }
 }
 
-async function openPlugins() {
+async function openWatchedFolders() {
   await completeOnboarding()
   stepIndex.value = 0
-  await router.push({path: '/settings', query: {tab: 'plugins'}})
+  await router.push({path: '/settings', query: {section: 'watched_folders'}})
 }
 
 async function openAddFiles() {

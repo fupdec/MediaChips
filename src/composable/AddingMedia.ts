@@ -22,7 +22,7 @@ import {
   parseMediaTypeExtensions,
   isImageMediaType,
 } from '@/utils/mediaType'
-import {completeOnboarding, shouldShowOnboarding} from '@/composable/useOnboarding'
+import {ONBOARDING_STEP_COUNT, saveOnboardingStep, shouldShowOnboarding} from '@/composable/useOnboarding'
 
 
 
@@ -429,7 +429,7 @@ export const useMediaAdding = () => {
         task.value.active = false
         task.value.media_type_id = null
         task.value.status = t('media.adding.complete')
-        keepTaskAfterComplete = String(mediaType.type || '').toLowerCase() === 'video'
+        keepTaskAfterComplete = true
 
         if (keepTaskAfterComplete) {
           await tasksStore.updateTask(taskId, {
@@ -449,7 +449,8 @@ export const useMediaAdding = () => {
         })
 
         if (shouldShowOnboarding(false)) {
-          void completeOnboarding()
+          await saveOnboardingStep(ONBOARDING_STEP_COUNT - 1)
+          await openMediaAddingProcess()
         }
       } else {
         task.value.finished = true

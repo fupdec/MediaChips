@@ -300,9 +300,14 @@ export default function createTasksTaggingController(shared: TaskControllerShare
       errorMessage: 'Some error occurred while parsing library tags.',
       iterate: async (shouldStop) => {
         const settings = await getParserSettings(req.body?.settings || {})
+        const rawIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : null
+        const mediaIds = rawIds
+          ? rawIds.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
+          : undefined
         return iterateParseLibraryTagsPreview(db, {
           settings,
           shouldStop,
+          ...(mediaIds?.length ? {mediaIds} : {}),
         })
       },
     })

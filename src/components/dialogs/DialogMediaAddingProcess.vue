@@ -53,6 +53,14 @@
             </div>
 
             <v-checkbox
+              v-model="smartWizard.pathTags"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning"
+              :label="t('media.adding.make_library_smart_path_tags')"
+            />
+            <v-checkbox
               v-model="smartWizard.grids"
               density="compact"
               hide-details
@@ -75,6 +83,16 @@
               color="primary"
               :disabled="smartWizardRunning || !isAddedVideo"
               :label="t('media.adding.make_library_smart_clip')"
+            />
+            <v-checkbox
+              v-if="smartWizard.clip"
+              v-model="smartWizard.clipTags"
+              density="compact"
+              hide-details
+              color="primary"
+              class="ml-4"
+              :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
+              :label="t('media.adding.make_library_smart_clip_tags')"
             />
 
             <div
@@ -130,6 +148,10 @@
               </v-btn>
             </div>
 
+            <div v-if="pathAutoTagSummary" class="text-caption mt-2">
+              {{ pathAutoTagSummary }}
+            </div>
+
             <div v-if="smartWizardRunning || smartWizardProgress > 0" class="mt-3">
               <v-progress-linear
                 v-model="smartWizardProgress"
@@ -161,6 +183,19 @@
               <v-icon icon="mdi-tag-check-outline"
                 start/>
               {{ t('media.adding.accept_all_suggested_tags') }}
+            </v-btn>
+
+            <v-btn
+              v-if="task.videoSuggestedTags?.length"
+              @click="applyClipSuggestedTags"
+              :loading="applyingClipSuggestions"
+              :disabled="applyingClipSuggestions"
+              color="primary"
+              rounded
+              variant="tonal"
+            >
+              <v-icon icon="mdi-tag-plus-outline" start/>
+              {{ t('media.adding.apply_clip_suggestions') }}
             </v-btn>
 
             <v-btn
@@ -537,6 +572,17 @@ import {setNotification} from '@/services/notificationService'
 import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
 import {getErrorResponseData} from '@/types/vue'
 import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
+import {
+  acceptSuggestedTagsAndAssign,
+  applyClipSuggestionsToMedia,
+  applyImportPathAutoTags,
+} from '@/services/importPathAutoTag'
+import {
+  ONBOARDING_STEP_COUNT,
+  openOnboarding,
+  saveOnboardingStep,
+  shouldShowOnboarding,
+} from '@/composable/useOnboarding'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useSettingsStore} from '@/stores/settings'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
@@ -618,10 +664,14 @@ const clipModelDownloading = ref(false)
 const faceModelStatus = ref('unknown')
 const faceModelDownloading = ref(false)
 const acceptingSuggestedTags = ref(false)
+const applyingClipSuggestions = ref(false)
+const pathAutoTagSummary = ref('')
 const smartWizard = ref({
+  pathTags: true,
   grids: true,
   faces: false,
   clip: false,
+  clipTags: true,
 })
 const smartWizardRunning = ref(false)
 const smartWizardProgress = ref(0)
@@ -734,15 +784,27 @@ const faceModelNeedsDownload = computed(() => (
 ))
 const canMakeLibrarySmart = computed(() => (
   task.value.finished &&
-  task.value.addedMedia.length > 0 &&
-  isAddedVideo.value
+  task.value.addedMedia.length > 0
 ))
-const canRunSmartWizard = computed(() => (
+const canRunSmartWizard = computed(() =>
   canMakeLibrarySmart.value &&
-  (smartWizard.value.grids || smartWizard.value.faces || smartWizard.value.clip) &&
+  (
+    smartWizard.value.pathTags
+    || (isAddedVideo.value && (
+      smartWizard.value.grids
+      || smartWizard.value.faces
+      || smartWizard.value.clip
+    ))
+  ) &&
   !(smartWizard.value.faces && faceModelNeedsDownload.value) &&
   !(smartWizard.value.clip && clipModelNeedsDownload.value)
-))
+)
+
+function addedMediaIds(): number[] {
+  return (task.value.addedMedia || [])
+    .map((entry) => Number(entry.mediaId))
+    .filter((id) => Number.isFinite(id) && id > 0)
+}
 
 const duplicates_by_path = computed((): string[] => {
   return (task.value.duplicates as MediaAddingDuplicateEntry[])
@@ -942,27 +1004,18 @@ const acceptAllSuggestedTags = async () => {
 
   acceptingSuggestedTags.value = true
   try {
-    const existing = new Set(
-      (appStore.tags || []).map((tag) => String(tag.name || '').trim().toLowerCase()),
-    )
-    const toCreate = names.filter((name) => !existing.has(name.toLowerCase()))
-
-    if (toCreate.length > 0) {
-      await typedApi.createTags(
-        toCreate.map((name) => ({
-          name,
-          metaId,
-        })),
-      )
-      await reloadTagsCatalog()
-    }
-
+    const result = await acceptSuggestedTagsAndAssign(names, addedMediaIds())
     task.value.suggestedTags = []
+    listSync.getItemsFromDb({
+      ids: addedMediaIds(),
+      type: 'media',
+    })
     setNotification({
       type: 'success',
       title: t('media.adding.accept_all_suggested_tags'),
-      text: t('notifications_text.added_list', {
-        items: (toCreate.length ? toCreate : names).join(', '),
+      text: t('media.adding.accept_all_suggested_tags_done', {
+        created: result.createdTags,
+        applied: result.applied,
       }),
     })
   } catch (error) {
@@ -974,6 +1027,36 @@ const acceptAllSuggestedTags = async () => {
     })
   } finally {
     acceptingSuggestedTags.value = false
+  }
+}
+
+const applyClipSuggestedTags = async () => {
+  const names = uniqueNames(task.value.videoSuggestedTags || task.value.suggestedTags || [])
+  if (!names.length) return
+  applyingClipSuggestions.value = true
+  try {
+    const mediaIds = addedMediaIds()
+    const suggestions = names.map((word) => ({word, mediaIds}))
+    const result = await applyClipSuggestionsToMedia(suggestions, mediaIds)
+    task.value.videoSuggestedTags = []
+    listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+    setNotification({
+      type: 'success',
+      title: t('media.adding.apply_clip_suggestions'),
+      text: t('media.adding.apply_clip_suggestions_done', {
+        created: result.createdTags,
+        applied: result.applied,
+      }),
+    })
+  } catch (error) {
+    console.error('Error applying CLIP suggestions:', error)
+    setNotification({
+      type: 'error',
+      title: t('media.adding.apply_clip_suggestions'),
+      text: getErrorMessage(error),
+    })
+  } finally {
+    applyingClipSuggestions.value = false
   }
 }
 
@@ -1372,14 +1455,16 @@ const detectFacesInAddedVideos = async () => {
 const runSmartLibraryWizard = async () => {
   if (!canRunSmartWizard.value || smartWizardRunning.value) return
 
-  const steps: Array<'grids' | 'faces' | 'clip'> = []
-  if (smartWizard.value.grids) steps.push('grids')
-  if (smartWizard.value.faces) steps.push('faces')
-  if (smartWizard.value.clip) steps.push('clip')
+  const steps: Array<'pathTags' | 'grids' | 'faces' | 'clip'> = []
+  if (smartWizard.value.pathTags) steps.push('pathTags')
+  if (isAddedVideo.value && smartWizard.value.grids) steps.push('grids')
+  if (isAddedVideo.value && smartWizard.value.faces) steps.push('faces')
+  if (isAddedVideo.value && smartWizard.value.clip) steps.push('clip')
   if (!steps.length) return
 
   smartWizardRunning.value = true
   smartWizardProgress.value = 0
+  pathAutoTagSummary.value = ''
   smartWizardStatus.value = t('media.adding.make_library_smart')
   const controller = new AbortController()
   smartWizardAbort = controller
@@ -1398,9 +1483,7 @@ const runSmartLibraryWizard = async () => {
   smartWizardTaskId = trayTaskId
 
   const mediaEntries = task.value.addedMedia || []
-  const mediaIds = mediaEntries
-    .map((entry) => Number(entry.mediaId))
-    .filter((id) => Number.isFinite(id) && id > 0)
+  const mediaIds = addedMediaIds()
 
   try {
     for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
@@ -1408,6 +1491,28 @@ const runSmartLibraryWizard = async () => {
       const step = steps[stepIndex]
       const base = (stepIndex / steps.length) * 100
       const span = 100 / steps.length
+
+      if (step === 'pathTags') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_path_tags')
+        tasksStore.updateTask(trayTaskId, {
+          subtitle: t('media.adding.make_library_smart_path_tags'),
+          progress: base + span * 0.2,
+        })
+        const result = await applyImportPathAutoTags(mediaIds, {signal: controller.signal})
+        pathAutoTagSummary.value = t('media.adding.make_library_smart_path_tags_done', {
+          created: result.createdTags,
+          applied: result.applied,
+          media: result.mediaWithTags,
+        })
+        if (mediaIds.length) {
+          listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+        }
+        smartWizardProgress.value = base + span
+        tasksStore.updateTask(trayTaskId, {
+          subtitle: pathAutoTagSummary.value,
+          progress: smartWizardProgress.value,
+        })
+      }
 
       if (step === 'grids') {
         smartWizardStatus.value = t('media.adding.make_library_smart_grids')
@@ -1470,6 +1575,7 @@ const runSmartLibraryWizard = async () => {
 
       if (step === 'clip') {
         smartWizardStatus.value = t('media.adding.make_library_smart_clip')
+        const clipSpan = smartWizard.value.clipTags ? span * 0.55 : span
         await typedApi.streamBackfill(
           'clipEmbedding',
           {mediaIds, signal: controller.signal},
@@ -1477,7 +1583,7 @@ const runSmartLibraryWizard = async () => {
             if (event.type === 'progress') {
               const processed = Number(event.processed || 0)
               const total = Number(event.total || mediaIds.length || 1)
-              smartWizardProgress.value = base + (processed / Math.max(total, 1)) * span
+              smartWizardProgress.value = base + (processed / Math.max(total, 1)) * clipSpan
               tasksStore.updateTask(trayTaskId, {
                 subtitle: t('media.adding.make_library_smart_clip_progress', {
                   processed,
@@ -1491,14 +1597,56 @@ const runSmartLibraryWizard = async () => {
             }
           },
         )
+
+        if (smartWizard.value.clipTags && clipModelReady.value && !controller.signal.aborted) {
+          smartWizardStatus.value = t('media.adding.make_library_smart_clip_tags')
+          tasksStore.updateTask(trayTaskId, {
+            subtitle: t('media.adding.make_library_smart_clip_tags'),
+            progress: base + clipSpan + (span - clipSpan) * 0.4,
+          })
+          const response = await typedApi.suggestTagsFromVideoFrames({
+            paths: task.value.added,
+            mediaTypeId: task.value.addedMediaTypeId ?? undefined,
+            framesPerVideo: 4,
+            limit: 50,
+            excludeExisting: true,
+          })
+          if (controller.signal.aborted) break
+          const clipSuggestions = Array.isArray(response.data?.suggestions)
+            ? response.data.suggestions
+            : []
+          const names = clipSuggestions
+            .map((item) => item.word)
+            .filter((word): word is string => Boolean(word))
+          task.value.videoSuggestedTags = uniqueNames(names)
+          task.value.suggestedTags = uniqueNames([
+            ...(task.value.suggestedTags || []),
+            ...names,
+          ]).slice(0, 80)
+
+          if (clipSuggestions.length) {
+            const applyResult = await applyClipSuggestionsToMedia(clipSuggestions, mediaIds)
+            pathAutoTagSummary.value = [
+              pathAutoTagSummary.value,
+              t('media.adding.apply_clip_suggestions_done', {
+                created: applyResult.createdTags,
+                applied: applyResult.applied,
+              }),
+            ].filter(Boolean).join(' · ')
+            if (mediaIds.length) {
+              listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+            }
+          }
+          smartWizardProgress.value = base + span
+        }
       }
     }
 
     if (!controller.signal.aborted) {
       smartWizardProgress.value = 100
-      smartWizardStatus.value = t('media.adding.make_library_smart_done')
+      smartWizardStatus.value = pathAutoTagSummary.value || t('media.adding.make_library_smart_done')
       tasksStore.updateTask(trayTaskId, {
-        subtitle: t('media.adding.make_library_smart_done'),
+        subtitle: smartWizardStatus.value,
         progress: 100,
         color: 'success',
         done: true,
@@ -1507,7 +1655,7 @@ const runSmartLibraryWizard = async () => {
       setNotification({
         type: 'success',
         title: t('media.adding.make_library_smart'),
-        text: t('media.adding.make_library_smart_done'),
+        text: smartWizardStatus.value,
         actions: [openProcessAction()],
       })
     } else {
@@ -1557,6 +1705,11 @@ watch(() => tasksStore.mediaAdding.dialogProcess, (open, wasOpen) => {
         tasksStore.removeTask(notificationTaskId)
         task.value.notificationTaskId = null
       }
+    }
+    if (shouldShowOnboarding(false)) {
+      void saveOnboardingStep(ONBOARDING_STEP_COUNT - 1).then(() => {
+        openOnboarding()
+      })
     }
   }
 })

@@ -5,6 +5,7 @@ import {
   createPreviewTagCollector,
   previewTagKey,
 } from './parseLibraryTagsPreviewHelpers'
+import {resolveParseLibraryPreviewMediaItems} from './parseLibraryTagsPreview'
 
 describe('parseLibraryTagsPreviewHelpers', () => {
   it('builds stable assignment and preview keys', () => {
@@ -44,5 +45,16 @@ describe('parseLibraryTagsPreviewHelpers', () => {
       totalProposedTags: 8,
       stopped: true,
     })
+  })
+
+  it('scopes preview media ids when provided', () => {
+    const all = [
+      {id: 1, path: '/a'},
+      {id: 2, path: '/b'},
+      {id: 3, path: '/c'},
+    ]
+    expect(resolveParseLibraryPreviewMediaItems(all, [2, 3]).map((row) => row.id)).toEqual([2, 3])
+    expect(resolveParseLibraryPreviewMediaItems(all, []).map((row) => row.id)).toEqual([1, 2, 3])
+    expect(resolveParseLibraryPreviewMediaItems(all, null).map((row) => row.id)).toEqual([1, 2, 3])
   })
 })

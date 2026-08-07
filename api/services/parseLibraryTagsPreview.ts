@@ -60,6 +60,19 @@ type PreviewEvent =
   | { type: 'complete'; summary: ParseLibraryTagsSummary; items: ParseLibraryTagsPreviewItem[] }
   | { type: 'error'; message: string }
 
+/** Resolve which media rows a parse-library preview should scan. */
+export function resolveParseLibraryPreviewMediaItems(
+  allItems: Array<{id: number; path: string | null}>,
+  mediaIds?: number[] | null,
+): Array<{id: number; path: string | null}> {
+  if (!mediaIds?.length) return allItems
+  const idSet = new Set(
+    mediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0),
+  )
+  if (!idSet.size) return allItems
+  return allItems.filter((item) => idSet.has(Number(item.id)))
+}
+
 export function getParseLibraryTagsStatus(db: ApiDb): ParseLibraryTagsStatus {
   const mediaRepo = createMediaRepository(db.drizzle)
   const metaRepo = createMetaRepository(db.drizzle)
@@ -84,6 +97,8 @@ export async function* iterateParseLibraryTagsPreview(
   options: {
     settings?: ParserSettings
     shouldStop?: () => boolean
+    /** When set, only scan these media rows (import-batch scoped). */
+    mediaIds?: number[]
   } = {},
 ): AsyncGenerator<PreviewEvent> {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -128,7 +143,9 @@ export async function* iterateParseLibraryTagsPreview(
     matchPrecision: options.settings?.matchPrecision ?? 0.5,
   }
   const index = buildTagPathIndex(tags, matchOptions)
-  const mediaItems = mediaRepo.findAllIdsAndPathsOrderedById()
+
+  const allMediaItems = mediaRepo.findAllIdsAndPathsOrderedById()
+  const mediaItems = resolveParseLibraryPreviewMediaItems(allMediaItems, options.mediaIds)
   const total = mediaItems.length
   const items: ParseLibraryTagsPreviewItem[] = []
   let totalNewTags = 0

@@ -621,17 +621,41 @@ export const tasksApi = {
   },
 
   streamParseLibraryTagsPreview(
-    options: {signal?: AbortSignal},
+    options: {signal?: AbortSignal; mediaIds?: number[]; settings?: Record<string, unknown>},
     onEvent: (event: GenerationStreamEvent) => void,
   ) {
     return postApiNdjsonStream(
       API_ROUTES.taskStreamParseLibraryTagsPreview,
       {
         signal: options.signal,
+        body: {
+          ...(options.mediaIds?.length ? {mediaIds: options.mediaIds} : {}),
+          ...(options.settings ? {settings: options.settings} : {}),
+        },
         errorMessage: 'Parse library tags request failed',
       },
       onEvent,
     )
+  },
+
+  suggestTagsFromVideoFrames(body: {
+    paths?: Array<string | {path: string}>
+    mediaTypeId?: number
+    locale?: string
+    framesPerVideo?: number
+    limit?: number
+    excludeExisting?: boolean
+  }) {
+    return apiClient.post<{
+      words?: Array<[string, number]>
+      suggestions?: Array<{
+        word?: string
+        mediaIds?: Array<number | string>
+        confidence?: number
+      }>
+      media?: number
+      frames?: number
+    }>(API_ROUTES.taskSuggestTagsFromVideoFrames, body)
   },
 
   streamScanFolderDuplicates(
