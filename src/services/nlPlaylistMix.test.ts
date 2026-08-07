@@ -1,5 +1,11 @@
 import {describe, expect, it} from 'vitest'
-import {mergeNlPlaylistIds, uniquePositiveIds, goalRowsToFilterObjects} from './nlPlaylistMix'
+import {
+  formatNlMixSeekTime,
+  goalRowsToFilterObjects,
+  mergeNlPlaylistIds,
+  nlMixSourceMessageKey,
+  uniquePositiveIds,
+} from './nlPlaylistMix'
 
 describe('nlPlaylistMix merge', () => {
   it('dedupes positive ids', () => {
@@ -55,5 +61,17 @@ describe('nlPlaylistMix merge', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]).toMatchObject({param: 'favorite', type: 'boolean', cond: '=', val: true, active: true})
     expect(rows[1]).toMatchObject({param: 'views', cond: '=', val: 0})
+  })
+
+  it('maps mix sources to i18n keys', () => {
+    expect(nlMixSourceMessageKey('hybrid')).toBe('mix_source_hybrid')
+    expect(nlMixSourceMessageKey('semantic_fallback')).toBe('mix_source_semantic')
+    expect(nlMixSourceMessageKey('filters_fallback')).toBe('mix_source_filters_fallback')
+    expect(nlMixSourceMessageKey('filters')).toBe('mix_source_filters')
+  })
+
+  it('formats seek times', () => {
+    expect(formatNlMixSeekTime(65)).toBe('1:05')
+    expect(formatNlMixSeekTime(3661)).toBe('1:01:01')
   })
 })

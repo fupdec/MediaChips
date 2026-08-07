@@ -75,6 +75,14 @@ export function uniquePositiveIds(ids: Array<number | string | null | undefined>
   return out
 }
 
+/** i18n key under `playlists.*` for mix source toasts/labels. */
+export function nlMixSourceMessageKey(source: NlMixSource): string {
+  if (source === 'hybrid') return 'mix_source_hybrid'
+  if (source === 'semantic' || source === 'semantic_fallback') return 'mix_source_semantic'
+  if (source === 'filters_fallback') return 'mix_source_filters_fallback'
+  return 'mix_source_filters'
+}
+
 export function goalRowsToFilterObjects(rows: NlMixFilterRow[]): FilterObject[] {
   return rows.map((row, index) => getFilterObject({
     param: row.param,
@@ -153,6 +161,8 @@ export async function resolveNlPlaylistMix(
     limit?: number
     signal?: AbortSignal
     skipClip?: boolean
+    /** When true, apply partial local filters even without a residual vibe phrase. Default true. */
+    allowPartialFilters?: boolean
   } = {},
 ): Promise<NlPlaylistMixResult> {
   const trimmed = String(phrase || '').trim()
@@ -183,22 +193,29 @@ export async function resolveNlPlaylistMix(
   const residual = String(local?.residual || '').trim()
   const explanation = String(local?.explanation || '').trim()
   const clipQuery = residual || trimmed
+  const partial = Boolean(local?.partial)
 
   let filterIds: number[] = []
-  if (filters.length) {
+  let clipIds: number[] = []
+  const hitTimes = new Map<number, number>()
+
+  const fetchFilters = async () => {
+    if (!filters.length) return
+    // Prefer complete goals; still use partial rows when a residual vibe remains (hybrid).
+    const allowPartial = options.allowPartialFilters !== false
+    if (partial && !residual && !allowPartial) return
     const idsRes = await typedApi.getMediaIds({
       mediaTypeId,
       filters,
       sortBy: 'id',
       direction: 'desc',
     })
-    if (options.signal?.aborted) return empty
+    if (options.signal?.aborted) return
     filterIds = uniquePositiveIds(idsRes.data?.ids || []).slice(0, limit)
   }
 
-  let clipIds: number[] = []
-  const hitTimes = new Map<number, number>()
-  if (!options.skipClip) {
+  const fetchClip = async () => {
+    if (options.skipClip) return
     try {
       const searchRes = await typedApi.semanticSearch({
         query: clipQuery,
@@ -206,18 +223,16 @@ export async function resolveNlPlaylistMix(
         limit,
         locale: settingsStore.locale || 'en',
       })
-      if (options.signal?.aborted) return empty
-      if (!searchRes.data?.error) {
-        const indexedCount = Number(searchRes.data?.indexedCount || 0)
-        if (clipUsable(searchRes.data?.modelStatus, indexedCount)) {
-          clipIds = uniquePositiveIds(searchRes.data?.ids || [])
-          for (const hit of Array.isArray(searchRes.data?.hits) ? searchRes.data.hits : []) {
-            const id = Number(hit?.id)
-            const time = Number(hit?.time)
-            if (Number.isFinite(id) && id > 0 && Number.isFinite(time) && time >= 0) {
-              hitTimes.set(id, time)
-            }
-          }
+      if (options.signal?.aborted) return
+      if (searchRes.data?.error) return
+      const indexedCount = Number(searchRes.data?.indexedCount || 0)
+      if (!clipUsable(searchRes.data?.modelStatus, indexedCount)) return
+      clipIds = uniquePositiveIds(searchRes.data?.ids || [])
+      for (const hit of Array.isArray(searchRes.data?.hits) ? searchRes.data.hits : []) {
+        const id = Number(hit?.id)
+        const time = Number(hit?.time)
+        if (Number.isFinite(id) && id > 0 && Number.isFinite(time) && time >= 0) {
+          hitTimes.set(id, time)
         }
       }
     } catch (error) {
@@ -225,13 +240,12 @@ export async function resolveNlPlaylistMix(
     }
   }
 
-  // Partial-only filters with residual vibe: prefer intersection; if CLIP empty keep filters.
+  await Promise.all([fetchFilters(), fetchClip()])
+  if (options.signal?.aborted) return empty
+
   const merged = mergeNlPlaylistIds({filterIds, clipIds})
   let ids = merged.ids.slice(0, limit)
   let source = merged.source
-
-  // If we only got filters because CLIP failed but residual looked like vibe-only,
-  // and filters were empty → already handled. If intersection empty we used filters_fallback.
 
   if (!ids.length && clipIds.length) {
     ids = clipIds.slice(0, limit)
@@ -349,4 +363,13 @@ export async function saveNlPlaylistMix(
     id: playlistId,
     name: String(playlistRes.data?.name || title),
   }
+}
+
+export function formatNlMixSeekTime(seconds: number): string {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
 }

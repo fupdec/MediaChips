@@ -18,13 +18,15 @@
 
     <v-card
       class="nl-mix-card mb-6"
-      variant="tonal"
-      color="primary"
+      variant="outlined"
       rounded="lg"
     >
       <v-card-text class="pb-3">
-        <div class="text-subtitle-1 font-weight-medium mb-1">
-          {{ t('playlists.mix_title') }}
+        <div class="d-flex align-center ga-2 mb-1">
+          <v-icon size="20" color="primary">mdi-playlist-music</v-icon>
+          <div class="text-subtitle-1 font-weight-medium">
+            {{ t('playlists.mix_title') }}
+          </div>
         </div>
         <div class="text-caption text-medium-emphasis mb-3">
           {{ t('playlists.mix_hint') }}
@@ -37,16 +39,35 @@
           clearable
           rounded
           variant="outlined"
-          bg-color="surface"
-          prepend-inner-icon="mdi-playlist-music"
+          prepend-inner-icon="mdi-magnify"
           :disabled="mixBusy"
+          @update:model-value="onMixPhraseInput"
           @keyup.enter="runMixPlay"
         />
+        <div class="d-flex flex-wrap ga-2 mt-3">
+          <v-chip
+            v-for="example in mixExamples"
+            :key="example"
+            size="small"
+            variant="tonal"
+            color="primary"
+            class="nl-mix-example"
+            :disabled="mixBusy"
+            @click="applyMixExample(example)"
+          >
+            {{ example }}
+          </v-chip>
+        </div>
         <div
-          v-if="lastMixExplanation"
-          class="text-caption text-medium-emphasis mt-2"
+          v-if="lastMix && lastMix.ids.length"
+          class="d-flex flex-wrap align-center ga-2 mt-3"
         >
-          {{ lastMixExplanation }}
+          <v-chip size="small" variant="tonal" color="primary">
+            {{ mixSourceText(lastMix.source) }}
+          </v-chip>
+          <span class="text-caption text-medium-emphasis">
+            {{ t('playlists.mix_count', {count: lastMix.ids.length}) }}
+          </span>
         </div>
         <div class="d-flex flex-wrap ga-2 mt-3">
           <v-btn
@@ -65,7 +86,7 @@
             rounded
             variant="tonal"
             :loading="mixSaving"
-            :disabled="!lastMix || mixBusy || mixSaving"
+            :disabled="!canSaveMix"
             @click="runMixSave"
           >
             <v-icon start>mdi-content-save-outline</v-icon>
@@ -238,6 +259,8 @@ import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
 import {getFilters} from '@/services/filterService'
 import {
+  formatNlMixSeekTime,
+  nlMixSourceMessageKey,
   playNlPlaylistMix,
   resolveNlPlaylistMix,
   saveNlPlaylistMix,
@@ -283,25 +306,48 @@ const mixPhrase = ref('')
 const mixBusy = ref(false)
 const mixSaving = ref(false)
 const lastMix = ref<NlPlaylistMixResult | null>(null)
-const lastMixExplanation = ref('')
+let mixAbort: AbortController | null = null
 
-const mixSourceText = (source: NlPlaylistMixResult['source']) => {
-  if (source === 'hybrid') return t('playlists.mix_source_hybrid')
-  if (source === 'semantic' || source === 'semantic_fallback') return t('playlists.mix_source_semantic')
-  if (source === 'filters_fallback') return t('playlists.mix_source_filters_fallback')
-  return t('playlists.mix_source_filters')
+const mixExamples = computed(() => [
+  t('playlists.mix_example_unwatched'),
+  t('playlists.mix_example_favorites'),
+  t('playlists.mix_example_vibe'),
+])
+
+const canSaveMix = computed(() => (
+  Boolean(lastMix.value?.ids.length)
+  && !mixBusy.value
+  && !mixSaving.value
+))
+
+const mixSourceText = (source: NlPlaylistMixResult['source']) =>
+  t(`playlists.${nlMixSourceMessageKey(source)}`)
+
+const onMixPhraseInput = () => {
+  if (lastMix.value) lastMix.value = null
+}
+
+const applyMixExample = (example: string) => {
+  mixPhrase.value = example
+  lastMix.value = null
+  void runMixPlay()
 }
 
 const runMixPlay = async () => {
   const phrase = mixPhrase.value.trim()
   if (!phrase || mixBusy.value) return
 
+  mixAbort?.abort()
+  const controller = new AbortController()
+  mixAbort = controller
   mixBusy.value = true
-  lastMixExplanation.value = ''
+  lastMix.value = null
   try {
     const mix = await resolveNlPlaylistMix(phrase, {
       mediaTypeId: videoMediaType.value?.id ?? getDefaultMediaTypeId(appStore.mediaTypes),
+      signal: controller.signal,
     })
+    if (controller.signal.aborted) return
     lastMix.value = mix
 
     if (!mix.videos.length) {
@@ -313,13 +359,8 @@ const runMixPlay = async () => {
       return
     }
 
-    lastMixExplanation.value = [
-      mix.explanation,
-      mixSourceText(mix.source),
-      t('playlists.mix_count', {count: mix.videos.length}),
-    ].filter(Boolean).join(' · ')
-
     const {played, seekTime} = await playNlPlaylistMix(mix)
+    if (controller.signal.aborted) return
     if (!played) {
       setNotification({
         type: 'error',
@@ -332,9 +373,12 @@ const runMixPlay = async () => {
     setNotification({
       type: 'success',
       title: t('playlists.mix_play'),
-      text: seekTime > 0
-        ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatMixSeek(seekTime)})
-        : t('playlists.mix_playing', {count: mix.videos.length}),
+      text: [
+        mixSourceText(mix.source),
+        seekTime > 0
+          ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatNlMixSeekTime(seekTime)})
+          : t('playlists.mix_playing', {count: mix.videos.length}),
+      ].join(' · '),
       actions: [
         {
           id: 'nl-mix-show-list',
@@ -365,6 +409,7 @@ const runMixPlay = async () => {
       ],
     })
   } catch (error) {
+    if (controller.signal.aborted) return
     console.error('NL mix failed:', error)
     setNotification({
       type: 'error',
@@ -372,15 +417,9 @@ const runMixPlay = async () => {
       text: error instanceof Error ? error.message : String(error),
     })
   } finally {
+    if (mixAbort === controller) mixAbort = null
     mixBusy.value = false
   }
-}
-
-const formatMixSeek = (seconds: number) => {
-  const total = Math.max(0, Math.floor(seconds))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 const runMixSave = async () => {
@@ -871,5 +910,13 @@ onMounted(() => {
   &__icon {
     color: inherit;
   }
+}
+
+.nl-mix-card {
+  border-color: rgba(var(--v-theme-primary), 0.28);
+}
+
+.nl-mix-example {
+  cursor: pointer;
 }
 </style>

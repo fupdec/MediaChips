@@ -24,6 +24,8 @@ import {openPath} from '@/services/shellService'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {
+  formatNlMixSeekTime,
+  nlMixSourceMessageKey,
   playNlPlaylistMix,
   resolveNlPlaylistMix,
   saveNlPlaylistMix,
@@ -888,7 +890,6 @@ async function playAsMix() {
   if (!q || mixBusy.value) return
 
   mixBusy.value = true
-  dialog.value = false
   try {
     const mix = await resolveNlPlaylistMix(q, {
       mediaTypeId: resolveSemanticMediaTypeId(),
@@ -902,6 +903,8 @@ async function playAsMix() {
       return
     }
 
+    dialog.value = false
+
     const {played, seekTime} = await playNlPlaylistMix(mix)
     if (!played) {
       setNotification({
@@ -912,21 +915,13 @@ async function playAsMix() {
       return
     }
 
-    const sourceKey = mix.source === 'hybrid'
-      ? 'playlists.mix_source_hybrid'
-      : (mix.source === 'semantic' || mix.source === 'semantic_fallback')
-        ? 'playlists.mix_source_semantic'
-        : mix.source === 'filters_fallback'
-          ? 'playlists.mix_source_filters_fallback'
-          : 'playlists.mix_source_filters'
-
     setNotification({
       type: 'success',
       title: t('globalSearch.play_mix'),
       text: [
-        t(sourceKey),
+        t(`playlists.${nlMixSourceMessageKey(mix.source)}`),
         seekTime > 0
-          ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatSceneSeekTime(seekTime)})
+          ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatNlMixSeekTime(seekTime)})
           : t('playlists.mix_playing', {count: mix.videos.length}),
       ].join(' · '),
       icon: 'playlist-music',
@@ -1250,6 +1245,11 @@ function onSearchKeydown(e: KeyboardEvent) {
     // ⌘/Ctrl+Enter always runs semantic search.
     if (e.metaKey || e.ctrlKey) {
       void searchSemantic()
+      return
+    }
+    // Shift+Enter plays a hybrid NL mix (filters + CLIP).
+    if (e.shiftKey && query.value.trim()) {
+      void playAsMix()
       return
     }
     // No text hits — Enter runs semantic search on the query.
@@ -1872,11 +1872,17 @@ function getNameHighlighted(text: string) {
           <v-spacer/>
           <v-hotkey keys="meta+enter" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintEnterSemantic') }}</span>
+          <v-spacer/>
+          <v-hotkey keys="shift+enter" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
         </template>
         <template v-else-if="canRunSemanticOnEnter">
           <v-spacer/>
           <v-hotkey keys="tab" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
+          <v-spacer/>
+          <v-hotkey keys="shift+enter" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
         </template>
       </v-card-actions>
     </v-card>
