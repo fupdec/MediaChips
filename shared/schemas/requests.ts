@@ -45,6 +45,15 @@ export const MediaSimilarByVisualRequestSchema = z.object({
   limit: z.coerce.number().int().positive().max(200).optional(),
 }).passthrough()
 
+export const MediaSuggestTagsFromSimilarRequestSchema = z.object({
+  mediaIds: z.array(z.coerce.number().int().positive()).min(1).max(200).optional(),
+  seedId: z.coerce.number().int().positive().optional(),
+  neighborLimit: z.coerce.number().int().positive().max(80).optional(),
+  tagLimit: z.coerce.number().int().positive().max(40).optional(),
+  minCount: z.coerce.number().int().positive().max(20).optional(),
+  apply: z.boolean().optional(),
+}).passthrough()
+
 export const MediaSemanticSearchRequestSchema = z.object({
   query: z.string().trim().min(1),
   mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),

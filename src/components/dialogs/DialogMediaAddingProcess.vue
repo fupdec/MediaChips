@@ -111,6 +111,14 @@
               :label="t('media.adding.make_library_smart_organize')"
             />
             <v-checkbox
+              v-model="smartWizard.neighborTags"
+              density="compact"
+              hide-details
+              color="primary"
+              :disabled="smartWizardRunning || !isAddedVideo"
+              :label="t('media.adding.make_library_smart_neighbor_tags')"
+            />
+            <v-checkbox
               v-if="sceneScrapeAvailable"
               v-model="smartWizard.scrape"
               density="compact"
@@ -704,6 +712,7 @@ const smartWizard = ref({
   clipTags: true,
   chapters: false,
   organize: false,
+  neighborTags: false,
   scrape: false,
 })
 const smartWizardRunning = ref(false)
@@ -829,6 +838,7 @@ const canRunSmartWizard = computed(() =>
       || smartWizard.value.faces
       || smartWizard.value.clip
       || smartWizard.value.chapters
+      || smartWizard.value.neighborTags
       || (sceneScrapeAvailable.value && smartWizard.value.scrape)
     ))
   ) &&
@@ -1491,12 +1501,13 @@ const detectFacesInAddedVideos = async () => {
 const runSmartLibraryWizard = async () => {
   if (!canRunSmartWizard.value || smartWizardRunning.value) return
 
-  const steps: Array<'pathTags' | 'grids' | 'faces' | 'clip' | 'chapters' | 'scrape' | 'organize'> = []
+  const steps: Array<'pathTags' | 'grids' | 'faces' | 'clip' | 'chapters' | 'neighborTags' | 'scrape' | 'organize'> = []
   if (smartWizard.value.pathTags) steps.push('pathTags')
   if (isAddedVideo.value && smartWizard.value.grids) steps.push('grids')
   if (isAddedVideo.value && smartWizard.value.faces) steps.push('faces')
   if (isAddedVideo.value && smartWizard.value.clip) steps.push('clip')
   if (isAddedVideo.value && smartWizard.value.chapters) steps.push('chapters')
+  if (isAddedVideo.value && smartWizard.value.neighborTags) steps.push('neighborTags')
   if (isAddedVideo.value && sceneScrapeAvailable.value && smartWizard.value.scrape) steps.push('scrape')
   if (smartWizard.value.organize) steps.push('organize')
   if (!steps.length) return
@@ -1711,6 +1722,30 @@ const runSmartLibraryWizard = async () => {
             }
           },
         )
+        smartWizardProgress.value = base + span
+      }
+
+      if (step === 'neighborTags') {
+        smartWizardStatus.value = t('media.adding.make_library_smart_neighbor_tags')
+        tasksStore.updateTask(trayTaskId, {
+          subtitle: t('media.adding.make_library_smart_neighbor_tags'),
+          progress: base + span * 0.2,
+        })
+        const response = await typedApi.suggestTagsFromSimilar({
+          mediaIds,
+          apply: true,
+          tagLimit: 12,
+          neighborLimit: 24,
+        })
+        const applied = Number(response.data?.applied || 0)
+        const suggested = Number(response.data?.suggested || 0)
+        pathAutoTagSummary.value = [
+          pathAutoTagSummary.value,
+          t('media.adding.make_library_smart_neighbor_tags_done', {applied, suggested}),
+        ].filter(Boolean).join(' · ')
+        if (mediaIds.length) {
+          listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+        }
         smartWizardProgress.value = base + span
       }
 

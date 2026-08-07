@@ -26,6 +26,10 @@ import {
 } from '../services/mediaItemsLoader'
 import {findVisualSimilarIds} from '../services/visualHashBackfill'
 import {
+  suggestTagsFromSimilarForMedia,
+  suggestTagsFromSimilarForMediaIds,
+} from '../services/suggestTagsFromSimilar'
+import {
   findSimilarByClip,
   semanticSearchMedia,
 } from '../services/mediaClipEmbeddings'
@@ -99,6 +103,38 @@ export default function (db: ApiDb) {
       sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while finding similar media.')
+    }
+  }
+
+  const suggestTagsFromSimilar = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{
+        seedId?: number
+        mediaIds?: Array<number | string>
+        neighborLimit?: number
+        tagLimit?: number
+        minCount?: number
+        apply?: boolean
+      }>(req)
+      const options = {
+        neighborLimit: body.neighborLimit,
+        tagLimit: body.tagLimit,
+        minCount: body.minCount,
+        apply: Boolean(body.apply),
+      }
+      const mediaIds = Array.isArray(body.mediaIds) ? body.mediaIds : []
+      if (mediaIds.length) {
+        sendOk(res, suggestTagsFromSimilarForMediaIds(db, mediaIds, options))
+        return
+      }
+      const seedId = Number(body.seedId)
+      if (!Number.isFinite(seedId) || seedId <= 0) {
+        sendControllerError(res, new Error('seedId or mediaIds is required'), 'seedId or mediaIds is required')
+        return
+      }
+      sendOk(res, suggestTagsFromSimilarForMedia(db, seedId, options))
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while suggesting tags from similar media.')
     }
   }
 
@@ -339,6 +375,7 @@ export default function (db: ApiDb) {
     getThumbs,
     getStats,
     similarByVisual,
+    suggestTagsFromSimilar,
     semanticSearch,
     similarByClip,
     merge,

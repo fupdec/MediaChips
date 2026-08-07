@@ -143,7 +143,7 @@ const ja = {
     ai_applied: 'AIで検索を更新しました',
     ai_not_ready: 'Local AIの準備ができていません — 設定で有効化してモデルをダウンロード',
     ai_failed: '検索クエリを解釈できませんでした',
-    hintPlayMix: "ミックス再生（フィルター + CLIP）",
+    hintPlayMix: "ミックス",
     play_mix: "ミックス再生",
     health_translate_hint: "英語以外のクエリ（CN/DE/ES/FR/JA/PT/RU）は検索前に英語へ翻訳されます",
     searched_as: "検索語句: {query}",
@@ -871,6 +871,9 @@ const ja = {
     mix_source_filters_fallback: "交差なし — フィルターを使用",
     mix_saved_smart: "スマートプレイリスト「{name}」を保存しました",
     mix_saved_static: "プレイリスト「{name}」を保存しました",
+    mix_example_unwatched: "未視聴のお気に入り",
+    mix_example_favorites: "評価 > 4",
+    mix_example_vibe: "ビーチの夕日",
 
   },
   markers: {
@@ -2187,6 +2190,8 @@ const ja = {
       make_library_smart_chapters: 'スマートなチャプターを生成（シーン＋無音）',
       make_library_smart_chapters_progress: 'チャプター: {processed}/{total}',
       make_library_smart_organize: 'タグ別フォルダ整理を開く',
+      make_library_smart_neighbor_tags: '似たメディアからタグをコピー',
+      make_library_smart_neighbor_tags_done: '近傍タグ: 適用 {applied}（提案 {suggested}）',
       make_library_smart_scrape: 'シーンメタデータを自動照合（TPDB）',
       make_library_smart_run: "選択を実行",
       make_library_smart_grids_progress: "グリッド: {processed}/{total}",

@@ -295,6 +295,16 @@ export default function useItemContextMenu(
           })
         }
 
+        if (isMediaPageItem(item, type)) {
+          contextMenu.push({
+            name: t('context_menu.apply_tags_from_similar'),
+            type: 'item',
+            icon: 'tag-plus-outline',
+            disabled: isSelectMode() && itemsStore.selection.length === 0,
+            action: applyTagsFromSimilar,
+          })
+        }
+
         if (!isSelectMode() && isMediaPageItem(item, type)) {
           contextMenu.push({
             name: t('context_menu.semantically_similar'),
@@ -886,6 +896,53 @@ export default function useItemContextMenu(
         type: 'error',
         title: tr('context_menu.more_like_this_failed'),
         icon: 'image-search-outline',
+      })
+    }
+  }
+
+  const applyTagsFromSimilar = async (): Promise<void> => {
+    const locale = settingsStore.locale as Locale
+    const tr = (key: string, params: Record<string, string | number> = {}) =>
+      translate(key, params, locale)
+
+    let ids = [Number(item.id)].filter((id) => Number.isFinite(id) && id > 0)
+    if (isSelectMode()) {
+      ids = itemsStore.selection.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    }
+    if (!ids.length || !isMediaPageItem(item, type)) return
+
+    try {
+      const response = await typedApi.suggestTagsFromSimilar({
+        mediaIds: ids,
+        apply: true,
+        tagLimit: 12,
+        neighborLimit: 24,
+      })
+      const applied = Number(response.data?.applied || 0)
+      const suggested = Number(response.data?.suggested || 0)
+      if (!applied && !suggested) {
+        setNotification({
+          type: 'info',
+          title: tr('context_menu.apply_tags_from_similar'),
+          text: tr('context_menu.apply_tags_from_similar_empty'),
+          icon: 'tag-plus-outline',
+        })
+        return
+      }
+      listSync.getItemsFromDb({ids, type: 'media'})
+      setNotification({
+        type: applied > 0 ? 'success' : 'info',
+        title: tr('context_menu.apply_tags_from_similar'),
+        text: tr('context_menu.apply_tags_from_similar_done', {applied, suggested}),
+        icon: 'tag-plus-outline',
+      })
+    } catch (error) {
+      console.error('Failed to apply tags from similar media:', error)
+      setNotification({
+        type: 'error',
+        title: tr('context_menu.apply_tags_from_similar'),
+        text: tr('context_menu.apply_tags_from_similar_failed'),
+        icon: 'tag-plus-outline',
       })
     }
   }

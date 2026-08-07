@@ -101,6 +101,31 @@ export const mediaApi = {
     }>(API_ROUTES.mediaSimilarByVisual, body)
   },
 
+  suggestTagsFromSimilar(body: {
+    seedId?: number
+    mediaIds?: number[]
+    neighborLimit?: number
+    tagLimit?: number
+    minCount?: number
+    apply?: boolean
+  }) {
+    return apiClient.post<{
+      mediaId?: number
+      hasVisualHash?: boolean
+      neighborCount?: number
+      suggestions?: Array<{tagId: number; metaId: number; name: string; count: number}>
+      applied?: number
+      items?: Array<{
+        mediaId: number
+        hasVisualHash: boolean
+        neighborCount: number
+        suggestions: Array<{tagId: number; metaId: number; name: string; count: number}>
+        applied: number
+      }>
+      suggested?: number
+    }>(API_ROUTES.mediaSuggestTagsFromSimilar, body)
+  },
+
   semanticSearch(body: {query: string, mediaTypeId?: number | null, limit?: number, locale?: string | null}) {
     return apiClient.post<{
       ids: number[]

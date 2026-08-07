@@ -8,6 +8,7 @@ import {
   MediaIdsRequestSchema,
   MediaBasicsRequestSchema,
   MediaSimilarByVisualRequestSchema,
+  MediaSuggestTagsFromSimilarRequestSchema,
   MediaSemanticSearchRequestSchema,
   MediaSimilarByClipRequestSchema,
   MediaDuplicateGroupsRequestSchema,
@@ -31,6 +32,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/basics', validateBody(MediaBasicsRequestSchema), Media.getBasicsByIds)
   router.post('/thumbs', validateBody(MediaThumbsRequestSchema), Media.getThumbs)
   router.post('/similarByVisual', validateBody(MediaSimilarByVisualRequestSchema), Media.similarByVisual)
+  router.post('/suggestTagsFromSimilar', validateBody(MediaSuggestTagsFromSimilarRequestSchema), Media.suggestTagsFromSimilar)
   router.post('/semanticSearch', validateBody(MediaSemanticSearchRequestSchema), Media.semanticSearch)
   router.post('/similarByClip', validateBody(MediaSimilarByClipRequestSchema), Media.similarByClip)
   router.post('/duplicateGroups', validateBody(MediaDuplicateGroupsRequestSchema), Media.duplicateGroups)

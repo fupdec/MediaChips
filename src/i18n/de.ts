@@ -139,7 +139,7 @@ const de = {
     ai_applied: 'Suche per KI aktualisiert',
     ai_not_ready: 'Local AI ist nicht bereit — Modell in den Einstellungen aktivieren und laden',
     ai_failed: 'Suchanfrage konnte nicht interpretiert werden',
-    hintPlayMix: "als Mix abspielen (Filter + CLIP)",
+    hintPlayMix: "Mix abspielen",
     play_mix: "Als Mix abspielen",
     health_translate_hint: "Nicht-englische Anfragen (CN/DE/ES/FR/JA/PT/RU) werden vor der Suche ins Englische übersetzt",
     searched_as: "Gesucht als: {query}",
@@ -839,6 +839,9 @@ const de = {
     mix_source_filters_fallback: "Keine Überschneidung — Filter",
     mix_saved_smart: "Smart-Playlist „{name}“ gespeichert",
     mix_saved_static: "Playlist „{name}“ gespeichert",
+    mix_example_unwatched: "ungesehene Favoriten",
+    mix_example_favorites: "Bewertung > 4",
+    mix_example_vibe: "Strandsonnenuntergang",
 
   },
   markers: {
@@ -2018,6 +2021,8 @@ const de = {
       make_library_smart_chapters: 'Smartere Kapitel erzeugen (Szene + Stille)',
       make_library_smart_chapters_progress: 'Kapitel: {processed} von {total}',
       make_library_smart_organize: 'Nach Tags in Ordner organisieren öffnen',
+      make_library_smart_neighbor_tags: 'Tags von ähnlichen Medien kopieren',
+      make_library_smart_neighbor_tags_done: 'Nachbar-Tags: {applied} angewendet ({suggested} vorgeschlagen)',
       make_library_smart_scrape: 'Szenen-Metadaten automatisch zuordnen (TPDB)',
       make_library_smart_run: "Auswahl starten",
       make_library_smart_grids_progress: "Raster: {processed} von {total}",

@@ -139,7 +139,7 @@ const cn = {
     ai_applied: '已用 AI 更新搜索',
     ai_not_ready: 'Local AI 未就绪 — 请在设置中启用并下载模型',
     ai_failed: '无法理解该搜索请求',
-    hintPlayMix: '作为混播播放（筛选 + CLIP）',
+    hintPlayMix: '混播',
     play_mix: '作为混播播放',
     health_translate_hint: '非英语查询（CN/DE/ES/FR/JA/PT/RU）会在搜索前翻译成英语',
     searched_as: '实际搜索：{query}',
@@ -839,6 +839,9 @@ const cn = {
     mix_source_filters_fallback: '无交集 — 使用筛选',
     mix_saved_smart: '已保存智能播放列表「{name}」',
     mix_saved_static: '已保存播放列表「{name}」',
+    mix_example_unwatched: '未看收藏',
+    mix_example_favorites: '评分 > 4',
+    mix_example_vibe: '海滩日落',
 
   },
   markers: {
@@ -2018,6 +2021,8 @@ const cn = {
       make_library_smart_chapters: '生成更智能的章节（场景 + 静音）',
       make_library_smart_chapters_progress: '章节：{processed}/{total}',
       make_library_smart_organize: '打开按标签整理到文件夹',
+      make_library_smart_neighbor_tags: '从视觉相似媒体复制标签',
+      make_library_smart_neighbor_tags_done: '近邻标签：已应用 {applied}（建议 {suggested}）',
       make_library_smart_scrape: '自动匹配场景元数据（TPDB）',
       make_library_smart_run: '运行所选',
       make_library_smart_grids_progress: '网格：{processed}/{total}',

@@ -129,16 +129,28 @@
         >
           <div class="d-flex align-center justify-space-between flex-wrap ga-2">
             <span class="text-body-2">{{ alert.text }}</span>
-            <v-btn
-              v-if="alert.actionLabel && alert.action"
-              @click="alert.action"
-              color="primary"
-              size="small"
-              variant="text"
-              rounded
-            >
-              {{ alert.actionLabel }}
-            </v-btn>
+            <div class="d-flex align-center ga-1">
+              <v-btn
+                v-if="alert.actionLabel && alert.action"
+                @click="alert.action"
+                color="primary"
+                size="small"
+                variant="text"
+                rounded
+              >
+                {{ alert.actionLabel }}
+              </v-btn>
+              <v-btn
+                @click="snoozeAlert(alert.id)"
+                color="primary"
+                size="small"
+                variant="text"
+                rounded
+                :title="t('home.widgets.health_snooze_week')"
+              >
+                {{ t('home.widgets.health_snooze') }}
+              </v-btn>
+            </div>
           </div>
         </v-alert>
       </div>
@@ -178,6 +190,7 @@ import {typedApi} from '@/services/typedApi'
 import {useTasksStore} from '@/stores/tasks'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
+import {isHealthQueueItemSnoozed, snoozeHealthQueueItem} from '@/services/healthQueueSnooze'
 import {isStartupHealthNotificationsEnabled} from '@/composable/useStartupHealthNotifications'
 import {
   hasOnlyVisualStages,
@@ -203,6 +216,7 @@ const autoCheckEnabled = computed(() =>
 const checked = ref(false)
 const loading = ref(false)
 const health = ref<HomeHealthData>(emptyHomeHealthUi())
+const snoozeTick = ref(0)
 
 const activeTasksCount = computed(() => tasksStore.list.length)
 
@@ -301,15 +315,23 @@ function actionLabelForQueueItem(item: HomeHealthQueueItemUi): string {
 }
 
 const queueAlerts = computed((): HealthAlertItem[] => {
-  return (health.value.queue || []).map((item) => ({
-    id: item.id,
-    type: item.severity,
-    icon: QUEUE_ICONS[item.id] || 'mdi-alert-circle-outline',
-    text: queueText(item),
-    actionLabel: actionLabelForQueueItem(item),
-    action: actionForQueueItem(item),
-  }))
+  void snoozeTick.value
+  return (health.value.queue || [])
+    .filter((item) => !isHealthQueueItemSnoozed(item.id))
+    .map((item) => ({
+      id: item.id,
+      type: item.severity,
+      icon: QUEUE_ICONS[item.id] || 'mdi-alert-circle-outline',
+      text: queueText(item),
+      actionLabel: actionLabelForQueueItem(item),
+      action: actionForQueueItem(item),
+    }))
 })
+
+function snoozeAlert(id: string) {
+  snoozeHealthQueueItem(id)
+  snoozeTick.value += 1
+}
 
 const issueAlerts = computed(() =>
   queueAlerts.value.filter((alert) => alert.id !== 'missing'),
