@@ -12,6 +12,16 @@ import {
   shrinkPathShapedPattern,
   stripRegexDelimiters,
 } from './localAiAssistPatterns'
+import {
+  hasFavoriteIntent,
+  isNegatedWatchGoal,
+  isWatchRelatedGoal,
+  mergeFilterSuggestions,
+  parseRelativeDays,
+  resolveTodayIso,
+  shiftDateIso,
+  synthesizeFiltersFromGoal,
+} from './localAiAssistFilterGoal'
 
 
 export type AssistMode = 'chat' | 'regex' | 'filter' | 'meta'
@@ -126,20 +136,285 @@ export function normalizeRegexAssistParsed(
 
 export function normalizeFilterAssistParsed(
   parsed: Record<string, unknown> | null,
+  context: Record<string, unknown> = {},
 ): Record<string, unknown> | null {
-  if (!parsed) return null
+  const suggestions = asStringArray(parsed?.suggestions, 8)
+  let summary = String(parsed?.summary || '').trim()
+  let explanation = String(parsed?.explanation || '').trim()
+  const modelFilters = normalizeFilterRows(
+    Array.isArray(parsed?.filters) ? parsed.filters : [],
+    context,
+  )
+  const synthesized = synthesizeFiltersFromGoal(context)
+  const filters = mergeFilterSuggestions(modelFilters, synthesized, context)
 
-  const suggestions = asStringArray(parsed.suggestions, 8)
-  const summary = String(parsed.summary || '').trim()
-  const explanation = String(parsed.explanation || '').trim()
+  if (!summary && !explanation && !suggestions.length && !filters.length) return null
 
-  if (!summary && !explanation && !suggestions.length) return null
+  // When deterministic goal parsing carried the result, prefer a clean summary.
+  if (synthesized.length && (!summary || /favorite|избран/i.test(summary)) && String(context.goal || '').trim()) {
+    const goal = String(context.goal).trim()
+    if (isWatchRelatedGoal(goal) && !hasFavoriteIntent(goal)) {
+      summary = `Filters for: ${goal}`
+      if (!explanation || /favorite|избран/i.test(explanation)) {
+        explanation = summary
+      }
+    }
+  }
 
   return {
-    summary: summary || (suggestions[0] ? `Filter ideas: ${suggestions[0]}` : explanation.slice(0, 120)),
+    summary: summary
+      || (filters.length
+        ? `Ready to apply ${filters.length} filter${filters.length === 1 ? '' : 's'}`
+        : (suggestions[0] ? `Filter ideas: ${suggestions[0]}` : explanation.slice(0, 120))),
     suggestions,
     explanation: explanation || summary,
+    filters,
   }
+}
+
+type AvailableFilterField = {
+  param: string | number
+  type?: string | null
+  name?: string | null
+}
+
+const COND_ALIASES: Record<string, string> = {
+  '≥': '>=',
+  '≤': '<=',
+  '≠': '!==',
+  '!=': '!==',
+  '==': '=',
+  equals: '=',
+  equal: '=',
+  gt: '>',
+  lt: '<',
+  gte: '>=',
+  lte: '<=',
+  contains: 'like',
+  includes: 'in',
+}
+
+function normalizeConditionToken(raw: unknown): string {
+  const token = String(raw || '').trim()
+  if (!token) return ''
+  return COND_ALIASES[token] || COND_ALIASES[token.toLowerCase()] || token
+}
+
+function resolveAvailableField(
+  row: Record<string, unknown>,
+  availableFields: AvailableFilterField[],
+): AvailableFilterField | null {
+  if (!availableFields.length) return null
+  const paramRaw = row.param ?? row.field ?? row.name
+  const paramKey = String(paramRaw ?? '').trim().toLowerCase()
+  if (!paramKey) return null
+
+  const byParam = availableFields.find((field) =>
+    String(field.param).toLowerCase() === paramKey,
+  )
+  if (byParam) return byParam
+
+  return availableFields.find((field) =>
+    String(field.name || '').trim().toLowerCase() === paramKey,
+  ) || null
+}
+
+function coerceFilterValue(
+  type: string,
+  cond: string,
+  raw: unknown,
+  todayIso = '',
+): unknown {
+  if (cond === 'is null' || cond === 'not null') return null
+
+  if (type === 'boolean') {
+    if (typeof raw === 'boolean') return raw
+    const text = String(raw ?? '').trim().toLowerCase()
+    if (['1', 'true', 'yes', 'y', 'on', 'favorite'].includes(text)) return true
+    if (['0', 'false', 'no', 'n', 'off'].includes(text)) return false
+    return Boolean(raw)
+  }
+
+  if (type === 'number' || type === 'rating') {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+    const parsed = Number(String(raw ?? '').replace(',', '.'))
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  if (type === 'date') {
+    return coerceDateValue(raw, todayIso)
+  }
+
+  if (type === 'array') {
+    if (Array.isArray(raw)) {
+      return raw.map((item) => String(item ?? '').trim()).filter(Boolean)
+    }
+    const text = String(raw ?? '').trim()
+    if (!text) return []
+    if (text.includes(',')) {
+      return text.split(',').map((part) => part.trim()).filter(Boolean)
+    }
+    return [text]
+  }
+
+  if (raw == null) return null
+  return String(raw)
+}
+
+const ISO_DATE_RE = /^(\d{4}-\d{2}-\d{2})/
+
+function coerceDateValue(raw: unknown, todayIso: string): string | null {
+  if (raw == null) return null
+  const text = String(raw).trim()
+  if (!text) return null
+  const iso = text.match(ISO_DATE_RE)
+  if (iso) return iso[1]
+
+  const today = resolveTodayIso({today: todayIso})
+  const relativeDays = parseRelativeDays(text)
+  if (relativeDays != null) return shiftDateIso(today, -relativeDays)
+  return null
+}
+
+function normalizeBooleanFilter(
+  cond: string,
+  rawVal: unknown,
+): {cond: string, val: boolean} | null {
+  let nextCond = cond
+  if (nextCond === '!==' || nextCond === '≠' || nextCond === 'not equal') nextCond = '!='
+  if (nextCond === '==' || nextCond === 'equal') nextCond = '='
+  if (nextCond !== '=' && nextCond !== '!=') return null
+
+  let truthy: boolean | null = null
+  if (typeof rawVal === 'boolean') truthy = rawVal
+  else {
+    const text = String(rawVal ?? '').trim().toLowerCase()
+    if (['1', 'true', 'yes', 'y', 'on', 'favorite'].includes(text)) truthy = true
+    else if (['0', 'false', 'no', 'n', 'off'].includes(text)) truthy = false
+  }
+
+  // Model often emits {cond:'=', val:false} for "not favorite".
+  if (nextCond === '=' && truthy === false) nextCond = '!='
+  if (nextCond === '!=' && truthy === true) nextCond = '!='
+
+  return {
+    cond: nextCond,
+    val: nextCond === '=',
+  }
+}
+
+/**
+ * Repair common small-model mistakes for watch/time goals:
+ * favorite bias, views≈30 for "month", missing viewedAt date filter.
+ */
+function repairWatchRelatedFilters(
+  filters: Array<Record<string, unknown>>,
+  context: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const goal = String(context.goal || '').trim()
+  if (!goal || !isWatchRelatedGoal(goal)) return filters
+
+  const availableFields = (Array.isArray(context.availableFields) ? context.availableFields : [])
+    .map((field) => field as AvailableFilterField)
+  const hasViewedAt = availableFields.some((field) => String(field.param) === 'viewedAt')
+  if (!hasViewedAt) return filters
+
+  const today = resolveTodayIso(context)
+  const relativeDays = parseRelativeDays(goal)
+
+  let next = filters.filter((row) => {
+    const param = String(row.param)
+    if (param === 'favorite' && !hasFavoriteIntent(goal)) return false
+    // "month" often becomes views < 30 / views < 31
+    if (
+      param === 'views'
+      && relativeDays != null
+      && typeof row.val === 'number'
+      && [7, 14, 30, 31, 365].includes(row.val)
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const alreadyHasViewedAt = next.some((row) => String(row.param) === 'viewedAt')
+  if (!alreadyHasViewedAt && relativeDays != null) {
+    const cutoff = shiftDateIso(today, -relativeDays)
+    next = [
+      ...next,
+      {
+        param: 'viewedAt',
+        type: 'date',
+        cond: isNegatedWatchGoal(goal) ? '<' : '>=',
+        val: cutoff,
+        active: true,
+      },
+    ]
+  }
+
+  return next.slice(0, 8)
+}
+
+function normalizeFilterRows(
+  rows: unknown[],
+  context: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const availableFields = (Array.isArray(context.availableFields) ? context.availableFields : [])
+    .map((field) => field as AvailableFilterField)
+    .filter((field) => field && field.param != null)
+
+  const conditionsByType = (
+    context.conditionsByType
+    && typeof context.conditionsByType === 'object'
+      ? context.conditionsByType
+      : FILTER_CONDITIONS_BY_TYPE
+  ) as Record<string, string[]>
+
+  const todayIso = resolveTodayIso(context)
+
+  const out: Array<Record<string, unknown>> = []
+  for (const entry of rows.slice(0, 8)) {
+    if (!entry || typeof entry !== 'object') continue
+    const row = entry as Record<string, unknown>
+    const field = resolveAvailableField(row, availableFields)
+    if (!field) continue
+
+    const type = String(field.type || row.type || 'string')
+    const allowed = conditionsByType[type] || FILTER_CONDITIONS_BY_TYPE[type] || []
+    let cond = normalizeConditionToken(row.cond)
+
+    if (type === 'boolean') {
+      const repaired = normalizeBooleanFilter(cond, row.val)
+      if (!repaired || !allowed.includes(repaired.cond)) continue
+      out.push({
+        param: field.param,
+        type,
+        cond: repaired.cond,
+        val: repaired.val,
+        active: true,
+      })
+      continue
+    }
+
+    if (!cond || !allowed.includes(cond)) continue
+
+    const val = coerceFilterValue(type, cond, row.val, todayIso)
+    if (cond !== 'is null' && cond !== 'not null') {
+      if (val == null) continue
+      if (type === 'array' && Array.isArray(val) && !val.length) continue
+      if (type === 'string' && String(val).trim() === '') continue
+    }
+
+    out.push({
+      param: field.param,
+      type,
+      cond,
+      val,
+      active: true,
+    })
+  }
+
+  return repairWatchRelatedFilters(out, context)
 }
 
 export function normalizeAssistParsed(
@@ -148,7 +423,8 @@ export function normalizeAssistParsed(
   context: Record<string, unknown> = {},
 ): Record<string, unknown> | null {
   if (mode === 'regex') return normalizeRegexAssistParsed(parsed, context)
-  if (mode === 'filter' || mode === 'meta') return normalizeFilterAssistParsed(parsed)
+  if (mode === 'filter') return normalizeFilterAssistParsed(parsed, context)
+  if (mode === 'meta') return normalizeFilterAssistParsed(parsed)
   return parsed
 }
 
@@ -196,33 +472,50 @@ export function buildRegexAssistPrompt(context: Record<string, unknown>): string
 export function buildFilterAssistPrompt(context: Record<string, unknown>): string[] {
   const availableFields = Array.isArray(context.availableFields) ? context.availableFields : []
   const currentFilters = Array.isArray(context.currentFilters) ? context.currentFilters : []
-  const fieldLines = availableFields.slice(0, 40).map((field) => {
+  const goal = String(context.goal || '').trim()
+  const today = resolveTodayIso(context)
+  const fieldLines = availableFields.slice(0, 36).map((field) => {
     const row = field as Record<string, unknown>
     return `- ${String(row.name || row.param)} (param=${JSON.stringify(row.param)}, type=${String(row.type || 'string')})`
   })
 
-  return [
-    'Help the user design MediaChips library filters they can apply in the Filters drawer.',
-    'Return ONLY a JSON object (no markdown fences) with keys: summary, suggestions, explanation.',
-    'schema:',
-    '- summary: one short sentence describing the overall approach',
-    '- suggestions: array of 3–6 concrete UI steps (strings), each naming a real available field and a condition/value',
-    '- explanation: 1–3 short sentences clarifying why these filters help',
-    'Rules:',
-    '- Use ONLY fields from availableFields (by name). Do not invent fields.',
-    '- Use only valid conditions for each field type:',
+  const parts = [
+    'Design MediaChips Filters-drawer rows. Return ONLY JSON: summary, filters, suggestions, explanation.',
+    'Each filter: { "param": <exact availableFields param>, "type", "cond", "val" }.',
+    'Conditions by type:',
     ...Object.entries(FILTER_CONDITIONS_BY_TYPE).map(
       ([type, conds]) => `  - ${type}: ${conds.join(', ')}`,
     ),
-    '- Prefer practical library goals: favorites, rating thresholds, path folders, duration/resolution, tag categories, empty vs filled fields.',
-    '- If currentFilters already exist, improve or complement them instead of repeating them.',
-    '- suggestions must be actionable, e.g. "Add Rating ≥ 4" or "Filter File path starts with /Shows/".',
+    'Critical field meanings:',
+    '- views = view COUNT only. Never use views for calendar periods.',
+    '- viewedAt = last watched DATE. Use for watched / not watched / не смотрел / просмотренные.',
+    '- favorite only when user asks for favorites / избранное.',
+    '- createdAt = date added; duration values are seconds.',
+    'Boolean: cond "=" = YES, "!=" = NO. Never encode NO as {cond:"=", val:false}.',
+    `Today (UTC): ${today}. Relative times must become absolute YYYY-MM-DD.`,
+    'Examples:',
+    `  “не смотрел месяц” → [{"param":"viewedAt","type":"date","cond":"<","val":"${shiftDateIso(today, -30)}"}]`,
+    `  “смотрел в этом месяце” → [{"param":"viewedAt","type":"date","cond":">=","val":"${today.slice(0, 7)}-01"}]`,
+    '  “избранное” → [{"param":"favorite","type":"boolean","cond":"=","val":true}]',
+    '  “рейтинг > 4” → [{"param":"rating","type":"number","cond":">","val":4}]',
+    '  “никогда не смотрел” → [{"param":"views","type":"number","cond":"=","val":0}]',
+    'Do not invent unrelated favorite/rating filters for watch-date goals.',
+    'If currentFilters exist, improve/complement them instead of repeating.',
     `Page type: ${JSON.stringify(String(context.pageType || 'media'))}`,
     `Media kind: ${JSON.stringify(String(context.mediaKind || ''))}`,
     'Available fields:',
-    ...(fieldLines.length ? fieldLines : ['- (none listed — stick to common file/rating/favorite filters)']),
+    ...(fieldLines.length ? fieldLines : ['- (none listed)']),
     `Current filters: ${JSON.stringify(currentFilters)}`,
   ]
+
+  if (goal) {
+    parts.push(
+      `PRIMARY USER REQUEST: ${JSON.stringify(goal)}`,
+      'Satisfy this request using available fields only. Prefer 1–3 precise filters.',
+    )
+  }
+
+  return parts
 }
 
 export function buildMetaAssistPrompt(context: Record<string, unknown>): string[] {

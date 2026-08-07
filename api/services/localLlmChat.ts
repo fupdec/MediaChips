@@ -12,23 +12,49 @@ export type LocalAiChatPromptRequest = {
   system?: string
 }
 
+export const APP_UI_LOCALES = ['en', 'ru', 'cn', 'de', 'es', 'fr', 'ja', 'pt'] as const
+export type AppUiLocale = (typeof APP_UI_LOCALES)[number]
+
+const LOCALE_LANGUAGE_NAMES: Record<AppUiLocale, string> = {
+  en: 'English',
+  ru: 'Russian',
+  de: 'German',
+  fr: 'French',
+  es: 'Spanish',
+  pt: 'Portuguese',
+  ja: 'Japanese',
+  cn: 'Simplified Chinese',
+}
+
+/** Normalize MediaChips UI locale codes (zh-Hans → cn, pt-BR → pt, …). */
+export function normalizeAppUiLocale(locale?: string | null): AppUiLocale {
+  const raw = String(locale || 'en').trim().toLowerCase().replace(/_/g, '-')
+  if (!raw) return 'en'
+  if (raw === 'cn' || raw === 'zh' || raw.startsWith('zh-')) return 'cn'
+  const base = raw.split('-')[0]
+  if ((APP_UI_LOCALES as readonly string[]).includes(base)) return base as AppUiLocale
+  return 'en'
+}
+
+export function languageDisplayName(locale?: string | null): string {
+  return LOCALE_LANGUAGE_NAMES[normalizeAppUiLocale(locale)]
+}
+
 export function languageInstruction(locale: string): string {
-  const map: Record<string, string> = {
-    en: 'English',
-    ru: 'Russian',
-    de: 'German',
-    fr: 'French',
-    es: 'Spanish',
-    pt: 'Portuguese',
-    ja: 'Japanese',
-    cn: 'Simplified Chinese',
-  }
-  const lang = map[locale] || map.en
-  return `Reply in ${lang}. If the user writes in another language, reply in that language instead.`
+  const code = normalizeAppUiLocale(locale)
+  const lang = languageDisplayName(code)
+  return [
+    `UI language code: ${code}.`,
+    `ALWAYS reply in ${lang}.`,
+    `Write the full assistant message in ${lang}, including explanations and summaries.`,
+    `If documentation excerpts are in English or another language, translate the answer into ${lang}.`,
+    `Do not answer in English unless the UI language is English.`,
+    `For JSON assist modes, keep machine keys in English, but put human-readable summary/explanation text in ${lang}.`,
+  ].join(' ')
 }
 
 export function buildLocalAiSystemPrompt(req: LocalAiChatPromptRequest, docsText: string): string {
-  const locale = String(req.locale || 'en')
+  const locale = normalizeAppUiLocale(req.locale)
   const mode = req.mode || 'chat'
   const parts = [
     'You are MediaChips Local AI assistant. Stay local-only: never suggest cloud AI services.',
@@ -40,6 +66,7 @@ export function buildLocalAiSystemPrompt(req: LocalAiChatPromptRequest, docsText
     parts.push(
       'Use ONLY the documentation excerpts below for how-to / product questions. If they are insufficient, say you are unsure and suggest opening Documentation.',
       'When you cite a section, mention its id like docs:section.id so the UI can open it.',
+      `Answer the user in ${languageDisplayName(locale)} even when excerpts differ in language.`,
       'Documentation excerpts:\n' + docsText,
     )
   }
@@ -105,6 +132,8 @@ export type LocalAiStatusExtras = {
   enabled: boolean
   sizeMb: number
   filename: string
+  /** True when the GGUF file is present on disk (even if Local AI is disabled). */
+  downloaded?: boolean
 }
 
 /** Pure status for Local AI model load / download state. */
@@ -127,20 +156,30 @@ export function resolveLocalAiModelStatus(input: {
     filename: input.filename,
   }
   if (!input.enabled) {
-    return {...base, status: 'disabled'}
+    return {
+      ...base,
+      status: 'disabled',
+      downloaded: input.downloaded,
+    }
   }
   if (input.sessionLoaded) {
-    return {...base, status: 'loaded'}
+    return {...base, status: 'loaded', downloaded: true}
   }
   if (input.loading) {
-    return {...base, status: 'loading'}
+    return {...base, status: 'loading', downloaded: input.downloaded}
   }
   if (input.lastError) {
-    return {...base, status: 'error', message: input.lastError.message}
+    return {
+      ...base,
+      status: 'error',
+      message: input.lastError.message,
+      downloaded: input.downloaded,
+    }
   }
   return {
     ...base,
     status: input.downloaded ? 'downloaded' : 'not_downloaded',
+    downloaded: input.downloaded,
   }
 }
 

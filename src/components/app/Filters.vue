@@ -122,6 +122,7 @@
                   @update:filters="filters = $event"
                   @close="closeTopFilters"
                   @apply="apply"
+                  @apply-ai-filters="applyAiFilters"
                   @add="add"
                   @reorder="onReorder"
                   @open-saved="dialogSaved = true"
@@ -164,6 +165,7 @@
           @update:filters="filters = $event"
           @close="filtersStore.visible = false"
           @apply="apply"
+          @apply-ai-filters="applyAiFilters"
           @add="add"
           @reorder="onReorder"
           @open-saved="dialogSaved = true"
@@ -286,14 +288,12 @@ const filterAiPrompt = computed(() => {
   if (activeCount > 0) {
     return [
       `Improve my MediaChips filters for this ${kind} library page.`,
-      'Suggest concrete next filter steps using only available fields.',
-      'Return JSON with summary, suggestions (string array), explanation.',
+      'Return JSON with ready-to-apply filters using only available fields.',
     ].join(' ')
   }
   return [
     `Help me design useful MediaChips filters for this ${kind} library page.`,
-    'Suggest concrete filter steps using only available fields.',
-    'Return JSON with summary, suggestions (string array), explanation.',
+    'Return JSON with ready-to-apply filters using only available fields.',
   ].join(' ')
 })
 
@@ -305,6 +305,7 @@ const filterAiContext = computed(() => {
   return {
     pageType: ITEMS.value.type,
     mediaKind: currentMediaType.value?.type || null,
+    today: dayjs().format('YYYY-MM-DD'),
     availableFields: listBy.value.map((item) => ({
       param: item.param,
       type: item.type,
@@ -400,6 +401,9 @@ const panelBindings = computed(() => ({
   filterAiPrompt: filterAiPrompt.value,
   filterAiContext: filterAiContext.value as Record<string, unknown>,
   dragOptions,
+  assistActive: useTopPanel.value
+    ? (showTopShell.value && isPanelView.value)
+    : filtersVisible.value,
 }))
 
 const currentMediaType = computed(() =>
@@ -525,6 +529,41 @@ const add = (params: FilterListParam[]) => {
     filters.value.push(filter_obj)
   }
   editMode.value = true
+}
+
+const applyAiFilters = (payload: Record<string, unknown>) => {
+  const rows = Array.isArray(payload?.filters) ? payload.filters : []
+  let added = 0
+  for (const entry of rows) {
+    if (!entry || typeof entry !== 'object') continue
+    const row = entry as Record<string, unknown>
+    const param = row.param
+    if (param == null || param === '') continue
+    const type = String(row.type || 'string')
+    const allowed = getListCond(type).map((item) => item.cond)
+    const cond = String(row.cond || '')
+    if (!cond || !allowed.includes(cond)) continue
+
+    const field = listBy.value.find((item) => String(item.param) === String(param))
+    const filter_obj = getFilterObject({
+      param: field ? field.param : param as string | number,
+      type: field?.type ?? type,
+      cond,
+      val: row.val ?? null,
+      active: true,
+      order: filters.value.length,
+      metaId: typeof (field?.param ?? param) === 'number'
+        ? Number(field?.param ?? param)
+        : undefined,
+    })
+    filters.value.push(filter_obj)
+    added += 1
+  }
+  if (!added) return
+  editMode.value = true
+  if (!isPanelView.value) {
+    setFiltersViewMode('advanced')
+  }
 }
 
 const reindexFilterOrder = () => {

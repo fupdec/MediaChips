@@ -17,6 +17,7 @@ export type LocalAiStatus = {
   path?: string
   message?: string
   enabled?: boolean
+  downloaded?: boolean
   sizeMb?: number
   filename?: string
 }

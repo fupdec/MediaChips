@@ -118,6 +118,66 @@ export function searchDocs(query: string, locale = FALLBACK_LOCALE, limit = 4): 
   return selected
 }
 
+const APP_DOC_LOCALES = ['en', 'ru', 'cn', 'de', 'es', 'fr', 'ja', 'pt'] as const
+
+/** Normalize UI locale codes used by MediaChips (e.g. zh-Hans → cn). */
+export function normalizeDocLocale(locale?: string | null): string {
+  const raw = String(locale || FALLBACK_LOCALE).trim().toLowerCase().replace(/_/g, '-')
+  if (!raw) return FALLBACK_LOCALE
+  if (raw === 'cn' || raw === 'zh' || raw.startsWith('zh-')) return 'cn'
+  const base = raw.split('-')[0]
+  if ((APP_DOC_LOCALES as readonly string[]).includes(base)) return base
+  return FALLBACK_LOCALE
+}
+
+/**
+ * Search docs in the UI locale and English, then hydrate matched ids with
+ * UI-locale text when available so the assistant can answer in-language.
+ */
+export function searchDocsForAssistant(
+  query: string,
+  locale = FALLBACK_LOCALE,
+  limit = 4,
+): DocChunk[] {
+  const code = normalizeDocLocale(locale)
+  const locales = code === FALLBACK_LOCALE ? [FALLBACK_LOCALE] : [code, FALLBACK_LOCALE]
+  const bestScore = new Map<string, number>()
+
+  for (const loc of locales) {
+    for (const chunk of searchDocs(query, loc, Math.max(limit * 2, 6))) {
+      const prev = bestScore.get(chunk.id) || 0
+      if (chunk.score > prev) bestScore.set(chunk.id, chunk.score)
+    }
+  }
+
+  if (!bestScore.size) return []
+
+  const localized = buildDocChunks(code)
+  const english = code === FALLBACK_LOCALE ? localized : buildDocChunks(FALLBACK_LOCALE)
+  const byId = new Map(localized.map((chunk) => [chunk.id, chunk]))
+  const enById = new Map(english.map((chunk) => [chunk.id, chunk]))
+
+  const merged = [...bestScore.entries()]
+    .map(([id, score]) => {
+      const chunk = byId.get(id) || enById.get(id)
+      if (!chunk) return null
+      return {...chunk, score}
+    })
+    .filter((chunk): chunk is DocChunk => Boolean(chunk))
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+
+  const selected: DocChunk[] = []
+  let total = 0
+  for (const chunk of merged) {
+    if (selected.length >= limit) break
+    const size = chunk.text.length + chunk.title.length
+    if (total + size > MAX_TOTAL_CHARS && selected.length) break
+    selected.push(chunk)
+    total += size
+  }
+  return selected
+}
+
 export function formatDocsForPrompt(chunks: DocChunk[]): string {
   if (!chunks.length) return ''
   return chunks.map((chunk, index) => (

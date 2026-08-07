@@ -122,6 +122,7 @@ import {computed, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {typedApi} from '@/services/typedApi'
@@ -134,8 +135,12 @@ type ChatMsg = LocalAiChatMessage & {
 const {t, locale} = useI18n()
 const router = useRouter()
 const dialogsStore = useDialogsStore()
+const settingsStore = useSettingsStore()
 const appShell = useAppShell()
 
+const chatLocale = computed(() =>
+  String(settingsStore.locale || locale.value || 'en'),
+)
 const messages = ref<ChatMsg[]>([])
 const draft = ref('')
 const streamingText = ref('')
@@ -217,7 +222,7 @@ async function send() {
     await typedApi.streamLocalAiChat(
       {
         mode: 'chat',
-        locale: String(locale.value || 'en'),
+        locale: chatLocale.value,
         messages: payloadMessages,
       },
       abortController.signal,

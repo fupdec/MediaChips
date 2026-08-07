@@ -6,6 +6,7 @@ import {
   filterLocalAiChatHistory,
   languageInstruction,
   mergeCitedLocalAiDocs,
+  normalizeAppUiLocale,
   pickLastUserMessageContent,
   resolveLocalAiMaxTokens,
   resolveLocalAiModelStatus,
@@ -16,14 +17,26 @@ import {
 describe('localLlmChat', () => {
   it('maps locales to reply-language instructions', () => {
     expect(languageInstruction('ru')).toContain('Russian')
+    expect(languageInstruction('zh-Hans')).toContain('Simplified Chinese')
+    expect(languageInstruction('pt-BR')).toContain('Portuguese')
     expect(languageInstruction('zz')).toContain('English')
+    expect(languageInstruction('ru')).toContain('ALWAYS reply')
+  })
+
+  it('normalizes app UI locales', () => {
+    expect(normalizeAppUiLocale('zh-CN')).toBe('cn')
+    expect(normalizeAppUiLocale('PT-br')).toBe('pt')
+    expect(normalizeAppUiLocale('ja')).toBe('ja')
+    expect(normalizeAppUiLocale('nope')).toBe('en')
   })
 
   it('builds chat and mode system prompts', () => {
-    const chat = buildLocalAiSystemPrompt({mode: 'chat', locale: 'en'}, 'docs:intro')
+    const chat = buildLocalAiSystemPrompt({mode: 'chat', locale: 'ru'}, 'docs:intro')
     expect(chat).toContain('Documentation excerpts')
     expect(chat).toContain('docs:intro')
     expect(chat).toContain('library organization')
+    expect(chat).toContain('Russian')
+    expect(chat).toContain('Answer the user in Russian')
 
     const regex = buildLocalAiSystemPrompt({
       mode: 'regex',
@@ -71,6 +84,11 @@ describe('localLlmChat', () => {
       downloaded: false,
     }
     expect(resolveLocalAiModelStatus({...base, enabled: false}).status).toBe('disabled')
+    expect(resolveLocalAiModelStatus({
+      ...base,
+      enabled: false,
+      downloaded: true,
+    })).toMatchObject({status: 'disabled', downloaded: true, enabled: false})
     expect(resolveLocalAiModelStatus({...base, sessionLoaded: true}).status).toBe('loaded')
     expect(resolveLocalAiModelStatus({...base, loading: true}).status).toBe('loading')
     expect(resolveLocalAiModelStatus({

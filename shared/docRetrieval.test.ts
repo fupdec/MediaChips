@@ -1,8 +1,10 @@
 import {describe, expect, it} from 'vitest'
 import {
   formatDocsForPrompt,
+  normalizeDocLocale,
   scoreDocChunk,
   searchDocs,
+  searchDocsForAssistant,
   stripDocHtml,
   tokenizeDocText,
 } from './docRetrieval'
@@ -39,5 +41,17 @@ describe('shared/docRetrieval', () => {
   it('falls back when locale is missing content', () => {
     const chunks = searchDocs('filters', 'xx', 2)
     expect(chunks.length).toBeGreaterThan(0)
+  })
+
+  it('normalizes doc locales used by the app', () => {
+    expect(normalizeDocLocale('zh-Hans')).toBe('cn')
+    expect(normalizeDocLocale('pt_BR')).toBe('pt')
+    expect(normalizeDocLocale('ru')).toBe('ru')
+  })
+
+  it('searches assistant docs across UI locale and English', () => {
+    const chunks = searchDocsForAssistant('add media', 'ru', 3)
+    expect(chunks.length).toBeGreaterThan(0)
+    expect(chunks.every((chunk) => chunk.id && chunk.title)).toBe(true)
   })
 })

@@ -1163,6 +1163,8 @@ const es = {
       not_ready: 'Enable Local AI and download the model in Settings → General.',
       open_settings: 'Open Local AI settings',
       assist: 'AI help',
+      assist_docs: 'How AI help works',
+      assist_docs_setup: 'How to enable',
       assist_busy: 'Thinking…',
       assist_preview: 'Suggested result',
       assist_pattern: 'Pattern',

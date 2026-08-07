@@ -4,7 +4,11 @@
       <settings-category-divider
         :title="t('settings_labels.local_ai.title')"
         icon="robot-outline"
-      />
+      >
+        <template #actions>
+          <ButtonDocumentation id="settings.general.local_ai"/>
+        </template>
+      </settings-category-divider>
 
       <v-alert
         type="info"
@@ -47,8 +51,36 @@
         <span class="text-caption">{{ statusError }}</span>
       </v-alert>
 
+      <v-alert
+        v-if="needsEnable"
+        type="warning"
+        variant="tonal"
+        density="comfortable"
+        rounded="xl"
+        class="mb-4"
+      >
+        <div class="text-body-2 font-weight-medium mb-1">
+          {{ t('settings_labels.local_ai.needs_enable_title') }}
+        </div>
+        <div class="text-caption mb-3">
+          {{ t('settings_labels.local_ai.needs_enable') }}
+        </div>
+        <v-btn
+          color="warning"
+          rounded
+          variant="flat"
+          :loading="busy"
+          :disabled="busy || downloading"
+          @click="enableLocalAi"
+        >
+          <v-icon icon="mdi-power" start/>
+          {{ t('settings_labels.local_ai.enable_now') }}
+        </v-btn>
+      </v-alert>
+
       <v-switch
         :model-value="enabled"
+        color="primary"
         inset
         hide-details
         class="mb-4"
@@ -57,9 +89,11 @@
       >
         <template #label>
           <div class="d-flex flex-column ml-2">
-            <div>{{ t('settings_labels.local_ai.enable') }}</div>
+            <div class="font-weight-medium">{{ t('settings_labels.local_ai.enable') }}</div>
             <div class="text-caption text-medium-emphasis">
-              {{ t('settings_labels.local_ai.enable_hint') }}
+              {{ enabled
+                ? t('settings_labels.local_ai.enable_hint')
+                : t('settings_labels.local_ai.enable_hint_off') }}
             </div>
           </div>
         </template>
@@ -67,7 +101,7 @@
 
       <div class="text-body-2 text-medium-emphasis mb-3">
         {{ t('settings_labels.local_ai.status') }}:
-        <strong>{{ statusLabel }}</strong>
+        <strong :class="{'text-warning': needsEnable, 'text-success': isReady}">{{ statusLabel }}</strong>
         <span v-if="status.message"> — {{ status.message }}</span>
       </div>
 
@@ -180,6 +214,7 @@ import {typedApi} from '@/services/typedApi'
 import type {LocalAiStatus} from '@/services/typedApi/localAi'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 
 const {t} = useI18n()
@@ -200,11 +235,29 @@ let abortController: AbortController | null = null
 let taskId: string | null = null
 
 const enabled = computed(() => Boolean(status.value.enabled))
-const isReady = computed(() => ['downloaded', 'loaded'].includes(status.value.status))
-const hasModelFile = computed(() => ['downloaded', 'loaded', 'error'].includes(status.value.status)
-  || Boolean(status.value.path && status.value.status !== 'not_downloaded' && status.value.status !== 'disabled'))
+const modelOnDisk = computed(() => {
+  if (status.value.downloaded === true) return true
+  const s = String(status.value.status || '')
+  if (['downloaded', 'loaded', 'error'].includes(s)) return true
+  // Disabled still means the GGUF may be on disk — infer from delete-capable states.
+  if (s === 'disabled' && status.value.path) return true
+  return false
+})
+/** Usable for chat / assist: feature on + model file ready. */
+const isReady = computed(() =>
+  enabled.value && ['downloaded', 'loaded'].includes(String(status.value.status || '')),
+)
+const needsEnable = computed(() => !enabled.value && modelOnDisk.value)
+const hasModelFile = computed(() => modelOnDisk.value
+  || Boolean(status.value.path && status.value.status !== 'not_downloaded'))
 
 const statusLabel = computed(() => {
+  if (needsEnable.value) {
+    return t('settings_labels.local_ai.status_disabled_downloaded')
+  }
+  if (!enabled.value) {
+    return t('settings.path_parser.statuses.disabled')
+  }
   const key = `settings.path_parser.statuses.${status.value.status}`
   const translated = t(key)
   return translated === key ? status.value.status : translated
@@ -220,6 +273,10 @@ async function refreshStatus() {
   } finally {
     statusLoading.value = false
   }
+}
+
+async function enableLocalAi() {
+  await onToggleEnabled(true)
 }
 
 async function onToggleEnabled(value: boolean | null) {

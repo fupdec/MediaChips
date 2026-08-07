@@ -8,18 +8,7 @@ import {
   queryVisibleItemElements,
   type BrowserNavDirection,
 } from '@/composable/useBrowserLayoutHotkeys'
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false
-  const tag = target.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  if ((target as HTMLElement).isContentEditable) return true
-  return Boolean(target.closest('[contenteditable="true"]'))
-}
-
-function isBlockingOverlayOpen(): boolean {
-  return Boolean(document.querySelector('.v-overlay--active'))
-}
+import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
 
 function scrollItemIntoView(el: HTMLElement) {
   el.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'})

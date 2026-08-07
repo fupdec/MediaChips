@@ -15,3 +15,8 @@ export {
   normalizeFilterAssistParsed,
   normalizeRegexAssistParsed,
 } from './localAiAssistNormalize'
+
+export {
+  mergeFilterSuggestions,
+  synthesizeFiltersFromGoal,
+} from './localAiAssistFilterGoal'

@@ -6,6 +6,7 @@ export const LocalAiStatusSchema = z.object({
   path: z.string().optional(),
   message: z.string().optional(),
   enabled: z.boolean().optional(),
+  downloaded: z.boolean().optional(),
   sizeMb: z.number().optional(),
   filename: z.string().optional(),
 }).passthrough()
@@ -28,7 +29,7 @@ export const LocalAiChatRequestSchema = z.object({
   mode: z.string().optional(),
   locale: z.string().optional(),
   messages: z.array(LocalAiChatMessageSchema).optional(),
-  context: z.record(z.unknown()).optional(),
+  context: z.unknown().optional(),
   system: z.string().optional(),
   toolCall: z.record(z.unknown()).optional(),
   confirmTool: z.boolean().optional(),

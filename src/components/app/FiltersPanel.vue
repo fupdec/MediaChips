@@ -87,11 +87,14 @@
       :class="{'filters-panel__toolbar--deck': variant === 'top'}"
     >
       <LocalAiAssistPanel
-        v-if="LOCAL_AI_UI_ENABLED"
-        class="mb-3"
+        v-if="LOCAL_AI_UI_ENABLED && (variant !== 'top' || editMode)"
+        :key="props.assistActive ? 'filter-ai-open' : 'filter-ai-idle'"
+        class="mb-2"
         mode="filter"
         :prompt="filterAiPrompt"
         :context="filterAiContext"
+        :active="props.assistActive"
+        @apply="emit('apply-ai-filters', $event)"
       />
 
       <!-- Top / full mode: one compact toolbar row -->
@@ -266,11 +269,14 @@ const props = withDefaults(defineProps<{
   filterAiPrompt: string
   filterAiContext: Record<string, unknown>
   dragOptions: Record<string, unknown>
+  /** Re-check Local AI when the filters panel is shown. */
+  assistActive?: boolean
 }>(), {
   variant: 'drawer',
   hideHeader: false,
   isReady: false,
   isFiltersChanged: false,
+  assistActive: true,
 })
 
 const emit = defineEmits([
@@ -278,6 +284,7 @@ const emit = defineEmits([
   'update:filters',
   'close',
   'apply',
+  'apply-ai-filters',
   'add',
   'reorder',
   'open-saved',

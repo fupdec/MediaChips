@@ -10,21 +10,10 @@ import useItemContextMenu from '@/composable/ItemContextMenu'
 import {openPath} from '@/services/shellService'
 import {findMediaTypeById} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
+import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false
-  const tag = target.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  if ((target as HTMLElement).isContentEditable) return true
-  return Boolean(target.closest('[contenteditable="true"]'))
-}
-
-function isBlockingOverlayOpen(): boolean {
-  return Boolean(document.querySelector('.v-overlay--active'))
-}
 
 /** Card roots currently rendered in the items grid / masonry. */
 export function queryVisibleItemElements(): HTMLElement[] {

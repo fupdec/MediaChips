@@ -5,14 +5,7 @@ import { useItemsStore } from '@/stores/items'
 import { usePlayerStore } from '@/stores/player'
 import { registerAppShellHandler, useAppShell } from '@/composable/appShell'
 import { getDefaultMediaTypeId } from '@/utils/mediaType'
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false
-  const tag = target.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  if ((target as HTMLElement).isContentEditable) return true
-  return Boolean(target.closest('[contenteditable="true"]'))
-}
+import { isBlockingOverlayOpen, isTypingTarget } from '@/utils/keyboardTarget'
 
 function isItemsLibraryRoute(path: string): boolean {
   return path === '/media' || path.startsWith('/media/')
@@ -44,6 +37,7 @@ export function useAppHotkeys() {
   function onKeyDown(event: KeyboardEvent) {
     if (event.defaultPrevented) return
     if (playerStore.active) return
+    if (isBlockingOverlayOpen()) return
     if (isTypingTarget(event.target)) return
     if (event.ctrlKey || event.metaKey || event.altKey) return
     if (event.repeat) return
@@ -55,7 +49,9 @@ export function useAppHotkeys() {
       return
     }
 
+    // Add media — only on library pages (never settings / home / chat overlays).
     if (event.code === 'KeyA') {
+      if (!isItemsLibraryRoute(router.currentRoute.value.path)) return
       event.preventDefault()
       openAddMedia()
       return

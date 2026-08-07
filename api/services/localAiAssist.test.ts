@@ -25,13 +25,140 @@ describe('localAiAssist', () => {
       summary: 'Filter ideas: Add Favorite = yes',
       suggestions: ['Add Favorite = yes', 'Add Rating ≥ 4', '12'],
       explanation: 'Focus on liked high-rated media.',
+      filters: [],
     })
+  })
+
+  it('validates structured filters against available fields', () => {
+    const parsed = normalizeFilterAssistParsed({
+      summary: 'High-rated favorites',
+      filters: [
+        {param: 'favorite', type: 'boolean', cond: '=', val: 'yes'},
+        {param: 'Rating', type: 'rating', cond: '≥', val: '4'},
+        {param: 'unknown', type: 'string', cond: 'like', val: 'x'},
+        {param: 'rating', type: 'rating', cond: '???', val: 3},
+      ],
+    }, {
+      availableFields: [
+        {param: 'favorite', type: 'boolean', name: 'Favorite'},
+        {param: 'rating', type: 'rating', name: 'Rating'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'favorite', type: 'boolean', cond: '=', val: true, active: true},
+      {param: 'rating', type: 'rating', cond: '>=', val: 4, active: true},
+    ])
+  })
+
+  it('repairs boolean NO encoded as = false and keeps !=', () => {
+    const parsed = normalizeFilterAssistParsed({
+      summary: 'Not favorite',
+      filters: [
+        {param: 'favorite', type: 'boolean', cond: '=', val: false},
+        {param: 'favorite', type: 'boolean', cond: '!=', val: true},
+      ],
+    }, {
+      availableFields: [{param: 'favorite', type: 'boolean', name: 'Favorite'}],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'favorite', type: 'boolean', cond: '!=', val: false, active: true},
+    ])
+  })
+
+  it('repairs watch/month goals away from favorite + views mistakes', () => {
+    const parsed = normalizeFilterAssistParsed({
+      summary: 'Wrong favorite views',
+      filters: [
+        {param: 'favorite', type: 'boolean', cond: '=', val: false},
+        {param: 'views', type: 'number', cond: '<', val: 30},
+      ],
+      suggestions: ['Add a month filter'],
+      explanation: 'Favorites',
+    }, {
+      today: '2026-08-07',
+      goal: 'не смотрел месяц',
+      availableFields: [
+        {param: 'favorite', type: 'boolean', name: 'Favorite'},
+        {param: 'views', type: 'number', name: 'Views'},
+        {param: 'viewedAt', type: 'date', name: 'Viewed'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'viewedAt', type: 'date', cond: '<', val: '2026-07-08', active: true},
+    ])
+  })
+
+  it('keeps favorite when the goal asks for favorites', () => {
+    const parsed = normalizeFilterAssistParsed({
+      summary: 'Favorites',
+      filters: [{param: 'favorite', type: 'boolean', cond: '=', val: true}],
+    }, {
+      goal: 'избранное',
+      availableFields: [{param: 'favorite', type: 'boolean', name: 'Favorite'}],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'favorite', type: 'boolean', cond: '=', val: true, active: true},
+    ])
   })
 
   it('returns null for empty filter payloads', () => {
     expect(normalizeFilterAssistParsed(null)).toBeNull()
     expect(normalizeFilterAssistParsed({summary: '  '})).toBeNull()
   })
+
+  it('synthesizes viewedAt from goal even when model JSON is missing', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      today: '2026-08-07',
+      goal: 'не смотрел месяц',
+      availableFields: [
+        {param: 'favorite', type: 'boolean', name: 'Favorite'},
+        {param: 'views', type: 'number', name: 'Views'},
+        {param: 'viewedAt', type: 'date', name: 'Viewed'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'viewedAt', type: 'date', cond: '<', val: '2026-07-08', active: true},
+    ])
+  })
+
+  it('synthesizes calendar-month watch filters', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      today: '2026-08-07',
+      goal: 'смотрел в этом месяце',
+      availableFields: [{param: 'viewedAt', type: 'date', name: 'Viewed'}],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'viewedAt', type: 'date', cond: '>=', val: '2026-08-01', active: true},
+    ])
+  })
+
+  it('synthesizes rating and favorite from goal', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      goal: 'избранное и рейтинг > 4',
+      availableFields: [
+        {param: 'favorite', type: 'boolean', name: 'Favorite'},
+        {param: 'rating', type: 'number', name: 'Rating'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'favorite', type: 'boolean', cond: '=', val: true, active: true},
+      {param: 'rating', type: 'number', cond: '>', val: 4, active: true},
+    ])
+  })
+
+  it('synthesizes never-watched as views = 0', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      goal: 'никогда не смотрел',
+      availableFields: [
+        {param: 'views', type: 'number', name: 'Views'},
+        {param: 'viewedAt', type: 'date', name: 'Viewed'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'views', type: 'number', cond: '=', val: 0, active: true},
+    ])
+  })
+
 
   it('repairs bad regex with deterministic path generator when there is no goal', () => {
     const sample = '/Media/Library/[StudioName]clip.mp4'
@@ -147,11 +274,18 @@ describe('localAiAssist', () => {
     const filterPrompt = buildFilterAssistPrompt({
       pageType: 'media',
       mediaKind: 'video',
+      today: '2026-08-07',
       availableFields: [{param: 'rating', type: 'number', name: 'Rating'}],
       currentFilters: [],
+      goal: 'rating > 4 and favorite',
     }).join('\n')
     expect(filterPrompt).toContain('Rating')
     expect(filterPrompt).toContain('param="rating"')
+    expect(filterPrompt).toContain('PRIMARY USER REQUEST')
+    expect(filterPrompt).toContain('filters')
+    expect(filterPrompt).toContain('viewedAt')
+    expect(filterPrompt).toContain('2026-08-07')
+    expect(filterPrompt).toContain('2026-07-08')
     expect(asStringArray(['a', '', 'b', 'c'], 2)).toEqual(['a', 'b'])
   })
 })

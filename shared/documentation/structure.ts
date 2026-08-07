@@ -26,7 +26,18 @@ export const docs = [
         selector: ['.v-app-bar'],
       },
       { id: 'ui.tabs', name: 'Tabs', icon: 'mdi-tab' },
-      { id: 'ui.filters', name: 'Filters', icon: 'mdi-filter-outline' },
+      {
+        id: 'ui.filters',
+        name: 'Filters',
+        icon: 'mdi-filter-outline',
+        children: [
+          {
+            id: 'ui.filters.local_ai',
+            name: 'AI help for filters',
+            icon: 'mdi-robot-outline',
+          },
+        ],
+      },
       { id: 'ui.selection', name: 'Selection mode', icon: 'mdi-checkbox-marked-outline' },
     ],
   },
@@ -169,6 +180,13 @@ export const docs = [
             icon: 'mdi-image-area',
             selector: ['#settings-doc-tab-general', '#video_preview'],
             navigate: '/settings?tab=general&section=video_preview',
+          },
+          {
+            id: 'settings.general.local_ai',
+            name: 'Local AI',
+            icon: 'mdi-robot-outline',
+            selector: ['#settings-doc-tab-general', '#settings-local-ai'],
+            navigate: '/settings?tab=general&section=local_ai',
           },
         ],
       },

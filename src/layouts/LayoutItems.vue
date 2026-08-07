@@ -5,11 +5,17 @@
   >
 
     <div
+      ref="controlDeckSentinel"
+      class="items-control-deck-sentinel"
+      aria-hidden="true"
+    />
+    <div
       id="items-control-deck"
       class="items-control-deck"
       :class="{
         'items-control-deck--browser': controlDeckActive,
         'items-control-deck--classic': !controlDeckActive,
+        'items-control-deck--stuck': controlDeckStuck,
       }"
     >
       <div
@@ -357,7 +363,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onBeforeUnmount} from 'vue'
+import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
@@ -372,6 +378,7 @@ import useVideoImageGenerator from '@/composable/GeneratingThumbsForVideos'
 import type {ItemsPageProps, ItemsPageType} from '@/types/itemsPage'
 import type {MediaType} from '@/types/media'
 import type {Meta} from '@/types/stores'
+import {getMainScrollEl} from '@/utils/mainScroll'
 
 // Компоненты
 import Item from '@/components/items/Item.vue'
@@ -440,6 +447,32 @@ const meta = ref<Meta | null>(null)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
 const dialogEditingPinnedMeta = ref(false)
+const controlDeckSentinel = ref<HTMLElement | null>(null)
+const controlDeckStuck = ref(false)
+let deckStuckObserver: IntersectionObserver | null = null
+
+function teardownDeckStuckObserver() {
+  deckStuckObserver?.disconnect()
+  deckStuckObserver = null
+}
+
+function setupDeckStuckObserver() {
+  teardownDeckStuckObserver()
+  const sentinel = controlDeckSentinel.value
+  if (!sentinel) return
+  const root = getMainScrollEl()
+  deckStuckObserver = new IntersectionObserver(
+    ([entry]) => {
+      controlDeckStuck.value = Boolean(entry && !entry.isIntersecting)
+    },
+    {
+      root: root instanceof Element ? root : null,
+      threshold: 0,
+      rootMargin: '-8px 0px 0px 0px',
+    },
+  )
+  deckStuckObserver.observe(sentinel)
+}
 
 const {
   isFiltersReady,
@@ -717,7 +750,12 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
   }, 0)
 }
 
+onMounted(() => {
+  void nextTick(() => setupDeckStuckObserver())
+})
+
 onBeforeUnmount(() => {
+  teardownDeckStuckObserver()
   clearVisibleItemIds()
   resetVisibilityObserver()
 })
@@ -964,16 +1002,29 @@ defineEmits<{
   position: sticky;
   top: 8px;
   z-index: 8;
-  background: rgba(var(--v-theme-surface), 0.88);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  background: rgb(var(--v-theme-surface));
   padding-block: 12px;
   margin-block: 0 !important;
-  box-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 8px 22px -16px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 180ms ease;
+}
+
+.items-control-deck--classic.items-control-deck--stuck .items-page-header {
+  box-shadow:
+    0 10px 28px -12px rgba(0, 0, 0, 0.36),
+    0 4px 12px -6px rgba(0, 0, 0, 0.16);
 }
 
 .items-layout-container.v-container {
   padding-top: 8px;
+}
+
+.items-control-deck-sentinel {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 .items-control-deck {
@@ -1011,13 +1062,19 @@ defineEmits<{
   &__surface--card {
     border: 1px solid rgba(var(--v-theme-primary), 0.16);
     border-radius: var(--deck-radius, 16px);
-    background: rgba(var(--v-theme-surface), 0.88);
+    background: rgb(var(--v-theme-surface));
     box-shadow:
       0 1px 0 rgba(var(--v-theme-primary), 0.04),
-      0 10px 28px -16px rgba(0, 0, 0, 0.28);
+      0 8px 22px -16px rgba(0, 0, 0, 0.22);
     overflow: hidden;
-    backdrop-filter: blur(18px) saturate(1.2);
-    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    transition: box-shadow 180ms ease;
+  }
+
+  &--stuck &__surface--card {
+    box-shadow:
+      0 1px 0 rgba(var(--v-theme-primary), 0.08),
+      0 14px 36px -12px rgba(0, 0, 0, 0.4),
+      0 6px 16px -8px rgba(0, 0, 0, 0.2);
   }
 
   &__header {

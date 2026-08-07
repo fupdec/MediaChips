@@ -5,7 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import {downloadHttpFile} from './httpFileDownload'
 import {createSettingsRepository} from '../db/repositories/settings'
-import {formatDocsForPrompt, searchDocs} from './docRetrieval'
+import {formatDocsForPrompt, searchDocsForAssistant} from './docRetrieval'
 import {normalizeAssistParsed} from './localAiAssist'
 import {
   buildLocalAiSystemPrompt,
@@ -13,6 +13,7 @@ import {
   extractJsonObject,
   filterLocalAiChatHistory,
   mergeCitedLocalAiDocs,
+  normalizeAppUiLocale,
   pickLastUserMessageContent,
   resolveLocalAiMaxTokens,
   resolveLocalAiModelStatus,
@@ -324,14 +325,14 @@ export async function* iterateLocalAiChat(
       throw new Error('Model failed to load')
     }
 
-    const locale = String(req.locale || 'en')
+    const locale = normalizeAppUiLocale(req.locale)
     const userText = pickLastUserMessageContent(req.messages)
     const docs = shouldRetrieveLocalAiDocs(req.mode)
-      ? searchDocs(userText, locale, 4)
+      ? searchDocsForAssistant(userText, locale, 4)
       : []
     const docsText = formatDocsForPrompt(docs)
 
-    const systemPrompt = buildLocalAiSystemPrompt(req, docsText)
+    const systemPrompt = buildLocalAiSystemPrompt({...req, locale}, docsText)
     const context = await loadedModel.createContext({contextSize: 4096})
     const sequence = context.getSequence()
     const session = new llamaModule.LlamaChatSession({
