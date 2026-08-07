@@ -49,7 +49,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     favorites: true,
     topViews: false,
     markers: false,
-    health: false,
+    health: true,
     topTags: false,
   },
   limits: {

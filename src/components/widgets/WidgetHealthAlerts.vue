@@ -38,44 +38,35 @@
     </div>
 
     <template v-else-if="checked">
-      <v-alert
-        v-if="databaseSize != null"
-        type="info"
-        icon="mdi-database-outline"
-        variant="tonal"
-        rounded="lg"
-        density="compact"
-        class="mb-2"
-      >
-        <div class="d-flex align-center justify-space-between flex-wrap ga-2">
-          <span class="text-body-2">{{ databaseSizeLabel }}</span>
-
-          <v-btn
-            @click="openDatabaseSettings"
-            color="primary"
-            size="small"
-            variant="text"
-            rounded
-          >
-            {{ t('home.widgets.health_open_settings') }}
-          </v-btn>
+      <div class="widget-health-alerts__score d-flex align-center ga-4 mb-3">
+        <div
+          class="widget-health-alerts__score-value text-h3 font-weight-bold"
+          :class="scoreToneClass"
+        >
+          {{ health.score }}
         </div>
-      </v-alert>
+        <div>
+          <div class="text-body-1 font-weight-medium">{{ scoreLabel }}</div>
+          <div class="text-caption text-medium-emphasis">
+            {{ databaseSizeLabel }}
+          </div>
+        </div>
+      </div>
 
       <div
-        v-if="canFixVisuals"
+        v-if="canFixSafe"
         class="mb-2"
       >
         <div class="d-flex flex-wrap ga-2 align-center">
           <v-btn
-            v-if="!visualsFix.state.value.running"
+            v-if="!healthFix.state.value.running"
             color="primary"
             rounded
             variant="flat"
-            prepend-icon="mdi-image-auto-adjust"
-            @click="fixLibraryVisuals"
+            prepend-icon="mdi-auto-fix"
+            @click="fixSafeIssues"
           >
-            {{ t('home.widgets.health_make_library_look_good') }}
+            {{ primaryFixLabel }}
           </v-btn>
           <v-btn
             v-else
@@ -83,20 +74,29 @@
             rounded
             variant="flat"
             prepend-icon="mdi-stop"
-            @click="visualsFix.stop()"
+            @click="healthFix.stop()"
           >
             {{ t('common.stop') }}
           </v-btn>
+          <v-btn
+            color="primary"
+            size="small"
+            variant="text"
+            rounded
+            @click="openDatabaseSettings"
+          >
+            {{ t('home.widgets.health_open_settings') }}
+          </v-btn>
         </div>
         <div
-          v-if="visualsFix.state.value.running"
+          v-if="healthFix.state.value.running"
           class="text-caption text-medium-emphasis mt-2"
         >
-          {{ visualsFixProgressLabel }}
+          {{ fixProgressLabel }}
         </div>
         <v-progress-linear
-          v-if="visualsFix.state.value.running"
-          :model-value="visualsFix.state.value.progress"
+          v-if="healthFix.state.value.running"
+          :model-value="healthFix.state.value.progress"
           color="primary"
           height="4"
           rounded
@@ -105,19 +105,20 @@
       </div>
 
       <v-alert
-        v-if="!visibleAlerts.length"
+        v-if="!issueAlerts.length"
         type="success"
         icon="mdi-check-circle-outline"
         variant="tonal"
         rounded="lg"
         density="compact"
+        class="mb-2"
       >
         {{ t('home.widgets.health_no_issues') }}
       </v-alert>
 
-      <div v-else class="d-flex flex-column ga-2">
+      <div v-else class="d-flex flex-column ga-2 mb-2">
         <v-alert
-          v-for="alert in visibleAlerts"
+          v-for="alert in issueAlerts"
           :key="alert.id"
           :type="alert.type"
           :icon="alert.icon"
@@ -128,10 +129,9 @@
         >
           <div class="d-flex align-center justify-space-between flex-wrap ga-2">
             <span class="text-body-2">{{ alert.text }}</span>
-
             <v-btn
-              v-if="alert.action"
-              @click="alert.action()"
+              v-if="alert.actionLabel && alert.action"
+              @click="alert.action"
               color="primary"
               size="small"
               variant="text"
@@ -141,6 +141,30 @@
             </v-btn>
           </div>
         </v-alert>
+      </div>
+
+      <div class="d-flex flex-wrap ga-2">
+        <v-btn
+          v-for="tip in tipAlerts"
+          :key="tip.id"
+          size="small"
+          variant="tonal"
+          rounded
+          prepend-icon="mdi-folder-search-outline"
+          @click="tip.action?.()"
+        >
+          {{ tip.actionLabel }}
+        </v-btn>
+        <v-btn
+          v-if="activeTasksCount > 0"
+          size="small"
+          variant="tonal"
+          rounded
+          prepend-icon="mdi-cogs"
+          @click="openTasks"
+        >
+          {{ t('home.widgets.health_open_tasks') }} ({{ activeTasksCount }})
+        </v-btn>
       </div>
     </template>
   </section>
@@ -155,10 +179,14 @@ import {useTasksStore} from '@/stores/tasks'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import {isStartupHealthNotificationsEnabled} from '@/composable/useStartupHealthNotifications'
-import {useLibraryVisualsFix} from '@/composable/useLibraryVisualsFix'
+import {
+  hasOnlyVisualStages,
+  useLibraryHealthFixQueue,
+} from '@/composable/useLibraryHealthFixQueue'
 import {getReadableFileSize} from '@/services/formatUtils'
 import type { HealthAlertItem, HomeHealthData } from '@/types/widgets'
 import { emptyHomeHealthUi, toHomeHealthUi } from '@/types/widgets'
+import type { HomeHealthQueueItemUi } from '@shared/entities/widgets-ui'
 import type { Locale } from '@/utils/translate'
 
 const {t, locale} = useI18n()
@@ -166,7 +194,7 @@ const router = useRouter()
 const tasksStore = useTasksStore()
 const settingsStore = useSettingsStore()
 const appShell = useAppShell()
-const visualsFix = useLibraryVisualsFix()
+const healthFix = useLibraryHealthFixQueue()
 
 const autoCheckEnabled = computed(() =>
   isStartupHealthNotificationsEnabled(settingsStore.startupHealthNotifications),
@@ -178,13 +206,9 @@ const health = ref<HomeHealthData>(emptyHomeHealthUi())
 
 const activeTasksCount = computed(() => tasksStore.list.length)
 
-const databaseSize = computed(() => {
-  const bytes = health.value.database?.bytes
-  return bytes == null ? null : Number(bytes)
-})
-
 const databaseSizeLabel = computed(() => {
-  const size = getReadableFileSize(databaseSize.value ?? 0)
+  const bytes = health.value.database?.bytes
+  const size = getReadableFileSize(bytes == null ? 0 : Number(bytes))
   const name = health.value.database?.name
 
   if (name) {
@@ -194,157 +218,132 @@ const databaseSizeLabel = computed(() => {
   return t('home.widgets.health_database_size', {size})
 })
 
-const visibleAlerts = computed((): HealthAlertItem[] => {
-  const alerts: HealthAlertItem[] = []
-
-  if (health.value.duplicates.byFilesize > 0) {
-    alerts.push({
-      id: 'duplicates-size',
-      type: 'warning',
-      icon: 'mdi-content-copy',
-      text: t('home.widgets.health_duplicates_size', {
-        count: health.value.duplicates.byFilesize,
-      }),
-      actionLabel: t('home.widgets.health_show_duplicates'),
-      action: openDuplicates,
-    })
-  }
-
-  if ((health.value.duplicates.byFingerprint || health.value.duplicates.byContentHash) > 0) {
-    alerts.push({
-      id: 'duplicates-hash',
-      type: 'warning',
-      icon: 'mdi-fingerprint',
-      text: t('home.widgets.health_duplicates_fingerprint', {
-        count: health.value.duplicates.byFingerprint || health.value.duplicates.byContentHash,
-      }),
-      actionLabel: t('home.widgets.health_show_duplicates'),
-      action: openDuplicates,
-    })
-  }
-
-  if (health.value.duplicates.byVisualHash > 0) {
-    alerts.push({
-      id: 'duplicates-visual',
-      type: 'warning',
-      icon: 'mdi-image-multiple',
-      text: t('home.widgets.health_duplicates_visual', {
-        count: health.value.duplicates.byVisualHash,
-      }),
-      actionLabel: t('home.widgets.health_show_duplicates'),
-      action: openVisualDuplicates,
-    })
-  }
-
-  const fingerprintPending = Number(health.value.fingerprint?.pending ?? (
-    Number(health.value.contentHash?.pending || 0) + Number(health.value.oshash?.pending || 0)
-  ))
-  if (fingerprintPending > 0) {
-    alerts.push({
-      id: 'fingerprint',
-      type: 'info',
-      icon: 'mdi-fingerprint-off',
-      text: t('home.widgets.health_fingerprint_pending', {
-        count: fingerprintPending,
-      }),
-      actionLabel: t('home.widgets.health_open_settings'),
-      action: openOshashBackfillSettings,
-    })
-  }
-
-  if (health.value.videoCodec.pending > 0) {
-    alerts.push({
-      id: 'video-codec',
-      type: 'info',
-      icon: 'mdi-movie-filter-outline',
-      text: t('home.widgets.health_video_codec_pending', {
-        count: health.value.videoCodec.pending,
-      }),
-      actionLabel: t('home.widgets.health_open_video_codec_backfill'),
-      action: openVideoCodecBackfillSettings,
-    })
-  }
-
-  const videoImageTypes = ['preview', 'grid', 'marks']
-  const videoImagesPending = videoImageTypes.reduce(
-    (sum, key) => sum + Number(health.value.generatedImages.byType?.[key]?.pending || 0),
-    0,
-  )
-  const imageThumbsPending = Number(health.value.imageThumbs?.pending || 0)
-
-  if (videoImagesPending > 0) {
-    alerts.push({
-      id: 'generated-images',
-      type: 'info',
-      icon: 'mdi-image-off-outline',
-      text: t('home.widgets.health_generated_images_pending', {
-        count: videoImagesPending,
-      }),
-      actionLabel: t('home.widgets.health_open_image_generation'),
-      action: openImageGenerationSettings,
-    })
-  }
-
-  if (imageThumbsPending > 0) {
-    alerts.push({
-      id: 'image-thumbs',
-      type: 'info',
-      icon: 'mdi-image-outline',
-      text: t('home.widgets.health_image_thumbs_pending', {
-        count: imageThumbsPending,
-      }),
-      actionLabel: t('home.widgets.health_open_image_thumbs_generation'),
-      action: openImageThumbsGenerationSettings,
-    })
-  }
-
-  const tagUpscale = health.value.tagImageAiUpscale
-  if (tagUpscale && !tagUpscale.done && (tagUpscale.suggested || Number(tagUpscale.pendingCount) > 0)) {
-    alerts.push({
-      id: 'tag-ai-upscale',
-      type: 'info',
-      icon: 'mdi-image-auto-adjust',
-      text: t('home.widgets.health_tag_image_ai_upscale', {
-        size: tagUpscale.downloadSizeMb || 50,
-        count: tagUpscale.pendingCount || 0,
-      }),
-      actionLabel: t('home.widgets.health_open_tag_image_ai_upscale'),
-      action: openTagImageAiUpscaleSettings,
-    })
-  }
-
-  if (activeTasksCount.value > 0) {
-    alerts.push({
-      id: 'tasks',
-      type: 'info',
-      icon: 'mdi-cogs',
-      text: t('home.widgets.health_active_tasks', {
-        count: activeTasksCount.value,
-      }),
-      actionLabel: t('home.widgets.health_open_tasks'),
-      action: openTasks,
-    })
-  }
-
-  return alerts
+const scoreLabel = computed(() => {
+  const score = health.value.score
+  if (score >= 90) return t('home.widgets.health_score_excellent')
+  if (score >= 70) return t('home.widgets.health_score_good')
+  if (score >= 40) return t('home.widgets.health_score_needs_work')
+  return t('home.widgets.health_score_poor')
 })
 
-const canFixVisuals = computed(() =>
-  visualsFix.stagesFromHealth(health.value).length > 0 || visualsFix.state.value.running,
+const scoreToneClass = computed(() => {
+  const score = health.value.score
+  if (score >= 90) return 'text-success'
+  if (score >= 70) return 'text-primary'
+  if (score >= 40) return 'text-warning'
+  return 'text-error'
+})
+
+const QUEUE_ICONS: Record<HomeHealthQueueItemUi['id'], string> = {
+  visuals: 'mdi-image-off-outline',
+  fingerprint: 'mdi-fingerprint-off',
+  codec: 'mdi-movie-filter-outline',
+  clip: 'mdi-brain',
+  faces: 'mdi-face-recognition',
+  duplicates: 'mdi-content-copy',
+  missing: 'mdi-folder-search-outline',
+  tagUpscale: 'mdi-image-auto-adjust',
+}
+
+function queueText(item: HomeHealthQueueItemUi): string {
+  switch (item.id) {
+    case 'visuals':
+      return t('home.widgets.health_generated_images_pending', {count: item.count})
+    case 'fingerprint':
+      return t('home.widgets.health_fingerprint_pending', {count: item.count})
+    case 'codec':
+      return t('home.widgets.health_video_codec_pending', {count: item.count})
+    case 'clip':
+      return t('home.widgets.health_clip_pending', {count: item.count})
+    case 'faces':
+      return t('home.widgets.health_faces_pending', {count: item.count})
+    case 'duplicates':
+      return t('home.widgets.health_duplicates_pending', {count: item.count})
+    case 'tagUpscale':
+      return t('home.widgets.health_tag_image_ai_upscale', {
+        size: health.value.tagImageAiUpscale.downloadSizeMb || 50,
+        count: item.count,
+      })
+    case 'missing':
+      return t('home.widgets.health_missing_check')
+    default:
+      return item.id
+  }
+}
+
+function openSettingsSection(section?: string) {
+  router.push({
+    path: '/settings',
+    query: section
+      ? {tab: 'database', section}
+      : {tab: 'database'},
+  })
+}
+
+function actionForQueueItem(item: HomeHealthQueueItemUi): () => void {
+  return () => openSettingsSection(item.settingsSection)
+}
+
+function actionLabelForQueueItem(item: HomeHealthQueueItemUi): string {
+  if (item.id === 'missing') return t('home.widgets.health_open_missing')
+  if (item.id === 'duplicates') return t('home.widgets.health_show_duplicates')
+  if (item.id === 'faces') return t('home.widgets.health_open_faces')
+  if (item.id === 'clip') {
+    return item.autoFixable
+      ? t('home.widgets.health_open_clip')
+      : t('home.widgets.health_open_clip_setup')
+  }
+  if (item.id === 'visuals') return t('home.widgets.health_open_image_generation')
+  if (item.id === 'codec') return t('home.widgets.health_open_video_codec_backfill')
+  if (item.id === 'fingerprint') return t('home.widgets.health_open_settings')
+  if (item.id === 'tagUpscale') return t('home.widgets.health_open_tag_image_ai_upscale')
+  return t('home.widgets.health_open_settings')
+}
+
+const queueAlerts = computed((): HealthAlertItem[] => {
+  return (health.value.queue || []).map((item) => ({
+    id: item.id,
+    type: item.severity,
+    icon: QUEUE_ICONS[item.id] || 'mdi-alert-circle-outline',
+    text: queueText(item),
+    actionLabel: actionLabelForQueueItem(item),
+    action: actionForQueueItem(item),
+  }))
+})
+
+const issueAlerts = computed(() =>
+  queueAlerts.value.filter((alert) => alert.id !== 'missing'),
 )
 
-const visualsFixProgressLabel = computed(() => {
-  const stage = visualsFix.state.value.stage
+const tipAlerts = computed(() =>
+  queueAlerts.value.filter((alert) => alert.id === 'missing'),
+)
+
+const fixStages = computed(() => healthFix.stagesFromHealth(health.value))
+
+const canFixSafe = computed(() =>
+  fixStages.value.length > 0 || healthFix.state.value.running,
+)
+
+const primaryFixLabel = computed(() => {
+  if (hasOnlyVisualStages(fixStages.value)) {
+    return t('home.widgets.health_make_library_look_good')
+  }
+  return t('home.widgets.health_fix_safe_issues')
+})
+
+const fixProgressLabel = computed(() => {
+  const stage = healthFix.state.value.stage
   if (!stage) return ''
-  return t('home.widgets.health_make_library_look_good_progress', {
-    stage: t(`home.widgets.health_make_library_look_good_stage_${stage}`),
-    processed: visualsFix.state.value.processed,
-    total: visualsFix.state.value.total,
+  return t('home.widgets.health_fix_safe_progress', {
+    stage: t(`home.widgets.health_fix_stage_${stage}`),
+    processed: healthFix.state.value.processed,
+    total: healthFix.state.value.total,
   })
 })
 
-async function fixLibraryVisuals() {
-  const ok = await visualsFix.run(
+async function fixSafeIssues() {
+  const ok = await healthFix.run(
     health.value,
     String(settingsStore.locale || locale.value || 'en') as Locale,
   )
@@ -352,78 +351,11 @@ async function fixLibraryVisuals() {
 }
 
 function openDatabaseSettings() {
-  router.push({
-    path: '/settings',
-    query: {tab: 'database'},
-  })
-}
-
-function openImageGenerationSettings() {
-  router.push({
-    path: '/settings',
-    query: {
-      tab: 'database',
-      section: 'generate_video_images',
-    },
-  })
-}
-
-function openImageThumbsGenerationSettings() {
-  router.push({
-    path: '/settings',
-    query: {
-      tab: 'database',
-      section: 'generate_image_thumbs',
-    },
-  })
-}
-
-function openTagImageAiUpscaleSettings() {
-  router.push({
-    path: '/settings',
-    query: {
-      tab: 'database',
-      section: 'tag_image_ai_upscale',
-    },
-  })
-}
-
-function openVideoCodecBackfillSettings() {
-  router.push({
-    path: '/settings',
-    query: {
-      tab: 'database',
-      section: 'video_codec_backfill',
-    },
-  })
-}
-
-function openOshashBackfillSettings() {
-  router.push({
-    path: '/settings',
-    query: {
-      tab: 'database',
-      section: 'oshash_backfill',
-    },
-  })
+  openSettingsSection()
 }
 
 function openTasks() {
   appShell.openTasksMenu()
-}
-
-function openDuplicates() {
-  router.push({
-    path: '/settings',
-    query: {tab: 'database', section: 'find_duplicates'},
-  })
-}
-
-function openVisualDuplicates() {
-  router.push({
-    path: '/settings',
-    query: {tab: 'database', section: 'find_duplicates'},
-  })
 }
 
 async function loadHealth() {
@@ -456,7 +388,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  visualsFix.stop()
+  healthFix.stop()
 })
 </script>
 
@@ -464,6 +396,11 @@ onBeforeUnmount(() => {
 .widget-health-alerts {
   &__item {
     margin-bottom: 0;
+  }
+
+  &__score-value {
+    line-height: 1;
+    min-width: 3.5rem;
   }
 }
 </style>

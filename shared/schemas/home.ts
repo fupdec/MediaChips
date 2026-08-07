@@ -36,7 +36,28 @@ export const ExtendedStatsSchema = z.object({
   largestFiles: z.array(ExtendedStatsFileSchema).optional(),
 }).passthrough()
 
+export const HealthQueueItemIdSchema = z.enum([
+  'visuals',
+  'fingerprint',
+  'codec',
+  'clip',
+  'faces',
+  'duplicates',
+  'missing',
+  'tagUpscale',
+])
+
+export const HealthQueueItemSchema = z.object({
+  id: HealthQueueItemIdSchema,
+  severity: z.enum(['error', 'warning', 'info']),
+  count: z.number(),
+  autoFixable: z.boolean(),
+  settingsSection: z.string().optional(),
+})
+
 export const HomeHealthSchema = z.object({
+  score: z.number().optional(),
+  queue: z.array(HealthQueueItemSchema).optional(),
   duplicates: z.object({
     byFilesize: z.number(),
     byContentHash: z.number(),
@@ -84,6 +105,19 @@ export const HomeHealthSchema = z.object({
     total: z.number(),
     generated: z.number(),
     pending: z.number(),
+  }).optional(),
+  clip: z.object({
+    total: z.number(),
+    pending: z.number(),
+    hashed: z.number(),
+    modelStatus: z.string().optional(),
+    model: z.string().optional(),
+  }).optional(),
+  faces: z.object({
+    total: z.number(),
+    pending: z.number(),
+    generated: z.number(),
+    faces: z.number().optional(),
   }).optional(),
   database: z.object({
     id: z.number().nullable(),
@@ -220,5 +254,7 @@ export type ParsedExtendedStatsByType = z.infer<typeof ExtendedStatsByTypeSchema
 export type ParsedExtendedStatsFile = z.infer<typeof ExtendedStatsFileSchema>
 export type ParsedExtendedStats = z.infer<typeof ExtendedStatsSchema>
 export type ParsedHomeHealth = z.infer<typeof HomeHealthSchema>
+export type HealthQueueItem = NonNullable<ParsedHomeHealth['queue']>[number]
+export type HealthQueueItemId = z.infer<typeof HealthQueueItemIdSchema>
 export type ParsedHomeMarkers = z.infer<typeof HomeMarkersSchema>
 export type ParsedHomeMediaResponse = z.infer<typeof HomeMediaResponseSchema>

@@ -22,6 +22,18 @@ vi.mock('./imageThumbsGeneration', () => ({
   }),
 }))
 
+vi.mock('./mediaClipEmbeddings', () => ({
+  getClipEmbeddingBackfillStatus: vi.fn(async () => {
+    throw new Error('should not be called in lite health')
+  }),
+}))
+
+vi.mock('./faceDetector', () => ({
+  getFaceDetectionStatus: vi.fn(async () => {
+    throw new Error('should not be called in lite health')
+  }),
+}))
+
 vi.mock('./tagImageAiUpscale', () => ({
   isTagImageAiUpscaleDone: vi.fn(() => false),
   hasAnyUpscaleCandidateFiles: vi.fn(async () => true),

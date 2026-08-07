@@ -33,14 +33,37 @@ describe('home schemas', () => {
 
   it('parses health and markers', () => {
     const health = parseHomeHealth({
+      score: 82,
+      queue: [
+        {
+          id: 'visuals',
+          severity: 'info',
+          count: 3,
+          autoFixable: true,
+          settingsSection: 'generate_video_images',
+        },
+        {
+          id: 'missing',
+          severity: 'info',
+          count: 0,
+          autoFixable: false,
+          settingsSection: 'find_missing',
+        },
+      ],
       duplicates: { byFilesize: 1, byContentHash: 2 },
       contentHash: { total: 10, pending: 3, hashed: 7 },
       oshash: { total: 5, pending: 2, hashed: 3 },
       videoCodec: { total: 8, pending: 2, filled: 6 },
+      clip: { total: 4, pending: 1, hashed: 3, modelStatus: 'downloaded' },
+      faces: { total: 9, pending: 2, generated: 7 },
     })
     expect(health.duplicates?.byContentHash).toBe(2)
     expect(health.oshash?.pending).toBe(2)
     expect(health.videoCodec?.pending).toBe(2)
+    expect(health.score).toBe(82)
+    expect(health.queue?.[0]?.id).toBe('visuals')
+    expect(health.clip?.pending).toBe(1)
+    expect(health.faces?.pending).toBe(2)
 
     const markers = parseHomeMarkers({ marks: [{ id: 1, time: 12 }] })
     expect(markers.marks?.[0]?.id).toBe(1)

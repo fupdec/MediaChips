@@ -38,7 +38,27 @@ export interface HomeHealthGeneratedTypeUi {
   pending?: number
 }
 
+export type HomeHealthQueueItemId =
+  | 'visuals'
+  | 'fingerprint'
+  | 'codec'
+  | 'clip'
+  | 'faces'
+  | 'duplicates'
+  | 'missing'
+  | 'tagUpscale'
+
+export interface HomeHealthQueueItemUi {
+  id: HomeHealthQueueItemId
+  severity: 'error' | 'warning' | 'info'
+  count: number
+  autoFixable: boolean
+  settingsSection?: string
+}
+
 export interface HomeHealthDataUi {
+  score: number
+  queue: HomeHealthQueueItemUi[]
   duplicates: {
     byFilesize: number
     byContentHash: number
@@ -52,6 +72,19 @@ export interface HomeHealthDataUi {
   videoCodec: { total: number; pending: number; filled: number }
   generatedImages: { byType: Record<string, HomeHealthGeneratedTypeUi>; totalPending: number }
   imageThumbs: HomeHealthImageThumbsUi
+  clip: {
+    total: number
+    pending: number
+    hashed: number
+    modelStatus: string
+    model: string
+  }
+  faces: {
+    total: number
+    pending: number
+    generated: number
+    faces: number
+  }
   database: { id: number | null; name: string | null; bytes: number | null }
   tagImageAiUpscale: {
     done: boolean
@@ -84,6 +117,8 @@ export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
     byVisualHash: 0,
   }
   return {
+    score: typeof data.score === 'number' ? data.score : 100,
+    queue: (data.queue ?? []) as HomeHealthQueueItemUi[],
     duplicates: {
       byFilesize: duplicates.byFilesize ?? 0,
       byContentHash: duplicates.byContentHash ?? 0,
@@ -105,6 +140,19 @@ export function toHomeHealthUi(data: ParsedHomeHealth): HomeHealthDataUi {
       totalPending: data.generatedImages?.totalPending ?? 0,
     },
     imageThumbs: data.imageThumbs ?? { total: 0, generated: 0, pending: 0 },
+    clip: {
+      total: data.clip?.total ?? 0,
+      pending: data.clip?.pending ?? 0,
+      hashed: data.clip?.hashed ?? 0,
+      modelStatus: data.clip?.modelStatus ?? '',
+      model: data.clip?.model ?? '',
+    },
+    faces: {
+      total: data.faces?.total ?? 0,
+      pending: data.faces?.pending ?? 0,
+      generated: data.faces?.generated ?? 0,
+      faces: data.faces?.faces ?? 0,
+    },
     database: data.database ?? { id: null, name: null, bytes: null },
     tagImageAiUpscale: {
       done: data.tagImageAiUpscale?.done ?? true,
@@ -128,6 +176,8 @@ export const emptyExtendedStatsUi = (): ExtendedStatsUi => ({
 })
 
 export const emptyHomeHealthUi = (): HomeHealthDataUi => ({
+  score: 100,
+  queue: [],
   duplicates: { byFilesize: 0, byContentHash: 0, byOshash: 0, byFingerprint: 0, byVisualHash: 0 },
   fingerprint: { total: 0, pending: 0, hashed: 0 },
   contentHash: { total: 0, pending: 0, hashed: 0 },
@@ -135,6 +185,8 @@ export const emptyHomeHealthUi = (): HomeHealthDataUi => ({
   videoCodec: { total: 0, pending: 0, filled: 0 },
   generatedImages: { byType: {}, totalPending: 0 },
   imageThumbs: { total: 0, generated: 0, pending: 0 },
+  clip: { total: 0, pending: 0, hashed: 0, modelStatus: '', model: '' },
+  faces: { total: 0, pending: 0, generated: 0, faces: 0 },
   database: { id: null, name: null, bytes: null },
   tagImageAiUpscale: { done: true, pendingCount: 0, suggested: false, downloadSizeMb: 50 },
 })
