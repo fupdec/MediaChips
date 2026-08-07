@@ -531,7 +531,72 @@ const add = (params: FilterListParam[]) => {
   editMode.value = true
 }
 
-const applyAiFilters = (payload: Record<string, unknown>) => {
+const pickBestTagMatch = (
+  items: Array<{id?: number | string, name?: string | null}>,
+  query: string,
+): number | null => {
+  const needle = query.trim().toLowerCase()
+  if (!needle || !items.length) return null
+  const exact = items.find((item) => String(item.name || '').trim().toLowerCase() === needle)
+  if (exact?.id != null && Number.isFinite(Number(exact.id))) return Number(exact.id)
+  const starts = items.find((item) => String(item.name || '').trim().toLowerCase().startsWith(needle))
+  if (starts?.id != null && Number.isFinite(Number(starts.id))) return Number(starts.id)
+  const first = items[0]
+  if (first?.id != null && Number.isFinite(Number(first.id))) return Number(first.id)
+  return null
+}
+
+const resolveArrayFilterVal = async (
+  raw: unknown,
+  metaId: number | undefined,
+): Promise<number[] | null> => {
+  if (raw == null) return null
+  const parts = Array.isArray(raw)
+    ? raw
+    : (typeof raw === 'object'
+      ? Object.values(raw as Record<string, unknown>)
+      : [raw])
+  const ids: number[] = []
+  const unresolved: string[] = []
+
+  for (const part of parts) {
+    if (typeof part === 'number' && Number.isFinite(part)) {
+      ids.push(part)
+      continue
+    }
+    const text = String(part ?? '').trim()
+    if (!text) continue
+    if (/^\d+$/.test(text)) {
+      ids.push(Number(text))
+      continue
+    }
+    try {
+      const response = await typedApi.searchTags({
+        q: text,
+        limit: 8,
+        ...(metaId != null && Number.isFinite(metaId) ? {metaId} : {}),
+      })
+      const matched = pickBestTagMatch(response.data || [], text)
+      if (matched != null) ids.push(matched)
+      else unresolved.push(text)
+    } catch {
+      unresolved.push(text)
+    }
+  }
+
+  if (unresolved.length && typeof window !== 'undefined' && window.showNotification) {
+    window.showNotification(
+      t('settings_labels.local_ai.assist_tag_unresolved', {
+        names: unresolved.slice(0, 3).join(', '),
+      }),
+      'warning',
+    )
+  }
+
+  return ids.length ? [...new Set(ids)] : null
+}
+
+const applyAiFilters = async (payload: Record<string, unknown>) => {
   const rows = Array.isArray(payload?.filters) ? payload.filters : []
   let added = 0
   for (const entry of rows) {
@@ -539,22 +604,32 @@ const applyAiFilters = (payload: Record<string, unknown>) => {
     const row = entry as Record<string, unknown>
     const param = row.param
     if (param == null || param === '') continue
-    const type = String(row.type || 'string')
+    const field = listBy.value.find((item) => String(item.param) === String(param))
+    const type = String(field?.type || row.type || 'string')
     const allowed = getListCond(type).map((item) => item.cond)
-    const cond = String(row.cond || '')
+    let cond = String(row.cond || '')
+    if (type === 'boolean' && (cond === '!==' || cond === '≠')) cond = '!='
     if (!cond || !allowed.includes(cond)) continue
 
-    const field = listBy.value.find((item) => String(item.param) === String(param))
+    let val: unknown = row.val ?? null
+    const metaId = typeof (field?.param ?? param) === 'number'
+      || /^\d+$/.test(String(field?.param ?? param))
+      ? Number(field?.param ?? param)
+      : undefined
+
+    if (type === 'array' && cond !== 'is null' && cond !== 'not null') {
+      val = await resolveArrayFilterVal(val, metaId)
+      if (!Array.isArray(val) || !val.length) continue
+    }
+
     const filter_obj = getFilterObject({
       param: field ? field.param : param as string | number,
       type: field?.type ?? type,
       cond,
-      val: row.val ?? null,
+      val,
       active: true,
       order: filters.value.length,
-      metaId: typeof (field?.param ?? param) === 'number'
-        ? Number(field?.param ?? param)
-        : undefined,
+      metaId,
     })
     filters.value.push(filter_obj)
     added += 1

@@ -1253,7 +1253,8 @@ const en = {
       assist_bad_regex: 'The model did not return a usable regex. Add a sample path and capture text, then try again.',
       assist_bad_result: 'The model did not return usable suggestions. Try again.',
       assist_bad_filters: 'No valid filters to apply. Try a clearer request with available fields.',
-      assist_filter_goal: 'e.g. rating > 4, favorite, not watched this month',
+      assist_filter_goal: 'e.g. rating > 4, favorite, not watched month, Tags: name, 1080p',
+      assist_tag_unresolved: 'Could not find tags: {names}',
       assist_apply: 'Apply suggestion',
       assist_discard: 'Discard',
 

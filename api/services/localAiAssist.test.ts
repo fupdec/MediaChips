@@ -159,6 +159,34 @@ describe('localAiAssist', () => {
     ])
   })
 
+  it('synthesizes resolution, name, and tagged meta fields', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      goal: '1080p, имя: clash, Girls: Lara Onyx, Tags: blonde',
+      availableFields: [
+        {param: 'height', type: 'number', name: 'Height'},
+        {param: 'name', type: 'string', name: 'Name'},
+        {param: 17, type: 'array', name: 'Girls'},
+        {param: 18, type: 'array', name: 'Tags'},
+      ],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 'name', type: 'string', cond: 'like', val: 'clash', active: true},
+      {param: 'height', type: 'number', cond: '>=', val: 1080, active: true},
+      {param: 17, type: 'array', cond: 'in', val: ['Lara Onyx'], active: true},
+      {param: 18, type: 'array', cond: 'in', val: ['blonde'], active: true},
+    ])
+  })
+
+  it('synthesizes empty meta fields as is null', () => {
+    const parsed = normalizeFilterAssistParsed(null, {
+      goal: 'без Tags',
+      availableFields: [{param: 18, type: 'array', name: 'Tags'}],
+    })
+    expect(parsed?.filters).toEqual([
+      {param: 18, type: 'array', cond: 'is null', val: null, active: true},
+    ])
+  })
+
 
   it('repairs bad regex with deterministic path generator when there is no goal', () => {
     const sample = '/Media/Library/[StudioName]clip.mp4'

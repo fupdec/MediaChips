@@ -95,11 +95,69 @@ function hasAddedDateIntent(goal: string): boolean {
   return /добавлен|date\s+added|created|дата\s+добавлен|недавно\s+добав/i.test(goal)
 }
 
+function hasNameIntent(goal: string): boolean {
+  return /(?:^|[\s,;])(?:имя|name|filename|файл(?:а)?\s+имя|в\s+имени)/i.test(goal)
+    || /имя\s*(?:файла|содержит|like|:|=)/i.test(goal)
+}
+
+function hasBookmarkIntent(goal: string): boolean {
+  return /закладк|bookmark/i.test(goal)
+}
+
+function hasResolutionIntent(goal: string): boolean {
+  return /\b(?:\d{3,4}p|4k|8k|uhd|full\s*hd|fhd|\bhd\b|разрешен|resolution|высот|width|height|ширин)\b/i.test(goal)
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function isNumericMetaParam(param: string | number): boolean {
+  return typeof param === 'number' || /^\d+$/.test(String(param))
+}
+
+function isArrayMetaField(field: AvailableFilterField): boolean {
+  return String(field.type || '') === 'array' && isNumericMetaParam(field.param)
+}
+
+function cleanValueToken(raw: string): string {
+  return String(raw || '')
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function splitValueList(raw: string): string[] {
+  return String(raw || '')
+    .split(/[,;|]/)
+    .map((part) => cleanValueToken(part))
+    .filter((part) => part.length >= 1)
+}
+
 function fieldByParam(
   availableFields: AvailableFilterField[],
   param: string,
 ): AvailableFilterField | null {
   return availableFields.find((field) => String(field.param) === param) || null
+}
+
+function fieldByName(
+  availableFields: AvailableFilterField[],
+  name: string,
+): AvailableFilterField | null {
+  const key = name.trim().toLowerCase()
+  if (!key) return null
+  return availableFields.find((field) => String(field.name || '').trim().toLowerCase() === key) || null
+}
+
+function findTagsField(availableFields: AvailableFilterField[]): AvailableFilterField | null {
+  return fieldByName(availableFields, 'Tags')
+    || fieldByName(availableFields, 'Tag')
+    || fieldByName(availableFields, 'Теги')
+    || fieldByName(availableFields, 'Тег')
+    || availableFields.find((field) => isArrayMetaField(field) && /tag/i.test(String(field.name || '')))
+    || null
 }
 
 function pushFilter(
@@ -294,7 +352,204 @@ export function synthesizeFiltersFromGoal(
     }
   }
 
+  if (hasNameIntent(goal)) {
+    const match = goal.match(
+      /(?:имя(?:\s+файла)?|name|filename)\s*(?:contains|like|содержит|:|=)?\s*["'`]?([^"'`\n,;]+)/i,
+    )
+    const token = cleanValueToken(match?.[1] || '')
+    if (token.length >= 2) {
+      pushFilter(out, fieldByParam(availableFields, 'name'), 'like', token)
+    }
+  }
+
+  if (hasBookmarkIntent(goal)) {
+    const bookmark = fieldByParam(availableFields, 'bookmark')
+    if (/без\s+заклад|no\s+bookmark|empty\s+bookmark|без\s+bookmark/i.test(goal)) {
+      pushFilter(out, bookmark, 'is null', null)
+    } else {
+      const match = goal.match(/(?:закладк\w*|bookmark)\s*[:=]?\s*["'`]?([^"'`\n,;]+)/i)
+      const token = cleanValueToken(match?.[1] || '')
+      if (token && !/^(есть|yes|true|on)$/i.test(token)) {
+        pushFilter(out, bookmark, 'like', token)
+      } else {
+        pushFilter(out, bookmark, 'not null', null)
+      }
+    }
+  }
+
+  if (hasResolutionIntent(goal)) {
+    synthesizeResolutionFilters(out, goal, availableFields)
+  }
+
+  synthesizeMetaFieldFilters(out, goal, availableFields)
+
   return dedupeFiltersByParam(out)
+}
+
+function synthesizeResolutionFilters(
+  out: GoalFilterRow[],
+  goal: string,
+  availableFields: AvailableFilterField[],
+) {
+  const height = fieldByParam(availableFields, 'height')
+  const width = fieldByParam(availableFields, 'width')
+  const labeled = goal.match(/\b(4320|2160|1440|1080|720|480)p\b/i)
+  if (labeled) {
+    const px = Number(labeled[1])
+    pushFilter(out, height, '>=', px)
+    return
+  }
+  if (/\b(?:8k|4320)\b/i.test(goal)) {
+    pushFilter(out, height, '>=', 4320)
+    return
+  }
+  if (/\b(?:4k|uhd|2160)\b/i.test(goal)) {
+    pushFilter(out, height, '>=', 2160)
+    return
+  }
+  if (/\b(?:full\s*hd|fhd|1080)\b/i.test(goal)) {
+    pushFilter(out, height, '>=', 1080)
+    return
+  }
+  if (/\b(?:hd|720)\b/i.test(goal) && !/full\s*hd|fhd/i.test(goal)) {
+    pushFilter(out, height, '>=', 720)
+    return
+  }
+
+  const heightMatch = goal.match(/(?:высот\w*|height)\s*(>=|<=|>|<|=|≥|≤)?\s*(\d{3,4})/i)
+  if (heightMatch) {
+    const amount = parseNumberToken(heightMatch[2])
+    if (amount != null) pushFilter(out, height, parseCompareOp(heightMatch[1]), amount)
+  }
+  const widthMatch = goal.match(/(?:ширин\w*|width)\s*(>=|<=|>|<|=|≥|≤)?\s*(\d{3,4})/i)
+  if (widthMatch) {
+    const amount = parseNumberToken(widthMatch[2])
+    if (amount != null) pushFilter(out, width, parseCompareOp(widthMatch[1]), amount)
+  }
+}
+
+function arrayCondFromGoal(goal: string, around = ''): string {
+  const blob = `${goal} ${around}`.toLowerCase()
+  if (/not\s+in|без|кроме|exclude|исключ/.test(blob)) return 'not in'
+  if (/in\s+only|только|exclusive|exclusively/.test(blob)) return 'in only'
+  if (/in\s+all|все\s+из|all\s+of/.test(blob)) return 'in all'
+  return 'in'
+}
+
+function truncateAtNextFieldAssignment(
+  value: string,
+  currentName: string,
+  fieldNames: string[],
+): string {
+  let next = value
+  for (const other of fieldNames) {
+    if (other.toLowerCase() === currentName.toLowerCase()) continue
+    if (other.length < 2) continue
+    const cut = next.search(new RegExp(`[,|;]\\s*${escapeRegExp(other)}\\s*[:=]`, 'i'))
+    if (cut >= 0) next = next.slice(0, cut)
+  }
+  return next.trim()
+}
+
+/**
+ * Match pinned/meta fields mentioned by their UI name, e.g. `Girls: Lara`, `Tags Lara`.
+ * Values stay as names; the UI resolves them to tag IDs on Apply.
+ */
+function synthesizeMetaFieldFilters(
+  out: GoalFilterRow[],
+  goal: string,
+  availableFields: AvailableFilterField[],
+) {
+  // Longer names first so "Release Date" wins over "Date".
+  const namedFields = [...availableFields]
+    .filter((field) => String(field.name || '').trim().length >= 2)
+    .sort((a, b) => String(b.name).length - String(a.name).length)
+  const fieldNames = namedFields.map((field) => String(field.name || '').trim())
+
+  for (const field of namedFields) {
+    const name = String(field.name || '').trim()
+    const type = String(field.type || 'string')
+    const esc = escapeRegExp(name)
+
+    if (
+      new RegExp(`(?:без|empty|no|missing|без\\s+значен)\\s+${esc}`, 'i').test(goal)
+      || new RegExp(`${esc}\\s+(?:пуст\\w*|empty|is\\s+null|без\\s+значен)`, 'i').test(goal)
+    ) {
+      if (type === 'array' || type === 'string') {
+        pushFilter(out, field, 'is null', null)
+        continue
+      }
+    }
+
+    if (
+      new RegExp(`${esc}\\s+(?:заполнен\\w*|not\\s+null|is\\s+set)`, 'i').test(goal)
+      || new RegExp(`(?:есть\\s+значен\\w*|has\\s+value)\\s+${esc}`, 'i').test(goal)
+    ) {
+      if (type === 'array' || type === 'string') {
+        pushFilter(out, field, 'not null', null)
+        continue
+      }
+    }
+
+    if (type === 'array' && isArrayMetaField(field)) {
+      const assigned = goal.match(
+        new RegExp(`${esc}\\s*[:=]\\s*["']?([^"'\\n;]+)`, 'i'),
+      ) || goal.match(
+        new RegExp(`(?:тег(?:и)?|tags?)\\s+[:=]?\\s*["']?([^"'\\n,;]+)["']?\\s+(?:в|in|для|from)\\s+${esc}`, 'i'),
+      )
+      if (assigned?.[1]) {
+        const clipped = truncateAtNextFieldAssignment(assigned[1], name, fieldNames)
+        const values = splitValueList(clipped).filter((item) => item.length >= 2)
+        if (values.length) {
+          pushFilter(out, field, arrayCondFromGoal(goal, assigned[0]), values)
+        }
+      }
+      continue
+    }
+
+    if (type === 'string' && !['name', 'path', 'bookmark'].includes(String(field.param))) {
+      const assigned = goal.match(
+        new RegExp(`${esc}\\s*[:=]\\s*["']?([^"'\\n,;]+)`, 'i'),
+      )
+      const token = cleanValueToken(
+        truncateAtNextFieldAssignment(assigned?.[1] || '', name, fieldNames),
+      )
+      if (token.length >= 2) {
+        pushFilter(out, field, 'like', token)
+      }
+      continue
+    }
+
+    if (type === 'number' || type === 'rating') {
+      // Skip built-ins handled elsewhere (rating/duration/height…).
+      if (['rating', 'duration', 'height', 'width', 'views', 'filesize'].includes(String(field.param))) {
+        continue
+      }
+      const assigned = goal.match(
+        new RegExp(`${esc}\\s*(>=|<=|>|<|=|≥|≤)?\\s*(\\d+(?:[.,]\\d+)?)`, 'i'),
+      )
+      if (assigned) {
+        const amount = parseNumberToken(assigned[2])
+        if (amount != null) {
+          pushFilter(out, field, parseCompareOp(assigned[1]), amount)
+        }
+      }
+    }
+  }
+
+  // Generic “тег Name” / “tag Name” when no field was prefixed.
+  if (!out.some((row) => String(row.type) === 'array' && Array.isArray(row.val) && row.val.length)) {
+    const generic = goal.match(
+      /(?:^|[\s,;])(?:тег(?:и)?|tags?)\s*[:=]?\s*["']?([^"'\\n,;]+)/i,
+    )
+    if (generic?.[1]) {
+      const values = splitValueList(generic[1]).filter((item) => item.length >= 2)
+      const tagsField = findTagsField(availableFields)
+      if (tagsField && values.length) {
+        pushFilter(out, tagsField, arrayCondFromGoal(goal, generic[0]), values)
+      }
+    }
+  }
 }
 
 export function dedupeFiltersByParam(rows: GoalFilterRow[]): GoalFilterRow[] {
