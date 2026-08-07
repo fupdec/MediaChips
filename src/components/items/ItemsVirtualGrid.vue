@@ -99,7 +99,9 @@ const layoutOptions = computed(() => ({
   wideImage: props.wideImage ?? false,
   lineGrid: props.lineGrid ?? false,
   chipsGrid: props.chipsGrid ?? false,
-  imageAspectRatio: props.imageAspectRatio,
+  // Image cards use a fixed 16:9 estimate so locked row heights stay jump-free.
+  imageAspectRatio: props.imageAspectRatio
+    ?? (props.imageGrid ? 16 / 9 : undefined),
   lockRowHeight: true,
 }))
 

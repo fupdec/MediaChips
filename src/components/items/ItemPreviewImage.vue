@@ -38,6 +38,8 @@ import {useItemsStore} from '@/stores/items'
 import { loadImageDisplayUrl, revokeImageObjectUrl, IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
 import {getMediaAspectRatio} from '@/utils/gridLayout'
 import {getCachedThumb, isPersistentThumbUrl, mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
+import {enqueueImageThumbRegen} from '@/utils/imageThumbRegen'
+import {galleryPerfCounters} from '@/utils/galleryPerfCounters'
 import type {MediaItem} from '@/types/stores'
 
 const props = withDefaults(defineProps<{
@@ -150,7 +152,10 @@ const applyCachedThumb = (): boolean => {
 }
 
 const regenerateThumb = async () => {
-  await typedApi.updateMediaInfo(props.media.id)
+  if (!props.previewActive) return
+  await enqueueImageThumbRegen(Number(props.media.id), () =>
+    typedApi.updateMediaInfo(props.media.id).then(() => undefined),
+  )
 }
 
 const applyLoadedSrc = (src: string, generation: number) => {
@@ -176,39 +181,46 @@ const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
   thumbLoadStarted = true
   const generation = ++loadGeneration
   clearThumbUrl()
+  galleryPerfCounters.thumbInFlight += 1
 
-  const src = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust, preferFull})
+  try {
+    const src = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust, preferFull})
 
-  if (!isMounted.value) {
-    // Keep the result if we are still the latest load; apply once mounted.
-    if (generation !== loadGeneration) {
-      revokeImageObjectUrl(src?.startsWith?.('blob:') ? src : null)
+    if (!isMounted.value) {
+      // Keep the result if we are still the latest load; apply once mounted.
+      if (generation !== loadGeneration) {
+        revokeImageObjectUrl(src?.startsWith?.('blob:') ? src : null)
+        return
+      }
+      if (!src.includes('unavailable.png')) {
+        thumbObjectUrl = src.startsWith('blob:') ? src : null
+        thumb.value = src
+      }
       return
     }
-    if (!src.includes('unavailable.png')) {
-      thumbObjectUrl = src.startsWith('blob:') ? src : null
-      thumb.value = src
+
+    if (applyLoadedSrc(src, generation)) return
+
+    // Generated thumbs live under mediaPath even when the source file is missing.
+    // Skip regen when the card left the viewport (generation bump / preview off).
+    if (props.isFileExists && props.previewActive && generation === loadGeneration) {
+      try {
+        await regenerateThumb()
+        if (!props.previewActive || generation !== loadGeneration) return
+        const regenerated = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust: true})
+        if (applyLoadedSrc(regenerated, generation)) return
+        revokeImageObjectUrl(regenerated?.startsWith?.('blob:') ? regenerated : null)
+      } catch (error) {
+        console.error('Image thumbnail regeneration failed:', error)
+      }
     }
-    return
+
+    if (generation !== loadGeneration) return
+    thumbObjectUrl = null
+    thumb.value = IMAGE_UNAVAILABLE_URL
+  } finally {
+    galleryPerfCounters.thumbInFlight = Math.max(0, galleryPerfCounters.thumbInFlight - 1)
   }
-
-  if (applyLoadedSrc(src, generation)) return
-
-  // Generated thumbs live under mediaPath even when the source file is missing.
-  if (props.isFileExists) {
-    try {
-      await regenerateThumb()
-      const regenerated = await loadImageDisplayUrl(props.media, store.mediaPath, {cacheBust: true})
-      if (applyLoadedSrc(regenerated, generation)) return
-      revokeImageObjectUrl(regenerated?.startsWith?.('blob:') ? regenerated : null)
-    } catch (error) {
-      console.error('Image thumbnail regeneration failed:', error)
-    }
-  }
-
-  if (generation !== loadGeneration) return
-  thumbObjectUrl = null
-  thumb.value = IMAGE_UNAVAILABLE_URL
 }
 
 const requestThumb = () => {

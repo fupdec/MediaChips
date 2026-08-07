@@ -237,7 +237,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onBeforeUnmount} from 'vue'
+import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -271,6 +271,7 @@ import {
 import {buildMediaDragGhostDataUrl} from '@/utils/mediaDragGhost'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
+import {bumpMountedItems} from '@/utils/galleryPerfCounters'
 import {toChipVariant} from '@/utils/chipVariant'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {useAppStore} from '@/stores/app'
@@ -663,7 +664,12 @@ watch(isInView, (visible) => {
   else markItemHidden(id)
 }, { immediate: true })
 
+onMounted(() => {
+  bumpMountedItems(1)
+})
+
 onBeforeUnmount(() => {
+  bumpMountedItems(-1)
   markItemHidden(Number(props.item.id))
   clearEditClickSuppress()
 })

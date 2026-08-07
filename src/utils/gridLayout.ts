@@ -356,17 +356,44 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
 }
 
 export function shouldUseVirtualGrid(
-  _itemCount: number,
+  itemCount: number,
   _isInfiniteScroll: boolean,
-  _itemsType: 'media' | 'tag' = 'media',
+  itemsType: 'media' | 'tag' = 'media',
+  {enabled = true}: {enabled?: boolean} = {},
 ): boolean {
-  // Fixed row-height virtualization jumps scroll when real card heights differ from
-  // estimates (e.g. page size 50≥threshold). Paginated pages are small enough for
-  // full render + content-visibility; infinite scroll stays unvirtualized too.
-  return false
+  if (!enabled) return false
+  // Tags/chips and small pages stay fully rendered (content-visibility is enough).
+  if (itemsType !== 'media') return false
+  return itemCount >= VIRTUAL_GRID_THRESHOLD
 }
 
-export const shouldUseVirtualMasonry = shouldUseVirtualGrid
+export function shouldUseVirtualMasonry(
+  itemCount: number,
+  isInfiniteScroll: boolean,
+  itemsType: 'media' | 'tag' = 'media',
+  {
+    enabled = true,
+    items = [],
+    minDimensionCoverage = 0.95,
+  }: {
+    enabled?: boolean
+    items?: Array<{ width?: number | null; height?: number | null }>
+    minDimensionCoverage?: number
+  } = {},
+): boolean {
+  if (!shouldUseVirtualGrid(itemCount, isInfiniteScroll, itemsType, {enabled})) {
+    return false
+  }
+
+  if (!items.length) return false
+
+  let withDims = 0
+  for (const item of items) {
+    if (Number(item.width) > 0 && Number(item.height) > 0) withDims += 1
+  }
+
+  return withDims / items.length >= minDimensionCoverage
+}
 
 export function getLayoutTopInScroll(
   layoutEl: Element | null | undefined,

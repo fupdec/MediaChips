@@ -23,6 +23,7 @@ import { findFirstPlayableVideo } from '@/utils/findFirstPlayableVideo'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
 import { selectContiguousEntityIds } from '@/utils/itemsSelectionRange'
+import { INFINITE_SCROLL_MAX_ITEMS } from '@shared/listPagination'
 
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
@@ -228,7 +229,7 @@ export const useItemsStore = defineStore('items', {
       if (!source.length) return [image.id]
 
       const mediaTypeId = image.mediaTypeId
-      const ids = []
+      const ids: number[] = []
 
       for (const item of source) {
         if (!mediaTypeId || item.mediaTypeId === mediaTypeId) {
@@ -236,7 +237,20 @@ export const useItemsStore = defineStore('items', {
         }
       }
 
-      return ids.length ? ids : [image.id]
+      if (!ids.length) return [image.id]
+
+      // Keep playlist bounded when the in-memory list is huge; viewer extends via loadMore.
+      const MAX_PLAYLIST = INFINITE_SCROLL_MAX_ITEMS
+      if (ids.length <= MAX_PLAYLIST) return ids
+
+      const idx = ids.indexOf(image.id)
+      if (idx < 0) return ids.slice(0, MAX_PLAYLIST)
+
+      const half = Math.floor(MAX_PLAYLIST / 2)
+      let start = Math.max(0, idx - half)
+      let end = Math.min(ids.length, start + MAX_PLAYLIST)
+      start = Math.max(0, end - MAX_PLAYLIST)
+      return ids.slice(start, end)
     },
 
     registerViewerLoadMoreHandler(handler: (() => Promise<boolean>) | null) {

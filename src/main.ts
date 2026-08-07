@@ -120,5 +120,8 @@ router.isReady().then(() => {
     import('@/composable/useOnboarding').then(({openOnboarding}) => {
       ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
     })
+    import('@/utils/galleryPerfCounters').then(({getGalleryPerfSnapshot}) => {
+      ;(window as Window & {__galleryPerf?: () => ReturnType<typeof getGalleryPerfSnapshot>}).__galleryPerf = getGalleryPerfSnapshot
+    })
   }
 })

@@ -30,6 +30,7 @@ export const useImageViewerStore = defineStore('imageViewer', {
     isFileExists: true,
     slideshowActive: false,
     infoVisible: true,
+    filmstripVisible: true,
   }),
 
   getters: {
@@ -146,6 +147,7 @@ export const useImageViewerStore = defineStore('imageViewer', {
       this.isFileExists = true
       this.slideshowActive = false
       this.infoVisible = true
+      this.filmstripVisible = true
       this.resetTransform()
     },
 
@@ -204,6 +206,14 @@ export const useImageViewerStore = defineStore('imageViewer', {
       return true
     },
 
+    goTo(index: number) {
+      const total = this.sources.length || this.imageIds.length
+      if (index < 0 || index >= total || index === this.index) return false
+      this.index = index
+      this.resetTransform()
+      return true
+    },
+
     zoomIn() {
       this.scale = Math.min(this.scale * 1.25, 8)
     },
@@ -216,6 +226,10 @@ export const useImageViewerStore = defineStore('imageViewer', {
       this.fullscreen = !this.fullscreen
     },
 
+    setFullscreen(value: boolean) {
+      this.fullscreen = value
+    },
+
     setSlideshowActive(active: boolean) {
       this.slideshowActive = active
     },
@@ -226,6 +240,10 @@ export const useImageViewerStore = defineStore('imageViewer', {
 
     toggleInfoVisible() {
       this.infoVisible = !this.infoVisible
+    },
+
+    toggleFilmstripVisible() {
+      this.filmstripVisible = !this.filmstripVisible
     },
   },
 })

@@ -245,7 +245,12 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.items-masonry-grid :deep(.item.item-media.item-view-3) {
+.items-masonry-grid:not(.items-masonry-grid--virtual) :deep(.item.item-media.item-view-3) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+}
+
+.items-masonry-grid--virtual :deep(.item.item-media.item-view-3) {
   content-visibility: visible;
   contain-intrinsic-size: unset;
 }

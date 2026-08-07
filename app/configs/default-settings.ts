@@ -103,6 +103,18 @@ const Settings = [  {
     "value": 2
   },
   {
+    "option": "imageSlideshowInterval",
+    "value": 4
+  },
+  {
+    "option": "imageSlideshowLoop",
+    "value": 0
+  },
+  {
+    "option": "virtualImageGrid",
+    "value": 1
+  },
+  {
     "option": "isPlayVideoInSystemPlayer",
     "value": 0
   },

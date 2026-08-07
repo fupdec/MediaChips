@@ -139,6 +139,13 @@
               :title="t('image.viewer.toggle_info')"
             />
             <v-btn
+              @click="viewer.toggleFilmstripVisible()"
+              :disabled="!canShowFilmstrip"
+              :color="viewer.filmstripVisible && canShowFilmstrip ? 'primary' : undefined"
+              icon="mdi-filmstrip"
+              :title="t('image.viewer.toggle_filmstrip')"
+            />
+            <v-btn
               @click="editImage"
               :disabled="viewer.isSourcesMode"
               icon="mdi-pencil"
@@ -208,17 +215,25 @@
           size="64"
         />
 
-        <img
-          v-if="displaySrc"
-          :src="displaySrc"
-          :style="transformStyle"
-          :class="{ 'image-viewer__image--loading': viewer.loading }"
-          class="image-viewer__image"
-          draggable="false"
-          alt=""
-        />
+        <div class="image-viewer__image-stack">
+          <Transition
+            name="image-viewer-crossfade"
+            @after-leave="flushPendingRevokes"
+          >
+            <img
+              v-if="displaySrc"
+              :key="shownKey"
+              :src="displaySrc"
+              :style="transformStyle"
+              :class="{ 'image-viewer__image--loading': viewer.loading }"
+              class="image-viewer__image"
+              draggable="false"
+              alt=""
+            />
+          </Transition>
+        </div>
 
-        <div v-else-if="loadFailed" class="image-viewer__error">
+        <div v-if="!displaySrc && loadFailed" class="image-viewer__error">
           <v-alert type="error" variant="tonal">
             {{ t('image.cannot_obtain') }}
           </v-alert>
@@ -248,7 +263,6 @@
             <span>{{ t('image.viewer.loading_more') }}</span>
           </div>
         </Transition>
-      </div>
 
       <div class="image-viewer__dock">
         <v-btn
@@ -332,6 +346,43 @@
           size="small"
         />
       </div>
+      </div>
+
+      <div
+        v-if="showFilmstrip"
+        ref="filmstripRef"
+        class="image-viewer__filmstrip"
+        @pointerdown.stop
+        @wheel.stop.passive
+        @scroll.passive="onFilmstripScroll"
+      >
+        <div
+          class="image-viewer__filmstrip-track"
+          :style="{ width: `${filmstripTrackWidth}px` }"
+        >
+          <button
+            v-for="item in filmstripItems"
+            :key="item.key"
+            type="button"
+            class="image-viewer__filmstrip-item"
+            :class="{ 'image-viewer__filmstrip-item--active': item.index === viewer.index }"
+            :style="{ left: `${item.index * filmstripStrideCss}px`, width: `${FILMSTRIP_ITEM_WIDTH * filmstripTrackScale}px` }"
+            :title="item.name || String(item.index + 1)"
+            :aria-label="item.name || String(item.index + 1)"
+            :aria-current="item.index === viewer.index ? 'true' : undefined"
+            @click="goToIndex(item.index)"
+          >
+            <img
+              v-if="filmstripThumbs[item.key]"
+              :src="filmstripThumbs[item.key]"
+              class="image-viewer__filmstrip-thumb"
+              draggable="false"
+              alt=""
+            />
+            <span v-else class="image-viewer__filmstrip-placeholder" />
+          </button>
+        </div>
+      </div>
 
       <div v-if="viewer.infoVisible && infoLine" class="image-viewer__info">
         {{ infoLine }}
@@ -341,11 +392,12 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
+import {ref, computed, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
+import {useSettingsStore} from '@/stores/settings'
 import {useImageViewerStore} from '@/stores/imageViewer'
 import {useEventBus} from '@/utils/eventBus'
 import {loadThumbDisplayUrl, loadFullImageDisplayUrl, revokeImageObjectUrl} from '@/utils/imageSource'
@@ -354,24 +406,51 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {openPath} from '@/services/shellService'
 import type { MediaItem } from '@/types/stores'
 
-const SLIDESHOW_MS = 4000
+const SLIDESHOW_DEFAULT_MS = 4000
 const CHROME_HIDE_MS = 2000
 const SWIPE_THRESHOLD_PX = 56
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 8
+/** Thumbnail width in the filmstrip (keep in sync with SCSS). */
+const FILMSTRIP_ITEM_WIDTH = 72
+const FILMSTRIP_GAP = 8
+const FILMSTRIP_STRIDE = FILMSTRIP_ITEM_WIDTH + FILMSTRIP_GAP
+/** Soft cap for CSS track width so huge playlists do not blow layout. */
+const FILMSTRIP_MAX_TRACK_PX = 160_000
+/** Extra cells rendered beyond the viewport for smooth scrolling. */
+const FILMSTRIP_OVERSCAN = 12
+/** Keep decoded filmstrip thumbs this far outside the virtual window. */
+const FILMSTRIP_THUMB_KEEP = 40
 
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
+const settingsStore = useSettingsStore()
 const viewer = useImageViewerStore()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
+const slideshowIntervalMs = computed(() => {
+  const seconds = Number(settingsStore.imageSlideshowInterval)
+  if (!Number.isFinite(seconds) || seconds <= 0) return SLIDESHOW_DEFAULT_MS
+  return Math.min(30, Math.max(1, Math.round(seconds))) * 1000
+})
+
+const slideshowLoop = computed(() => settingsStore.imageSlideshowLoop === '1')
+
 const viewerRootRef = ref<HTMLElement | null>(null)
 const stageRef = ref<HTMLElement | null>(null)
+const filmstripRef = ref<HTMLElement | null>(null)
 const displaySrc = ref<string | null>(null)
+const shownKey = ref('empty')
 const loadFailed = ref(false)
 const chromeVisible = ref(true)
+const filmstripThumbs = ref<Record<string, string>>({})
+const filmstripScrollLeft = ref(0)
+const filmstripViewportWidth = ref(0)
+let filmstripLoadToken = 0
+let filmstripResizeObserver: ResizeObserver | null = null
+let filmstripScrollRaf = 0
 
 const panState = ref({
   active: false,
@@ -396,6 +475,23 @@ let loadToken = 0
 let playlistExtendPromise: Promise<boolean> | null = null
 let slideshowTimer: ReturnType<typeof setInterval> | null = null
 let chromeHideTimer: ReturnType<typeof setTimeout> | null = null
+const pendingRevokes: string[] = []
+
+const currentTransitionKey = () => {
+  if (viewer.isSourcesMode) return `src:${viewer.index}`
+  const id = viewer.currentImage?.id ?? viewer.fallbackImage?.id
+  return id != null ? `media:${id}` : `idx:${viewer.index}`
+}
+
+const flushPendingRevokes = () => {
+  while (pendingRevokes.length) {
+    revokeImageObjectUrl(pendingRevokes.pop())
+  }
+}
+
+const queueRevoke = (url: string | null | undefined) => {
+  if (url?.startsWith('blob:')) pendingRevokes.push(url)
+}
 
 type NeighborEntry = {
   thumb?: string
@@ -413,6 +509,96 @@ const zoomLabel = computed(() => `${Math.round(viewer.scale * 100)}%`)
 const chromeHidden = computed(() =>
   !chromeVisible.value && !loadFailed.value && !viewer.loadingPlaylist,
 )
+
+const canShowFilmstrip = computed(() => {
+  const total = viewer.isSourcesMode ? viewer.sources.length : viewer.imageIds.length
+  return total > 1
+})
+
+const showFilmstrip = computed(() =>
+  viewer.filmstripVisible && canShowFilmstrip.value,
+)
+
+type FilmstripItem = {
+  key: string
+  index: number
+  id?: number
+  name: string
+  src?: string
+}
+
+const filmstripTotal = computed(() =>
+  viewer.isSourcesMode ? viewer.sources.length : viewer.imageIds.length,
+)
+
+const filmstripNaturalWidth = computed(() => {
+  const total = filmstripTotal.value
+  if (total <= 0) return 0
+  return total * FILMSTRIP_STRIDE - FILMSTRIP_GAP
+})
+
+/** Scale CSS track when N*stride would exceed a safe layout width. */
+const filmstripTrackScale = computed(() => {
+  const natural = filmstripNaturalWidth.value
+  if (natural <= FILMSTRIP_MAX_TRACK_PX) return 1
+  return FILMSTRIP_MAX_TRACK_PX / natural
+})
+
+const filmstripStrideCss = computed(() => FILMSTRIP_STRIDE * filmstripTrackScale.value)
+
+const filmstripTrackWidth = computed(() => {
+  const natural = filmstripNaturalWidth.value
+  if (natural <= 0) return 0
+  return Math.min(natural, FILMSTRIP_MAX_TRACK_PX)
+})
+
+const filmstripWindow = computed(() => {
+  const total = filmstripTotal.value
+  if (total <= 0) return {start: 0, end: -1}
+
+  const stride = Math.max(filmstripStrideCss.value, 1)
+  const viewport = Math.max(filmstripViewportWidth.value, stride * 8)
+  const firstVisible = Math.floor(filmstripScrollLeft.value / stride)
+  const visibleCount = Math.ceil(viewport / stride) + 1
+  const start = Math.max(0, firstVisible - FILMSTRIP_OVERSCAN)
+  const end = Math.min(total - 1, firstVisible + visibleCount + FILMSTRIP_OVERSCAN)
+  return {start, end}
+})
+
+const buildFilmstripItem = (index: number): FilmstripItem | null => {
+  if (viewer.isSourcesMode) {
+    const source = viewer.sources[index]
+    if (!source) return null
+    return {
+      key: `src:${index}`,
+      index,
+      name: source.name || '',
+      src: source.src,
+    }
+  }
+
+  const id = viewer.imageIds[index]
+  if (id == null) return null
+  const media = itemsStore.resolveMediaById(id)
+    || (viewer.fallbackImage?.id === id ? viewer.fallbackImage : null)
+  return {
+    key: `media:${id}`,
+    index,
+    id,
+    name: media?.name || '',
+  }
+}
+
+const filmstripItems = computed((): FilmstripItem[] => {
+  const {start, end} = filmstripWindow.value
+  if (end < start) return []
+  const items: FilmstripItem[] = []
+  for (let i = start; i <= end; i += 1) {
+    const item = buildFilmstripItem(i)
+    if (item) items.push(item)
+  }
+  return items
+})
 
 const transformStyle = computed(() => {
   const transforms = [
@@ -464,22 +650,31 @@ const bumpChrome = () => {
 }
 
 const clearObjectUrl = () => {
-  if (ownsObjectUrl) {
-    revokeImageObjectUrl(objectUrl)
-  }
+  if (ownsObjectUrl) queueRevoke(objectUrl)
   objectUrl = null
   ownsObjectUrl = false
   displaySrc.value = null
+  shownKey.value = 'empty'
+  flushPendingRevokes()
 }
 
-const setDisplaySrc = (src: string | null, {owned = false}: { owned?: boolean } = {}) => {
-  if (owned && objectUrl && objectUrl !== src) {
-    revokeImageObjectUrl(objectUrl)
+const setDisplaySrc = (
+  src: string | null,
+  {owned = false, key}: { owned?: boolean; key?: string } = {},
+) => {
+  const nextKey = key ?? shownKey.value
+  const keyChanged = nextKey !== shownKey.value
+
+  if (objectUrl && objectUrl !== src && ownsObjectUrl) {
+    // Keep outgoing blob alive through crossfade; revoke immediately on same-key upgrades.
+    if (keyChanged) queueRevoke(objectUrl)
+    else revokeImageObjectUrl(objectUrl)
   }
 
   objectUrl = owned && src?.startsWith('blob:') ? src : null
   ownsObjectUrl = owned && Boolean(objectUrl)
   displaySrc.value = src
+  shownKey.value = nextKey
   if (src) loadFailed.value = false
 }
 
@@ -556,16 +751,17 @@ const prefetchNeighbors = () => {
 const loadCurrentImage = async () => {
   const token = ++loadToken
   loadFailed.value = false
+  const transitionKey = currentTransitionKey()
 
   if (viewer.isSourcesMode) {
     const source = viewer.currentSource
-    clearObjectUrl()
     if (!source?.src) {
+      clearObjectUrl()
       loadFailed.value = true
       viewer.setLoading(false)
       return
     }
-    setDisplaySrc(source.src, {owned: false})
+    setDisplaySrc(source.src, {owned: false, key: transitionKey})
     viewer.setFileExists(true)
     viewer.setLoading(false)
     return
@@ -579,7 +775,7 @@ const loadCurrentImage = async () => {
   }
 
   viewer.setLoading(true)
-  clearObjectUrl()
+  // Keep the previous frame visible until the next src is ready (crossfade).
 
   const previewSrc = viewer.previewSrc
   viewer.previewSrc = null
@@ -587,13 +783,13 @@ const loadCurrentImage = async () => {
   const cachedNeighbor = image.id != null ? neighborCache.get(image.id) : undefined
 
   if (previewSrc) {
-    setDisplaySrc(previewSrc, {owned: false})
+    setDisplaySrc(previewSrc, {owned: false, key: transitionKey})
     viewer.setLoading(false)
   } else if (cachedNeighbor?.full) {
-    setDisplaySrc(cachedNeighbor.full, {owned: false})
+    setDisplaySrc(cachedNeighbor.full, {owned: false, key: transitionKey})
     viewer.setLoading(false)
   } else if (cachedNeighbor?.thumb) {
-    setDisplaySrc(cachedNeighbor.thumb, {owned: false})
+    setDisplaySrc(cachedNeighbor.thumb, {owned: false, key: transitionKey})
     viewer.setLoading(false)
   }
 
@@ -606,7 +802,7 @@ const loadCurrentImage = async () => {
         token,
       )
       if (thumbSrc) {
-        setDisplaySrc(thumbSrc, {owned: true})
+        setDisplaySrc(thumbSrc, {owned: true, key: transitionKey})
         viewer.setLoading(false)
       }
     } catch (error) {
@@ -620,7 +816,7 @@ const loadCurrentImage = async () => {
     } else {
       const fullSrc = adoptLoadedSrc(await loadFullImageDisplayUrl(image), token)
       if (fullSrc) {
-        setDisplaySrc(fullSrc, {owned: true})
+        setDisplaySrc(fullSrc, {owned: true, key: transitionKey})
       }
     }
   } catch (error) {
@@ -655,16 +851,18 @@ const tickSlideshow = async () => {
   if (!viewer.active || !viewer.slideshowActive) return
   if (viewer.loading || viewer.loadingPlaylist) return
 
-  if (!viewer.hasNextOrMore) {
-    stopSlideshow()
+  if (viewer.hasNextOrMore) {
+    await goNext()
     return
   }
 
-  await goNext()
-
-  if (!viewer.hasNextOrMore && !itemsStore.canLoadMoreForViewer) {
-    stopSlideshow()
+  const total = viewer.isSourcesMode ? viewer.sources.length : viewer.imageIds.length
+  if (slideshowLoop.value && total > 1) {
+    await goToIndex(0)
+    return
   }
+
+  stopSlideshow()
 }
 
 const startSlideshow = () => {
@@ -673,13 +871,21 @@ const startSlideshow = () => {
   bumpChrome()
   slideshowTimer = setInterval(() => {
     void tickSlideshow()
-  }, SLIDESHOW_MS)
+  }, slideshowIntervalMs.value)
 }
 
 const toggleSlideshow = () => {
   if (viewer.slideshowActive) stopSlideshow()
   else startSlideshow()
 }
+
+watch(slideshowIntervalMs, () => {
+  if (!viewer.slideshowActive) return
+  stopSlideshowTimer()
+  slideshowTimer = setInterval(() => {
+    void tickSlideshow()
+  }, slideshowIntervalMs.value)
+})
 
 const closeViewer = () => {
   if (!viewer.active) return
@@ -693,7 +899,12 @@ const closeViewer = () => {
   chromeHideTimer = null
   chromeVisible.value = true
   clearNeighborCache()
+  filmstripThumbs.value = {}
+  filmstripLoadToken += 1
+  unbindFilmstripObserver()
   clearObjectUrl()
+  void exitBrowserFullscreen().catch(() => {})
+  enteredBrowserFullscreen = false
   viewer.close()
 }
 
@@ -767,14 +978,277 @@ const goNext = async () => {
   }
 }
 
+const goToIndex = async (index: number) => {
+  if (index === viewer.index) return
+
+  if (viewer.isSourcesMode) {
+    if (!viewer.goTo(index)) return
+    await loadCurrentImage()
+    bumpChrome()
+    return
+  }
+
+  while (index >= viewer.imageIds.length && itemsStore.canLoadMoreForViewer) {
+    const extended = await ensurePlaylistExtended()
+    if (!extended) break
+  }
+
+  if (!viewer.goTo(index)) return
+  await loadCurrentImage()
+  maybePrefetchPlaylist()
+  bumpChrome()
+}
+
+const measureFilmstrip = () => {
+  const root = filmstripRef.value
+  if (!root) return
+  filmstripViewportWidth.value = root.clientWidth
+  filmstripScrollLeft.value = root.scrollLeft
+}
+
+const onFilmstripScroll = () => {
+  if (filmstripScrollRaf) cancelAnimationFrame(filmstripScrollRaf)
+  filmstripScrollRaf = requestAnimationFrame(() => {
+    filmstripScrollRaf = 0
+    const root = filmstripRef.value
+    if (!root) return
+    filmstripScrollLeft.value = root.scrollLeft
+    filmstripViewportWidth.value = root.clientWidth
+
+    // Prefetch more playlist items when the user scrolls near the end.
+    if (!viewer.isSourcesMode && itemsStore.canLoadMoreForViewer) {
+      const remaining = root.scrollWidth - (root.scrollLeft + root.clientWidth)
+      if (remaining < filmstripStrideCss.value * 8) void ensurePlaylistExtended()
+    }
+  })
+}
+
+const bindFilmstripObserver = () => {
+  unbindFilmstripObserver()
+  const root = filmstripRef.value
+  if (!root || typeof ResizeObserver === 'undefined') return
+  filmstripResizeObserver = new ResizeObserver(() => {
+    measureFilmstrip()
+  })
+  filmstripResizeObserver.observe(root)
+  measureFilmstrip()
+}
+
+const unbindFilmstripObserver = () => {
+  filmstripResizeObserver?.disconnect()
+  filmstripResizeObserver = null
+  if (filmstripScrollRaf) {
+    cancelAnimationFrame(filmstripScrollRaf)
+    filmstripScrollRaf = 0
+  }
+}
+
+const scrollFilmstripToActive = async () => {
+  await nextTick()
+  const root = filmstripRef.value
+  if (!root || filmstripTotal.value <= 0) return
+
+  measureFilmstrip()
+  const stride = filmstripStrideCss.value
+  const itemWidth = FILMSTRIP_ITEM_WIDTH * filmstripTrackScale.value
+  const itemCenter = viewer.index * stride + itemWidth / 2
+  const target = Math.max(0, itemCenter - root.clientWidth / 2)
+  const maxScroll = Math.max(0, root.scrollWidth - root.clientWidth)
+  const nextLeft = Math.min(maxScroll, target)
+  root.scrollTo({left: nextLeft, behavior: 'smooth'})
+  filmstripScrollLeft.value = nextLeft
+}
+
+const pruneFilmstripThumbs = (keepKeys: Set<string>) => {
+  const next: Record<string, string> = {}
+  for (const [key, src] of Object.entries(filmstripThumbs.value)) {
+    if (keepKeys.has(key)) next[key] = src
+  }
+  filmstripThumbs.value = next
+}
+
+const ensureFilmstripThumbs = async () => {
+  if (!viewer.active || !viewer.filmstripVisible) return
+  const token = ++filmstripLoadToken
+  const {start, end} = filmstripWindow.value
+  if (end < start) return
+
+  const keepStart = Math.max(0, start - FILMSTRIP_THUMB_KEEP)
+  const keepEnd = Math.min(filmstripTotal.value - 1, end + FILMSTRIP_THUMB_KEEP)
+  const keepKeys = new Set<string>()
+  for (let i = keepStart; i <= keepEnd; i += 1) {
+    const item = buildFilmstripItem(i)
+    if (item) keepKeys.add(item.key)
+  }
+  pruneFilmstripThumbs(keepKeys)
+
+  const next = {...filmstripThumbs.value}
+
+  for (const item of filmstripItems.value) {
+    if (token !== filmstripLoadToken) return
+    if (next[item.key]) continue
+
+    if (item.src) {
+      next[item.key] = item.src
+      continue
+    }
+
+    if (item.id != null) {
+      const neighbor = neighborCache.get(item.id)
+      if (neighbor?.thumb || neighbor?.full) {
+        next[item.key] = (neighbor.thumb || neighbor.full)!
+        continue
+      }
+
+      const media = itemsStore.resolveMediaById(item.id)
+        || (viewer.fallbackImage?.id === item.id ? viewer.fallbackImage : null)
+      if (!media) continue
+
+      try {
+        const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
+        if (token !== filmstripLoadToken) return
+        if (thumb && !thumb.includes('unavailable.png')) {
+          next[item.key] = thumb
+        }
+      } catch (error) {
+        console.error('Failed to load filmstrip thumb:', error)
+      }
+    }
+  }
+
+  if (token === filmstripLoadToken) {
+    filmstripThumbs.value = next
+  }
+}
+
+watch(
+  () => [viewer.active, viewer.index, viewer.imageIds.length, viewer.sources.length, viewer.filmstripVisible] as const,
+  async () => {
+    if (!viewer.active) {
+      filmstripThumbs.value = {}
+      unbindFilmstripObserver()
+      return
+    }
+    if (viewer.filmstripVisible && canShowFilmstrip.value) {
+      await nextTick()
+      bindFilmstripObserver()
+      void scrollFilmstripToActive()
+    } else {
+      unbindFilmstripObserver()
+    }
+    void ensureFilmstripThumbs()
+  },
+)
+
+watch(
+  () => [filmstripWindow.value.start, filmstripWindow.value.end] as const,
+  () => {
+    void ensureFilmstripThumbs()
+  },
+)
+
+watch(showFilmstrip, async (visible) => {
+  if (!visible) {
+    unbindFilmstripObserver()
+    return
+  }
+  await nextTick()
+  bindFilmstripObserver()
+  void scrollFilmstripToActive()
+  void ensureFilmstripThumbs()
+})
+
 const zoomIn = () => viewer.zoomIn()
 const zoomOut = () => viewer.zoomOut()
 const resetView = () => viewer.resetTransform()
-const toggleFullscreen = () => viewer.toggleFullscreen()
 const rotateLeft = () => viewer.rotateLeft()
 const rotateRight = () => viewer.rotateRight()
 const toggleFlipHorizontal = () => viewer.toggleFlipHorizontal()
 const toggleFlipVertical = () => viewer.toggleFlipVertical()
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null
+  webkitExitFullscreen?: () => Promise<void> | void
+}
+
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void
+}
+
+let enteredBrowserFullscreen = false
+
+const getFullscreenElement = (): Element | null => {
+  const doc = document as FullscreenDocument
+  return document.fullscreenElement || doc.webkitFullscreenElement || null
+}
+
+const isOurBrowserFullscreen = () => {
+  const fsEl = getFullscreenElement()
+  const root = viewerRootRef.value
+  return Boolean(root && fsEl && (fsEl === root || root.contains(fsEl)))
+}
+
+const requestBrowserFullscreen = async (el: HTMLElement) => {
+  const target = el as FullscreenElement
+  if (target.requestFullscreen) {
+    await target.requestFullscreen()
+    return
+  }
+  if (target.webkitRequestFullscreen) {
+    await target.webkitRequestFullscreen()
+  }
+}
+
+const exitBrowserFullscreen = async () => {
+  if (!getFullscreenElement()) return
+  const doc = document as FullscreenDocument
+  if (document.exitFullscreen) {
+    await document.exitFullscreen()
+    return
+  }
+  if (doc.webkitExitFullscreen) {
+    await doc.webkitExitFullscreen()
+  }
+}
+
+const syncFullscreenFromDocument = () => {
+  if (!viewer.active) return
+
+  if (isOurBrowserFullscreen()) {
+    enteredBrowserFullscreen = true
+    viewer.setFullscreen(true)
+    return
+  }
+
+  if (enteredBrowserFullscreen) {
+    enteredBrowserFullscreen = false
+    viewer.setFullscreen(false)
+  }
+}
+
+const toggleFullscreen = async () => {
+  bumpChrome()
+  const root = viewerRootRef.value
+
+  try {
+    if (isOurBrowserFullscreen() || (enteredBrowserFullscreen && getFullscreenElement())) {
+      await exitBrowserFullscreen()
+      return
+    }
+
+    if (root) {
+      await requestBrowserFullscreen(root)
+      enteredBrowserFullscreen = true
+      viewer.setFullscreen(true)
+      return
+    }
+  } catch (error) {
+    console.error('Browser fullscreen failed, falling back to dialog fullscreen:', error)
+  }
+
+  // Fallback when Fullscreen API is blocked/unavailable (some embeds / permissions).
+  viewer.toggleFullscreen()
+}
 
 const clampScale = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 
@@ -967,6 +1441,18 @@ const onKeyDown = (event: KeyboardEvent) => {
       viewer.toggleInfoVisible()
       bumpChrome()
       break
+    case 't':
+    case 'T':
+      event.preventDefault()
+      if (canShowFilmstrip.value) {
+        viewer.toggleFilmstripVisible()
+        bumpChrome()
+        if (viewer.filmstripVisible) {
+          void ensureFilmstripThumbs()
+          void scrollFilmstripToActive()
+        }
+      }
+      break
     case '+':
     case '=':
       event.preventDefault()
@@ -1044,14 +1530,21 @@ const viewImageHandler = (payload: unknown) => openFromEvent(payload)
 
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown)
+  document.addEventListener('fullscreenchange', syncFullscreenFromDocument)
+  document.addEventListener('webkitfullscreenchange', syncFullscreenFromDocument)
   eventBus.on('viewImage', viewImageHandler)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
+  document.removeEventListener('fullscreenchange', syncFullscreenFromDocument)
+  document.removeEventListener('webkitfullscreenchange', syncFullscreenFromDocument)
   eventBus.off('viewImage', viewImageHandler)
   stopSlideshow()
   if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  void exitBrowserFullscreen().catch(() => {})
+  enteredBrowserFullscreen = false
+  unbindFilmstripObserver()
   clearNeighborCache()
   clearObjectUrl()
 })

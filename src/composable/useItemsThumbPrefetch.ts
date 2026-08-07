@@ -13,7 +13,8 @@ import { visibleItemIds } from '@/utils/visibleItemsWindow'
 import type { MediaType } from '@/types/media'
 import type { MediaItem, Tag } from '@/types/stores'
 
-const PREFETCH_FALLBACK_LIMIT = 48
+const PREFETCH_FALLBACK_LIMIT = 24
+const PREFETCH_AHEAD_LIMIT = 12
 
 interface UseItemsThumbPrefetchOptions {
   items: ComputedRef<Array<MediaItem | Tag>>
@@ -33,9 +34,25 @@ function resolvePrefetchItems<T extends { id: number | string }>(items: T[]): T[
   const visible = visibleItemIds.value
   if (visible.length) {
     const visibleSet = new Set(visible.map((id) => Number(id)))
-    return items.filter((item) => visibleSet.has(Number(item.id)))
+    const visibleItems = items.filter((item) => visibleSet.has(Number(item.id)))
+    if (!visibleItems.length) return []
+
+    // Include a small ahead window after the last visible item in list order.
+    const lastVisibleIndex = items.reduce((maxIndex, item, index) => (
+      visibleSet.has(Number(item.id)) ? index : maxIndex
+    ), -1)
+    const ahead = lastVisibleIndex >= 0
+      ? items.slice(lastVisibleIndex + 1, lastVisibleIndex + 1 + PREFETCH_AHEAD_LIMIT)
+      : []
+
+    const merged = new Map<number, T>()
+    for (const item of [...visibleItems, ...ahead]) {
+      merged.set(Number(item.id), item)
+    }
+    return [...merged.values()]
   }
 
+  // Avoid warming the wrong window while IO visibility is still settling.
   if (items.length <= PREFETCH_FALLBACK_LIMIT) return items
   return items.slice(0, PREFETCH_FALLBACK_LIMIT)
 }

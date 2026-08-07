@@ -157,7 +157,7 @@
       :wide-image="isWideImage"
       :line-grid="isLineGrid"
       :chips-grid="isChipsGrid"
-      :image-aspect-ratio="tagImageAspectRatio"
+      :image-aspect-ratio="virtualCardAspectRatio"
       class="items-page-grid"
     />
 
@@ -414,6 +414,7 @@ const {t, locale} = useI18n()
 
 // Константы из Vuetify
 const {xs, smAndDown} = useDisplay()
+
 // Запускает watcher генерации превью в composable
 useVideoImageGenerator()
 
@@ -569,21 +570,36 @@ const tagImageAspectRatio = computed(() => {
   const ratio = Number(meta.value?.imageAspectRatio)
   return Number.isFinite(ratio) && ratio > 0 ? ratio : undefined
 })
+/** Stable card estimate for virtual image grids (16:9) when meta has no ratio. */
+const virtualCardAspectRatio = computed(() => {
+  if (tagImageAspectRatio.value) return tagImageAspectRatio.value
+  if (isImageGrid.value) return 16 / 9
+  return undefined
+})
 const listItemType = computed((): ItemsPageType =>
   props.items_type === 'tag' ? 'tag' : 'media',
 )
 const useVirtualGrid = computed(() =>
-  shouldUseVirtualGrid(
+  isGroupByOff.value
+  && !isMasonryGrid.value
+  && !isChipsGrid.value
+  && shouldUseVirtualGrid(
     ITEMS.value.itemsOnPage.length,
     is_infinite_scroll.value,
     listItemType.value,
+    {enabled: SETTINGS.value.virtualImageGrid !== '0'},
   ),
 )
 const useVirtualMasonry = computed(() =>
-  shouldUseVirtualMasonry(
+  isMasonryGrid.value
+  && shouldUseVirtualMasonry(
     ITEMS.value.itemsOnPage.length,
     is_infinite_scroll.value,
     listItemType.value,
+    {
+      enabled: SETTINGS.value.virtualImageGrid !== '0',
+      items: ITEMS.value.itemsOnPage,
+    },
   ),
 )
 
@@ -747,7 +763,7 @@ const itemsGridLayoutOptions = computed(() => ({
   wideImage: isWideImage.value,
   lineGrid: isLineGrid.value,
   chipsGrid: isChipsGrid.value,
-  imageAspectRatio: tagImageAspectRatio.value,
+  imageAspectRatio: virtualCardAspectRatio.value,
 }))
 const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(itemsGridRef, itemsGridLayoutOptions)
 const reg = computed(() => registrationStore.reg)
@@ -1203,6 +1219,7 @@ defineEmits<{
       flex-wrap: nowrap;
     }
   }
+
   &__sort-icon,
   &__group-by-icon {
     flex: 0 0 auto;

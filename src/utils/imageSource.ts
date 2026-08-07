@@ -1,17 +1,12 @@
 import path from 'path-browserify'
 import { buildLocalFileUrl } from '@/services/fileService'
-import { getCachedThumb, mediaThumbKey, isPersistentThumbUrl, setCachedThumb } from '@/utils/thumbDisplayCache'
+import { getCachedThumb, mediaThumbKey, isPersistentThumbUrl } from '@/utils/thumbDisplayCache'
 
 export const IMAGE_UNAVAILABLE_URL = '/images/unavailable.png'
 
 interface MediaWithPath {
   id?: number
   path?: string
-}
-
-const rememberImageThumb = (mediaId: number | string, src: string | null | undefined) => {
-  if (!isPersistentThumbUrl(src)) return
-  setCachedThumb(mediaThumbKey('images', mediaId), src)
 }
 
 export async function loadImageDisplayUrl(
@@ -27,9 +22,8 @@ export async function loadImageDisplayUrl(
   }
 
   if (preferFull && media.path) {
-    const full = buildLocalFileUrl(media.path, true, cacheBust)
-    rememberImageThumb(media.id, full)
-    return full
+    // Full originals are for viewers/editors only — never cache them as library thumbs.
+    return buildLocalFileUrl(media.path, true, cacheBust)
   }
 
   const thumbPath = path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`)

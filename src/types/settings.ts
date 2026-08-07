@@ -134,6 +134,12 @@ export type SettingsState = {
   showMarkersInNavigation: string
   numberOfPagesLimit: string
   gapSize: string
+  /** Slideshow step interval in seconds for the image viewer. */
+  imageSlideshowInterval: string
+  /** '1' loops slideshow from the start after the last image. */
+  imageSlideshowLoop: string
+  /** '1' enables virtualized media card/masonry grids for large lists. */
+  virtualImageGrid: string
   isPlayVideoInSystemPlayer: string
   typingFiltersDefault: string
   watchFolders: string
@@ -249,6 +255,9 @@ export const defaultSettingsState = (): SettingsState => ({
   showMarkersInNavigation: '1',
   numberOfPagesLimit: '7',
   gapSize: '2',
+  imageSlideshowInterval: '4',
+  imageSlideshowLoop: '0',
+  virtualImageGrid: '1',
   isPlayVideoInSystemPlayer: '0',
   typingFiltersDefault: '0',
   watchFolders: '0',

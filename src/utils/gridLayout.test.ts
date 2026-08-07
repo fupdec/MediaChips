@@ -18,24 +18,43 @@ import {
 } from '@/utils/gridLayout'
 
 describe('shouldUseVirtualGrid', () => {
-  it('keeps virtualization off so fixed row estimates cannot jump scroll', () => {
+  it('stays off for empty/small lists and tags', () => {
     expect(shouldUseVirtualGrid(0, true, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(1, true, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(100, true, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(50, false, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'tag')).toBe(false)
     expect(shouldUseVirtualGrid(100, false, 'tag')).toBe(false)
+  })
+
+  it('turns on for media lists at the threshold', () => {
+    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
+    expect(shouldUseVirtualGrid(100, true, 'media')).toBe(true)
+  })
+
+  it('respects the feature flag', () => {
+    expect(shouldUseVirtualGrid(100, true, 'media', {enabled: false})).toBe(false)
   })
 })
 
 describe('shouldUseVirtualMasonry', () => {
-  it('follows the same rules as the row virtualizer', () => {
-    expect(shouldUseVirtualMasonry(0, true, 'media')).toBe(false)
-    expect(shouldUseVirtualMasonry(100, true, 'media')).toBe(false)
-    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
-    expect(shouldUseVirtualMasonry(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(false)
-    expect(shouldUseVirtualMasonry(50, false, 'media')).toBe(false)
+  const sized = Array.from({length: 60}, (_, i) => ({id: i, width: 100, height: 200}))
+  const mostlySized = [
+    ...sized.slice(0, 56),
+    {id: 56, width: 0, height: 0},
+    {id: 57, width: 0, height: 0},
+    {id: 58},
+    {id: 59},
+  ]
+
+  it('requires media threshold and stable dimensions', () => {
+    expect(shouldUseVirtualMasonry(60, true, 'media', {items: sized})).toBe(true)
+    expect(shouldUseVirtualMasonry(60, true, 'media', {items: mostlySized})).toBe(false)
+    expect(shouldUseVirtualMasonry(20, true, 'media', {items: sized.slice(0, 20)})).toBe(false)
+    expect(shouldUseVirtualMasonry(60, true, 'tag', {items: sized})).toBe(false)
+  })
+
+  it('respects the feature flag', () => {
+    expect(shouldUseVirtualMasonry(60, true, 'media', {items: sized, enabled: false})).toBe(false)
   })
 })
 

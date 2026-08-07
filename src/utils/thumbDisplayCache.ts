@@ -1,6 +1,6 @@
 import { getAuthToken } from '@/services/authSession'
 
-const DEFAULT_MAX_ENTRIES = 400
+const DEFAULT_MAX_ENTRIES = 1000
 
 const cache = new Map<string, string>()
 const tagThumbVersions = new Map<string, number>()

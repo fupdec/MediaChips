@@ -82,6 +82,8 @@ export function useVirtualMasonryWindow(
       estimateMasonryItemHeight,
     )
     totalHeight.value = masonryLayout.value?.totalHeight ?? 0
+    // Do not ratio-scale scrollTop here: append/loadMore grows height below the
+    // viewport and must keep the absolute scroll position (ratio jumps to the end).
   }
 
   const updateWindow = () => {

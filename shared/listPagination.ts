@@ -1,6 +1,7 @@
 export const INFINITE_SCROLL_FLAG_LIMIT = 101
 export const INFINITE_SCROLL_PAGE_SIZE = 25
-export const INFINITE_SCROLL_MAX_ITEMS = 500
+/** Max items retained in the client infinite-scroll data window (DOM is virtualized separately). */
+export const INFINITE_SCROLL_MAX_ITEMS = 2000
 
 export const INFINITE_SCROLL_TRIM_ENABLED = true
 

@@ -93,7 +93,17 @@ export function useVirtualGridWindow(
 
     const rowStride = maxHeight + gapY
     if (maxHeight > 0 && Math.abs(rowStride - rowHeight.value) > 6) {
-      rowHeight.value = rowStride
+      const previousHeight = rowHeight.value
+      // Keep the same content under the viewport when estimates refine.
+      if (scrollEl && previousHeight > 0) {
+        const layoutTop = getLayoutTopInScroll(layoutEl, scrollEl)
+        const anchorOffset = Math.max(0, scrollEl.scrollTop - layoutTop)
+        const anchorRow = anchorOffset / previousHeight
+        rowHeight.value = rowStride
+        scrollEl.scrollTop = layoutTop + anchorRow * rowStride
+      } else {
+        rowHeight.value = rowStride
+      }
       updateWindow(false)
     }
   }
