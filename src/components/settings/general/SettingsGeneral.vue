@@ -1,10 +1,5 @@
 <template>
   <div class="mx-4">
-    <div class="d-flex align-center flex-wrap mb-2">
-      <ButtonDocumentation id="settings.general.lan_phone"/>
-      <ButtonDocumentation id="settings.general.pwa_install"/>
-    </div>
-
     <v-alert
       v-if="!isElectronHost"
       type="info"
@@ -122,7 +117,6 @@ import {isWinElectronUi} from '@/utils/electronUi'
 import SettingsMinimizeToTray from '@/components/settings/general/SettingsMinimizeToTray.vue'
 import LanPhoneAccessHints from '@/components/app/LanPhoneAccessHints.vue'
 import ClearAppCacheButton from '@/components/app/ClearAppCacheButton.vue'
-import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 

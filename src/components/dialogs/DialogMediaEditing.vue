@@ -126,8 +126,6 @@ import {
   isTextMediaType,
   isVideoMediaType,
 } from '@/utils/mediaType'
-import {useAppShell} from '@/composable/appShell'
-
 const DialogHeader = defineAsyncComponent(() => import("@/components/elements/DialogHeader.vue"))
 
 interface DialogHeaderButton {
@@ -154,7 +152,6 @@ const props = defineProps<{
 const {xs, xl} = useDisplay()
 const listSync = useItemsListSync()
 const appStore = useAppStore()
-const appShell = useAppShell()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const contextMenuStore = useContextMenu()
@@ -200,13 +197,6 @@ const isVideoMedia = computed(() => isVideoMediaType(currentMediaType.value))
 
 function initButtons() {
   buttons.value = [{
-    icon: 'help-circle-outline',
-    title: t('common.documentation'),
-    color: 'primary',
-    outlined: true,
-    order: -1,
-    action: () => appShell.showDocumentation('ui.edit_dialogs'),
-  }, {
     icon: "delete",
     text: t('common.delete'),
     color: "error",
@@ -265,14 +255,15 @@ async function getImage() {
   )
 
   if (isImageMediaType(mediaType)) {
+    // Crop/save still writes the library thumb; the edit panel shows the original file.
     imgPath.value = path.join(appStore.mediaPath, 'images/thumbs', `${currentMedia.id}.jpg`)
-    thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {cacheBust: true})
-
-    if (thumb.value?.includes('unavailable.png') && currentMedia.path) {
+    if (currentMedia.path) {
       thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {
         preferFull: true,
         cacheBust: true,
       })
+    } else {
+      thumb.value = await loadImageDisplayUrl(currentMedia, appStore.mediaPath, {cacheBust: true})
     }
 
     const width = Number(currentMedia.width) || 1
@@ -329,7 +320,10 @@ async function save() {
       ids: [mediaId],
       type: 'media',
     })
-    itemsStore.refreshThumb(mediaId, {regenerate: true})
+    // Image metadata save does not change the library thumb; avoid a needless regenerate.
+    if (!isImageMedia.value) {
+      itemsStore.refreshThumb(mediaId, {regenerate: true})
+    }
   }
 
   if (itemsStore.type === 'media') {

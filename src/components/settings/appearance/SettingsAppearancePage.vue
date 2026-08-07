@@ -4,7 +4,6 @@ import { useI18n } from "vue-i18n";
 import { useSettingsStore } from "@/stores/settings";
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 import SettingsCategoryDivider from "@/components/ui/SettingsCategoryDivider.vue";
-import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue";
 import {setOption} from '@/services/settingsService'
 
 const settingsStore = useSettingsStore();
@@ -16,11 +15,7 @@ const {t} = useI18n();
   <SettingsCategoryDivider
     :title="t('settings_labels.appearance.page')"
     icon="page-layout-body"
-  >
-    <template #actions>
-      <ButtonDocumentation id="settings.appearance.page"/>
-    </template>
-  </SettingsCategoryDivider>
+  />
 
   <settings-switch
     :title="t('settings_labels.appearance.saved_filters')"
@@ -57,17 +52,12 @@ const {t} = useI18n();
     </template>
   </settings-switch>
 
-  <div
-    id="settings-editing-overview"
-    class="d-flex align-center flex-wrap"
-  >
+  <div id="settings-editing-overview">
     <settings-switch
-      class="flex-grow-1"
       option="editingOverviewExpanded"
       :title="t('settings_labels.appearance.editing_overview_expanded')"
       :hint="t('settings_labels.appearance.editing_overview_expanded_hint')"
     />
-    <ButtonDocumentation id="settings.appearance.editing_overview"/>
   </div>
 
   <settings-switch

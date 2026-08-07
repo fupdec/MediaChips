@@ -4,56 +4,42 @@
     :class="{'edit-pinned-overview--collapsed': !expanded}"
   >
     <div class="edit-pinned-overview__surface">
-      <div class="edit-pinned-overview__header">
-        <button
-          type="button"
-          class="edit-pinned-overview__toggle"
-          :aria-expanded="expanded"
-          :aria-label="expanded
-            ? t('editing.overview_collapse')
-            : t('editing.overview_expand')"
-          @click="toggleExpanded"
-        >
-          <div class="edit-pinned-overview__toggle-main">
-            <v-icon size="16" class="edit-pinned-overview__chevron">
-              {{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
-            </v-icon>
-            <span class="edit-pinned-overview__toggle-title">
-              {{ isMedia ? t('editing.media_file_information') : t('editing.tag_information') }}
-            </span>
-            <span
-              v-if="!expanded && compactSummary"
-              class="edit-pinned-overview__toggle-summary"
-            >
-              {{ compactSummary }}
-            </span>
-          </div>
-          <div
-            v-if="!expanded"
-            class="edit-pinned-overview__toggle-progress"
+      <button
+        type="button"
+        class="edit-pinned-overview__toggle"
+        :aria-expanded="expanded"
+        :aria-label="expanded
+          ? t('editing.overview_collapse')
+          : t('editing.overview_expand')"
+        @click="toggleExpanded"
+      >
+        <div class="edit-pinned-overview__toggle-main">
+          <v-icon size="16" class="edit-pinned-overview__chevron">
+            {{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+          </v-icon>
+          <span class="edit-pinned-overview__toggle-title">
+            {{ isMedia ? t('editing.media_file_information') : t('editing.tag_information') }}
+          </span>
+          <span
+            v-if="!expanded && compactSummary"
+            class="edit-pinned-overview__toggle-summary"
           >
-            <v-progress-linear
-              :model-value="completionStatus"
-              color="primary"
-              height="3"
-              rounded
-            />
-            <span class="edit-pinned-overview__progress-value">{{ completionStatus }}%</span>
-          </div>
-        </button>
-
-        <v-btn
-          class="edit-pinned-overview__docs"
-          icon
-          variant="text"
-          size="x-small"
-          v-tooltip:top="t('common.documentation')"
-          :aria-label="t('common.documentation')"
-          @click="openOverviewDocs"
+            {{ compactSummary }}
+          </span>
+        </div>
+        <div
+          v-if="!expanded"
+          class="edit-pinned-overview__toggle-progress"
         >
-          <v-icon size="16">mdi-help-circle-outline</v-icon>
-        </v-btn>
-      </div>
+          <v-progress-linear
+            :model-value="completionStatus"
+            color="primary"
+            height="3"
+            rounded
+          />
+          <span class="edit-pinned-overview__progress-value">{{ completionStatus }}%</span>
+        </div>
+      </button>
 
       <div v-show="expanded" class="edit-pinned-overview__body">
         <section class="edit-pinned-overview__section">
@@ -130,7 +116,6 @@ import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import {setOption} from '@/services/settingsService'
-import {useAppShell} from '@/composable/appShell'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/en'
@@ -165,17 +150,12 @@ const onMediaPathUpdate = (media: MediaItem) => {
 }
 
 const settingsStore = useSettingsStore()
-const appShell = useAppShell()
 const {t} = useI18n()
 
 const expanded = computed(() => settingsStore.editingOverviewExpanded === '1')
 
 const toggleExpanded = () => {
   setOption(expanded.value ? '0' : '1', 'editingOverviewExpanded')
-}
-
-const openOverviewDocs = () => {
-  appShell.showDocumentation('settings.appearance.editing_overview')
 }
 
 const compactSummary = computed(() => {

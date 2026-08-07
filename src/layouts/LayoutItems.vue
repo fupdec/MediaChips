@@ -29,17 +29,6 @@
               <span v-else>({{ total }})</span>
               <span v-if="filesize_all"> · {{ filesize_all }}</span>
             </span>
-            <v-btn
-              class="items-control-deck__docs d-none d-sm-inline-flex"
-              color="primary"
-              variant="text"
-              size="small"
-              icon
-              v-tooltip:top="t('common.documentation')"
-              @click="openControlDeckDocs"
-            >
-              <v-icon size="18">mdi-help-circle-outline</v-icon>
-            </v-btn>
           </div>
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
@@ -395,7 +384,6 @@ import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
-import {useAppShell} from '@/composable/appShell'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -422,16 +410,10 @@ const registrationStore = useRegistrationStore()
 const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
-const appShell = useAppShell()
 const {t, locale} = useI18n()
 
 // Константы из Vuetify
 const {xs, smAndDown} = useDisplay()
-
-function openControlDeckDocs() {
-  appShell.showDocumentation('ui.control_deck')
-}
-
 // Запускает watcher генерации превью в composable
 useVideoImageGenerator()
 
@@ -1221,12 +1203,6 @@ defineEmits<{
       flex-wrap: nowrap;
     }
   }
-
-  &__docs {
-    margin-inline-start: 2px !important;
-    flex: 0 0 auto;
-  }
-
   &__sort-icon,
   &__group-by-icon {
     flex: 0 0 auto;

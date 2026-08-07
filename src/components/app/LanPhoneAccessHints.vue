@@ -1,20 +1,7 @@
 <template>
   <div class="lan-phone-hints mt-2">
-    <div class="d-flex align-center flex-wrap ga-1">
-      <div class="text-caption text-medium-emphasis">
-        {{ t('settings_labels.general.phone_access_hint') }}
-      </div>
-      <v-btn
-        icon
-        variant="text"
-        size="x-small"
-        color="primary"
-        v-tooltip:top="t('common.documentation')"
-        :aria-label="t('common.documentation')"
-        @click="openLanDocs"
-      >
-        <v-icon size="16">mdi-help-circle-outline</v-icon>
-      </v-btn>
+    <div class="text-caption text-medium-emphasis">
+      {{ t('settings_labels.general.phone_access_hint') }}
     </div>
 
     <div class="d-flex flex-wrap align-center ga-2 mt-2">
@@ -54,18 +41,12 @@
 import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {usePwaInstall} from '@/composable/usePwaInstall'
-import {useAppShell} from '@/composable/appShell'
 import ClearAppCacheButton from '@/components/app/ClearAppCacheButton.vue'
 
 const {t} = useI18n()
-const appShell = useAppShell()
 const {canInstall, isInstalled, promptInstall} = usePwaInstall()
 const installing = ref(false)
 const isElectronHost = Boolean(window.electronAPI)
-
-function openLanDocs() {
-  appShell.showDocumentation('settings.general.lan_phone')
-}
 
 async function install() {
   installing.value = true
