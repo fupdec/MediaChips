@@ -61,14 +61,15 @@
         multiple
       />
 
-      <v-text-field
+      <v-number-input
         v-else-if="field.type === 'number'"
-        :model-value="value"
+        :model-value="numberModel"
         @update:model-value="$emit('update:value', $event)"
         :label="field.name"
         :prepend-icon="showIcons ? `mdi-${field.icon}` : ''"
         :disabled="disabled"
-        type="number"
+        :rules="[numberRules]"
+        control-variant="split"
         hide-details="auto"
         clearable
         variant="filled"
@@ -166,6 +167,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import type {PropType} from 'vue'
+import {useI18n} from 'vue-i18n'
 import MetaInputArray from '@/components/meta/input/MetaInputArray.vue'
 
 interface BulkEditFieldMeta {
@@ -193,6 +195,8 @@ interface BulkEditMode {
   label: string
 }
 
+const {t} = useI18n()
+
 const props = defineProps({
   field: {
     type: Object as PropType<BulkEditField>,
@@ -217,6 +221,20 @@ const props = defineProps({
     default: 0,
   },
 })
+
+const numberModel = computed((): number | null => {
+  const value = props.value
+  if (value == null || value === '') return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+})
+
+const numberRules = (value: unknown) => {
+  if (value == null || value === '') return true
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) || t('validation.incorrect_value')
+}
 
 defineEmits(['toggle-mode', 'update:value', 'pick-date', 'clear-date'])
 

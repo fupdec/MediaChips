@@ -2005,10 +2005,15 @@ body > .video-preview-container.video-preview-container--expanded {
 
 .editing {
   &.show-icons {
+    .field:has(.restore) {
+      padding-right: 36px;
+    }
+
     .restore {
-      top: 8px;
-      right: 8px;
+      top: 50%;
+      right: 2px;
       left: auto;
+      transform: translateY(-50%);
     }
   }
 
@@ -2034,13 +2039,19 @@ body > .video-preview-container.video-preview-container--expanded {
   .field {
     position: relative;
     overflow: visible;
+
+    &:has(.restore) {
+      padding-right: 32px;
+    }
   }
 
   .restore {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 50%;
+    right: 0;
     left: auto;
+    transform: translateY(-50%);
+    z-index: 3;
   }
 }
 
@@ -2205,6 +2216,11 @@ body > .video-preview-container.video-preview-container--expanded {
   padding-top: 4px !important;
 }
 
+.editing-overview {
+  margin: 0 0 12px;
+  padding: 0;
+}
+
 .editing-section {
   & + & {
     margin-top: 16px;
@@ -2258,7 +2274,9 @@ body > .video-preview-container.video-preview-container--expanded {
   --edit-deck-pad-y: 10px;
   --edit-deck-gap: 10px;
   --edit-deck-radius: 16px;
+  // Tall enough for filled floating labels above the value.
   --edit-deck-control-h: 40px;
+  --edit-deck-search-h: 28px;
 
   display: flex;
   flex-direction: column;
@@ -2269,6 +2287,7 @@ body > .video-preview-container.video-preview-container--expanded {
     --edit-deck-pad-y: 8px;
     --edit-deck-gap: 8px;
     --edit-deck-control-h: 36px;
+    --edit-deck-search-h: 26px;
   }
 
   &__body {
@@ -2278,7 +2297,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .editing-section__toolbar {
     gap: var(--edit-deck-gap);
     margin-bottom: 12px;
-    padding: 8px var(--edit-deck-pad-x);
+    padding: 6px var(--edit-deck-pad-x);
     border: 1px solid rgba(var(--v-theme-primary), 0.16);
     border-radius: var(--edit-deck-radius);
     background: rgb(var(--v-theme-surface));
@@ -2291,13 +2310,13 @@ body > .video-preview-container.video-preview-container--expanded {
     font-size: 0.75rem;
 
     .v-field {
-      --v-input-control-height: 32px;
+      --v-input-control-height: var(--edit-deck-search-h);
       font-size: 0.75rem;
     }
 
     .v-field__input {
-      min-height: 32px !important;
-      max-height: 32px;
+      min-height: var(--edit-deck-search-h) !important;
+      max-height: var(--edit-deck-search-h);
       font-size: 0.75rem !important;
       line-height: 1.2 !important;
       padding-top: 0 !important;
@@ -2318,7 +2337,7 @@ body > .video-preview-container.video-preview-container--expanded {
 
   .editing-section__filters {
     .v-chip {
-      --v-chip-height: 28px;
+      --v-chip-height: 24px;
       font-size: 0.75rem;
     }
   }
@@ -2328,7 +2347,21 @@ body > .video-preview-container.video-preview-container--expanded {
       font-size: 0.8125rem;
     }
 
-    .v-input:not(.v-autocomplete--multiple):not(.v-combobox--multiple):not(.v-select--multiple) {
+    .v-number-input {
+      .v-btn {
+        min-width: var(--edit-deck-control-h);
+        width: var(--edit-deck-control-h);
+        height: var(--edit-deck-control-h);
+      }
+
+      .v-field__append-inner,
+      .v-field__prepend-inner {
+        padding-top: 0;
+        align-self: center;
+      }
+    }
+
+    .v-input:not(.editing-section__search):not(.v-autocomplete--multiple):not(.v-combobox--multiple):not(.v-select--multiple) {
       .v-field {
         --v-input-control-height: var(--edit-deck-control-h);
       }
@@ -2336,7 +2369,34 @@ body > .video-preview-container.video-preview-container--expanded {
       .v-field__input {
         min-height: var(--edit-deck-control-h) !important;
         font-size: 0.8125rem !important;
-        line-height: 1.25 !important;
+        line-height: 1.2 !important;
+      }
+
+      // Filled/solo: keep floating label above the value (do not zero padding).
+      .v-field--variant-filled,
+      .v-field--variant-solo,
+      .v-field--variant-solo-filled,
+      .v-field--variant-solo-inverted {
+        .v-field__input {
+          padding-top: 14px !important;
+          padding-bottom: 4px !important;
+        }
+      }
+
+      .v-field--variant-outlined,
+      .v-field--variant-underlined,
+      .v-field--variant-plain {
+        .v-field__input {
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+        }
+      }
+
+      .v-field__prepend-inner,
+      .v-field__append-inner,
+      .v-field__clearable {
+        padding-top: 0;
+        align-self: center;
       }
     }
 

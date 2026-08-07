@@ -254,7 +254,8 @@ watch(() => props.previewActive, (active) => {
 
 /** Thumb click always opens the viewer; browser-layout inspect stays on the card description. */
 const openViewer = () => {
-  if (!props.isFileExists) return
+  // Allow opening even if the source path is missing — thumbs/full may still load,
+  // and the viewer shows an error state when nothing is readable.
   itemsStore.viewImage({
     image: props.media,
     previewSrc: thumb.value || null,

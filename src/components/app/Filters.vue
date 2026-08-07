@@ -59,14 +59,16 @@
               <v-btn
                 v-if="isPanelView"
                 :color="is_filters_changed ? 'success' : 'primary'"
+                class="filters-top__chrome-btn"
                 rounded="xl"
                 variant="flat"
                 size="small"
+                density="compact"
                 @click="apply"
               >
                 <v-icon
                   start
-                  size="small"
+                  size="16"
                 >
                   mdi-check
                 </v-icon>
@@ -75,8 +77,10 @@
 
               <v-btn
                 v-if="showTopChips"
+                class="filters-top__chrome-btn filters-top__chrome-btn--text"
                 variant="text"
                 size="small"
+                density="compact"
                 color="primary"
                 @click="handleDeactivateAllFilters"
               >
@@ -85,13 +89,15 @@
 
               <v-btn
                 v-if="isPanelView"
+                class="filters-top__chrome-close"
                 variant="text"
                 icon
-                size="small"
+                size="x-small"
+                density="compact"
                 :aria-label="t('appbar.buttons.hide_filters')"
                 @click="closeTopFilters"
               >
-                <v-icon>mdi-close</v-icon>
+                <v-icon size="16">mdi-close</v-icon>
               </v-btn>
             </div>
           </div>
@@ -203,6 +209,7 @@
     <v-date-picker
       :model-value="datePicker.value"
       :title="t('filters.select_date')"
+      :header="t('filters.enter_date')"
       color="primary"
       rounded="xl"
       @update:model-value="setDate"
@@ -947,9 +954,12 @@ watch(filtersVisible, (visible) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
-  padding: 8px 14px;
+  flex-wrap: nowrap;
+  padding: 0 12px;
+  height: 44px;
   min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
 }
 
 .filters-top__chrome-start,
@@ -958,6 +968,7 @@ watch(filtersVisible, (visible) => {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  height: 28px;
 }
 
 .filters-top__chrome-end {
@@ -970,12 +981,35 @@ watch(filtersVisible, (visible) => {
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1;
+  white-space: nowrap;
+}
+
+.filters-top__chrome-btn {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  font-size: 0.75rem !important;
+  text-transform: none;
+  letter-spacing: normal;
+
+  &--text {
+    padding-inline: 6px !important;
+  }
+}
+
+.filters-top__chrome-close {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
 }
 
 .filters-top__mode {
   align-self: center;
   height: 28px !important;
   min-height: 28px !important;
+  flex-shrink: 0;
 
   .v-btn {
     height: 28px !important;

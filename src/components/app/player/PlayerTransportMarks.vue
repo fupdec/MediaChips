@@ -5,7 +5,12 @@
       style="overflow: visible"
       dark
       class="mark-buttons px-0">
-      <v-btn @click="toggleMarks" icon dark>
+      <v-btn
+        @click="toggleMarks"
+        :color="player.marksVisible ? 'primary' : undefined"
+        icon
+        dark
+      >
         <v-icon size="20" v-if="player.marksVisible">mdi-tooltip</v-icon>
         <v-icon size="20" v-else>mdi-tooltip-outline</v-icon>
         <div class="tip">
@@ -14,7 +19,12 @@
         </div>
       </v-btn>
 
-      <v-btn @click="addMark" icon dark>
+      <v-btn
+        @click="addMark"
+        :color="dialogsStore.markAdding.show ? 'primary' : undefined"
+        icon
+        dark
+      >
         <v-icon v-if="dialogsStore.markAdding.show">mdi-plus-circle</v-icon>
         <v-icon v-else>mdi-plus</v-icon>
         <div class="tip">
@@ -54,12 +64,15 @@
       </v-btn>
     </v-btn-group>
 
-    <v-btn @click="togglePlaylist"
+    <v-btn
+      @click="togglePlaylist"
       variant="tonal"
       :density="density"
+      :color="playerStore.playlistVisible ? 'primary' : undefined"
       class="playlist-buttons mx-1"
       icon
-      dark>
+      dark
+    >
       <v-icon v-if="playerStore.playlistVisible">mdi-view-list</v-icon>
       <v-icon v-else>mdi-format-list-bulleted</v-icon>
       <div class="tip">

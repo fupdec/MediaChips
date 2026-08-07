@@ -14,10 +14,11 @@
 
 .image-viewer {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: block;
   width: 100%;
+  min-width: min(960px, calc(100vw - 48px));
   height: min(90vh, calc(100vh - 48px));
+  min-height: min(560px, calc(100vh - 48px));
   background: #111;
   color: #fff;
   border-radius: 16px;
@@ -41,7 +42,6 @@
   }
 
   &--chrome-hidden {
-    .image-viewer__close,
     .image-viewer__toolbar,
     .image-viewer__dock,
     .image-viewer__nav,
@@ -52,79 +52,34 @@
     }
   }
 
-  &__close,
   &__toolbar,
   &__dock,
   &__nav,
   &__info,
-  &__filmstrip {
+  &__filmstrip,
+  &__control-pill,
+  &__title {
     transition: opacity 0.25s ease;
   }
 
-  &__close {
+  &__slideshow-progress {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    left: 0;
+    bottom: 0;
     z-index: 4;
-    opacity: 0.92;
-    background: rgba(0, 0, 0, 0.55) !important;
-    backdrop-filter: blur(8px);
-
-    &:hover {
-      opacity: 1;
-    }
+    width: 100%;
+    height: 3px;
+    transform-origin: left center;
+    background: rgb(var(--v-theme-primary));
+    pointer-events: none;
+    animation: image-viewer-slideshow-progress var(--slideshow-ms, 4s) linear forwards;
   }
 
-  &__toolbar {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 56px 12px 16px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(10px);
-    z-index: 2;
-    flex-wrap: wrap;
-  }
-
-  &__toolbar-groups {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-
-  &__group {
-    flex-wrap: nowrap;
-  }
-
-  &__zoom-label {
-    min-width: 58px;
-    letter-spacing: 0.02em;
-    font-size: 0.82rem;
-    font-weight: 600;
-  }
-
-  &__title {
-    min-width: 0;
-    max-width: min(40%, 420px);
-  }
-
-  &__name {
-    font-size: 1rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  &__counter {
-    font-size: 0.8rem;
-    opacity: 0.75;
-  }
-
+  /* Glass surfaces over the photo (stage fills the viewer). */
   &__stage {
-    position: relative;
-    flex: 1 1 auto;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -141,17 +96,122 @@
     }
   }
 
+  &__toolbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    background: transparent;
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
+    }
+  }
+
+  &__toolbar-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    align-items: center;
+    margin-left: auto;
+  }
+
+  &__title {
+    min-width: 0;
+    max-width: min(40%, 420px);
+    padding: 8px 14px;
+    border-radius: 16px;
+    background: rgba(12, 12, 16, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  }
+
+  &__control-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(12, 12, 16, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+
+    .v-btn {
+      opacity: 0.94;
+
+      &:hover {
+        opacity: 1;
+      }
+
+      &.v-btn--disabled {
+        opacity: 0.35;
+      }
+    }
+  }
+
+  &__zoom-label {
+    min-width: 52px;
+    letter-spacing: 0.02em;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  &__group {
+    flex-wrap: nowrap;
+  }
+
+  &__name {
+    font-size: 1rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__counter {
+    font-size: 0.8rem;
+    opacity: 0.75;
+  }
+
   &__nav {
     position: absolute;
     top: 50%;
     z-index: 3;
     transform: translateY(-50%);
-    opacity: 0.75;
-    background: rgba(0, 0, 0, 0.45) !important;
-    backdrop-filter: blur(8px);
+    width: 52px !important;
+    height: 52px !important;
+    opacity: 0.92;
+    color: #fff !important;
+    background: rgba(12, 12, 16, 0.38) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+
+    .v-icon {
+      color: #fff !important;
+      opacity: 0.95;
+    }
 
     &:hover {
       opacity: 1;
+      background: rgba(12, 12, 16, 0.5) !important;
+    }
+
+    &.v-btn--disabled {
+      opacity: 0.35;
     }
 
     &--prev {
@@ -175,8 +235,10 @@
     border-radius: 999px;
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.9);
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(8px);
+    background: rgba(12, 12, 16, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
     pointer-events: none;
   }
 
@@ -188,6 +250,9 @@
     width: 100%;
     height: 100%;
     min-height: 0;
+    // Receive pointer events so click-drag pan works on the image area.
+    pointer-events: auto;
+    touch-action: none;
   }
 
   &__image {
@@ -213,11 +278,12 @@
     gap: 2px;
     padding: 6px 10px;
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.62);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(12, 12, 16, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
     transform: translateX(-50%);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
   }
 
   &__dock-zoom {
@@ -234,15 +300,22 @@
   }
 
   &__filmstrip {
-    position: relative;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 5;
     padding: 10px 12px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    background: rgba(12, 12, 16, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
     flex: 0 0 auto;
 
     &::-webkit-scrollbar {
@@ -253,6 +326,11 @@
       background: rgba(255, 255, 255, 0.28);
       border-radius: 999px;
     }
+  }
+
+  /* When info is also open, lift filmstrip above it. */
+  &:has(.image-viewer__info) .image-viewer__filmstrip {
+    bottom: 52px;
   }
 
   &__filmstrip-track {
@@ -299,8 +377,9 @@
     width: 100%;
     height: 100%;
     background:
-      linear-gradient(110deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.1) 37%, rgba(255, 255, 255, 0.04) 63%);
+      linear-gradient(110deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.12) 37%, rgba(255, 255, 255, 0.04) 63%);
     background-size: 200% 100%;
+    animation: image-viewer-filmstrip-shimmer 1.2s ease-in-out infinite;
   }
 
   &__error {
@@ -313,13 +392,100 @@
   }
 
   &__info {
-    padding: 10px 16px;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.75);
-    background: rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.82);
+    min-width: 0;
+    border-radius: 14px;
+    background: rgba(12, 12, 16, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  &__info-text {
+    flex: 1 1 auto;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__info-empty {
+    opacity: 0.65;
+  }
+
+  &__info-copy {
+    flex: 0 0 auto;
+    opacity: 0.85;
+  }
+
+  &__shortcuts {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  &__shortcuts-card {
+    width: min(420px, 100%);
+    padding: 20px;
+    border-radius: 16px;
+    background: rgba(16, 16, 22, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  }
+
+  &__shortcuts-title {
+    margin-bottom: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  &__shortcuts-list {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    kbd {
+      flex: 0 0 auto;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
   }
 
   &__playlist-loading {
@@ -331,8 +497,9 @@
     align-items: center;
     justify-content: center;
     gap: 14px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(6px);
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: rgba(255, 255, 255, 0.92);
     font-size: 0.9rem;
     pointer-events: none;
@@ -352,8 +519,7 @@
     border-radius: 0;
 
     &__toolbar-groups {
-      .image-viewer__group:nth-child(2),
-      .image-viewer__group:nth-child(3) {
+      .image-viewer__control-pill--desktop {
         display: none;
       }
     }
@@ -362,6 +528,22 @@
       bottom: 12px;
       max-width: calc(100vw - 24px);
       overflow-x: auto;
+    }
+
+    &__filmstrip {
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+    }
+
+    &:has(.image-viewer__info) .image-viewer__filmstrip {
+      bottom: 56px;
+    }
+
+    &__info {
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
     }
 
     &__filmstrip-track {
@@ -377,6 +559,38 @@
       max-width: 55%;
     }
   }
+}
+
+/* Desktop: top toolbar is enough; dock is for compact/mobile. */
+@media (min-width: 721px) {
+  .image-viewer__dock {
+    display: none;
+  }
+}
+
+/* Keep mobile dock above floating filmstrip/info. */
+@media (max-width: 720px) {
+  .image-viewer:has(.image-viewer__filmstrip) .image-viewer__dock {
+    bottom: 92px;
+  }
+
+  .image-viewer:has(.image-viewer__filmstrip):has(.image-viewer__info) .image-viewer__dock {
+    bottom: 136px;
+  }
+
+  .image-viewer:has(.image-viewer__info):not(:has(.image-viewer__filmstrip)) .image-viewer__dock {
+    bottom: 64px;
+  }
+}
+
+@keyframes image-viewer-slideshow-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes image-viewer-filmstrip-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 .image-viewer-fade-enter-active,
@@ -414,7 +628,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .image-viewer-crossfade-enter-active,
-  .image-viewer-crossfade-leave-active {
+  .image-viewer-crossfade-leave-active,
+  .image-viewer__slideshow-progress,
+  .image-viewer__filmstrip-placeholder {
     transition: none;
+    animation: none;
   }
 }

@@ -34,7 +34,7 @@
       scrollable
       hide-overlay
     >
-      <v-card>
+      <v-card class="edit-dialog-card">
         <DialogHeader
           @close="dialog_video_edit = false"
           :header="t('player.editing')"
@@ -52,7 +52,7 @@
           closable
         />
 
-        <v-card-text :key="video_editing.id" class="pt-4 px-0">
+        <v-card-text :key="video_editing.id" class="edit-dialog-card__body">
           <EditPinnedMetaValues
             v-if="video_editing"
             @close="dialogsStore.mediaEditing.show = false"

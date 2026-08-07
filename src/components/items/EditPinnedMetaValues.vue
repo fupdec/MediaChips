@@ -16,7 +16,7 @@
     </div>
 
     <template v-else-if="showOverview">
-      <v-col cols="12">
+      <div class="editing-overview">
         <EditPinnedOverview
           :item="overviewItem"
           :is-media="isMedia"
@@ -24,7 +24,7 @@
           :preset-meta="preset_meta"
           @media-path-update="onMediaPathUpdate"
         />
-      </v-col>
+      </div>
     </template>
 
     <!-- Main form -->
@@ -189,13 +189,16 @@
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
-              <v-text-field
+              <v-number-input
                 v-model="vals.views"
                 :label="t('settings_labels.appearance.number_of_views')"
                 :prepend-icon="showIcons ? 'mdi-eye' : undefined"
-                type="number"
+                :min="0"
+                :step="1"
+                :rules="[numberRules]"
+                control-variant="split"
                 density="compact"
-                hide-details
+                hide-details="auto"
                 variant="filled"
               />
               <v-btn
@@ -341,14 +344,15 @@
                 multiple
               />
 
-              <v-text-field
+              <v-number-input
                 v-if="item.meta?.type === 'number'"
                 :model-value="getNumberVal(item)"
                 @update:model-value="setVal($event, getItemKey(item))"
                 :label="metaName(item)"
                 :hint="metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
-                type="number"
+                :rules="[numberRules]"
+                control-variant="split"
                 density="compact"
                 persistent-hint
                 clearable
@@ -497,6 +501,7 @@
         @update:model-value="setDate"
         :model-value="datePicker.value"
         :title="t('filters.select_date')"
+        :header="t('filters.enter_date')"
         color="primary"
         rounded="xl"
       />
@@ -877,6 +882,12 @@ const nameRules = (value: string) => {
   return true
 }
 
+const numberRules = (value: unknown) => {
+  if (value == null || value === '') return true
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) || t('validation.incorrect_value')
+}
+
 const getItemKey = (item: PinnedMetaAssignment): string | number => {
   return item.pinnedMetaId ?? item.metaId ?? item.id ?? ''
 }
@@ -894,11 +905,11 @@ const getStringVal = (item: PinnedMetaAssignment): string | undefined => {
   return String(val)
 }
 
-const getNumberVal = (item: PinnedMetaAssignment): number | undefined => {
+const getNumberVal = (item: PinnedMetaAssignment): number | null => {
   const val = vals.value[getItemKey(item)]
-  if (val == null || val === '') return undefined
+  if (val == null || val === '') return null
   const n = Number(val)
-  return isNaN(n) ? undefined : n
+  return isNaN(n) ? null : n
 }
 
 const getBooleanVal = (item: PinnedMetaAssignment): boolean => {
@@ -1638,8 +1649,9 @@ defineExpose({
 
 .restore {
   position: absolute;
-  right: 8px;
-  top: 8px;
-  z-index: 2;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
 }
 </style>

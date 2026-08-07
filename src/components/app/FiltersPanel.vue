@@ -92,6 +92,26 @@
         class="filters-panel__toolbar-row"
       >
         <v-btn
+          v-if="canToggleAiSection"
+          :variant="showAiBlock ? 'tonal' : 'outlined'"
+          rounded="xl"
+          size="small"
+          color="primary"
+          class="filters-panel__toolbar-btn"
+          :aria-label="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
+          :title="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
+          @click="toggleAiBlock"
+        >
+          <v-icon
+            start
+            size="small"
+          >
+            mdi-creation
+          </v-icon>
+          {{ t('filters.ai_short') }}
+        </v-btn>
+
+        <v-btn
           v-if="editMode"
           variant="tonal"
           rounded="xl"
@@ -144,6 +164,25 @@
           class="d-flex align-center mb-2 ga-2 filters-panel__actions"
           :class="editMode ? 'justify-space-between' : ''"
         >
+          <v-btn
+            v-if="canToggleAiSection"
+            :variant="showAiBlock ? 'tonal' : 'outlined'"
+            rounded="xl"
+            size="small"
+            color="primary"
+            :aria-label="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
+            :title="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
+            @click="toggleAiBlock"
+          >
+            <v-icon
+              start
+              size="small"
+            >
+              mdi-creation
+            </v-icon>
+            {{ t('filters.ai_short') }}
+          </v-btn>
+
           <v-btn
             v-if="editMode"
             variant="tonal"
@@ -210,7 +249,7 @@
       </template>
 
       <div
-        v-if="LOCAL_AI_UI_ENABLED && (variant !== 'top' || editMode || filters.length === 0)"
+        v-if="showAiSection"
         class="filters-panel__ai-section"
       >
         <LocalAiAssistPanel
@@ -292,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineAsyncComponent} from 'vue'
+import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import FilterRow from '@/components/app/FilterRow.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
@@ -303,6 +342,18 @@ import type {FilterObject, FilterListParam} from '@/types/common'
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
 const REMOVE_ALL_MIN_FILTERS = 5
+const AI_BLOCK_STORAGE_KEY = 'filters.showAiAssist'
+
+function readShowAiBlock (): boolean {
+  try {
+    const raw = localStorage.getItem(AI_BLOCK_STORAGE_KEY)
+    if (raw === '0' || raw === 'false') return false
+    if (raw === '1' || raw === 'true') return true
+  } catch {
+    /* ignore */
+  }
+  return true
+}
 
 const props = withDefaults(defineProps<{
   variant?: 'drawer' | 'embedded' | 'top'
@@ -349,9 +400,26 @@ const emit = defineEmits([
 
 const {t} = useI18n()
 
+const showAiBlock = ref(readShowAiBlock())
+
+const canToggleAiSection = computed(() =>
+  LOCAL_AI_UI_ENABLED && (props.variant !== 'top' || props.editMode || props.filters.length === 0),
+)
+
+const showAiSection = computed(() => canToggleAiSection.value && showAiBlock.value)
+
 const showRemoveAll = computed(() =>
   props.filters.filter((filter) => !filter.removed && !filter.lock).length > REMOVE_ALL_MIN_FILTERS,
 )
+
+function toggleAiBlock () {
+  showAiBlock.value = !showAiBlock.value
+  try {
+    localStorage.setItem(AI_BLOCK_STORAGE_KEY, showAiBlock.value ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
 
 function dragItemKey(filter: FilterObject) {
   return String(filter.id ?? filter.clientKey)
@@ -412,6 +480,7 @@ function dragItemKey(filter: FilterObject) {
 }
 
 .filters-panel__ai-section {
+  margin-top: 0;
   margin-bottom: 8px;
   padding: 6px 8px;
   border-radius: 12px;
@@ -623,7 +692,7 @@ function dragItemKey(filter: FilterObject) {
     max-height: min(28vh, 240px);
     overflow-y: auto;
     align-content: start;
-    align-items: start;
+    align-items: stretch;
   }
 
   .filters-list:has(.filters-draggable),
@@ -636,27 +705,29 @@ function dragItemKey(filter: FilterObject) {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 6px;
     align-content: start;
-    align-items: start;
+    align-items: stretch;
   }
 
   .filter-form {
     min-width: 0;
     width: 100%;
-    height: auto;
+    height: 100%;
+    display: flex;
   }
 
   .filter-form .filter {
     margin-bottom: 0 !important;
     width: 100%;
     max-width: none;
-    height: auto;
+    height: 100%;
     min-height: 36px;
     border-radius: 16px !important;
     padding: 4px 8px 4px 6px !important;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    justify-content: flex-start;
+    gap: 4px;
     background: rgba(var(--v-theme-primary), 0.04) !important;
     border: 1px solid transparent;
 
@@ -664,11 +735,19 @@ function dragItemKey(filter: FilterObject) {
       background: rgba(var(--v-theme-primary), 0.08) !important;
       border-color: rgba(var(--v-theme-primary), 0.18);
     }
+
+    // Same footprint for cards with a value row so neighbors match.
+    &:has(.filter__body) {
+      min-height: 70px;
+    }
   }
 
   .filter__header {
     gap: 4px;
+    flex: 0 0 28px;
+    height: 28px;
     min-height: 28px;
+    max-height: 28px;
     padding: 0 !important;
     margin: 0 !important;
     align-items: center;
@@ -756,54 +835,171 @@ function dragItemKey(filter: FilterObject) {
   }
 
   .filter__body {
-    padding: 0 !important;
-    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
     width: 100%;
+    min-height: 30px;
+    padding: 1px 0 !important;
+    margin: 0 !important;
+    overflow: visible;
 
+    > * {
+      margin: 0 !important;
+    }
+
+    .ma-1,
+    .pt-0,
     .pa-1 {
-      padding-right: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     .v-input,
     .v-text-field,
+    .v-number-input,
     .v-rating {
       margin: 0 !important;
       padding: 0 !important;
       width: 100%;
     }
 
+    .filter__number {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      min-height: 30px;
+
+      .v-number-input {
+        width: auto;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+    }
+
+    .filter__rating,
+    .v-rating {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      width: auto !important;
+      max-width: 100%;
+      height: 28px !important;
+      min-height: 28px !important;
+      max-height: 28px !important;
+      line-height: 1;
+
+      .v-rating__wrapper,
+      .v-rating__item {
+        height: 24px;
+        min-height: 24px;
+      }
+
+      .v-btn {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+      }
+
+      .v-icon {
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+      }
+    }
+
     .v-field {
       --v-input-control-height: 28px;
+      align-items: center !important;
+      min-height: 28px !important;
+      height: 28px;
+      overflow: visible;
+    }
+
+    .v-field__outline {
+      --v-field-border-width: 1px;
+      --v-field-border-opacity: 0.38;
+    }
+
+    .v-field__field {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      min-height: 0;
     }
 
     .v-field__input {
+      display: flex;
+      align-items: center;
       min-height: 28px !important;
+      max-height: 28px !important;
+      height: 28px !important;
+      margin: 0 !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
-      padding-inline: 6px 0 !important;
+      padding-inline: 8px 0 !important;
       font-size: 0.8125rem;
+      line-height: 1.2 !important;
+    }
+
+    .v-number-input {
+      .v-btn {
+        min-width: 28px;
+        width: 28px;
+        height: 28px;
+      }
+    }
+
+    .v-field__prepend-inner,
+    .v-field__append-inner,
+    .v-field__clearable {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin: 0 !important;
+      align-self: center !important;
+      height: 28px;
+      display: flex;
+      align-items: center;
     }
 
     .v-field__append-inner {
-      padding-top: 0 !important;
       padding-inline-start: 0 !important;
-      align-self: center;
     }
 
     .v-autocomplete__selection {
-      margin-inline-end: 0;
+      margin-inline-end: 2px;
+      max-width: none;
+    }
+
+    .v-autocomplete {
+      .v-field__input {
+        flex-wrap: nowrap !important;
+        overflow: hidden !important;
+        max-height: 28px !important;
+        min-height: 28px !important;
+        align-items: center !important;
+        align-content: center !important;
+      }
     }
 
     .v-chip {
-      margin: 1px 2px !important;
+      margin: 0 2px 0 0 !important;
       padding: 0 !important;
       min-height: 20px !important;
       height: 20px !important;
       font-size: 0.6875rem !important;
+      flex: 0 0 auto;
+      max-width: 120px;
 
       .v-chip__content {
         padding-inline: 5px !important;
         line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .v-chip__close {

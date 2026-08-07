@@ -1,5 +1,4 @@
 <template>
-  {{modelValue}}
   <v-rating
     @update:model-value="setVal"
     :model-value="internalValue"
@@ -10,6 +9,7 @@
     :half-increments="meta?.ratingHalf"
     :half-icon="halfIcon"
     :active-color="meta?.ratingColor"
+    :size="size"
     color="grey"
     density="compact"
     :class="{ 'in-card': in_card }"
@@ -30,10 +30,12 @@ const props = withDefaults(defineProps<{
   meta_id: number
   read_only?: boolean
   in_card?: boolean
+  size?: string | number
 }>(), {
   modelValue: 0,
   read_only: false,
   in_card: false,
+  size: undefined,
 })
 
 const emit = defineEmits<{

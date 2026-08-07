@@ -5,7 +5,7 @@
     :model-value="viewer.active"
     :fullscreen="viewer.fullscreen"
     content-class="dialog-image-viewer"
-    :width="viewer.fullscreen ? undefined : 'auto'"
+    :width="viewer.fullscreen ? undefined : 'min(1800px, calc(100vw - 48px))'"
     max-width="100%"
     no-click-animation
   >
@@ -20,18 +20,11 @@
       tabindex="-1"
       @pointermove="bumpChrome"
     >
-      <v-btn
-        @click="closeViewer"
-        class="image-viewer__close"
-        icon="mdi-close"
-        variant="flat"
-        color="white"
-        size="small"
-        :title="t('image.viewer.close')"
-        :aria-label="t('image.viewer.close')"
-      />
-
-      <div class="image-viewer__toolbar">
+      <div
+        class="image-viewer__toolbar"
+        @pointerenter="pinChrome"
+        @pointerleave="unpinChrome"
+      >
         <div class="image-viewer__title">
           <div class="image-viewer__name" :title="currentName">
             {{ currentName }}
@@ -44,41 +37,55 @@
         <v-spacer />
 
         <div class="image-viewer__toolbar-groups">
-          <v-btn-group class="image-viewer__group" density="comfortable" variant="tonal" divided>
+          <div class="image-viewer__control-pill">
             <v-btn
               @click="goPrev"
               :disabled="!viewer.hasPrev"
               icon="mdi-chevron-left"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.previous')"
             />
             <v-btn
               @click="goNext"
               :disabled="!viewer.hasNextOrMore || viewer.loadingPlaylist"
               icon="mdi-chevron-right"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.next')"
             />
             <v-btn
               @click="toggleSlideshow"
               :disabled="!displaySrc"
-              :color="viewer.slideshowActive ? 'primary' : undefined"
+              :color="viewer.slideshowActive ? 'primary' : 'white'"
               :icon="viewer.slideshowActive ? 'mdi-pause' : 'mdi-play'"
+              variant="text"
+              size="small"
               :title="viewer.slideshowActive
                 ? t('image.viewer.slideshow_pause')
                 : t('image.viewer.slideshow_play')"
             />
-          </v-btn-group>
+          </div>
 
-          <v-btn-group class="image-viewer__group" density="comfortable" variant="tonal" divided>
+          <div class="image-viewer__control-pill image-viewer__control-pill--desktop">
             <v-btn
               @click="zoomOut"
               :disabled="!displaySrc"
               icon="mdi-magnify-minus"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.zoom_out')"
             />
             <v-btn
               class="image-viewer__zoom-label"
               @click="resetView"
               :disabled="!displaySrc"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.fit')"
             >
               {{ zoomLabel }}
@@ -87,77 +94,117 @@
               @click="zoomIn"
               :disabled="!displaySrc"
               icon="mdi-magnify-plus"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.zoom_in')"
             />
             <v-btn
               @click="resetView"
               :disabled="!displaySrc"
               icon="mdi-fit-to-screen"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.fit')"
             />
-          </v-btn-group>
+          </div>
 
-          <v-btn-group class="image-viewer__group" density="comfortable" variant="tonal" divided>
+          <div class="image-viewer__control-pill image-viewer__control-pill--desktop">
             <v-btn
               @click="rotateLeft"
               :disabled="!displaySrc"
               icon="mdi-rotate-left"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.rotate_left')"
             />
             <v-btn
               @click="rotateRight"
               :disabled="!displaySrc"
               icon="mdi-rotate-right"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.rotate_right')"
             />
             <v-btn
               @click="toggleFlipHorizontal"
               :disabled="!displaySrc"
-              :color="viewer.flipH ? 'primary' : undefined"
+              :color="viewer.flipH ? 'primary' : 'white'"
               icon="mdi-flip-horizontal"
+              variant="text"
+              size="small"
               :title="t('image.viewer.flip_horizontal')"
             />
             <v-btn
               @click="toggleFlipVertical"
               :disabled="!displaySrc"
-              :color="viewer.flipY ? 'primary' : undefined"
+              :color="viewer.flipY ? 'primary' : 'white'"
               icon="mdi-flip-vertical"
+              variant="text"
+              size="small"
               :title="t('image.viewer.flip_vertical')"
             />
-          </v-btn-group>
+          </div>
 
-          <v-btn-group class="image-viewer__group" density="comfortable" variant="tonal" divided>
+          <div class="image-viewer__control-pill">
             <v-btn
               @click="toggleFullscreen"
               :icon="viewer.fullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.fullscreen')"
             />
             <v-btn
               @click="viewer.toggleInfoVisible()"
-              :color="viewer.infoVisible ? 'primary' : undefined"
+              :color="viewer.infoVisible ? 'primary' : 'white'"
               icon="mdi-information-outline"
+              variant="text"
+              size="small"
               :title="t('image.viewer.toggle_info')"
             />
             <v-btn
               @click="viewer.toggleFilmstripVisible()"
               :disabled="!canShowFilmstrip"
-              :color="viewer.filmstripVisible && canShowFilmstrip ? 'primary' : undefined"
+              :color="viewer.filmstripVisible && canShowFilmstrip ? 'primary' : 'white'"
               icon="mdi-filmstrip"
+              variant="text"
+              size="small"
               :title="t('image.viewer.toggle_filmstrip')"
             />
+            <span class="image-viewer__dock-divider" />
             <v-btn
               @click="editImage"
               :disabled="viewer.isSourcesMode"
               icon="mdi-pencil"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('common.edit')"
             />
             <v-btn
               @click="openInSystem"
               :disabled="viewer.isSourcesMode || !viewer.isFileExists"
               icon="mdi-open-in-new"
+              variant="text"
+              color="white"
+              size="small"
               :title="t('image.viewer.open_external')"
             />
-          </v-btn-group>
+            <span class="image-viewer__dock-divider" />
+            <v-btn
+              @click="closeViewer"
+              icon="mdi-close"
+              variant="text"
+              color="white"
+              size="small"
+              :title="t('image.viewer.close')"
+              :aria-label="t('image.viewer.close')"
+            />
+          </div>
         </div>
       </div>
 
@@ -176,7 +223,7 @@
           @click.stop="goPrev"
           class="image-viewer__nav image-viewer__nav--prev"
           icon="mdi-chevron-left"
-          variant="flat"
+          variant="text"
           color="white"
           size="large"
           :title="t('image.viewer.previous')"
@@ -188,7 +235,7 @@
           :disabled="viewer.loadingPlaylist"
           class="image-viewer__nav image-viewer__nav--next"
           icon="mdi-chevron-right"
-          variant="flat"
+          variant="text"
           color="white"
           size="large"
           :title="t('image.viewer.next')"
@@ -264,7 +311,19 @@
           </div>
         </Transition>
 
-      <div class="image-viewer__dock">
+        <div
+          v-if="viewer.slideshowActive"
+          :key="slideshowProgressKey"
+          class="image-viewer__slideshow-progress"
+          :style="{ '--slideshow-ms': `${slideshowIntervalMs}ms` }"
+          aria-hidden="true"
+        />
+
+      <div
+        class="image-viewer__dock"
+        @pointerenter="pinChrome"
+        @pointerleave="unpinChrome"
+      >
         <v-btn
           @click="toggleSlideshow"
           :disabled="!displaySrc"
@@ -355,6 +414,8 @@
         @pointerdown.stop
         @wheel.stop.passive
         @scroll.passive="onFilmstripScroll"
+        @pointerenter="pinChrome"
+        @pointerleave="unpinChrome"
       >
         <div
           class="image-viewer__filmstrip-track"
@@ -384,9 +445,64 @@
         </div>
       </div>
 
-      <div v-if="viewer.infoVisible && infoLine" class="image-viewer__info">
-        {{ infoLine }}
+      <div
+        v-if="viewer.infoVisible"
+        class="image-viewer__info"
+        @pointerenter="pinChrome"
+        @pointerleave="unpinChrome"
+      >
+        <template v-if="infoMeta.summary">
+          <span class="image-viewer__info-text" :title="infoMeta.path || infoMeta.summary">
+            {{ infoMeta.summary }}
+          </span>
+          <v-btn
+            v-if="infoMeta.path"
+            class="image-viewer__info-copy"
+            icon="mdi-content-copy"
+            size="x-small"
+            variant="text"
+            color="white"
+            :title="t('image.viewer.copy_path')"
+            :aria-label="t('image.viewer.copy_path')"
+            @click.stop="copyImagePath"
+          />
+        </template>
+        <span v-else class="image-viewer__info-empty">
+          {{ t('image.viewer.info_empty') }}
+        </span>
       </div>
+
+      <Transition name="image-viewer-fade">
+        <div
+          v-if="shortcutsVisible"
+          class="image-viewer__shortcuts"
+          role="dialog"
+          :aria-label="t('image.viewer.shortcuts_title')"
+          @click.self="shortcutsVisible = false"
+          @pointerenter="pinChrome"
+        >
+          <div class="image-viewer__shortcuts-card">
+            <div class="image-viewer__shortcuts-title">
+              {{ t('image.viewer.shortcuts_title') }}
+            </div>
+            <ul class="image-viewer__shortcuts-list">
+              <li v-for="row in shortcutRows" :key="row.keys">
+                <kbd>{{ row.keys }}</kbd>
+                <span>{{ row.label }}</span>
+              </li>
+            </ul>
+            <v-btn
+              size="small"
+              variant="tonal"
+              color="primary"
+              rounded
+              @click="shortcutsVisible = false"
+            >
+              {{ t('image.viewer.shortcuts_close') }}
+            </v-btn>
+          </div>
+        </div>
+      </Transition>
     </div>
   </v-dialog>
 </template>
@@ -445,6 +561,9 @@ const displaySrc = ref<string | null>(null)
 const shownKey = ref('empty')
 const loadFailed = ref(false)
 const chromeVisible = ref(true)
+const chromePinned = ref(false)
+const shortcutsVisible = ref(false)
+const slideshowProgressKey = ref(0)
 const filmstripThumbs = ref<Record<string, string>>({})
 const filmstripScrollLeft = ref(0)
 const filmstripViewportWidth = ref(0)
@@ -468,6 +587,11 @@ let swipeTracking = false
 let swipeStartX = 0
 let swipeStartY = 0
 let swipeMoved = false
+/** Accumulate trackpad two-finger horizontal deltas into prev/next navigations. */
+let wheelNavAccumX = 0
+let wheelNavCooldownUntil = 0
+const WHEEL_NAV_THRESHOLD_PX = 70
+const WHEEL_NAV_COOLDOWN_MS = 380
 
 let objectUrl: string | null = null
 let ownsObjectUrl = false
@@ -507,7 +631,13 @@ const currentName = computed(() =>
 const zoomLabel = computed(() => `${Math.round(viewer.scale * 100)}%`)
 
 const chromeHidden = computed(() =>
-  !chromeVisible.value && !loadFailed.value && !viewer.loadingPlaylist,
+  // Auto-hide chrome only in fullscreen; keep controls visible in windowed mode.
+  Boolean(viewer.fullscreen)
+  && !chromeVisible.value
+  && !chromePinned.value
+  && !shortcutsVisible.value
+  && !loadFailed.value
+  && !viewer.loadingPlaylist,
 )
 
 const canShowFilmstrip = computed(() => {
@@ -518,6 +648,20 @@ const canShowFilmstrip = computed(() => {
 const showFilmstrip = computed(() =>
   viewer.filmstripVisible && canShowFilmstrip.value,
 )
+
+const shortcutRows = computed(() => [
+  {keys: '← →', label: t('image.viewer.previous') + ' / ' + t('image.viewer.next')},
+  {keys: 'Home / End', label: t('image.viewer.first_last')},
+  {keys: 'Space', label: t('image.viewer.slideshow_play')},
+  {keys: '+ / −', label: t('image.viewer.zoom_in') + ' / ' + t('image.viewer.zoom_out')},
+  {keys: '0', label: t('image.viewer.fit')},
+  {keys: '[ / R', label: t('image.viewer.rotate_left') + ' / ' + t('image.viewer.rotate_right')},
+  {keys: 'H / V', label: t('image.viewer.flip_horizontal') + ' / ' + t('image.viewer.flip_vertical')},
+  {keys: 'F', label: t('image.viewer.fullscreen')},
+  {keys: 'I / T', label: t('image.viewer.toggle_info') + ' / ' + t('image.viewer.toggle_filmstrip')},
+  {keys: '?', label: t('image.viewer.shortcuts_title')},
+  {keys: 'Esc', label: t('image.viewer.close')},
+])
 
 type FilmstripItem = {
   key: string
@@ -610,43 +754,77 @@ const transformStyle = computed(() => {
   return {transform: transforms.join(' ')}
 })
 
-const infoLine = computed(() => {
+const infoMeta = computed(() => {
   const source = viewer.currentSource
   if (source) {
-    const parts = []
+    const parts: string[] = []
     if (source.width && source.height) {
       parts.push(`${source.width}×${source.height}`)
     }
-    return parts.join(' · ')
+    return {
+      summary: parts.join(' · '),
+      path: null as string | null,
+    }
   }
 
   const image = viewer.currentImage
-  if (!image) return ''
+  if (!image) {
+    return {summary: '', path: null as string | null}
+  }
 
-  const parts = []
-
+  const parts: string[] = []
   if (image.width && image.height) {
     parts.push(`${image.width}×${image.height}`)
   }
-
   if (image.filesize) {
     parts.push(getReadableFileSize(Number(image.filesize)))
   }
-
   if (image.path) {
     parts.push(image.path)
   }
 
-  return parts.join(' · ')
+  return {
+    summary: parts.join(' · '),
+    path: image.path || null,
+  }
 })
 
 const bumpChrome = () => {
   chromeVisible.value = true
+  if (chromePinned.value || shortcutsVisible.value) {
+    if (chromeHideTimer) clearTimeout(chromeHideTimer)
+    chromeHideTimer = null
+    return
+  }
   if (chromeHideTimer) clearTimeout(chromeHideTimer)
   chromeHideTimer = setTimeout(() => {
-    if (loadFailed.value) return
+    if (loadFailed.value || chromePinned.value || shortcutsVisible.value) return
     chromeVisible.value = false
   }, CHROME_HIDE_MS)
+}
+
+const pinChrome = () => {
+  chromePinned.value = true
+  chromeVisible.value = true
+  if (chromeHideTimer) {
+    clearTimeout(chromeHideTimer)
+    chromeHideTimer = null
+  }
+}
+
+const unpinChrome = () => {
+  chromePinned.value = false
+  bumpChrome()
+}
+
+const copyImagePath = async () => {
+  const path = infoMeta.value.path
+  if (!path) return
+  try {
+    await navigator.clipboard.writeText(path)
+  } catch (error) {
+    console.error('Failed to copy image path:', error)
+  }
 }
 
 const clearObjectUrl = () => {
@@ -847,18 +1025,33 @@ const stopSlideshow = () => {
   viewer.setSlideshowActive(false)
 }
 
+const restartSlideshowTimer = () => {
+  if (!viewer.slideshowActive) return
+  stopSlideshowTimer()
+  slideshowProgressKey.value += 1
+  slideshowTimer = setInterval(() => {
+    void tickSlideshow()
+  }, slideshowIntervalMs.value)
+}
+
+/** Defer the next slideshow tick without leaving slideshow mode. */
+const deferSlideshowTick = () => {
+  if (!viewer.slideshowActive) return
+  restartSlideshowTimer()
+}
+
 const tickSlideshow = async () => {
   if (!viewer.active || !viewer.slideshowActive) return
   if (viewer.loading || viewer.loadingPlaylist) return
 
   if (viewer.hasNextOrMore) {
-    await goNext()
+    await goNext({fromSlideshow: true})
     return
   }
 
   const total = viewer.isSourcesMode ? viewer.sources.length : viewer.imageIds.length
   if (slideshowLoop.value && total > 1) {
-    await goToIndex(0)
+    await goToIndex(0, {fromSlideshow: true})
     return
   }
 
@@ -869,6 +1062,7 @@ const startSlideshow = () => {
   stopSlideshowTimer()
   viewer.setSlideshowActive(true)
   bumpChrome()
+  slideshowProgressKey.value += 1
   slideshowTimer = setInterval(() => {
     void tickSlideshow()
   }, slideshowIntervalMs.value)
@@ -881,10 +1075,7 @@ const toggleSlideshow = () => {
 
 watch(slideshowIntervalMs, () => {
   if (!viewer.slideshowActive) return
-  stopSlideshowTimer()
-  slideshowTimer = setInterval(() => {
-    void tickSlideshow()
-  }, slideshowIntervalMs.value)
+  restartSlideshowTimer()
 })
 
 const closeViewer = () => {
@@ -895,11 +1086,13 @@ const closeViewer = () => {
   playlistExtendPromise = null
   viewer.setLoadingPlaylist(false)
   stopSlideshow()
+  shortcutsVisible.value = false
+  chromePinned.value = false
   if (chromeHideTimer) clearTimeout(chromeHideTimer)
   chromeHideTimer = null
   chromeVisible.value = true
   clearNeighborCache()
-  filmstripThumbs.value = {}
+  clearFilmstripThumbs()
   filmstripLoadToken += 1
   unbindFilmstripObserver()
   clearObjectUrl()
@@ -955,18 +1148,22 @@ const maybePrefetchPlaylist = () => {
   void ensurePlaylistExtended()
 }
 
-const goPrev = async () => {
+const goPrev = async (options: {fromSlideshow?: boolean} = {}) => {
   if (viewer.prev()) {
     await loadCurrentImage()
     bumpChrome()
+    if (!options.fromSlideshow) deferSlideshowTick()
+    else restartSlideshowTimer()
   }
 }
 
-const goNext = async () => {
+const goNext = async (options: {fromSlideshow?: boolean} = {}) => {
   if (viewer.next()) {
     await loadCurrentImage()
     maybePrefetchPlaylist()
     bumpChrome()
+    if (!options.fromSlideshow) deferSlideshowTick()
+    else restartSlideshowTimer()
     return
   }
 
@@ -975,16 +1172,20 @@ const goNext = async () => {
     await loadCurrentImage()
     maybePrefetchPlaylist()
     bumpChrome()
+    if (!options.fromSlideshow) deferSlideshowTick()
+    else restartSlideshowTimer()
   }
 }
 
-const goToIndex = async (index: number) => {
+const goToIndex = async (index: number, options: {fromSlideshow?: boolean} = {}) => {
   if (index === viewer.index) return
 
   if (viewer.isSourcesMode) {
     if (!viewer.goTo(index)) return
     await loadCurrentImage()
     bumpChrome()
+    if (!options.fromSlideshow) deferSlideshowTick()
+    else restartSlideshowTimer()
     return
   }
 
@@ -997,6 +1198,8 @@ const goToIndex = async (index: number) => {
   await loadCurrentImage()
   maybePrefetchPlaylist()
   bumpChrome()
+  if (!options.fromSlideshow) deferSlideshowTick()
+  else restartSlideshowTimer()
 }
 
 const measureFilmstrip = () => {
@@ -1059,10 +1262,21 @@ const scrollFilmstripToActive = async () => {
   filmstripScrollLeft.value = nextLeft
 }
 
+const clearFilmstripThumbs = () => {
+  for (const src of Object.values(filmstripThumbs.value)) {
+    if (src.startsWith('blob:')) revokeImageObjectUrl(src)
+  }
+  filmstripThumbs.value = {}
+}
+
 const pruneFilmstripThumbs = (keepKeys: Set<string>) => {
   const next: Record<string, string> = {}
   for (const [key, src] of Object.entries(filmstripThumbs.value)) {
-    if (keepKeys.has(key)) next[key] = src
+    if (keepKeys.has(key)) {
+      next[key] = src
+      continue
+    }
+    if (src.startsWith('blob:')) revokeImageObjectUrl(src)
   }
   filmstripThumbs.value = next
 }
@@ -1125,7 +1339,7 @@ watch(
   () => [viewer.active, viewer.index, viewer.imageIds.length, viewer.sources.length, viewer.filmstripVisible] as const,
   async () => {
     if (!viewer.active) {
-      filmstripThumbs.value = {}
+      clearFilmstripThumbs()
       unbindFilmstripObserver()
       return
     }
@@ -1158,13 +1372,34 @@ watch(showFilmstrip, async (visible) => {
   void ensureFilmstripThumbs()
 })
 
-const zoomIn = () => viewer.zoomIn()
-const zoomOut = () => viewer.zoomOut()
-const resetView = () => viewer.resetTransform()
-const rotateLeft = () => viewer.rotateLeft()
-const rotateRight = () => viewer.rotateRight()
-const toggleFlipHorizontal = () => viewer.toggleFlipHorizontal()
-const toggleFlipVertical = () => viewer.toggleFlipVertical()
+const zoomIn = () => {
+  viewer.zoomIn()
+  deferSlideshowTick()
+}
+const zoomOut = () => {
+  viewer.zoomOut()
+  deferSlideshowTick()
+}
+const resetView = () => {
+  viewer.resetTransform()
+  deferSlideshowTick()
+}
+const rotateLeft = () => {
+  viewer.rotateLeft()
+  deferSlideshowTick()
+}
+const rotateRight = () => {
+  viewer.rotateRight()
+  deferSlideshowTick()
+}
+const toggleFlipHorizontal = () => {
+  viewer.toggleFlipHorizontal()
+  deferSlideshowTick()
+}
+const toggleFlipVertical = () => {
+  viewer.toggleFlipVertical()
+  deferSlideshowTick()
+}
 
 type FullscreenDocument = Document & {
   webkitFullscreenElement?: Element | null
@@ -1252,6 +1487,9 @@ const toggleFullscreen = async () => {
 
 const clampScale = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 
+/** True when view is at/near fit — swipe navigates; otherwise click/trackpad pans. */
+const isFitScale = () => Math.abs(viewer.scale - 1) <= 0.02
+
 const applyZoomAtClientPoint = (clientX: number, clientY: number, nextScale: number) => {
   const stage = stageRef.value
   if (!stage || nextScale === viewer.scale) return
@@ -1273,22 +1511,50 @@ const applyZoomAtPointer = (event: WheelEvent, nextScale: number) => {
 const onWheel = (event: WheelEvent) => {
   if (!displaySrc.value) return
   bumpChrome()
+  deferSlideshowTick()
 
   const pinchZoom = event.ctrlKey
   const lineWheel = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+  // Mouse wheel at fit: treat large pixel deltas as zoom. When already zoomed,
+  // keep pixel deltas for trackpad pan (pinch/ctrl still zooms).
   const coarseWheel = event.deltaMode === WheelEvent.DOM_DELTA_PIXEL
     && Math.abs(event.deltaY) >= 48
     && Math.abs(event.deltaX) < 2
 
-  const shouldZoom = pinchZoom || lineWheel || coarseWheel
+  const shouldZoom = pinchZoom || lineWheel || (coarseWheel && isFitScale())
 
   if (!shouldZoom) {
-    if (viewer.scale <= 1) return
+    // Fit only: Mac trackpad two-finger horizontal swipe → prev/next.
+    if (isFitScale()) {
+      const absX = Math.abs(event.deltaX)
+      const absY = Math.abs(event.deltaY)
+      const isHorizontal = absX > 4 && absX > absY * 1.15
+      if (!isHorizontal) {
+        wheelNavAccumX = 0
+        return
+      }
+
+      const now = Date.now()
+      if (now < wheelNavCooldownUntil) return
+
+      wheelNavAccumX += event.deltaX
+      if (Math.abs(wheelNavAccumX) < WHEEL_NAV_THRESHOLD_PX) return
+
+      // Natural scroll: fingers left → positive deltaX → next (as in Photos).
+      if (wheelNavAccumX > 0) void goNext()
+      else void goPrev()
+      wheelNavAccumX = 0
+      wheelNavCooldownUntil = now + WHEEL_NAV_COOLDOWN_MS
+      return
+    }
+
+    // Zoomed in/out: two-finger trackpad pans the image.
     viewer.translateX -= event.deltaX
     viewer.translateY -= event.deltaY
     return
   }
 
+  wheelNavAccumX = 0
   const sensitivity = pinchZoom ? 0.015 : lineWheel ? 0.14 : 0.01
   const nextScale = clampScale(viewer.scale * Math.exp(-event.deltaY * sensitivity))
   applyZoomAtPointer(event, nextScale)
@@ -1296,18 +1562,30 @@ const onWheel = (event: WheelEvent) => {
 
 const onPointerDown = (event: PointerEvent) => {
   if (!displaySrc.value) return
+  // Ignore non-primary mouse buttons.
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+
   bumpChrome()
+  deferSlideshowTick()
 
   pointers.set(event.pointerId, {x: event.clientX, y: event.clientY})
-  stageRef.value?.setPointerCapture?.(event.pointerId)
+  try {
+    stageRef.value?.setPointerCapture?.(event.pointerId)
+  } catch {
+    // ignore capture failures
+  }
 
   if (pointers.size === 1) {
     swipeMoved = false
-    if (viewer.scale <= 1.05) {
+    if (isFitScale()) {
+      // Fit: drag may become a swipe-to-navigate gesture.
       swipeTracking = true
       swipeStartX = event.clientX
       swipeStartY = event.clientY
-    } else if (event.pointerType === 'mouse' ? event.button === 0 : true) {
+      panState.value.active = false
+    } else {
+      // Zoomed: click-drag pans.
+      swipeTracking = false
       panState.value = {
         active: true,
         pointerId: event.pointerId,
@@ -1343,7 +1621,7 @@ const onPointerMove = (event: PointerEvent) => {
     return
   }
 
-  if (panState.value.active && panState.value.pointerId === event.pointerId && viewer.scale > 1) {
+  if (panState.value.active && panState.value.pointerId === event.pointerId) {
     viewer.translateX = panState.value.originX + (event.clientX - panState.value.startX)
     viewer.translateY = panState.value.originY + (event.clientY - panState.value.startY)
     return
@@ -1357,7 +1635,7 @@ const onPointerMove = (event: PointerEvent) => {
 }
 
 const onPointerUp = (event: PointerEvent) => {
-  if (swipeTracking && pointers.size === 1 && viewer.scale <= 1.05 && swipeMoved) {
+  if (swipeTracking && pointers.size === 1 && isFitScale() && swipeMoved) {
     const dx = event.clientX - swipeStartX
     const dy = event.clientY - swipeStartY
     if (Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy) * 1.2) {
@@ -1391,6 +1669,7 @@ const onPointerUp = (event: PointerEvent) => {
 
 const onDoubleClick = (event: MouseEvent) => {
   if (!displaySrc.value) return
+  deferSlideshowTick()
 
   if (viewer.scale <= 1.01) {
     applyZoomAtClientPoint(event.clientX, event.clientY, 2)
@@ -1415,21 +1694,69 @@ const openInSystem = () => {
   openPath(image.path)
 }
 
+const shouldIgnoreViewerHotkeys = (event: KeyboardEvent): boolean => {
+  const target = event.target as HTMLElement | null
+  if (target) {
+    const tag = target.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+    if (target.isContentEditable) return true
+  }
+
+  if (
+    dialogsStore.mediaEditing.show
+    || dialogsStore.confirm.show
+    || dialogsStore.error.show
+    || dialogsStore.process.show
+    || dialogsStore.textPreview.show
+  ) {
+    return true
+  }
+
+  return false
+}
+
 const onKeyDown = (event: KeyboardEvent) => {
   if (!viewer.active) return
+  if (shouldIgnoreViewerHotkeys(event)) return
 
   switch (event.key) {
     case 'Escape':
+      event.preventDefault()
+      if (shortcutsVisible.value) {
+        shortcutsVisible.value = false
+        bumpChrome()
+        break
+      }
+      if (isOurBrowserFullscreen() || (enteredBrowserFullscreen && getFullscreenElement())) {
+        void exitBrowserFullscreen()
+        bumpChrome()
+        break
+      }
+      if (viewer.fullscreen) {
+        viewer.setFullscreen(false)
+        bumpChrome()
+        break
+      }
       closeViewer()
       break
     case 'ArrowLeft':
       event.preventDefault()
-      goPrev()
+      void goPrev()
       break
     case 'ArrowRight':
       event.preventDefault()
-      goNext()
+      void goNext()
       break
+    case 'Home':
+      event.preventDefault()
+      void goToIndex(0)
+      break
+    case 'End': {
+      event.preventDefault()
+      const last = (viewer.isSourcesMode ? viewer.sources.length : viewer.imageIds.length) - 1
+      if (last >= 0) void goToIndex(last)
+      break
+    }
     case ' ':
     case 'Spacebar':
       event.preventDefault()
@@ -1466,16 +1793,35 @@ const onKeyDown = (event: KeyboardEvent) => {
     case 'f':
     case 'F':
       event.preventDefault()
-      toggleFullscreen()
+      void toggleFullscreen()
       break
     case '0':
       event.preventDefault()
       resetView()
       break
+    case '[':
+      event.preventDefault()
+      rotateLeft()
+      break
     case 'r':
     case 'R':
       event.preventDefault()
       rotateRight()
+      break
+    case 'h':
+    case 'H':
+      event.preventDefault()
+      toggleFlipHorizontal()
+      break
+    case 'v':
+    case 'V':
+      event.preventDefault()
+      toggleFlipVertical()
+      break
+    case '?':
+      event.preventDefault()
+      shortcutsVisible.value = !shortcutsVisible.value
+      bumpChrome()
       break
     default:
       break

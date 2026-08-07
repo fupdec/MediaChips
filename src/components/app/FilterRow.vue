@@ -168,34 +168,33 @@
           rounded
         />
 
-        <v-text-field
+        <div
           v-if="filter.type === 'number' && parameter !== 'rating'"
-          :model-value="filterValue"
-          @update:model-value="setValue"
-          :disabled="is_locked || !is_value_required"
-          type="number"
-          class="ma-1 pt-0"
-          hide-details
-          density="compact"
-          variant="outlined"
-          rounded
+          class="filter__number ma-1 pt-0"
         >
-          <template
+          <v-number-input
+            :model-value="numberFilterValue"
+            @update:model-value="setNumberValue"
+            :disabled="is_locked || !is_value_required"
+            control-variant="split"
+            class="filter__number-input"
+            hide-details
+            density="compact"
+            variant="outlined"
+            rounded
+          />
+          <v-chip
             v-if="numberHintLabel"
-            #append-inner
+            size="small"
+            rounded="pill"
+            variant="tonal"
+            color="primary"
+            label
+            class="filter__hint-chip"
           >
-            <v-chip
-              size="small"
-              rounded="pill"
-              variant="tonal"
-              color="primary"
-              label
-              class="filter__hint-chip"
-            >
-              {{ numberHintLabel }}
-            </v-chip>
-          </template>
-        </v-text-field>
+            {{ numberHintLabel }}
+          </v-chip>
+        </div>
 
         <v-rating
           v-if="parameter === 'rating' && filter.type !== 'rating'"
@@ -206,9 +205,11 @@
           empty-icon="mdi-star-outline"
           half-icon="mdi-star-half-full"
           density="compact"
+          size="20"
           half-increments
           clearable
           hover
+          class="filter__rating"
         />
 
         <MetaInputRating
@@ -216,7 +217,9 @@
           @update:model-value="setValue"
           :model-value="filterValNumber"
           :meta_id="metaIdParam"
-        ></MetaInputRating>
+          size="20"
+          class="filter__rating"
+        />
 
           <v-text-field
           v-if="filter.type === 'date'"
@@ -413,6 +416,17 @@ const numberHintLabel = computed(() => {
   return ''
 })
 
+const numberFilterValue = computed((): number | null => {
+  const val = modelFilter.value.val
+  if (val == null || val === '') return null
+  const n = Number(val)
+  return Number.isFinite(n) ? n : null
+})
+
+const setNumberValue = (val: number | null) => {
+  emit('setValue', val)
+}
+
 const showsFilterValue = computed(() => {
   if (!active.value || !is_value_required.value) return false
 
@@ -542,5 +556,22 @@ defineExpose({
 <style scoped>
 .filter__title {
   font-weight: 400;
+}
+
+.filter__number {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.filter__number-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter__hint-chip {
+  flex: 0 0 auto;
 }
 </style>

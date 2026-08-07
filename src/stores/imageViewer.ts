@@ -9,6 +9,37 @@ export type ImageViewerSource = {
   height?: number
 }
 
+const CHROME_PREFS_KEY = 'mediachips.imageViewer.chrome'
+
+type ChromePrefs = {
+  infoVisible: boolean
+  filmstripVisible: boolean
+}
+
+function loadChromePrefs(): ChromePrefs {
+  try {
+    const raw = sessionStorage.getItem(CHROME_PREFS_KEY)
+    if (!raw) return {infoVisible: true, filmstripVisible: true}
+    const parsed = JSON.parse(raw) as Partial<ChromePrefs>
+    return {
+      infoVisible: parsed.infoVisible !== false,
+      filmstripVisible: parsed.filmstripVisible !== false,
+    }
+  } catch {
+    return {infoVisible: true, filmstripVisible: true}
+  }
+}
+
+function saveChromePrefs(prefs: ChromePrefs): void {
+  try {
+    sessionStorage.setItem(CHROME_PREFS_KEY, JSON.stringify(prefs))
+  } catch {
+    // sessionStorage may be unavailable (private mode / quota).
+  }
+}
+
+const initialChrome = loadChromePrefs()
+
 export const useImageViewerStore = defineStore('imageViewer', {
   state: () => ({
     active: false,
@@ -29,8 +60,8 @@ export const useImageViewerStore = defineStore('imageViewer', {
     src: null as string | null,
     isFileExists: true,
     slideshowActive: false,
-    infoVisible: true,
-    filmstripVisible: true,
+    infoVisible: initialChrome.infoVisible,
+    filmstripVisible: initialChrome.filmstripVisible,
   }),
 
   getters: {
@@ -86,6 +117,13 @@ export const useImageViewerStore = defineStore('imageViewer', {
   },
 
   actions: {
+    persistChromePrefs() {
+      saveChromePrefs({
+        infoVisible: this.infoVisible,
+        filmstripVisible: this.filmstripVisible,
+      })
+    },
+
     open({
       imageIds,
       index = 0,
@@ -146,8 +184,7 @@ export const useImageViewerStore = defineStore('imageViewer', {
       this.src = null
       this.isFileExists = true
       this.slideshowActive = false
-      this.infoVisible = true
-      this.filmstripVisible = true
+      // Keep infoVisible / filmstripVisible for the session.
       this.resetTransform()
     },
 
@@ -240,10 +277,12 @@ export const useImageViewerStore = defineStore('imageViewer', {
 
     toggleInfoVisible() {
       this.infoVisible = !this.infoVisible
+      this.persistChromePrefs()
     },
 
     toggleFilmstripVisible() {
       this.filmstripVisible = !this.filmstripVisible
+      this.persistChromePrefs()
     },
   },
 })

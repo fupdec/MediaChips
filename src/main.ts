@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from '@/App.vue'
 import router from '@/router'
-import { i18n, registerVuetifyForLocales } from '@/i18n/loadLocale'
+import { i18n, registerVuetifyForLocales, loadLocale } from '@/i18n/loadLocale'
 
 // ============ VUETIFY SETUP ============
 import '@mdi/font/css/materialdesignicons.min.css'
@@ -109,7 +109,10 @@ router.beforeEach((to, from, next) => {
 app.use(operable, { router, store })
 app.use(readable, { router, store, i18n })
 
-router.isReady().then(() => {
+router.isReady().then(async () => {
+  const locale = await loadLocale(String(i18n.global.locale.value))
+  i18n.global.locale.value = locale as typeof i18n.global.locale.value
+
   app.mount('#app')
 
   void import('@/services/registerPwa').then(({registerPwa}) => {

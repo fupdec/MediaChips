@@ -267,6 +267,7 @@ import {typedApi} from '@/services/typedApi'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import {buildLocalFilterAssistSuggestion} from '@shared/localAiAssistFilterGoal'
+import {isLocalAiFilterExamplePreset} from '@shared/localAiAssistFilterExamples'
 
 const props = withDefaults(defineProps<{
   mode: 'regex' | 'filter' | 'meta'
@@ -364,7 +365,9 @@ function loadRecentGoals(): string[] {
 
 function rememberGoal(text: string) {
   const goalText = text.trim()
-  if (!goalText) return
+  // Preset chips are locale strings — do not persist them as "recent" (avoids
+  // showing Russian examples after switching the UI to English, etc.).
+  if (!goalText || isLocalAiFilterExamplePreset(goalText)) return
   const next = [goalText, ...loadRecentGoals().filter((item) => item !== goalText)]
     .slice(0, RECENT_GOALS_LIMIT)
   try {
@@ -375,9 +378,22 @@ function rememberGoal(text: string) {
   recentGoals.value = next
 }
 
-const recentGoals = ref<string[]>(loadRecentGoals())
+function sanitizeRecentGoals (): string[] {
+  const cleaned = loadRecentGoals().filter((item) => !isLocalAiFilterExamplePreset(item))
+  try {
+    localStorage.setItem(RECENT_GOALS_KEY, JSON.stringify(cleaned))
+  } catch {
+    // ignore quota / private mode
+  }
+  return cleaned
+}
+
+const recentGoals = ref<string[]>(sanitizeRecentGoals())
 
 const filterExamples = computed(() => {
+  // Recompute when UI language changes so chips follow locales.
+  void locale.value
+
   const fields = Array.isArray(props.context?.availableFields) ? props.context.availableFields : []
   const hasParam = (param: string) => fields.some((field) => {
     if (!field || typeof field !== 'object') return false
@@ -400,8 +416,10 @@ const filterExamples = computed(() => {
     dynamic.push(t('settings_labels.local_ai.assist_ex_empty_meta', {field: String(tagsField.name)}))
   }
 
+  const recentCustom = recentGoals.value.filter((item) => !isLocalAiFilterExamplePreset(item))
+
   const ordered = [
-    ...recentGoals.value,
+    ...recentCustom,
     t('settings_labels.local_ai.assist_ex_unwatched'),
     t('settings_labels.local_ai.assist_ex_favorite'),
     ...dynamic,

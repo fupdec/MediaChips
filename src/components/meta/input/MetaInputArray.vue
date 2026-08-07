@@ -14,10 +14,11 @@
     :label="meta.name"
     :hint="meta.hint"
     :disabled="disabled"
-    :hide-no-data="!search"
+    :hide-no-data="purpose === 'filter' ? false : !search"
     hide-selected
     multiple
     :autofocus="autofocus"
+    :class="{'meta-input-array--filter': purpose === 'filter'}"
     @keydown.enter="onEnter"
     @blur="onBlur"
   >
@@ -29,40 +30,123 @@
       </v-btn>
     </template>
 
-    <template v-slot:selection="{ item }">
-      <v-chip
-        v-if="item.raw"
-        @click:close="removeTag(item.value)"
-        @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
-          label: item.raw?.name || item.title,
+    <template
+      v-if="purpose === 'filter' && selectedMenuTags.length"
+      #prepend-item
+    >
+      <v-list-subheader class="meta-input-array__selected-heading">
+        {{ t('common.selected') }} · {{ selectedMenuTags.length }}
+      </v-list-subheader>
+      <v-list-item
+        v-for="tag in selectedMenuTags"
+        :key="`selected-${tag.id}`"
+        density="compact"
+        class="list-item meta-input-array__selected-item"
+        @click.stop="removeTag(tag.id)"
+        @mouseover.stop="showHoverImage($event, meta.id, Number(tag.id), 'tag', {
+          label: tag.name,
           imageAspectRatio: meta.imageAspectRatio,
         })"
         @mouseleave.stop="hideHoverImage"
-        :label="meta?.chipLabel"
-        :variant="chipVariant"
-        :color="chipColorFor(item.raw)"
-        :style="chipStyleFor(item.raw)"
-        closable
-        close-icon="mdi-close"
-        :class="[
-          purpose === 'filter' ? 'ma-0 filter-form-chip' : 'editing-tag-chip',
-          chipClassFor(item.raw),
-        ]"
-        :size="purpose === 'filter' ? 'x-small' : 'small'"
       >
-        <span>{{ item.raw.name || item.title }}</span>
-      </v-chip>
-      <v-chip
-        v-else
-        @click:close="removeTag(item.value)"
-        :class="purpose === 'filter' ? 'ma-0 filter-form-chip' : 'editing-tag-chip'"
-        closable
-        close-icon="mdi-close"
-        :size="purpose === 'filter' ? 'x-small' : 'small'"
-      >
-        <!-- Если raw недоступен, ищем тег в listTags -->
-        <span>{{ findTagName(item.value) }}</span>
-      </v-chip>
+        <template #prepend>
+          <v-icon
+            size="16"
+            color="primary"
+            class="mr-1"
+          >
+            mdi-check
+          </v-icon>
+        </template>
+        <v-list-item-title>
+          <v-chip
+            :label="meta?.chipLabel"
+            :variant="chipVariant"
+            :color="chipColorFor(tag)"
+            :style="chipStyleFor(tag)"
+            :class="chipClassFor(tag)"
+            class="ma-0 filter-form-chip"
+            size="x-small"
+            closable
+            close-icon="mdi-close"
+            @click:close.stop="removeTag(tag.id)"
+          >
+            {{ tag.name }}
+          </v-chip>
+        </v-list-item-title>
+      </v-list-item>
+      <v-divider class="my-1"/>
+    </template>
+
+    <template v-slot:selection="{ item, index }">
+      <!-- Filter: always compact chips; full selection lives in the dropdown. -->
+      <template v-if="purpose === 'filter'">
+        <v-chip
+          v-if="index < filterCollapsedVisible"
+          @click:close="removeTag(item.value)"
+          @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
+            label: item.raw?.name || item.title,
+            imageAspectRatio: meta.imageAspectRatio,
+          })"
+          @mouseleave.stop="hideHoverImage"
+          :label="meta?.chipLabel"
+          :variant="chipVariant"
+          :color="item.raw ? chipColorFor(item.raw) : undefined"
+          :style="item.raw ? chipStyleFor(item.raw) : undefined"
+          closable
+          close-icon="mdi-close"
+          class="ma-0 filter-form-chip"
+          :class="item.raw ? chipClassFor(item.raw) : undefined"
+          size="x-small"
+        >
+          <span>{{ item.raw?.name || item.title || findTagName(item.value) }}</span>
+        </v-chip>
+        <v-chip
+          v-else-if="index === filterCollapsedVisible && selectedCount > filterCollapsedVisible"
+          class="ma-0 filter-form-chip filter-form-chip--more"
+          size="x-small"
+          variant="tonal"
+          @mousedown.prevent
+          @click.stop="focusField"
+        >
+          (+{{ selectedCount - filterCollapsedVisible }}...)
+        </v-chip>
+      </template>
+
+      <template v-else>
+        <v-chip
+          v-if="item.raw"
+          @click:close="removeTag(item.value)"
+          @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
+            label: item.raw?.name || item.title,
+            imageAspectRatio: meta.imageAspectRatio,
+          })"
+          @mouseleave.stop="hideHoverImage"
+          :label="meta?.chipLabel"
+          :variant="chipVariant"
+          :color="chipColorFor(item.raw)"
+          :style="chipStyleFor(item.raw)"
+          closable
+          close-icon="mdi-close"
+          :class="[
+            purpose === 'bulk' ? 'ma-0 filter-form-chip' : 'editing-tag-chip',
+            chipClassFor(item.raw),
+          ]"
+          :size="purpose === 'bulk' ? 'x-small' : 'small'"
+        >
+          <span>{{ item.raw.name || item.title }}</span>
+        </v-chip>
+        <v-chip
+          v-else
+          @click:close="removeTag(item.value)"
+          :class="purpose === 'bulk' ? 'ma-0 filter-form-chip' : 'editing-tag-chip'"
+          closable
+          close-icon="mdi-close"
+          :size="purpose === 'bulk' ? 'x-small' : 'small'"
+        >
+          <span>{{ findTagName(item.value) }}</span>
+        </v-chip>
+      </template>
     </template>
 
     <template v-slot:item="{ props, item }">
@@ -247,6 +331,8 @@ const val = ref<number[]>([])
 const listTags = ref<TagListItem[]>([])
 const search = ref('')
 const field = ref<unknown>(null)
+/** How many tag chips stay visible in filter cards before (+n...). */
+const filterCollapsedVisible = 2
 const currentPage = ref(1)
 const hasMore = ref(false)
 const loadingMore = ref(false)
@@ -286,6 +372,18 @@ const showSortButton = computed(() =>
 )
 
 const selectedCount = computed(() => normalizeIds(val.value).length)
+
+const selectedMenuTags = computed((): TagListItem[] => {
+  if (props.purpose !== 'filter') return []
+  return normalizeIds(val.value).map((id) => {
+    const fromList = listTags.value.find((tag) => Number(tag.id) === Number(id))
+    if (fromList) return fromList
+    return {
+      id,
+      name: findTagName(id),
+    } as TagListItem
+  })
+})
 
 const chipVariant = computed(() =>
   (meta.value?.chipVariant || 'flat') as 'text' | 'flat' | 'elevated' | 'outlined' | 'plain' | 'tonal'
@@ -799,5 +897,42 @@ watch(search, (query) => {
       color: currentColor !important;
     }
   }
+
+  &--more {
+    flex: 0 0 auto;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.meta-input-array--filter {
+  :deep(.v-field__input) {
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
+    align-content: center !important;
+    align-items: center !important;
+    max-height: 28px !important;
+    min-height: 28px !important;
+  }
+
+  :deep(.v-autocomplete__selection) {
+    margin-inline-end: 2px !important;
+    max-width: min(42%, 110px);
+    min-width: 0;
+  }
+
+  :deep(.v-field__input input) {
+    min-width: 40px !important;
+    flex: 1 1 40px;
+  }
+}
+
+.meta-input-array__selected-heading {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.meta-input-array__selected-item {
+  min-height: 32px !important;
 }
 </style>

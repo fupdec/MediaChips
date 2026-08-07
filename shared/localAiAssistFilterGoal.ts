@@ -46,13 +46,13 @@ export function parseRelativeDays(text: string): number | null {
     if (/^year|^год|^лет/.test(unit)) return amount * 365
   }
 
-  if (/последн\w*\s+месяц|за\s+месяц|for\s+a\s+month|past\s+month|\bmonth\b|месяц/.test(raw)) {
+  if (/последн\w*\s+месяц|за\s+месяц|for\s+a\s+month|past\s+month|\bmonth\b|месяц|monat|mois|\bmes\b|mês|一个月|1\s*か\s*月|か月/.test(raw)) {
     // "в этом месяце" is calendar — handled separately.
-    if (/этом\s+месяц|this\s+month|текущ\w*\s+месяц/.test(raw)) return null
+    if (/этом\s+месяц|this\s+month|текущ\w*\s+месяц|diesen\s+monat|ce\s+mois|este\s+mes|este\s+mês|今月|本月/.test(raw)) return null
     return 30
   }
-  if (/последн\w*\s+недел|за\s+недел|for\s+a\s+week|past\s+week|\bweek\b|недел/.test(raw)) {
-    if (/этой\s+недел|this\s+week|текущ\w*\s+недел/.test(raw)) return null
+  if (/последн\w*\s+недел|за\s+недел|for\s+a\s+week|past\s+week|\bweek\b|недел|woche|semaine|semana|週間|一周/.test(raw)) {
+    if (/этой\s+недел|this\s+week|текущ\w*\s+недел|diese\s+woche|cette\s+semaine|esta\s+semana|今週|本周/.test(raw)) return null
     return 7
   }
   if (/последн\w*\s+год|за\s+год|for\s+a\s+year|past\s+year|\byear\b|\bгод\b|\bлет\b/.test(raw)) {
@@ -64,11 +64,11 @@ export function parseRelativeDays(text: string): number | null {
 }
 
 export function isWatchRelatedGoal(goal: string): boolean {
-  return /смотр|watch|viewed|просмотр|unwatched|haven'?t\s+watched|not\s+watched|never\s+watched/i.test(goal)
+  return /смотр|watch|viewed|просмотр|unwatched|haven'?t\s+watched|not\s+watched|never\s+watched|nicht\s+gesehen|pas\s+vu|no\s+visto|não\s+assist|見ていない|未观看/i.test(goal)
 }
 
 export function isNegatedWatchGoal(goal: string): boolean {
-  return /не\s*смотр|не\s*просмотр|unwatched|haven'?t\s+watched|not\s+watched|never\s+watched|without\s+watch|непросмотр/i.test(goal)
+  return /не\s*смотр|не\s*просмотр|unwatched|haven'?t\s+watched|not\s+watched|never\s+watched|without\s+watch|непросмотр|nicht\s+gesehen|seit\s+.*nicht\s+gesehen|pas\s+vu|no\s+visto|não\s+assist|見ていない|未观看/i.test(goal)
 }
 
 export function isNeverWatchedGoal(goal: string): boolean {
@@ -76,15 +76,15 @@ export function isNeverWatchedGoal(goal: string): boolean {
 }
 
 export function hasFavoriteIntent(goal: string): boolean {
-  return /избран|favorite|favourite|\bliked\b/i.test(goal)
+  return /избран|favorite|favourite|\bliked\b|favorit|favoris|favoritos|お気に入り|收藏/i.test(goal)
 }
 
 export function hasRatingIntent(goal: string): boolean {
-  return /рейтинг|rating|\bstars?\b|зв[её]зд/i.test(goal)
+  return /рейтинг|rating|\bstars?\b|зв[её]зд|bewertung|\bnote\b|valoraci[oó]n|avalia[cç][aã]o|評価|评分/i.test(goal)
 }
 
 function hasDurationIntent(goal: string): boolean {
-  return /длительность|duration|длиннее|короче|минут|minutes?|\bmins?\b|час(?:а|ов)?\b/i.test(goal)
+  return /длительность|duration|длиннее|короче|минут|minutes?|\bmins?\b|час(?:а|ов)?\b|min\.?|分钟|分/i.test(goal)
 }
 
 function hasPathIntent(goal: string): boolean {
@@ -92,7 +92,7 @@ function hasPathIntent(goal: string): boolean {
 }
 
 function hasAddedDateIntent(goal: string): boolean {
-  return /добавлен|date\s+added|created|дата\s+добавлен|недавно\s+добав/i.test(goal)
+  return /добавлен|date\s+added|created|дата\s+добавлен|недавно\s+добав|hinzugefügt|ajouté|añadido|adicionado|追加|添加/i.test(goal)
 }
 
 function hasUpdatedDateIntent(goal: string): boolean {
@@ -123,15 +123,15 @@ function hasExtIntent(goal: string): boolean {
 /** Explicit view-count goals like "views > 5", not "не смотрел месяц". */
 function hasViewsCountIntent(goal: string): boolean {
   if (isNegatedWatchGoal(goal) || isNeverWatchedGoal(goal)) return false
-  if (/(?:просмотр(?:ов|а|ы)?|views)\s*(?:>=|<=|>|<|=|≥|≤)\s*\d+/i.test(goal)) return true
-  if (/\d+\s*\+?\s*(?:просмотр(?:ов|а)?|views)\b/i.test(goal)) return true
+  if (/(?:просмотр(?:ов|а|ы)?|views|aufrufe|vues|vistas|visualiza[cç][oõ]es|再生回数|观看次数)\s*(?:>=|<=|>|<|=|≥|≤)\s*\d+/i.test(goal)) return true
+  if (/\d+\s*\+?\s*(?:просмотр(?:ов|а)?|views|aufrufe|vues|vistas|visualiza[cç][oõ]es)\b/i.test(goal)) return true
   if (/(?:больше|меньше|over|under|at\s+least|more\s+than|less\s+than)\s*\d+\s*(?:просмотр|views)/i.test(goal)) return true
   return false
 }
 
 /** In-progress / continue-watching via resume time. */
 function hasResumeIntent(goal: string): boolean {
-  return /недосмотр|не\s*досмотр|continue\s+watch|in\s+progress|с\s+прогресс|есть\s+прогресс|resume(?:\s+time)?|частично\s+смотр|начат\w*\s+смотр|watching\s+progress/i.test(goal)
+  return /недосмотр|не\s*досмотр|continue\s+watch|in\s+progress|с\s+прогресс|есть\s+прогресс|resume(?:\s+time)?|частично\s+смотр|начат\w*\s+смотр|watching\s+progress|angefangen|en\s+cours|a\s+medias|em\s+progresso|視聴途中|未看完/i.test(goal)
 }
 
 function hasCodecIntent(goal: string): boolean {
@@ -234,9 +234,15 @@ function startOfYearIso(todayIso: string): string {
 /** Calendar window start for “this month/week/year”, else null. */
 export function resolveCalendarStart(goal: string, todayIso: string): string | null {
   const raw = goal.toLowerCase()
-  if (/этом\s+месяц|this\s+month|текущ\w*\s+месяц/.test(raw)) return startOfMonthIso(todayIso)
-  if (/этой\s+недел|this\s+week|текущ\w*\s+недел/.test(raw)) return startOfWeekIso(todayIso)
-  if (/этом\s+год|this\s+year|текущ\w*\s+год/.test(raw)) return startOfYearIso(todayIso)
+  if (/этом\s+месяц|this\s+month|текущ\w*\s+месяц|diesen\s+monat|ce\s+mois|este\s+mes|este\s+mês|今月|本月/.test(raw)) {
+    return startOfMonthIso(todayIso)
+  }
+  if (/этой\s+недел|this\s+week|текущ\w*\s+недел|diese\s+woche|cette\s+semaine|esta\s+semana|今週|本周/.test(raw)) {
+    return startOfWeekIso(todayIso)
+  }
+  if (/этом\s+год|this\s+year|текущ\w*\s+год|dieses\s+jahr|cette\s+année|este\s+año|este\s+ano|今年/.test(raw)) {
+    return startOfYearIso(todayIso)
+  }
   return null
 }
 
@@ -747,8 +753,8 @@ function synthesizeMetaFieldFilters(
     const esc = escapeRegExp(name)
 
     if (
-      new RegExp(`(?:без|empty|no|missing|без\\s+значен)\\s+${esc}`, 'i').test(goal)
-      || new RegExp(`${esc}\\s+(?:пуст\\w*|empty|is\\s+null|без\\s+значен)`, 'i').test(goal)
+      new RegExp(`(?:без|empty|no|missing|ohne|sans|sin|sem|无|なし|без\\s+значен)\\s+${esc}`, 'i').test(goal)
+      || new RegExp(`${esc}\\s+(?:пуст\\w*|empty|is\\s+null|без\\s+значен|なし)`, 'i').test(goal)
     ) {
       if (type === 'array' || type === 'string') {
         pushFilter(out, field, 'is null', null)

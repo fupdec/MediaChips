@@ -63,10 +63,9 @@ function applyLocaleMessages(code: AppLocale, custom: Record<string, unknown>, v
   i18n.global.setLocaleMessage(code, messages as (typeof i18n.global.messages.value)['en'])
   if (vuetifyInstance) {
     const vuetifyMessages = vuetifyInstance.locale.messages.value as Record<string, Record<string, unknown>>
-    vuetifyMessages[code] = {
-      ...vuetifyLocale,
-      ...custom,
-    }
+    // Keep Vuetify catalog separate from app i18n keys.
+    vuetifyMessages[code] = {...vuetifyLocale}
+    vuetifyInstance.locale.current.value = code
   }
 }
 

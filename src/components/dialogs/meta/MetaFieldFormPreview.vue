@@ -24,13 +24,13 @@
       />
 
       <!-- Number -->
-      <v-text-field
+      <v-number-input
         v-else-if="type === 'number'"
         v-model="numberValue"
         :label="fieldName"
         :hint="fieldHint"
         :prepend-icon="fieldIcon"
-        type="number"
+        control-variant="split"
         persistent-hint
         clearable
         variant="filled"
@@ -167,7 +167,7 @@ const props = defineProps<{
 const {t} = useI18n()
 
 const stringValue = ref('')
-const numberValue = ref<string | number>('')
+const numberValue = ref<number | null>(null)
 const booleanValue = ref(false)
 const dateValue = ref('')
 const ratingValue = ref(3)
@@ -238,7 +238,7 @@ const seedDemoTags = () => {
 
 const resetValues = () => {
   stringValue.value = ''
-  numberValue.value = ''
+  numberValue.value = null
   booleanValue.value = false
   dateValue.value = ''
   ratingValue.value = Math.min(3, ratingMax.value)

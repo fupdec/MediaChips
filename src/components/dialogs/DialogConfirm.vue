@@ -72,6 +72,9 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
+
+const {t} = useI18n()
 
 const emit = defineEmits<{
   'update:dialog': [value: boolean]
@@ -112,11 +115,11 @@ const isPersistent = computed(() =>
 )
 
 const cancelLabel = computed(() =>
-  props.variant === 'delete' ? 'Cancel' : 'No',
+  props.variant === 'delete' ? t('common.cancel') : t('common.no'),
 )
 
 const confirmLabel = computed(() =>
-  props.variant === 'delete' ? 'Delete' : 'Yes',
+  props.variant === 'delete' ? t('common.delete') : t('common.yes'),
 )
 
 const model = computed({
