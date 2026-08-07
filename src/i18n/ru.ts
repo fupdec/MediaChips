@@ -171,6 +171,12 @@ const ru = {
     hintTabText: 'текстовый поиск',
     sectionTags: 'Теги для закрепления',
     sectionFiltered: 'Результаты по тегам',
+    ai_label: 'ИИ',
+    ai_tip: 'Разобрать запрос через Local AI (или введите ии:… и Enter)',
+    ai_loading: 'Разбираю запрос…',
+    ai_applied: 'Поиск обновлён через ИИ',
+    ai_not_ready: 'Local AI не готов — включите и скачайте модель в настройках',
+    ai_failed: 'Не удалось разобрать поисковый запрос',
   },
   settings: {
     tabs: {

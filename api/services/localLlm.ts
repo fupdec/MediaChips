@@ -39,7 +39,7 @@ export type LocalAiChatMessage = {
   content: string
 }
 
-export type LocalAiChatMode = 'chat' | 'regex' | 'filter' | 'meta'
+export type LocalAiChatMode = 'chat' | 'regex' | 'filter' | 'meta' | 'search'
 
 export type LocalAiChatRequest = {
   mode?: LocalAiChatMode

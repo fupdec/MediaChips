@@ -10,6 +10,8 @@ import {
   setLocalAiEnabled,
   type LocalAiChatRequest,
 } from '../../services/localLlm'
+import {pickLastUserMessageContent} from '../../services/localLlmChat'
+import {buildSearchAssistCandidates} from '../../services/localAiSearchAssist'
 import {ASSISTANT_TOOLS, executeAssistantTool, type AssistantToolCall} from '../../services/assistantTools'
 import {
   createStreamAbortSignal,
@@ -71,6 +73,20 @@ export default function createTasksLocalAiController(shared: TaskControllerShare
         messages: Array.isArray(req.body?.messages) ? req.body.messages : [],
         context: req.body?.context && typeof req.body.context === 'object' ? req.body.context : {},
         system: req.body?.system,
+      }
+
+      if (chatReq.mode === 'search') {
+        const q = String(
+          (chatReq.context as {q?: string})?.q
+          || pickLastUserMessageContent(chatReq.messages)
+          || '',
+        ).trim()
+        const candidateTags = await buildSearchAssistCandidates(db, q)
+        chatReq.context = {
+          ...(chatReq.context || {}),
+          q,
+          candidateTags,
+        }
       }
 
       // Optional explicit tool execution (confirm / client-driven)

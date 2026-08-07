@@ -3,10 +3,11 @@ import {
   buildMetaAssistPrompt,
   buildRegexAssistPrompt,
 } from './localAiAssist'
+import {buildSearchAssistPrompt} from './localAiSearchAssist'
 import type {ModelStatus} from '../types/mlModels'
 
 export type LocalAiChatPromptRequest = {
-  mode?: 'chat' | 'regex' | 'filter' | 'meta'
+  mode?: 'chat' | 'regex' | 'filter' | 'meta' | 'search'
   locale?: string
   context?: Record<string, unknown>
   system?: string
@@ -77,6 +78,8 @@ export function buildLocalAiSystemPrompt(req: LocalAiChatPromptRequest, docsText
     parts.push(...buildFilterAssistPrompt((req.context || {}) as Record<string, unknown>))
   } else if (mode === 'meta') {
     parts.push(...buildMetaAssistPrompt((req.context || {}) as Record<string, unknown>))
+  } else if (mode === 'search') {
+    parts.push(...buildSearchAssistPrompt((req.context || {}) as Record<string, unknown>))
   } else {
     parts.push(
       'You can answer product questions from documentation and help with library organization.',

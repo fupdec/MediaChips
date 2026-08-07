@@ -22,9 +22,10 @@ import {
   shiftDateIso,
   synthesizeFiltersFromGoal,
 } from '../../shared/localAiAssistFilterGoal'
+import {normalizeSearchAssistParsed} from './localAiSearchAssist'
 
 
-export type AssistMode = 'chat' | 'regex' | 'filter' | 'meta'
+export type AssistMode = 'chat' | 'regex' | 'filter' | 'meta' | 'search'
 
 const FILTER_CONDITIONS_BY_TYPE: Record<string, string[]> = {
   string: ['like', 'not like', 'under folder', 'starts with', 'is null', 'not null', 'regex'],
@@ -425,6 +426,7 @@ export function normalizeAssistParsed(
   if (mode === 'regex') return normalizeRegexAssistParsed(parsed, context)
   if (mode === 'filter') return normalizeFilterAssistParsed(parsed, context)
   if (mode === 'meta') return normalizeFilterAssistParsed(parsed)
+  if (mode === 'search') return normalizeSearchAssistParsed(parsed, context)
   return parsed
 }
 

@@ -77,7 +77,7 @@ type FlatResultRow =
   | { kind: 'item'; group: SearchGroup; item: GlobalSearchMedia | GlobalSearchTag; id: string }
   | { kind: 'show-more'; group: SearchGroup; hiddenCount: number; id: string }
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const router = useRouter()
 const {openMediaList} = useOpenMediaList()
 
@@ -283,8 +283,14 @@ const resultsScroller = ref<{ scrollToIndex: (index: number) => void } | null>(n
 const selectedIndex = ref(-1)
 const pinnedTags = ref<PinnedSearchTag[]>([])
 const inputFocused = ref(false)
+const localAiReady = ref(false)
+const aiBusy = ref(false)
+const aiExplanation = ref('')
+const aiError = ref('')
 
 let abortController: AbortController | null = null
+let aiAbortController: AbortController | null = null
+let aiCaptionTimer: ReturnType<typeof setTimeout> | null = null
 let pendingNavigation: (() => void) | null = null
 const RESULT_LIMIT = 50
 const SEMANTIC_RESULT_LIMIT = 500
@@ -423,9 +429,137 @@ function showSearch() {
   pinnedTags.value = []
   results.value = []
   semanticHealth.value = null
+  aiExplanation.value = ''
+  aiError.value = ''
   clearHighlightCache()
   focusSearchField()
   void refreshSemanticHealth()
+  void refreshLocalAiReady()
+}
+
+function isLocalAiStatusReady(status: {
+  enabled?: boolean | string | number
+  status?: string
+}) {
+  const enabled = status.enabled === true
+    || status.enabled === 1
+    || status.enabled === '1'
+    || status.enabled === 'true'
+  return enabled && ['downloaded', 'loaded'].includes(String(status.status || ''))
+}
+
+async function refreshLocalAiReady() {
+  try {
+    const status = (await typedApi.getLocalAiStatus()).data
+    localAiReady.value = isLocalAiStatusReady(status)
+  } catch {
+    localAiReady.value = false
+  }
+}
+
+function stripAiPrefix(raw: string): string {
+  return String(raw || '').replace(/^(ai|ии)\s*:\s*/i, '').trim()
+}
+
+function flashAiCaption(text: string, isError = false) {
+  if (aiCaptionTimer != null) {
+    clearTimeout(aiCaptionTimer)
+    aiCaptionTimer = null
+  }
+  if (isError) {
+    aiError.value = text
+    aiExplanation.value = ''
+  } else {
+    aiExplanation.value = text
+    aiError.value = ''
+  }
+  aiCaptionTimer = setTimeout(() => {
+    aiExplanation.value = ''
+    aiError.value = ''
+    aiCaptionTimer = null
+  }, 3500)
+}
+
+async function runAiInterpret() {
+  const raw = query.value.trim()
+  const q = stripAiPrefix(raw)
+  if (!q || aiBusy.value) return
+
+  await refreshLocalAiReady()
+  if (!localAiReady.value) {
+    flashAiCaption(t('globalSearch.ai_not_ready'), true)
+    return
+  }
+
+  aiBusy.value = true
+  aiError.value = ''
+  aiExplanation.value = t('globalSearch.ai_loading')
+  aiAbortController?.abort()
+  aiAbortController = new AbortController()
+
+  try {
+    let applied = false
+    await typedApi.streamLocalAiChat(
+      {
+        mode: 'search',
+        locale: String(locale.value || 'en'),
+        messages: [{role: 'user', content: q}],
+        context: {q},
+      },
+      aiAbortController.signal,
+      (event) => {
+        if (event.type === 'done') {
+          const parsed = event.parsed || null
+          const tagIds = Array.isArray(parsed?.tagIds)
+            ? parsed.tagIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+            : []
+          const tagNames = Array.isArray(parsed?.tags)
+            ? parsed.tags.map((name) => String(name || '').trim()).filter(Boolean)
+            : []
+          const residual = String(parsed?.query ?? '').trim()
+          const explanation = String(parsed?.explanation || '').trim()
+
+          if (!tagIds.length && !residual && !explanation) {
+            flashAiCaption(t('globalSearch.ai_failed'), true)
+            return
+          }
+
+          const nextPins: PinnedSearchTag[] = []
+          for (let i = 0; i < tagIds.length; i += 1) {
+            const id = tagIds[i]!
+            if (nextPins.some((pin) => pin.id === id)) continue
+            nextPins.push({
+              id,
+              name: tagNames[i] || `#${id}`,
+              metaId: null,
+            })
+          }
+          // Keep previously pinned tags and append new ones.
+          const merged = [...pinnedTags.value]
+          for (const pin of nextPins) {
+            if (!merged.some((entry) => entry.id === pin.id)) merged.push(pin)
+          }
+          pinnedTags.value = merged
+          query.value = residual
+          applied = true
+          flashAiCaption(explanation || t('globalSearch.ai_applied'))
+          void search()
+        }
+        if (event.type === 'error') {
+          flashAiCaption(event.message || t('globalSearch.ai_failed'), true)
+        }
+        if (event.type === 'aborted' && !applied) {
+          aiExplanation.value = ''
+        }
+      },
+    )
+  } catch (error) {
+    if ((error as Error)?.name !== 'AbortError') {
+      flashAiCaption(t('globalSearch.ai_failed'), true)
+    }
+  } finally {
+    aiBusy.value = false
+  }
 }
 
 let unregisterShowGlobalSearch: (() => void) | null = null
@@ -971,6 +1105,10 @@ function clearAllSearch() {
   query.value = ''
   pinnedTags.value = []
   abortController?.abort()
+  aiAbortController?.abort()
+  aiBusy.value = false
+  aiExplanation.value = ''
+  aiError.value = ''
   runSearch.cancel()
   results.value = []
   resetExpandedGroups()
@@ -981,6 +1119,14 @@ function clearAllSearch() {
 }
 
 function onSearchKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && aiBusy.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    aiAbortController?.abort()
+    aiBusy.value = false
+    aiExplanation.value = ''
+    return
+  }
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     moveSelection(1)
@@ -989,6 +1135,11 @@ function onSearchKeydown(e: KeyboardEvent) {
     moveSelection(-1)
   } else if (e.key === 'Enter') {
     e.preventDefault()
+    // Explicit AI prefix: interpret then search (does not use debounce).
+    if (/^(ai|ии)\s*:/i.test(query.value.trim())) {
+      void runAiInterpret()
+      return
+    }
     // ⌘/Ctrl+Enter always runs semantic search.
     if (e.metaKey || e.ctrlKey) {
       void searchSemantic()
@@ -1248,6 +1399,23 @@ function getNameHighlighted(text: string) {
           </div>
 
           <v-btn
+            v-if="localAiReady || aiBusy"
+            class="global-search__input-ai"
+            icon
+            variant="text"
+            density="compact"
+            size="small"
+            :loading="aiBusy"
+            :disabled="aiBusy || !query.trim()"
+            :title="t('globalSearch.ai_tip')"
+            tabindex="-1"
+            @mousedown.prevent
+            @click.stop="runAiInterpret"
+          >
+            <v-icon size="18">mdi-creation-outline</v-icon>
+          </v-btn>
+
+          <v-btn
             v-if="query.trim()"
             class="global-search__input-semantic"
             icon
@@ -1275,6 +1443,14 @@ function getNameHighlighted(text: string) {
           >
             <v-icon size="18">mdi-close</v-icon>
           </v-btn>
+        </div>
+
+        <div
+          v-if="aiExplanation || aiError"
+          class="global-search__ai-caption text-caption px-1 pt-2"
+          :class="aiError ? 'text-error' : 'text-medium-emphasis'"
+        >
+          {{ aiError || aiExplanation }}
         </div>
       </div>
 
