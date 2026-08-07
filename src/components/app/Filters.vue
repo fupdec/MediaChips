@@ -132,6 +132,7 @@
                   @set-value="setValue"
                   @set-active="setActive"
                   @remove="remove"
+                  @remove-all="removeAll"
                   @pick-date="pickDate"
                   @valid="validate"
                 />
@@ -176,6 +177,7 @@
           @set-value="setValue"
           @set-active="setActive"
           @remove="remove"
+          @remove-all="removeAll"
           @pick-date="pickDate"
           @valid="validate"
         />

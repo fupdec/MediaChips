@@ -86,19 +86,6 @@
       class="filters-panel__toolbar"
       :class="{'filters-panel__toolbar--deck': variant === 'top'}"
     >
-      <LocalAiAssistPanel
-        v-if="LOCAL_AI_UI_ENABLED && (variant !== 'top' || editMode)"
-        :key="props.assistActive ? 'filter-ai-open' : 'filter-ai-idle'"
-        class="mb-2"
-        mode="filter"
-        :prompt="filterAiPrompt"
-        :context="filterAiContext"
-        :active="props.assistActive"
-        :can-undo="canUndoAiFilters"
-        @apply="emit('apply-ai-filters', $event)"
-        @undo="emit('undo-ai-filters')"
-      />
-
       <!-- Top / full mode: one compact toolbar row -->
       <div
         v-if="variant === 'top' && (editMode || filters.length === 0)"
@@ -129,6 +116,26 @@
           :params="listBy"
           @add="emit('add', $event)"
         />
+
+        <v-btn
+          v-if="editMode && showRemoveAll"
+          variant="tonal"
+          rounded="xl"
+          size="small"
+          color="error"
+          class="filters-panel__toolbar-btn"
+          :aria-label="t('filters.remove_all')"
+          :title="t('filters.remove_all')"
+          @click="emit('remove-all')"
+        >
+          <v-icon
+            start
+            size="small"
+          >
+            mdi-filter-off
+          </v-icon>
+          {{ t('filters.remove_all') }}
+        </v-btn>
       </div>
 
       <!-- Drawer / classic stacked toolbar -->
@@ -152,6 +159,25 @@
               mdi-content-save
             </v-icon>
             {{ t('filters.saved_short') }}
+          </v-btn>
+
+          <v-btn
+            v-if="editMode && showRemoveAll"
+            variant="tonal"
+            rounded="xl"
+            size="small"
+            color="error"
+            :aria-label="t('filters.remove_all')"
+            :title="t('filters.remove_all')"
+            @click="emit('remove-all')"
+          >
+            <v-icon
+              start
+              size="small"
+            >
+              mdi-filter-off
+            </v-icon>
+            {{ t('filters.remove_all') }}
           </v-btn>
 
           <v-btn
@@ -182,6 +208,22 @@
           @add="emit('add', $event)"
         />
       </template>
+
+      <div
+        v-if="LOCAL_AI_UI_ENABLED && (variant !== 'top' || editMode || filters.length === 0)"
+        class="filters-panel__ai-section"
+      >
+        <LocalAiAssistPanel
+          :key="props.assistActive ? 'filter-ai-open' : 'filter-ai-idle'"
+          mode="filter"
+          :prompt="filterAiPrompt"
+          :context="filterAiContext"
+          :active="props.assistActive"
+          :can-undo="canUndoAiFilters"
+          @apply="emit('apply-ai-filters', $event)"
+          @undo="emit('undo-ai-filters')"
+        />
+      </div>
     </div>
 
     <div
@@ -250,7 +292,7 @@
 </template>
 
 <script setup lang="ts">
-import {defineAsyncComponent} from 'vue'
+import {computed, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import FilterRow from '@/components/app/FilterRow.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
@@ -259,6 +301,8 @@ import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import type {FilterObject, FilterListParam} from '@/types/common'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
+
+const REMOVE_ALL_MIN_FILTERS = 5
 
 const props = withDefaults(defineProps<{
   variant?: 'drawer' | 'embedded' | 'top'
@@ -298,11 +342,16 @@ const emit = defineEmits([
   'set-value',
   'set-active',
   'remove',
+  'remove-all',
   'pick-date',
   'valid',
 ])
 
 const {t} = useI18n()
+
+const showRemoveAll = computed(() =>
+  props.filters.filter((filter) => !filter.removed && !filter.lock).length > REMOVE_ALL_MIN_FILTERS,
+)
 
 function dragItemKey(filter: FilterObject) {
   return String(filter.id ?? filter.clientKey)
@@ -360,6 +409,14 @@ function dragItemKey(filter: FilterObject) {
 .filters-panel__toolbar {
   padding: 0 4px;
   min-width: 0;
+}
+
+.filters-panel__ai-section {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(var(--v-theme-primary), 0.04);
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
 }
 
 .filters-list {

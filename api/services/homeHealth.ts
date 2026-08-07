@@ -31,8 +31,11 @@ async function getActiveDatabaseSize(db: ApiDb) {
   }
 }
 
-function summarizeGeneratedImagesStatus(status: unknown) {
-  const byType = status || {}
+function summarizeGeneratedImagesStatus(status: unknown): {
+  byType: AnyRecord
+  totalPending: number
+} {
+  const byType = (status && typeof status === 'object' ? status : {}) as AnyRecord
   const totalPending = (Object.values(byType) as AnyRecord[]).reduce(
     (sum: number, item: AnyRecord) => sum + Number(item?.pending || 0),
     0,
