@@ -35,6 +35,8 @@ import {
   FaceStreamEnrollmentRequestSchema,
   FaceStreamMatchingRequestSchema,
   FaceEnrollmentQualityReportRequestSchema,
+  AutoChapterStreamRequestSchema,
+  GenerateAutoChaptersRequestSchema,
 } from '../../shared/schemas/requests'
 import createTaskController from '../controllers/Task.controller'
 import createTaskVideoCoreController from '../controllers/taskVideoCore.controller'
@@ -167,6 +169,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/streamVideoCodecBackfill', 'streamVideoCodecBackfill')
   register('get', '/videoImagesGenerationStatus', 'videoImagesGenerationStatus')
   register('post', '/streamVideoImagesGeneration', 'streamVideoImagesGeneration')
+  register('get', '/autoChapterGenerationStatus', 'autoChapterGenerationStatus')
+  register('post', '/generateAutoChapters', 'generateAutoChapters', validateBody(GenerateAutoChaptersRequestSchema))
+  register('post', '/streamAutoChapterGeneration', 'streamAutoChapterGeneration', validateBody(AutoChapterStreamRequestSchema))
   register('get', '/imageThumbsGenerationStatus', 'imageThumbsGenerationStatus')
   register('post', '/streamImageThumbsGeneration', 'streamImageThumbsGeneration')
   register('get', '/tagImageAiUpscaleStatus', 'tagImageAiUpscaleStatus')

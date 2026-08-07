@@ -446,6 +446,42 @@ export const tasksApi = {
     )
   },
 
+  getAutoChapterGenerationStatus() {
+    return apiClient.get(API_ROUTES.taskAutoChapterGenerationStatus)
+  },
+
+  generateAutoChapters(body: {
+    mediaId: number
+    force?: boolean
+    threshold?: number
+    minGapSec?: number
+    maxChapters?: number
+  }) {
+    return apiClient.post(API_ROUTES.taskGenerateAutoChapters, body)
+  },
+
+  streamAutoChapterGeneration(
+    body: {
+      force?: boolean
+      mediaIds?: number[]
+      threshold?: number
+      minGapSec?: number
+      maxChapters?: number
+    },
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamAutoChapterGeneration,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Auto chapter generation request failed',
+      },
+      onEvent,
+    )
+  },
+
   getImageThumbsGenerationStatus() {
     return apiClient.get(API_ROUTES.taskImageThumbsGenerationStatus).then((res) => ({
       ...res,

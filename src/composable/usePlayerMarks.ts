@@ -24,7 +24,7 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
   const itemsStore = useItemsStore()
   const eventBus = useEventBus()
 
-  const marksType = ref<Array<string | number>>(['favorite', 'bookmark'])
+  const marksType = ref<Array<string | number>>(['favorite', 'bookmark', 'scene'])
   const is_thumbs_loaded = ref(false)
 
   const player = computed(() => playerStore)

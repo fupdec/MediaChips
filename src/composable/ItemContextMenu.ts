@@ -8,6 +8,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useRegistrationStore} from '@/stores/registration'
+import {useTasksStore} from '@/stores/tasks'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
@@ -80,6 +81,7 @@ export default function useItemContextMenu(
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
   const registrationStore = useRegistrationStore()
+  const tasksStore = useTasksStore()
   const router = useRouter()
 
   const eventBus = useEventBus()
@@ -275,6 +277,13 @@ export default function useItemContextMenu(
           icon: 'face-recognition',
           disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
           action: detectFacesForSelection,
+        })
+        contextMenu.push({
+          name: t('context_menu.generate_chapters'),
+          type: 'item',
+          icon: 'bookmark-multiple-outline',
+          disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
+          action: generateChaptersForSelection,
         })
 
         if (!isSelectMode() && isMediaPageItem(item, type)) {
@@ -908,6 +917,87 @@ export default function useItemContextMenu(
         })
       },
     })
+  }
+
+  const generateChaptersForSelection = async (): Promise<void> => {
+    let ids = [Number(item.id)]
+    if (isSelectMode()) ids = itemsStore.selection.map(Number).filter((id) => Number.isFinite(id))
+    if (!ids.length) return
+
+    const locale = settingsStore.locale as Locale
+    const tr = (key: string, params: Record<string, string | number> = {}) => translate(key, params, locale)
+    const controller = new AbortController()
+    const taskId = tasksStore.setTask({
+      title: tr('context_menu.generate_chapters'),
+      subtitle: tr('context_menu.generate_chapters_progress', {
+        processed: 0,
+        total: ids.length,
+      }),
+      icon: 'bookmark-multiple-outline',
+      progress: 0,
+      action: () => controller.abort(),
+    })
+
+    try {
+      let created = 0
+      let skipped = 0
+      let failed = 0
+      await typedApi.streamAutoChapterGeneration(
+        {mediaIds: ids, force: true},
+        {signal: controller.signal},
+        (event) => {
+          if (event.type === 'progress' || event.type === 'item') {
+            created = Number(event.created) || created
+            skipped = Number(event.skipped) || skipped
+            failed = Number(event.failed) || failed
+            const processed = Number(event.processed) || 0
+            const total = Number(event.total) || ids.length
+            tasksStore.updateTask(taskId, {
+              subtitle: tr('context_menu.generate_chapters_progress', {processed, total}),
+              progress: total > 0 ? Math.min((processed / total) * 100, 100) : 0,
+            })
+          }
+          if (event.type === 'error') {
+            throw new Error(event.message || tr('common.error'))
+          }
+        },
+      )
+      tasksStore.updateTask(taskId, {
+        subtitle: tr('context_menu.generate_chapters_done', {created, skipped, failed}),
+        progress: 100,
+        color: 'success',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: created > 0 ? 'success' : 'info',
+        title: tr('context_menu.generate_chapters'),
+        text: tr('context_menu.generate_chapters_done', {created, skipped, failed}),
+        icon: 'bookmark-multiple-outline',
+      })
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') {
+        tasksStore.updateTask(taskId, {
+          subtitle: tr('common.stop'),
+          color: 'warning',
+          done: true,
+          action: undefined,
+        })
+        return
+      }
+      const message = error instanceof Error ? error.message : String(error)
+      tasksStore.updateTask(taskId, {
+        subtitle: message,
+        color: 'error',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'error',
+        title: tr('context_menu.generate_chapters'),
+        text: message,
+      })
+    }
   }
 
   const moveTo = (): void => {

@@ -8,6 +8,10 @@
       <v-icon icon="mdi-bookmark" size="small" start/>
       {{ t('meta.default_names.bookmark') }}
     </v-chip>
+    <v-chip value="scene" size="small" variant="tonal" filter>
+      <v-icon icon="mdi-movie-open-outline" size="small" start/>
+      {{ t('player.auto_chapters') }}
+    </v-chip>
     <v-chip
       v-for="i in assignedWithMeta"
       :key="i.meta!.id"
@@ -37,7 +41,7 @@ const assignedWithMeta = computed(() =>
 )
 
 const marksType = defineModel<Array<number | string>>({
-  default: () => ['favorite', 'bookmark'],
+  default: () => ['favorite', 'bookmark', 'scene'],
 })
 
 const {t} = useI18n()

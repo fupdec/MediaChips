@@ -38,6 +38,11 @@ import {
   getClipEmbeddingBackfillStatus,
   iterateClipEmbeddingBackfill,
 } from '../../services/mediaClipEmbeddings'
+import {
+  generateAutoChaptersForMedia,
+  getAutoChapterGenerationStatus,
+  iterateAutoChapterGeneration,
+} from '../../services/autoChapterDetect'
 
 export default function createTasksMaintenanceController(shared: TaskControllerShared) {
   const {
@@ -133,6 +138,49 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       iterate: (shouldStop) => getVideoImagesGeneration().iterateVideoImagesGeneration(db, getDbPath(), imageType, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
+      }),
+    })
+  }
+
+  const autoChapterGenerationStatus = async (_req: ApiRequest, res: ApiResponse) => {
+    try {
+      sendOk(res, getAutoChapterGenerationStatus(db))
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while checking auto chapter status.')
+    }
+  }
+
+  const generateAutoChapters = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const mediaId = Number(req.body?.mediaId)
+      if (!Number.isFinite(mediaId) || mediaId <= 0) {
+        sendControllerError(res, new Error('mediaId is required'), 'mediaId is required')
+        return
+      }
+      const result = await generateAutoChaptersForMedia(db, mediaId, {
+        force: Boolean(req.body?.force),
+        threshold: req.body?.threshold != null ? Number(req.body.threshold) : undefined,
+        minGapSec: req.body?.minGapSec != null ? Number(req.body.minGapSec) : undefined,
+        maxChapters: req.body?.maxChapters != null ? Number(req.body.maxChapters) : undefined,
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while generating auto chapters.')
+    }
+  }
+
+  const streamAutoChapterGeneration = async (req: ApiRequest, res: ApiResponse) => {
+    const force = Boolean(req.body?.force) || String(req.query.force || '').toLowerCase() === 'true'
+    const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : undefined
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while generating auto chapters.',
+      iterate: (shouldStop) => iterateAutoChapterGeneration(db, {
+        shouldStop,
+        force,
+        mediaIds,
+        threshold: req.body?.threshold != null ? Number(req.body.threshold) : undefined,
+        minGapSec: req.body?.minGapSec != null ? Number(req.body.minGapSec) : undefined,
+        maxChapters: req.body?.maxChapters != null ? Number(req.body.maxChapters) : undefined,
       }),
     })
   }
@@ -309,6 +357,9 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamImageThumbsGeneration,
     videoImagesGenerationStatus,
     streamVideoImagesGeneration,
+    autoChapterGenerationStatus,
+    generateAutoChapters,
+    streamAutoChapterGeneration,
     missingMediaStatus,
     streamFindMissingMedia,
     streamScanFolderDuplicates,

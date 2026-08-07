@@ -12,6 +12,18 @@
         </div>
         <v-spacer/>
         <v-btn
+          :title="t('player.generate_chapters')"
+          :loading="generatingChapters"
+          :disabled="generatingChapters || !player.media?.id"
+          variant="text"
+          icon
+          size="small"
+          density="comfortable"
+          @click="generateChapters"
+        >
+          <v-icon size="small">mdi-movie-open-outline</v-icon>
+        </v-btn>
+        <v-btn
           @click="player.marksVisible = false"
           variant="text"
           icon
@@ -51,6 +63,19 @@
             class="player-sidebar__empty-img"
           />
           <span>{{ t('player.no_marks') }}</span>
+          <v-btn
+            class="mt-3"
+            color="primary"
+            rounded
+            size="small"
+            variant="tonal"
+            :loading="generatingChapters"
+            :disabled="generatingChapters || !player.media?.id"
+            prepend-icon="mdi-movie-open-outline"
+            @click="generateChapters"
+          >
+            {{ t('player.generate_chapters') }}
+          </v-btn>
         </div>
 
         <div v-else class="player-sidebar__empty">
@@ -67,8 +92,12 @@
 </template>
 
 <script setup lang="ts">
+import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {usePlayerMarks} from '@/composable/usePlayerMarks'
+import {typedApi} from '@/services/typedApi'
+import {usePlayerStore} from '@/stores/player'
+import {setNotification} from '@/services/notificationService'
 import PlayerMarksFilters from '@/components/app/player/PlayerMarksFilters.vue'
 import PlayerMarkListItem from '@/components/app/player/PlayerMarkListItem.vue'
 import type {PlayerMark} from '@/types/player'
@@ -77,6 +106,8 @@ const emit = defineEmits<{
   removeMark: [mark: PlayerMark]
 }>()
 const {t} = useI18n()
+const playerStore = usePlayerStore()
+const generatingChapters = ref(false)
 
 const {
   player,
@@ -91,6 +122,38 @@ const {
   jumpTo,
   remove,
 } = usePlayerMarks({emit})
+
+async function generateChapters() {
+  const mediaId = Number(playerStore.media?.id)
+  if (!Number.isFinite(mediaId) || mediaId <= 0 || generatingChapters.value) return
+
+  generatingChapters.value = true
+  try {
+    const result = await typedApi.generateAutoChapters({mediaId, force: true})
+    const chapters = Number(result.data?.chapters) || 0
+    const res = await typedApi.getMarksForVideo(mediaId)
+    playerStore.marks = Array.isArray(res.data) ? res.data : []
+    if (!marksType.value.includes('scene')) {
+      marksType.value = [...marksType.value, 'scene']
+    }
+    setNotification({
+      type: chapters >= 2 ? 'success' : 'info',
+      title: t('player.generate_chapters'),
+      text: chapters >= 2
+        ? t('player.generate_chapters_done', {count: chapters})
+        : t('player.generate_chapters_none'),
+      icon: 'movie-open-outline',
+    })
+  } catch (error) {
+    setNotification({
+      type: 'error',
+      title: t('player.generate_chapters'),
+      text: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    generatingChapters.value = false
+  }
+}
 
 defineExpose({getThumbs})
 </script>

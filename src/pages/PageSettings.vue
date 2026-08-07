@@ -186,6 +186,10 @@
               </SettingsSection>
 
               <SettingsSection>
+                <SettingsGenerateAutoChapters/>
+              </SettingsSection>
+
+              <SettingsSection>
                 <SettingsGenerateImageThumbs/>
               </SettingsSection>
 
@@ -320,6 +324,9 @@ const SettingsFindDuplicates = defineAsyncComponent(() =>
 )
 const SettingsGenerateVideoImages = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateVideoImages.vue")
+)
+const SettingsGenerateAutoChapters = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsGenerateAutoChapters.vue")
 )
 const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateImageThumbs.vue")
@@ -510,6 +517,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   open_data_folder: "settings-open-data-folder",
   databases: "settings-databases",
   generate_video_images: "settings-generate-video-images",
+  generate_auto_chapters: "settings-generate-auto-chapters",
   generate_image_thumbs: "settings-generate-image-thumbs",
   tag_image_ai_upscale: "settings-tag-image-ai-upscale",
   local_ai: "settings-local-ai",

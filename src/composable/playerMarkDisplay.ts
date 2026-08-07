@@ -3,6 +3,7 @@ import type { MarkDisplayVariant, PlayerMark } from '@/types/player'
 export function getMarkIcon(mark: PlayerMark, { variant = 'list' }: { variant?: MarkDisplayVariant } = {}) {
   if (mark.type === 'favorite') return 'heart'
   if (mark.type === 'bookmark') return 'bookmark'
+  if (mark.type === 'scene') return 'movie-open-outline'
   if (variant === 'timeline') return 'tooltip'
   if (mark.type === 'meta') return mark.meta?.icon || mark['tag.icon'] || 'tag'
   return 'marker'
@@ -11,6 +12,7 @@ export function getMarkIcon(mark: PlayerMark, { variant = 'list' }: { variant?: 
 export function getMarkColor(mark: PlayerMark, { variant = 'list' }: { variant?: MarkDisplayVariant } = {}) {
   if (mark.type === 'favorite') return '#e91e63'
   if (mark.type === 'bookmark') return '#f44336'
+  if (mark.type === 'scene') return '#26a69a'
   if (mark.type === 'meta') return mark['tag.color'] || mark.tag?.color || '#2196f3'
   return variant === 'timeline' ? '#ffffff' : 'primary'
 }

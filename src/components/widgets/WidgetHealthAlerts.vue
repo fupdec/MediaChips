@@ -62,6 +62,48 @@
         </div>
       </v-alert>
 
+      <div
+        v-if="canFixVisuals"
+        class="mb-2"
+      >
+        <div class="d-flex flex-wrap ga-2 align-center">
+          <v-btn
+            v-if="!visualsFix.state.value.running"
+            color="primary"
+            rounded
+            variant="flat"
+            prepend-icon="mdi-image-auto-adjust"
+            @click="fixLibraryVisuals"
+          >
+            {{ t('home.widgets.health_make_library_look_good') }}
+          </v-btn>
+          <v-btn
+            v-else
+            color="error"
+            rounded
+            variant="flat"
+            prepend-icon="mdi-stop"
+            @click="visualsFix.stop()"
+          >
+            {{ t('common.stop') }}
+          </v-btn>
+        </div>
+        <div
+          v-if="visualsFix.state.value.running"
+          class="text-caption text-medium-emphasis mt-2"
+        >
+          {{ visualsFixProgressLabel }}
+        </div>
+        <v-progress-linear
+          v-if="visualsFix.state.value.running"
+          :model-value="visualsFix.state.value.progress"
+          color="primary"
+          height="4"
+          rounded
+          class="mt-1"
+        />
+      </div>
+
       <v-alert
         v-if="!visibleAlerts.length"
         type="success"
@@ -105,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue'
+import {computed, onMounted, onBeforeUnmount, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
@@ -113,15 +155,18 @@ import {useTasksStore} from '@/stores/tasks'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import {isStartupHealthNotificationsEnabled} from '@/composable/useStartupHealthNotifications'
+import {useLibraryVisualsFix} from '@/composable/useLibraryVisualsFix'
 import {getReadableFileSize} from '@/services/formatUtils'
 import type { HealthAlertItem, HomeHealthData } from '@/types/widgets'
 import { emptyHomeHealthUi, toHomeHealthUi } from '@/types/widgets'
+import type { Locale } from '@/utils/translate'
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const router = useRouter()
 const tasksStore = useTasksStore()
 const settingsStore = useSettingsStore()
 const appShell = useAppShell()
+const visualsFix = useLibraryVisualsFix()
 
 const autoCheckEnabled = computed(() =>
   isStartupHealthNotificationsEnabled(settingsStore.startupHealthNotifications),
@@ -284,6 +329,28 @@ const visibleAlerts = computed((): HealthAlertItem[] => {
   return alerts
 })
 
+const canFixVisuals = computed(() =>
+  visualsFix.stagesFromHealth(health.value).length > 0 || visualsFix.state.value.running,
+)
+
+const visualsFixProgressLabel = computed(() => {
+  const stage = visualsFix.state.value.stage
+  if (!stage) return ''
+  return t('home.widgets.health_make_library_look_good_progress', {
+    stage: t(`home.widgets.health_make_library_look_good_stage_${stage}`),
+    processed: visualsFix.state.value.processed,
+    total: visualsFix.state.value.total,
+  })
+})
+
+async function fixLibraryVisuals() {
+  const ok = await visualsFix.run(
+    health.value,
+    String(settingsStore.locale || locale.value || 'en') as Locale,
+  )
+  if (ok) await runCheck()
+}
+
 function openDatabaseSettings() {
   router.push({
     path: '/settings',
@@ -386,6 +453,10 @@ onMounted(() => {
   if (autoCheckEnabled.value) {
     void runCheck()
   }
+})
+
+onBeforeUnmount(() => {
+  visualsFix.stop()
 })
 </script>
 

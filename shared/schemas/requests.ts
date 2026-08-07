@@ -810,6 +810,22 @@ export const FaceStreamDetectionRequestSchema = z.object({
   minScore: optionalCoercedNumber,
 }).passthrough()
 
+export const AutoChapterStreamRequestSchema = z.object({
+  force: optionalCoercedBoolean,
+  mediaIds: z.array(z.union([z.number(), z.string()])).optional(),
+  threshold: optionalCoercedNumber,
+  minGapSec: optionalCoercedNumber,
+  maxChapters: optionalCoercedNumber,
+}).passthrough()
+
+export const GenerateAutoChaptersRequestSchema = z.object({
+  mediaId: z.union([z.number(), z.string()]),
+  force: optionalCoercedBoolean,
+  threshold: optionalCoercedNumber,
+  minGapSec: optionalCoercedNumber,
+  maxChapters: optionalCoercedNumber,
+}).passthrough()
+
 export const FaceStreamEnrollmentRequestSchema = z.object({
   force: optionalCoercedBoolean,
   metaId: optionalCoercedNumber,
