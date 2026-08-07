@@ -23,6 +23,20 @@
       </div>
 
       <div class="player-sidebar__modes">
+        <v-chip
+          v-if="similarRadioActive"
+          class="player-sidebar__radio-chip"
+          color="primary"
+          variant="tonal"
+          size="small"
+          closable
+          close-icon="mdi-stop"
+          :title="t('player.similar_radio_stop')"
+          @click:close="onStopRadio"
+        >
+          <v-icon start size="small">mdi-radio-tower</v-icon>
+          {{ t('player.similar_radio') }}
+        </v-chip>
         <v-btn-toggle
           v-model="player.playlistMode"
           color="primary"
@@ -32,13 +46,23 @@
           density="compact"
           variant="outlined"
         >
-          <v-btn value="loop" :title="t('player.playlist_modes.loop')" size="small">
+          <v-btn
+            value="loop"
+            :title="t('player.playlist_modes.loop')"
+            size="small"
+            :disabled="similarRadioActive"
+          >
             <v-icon size="small">mdi-sync</v-icon>
           </v-btn>
           <v-btn value="autoplay" :title="t('player.playlist_modes.autoplay')" size="small">
             <v-icon size="small">mdi-play-pause</v-icon>
           </v-btn>
-          <v-btn value="shuffle" :title="t('player.playlist_modes.shuffle')" size="small">
+          <v-btn
+            value="shuffle"
+            :title="t('player.playlist_modes.shuffle')"
+            size="small"
+            :disabled="similarRadioActive"
+          >
             <v-icon size="small">mdi-shuffle-variant</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -68,6 +92,7 @@
 import {useI18n} from 'vue-i18n'
 import {usePlayerPlaylist} from '@/composable/usePlayerPlaylist'
 import PlaylistItem from '@/components/app/player/PlaylistItem.vue'
+import {similarRadioActive, stopSimilarRadio} from '@/services/similarRadio'
 import type { PlayVideoSwitch } from '@/types/player'
 
 const emit = defineEmits<{
@@ -81,4 +106,8 @@ const {
   title,
   play,
 } = usePlayerPlaylist({emit})
+
+function onStopRadio() {
+  stopSimilarRadio()
+}
 </script>

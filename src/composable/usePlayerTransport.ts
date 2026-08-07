@@ -25,6 +25,7 @@ import {
   resolvePlaylistIndex,
 } from '@/composable/usePlayerTransportPlayback'
 import {PLAYER_SESSION_KEY, type PlayerSessionContext} from '@/composable/usePlayerSession'
+import {maybeRefillSimilarRadio} from '@/services/similarRadio'
 import type { MediaItem } from '@/types/stores'
 import type { PlayerMark, PlayVideoSwitch } from '@/types/player'
 
@@ -142,6 +143,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     if (player.value.playlistVisible) {
       eventBus.emit('scrollToNowPlaying')
     }
+    maybeRefillSimilarRadio()
   }
 
   const prev = () => navigatePlaylist('prev')

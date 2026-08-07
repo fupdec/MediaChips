@@ -106,7 +106,7 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
-import SettingsCategoryDivider from '@/components/settings/SettingsCategoryDivider.vue'
+import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 
 const {t, locale} = useI18n()
 const tasksStore = useTasksStore()

@@ -28,6 +28,7 @@ import {
   type SearchGlobalOptions,
   type SearchTagsByNameOptions,
 } from './globalSearchScope'
+import {buildContentSnippet} from './textContentIndex'
 
 const MEDIA_SEARCH_SELECT = `SELECT media.id,
             media.name,
@@ -38,6 +39,9 @@ const MEDIA_SEARCH_SELECT = `SELECT media.id,
 
 const MEDIA_BOOKMARK_SEARCH_SELECT = `${MEDIA_SEARCH_SELECT},
             media.bookmark`
+
+const MEDIA_CONTENT_SEARCH_SELECT = `${MEDIA_SEARCH_SELECT},
+            textContent.content AS textContentBody`
 
 const TAG_SEARCH_SELECT = `SELECT tags.id,
             tags.name,
@@ -154,6 +158,46 @@ async function searchMediaByBookmark(
         ...mediaRow,
         matchSource: 'bookmark' as const,
         matchedBookmark: bookmark,
+      }
+    })
+}
+
+async function searchMediaByContent(
+  db: ApiDb,
+  query: string,
+  limit: unknown,
+  pinnedTagIds: number[] = [],
+) {
+  const trimmed = String(query || '').trim()
+  if (!trimmed) return []
+
+  const sqlLimit = normalizeSearchLimit(limit)
+  const pattern = `%${escapeLikePattern(trimmed)}%`
+  const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
+  const replacements: Record<string, unknown> = {pattern, limit: sqlLimit}
+  if (pinnedTagIds.length) Object.assign(replacements, pinnedTagReplacements(pinnedTagIds))
+
+  const rows = await queryAll(db, `${MEDIA_CONTENT_SEARCH_SELECT}
+     FROM media
+              ${pinnedJoin}
+              LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+              LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+              INNER JOIN textContent ON media.id = textContent.mediaId
+     WHERE textContent.content LIKE :pattern ESCAPE '\\'
+     LIMIT :limit`, replacements)
+
+  return rows
+    .filter((row) => matchesGlobalSearchName(
+      row.textContentBody == null ? '' : String(row.textContentBody),
+      trimmed,
+    ))
+    .map((row) => {
+      const body = row.textContentBody == null ? '' : String(row.textContentBody)
+      const {textContentBody: _body, ...mediaRow} = row
+      return {
+        ...mediaRow,
+        matchSource: 'content' as const,
+        matchedContent: buildContentSnippet(body, trimmed),
       }
     })
 }
@@ -436,9 +480,10 @@ async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) 
     ? {limit, excludeTagIds: pinnedTagIds}
     : {limit}
 
-  const [mediaByName, mediaByBookmark, tagsByName, tagsByBookmark] = await Promise.all([
+  const [mediaByName, mediaByBookmark, mediaByContent, tagsByName, tagsByBookmark] = await Promise.all([
     searchMediaByName(db, trimmed, limit, pinnedTagIds),
     searchMediaByBookmark(db, trimmed, limit, pinnedTagIds),
+    searchMediaByContent(db, trimmed, limit, pinnedTagIds),
     searchTagsByName(db, trimmed, tagSearchOptions),
     searchTagsByBookmark(db, trimmed, tagSearchOptions),
   ])
@@ -446,7 +491,11 @@ async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) 
   const tags = mergeTagSearchRows(tagsByName, tagsByBookmark, limit)
   const mediaByTags = await searchMediaByTagIds(db, tags, limit, pinnedTagIds)
   const media = mergeMediaSearchRows(
-    mergeMediaSearchRows(mediaByName, mediaByBookmark, limit),
+    mergeMediaSearchRows(
+      mergeMediaSearchRows(mediaByName, mediaByBookmark, limit),
+      mediaByContent,
+      limit,
+    ),
     mediaByTags,
     limit,
   )
@@ -460,6 +509,7 @@ async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) 
 export {
   searchMediaByName,
   searchMediaByBookmark,
+  searchMediaByContent,
   searchMediaByTagIds,
   searchTagsByName,
   searchTagsByBookmark,

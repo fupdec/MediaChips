@@ -7,7 +7,9 @@ import type {
 } from '../../types/tasks'
 import type { ApiDb } from '../../types/db'
 import path from 'path'
+import fs from 'fs'
 import {
+  extractAudioCoverArt,
   extractVideoFrame,
   extractVideoThumbnail,
 } from '../../utils/ffmpeg'
@@ -104,6 +106,27 @@ export default function createTaskControllerShared(db: ApiDb) {
     ).then(() => 'success')
   }
 
+  const createAudioThumb = async (pathToFile: string, id: unknown) => {
+    const thumbsDir = path.join(getDbPath(), 'media/audios/thumbs')
+    fs.mkdirSync(thumbsDir, {recursive: true})
+    const outputPath = path.join(thumbsDir, `${id}.jpg`)
+    try {
+      await withTimeout(
+        extractAudioCoverArt({
+          input: pathToFile,
+          outputPath,
+          height: VIDEO_THUMB_HEIGHT,
+          jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
+        }),
+        60000,
+        'ffmpeg audio cover',
+      )
+      return true
+    } catch {
+      return false
+    }
+  }
+
   const createThumbCustom = (
     timestamp: unknown,
     inputPath: string,
@@ -135,6 +158,7 @@ export default function createTaskControllerShared(db: ApiDb) {
     getVideoImagesGeneration,
     resolveGeneratedFolderPath: (folderKey: string) => resolveGeneratedFolderPath(getDbPath(), folderKey),
     createThumbMiddle,
+    createAudioThumb,
     createThumbCustom,
   }
 }

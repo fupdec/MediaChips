@@ -16,7 +16,7 @@ import { createMediaPostProcessor } from '../../services/mediaPostProcess'
 import fs from 'fs'
 import path from 'path'
 import { stat } from 'fs/promises'
-import { ffprobe } from '../../utils/ffmpeg'
+import {parseAudioId3Tags} from '../../services/audioId3Tags'
 import { tokenizeFilePath } from '../../services/pathTokenizer'
 import {
   fileExists,
@@ -41,6 +41,7 @@ import {
   buildBulkPathUpdatePatch,
   normalizeBulkPathUpdateInputs,
 } from '../../services/mediaBulkPathUpdate'
+import { ffprobe } from '../../utils/ffmpeg'
 
 export default function createTasksMediaController(shared: TaskControllerShared) {
   const {
@@ -50,6 +51,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     getParserSettings,
     getImageMedia,
     createThumbMiddle,
+    createAudioThumb,
   } = shared
 
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -339,10 +341,15 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         break
       }
 
+      const id3 = parseAudioId3Tags(info.format?.tags as Record<string, unknown> | undefined)
+
       return {
         duration,
         bitrate: info.format.bit_rate,
         codec,
+        title: id3.title,
+        artist: id3.artist,
+        album: id3.album,
       }
     } catch (error) {
       console.error(error)
@@ -357,6 +364,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     getAudioMetadata,
     getImageMedia: getImageMedia as unknown as import('../../types/mediaPostProcess').MediaPostProcessorDeps['getImageMedia'],
     createThumbMiddle,
+    createAudioThumb,
     withTimeout,
   })
 

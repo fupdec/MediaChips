@@ -38,6 +38,7 @@ export {
   createTagsInTagRepository,
   createTagsRepository,
   createTabsRepository,
+  createTextContentRepository,
   createValuesInMediaRepository,
   createValuesInTagRepository,
   createVideoMetadataRepository,

@@ -16,11 +16,11 @@ import useItemContextMenu from '@/composable/ItemContextMenu'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
+import {openTextMedia} from '@/utils/openTextMedia'
 import {useOpenMediaList} from '@/utils/openMediaList'
 import {highlightGlobalSearchText, textMatchesGlobalSearchQuery} from '@/services/formatUtils'
 import {debounce} from '@/utils/debounce'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
-import {openPath} from '@/services/shellService'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {
@@ -42,9 +42,10 @@ type MatchedSearchTag = {
 }
 
 type GlobalSearchMedia = MediaItem & {
-  matchSource?: 'name' | 'tag' | 'bookmark' | 'both'
+  matchSource?: 'name' | 'tag' | 'bookmark' | 'content' | 'both'
   matchedTags?: MatchedSearchTag[]
   matchedBookmark?: string
+  matchedContent?: string
 }
 
 type GlobalSearchTag = Tag & {
@@ -640,8 +641,9 @@ function normalizeSearchMedia(
     mediaTypeId?: number
     width?: number | null
     height?: number | null
-    matchSource?: 'name' | 'tag' | 'bookmark' | 'both'
+    matchSource?: 'name' | 'tag' | 'bookmark' | 'content' | 'both'
     matchedBookmark?: string
+    matchedContent?: string
     matchedTags?: MatchedSearchTag[]
   }>,
 ): GlobalSearchMedia[] {
@@ -649,6 +651,7 @@ function normalizeSearchMedia(
     ...item,
     name: item.name ?? undefined,
     matchedBookmark: item.matchedBookmark || undefined,
+    matchedContent: item.matchedContent || undefined,
     matchedTags: item.matchedTags?.length ? item.matchedTags : undefined,
   }))
 }
@@ -1121,14 +1124,14 @@ function openGroup(group: SearchGroup) {
 function openMedia(media: GlobalSearchMedia, mediaTypeId?: number) {
   closeThenNavigate(() => {
     const type = mediaTypes.value.find(item => item.id === Number(mediaTypeId || media.mediaTypeId))
-    const kind = resolveOpenMediaKind(type)
+    const kind = resolveOpenMediaKind(type, {path: media.path})
 
     if (kind === 'view-image') {
       itemsStore.viewImage({image: media})
     } else if (kind === 'play-av') {
       itemsStore.playVideo({video: media})
-    } else if (kind === 'open-path' && media.path) {
-      openPath(media.path)
+    } else if (kind === 'preview-text' || kind === 'open-path') {
+      openTextMedia(media)
     } else {
       router.push(`/media?mediaTypeId=${mediaTypeId || media.mediaTypeId}`)
     }
@@ -1372,6 +1375,11 @@ function getMatchedBookmarkText(item: GlobalSearchMedia | GlobalSearchTag): stri
   return ''
 }
 
+function getMatchedContentText(item: GlobalSearchMedia | GlobalSearchTag): string {
+  if (!('matchedContent' in item)) return ''
+  return item.matchedContent || ''
+}
+
 function getMatchedTags(item: GlobalSearchMedia | GlobalSearchTag, isMedia: boolean): MatchedSearchTag[] {
   if (!isMedia) return []
   const media = item as GlobalSearchMedia
@@ -1416,6 +1424,10 @@ function shouldShowMatchedSynonyms(item: GlobalSearchMedia | GlobalSearchTag, is
 
 function shouldShowMatchedBookmark(item: GlobalSearchMedia | GlobalSearchTag): boolean {
   return Boolean(item.matchedBookmark)
+}
+
+function shouldShowMatchedContent(item: GlobalSearchMedia | GlobalSearchTag): boolean {
+  return Boolean(getMatchedContentText(item))
 }
 
 function getNameHighlighted(text: string) {
@@ -1812,6 +1824,13 @@ function getNameHighlighted(text: string) {
                   >
                     <span class="global-search__synonyms-label">{{ t('globalSearch.viaBookmark') }}</span>
                     <span v-html="getNameHighlighted(getMatchedBookmarkText(row.item))"/>
+                  </span>
+                  <span
+                    v-if="shouldShowMatchedContent(row.item)"
+                    class="global-search__synonyms text-medium-emphasis ml-1"
+                  >
+                    <span class="global-search__synonyms-label">{{ t('globalSearch.viaContent') }}</span>
+                    <span v-html="getNameHighlighted(getMatchedContentText(row.item))"/>
                   </span>
                 </div>
 

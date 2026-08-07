@@ -249,6 +249,13 @@ const mediaType = computed(() =>
 
 const isVideo = computed(() => isVideoMediaType(mediaType.value))
 
+const canPlayRadio = computed(() =>
+  isVideo.value
+  && Boolean(seed.value?.path)
+  && rankedIds.value.length > 1
+  && !emptyHint.value
+)
+
 const seed = computed(() => {
   const id = Number(dialogsStore.similarWall.seedId)
   if (!Number.isFinite(id) || id <= 0) return null
@@ -407,6 +414,15 @@ const headerSub = computed(() => {
 
 const headerButtons = computed(() => [
   {
+    icon: 'radio-tower',
+    text: t('media.dialogs.similar_wall_play_radio'),
+    color: 'primary',
+    outlined: true,
+    disabled: loading.value || !canPlayRadio.value,
+    order: 0,
+    action: () => { void playAsRadio() },
+  },
+  {
     icon: 'view-grid-outline',
     text: t('media.dialogs.similar_wall_open_list'),
     color: 'primary',
@@ -499,6 +515,15 @@ async function openAsList() {
     mediaTypeId: mediaTypeId != null ? Number(mediaTypeId) : undefined,
     ids,
     scope: {kind: 'clipSimilar'},
+  })
+}
+
+async function playAsRadio() {
+  if (!canPlayRadio.value || !seed.value) return
+  const {startSimilarRadio} = await import('@/services/similarRadio')
+  close()
+  await startSimilarRadio(seed.value, {
+    initialNeighborIds: rankedIds.value,
   })
 }
 

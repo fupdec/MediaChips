@@ -49,6 +49,10 @@ function deleteImageGeneratedAssets(dbPath: string, mediaId: unknown) {
   unlinkIfExists(path.join(dbPath, 'media/images/thumbs', `${mediaId}.jpg`))
 }
 
+function deleteAudioGeneratedAssets(dbPath: string, mediaId: unknown) {
+  unlinkIfExists(path.join(dbPath, 'media/audios/thumbs', `${mediaId}.jpg`))
+}
+
 function deleteMarkGeneratedAsset(dbPath: string, markId: unknown) {
   unlinkIfExists(path.join(dbPath, 'media/videos/marks', `${markId}.jpg`))
 }
@@ -104,12 +108,18 @@ async function deleteMediaGeneratedAssets(
 
   if (assetFolder === 'images') {
     deleteImageGeneratedAssets(dbPath, media.id)
+    return
+  }
+
+  if (assetFolder === 'audios') {
+    deleteAudioGeneratedAssets(dbPath, media.id)
   }
 }
 
 export {
   deleteVideoGeneratedAssets,
   deleteImageGeneratedAssets,
+  deleteAudioGeneratedAssets,
   deleteMarkGeneratedAsset,
   deleteTagGeneratedAssets,
   deleteMediaGeneratedAssets,

@@ -69,6 +69,12 @@
             <div class="audio-info">
               <v-icon class="audio-icon" size="48">mdi-music-circle</v-icon>
               <div class="audio-title" :title="currentPlaying">{{ currentPlaying }}</div>
+              <div
+                v-if="audioMetaLine"
+                class="audio-meta text-caption"
+              >
+                {{ audioMetaLine }}
+              </div>
             </div>
           </div>
 
@@ -201,6 +207,7 @@ const {
   currentPlaying,
   isAudioMode,
   audioThumb,
+  audioMetaLine,
   fileExtension,
   formatErrorMessage,
   showPlaybackError,

@@ -26,6 +26,7 @@ describe('globalSearchMerge', () => {
     expect(combineTagMatchSources('name', 'synonym')).toBe('both')
     expect(combineMediaMatchSources('name', 'name')).toBe('name')
     expect(combineMediaMatchSources(undefined, 'bookmark')).toBe('bookmark')
+    expect(combineMediaMatchSources('name', 'content')).toBe('both')
   })
 
   it('merges tag and media search rows with limit', () => {
@@ -48,5 +49,13 @@ describe('globalSearchMerge', () => {
     expect(media).toHaveLength(1)
     expect(media[0]?.matchSource).toBe('both')
     expect(media[0]?.matchedTags).toEqual([{id: 9, name: 't'}])
+
+    const withContent = mergeMediaSearchRows(
+      [{id: 1, name: 'm', matchSource: 'name'}],
+      [{id: 1, name: 'm', matchSource: 'content', matchedContent: '…hello…'}],
+      10,
+    )
+    expect(withContent[0]?.matchedContent).toBe('…hello…')
+    expect(withContent[0]?.matchSource).toBe('both')
   })
 })

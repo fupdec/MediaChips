@@ -23,6 +23,8 @@ import {
   isVideoMediaType,
 } from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
+import {openTextMedia} from '@/utils/openTextMedia'
+import {isInAppTextPreviewPath} from '@/utils/textPreview'
 import {setNotification} from '@/services/notificationService'
 import {refreshMediaFileInfoMany} from '@/services/mediaFileInfoService'
 import {runFaceDetectionForMediaIds} from '@/composable/useFaceDetectionTask'
@@ -312,6 +314,13 @@ export default function useItemContextMenu(
             icon: 'brain',
             action: openSemanticallySimilar,
           })
+          contextMenu.push({
+            name: t('context_menu.play_similar_radio'),
+            type: 'item',
+            icon: 'radio-tower',
+            disabled: !is_file_exists,
+            action: playSimilarRadio,
+          })
         }
       }
 
@@ -459,16 +468,33 @@ export default function useItemContextMenu(
           })
         }
 
-        if (resolveOpenMediaKind(currentMediaType.value) === 'open-path') {
-          contextMenu.push({
-            name: t('context_menu.open_text_file'),
-            type: 'item',
-            icon: 'file-document-outline',
-            disabled: !is_file_exists,
-            action: () => {
-              openPath(mediaPageItemPath(item, type))
-            },
+        {
+          const textKind = resolveOpenMediaKind(currentMediaType.value, {
+            path: mediaPageItemPath(item, type),
           })
+          if (textKind === 'open-path' || textKind === 'preview-text') {
+            const path = mediaPageItemPath(item, type)
+            if (isInAppTextPreviewPath(path)) {
+              contextMenu.push({
+                name: t('context_menu.preview_text_file'),
+                type: 'item',
+                icon: 'eye',
+                disabled: !is_file_exists,
+                action: () => {
+                  openTextMedia({...item, path} as MediaItem)
+                },
+              })
+            }
+            contextMenu.push({
+              name: t('context_menu.open_text_file'),
+              type: 'item',
+              icon: 'file-document-outline',
+              disabled: !is_file_exists,
+              action: () => {
+                openTextMedia({...item, path} as MediaItem, {forceExternal: true})
+              },
+            })
+          }
         }
       }
 
@@ -956,6 +982,12 @@ export default function useItemContextMenu(
       seedId,
       mediaTypeId: item.mediaTypeId || currentMediaType.value?.id || null,
     })
+  }
+
+  const playSimilarRadio = async (): Promise<void> => {
+    if (!isMediaPageItem(item, type)) return
+    const {startSimilarRadio} = await import('@/services/similarRadio')
+    await startSimilarRadio(item)
   }
 
   const detectFacesForSelection = async (): Promise<void> => {

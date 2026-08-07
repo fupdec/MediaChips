@@ -7,9 +7,9 @@ import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useBrowserLayout, isItemsGridRoute} from '@/composable/useBrowserLayout'
 import useItemContextMenu from '@/composable/ItemContextMenu'
-import {openPath} from '@/services/shellService'
 import {findMediaTypeById} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
+import {openTextMedia} from '@/utils/openTextMedia'
 import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
@@ -294,15 +294,18 @@ export function useBrowserLayoutHotkeys() {
       appStore.mediaTypes,
       itemsStore.environment?.media_type_id ?? media.mediaTypeId,
     )
-    const kind = resolveOpenMediaKind(mediaType, {missingAsPlay: true})
+    const kind = resolveOpenMediaKind(mediaType, {
+      missingAsPlay: true,
+      path: media.path,
+    })
 
     if (kind === 'view-image') {
       itemsStore.viewImage({image: media})
       return
     }
 
-    if (kind === 'open-path') {
-      if (media.path) void openPath(media.path)
+    if (kind === 'preview-text' || kind === 'open-path') {
+      openTextMedia(media)
       return
     }
 

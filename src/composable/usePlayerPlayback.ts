@@ -17,6 +17,7 @@ import {
   type PlayerPlaybackSharedState,
 } from '@/composable/usePlayerLiveSession'
 import {createPlayerLoadSrc} from '@/composable/usePlayerLoadSrc'
+import {maybeRefillSimilarRadio} from '@/services/similarRadio'
 
 export {
   getLiveChunkRelativeTime,
@@ -160,6 +161,7 @@ export function usePlayerPlayback({
         }
         if (stillInsideSegment) return
       }
+      maybeRefillSimilarRadio()
       if (playerStore.playlistMode.includes('autoplay') && controls.value) {
         controls.value.next?.()
       }

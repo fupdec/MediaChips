@@ -4,6 +4,7 @@ export const GENERATED_MEDIA_FOLDERS = {
   marks: 'media/videos/marks',
   faces: 'media/videos/faces',
   'image-thumbs': 'media/images/thumbs',
+  'audio-thumbs': 'media/audios/thumbs',
 } as const
 
 export type GeneratedMediaFolderKey = keyof typeof GENERATED_MEDIA_FOLDERS

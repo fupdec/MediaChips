@@ -8,6 +8,7 @@ import {marks} from '../db/schema/marks'
 import {faces} from '../db/schema/faces'
 import {videoMetadata} from '../db/schema/videoMetadata'
 import {imageMetadata} from '../db/schema/imageMetadata'
+import {textContent} from '../db/schema/textContent'
 import {nowIso} from '../db/utils/timestamps'
 import {uniquePositiveIds} from '../utils/uniqueIds'
 import {createMediaTypesRepository} from '../db/repositories/mediaTypes'
@@ -203,6 +204,7 @@ export function mergeMediaItemsTx(
   // Drop loser-only rows that are not remapped
   tx.delete(videoMetadata).where(inArray(videoMetadata.mediaId, sourceIds)).run()
   tx.delete(imageMetadata).where(inArray(imageMetadata.mediaId, sourceIds)).run()
+  tx.delete(textContent).where(inArray(textContent.mediaId, sourceIds)).run()
 
   const folded = foldMediaPresetFields(survivor, sources)
   tx.update(media)

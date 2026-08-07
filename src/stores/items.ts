@@ -269,6 +269,9 @@ export const useItemsStore = defineStore('items', {
       videos?: PlayableMedia[]
       trustPath?: boolean
     }) {
+      const {noteExternalPlayVideo} = await import('@/services/similarRadio')
+      noteExternalPlayVideo()
+
       const settingsStore = useSettingsStore()
       const hasPlaylist = Boolean(videos?.length)
       let playlistVideos: MediaItem[] | undefined = hasPlaylist

@@ -94,6 +94,10 @@
       v-if="dialogsStore.similarWall.show"
     />
 
+    <DialogTextPreview
+      v-if="dialogsStore.textPreview.show"
+    />
+
     <DialogTagCategoryMerge
       v-if="dialogsStore.tagCategoryMerge.show"
     />
@@ -308,6 +312,9 @@ const DialogDuplicateReview = defineAsyncComponent(() =>
 )
 const DialogSimilarMediaWall = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogSimilarMediaWall.vue')
+)
+const DialogTextPreview = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogTextPreview.vue')
 )
 const DialogTagCategoryMerge = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogTagCategoryMerge.vue')

@@ -7,7 +7,7 @@ import type {
 export const GLOBAL_SEARCH_MAX_LIMIT = 200
 export const GLOBAL_SEARCH_DEFAULT_LIMIT = 50
 
-export type MediaSearchMatchSource = 'name' | 'tag' | 'bookmark' | 'both'
+export type MediaSearchMatchSource = 'name' | 'tag' | 'bookmark' | 'content' | 'both'
 
 export function escapeLikePattern(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
@@ -132,6 +132,9 @@ export function mergeMediaSearchRows(
       )
       if (typeof row.matchedBookmark === 'string' && row.matchedBookmark) {
         existing.matchedBookmark = row.matchedBookmark
+      }
+      if (typeof row.matchedContent === 'string' && row.matchedContent) {
+        existing.matchedContent = row.matchedContent
       }
       continue
     }

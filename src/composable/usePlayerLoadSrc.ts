@@ -34,6 +34,7 @@ import {
   mergeClipFields,
   playlistItemKey,
 } from '@/utils/mediaItem'
+import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {
   isLoadSrcSessionStale,
   metadataNumber,
@@ -367,13 +368,25 @@ export function createPlayerLoadSrc({
       })
       return
     }
-    playerStore.playlist = videos.map((item, index): PlayerPlaylistItem => ({
-      ...item,
-      key: playlistItemKey(item, index),
-      thumb: item.thumb
+    playerStore.playlist = videos.map((item, index): PlayerPlaylistItem => {
+      let thumb = item.thumb
         ? (item.thumb.startsWith('http') ? item.thumb : buildApiUrl(item.thumb))
-        : '/images/unavailable.png',
-    }))
+        : ''
+      if (!thumb || thumb === '/images/unavailable.png') {
+        const mediaType = findMediaTypeById(appStore.mediaTypes, item.mediaTypeId)
+        if (isAudioMediaType(mediaType) || isAudioFilePath(item.path)) {
+          thumb = resolveMediaThumbDisplayUrl(appStore.mediaPath, 'audios', item.id)
+            || '/images/unavailable.png'
+        } else {
+          thumb = '/images/unavailable.png'
+        }
+      }
+      return {
+        ...item,
+        key: playlistItemKey(item, index),
+        thumb,
+      }
+    })
     isReady.value = false
     playerStore.playbackError = false
     playerStore.active = true

@@ -11,7 +11,7 @@ import {
   isImageMediaType,
 } from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
-import {openPath} from '@/services/shellService'
+import {openTextMedia} from '@/utils/openTextMedia'
 import type {
   GetItemsFromDbEvent,
   RemoveEntitiesEvent,
@@ -272,15 +272,15 @@ export function useItemsPageEvents({
     } else if (props.items_type === 'media') {
       const media = navigationPool.find((i) => i.id === id)
       if (!media) return
-      const kind = resolveOpenMediaKind(mediaType.value)
+      const kind = resolveOpenMediaKind(mediaType.value, {path: media.path})
       if (kind === 'view-image') {
         itemsStore.viewImage({image: media})
       } else if (kind === 'play-av') {
         itemsStore.playVideo({
           video: media,
         })
-      } else if (kind === 'open-path' && media.path) {
-        void openPath(media.path)
+      } else if (kind === 'preview-text' || kind === 'open-path') {
+        openTextMedia(media)
       }
     }
   }

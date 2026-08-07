@@ -309,6 +309,11 @@
       white-space: nowrap;
       max-width: 100%;
     }
+    .audio-meta {
+      margin-top: 6px;
+      color: rgba(255, 255, 255, 0.72);
+      letter-spacing: 0.02em;
+    }
   }
 }
 
@@ -981,10 +986,20 @@
     padding: 8px 10px;
     flex-shrink: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__radio-chip {
+    flex-shrink: 0;
   }
 
   &__mode-toggle {
-    width: 100%;
+    flex: 1;
+    min-width: 140px;
+    width: auto;
     .v-btn {
       flex: 1;
       min-width: 0;

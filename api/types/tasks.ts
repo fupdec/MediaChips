@@ -79,6 +79,7 @@ export interface FfprobeInfo {
   format: {
     duration: number
     bit_rate?: number
+    tags?: Record<string, unknown>
   }
   streams: FfprobeStream[]
 }
@@ -96,6 +97,7 @@ export interface TaskControllerShared {
   getVideoImagesGeneration: () => VideoImagesGenerationService
   resolveGeneratedFolderPath: (folderKey: string) => string | null
   createThumbMiddle: (pathToFile: string, id: unknown, seekRatio?: number) => Promise<string>
+  createAudioThumb: (pathToFile: string, id: unknown) => Promise<boolean>
   createThumbCustom: (
     timestamp: unknown,
     inputPath: string,

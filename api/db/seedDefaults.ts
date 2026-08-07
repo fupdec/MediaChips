@@ -27,7 +27,7 @@ const DEFAULT_MEDIA_TYPES = [
     type: 'audio',
     name: 'Audios',
     icon: 'music',
-    extensions: 'mp3,m4a,wav,flac',
+    extensions: 'mp3,m4a,wav,flac,ogg,aac,opus,wma',
     custom: 0,
     hidden: 1,
     order: 3,

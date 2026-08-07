@@ -11,6 +11,7 @@ describe('MEDIA_BASE_SELECT', () => {
     expect(MEDIA_BASE_SELECT).toContain('media.bookmark')
     expect(MEDIA_BASE_SELECT).toContain('videoMetadata.bitrate')
     expect(MEDIA_BASE_SELECT).toContain('imageMetadata.orientation')
+    expect(MEDIA_BASE_SELECT).toContain('textContent.excerpt AS textExcerpt')
     expect(MEDIA_BASE_SELECT).not.toContain('media.*')
     expect(MEDIA_BASE_SELECT).not.toContain('contentHash')
     expect(MEDIA_BASE_SELECT).not.toContain('oshash')

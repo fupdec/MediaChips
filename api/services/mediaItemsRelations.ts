@@ -222,12 +222,17 @@ export const MEDIA_BASE_SELECT = `SELECT
   videoMetadata.codec,
   videoMetadata.fps,
   videoMetadata.time,
+  videoMetadata.title,
+  videoMetadata.artist,
+  videoMetadata.album,
   COALESCE(videoMetadata.width, imageMetadata.width) AS width,
   COALESCE(videoMetadata.height, imageMetadata.height) AS height,
-  imageMetadata.orientation
+  imageMetadata.orientation,
+  textContent.excerpt AS textExcerpt
 FROM media
 LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
-LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
+LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+LEFT JOIN textContent ON media.id = textContent.mediaId`
 
 export async function attachPinnedMetaForGrouping(
   db: ApiDb,

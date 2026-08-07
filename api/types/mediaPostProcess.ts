@@ -13,6 +13,9 @@ export interface AudioMetadataResult {
   duration: number
   bitrate?: number
   codec?: string
+  title?: string | null
+  artist?: string | null
+  album?: string | null
 }
 
 export interface ImageMetadataResult {
@@ -33,6 +36,7 @@ export interface MediaPostProcessorDeps {
   getAudioMetadata: (pathToFile: string) => Promise<AudioMetadataResult | false>
   getImageMedia: () => ImageMediaHelper
   createThumbMiddle: (pathToFile: string, id: unknown, seekRatio?: number) => Promise<string>
+  createAudioThumb?: (pathToFile: string, id: unknown) => Promise<boolean>
   withTimeout: (promise: Promise<unknown>, ms: number, label: string) => Promise<unknown>
 }
 

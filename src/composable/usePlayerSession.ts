@@ -28,7 +28,8 @@ import {
 } from '@/utils/liveTranscodeLifecycle'
 import type { MediaItem } from '@/types/stores'
 import type { PlayVideoSwitch, PlayerControlsRef, PlayerMark, PlayerMarksComponentRef } from '@/types/player'
-import { getSegmentStart, isClipPlaylistItem } from '@/utils/mediaItem'
+import {getSegmentStart, isClipPlaylistItem} from '@/utils/mediaItem'
+import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 
 export function usePlayerSession() {
   const appStore = useAppStore()
@@ -92,7 +93,38 @@ export function usePlayerSession() {
   const video = computed(() => playerStore.playlist[playerStore.nowPlaying])
   const currentPlaying = computed(() => video.value ? video.value.name : '')
   const isAudioMode = computed(() => playerStore.isAudioMode)
-  const audioThumb = computed(() => video.value?.thumb || '/images/unavailable.png')
+  const audioThumb = computed(() => {
+    const item = video.value
+    if (!item) return '/images/unavailable.png'
+    if (item.thumb && item.thumb !== '/images/unavailable.png') return item.thumb
+    const id = item.id
+    if (id == null || !appStore.mediaPath) return '/images/unavailable.png'
+    return resolveMediaThumbDisplayUrl(appStore.mediaPath, 'audios', id)
+      || '/images/unavailable.png'
+  })
+  const audioMetaLine = computed(() => {
+    const parts: string[] = []
+    const artist = String((video.value as {artist?: string | null} | undefined)?.artist || '').trim()
+    const album = String((video.value as {album?: string | null} | undefined)?.album || '').trim()
+    if (artist) parts.push(artist)
+    if (album) parts.push(album)
+    const codec = String(
+      playerStore.metadata?.codec
+      || (video.value as {codec?: string | null} | undefined)?.codec
+      || '',
+    ).trim()
+    if (codec) parts.push(codec.toUpperCase())
+    const bitrate = Number(
+      playerStore.metadata?.bitrate
+      ?? (video.value as {bitrate?: number | string | null} | undefined)?.bitrate
+      ?? 0,
+    )
+    if (Number.isFinite(bitrate) && bitrate > 0) {
+      const kbps = bitrate >= 1000 ? Math.round(bitrate / 1000) : Math.round(bitrate)
+      if (kbps > 0) parts.push(`${kbps} kbps`)
+    }
+    return parts.join(' · ')
+  })
   const fileExtension = computed(() => {
     if (!video.value?.path) return ''
     const ext = path.extname(video.value.path)
@@ -149,6 +181,9 @@ export function usePlayerSession() {
   )
 
   const closePlayer = async () => {
+    const {stopSimilarRadio} = await import('@/services/similarRadio')
+    stopSimilarRadio({silent: true})
+
     const mediaToSave = video.value
     const savedCurrentTime = playerStore.currentTime
 
@@ -561,6 +596,7 @@ export function usePlayerSession() {
     currentPlaying,
     isAudioMode,
     audioThumb,
+    audioMetaLine,
     fileExtension,
     formatErrorMessage,
     showPlaybackError,

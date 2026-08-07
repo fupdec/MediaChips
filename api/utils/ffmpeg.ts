@@ -232,6 +232,37 @@ async function extractVideoThumbnail({
   return outputPath
 }
 
+/** Extract embedded album art / attached picture as a JPEG cover thumb. */
+async function extractAudioCoverArt({
+  input,
+  outputPath,
+  height = 320,
+  jpegQuality = 4,
+}: {
+  input: string
+  outputPath: string
+  height?: number
+  jpegQuality?: number
+}) {
+  const args = [
+    '-i',
+    input,
+    '-an',
+    '-map',
+    '0:v:0',
+    '-vf',
+    `scale=-1:${height}`,
+    '-frames:v',
+    '1',
+    '-q:v',
+    String(jpegQuality),
+    '-y',
+    outputPath,
+  ]
+  await runFfmpeg(args)
+  return outputPath
+}
+
 async function combineVideoFrames({
   inputs,
   filterComplex,
@@ -357,6 +388,7 @@ export {
   runFfmpegBackground,
   extractVideoFrame,
   extractVideoThumbnail,
+  extractAudioCoverArt,
   combineVideoFrames,
   cutVideoSegment,
   concatVideoSegments,

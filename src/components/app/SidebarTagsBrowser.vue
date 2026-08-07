@@ -15,6 +15,7 @@
         prepend-inner-icon="mdi-magnify"
         class="sidebar-tags-browser__search"
         @update:model-value="onSearchInput"
+        @keydown.enter.prevent="onSearchEnter"
       >
         <template
           v-if="search"
@@ -30,10 +31,80 @@
           />
         </template>
       </v-text-field>
+
+      <div
+        v-if="canCreateTag"
+        class="sidebar-tags-browser__create"
+      >
+        <v-menu
+          v-if="createCategories.length > 1"
+          location="bottom"
+          :close-on-content-click="true"
+        >
+          <template #activator="{props: menuProps}">
+            <button
+              type="button"
+              class="sidebar-tags-browser__create-btn"
+              :disabled="creatingTag"
+              v-bind="menuProps"
+            >
+              <v-icon
+                size="14"
+                class="mr-1"
+              >
+                mdi-tag-plus
+              </v-icon>
+              <span class="sidebar-tags-browser__create-label">
+                {{ t('browser_layout.create_tag', {name: searchTrimmed}) }}
+              </span>
+              <v-icon
+                size="14"
+                class="ml-1 opacity-60"
+              >
+                mdi-chevron-down
+              </v-icon>
+            </button>
+          </template>
+          <v-list
+            density="compact"
+            min-width="180"
+          >
+            <v-list-subheader>
+              {{ t('browser_layout.create_tag_choose') }}
+            </v-list-subheader>
+            <v-list-item
+              v-for="category in createCategories"
+              :key="category.id"
+              :prepend-icon="category.icon ? `mdi-${category.icon}` : 'mdi-tag-outline'"
+              :title="category.name"
+              :disabled="creatingTag"
+              @click="createTagInCategory(category.id)"
+            />
+          </v-list>
+        </v-menu>
+
+        <button
+          v-else
+          type="button"
+          class="sidebar-tags-browser__create-btn"
+          :disabled="creatingTag || !defaultCreateCategoryId"
+          @click="createTagInCategory(defaultCreateCategoryId!)"
+        >
+          <v-icon
+            size="14"
+            class="mr-1"
+          >
+            mdi-tag-plus
+          </v-icon>
+          <span class="sidebar-tags-browser__create-label">
+            {{ t('browser_layout.create_tag', {name: searchTrimmed}) }}
+          </span>
+        </button>
+      </div>
     </div>
 
     <div
-      v-if="!hasVisibleCategories"
+      v-if="!hasVisibleCategories && !canCreateTag"
       class="sidebar-tags-browser__empty text-medium-emphasis"
     >
       {{ search.trim() ? t('browser_layout.no_matching_tags') : t('browser_layout.tags_empty') }}
@@ -196,10 +267,14 @@ import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import DialogMetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import {useAppStore} from '@/stores/app'
+import {useSettingsStore} from '@/stores/settings'
 import {metaPath, useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
+import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
+import {setNotification} from '@/services/notificationService'
 import {typedApi} from '@/services/typedApi'
 import type {Meta, Tag} from '@/types/stores'
 
@@ -221,6 +296,7 @@ const {t} = useI18n()
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
 const {metaArray} = useLibraryNavItems()
 const {isTagFilterActive, filterByTag} = useBrowserTagFilter()
 
@@ -231,6 +307,7 @@ const categoryDragging = ref(false)
 const togglingHiddenId = ref<number | null>(null)
 const metaDialog = ref(false)
 const metaForDialog = ref<Meta | null>(null)
+const creatingTag = ref(false)
 
 function onSearchInput(value: string | null): void {
   search.value = value ?? ''
@@ -239,6 +316,37 @@ function onSearchInput(value: string | null): void {
 function clearSearch(): void {
   search.value = ''
 }
+
+const searchTrimmed = computed(() => search.value.trim())
+
+const createCategories = computed(() => {
+  return categoryRows.value.filter((category) => props.editMode || !category.hidden)
+})
+
+const exactTagExists = computed(() => {
+  const query = searchTrimmed.value.toLowerCase()
+  if (!query) return false
+  return (appStore.tags || []).some(
+    (tag) => String(tag.name || '').trim().toLowerCase() === query,
+  )
+})
+
+const canCreateTag = computed(() =>
+  Boolean(searchTrimmed.value)
+  && !exactTagExists.value
+  && createCategories.value.length > 0,
+)
+
+const defaultCreateCategoryId = computed(() => {
+  const preferred = getDefaultTagCategoryId(
+    appStore.meta,
+    settingsStore.defaultTagCategoryId,
+  )
+  if (preferred != null && createCategories.value.some((category) => category.id === preferred)) {
+    return preferred
+  }
+  return createCategories.value[0]?.id ?? null
+})
 
 function loadExpanded(): void {
   try {
@@ -410,6 +518,45 @@ function openTagPage(tag: Tag): void {
   void router.push(`/tag?metaId=${tag.metaId}&tagId=${tag.id}`)
 }
 
+function onSearchEnter(): void {
+  if (!canCreateTag.value) return
+  if (defaultCreateCategoryId.value == null) return
+  void createTagInCategory(defaultCreateCategoryId.value)
+}
+
+async function createTagInCategory(metaId: number): Promise<void> {
+  const name = searchTrimmed.value
+  if (!name || creatingTag.value || !metaId) return
+
+  creatingTag.value = true
+  try {
+    const res = await typedApi.createTags([{name, metaId}])
+    const created = res.data?.[0]
+    await reloadTagsCatalog()
+
+    setNotification({
+      type: 'success',
+      text: t('browser_layout.create_tag_done', {name}),
+    })
+
+    search.value = ''
+    expanded[metaId] = true
+    persistExpanded()
+
+    if (created?.id != null) {
+      openTagPage({...created, metaId: created.metaId ?? metaId} as Tag)
+    }
+  } catch (error) {
+    console.error('Failed creating tag from sidebar search', error)
+    setNotification({
+      type: 'error',
+      text: t('browser_layout.create_tag_failed'),
+    })
+  } finally {
+    creatingTag.value = false
+  }
+}
+
 async function onCategoryReorderEnd(): Promise<void> {
   categoryDragging.value = false
 
@@ -526,6 +673,44 @@ async function onMetaUpdated(): Promise<void> {
   &:hover {
     opacity: 1;
   }
+}
+
+.sidebar-tags-browser__create {
+  margin-top: 6px;
+}
+
+.sidebar-tags-browser__create-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px dashed rgba(var(--v-theme-primary), 0.45);
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.06);
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+
+  &:hover:not(:disabled) {
+    background: rgba(var(--v-theme-primary), 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+.sidebar-tags-browser__create-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-tags-browser__empty {

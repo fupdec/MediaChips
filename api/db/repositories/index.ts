@@ -23,6 +23,7 @@ export {createTagsInFoldersRepository, type TagsInFolderInsert, type FolderWithT
 export {createTagsInTagRepository} from './tagsInTag'
 export {createTagsRepository, type TagInsert, type TagRow} from './tags'
 export {createTabsRepository, type TabInsert, type TabRow} from './tabs'
+export {createTextContentRepository, type TextContentInsert, type TextContentRow} from './textContent'
 export {createValuesInMediaRepository} from './valuesInMedia'
 export {createValuesInTagRepository} from './valuesInTag'
 export {createVideoMetadataRepository, type VideoMetadataInsert, type VideoMetadataRow} from './videoMetadata'

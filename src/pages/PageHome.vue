@@ -149,9 +149,9 @@ import {
 } from "@/utils/homeMediaListFilters"
 import {findMediaTypeById, isAudioMediaType, isVideoMediaType} from "@/utils/mediaType"
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
+import {openTextMedia} from '@/utils/openTextMedia'
 import HomeWidgetRenderer from '@/components/widgets/HomeWidgetRenderer.vue'
 import DialogHomeWidgets from '@/components/dialogs/DialogHomeWidgets.vue'
-import {openPath} from '@/services/shellService'
 import {setOption} from '@/services/settingsService'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type { MediaItem } from '@/types/stores'
@@ -194,7 +194,7 @@ async function reloadHomeMediaIfNeeded() {
 
 async function openMediaItem(item: MediaItem) {
   const mediaType = findMediaTypeById(store.mediaTypes, item.mediaTypeId)
-  const kind = resolveOpenMediaKind(mediaType)
+  const kind = resolveOpenMediaKind(mediaType, {path: item.path})
 
   if (kind === 'play-av') {
     await itemsStore.playVideo({
@@ -209,8 +209,8 @@ async function openMediaItem(item: MediaItem) {
     return
   }
 
-  if (kind === 'open-path' && item.path) {
-    await openPath(item.path)
+  if (kind === 'preview-text' || kind === 'open-path') {
+    openTextMedia(item)
     return
   }
 

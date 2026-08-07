@@ -9,4 +9,7 @@ export const videoMetadata = sqliteTable('videoMetadata', {
   fps: integer('fps').default(0),
   time: integer('time'),
   codec: text('codec'),
+  title: text('title'),
+  artist: text('artist'),
+  album: text('album'),
 })

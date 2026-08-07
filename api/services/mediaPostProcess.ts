@@ -8,9 +8,13 @@ import {
   isVideoMediaType,
   isImageMediaType,
   isAudioMediaType,
+  isTextMediaType,
 } from '../utils/mediaType'
 import { createVideoMetadataRepository } from '../db/repositories/videoMetadata'
 import { createImageMetadataRepository } from '../db/repositories/imageMetadata'
+import { createTextContentRepository } from '../db/repositories/textContent'
+import { createMediaRepository } from '../db/repositories/media'
+import { extractTextIndexFromPath } from './textContentIndex'
 
 function createMediaPostProcessor({
   db,
@@ -19,10 +23,13 @@ function createMediaPostProcessor({
   getAudioMetadata,
   getImageMedia,
   createThumbMiddle,
+  createAudioThumb,
   withTimeout,
 }: MediaPostProcessorDeps) {
   const videoMetadataRepo = createVideoMetadataRepository(db.drizzle)
   const imageMetadataRepo = createImageMetadataRepository(db.drizzle)
+  const textContentRepo = createTextContentRepository(db.drizzle)
+  const mediaRepo = createMediaRepository(db.drizzle)
 
   async function processVideoMedia(media: {id?: unknown; path?: unknown}) {
     const videoPath = String(media.path || '')
@@ -78,7 +85,7 @@ function createMediaPostProcessor({
     }
   }
 
-  async function processAudioMedia(media: {id?: unknown; path?: unknown}) {
+  async function processAudioMedia(media: {id?: unknown; path?: unknown; name?: unknown; basename?: unknown}) {
     const audioPath = String(media.path || '')
     const metadata = await getAudioMetadata(audioPath)
 
@@ -88,7 +95,49 @@ function createMediaPostProcessor({
         duration: metadata.duration,
         bitrate: metadata.bitrate,
         codec: metadata.codec,
+        title: metadata.title || null,
+        artist: metadata.artist || null,
+        album: metadata.album || null,
       })
+
+      const title = String(metadata.title || '').trim()
+      if (title && media.id != null) {
+        const currentName = String(media.name || '').trim()
+        const stem = String(media.basename || '').replace(/\.[^.]+$/, '').trim()
+        // Only replace filename-like titles so user renames stay intact.
+        if (!currentName || currentName === stem) {
+          try {
+            mediaRepo.updateById(Number(media.id), {name: title})
+          } catch {
+            // Name update is best-effort.
+          }
+        }
+      }
+    }
+
+    if (createAudioThumb) {
+      try {
+        await createAudioThumb(audioPath, media.id)
+      } catch (error: unknown) {
+        console.error(`Audio cover extraction failed for ${audioPath}:`, error)
+      }
+    }
+  }
+
+  async function processTextMedia(media: {id?: unknown; path?: unknown}) {
+    const textPath = String(media.path || '')
+    const indexed = extractTextIndexFromPath(textPath)
+    if (!indexed || media.id == null) return
+
+    try {
+      textContentRepo.upsert({
+        mediaId: Number(media.id),
+        content: indexed.content,
+        excerpt: indexed.excerpt,
+        truncated: indexed.truncated ? 1 : 0,
+      })
+    } catch (error: unknown) {
+      console.error(`Text content indexing failed for ${textPath}:`, error)
     }
   }
 
@@ -105,6 +154,11 @@ function createMediaPostProcessor({
 
     if (isAudioMediaType(mediaType)) {
       await processAudioMedia(media)
+      return
+    }
+
+    if (isTextMediaType(mediaType)) {
+      await processTextMedia(media)
     }
   }
 
@@ -151,7 +205,34 @@ function createMediaPostProcessor({
         duration: metadata.duration,
         bitrate: metadata.bitrate,
         codec: metadata.codec,
+        title: metadata.title || null,
+        artist: metadata.artist || null,
+        album: metadata.album || null,
       })
+    }
+
+    if (createAudioThumb) {
+      try {
+        await createAudioThumb(mediaPath, mediaId)
+      } catch (error: unknown) {
+        console.error(`Audio cover regeneration failed for media ${mediaId}:`, error)
+      }
+    }
+  }
+
+  async function refreshTextMedia(mediaId: MediaId, mediaPath: string) {
+    const indexed = extractTextIndexFromPath(mediaPath)
+    if (!indexed) return
+
+    try {
+      textContentRepo.upsert({
+        mediaId: Number(mediaId),
+        content: indexed.content,
+        excerpt: indexed.excerpt,
+        truncated: indexed.truncated ? 1 : 0,
+      })
+    } catch (error: unknown) {
+      console.error(`Text content reindex failed for media ${mediaId}:`, error)
     }
   }
 
@@ -171,6 +252,11 @@ function createMediaPostProcessor({
 
     if (isAudioMediaType(mediaType)) {
       await refreshAudioMedia(mediaId, mediaPath)
+      return
+    }
+
+    if (isTextMediaType(mediaType)) {
+      await refreshTextMedia(mediaId, mediaPath)
     }
   }
 

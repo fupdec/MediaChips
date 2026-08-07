@@ -51,6 +51,10 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       seedId: null as number | null,
       mediaTypeId: null as number | null,
     },
+    textPreview: {
+      show: false,
+      media: null as MediaItem | null,
+    },
     tagCategoryMerge: { show: false, categories: [] as Meta[] },
     bulkEditingItems: false,
     markAdding: {
@@ -237,6 +241,15 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.similarWall.show = false
       this.similarWall.seedId = null
       this.similarWall.mediaTypeId = null
+    },
+    openTextPreview(media: MediaItem | null | undefined) {
+      if (!media?.path) return
+      this.textPreview.media = {...media}
+      this.textPreview.show = true
+    },
+    closeTextPreview() {
+      this.textPreview.show = false
+      this.textPreview.media = null
     },
     openTagCategoryMerge(categories: Meta[]) {
       this.tagCategoryMerge.categories = categories

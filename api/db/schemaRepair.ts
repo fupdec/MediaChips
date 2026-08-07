@@ -104,6 +104,9 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'faces', column: 'matchScore', definition: 'real'},
   {table: 'faces', column: 'matchStatus', definition: 'text'},
   {table: 'faces', column: 'embedding', definition: 'text'},
+  {table: 'videoMetadata', column: 'title', definition: 'text'},
+  {table: 'videoMetadata', column: 'artist', definition: 'text'},
+  {table: 'videoMetadata', column: 'album', definition: 'text'},
 ]
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {
@@ -177,6 +180,12 @@ const MISSING_TABLE_DDL: Record<string, string> = {
     "sourcePath" text,
     "embedding" text NOT NULL,
     "createdAt" text NOT NULL
+  )`,
+  textContent: `CREATE TABLE "textContent" (
+    "mediaId" integer PRIMARY KEY NOT NULL,
+    "content" text DEFAULT '',
+    "excerpt" text DEFAULT '',
+    "truncated" integer DEFAULT 0
   )`,
   mediaClipEmbeddings: `CREATE TABLE "mediaClipEmbeddings" (
     "mediaId" integer PRIMARY KEY NOT NULL,
