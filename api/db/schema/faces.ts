@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const faces = sqliteTable('faces', {
   id: integer('id').primaryKey({autoIncrement: true}),
@@ -15,4 +15,7 @@ export const faces = sqliteTable('faces', {
   matchScore: real('matchScore'),
   matchStatus: text('matchStatus'),
   createdAt: text('createdAt').notNull(),
-})
+}, (table) => ({
+  mediaIdIdx: index('faces_media_id_idx').on(table.mediaId),
+  tagIdIdx: index('faces_tag_id_idx').on(table.tagId),
+}))

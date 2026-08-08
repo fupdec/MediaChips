@@ -1,10 +1,24 @@
-import { and, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { faces } from '../schema/faces'
+import { media } from '../schema/media'
 import { forEachChunk } from '../utils/chunk'
 
 export type FaceRow = typeof faces.$inferSelect
 export type FaceInsert = typeof faces.$inferInsert
+
+export type FaceAppearanceRow = {
+  faceId: number
+  mediaId: number
+  timestamp: string | null
+  matchScore: number | null
+  cropPath: string | null
+  path: string
+  name: string | null
+  basename: string | null
+  mediaTypeId: number | null
+  mediaCreatedAt: string
+}
 
 export function createFacesRepository(db: DrizzleClient) {
   return {
@@ -88,6 +102,69 @@ export function createFacesRepository(db: DrizzleClient) {
         .where(sql`${faces.tagId} IS NOT NULL`)
         .get()
       return Number(row?.count ?? 0)
+    },
+
+    countByTagId(tagId: unknown): number {
+      const resolvedTagId = Number(tagId)
+      if (!Number.isFinite(resolvedTagId) || resolvedTagId <= 0) return 0
+      const row = db.select({count: count()})
+        .from(faces)
+        .where(eq(faces.tagId, resolvedTagId))
+        .get()
+      return Number(row?.count ?? 0)
+    },
+
+    findByTagId(
+      tagId: unknown,
+      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle'} = {},
+    ): FaceAppearanceRow[] {
+      const resolvedTagId = Number(tagId)
+      if (!Number.isFinite(resolvedTagId) || resolvedTagId <= 0) return []
+
+      const sort = options.sort === 'shuffle' ? 'shuffle' : 'time'
+
+      let query = db
+        .select({
+          faceId: faces.id,
+          mediaId: faces.mediaId,
+          timestamp: faces.timestamp,
+          matchScore: faces.matchScore,
+          cropPath: faces.cropPath,
+          path: media.path,
+          name: media.name,
+          basename: media.basename,
+          mediaTypeId: media.mediaTypeId,
+          mediaCreatedAt: media.createdAt,
+        })
+        .from(faces)
+        .innerJoin(media, eq(media.id, faces.mediaId))
+        .where(eq(faces.tagId, resolvedTagId))
+
+      if (sort === 'shuffle') {
+        query = query.orderBy(sql`RANDOM()`) as typeof query
+      } else {
+        query = query.orderBy(
+          asc(media.createdAt),
+          sql`LOWER(COALESCE(${media.name}, ${media.basename}, ''))`,
+          asc(faces.timestamp),
+          asc(faces.id),
+        ) as typeof query
+      }
+
+      const limit = Number(options.limit)
+      const hasLimit = Number.isFinite(limit) && limit > 0
+      const offset = Number(options.offset)
+      const hasOffset = Number.isFinite(offset) && offset > 0
+
+      // SQLite rejects OFFSET without LIMIT; use the same cap as an explicit limit.
+      if (hasLimit || hasOffset) {
+        query = query.limit(hasLimit ? Math.min(Math.floor(limit), 10_000) : 10_000) as typeof query
+      }
+      if (hasOffset) {
+        query = query.offset(Math.floor(offset)) as typeof query
+      }
+
+      return query.all()
     },
 
     countDistinctMediaIds(): number {

@@ -148,6 +148,13 @@
       "when": 1782822000000,
       "tag": "0020_media_clip_embeddings",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1782825600000,
+      "tag": "0021_faces_tag_id_idx",
+      "breakpoints": true
     }
   ]
 }

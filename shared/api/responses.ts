@@ -187,6 +187,26 @@ export interface MarkClipsResponse {
   count: number
 }
 
+export interface FaceAppearanceItem {
+  id: number
+  faceId: number
+  key: string
+  path?: string
+  name?: string
+  basename?: string
+  mediaTypeId?: number
+  timestamp?: string | null
+  segmentStart: number
+  matchScore?: number | null
+  cropPath?: string | null
+  [key: string]: unknown
+}
+
+export interface FaceAppearancesResponse {
+  items: FaceAppearanceItem[]
+  count: number
+}
+
 export interface DynamicPlaylistSummary {
   id: number
   count?: number | null

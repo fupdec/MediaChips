@@ -962,6 +962,12 @@ const ja = {
     play_clips_empty_title: "クリップなし",
     play_clips_empty_text:
       "このタグには、タイムライン上にまだ時間範囲がありません。",
+    appearances: "登場場面",
+    play_appearances: "登場を再生 ({count})",
+    play_appearances_in_order: "順番に再生",
+    play_appearances_shuffle: "登場をシャッフル",
+    play_appearances_empty_title: "登場なし",
+    play_appearances_empty_text: "一致した顔の登場がまだありません。先に顔検出とマッチングを実行してください。",
     quick_filters: "クイックフィルター",
     quick_filters_hint: "チップをクリックしてメディア / タグをフィルター",
     quick_filters_loading: "クイックフィルターを準備中…",

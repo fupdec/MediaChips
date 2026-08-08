@@ -287,6 +287,14 @@ export interface MarkClipsRequestPayload {
   offset?: number
 }
 
+export interface FacesForTagRequestPayload {
+  tagId: number
+  sort?: 'time' | 'shuffle'
+  countOnly?: boolean
+  limit?: number
+  offset?: number
+}
+
 export interface ExportMarkClipsRequestPayload {
   markIds: number[]
   outputPath?: string

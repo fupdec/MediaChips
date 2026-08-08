@@ -5,6 +5,7 @@ import {
   apiWatchedFolder,
 } from '@shared/api/routes'
 import type {
+  FaceAppearancesResponse,
   WatchedFolderCreatePayload,
   WatchedFolderUpdatePayload,
   VideoTimelineTaskPayload,
@@ -18,6 +19,7 @@ import type {
   CreateMarkThumbPayload,
   CreateThumbPayload,
   DatabaseSizesPayload,
+  FacesForTagRequestPayload,
   FolderSizePayload,
   GetFileBlobPayload,
   GetFileListPayload,
@@ -29,6 +31,7 @@ import type {
 } from '@shared/api/payloads'
 import {
   parseAddMediaResponse,
+  parseFaceAppearancesResponse,
   parseBackupList,
   parseClipModelStatus,
   parseDatabaseSizesResponse,
@@ -381,6 +384,13 @@ export const tasksApi = {
         ...(options.ensureCrops === false ? {ensureCrops: false} : {}),
       },
     })
+  },
+
+  getFacesForTag(body: FacesForTagRequestPayload) {
+    return apiClient.post<FaceAppearancesResponse>(API_ROUTES.taskFacesForTag, body).then((res) => ({
+      ...res,
+      data: validated(parseFaceAppearancesResponse, res.data),
+    }))
   },
 
   getFaceEmbedModelStatus() {

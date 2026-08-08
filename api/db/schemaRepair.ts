@@ -332,6 +332,13 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('faces_media_id_idx')
   }
 
+  if (hasTable(sqlite, 'faces') && !hasIndex(sqlite, 'faces_tag_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "faces_tag_id_idx" ON "faces" ("tagId")',
+    )
+    repaired.push('faces_tag_id_idx')
+  }
+
   if (hasTable(sqlite, 'faceEnrollments') && !hasIndex(sqlite, 'face_enrollments_tag_id_idx')) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "face_enrollments_tag_id_idx" ON "faceEnrollments" ("tagId")',

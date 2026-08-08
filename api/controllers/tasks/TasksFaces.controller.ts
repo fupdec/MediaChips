@@ -22,6 +22,7 @@ import {
   loadEmbedModel,
   matchMediaFaces,
 } from '../../services/faceRecognition'
+import {listFacesForTag} from '../../services/faceAppearances'
 import {
   getEnrollmentQualityForTag,
   iterateEnrollmentQualityReport,
@@ -100,6 +101,26 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       sendOk(res, await listFacesForMedia(db, mediaId, {ensureCrops}))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while loading faces.')
+    }
+  }
+
+  const facesForTag = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const tagId = Number(req.body?.tagId)
+      if (!Number.isFinite(tagId) || tagId <= 0) {
+        throw new HttpError(400, 'tagId is required')
+      }
+      const sort = req.body?.sort === 'shuffle' ? 'shuffle' : 'time'
+      const limitRaw = Number(req.body?.limit)
+      const offsetRaw = Number(req.body?.offset)
+      sendOk(res, listFacesForTag(db, tagId, {
+        countOnly: Boolean(req.body?.countOnly),
+        sort,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        offset: Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : undefined,
+      }))
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while loading face appearances.')
     }
   }
 
@@ -315,6 +336,7 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     faceDetectionStatus,
     faceMatchStatus,
     facesForMedia,
+    facesForTag,
     detectFacesForMedia,
     matchFacesForMedia,
     assignFacePerformer,

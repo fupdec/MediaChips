@@ -140,6 +140,11 @@
           {{ t('tags.export_clips', {count: clipCount}) }}
         </v-btn>
       </div>
+
+      <TagPageAppearances
+        v-if="showAppearances && tag.id"
+        :tag-id="Number(tag.id)"
+      />
     </v-container>
 
     <v-responsive
@@ -320,6 +325,11 @@
                 {{ t('tags.export_clips', {count: clipCount}) }}
               </v-btn>
             </div>
+
+            <TagPageAppearances
+              v-if="showAppearances && tag.id"
+              :tag-id="Number(tag.id)"
+            />
           </v-col>
         </v-row>
       </v-container>
@@ -410,6 +420,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSettingsStore} from '@/stores/settings'
 import {typedApi} from '@/services/typedApi'
 import {loadTagClipsForPlayback} from '@/services/tagClipsPlayback'
 import {runMarkClipsExport} from '@/services/exportMarkClipsUi'
@@ -417,6 +428,7 @@ import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
+import TagPageAppearances from '@/components/tags/TagPageAppearances.vue'
 import TagPageQuickFilters from '@/components/tags/TagPageQuickFilters.vue'
 import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
 import {onMetaCatalogChanged} from '@/composable/metaCatalog'
@@ -462,6 +474,7 @@ const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
 const dialogsStore = useDialogsStore()
+const settingsStore = useSettingsStore()
 const {t} = useI18n()
 
 // Refs
@@ -579,6 +592,10 @@ const galleryImages = computed((): TagPageGalleryImage[] => {
 })
 const hasGalleryImages = computed(() => galleryImages.value.length > 0)
 const showPlayClips = computed(() => Boolean(meta.value?.marks))
+const showAppearances = computed(() => {
+  const performerMetaId = Number(settingsStore['faceMatch.performerMetaId'] || 0)
+  return performerMetaId > 0 && Number(tag.value?.metaId) === performerMetaId
+})
 const resolveInitialTab = () => {
   const urlMediaTypeId = getUrlParam(route, 'mediaTypeId')
 

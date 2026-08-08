@@ -202,6 +202,22 @@ describe('schemaRepair', () => {
     expect(repairMissingIndexes(sqlite)).toEqual([])
   })
 
+  it('adds missing faces_tag_id_idx for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE faces (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        mediaId integer NOT NULL,
+        tagId integer,
+        createdAt text NOT NULL
+      );
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired).toContain('faces_tag_id_idx')
+    expect(repairMissingIndexes(sqlite)).not.toContain('faces_tag_id_idx')
+  })
+
   it('adds missing filterRows.order column for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE filterRows (
