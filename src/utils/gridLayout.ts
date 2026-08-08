@@ -357,19 +357,22 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
 
 export function shouldUseVirtualGrid(
   itemCount: number,
-  _isInfiniteScroll: boolean,
+  isInfiniteScroll: boolean,
   itemsType: 'media' | 'tag' = 'media',
   {enabled = true}: {enabled?: boolean} = {},
 ): boolean {
   if (!enabled) return false
   // Tags/chips and small pages stay fully rendered (content-visibility is enough).
   if (itemsType !== 'media') return false
+  // Infinite scroll stays fully rendered — virtual infinite lives on
+  // `wip/infinite-virtual-scroll` until that experiment is reapplied.
+  if (isInfiniteScroll) return false
   return itemCount >= VIRTUAL_GRID_THRESHOLD
 }
 
 export function shouldUseVirtualMasonry(
   itemCount: number,
-  isInfiniteScroll: boolean,
+  _isInfiniteScroll: boolean,
   itemsType: 'media' | 'tag' = 'media',
   {
     enabled = true,
@@ -381,10 +384,10 @@ export function shouldUseVirtualMasonry(
     minDimensionCoverage?: number
   } = {},
 ): boolean {
-  if (!shouldUseVirtualGrid(itemCount, isInfiniteScroll, itemsType, {enabled})) {
-    return false
-  }
-
+  if (!enabled) return false
+  if (itemsType !== 'media') return false
+  // Masonry may virtualize on infinite scroll; card grids do not.
+  if (itemCount < VIRTUAL_GRID_THRESHOLD) return false
   if (!items.length) return false
 
   let withDims = 0

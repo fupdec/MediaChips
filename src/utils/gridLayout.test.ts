@@ -26,13 +26,18 @@ describe('shouldUseVirtualGrid', () => {
     expect(shouldUseVirtualGrid(100, false, 'tag')).toBe(false)
   })
 
-  it('turns on for media lists at the threshold', () => {
+  it('turns on for paginated media lists at the threshold', () => {
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
-    expect(shouldUseVirtualGrid(100, true, 'media')).toBe(true)
+    expect(shouldUseVirtualGrid(100, false, 'media')).toBe(true)
+  })
+
+  it('keeps infinite-scroll media lists fully rendered', () => {
+    expect(shouldUseVirtualGrid(100, true, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(5_000, true, 'media')).toBe(false)
   })
 
   it('respects the feature flag', () => {
-    expect(shouldUseVirtualGrid(100, true, 'media', {enabled: false})).toBe(false)
+    expect(shouldUseVirtualGrid(100, false, 'media', {enabled: false})).toBe(false)
   })
 })
 

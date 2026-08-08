@@ -24,11 +24,11 @@ describe('huge gallery performance gates', () => {
     expect(trimmed.trimmedFromTop).toBe(50)
   })
 
-  it('enables virtual card grid at library scale', () => {
-    expect(shouldUseVirtualGrid(5_000, true, 'media')).toBe(true)
-    expect(shouldUseVirtualGrid(10_000, true, 'media')).toBe(true)
-    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, true, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(5_000, true, 'media', {enabled: false})).toBe(false)
+  it('keeps infinite card grids fully rendered; virtualizes large paginated grids', () => {
+    expect(shouldUseVirtualGrid(5_000, true, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(10_000, true, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
+    expect(shouldUseVirtualGrid(5_000, false, 'media', {enabled: false})).toBe(false)
   })
 
   it('enables virtual masonry only with stable dimensions at scale', () => {
