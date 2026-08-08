@@ -1526,12 +1526,14 @@ function getNameHighlighted(text: string) {
             size="small"
             :loading="aiBusy"
             :disabled="aiBusy || !query.trim()"
-            :title="t('globalSearch.ai_tip')"
             tabindex="-1"
             @mousedown.prevent
             @click.stop="runAiInterpret"
           >
             <v-icon size="18">mdi-creation-outline</v-icon>
+            <v-tooltip activator="parent" location="top">
+              {{ t('globalSearch.ai_tip') }}
+            </v-tooltip>
           </v-btn>
 
           <v-btn
@@ -1541,12 +1543,14 @@ function getNameHighlighted(text: string) {
             variant="text"
             density="compact"
             size="small"
-            :title="t('globalSearch.hintEnterSemantic')"
             tabindex="-1"
             @mousedown.prevent
             @click.stop="searchSemantic"
           >
             <v-icon size="18">mdi-brain</v-icon>
+            <v-tooltip activator="parent" location="top">
+              {{ t('globalSearch.runSemantic') }}
+            </v-tooltip>
           </v-btn>
 
           <v-btn
@@ -1558,12 +1562,14 @@ function getNameHighlighted(text: string) {
             size="small"
             :loading="mixBusy"
             :disabled="mixBusy"
-            :title="t('globalSearch.hintPlayMix')"
             tabindex="-1"
             @mousedown.prevent
             @click.stop="playAsMix"
           >
             <v-icon size="18">mdi-playlist-music</v-icon>
+            <v-tooltip activator="parent" location="top">
+              {{ t('globalSearch.play_mix') }}
+            </v-tooltip>
           </v-btn>
 
           <v-btn

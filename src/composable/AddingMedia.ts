@@ -631,7 +631,7 @@ export const useMediaAdding = () => {
       task.value.status = t('media.adding.suggesting_tags_from_paths')
       const response = await typedApi.suggestTagsFromPaths({
         paths: task.value.added.map((filePath) => ({ path: filePath })),
-        limit: 30,
+        limit: 60,
         maxWords: 3,
         excludeExisting: true,
       })
@@ -640,7 +640,7 @@ export const useMediaAdding = () => {
       names.push(...suggestions
         .map((item) => item.word)
         .filter((word): word is string => Boolean(word))
-        .slice(0, 30))
+        .slice(0, 60))
     } catch (error) {
       console.error('Error suggesting tags from added files:', error)
     }

@@ -177,14 +177,24 @@ export function usePlayerPlayback({
     })
     playerStore.player.addEventListener('waiting', () => {
       if (!playerStore.usesLiveTranscode) {
-        liveSession.armDirectSeekStallWatch(1500)
+        // Cold-start / NAS buffering always fires `waiting` with readyState < 3.
+        // Arming stall fallback there falsely flipped healthy direct plays into live
+        // transcode (spinner + HD icon). Only watch mid-playback freezes.
+        const currentTime = Number(playerStore.player?.currentTime) || 0
+        if (currentTime > 0.35) {
+          liveSession.armDirectSeekStallWatch(4000)
+        }
         return
       }
       playerStore.isStreamWaiting = true
     })
     playerStore.player.addEventListener('playing', () => {
       liveSession.clearDirectSeekStallWatch()
-      if (!playerStore.usesLiveTranscode) return
+      if (!playerStore.usesLiveTranscode) {
+        // Direct path may have leftover background status from a prior live item.
+        if (playerStore.backgroundStatusText) playerStore.clearBackgroundStatus()
+        return
+      }
       playerStore.liveTranscodeStarted = true
       playerStore.isStreamWaiting = false
       playerStore.playbackError = false

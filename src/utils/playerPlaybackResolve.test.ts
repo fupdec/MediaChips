@@ -98,7 +98,7 @@ describe('shouldPreferDirectPlayback / resolveLiveStreamCopyCompatible', () => {
     })).toBe(false)
   })
 
-  it('does not prefer direct for container_layout when transcode is available', () => {
+  it('prefers direct for container_layout; live remains offerable as fallback', () => {
     expect(shouldPreferDirectPlayback({
       transcodeRequired: false,
       forceDirectPlayback: false,
@@ -106,7 +106,7 @@ describe('shouldPreferDirectPlayback / resolveLiveStreamCopyCompatible', () => {
       reason: 'container_layout',
       needsRemux: true,
       transcodeEnabled: true,
-    })).toBe(false)
+    })).toBe(true)
     expect(shouldPreferDirectPlayback({
       transcodeRequired: false,
       forceDirectPlayback: false,
@@ -416,12 +416,11 @@ describe('resolveVideoSourcePlan', () => {
     })
   })
 
-  it('plans live for container_layout when transcode is enabled', () => {
+  it('plans direct-first for container_layout; live only when codecs require it', () => {
     expect(resolveVideoSourcePlan({
       playableMode: 'stream',
       transcodeRequired: true,
-      reason: 'container_layout',
-      needsRemux: true,
+      reason: 'codec',
       startTime: 12,
       forceDirectPlayback: false,
       liveTranscodeDisabled: false,
@@ -443,9 +442,9 @@ describe('resolveVideoSourcePlan', () => {
       liveTranscodeDisabled: false,
       transcodeUnsupportedFormatsEnabled: true,
     })).toEqual({
-      kind: 'live',
-      streamStart: 0,
-      copyCompatible: false,
+      kind: 'direct',
+      streamMode: 'auto',
+      lockForcedDirect: false,
       liveTranscodeOfferable: true,
     })
 

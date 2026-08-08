@@ -847,14 +847,18 @@
   align-items: center;
   margin: 8px;
   padding: 4px 16px 4px 8px;
-  border-radius: 35px;
+  border-radius: 16px;
   color: white;
-  background-color: rgba(0, 0, 0, 0.85);
+  background: rgba(12, 12, 16, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
 
   &--timed {
     flex-direction: column;
     align-items: stretch;
-    border-radius: 8px;
+    border-radius: 16px;
     --status-timed-inset: 10px;
     padding: var(--status-timed-inset) 14px;
     min-width: 148px;

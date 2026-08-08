@@ -78,19 +78,19 @@ export function playbackErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
-/** Prefer browser-native decode when live re-encode is not forced. */
+/** Prefer browser-native decode; live re-encode only after stall / hard require. */
 export function shouldPreferDirectPlayback(input: {
   transcodeRequired: boolean
   forceDirectPlayback: boolean
   liveTranscodeDisabled: boolean
   reason?: string | null
   needsRemux?: boolean
-  /** When false, pathological layouts must stay on direct bytes. */
+  /** Kept for callers; layout no longer skips direct when transcode is on. */
   transcodeEnabled?: boolean
 }): boolean {
   if (input.forceDirectPlayback || input.liveTranscodeDisabled) return true
-  const isLayout = input.reason === 'container_layout' || input.needsRemux === true
-  if (isLayout) return input.transcodeEnabled === false
+  // Pathological MP4 layout stays on file bytes first; stall watch falls back.
+  if (input.reason === 'container_layout' || input.needsRemux === true) return true
   return !input.transcodeRequired
 }
 
@@ -370,9 +370,8 @@ export function resolveVideoSourcePlan(input: {
   if (input.playableMode === 'unsupported') return {kind: 'unsupported'}
 
   const streamStart = Math.max(0, Number(input.startTime) || 0)
-  const isLayout = input.reason === 'container_layout' || input.needsRemux === true
   const liveTranscodeOfferable = resolveLiveTranscodeOfferable({
-    transcodeRequired: Boolean(input.transcodeRequired) || isLayout,
+    transcodeRequired: Boolean(input.transcodeRequired),
     transcodeUnsupportedFormatsEnabled: input.transcodeUnsupportedFormatsEnabled,
     playableMode: input.playableMode,
     reason: input.reason,
@@ -380,14 +379,15 @@ export function resolveVideoSourcePlan(input: {
   })
 
   if (shouldPreferDirectPlayback({
-    transcodeRequired: Boolean(input.transcodeRequired) || isLayout,
+    // Do not treat layout as "required" — try native first, offer fallback.
+    transcodeRequired: Boolean(input.transcodeRequired),
     forceDirectPlayback: input.forceDirectPlayback,
     liveTranscodeDisabled: input.liveTranscodeDisabled,
     reason: input.reason,
     needsRemux: input.needsRemux,
     transcodeEnabled: input.transcodeUnsupportedFormatsEnabled,
   })) {
-    const lockForcedDirect = Boolean(input.transcodeRequired || isLayout)
+    const lockForcedDirect = Boolean(input.transcodeRequired)
       && (input.forceDirectPlayback || input.liveTranscodeDisabled)
     return {
       kind: 'direct',

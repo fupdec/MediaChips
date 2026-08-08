@@ -1424,7 +1424,7 @@ const unbindFilmstripObserver = () => {
   }
 }
 
-const scrollFilmstripToActive = async () => {
+const scrollFilmstripToActive = async (behavior: ScrollBehavior = 'auto') => {
   await nextTick()
   const root = filmstripRef.value
   if (!root || filmstripTotal.value <= 0) return
@@ -1436,7 +1436,8 @@ const scrollFilmstripToActive = async () => {
   const target = Math.max(0, itemCenter - root.clientWidth / 2)
   const maxScroll = Math.max(0, root.scrollWidth - root.clientWidth)
   const nextLeft = Math.min(maxScroll, target)
-  root.scrollTo({left: nextLeft, behavior: 'smooth'})
+  // Instant jump on open / toggle — smooth scroll felt like a laggy “shift”.
+  root.scrollTo({left: nextLeft, behavior})
   filmstripScrollLeft.value = nextLeft
 }
 

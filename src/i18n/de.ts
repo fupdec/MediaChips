@@ -135,7 +135,7 @@ const de = {
     sectionTags: "Tags zum Anheften",
     sectionFiltered: "Nach Tags gefiltert",
     ai_label: 'KI',
-    ai_tip: 'Mit Local AI interpretieren (oder ai:… und Enter)',
+    ai_tip: 'Mit Local AI interpretieren',
     ai_loading: 'Anfrage wird verstanden…',
     ai_applied: 'Suche per KI aktualisiert',
     ai_not_ready: 'Local AI ist nicht bereit — Modell in den Einstellungen aktivieren und laden',

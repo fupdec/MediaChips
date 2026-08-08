@@ -135,7 +135,7 @@ const cn = {
     sectionTags: '可固定标签',
     sectionFiltered: '按标签筛选',
     ai_label: 'AI',
-    ai_tip: '用 Local AI 理解查询（或输入 ai:… 后按 Enter）',
+    ai_tip: '用 Local AI 理解查询',
     ai_loading: '正在理解查询…',
     ai_applied: '已用 AI 更新搜索',
     ai_not_ready: 'Local AI 未就绪 — 请在设置中启用并下载模型',

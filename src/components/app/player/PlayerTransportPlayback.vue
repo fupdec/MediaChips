@@ -181,6 +181,9 @@ const {
 
 const showTranscodeMenu = computed(() => (
   !isAudioMode.value
-  && (playerStore.usesLiveTranscode || playerStore.liveTranscodeOfferable || playerStore.liveTranscodeDisabled)
+  // Only while live is active, or after the user turned it off (so they can re-enable).
+  // Do not show for direct play just because fallback is offerable — that looked like
+  // "already transcoding".
+  && (playerStore.usesLiveTranscode || playerStore.liveTranscodeDisabled)
 ))
 </script>

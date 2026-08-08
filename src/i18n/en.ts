@@ -174,7 +174,7 @@ const en = {
     sectionTags: 'Tags to pin',
     sectionFiltered: 'Filtered by tags',
     ai_label: 'AI',
-    ai_tip: 'Interpret with Local AI (or type ai:… and press Enter)',
+    ai_tip: 'Interpret with Local AI',
     ai_loading: 'Understanding your request…',
     ai_applied: 'Search updated from AI',
     ai_not_ready: 'Local AI is not ready — enable and download the model in Settings',

@@ -139,7 +139,7 @@ const ja = {
     sectionTags: "固定するタグ",
     sectionFiltered: "タグで絞り込み",
     ai_label: 'AI',
-    ai_tip: 'Local AIで解釈（または ai:… と入力して Enter）',
+    ai_tip: 'Local AIで解釈',
     ai_loading: 'クエリを解釈しています…',
     ai_applied: 'AIで検索を更新しました',
     ai_not_ready: 'Local AIの準備ができていません — 設定で有効化してモデルをダウンロード',

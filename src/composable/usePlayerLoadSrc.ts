@@ -143,6 +143,11 @@ export function createPlayerLoadSrc({
     playerStore.liveTranscodeOfferable = plan.liveTranscodeOfferable
     if (plan.kind === 'direct') {
       liveSession.resetTranscodeState()
+      playerStore.usesLiveTranscode = false
+      playerStore.liveTranscodeStarted = false
+      playerStore.isLiveStreamSeeking = false
+      playerStore.isStreamWaiting = false
+      playerStore.clearBackgroundStatus()
       state.liveStreamAccurateSeek = false
       if (plan.lockForcedDirect) {
         playerStore.liveTranscodeDisabled = true

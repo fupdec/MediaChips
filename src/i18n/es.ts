@@ -135,7 +135,7 @@ const es = {
     sectionTags: 'Etiquetas para fijar',
     sectionFiltered: 'Filtrado por etiquetas',
     ai_label: 'IA',
-    ai_tip: 'Interpretar con Local AI (o escribe ai:… y Enter)',
+    ai_tip: 'Interpretar con Local AI',
     ai_loading: 'Entendiendo la consulta…',
     ai_applied: 'Búsqueda actualizada con IA',
     ai_not_ready: 'Local AI no está listo — actívalo y descarga el modelo en Ajustes',

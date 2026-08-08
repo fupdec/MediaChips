@@ -2,9 +2,11 @@ import type {ApiDb, AnyRecord, MediaLike, TagLike} from '../types/db'
 import {cosineSimilarity, embedText} from './embeddingModel'
 import {createTagsRepository} from '../db/repositories/tags'
 import {
+  compareSuggestions,
   countPathTokens,
   filterExistingTags,
   getCandidatePhrases,
+  pickTopSuggestions,
   type PathTokenCount,
   type TagPhraseCandidate,
 } from './tagSuggesterPhrases'
@@ -12,14 +14,21 @@ import {
 interface TagCluster {
   word: string
   occurrences: number
+  docs: number
   sample: string
+  wordCount: number
   best: TagPhraseCandidate
   embedding: number[]
   words: string[]
 }
 
 async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settings: AnyRecord = {}) {
-  if (!settings.useML) return candidates.map((i) => ({...i, cluster: [i.word]}))
+  if (!settings.useML) {
+    return candidates.map((item) => ({
+      ...item,
+      cluster: [item.word],
+    }))
+  }
 
   const threshold = Number(settings.clusterThreshold || 0.88)
   const clusters: TagCluster[] = []
@@ -29,6 +38,8 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
     let found: TagCluster | null = null
 
     for (const cluster of clusters) {
+      // Keep multi-word phrases distinct from singles (and from other lengths).
+      if (cluster.wordCount !== candidate.words) continue
       const similarity = cosineSimilarity(embedding, cluster.embedding)
       if (similarity >= threshold) {
         found = cluster
@@ -38,6 +49,7 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
 
     if (found) {
       found.occurrences = (found.occurrences || 0) + candidate.occurrences
+      found.docs = (found.docs || 0) + (candidate.docs || 0)
       found.words.push(candidate.word)
       if (candidate.occurrences > (found.best.occurrences || found.best.weight)) {
         found.word = candidate.word
@@ -49,13 +61,16 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
           words: candidate.words,
           weight: candidate.occurrences,
           occurrences: candidate.occurrences,
+          docs: candidate.docs,
         }
       }
     } else {
       clusters.push({
         word: candidate.word,
         occurrences: candidate.occurrences,
+        docs: candidate.docs || 1,
         sample: candidate.sample || candidate.word,
+        wordCount: candidate.words,
         best: {
           word: candidate.word,
           source: 'path',
@@ -63,6 +78,7 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
           words: candidate.words,
           weight: candidate.occurrences,
           occurrences: candidate.occurrences,
+          docs: candidate.docs,
         },
         embedding,
         words: [candidate.word],
@@ -71,15 +87,19 @@ async function clusterCandidates(db: ApiDb, candidates: PathTokenCount[], settin
   }
 
   return clusters
-    .map(({embedding: _embedding, best: _best, ...cluster}) => ({
-      ...cluster,
+    .map(({embedding: _embedding, best: _best, wordCount, ...cluster}) => ({
+      word: cluster.word,
+      occurrences: cluster.occurrences,
+      docs: cluster.docs,
+      sample: cluster.sample,
+      words: wordCount,
       cluster: cluster.words,
     }))
-    .sort((a, b) => (b.occurrences || 0) - (a.occurrences || 0))
+    .sort(compareSuggestions)
 }
 
 async function suggestTagsFromMedia(db: ApiDb, media: MediaLike[], settings: AnyRecord = {}) {
-  const limit = Number(settings.limit || 100)
+  const limit = Math.max(1, Number(settings.limit || 100))
   let candidates = countPathTokens(media, {
     folderWeight: Number(settings.folderWeight) || undefined,
     maxWords: Number(settings.maxWords) || undefined,
@@ -90,10 +110,21 @@ async function suggestTagsFromMedia(db: ApiDb, media: MediaLike[], settings: Any
     candidates = filterExistingTags(candidates, tags as TagLike[])
   }
 
-  candidates = candidates.slice(0, limit * 3)
+  // Keep a wider pool so reserved multi-word phrases are not dropped early.
+  candidates = pickTopSuggestions(candidates, Math.max(limit * 4, limit))
   const clustered = await clusterCandidates(db, candidates, settings)
 
-  return clustered.slice(0, limit)
+  return pickTopSuggestions(
+    clustered.map((item) => ({
+      word: item.word,
+      occurrences: item.occurrences,
+      sample: item.sample,
+      words: item.words,
+      docs: item.docs || 1,
+      cluster: item.cluster,
+    })),
+    limit,
+  )
 }
 
-export {countPathTokens, getCandidatePhrases, suggestTagsFromMedia}
+export {countPathTokens, getCandidatePhrases, pickTopSuggestions, suggestTagsFromMedia}

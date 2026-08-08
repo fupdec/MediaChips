@@ -135,7 +135,7 @@ const fr = {
     sectionTags: 'Tags à épingler',
     sectionFiltered: 'Filtré par tags',
     ai_label: 'IA',
-    ai_tip: 'Interpréter avec Local AI (ou tapez ai:… puis Entrée)',
+    ai_tip: 'Interpréter avec Local AI',
     ai_loading: 'Analyse de la requête…',
     ai_applied: 'Recherche mise à jour par l’IA',
     ai_not_ready: 'Local AI n’est pas prêt — activez et téléchargez le modèle dans Réglages',
