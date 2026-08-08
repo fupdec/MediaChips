@@ -58,6 +58,8 @@ export const PREVIEW_SEEK_EPSILON = 0.12
  * /Volumes before the first frame arrives; live fallback then thrash-encodes.
  */
 export const HOVER_PREVIEW_DIRECT_CANPLAY_MS = 8_000
+/** After direct hover plays, watch for black/stuck decode before live fallback. */
+export const HOVER_PREVIEW_DIRECT_STALL_MS = 1_500
 /** Live FFmpeg warm-up window for hover previews. */
 export const HOVER_PREVIEW_LIVE_CANPLAY_MS = 45_000
 /** Cap live hover encode height — full player quality is wasted on a card. */
@@ -462,6 +464,47 @@ export function shouldAttemptHoverLiveFallback(input: {
   return !input.alreadyLive && !input.fallbackAttempted && input.transcodeEnabled
 }
 
+/**
+ * Layout-broken MP4s can "play" with audio + black frames (no @error).
+ * Prefer one live remux/re-encode pass when /playable says needsRemux.
+ */
+export function shouldPreferHoverLiveForLayoutRemux(input: {
+  needsRemux: boolean
+  transcodeEnabled: boolean
+  alreadyLive: boolean
+  fallbackAttempted: boolean
+}): boolean {
+  return input.needsRemux
+    && input.transcodeEnabled
+    && !input.alreadyLive
+    && !input.fallbackAttempted
+}
+
+/** Stuck/black direct decode after canplay — promote hover to live. */
+export function shouldTriggerHoverDirectStallFallback(input: {
+  alreadyLive: boolean
+  fallbackAttempted: boolean
+  transcodeEnabled: boolean
+  paused: boolean
+  seeking: boolean
+  readyState: number
+  videoWidth: number
+  decodedFrames: number | null
+}): boolean {
+  if (
+    input.alreadyLive
+    || input.fallbackAttempted
+    || !input.transcodeEnabled
+    || input.paused
+  ) {
+    return false
+  }
+  if (input.seeking || input.readyState < 2) return true
+  if (input.videoWidth <= 0) return true
+  if (input.decodedFrames != null && input.decodedFrames <= 0) return true
+  return false
+}
+
 export type PreviewUrlSeekPlan =
   | {
     kind: 'live'
@@ -555,7 +598,7 @@ export function clampLiveChunkSeek(
   return {withinCurrentSegment, relativeTime, clampedAbsolute}
 }
 
-const PREVIEW_SEEK_WAIT_MS = 400
+const PREVIEW_SEEK_WAIT_MS = 750
 
 function waitForSeekedOrTimeout(
   video: HTMLVideoElement,

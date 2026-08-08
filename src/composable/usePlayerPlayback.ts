@@ -179,10 +179,11 @@ export function usePlayerPlayback({
       if (!playerStore.usesLiveTranscode) {
         // Cold-start / NAS buffering always fires `waiting` with readyState < 3.
         // Arming stall fallback there falsely flipped healthy direct plays into live
-        // transcode (spinner + HD icon). Only watch mid-playback freezes.
+        // transcode (spinner + HD icon). Only watch mid-playback freezes, and use a
+        // longer grace so slow volumes do not false-promote to live encode.
         const currentTime = Number(playerStore.player?.currentTime) || 0
-        if (currentTime > 0.35) {
-          liveSession.armDirectSeekStallWatch(4000)
+        if (currentTime > 2) {
+          liveSession.armDirectSeekStallWatch(8000)
         }
         return
       }

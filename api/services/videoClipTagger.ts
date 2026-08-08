@@ -225,7 +225,7 @@ async function classifyFrame(
   options: ClipTaggerOptions = {},
 ): Promise<ClipClassificationRow[]> {
   const topK = Number(options.topK || 8)
-  const minScore = Number(options.minScore || 0.03)
+  const minScore = Number(options.minScore || 0.15)
   const promptToKey = new Map(promptEntries.map((entry) => [entry.prompt, entry.key]))
   const output = await model(frame.framePath, promptEntries.map((entry) => entry.prompt))
   const rows = Array.isArray(output) ? output : []

@@ -332,7 +332,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'faceMatch.performerMetaId': '',
   'faceMatch.minConfidence': '0.55',
   'faceMatch.candidateLimit': '10',
-  'faceMatch.mode': 'auto',
+  'faceMatch.mode': 'suggest',
   'faceMatch.matchAfterDetect': '1',
   'faceMatch.autoBlindTags': '0',
   'faceMatch.embedModelId': 'insightface-r50-scrfd-kps-v1',

@@ -1,7 +1,8 @@
 import type {Request, Response} from 'express'
 import fs from 'fs'
 import path from 'path'
-import { ffprobe, ffprobePlayability } from '../../utils/ffmpeg'
+import { ffprobe, ffprobePlayability, resolveFfprobeDuration } from '../../utils/ffmpeg'
+import { isUsableDuration } from '../../utils/ffprobeMath'
 import {
   DIRECT_VIDEO_CONTAINERS,
   DIRECT_AUDIO_CONTAINERS,
@@ -136,7 +137,10 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
         probe = await ffprobe(filePath)
       }
 
-      const duration = Number(probe.format?.duration || 0)
+      let duration = Number(probe.format?.duration || 0)
+      if (!isUsableDuration(duration)) {
+        duration = Number(await resolveFfprobeDuration(filePath, probe.format?.duration) || 0)
+      }
       const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
       let needsRemux = false
       let reason = analyzed.reason

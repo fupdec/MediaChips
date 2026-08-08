@@ -11,7 +11,7 @@ export const MIN_FACE_CANDIDATE_LIMIT = 3
 export const MAX_FACE_CANDIDATE_LIMIT = 20
 
 export function parseFaceMatchMode(value: unknown): FaceMatchMode {
-  return String(value || 'auto') === 'suggest' ? 'suggest' : 'auto'
+  return String(value || 'suggest') === 'auto' ? 'auto' : 'suggest'
 }
 
 export function clampFaceMatchConfidence(value: unknown, fallback = 0.55): number {

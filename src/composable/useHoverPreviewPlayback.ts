@@ -28,6 +28,8 @@ import {
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
   shouldAttemptHoverLiveFallback,
+  shouldPreferHoverLiveForLayoutRemux,
+  shouldTriggerHoverDirectStallFallback,
   shouldApplyPreviewSeek,
   seekPreviewVideo,
   shouldScheduleHoverPreviewVideo,
@@ -39,6 +41,7 @@ import {
   getPreviewStreamStart,
   shouldComputeHoverPreviewPointerTime,
   shouldRestartFixedPreviewClip,
+  HOVER_PREVIEW_DIRECT_STALL_MS,
   type HoverPreviewTeardownKind,
 } from '@/utils/hoverPreviewPlayback'
 import {positionHoverPreviewVideo} from '@/utils/hoverPreviewVideoPositioning'
@@ -76,10 +79,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   /** When false, <video> unmounts immediately (leave) without waiting for CSS hover grace. */
   const allowHoverVideoElement = ref(false)
   const hoverPreviewReady = ref(false)
+  /** Hide <video> until scrub seek settles (avoids t≈0 flash under ready). */
+  const hoverPreviewPending = ref(false)
   const previewUsesLiveStream = ref(false)
 
   let previewPlaybackToken = 0
   let previewDelayTimeout: ReturnType<typeof setTimeout> | undefined
+  let previewDirectStallTimer: ReturnType<typeof setTimeout> | undefined
   /** One live FFmpeg attempt after direct hover fails. */
   let previewLiveFallbackAttempted = false
   let preferLivePreview = false
@@ -87,6 +93,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   let ignoreVideoErrorsUntil = 0
   /** null = /playable still in flight for this hover. */
   let hoverPlayableSafe: boolean | null = null
+  let hoverNeedsRemux = false
   let hoverPlayablePromise: Promise<void> | null = null
   let hoverPlayableToken = 0
 
@@ -100,6 +107,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
   const resetHoverPreviewReady = () => {
     hoverPreviewReady.value = false
+    hoverPreviewPending.value = false
   }
 
   const markHoverPreviewReady = () => {
@@ -110,6 +118,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     })) {
       return
     }
+    hoverPreviewPending.value = false
     hoverPreviewReady.value = true
     options.onHoverPreviewReady()
   }
@@ -117,6 +126,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const clearPreviewDelayTimer = () => {
     clearTimeout(previewDelayTimeout)
     previewDelayTimeout = undefined
+  }
+
+  const clearPreviewDirectStallWatch = () => {
+    clearTimeout(previewDirectStallTimer)
+    previewDirectStallTimer = undefined
   }
 
   const stopPreviewLiveTranscode = () => {
@@ -130,8 +144,10 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     preferLivePreview = false
     ignoreVideoErrorsUntil = 0
     hoverPlayableSafe = null
+    hoverNeedsRemux = false
     hoverPlayablePromise = null
     hoverPlayableToken += 1
+    clearPreviewDirectStallWatch()
   }
 
   const buildPreviewVideoUrl = (startSeconds = progress.value || 0) => {
@@ -184,8 +200,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const tryHoverLiveFallback = (): boolean => {
-    // Only remux/re-encode after we know the file is browser-codec-safe.
-    if (hoverPlayableSafe !== true) return false
+    // Only remux/re-encode after we know the file is browser-codec-safe,
+    // or when /playable already flagged a layout remux need.
+    if (hoverPlayableSafe !== true && !hoverNeedsRemux) return false
     if (!shouldAttemptHoverLiveFallback({
       alreadyLive: previewUsesLiveStream.value || preferLivePreview,
       fallbackAttempted: previewLiveFallbackAttempted,
@@ -196,7 +213,17 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     previewLiveFallbackAttempted = true
     preferLivePreview = true
     previewUsesLiveStream.value = true
+    clearPreviewDirectStallWatch()
     armIgnoreVideoErrors()
+    return true
+  }
+
+  const promoteHoverToLiveFallback = () => {
+    if (!tryHoverLiveFallback()) return false
+    allowHoverVideoElement.value = true
+    hoverPreviewPending.value = true
+    playbackError.value = false
+    void startPreviewPlayback()
     return true
   }
 
@@ -204,13 +231,64 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   let startPreviewPlayback = async () => {}
 
   const finishHoverPlaybackFailure = () => {
-    if (tryHoverLiveFallback()) {
-      allowHoverVideoElement.value = true
-      playbackError.value = false
-      void startPreviewPlayback()
+    if (promoteHoverToLiveFallback()) return
+    markPreviewUnavailable()
+  }
+
+  const readHoverDecodedFrames = (video: HTMLVideoElement): number | null => {
+    try {
+      const quality = (
+        video as HTMLVideoElement & {
+          getVideoPlaybackQuality?: () => {totalVideoFrames?: number}
+        }
+      ).getVideoPlaybackQuality?.()
+      const frames = Number(quality?.totalVideoFrames)
+      return Number.isFinite(frames) ? frames : null
+    } catch {
+      return null
+    }
+  }
+
+  const armHoverDirectStallWatch = (playbackToken: number) => {
+    clearPreviewDirectStallWatch()
+    if (previewUsesLiveStream.value || preferLivePreview) return
+    if (!isHoverTranscodeEnabled()) return
+
+    previewDirectStallTimer = setTimeout(() => {
+      previewDirectStallTimer = undefined
+      if (playbackToken !== previewPlaybackToken) return
+      if (!toValue(options.isHovered) || !toValue(options.isPreviewVisible)) return
+      const video = videoRef.value
+      if (!video) return
+      if (!shouldTriggerHoverDirectStallFallback({
+        alreadyLive: previewUsesLiveStream.value || preferLivePreview,
+        fallbackAttempted: previewLiveFallbackAttempted,
+        transcodeEnabled: isHoverTranscodeEnabled(),
+        paused: Boolean(video.paused),
+        seeking: Boolean(video.seeking),
+        readyState: Number(video.readyState) || 0,
+        videoWidth: Number(video.videoWidth) || 0,
+        decodedFrames: readHoverDecodedFrames(video),
+      })) {
+        return
+      }
+      hoverPlayableSafe = true
+      promoteHoverToLiveFallback()
+    }, HOVER_PREVIEW_DIRECT_STALL_MS)
+  }
+
+  const maybePromoteHoverForLayoutRemux = (playbackToken: number) => {
+    if (playbackToken !== previewPlaybackToken) return
+    if (!shouldPreferHoverLiveForLayoutRemux({
+      needsRemux: hoverNeedsRemux,
+      transcodeEnabled: isHoverTranscodeEnabled(),
+      alreadyLive: previewUsesLiveStream.value || preferLivePreview,
+      fallbackAttempted: previewLiveFallbackAttempted,
+    })) {
       return
     }
-    markPreviewUnavailable()
+    hoverPlayableSafe = true
+    promoteHoverToLiveFallback()
   }
 
   const recoverHoverPlaybackFailure = (playbackToken: number) => {
@@ -361,6 +439,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     if (plan.clearAllowHoverVideo) allowHoverVideoElement.value = false
     if (plan.clearSeekCoalescer) hoverSeekCoalescer.clear()
     if (plan.clearDelayTimer) clearPreviewDelayTimer()
+    clearPreviewDirectStallWatch()
     if (plan.stopLive) {
       stopPreviewLiveTranscode()
       resetPreviewLiveFallbackState()
@@ -405,15 +484,19 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         })
         if (plan.kind === 'unavailable') {
           hoverPlayableSafe = false
-          markPreviewUnavailable()
+          hoverNeedsRemux = false
           return
         }
+        hoverNeedsRemux = Boolean(
+          playable.reason === 'container_layout' || playability?.needsRemux === true,
+        )
         hoverPlayableSafe = true
       })
       .catch(() => {
         if (token !== hoverPlayableToken) return
-        // Probe failed — keep optimistic direct playback.
-        hoverPlayableSafe = true
+        // Probe failed — keep direct-only; do not unlock live FFmpeg.
+        hoverPlayableSafe = false
+        hoverNeedsRemux = false
       })
     return hoverPlayablePromise
   }
@@ -480,11 +563,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         return
       }
 
-      // Reveal as soon as playback starts — don't keep the thumb glued on while
-      // a mid-file seek settles (slow volumes made previews look "dead").
+      // Keep the thumb until the corrective mid-file seek settles so t≈0 does
+      // not flash under is-hover-preview-ready.
       playbackError.value = false
+      hoverPreviewPending.value = true
       syncPlaybackTimeFromVideo()
-      markHoverPreviewReady()
 
       // Live chunks use relative currentTime — never seek to the absolute timeline.
       const absoluteNow = resolvePreviewPlaybackTime()
@@ -499,6 +582,14 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
           return
         }
         syncPlaybackTimeFromVideo()
+      }
+
+      markHoverPreviewReady()
+      if (!previewUsesLiveStream.value) {
+        armHoverDirectStallWatch(token)
+        void beginHoverPlayableGate(mediaId).then(() => {
+          maybePromoteHoverForLayoutRemux(token)
+        })
       }
     } catch (error) {
       const errorGate = resolveHoverPreviewPlaybackErrorGate({
@@ -547,6 +638,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
       claimHoverVideoPreview(mediaId, yieldHoverVideoDecoder)
       allowHoverVideoElement.value = true
+      hoverPreviewPending.value = true
       await nextTick()
 
       const afterMount = resolveHoverPreviewAfterMountGate({
@@ -630,6 +722,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     playbackError,
     allowHoverVideoElement,
     hoverPreviewReady,
+    hoverPreviewPending,
     previewUsesLiveStream,
     changePreviewTime,
     handleVideoError,

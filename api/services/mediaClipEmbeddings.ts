@@ -180,14 +180,8 @@ function listPreviewCandidateIds(db: ApiDb): number[] {
 function countEmbedded(db: ApiDb, candidateIds: number[]) {
   if (!candidateIds.length) return 0
   let count = 0
-  for (const chunk of chunkArray(candidateIds)) {
-    const rows = queryAll<{count: number}>(db, `
-      SELECT COUNT(*) AS count
-      FROM mediaClipEmbeddings
-      WHERE mediaId IN (:ids)
-        AND model = :model
-    `, {ids: chunk, model: CLIP_EMBEDDING_INDEX_KEY})
-    count += Number(rows[0]?.count || 0)
+  for (const id of candidateIds) {
+    if (!needsClipEmbeddingUpgrade(db, id)) count += 1
   }
   return count
 }
@@ -204,6 +198,36 @@ async function getClipEmbeddingBackfillStatus(db: ApiDb) {
     modelStatus: model.status,
     model: model.model,
   }
+}
+
+function packedClipTileCount(embedding: Buffer | Uint8Array | null | undefined, dims: number): number {
+  const bytes = embedding?.byteLength || 0
+  const perVector = Math.floor(Number(dims)) * 4
+  if (!bytes || !Number.isFinite(perVector) || perVector <= 0) return 0
+  return Math.floor(bytes / perVector)
+}
+
+function expectedClipTileCountForPreview(previewPath: string | null): number {
+  if (!previewPath) return 0
+  return isVideoGridPreviewPath(previewPath) ? VIDEO_GRID_TILE_COUNT : 1
+}
+
+function needsClipEmbeddingUpgrade(db: ApiDb, mediaId: number): boolean {
+  const row = loadMediaPreviewRow(db, mediaId)
+  if (!row) return false
+  const previewPath = resolvePreviewImagePath(db, mediaId, row.mediaType)
+  const expected = expectedClipTileCountForPreview(previewPath)
+  if (!expected) return false
+
+  const stored = queryGet<StoredEmbeddingRow>(db, `
+    SELECT mediaId, embedding, dims, model
+    FROM mediaClipEmbeddings
+    WHERE mediaId = :mediaId AND model = :model
+    LIMIT 1
+  `, {mediaId, model: CLIP_EMBEDDING_INDEX_KEY})
+
+  if (!stored) return true
+  return packedClipTileCount(stored.embedding, Number(stored.dims)) < expected
 }
 
 function persistEmbeddings(db: ApiDb, mediaId: number, embeddings: ClipEmbeddingVector[]) {
@@ -272,28 +296,15 @@ function findNextClipBackfillId(
 ): number | null {
   if (!candidateIds.length) return null
 
-  const pendingClause = force
-    ? ''
-    : `AND NOT EXISTS (
-         SELECT 1 FROM mediaClipEmbeddings e
-         WHERE e.mediaId = m.id AND e.model = :model
-       )`
+  const nextIds = candidateIds
+    .filter((id) => id > lastId)
+    .sort((a, b) => a - b)
 
-  const row = queryGet<{id: number}>(db, `
-    SELECT m.id AS id
-    FROM media m
-    WHERE m.id > :lastId
-      AND m.id IN (:ids)
-      ${pendingClause}
-    ORDER BY m.id
-    LIMIT 1
-  `, {
-    lastId,
-    ids: candidateIds,
-    ...(force ? {} : {model: CLIP_EMBEDDING_INDEX_KEY}),
-  })
+  for (const id of nextIds) {
+    if (force || needsClipEmbeddingUpgrade(db, id)) return id
+  }
 
-  return row ? Number(row.id) : null
+  return null
 }
 
 async function* iterateClipEmbeddingBackfill(
@@ -321,14 +332,7 @@ async function* iterateClipEmbeddingBackfill(
       total: candidateIds.length,
       pending: force
         ? candidateIds.length
-        : candidateIds.filter((id) => {
-          const row = queryGet<{id: number}>(db, `
-            SELECT e.mediaId AS id FROM mediaClipEmbeddings e
-            WHERE e.mediaId = :id AND e.model = :model
-            LIMIT 1
-          `, {id, model: CLIP_EMBEDDING_INDEX_KEY})
-          return !row
-        }).length,
+        : candidateIds.filter((id) => needsClipEmbeddingUpgrade(db, id)).length,
     }
     : await getClipEmbeddingBackfillStatus(db)
   const total = force ? status.total : status.pending

@@ -13,7 +13,7 @@ describe('faceSettingsParse', () => {
   it('parses match mode', () => {
     expect(parseFaceMatchMode('suggest')).toBe('suggest')
     expect(parseFaceMatchMode('auto')).toBe('auto')
-    expect(parseFaceMatchMode('nope')).toBe('auto')
+    expect(parseFaceMatchMode('nope')).toBe('suggest')
   })
 
   it('clamps confidence and detect gates', () => {

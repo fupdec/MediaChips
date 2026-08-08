@@ -81,7 +81,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
         framesPerVideo: req.body?.framesPerVideo || 4,
         frameWidth: req.body?.frameWidth || 384,
         topK: req.body?.topK || 8,
-        minScore: req.body?.minScore || 0.03,
+        minScore: req.body?.minScore || 0.15,
         limit: req.body?.limit || 50,
         excludeExisting: req.body?.excludeExisting,
       })
@@ -139,7 +139,7 @@ export default function createTasksTaggingController(shared: TaskControllerShare
           framesPerVideo: req.body?.framesPerVideo || 4,
           frameWidth: req.body?.frameWidth || 384,
           topK: req.body?.topK || 8,
-          minScore: req.body?.minScore || 0.03,
+          minScore: req.body?.minScore || 0.15,
           limit: req.body?.limit || 50,
           excludeExisting: req.body?.excludeExisting,
           tags: existingTags,

@@ -83,7 +83,7 @@ const MIGRATION_SETTINGS = [
   {option: 'faceMatch.performerMetaId', value: ''},
   {option: 'faceMatch.minConfidence', value: '0.55'},
   {option: 'faceMatch.candidateLimit', value: '10'},
-  {option: 'faceMatch.mode', value: 'auto'},
+  {option: 'faceMatch.mode', value: 'suggest'},
   {option: 'faceMatch.matchAfterDetect', value: '1'},
   {option: 'faceMatch.autoBlindTags', value: '0'},
   {option: 'faceMatch.embedModelId', value: 'insightface-r50-scrfd-kps-v1'},

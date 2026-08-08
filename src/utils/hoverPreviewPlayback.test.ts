@@ -26,8 +26,11 @@ import {
   resolveHoverPreviewSourcePlan,
   resolveHoverLiveMaxHeight,
   HOVER_PREVIEW_DIRECT_CANPLAY_MS,
+  HOVER_PREVIEW_DIRECT_STALL_MS,
   HOVER_PREVIEW_LIVE_MAX_HEIGHT,
   shouldAttemptHoverLiveFallback,
+  shouldPreferHoverLiveForLayoutRemux,
+  shouldTriggerHoverDirectStallFallback,
   shouldReloadLivePreviewSrc,
   shouldRestartFixedPreviewClip,
   shouldScheduleHoverPreviewVideo,
@@ -523,5 +526,60 @@ describe('hoverPreviewPlayback', () => {
       fallbackAttempted: false,
       transcodeEnabled: false,
     })).toBe(false)
+  })
+
+  it('prefers live hover when playable needs remux', () => {
+    expect(shouldPreferHoverLiveForLayoutRemux({
+      needsRemux: true,
+      transcodeEnabled: true,
+      alreadyLive: false,
+      fallbackAttempted: false,
+    })).toBe(true)
+    expect(shouldPreferHoverLiveForLayoutRemux({
+      needsRemux: true,
+      transcodeEnabled: true,
+      alreadyLive: true,
+      fallbackAttempted: false,
+    })).toBe(false)
+    expect(shouldPreferHoverLiveForLayoutRemux({
+      needsRemux: false,
+      transcodeEnabled: true,
+      alreadyLive: false,
+      fallbackAttempted: false,
+    })).toBe(false)
+  })
+
+  it('triggers hover stall fallback on black or stuck decode', () => {
+    expect(shouldTriggerHoverDirectStallFallback({
+      alreadyLive: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      paused: false,
+      seeking: false,
+      readyState: 4,
+      videoWidth: 0,
+      decodedFrames: null,
+    })).toBe(true)
+    expect(shouldTriggerHoverDirectStallFallback({
+      alreadyLive: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      paused: false,
+      seeking: false,
+      readyState: 4,
+      videoWidth: 640,
+      decodedFrames: 0,
+    })).toBe(true)
+    expect(shouldTriggerHoverDirectStallFallback({
+      alreadyLive: false,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+      paused: false,
+      seeking: false,
+      readyState: 4,
+      videoWidth: 640,
+      decodedFrames: 12,
+    })).toBe(false)
+    expect(HOVER_PREVIEW_DIRECT_STALL_MS).toBe(1_500)
   })
 })
