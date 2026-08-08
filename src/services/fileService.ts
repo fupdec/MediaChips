@@ -136,13 +136,14 @@ export async function checkFileExists(filePath: string) {
 }
 
 // Bump when /api/get-file caching semantics change so browsers drop stale
-// responses previously stored under Cache-Control max-age=86400.
-const GET_FILE_CACHE_VERSION = '1'
+// responses previously stored under older Cache-Control policies.
+const GET_FILE_CACHE_VERSION = '3'
 
 export function buildLocalFileUrl(
   imgPath: string,
   outside?: boolean,
   cacheBust: boolean | number = false,
+  options?: {maxEdge?: number},
 ): string {
   const params = new URLSearchParams()
   params.set('url', imgPath)
@@ -151,6 +152,10 @@ export function buildLocalFileUrl(
   if (cacheBust === true) params.set('_t', String(Date.now()))
   else if (typeof cacheBust === 'number' && Number.isFinite(cacheBust)) {
     params.set('_t', String(cacheBust))
+  }
+  const maxEdge = Number(options?.maxEdge)
+  if (Number.isFinite(maxEdge) && maxEdge >= 512 && maxEdge <= 8192) {
+    params.set('maxEdge', String(Math.round(maxEdge)))
   }
 
   const token = getAuthToken()

@@ -7,6 +7,7 @@ import {getCenterCropRect, getDisplayDimensions} from './imageGeometry'
 
 const THUMB_HEIGHT = 320
 const THUMB_JPEG_QUALITY = 85
+const VIEWER_JPEG_QUALITY = 82
 
 async function getSharp() {
   const {default: sharp} = await import('sharp')
@@ -20,6 +21,40 @@ async function writeThumbWithSharp(input: string | Buffer, outputPath: string): 
     .resize({height: THUMB_HEIGHT, withoutEnlargement: true})
     .jpeg({quality: THUMB_JPEG_QUALITY, mozjpeg: true})
     .toFile(outputPath)
+}
+
+/**
+ * Downscale an image so its longest edge is at most `maxEdge`.
+ * Returns null when the source is already within the limit (caller should serve the original).
+ */
+async function resizeImageToMaxEdge (
+  input: string | Buffer,
+  maxEdge: number,
+): Promise<{buffer: Buffer; width: number; height: number} | null> {
+  const sharp = await getSharp()
+  const meta = await sharp(input).rotate().metadata()
+  const width = Number(meta.width) || 0
+  const height = Number(meta.height) || 0
+  if (width <= 0 || height <= 0) return null
+  if (Math.max(width, height) <= maxEdge) return null
+
+  const buffer = await sharp(input)
+    .rotate()
+    .resize({
+      width: maxEdge,
+      height: maxEdge,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({quality: VIEWER_JPEG_QUALITY, mozjpeg: true})
+    .toBuffer()
+
+  const out = await sharp(buffer).metadata()
+  return {
+    buffer,
+    width: Number(out.width) || 0,
+    height: Number(out.height) || 0,
+  }
 }
 
 async function decodeImageBuffer(buffer: Buffer): Promise<JimpImage> {
@@ -335,4 +370,5 @@ export {
   readExifOrientation,
   applyExifOrientation,
   getDisplayDimensions,
+  resizeImageToMaxEdge,
 }

@@ -170,6 +170,13 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskUpdateMediaInfo, { id })
   },
 
+  ensureImageDimensions(id: number) {
+    return apiClient.post<{width: number; height: number; orientation?: number}>(
+      API_ROUTES.taskEnsureImageDimensions,
+      {id},
+    )
+  },
+
   openPath(body: { path: string; isDir?: boolean }) {
     return apiClient.post(API_ROUTES.taskOpenPath, body)
   },

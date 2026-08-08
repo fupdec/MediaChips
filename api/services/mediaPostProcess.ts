@@ -196,6 +196,55 @@ function createMediaPostProcessor({
     }
   }
 
+  /**
+   * Persist width/height/orientation only — no thumb regen.
+   * Used to backfill gaps so virtual masonry can trust item dimensions.
+   */
+  async function ensureImageDimensions(
+    media: {id?: unknown; path?: unknown},
+  ): Promise<{width: number; height: number; orientation: number} | null> {
+    const mediaId = Number(media.id)
+    const mediaPath = String(media.path || '')
+    if (!mediaId || !mediaPath) return null
+
+    const existing = imageMetadataRepo.findByMediaId(mediaId)
+    const existingW = Number(existing?.width) || 0
+    const existingH = Number(existing?.height) || 0
+    if (existingW > 0 && existingH > 0) {
+      return {
+        width: existingW,
+        height: existingH,
+        orientation: Number(existing?.orientation) || 1,
+      }
+    }
+
+    const metadata = await withTimeout(
+      getImageMedia().getImageMetadata(mediaPath),
+      60000,
+      'image metadata',
+    ).catch((error: unknown) => {
+      console.error(
+        `Image dimension ensure failed for ${mediaPath}:`,
+        error instanceof Error ? error.message : String(error),
+      )
+      return null
+    }) as ImageMetadataResult | null
+
+    const width = Number(metadata?.width) || 0
+    const height = Number(metadata?.height) || 0
+    if (width <= 0 || height <= 0) return null
+
+    const orientation = Number(metadata?.orientation) || 1
+    imageMetadataRepo.upsert({
+      mediaId,
+      width,
+      height,
+      orientation,
+    })
+
+    return {width, height, orientation}
+  }
+
   async function refreshAudioMedia(mediaId: MediaId, mediaPath: string) {
     const metadata = await getAudioMetadata(mediaPath)
 
@@ -263,6 +312,7 @@ function createMediaPostProcessor({
   return {
     processNewMedia,
     refreshMediaInfo,
+    ensureImageDimensions,
   }
 }
 

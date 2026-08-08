@@ -53,3 +53,47 @@ export async function probeDisplayImageUrl(
 
   return probeWithImageElement(url, signal)
 }
+
+/**
+ * Fetch + decode an image into the browser HTTP/memory cache so next/prev
+ * transitions and filmstrip paint do not wait on cold network.
+ */
+export function warmDisplayImageUrl(
+  url: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (!url || isThumbUnavailable(url) || signal?.aborted) {
+      resolve()
+      return
+    }
+
+    const image = new Image()
+    image.decoding = 'async'
+
+    const cleanup = () => {
+      signal?.removeEventListener('abort', onAbort)
+      image.onload = null
+      image.onerror = null
+    }
+
+    const finish = () => {
+      cleanup()
+      resolve()
+    }
+
+    const onAbort = () => finish()
+
+    image.onload = () => {
+      if (typeof image.decode === 'function') {
+        image.decode().then(finish).catch(finish)
+        return
+      }
+      finish()
+    }
+    image.onerror = finish
+
+    signal?.addEventListener('abort', onAbort, {once: true})
+    image.src = url
+  })
+}

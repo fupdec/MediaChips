@@ -7,6 +7,10 @@ export type ImageMetadataInsert = typeof imageMetadata.$inferInsert
 
 export function createImageMetadataRepository(db: DrizzleClient) {
   return {
+    findByMediaId(mediaId: number): ImageMetadataRow | undefined {
+      return db.select().from(imageMetadata).where(eq(imageMetadata.mediaId, mediaId)).get()
+    },
+
     create(data: ImageMetadataInsert): ImageMetadataRow {
       return db.insert(imageMetadata).values(data).returning().get()
     },

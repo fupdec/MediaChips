@@ -1,6 +1,11 @@
 import path from 'path-browserify'
 import { buildLocalFileUrl } from '@/services/fileService'
-import { getCachedThumb, mediaThumbKey, isPersistentThumbUrl } from '@/utils/thumbDisplayCache'
+import {
+  getCachedThumb,
+  mediaThumbKey,
+  isPersistentThumbUrl,
+  setCachedThumb,
+} from '@/utils/thumbDisplayCache'
 
 export const IMAGE_UNAVAILABLE_URL = '/images/unavailable.png'
 
@@ -36,14 +41,30 @@ export async function loadThumbDisplayUrl(
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
 
+  const key = mediaThumbKey('images', media.id)
+  const cached = getCachedThumb(key)
+  if (isPersistentThumbUrl(cached)) return cached!
+
   const thumbPath = path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`)
-  return buildLocalFileUrl(thumbPath)
+  const url = buildLocalFileUrl(thumbPath)
+  setCachedThumb(key, url)
+  return url
 }
 
-export async function loadFullImageDisplayUrl(media: MediaWithPath | null | undefined): Promise<string> {
+/** Longest edge for ImageViewer / neighbor warm — full original loads on strong zoom. */
+export const VIEWER_MAX_EDGE = 2048
+
+export async function loadFullImageDisplayUrl(
+  media: MediaWithPath | null | undefined,
+  {maxEdge = VIEWER_MAX_EDGE as number | false} = {},
+): Promise<string> {
   if (!media?.path) return IMAGE_UNAVAILABLE_URL
 
-  return buildLocalFileUrl(media.path, true)
+  if (maxEdge === false) {
+    return buildLocalFileUrl(media.path, true)
+  }
+
+  return buildLocalFileUrl(media.path, true, false, {maxEdge})
 }
 
 export function revokeImageObjectUrl(url: string | null | undefined): void {

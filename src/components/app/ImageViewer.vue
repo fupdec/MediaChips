@@ -539,7 +539,15 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useImageViewerStore} from '@/stores/imageViewer'
 import {useEventBus} from '@/utils/eventBus'
-import {loadThumbDisplayUrl, loadFullImageDisplayUrl, revokeImageObjectUrl} from '@/utils/imageSource'
+import {
+  loadThumbDisplayUrl,
+  loadFullImageDisplayUrl,
+  revokeImageObjectUrl,
+} from '@/utils/imageSource'
+import {warmDisplayImageUrl} from '@/utils/probeImageUrl'
+import {enqueueEnsureImageDimensions} from '@/utils/imageDimensionsEnsure'
+import {mapWithConcurrency} from '@/utils/mapWithConcurrency'
+import {getCachedThumb, mediaThumbKey, isPersistentThumbUrl} from '@/utils/thumbDisplayCache'
 import {checkFileExists} from '@/services/fileService'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {openPath} from '@/services/shellService'
@@ -560,6 +568,10 @@ const FILMSTRIP_MAX_TRACK_PX = 160_000
 const FILMSTRIP_OVERSCAN = 12
 /** Keep decoded filmstrip thumbs this far outside the virtual window. */
 const FILMSTRIP_THUMB_KEEP = 40
+/** Parallel thumb URL resolves / network warms for the filmstrip window. */
+const FILMSTRIP_LOAD_CONCURRENCY = 6
+/** Swap viewer-sized JPEG for the original once the user zooms past fit. */
+const ORIGINAL_UPGRADE_SCALE = 1.75
 
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
@@ -590,6 +602,11 @@ const slideshowProgressKey = ref(0)
 const filmstripThumbs = ref<Record<string, string>>({})
 const filmstripScrollLeft = ref(0)
 const filmstripViewportWidth = ref(0)
+/** Wait for the current frame before competing for thumb network/decode. */
+const filmstripNetworkAllowed = ref(false)
+/** True while the stage shows a maxEdge downscale (not the original file). */
+const showingViewerSized = ref(false)
+let originalUpgradeToken = 0
 let filmstripLoadToken = 0
 let filmstripResizeObserver: ResizeObserver | null = null
 let filmstripScrollRaf = 0
@@ -966,47 +983,18 @@ const rememberNeighborUrl = (entry: NeighborEntry, src: string | null | undefine
   if (src.startsWith('blob:')) entry.owned.push(src)
 }
 
-const prefetchNeighbors = () => {
-  if (!viewer.active || viewer.isSourcesMode) return
+const neighborThumbRadius = () => (viewer.slideshowActive ? 2 : 1)
 
-  const indices = [viewer.index - 1, viewer.index + 1]
-    .filter((i) => i >= 0 && i < viewer.imageIds.length)
-
-  for (const i of indices) {
-    const id = viewer.imageIds[i]
-    if (id == null || neighborCache.has(id)) continue
-
-    const media = itemsStore.resolveMediaById(id) || (
-      viewer.fallbackImage?.id === id ? viewer.fallbackImage : null
-    )
-    if (!media) continue
-
-    const entry: NeighborEntry = {owned: []}
-    neighborCache.set(id, entry)
-
-    void (async () => {
-      try {
-        const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
-        rememberNeighborUrl(entry, thumb, 'thumb')
-      } catch (error) {
-        console.error('Failed to prefetch neighbor thumb:', error)
-      }
-
-      try {
-        const full = await loadFullImageDisplayUrl(media)
-        rememberNeighborUrl(entry, full, 'full')
-      } catch (error) {
-        console.error('Failed to prefetch neighbor full image:', error)
-      }
-    })()
+const pruneNeighborCache = (radius: number) => {
+  const total = viewer.imageIds.length
+  const keepIds = new Set<number>()
+  for (let distance = 0; distance <= radius; distance += 1) {
+    for (const i of [viewer.index - distance, viewer.index + distance]) {
+      if (i < 0 || i >= total) continue
+      const id = viewer.imageIds[i]
+      if (id != null) keepIds.add(id)
+    }
   }
-
-  // Drop entries that are no longer near the current index.
-  const keepIds = new Set(
-    [viewer.index - 1, viewer.index, viewer.index + 1]
-      .filter((i) => i >= 0 && i < viewer.imageIds.length)
-      .map((i) => viewer.imageIds[i]),
-  )
   for (const [id, entry] of neighborCache) {
     if (keepIds.has(id)) continue
     for (const url of entry.owned) revokeImageObjectUrl(url)
@@ -1014,9 +1002,90 @@ const prefetchNeighbors = () => {
   }
 }
 
+const resolveNeighborMedia = (id: number) => (
+  itemsStore.resolveMediaById(id) || (
+    viewer.fallbackImage?.id === id ? viewer.fallbackImage : null
+  )
+)
+
+/** Warm nearby thumbs early — cheap and helps next/prev feel instant. */
+const prefetchNeighborThumbs = () => {
+  if (!viewer.active || viewer.isSourcesMode) return
+
+  const radius = neighborThumbRadius()
+  const total = viewer.imageIds.length
+  pruneNeighborCache(radius)
+
+  for (let distance = 1; distance <= radius; distance += 1) {
+    for (const i of [viewer.index - distance, viewer.index + distance]) {
+      if (i < 0 || i >= total) continue
+      const id = viewer.imageIds[i]
+      if (id == null) continue
+
+      const existing = neighborCache.get(id)
+      if (existing?.thumb) continue
+
+      const media = resolveNeighborMedia(id)
+      if (!media) continue
+
+      const entry = existing ?? {owned: []}
+      if (!existing) neighborCache.set(id, entry)
+
+      void (async () => {
+        try {
+          const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
+          rememberNeighborUrl(entry, thumb, 'thumb')
+          if (entry.thumb) await warmDisplayImageUrl(entry.thumb)
+        } catch (error) {
+          console.error('Failed to prefetch neighbor thumb:', error)
+        }
+      })()
+    }
+  }
+}
+
+/** Full originals only after the current image is ready — avoids bandwidth fights. */
+const prefetchNeighborFulls = () => {
+  if (!viewer.active || viewer.isSourcesMode) return
+
+  const total = viewer.imageIds.length
+  for (const i of [viewer.index - 1, viewer.index + 1]) {
+    if (i < 0 || i >= total) continue
+    const id = viewer.imageIds[i]
+    if (id == null) continue
+
+    const media = resolveNeighborMedia(id)
+    if (!media) continue
+
+    const entry = neighborCache.get(id) ?? {owned: []}
+    if (!neighborCache.has(id)) neighborCache.set(id, entry)
+    if (entry.full) {
+      void warmDisplayImageUrl(entry.full)
+      continue
+    }
+
+    void (async () => {
+      try {
+        const full = await loadFullImageDisplayUrl(media)
+        rememberNeighborUrl(entry, full, 'full')
+        if (entry.full) await warmDisplayImageUrl(entry.full)
+      } catch (error) {
+        console.error('Failed to prefetch neighbor full image:', error)
+      }
+    })()
+  }
+}
+
+const prefetchNeighbors = () => {
+  prefetchNeighborThumbs()
+  prefetchNeighborFulls()
+}
+
 const loadCurrentImage = async () => {
   const token = ++loadToken
   loadFailed.value = false
+  showingViewerSized.value = false
+  originalUpgradeToken += 1
   const transitionKey = currentTransitionKey()
 
   if (viewer.isSourcesMode) {
@@ -1030,6 +1099,8 @@ const loadCurrentImage = async () => {
     setDisplaySrc(source.src, {owned: false, key: transitionKey})
     viewer.setFileExists(true)
     viewer.setLoading(false)
+    filmstripNetworkAllowed.value = true
+    void ensureFilmstripThumbs()
     return
   }
 
@@ -1051,12 +1122,15 @@ const loadCurrentImage = async () => {
   if (previewSrc) {
     setDisplaySrc(previewSrc, {owned: false, key: transitionKey})
     viewer.setLoading(false)
+    prefetchNeighborThumbs()
   } else if (cachedNeighbor?.full) {
     setDisplaySrc(cachedNeighbor.full, {owned: false, key: transitionKey})
     viewer.setLoading(false)
+    prefetchNeighborThumbs()
   } else if (cachedNeighbor?.thumb) {
     setDisplaySrc(cachedNeighbor.thumb, {owned: false, key: transitionKey})
     viewer.setLoading(false)
+    prefetchNeighborThumbs()
   }
 
   const existsPromise = image.path ? checkFileExists(image.path) : Promise.resolve(false)
@@ -1070,6 +1144,7 @@ const loadCurrentImage = async () => {
       if (thumbSrc) {
         setDisplaySrc(thumbSrc, {owned: true, key: transitionKey})
         viewer.setLoading(false)
+        if (token === loadToken) prefetchNeighborThumbs()
       }
     } catch (error) {
       console.error('Failed to load image thumbnail for viewer:', error)
@@ -1078,11 +1153,12 @@ const loadCurrentImage = async () => {
 
   try {
     if (cachedNeighbor?.full && displaySrc.value === cachedNeighbor.full) {
-      // Already showing prefetched full resolution.
+      showingViewerSized.value = Boolean(cachedNeighbor.full.includes('maxEdge='))
     } else {
       const fullSrc = adoptLoadedSrc(await loadFullImageDisplayUrl(image), token)
       if (fullSrc) {
         setDisplaySrc(fullSrc, {owned: true, key: transitionKey})
+        showingViewerSized.value = fullSrc.includes('maxEdge=')
       }
     }
   } catch (error) {
@@ -1096,7 +1172,17 @@ const loadCurrentImage = async () => {
         loadFailed.value = true
       }
 
-      prefetchNeighbors()
+      // Full neighbors + filmstrip only after the current original is settled.
+      prefetchNeighborThumbs()
+      prefetchNeighborFulls()
+      filmstripNetworkAllowed.value = true
+      void ensureFilmstripThumbs()
+
+      const width = Number(image.width) || 0
+      const height = Number(image.height) || 0
+      if (width <= 0 || height <= 0) {
+        void enqueueEnsureImageDimensions(Number(image.id))
+      }
     }
   }
 }
@@ -1181,6 +1267,9 @@ const closeViewer = () => {
   chromeVisible.value = true
   clearNeighborCache()
   clearFilmstripThumbs()
+  filmstripNetworkAllowed.value = false
+  showingViewerSized.value = false
+  originalUpgradeToken += 1
   filmstripLoadToken += 1
   unbindFilmstripObserver()
   clearObjectUrl()
@@ -1370,7 +1459,7 @@ const pruneFilmstripThumbs = (keepKeys: Set<string>) => {
 }
 
 const ensureFilmstripThumbs = async () => {
-  if (!viewer.active || !viewer.filmstripVisible) return
+  if (!viewer.active || !viewer.filmstripVisible || !filmstripNetworkAllowed.value) return
   const token = ++filmstripLoadToken
   const {start, end} = filmstripWindow.value
   if (end < start) return
@@ -1385,9 +1474,10 @@ const ensureFilmstripThumbs = async () => {
   pruneFilmstripThumbs(keepKeys)
 
   const next = {...filmstripThumbs.value}
+  const toResolve: FilmstripItem[] = []
+  const activeIndex = viewer.index
 
   for (const item of filmstripItems.value) {
-    if (token !== filmstripLoadToken) return
     if (next[item.key]) continue
 
     if (item.src) {
@@ -1395,32 +1485,69 @@ const ensureFilmstripThumbs = async () => {
       continue
     }
 
-    if (item.id != null) {
-      const neighbor = neighborCache.get(item.id)
-      if (neighbor?.thumb || neighbor?.full) {
-        next[item.key] = (neighbor.thumb || neighbor.full)!
-        continue
-      }
+    if (item.id == null) continue
+
+    const neighbor = neighborCache.get(item.id)
+    if (neighbor?.thumb || neighbor?.full) {
+      next[item.key] = (neighbor.thumb || neighbor.full)!
+      continue
+    }
+
+    const cached = getCachedThumb(mediaThumbKey('images', item.id))
+    if (isPersistentThumbUrl(cached)) {
+      next[item.key] = cached!
+      continue
+    }
+
+    toResolve.push(item)
+  }
+
+  // Paint cache hits immediately, then fill the rest in parallel.
+  if (token === filmstripLoadToken) {
+    filmstripThumbs.value = {...next}
+  }
+
+  if (!toResolve.length) return
+
+  // Resolve nearer cells first so the active neighborhood paints sooner.
+  toResolve.sort(
+    (a, b) => Math.abs(a.index - activeIndex) - Math.abs(b.index - activeIndex),
+  )
+
+  const resolved = await mapWithConcurrency(
+    toResolve,
+    FILMSTRIP_LOAD_CONCURRENCY,
+    async (item) => {
+      if (token !== filmstripLoadToken || item.id == null) return null
 
       const media = itemsStore.resolveMediaById(item.id)
         || (viewer.fallbackImage?.id === item.id ? viewer.fallbackImage : null)
-      if (!media) continue
+      if (!media) return null
 
       try {
         const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
-        if (token !== filmstripLoadToken) return
-        if (thumb && !thumb.includes('unavailable.png')) {
-          next[item.key] = thumb
+        if (!thumb || thumb.includes('unavailable.png')) return null
+        // Decode-warm only near the playhead; far cells can lazy-decode on paint.
+        if (Math.abs(item.index - activeIndex) <= FILMSTRIP_OVERSCAN) {
+          void warmDisplayImageUrl(thumb)
         }
+        return {key: item.key, thumb}
       } catch (error) {
         console.error('Failed to load filmstrip thumb:', error)
+        return null
       }
-    }
-  }
+    },
+  )
 
-  if (token === filmstripLoadToken) {
-    filmstripThumbs.value = next
+  if (token !== filmstripLoadToken) return
+
+  let changed = false
+  for (const row of resolved) {
+    if (!row || next[row.key]) continue
+    next[row.key] = row.thumb
+    changed = true
   }
+  if (changed) filmstripThumbs.value = next
 }
 
 watch(
@@ -1457,7 +1584,11 @@ watch(showFilmstrip, async (visible) => {
   await nextTick()
   bindFilmstripObserver()
   void scrollFilmstripToActive()
-  void ensureFilmstripThumbs()
+  // If the user opens the strip after the current frame is ready, start immediately.
+  if (filmstripNetworkAllowed.value || displaySrc.value) {
+    filmstripNetworkAllowed.value = true
+    void ensureFilmstripThumbs()
+  }
 })
 
 const zoomIn = () => {
@@ -1644,6 +1775,36 @@ function setClampedTranslate (x: number, y: number, scale = viewer.scale) {
   viewer.translateY = next.y
 }
 
+const upgradeToOriginalIfNeeded = () => {
+  if (!showingViewerSized.value || viewer.isSourcesMode) return
+  if (viewer.scale < ORIGINAL_UPGRADE_SCALE) return
+
+  const image = viewer.currentImage
+  if (!image?.path) return
+
+  const token = ++originalUpgradeToken
+  const transitionKey = currentTransitionKey()
+  showingViewerSized.value = false
+
+  void (async () => {
+    try {
+      const fullSrc = adoptLoadedSrc(
+        await loadFullImageDisplayUrl(image, {maxEdge: false}),
+        loadToken,
+      )
+      if (!fullSrc || token !== originalUpgradeToken || !viewer.active) {
+        if (fullSrc?.startsWith('blob:')) revokeImageObjectUrl(fullSrc)
+        return
+      }
+      // Keep the same key so we do not crossfade when swapping in the original.
+      setDisplaySrc(fullSrc, {owned: true, key: transitionKey})
+    } catch (error) {
+      console.error('Failed to upgrade viewer image to original:', error)
+      showingViewerSized.value = true
+    }
+  })()
+}
+
 const applyZoomAtClientPoint = (clientX: number, clientY: number, nextScale: number) => {
   const stage = stageRef.value
   if (!stage || nextScale === viewer.scale) return
@@ -1657,6 +1818,7 @@ const applyZoomAtClientPoint = (clientX: number, clientY: number, nextScale: num
   const nextY = pointerY - ratio * (pointerY - viewer.translateY)
   viewer.scale = nextScale
   setClampedTranslate(nextX, nextY, nextScale)
+  upgradeToOriginalIfNeeded()
 }
 
 const applyZoomAtPointer = (event: WheelEvent, nextScale: number) => {
@@ -2006,6 +2168,7 @@ const openFromEvent = (payload: unknown) => {
 
   stopSlideshow()
   clearNeighborCache()
+  filmstripNetworkAllowed.value = false
   bumpChrome()
 
   if (sources?.length) {

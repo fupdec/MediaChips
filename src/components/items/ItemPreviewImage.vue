@@ -55,8 +55,6 @@ const store = useAppStore()
 const itemsStore = useItemsStore()
 
 const thumb = ref<string | null>(null)
-const detectedWidth = ref(0)
-const detectedHeight = ref(0)
 const isMounted = ref(false)
 let thumbObjectUrl: string | null = null
 let thumbLoadStarted = false
@@ -86,11 +84,11 @@ const previewAspectRatio = computed(() =>
 )
 
 const mediaWidth = computed(() =>
-  Number(props.media?.width) || detectedWidth.value || 0
+  Number(props.media?.width) || 0
 )
 
 const mediaHeight = computed(() =>
-  Number(props.media?.height) || detectedHeight.value || 0
+  Number(props.media?.height) || 0
 )
 
 const resolutionLabel = computed(() =>
@@ -106,8 +104,8 @@ const onThumbLoad = () => {
   if (thumb.value && isPersistentThumbUrl(thumb.value) && props.media?.id) {
     setCachedThumb(mediaThumbKey('images', props.media.id), thumb.value)
   }
-  if (Number(props.media?.width) > 0 && Number(props.media?.height) > 0) return
-  if (thumb.value) probeImageDimensions(thumb.value)
+  // Do not probe thumb pixels for resolution — thumbs are height-capped and
+  // would show the wrong WxH. Aspect for layout comes from media.width/height.
 }
 
 const onThumbError = () => {
@@ -124,20 +122,6 @@ const onThumbError = () => {
 const clearThumbUrl = () => {
   revokeImageObjectUrl(thumbObjectUrl)
   thumbObjectUrl = null
-}
-
-const probeImageDimensions = (src: string) => {
-  if (Number(props.media?.width) > 0 && Number(props.media?.height) > 0) return
-  if (!src || src.includes('unavailable.png')) return
-
-  const img = new Image()
-  img.onload = () => {
-    if (!isMounted.value) return
-    if (!img.naturalWidth || !img.naturalHeight) return
-    detectedWidth.value = img.naturalWidth
-    detectedHeight.value = img.naturalHeight
-  }
-  img.src = src
 }
 
 const applyCachedThumb = (): boolean => {
@@ -167,7 +151,6 @@ const applyLoadedSrc = (src: string, generation: number) => {
   if (!src.includes('unavailable.png')) {
     thumbObjectUrl = src.startsWith('blob:') ? src : null
     thumb.value = src
-    probeImageDimensions(src)
     return true
   }
 
@@ -278,8 +261,6 @@ watch(
   () => {
     // Source-file existence only affects the no-file styling / open gate.
     // Thumbs still load from mediaPath/images/thumbs independently.
-    detectedWidth.value = 0
-    detectedHeight.value = 0
     if (!props.previewActive) {
       thumb.value = null
       return

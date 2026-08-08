@@ -10,11 +10,24 @@ import {
   setCachedTagThumbs,
 } from '@/utils/thumbDisplayCache'
 import { visibleItemIds } from '@/utils/visibleItemsWindow'
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
+import { warmDisplayImageUrl } from '@/utils/probeImageUrl'
+import { galleryPerfCounters } from '@/utils/galleryPerfCounters'
+import { isThumbUnavailable } from '@/utils/thumbSource'
+import { enqueueEnsureImageDimensions } from '@/utils/imageDimensionsEnsure'
+import { isImageMediaType } from '@/utils/mediaType'
 import type { MediaType } from '@/types/media'
 import type { MediaItem, Tag } from '@/types/stores'
 
+/** Cap how many missing-dimension probes we start per prefetch pass. */
+const DIMENSION_ENSURE_MAX = 8
+
 const PREFETCH_FALLBACK_LIMIT = 24
 const PREFETCH_AHEAD_LIMIT = 12
+/** Cap decode-warms so scroll prefetch does not starve visible card loads. */
+const PREFETCH_WARM_CONCURRENCY = 4
+const PREFETCH_WARM_MAX = 16
+const PREFETCH_WARM_BUSY_THRESHOLD = 8
 
 interface UseItemsThumbPrefetchOptions {
   items: ComputedRef<Array<MediaItem | Tag>>
@@ -57,6 +70,25 @@ function resolvePrefetchItems<T extends { id: number | string }>(items: T[]): T[
   return items.slice(0, PREFETCH_FALLBACK_LIMIT)
 }
 
+async function warmPrefetchUrls(urls: string[]): Promise<void> {
+  if (galleryPerfCounters.thumbInFlight >= PREFETCH_WARM_BUSY_THRESHOLD) return
+
+  const unique = [...new Set(
+    urls.filter((url) => url && !isThumbUnavailable(url)),
+  )].slice(0, PREFETCH_WARM_MAX)
+
+  if (!unique.length) return
+
+  await mapWithConcurrency(unique, PREFETCH_WARM_CONCURRENCY, async (url) => {
+    galleryPerfCounters.thumbInFlight += 1
+    try {
+      await warmDisplayImageUrl(url)
+    } finally {
+      galleryPerfCounters.thumbInFlight = Math.max(0, galleryPerfCounters.thumbInFlight - 1)
+    }
+  })
+}
+
 export function useItemsThumbPrefetch({
   items,
   itemsType,
@@ -74,12 +106,26 @@ export function useItemsThumbPrefetch({
       const folder = getMediaDeleteAssetFolder(mediaType.value)
       if (!folder || !appStore.mediaPath) return
 
+      if (isImageMediaType(mediaType.value)) {
+        const missingDims = list
+          .filter((item) => {
+            const width = Number((item as MediaItem).width) || 0
+            const height = Number((item as MediaItem).height) || 0
+            return width <= 0 || height <= 0
+          })
+          .slice(0, DIMENSION_ENSURE_MAX)
+        for (const item of missingDims) {
+          void enqueueEnsureImageDimensions(Number(item.id))
+        }
+      }
+
       const thumbs = await loadMediaThumbUrls(
         appStore.mediaPath,
         folder,
         list.map((item) => item.id),
       )
       setCachedMediaThumbs(folder, thumbs)
+      void warmPrefetchUrls(Object.values(thumbs))
       return
     }
 
@@ -95,6 +141,16 @@ export function useItemsThumbPrefetch({
         types,
       )
       setCachedTagThumbs(metaId.value, thumbs)
+
+      const warmUrls: string[] = []
+      for (const byType of Object.values(thumbs)) {
+        if (!byType || typeof byType !== 'object') continue
+        const preferred = Number(itemsStore.view) === 2
+          ? (byType.avatar || byType.main)
+          : (byType.main || byType.avatar)
+        if (typeof preferred === 'string') warmUrls.push(preferred)
+      }
+      void warmPrefetchUrls(warmUrls)
     }
   }
 

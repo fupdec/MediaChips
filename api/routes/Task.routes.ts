@@ -103,6 +103,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/addMediaText', 'addMediaText', validateBody(AddMediaRequestSchema))
 
   register('post', '/updateMediaInfo', 'updateMediaInfo', validateBody(UpdateMediaInfoRequestSchema))
+  register('post', '/ensureImageDimensions', 'ensureImageDimensions', validateBody(UpdateMediaInfoRequestSchema))
   register('post', '/createThumbForVideo', 'createThumbForVideo', validateBody(VideoPreviewTaskRequestSchema))
   register('post', '/createThumb', 'createThumb', validateBody(CreateThumbRequestSchema))
   register('post', '/createMarkThumbForMark', 'createMarkThumbForMark', validateBody(CreateMarkThumbRequestSchema))

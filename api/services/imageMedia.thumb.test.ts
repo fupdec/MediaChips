@@ -10,6 +10,7 @@ import {
   createImageThumbFromBuffer,
   getImageMetadata,
   processAndSaveImage,
+  resizeImageToMaxEdge,
 } from './imageMedia'
 
 async function writeTestPng(filePath: string, width = 640, height = 480) {
@@ -66,6 +67,19 @@ describe('imageMedia thumbs (sharp-first)', () => {
       height: 480,
       orientation: 1,
     })
+  })
+
+  it('resizeImageToMaxEdge downscales and skips small sources', async () => {
+    const skipped = await resizeImageToMaxEdge(samplePng, 2048)
+    expect(skipped).toBeNull()
+
+    const largePng = path.join(tmpDir, 'large.png')
+    await writeTestPng(largePng, 4000, 2000)
+    const resized = await resizeImageToMaxEdge(largePng, 1000)
+    expect(resized).not.toBeNull()
+    expect(resized!.width).toBeLessThanOrEqual(1000)
+    expect(resized!.height).toBeLessThanOrEqual(1000)
+    expect(resized!.buffer.length).toBeGreaterThan(200)
   })
 
   it('processAndSaveImage crops and resizes with sharp', async () => {

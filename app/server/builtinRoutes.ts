@@ -27,6 +27,7 @@ import { createStorageDirectories } from './serverConfig'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
 import { resolveVideoThumbFilePath } from '../../api/services/videoPreviewThumb'
 import { isVirtualZipPath, readZipEntryBuffer } from '../../api/services/zipGallery'
+import { resizeImageToMaxEdge } from '../../api/services/imageMedia'
 import packageJson from '../../package.json'
 import { parseBooleanSetting } from '../../shared/parseBooleanSetting'
 import {
@@ -332,6 +333,25 @@ function registerBuiltinRoutes({
     }
   }
 
+  /** Generated media thumbs/grids use stable id-based names; safe to cache briefly. */
+  function isLongLivedMediaThumbPath(filePath: string): boolean {
+    const normalized = filePath.replace(/\\/g, '/')
+    return /\/(?:images|videos)\/(?:thumbs|grids)\/\d+\.jpe?g$/i.test(normalized)
+  }
+
+  const VIEWER_RESIZE_EXTS = new Set([
+    '.jpg', '.jpeg', '.png', '.webp', '.tif', '.tiff', '.avif', '.heic', '.heif', '.gif',
+  ])
+
+  function parseMaxEdge(req: ApiRequest): number | null {
+    const raw = req.query?.maxEdge
+    const value = Number(Array.isArray(raw) ? raw[0] : raw)
+    if (!Number.isFinite(value)) return null
+    const edge = Math.round(value)
+    if (edge < 512 || edge > 8192) return null
+    return edge
+  }
+
   async function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
     applyCorsHeaders(req, res)
 
@@ -356,16 +376,34 @@ function registerBuiltinRoutes({
         const contentType = FILE_MIME_TYPES[ext as keyof typeof FILE_MIME_TYPES] || 'application/octet-stream'
         const etag = `W/"zip-${entry.filesize}-${Math.trunc(entry.zipMtimeMs)}-${entry.entryName}"`
 
-        res.setHeader('Content-Type', contentType)
+        const maxEdge = parseMaxEdge(req)
+        let payload = entry.buffer
+        let payloadType = contentType
+        let payloadEtag = etag
+
+        if (maxEdge && VIEWER_RESIZE_EXTS.has(ext) && !headOnly) {
+          try {
+            const resized = await resizeImageToMaxEdge(entry.buffer, maxEdge)
+            if (resized) {
+              payload = resized.buffer
+              payloadType = 'image/jpeg'
+              payloadEtag = `W/"zip-v${maxEdge}-${entry.filesize}-${Math.trunc(entry.zipMtimeMs)}-${entry.entryName}"`
+            }
+          } catch (error) {
+            console.error('ZIP viewer resize failed, serving original entry:', error)
+          }
+        }
+
+        res.setHeader('Content-Type', payloadType)
         res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
-        res.setHeader('ETag', etag)
+        res.setHeader('ETag', payloadEtag)
         res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
-        res.setHeader('Content-Length', entry.buffer.length)
+        res.setHeader('Content-Length', payload.length)
 
         const ifNoneMatch = req.headers['if-none-match']
         if (typeof ifNoneMatch === 'string') {
           const tags = ifNoneMatch.split(',').map((tag) => tag.trim())
-          if (tags.includes(etag) || tags.includes('*')) {
+          if (tags.includes(payloadEtag) || tags.includes('*')) {
             return res.status(304).end()
           }
         }
@@ -374,7 +412,7 @@ function registerBuiltinRoutes({
           return res.status(200).end()
         }
 
-        return res.status(200).end(entry.buffer)
+        return res.status(200).end(payload)
       }
 
       const resolvedPath = await resolveVideoThumbFilePath(originalFilePath, db, resolveFilePath)
@@ -390,35 +428,69 @@ function registerBuiltinRoutes({
       const ext = path.extname(resolvedPath).toLowerCase()
       const contentType = FILE_MIME_TYPES[ext as keyof typeof FILE_MIME_TYPES] || 'application/octet-stream'
       const stats = fs.statSync(resolvedPath)
-      const etag = `W/"${stats.size}-${Math.trunc(stats.mtimeMs)}"`
+      const maxEdge = parseMaxEdge(req)
+      const etag = maxEdge && VIEWER_RESIZE_EXTS.has(ext)
+        ? `W/"v${maxEdge}-${stats.size}-${Math.trunc(stats.mtimeMs)}"`
+        : `W/"${stats.size}-${Math.trunc(stats.mtimeMs)}"`
 
-      res.setHeader('Content-Type', contentType)
-      // Mutable paths (tag images, regenerated thumbs) share stable URLs — force
-      // revalidation so overwrites are not stuck behind a long-lived browser cache.
-      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
-      res.setHeader('Last-Modified', stats.mtime.toUTCString())
-      res.setHeader('ETag', etag)
-      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+      // Media thumbs/grids are id-stable; tag/meta images stay must-revalidate.
+      const cacheControl = (
+        isLongLivedMediaThumbPath(originalFilePath) || isLongLivedMediaThumbPath(resolvedPath)
+          ? 'public, max-age=86400, stale-while-revalidate=604800'
+          : 'public, max-age=0, must-revalidate'
+      )
 
       const ifNoneMatch = req.headers['if-none-match']
       if (typeof ifNoneMatch === 'string') {
         const tags = ifNoneMatch.split(',').map((tag) => tag.trim())
         if (tags.includes(etag) || tags.includes('*')) {
+          res.setHeader('ETag', etag)
+          res.setHeader('Cache-Control', cacheControl)
           return res.status(304).end()
         }
       } else {
         const ifModifiedSince = req.headers['if-modified-since']
-        if (typeof ifModifiedSince === 'string') {
+        if (typeof ifModifiedSince === 'string' && !(maxEdge && VIEWER_RESIZE_EXTS.has(ext))) {
           const since = Date.parse(ifModifiedSince)
           if (!Number.isNaN(since) && Math.trunc(stats.mtimeMs) <= since) {
+            res.setHeader('ETag', etag)
+            res.setHeader('Cache-Control', cacheControl)
+            res.setHeader('Last-Modified', stats.mtime.toUTCString())
             return res.status(304).end()
           }
         }
       }
 
       if (headOnly) {
+        res.setHeader('Content-Type', contentType)
+        res.setHeader('Cache-Control', cacheControl)
+        res.setHeader('Last-Modified', stats.mtime.toUTCString())
+        res.setHeader('ETag', etag)
         return res.status(200).end()
       }
+
+      if (maxEdge && VIEWER_RESIZE_EXTS.has(ext)) {
+        try {
+          const resized = await resizeImageToMaxEdge(resolvedPath, maxEdge)
+          if (resized) {
+            res.setHeader('Content-Type', 'image/jpeg')
+            res.setHeader('Cache-Control', cacheControl)
+            res.setHeader('Last-Modified', stats.mtime.toUTCString())
+            res.setHeader('ETag', etag)
+            res.setHeader('Content-Length', resized.buffer.length)
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+            return res.status(200).end(resized.buffer)
+          }
+        } catch (error) {
+          console.error('Viewer resize failed, serving original file:', error)
+        }
+      }
+
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Cache-Control', cacheControl)
+      res.setHeader('Last-Modified', stats.mtime.toUTCString())
+      res.setHeader('ETag', etag)
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
 
       // Keep the explicit validators above; avoid sendFile replacing them.
       res.sendFile(resolvedPath, {etag: false, lastModified: false}, (err: unknown) => {

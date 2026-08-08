@@ -44,6 +44,7 @@ import {
 import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
 import { probeVideoMetadata } from '../../services/videoMetadataProbe'
+import { isImageMediaType } from '../../utils/mediaType'
 
 export default function createTasksMediaController(shared: TaskControllerShared) {
   const {
@@ -414,6 +415,31 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     }
   }
 
+  const ensureImageDimensions = async (req: ApiRequest, res: ApiResponse) => {
+    const mediaId = Number(req.body.id)
+
+    try {
+      const media = mediaRepo.findById(mediaId)
+      if (!media) {
+        sendOk(res, {width: 0, height: 0})
+        return
+      }
+
+      const mediaType = media.mediaTypeId
+        ? mediaTypesRepo.findById(media.mediaTypeId)
+        : undefined
+      if (!isImageMediaType(mediaType)) {
+        sendOk(res, {width: 0, height: 0})
+        return
+      }
+
+      const dims = await mediaPostProcess.ensureImageDimensions(media)
+      sendOk(res, dims || {width: 0, height: 0})
+    } catch (error) {
+      sendAsClientError(res, error, 'Some error occurred while reading image dimensions.')
+    }
+  }
+
   const searchMediaByPath = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = mediaRepo.searchByPathLike(String(req.body.query || ''))
@@ -491,6 +517,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     addMediaText,
     addMedia,
     updateMediaInfo,
+    ensureImageDimensions,
     searchMediaByPath,
     updateMediaMultiple,
     getMostPopularWordsFromMedia,
