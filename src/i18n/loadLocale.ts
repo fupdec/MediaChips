@@ -11,7 +11,6 @@ type LocaleMessages = Record<string, unknown>
 const LOCALE_SESSION_KEY = 'mediachips.locale'
 
 const loadedLocales = new Set<AppLocale>(['en'])
-let vuetifyInstance: VuetifyInstance | null = null
 
 const customLocaleLoaders: Record<NonEnglishLocale, () => Promise<{ default: Record<string, unknown> }>> = {
   cn: () => import('@/i18n/cn'),
@@ -55,18 +54,15 @@ function writeSessionLocale(locale: AppLocale): void {
 }
 
 function applyLocaleMessages(code: AppLocale, custom: Record<string, unknown>, vuetifyLocale: LocaleMessages) {
+  // Vuetify's vue-i18n adapter shares `i18n.global.messages` — never replace a
+  // locale entry with only Vuetify strings or app keys disappear and the UI
+  // looks stuck on the English fallback.
   const messages = {
     $vuetify: {...vuetifyLocale},
     ...custom,
   }
 
   i18n.global.setLocaleMessage(code, messages as (typeof i18n.global.messages.value)['en'])
-  if (vuetifyInstance) {
-    const vuetifyMessages = vuetifyInstance.locale.messages.value as Record<string, Record<string, unknown>>
-    // Keep Vuetify catalog separate from app i18n keys.
-    vuetifyMessages[code] = {...vuetifyLocale}
-    vuetifyInstance.locale.current.value = code
-  }
 }
 
 const initialLocale = readSessionLocale()
@@ -86,8 +82,8 @@ export const i18n = createI18n({
   fallbackWarn: false,
 })
 
-export function registerVuetifyForLocales(vuetify: VuetifyInstance): void {
-  vuetifyInstance = vuetify
+export function registerVuetifyForLocales(_vuetify: VuetifyInstance): void {
+  // Locale state lives on the shared vue-i18n instance (createVueI18nAdapter).
 }
 
 export function isLocaleLoaded(locale: string): boolean {
@@ -149,9 +145,6 @@ async function reloadActiveLocaleMessages(): Promise<void> {
 
   await loadLocale(current, {reload: true})
   i18n.global.locale.value = current as typeof i18n.global.locale.value
-  if (vuetifyInstance) {
-    vuetifyInstance.locale.current.value = current
-  }
 }
 
 if (import.meta.hot) {

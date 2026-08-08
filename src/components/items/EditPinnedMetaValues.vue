@@ -200,18 +200,23 @@
                 density="compact"
                 hide-details="auto"
                 variant="filled"
-              />
-              <v-btn
-                v-if="!equalOld('views')"
-                @click="restore('views')"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
               >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+                <template
+                  v-if="!equalOld('views')"
+                  #append-inner
+                >
+                  <v-btn
+                    @click="restore('views')"
+                    class="restore restore--inline"
+                    :title="t('common.restore')"
+                    variant="plain"
+                    size="x-small"
+                    icon
+                  >
+                    <v-icon>mdi-restore</v-icon>
+                  </v-btn>
+                </template>
+              </v-number-input>
             </v-card>
           </v-col>
 
@@ -357,7 +362,23 @@
                 persistent-hint
                 clearable
                 variant="filled"
-              />
+              >
+                <template
+                  v-if="!equalOld(getItemKey(item), item.meta?.type)"
+                  #append-inner
+                >
+                  <v-btn
+                    @click="restore(getItemKey(item))"
+                    class="restore restore--inline"
+                    :title="t('common.restore')"
+                    variant="plain"
+                    size="x-small"
+                    icon
+                  >
+                    <v-icon>mdi-restore</v-icon>
+                  </v-btn>
+                </template>
+              </v-number-input>
 
               <v-text-field
                 v-if="item.meta?.type === 'string'"
@@ -431,7 +452,7 @@
               </div>
 
               <v-btn
-                v-if="!equalOld(getItemKey(item), item.meta?.type)"
+                v-if="item.meta?.type !== 'number' && !equalOld(getItemKey(item), item.meta?.type)"
                 @click="restore(getItemKey(item))"
                 class="restore"
                 :title="t('common.restore')"
@@ -1633,21 +1654,21 @@ defineExpose({
   .field {
     position: relative;
 
-    .restore {
+    .restore:not(.restore--inline) {
       opacity: 0;
       pointer-events: none;
       transition: opacity 120ms ease;
     }
 
-    &:hover .restore,
-    &:focus-within .restore {
+    &:hover .restore:not(.restore--inline),
+    &:focus-within .restore:not(.restore--inline) {
       opacity: 1;
       pointer-events: auto;
     }
   }
 }
 
-.restore {
+.restore:not(.restore--inline) {
   position: absolute;
   right: 0;
   top: 50%;

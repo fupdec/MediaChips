@@ -10,6 +10,8 @@
         :model-value="settingsStore.locale"
         @update:modelValue="value => changeLanguage(value)"
         :items="locales"
+        item-title="nativeName"
+        item-value="code"
         rounded="xl"
         variant="outlined"
         density="comfortable"
@@ -114,13 +116,14 @@ const selectedLocale = computed((): LocaleEntry =>
   locales.find(i => i.code === settingsStore.locale) ?? locales[0],
 )
 
-const changeLanguage = async (langCode: string) => {
-  await loadLocale(langCode)
-  locale.value = langCode
+const changeLanguage = async (langCode: string | LocaleEntry) => {
+  const code = typeof langCode === 'string' ? langCode : langCode.code
+  const next = await loadLocale(code)
+  locale.value = next
 
-  setOption(langCode, "locale")
+  setOption(next, 'locale')
 
-  document.documentElement.lang = langCode
+  document.documentElement.lang = next
 }
 </script>
 

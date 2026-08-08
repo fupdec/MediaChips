@@ -407,70 +407,93 @@
       </div>
       </div>
 
-      <div
-        v-if="showFilmstrip"
-        ref="filmstripRef"
-        class="image-viewer__filmstrip"
-        @pointerdown.stop
-        @wheel.stop.passive
-        @scroll.passive="onFilmstripScroll"
-        @pointerenter="pinChrome"
-        @pointerleave="unpinChrome"
-      >
+      <Transition name="image-viewer-bottom">
         <div
-          class="image-viewer__filmstrip-track"
-          :style="{ width: `${filmstripTrackWidth}px` }"
+          v-if="bottomPanelMounted"
+          class="image-viewer__bottom"
+          :class="{
+            'image-viewer__bottom--filmstrip': showFilmstrip,
+            'image-viewer__bottom--info': viewer.infoVisible,
+          }"
+          @pointerenter="pinChrome"
+          @pointerleave="unpinChrome"
         >
-          <button
-            v-for="item in filmstripItems"
-            :key="item.key"
-            type="button"
-            class="image-viewer__filmstrip-item"
-            :class="{ 'image-viewer__filmstrip-item--active': item.index === viewer.index }"
-            :style="{ left: `${item.index * filmstripStrideCss}px`, width: `${FILMSTRIP_ITEM_WIDTH * filmstripTrackScale}px` }"
-            :title="item.name || String(item.index + 1)"
-            :aria-label="item.name || String(item.index + 1)"
-            :aria-current="item.index === viewer.index ? 'true' : undefined"
-            @click="goToIndex(item.index)"
+          <div
+            class="image-viewer__section"
+            :class="{ 'image-viewer__section--open': showFilmstrip }"
           >
-            <img
-              v-if="filmstripThumbs[item.key]"
-              :src="filmstripThumbs[item.key]"
-              class="image-viewer__filmstrip-thumb"
-              draggable="false"
-              alt=""
-            />
-            <span v-else class="image-viewer__filmstrip-placeholder" />
-          </button>
-        </div>
-      </div>
+            <div class="image-viewer__section-inner">
+              <div
+                v-if="filmstripSectionMounted"
+                ref="filmstripRef"
+                class="image-viewer__filmstrip"
+                @pointerdown.stop
+                @wheel.stop.passive
+                @scroll.passive="onFilmstripScroll"
+              >
+                <div
+                  class="image-viewer__filmstrip-track"
+                  :style="{ width: `${filmstripTrackWidth}px` }"
+                >
+                  <button
+                    v-for="item in filmstripItems"
+                    :key="item.key"
+                    type="button"
+                    class="image-viewer__filmstrip-item"
+                    :class="{ 'image-viewer__filmstrip-item--active': item.index === viewer.index }"
+                    :style="{ left: `${item.index * filmstripStrideCss}px`, width: `${FILMSTRIP_ITEM_WIDTH * filmstripTrackScale}px` }"
+                    :title="item.name || String(item.index + 1)"
+                    :aria-label="item.name || String(item.index + 1)"
+                    :aria-current="item.index === viewer.index ? 'true' : undefined"
+                    @click="goToIndex(item.index)"
+                  >
+                    <img
+                      v-if="filmstripThumbs[item.key]"
+                      :src="filmstripThumbs[item.key]"
+                      class="image-viewer__filmstrip-thumb"
+                      draggable="false"
+                      alt=""
+                    />
+                    <span v-else class="image-viewer__filmstrip-placeholder" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <div
-        v-if="viewer.infoVisible"
-        class="image-viewer__info"
-        @pointerenter="pinChrome"
-        @pointerleave="unpinChrome"
-      >
-        <template v-if="infoMeta.summary">
-          <span class="image-viewer__info-text" :title="infoMeta.path || infoMeta.summary">
-            {{ infoMeta.summary }}
-          </span>
-          <v-btn
-            v-if="infoMeta.path"
-            class="image-viewer__info-copy"
-            icon="mdi-content-copy"
-            size="x-small"
-            variant="text"
-            color="white"
-            :title="t('image.viewer.copy_path')"
-            :aria-label="t('image.viewer.copy_path')"
-            @click.stop="copyImagePath"
-          />
-        </template>
-        <span v-else class="image-viewer__info-empty">
-          {{ t('image.viewer.info_empty') }}
-        </span>
-      </div>
+          <div
+            class="image-viewer__section"
+            :class="{ 'image-viewer__section--open': viewer.infoVisible }"
+          >
+            <div class="image-viewer__section-inner">
+              <div
+                v-if="infoSectionMounted"
+                class="image-viewer__info"
+              >
+                <template v-if="infoMeta.summary">
+                  <span class="image-viewer__info-text" :title="infoMeta.path || infoMeta.summary">
+                    {{ infoMeta.summary }}
+                  </span>
+                  <v-btn
+                    v-if="infoMeta.path"
+                    class="image-viewer__info-copy"
+                    icon="mdi-content-copy"
+                    size="x-small"
+                    variant="text"
+                    color="white"
+                    :title="t('image.viewer.copy_path')"
+                    :aria-label="t('image.viewer.copy_path')"
+                    @click.stop="copyImagePath"
+                  />
+                </template>
+                <span v-else class="image-viewer__info-empty">
+                  {{ t('image.viewer.info_empty') }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <Transition name="image-viewer-fade">
         <div
@@ -648,6 +671,71 @@ const canShowFilmstrip = computed(() => {
 const showFilmstrip = computed(() =>
   viewer.filmstripVisible && canShowFilmstrip.value,
 )
+
+const showBottomPanel = computed(() =>
+  showFilmstrip.value || viewer.infoVisible,
+)
+
+const BOTTOM_PANEL_CLOSE_MS = 280
+const bottomPanelMounted = ref(false)
+const filmstripSectionMounted = ref(false)
+const infoSectionMounted = ref(false)
+let bottomPanelCloseTimer: ReturnType<typeof setTimeout> | null = null
+let filmstripSectionCloseTimer: ReturnType<typeof setTimeout> | null = null
+let infoSectionCloseTimer: ReturnType<typeof setTimeout> | null = null
+
+function watchSectionMount (
+  source: () => boolean,
+  mounted: {value: boolean},
+  getTimer: () => ReturnType<typeof setTimeout> | null,
+  setTimer: (id: ReturnType<typeof setTimeout> | null) => void,
+) {
+  watch(source, (open) => {
+    const prev = getTimer()
+    if (prev) {
+      clearTimeout(prev)
+      setTimer(null)
+    }
+    if (open) {
+      mounted.value = true
+      return
+    }
+    setTimer(setTimeout(() => {
+      mounted.value = false
+      setTimer(null)
+    }, BOTTOM_PANEL_CLOSE_MS))
+  }, {immediate: true})
+}
+
+watchSectionMount(
+  () => showFilmstrip.value,
+  filmstripSectionMounted,
+  () => filmstripSectionCloseTimer,
+  (id) => { filmstripSectionCloseTimer = id },
+)
+
+watchSectionMount(
+  () => viewer.infoVisible,
+  infoSectionMounted,
+  () => infoSectionCloseTimer,
+  (id) => { infoSectionCloseTimer = id },
+)
+
+watch(showBottomPanel, (open) => {
+  if (bottomPanelCloseTimer) {
+    clearTimeout(bottomPanelCloseTimer)
+    bottomPanelCloseTimer = null
+  }
+  if (open) {
+    bottomPanelMounted.value = true
+    return
+  }
+  // Keep the shell mounted so section collapse can animate before leave.
+  bottomPanelCloseTimer = setTimeout(() => {
+    bottomPanelMounted.value = false
+    bottomPanelCloseTimer = null
+  }, BOTTOM_PANEL_CLOSE_MS)
+}, {immediate: true})
 
 const shortcutRows = computed(() => [
   {keys: '← →', label: t('image.viewer.previous') + ' / ' + t('image.viewer.next')},
@@ -1373,11 +1461,31 @@ watch(showFilmstrip, async (visible) => {
 })
 
 const zoomIn = () => {
-  viewer.zoomIn()
+  const stage = stageRef.value
+  if (!stage) {
+    viewer.zoomIn()
+  } else {
+    const rect = stage.getBoundingClientRect()
+    applyZoomAtClientPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+      clampScale(viewer.scale * 1.25),
+    )
+  }
   deferSlideshowTick()
 }
 const zoomOut = () => {
-  viewer.zoomOut()
+  const stage = stageRef.value
+  if (!stage) {
+    viewer.zoomOut()
+  } else {
+    const rect = stage.getBoundingClientRect()
+    applyZoomAtClientPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+      clampScale(viewer.scale / 1.25),
+    )
+  }
   deferSlideshowTick()
 }
 const resetView = () => {
@@ -1386,10 +1494,12 @@ const resetView = () => {
 }
 const rotateLeft = () => {
   viewer.rotateLeft()
+  setClampedTranslate(viewer.translateX, viewer.translateY)
   deferSlideshowTick()
 }
 const rotateRight = () => {
   viewer.rotateRight()
+  setClampedTranslate(viewer.translateX, viewer.translateY)
   deferSlideshowTick()
 }
 const toggleFlipHorizontal = () => {
@@ -1490,6 +1600,50 @@ const clampScale = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, valu
 /** True when view is at/near fit — swipe navigates; otherwise click/trackpad pans. */
 const isFitScale = () => Math.abs(viewer.scale - 1) <= 0.02
 
+function getStageImageEl (): HTMLImageElement | null {
+  return stageRef.value?.querySelector('img.image-viewer__image') as HTMLImageElement | null
+}
+
+/**
+ * Allow dragging past the stage, but keep the opposite image edge in view
+ * (e.g. pan left until the photo's rightmost pixel reaches the stage's left edge).
+ */
+function clampTranslate (x: number, y: number, scale = viewer.scale): {x: number, y: number} {
+  const stage = stageRef.value
+  const img = getStageImageEl()
+  if (!stage || !img?.naturalWidth || !img.naturalHeight) {
+    return {x: 0, y: 0}
+  }
+
+  const stageW = stage.clientWidth
+  const stageH = stage.clientHeight
+  if (stageW <= 0 || stageH <= 0) return {x: 0, y: 0}
+
+  const base = Math.min(stageW / img.naturalWidth, stageH / img.naturalHeight, 1)
+  const w = img.naturalWidth * base * scale
+  const h = img.naturalHeight * base * scale
+
+  const rot = ((viewer.rotation % 360) + 360) % 360
+  const rad = (rot * Math.PI) / 180
+  const boundW = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad))
+  const boundH = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad))
+
+  // Center-origin coords: stop when the trailing edge hits the opposite stage edge.
+  const maxX = (stageW + boundW) / 2
+  const maxY = (stageH + boundH) / 2
+
+  return {
+    x: Math.min(maxX, Math.max(-maxX, x)),
+    y: Math.min(maxY, Math.max(-maxY, y)),
+  }
+}
+
+function setClampedTranslate (x: number, y: number, scale = viewer.scale) {
+  const next = clampTranslate(x, y, scale)
+  viewer.translateX = next.x
+  viewer.translateY = next.y
+}
+
 const applyZoomAtClientPoint = (clientX: number, clientY: number, nextScale: number) => {
   const stage = stageRef.value
   if (!stage || nextScale === viewer.scale) return
@@ -1499,9 +1653,10 @@ const applyZoomAtClientPoint = (clientX: number, clientY: number, nextScale: num
   const pointerY = clientY - rect.top - rect.height / 2
   const ratio = nextScale / viewer.scale
 
-  viewer.translateX = pointerX - ratio * (pointerX - viewer.translateX)
-  viewer.translateY = pointerY - ratio * (pointerY - viewer.translateY)
+  const nextX = pointerX - ratio * (pointerX - viewer.translateX)
+  const nextY = pointerY - ratio * (pointerY - viewer.translateY)
   viewer.scale = nextScale
+  setClampedTranslate(nextX, nextY, nextScale)
 }
 
 const applyZoomAtPointer = (event: WheelEvent, nextScale: number) => {
@@ -1549,8 +1704,10 @@ const onWheel = (event: WheelEvent) => {
     }
 
     // Zoomed in/out: two-finger trackpad pans the image.
-    viewer.translateX -= event.deltaX
-    viewer.translateY -= event.deltaY
+    setClampedTranslate(
+      viewer.translateX - event.deltaX,
+      viewer.translateY - event.deltaY,
+    )
     return
   }
 
@@ -1622,8 +1779,10 @@ const onPointerMove = (event: PointerEvent) => {
   }
 
   if (panState.value.active && panState.value.pointerId === event.pointerId) {
-    viewer.translateX = panState.value.originX + (event.clientX - panState.value.startX)
-    viewer.translateY = panState.value.originY + (event.clientY - panState.value.startY)
+    setClampedTranslate(
+      panState.value.originX + (event.clientX - panState.value.startX),
+      panState.value.originY + (event.clientY - panState.value.startY),
+    )
     return
   }
 
@@ -1888,6 +2047,9 @@ onBeforeUnmount(() => {
   eventBus.off('viewImage', viewImageHandler)
   stopSlideshow()
   if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  if (bottomPanelCloseTimer) clearTimeout(bottomPanelCloseTimer)
+  if (filmstripSectionCloseTimer) clearTimeout(filmstripSectionCloseTimer)
+  if (infoSectionCloseTimer) clearTimeout(infoSectionCloseTimer)
   void exitBrowserFullscreen().catch(() => {})
   enteredBrowserFullscreen = false
   unbindFilmstripObserver()

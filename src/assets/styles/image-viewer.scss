@@ -45,8 +45,7 @@
     .image-viewer__toolbar,
     .image-viewer__dock,
     .image-viewer__nav,
-    .image-viewer__info,
-    .image-viewer__filmstrip {
+    .image-viewer__bottom {
       opacity: 0;
       pointer-events: none;
     }
@@ -55,11 +54,13 @@
   &__toolbar,
   &__dock,
   &__nav,
-  &__info,
-  &__filmstrip,
   &__control-pill,
   &__title {
     transition: opacity 0.25s ease;
+  }
+
+  &__bottom {
+    transition: opacity 0.25s ease, transform 0.25s ease;
   }
 
   &__slideshow-progress {
@@ -299,24 +300,58 @@
     background: rgba(255, 255, 255, 0.18);
   }
 
-  &__filmstrip {
+  &__bottom {
     position: absolute;
     left: 12px;
     right: 12px;
     bottom: 12px;
     z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
     padding: 10px 12px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
     border-radius: 16px;
     background: rgba(12, 12, 16, 0.38);
     border: 1px solid rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(18px) saturate(1.35);
     -webkit-backdrop-filter: blur(18px) saturate(1.35);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
-    flex: 0 0 auto;
+  }
+
+  &__section {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 0.28s cubic-bezier(0.33, 1, 0.68, 1),
+      opacity 0.2s ease,
+      margin 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+
+    &--open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+
+    &--open + &--open {
+      margin-top: 8px;
+    }
+  }
+
+  &__section-inner {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  &__filmstrip {
+    position: relative;
+    z-index: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
 
     &::-webkit-scrollbar {
       height: 6px;
@@ -326,11 +361,6 @@
       background: rgba(255, 255, 255, 0.28);
       border-radius: 999px;
     }
-  }
-
-  /* When info is also open, lift filmstrip above it. */
-  &:has(.image-viewer__info) .image-viewer__filmstrip {
-    bottom: 52px;
   }
 
   &__filmstrip-track {
@@ -392,24 +422,21 @@
   }
 
   &__info {
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    z-index: 5;
+    position: relative;
+    z-index: 0;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
+    margin: 0;
+    padding: 2px 2px 0;
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.82);
     min-width: 0;
-    border-radius: 14px;
-    background: rgba(12, 12, 16, 0.38);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(18px) saturate(1.35);
-    -webkit-backdrop-filter: blur(18px) saturate(1.35);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    flex: 0 0 auto;
+  }
+
+  &__section--open + &__section--open .image-viewer__info {
+    padding-top: 6px;
   }
 
   &__info-text {
@@ -530,17 +557,7 @@
       overflow-x: auto;
     }
 
-    &__filmstrip {
-      left: 8px;
-      right: 8px;
-      bottom: 8px;
-    }
-
-    &:has(.image-viewer__info) .image-viewer__filmstrip {
-      bottom: 56px;
-    }
-
-    &__info {
+    &__bottom {
       left: 8px;
       right: 8px;
       bottom: 8px;
@@ -568,17 +585,17 @@
   }
 }
 
-/* Keep mobile dock above floating filmstrip/info. */
+/* Keep mobile dock above the shared bottom panel. */
 @media (max-width: 720px) {
-  .image-viewer:has(.image-viewer__filmstrip) .image-viewer__dock {
+  .image-viewer:has(.image-viewer__bottom--filmstrip):not(:has(.image-viewer__bottom--info)) .image-viewer__dock {
     bottom: 92px;
   }
 
-  .image-viewer:has(.image-viewer__filmstrip):has(.image-viewer__info) .image-viewer__dock {
+  .image-viewer:has(.image-viewer__bottom--filmstrip):has(.image-viewer__bottom--info) .image-viewer__dock {
     bottom: 136px;
   }
 
-  .image-viewer:has(.image-viewer__info):not(:has(.image-viewer__filmstrip)) .image-viewer__dock {
+  .image-viewer:has(.image-viewer__bottom--info):not(:has(.image-viewer__bottom--filmstrip)) .image-viewer__dock {
     bottom: 64px;
   }
 }
@@ -591,6 +608,23 @@
 @keyframes image-viewer-filmstrip-shimmer {
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
+}
+
+.image-viewer-bottom-enter-active,
+.image-viewer-bottom-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease !important;
+}
+
+.image-viewer-bottom-enter-from,
+.image-viewer-bottom-leave-to {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-viewer__section {
+    transition: none;
+  }
 }
 
 .image-viewer-fade-enter-active,
