@@ -6,11 +6,14 @@ export function compensateScrollAfterTopTrim(previousScrollHeight: number): void
   const scrollEl = getMainScrollEl() as HTMLElement | null
   if (!scrollEl || previousScrollHeight <= 0) return
 
+  // Capture before Vue/browser clamp scrollTop to the shrunken scrollHeight.
+  const previousScrollTop = scrollEl.scrollTop
+
   void nextTick(() => {
     requestAnimationFrame(() => {
       const heightRemoved = previousScrollHeight - scrollEl.scrollHeight
       if (heightRemoved > 0) {
-        scrollEl.scrollTop = Math.max(0, scrollEl.scrollTop - heightRemoved)
+        scrollEl.scrollTop = Math.max(0, previousScrollTop - heightRemoved)
       }
     })
   })

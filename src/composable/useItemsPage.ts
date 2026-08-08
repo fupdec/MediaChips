@@ -28,6 +28,12 @@ import {clearHoverPreviewUnavailableCache} from '@/utils/hoverPreviewUnavailable
 
 export const INFINITE_PAGE_SIZE = 25
 
+/** Min gap between infinite-scroll page fetches (stops fast-fling burst loads). */
+export const INFINITE_LOAD_COOLDOWN_MS = 450
+
+/** Auto-fill only when the first pages don't cover the viewport. */
+export const INFINITE_SHORT_VIEWPORT_FILL_MAX = 2
+
 /** Next infinite-scroll page from the current page index (not DOM window size). */
 export function getNextInfiniteMediaPage(currentPage: number): number {
   return Math.max(1, Number(currentPage) || 1) + 1
@@ -63,6 +69,9 @@ export function useItemsPage({
   let listFetchSeq = 0
   let listAbortController: AbortController | null = null
   let mediaScrollEl: HTMLElement | null = null
+  let lastInfiniteLoadAt = 0
+  let shortViewportFillCount = 0
+  let pendingFillTimer: ReturnType<typeof setTimeout> | null = null
 
   const ITEMS = computed(() => itemsStore)
   const is_infinite_scroll = computed(() => ITEMS.value.limit === 101)
@@ -256,6 +265,10 @@ export function useItemsPage({
       && ITEMS.value.itemsOnPage.length > 0
       && !explicitIds
 
+    if (!appendListPage) {
+      shortViewportFillCount = 0
+      lastInfiniteLoadAt = 0
+    }
     if (props.items_type === 'media') {
       query.includeNavigation = false
     }
@@ -400,8 +413,8 @@ export function useItemsPage({
       ) {
         infiniteScrollExhausted.value = true
       } else if (append || is_infinite_scroll.value) {
-        await nextTick()
-        maybeLoadMoreIfNearBottom()
+        // Fill short viewports only — do not chain loads while the user is flinging.
+        scheduleShortViewportFill()
       }
 
       return true
@@ -545,13 +558,26 @@ export function useItemsPage({
     return scrollRoot.value
   }
 
-  const loadNextInfinitePage = async (): Promise<void> => {
+  const loadNextInfinitePage = async (
+    source: 'user' | 'fill' = 'user',
+  ): Promise<void> => {
     if (!is_infinite_scroll.value) return
     if (loader.value.is_busy || isLoadingMore.value) return
     if (infiniteScrollExhausted.value) return
     if (ITEMS.value.totalFiltered <= 0) return
     if (ITEMS.value.itemsOnPage.length >= ITEMS.value.totalFiltered) return
 
+    const now = Date.now()
+    if (now - lastInfiniteLoadAt < INFINITE_LOAD_COOLDOWN_MS) return
+
+    if (source === 'fill') {
+      if (shortViewportFillCount >= INFINITE_SHORT_VIEWPORT_FILL_MAX) return
+      shortViewportFillCount += 1
+    } else {
+      shortViewportFillCount = 0
+    }
+
+    lastInfiniteLoadAt = now
     isLoadingMore.value = true
     try {
       itemsStore.updateState({
@@ -564,6 +590,14 @@ export function useItemsPage({
     }
   }
 
+  const scheduleShortViewportFill = (): void => {
+    if (pendingFillTimer) clearTimeout(pendingFillTimer)
+    pendingFillTimer = setTimeout(() => {
+      pendingFillTimer = null
+      maybeLoadMoreIfNearBottom()
+    }, INFINITE_LOAD_COOLDOWN_MS)
+  }
+
   const maybeLoadMoreIfNearBottom = (): void => {
     if (!is_infinite_scroll.value) return
     if (loader.value.is_busy || isLoadingMore.value) return
@@ -574,30 +608,25 @@ export function useItemsPage({
     const el = refreshScrollRoot() || getMainScrollEl()
     if (!el) return
 
-    const threshold = 400
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold
+    const threshold = 240
     const shortPage = el.scrollHeight <= el.clientHeight + threshold
-    const loadedEnoughToFillViewport = ITEMS.value.itemsOnPage.length >= INFINITE_PAGE_SIZE
-
-    if (shortPage && loadedEnoughToFillViewport) {
-      return
-    }
-
-    if (nearBottom || shortPage) {
-      void loadNextInfinitePage()
+    // Only auto-fetch when the first screen isn't filled yet.
+    // Near-bottom while scrolling is handled by scroll + sentinel with cooldown.
+    if (shortPage) {
+      void loadNextInfinitePage('fill')
     }
   }
 
   const infiniteScrolling = (isIntersecting: boolean): void => {
     if (isIntersecting === false) return
-    void loadNextInfinitePage()
+    void loadNextInfinitePage('user')
   }
 
   const infiniteIntersectOptions = computed((): InfiniteIntersectOptions => ({
     handler: infiniteScrolling,
     options: {
       root: scrollRoot.value,
-      rootMargin: '400px 0px',
+      rootMargin: '200px 0px',
       threshold: 0,
     },
   }))
@@ -607,10 +636,10 @@ export function useItemsPage({
     const el = getMainScrollEl()
     if (!el) return
 
-    const threshold = 400
+    const threshold = 240
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold
-    if (nearBottom) void loadNextInfinitePage()
-  }, 150)
+    if (nearBottom) void loadNextInfinitePage('user')
+  }, 320)
 
   const bindMediaInfiniteScroll = (): void => {
     unbindMediaInfiniteScroll()
@@ -630,6 +659,10 @@ export function useItemsPage({
   const disposeListFetching = (): void => {
     abortPendingListFetch()
     listFetchSeq += 1
+    if (pendingFillTimer) {
+      clearTimeout(pendingFillTimer)
+      pendingFillTimer = null
+    }
   }
 
   return {

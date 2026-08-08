@@ -1,5 +1,10 @@
 import {describe, it, expect} from 'vitest'
-import {getNextInfiniteMediaPage, INFINITE_PAGE_SIZE} from '@/composable/useItemsPage'
+import {
+  getNextInfiniteMediaPage,
+  INFINITE_PAGE_SIZE,
+  INFINITE_LOAD_COOLDOWN_MS,
+  INFINITE_SHORT_VIEWPORT_FILL_MAX,
+} from '@/composable/useItemsPage'
 
 describe('useItemsPage helpers', () => {
   it('returns the next page after the current page index', () => {
@@ -9,7 +14,9 @@ describe('useItemsPage helpers', () => {
     expect(getNextInfiniteMediaPage(20)).toBe(21)
   })
 
-  it('keeps infinite page size at 25', () => {
+  it('keeps infinite page size and load throttles stable', () => {
     expect(INFINITE_PAGE_SIZE).toBe(25)
+    expect(INFINITE_LOAD_COOLDOWN_MS).toBe(450)
+    expect(INFINITE_SHORT_VIEWPORT_FILL_MAX).toBe(2)
   })
 })

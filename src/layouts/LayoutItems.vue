@@ -301,8 +301,21 @@
     <div
       v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore"
       class="infinite-loader-full-height"
+      :aria-busy="isLoadingMore"
     >
-      <Loading v-if="isLoadingMore" />
+      <!-- Fixed-height slot: the big logo Loading was the main CLS source on append. -->
+      <div
+        class="infinite-loader-slot"
+        :class="{ 'infinite-loader-slot--active': isLoadingMore }"
+      >
+        <v-progress-circular
+          indeterminate
+          size="28"
+          width="3"
+          color="primary"
+          :class="{ 'infinite-loader-spinner--hidden': !isLoadingMore }"
+        />
+      </div>
 
       <div
         v-intersect="infiniteIntersectOptions"
@@ -856,7 +869,8 @@ defineEmits<{
 <style lang="scss">
 .items-page-grid:not(.items-virtual-grid) :deep(.item) {
   content-visibility: auto;
-  contain-intrinsic-size: auto 280px;
+  /* Prefer a tall estimate: undersized intrinsic size makes cards jump when painted. */
+  contain-intrinsic-size: auto 360px;
 }
 
 .items-group-header {
@@ -918,7 +932,28 @@ defineEmits<{
 
 .infinite-loader-full-height {
   text-align: center;
-  padding: 24px 0;
+  padding: 12px 0 24px;
+  /* Loader must not steal scroll anchoring from the card grid above. */
+  overflow-anchor: none;
+  contain: layout style;
+}
+
+.infinite-loader-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.infinite-loader-slot--active {
+  opacity: 1;
+}
+
+.infinite-loader-spinner--hidden {
+  visibility: hidden;
 }
 
 .scroll-top-after-items {
@@ -931,6 +966,7 @@ defineEmits<{
   width: 100%;
   height: 1px;
   pointer-events: none;
+  overflow-anchor: none;
 }
 
 .items-page-header {
