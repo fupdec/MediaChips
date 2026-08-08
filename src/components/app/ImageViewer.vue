@@ -541,6 +541,7 @@ import {useImageViewerStore} from '@/stores/imageViewer'
 import {useEventBus} from '@/utils/eventBus'
 import {
   loadThumbDisplayUrl,
+  loadFilmstripThumbDisplayUrl,
   loadFullImageDisplayUrl,
   revokeImageObjectUrl,
 } from '@/utils/imageSource'
@@ -1487,13 +1488,7 @@ const ensureFilmstripThumbs = async () => {
 
     if (item.id == null) continue
 
-    const neighbor = neighborCache.get(item.id)
-    if (neighbor?.thumb || neighbor?.full) {
-      next[item.key] = (neighbor.thumb || neighbor.full)!
-      continue
-    }
-
-    const cached = getCachedThumb(mediaThumbKey('images', item.id))
+    const cached = getCachedThumb(mediaThumbKey('images-filmstrip', item.id))
     if (isPersistentThumbUrl(cached)) {
       next[item.key] = cached!
       continue
@@ -1525,7 +1520,7 @@ const ensureFilmstripThumbs = async () => {
       if (!media) return null
 
       try {
-        const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
+        const thumb = await loadFilmstripThumbDisplayUrl(media, appStore.mediaPath)
         if (!thumb || thumb.includes('unavailable.png')) return null
         // Decode-warm only near the playhead; far cells can lazy-decode on paint.
         if (Math.abs(item.index - activeIndex) <= FILMSTRIP_OVERSCAN) {

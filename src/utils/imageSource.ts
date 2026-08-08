@@ -51,6 +51,28 @@ export async function loadThumbDisplayUrl(
   return url
 }
 
+/**
+ * Filmstrip cells are ~72 CSS px; request a ~2× downscale from the 320px library thumb
+ * so the strip does not decode full thumbs for every neighbor.
+ */
+export const FILMSTRIP_THUMB_MAX_EDGE = 144
+
+export async function loadFilmstripThumbDisplayUrl(
+  media: MediaWithPath | null | undefined,
+  mediaPath: string,
+): Promise<string> {
+  if (!media?.id) return IMAGE_UNAVAILABLE_URL
+
+  const key = mediaThumbKey('images-filmstrip', media.id)
+  const cached = getCachedThumb(key)
+  if (isPersistentThumbUrl(cached)) return cached!
+
+  const thumbPath = path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`)
+  const url = buildLocalFileUrl(thumbPath, false, false, {maxEdge: FILMSTRIP_THUMB_MAX_EDGE})
+  setCachedThumb(key, url)
+  return url
+}
+
 /** Longest edge for ImageViewer / neighbor warm — full original loads on strong zoom. */
 export const VIEWER_MAX_EDGE = 2048
 

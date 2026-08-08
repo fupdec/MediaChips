@@ -348,7 +348,8 @@ function registerBuiltinRoutes({
     const value = Number(Array.isArray(raw) ? raw[0] : raw)
     if (!Number.isFinite(value)) return null
     const edge = Math.round(value)
-    if (edge < 512 || edge > 8192) return null
+    // 64–511: filmstrip / compact previews from library thumbs; 512+: viewer.
+    if (edge < 64 || edge > 8192) return null
     return edge
   }
 

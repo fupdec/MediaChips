@@ -154,7 +154,7 @@ export function buildLocalFileUrl(
     params.set('_t', String(cacheBust))
   }
   const maxEdge = Number(options?.maxEdge)
-  if (Number.isFinite(maxEdge) && maxEdge >= 512 && maxEdge <= 8192) {
+  if (Number.isFinite(maxEdge) && maxEdge >= 64 && maxEdge <= 8192) {
     params.set('maxEdge', String(Math.round(maxEdge)))
   }
 
