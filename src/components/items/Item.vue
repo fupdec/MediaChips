@@ -286,10 +286,16 @@ const props = withDefaults(defineProps<{
   type?: 'media' | 'tag'
   meta?: Meta | null
   mediaType?: MediaType | null
+  /**
+   * Virtual grid already windows mounted cards — load thumbs immediately instead of
+   * waiting on IntersectionObserver (avoids blank posters after scrollbar seeks).
+   */
+  eagerPreview?: boolean
 }>(), {
   reg: true,
   x: 0,
   type: 'media',
+  eagerPreview: false,
 })
 
 const emit = defineEmits<{
@@ -315,9 +321,9 @@ const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
 const checkedFilePath = ref<string | null>(null)
-const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '200px 0px' })
+const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '400px 0px' })
 
-const showPreview = computed(() => isInView.value)
+const showPreview = computed(() => props.eagerPreview || isInView.value)
 
 const isVideoMedia = computed(() => isVideoMediaType(props.mediaType ?? undefined))
 const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefined))
@@ -660,8 +666,15 @@ const toggleSelect = (e: MouseEvent) => {
 watch(isInView, (visible) => {
   const id = Number(props.item.id)
   if (!Number.isFinite(id)) return
-  if (visible) markItemVisible(id)
-  else markItemHidden(id)
+  if (visible || props.eagerPreview) markItemVisible(id)
+  // Do not hide on the initial false — that races virtual-grid prefetch IDs.
+  else if (wasInView.value) markItemHidden(id)
+}, { immediate: true })
+
+watch(() => props.eagerPreview, (eager) => {
+  const id = Number(props.item.id)
+  if (!Number.isFinite(id)) return
+  if (eager) markItemVisible(id)
 }, { immediate: true })
 
 onMounted(() => {

@@ -1,0 +1,55 @@
+{
+  "format": "mediachips.chip-recipe",
+  "version": 1,
+  "id": "photos-basic",
+  "name": "Photos basic",
+  "description": "Lightweight photo library: Tags, People, Places.",
+  "author": "MediaChips",
+  "category": "photos",
+  "sfw": true,
+  "createdAt": "2026-08-08T00:00:00.000Z",
+  "fields": [
+    {
+      "key": "array-tags",
+      "type": "array",
+      "name": "Tags",
+      "icon": "tag-multiple-outline",
+      "hint": "Photo tags",
+      "color": true,
+      "tags": [
+        { "name": "Landscape" },
+        { "name": "Portrait" },
+        { "name": "Travel" }
+      ]
+    },
+    {
+      "key": "array-people",
+      "type": "array",
+      "name": "People",
+      "icon": "account-group",
+      "hint": "People in photos",
+      "synonyms": true,
+      "favorite": true,
+      "color": true
+    },
+    {
+      "key": "array-places",
+      "type": "array",
+      "name": "Places",
+      "icon": "map-marker-outline",
+      "hint": "Locations",
+      "country": true,
+      "color": true
+    }
+  ],
+  "mediaTypePins": [
+    {
+      "mediaTypeName": "Images",
+      "fieldKeys": [
+        "array-tags",
+        "array-people",
+        "array-places"
+      ]
+    }
+  ]
+}

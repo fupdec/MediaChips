@@ -389,12 +389,11 @@ const getTagChipPrependIcon = (tag: TagWithMeta): string | undefined => {
 }
 
 const onTagHover = (event: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
-  if (event instanceof MouseEvent) {
-    showHoverImage(event, tag.metaId ?? null, tag.id, 'tag', {
-      label: tag.name,
-      imageAspectRatio: tag.meta.imageAspectRatio,
-    })
-  }
+  if (!(event instanceof MouseEvent)) return
+  showHoverImage(event, tag.metaId ?? null, tag.id, 'tag', {
+    label: tag.name,
+    imageAspectRatio: tag.meta.imageAspectRatio,
+  })
 }
 
 const isGrouped = computed(() =>

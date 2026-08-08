@@ -1,6 +1,7 @@
 import { getAuthToken } from '@/services/authSession'
 
-const DEFAULT_MAX_ENTRIES = 1000
+/** Cover a full infinite window + ahead prefetch without thrashing the LRU. */
+const DEFAULT_MAX_ENTRIES = 400
 
 const cache = new Map<string, string>()
 const tagThumbVersions = new Map<string, number>()
@@ -80,6 +81,20 @@ export function invalidateVideoThumbCaches(id: number | string): void {
   invalidateCachedThumb(mediaThumbKey('videos', id, 'grids'))
 }
 
+/** Drop cached thumb URLs for items that left the infinite-scroll data window. */
+export function pruneMediaThumbCaches(
+  ids: Array<number | string>,
+  folder: string = 'videos',
+): void {
+  for (const id of ids) {
+    if (folder === 'videos') {
+      invalidateVideoThumbCaches(id)
+    } else {
+      invalidateCachedThumb(mediaThumbKey(folder, id))
+    }
+  }
+}
+
 const TAG_THUMB_TYPES = ['main', 'alt', 'custom1', 'custom2', 'avatar', 'header'] as const
 
 export function invalidateTagThumbCaches(
@@ -117,10 +132,11 @@ export function clearTagThumbVersion(
 export function setCachedMediaThumbs(
   folder: string,
   thumbs: Record<string | number, string>,
+  subfolder: 'thumbs' | 'grids' = 'thumbs',
 ): void {
   for (const [id, url] of Object.entries(thumbs)) {
     const key = folder === 'videos'
-      ? mediaThumbKey(folder, id, 'thumbs')
+      ? mediaThumbKey(folder, id, subfolder)
       : mediaThumbKey(folder, id)
     setCachedThumb(key, url)
   }

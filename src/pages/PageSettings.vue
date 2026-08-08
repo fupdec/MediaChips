@@ -86,6 +86,10 @@
                 <SettingsMediaTypes/>
               </SettingsSection>
 
+              <SettingsSection id="settings-chip-recipes">
+                <SettingsChipRecipes/>
+              </SettingsSection>
+
               <v-switch
                 id="settings-library-advanced"
                 v-model="libraryAdvanced"
@@ -291,6 +295,9 @@ const SettingsMediaTypes = defineAsyncComponent(() =>
 )
 const SettingsTagCategories = defineAsyncComponent(() =>
   import("@/components/settings/library/SettingsTagCategories.vue")
+)
+const SettingsChipRecipes = defineAsyncComponent(() =>
+  import("@/components/settings/library/SettingsChipRecipes.vue")
 )
 const SettingsQuickTags = defineAsyncComponent(() =>
   import("@/components/settings/library/SettingsQuickTags.vue")
@@ -507,6 +514,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   appearance_sfw: "settings-appearance-sfw",
   meta: "settings-meta",
   tag_categories: "settings-tag-categories",
+  chip_recipes: "settings-chip-recipes",
   media_types: "settings-media-types",
   field_pinning: "settings-meta-assignment",
   quick_tags: "settings-quick-tags",
@@ -605,6 +613,7 @@ const APPEARANCE_SECTIONS = new Set([
 const LIBRARY_SECTIONS = new Set([
   "meta",
   "tag_categories",
+  "chip_recipes",
   "media_types",
   "field_pinning",
   "quick_tags",

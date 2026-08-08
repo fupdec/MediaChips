@@ -10,7 +10,7 @@ import {
   mediaThumbKey,
   setCachedThumb,
 } from '@/utils/thumbDisplayCache'
-import {isThumbUnavailable, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
+import {isThumbUnavailable, resolveMediaThumbDisplayUrl, CARD_THUMB_MAX_EDGE} from '@/utils/thumbSource'
 import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import type {MediaItem} from '@/types/stores'
 
@@ -69,6 +69,18 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     thumbFallbackStage.value = 0
   }
 
+  /**
+   * Leave the viewport: stop probes/work, but keep the last HTTP thumb src.
+   * Nulling `:src` while VImg still has a pending load races Vuetify's
+   * pollForSize (naturalHeight of null) — see vuetify#23011.
+   */
+  const pauseOffscreenThumb = () => {
+    abortThumbProbe()
+    thumbLoadStarted.value = false
+    thumbCreateAttempted.value = false
+    thumbFallbackStage.value = 0
+  }
+
   const resolveThumbFallback = (): string => {
     const item = media.value
     if (!item?.id) return ''
@@ -82,7 +94,13 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
       return cached
     }
 
-    const url = resolveMediaThumbDisplayUrl(toValue(options.mediaPath), 'videos', item.id)
+    const url = resolveMediaThumbDisplayUrl(
+      toValue(options.mediaPath),
+      'videos',
+      item.id,
+      'thumbs',
+      {maxEdge: CARD_THUMB_MAX_EDGE},
+    )
     return url && !isThumbUnavailable(url) ? url : ''
   }
 
@@ -119,7 +137,10 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     void getImg({bust: true, allowCreate})
   }
 
-  const loadThumb = (subfolder: 'thumbs' | 'grids', {bust = false} = {}) => {
+  const loadThumb = (
+    subfolder: 'thumbs' | 'grids',
+    {bust = false as boolean | number} = {},
+  ) => {
     const item = media.value
     if (!item?.id) return
 
@@ -128,19 +149,27 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     }
 
     const mediaPath = toValue(options.mediaPath)
+    // Card thumbs: downscaled decode. Grid sprites: full size for timeline frames.
+    const maxEdge = subfolder === 'grids' ? undefined : CARD_THUMB_MAX_EDGE
     const thumbUrl = bust
       ? buildLocalFileUrl(path.join(
         mediaPath,
         'videos',
         subfolder,
         `${item.id}.jpg`,
-      ), false, true)
-      : resolveMediaThumbDisplayUrl(mediaPath, 'videos', item.id, subfolder)
+      ), false, bust, maxEdge != null ? {maxEdge} : undefined)
+      : resolveMediaThumbDisplayUrl(
+        mediaPath,
+        'videos',
+        item.id,
+        subfolder,
+        maxEdge != null ? {maxEdge} : undefined,
+      )
 
     thumb.value = thumbUrl
 
     if (thumbUrl && !isThumbUnavailable(thumbUrl)) {
-      setCachedThumb(mediaThumbKey('videos', item.id, subfolder), thumbUrl)
+      setCachedThumb(mediaThumbKey('videos', item.id, subfolder), thumb.value)
     }
   }
 
@@ -177,7 +206,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     }
   }
 
-  const loadImg = async ({bust = false, allowCreate = true} = {}) => {
+  const loadImg = async ({bust = false as boolean | number, allowCreate = true} = {}) => {
     if (!toValue(options.previewActive) || !toValue(options.isMounted) || !media.value?.id) return
 
     if (usesExternalThumb.value) {
@@ -190,8 +219,12 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     if (!bust) {
       const cached = getCachedThumb(mediaThumbKey('videos', media.value.id, subfolder))
       if (cached && !isThumbUnavailable(cached)) {
-        thumb.value = cached
-        return
+        const hasMaxEdge = String(cached).includes('maxEdge=')
+        // Grids must be full-size sprites; card thumbs want maxEdge.
+        if (subfolder === 'grids' ? !hasMaxEdge : hasMaxEdge) {
+          thumb.value = cached
+          return
+        }
       }
     }
 
@@ -213,17 +246,21 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     }
   }
 
-  const getImg = async ({bust = false, allowCreate = true} = {}) => {
-    if (!toValue(options.previewActive) || !toValue(options.isMounted) || !media.value?.id) return
+  const getImg = async ({bust = false as boolean | number, allowCreate = true} = {}) => {
+    if (!toValue(options.previewActive) || !media.value?.id) return
+    // Wait for mount — do not latch thumbLoadStarted on a no-op.
+    if (!toValue(options.isMounted)) return
 
     const subfolder = getStaticPreviewSubfolder()
-    const key = `${media.value.id}:${subfolder}:${bust ? 1 : 0}:${allowCreate ? 1 : 0}`
+    const bustKey = bust === false ? 0 : bust === true ? 1 : bust
+    const key = `${media.value.id}:${subfolder}:${bustKey}:${allowCreate ? 1 : 0}`
     const existing = thumbLoadInFlight.get(key)
     if (existing) {
       await existing
       return
     }
 
+    thumbLoadStarted.value = true
     const promise = loadImg({bust, allowCreate})
     thumbLoadInFlight.set(key, promise)
     try {
@@ -235,8 +272,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
 
   const requestThumb = () => {
     if (!toValue(options.previewActive)) return
-    if (thumbLoadStarted.value) return
-    thumbLoadStarted.value = true
+    if (thumbLoadStarted.value && thumb.value && !isThumbUnavailable(thumb.value)) return
     void getImg()
   }
 
@@ -259,7 +295,8 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
       thumbCreateAttempted.value = false
       thumbFallbackStage.value = 0
     }
-    void getImg({bust: true, allowCreate: shouldRegenerate}).then(() => {
+    // Stable bust token (not Date.now()) so Chromium reuses one cache entry per refresh.
+    void getImg({bust: version, allowCreate: shouldRegenerate}).then(() => {
       options.onThumbRefreshed?.({shouldRegenerate})
     })
   })
@@ -275,6 +312,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     abortThumbProbe,
     runImageProbe,
     clearThumbState,
+    pauseOffscreenThumb,
     resolveThumbFallback,
     getStaticPreviewSubfolder,
     onThumbLoad,

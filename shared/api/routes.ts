@@ -7,6 +7,11 @@ export const API_ROUTES = {
   tagMoveToCategory: '/api/Tag/moveToCategory',
   meta: '/api/Meta',
   metaMergeCategories: '/api/Meta/mergeCategories',
+  metaExportChipRecipe: '/api/Meta/exportChipRecipe',
+  metaPreviewChipRecipe: '/api/Meta/previewChipRecipe',
+  metaImportChipRecipe: '/api/Meta/importChipRecipe',
+  metaChipRecipeCatalog: '/api/Meta/chipRecipeCatalog',
+  metaChipRecipeCatalogFile: '/api/Meta/chipRecipeCatalogFile',
   tab: '/api/Tab',
   playlist: '/api/Playlist',
   setting: '/api/Setting',
@@ -201,6 +206,10 @@ export type ApiRouteKey = keyof typeof API_ROUTES
 
 export function apiMeta(id: number | string) {
   return `/api/Meta/${id}`
+}
+
+export function apiChipRecipeCatalogFile(relativePath: string) {
+  return `${API_ROUTES.metaChipRecipeCatalogFile}?path=${encodeURIComponent(relativePath)}`
 }
 
 export function apiMetaSetting(id: number | string) {

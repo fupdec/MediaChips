@@ -1,37 +1,34 @@
-import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
-import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
+import {
+  isThumbUnavailable,
+  resolveMediaThumbDisplayUrl,
+  CARD_THUMB_MAX_EDGE,
+  type MediaThumbSubfolder,
+} from '@/utils/thumbSource'
 
-const INDIVIDUAL_LOAD_CONCURRENCY = 8
+export type LoadMediaThumbOptions = {
+  /** Longest edge for card decode; defaults to CARD_THUMB_MAX_EDGE. Pass null to skip. */
+  maxEdge?: number | null
+  subfolder?: MediaThumbSubfolder
+}
 
 export function loadMediaThumbUrl(
   mediaPath: string,
   mediaTypeFolder: string,
   id: number | string,
+  options: LoadMediaThumbOptions = {},
 ): string | null {
-  const url = resolveMediaThumbDisplayUrl(mediaPath, mediaTypeFolder, id)
+  const subfolder = options.subfolder ?? 'thumbs'
+  const maxEdge = options.maxEdge === null
+    ? undefined
+    : (options.maxEdge ?? CARD_THUMB_MAX_EDGE)
+  const url = resolveMediaThumbDisplayUrl(
+    mediaPath,
+    mediaTypeFolder,
+    id,
+    subfolder,
+    maxEdge != null ? {maxEdge} : undefined,
+  )
   return isThumbUnavailable(url) ? null : url
-}
-
-async function loadMediaThumbUrlsIndividually(
-  mediaPath: string,
-  mediaTypeFolder: string,
-  ids: Array<number | string>,
-): Promise<Record<number | string, string>> {
-  const thumbs: Record<number | string, string> = {}
-
-  const entries = await mapWithConcurrency(ids, INDIVIDUAL_LOAD_CONCURRENCY, async (id) => {
-    const url = loadMediaThumbUrl(mediaPath, mediaTypeFolder, id)
-    return url ? [id, url] as const : null
-  })
-
-  for (const entry of entries) {
-    if (entry) {
-      const [id, url] = entry
-      thumbs[id] = url
-    }
-  }
-
-  return thumbs
 }
 
 /** Build local file URLs directly — avoids slow base64 batch API. */
@@ -39,9 +36,15 @@ export async function loadMediaThumbUrls(
   mediaPath: string,
   mediaTypeFolder: string,
   ids: Array<number | string>,
+  options: LoadMediaThumbOptions = {},
 ): Promise<Record<number | string, string>> {
   const uniqueIds = [...new Set(ids.filter((id) => id != null))]
   if (!uniqueIds.length || !mediaPath) return {}
 
-  return loadMediaThumbUrlsIndividually(mediaPath, mediaTypeFolder, uniqueIds)
+  const thumbs: Record<number | string, string> = {}
+  for (const id of uniqueIds) {
+    const url = loadMediaThumbUrl(mediaPath, mediaTypeFolder, id, options)
+    if (url) thumbs[id] = url
+  }
+  return thumbs
 }

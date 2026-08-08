@@ -211,15 +211,31 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     }
   })
 
-  watch(() => toValue(options.itemsView), (value) => {
-    if (Number(value) === 2) {
-      void initFrames()
-      return
-    }
+  // Eager-preview keeps previewActive true from first paint, so we cannot rely
+  // on a false→true edge. Re-run when mount / timeline / active become ready.
+  watch(
+    () => [
+      toValue(options.isMounted),
+      toValue(options.isViewTimeline),
+      toValue(options.previewActive),
+    ] as const,
+    ([mounted, timeline, active], previous) => {
+      if (!active || !timeline) {
+        if (previous?.[2] && !active) {
+          clearTimelineFrames()
+        } else if (previous?.[1] && !timeline) {
+          initFramesToken += 1
+          options.onViewLeaveTimeline?.()
+        }
+        return
+      }
 
-    initFramesToken += 1
-    options.onViewLeaveTimeline?.()
-  })
+      if (mounted) {
+        void initFrames()
+      }
+    },
+    {immediate: true},
+  )
 
   watch(() => toValue(options.isTaskRunning), (running, wasRunning) => {
     if (wasRunning && !running && toValue(options.isViewTimeline)) {
@@ -232,17 +248,6 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     if (!gridSpriteUrl.value && storyUsesThumbFallback.value) {
       void initFrames()
     }
-  })
-
-  watch(() => toValue(options.previewActive), (active) => {
-    if (active) {
-      if (toValue(options.isViewTimeline)) {
-        void initFrames()
-      }
-      return
-    }
-
-    clearTimelineFrames()
   })
 
   onMounted(() => {

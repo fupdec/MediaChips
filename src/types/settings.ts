@@ -186,6 +186,8 @@ export type SettingsState = {
   big_video_preview: string
   big_video_preview_delay: string
   big_video_preview_size: string
+  /** '1' shows full title/meta plate beside fixed-height media cards on hover. */
+  card_hover_meta_plate: string
   show_salutation: string
   show_ip_at_home_screen: string
   onboardingCompleted: string
@@ -303,6 +305,7 @@ export const defaultSettingsState = (): SettingsState => ({
   big_video_preview: '1',
   big_video_preview_delay: '2000',
   big_video_preview_size: 'full_height',
+  card_hover_meta_plate: '0',
   show_salutation: '1',
   show_ip_at_home_screen: '1',
   onboardingCompleted: '0',

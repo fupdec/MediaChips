@@ -555,6 +555,19 @@ export {
   LocalAiStatusSchema,
 } from './localAi'
 
+export {
+  ChipRecipeCatalogEntrySchema,
+  ChipRecipeCatalogFileQuerySchema,
+  ChipRecipeCatalogSchema,
+  ChipRecipeFieldSchema,
+  ChipRecipeSchema,
+  ChipRecipeSeedTagSchema,
+  ExportChipRecipeRequestSchema,
+  ImportChipRecipeRequestSchema,
+  parseChipRecipe,
+  parseChipRecipeCatalog,
+} from './chipRecipe'
+
 export {BackfillStatusSchema} from './backfill'
 
 export {

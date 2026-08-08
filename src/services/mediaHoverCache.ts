@@ -2,14 +2,29 @@ import { typedApi } from '@/services/typedApi'
 import { useItemsStore } from '@/stores/items'
 import type { MediaItem } from '@/types/stores'
 
+const MAX_HOVER_CACHE = 80
 const cache = new Map<string, MediaItem>()
 
 export function getMediaHoverCacheKey(mediaTypeId: number, mediaId: number): string {
   return `${mediaTypeId}:${mediaId}`
 }
 
+function touch(key: string, item: MediaItem): void {
+  cache.delete(key)
+  cache.set(key, item)
+  while (cache.size > MAX_HOVER_CACHE) {
+    const oldest = cache.keys().next().value
+    if (oldest === undefined) break
+    cache.delete(oldest)
+  }
+}
+
 export function getCachedMediaForHover(mediaTypeId: number, mediaId: number): MediaItem | undefined {
-  return cache.get(getMediaHoverCacheKey(mediaTypeId, mediaId))
+  const key = getMediaHoverCacheKey(mediaTypeId, mediaId)
+  const cached = cache.get(key)
+  if (!cached) return undefined
+  touch(key, cached)
+  return cached
 }
 
 export async function loadMediaForHover(
@@ -18,12 +33,15 @@ export async function loadMediaForHover(
 ): Promise<MediaItem | null> {
   const key = getMediaHoverCacheKey(mediaTypeId, mediaId)
   const cached = cache.get(key)
-  if (cached) return cached
+  if (cached) {
+    touch(key, cached)
+    return cached
+  }
 
   const itemsStore = useItemsStore()
   const fromStore = itemsStore.getItemById(mediaId)
   if (fromStore?.tags?.length || fromStore?.values?.length) {
-    cache.set(key, fromStore)
+    touch(key, fromStore)
     return fromStore
   }
 
@@ -36,7 +54,7 @@ export async function loadMediaForHover(
     })
     const item = res.data.items?.[0]
     if (item) {
-      cache.set(key, item)
+      touch(key, item)
       return item
     }
   } catch (error) {
@@ -44,7 +62,7 @@ export async function loadMediaForHover(
   }
 
   if (fromStore) {
-    cache.set(key, fromStore)
+    touch(key, fromStore)
     return fromStore
   }
 

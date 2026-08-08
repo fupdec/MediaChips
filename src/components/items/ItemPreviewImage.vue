@@ -11,6 +11,7 @@
       @click.stop="openViewer"
     >
       <v-img
+        v-if="previewActive && thumb"
         :src="thumb || undefined"
         :aspect-ratio="previewAspectRatio"
         class="thumb"
@@ -18,6 +19,12 @@
         :contain="!isViewMasonry"
         @load="onThumbLoad"
         @error="onThumbError"
+      />
+      <div
+        v-else
+        class="thumb thumb--placeholder"
+        :style="previewAspectRatio ? { aspectRatio: String(previewAspectRatio) } : undefined"
+        aria-hidden="true"
       />
     </v-responsive>
 
@@ -219,9 +226,17 @@ const requestThumb = () => {
 /** Cancel in-flight loads when leaving the viewport, but keep HTTP thumbs warm. */
 const pauseOffscreenThumb = () => {
   loadGeneration += 1
+  // Revoke blob URLs without nulling `:src` in the same tick — that races
+  // Vuetify VImg pollForSize when a pending load fires (naturalHeight of null).
   if (thumbObjectUrl) {
-    clearThumbUrl()
-    thumb.value = null
+    const blobUrl = thumbObjectUrl
+    thumbObjectUrl = null
+    queueMicrotask(() => {
+      revokeImageObjectUrl(blobUrl)
+      if (!props.previewActive && thumb.value === blobUrl) {
+        thumb.value = IMAGE_UNAVAILABLE_URL
+      }
+    })
   }
   thumbLoadStarted = false
   thumbFallbackStage = 0
@@ -262,7 +277,7 @@ watch(
     // Source-file existence only affects the no-file styling / open gate.
     // Thumbs still load from mediaPath/images/thumbs independently.
     if (!props.previewActive) {
-      thumb.value = null
+      // Keep a stable src for mounted VImg; next active pass will reload.
       return
     }
     requestThumb()
@@ -271,10 +286,11 @@ watch(
 
 watch(() => itemsStore.thumbRefreshKeys[Number(props.media?.id)], (version) => {
   if (version == null) return
-  thumb.value = null
+  // Swap src only when actively shown; otherwise wait for the next requestThumb.
   clearThumbUrl()
   thumbLoadStarted = false
   thumbFallbackStage = 0
+  if (!props.previewActive) return
   void loadThumb({cacheBust: true})
 })
 </script>

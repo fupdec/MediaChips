@@ -8,6 +8,7 @@
       aria-hidden="true"
     >
       <v-img
+        v-if="showThumbImage"
         :src="thumb || undefined"
         cover
         class="video-preview-host__anchor-thumb"
@@ -33,6 +34,7 @@
         @mouseenter="handleMouseEnter"
       >
       <v-img
+        v-if="showThumbImage"
         :key="thumbDisplayKey"
         :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
         :src="thumb || undefined"
@@ -43,6 +45,11 @@
         @dblclick.stop="handlePreviewDblClick"
         @load="onThumbLoad"
         @error="onThumbError"
+      />
+      <div
+        v-else
+        class="thumb thumb--placeholder"
+        aria-hidden="true"
       />
 
       <div
@@ -315,7 +322,7 @@ let initTimelineFrames: () => Promise<void> = async () => {}
 const {
   thumb,
   thumbDisplayKey,
-  clearThumbState,
+  pauseOffscreenThumb,
   resolveThumbFallback,
   getStaticPreviewSubfolder,
   onThumbLoad,
@@ -339,6 +346,9 @@ const {
     }
   },
 })
+
+/** Mount VImg only in-viewport — keeps card shell size, drops decoded bitmaps offscreen. */
+const showThumbImage = computed(() => props.previewActive && Boolean(thumb.value))
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
@@ -572,7 +582,8 @@ const {
 initTimelineFrames = initFrames
 
 const clearPreviewResources = () => {
-  clearThumbState()
+  // Keep the last thumb URL mounted — clearing it mid-load trips a Vuetify VImg bug.
+  pauseOffscreenThumb()
   clearTimelineFrames()
 }
 
@@ -684,6 +695,13 @@ useItemPreviewLifecycle({
 <style>
 .preview {
   position: relative;
+}
+
+.thumb--placeholder {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #7878782b;
 }
 
 .preview-unavailable-notice {

@@ -44,6 +44,7 @@
     "pack:plugin-emby": "node scripts/pack-plugin-emby.mjs",
     "pack:plugin-tmdb": "node scripts/pack-plugin-tmdb.mjs",
     "pack:plugins": "npm run pack:plugin-adult && npm run pack:plugin-stash && npm run pack:plugin-jellyfin && npm run pack:plugin-plex && npm run pack:plugin-emby && npm run pack:plugin-tmdb",
+    "build:chip-recipe-index": "node scripts/build-chip-recipe-index.mjs",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "main": "electron/runMain.js",

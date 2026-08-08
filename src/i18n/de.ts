@@ -1505,6 +1505,8 @@ const de = {
       video: "Video",
       play_sound: "Ton abspielen",
       big_preview: "Große Vorschau",
+      card_hover_meta_plate: "Karten-Meta beim Hover",
+      card_hover_meta_plate_hint: "Vollständigen Titel und angeheftete Felder neben der Karte zeigen, ohne die Rasterhöhe zu ändern",
       preview_delay: "Verzögerung vor der Vorschau-Wiedergabe",
       big_preview_delay: "Verzögerung vor großer Vorschau",
       big_preview_delay_warning: "Möglicherweise haben Sie keine Zeit, die reguläre Vorschau anzusehen, bevor Sie zur großen Vorschau wechseln",

@@ -1,0 +1,25 @@
+{
+  "updatedAt": "2026-08-08T18:18:08.964Z",
+  "recipes": [
+    {
+      "id": "movies-basic",
+      "name": "Movies basic",
+      "description": "Starter movie library fields: Tags, Studio, Genres, Release date.",
+      "author": "MediaChips",
+      "category": "movies",
+      "sfw": true,
+      "version": 1,
+      "path": "recipes/movies-basic.chiprecipe.json"
+    },
+    {
+      "id": "photos-basic",
+      "name": "Photos basic",
+      "description": "Lightweight photo library: Tags, People, Places.",
+      "author": "MediaChips",
+      "category": "photos",
+      "sfw": true,
+      "version": 1,
+      "path": "recipes/photos-basic.chiprecipe.json"
+    }
+  ]
+}

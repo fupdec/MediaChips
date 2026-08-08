@@ -24,6 +24,8 @@ export const useAppStore = defineStore('app', {
       isVideo: false,
       timeout: 0,
       delay: 0,
+      anchorMode: 'cursor',
+      anchorRect: null,
       anchorX: 0,
       anchorY: 0,
       x: 0,

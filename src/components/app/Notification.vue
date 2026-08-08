@@ -193,8 +193,9 @@ const notificationSwipeStyle = computed(() => {
 
 const displayText = computed(() => {
   let text = props.notification.text || ''
-  if (collapsed.value && text.length > 100) {
-    text = text.slice(0, 100) + '...'
+  // Only collapse very long bodies; short toasts should wrap fully in the card.
+  if (collapsed.value && text.length > 180) {
+    text = text.slice(0, 180) + '...'
   }
   return text
 })
@@ -308,12 +309,14 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   min-height: 90px;
+  height: auto;
   width: var(--toast-width, 370px);
   max-width: 100%;
   margin: 0 0 16px;
   padding: 16px 16px 25px;
   border-radius: 4px;
   position: relative;
+  // Clip only the timeout bar / swipe edges; let multi-line text grow the card.
   overflow: hidden;
   z-index: 50000;
   pointer-events: all;
@@ -339,8 +342,9 @@ onUnmounted(() => {
   }
 
   &__body {
-    padding-right: 25px;
+    min-width: 0;
     flex: 1;
+    padding-right: 28px;
   }
 
   &__icon {
@@ -351,6 +355,7 @@ onUnmounted(() => {
     border-radius: 50px;
     display: flex;
     justify-content: center;
+    flex-shrink: 0;
     pointer-events: none;
 
     &::before {
@@ -363,17 +368,20 @@ onUnmounted(() => {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    max-width: 240px;
+    max-width: 100%;
   }
 
   &__text {
     font-size: 12px;
     line-height: 1.4;
-    max-width: 240px;
+    max-width: 100%;
     margin-top: 4px;
     opacity: 0.7;
     cursor: pointer;
     transition: opacity 0.2s ease;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 
     &:hover {
       opacity: 1;
@@ -435,10 +443,7 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .notification {
-    &__title,
-    &__text {
-      max-width: 160px;
-    }
+    width: min(var(--toast-width, 370px), calc(100vw - 30px));
   }
 }
 </style>

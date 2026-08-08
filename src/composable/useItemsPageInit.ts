@@ -291,6 +291,8 @@ export function useItemsPageInit({
         await itemsStore.countViewNumber(metaData, 'meta')
       }
     } else if (props.items_type === 'media') {
+      // Drop stale tag meta so portrait aspect ratios cannot stick on video cards.
+      meta.value = null
       const mediaTypeData = await fetchMediaType()
       mediaType.value = mediaTypeData
       Object.assign(storeUpdates, {

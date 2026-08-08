@@ -9,9 +9,18 @@ import { isViteDevProxyMode } from '@/utils/apiBaseUrl'
 
 const NEGATIVE_CACHE_TTL_MS = 60_000
 const POSITIVE_CACHE_TTL_MS = 5 * 60_000
+const FILE_EXISTS_CACHE_MAX = 2_000
 
 const negativeCache = new Map<string, number>()
 const positiveCache = new Map<string, number>()
+
+function trimCache(map: Map<string, number>, max = FILE_EXISTS_CACHE_MAX) {
+  while (map.size > max) {
+    const oldest = map.keys().next().value
+    if (oldest === undefined) break
+    map.delete(oldest)
+  }
+}
 
 function getUnavailableVolumeRoot(filePath: string) {
   if (!isElectron()) return null
@@ -44,13 +53,17 @@ function getCachedPositiveResult(filePath: string) {
 }
 
 function rememberNegativeResult(filePath: string) {
+  negativeCache.delete(filePath)
   negativeCache.set(filePath, Date.now() + NEGATIVE_CACHE_TTL_MS)
   positiveCache.delete(filePath)
+  trimCache(negativeCache)
 }
 
 function rememberPositiveResult(filePath: string) {
+  positiveCache.delete(filePath)
   positiveCache.set(filePath, Date.now() + POSITIVE_CACHE_TTL_MS)
   negativeCache.delete(filePath)
+  trimCache(positiveCache)
 }
 
 export function invalidateFileExistsCache(filePath?: string) {

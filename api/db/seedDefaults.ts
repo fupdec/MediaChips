@@ -57,6 +57,7 @@ const MIGRATION_SETTINGS = [
   {option: 'big_video_preview', value: '1'},
   {option: 'big_video_preview_delay', value: '2000'},
   {option: 'big_video_preview_size', value: 'full_height'},
+  {option: 'card_hover_meta_plate', value: '0'},
   {option: 'show_salutation', value: '1'},
   {option: 'show_ip_at_home_screen', value: '1'},
   {option: 'show_alert_new_tool_words', value: '1'},

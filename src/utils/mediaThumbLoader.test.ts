@@ -13,13 +13,36 @@ describe('loadMediaThumbUrls', () => {
   })
 
   it('builds local file URLs directly without batch API', async () => {
-    vi.mocked(buildLocalFileUrl).mockReturnValue('/api/get-file?url=test.jpg')
+    vi.mocked(buildLocalFileUrl).mockImplementation((
+      _path: string,
+      _outside?: boolean,
+      _bust?: boolean | number,
+      options?: {maxEdge?: number},
+    ) => (
+      options?.maxEdge
+        ? `/api/get-file?url=test.jpg&maxEdge=${options.maxEdge}`
+        : '/api/get-file?url=test.jpg'
+    ))
 
     const result = await loadMediaThumbUrls('/db/media', 'videos', [1, 2])
 
     expect(buildLocalFileUrl).toHaveBeenCalled()
+    expect(String(result[1])).toContain('maxEdge=')
+    expect(String(result[2])).toContain('maxEdge=')
+  })
+
+  it('can skip maxEdge for full-size previews', async () => {
+    vi.mocked(buildLocalFileUrl).mockReturnValue('/api/get-file?url=test.jpg')
+
+    const result = await loadMediaThumbUrls('/db/media', 'videos', [1], {maxEdge: null})
+
     expect(result[1]).toBe('/api/get-file?url=test.jpg')
-    expect(result[2]).toBe('/api/get-file?url=test.jpg')
+    expect(buildLocalFileUrl).toHaveBeenCalledWith(
+      expect.any(String),
+      false,
+      false,
+      undefined,
+    )
   })
 
   it('returns empty object when media path is missing', async () => {

@@ -24,6 +24,17 @@ export interface AppHoverState {
   isVideo: boolean
   timeout: ReturnType<typeof setTimeout> | number
   delay: number
+  /** Cursor vs grid-card anchored positioning. */
+  anchorMode: 'cursor' | 'card'
+  /** Grid card rect when anchorMode is 'card'. */
+  anchorRect: {
+    top: number
+    left: number
+    width: number
+    height: number
+    right?: number
+    bottom?: number
+  } | null
   /** Cursor anchor X (viewport). */
   anchorX: number
   /** Cursor anchor Y (viewport). */

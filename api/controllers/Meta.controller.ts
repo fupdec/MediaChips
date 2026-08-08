@@ -9,6 +9,14 @@ import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMedia
 import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
 import { mergeTagCategories } from '../services/metaCategoryMerge'
 import { applyMeasurementUnitChange } from '../services/measurementUnitChange'
+import {
+  chipRecipeDiscordInfo,
+  exportChipRecipe,
+  fetchChipRecipeCatalog,
+  fetchChipRecipeFromCatalog,
+  importChipRecipe,
+  previewChipRecipe,
+} from '../services/chipRecipe'
 import { validatePathRegex } from '../../shared/pathParser/regexMeta'
 import fs from 'fs'
 import path from 'path'
@@ -122,6 +130,76 @@ export default function (db: ApiDb) {
     }
   }
 
+  const exportRecipe = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{
+        metaIds?: Array<number | string>
+        name?: string
+        id?: string
+        description?: string
+        author?: string
+        category?: string
+        sfw?: boolean
+        includeTags?: boolean
+      }>(req)
+      const recipe = exportChipRecipe(db, {
+        metaIds: body.metaIds,
+        name: String(body.name || ''),
+        id: body.id,
+        description: body.description,
+        author: body.author,
+        category: body.category,
+        sfw: body.sfw,
+        includeTags: body.includeTags,
+      })
+      sendOk(res, recipe)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while exporting chip recipe.')
+    }
+  }
+
+  const previewRecipe = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{recipe?: unknown}>(req)
+      const result = previewChipRecipe(db, body.recipe)
+      sendOk(res, result)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while previewing chip recipe.')
+    }
+  }
+
+  const importRecipe = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{recipe?: unknown}>(req)
+      const result = importChipRecipe(db, body.recipe)
+      sendOk(res, result)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while importing chip recipe.')
+    }
+  }
+
+  const chipRecipeCatalog = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const catalog = await fetchChipRecipeCatalog()
+      sendOk(res, {
+        ...catalog,
+        discord: chipRecipeDiscordInfo(),
+      })
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while fetching chip recipe catalog.')
+    }
+  }
+
+  const chipRecipeCatalogFile = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const relativePath = String(req.query.path || '')
+      const recipe = await fetchChipRecipeFromCatalog(relativePath)
+      sendOk(res, recipe)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while fetching chip recipe file.')
+    }
+  }
+
   return {
     create,
     findAll,
@@ -129,6 +207,11 @@ export default function (db: ApiDb) {
     findLatest,
     update,
     mergeCategories,
-    deleteOne
+    deleteOne,
+    exportRecipe,
+    previewRecipe,
+    importRecipe,
+    chipRecipeCatalog,
+    chipRecipeCatalogFile,
   }
 }

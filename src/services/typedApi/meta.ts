@@ -1,6 +1,7 @@
 import { apiClient } from '../apiClient'
 import {
   API_ROUTES,
+  apiChipRecipeCatalogFile,
   apiEntity,
   apiItemTagsEndpoint,
   apiItemTagsEndpointDelete,
@@ -21,6 +22,8 @@ import {
   apiValuesInMedia,
   apiValuesInTag,
 } from '@shared/api/routes'
+import type {ChipRecipe, ChipRecipeCatalog} from '@shared/chipRecipe'
+import {parseChipRecipe, parseChipRecipeCatalog} from '@shared/schemas/chipRecipe'
 import type { Meta, Tag, MarkFilterMeta, MetaWritePayload } from '@shared/entities/meta'
 import type {
   CreateTagPayload,
@@ -338,6 +341,61 @@ export const metaApi = {
       data: validated(parseMeta, res.data),
     }))
   },
+
+  exportChipRecipe(body: {
+    metaIds?: number[]
+    name: string
+    id?: string
+    description?: string
+    author?: string
+    category?: string
+    sfw?: boolean
+    includeTags?: boolean
+  }) {
+    return apiClient.post(API_ROUTES.metaExportChipRecipe, body).then((res) => ({
+      ...res,
+      data: validated(parseChipRecipe, res.data) as ChipRecipe,
+    }))
+  },
+
+  previewChipRecipe(recipe: ChipRecipe) {
+    return apiClient.post(API_ROUTES.metaPreviewChipRecipe, {recipe})
+  },
+
+  importChipRecipe(recipe: ChipRecipe) {
+    return apiClient.post(API_ROUTES.metaImportChipRecipe, {recipe})
+  },
+
+  getChipRecipeCatalog() {
+    return apiClient.get(API_ROUTES.metaChipRecipeCatalog).then((res) => {
+      const data = res.data as ChipRecipeCatalog & {
+        baseUrl?: string
+        catalogUrl?: string
+        discord?: {discordUrl?: string; filenameExample?: string; shareHint?: string}
+      }
+      const catalog = parseChipRecipeCatalog({
+        updatedAt: data.updatedAt,
+        recipes: data.recipes,
+      })
+      return {
+        ...res,
+        data: {
+          ...catalog,
+          baseUrl: data.baseUrl,
+          catalogUrl: data.catalogUrl,
+          discord: data.discord,
+        },
+      }
+    })
+  },
+
+  getChipRecipeCatalogFile(relativePath: string) {
+    return apiClient.get(apiChipRecipeCatalogFile(relativePath)).then((res) => ({
+      ...res,
+      data: validated(parseChipRecipe, res.data) as ChipRecipe,
+    }))
+  },
+
 
   updateMeta(id: number, data: MetaWritePayload) {
     return apiClient.put<Meta>(apiMeta(id), data)

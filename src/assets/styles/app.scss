@@ -494,7 +494,7 @@ header {
   }
 
   &--item-card {
-    width: 300px !important;
+    width: var(--hover-card-width, 300px) !important;
     max-height: inherit;
     overflow: hidden;
 

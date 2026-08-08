@@ -1,0 +1,65 @@
+{
+  "format": "mediachips.chip-recipe",
+  "version": 1,
+  "id": "movies-basic",
+  "name": "Movies basic",
+  "description": "Starter movie library fields: Tags, Studio, Genres, Release date.",
+  "author": "MediaChips",
+  "category": "movies",
+  "sfw": true,
+  "createdAt": "2026-08-08T00:00:00.000Z",
+  "fields": [
+    {
+      "key": "array-tags",
+      "type": "array",
+      "name": "Tags",
+      "icon": "tag-multiple-outline",
+      "hint": "General tags",
+      "parser": true,
+      "color": true,
+      "tags": [
+        { "name": "Action" },
+        { "name": "Drama" },
+        { "name": "Comedy" }
+      ]
+    },
+    {
+      "key": "array-studio",
+      "type": "array",
+      "name": "Studio",
+      "icon": "domain",
+      "hint": "Studio or production company",
+      "color": true
+    },
+    {
+      "key": "array-genres",
+      "type": "array",
+      "name": "Genres",
+      "icon": "tag-multiple-outline",
+      "hint": "Genres",
+      "color": true,
+      "tags": [
+        { "name": "Sci-Fi" },
+        { "name": "Thriller" }
+      ]
+    },
+    {
+      "key": "date-release-date",
+      "type": "date",
+      "name": "Release date",
+      "icon": "calendar-outline",
+      "hint": "Release or premiere date"
+    }
+  ],
+  "mediaTypePins": [
+    {
+      "mediaTypeName": "Videos",
+      "fieldKeys": [
+        "array-tags",
+        "array-studio",
+        "array-genres",
+        "date-release-date"
+      ]
+    }
+  ]
+}

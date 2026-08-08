@@ -94,4 +94,23 @@ describe('useVideoPreviewThumb', () => {
     expect(api.thumb.value).toBeNull()
     expect(api.thumbLoadStarted.value).toBe(false)
   })
+
+  it('pauseOffscreenThumb keeps the last thumb src mounted', () => {
+    const api = useVideoPreviewThumb({
+      media: () => ({id: 4, path: '/d.mp4'} as never),
+      previewActive: () => true,
+      isFileExists: () => true,
+      thumbUrl: () => undefined,
+      isViewCard: () => true,
+      isEmbeddedHost: () => false,
+      isMounted: () => true,
+      mediaPath: () => '/media',
+    })
+
+    api.thumb.value = '/thumbs/4.jpg'
+    api.thumbLoadStarted.value = true
+    api.pauseOffscreenThumb()
+    expect(api.thumb.value).toBe('/thumbs/4.jpg')
+    expect(api.thumbLoadStarted.value).toBe(false)
+  })
 })

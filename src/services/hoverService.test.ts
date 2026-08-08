@@ -1,9 +1,12 @@
 import {describe, expect, it} from 'vitest'
 import {
+  CARD_META_PLATE_GAP,
   HOVER_CARD_GAP,
   HOVER_CARD_MARGIN,
   HOVER_CARD_WIDTH,
+  clampCardAnchoredPosition,
   clampHoverPosition,
+  resolveCardMetaPlateWidth,
 } from '@/services/hoverService'
 
 describe('clampHoverPosition', () => {
@@ -80,5 +83,70 @@ describe('clampHoverPosition', () => {
     expect(result.maxHeight).toBe(500 - HOVER_CARD_MARGIN * 2)
     expect(result.height).toBe(result.maxHeight)
     expect(result.y).toBe(HOVER_CARD_MARGIN)
+  })
+})
+
+describe('clampCardAnchoredPosition', () => {
+  const cardRect = {
+    top: 120,
+    left: 200,
+    width: 256,
+    height: 220,
+    right: 456,
+    bottom: 340,
+  }
+
+  it('places the plate to the right of the card when space allows', () => {
+    const result = clampCardAnchoredPosition({
+      cardRect,
+      width: 360,
+      height: 200,
+      viewportWidth: 1400,
+      viewportHeight: 900,
+    })
+
+    expect(result.x).toBe(cardRect.right + CARD_META_PLATE_GAP)
+    expect(result.y).toBe(cardRect.top)
+  })
+
+  it('flips left when the right side is too tight', () => {
+    const nearRight = {
+      ...cardRect,
+      left: 1000,
+      right: 1256,
+    }
+    const result = clampCardAnchoredPosition({
+      cardRect: nearRight,
+      width: 360,
+      height: 200,
+      viewportWidth: 1300,
+      viewportHeight: 900,
+    })
+
+    expect(result.x + result.width).toBeLessThanOrEqual(nearRight.left)
+    expect(result.x).toBeGreaterThanOrEqual(HOVER_CARD_MARGIN)
+  })
+
+  it('keeps the plate inside the viewport', () => {
+    const result = clampCardAnchoredPosition({
+      cardRect: {top: 700, left: 50, width: 200, height: 180, right: 250, bottom: 880},
+      width: 360,
+      height: 400,
+      viewportWidth: 900,
+      viewportHeight: 800,
+    })
+
+    expect(result.x).toBeGreaterThanOrEqual(HOVER_CARD_MARGIN)
+    expect(result.y).toBeGreaterThanOrEqual(HOVER_CARD_MARGIN)
+    expect(result.x + result.width).toBeLessThanOrEqual(900 - HOVER_CARD_MARGIN)
+    expect(result.y + result.height).toBeLessThanOrEqual(800 - HOVER_CARD_MARGIN)
+  })
+})
+
+describe('resolveCardMetaPlateWidth', () => {
+  it('scales with card width within min/max bounds', () => {
+    expect(resolveCardMetaPlateWidth(200)).toBe(HOVER_CARD_WIDTH)
+    expect(resolveCardMetaPlateWidth(300)).toBe(Math.round(300 * 1.35))
+    expect(resolveCardMetaPlateWidth(500)).toBe(420)
   })
 })

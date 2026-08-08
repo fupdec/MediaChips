@@ -555,6 +555,29 @@ export const useItemsStore = defineStore('items', {
       return true
     },
 
+    /** Drop refresh keys for items that left the infinite-scroll data window. */
+    pruneThumbKeys(ids: Array<number | string>) {
+      if (!ids.length) return
+      let changed = false
+      const refresh = {...this.thumbRefreshKeys}
+      const regenerate = {...this.thumbRegenerateKeys}
+      for (const id of ids) {
+        const key = Number(id)
+        if (!Number.isFinite(key)) continue
+        if (refresh[key] != null) {
+          delete refresh[key]
+          changed = true
+        }
+        if (regenerate[key] != null) {
+          delete regenerate[key]
+          changed = true
+        }
+      }
+      if (!changed) return
+      this.thumbRefreshKeys = refresh
+      this.thumbRegenerateKeys = regenerate
+    },
+
     // Обновить элемент по ID.
     // Mutate in place so virtual/masonry layouts that keep item refs stay in sync.
     updateItem({id, item}: { id: number; item: Partial<MediaItem> }) {

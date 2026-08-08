@@ -75,6 +75,9 @@ export function warmDisplayImageUrl(
       signal?.removeEventListener('abort', onAbort)
       image.onload = null
       image.onerror = null
+      // Drop the element-held decode so scrolling thousands of thumbs does not
+      // pin bitmaps for every Image() warmer that ever ran.
+      image.src = ''
     }
 
     const finish = () => {

@@ -214,8 +214,11 @@ const mediaStyle = computed(() => ({
 function emitPreviewSize() {
   void nextTick(() => {
     const height = cardRef.value?.offsetHeight ?? imageDisplaySize.value.height
+    const width = appStore.hover.anchorMode === 'card'
+      ? (appStore.hover.previewWidth || HOVER_CARD_WIDTH)
+      : HOVER_CARD_WIDTH
     emit('previewSize', {
-      previewWidth: HOVER_CARD_WIDTH,
+      previewWidth: width,
       previewHeight: height,
     })
   })

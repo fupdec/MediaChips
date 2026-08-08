@@ -12,6 +12,7 @@ export function useLazyInView(
   const isInView = ref(false)
   const wasInView = ref(false)
   const rootMargin = options.rootMargin || DEFAULT_ROOT_MARGIN
+  let observedEl: Element | null = null
 
   const getElement = (): Element | null => {
     const value = elementRef.value
@@ -27,14 +28,17 @@ export function useLazyInView(
   }
 
   const unobserve = () => {
-    const el = getElement()
-    if (el) unobserveVisibility(el)
+    if (observedEl) {
+      unobserveVisibility(observedEl)
+      observedEl = null
+    }
   }
 
   const observe = () => {
     unobserve()
     const el = getElement()
     if (!el) return
+    observedEl = el
     observeVisibility(el, handleVisibility, rootMargin)
   }
 

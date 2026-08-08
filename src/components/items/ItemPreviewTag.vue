@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch, onBeforeUnmount, ref } from 'vue'
+import { reactive, computed, watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import path from 'path-browserify'
 import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
@@ -300,12 +300,8 @@ watch(() => props.previewActive, (active) => {
     void getImages()
     return
   }
-  clearLoadedImages()
+  // Keep last srcs mounted — nulling mid-load races Vuetify VImg pollForSize.
 }, { immediate: true })
-
-onBeforeUnmount(() => {
-  clearLoadedImages()
-})
 
 watch(
   () => props.upd,

@@ -53,15 +53,19 @@ const isMediaHover = computed(() =>
 
 const isItemCardHover = computed(() => isTagHover.value || isMediaHover.value)
 
-const style = computed(() => ({
-  top: `${hover.y}px`,
-  left: `${hover.x}px`,
-  width: isItemCardHover.value
-    ? `${HOVER_CARD_WIDTH}px`
-    : `${hover.previewWidth || 180}px`,
-  maxHeight: hover.maxHeight > 0 ? `${hover.maxHeight}px` : undefined,
-  '--hover-media-height': `${hover.previewHeight || 180}px`,
-}))
+const style = computed(() => {
+  const width = isItemCardHover.value
+    ? (hover.previewWidth || HOVER_CARD_WIDTH)
+    : (hover.previewWidth || 180)
+  return {
+    top: `${hover.y}px`,
+    left: `${hover.x}px`,
+    width: `${width}px`,
+    maxHeight: hover.maxHeight > 0 ? `${hover.maxHeight}px` : undefined,
+    '--hover-card-width': `${width}px`,
+    '--hover-media-height': `${hover.previewHeight || 180}px`,
+  }
+})
 
 function onCardPreviewSize(size: { previewWidth: number; previewHeight: number }) {
   updateHoverPosition(size.previewWidth, size.previewHeight)

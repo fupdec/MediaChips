@@ -104,6 +104,21 @@ export default function useVideoImageGenerator() {
     }
   }
 
+  const pruneProcessedToWindow = (videos: MediaItem[]): void => {
+    const keep = new Set(
+      videos.map((video) => Number(video?.id)).filter((id) => Number.isFinite(id)),
+    )
+    if (!keep.size) {
+      processedGridVideoIds.value = new Set()
+      return
+    }
+    const next = new Set<number>()
+    for (const id of processedGridVideoIds.value) {
+      if (keep.has(id)) next.add(id)
+    }
+    processedGridVideoIds.value = next
+  }
+
   const resetProcessedVideos = (): void => {
     processedGridVideoIds.value = new Set()
   }
@@ -139,6 +154,7 @@ export default function useVideoImageGenerator() {
       resetProcessedVideos()
     }
     lastItemsCount.value = videos.length
+    pruneProcessedToWindow(videos)
 
     if (timeout.value) {
       clearTimeout(timeout.value)

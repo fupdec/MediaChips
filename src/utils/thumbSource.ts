@@ -10,6 +10,9 @@ import {
 
 export type MediaThumbSubfolder = 'thumbs' | 'grids'
 
+/** Longest edge for library card thumbs — keeps decoded bitmaps ~0.2–0.5MB instead of multi‑MB. */
+export const CARD_THUMB_MAX_EDGE = 480
+
 export function isThumbUnavailable(src: string | null | undefined): boolean {
   return !src || src.includes('unavailable.png')
 }
@@ -90,22 +93,36 @@ export function resolveMediaThumbDisplayUrl(
   mediaTypeFolder: string,
   id: number | string,
   subfolder: MediaThumbSubfolder = 'thumbs',
+  options: {maxEdge?: number} = {},
 ): string | null {
   if (!mediaPath || id == null) return null
+
+  const maxEdge = Number(options.maxEdge)
+  const useMaxEdge = Number.isFinite(maxEdge) && maxEdge >= 64
 
   const cached = getCachedThumb(
     mediaTypeFolder === 'videos'
       ? mediaThumbKey(mediaTypeFolder, id, subfolder)
       : mediaThumbKey(mediaTypeFolder, id),
   )
-  if (isPersistentThumbUrl(cached)) return cached!
+  if (isPersistentThumbUrl(cached)) {
+    // Prefer downscaled card URLs; ignore a full-size cache entry when maxEdge is required.
+    if (!useMaxEdge || String(cached).includes('maxEdge=')) {
+      return cached!
+    }
+  }
 
-  return buildLocalFileUrl(path.join(
-    mediaPath,
-    mediaTypeFolder,
-    subfolder,
-    `${id}.jpg`,
-  ))
+  return buildLocalFileUrl(
+    path.join(
+      mediaPath,
+      mediaTypeFolder,
+      subfolder,
+      `${id}.jpg`,
+    ),
+    false,
+    false,
+    useMaxEdge ? {maxEdge} : undefined,
+  )
 }
 
 export function resolveGridSpriteDisplayUrl(
@@ -116,7 +133,14 @@ export function resolveGridSpriteDisplayUrl(
   if (!mediaPath || mediaId == null) return null
 
   const cached = getCachedThumb(mediaThumbKey('videos', mediaId, 'grids'))
-  if (!cacheBust && isPersistentThumbUrl(cached)) return cached!
+  // Downscaled maxEdge URLs break 3x3 sprite background-position framing.
+  if (
+    !cacheBust
+    && isPersistentThumbUrl(cached)
+    && !String(cached).includes('maxEdge=')
+  ) {
+    return cached!
+  }
 
   return buildLocalFileUrl(path.join(
     mediaPath,
