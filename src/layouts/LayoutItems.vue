@@ -245,8 +245,49 @@
       :list-grid="isListGrid"
       :chips-grid="isChipsGrid"
       :image-aspect-ratio="virtualCardAspectRatio"
+      :window-start="infiniteWindowStart"
+      :total-count="virtualTotalCount"
       class="items-page-grid"
-    />
+    >
+      <template #after-data>
+        <div
+          v-if="infiniteScrollHasMore"
+          class="infinite-loader-full-height"
+          :aria-busy="showInfiniteLoader"
+        >
+          <div
+            class="infinite-loader-slot"
+            :class="{ 'infinite-loader-slot--active': showInfiniteLoader }"
+          >
+            <v-progress-circular
+              indeterminate
+              size="28"
+              width="3"
+              color="primary"
+            />
+          </div>
+          <div
+            v-intersect="infiniteIntersectOptions"
+            class="infinite-scroll-sentinel"
+            aria-hidden="true"
+          />
+        </div>
+        <div
+          v-else-if="infiniteScrollReachedEnd"
+          class="scroll-top-after-items"
+        >
+          <v-btn
+            @click="scrollTop"
+            color="primary"
+            rounded
+            variant="outlined"
+          >
+            <v-icon left>mdi-format-vertical-align-top</v-icon>
+            {{ t('items.scroll_to_top') }}
+          </v-btn>
+        </div>
+      </template>
+    </ItemsVirtualGrid>
 
     <div
       v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length"
@@ -300,7 +341,7 @@
     </div>
 
     <div
-      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && mainScrollOverflowing"
+      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && !useVirtualGrid && mainScrollOverflowing"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -401,22 +442,22 @@
       </div>
     </div>
 
+    <!-- Plain grid only — virtual grid hosts the sentinel at the data-window end. -->
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore && !useVirtualGrid"
       class="infinite-loader-full-height"
-      :aria-busy="isLoadingMore"
+      :aria-busy="showInfiniteLoader"
     >
-      <!-- Fixed-height slot: the big logo Loading was the main CLS source on append. -->
+      <!-- Fixed-height slot: keep height stable; show spinner while loading or queued. -->
       <div
         class="infinite-loader-slot"
-        :class="{ 'infinite-loader-slot--active': isLoadingMore }"
+        :class="{ 'infinite-loader-slot--active': showInfiniteLoader }"
       >
         <v-progress-circular
           indeterminate
           size="28"
           width="3"
           color="primary"
-          :class="{ 'infinite-loader-spinner--hidden': !isLoadingMore }"
         />
       </div>
 
@@ -506,6 +547,7 @@ import {useMainScrollOverflow} from '@/composable/useMainScrollOverflow'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
+import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
 import {
@@ -599,6 +641,8 @@ const {
   pages,
   loader,
   isLoadingMore,
+  infiniteLoadPending,
+  infiniteWindowStart,
   infiniteScrollExhausted,
   is_infinite_scroll,
   showPagination,
@@ -624,6 +668,7 @@ const {
   updatePageSetting,
 })
 
+const showInfiniteLoader = computed(() => isLoadingMore.value || infiniteLoadPending.value)
 const infiniteScrollHasMore = computed(() => (
   is_infinite_scroll.value
   && itemsStore.totalFiltered > 0
@@ -719,13 +764,14 @@ const isChipsGrid = computed(() =>
   props.items_type === 'tag' && ITEMS.value.view == 2
 )
 const tagImageAspectRatio = computed(() => {
+  if (props.items_type !== 'tag') return undefined
   const ratio = Number(meta.value?.imageAspectRatio)
   return Number.isFinite(ratio) && ratio > 0 ? ratio : undefined
 })
-/** Stable card estimate for virtual image grids (16:9) when meta has no ratio. */
+/** Tag meta aspect only on tag pages; media cards always estimate as 16:9. */
 const virtualCardAspectRatio = computed(() => {
   if (tagImageAspectRatio.value) return tagImageAspectRatio.value
-  if (isImageGrid.value) return 16 / 9
+  if (props.items_type === 'media') return 16 / 9
   return undefined
 })
 const listItemType = computed((): ItemsPageType =>
@@ -913,9 +959,22 @@ const itemsGridLayoutOptions = computed(() => ({
   lineGrid: isLineGrid.value,
   listGrid: isListGrid.value,
   chipsGrid: isChipsGrid.value,
+  imageOnly: isImageOnlyItemsView(ITEMS.value.view),
   imageAspectRatio: virtualCardAspectRatio.value,
 }))
-const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(itemsGridRef, itemsGridLayoutOptions)
+const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(
+  itemsGridRef,
+  itemsGridLayoutOptions,
+)
+
+/** Full-list extent for virtual scrollbar (trim window + remaining filtered). */
+const virtualTotalCount = computed(() => {
+  const loaded = ITEMS.value.itemsOnPage.length
+  const start = Math.max(0, infiniteWindowStart.value)
+  const filtered = Math.max(0, Number(ITEMS.value.totalFiltered) || 0)
+  return Math.max(filtered, start + loaded, loaded)
+})
+
 const reg = computed(() => registrationStore.reg)
 const ENV = computed(() => ITEMS.value.environment)
 
@@ -1181,10 +1240,6 @@ defineEmits<{
 
 .infinite-loader-slot--active {
   opacity: 1;
-}
-
-.infinite-loader-spinner--hidden {
-  visibility: hidden;
 }
 
 .scroll-top-after-items {

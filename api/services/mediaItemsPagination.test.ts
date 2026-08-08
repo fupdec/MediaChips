@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   INFINITE_SCROLL_MAX_ITEMS,
   INFINITE_SCROLL_PAGE_SIZE,
+  getInfiniteJumpWindowStart,
   orderRowsByIds,
   resolvePageLimit,
   shouldPaginateMediaList,
@@ -16,14 +17,41 @@ describe('mediaItemsPagination', () => {
     expect(resolvePageLimit(-1)).toBeNull()
   })
 
-  it('maps limit 101 to infinite-scroll page size', () => {
+  it('maps only the 101 sentinel to infinite-scroll page size', () => {
     expect(resolvePageLimit(101)).toBe(INFINITE_SCROLL_PAGE_SIZE)
-    expect(resolvePageLimit(150)).toBe(INFINITE_SCROLL_PAGE_SIZE)
+    expect(resolvePageLimit(150)).toBe(150)
+    expect(resolvePageLimit(INFINITE_SCROLL_MAX_ITEMS)).toBe(INFINITE_SCROLL_MAX_ITEMS)
   })
 
   it('keeps regular page sizes unchanged', () => {
     expect(resolvePageLimit(25)).toBe(25)
     expect(resolvePageLimit(50)).toBe(50)
+  })
+
+  it('aligns single fat jump windows to 160 and keeps the seek inside', () => {
+    const upward = getInfiniteJumpWindowStart({
+      seekIndex: 500,
+      totalCount: 20_000,
+      currentWindowStart: 2_000,
+      windowSize: INFINITE_SCROLL_MAX_ITEMS,
+      pageSize: INFINITE_SCROLL_MAX_ITEMS,
+    })
+    expect(upward % INFINITE_SCROLL_MAX_ITEMS).toBe(0)
+    expect(upward).toBeLessThanOrEqual(500)
+    expect(upward + INFINITE_SCROLL_MAX_ITEMS).toBeGreaterThan(500)
+
+    const downward = getInfiniteJumpWindowStart({
+      seekIndex: 5_000,
+      totalCount: 20_000,
+      currentWindowStart: 0,
+      windowSize: INFINITE_SCROLL_MAX_ITEMS,
+      pageSize: INFINITE_SCROLL_MAX_ITEMS,
+    })
+    expect(downward % INFINITE_SCROLL_MAX_ITEMS).toBe(0)
+    expect(downward).toBeLessThanOrEqual(5_000)
+    expect(downward + INFINITE_SCROLL_MAX_ITEMS).toBeGreaterThan(5_000)
+    // Downward bias keeps the seek near the top of the 160 block.
+    expect(5_000 - downward).toBeLessThan(INFINITE_SCROLL_MAX_ITEMS * 0.5)
   })
 
   it('paginates only when ids are absent and limit is set', () => {
@@ -34,11 +62,12 @@ describe('mediaItemsPagination', () => {
   })
 
   it('slices pages using the resolved limit', () => {
-    const items = Array.from({ length: 30 }, (_, index) => index + 1)
+    const items = Array.from({ length: INFINITE_SCROLL_PAGE_SIZE + 5 }, (_, index) => index + 1)
 
-    expect(slicePage(items, 1, 25)).toHaveLength(25)
-    expect(slicePage(items, 2, 25)).toEqual([26, 27, 28, 29, 30])
-    expect(slicePage(items, 1, 101)).toHaveLength(INFINITE_SCROLL_PAGE_SIZE)
+    expect(slicePage(items, 1, 25)).toEqual(items.slice(0, 25))
+    expect(slicePage(items, 2, 25)).toEqual(items.slice(25, 50))
+    expect(slicePage(items, 1, 101)).toEqual(items.slice(0, INFINITE_SCROLL_PAGE_SIZE))
+    expect(slicePage(items, 2, 101)).toEqual(items.slice(INFINITE_SCROLL_PAGE_SIZE))
   })
 
   it('orders rows by id list and skips missing ids', () => {

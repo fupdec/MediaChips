@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  averageMeasuredRowStride,
   buildMasonryLayout,
   chunkIntoRows,
   estimateRowHeight,
   estimateMasonryItemHeight,
+  findVariableRowAtOffset,
   findVisibleMasonryItems,
   getColumnCount,
   getDistributedCardWidth,
@@ -11,6 +13,9 @@ import {
   getLayoutMetrics,
   getMediaAspectRatio,
   getTargetCardWidth,
+  getVariableGridHeight,
+  getVariableRowOffset,
+  getVariableRowStride,
   packMasonryColumns,
   shouldUseVirtualGrid,
   shouldUseVirtualMasonry,
@@ -18,12 +23,17 @@ import {
 } from '@/utils/gridLayout'
 
 describe('shouldUseVirtualGrid', () => {
-  it('stays off for empty/small lists and tags', () => {
+  it('stays off for empty lists, tags, and small paginated pages', () => {
     expect(shouldUseVirtualGrid(0, true, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(1, true, 'media')).toBe(false)
+    expect(shouldUseVirtualGrid(0, false, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'tag')).toBe(false)
     expect(shouldUseVirtualGrid(100, false, 'tag')).toBe(false)
+  })
+
+  it('turns on for infinite media from the first loaded item', () => {
+    expect(shouldUseVirtualGrid(1, true, 'media')).toBe(true)
+    expect(shouldUseVirtualGrid(100, true, 'media')).toBe(true)
   })
 
   it('turns on for paginated media lists at the threshold', () => {
@@ -31,12 +41,8 @@ describe('shouldUseVirtualGrid', () => {
     expect(shouldUseVirtualGrid(100, false, 'media')).toBe(true)
   })
 
-  it('keeps infinite-scroll media lists fully rendered', () => {
-    expect(shouldUseVirtualGrid(100, true, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(5_000, true, 'media')).toBe(false)
-  })
-
   it('respects the feature flag', () => {
+    expect(shouldUseVirtualGrid(100, true, 'media', {enabled: false})).toBe(false)
     expect(shouldUseVirtualGrid(100, false, 'media', {enabled: false})).toBe(false)
   })
 })
@@ -51,8 +57,9 @@ describe('shouldUseVirtualMasonry', () => {
     {id: 59},
   ]
 
-  it('requires media threshold and stable dimensions', () => {
+  it('requires media threshold and stable dimensions, including infinite scroll', () => {
     expect(shouldUseVirtualMasonry(60, true, 'media', {items: sized})).toBe(true)
+    expect(shouldUseVirtualMasonry(60, false, 'media', {items: sized})).toBe(true)
     expect(shouldUseVirtualMasonry(60, true, 'media', {items: mostlySized})).toBe(false)
     expect(shouldUseVirtualMasonry(20, true, 'media', {items: sized.slice(0, 20)})).toBe(false)
     expect(shouldUseVirtualMasonry(60, true, 'tag', {items: sized})).toBe(false)
@@ -146,8 +153,55 @@ describe('getGridLayoutStyle', () => {
     expect(getGridLayoutStyle({ chipsGrid: true })['--card-width']).toBeUndefined()
   })
 
-  it('exposes full width for line layout', () => {
-    expect(getGridLayoutStyle({ lineGrid: true, containerWidth: 1200 })['--card-width']).toBe('1200px')
+  it('exposes description height estimate for initial layout', () => {
+    expect(getGridLayoutStyle({ size: 3 })['--card-description-height']).toBe('140px')
+    expect(getGridLayoutStyle({ size: 1 })['--card-description-height']).toBe('118px')
+  })
+})
+
+describe('variable row height helpers', () => {
+  const measured = new Map<number, number>([
+    [0, 200],
+    [2, 400],
+  ])
+  const estimated = 300
+
+  it('uses measured strides when present', () => {
+    expect(getVariableRowStride(0, measured, estimated)).toBe(200)
+    expect(getVariableRowStride(1, measured, estimated)).toBe(300)
+    expect(getVariableRowStride(2, measured, estimated)).toBe(400)
+  })
+
+  it('builds offsets and total height from mixed strides', () => {
+    expect(getVariableRowOffset(0, measured, estimated)).toBe(0)
+    expect(getVariableRowOffset(1, measured, estimated)).toBe(200)
+    expect(getVariableRowOffset(2, measured, estimated)).toBe(500)
+    expect(getVariableRowOffset(3, measured, estimated)).toBe(900)
+    expect(getVariableGridHeight(3, measured, estimated)).toBe(900)
+  })
+
+  it('finds the row for a scroll offset', () => {
+    expect(findVariableRowAtOffset(0, 3, measured, estimated)).toBe(0)
+    expect(findVariableRowAtOffset(199, 3, measured, estimated)).toBe(0)
+    expect(findVariableRowAtOffset(200, 3, measured, estimated)).toBe(1)
+    expect(findVariableRowAtOffset(500, 3, measured, estimated)).toBe(2)
+    expect(findVariableRowAtOffset(10_000, 3, measured, estimated)).toBe(2)
+  })
+
+  it('averages measured strides for seekers', () => {
+    expect(averageMeasuredRowStride(new Map(), estimated)).toBe(estimated)
+    expect(averageMeasuredRowStride(measured, estimated)).toBe(Math.round((200 + 400) / 2))
+  })
+
+  it('matches linear geometry when only a few rows are measured', () => {
+    const sparse = new Map<number, number>([[10, 500], [50, 100]])
+    const est = 300
+    // Unmeasured prefix: 10 * 300; row 10 contributes 500 → offset(11) = 10*300 + 500
+    expect(getVariableRowOffset(11, sparse, est)).toBe(10 * est + 500)
+    expect(getVariableGridHeight(51, sparse, est)).toBe(
+      51 * est + (500 - est) + (100 - est),
+    )
+    expect(findVariableRowAtOffset(10 * est + 100, 60, sparse, est)).toBe(10)
   })
 })
 
@@ -178,6 +232,21 @@ describe('estimateRowHeight', () => {
     expect(videoHeight).toBeGreaterThan(imageHeight)
   })
 
+  it('uses compact height for minimalism (thumb + filename)', () => {
+    const card = estimateRowHeight({
+      size: 3,
+      containerWidth: 1200,
+    })
+    const minimal = estimateRowHeight({
+      size: 3,
+      containerWidth: 1200,
+      imageOnly: true,
+    })
+
+    expect(minimal).toBeLessThan(card)
+    expect(card - minimal).toBeGreaterThan(80)
+  })
+
   it('scales row height with card size', () => {
     const medium = estimateRowHeight({ size: 3, containerWidth: 1200 })
     const large = estimateRowHeight({ size: 5, containerWidth: 1200 })
@@ -192,6 +261,17 @@ describe('estimateRowHeight', () => {
     expect(small).toBe(42 + 15)
     expect(xlarge).toBe(80 + 15)
     expect(xlarge).toBeGreaterThan(small)
+  })
+
+  it('sizes timeline rows to fit the story strip height', () => {
+    const gapY = 20
+    const medium = estimateRowHeight({ size: 3, lineGrid: true, gapSize: 's' })
+    const large = estimateRowHeight({ size: 5, lineGrid: true, gapSize: 's' })
+
+    // story 180 + meta 44 + progress 4 + gap
+    expect(medium).toBe(180 + 44 + 4 + gapY)
+    expect(large).toBe(260 + 44 + 4 + gapY)
+    expect(large).toBeGreaterThan(medium)
   })
 })
 

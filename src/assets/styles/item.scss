@@ -206,6 +206,14 @@
         transform: scale(1.1);
       }
     }
+
+    &--placeholder {
+      width: 100%;
+      height: 100%;
+      min-height: 1px;
+      background-color: #7878782b;
+      cursor: default;
+    }
   }
   .video-preview-container.is-video-preview-enabled .thumb {
     .v-image__image,
@@ -308,7 +316,9 @@
   .item_preview {
     position: relative;
     overflow: hidden;
-    //border-radius: 4px 4px 0 0;
+    // Match .v-card top corners — needed when .item_wrapper is overflow:visible
+    // (virtual grid keeps shadows) so the thumb does not paint sharp square edges.
+    border-radius: 17px 17px 0 0;
     background-color: #7878782b;
     flex: 1 0 auto;
 
@@ -1852,7 +1862,10 @@ body > .video-preview-container.video-preview-container--expanded {
 
 .item-media.item-view-4,
 .item-tag.item-view-4 {
+  align-self: flex-start;
+
   .item_wrapper {
+    height: auto !important;
     overflow: hidden;
     background: transparent !important;
     background-color: transparent !important;
@@ -1868,8 +1881,17 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   .item_preview {
-    border-radius: inherit;
+    aspect-ratio: 16 / 9;
+    flex: 0 0 auto;
+    border-radius: 12px;
     background-color: transparent;
+    overflow: hidden;
+  }
+
+  .video-preview-host,
+  .video-preview-container:not(.video-preview-container--expanded) {
+    border-radius: inherit;
+    overflow: hidden;
   }
 
   .video-preview-container,
@@ -1879,8 +1901,10 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   .item-minimal-filename {
+    flex: 0 0 auto;
     margin-top: 6px;
     min-width: 0;
+    max-height: 22px;
     padding-left: 10px;
     padding-right: 10px;
     cursor: pointer;
@@ -2519,6 +2543,93 @@ body > .video-preview-container.video-preview-container--expanded {
 
 // END VIDEOS
 
+/* Standard cards: natural height so all tags stay visible. */
+.item-media.item-view-1 {
+  display: flex;
+  flex-direction: column;
+  /* height stays auto so row stretch can equalize cards in a natural row */
+  align-self: stretch;
+  min-height: 0;
+
+  .item_preview {
+    aspect-ratio: 16 / 9;
+    flex: 0 0 auto;
+    border-radius: 17px 17px 0 0;
+    overflow: hidden;
+  }
+
+  .video-preview-host,
+  .video-preview-container:not(.video-preview-container--expanded) {
+    border-radius: inherit;
+    overflow: hidden;
+  }
+
+  .video-preview-container:not(.video-preview-container--expanded) .thumb {
+    border-radius: inherit;
+    overflow: hidden;
+  }
+
+  .item_wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .description {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  .rating-favorite-in-description,
+  .item-title,
+  .synonyms {
+    flex: 0 0 auto;
+  }
+
+  .rating-favorite-in-description {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .item-title {
+    margin: 0 0 0.25em;
+    line-height: 1.15;
+  }
+
+  .nested-tags {
+    flex: 0 0 auto;
+
+    .category {
+      margin-top: 0.15em;
+    }
+
+    .category:first-child {
+      margin-top: 0;
+    }
+  }
+}
+
+/* Equal-height cards inside a measured natural virtual row. */
+.virtual-grid-row--natural.card-grid {
+  align-items: stretch;
+
+  > .item.item-media.item-view-1 {
+    align-self: stretch;
+    height: auto;
+  }
+
+  > .item.item-media.item-view-1 .item_wrapper {
+    height: 100%;
+    flex: 1 1 auto;
+  }
+}
+
 .item__size {
   &-1 {
     &.item {
@@ -2570,6 +2681,29 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
+/* Media titles: one line + ellipsis; scales with s…xxl. */
+.item-media {
+  .item-title {
+    line-height: 1.15;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .item-title > span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &.item__size-1 .item-title { font-size: 0.9em; }
+  &.item__size-2 .item-title { font-size: 0.92em; }
+  &.item__size-3 .item-title { font-size: 0.94em; }
+  &.item__size-4 .item-title { font-size: 0.95em; }
+  &.item__size-5 .item-title { font-size: 0.96em; }
+  &.item__size-6 .item-title { font-size: 0.97em; }
+}
+
 // layouts
 .card-grid {
   display: flex;
@@ -2593,6 +2727,14 @@ body > .video-preview-container.video-preview-container--expanded {
   gap: 0 var(--grid-gap-x, 10px);
   margin-bottom: var(--grid-gap-y, 15px);
   overflow: visible;
+
+  > .item {
+    overflow: visible;
+  }
+
+  .item_wrapper {
+    overflow: visible;
+  }
 }
 
 .virtual-grid-row.chips-grid {
@@ -2612,12 +2754,14 @@ body > .video-preview-container.video-preview-container--expanded {
 .line-grid {
   .item-media {
     margin-bottom: 15px;
+
     .content {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
     }
   }
+
   .item__size {
     &-1 {
       .item-media {
@@ -2659,6 +2803,51 @@ body > .video-preview-container.video-preview-container--expanded {
         font-size: 2.6rem !important;
       }
     }
+  }
+}
+
+.virtual-grid-row.line-grid {
+  flex-wrap: nowrap;
+  margin-bottom: var(--grid-gap-y, 15px);
+  overflow: visible;
+
+  > .item.item-media {
+    margin-bottom: 0;
+    width: 100%;
+    min-height: 0;
+  }
+
+  > .item.item-media .item_wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  > .item.item-media .item_preview {
+    flex: 0 0 auto;
+  }
+
+  > .item.item-media .description {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+}
+
+/* Natural timeline rows: content defines height (story CSS size + meta). */
+.virtual-grid-row--natural.line-grid {
+  align-items: stretch;
+
+  > .item.item-media {
+    height: auto;
+    align-self: stretch;
+  }
+
+  > .item.item-media .item_wrapper {
+    height: auto;
+  }
+
+  > .item.item-media .description {
+    overflow: visible;
   }
 }
 
@@ -3698,6 +3887,8 @@ body > .video-preview-container.video-preview-container--expanded {
   // Contain nested thumb z-index so card rating/favorite overlays can sit above.
   z-index: 0;
   width: 100%;
+  border-radius: inherit;
+  overflow: hidden;
 
   .video-preview-host__anchor {
     position: absolute;

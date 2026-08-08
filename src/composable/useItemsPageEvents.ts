@@ -472,6 +472,8 @@ export function useItemsPageEvents({
     if (val === old) return
     if (val == null) return
     if (!pageInitialized.value) return
+    // Remount grid so card ↔ minimalism row-height estimates cannot stick.
+    itemsRenderKey.value += 1
     void updatePageSetting({view: val})
   })
 
@@ -492,6 +494,9 @@ export function useItemsPageEvents({
         groupByMetaId: null,
         groups: [],
       })
+      // Remount virtual/plain grids so row-height estimates from the previous
+      // page type (e.g. tag aspect ratio) cannot stick on videos.
+      itemsRenderKey.value += 1
       itemsStore.clearSelection()
       itemsStore.listScopeIds = null
       itemsStore.listScope = null

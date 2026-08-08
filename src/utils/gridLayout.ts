@@ -27,23 +27,143 @@ const GAP_SIZE: Record<string, { x: number; y: number }> = {
   xl: { x: 30, y: 35 },
 }
 
-const DESCRIPTION_HEIGHT: Record<number, number> = { 1: 72, 2: 78, 3: 82, 4: 88, 5: 96, 6: 108 }
+/**
+ * Initial estimate for the meta block under the 16:9 preview.
+ * Standard card rows measure natural height after paint; far scrollbar seeks
+ * may use this average and stay approximate.
+ */
+const DESCRIPTION_HEIGHT: Record<number, number> = {
+  1: 118,
+  2: 128,
+  3: 140,
+  4: 152,
+  5: 164,
+  6: 178,
+}
 
 export function getCardDescriptionHeight(size = 3): number {
   const key = Number(size)
   return DESCRIPTION_HEIGHT[key] || DESCRIPTION_HEIGHT[3]
 }
 
-const LINE_ROW_HEIGHT: Record<number, number> = { 1: 100, 2: 120, 3: 130, 4: 140, 5: 160, 6: 180 }
+/** Legacy timeline row table (kept for parity with skeleton estimates). */
+export const LINE_ROW_HEIGHT: Record<number, number> = {
+  1: 100, 2: 120, 3: 130, 4: 140, 5: 160, 6: 180,
+}
+
+/** Filename line under the thumb in minimalism (view 4). */
+const MINIMAL_FILENAME_HEIGHT = 28
+
+/** v-progress-linear under the preview on video/audio cards (outside .description). */
+const CARD_PROGRESS_HEIGHT = 4
+
+/** Story strip heights by card size (matches item.scss `.story` / `.item__size-*`). */
+const TIMELINE_STORY_HEIGHT: Record<number, number> = {
+  1: 100,
+  2: 140,
+  3: 180,
+  4: 220,
+  5: 260,
+  6: 300,
+}
+
+/** Rating / favorite row under the timeline storyboard. */
+const TIMELINE_META_HEIGHT = 44
 
 /** Compact single-row list view: tight row height for filesystem browser. */
 export const LIST_ROW_HEIGHT: Record<number, number> = { 1: 36, 2: 40, 3: 44, 4: 48, 5: 52, 6: 56 }
 
 export const VIRTUAL_GRID_THRESHOLD = 48
 
-export const VIRTUAL_ROW_BUFFER = 2
+/** Extra mounted rows above/below the viewport (smoother fling scroll). */
+export const VIRTUAL_ROW_BUFFER = 4
 
 export const VIRTUAL_MASONRY_BUFFER = 600
+
+/** Estimated description block height before natural rows are measured. */
+export function getDescriptionHeight(size = 3): number {
+  return DESCRIPTION_HEIGHT[Number(size)] || DESCRIPTION_HEIGHT[3]
+}
+
+/** Stride for one virtual row: measured value or estimate. */
+export function getVariableRowStride(
+  rowIndex: number,
+  measured: ReadonlyMap<number, number>,
+  estimatedStride: number,
+): number {
+  const known = measured.get(rowIndex)
+  if (known != null && known > 0) return known
+  return Math.max(1, estimatedStride)
+}
+
+/**
+ * Pixel offset of the top of `rowIndex` in a variable-height grid.
+ * O(measured) — most rows share `estimatedStride`, so we only apply deltas.
+ */
+export function getVariableRowOffset(
+  rowIndex: number,
+  measured: ReadonlyMap<number, number>,
+  estimatedStride: number,
+): number {
+  const end = Math.max(0, rowIndex)
+  const estimated = Math.max(1, estimatedStride)
+  if (!measured.size) return end * estimated
+
+  let offset = end * estimated
+  for (const [index, stride] of measured) {
+    if (index >= 0 && index < end && stride > 0) {
+      offset += stride - estimated
+    }
+  }
+  return offset
+}
+
+/** Total scroll height for `totalRows` with mixed measured/estimated strides. */
+export function getVariableGridHeight(
+  totalRows: number,
+  measured: ReadonlyMap<number, number>,
+  estimatedStride: number,
+): number {
+  return getVariableRowOffset(Math.max(0, totalRows), measured, estimatedStride)
+}
+
+/** Row index that contains `offsetY` (clamped to last row). */
+export function findVariableRowAtOffset(
+  offsetY: number,
+  totalRows: number,
+  measured: ReadonlyMap<number, number>,
+  estimatedStride: number,
+): number {
+  if (totalRows <= 0) return 0
+  const target = Math.max(0, offsetY)
+  const estimated = Math.max(1, estimatedStride)
+
+  if (!measured.size) {
+    return Math.min(totalRows - 1, Math.floor(target / estimated))
+  }
+
+  let lo = 0
+  let hi = totalRows - 1
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    const midBottom = getVariableRowOffset(mid, measured, estimated)
+      + getVariableRowStride(mid, measured, estimated)
+    if (midBottom <= target) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
+
+/** Average measured stride for jump/seek; falls back to estimate. */
+export function averageMeasuredRowStride(
+  measured: ReadonlyMap<number, number>,
+  estimatedStride: number,
+): number {
+  if (!measured.size) return Math.max(1, estimatedStride)
+  let sum = 0
+  for (const stride of measured.values()) sum += stride
+  return Math.max(1, Math.round(sum / measured.size))
+}
 
 export function getGridGap(gapSize = 'xs'): { x: number; y: number } {
   return GAP_SIZE[gapSize] || GAP_SIZE.xs
@@ -56,6 +176,8 @@ export interface GridLayoutOptions {
   chipsGrid?: boolean
   imageGrid?: boolean
   wideImage?: boolean
+  /** Minimalism: thumb + filename only (no description / progress). */
+  imageOnly?: boolean
   containerWidth?: number
   gapSize?: string
   columnCount?: number
@@ -164,9 +286,14 @@ export function getDistributedCardWidth(
 
 export function getGridLayoutStyle(options: GridLayoutOptions = {}): Record<string, string> {
   const gap = getGridGap(options.gapSize)
+  const size = Number(options.size) || 3
+  const descriptionHeight = options.imageOnly
+    ? MINIMAL_FILENAME_HEIGHT
+    : getDescriptionHeight(size)
   const style: Record<string, string> = {
     '--grid-gap-x': `${gap.x}px`,
     '--grid-gap-y': `${gap.y}px`,
+    '--card-description-height': `${descriptionHeight}px`,
   }
 
   if (!options.chipsGrid) {
@@ -353,7 +480,10 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
   const gap = getGridGap(options.gapSize)
 
   if (options.lineGrid) {
-    return (LINE_ROW_HEIGHT[size] || LINE_ROW_HEIGHT[3]) + gap.y
+    const story = TIMELINE_STORY_HEIGHT[size] || TIMELINE_STORY_HEIGHT[3]
+    // Initial/phantom estimate; visible timeline rows measure natural height.
+    // Keep story tall enough so first paint does not squash 3×3 sprites.
+    return story + TIMELINE_META_HEIGHT + CARD_PROGRESS_HEIGHT + gap.y
   }
 
   if (options.listGrid) {
@@ -373,9 +503,14 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
   const aspect = options.imageAspectRatio && options.imageAspectRatio > 0
     ? options.imageAspectRatio
     : 16 / 9
+  if (options.imageOnly) {
+    return cardWidth / aspect + MINIMAL_FILENAME_HEIGHT + gap.y
+  }
   const description = DESCRIPTION_HEIGHT[size] || DESCRIPTION_HEIGHT[3]
+  // Progress sits outside the clamped description; omit for image media grids.
+  const progress = options.imageGrid ? 0 : CARD_PROGRESS_HEIGHT
 
-  return cardWidth / aspect + description + gap.y
+  return cardWidth / aspect + description + progress + gap.y
 }
 
 export function shouldUseVirtualGrid(
@@ -387,9 +522,8 @@ export function shouldUseVirtualGrid(
   if (!enabled) return false
   // Tags/chips and small pages stay fully rendered (content-visibility is enough).
   if (itemsType !== 'media') return false
-  // Infinite scroll stays fully rendered — virtual infinite lives on
-  // `wip/infinite-virtual-scroll` until that experiment is reapplied.
-  if (isInfiniteScroll) return false
+  // Infinite scroll: virtualize from the first page (no plain→virtual remount mid-scroll).
+  if (isInfiniteScroll) return itemCount > 0
   return itemCount >= VIRTUAL_GRID_THRESHOLD
 }
 
@@ -409,7 +543,8 @@ export function shouldUseVirtualMasonry(
 ): boolean {
   if (!enabled) return false
   if (itemsType !== 'media') return false
-  // Masonry may virtualize on infinite scroll; card grids do not.
+  // Masonry keeps its own gate so huge image infinite galleries can virtualize
+  // without inheriting the card-grid infinite-scroll disable above.
   if (itemCount < VIRTUAL_GRID_THRESHOLD) return false
   if (!items.length) return false
 
