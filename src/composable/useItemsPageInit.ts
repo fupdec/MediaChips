@@ -17,6 +17,7 @@ import {
   getGroupByRequiredSort,
 } from '@/utils/itemsGroupBy'
 import {normalizePageSettingCriteria} from '@/utils/pageSettingCriteria'
+import {clearHoverPreviewUnavailableCache} from '@/utils/hoverPreviewUnavailableCache'
 import type { FilterObject } from '@/types/common'
 import type { MediaType } from '@/types/media'
 import type { AssignedMeta, Meta, SavedFilter } from '@/types/stores'
@@ -263,6 +264,7 @@ export function useItemsPageInit({
     }
 
     if (props.items_type === 'media' || props.items_type === 'tag') {
+      clearHoverPreviewUnavailableCache()
       Object.assign(storeUpdates, {
         itemsOnPage: [],
         entities: [],

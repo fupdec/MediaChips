@@ -16,6 +16,7 @@ import {
   canMarkHoverPreviewReady,
   createHoverSeekCoalescer,
   isIgnorablePreviewError,
+  playHoverPreviewVideo,
   pointerRatioToPreviewTime,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
@@ -43,7 +44,10 @@ import {
 import {positionHoverPreviewVideo} from '@/utils/hoverPreviewVideoPositioning'
 import {LIVE_STREAM_CHUNK_SECONDS} from '@/utils/liveStreamChunk'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
-import {isAppWindowFocused} from '@/utils/windowFocus'
+import {
+  isHoverPreviewUnavailableCached,
+  markHoverPreviewUnavailableCached,
+} from '@/utils/hoverPreviewUnavailableCache'
 
 export type HoverPreviewPlaybackOptions = {
   mediaId: MaybeRefOrGetter<number>
@@ -139,11 +143,13 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         hoverLiveMaxHeight(),
       ))
     }
-    // Hot path: never block hover on /playable (ffprobe on NAS).
+    // Hot path: source=direct skips per-request ffprobe on the server.
+    // source=auto re-ran analyzePlayability on every Chromium Range GET and
+    // stacked NAS probes after a few cards (next hover felt multi-second).
     return Promise.resolve(buildVideoStreamUrl(
       buildApiUrl,
       toValue(options.mediaId),
-      'auto',
+      'direct',
       {bustCache: false},
     ))
   }
@@ -321,6 +327,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const changePreviewTime = (e: MouseEvent) => {
     // Progress UI updates immediately; actual seeks are coalesced below.
     applyPreviewTimeFromPointer(e, {seek: false})
+    // Scrubbing before the first frame only multiplies Range GETs while the
+    // initial load is still opening — wait until playback is ready.
+    if (!hoverPreviewReady.value) return
     hoverSeekCoalescer.schedule(e.clientX)
   }
 
@@ -346,8 +355,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     if (plan.clearPlaybackError) playbackError.value = false
     if (plan.zeroPlaybackTime) playbackTime.value = 0
     if (plan.resetReady) resetHoverPreviewReady()
-    // Capture before unmount — aborting src while <video> is still painted under a
-    // fading thumb flashes the gray card background (reads as white).
+    // Capture before unmount — aborting src while <video> is mid fade-out can
+    // flash a blank frame; keep the last frame until the element is gone.
     const videoToAbort = plan.abortVideo ? videoRef.value : null
     if (plan.clearAllowHoverVideo) allowHoverVideoElement.value = false
     if (plan.clearSeekCoalescer) hoverSeekCoalescer.clear()
@@ -371,6 +380,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const markPreviewUnavailable = () => {
+    markHoverPreviewUnavailableCached(toValue(options.mediaId))
     applyHoverTeardown('unavailable')
   }
 
@@ -414,7 +424,6 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     const startGate = resolveHoverPreviewStartGate({
       hasVideo: Boolean(video),
       isPreviewVisible: toValue(options.isPreviewVisible),
-      isFocused: isAppWindowFocused(),
       tokenMatches: token === previewPlaybackToken,
       isHovered: toValue(options.isHovered),
       playerBlocksLive: Boolean(
@@ -453,7 +462,6 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
         positioned,
         tokenMatches: token === previewPlaybackToken,
         isPreviewVisible: toValue(options.isPreviewVisible),
-        isFocused: isAppWindowFocused(),
       })
       if (afterPosition === 'unavailable') {
         if (token === previewPlaybackToken) recoverHoverPlaybackFailure(token)
@@ -465,7 +473,8 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       }
       if (afterPosition !== 'play') return
 
-      await video.play()
+      video.muted = true
+      await playHoverPreviewVideo(video)
       if (token !== previewPlaybackToken) {
         releaseHoverVideoPreview(mediaId)
         return
@@ -508,19 +517,26 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
   const schedulePreviewPlayback = () => {
     clearPreviewDelayTimer()
-    if (!isAppWindowFocused()) return
     if (settingsStore.videoPreviewHover !== 'video' || !toValue(options.isFileExists)) return
 
-    const startHoverVideo = async () => {
-      if (!toValue(options.isHovered) || !isAppWindowFocused()) return
+    const mediaId = toValue(options.mediaId)
+    if (isHoverPreviewUnavailableCached(mediaId)) {
+      playbackError.value = true
+      return
+    }
 
-      const mediaId = toValue(options.mediaId)
+    const startHoverVideo = async () => {
+      if (!toValue(options.isHovered)) return
+      if (isHoverPreviewUnavailableCached(mediaId)) {
+        playbackError.value = true
+        return
+      }
+
       resetPreviewLiveFallbackState()
 
       const previewUrl = await buildPreviewVideoUrl(progress.value || 0)
       const urlGate = resolveHoverPreviewUrlReadyGate({
         isHovered: toValue(options.isHovered),
-        isFocused: isAppWindowFocused(),
         hasPreviewUrl: Boolean(previewUrl),
       })
       if (urlGate === 'abort') return
@@ -535,7 +551,6 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
       const afterMount = resolveHoverPreviewAfterMountGate({
         isHovered: toValue(options.isHovered),
-        isFocused: isAppWindowFocused(),
         allowHoverVideo: allowHoverVideoElement.value,
         hasVideoEl: Boolean(videoRef.value),
       })
@@ -566,7 +581,6 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const scheduleHoverPreviewUi = () => {
     if (!shouldScheduleHoverPreviewVideo({
       isHovered: toValue(options.isHovered),
-      isFocused: isAppWindowFocused(),
       videoPreviewHover: settingsStore.videoPreviewHover,
     })) return
 

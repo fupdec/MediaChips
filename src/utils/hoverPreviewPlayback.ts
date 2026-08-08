@@ -1,9 +1,9 @@
 import {LIVE_STREAM_CHUNK_SECONDS} from './liveStreamChunk'
 
 export const HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS = 500
-/** Must match `.thumb { transition: opacity … }` in item.scss for reverse crossfade. */
+/** Must match `.preview video { transition: opacity … }` leave/enter fade. */
 export const HOVER_PREVIEW_THUMB_CROSSFADE_MS = 520
-/** Extra settle so the thumb is fully opaque before <video> unmounts. */
+/** Extra settle so the video fade-out finishes before <video> unmounts. */
 export const HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS = 80
 
 let hoverPreviewReadyAt = 0
@@ -16,6 +16,11 @@ export function getHoverPreviewCooldownRemaining() {
   return Math.max(0, hoverPreviewReadyAt - Date.now())
 }
 
+/** Drop post–big-preview cooldown (e.g. scroll-idle re-arm under the cursor). */
+export function clearHoverPreviewCooldown() {
+  hoverPreviewReadyAt = 0
+}
+
 /** Reset for tests only. */
 export function resetHoverPreviewCooldownForTests() {
   hoverPreviewReadyAt = 0
@@ -23,7 +28,27 @@ export function resetHoverPreviewCooldownForTests() {
 
 export function isIgnorablePreviewError(error: unknown): boolean {
   const name = (error as {name?: string})?.name || ''
-  return name === 'AbortError' || name === 'NotAllowedError'
+  // NotAllowedError: handled by mute-retry — do not silently drop the session.
+  return name === 'AbortError'
+}
+
+export function isNotAllowedPreviewError(error: unknown): boolean {
+  return ((error as {name?: string})?.name || '') === 'NotAllowedError'
+}
+
+/** Play hover video; mute once and retry if Chromium blocks unmuted autoplay. */
+export async function playHoverPreviewVideo(
+  video: HTMLVideoElement,
+): Promise<'played' | 'played-muted'> {
+  try {
+    await video.play()
+    return 'played'
+  } catch (error) {
+    if (!isNotAllowedPreviewError(error) || video.muted) throw error
+    video.muted = true
+    await video.play()
+    return 'played-muted'
+  }
 }
 
 export const PREVIEW_SEEK_EPSILON = 0.12
@@ -310,17 +335,15 @@ export type HoverPreviewStartGate = 'proceed' | 'unavailable' | 'abort'
 /** Whether scheduleHoverPreviewUi should arm delayed video playback. */
 export function shouldScheduleHoverPreviewVideo(input: {
   isHovered: boolean
-  isFocused: boolean
   videoPreviewHover: string
 }): boolean {
-  return input.isHovered
-    && input.isFocused
-    && input.videoPreviewHover === 'video'
+  return input.isHovered && input.videoPreviewHover === 'video'
 }
 
-/** Clamp settings delay for schedulePreviewPlayback. */
+/** Clamp settings delay for schedulePreviewPlayback (cap so hover never feels dead). */
 export function resolveHoverPreviewScheduleDelay(delaySetting: unknown): number {
-  return Math.max(0, Number(delaySetting) || 0)
+  const configured = Math.max(0, Number(delaySetting) || 0)
+  return Math.min(configured, 2000)
 }
 
 /** Fixed-clip progress/playbackTime values, or null when no start is set. */
@@ -334,12 +357,11 @@ export function resolveFixedPreviewClipState(
 export function resolveHoverPreviewStartGate(input: {
   hasVideo: boolean
   isPreviewVisible: boolean
-  isFocused: boolean
   tokenMatches: boolean
   isHovered: boolean
   playerBlocksLive: boolean
 }): HoverPreviewStartGate {
-  if (!input.hasVideo || !input.isPreviewVisible || !input.isFocused) {
+  if (!input.hasVideo || !input.isPreviewVisible) {
     return input.tokenMatches && input.isHovered ? 'unavailable' : 'abort'
   }
   if (input.playerBlocksLive) return 'abort'
@@ -350,10 +372,9 @@ export type HoverPreviewUrlReadyGate = 'continue' | 'abort' | 'unavailable'
 
 export function resolveHoverPreviewUrlReadyGate(input: {
   isHovered: boolean
-  isFocused: boolean
   hasPreviewUrl: boolean
 }): HoverPreviewUrlReadyGate {
-  if (!input.isHovered || !input.isFocused) return 'abort'
+  if (!input.isHovered) return 'abort'
   if (!input.hasPreviewUrl) return 'unavailable'
   return 'continue'
 }
@@ -362,11 +383,10 @@ export type HoverPreviewAfterMountGate = 'start' | 'teardown-stale' | 'unavailab
 
 export function resolveHoverPreviewAfterMountGate(input: {
   isHovered: boolean
-  isFocused: boolean
   allowHoverVideo: boolean
   hasVideoEl: boolean
 }): HoverPreviewAfterMountGate {
-  if (!input.isHovered || !input.isFocused || !input.allowHoverVideo) return 'teardown-stale'
+  if (!input.isHovered || !input.allowHoverVideo) return 'teardown-stale'
   if (!input.hasVideoEl) return 'unavailable'
   return 'start'
 }
@@ -377,12 +397,11 @@ export function resolveHoverPreviewAfterPositionGate(input: {
   positioned: boolean
   tokenMatches: boolean
   isPreviewVisible: boolean
-  isFocused: boolean
 }): HoverPreviewAfterPositionGate {
   if (!input.positioned) {
     return input.tokenMatches ? 'unavailable' : 'abort'
   }
-  if (!input.tokenMatches || !input.isPreviewVisible || !input.isFocused) {
+  if (!input.tokenMatches || !input.isPreviewVisible) {
     return input.tokenMatches ? 'release' : 'abort'
   }
   return 'play'
@@ -399,7 +418,7 @@ export function resolveHoverPreviewPlaybackErrorGate(input: {
 }
 
 export type HoverPreviewSourcePlan =
-  | {kind: 'direct'; streamMode: 'auto' | 'direct'}
+  | {kind: 'direct'; streamMode: 'direct'}
   | {kind: 'live'}
   | {kind: 'unavailable'}
 
@@ -423,9 +442,10 @@ export function resolveHoverPreviewSourcePlan(input: {
   const codecsBrowserSafe = input.playability?.playable === true || isLayout
 
   if (input.mode === 'direct' || codecsBrowserSafe) {
+    // Always direct for hover: auto re-probes on every byte-range request.
     return {
       kind: 'direct',
-      streamMode: input.mode === 'direct' ? 'auto' : 'direct',
+      streamMode: 'direct',
     }
   }
 

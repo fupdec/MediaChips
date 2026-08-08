@@ -1,12 +1,19 @@
-import {nextTick, toValue, type MaybeRefOrGetter, type Ref} from 'vue'
+import {nextTick, getCurrentScope, onScopeDispose, toValue, type MaybeRefOrGetter, type Ref} from 'vue'
 import type {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {
   armHoverPreviewCooldown,
+  clearHoverPreviewCooldown,
   getHoverPreviewCooldownRemaining,
   HOVER_PREVIEW_THUMB_CROSSFADE_MS,
   HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS,
 } from '@/utils/hoverPreviewPlayback'
-import {isAppWindowFocused} from '@/utils/windowFocus'
+import {
+  installHoverPreviewScrollGuard,
+  isHoverPreviewBlockedByScroll,
+  onHoverPreviewScrollIdle,
+  type HoverPreviewPointer,
+} from '@/utils/hoverPreviewScrollGuard'
+import {isHoverPreviewUnavailableCached} from '@/utils/hoverPreviewUnavailableCache'
 
 export type HoverSessionTimeoutMap = {
   shrink?: ReturnType<typeof setTimeout>
@@ -48,17 +55,23 @@ export type HoverMouseEnterAction = 'cancel-pending-leave' | 'start-hover' | 'ig
 /** Decide mouseenter during leave-grace vs a fresh hover start. */
 export function resolveHoverMouseEnterAction(input: {
   isFileExists: boolean
-  isFocused: boolean
   isHovered: boolean
   leaveTimerPending: boolean
+  /** True while the grid/page is scrolling (or shortly after). */
+  isScrolling?: boolean
 }): HoverMouseEnterAction {
-  if (!input.isFileExists || !input.isFocused) return 'ignore'
+  // Mouseenter itself is the signal — do not require window.focused (occlusion /
+  // DevTools / IPC false-negatives previously returned 'ignore' with zero UI).
+  if (!input.isFileExists) return 'ignore'
   if (input.leaveTimerPending && input.isHovered) return 'cancel-pending-leave'
   if (input.isHovered) return 'ignore'
+  // Cursor often lands on a thumb while content moves under it during scroll.
+  if (input.isScrolling) return 'ignore'
   return 'start-hover'
 }
 
 export type ItemPreviewHoverSessionOptions = {
+  mediaId?: MaybeRefOrGetter<number>
   isFileExists: MaybeRefOrGetter<boolean>
   isHovered: Ref<boolean>
   isShrinking: Ref<boolean>
@@ -93,7 +106,37 @@ export type ItemPreviewHoverSessionOptions = {
   clearContextMenu?: () => void
 }
 
+/** True when the pointer is still over the preview after big-preview teardown. */
+export function isPreviewPointerStillOver(
+  preview: HTMLElement | null | undefined,
+  pointer?: HoverPreviewPointer | null,
+): boolean {
+  if (!preview) return false
+  try {
+    if (preview.matches(':hover')) return true
+  } catch {
+    // matches() can throw on detached nodes
+  }
+
+  // After wheel/scroll, :hover is often stale until the next mousemove.
+  if (
+    pointer
+    && Number.isFinite(pointer.clientX)
+    && Number.isFinite(pointer.clientY)
+    && typeof document !== 'undefined'
+  ) {
+    try {
+      const top = document.elementFromPoint(pointer.clientX, pointer.clientY)
+      return Boolean(top && (top === preview || preview.contains(top)))
+    } catch {
+      return false
+    }
+  }
+  return false
+}
+
 export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptions) {
+  installHoverPreviewScrollGuard()
   let lastHoverClientX: number | null = null
 
   const clearHoverTimeouts = () => {
@@ -102,27 +145,14 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
     }
   }
 
-  const removeClasses = () => {
-    options.isShrinking.value = false
-    options.isHovered.value = false
-    options.bigPreviewAnimation.value = false
-    options.holdPreviewVideoDuringCollapse.value = false
-    options.collapsePreviewFading.value = false
-    options.gridBigPreview.forceClose(options.getPreviewEl())
-    options.onBigPreviewChange(false)
-    options.stopPreviewLiveTranscode()
-
-    options.clearCinemaTimeout()
-    clearHoverTimeouts()
-    options.clearPreviewDelayTimer()
-
-    armHoverPreviewCooldown()
-
-    void nextTick(() => {
-      options.resetPreviewContainer()
-      options.finalizePreviewStop()
-    })
-  }
+  const canRearmHoverFromPointer = () => (
+    Boolean(toValue(options.isFileExists))
+    && !options.isHovered.value
+    && !options.isShrinking.value
+    && !options.bigPreviewAnimation.value
+    && !options.gridBigPreview.isActive.value
+    && !isHoverPreviewBlockedByScroll()
+  )
 
   const handleMouseEnter = (e?: MouseEvent) => {
     if (e) {
@@ -131,9 +161,9 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
 
     const action = resolveHoverMouseEnterAction({
       isFileExists: Boolean(toValue(options.isFileExists)),
-      isFocused: isAppWindowFocused(),
       isHovered: options.isHovered.value,
       leaveTimerPending: options.timeouts.leave != null,
+      isScrolling: isHoverPreviewBlockedByScroll(),
     })
     if (action === 'ignore') return
 
@@ -146,7 +176,7 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
       if (!toValue(options.isHoverVideoArmed)) {
         options.scheduleHoverPreviewUi()
       } else if (options.hoverPreviewReady) {
-        // Reverse the leave crossfade: thumb was covering again, reveal video.
+        // Reverse the leave fade: reveal the hover video again over the thumb.
         options.hoverPreviewReady.value = true
         const video = options.getPreviewEl()?.querySelector('video')
         if (video && video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -168,8 +198,15 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
       return
     }
 
-    options.playbackError.value = false
     options.isHovered.value = true
+
+    // Failed previews stay unavailable for this grid load — show notice, skip fetch.
+    if (options.mediaId != null && isHoverPreviewUnavailableCached(toValue(options.mediaId))) {
+      options.playbackError.value = true
+      return
+    }
+
+    options.playbackError.value = false
 
     if (toValue(options.hasFixedPreviewTime)) {
       options.applyFixedPreviewTime()
@@ -178,6 +215,75 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
     }
 
     options.scheduleHoverPreviewUi()
+  }
+
+  /**
+   * Click-dismiss / collapse clears isHovered without a mouseleave→enter cycle.
+   * Re-arm when the pointer never left the card (no fresh mouseenter).
+   */
+  const rearmHoverIfPointerStillOver = (
+    pointer?: HoverPreviewPointer | null,
+    {bypassCooldown = false}: {bypassCooldown?: boolean} = {},
+  ) => {
+    if (!canRearmHoverFromPointer()) return
+    if (!isPreviewPointerStillOver(options.getPreviewEl(), pointer)) return
+    if (bypassCooldown) clearHoverPreviewCooldown()
+    const clientX = pointer?.clientX ?? lastHoverClientX
+    handleMouseEnter(
+      clientX == null ? undefined : ({clientX} as MouseEvent),
+    )
+  }
+
+  // After scroll settles, start hover if the cursor stayed on this thumb
+  // (scroll-time mouseenter was ignored and no leave/re-enter follows).
+  const stopScrollIdleRearm = onHoverPreviewScrollIdle((pointer) => {
+    // Big-preview cooldown must not block the card under the cursor after scroll —
+    // mouseleave during scroll already cancelled the deferred cooldown timer.
+    rearmHoverIfPointerStillOver(pointer, {bypassCooldown: true})
+  })
+  if (getCurrentScope()) {
+    onScopeDispose(stopScrollIdleRearm)
+  }
+
+  const scheduleRearmHoverIfPointerStillOver = () => {
+    // Wait out the post–big-preview cooldown, then re-arm if the pointer
+    // never left the card (click-dismiss does not emit mouseenter).
+    clearTimeout(options.timeouts.hoverCooldown)
+    const delay = getHoverPreviewCooldownRemaining()
+    options.timeouts.hoverCooldown = setTimeout(() => {
+      options.timeouts.hoverCooldown = undefined
+      rearmHoverIfPointerStillOver()
+    }, delay)
+  }
+
+  /** Safety net when mouseenter was skipped (post–big-preview / Teleport). */
+  const handleMouseMove = (e: MouseEvent) => {
+    lastHoverClientX = e.clientX
+    if (!canRearmHoverFromPointer()) return
+    handleMouseEnter(e)
+  }
+
+  const removeClasses = () => {
+    options.isShrinking.value = false
+    options.isHovered.value = false
+    options.bigPreviewAnimation.value = false
+    options.holdPreviewVideoDuringCollapse.value = false
+    options.collapsePreviewFading.value = false
+    options.gridBigPreview.forceClose(options.getPreviewEl())
+    options.onBigPreviewChange(false)
+    options.stopPreviewLiveTranscode()
+
+    options.clearCinemaTimeout()
+    clearHoverTimeouts()
+    options.clearPreviewDelayTimer()
+
+    armHoverPreviewCooldown()
+
+    void nextTick(() => {
+      options.resetPreviewContainer()
+      options.finalizePreviewStop()
+      scheduleRearmHoverIfPointerStillOver()
+    })
   }
 
   const stopPlayingPreview = ({force = false} = {}) => {
@@ -243,7 +349,7 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
     if (shouldIgnoreMouseLeave(leaveInput)) return
 
     const softDismiss = shouldSoftDismissOnMouseLeave(leaveInput)
-    // Capture before cancel-hover clears ready (that flip starts the thumb fade-in).
+    // Capture before cancel-hover clears ready (that flip starts the video fade-out).
     const holdForThumbCrossfade = !softDismiss && Boolean(options.hoverPreviewReady?.value)
 
     if (!softDismiss) {
@@ -261,6 +367,7 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
 
   return {
     handleMouseEnter,
+    handleMouseMove,
     handleMouseLeave,
     stopPlayingPreview,
     removeClasses,

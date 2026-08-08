@@ -24,6 +24,7 @@ import {
   serializeGroupBySetting,
 } from '@/utils/itemsGroupBy'
 import {orderItemsByIds} from '@/utils/orderItemsByIds'
+import {clearHoverPreviewUnavailableCache} from '@/utils/hoverPreviewUnavailableCache'
 
 export const INFINITE_PAGE_SIZE = 25
 
@@ -173,6 +174,11 @@ export function useItemsPage({
       ? uniqBy([...ITEMS.value.itemsOnPage, ...pageItems], 'id')
       : pageItems
 
+    // Fresh grid (filters/sort/page replace) — allow hover to re-probe availability.
+    if (!append) {
+      clearHoverPreviewUnavailableCache()
+    }
+
     const scopeIds = ITEMS.value.listScopeIds
     if (
       props.items_type === 'media'
@@ -293,6 +299,9 @@ export function useItemsPage({
       if (!query.ids.length) {
         const scopeTotal = scopeIds.length
         const scopePageLimit = pageLimit || scopeTotal || 1
+        if (!appendListPage) {
+          clearHoverPreviewUnavailableCache()
+        }
         itemsStore.updateMultiple({
           entities: appendListPage ? ITEMS.value.itemsOnPage : [],
           itemsOnPage: appendListPage ? ITEMS.value.itemsOnPage : [],

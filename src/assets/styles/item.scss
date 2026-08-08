@@ -931,12 +931,9 @@
   background-color: #7878782b;
   flex: 1 0 auto;
 
-  // While hover video is mounted (including leave crossfade), keep the underlay
-  // black — the default gray reads as a white flash when <video> blanks early.
-  &.is-preview-active:not(.video-preview-container--expanded) {
-    background-color: #000;
-  }
-
+  // Default gray underlay is fine at rest. Do not force black while the hover
+  // <video> is mounted — the static thumb stays underneath as the underlay so
+  // leave/enter fades never flash black or gray through a transparent thumb.
   &:not(.video-preview-container--expanded) {
     position: relative !important;
     inset: unset !important;
@@ -1197,12 +1194,10 @@
     height: auto;
     min-width: 0;
     background-color: #000;
-    z-index: 2;
+    // Under the hover <video>: always painted so leave fades never expose the
+    // card underlay (gray≈white) or a blank video frame (black).
+    z-index: 1;
     opacity: 1;
-    // Always on so ready↔opacity crossfades both ways (transition added
-    // in the same rule as opacity:0 does not interpolate).
-    // ease-in-out: reverse fade-in must not linger near 0 then pop (ease-in).
-    transition: opacity 520ms ease-in-out;
 
     // Keep vertical letterboxing black while the container stays gray
     // for missing / loading / unavailable placeholders.
@@ -1237,26 +1232,21 @@
     display: flex;
     overflow: hidden;
     position: absolute;
-    z-index: 1;
+    z-index: 2;
     animation: none;
     box-shadow: #1110 0 0 0 0;
     transition-duration: 0.5s;
     transition-property: box-shadow;
-    // Black letterbox/pillarbox once the static thumb fades out on hover.
-    background-color: #000;
+    // Transparent so the static thumb shows through letterbox + while video fades.
+    background-color: transparent;
     video {
       min-width: 100%;
       min-height: 100%;
       object-fit: contain;
-      background-color: #000;
-      opacity: 1;
-    }
-    // Only hide while seeking to the scrub frame — not during leave crossfade
-    // (ready clears on leave; pending must stay false so the frame stays painted).
-    &.is-hover-preview-pending:not(.video-preview-container--expanded) {
-      video {
-        opacity: 0;
-      }
+      background-color: transparent;
+      opacity: 0;
+      // Must match HOVER_PREVIEW_THUMB_CROSSFADE_MS (leave hold before unmount).
+      transition: opacity 520ms ease-in-out;
     }
     .playback-error {
       position: absolute;
@@ -1287,14 +1277,14 @@
 
   &.is-hover-preview-ready:not(.video-preview-container--expanded) {
     .thumb {
-      opacity: 0;
+      // Stay painted under the fading video (do not hide — that caused flashes).
       pointer-events: none;
-      // Stay above .preview (z-index: 1) while fading so the video does not
-      // pop over the thumb in the same frame as ready flips.
     }
 
-    // Clicks pass through the fading thumb (pointer-events: none) — do not
-    // raise .preview z-index or the crossfade is skipped.
+    .preview video {
+      opacity: 1;
+    }
+
     .preview,
     .timeline {
       pointer-events: auto;
@@ -2916,9 +2906,8 @@ body > .video-preview-container.video-preview-container--expanded {
     }
 
     .thumb {
-      z-index: 2;
+      z-index: 1;
       opacity: 1;
-      transition: opacity 520ms ease-in-out;
     }
 
     .preview-unavailable-notice {
@@ -2927,7 +2916,7 @@ body > .video-preview-container.video-preview-container--expanded {
 
     .preview,
     .timeline {
-      z-index: 1;
+      z-index: 2;
       opacity: 1;
       position: absolute;
       width: 100%;
@@ -2950,7 +2939,8 @@ body > .video-preview-container.video-preview-container--expanded {
       height: 100%;
       object-fit: contain;
       background-color: transparent;
-      opacity: 1;
+      opacity: 0;
+      transition: opacity 520ms ease-in-out;
     }
 
     &.is-hover-preview-pending:not(.video-preview-container--expanded) {
@@ -2967,8 +2957,11 @@ body > .video-preview-container.video-preview-container--expanded {
 
     &.is-hover-preview-ready:not(.video-preview-container--expanded) {
       .thumb {
-        opacity: 0;
         pointer-events: none;
+      }
+
+      .preview video {
+        opacity: 1;
       }
 
       .preview,
@@ -3026,9 +3019,8 @@ body > .video-preview-container.video-preview-container--expanded {
     }
 
     .thumb {
-      z-index: 2;
+      z-index: 1;
       opacity: 1;
-      transition: opacity 520ms ease-in-out;
 
       .v-img__img {
         object-fit: cover;
@@ -3041,7 +3033,7 @@ body > .video-preview-container.video-preview-container--expanded {
 
     .preview,
     .timeline {
-      z-index: 1;
+      z-index: 2;
       opacity: 1;
       position: absolute;
       width: 100%;
@@ -3064,7 +3056,8 @@ body > .video-preview-container.video-preview-container--expanded {
       height: 100%;
       object-fit: contain;
       background-color: transparent;
-      opacity: 1;
+      opacity: 0;
+      transition: opacity 520ms ease-in-out;
     }
 
     &.is-hover-preview-pending:not(.video-preview-container--expanded) {
@@ -3081,8 +3074,11 @@ body > .video-preview-container.video-preview-container--expanded {
 
     &.is-hover-preview-ready:not(.video-preview-container--expanded) {
       .thumb {
-        opacity: 0;
         pointer-events: none;
+      }
+
+      .preview video {
+        opacity: 1;
       }
 
       .preview,

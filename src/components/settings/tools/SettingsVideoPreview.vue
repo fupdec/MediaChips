@@ -143,7 +143,7 @@
           :model-value="Number(SETTINGS.delayVideoPreview)"
           @update:model-value="(val) => setOption(String(val), 'delayVideoPreview')"
           min="0"
-          max="9999"
+          max="2000"
           step="100"
           track-size="7"
           density="compact"

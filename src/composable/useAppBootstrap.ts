@@ -347,7 +347,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
       void getElectronAPI()?.invoke?.('isMainWindowFocused').then((facing) => {
         setAppWindowFocused(Boolean(facing))
       }).catch(() => {
-        setAppWindowFocused(false)
+        // Keep store default (true). Forcing false locked hover with zero reaction.
       })
       return
     }

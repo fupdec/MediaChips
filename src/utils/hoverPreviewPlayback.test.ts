@@ -55,7 +55,7 @@ describe('hoverPreviewPlayback', () => {
 
   it('detects ignorable preview errors', () => {
     expect(isIgnorablePreviewError({name: 'AbortError'})).toBe(true)
-    expect(isIgnorablePreviewError({name: 'NotAllowedError'})).toBe(true)
+    expect(isIgnorablePreviewError({name: 'NotAllowedError'})).toBe(false)
     expect(isIgnorablePreviewError({name: 'NotSupportedError'})).toBe(false)
   })
 
@@ -227,19 +227,16 @@ describe('hoverPreviewPlayback', () => {
   it('gates hover start, mount, position, and playback errors', () => {
     expect(shouldScheduleHoverPreviewVideo({
       isHovered: true,
-      isFocused: true,
       videoPreviewHover: 'video',
     })).toBe(true)
     expect(shouldScheduleHoverPreviewVideo({
       isHovered: true,
-      isFocused: true,
       videoPreviewHover: 'image',
     })).toBe(false)
 
     expect(resolveHoverPreviewStartGate({
       hasVideo: false,
       isPreviewVisible: true,
-      isFocused: true,
       tokenMatches: true,
       isHovered: true,
       playerBlocksLive: false,
@@ -247,7 +244,6 @@ describe('hoverPreviewPlayback', () => {
     expect(resolveHoverPreviewStartGate({
       hasVideo: true,
       isPreviewVisible: true,
-      isFocused: true,
       tokenMatches: true,
       isHovered: true,
       playerBlocksLive: true,
@@ -255,7 +251,6 @@ describe('hoverPreviewPlayback', () => {
     expect(resolveHoverPreviewStartGate({
       hasVideo: true,
       isPreviewVisible: true,
-      isFocused: true,
       tokenMatches: true,
       isHovered: true,
       playerBlocksLive: false,
@@ -263,18 +258,15 @@ describe('hoverPreviewPlayback', () => {
 
     expect(resolveHoverPreviewUrlReadyGate({
       isHovered: true,
-      isFocused: true,
       hasPreviewUrl: false,
     })).toBe('unavailable')
     expect(resolveHoverPreviewAfterMountGate({
       isHovered: false,
-      isFocused: true,
       allowHoverVideo: true,
       hasVideoEl: true,
     })).toBe('teardown-stale')
     expect(resolveHoverPreviewAfterMountGate({
       isHovered: true,
-      isFocused: true,
       allowHoverVideo: true,
       hasVideoEl: true,
     })).toBe('start')
@@ -283,19 +275,16 @@ describe('hoverPreviewPlayback', () => {
       positioned: false,
       tokenMatches: true,
       isPreviewVisible: true,
-      isFocused: true,
     })).toBe('unavailable')
     expect(resolveHoverPreviewAfterPositionGate({
       positioned: true,
       tokenMatches: true,
       isPreviewVisible: false,
-      isFocused: true,
     })).toBe('release')
     expect(resolveHoverPreviewAfterPositionGate({
       positioned: true,
       tokenMatches: true,
       isPreviewVisible: true,
-      isFocused: true,
     })).toBe('play')
 
     expect(resolveHoverPreviewPlaybackErrorGate({
@@ -479,7 +468,7 @@ describe('hoverPreviewPlayback', () => {
       reason: 'container_layout',
       playability: {playable: true, needsRemux: true},
       transcodeEnabled: true,
-    })).toEqual({kind: 'direct', streamMode: 'auto'})
+    })).toEqual({kind: 'direct', streamMode: 'direct'})
 
     expect(resolveHoverPreviewSourcePlan({
       mode: 'stream',

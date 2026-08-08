@@ -59,6 +59,7 @@ function isAudioFilePath(filePath: string | null | undefined): boolean {
 
 function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeManagerOptions) {
   const playabilityCache = new Map<string, PlayabilityResult>()
+  const playabilityInFlight = new Map<string, Promise<PlayabilityResult>>()
   const PLAYABILITY_CACHE_MAX = 500
   const liveStreams = createLiveStreamRegistry()
 
@@ -92,13 +93,29 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       return cached
     }
 
-    const audioOnly = isAudioFilePath(filePath)
-    const extension = path.extname(filePath).toLowerCase()
+    const inFlight = playabilityInFlight.get(cacheKey)
+    if (inFlight) return inFlight
 
-    // Fast path: containers Chromium can't play directly always need
-    // live transcoding — skip ffprobe entirely for playback planning.
-    if (audioOnly) {
-      if (!DIRECT_AUDIO_CONTAINERS.has(extension)) {
+    const probePromise = (async (): Promise<PlayabilityResult> => {
+      const audioOnly = isAudioFilePath(filePath)
+      const extension = path.extname(filePath).toLowerCase()
+
+      // Fast path: containers Chromium can't play directly always need
+      // live transcoding — skip ffprobe entirely for playback planning.
+      if (audioOnly) {
+        if (!DIRECT_AUDIO_CONTAINERS.has(extension)) {
+          const result: PlayabilityResult = {
+            playable: false,
+            reason: 'container',
+            videoCodec: null,
+            audioCodec: null,
+            duration: 0,
+            needsRemux: false,
+          }
+          setPlayabilityCacheEntry(cacheKey, result)
+          return result
+        }
+      } else if (!DIRECT_VIDEO_CONTAINERS.has(extension)) {
         const result: PlayabilityResult = {
           playable: false,
           reason: 'container',
@@ -110,49 +127,45 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
         setPlayabilityCacheEntry(cacheKey, result)
         return result
       }
-    } else if (!DIRECT_VIDEO_CONTAINERS.has(extension)) {
+
+      // Codec probe only — do not await the MP4 layout scan here. Direct-first
+      // playback means needsRemux is advisory; scanning 8MB on NAS made every
+      // hover /playable check take 0.5–1.5s before the first video byte.
+      let probe = await ffprobePlayability(filePath)
+      if (isPlayabilityProbeIncomplete(probe, {audioOnly})) {
+        probe = await ffprobe(filePath)
+      }
+
+      const duration = Number(probe.format?.duration || 0)
+      const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
+      let needsRemux = false
+      let reason = analyzed.reason
+
+      const mayNeedRemux = Boolean(analyzed.playable && !audioOnly
+        && (extension === '.mp4' || extension === '.m4v'))
+      if (mayNeedRemux && needsBrowserRemuxForMp4(filePath)) {
+        needsRemux = true
+        reason = 'container_layout'
+      }
+
       const result: PlayabilityResult = {
-        playable: false,
-        reason: 'container',
-        videoCodec: null,
-        audioCodec: null,
-        duration: 0,
-        needsRemux: false,
+        playable: analyzed.playable,
+        reason,
+        videoCodec: analyzed.videoCodec ?? null,
+        audioCodec: analyzed.audioCodec ?? null,
+        duration,
+        needsRemux,
       }
       setPlayabilityCacheEntry(cacheKey, result)
       return result
-    }
+    })()
 
-    // Codec probe only — do not await the MP4 layout scan here. Direct-first
-    // playback means needsRemux is advisory; scanning 8MB on NAS made every
-    // hover /playable check take 0.5–1.5s before the first video byte.
-    let probe = await ffprobePlayability(filePath)
-    if (isPlayabilityProbeIncomplete(probe, {audioOnly})) {
-      probe = await ffprobe(filePath)
+    playabilityInFlight.set(cacheKey, probePromise)
+    try {
+      return await probePromise
+    } finally {
+      playabilityInFlight.delete(cacheKey)
     }
-
-    const duration = Number(probe.format?.duration || 0)
-    const analyzed = analyzeProbeResult(probe, filePath, {audioOnly})
-    let needsRemux = false
-    let reason = analyzed.reason
-
-    const mayNeedRemux = Boolean(analyzed.playable && !audioOnly
-      && (extension === '.mp4' || extension === '.m4v'))
-    if (mayNeedRemux && needsBrowserRemuxForMp4(filePath)) {
-      needsRemux = true
-      reason = 'container_layout'
-    }
-
-    const result: PlayabilityResult = {
-      playable: analyzed.playable,
-      reason,
-      videoCodec: analyzed.videoCodec ?? null,
-      audioCodec: analyzed.audioCodec ?? null,
-      duration,
-      needsRemux,
-    }
-    setPlayabilityCacheEntry(cacheKey, result)
-    return result
   }
 
   function scheduleLayoutRemux(filePath: string, settings: Awaited<ReturnType<typeof getTranscodeSettings>>) {

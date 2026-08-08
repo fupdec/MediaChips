@@ -119,7 +119,9 @@ export function useItemPreviewLifecycle(options: ItemPreviewLifecycleOptions) {
   })
 
   watch(() => toValue(options.isWindowFocused), (focused) => {
-    if (!focused) {
+    // Transient blur (occlusion / DevTools) must not force-stop hover — that
+    // left cards with zero reaction until leave/re-enter. Only stop when hidden.
+    if (!focused && typeof document !== 'undefined' && document.hidden) {
       options.stopPlayingPreview({force: true})
     }
   }, {flush: 'sync'})

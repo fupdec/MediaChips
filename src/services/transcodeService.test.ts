@@ -96,7 +96,7 @@ describe('resolvePreviewVideoUrl', () => {
     expect(await resolvePreviewVideoUrl(buildApiUrl, 16, 30, {transcodeEnabled: false})).toBeNull()
   })
 
-  it('returns null for container_layout hover (cinema player handles remux)', async () => {
+  it('returns direct url for container_layout hover (direct-first)', async () => {
     mockGetVideoPlayable.mockResolvedValue({
       data: {
         transcodeRequired: false,
@@ -110,10 +110,11 @@ describe('resolvePreviewVideoUrl', () => {
       config: {} as never,
     })
 
-    expect(await resolvePreviewVideoUrl(buildApiUrl, 15676, 810)).toBeNull()
+    const url = await resolvePreviewVideoUrl(buildApiUrl, 15676, 810)
+    expect(url).toContain('/api/video/15676?source=direct')
   })
 
-  it('returns null for stale stream+container_layout playable responses', async () => {
+  it('returns direct url for stale stream+container_layout playable responses', async () => {
     mockGetVideoPlayable.mockResolvedValue({
       data: {
         transcodeRequired: true,
@@ -128,7 +129,8 @@ describe('resolvePreviewVideoUrl', () => {
       config: {} as never,
     })
 
-    expect(await resolvePreviewVideoUrl(buildApiUrl, 15676, 810)).toBeNull()
+    const url = await resolvePreviewVideoUrl(buildApiUrl, 15676, 810)
+    expect(url).toContain('/api/video/15676?source=direct')
   })
 
   it('returns direct stream url when format is browser-playable', async () => {
@@ -141,7 +143,7 @@ describe('resolvePreviewVideoUrl', () => {
     })
 
     const url = await resolvePreviewVideoUrl(buildApiUrl, 15, 30)
-    expect(url).toContain('/api/video/15?source=auto')
+    expect(url).toContain('/api/video/15?source=direct')
   })
 
   it('optimistic hover url skips playable lookup', async () => {

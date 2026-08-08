@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import {describe, expect, it, vi} from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {isBrowserWindowUserFacing} from './windowFocus'
 import type {BrowserWindow} from 'electron'
 
@@ -38,8 +38,8 @@ describe('isBrowserWindowUserFacing', () => {
     expect(isBrowserWindowUserFacing(mockWindow(), {isAppHidden: () => false})).toBe(true)
   })
 
-  it('treats occluded and hidden-app states as not user-facing', () => {
-    expect(isBrowserWindowUserFacing(mockWindow({occluded: true}), {isAppHidden: () => false})).toBe(false)
+  it('treats occluded windows as still user-facing when focused', () => {
+    expect(isBrowserWindowUserFacing(mockWindow({occluded: true}), {isAppHidden: () => false})).toBe(true)
     expect(isBrowserWindowUserFacing(mockWindow(), {isAppHidden: () => true})).toBe(false)
   })
 })

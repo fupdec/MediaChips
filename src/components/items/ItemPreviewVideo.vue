@@ -29,7 +29,7 @@
         @contextmenu="handlePreviewContextMenu"
         @mousedown="handlePreviewMouseDown"
         @mouseleave="handleMouseLeave"
-        @mousemove="changePreviewTime"
+        @mousemove="onPreviewMouseMove"
         @mouseenter="handleMouseEnter"
       >
       <v-img
@@ -53,12 +53,6 @@
       </div>
 
       <div v-if="!isCompactHost && !isImageOnlyView" class="duration">{{ duration }}</div>
-
-      <div
-        v-if="!isCompactHost && !isImageOnlyView && isShowProgress && !playbackError && !showPlaybackTimeline"
-        :style="{ right: progressPosition }"
-        class="progress"
-      />
 
       <div v-if="!isCompactHost && !isImageOnlyView" class="resolution">
         <div :class="quality.toLowerCase()"
@@ -92,8 +86,9 @@
       >
         <video
           ref="videoRef"
-          :muted="muted"
+          muted
           loop
+          playsinline
           @error="handleVideoError"
           @loadeddata="handleVideoLoaded"
           @timeupdate="handleVideoTimeUpdate"
@@ -372,7 +367,6 @@ const {
   playbackError,
   allowHoverVideoElement,
   hoverPreviewReady,
-  hoverPreviewPending,
   changePreviewTime,
   handleVideoError,
   handleVideoLoaded,
@@ -384,7 +378,6 @@ const {
   hidePreviewVideoImmediately,
   finalizePreviewStop,
   cancelHoverPlayback,
-  preserveHoverPlaybackAfterLeave,
   clearPreviewDelayTimer,
   stopPreviewLiveTranscode,
   teardownWhenPreviewHidden,
@@ -448,9 +441,11 @@ const {
 
 const {
   handleMouseEnter,
+  handleMouseMove,
   handleMouseLeave,
   stopPlayingPreview,
 } = useItemPreviewHoverSession({
+  mediaId: () => Number(props.media.id),
   isFileExists: () => props.isFileExists,
   isHovered,
   isShrinking,
@@ -466,7 +461,6 @@ const {
   clearCinemaTimeout,
   clearPreviewDelayTimer,
   cancelHoverPlayback,
-  preserveHoverPlaybackAfterLeave,
   hidePreviewVideoImmediately,
   stopPreviewLiveTranscode,
   finalizePreviewStop,
@@ -486,6 +480,11 @@ const {
   },
 })
 
+const onPreviewMouseMove = (e: MouseEvent) => {
+  handleMouseMove(e)
+  changePreviewTime(e)
+}
+
 const {
   muted,
   bigPreviewSize,
@@ -493,11 +492,9 @@ const {
   height,
   duration,
   mediaAspectRatio,
-  progressPosition,
   showVideoPreview,
   showTimelinePreview,
   showPreviewUnavailableNotice,
-  isShowProgress,
   previewAppearStyle,
   showCardAnchor,
   useBigPreviewPortal,
@@ -525,7 +522,6 @@ const {
   isHovered: () => isHovered.value,
   isShrinking: () => isShrinking.value,
   hoverPreviewReady: () => hoverPreviewReady.value,
-  hoverPreviewPending: () => hoverPreviewPending.value,
   allowHoverVideoElement: () => allowHoverVideoElement.value,
   holdPreviewVideoDuringCollapse: () => holdPreviewVideoDuringCollapse.value,
   collapsePreviewFading: () => collapsePreviewFading.value,

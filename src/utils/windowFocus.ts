@@ -12,5 +12,6 @@ export function setAppWindowFocused(focused: boolean): void {
 }
 
 export function syncAppWindowFocusedFromDocument(): void {
-  setAppWindowFocused(!document.hidden && document.hasFocus())
+  // document.hasFocus() is false with DevTools and previously blocked hover.
+  setAppWindowFocused(!document.hidden)
 }
