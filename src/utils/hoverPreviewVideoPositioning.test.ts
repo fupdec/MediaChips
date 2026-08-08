@@ -9,8 +9,6 @@ const {
   waitForPreviewCanPlay,
   waitForPreviewSeek,
   seekPreviewVideo,
-  appendPreviewMediaFragment,
-  PREVIEW_INITIAL_SEEK_WAIT_MS,
 } = vi.hoisted(() => ({
   decideInPlacePreviewSeek: vi.fn(),
   getLoadedPreviewMediaId: vi.fn(() => 7),
@@ -20,8 +18,6 @@ const {
   waitForPreviewCanPlay: vi.fn(async () => {}),
   waitForPreviewSeek: vi.fn(async () => {}),
   seekPreviewVideo: vi.fn(async () => {}),
-  appendPreviewMediaFragment: vi.fn((url: string) => url),
-  PREVIEW_INITIAL_SEEK_WAIT_MS: 8000,
 }))
 
 vi.mock('@/utils/hoverPreviewPlayback', () => ({
@@ -33,8 +29,6 @@ vi.mock('@/utils/hoverPreviewPlayback', () => ({
   waitForPreviewCanPlay,
   waitForPreviewSeek,
   seekPreviewVideo,
-  appendPreviewMediaFragment,
-  PREVIEW_INITIAL_SEEK_WAIT_MS,
 }))
 
 import {positionHoverPreviewVideo} from './hoverPreviewVideoPositioning'
@@ -46,7 +40,6 @@ function makeVideo(overrides: Partial<HTMLVideoElement> = {}) {
     duration: 100,
     seeking: false,
     src: '',
-    removeAttribute: vi.fn(),
     ...overrides,
   } as HTMLVideoElement
 }
@@ -126,39 +119,7 @@ describe('positionHoverPreviewVideo', () => {
     expect(setLiveMode).toHaveBeenCalledWith(true)
     expect(video.src).toBe('http://local/live?start=30')
     expect(waitForPreviewCanPlay).toHaveBeenCalledWith(video, expect.any(Function), {live: true})
-    expect(seekPreviewVideo).toHaveBeenCalledWith(
-      video,
-      4,
-      expect.any(Function),
-      {timeoutMs: 8000},
-    )
-  })
-
-  it('deferSeek returns after canplay without awaiting mid-file seek', async () => {
-    decideInPlacePreviewSeek.mockReturnValue({kind: 'not-applicable'})
-    planPreviewUrlSeek.mockReturnValue({
-      kind: 'file',
-      reload: true,
-      nextTime: 45,
-    })
-    shouldApplyPreviewSeek.mockReturnValue(true)
-    const video = makeVideo({currentSrc: ''})
-
-    const result = await positionHoverPreviewVideo({
-      video,
-      mediaId: 7,
-      targetTime: 45,
-      deferSeek: true,
-      isCancelled: () => false,
-      resolveUrl: async () => 'http://local/media/7?source=direct',
-      chunkSeconds: 30,
-      setLiveMode: vi.fn(),
-      onPositioned: vi.fn(),
-    })
-
-    expect(result).toBe('positioned')
-    expect(waitForPreviewCanPlay).toHaveBeenCalled()
-    expect(seekPreviewVideo).not.toHaveBeenCalled()
+    expect(seekPreviewVideo).toHaveBeenCalledWith(video, 4, expect.any(Function))
   })
 
   it('does not assign src after cancellation during URL resolve', async () => {

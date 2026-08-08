@@ -172,18 +172,16 @@ describe('useItemPreviewHoverSession', () => {
     expect(finalizePreviewStop).toHaveBeenCalled()
   })
 
-  it('re-enter during leave grace reschedules to the current pointer', () => {
+  it('re-enter during leave grace cancels pending stop without remount', () => {
     const isHovered = ref(true)
     const hoverPreviewReady = ref(true)
     const timeouts: {leave?: ReturnType<typeof setTimeout>} = {}
     const cancelHoverPlayback = vi.fn(() => {
       hoverPreviewReady.value = false
     })
-    const preserveHoverPlaybackAfterLeave = vi.fn()
     const hidePreviewVideoImmediately = vi.fn()
     const finalizePreviewStop = vi.fn()
     const scheduleHoverPreviewUi = vi.fn()
-    const applyPreviewTimeFromPointer = vi.fn()
     const stopPreviewLiveTranscode = vi.fn()
 
     const session = useItemPreviewHoverSession({
@@ -206,13 +204,12 @@ describe('useItemPreviewHoverSession', () => {
       clearCinemaTimeout: vi.fn(),
       clearPreviewDelayTimer: vi.fn(),
       cancelHoverPlayback,
-      preserveHoverPlaybackAfterLeave,
       hidePreviewVideoImmediately,
       stopPreviewLiveTranscode,
       finalizePreviewStop,
       scheduleHoverPreviewUi,
       applyFixedPreviewTime: vi.fn(),
-      applyPreviewTimeFromPointer,
+      applyPreviewTimeFromPointer: vi.fn(),
       closeGridBigPreview: vi.fn(async () => {}),
       resetPreviewContainer: vi.fn(),
       shouldKeepBigPreviewOpen: () => false,
@@ -226,12 +223,12 @@ describe('useItemPreviewHoverSession', () => {
     session.handleMouseLeave()
     expect(cancelHoverPlayback).toHaveBeenCalled()
     expect(timeouts.leave).toBeTruthy()
+    expect(hoverPreviewReady.value).toBe(false)
 
-    session.handleMouseEnter({clientX: 40} as MouseEvent)
+    session.handleMouseEnter()
     expect(timeouts.leave).toBeUndefined()
-    expect(preserveHoverPlaybackAfterLeave).toHaveBeenCalled()
-    expect(applyPreviewTimeFromPointer).toHaveBeenCalledWith({clientX: 40})
-    expect(scheduleHoverPreviewUi).toHaveBeenCalled()
+    expect(scheduleHoverPreviewUi).not.toHaveBeenCalled()
+    expect(hoverPreviewReady.value).toBe(true)
 
     vi.advanceTimersByTime(
       HOVER_PREVIEW_THUMB_CROSSFADE_MS + HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS + 50,

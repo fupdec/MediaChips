@@ -23,7 +23,6 @@ import {
   resolveHoverPreviewAfterMountGate,
   resolveHoverPreviewAfterPositionGate,
   resolveHoverPreviewPlaybackErrorGate,
-  resolveHoverPreviewSeekMissGate,
   resolveHoverPreviewSourcePlan,
   resolveHoverLiveMaxHeight,
   HOVER_PREVIEW_DIRECT_CANPLAY_MS,
@@ -38,9 +37,6 @@ import {
   waitForPreviewSeek,
   waitForPreviewCanPlay,
   seekPreviewVideo,
-  appendPreviewMediaFragment,
-  isHoverPreviewOnTargetFrame,
-  HOVER_PREVIEW_SETTLE_DEBOUNCE_MS,
 } from './hoverPreviewPlayback'
 
 describe('hoverPreviewPlayback', () => {
@@ -217,7 +213,7 @@ describe('hoverPreviewPlayback', () => {
       clearDelayTimer: true,
     })
     expect(resolveHoverPreviewTeardownPlan('cancel-hover')).toMatchObject({
-      bumpToken: true,
+      bumpToken: false,
       resetReady: true,
       stopLive: false,
       abortVideo: false,
@@ -310,9 +306,6 @@ describe('hoverPreviewPlayback', () => {
       tokenMatches: true,
       ignorable: false,
     })).toBe('unavailable')
-
-    expect(resolveHoverPreviewSeekMissGate({tokenMatches: true})).toBe('unavailable')
-    expect(resolveHoverPreviewSeekMissGate({tokenMatches: false})).toBe('abort')
   })
 
   it('gates hover-ready marking', () => {
@@ -394,19 +387,6 @@ describe('hoverPreviewPlayback', () => {
     await expect(waitForPreviewSeek(video, () => false)).resolves.toBeUndefined()
   })
 
-  it('appendPreviewMediaFragment steers the first decode to scrub time', () => {
-    expect(appendPreviewMediaFragment('http://local/api/video/1?source=direct', 12.5))
-      .toBe('http://local/api/video/1?source=direct#t=12.500')
-    expect(appendPreviewMediaFragment('http://local/api/video/1?source=direct', 0)).toBe(
-      'http://local/api/video/1?source=direct',
-    )
-  })
-
-  it('isHoverPreviewOnTargetFrame rejects frames still far from scrub time', () => {
-    expect(isHoverPreviewOnTargetFrame(0, 12)).toBe(false)
-    expect(isHoverPreviewOnTargetFrame(12.05, 12)).toBe(true)
-  })
-
   it('seekPreviewVideo waits for seeked even when seeking flips async', async () => {
     let seeking = false
     let current = 0
@@ -479,12 +459,10 @@ describe('hoverPreviewPlayback', () => {
     expect(sync.mock.calls.map((call) => call[0])).toEqual([1, 3])
   })
 
-  it('clamps hover preview schedule delay with a settle debounce floor', () => {
-    expect(resolveHoverPreviewScheduleDelay(-5)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
-    expect(resolveHoverPreviewScheduleDelay(undefined)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
-    expect(resolveHoverPreviewScheduleDelay(0)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
+  it('clamps hover preview schedule delay', () => {
+    expect(resolveHoverPreviewScheduleDelay(-5)).toBe(0)
     expect(resolveHoverPreviewScheduleDelay('250')).toBe(250)
-    expect(resolveHoverPreviewScheduleDelay(80)).toBe(HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
+    expect(resolveHoverPreviewScheduleDelay(undefined)).toBe(0)
   })
 
   it('resolves fixed preview clip state', () => {
@@ -495,13 +473,13 @@ describe('hoverPreviewPlayback', () => {
     })
   })
 
-  it('plans hover preview source: notice for layout and hard incompat', () => {
+  it('plans hover preview source: direct first, notice for hard incompat', () => {
     expect(resolveHoverPreviewSourcePlan({
       mode: 'direct',
       reason: 'container_layout',
       playability: {playable: true, needsRemux: true},
       transcodeEnabled: true,
-    })).toEqual({kind: 'unavailable'})
+    })).toEqual({kind: 'direct', streamMode: 'auto'})
 
     expect(resolveHoverPreviewSourcePlan({
       mode: 'stream',
@@ -510,13 +488,7 @@ describe('hoverPreviewPlayback', () => {
       reason: 'container_layout',
       playability: {playable: true, needsRemux: true},
       transcodeEnabled: true,
-    })).toEqual({kind: 'unavailable'})
-
-    expect(resolveHoverPreviewSourcePlan({
-      mode: 'direct',
-      playability: {playable: true, needsRemux: false},
-      transcodeEnabled: true,
-    })).toEqual({kind: 'direct', streamMode: 'auto'})
+    })).toEqual({kind: 'direct', streamMode: 'direct'})
 
     expect(resolveHoverPreviewSourcePlan({
       mode: 'stream',
@@ -541,10 +513,20 @@ describe('hoverPreviewPlayback', () => {
     })).toEqual({kind: 'unavailable'})
   })
 
-  it('never live-transcodes on hover cards', () => {
+  it('allows one hover live fallback after direct fails', () => {
     expect(shouldAttemptHoverLiveFallback({
       alreadyLive: false,
       fallbackAttempted: false,
+      transcodeEnabled: true,
+    })).toBe(true)
+    expect(shouldAttemptHoverLiveFallback({
+      alreadyLive: true,
+      fallbackAttempted: false,
+      transcodeEnabled: true,
+    })).toBe(false)
+    expect(shouldAttemptHoverLiveFallback({
+      alreadyLive: false,
+      fallbackAttempted: true,
       transcodeEnabled: true,
     })).toBe(false)
     expect(shouldAttemptHoverLiveFallback({

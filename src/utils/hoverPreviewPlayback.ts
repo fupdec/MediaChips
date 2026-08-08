@@ -5,11 +5,6 @@ export const HOVER_PREVIEW_AFTER_BIG_PREVIEW_MS = 500
 export const HOVER_PREVIEW_THUMB_CROSSFADE_MS = 520
 /** Extra settle so the thumb is fully opaque before <video> unmounts. */
 export const HOVER_PREVIEW_THUMB_CROSSFADE_SETTLE_MS = 80
-/**
- * Free the hover Range after the thumb mostly covers the video (~end of 520ms
- * ease-in-out). Do not snapshot frames — leave only pauses/clears the <video>.
- */
-export const HOVER_PREVIEW_LEAVE_NETWORK_ABORT_MS = 480
 
 let hoverPreviewReadyAt = 0
 
@@ -38,18 +33,6 @@ export const PREVIEW_SEEK_EPSILON = 0.12
  * /Volumes before the first frame arrives; live fallback then thrash-encodes.
  */
 export const HOVER_PREVIEW_DIRECT_CANPLAY_MS = 8_000
-
-/**
- * After the seek budget, currentTime still misses the scrub point.
- * Show the unavailable notice — live FFmpeg stays for the cinema player.
- */
-export type HoverPreviewSeekMissGate = 'unavailable' | 'abort'
-
-export function resolveHoverPreviewSeekMissGate(input: {
-  tokenMatches: boolean
-}): HoverPreviewSeekMissGate {
-  return input.tokenMatches ? 'unavailable' : 'abort'
-}
 /** Live FFmpeg warm-up window for hover previews. */
 export const HOVER_PREVIEW_LIVE_CANPLAY_MS = 45_000
 /** Cap live hover encode height — full player quality is wasted on a card. */
@@ -61,17 +44,6 @@ export function shouldApplyPreviewSeek(
   epsilon = PREVIEW_SEEK_EPSILON,
 ): boolean {
   return Number.isFinite(nextTime) && Math.abs(currentTime - nextTime) > epsilon
-}
-
-/** True when currentTime is close enough to reveal the hover frame. */
-export function isHoverPreviewOnTargetFrame(
-  currentTime: number,
-  targetTime: number,
-  epsilon = PREVIEW_SEEK_EPSILON,
-): boolean {
-  return Number.isFinite(currentTime)
-    && Number.isFinite(targetTime)
-    && !shouldApplyPreviewSeek(currentTime, targetTime, epsilon)
 }
 
 export type InPlacePreviewSeekDecision =
@@ -303,12 +275,11 @@ export function resolveHoverPreviewTeardownPlan(
         abortVideo: true,
       }
     case 'cancel-hover':
-      // Soft leave-grace: keep <video> mounted for thumb crossfade / re-enter, but
-      // bump the token so in-flight canplay/seek work cannot mark ready after leave.
-      // Network abort still waits for yield-decoder (other card) or finalize-stop.
+      // Soft leave-grace: keep video/session alive until stopPlayingPreview finalizes.
+      // Re-enter within the leave timer can cancel the pending stop without remount.
+      // Reset ready so the thumb covers mid-seek frames during leave.
       return {
         ...TEARDOWN_NONE,
-        bumpToken: true,
         resetReady: true,
         clearSeekCoalescer: true,
         clearDelayTimer: true,
@@ -347,16 +318,9 @@ export function shouldScheduleHoverPreviewVideo(input: {
     && input.videoPreviewHover === 'video'
 }
 
-/**
- * Minimum settle before hover video mounts. Even with delay=0, rapid card
- * hopping otherwise starts seeks that flash the wrong frame and saturate NAS.
- */
-export const HOVER_PREVIEW_SETTLE_DEBOUNCE_MS = 160
-
-/** Clamp settings delay for schedulePreviewPlayback (never below settle debounce). */
+/** Clamp settings delay for schedulePreviewPlayback. */
 export function resolveHoverPreviewScheduleDelay(delaySetting: unknown): number {
-  const configured = Math.max(0, Number(delaySetting) || 0)
-  return Math.max(configured, HOVER_PREVIEW_SETTLE_DEBOUNCE_MS)
+  return Math.max(0, Number(delaySetting) || 0)
 }
 
 /** Fixed-clip progress/playbackTime values, or null when no start is set. */
@@ -440,9 +404,9 @@ export type HoverPreviewSourcePlan =
   | {kind: 'unavailable'}
 
 /**
- * Hover preview source: try direct only for browser-safe files that do not need
- * remux. Pathological MP4 layouts and codec-incompatible formats show the
- * unavailable notice — live FFmpeg is for the cinema player only.
+ * Hover preview source: browser-safe codecs always try direct first (including
+ * container_layout). Codec-incompatible formats show the unavailable notice on
+ * the thumb — live FFmpeg stays for the cinema player / direct-fail fallback.
  */
 export function resolveHoverPreviewSourcePlan(input: {
   mode?: string | null
@@ -456,9 +420,9 @@ export function resolveHoverPreviewSourcePlan(input: {
 
   const isLayout = input.reason === 'container_layout'
     || input.playability?.needsRemux === true
-  if (isLayout) return {kind: 'unavailable'}
+  const codecsBrowserSafe = input.playability?.playable === true || isLayout
 
-  if (input.mode === 'direct' || input.playability?.playable === true) {
+  if (input.mode === 'direct' || codecsBrowserSafe) {
     return {
       kind: 'direct',
       streamMode: input.mode === 'direct' ? 'auto' : 'direct',
@@ -469,13 +433,13 @@ export function resolveHoverPreviewSourcePlan(input: {
   return {kind: 'unavailable'}
 }
 
-/** Hover cards never live-transcode; failures show the unavailable notice. */
-export function shouldAttemptHoverLiveFallback(_input: {
+/** After direct hover fails, try one live FFmpeg stream before the unavailable notice. */
+export function shouldAttemptHoverLiveFallback(input: {
   alreadyLive: boolean
   fallbackAttempted: boolean
   transcodeEnabled: boolean
 }): boolean {
-  return false
+  return !input.alreadyLive && !input.fallbackAttempted && input.transcodeEnabled
 }
 
 export type PreviewUrlSeekPlan =
@@ -572,8 +536,6 @@ export function clampLiveChunkSeek(
 }
 
 const PREVIEW_SEEK_WAIT_MS = 400
-/** Initial hover seek on NAS often exceeds the scrub coalesce budget. */
-export const PREVIEW_INITIAL_SEEK_WAIT_MS = HOVER_PREVIEW_DIRECT_CANPLAY_MS
 
 function waitForSeekedOrTimeout(
   video: HTMLVideoElement,
@@ -623,37 +585,22 @@ export function seekPreviewVideo(
   video: HTMLVideoElement,
   time: number,
   isCancelled: () => boolean,
-  {timeoutMs = PREVIEW_SEEK_WAIT_MS}: {timeoutMs?: number} = {},
 ): Promise<void> {
   if (isCancelled()) return Promise.resolve()
   if (!shouldApplyPreviewSeek(video.currentTime, time)) return Promise.resolve()
 
   return new Promise((resolve) => {
     let settled = false
-    let softTimeoutId: ReturnType<typeof setTimeout> | undefined
-    let hardTimeoutId: ReturnType<typeof setTimeout> | undefined
-
     const finish = () => {
       if (settled) return
       settled = true
-      if (softTimeoutId != null) clearTimeout(softTimeoutId)
-      if (hardTimeoutId != null) clearTimeout(hardTimeoutId)
+      clearTimeout(timeoutId)
       video.removeEventListener('seeked', onSeeked)
       resolve()
     }
 
     const onSeeked = () => finish()
-
-    // Soft budget: resolve early only if we already landed near the target.
-    // Resolving while still at t≈0 was flashing the wrong frame on reveal.
-    softTimeoutId = setTimeout(() => {
-      if (settled) return
-      if (isCancelled() || !shouldApplyPreviewSeek(video.currentTime, time)) {
-        finish()
-      }
-    }, Math.min(timeoutMs, PREVIEW_SEEK_WAIT_MS))
-
-    hardTimeoutId = setTimeout(finish, timeoutMs)
+    const timeoutId = setTimeout(finish, PREVIEW_SEEK_WAIT_MS)
     video.addEventListener('seeked', onSeeked, {once: true})
 
     try {
@@ -663,6 +610,8 @@ export function seekPreviewVideo(
       return
     }
 
+    // Seeking may flip true only on the next microtask; if it never starts and
+    // we are already on-target, resolve without waiting for the timeout.
     queueMicrotask(() => {
       if (settled || isCancelled()) {
         finish()
@@ -673,52 +622,6 @@ export function seekPreviewVideo(
       }
     })
   })
-}
-
-/** Wait until the decoder has presented a frame after seek (avoids one-frame flash). */
-export function waitForPreviewPresentedFrame(
-  video: HTMLVideoElement,
-  isCancelled: () => boolean,
-): Promise<void> {
-  return new Promise((resolve) => {
-    if (isCancelled()) {
-      resolve()
-      return
-    }
-
-    let settled = false
-    const finish = () => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutId)
-      resolve()
-    }
-
-    const timeoutId = setTimeout(finish, 120)
-    const rvfc = (
-      video as HTMLVideoElement & {
-        requestVideoFrameCallback?: (cb: () => void) => number
-      }
-    ).requestVideoFrameCallback
-
-    if (typeof rvfc === 'function') {
-      rvfc.call(video, () => finish())
-      return
-    }
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(finish)
-    })
-  })
-}
-
-/** Attach a media-fragment start time so the first decode targets scrub position. */
-export function appendPreviewMediaFragment(url: string, timeSeconds: number): string {
-  const bare = String(url || '').split('#')[0]
-  if (!bare || !Number.isFinite(timeSeconds) || timeSeconds < PREVIEW_SEEK_EPSILON) {
-    return bare
-  }
-  return `${bare}#t=${Math.max(0, timeSeconds).toFixed(3)}`
 }
 
 export function resolveHoverLiveMaxHeight(settingsMaxHeight: unknown): string {
