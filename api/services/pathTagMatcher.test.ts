@@ -68,6 +68,15 @@ describe('extractPathPhrases', () => {
     expect(phraseTokens).toContain('koda monroe')
     expect(phraseTokens).toContain('moms teach sex')
   })
+
+  it('treats zip gallery paths as folders without a zip token', () => {
+    const parsed = extractPathPhrases('/media/Nature/album.zip!/nested/DSC_001.jpg')
+    expect(parsed.folders).toEqual(['media', 'Nature', 'album', 'nested'])
+    const tokens = parsed.phrases.flatMap((phrase) => phrase.tokens)
+    expect(tokens).toContain('nature')
+    expect(tokens).toContain('album')
+    expect(tokens).not.toContain('zip')
+  })
 })
 
 describe('path tag matching', () => {

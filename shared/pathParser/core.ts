@@ -313,10 +313,19 @@ function stripExtension(filePath: string) {
   return String(filePath || '').slice(0, String(filePath || '').length - (baseName.length - dotIndex))
 }
 
+/**
+ * ZIP gallery paths look like `/album.zip!/nested/photo.jpg`. Treat the archive
+ * as a folder segment (`album`) so path tagging matches folder/file phrases
+ * instead of emitting a spurious `zip` token.
+ */
+function normalizeVirtualZipPathForParsing(filePath: string): string {
+  return String(filePath || '').replace(/\\/g, '/').replace(/\.zip!\//gi, '/')
+}
+
 function extractPathPhrases(filePath: string, options: MatchPathTagsOptions = {}): PathPhraseParseResult {
   const minLength = options.minTokenLength ?? 2
   const precisionConfig = resolveMatchPrecisionConfig(options)
-  const withoutExt = stripExtension(filePath)
+  const withoutExt = stripExtension(normalizeVirtualZipPathForParsing(filePath))
   const segments = withoutExt.split(/[\\/]/).filter(Boolean)
   const fileName = segments.pop() || ''
   const folders = segments

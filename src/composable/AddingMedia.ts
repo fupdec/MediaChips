@@ -22,6 +22,7 @@ import {
   parseMediaTypeExtensions,
   isImageMediaType,
 } from '@/utils/mediaType'
+import {ensureStarterMeta} from '@/services/ensureStarterMeta'
 import {ONBOARDING_STEP_COUNT, saveOnboardingStep, shouldShowOnboarding} from '@/composable/useOnboarding'
 
 
@@ -417,6 +418,16 @@ export const useMediaAdding = () => {
 
       await updateProgress(true)
 
+      if (task.value.added.length > 0 && mediaType.id != null) {
+        // Ensure Tags (parser) is pinned to this media type — upgraded DBs often
+        // have Tags on Videos only, so image cards never show path/folder tags.
+        try {
+          await ensureStarterMeta({mediaTypeIds: [Number(mediaType.id)]})
+        } catch (error) {
+          console.error('Failed to ensure starter meta after adding media:', error)
+        }
+      }
+
       if (addedForParsing.length > 0) {
         task.value.status = t('media.adding.adding_metadata')
         await parseTagsForAddedMedia(addedForParsing)
@@ -555,8 +566,12 @@ export const useMediaAdding = () => {
             if (response.data?.[1]) parsedCount += 1
           }
         } else {
-          await typedApi.postTagsInMedia(valsChunk)
-          parsedCount += valsChunk.length
+          try {
+            await typedApi.postTagsInMedia(valsChunk)
+            parsedCount += valsChunk.length
+          } catch (error) {
+            console.error('Error linking parsed path tags:', error)
+          }
         }
       }
     }

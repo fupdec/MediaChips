@@ -37,6 +37,7 @@ import {
   buildPathLookupVariants,
 } from '../../utils/normalizeUserPath'
 import { invalidateMediaDerivedCaches } from '../../services/mediaCacheInvalidation'
+import { applyFolderTagsOnMediaAdd } from '../../services/applyFolderTagsOnMediaAdd'
 import {
   buildBulkPathUpdatePatch,
   normalizeBulkPathUpdateInputs,
@@ -369,6 +370,14 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       if (result.isCreated && result.media) {
         await mediaPostProcess.processNewMedia(result.media, mediaType)
+        try {
+          await applyFolderTagsOnMediaAdd(db, result.media)
+        } catch (folderTagError: unknown) {
+          console.error(
+            'Folder tag apply failed for new media:',
+            apiErrorMessage(folderTagError),
+          )
+        }
       }
 
       sendAddMediaResponse(res, result)
