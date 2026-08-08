@@ -343,6 +343,7 @@
           variant="text"
           color="white"
           size="small"
+          :title="t('image.viewer.zoom_out')"
         />
         <v-btn
           @click="resetView"
@@ -351,6 +352,7 @@
           variant="text"
           color="white"
           size="small"
+          :title="t('image.viewer.fit')"
         >
           {{ zoomLabel }}
         </v-btn>
@@ -361,6 +363,7 @@
           variant="text"
           color="white"
           size="small"
+          :title="t('image.viewer.zoom_in')"
         />
         <span class="image-viewer__dock-divider" />
         <v-btn
@@ -370,6 +373,7 @@
           variant="text"
           color="white"
           size="small"
+          :title="t('image.viewer.rotate_left')"
         />
         <v-btn
           @click="rotateRight"
@@ -378,6 +382,7 @@
           variant="text"
           color="white"
           size="small"
+          :title="t('image.viewer.rotate_right')"
         />
         <v-btn
           @click="toggleFlipHorizontal"
@@ -386,6 +391,7 @@
           icon="mdi-flip-horizontal"
           variant="text"
           size="small"
+          :title="t('image.viewer.flip_horizontal')"
         />
         <v-btn
           @click="toggleFlipVertical"
@@ -394,6 +400,7 @@
           icon="mdi-flip-vertical"
           variant="text"
           size="small"
+          :title="t('image.viewer.flip_vertical')"
         />
         <span class="image-viewer__dock-divider" />
         <v-btn

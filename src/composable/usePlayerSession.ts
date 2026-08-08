@@ -95,12 +95,11 @@ export function usePlayerSession() {
   const isAudioMode = computed(() => playerStore.isAudioMode)
   const audioThumb = computed(() => {
     const item = video.value
-    if (!item) return '/images/unavailable.png'
+    if (!item) return ''
     if (item.thumb && item.thumb !== '/images/unavailable.png') return item.thumb
     const id = item.id
-    if (id == null || !appStore.mediaPath) return '/images/unavailable.png'
-    return resolveMediaThumbDisplayUrl(appStore.mediaPath, 'audios', id)
-      || '/images/unavailable.png'
+    if (id == null || !appStore.mediaPath) return ''
+    return resolveMediaThumbDisplayUrl(appStore.mediaPath, 'audios', id) || ''
   })
   const audioMetaLine = computed(() => {
     const parts: string[] = []

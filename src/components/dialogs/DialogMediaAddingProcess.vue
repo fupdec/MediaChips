@@ -1758,18 +1758,14 @@ const runSmartLibraryWizard = async () => {
             ...names,
           ]).slice(0, 80)
 
+          // Suggest only — user confirms via Apply CLIP suggestions after review.
           if (clipSuggestions.length) {
-            const applyResult = await applyClipSuggestionsToMedia(clipSuggestions, mediaIds)
             pathAutoTagSummary.value = [
               pathAutoTagSummary.value,
-              t('media.adding.apply_clip_suggestions_done', {
-                created: applyResult.createdTags,
-                applied: applyResult.applied,
+              t('media.adding.make_library_smart_clip_tags_ready', {
+                count: clipSuggestions.length,
               }),
             ].filter(Boolean).join(' · ')
-            if (mediaIds.length) {
-              listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
-            }
           }
           smartWizardProgress.value = base + span
         }
@@ -1817,21 +1813,28 @@ const runSmartLibraryWizard = async () => {
           subtitle: t('media.adding.make_library_smart_neighbor_tags'),
           progress: base + span * 0.2,
         })
+        // Suggest only — merge into the review list; do not write tags until Accept.
         const response = await typedApi.suggestTagsFromSimilar({
           mediaIds,
-          apply: true,
+          apply: false,
           tagLimit: 12,
           neighborLimit: 24,
         })
-        const applied = Number(response.data?.applied || 0)
         const suggested = Number(response.data?.suggested || 0)
+        const neighborNames = (response.data?.items || [])
+          .flatMap((item) => item.suggestions || [])
+          .map((row) => row.name)
+          .filter((name): name is string => Boolean(name))
+        if (neighborNames.length) {
+          task.value.suggestedTags = uniqueNames([
+            ...(task.value.suggestedTags || []),
+            ...neighborNames,
+          ]).slice(0, 80)
+        }
         pathAutoTagSummary.value = [
           pathAutoTagSummary.value,
-          t('media.adding.make_library_smart_neighbor_tags_done', {applied, suggested}),
+          t('media.adding.make_library_smart_neighbor_tags_ready', {suggested}),
         ].filter(Boolean).join(' · ')
-        if (mediaIds.length) {
-          listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
-        }
         smartWizardProgress.value = base + span
       }
 

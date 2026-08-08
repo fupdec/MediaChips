@@ -294,7 +294,7 @@ const pendingCount = computed(() =>
   Math.max(0, Number(clipHealth.value?.missingEmbeddingsCount || 0)),
 )
 
-const seedHasEmbedding = computed(() => clipHealth.value?.seedHasEmbedding !== false)
+const seedHasEmbedding = computed(() => clipHealth.value?.seedHasEmbedding === true)
 
 const healthChecklist = computed(() => {
   const health = clipHealth.value

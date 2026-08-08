@@ -119,12 +119,15 @@
                     <v-icon icon="mdi-image-off-outline" size="40"/>
                   </div>
 
-                  <div
+                  <button
                     v-if="(!face.clusterSize || face.clusterSize <= 1) && face.timestamp"
-                    class="face-card__preview-badge face-card__preview-badge--right"
+                    type="button"
+                    class="face-card__preview-badge face-card__preview-badge--right face-card__preview-badge--play"
+                    :title="t('face_results.play_from_here_at', {time: face.timestamp})"
+                    @click.stop="playFromFace(face)"
                   >
                     {{ face.timestamp }}
-                  </div>
+                  </button>
                 </button>
 
                 <div

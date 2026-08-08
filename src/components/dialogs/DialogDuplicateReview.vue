@@ -354,32 +354,51 @@ async function mergeGroupItems(group: ReviewGroup) {
 
 async function mergeSuggested(group: ReviewGroup) {
   if (group.items.length < 2 || group.survivorId == null || merging.value) return
-  merging.value = true
-  error.value = ''
-  try {
-    await mergeGroupItems(group)
-    skipGroup(group.key)
-    notificationsStore.setNotification({
-      type: 'success',
-      title: t('media.dialogs.merge_media_done'),
-      text: t('media.dialogs.merge_media_done_text', {
-        name: group.items.find((item) => Number(item.id) === group.survivorId)?.name
-          || `#${group.survivorId}`,
-        count: group.items.length - 1,
-      }),
-    })
-  } catch (err) {
-    console.error(err)
-    error.value = getErrorResponseData<{message?: string}>(err)?.message
-      || (err instanceof Error ? err.message : String(err))
-    notificationsStore.setNotification({
-      type: 'error',
-      title: t('media.dialogs.merge_media_failed'),
-      text: error.value,
-    })
-  } finally {
-    merging.value = false
+
+  const runMerge = async () => {
+    merging.value = true
+    error.value = ''
+    try {
+      await mergeGroupItems(group)
+      skipGroup(group.key)
+      notificationsStore.setNotification({
+        type: 'success',
+        title: t('media.dialogs.merge_media_done'),
+        text: t('media.dialogs.merge_media_done_text', {
+          name: group.items.find((item) => Number(item.id) === group.survivorId)?.name
+            || `#${group.survivorId}`,
+          count: group.items.length - 1,
+        }),
+      })
+    } catch (err) {
+      console.error(err)
+      error.value = getErrorResponseData<{message?: string}>(err)?.message
+        || (err instanceof Error ? err.message : String(err))
+      notificationsStore.setNotification({
+        type: 'error',
+        title: t('media.dialogs.merge_media_failed'),
+        text: error.value,
+      })
+    } finally {
+      merging.value = false
+    }
   }
+
+  dialogsStore.confirm.text = withFile.value
+    ? t('media.dialogs.duplicate_review_merge_confirm_with_files', {
+      count: group.items.length - 1,
+    })
+    : t('media.dialogs.duplicate_review_merge_confirm', {
+      count: group.items.length - 1,
+    })
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.action = () => {
+    void runMerge()
+  }
+  dialogsStore.confirm.show = true
 }
 
 async function mergeAllSuggested() {

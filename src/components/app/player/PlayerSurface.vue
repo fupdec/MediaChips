@@ -62,6 +62,7 @@
 
           <div v-if="isAudioMode && !showPlaybackError" class="audio-overlay">
             <v-img
+              v-if="audioThumb"
               :src="audioThumb"
               class="audio-cover"
               cover

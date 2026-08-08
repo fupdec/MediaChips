@@ -20,6 +20,13 @@
         {{ excerpt }}
       </div>
       <div
+        v-else
+        class="text-preview-container__excerpt text-preview-container__excerpt--fallback"
+        :title="fallbackLabel"
+      >
+        {{ fallbackLabel }}
+      </div>
+      <div
         v-if="badge"
         class="text-preview-container__badge"
         :class="{'text-preview-container__badge--previewable': previewable}"
@@ -62,6 +69,12 @@ const excerpt = computed(() => {
   return value
 })
 
+const fallbackLabel = computed(() => {
+  const name = String(props.media?.name || '').trim()
+  if (name) return name
+  return previewable.value ? 'Open preview' : (badge.value || 'Text')
+})
+
 const open = () => {
   if (!props.isFileExists || !props.media?.path) return
   openTextMedia(props.media)
@@ -99,6 +112,13 @@ const open = () => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 8;
   line-clamp: 8;
+}
+
+.text-preview-container__excerpt--fallback {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  opacity: 0.85;
+  font-weight: 600;
 }
 
 .text-preview-container__badge {

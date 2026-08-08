@@ -128,6 +128,14 @@ const semanticHasIndex = computed(() =>
   Number(semanticHealth.value?.indexedCount || 0) > 0,
 )
 
+const semanticPendingCount = computed(() =>
+  Math.max(0, Number(semanticHealth.value?.missingEmbeddingsCount || 0)),
+)
+
+const semanticIndexComplete = computed(() =>
+  semanticHasIndex.value && semanticPendingCount.value === 0,
+)
+
 const semanticChecklist = computed(() => {
   const health = semanticHealth.value
   if (!health) return []
@@ -140,6 +148,7 @@ const semanticChecklist = computed(() => {
       : modelStatus === 'loading'
         ? t('globalSearch.health_model_loading')
         : t('globalSearch.health_model_missing')
+  const pending = semanticPendingCount.value
   return [
     {
       id: 'model',
@@ -155,10 +164,15 @@ const semanticChecklist = computed(() => {
     },
     {
       id: 'index',
-      ok: semanticHasIndex.value,
+      ok: semanticIndexComplete.value,
       text: semanticHasIndex.value
-        ? t('globalSearch.health_index_ok', {count: health.indexedCount})
-        : t('globalSearch.health_index_missing', {pending: health.missingEmbeddingsCount}),
+        ? pending > 0
+          ? t('globalSearch.health_index_partial', {
+            count: health.indexedCount,
+            pending,
+          })
+          : t('globalSearch.health_index_ok', {count: health.indexedCount})
+        : t('globalSearch.health_index_missing', {pending}),
     },
     {
       id: 'translate',
@@ -180,6 +194,9 @@ const semanticEmptyHint = computed(() => {
   if (!semanticModelReady.value) return t('globalSearch.health_hint_model')
   if (!semanticHasPreviews.value) return t('globalSearch.health_hint_previews')
   if (!semanticHasIndex.value) return t('globalSearch.health_hint_index')
+  if (semanticPendingCount.value > 0) {
+    return t('globalSearch.health_hint_index_partial', {pending: semanticPendingCount.value})
+  }
   return t('globalSearch.health_hint_no_match')
 })
 
@@ -195,6 +212,7 @@ const semanticSetupIncomplete = computed(() =>
     !semanticModelReady.value
     || !semanticHasPreviews.value
     || !semanticHasIndex.value
+    || semanticPendingCount.value > 0
   ),
 )
 
