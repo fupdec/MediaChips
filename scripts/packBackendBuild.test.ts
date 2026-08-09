@@ -11,6 +11,9 @@ describe('pack from .backend-build', () => {
     }
     const files = pkg.build.files
     expect(files).toContain('.backend-build/**/*')
+    expect(files).toContain('electron/**/*.js')
+    expect(files).toContain('main.js')
+    expect(files).toContain('dist/**/*')
     expect(files).not.toContain('!.backend-build')
   })
 
