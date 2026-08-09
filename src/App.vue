@@ -8,7 +8,7 @@
     :restarting="isRelaunching"
     :show-cancel-auto-restart="isElectronHost && autoRelaunchSecondsLeft != null"
     :cancel-auto-restart-label="t('auto_connect.cancel_auto_restart')"
-    @restart="relaunchApp"
+    @restart="handleRestartClick"
     @cancel-auto-restart="cancelAutoRelaunch"
   />
   <AutoConnect
@@ -46,6 +46,9 @@ const RECONNECT_INTERVAL_MS = 2000
 /** Auto-relaunch Electron app after this long of continuous server downtime. */
 const AUTO_RELAUNCH_AFTER_MS = 5 * 60 * 1000
 const AUTO_RELAUNCH_TICK_MS = 1000
+/** How soon after disconnect to ask Electron to restart the API child. */
+const BACKEND_RESTART_AFTER_MS = 4_000
+const MAX_BACKEND_RESTART_ATTEMPTS = 3
 
 const {t} = useI18n()
 const isConfigLoaded = ref(false)
@@ -85,8 +88,11 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let healthCheckTimer: ReturnType<typeof setInterval> | null = null
 let autoRelaunchTimer: ReturnType<typeof setTimeout> | null = null
 let autoRelaunchTickTimer: ReturnType<typeof setInterval> | null = null
+let backendRestartTimer: ReturnType<typeof setTimeout> | null = null
 let unavailableSinceMs: number | null = null
 let autoRelaunchCancelled = false
+let backendRestartAttempts = 0
+let backendRestartInFlight = false
 
 const connectionBannerTitle = computed(() => t('auto_connect.connection_lost'))
 
@@ -229,6 +235,13 @@ async function checkServerAvailability(server: ServerInfo) {
   }
 }
 
+function clearBackendRestartTimer() {
+  if (backendRestartTimer) {
+    clearTimeout(backendRestartTimer)
+    backendRestartTimer = null
+  }
+}
+
 function clearAutoRelaunchTimers() {
   if (autoRelaunchTimer) {
     clearTimeout(autoRelaunchTimer)
@@ -238,6 +251,7 @@ function clearAutoRelaunchTimers() {
     clearInterval(autoRelaunchTickTimer)
     autoRelaunchTickTimer = null
   }
+  clearBackendRestartTimer()
   autoRelaunchSecondsLeft.value = null
   unavailableSinceMs = null
 }
@@ -247,11 +261,48 @@ function cancelAutoRelaunch() {
   clearAutoRelaunchTimers()
 }
 
+async function restartBackendProcess(): Promise<boolean> {
+  if (!isElectronHost || !window.electronAPI?.invoke) return false
+  if (backendRestartInFlight) return false
+
+  backendRestartInFlight = true
+  try {
+    const result = await window.electronAPI.invoke('restart-backend')
+    return Boolean(result?.ok)
+  } catch (error) {
+    console.error('Failed to restart local backend:', error)
+    return false
+  } finally {
+    backendRestartInFlight = false
+  }
+}
+
+function scheduleBackendRestart() {
+  if (!isElectronHost || autoRelaunchCancelled || backendRestartTimer) return
+  if (backendRestartAttempts >= MAX_BACKEND_RESTART_ATTEMPTS) return
+
+  backendRestartTimer = setTimeout(() => {
+    backendRestartTimer = null
+    if (!isServerUnavailable.value || autoRelaunchCancelled) return
+    if (backendRestartAttempts >= MAX_BACKEND_RESTART_ATTEMPTS) return
+
+    backendRestartAttempts += 1
+    void (async () => {
+      await restartBackendProcess()
+      if (!isServerUnavailable.value || autoRelaunchCancelled) return
+      if (backendRestartAttempts < MAX_BACKEND_RESTART_ATTEMPTS) {
+        scheduleBackendRestart()
+      }
+    })()
+  }, BACKEND_RESTART_AFTER_MS)
+}
+
 function scheduleAutoRelaunch() {
   if (!isElectronHost || autoRelaunchCancelled || autoRelaunchTimer) return
 
   unavailableSinceMs = Date.now()
   autoRelaunchSecondsLeft.value = Math.ceil(AUTO_RELAUNCH_AFTER_MS / 1000)
+  scheduleBackendRestart()
 
   autoRelaunchTickTimer = setInterval(() => {
     if (unavailableSinceMs == null) return
@@ -265,6 +316,22 @@ function scheduleAutoRelaunch() {
   autoRelaunchTimer = setTimeout(() => {
     void relaunchApp()
   }, AUTO_RELAUNCH_AFTER_MS)
+}
+
+async function handleRestartClick() {
+  if (!isElectronHost || isRelaunching.value) return
+
+  // Prefer restarting only the local API child; fall back to full app relaunch.
+  const ok = await restartBackendProcess()
+  if (ok) {
+    const server = currentServer.value || getLocalServerInfo()
+    if (await checkServerAvailability(server)) {
+      await handleServerConnected(server)
+      return
+    }
+  }
+
+  await relaunchApp()
 }
 
 async function relaunchApp() {
@@ -283,6 +350,7 @@ async function relaunchApp() {
 
 function markServerAvailable() {
   consecutivePingFailures = 0
+  backendRestartAttempts = 0
   if (!isServerUnavailable.value && !reconnectHint.value) return
 
   isServerUnavailable.value = false

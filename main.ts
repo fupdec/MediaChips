@@ -1,5 +1,5 @@
 import type { BrowserWindow as BrowserWindowInstance } from 'electron'
-import { app } from 'electron'
+import { app, powerMonitor } from 'electron'
 import os from 'os'
 import path from 'path'
 
@@ -31,10 +31,8 @@ import {
   sendConfigToWindow as sendConfigToWindowImpl,
 } from './electron/rendererBootstrap'
 import {
+  createServerProcessSupervisor,
   resolveElectronDataDir,
-  startServerProcess,
-  stopServerProcess,
-  type ServerProcessHandles,
 } from './electron/serverProcess'
 import {
   createDefaultConfig,
@@ -135,20 +133,16 @@ function getShellConfigForRenderer(): Record<string, unknown> {
   return shellConfig as unknown as Record<string, unknown>
 }
 
-const serverProcessHandles: ServerProcessHandles = {child: null}
 const startupStartedAt = Date.now()
 
+const apiSupervisor = createServerProcessSupervisor({
+  appRoot,
+  dataDir,
+  resourcesPath: process.resourcesPath,
+})
+
 try {
-  startServerProcess({
-    appRoot,
-    dataDir,
-    resourcesPath: process.resourcesPath,
-    handles: serverProcessHandles,
-    onExit: (code, signal) => {
-      if (code === 0 || signal === 'SIGTERM' || signal === 'SIGKILL') return
-      console.error(`MediaChips API server exited unexpectedly (code=${code}, signal=${signal})`)
-    },
-  })
+  apiSupervisor.start()
   console.log(`[startup] API process spawned (+${Date.now() - startupStartedAt}ms)`)
 } catch (error) {
   console.error('Failed to start MediaChips API server process:', error)
@@ -165,6 +159,36 @@ const waitForBackend = async (port: number, timeoutMs?: number) => {
   await waitForBackendInner(port, timeoutMs)
   console.log(`[startup] /api/ping ok (+${Date.now() - startupStartedAt}ms, wait ${Date.now() - pingStartedAt}ms)`)
   await refreshApiConfigCache()
+}
+
+async function isBackendReachable(timeoutMs = 2000): Promise<boolean> {
+  const port = syncPortFromConfigFile()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/ping`, {
+      signal: controller.signal,
+    })
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function restartBackendAndWait(timeoutMs = 30000): Promise<boolean> {
+  const ok = await apiSupervisor.restart()
+  if (!ok) return false
+  await waitForBackend(syncPortFromConfigFile(), timeoutMs)
+  return isBackendReachable(2000)
+}
+
+async function ensureBackendAfterResume(): Promise<void> {
+  if (apiSupervisor.isStopping()) return
+  if (await isBackendReachable(1500)) return
+  console.warn('[startup] Backend unreachable after resume; restarting API process')
+  await restartBackendAndWait(20000)
 }
 
 const {
@@ -282,7 +306,7 @@ const appLifecycle = createAppLifecycleController({
   stopPlayerPlayback: () => playerWindow.stopPlayerPlayback(),
   schedulePlayerWarmup: () => playerWindow.schedulePlayerWarmup(),
   revealMainWindow,
-  closeServerListener: () => { stopServerProcess(serverProcessHandles) },
+  closeServerListener: () => { apiSupervisor.stop() },
   initAppUpdater: () => initAppUpdater({getWindow: () => mainWindow.getWindow()}),
   getMinimizeToTray: () => appTray.getMinimizeToTray(),
   logStartup: (message) => { console.log(message) },
@@ -299,7 +323,8 @@ registerWindowChromeIpc({
     win.focus()
   },
   setWebContentsZoomFactor,
-  beforeRelaunch: () => { stopServerProcess(serverProcessHandles) },
+  beforeRelaunch: () => { apiSupervisor.stop() },
+  restartBackend: () => restartBackendAndWait(30000),
 })
 registerShellIpc({ log: devLog })
 registerMediaDragIpc()
@@ -311,7 +336,11 @@ createAppMenuController({
 }).install()
 
 app.on('before-quit', () => {
-  stopServerProcess(serverProcessHandles)
+  apiSupervisor.stop()
+})
+
+powerMonitor.on('resume', () => {
+  void ensureBackendAfterResume()
 })
 
 appLifecycle.register()

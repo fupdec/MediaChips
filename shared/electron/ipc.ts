@@ -39,6 +39,7 @@ export const IPC_INVOKE_CHANNELS = [
   'unmaximize',
   'minimize',
   'relaunch',
+  'restart-backend',
   'closePlayer',
   'destroyPlayer',
   'toggleDevTools',
@@ -218,6 +219,7 @@ export interface IpcInvokePayloads {
   unmaximize: unknown
   minimize: unknown
   relaunch: void
+  'restart-backend': void
   closePlayer: void
   destroyPlayer: void
   toggleDevTools: void
@@ -255,6 +257,7 @@ export interface IpcInvokeResults {
   unmaximize: unknown
   minimize: unknown
   relaunch: void
+  'restart-backend': {ok: boolean; error?: string}
   closePlayer: void
   destroyPlayer: void
   toggleDevTools: void

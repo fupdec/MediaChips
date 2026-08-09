@@ -19,6 +19,8 @@ export function registerWindowChromeIpc(deps: {
   setWebContentsZoomFactor: (webContents: Electron.WebContents, factor: unknown) => number
   /** Stop API child / other resources before quit so the relaunched instance can bind the port. */
   beforeRelaunch?: () => void
+  /** Restart the local API child and wait until /api/ping succeeds. */
+  restartBackend?: () => Promise<boolean>
 }) {
   ipcMain.handle('setZoomFactor', (event: IpcMainInvokeEvent, factor: unknown) => {
     const browserWindow = BrowserWindow.fromWebContents(event.sender)
@@ -161,6 +163,21 @@ export function registerWindowChromeIpc(deps: {
       args: process.argv.slice(1),
     })
     app.quit()
+  })
+
+  ipcMain.handle('restart-backend', async () => {
+    if (!deps.restartBackend) {
+      return {ok: false, error: 'restartBackend is not configured'}
+    }
+    try {
+      const ok = await deps.restartBackend()
+      return {ok}
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
   })
 
   ipcMain.handle('toggleMainFullscreen', () => {
