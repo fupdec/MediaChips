@@ -90,14 +90,6 @@
               :title="t('appbar.buttons.open_random')"
               @click="openRandomItem"
             />
-            <v-list-item
-              v-if="!isElectron"
-              link
-              prepend-icon="mdi-cached"
-              :title="t('settings_labels.general.clear_app_cache')"
-              :subtitle="t('settings_labels.general.clear_app_cache_hint')"
-              @click="clearAppCache"
-            />
           </v-list>
         </v-menu>
 
@@ -153,14 +145,6 @@
         </div>
         <Documentation/>
         <Notifications/>
-        <ClearAppCacheButton
-          v-if="!isElectron"
-          icon-only
-          color="default"
-          variant="text"
-          size="default"
-          class="ml-0"
-        />
       </div>
     </div>
 
@@ -206,7 +190,6 @@ const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/
 const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
 const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
-const ClearAppCacheButton = defineAsyncComponent(() => import('@/components/app/ClearAppCacheButton.vue'))
 
 /* Stores */
 const itemsStore = useItemsStore()
@@ -269,15 +252,6 @@ function openRandomItem() {
 
 function editMetaFromMenu() {
   itemsEditMetaRef.value?.editMeta()
-}
-
-async function clearAppCache() {
-  const {forceClearAppShellCache} = await import('@/services/registerPwa')
-  try {
-    await forceClearAppShellCache()
-  } catch (error) {
-    console.error('Failed to clear app shell cache:', error)
-  }
 }
 
 async function createTab() {

@@ -109,71 +109,13 @@ const selected = computed({
   opacity: 0.72;
 }
 
-.settings-nav__list--compact {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-}
-
 .settings-nav__list--compact .settings-nav__item {
-  --v-list-prepend-gap: 8px;
-  flex: 0 0 auto;
-  display: grid !important;
-  grid-template-areas: "prepend content" !important;
-  grid-template-columns: max-content max-content !important;
-  grid-template-rows: auto !important;
-  justify-content: center;
-  justify-items: center;
-  align-items: center;
-  width: max-content !important;
-  max-width: none;
-  margin-bottom: 0;
-  min-width: 0;
-  min-height: 40px !important;
-  height: auto;
-  padding-block: 8px !important;
-  padding-inline: 12px !important;
-}
-
-.settings-nav__list--compact .settings-nav__item :deep(.v-list-item__prepend) {
-  grid-area: prepend;
-  align-self: center !important;
-  margin: 0;
-  padding: 0;
-  width: auto;
-  max-width: none;
-}
-
-.settings-nav__list--compact .settings-nav__item :deep(.v-list-item__prepend > .v-icon) {
-  margin: 0;
-  opacity: 1;
-}
-
-.settings-nav__list--compact .settings-nav__item :deep(.v-list-item__spacer) {
-  width: var(--v-list-prepend-gap, 8px) !important;
-}
-
-.settings-nav__list--compact .settings-nav__item :deep(.v-list-item__content) {
-  grid-area: content;
-  flex: none !important;
-  width: max-content !important;
-  min-width: 0 !important;
-  max-width: none;
-  overflow: visible;
-  white-space: nowrap;
-  padding: 0;
-  align-self: center !important;
-  text-align: start;
+  min-height: 44px;
+  padding-block: 8px;
+  margin-bottom: 4px;
 }
 
 .settings-nav__list--compact .settings-nav__item :deep(.v-list-item-title) {
-  margin: 0;
-  overflow: visible;
-  text-overflow: unset;
-  white-space: nowrap;
+  margin-bottom: 0;
 }
 </style>

@@ -31,8 +31,6 @@
       >
         {{ t('settings_labels.general.app_installed') }}
       </div>
-
-      <ClearAppCacheButton/>
     </div>
   </div>
 </template>
@@ -41,7 +39,6 @@
 import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {usePwaInstall} from '@/composable/usePwaInstall'
-import ClearAppCacheButton from '@/components/app/ClearAppCacheButton.vue'
 
 const {t} = useI18n()
 const {canInstall, isInstalled, promptInstall} = usePwaInstall()
