@@ -7,8 +7,9 @@ import {
   isLocalAiEnabled,
 } from './localLlm'
 import {extractJsonObject} from './localLlmChat'
+import {hasDownloadedModel, labelFramesAtTimestamps} from './videoClipTagger'
 
-/** Pull a short display stem from a media path/name for chapter titles. */
+/** Pull a short display stem from a media path/name (for LLM context only — not chapter text). */
 export function chapterTitleStem(filePathOrName: string | null | undefined): string {
   const raw = String(filePathOrName || '').trim()
   if (!raw) return ''
@@ -21,7 +22,7 @@ export function chapterTitleStem(filePathOrName: string | null | undefined): str
 }
 
 function positionalLabel(index: number, total: number): string {
-  if (total <= 1) return 'Scene'
+  if (total <= 1) return 'Chapter 1'
   if (index === 0) return 'Opening'
   if (index === total - 1) return 'Ending'
   if (total >= 5) {
@@ -30,25 +31,22 @@ function positionalLabel(index: number, total: number): string {
     if (ratio < 0.67) return 'Mid'
     return 'Late'
   }
-  return `Scene ${index + 1}`
+  return `Chapter ${index + 1}`
 }
 
 /**
- * Readable titles without an LLM: positional cue + optional stem + clock.
- * Example: "Opening · Neon Nights · 0:00"
+ * Readable titles without vision/LLM: positional cue + clock.
+ * Example: "Opening · 0:00" — never the filename.
  */
 export function buildHeuristicChapterTitles(input: {
   filePathOrName?: string | null
   times: number[]
 }): string[] {
+  void input.filePathOrName
   const times = (input.times || []).map((t) => Number(t)).filter((t) => Number.isFinite(t) && t >= 0)
-  const stem = chapterTitleStem(input.filePathOrName)
-  return times.map((time, index) => {
-    const parts = [positionalLabel(index, times.length)]
-    if (stem) parts.push(stem)
-    parts.push(formatChapterClock(time))
-    return parts.join(' · ')
-  })
+  return times.map((time, index) => (
+    `${positionalLabel(index, times.length)} · ${formatChapterClock(time)}`
+  ))
 }
 
 export function parseChapterTitlesResponse(
@@ -65,6 +63,46 @@ export function parseChapterTitlesResponse(
   return titles
 }
 
+/** Build chapter titles from CLIP labels at each cut (description · clock). */
+export function buildTitlesFromVisionLabels(input: {
+  times: number[]
+  labels: Array<{label: string; score: number} | null>
+}): string[] | null {
+  const times = (input.times || []).map((t) => Number(t)).filter((t) => Number.isFinite(t) && t >= 0)
+  if (!times.length || input.labels.length !== times.length) return null
+  if (!input.labels.some((row) => row?.label)) return null
+
+  return times.map((time, index) => {
+    const label = String(input.labels[index]?.label || '').trim()
+    if (label) return `${label} · ${formatChapterClock(time)}`
+    return `${positionalLabel(index, times.length)} · ${formatChapterClock(time)}`
+  })
+}
+
+export async function buildClipChapterTitles(
+  db: ApiDb,
+  input: {
+    videoPath?: string | null
+    times: number[]
+    locale?: string
+    shouldStop?: () => boolean
+    onProgress?: (fraction: number) => void
+  },
+): Promise<string[] | null> {
+  const videoPath = String(input.videoPath || '').trim()
+  const times = input.times || []
+  if (!videoPath || times.length < 2) return null
+  if (!hasDownloadedModel(db)) return null
+
+  const labels = await labelFramesAtTimestamps(db, videoPath, times, {
+    locale: input.locale,
+    shouldStop: input.shouldStop,
+    onProgress: input.onProgress,
+  })
+  if (!labels) return null
+  return buildTitlesFromVisionLabels({times, labels})
+}
+
 export async function buildLocalAiChapterTitles(
   db: ApiDb,
   input: {
@@ -72,6 +110,8 @@ export async function buildLocalAiChapterTitles(
     times: number[]
     locale?: string
     shouldStop?: () => boolean
+    /** Optional on-screen cues (CLIP labels) so the model does not echo the file name. */
+    visionLabels?: Array<string | null | undefined>
   },
 ): Promise<string[] | null> {
   const times = input.times || []
@@ -80,10 +120,10 @@ export async function buildLocalAiChapterTitles(
   const status = getLocalAiStatus(db)
   if (!['downloaded', 'loaded'].includes(String(status.status || ''))) return null
 
-  const stem = chapterTitleStem(input.filePathOrName) || 'video'
   const clocks = times.map((time, index) => ({
     index: index + 1,
     time: formatChapterClock(time),
+    visual: String(input.visionLabels?.[index] || '').trim() || null,
   }))
 
   let finalText = ''
@@ -93,17 +133,18 @@ export async function buildLocalAiChapterTitles(
     messages: [{
       role: 'user',
       content: [
-        'Invent short chapter titles for a video timeline.',
+        'Invent short chapter titles that describe what happens in each scene.',
         `Return ONLY JSON: {"titles":["..."]} with exactly ${times.length} titles.`,
         'Each title ≤ 6 words, no numbering, no timestamps in the title text.',
-        `Video name: ${JSON.stringify(stem)}`,
+        'Do NOT use or paraphrase the video file name as a title.',
+        'Prefer the visual cues when present; otherwise invent plausible distinct scene labels.',
         `Chapters: ${JSON.stringify(clocks)}`,
       ].join('\n'),
     }],
     context: {
       goal: 'chapter titles',
     },
-    system: 'Return only JSON with key titles (string array). Keep titles concise and specific to the video name when possible.',
+    system: 'Return only JSON with key titles (string array). Titles must describe scenes, never the file name.',
   }, {shouldStop: input.shouldStop})) {
     if (event.type === 'done') finalText = String(event.text || '')
     if (event.type === 'error' || event.type === 'aborted') return null
@@ -120,19 +161,64 @@ export async function resolveAutoChapterTitles(
   db: ApiDb,
   input: {
     filePathOrName?: string | null
+    /** Resolved on-disk path for frame sampling (CLIP descriptions). */
+    videoPath?: string | null
     times: number[]
     locale?: string
     useLlmTitles?: boolean
     shouldStop?: () => boolean
+    onProgress?: (fraction: number) => void
   },
 ): Promise<string[]> {
   const heuristic = buildHeuristicChapterTitles(input)
-  if (!input.useLlmTitles) return heuristic
+  const report = (fraction: number) => input.onProgress?.(Math.min(1, Math.max(0, fraction)))
+
+  let visionLabels: Array<string | null> | undefined
+  let clipTitles: string[] | null = null
+
   try {
-    const llmTitles = await buildLocalAiChapterTitles(db, input)
-    if (llmTitles?.length === input.times.length) return llmTitles
+    report(0.05)
+    clipTitles = await buildClipChapterTitles(db, {
+      videoPath: input.videoPath,
+      times: input.times,
+      locale: input.locale,
+      shouldStop: input.shouldStop,
+      onProgress: (fraction) => report(0.05 + fraction * 0.75),
+    })
+    if (clipTitles) {
+      visionLabels = clipTitles.map((title) => {
+        const clockSep = title.lastIndexOf(' · ')
+        return clockSep > 0 ? title.slice(0, clockSep).trim() : title
+      })
+    }
   } catch {
-    // Fall back to heuristics when Local AI is unavailable or fails.
+    clipTitles = null
   }
+
+  if (input.useLlmTitles) {
+    try {
+      report(0.85)
+      const llmTitles = await buildLocalAiChapterTitles(db, {
+        filePathOrName: input.filePathOrName,
+        times: input.times,
+        locale: input.locale,
+        shouldStop: input.shouldStop,
+        visionLabels,
+      })
+      if (llmTitles?.length === input.times.length) {
+        report(1)
+        return llmTitles
+      }
+    } catch {
+      // Fall through to CLIP / heuristic.
+    }
+  }
+
+  if (clipTitles?.length === input.times.length) {
+    report(1)
+    return clipTitles
+  }
+
+  report(1)
   return heuristic
 }

@@ -2172,11 +2172,15 @@ const runSmartLibraryWizard = async () => {
             if (event.type === 'progress' || event.type === 'item') {
               const processed = Number(event.processed || 0)
               const total = Math.max(1, Number(event.total || mediaIds.length || 1))
-              smartWizardProgress.value = base + (processed / total) * span
+              const itemProgress = Math.min(1, Math.max(0, Number(event.itemProgress) || 0))
+              const effective = processed + (event.type === 'progress' ? itemProgress : 0)
+              const percent = Math.min((effective / total) * 100, 100)
+              smartWizardProgress.value = base + (effective / total) * span
               tasksStore.updateTask(trayTaskId, {
                 subtitle: t('media.adding.make_library_smart_chapters_progress', {
                   processed,
                   total,
+                  percent: Math.round(percent),
                 }),
                 progress: smartWizardProgress.value,
               })

@@ -1021,6 +1021,7 @@ export default function useItemContextMenu(
       subtitle: tr('context_menu.generate_chapters_progress', {
         processed: 0,
         total: ids.length,
+        percent: 0,
       }),
       icon: 'bookmark-multiple-outline',
       progress: 0,
@@ -1047,9 +1048,16 @@ export default function useItemContextMenu(
             failed = Number(event.failed) || failed
             const processed = Number(event.processed) || 0
             const total = Number(event.total) || ids.length
+            const itemProgress = Math.min(1, Math.max(0, Number(event.itemProgress) || 0))
+            const effective = processed + (event.type === 'progress' ? itemProgress : 0)
+            const percent = total > 0 ? Math.min((effective / total) * 100, 100) : 0
             tasksStore.updateTask(taskId, {
-              subtitle: tr('context_menu.generate_chapters_progress', {processed, total}),
-              progress: total > 0 ? Math.min((processed / total) * 100, 100) : 0,
+              subtitle: tr('context_menu.generate_chapters_progress', {
+                processed,
+                total,
+                percent: Math.round(percent),
+              }),
+              progress: percent,
             })
           }
           if (event.type === 'error') {

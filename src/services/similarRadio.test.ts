@@ -1,10 +1,24 @@
 import {describe, expect, it} from 'vitest'
 import {
   filterUnseenNeighborIds,
+  seedNeedsGridForSimilarSearch,
   shouldRefillSimilarRadio,
   SIMILAR_RADIO_KEEP_LIMIT,
   SIMILAR_RADIO_REFILL_REMAINING,
 } from './similarRadio'
+
+describe('seedNeedsGridForSimilarSearch', () => {
+  it('is true for thumb-only / partial tile indexes', () => {
+    expect(seedNeedsGridForSimilarSearch(1)).toBe(true)
+    expect(seedNeedsGridForSimilarSearch(8)).toBe(true)
+  })
+
+  it('is false for missing embedding or full 3×3 grid', () => {
+    expect(seedNeedsGridForSimilarSearch(0)).toBe(false)
+    expect(seedNeedsGridForSimilarSearch(9)).toBe(false)
+    expect(seedNeedsGridForSimilarSearch(NaN)).toBe(false)
+  })
+})
 
 describe('filterUnseenNeighborIds', () => {
   it('drops excluded and non-positive ids while preserving order', () => {

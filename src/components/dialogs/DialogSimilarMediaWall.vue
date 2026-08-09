@@ -204,6 +204,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {typedApi} from '@/services/typedApi'
+import {seedNeedsGridForSimilarSearch} from '@/services/similarRadio'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getCurrentMediaType, getMediaDeleteAssetFolder, isVideoMediaType} from '@/utils/mediaType'
 import {loadMediaThumbUrls} from '@/utils/mediaThumbLoader'
@@ -237,6 +238,7 @@ const itemsById = ref<Record<number, MediaItem>>({})
 const thumbs = ref<Record<string, string>>({})
 const fileExistsById = ref<Record<string, boolean>>({})
 const clipHealth = ref<ClipHealth | null>(null)
+const seedTileCount = ref(0)
 let loadGeneration = 0
 
 const mediaType = computed(() =>
@@ -248,6 +250,10 @@ const mediaType = computed(() =>
 )
 
 const isVideo = computed(() => isVideoMediaType(mediaType.value))
+
+const seedNeedsGrids = computed(() =>
+  isVideo.value && seedNeedsGridForSimilarSearch(seedTileCount.value),
+)
 
 const canPlayRadio = computed(() =>
   isVideo.value
@@ -374,12 +380,13 @@ const healthTips = computed(() => {
       id: 'sparse',
       text: t('media.dialogs.similar_wall_health_tip_sparse', {count: neighbors.value.length}),
     })
-    if (isVideo.value) {
-      tips.push({
-        id: 'grids',
-        text: t('media.dialogs.similar_wall_health_tip_grids'),
-      })
-    }
+  }
+
+  if (seedHasEmbedding.value && seedNeedsGrids.value) {
+    tips.push({
+      id: 'grids',
+      text: t('media.dialogs.similar_wall_health_tip_grids'),
+    })
   }
 
   return tips
@@ -393,6 +400,7 @@ const healthNeedsAction = computed(() =>
     || !hasIndex.value
     || !seedHasEmbedding.value
     || pendingCount.value > 0
+    || seedNeedsGrids.value
   ),
 )
 
@@ -402,6 +410,7 @@ const showHealthPanel = computed(() =>
   && (
     healthNeedsAction.value
     || Boolean(emptyHint.value)
+    || seedNeedsGrids.value
     || (neighbors.value.length > 0 && neighbors.value.length < SPARSE_NEIGHBOR_THRESHOLD)
   ),
 )
@@ -577,6 +586,7 @@ async function reload() {
   loading.value = true
   error.value = ''
   emptyHint.value = ''
+  seedTileCount.value = 0
 
   try {
     const [response] = await Promise.all([
@@ -586,6 +596,7 @@ async function reload() {
     if (generation !== loadGeneration) return
     const data = response.data
     const hasEmbedding = Boolean(data?.hasEmbedding)
+    seedTileCount.value = Math.max(0, Number(data?.seedTileCount) || 0)
 
     await refreshClipHealth({seedHasEmbedding: hasEmbedding})
     if (generation !== loadGeneration) return
@@ -612,7 +623,9 @@ async function reload() {
     rankedIds.value = uniqueIds
 
     if (uniqueIds.length <= 1) {
-      emptyHint.value = t('context_menu.semantically_similar_none')
+      emptyHint.value = seedNeedsGridForSimilarSearch(seedTileCount.value)
+        ? t('player.similar_radio_needs_grids')
+        : t('context_menu.semantically_similar_none')
     }
 
     const basics = await loadBasicsByIds(uniqueIds)

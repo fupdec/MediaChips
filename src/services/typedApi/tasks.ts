@@ -82,6 +82,8 @@ export type GenerationStreamEvent = {
   type: string
   processed?: number
   total?: number
+  /** 0–1 progress within the current item (e.g. long auto-chapter ffmpeg pass). */
+  itemProgress?: number
   remaining?: number
   created?: number
   skipped?: number

@@ -161,7 +161,10 @@ async function startGeneration(force: boolean) {
 
   taskId = tasksStore.setTask({
     title: t('settings_labels.database.generate_auto_chapters'),
-    subtitle: t('settings_labels.database.generate_auto_chapters_progress', counters.value),
+    subtitle: t('settings_labels.database.generate_auto_chapters_progress', {
+      ...counters.value,
+      percent: 0,
+    }),
     icon: 'bookmark-multiple-outline',
     progress: 0,
     action: () => abortController?.abort(),
@@ -186,12 +189,18 @@ async function startGeneration(force: boolean) {
             failed: Number(event.failed) || 0,
           }
           if (event.path) currentPath.value = String(event.path)
+          const itemProgress = Math.min(1, Math.max(0, Number(event.itemProgress) || 0))
+          const effective = counters.value.processed
+            + (event.type === 'progress' ? itemProgress : 0)
           progress.value = counters.value.total > 0
-            ? Math.min((counters.value.processed / counters.value.total) * 100, 100)
+            ? Math.min((effective / counters.value.total) * 100, 100)
             : 0
           if (taskId != null) {
             tasksStore.updateTask(taskId, {
-              subtitle: t('settings_labels.database.generate_auto_chapters_progress', counters.value),
+              subtitle: t('settings_labels.database.generate_auto_chapters_progress', {
+                ...counters.value,
+                percent: Math.round(progress.value),
+              }),
               progress: progress.value,
             })
           }

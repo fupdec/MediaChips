@@ -7,10 +7,18 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {isVideoMediaType} from '@/utils/mediaType'
 import {i18n} from '@/i18n/loadLocale'
+import {VIDEO_GRID_SPRITE} from '@shared/videoPreview'
 
 export const SIMILAR_RADIO_FETCH_LIMIT = 24
 export const SIMILAR_RADIO_KEEP_LIMIT = 16
 export const SIMILAR_RADIO_REFILL_REMAINING = 2
+const VIDEO_GRID_TILE_COUNT = VIDEO_GRID_SPRITE.cols * VIDEO_GRID_SPRITE.rows
+
+/** True when seed has a CLIP index but not a full 3×3 grid (thumb-only / partial). */
+export function seedNeedsGridForSimilarSearch(seedTileCount: number): boolean {
+  const count = Number(seedTileCount)
+  return Number.isFinite(count) && count > 0 && count < VIDEO_GRID_TILE_COUNT
+}
 
 const active = ref(false)
 const seenIds = new Set<number>()
@@ -122,6 +130,7 @@ async function hydrateVideosByIds(ids: number[]): Promise<MediaItem[]> {
 
 async function fetchNeighborIds(seedId: number): Promise<{
   hasEmbedding: boolean
+  seedTileCount: number
   ids: number[]
 }> {
   const response = await typedApi.similarByClip({
@@ -130,10 +139,19 @@ async function fetchNeighborIds(seedId: number): Promise<{
   })
   const data = response.data
   const hasEmbedding = Boolean(data?.hasEmbedding)
+  const seedTileCount = Math.max(0, Number(data?.seedTileCount) || 0)
   const ids = Array.isArray(data?.ids)
     ? data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
     : []
-  return {hasEmbedding, ids}
+  return {hasEmbedding, seedTileCount, ids}
+}
+
+function notifyEmptyNeighbors(seedTileCount: number) {
+  if (seedNeedsGridForSimilarSearch(seedTileCount)) {
+    notify('warning', 'player.similar_radio_needs_grids')
+    return
+  }
+  notify('info', 'player.similar_radio_empty')
 }
 
 function applyPlaylist(videos: MediaItem[]) {
@@ -166,6 +184,7 @@ export async function startSimilarRadio(
   const itemsStore = useItemsStore()
   try {
     let neighborIds: number[]
+    let seedTileCount = 0
     if (options.initialNeighborIds?.length) {
       neighborIds = filterUnseenNeighborIds({
         neighborIds: options.initialNeighborIds,
@@ -173,14 +192,15 @@ export async function startSimilarRadio(
         limit: SIMILAR_RADIO_KEEP_LIMIT,
       })
     } else {
-      const {hasEmbedding, ids} = await fetchNeighborIds(seedId)
-      if (!hasEmbedding) {
+      const fetched = await fetchNeighborIds(seedId)
+      seedTileCount = fetched.seedTileCount
+      if (!fetched.hasEmbedding) {
         notify('warning', 'context_menu.semantically_similar_no_embedding')
         stopSimilarRadio({silent: true})
         return false
       }
       neighborIds = filterUnseenNeighborIds({
-        neighborIds: ids,
+        neighborIds: fetched.ids,
         excludeIds: seenIds,
         limit: SIMILAR_RADIO_KEEP_LIMIT,
       })
@@ -188,7 +208,16 @@ export async function startSimilarRadio(
 
     const neighbors = await hydrateVideosByIds(neighborIds)
     if (!neighbors.length) {
-      notify('info', 'player.similar_radio_empty')
+      // Prefetched wall path: still check seed tile count when possible.
+      if (!seedTileCount && options.initialNeighborIds?.length) {
+        try {
+          const fetched = await fetchNeighborIds(seedId)
+          seedTileCount = fetched.seedTileCount
+        } catch {
+          // fall through to generic empty
+        }
+      }
+      notifyEmptyNeighbors(seedTileCount)
       stopSimilarRadio({silent: true})
       return false
     }
@@ -235,7 +264,7 @@ export async function refillSimilarRadio(): Promise<void> {
       .map((item) => Number(item.id))
       .filter((id) => Number.isFinite(id) && id > 0)
 
-    const {hasEmbedding, ids} = await fetchNeighborIds(seedId)
+    const {hasEmbedding, seedTileCount, ids} = await fetchNeighborIds(seedId)
     if (!active.value) return
 
     if (!hasEmbedding) {
@@ -253,7 +282,7 @@ export async function refillSimilarRadio(): Promise<void> {
     if (!active.value) return
 
     if (!fresh.length) {
-      notify('info', 'player.similar_radio_empty')
+      notifyEmptyNeighbors(seedTileCount)
       stopSimilarRadio({silent: true})
       return
     }

@@ -15,8 +15,11 @@ import os from 'os'
 import path from 'path'
 import { extractVideoFrame, ffprobe } from '../utils/ffmpeg'
 import {
+  getLocalizedLabel,
   getPromptEntries,
+  tags as clipDictionaryTags,
 } from './videoClipTagDictionary'
+import {formatTimestamp} from './faceDetectorMath'
 import { createTagsRepository } from '../db/repositories/tags'
 import {getClipFrameTimestamps} from './videoClipFrameSample'
 import {aggregateFrameResults} from './videoClipTagAggregate'
@@ -352,12 +355,102 @@ async function classifyMedia(
   }
 }
 
+/**
+ * Label chapter cut times with CLIP zero-shot tags from a frame inside each chapter.
+ * Returns null entries when a frame fails; returns null overall when the model is unavailable.
+ */
+async function labelFramesAtTimestamps(
+  db: ApiDb,
+  videoPath: string,
+  timesSec: number[],
+  options: {
+    locale?: string
+    shouldStop?: () => boolean
+    minScore?: number
+    onProgress?: (fraction: number) => void
+  } = {},
+): Promise<Array<{label: string; score: number} | null> | null> {
+  const times = (timesSec || [])
+    .map((t) => Number(t))
+    .filter((t) => Number.isFinite(t) && t >= 0)
+  if (!times.length) return []
+  if (!hasDownloadedModel(db) && !classifier) return null
+
+  let tmpDir: string | null = null
+  try {
+    const model = await loadModel(db)
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-chapter-labels-'))
+    const promptEntries = getPromptEntries() as ClipPromptEntry[]
+    const locale = options.locale || 'en'
+    const minScore = Number(options.minScore) || 0.18
+    const tagByKey = new Map(
+      (clipDictionaryTags as Array<{key: string}>).map((tag) => [tag.key, tag]),
+    )
+    const results: Array<{label: string; score: number} | null> = []
+
+    for (let index = 0; index < times.length; index++) {
+      if (options.shouldStop?.()) break
+      options.onProgress?.(index / Math.max(times.length, 1))
+
+      const start = times[index]
+      const next = times[index + 1]
+      const sampleAt = next != null && next > start
+        ? Math.min(start + 1.5, (start + next) / 2)
+        : start + 1.5
+      const output = path.join(tmpDir, `ch_${index}.jpg`)
+
+      try {
+        await createFrame(String(videoPath), output, formatTimestamp(sampleAt), 320)
+        const rows = await classifyFrame(
+          model,
+          {
+            framePath: output,
+            mediaId: undefined,
+            mediaPath: String(videoPath),
+            timestamp: formatTimestamp(sampleAt),
+          },
+          promptEntries,
+          {topK: 2, minScore},
+        )
+        if (!rows.length) {
+          results.push(null)
+          continue
+        }
+
+        const primaryTag = tagByKey.get(rows[0].key)
+        const primary = primaryTag
+          ? getLocalizedLabel(primaryTag, locale)
+          : rows[0].key
+        let label = primary
+        if (rows[1] && rows[1].score >= Math.max(minScore, 0.22)) {
+          const secondaryTag = tagByKey.get(rows[1].key)
+          const secondary = secondaryTag
+            ? getLocalizedLabel(secondaryTag, locale)
+            : rows[1].key
+          if (secondary && secondary !== primary) label = `${primary}, ${secondary}`
+        }
+        results.push({label: String(label || '').trim().slice(0, 60), score: rows[0].score})
+      } catch {
+        results.push(null)
+      }
+    }
+
+    options.onProgress?.(1)
+    return results.length === times.length ? results : null
+  } catch {
+    return null
+  } finally {
+    cleanup(tmpDir)
+  }
+}
+
 export {
   CLIP_MODEL,
   aggregateFrameResults,
   classifyMedia,
   getStatus,
   hasDownloadedModel,
+  labelFramesAtTimestamps,
   loadModel,
   suggestTagsFromVideoFrames,
 }

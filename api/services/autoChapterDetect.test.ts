@@ -2,14 +2,36 @@ import {describe, expect, it} from 'vitest'
 import {
   AUTO_CHAPTER_TYPE,
   autoChapterLabel,
+  buildSceneDetectVideoFilter,
+  buildSilenceDetectAudioFilter,
   formatChapterClock,
   isAutoChapterMark,
+  parseFfmpegClockToSeconds,
+  parseFfmpegProgressTimeSeconds,
   parseScenePtsTimes,
   parseSilenceEndTimes,
   refineSceneTimestamps,
+  SCENE_DETECT_FPS,
+  SCENE_DETECT_WIDTH,
+  SILENCE_DETECT_SAMPLE_RATE,
 } from './autoChapterDetect'
 
 describe('autoChapterDetect', () => {
+  it('builds a fast subsampled scene-detect filter', () => {
+    expect(buildSceneDetectVideoFilter(0.35)).toBe(
+      `fps=${SCENE_DETECT_FPS},scale=${SCENE_DETECT_WIDTH}:-2,select='gt(scene\\,0.35)',showinfo`,
+    )
+    expect(buildSilenceDetectAudioFilter(-35, 0.6)).toContain(`aresample=${SILENCE_DETECT_SAMPLE_RATE}`)
+    expect(buildSilenceDetectAudioFilter(-35, 0.6)).toContain('silencedetect=noise=-35dB:d=0.6')
+  })
+
+  it('parses ffmpeg progress clocks', () => {
+    expect(parseFfmpegClockToSeconds('01:02:03.5')).toBeCloseTo(3723.5)
+    expect(parseFfmpegClockToSeconds('12:34.5')).toBeCloseTo(754.5)
+    expect(parseFfmpegProgressTimeSeconds('frame= 10 fps=3 time=00:01:20.50 bitrate=N/A')).toBeCloseTo(80.5)
+    expect(parseFfmpegProgressTimeSeconds('no time here')).toBeNull()
+  })
+
   it('parses pts_time values from ffmpeg showinfo logs', () => {
     const log = `
 [Parsed_showinfo_1 @ 0x] n:0 pts:123 pts_time:12.345

@@ -147,6 +147,7 @@ export const mediaApi = {
     return apiClient.post<{
       seedId: number
       hasEmbedding: boolean
+      seedTileCount: number
       ids: number[]
     }>(API_ROUTES.mediaSimilarByClip, body)
   },
