@@ -125,7 +125,7 @@
                   hide-details
                   density="compact"
                 />
-                <button-documentation id="media.parser"></button-documentation>
+                <ButtonDocumentation id="media.parser" dense/>
               </div>
 
               <!-- Опция исключения путей -->

@@ -149,12 +149,12 @@
               {{ t('meta.fields.suggestion_chips_hint') }}
             </div>
 
-            <v-expansion-panels variant="accordion" class="mb-0">
+            <v-expansion-panels variant="accordion" class="mb-0 tags-add-extra-names">
               <v-expansion-panel rounded="lg">
                 <v-expansion-panel-title class="text-body-2">
                   {{ t('meta.fields.add_more_names') }}
                 </v-expansion-panel-title>
-                <v-expansion-panel-text>
+                <v-expansion-panel-text class="tags-add-extra-names__body">
                   <v-textarea
                     v-model="extraNames"
                     :hint="t('meta.fields.several_names_hint')"
@@ -162,9 +162,11 @@
                     :rules="[optionalNameRules]"
                     variant="outlined"
                     color="primary"
+                    density="compact"
                     validate-on="submit lazy"
                     no-resize
-                    rows="3"
+                    rows="4"
+                    class="tags-add-extra-names__textarea"
                   />
                 </v-expansion-panel-text>
               </v-expansion-panel>
@@ -556,7 +558,8 @@ function openWithNames(payload: OpenTagsAddWithNamesEvent | string[] | undefined
     suggestions.value = unique
     selectedSuggestions.value = [...unique]
     names.value = ''
-    extraNames.value = ''
+    // Keep manual textarea prefilled with the same list (edit/bulk paste), as before.
+    extraNames.value = unique.join('\n')
   } else {
     reviewMode.value = false
     suggestions.value = []
@@ -638,5 +641,23 @@ onUnmounted(() => {
   opacity: 0.8;
   font-weight: 500;
   text-transform: lowercase;
+}
+
+.tags-add-extra-names__body {
+  padding: 0 !important;
+}
+
+.tags-add-extra-names__body :deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 12px 12px !important;
+}
+
+.tags-add-extra-names__textarea {
+  margin: 0 !important;
+}
+
+.tags-add-extra-names__textarea :deep(.v-input__details) {
+  padding-inline: 0;
+  min-height: 0;
+  padding-top: 4px;
 }
 </style>

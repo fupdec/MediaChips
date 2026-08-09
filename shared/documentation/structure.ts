@@ -65,7 +65,17 @@ export const docs = [
     icon: 'mdi-file-outline',
     selector: ['[href*="/media"]'],
     children: [
-      { id: 'media.adding', name: 'Adding media', icon: 'mdi-file-plus-outline' },
+      {
+        id: 'media.adding',
+        name: 'Adding media',
+        icon: 'mdi-file-plus-outline',
+        children: [
+          { id: 'media.adding.neighbor_tags', name: 'Tags from similar media', icon: 'mdi-tag-multiple-outline' },
+          { id: 'media.adding.blind_faces', name: 'Unknown face tags', icon: 'mdi-account-question-outline' },
+          { id: 'media.adding.chapters', name: 'Auto chapters', icon: 'mdi-bookmark-outline' },
+          { id: 'media.adding.organize', name: 'Organize into tag folders', icon: 'mdi-folder-move-outline' },
+        ],
+      },
       { id: 'media.parser', name: 'Path tag parser', icon: 'mdi-text-box-search' },
       { id: 'media.video_object_recognition', name: 'Video object recognition', icon: 'mdi-image-search-outline' },
       {

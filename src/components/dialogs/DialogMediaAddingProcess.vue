@@ -52,57 +52,90 @@
               {{ t('media.adding.make_library_smart_hint') }}
             </div>
 
+            <v-btn
+              class="mb-1"
+              block
+              @click="runEverythingPossible"
+              :loading="smartWizardRunning"
+              :disabled="!canMakeLibrarySmart || smartWizardRunning"
+              color="primary"
+              rounded
+              variant="flat"
+              size="large"
+            >
+              <v-icon icon="mdi-auto-fix" start/>
+              {{ t('media.adding.make_library_smart_magic') }}
+            </v-btn>
+            <div class="text-caption text-medium-emphasis mb-4">
+              {{ t('media.adding.make_library_smart_magic_hint') }}
+            </div>
+
             <div class="text-caption text-medium-emphasis text-uppercase mb-1">
               {{ t('media.adding.make_library_smart_group_tags') }}
             </div>
-            <v-checkbox
-              v-model="smartWizard.pathTags"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning"
-              :label="t('media.adding.make_library_smart_path_tags')"
-            />
-            <v-checkbox
-              v-model="smartWizard.neighborTags"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_neighbor_tags')"
-            />
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.pathTags"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning"
+                :label="t('media.adding.make_library_smart_path_tags')"
+              />
+              <ButtonDocumentation id="media.parser" dense/>
+            </div>
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.neighborTags"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo"
+                :label="t('media.adding.make_library_smart_neighbor_tags')"
+              />
+              <ButtonDocumentation id="media.adding.neighbor_tags" dense/>
+            </div>
 
             <div class="text-caption text-medium-emphasis text-uppercase mt-3 mb-1">
               {{ t('media.adding.make_library_smart_group_enrich') }}
             </div>
-            <v-checkbox
-              v-model="smartWizard.grids"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_grids')"
-            />
-            <v-checkbox
-              v-model="smartWizard.faces"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_faces')"
-            />
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.grids"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo"
+                :label="t('media.adding.make_library_smart_grids')"
+              />
+              <ButtonDocumentation id="settings.files.generated_previews" dense/>
+            </div>
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.faces"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo"
+                :label="t('media.adding.make_library_smart_faces')"
+              />
+              <ButtonDocumentation id="media.face_recognition" dense/>
+            </div>
             <div
               v-if="smartWizard.faces"
               class="smart-wizard-nested"
             >
-              <v-checkbox
-                v-model="smartWizard.blindFaceTags"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo || !hasFacePeopleCategory"
-                :label="t('media.adding.make_library_smart_blind_faces')"
-              />
+              <div class="smart-wizard-option">
+                <v-checkbox
+                  v-model="smartWizard.blindFaceTags"
+                  density="compact"
+                  hide-details
+                  color="primary"
+                  :disabled="smartWizardRunning || !isAddedVideo || !hasFacePeopleCategory"
+                  :label="t('media.adding.make_library_smart_blind_faces')"
+                />
+                <ButtonDocumentation id="media.adding.blind_faces" dense/>
+              </div>
               <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
                 {{
                   hasFacePeopleCategory
@@ -111,59 +144,76 @@
                 }}
               </div>
             </div>
-            <v-checkbox
-              v-model="smartWizard.clip"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_clip')"
-            />
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.clip"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo"
+                :label="t('media.adding.make_library_smart_clip')"
+              />
+              <ButtonDocumentation id="media.video_object_recognition" dense/>
+            </div>
             <div
               v-if="smartWizard.clip"
               class="smart-wizard-nested"
             >
-              <v-checkbox
-                v-model="smartWizard.clipTags"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
-                :label="t('media.adding.make_library_smart_clip_tags')"
-              />
+              <div class="smart-wizard-option">
+                <v-checkbox
+                  v-model="smartWizard.clipTags"
+                  density="compact"
+                  hide-details
+                  color="primary"
+                  :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
+                  :label="t('media.adding.make_library_smart_clip_tags')"
+                />
+                <ButtonDocumentation id="media.video_object_recognition" dense/>
+              </div>
               <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
                 {{ t('media.adding.make_library_smart_clip_tags_hint') }}
               </div>
             </div>
-            <v-checkbox
-              v-model="smartWizard.chapters"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_chapters')"
-            />
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.chapters"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo"
+                :label="t('media.adding.make_library_smart_chapters')"
+              />
+              <ButtonDocumentation id="media.adding.chapters" dense/>
+            </div>
 
             <div class="text-caption text-medium-emphasis text-uppercase mt-3 mb-1">
               {{ t('media.adding.make_library_smart_group_more') }}
             </div>
-            <v-checkbox
-              v-model="smartWizard.organize"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning"
-              :label="t('media.adding.make_library_smart_organize')"
-            />
-            <v-checkbox
+            <div class="smart-wizard-option">
+              <v-checkbox
+                v-model="smartWizard.organize"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning"
+                :label="t('media.adding.make_library_smart_organize')"
+              />
+              <ButtonDocumentation id="media.adding.organize" dense/>
+            </div>
+            <div
               v-if="sceneScrapeAvailable"
-              v-model="smartWizard.scrape"
-              density="compact"
-              hide-details
-              color="primary"
-              :disabled="smartWizardRunning || !isAddedVideo"
-              :label="t('media.adding.make_library_smart_scrape')"
-            />
+              class="smart-wizard-option"
+            >
+              <v-checkbox
+                v-model="smartWizard.scrape"
+                density="compact"
+                hide-details
+                color="primary"
+                :disabled="smartWizardRunning || !isAddedVideo"
+                :label="t('media.adding.make_library_smart_scrape')"
+              />
+              <ButtonDocumentation id="data_scraper" dense/>
+            </div>
 
             <div
               v-if="smartWizard.faces && faceModelNeedsDownload"
@@ -211,14 +261,28 @@
                 :disabled="!canRunSmartWizard || smartWizardRunning"
                 color="primary"
                 rounded
-                variant="flat"
+                variant="tonal"
               >
-                <v-icon icon="mdi-auto-fix" start/>
+                <v-icon icon="mdi-playlist-check" start/>
                 {{ t('media.adding.make_library_smart_run') }}
               </v-btn>
             </div>
 
-            <div v-if="pathAutoTagSummary" class="text-caption mt-2">
+            <div
+              v-if="smartWizardSummaryLines.length"
+              class="text-caption mt-2 smart-wizard-summary"
+            >
+              <div
+                v-for="(line, index) in smartWizardSummaryLines"
+                :key="`smart-summary-${index}`"
+              >
+                {{ line }}
+              </div>
+            </div>
+            <div
+              v-else-if="pathAutoTagSummary"
+              class="text-caption mt-2"
+            >
               {{ pathAutoTagSummary }}
             </div>
 
@@ -242,7 +306,7 @@
 
           <div v-if="task.finished" class="mb-4">
             <div
-              v-if="task.suggestedTags?.length || task.videoSuggestedTags?.length"
+              v-if="pendingReviewTagCount || clipReviewSuggestions.length"
               class="mb-3"
             >
               <div class="text-caption text-medium-emphasis text-uppercase mb-2">
@@ -250,7 +314,7 @@
               </div>
               <div class="d-flex flex-wrap ga-2">
                 <v-btn
-                  v-if="task.suggestedTags?.length"
+                  v-if="pendingReviewTagCount"
                   @click="acceptAllSuggestedTags"
                   :loading="acceptingSuggestedTags"
                   :disabled="acceptingSuggestedTags"
@@ -260,12 +324,12 @@
                 >
                   <v-icon icon="mdi-tag-check-outline" start/>
                   {{ t('media.adding.accept_all_suggested_tags_count', {
-                    count: task.suggestedTags.length,
+                    count: pendingReviewTagCount,
                   }) }}
                 </v-btn>
 
                 <v-btn
-                  v-if="task.videoSuggestedTags?.length"
+                  v-if="clipReviewSuggestions.length"
                   @click="applyClipSuggestedTags"
                   :loading="applyingClipSuggestions"
                   :disabled="applyingClipSuggestions"
@@ -278,7 +342,7 @@
                 </v-btn>
 
                 <v-btn
-                  v-if="task.suggestedTags?.length"
+                  v-if="pathReviewTagNames.length"
                   @click="openSuggestedTags"
                   color="primary"
                   rounded
@@ -286,14 +350,14 @@
                 >
                   <v-icon icon="mdi-tag-plus-outline" start/>
                   {{ t('media.adding.review_suggested_tags_count', {
-                    count: task.suggestedTags.length,
+                    count: pathReviewTagNames.length,
                   }) }}
                 </v-btn>
               </div>
             </div>
 
             <v-divider
-              v-if="(task.suggestedTags?.length || task.videoSuggestedTags?.length)
+              v-if="(pendingReviewTagCount || clipReviewSuggestions.length)
                 && (canReparseTags || canRecognizeObjects || canDetectFaces)"
               class="mb-3"
             />
@@ -671,7 +735,26 @@ import {
   acceptSuggestedTagsAndAssign,
   applyClipSuggestionsToMedia,
   applyImportPathAutoTags,
+  applyNeighborSuggestionsToMedia,
 } from '@/services/importPathAutoTag'
+import {
+  buildOrganizeMoveItems,
+  hasOrganizeByTagPrefs,
+  loadOrganizeByTagPrefs,
+} from '@/services/organizeMediaByTag'
+import {
+  clipSuggestionLabels,
+  flattenNeighborSuggestions,
+  neighborSuggestionLabels,
+  normalizeClipSuggestions,
+  splitClipSuggestionsByConfidence,
+  splitNeighborSuggestionsByCount,
+  type ClipTagSuggestion,
+  type NeighborTagSuggestion,
+} from '@/services/smartLibrarySuggestions'
+import {checkFileExists} from '@/services/fileService'
+import {useSettingsStore} from '@/stores/settings'
+import {useOperationsStore} from '@/stores/operations'
 import {parseMatchAutoBlindTagsForm} from '@/utils/faceSettingsForm'
 import {
   ONBOARDING_STEP_COUNT,
@@ -680,8 +763,6 @@ import {
   shouldShowOnboarding,
 } from '@/composable/useOnboarding'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
-import {useSettingsStore} from '@/stores/settings'
-import {useOperationsStore} from '@/stores/operations'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {useAutoSceneScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
 
@@ -767,6 +848,18 @@ const faceModelDownloading = ref(false)
 const acceptingSuggestedTags = ref(false)
 const applyingClipSuggestions = ref(false)
 const pathAutoTagSummary = ref('')
+const neighborReviewSuggestions = ref<NeighborTagSuggestion[]>([])
+const smartWizardSummary = ref<{
+  pathCreated?: number
+  pathApplied?: number
+  pathMedia?: number
+  faces?: number
+  blindTags?: number
+  clipIndexed?: boolean
+  tagsAutoApplied?: number
+  tagsPendingReview?: number
+  organize?: 'done' | 'opened' | 'needs_setup' | 'skipped'
+} | null>(null)
 const smartWizard = ref({
   pathTags: true,
   grids: true,
@@ -897,6 +990,17 @@ const canMakeLibrarySmart = computed(() => (
   task.value.finished &&
   task.value.addedMedia.length > 0
 ))
+
+const uniqueNames = (items: string[]) => {
+  const seen = new Set<string>()
+  return items.filter((name) => {
+    const key = String(name || '').trim().toLowerCase()
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 const canRunSmartWizard = computed(() =>
   canMakeLibrarySmart.value &&
   (
@@ -915,10 +1019,146 @@ const canRunSmartWizard = computed(() =>
   !(smartWizard.value.clip && clipModelNeedsDownload.value)
 )
 
+const pathReviewTagNames = computed(() => uniqueNames(task.value.suggestedTags || []))
+
+const clipReviewSuggestions = computed((): ClipTagSuggestion[] => {
+  const raw = task.value.videoSuggestedTags || []
+  if (!raw.length) return []
+  if (typeof raw[0] === 'string') {
+    return normalizeClipSuggestions(
+      (raw as string[]).map((word) => ({word, mediaIds: addedMediaIds()})),
+    )
+  }
+  return normalizeClipSuggestions(raw as Array<{word?: string; confidence?: number; mediaIds?: Array<number | string>}>)
+})
+
+const pendingReviewTagCount = computed(() =>
+  pathReviewTagNames.value.length
+  + neighborReviewSuggestions.value.length
+  + clipReviewSuggestions.value.length,
+)
+
+const smartWizardSummaryLines = computed(() => {
+  const summary = smartWizardSummary.value
+  if (!summary) return [] as string[]
+  const lines: string[] = []
+  if (summary.pathApplied != null || summary.pathCreated != null) {
+    lines.push(t('media.adding.make_library_smart_path_tags_done', {
+      created: summary.pathCreated || 0,
+      applied: summary.pathApplied || 0,
+      media: summary.pathMedia || 0,
+    }))
+  }
+  if (summary.faces != null) {
+    lines.push(t('media.adding.faces_found', {count: summary.faces}))
+  }
+  if (summary.blindTags) {
+    lines.push(t('media.adding.make_library_smart_blind_faces_done', {
+      tags: summary.blindTags,
+      faces: summary.faces || 0,
+    }))
+  }
+  if (summary.clipIndexed) {
+    lines.push(t('media.adding.make_library_smart_summary_clip_indexed'))
+  }
+  if (summary.tagsAutoApplied) {
+    lines.push(t('media.adding.make_library_smart_summary_auto_applied', {
+      count: summary.tagsAutoApplied,
+    }))
+  }
+  if (summary.tagsPendingReview) {
+    lines.push(t('media.adding.make_library_smart_summary_pending_review', {
+      count: summary.tagsPendingReview,
+    }))
+  }
+  if (summary.organize === 'done') {
+    lines.push(t('media.adding.make_library_smart_summary_organize_done'))
+  } else if (summary.organize === 'opened') {
+    lines.push(t('media.adding.make_library_smart_summary_organize_opened'))
+  } else if (summary.organize === 'needs_setup') {
+    lines.push(t('media.adding.make_library_smart_summary_organize_needs_setup'))
+  }
+  return lines
+})
+
 function addedMediaIds(): number[] {
   return (task.value.addedMedia || [])
     .map((entry) => Number(entry.mediaId))
     .filter((id) => Number.isFinite(id) && id > 0)
+}
+
+function applyEverythingPossiblePreset() {
+  const video = isAddedVideo.value
+  smartWizard.value = {
+    pathTags: true,
+    grids: video,
+    faces: video,
+    blindFaceTags: video && hasFacePeopleCategory.value,
+    clip: video,
+    clipTags: video,
+    chapters: video,
+    organize: true,
+    neighborTags: video,
+    scrape: video && sceneScrapeAvailable.value,
+  }
+}
+
+async function preflightSmartWizardModels() {
+  if (smartWizard.value.faces && faceModelNeedsDownload.value) {
+    await downloadFaceModel()
+    if (faceModelNeedsDownload.value) {
+      throw new Error(t('media.adding.download_face_model_hint'))
+    }
+  }
+  if (smartWizard.value.clip && clipModelNeedsDownload.value) {
+    await downloadClipModel()
+    if (clipModelNeedsDownload.value) {
+      throw new Error(t('media.adding.download_video_recognition_model_hint'))
+    }
+  }
+}
+
+async function runEverythingPossible() {
+  if (!canMakeLibrarySmart.value || smartWizardRunning.value) return
+  applyEverythingPossiblePreset()
+  try {
+    await preflightSmartWizardModels()
+  } catch (error) {
+    setNotification({
+      type: 'error',
+      title: t('media.adding.make_library_smart_failed'),
+      text: getErrorMessage(error),
+    })
+    return
+  }
+  await runSmartLibraryWizard()
+}
+
+function confirmSmartWizardOrganize(root: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (value: boolean) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    dialogsStore.confirm.checkBox = false
+    dialogsStore.confirm.checkBox2 = false
+    dialogsStore.confirm.checkBox2RequiresPrimary = false
+    dialogsStore.confirm.checkBoxText = ''
+    dialogsStore.confirm.checkBox2Text = ''
+    dialogsStore.confirm.text = t('media.adding.make_library_smart_organize_confirm', {root})
+    dialogsStore.confirm.action = () => finish(true)
+    dialogsStore.confirm.show = true
+    const stop = watch(
+      () => dialogsStore.confirm.show,
+      (show) => {
+        if (show) return
+        stop()
+        finish(false)
+      },
+    )
+  })
 }
 
 const duplicates_by_path = computed((): string[] => {
@@ -1100,8 +1340,13 @@ const relinkMovedFiles = async () => {
 }
 
 const openSuggestedTags = () => {
+  const names = uniqueNames([
+    ...pathReviewTagNames.value,
+    ...neighborSuggestionLabels(neighborReviewSuggestions.value),
+    ...clipSuggestionLabels(clipReviewSuggestions.value),
+  ])
   appShell.openTagsAddWithNames({
-    names: task.value.suggestedTags || [],
+    names,
     metaId: getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId) ?? undefined,
     title: t('media.adding.suggested_tags_from_added_files'),
     mediaIds: addedMediaIds(),
@@ -1109,29 +1354,52 @@ const openSuggestedTags = () => {
 }
 
 const acceptAllSuggestedTags = async () => {
-  const names = uniqueNames(task.value.suggestedTags || [])
-  if (!names.length) return
-
-  const metaId = getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId)
-  if (!metaId) {
-    openSuggestedTags()
-    return
-  }
+  const pathNames = pathReviewTagNames.value
+  const neighbors = [...neighborReviewSuggestions.value]
+  const clips = [...clipReviewSuggestions.value]
+  if (!pathNames.length && !neighbors.length && !clips.length) return
 
   acceptingSuggestedTags.value = true
   try {
-    const result = await acceptSuggestedTagsAndAssign(names, addedMediaIds())
-    task.value.suggestedTags = []
+    const mediaIds = addedMediaIds()
+    let created = 0
+    let applied = 0
+
+    if (neighbors.length) {
+      const neighborResult = await applyNeighborSuggestionsToMedia(neighbors)
+      applied += neighborResult.applied
+      neighborReviewSuggestions.value = []
+    }
+
+    if (clips.length) {
+      const clipResult = await applyClipSuggestionsToMedia(clips, mediaIds)
+      created += clipResult.createdTags
+      applied += clipResult.applied
+      task.value.videoSuggestedTags = []
+    }
+
+    if (pathNames.length) {
+      const metaId = getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId)
+      if (!metaId) {
+        openSuggestedTags()
+      } else {
+        const pathResult = await acceptSuggestedTagsAndAssign(pathNames, mediaIds)
+        created += pathResult.createdTags
+        applied += pathResult.applied
+        task.value.suggestedTags = []
+      }
+    }
+
     listSync.getItemsFromDb({
-      ids: addedMediaIds(),
+      ids: mediaIds,
       type: 'media',
     })
     setNotification({
       type: 'success',
       title: t('media.adding.accept_all_suggested_tags'),
       text: t('media.adding.accept_all_suggested_tags_done', {
-        created: result.createdTags,
-        applied: result.applied,
+        created,
+        applied,
       }),
     })
   } catch (error) {
@@ -1147,12 +1415,11 @@ const acceptAllSuggestedTags = async () => {
 }
 
 const applyClipSuggestedTags = async () => {
-  const names = uniqueNames(task.value.videoSuggestedTags || task.value.suggestedTags || [])
-  if (!names.length) return
+  const suggestions = [...clipReviewSuggestions.value]
+  if (!suggestions.length) return
   applyingClipSuggestions.value = true
   try {
     const mediaIds = addedMediaIds()
-    const suggestions = names.map((word) => ({word, mediaIds}))
     const result = await applyClipSuggestionsToMedia(suggestions, mediaIds)
     task.value.videoSuggestedTags = []
     listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
@@ -1174,16 +1441,6 @@ const applyClipSuggestedTags = async () => {
   } finally {
     applyingClipSuggestions.value = false
   }
-}
-
-const uniqueNames = (items: string[]) => {
-  const seen = new Set<string>()
-  return items.filter((name) => {
-    const key = String(name || '').trim().toLowerCase()
-    if (!key || seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
 }
 
 const openProcessAction = (): NotificationAction => ({
@@ -1458,7 +1715,6 @@ const detectFacesInAddedVideos = async () => {
       {
         paths: task.value.added,
         force: false,
-        framesPerVideo: 6,
       },
       {signal: controller.signal},
       (event: Record<string, unknown>) => {
@@ -1585,6 +1841,8 @@ const runSmartLibraryWizard = async () => {
   smartWizardRunning.value = true
   smartWizardProgress.value = 0
   pathAutoTagSummary.value = ''
+  smartWizardSummary.value = {}
+  neighborReviewSuggestions.value = []
   smartWizardStatus.value = t('media.adding.make_library_smart')
   const controller = new AbortController()
   smartWizardAbort = controller
@@ -1604,6 +1862,8 @@ const runSmartLibraryWizard = async () => {
 
   const mediaEntries = task.value.addedMedia || []
   const mediaIds = addedMediaIds()
+  let tagsAutoApplied = 0
+  let tagsPendingReview = 0
 
   try {
     for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
@@ -1619,6 +1879,12 @@ const runSmartLibraryWizard = async () => {
           progress: base + span * 0.2,
         })
         const result = await applyImportPathAutoTags(mediaIds, {signal: controller.signal})
+        smartWizardSummary.value = {
+          ...smartWizardSummary.value,
+          pathCreated: result.createdTags,
+          pathApplied: result.applied,
+          pathMedia: result.mediaWithTags,
+        }
         pathAutoTagSummary.value = t('media.adding.make_library_smart_path_tags_done', {
           created: result.createdTags,
           applied: result.applied,
@@ -1665,7 +1931,6 @@ const runSmartLibraryWizard = async () => {
             mediaIds,
             paths: task.value.added,
             force: false,
-            framesPerVideo: 6,
             autoBlindTags: smartWizard.value.blindFaceTags && hasFacePeopleCategory.value,
           },
           {signal: controller.signal},
@@ -1687,6 +1952,11 @@ const runSmartLibraryWizard = async () => {
             if (event.type === 'complete') {
               const blindTags = Number(event.blindTags || 0)
               const faces = Number(event.faces || task.value.facesFound || 0)
+              smartWizardSummary.value = {
+                ...smartWizardSummary.value,
+                faces,
+                blindTags: blindTags || undefined,
+              }
               if (blindTags > 0) {
                 setNotification({
                   type: 'success',
@@ -1732,6 +2002,11 @@ const runSmartLibraryWizard = async () => {
           },
         )
 
+        smartWizardSummary.value = {
+          ...smartWizardSummary.value,
+          clipIndexed: true,
+        }
+
         if (smartWizard.value.clipTags && clipModelReady.value && !controller.signal.aborted) {
           smartWizardStatus.value = t('media.adding.make_library_smart_clip_tags')
           tasksStore.updateTask(trayTaskId, {
@@ -1746,27 +2021,16 @@ const runSmartLibraryWizard = async () => {
             excludeExisting: true,
           })
           if (controller.signal.aborted) break
-          const clipSuggestions = Array.isArray(response.data?.suggestions)
-            ? response.data.suggestions
-            : []
-          const names = clipSuggestions
-            .map((item) => item.word)
-            .filter((word): word is string => Boolean(word))
-          task.value.videoSuggestedTags = uniqueNames(names)
-          task.value.suggestedTags = uniqueNames([
-            ...(task.value.suggestedTags || []),
-            ...names,
-          ]).slice(0, 80)
-
-          // Suggest only — user confirms via Apply CLIP suggestions after review.
-          if (clipSuggestions.length) {
-            pathAutoTagSummary.value = [
-              pathAutoTagSummary.value,
-              t('media.adding.make_library_smart_clip_tags_ready', {
-                count: clipSuggestions.length,
-              }),
-            ].filter(Boolean).join(' · ')
+          const clipSuggestions = normalizeClipSuggestions(
+            Array.isArray(response.data?.suggestions) ? response.data.suggestions : [],
+          )
+          const {high, low} = splitClipSuggestionsByConfidence(clipSuggestions)
+          if (high.length) {
+            const applied = await applyClipSuggestionsToMedia(high, mediaIds)
+            tagsAutoApplied += applied.applied
           }
+          task.value.videoSuggestedTags = low
+          tagsPendingReview += low.length
           smartWizardProgress.value = base + span
         }
       }
@@ -1813,28 +2077,21 @@ const runSmartLibraryWizard = async () => {
           subtitle: t('media.adding.make_library_smart_neighbor_tags'),
           progress: base + span * 0.2,
         })
-        // Suggest only — merge into the review list; do not write tags until Accept.
         const response = await typedApi.suggestTagsFromSimilar({
           mediaIds,
           apply: false,
           tagLimit: 12,
           neighborLimit: 24,
+          minCount: 1,
         })
-        const suggested = Number(response.data?.suggested || 0)
-        const neighborNames = (response.data?.items || [])
-          .flatMap((item) => item.suggestions || [])
-          .map((row) => row.name)
-          .filter((name): name is string => Boolean(name))
-        if (neighborNames.length) {
-          task.value.suggestedTags = uniqueNames([
-            ...(task.value.suggestedTags || []),
-            ...neighborNames,
-          ]).slice(0, 80)
+        const flat = flattenNeighborSuggestions(response.data?.items || [])
+        const {high, low} = splitNeighborSuggestionsByCount(flat)
+        if (high.length) {
+          const applied = await applyNeighborSuggestionsToMedia(high)
+          tagsAutoApplied += applied.applied
         }
-        pathAutoTagSummary.value = [
-          pathAutoTagSummary.value,
-          t('media.adding.make_library_smart_neighbor_tags_ready', {suggested}),
-        ].filter(Boolean).join(' · ')
+        neighborReviewSuggestions.value = low
+        tagsPendingReview += low.length
         smartWizardProgress.value = base + span
       }
 
@@ -1875,17 +2132,88 @@ const runSmartLibraryWizard = async () => {
         if (mediaIds.length) {
           listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
           operationsStore.create_folder_move_media.ids = [...mediaIds]
-          operationsStore.create_folder_move_media.dialog = true
+          const prefs = loadOrganizeByTagPrefs()
+          if (hasOrganizeByTagPrefs(prefs) && prefs) {
+            const rootExists = await checkFileExists(prefs.root)
+            if (!rootExists) {
+              smartWizardSummary.value = {
+                ...smartWizardSummary.value,
+                organize: 'needs_setup',
+              }
+              operationsStore.create_folder_move_media.dialog = true
+            } else {
+              const runOrganize = await confirmSmartWizardOrganize(prefs.root)
+              if (runOrganize) {
+                const mediaById = new Map(
+                  (itemsStore.entities || []).map((item) => [Number(item.id), item]),
+                )
+                for (const entry of task.value.addedMedia || []) {
+                  const id = Number(entry.mediaId)
+                  if (!mediaById.has(id)) {
+                    mediaById.set(id, {id, path: entry.path, tags: []})
+                  }
+                }
+                const tagsById = new Map(
+                  (appStore.tags || []).map((tag) => [Number(tag.id), tag]),
+                )
+                const moveItems = buildOrganizeMoveItems({
+                  ids: mediaIds,
+                  root: prefs.root,
+                  metaIds: prefs.metaIds,
+                  mediaById,
+                  tagsById,
+                })
+                if (moveItems.length) {
+                  operationsStore.moving.items = moveItems
+                  operationsStore.moving.ids = []
+                  operationsStore.moving.callback = (movedId) => {
+                    listSync.getItemsFromDb({ids: [movedId], type: 'media'})
+                  }
+                  await operationsStore.moveFiles()
+                  smartWizardSummary.value = {
+                    ...smartWizardSummary.value,
+                    organize: 'done',
+                  }
+                } else {
+                  smartWizardSummary.value = {
+                    ...smartWizardSummary.value,
+                    organize: 'needs_setup',
+                  }
+                  operationsStore.create_folder_move_media.dialog = true
+                }
+              } else {
+                smartWizardSummary.value = {
+                  ...smartWizardSummary.value,
+                  organize: 'skipped',
+                }
+              }
+            }
+          } else {
+            smartWizardSummary.value = {
+              ...smartWizardSummary.value,
+              organize: 'needs_setup',
+            }
+            operationsStore.create_folder_move_media.dialog = true
+          }
         }
         smartWizardProgress.value = base + span
       }
     }
 
     if (!controller.signal.aborted) {
+      smartWizardSummary.value = {
+        ...smartWizardSummary.value,
+        tagsAutoApplied: tagsAutoApplied || undefined,
+        tagsPendingReview: tagsPendingReview || pendingReviewTagCount.value || undefined,
+      }
       smartWizardProgress.value = 100
-      smartWizardStatus.value = pathAutoTagSummary.value || t('media.adding.make_library_smart_done')
+      const summaryText = smartWizardSummaryLines.value.join(' · ')
+        || pathAutoTagSummary.value
+        || t('media.adding.make_library_smart_done')
+      smartWizardStatus.value = summaryText
+      pathAutoTagSummary.value = summaryText
       tasksStore.updateTask(trayTaskId, {
-        subtitle: smartWizardStatus.value,
+        subtitle: summaryText,
         progress: 100,
         color: 'success',
         done: true,
@@ -1894,7 +2222,7 @@ const runSmartLibraryWizard = async () => {
       setNotification({
         type: 'success',
         title: t('media.adding.make_library_smart'),
-        text: smartWizardStatus.value,
+        text: summaryText,
         actions: [openProcessAction()],
       })
     } else {
@@ -2039,6 +2367,22 @@ watch(canRecognizeObjects, (enabled) => {
   gap: 4px;
   justify-content: center;
   min-height: 40px;
+}
+
+.smart-wizard-option {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.smart-wizard-option :deep(.v-checkbox) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.smart-wizard-option :deep(.v-label) {
+  white-space: normal;
 }
 
 .smart-wizard-nested {

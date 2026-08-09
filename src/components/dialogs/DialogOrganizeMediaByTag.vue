@@ -151,6 +151,11 @@ import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
+import {
+  buildOrganizeMoveItems,
+  loadOrganizeByTagPrefs,
+  saveOrganizeByTagPrefs,
+} from '@/services/organizeMediaByTag'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
@@ -164,12 +169,6 @@ interface DialogHeaderButton {
   disabled?: boolean
   function?: () => void | Promise<void>
 }
-
-interface MediaTagLink {
-  metaId?: number
-  tagId?: number
-}
-
 
 const {smAndDown} = useDisplay()
 const {t} = useI18n()
@@ -212,11 +211,33 @@ const getMetaList = () => {
 }
 
 const initFolder = () => {
+  const prefs = loadOrganizeByTagPrefs()
+  if (prefs?.root) {
+    root_folder.value = prefs.root
+    return
+  }
   const ids = operationsStore.create_folder_move_media?.ids || []
   const item = ITEMS.value?.entities?.find(i => i.id === ids[0])
   if (item?.path) {
     root_folder.value = path.dirname(item.path)
   }
+}
+
+const applyRememberedStructure = () => {
+  const prefs = loadOrganizeByTagPrefs()
+  if (!prefs?.metaIds?.length) return
+  const byId = new Map(metas.value.map((meta) => [Number(meta.id), meta]))
+  const next: Meta[] = []
+  for (const metaId of prefs.metaIds) {
+    const meta = byId.get(Number(metaId))
+    if (!meta) continue
+    next.push(meta)
+    byId.delete(Number(metaId))
+  }
+  if (!next.length) return
+  structure.value = next
+  meta_list.value = [...byId.values()]
+  if (buttons.value[0]) buttons.value[0].disabled = false
 }
 
 const addTag = (tag: Meta) => {
@@ -283,29 +304,25 @@ const organizeFiles = async () => {
     }
 
     const ids = operationsStore.create_folder_move_media?.ids || []
-    const moveItems = []
-
-    for (const id of ids) {
-      const item = ITEMS.value?.entities?.find(i => i.id === id)
-      if (!item) continue
-
-      const item_tags = (item.tags || []) as MediaTagLink[]
-      let folder = root_folder.value
-
-      for (const meta of structure.value) {
-        const tags = item_tags.filter(i => meta.id === i.metaId)
-        if (tags.length > 0) {
-          const tag = allTags.value.find(i => i.id === tags[0].tagId)
-          if (tag?.name) {
-            folder = path.join(folder, tag.name)
-          }
-        }
-      }
-
-      moveItems.push({ id, folder })
-    }
+    const mediaById = new Map(
+      (ITEMS.value?.entities || []).map((item) => [Number(item.id), item]),
+    )
+    const tagsById = new Map(
+      (allTags.value || []).map((tag) => [Number(tag.id), tag]),
+    )
+    const metaIds = structure.value
+      .map((meta) => Number(meta.id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+    const moveItems = buildOrganizeMoveItems({
+      ids,
+      root: root_folder.value,
+      metaIds,
+      mediaById,
+      tagsById,
+    })
 
     if (moveItems.length > 0) {
+      saveOrganizeByTagPrefs({root: root_folder.value, metaIds})
       operationsStore.moving.items = moveItems
       operationsStore.moving.ids = []
       operationsStore.moving.callback = (movedId) => {
@@ -364,6 +381,8 @@ const initButtons = () => {
 onMounted(() => {
   getMetaList()
   initFolder()
+  applyRememberedStructure()
   initButtons()
+  getExample()
 })
 </script>

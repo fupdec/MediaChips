@@ -169,6 +169,40 @@ export async function acceptSuggestedTagsAndAssign(
   }
 }
 
+/** Assign existing neighbor tags (tagId + metaId) onto their source media. */
+export async function applyNeighborSuggestionsToMedia(
+  suggestions: Array<{
+    tagId?: number
+    metaId?: number
+    mediaIds?: Array<number | string>
+  }>,
+): Promise<ImportPathAutoTagResult> {
+  const assignments: ParseLibraryTagAssignment[] = []
+  for (const suggestion of suggestions) {
+    const tagId = Number(suggestion.tagId)
+    const metaId = Number(suggestion.metaId)
+    if (!Number.isFinite(tagId) || tagId <= 0) continue
+    if (!Number.isFinite(metaId) || metaId <= 0) continue
+    const mediaIds = (suggestion.mediaIds || [])
+      .map(Number)
+      .filter((id) => Number.isFinite(id) && id > 0)
+    for (const mediaId of mediaIds) {
+      assignments.push({mediaId, metaId, tagId, willCreate: false})
+    }
+  }
+  if (!assignments.length) {
+    return {applied: 0, createdTags: 0, mediaWithTags: 0, proposed: 0}
+  }
+  const response = await typedApi.applyParseLibraryTags({assignments})
+  await reloadTagsCatalog()
+  return {
+    applied: Number(response.data?.applied || 0),
+    createdTags: 0,
+    mediaWithTags: new Set(assignments.map((row) => row.mediaId)).size,
+    proposed: assignments.length,
+  }
+}
+
 /** Create CLIP/object labels and assign each suggestion to its source media IDs. */
 export async function applyClipSuggestionsToMedia(
   suggestions: Array<{word?: string; mediaIds?: Array<number | string>}>,

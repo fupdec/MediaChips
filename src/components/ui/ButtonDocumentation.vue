@@ -3,8 +3,12 @@ import {useAppShell} from '@/composable/appShell'
 
 const appShell = useAppShell()
 
-const props = defineProps({
-  id: String,
+const props = withDefaults(defineProps<{
+  id?: string
+  dense?: boolean
+}>(), {
+  id: '',
+  dense: false,
 })
 
 const showDocumentation = () => {
@@ -14,13 +18,26 @@ const showDocumentation = () => {
 
 <template>
   <v-btn
-    @click="showDocumentation()"
-    class="ml-4 mr-4"
+    @click.stop="showDocumentation()"
+    :class="dense ? 'button-documentation--dense' : 'ml-4 mr-4'"
     color="primary"
     variant="text"
-    size="sm"
+    :size="dense ? 'x-small' : 'small'"
     icon
+    :aria-label="'Documentation'"
   >
-    <v-icon>mdi-help-circle</v-icon>
+    <v-icon :size="dense ? 18 : undefined">mdi-help-circle</v-icon>
   </v-btn>
 </template>
+
+<style scoped>
+.button-documentation--dense {
+  margin-inline: 0;
+  opacity: 0.72;
+}
+
+.button-documentation--dense:hover,
+.button-documentation--dense:focus-visible {
+  opacity: 1;
+}
+</style>
