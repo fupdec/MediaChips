@@ -47,13 +47,16 @@
             color="primary"
             class="smart-wizard-section pa-3"
           >
-            <div class="smart-wizard-section__title text-body-2 font-weight-medium mb-2">
+            <div class="smart-wizard-section__title text-body-2 font-weight-medium mb-1">
               {{ t('media.adding.make_library_smart') }}
+            </div>
+            <div class="text-caption text-medium-emphasis mb-3 smart-wizard-section__hint">
+              {{ t('media.adding.make_library_smart_hint') }}
             </div>
 
             <v-btn
               class="mb-1"
-              @click="runEverythingPossible"
+              @click="runSafeEnhance"
               :loading="smartWizardRunning"
               :disabled="!canMakeLibrarySmart || smartWizardRunning"
               color="primary"
@@ -61,215 +64,16 @@
               variant="flat"
               size="small"
             >
-              <v-icon icon="mdi-auto-fix" start size="18"/>
-              {{ t('media.adding.make_library_smart_magic') }}
+              <v-icon icon="mdi-flash" start size="18"/>
+              {{ t('media.adding.make_library_smart_safe') }}
             </v-btn>
-            <div class="text-caption text-medium-emphasis mb-3 smart-wizard-section__hint">
-              {{ t('media.adding.make_library_smart_magic_hint') }}
-            </div>
-
-            <div class="text-caption text-medium-emphasis text-uppercase mb-0 smart-wizard-section__group">
-              {{ t('media.adding.make_library_smart_group_tags') }}
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.pathTags"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning"
-                :label="t('media.adding.make_library_smart_path_tags')"
-              />
-              <ButtonDocumentation id="media.parser" dense/>
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.neighborTags"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo"
-                :label="t('media.adding.make_library_smart_neighbor_tags')"
-              />
-              <ButtonDocumentation id="media.adding.neighbor_tags" dense/>
-            </div>
-
-            <div class="text-caption text-medium-emphasis text-uppercase mt-2 mb-0 smart-wizard-section__group">
-              {{ t('media.adding.make_library_smart_group_enrich') }}
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.grids"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo"
-                :label="t('media.adding.make_library_smart_grids')"
-              />
-              <ButtonDocumentation id="settings.files.generated_previews" dense/>
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.faces"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo"
-                :label="t('media.adding.make_library_smart_faces')"
-              />
-              <ButtonDocumentation id="media.face_recognition" dense/>
-            </div>
-            <div
-              v-if="smartWizard.faces"
-              class="smart-wizard-nested"
-            >
-              <div class="smart-wizard-option">
-                <v-checkbox
-                  v-model="smartWizard.blindFaceTags"
-                  density="compact"
-                  hide-details
-                  color="primary"
-                  :disabled="smartWizardRunning || !isAddedVideo || !hasFacePeopleCategory"
-                  :label="t('media.adding.make_library_smart_blind_faces')"
-                />
-                <ButtonDocumentation id="media.adding.blind_faces" dense/>
-              </div>
-              <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
-                {{
-                  hasFacePeopleCategory
-                    ? t('media.adding.make_library_smart_blind_faces_hint')
-                    : t('media.adding.make_library_smart_blind_faces_need_category')
-                }}
-              </div>
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.clip"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo"
-                :label="t('media.adding.make_library_smart_clip')"
-              />
-              <ButtonDocumentation id="media.video_object_recognition" dense/>
-            </div>
-            <div
-              v-if="smartWizard.clip"
-              class="smart-wizard-nested"
-            >
-              <div class="smart-wizard-option">
-                <v-checkbox
-                  v-model="smartWizard.clipTags"
-                  density="compact"
-                  hide-details
-                  color="primary"
-                  :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
-                  :label="t('media.adding.make_library_smart_clip_tags')"
-                />
-                <ButtonDocumentation id="media.video_object_recognition" dense/>
-              </div>
-              <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
-                {{ t('media.adding.make_library_smart_clip_tags_hint') }}
-              </div>
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.chapters"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo"
-                :label="t('media.adding.make_library_smart_chapters')"
-              />
-              <ButtonDocumentation id="media.adding.chapters" dense/>
-            </div>
-
-            <div class="text-caption text-medium-emphasis text-uppercase mt-2 mb-0 smart-wizard-section__group">
-              {{ t('media.adding.make_library_smart_group_more') }}
-            </div>
-            <div class="smart-wizard-option">
-              <v-checkbox
-                v-model="smartWizard.organize"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning"
-                :label="t('media.adding.make_library_smart_organize')"
-              />
-              <ButtonDocumentation id="media.adding.organize" dense/>
-            </div>
-            <div
-              v-if="sceneScrapeAvailable"
-              class="smart-wizard-option"
-            >
-              <v-checkbox
-                v-model="smartWizard.scrape"
-                density="compact"
-                hide-details
-                color="primary"
-                :disabled="smartWizardRunning || !isAddedVideo"
-                :label="t('media.adding.make_library_smart_scrape')"
-              />
-              <ButtonDocumentation id="data_scraper" dense/>
-            </div>
-
-            <div
-              v-if="smartWizard.faces && faceModelNeedsDownload"
-              class="text-caption text-medium-emphasis mt-2"
-            >
-              {{ t('media.adding.download_face_model_hint') }}
-            </div>
-            <div
-              v-if="smartWizard.clip && clipModelNeedsDownload"
-              class="text-caption text-medium-emphasis mt-2"
-            >
-              {{ t('media.adding.download_video_recognition_model_hint') }}
-            </div>
-
-            <div class="d-flex flex-wrap ga-2 mt-2">
-              <v-btn
-                v-if="smartWizard.faces && faceModelNeedsDownload"
-                @click="downloadFaceModel"
-                :loading="faceModelDownloading"
-                :disabled="faceModelDownloading || smartWizardRunning"
-                color="secondary"
-                rounded
-                variant="outlined"
-                size="small"
-              >
-                <v-icon icon="mdi-download" start/>
-                {{ t('media.adding.download_face_model') }}
-              </v-btn>
-              <v-btn
-                v-if="smartWizard.clip && clipModelNeedsDownload"
-                @click="downloadClipModel"
-                :loading="clipModelDownloading"
-                :disabled="clipModelDownloading || smartWizardRunning"
-                color="secondary"
-                rounded
-                variant="outlined"
-                size="small"
-              >
-                <v-icon icon="mdi-download" start/>
-                {{ t('media.adding.download_video_recognition_model') }}
-              </v-btn>
-              <v-btn
-                @click="runSmartLibraryWizard"
-                :loading="smartWizardRunning"
-                :disabled="!canRunSmartWizard || smartWizardRunning"
-                color="primary"
-                rounded
-                variant="tonal"
-                size="small"
-              >
-                <v-icon icon="mdi-playlist-check" start/>
-                {{ t('media.adding.make_library_smart_run') }}
-              </v-btn>
+            <div class="text-caption text-medium-emphasis mb-2 smart-wizard-section__hint">
+              {{ t('media.adding.make_library_smart_safe_hint') }}
             </div>
 
             <div
               v-if="smartWizardSummaryLines.length"
-              class="text-caption mt-2 smart-wizard-summary"
+              class="text-caption mb-2 smart-wizard-summary"
             >
               <div
                 v-for="(line, index) in smartWizardSummaryLines"
@@ -280,12 +84,12 @@
             </div>
             <div
               v-else-if="pathAutoTagSummary"
-              class="text-caption mt-2"
+              class="text-caption mb-2"
             >
               {{ pathAutoTagSummary }}
             </div>
 
-            <div v-if="smartWizardRunning || smartWizardProgress > 0" class="mt-2">
+            <div v-if="smartWizardRunning || smartWizardProgress > 0" class="mb-2">
               <v-progress-linear
                 v-model="smartWizardProgress"
                 color="primary"
@@ -301,16 +105,246 @@
                 {{ smartWizardStatus }}
               </div>
             </div>
+
+            <v-expansion-panels
+              v-model="smartAdvancedOpen"
+              variant="accordion"
+              class="smart-wizard-advanced"
+            >
+              <v-expansion-panel>
+                <v-expansion-panel-title class="text-caption px-2">
+                  {{ t('media.adding.make_library_smart_advanced') }}
+                </v-expansion-panel-title>
+                <v-expansion-panel-text class="px-0">
+                  <div class="text-caption text-medium-emphasis text-uppercase mb-0 smart-wizard-section__group">
+                    {{ t('media.adding.make_library_smart_group_tags') }}
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.pathTags"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning"
+                      :label="t('media.adding.make_library_smart_path_tags')"
+                    />
+                    <ButtonDocumentation id="media.parser" dense/>
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.neighborTags"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning || !isAddedVideo"
+                      :label="t('media.adding.make_library_smart_neighbor_tags')"
+                    />
+                    <ButtonDocumentation id="media.adding.neighbor_tags" dense/>
+                  </div>
+
+                  <div class="text-caption text-medium-emphasis text-uppercase mt-2 mb-0 smart-wizard-section__group">
+                    {{ t('media.adding.make_library_smart_group_enrich') }}
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.grids"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning || !isAddedVideo"
+                      :label="t('media.adding.make_library_smart_grids')"
+                    />
+                    <ButtonDocumentation id="settings.files.generated_previews" dense/>
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.faces"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning || !isAddedVideo"
+                      :label="t('media.adding.make_library_smart_faces')"
+                    />
+                    <ButtonDocumentation id="media.face_recognition" dense/>
+                  </div>
+                  <div
+                    v-if="smartWizard.faces"
+                    class="smart-wizard-nested"
+                  >
+                    <div class="smart-wizard-option">
+                      <v-checkbox
+                        v-model="smartWizard.blindFaceTags"
+                        density="compact"
+                        hide-details
+                        color="primary"
+                        :disabled="smartWizardRunning || !isAddedVideo || !hasFacePeopleCategory"
+                        :label="t('media.adding.make_library_smart_blind_faces')"
+                      />
+                      <ButtonDocumentation id="media.adding.blind_faces" dense/>
+                    </div>
+                    <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
+                      {{
+                        hasFacePeopleCategory
+                          ? t('media.adding.make_library_smart_blind_faces_hint')
+                          : t('media.adding.make_library_smart_blind_faces_need_category')
+                      }}
+                    </div>
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.clip"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning || !isAddedVideo"
+                      :label="t('media.adding.make_library_smart_clip')"
+                    />
+                    <ButtonDocumentation id="media.video_object_recognition" dense/>
+                  </div>
+                  <div
+                    v-if="smartWizard.clip"
+                    class="smart-wizard-nested"
+                  >
+                    <div class="smart-wizard-option">
+                      <v-checkbox
+                        v-model="smartWizard.clipTags"
+                        density="compact"
+                        hide-details
+                        color="primary"
+                        :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
+                        :label="t('media.adding.make_library_smart_clip_tags')"
+                      />
+                      <ButtonDocumentation id="media.video_object_recognition" dense/>
+                    </div>
+                    <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
+                      {{ t('media.adding.make_library_smart_clip_tags_hint') }}
+                    </div>
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.chapters"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning || !isAddedVideo"
+                      :label="t('media.adding.make_library_smart_chapters')"
+                    />
+                    <ButtonDocumentation id="media.adding.chapters" dense/>
+                  </div>
+
+                  <div class="text-caption text-medium-emphasis text-uppercase mt-2 mb-0 smart-wizard-section__group">
+                    {{ t('media.adding.make_library_smart_group_more') }}
+                  </div>
+                  <div class="smart-wizard-option">
+                    <v-checkbox
+                      v-model="smartWizard.organize"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning"
+                      :label="t('media.adding.make_library_smart_organize')"
+                    />
+                    <ButtonDocumentation id="media.adding.organize" dense/>
+                  </div>
+                  <div
+                    v-if="sceneScrapeAvailable"
+                    class="smart-wizard-option"
+                  >
+                    <v-checkbox
+                      v-model="smartWizard.scrape"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :disabled="smartWizardRunning || !isAddedVideo"
+                      :label="t('media.adding.make_library_smart_scrape')"
+                    />
+                    <ButtonDocumentation id="data_scraper" dense/>
+                  </div>
+
+                  <div
+                    v-if="smartWizard.faces && faceModelNeedsDownload"
+                    class="text-caption text-medium-emphasis mt-2"
+                  >
+                    {{ t('media.adding.download_face_model_hint') }}
+                  </div>
+                  <div
+                    v-if="smartWizard.clip && clipModelNeedsDownload"
+                    class="text-caption text-medium-emphasis mt-2"
+                  >
+                    {{ t('media.adding.download_video_recognition_model_hint') }}
+                  </div>
+
+                  <div class="d-flex flex-wrap ga-2 mt-2">
+                    <v-btn
+                      v-if="smartWizard.faces && faceModelNeedsDownload"
+                      @click="downloadFaceModel"
+                      :loading="faceModelDownloading"
+                      :disabled="faceModelDownloading || smartWizardRunning"
+                      color="secondary"
+                      rounded
+                      variant="outlined"
+                      size="small"
+                    >
+                      <v-icon icon="mdi-download" start/>
+                      {{ t('media.adding.download_face_model') }}
+                    </v-btn>
+                    <v-btn
+                      v-if="smartWizard.clip && clipModelNeedsDownload"
+                      @click="downloadClipModel"
+                      :loading="clipModelDownloading"
+                      :disabled="clipModelDownloading || smartWizardRunning"
+                      color="secondary"
+                      rounded
+                      variant="outlined"
+                      size="small"
+                    >
+                      <v-icon icon="mdi-download" start/>
+                      {{ t('media.adding.download_video_recognition_model') }}
+                    </v-btn>
+                    <v-btn
+                      @click="runSmartLibraryWizard"
+                      :loading="smartWizardRunning"
+                      :disabled="!canRunSmartWizard || smartWizardRunning"
+                      color="primary"
+                      rounded
+                      variant="tonal"
+                      size="small"
+                    >
+                      <v-icon icon="mdi-playlist-check" start/>
+                      {{ t('media.adding.make_library_smart_run') }}
+                    </v-btn>
+                    <v-btn
+                      @click="runEverythingPossible"
+                      :loading="smartWizardRunning"
+                      :disabled="!canMakeLibrarySmart || smartWizardRunning"
+                      color="primary"
+                      rounded
+                      variant="text"
+                      size="small"
+                    >
+                      <v-icon icon="mdi-auto-fix" start size="18"/>
+                      {{ t('media.adding.make_library_smart_magic') }}
+                    </v-btn>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mt-1">
+                    {{ t('media.adding.make_library_smart_magic_hint') }}
+                  </div>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
           </v-card>
         </section>
 
         <!-- Suggested tags -->
         <section
           v-if="task.added.length > 0 && task.finished && (pendingReviewTagCount || clipReviewSuggestions.length)"
-          class="process-dialog-section process-dialog-section--panel"
+          class="process-dialog-section process-dialog-section--panel process-dialog-section--review"
         >
-          <div class="text-caption text-medium-emphasis text-uppercase mb-2">
+          <div class="text-body-2 font-weight-medium mb-1">
             {{ t('media.adding.suggested_tags_actions') }}
+          </div>
+          <div class="text-caption text-medium-emphasis mb-2">
+            {{ t('media.adding.make_library_smart_review_cta') }}
           </div>
           <div class="d-flex flex-wrap ga-2">
             <v-btn
@@ -321,6 +355,7 @@
               color="primary"
               rounded
               variant="flat"
+              size="large"
             >
               <v-icon icon="mdi-tag-check-outline" start/>
               {{ t('media.adding.accept_all_suggested_tags_count', {
@@ -861,13 +896,14 @@ const smartWizard = ref({
   grids: true,
   faces: false,
   blindFaceTags: parseMatchAutoBlindTagsForm(settingsStore['faceMatch.autoBlindTags'], false),
-  clip: false,
-  clipTags: false,
+  clip: true,
+  clipTags: true,
   chapters: false,
   organize: false,
   neighborTags: false,
   scrape: false,
 })
+const smartAdvancedOpen = ref<number | undefined>(undefined)
 const smartWizardRunning = ref(false)
 const smartWizardProgress = ref(0)
 const smartWizardStatus = ref('')
@@ -1083,6 +1119,22 @@ function addedMediaIds(): number[] {
     .filter((id) => Number.isFinite(id) && id > 0)
 }
 
+function applySafeEnhancePreset() {
+  const video = isAddedVideo.value
+  smartWizard.value = {
+    pathTags: true,
+    grids: video,
+    faces: false,
+    blindFaceTags: false,
+    clip: video,
+    clipTags: video,
+    chapters: false,
+    organize: false,
+    neighborTags: false,
+    scrape: false,
+  }
+}
+
 function applyEverythingPossiblePreset() {
   const video = isAddedVideo.value
   smartWizard.value = {
@@ -1093,7 +1145,8 @@ function applyEverythingPossiblePreset() {
     clip: video,
     clipTags: video,
     chapters: video,
-    organize: true,
+    // Disk moves stay opt-in in Advanced — never auto from Magic.
+    organize: false,
     neighborTags: video,
     scrape: video && sceneScrapeAvailable.value,
   }
@@ -1112,6 +1165,22 @@ async function preflightSmartWizardModels() {
       throw new Error(t('media.adding.download_video_recognition_model_hint'))
     }
   }
+}
+
+async function runSafeEnhance() {
+  if (!canMakeLibrarySmart.value || smartWizardRunning.value) return
+  applySafeEnhancePreset()
+  try {
+    await preflightSmartWizardModels()
+  } catch (error) {
+    setNotification({
+      type: 'error',
+      title: t('media.adding.make_library_smart_failed'),
+      text: getErrorMessage(error),
+    })
+    return
+  }
+  await runSmartLibraryWizard()
 }
 
 async function runEverythingPossible() {
@@ -2385,6 +2454,13 @@ watch(canRecognizeObjects, (enabled) => {
   padding-top: 0;
 }
 
+.process-dialog-section--review {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border-bottom: none;
+}
+
 .process-dialog-section--lists {
   display: flex;
   flex-direction: column;
@@ -2409,6 +2485,19 @@ watch(canRecognizeObjects, (enabled) => {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+.smart-wizard-advanced {
+  margin-top: 4px;
+}
+
+.smart-wizard-advanced :deep(.v-expansion-panel-title) {
+  min-height: 36px;
+  padding-inline: 8px;
+}
+
+.smart-wizard-advanced :deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 4px 8px;
 }
 
 .smart-wizard-section {
