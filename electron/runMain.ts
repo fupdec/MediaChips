@@ -2,12 +2,13 @@
  * Electron entry bootstrap.
  *
  * Dev, postinstall, and pack all emit backend JS to `.backend-build` (no
- * api/app/shared copy-back). Rewrites main.js's relative `./api|app|shared/...`
- * requires onto that tree when present.
+ * api/app/shared copy-back). Rewrites relative `api|app|shared/...` requires
+ * from main.js and electron/*.js onto that tree when present.
  */
 import fs from 'fs'
 import path from 'path'
 import Module from 'module'
+import {rewriteBackendRequest} from './backendBuildResolve'
 
 type ResolveFilename = (
   request: string,
@@ -26,18 +27,10 @@ if (useBackendBuild) {
   const originalResolveFilename = moduleAny._resolveFilename.bind(Module) as ResolveFilename
 
   moduleAny._resolveFilename = function (request, parent, isMain, options) {
-    if (
-      typeof request === 'string'
-      && parent?.filename === mainPath
-      && (
-        request.startsWith('./api/')
-        || request.startsWith('./app/')
-        || request.startsWith('./shared/')
-      )
-    ) {
-      const candidate = path.join(backendBuild, request.slice(2))
+    const rewritten = rewriteBackendRequest(request, parent?.filename, root, backendBuild)
+    if (rewritten) {
       try {
-        return originalResolveFilename(candidate, parent, isMain, options)
+        return originalResolveFilename(rewritten, parent, isMain, options)
       } catch {
         // fall through to the default resolution
       }
