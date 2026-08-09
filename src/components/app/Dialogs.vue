@@ -123,7 +123,7 @@
       :dialog="dialogsStore.playlistAdd.show"
       :mediaIds="dialogsStore.playlistAdd.mediaIds"
       @close="dialogsStore.closePlaylistAdd()"
-      @add="dialogsStore.closePlaylistAdd()"
+      @add="onPlaylistAdded"
     />
 
     <DialogFolder v-if="watcherStore.dialogFolder"/>
@@ -212,6 +212,7 @@ import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
 import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {registerAppShellHandler} from '@/composable/appShell'
+import {eventBus} from '@/utils/eventBus'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import type {MediaItem, Tag} from '@/types/stores'
 
@@ -354,6 +355,11 @@ function exitSelectMode() {
   itemsStore.selection = []
   itemsStore.selected_last = null
   itemsStore.selectionAnchor = null
+}
+
+function onPlaylistAdded() {
+  dialogsStore.closePlaylistAdd()
+  eventBus.$emit('playlists:reload')
 }
 
 function openBulkEditFromHotkey() {

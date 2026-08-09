@@ -394,7 +394,7 @@ export const HomeMarkersQuerySchema = z.object({
 export const MarkClipsRequestSchema = z.object({
   tagId: optionalCoercedNumber,
   markIds: z.array(z.coerce.number()).optional(),
-  sort: z.enum(['time', 'shuffle']).optional(),
+  sort: z.enum(['time', 'shuffle', 'selection']).optional(),
   countOnly: optionalCoercedBoolean,
   limit: optionalCoercedNumber,
   offset: optionalCoercedNumber,
@@ -403,7 +403,8 @@ export const MarkClipsRequestSchema = z.object({
 export const ExportMarkClipsRequestSchema = z.object({
   markIds: z.array(z.coerce.number()).min(1),
   outputPath: z.string().min(1).optional(),
-  sort: z.enum(['time', 'shuffle']).optional(),
+  sort: z.enum(['time', 'shuffle', 'selection']).optional(),
+  mode: z.enum(['concat', 'folder']).optional(),
 }).passthrough()
 
 export const MediaTagCountQuerySchema = z.object({

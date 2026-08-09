@@ -24,7 +24,7 @@
       <ItemsSelection v-if="itemsStore.isSelect"/>
 
       <div
-        v-if="itemsStore.type && !itemsStore.isSelect"
+        v-if="isMediaOrTagPage && !itemsStore.isSelect"
         :key="itemsStore.type"
         class="d-flex align-center"
         style="height: 40px;"
@@ -37,7 +37,7 @@
         <ItemsFilter v-if="itemsStore.type"/>
 
         <AppBarButton
-          :disabled="itemsStore.entities.length == 0"
+          :disabled="itemsStore.itemsOnPage.length == 0 && itemsStore.entities.length == 0"
           :action="() => itemsStore.toggleSelectMode()"
           :text="t('appbar.buttons.select')"
           icon="checkbox-marked-outline"
@@ -108,6 +108,27 @@
         />
       </div>
 
+      <div
+        v-else-if="isCardSelectPage && !itemsStore.isSelect"
+        class="d-flex align-center"
+        style="height: 40px;"
+      >
+        <AppBarButton
+          v-if="itemsStore.type === 'playlist'"
+          :action="openAddPlaylist"
+          :text="t('playlists.add_new_playlist')"
+          icon="playlist-plus"
+        />
+
+        <AppBarButton
+          :disabled="itemsStore.itemsOnPage.length == 0 && itemsStore.entities.length == 0"
+          :action="() => itemsStore.toggleSelectMode()"
+          :text="t('appbar.buttons.select')"
+          icon="checkbox-marked-outline"
+          :active="itemsStore.isSelect"
+        />
+      </div>
+
       <v-spacer/>
 
       <!-- RIGHT AREA -->
@@ -160,6 +181,7 @@ import {computed, defineAsyncComponent, onMounted, onUnmounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
+import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
 import {useI18n} from 'vue-i18n'
@@ -188,6 +210,7 @@ const ClearAppCacheButton = defineAsyncComponent(() => import('@/components/app/
 
 /* Stores */
 const itemsStore = useItemsStore()
+const dialogsStore = useDialogsStore()
 const app = useAppStore()
 const registrationStore = useRegistrationStore()
 const pageCommands = useItemsPageCommands()
@@ -213,6 +236,18 @@ const reg = computed(() => registrationStore.reg)
 const showDarwinTrafficLightSpacer = computed(() => (
   isMac && isElectron && !fullscreen.value
 ))
+
+const isMediaOrTagPage = computed(() =>
+  itemsStore.type === 'media' || itemsStore.type === 'tag',
+)
+
+const isCardSelectPage = computed(() =>
+  itemsStore.type === 'mark' || itemsStore.type === 'playlist',
+)
+
+function openAddPlaylist() {
+  dialogsStore.openPlaylistAdd()
+}
 
 async function syncFullscreenState() {
   if (!isElectron || !window.electronAPI?.invoke) return

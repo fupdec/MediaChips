@@ -139,6 +139,37 @@
           <v-icon start>mdi-export</v-icon>
           {{ t('tags.export_clips', {count: clipCount}) }}
         </v-btn>
+        <v-menu>
+          <template #activator="{ props: menuProps }">
+            <v-btn
+              v-bind="menuProps"
+              color="secondary"
+              rounded
+              variant="tonal"
+              icon
+              :disabled="clipCount === 0 || playingClips || exportingClips"
+            >
+              <v-icon>mdi-menu-down</v-icon>
+            </v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item
+              :title="t('tags.play_clips_in_order')"
+              prepend-icon="mdi-sort-clock-ascending-outline"
+              @click="exportClips('time')"
+            />
+            <v-list-item
+              :title="t('tags.play_clips_shuffle')"
+              prepend-icon="mdi-shuffle-variant"
+              @click="exportClips('shuffle')"
+            />
+            <v-list-item
+              :title="t('markers.export_mode_folder')"
+              prepend-icon="mdi-folder-multiple-outline"
+              @click="exportClips('time', 'folder')"
+            />
+          </v-list>
+        </v-menu>
       </div>
 
       <TagPageAppearances
@@ -324,6 +355,37 @@
                 <v-icon start>mdi-export</v-icon>
                 {{ t('tags.export_clips', {count: clipCount}) }}
               </v-btn>
+              <v-menu>
+                <template #activator="{ props: menuProps }">
+                  <v-btn
+                    v-bind="menuProps"
+                    color="secondary"
+                    rounded
+                    variant="tonal"
+                    icon
+                    :disabled="clipCount === 0 || playingClips || exportingClips"
+                  >
+                    <v-icon>mdi-menu-down</v-icon>
+                  </v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-item
+                    :title="t('tags.play_clips_in_order')"
+                    prepend-icon="mdi-sort-clock-ascending-outline"
+                    @click="exportClips('time')"
+                  />
+                  <v-list-item
+                    :title="t('tags.play_clips_shuffle')"
+                    prepend-icon="mdi-shuffle-variant"
+                    @click="exportClips('shuffle')"
+                  />
+                  <v-list-item
+                    :title="t('markers.export_mode_folder')"
+                    prepend-icon="mdi-folder-multiple-outline"
+                    @click="exportClips('time', 'folder')"
+                  />
+                </v-list>
+              </v-menu>
             </div>
 
             <TagPageAppearances
@@ -692,7 +754,7 @@ const playClips = async (sort: 'time' | 'shuffle' = 'time') => {
 
     await itemsStore.playVideo({
       video: loaded.first,
-      videos: [loaded.first],
+      videos: loaded.playlist.length ? loaded.playlist : [loaded.first],
       time: loaded.first.segmentStart,
       trustPath: true,
     })
@@ -707,13 +769,17 @@ const playClips = async (sort: 'time' | 'shuffle' = 'time') => {
   }
 }
 
-const exportClips = async (sort: 'time' | 'shuffle' = 'time') => {
+const exportClips = async (
+  sort: 'time' | 'shuffle' = 'time',
+  mode: 'concat' | 'folder' = 'concat',
+) => {
   if (!tag.value?.id || exportingClips.value || playingClips.value || clipCount.value <= 0) return
   exportingClips.value = true
   try {
     await runMarkClipsExport({
       scope: {tagId: Number(tag.value.id)},
       sort,
+      mode,
       countHint: clipCount.value,
       t: (key, params) => t(key, params),
     })

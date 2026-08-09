@@ -27,6 +27,8 @@ export type EventBusMap = {
     applied?: number
   }
   'app:database-changed': void
+  'markers:reload': void
+  'playlists:reload': void
 } & Record<string, unknown>
 
 export type EventBusEvent = keyof EventBusMap

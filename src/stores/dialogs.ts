@@ -274,6 +274,10 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.playlistAdd.mediaIds = Array.isArray(mediaIds) ? mediaIds : [mediaIds]
       this.playlistAdd.show = true
     },
+    openPlaylistAdd(mediaIds: number[] = []) {
+      this.playlistAdd.mediaIds = mediaIds
+      this.playlistAdd.show = true
+    },
     closePlaylistAdd() {
       this.playlistAdd.show = false
       this.playlistAdd.mediaIds = []

@@ -1,9 +1,11 @@
 import type {MarkClipItem, MarkClipsResponse} from '@shared/api/responses'
 
+export type MarkClipSort = 'time' | 'shuffle' | 'selection'
+
 export type FetchMarkClipsPage = (body: {
   tagId?: number
   markIds?: number[]
-  sort?: 'time' | 'shuffle'
+  sort?: MarkClipSort
   limit?: number
   offset?: number
 }) => Promise<Pick<MarkClipsResponse, 'items' | 'count'>>
@@ -23,7 +25,7 @@ export type TagClipsPlaybackLoad = {
 export async function loadTagClipsForPlayback(
   fetchClips: FetchMarkClipsPage,
   tagId: number,
-  sort: 'time' | 'shuffle' = 'time',
+  sort: MarkClipSort = 'time',
 ): Promise<TagClipsPlaybackLoad> {
   return loadClipsForPlayback(fetchClips, {tagId, sort})
 }
@@ -31,16 +33,20 @@ export async function loadTagClipsForPlayback(
 export async function loadMarkIdClipsForPlayback(
   fetchClips: FetchMarkClipsPage,
   markIds: number[],
-  sort: 'time' | 'shuffle' = 'time',
+  sort: MarkClipSort = 'time',
 ): Promise<TagClipsPlaybackLoad> {
   return loadClipsForPlayback(fetchClips, {markIds, sort})
 }
 
 async function loadClipsForPlayback(
   fetchClips: FetchMarkClipsPage,
-  scope: {tagId?: number; markIds?: number[]; sort?: 'time' | 'shuffle'},
+  scope: {tagId?: number; markIds?: number[]; sort?: MarkClipSort},
 ): Promise<TagClipsPlaybackLoad> {
-  const sort = scope.sort === 'shuffle' ? 'shuffle' : 'time'
+  const sort = scope.sort === 'shuffle'
+    ? 'shuffle'
+    : scope.sort === 'selection'
+      ? 'selection'
+      : 'time'
   const firstPage = await fetchClips({
     ...scope,
     sort,

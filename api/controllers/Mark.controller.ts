@@ -45,11 +45,15 @@ export default function (db: ApiDb) {
         return
       }
 
-      const sort = req.body?.sort === 'shuffle' ? 'shuffle' : 'time'
+      const sort = req.body?.sort === 'shuffle'
+        ? 'shuffle'
+        : req.body?.sort === 'selection'
+          ? 'selection'
+          : 'time'
       const limitRaw = Number(req.body?.limit)
       const offsetRaw = Number(req.body?.offset)
       const options = {
-        sort: sort as 'time' | 'shuffle',
+        sort: sort as 'time' | 'shuffle' | 'selection',
         limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
         offset: Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : undefined,
       }

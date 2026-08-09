@@ -55,23 +55,26 @@ export function usePlayerPlayback({
   const liveSession = createPlayerLiveSession(state)
   let segmentAdvancePending = false
 
-  const maybeAdvanceSegmentPlaylist = () => {
+  const finishCurrentClipSegment = () => {
     const current = playerStore.playlist[playerStore.nowPlaying]
     const segmentEnd = getSegmentEnd(current)
-    if (!shouldAdvanceAtSegmentEnd({
-      segmentAdvancePending,
-      active: playerStore.active,
-      hasControls: Boolean(controls.value),
-      isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
-      isAdvancingChunk: state.isAdvancingChunk,
-      segmentEnd,
-      currentTime: Number(playerStore.currentTime),
-    })) return
+    if (segmentEnd == null) return false
+    if (
+      segmentAdvancePending
+      || !playerStore.active
+      || !controls.value
+      || playerStore.isLiveStreamSeeking
+      || state.isAdvancingChunk
+    ) return false
 
     const stopAtSegmentEnd = () => {
       playerStore.playerPause()
       if (playerStore.player && !playerStore.usesLiveTranscode) {
-        playerStore.player.currentTime = segmentEnd!
+        const duration = Number(playerStore.player.duration)
+        const clampedEnd = Number.isFinite(duration) && duration > 0
+          ? Math.min(segmentEnd, Math.max(0, duration - 0.05))
+          : segmentEnd
+        playerStore.player.currentTime = clampedEnd
       }
       playerStore.syncPlaybackState()
     }
@@ -93,11 +96,27 @@ export function usePlayerPlayback({
         })
       if (canAutoplayNext) controls.value?.next?.()
       else stopAtSegmentEnd()
+      return true
     } finally {
       window.setTimeout(() => {
         segmentAdvancePending = false
       }, 250)
     }
+  }
+
+  const maybeAdvanceSegmentPlaylist = () => {
+    const current = playerStore.playlist[playerStore.nowPlaying]
+    const segmentEnd = getSegmentEnd(current)
+    if (!shouldAdvanceAtSegmentEnd({
+      segmentAdvancePending,
+      active: playerStore.active,
+      hasControls: Boolean(controls.value),
+      isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
+      isAdvancingChunk: state.isAdvancingChunk,
+      segmentEnd,
+      currentTime: Number(playerStore.currentTime),
+    })) return
+    finishCurrentClipSegment()
   }
 
   const handleVideoElementError = async () => {
@@ -138,13 +157,15 @@ export function usePlayerPlayback({
       playerStore.syncPlaybackState()
     })
     playerStore.player.addEventListener('ended', async () => {
+      const current = playerStore.playlist[playerStore.nowPlaying]
+      const segmentEnd = getSegmentEnd(current)
+
       if (playerStore.usesLiveTranscode) {
         const continuousNextStart = getContinuousNextChunkStart(
           playerStore.liveStreamOffset,
           resolveLiveHandoffElapsed(playerStore.player),
           liveSession.getLiveFileDuration(),
         )
-        const current = playerStore.playlist[playerStore.nowPlaying]
         const absoluteTime = getAbsolutePlaybackTime({
           usesLiveTranscode: true,
           liveStreamOffset: playerStore.liveStreamOffset,
@@ -153,14 +174,23 @@ export function usePlayerPlayback({
         const {nextStart, stillInsideSegment} = resolveEndedLiveNextStart({
           continuousNextStart,
           absoluteTime,
-          segmentEnd: getSegmentEnd(current),
+          segmentEnd,
         })
-        if (nextStart != null) {
+        const canContinueSegment = stillInsideSegment
+          && nextStart != null
+          && nextStart > Number(playerStore.liveStreamOffset) + 0.05
+          && (segmentEnd == null || nextStart < segmentEnd - 0.05)
+        if (canContinueSegment) {
           const advanced = await liveSession.switchLiveStreamChunk(nextStart)
           if (advanced) return
         }
-        if (stillInsideSegment) return
+        // EOF / failed handoff inside a ranged clip: finish the clip instead of
+        // freezing on the last frame until segmentEnd (often ~tens of seconds).
+        if (segmentEnd != null && finishCurrentClipSegment()) return
+      } else if (segmentEnd != null && finishCurrentClipSegment()) {
+        return
       }
+
       maybeRefillSimilarRadio()
       if (playerStore.playlistMode.includes('autoplay') && controls.value) {
         controls.value.next?.()

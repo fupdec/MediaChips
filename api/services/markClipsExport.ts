@@ -10,24 +10,40 @@ function defaultClipsOutputPath() {
   return path.join(downloads, `mediachips-clips-${Date.now()}.mp4`)
 }
 
+function defaultClipsOutputDir() {
+  return path.join(os.homedir(), 'Downloads', `mediachips-clips-${Date.now()}`)
+}
+
+function safeSegmentName(clip: {name?: string; basename?: string; markId: number}, index: number) {
+  const base = String(clip.name || clip.basename || `mark-${clip.markId}`)
+    .replace(/[^\w.\-]+/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 64)
+  return `seg-${String(index).padStart(4, '0')}-${base || clip.markId}.mp4`
+}
+
 export async function* iterateMarkClipsExport(
   db: ApiDb,
   {
     markIds,
     outputPath,
     sort = 'time',
+    mode = 'concat',
     shouldStop = (): boolean => false,
   }: {
     markIds: number[]
     outputPath?: string
-    sort?: 'time' | 'shuffle'
+    sort?: 'time' | 'shuffle' | 'selection'
+    mode?: 'concat' | 'folder'
     shouldStop?: () => boolean
   },
 ) {
   const marksRepo = createMarksRepository(db.drizzle)
   const clips = marksRepo.findClipsByMarkIds(markIds, {sort})
   const total = clips.length
-  const resolvedOutput = String(outputPath || '').trim() || defaultClipsOutputPath()
+  const exportMode = mode === 'folder' ? 'folder' : 'concat'
+  const resolvedOutput = String(outputPath || '').trim()
+    || (exportMode === 'folder' ? defaultClipsOutputDir() : defaultClipsOutputPath())
 
   yield {
     type: 'progress',
@@ -36,6 +52,7 @@ export async function* iterateMarkClipsExport(
     total,
     remaining: total,
     outputPath: resolvedOutput,
+    mode: exportMode,
   }
 
   if (!total) {
@@ -45,7 +62,53 @@ export async function* iterateMarkClipsExport(
       total: 0,
       outputPath: resolvedOutput,
       stopped: false,
+      mode: exportMode,
       message: 'No ranged marks to export',
+    }
+    return
+  }
+
+  if (exportMode === 'folder') {
+    await mkdir(resolvedOutput, {recursive: true})
+    let processed = 0
+
+    for (let index = 0; index < clips.length; index++) {
+      if (shouldStop()) break
+
+      const clip = clips[index]
+      const start = Number(clip.segmentStart) || 0
+      const end = Number(clip.segmentEnd)
+      const duration = Number.isFinite(end) ? Math.max(0.05, end - start) : 0.05
+      const segmentPath = path.join(resolvedOutput, safeSegmentName(clip, index))
+
+      await cutVideoSegment({
+        input: String(clip.path),
+        outputPath: segmentPath,
+        startSeconds: start,
+        durationSeconds: duration,
+      })
+      processed += 1
+
+      yield {
+        type: 'progress',
+        stage: 'cut',
+        processed,
+        total,
+        remaining: Math.max(total - processed, 0),
+        current: clip.path,
+        markId: clip.markId,
+        outputPath: resolvedOutput,
+        mode: exportMode,
+      }
+    }
+
+    yield {
+      type: 'complete',
+      processed,
+      total,
+      outputPath: resolvedOutput,
+      stopped: shouldStop() || processed < total,
+      mode: exportMode,
     }
     return
   }
@@ -81,6 +144,7 @@ export async function* iterateMarkClipsExport(
         current: clip.path,
         markId: clip.markId,
         outputPath: resolvedOutput,
+        mode: exportMode,
       }
     }
 
@@ -91,6 +155,7 @@ export async function* iterateMarkClipsExport(
         total,
         outputPath: resolvedOutput,
         stopped: true,
+        mode: exportMode,
       }
       return
     }
@@ -102,6 +167,7 @@ export async function* iterateMarkClipsExport(
       total,
       remaining: 0,
       outputPath: resolvedOutput,
+      mode: exportMode,
     }
 
     await concatVideoSegments({
@@ -116,6 +182,7 @@ export async function* iterateMarkClipsExport(
       total,
       outputPath: resolvedOutput,
       stopped: false,
+      mode: exportMode,
     }
   } finally {
     await rm(tempDir, {recursive: true, force: true}).catch(() => undefined)

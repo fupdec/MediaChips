@@ -1,13 +1,16 @@
 <template>
   <v-card
-    class="dynamic-playlist-row"
+    class="dynamic-playlist-row item"
     :class="{
       'dynamic-playlist-row--skeleton': skeleton,
       'dynamic-playlist-row--playing': playing,
+      'dynamic-playlist-row--selected': selected,
+      'item--selecting': selectable && !skeleton,
     }"
     rounded="lg"
     variant="outlined"
     @click="handleClick"
+    @contextmenu.stop="showContextMenu"
     v-ripple="skeleton ? false : { class: 'text-primary' }"
   >
     <div class="dynamic-playlist-row__content">
@@ -80,30 +83,65 @@
         </v-btn>
       </div>
     </div>
+
+    <div
+      v-if="selectable && !skeleton"
+      class="item-select-overlay"
+      :class="{'item-select-overlay--selected': selected}"
+      @click.stop="onSelectClick"
+      @contextmenu.stop="showContextMenu"
+    >
+      <button
+        type="button"
+        class="item-select-btn"
+        :class="{'item-select-btn--on': selected}"
+        :aria-pressed="selected"
+        :aria-label="selected ? t('appbar.buttons.unselect') : t('appbar.buttons.select')"
+        tabindex="-1"
+      >
+        <v-icon
+          size="16"
+          :icon="selected ? 'mdi-check' : 'mdi-plus'"
+        />
+      </button>
+    </div>
   </v-card>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useItemsStore} from '@/stores/items'
+import {useContextMenu} from '@/stores/contextMenu'
 import type { PagePlaylist } from '@/types/playlists'
+import type { ContextMenuEntry } from '@/types/stores'
 
 const props = withDefaults(defineProps<{
   playlist: PagePlaylist
   skeleton?: boolean
   thumbsLoading?: boolean
   playing?: boolean
+  selectable?: boolean
+  selected?: boolean
+  selectId?: number | null
 }>(), {
   skeleton: false,
   thumbsLoading: false,
   playing: false,
+  selectable: false,
+  selected: false,
+  selectId: null,
 })
 
 const emit = defineEmits<{
   play: []
   edit: []
+  delete: []
+  'update:selected': [value: boolean, meta?: {shiftKey?: boolean}]
 }>()
 const {t} = useI18n()
+const itemsStore = useItemsStore()
+const contextMenuStore = useContextMenu()
 
 const displayThumbs = computed(() => (props.playlist.thumbs || []).slice(0, 4))
 
@@ -120,8 +158,61 @@ const videoCountLabel = computed(() => {
   return t('playlists.video_count', {count})
 })
 
-const handleClick = () => {
+function onSelectClick(event: MouseEvent) {
+  emit('update:selected', !props.selected, {shiftKey: event.shiftKey})
+}
+
+function selectPlaylist(event?: MouseEvent | null) {
+  const id = Number(props.selectId)
+  if (Number.isFinite(id) && id !== 0 && itemsStore.type === 'playlist') {
+    itemsStore.toggleSelect(event ?? null, {id})
+    return
+  }
+  emit('update:selected', !props.selected, {shiftKey: Boolean(event?.shiftKey)})
+}
+
+function showContextMenu(event: MouseEvent) {
   if (props.skeleton) return
+  event.preventDefault()
+  const id = Number(props.selectId)
+  const isSelected = props.selected
+    || (Number.isFinite(id) && id !== 0 && itemsStore.selection.includes(id))
+  const content: ContextMenuEntry[] = [
+    {
+      name: t('documentation.open'),
+      type: 'item',
+      icon: 'playlist-play',
+      action: () => emit('play'),
+    },
+    {
+      name: isSelected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),
+      type: 'item',
+      icon: isSelected ? 'checkbox-blank-outline' : 'checkbox-marked-outline',
+      action: (ev?: unknown) => selectPlaylist(ev as MouseEvent),
+    },
+    {type: 'divider'},
+    {
+      name: t('common.delete'),
+      type: 'item',
+      icon: 'delete',
+      color: 'red',
+      action: () => emit('delete'),
+    },
+  ]
+  contextMenuStore.showContextMenu({
+    content,
+    x: event.clientX,
+    y: event.clientY,
+    targetItemId: Number.isFinite(id) ? id : Number(props.playlist.id),
+  })
+}
+
+const handleClick = (event: MouseEvent) => {
+  if (props.skeleton) return
+  if (props.selectable) {
+    emit('update:selected', !props.selected, {shiftKey: event.shiftKey})
+    return
+  }
   emit('play')
 }
 </script>
@@ -134,6 +225,11 @@ const handleClick = () => {
   &:hover {
     background: rgba(var(--v-theme-primary), 0.04);
     border-color: rgba(var(--v-theme-primary), 0.35);
+  }
+
+  &--selected {
+    border-color: rgb(var(--v-theme-primary));
+    background: rgba(var(--v-theme-primary), 0.08);
   }
 }
 

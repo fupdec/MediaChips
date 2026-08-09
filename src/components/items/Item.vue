@@ -226,12 +226,19 @@
       :class="{ 'item-select-overlay--selected': is_selected }"
       class="item-select-overlay"
     >
-      <v-btn v-if="is_selected"
-             color="primary"
-             variant="elevated"
-             icon>
-        <v-icon> mdi-check</v-icon>
-      </v-btn>
+      <button
+        type="button"
+        class="item-select-btn"
+        :class="{'item-select-btn--on': is_selected}"
+        :aria-pressed="is_selected"
+        :aria-label="is_selected ? t('appbar.buttons.unselect') : t('appbar.buttons.select')"
+        tabindex="-1"
+      >
+        <v-icon
+          size="18"
+          :icon="is_selected ? 'mdi-check' : 'mdi-plus'"
+        />
+      </button>
     </div>
   </div>
 </template>

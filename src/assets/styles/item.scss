@@ -32,9 +32,6 @@
     z-index: 4;
     cursor: pointer;
     border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     pointer-events: auto;
 
     &::before {
@@ -47,13 +44,47 @@
       pointer-events: none;
     }
 
-    &--selected::before {
-      background: rgb(var(--v-theme-primary));
+    &--selected {
+      /* 1px inset border — outline is clipped by `.item--selecting { overflow: hidden }`. */
+      box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary));
     }
 
-    .v-btn {
-      position: relative;
-      z-index: 1;
+    &--selected::before {
+      background: rgb(var(--v-theme-primary));
+      opacity: 0.28;
+    }
+  }
+
+  .item-select-btn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.72);
+      transform: scale(1.04);
+    }
+
+    &--on {
+      color: #fff;
+      border-color: rgb(var(--v-theme-primary));
+      background: rgb(var(--v-theme-primary));
     }
   }
 

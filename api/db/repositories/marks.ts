@@ -223,9 +223,10 @@ export function createMarksRepository(db: DrizzleClient) {
 
     findClipsByTagId(
       tagId: unknown,
-      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle'} = {},
+      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle' | 'selection'} = {},
     ) {
       const resolvedTagId = Number(tagId)
+      // Tag-scoped queries have no selection order — fall back to time.
       const sort = options.sort === 'shuffle' ? 'shuffle' : 'time'
 
       let query = db
@@ -274,12 +275,23 @@ export function createMarksRepository(db: DrizzleClient) {
 
     findClipsByMarkIds(
       markIds: number[],
-      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle'} = {},
+      options: {limit?: number; offset?: number; sort?: 'time' | 'shuffle' | 'selection'} = {},
     ) {
-      const ids = [...new Set(markIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
-      if (!ids.length) return []
+      const orderedIds: number[] = []
+      const seen = new Set<number>()
+      for (const raw of markIds) {
+        const id = Number(raw)
+        if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue
+        seen.add(id)
+        orderedIds.push(id)
+      }
+      if (!orderedIds.length) return []
 
-      const sort = options.sort === 'shuffle' ? 'shuffle' : 'time'
+      const sort = options.sort === 'shuffle'
+        ? 'shuffle'
+        : options.sort === 'selection'
+          ? 'selection'
+          : 'time'
 
       let query = db
         .select({
@@ -295,13 +307,13 @@ export function createMarksRepository(db: DrizzleClient) {
         .from(marks)
         .innerJoin(media, eq(media.id, marks.mediaId))
         .where(and(
-          inArray(marks.id, ids),
+          inArray(marks.id, orderedIds),
           isNotNull(marks.end),
         ))
 
       if (sort === 'shuffle') {
         query = query.orderBy(sql`RANDOM()`) as typeof query
-      } else {
+      } else if (sort !== 'selection') {
         query = query.orderBy(
           asc(marks.time),
           sql`LOWER(COALESCE(${media.name}, ${media.basename}, ''))`,
@@ -314,14 +326,33 @@ export function createMarksRepository(db: DrizzleClient) {
       const offset = Number(options.offset)
       const hasOffset = Number.isFinite(offset) && offset > 0
 
-      if (hasLimit || hasOffset) {
-        query = query.limit(hasLimit ? Math.min(Math.floor(limit), 10_000) : 10_000) as typeof query
-      }
-      if (hasOffset) {
-        query = query.offset(Math.floor(offset)) as typeof query
+      if (sort !== 'selection') {
+        if (hasLimit || hasOffset) {
+          query = query.limit(hasLimit ? Math.min(Math.floor(limit), 10_000) : 10_000) as typeof query
+        }
+        if (hasOffset) {
+          query = query.offset(Math.floor(offset)) as typeof query
+        }
+        return query.all().map(mapClipRow)
       }
 
-      return query.all().map(mapClipRow)
+      const byMarkId = new Map(
+        query.all().map(mapClipRow).map((clip) => [clip.markId, clip]),
+      )
+      let ordered = orderedIds
+        .map((id) => byMarkId.get(id))
+        .filter((clip): clip is NonNullable<typeof clip> => clip != null)
+
+      if (hasOffset) {
+        ordered = ordered.slice(Math.floor(offset))
+      }
+      if (hasLimit) {
+        ordered = ordered.slice(0, Math.min(Math.floor(limit), 10_000))
+      } else if (hasOffset) {
+        ordered = ordered.slice(0, 10_000)
+      }
+
+      return ordered
     },
 
     convertMetaMarksToBookmarksByTagId(tagId: unknown, text: string): void {

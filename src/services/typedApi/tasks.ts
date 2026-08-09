@@ -718,7 +718,12 @@ export const tasksApi = {
   },
 
   exportMarkClips(
-    body: {markIds: number[]; outputPath?: string; sort?: 'time' | 'shuffle'},
+    body: {
+      markIds: number[]
+      outputPath?: string
+      sort?: 'time' | 'shuffle' | 'selection'
+      mode?: 'concat' | 'folder'
+    },
     options: {signal?: AbortSignal},
     onEvent: (event: GenerationStreamEvent) => void,
   ) {

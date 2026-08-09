@@ -354,7 +354,12 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       ? req.body.markIds.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
       : []
     const outputPath = typeof req.body?.outputPath === 'string' ? req.body.outputPath : undefined
-    const sort = req.body?.sort === 'shuffle' ? 'shuffle' as const : 'time' as const
+    const sort = req.body?.sort === 'shuffle'
+      ? 'shuffle' as const
+      : req.body?.sort === 'selection'
+        ? 'selection' as const
+        : 'time' as const
+    const mode = req.body?.mode === 'folder' ? 'folder' as const : 'concat' as const
 
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while exporting mark clips.',
@@ -362,6 +367,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
         markIds,
         outputPath,
         sort,
+        mode,
         shouldStop,
       }),
     })

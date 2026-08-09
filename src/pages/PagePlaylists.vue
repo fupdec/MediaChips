@@ -1,105 +1,138 @@
 <template>
-  <v-container ref="container">
-    <div class="text-md-h2 d-flex align-center my-6 playlists-page-title">
-      <v-icon size="42" start>mdi-format-list-bulleted</v-icon>
-      {{ t('navigation.playlists') }}
-      <v-spacer />
-      <v-btn
-        variant="text"
-        size="small"
-        color="primary"
-        class="smart-playlists-docs-link"
-        @click="showSmartPlaylistsDocs"
-      >
-        <v-icon start size="18">mdi-help-circle-outline</v-icon>
-        {{ t('playlists.smart_playlists_docs') }}
-      </v-btn>
-    </div>
-
-    <v-card
-      class="nl-mix-card mb-6"
-      variant="outlined"
-      rounded="lg"
+  <v-container
+    ref="container"
+    class="playlists-layout-container"
+  >
+    <div
+      ref="controlDeckSentinel"
+      class="items-control-deck-sentinel"
+      aria-hidden="true"
+    />
+    <div
+      class="items-control-deck items-control-deck--browser playlists-control-deck"
+      :class="{'items-control-deck--stuck': controlDeckStuck}"
     >
-      <v-card-text class="pb-3">
-        <div class="d-flex align-center ga-2 mb-1">
-          <v-icon size="20" color="primary">mdi-playlist-music</v-icon>
-          <div class="text-subtitle-1 font-weight-medium">
-            {{ t('playlists.mix_title') }}
+      <div class="items-control-deck__surface items-control-deck__surface--card">
+        <div
+          class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-nowrap ga-2"
+        >
+          <div class="d-flex align-center items-page-header__title min-width-0">
+            <v-icon class="items-page-header__icon" start>mdi-format-list-bulleted</v-icon>
+            <span class="items-page-header__name text-truncate">{{ t('navigation.playlists') }}</span>
+            <span
+              v-if="playlists.length || dynamicPlaylists.length"
+              class="items-page-header__meta"
+            >
+              ({{ playlists.length + dynamicPlaylists.length }})
+            </span>
+          </div>
+
+          <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
+            <v-btn
+              color="primary"
+              variant="tonal"
+              size="small"
+              :icon="smAndDown"
+              :rounded="smAndDown ? undefined : 'xl'"
+              v-tooltip:top="t('playlists.smart_playlists_docs')"
+              @click="showSmartPlaylistsDocs"
+            >
+              <v-icon size="18" :start="!smAndDown">mdi-help-circle-outline</v-icon>
+              <span v-if="!smAndDown">{{ t('playlists.smart_playlists_docs') }}</span>
+            </v-btn>
+            <v-btn
+              color="success"
+              variant="flat"
+              size="small"
+              :icon="smAndDown"
+              :rounded="smAndDown ? undefined : 'xl'"
+              v-tooltip:top="t('playlists.add_new_playlist')"
+              @click="dialogPlaylistAdd = true"
+            >
+              <v-icon size="18" :start="!smAndDown">mdi-playlist-plus</v-icon>
+              <span v-if="!smAndDown">{{ t('playlists.add_new_playlist') }}</span>
+            </v-btn>
           </div>
         </div>
-        <div class="text-caption text-medium-emphasis mb-3">
-          {{ t('playlists.mix_hint') }}
+
+        <div class="items-control-deck__section playlists-control-deck__mix">
+          <div class="playlists-control-deck__mix-label text-caption text-medium-emphasis">
+            <v-icon size="14" class="mr-1">mdi-playlist-music</v-icon>
+            {{ t('playlists.mix_title') }}
+            <span class="ml-1 opacity-70">— {{ t('playlists.mix_hint') }}</span>
+          </div>
+          <div class="d-flex align-center flex-wrap ga-2 playlists-control-deck__mix-row">
+            <v-text-field
+              v-model="mixPhrase"
+              :placeholder="t('playlists.mix_placeholder')"
+              :aria-label="t('playlists.mix_title')"
+              density="compact"
+              hide-details
+              clearable
+              rounded="xl"
+              variant="outlined"
+              prepend-inner-icon="mdi-magnify"
+              single-line
+              class="items-control-deck__field playlists-control-deck__mix-field"
+              :disabled="mixBusy"
+              @update:model-value="onMixPhraseInput"
+              @keyup.enter="runMixPlay"
+            />
+            <v-btn
+              color="primary"
+              rounded="xl"
+              variant="flat"
+              size="small"
+              :loading="mixBusy"
+              :disabled="!mixPhrase.trim() || mixBusy"
+              @click="runMixPlay"
+            >
+              <v-icon start size="18">mdi-play</v-icon>
+              {{ t('playlists.mix_play') }}
+            </v-btn>
+            <v-btn
+              color="primary"
+              rounded="xl"
+              variant="tonal"
+              size="small"
+              :loading="mixSaving"
+              :disabled="!canSaveMix"
+              @click="runMixSave"
+            >
+              <v-icon start size="18">mdi-content-save-outline</v-icon>
+              <span v-if="!smAndDown">{{ t('playlists.mix_save') }}</span>
+            </v-btn>
+          </div>
+          <div class="d-flex flex-wrap align-center ga-2 mt-2">
+            <v-chip
+              v-for="example in mixExamples"
+              :key="example"
+              size="small"
+              variant="tonal"
+              color="primary"
+              class="nl-mix-example"
+              :disabled="mixBusy"
+              @click="applyMixExample(example)"
+            >
+              {{ example }}
+            </v-chip>
+            <template v-if="lastMix && lastMix.ids.length">
+              <v-chip size="small" variant="tonal" color="secondary">
+                {{ mixSourceText(lastMix.source) }}
+              </v-chip>
+              <span class="text-caption text-medium-emphasis">
+                {{ t('playlists.mix_count', {count: lastMix.ids.length}) }}
+              </span>
+            </template>
+          </div>
         </div>
-        <v-text-field
-          v-model="mixPhrase"
-          :placeholder="t('playlists.mix_placeholder')"
-          density="comfortable"
-          hide-details
-          clearable
-          rounded
-          variant="outlined"
-          prepend-inner-icon="mdi-magnify"
-          :disabled="mixBusy"
-          @update:model-value="onMixPhraseInput"
-          @keyup.enter="runMixPlay"
-        />
-        <div class="d-flex flex-wrap ga-2 mt-3">
-          <v-chip
-            v-for="example in mixExamples"
-            :key="example"
-            size="small"
-            variant="tonal"
-            color="primary"
-            class="nl-mix-example"
-            :disabled="mixBusy"
-            @click="applyMixExample(example)"
-          >
-            {{ example }}
-          </v-chip>
-        </div>
-        <div
-          v-if="lastMix && lastMix.ids.length"
-          class="d-flex flex-wrap align-center ga-2 mt-3"
-        >
-          <v-chip size="small" variant="tonal" color="primary">
-            {{ mixSourceText(lastMix.source) }}
-          </v-chip>
-          <span class="text-caption text-medium-emphasis">
-            {{ t('playlists.mix_count', {count: lastMix.ids.length}) }}
-          </span>
-        </div>
-        <div class="d-flex flex-wrap ga-2 mt-3">
-          <v-btn
-            color="primary"
-            rounded
-            variant="flat"
-            :loading="mixBusy"
-            :disabled="!mixPhrase.trim() || mixBusy"
-            @click="runMixPlay"
-          >
-            <v-icon start>mdi-play</v-icon>
-            {{ t('playlists.mix_play') }}
-          </v-btn>
-          <v-btn
-            color="primary"
-            rounded
-            variant="tonal"
-            :loading="mixSaving"
-            :disabled="!canSaveMix"
-            @click="runMixSave"
-          >
-            <v-icon start>mdi-content-save-outline</v-icon>
-            {{ t('playlists.mix_save') }}
-          </v-btn>
-        </div>
-      </v-card-text>
-    </v-card>
+      </div>
+    </div>
 
     <section class="smart-playlists-section">
-      <div class="section-title text-h5 mb-4 d-flex align-center">
-        <v-icon start>mdi-filter-variant</v-icon>
-        {{ t('playlists.dynamic_playlists') }}
+      <div class="playlists-section-title d-flex align-center mb-3">
+        <v-icon size="20" start>mdi-filter-variant</v-icon>
+        <span>{{ t('playlists.dynamic_playlists') }}</span>
       </div>
 
       <v-alert
@@ -152,8 +185,13 @@
           :video-count="playlist.count ?? undefined"
           :thumbs-loading="!is_dynamic_thumbs_loaded"
           :playing="playingPlaylistId === playlist.id"
+          :selectable="itemsStore.isSelect"
+          :selected="isPlaylistSelected(playlistSelectId(playlist, 'smart'))"
+          :select-id="playlistSelectId(playlist, 'smart')"
           @play="playDynamic(playlist)"
           @edit="editDynamic(playlist)"
+          @delete="confirmDeletePlaylist(playlist, 'smart')"
+          @update:selected="(_, meta) => onPlaylistCardSelect(playlistSelectId(playlist, 'smart'), meta)"
         />
       </div>
 
@@ -179,21 +217,22 @@
           :playlist="playlist"
           :thumbs-loading="!is_dynamic_thumbs_loaded"
           :playing="playingPlaylistId === playlist.id"
+          :selectable="itemsStore.isSelect"
+          :selected="isPlaylistSelected(playlistSelectId(playlist, 'smart'))"
+          :select-id="playlistSelectId(playlist, 'smart')"
           @play="playDynamic(playlist)"
           @edit="editDynamic(playlist)"
+          @delete="confirmDeletePlaylist(playlist, 'smart')"
+          @update:selected="(_, meta) => onPlaylistCardSelect(playlistSelectId(playlist, 'smart'), meta)"
         />
       </div>
     </section>
 
-    <div class="section-title text-h5 mb-4 d-flex align-center">
-      <v-icon start>mdi-playlist-play</v-icon>
-      {{ t('playlists.manual_playlists') }}
-    </div>
-
-    <v-btn @click="dialogPlaylistAdd = true" color="success" class="mb-8" rounded depressed>
-      <v-icon start>mdi-playlist-plus</v-icon>
-      {{ t('playlists.add_new_playlist') }}
-    </v-btn>
+    <section class="manual-playlists-section">
+      <div class="playlists-section-title d-flex align-center mb-3">
+        <v-icon size="20" start>mdi-playlist-play</v-icon>
+        <span>{{ t('playlists.manual_playlists') }}</span>
+      </div>
 
     <div v-if="playlists.length == 0 && is_manual_loaded" class="layout-img">
       <v-img src="/images/no-data.svg" max-height="40vh" class="my-4" contain></v-img>
@@ -208,10 +247,16 @@
         :playlist="playlist"
         :thumbs-loading="!is_thumbs_loaded"
         :playing="playingPlaylistId === `manual-${playlist.id}`"
+        :selectable="itemsStore.isSelect"
+        :selected="isPlaylistSelected(playlistSelectId(playlist, 'manual'))"
+        :select-id="playlistSelectId(playlist, 'manual')"
         @play="play(playlist)"
         @edit="edit(playlist)"
+        @delete="confirmDeletePlaylist(playlist, 'manual')"
+        @update:selected="(_, meta) => onPlaylistCardSelect(playlistSelectId(playlist, 'manual'), meta)"
       />
     </div>
+    </section>
 
     <DialogPlaylistAdd
       v-if="dialogPlaylistAdd"
@@ -241,9 +286,10 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
+import {getMainScrollEl} from '@/utils/mainScroll'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
@@ -257,6 +303,8 @@ import DynamicPlaylistRow from "@/components/playlists/DynamicPlaylistRow.vue"
 import {loadPlaylistThumbs} from '@/utils/playlistThumbs'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
+import {useEventBus} from '@/utils/eventBus'
+import {useDialogsStore} from '@/stores/dialogs'
 import {getFilters} from '@/services/filterService'
 import {
   formatNlMixSeekTime,
@@ -295,12 +343,40 @@ const toPagePlaylistFromSummary = (playlist: ParsedDynamicPlaylistSummary): Page
 })
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
+const dialogsStore = useDialogsStore()
 const playerStore = usePlayerStore()
 const settingsStore = useSettingsStore()
 const {t} = useI18n()
-const {width} = useDisplay()
+const {width, smAndDown} = useDisplay()
 const appShell = useAppShell()
 const {openMediaList} = useOpenMediaList()
+
+const controlDeckSentinel = ref<HTMLElement | null>(null)
+const controlDeckStuck = ref(false)
+let deckStuckObserver: IntersectionObserver | null = null
+
+function teardownDeckStuckObserver() {
+  deckStuckObserver?.disconnect()
+  deckStuckObserver = null
+}
+
+function setupDeckStuckObserver() {
+  teardownDeckStuckObserver()
+  const sentinel = controlDeckSentinel.value
+  if (!sentinel) return
+  const root = getMainScrollEl()
+  deckStuckObserver = new IntersectionObserver(
+    ([entry]) => {
+      controlDeckStuck.value = Boolean(entry && !entry.isIntersecting)
+    },
+    {
+      root: root instanceof Element ? root : null,
+      threshold: 0,
+      rootMargin: '-8px 0px 0px 0px',
+    },
+  )
+  deckStuckObserver.observe(sentinel)
+}
 
 const mixPhrase = ref('')
 const mixBusy = ref(false)
@@ -464,6 +540,55 @@ const dialogSmartPlaylistEdit = ref(false)
 const dialogPlaylistAdd = ref(false)
 const playlist_edit = ref<PagePlaylist | null>(null)
 const smart_playlist_edit = ref<PagePlaylist | null>(null)
+const eventBus = useEventBus()
+
+/** Smart playlists use negative ids so they never collide with manual playlist ids. */
+function playlistSelectId(playlist: PagePlaylist, kind: 'manual' | 'smart') {
+  const id = Number(playlist.id)
+  if (!Number.isFinite(id) || id <= 0) return 0
+  return kind === 'smart' ? -id : id
+}
+
+function syncPlaylistsItemsStore() {
+  const entities = [
+    ...dynamicPlaylists.value
+      .map((playlist) => ({
+        id: playlistSelectId(playlist, 'smart'),
+        name: playlist.name || '',
+      }))
+      .filter((item) => item.id !== 0),
+    ...playlists.value
+      .map((playlist) => ({
+        id: playlistSelectId(playlist, 'manual'),
+        name: playlist.name || '',
+      }))
+      .filter((item) => item.id !== 0),
+  ]
+  itemsStore.type = 'playlist'
+  itemsStore.entities = entities as typeof itemsStore.entities
+  itemsStore.itemsOnPage = entities as typeof itemsStore.itemsOnPage
+  itemsStore.totalFiltered = entities.length
+}
+
+function isPlaylistSelected(id: number) {
+  return itemsStore.isSelect && itemsStore.selection.includes(id)
+}
+
+function onPlaylistCardSelect(id: number, meta?: {shiftKey?: boolean}) {
+  if (!id) return
+  itemsStore.toggleSelect(
+    meta?.shiftKey ? ({shiftKey: true} as MouseEvent) : null,
+    {id},
+  )
+}
+
+watch(
+  [playlists, dynamicPlaylists],
+  () => {
+    if (itemsStore.type === 'playlist') syncPlaylistsItemsStore()
+  },
+  {deep: true},
+)
 
 const apiUrl = computed(() => appStore.localhost)
 
@@ -817,6 +942,46 @@ const deletePlaylist = async () => {
   await getPlaylists()
 }
 
+function confirmDeletePlaylist(playlist: PagePlaylist, kind: 'manual' | 'smart') {
+  const selectId = playlistSelectId(playlist, kind)
+  if (!selectId) return
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBox2RequiresPrimary = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.text = kind === 'smart'
+    ? t('playlists.delete_smart_playlist_confirm')
+    : t('playlists.delete_confirm')
+  dialogsStore.confirm.action = async () => {
+    try {
+      if (kind === 'smart') {
+        const filters = await getFilters(playlist.id)
+        await typedApi.deleteSavedFilter(playlist.id)
+        for (const row of filters) {
+          if (row?.id) await typedApi.deleteFilterRow(row.id)
+        }
+        await loadDynamicPlaylists()
+      } else {
+        await typedApi.deletePlaylist(playlist.id)
+        await getPlaylists()
+      }
+      itemsStore.selection = itemsStore.selection.filter((id) => Number(id) !== selectId)
+      setNotification({
+        type: 'success',
+        title: t('playlists.delete_selected_done', {count: 1}),
+      })
+    } catch (error) {
+      console.warn('Failed deleting playlist', playlist.id, error)
+      setNotification({
+        type: 'warning',
+        title: t('playlists.delete_selected_failed'),
+      })
+    }
+  }
+  dialogsStore.confirm.show = true
+}
+
 const addNewPlaylist = async () => {
   dialogPlaylistAdd.value = false
   await getPlaylists()
@@ -869,12 +1034,83 @@ const showSmartPlaylistsDocs = () => {
   appShell.showDocumentation('playlists.smart')
 }
 
-onMounted(() => {
-  loadAllPlaylists()
+async function onPlaylistsReload() {
+  await loadAllPlaylists()
+  syncPlaylistsItemsStore()
+}
+
+onMounted(async () => {
+  syncPlaylistsItemsStore()
+  eventBus.on('playlists:reload', onPlaylistsReload)
+  await nextTick()
+  setupDeckStuckObserver()
+  await loadAllPlaylists()
+  syncPlaylistsItemsStore()
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('playlists:reload', onPlaylistsReload)
+  teardownDeckStuckObserver()
+  if (itemsStore.type === 'playlist') {
+    itemsStore.clearSelection()
+    itemsStore.type = ''
+    itemsStore.entities = []
+    itemsStore.itemsOnPage = []
+    itemsStore.totalFiltered = 0
+  }
 })
 </script>
 
 <style lang="scss" scoped>
+.playlists-layout-container.v-container {
+  padding-top: 8px;
+}
+
+.playlists-control-deck {
+  &__mix {
+    padding: 10px var(--deck-pad-x, 14px) 12px;
+  }
+
+  &__mix-label {
+    margin-bottom: 8px;
+    line-height: 1.35;
+  }
+
+  &__mix-row {
+    min-width: 0;
+  }
+
+  &__mix-field {
+    flex: 1 1 280px;
+    min-width: 180px;
+    max-width: 560px;
+    margin-inline: 0 !important;
+
+    :deep(.v-field) {
+      --v-input-control-height: var(--deck-control-h, 40px);
+      height: var(--deck-control-h, 40px) !important;
+      min-height: var(--deck-control-h, 40px) !important;
+      font-size: 0.75rem;
+    }
+
+    :deep(.v-field__input) {
+      min-height: var(--deck-control-h, 40px) !important;
+      max-height: var(--deck-control-h, 40px) !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+      align-items: center;
+    }
+
+    :deep(.v-field__prepend-inner),
+    :deep(.v-field__clearable) {
+      padding-top: 0 !important;
+      align-self: center;
+    }
+  }
+}
+
 .playlists-grid {
   display: grid;
   gap: 20px 16px;
@@ -887,12 +1123,18 @@ onMounted(() => {
   gap: 10px;
 }
 
-.section-title {
+.playlists-section-title {
+  font-size: 1rem;
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .smart-playlists-section {
-  margin-bottom: 48px;
+  margin-bottom: 32px;
+}
+
+.manual-playlists-section {
+  margin-bottom: 24px;
 }
 
 .smart-playlists-video-link {
@@ -910,10 +1152,6 @@ onMounted(() => {
   &__icon {
     color: inherit;
   }
-}
-
-.nl-mix-card {
-  border-color: rgba(var(--v-theme-primary), 0.28);
 }
 
 .nl-mix-example {

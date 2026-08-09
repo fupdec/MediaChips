@@ -19,6 +19,7 @@
     />
 
     <AppBarButton
+      v-if="supportsBulkEdit"
       icon="pencil-plus"
       :text="t('common.edit')"
       :disabled="itemsStore.selection.length === 0"
@@ -53,12 +54,21 @@ import {useDialogsStore} from '@/stores/dialogs'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
+import {typedApi} from '@/services/typedApi'
+import {getFilters} from '@/services/filterService'
+import {setNotification} from '@/services/notificationService'
+import {useEventBus} from '@/utils/eventBus'
 import type {MediaItem, Tag} from '@/types/stores'
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
+const eventBus = useEventBus()
 const {t} = useI18n()
+
+const supportsBulkEdit = computed(() =>
+  itemsStore.type === 'media' || itemsStore.type === 'tag',
+)
 
 const selectionMeta = computed(() => {
   const metaId = itemsStore.environment.meta_id
@@ -132,6 +142,16 @@ function openMediaMerge() {
 
 function openDelete() {
   if (itemsStore.selection.length === 0) return
+
+  if (itemsStore.type === 'mark') {
+    openMarkDelete()
+    return
+  }
+  if (itemsStore.type === 'playlist') {
+    openPlaylistDelete()
+    return
+  }
+
   const {deleteItem} = useItemContextMenu(
     resolveRepresentativeItem(),
     itemsStore.type,
@@ -140,6 +160,91 @@ function openDelete() {
     null,
   )
   deleteItem()
+}
+
+function openMarkDelete() {
+  const ids = [...itemsStore.selection]
+  const count = ids.length
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBox2RequiresPrimary = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.text = t('markers.delete_selected_confirm', {count})
+  dialogsStore.confirm.action = async () => {
+    let deleted = 0
+    for (const id of ids) {
+      try {
+        await typedApi.deleteMark(id)
+        deleted += 1
+      } catch (error) {
+        console.warn('Failed deleting mark', id, error)
+      }
+    }
+    itemsStore.clearSelection()
+    eventBus.emit('markers:reload')
+    if (deleted > 0) {
+      setNotification({
+        type: 'success',
+        title: t('markers.delete_selected_done', {count: deleted}),
+      })
+    }
+    if (deleted < ids.length) {
+      setNotification({
+        type: 'warning',
+        title: t('markers.delete_selected_failed'),
+        text: `${deleted}/${ids.length}`,
+      })
+    }
+  }
+  dialogsStore.confirm.show = true
+}
+
+function openPlaylistDelete() {
+  const ids = [...itemsStore.selection]
+  const count = ids.length
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBox2RequiresPrimary = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.text = t('playlists.delete_selected_confirm', {count})
+  dialogsStore.confirm.action = async () => {
+    let deleted = 0
+    for (const id of ids) {
+      try {
+        if (id < 0) {
+          const savedFilterId = Math.abs(id)
+          const filters = await getFilters(savedFilterId)
+          await typedApi.deleteSavedFilter(savedFilterId)
+          for (const row of filters) {
+            if (row?.id) await typedApi.deleteFilterRow(row.id)
+          }
+        } else {
+          await typedApi.deletePlaylist(id)
+        }
+        deleted += 1
+      } catch (error) {
+        console.warn('Failed deleting playlist', id, error)
+      }
+    }
+    itemsStore.clearSelection()
+    eventBus.emit('playlists:reload')
+    if (deleted > 0) {
+      setNotification({
+        type: 'success',
+        title: t('playlists.delete_selected_done', {count: deleted}),
+      })
+    }
+    if (deleted < ids.length) {
+      setNotification({
+        type: 'warning',
+        title: t('playlists.delete_selected_failed'),
+        text: `${deleted}/${ids.length}`,
+      })
+    }
+  }
+  dialogsStore.confirm.show = true
 }
 
 function selectVisible() {

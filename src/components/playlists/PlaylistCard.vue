@@ -1,12 +1,21 @@
 <template>
-  <v-card class="playlist-card" rounded="lg" elevation="2">
+  <v-card
+    class="playlist-card item"
+    :class="{
+      'playlist-card--selected': selected,
+      'item--selecting': selectable && !loading,
+    }"
+    rounded="lg"
+    elevation="2"
+    @contextmenu.stop="showContextMenu"
+  >
     <div
       class="playlist-cover"
       :class="{
         'playlist-cover--playing': playing,
         'playlist-cover--thumbs-loading': thumbsLoading && !loading,
       }"
-      @click="!loading && emit('play')"
+      @click="onCoverClick"
       v-ripple="loading ? false : { class: 'text-primary' }"
     >
       <div v-if="loading" class="playlist-cover__state">
@@ -70,7 +79,7 @@
     <div
       v-else
       class="playlist-card__footer"
-      @click="showEdit ? emit('edit') : emit('play')"
+      @click="onFooterClick"
       v-ripple="{ class: 'text-primary' }"
     >
       <div class="playlist-card__info">
@@ -93,13 +102,38 @@
         <v-icon>mdi-pencil-outline</v-icon>
       </v-btn>
     </div>
+
+    <div
+      v-if="selectable && !loading"
+      class="item-select-overlay"
+      :class="{'item-select-overlay--selected': selected}"
+      @click.stop="onSelectClick"
+      @contextmenu.stop="showContextMenu"
+    >
+      <button
+        type="button"
+        class="item-select-btn"
+        :class="{'item-select-btn--on': selected}"
+        :aria-pressed="selected"
+        :aria-label="selected ? t('appbar.buttons.unselect') : t('appbar.buttons.select')"
+        tabindex="-1"
+      >
+        <v-icon
+          size="18"
+          :icon="selected ? 'mdi-check' : 'mdi-plus'"
+        />
+      </button>
+    </div>
   </v-card>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useItemsStore} from '@/stores/items'
+import {useContextMenu} from '@/stores/contextMenu'
 import type { PagePlaylist } from '@/types/playlists'
+import type { ContextMenuEntry } from '@/types/stores'
 
 const props = withDefaults(defineProps<{
   playlist: PagePlaylist
@@ -108,19 +142,97 @@ const props = withDefaults(defineProps<{
   playing?: boolean
   videoCount?: number | null
   showEdit?: boolean
+  selectable?: boolean
+  selected?: boolean
+  /** Encoded selection id (manual positive / smart negative). */
+  selectId?: number | null
 }>(), {
   loading: false,
   thumbsLoading: false,
   playing: false,
   videoCount: null,
   showEdit: true,
+  selectable: false,
+  selected: false,
+  selectId: null,
 })
 
 const emit = defineEmits<{
   play: []
   edit: []
+  delete: []
+  'update:selected': [value: boolean, meta?: {shiftKey?: boolean}]
 }>()
 const {t} = useI18n()
+const itemsStore = useItemsStore()
+const contextMenuStore = useContextMenu()
+
+function onSelectClick(event: MouseEvent) {
+  emit('update:selected', !props.selected, {shiftKey: event.shiftKey})
+}
+
+function onCoverClick(event: MouseEvent) {
+  if (props.loading) return
+  if (props.selectable) {
+    emit('update:selected', !props.selected, {shiftKey: event.shiftKey})
+    return
+  }
+  emit('play')
+}
+
+function onFooterClick(event: MouseEvent) {
+  if (props.selectable) {
+    emit('update:selected', !props.selected, {shiftKey: event.shiftKey})
+    return
+  }
+  if (props.showEdit) emit('edit')
+  else emit('play')
+}
+
+function selectPlaylist(event?: MouseEvent | null) {
+  const id = Number(props.selectId)
+  if (Number.isFinite(id) && id !== 0 && itemsStore.type === 'playlist') {
+    itemsStore.toggleSelect(event ?? null, {id})
+    return
+  }
+  emit('update:selected', !props.selected, {shiftKey: Boolean(event?.shiftKey)})
+}
+
+function showContextMenu(event: MouseEvent) {
+  if (props.loading) return
+  event.preventDefault()
+  const id = Number(props.selectId)
+  const isSelected = props.selected
+    || (Number.isFinite(id) && id !== 0 && itemsStore.selection.includes(id))
+  const content: ContextMenuEntry[] = [
+    {
+      name: t('documentation.open'),
+      type: 'item',
+      icon: 'playlist-play',
+      action: () => emit('play'),
+    },
+    {
+      name: isSelected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),
+      type: 'item',
+      icon: isSelected ? 'checkbox-blank-outline' : 'checkbox-marked-outline',
+      action: (ev?: unknown) => selectPlaylist(ev as MouseEvent),
+    },
+    {type: 'divider'},
+    {
+      name: t('common.delete'),
+      type: 'item',
+      icon: 'delete',
+      color: 'red',
+      action: () => emit('delete'),
+    },
+  ]
+  contextMenuStore.showContextMenu({
+    content,
+    x: event.clientX,
+    y: event.clientY,
+    targetItemId: Number.isFinite(id) ? id : Number(props.playlist.id),
+  })
+}
 
 const displayThumbs = computed(() => (props.playlist.thumbs || []).slice(0, 4))
 
@@ -150,6 +262,7 @@ const collageClass = computed(() => {
 
 <style lang="scss" scoped>
 .playlist-card {
+  position: relative;
   overflow: hidden;
   transition: box-shadow 0.2s ease;
 

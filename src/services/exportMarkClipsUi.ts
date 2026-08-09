@@ -4,7 +4,7 @@ import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
 import {useTasksStore} from '@/stores/tasks'
 import {getErrorResponseData} from '@/types/vue'
-import {getElectronAPI} from '@/services/electronBridge'
+import {getElectronAPI, showElectronOpenDialog} from '@/services/electronBridge'
 
 export type MarkClipsExportScope =
   | {markIds: number[]}
@@ -14,6 +14,9 @@ export type MarkClipsExportTranslate = (
   key: string,
   params?: Record<string, unknown>,
 ) => string
+
+export type MarkClipsExportMode = 'concat' | 'folder'
+export type MarkClipsExportSort = 'time' | 'shuffle' | 'selection'
 
 const LAST_EXPORT_DIR_KEY = 'mediachips.lastMarkClipsExportDir'
 
@@ -33,6 +36,16 @@ function rememberExportDir(filePath: string) {
     localStorage.setItem(LAST_EXPORT_DIR_KEY, dir)
   } catch {
     // ignore quota / private mode
+  }
+}
+
+function rememberExportFolder(folderPath: string) {
+  const dir = String(folderPath || '').trim()
+  if (!dir) return
+  try {
+    localStorage.setItem(LAST_EXPORT_DIR_KEY, dir)
+  } catch {
+    // ignore
   }
 }
 
@@ -58,6 +71,21 @@ async function pickExportOutputPath(defaultName: string): Promise<string | undef
   }
 }
 
+async function pickExportOutputFolder(): Promise<string | undefined | null> {
+  try {
+    const result = await showElectronOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+    })
+    if (!result || result.canceled || !result.filePaths?.length) return null
+    const folder = result.filePaths[0]
+    rememberExportFolder(folder)
+    return folder
+  } catch (error) {
+    console.warn('Open directory dialog unavailable, using default downloads path', error)
+    return undefined
+  }
+}
+
 function revealExportedFile(filePath: string) {
   const pathValue = String(filePath || '').trim()
   if (!pathValue) return
@@ -70,15 +98,18 @@ function revealExportedFile(filePath: string) {
  */
 export async function runMarkClipsExport(options: {
   scope: MarkClipsExportScope
-  sort?: 'time' | 'shuffle'
+  sort?: MarkClipsExportSort
+  mode?: MarkClipsExportMode
   countHint?: number
   t: MarkClipsExportTranslate
 }): Promise<boolean> {
-  const {scope, sort = 'time', t} = options
+  const {scope, sort = 'time', mode = 'concat', t} = options
   const countHint = Math.max(1, Number(options.countHint) || 1)
   const tasksStore = useTasksStore()
 
-  const picked = await pickExportOutputPath(`mediachips-clips-${Date.now()}.mp4`)
+  const picked = mode === 'folder'
+    ? await pickExportOutputFolder()
+    : await pickExportOutputPath(`mediachips-clips-${Date.now()}.mp4`)
   if (picked === null) return false
   const outputPath = picked || undefined
 
@@ -86,7 +117,7 @@ export async function runMarkClipsExport(options: {
   if ('tagId' in scope) {
     const clips = await typedApi.getMarkClips({
       tagId: scope.tagId,
-      sort,
+      sort: sort === 'selection' ? 'time' : sort,
     })
     markIds = (clips.data?.items || [])
       .map((item) => Number(item.markId))
@@ -112,7 +143,9 @@ export async function runMarkClipsExport(options: {
 
   const controller = new AbortController()
   const taskId = tasksStore.setTask({
-    title: t('markers.export_selected_clips', {count: markIds.length || countHint}),
+    title: mode === 'folder'
+      ? t('markers.export_selected_folder', {count: markIds.length || countHint})
+      : t('markers.export_selected_clips', {count: markIds.length || countHint}),
     subtitle: t('markers.export_clips_progress', {
       processed: 0,
       total: markIds.length || countHint,
@@ -129,6 +162,7 @@ export async function runMarkClipsExport(options: {
         markIds,
         outputPath,
         sort,
+        mode,
       },
       {signal: controller.signal},
       (event) => {
@@ -143,7 +177,10 @@ export async function runMarkClipsExport(options: {
         }
         if (event.type === 'complete') {
           if (typeof event.outputPath === 'string') finalPath = event.outputPath
-          if (finalPath) rememberExportDir(finalPath)
+          if (finalPath) {
+            if (mode === 'folder') rememberExportFolder(finalPath)
+            else rememberExportDir(finalPath)
+          }
           tasksStore.updateTask(taskId, {
             subtitle: finalPath,
             progress: 100,
@@ -159,11 +196,16 @@ export async function runMarkClipsExport(options: {
       },
     )
 
-    if (finalPath) rememberExportDir(finalPath)
+    if (finalPath) {
+      if (mode === 'folder') rememberExportFolder(finalPath)
+      else rememberExportDir(finalPath)
+    }
 
     setNotification({
       type: 'success',
-      title: t('markers.export_clips_done'),
+      title: mode === 'folder'
+        ? t('markers.export_folder_done')
+        : t('markers.export_clips_done'),
       text: t('markers.export_clips_done_text', {path: finalPath}),
       timeout: 12_000,
       revealPath: finalPath,
