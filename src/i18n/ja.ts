@@ -2011,6 +2011,10 @@ const ja = {
       sync_success: 'Sync completed',
       sync_push_success: 'Push completed',
       sync_push_cancelled: 'Push cancelled',
+
+      sync_push_confirm: '既に照合済みのメディアについて評価とタグをリモートへ送信しますか？リモート側の削除はローカルでは消えません。',
+
+      sync_push_failed: '送信に失敗しました',
       sync_push_complete: 'Push done: {pushed} updated, {skipped} skipped, {failed} failed',
       sync_push_matched_hint: 'Push only updates media already linked by previous import/sync (matched remote ids).',
       sync_last_at: 'Last run: {time}',
@@ -2543,8 +2547,8 @@ const ja = {
       make_library_smart_neighbor_tags_ready: "確認待ちの近傍タグ: {suggested}",
       make_library_smart_scrape: "ThePornDB からシーン情報を取得",
       make_library_smart_organize_confirm: "前回の整理構造で、追加したファイルを「{root}」配下のタグフォルダーへ移動しますか？",
-      make_library_smart_enhance: "できることをすべて実行",
-      make_library_smart_magic: "できることをすべて実行",
+      make_library_smart_enhance: "安全にすべて強化",
+      make_library_smart_magic: "高度なセットをすべて実行",
       make_library_smart_magic_hint: "顔・チャプター・近傍タグ・利用可能なら scrape をオンにします。ファイル移動はオフのまま — 必要なら上の整理を有効にしてください。",
       make_library_smart_summary_clip_indexed: "視覚検索インデックスの準備完了",
       make_library_smart_summary_grids: "プレビューグリッド作成: {count}",
@@ -2836,8 +2840,6 @@ const ja = {
 },
     settings: {
       hide_in_navigation: "ナビゲーションメニューに隠す",
-      marks_in_player: "プレーヤー内のマーク",
-      marks_in_player_hint: "内蔵プレーヤーのタイムライン上のマーク",
       parse_media_for_tags: "メディアのタグを解析する",
 
       path_regex_create_tags: '見つからない場合はタグを作成',
@@ -2985,9 +2987,7 @@ const ja = {
       tag_card_preview_demo_tag_1: "デモ A",
       tag_card_preview_demo_tag_2: "デモ B",
       tag_card_preview_no_visible_fields: "カードに表示するフィールドはまだありません。",
-      assign_before_marks: "マークを有効にするには、先にこのフィールドを動画メディアタイプに割り当ててください。",
       assign_before_parser: "先にこのフィールドをメディアタイプに割り当ててください。",
-      marks_in_player_requirement: "このフィールドが動画メディアタイプに割り当てられている場合のみ利用できます。",
       parse_media_for_tags_hint: '既存のタグ名と照合します。必要ならパスから新しいタグも抽出できます。',
       tags_from_path: "ファイルパスからのタグ",
       path_find_fuzzy_hint: '既存のタグ名（と同義語）をファイルパスから探します。',

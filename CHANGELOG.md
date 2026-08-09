@@ -7,18 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.0] - 2026-08-09
+## [1.6.0] - 2026-08-10
 
 ### Added
 
 - **CLIP semantic search** — describe a scene to find media; query auto-translate for UI languages; play hits at the matching grid tile
+- **Find scene** — visual search from a described moment; open hits near the matching timeline tile
 - **Similar media wall** — explore CLIP neighbors with health tips and an explore loop
 - **Post-add smart wizard** — path tags, grids, faces, CLIP index, chapters, neighbor-tag suggestions, organize, and TPDB scrape steps
 - **Library health score** — safe fix queue and snoozeable alerts
-- **Clip Studio** — select, export, and reveal clips from the library
+- **Clip Studio** — select, export, and reveal clips; reels and multi-select for markers and playlists
 - **NL → playlist mix** — build a mix from filters / CLIP from the filter bar and global search
 - **Blind Person auto-tags** — optional Person N tags for unlabeled face clusters (off by default)
-- **Auto chapters** — scene + silence detection with readable titles (heuristics / Local AI)
+- **Auto chapters** — scene + silence detection with readable titles (heuristics / Local AI / CLIP-aware)
+- **Any-tag player marks** — favorite, bookmark/chapter, or any library tag; no separate Marks in player flag
+- **Stash / Jellyfin bidirectional sync** — pull metadata and push ratings/tags for already matched media
+- **Person timeline appearances** — seek and play appearances on performer tag pages
 - **Media merge** — keep one item and remap linked metadata; duplicates review in Database settings
 - **More like this** — visual-hash neighbors on the media list
 - **Text / audio** — in-app text preview and search; audio covers from ID3
@@ -30,15 +34,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Playback** — prefer direct play before live transcode; safer hover preview remux/live fallback for layout-broken MP4s
 - **Face match default** — new databases use Suggest only (not auto-apply)
-- **Smart wizard** — CLIP / neighbor tags suggest for review instead of auto-applying
+- **Smart wizard** — **Enhance now** as the safe one-click default; CLIP / neighbor tags suggest for review instead of auto-applying
+- **Path tag parser** — enabled by default for new/first-assigned tag categories (opt out in field settings)
+- **Meta manager** — Capabilities tab renamed to Built-in fields; clearer category menus
+- **Edit dialog** — compact tag color control and clearer value restore buttons
+- **Settings** — compact vertical nav on mobile; remove obsolete app cache-clear UI
+- **API recovery** — reconnect after local API disconnects without a full app restart
 - **Browser layout** — sole library layout; mobile-friendly control deck; denser edit dialogs
 - **Huge galleries** — virtual masonry for large image sets; infinite card grids stay non-virtual with throttled loads and less CLS
-- **Performance** — Slim SQL projections, Sharp for hashes/faces, API in a separate Electron Node child, larger image data window with safer thumbs
+- **Performance** — Slim SQL projections, Sharp for hashes/faces, API in a separate Electron Node child, larger image data window with safer thumbs; faster auto chapters
 
 ### Fixed
 
 - **Hover preview** — wrong scrub-frame flash, sticky unavailable cache (TTL), leave fade / scroll guard
 - **WebM duration** — probe packet PTS when container metadata is missing (live chunks / playability)
+- **Find scene / mix playlists** — semantic seeks land on the matching tile instead of EOF or stolen resume
+- **FFmpeg thumbs** — single-image thumbnail generation edge cases
 - **Semantic index UX** — partial CLIP index no longer looks “ready”; locale strings for new features
 - **Duplicates merge** — confirm before single-group merge, especially when deleting loser files
 - **Locale switching** — image viewer chrome and related UI polish

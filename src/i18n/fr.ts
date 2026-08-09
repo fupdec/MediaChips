@@ -1894,6 +1894,10 @@ const fr = {
       sync_success: 'Sync completed',
       sync_push_success: 'Push completed',
       sync_push_cancelled: 'Push cancelled',
+
+      sync_push_confirm: 'Envoyer notes et étiquettes vers le serveur distant pour les médias déjà associés ? Les suppressions distantes ne sont pas effacées localement.',
+
+      sync_push_failed: 'Échec de l’envoi',
       sync_push_complete: 'Push done: {pushed} updated, {skipped} skipped, {failed} failed',
       sync_push_matched_hint: 'Push only updates media already linked by previous import/sync (matched remote ids).',
       sync_last_at: 'Last run: {time}',
@@ -2374,8 +2378,8 @@ const fr = {
       make_library_smart_neighbor_tags_ready: 'Tags voisins prêts à vérifier : {suggested}',
       make_library_smart_scrape: 'Récupérer les infos de scène depuis ThePornDB',
       make_library_smart_organize_confirm: 'Déplacer les fichiers ajoutés vers des dossiers d’étiquettes sous « {root} » selon votre dernière structure Organize ?',
-      make_library_smart_enhance: 'Faire tout le possible',
-      make_library_smart_magic: 'Faire tout le possible',
+      make_library_smart_enhance: 'Tout améliorer en toute sécurité',
+      make_library_smart_magic: 'Exécuter l’ensemble avancé',
       make_library_smart_magic_hint: 'Active visages, chapitres, tags voisins et scrape si disponible. Les déplacements restent désactivés — activez Organize ci-dessus si besoin.',
       make_library_smart_summary_clip_indexed: 'Index de recherche visuelle prêt',
       make_library_smart_summary_grids: 'Grilles d’aperçu créées : {count}',
@@ -2657,8 +2661,6 @@ const fr = {
 },
     settings: {
       hide_in_navigation: 'Masquer dans le menu de navigation',
-      marks_in_player: 'Marques dans le joueur',
-      marks_in_player_hint: 'Marques sur la chronologie dans le lecteur intégré',
       parse_media_for_tags: 'Analyser les médias pour les balises',
 
       path_regex_create_tags: 'Créer les tags s’ils n’existent pas',
@@ -2788,9 +2790,7 @@ const fr = {
       tag_card_preview_demo_tag_1: 'Démo A',
       tag_card_preview_demo_tag_2: 'Démo B',
       tag_card_preview_no_visible_fields: 'Aucun champ visible sur la carte pour le moment.',
-      assign_before_marks: 'Assignez d’abord ce champ à un type de média vidéo pour activer les marques.',
       assign_before_parser: 'Assignez d’abord ce champ à un type de média.',
-      marks_in_player_requirement: 'Disponible uniquement lorsque ce champ est assigné à un type de média vidéo.',
       parse_media_for_tags_hint: 'Fait correspondre les noms de tags existants. Optionnellement, extrait un nouveau tag du chemin.',
       tags_from_path: 'Tags depuis le chemin du fichier',
       path_find_fuzzy_hint: 'Les noms de tags existants (et synonymes) sont recherchés dans les chemins de fichiers.',

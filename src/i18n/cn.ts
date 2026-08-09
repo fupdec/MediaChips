@@ -1895,6 +1895,10 @@ const cn = {
       sync_success: 'Sync completed',
       sync_push_success: 'Push completed',
       sync_push_cancelled: 'Push cancelled',
+
+      sync_push_confirm: '将评分和标签推送到远程（仅已匹配的媒体）？远程端的删除不会在本地清除。',
+
+      sync_push_failed: '推送失败',
       sync_push_complete: 'Push done: {pushed} updated, {skipped} skipped, {failed} failed',
       sync_push_matched_hint: 'Push only updates media already linked by previous import/sync (matched remote ids).',
       sync_last_at: 'Last run: {time}',
@@ -2375,8 +2379,8 @@ const cn = {
       make_library_smart_neighbor_tags_ready: '待复查的近邻标签：{suggested}',
       make_library_smart_scrape: '从 ThePornDB 获取场景信息',
       make_library_smart_organize_confirm: '按上次整理结构，将已添加文件移动到“{root}”下的标签文件夹？',
-      make_library_smart_enhance: '执行所有可用步骤',
-      make_library_smart_magic: '执行所有可用步骤',
+      make_library_smart_enhance: '安全增强全部',
+      make_library_smart_magic: '运行完整高级套件',
       make_library_smart_magic_hint: '开启人脸、章节、近邻标签以及可用的 scrape。不移动文件——如需请在上方启用整理。',
       make_library_smart_summary_clip_indexed: '视觉搜索索引已就绪',
       make_library_smart_summary_grids: '已创建预览网格：{count}',
@@ -2658,8 +2662,6 @@ const cn = {
 },
     settings: {
       hide_in_navigation: '在导航菜单中隐藏',
-      marks_in_player: '播放器中的标记',
-      marks_in_player_hint: '内置播放器时间线上的标记',
       parse_media_for_tags: '解析媒体以提取标签',
 
       path_regex_create_tags: '找不到时创建标签',
@@ -2789,9 +2791,7 @@ const cn = {
       tag_card_preview_demo_tag_1: '演示 A',
       tag_card_preview_demo_tag_2: '演示 B',
       tag_card_preview_no_visible_fields: '卡片上还没有可见字段。',
-      assign_before_marks: '请先将此字段分配给视频媒体类型以启用标记。',
       assign_before_parser: '请先将此字段分配给媒体类型。',
-      marks_in_player_requirement: '仅当此字段分配给视频媒体类型时可用。',
       parse_media_for_tags_hint: '匹配已有标签名。也可从路径中提取新标签。',
       tags_from_path: '从文件路径提取标签',
       path_find_fuzzy_hint: '在文件路径中匹配已有标签名（及同义词）。',

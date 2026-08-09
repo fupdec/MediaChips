@@ -215,9 +215,11 @@ import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
 import {typedApi} from '@/services/typedApi'
+import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 
 const {t} = useI18n()
+const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
 
 const baseUrl = ref('')
@@ -395,7 +397,16 @@ async function runPull(createMissing: boolean, runMode: 'import' | 'sync') {
 const startImport = () => runPull(createMissingMedia.value, 'import')
 const startSync = () => runPull(false, 'sync')
 
-const startPush = async () => {
+const startPush = () => {
+  if (active.value || !canStart.value) return
+  dialogsStore.confirm.text = t('settings_labels.database.sync_push_confirm')
+  dialogsStore.confirm.action = () => {
+    void runPush()
+  }
+  dialogsStore.confirm.show = true
+}
+
+const runPush = async () => {
   if (active.value || !canStart.value) return
   saveConnection()
 
@@ -437,7 +448,7 @@ const startPush = async () => {
             text: t('settings_labels.database.sync_push_success'),
           })
         } else if (event.type === 'error') {
-          lastError.value = String(event.message || 'Jellyfin push failed')
+          lastError.value = String(event.message || t('settings_labels.database.sync_push_failed'))
         }
       },
     )
@@ -445,7 +456,7 @@ const startPush = async () => {
     if ((error as Error)?.name === 'AbortError') {
       lastError.value = t('settings_labels.database.sync_push_cancelled')
     } else {
-      lastError.value = (error as Error)?.message || String(error)
+      lastError.value = (error as Error)?.message || t('settings_labels.database.sync_push_failed')
       console.error('Jellyfin push failed:', error)
     }
   } finally {

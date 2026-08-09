@@ -2046,7 +2046,7 @@ body > .video-preview-container.video-preview-container--expanded {
 
     // Room for the floating restore control over custom inputs.
     &:has(.editing-field-restore--float) {
-      padding-right: 40px !important;
+      padding-inline-end: 40px !important;
     }
   }
 

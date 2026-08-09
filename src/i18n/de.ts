@@ -1894,6 +1894,10 @@ const de = {
       sync_success: 'Sync completed',
       sync_push_success: 'Push completed',
       sync_push_cancelled: 'Push cancelled',
+
+      sync_push_confirm: 'Bewertungen und Tags für bereits verknüpfte Medien an den Remote-Server senden? Entfernungen auf dem Remote werden lokal nicht gelöscht.',
+
+      sync_push_failed: 'Push fehlgeschlagen',
       sync_push_complete: 'Push done: {pushed} updated, {skipped} skipped, {failed} failed',
       sync_push_matched_hint: 'Push only updates media already linked by previous import/sync (matched remote ids).',
       sync_last_at: 'Last run: {time}',
@@ -2374,8 +2378,8 @@ const de = {
       make_library_smart_neighbor_tags_ready: "Nachbar-Tags zur Prüfung bereit: {suggested}",
       make_library_smart_scrape: "Szenendaten von ThePornDB holen",
       make_library_smart_organize_confirm: 'Hinzugefügte Dateien unter „{root}“ nach Ihrer letzten Organize-Struktur in Tag-Ordner verschieben?',
-      make_library_smart_enhance: "Alles Mögliche ausführen",
-      make_library_smart_magic: "Alles Mögliche ausführen",
+      make_library_smart_enhance: "Alles Sichere ausführen",
+      make_library_smart_magic: "Vollständigen erweiterten Satz ausführen",
       make_library_smart_magic_hint: "Aktiviert Gesichter, Kapitel, Nachbar-Tags und Scrape (falls verfügbar). Dateiverschiebung bleibt aus — Organize oben aktivieren, falls gewünscht.",
       make_library_smart_summary_clip_indexed: "Visueller Suchindex bereit",
       make_library_smart_summary_grids: "Vorschauraster erstellt: {count}",
@@ -2657,8 +2661,6 @@ const de = {
 },
     settings: {
       hide_in_navigation: "Im Navigationsmenü ausblenden",
-      marks_in_player: "Markierungen im Spieler",
-      marks_in_player_hint: "Markierungen auf der Zeitleiste im integrierten Player",
       parse_media_for_tags: "Analysieren Sie Medien nach Tags",
 
       path_regex_create_tags: 'Tags erstellen, falls nicht gefunden',
@@ -2788,9 +2790,7 @@ const de = {
       tag_card_preview_demo_tag_1: "Demo A",
       tag_card_preview_demo_tag_2: "Demo B",
       tag_card_preview_no_visible_fields: "Auf der Karte sind noch keine sichtbaren Felder.",
-      assign_before_marks: "Weisen Sie dieses Feld zuerst einem Video-Medientyp zu, um Markierungen zu aktivieren.",
       assign_before_parser: "Weisen Sie dieses Feld zuerst einem Medientyp zu.",
-      marks_in_player_requirement: "Nur verfügbar, wenn dieses Feld einem Video-Medientyp zugewiesen ist.",
       parse_media_for_tags_hint: 'Gleicht vorhandene Tag-Namen ab. Optional kann ein neuer Tag aus dem Pfad extrahiert werden.',
       tags_from_path: "Tags aus dem Dateipfad",
       path_find_fuzzy_hint: 'Vorhandene Tag-Namen (und Synonyme) werden in Dateipfaden gesucht.',

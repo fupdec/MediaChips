@@ -52,7 +52,7 @@ const {t} = useI18n()
   &--float {
     position: absolute;
     top: 50%;
-    right: 6px;
+    inset-inline-end: 6px;
     z-index: 3;
     transform: translateY(-50%);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);

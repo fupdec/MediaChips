@@ -373,8 +373,8 @@ const loadThumb = async () => {
       mediaPath: appStore.mediaPath,
       mediaId: props.mark.medium?.id || props.mark.mediumId,
     })
-  } catch (e) {
-    console.log('Error loading image:', e)
+  } catch {
+    // Ignore thumb load failures; placeholder stays visible.
   }
 }
 

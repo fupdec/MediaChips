@@ -1895,6 +1895,10 @@ const es = {
       sync_success: 'Sync completed',
       sync_push_success: 'Push completed',
       sync_push_cancelled: 'Push cancelled',
+
+      sync_push_confirm: '¿Enviar calificaciones y etiquetas al remoto para los medios ya vinculados? Las eliminaciones en el remoto no se borran localmente.',
+
+      sync_push_failed: 'Error al enviar',
       sync_push_complete: 'Push done: {pushed} updated, {skipped} skipped, {failed} failed',
       sync_push_matched_hint: 'Push only updates media already linked by previous import/sync (matched remote ids).',
       sync_last_at: 'Last run: {time}',
@@ -2375,8 +2379,8 @@ const es = {
       make_library_smart_neighbor_tags_ready: 'Etiquetas vecinas listas para revisar: {suggested}',
       make_library_smart_scrape: 'Obtener datos de escena de ThePornDB',
       make_library_smart_organize_confirm: '¿Mover los archivos añadidos a carpetas por etiquetas bajo “{root}” con tu última estructura Organize?',
-      make_library_smart_enhance: 'Hacer todo lo posible',
-      make_library_smart_magic: 'Hacer todo lo posible',
+      make_library_smart_enhance: 'Mejorar todo de forma segura',
+      make_library_smart_magic: 'Ejecutar el conjunto avanzado',
       make_library_smart_magic_hint: 'Activa rostros, capítulos, etiquetas vecinas y scrape si está disponible. Mover archivos sigue desactivado: activa Organize arriba si lo quieres.',
       make_library_smart_summary_clip_indexed: 'Índice de búsqueda visual listo',
       make_library_smart_summary_grids: 'Rejillas de vista previa creadas: {count}',
@@ -2658,8 +2662,6 @@ const es = {
 },
     settings: {
       hide_in_navigation: 'Ocultar en el menú de navegación',
-      marks_in_player: 'Marcas en el reproductor',
-      marks_in_player_hint: 'Marcas en la línea de tiempo del reproductor integrado',
       parse_media_for_tags: 'Analizar medios para etiquetas',
 
       path_regex_create_tags: 'Crear etiquetas si no existen',
@@ -2789,9 +2791,7 @@ const es = {
       tag_card_preview_demo_tag_1: 'Demo A',
       tag_card_preview_demo_tag_2: 'Demo B',
       tag_card_preview_no_visible_fields: 'Aún no hay campos visibles en la tarjeta.',
-      assign_before_marks: 'Asigna este campo a un tipo de medio de vídeo para activar las marcas.',
       assign_before_parser: 'Asigna primero este campo a un tipo de medio.',
-      marks_in_player_requirement: 'Disponible solo cuando este campo está asignado a un tipo de medio de vídeo.',
       parse_media_for_tags_hint: 'Coincide nombres de etiquetas existentes. Opcionalmente extrae una etiqueta nueva de la ruta.',
       tags_from_path: 'Etiquetas desde la ruta del archivo',
       path_find_fuzzy_hint: 'Los nombres de etiquetas existentes (y sinónimos) se buscan en las rutas de archivo.',
