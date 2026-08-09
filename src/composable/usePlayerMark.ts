@@ -1,6 +1,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
+import { useDialogsStore } from '@/stores/dialogs'
 import { useEventBus } from '@/utils/eventBus'
 import { checkColorForDarkText } from '@/utils/headerColorUtils'
 import { getReadableDuration } from '@/services/formatUtils'
@@ -26,6 +27,7 @@ export function usePlayerMark(
 ) {
   const appStore = useAppStore()
   const playerStore = usePlayerStore()
+  const dialogsStore = useDialogsStore()
   const eventBus = useEventBus()
 
   const thumb = ref<string | null>(null)
@@ -69,6 +71,10 @@ export function usePlayerMark(
     playerStore.playerJumpTo(props.mark.time)
   }
 
+  const edit = () => {
+    dialogsStore.openMarkEditing(props.mark)
+  }
+
   const remove = () => {
     emit('removeMark', props.mark)
   }
@@ -110,6 +116,7 @@ export function usePlayerMark(
     timeline_width,
     tooltipStyle,
     jumpTo,
+    edit,
     remove,
   }
 }

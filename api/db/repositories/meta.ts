@@ -63,9 +63,10 @@ export function createMetaRepository(db: DrizzleClient) {
     },
 
     findMarkFilters(): MetaRow[] {
+      // Tag categories (array metas). Legacy meta.marks is no longer required.
       return db.select()
         .from(meta)
-        .where(eq(meta.marks, true))
+        .where(eq(meta.type, 'array'))
         .orderBy(asc(meta.order), asc(meta.name))
         .all()
     },

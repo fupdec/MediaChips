@@ -21,7 +21,7 @@
     </v-switch>
   </SettingsSection>
 
-  <!-- Capabilities: built-in tag fields, then marks (last) -->
+  <!-- Capabilities: built-in tag fields -->
   <template v-if="showCapabilities && editMode">
     <SettingsSection padded>
       <settings-category-divider
@@ -84,58 +84,6 @@
           </v-switch>
         </v-col>
       </v-row>
-    </SettingsSection>
-
-    <SettingsSection padded>
-      <settings-category-divider
-        icon="tune"
-        compact
-        :title="t('meta.settings.capabilities')"
-      />
-
-      <v-alert
-        type="info"
-        variant="tonal"
-        density="compact"
-        rounded="xl"
-        class="text-caption mb-3"
-      >
-        {{ t('meta.settings.marks_in_player_requirement') }}
-      </v-alert>
-
-      <v-switch
-        inset
-        :disabled="!isPinnedToVideos"
-        v-model="settings.marks"
-        hide-details
-      >
-        <template #label>
-          <div class="d-flex flex-column ml-2">
-            <div>{{ t('meta.settings.marks_in_player') }}</div>
-            <div class="text-caption mt-1">
-              {{ t('meta.settings.marks_in_player_hint') }}
-            </div>
-          </div>
-        </template>
-      </v-switch>
-
-      <div
-        v-if="!isPinnedToVideos"
-        class="mt-3 d-flex flex-wrap align-center ga-2"
-      >
-        <div class="text-caption text-medium-emphasis">
-          {{ t('meta.settings.assign_before_marks') }}
-        </div>
-        <v-btn
-          size="x-small"
-          variant="tonal"
-          color="primary"
-          rounded="lg"
-          @click="emit('request-assign')"
-        >
-          {{ t('meta.settings.add_to_media_type') }}
-        </v-btn>
-      </div>
     </SettingsSection>
   </template>
 
@@ -518,7 +466,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   update: [settings: MetaSettings]
   'request-assign': []
-  'pin-state-changed': [state: {marks: boolean; parser: boolean}]
+  'pin-state-changed': [state: {parser: boolean}]
   close: []
 }>()
 
@@ -574,7 +522,6 @@ const customRatioError = ref('')
 
 const chipVariants: ChipVariant[] = ['flat', 'tonal', 'outlined', 'text']
 
-const isPinnedToVideos = ref(false)
 const isPinnedForMediaParser = ref(false)
 const randomColor = ref('#000000')
 
@@ -748,7 +695,6 @@ const checkPinnedMediaTypes = async () => {
     const response = await typedApi.getAssignedMetaForMeta(props.meta.id)
     const pinnedMedia = response.data || []
 
-    isPinnedToVideos.value = pinnedMedia.some((item) => isVideoMediaType(toMediaType(item.mediaType)))
     isPinnedForMediaParser.value = pinnedMedia.some((item) =>
       isVideoMediaType(toMediaType(item.mediaType)) ||
       isImageMediaType(toMediaType(item.mediaType)) ||
@@ -756,12 +702,10 @@ const checkPinnedMediaTypes = async () => {
       isTextMediaType(toMediaType(item.mediaType))
     )
     emit('pin-state-changed', {
-      marks: isPinnedToVideos.value,
       parser: isPinnedForMediaParser.value,
     })
   } catch (error) {
     console.error('Error checking pinned media:', error)
-    isPinnedToVideos.value = false
     isPinnedForMediaParser.value = false
   }
 }

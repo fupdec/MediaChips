@@ -1,18 +1,30 @@
 import type { MarkDisplayVariant, PlayerMark } from '@/types/player'
+import {
+  CHAPTER_MARK_ICON,
+  DEFAULT_BOOKMARK_ICON,
+  MARK_FILTER_CHAPTER,
+  isChapterMark,
+  normalizeMarkIcon,
+} from '@shared/markIcons'
 
 export function getMarkIcon(mark: PlayerMark, { variant = 'list' }: { variant?: MarkDisplayVariant } = {}) {
   if (mark.type === 'favorite') return 'heart'
-  if (mark.type === 'bookmark') return 'bookmark'
-  if (mark.type === 'scene') return 'movie-open-outline'
+  if (mark.type === 'meta') {
+    if (variant === 'timeline') return 'tooltip'
+    return mark.meta?.icon || mark['tag.icon'] || 'tag'
+  }
+  if (mark.type === 'bookmark' || mark.type === 'scene') {
+    if (mark.type === 'scene') return CHAPTER_MARK_ICON
+    return normalizeMarkIcon(mark.icon, DEFAULT_BOOKMARK_ICON)
+  }
   if (variant === 'timeline') return 'tooltip'
-  if (mark.type === 'meta') return mark.meta?.icon || mark['tag.icon'] || 'tag'
   return 'marker'
 }
 
 export function getMarkColor(mark: PlayerMark, { variant = 'list' }: { variant?: MarkDisplayVariant } = {}) {
   if (mark.type === 'favorite') return '#e91e63'
+  if (isChapterMark(mark) || mark.type === 'scene') return '#26a69a'
   if (mark.type === 'bookmark') return '#f44336'
-  if (mark.type === 'scene') return '#26a69a'
   if (mark.type === 'meta') return mark['tag.color'] || mark.tag?.color || '#2196f3'
   return variant === 'timeline' ? '#ffffff' : 'primary'
 }
@@ -24,6 +36,7 @@ export const getMarkTimelineColor = (mark: PlayerMark) => getMarkColor(mark, { v
 
 export function getMarkTypeFilterValue(mark: PlayerMark) {
   if (mark.type === 'meta') return mark.meta?.id || mark.metaId
+  if (isChapterMark(mark) || mark.type === 'scene') return MARK_FILTER_CHAPTER
   return mark.type
 }
 

@@ -1,3 +1,4 @@
+import {isChapterMark} from '../../shared/markIcons'
 import type {
   MarkLike,
   MarkSortKey,
@@ -18,7 +19,17 @@ export function matchesMarkTypeFilter(mark: MarkLike, types: Array<number | stri
   if (!types.length) return false
 
   if (mark.type === 'favorite' && types.includes('favorite')) return true
-  if (mark.type === 'bookmark' && types.includes('bookmark')) return true
+
+  const wantsChapter = types.includes('chapter') || types.includes('scene')
+  const wantsBookmark = types.includes('bookmark')
+  if (wantsChapter && isChapterMark(mark)) return true
+  if (
+    wantsBookmark
+    && mark.type === 'bookmark'
+    && !isChapterMark(mark)
+  ) {
+    return true
+  }
 
   if (mark.type === 'meta') {
     const metaId = mark.tag?.metaId

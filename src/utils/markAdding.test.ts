@@ -1,21 +1,32 @@
 import {describe, expect, it} from 'vitest'
 import {
   BASE_MARK_TYPES,
+  CHAPTER_MARK_ICON,
+  DEFAULT_BOOKMARK_ICON,
+  TAG_MARK_TYPE,
   buildMarkPayload,
   buildMarkTypes,
   findAssignedMeta,
+  getAssignedArrayMetas,
+  isChapterMark,
   isMetaMarkType,
+  isTagMarkType,
   normalizeMarkTime,
+  resolveMarkEditIcon,
+  resolveMarkEditType,
 } from './markAdding'
 
-describe('isMetaMarkType', () => {
+describe('isMetaMarkType / isTagMarkType', () => {
   it.each([
     ['favorite', false],
     ['bookmark', false],
-    ['meta', true],
-    ['12', true],
+    ['scene', false],
+    ['meta', false],
+    ['12', false],
+    ['tag', true],
   ])('%s → %s', (type, expected) => {
     expect(isMetaMarkType(type)).toBe(expected)
+    expect(isTagMarkType(type)).toBe(expected)
   })
 })
 
@@ -36,21 +47,29 @@ describe('normalizeMarkTime', () => {
 })
 
 describe('buildMarkTypes', () => {
-  it('starts from base favorite/bookmark types', () => {
-    expect(buildMarkTypes()).toEqual([...BASE_MARK_TYPES])
+  it('returns favorite, bookmark and a single Tag type', () => {
+    expect(buildMarkTypes()).toEqual([...BASE_MARK_TYPES, TAG_MARK_TYPE])
   })
 
-  it('appends assigned metas that allow marks', () => {
+  it('ignores assigned metas and legacy marks flags', () => {
     const types = buildMarkTypes([
-      {meta: {id: 5, name: 'Performers', marks: true}},
-      {meta: {id: 6, name: 'Hidden', marks: false}},
-      {meta: {id: 7, name: 'NoMarks'}},
-      {meta: {id: 8, name: 'Scenes', marks: true, icon: 'movie'}},
+      {meta: {id: 5, name: 'Performers', marks: true, type: 'array'}},
+      {meta: {id: 6, name: 'Hidden', marks: false, type: 'array'}},
+      {meta: {id: 8, name: 'Scenes', marks: true, icon: 'movie', type: 'array'}},
     ])
-    expect(types).toHaveLength(4)
-    expect(types.slice(2)).toEqual([
-      {value: 5, text: 'Performers', icon: 'tag'},
-      {value: 8, text: 'Scenes', icon: 'movie'},
+    expect(types).toEqual([...BASE_MARK_TYPES, TAG_MARK_TYPE])
+  })
+})
+
+describe('getAssignedArrayMetas', () => {
+  it('keeps only assigned array categories', () => {
+    expect(getAssignedArrayMetas([
+      {meta: {id: 5, name: 'Performers', type: 'array'}},
+      {meta: {id: 6, name: 'Rating', type: 'rating'}},
+      {meta: {id: 7, name: 'NoType'}},
+      {meta: {name: 'MissingId', type: 'array'}},
+    ])).toEqual([
+      {meta: {id: 5, name: 'Performers', type: 'array'}},
     ])
   })
 })
@@ -72,16 +91,49 @@ describe('findAssignedMeta', () => {
   })
 })
 
+describe('resolveMarkEditType / icon', () => {
+  it('maps legacy scene to bookmark + chapter icon', () => {
+    expect(resolveMarkEditType({type: 'scene'})).toBe('bookmark')
+    expect(resolveMarkEditIcon({type: 'scene'})).toBe(CHAPTER_MARK_ICON)
+  })
+
+  it('maps meta marks to the Tag chip', () => {
+    expect(resolveMarkEditType({type: 'meta', tag: {metaId: 4}})).toBe('tag')
+    expect(resolveMarkEditType({type: 'meta', metaId: 7})).toBe('tag')
+    expect(resolveMarkEditType({type: 'tag'})).toBe('tag')
+  })
+})
+
+describe('isChapterMark', () => {
+  it('detects chapter bookmarks and legacy scene', () => {
+    expect(isChapterMark({type: 'scene', tagId: null})).toBe(true)
+    expect(isChapterMark({
+      type: 'bookmark',
+      icon: CHAPTER_MARK_ICON,
+      tagId: null,
+    })).toBe(true)
+    expect(isChapterMark({
+      type: 'bookmark',
+      icon: DEFAULT_BOOKMARK_ICON,
+      tagId: null,
+    })).toBe(false)
+  })
+})
+
 describe('buildMarkPayload', () => {
-  it('builds a base mark without end', () => {
+  it('builds a bookmark with default icon', () => {
     expect(buildMarkPayload({
       adding: {time: 12.8, type: 'bookmark'},
+      data: {text: 'Note'},
       mediaId: '5',
     })).toEqual({
       type: 'bookmark',
       time: 12,
-      end: undefined,
+      end: null,
       mediaId: 5,
+      tagId: null,
+      text: 'Note',
+      icon: DEFAULT_BOOKMARK_ICON,
     })
   })
 
@@ -94,7 +146,7 @@ describe('buildMarkPayload', () => {
 
   it('forces meta type when tagId is present', () => {
     expect(buildMarkPayload({
-      adding: {time: 1, type: 'favorite'},
+      adding: {time: 1, type: 'tag'},
       data: {tagId: [42], note: 'hi'},
       mediaId: 3,
     })).toMatchObject({
@@ -103,6 +155,47 @@ describe('buildMarkPayload', () => {
       note: 'hi',
       mediaId: 3,
       time: 1,
+      text: null,
+      icon: null,
+    })
+  })
+
+  it('keeps incomplete tag mode without tagId', () => {
+    expect(buildMarkPayload({
+      adding: {time: 2, type: 'tag'},
+      mediaId: 3,
+    })).toMatchObject({
+      type: 'tag',
+      tagId: null,
+      text: null,
+      icon: null,
+    })
+  })
+
+  it('stores chapter icon on bookmark payload', () => {
+    expect(buildMarkPayload({
+      adding: {time: 5, type: 'bookmark', icon: CHAPTER_MARK_ICON},
+      data: {text: 'Intro', icon: CHAPTER_MARK_ICON},
+      mediaId: 9,
+    })).toMatchObject({
+      type: 'bookmark',
+      tagId: null,
+      text: 'Intro',
+      icon: CHAPTER_MARK_ICON,
+      time: 5,
+      mediaId: 9,
+    })
+  })
+
+  it('normalizes legacy scene type to bookmark + chapter icon', () => {
+    expect(buildMarkPayload({
+      adding: {time: 5, type: 'scene'},
+      data: {text: 'Intro'},
+      mediaId: 9,
+    })).toMatchObject({
+      type: 'bookmark',
+      icon: CHAPTER_MARK_ICON,
+      text: 'Intro',
     })
   })
 })

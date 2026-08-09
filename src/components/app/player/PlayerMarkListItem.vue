@@ -35,16 +35,27 @@
       </span>
     </div>
 
-    <v-btn
-      @click.stop="remove(mark)"
-      class="mark-item__delete"
-      variant="text"
-      color="error"
-      size="x-small"
-      icon
-    >
-      <v-icon size="small">mdi-delete-outline</v-icon>
-    </v-btn>
+    <div class="mark-item__actions">
+      <v-btn
+        @click.stop="edit(mark)"
+        class="mark-item__edit"
+        variant="text"
+        size="x-small"
+        icon
+      >
+        <v-icon size="small">mdi-pencil-outline</v-icon>
+      </v-btn>
+      <v-btn
+        @click.stop="remove(mark)"
+        class="mark-item__delete"
+        variant="text"
+        color="error"
+        size="x-small"
+        icon
+      >
+        <v-icon size="small">mdi-delete-outline</v-icon>
+      </v-btn>
+    </div>
   </div>
 </template>
 
@@ -58,6 +69,7 @@ defineProps<{
   getColor: (mark: PlayerMark) => string
   getDuration: (time: number) => string
   jumpTo: (time: number) => void
+  edit: (mark: PlayerMark) => void
   remove: (mark: PlayerMark) => void
 }>()
 </script>

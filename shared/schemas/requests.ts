@@ -785,6 +785,7 @@ export const EmptyObjectRequestSchema = z.object({}).passthrough()
 export const MarkCreateRequestSchema = z.object({
   type: z.string().nullable().optional(),
   text: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
   time: optionalNullableCoercedNumberSchema,
   end: optionalNullableCoercedNumberSchema,
   tagId: optionalNullableCoercedNumberSchema,

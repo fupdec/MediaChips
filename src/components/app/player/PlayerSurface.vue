@@ -25,6 +25,7 @@
     >
       <Marks
         @removeMark="removeMark"
+        @editMark="editMark"
         :ref="setMarksRef"
       />
 
@@ -225,6 +226,7 @@ const {
   showControls,
   openAddingMark,
   addMark,
+  editMark,
   removeMark,
   openPath,
   nextVideo,

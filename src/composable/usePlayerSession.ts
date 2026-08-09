@@ -12,6 +12,8 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {buildMarkPayload} from '@/utils/markAdding'
+import {getMarkImagePath} from '@/utils/markThumb'
+import {invalidateFileExistsCache} from '@/services/fileService'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {usePlayerHotkeys} from '@/composable/usePlayerHotkeys'
 import {usePlayerWindowBridge} from '@/composable/usePlayerWindowBridge'
@@ -446,6 +448,8 @@ export function usePlayerSession() {
     if (!video.value?.id) return
 
     const adding = dialogsStore.markAdding
+    const editId = Number(adding.editId)
+    const isEditing = Number.isFinite(editId) && editId > 0
     dialogsStore.setMarkAddingSubmitting(true)
 
     const mark = buildMarkPayload({
@@ -457,20 +461,45 @@ export function usePlayerSession() {
       time: number
       end: number | null
       mediaId: number
-      tagId?: number | string
+      tagId?: number | string | null
+      text?: string | null
     }
 
     try {
-      await typedApi.createMark(mark)
+      if (isEditing) {
+        await typedApi.updateMark(editId, mark)
+        if (mark.tagId) {
+          await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
+        }
+        try {
+          await typedApi.createMarkThumb({
+            markId: editId,
+            mediaId: video.value.id,
+            overwrite: true,
+          })
+          if (appStore.mediaPath) {
+            invalidateFileExistsCache(getMarkImagePath(appStore.mediaPath, editId))
+          }
+          eventBus.emit('updateMarkImage', editId)
+        } catch (thumbError) {
+          console.warn('Failed refreshing mark thumb after edit', thumbError)
+        }
+        playerStore.changePlayerStatusText({
+          text: t('player.mark_updated'),
+          icon: 'content-save',
+        })
+      } else {
+        await typedApi.createMark(mark)
 
-      if (mark.tagId) {
-        await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
+        if (mark.tagId) {
+          await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
+        }
+
+        playerStore.changePlayerStatusText({
+          text: t('player.mark_added'),
+          icon: 'tooltip-plus',
+        })
       }
-
-      playerStore.changePlayerStatusText({
-        text: t('player.mark_added'),
-        icon: 'tooltip-plus',
-      })
 
       await getMarks(video.value)
       dialogsStore.closeMarkAdding()
@@ -479,12 +508,18 @@ export function usePlayerSession() {
       const err = e as { response?: { data?: { message?: string } }; message?: string }
       setNotification({
         type: 'error',
-        title: t('player.mark_dialog.add_failed'),
+        title: isEditing
+          ? t('player.mark_dialog.save_failed')
+          : t('player.mark_dialog.add_failed'),
         text: err?.response?.data?.message || err?.message,
       })
     } finally {
       dialogsStore.setMarkAddingSubmitting(false)
     }
+  }
+
+  const editMark = (mark: PlayerMark) => {
+    dialogsStore.openMarkEditing(mark)
   }
 
   const removeMark = async (mark: PlayerMark) => {
@@ -614,6 +649,7 @@ export function usePlayerSession() {
     showControls,
     openAddingMark,
     addMark,
+    editMark,
     removeMark,
     openPath,
     nextVideo,

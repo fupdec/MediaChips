@@ -346,7 +346,6 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
       icon: 'cog-outline',
       menu: [
         flagMenuItem(category, 'parser', t('meta.settings.parse_media_for_tags')),
-        flagMenuItem(category, 'marks', t('meta.settings.marks_in_player')),
       ],
     },
     {type: 'divider'},

@@ -72,6 +72,12 @@ export function useItemPreviewLifecycle(options: ItemPreviewLifecycleOptions) {
       if (options.bigPreviewAnimation.value || options.gridBigPreview.isExpanding.value) {
         options.resetBigPreviewOpen()
       }
+      // Keep playback only for the big-preview context menu (mute / size / thumb).
+      // Item menus (right-click / ⋮) must stop hover video — leave often never fires
+      // while the cursor stays on the card, and clearing the leave timer made it worse.
+      if (!options.bigPreviewMenuActive.value) {
+        options.stopPlayingPreview({force: true})
+      }
       return
     }
     if (!options.bigPreviewMenuActive.value) return

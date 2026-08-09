@@ -42,7 +42,6 @@ export type CanOpenBigPreviewInput = {
 
 export type ShouldKeepBigPreviewOpenInput = {
   isBigPreviewOpen: boolean
-  isContextMenuOpen: boolean
   isBigPreviewMenuActive: boolean
 }
 
@@ -74,7 +73,9 @@ export function canOpenBigPreview(input: CanOpenBigPreviewInput): boolean {
 }
 
 export function shouldKeepBigPreviewOpen(input: ShouldKeepBigPreviewOpenInput): boolean {
-  return input.isBigPreviewOpen && (input.isContextMenuOpen || input.isBigPreviewMenuActive)
+  // Only the big-preview context menu should keep playback alive.
+  // Generic item menus must not block stopPlayingPreview.
+  return input.isBigPreviewOpen && input.isBigPreviewMenuActive
 }
 
 export function hasActivePreviewState(input: HasActivePreviewStateInput): boolean {
@@ -167,7 +168,6 @@ export function useItemPreviewBigPreviewSession(options: ItemPreviewBigPreviewSe
   const evaluateShouldKeepBigPreviewOpen = () =>
     shouldKeepBigPreviewOpen({
       isBigPreviewOpen: isBigPreviewOpen.value,
-      isContextMenuOpen: toValue(options.isContextMenuOpen),
       isBigPreviewMenuActive: bigPreviewMenuActive.value,
     })
 

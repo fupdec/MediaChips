@@ -31,6 +31,7 @@ export const useMarksStore = defineStore('marks', {
       return [
         'favorite',
         'bookmark',
+        'chapter',
         ...filterMetas.map((meta) => String(meta.id)),
       ]
     },

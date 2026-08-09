@@ -74,6 +74,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'meta', column: 'ratingHalf', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'sortBy', definition: "text DEFAULT 'createdAt'"},
   {table: 'meta', column: 'sortDir', definition: "text DEFAULT 'asc'"},
+  {table: 'marks', column: 'icon', definition: 'text'},
   {table: 'media', column: 'basename', definition: 'text'},
   {table: 'media', column: 'name', definition: 'text'},
   {table: 'media', column: 'ext', definition: 'text'},

@@ -30,7 +30,17 @@ function buildMarkTypeSql(
     clauses.push(`marks.type = 'favorite'`)
   }
   if (types.includes('bookmark')) {
-    clauses.push(`marks.type = 'bookmark'`)
+    // Plain bookmarks: type=bookmark and not the chapter icon (null icon counts as bookmark).
+    clauses.push(`(
+      marks.type = 'bookmark'
+      AND COALESCE(marks.icon, 'bookmark') != 'movie-open-outline'
+    )`)
+  }
+  if (types.includes('chapter') || types.includes('scene')) {
+    clauses.push(`(
+      (marks.type = 'bookmark' AND marks.icon = 'movie-open-outline' AND marks.tagId IS NULL)
+      OR (lower(COALESCE(marks.type, '')) = 'scene' AND marks.tagId IS NULL)
+    )`)
   }
 
   const metaIds = [...new Set(

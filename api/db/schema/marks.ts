@@ -8,4 +8,5 @@ export const marks = sqliteTable('marks', {
   end: integer('end'),
   tagId: integer('tagId'),
   mediaId: integer('mediaId'),
+  icon: text('icon'),
 })

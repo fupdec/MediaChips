@@ -52,6 +52,7 @@
             :get-color="getColor"
             :get-duration="getDuration"
             :jump-to="jumpTo"
+            :edit="edit"
             :remove="remove"
           />
         </template>
@@ -101,9 +102,11 @@ import {setNotification} from '@/services/notificationService'
 import PlayerMarksFilters from '@/components/app/player/PlayerMarksFilters.vue'
 import PlayerMarkListItem from '@/components/app/player/PlayerMarkListItem.vue'
 import type {PlayerMark} from '@/types/player'
+import {MARK_FILTER_CHAPTER} from '@/utils/markAdding'
 
 const emit = defineEmits<{
   removeMark: [mark: PlayerMark]
+  editMark: [mark: PlayerMark]
 }>()
 const {t} = useI18n()
 const playerStore = usePlayerStore()
@@ -120,6 +123,7 @@ const {
   getColor,
   getDuration,
   jumpTo,
+  edit,
   remove,
 } = usePlayerMarks({emit})
 
@@ -138,8 +142,8 @@ async function generateChapters() {
     const chapters = Number(result.data?.chapters) || 0
     const res = await typedApi.getMarksForVideo(mediaId)
     playerStore.marks = Array.isArray(res.data) ? res.data : []
-    if (!marksType.value.includes('scene')) {
-      marksType.value = [...marksType.value, 'scene']
+    if (!marksType.value.includes(MARK_FILTER_CHAPTER)) {
+      marksType.value = [...marksType.value, MARK_FILTER_CHAPTER]
     }
     setNotification({
       type: chapters >= 2 ? 'success' : 'info',

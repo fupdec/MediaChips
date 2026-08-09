@@ -46,16 +46,14 @@ describe('canOpenBigPreview', () => {
 })
 
 describe('shouldKeepBigPreviewOpen', () => {
-  it('keeps open while context menu or preview menu is active', () => {
+  it('keeps open only while the big-preview context menu is active', () => {
     expect(shouldKeepBigPreviewOpen({
       isBigPreviewOpen: true,
-      isContextMenuOpen: true,
       isBigPreviewMenuActive: false,
-    })).toBe(true)
+    })).toBe(false)
 
     expect(shouldKeepBigPreviewOpen({
       isBigPreviewOpen: true,
-      isContextMenuOpen: false,
       isBigPreviewMenuActive: true,
     })).toBe(true)
   })
@@ -63,7 +61,6 @@ describe('shouldKeepBigPreviewOpen', () => {
   it('does not keep open when preview is closed', () => {
     expect(shouldKeepBigPreviewOpen({
       isBigPreviewOpen: false,
-      isContextMenuOpen: true,
       isBigPreviewMenuActive: true,
     })).toBe(false)
   })

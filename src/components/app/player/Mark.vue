@@ -31,6 +31,14 @@
         </v-sheet>
 
         <v-btn
+          @click.stop="edit"
+          class="edit"
+          size="small"
+          icon
+        >
+          <v-icon>mdi-pencil</v-icon>
+        </v-btn>
+        <v-btn
           @click.stop="remove"
           class="delete"
           color="error"
@@ -70,6 +78,7 @@ const {
   timeline_width,
   tooltipStyle,
   jumpTo,
+  edit,
   remove,
 } = usePlayerMark(props, emit)
 </script>

@@ -352,7 +352,7 @@ const meta_tags = computed(() => {
 })
 
 const marker_meta_options = computed(() => {
-  const metas = store.meta?.filter(i => i.marks && i.type === 'array') || []
+  const metas = store.meta?.filter(i => i.type === 'array') || []
   return sortBy(metas, 'name')
 })
 

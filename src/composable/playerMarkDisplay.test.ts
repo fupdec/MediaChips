@@ -16,6 +16,8 @@ describe('playerMarkDisplay', () => {
   it('resolves list icon by mark type', () => {
     expect(getMarkListIcon({ type: 'favorite', time: 0 })).toBe('heart')
     expect(getMarkListIcon({ type: 'meta', time: 0, meta: { icon: 'star' } })).toBe('star')
+    expect(getMarkListIcon({ type: 'bookmark', time: 0, icon: 'flag' })).toBe('flag')
+    expect(getMarkListIcon({ type: 'bookmark', time: 0, icon: 'movie-open-outline' })).toBe('movie-open-outline')
     expect(getMarkListIcon({ type: 'note', time: 0 })).toBe('marker')
   })
 
@@ -25,7 +27,8 @@ describe('playerMarkDisplay', () => {
   })
 
   it('resolves list color by mark type', () => {
-    expect(getMarkListColor({ type: 'bookmark', time: 0 })).toBe('#f44336')
+    expect(getMarkListColor({ type: 'bookmark', time: 0, icon: 'bookmark' })).toBe('#f44336')
+    expect(getMarkListColor({ type: 'bookmark', time: 0, icon: 'movie-open-outline' })).toBe('#26a69a')
     expect(getMarkListColor({ type: 'meta', time: 0, tag: { color: '#abc' } })).toBe('#abc')
     expect(getMarkListColor({ type: 'note', time: 0 })).toBe('primary')
   })
@@ -38,15 +41,18 @@ describe('playerMarkDisplay', () => {
     const marks: PlayerMark[] = [
       { id: 1, type: 'favorite', time: 0 },
       { id: 2, type: 'meta', metaId: 5, time: 0 },
-      { id: 3, type: 'bookmark', time: 0 },
+      { id: 3, type: 'bookmark', time: 0, icon: 'bookmark' },
+      { id: 4, type: 'bookmark', time: 0, icon: 'movie-open-outline' },
     ]
 
     expect(filterMarksByTypes(marks, ['favorite'])).toEqual([marks[0]])
     expect(filterMarksByTypes(marks, ['bookmark', 5])).toEqual([marks[1], marks[2]])
+    expect(filterMarksByTypes(marks, ['chapter'])).toEqual([marks[3]])
   })
 
   it('uses meta id for meta mark filter value', () => {
     expect(getMarkTypeFilterValue({ type: 'meta', metaId: 7, time: 0 })).toBe(7)
+    expect(getMarkTypeFilterValue({ type: 'bookmark', icon: 'movie-open-outline', time: 0 })).toBe('chapter')
   })
 
   it('formats mark time range', () => {

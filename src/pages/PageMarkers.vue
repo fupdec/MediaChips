@@ -181,6 +181,10 @@
               <v-icon icon="mdi-bookmark" size="small" start/>
               {{ t('meta.default_names.bookmark') }}
             </v-chip>
+            <v-chip value="chapter" size="small">
+              <v-icon icon="mdi-movie-open-outline" size="small" start/>
+              {{ t('player.auto_chapters') }}
+            </v-chip>
             <v-chip
               v-for="meta in marksStore.filterMetas"
               :key="meta.id"

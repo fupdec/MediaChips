@@ -99,6 +99,67 @@ function createMarkImage(timestamp: string, inputPath: string, outputPath: strin
   })
 }
 
+/**
+ * Write per-mark JPGs at each mark timestamp (used after auto-chapter create).
+ * Best-effort: failures are counted, not thrown.
+ */
+async function createMarkThumbsForMarks(
+  dbPath: string,
+  videoPath: string,
+  marks: Array<{id?: number | null; time?: number | null}>,
+  options: {
+    force?: boolean
+    shouldStop?: () => boolean
+    onProgress?: (fraction: number) => void
+  } = {},
+): Promise<{created: number; skipped: number; failed: number}> {
+  const resolvedPath = await resolveExistingPath(videoPath)
+  if (!resolvedPath || !dbPath) {
+    return {created: 0, skipped: 0, failed: marks.length}
+  }
+
+  const marksDir = path.join(dbPath, 'media/videos/marks')
+  ensureDir(marksDir)
+
+  let created = 0
+  let skipped = 0
+  let failed = 0
+  const total = Math.max(marks.length, 1)
+
+  for (let index = 0; index < marks.length; index += 1) {
+    if (options.shouldStop?.()) break
+    options.onProgress?.(index / total)
+
+    const mark = marks[index]
+    const markId = Number(mark?.id)
+    if (!Number.isFinite(markId) || markId <= 0) {
+      failed += 1
+      continue
+    }
+
+    const outputPath = getMarkPath(dbPath, markId)
+    if (!options.force && fs.existsSync(outputPath)) {
+      skipped += 1
+      continue
+    }
+
+    try {
+      if (options.force && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
+      await withTimeout(
+        createMarkImage(formatMarkTimestamp(Number(mark.time) || 0), resolvedPath, outputPath),
+        120000,
+        'ffmpeg mark thumb',
+      )
+      created += 1
+    } catch {
+      failed += 1
+    }
+  }
+
+  options.onProgress?.(1)
+  return {created, skipped, failed}
+}
+
 async function generateVideoImage(
   dbPath: string,
   imageType: VideoImageType,
@@ -380,6 +441,7 @@ async function* iterateVideoImagesGeneration(
 
 export {
   IMAGE_TYPES,
+  createMarkThumbsForMarks,
   generateVideoImage,
   getVideoImagesGenerationStatus,
   iterateVideoImagesGeneration,

@@ -10,7 +10,7 @@
     item-value="key"
     ref="field"
     :label="label || t('meta.fields.mixed_tags_label')"
-    :placeholder="t('meta.fields.mixed_tags_placeholder')"
+    :placeholder="placeholder || t('meta.fields.mixed_tags_placeholder')"
     :disabled="disabled"
     :hide-no-data="!search.trim()"
     hide-selected
@@ -109,9 +109,35 @@
           color="primary"
           class="mixed-tags__category-count"
         >
-          {{ item.raw.count }}
+          {{ item.raw.count }}{{ item.raw.hasMore ? '+' : '' }}
         </v-chip>
       </div>
+      <v-list-item
+        v-else-if="item.raw.kind === 'load-more'"
+        density="compact"
+        class="mixed-tags__load-more-item"
+        :disabled="Boolean(metaLoading[item.raw.metaId])"
+        @mousedown.prevent
+        @click.stop="loadMoreMeta(item.raw.metaId)"
+      >
+        <template #title>
+          <div class="d-flex align-center justify-center ga-2 py-1">
+            <v-progress-circular
+              v-if="metaLoading[item.raw.metaId]"
+              indeterminate
+              size="16"
+              width="2"
+            />
+            <v-icon
+              v-else
+              size="16"
+            >
+              mdi-chevron-down
+            </v-icon>
+            <span>{{ t('meta.fields.mixed_tags_show_more') }}</span>
+          </div>
+        </template>
+      </v-list-item>
       <v-list-item
         v-else
         v-bind="itemProps"
@@ -129,6 +155,14 @@
               class="mr-2 text-medium-emphasis"
             >
               mdi-{{ item.raw.metaIcon }}
+            </v-icon>
+            <v-icon
+              v-if="item.raw.favorite"
+              color="pink"
+              size="14"
+              class="mr-1"
+            >
+              mdi-heart
             </v-icon>
             <span
               v-if="metaById(item.raw.metaId)?.color"
@@ -152,21 +186,6 @@
           </div>
         </template>
       </v-list-item>
-    </template>
-
-    <template #append-item>
-      <div
-        v-if="hasMore"
-        v-intersect="onLoadMoreIntersect"
-        class="d-flex justify-center pa-2"
-      >
-        <v-progress-circular
-          v-if="loadingMore"
-          indeterminate
-          size="20"
-          width="2"
-        />
-      </div>
     </template>
   </v-autocomplete>
 </template>
@@ -205,6 +224,7 @@ type TagOption = {
   metaIcon: string
   synonyms?: string
   color?: string | null
+  favorite?: boolean
   name_parsed?: string
   synonyms_parsed?: string
   zebra: boolean
@@ -216,10 +236,19 @@ type HeaderOption = {
   title: string
   icon?: string | null
   count: number
+  hasMore: boolean
   disabled: true
 }
 
-type AutocompleteItem = TagOption | HeaderOption
+type LoadMoreOption = {
+  kind: 'load-more'
+  key: string
+  title: string
+  metaId: number
+  disabled: true
+}
+
+type AutocompleteItem = TagOption | HeaderOption | LoadMoreOption
 
 const attrs = useAttrs()
 
@@ -228,10 +257,15 @@ const props = withDefaults(defineProps<{
   modelValue?: MixedTagKey[]
   disabled?: boolean
   label?: string
+  placeholder?: string
+  /** Keep only one tag (marks dialog). */
+  single?: boolean
   menuProps?: Record<string, unknown>
 }>(), {
   metaIds: () => [],
   modelValue: () => [],
+  placeholder: '',
+  single: false,
   menuProps: () => ({
     contentClass: 'custom-list mixed-tags-dropdown',
     maxHeight: 360,
@@ -254,10 +288,9 @@ const val = ref<MixedTagKey[]>([])
 const search = ref('')
 const field = ref<unknown>(null)
 const tagOptions = ref<TagOption[]>([])
-const currentPage = ref(1)
-const hasMore = ref(false)
-const loadingMore = ref(false)
-const sentinelIntersecting = ref(false)
+const metaPage = ref<Record<number, number>>({})
+const metaHasMore = ref<Record<number, boolean>>({})
+const metaLoading = ref<Record<number, boolean>>({})
 let fetchRequestId = 0
 
 function makeKey(metaId: number, tagId: number): MixedTagKey {
@@ -337,11 +370,14 @@ const dropdownItems = computed((): AutocompleteItem[] => {
 
   for (const meta of metas.value) {
     const metaId = Number(meta.id)
-    const tags = tagOptions.value.filter((option) => {
-      if (option.metaId !== metaId) return false
-      return !selected.has(option.key)
-    })
-    if (!tags.length) continue
+    const tags = tagOptions.value
+      .filter((option) => {
+        if (option.metaId !== metaId) return false
+        return !selected.has(option.key)
+      })
+      .sort(compareTagOptions)
+    const categoryHasMore = Boolean(metaHasMore.value[metaId])
+    if (!tags.length && !categoryHasMore) continue
 
     items.push({
       kind: 'header',
@@ -349,6 +385,7 @@ const dropdownItems = computed((): AutocompleteItem[] => {
       title: String(meta.name || metaId),
       icon: metaIconName(meta.icon),
       count: tags.length,
+      hasMore: categoryHasMore,
       disabled: true,
     })
     for (const tag of tags) {
@@ -357,6 +394,15 @@ const dropdownItems = computed((): AutocompleteItem[] => {
         zebra: tagIndex % 2 === 1,
       })
       tagIndex += 1
+    }
+    if (categoryHasMore) {
+      items.push({
+        kind: 'load-more',
+        key: `load-more:${metaId}`,
+        title: t('meta.fields.mixed_tags_show_more'),
+        metaId,
+        disabled: true,
+      })
     }
   }
 
@@ -463,11 +509,24 @@ function applyHighlight(tag: TagOption, queryText: string) {
   tag.synonyms_parsed = synonymsParsed.join(', ')
 }
 
+function isFavoriteTag(tag: {favorite?: unknown} | null | undefined): boolean {
+  const value = tag?.favorite
+  return value === true || value === 1 || value === '1'
+}
+
+function compareTagOptions(a: TagOption, b: TagOption): number {
+  const favA = a.favorite ? 1 : 0
+  const favB = b.favorite ? 1 : 0
+  if (favA !== favB) return favB - favA
+  return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'})
+}
+
 function toTagOption(tag: TagListItem, metaId: number): TagOption | null {
   const tagId = Number(tag.id)
   if (!tagId) return null
   const meta = metaById(metaId)
   const metaName = String(meta?.name || metaId)
+  const storeTag = appStore.getTagById(tagId) as TagListItem | undefined
   const option: TagOption = {
     kind: 'tag',
     key: makeKey(metaId, tagId),
@@ -479,6 +538,7 @@ function toTagOption(tag: TagListItem, metaId: number): TagOption | null {
     metaIcon: metaIconName(meta?.icon),
     synonyms: tag.synonyms,
     color: tag.color ?? null,
+    favorite: isFavoriteTag(tag) || isFavoriteTag(storeTag),
     zebra: false,
   }
   if (search.value.trim()) applyHighlight(option, search.value.trim())
@@ -493,39 +553,36 @@ function mergeOptions(...lists: TagOption[][]) {
   return [...byKey.values()]
 }
 
-async function getTags(searchQuery = search.value, options: {append?: boolean} = {}) {
-  const append = Boolean(options.append)
+async function getTags(searchQuery = search.value) {
   const metaIds = normalizedMetaIds.value
 
   if (!metaIds.length) {
     tagOptions.value = []
-    currentPage.value = 1
-    hasMore.value = false
-    loadingMore.value = false
+    metaPage.value = {}
+    metaHasMore.value = {}
+    metaLoading.value = {}
     return
   }
 
-  if (append) {
-    if (!hasMore.value || loadingMore.value) return
-    loadingMore.value = true
-  }
-
-  const requestId = append ? fetchRequestId : ++fetchRequestId
+  const requestId = ++fetchRequestId
   const trimmedSearch = String(searchQuery || '').trim()
-  const page = append ? currentPage.value + 1 : 1
   const selectedParsed = normalizeKeys(val.value)
     .map(parseKey)
     .filter((entry): entry is {metaId: number; tagId: number} => Boolean(entry))
+
+  metaPage.value = {}
+  metaHasMore.value = {}
 
   try {
     const mainPromises = metaIds.map((metaId) =>
       typedApi.postTagItems({
         metaId,
         filters: [],
-        sortBy: metaById(metaId)?.sortBy || 'name',
-        direction: metaById(metaId)?.sortDir || 'asc',
+        // Favorites first across pages, then name within the same favorite flag.
+        sortBy: 'favorite',
+        direction: 'desc',
         search: trimmedSearch || undefined,
-        page,
+        page: 1,
         limit: AUTOCOMPLETE_LIMIT,
         skipTotals: true,
       }).then((res) => ({
@@ -541,7 +598,7 @@ async function getTags(searchQuery = search.value, options: {append?: boolean} =
       selectedByMeta.set(entry.metaId, list)
     }
 
-    const selectedPromises = (!append && selectedByMeta.size)
+    const selectedPromises = selectedByMeta.size
       ? [...selectedByMeta.entries()].map(([metaId, ids]) =>
           typedApi.postTagItems({
             metaId,
@@ -562,17 +619,18 @@ async function getTags(searchQuery = search.value, options: {append?: boolean} =
     if (requestId !== fetchRequestId) return
 
     const mainOptions: TagOption[] = []
-    let anyFullPage = false
+    const nextPage: Record<number, number> = {}
+    const nextHasMore: Record<number, boolean> = {}
     for (const result of mainResults) {
-      if (result.items.length >= AUTOCOMPLETE_LIMIT) anyFullPage = true
+      nextPage[result.metaId] = 1
+      nextHasMore[result.metaId] = result.items.length >= AUTOCOMPLETE_LIMIT
       for (const tag of result.items) {
         const option = toTagOption(tag, result.metaId)
         if (option) mainOptions.push(option)
       }
     }
-
-    hasMore.value = anyFullPage
-    currentPage.value = page
+    metaPage.value = nextPage
+    metaHasMore.value = nextHasMore
 
     const selectedOptions: TagOption[] = []
     for (const result of selectedResults) {
@@ -592,38 +650,59 @@ async function getTags(searchQuery = search.value, options: {append?: boolean} =
       if (option) selectedOptions.push(option)
     }
 
-    if (append) {
-      const beforeCount = tagOptions.value.length
-      tagOptions.value = mergeOptions(tagOptions.value, mainOptions)
-      if (tagOptions.value.length === beforeCount) hasMore.value = false
-    } else {
-      tagOptions.value = mergeOptions(selectedOptions, mainOptions)
-    }
+    tagOptions.value = mergeOptions(selectedOptions, mainOptions)
   } catch (error) {
     if (requestId !== fetchRequestId) return
-    if (!append) {
-      tagOptions.value = []
-      currentPage.value = 1
-      hasMore.value = false
+    tagOptions.value = []
+    metaPage.value = {}
+    metaHasMore.value = {}
+    console.error(error)
+  }
+}
+
+async function loadMoreMeta(metaId: number) {
+  const id = Number(metaId)
+  if (!Number.isFinite(id) || id <= 0) return
+  if (!metaHasMore.value[id] || metaLoading.value[id]) return
+
+  metaLoading.value = {...metaLoading.value, [id]: true}
+  const page = (metaPage.value[id] || 1) + 1
+  const trimmedSearch = String(search.value || '').trim()
+  const beforeCount = tagOptions.value.filter((option) => option.metaId === id).length
+
+  try {
+    const response = await typedApi.postTagItems({
+      metaId: id,
+      filters: [],
+      sortBy: 'favorite',
+      direction: 'desc',
+      search: trimmedSearch || undefined,
+      page,
+      limit: AUTOCOMPLETE_LIMIT,
+      skipTotals: true,
+    })
+    const items = (response.data.items ?? []) as TagListItem[]
+    const options = items
+      .map((tag) => toTagOption(tag, id))
+      .filter((option): option is TagOption => option != null)
+
+    // Re-merge then keep favorites above non-favorites for this category.
+    const merged = mergeOptions(tagOptions.value, options)
+    const others = merged.filter((option) => option.metaId !== id)
+    const forMeta = merged.filter((option) => option.metaId === id).sort(compareTagOptions)
+    tagOptions.value = [...others, ...forMeta]
+    metaPage.value = {...metaPage.value, [id]: page}
+
+    const afterCount = tagOptions.value.filter((option) => option.metaId === id).length
+    metaHasMore.value = {
+      ...metaHasMore.value,
+      [id]: items.length >= AUTOCOMPLETE_LIMIT && afterCount > beforeCount,
     }
+  } catch (error) {
     console.error(error)
   } finally {
-    if (append) loadingMore.value = false
+    metaLoading.value = {...metaLoading.value, [id]: false}
   }
-}
-
-async function loadMoreTags() {
-  if (!hasMore.value || loadingMore.value) return
-  await getTags(search.value, {append: true})
-  await nextTick()
-  if (hasMore.value && sentinelIntersecting.value) {
-    await loadMoreTags()
-  }
-}
-
-function onLoadMoreIntersect(isIntersecting: boolean) {
-  sentinelIntersecting.value = isIntersecting
-  if (isIntersecting) void loadMoreTags()
 }
 
 const runGetTags = debounce((query: string) => {
@@ -631,7 +710,10 @@ const runGetTags = debounce((query: string) => {
 }, 200)
 
 function setVal(newVal: unknown, options: {allowClear?: boolean} = {}) {
-  const normalized = normalizeKeys(newVal)
+  let normalized = normalizeKeys(newVal)
+  if (props.single && normalized.length > 1) {
+    normalized = normalized.slice(-1)
+  }
   const previous = normalizeKeys(val.value)
 
   if (!normalized.length && previous.length && !options.allowClear) {
@@ -842,5 +924,11 @@ defineExpose({
 
 .mixed-tags__tag--zebra {
   background: rgba(var(--v-theme-on-surface), 0.03);
+}
+
+.mixed-tags__load-more-item {
+  opacity: 0.9;
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
 }
 </style>

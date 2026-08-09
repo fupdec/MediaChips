@@ -4,25 +4,29 @@ import {
   autoChapterLabel,
   buildSceneDetectVideoFilter,
   buildSilenceDetectAudioFilter,
+  DEFAULT_SCENE_THRESHOLD,
   formatChapterClock,
   isAutoChapterMark,
   parseFfmpegClockToSeconds,
   parseFfmpegProgressTimeSeconds,
   parseScenePtsTimes,
   parseSilenceEndTimes,
+  pickEvenlySpacedChapterTimes,
   refineSceneTimestamps,
+  resolveAutoChapterSpacing,
   SCENE_DETECT_FPS,
   SCENE_DETECT_WIDTH,
   SILENCE_DETECT_SAMPLE_RATE,
+  snapSceneCutsToSilence,
 } from './autoChapterDetect'
 
 describe('autoChapterDetect', () => {
   it('builds a fast subsampled scene-detect filter', () => {
-    expect(buildSceneDetectVideoFilter(0.35)).toBe(
-      `fps=${SCENE_DETECT_FPS},scale=${SCENE_DETECT_WIDTH}:-2,select='gt(scene\\,0.35)',showinfo`,
+    expect(buildSceneDetectVideoFilter(DEFAULT_SCENE_THRESHOLD)).toBe(
+      `fps=${SCENE_DETECT_FPS},scale=${SCENE_DETECT_WIDTH}:-2,select='gt(scene\\,${DEFAULT_SCENE_THRESHOLD})',showinfo`,
     )
-    expect(buildSilenceDetectAudioFilter(-35, 0.6)).toContain(`aresample=${SILENCE_DETECT_SAMPLE_RATE}`)
-    expect(buildSilenceDetectAudioFilter(-35, 0.6)).toContain('silencedetect=noise=-35dB:d=0.6')
+    expect(buildSilenceDetectAudioFilter(-35, 0.8)).toContain(`aresample=${SILENCE_DETECT_SAMPLE_RATE}`)
+    expect(buildSilenceDetectAudioFilter(-35, 0.8)).toContain('silencedetect=noise=-35dB:d=0.8')
   })
 
   it('parses ffmpeg progress clocks', () => {
@@ -51,25 +55,76 @@ pts_time=90.25
     expect(parseSilenceEndTimes(log)).toEqual([2.5, 40])
   })
 
-  it('refines timestamps with min gap, duration clamp, and chapter cap', () => {
+  it('snaps scene cuts to nearby silence without adding every silence end', () => {
+    expect(snapSceneCutsToSilence([12, 40, 90], [11.5, 41, 200], 2.5)).toEqual([11.5, 41, 90])
+  })
+
+  it('budgets fewer, more spaced chapters for long videos', () => {
+    const spacing = resolveAutoChapterSpacing(47 * 60)
+    expect(spacing.maxChapters).toBeLessThanOrEqual(16)
+    expect(spacing.minGapSec).toBeGreaterThanOrEqual(30)
+    expect(spacing.minGapSec).toBeLessThanOrEqual(75)
+  })
+
+  it('spreads chapters across the timeline instead of packing the opening', () => {
+    const denseOpening = Array.from({length: 40}, (_, i) => 10 + i * 10)
+    const laterCuts = [600, 900, 1200, 1500, 1800, 2100, 2400, 2700]
+    const refined = refineSceneTimestamps([...denseOpening, ...laterCuts], 2800)
+    expect(refined[0]).toBe(0)
+    expect(refined.length).toBeLessThanOrEqual(16)
+    expect(refined.length).toBeGreaterThan(4)
+    // Must not keep only the packed opening — later candidates should survive.
+    expect(refined[refined.length - 1]).toBeGreaterThan(600)
+    const earlyPacked = refined.filter((t) => t > 0 && t < 400).length
+    expect(earlyPacked).toBeLessThan(refined.length - 1)
+  })
+
+  it('refines timestamps with explicit min gap and chapter cap', () => {
     const refined = refineSceneTimestamps(
       [0.2, 3, 12, 15, 40, 41, 70, 85],
       100,
       {minGapSec: 10, maxChapters: 4},
     )
     expect(refined[0]).toBe(0)
-    expect(refined).toEqual([0, 12, 40, 70])
+    expect(refined.length).toBeLessThanOrEqual(4)
+    expect(pickEvenlySpacedChapterTimes([0, 12, 40, 70, 85], 3, 100, 10)).toEqual([0, 40, 85])
   })
 
-  it('labels auto chapters with clocks and treats scene marks without tags as replaceable', () => {
+  it('labels auto chapters with clocks and treats chapter-icon bookmarks as replaceable', () => {
     expect(formatChapterClock(65)).toBe('1:05')
     expect(autoChapterLabel(1, 0)).toBe('0:00')
     expect(autoChapterLabel(2, 125)).toBe('2:05')
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Chapter 2', tagId: null})).toBe(true)
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: '1:05', tagId: null})).toBe(true)
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Opening · Neon', tagId: null})).toBe(true)
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: null, tagId: null})).toBe(true)
-    expect(isAutoChapterMark({type: 'bookmark', text: 'Chapter 1', tagId: null})).toBe(false)
-    expect(isAutoChapterMark({type: AUTO_CHAPTER_TYPE, text: 'Fight', tagId: 9})).toBe(false)
+    expect(isAutoChapterMark({
+      type: AUTO_CHAPTER_TYPE,
+      icon: 'movie-open-outline',
+      text: 'Chapter 2',
+      tagId: null,
+    })).toBe(true)
+    expect(isAutoChapterMark({
+      type: AUTO_CHAPTER_TYPE,
+      icon: 'movie-open-outline',
+      text: '1:05',
+      tagId: null,
+    })).toBe(true)
+    expect(isAutoChapterMark({
+      type: AUTO_CHAPTER_TYPE,
+      icon: 'movie-open-outline',
+      text: 'Opening · Neon',
+      tagId: null,
+    })).toBe(true)
+    expect(isAutoChapterMark({
+      type: AUTO_CHAPTER_TYPE,
+      icon: 'movie-open-outline',
+      text: null,
+      tagId: null,
+    })).toBe(true)
+    expect(isAutoChapterMark({type: 'bookmark', icon: 'bookmark', text: 'Chapter 1', tagId: null})).toBe(false)
+    expect(isAutoChapterMark({type: 'scene', text: 'Legacy', tagId: null})).toBe(true)
+    expect(isAutoChapterMark({
+      type: AUTO_CHAPTER_TYPE,
+      icon: 'movie-open-outline',
+      text: 'Fight',
+      tagId: 9,
+    })).toBe(false)
   })
 })

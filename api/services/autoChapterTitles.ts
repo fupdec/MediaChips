@@ -25,12 +25,7 @@ function positionalLabel(index: number, total: number): string {
   if (total <= 1) return 'Chapter 1'
   if (index === 0) return 'Opening'
   if (index === total - 1) return 'Ending'
-  if (total >= 5) {
-    const ratio = index / (total - 1)
-    if (ratio < 0.34) return 'Early'
-    if (ratio < 0.67) return 'Mid'
-    return 'Late'
-  }
+  // Avoid Early/Mid/Late spam when many chapters land in one third of the file.
   return `Chapter ${index + 1}`
 }
 
@@ -133,18 +128,18 @@ export async function buildLocalAiChapterTitles(
     messages: [{
       role: 'user',
       content: [
-        'Invent short chapter titles that describe what happens in each scene.',
+        'Rewrite chapter titles using the visual cues for each scene.',
         `Return ONLY JSON: {"titles":["..."]} with exactly ${times.length} titles.`,
-        'Each title ≤ 6 words, no numbering, no timestamps in the title text.',
-        'Do NOT use or paraphrase the video file name as a title.',
-        'Prefer the visual cues when present; otherwise invent plausible distinct scene labels.',
+        'Each title ≤ 5 words, no numbering, no timestamps, no “Chapter/Глава/Introduction/Conclusion”.',
+        'Do NOT invent generic book-style labels. Do NOT use the video file name.',
+        'If a visual cue is present, keep it (you may shorten or localize). If missing, use a short distinct action label.',
         `Chapters: ${JSON.stringify(clocks)}`,
       ].join('\n'),
     }],
     context: {
       goal: 'chapter titles',
     },
-    system: 'Return only JSON with key titles (string array). Titles must describe scenes, never the file name.',
+    system: 'Return only JSON with key titles (string array). Ground titles in visual cues; never invent Introduction/Conclusion templates.',
   }, {shouldStop: input.shouldStop})) {
     if (event.type === 'done') finalText = String(event.text || '')
     if (event.type === 'error' || event.type === 'aborted') return null
@@ -195,7 +190,13 @@ export async function resolveAutoChapterTitles(
     clipTitles = null
   }
 
-  if (input.useLlmTitles) {
+  // Only polish with Local AI when CLIP grounded most chapters — otherwise it
+  // invents generic “Introduction / Conclusion” labels with no scene signal.
+  const grounded = (visionLabels || []).filter((label) => Boolean(label && !/^(Opening|Ending|Chapter\s+\d+)$/i.test(label))).length
+  const canUseLlm = Boolean(input.useLlmTitles)
+    && grounded >= Math.max(2, Math.ceil(input.times.length * 0.5))
+
+  if (canUseLlm) {
     try {
       report(0.85)
       const llmTitles = await buildLocalAiChapterTitles(db, {

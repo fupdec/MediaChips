@@ -95,7 +95,7 @@ export interface PinnedChildMetaAssignmentRow extends AssignedMeta {
   pinnedMetaId: number
 }
 
-/** Meta entries used for mark page filters (`marks: true`). */
+/** Meta entries used for mark page filters (tag categories / `type: 'array'`). */
 export type MarkFilterMeta = Meta
 
 export interface MetaWritePayload extends Partial<Meta>, Partial<MetaSetting> {

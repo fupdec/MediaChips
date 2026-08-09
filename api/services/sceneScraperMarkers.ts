@@ -52,8 +52,8 @@ export async function applyTpdbSceneMarkersToMedia({
 
   if (markerMetaId) {
     const markerMeta = metaRepo.findById(markerMetaId)
-    if (!markerMeta?.marks) {
-      throw new Error('Selected marker meta category is not configured for timeline marks')
+    if (!markerMeta || String(markerMeta.type || '').toLowerCase() !== 'array') {
+      throw new Error('Selected marker meta must be a tag category')
     }
   }
 

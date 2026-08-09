@@ -162,7 +162,8 @@ export interface MarkForVideo {
   end?: number | null
   mediaId?: number
   metaId?: number
-  text?: string
+  text?: string | null
+  icon?: string | null
   name?: string
   meta?: { id?: number; icon?: string; [key: string]: unknown }
   tag?: { name?: string; color?: string; metaId?: number; [key: string]: unknown }

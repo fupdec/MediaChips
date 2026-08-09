@@ -61,7 +61,8 @@ export const MarkForVideoSchema = z.object({
   end: z.number().nullable().optional(),
   mediaId: z.number().optional(),
   metaId: z.number().optional(),
-  text: z.string().optional(),
+  text: z.string().optional().nullable(),
+  icon: z.string().optional().nullable(),
   name: z.string().optional(),
   meta: z.object({
     id: z.number().optional(),

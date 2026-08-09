@@ -109,7 +109,28 @@ export function createMarksRepository(db: DrizzleClient) {
           end: data.end ?? null,
           tagId: data.tagId ?? null,
           mediaId: data.mediaId ?? null,
+          icon: data.icon ?? null,
         })
+        .returning()
+        .get()
+    },
+
+    findById(id: number): MarkRow | undefined {
+      return db.select().from(marks).where(eq(marks.id, id)).get()
+    },
+
+    updateById(id: number, data: Partial<MarkInsert>): MarkRow | undefined {
+      return db.update(marks)
+        .set({
+          type: data.type ?? null,
+          text: data.text ?? null,
+          time: data.time ?? null,
+          end: data.end ?? null,
+          tagId: data.tagId ?? null,
+          mediaId: data.mediaId ?? null,
+          icon: data.icon ?? null,
+        })
+        .where(eq(marks.id, id))
         .returning()
         .get()
     },
@@ -126,6 +147,7 @@ export function createMarksRepository(db: DrizzleClient) {
             end: item.end ?? null,
             tagId: item.tagId ?? null,
             mediaId: item.mediaId ?? null,
+            icon: item.icon ?? null,
           })))
           .run()
       })
@@ -361,6 +383,7 @@ export function createMarksRepository(db: DrizzleClient) {
           type: 'bookmark',
           text: text || null,
           tagId: null,
+          icon: 'bookmark',
         })
         .where(eq(marks.tagId, Number(tagId)))
         .run()

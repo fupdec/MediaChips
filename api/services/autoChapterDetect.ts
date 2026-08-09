@@ -1,6 +1,7 @@
 import type {ApiDb} from '../types/db'
 import {spawn} from 'child_process'
-import {and, count, eq, isNull, sql} from 'drizzle-orm'
+import {and, count, eq, isNull, or, sql} from 'drizzle-orm'
+import {CHAPTER_MARK_ICON, isChapterMark} from '../../shared/markIcons'
 import {createMarksRepository} from '../db/repositories/marks'
 import {createMediaRepository} from '../db/repositories/media'
 import {createMediaTypesRepository} from '../db/repositories/mediaTypes'
@@ -12,20 +13,121 @@ import {ffprobe} from '../utils/ffmpeg'
 import {getFfmpegPath} from '../utils/ffmpegPaths'
 import {runWithFfmpegLimit} from './mediaPostProcessQueue'
 import {resolveAutoChapterTitles} from './autoChapterTitles'
+import {createMarkThumbsForMarks} from './videoImagesGeneration'
 
-export const AUTO_CHAPTER_TYPE = 'scene'
+export const AUTO_CHAPTER_TYPE = 'bookmark'
+export const AUTO_CHAPTER_ICON = CHAPTER_MARK_ICON
 export const AUTO_CHAPTER_TEXT_RE = /^(Chapter\s+(\d+)|(\d{1,2}:)?\d{1,2}:\d{2})$/i
 
-export const DEFAULT_SCENE_THRESHOLD = 0.35
-export const DEFAULT_MIN_GAP_SEC = 10
-export const DEFAULT_MAX_CHAPTERS = 40
+/** Higher than classic 0.3 — downscaled fps sampling is noisier and over-fires. */
+export const DEFAULT_SCENE_THRESHOLD = 0.42
+/** Hard floor between chapters; adaptive spacing usually picks a larger gap. */
+export const DEFAULT_MIN_GAP_SEC = 30
+export const DEFAULT_MAX_CHAPTERS = 16
 export const DEFAULT_SILENCE_NOISE_DB = -35
-export const DEFAULT_SILENCE_MIN_DURATION = 0.6
+export const DEFAULT_SILENCE_MIN_DURATION = 0.8
+/** Snap a scene cut to a nearby silence end within this window (seconds). */
+export const SILENCE_SNAP_WINDOW_SEC = 2.5
 /** Subsample before scene scoring — full-res every-frame decode is the main bottleneck. */
 export const SCENE_DETECT_FPS = 2
 export const SCENE_DETECT_WIDTH = 320
 /** Silence pass at low rate is enough for cut points and much cheaper. */
 export const SILENCE_DETECT_SAMPLE_RATE = 8000
+
+/** Duration-aware gap / chapter budget so long videos are not sliced every ~10s. */
+export function resolveAutoChapterSpacing(
+  durationSec: number,
+  options: Pick<AutoChapterDetectOptions, 'minGapSec' | 'maxChapters'> = {},
+): {duration: number; minGapSec: number; maxChapters: number} {
+  const duration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0
+  const explicitMax = Number(options.maxChapters)
+  const explicitGap = Number(options.minGapSec)
+
+  const maxChapters = Number.isFinite(explicitMax) && explicitMax > 0
+    ? Math.max(1, Math.floor(explicitMax))
+    : duration > 0
+      ? Math.min(DEFAULT_MAX_CHAPTERS, Math.max(4, Math.round(duration / 150) + 1))
+      : DEFAULT_MAX_CHAPTERS
+
+  const minGapSec = Number.isFinite(explicitGap) && explicitGap > 0
+    ? Math.max(1, Math.floor(explicitGap))
+    : duration > 0
+      ? Math.min(75, Math.max(DEFAULT_MIN_GAP_SEC, Math.round(duration / 24)))
+      : DEFAULT_MIN_GAP_SEC
+
+  return {duration, minGapSec, maxChapters}
+}
+
+/** Prefer cuts spread across the timeline instead of packing the opening. */
+export function pickEvenlySpacedChapterTimes(
+  candidates: number[],
+  maxChapters: number,
+  durationSec: number,
+  minGapSec: number,
+): number[] {
+  const max = Math.max(1, Math.floor(maxChapters))
+  const minGap = Math.max(1, minGapSec)
+  const duration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0
+  const sorted = [...new Set(
+    candidates
+      .map((t) => Number(t))
+      .filter((t) => Number.isFinite(t) && t >= 0)
+      .map((t) => Math.round(t * 100) / 100),
+  )].sort((a, b) => a - b)
+
+  if (!sorted.length || sorted[0] !== 0) sorted.unshift(0)
+  if (sorted.length <= max) return sorted
+
+  const out: number[] = [0]
+  for (let i = 1; i < max; i += 1) {
+    const ideal = duration > 0 ? (duration * i) / (max - 1) : sorted[Math.min(i, sorted.length - 1)]
+    let best: number | null = null
+    let bestDist = Infinity
+    const last = out[out.length - 1] ?? 0
+    for (const time of sorted) {
+      if (time - last < minGap) continue
+      if (duration > 0 && duration - time < minGap && i < max - 1) continue
+      if (out.includes(time)) continue
+      const dist = Math.abs(time - ideal)
+      if (dist < bestDist) {
+        best = time
+        bestDist = dist
+      }
+    }
+    if (best == null) break
+    out.push(best)
+  }
+  return out
+}
+
+/** Prefer silence ends that land near a scene cut; do not inject every silence as a chapter. */
+export function snapSceneCutsToSilence(
+  sceneCuts: number[],
+  silenceEnds: number[],
+  windowSec = SILENCE_SNAP_WINDOW_SEC,
+): number[] {
+  const window = Math.max(0.1, Number(windowSec) || SILENCE_SNAP_WINDOW_SEC)
+  const silences = silenceEnds
+    .map((t) => Number(t))
+    .filter((t) => Number.isFinite(t) && t >= 0)
+  if (!silences.length) return sceneCuts.map((t) => Number(t)).filter((t) => Number.isFinite(t) && t >= 0)
+
+  return sceneCuts
+    .map((t) => Number(t))
+    .filter((t) => Number.isFinite(t) && t >= 0)
+    .map((cut) => {
+      let best = cut
+      let bestDist = window
+      for (const silence of silences) {
+        const dist = Math.abs(silence - cut)
+        if (dist <= bestDist) {
+          best = silence
+          bestDist = dist
+        }
+      }
+      return Math.round(best * 100) / 100
+    })
+}
 
 export type AutoChapterDetectOptions = {
   threshold?: number
@@ -63,11 +165,11 @@ export type AutoChapterProgressEvent = {
 export function isAutoChapterMark(mark: {
   type?: string | null
   text?: string | null
+  icon?: string | null
   tagId?: number | null
 }): boolean {
-  if (String(mark.type || '').toLowerCase() !== AUTO_CHAPTER_TYPE) return false
-  // Auto chapters are always type=scene with no tag — text may be a clock or LLM title.
-  return mark.tagId == null
+  // Chapters are bookmark + chapter icon (legacy type=scene still counts).
+  return isChapterMark(mark)
 }
 
 export function formatChapterClock(seconds: number): string {
@@ -110,7 +212,7 @@ export function parseSilenceEndTimes(logText: string): number[] {
 }
 
 /**
- * Keep t=0, enforce min gap, clamp to duration, cap count.
+ * Keep t=0, enforce adaptive min gap, clamp to duration, spread across the timeline.
  * Raw cuts are mid-scene boundaries; we also ensure the first chapter starts at 0.
  */
 export function refineSceneTimestamps(
@@ -118,26 +220,26 @@ export function refineSceneTimestamps(
   durationSec: number,
   options: AutoChapterDetectOptions = {},
 ): number[] {
-  const minGap = Math.max(1, Number(options.minGapSec ?? DEFAULT_MIN_GAP_SEC) || DEFAULT_MIN_GAP_SEC)
-  const maxChapters = Math.max(1, Number(options.maxChapters ?? DEFAULT_MAX_CHAPTERS) || DEFAULT_MAX_CHAPTERS)
-  const duration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0
+  const {duration, minGapSec, maxChapters} = resolveAutoChapterSpacing(durationSec, options)
 
   const sorted = [...rawTimes]
     .map((t) => Number(t))
     .filter((t) => Number.isFinite(t) && t >= 0)
     .map((t) => (duration > 0 ? Math.min(t, Math.max(0, duration - 0.25)) : t))
+    .map((t) => Math.round(t * 100) / 100)
     .sort((a, b) => a - b)
 
-  const out: number[] = [0]
+  const candidates: number[] = [0]
   for (const time of sorted) {
-    if (time < minGap) continue
-    const last = out[out.length - 1] ?? 0
-    if (time - last < minGap) continue
-    if (duration > 0 && duration - time < minGap) continue
-    out.push(Math.round(time * 100) / 100)
-    if (out.length >= maxChapters) break
+    if (time < minGapSec) continue
+    if (duration > 0 && duration - time < minGapSec) continue
+    const last = candidates[candidates.length - 1] ?? 0
+    // Collapse near-duplicates before even-spacing so dense openings do not dominate.
+    if (time - last < 1) continue
+    candidates.push(time)
   }
-  return out
+
+  return pickEvenlySpacedChapterTimes(candidates, maxChapters, duration, minGapSec)
 }
 
 /** Fast scene filter: subsample + downscale before select=gt(scene). */
@@ -338,7 +440,8 @@ export async function detectSceneChapterTimes(
   if (options.shouldStop?.()) throw new Error('Stopped')
   options.onItemProgress?.(options.useSilence ? 0.78 : 0.92)
 
-  const raw = parseScenePtsTimes(log)
+  const sceneCuts = parseScenePtsTimes(log)
+  let raw = sceneCuts
 
   if (options.useSilence) {
     try {
@@ -352,7 +455,8 @@ export async function detectSceneChapterTimes(
           onProgress: options.onItemProgress,
         },
       )
-      raw.push(...parseSilenceEndTimes(silenceLog))
+      // Snap to silence — do not treat every silence end as its own chapter.
+      raw = snapSceneCutsToSilence(sceneCuts, parseSilenceEndTimes(silenceLog))
     } catch (error: unknown) {
       if (error instanceof Error && error.message === 'Stopped') throw error
       // Silence pass is best-effort; scene cuts alone still work.
@@ -361,7 +465,12 @@ export async function detectSceneChapterTimes(
 
   if (options.shouldStop?.()) throw new Error('Stopped')
   options.onItemProgress?.(0.94)
-  return refineSceneTimestamps(raw, duration, options)
+  const spacing = resolveAutoChapterSpacing(duration, options)
+  return refineSceneTimestamps(raw, duration, {
+    ...options,
+    minGapSec: options.minGapSec ?? spacing.minGapSec,
+    maxChapters: options.maxChapters ?? spacing.maxChapters,
+  })
 }
 
 function deletePreviousAutoChapters(
@@ -433,12 +542,29 @@ export async function generateAutoChaptersForMedia(
   })
   marksRepo.bulkCreate(times.map((time, index) => ({
     type: AUTO_CHAPTER_TYPE,
+    icon: AUTO_CHAPTER_ICON,
     text: titles[index] || autoChapterLabel(index + 1, time),
     time: Math.round(time),
     end: null,
     tagId: null,
     mediaId,
   })))
+
+  // Per-mark JPGs at each chapter time (UI otherwise falls back to the video thumb).
+  if (db.path && !options.shouldStop?.()) {
+    const createdMarks = marksRepo.findAllForVideo(mediaId).filter(isAutoChapterMark)
+    try {
+      await createMarkThumbsForMarks(db.path, resolved, createdMarks, {
+        force: true,
+        shouldStop: options.shouldStop,
+        onProgress: (fraction) => {
+          options.onItemProgress?.(0.96 + Math.min(1, Math.max(0, fraction)) * 0.04)
+        },
+      })
+    } catch (error) {
+      console.error('Failed to create auto-chapter mark thumbs:', error)
+    }
+  }
 
   options.onItemProgress?.(1)
   return {mediaId, chapters: times.length, skipped: false, path: media.path}
@@ -464,15 +590,18 @@ export function getAutoChapterGenerationStatus(db: ApiDb): {
     .get()
   const total = Number(totalRow?.count ?? 0)
 
-  // Media with at least 2 auto-chapter marks (type=scene, no tag).
+  // Media with at least 2 chapter marks (bookmark+chapter icon, or legacy scene).
   const withRows = db.drizzle
     .select({mediaId: marks.mediaId})
     .from(marks)
     .innerJoin(media, eq(media.id, marks.mediaId))
     .where(and(
       eq(media.mediaTypeId, videoTypeId),
-      eq(marks.type, AUTO_CHAPTER_TYPE),
       isNull(marks.tagId),
+      or(
+        and(eq(marks.type, AUTO_CHAPTER_TYPE), eq(marks.icon, AUTO_CHAPTER_ICON)),
+        eq(marks.type, 'scene'),
+      ),
     ))
     .groupBy(marks.mediaId)
     .having(sql`count(*) >= 2`)

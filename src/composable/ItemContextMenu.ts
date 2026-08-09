@@ -262,59 +262,56 @@ export default function useItemContextMenu(
         contextMenu.push({type: 'divider'})
       }
     } else if (type === 'media') {
-      // Metadata / tools
-      contextMenu.push({type: 'divider'})
-      contextMenu.push({
+      // Smart tools submenu (works in single-item and multi-select modes).
+      const selectionEmpty = isSelectMode() && itemsStore.selection.length === 0
+      const smartMenu: ItemContextMenuEntry[] = []
+
+      smartMenu.push({
         name: t('context_menu.parse_tags_in_path'),
         type: 'item',
         icon: 'text-box-search',
-        disabled: isSelectMode() && itemsStore.selection.length === 0,
+        disabled: selectionEmpty,
         action: parseMetadata,
       })
 
       if (isVideoMediaType(currentMediaType.value)) {
-        contextMenu.push({
+        smartMenu.push({
           name: t('context_menu.detect_faces'),
           type: 'item',
           icon: 'face-recognition',
-          disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
+          disabled: !is_file_exists || selectionEmpty,
           action: detectFacesForSelection,
         })
-        contextMenu.push({
+        smartMenu.push({
           name: t('context_menu.generate_chapters'),
           type: 'item',
           icon: 'bookmark-multiple-outline',
-          disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
+          disabled: !is_file_exists || selectionEmpty,
           action: generateChaptersForSelection,
         })
 
-        if (!isSelectMode() && isMediaPageItem(item, type)) {
-          contextMenu.push({
+        if (isMediaPageItem(item, type)) {
+          smartMenu.push({
             name: t('context_menu.more_like_this'),
             type: 'item',
             icon: 'image-search-outline',
+            // Seed is the right-clicked item (also available while multi-selecting).
             action: openMoreLikeThis,
           })
-        }
-
-        if (isMediaPageItem(item, type)) {
-          contextMenu.push({
+          smartMenu.push({
             name: t('context_menu.apply_tags_from_similar'),
             type: 'item',
             icon: 'tag-plus-outline',
-            disabled: isSelectMode() && itemsStore.selection.length === 0,
+            disabled: selectionEmpty,
             action: applyTagsFromSimilar,
           })
-        }
-
-        if (!isSelectMode() && isMediaPageItem(item, type)) {
-          contextMenu.push({
+          smartMenu.push({
             name: t('context_menu.semantically_similar'),
             type: 'item',
             icon: 'brain',
             action: openSemanticallySimilar,
           })
-          contextMenu.push({
+          smartMenu.push({
             name: t('context_menu.play_similar_radio'),
             type: 'item',
             icon: 'radio-tower',
@@ -326,10 +323,9 @@ export default function useItemContextMenu(
 
       if (
         isImageMediaType(currentMediaType.value)
-        && !isSelectMode()
         && isMediaPageItem(item, type)
       ) {
-        contextMenu.push({
+        smartMenu.push({
           name: t('context_menu.semantically_similar'),
           type: 'item',
           icon: 'brain',
@@ -337,7 +333,17 @@ export default function useItemContextMenu(
         })
       }
 
-      if (canSceneAutoScrape && isMediaPageItem(item, type)) {
+      if (smartMenu.length) {
+        contextMenu.push({type: 'divider'})
+        contextMenu.push({
+          name: t('context_menu.smart_tools'),
+          type: 'menu',
+          icon: 'flash',
+          menu: smartMenu,
+        })
+      }
+
+      if (canSceneAutoScrape && isMediaPageItem(item, type) && !isSelectMode()) {
         contextMenu.push({
           name: t('context_menu.auto_scrape_scene'),
           type: 'item',
@@ -353,7 +359,7 @@ export default function useItemContextMenu(
         name: t('context_menu.update_file_info'),
         type: 'item',
         icon: 'file-sync-outline',
-        disabled: !is_file_exists || (isSelectMode() && itemsStore.selection.length === 0),
+        disabled: !is_file_exists || selectionEmpty,
         action: updateFileInfo,
       })
 

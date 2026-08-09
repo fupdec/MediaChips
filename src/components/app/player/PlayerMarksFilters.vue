@@ -8,7 +8,7 @@
       <v-icon icon="mdi-bookmark" size="small" start/>
       {{ t('meta.default_names.bookmark') }}
     </v-chip>
-    <v-chip value="scene" size="small" variant="tonal" filter>
+    <v-chip :value="MARK_FILTER_CHAPTER" size="small" variant="tonal" filter>
       <v-icon icon="mdi-movie-open-outline" size="small" start/>
       {{ t('player.auto_chapters') }}
     </v-chip>
@@ -29,6 +29,7 @@
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {AssignedMeta} from '@/types/stores'
+import {MARK_FILTER_CHAPTER} from '@/utils/markAdding'
 
 const props = defineProps<{
   assigned?: AssignedMeta[]
@@ -41,7 +42,7 @@ const assignedWithMeta = computed(() =>
 )
 
 const marksType = defineModel<Array<number | string>>({
-  default: () => ['favorite', 'bookmark', 'scene'],
+  default: () => ['favorite', 'bookmark', MARK_FILTER_CHAPTER],
 })
 
 const {t} = useI18n()

@@ -1,6 +1,11 @@
 import path from 'path-browserify'
 import { typedApi } from '@/services/typedApi'
-import { buildLocalFileUrl, checkFileExists, createThumb } from '@/services/fileService'
+import {
+  buildLocalFileUrl,
+  checkFileExists,
+  createThumb,
+  invalidateFileExistsCache,
+} from '@/services/fileService'
 import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
 
 export { formatMarkTimestamp } from '@shared/markTimestamp'
@@ -81,6 +86,7 @@ export async function ensureMarkThumb({
         markId: mark.id,
         mediaId,
       })
+      if (imgPath) invalidateFileExistsCache(imgPath)
       onUpdated?.(mark.id)
       return 'created'
     }
@@ -93,10 +99,12 @@ export async function ensureMarkThumb({
       imgPath,
       180,
     )
+    invalidateFileExistsCache(imgPath)
     onUpdated?.(mark.id)
     return 'created'
   } catch (error) {
     if (isMarkThumbAlreadyExistsError(error)) {
+      if (imgPath) invalidateFileExistsCache(imgPath)
       onUpdated?.(mark.id)
       return 'exists'
     }

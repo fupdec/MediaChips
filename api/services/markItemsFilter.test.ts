@@ -24,6 +24,18 @@ describe('markItemsFilter', () => {
       tag: {metaId: 3},
     } as never, [3])).toBe(true)
     expect(matchesMarkTypeFilter({type: 'bookmark'} as never, [])).toBe(false)
+    expect(matchesMarkTypeFilter({
+      type: 'bookmark',
+      icon: 'bookmark',
+    } as never, ['bookmark'])).toBe(true)
+    expect(matchesMarkTypeFilter({
+      type: 'bookmark',
+      icon: 'movie-open-outline',
+    } as never, ['bookmark'])).toBe(false)
+    expect(matchesMarkTypeFilter({
+      type: 'bookmark',
+      icon: 'movie-open-outline',
+    } as never, ['chapter'])).toBe(true)
 
     expect(matchesMarkSearch({
       text: 'Hello',

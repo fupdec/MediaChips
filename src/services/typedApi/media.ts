@@ -63,6 +63,13 @@ export const mediaApi = {
     }))
   },
 
+  updateMark(id: number, mark: Partial<MarkForVideo>) {
+    return apiClient.put(apiMark(id), mark).then((res) => ({
+      ...res,
+      data: validated(parseMark, res.data),
+    }))
+  },
+
   deleteMark(id: number) {
     return apiClient.delete(apiMark(id))
   },

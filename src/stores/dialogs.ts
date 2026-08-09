@@ -3,7 +3,14 @@ import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import { useTasksStore } from '@/stores/tasks'
 import { getCurrentMediaType } from '@/utils/mediaType'
-import { BASE_MARK_TYPES, findAssignedMeta, isMetaMarkType, normalizeMarkTime } from '@/utils/markAdding'
+import {
+  BASE_MARK_TYPES,
+  DEFAULT_BOOKMARK_ICON,
+  TAG_MARK_TYPE,
+  normalizeMarkTime,
+  resolveMarkEditIcon,
+  resolveMarkEditType,
+} from '@/utils/markAdding'
 import type { MediaItem, Meta, Tag } from '@/types/stores'
 import type { AssignedMeta } from '@shared/entities/meta'
 import type { ValueInTagEntry } from '@shared/api/responses'
@@ -59,10 +66,14 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     bulkEditingItems: false,
     markAdding: {
       show: false,
+      editId: null as number | null,
       type: 'favorite',
       meta: {} as Partial<Meta>,
       time: null as number | null,
       end: null as number | null,
+      text: '',
+      icon: DEFAULT_BOOKMARK_ICON as string,
+      tagId: null as number | null,
       color: '#e91e63',
       is_end_time_active: false,
       submitting: false,
@@ -283,9 +294,16 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.playlistAdd.mediaIds = []
     },
     openMarkAdding({ time = 0, type = 'favorite' }: { time?: number; type?: string } = {}) {
-      const normalizedType = type || 'favorite'
+      let normalizedType = type || 'favorite'
+      if (normalizedType === 'scene') normalizedType = 'bookmark'
+      if (normalizedType === 'meta') normalizedType = TAG_MARK_TYPE.value
       const preset = BASE_MARK_TYPES.find((item) => item.value === normalizedType)
+        || (normalizedType === TAG_MARK_TYPE.value ? TAG_MARK_TYPE : null)
 
+      this.markAdding.editId = null
+      this.markAdding.text = ''
+      this.markAdding.icon = DEFAULT_BOOKMARK_ICON
+      this.markAdding.tagId = null
       this.markAdding.time = normalizeMarkTime(time)
       this.markAdding.type = normalizedType
       this.markAdding.end = null
@@ -293,20 +311,50 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.markAdding.submitting = false
       this.markAdding.meta = {}
       this.markAdding.color = preset?.color || '#fff'
+      this.markAdding.show = true
+    },
+    openMarkEditing(mark: {
+      id?: number | null
+      type?: string | null
+      text?: string | null
+      icon?: string | null
+      time?: number | null
+      end?: number | null
+      tagId?: number | null
+      tag?: { id?: number | null; metaId?: number | null; color?: string | null } | null
+      metaId?: number | null
+      meta?: { id?: number | null } | null
+    }) {
+      const editId = Number(mark.id)
+      if (!Number.isFinite(editId) || editId <= 0) return
 
-      if (isMetaMarkType(normalizedType)) {
-        const itemsStore = useItemsStore()
-        const found = findAssignedMeta(itemsStore.assigned, normalizedType)
-        if (found?.meta) {
-          this.markAdding.meta = found.meta
-        }
-      }
+      const normalizedType = resolveMarkEditType(mark)
+      const preset = BASE_MARK_TYPES.find((item) => item.value === normalizedType)
+        || (normalizedType === TAG_MARK_TYPE.value ? TAG_MARK_TYPE : null)
+      const tagId = Number(mark.tagId ?? mark.tag?.id)
+      const end = mark.end == null ? null : normalizeMarkTime(mark.end)
+      const metaId = Number(mark.tag?.metaId ?? mark.metaId ?? mark.meta?.id)
 
+      this.markAdding.editId = editId
+      this.markAdding.text = typeof mark.text === 'string' ? mark.text : ''
+      this.markAdding.icon = resolveMarkEditIcon(mark)
+      this.markAdding.tagId = Number.isFinite(tagId) && tagId > 0 ? tagId : null
+      this.markAdding.time = normalizeMarkTime(mark.time)
+      this.markAdding.end = end
+      this.markAdding.is_end_time_active = end != null
+      this.markAdding.type = normalizedType
+      this.markAdding.submitting = false
+      this.markAdding.meta = Number.isFinite(metaId) && metaId > 0 ? {id: metaId} : {}
+      this.markAdding.color = preset?.color || mark.tag?.color || '#fff'
       this.markAdding.show = true
     },
     closeMarkAdding() {
       this.markAdding.show = false
       this.markAdding.submitting = false
+      this.markAdding.editId = null
+      this.markAdding.text = ''
+      this.markAdding.icon = DEFAULT_BOOKMARK_ICON
+      this.markAdding.tagId = null
     },
     setMarkAddingSubmitting(value: boolean) {
       this.markAdding.submitting = value

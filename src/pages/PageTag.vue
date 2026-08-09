@@ -653,7 +653,7 @@ const galleryImages = computed((): TagPageGalleryImage[] => {
   })
 })
 const hasGalleryImages = computed(() => galleryImages.value.length > 0)
-const showPlayClips = computed(() => Boolean(meta.value?.marks))
+const showPlayClips = computed(() => String(meta.value?.type || '').toLowerCase() === 'array')
 const showAppearances = computed(() => {
   const performerMetaId = Number(settingsStore['faceMatch.performerMetaId'] || 0)
   return performerMetaId > 0 && Number(tag.value?.metaId) === performerMetaId
@@ -714,7 +714,7 @@ const init = async () => {
 
 const refreshClipCount = async () => {
   clipCount.value = 0
-  if (!meta.value?.marks || !tag.value?.id) return
+  if (String(meta.value?.type || '').toLowerCase() !== 'array' || !tag.value?.id) return
 
   try {
     const res = await typedApi.getMarkClips({

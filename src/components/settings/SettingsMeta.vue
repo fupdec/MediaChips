@@ -450,11 +450,6 @@ const showMetaChipMenu = (e: MouseEvent, metaItem: Meta) => {
           'parser',
           t('meta.settings.parse_media_for_tags'),
         ),
-        flagMenuItem(
-          metaItem,
-          'marks',
-          t('meta.settings.marks_in_player'),
-        ),
       ],
     })
   }

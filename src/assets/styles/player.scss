@@ -713,9 +713,14 @@
       border-radius: 8px;
       background-color: #000000;
     }
-    .delete {
+    .edit {
       position: absolute;
       left: 3px;
+      bottom: 3px;
+    }
+    .delete {
+      position: absolute;
+      left: 40px;
       bottom: 3px;
     }
     .time {
@@ -1178,7 +1183,7 @@
   &:hover {
     background: rgba(255, 255, 255, 0.08);
 
-    .mark-item__delete {
+    .mark-item__actions {
       opacity: 1;
     }
   }
@@ -1224,10 +1229,17 @@
     font-variant-numeric: tabular-nums;
   }
 
-  &__delete {
+  &__actions {
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
     opacity: 0;
     transition: opacity 0.15s ease;
+  }
+
+  &__edit,
+  &__delete {
+    flex-shrink: 0;
   }
 }
 
@@ -1275,7 +1287,7 @@
 }
 
 @media (hover: none) {
-  .mark-item__delete {
+  .mark-item__actions {
     opacity: 0.7;
   }
 }

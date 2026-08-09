@@ -118,12 +118,42 @@ function hideDefaultMetaChipsOnCards(sqlite: Database.Database) {
   `).run(flag)
 }
 
+/** Merge legacy type=scene chapters into bookmark + chapter icon. */
+function migrateSceneMarksToBookmarkIcons(sqlite: Database.Database) {
+  const flag = 'migration.scene_marks_to_bookmark_icon_v1'
+  const existing = sqlite.prepare(
+    'SELECT 1 AS ok FROM settings WHERE option = ? LIMIT 1',
+  ).get(flag) as {ok: number} | undefined
+  if (existing) return
+
+  const columns = sqlite.prepare(`PRAGMA table_info(marks)`).all() as Array<{name: string}>
+  if (!columns.some((column) => column.name === 'icon')) return
+
+  sqlite.prepare(`
+    UPDATE marks
+    SET type = 'bookmark', icon = 'movie-open-outline'
+    WHERE lower(COALESCE(type, '')) = 'scene'
+  `).run()
+
+  sqlite.prepare(`
+    UPDATE marks
+    SET icon = 'bookmark'
+    WHERE type = 'bookmark' AND (icon IS NULL OR icon = '')
+  `).run()
+
+  sqlite.prepare(`
+    INSERT INTO settings (option, value, createdAt, updatedAt)
+    VALUES (?, '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(flag)
+}
+
 export function runLegacyUpgrades(sqlite: Database.Database) {
   backfillMediaNames(sqlite)
   upgradeImageMediaType(sqlite)
   copyVideoMetaAssignmentsToImage(sqlite)
   dedupeDefaultMediaTypes(sqlite)
   hideDefaultMetaChipsOnCards(sqlite)
+  migrateSceneMarksToBookmarkIcons(sqlite)
   const renamed = renameDuplicateTagNames(sqlite)
   if (renamed > 0) {
     console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed ${renamed} duplicate tag name(s) for global uniqueness`)

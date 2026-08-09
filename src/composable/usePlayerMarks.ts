@@ -10,12 +10,16 @@ import {
   getMarkListIcon,
 } from '@/composable/playerMarkDisplay'
 import {
+  ensureMarkThumb,
+  getMarkImagePath,
   loadMarkImageDisplayUrl,
 } from '@/utils/markThumb'
+import { checkFileExists } from '@/services/fileService'
 import type { PlayerMark } from '@/types/player'
+import { MARK_FILTER_CHAPTER, getAssignedArrayMetas } from '@/utils/markAdding'
 
 interface UsePlayerMarksOptions {
-  emit: (event: 'removeMark', mark: PlayerMark) => void
+  emit: (event: 'removeMark' | 'editMark', mark: PlayerMark) => void
 }
 
 export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
@@ -24,11 +28,11 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
   const itemsStore = useItemsStore()
   const eventBus = useEventBus()
 
-  const marksType = ref<Array<string | number>>(['favorite', 'bookmark', 'scene'])
+  const marksType = ref<Array<string | number>>(['favorite', 'bookmark', MARK_FILTER_CHAPTER])
   const is_thumbs_loaded = ref(false)
 
   const player = computed(() => playerStore)
-  const assigned = computed(() => itemsStore.assigned.filter((i) => i.meta?.marks))
+  const assigned = computed(() => getAssignedArrayMetas(itemsStore.assigned))
 
   const marks = computed(() => filterMarksByTypes(playerStore.marks, marksType.value))
 
@@ -46,8 +50,25 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
     if (!appStore.mediaPath) return
 
     is_thumbs_loaded.value = false
+    const mediaId = playerStore.media?.id
+    const videoPath = playerStore.media?.path
 
     for (const mark of playerStore.marks) {
+      if (mark.id != null && mediaId != null) {
+        const imgPath = getMarkImagePath(appStore.mediaPath, mark.id)
+        try {
+          if (!(await checkFileExists(imgPath))) {
+            await ensureMarkThumb({
+              mark,
+              mediaId,
+              mediaPath: appStore.mediaPath,
+              videoPath,
+            })
+          }
+        } catch {
+          // Keep video-thumb / unavailable fallback from loadMarkImageDisplayUrl.
+        }
+      }
       await loadMarkThumb(mark)
     }
 
@@ -58,6 +79,10 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
 
   const jumpTo = (time: number) => {
     playerStore.playerJumpTo(time)
+  }
+
+  const edit = (mark: PlayerMark) => {
+    emit('editMark', mark)
   }
 
   const remove = (mark: PlayerMark) => {
@@ -121,6 +146,7 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
     getColor: getMarkListColor,
     getDuration,
     jumpTo,
+    edit,
     remove,
   }
 }

@@ -64,14 +64,23 @@
           </v-icon>
           <span>{{ t('meta.default_names.favorite') }}</span>
         </v-chip>
+        <v-chip v-else-if="isChapter"
+          :title="mark.text || undefined"
+          color="teal"
+          size="small">
+          <v-icon start
+            size="small">mdi-{{ markIcon }}
+          </v-icon>
+          <span>{{ mark.text || t('player.auto_chapters') }}</span>
+        </v-chip>
         <v-chip v-else-if="mark.type === 'bookmark'"
-          :title="mark.text"
+          :title="mark.text || undefined"
           size="small">
           <v-icon color="red"
             start
-            size="small">mdi-bookmark
+            size="small">mdi-{{ markIcon }}
           </v-icon>
-          <span>{{ t('meta.default_names.bookmark') }}</span>
+          <span>{{ mark.text || t('meta.default_names.bookmark') }}</span>
         </v-chip>
       </v-card-text>
     </v-card>
@@ -118,6 +127,11 @@ import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 import type {ContextMenuEntry, MarkItem} from '@/types/stores'
+import {
+  DEFAULT_BOOKMARK_ICON,
+  isChapterMark,
+  normalizeMarkIcon,
+} from '@/utils/markAdding'
 
 interface ItemMarkerMedium {
   id?: number
@@ -137,9 +151,11 @@ interface ItemMarkerMark extends MarkItem {
   end?: number
   type?: string
   text?: string
+  icon?: string
+  tagId?: number
   mediumId?: number
   medium?: ItemMarkerMedium
-  tag?: ItemMarkerTag
+  tag?: ItemMarkerTag & { id?: number; metaId?: number }
 }
 
 const props = defineProps({
@@ -185,6 +201,18 @@ const bigPreview = ref(false)
 
 const videoMedia = computed(() => toPlayableMediaItem(props.mark.medium))
 const markId = computed(() => Number(props.mark.id))
+const isChapter = computed(() => isChapterMark({
+  type: props.mark.type,
+  icon: props.mark.icon,
+  tagId: props.mark.tagId ?? props.mark.tag?.id ?? null,
+}))
+const markIcon = computed(() => {
+  if (props.mark.type === 'scene') return 'movie-open-outline'
+  if (props.mark.type === 'bookmark') {
+    return normalizeMarkIcon(props.mark.icon, DEFAULT_BOOKMARK_ICON)
+  }
+  return DEFAULT_BOOKMARK_ICON
+})
 
 const markTime = computed(() => Number(props.mark.time) || 0)
 const markEnd = computed(() => {
@@ -212,6 +240,30 @@ async function openMark() {
   await itemsStore.playVideo({
     video: media,
     time: markTime.value,
+  })
+}
+
+async function editMark() {
+  await openMark()
+  dialogsStore.openMarkEditing({
+    id: markId.value,
+    type: typeof props.mark.type === 'string' ? props.mark.type : null,
+    text: typeof props.mark.text === 'string' ? props.mark.text : null,
+    icon: typeof props.mark.icon === 'string' ? props.mark.icon : null,
+    time: markTime.value,
+    end: markEnd.value,
+    tagId: Number(props.mark.tagId ?? props.mark.tag?.id) || null,
+    tag: props.mark.tag
+      ? {
+          id: Number(props.mark.tag.id) || null,
+          metaId: Number(props.mark.tag.metaId ?? props.mark.tag.meta?.id) || null,
+          color: typeof props.mark.tag.color === 'string' ? props.mark.tag.color : null,
+        }
+      : null,
+    metaId: Number(props.mark.metaId) || null,
+    meta: props.mark.tag?.meta
+      ? {id: Number(props.mark.tag.meta.id) || null}
+      : null,
   })
 }
 
@@ -265,6 +317,13 @@ function showContextMenu(event: MouseEvent) {
       icon: 'open-in-app',
       disabled: !videoMedia.value,
       action: openMark,
+    },
+    {
+      name: t('common.edit'),
+      type: 'item',
+      icon: 'pencil',
+      disabled: !videoMedia.value,
+      action: editMark,
     },
     {
       name: isSelected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),

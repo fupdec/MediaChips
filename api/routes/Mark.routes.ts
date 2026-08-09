@@ -16,6 +16,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   const router = express.Router()
 
   router.post('/', validateBody(MarkCreateRequestSchema), Mark.create)
+  router.put('/:id', validateBody(MarkCreateRequestSchema), Mark.updateOne)
   router.get('/video/:id', Mark.findAllForVideo)
   router.post('/by-path', validateBody(PathPayloadSchema), Mark.findChaptersByPath)
   router.get('/', Mark.findAll)
