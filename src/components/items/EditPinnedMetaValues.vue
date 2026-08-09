@@ -76,18 +76,11 @@
                 :label="t('common.name')"
                 density="compact"
                 variant="filled"
-              />
-              <v-btn
-                v-if="vals.name !== old.name"
-                @click="restore('name')"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
               >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+                <template v-if="vals.name !== old.name" #append-inner>
+                  <EditingFieldRestoreBtn inline @click="restore('name')" />
+                </template>
+              </v-text-field>
             </v-card>
           </v-col>
 
@@ -107,18 +100,11 @@
                 density="compact"
                 clearable
                 variant="filled"
-              />
-              <v-btn
-                v-if="vals.synonyms !== old.synonyms"
-                @click="restore('synonyms')"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
               >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+                <template v-if="vals.synonyms !== old.synonyms" #append-inner>
+                  <EditingFieldRestoreBtn inline @click="restore('synonyms')" />
+                </template>
+              </v-text-field>
             </v-card>
           </v-col>
 
@@ -167,17 +153,10 @@
                   />
                 </template>
               </div>
-              <v-btn
+              <EditingFieldRestoreBtn
                 v-if="!equalOld('rating') || !equalOld('favorite')"
                 @click="restoreIdentityRatingFavorite"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
-              >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+              />
             </v-card>
           </v-col>
 
@@ -205,16 +184,7 @@
                   v-if="!equalOld('views')"
                   #append-inner
                 >
-                  <v-btn
-                    @click="restore('views')"
-                    class="restore restore--inline"
-                    :title="t('common.restore')"
-                    variant="plain"
-                    size="x-small"
-                    icon
-                  >
-                    <v-icon>mdi-restore</v-icon>
-                  </v-btn>
+                  <EditingFieldRestoreBtn inline @click="restore('views')" />
                 </template>
               </v-number-input>
             </v-card>
@@ -228,35 +198,46 @@
               :color="showIcons ? 'rgba(150, 150, 150, 0.09)' : undefined"
               variant="flat"
             >
-              <div class="text-medium-emphasis text-caption">{{ t('meta.default_names.color') }}</div>
-              <div class="d-flex flex-wrap align-center ga-2 mt-1">
-                <v-icon @click="pickColor" :color="vals.color ?? undefined" start>mdi-circle</v-icon>
-                <v-btn @click="pickColor" color="primary" variant="flat" rounded="xl" size="small">
-                  {{ t('settings_labels.appearance.change_color') }}
-                </v-btn>
-                <v-btn
-                  @click="pickColorFromImage"
-                  :disabled="!hasMainTagImage"
-                  color="primary"
-                  variant="tonal"
-                  rounded="xl"
-                  size="small"
-                  prepend-icon="mdi-eyedropper"
-                >
-                  {{ t('meta.settings.color_from_image') }}
-                </v-btn>
-              </div>
-              <v-btn
-                v-if="!equalOld('color')"
-                @click="restore('color')"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
+              <v-text-field
+                :model-value="vals.color || ''"
+                :label="t('meta.default_names.color')"
+                :prepend-icon="showIcons ? 'mdi-palette-outline' : undefined"
+                density="compact"
+                variant="filled"
+                readonly
+                hide-details
+                class="editing-color-field"
+                @click="pickColor"
               >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+                <template #prepend-inner>
+                  <v-icon
+                    :color="vals.color || 'grey'"
+                    size="20"
+                    class="editing-color-field__swatch"
+                    @click.stop="pickColor"
+                  >
+                    mdi-circle
+                  </v-icon>
+                </template>
+                <template #append-inner>
+                  <v-btn
+                    @click.stop="pickColorFromImage"
+                    :disabled="!hasMainTagImage"
+                    v-tooltip:top="t('meta.settings.color_from_image')"
+                    class="editing-color-field__eyedropper"
+                    variant="text"
+                    size="x-small"
+                    icon
+                  >
+                    <v-icon size="18">mdi-eyedropper</v-icon>
+                  </v-btn>
+                  <EditingFieldRestoreBtn
+                    v-if="!equalOld('color')"
+                    inline
+                    @click="restore('color')"
+                  />
+                </template>
+              </v-text-field>
             </v-card>
           </v-col>
 
@@ -275,17 +256,10 @@
                 density="compact"
                 hide-details
               />
-              <v-btn
+              <EditingFieldRestoreBtn
                 v-if="!equalOld('country', 'array')"
                 @click="restore('country')"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
-              >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+              />
             </v-card>
           </v-col>
 
@@ -311,17 +285,10 @@
                 density="compact"
                 hide-details
               />
-              <v-btn
+              <EditingFieldRestoreBtn
                 v-if="mixedTagsDirty"
                 @click="restoreMixedTags"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
-              >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+              />
             </v-card>
           </v-col>
 
@@ -367,16 +334,7 @@
                   v-if="!equalOld(getItemKey(item), item.meta?.type)"
                   #append-inner
                 >
-                  <v-btn
-                    @click="restore(getItemKey(item))"
-                    class="restore restore--inline"
-                    :title="t('common.restore')"
-                    variant="plain"
-                    size="x-small"
-                    icon
-                  >
-                    <v-icon>mdi-restore</v-icon>
-                  </v-btn>
+                  <EditingFieldRestoreBtn inline @click="restore(getItemKey(item))" />
                 </template>
               </v-number-input>
 
@@ -391,7 +349,14 @@
                 persistent-hint
                 clearable
                 variant="filled"
-              />
+              >
+                <template
+                  v-if="!equalOld(getItemKey(item), item.meta?.type)"
+                  #append-inner
+                >
+                  <EditingFieldRestoreBtn inline @click="restore(getItemKey(item))" />
+                </template>
+              </v-text-field>
 
               <v-checkbox
                 v-if="item.meta?.type === 'boolean'"
@@ -416,7 +381,14 @@
                 readonly
                 clearable
                 variant="filled"
-              />
+              >
+                <template
+                  v-if="!equalOld(getItemKey(item), item.meta?.type)"
+                  #append-inner
+                >
+                  <EditingFieldRestoreBtn inline @click="restore(getItemKey(item))" />
+                </template>
+              </v-text-field>
 
               <div v-if="item.meta?.type === 'rating'" class="editing-rating-field">
                 <v-icon
@@ -451,17 +423,10 @@
                 </div>
               </div>
 
-              <v-btn
-                v-if="item.meta?.type !== 'number' && !equalOld(getItemKey(item), item.meta?.type)"
+              <EditingFieldRestoreBtn
+                v-if="!['number', 'string', 'date'].includes(item.meta?.type || '') && !equalOld(getItemKey(item), item.meta?.type)"
                 @click="restore(getItemKey(item))"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
-              >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+              />
             </v-card>
           </v-col>
 
@@ -483,18 +448,11 @@
                 auto-grow
                 rows="1"
                 variant="filled"
-              />
-              <v-btn
-                v-if="vals.bookmark !== old.bookmark"
-                @click="restore('bookmark')"
-                class="restore"
-                :title="t('common.restore')"
-                variant="plain"
-                size="x-small"
-                icon
               >
-                <v-icon>mdi-restore</v-icon>
-              </v-btn>
+                <template v-if="vals.bookmark !== old.bookmark" #append-inner>
+                  <EditingFieldRestoreBtn inline @click="restore('bookmark')" />
+                </template>
+              </v-textarea>
             </v-card>
           </v-col>
         </v-row>
@@ -599,6 +557,7 @@ import MetaInputMixedTags from '@/components/meta/input/MetaInputMixedTags.vue'
 import MetaInputCountry from '@/components/meta/input/MetaInputCountry.vue'
 import EditPinnedOverview from '@/components/items/EditPinnedOverview.vue'
 import ColorPicker from '@/components/elements/ColorPicker.vue'
+import EditingFieldRestoreBtn from '@/components/items/EditingFieldRestoreBtn.vue'
 
 type EditLayout = 'default' | 'hero'
 
@@ -1650,29 +1609,29 @@ defineExpose({
   }
 }
 
-.editing {
-  .field {
-    position: relative;
+.editing-color-field {
+  cursor: pointer;
 
-    .restore:not(.restore--inline) {
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 120ms ease;
-    }
+  .v-field {
+    cursor: pointer;
+  }
 
-    &:hover .restore:not(.restore--inline),
-    &:focus-within .restore:not(.restore--inline) {
-      opacity: 1;
-      pointer-events: auto;
-    }
+  &__swatch {
+    cursor: pointer;
+  }
+
+  &__eyedropper {
+    margin-inline-end: 2px;
   }
 }
 
-.restore:not(.restore--inline) {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 3;
+.editing {
+  .editing-field-card {
+    position: relative;
+  }
+
+  .field {
+    position: relative;
+  }
 }
 </style>

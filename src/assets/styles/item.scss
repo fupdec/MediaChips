@@ -2025,20 +2025,8 @@ body > .video-preview-container.video-preview-container--expanded {
 }
 
 .editing {
-  &.show-icons {
-    .field:has(.restore):not(:has(.restore--inline)) {
-      padding-right: 36px;
-    }
-
-    .restore:not(.restore--inline) {
-      top: 50%;
-      right: 2px;
-      left: auto;
-      transform: translateY(-50%);
-    }
-  }
-
   .editing-field-card {
+    position: relative;
     overflow: visible;
 
     &--icons {
@@ -2055,36 +2043,16 @@ body > .video-preview-container.video-preview-container--expanded {
       min-height: 44px;
       padding: 6px 10px !important;
     }
+
+    // Room for the floating restore control over custom inputs.
+    &:has(.editing-field-restore--float) {
+      padding-right: 40px !important;
+    }
   }
 
   .field {
     position: relative;
     overflow: visible;
-
-    // Floating restore outside the control (text/date/etc.).
-    &:has(.restore):not(:has(.restore--inline)) {
-      padding-right: 32px;
-    }
-  }
-
-  .restore {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    left: auto;
-    transform: translateY(-50%);
-    z-index: 3;
-
-    // Inside number-input append, left of the + control.
-    &--inline {
-      position: relative;
-      top: auto;
-      right: auto;
-      transform: none;
-      margin-inline: 0 2px;
-      opacity: 1 !important;
-      pointer-events: auto !important;
-    }
   }
 }
 
