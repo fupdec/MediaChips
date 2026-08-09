@@ -51,7 +51,7 @@
               {{ t('media.adding.make_library_smart') }}
             </div>
             <div class="text-caption text-medium-emphasis mb-3 smart-wizard-section__hint">
-              {{ t('media.adding.make_library_smart_hint') }}
+              {{ smartEnhanceHint }}
             </div>
 
             <v-btn
@@ -68,7 +68,7 @@
               {{ t('media.adding.make_library_smart_safe') }}
             </v-btn>
             <div class="text-caption text-medium-emphasis mb-2 smart-wizard-section__hint">
-              {{ t('media.adding.make_library_smart_safe_hint') }}
+              {{ smartEnhanceSafeHint }}
             </div>
 
             <div
@@ -80,6 +80,24 @@
                 :key="`smart-summary-${index}`"
               >
                 {{ line }}
+              </div>
+              <div
+                v-if="smartWizardSummary?.clipIndexed"
+                class="mt-2"
+              >
+                <div class="text-caption text-medium-emphasis mb-1">
+                  {{ t('media.adding.make_library_smart_find_scene_tip') }}
+                </div>
+                <v-btn
+                  @click="openFindSceneFromEnhance"
+                  color="primary"
+                  rounded
+                  variant="tonal"
+                  size="small"
+                >
+                  <v-icon icon="mdi-movie-search-outline" start size="18"/>
+                  {{ t('media.adding.make_library_smart_find_scene_cta') }}
+                </v-btn>
               </div>
             </div>
             <div
@@ -155,6 +173,9 @@
                       :label="t('media.adding.make_library_smart_grids')"
                     />
                     <ButtonDocumentation id="settings.files.generated_previews" dense/>
+                  </div>
+                  <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
+                    {{ t('media.adding.make_library_smart_grids_hint') }}
                   </div>
                   <div class="smart-wizard-option">
                     <v-checkbox
@@ -884,6 +905,7 @@ const smartWizardSummary = ref<{
   pathCreated?: number
   pathApplied?: number
   pathMedia?: number
+  grids?: number
   faces?: number
   blindTags?: number
   clipIndexed?: boolean
@@ -1046,10 +1068,20 @@ const canRunSmartWizard = computed(() =>
       || smartWizard.value.neighborTags
       || (sceneScrapeAvailable.value && smartWizard.value.scrape)
     ))
-  ) &&
-  !(smartWizard.value.faces && faceModelNeedsDownload.value) &&
-  !(smartWizard.value.clip && clipModelNeedsDownload.value)
+  )
 )
+
+const smartEnhanceHint = computed(() => (
+  isAddedVideo.value
+    ? t('media.adding.make_library_smart_hint')
+    : t('media.adding.make_library_smart_hint_images')
+))
+
+const smartEnhanceSafeHint = computed(() => (
+  isAddedVideo.value
+    ? t('media.adding.make_library_smart_safe_hint')
+    : t('media.adding.make_library_smart_safe_hint_images')
+))
 
 const pathReviewTagNames = computed(() => uniqueNames(task.value.suggestedTags || []))
 
@@ -1079,6 +1111,11 @@ const smartWizardSummaryLines = computed(() => {
       created: summary.pathCreated || 0,
       applied: summary.pathApplied || 0,
       media: summary.pathMedia || 0,
+    }))
+  }
+  if (summary.grids != null) {
+    lines.push(t('media.adding.make_library_smart_summary_grids', {
+      count: summary.grids,
     }))
   }
   if (summary.faces != null) {
@@ -1152,14 +1189,22 @@ function applyEverythingPossiblePreset() {
   }
 }
 
-async function preflightSmartWizardModels() {
+async function preflightSmartWizardModels(trayTaskId?: string | null) {
+  const setStatus = (text: string) => {
+    smartWizardStatus.value = text
+    if (trayTaskId) {
+      tasksStore.updateTask(trayTaskId, {subtitle: text, progress: 0})
+    }
+  }
   if (smartWizard.value.faces && faceModelNeedsDownload.value) {
+    setStatus(t('media.adding.make_library_smart_downloading_face'))
     await downloadFaceModel()
     if (faceModelNeedsDownload.value) {
       throw new Error(t('media.adding.download_face_model_hint'))
     }
   }
   if (smartWizard.value.clip && clipModelNeedsDownload.value) {
+    setStatus(t('media.adding.make_library_smart_downloading_clip'))
     await downloadClipModel()
     if (clipModelNeedsDownload.value) {
       throw new Error(t('media.adding.download_video_recognition_model_hint'))
@@ -1167,35 +1212,20 @@ async function preflightSmartWizardModels() {
   }
 }
 
+function openFindSceneFromEnhance() {
+  closeProcessDialog()
+  appShell.showGlobalSearch()
+}
+
 async function runSafeEnhance() {
   if (!canMakeLibrarySmart.value || smartWizardRunning.value) return
   applySafeEnhancePreset()
-  try {
-    await preflightSmartWizardModels()
-  } catch (error) {
-    setNotification({
-      type: 'error',
-      title: t('media.adding.make_library_smart_failed'),
-      text: getErrorMessage(error),
-    })
-    return
-  }
   await runSmartLibraryWizard()
 }
 
 async function runEverythingPossible() {
   if (!canMakeLibrarySmart.value || smartWizardRunning.value) return
   applyEverythingPossiblePreset()
-  try {
-    await preflightSmartWizardModels()
-  } catch (error) {
-    setNotification({
-      type: 'error',
-      title: t('media.adding.make_library_smart_failed'),
-      text: getErrorMessage(error),
-    })
-    return
-  }
   await runSmartLibraryWizard()
 }
 
@@ -1913,7 +1943,7 @@ const runSmartLibraryWizard = async () => {
   smartWizardAbort = controller
   const trayTaskId = tasksStore.setTask({
     title: t('media.adding.make_library_smart'),
-    subtitle: t('media.adding.make_library_smart_hint'),
+    subtitle: smartEnhanceHint.value,
     icon: 'auto-fix',
     progress: 0,
     click: () => {
@@ -1931,6 +1961,23 @@ const runSmartLibraryWizard = async () => {
   let tagsPendingReview = 0
 
   try {
+    try {
+      await preflightSmartWizardModels(trayTaskId)
+    } catch (error) {
+      tasksStore.updateTask(trayTaskId, {
+        subtitle: t('media.adding.make_library_smart_failed'),
+        color: 'error',
+        done: true,
+        action: undefined,
+      })
+      setNotification({
+        type: 'error',
+        title: t('media.adding.make_library_smart_failed'),
+        text: getErrorMessage(error),
+      })
+      return
+    }
+
     for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
       if (controller.signal.aborted) break
       const step = steps[stepIndex]
@@ -1967,6 +2014,7 @@ const runSmartLibraryWizard = async () => {
 
       if (step === 'grids') {
         smartWizardStatus.value = t('media.adding.make_library_smart_grids')
+        let gridsCreated = 0
         for (let i = 0; i < mediaEntries.length; i++) {
           if (controller.signal.aborted) break
           const entry = mediaEntries[i]
@@ -1980,12 +2028,17 @@ const runSmartLibraryWizard = async () => {
           })
           try {
             await typedApi.taskCreateGrid(buildVideoGridTaskParams(entry.path, `${entry.mediaId}.jpg`))
+            gridsCreated += 1
             itemsStore.refreshThumb(entry.mediaId, {broadcast: false})
             eventBus.emit('updateVideoFrames', entry.mediaId)
             listSync.getItemsFromDb({ids: [entry.mediaId], type: 'media'})
           } catch (error) {
             console.error(`Failed to create grid for media ${entry.mediaId}:`, error)
           }
+        }
+        smartWizardSummary.value = {
+          ...smartWizardSummary.value,
+          grids: gridsCreated,
         }
       }
 
