@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import {gridTileSeekSeconds} from '@shared/videoPreview'
 import type { MediaItem } from '@/types/stores'
 import {
   getLiveChunkRelativeTime,
@@ -21,6 +22,7 @@ import {
   resolveDurationOnLoadedMetadata,
   resolveVideoSourcePlan,
   parseExplicitPlaybackStart,
+  resolveSemanticPlaybackStart,
   shouldAdvanceAtSegmentEnd,
   shouldArmDirectSeekStallWatch,
   shouldBlockUnregisteredPlaylistDepth,
@@ -487,6 +489,21 @@ describe('loadSrc seek / registration / duration gates', () => {
       targetStartTime: 3,
       segmentStart: null,
     })).toBe(true)
+  })
+
+  it('recomputes semantic seek from tile and clamps past EOF', () => {
+    // Last tile of a 33:32 (~2012s) video.
+    expect(resolveSemanticPlaybackStart({
+      semanticTileIndex: 8,
+      durationSec: 2012,
+      segmentStart: 99999,
+    })).toBe(gridTileSeekSeconds(2012, 8))
+
+    // Stale seek beyond real file length → clamp.
+    expect(resolveSemanticPlaybackStart({
+      segmentStart: 5000,
+      durationSec: 2012,
+    })).toBeCloseTo(2011.95, 5)
   })
 
   it('blocks deep unregistered playlist indices', () => {

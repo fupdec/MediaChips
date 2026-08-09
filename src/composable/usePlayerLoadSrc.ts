@@ -43,6 +43,7 @@ import {
   playbackErrorMessage,
   resolvePlaybackStartTime,
   resolvePlayableVideo,
+  resolveSemanticPlaybackStart,
   resolveVideoSourcePlan,
   shouldBlockUnregisteredPlaylistDepth,
   shouldSeekDirectOnLoadSrc,
@@ -247,14 +248,34 @@ export function createPlayerLoadSrc({
     }
     const playingClip = requestedClip || isClipPlaylistItem(media)
     const segmentStart = getSegmentStart(media) ?? requestedSegmentStart
-    const targetStartTime = resolvePlaybackStartTime({
-      explicitStart,
-      segmentStart,
-      playingClip,
-      restorePlaybackTime: settingsStore.restorePlaybackTime == '1',
-      metaTime: metadataNumber(playerStore.metadata, 'time'),
-      metadataDuration,
-    })
+    const semanticTileIndex = Number(
+      (media as MediaItem).semanticTileIndex
+      ?? (requestedMedia as MediaItem).semanticTileIndex,
+    )
+    const hasSemanticTile = Number.isFinite(semanticTileIndex) && semanticTileIndex >= 0
+    // Seek-only (Find scene / mix): recompute from tile + clamp to real duration.
+    // Ranged marker clips keep the normal start/end path.
+    const semanticStart = (!playingClip && (hasSemanticTile || segmentStart != null))
+      ? resolveSemanticPlaybackStart({
+        explicitStart,
+        segmentStart,
+        semanticTileIndex: hasSemanticTile ? semanticTileIndex : null,
+        durationSec: metadataDuration
+          ?? metadataNumber(playerStore.metadata, 'duration')
+          ?? Number(media.duration)
+          ?? null,
+      })
+      : undefined
+    const targetStartTime = semanticStart != null
+      ? semanticStart
+      : resolvePlaybackStartTime({
+        explicitStart,
+        segmentStart,
+        playingClip,
+        restorePlaybackTime: settingsStore.restorePlaybackTime == '1',
+        metaTime: metadataNumber(playerStore.metadata, 'time'),
+        metadataDuration,
+      })
     playerStore.media = media
     playerStore.currentTime = targetStartTime
 

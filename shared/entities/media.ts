@@ -61,6 +61,8 @@ export interface MediaItem {
   markId?: number
   segmentStart?: number
   segmentEnd?: number
+  /** CLIP grid tile used for semantic scene seek (recomputed against real duration). */
+  semanticTileIndex?: number | null
   key?: string
   [key: string]: unknown
 }
@@ -76,6 +78,7 @@ export type PlayableMedia = Pick<MediaItem, 'id'> & Partial<Pick<MediaItem,
   | 'markId'
   | 'segmentStart'
   | 'segmentEnd'
+  | 'semanticTileIndex'
   | 'key'
   | 'basename'
 >>

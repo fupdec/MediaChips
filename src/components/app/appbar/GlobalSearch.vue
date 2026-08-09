@@ -890,11 +890,17 @@ async function searchSemantic() {
       : []
 
     const hitTimes = new Map<number, number>()
+    const hitTiles = new Map<number, number>()
     for (const hit of Array.isArray(searchRes.data?.hits) ? searchRes.data.hits : []) {
       const id = Number(hit?.id)
+      if (!Number.isFinite(id) || id <= 0) continue
       const time = Number(hit?.time)
-      if (Number.isFinite(id) && id > 0 && Number.isFinite(time) && time >= 0) {
+      if (Number.isFinite(time) && time >= 0) {
         hitTimes.set(id, time)
+      }
+      const tileIndex = Number(hit?.tileIndex)
+      if (Number.isFinite(tileIndex) && tileIndex >= 0) {
+        hitTiles.set(id, tileIndex)
       }
     }
 
@@ -954,9 +960,11 @@ async function searchSemantic() {
         const type = mediaTypes.value.find((entry) => entry.id === Number(item.mediaTypeId))
         if (!isVideoMediaType(type)) return null
         const time = hitTimes.get(id)
+        const tileIndex = hitTiles.get(id)
         return {
           ...item,
           ...(time != null ? {segmentStart: time} : {}),
+          ...(tileIndex != null ? {semanticTileIndex: tileIndex} : {}),
         } as MediaItem
       })
       .filter((item): item is MediaItem => Boolean(item?.path))

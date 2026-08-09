@@ -87,11 +87,15 @@ export async function seekDirectPlaybackTo(
   time: number,
   isCancelled?: () => boolean,
 ) {
-  const target = Math.max(0, Number(time) || 0)
+  let target = Math.max(0, Number(time) || 0)
   if (!Number.isFinite(target)) return
   if (videoEl.readyState < HTMLMediaElement.HAVE_METADATA) {
     await waitForMediaEvent(videoEl, 'loadedmetadata')
     if (isCancelled?.()) return
+  }
+  const fileDuration = Number(videoEl.duration)
+  if (Number.isFinite(fileDuration) && fileDuration > 0) {
+    target = Math.min(target, Math.max(0, fileDuration - 0.05))
   }
   if (Math.abs((videoEl.currentTime || 0) - target) <= 0.12) return
   videoEl.currentTime = target

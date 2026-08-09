@@ -3,6 +3,7 @@ import {
   LIVE_STREAM_CHUNK_HANDOFF_SECONDS,
   LIVE_STREAM_CHUNK_SECONDS,
 } from '@/utils/liveStreamChunk'
+import {gridTileSeekSeconds} from '@shared/videoPreview'
 import type { MediaItem } from '@/types/stores'
 import type { ResolvedPlayableVideo } from '@/types/player'
 
@@ -414,6 +415,31 @@ export function parseExplicitPlaybackStart(startTime: unknown): number | undefin
   if (startTime == null) return undefined
   const value = Number(startTime)
   return Number.isFinite(value) ? value : undefined
+}
+
+/**
+ * Semantic/mix scene seek: prefer recomputing from CLIP tile + real duration,
+ * and never land past EOF (stale DB duration / last-tile overshoot).
+ */
+export function resolveSemanticPlaybackStart(input: {
+  explicitStart?: number
+  segmentStart?: number | null
+  semanticTileIndex?: number | null
+  durationSec?: number | null
+}): number | undefined {
+  const duration = Number(input.durationSec)
+  const hasDuration = Number.isFinite(duration) && duration > 0
+  const tile = Number(input.semanticTileIndex)
+  if (hasDuration && Number.isFinite(tile) && tile >= 0) {
+    const fromTile = gridTileSeekSeconds(duration, tile)
+    if (fromTile != null) return fromTile
+  }
+  const raw = input.explicitStart != null
+    ? Number(input.explicitStart)
+    : (input.segmentStart != null ? Number(input.segmentStart) : Number.NaN)
+  if (!Number.isFinite(raw) || raw < 0) return undefined
+  if (!hasDuration) return raw
+  return Math.min(raw, Math.max(0, duration - 0.05))
 }
 
 /** Whether the direct-playback loadSrc path should seek after setting src. */

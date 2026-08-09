@@ -30,6 +30,10 @@ describe('isClipPlaylistItem', () => {
     expect(isClipPlaylistItem({id: 1, segmentStart: 10, segmentEnd: 20})).toBe(true)
     expect(isClipPlaylistItem({id: 1, path: '/a.mp4'})).toBe(false)
   })
+
+  it('does not treat semantic seek-only segmentStart as a ranged clip', () => {
+    expect(isClipPlaylistItem({id: 1, segmentStart: 641})).toBe(false)
+  })
 })
 
 describe('mergeClipFields', () => {

@@ -9,6 +9,13 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
 import {reloadPlaylistsCatalog} from '@/composable/appCatalogs'
+import {
+  hasSemanticSceneTarget,
+  hasUsableSceneSeek,
+  pickFirstSeekableInTopN,
+} from '@/services/semanticScenePlay'
+import {usePlayerStore} from '@/stores/player'
+import {nextTick} from 'vue'
 
 export type NlMixSource =
   | 'filters'
@@ -35,6 +42,7 @@ export type NlPlaylistMixResult = {
   residual: string
   clipQuery: string
   hitTimes: Map<number, number>
+  hitTiles: Map<number, number>
 }
 
 const DEFAULT_LIMIT = 200
@@ -181,6 +189,7 @@ export async function resolveNlPlaylistMix(
     residual: '',
     clipQuery: trimmed,
     hitTimes: new Map(),
+    hitTiles: new Map(),
   }
 
   if (!trimmed) return empty
@@ -198,6 +207,7 @@ export async function resolveNlPlaylistMix(
   let filterIds: number[] = []
   let clipIds: number[] = []
   const hitTimes = new Map<number, number>()
+  const hitTiles = new Map<number, number>()
 
   const fetchFilters = async () => {
     if (!filters.length) return
@@ -230,9 +240,14 @@ export async function resolveNlPlaylistMix(
       clipIds = uniquePositiveIds(searchRes.data?.ids || [])
       for (const hit of Array.isArray(searchRes.data?.hits) ? searchRes.data.hits : []) {
         const id = Number(hit?.id)
+        if (!Number.isFinite(id) || id <= 0) continue
         const time = Number(hit?.time)
-        if (Number.isFinite(id) && id > 0 && Number.isFinite(time) && time >= 0) {
+        if (Number.isFinite(time) && time >= 0) {
           hitTimes.set(id, time)
+        }
+        const tileIndex = Number(hit?.tileIndex)
+        if (Number.isFinite(tileIndex) && tileIndex >= 0) {
+          hitTiles.set(id, tileIndex)
         }
       }
     } catch (error) {
@@ -272,19 +287,26 @@ export async function resolveNlPlaylistMix(
     if (Number.isFinite(id) && id > 0) basicsById.set(id, item as MediaItem)
   }
 
-  const videos = ids
+  const mapped = ids
     .map((id) => {
       const item = basicsById.get(id)
       if (!item?.path) return null
       const type = appStore.mediaTypes?.find((entry) => entry.id === Number(item.mediaTypeId))
       if (type && !isVideoMediaType(type)) return null
       const time = hitTimes.get(id)
+      const tileIndex = hitTiles.get(id)
       return {
         ...item,
         ...(time != null ? {segmentStart: time} : {}),
+        ...(tileIndex != null ? {semanticTileIndex: tileIndex} : {}),
       } as MediaItem
     })
     .filter((item): item is MediaItem => Boolean(item))
+
+  // Scene mix: put CLIP-seekable hits first so autoplay lands on real moments.
+  const seekable = mapped.filter((item) => hasSemanticSceneTarget(item))
+  const rest = mapped.filter((item) => !hasSemanticSceneTarget(item))
+  const videos = seekable.length ? [...seekable, ...rest] : mapped
 
   return {
     phrase: trimmed,
@@ -296,6 +318,7 @@ export async function resolveNlPlaylistMix(
     residual,
     clipQuery,
     hitTimes,
+    hitTiles,
   }
 }
 
@@ -304,16 +327,21 @@ export async function playNlPlaylistMix(
 ): Promise<{played: boolean; seekTime: number}> {
   if (!mix.videos.length) return {played: false, seekTime: 0}
   const itemsStore = useItemsStore()
-  const first = mix.videos[0]
+  const playerStore = usePlayerStore()
+  const first = pickFirstSeekableInTopN(mix.videos, 5).item || mix.videos[0]
   const seekTime = Number(first.segmentStart)
-  const hasSeek = Number.isFinite(seekTime) && seekTime > 0
-  await itemsStore.playVideo({
+  const ok = await itemsStore.playVideo({
     video: first,
-    time: hasSeek ? seekTime : 0,
+    time: hasUsableSceneSeek(seekTime) ? seekTime : 0,
     videos: mix.videos,
     trustPath: true,
+    player: 'builtin',
   })
-  return {played: true, seekTime: hasSeek ? seekTime : 0}
+  if (ok && hasUsableSceneSeek(seekTime) && Number(playerStore.media?.id) === Number(first.id)) {
+    await nextTick()
+    playerStore.playerJumpTo(seekTime)
+  }
+  return {played: Boolean(ok), seekTime: hasUsableSceneSeek(seekTime) ? seekTime : 0}
 }
 
 export async function saveNlPlaylistMix(

@@ -84,6 +84,8 @@ describe('videoPreview', () => {
     expect(gridTileSeekSeconds(900, 4)).toBe(450)
     expect(gridTileSeekSeconds(0, 0)).toBeNull()
     expect(gridTileSeekSeconds(100, 9)).toBeNull()
+    // Clamp path: raw mid-slice stays in-range for matching duration.
+    expect(gridTileSeekSeconds(10, 8, 9)).toBe(8.5)
 
     const combine = buildGridCombineInputs('/tmp/g', 2, 3, (dir, name) => `${dir}/${name}`)
     expect(combine).toEqual({

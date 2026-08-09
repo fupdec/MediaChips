@@ -28,7 +28,9 @@ export function getSegmentStart(item: PlayableMedia | MediaItem | null | undefin
 
 export function isClipPlaylistItem(item: PlayableMedia | MediaItem | null | undefined): boolean {
   if (!item) return false
-  return item.markId != null || getSegmentStart(item) != null
+  // Semantic scene seeks set segmentStart only — that is not a ranged clip.
+  if (item.markId != null) return true
+  return getSegmentStart(item) != null && getSegmentEnd(item) != null
 }
 
 export function getSegmentEnd(item: PlayableMedia | MediaItem | null | undefined): number | undefined {

@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {
   countSeekableHits,
+  hasSemanticSceneTarget,
   hasUsableSceneSeek,
   pickFirstSeekableInTopN,
 } from './semanticScenePlay'
@@ -11,6 +12,15 @@ describe('hasUsableSceneSeek', () => {
     expect(hasUsableSceneSeek(0)).toBe(false)
     expect(hasUsableSceneSeek(null)).toBe(false)
     expect(hasUsableSceneSeek(Number.NaN)).toBe(false)
+  })
+})
+
+describe('hasSemanticSceneTarget', () => {
+  it('accepts seek time or CLIP tile index', () => {
+    expect(hasSemanticSceneTarget({segmentStart: 12})).toBe(true)
+    expect(hasSemanticSceneTarget({semanticTileIndex: 8})).toBe(true)
+    expect(hasSemanticSceneTarget({segmentStart: 0})).toBe(false)
+    expect(hasSemanticSceneTarget({})).toBe(false)
   })
 })
 
@@ -25,6 +35,16 @@ describe('pickFirstSeekableInTopN', () => {
     const picked = pickFirstSeekableInTopN(playlist, 5)
     expect(picked.startIndex).toBe(2)
     expect(picked.item?.id).toBe(3)
+  })
+
+  it('prefers tile-backed hits when segmentStart is missing', () => {
+    const playlist = [
+      {id: 1},
+      {id: 2, semanticTileIndex: 8},
+    ]
+    const picked = pickFirstSeekableInTopN(playlist, 5)
+    expect(picked.startIndex).toBe(1)
+    expect(picked.item?.id).toBe(2)
   })
 
   it('falls back to first item when none seekable in top N', () => {

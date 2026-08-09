@@ -128,9 +128,14 @@ export function gridTileSeekSeconds(
   if (!Number.isFinite(index) || index < 0 || !Number.isFinite(count) || count <= 0 || index >= count) {
     return null
   }
+  // Match ffmpeg grid mid-slice sampling (integer slice width).
   const durSlice = Number.parseInt(String(duration / count), 10)
   if (!Number.isFinite(durSlice) || durSlice < 0) return null
-  return (index + 0.5) * durSlice
+  const raw = (index + 0.5) * durSlice
+  if (!Number.isFinite(raw) || raw < 0) return null
+  // Never seek past EOF — stale/wrong DB duration or last-tile rounding can overshoot.
+  const maxSeek = Math.max(0, duration - 0.05)
+  return Math.min(raw, maxSeek)
 }
 
 /** Paths, stream labels, and xstack layouts for combining tile PNGs. */
