@@ -5,6 +5,7 @@ import fs from 'fs'
 import { normalizeMediaPath } from '../../../../api/utils/normalizeUserPath'
 import { importStashLibrary } from './stashImport'
 import type { StashImportProgressEvent } from './stashImport'
+import { pushStashLibrary } from './stashGraphql'
 
 export default function createImportFromStashController(db: ApiDb) {
   const createStreamAbortSignal = (req: ApiRequest, res: ApiResponse) => {
@@ -78,7 +79,68 @@ export default function createImportFromStashController(db: ApiDb) {
     }
   }
 
+  const streamPushToStash = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const graphqlUrl = typeof req.body?.graphqlUrl === 'string' ? req.body.graphqlUrl : ''
+      const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : ''
+      if (!graphqlUrl.trim()) {
+        writeEvent({type: 'error', message: 'Stash GraphQL URL is required'})
+        res.end()
+        return
+      }
+      if (!apiKey.trim()) {
+        writeEvent({type: 'error', message: 'Stash API key is required'})
+        res.end()
+        return
+      }
+
+      const mediaIds = Array.isArray(req.body?.mediaIds)
+        ? req.body.mediaIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
+        : undefined
+      const isAborted = createStreamAbortSignal(req, res)
+
+      writeEvent({
+        type: 'progress',
+        phase: 'starting',
+        processed: 0,
+        total: 0,
+      })
+
+      const result = await pushStashLibrary(
+        db,
+        {
+          graphqlUrl,
+          apiKey,
+          mediaIds,
+        },
+        (event) => writeEvent(event),
+        isAborted,
+      )
+
+      writeEvent({
+        type: 'complete',
+        ...result,
+      })
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Stash push failed',
+      })
+      res.end()
+    }
+  }
+
   return {
     streamImportFromStash,
+    streamPushToStash,
   }
 }

@@ -2,7 +2,10 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import { validateBody } from '../middleware/validateBody'
-import { ImportFromStashRequestSchema } from '../../shared/schemas/requests'
+import {
+  ImportFromStashRequestSchema,
+  PushToStashRequestSchema,
+} from '../../shared/schemas/requests'
 import createImportFromStashController from '../plugins/stash/ImportFromStash.controller'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
@@ -13,6 +16,11 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     '/streamImport',
     validateBody(ImportFromStashRequestSchema),
     ImportFromStash.streamImportFromStash,
+  )
+  router.post(
+    '/streamPush',
+    validateBody(PushToStashRequestSchema),
+    ImportFromStash.streamPushToStash,
   )
 
   app.use('/api/stash', router)

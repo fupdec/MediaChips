@@ -45,6 +45,7 @@ function createFakeClient(snapshot: JellyfinLibrarySnapshot): JellyfinClient {
   return {
     listLibraries: async () => [{id: 'lib1', name: 'Movies'}],
     loadLibrarySnapshot: async () => snapshot,
+    updateItemMetadata: async () => undefined,
   }
 }
 

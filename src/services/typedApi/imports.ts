@@ -33,6 +33,16 @@ export type StashImportBody = {
   createMissingMedia?: boolean
 }
 
+export type StashPushBody = {
+  graphqlUrl: string
+  apiKey: string
+  mediaIds?: number[]
+}
+
+export type JellyfinPushBody = MediaServerAuth & {
+  mediaIds?: number[]
+}
+
 export type ImportStreamEvent = {
   type: string
   phase?: string
@@ -51,12 +61,16 @@ export type ImportStreamEvent = {
   mediaUpdated?: number
   mediaSkipped?: number
   markers?: number
+  pushed?: number
+  skipped?: number
+  failed?: number
 }
 
-const MEDIA_SERVER_ROUTES: Record<MediaServerKind, {libraries: string; stream: string}> = {
+const MEDIA_SERVER_ROUTES: Record<MediaServerKind, {libraries: string; stream: string; push?: string}> = {
   jellyfin: {
     libraries: API_ROUTES.jellyfinListLibraries,
     stream: API_ROUTES.jellyfinStreamImport,
+    push: API_ROUTES.jellyfinStreamPush,
   },
   plex: {
     libraries: API_ROUTES.plexListLibraries,
@@ -116,6 +130,43 @@ export const importsApi = {
         body,
         signal: options.signal,
         errorMessage: 'Stash import failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamStashPush(
+    body: StashPushBody,
+    options: {signal?: AbortSignal},
+    onEvent: (event: ImportStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.stashStreamPush,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Stash push failed',
+      },
+      onEvent,
+    )
+  },
+
+  streamMediaServerPush(
+    kind: Extract<MediaServerKind, 'jellyfin'>,
+    body: JellyfinPushBody,
+    options: {signal?: AbortSignal},
+    onEvent: (event: ImportStreamEvent) => void,
+  ) {
+    const route = MEDIA_SERVER_ROUTES[kind]
+    if (!route.push) {
+      throw new Error(`${kind} push is not supported`)
+    }
+    return postApiNdjsonStream(
+      route.push,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: `${kind} push failed`,
       },
       onEvent,
     )

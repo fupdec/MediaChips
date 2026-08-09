@@ -1,10 +1,13 @@
 export {
   mapStashRatingToMediaChips,
+  mapMediaChipsRatingToStash,
+  parseStashOldId,
   stashOldId,
   joinStashFilePath,
   formatSynonyms,
   markerTimeSeconds,
 } from './mapEntities'
+export {findMediaForScene} from './importStashLibrary'
 export {
   openStashDb,
   isStashDatabase,

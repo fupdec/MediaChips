@@ -5,6 +5,7 @@ import {validateBody} from '../middleware/validateBody'
 import {
   ImportFromJellyfinRequestSchema,
   ListJellyfinLibrariesRequestSchema,
+  PushToJellyfinRequestSchema,
 } from '../../shared/schemas/requests'
 import createImportFromJellyfinController from '../plugins/jellyfin/ImportFromJellyfin.controller'
 
@@ -21,6 +22,11 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     '/streamImport',
     validateBody(ImportFromJellyfinRequestSchema),
     controller.streamImportFromJellyfin,
+  )
+  router.post(
+    '/streamPush',
+    validateBody(PushToJellyfinRequestSchema),
+    controller.streamPushToJellyfin,
   )
 
   app.use('/api/jellyfin', router)

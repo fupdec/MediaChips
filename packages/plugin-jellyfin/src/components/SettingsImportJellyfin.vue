@@ -68,6 +68,18 @@
         <v-icon icon="mdi-library" start/>
         {{ t('settings_labels.database.import_jellyfin_load_libraries') }}
       </v-btn>
+
+      <v-btn
+        @click="saveConnection"
+        color="primary"
+        rounded
+        variant="tonal"
+        class="pr-4"
+        :disabled="!canLoadLibraries || active"
+      >
+        <v-icon icon="mdi-content-save-outline" start/>
+        {{ t('settings_labels.database.sync_save_connection') }}
+      </v-btn>
     </div>
 
     <v-select
@@ -94,9 +106,13 @@
       :label="t('settings_labels.database.import_jellyfin_create_missing')"
       density="compact"
       hide-details
-      class="mb-4"
+      class="mb-2"
       :disabled="active"
     />
+
+    <div class="text-caption text-medium-emphasis mb-4">
+      {{ t('settings_labels.database.sync_push_matched_hint') }}
+    </div>
 
     <v-progress-linear
       v-if="active"
@@ -120,8 +136,11 @@
       {{ currentPath }}
     </div>
 
-    <div v-if="lastSummary" class="text-body-2 mb-4">
-      {{ t('settings_labels.database.import_jellyfin_complete', lastSummary) }}
+    <div v-if="lastSummaryText" class="text-body-2 mb-2">
+      {{ lastSummaryText }}
+    </div>
+    <div v-if="lastSyncAt" class="text-caption text-medium-emphasis mb-4">
+      {{ t('settings_labels.database.sync_last_at', {time: lastSyncAt}) }}
     </div>
 
     <v-alert
@@ -136,18 +155,43 @@
     </v-alert>
 
     <div class="d-flex flex-wrap ga-2">
-      <v-btn
-        v-if="!active"
-        @click="startImport"
-        :disabled="!canStart"
-        color="primary"
-        rounded
-        variant="flat"
-        class="pr-4"
-      >
-        <v-icon icon="mdi-play" start/>
-        {{ t('settings_labels.database.import_jellyfin_start') }}
-      </v-btn>
+      <template v-if="!active">
+        <v-btn
+          @click="startSync"
+          :disabled="!canStart"
+          color="primary"
+          rounded
+          variant="flat"
+          class="pr-4"
+        >
+          <v-icon icon="mdi-cloud-download-outline" start/>
+          {{ t('settings_labels.database.sync_from_remote') }}
+        </v-btn>
+
+        <v-btn
+          @click="startPush"
+          :disabled="!canStart"
+          color="primary"
+          rounded
+          variant="tonal"
+          class="pr-4"
+        >
+          <v-icon icon="mdi-cloud-upload-outline" start/>
+          {{ t('settings_labels.database.sync_push_to_remote') }}
+        </v-btn>
+
+        <v-btn
+          @click="startImport"
+          :disabled="!canStart"
+          color="primary"
+          rounded
+          variant="outlined"
+          class="pr-4"
+        >
+          <v-icon icon="mdi-play" start/>
+          {{ t('settings_labels.database.import_jellyfin_start') }}
+        </v-btn>
+      </template>
 
       <v-btn
         v-else
@@ -165,25 +209,30 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
+import {setOption} from '@/services/settingsService'
 import {typedApi} from '@/services/typedApi'
+import {useSettingsStore} from '@/stores/settings'
 
 const {t} = useI18n()
+const settingsStore = useSettingsStore()
 
 const baseUrl = ref('')
 const apiKey = ref('')
-const createMissingMedia = ref(true)
+const createMissingMedia = ref(false)
 const libraries = ref<Array<{id: string; name: string}>>([])
 const selectedLibraryIds = ref<string[]>([])
 const loadingLibraries = ref(false)
 const active = ref(false)
+const mode = ref<'import' | 'sync' | 'push'>('import')
 const currentPath = ref('')
 const phase = ref('')
 const lastError = ref('')
 const lastSummary = ref<Record<string, number> | null>(null)
+const lastSyncAt = ref('')
 const counters = ref({processed: 0, total: 0})
 
 let abortController: AbortController | null = null
@@ -206,6 +255,48 @@ const phaseLabel = computed(() => {
   return translated === key ? phase.value : translated
 })
 
+const lastSummaryText = computed(() => {
+  if (!lastSummary.value) return ''
+  if (mode.value === 'push' || 'pushed' in lastSummary.value) {
+    return t('settings_labels.database.sync_push_complete', lastSummary.value)
+  }
+  return t('settings_labels.database.import_jellyfin_complete', lastSummary.value)
+})
+
+function parseLibraryIds(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((id) => String(id).trim()).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function saveConnection() {
+  setOption(baseUrl.value.trim(), 'jellyfinBaseUrl')
+  setOption(apiKey.value.trim(), 'jellyfinApiKey')
+  setOption(JSON.stringify(selectedLibraryIds.value), 'jellyfinLibraryIds')
+  setOption(createMissingMedia.value ? '1' : '0', 'jellyfinCreateMissingMedia')
+  setNotification({
+    type: 'success',
+    text: t('settings_labels.database.sync_connection_saved'),
+  })
+}
+
+function persistLastRun(kind: 'sync' | 'push', summary: Record<string, number>) {
+  const at = new Date().toISOString()
+  if (kind === 'sync') {
+    setOption(at, 'jellyfinLastSyncAt')
+    setOption(JSON.stringify(summary), 'jellyfinLastSyncSummary')
+    lastSyncAt.value = at
+  } else {
+    setOption(at, 'jellyfinLastPushAt')
+    setOption(JSON.stringify(summary), 'jellyfinLastPushSummary')
+    lastSyncAt.value = at
+  }
+}
+
 const stopImport = () => {
   abortController?.abort()
 }
@@ -220,19 +311,22 @@ const loadLibraries = async () => {
       apiKey: apiKey.value.trim(),
     })
     libraries.value = data.libraries || []
-    selectedLibraryIds.value = libraries.value.map((lib) => lib.id)
+    if (!selectedLibraryIds.value.length) {
+      selectedLibraryIds.value = libraries.value.map((lib) => lib.id)
+    }
   } catch (error) {
     lastError.value = (error as Error)?.message || String(error)
     libraries.value = []
-    selectedLibraryIds.value = []
   } finally {
     loadingLibraries.value = false
   }
 }
 
-const startImport = async () => {
+async function runPull(createMissing: boolean, runMode: 'import' | 'sync') {
   if (active.value || !canStart.value) return
+  saveConnection()
 
+  mode.value = runMode
   active.value = true
   lastError.value = ''
   lastSummary.value = null
@@ -248,7 +342,7 @@ const startImport = async () => {
         baseUrl: baseUrl.value.trim(),
         apiKey: apiKey.value.trim(),
         libraryIds: selectedLibraryIds.value.length ? selectedLibraryIds.value : undefined,
-        createMissingMedia: createMissingMedia.value,
+        createMissingMedia: createMissing,
       },
       {signal: abortController.signal},
       (event) => {
@@ -260,7 +354,7 @@ const startImport = async () => {
           }
           currentPath.value = event.current ? String(event.current) : ''
         } else if (event.type === 'complete') {
-          lastSummary.value = {
+          const summary = {
             people: Number(event.people) || 0,
             genres: Number(event.genres) || 0,
             studios: Number(event.studios) || 0,
@@ -271,9 +365,13 @@ const startImport = async () => {
             mediaSkipped: Number(event.mediaSkipped) || 0,
             markers: Number(event.markers) || 0,
           }
+          lastSummary.value = summary
+          persistLastRun('sync', summary)
           setNotification({
             type: 'success',
-            text: t('settings_labels.database.import_jellyfin_success'),
+            text: t(runMode === 'sync'
+              ? 'settings_labels.database.sync_success'
+              : 'settings_labels.database.import_jellyfin_success'),
           })
         } else if (event.type === 'error') {
           lastError.value = String(event.message || 'Jellyfin import failed')
@@ -293,4 +391,84 @@ const startImport = async () => {
     currentPath.value = ''
   }
 }
+
+const startImport = () => runPull(createMissingMedia.value, 'import')
+const startSync = () => runPull(false, 'sync')
+
+const startPush = async () => {
+  if (active.value || !canStart.value) return
+  saveConnection()
+
+  mode.value = 'push'
+  active.value = true
+  lastError.value = ''
+  lastSummary.value = null
+  currentPath.value = ''
+  phase.value = 'starting'
+  counters.value = {processed: 0, total: 0}
+  abortController = new AbortController()
+
+  try {
+    await typedApi.streamMediaServerPush(
+      'jellyfin',
+      {
+        baseUrl: baseUrl.value.trim(),
+        apiKey: apiKey.value.trim(),
+      },
+      {signal: abortController.signal},
+      (event) => {
+        if (event.type === 'progress') {
+          phase.value = String(event.phase || '')
+          counters.value = {
+            processed: Number(event.processed) || 0,
+            total: Number(event.total) || 0,
+          }
+          currentPath.value = event.current ? String(event.current) : ''
+        } else if (event.type === 'complete') {
+          const summary = {
+            pushed: Number(event.pushed) || 0,
+            skipped: Number(event.skipped) || 0,
+            failed: Number(event.failed) || 0,
+          }
+          lastSummary.value = summary
+          persistLastRun('push', summary)
+          setNotification({
+            type: 'success',
+            text: t('settings_labels.database.sync_push_success'),
+          })
+        } else if (event.type === 'error') {
+          lastError.value = String(event.message || 'Jellyfin push failed')
+        }
+      },
+    )
+  } catch (error) {
+    if ((error as Error)?.name === 'AbortError') {
+      lastError.value = t('settings_labels.database.sync_push_cancelled')
+    } else {
+      lastError.value = (error as Error)?.message || String(error)
+      console.error('Jellyfin push failed:', error)
+    }
+  } finally {
+    active.value = false
+    abortController = null
+    currentPath.value = ''
+  }
+}
+
+onMounted(() => {
+  baseUrl.value = settingsStore.jellyfinBaseUrl || ''
+  apiKey.value = settingsStore.jellyfinApiKey || ''
+  selectedLibraryIds.value = parseLibraryIds(settingsStore.jellyfinLibraryIds || '[]')
+  createMissingMedia.value = settingsStore.jellyfinCreateMissingMedia === '1'
+  lastSyncAt.value = settingsStore.jellyfinLastPushAt || settingsStore.jellyfinLastSyncAt || ''
+  const rawSummary = settingsStore.jellyfinLastPushSummary || settingsStore.jellyfinLastSyncSummary
+  if (rawSummary) {
+    try {
+      lastSummary.value = JSON.parse(rawSummary)
+      mode.value = settingsStore.jellyfinLastPushSummary ? 'push' : 'sync'
+    } catch {
+      lastSummary.value = null
+    }
+  }
+})
 </script>

@@ -232,4 +232,26 @@ describe('importStashLibrary', () => {
     const mediaRepo = createMediaRepository(connection.drizzle)
     expect(mediaRepo.findAllRaw()).toHaveLength(0)
   })
+
+  it('rematches media by stash:scene oldId when path/oshash change', async () => {
+    await importStashLibrary(apiDb, stashDbPath, {createMissingMedia: true})
+    const mediaRepo = createMediaRepository(connection.drizzle)
+    const media = mediaRepo.findAllRaw()[0]
+    expect(media.oldId).toBe('stash:scene:1')
+
+    mediaRepo.updateById(media.id, {
+      path: '/moved/elsewhere.mp4',
+      oshash: 'changed-hash',
+    })
+
+    const second = await importStashLibrary(apiDb, stashDbPath, {createMissingMedia: false})
+    expect(second.mediaMatched).toBe(1)
+    expect(second.mediaSkipped).toBe(0)
+    expect(second.mediaCreated).toBe(0)
+
+    const updated = mediaRepo.findById(media.id)
+    expect(updated?.name).toBe('First Scene')
+    expect(updated?.oldId).toBe('stash:scene:1')
+    expect(mediaRepo.findAllRaw()).toHaveLength(1)
+  })
 })

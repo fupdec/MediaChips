@@ -207,6 +207,19 @@ async function runFfmpegBackground(args: string[]) {
   return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args))
 }
 
+const SINGLE_IMAGE_EXT = /\.(jpe?g|png|webp|bmp|gif)$/i
+
+/** image2 requires -update for a single still without a %03d sequence pattern (FFmpeg 6+). */
+function pushSingleImageOutput(args: string[], output: string, options?: {overwrite?: boolean}) {
+  if (SINGLE_IMAGE_EXT.test(output)) {
+    args.push('-update', '1')
+  }
+  if (options?.overwrite !== false) {
+    args.push('-y')
+  }
+  args.push(output)
+}
+
 async function extractVideoFrame({
   input,
   output,
@@ -236,7 +249,7 @@ async function extractVideoFrame({
     args.push('-q:v', String(jpegQuality))
   }
 
-  args.push('-y', output)
+  pushSingleImageOutput(args, output)
   await runFfmpeg(args)
   return output
 }
@@ -279,7 +292,7 @@ async function extractVideoThumbnail({
     args.push('-q:v', String(jpegQuality))
   }
 
-  args.push('-y', outputPath)
+  pushSingleImageOutput(args, outputPath)
   await runFfmpeg(args)
   return outputPath
 }
@@ -308,9 +321,8 @@ async function extractAudioCoverArt({
     '1',
     '-q:v',
     String(jpegQuality),
-    '-y',
-    outputPath,
   ]
+  pushSingleImageOutput(args, outputPath)
   await runFfmpeg(args)
   return outputPath
 }
@@ -340,7 +352,7 @@ async function combineVideoFrames({
     args.push('-q:v', String(jpegQuality))
   }
 
-  args.push(output)
+  pushSingleImageOutput(args, output, {overwrite: false})
   await runFfmpeg(args)
 }
 

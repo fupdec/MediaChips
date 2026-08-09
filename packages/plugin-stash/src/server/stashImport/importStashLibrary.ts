@@ -158,11 +158,19 @@ function upsertStashTag(
   return created.id
 }
 
-function findMediaForScene(
+export function findMediaForScene(
   mediaRepo: ReturnType<typeof createMediaRepository>,
   scene: StashScene,
   videoMediaTypeId: number,
+  mediaByOldId?: Map<string, number>,
 ) {
+  const sceneOldId = stashOldId('scene', scene.id)
+  const mappedId = mediaByOldId?.get(sceneOldId)
+  if (mappedId != null) {
+    const byOldId = mediaRepo.findById(mappedId)
+    if (byOldId) return byOldId
+  }
+
   if (scene.path) {
     const variants = buildPathLookupVariants(scene.path)
     const byPath = mediaRepo.findByPathVariants(variants)
@@ -262,6 +270,11 @@ export async function importStashLibrary(
     }
   }
 
+  const mediaByOldId = new Map<string, number>()
+  for (const row of mediaRepo.findOldIdMappings()) {
+    if (row.oldId) mediaByOldId.set(String(row.oldId), row.id)
+  }
+
   const performerIdMap = new Map<number, number>()
   const studioIdMap = new Map<number, number>()
   const tagIdMap = new Map<number, number>()
@@ -336,7 +349,7 @@ export async function importStashLibrary(
         continue
       }
 
-      let mediaRow = findMediaForScene(mediaRepo, scene, videoMediaTypeId)
+      let mediaRow = findMediaForScene(mediaRepo, scene, videoMediaTypeId, mediaByOldId)
       let created = false
 
       if (!mediaRow) {
@@ -364,6 +377,7 @@ export async function importStashLibrary(
         counts.mediaMatched += 1
       }
 
+      const sceneOldId = stashOldId('scene', scene.id)
       mediaRepo.updateById(mediaRow.id, {
         name: scene.title || mediaRow.name,
         filesize: scene.filesize || mediaRow.filesize,
@@ -372,9 +386,10 @@ export async function importStashLibrary(
         rating: mapStashRatingToMediaChips(scene.rating),
         views: Math.max(Number(mediaRow.views) || 0, scene.views),
         viewedAt: scene.viewedAt || mediaRow.viewedAt,
-        oldId: stashOldId('scene', scene.id),
+        oldId: sceneOldId,
         mediaTypeId: videoMediaTypeId,
       })
+      mediaByOldId.set(sceneOldId, mediaRow.id)
       counts.mediaUpdated += 1
 
       if (scene.duration != null || scene.width != null || scene.codec) {

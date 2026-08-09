@@ -21,6 +21,26 @@ export function mapJellyfinRatingToMediaChips(rating: number | null | undefined)
   return Math.min(5, Math.round((value / 2) * 10) / 10)
 }
 
+/** MediaChips 0–5 → Jellyfin community rating 0–10. */
+export function mapMediaChipsRatingToJellyfin(rating: number | null | undefined): number | null {
+  if (rating == null || Number.isNaN(Number(rating))) return null
+  const value = Number(rating)
+  if (value <= 0) return 0
+  return Math.min(10, Math.round(value * 2 * 10) / 10)
+}
+
+/** Parse `jellyfin:item:{id}` / `emby:item:{id}` → remote item id. */
+export function parseJellyfinItemOldId(
+  oldId: string | null | undefined,
+  prefix: JellyfinOldIdPrefix = 'jellyfin',
+): string | null {
+  const raw = String(oldId || '').trim()
+  const needle = `${prefix}:item:`
+  if (!raw.startsWith(needle)) return null
+  const id = raw.slice(needle.length).trim()
+  return id || null
+}
+
 /** 10_000_000 ticks = 1 second */
 export function ticksToSeconds(ticks: number | null | undefined): number | null {
   if (ticks == null || Number.isNaN(Number(ticks))) return null

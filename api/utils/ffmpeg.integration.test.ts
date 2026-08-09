@@ -68,4 +68,23 @@ describeIntegration('ffmpeg integration', () => {
     expect(fs.existsSync(out)).toBe(true)
     expect(fs.statSync(out).size).toBeGreaterThan(500)
   })
+
+  it('extractVideoThumbnail can overwrite the same jpg path (image2 -update)', async () => {
+    const out = path.join(tmpDir, 'thumb-overwrite.jpg')
+    await extractVideoThumbnail({
+      input: sampleMp4,
+      outputPath: out,
+      height: 120,
+      seekRatio: 0.25,
+    })
+    const firstSize = fs.statSync(out).size
+    await extractVideoThumbnail({
+      input: sampleMp4,
+      outputPath: out,
+      height: 200,
+      seekRatio: 0.75,
+    })
+    expect(fs.statSync(out).size).toBeGreaterThan(500)
+    expect(fs.statSync(out).size).not.toBe(firstSize)
+  })
 })

@@ -33,9 +33,15 @@ function asString(value: unknown): string | null {
   return text || null
 }
 
+export type JellyfinItemMetadataUpdate = {
+  communityRating?: number | null
+  genres?: string[]
+}
+
 export interface JellyfinClient {
   listLibraries: () => Promise<JellyfinLibraryInfo[]>
   loadLibrarySnapshot: (libraryIds?: string[]) => Promise<JellyfinLibrarySnapshot>
+  updateItemMetadata: (itemId: string, updates: JellyfinItemMetadataUpdate) => Promise<void>
 }
 
 export function createJellyfinClient(options: {
@@ -54,30 +60,71 @@ export function createJellyfinClient(options: {
     throw new Error('Jellyfin API key is required')
   }
 
-  async function request(pathname: string, query: Record<string, string | number | undefined> = {}) {
+  async function request(
+    pathname: string,
+    query: Record<string, string | number | undefined> = {},
+    init: {method?: string; body?: unknown} = {},
+  ) {
     const url = new URL(pathname.replace(/^\//, ''), `${baseUrl}/`)
     for (const [key, value] of Object.entries(query)) {
       if (value == null || value === '') continue
       url.searchParams.set(key, String(value))
     }
 
+    const method = init.method || 'GET'
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'X-Emby-Token': apiKey,
+      Authorization: `MediaBrowser Token="${apiKey}"`,
+    }
+    let body: string | undefined
+    if (init.body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+      body = JSON.stringify(init.body)
+    }
+
     const response = await fetchImpl(url.toString(), {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'X-Emby-Token': apiKey,
-        Authorization: `MediaBrowser Token="${apiKey}"`,
-      },
+      method,
+      headers,
+      body,
     })
 
     if (!response.ok) {
-      const body = await response.text().catch(() => '')
+      const text = await response.text().catch(() => '')
       throw new Error(
-        `Jellyfin request failed (${response.status} ${response.statusText})${body ? `: ${body.slice(0, 200)}` : ''}`,
+        `Jellyfin request failed (${response.status} ${response.statusText})${text ? `: ${text.slice(0, 200)}` : ''}`,
       )
     }
 
+    if (response.status === 204) return null
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      const text = await response.text().catch(() => '')
+      return text ? text : null
+    }
     return response.json() as Promise<unknown>
+  }
+
+  async function updateItemMetadata(itemId: string, updates: JellyfinItemMetadataUpdate) {
+    const id = String(itemId || '').trim()
+    if (!id) throw new Error('Jellyfin item id is required')
+
+    const existing = asRecord(await request(`/Items/${encodeURIComponent(id)}`))
+    if (!existing) {
+      throw new Error(`Jellyfin item not found: ${id}`)
+    }
+
+    const next: JsonRecord = {...existing}
+    if (Object.prototype.hasOwnProperty.call(updates, 'communityRating')) {
+      next.CommunityRating = updates.communityRating == null
+        ? null
+        : Number(updates.communityRating)
+    }
+    if (updates.genres) {
+      next.Genres = updates.genres.map((name) => String(name || '').trim()).filter(Boolean)
+    }
+
+    await request(`/Items/${encodeURIComponent(id)}`, {}, {method: 'POST', body: next})
   }
 
   async function fetchAllItems(query: Record<string, string | number | undefined>): Promise<JsonRecord[]> {
@@ -307,5 +354,6 @@ export function createJellyfinClient(options: {
   return {
     listLibraries,
     loadLibrarySnapshot,
+    updateItemMetadata,
   }
 }

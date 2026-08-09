@@ -161,6 +161,22 @@ export type SettingsState = {
   tpdbApiKey: string
   tmdbApiKey: string
   tmdbPersonMetaId: string
+  jellyfinBaseUrl: string
+  jellyfinApiKey: string
+  jellyfinLibraryIds: string
+  jellyfinCreateMissingMedia: string
+  jellyfinLastSyncAt: string
+  jellyfinLastSyncSummary: string
+  jellyfinLastPushAt: string
+  jellyfinLastPushSummary: string
+  stashDbPath: string
+  stashGraphqlUrl: string
+  stashApiKey: string
+  stashCreateMissingMedia: string
+  stashLastSyncAt: string
+  stashLastSyncSummary: string
+  stashLastPushAt: string
+  stashLastPushSummary: string
   scraperPerformerGender: string
   sceneAutoApplyOnExactMatch: string
   sceneScraperImportMarkers: string
@@ -280,6 +296,22 @@ export const defaultSettingsState = (): SettingsState => ({
   tpdbApiKey: '',
   tmdbApiKey: '',
   tmdbPersonMetaId: '',
+  jellyfinBaseUrl: '',
+  jellyfinApiKey: '',
+  jellyfinLibraryIds: '[]',
+  jellyfinCreateMissingMedia: '0',
+  jellyfinLastSyncAt: '',
+  jellyfinLastSyncSummary: '',
+  jellyfinLastPushAt: '',
+  jellyfinLastPushSummary: '',
+  stashDbPath: '',
+  stashGraphqlUrl: '',
+  stashApiKey: '',
+  stashCreateMissingMedia: '0',
+  stashLastSyncAt: '',
+  stashLastSyncSummary: '',
+  stashLastPushAt: '',
+  stashLastPushSummary: '',
   scraperPerformerGender: 'Female',
   sceneAutoApplyOnExactMatch: '0',
   sceneScraperImportMarkers: '1',

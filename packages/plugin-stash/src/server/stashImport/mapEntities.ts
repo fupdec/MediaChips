@@ -16,6 +16,27 @@ export function stashOldId(kind: StashEntityKind, id: number): string {
   return `stash:${kind}:${id}`
 }
 
+/** MediaChips 0–5 → Stash rating100 (0–100). */
+export function mapMediaChipsRatingToStash(rating: number | null | undefined): number | null {
+  if (rating == null || Number.isNaN(Number(rating))) return null
+  const value = Number(rating)
+  if (value <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round(value * 20)))
+}
+
+/** Parse `stash:{kind}:{id}` → kind + numeric id. */
+export function parseStashOldId(
+  oldId: string | null | undefined,
+): {kind: StashEntityKind; id: number} | null {
+  const raw = String(oldId || '').trim()
+  const match = /^stash:(performer|studio|tag|scene):(\d+)$/.exec(raw)
+  if (!match) return null
+  return {
+    kind: match[1] as StashEntityKind,
+    id: Number(match[2]),
+  }
+}
+
 export function joinStashFilePath(folderPath: string | null | undefined, basename: string | null | undefined): string | null {
   const base = String(basename || '').trim()
   if (!base) return null

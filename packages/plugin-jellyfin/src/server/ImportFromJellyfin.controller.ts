@@ -1,7 +1,7 @@
 import type {ApiDb} from '../../../../api/types/db'
 import {apiErrorMessage} from '../../../../api/types/errors'
 import type {ApiRequest, ApiResponse} from '../../../../api/types/http'
-import {createJellyfinClient, importJellyfinLibrary} from './jellyfinImport'
+import {createJellyfinClient, importJellyfinLibrary, pushJellyfinLibrary} from './jellyfinImport'
 import type {JellyfinImportProgressEvent, JellyfinOldIdPrefix} from './jellyfinImport'
 
 function parseCreateMissingMedia(value: unknown): boolean {
@@ -108,8 +108,70 @@ export default function createImportFromJellyfinController(
     }
   }
 
+  const streamPushToJellyfin = async (req: ApiRequest, res: ApiResponse) => {
+    const writeEvent = (event: Record<string, unknown>) => {
+      res.write(`${JSON.stringify(event)}\n`)
+    }
+
+    try {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Accel-Buffering', 'no')
+
+      const baseUrl = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
+      const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : ''
+      if (!baseUrl.trim()) {
+        writeEvent({type: 'error', message: 'Jellyfin server URL is required'})
+        res.end()
+        return
+      }
+      if (!apiKey.trim()) {
+        writeEvent({type: 'error', message: 'Jellyfin API key is required'})
+        res.end()
+        return
+      }
+
+      const mediaIds = Array.isArray(req.body?.mediaIds)
+        ? req.body.mediaIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
+        : undefined
+      const isAborted = createStreamAbortSignal(req, res)
+
+      writeEvent({
+        type: 'progress',
+        phase: 'starting',
+        processed: 0,
+        total: 0,
+      })
+
+      const result = await pushJellyfinLibrary(
+        db,
+        {
+          baseUrl,
+          apiKey,
+          oldIdPrefix,
+          mediaIds,
+        },
+        (event) => writeEvent(event),
+        isAborted,
+      )
+
+      writeEvent({
+        type: 'complete',
+        ...result,
+      })
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Jellyfin push failed',
+      })
+      res.end()
+    }
+  }
+
   return {
     listLibraries,
     streamImportFromJellyfin,
+    streamPushToJellyfin,
   }
 }
