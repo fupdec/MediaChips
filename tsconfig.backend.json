@@ -32,5 +32,9 @@
     "packages/plugin-plex/src/server/**/*.ts",
     "packages/plugin-emby/src/server/**/*.ts",
     "packages/plugin-tmdb/src/server/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }

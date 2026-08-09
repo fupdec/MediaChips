@@ -152,6 +152,7 @@ export const API_ROUTES = {
   taskStreamVideoCodecBackfill: '/api/Task/streamVideoCodecBackfill',
   taskVideoImagesGenerationStatus: '/api/Task/videoImagesGenerationStatus',
   taskStreamVideoImagesGeneration: '/api/Task/streamVideoImagesGeneration',
+  taskVisualSearchQuickSample: '/api/Task/visualSearchQuickSample',
   taskAutoChapterGenerationStatus: '/api/Task/autoChapterGenerationStatus',
   taskGenerateAutoChapters: '/api/Task/generateAutoChapters',
   taskStreamAutoChapterGeneration: '/api/Task/streamAutoChapterGeneration',

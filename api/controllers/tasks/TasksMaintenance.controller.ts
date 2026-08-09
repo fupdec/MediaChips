@@ -37,7 +37,9 @@ import {
 import {
   getClipEmbeddingBackfillStatus,
   iterateClipEmbeddingBackfill,
+  listVisualSearchQuickSampleIds,
 } from '../../services/mediaClipEmbeddings'
+import {clampVisualSearchQuickSampleSize} from '../../../shared/visualSearchQuick'
 import {
   generateAutoChaptersForMedia,
   getAutoChapterGenerationStatus,
@@ -134,13 +136,28 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
   const streamVideoImagesGeneration = async (req: ApiRequest, res: ApiResponse) => {
     const imageType = String(req.query.type || '').toLowerCase()
+    const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : undefined
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while generating video images.',
       iterate: (shouldStop) => getVideoImagesGeneration().iterateVideoImagesGeneration(db, getDbPath(), imageType, {
         shouldStop,
-        force: String(req.query.force || '').toLowerCase() === 'true',
+        force: String(req.query.force || '').toLowerCase() === 'true'
+          || Boolean(req.body?.force),
+        mediaIds,
       }),
     })
+  }
+
+  const visualSearchQuickSample = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const limit = clampVisualSearchQuickSampleSize(
+        req.query?.limit != null ? Number(req.query.limit) : undefined,
+      )
+      const ids = listVisualSearchQuickSampleIds(db, limit)
+      sendOk(res, {ids, limit, count: ids.length})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while building visual search sample.')
+    }
   }
 
   const autoChapterGenerationStatus = async (_req: ApiRequest, res: ApiResponse) => {
@@ -390,6 +407,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamImageThumbsGeneration,
     videoImagesGenerationStatus,
     streamVideoImagesGeneration,
+    visualSearchQuickSample,
     autoChapterGenerationStatus,
     generateAutoChapters,
     streamAutoChapterGeneration,

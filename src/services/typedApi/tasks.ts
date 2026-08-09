@@ -451,7 +451,12 @@ export const tasksApi = {
   },
 
   streamVideoImagesGeneration(
-    options: {type: 'preview' | 'grid' | 'marks'; force?: boolean; signal?: AbortSignal},
+    options: {
+      type: 'preview' | 'grid' | 'marks'
+      force?: boolean
+      signal?: AbortSignal
+      mediaIds?: number[]
+    },
     onEvent: (event: GenerationStreamEvent) => void,
   ) {
     return postApiNdjsonStream(
@@ -459,9 +464,20 @@ export const tasksApi = {
       {
         signal: options.signal,
         query: {type: options.type, force: options.force === true},
+        body: {
+          force: options.force === true,
+          ...(options.mediaIds?.length ? {mediaIds: options.mediaIds} : {}),
+        },
         errorMessage: 'Video images generation request failed',
       },
       onEvent,
+    )
+  },
+
+  getVisualSearchQuickSample(limit?: number) {
+    return apiClient.get<{ids: number[]; limit: number; count: number}>(
+      API_ROUTES.taskVisualSearchQuickSample,
+      {params: limit != null ? {limit} : undefined},
     )
   },
 

@@ -214,6 +214,12 @@ async function getVideoImagesGenerationStatus(db: ApiDb, dbPath: string): Promis
   }
 }
 
+function normalizeMediaIds(mediaIds?: Array<number | string> | null): number[] | null {
+  if (!Array.isArray(mediaIds) || !mediaIds.length) return null
+  const ids = [...new Set(mediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+  return ids.length ? ids : null
+}
+
 async function* iterateVideoImagesGeneration(
   db: ApiDb,
   dbPath: string,
@@ -221,10 +227,12 @@ async function* iterateVideoImagesGeneration(
   {
     shouldStop = () => false,
     force = false,
+    mediaIds,
   }: VideoImageGenerationOptions = {},
 ): AsyncGenerator<VideoImageGenerationProgressEvent> {
   const mediaRepo = createMediaRepository(db.drizzle)
   const marksRepo = createMarksRepository(db.drizzle)
+  const requestedIds = imageType === 'marks' ? null : normalizeMediaIds(mediaIds)
 
   if (!IMAGE_TYPES.includes(imageType)) {
     yield {type: 'error', message: `Unknown image type: ${imageType}`}
@@ -232,7 +240,9 @@ async function* iterateVideoImagesGeneration(
   }
 
   let total = 0
-  if (imageType === 'marks') {
+  if (requestedIds?.length) {
+    total = requestedIds.length
+  } else if (imageType === 'marks') {
     total = marksRepo.countAll()
   } else {
     const videoTypeId = await getVideoMediaTypeId(db)
@@ -249,6 +259,7 @@ async function* iterateVideoImagesGeneration(
   let missing = 0
   let failed = 0
   let lastId = 0
+  let requestIndex = 0
 
   yield {
     type: 'progress',
@@ -264,7 +275,29 @@ async function* iterateVideoImagesGeneration(
   while (!shouldStop()) {
     let item: VideoImageItem | null = null
 
-    if (imageType === 'marks') {
+    if (requestedIds?.length) {
+      if (requestIndex >= requestedIds.length) break
+      const id = requestedIds[requestIndex]
+      requestIndex += 1
+      const row = mediaRepo.findById(id)
+      if (!row) {
+        processed += 1
+        missing += 1
+        yield {
+          type: 'progress',
+          processed,
+          total,
+          remaining: Math.max(total - processed, 0),
+          created,
+          skipped,
+          missing,
+          failed,
+          lastStatus: 'missing',
+        }
+        continue
+      }
+      item = row as VideoImageItem
+    } else if (imageType === 'marks') {
       const markRow = marksRepo.findNextWithMediaAfterId(lastId)
       if (!markRow) break
       item = {

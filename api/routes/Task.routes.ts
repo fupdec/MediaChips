@@ -173,6 +173,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/streamVideoCodecBackfill', 'streamVideoCodecBackfill')
   register('get', '/videoImagesGenerationStatus', 'videoImagesGenerationStatus')
   register('post', '/streamVideoImagesGeneration', 'streamVideoImagesGeneration')
+  register('get', '/visualSearchQuickSample', 'visualSearchQuickSample')
   register('get', '/autoChapterGenerationStatus', 'autoChapterGenerationStatus')
   register('post', '/generateAutoChapters', 'generateAutoChapters', validateBody(GenerateAutoChaptersRequestSchema))
   register('post', '/streamAutoChapterGeneration', 'streamAutoChapterGeneration', validateBody(AutoChapterStreamRequestSchema))

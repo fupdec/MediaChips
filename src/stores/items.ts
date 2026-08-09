@@ -298,15 +298,27 @@ export const useItemsStore = defineStore('items', {
       let targetVideo = ensureMediaItem(toRaw(video))
 
       if (hasPlaylist) {
+        // Prefer the requested video (e.g. semantic seek hit / marker clip).
+        // trustPath only skips filesystem checks — it must not replace the target
+        // with playlist[0], or scene seeks land on the wrong file.
         if (trustPath) {
-          targetVideo = (playlistVideos || []).find((item) => item?.path)
-            || (playlistVideos || [])[0]
-            || targetVideo
+          if (!targetVideo?.path) {
+            targetVideo = (playlistVideos || []).find((item) => item?.path)
+              || (playlistVideos || [])[0]
+              || targetVideo
+          }
         } else {
-          const playable = await this.findFirstPlayableVideo(playlistVideos || [])
-          targetVideo = playable
-            || (playlistVideos || []).find((item) => item?.path)
-            || (playlistVideos || [])[0]
+          const requestedPath = targetVideo?.path
+          const requestedOk = requestedPath
+            ? await checkFileExists(requestedPath)
+            : false
+          if (!requestedOk) {
+            const playable = await this.findFirstPlayableVideo(playlistVideos || [])
+            targetVideo = playable
+              || (playlistVideos || []).find((item) => item?.path)
+              || (playlistVideos || [])[0]
+              || targetVideo
+          }
         }
 
         if (!targetVideo) {
@@ -361,11 +373,14 @@ export const useItemsStore = defineStore('items', {
         }
       }
 
+      const explicitTime = time != null && Number.isFinite(Number(time)) ? Number(time) : null
       const data = {
         video: targetVideo,
         videos: playlistVideos,
-        time: getSegmentStart(targetVideo)
-          ?? (time != null && Number.isFinite(Number(time)) ? Number(time) : 0),
+        // Explicit seek (semantic scene / marker) wins over item.segmentStart.
+        time: explicitTime != null
+          ? explicitTime
+          : (getSegmentStart(targetVideo) ?? 0),
       };
 
       if (

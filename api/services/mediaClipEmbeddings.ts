@@ -19,6 +19,7 @@ import {
 } from './clipEmbeddingModel'
 import {translateQueryToEnglish} from './semanticQueryTranslate'
 import {VIDEO_GRID_SPRITE, gridTileSeekSeconds} from '../../shared/videoPreview'
+import {clampVisualSearchQuickSampleSize} from '../../shared/visualSearchQuick'
 
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
@@ -86,6 +87,13 @@ function buildSemanticHits(
       time,
     }
   })
+}
+
+function countSeekableSemanticHits(hits: SemanticSearchHit[]): number {
+  return hits.filter((hit) => {
+    const time = Number(hit?.time)
+    return Number.isFinite(time) && time > 0
+  }).length
 }
 
 function nowIso() {
@@ -210,6 +218,43 @@ function packedClipTileCount(embedding: Buffer | Uint8Array | null | undefined, 
 function expectedClipTileCountForPreview(previewPath: string | null): number {
   if (!previewPath) return 0
   return isVideoGridPreviewPath(previewPath) ? VIDEO_GRID_TILE_COUNT : 1
+}
+
+/**
+ * Recent videos that still need grids / CLIP — small sample for instant Find scene wow.
+ * Prefer missing grids, then embeddings that are not full 9-tile yet.
+ */
+function listVisualSearchQuickSampleIds(
+  db: ApiDb,
+  limit?: number | null,
+): number[] {
+  const max = clampVisualSearchQuickSampleSize(limit)
+  const dbPath = String(db.path || '')
+  const scan = Math.min(max * 10, 500)
+  const rows = queryAll<{id: number}>(db, `
+    SELECT m.id AS id
+    FROM media m
+    INNER JOIN mediaTypes mt ON mt.id = m.mediaTypeId
+    WHERE mt.type = 'video'
+    ORDER BY m.id DESC
+    LIMIT :scan
+  `, {scan})
+
+  const missingGrid: number[] = []
+  const needsUpgrade: number[] = []
+  for (const row of rows) {
+    const id = Number(row.id)
+    if (!Number.isFinite(id) || id <= 0) continue
+    const gridPath = getVideoGridPath(dbPath, id)
+    if (!dbPath || !fs.existsSync(gridPath)) {
+      missingGrid.push(id)
+    } else if (needsClipEmbeddingUpgrade(db, id)) {
+      needsUpgrade.push(id)
+    }
+    if (missingGrid.length >= max) break
+  }
+
+  return [...missingGrid, ...needsUpgrade].slice(0, max)
 }
 
 function needsClipEmbeddingUpgrade(db: ApiDb, mediaId: number): boolean {
@@ -506,6 +551,7 @@ async function semanticSearchMedia(
     return {
       ids: [] as number[],
       hits: [] as SemanticSearchHit[],
+      seekableCount: 0,
       missingEmbeddingsCount: 0,
       indexedCount: 0,
       previewCandidatesCount: 0,
@@ -531,6 +577,7 @@ async function semanticSearchMedia(
     return {
       ids: [] as number[],
       hits: [] as SemanticSearchHit[],
+      seekableCount: 0,
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,
@@ -565,6 +612,7 @@ async function semanticSearchMedia(
       return {
         ids: [] as number[],
         hits: [] as SemanticSearchHit[],
+        seekableCount: 0,
         missingEmbeddingsCount,
         indexedCount,
         previewCandidatesCount,
@@ -587,6 +635,7 @@ async function semanticSearchMedia(
     return {
       ids,
       hits,
+      seekableCount: countSeekableSemanticHits(hits),
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,
@@ -596,6 +645,7 @@ async function semanticSearchMedia(
     return {
       ids: [] as number[],
       hits: [] as SemanticSearchHit[],
+      seekableCount: 0,
       missingEmbeddingsCount,
       indexedCount,
       previewCandidatesCount,
@@ -667,10 +717,13 @@ async function findSimilarByClip(
 
 export {
   CLIP_EMBEDDING_INDEX_KEY,
+  buildSemanticHits,
+  countSeekableSemanticHits,
   findSimilarByClip,
   getClipEmbeddingBackfillStatus,
   iterateClipEmbeddingBackfill,
   isVideoGridPreviewPath,
+  listVisualSearchQuickSampleIds,
   resolvePreviewImagePath,
   semanticSearchMedia,
   upsertClipEmbeddingForMedia,

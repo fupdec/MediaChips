@@ -295,6 +295,9 @@ function openSettingsSection(section?: string) {
 }
 
 function actionForQueueItem(item: HomeHealthQueueItemUi): () => void {
+  if (item.id === 'clip' && item.autoFixable) {
+    return () => { void fixClipIndex() }
+  }
   return () => openSettingsSection(item.settingsSection)
 }
 
@@ -304,7 +307,7 @@ function actionLabelForQueueItem(item: HomeHealthQueueItemUi): string {
   if (item.id === 'faces') return t('home.widgets.health_open_faces')
   if (item.id === 'clip') {
     return item.autoFixable
-      ? t('home.widgets.health_open_clip')
+      ? t('home.widgets.health_run_clip')
       : t('home.widgets.health_open_clip_setup')
   }
   if (item.id === 'visuals') return t('home.widgets.health_open_image_generation')
@@ -368,6 +371,60 @@ async function fixSafeIssues() {
   const ok = await healthFix.run(
     health.value,
     String(settingsStore.locale || locale.value || 'en') as Locale,
+  )
+  if (ok) await runCheck()
+}
+
+async function fixClipIndex() {
+  if (healthFix.state.value.running) return
+  let mediaIds: number[] = []
+  try {
+    const sampleRes = await typedApi.getVisualSearchQuickSample()
+    mediaIds = Array.isArray(sampleRes.data?.ids)
+      ? sampleRes.data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+      : []
+  } catch (error) {
+    console.error(error)
+  }
+
+  const ok = await healthFix.runStages(
+    ['grid', 'clip'],
+    String(settingsStore.locale || locale.value || 'en') as Locale,
+    {
+      health: health.value,
+      mediaIds: mediaIds.length ? mediaIds : undefined,
+      titleKey: mediaIds.length
+        ? 'globalSearch.setup_visual_search_quick'
+        : 'globalSearch.setup_visual_search_full',
+      doneKey: mediaIds.length
+        ? 'globalSearch.setup_visual_search_quick_done'
+        : 'globalSearch.setup_visual_search_full_done',
+      titleParams: mediaIds.length ? {count: mediaIds.length} : undefined,
+      doneParams: mediaIds.length ? {count: mediaIds.length} : undefined,
+      doneActions: mediaIds.length
+        ? [{
+          id: 'visual-search-full',
+          text: t('globalSearch.setup_visual_search_full'),
+          icon: 'database-sync-outline',
+          action: () => { void fixClipIndexFull() },
+          hide: true,
+        }]
+        : undefined,
+    },
+  )
+  if (ok) await runCheck()
+}
+
+async function fixClipIndexFull() {
+  if (healthFix.state.value.running) return
+  const ok = await healthFix.runStages(
+    ['grid', 'clip'],
+    String(settingsStore.locale || locale.value || 'en') as Locale,
+    {
+      health: health.value,
+      titleKey: 'globalSearch.setup_visual_search_full',
+      doneKey: 'globalSearch.setup_visual_search_full_done',
+    },
   )
   if (ok) await runCheck()
 }

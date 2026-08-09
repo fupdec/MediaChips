@@ -119,11 +119,14 @@ export default function taskVideoCoreController(db: ApiDb) {
 
   const streamVideoImagesGeneration = async (req: ApiRequest, res: ApiResponse) => {
     const imageType = String(req.query.type || '').toLowerCase() as VideoImageType
+    const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : undefined
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while generating video images.',
       iterate: (shouldStop) => iterateVideoImagesGeneration(db, getDbPath(), imageType, {
         shouldStop,
-        force: String(req.query.force || '').toLowerCase() === 'true',
+        force: String(req.query.force || '').toLowerCase() === 'true'
+          || Boolean(req.body?.force),
+        mediaIds,
       }),
     })
   }

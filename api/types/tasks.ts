@@ -63,7 +63,11 @@ export interface VideoImagesGenerationService {
     db: ApiDb,
     dbPath: string | undefined,
     imageType: string,
-    options?: { shouldStop?: () => boolean; force?: boolean },
+    options?: {
+      shouldStop?: () => boolean
+      force?: boolean
+      mediaIds?: Array<number | string>
+    },
   ): AsyncIterable<Record<string, unknown>>
 }
 

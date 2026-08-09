@@ -112,6 +112,7 @@
               hide-details
               clearable
               class="mb-3"
+              @click:clear="suggestionFilter = ''"
             />
 
             <div class="suggestion-chips mb-3">
@@ -318,7 +319,7 @@ const suggestionExistingCount = computed(() => (
 ))
 
 const filteredSuggestions = computed(() => {
-  const query = suggestionFilter.value.trim().toLowerCase()
+  const query = String(suggestionFilter.value || '').trim().toLowerCase()
   if (!query) return suggestions.value
   return suggestions.value.filter((name) => name.toLowerCase().includes(query))
 })

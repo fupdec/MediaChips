@@ -12,6 +12,7 @@ import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useImageViewerStore} from '@/stores/imageViewer'
 import {useSettingsStore} from '@/stores/settings'
+import {useNotificationsStore} from '@/stores/notifications'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
@@ -30,7 +31,17 @@ import {
   resolveNlPlaylistMix,
   saveNlPlaylistMix,
 } from '@/services/nlPlaylistMix'
+import {
+  hasUsableSceneSeek,
+  pickFirstSeekableInTopN,
+} from '@/services/semanticScenePlay'
+import {
+  useLibraryHealthFixQueue,
+  type LibraryHealthFixStage,
+} from '@/composable/useLibraryHealthFixQueue'
+import {VISUAL_SEARCH_QUICK_SAMPLE_SIZE} from '@shared/visualSearchQuick'
 import type { ContextMenuEntry, MediaItem, Meta, Tag } from '@/types/stores'
+import type {Locale} from '@/utils/translate'
 
 type MatchedSearchTag = {
   id: number
@@ -100,12 +111,14 @@ const playerStore = usePlayerStore()
 const imageViewerStore = useImageViewerStore()
 const contextMenuStore = useContextMenu()
 const settingsStore = useSettingsStore()
+const healthFix = useLibraryHealthFixQueue()
 
 type SemanticHealth = {
   modelStatus: string
   indexedCount: number
   previewCandidatesCount: number
   missingEmbeddingsCount: number
+  seekableCount?: number
   searched: boolean
   failed: boolean
   translated: boolean
@@ -297,6 +310,104 @@ function openSemanticSettings() {
     query: {tab: 'database', section: 'clip_embedding_backfill'},
   })
 }
+
+function resolveVisualSearchSetupStages(): LibraryHealthFixStage[] {
+  // Grid generation also writes CLIP embeddings for those videos.
+  return ['grid', 'clip']
+}
+
+async function runVisualSearchSetup(options: {
+  stages: LibraryHealthFixStage[]
+  titleKey: string
+  doneKey: string
+  titleParams?: Record<string, string | number>
+  doneParams?: Record<string, string | number>
+  mediaIds?: number[]
+  doneActions?: Array<{
+    id: string
+    text: string
+    icon?: string
+    action: () => void
+    hide?: boolean
+  }>
+}) {
+  if (healthFix.state.value.running) return
+  dialog.value = false
+  const ok = await healthFix.runStages(
+    options.stages,
+    String(locale.value || 'en') as Locale,
+    {
+      titleKey: options.titleKey,
+      doneKey: options.doneKey,
+      titleParams: options.titleParams,
+      doneParams: options.doneParams,
+      mediaIds: options.mediaIds,
+      doneActions: options.doneActions,
+    },
+  )
+  if (ok) await refreshSemanticHealth()
+}
+
+async function setupVisualSearchFull() {
+  if (!semanticModelReady.value) {
+    openSemanticSettings()
+    return
+  }
+  await runVisualSearchSetup({
+    stages: resolveVisualSearchSetupStages(),
+    titleKey: 'globalSearch.setup_visual_search_full',
+    doneKey: 'globalSearch.setup_visual_search_full_done',
+  })
+}
+
+async function setupVisualSearchQuick() {
+  if (!semanticModelReady.value) {
+    openSemanticSettings()
+    return
+  }
+  if (healthFix.state.value.running) return
+
+  let mediaIds: number[] = []
+  try {
+    const sampleRes = await typedApi.getVisualSearchQuickSample(VISUAL_SEARCH_QUICK_SAMPLE_SIZE)
+    mediaIds = Array.isArray(sampleRes.data?.ids)
+      ? sampleRes.data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+      : []
+  } catch (error) {
+    console.error(error)
+  }
+
+  if (!mediaIds.length) {
+    // Nothing pending in the sample — offer full library instead.
+    await setupVisualSearchFull()
+    return
+  }
+
+  const count = mediaIds.length
+  await runVisualSearchSetup({
+    stages: resolveVisualSearchSetupStages(),
+    titleKey: 'globalSearch.setup_visual_search_quick',
+    doneKey: 'globalSearch.setup_visual_search_quick_done',
+    titleParams: {count},
+    doneParams: {count},
+    mediaIds,
+    doneActions: [
+      {
+        id: 'visual-search-full',
+        text: t('globalSearch.setup_visual_search_full'),
+        icon: 'database-sync-outline',
+        action: () => { void setupVisualSearchFull() },
+        hide: true,
+      },
+    ],
+  })
+}
+
+async function enableSceneJump() {
+  await setupVisualSearchQuick()
+}
+
+const visualSearchQuickSampleSize = VISUAL_SEARCH_QUICK_SAMPLE_SIZE
 const meta = computed(() => app.meta)
 const mediaTypes = computed(() => app.mediaTypes)
 
@@ -787,6 +898,11 @@ async function searchSemantic() {
       }
     }
 
+    const seekableCount = Number(
+      searchRes.data?.seekableCount
+      ?? [...hitTimes.values()].filter((time) => hasUsableSceneSeek(time)).length,
+    )
+
     semanticHealth.value = {
       modelStatus: String(searchRes.data?.modelStatus || semanticHealth.value?.modelStatus || 'unknown'),
       indexedCount: Number(searchRes.data?.indexedCount ?? semanticHealth.value?.indexedCount ?? 0),
@@ -800,6 +916,7 @@ async function searchSemantic() {
         ?? semanticHealth.value?.missingEmbeddingsCount
         ?? 0,
       ),
+      seekableCount,
       searched: true,
       failed: Boolean(searchRes.data?.error),
       translated: Boolean(searchRes.data?.translated),
@@ -867,34 +984,101 @@ async function searchSemantic() {
       return
     }
 
-    const first = playlist[0]
+    const first = pickFirstSeekableInTopN(playlist, 5).item || playlist[0]
     const seekTime = Number(first.segmentStart)
-    const hasSeek = Number.isFinite(seekTime) && seekTime > 0
+    const hasSeek = hasUsableSceneSeek(seekTime)
+    const queryLabel = scopeLabel || q
 
-    await itemsStore.playVideo({
-      video: first,
-      time: hasSeek ? seekTime : 0,
-      videos: playlist,
-      trustPath: true,
-    })
+    const playMatchingScene = async () => {
+      const ok = await itemsStore.playVideo({
+        video: first,
+        time: hasSeek ? seekTime : 0,
+        videos: playlist,
+        trustPath: true,
+        player: 'builtin',
+      })
+      // Same file already open: force an explicit seek in the builtin player.
+      if (ok && hasSeek && Number(playerStore.media?.id) === Number(first.id)) {
+        await nextTick()
+        playerStore.playerJumpTo(seekTime)
+      }
+      return ok
+    }
 
-    setNotification({
+    const markSceneJumpDone = (notificationId?: number) => {
+      if (notificationId == null || !hasSeek) return
+      useNotificationsStore().updateNotification(notificationId, {
+        title: t('globalSearch.scene_play_jumped_title'),
+        text: t('globalSearch.scene_play_jumped_query', {
+          time: formatSceneSeekTime(seekTime),
+          query: queryLabel,
+        }),
+        icon: 'check-circle-outline',
+      })
+    }
+
+    const played = await playMatchingScene()
+
+    const notificationActions = [
+      ...(hasSeek
+        ? [{
+          id: 'jump-to-scene',
+          text: t('globalSearch.scene_play_jump', {time: formatSceneSeekTime(seekTime)}),
+          icon: 'skip-forward',
+          action: async (notification: {id?: number}) => {
+            const ok = await playMatchingScene()
+            if (ok) markSceneJumpDone(notification?.id)
+          },
+          hide: false,
+        }]
+        : []),
+      {
+        id: 'show-semantic-matches',
+        text: t('globalSearch.scene_play_show_all'),
+        icon: 'view-grid-outline',
+        action: showAllMatches,
+        hide: true,
+      },
+    ]
+    if (!hasSeek || seekableCount <= 0) {
+      notificationActions.push({
+        id: 'enable-scene-jump',
+        text: t('globalSearch.enable_scene_jump'),
+        icon: 'image-multiple-outline',
+        action: () => { void enableSceneJump() },
+        hide: true,
+      })
+    }
+
+    const notificationId = setNotification({
       type: 'success',
-      title: t('globalSearch.scene_play_title'),
+      title: played && hasSeek
+        ? t('globalSearch.scene_play_jumped_title')
+        : t('globalSearch.scene_play_title'),
       text: hasSeek
-        ? t('globalSearch.scene_play_text_at', {time: formatSceneSeekTime(seekTime)})
-        : t('globalSearch.scene_play_text'),
-      icon: 'play-circle-outline',
-      timeout: 10000,
-      actions: [
-        {
-          id: 'show-semantic-matches',
-          text: t('globalSearch.scene_play_show_all'),
-          icon: 'view-grid-outline',
-          action: showAllMatches,
-          hide: true,
-        },
-      ],
+        ? (
+          played
+            ? t('globalSearch.scene_play_jumped_query', {
+              time: formatSceneSeekTime(seekTime),
+              query: queryLabel,
+            })
+            : t('globalSearch.scene_play_text_at_query', {
+              time: formatSceneSeekTime(seekTime),
+              query: queryLabel,
+            })
+        )
+        : (
+          seekableCount <= 0
+            ? t('globalSearch.scene_play_text_no_seek')
+            : t('globalSearch.scene_play_text')
+        ),
+      icon: played && hasSeek ? 'check-circle-outline' : 'play-circle-outline',
+      timeout: 12000,
+      click: async () => {
+        const ok = await playMatchingScene()
+        if (ok) markSceneJumpDone(notificationId)
+      },
+      actions: notificationActions,
     })
   } catch (e: unknown) {
     const err = e as {code?: string; name?: string}
@@ -1557,17 +1741,18 @@ function getNameHighlighted(text: string) {
           <v-btn
             v-if="query.trim()"
             class="global-search__input-semantic"
-            icon
-            variant="text"
+            variant="tonal"
+            color="primary"
             density="compact"
             size="small"
             tabindex="-1"
+            prepend-icon="mdi-brain"
             @mousedown.prevent
             @click.stop="searchSemantic"
           >
-            <v-icon size="18">mdi-brain</v-icon>
+            {{ t('globalSearch.findScene') }}
             <v-tooltip activator="parent" location="top">
-              {{ t('globalSearch.runSemantic') }}
+              {{ t('globalSearch.findSceneTip') }}
             </v-tooltip>
           </v-btn>
 
@@ -1692,7 +1877,7 @@ function getNameHighlighted(text: string) {
               prepend-icon="mdi-brain"
               @click="searchSemantic"
             >
-              {{ t('globalSearch.runSemantic') }}
+              {{ t('globalSearch.findScene') }}
             </v-btn>
             <v-btn
               size="small"
@@ -1731,16 +1916,38 @@ function getNameHighlighted(text: string) {
               </v-icon>
               <div class="text-caption">{{ item.text }}</div>
             </div>
-            <v-btn
-              v-if="!semanticHasIndex || !semanticModelReady || !semanticHasPreviews"
-              class="mt-2"
-              size="small"
-              color="primary"
-              variant="tonal"
-              @click="openSemanticSettings"
+            <div
+              v-if="!semanticHasIndex || !semanticModelReady || !semanticHasPreviews || semanticPendingCount > 0"
+              class="mt-2 d-flex flex-wrap ga-2"
             >
-              {{ t('globalSearch.open_semantic_settings') }}
-            </v-btn>
+              <v-btn
+                size="small"
+                color="primary"
+                variant="flat"
+                :loading="healthFix.state.running"
+                :disabled="healthFix.state.running"
+                @click="setupVisualSearchQuick"
+              >
+                {{ t('globalSearch.setup_visual_search_quick', {count: visualSearchQuickSampleSize}) }}
+              </v-btn>
+              <v-btn
+                size="small"
+                color="primary"
+                variant="tonal"
+                :loading="healthFix.state.running"
+                :disabled="healthFix.state.running"
+                @click="setupVisualSearchFull"
+              >
+                {{ t('globalSearch.setup_visual_search_full') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                variant="text"
+                @click="openSemanticSettings"
+              >
+                {{ t('globalSearch.open_semantic_settings') }}
+              </v-btn>
+            </div>
           </div>
         </div>
 
@@ -1910,19 +2117,16 @@ function getNameHighlighted(text: string) {
         </template>
         <template v-else-if="query.trim() && !canRunSemanticOnEnter">
           <v-spacer/>
-          <v-hotkey keys="tab" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
-          <v-spacer/>
           <v-hotkey keys="meta+enter" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintEnterSemantic') }}</span>
+          <v-spacer/>
+          <v-hotkey keys="tab" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
           <v-spacer/>
           <v-hotkey keys="shift+enter" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
         </template>
         <template v-else-if="canRunSemanticOnEnter">
-          <v-spacer/>
-          <v-hotkey keys="tab" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
           <v-spacer/>
           <v-hotkey keys="shift+enter" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>

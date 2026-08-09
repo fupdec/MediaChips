@@ -97,6 +97,19 @@ export const useNotificationsStore = defineStore('notifications', {
       }
     },
 
+    updateNotification(notificationId: number, patch: Partial<NotificationInput>) {
+      const found = this.notifications.find((item) => item.id === notificationId)
+      if (!found) return false
+      Object.assign(found, patch)
+      if (patch.icon != null) {
+        found.icon = normalizeMdiIconName(
+          typeof patch.icon === 'string' ? patch.icon : undefined,
+        )
+      }
+      scheduleDesktopChromeSync()
+      return true
+    },
+
     hideAllNotifications() {
       this.notifications = this.notifications.map(i => {
         i.hidden = true

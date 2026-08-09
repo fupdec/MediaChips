@@ -93,34 +93,66 @@ export function useLibraryHealthFixQueue() {
     abortController?.abort()
   }
 
-  async function run(health: HomeHealthData, locale: Locale): Promise<boolean> {
+  async function runStages(
+    stages: LibraryHealthFixStage[],
+    locale: Locale,
+    options: {
+      health?: HomeHealthData | null
+      titleKey?: string
+      doneKey?: string
+      titleParams?: Record<string, string | number>
+      doneParams?: Record<string, string | number>
+      mediaIds?: number[]
+      /** Extra notification actions after success (e.g. continue full library). */
+      doneActions?: Array<{
+        id: string
+        text: string
+        icon?: string
+        action: () => void
+        hide?: boolean
+      }>
+    } = {},
+  ): Promise<boolean> {
     if (state.value.running) return false
-    const stages = stagesFromHealth(health)
-    if (!stages.length) return false
+    const uniqueStages = [...new Set(stages.filter(Boolean))]
+    if (!uniqueStages.length) return false
 
+    const health = options.health || null
+    const mediaIds = Array.isArray(options.mediaIds)
+      ? options.mediaIds.filter((id) => Number.isFinite(id) && id > 0)
+      : []
+    const scopedIds = mediaIds.length ? mediaIds : undefined
     const tr = (key: string, params: Record<string, string | number> = {}) => translate(key, params, locale)
-    const titleKey = hasOnlyVisualStages(stages)
-      ? 'home.widgets.health_make_library_look_good'
-      : 'home.widgets.health_fix_safe_issues'
+    const titleKey = options.titleKey
+      || (hasOnlyVisualStages(uniqueStages)
+        ? 'home.widgets.health_make_library_look_good'
+        : 'home.widgets.health_fix_safe_issues')
+    const doneKey = options.doneKey
+      || (hasOnlyVisualStages(uniqueStages)
+        ? 'home.widgets.health_make_library_look_good_done'
+        : 'home.widgets.health_fix_safe_done')
+    const titleParams = options.titleParams || {}
+    const doneParams = options.doneParams || {}
 
     abortController = new AbortController()
-    state.value = {running: true, stage: stages[0], processed: 0, total: 0, progress: 0}
+    state.value = {running: true, stage: uniqueStages[0], processed: 0, total: 0, progress: 0}
 
     const taskId = tasksStore.setTask({
-      title: tr(titleKey),
-      subtitle: tr(stageI18nKey(stages[0])),
+      title: tr(titleKey, titleParams),
+      subtitle: tr(stageI18nKey(uniqueStages[0])),
       icon: 'heart-pulse',
       progress: 0,
       action: () => abortController?.abort(),
     })
 
     try {
-      for (let index = 0; index < stages.length; index += 1) {
-        const stage = stages[index]
+      for (let index = 0; index < uniqueStages.length; index += 1) {
+        const stage = uniqueStages[index]
         state.value.stage = stage
         state.value.processed = 0
-        state.value.total = pendingForStage(health, stage)
-        state.value.progress = (index / stages.length) * 100
+        state.value.total = scopedIds?.length
+          || (health ? pendingForStage(health, stage) : 0)
+        state.value.progress = (index / uniqueStages.length) * 100
 
         const stageLabel = tr(stageI18nKey(stage))
         tasksStore.updateTask(taskId, {
@@ -141,7 +173,7 @@ export function useLibraryHealthFixQueue() {
             state.value.processed = processed
             state.value.total = total
             const stageProgress = total > 0 ? processed / total : 1
-            state.value.progress = ((index + stageProgress) / stages.length) * 100
+            state.value.progress = ((index + stageProgress) / uniqueStages.length) * 100
             tasksStore.updateTask(taskId, {
               subtitle: tr('home.widgets.health_fix_safe_progress', {
                 stage: stageLabel,
@@ -163,7 +195,12 @@ export function useLibraryHealthFixQueue() {
           )
         } else if (stage === 'preview' || stage === 'grid' || stage === 'marks') {
           await typedApi.streamVideoImagesGeneration(
-            {type: stage, force: false, signal: abortController.signal},
+            {
+              type: stage,
+              force: false,
+              signal: abortController.signal,
+              ...(scopedIds ? {mediaIds: scopedIds} : {}),
+            },
             onEvent,
           )
         } else if (stage === 'fingerprint') {
@@ -171,16 +208,20 @@ export function useLibraryHealthFixQueue() {
         } else if (stage === 'codec') {
           await typedApi.streamBackfill('videoCodec', {force: false, signal: abortController.signal}, onEvent)
         } else if (stage === 'clip') {
-          await typedApi.streamBackfill('clipEmbedding', {force: false, signal: abortController.signal}, onEvent)
+          await typedApi.streamBackfill(
+            'clipEmbedding',
+            {
+              force: false,
+              signal: abortController.signal,
+              ...(scopedIds ? {mediaIds: scopedIds} : {}),
+            },
+            onEvent,
+          )
         }
       }
 
-      const doneKey = hasOnlyVisualStages(stages)
-        ? 'home.widgets.health_make_library_look_good_done'
-        : 'home.widgets.health_fix_safe_done'
-
       tasksStore.updateTask(taskId, {
-        subtitle: tr(doneKey),
+        subtitle: tr(doneKey, doneParams),
         progress: 100,
         color: 'success',
         done: true,
@@ -188,9 +229,10 @@ export function useLibraryHealthFixQueue() {
       })
       setNotification({
         type: 'success',
-        title: tr(titleKey),
-        text: tr(doneKey),
+        title: tr(titleKey, titleParams),
+        text: tr(doneKey, doneParams),
         icon: 'heart-pulse',
+        ...(options.doneActions?.length ? {actions: options.doneActions} : {}),
       })
       return true
     } catch (error) {
@@ -212,7 +254,7 @@ export function useLibraryHealthFixQueue() {
       })
       setNotification({
         type: 'error',
-        title: tr(titleKey),
+        title: tr(titleKey, titleParams),
         text: message,
       })
       return false
@@ -223,10 +265,15 @@ export function useLibraryHealthFixQueue() {
     }
   }
 
+  async function run(health: HomeHealthData, locale: Locale): Promise<boolean> {
+    return runStages(stagesFromHealth(health), locale, {health})
+  }
+
   return {
     state,
     stop,
     run,
+    runStages,
     stagesFromHealth,
     hasOnlyVisualStages,
   }

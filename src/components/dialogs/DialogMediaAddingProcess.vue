@@ -36,41 +36,39 @@
         </v-card>
       </div>
 
-      <v-card-text class="pa-4">
-        <!-- Added files -->
-        <div v-if="task.added.length > 0" class="mb-4">
+      <v-card-text class="pa-4 process-dialog-body">
+        <!-- Process added files -->
+        <section
+          v-if="task.added.length > 0 && canMakeLibrarySmart"
+          class="process-dialog-section"
+        >
           <v-card
-            v-if="canMakeLibrarySmart"
             variant="tonal"
             color="primary"
-            class="pa-4 mb-4"
+            class="smart-wizard-section pa-3"
           >
-            <div class="text-subtitle-1 font-weight-medium mb-1">
+            <div class="smart-wizard-section__title text-body-2 font-weight-medium mb-2">
               {{ t('media.adding.make_library_smart') }}
-            </div>
-            <div class="text-caption text-medium-emphasis mb-3">
-              {{ t('media.adding.make_library_smart_hint') }}
             </div>
 
             <v-btn
               class="mb-1"
-              block
               @click="runEverythingPossible"
               :loading="smartWizardRunning"
               :disabled="!canMakeLibrarySmart || smartWizardRunning"
               color="primary"
               rounded
               variant="flat"
-              size="large"
+              size="small"
             >
-              <v-icon icon="mdi-auto-fix" start/>
+              <v-icon icon="mdi-auto-fix" start size="18"/>
               {{ t('media.adding.make_library_smart_magic') }}
             </v-btn>
-            <div class="text-caption text-medium-emphasis mb-4">
+            <div class="text-caption text-medium-emphasis mb-3 smart-wizard-section__hint">
               {{ t('media.adding.make_library_smart_magic_hint') }}
             </div>
 
-            <div class="text-caption text-medium-emphasis text-uppercase mb-1">
+            <div class="text-caption text-medium-emphasis text-uppercase mb-0 smart-wizard-section__group">
               {{ t('media.adding.make_library_smart_group_tags') }}
             </div>
             <div class="smart-wizard-option">
@@ -96,7 +94,7 @@
               <ButtonDocumentation id="media.adding.neighbor_tags" dense/>
             </div>
 
-            <div class="text-caption text-medium-emphasis text-uppercase mt-3 mb-1">
+            <div class="text-caption text-medium-emphasis text-uppercase mt-2 mb-0 smart-wizard-section__group">
               {{ t('media.adding.make_library_smart_group_enrich') }}
             </div>
             <div class="smart-wizard-option">
@@ -186,7 +184,7 @@
               <ButtonDocumentation id="media.adding.chapters" dense/>
             </div>
 
-            <div class="text-caption text-medium-emphasis text-uppercase mt-3 mb-1">
+            <div class="text-caption text-medium-emphasis text-uppercase mt-2 mb-0 smart-wizard-section__group">
               {{ t('media.adding.make_library_smart_group_more') }}
             </div>
             <div class="smart-wizard-option">
@@ -228,7 +226,7 @@
               {{ t('media.adding.download_video_recognition_model_hint') }}
             </div>
 
-            <div class="d-flex flex-wrap ga-2 mt-3">
+            <div class="d-flex flex-wrap ga-2 mt-2">
               <v-btn
                 v-if="smartWizard.faces && faceModelNeedsDownload"
                 @click="downloadFaceModel"
@@ -262,6 +260,7 @@
                 color="primary"
                 rounded
                 variant="tonal"
+                size="small"
               >
                 <v-icon icon="mdi-playlist-check" start/>
                 {{ t('media.adding.make_library_smart_run') }}
@@ -286,11 +285,11 @@
               {{ pathAutoTagSummary }}
             </div>
 
-            <div v-if="smartWizardRunning || smartWizardProgress > 0" class="mt-3">
+            <div v-if="smartWizardRunning || smartWizardProgress > 0" class="mt-2">
               <v-progress-linear
                 v-model="smartWizardProgress"
                 color="primary"
-                height="16"
+                height="14"
                 rounded
                 :striped="smartWizardRunning"
               >
@@ -303,164 +302,159 @@
               </div>
             </div>
           </v-card>
+        </section>
 
-          <div v-if="task.finished" class="mb-4">
-            <div
-              v-if="pendingReviewTagCount || clipReviewSuggestions.length"
-              class="mb-3"
+        <!-- Suggested tags -->
+        <section
+          v-if="task.added.length > 0 && task.finished && (pendingReviewTagCount || clipReviewSuggestions.length)"
+          class="process-dialog-section process-dialog-section--panel"
+        >
+          <div class="text-caption text-medium-emphasis text-uppercase mb-2">
+            {{ t('media.adding.suggested_tags_actions') }}
+          </div>
+          <div class="d-flex flex-wrap ga-2">
+            <v-btn
+              v-if="pendingReviewTagCount"
+              @click="acceptAllSuggestedTags"
+              :loading="acceptingSuggestedTags"
+              :disabled="acceptingSuggestedTags"
+              color="primary"
+              rounded
+              variant="flat"
             >
-              <div class="text-caption text-medium-emphasis text-uppercase mb-2">
-                {{ t('media.adding.suggested_tags_actions') }}
-              </div>
-              <div class="d-flex flex-wrap ga-2">
-                <v-btn
-                  v-if="pendingReviewTagCount"
-                  @click="acceptAllSuggestedTags"
-                  :loading="acceptingSuggestedTags"
-                  :disabled="acceptingSuggestedTags"
-                  color="primary"
-                  rounded
-                  variant="flat"
-                >
-                  <v-icon icon="mdi-tag-check-outline" start/>
-                  {{ t('media.adding.accept_all_suggested_tags_count', {
-                    count: pendingReviewTagCount,
-                  }) }}
-                </v-btn>
+              <v-icon icon="mdi-tag-check-outline" start/>
+              {{ t('media.adding.accept_all_suggested_tags_count', {
+                count: pendingReviewTagCount,
+              }) }}
+            </v-btn>
 
-                <v-btn
-                  v-if="clipReviewSuggestions.length"
-                  @click="applyClipSuggestedTags"
-                  :loading="applyingClipSuggestions"
-                  :disabled="applyingClipSuggestions"
-                  color="primary"
-                  rounded
-                  variant="tonal"
-                >
-                  <v-icon icon="mdi-tag-plus-outline" start/>
-                  {{ t('media.adding.apply_clip_suggestions') }}
-                </v-btn>
+            <v-btn
+              v-if="clipReviewSuggestions.length"
+              @click="applyClipSuggestedTags"
+              :loading="applyingClipSuggestions"
+              :disabled="applyingClipSuggestions"
+              color="primary"
+              rounded
+              variant="tonal"
+            >
+              <v-icon icon="mdi-tag-plus-outline" start/>
+              {{ t('media.adding.apply_clip_suggestions') }}
+            </v-btn>
 
-                <v-btn
-                  v-if="pathReviewTagNames.length"
-                  @click="openSuggestedTags"
-                  color="primary"
-                  rounded
-                  variant="outlined"
-                >
-                  <v-icon icon="mdi-tag-plus-outline" start/>
-                  {{ t('media.adding.review_suggested_tags_count', {
-                    count: pathReviewTagNames.length,
-                  }) }}
-                </v-btn>
-              </div>
-            </div>
+            <v-btn
+              v-if="pathReviewTagNames.length"
+              @click="openSuggestedTags"
+              color="primary"
+              rounded
+              variant="outlined"
+            >
+              <v-icon icon="mdi-tag-plus-outline" start/>
+              {{ t('media.adding.review_suggested_tags_count', {
+                count: pathReviewTagNames.length,
+              }) }}
+            </v-btn>
+          </div>
+        </section>
 
-            <v-divider
-              v-if="(pendingReviewTagCount || clipReviewSuggestions.length)
-                && (canReparseTags || canRecognizeObjects || canDetectFaces)"
-              class="mb-3"
+        <!-- Other actions -->
+        <section
+          v-if="task.added.length > 0 && task.finished && (canReparseTags || canRecognizeObjects || canDetectFaces)"
+          class="process-dialog-section process-dialog-section--panel"
+        >
+          <div class="text-caption text-medium-emphasis text-uppercase mb-2">
+            {{ t('media.adding.ai_actions') }}
+          </div>
+          <div class="d-flex flex-wrap ga-2 align-center">
+            <v-btn
+              v-if="canReparseTags"
+              @click="reparseTags"
+              :loading="task.parsingTags"
+              :disabled="task.parsingTags"
+              color="primary"
+              rounded
+              variant="outlined"
+            >
+              <v-icon icon="mdi-text-box-search-outline" start/>
+              {{ t('media.adding.reparse_tags') }}
+            </v-btn>
+            <ButtonDocumentation
+              v-if="canReparseTags"
+              id="media.parser"
+              dense
             />
 
-            <div
-              v-if="canReparseTags || canRecognizeObjects || canDetectFaces"
-              class="mb-0"
+            <v-btn
+              v-if="canRecognizeObjects && clipModelNeedsDownload"
+              @click="downloadClipModel"
+              :loading="clipModelDownloading"
+              :disabled="clipModelDownloading"
+              color="secondary"
+              rounded
+              variant="outlined"
             >
-              <div class="text-caption text-medium-emphasis text-uppercase mb-2">
-                {{ t('media.adding.ai_actions') }}
-              </div>
-              <div class="d-flex flex-wrap ga-2">
-                <v-btn
-                  v-if="canReparseTags"
-                  @click="reparseTags"
-                  :loading="task.parsingTags"
-                  :disabled="task.parsingTags"
-                  color="primary"
-                  rounded
-                  variant="outlined"
-                >
-                  <v-icon icon="mdi-text-box-search-outline" start/>
-                  {{ t('media.adding.reparse_tags') }}
-                </v-btn>
-                <ButtonDocumentation
-                  v-if="canReparseTags"
-                  id="media.parser"
-                />
+              <v-icon icon="mdi-download" start/>
+              {{ t('media.adding.download_video_recognition_model') }}
+            </v-btn>
 
-                <v-btn
-                  v-if="canRecognizeObjects && clipModelNeedsDownload"
-                  @click="downloadClipModel"
-                  :loading="clipModelDownloading"
-                  :disabled="clipModelDownloading"
-                  color="secondary"
-                  rounded
-                  variant="outlined"
-                >
-                  <v-icon icon="mdi-download" start/>
-                  {{ t('media.adding.download_video_recognition_model') }}
-                </v-btn>
+            <v-btn
+              v-if="canRecognizeObjects && clipModelReady"
+              @click="recognizeVideoObjects"
+              :loading="task.recognizingObjects"
+              :disabled="task.recognizingObjects"
+              color="secondary"
+              rounded
+              variant="flat"
+            >
+              <v-icon icon="mdi-image-search-outline" start/>
+              {{ t('media.adding.recognize_video_objects') }}
+            </v-btn>
+            <ButtonDocumentation
+              v-if="canRecognizeObjects"
+              id="media.video_object_recognition"
+              dense
+            />
 
-                <v-btn
-                  v-if="canRecognizeObjects && clipModelReady"
-                  @click="recognizeVideoObjects"
-                  :loading="task.recognizingObjects"
-                  :disabled="task.recognizingObjects"
-                  color="secondary"
-                  rounded
-                  variant="flat"
-                >
-                  <v-icon icon="mdi-image-search-outline" start/>
-                  {{ t('media.adding.recognize_video_objects') }}
-                </v-btn>
-                <ButtonDocumentation
-                  v-if="canRecognizeObjects"
-                  id="media.video_object_recognition"
-                />
+            <v-btn
+              v-if="canDetectFaces && faceModelNeedsDownload"
+              @click="downloadFaceModel"
+              :loading="faceModelDownloading"
+              :disabled="faceModelDownloading || task.detectingFaces"
+              color="secondary"
+              rounded
+              variant="outlined"
+            >
+              <v-icon icon="mdi-download" start/>
+              {{ t('media.adding.download_face_model') }}
+            </v-btn>
 
-                <v-btn
-                  v-if="canDetectFaces && faceModelNeedsDownload"
-                  @click="downloadFaceModel"
-                  :loading="faceModelDownloading"
-                  :disabled="faceModelDownloading || task.detectingFaces"
-                  color="secondary"
-                  rounded
-                  variant="outlined"
-                >
-                  <v-icon icon="mdi-download" start/>
-                  {{ t('media.adding.download_face_model') }}
-                </v-btn>
-
-                <v-btn
-                  v-if="canDetectFaces && faceModelReady"
-                  @click="detectFacesInAddedVideos"
-                  :loading="task.detectingFaces"
-                  :disabled="task.detectingFaces || task.recognizingObjects"
-                  color="secondary"
-                  rounded
-                  variant="flat"
-                >
-                  <v-icon icon="mdi-face-recognition" start/>
-                  {{ t('media.adding.detect_faces') }}
-                </v-btn>
-              </div>
-            </div>
+            <v-btn
+              v-if="canDetectFaces && faceModelReady"
+              @click="detectFacesInAddedVideos"
+              :loading="task.detectingFaces"
+              :disabled="task.detectingFaces || task.recognizingObjects"
+              color="secondary"
+              rounded
+              variant="flat"
+            >
+              <v-icon icon="mdi-face-recognition" start/>
+              {{ t('media.adding.detect_faces') }}
+            </v-btn>
           </div>
 
           <div
             v-if="canRecognizeObjects && clipModelNeedsDownload"
-            class="text-caption text-medium-emphasis mb-4"
+            class="text-caption text-medium-emphasis mt-2"
           >
             {{ t('media.adding.download_video_recognition_model_hint') }}
           </div>
-
           <div
             v-if="canDetectFaces && faceModelNeedsDownload"
-            class="text-caption text-medium-emphasis mb-4"
+            class="text-caption text-medium-emphasis mt-2"
           >
             {{ t('media.adding.download_face_model_hint') }}
           </div>
 
-          <div v-if="task.recognizingObjects || task.objectRecognitionTotal > 0" class="mb-4">
+          <div v-if="task.recognizingObjects || task.objectRecognitionTotal > 0" class="mt-3">
             <v-progress-linear
               v-model="task.objectRecognitionProgress"
               color="secondary"
@@ -481,7 +475,7 @@
             </div>
           </div>
 
-          <div v-if="task.detectingFaces || task.faceDetectionTotal > 0" class="mb-4">
+          <div v-if="task.detectingFaces || task.faceDetectionTotal > 0" class="mt-3">
             <v-progress-linear
               v-model="task.faceDetectionProgress"
               color="secondary"
@@ -501,169 +495,100 @@
               }) }}
             </div>
           </div>
+        </section>
 
-          <v-chip
-            @click="is_show_added = !is_show_added"
-            :text="t('media.adding.added_count', {count: task.added.length})"
-            prepend-icon="mdi-plus"
-            color="success"
-            class="mb-2"
-            size="small"
-          />
-          <v-card v-if="is_show_added" variant="outlined" class="pa-2">
-            <v-virtual-scroll
-              :height="task.added.length > 10 ? 150 : task.added.length * 15"
-              :items="task.added"
-              class="virtual-scroller"
-              item-height="15"
-            >
-              <template v-slot:default="{ item }">
-                <div class="text-caption selectable">{{ item }}</div>
-              </template>
-            </v-virtual-scroll>
-          </v-card>
-        </div>
+        <!-- File lists -->
+        <section
+          v-if="task.added.length > 0 || duplicates_by_path.length || moved_files.length || duplicates_by_content_hash.length"
+          class="process-dialog-section process-dialog-section--lists"
+        >
+          <div v-if="task.added.length > 0" class="process-list-item">
+            <div class="process-list-row">
+              <v-chip
+                @click="is_show_added = !is_show_added"
+                :text="t('media.adding.added_count', {count: task.added.length})"
+                prepend-icon="mdi-plus"
+                color="success"
+                size="small"
+              />
+            </div>
+            <v-card v-if="is_show_added" variant="outlined" class="pa-2 mt-2">
+              <v-virtual-scroll
+                :height="task.added.length > 10 ? 150 : task.added.length * 15"
+                :items="task.added"
+                class="virtual-scroller"
+                item-height="15"
+              >
+                <template v-slot:default="{ item }">
+                  <div class="text-caption selectable">{{ item }}</div>
+                </template>
+              </v-virtual-scroll>
+            </v-card>
+          </div>
 
-        <!-- Existing files (by path) -->
-        <div v-if="duplicates_by_path.length">
-          <v-chip
-            @click="is_show_duplicates_by_path = !is_show_duplicates_by_path"
-            :text="t('media.adding.existing_count', {count: duplicates_by_path.length})"
-            :prepend-icon="duplicateMarkers.inLibrary.icon"
-            color="info"
-            class="mb-2"
-            size="small"
-          />
-          <v-card v-if="is_show_duplicates_by_path" variant="outlined" class="pa-2">
-            <v-virtual-scroll
-              :height="duplicates_by_path.length > 10 ? 150 : duplicates_by_path.length * 22"
-              :items="duplicates_by_path"
-              class="virtual-scroller"
-              item-height="22"
-            >
-              <template v-slot:default="{ item }">
-                <DuplicatePathRow
-                  :icon="duplicateMarkers.inLibrary.icon"
-                  :color="duplicateMarkers.inLibrary.color"
-                  :label="t('media.adding.duplicate_file_in_library')"
-                  :path="item"
-                />
-              </template>
-            </v-virtual-scroll>
-          </v-card>
-        </div>
-
-        <!-- Moved files (same content, old path missing) -->
-        <div v-if="moved_files.length">
-          <v-card-actions class="pa-0 mt-4 mb-2">
-            <v-chip
-              @click="is_show_moved_files = !is_show_moved_files"
-              :text="t('media.adding.moved_files_count', {count: moved_files.length})"
-              :prepend-icon="duplicateMarkers.moved.icon"
-              color="secondary"
-              size="small"
-            />
-
-            <v-spacer></v-spacer>
-
-            <v-btn
-              @click="relinkMovedFiles"
-              :disabled="task.active"
-              color="primary"
-              class="pr-4"
-              variant="flat"
-              rounded
-              size="small"
-            >
-              <v-icon icon="mdi-folder-move" class="mr-1"></v-icon>
-              {{ t('media.adding.relink_moved_files') }}
-            </v-btn>
-          </v-card-actions>
-
-          <v-card v-if="is_show_moved_files" variant="outlined" class="pa-2">
-            <v-virtual-scroll
-              :height="moved_files.length > 10 ? 150 : moved_files.length * 44"
-              :items="moved_files"
-              class="virtual-scroller"
-              item-height="44"
-            >
-              <template v-slot:default="{ item }">
-                <div class="duplicate-entry selectable">
+          <!-- Existing files (by path) -->
+          <div v-if="duplicates_by_path.length" class="process-list-item">
+            <div class="process-list-row">
+              <v-chip
+                @click="is_show_duplicates_by_path = !is_show_duplicates_by_path"
+                :text="t('media.adding.existing_count', {count: duplicates_by_path.length})"
+                :prepend-icon="duplicateMarkers.inLibrary.icon"
+                color="info"
+                size="small"
+              />
+            </div>
+            <v-card v-if="is_show_duplicates_by_path" variant="outlined" class="pa-2 mt-2">
+              <v-virtual-scroll
+                :height="duplicates_by_path.length > 10 ? 150 : duplicates_by_path.length * 22"
+                :items="duplicates_by_path"
+                class="virtual-scroller"
+                item-height="22"
+              >
+                <template v-slot:default="{ item }">
                   <DuplicatePathRow
-                    :icon="duplicateMarkers.incoming.icon"
-                    :color="duplicateMarkers.incoming.color"
-                    :label="t('media.adding.duplicate_file_incoming')"
-                    :path="item.path"
-                  />
-                  <DuplicatePathRow
-                    :icon="duplicateMarkers.movedOld.icon"
-                    :color="duplicateMarkers.movedOld.color"
-                    :label="t('media.adding.duplicate_file_old_path')"
-                    :path="item.duplicate?.path"
-                  />
-                </div>
-              </template>
-            </v-virtual-scroll>
-          </v-card>
-        </div>
-
-        <!-- Duplicates by content hash -->
-        <div v-if="duplicates_by_content_hash.length">
-          <v-card-actions class="pa-0 mt-4 mb-2">
-            <v-chip
-              @click="is_show_duplicates_by_content_hash = !is_show_duplicates_by_content_hash"
-              :text="t('media.adding.duplicates_by_content_count', {count: duplicates_by_content_hash.length})"
-              :prepend-icon="duplicateMarkers.contentDuplicate.icon"
-              color="warning"
-              size="small"
-            />
-
-            <v-spacer></v-spacer>
-
-            <v-btn
-              @click="deleteDuplicates('incoming')"
-              :disabled="task.active"
-              color="error"
-              class="pr-4"
-              variant="flat"
-              rounded
-              size="small"
-            >
-              <v-icon :icon="duplicateMarkers.incomingDelete.icon" class="mr-1"/>
-              {{ t('media.adding.delete_incoming_files') }}
-            </v-btn>
-
-            <v-btn
-              @click="deleteDuplicates('existing')"
-              :disabled="task.active"
-              color="error"
-              class="pr-4"
-              variant="flat"
-              rounded
-              size="small"
-            >
-              <v-icon :icon="duplicateMarkers.inLibraryDelete.icon" class="mr-1"/>
-              {{ t('media.adding.delete_existing_files') }}
-            </v-btn>
-          </v-card-actions>
-
-          <v-card v-if="is_show_duplicates_by_content_hash" variant="outlined" class="pa-2">
-            <v-virtual-scroll
-              :height="duplicates_by_content_hash.length > 10 ? 150 : duplicates_by_content_hash.length * 44"
-              :items="duplicates_by_content_hash"
-              class="virtual-scroller"
-              item-height="44"
-            >
-              <template v-slot:default="{ item }">
-                <div class="duplicate-entry selectable">
-                  <DuplicatePathRow
-                    v-if="pathsLookSame(item.path, item.duplicate?.path)"
                     :icon="duplicateMarkers.inLibrary.icon"
                     :color="duplicateMarkers.inLibrary.color"
                     :label="t('media.adding.duplicate_file_in_library')"
-                    :path="item.path"
+                    :path="item"
                   />
-                  <template v-else>
+                </template>
+              </v-virtual-scroll>
+            </v-card>
+          </div>
+
+          <!-- Moved files (same content, old path missing) -->
+          <div v-if="moved_files.length" class="process-list-item">
+            <div class="process-list-row">
+              <v-chip
+                @click="is_show_moved_files = !is_show_moved_files"
+                :text="t('media.adding.moved_files_count', {count: moved_files.length})"
+                :prepend-icon="duplicateMarkers.moved.icon"
+                color="secondary"
+                size="small"
+              />
+              <div class="process-list-row__actions">
+                <v-btn
+                  @click="relinkMovedFiles"
+                  :disabled="task.active"
+                  color="primary"
+                  variant="flat"
+                  rounded
+                  size="small"
+                >
+                  <v-icon icon="mdi-folder-move" start/>
+                  {{ t('media.adding.relink_moved_files') }}
+                </v-btn>
+              </div>
+            </div>
+            <v-card v-if="is_show_moved_files" variant="outlined" class="pa-2 mt-2">
+              <v-virtual-scroll
+                :height="moved_files.length > 10 ? 150 : moved_files.length * 44"
+                :items="moved_files"
+                class="virtual-scroller"
+                item-height="44"
+              >
+                <template v-slot:default="{ item }">
+                  <div class="duplicate-entry selectable">
                     <DuplicatePathRow
                       :icon="duplicateMarkers.incoming.icon"
                       :color="duplicateMarkers.incoming.color"
@@ -671,25 +596,96 @@
                       :path="item.path"
                     />
                     <DuplicatePathRow
+                      :icon="duplicateMarkers.movedOld.icon"
+                      :color="duplicateMarkers.movedOld.color"
+                      :label="t('media.adding.duplicate_file_old_path')"
+                      :path="item.duplicate?.path"
+                    />
+                  </div>
+                </template>
+              </v-virtual-scroll>
+            </v-card>
+          </div>
+
+          <!-- Duplicates by content hash -->
+          <div v-if="duplicates_by_content_hash.length" class="process-list-item">
+            <div class="process-list-row">
+              <v-chip
+                @click="is_show_duplicates_by_content_hash = !is_show_duplicates_by_content_hash"
+                :text="t('media.adding.duplicates_by_content_count', {count: duplicates_by_content_hash.length})"
+                :prepend-icon="duplicateMarkers.contentDuplicate.icon"
+                color="warning"
+                size="small"
+              />
+              <div class="process-list-row__actions">
+                <v-btn
+                  @click="deleteDuplicates('incoming')"
+                  :disabled="task.active"
+                  color="error"
+                  variant="flat"
+                  rounded
+                  size="small"
+                >
+                  <v-icon :icon="duplicateMarkers.incomingDelete.icon" start/>
+                  {{ t('media.adding.delete_incoming_files') }}
+                </v-btn>
+                <v-btn
+                  @click="deleteDuplicates('existing')"
+                  :disabled="task.active"
+                  color="error"
+                  variant="flat"
+                  rounded
+                  size="small"
+                >
+                  <v-icon :icon="duplicateMarkers.inLibraryDelete.icon" start/>
+                  {{ t('media.adding.delete_existing_files') }}
+                </v-btn>
+              </div>
+            </div>
+            <v-card v-if="is_show_duplicates_by_content_hash" variant="outlined" class="pa-2 mt-2">
+              <v-virtual-scroll
+                :height="duplicates_by_content_hash.length > 10 ? 150 : duplicates_by_content_hash.length * 44"
+                :items="duplicates_by_content_hash"
+                class="virtual-scroller"
+                item-height="44"
+              >
+                <template v-slot:default="{ item }">
+                  <div class="duplicate-entry selectable">
+                    <DuplicatePathRow
+                      v-if="pathsLookSame(item.path, item.duplicate?.path)"
                       :icon="duplicateMarkers.inLibrary.icon"
                       :color="duplicateMarkers.inLibrary.color"
                       :label="t('media.adding.duplicate_file_in_library')"
-                      :path="item.duplicate?.path"
+                      :path="item.path"
                     />
-                  </template>
-                </div>
-              </template>
-            </v-virtual-scroll>
-          </v-card>
-        </div>
+                    <template v-else>
+                      <DuplicatePathRow
+                        :icon="duplicateMarkers.incoming.icon"
+                        :color="duplicateMarkers.incoming.color"
+                        :label="t('media.adding.duplicate_file_incoming')"
+                        :path="item.path"
+                      />
+                      <DuplicatePathRow
+                        :icon="duplicateMarkers.inLibrary.icon"
+                        :color="duplicateMarkers.inLibrary.color"
+                        :label="t('media.adding.duplicate_file_in_library')"
+                        :path="item.duplicate?.path"
+                      />
+                    </template>
+                  </div>
+                </template>
+              </v-virtual-scroll>
+            </v-card>
+          </div>
+        </section>
 
         <!-- Errors -->
-        <div v-if="task.errors.length > 0">
+        <section v-if="task.errors.length > 0" class="process-dialog-section process-dialog-section--panel">
           <v-chip
             @click="is_show_errors = !is_show_errors"
             :text="t('media.adding.errors_count', {count: task.errors.length})"
             color="error"
-            class="mb-2 mt-4"
+            class="mb-2"
             size="small"
           />
           <v-card v-if="is_show_errors" variant="outlined" class="pa-2">
@@ -704,7 +700,7 @@
               </template>
             </v-virtual-scroll>
           </v-card>
-        </div>
+        </section>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -2369,11 +2365,76 @@ watch(canRecognizeObjects, (enabled) => {
   min-height: 40px;
 }
 
+.process-dialog-section {
+  margin-bottom: 0;
+  padding-bottom: 16px;
+  margin-top: 16px;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.process-dialog-section:first-child {
+  margin-top: 0;
+}
+
+.process-dialog-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.process-dialog-section--panel {
+  padding-top: 0;
+}
+
+.process-dialog-section--lists {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.process-list-item {
+  min-width: 0;
+}
+
+.process-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.process-list-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.smart-wizard-section {
+  font-size: 0.875rem;
+}
+
+.smart-wizard-section__title {
+  line-height: 1.3;
+}
+
+.smart-wizard-section__hint {
+  line-height: 1.35;
+  max-width: 36rem;
+}
+
+.smart-wizard-section__group {
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
 .smart-wizard-option {
   display: flex;
   align-items: center;
   gap: 2px;
   min-width: 0;
+  margin-block: -2px;
 }
 
 .smart-wizard-option :deep(.v-checkbox) {
@@ -2381,19 +2442,26 @@ watch(canRecognizeObjects, (enabled) => {
   min-width: 0;
 }
 
+.smart-wizard-option :deep(.v-selection-control) {
+  min-height: 32px;
+}
+
 .smart-wizard-option :deep(.v-label) {
   white-space: normal;
+  font-size: 0.8125rem;
+  line-height: 1.3;
 }
 
 .smart-wizard-nested {
-  margin: 0 0 4px 12px;
-  padding: 2px 0 4px 12px;
+  margin: 0 0 2px 12px;
+  padding: 0 0 2px 10px;
   border-left: 2px solid rgba(var(--v-theme-primary), 0.28);
 }
 
 .smart-wizard-nested__hint {
   margin: -2px 0 4px 36px;
-  line-height: 1.35;
+  line-height: 1.3;
   max-width: 36rem;
+  font-size: 0.75rem;
 }
 </style>

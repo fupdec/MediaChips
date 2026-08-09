@@ -130,6 +130,7 @@ export const mediaApi = {
     return apiClient.post<{
       ids: number[]
       hits?: Array<{id: number; tileIndex: number | null; time: number | null}>
+      seekableCount?: number
       missingEmbeddingsCount: number
       indexedCount?: number
       previewCandidatesCount?: number

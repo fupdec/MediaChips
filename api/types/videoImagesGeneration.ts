@@ -42,6 +42,8 @@ export interface VideoImagesGenerationStatus {
 export interface VideoImageGenerationOptions {
   shouldStop?: () => boolean
   force?: boolean
+  /** When set, only these media ids are processed (preview/grid). */
+  mediaIds?: Array<number | string>
 }
 
 export interface VideoImageGenerationProgressEvent {
