@@ -2643,7 +2643,7 @@ const fr = {
       tab_basics: 'Général',
       tab_where: 'Épinglage',
       tab_appearance: 'Apparence',
-      tab_capabilities: 'Capacités',
+      tab_capabilities: 'Champs intégrés',
       tab_from_path: 'Analyse',
       next_steps_title: 'Étapes suivantes',
       next_steps_intro: 'Terminez la configuration avec ces étapes optionnelles :',

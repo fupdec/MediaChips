@@ -2644,7 +2644,7 @@ const pt = {
       tab_basics: 'Básico',
       tab_where: 'Fixação',
       tab_appearance: 'Aparência',
-      tab_capabilities: 'Capacidades',
+      tab_capabilities: 'Campos integrados',
       tab_from_path: 'Análise',
       next_steps_title: 'Próximos passos',
       next_steps_intro: 'Conclua a configuração com estas etapas opcionais:',

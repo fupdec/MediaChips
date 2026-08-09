@@ -2822,7 +2822,7 @@ const ja = {
       tab_basics: "基本",
       tab_where: "ピン留め",
       tab_appearance: "外観",
-      tab_capabilities: "機能",
+      tab_capabilities: "組み込みフィールド",
       tab_from_path: "解析",
       next_steps_title: "次のステップ",
       next_steps_intro: "任意の手順で設定を完了してください：",

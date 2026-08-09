@@ -318,7 +318,7 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
     {
       name: t('meta.dialogs.tab_capabilities'),
       type: 'item',
-      icon: 'tune',
+      icon: 'shape',
       action: () => openEditCategory(category, 'capabilities'),
     },
     {
@@ -340,14 +340,7 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
         flagMenuItem(category, 'country', t('meta.types.country')),
       ],
     },
-    {
-      name: t('meta.settings.capabilities'),
-      type: 'menu',
-      icon: 'cog-outline',
-      menu: [
-        flagMenuItem(category, 'parser', t('meta.settings.parse_media_for_tags')),
-      ],
-    },
+    flagMenuItem(category, 'parser', t('meta.settings.parse_media_for_tags')),
     {type: 'divider'},
     {
       name: t('common.delete'),

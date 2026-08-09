@@ -21,7 +21,7 @@
     </v-switch>
   </SettingsSection>
 
-  <!-- Capabilities: built-in tag fields -->
+  <!-- Built-in fields on tag pages (rating, favorite, …) -->
   <template v-if="showCapabilities && editMode">
     <SettingsSection padded>
       <settings-category-divider
@@ -474,7 +474,7 @@ const {t} = useI18n()
 
 const settings = ref<MetaSettings>({
   hidden: false,
-  parser: false,
+  parser: true,
   pathRegex: '',
   pathRegexReplace: '$1',
   pathRegexCreateTags: true,
@@ -523,6 +523,7 @@ const customRatioError = ref('')
 const chipVariants: ChipVariant[] = ['flat', 'tonal', 'outlined', 'text']
 
 const isPinnedForMediaParser = ref(false)
+const pinStateInitialized = ref(false)
 const randomColor = ref('#000000')
 
 const showBasics = computed(() => props.sections.includes('basics'))
@@ -695,18 +696,28 @@ const checkPinnedMediaTypes = async () => {
     const response = await typedApi.getAssignedMetaForMeta(props.meta.id)
     const pinnedMedia = response.data || []
 
-    isPinnedForMediaParser.value = pinnedMedia.some((item) =>
+    const nowPinned = pinnedMedia.some((item) =>
       isVideoMediaType(toMediaType(item.mediaType)) ||
       isImageMediaType(toMediaType(item.mediaType)) ||
       isAudioMediaType(toMediaType(item.mediaType)) ||
       isTextMediaType(toMediaType(item.mediaType))
     )
+    const becamePinned = pinStateInitialized.value && !isPinnedForMediaParser.value && nowPinned
+    isPinnedForMediaParser.value = nowPinned
+    pinStateInitialized.value = true
+
+    // Switch is only shown after assign; keep it on for a fresh assignment.
+    if (becamePinned && !settings.value.parser) {
+      settings.value.parser = true
+    }
+
     emit('pin-state-changed', {
       parser: isPinnedForMediaParser.value,
     })
   } catch (error) {
     console.error('Error checking pinned media:', error)
     isPinnedForMediaParser.value = false
+    pinStateInitialized.value = true
   }
 }
 
@@ -731,6 +742,7 @@ watch(() => settings.value.color, (enabled) => {
 })
 
 watch(() => props.meta?.id, () => {
+  pinStateInitialized.value = false
   initSettings()
   checkPinnedMediaTypes()
 }, {immediate: true})

@@ -5,19 +5,39 @@ import { getRequestBody } from '../types/http'
 import type { MetaAssignmentOrderPayload, PinMetaAssignmentPayload } from '@shared/api/payloads'
 
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
+import { createMetaRepository } from '../db/repositories/meta'
 import { parseOptionalInt } from '../utils/parseRequestNumber'
+
+function isParserEnabled(value: unknown): boolean {
+  return value === true || value === 1 || value === '1'
+}
 
 export default function (db: ApiDb) {
   const metaInMediaTypesRepo = createMetaInMediaTypesRepository(db.drizzle)
+  const metaRepo = createMetaRepository(db.drizzle)
 
   const create = function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<PinMetaAssignmentPayload>(req)
+      const metaId = Number(body.metaId)
+      const mediaTypeId = Number(body.mediaTypeId)
+      const hadAssignments = metaInMediaTypesRepo.findByMetaId(metaId).length > 0
+
       const data = metaInMediaTypesRepo.create({
-        metaId: Number(body.metaId),
-        mediaTypeId: Number(body.mediaTypeId),
+        metaId,
+        mediaTypeId,
         order: body.order == null ? null : Number(body.order),
       })
+
+      // First media assignment: enable path parsing for tag categories unless already on.
+      // Users can turn the option off afterwards in field settings.
+      if (!hadAssignments) {
+        const metaRow = metaRepo.findById(metaId)
+        if (metaRow?.type === 'array' && !isParserEnabled(metaRow.parser)) {
+          metaRepo.updateById(metaId, {parser: true})
+        }
+      }
+
       sendCreated(res, data)
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')

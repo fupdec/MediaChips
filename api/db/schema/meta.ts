@@ -14,7 +14,7 @@ export const meta = sqliteTable('meta', {
   nested: integer('nested', {mode: 'boolean'}).default(false),
   marks: integer('marks', {mode: 'boolean'}).default(false),
   bookmark: integer('bookmark', {mode: 'boolean'}).default(false),
-  parser: integer('parser', {mode: 'boolean'}).default(false),
+  parser: integer('parser', {mode: 'boolean'}).default(true),
   pathRegex: text('pathRegex'),
   pathRegexReplace: text('pathRegexReplace').default('$1'),
   pathRegexCreateTags: integer('pathRegexCreateTags', {mode: 'boolean'}).default(true),

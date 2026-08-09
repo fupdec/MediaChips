@@ -53,7 +53,7 @@
             <v-tab
               v-if="isArrayType"
               value="capabilities"
-              prepend-icon="mdi-tune"
+              prepend-icon="mdi-shape"
             >
               {{ t('meta.dialogs.tab_capabilities') }}
             </v-tab>
@@ -402,7 +402,7 @@ const metaSettingsDefault = ref<MetaSettingsForm>({
   icon: 'shape',
   isLink: false,
   hidden: false,
-  parser: false,
+  parser: true,
   pathRegex: '',
   pathRegexReplace: '$1',
   pathRegexCreateTags: true,
@@ -578,6 +578,8 @@ const buildMetaCreatePayload = (): MetaWritePayload => {
     return {
       ...base,
       hidden: formData.hidden,
+      // Assigned tag categories parse file paths unless the user turns this off.
+      parser: formData.parser !== false,
     }
   }
 

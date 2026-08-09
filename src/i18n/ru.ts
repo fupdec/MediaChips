@@ -2617,7 +2617,7 @@ const ru = {
       tab_basics: 'Основное',
       tab_where: 'Закрепление',
       tab_appearance: 'Внешний вид',
-      tab_capabilities: 'Возможности',
+      tab_capabilities: 'Встроенные поля',
       tab_from_path: 'Парсинг',
       next_steps_title: '«{name}» создано',
       next_steps_intro: 'Завершите настройку этими необязательными шагами:',

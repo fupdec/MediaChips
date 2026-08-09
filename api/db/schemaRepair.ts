@@ -48,7 +48,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'meta', column: 'nested', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'marks', definition: 'integer DEFAULT 0'},
   {table: 'meta', column: 'bookmark', definition: 'integer DEFAULT 0'},
-  {table: 'meta', column: 'parser', definition: 'integer DEFAULT 0'},
+  {table: 'meta', column: 'parser', definition: 'integer DEFAULT 1'},
   {table: 'meta', column: 'pathRegex', definition: 'text'},
   {table: 'meta', column: 'pathRegexReplace', definition: "text DEFAULT '$1'"},
   {table: 'meta', column: 'pathRegexCreateTags', definition: 'integer DEFAULT 1'},

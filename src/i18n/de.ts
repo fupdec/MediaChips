@@ -2643,7 +2643,7 @@ const de = {
       tab_basics: "Allgemein",
       tab_where: "Anheften",
       tab_appearance: "Darstellung",
-      tab_capabilities: "Funktionen",
+      tab_capabilities: "Integrierte Felder",
       tab_from_path: "Parsing",
       next_steps_title: "Als Nächstes",
       next_steps_intro: "Schließen Sie die Einrichtung mit diesen optionalen Schritten ab:",

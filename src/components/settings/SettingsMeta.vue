@@ -415,7 +415,7 @@ const showMetaChipMenu = (e: MouseEvent, metaItem: Meta) => {
     content.push({
       name: t('meta.dialogs.tab_capabilities'),
       type: 'item',
-      icon: 'tune',
+      icon: 'shape',
       action: () => openEditDialog(metaItem, 'capabilities'),
     })
     content.push({
@@ -440,18 +440,13 @@ const showMetaChipMenu = (e: MouseEvent, metaItem: Meta) => {
       ],
     })
 
-    content.push({
-      name: t('meta.settings.capabilities'),
-      type: 'menu',
-      icon: 'cog-outline',
-      menu: [
-        flagMenuItem(
-          metaItem,
-          'parser',
-          t('meta.settings.parse_media_for_tags'),
-        ),
-      ],
-    })
+    content.push(
+      flagMenuItem(
+        metaItem,
+        'parser',
+        t('meta.settings.parse_media_for_tags'),
+      ),
+    )
   }
 
   content.push(

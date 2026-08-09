@@ -10,7 +10,7 @@ export const metaSettings = sqliteTable('metaSettings', {
   nested: boolean('nested', false),
   marks: boolean('marks', false),
   bookmark: boolean('bookmark', false),
-  parser: boolean('parser', false),
+  parser: boolean('parser', true),
   country: boolean('country', false),
   career: boolean('career', false),
   scraper: boolean('scraper', false),

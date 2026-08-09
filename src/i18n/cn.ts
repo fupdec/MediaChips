@@ -2644,7 +2644,7 @@ const cn = {
       tab_basics: '基本',
       tab_where: '固定',
       tab_appearance: '外观',
-      tab_capabilities: '功能',
+      tab_capabilities: '内置字段',
       tab_from_path: '解析',
       next_steps_title: '下一步',
       next_steps_intro: '可通过以下可选步骤完成设置：',

@@ -205,6 +205,7 @@ const addMeta = async () => {
 
     // Add pageSetting for array type
     if (metaType.value === 'array') {
+      metaData.parser = true
       metaData.pageSetting = {
         page: 1
       }

@@ -2615,7 +2615,7 @@ const en = {
       tab_basics: 'Basics',
       tab_where: 'Pinning',
       tab_appearance: 'Appearance',
-      tab_capabilities: 'Capabilities',
+      tab_capabilities: 'Built-in fields',
       tab_from_path: 'Parsing',
       next_steps_title: '“{name}” created',
       next_steps_intro: 'Finish setup with these optional steps:',
