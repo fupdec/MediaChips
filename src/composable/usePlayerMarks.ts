@@ -19,7 +19,10 @@ import type { PlayerMark } from '@/types/player'
 import { MARK_FILTER_CHAPTER, getAssignedArrayMetas } from '@/utils/markAdding'
 
 interface UsePlayerMarksOptions {
-  emit: (event: 'removeMark' | 'editMark', mark: PlayerMark) => void
+  emit: {
+    (event: 'removeMark', mark: PlayerMark): void
+    (event: 'editMark', mark: PlayerMark): void
+  }
 }
 
 export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {

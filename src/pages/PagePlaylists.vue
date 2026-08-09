@@ -834,7 +834,10 @@ const loadDynamicPlaylistSummaries = async () => {
   try {
     const res = await typedApi.getDynamicPlaylists()
     applyDynamicSummaryMap(new Map(
-      (res.data || []).map((item) => [Number(item.id), item]),
+      (res.data || []).map((item) => [Number(item.id), {
+        count: item.count == null ? undefined : Number(item.count),
+        previewIds: item.previewIds,
+      }]),
     ))
   } catch (aggregateError) {
     console.log('Error loading dynamic playlist summaries; falling back per id:', aggregateError)

@@ -279,7 +279,7 @@ export function serializeEnabledPlugins(pluginIds: string[]): string {
 async function fetchUserPluginCatalog(enabledPluginIds: string[]): Promise<PluginCatalogEntry[]> {
   try {
     const {data} = await typedApi.listPlugins(enabledPluginIds)
-    return Array.isArray(data) ? data : []
+    return Array.isArray(data) ? data as PluginCatalogEntry[] : []
   } catch (error) {
     console.warn('Failed to load installed user plugins', error)
     return []

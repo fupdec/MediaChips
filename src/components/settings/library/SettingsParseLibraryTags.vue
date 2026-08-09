@@ -895,7 +895,7 @@ const startParsing = async () => {
 
     await typedApi.streamParseLibraryTagsPreview(
       {signal: abortController.signal},
-      handleEvent,
+      handleEvent as (event: import('@/services/typedApi/tasks').GenerationStreamEvent) => void,
     )
   } catch (error) {
     if ((error as Error).name !== 'AbortError') {

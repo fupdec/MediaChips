@@ -431,7 +431,6 @@ const initMarkTypes = () => {
 
 const getMarkTypeText = (item: MarkTypeItem) => {
   if ('textKey' in item && item.textKey) return t(item.textKey)
-  if ('text' in item && item.text) return item.text
   return ''
 }
 

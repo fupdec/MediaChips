@@ -37,7 +37,7 @@
       <div class="player-sidebar__filters">
         <PlayerMarksFilters
           v-model="marksType"
-          :assigned="assigned"
+          :assigned="assigned as any"
         />
       </div>
 
@@ -139,7 +139,7 @@ async function generateChapters() {
       useSilence: true,
       useLlmTitles: true,
     })
-    const chapters = Number(result.data?.chapters) || 0
+    const chapters = Number((result.data as {chapters?: number} | undefined)?.chapters) || 0
     const res = await typedApi.getMarksForVideo(mediaId)
     playerStore.marks = Array.isArray(res.data) ? res.data : []
     if (!marksType.value.includes(MARK_FILTER_CHAPTER)) {

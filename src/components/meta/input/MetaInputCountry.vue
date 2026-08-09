@@ -107,7 +107,9 @@ const showIcons = computed(() =>
 )
 
 const fieldDensity = computed(() => {
-  if (typeof attrs.density === 'string') return attrs.density
+  if (attrs.density === 'default' || attrs.density === 'comfortable' || attrs.density === 'compact') {
+    return attrs.density
+  }
   return view.value.dense ? 'compact' : 'default'
 })
 

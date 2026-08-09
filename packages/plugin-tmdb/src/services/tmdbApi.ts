@@ -40,7 +40,7 @@ export async function searchTmdbMovies(payload: {
 
 export async function getTmdbMovie(id: number | string): Promise<{extras: TmdbExtras}> {
   const {data} = await typedApi.getTmdbMovie(id)
-  return data as {extras: TmdbExtras}
+  return data as unknown as {extras: TmdbExtras}
 }
 
 export async function getTmdbTitle(
@@ -49,12 +49,12 @@ export async function getTmdbTitle(
   options: {season?: number; episode?: number; hint?: string} = {},
 ): Promise<{extras: TmdbExtras}> {
   const {data} = await typedApi.getTmdbTitle(mediaType, id, options)
-  return data as {extras: TmdbExtras}
+  return data as unknown as {extras: TmdbExtras}
 }
 
 export async function findTmdbByImdb(imdbId: string): Promise<{extras: TmdbExtras}> {
   const {data} = await typedApi.findTmdbByImdb(imdbId)
-  return data as {extras: TmdbExtras}
+  return data as unknown as {extras: TmdbExtras}
 }
 
 export async function searchTmdbPeople(payload: {
@@ -67,5 +67,5 @@ export async function searchTmdbPeople(payload: {
 
 export async function getTmdbPerson(id: number | string): Promise<{extras: TmdbPersonExtras}> {
   const {data} = await typedApi.getTmdbPerson(id)
-  return data as {extras: TmdbPersonExtras}
+  return data as unknown as {extras: TmdbPersonExtras}
 }

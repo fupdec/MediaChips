@@ -428,7 +428,7 @@ const startSearch = async () => {
     await typedApi.streamFindMissingMedia(
       {folders},
       {signal: abortController.signal},
-      handleEvent,
+      handleEvent as (event: import('@/services/typedApi/tasks').GenerationStreamEvent) => void,
     )
 
     await fetchStatus()

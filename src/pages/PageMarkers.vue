@@ -602,7 +602,7 @@ async function ensureReelThumb(mark: MarkItem) {
     const url = await loadMarkImageDisplayUrl({
       markId,
       mediaPath: appStore.mediaPath,
-      mediaId: medium?.id || mark.mediaId,
+      mediaId: medium?.id || Number(mark.mediaId) || undefined,
     })
     if (!selectedIdSet.value.has(markId)) return
     const next = new Map(reelThumbUrls.value)
@@ -897,7 +897,7 @@ const exportSelectedClips = async (mode: 'concat' | 'folder' = 'concat') => {
       sort: 'selection',
       mode,
       countHint: selectedRangedIds.value.length,
-      t: (key, params) => t(key, params),
+      t: (key, params) => (params == null ? t(key) : t(key, params)),
     })
   } finally {
     exportingClips.value = false

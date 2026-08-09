@@ -77,16 +77,16 @@ export type ItemPreviewContextMenuOptions = {
   applyBigPreviewMetrics: (preview: HTMLElement) => void
   mediaPath: MaybeRefOrGetter<string>
   translate: (key: string) => string
-  setOption: (value: string, key: string) => void
+  setOption: (value: string, key: any) => unknown
   showContextMenu: (payload: ContextMenuPayload) => void
   isContextMenuOpen: () => boolean
   setNotification: (payload: {
     title: string
     text?: string
     icon?: string
-    type?: string
-  }) => void
-  refreshThumb: (mediaId: number | string, options?: {regenerate?: boolean}) => void
+    type?: any
+  }) => unknown
+  refreshThumb: (mediaId: any, options?: {regenerate?: boolean}) => unknown
   syncMediaItem: (mediaId: number | string) => void
   refreshGridPreviewIfNeeded?: () => Promise<void>
 }

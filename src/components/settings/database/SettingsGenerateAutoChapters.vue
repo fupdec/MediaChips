@@ -129,7 +129,11 @@ async function fetchStatus() {
   statusError.value = ''
   try {
     const response = await typedApi.getAutoChapterGenerationStatus()
-    const data = response.data || {}
+    const data = (response.data || {}) as {
+      total?: number
+      withChapters?: number
+      pending?: number
+    }
     status.value = {
       total: Number(data.total) || 0,
       withChapters: Number(data.withChapters) || 0,
@@ -196,7 +200,7 @@ async function startGeneration(force: boolean) {
             ? Math.min((effective / counters.value.total) * 100, 100)
             : 0
           if (taskId != null) {
-            tasksStore.updateTask(taskId, {
+            tasksStore.updateTask(String(taskId), {
               subtitle: t('settings_labels.database.generate_auto_chapters_progress', {
                 ...counters.value,
                 percent: Math.round(progress.value),
@@ -213,7 +217,7 @@ async function startGeneration(force: boolean) {
           }
           progress.value = 100
           if (taskId != null) {
-            tasksStore.updateTask(taskId, {
+            tasksStore.updateTask(String(taskId), {
               subtitle: event.stopped
                 ? t('common.stop')
                 : t('settings_labels.database.generate_auto_chapters_complete', lastSummary.value),

@@ -120,7 +120,7 @@ export async function applyImportPathAutoTags(
 
   const createdTags = preview.assignments.filter((row) => row.willCreate).length
   const response = await typedApi.applyParseLibraryTags({assignments: preview.assignments})
-  const applied = Number(response.data?.applied || 0)
+  const applied = Number((response.data as {applied?: number} | undefined)?.applied || 0)
   await reloadTagsCatalog()
 
   return {
@@ -196,7 +196,7 @@ export async function applyNeighborSuggestionsToMedia(
   const response = await typedApi.applyParseLibraryTags({assignments})
   await reloadTagsCatalog()
   return {
-    applied: Number(response.data?.applied || 0),
+    applied: Number((response.data as {applied?: number} | undefined)?.applied || 0),
     createdTags: 0,
     mediaWithTags: new Set(assignments.map((row) => row.mediaId)).size,
     proposed: assignments.length,
@@ -250,7 +250,7 @@ export async function applyClipSuggestionsToMedia(
   const response = await typedApi.applyParseLibraryTags({assignments})
   await reloadTagsCatalog()
   return {
-    applied: Number(response.data?.applied || 0),
+    applied: Number((response.data as {applied?: number} | undefined)?.applied || 0),
     createdTags: createdNames.size,
     mediaWithTags: new Set(assignments.map((row) => row.mediaId)).size,
     proposed: assignments.length,

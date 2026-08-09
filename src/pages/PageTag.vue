@@ -781,7 +781,7 @@ const exportClips = async (
       sort,
       mode,
       countHint: clipCount.value,
-      t: (key, params) => t(key, params),
+      t: (key, params) => (params == null ? t(key) : t(key, params)),
     })
   } finally {
     exportingClips.value = false

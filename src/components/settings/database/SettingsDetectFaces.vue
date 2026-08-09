@@ -520,8 +520,8 @@ interface DetectionStatus {
 }
 
 interface StreamEvent {
-  type: 'progress' | 'complete' | 'error' | 'status'
-  phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready' | 'downloading_detect' | 'detect_ready' | 'downloading_gender' | 'gender_ready'
+  type: string
+  phase?: string
   processed?: number
   total?: number
   created?: number
@@ -536,7 +536,9 @@ interface StreamEvent {
   mediaId?: number
   message?: string
   sizeMb?: number
+  downloadSizeMb?: number
   stopped?: boolean
+  [key: string]: unknown
 }
 
 const {t} = useI18n()
@@ -1086,7 +1088,7 @@ const runStreamJob = async (options: {
 
 const startDetection = (force: boolean) => runStreamJob({
   job: 'detect',
-  stream: typedApi.streamFaceDetection,
+  stream: typedApi.streamFaceDetection as any,
   body: {force},
   title: t('settings_labels.database.detect_faces'),
   progressKey: 'settings_labels.database.detect_faces_progress',
@@ -1095,7 +1097,7 @@ const startDetection = (force: boolean) => runStreamJob({
 
 const startEnrollment = (force: boolean) => runStreamJob({
   job: 'enroll',
-  stream: typedApi.streamFaceEnrollment,
+  stream: typedApi.streamFaceEnrollment as any,
   body: {
     force,
     metaId: selectedPerformerMeta.value?.id || undefined,
@@ -1113,7 +1115,7 @@ const openEnrollmentQuality = () => {
 
 const startMatching = (force: boolean) => runStreamJob({
   job: 'match',
-  stream: typedApi.streamFaceMatching,
+  stream: typedApi.streamFaceMatching as any,
   body: {force},
   title: t('settings_labels.database.face_match_run'),
   progressKey: 'settings_labels.database.face_match_run_progress',

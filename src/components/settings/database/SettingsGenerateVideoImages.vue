@@ -354,7 +354,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
 
     await typedApi.streamVideoImagesGeneration(
       {type: imageType, force, signal: abortController.signal},
-      handleEvent,
+      handleEvent as (event: import('@/services/typedApi/tasks').GenerationStreamEvent) => void,
     )
 
     await fetchStatus()

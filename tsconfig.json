@@ -40,5 +40,10 @@
     "packages/plugin-tmdb/src/**/*.vue"
   ],
   "references": [{ "path": "./tsconfig.node.json" }],
-  "exclude": []
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "packages/**/*.test.ts",
+    "packages/**/*.spec.ts"
+  ]
 }

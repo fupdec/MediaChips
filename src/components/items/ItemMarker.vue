@@ -143,7 +143,7 @@ interface ItemMarkerMedium {
 interface ItemMarkerTag {
   color?: string
   name?: string
-  meta?: { icon?: string }
+  meta?: { id?: number; icon?: string }
 }
 
 interface ItemMarkerMark extends MarkItem {

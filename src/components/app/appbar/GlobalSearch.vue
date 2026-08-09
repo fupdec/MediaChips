@@ -1587,7 +1587,8 @@ function getMatchedBookmarkText(item: GlobalSearchMedia | GlobalSearchTag): stri
 
 function getMatchedContentText(item: GlobalSearchMedia | GlobalSearchTag): string {
   if (!('matchedContent' in item)) return ''
-  return item.matchedContent || ''
+  const content = (item as GlobalSearchMedia).matchedContent
+  return typeof content === 'string' ? content : ''
 }
 
 function getMatchedTags(item: GlobalSearchMedia | GlobalSearchTag, isMedia: boolean): MatchedSearchTag[] {
@@ -1932,8 +1933,8 @@ function getNameHighlighted(text: string) {
                 size="small"
                 color="primary"
                 variant="flat"
-                :loading="healthFix.state.running"
-                :disabled="healthFix.state.running"
+                :loading="healthFix.state.value.running"
+                :disabled="healthFix.state.value.running"
                 @click="setupVisualSearchQuick"
               >
                 {{ t('globalSearch.setup_visual_search_quick', {count: visualSearchQuickSampleSize}) }}
@@ -1942,8 +1943,8 @@ function getNameHighlighted(text: string) {
                 size="small"
                 color="primary"
                 variant="tonal"
-                :loading="healthFix.state.running"
-                :disabled="healthFix.state.running"
+                :loading="healthFix.state.value.running"
+                :disabled="healthFix.state.value.running"
                 @click="setupVisualSearchFull"
               >
                 {{ t('globalSearch.setup_visual_search_full') }}

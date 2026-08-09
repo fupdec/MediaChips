@@ -93,7 +93,7 @@ export const importsApi = {
       return {
         ...res,
         data: {
-          ok: data.ok !== false,
+          ok: true as const,
           libraries: Array.isArray(data.libraries) ? data.libraries as MediaServerLibrary[] : [],
           error: data.error,
         },

@@ -41,8 +41,8 @@ export async function searchCamGirlFinder(
   params: CamGirlFinderSearchParams,
 ): Promise<CamGirlFinderSearchResponse> {
   try {
-    const {data} = await typedApi.searchCamGirlFinder(params)
-    return data as CamGirlFinderSearchResponse
+    const {data} = await typedApi.searchCamGirlFinder(params as Record<string, unknown>)
+    return data as unknown as CamGirlFinderSearchResponse
   } catch (error) {
     console.error('searchCamGirlFinder error', error)
     throw new Error(extractApiErrorMessage(error), {cause: error})
