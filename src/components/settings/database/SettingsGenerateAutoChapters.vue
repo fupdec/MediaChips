@@ -1,8 +1,11 @@
 <template>
-  <div id="settings-generate-auto-chapters" class="mx-4 pb-4">
-    <settings-category-divider
+  <SettingsHealthTask status="idle" class="mx-4 mb-1">
+  <div id="settings-generate-auto-chapters" class="pb-1">
+    <SettingsHealthSectionHeader
       :title="t('settings_labels.database.generate_auto_chapters')"
       icon="bookmark-multiple-outline"
+      :hint="t('settings_labels.database.generate_auto_chapters_hint')"
+      status="idle"
     />
 
     <v-alert
@@ -14,18 +17,6 @@
       class="mb-4"
     >
       <span class="text-caption">{{ statusError }}</span>
-    </v-alert>
-
-    <v-alert
-      type="info"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      class="mb-4"
-    >
-      <span class="text-caption">
-        {{ t('settings_labels.database.generate_auto_chapters_hint') }}
-      </span>
     </v-alert>
 
     <div v-if="statusLoading" class="text-body-2 text-medium-emphasis mb-4">
@@ -98,6 +89,7 @@
       </v-btn>
     </div>
   </div>
+  </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
@@ -106,7 +98,8 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 
 const {t, locale} = useI18n()
 const tasksStore = useTasksStore()

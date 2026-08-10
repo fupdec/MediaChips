@@ -1,8 +1,13 @@
 <template>
-  <div id="settings-generate-video-images" class="mx-4 pb-4">
-    <settings-category-divider
+  <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
+  <div id="settings-generate-video-images" class="pb-1">
+    <SettingsHealthSectionHeader
       :title="t('settings_labels.database.generate_video_images')"
       icon="image-auto-adjust"
+      :hint="t('settings_labels.database.generate_video_images_hint')"
+      :step="1"
+      :status="taskStatus"
+      :status-label="statusChipLabel"
     />
 
     <v-alert
@@ -19,18 +24,6 @@
     <div v-if="statusLoading" class="text-body-2 text-medium-emphasis mb-4">
       {{ t('common.loading') }}
     </div>
-
-    <v-alert
-      type="info"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      class="mb-4"
-    >
-      <span class="text-caption">
-        {{ t('settings_labels.database.generate_video_images_hint') }}
-      </span>
-    </v-alert>
 
     <v-progress-linear
       v-if="activeType"
@@ -118,6 +111,7 @@
       </div>
     </div>
   </div>
+  </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
@@ -126,7 +120,8 @@ import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
 import {getErrorStatus} from '@/types/vue'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import {setNotification} from '@/services/notificationService'
 
 type ImageTypeId = 'preview' | 'grid' | 'marks'
@@ -211,6 +206,25 @@ let taskId: string | null = null
 const activeTypeLabel = computed(() => {
   const item = imageTypes.find((type) => type.id === activeType.value)
   return item ? t(item.titleKey) : ''
+})
+
+const pendingTotal = computed(() =>
+  imageTypes.reduce((sum, type) => sum + Number(status.value[type.id]?.pending || 0), 0),
+)
+
+const taskStatus = computed(() => {
+  if (!statusLoaded.value) return 'idle' as const
+  return pendingTotal.value > 0 ? 'pending' as const : 'done' as const
+})
+
+const statusChipLabel = computed(() => {
+  if (taskStatus.value === 'pending') {
+    return t('settings_labels.database.health_guide_pending', {count: pendingTotal.value})
+  }
+  if (taskStatus.value === 'done') {
+    return t('settings_labels.database.health_guide_done')
+  }
+  return undefined
 })
 
 const fetchStatus = async () => {

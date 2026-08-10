@@ -1,184 +1,228 @@
 <template>
-  <section class="widget-health-alerts mb-6">
-    <div class="d-flex align-center justify-space-between mb-3">
-      <div class="d-flex align-center text-h6">
-        <v-icon class="mr-2" size="24">mdi-heart-pulse</v-icon>
-        <span>{{ t('home.widgets.health_title') }}</span>
+  <section class="widget-health mb-6">
+    <div class="widget-health__hero">
+      <div class="widget-health__glow" aria-hidden="true"/>
+
+      <div class="widget-health__top">
+        <div class="widget-health__title">
+          <v-icon size="20" class="mr-2">mdi-heart-pulse</v-icon>
+          <span>{{ t('home.widgets.health_title') }}</span>
+        </div>
+
+        <v-btn
+          v-if="checked || loading"
+          icon
+          size="small"
+          variant="tonal"
+          color="primary"
+          :loading="loading"
+          :title="t('home.widgets.health_run_check')"
+          @click="runCheck"
+        >
+          <v-icon>mdi-refresh</v-icon>
+        </v-btn>
       </div>
 
       <v-btn
-        v-if="checked && !loading"
+        v-if="!checked && !loading"
         @click="runCheck"
         color="primary"
-        icon
-        size="small"
-        variant="text"
-        :title="t('home.widgets.health_run_check')"
+        rounded
+        variant="flat"
+        prepend-icon="mdi-play-circle-outline"
+        class="mb-1"
       >
-        <v-icon>mdi-refresh</v-icon>
+        {{ t('home.widgets.health_run_check') }}
       </v-btn>
-    </div>
 
-    <v-btn
-      v-if="!checked && !loading"
-      @click="runCheck"
-      color="primary"
-      rounded
-      variant="tonal"
-      prepend-icon="mdi-play-circle-outline"
-    >
-      {{ t('home.widgets.health_run_check') }}
-    </v-btn>
-
-    <div v-if="loading" class="mt-2">
-      <v-progress-linear indeterminate color="primary" rounded height="4" class="mb-2"/>
-      <div class="text-caption text-medium-emphasis">
-        {{ t('home.widgets.health_checking') }}
-      </div>
-    </div>
-
-    <template v-else-if="checked">
-      <div class="widget-health-alerts__score d-flex align-center ga-4 mb-3">
-        <div
-          class="widget-health-alerts__score-value text-h3 font-weight-bold"
-          :class="scoreToneClass"
-        >
-          {{ health.score }}
+      <div v-if="loading && !checked" class="mt-1">
+        <v-progress-linear indeterminate color="primary" rounded height="4" class="mb-2"/>
+        <div class="text-caption text-medium-emphasis">
+          {{ t('home.widgets.health_checking') }}
         </div>
-        <div>
-          <div class="text-body-1 font-weight-medium">{{ scoreLabel }}</div>
-          <div class="text-caption text-medium-emphasis">
-            {{ databaseSizeLabel }}
+      </div>
+
+      <template v-else-if="checked">
+        <div class="widget-health__score-row">
+          <div class="widget-health__ring-wrap">
+            <v-progress-circular
+              :model-value="health.score"
+              :size="96"
+              :width="7"
+              :color="scoreColor"
+              bg-color="rgba(var(--v-theme-on-surface), 0.08)"
+            >
+              <div class="widget-health__ring-inner">
+                <div class="widget-health__score" :class="scoreToneClass">{{ health.score }}</div>
+                <div class="widget-health__score-unit">%</div>
+              </div>
+            </v-progress-circular>
           </div>
-        </div>
-      </div>
 
-      <div
-        v-if="canFixSafe"
-        class="mb-2"
-      >
-        <div class="d-flex flex-wrap ga-2 align-center">
-          <v-btn
-            v-if="!healthFix.state.value.running"
-            color="primary"
-            rounded
-            variant="flat"
-            prepend-icon="mdi-auto-fix"
-            @click="fixSafeIssues"
-          >
-            {{ primaryFixLabel }}
-          </v-btn>
-          <v-btn
-            v-else
-            color="error"
-            rounded
-            variant="flat"
-            prepend-icon="mdi-stop"
-            @click="healthFix.stop()"
-          >
-            {{ t('common.stop') }}
-          </v-btn>
-          <v-btn
-            color="primary"
-            size="small"
-            variant="text"
-            rounded
-            @click="openDatabaseSettings"
-          >
-            {{ t('home.widgets.health_open_settings') }}
-          </v-btn>
-        </div>
-        <div
-          v-if="healthFix.state.value.running"
-          class="text-caption text-medium-emphasis mt-2"
-        >
-          {{ fixProgressLabel }}
-        </div>
-        <v-progress-linear
-          v-if="healthFix.state.value.running"
-          :model-value="healthFix.state.value.progress"
-          color="primary"
-          height="4"
-          rounded
-          class="mt-1"
-        />
-      </div>
+          <div class="widget-health__score-meta">
+            <div class="widget-health__score-label" :class="scoreToneClass">{{ scoreLabel }}</div>
+            <div class="text-caption text-medium-emphasis mb-2">{{ databaseSizeLabel }}</div>
 
-      <v-alert
-        v-if="!issueAlerts.length"
-        type="success"
-        icon="mdi-check-circle-outline"
-        variant="tonal"
-        rounded="lg"
-        density="compact"
-        class="mb-2"
-      >
-        {{ t('home.widgets.health_no_issues') }}
-      </v-alert>
-
-      <div v-else class="d-flex flex-column ga-2 mb-2">
-        <v-alert
-          v-for="alert in issueAlerts"
-          :key="alert.id"
-          :type="alert.type"
-          :icon="alert.icon"
-          variant="tonal"
-          rounded="lg"
-          density="compact"
-          class="widget-health-alerts__item"
-        >
-          <div class="d-flex align-center justify-space-between flex-wrap ga-2">
-            <span class="text-body-2">{{ alert.text }}</span>
-            <div class="d-flex align-center ga-1">
-              <v-btn
-                v-if="alert.actionLabel && alert.action"
-                @click="alert.action"
-                color="primary"
-                size="small"
-                variant="text"
+            <div v-if="issueAlerts.length" class="widget-health__completion mb-2">
+              <div class="d-flex justify-space-between align-center mb-1">
+                <span class="text-caption font-weight-medium">
+                  {{ t('home.widgets.health_issues_left', {count: issueAlerts.length}) }}
+                </span>
+              </div>
+              <v-progress-linear
+                :model-value="health.score"
+                :color="scoreColor"
+                height="5"
                 rounded
+              />
+            </div>
+
+            <div v-if="nextIssue" class="widget-health__next">
+              <span class="text-caption text-medium-emphasis">
+                {{ t('settings_labels.database.health_guide_next') }}:
+              </span>
+              <button
+                type="button"
+                class="widget-health__next-link"
+                @click="nextIssue.action?.()"
               >
-                {{ alert.actionLabel }}
-              </v-btn>
-              <v-btn
-                @click="snoozeAlert(alert.id)"
-                color="primary"
-                size="small"
-                variant="text"
-                rounded
-                :title="t('home.widgets.health_snooze_week')"
-              >
-                {{ t('home.widgets.health_snooze') }}
-              </v-btn>
+                <v-icon size="14">{{ nextIssue.icon }}</v-icon>
+                {{ nextIssue.text }}
+              </button>
             </div>
           </div>
-        </v-alert>
-      </div>
+        </div>
 
-      <div class="d-flex flex-wrap ga-2">
-        <v-btn
-          v-for="tip in tipAlerts"
-          :key="tip.id"
-          size="small"
-          variant="tonal"
-          rounded
-          prepend-icon="mdi-folder-search-outline"
-          @click="tip.action?.()"
+        <div class="widget-health__actions">
+          <div class="d-flex flex-wrap ga-2 align-center">
+            <template v-if="canFixSafe">
+              <v-btn
+                v-if="!healthFix.state.value.running"
+                color="primary"
+                rounded
+                variant="flat"
+                prepend-icon="mdi-auto-fix"
+                @click="fixSafeIssues"
+              >
+                {{ primaryFixLabel }}
+              </v-btn>
+              <v-btn
+                v-else
+                color="error"
+                rounded
+                variant="flat"
+                prepend-icon="mdi-stop"
+                @click="healthFix.stop()"
+              >
+                {{ t('common.stop') }}
+              </v-btn>
+            </template>
+
+            <v-btn
+              color="primary"
+              size="small"
+              variant="tonal"
+              rounded
+              prepend-icon="mdi-cog-outline"
+              @click="openDatabaseSettings"
+            >
+              {{ t('home.widgets.health_open_settings') }}
+            </v-btn>
+          </div>
+
+          <div
+            v-if="healthFix.state.value.running"
+            class="widget-health__fix-progress"
+          >
+            <div class="text-caption text-medium-emphasis mb-1">{{ fixProgressLabel }}</div>
+            <v-progress-linear
+              :model-value="healthFix.state.value.progress"
+              color="primary"
+              height="4"
+              rounded
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="!issueAlerts.length"
+          class="widget-health__success"
         >
-          {{ tip.actionLabel }}
-        </v-btn>
-        <v-btn
-          v-if="activeTasksCount > 0"
-          size="small"
-          variant="tonal"
-          rounded
-          prepend-icon="mdi-cogs"
-          @click="openTasks"
+          <div class="widget-health__success-icon">
+            <v-icon size="20">mdi-check-circle-outline</v-icon>
+          </div>
+          <div class="text-body-2 font-weight-medium">
+            {{ t('home.widgets.health_no_issues') }}
+          </div>
+        </div>
+
+        <div v-else class="widget-health__issues">
+          <button
+            v-for="alert in issueAlerts"
+            :key="alert.id"
+            type="button"
+            class="widget-health__issue"
+            :class="`widget-health__issue--${alert.type}`"
+            @click="alert.action?.()"
+          >
+            <div class="widget-health__issue-icon">
+              <v-icon size="18">{{ alert.icon }}</v-icon>
+            </div>
+
+            <div class="widget-health__issue-body">
+              <div class="widget-health__issue-text">{{ alert.text }}</div>
+              <div class="widget-health__issue-actions">
+                <span
+                  v-if="alert.actionLabel"
+                  class="widget-health__issue-cta"
+                >
+                  {{ alert.actionLabel }}
+                </span>
+                <span
+                  class="widget-health__issue-snooze"
+                  role="button"
+                  tabindex="0"
+                  :title="t('home.widgets.health_snooze_week')"
+                  @click.stop="snoozeAlert(alert.id)"
+                  @keydown.enter.stop="snoozeAlert(alert.id)"
+                >
+                  {{ t('home.widgets.health_snooze') }}
+                </span>
+              </div>
+            </div>
+
+            <v-icon size="18" class="widget-health__issue-chevron">mdi-chevron-right</v-icon>
+          </button>
+        </div>
+
+        <div
+          v-if="tipAlerts.length || activeTasksCount > 0"
+          class="widget-health__tips"
         >
-          {{ t('home.widgets.health_open_tasks') }} ({{ activeTasksCount }})
-        </v-btn>
-      </div>
-    </template>
+          <v-btn
+            v-for="tip in tipAlerts"
+            :key="tip.id"
+            size="small"
+            variant="tonal"
+            rounded
+            prepend-icon="mdi-folder-search-outline"
+            @click="tip.action?.()"
+          >
+            {{ tip.actionLabel }}
+          </v-btn>
+          <v-btn
+            v-if="activeTasksCount > 0"
+            size="small"
+            variant="tonal"
+            rounded
+            prepend-icon="mdi-cogs"
+            @click="openTasks"
+          >
+            {{ t('home.widgets.health_open_tasks') }} ({{ activeTasksCount }})
+          </v-btn>
+        </div>
+      </template>
+    </div>
   </section>
 </template>
 
@@ -197,10 +241,10 @@ import {
   useLibraryHealthFixQueue,
 } from '@/composable/useLibraryHealthFixQueue'
 import {getReadableFileSize} from '@/services/formatUtils'
-import type { HealthAlertItem, HomeHealthData } from '@/types/widgets'
-import { emptyHomeHealthUi, toHomeHealthUi } from '@/types/widgets'
-import type { HomeHealthQueueItemUi } from '@shared/entities/widgets-ui'
-import type { Locale } from '@/utils/translate'
+import type {HealthAlertItem, HomeHealthData} from '@/types/widgets'
+import {emptyHomeHealthUi, toHomeHealthUi} from '@/types/widgets'
+import type {HomeHealthQueueItemUi} from '@shared/entities/widgets-ui'
+import type {Locale} from '@/utils/translate'
 
 const {t, locale} = useI18n()
 const router = useRouter()
@@ -248,9 +292,17 @@ const scoreToneClass = computed(() => {
   return 'text-error'
 })
 
+const scoreColor = computed(() => {
+  const score = health.value.score
+  if (score >= 90) return 'success'
+  if (score >= 70) return 'primary'
+  if (score >= 40) return 'warning'
+  return 'error'
+})
+
 const QUEUE_ICONS: Record<HomeHealthQueueItemUi['id'], string> = {
-  visuals: 'mdi-image-off-outline',
-  fingerprint: 'mdi-fingerprint-off',
+  visuals: 'mdi-image-multiple-outline',
+  fingerprint: 'mdi-fingerprint',
   codec: 'mdi-movie-filter-outline',
   clip: 'mdi-brain',
   faces: 'mdi-face-recognition',
@@ -344,6 +396,8 @@ const tipAlerts = computed(() =>
   queueAlerts.value.filter((alert) => alert.id === 'missing'),
 )
 
+const nextIssue = computed(() => issueAlerts.value[0] || null)
+
 const fixStages = computed(() => healthFix.stagesFromHealth(health.value))
 
 const canFixSafe = computed(() =>
@@ -430,7 +484,7 @@ async function fixClipIndexFull() {
 }
 
 function openDatabaseSettings() {
-  openSettingsSection()
+  openSettingsSection('library_health_guide')
 }
 
 function openTasks() {
@@ -446,9 +500,6 @@ async function runCheck() {
   if (loading.value) return
 
   loading.value = true
-  checked.value = false
-  health.value = emptyHomeHealthUi()
-
   try {
     await loadHealth()
     checked.value = true
@@ -472,14 +523,248 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
-.widget-health-alerts {
-  &__item {
-    margin-bottom: 0;
-  }
+.widget-health__hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  background:
+    radial-gradient(ellipse at top right, rgba(var(--v-theme-primary), 0.16), transparent 55%),
+    radial-gradient(ellipse at bottom left, rgba(var(--v-theme-success), 0.08), transparent 50%),
+    rgba(var(--v-theme-on-surface), 0.025);
+}
 
-  &__score-value {
-    line-height: 1;
-    min-width: 3.5rem;
-  }
+.widget-health__glow {
+  pointer-events: none;
+  position: absolute;
+  inset: -40% auto auto -20%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--v-theme-primary), 0.18), transparent 70%);
+  filter: blur(8px);
+}
+
+.widget-health__top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.widget-health__title {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.widget-health__score-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.widget-health__ring-inner {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+}
+
+.widget-health__score {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.widget-health__score-unit {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.65;
+}
+
+.widget-health__score-meta {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.widget-health__score-label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.widget-health__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.widget-health__next-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.widget-health__next-link:hover {
+  text-decoration: underline;
+}
+
+.widget-health__actions {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.widget-health__fix-progress {
+  width: 100%;
+  max-width: 420px;
+}
+
+.widget-health__success {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--v-theme-success), 0.22);
+  background: rgba(var(--v-theme-success), 0.08);
+}
+
+.widget-health__success-icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--v-theme-success));
+  background: rgba(var(--v-theme-success), 0.14);
+}
+
+.widget-health__issues {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.widget-health__issue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--v-theme-surface), 0.55);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.widget-health__issue:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--v-theme-primary), 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.widget-health__issue--warning {
+  border-color: rgba(var(--v-theme-warning), 0.22);
+}
+
+.widget-health__issue--error {
+  border-color: rgba(var(--v-theme-error), 0.22);
+}
+
+.widget-health__issue-icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+
+.widget-health__issue--warning .widget-health__issue-icon {
+  color: rgb(var(--v-theme-warning));
+  background: rgba(var(--v-theme-warning), 0.14);
+}
+
+.widget-health__issue--error .widget-health__issue-icon {
+  color: rgb(var(--v-theme-error));
+  background: rgba(var(--v-theme-error), 0.14);
+}
+
+.widget-health__issue-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.widget-health__issue-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.widget-health__issue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.widget-health__issue-cta {
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.widget-health__issue-snooze {
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  font-size: 0.75rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.widget-health__issue-snooze:hover {
+  color: rgb(var(--v-theme-primary));
+}
+
+.widget-health__issue-chevron {
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  flex: 0 0 auto;
+}
+
+.widget-health__tips {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 </style>

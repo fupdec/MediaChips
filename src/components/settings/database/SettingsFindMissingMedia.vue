@@ -1,21 +1,13 @@
 <template>
-  <div class="mx-4 pb-4">
-    <settings-category-divider
+  <SettingsHealthTask status="optional" class="mx-4 mb-1">
+  <div class="pb-1">
+    <SettingsHealthSectionHeader
       :title="t('settings_labels.database.find_missing_media')"
       icon="file-search-outline"
+      :hint="t('settings_labels.database.find_missing_media_hint')"
+      :step="8"
+      status="optional"
     />
-
-    <v-alert
-      type="info"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      class="mb-4"
-    >
-      <span class="text-caption">
-        {{ t('settings_labels.database.find_missing_media_hint') }}
-      </span>
-    </v-alert>
 
     <div class="text-body-2 mb-4">
       <template v-if="statusLoaded && status.missing != null">
@@ -206,6 +198,7 @@
       @confirm="onBrowseConfirm"
     />
   </div>
+  </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
@@ -214,7 +207,8 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {showOpenDialog} from '@/services/electronDialogService'

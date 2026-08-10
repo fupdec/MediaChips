@@ -1,24 +1,16 @@
 <template>
+  <SettingsHealthTask status="idle" class="mx-4 mb-1">
   <div
     id="settings-find-duplicates"
-    class="mx-4 pb-4"
+    class="pb-1"
   >
-    <settings-category-divider
+    <SettingsHealthSectionHeader
       :title="t('settings_labels.database.find_duplicates')"
       icon="content-duplicate"
+      :hint="t('settings_labels.database.find_duplicates_hint')"
+      :step="6"
+      status="idle"
     />
-
-    <v-alert
-      type="info"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      class="mb-4"
-    >
-      <span class="text-caption">
-        {{ t('settings_labels.database.find_duplicates_hint') }}
-      </span>
-    </v-alert>
 
     <v-select
       v-model="mediaTypeId"
@@ -63,12 +55,14 @@
       {{ t('settings_labels.database.find_duplicates_open') }}
     </v-btn>
   </div>
+  </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {

@@ -161,21 +161,67 @@
                 <SettingsOpenDataFolder/>
               </SettingsSection>
 
-              <SettingsGroupLabel :title="t('settings.groups.maintenance_backfill')"/>
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance_health')"
+                icon="heart-pulse"
+                accent
+              />
+
+              <SettingsSection id="settings-library-health-guide">
+                <SettingsLibraryHealthGuide/>
+              </SettingsSection>
+
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance_media')"
+                icon="image-multiple-outline"
+                accent
+              />
 
               <SettingsSection>
-                <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
-                <v-divider class="mx-4 mb-2"/>
-                <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
-                <v-divider class="mx-4 mb-2"/>
-                <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL"/>
-                <v-divider class="mx-4 mb-2"/>
-                <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
+                <SettingsGenerateVideoImages/>
               </SettingsSection>
 
-              <SettingsSection id="settings-find-missing-media">
-                <SettingsFindMissingMedia/>
+              <SettingsSection>
+                <SettingsGenerateImageThumbs/>
               </SettingsSection>
+
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance_backfill')"
+                icon="database-sync-outline"
+                accent
+              />
+
+              <SettingsSection>
+                <SettingsBackfillTask :config="FINGERPRINT_BACKFILL" :step="2"/>
+              </SettingsSection>
+
+              <SettingsSection>
+                <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
+              </SettingsSection>
+
+              <SettingsSection>
+                <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL" :step="3"/>
+              </SettingsSection>
+
+              <SettingsSection>
+                <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL" :step="4"/>
+              </SettingsSection>
+
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance_faces')"
+                icon="face-recognition"
+                accent
+              />
+
+              <SettingsSection>
+                <SettingsDetectFaces/>
+              </SettingsSection>
+
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance_cleanup')"
+                icon="broom"
+                accent
+              />
 
               <SettingsSection id="settings-find-duplicates">
                 <SettingsFindDuplicates/>
@@ -183,27 +229,13 @@
 
               <SettingsTagImageAiUpscale/>
 
-              <SettingsGroupLabel :title="t('settings.groups.maintenance_media')"/>
-
-              <SettingsSection>
-                <SettingsGenerateVideoImages/>
+              <SettingsSection id="settings-find-missing-media">
+                <SettingsFindMissingMedia/>
               </SettingsSection>
 
               <SettingsSection>
                 <SettingsGenerateAutoChapters/>
               </SettingsSection>
-
-              <SettingsSection>
-                <SettingsGenerateImageThumbs/>
-              </SettingsSection>
-
-              <SettingsGroupLabel :title="t('settings.groups.maintenance_faces')"/>
-
-              <SettingsSection>
-                <SettingsDetectFaces/>
-              </SettingsSection>
-
-              <SettingsGroupLabel :title="t('settings.groups.maintenance_cleanup')"/>
 
               <SettingsSection id="settings-clear-generated-images">
                 <SettingsClearGeneratedImages/>
@@ -319,6 +351,9 @@ const SettingsOpenDataFolder = defineAsyncComponent(() =>
 )
 const SettingsDatabases = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDatabases.vue")
+)
+const SettingsLibraryHealthGuide = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsLibraryHealthGuide.vue")
 )
 const SettingsBackfillTask = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsBackfillTask.vue")
@@ -524,6 +559,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   watched_folders: "settings-watched-folders",
   open_data_folder: "settings-open-data-folder",
   databases: "settings-databases",
+  library_health_guide: "settings-library-health-guide",
   generate_video_images: "settings-generate-video-images",
   generate_auto_chapters: "settings-generate-auto-chapters",
   generate_image_thumbs: "settings-generate-image-thumbs",
@@ -636,13 +672,16 @@ const DATABASE_SECTIONS = new Set([
   "open_data_folder",
   "databases",
   "database_add",
+  "library_health_guide",
   "generate_video_images",
+  "generate_auto_chapters",
   "generate_image_thumbs",
   "detect_faces",
   "video_codec_backfill",
   "oshash_backfill",
   "fingerprint_backfill",
   "visual_hash_backfill",
+  "clip_embedding_backfill",
   "content_hash_backfill",
   "find_missing",
   "find_duplicates",

@@ -1,8 +1,13 @@
 <template>
-  <div id="settings-generate-image-thumbs" class="mx-4 pb-4">
-    <settings-category-divider
+  <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
+  <div id="settings-generate-image-thumbs" class="pb-1">
+    <SettingsHealthSectionHeader
       :title="t('settings_labels.database.generate_image_thumbs')"
       icon="image-outline"
+      :hint="t('settings_labels.database.generate_image_thumbs_hint')"
+      :step="1"
+      :status="taskStatus"
+      :status-label="statusChipLabel"
     />
 
     <v-alert
@@ -19,18 +24,6 @@
     <div v-if="statusLoading" class="text-body-2 text-medium-emphasis mb-4">
       {{ t('common.loading') }}
     </div>
-
-    <v-alert
-      type="info"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      class="mb-4"
-    >
-      <span class="text-caption">
-        {{ t('settings_labels.database.generate_image_thumbs_hint') }}
-      </span>
-    </v-alert>
 
     <v-progress-linear
       v-if="active"
@@ -104,15 +97,17 @@
       </v-btn>
     </div>
   </div>
+  </SettingsHealthTask>
 </template>
 
 <script setup>
-import {ref, onMounted} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
 import {getErrorStatus} from '@/types/vue'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 
 const {t} = useI18n()
 const tasksStore = useTasksStore()
@@ -127,6 +122,21 @@ const statusLoading = ref(false)
 const statusLoaded = ref(false)
 const statusError = ref('')
 const lastSummary = ref(null)
+
+const taskStatus = computed(() => {
+  if (!statusLoaded.value) return 'idle'
+  return status.value.pending > 0 ? 'pending' : 'done'
+})
+
+const statusChipLabel = computed(() => {
+  if (taskStatus.value === 'pending') {
+    return t('settings_labels.database.health_guide_pending', {count: status.value.pending})
+  }
+  if (taskStatus.value === 'done') {
+    return t('settings_labels.database.health_guide_done')
+  }
+  return undefined
+})
 const counters = ref({
   processed: 0,
   total: 0,

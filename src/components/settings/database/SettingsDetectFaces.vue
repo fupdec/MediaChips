@@ -1,14 +1,19 @@
 <template>
-  <div id="settings-detect-faces" class="mx-4 pb-4">
-    <settings-category-divider
+  <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
+  <div id="settings-detect-faces" class="pb-1">
+    <SettingsHealthSectionHeader
       :title="t('settings_labels.database.face_workflow_title')"
       icon="face-recognition"
+      :hint="t('settings_labels.database.face_workflow_intro')"
+      :step="5"
+      :status="taskStatus"
+      :status-label="statusChipLabel"
     >
       <template #actions>
         <v-spacer/>
-        <button-documentation id="media.face_recognition"/>
+        <ButtonDocumentation id="media.face_recognition"/>
       </template>
-    </settings-category-divider>
+    </SettingsHealthSectionHeader>
 
     <v-alert
       v-if="statusError"
@@ -20,10 +25,6 @@
     >
       <span class="text-caption">{{ statusError }}</span>
     </v-alert>
-
-    <p class="text-body-2 text-medium-emphasis mb-3">
-      {{ t('settings_labels.database.face_workflow_intro') }}
-    </p>
 
     <v-alert
       :type="nextStep.alertType"
@@ -484,6 +485,7 @@
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
+  </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
@@ -497,7 +499,8 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {setOption} from '@/services/settingsService'
 import {typedApi} from '@/services/typedApi'
 import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {setNotification} from '@/services/notificationService'
@@ -582,6 +585,21 @@ const embedDownloading = ref(false)
 const abortController = ref<AbortController | null>(null)
 const taskId = ref<string | null>(null)
 const counters = ref<Record<string, number>>({})
+
+const taskStatus = computed(() => {
+  if (!statusLoaded.value) return 'idle' as const
+  return status.value.pending > 0 ? 'pending' as const : 'done' as const
+})
+
+const statusChipLabel = computed(() => {
+  if (taskStatus.value === 'pending') {
+    return t('settings_labels.database.health_guide_pending', {count: status.value.pending})
+  }
+  if (taskStatus.value === 'done') {
+    return t('settings_labels.database.health_guide_done')
+  }
+  return undefined
+})
 
 const selectedPerformerMeta = ref<Meta | null>(null)
 const minConfidence = ref(clampFaceMatchConfidenceForm(settingsStore['faceMatch.minConfidence']))

@@ -3,10 +3,15 @@
     v-if="visible"
     id="settings-tag-image-ai-upscale"
   >
-    <div class="mx-4 pb-4">
-      <settings-category-divider
+    <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
+    <div class="pb-1">
+      <SettingsHealthSectionHeader
         :title="t('settings_labels.database.tag_image_ai_upscale')"
         icon="image-auto-adjust"
+        :hint="t('settings_labels.database.tag_image_ai_upscale_hint', {size: status.downloadSizeMb || 50})"
+        :step="7"
+        :status="taskStatus"
+        :status-label="statusChipLabel"
       />
 
       <v-alert
@@ -23,18 +28,6 @@
       <div v-if="statusLoading" class="text-body-2 text-medium-emphasis mb-4">
         {{ t('common.loading') }}
       </div>
-
-      <v-alert
-        type="info"
-        variant="tonal"
-        density="compact"
-        rounded="xl"
-        class="mb-4"
-      >
-        <span class="text-caption">
-          {{ t('settings_labels.database.tag_image_ai_upscale_hint', {size: status.downloadSizeMb || 50}) }}
-        </span>
-      </v-alert>
 
       <v-progress-linear
         v-if="active"
@@ -104,11 +97,12 @@
         :text="t('settings_labels.database.tag_image_ai_upscale_confirm', {size: status.downloadSizeMb || 50})"
       />
     </div>
+    </SettingsHealthTask>
   </SettingsSection>
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
@@ -116,7 +110,8 @@ import {getErrorStatus} from '@/types/vue'
 import {setNotification} from '@/services/notificationService'
 import {getReadableDuration} from '@/services/formatUtils'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 
 const {t} = useI18n()
@@ -137,6 +132,23 @@ const status = ref({
 const active = ref(false)
 const progress = ref(0)
 const currentPath = ref('')
+
+const taskStatus = computed(() => {
+  if (!statusLoaded.value) return 'idle' as const
+  if (!status.value.done && (status.value.suggested || status.value.pendingCount > 0)) {
+    return 'pending' as const
+  }
+  return 'done' as const
+})
+
+const statusChipLabel = computed(() => {
+  if (taskStatus.value === 'pending') {
+    return t('settings_labels.database.health_guide_pending', {
+      count: status.value.pendingCount || 0,
+    })
+  }
+  return undefined
+})
 const phaseLabel = ref('')
 const progressLabel = ref('')
 const confirmDialog = ref(false)
