@@ -58,13 +58,35 @@ describe('mediaRoots', () => {
 
   it('does not fall back to home when Docker data dir is set and mounts are empty', () => {
     const previousDataDir = process.env.MEDIA_CHIPS_DATA_DIR
+    const previousElectron = process.env.ELECTRON_RUN_AS_NODE
     process.env.MEDIA_CHIPS_DATA_DIR = '/data'
+    delete process.env.ELECTRON_RUN_AS_NODE
 
     try {
       expect(listMediaRoots('   ')).toEqual([])
     } finally {
       if (previousDataDir === undefined) delete process.env.MEDIA_CHIPS_DATA_DIR
       else process.env.MEDIA_CHIPS_DATA_DIR = previousDataDir
+      if (previousElectron === undefined) delete process.env.ELECTRON_RUN_AS_NODE
+      else process.env.ELECTRON_RUN_AS_NODE = previousElectron
+    }
+  })
+
+  it('falls back to system places for Electron API child even when DATA_DIR is set', () => {
+    const previousDataDir = process.env.MEDIA_CHIPS_DATA_DIR
+    const previousElectron = process.env.ELECTRON_RUN_AS_NODE
+    process.env.MEDIA_CHIPS_DATA_DIR = '/Users/me/Library/Application Support/mediaChips'
+    process.env.ELECTRON_RUN_AS_NODE = '1'
+
+    try {
+      const roots = listMediaRoots('   ')
+      expect(roots.length).toBeGreaterThan(0)
+      expect(roots.some((root) => root.path === path.resolve(os.homedir()))).toBe(true)
+    } finally {
+      if (previousDataDir === undefined) delete process.env.MEDIA_CHIPS_DATA_DIR
+      else process.env.MEDIA_CHIPS_DATA_DIR = previousDataDir
+      if (previousElectron === undefined) delete process.env.ELECTRON_RUN_AS_NODE
+      else process.env.ELECTRON_RUN_AS_NODE = previousElectron
     }
   })
 })

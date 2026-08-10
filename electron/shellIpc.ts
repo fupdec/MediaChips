@@ -1,5 +1,6 @@
 import fs from 'fs'
 import {
+  BrowserWindow,
   dialog,
   ipcMain,
   shell,
@@ -101,16 +102,21 @@ export function registerShellIpc(deps: {
     }
   })
 
-  ipcMain.handle('dialog:saveFile', async (_event: IpcMainInvokeEvent, options: {
+  ipcMain.handle('dialog:saveFile', async (event: IpcMainInvokeEvent, options: {
     defaultPath?: string
     content?: string
     write?: boolean
     filters?: Array<{name: string; extensions: string[]}>
   } = {}) => {
-    const result = await dialog.showSaveDialog({
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const dialogOptions = {
       defaultPath: options.defaultPath,
       filters: options.filters || [{name: 'All Files', extensions: ['*']}],
-    })
+    }
+    if (win && !win.isDestroyed()) win.focus()
+    const result = win && !win.isDestroyed()
+      ? await dialog.showSaveDialog(win, dialogOptions)
+      : await dialog.showSaveDialog(dialogOptions)
 
     if (result.canceled || !result.filePath) {
       return {canceled: true}
@@ -122,7 +128,7 @@ export function registerShellIpc(deps: {
     return {canceled: false, filePath: result.filePath}
   })
 
-  ipcMain.handle('showOpenDialog', async (_event: IpcMainInvokeEvent, properties: unknown) => {
+  ipcMain.handle('showOpenDialog', async (event: IpcMainInvokeEvent, properties: unknown) => {
     log('showOpenDialog called with properties:', properties)
 
     let dialogProperties: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles'> = []
@@ -149,10 +155,17 @@ export function registerShellIpc(deps: {
     log('Dialog properties being used:', dialogProperties)
 
     try {
-      const result = await dialog.showOpenDialog({
+      // Parent window is required on macOS so NSOpenPanel attaches as a sheet
+      // and is not hidden behind nested Vuetify modals / the app window.
+      const win = BrowserWindow.fromWebContents(event.sender)
+      const dialogOptions = {
         properties: dialogProperties,
         ...(filters ? {filters} : {}),
-      })
+      }
+      if (win && !win.isDestroyed()) win.focus()
+      const result = win && !win.isDestroyed()
+        ? await dialog.showOpenDialog(win, dialogOptions)
+        : await dialog.showOpenDialog(dialogOptions)
 
       log('Dialog closed, result:', {
         canceled: result.canceled,

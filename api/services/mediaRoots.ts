@@ -22,7 +22,12 @@ export const SKIP_DIR_NAMES = new Set([
   'usb',
 ])
 
-function isDockerDataRuntime(): boolean {
+/**
+ * Docker / NAS images set MEDIA_CHIPS_DATA_DIR=/data and expect /media mounts.
+ * Electron also sets MEDIA_CHIPS_DATA_DIR for the API child (userData) — that is not Docker.
+ */
+export function isDockerDataRuntime(): boolean {
+  if (process.env.ELECTRON_RUN_AS_NODE === '1') return false
   return Boolean(process.env.MEDIA_CHIPS_DATA_DIR?.trim())
 }
 
