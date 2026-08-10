@@ -43,7 +43,8 @@ export function createLoadingWindowController(deps: {
 
     deps.onReadyLog?.()
     hideLoadingWindow()
-    win.show()
+    if (!win.isVisible()) win.show()
+    win.focus()
   }
 
   function bindMainWindowLoadedHandler(mainWindow: BrowserWindowInstance) {
@@ -56,24 +57,24 @@ export function createLoadingWindowController(deps: {
       revealMainWindow()
     }, readyTimeoutMs)
 
-    if (!mainWindow.webContents.isLoading()) {
-      return
-    }
-
-    mainWindow.webContents.once('did-finish-load', () => {
-      // Window reveal is deferred until renderer sends main-app-ready.
+    // Show as soon as Chromium can paint — do not wait for settings/plugins IPC.
+    // Bind before loadURL; ready-to-show fires after the first compositor frame.
+    mainWindow.once('ready-to-show', () => {
+      revealMainWindow()
     })
   }
 
   function createLoadingWindow() {
+    // Show immediately on create so Dock/shortcut click gets a window before
+    // loading.html finishes parsing (ready-to-show would add tens–hundreds of ms).
     loading = new BrowserWindow({
       width: 320,
       height: 320,
-      show: false,
+      show: true,
       frame: false,
       resizable: false,
       alwaysOnTop: false,
-      backgroundColor: '#333',
+      backgroundColor: '#f3f1f8',
       icon: path.join(deps.getAppRoot(), 'icons/icon.png'),
       webPreferences: {
         nodeIntegration: true,
@@ -83,10 +84,7 @@ export function createLoadingWindowController(deps: {
       },
     })
 
-    loading.once('ready-to-show', () => {
-      if (loading && !loading.isDestroyed()) loading.show()
-    })
-
+    loading.center()
     loading.loadURL(deps.getLoadingPageUrl())
   }
 

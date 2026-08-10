@@ -1,9 +1,11 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
+import { marks } from '../schema/marks'
 import { meta } from '../schema/meta'
 import { metaSettings } from '../schema/metaSettings'
 import { pageSettings } from '../schema/pageSettings'
 import { savedFilters } from '../schema/savedFilters'
+import { tags } from '../schema/tags'
 import { nowIso } from '../utils/timestamps'
 
 export type MetaRow = typeof meta.$inferSelect
@@ -63,10 +65,21 @@ export function createMetaRepository(db: DrizzleClient) {
     },
 
     findMarkFilters(): MetaRow[] {
-      // Tag categories (array metas). Legacy meta.marks is no longer required.
+      // Only array categories that already appear on markers (marks → tags → meta).
+      const usedMetaIds = db
+        .selectDistinct({metaId: tags.metaId})
+        .from(marks)
+        .innerJoin(tags, eq(marks.tagId, tags.id))
+        .where(isNotNull(tags.metaId))
+        .all()
+        .map((row) => row.metaId)
+        .filter((id): id is number => id != null && Number.isFinite(id) && id > 0)
+
+      if (!usedMetaIds.length) return []
+
       return db.select()
         .from(meta)
-        .where(eq(meta.type, 'array'))
+        .where(and(eq(meta.type, 'array'), inArray(meta.id, usedMetaIds)))
         .orderBy(asc(meta.order), asc(meta.name))
         .all()
     },

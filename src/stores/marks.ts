@@ -40,9 +40,16 @@ export const useMarksStore = defineStore('marks', {
       const response = await typedApi.getMarkFilterMetas()
       this.filterMetas = response.data || []
 
+      const defaults = this.getDefaultTypes(this.filterMetas)
       if (!this.selectedTypes.length) {
-        this.selectedTypes = this.getDefaultTypes(this.filterMetas)
+        this.selectedTypes = defaults
+        return
       }
+
+      // Drop category chips that are no longer used in the marks table.
+      const allowed = new Set(defaults)
+      const pruned = this.selectedTypes.filter((type) => allowed.has(String(type)))
+      this.selectedTypes = pruned.length ? pruned : defaults
     },
 
     async fetchMarks({ append = false }: { append?: boolean } = {}) {

@@ -559,12 +559,15 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     isShellReady.value = false
     shellRevealSent = false
 
+    // Swap splash → main BrowserWindow as soon as Vue mounts (in-app splash still
+    // covers chrome). Do not wait for settings/locale — that delayed "window appears".
+    notifyMainWindowReady()
+
     await initSettings()
     applyTheme()
     await applyLocale()
 
-    // Reveal the app chrome and Electron window before heavy startup work
-    // (plugins, catalogs). Splash stays up only for settings + locale.
+    // Reveal the app chrome before heavy startup work (plugins, catalogs).
     await revealAppShell()
 
     try {

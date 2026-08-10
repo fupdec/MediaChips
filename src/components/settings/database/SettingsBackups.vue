@@ -27,12 +27,8 @@
           @close="dialog = false"
         />
 
-        <v-card-text class="pt-2 pb-0 px-4 px-sm-6">
-          <p class="text-body-2 text-medium-emphasis mb-4">
-            {{ t('settings_labels.database.backups_hint') }}
-          </p>
-
-          <div class="backups-toolbar mb-4">
+        <v-card-text class="pt-2 pb-4 px-4 px-sm-6">
+          <div class="backups-toolbar mt-4 mb-4">
             <v-btn
               prepend-icon="mdi-plus"
               :text="t('settings_labels.database.create_backup')"
@@ -45,19 +41,9 @@
 
             <div class="backups-toolbar__group">
               <v-btn
-                icon="mdi-database-refresh"
-                :aria-label="t('settings_labels.database.restore_backup')"
-                :title="t('settings_labels.database.restore_backup')"
-                color="warning"
-                variant="tonal"
-                rounded="pill"
-                :disabled="!isSelectedSingle"
-                @click="dialogRestoreConfirm = true"
-              />
-              <v-btn
+                v-tooltip:top="t('settings_labels.database.delete_backup')"
                 icon="mdi-trash-can-outline"
                 :aria-label="t('settings_labels.database.delete_backup')"
-                :title="t('settings_labels.database.delete_backup')"
                 color="error"
                 variant="tonal"
                 rounded="pill"
@@ -65,9 +51,9 @@
                 @click="dialogDelete = true"
               />
               <v-btn
+                v-tooltip:top="t('settings_labels.database.export_backup')"
                 icon="mdi-export-variant"
                 :aria-label="t('settings_labels.database.export_backup')"
-                :title="t('settings_labels.database.export_backup')"
                 color="info"
                 variant="tonal"
                 rounded="pill"
@@ -75,9 +61,9 @@
                 @click="dialogExport = true"
               />
               <v-btn
+                v-tooltip:top="t('settings_labels.database.import_backup')"
                 icon="mdi-import"
                 :aria-label="t('settings_labels.database.import_backup')"
-                :title="t('settings_labels.database.import_backup')"
                 color="primary"
                 variant="tonal"
                 rounded="pill"
@@ -103,7 +89,7 @@
               size="56"
               class="mb-3"
             >
-              <v-icon icon="mdi-archive-outline" size="28"/>
+              <v-icon icon="mdi-backup-restore" size="28"/>
             </v-avatar>
             <div class="text-body-1 font-weight-medium mb-1">
               {{ t('settings_labels.database.no_backups') }}
@@ -136,17 +122,9 @@
                 <v-checkbox-btn
                   :model-value="isBackupSelected(backup)"
                   color="primary"
-                  class="mr-1"
+                  class="mr-3"
                   @click.stop="toggleBackup(backup)"
                 />
-                <v-avatar
-                  color="primary"
-                  variant="tonal"
-                  size="32"
-                  class="mr-1"
-                >
-                  <v-icon icon="mdi-zip-box-outline" size="18"/>
-                </v-avatar>
               </template>
 
               <v-list-item-title class="text-body-2 font-weight-medium">
@@ -159,50 +137,20 @@
               <template #append>
                 <div class="backups-row__actions d-flex" @click.stop>
                   <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    rounded="pill"
+                    prepend-icon="mdi-database-refresh"
+                    :text="t('settings_labels.database.restore_backup')"
                     color="warning"
-                    :aria-label="t('settings_labels.database.restore_backup')"
-                    @click="selectOnly(backup); dialogRestoreConfirm = true"
-                  >
-                    <v-icon icon="mdi-database-refresh" size="18"/>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
+                    variant="tonal"
                     rounded="pill"
-                    color="error"
-                    :aria-label="t('settings_labels.database.delete_backup')"
-                    @click="selectOnly(backup); dialogDelete = true"
-                  >
-                    <v-icon icon="mdi-delete-outline" size="18"/>
-                  </v-btn>
+                    size="small"
+                    class="pr-3"
+                    @click="selectOnly(backup); dialogRestoreConfirm = true"
+                  />
                 </div>
               </template>
             </v-list-item>
           </v-list>
         </v-card-text>
-
-        <v-card-actions
-          v-if="selected.length"
-          class="px-4 px-sm-6 pb-4 pt-2"
-        >
-          <div class="text-caption text-medium-emphasis">
-            {{ t('settings_labels.database.backups_selected', {count: selected.length}) }}
-          </div>
-          <v-spacer/>
-          <v-btn
-            variant="text"
-            rounded="pill"
-            size="small"
-            @click="selected = []"
-          >
-            {{ t('common.clear') }}
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -430,7 +378,6 @@ const dialogsStore = useDialogsStore()
 const isElectron = computed(() => Boolean(appStore.isElectron) || hasElectronBridge())
 
 const notSelected = computed(() => selected.value.length === 0)
-const isSelectedSingle = computed(() => selected.value.length === 1)
 const restoreCompleteText = computed(() => t('settings_labels.database.restore_complete'))
 
 const onFilePathInput = (value: string) => {
