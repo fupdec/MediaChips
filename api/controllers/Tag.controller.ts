@@ -66,6 +66,9 @@ export default function (db: ApiDb) {
         search: typeof body.search === 'string'
           ? body.search
           : (typeof body.query === 'string' ? body.query : undefined),
+        searchMode: body.searchMode === 'substring' || body.searchMode === 'chars'
+          ? body.searchMode
+          : undefined,
         groupBy: body.groupBy,
       })
       sendOk(res, result)

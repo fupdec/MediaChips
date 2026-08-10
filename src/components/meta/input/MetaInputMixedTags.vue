@@ -202,6 +202,7 @@ import {
   getTextColor,
   highlightChars,
 } from '@/services/formatUtils'
+import {resolveTagAutocompleteSearchMode} from '@shared/tagAutocompleteMatch'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -566,6 +567,7 @@ async function getTags(searchQuery = search.value) {
 
   const requestId = ++fetchRequestId
   const trimmedSearch = String(searchQuery || '').trim()
+  const searchMode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
   const selectedParsed = normalizeKeys(val.value)
     .map(parseKey)
     .filter((entry): entry is {metaId: number; tagId: number} => Boolean(entry))
@@ -582,6 +584,7 @@ async function getTags(searchQuery = search.value) {
         sortBy: 'favorite',
         direction: 'desc',
         search: trimmedSearch || undefined,
+        searchMode: trimmedSearch ? searchMode : undefined,
         page: 1,
         limit: AUTOCOMPLETE_LIMIT,
         skipTotals: true,
@@ -668,6 +671,7 @@ async function loadMoreMeta(metaId: number) {
   metaLoading.value = {...metaLoading.value, [id]: true}
   const page = (metaPage.value[id] || 1) + 1
   const trimmedSearch = String(search.value || '').trim()
+  const searchMode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
   const beforeCount = tagOptions.value.filter((option) => option.metaId === id).length
 
   try {
@@ -677,6 +681,7 @@ async function loadMoreMeta(metaId: number) {
       sortBy: 'favorite',
       direction: 'desc',
       search: trimmedSearch || undefined,
+      searchMode: trimmedSearch ? searchMode : undefined,
       page,
       limit: AUTOCOMPLETE_LIMIT,
       skipTotals: true,

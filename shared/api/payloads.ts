@@ -108,6 +108,7 @@ export interface PostTagItemsPayload {
   filters?: FilterObject[]
   search?: string
   query?: string
+  searchMode?: 'substring' | 'chars'
   page?: number
   limit?: number
   skipTotals?: boolean
@@ -343,6 +344,7 @@ export type MediaTypeLike = MediaType
 
 export interface TagItemsListRequest extends ItemsListRequest {
   metaId: number
+  searchMode?: 'substring' | 'chars'
 }
 
 export interface MediaThumbsRequestPayload {

@@ -25,7 +25,10 @@ import {
 } from './mediaItemsListSql'
 import {assembleTagListResult, resolveTagListSqlParts} from './tagItemsListSql'
 import { resolveSortMetaType } from './resolveSortMetaType'
-import { searchTagsByName } from './globalSearch'
+import {
+  matchesTagAutocomplete,
+  type TagAutocompleteSearchMode,
+} from '../../shared/tagAutocompleteMatch'
 import {
   aggregateGroupedItems,
   resolveListGroupBy,
@@ -46,6 +49,8 @@ export interface TagLoadOptions {
   skipTotals?: boolean
   /** Server-side autocomplete / name+synonym search within a meta category. */
   search?: string
+  /** Typing-filter mode: substring (=exact) or chars with gaps (default). */
+  searchMode?: TagAutocompleteSearchMode
   groupBy?: string
   groupByMetaType?: string | null
 }
@@ -189,12 +194,29 @@ function emptyTagItemsResult(options: TagLoadOptions, totalUnfiltered: number | 
   })
 }
 
-async function resolveSearchTagIds(db: ApiDb, metaId: number, search: string): Promise<number[]> {
-  const matched = await searchTagsByName(db, search, {
-    limit: SEARCH_ID_RESOLVE_LIMIT,
-    metaId,
-  })
-  return matched.map((tag) => tag.id)
+async function resolveSearchTagIds(
+  db: ApiDb,
+  metaId: number,
+  search: string,
+  searchMode: TagAutocompleteSearchMode = 'chars',
+): Promise<number[]> {
+  // Autocomplete uses typing-filter semantics (mid-string + synonyms + optional char gaps),
+  // not global-search prefix matching.
+  const rows = await queryAllAsync<{
+    id: number
+    name: string | null
+    synonyms: string | null
+  }>(db, `SELECT id, name, synonyms
+     FROM tags
+     WHERE metaId = :metaId`, {metaId})
+
+  const matched: number[] = []
+  for (const row of rows) {
+    if (!matchesTagAutocomplete(row, search, searchMode)) continue
+    matched.push(Number(row.id))
+    if (matched.length >= SEARCH_ID_RESOLVE_LIMIT) break
+  }
+  return matched
 }
 
 async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
@@ -415,10 +437,12 @@ async function loadTagItemsLegacy(
 
 async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
   const search = String(options.search || '').trim()
+  const searchMode: TagAutocompleteSearchMode =
+    options.searchMode === 'substring' ? 'substring' : 'chars'
   let resolvedOptions = options
 
   if (search) {
-    const matchedIds = await resolveSearchTagIds(db, options.metaId, search)
+    const matchedIds = await resolveSearchTagIds(db, options.metaId, search, searchMode)
     if (!matchedIds.length) {
       let totalUnfiltered: number | null = null
       if (!options.skipTotals) {

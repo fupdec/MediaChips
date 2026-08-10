@@ -30,10 +30,6 @@ vi.mock('./filterItems', () => ({
   ) => items,
 }))
 
-vi.mock('./globalSearch', () => ({
-  searchTagsByName: vi.fn(async () => []),
-}))
-
 vi.mock('./filterItemsWorkerRunner', () => ({
   runFilterItemsAsync: async ({items}: {items: Array<{id: number}>}) => ({
     items,
@@ -42,7 +38,6 @@ vi.mock('./filterItemsWorkerRunner', () => ({
 }))
 
 import { loadTagItems } from './tagItemsLoader'
-import { searchTagsByName } from './globalSearch'
 
 describe('loadTagItems', () => {
   beforeEach(() => {
@@ -122,33 +117,58 @@ describe('loadTagItems', () => {
     expect(result.pages).toBeUndefined()
   })
 
-  it('narrows tag items by server-side search matches', async () => {
-    vi.mocked(searchTagsByName).mockResolvedValueOnce([
-      {id: 3, name: 'Alpha', metaId: 17, synonyms: null, matchSource: 'name'},
-      {id: 7, name: 'Alpine', metaId: 17, synonyms: null, matchSource: 'name'},
+  it('narrows tag items by mid-string and synonym search', async () => {
+    queryAllAsync.mockResolvedValueOnce([
+      {id: 1, name: 'Zeta', synonyms: null},
+      {id: 3, name: 'Scalpel', synonyms: null},
+      {id: 7, name: 'Display', synonyms: 'Alpine Peak'},
+      {id: 9, name: 'Other', synonyms: null},
     ])
     getItemsForMeta.mockReturnValue([
-      {id: 3, metaId: 17, name: 'Alpha'},
-      {id: 7, metaId: 17, name: 'Alpine'},
+      {id: 3, metaId: 17, name: 'Scalpel'},
+      {id: 7, metaId: 17, name: 'Display'},
     ])
 
     const result = await loadTagItems({} as never, {
       metaId: 17,
       search: 'alp',
+      searchMode: 'substring',
       skipTotals: true,
     })
 
-    expect(searchTagsByName).toHaveBeenCalledWith({} as never, 'alp', {
-      limit: 500,
-      metaId: 17,
-    })
+    expect(queryAllAsync).toHaveBeenCalledWith(
+      {} as never,
+      expect.stringContaining('SELECT id, name, synonyms'),
+      {metaId: 17},
+    )
     expect(getItemsForMeta).toHaveBeenCalledWith(17, [3, 7])
     expect(result.items).toHaveLength(2)
   })
 
+  it('matches chars-with-gaps search mode', async () => {
+    queryAllAsync.mockResolvedValueOnce([
+      {id: 2, name: 'favorite video', synonyms: null},
+      {id: 4, name: 'unrelated', synonyms: null},
+    ])
+    getItemsForMeta.mockReturnValue([
+      {id: 2, metaId: 17, name: 'favorite video'},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      search: 'fade',
+      searchMode: 'chars',
+      skipTotals: true,
+    })
+
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [2])
+    expect(result.items).toHaveLength(1)
+  })
+
   it('returns empty items when search matches nothing', async () => {
-    vi.mocked(searchTagsByName).mockResolvedValueOnce([])
-    queryAllAsync.mockResolvedValueOnce([{totalUnfiltered: 12}])
+    queryAllAsync
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{totalUnfiltered: 12}])
 
     const result = await loadTagItems({} as never, {
       metaId: 17,

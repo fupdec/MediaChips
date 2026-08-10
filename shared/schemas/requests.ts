@@ -779,6 +779,7 @@ export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
   metaId: coercedId,
   search: z.string().optional(),
   query: z.string().optional(),
+  searchMode: z.enum(['substring', 'chars']).optional(),
   find_duplicates: optionalCoercedBoolean,
 })
 

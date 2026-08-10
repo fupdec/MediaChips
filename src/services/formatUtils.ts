@@ -183,18 +183,7 @@ export function getDateForDB(ms?: number | null): string {
   return date.toISOString().replace('T', ' ').replace('Z', ' +00:00')
 }
 
-export function foundByChars(text: string, query: string): boolean {
-  const lowerText = text.toLowerCase()
-  let foundCharIndex = 0
-
-  for (let i = 0; i < query.length; i++) {
-    const char = query[i]
-    const x = lowerText.indexOf(char, foundCharIndex)
-    if (x === -1) return false
-    foundCharIndex = x + 1
-  }
-  return true
-}
+export {foundByChars} from '@shared/tagAutocompleteMatch'
 
 export function highlightChars(string: string, query: string, is_default?: boolean): string {
   const highlight = (str: string, q: string): string => {

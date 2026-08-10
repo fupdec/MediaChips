@@ -287,6 +287,7 @@ import {
   getTextColor,
   highlightChars,
 } from '@/services/formatUtils'
+import {resolveTagAutocompleteSearchMode, matchesTagAutocomplete} from '@shared/tagAutocompleteMatch'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -457,15 +458,16 @@ const applyTagHighlight = (tagObj: TagFilterItem, queryText: string) => {
   tagObj.raw.synonyms_parsed = synonyms_parsed.join(', ')
 }
 
-/** Server already filtered — keep all items, only apply highlight. */
+/** Keep typing-filter semantics even if selected tags were merged into the list. */
 const filterTagsForAutocomplete = (
   _value: string,
   query: string,
   item?: TagFilterItem,
 ) => {
-  if (item?.raw && query) {
-    applyTagHighlight(item, query)
-  }
+  if (!query || !item?.raw) return true
+  const mode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
+  if (!matchesTagAutocomplete(item.raw, query, mode)) return false
+  applyTagHighlight(item, query)
   return true
 }
 
@@ -525,6 +527,7 @@ const getTags = async (
   const requestId = append ? fetchRequestId : ++fetchRequestId
   const selectedIds = normalizeIds(val.value)
   const trimmedSearch = String(searchQuery || '').trim()
+  const searchMode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
   const page = append ? currentPage.value + 1 : 1
 
   try {
@@ -534,6 +537,7 @@ const getTags = async (
       sortBy: meta.value?.sortBy || 'name',
       direction: meta.value?.sortDir || 'asc',
       search: trimmedSearch || undefined,
+      searchMode: trimmedSearch ? searchMode : undefined,
       page,
       limit: AUTOCOMPLETE_LIMIT,
       skipTotals: true,
