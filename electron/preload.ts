@@ -206,9 +206,56 @@ function handleOutboundDragEnded() {
   if (mediaDragOutboundActive) clearMediaDragOutbound()
 }
 
-function handlePreloadDropOrDragEnd() {
+function handlePreloadDropOrDragEnd(event?: Event) {
+  if (event?.type === 'drop') {
+    captureDroppedFilePaths(event as DragEvent)
+  }
   resetMediaDragHover()
   handleOutboundDragEnded()
+}
+
+function captureDroppedFilePaths(event: DragEvent) {
+  const files = Array.from(event.dataTransfer?.files || [])
+  if (!files.length) {
+    for (const item of Array.from(event.dataTransfer?.items || [])) {
+      if (item.kind !== 'file') continue
+      const file = item.getAsFile()
+      if (file) files.push(file)
+    }
+  }
+
+  const paths: string[] = []
+  for (const file of files) {
+    try {
+      const next = webUtils.getPathForFile(file as File)
+      if (next) paths.push(next)
+    } catch {
+      const fallback = (file as File & {path?: string}).path
+      if (fallback) paths.push(fallback)
+    }
+  }
+
+  if (paths.length) {
+    lastDroppedFilePaths = paths
+    lastDroppedFilePathsAt = Date.now()
+  }
+}
+
+/** Paths captured in preload on the last file drop (more reliable than bridging File). */
+let lastDroppedFilePaths: string[] = []
+let lastDroppedFilePathsAt = 0
+const DROPPED_PATHS_TTL_MS = 5_000
+
+function takeLastDroppedFilePaths(): string[] {
+  if (!lastDroppedFilePaths.length) return []
+  if (Date.now() - lastDroppedFilePathsAt > DROPPED_PATHS_TTL_MS) {
+    lastDroppedFilePaths = []
+    return []
+  }
+  const paths = lastDroppedFilePaths
+  lastDroppedFilePaths = []
+  lastDroppedFilePathsAt = 0
+  return paths
 }
 
 window.addEventListener('dragenter', handlePreloadDragEnter, true)
@@ -242,6 +289,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return file.path || ''
     }
   },
+
+  /** Consume paths captured by the preload drop listener (preferred over bridging File). */
+  takeDroppedFilePaths: () => takeLastDroppedFilePaths(),
 
   // Для вызова с ожиданием ответа
   invoke: (channel: string, data: unknown) => {

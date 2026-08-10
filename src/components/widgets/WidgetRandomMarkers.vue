@@ -87,23 +87,39 @@ watch(() => props.limit, () => loadMarks())
 .widget-random-markers {
   &__scroll {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
     overflow-x: auto;
+    overflow-y: hidden;
     padding-bottom: 4px;
     scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
   }
 
   &__item {
     width: 168px;
     flex: 0 0 168px;
+    align-self: stretch;
     scroll-snap-align: start;
 
+    :deep(.item--plain-card) {
+      height: 100%;
+    }
+
     :deep(.item--plain-card > .v-card.item-mark) {
-      box-shadow: unset;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: none !important;
+      border: 1px solid rgba(var(--v-theme-on-surface), 0.2) !important;
+      overflow: hidden;
     }
 
     :deep(.item-mark) {
+      .item-mark__preview {
+        border-radius: 0;
+      }
+
       .v-card-subtitle {
         margin-top: 8px !important;
         font-size: 0.75rem;
@@ -111,6 +127,7 @@ watch(() => props.limit, () => loadMarks())
       }
 
       .v-card-text {
+        flex: 1 1 auto;
         padding-top: 4px;
         padding-bottom: 8px;
       }

@@ -84,3 +84,19 @@ describe('startDroppedMediaAdding', () => {
     expect(eventBus.emit).toHaveBeenCalledWith('addMedia')
   })
 })
+
+describe('collectDroppedPaths', () => {
+  it('prefers preload-captured paths when available', async () => {
+    const {collectDroppedPaths} = await import('./mediaDrop')
+    const previous = window.electronAPI
+    window.electronAPI = {
+      takeDroppedFilePaths: () => ['/media/a.mp4', '/media/b'],
+    } as never
+
+    try {
+      expect(collectDroppedPaths(null)).toEqual(['/media/a.mp4', '/media/b'])
+    } finally {
+      window.electronAPI = previous
+    }
+  })
+})

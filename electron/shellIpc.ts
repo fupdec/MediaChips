@@ -58,8 +58,18 @@ export function registerShellIpc(deps: {
 
       // Reveal the file in Finder/Explorer instead of only opening the parent folder.
       if (typeof data === 'object' && data !== null && data.isDir) {
-        shell.showItemInFolder(existingPath)
-        return {success: true}
+        try {
+          shell.showItemInFolder(existingPath)
+          return {success: true}
+        } catch (error) {
+          console.warn('showItemInFolder failed, falling back to openPath:', error)
+          // Fall through to shell.openPath on the parent directory.
+          const parent = existingPath.replace(/[/\\][^/\\]+$/, '') || existingPath
+          const openPromise = shell.openPath(parent)
+          const errorMessage = await openPromise
+          if (errorMessage) return {error: String(errorMessage)}
+          return {success: true}
+        }
       }
 
       // shell.openPath can hang on some platforms/Launch Services states.

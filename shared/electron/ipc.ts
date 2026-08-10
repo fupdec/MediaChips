@@ -293,7 +293,7 @@ export interface IpcSendPayloads {
   blur: void
   focus: void
   config: unknown
-  closeApp: void
+  closeApp: {force?: boolean} | void
 }
 
 export type IpcOnPayload<C extends IpcOnChannel> =
@@ -324,6 +324,8 @@ export interface ElectronBridgeAPI {
   ): void
   removeListener(channel: IpcOnChannel, callback: IpcListener): void
   getPathForFile(file: File): string
+  /** Paths from the last OS file drop, captured in preload before contextBridge cloning. */
+  takeDroppedFilePaths(): string[]
   updater: ElectronUpdaterAPI
 }
 

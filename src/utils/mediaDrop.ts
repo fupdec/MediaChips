@@ -63,6 +63,15 @@ export function containsDroppedFiles(event: DragEvent | null | undefined): boole
 }
 
 export function collectDroppedPaths(event: DragEvent | null | undefined): string[] {
+  // Prefer paths captured in preload during the drop event — File objects lose
+  // their filesystem path when passed across contextBridge in newer Electron.
+  const fromPreload = window.electronAPI?.takeDroppedFilePaths?.() || []
+  if (fromPreload.length) {
+    return collapseNestedDroppedPaths(
+      fromPreload.map((entry) => String(normalizePastedFilePath(entry) || '')).filter(Boolean),
+    )
+  }
+
   const paths = getDroppedFilesFromEvent(event)
     .map((file) => getDroppedFilePath(file))
     .filter(Boolean)

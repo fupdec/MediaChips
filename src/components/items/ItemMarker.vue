@@ -13,7 +13,9 @@
     <v-card
       class="item-mark"
       :class="[{ 'no-file': !isFileExists }]"
-      :elevation="plainCard ? 2 : undefined"
+      :variant="plainCard ? 'outlined' : undefined"
+      :elevation="plainCard ? 0 : undefined"
+      :rounded="plainCard ? 'lg' : undefined"
       @click="onCardClick"
     >
       <div class="item-mark__preview">

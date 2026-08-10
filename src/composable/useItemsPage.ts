@@ -472,8 +472,16 @@ export function useItemsPage({
         window.showNotification(t('notifications_text.server_error_logs'), 'error')
       }
 
-      if (props.items_type === 'media' || props.items_type === 'tag') {
+      // Never wipe a successful first page when an infinite-scroll append/fill fails
+      // (common when the API hiccups after cold start — left users with an empty library).
+      if ((props.items_type === 'media' || props.items_type === 'tag') && !appendListPage) {
         resetMediaListState()
+      } else if (appendListPage) {
+        itemsStore.updateState({
+          key: 'page',
+          value: Math.max(1, Number(ITEMS.value.page || 1) - 1),
+        })
+        infiniteScrollExhausted.value = false
       }
 
       throw error

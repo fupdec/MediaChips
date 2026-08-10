@@ -3,7 +3,7 @@
     class="home-media-card"
     :class="{ 'home-media-card--big-preview': bigPreview }"
     rounded="lg"
-    elevation="2"
+    variant="outlined"
     hover
     @click="handleCardClick"
   >
@@ -190,19 +190,27 @@ function handleBodyClick() {
 .home-media-card {
   width: 148px;
   flex: 0 0 148px;
-  overflow: visible;
+  align-self: stretch;
+  height: auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   cursor: pointer;
+  border-color: rgba(var(--v-theme-on-surface), 0.12) !important;
 
   &--big-preview {
     position: relative;
     z-index: 1010;
+    overflow: visible;
   }
 
   &__preview {
     position: relative;
     aspect-ratio: 16 / 9;
+    flex: 0 0 auto;
     overflow: hidden;
-    border-radius: 8px 8px 0 0;
+    border-radius: 0;
     background: rgba(var(--v-theme-on-surface), 0.06);
 
     &.no-file {
@@ -288,7 +296,11 @@ function handleBodyClick() {
   }
 
   &__body {
+    flex: 1 1 auto;
     min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }
 

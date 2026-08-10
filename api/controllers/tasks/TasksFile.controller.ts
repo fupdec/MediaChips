@@ -11,8 +11,11 @@ import {
 } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import path from 'path'
-import { exec } from 'child_process'
 import { resolveExistingPath } from '../../services/contentHash'
+import {
+  openPathInFileManager,
+  shouldUseOsOpenCommands,
+} from '../../services/openPathInFileManager'
 import { checkFilesExist } from '../../services/checkFilesExist'
 import { normalizeMediaPath } from '../../utils/normalizeUserPath'
 import { unlinkResolvedPath } from '../../services/localAssetCleanup'
@@ -120,35 +123,32 @@ export default function createTasksFileController(shared: TaskControllerShared) 
 
     const fail = (message: string) => sendBadRequest(res, message)
 
-    try {
-      const electron = await import('electron').catch(() => null)
-      if (electron?.shell) {
-        if (revealInFolder) {
-          electron.shell.showItemInFolder(rawPath)
+    // Prefer Electron shell only in the real Electron process — the API child
+    // runs with ELECTRON_RUN_AS_NODE where shell.openPath often returns
+    // "Command failed".
+    if (!shouldUseOsOpenCommands()) {
+      try {
+        const electron = await import('electron').catch(() => null)
+        if (electron?.shell) {
+          if (revealInFolder) {
+            electron.shell.showItemInFolder(rawPath)
+            return sendOk(res)
+          }
+          const error = await electron.shell.openPath(entryPath)
+          if (error) return fail(error)
           return sendOk(res)
         }
-        const error = await electron.shell.openPath(entryPath)
-        if (error) return fail(error)
-        return sendOk(res)
+      } catch (_) {
+        // Fall through to OS commands
       }
-    } catch (_) {
-      // Non-Electron environment (e.g. standalone API dev server)
     }
 
-    const command = process.platform === 'darwin'
-      ? (revealInFolder
-        ? `open -R ${JSON.stringify(rawPath)}`
-        : `open ${JSON.stringify(entryPath)}`)
-      : process.platform === 'win32'
-        ? (revealInFolder
-          ? `explorer /select,${JSON.stringify(rawPath)}`
-          : `start "" ${JSON.stringify(entryPath)}`)
-        : `xdg-open ${JSON.stringify(entryPath)}`
-
-    exec(command, (err: unknown) => {
-      if (err) return fail(apiErrorMessage(err))
-      sendOk(res)
-    })
+    try {
+      await openPathInFileManager(revealInFolder ? rawPath : entryPath, {revealInFolder})
+      return sendOk(res)
+    } catch (err: unknown) {
+      return fail(apiErrorMessage(err) || 'Failed to open path')
+    }
   }
 
   const openInExternalPlayer = async function (req: ApiRequest, res: ApiResponse) {

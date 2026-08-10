@@ -90,9 +90,11 @@ export function createAppMenuController(deps: {
       submenu: [
         menuActionItem('Toggle Theme', 'toggleTheme'),
         {type: 'separator'},
-        {role: 'zoomIn'},
-        {role: 'zoomOut'},
-        {role: 'resetZoom'},
+        // Use app zoom actions (CSS zoom) instead of Chromium roles — setZoomFactor
+        // cuts off nested settings scroll regions when zoomed in.
+        menuActionItem('Zoom In', 'zoomIn', 'CommandOrControl+='),
+        menuActionItem('Zoom Out', 'zoomOut', 'CommandOrControl+-'),
+        menuActionItem('Reset Zoom', 'resetZoom', 'CommandOrControl+0'),
         {type: 'separator'},
         {role: 'togglefullscreen'},
       ],

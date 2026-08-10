@@ -31,7 +31,7 @@
               class="widget-top-tags__card"
               @click="openTagPage(category.meta, tag)"
               rounded="lg"
-              elevation="2"
+              variant="outlined"
               hover
             >
               <div class="widget-top-tags__preview">
@@ -221,7 +221,7 @@ onMounted(() => {
 .widget-top-tags {
   &__scroll {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
@@ -237,13 +237,20 @@ onMounted(() => {
   &__card {
     width: 104px;
     flex: 0 0 104px;
+    align-self: stretch;
+    height: auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     cursor: pointer;
+    border-color: rgba(var(--v-theme-on-surface), 0.12) !important;
   }
 
   &__preview {
     position: relative;
     aspect-ratio: 3 / 4;
+    flex: 0 0 auto;
     overflow: hidden;
     background: rgba(var(--v-theme-on-surface), 0.06);
   }
@@ -275,7 +282,11 @@ onMounted(() => {
   }
 
   &__body {
+    flex: 1 1 auto;
     min-height: 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   &__more {

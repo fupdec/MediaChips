@@ -109,7 +109,8 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         }
         break
       case 'exit':
-        window.electronAPI?.send?.('closeApp')
+        // Always terminate — do not minimize-to-tray (unlike the window X).
+        window.electronAPI?.send?.('closeApp', {force: true})
         break
       case 'minimizeWindow':
         await window.electronAPI?.invoke?.('minimize')

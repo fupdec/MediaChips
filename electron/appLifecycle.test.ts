@@ -56,4 +56,12 @@ describe('shouldHideWindowOnCloseApp', () => {
       isQuitting: false,
     })).toBe(false)
   })
+
+  it('never hides when tray is disabled', () => {
+    expect(shouldHideWindowOnCloseApp({
+      isWindows: true,
+      minimizeToTray: false,
+      isQuitting: false,
+    })).toBe(false)
+  })
 })

@@ -102,18 +102,39 @@ export function createAppLifecycleController(deps: {
 
   function quitApp() {
     quitting = true
-    deps.destroyTray()
-    deps.destroyPlayerWindow()
+    try { deps.destroyTray() } catch (error) {
+      console.warn('destroyTray during quit failed:', error)
+    }
+    try { deps.destroyPlayerWindow() } catch (error) {
+      console.warn('destroyPlayerWindow during quit failed:', error)
+    }
+    try { deps.hideLoadingWindow() } catch (error) {
+      console.warn('hideLoadingWindow during quit failed:', error)
+    }
+    try { deps.closeServerListener() } catch (error) {
+      console.warn('closeServerListener during quit failed:', error)
+    }
     const win = deps.getMainWindow()
     if (win && !win.isDestroyed()) {
-      win.close()
+      try {
+        // destroy() bypasses the close→tray-hide handler so Exit always terminates.
+        win.destroy()
+      } catch (error) {
+        console.warn('main window destroy during quit failed:', error)
+      }
     }
-    deps.closeServerListener()
-    app.quit()
+    // Match Ctrl+Q / native Exit — app.quit() alone can stall if a hidden
+    // player/loading window or hung child keeps the event loop alive.
+    app.exit(0)
   }
 
-  function handleCloseAppRequest() {
-    if (shouldHideWindowOnCloseApp({
+  function handleCloseAppRequest(_event?: IpcMainEvent, payload?: unknown) {
+    const forceQuit = Boolean(
+      payload
+      && typeof payload === 'object'
+      && (payload as {force?: unknown}).force === true,
+    )
+    if (!forceQuit && shouldHideWindowOnCloseApp({
       isWindows: deps.isWindows,
       minimizeToTray: deps.getMinimizeToTray(),
       isQuitting: quitting,

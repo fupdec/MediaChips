@@ -424,7 +424,8 @@ const tmdbUiAvailable = computed(() =>
 
 const closeApp = () => {
   if (window.electronAPI?.send) {
-    window.electronAPI.send("closeApp")
+    // Lock-screen dismiss is an explicit exit, not minimize-to-tray.
+    window.electronAPI.send("closeApp", {force: true})
   }
 }
 

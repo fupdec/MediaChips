@@ -75,7 +75,7 @@ const {t} = useI18n()
 .home-media-row {
   &__scroll {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
@@ -91,8 +91,10 @@ const {t} = useI18n()
   &__skeleton {
     width: 148px;
     flex: 0 0 148px;
-    aspect-ratio: 16 / 9;
+    align-self: stretch;
+    min-height: 148px;
     border-radius: 8px;
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     background: rgba(var(--v-theme-on-surface), 0.06);
   }
 }
