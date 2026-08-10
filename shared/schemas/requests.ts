@@ -105,6 +105,16 @@ export const MergeCategoriesRequestSchema = z.object({
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
 })
 
+export const DuplicateCategoryRequestSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  name: z.string().nullable().optional(),
+})
+
+export const DuplicateTagRequestSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  name: z.string().nullable().optional(),
+})
+
 export const SceneSearchRequestSchema = z.object({
   query: z.string().trim().min(1),
   limit: optionalCoercedNumber,

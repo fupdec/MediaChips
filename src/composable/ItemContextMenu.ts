@@ -129,6 +129,15 @@ export default function useItemContextMenu(
         icon: 'pencil',
         action: editItem,
       })
+
+      if (type === 'tag' && isTagPageItem(item, type) && meta) {
+        contextMenu.push({
+          name: t('common.duplicate'),
+          type: 'item',
+          icon: 'content-duplicate',
+          action: duplicateTagItem,
+        })
+      }
     } else {
       contextMenu.push({
         name: t('context_menu.bulk_edit'),
@@ -637,6 +646,37 @@ export default function useItemContextMenu(
     } else if (isTagPageItem(item, type) && meta) {
       dialogsStore.editTag(item, meta)
     }
+  }
+
+  const duplicateTagItem = (): void => {
+    if (!isTagPageItem(item, type) || !meta) return
+
+    const locale = settingsStore.locale as Locale
+    const translateLocal = (key: string, params: Record<string, string | number> = {}) =>
+      translate(key, params, locale)
+
+    void (async () => {
+      try {
+        const {data} = await typedApi.duplicateTag({id: Number(item.id)})
+        const created = data.tag
+        setNotification({
+          type: 'success',
+          title: translateLocal('meta.dialogs.duplicate_tag_done'),
+          text: translateLocal('meta.dialogs.duplicate_tag_done_text', {
+            name: created.name || '',
+          }),
+        })
+        void reloadTagsCatalog()
+        listSync.getItemsFromDb({ids: [created.id], type: 'tag'})
+        dialogsStore.editTag(created, meta)
+      } catch (error) {
+        console.error('Error duplicating tag:', error)
+        setNotification({
+          type: 'error',
+          text: translateLocal('meta.dialogs.duplicate_tag_failed'),
+        })
+      }
+    })()
   }
 
   const openTagMerge = (): void => {

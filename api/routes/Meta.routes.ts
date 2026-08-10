@@ -3,6 +3,7 @@ import type { Express } from 'express'
 import express from 'express'
 import { validateBody, validateQuery } from '../middleware/validateBody'
 import {
+  DuplicateCategoryRequestSchema,
   EmptyObjectRequestSchema,
   MergeCategoriesRequestSchema,
   MetaWriteRequestSchema,
@@ -21,6 +22,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/', validateBody(MetaWriteRequestSchema), Meta.create)
   router.get('/', Meta.findAll)
   router.post('/mergeCategories', validateBody(MergeCategoriesRequestSchema), Meta.mergeCategories)
+  router.post('/duplicate', validateBody(DuplicateCategoryRequestSchema), Meta.duplicate)
   router.post('/exportChipRecipe', validateBody(ExportChipRecipeRequestSchema), Meta.exportRecipe)
   router.post('/previewChipRecipe', validateBody(ImportChipRecipeRequestSchema), Meta.previewRecipe)
   router.post('/importChipRecipe', validateBody(ImportChipRecipeRequestSchema), Meta.importRecipe)

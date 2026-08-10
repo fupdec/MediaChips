@@ -2791,6 +2791,12 @@ const ja = {
       merge_categories_done: "カテゴリを統合しました",
       merge_categories_done_text: "「{name}」を残し、{count} 個のカテゴリを削除、{tags} 個のタグを自動統合しました",
       merge_categories_failed: "カテゴリの統合に失敗しました",
+      duplicate_category_done: "カテゴリを複製しました",
+      duplicate_category_done_text: "「{name}」を作成しました",
+      duplicate_category_failed: "カテゴリの複製に失敗しました",
+      duplicate_tag_done: "タグを複製しました",
+      duplicate_tag_done_text: "「{name}」を作成しました",
+      duplicate_tag_failed: "タグの複製に失敗しました",
       array_meta_info:
         "ここでは、タグ カテゴリを作成して構成します。このカテゴリのページにタグ自体を追加します。タグはナビゲーション メニューに表示されます。",
       field_form_preview: "編集時のフィールドの外観",

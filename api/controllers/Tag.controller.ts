@@ -4,6 +4,7 @@ import type { ApiRequest, ApiResponse } from '../types/http'
 import type { DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
 import type {
   CreateTagPayload,
+  DuplicateTagPayload,
   MergeTagsPayload,
   MoveTagsToCategoryPayload,
   TagItemsListRequest,
@@ -20,6 +21,7 @@ import { mergeTagsInCategory } from '../services/tagMerge'
 import {
   moveTagsToCategory,
 } from '../services/tagMoveToCategory'
+import { duplicateTag } from '../services/tagDuplicate'
 import {
   assertTagNameAvailable,
   assertTagNamesAvailable,
@@ -202,6 +204,19 @@ export default function (db: ApiDb) {
     }
   }
 
+  const duplicate = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<DuplicateTagPayload>(req)
+      const result = duplicateTag(db, {
+        id: Number(body.id),
+        name: body.name,
+      })
+      sendCreated(res, result)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while duplicating tag.')
+    }
+  }
+
   const deleteOne = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<DeleteEntityOnePayload>(req)
     const id = body.id
@@ -285,6 +300,7 @@ export default function (db: ApiDb) {
     update,
     merge,
     moveToCategory,
+    duplicate,
     deleteOne,
   }
 }

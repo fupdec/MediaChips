@@ -28,6 +28,8 @@ import type { Meta, Tag, MarkFilterMeta, MetaWritePayload } from '@shared/entiti
 import type {
   CreateTagPayload,
   CreateTagsInMediaOnePayload,
+  DuplicateCategoryPayload,
+  DuplicateTagPayload,
   MediaTypeWritePayload,
   MergeTagsPayload,
   MergeCategoriesPayload,
@@ -326,6 +328,32 @@ export const metaApi = {
 
   mergeCategories(body: MergeCategoriesPayload) {
     return apiClient.post<MergeCategoriesResult>(API_ROUTES.metaMergeCategories, body)
+  },
+
+  duplicateMeta(body: DuplicateCategoryPayload) {
+    return apiClient.post<{
+      meta: Meta
+      copied: {mediaTypeAssignments: number; pinnedFields: number}
+    }>(API_ROUTES.metaDuplicate, body).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        meta: validated(parseMeta, res.data?.meta),
+      },
+    }))
+  },
+
+  duplicateTag(body: DuplicateTagPayload) {
+    return apiClient.post<{
+      tag: Tag
+      copied: {values: number; nestedLinks: number; images: number}
+    }>(API_ROUTES.tagDuplicate, body).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        tag: validated(parseTag, res.data?.tag),
+      },
+    }))
   },
 
   getTagById(id: number) {

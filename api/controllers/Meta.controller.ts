@@ -3,11 +3,12 @@ import { paramString, sendBadRequest, sendControllerError, sendCreated, sendOk }
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
 import type { Meta, MetaWritePayload } from '@shared/entities/meta'
-import type { MergeCategoriesPayload } from '@shared/api/payloads'
+import type { DuplicateCategoryPayload, MergeCategoriesPayload } from '@shared/api/payloads'
 import { createMetaRepository } from '../db/repositories/meta'
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
 import { createPinnedMetaRepository } from '../db/repositories/pinnedMeta'
 import { mergeTagCategories } from '../services/metaCategoryMerge'
+import { duplicateTagCategory } from '../services/metaCategoryDuplicate'
 import { applyMeasurementUnitChange } from '../services/measurementUnitChange'
 import {
   chipRecipeDiscordInfo,
@@ -113,6 +114,19 @@ export default function (db: ApiDb) {
     }
   }
 
+  const duplicate = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<DuplicateCategoryPayload>(req)
+      const result = duplicateTagCategory(db, {
+        id: Number(body.id),
+        name: body.name,
+      })
+      sendCreated(res, result)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while duplicating category.')
+    }
+  }
+
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const id = Number(req.params.id)
@@ -207,6 +221,7 @@ export default function (db: ApiDb) {
     findLatest,
     update,
     mergeCategories,
+    duplicate,
     deleteOne,
     exportRecipe,
     previewRecipe,

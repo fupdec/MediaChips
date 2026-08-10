@@ -209,6 +209,31 @@ const openCategoryMerge = () => {
   dialogsStore.openTagCategoryMerge(tagCategories.value)
 }
 
+const duplicateCategory = async (category: Meta) => {
+  if (!category?.id) return
+
+  try {
+    const {data} = await typedApi.duplicateMeta({id: Number(category.id)})
+    const created = data.meta
+    setNotification({
+      type: 'success',
+      title: t('meta.dialogs.duplicate_category_done'),
+      text: t('meta.dialogs.duplicate_category_done_text', {
+        name: created.name || '',
+      }),
+    })
+    await reloadMetaCatalog()
+    const fresh = tagCategories.value.find((item) => item.id === created.id) || created
+    openEditCategory(fresh)
+  } catch (error) {
+    console.error('Error duplicating category:', error)
+    setNotification({
+      type: 'error',
+      text: t('meta.dialogs.duplicate_category_failed'),
+    })
+  }
+}
+
 const requestDeleteCategory = (category: Meta) => {
   categoryPendingDelete.value = category
   deleteConfirmDialog.value = true
@@ -282,6 +307,14 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
       type: 'item',
       icon: 'pencil',
       action: () => openEditCategory(category),
+    },
+    {
+      name: t('common.duplicate'),
+      type: 'item',
+      icon: 'content-duplicate',
+      action: () => {
+        void duplicateCategory(category)
+      },
     },
     {
       name: t('context_menu.open_page'),

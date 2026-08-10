@@ -5,6 +5,7 @@ import { validateBody } from '../middleware/validateBody'
 import {
   CreateTagsRequestSchema,
   DeleteEntityOneRequestSchema,
+  DuplicateTagRequestSchema,
   EntityUpdateRequestSchema,
   MergeTagsRequestSchema,
   MoveTagsToCategoryRequestSchema,
@@ -22,6 +23,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/thumbs', validateBody(TagThumbsRequestSchema), Tag.getThumbs)
   router.post('/merge', validateBody(MergeTagsRequestSchema), Tag.merge)
   router.post('/moveToCategory', validateBody(MoveTagsToCategoryRequestSchema), Tag.moveToCategory)
+  router.post('/duplicate', validateBody(DuplicateTagRequestSchema), Tag.duplicate)
   router.get('/:id/cooccurring', Tag.getCooccurring)
   router.get('/:id', Tag.findOne)
   router.get('/', Tag.getAll)

@@ -67,6 +67,16 @@ export interface MergeCategoriesPayload {
   sourceIds: number[]
 }
 
+export interface DuplicateCategoryPayload {
+  id: number
+  name?: string | null
+}
+
+export interface DuplicateTagPayload {
+  id: number
+  name?: string | null
+}
+
 export interface ParsePathTagsPayload {
   paths: Array<{ path?: string; mediaId: number }>
 }
