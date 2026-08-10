@@ -231,8 +231,8 @@ No extra GitHub secrets are required: the workflow uses the built-in `GITHUB_TOK
 
 - Tag `vX.Y.Z` must match `package.json` `version` exactly.
 - Portable Windows builds are published on each release but are not auto-updated in-app; users must download manually.
-- macOS builds are **ad-hoc signed** (`identity: "-"`). Users still confirm the first launch via right-click → Open (see [INSTALLATION.md](./INSTALLATION.md)).
-- For fully trusted macOS/Windows builds later, add secrets `CSC_LINK`, `CSC_KEY_PASSWORD` (and Apple notarization vars) to the repository.
+- macOS builds are **ad-hoc signed** by default (`identity: "-"`). Users still confirm the first launch via right-click → Open (see [INSTALLATION.md](./INSTALLATION.md)).
+- For Developer ID + notarized macOS builds locally or in CI: set `MEDIA_CHIPS_MAC_SIGN=1` plus cert/notarize vars from [`build/mac-signing.env.example`](./build/mac-signing.env.example), then `npm run dist -- --mac`.
 
 ---
 

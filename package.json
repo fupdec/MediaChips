@@ -244,6 +244,8 @@
       "identity": "-",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "artifactName": "${productName}.v${version}.Mac.${arch}.${ext}",
       "target": [
         {

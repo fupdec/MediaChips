@@ -7,12 +7,21 @@
  * 2. **SFW / store smoke** — adult not bundled; still requires key. `npm run dist:store`
  * 3. **Microsoft Store AppX** — adult not bundled + license bypass. `npm run dist:msstore`
  *    (`MEDIA_CHIPS_SFW=1` + `MEDIA_CHIPS_MSSTORE=1`)
+ *
+ * macOS signing (optional): set MEDIA_CHIPS_MAC_SIGN=1 (or CSC_LINK / CSC_NAME) plus
+ * Apple notarization env vars — see build/mac-signing.env.example. Without that,
+ * builds stay ad-hoc (`identity: "-"` in package.json).
  */
 import {mkdirSync, readFileSync, writeFileSync} from 'fs'
 import {spawnSync} from 'child_process'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
 import {pruneNativeBinaries, resolveDistTarget} from './prune-native-binaries.mjs'
+import {
+  applyMacDeveloperIdSigning,
+  hasAppleNotarizeCredentials,
+  wantsMacDeveloperIdSign,
+} from './mac-signing.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -142,9 +151,14 @@ if (!readFlag('--dir')) {
   builderArgs.push('--publish', publish)
 }
 
+const macDeveloperIdSign = wantsMacDeveloperIdSign(childEnv)
+  && (target === 'mac' || readFlag('--mac'))
+
+let builderConfig = null
+
 if (storeBuild || msStoreTarget) {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-  const config = {
+  builderConfig = {
     ...pkg.build,
     // Keep display name "MediaChips" for Store listings; differentiate artifacts.
     productName: pkg.build.productName || 'MediaChips',
@@ -161,12 +175,12 @@ if (storeBuild || msStoreTarget) {
   }
 
   if (msStoreTarget) {
-    config.win = {
+    builderConfig.win = {
       ...(pkg.build.win || {}),
       target: ['appx'],
       artifactName: '${productName}.v${version}.Windows.Store.${ext}',
     }
-    config.appx = {
+    builderConfig.appx = {
       ...(pkg.build.appx || {}),
       applicationId: pkg.build.appx?.applicationId || 'mediaChips',
       displayName: pkg.build.appx?.displayName || 'mediaChips',
@@ -176,42 +190,60 @@ if (storeBuild || msStoreTarget) {
     }
   } else if (storeBuild) {
     // Non-AppX store/SFW artifacts (e.g. smoke NSIS/dir) — mark in filename.
-    if (config.win) {
-      config.win = {
-        ...config.win,
+    if (builderConfig.win) {
+      builderConfig.win = {
+        ...builderConfig.win,
         artifactName: '${productName}.v${version}.Windows.StoreChannel.Installer.${ext}',
       }
     }
-    if (config.portable) {
-      config.portable = {
-        ...config.portable,
+    if (builderConfig.portable) {
+      builderConfig.portable = {
+        ...builderConfig.portable,
         artifactName: '${productName}.v${version}.Windows.StoreChannel.Portable.${ext}',
       }
     }
-    if (config.mac) {
-      config.mac = {
-        ...config.mac,
+    if (builderConfig.mac) {
+      builderConfig.mac = {
+        ...builderConfig.mac,
         artifactName: '${productName}.v${version}.Mac.StoreChannel.${arch}.${ext}',
       }
     }
-    if (config.dmg) {
-      config.dmg = {
-        ...config.dmg,
+    if (builderConfig.dmg) {
+      builderConfig.dmg = {
+        ...builderConfig.dmg,
         artifactName: '${productName}.v${version}.Mac.StoreChannel.${arch}.${ext}',
       }
     }
-    if (config.linux) {
-      config.linux = {
-        ...config.linux,
+    if (builderConfig.linux) {
+      builderConfig.linux = {
+        ...builderConfig.linux,
         artifactName: '${productName}.v${version}.Linux.StoreChannel.AppImage',
       }
     }
   }
+}
 
+if (macDeveloperIdSign) {
+  const pkg = builderConfig
+    ? null
+    : JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+  builderConfig = applyMacDeveloperIdSigning(builderConfig || {...pkg.build}, childEnv)
+  console.log('[dist] macOS Developer ID signing enabled (MEDIA_CHIPS_MAC_SIGN / CSC_*)')
+  if (!hasAppleNotarizeCredentials(childEnv)) {
+    console.warn('[dist] Apple notarization env vars missing — build will sign but skip notarize')
+  }
+}
+
+if (builderConfig) {
   const configDir = join(root, '.cache')
   mkdirSync(configDir, {recursive: true})
-  const configPath = join(configDir, msStoreTarget ? 'electron-builder.msstore.json' : 'electron-builder.store.json')
-  writeFileSync(configPath, JSON.stringify(config, null, 2))
+  const configName = msStoreTarget
+    ? 'electron-builder.msstore.json'
+    : storeBuild
+      ? 'electron-builder.store.json'
+      : 'electron-builder.mac-sign.json'
+  const configPath = join(configDir, configName)
+  writeFileSync(configPath, JSON.stringify(builderConfig, null, 2))
   builderArgs.push('--config', configPath)
 }
 

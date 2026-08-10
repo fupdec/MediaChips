@@ -24,6 +24,13 @@ describe('pack from .backend-build', () => {
     expect(dist).not.toMatch(/readFileSync\(join\(root, 'shared\/sfwCompiled\.js'\)/)
   })
 
+  it('dist wires optional mac Developer ID signing', () => {
+    const dist = fs.readFileSync(path.join(root, 'scripts/dist.mjs'), 'utf8')
+    expect(dist).toContain("from './mac-signing.mjs'")
+    expect(dist).toContain('wantsMacDeveloperIdSign')
+    expect(fs.existsSync(path.join(root, 'build/entitlements.mac.plist'))).toBe(true)
+  })
+
   it('artifacts compile group does not call backend-copy', () => {
     const compile = fs.readFileSync(path.join(root, 'scripts/compile.mjs'), 'utf8')
     const electronArtifactsCase = compile.match(
