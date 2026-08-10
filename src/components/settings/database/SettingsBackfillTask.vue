@@ -1,6 +1,6 @@
 <template>
-  <SettingsHealthTask :status="taskStatus" compact class="mx-4 mb-1">
-    <div :id="config.elementId">
+  <SettingsHealthTask :id="config.elementId" :status="taskStatus" compact>
+    <div>
       <SettingsHealthSectionHeader
         :title="t(titleKey)"
         :icon="config.icon"

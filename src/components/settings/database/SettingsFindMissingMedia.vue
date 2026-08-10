@@ -1,5 +1,5 @@
 <template>
-  <SettingsHealthTask status="optional" class="mx-4 mb-1">
+  <SettingsHealthTask id="settings-find-missing-media" status="optional">
   <div class="pb-1">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.find_missing_media')"

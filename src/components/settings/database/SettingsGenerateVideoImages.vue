@@ -1,6 +1,6 @@
 <template>
-  <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
-  <div id="settings-generate-video-images" class="pb-1">
+  <SettingsHealthTask id="settings-generate-video-images" :status="taskStatus">
+  <div class="pb-1">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.generate_video_images')"
       icon="image-auto-adjust"

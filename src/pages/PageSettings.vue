@@ -167,9 +167,7 @@
                 accent
               />
 
-              <SettingsSection id="settings-library-health-guide">
-                <SettingsLibraryHealthGuide/>
-              </SettingsSection>
+              <SettingsLibraryHealthGuide/>
 
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance_media')"
@@ -177,13 +175,9 @@
                 accent
               />
 
-              <SettingsSection>
-                <SettingsGenerateVideoImages/>
-              </SettingsSection>
+              <SettingsGenerateVideoImages/>
 
-              <SettingsSection>
-                <SettingsGenerateImageThumbs/>
-              </SettingsSection>
+              <SettingsGenerateImageThumbs/>
 
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance_backfill')"
@@ -191,21 +185,13 @@
                 accent
               />
 
-              <SettingsSection>
-                <SettingsBackfillTask :config="FINGERPRINT_BACKFILL" :step="2"/>
-              </SettingsSection>
+              <SettingsBackfillTask :config="FINGERPRINT_BACKFILL" :step="2"/>
 
-              <SettingsSection>
-                <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
-              </SettingsSection>
+              <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
 
-              <SettingsSection>
-                <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL" :step="3"/>
-              </SettingsSection>
+              <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL" :step="3"/>
 
-              <SettingsSection>
-                <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL" :step="4"/>
-              </SettingsSection>
+              <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL" :step="4"/>
 
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance_faces')"
@@ -213,9 +199,7 @@
                 accent
               />
 
-              <SettingsSection>
-                <SettingsDetectFaces/>
-              </SettingsSection>
+              <SettingsDetectFaces/>
 
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance_cleanup')"
@@ -223,23 +207,15 @@
                 accent
               />
 
-              <SettingsSection id="settings-find-duplicates">
-                <SettingsFindDuplicates/>
-              </SettingsSection>
+              <SettingsFindDuplicates/>
 
               <SettingsTagImageAiUpscale/>
 
-              <SettingsSection id="settings-find-missing-media">
-                <SettingsFindMissingMedia/>
-              </SettingsSection>
+              <SettingsFindMissingMedia/>
 
-              <SettingsSection>
-                <SettingsGenerateAutoChapters/>
-              </SettingsSection>
+              <SettingsGenerateAutoChapters/>
 
-              <SettingsSection id="settings-clear-generated-images">
-                <SettingsClearGeneratedImages/>
-              </SettingsSection>
+              <SettingsClearGeneratedImages/>
             </SettingsList>
           </div>
 

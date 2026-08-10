@@ -1,5 +1,6 @@
 <template>
   <div
+    :id="id"
     class="health-task"
     :class="{
       'health-task--done': status === 'done',
@@ -17,9 +18,11 @@
 
 <script setup lang="ts">
 withDefaults(defineProps<{
+  id?: string
   status?: 'done' | 'pending' | 'optional' | 'idle' | null
   compact?: boolean
 }>(), {
+  id: undefined,
   status: null,
   compact: false,
 })

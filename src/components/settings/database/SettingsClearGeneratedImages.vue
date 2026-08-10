@@ -1,5 +1,5 @@
 <template>
-  <SettingsHealthTask status="idle" class="mx-4 mb-1">
+  <SettingsHealthTask id="settings-clear-generated-images" status="idle">
     <div class="pb-1">
       <SettingsHealthSectionHeader
         :title="t('settings_labels.database.clear_generated_images')"

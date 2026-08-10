@@ -1,6 +1,6 @@
 <template>
-  <SettingsHealthTask status="idle" class="mx-4 mb-1">
-  <div id="settings-generate-auto-chapters" class="pb-1">
+  <SettingsHealthTask id="settings-generate-auto-chapters" status="idle">
+  <div class="pb-1">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.generate_auto_chapters')"
       icon="bookmark-multiple-outline"

@@ -1,6 +1,6 @@
 <template>
-  <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
-  <div id="settings-detect-faces" class="pb-1">
+  <SettingsHealthTask id="settings-detect-faces" :status="taskStatus">
+  <div class="pb-1">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.face_workflow_title')"
       icon="face-recognition"

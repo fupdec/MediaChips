@@ -1,6 +1,6 @@
 <template>
-  <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
-  <div id="settings-generate-image-thumbs" class="pb-1">
+  <SettingsHealthTask id="settings-generate-image-thumbs" :status="taskStatus">
+  <div class="pb-1">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.generate_image_thumbs')"
       icon="image-outline"

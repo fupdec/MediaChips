@@ -1,9 +1,6 @@
 <template>
-  <SettingsHealthTask status="idle" class="mx-4 mb-1">
-  <div
-    id="settings-find-duplicates"
-    class="pb-1"
-  >
+  <SettingsHealthTask id="settings-find-duplicates" status="idle">
+  <div class="pb-1">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.find_duplicates')"
       icon="content-duplicate"

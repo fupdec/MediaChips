@@ -1,5 +1,5 @@
 <template>
-  <div class="health-guide mx-4 pb-2">
+  <div id="settings-library-health-guide" class="health-guide">
     <div class="health-guide__hero">
       <div class="health-guide__hero-glow" aria-hidden="true"/>
 
@@ -140,7 +140,10 @@
             <div class="health-guide__step-track" aria-hidden="true">
               <div
                 class="health-guide__step-node"
-                :class="step.done && !step.tip ? 'bg-success' : 'bg-primary'"
+                :class="{
+                  'bg-success': step.done && !step.tip,
+                  'bg-primary': !step.done && !step.tip,
+                }"
               >
                 <v-icon v-if="step.done && !step.tip" size="14">mdi-check</v-icon>
                 <span v-else>{{ index + 1 }}</span>
@@ -677,7 +680,7 @@ onBeforeUnmount(() => {
 
 .health-guide__step--tip .health-guide__step-node {
   background: transparent !important;
-  color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-primary)) !important;
   border: 1.5px dashed rgba(var(--v-theme-primary), 0.55);
   box-shadow: none;
 }

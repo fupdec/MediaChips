@@ -1,9 +1,9 @@
 <template>
-  <SettingsSection
+  <SettingsHealthTask
     v-if="visible"
     id="settings-tag-image-ai-upscale"
+    :status="taskStatus"
   >
-    <SettingsHealthTask :status="taskStatus" class="mx-4 mb-1">
     <div class="pb-1">
       <SettingsHealthSectionHeader
         :title="t('settings_labels.database.tag_image_ai_upscale')"
@@ -97,8 +97,7 @@
         :text="t('settings_labels.database.tag_image_ai_upscale_confirm', {size: status.downloadSizeMb || 50})"
       />
     </div>
-    </SettingsHealthTask>
-  </SettingsSection>
+  </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
@@ -109,7 +108,6 @@ import {typedApi} from '@/services/typedApi'
 import {getErrorStatus} from '@/types/vue'
 import {setNotification} from '@/services/notificationService'
 import {getReadableDuration} from '@/services/formatUtils'
-import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
