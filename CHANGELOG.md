@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Packaged app launch** — rewrite Electron `../api|app|shared` requires onto `.backend-build` so the asar finds modules after the packaging change (fixes missing `../api/types/errors` on startup)
+- **Packaged app launch** — rewrite Electron `../api|app|shared` requires onto `.backend-build` so the asar finds modules after the packaging change (fixes missing `../api/types/errors` on startup); spawn the API child with a real directory `cwd` (asar path is a file → `ENOTDIR`); ship Drizzle SQL migrations in the asar for new databases
 - **Hover preview** — wrong scrub-frame flash, sticky unavailable cache (TTL), leave fade / scroll guard
 - **WebM duration** — probe packet PTS when container metadata is missing (live chunks / playability)
 - **Find scene / mix playlists** — semantic seeks land on the matching tile instead of EOF or stolen resume

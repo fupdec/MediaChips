@@ -151,6 +151,7 @@
       "!electron/**/*.test.js",
       "main.js",
       "dist/**/*",
+      "api/db/migrations-drizzle/**/*",
       "!databases",
       "!app_storage",
       "!src",

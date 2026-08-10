@@ -10,6 +10,7 @@ import {
   createServerProcessSupervisor,
   nextRespawnBackoffMs,
   resolveElectronDataDir,
+  resolveServerProcessCwd,
   resolveServerScriptPath,
   startServerProcess,
   stopServerProcess,
@@ -110,6 +111,16 @@ describe('serverProcess helpers', () => {
     })).toBe('/userData')
   })
 
+  it('uses a real directory cwd when appRoot is inside an asar archive', () => {
+    const root = path.join(path.sep, 'App', 'Contents', 'Resources')
+    const asarPath = path.join(root, 'app.asar')
+    expect(resolveServerProcessCwd(asarPath)).toBe(root)
+    expect(resolveServerProcessCwd(path.join(asarPath, 'electron'))).toBe(root)
+    expect(resolveServerProcessCwd(path.join(root, 'unpacked'))).toBe(
+      path.normalize(path.join(root, 'unpacked')),
+    )
+  })
+
   it('spawns Electron execPath with the server script', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-server-spawn-'))
     tmpDirs.push(root)
@@ -150,6 +161,38 @@ describe('serverProcess helpers', () => {
       }),
     )
     expect(handles.child?.pid).toBe(4242)
+  })
+
+  it('spawns with parent cwd when appRoot is an asar file', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-server-spawn-asar-'))
+    tmpDirs.push(root)
+    const asarFile = path.join(root, 'app.asar')
+    fs.writeFileSync(asarFile, 'asar')
+    const script = path.join(asarFile, '.backend-build', 'app', 'server.js')
+    const existsSync = vi.spyOn(fs, 'existsSync').mockImplementation((target) => {
+      return path.resolve(String(target)) === path.resolve(script)
+    })
+
+    const spawnImpl = vi.fn(() => ({
+      pid: 4243,
+      on: vi.fn(),
+      once: vi.fn(),
+      kill: vi.fn(),
+    }))
+
+    startServerProcess({
+      appRoot: asarFile,
+      dataDir: '/data',
+      execPath: '/fake/electron',
+      spawnImpl: spawnImpl as never,
+    })
+
+    expect(spawnImpl).toHaveBeenCalledWith(
+      '/fake/electron',
+      [script],
+      expect.objectContaining({cwd: root}),
+    )
+    existsSync.mockRestore()
   })
 
   it('uses taskkill on Windows stop', () => {

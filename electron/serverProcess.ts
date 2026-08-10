@@ -25,6 +25,18 @@ export function resolveServerScriptPath(appRoot: string): string {
   )
 }
 
+/**
+ * `child_process.spawn` requires a real OS directory for `cwd`.
+ * Packaged Electron sets appRoot to the `.asar` archive; Electron's fs may
+ * report that path as a directory, but libuv spawn still gets ENOTDIR.
+ */
+export function resolveServerProcessCwd(appRoot: string): string {
+  const normalized = path.normalize(appRoot)
+  const asarArchive = normalized.match(/^(.*[/\\][^/\\]*\.asar)(?:[/\\].*)?$/i)?.[1]
+  if (asarArchive) return path.dirname(asarArchive)
+  return normalized
+}
+
 export function buildServerProcessEnv(options: {
   dataDir: string
   resourcesPath?: string
@@ -83,7 +95,7 @@ export function startServerProcess(options: {
   })
 
   const child = spawnImpl(execPath, [scriptPath], {
-    cwd: options.appRoot,
+    cwd: resolveServerProcessCwd(options.appRoot),
     env,
     stdio: 'inherit',
     windowsHide: true,
