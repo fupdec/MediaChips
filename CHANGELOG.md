@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-08-10
+
+### Fixed
+
+- **App exit** — App → Exit and force-quit paths reliably close the window and process (no hang when tray/minimize-to-tray interferes)
+- **Open file folder** — reveal/open in the OS file manager no longer fails with “Command failed” under the Electron Node API child (especially Windows Explorer exit code 1)
+- **Drag-and-drop add** — capture real file paths in preload so drops are not rejected as unmatched extensions
+- **Library infinite scroll** — a failed page append no longer wipes the loaded list back to “add files”
+- **View zoom** — use CSS zoom instead of Chromium zoom factor so nested settings scroll still works when zoomed
+
+### Changed
+
+- **Home widgets** — soft outlined cards for media, tags, and markers with clearer marker borders
+
 ## [1.6.0] - 2026-08-10
 
 ### Added
