@@ -53,7 +53,7 @@ export const bootstrapApi = {
   },
 
   getSettings() {
-    return apiClient.get<SettingEntry[]>(API_ROUTES.setting).then((res) => ({
+    return apiClient.get<SettingEntry[]>(API_ROUTES.setting, {timeout: 15000}).then((res) => ({
       ...res,
       data: validated(parseSettings, res.data),
     }))

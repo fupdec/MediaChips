@@ -5,10 +5,6 @@ import express from 'express'
 import { normalizeApiPath } from '../../api/utils/normalizeApiPath'
 import { createCorsMiddleware } from './constants'
 
-interface HistoryRewriteContext {
-  parsedUrl: { pathname?: string }
-}
-
 function createExpressApp() {
   const app = express()
   const router = express.Router()
@@ -60,24 +56,22 @@ function setupStaticApp(app: Express) {
   const spaHistory = history({
     disableDotRule: true,
     verbose: false,
-    rewrites: [
-      {
-        from: /^\/api\/.*$/,
-        to(context: HistoryRewriteContext) {
-          return context.parsedUrl.pathname ?? '/'
-        },
-      },
-      {
-        from: /^\/socket\.io\/.*$/,
-        to(context: HistoryRewriteContext) {
-          return context.parsedUrl.pathname ?? '/'
-        },
-      },
-    ],
   })
 
+  // Never run SPA fallback for API/socket — rewriting /api/* to pathname
+  // strips ?url= and breaks /api/get-file thumbs when static is registered
+  // before (or ahead of) the get-file route in the middleware stack.
+  const skipApiAndSockets = (req: Request, res: Response, next: NextFunction) => {
+    const path = (req.path || req.url || '').split('?')[0]
+    if (path.startsWith('/api/') || path.startsWith('/socket.io/')) {
+      next()
+      return
+    }
+    spaHistory(req, res, next)
+  }
+
   app.use(express.static(src))
-  app.use(spaHistory)
+  app.use(skipApiAndSockets)
   app.use(express.static(src))
 }
 

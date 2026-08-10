@@ -1,5 +1,5 @@
 import type { ApiDb } from '../types/db'
-import type { Express, RequestHandler, Router } from 'express'
+import type { Express, NextFunction, Request, RequestHandler, Response, Router } from 'express'
 import { apiErrorMessage, apiErrorStack } from '../types/errors'
 import express from 'express'
 import { validateBody, validateQuery } from '../middleware/validateBody'
@@ -40,42 +40,78 @@ import {
   GenerateAutoChaptersRequestSchema,
   ExportMarkClipsRequestSchema,
 } from '../../shared/schemas/requests'
-import createTaskController from '../controllers/Task.controller'
-import createTaskVideoCoreController from '../controllers/taskVideoCore.controller'
-import createTasksMigrateFromLowDbController from '../controllers/tasks/TasksMigrateFromLowDb.controller'
 
 type TaskHandlers = Record<string, RequestHandler | undefined>
 
-export default function registerRoutes(app: Express, db: ApiDb) {
-  const router = express.Router()
-
-  let Task: TaskHandlers
+function loadTaskHandlers(db: ApiDb): TaskHandlers {
   try {
-    Task = createTaskController(db)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const createTaskController = require('../controllers/Task.controller').default as (
+      database: ApiDb,
+    ) => TaskHandlers
+    return createTaskController(db)
   } catch (err) {
     console.error(
       'Task.controller unavailable, using video core fallback:',
       apiErrorStack(err) || apiErrorMessage(err),
     )
-    Task = createTaskVideoCoreController(db)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const createTaskVideoCoreController = require('../controllers/taskVideoCore.controller').default as (
+      database: ApiDb,
+    ) => TaskHandlers
+    return createTaskVideoCoreController(db)
   }
+}
 
-  let TasksMigrateFromLowDb: TaskHandlers | null = null
+function loadMigrateHandlers(db: ApiDb): TaskHandlers | null {
   try {
-    TasksMigrateFromLowDb = createTasksMigrateFromLowDbController(db) as unknown as TaskHandlers
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const createTasksMigrateFromLowDbController = require(
+      '../controllers/tasks/TasksMigrateFromLowDb.controller',
+    ).default as (database: ApiDb) => TaskHandlers
+    return createTasksMigrateFromLowDbController(db)
   } catch (err) {
     console.error(
       'Migration Task routes unavailable:',
       apiErrorStack(err) || apiErrorMessage(err),
     )
+    return null
+  }
+}
+
+export default function registerRoutes(app: Express, db: ApiDb) {
+  const router = express.Router()
+
+  let taskHandlers: TaskHandlers | null = null
+  const getTask = (): TaskHandlers => {
+    taskHandlers ??= loadTaskHandlers(db)
+    return taskHandlers
   }
 
-  if (TasksMigrateFromLowDb) {
-    router.post('/checkDataForMigrateFromLowDb', TasksMigrateFromLowDb.checkDataForMigrateFromLowDb!)
-    router.post('/cleanLowDb', TasksMigrateFromLowDb.cleanDataLowDb!)
-    router.post('/createBackupLowDb', TasksMigrateFromLowDb.createBackupLowDb!)
-    router.post('/migrateFromLowDb', TasksMigrateFromLowDb.migrateFromLowDb!)
+  let migrateHandlers: TaskHandlers | null | undefined
+  const getMigrate = (): TaskHandlers | null => {
+    if (migrateHandlers === undefined) {
+      migrateHandlers = loadMigrateHandlers(db)
+    }
+    return migrateHandlers
   }
+
+  const lazyMigrate = (handler: string): RequestHandler => {
+    return (req, res, next) => {
+      const handlers = getMigrate()
+      const fn = handlers?.[handler]
+      if (typeof fn !== 'function') {
+        res.sendStatus(404)
+        return
+      }
+      return fn(req, res, next)
+    }
+  }
+
+  router.post('/checkDataForMigrateFromLowDb', lazyMigrate('checkDataForMigrateFromLowDb'))
+  router.post('/cleanLowDb', lazyMigrate('cleanDataLowDb'))
+  router.post('/createBackupLowDb', lazyMigrate('createBackupLowDb'))
+  router.post('/migrateFromLowDb', lazyMigrate('migrateFromLowDb'))
 
   const register = (
     method: 'get' | 'post',
@@ -83,11 +119,17 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     handler: string,
     middleware?: RequestHandler | RequestHandler[],
   ) => {
-    const taskHandler = Task[handler]
-    if (typeof taskHandler !== 'function') return
     const middlewares = Array.isArray(middleware) ? middleware : middleware ? [middleware] : []
     const routeHandler = router[method].bind(router) as Router['post']
-    routeHandler(route, ...middlewares, taskHandler)
+    const lazyHandler: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+      const taskHandler = getTask()[handler]
+      if (typeof taskHandler !== 'function') {
+        res.sendStatus(404)
+        return
+      }
+      return taskHandler(req, res, next)
+    }
+    routeHandler(route, ...middlewares, lazyHandler)
   }
 
   register('post', '/checkFileExists', 'checkFileExists', validateBody(PathPayloadSchema))

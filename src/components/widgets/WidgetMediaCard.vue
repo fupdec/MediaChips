@@ -15,6 +15,7 @@
         v-if="isVideoMedia"
         :media="item"
         :is-file-exists="isFileExists"
+        :thumb-url="thumb || undefined"
         preview-host="compact"
         :play-time="continuePlayTime"
         @update-big-preview="bigPreview = $event"

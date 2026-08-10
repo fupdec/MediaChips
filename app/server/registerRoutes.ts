@@ -25,7 +25,6 @@ import registerSavedFilter from '../../api/routes/SavedFilter.routes'
 import registerSetting from '../../api/routes/Setting.routes'
 import registerPlugin from '../../api/routes/Plugin.routes'
 import registerTab from '../../api/routes/Tab.routes'
-import registerTask from '../../api/routes/Task.routes'
 import registerBulkMeta from '../../api/routes/BulkMeta.routes'
 import registerTasksBackups from '../../api/routes/tasks/TasksBackups.routes'
 import registerValuesInTag from '../../api/routes/ValuesInTag.routes'
@@ -57,7 +56,22 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'MetaSetting.routes', register: registerMetaSetting },
     { routeFile: 'PageSetting.routes', register: registerPageSetting },
     { routeFile: 'SavedFilter.routes', register: registerSavedFilter },
+    // Settings early so renderer getSettings can succeed while Task/face still load.
+    { routeFile: 'Setting.routes', register: registerSetting },
   ]
+
+  // Task.routes pulls faces/ffmpeg controllers; load only when routes are registered
+  // (after /api/ping is already listening), and keep controllers lazy-on-first-request.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const registerTask = require('../../api/routes/Task.routes').default as ApiRouteRegistrar
+    registrars.push({ routeFile: 'Task.routes', register: registerTask })
+  } catch (err: unknown) {
+    console.warn(
+      '[routes] Task routes unavailable:',
+      err instanceof Error ? err.message : String(err),
+    )
+  }
 
   if (!isSfwBuild()) {
     // Lazy require keeps ThePornDB / adult plugin modules out of SFW process graphs.
@@ -131,10 +145,8 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
 
 
   registrars.push(
-    { routeFile: 'Setting.routes', register: registerSetting },
     { routeFile: 'Plugin.routes', register: registerPlugin },
     { routeFile: 'Tab.routes', register: registerTab },
-    { routeFile: 'Task.routes', register: registerTask },
     { routeFile: 'BulkMeta.routes', register: registerBulkMeta },
     { routeFile: 'tasks/TasksBackups.routes', register: registerTasksBackups },
     { routeFile: 'ValuesInTag.routes', register: registerValuesInTag },
@@ -146,14 +158,20 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
   return registrars
 }
 
-const ROUTE_REGISTRARS = buildRouteRegistrars()
+export function getRouteFiles(): string[] {
+  return buildRouteRegistrars().map(({ routeFile }) => routeFile)
+}
 
-export const ROUTE_FILES = ROUTE_REGISTRARS.map(({ routeFile }) => routeFile)
-
-export function registerApiRoutes(app: Express, db: ApiDb) {
+export async function registerApiRoutes(
+  app: Express,
+  db: ApiDb,
+  options?: {
+    afterRoute?: (routeFile: string) => void | Promise<void>
+  },
+) {
   const routeLoadErrors: Array<{ routeFile: string; message: string }> = []
 
-  for (const { routeFile, register } of ROUTE_REGISTRARS) {
+  for (const { routeFile, register } of buildRouteRegistrars()) {
     try {
       register(app, db)
     } catch (err: unknown) {
@@ -166,6 +184,10 @@ export function registerApiRoutes(app: Express, db: ApiDb) {
         `Failed to register route ${routeFile}:`,
         err instanceof Error ? (apiErrorStack(err) || apiErrorMessage(err)) : String(err),
       )
+    }
+
+    if (options?.afterRoute) {
+      await options.afterRoute(routeFile)
     }
   }
 

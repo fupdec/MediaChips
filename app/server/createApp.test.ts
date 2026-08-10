@@ -42,6 +42,33 @@ describe('setupStaticApp', () => {
     }
   })
 
+  it('does not strip query strings from /api/get-file when static is mounted', async () => {
+    const app = express()
+    app.get('/api/get-file', (req, res) => {
+      res.json({url: req.query.url ?? null})
+    })
+    setupStaticApp(app)
+
+    const server = createServer(app)
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to resolve test server port')
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${address.port}/api/get-file?url=${encodeURIComponent('meta/1_main.jpg')}`,
+      )
+      expect(response.status).toBe(200)
+      await expect(response.json()).resolves.toEqual({url: 'meta/1_main.jpg'})
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()))
+      })
+    }
+  })
+
   it('serves built assets without SPA fallback', async () => {
     const app = express()
     setupStaticApp(app)

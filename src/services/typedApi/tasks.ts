@@ -53,7 +53,6 @@ import {
   DatabaseSizesRequestSchema,
   CheckFilesPayloadSchema,
   FolderSizeRequestSchema,
-  PathPayloadSchema,
 } from '@shared/schemas/requests'
 import { validated, validateRequest } from './validate'
 import {ApiHttpError, postApiNdjsonStream} from '../ndjsonStream'
@@ -129,8 +128,8 @@ export {ApiHttpError}
 
 export const tasksApi = {
   checkFileExists(path: string) {
-    const body = validateRequest(PathPayloadSchema, { path })
-    return apiClient.post(API_ROUTES.taskCheckFileExists, body).then((res) => ({
+    // Prefer lightweight builtin route so home cards do not cold-load Task/face.
+    return apiClient.post(API_ROUTES.checkFile, { url: path }).then((res) => ({
       ...res,
       data: validated(parseFileExistsResponse, res.data),
     }))
@@ -138,7 +137,7 @@ export const tasksApi = {
 
   checkFilesExist(paths: string[]) {
     const body = validateRequest(CheckFilesPayloadSchema, { paths })
-    return apiClient.post(API_ROUTES.taskCheckFilesExists, body).then((res) => ({
+    return apiClient.post(API_ROUTES.checkFiles, body).then((res) => ({
       ...res,
       data: validated(parseCheckFilesResponse, res.data),
     }))

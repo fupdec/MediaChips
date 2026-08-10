@@ -119,44 +119,52 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   async function initSettings(): Promise<void> {
-    try {
-      const res = await typedApi.getSettings()
-      const sets = res.data.reduce<Record<string, string>>((a, i) => {
-        a[i.option] = i.value
-        return a
-      }, {})
-      const hadOnboardingInDb = res.data.some((row) =>
-        row.option === 'onboardingCompleted'
-        || row.option === 'onboardingStep'
-        || row.option === 'onboardingPaused',
-      )
-      const hadGlobalKeysInDb = res.data.reduce<Partial<Record<GlobalAppConfigKey, boolean>>>(
-        (accumulator, row) => {
-          if (GLOBAL_APP_CONFIG_KEYS.includes(row.option as GlobalAppConfigKey)) {
-            accumulator[row.option as GlobalAppConfigKey] = true
-          }
-          return accumulator
-        },
-        {},
-      )
-      const minimizeToTrayDbValue = res.data.find((row) => row.option === 'minimizeToTray')?.value
-
-      settingsStore.updateMultiple(sets)
-      await registrationStore.migrateRegistrationFromDbIfNeeded()
-      await migrateOnboardingFromDbIfNeeded({ hadOnboardingInDb })
+    const maxAttempts = 3
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        await migrateGlobalAppConfigFromDbIfNeeded({ hadInDb: hadGlobalKeysInDb })
-        await migrateMinimizeToTrayFromDbIfNeeded(minimizeToTrayDbValue)
-      } catch (error) {
-        console.warn('Failed to migrate global app settings:', error)
+        const res = await typedApi.getSettings()
+        const sets = res.data.reduce<Record<string, string>>((a, i) => {
+          a[i.option] = i.value
+          return a
+        }, {})
+        const hadOnboardingInDb = res.data.some((row) =>
+          row.option === 'onboardingCompleted'
+          || row.option === 'onboardingStep'
+          || row.option === 'onboardingPaused',
+        )
+        const hadGlobalKeysInDb = res.data.reduce<Partial<Record<GlobalAppConfigKey, boolean>>>(
+          (accumulator, row) => {
+            if (GLOBAL_APP_CONFIG_KEYS.includes(row.option as GlobalAppConfigKey)) {
+              accumulator[row.option as GlobalAppConfigKey] = true
+            }
+            return accumulator
+          },
+          {},
+        )
+        const minimizeToTrayDbValue = res.data.find((row) => row.option === 'minimizeToTray')?.value
+
+        settingsStore.updateMultiple(sets)
+        await registrationStore.migrateRegistrationFromDbIfNeeded()
+        await migrateOnboardingFromDbIfNeeded({ hadOnboardingInDb })
+        try {
+          await migrateGlobalAppConfigFromDbIfNeeded({ hadInDb: hadGlobalKeysInDb })
+          await migrateMinimizeToTrayFromDbIfNeeded(minimizeToTrayDbValue)
+        } catch (error) {
+          console.warn('Failed to migrate global app settings:', error)
+        }
+        if (!isPlayerWindow.value && isWinElectronUi()) {
+          void syncMinimizeToTray(readMinimizeToTrayFromStore())
+        }
+        cleanupStalePlayerRoute()
+        store.isServerError = false
+        return
+      } catch {
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => window.setTimeout(resolve, 250 * attempt))
+          continue
+        }
+        store.isServerError = true
       }
-      if (!isPlayerWindow.value && isWinElectronUi()) {
-        void syncMinimizeToTray(readMinimizeToTrayFromStore())
-      }
-      cleanupStalePlayerRoute()
-      store.isServerError = false
-    } catch {
-      store.isServerError = true
     }
   }
 
@@ -555,15 +563,16 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     applyTheme()
     await applyLocale()
 
+    // Reveal the app chrome and Electron window before heavy startup work
+    // (plugins, catalogs). Splash stays up only for settings + locale.
+    await revealAppShell()
+
     try {
       const {usePluginsStore} = await import('@/stores/plugins')
       await usePluginsStore().bootstrap()
     } catch (error) {
       console.error('Failed to bootstrap plugins:', error)
     }
-
-    // Reveal the app chrome and Electron window before heavy startup work.
-    await revealAppShell()
 
     void openLowDbMigrationIfNeeded(isPlayerWindow.value)
 

@@ -54,6 +54,8 @@ export const API_ROUTES = {
   mediaDeleteOne: '/api/Media/deleteOne',
   resolvePath: '/api/resolve-path',
   getFile: '/api/get-file',
+  checkFile: '/api/check-file',
+  checkFiles: '/api/check-files',
   ping: '/api/ping',
   config: '/api/config',
   getMachineId: '/api/getMachineId',
