@@ -19,6 +19,7 @@ import type {
   CreateMarkThumbPayload,
   CreateThumbPayload,
   DatabaseSizesPayload,
+  DuplicateDbPayload,
   FacesForTagRequestPayload,
   FolderSizePayload,
   GetFileBlobPayload,
@@ -35,6 +36,7 @@ import {
   parseBackupList,
   parseClipModelStatus,
   parseDatabaseSizesResponse,
+  parseDuplicateDbResponse,
   parseFileExistsResponse,
   parseCheckFilesResponse,
   parseFileListResponse,
@@ -51,6 +53,7 @@ import {
 import {
   AddMediaRequestSchema,
   DatabaseSizesRequestSchema,
+  DuplicateDbRequestSchema,
   CheckFilesPayloadSchema,
   FolderSizeRequestSchema,
 } from '@shared/schemas/requests'
@@ -310,6 +313,14 @@ export const tasksApi = {
 
   deleteDb(body: BackupNamePayload) {
     return apiClient.post(API_ROUTES.taskDeleteDb, body)
+  },
+
+  duplicateDb(body: DuplicateDbPayload) {
+    const payload = validateRequest(DuplicateDbRequestSchema, body)
+    return apiClient.post(API_ROUTES.taskDuplicateDb, payload).then((res) => ({
+      ...res,
+      data: validated(parseDuplicateDbResponse, res.data),
+    }))
   },
 
   clearGeneratedData(body: {imageType: string}) {

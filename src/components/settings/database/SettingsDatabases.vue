@@ -82,6 +82,16 @@
               variant="text"
               size="small"
               rounded="pill"
+              :aria-label="t('settings_labels.database.duplicate_database')"
+              @click.stop="openDuplicate(db)"
+            >
+              <v-icon icon="mdi-content-copy" />
+            </v-btn>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
               :aria-label="t('common.edit')"
               @click.stop="openEdit(db)"
             >
@@ -122,6 +132,21 @@
               autofocus
               :rules="[v => { const r = validateName(v); return r === true || t(r) }]"
             />
+
+            <v-switch
+              v-if="dialogMode === 'duplicate'"
+              v-model="includeGeneratedCache"
+              color="primary"
+              hide-details
+              class="mb-4"
+              :label="t('settings_labels.database.copy_generated_cache')"
+            />
+            <p
+              v-if="dialogMode === 'duplicate'"
+              class="text-caption text-medium-emphasis mb-4"
+            >
+              {{ t('settings_labels.database.copy_generated_cache_hint') }}
+            </p>
 
             <DialogIcons
               :icon="dbIcon"
@@ -184,6 +209,8 @@ const dbName = ref('')
 const dbIcon = ref(DEFAULT_DB_ICON)
 const db = ref<DatabaseEntry | null>(null)
 const valid = ref(false)
+const dialogMode = ref<'add' | 'edit' | 'duplicate'>('add')
+const includeGeneratedCache = ref(true)
 
 const dialogDb = ref(false)
 const dialogActivateConfirm = ref(false)
@@ -233,8 +260,11 @@ function formatDbSize(id: string) {
 
 /* actions */
 function openAdd() {
+  db.value = null
+  dialogMode.value = 'add'
   dbName.value = ''
   dbIcon.value = DEFAULT_DB_ICON
+  includeGeneratedCache.value = true
   headerText.value = t('settings_labels.database.adding_database')
   buttons.value = [
     {
@@ -248,9 +278,11 @@ function openAdd() {
 }
 
 function openEdit(item: DatabaseEntry) {
+  dialogMode.value = 'edit'
   db.value = item
   dbName.value = item.name
   dbIcon.value = item.icon || DEFAULT_DB_ICON
+  includeGeneratedCache.value = true
   headerText.value = t('settings_labels.database.editing_database')
   buttons.value = [
     {
@@ -258,6 +290,24 @@ function openEdit(item: DatabaseEntry) {
       text: t('common.save'),
       color: 'success',
       action: updateDb,
+    },
+  ]
+  dialogDb.value = true
+}
+
+function openDuplicate(item: DatabaseEntry) {
+  dialogMode.value = 'duplicate'
+  db.value = item
+  dbName.value = `${item.name} (copy)`
+  dbIcon.value = item.icon || DEFAULT_DB_ICON
+  includeGeneratedCache.value = true
+  headerText.value = t('settings_labels.database.duplicating_database')
+  buttons.value = [
+    {
+      icon: 'content-copy',
+      text: t('settings_labels.database.duplicate_database'),
+      color: 'success',
+      action: duplicateDb,
     },
   ]
   dialogDb.value = true
@@ -322,6 +372,51 @@ async function updateDb() {
   databases.value = databasesList
 
   dialogDb.value = false
+}
+
+async function duplicateDb() {
+  await formRef.value?.validate()
+  if (!valid.value || !db.value) return
+
+  const source = db.value
+  dialogDb.value = false
+  dialogsStore.process.show = true
+  dialogsStore.process.text = t('settings_labels.database.duplicating_database_progress')
+
+  try {
+    const icon = dbIcon.value === DEFAULT_DB_ICON ? undefined : dbIcon.value
+    const {data} = await typedApi.duplicateDb({
+      id: source.id,
+      name: dbName.value,
+      ...(icon ? {icon} : {}),
+      includeGeneratedCache: includeGeneratedCache.value,
+    })
+
+    const databasesList = [
+      ...getConfigDatabases(),
+      data.database,
+    ]
+    setConfigDatabases(databasesList)
+    await updateConfig({databases: databasesList})
+    databases.value = databasesList
+    await loadDatabaseSizes()
+
+    db.value = data.database
+    dialogActivateConfirm.value = true
+    setNotification({
+      type: 'success',
+      text: t('settings_labels.database.database_duplicated'),
+    })
+  } catch (error) {
+    console.error('Failed to duplicate database:', error)
+    setNotification({
+      type: 'error',
+      text: error instanceof Error ? error.message : t('common.error'),
+    })
+  } finally {
+    dialogsStore.process.show = false
+    dialogsStore.process.text = null
+  }
 }
 
 function syncActiveDatabase(databaseId: string) {

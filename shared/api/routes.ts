@@ -109,6 +109,7 @@ export const API_ROUTES = {
   taskUpdateMediaMultiple: '/api/Task/updateMediaMultiple',
   taskGetDatabaseSizes: '/api/Task/getDatabaseSizes',
   taskDeleteDb: '/api/Task/deleteDb',
+  taskDuplicateDb: '/api/Task/duplicateDb',
   taskClearData: '/api/Task/clearData',
   taskGetFolderSize: '/api/Task/getFolderSize',
   taskParsePathTags: '/api/Task/parsePathTags',

@@ -19,6 +19,16 @@ export const DatabaseSizesResponseSchema = z.object({
   sizes: z.record(z.string(), z.number()).optional(),
 }).passthrough()
 
+export const DuplicateDbResponseSchema = z.object({
+  database: z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    active: z.boolean(),
+    createdAt: z.number(),
+    icon: z.string().optional(),
+  }),
+}).passthrough()
+
 export const FileExistsResponseSchema = z.object({
   exists: z.boolean().optional(),
 }).passthrough()

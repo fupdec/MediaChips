@@ -233,6 +233,16 @@ export interface DatabaseSizesResponse {
   sizes?: Record<string, number>
 }
 
+export interface DuplicateDbResponse {
+  database: {
+    id: string
+    name: string
+    active: boolean
+    createdAt: number
+    icon?: string
+  }
+}
+
 export interface BackupEntry {
   date: string
   size?: number | string

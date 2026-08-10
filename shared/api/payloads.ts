@@ -210,6 +210,13 @@ export interface DatabaseSizesPayload {
   [key: string]: unknown
 }
 
+export interface DuplicateDbPayload {
+  id: string
+  name?: string
+  icon?: string
+  includeGeneratedCache?: boolean
+}
+
 export interface FolderSizePayload {
   path?: string
   folder?: string

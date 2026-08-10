@@ -9,6 +9,7 @@ import { machineId } from 'node-machine-id'
 import { getAppConfigPath } from '../../utils/appConfigPath'
 import { loadConfigFile, createDefaultConfig } from '../../../app/server/configFile'
 import { getDirectorySize } from '../../services/directorySize'
+import { copyDatabaseDirectory } from '../../services/duplicateDatabase'
 
 export default function createTasksDatabaseController(shared: TaskControllerShared) {
   const {db, resolveGeneratedFolderPath} = shared
@@ -22,6 +23,69 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       sendOk(res, 'successfully deleted')
     } catch (err) {
       sendAsClientError(res, err, 'Request failed')
+    }
+  }
+
+  const duplicateDb = async function (req: ApiRequest, res: ApiResponse) {
+    const sourceId = String(req.body.id ?? '')
+    const databasesPath = db.path_databases ?? ''
+    if (!sourceId || !databasesPath) {
+      sendBadRequest(res, 'Database id required')
+      return
+    }
+
+    const sourceDir = path.join(databasesPath, sourceId)
+    if (!fs.existsSync(sourceDir)) {
+      sendBadRequest(res, 'Source database folder not found')
+      return
+    }
+
+    const configPath = getAppConfigPath()
+    const loaded = loadConfigFile(configPath)
+    const config = loaded.config || createDefaultConfig()
+    const sourceEntry = (config.databases || []).find((entry) => entry.id === sourceId)
+    if (!sourceEntry) {
+      sendBadRequest(res, 'Source database not found in config')
+      return
+    }
+
+    const includeGeneratedCache = req.body.includeGeneratedCache !== false
+    const requestedName = typeof req.body.name === 'string' ? req.body.name.trim() : ''
+    const name = requestedName || `${sourceEntry.name} (copy)`
+    const icon = typeof req.body.icon === 'string' && req.body.icon.trim()
+      ? req.body.icon.trim()
+      : sourceEntry.icon
+
+    const newId = Date.now().toString(16)
+    const destDir = path.join(databasesPath, newId)
+
+    try {
+      const isActiveSource = db.config?.id === sourceId || Boolean(sourceEntry.active)
+      if (isActiveSource && db.sqlite) {
+        try {
+          db.sqlite.pragma('wal_checkpoint(TRUNCATE)')
+        } catch (error) {
+          console.warn('duplicateDb wal_checkpoint failed:', error)
+        }
+      }
+
+      await copyDatabaseDirectory({
+        sourceDir,
+        destDir,
+        includeGeneratedCache,
+      })
+
+      const database = {
+        id: newId,
+        name,
+        active: false,
+        createdAt: Date.now(),
+        ...(icon ? {icon} : {}),
+      }
+
+      sendOk(res, {database})
+    } catch (err) {
+      sendAsClientError(res, err, 'Failed to duplicate database')
     }
   }
 
@@ -96,6 +160,7 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
 
   return {
     deleteDb,
+    duplicateDb,
     getDatabaseSizes,
     getFolderSize,
     clearData,

@@ -272,6 +272,13 @@ export const DeleteDbRequestSchema = z.object({
   id: z.string().min(1),
 })
 
+export const DuplicateDbRequestSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).optional(),
+  icon: z.string().min(1).optional(),
+  includeGeneratedCache: z.boolean().optional(),
+})
+
 export const FolderSizeRequestSchema = z.object({
   folder: z.string().min(1),
 })

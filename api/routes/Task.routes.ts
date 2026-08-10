@@ -18,6 +18,7 @@ import {
   UpdateMediaMultipleRequestSchema,
   DatabaseSizesRequestSchema,
   DeleteDbRequestSchema,
+  DuplicateDbRequestSchema,
   FolderSizeRequestSchema,
   ClearDataRequestSchema,
   CreateThumbRequestSchema,
@@ -159,6 +160,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/createImage', 'createImage', validateBody(CreateImageRequestSchema))
   register('post', '/deleteFile', 'deleteFile', validateBody(PathPayloadSchema))
   register('post', '/deleteDb', 'deleteDb', validateBody(DeleteDbRequestSchema))
+  register('post', '/duplicateDb', 'duplicateDb', validateBody(DuplicateDbRequestSchema))
   register('post', '/getDatabaseSizes', 'getDatabaseSizes', validateBody(DatabaseSizesRequestSchema))
   register('post', '/getFolderSize', 'getFolderSize', validateBody(FolderSizeRequestSchema))
   register('post', '/clearData', 'clearData', validateBody(ClearDataRequestSchema))

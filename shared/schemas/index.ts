@@ -34,6 +34,7 @@ import {
   BackupListSchema,
   ClipModelStatusSchema,
   DatabaseSizesResponseSchema,
+  DuplicateDbResponseSchema,
   FileExistsResponseSchema,
   CheckFilesResponseSchema,
   FileListResponseSchema,
@@ -95,7 +96,7 @@ import {
   PageSettingsRecordSchema,
   PlaylistCreateResponseSchema,
 } from './pages'
-import type { PageSettingsRecord, SettingEntry, DatabaseSizesResponse, BackupEntry, MediaPathFile, AddMediaResponse, ParsePathTagEntry, MarkForVideo, MarkClipsResponse, FaceAppearancesResponse } from '../api/responses'
+import type { PageSettingsRecord, SettingEntry, DatabaseSizesResponse, DuplicateDbResponse, BackupEntry, MediaPathFile, AddMediaResponse, ParsePathTagEntry, MarkForVideo, MarkClipsResponse, FaceAppearancesResponse } from '../api/responses'
 import type { SavedFilterBasic } from '../entities/filter'
 import type { MediaType } from '../entities/media'
 import type { MediaItem } from '../entities/media'
@@ -453,6 +454,10 @@ export function parseDatabaseSizesResponse(data: unknown): DatabaseSizesResponse
   return DatabaseSizesResponseSchema.parse(data) as DatabaseSizesResponse
 }
 
+export function parseDuplicateDbResponse(data: unknown): DuplicateDbResponse {
+  return DuplicateDbResponseSchema.parse(data) as DuplicateDbResponse
+}
+
 export function parseWatchedFolderLinks(data: unknown): WatchedFolderLink[] {
   return z.array(WatchedFolderLinkSchema).parse(data) as WatchedFolderLink[]
 }
@@ -486,6 +491,7 @@ export {
   BackupListSchema,
   ClipModelStatusSchema,
   DatabaseSizesResponseSchema,
+  DuplicateDbResponseSchema,
   FileExistsResponseSchema,
   CheckFilesResponseSchema,
   FileListResponseSchema,
