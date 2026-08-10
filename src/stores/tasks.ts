@@ -101,16 +101,13 @@ export const useTasksStore = defineStore('useTasksStore', {
     } as MediaAddingState,
   }),
   actions: {
-    setTask({ title, subtitle, icon, click, action, progress }: Partial<TaskItem> = {}) {
+    setTask(data: Partial<TaskItem> = {}) {
       const id = `task_${getRandomId()}`
+      const {icon, ...rest} = data
       this.list.push({
+        ...rest,
         id,
-        title,
-        subtitle,
-        icon: icon != null ? normalizeMdiIconName(icon, 'cog') : icon,
-        click,
-        action,
-        progress,
+        icon: icon != null ? normalizeMdiIconName(String(icon), 'cog') : icon,
       })
       scheduleDesktopChromeSync()
       return id

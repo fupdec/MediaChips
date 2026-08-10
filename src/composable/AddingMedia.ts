@@ -211,8 +211,8 @@ export const useMediaAdding = () => {
       tasksStore.removeTask(taskId)
       task.value.notificationTaskId = null
       setNotification({
-        title: 'Error',
-        text: 'Media type not found',
+        title: t('common.error'),
+        text: t('media.adding.media_type_not_found'),
       })
       addMediaInProgress = false
       return
@@ -501,7 +501,7 @@ export const useMediaAdding = () => {
       console.error('Error in addMedia process:', error)
       const message = error instanceof Error ? error.message : String(error)
       setNotification({
-        title: 'Error adding files',
+        title: t('media.adding.error_title'),
         text: message,
       })
       task.value.status = null

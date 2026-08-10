@@ -65,7 +65,7 @@ export function usePresetMeta(props: PresetMetaProps) {
       },
       {
         name: 'ext',
-        text: 'Extension',
+        text: t('settings_labels.appearance.extension'),
         icon: 'file-video-outline',
         types: ['media'],
         show: SETTINGS.value.show_default_meta_ext === '1',

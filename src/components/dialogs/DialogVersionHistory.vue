@@ -10,7 +10,7 @@
     <v-card>
       <DialogHeader
         @close="closeDialog"
-        header="Version history"
+        :header="t('systemBar.version_history')"
         closable
       />
 
@@ -46,12 +46,12 @@
             <v-spacer></v-spacer>
 
             <span v-if="selected.date" class="text-medium-emphasis text-caption">
-              <span>Release date: </span>
+              <span>{{ t('versions.release_date') }} </span>
               {{ convertDate(selected.date) }}
             </span>
           </v-card-title>
 
-          <div v-if="!selected.version" class="text-center">Please select any version</div>
+          <div v-if="!selected.version" class="text-center">{{ t('versions.select_any') }}</div>
 
           <div v-else variant="flat" v-html="selected.content"></div>
         </v-card-text>
@@ -62,10 +62,14 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
 import {useDialogsStore} from '@/stores/dialogs'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 import { getMergedVersionHistory } from '@/services/changelog'
+
+const {t} = useI18n()
+
 
 interface VersionEntry {
   id: string

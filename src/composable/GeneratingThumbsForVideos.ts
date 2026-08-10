@@ -1,4 +1,5 @@
 import {ref, watch, onBeforeUnmount} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -17,6 +18,7 @@ interface GeneratorState {
 }
 
 export default function useVideoImageGenerator() {
+  const {t} = useI18n()
   const tasksStore = useTasksStore()
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
@@ -51,7 +53,8 @@ export default function useVideoImageGenerator() {
     grid.value.stopped = false
 
     const taskId = tasksStore.setTask({
-      title: 'Generating grids images',
+      key: 'generating_grid_images',
+      title: t('tasks_text.generating_grid_images'),
       icon: 'apps',
       action: () => {
         grid.value.stopped = true
@@ -65,7 +68,7 @@ export default function useVideoImageGenerator() {
 
         completed++
         tasksStore.updateTask(taskId, {
-          subtitle: `${completed} of ${videos.length}`,
+          subtitle: t('tasks_text.of_total', {completed, total: videos.length}),
           progress: (completed / videos.length) * 100,
         })
 

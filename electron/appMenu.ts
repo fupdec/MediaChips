@@ -1,8 +1,14 @@
 import {app, Menu, type BrowserWindow, type MenuItemConstructorOptions} from 'electron'
 import {LOCAL_AI_UI_ENABLED} from '../shared/features'
+import {
+  getAppMenuLabels,
+  normalizeAppMenuLocale,
+  type AppMenuLabels,
+} from '../shared/electron/appMenuI18n'
 
 export type AppMenuController = {
   install: () => void
+  setLocale: (locale: string) => void
 }
 
 export function createAppMenuController(deps: {
@@ -12,6 +18,7 @@ export function createAppMenuController(deps: {
 }): AppMenuController {
   const localAiEnabled = deps.localAiEnabled ?? LOCAL_AI_UI_ENABLED
   const isMac = process.platform === 'darwin'
+  let labels: AppMenuLabels = getAppMenuLabels('en')
 
   function sendMenuAction(action: string) {
     deps.getMainWindow()?.webContents.send('menuAction', action)
@@ -33,79 +40,79 @@ export function createAppMenuController(deps: {
 
   function buildTemplate(): MenuItemConstructorOptions[] {
     const fileMenu: MenuItemConstructorOptions = {
-      label: 'File',
+      label: labels.menuFile,
       submenu: [
-        menuActionItem('Add Media', 'addMedia'),
+        menuActionItem(labels.addMedia, 'addMedia'),
         {type: 'separator'},
-        menuActionItem('Import Backup...', 'importBackup'),
-        menuActionItem('Export Backup...', 'exportBackup'),
+        menuActionItem(labels.importBackup, 'importBackup'),
+        menuActionItem(labels.exportBackup, 'exportBackup'),
         {type: 'separator'},
-        menuActionItem('Open Data Folder', 'openDataFolder'),
+        menuActionItem(labels.openDataFolder, 'openDataFolder'),
         {type: 'separator'},
         {role: 'close'},
       ],
     }
 
     const editMenu: MenuItemConstructorOptions = {
-      label: 'Edit',
+      label: labels.menuEdit,
       submenu: [
         {
-          label: 'Undo',
+          label: labels.undo,
           accelerator: 'CommandOrControl+Z',
           role: 'undo',
         },
         {
-          label: 'Redo',
+          label: labels.redo,
           accelerator: 'CommandOrControl+Y',
           role: 'redo',
         },
         {type: 'separator'},
         {
-          label: 'Cut',
+          label: labels.cut,
           accelerator: 'CommandOrControl+X',
           role: 'cut',
         },
         {
-          label: 'Copy',
+          label: labels.copy,
           accelerator: 'CommandOrControl+C',
           role: 'copy',
         },
         {
-          label: 'Paste',
+          label: labels.paste,
           accelerator: 'CommandOrControl+V',
           role: 'paste',
         },
         {type: 'separator'},
         {
-          label: 'Select all',
+          label: labels.selectAll,
           accelerator: 'CommandOrControl+A',
           role: 'selectAll',
         },
-        menuActionItem('Global Search', 'globalSearch', 'CommandOrControl+F'),
+        menuActionItem(labels.globalSearch, 'globalSearch', 'CommandOrControl+F'),
       ],
     }
 
     const viewMenu: MenuItemConstructorOptions = {
-      label: 'View',
+      label: labels.menuView,
       submenu: [
-        menuActionItem('Toggle Theme', 'toggleTheme'),
+        menuActionItem(labels.toggleTheme, 'toggleTheme'),
         {type: 'separator'},
-        // Use app zoom actions (CSS zoom) instead of Chromium roles — setZoomFactor
-        // cuts off nested settings scroll regions when zoomed in.
-        menuActionItem('Zoom In', 'zoomIn', 'CommandOrControl+='),
-        menuActionItem('Zoom Out', 'zoomOut', 'CommandOrControl+-'),
-        menuActionItem('Reset Zoom', 'resetZoom', 'CommandOrControl+0'),
+        // Use app zoom actions instead of Chromium menu roles so shortcuts stay
+        // in sync with the persisted zoom setting.
+        menuActionItem(labels.zoomIn, 'zoomIn', 'CommandOrControl+='),
+        menuActionItem(labels.zoomOut, 'zoomOut', 'CommandOrControl+-'),
+        menuActionItem(labels.resetZoom, 'resetZoom', 'CommandOrControl+0'),
         {type: 'separator'},
         {role: 'togglefullscreen'},
       ],
     }
 
     const appMenu: MenuItemConstructorOptions = {
-      label: 'App',
+      label: labels.menuApp,
       submenu: [
-        ...(!isMac ? [menuActionItem('Settings', 'settings', 'CommandOrControl+,')] : []),
+        ...(!isMac ? [menuActionItem(labels.settings, 'settings', 'CommandOrControl+,')] : []),
         {
-          label: 'Lock',
+          label: labels.lock,
           id: 'lock',
           enabled: true,
           click() {
@@ -113,9 +120,9 @@ export function createAppMenuController(deps: {
           },
         },
         {type: 'separator'},
-        menuActionItem('Restart', 'restart'),
+        menuActionItem(labels.restart, 'restart'),
         ...(!isMac ? [{
-          label: 'Exit',
+          label: labels.exit,
           accelerator: 'CommandOrControl+Q',
           click() {
             app.exit()
@@ -125,7 +132,7 @@ export function createAppMenuController(deps: {
     }
 
     const windowMenu: MenuItemConstructorOptions = {
-      label: 'Window',
+      label: labels.menuWindow,
       submenu: [
         {role: 'minimize'},
         {role: 'zoom'},
@@ -135,26 +142,26 @@ export function createAppMenuController(deps: {
     }
 
     const helpMenu: MenuItemConstructorOptions = {
-      label: 'Help',
+      label: labels.menuHelp,
       submenu: [
-        menuActionItem('Documentation', 'documentation'),
-        ...(localAiEnabled ? [menuActionItem('Local AI', 'localAi')] : []),
-        menuActionItem('Getting Started', 'gettingStarted'),
-        menuActionItem('Send Feedback', 'sendFeedback'),
-        menuActionItem('Keyboard Shortcuts', 'keyboardShortcuts'),
+        menuActionItem(labels.documentation, 'documentation'),
+        ...(localAiEnabled ? [menuActionItem(labels.localAi, 'localAi')] : []),
+        menuActionItem(labels.gettingStarted, 'gettingStarted'),
+        menuActionItem(labels.sendFeedback, 'sendFeedback'),
+        menuActionItem(labels.keyboardShortcuts, 'keyboardShortcuts'),
         {type: 'separator'},
-        menuActionItem('Check for Updates', 'checkUpdates'),
-        menuActionItem('Version History', 'versionHistory'),
-        menuActionItem('Website', 'website'),
+        menuActionItem(labels.checkUpdates, 'checkUpdates'),
+        menuActionItem(labels.versionHistory, 'versionHistory'),
+        menuActionItem(labels.website, 'website'),
         {type: 'separator'},
         {
-          label: 'Toggle Developer Tools',
+          label: labels.toggleDevTools,
           accelerator: 'CommandOrControl+Shift+I',
           role: 'toggleDevTools',
         },
         ...(!isMac ? [
           {type: 'separator' as const},
-          menuActionItem('About', 'about'),
+          menuActionItem(labels.about, 'about'),
         ] : []),
       ],
     }
@@ -163,9 +170,9 @@ export function createAppMenuController(deps: {
       ...(isMac ? [{
         label: app.name,
         submenu: [
-          menuActionItem('About MediaChips', 'about'),
+          menuActionItem(labels.aboutMediaChips, 'about'),
           {type: 'separator' as const},
-          menuActionItem('Settings...', 'settings', 'CommandOrControl+,'),
+          menuActionItem(labels.settingsEllipsis, 'settings', 'CommandOrControl+,'),
           {type: 'separator' as const},
           {role: 'services' as const},
           {type: 'separator' as const},
@@ -182,9 +189,17 @@ export function createAppMenuController(deps: {
     ]
   }
 
+  function install() {
+    Menu.setApplicationMenu(Menu.buildFromTemplate(buildTemplate()))
+  }
+
+  function setLocale(locale: string) {
+    labels = getAppMenuLabels(normalizeAppMenuLocale(locale))
+    install()
+  }
+
   return {
-    install() {
-      Menu.setApplicationMenu(Menu.buildFromTemplate(buildTemplate()))
-    },
+    install,
+    setLocale,
   }
 }

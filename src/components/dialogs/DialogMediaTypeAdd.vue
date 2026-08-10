@@ -10,7 +10,7 @@
       <v-card>
         <!-- Inline DialogHeader -->
         <v-toolbar color="primary">
-          <v-toolbar-title>Adding media type</v-toolbar-title>
+          <v-toolbar-title>{{ t('media.type.adding_media_type') }}</v-toolbar-title>
           <v-spacer></v-spacer>
           <v-toolbar-items>
             <v-btn
@@ -20,7 +20,7 @@
               class="ml-2"
             >
               <v-icon icon="mdi-plus" start></v-icon>
-              Add
+              {{ t('common.add') }}
             </v-btn>
             <v-btn icon @click="close">
               <v-icon>mdi-close</v-icon>
@@ -35,16 +35,16 @@
             class="flex-grow-1"
             @submit.prevent
           >
-            <v-text-field v-model="name" :rules="[nameRules]" label="Name" />
+            <v-text-field v-model="name" :rules="[nameRules]" :label="t('common.name')" />
             <v-combobox
               v-model="extensions"
               :hide-no-data="!search"
               :items="[]"
-              :rules="[v => v.length > 0 || `At least one extension required`]"
+              :rules="[v => v.length > 0 || t('common.extension_required')]"
               v-model:search-input="search"
               hide-selected
-              label="Extensions"
-              hint="File extension without dot, e.g. doc"
+              :label="t('media.type.extensions')"
+              :hint="t('media.type.file_extensions_hint')"
               multiple
               chips
               closable-chips
@@ -52,7 +52,7 @@
             >
               <template v-slot:no-data>
                 <v-list-item @click="addExt">
-                  <span class="mr-2 text-subtitle-1">Add</span>
+                  <span class="mr-2 text-subtitle-1">{{ t('common.add') }}</span>
                   <v-chip size="small">
                     {{ search }}
                   </v-chip>
@@ -60,11 +60,11 @@
               </template>
             </v-combobox>
 
-            <div class="text-medium-emphasis text-caption mt-2 mb-1">Icon</div>
+            <div class="text-medium-emphasis text-caption mt-2 mb-1">{{ t('meta.settings.icon') }}</div>
             <div class="d-flex align-center">
               <v-icon @click="dialogIcons = true" size="large" start>mdi-{{ icon }}</v-icon>
               <v-btn @click="dialogIcons = true" color="primary" rounded variant="flat">
-                Select icon
+                {{ t('meta.settings.select_icon') }}
               </v-btn>
             </div>
           </v-form>

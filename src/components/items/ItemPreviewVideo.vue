@@ -367,7 +367,7 @@ const mediaWidth = computed(() => Number(props.media.width) || 0)
 const mediaHeight = computed(() => Number(props.media.height) || 0)
 const mediaDuration = computed(() => Number(props.media.duration) || 0)
 const isTaskRunning = computed(() =>
-  tasksStore.list.find(task => task.title === 'Generating grids images'),
+  tasksStore.list.find(task => task.key === 'generating_grid_images'),
 )
 
 const {

@@ -161,7 +161,7 @@ const gridFrameKey = computed(() => {
 })
 
 const isGeneratingGrid = computed(() =>
-  tasksStore.list.some((task) => task.title === 'Generating grids images'),
+  tasksStore.list.some((task) => task.key === 'generating_grid_images'),
 )
 
 const showTimelineGenerating = computed(() =>

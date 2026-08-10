@@ -26,8 +26,12 @@ import {
 export type TrayPlatform = 'win32' | 'darwin' | 'linux' | string
 
 export type AppTrayController = {
-  createTray: () => void
+  createTray: () => boolean
   destroyTray: () => void
+  /** True when a live tray/menu-bar icon exists (safe to hide the main window). */
+  hasTrayIcon: () => boolean
+  /** Create the tray if minimize-to-tray is enabled; returns whether an icon is available. */
+  ensureTray: () => boolean
   getMinimizeToTray: () => boolean
   setMinimizeToTray: (enabled: boolean) => boolean
   /** macOS only: custom items on the Dock icon context menu. */
@@ -305,6 +309,8 @@ export function createAppTrayController(deps: {
   setIsQuitting: (value: boolean) => void
   /** Directory that contains `dist/icons` (usually project root). */
   getAppRoot: () => string
+  /** Called when UI locale changes (tray / Dock / Jump List already updated). */
+  onLocaleChange?: (locale: string) => void
 }): AppTrayController {
   const platform = deps.platform ?? process.platform
   const traySupported = isTraySupportedPlatform(platform)
@@ -375,10 +381,12 @@ export function createAppTrayController(deps: {
   function setLocale(nextLocale: string) {
     locale = normalizeTrayMenuLocale(nextLocale)
     refreshLocalizedMenus()
+    deps.onLocaleChange?.(locale)
   }
 
-  function createTray() {
-    if (tray || !traySupported) return
+  function createTray(): boolean {
+    if (tray) return true
+    if (!traySupported) return false
 
     try {
       const {image, iconPath} = resolveTrayIcon(deps.getAppRoot(), platform, {
@@ -409,9 +417,11 @@ export function createAppTrayController(deps: {
         })
         tray.on('double-click', () => deps.showMainWindow())
       }
+      return true
     } catch (error) {
       console.warn('Failed to create tray icon:', error)
       tray = null
+      return false
     }
   }
 
@@ -442,6 +452,15 @@ export function createAppTrayController(deps: {
       tray.destroy()
       tray = null
     }
+  }
+
+  function hasTrayIcon() {
+    return tray != null
+  }
+
+  function ensureTray() {
+    if (!minimizeToTray || !traySupported) return false
+    return createTray()
   }
 
   function setMinimizeToTray(enabled: boolean) {
@@ -488,6 +507,8 @@ export function createAppTrayController(deps: {
   return {
     createTray,
     destroyTray,
+    hasTrayIcon,
+    ensureTray,
     getMinimizeToTray: () => minimizeToTray,
     setMinimizeToTray,
     installDockMenu,

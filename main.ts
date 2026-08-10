@@ -269,6 +269,12 @@ const mainWindow = createMainWindowController({
 
 const {createWindow, showMainWindow} = mainWindow
 
+const appMenu = createAppMenuController({
+  getMainWindow: () => mainWindow.getWindow(),
+  onLock: () => appLifecycle.lockApp(),
+})
+appMenu.install()
+
 const appTray = createAppTrayController({
   platform: process.platform,
   getMainWindow: () => mainWindow.getWindow(),
@@ -280,6 +286,7 @@ const appTray = createAppTrayController({
   quitApp: () => appLifecycle.quitApp(),
   setIsQuitting: (value) => { appLifecycle.setIsQuitting(value) },
   getAppRoot: () => appRoot,
+  onLocaleChange: (locale) => appMenu.setLocale(locale),
 })
 appTray.registerIpc()
 appTray.installDockMenu()
@@ -313,6 +320,8 @@ const appLifecycle = createAppLifecycleController({
   getMainWindow: () => mainWindow.getWindow(),
   setMinimizeToTray: (enabled) => { appTray.setMinimizeToTray(enabled) },
   destroyTray: () => appTray.destroyTray(),
+  ensureTray: () => appTray.ensureTray(),
+  hasTrayIcon: () => appTray.hasTrayIcon(),
   destroyPlayerWindow: () => playerWindow.destroyPlayerWindow(),
   stopPlayerPlayback: () => playerWindow.stopPlayerPlayback(),
   schedulePlayerWarmup: () => playerWindow.schedulePlayerWarmup(),
@@ -341,15 +350,6 @@ registerWindowChromeIpc({
 registerShellIpc({ log: devLog })
 registerMediaDragIpc()
 registerBridgeIpc({ getMainWindow: () => mainWindow.getWindow() })
-
-createAppMenuController({
-  getMainWindow: () => mainWindow.getWindow(),
-  onLock: () => appLifecycle.lockApp(),
-}).install()
-
-app.on('before-quit', () => {
-  apiSupervisor.stop()
-})
 
 powerMonitor.on('resume', () => {
   void ensureBackendAfterResume()

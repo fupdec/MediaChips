@@ -80,7 +80,7 @@
         class="app-startup-splash__logo"
       >
       <div class="app-startup-splash__name">MediaChips</div>
-      <div class="app-startup-splash__tagline">Organize your media</div>
+      <div class="app-startup-splash__tagline">{{ t('aboutApp.tagline') }}</div>
     </div>
 
     <v-overlay :model-value="isPlayerWindow && !isAppReady"

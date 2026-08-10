@@ -3,52 +3,52 @@
     <!-- Auto search -->
     <div v-if="status === 'searching'" class="searching">
       <div class="spinner"></div>
-      <p>🔍 Searching for server in local network...</p>
-      <p class="hint">Checking addresses: {{ currentSearchIp }}</p>
+      <p>{{ t('auto_connect.searching') }}</p>
+      <p class="hint">{{ t('auto_connect.checking_addresses', {ip: currentSearchIp}) }}</p>
       <div class="progress">
         <div class="progress-bar" :style="{ width: scanProgress + '%' }"></div>
       </div>
-      <p class="progress-text">{{ scannedCount }} of {{ totalToScan }} addresses</p>
+      <p class="progress-text">{{ t('auto_connect.addresses_progress', {scanned: scannedCount, total: totalToScan}) }}</p>
     </div>
 
     <!-- Server found -->
     <div v-else-if="status === 'connected' && serverInfo" class="connected">
       <div class="success-message">
-        <h3>✅ Connected to server</h3>
+        <h3>{{ t('auto_connect.connected') }}</h3>
         <div class="server-info">
-          <p><strong>Address:</strong> {{ serverInfo.ip }}</p>
-          <p><strong>Response time:</strong> {{ serverInfo.responseTime }}ms</p>
-          <p><strong>Status:</strong> {{ serverInfo.status }}</p>
+          <p><strong>{{ t('auto_connect.address') }}</strong> {{ serverInfo.ip }}</p>
+          <p><strong>{{ t('auto_connect.response_time') }}</strong> {{ serverInfo.responseTime }}ms</p>
+          <p><strong>{{ t('auto_connect.status') }}</strong> {{ serverInfo.status }}</p>
         </div>
-        <button @click="disconnect" class="btn-secondary">Disconnect</button>
+        <button @click="disconnect" class="btn-secondary">{{ t('auto_connect.disconnect') }}</button>
       </div>
     </div>
 
     <!-- Error -->
     <div v-else-if="status === 'error'" class="error">
-      <h3>❌ Server not found</h3>
-      <p>Could not detect server in local network.</p>
+      <h3>{{ t('auto_connect.server_not_found') }}</h3>
+      <p>{{ t('auto_connect.could_not_detect') }}</p>
 
       <div class="suggestions">
-        <h4>Possible solutions:</h4>
+        <h4>{{ t('auto_connect.possible_solutions') }}</h4>
         <ul>
-          <li>Make sure the server is running</li>
-          <li>Check that the computer is on the same network</li>
+          <li>{{ t('auto_connect.make_sure_server_running') }}</li>
+          <li>{{ t('auto_connect.check_same_network') }}</li>
         </ul>
       </div>
 
       <div class="actions">
         <button @click="startDiscovery" class="btn-primary">
-          Retry search
+          {{ t('auto_connect.retry_search') }}
         </button>
       </div>
     </div>
 
     <!-- Manual input -->
     <div v-else-if="status === 'manual'" class="manual">
-      <h3>⚙️ Manual setup</h3>
+      <h3>{{ t('auto_connect.manual_setup') }}</h3>
       <div class="input-group">
-        <label>Server IP address:</label>
+        <label>{{ t('auto_connect.server_ip') }}</label>
         <input
           v-model="manualIp"
           placeholder="192.168.1.100"
@@ -56,22 +56,22 @@
         />
       </div>
       <div class="input-group">
-        <label>Port:</label>
+        <label>{{ t('auto_connect.port') }}</label>
         <input
           v-model="manualPort"
           type="number"
           value="12321"
           disabled
         />
-        <small class="hint">Port is fixed (12321)</small>
+        <small class="hint">{{ t('auto_connect.port_fixed_value', {port: manualPort}) }}</small>
       </div>
 
       <div class="actions">
         <button @click="connectManual" class="btn-primary">
-          Connect
+          {{ t('auto_connect.connect') }}
         </button>
         <button @click="startDiscovery" class="btn-secondary">
-          Auto search
+          {{ t('auto_connect.auto_search') }}
         </button>
       </div>
     </div>
@@ -80,10 +80,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n'
 import LanServerDiscovery from '../app/LanServerDiscovery';
 import {typedApi} from '@/services/typedApi'
 
 const emit = defineEmits(['connected', 'manual-mode']);
+const { t } = useI18n()
 
 const status = ref('searching'); // searching, connected, error, manual
 interface ServerDiscoveryResult {
