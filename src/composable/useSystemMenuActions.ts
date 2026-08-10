@@ -2,9 +2,9 @@ import path from 'path-browserify'
 import {useRouter} from 'vue-router'
 import {useTheme} from 'vuetify'
 import {useAppStore} from '@/stores/app'
+import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useEventBus} from '@/utils/eventBus'
 import {useAppShell} from '@/composable/appShell'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useAppUpdater} from '@/composable/useAppUpdater'
@@ -12,6 +12,7 @@ import {setOption} from '@/services/settingsService'
 import {openPath, openExternal} from '@/services/shellService'
 import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
+import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import type {SystemMenuAction} from '@/types/systemMenu'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 
@@ -25,13 +26,22 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   const router = useRouter()
   const theme = useTheme()
   const appStore = useAppStore()
+  const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
   const dialogsStore = useDialogsStore()
-  const eventBus = useEventBus()
   const appShell = useAppShell()
   const appZoom = useAppZoom()
   const {ensureInitialized, check, isSupported} = useAppUpdater()
   const {isWindowMaximized} = useWindowMaximizedState()
+
+  function openAddMediaDialog() {
+    const id = itemsStore.environment?.media_type_id
+      ?? getDefaultMediaTypeId(appStore.mediaTypes)
+    if (router.currentRoute.value.path !== '/media' && id != null) {
+      void router.push(`/media?mediaTypeId=${id}`)
+    }
+    appShell.showAddMediaDialog()
+  }
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -46,7 +56,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   async function runSystemMenuAction(action: SystemMenuAction) {
     switch (action) {
       case 'addMedia':
-        eventBus.emit('addMedia')
+        openAddMediaDialog()
         break
       case 'importBackup':
         await router.push({path: '/settings', query: {tab: 'database', section: 'backups'}})

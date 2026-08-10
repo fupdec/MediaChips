@@ -5,7 +5,10 @@ import path from 'path'
 
 import { initAppUpdater } from './electron/autoUpdater'
 import { registerMediaDragIpc } from './electron/mediaDrag'
-import { createAppTrayController } from './electron/appTray'
+import {
+  createAppTrayController,
+  isTraySupportedPlatform,
+} from './electron/appTray'
 import { createAppMenuController } from './electron/appMenu'
 import {
   createAppLifecycleController,
@@ -267,14 +270,22 @@ const mainWindow = createMainWindowController({
 const {createWindow, showMainWindow} = mainWindow
 
 const appTray = createAppTrayController({
-  isWindows,
+  platform: process.platform,
   getMainWindow: () => mainWindow.getWindow(),
   showMainWindow: () => showMainWindow(),
+  sendMenuAction: (action) => {
+    mainWindow.getWindow()?.webContents.send('menuAction', action)
+  },
+  onLock: () => appLifecycle.lockApp(),
   quitApp: () => appLifecycle.quitApp(),
   setIsQuitting: (value) => { appLifecycle.setIsQuitting(value) },
   getAppRoot: () => appRoot,
 })
 appTray.registerIpc()
+appTray.installDockMenu()
+if (typeof appTray.installWindowsJumpList === 'function') {
+  appTray.installWindowsJumpList()
+}
 
 const playerWindow = createPlayerWindowController({
   isWindows,
@@ -291,7 +302,7 @@ const playerWindow = createPlayerWindowController({
 playerWindow.registerIpc()
 
 const appLifecycle = createAppLifecycleController({
-  isWindows,
+  supportsTray: isTraySupportedPlatform(process.platform),
   getPort: () => syncPortFromConfigFile(),
   getConfig: () => getShellConfigForRenderer(),
   isMinimizeToTrayPreferred: () => shellConfig.minimizeToTray === '1',
@@ -309,6 +320,7 @@ const appLifecycle = createAppLifecycleController({
   closeServerListener: () => { apiSupervisor.stop() },
   initAppUpdater: () => initAppUpdater({getWindow: () => mainWindow.getWindow()}),
   getMinimizeToTray: () => appTray.getMinimizeToTray(),
+  handleJumpListAction: (action) => appTray.handleJumpListAction(action),
   logStartup: (message) => { console.log(message) },
 })
 

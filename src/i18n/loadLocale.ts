@@ -150,7 +150,17 @@ async function reloadActiveLocaleMessages(): Promise<void> {
 if (import.meta.hot) {
   // Keep the chosen language across locale file edits instead of full page
   // reload falling back to English (createI18n default).
-  import.meta.hot.accept(['./en', './ru', './es', './cn', './de', './fr', './ja', './pt'], () => {
+  // Use explicit .ts suffixes — bare "./de" fails Vite import-analysis on some setups.
+  import.meta.hot.accept([
+    './en.ts',
+    './ru.ts',
+    './es.ts',
+    './cn.ts',
+    './de.ts',
+    './fr.ts',
+    './ja.ts',
+    './pt.ts',
+  ], () => {
     void reloadActiveLocaleMessages()
   })
 }

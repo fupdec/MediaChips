@@ -1506,7 +1506,7 @@ const en = {
       startup_health_notifications: 'Automatic library health checks',
       startup_health_notifications_hint: 'On startup and on the home widget: pending maintenance alerts (fingerprints, codecs, tag image upgrade, etc.). Turn off to check only manually.',
       minimize_to_tray: 'Show icon in system tray',
-      minimize_to_tray_hint: 'When enabled, an icon appears in the notification area while the app is running. Closing the window hides the app to the tray instead of quitting.',
+      minimize_to_tray_hint: 'When enabled, an icon appears in the notification area (Windows/Linux) or menu bar (macOS) while the app is running. Closing the window hides the app to the tray instead of quitting.',
       language: 'Language',
       languages: {
         en: 'English',

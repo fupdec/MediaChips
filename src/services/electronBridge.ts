@@ -37,6 +37,17 @@ export async function syncMinimizeToTray(enabled: boolean): Promise<void> {
   }
 }
 
+export async function syncShellLocale(locale: string): Promise<void> {
+  const api = getElectronAPI()
+  if (!api?.invoke) return
+
+  try {
+    await api.invoke('set-shell-locale', locale)
+  } catch (error) {
+    console.error('Failed to sync shell locale:', error)
+  }
+}
+
 export type OpenDialogOptions = {
   properties?: string[]
   filters?: Array<{name: string; extensions: string[]}>

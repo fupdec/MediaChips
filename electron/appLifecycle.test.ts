@@ -39,19 +39,19 @@ describe('formatPortInUseErrorMessage', () => {
 })
 
 describe('shouldHideWindowOnCloseApp', () => {
-  it('hides only on Windows tray mode while not quitting', () => {
+  it('hides on tray-supported platforms while tray mode is on and not quitting', () => {
     expect(shouldHideWindowOnCloseApp({
-      isWindows: true,
+      supportsTray: true,
       minimizeToTray: true,
       isQuitting: false,
     })).toBe(true)
     expect(shouldHideWindowOnCloseApp({
-      isWindows: true,
+      supportsTray: true,
       minimizeToTray: true,
       isQuitting: true,
     })).toBe(false)
     expect(shouldHideWindowOnCloseApp({
-      isWindows: false,
+      supportsTray: false,
       minimizeToTray: true,
       isQuitting: false,
     })).toBe(false)
@@ -59,7 +59,7 @@ describe('shouldHideWindowOnCloseApp', () => {
 
   it('never hides when tray is disabled', () => {
     expect(shouldHideWindowOnCloseApp({
-      isWindows: true,
+      supportsTray: true,
       minimizeToTray: false,
       isQuitting: false,
     })).toBe(false)

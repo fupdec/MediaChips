@@ -85,7 +85,7 @@ import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {refreshServerConfig} from '@/services/configService'
 import {resolveLanShareUrl} from '@/utils/apiBaseUrl'
-import {isWinElectronUi} from '@/utils/electronUi'
+import {isDesktopElectronUi} from '@/utils/electronUi'
 import SettingsMinimizeToTray from '@/components/settings/general/SettingsMinimizeToTray.vue'
 import LanPhoneAccessHints from '@/components/app/LanPhoneAccessHints.vue'
 
@@ -97,7 +97,7 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const lanAccessEnvLocked = ref(false)
 
-const showTraySetting = isWinElectronUi()
+const showTraySetting = isDesktopElectronUi()
 
 const SETTINGS = computed(() => settingsStore)
 const frontendUrl = computed(() =>

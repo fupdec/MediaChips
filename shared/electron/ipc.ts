@@ -54,6 +54,7 @@ export const IPC_INVOKE_CHANNELS = [
   'getZoomFactor',
   'checkFileExists',
   'set-minimize-to-tray',
+  'set-shell-locale',
   'focusMainWindow',
   'isMainWindowFocused',
 ] as const
@@ -234,6 +235,7 @@ export interface IpcInvokePayloads {
   getZoomFactor: void
   checkFileExists: CheckFileExistsPayload
   'set-minimize-to-tray': boolean
+  'set-shell-locale': string
   focusMainWindow: void
   isMainWindowFocused: void
 }
@@ -272,6 +274,7 @@ export interface IpcInvokeResults {
   getZoomFactor: number
   checkFileExists: boolean
   'set-minimize-to-tray': boolean
+  'set-shell-locale': string
   focusMainWindow: boolean
   isMainWindowFocused: boolean
 }

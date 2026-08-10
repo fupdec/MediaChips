@@ -50,6 +50,8 @@
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {loadLocale} from '@/i18n/loadLocale'
+import {syncShellLocale} from '@/services/electronBridge'
+import {isDesktopElectronUi} from '@/utils/electronUi'
 import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
 import {useSettingsStore} from '@/stores/settings'
 import {setOption} from '@/services/settingsService'
@@ -124,6 +126,9 @@ const changeLanguage = async (langCode: string | LocaleEntry) => {
   setOption(next, 'locale')
 
   document.documentElement.lang = next
+  if (isDesktopElectronUi()) {
+    void syncShellLocale(next)
+  }
 }
 </script>
 

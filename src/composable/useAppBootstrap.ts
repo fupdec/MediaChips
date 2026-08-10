@@ -37,8 +37,8 @@ import {
   readMinimizeToTrayFromStore,
   type GlobalAppConfigKey,
 } from '@/services/globalAppConfig'
-import {syncMinimizeToTray, getElectronAPI} from '@/services/electronBridge'
-import {isWinElectronUi} from '@/utils/electronUi'
+import {syncMinimizeToTray, syncShellLocale, getElectronAPI} from '@/services/electronBridge'
+import {isDesktopElectronUi} from '@/utils/electronUi'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
 import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
 import {useOperationsStore} from '@/stores/operations'
@@ -152,7 +152,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
         } catch (error) {
           console.warn('Failed to migrate global app settings:', error)
         }
-        if (!isPlayerWindow.value && isWinElectronUi()) {
+        if (!isPlayerWindow.value && isDesktopElectronUi()) {
           void syncMinimizeToTray(readMinimizeToTrayFromStore())
         }
         cleanupStalePlayerRoute()
@@ -219,6 +219,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await loadLocale(settingsStore.locale)
     locale.value = settingsStore.locale
     document.documentElement.lang = settingsStore.locale
+    if (!isPlayerWindow.value && isDesktopElectronUi()) {
+      void syncShellLocale(settingsStore.locale)
+    }
   }
 
   async function tryRestoreSession(): Promise<boolean> {

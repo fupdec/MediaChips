@@ -7,6 +7,7 @@ import {
   type IpcMainEvent,
 } from 'electron'
 import {machineId} from 'node-machine-id'
+import {parseJumpListAction} from './windowsJumpList'
 
 export function shouldDisableHardwareAcceleration(envValue: unknown): boolean {
   return ['1', 'true', 'yes', 'on'].includes(String(envValue || '').toLowerCase())
@@ -33,15 +34,15 @@ export function formatPortInUseErrorMessage(port: number): string {
 }
 
 export function shouldHideWindowOnCloseApp({
-  isWindows,
+  supportsTray,
   minimizeToTray,
   isQuitting,
 }: {
-  isWindows: boolean
+  supportsTray: boolean
   minimizeToTray: boolean
   isQuitting: boolean
 }): boolean {
-  return isWindows && minimizeToTray && !isQuitting
+  return supportsTray && minimizeToTray && !isQuitting
 }
 
 export function focusExistingMainWindow(win: BrowserWindow | null): boolean {
@@ -62,7 +63,8 @@ export type AppLifecycleController = {
 }
 
 export function createAppLifecycleController(deps: {
-  isWindows: boolean
+  /** Windows / macOS / Linux — platforms with a notification-area or menu-bar tray. */
+  supportsTray: boolean
   getPort: () => number
   getConfig: () => unknown
   isMinimizeToTrayPreferred: () => boolean
@@ -80,6 +82,8 @@ export function createAppLifecycleController(deps: {
   closeServerListener: () => void
   initAppUpdater: () => void
   getMinimizeToTray: () => boolean
+  /** Optional: handle Windows Jump List / second-instance CLI actions. */
+  handleJumpListAction?: (action: string) => void
   logStartup?: (message: string) => void
 }): AppLifecycleController {
   let quitting = false
@@ -94,7 +98,7 @@ export function createAppLifecycleController(deps: {
 
   function shouldHideOnClose() {
     return shouldHideWindowOnCloseApp({
-      isWindows: deps.isWindows,
+      supportsTray: deps.supportsTray,
       minimizeToTray: deps.getMinimizeToTray(),
       isQuitting: quitting,
     })
@@ -135,7 +139,7 @@ export function createAppLifecycleController(deps: {
       && (payload as {force?: unknown}).force === true,
     )
     if (!forceQuit && shouldHideWindowOnCloseApp({
-      isWindows: deps.isWindows,
+      supportsTray: deps.supportsTray,
       minimizeToTray: deps.getMinimizeToTray(),
       isQuitting: quitting,
     })) {
@@ -164,8 +168,10 @@ export function createAppLifecycleController(deps: {
       deps.schedulePlayerWarmup()
     })
 
-    app.on('second-instance', () => {
+    app.on('second-instance', (_event, commandLine) => {
       focusExistingMainWindow(deps.getMainWindow())
+      const action = parseJumpListAction(commandLine)
+      if (action) deps.handleJumpListAction?.(action)
     })
 
     app.on('ready', async () => {
@@ -190,8 +196,13 @@ export function createAppLifecycleController(deps: {
 
       // config.json is the source of truth for the tray preference. Initialize the
       // in-memory flag and create the tray icon before the renderer has loaded.
-      if (deps.isWindows && deps.isMinimizeToTrayPreferred()) {
+      if (deps.supportsTray && deps.isMinimizeToTrayPreferred()) {
         deps.setMinimizeToTray(true)
+      }
+
+      const startupJumpAction = parseJumpListAction(process.argv)
+      if (startupJumpAction) {
+        deps.handleJumpListAction?.(startupJumpAction)
       }
 
       deps.initAppUpdater()
