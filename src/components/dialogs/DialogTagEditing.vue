@@ -98,6 +98,7 @@ import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
+import {invalidateTagHoverCache} from '@/services/tagHoverCache'
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import type {ImageEditedPayload} from '@/components/dialogs/DialogImageEditing.vue'
 import {
@@ -315,7 +316,8 @@ const onImageEdited = async (payload?: ImageEditedPayload) => {
   if (payload?.extractedColor) {
     editingComponent.value?.tryApplyAutoColorFromImage?.(payload.extractedColor)
   }
-  if (!tag.value) return
+  if (!tag.value || !meta.value) return
+  invalidateTagHoverCache(meta.value.id, tag.value.id)
   listSync.getItemsFromDb({
     ids: [tag.value.id],
     type: 'tag'
@@ -334,6 +336,8 @@ const deleteTag = async () => {
       metaId: deletedMetaId,
       id: deletedTagId,
     })
+
+    invalidateTagHoverCache(deletedMetaId, deletedTagId)
 
     if (itemsStore.type === 'media') {
       const visibleIds = itemsStore.itemsOnPage.map((item) => item.id)
@@ -385,6 +389,11 @@ const save = async () => {
   if (!saved) return
 
   const savedTagId = tag.value?.id
+  const savedMetaId = meta.value?.id
+
+  if (savedMetaId != null && savedTagId != null) {
+    invalidateTagHoverCache(savedMetaId, savedTagId)
+  }
 
   if (isTagPage.value) {
     void refreshPageTag()
@@ -396,6 +405,10 @@ const save = async () => {
 
   if (itemsStore.type === 'media') {
     void reloadTagsCatalog()
+    const mediaIds = itemsStore.itemsOnPage.map((item) => item.id)
+    if (mediaIds.length) {
+      listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
+    }
   }
 
   forceClose()
@@ -449,6 +462,7 @@ const openTmdbPersonScraper = () => {
 const refreshTagAfterScrape = async () => {
   if (!tag.value || !meta.value) return
   refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
+  invalidateTagHoverCache(meta.value.id, tag.value.id)
   try {
     const response = await typedApi.getTagById(tag.value.id)
     if (response.data) {
@@ -535,6 +549,7 @@ const autoScrapeTmdbPerson = async () => {
 const handleScraperImages = () => {
   if (tag.value && meta.value) {
     refreshTagThumbDisplay(itemsStore, store.dbPath, meta.value.id, tag.value.id)
+    invalidateTagHoverCache(meta.value.id, tag.value.id)
   }
   getImages({cacheBust: true})
   if (!tag.value) return
@@ -551,7 +566,8 @@ const onSaveHotkey = (event: KeyboardEvent) => {
 watch(
   () => dialogsStore.tmdbPersonScraper.show,
   async (show, wasShow) => {
-    if (wasShow && !show && tag.value) {
+    if (wasShow && !show && tag.value && meta.value) {
+      invalidateTagHoverCache(meta.value.id, tag.value.id)
       try {
         const response = await typedApi.getTagById(tag.value.id)
         if (response.data) {

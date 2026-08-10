@@ -1,3 +1,5 @@
+import {invalidateTagHoverCache} from '@/services/tagHoverCache'
+
 type CatalogLoader = () => void | Promise<void>
 type CatalogListener = () => void
 
@@ -45,7 +47,11 @@ const mediaTypes = createAppCatalog('mediaTypes')
 
 export const registerTagsCatalogLoader = tags.registerLoader
 export const onTagsCatalogChanged = tags.onChanged
-export const reloadTagsCatalog = tags.reload
+export async function reloadTagsCatalog() {
+  // Tag hover cards keep their own cache; clear it whenever the tags catalog changes.
+  invalidateTagHoverCache()
+  await tags.reload()
+}
 export const notifyTagsCatalogChanged = tags.notifyChanged
 
 export const registerTabsCatalogLoader = tabs.registerLoader
