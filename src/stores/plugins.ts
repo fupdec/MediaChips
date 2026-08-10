@@ -11,10 +11,10 @@ import {
   activatePlugin,
   bootstrapPlugins,
   deactivatePlugin,
-  parseEnabledPlugins,
+  ENABLED_PLUGINS_SCHEMA_VERSION,
+  resolveEnabledPluginsForBootstrap,
   serializeEnabledPlugins,
 } from '@/services/pluginHost'
-import {setOption} from '@/services/settingsService'
 import {useSettingsStore} from '@/stores/settings'
 import {typedApi} from '@/services/typedApi'
 
@@ -58,16 +58,30 @@ export const usePluginsStore = defineStore('usePluginsStore', {
     },
     async bootstrap() {
       const settingsStore = useSettingsStore()
-      const enabled = parseEnabledPlugins(settingsStore.enabledPlugins)
-      await bootstrapPlugins(enabled)
+      const resolved = resolveEnabledPluginsForBootstrap(
+        settingsStore.enabledPlugins,
+        settingsStore.enabledPluginsSchemaVersion,
+      )
+      await bootstrapPlugins(resolved.ids)
       this.bootstrapped = true
       this.refresh()
+      if (resolved.didMigrate) {
+        settingsStore.enabledPluginsSchemaVersion = String(resolved.schemaVersion)
+        await this.persistEnabled()
+      }
     },
     async persistEnabled() {
       const settingsStore = useSettingsStore()
       const value = serializeEnabledPlugins(this.enabledPluginIds)
-      await setOption(value, 'enabledPlugins')
+      // Persist directly so enable state is flushed even if the app restarts
+      // before the short per-key debounce in setOption would fire.
       settingsStore.enabledPlugins = value
+      await typedApi.putSetting('enabledPlugins', value)
+      const schemaVersion = String(
+        settingsStore.enabledPluginsSchemaVersion || ENABLED_PLUGINS_SCHEMA_VERSION,
+      )
+      settingsStore.enabledPluginsSchemaVersion = schemaVersion
+      await typedApi.putSetting('enabledPluginsSchemaVersion', schemaVersion)
     },
     async setEnabled(pluginId: string, enabled: boolean) {
       if (enabled) {

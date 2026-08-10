@@ -81,6 +81,8 @@ const MIGRATION_SETTINGS = [
   {option: 'pathParser.preferLongestMatch', value: 'true'},
   {option: 'pathParser.matchPrecision', value: '0.5'},
   {option: 'defaultTagCategoryId', value: ''},
+  {option: 'frameAutoTagMetaId', value: ''},
+  {option: 'enabledPluginsSchemaVersion', value: '0'},
   {option: 'faceMatch.performerMetaId', value: ''},
   {option: 'faceMatch.minConfidence', value: '0.55'},
   {option: 'faceMatch.candidateLimit', value: '10'},

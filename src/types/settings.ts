@@ -158,6 +158,8 @@ export type SettingsState = {
   showSavedFilters: string
   showAdultContent: string
   enabledPlugins: string
+  /** One-shot migration marker for default enabledPlugins upgrades. */
+  enabledPluginsSchemaVersion: string
   tpdbApiKey: string
   tmdbApiKey: string
   tmdbPersonMetaId: string
@@ -230,6 +232,7 @@ export type SettingsState = {
   'pathParser.preferLongestMatch': string
   'pathParser.matchPrecision': string
   defaultTagCategoryId: string
+  frameAutoTagMetaId: string
   'faceMatch.performerMetaId': string
   'faceMatch.minConfidence': string
   'faceMatch.candidateLimit': string
@@ -293,6 +296,8 @@ export const defaultSettingsState = (): SettingsState => ({
   showSavedFilters: '1',
   showAdultContent: '0',
   enabledPlugins: '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby","mediachips.tmdb"]',
+  /** '0' until first bootstrap migration persists the current schema. */
+  enabledPluginsSchemaVersion: '0',
   tpdbApiKey: '',
   tmdbApiKey: '',
   tmdbPersonMetaId: '',
@@ -364,6 +369,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'pathParser.preferLongestMatch': 'true',
   'pathParser.matchPrecision': '0.5',
   defaultTagCategoryId: '',
+  frameAutoTagMetaId: '',
   'faceMatch.performerMetaId': '',
   'faceMatch.minConfidence': '0.55',
   'faceMatch.candidateLimit': '10',

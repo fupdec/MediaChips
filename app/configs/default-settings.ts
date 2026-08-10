@@ -176,7 +176,11 @@ const Settings = [  {
   },
   {
     "option": "enabledPlugins",
-    "value": "[\"mediachips.adult\",\"mediachips.stash\",\"mediachips.jellyfin\",\"mediachips.plex\",\"mediachips.emby\"]"
+    "value": "[\"mediachips.adult\",\"mediachips.stash\",\"mediachips.jellyfin\",\"mediachips.plex\",\"mediachips.emby\",\"mediachips.tmdb\"]"
+  },
+  {
+    "option": "enabledPluginsSchemaVersion",
+    "value": "1"
   },
   {
     "option": "tpdbApiKey",

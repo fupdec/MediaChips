@@ -283,7 +283,8 @@ async function getImage() {
 
   if (isVideoMediaType(mediaType)) {
     invalidateVideoThumbCaches(currentMedia.id)
-    thumb.value = buildLocalFileUrl(imgPath.value, false, true)
+    const bust = itemsStore.thumbRefreshKeys[Number(currentMedia.id)] || Date.now()
+    thumb.value = buildLocalFileUrl(imgPath.value, false, bust)
     cropperOps.value = {aspectRatio: 16 / 9}
     return
   }

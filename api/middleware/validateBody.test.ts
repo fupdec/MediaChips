@@ -253,16 +253,26 @@ describe('validateBody', () => {
     expect(res.statusCode).toBe(400)
   })
 
-  it('requires nested order data for meta-in-media-type updates', () => {
+  it('accepts meta-in-media-type updates with order or scraper/show patches', () => {
     const middleware = validateBody(MetaInMediaTypeOrderRequestSchema)
-    const req = {body: {metaId: 1, mediaTypeId: 2, data: {order: '4'}}}
-    const res = createMockResponse()
-    const next = vi.fn()
 
-    middleware(req as never, res as never, next)
+    const orderReq = {body: {metaId: 1, mediaTypeId: 2, data: {order: '4'}}}
+    const orderRes = createMockResponse()
+    const orderNext = vi.fn()
+    middleware(orderReq as never, orderRes as never, orderNext)
+    expect(orderNext).toHaveBeenCalledOnce()
+    expect(orderReq.body).toEqual({metaId: 1, mediaTypeId: 2, data: {order: 4}})
 
-    expect(next).toHaveBeenCalledOnce()
-    expect(req.body).toEqual({metaId: 1, mediaTypeId: 2, data: {order: 4}})
+    const scraperReq = {body: {metaId: 28, mediaTypeId: 1, data: {scraper: 'release_date'}}}
+    const scraperRes = createMockResponse()
+    const scraperNext = vi.fn()
+    middleware(scraperReq as never, scraperRes as never, scraperNext)
+    expect(scraperNext).toHaveBeenCalledOnce()
+    expect(scraperReq.body).toEqual({
+      metaId: 28,
+      mediaTypeId: 1,
+      data: {scraper: 'release_date'},
+    })
   })
 
   it('requires plugin uninstall id', () => {

@@ -217,6 +217,7 @@ export const ApplyParseLibraryTagsRequestSchema = z.object({
     tagId: z.number().optional(),
     tagName: z.string().optional(),
     willCreate: z.boolean().optional(),
+    synonyms: z.string().nullable().optional(),
   })).optional().default([]),
 }).passthrough()
 
@@ -342,6 +343,16 @@ export const SuggestTagsRequestSchema = z.object({
   mediaTypeId: z.coerce.number().optional(),
   mediaLimit: z.coerce.number().optional(),
   locale: z.string().optional(),
+  framesPerVideo: z.coerce.number().optional(),
+  frameWidth: z.coerce.number().optional(),
+  topK: z.coerce.number().optional(),
+  minScore: z.coerce.number().optional(),
+  useLibraryTags: optionalCoercedBoolean,
+  adultEnrichment: optionalCoercedBoolean,
+  minOccurrences: z.coerce.number().optional(),
+  maxLibraryTags: z.coerce.number().optional(),
+  libraryTagMetaId: z.coerce.number().optional(),
+  metaId: z.coerce.number().optional(),
 }).passthrough()
 
 export const BackupNameRequestSchema = z.object({
@@ -638,11 +649,14 @@ export const PinChildMetaRequestSchema = z.object({
   order: optionalNullableCoercedNumberSchema,
 }).passthrough()
 
+// PUT updates order, scraper mapping, and/or show — order is not always present.
 export const MetaInMediaTypeOrderRequestSchema = z.object({
   metaId: coercedId,
   mediaTypeId: coercedId,
   data: z.object({
-    order: coercedId,
+    order: optionalNullableCoercedNumberSchema,
+    scraper: z.string().nullable().optional(),
+    show: optionalCoercedBooleanSchema,
   }).passthrough(),
 }).passthrough()
 
@@ -650,7 +664,9 @@ export const PinnedMetaOrderRequestSchema = z.object({
   metaId: coercedId,
   pinnedMetaId: coercedId,
   data: z.object({
-    order: coercedId,
+    order: optionalNullableCoercedNumberSchema,
+    scraper: z.string().nullable().optional(),
+    show: optionalCoercedBooleanSchema,
   }).passthrough(),
 }).passthrough()
 

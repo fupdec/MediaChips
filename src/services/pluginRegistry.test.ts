@@ -17,6 +17,7 @@ import {
   deactivatePlugin,
   getActivatedPluginIds,
   parseEnabledPlugins,
+  resolveEnabledPluginsForBootstrap,
   resetPluginHostForTests,
 } from '@/services/pluginHost'
 
@@ -143,19 +144,19 @@ describe('pluginHost', () => {
   it('parses enabledPlugins setting values', () => {
     expect(parseEnabledPlugins('["mediachips.adult"]')).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
-      BUILTIN_PLUGIN_IDS.stash,
-      BUILTIN_PLUGIN_IDS.jellyfin,
-      BUILTIN_PLUGIN_IDS.plex,
-      BUILTIN_PLUGIN_IDS.emby,
-      BUILTIN_PLUGIN_IDS.tmdb,
     ])
     expect(parseEnabledPlugins('["mediachips.adult","mediachips.stash"]')).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
+    ])
+    expect(parseEnabledPlugins(
+      '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby"]',
+    )).toEqual([
       BUILTIN_PLUGIN_IDS.adult,
       BUILTIN_PLUGIN_IDS.stash,
       BUILTIN_PLUGIN_IDS.jellyfin,
       BUILTIN_PLUGIN_IDS.plex,
       BUILTIN_PLUGIN_IDS.emby,
-      BUILTIN_PLUGIN_IDS.tmdb,
     ])
     expect(parseEnabledPlugins([])).toEqual([])
     expect(parseEnabledPlugins(undefined)).toEqual([
@@ -166,6 +167,40 @@ describe('pluginHost', () => {
       BUILTIN_PLUGIN_IDS.emby,
       BUILTIN_PLUGIN_IDS.tmdb,
     ])
+  })
+
+  it('upgrades legacy defaults only once via schema version', () => {
+    const legacyAdult = resolveEnabledPluginsForBootstrap('["mediachips.adult"]', '0')
+    expect(legacyAdult.didMigrate).toBe(true)
+    expect(legacyAdult.ids).toEqual([
+      BUILTIN_PLUGIN_IDS.adult,
+      BUILTIN_PLUGIN_IDS.stash,
+      BUILTIN_PLUGIN_IDS.jellyfin,
+      BUILTIN_PLUGIN_IDS.plex,
+      BUILTIN_PLUGIN_IDS.emby,
+      BUILTIN_PLUGIN_IDS.tmdb,
+    ])
+
+    const afterUserDisable = resolveEnabledPluginsForBootstrap(
+      '["mediachips.adult"]',
+      String(legacyAdult.schemaVersion),
+    )
+    expect(afterUserDisable.didMigrate).toBe(false)
+    expect(afterUserDisable.ids).toEqual([BUILTIN_PLUGIN_IDS.adult])
+
+    const legacyWithoutTmdb = resolveEnabledPluginsForBootstrap(
+      '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby"]',
+      '0',
+    )
+    expect(legacyWithoutTmdb.didMigrate).toBe(true)
+    expect(legacyWithoutTmdb.ids).toContain(BUILTIN_PLUGIN_IDS.tmdb)
+
+    const tmdbStaysDisabled = resolveEnabledPluginsForBootstrap(
+      '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby"]',
+      String(legacyWithoutTmdb.schemaVersion),
+    )
+    expect(tmdbStaysDisabled.didMigrate).toBe(false)
+    expect(tmdbStaysDisabled.ids).not.toContain(BUILTIN_PLUGIN_IDS.tmdb)
   })
 
   it('activates stash plugin settings panel', async () => {

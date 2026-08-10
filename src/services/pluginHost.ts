@@ -210,7 +210,10 @@ export async function deactivatePlugin(pluginId: string): Promise<void> {
   activated.delete(pluginId)
 }
 
-export function parseEnabledPlugins(raw: unknown): string[] {
+/** Bump when shipping a one-shot upgrade of the default enabled-plugins set. */
+export const ENABLED_PLUGINS_SCHEMA_VERSION = 1
+
+function parseEnabledPluginIds(raw: unknown): string[] {
   let ids: string[] = []
 
   if (Array.isArray(raw)) {
@@ -232,18 +235,33 @@ export function parseEnabledPlugins(raw: unknown): string[] {
     ids = [...DEFAULT_ENABLED_PLUGINS]
   }
 
+  // Drop removed YAML scrapers plugin id if still present in saved settings.
+  ids = ids.filter((id) => id !== 'mediachips.scrapers')
+
+  if (isSfwBuild() && !ids.includes(BUILTIN_PLUGIN_IDS.tmdb)) {
+    ids = [...ids, BUILTIN_PLUGIN_IDS.tmdb]
+  }
+
+  return ids
+}
+
+/**
+ * One-shot upgrades from older default enabledPlugins values.
+ * Must not re-run after the schema version is persisted — otherwise user
+ * disable choices that happen to match a legacy default get undone on every boot.
+ */
+function upgradeLegacyEnabledPlugins(ids: string[]): string[] {
+  if (isSfwBuild()) return ids
+
   if (
-    !isSfwBuild()
-    && (
-      (ids.length === 1 && ids[0] === BUILTIN_PLUGIN_IDS.adult)
-      || (
-        ids.length === 2
-        && ids.includes(BUILTIN_PLUGIN_IDS.adult)
-        && ids.includes(BUILTIN_PLUGIN_IDS.stash)
-      )
+    (ids.length === 1 && ids[0] === BUILTIN_PLUGIN_IDS.adult)
+    || (
+      ids.length === 2
+      && ids.includes(BUILTIN_PLUGIN_IDS.adult)
+      && ids.includes(BUILTIN_PLUGIN_IDS.stash)
     )
   ) {
-    ids = [...DEFAULT_ENABLED_PLUGINS]
+    return [...DEFAULT_ENABLED_PLUGINS]
   }
 
   const previousDefaultWithoutTmdb = [
@@ -254,22 +272,41 @@ export function parseEnabledPlugins(raw: unknown): string[] {
     BUILTIN_PLUGIN_IDS.emby,
   ]
   if (
-    !isSfwBuild()
-    && ids.length === previousDefaultWithoutTmdb.length
+    ids.length === previousDefaultWithoutTmdb.length
     && previousDefaultWithoutTmdb.every((id) => ids.includes(id))
     && !ids.includes(BUILTIN_PLUGIN_IDS.tmdb)
   ) {
-    ids = [...ids, BUILTIN_PLUGIN_IDS.tmdb]
-  }
-
-  // Drop removed YAML scrapers plugin id if still present in saved settings.
-  ids = ids.filter((id) => id !== 'mediachips.scrapers')
-
-  if (isSfwBuild() && !ids.includes(BUILTIN_PLUGIN_IDS.tmdb)) {
-    ids = [...ids, BUILTIN_PLUGIN_IDS.tmdb]
+    return [...ids, BUILTIN_PLUGIN_IDS.tmdb]
   }
 
   return ids
+}
+
+export function parseEnabledPlugins(raw: unknown): string[] {
+  return parseEnabledPluginIds(raw)
+}
+
+export function resolveEnabledPluginsForBootstrap(
+  raw: unknown,
+  schemaVersionRaw: unknown,
+): {ids: string[]; schemaVersion: number; didMigrate: boolean} {
+  const schemaVersion = Math.max(0, Number(schemaVersionRaw) || 0)
+  const parsed = parseEnabledPluginIds(raw)
+
+  if (schemaVersion >= ENABLED_PLUGINS_SCHEMA_VERSION) {
+    return {
+      ids: parsed,
+      schemaVersion,
+      didMigrate: false,
+    }
+  }
+
+  const upgraded = upgradeLegacyEnabledPlugins(parsed)
+  return {
+    ids: upgraded,
+    schemaVersion: ENABLED_PLUGINS_SCHEMA_VERSION,
+    didMigrate: true,
+  }
 }
 
 export function serializeEnabledPlugins(pluginIds: string[]): string {

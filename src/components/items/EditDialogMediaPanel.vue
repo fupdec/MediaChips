@@ -12,8 +12,10 @@
           :style="imageWrapStyle"
         >
           <ItemPreviewVideo
+            :key="videoThumbRemountKey"
             :media="media!"
             :is-file-exists="isFileExists"
+            :thumb-url="imageSrc || undefined"
             preview-host="embedded"
             @update-big-preview="$emit('update-big-preview', $event)"
           />
@@ -249,6 +251,12 @@ const currentImage = computed((): TagImage | undefined => props.images[props.cur
 const isVideoPanel = computed(() =>
   props.mode === 'media' && props.isVideoMedia && props.media != null,
 )
+
+/** Remount when the parent cache-busts imageSrc after scrape/thumb rewrite. */
+const videoThumbRemountKey = computed(() => {
+  const mediaId = props.media?.id ?? 'media'
+  return `edit-video-thumb-${mediaId}-${props.imageSrc || 'empty'}`
+})
 
 const canCreateThumb = computed(() =>
   Boolean(props.isFileExists && props.media?.id != null && props.media?.path),
