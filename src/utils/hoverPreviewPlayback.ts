@@ -36,6 +36,11 @@ export function isNotAllowedPreviewError(error: unknown): boolean {
   return ((error as {name?: string})?.name || '') === 'NotAllowedError'
 }
 
+/** Mute hover preview unless play_sound_on_video_preview is enabled. */
+export function resolveHoverPreviewMuted(playSoundSetting: unknown): boolean {
+  return String(playSoundSetting ?? '') !== '1'
+}
+
 /** Play hover video; mute once and retry if Chromium blocks unmuted autoplay. */
 export async function playHoverPreviewVideo(
   video: HTMLVideoElement,

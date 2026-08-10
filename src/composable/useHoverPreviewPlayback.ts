@@ -18,6 +18,7 @@ import {
   isIgnorablePreviewError,
   playHoverPreviewVideo,
   pointerRatioToPreviewTime,
+  resolveHoverPreviewMuted,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
   resolveHoverScrubProgressUpdate,
@@ -556,7 +557,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       }
       if (afterPosition !== 'play') return
 
-      video.muted = true
+      // Honor play_sound_on_video_preview; playHoverPreviewVideo still
+      // mute-retries if Chromium blocks unmuted autoplay.
+      video.muted = resolveHoverPreviewMuted(settingsStore.play_sound_on_video_preview)
       await playHoverPreviewVideo(video)
       if (token !== previewPlaybackToken) {
         releaseHoverVideoPreview(mediaId)

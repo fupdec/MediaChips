@@ -93,7 +93,7 @@
       >
         <video
           ref="videoRef"
-          muted
+          :muted="muted"
           loop
           playsinline
           @error="handleVideoError"

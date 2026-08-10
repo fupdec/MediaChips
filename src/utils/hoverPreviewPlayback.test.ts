@@ -8,9 +8,11 @@ import {
   getLoadedPreviewMediaId,
   getPreviewStreamStart,
   isIgnorablePreviewError,
+  playHoverPreviewVideo,
   pointerRatioToPreviewTime,
   resetHoverPreviewCooldownForTests,
   resolveAbsolutePreviewTime,
+  resolveHoverPreviewMuted,
   resolveHoverPreviewTargetTime,
   resolveLivePreviewRelativeTime,
   planPreviewUrlSeek,
@@ -60,6 +62,25 @@ describe('hoverPreviewPlayback', () => {
     expect(isIgnorablePreviewError({name: 'AbortError'})).toBe(true)
     expect(isIgnorablePreviewError({name: 'NotAllowedError'})).toBe(false)
     expect(isIgnorablePreviewError({name: 'NotSupportedError'})).toBe(false)
+  })
+
+  it('resolves muted from play_sound_on_video_preview', () => {
+    expect(resolveHoverPreviewMuted('1')).toBe(false)
+    expect(resolveHoverPreviewMuted('0')).toBe(true)
+    expect(resolveHoverPreviewMuted(undefined)).toBe(true)
+  })
+
+  it('mute-retries NotAllowedError when starting unmuted', async () => {
+    const video = {
+      muted: false,
+      play: vi.fn()
+        .mockRejectedValueOnce(Object.assign(new Error('blocked'), {name: 'NotAllowedError'}))
+        .mockResolvedValueOnce(undefined),
+    }
+    await expect(playHoverPreviewVideo(video as unknown as HTMLVideoElement))
+      .resolves.toBe('played-muted')
+    expect(video.muted).toBe(true)
+    expect(video.play).toHaveBeenCalledTimes(2)
   })
 
   it('decides in-place seeks for direct and live sources', () => {
