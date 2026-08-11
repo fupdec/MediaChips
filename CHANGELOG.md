@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Library grid after API hiccups** — a failed list refresh no longer wipes an already-loaded page back to “Nothing here yet / add files”; file-existence check errors no longer mark cards as missing
 - **Face recognition on Windows** — temp `mediachips-faces-*` cleanup no longer fails the scan with `EPERM: operation not permitted, unlink` (read-only / locked files after frame extract)
+- **Release build** — fix `vue-tsc` errors in mixed-tag autocomplete menu props so the frontend CI/release build can ship
 
 ### Changed
 

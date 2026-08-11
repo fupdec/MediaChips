@@ -116,7 +116,10 @@
       <v-list-item
         v-else-if="item.raw.kind === 'load-more'"
         v-intersect="{
-          handler: (isIntersecting) => onLoadMoreRowIntersect(isIntersecting, item.raw.metaId),
+          handler: (isIntersecting: boolean) => {
+            if (item.raw.kind !== 'load-more') return
+            onLoadMoreRowIntersect(isIntersecting, item.raw.metaId)
+          },
           options: menuIntersectOptions,
         }"
         density="compact"
@@ -327,7 +330,12 @@ const {
 const resolvedMenuProps = computed(() => ({
   ...props.menuProps,
   ...infiniteMenuProps.value,
-  maxHeight: props.menuProps?.maxHeight ?? infiniteMenuProps.value.maxHeight,
+  maxHeight: (
+    typeof props.menuProps?.maxHeight === 'string'
+    || typeof props.menuProps?.maxHeight === 'number'
+  )
+    ? props.menuProps.maxHeight
+    : infiniteMenuProps.value.maxHeight,
 }))
 
 function onLoadMoreRowIntersect(isIntersecting: boolean, metaId: number) {

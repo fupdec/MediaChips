@@ -360,7 +360,12 @@ const {
 const resolvedMenuProps = computed(() => ({
   ...props.menuProps,
   ...infiniteMenuProps.value,
-  maxHeight: props.menuProps?.maxHeight ?? infiniteMenuProps.value.maxHeight,
+  maxHeight: (
+    typeof props.menuProps?.maxHeight === 'string'
+    || typeof props.menuProps?.maxHeight === 'number'
+  )
+    ? props.menuProps.maxHeight
+    : infiniteMenuProps.value.maxHeight,
 }))
 
 const loadMoreIntersect = computed(() => ({
