@@ -4,13 +4,13 @@
       'not-macos': !isMac,
       'player-active': isPlayerUiActive,
       'player-window-app': isPlayerWindow,
-      'electron-win': isWin && isElectron,
+      'electron-win': winElectronUi,
       'sfw-mode': settingsStore.sfwMode === '1',
     }"
   >
     <template v-if="isShellReady && !isPlayerWindow">
       <SystemBar
-        v-if="isWin && isElectron && !isPlayerWindow"
+        v-if="winElectronUi && !isPlayerWindow"
         :disabled="store.isLocked"
         @lock="store.isLocked = true"
       />
@@ -123,6 +123,7 @@ import {useAppZoom} from '@/composable/useAppZoom'
 import {useThemeColorMeta} from '@/composable/useThemeColorMeta'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {isPlayerUiActive} from '@/utils/playerShellState'
+import {isWinElectronUi} from '@/utils/electronUi'
 
 import SystemBar from '@/components/app/SystemBar.vue'
 import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
@@ -152,7 +153,8 @@ const navigationComponent = computed(() => {
   return SideBarBrowser
 })
 
-const {isElectron, isMac, isWin} = useAppPlatform()
+const {isElectron, isMac} = useAppPlatform()
+const winElectronUi = isWinElectronUi()
 const isPlayerWindow = computed(() => isStandalonePlayerRoute(route))
 const appZoom = route.query.player ? null : useAppZoom()
 const {dropzoneActive, resetDropzone} = useGlobalMediaDrop()
@@ -164,7 +166,7 @@ function dismissDropzone() {
 }
 
 const addedTopClasses = computed(() => ({
-  'windows-os-added-top': isWin && isElectron,
+  'windows-os-added-top': winElectronUi,
   'added-top-tabs': store.tabs.length,
 }))
 

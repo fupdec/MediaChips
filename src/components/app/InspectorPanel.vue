@@ -275,6 +275,7 @@ import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useAppPlatform} from '@/composable/useAppPlatform'
+import {isWinElectronUi} from '@/utils/electronUi'
 import {setOption} from '@/services/settingsService'
 import {checkFileExists} from '@/services/fileService'
 import {
@@ -318,13 +319,14 @@ const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
-const {isElectron, isWin} = useAppPlatform()
+const {isElectron} = useAppPlatform()
+const winElectronUi = isWinElectronUi()
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
 
 const expandRailTop = computed(() => {
   let top = 48
-  if (isWin && isElectron) top += 32
+  if (winElectronUi) top += 32
   if (appStore.tabs.length) top += 28
   return top
 })

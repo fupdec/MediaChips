@@ -359,6 +359,8 @@ export interface ElectronAppInfo {
   version: string
   node: string
   chrome: string
+  /** Dev/preview: force Windows custom chrome (SystemBar) on non-Windows. */
+  forceWinUi?: boolean
 }
 
 export interface ElectronLegacyOsAPI {

@@ -40,4 +40,16 @@ describe('pack from .backend-build', () => {
     expect(electronArtifactsCase).not.toContain("runGroup('backend-copy')")
     expect(electronArtifactsCase).not.toContain('copyBackendArtifacts')
   })
+
+  it('electron compile bundles preload (asar cannot resolve ../shared)', () => {
+    const compile = fs.readFileSync(path.join(root, 'scripts/compile.mjs'), 'utf8')
+    expect(compile).toContain('bundleElectronPreload')
+    expect(compile).toContain('electron/preload.ts')
+
+    const preload = path.join(root, 'electron/preload.js')
+    if (!fs.existsSync(preload)) return
+
+    const source = fs.readFileSync(preload, 'utf8')
+    expect(source).not.toMatch(/require\(['"]\.\.\/shared\//)
+  })
 })

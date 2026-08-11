@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import {cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync} from 'fs'
 import {spawnSync} from 'child_process'
+import {createRequire} from 'module'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const require = createRequire(import.meta.url)
 const sfwBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1'
 const msStoreBuild = String(process.env.MEDIA_CHIPS_MSSTORE || '').trim() === '1'
 
@@ -73,7 +75,12 @@ const TARGETS = {
   },
   electron: {
     tsc: 'tsconfig.electron.json',
-    copy: () => copyJsFiles(join(root, '.electron-build/electron'), join(root, 'electron')),
+    copy: () => {
+      copyJsFiles(join(root, '.electron-build/electron'), join(root, 'electron'))
+      // Preload runs outside runMain's Module rewrite and cannot resolve
+      // ../shared/... inside asar — bundle channel lists + drag helpers in.
+      bundleElectronPreload()
+    },
   },
   main: {
     tsc: 'tsconfig.main.json',
@@ -130,6 +137,40 @@ function copyJsFiles(srcDir, destDir) {
     }
 
     cpSync(join(srcDir, entry.name), join(destDir, entry.name))
+  }
+}
+
+/**
+ * Bundle electron/preload.ts into a single CJS file.
+ * Packaged preload cannot use runMain's `.backend-build` require rewrite.
+ */
+function bundleElectronPreload() {
+  let esbuildBin
+  try {
+    esbuildBin = require.resolve('esbuild/bin/esbuild')
+  } catch {
+    console.error('[compile] esbuild not found (expected via vite). Run npm install.')
+    process.exit(1)
+  }
+
+  const entry = join(root, 'electron/preload.ts')
+  const outfile = join(root, 'electron/preload.js')
+  const build = spawnSync(esbuildBin, [
+    entry,
+    '--bundle',
+    '--platform=node',
+    '--format=cjs',
+    `--outfile=${outfile}`,
+    '--external:electron',
+    '--log-level=warning',
+  ], {
+    cwd: root,
+    stdio: 'inherit',
+  })
+
+  if (build.status !== 0 || !existsSync(outfile)) {
+    console.error('[compile] Failed to bundle electron/preload.js')
+    process.exit(build.status ?? 1)
   }
 }
 

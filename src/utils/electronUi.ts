@@ -7,8 +7,11 @@ export function isRealWinElectron(): boolean {
   return ua.includes('windows') && isElectronRenderer()
 }
 
+/** True when the app should render Windows custom chrome (SystemBar + window buttons). */
 export function isWinElectronUi(): boolean {
-  return isRealWinElectron()
+  if (isRealWinElectron()) return true
+  if (!isElectronRenderer()) return false
+  return window.appInfo?.forceWinUi === true
 }
 
 /** Desktop Electron shell (Windows / macOS / Linux) — tray settings apply here. */

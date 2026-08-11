@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import { useTheme } from 'vuetify'
 import { useSettingsStore } from '@/stores/settings'
 import { useHeaderColor } from '@/composable/useHeaderColor'
-import { isRealWinElectron } from '@/utils/electronUi'
+import { isWinElectronUi } from '@/utils/electronUi'
 import {
   addTransparencyToGradient,
   checkColorForDarkText,
@@ -12,7 +12,7 @@ import {
 export function useHeaderBarStyle(_variant: 'app' | 'system' = 'app') {
   const theme = useTheme()
   const settingsStore = useSettingsStore()
-  const isWinElectron = isRealWinElectron()
+  const isWinElectron = isWinElectronUi()
 
   const SETTINGS = computed(() => settingsStore)
   const color = useHeaderColor()

@@ -197,27 +197,31 @@ onUnmounted(() => {
 }
 
 .system-menu-dropdown {
-  min-width: 180px !important;
+  min-width: 220px !important;
 }
 
-.system-bar-custom .context-menu {
-  min-width: 180px;
+/* v-menu content is teleported to <body>; do not nest under .system-bar-custom */
+.system-menu-dropdown.context-menu,
+.system-menu-dropdown .context-menu {
+  min-width: 220px;
 
   .system-menu-item-with-hotkey {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     width: 100%;
 
     > span:first-child {
-      flex: 1;
+      flex: 1 1 auto;
       min-width: 0;
       display: flex;
       align-items: center;
     }
 
     .v-hotkey {
-      flex-shrink: 0;
-      margin-left: 12px;
+      flex: 0 0 auto;
+      margin-left: auto;
     }
   }
 }

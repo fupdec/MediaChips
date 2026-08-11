@@ -450,7 +450,9 @@ contextBridge.exposeInMainWorld('osAPI', {
 contextBridge.exposeInMainWorld('appInfo', {
   version: process.versions.electron,
   node: process.versions.node,
-  chrome: process.versions.chrome
+  chrome: process.versions.chrome,
+  // Runtime env (not baked by esbuild) — preview Windows SystemBar on macOS/Linux.
+  forceWinUi: process.env.MEDIA_CHIPS_WIN_UI === '1',
 });
 
 // Для обратной совместимости с существующим кодом

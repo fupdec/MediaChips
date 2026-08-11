@@ -217,7 +217,7 @@ const tabs = computed(() => app.tabs)
 const reg = computed(() => registrationStore.reg)
 
 const showDarwinTrafficLightSpacer = computed(() => (
-  isMac && isElectron && !fullscreen.value
+  isMac && isElectron && !isWinElectron && !fullscreen.value
 ))
 
 const isMediaOrTagPage = computed(() =>

@@ -5,8 +5,8 @@
     offset-y
     :offset="[1, -1]"
     :transition="false"
-    min-width="180"
-    content-class="system-menu-dropdown"
+    min-width="220"
+    content-class="system-menu-dropdown context-menu"
     class="system-menu"
     :z-index="2000"
     :open-on-hover="false"

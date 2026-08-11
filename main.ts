@@ -76,7 +76,8 @@ if (
 }
 
 const isWindows = os.type() === 'Windows_NT'
-const useWinElectronFrame = isWindows
+// MEDIA_CHIPS_WIN_UI=1 — preview Windows frameless chrome (SystemBar) on macOS/Linux.
+const useWinElectronFrame = isWindows || process.env.MEDIA_CHIPS_WIN_UI === '1'
 
 // Packaged Electron builds do not set NODE_ENV=production; rely on app.isPackaged.
 const isDevelopment = !app.isPackaged && process.env.NODE_ENV !== 'production'
