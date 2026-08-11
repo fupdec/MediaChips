@@ -31,10 +31,15 @@
             icon
             variant="text"
             size="x-small"
-            v-tooltip:top="t('browser_layout.collapse_inspector')"
             :aria-label="t('browser_layout.collapse_inspector')"
             @click="toggleCollapsed"
           >
+            <v-tooltip activator="parent" location="top">
+              <span class="d-inline-flex align-center ga-2">
+                <span>{{ t('browser_layout.collapse_inspector') }}</span>
+                <v-hotkey keys="i" variant="flat"/>
+              </span>
+            </v-tooltip>
             <v-icon size="18">mdi-chevron-right</v-icon>
           </v-btn>
         </div>
@@ -245,10 +250,15 @@
     variant="text"
     size="small"
     :style="{top: `${expandRailTop}px`}"
-    v-tooltip:bottom="t('browser_layout.expand_inspector')"
     :aria-label="t('browser_layout.expand_inspector')"
     @click="toggleCollapsed"
   >
+    <v-tooltip activator="parent" location="bottom">
+      <span class="d-inline-flex align-center ga-2">
+        <span>{{ t('browser_layout.expand_inspector') }}</span>
+        <v-hotkey keys="i" variant="flat"/>
+      </span>
+    </v-tooltip>
     <v-icon size="18">mdi-chevron-left</v-icon>
   </v-btn>
 </template>

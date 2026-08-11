@@ -6,6 +6,9 @@ export interface PlaylistNavOptions {
   direction: 'prev' | 'next'
 }
 
+/** Show the up-next card this many seconds before EOF. */
+export const UP_NEXT_SECONDS = 5
+
 export function isPlaylistNavDisabled({
   playlistMode,
   playlistShuffle,
@@ -56,4 +59,23 @@ export function resolvePlaylistIndex({
   }
 
   return index
+}
+
+export function getRemainingPlaybackSeconds(currentTime: number, duration: number): number {
+  if (!Number.isFinite(duration) || duration <= 0) return Number.POSITIVE_INFINITY
+  if (!Number.isFinite(currentTime)) return duration
+  return Math.max(0, duration - currentTime)
+}
+
+/** Timeline scrub preview is off in the same end window as the up-next card. */
+export function shouldDisableTimelineHoverPreview(remainingSeconds: number): boolean {
+  return remainingSeconds <= UP_NEXT_SECONDS
+}
+
+export function shouldShowUpNextPreview(input: {
+  remainingSeconds: number
+  hasNext: boolean
+}): boolean {
+  if (!input.hasNext) return false
+  return input.remainingSeconds > 0 && input.remainingSeconds <= UP_NEXT_SECONDS
 }

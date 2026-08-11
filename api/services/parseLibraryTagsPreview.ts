@@ -52,6 +52,8 @@ export type ParseLibraryTagsAssignment = {
   tagId?: number
   tagName?: string
   willCreate?: boolean
+  /** Optional synonyms CSV when creating a new tag. */
+  synonyms?: string | null
 }
 
 type PreviewEvent =
@@ -293,7 +295,8 @@ export function applyParseLibraryTags(
       const tags = getTagsForMeta(metaId)
       let tag = findTagByNameOrSynonym(tags, metaId, tagName)
       if (!tag) {
-        const [created] = tagsRepo.bulkCreate([{metaId, name: tagName}])
+        const synonyms = item.synonyms != null ? String(item.synonyms).trim() || null : null
+        const [created] = tagsRepo.bulkCreate([{metaId, name: tagName, synonyms}])
         tag = created as TagLike
         tags.push(tag)
       }

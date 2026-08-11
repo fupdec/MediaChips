@@ -11,7 +11,12 @@ import path from 'path'
 import fs from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import { normalizeMediaPath } from '../../api/utils/normalizeUserPath'
-import { isLanAccessEnabled, isLanAccessEnvLocked, applyLanAccessChange } from './lanAccess'
+import {
+  isLanAccessEnabled,
+  isLanAccessEnvLocked,
+  applyLanAccessChange,
+  didLanAccessChange,
+} from './lanAccess'
 import { pickPublicHost } from './publicHost'
 import { listMediaRoots } from '../../api/services/mediaRoots'
 import { listBrowseDirectory } from '../../api/services/browseDirectory'
@@ -242,8 +247,8 @@ function registerBuiltinRoutes({
   })
 
   app.post('/api/update-config', async (req: ApiRequest, res: ApiResponse) => {
-    const shouldApplyLanAccess = req.body
-      && 'allowLanAccess' in req.body
+    const previousAllowLanAccess = config.allowLanAccess
+    const lanAccessInPayload = Boolean(req.body && 'allowLanAccess' in req.body)
       && !isLanAccessEnvLocked()
 
     Object.assign(config, req.body)
@@ -258,11 +263,19 @@ function registerBuiltinRoutes({
     }
 
     try {
-      if (shouldApplyLanAccess) {
+      // Saving unrelated global keys (e.g. zoom) still includes allowLanAccess.
+      // Only rebind the HTTP listener when the LAN flag actually changes.
+      if (
+        lanAccessInPayload
+        && didLanAccessChange(previousAllowLanAccess, req.body.allowLanAccess)
+      ) {
         const enabled = parseBooleanSetting(req.body.allowLanAccess, true)
         config.allowLanAccess = enabled ? '1' : '0'
         await applyLanAccessChange(enabled)
       } else {
+        if (lanAccessInPayload) {
+          config.allowLanAccess = parseBooleanSetting(req.body.allowLanAccess, true) ? '1' : '0'
+        }
         saveConfigFile(configPath, config)
       }
 

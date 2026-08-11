@@ -9,6 +9,12 @@ import {
   resolveFaceDetectApplyTags,
   type FaceDetectStreamState,
 } from '@/utils/faceDetectStreamUi'
+import {
+  ensureModelsDownloaded,
+  isModelStatusReady,
+  MODEL_DOWNLOAD_SIZES_MB,
+  type PendingModelDownload,
+} from '@/services/modelDownloadConsent'
 
 export type FaceDetectionTaskMedia = {
   id?: number | string | null
@@ -51,6 +57,44 @@ export async function runFaceDetectionForMediaIds(
     }
   }
 
+  const pending: PendingModelDownload[] = []
+  try {
+    const [detectStatus, embedStatus] = await Promise.all([
+      typedApi.getFaceModelStatus(),
+      typedApi.getFaceEmbedModelStatus(),
+    ])
+    if (!isFaceDetectModelReady(detectStatus.data?.status)) {
+      pending.push({
+        kind: 'faceDetect',
+        name: tr('ai.models.face_detect'),
+        sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceDetect,
+        download: async (onProgress) => {
+          await typedApi.downloadFaceModel({}, onProgress)
+        },
+      })
+    }
+    if (!isModelStatusReady(embedStatus.data?.status)) {
+      pending.push({
+        kind: 'faceEmbed',
+        name: tr('ai.models.face_embed'),
+        sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceEmbed,
+        download: async (onProgress) => {
+          await typedApi.downloadFaceEmbedModel({}, onProgress)
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Failed to check face model status:', error)
+  }
+
+  if (pending.length) {
+    const consent = await ensureModelsDownloaded({
+      models: pending,
+      t: tr,
+    })
+    if (consent !== 'ok') return
+  }
+
   const controller = new AbortController()
   const taskId = tasksStore.setTask({
     title: tr('context_menu.detect_faces'),
@@ -65,11 +109,6 @@ export async function runFaceDetectionForMediaIds(
   })
 
   try {
-    const modelStatus = await typedApi.getFaceModelStatus()
-    if (!isFaceDetectModelReady(modelStatus.data?.status)) {
-      await typedApi.downloadFaceModel()
-    }
-
     let state: FaceDetectStreamState = {faces: 0}
     await typedApi.streamFaceDetection(
       {

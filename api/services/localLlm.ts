@@ -23,6 +23,7 @@ import {
 import {
   buildLocalAiDownloadProgressMessage,
   buildLocalAiDownloadStartMessage,
+  estimateDownloadEtaSeconds,
   resolveDownloadPercent,
 } from './localLlmDownload'
 import {parseBooleanSetting} from '../../shared/parseBooleanSetting'
@@ -50,7 +51,7 @@ export type LocalAiChatRequest = {
 }
 
 export type LocalAiStreamEvent =
-  | {type: 'status'; phase: string; message: string; percent?: number}
+  | {type: 'status'; phase: string; message: string; percent?: number; etaSeconds?: number | null}
   | {type: 'token'; text: string}
   | {type: 'done'; text: string; docs?: Array<{id: string; title: string}>; parsed?: Record<string, unknown> | null}
   | {type: 'error'; message: string}
@@ -241,24 +242,33 @@ export async function* iterateDownloadLocalAi(
     })
 
   let lastPercent = -1
+  const startedAt = Date.now()
   while (!progressState.done) {
     if (options.shouldStop?.()) {
       signal.aborted = true
       yield {type: 'aborted'}
       return
     }
+    const expectedBytes = LOCAL_AI_MODEL_SIZE_MB * 1024 * 1024
     const percent = resolveDownloadPercent({
       loaded: progressState.loaded,
       total: progressState.total,
-      expectedBytes: LOCAL_AI_MODEL_SIZE_MB * 1024 * 1024,
+      expectedBytes,
+    })
+    const etaSeconds = estimateDownloadEtaSeconds({
+      loaded: progressState.loaded,
+      total: progressState.total,
+      expectedBytes,
+      elapsedMs: Date.now() - startedAt,
     })
     if (percent !== lastPercent) {
       lastPercent = percent
       yield {
         type: 'status',
         phase: 'downloading',
-        message: buildLocalAiDownloadProgressMessage(percent),
+        message: buildLocalAiDownloadProgressMessage(percent, etaSeconds),
         percent,
+        etaSeconds,
       }
     }
     await new Promise((r) => setTimeout(r, 400))

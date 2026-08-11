@@ -7,7 +7,11 @@ import os from 'os'
 import path from 'path'
 import type {AddressInfo} from 'net'
 import {afterEach, describe, expect, it} from 'vitest'
-import {downloadHttpFile, downloadHttpFileWithRetries} from './httpFileDownload'
+import {
+  downloadHttpFile,
+  downloadHttpFileWithRetries,
+  resolveDownloadRedirectUrl,
+} from './httpFileDownload'
 
 describe('httpFileDownload', () => {
   const servers: http.Server[] = []
@@ -20,6 +24,15 @@ describe('httpFileDownload', () => {
     for (const dir of tempDirs.splice(0)) {
       fs.rmSync(dir, {recursive: true, force: true})
     }
+  })
+
+  it('resolves relative redirect locations against the request URL', () => {
+    expect(
+      resolveDownloadRedirectUrl(
+        'https://huggingface.co/org/model/resolve/main/file.csv',
+        '/api/resolve-cache/models/org/model/abc/file.csv',
+      ),
+    ).toBe('https://huggingface.co/api/resolve-cache/models/org/model/abc/file.csv')
   })
 
   function tmpDir() {
@@ -49,19 +62,24 @@ describe('httpFileDownload', () => {
     expect(fs.existsSync(`${dest}.download`)).toBe(false)
   })
 
-  it('follows redirects within the cap', async () => {
+  it('follows relative redirects against the request origin', async () => {
     const {baseUrl} = await listen((req, res) => {
-      if (req.url === '/a') {
-        res.writeHead(302, {Location: `${baseUrl}/b`})
+      if (req.url === '/start') {
+        res.writeHead(302, {Location: '/next'})
         res.end()
         return
       }
-      res.writeHead(200)
-      res.end('ok')
+      if (req.url === '/next') {
+        res.writeHead(200)
+        res.end('relative-ok')
+        return
+      }
+      res.writeHead(404)
+      res.end()
     })
-    const dest = path.join(tmpDir(), 'redir.bin')
-    await downloadHttpFile(`${baseUrl}/a`, dest)
-    expect(fs.readFileSync(dest, 'utf8')).toBe('ok')
+    const dest = path.join(tmpDir(), 'rel.bin')
+    await downloadHttpFile(`${baseUrl}/start`, dest)
+    expect(fs.readFileSync(dest, 'utf8')).toBe('relative-ok')
   })
 
   it('rejects non-200 with the error label', async () => {

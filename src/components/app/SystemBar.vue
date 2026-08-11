@@ -80,7 +80,7 @@ const unmaximize = () => {
 }
 
 const close = () => {
-  window.electronAPI?.send?.('closeApp')
+  // WindowControls already sends closeApp — do not double-fire IPC.
 }
 
 const handleMenuAction = (action: SystemMenuAction) => {

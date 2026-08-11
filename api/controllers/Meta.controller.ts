@@ -46,7 +46,7 @@ export default function (db: ApiDb) {
 
       if (data.type === 'array') {
         const dir = path.join(metaFolder, String(data.id))
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir)
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
         metaRepo.ensureArrayMetaResources(data.id)
       }
 

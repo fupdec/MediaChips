@@ -83,6 +83,8 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       show: false,
       text: null as string | null,
       action: null as (() => void) | null,
+      /** 'delete' = destructive (red Delete). 'confirm' = Yes/No. */
+      variant: 'delete' as 'confirm' | 'delete',
       checkBox: false,
       checkBoxText: '',
       checkBox2: false,

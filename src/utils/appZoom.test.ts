@@ -5,6 +5,7 @@ import {
   getNextZoom,
   parseZoom,
   snapZoom,
+  applyAppZoomStyles,
 } from './appZoom'
 
 describe('appZoom', () => {
@@ -27,5 +28,19 @@ describe('appZoom', () => {
     // Below MIN_ZOOM is clamped to 0.5 first, then stepped down to 0.33.
     expect(getNextZoom(0.5, -1)).toBe(0.33)
     expect(getNextZoom(0.25, -1)).toBe(0.33)
+  })
+
+  it('applies inverse width so CSS zoom does not clip horizontally', () => {
+    const style = {zoom: '', width: '', height: ''}
+    expect(applyAppZoomStyles(style, 1.25)).toBe(1.25)
+    expect(style.zoom).toBe('1.25')
+    expect(style.width).toBe('80%')
+    // Height stays auto — inverse height collapses aspect-ratio thumbs.
+    expect(style.height).toBe('')
+
+    applyAppZoomStyles(style, 1)
+    expect(style.zoom).toBe('')
+    expect(style.width).toBe('')
+    expect(style.height).toBe('')
   })
 })

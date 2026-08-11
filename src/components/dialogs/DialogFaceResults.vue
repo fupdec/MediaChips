@@ -725,6 +725,10 @@ import {buildLocalFileUrl, createImage} from '@/services/fileService'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {setNotification} from '@/services/notificationService'
+import {
+  ensureModelsDownloaded,
+  MODEL_DOWNLOAD_SIZES_MB,
+} from '@/services/modelDownloadConsent'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {isAdultUiAvailable} from '@/services/adultFeatures'
@@ -1315,15 +1319,18 @@ const rematch = async () => {
     const embedStatus = await typedApi.getFaceEmbedModelStatus()
     const status = String(embedStatus.data?.status || '')
     if (!['downloaded', 'loaded'].includes(status)) {
-      setNotification({
-        type: 'info',
-        text: t('settings_labels.database.face_match_embed_downloading'),
+      const consent = await ensureModelsDownloaded({
+        models: [{
+          kind: 'faceEmbed',
+          name: t('ai.models.face_embed'),
+          sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceEmbed,
+          download: async (onProgress) => {
+            await typedApi.downloadFaceEmbedModel({}, onProgress)
+          },
+        }],
+        t,
       })
-      await typedApi.downloadFaceEmbedModel()
-      setNotification({
-        type: 'success',
-        text: t('settings_labels.database.face_match_embed_downloaded'),
-      })
+      if (consent !== 'ok') return
     }
     await typedApi.matchFacesForMedia({mediaId, force: true, applyTags: false})
     filterInitialized.value = false

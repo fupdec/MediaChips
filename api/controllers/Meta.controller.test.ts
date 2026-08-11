@@ -104,7 +104,7 @@ describe('Meta.controller', () => {
     controller.create(req, res)
 
     expect(create).toHaveBeenCalledWith({name: 'Tags', type: 'array'})
-    expect(mkdirSync).toHaveBeenCalledWith('/tmp/db/meta/7')
+    expect(mkdirSync).toHaveBeenCalledWith('/tmp/db/meta/7', {recursive: true})
     expect(ensureArrayMetaResources).toHaveBeenCalledWith(7)
     expect(res.statusCode).toBe(201)
     expect(res.body).toEqual({id: 7, type: 'array', name: 'Tags'})

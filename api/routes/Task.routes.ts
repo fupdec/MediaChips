@@ -28,7 +28,6 @@ import {
   SuggestTagsRequestSchema,
   BackupNameRequestSchema,
   FaceMediaIdRequestSchema,
-  FacesForTagRequestSchema,
   FaceAssignRequestSchema,
   FaceClearRequestSchema,
   FaceTagIdRequestSchema,
@@ -183,7 +182,6 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('get', '/faceDetectionStatus', 'faceDetectionStatus')
   register('get', '/faceMatchStatus', 'faceMatchStatus')
   register('get', '/facesForMedia', 'facesForMedia', validateQuery(FaceMediaIdRequestSchema))
-  register('post', '/facesForTag', 'facesForTag', validateBody(FacesForTagRequestSchema))
   register('post', '/detectFacesForMedia', 'detectFacesForMedia', validateBody(FaceMediaIdRequestSchema))
   register('post', '/matchFacesForMedia', 'matchFacesForMedia', validateBody(FaceMediaIdRequestSchema))
   register('post', '/assignFacePerformer', 'assignFacePerformer', validateBody(FaceAssignRequestSchema))

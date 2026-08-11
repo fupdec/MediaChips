@@ -888,12 +888,14 @@ export default function useItemContextMenu(
           console.log(e)
         })
     }
+    const locale = settingsStore.locale as Locale
     setNotification({
       type: added.length > 0 ? 'success' : 'info',
-      title: 'Parsing completed',
-      text: `Tags added: ${added.length}`,
+      title: translate('notifications_text.parsing_completed', {}, locale),
+      text: translate('notifications_text.tags_added_count', {count: added.length}, locale),
       icon: 'text-box-search',
     })
+
     if (added.length > 0) {
       listSync.getItemsFromDb({
         ids: updated,
@@ -912,12 +914,14 @@ export default function useItemContextMenu(
 
     const updated = await refreshMediaFileInfoMany(ids)
 
+    const locale = settingsStore.locale as Locale
     await setNotification({
       type: updated.length > 0 ? 'success' : 'info',
-      title: 'Update complete',
-      text: `Media updated: ${updated.length}`,
+      title: translate('notifications_text.update_complete', {}, locale),
+      text: translate('notifications_text.media_updated_count', {count: updated.length}, locale),
       icon: 'file-sync-outline',
     })
+
     if (updated.length > 0) {
       listSync.getItemsFromDb({
         ids: updated,
@@ -1317,11 +1321,15 @@ export default function useItemContextMenu(
       itemsStore.selected_last = null
       itemsStore.isSelect = false
 
-      notificationsStore.setNotification({
-        type: 'info',
-        title: 'The items has been deleted',
-        text: deleted_items_names.join(', '),
-      })
+      {
+        const locale = settingsStore.locale as Locale
+        notificationsStore.setNotification({
+          type: 'info',
+          title: translate('notifications_text.items_deleted', {}, locale),
+          text: deleted_items_names.join(', '),
+        })
+      }
+
 
       listSync.removeEntitiesFromState({
         ids: removedIds,

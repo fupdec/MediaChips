@@ -1,11 +1,11 @@
 import { apiClient } from '../apiClient'
+import { streamModelDownload } from '../streamModelDownload'
 import {
   API_ROUTES,
   apiTab,
   apiWatchedFolder,
 } from '@shared/api/routes'
 import type {
-  FaceAppearancesResponse,
   WatchedFolderCreatePayload,
   WatchedFolderUpdatePayload,
   VideoTimelineTaskPayload,
@@ -20,7 +20,6 @@ import type {
   CreateThumbPayload,
   DatabaseSizesPayload,
   DuplicateDbPayload,
-  FacesForTagRequestPayload,
   FolderSizePayload,
   GetFileBlobPayload,
   GetFileListPayload,
@@ -32,7 +31,6 @@ import type {
 } from '@shared/api/payloads'
 import {
   parseAddMediaResponse,
-  parseFaceAppearancesResponse,
   parseBackupList,
   parseClipModelStatus,
   parseDatabaseSizesResponse,
@@ -342,11 +340,18 @@ export const tasksApi = {
     }))
   },
 
-  downloadClipModel(body: BackupNamePayload = {}) {
-    return apiClient.post(API_ROUTES.taskDownloadClipModel, body).then((res) => ({
-      ...res,
-      data: validated(parseClipModelStatus, res.data),
-    }))
+  downloadClipModel(
+    body: BackupNamePayload = {},
+    onProgress?: (progress: import('../streamModelDownload').ModelDownloadProgress) => void,
+  ) {
+    return streamModelDownload(API_ROUTES.taskDownloadClipModel, {
+      body,
+      onProgress,
+      errorMessage: 'CLIP model download failed',
+    }).then(async (result) => {
+      const status = result.status ?? (await apiClient.get(API_ROUTES.taskClipModelStatus)).data
+      return {data: validated(parseClipModelStatus, status)}
+    })
   },
 
   getFaceModelStatus() {
@@ -356,11 +361,18 @@ export const tasksApi = {
     }))
   },
 
-  downloadFaceModel(body: BackupNamePayload = {}) {
-    return apiClient.post(API_ROUTES.taskDownloadFaceModel, body).then((res) => ({
-      ...res,
-      data: validated(parseClipModelStatus, res.data),
-    }))
+  downloadFaceModel(
+    body: BackupNamePayload = {},
+    onProgress?: (progress: import('../streamModelDownload').ModelDownloadProgress) => void,
+  ) {
+    return streamModelDownload(API_ROUTES.taskDownloadFaceModel, {
+      body,
+      onProgress,
+      errorMessage: 'Face model download failed',
+    }).then(async (result) => {
+      const status = result.status ?? (await apiClient.get(API_ROUTES.taskFaceModelStatus)).data
+      return {data: validated(parseClipModelStatus, status)}
+    })
   },
 
   getFaceDetectionStatus() {
@@ -398,13 +410,6 @@ export const tasksApi = {
     })
   },
 
-  getFacesForTag(body: FacesForTagRequestPayload) {
-    return apiClient.post<FaceAppearancesResponse>(API_ROUTES.taskFacesForTag, body).then((res) => ({
-      ...res,
-      data: validated(parseFaceAppearancesResponse, res.data),
-    }))
-  },
-
   getFaceEmbedModelStatus() {
     return apiClient.get(API_ROUTES.taskFaceEmbedModelStatus).then((res) => ({
       ...res,
@@ -412,11 +417,18 @@ export const tasksApi = {
     }))
   },
 
-  downloadFaceEmbedModel(body: BackupNamePayload = {}) {
-    return apiClient.post(API_ROUTES.taskDownloadFaceEmbedModel, body).then((res) => ({
-      ...res,
-      data: validated(parseClipModelStatus, res.data),
-    }))
+  downloadFaceEmbedModel(
+    body: BackupNamePayload = {},
+    onProgress?: (progress: import('../streamModelDownload').ModelDownloadProgress) => void,
+  ) {
+    return streamModelDownload(API_ROUTES.taskDownloadFaceEmbedModel, {
+      body,
+      onProgress,
+      errorMessage: 'Face embed model download failed',
+    }).then(async (result) => {
+      const status = result.status ?? (await apiClient.get(API_ROUTES.taskFaceEmbedModelStatus)).data
+      return {data: validated(parseClipModelStatus, status)}
+    })
   },
 
   detectFacesForMedia(body: {

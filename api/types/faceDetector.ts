@@ -70,7 +70,7 @@ export interface FaceDetectionProgressEvent {
   type: 'progress' | 'complete' | 'error' | 'status'
   phase?: 'downloading_embed' | 'embed_ready' | 'downloading_align' | 'downloading_detect' | 'detect_ready' | 'downloading_gender' | 'gender_ready'
   processed?: number
-  total?: number
+  total?: number | null
   remaining?: number
   created?: number
   skipped?: number
@@ -82,6 +82,9 @@ export interface FaceDetectionProgressEvent {
   current?: string
   message?: string
   sizeMb?: number
+  percent?: number
+  loaded?: number
+  etaSeconds?: number | null
   stopped?: boolean
   mediaId?: number | string | null
 }

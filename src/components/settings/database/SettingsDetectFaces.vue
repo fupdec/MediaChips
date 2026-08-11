@@ -504,6 +504,10 @@ import SettingsHealthTask from '@/components/settings/database/SettingsHealthTas
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {setNotification} from '@/services/notificationService'
+import {
+  ensureModelsDownloaded,
+  MODEL_DOWNLOAD_SIZES_MB,
+} from '@/services/modelDownloadConsent'
 import type { Meta } from '@/types/stores'
 import {
   clampFaceDetectFramesPerVideoForm,
@@ -909,8 +913,23 @@ const downloadModel = async () => {
   modelDownloading.value = true
   modelStatus.value = 'loading'
   try {
-    const response = await typedApi.downloadFaceModel()
-    modelStatus.value = response.data?.status || 'downloaded'
+    const consent = await ensureModelsDownloaded({
+      models: [{
+        kind: 'faceDetect',
+        name: t('ai.models.face_detect'),
+        sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceDetect,
+        download: async (onProgress) => {
+          const response = await typedApi.downloadFaceModel({}, onProgress)
+          modelStatus.value = response.data?.status || 'downloaded'
+        },
+      }],
+      explicit: true,
+      t,
+    })
+    if (consent !== 'ok') {
+      modelStatus.value = 'error'
+      throw new Error(t('settings_labels.database.detect_faces_model_failed'))
+    }
   } catch {
     modelStatus.value = 'error'
     throw new Error(t('settings_labels.database.detect_faces_model_failed'))
@@ -922,17 +941,24 @@ const downloadModel = async () => {
 const downloadEmbedModel = async () => {
   embedDownloading.value = true
   embedStatus.value = 'loading'
-  setNotification({
-    type: 'info',
-    text: t('settings_labels.database.face_match_embed_downloading'),
-  })
   try {
-    const response = await typedApi.downloadFaceEmbedModel()
-    embedStatus.value = response.data?.status || 'downloaded'
-    setNotification({
-      type: 'success',
-      text: t('settings_labels.database.face_match_embed_downloaded'),
+    const consent = await ensureModelsDownloaded({
+      models: [{
+        kind: 'faceEmbed',
+        name: t('ai.models.face_embed'),
+        sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceEmbed,
+        download: async (onProgress) => {
+          const response = await typedApi.downloadFaceEmbedModel({}, onProgress)
+          embedStatus.value = response.data?.status || 'downloaded'
+        },
+      }],
+      explicit: true,
+      t,
     })
+    if (consent !== 'ok') {
+      embedStatus.value = 'error'
+      throw new Error(t('settings_labels.database.face_match_embed_failed'))
+    }
   } catch {
     embedStatus.value = 'error'
     throw new Error(t('settings_labels.database.face_match_embed_failed'))

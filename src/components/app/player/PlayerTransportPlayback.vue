@@ -18,18 +18,32 @@
       style="overflow: visible"
       rounded="xl"
       dark
-      class="px-0 ml-3">
-      <v-btn @click="prev"
+      class="px-0 ml-3 neighbor-nav">
+      <v-btn
+        @click="prev"
+        @mouseenter="prevHover = true"
+        @mouseleave="prevHover = false"
         :disabled="isPrevDisabled"
+        class="neighbor-nav__btn neighbor-nav__btn--prev"
         icon
-        dark>
+        dark
+      >
         <v-icon>mdi-skip-previous</v-icon>
-        <div class="tip">
+        <div class="tip tip--keys" :class="{'tip--suppressed': prevHover && prevItem}">
           <span class="mr-2" v-html="t('player.controls.previous')"/>
           <v-hotkey keys="z"/>
           {{ t('common.or') }}
           <v-hotkey keys="alt+left"/>
         </div>
+        <Transition name="neighbor-preview-pop">
+          <PlayerNeighborPreview
+            v-if="prevItem && prevHover"
+            :item="prevItem"
+            :thumb="prevThumb"
+            :label="t('player.controls.previous')"
+            class="neighbor-preview--anchor-prev"
+          />
+        </Transition>
       </v-btn>
 
       <v-btn @click="stop" icon dark>
@@ -40,17 +54,31 @@
         </div>
       </v-btn>
 
-      <v-btn @click="next"
+      <v-btn
+        @click="next"
+        @mouseenter="nextHover = true"
+        @mouseleave="nextHover = false"
         :disabled="isNextDisabled"
+        class="neighbor-nav__btn neighbor-nav__btn--next"
         icon
-        dark>
+        dark
+      >
         <v-icon>mdi-skip-next</v-icon>
-        <div class="tip">
+        <div class="tip tip--keys" :class="{'tip--suppressed': nextHover && nextItem}">
           <span class="mr-2" v-html="t('player.controls.next')"/>
           <v-hotkey keys="c"/>
           {{ t('common.or') }}
           <v-hotkey keys="alt+right"/>
         </div>
+        <Transition name="neighbor-preview-pop">
+          <PlayerNeighborPreview
+            v-if="nextItem && nextHover"
+            :item="nextItem"
+            :thumb="nextThumb"
+            :label="t('player.controls.next')"
+            class="neighbor-preview--anchor-next"
+          />
+        </Transition>
       </v-btn>
     </v-btn-group>
 
@@ -154,9 +182,11 @@
 </template>
 
 <script setup lang="ts">
-import {computed, inject} from 'vue'
+import {computed, inject, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PLAYER_TRANSPORT_KEY} from '@/composable/playerTransportKey'
+import {usePlayerNeighborPreview} from '@/composable/usePlayerNeighborPreview'
+import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview.vue'
 
 const {t} = useI18n()
 const {
@@ -178,6 +208,16 @@ const {
   changeTranscodeMaxHeight,
   disableLiveTranscode,
 } = inject(PLAYER_TRANSPORT_KEY)!
+
+const {
+  prevItem,
+  nextItem,
+  prevThumb,
+  nextThumb,
+} = usePlayerNeighborPreview()
+
+const prevHover = ref(false)
+const nextHover = ref(false)
 
 const showTranscodeMenu = computed(() => (
   !isAudioMode.value

@@ -1,21 +1,21 @@
 /** Pure helpers for Local AI model download progress. */
+import {
+  estimateDownloadEtaSeconds,
+  formatEtaClock,
+  resolveDownloadPercent,
+} from './downloadProgress'
 
-export function resolveDownloadPercent(input: {
-  loaded: number
-  total: number | null | undefined
-  expectedBytes: number
-}): number {
-  const loaded = Math.max(0, Number(input.loaded) || 0)
-  const total = input.total != null && Number(input.total) > 0
-    ? Number(input.total)
-    : Math.max(1, Number(input.expectedBytes) || 1)
-  return Math.min(99, Math.round((loaded / total) * 100))
-}
+export {resolveDownloadPercent, estimateDownloadEtaSeconds}
 
 export function buildLocalAiDownloadStartMessage(sizeMb: number): string {
   return `Downloading Local AI model (~${sizeMb} MB)…`
 }
 
-export function buildLocalAiDownloadProgressMessage(percent: number): string {
+export function buildLocalAiDownloadProgressMessage(
+  percent: number,
+  etaSeconds?: number | null,
+): string {
+  const eta = formatEtaClock(etaSeconds)
+  if (eta) return `Downloading Local AI model… ${percent}% (~${eta} left)`
   return `Downloading Local AI model… ${percent}%`
 }

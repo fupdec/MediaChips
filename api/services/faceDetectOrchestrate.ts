@@ -139,7 +139,7 @@ export async function* iterateFaceDetection(
   }
 
   try {
-    yield* prepareDetectModel(db)
+    yield* prepareDetectModel(db, {shouldStop})
   } catch (error: unknown) {
     yield buildFaceDetectErrorEvent(error, 'Face detection model is unavailable.')
     return
@@ -147,7 +147,7 @@ export async function* iterateFaceDetection(
 
   if (shouldPrepareGenderFilter(detectSettings.genderFilter)) {
     try {
-      yield* prepareGenderModel(db)
+      yield* prepareGenderModel(db, {shouldStop})
     } catch (error: unknown) {
       yield buildFaceDetectErrorEvent(error, 'Face gender model is unavailable.')
       return
@@ -155,7 +155,7 @@ export async function* iterateFaceDetection(
   }
 
   try {
-    yield* prepareEmbedModel(db)
+    yield* prepareEmbedModel(db, {shouldStop})
   } catch {
     // Embedding is optional during detect; matching will skip faces without vectors.
   }

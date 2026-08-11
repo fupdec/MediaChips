@@ -140,13 +140,22 @@ describe('globalAppConfig', () => {
     expect(settings.tpdbApiKey).toBe('legacy-db-key')
   })
 
-  it('persists global setting updates to config.json', async () => {
+  it('persists only the changed global keys to config.json', async () => {
     await persistGlobalAppConfig({ zoom: '1.5' })
 
-    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
-      zoom: '1.5',
-    }))
+    expect(updateConfig).toHaveBeenCalledWith({ zoom: '1.5' })
+    expect(putSetting).toHaveBeenCalledWith('zoom', '')
+    expect(putSetting).not.toHaveBeenCalledWith('allowLanAccess', '')
     expect(useSettingsStore().zoom).toBe('1.5')
+  })
+
+  it('persists transcode setting without touching allowLanAccess', async () => {
+    await persistGlobalAppConfig({ transcodeUnsupportedFormats: '0' })
+
+    expect(updateConfig).toHaveBeenCalledWith({ transcodeUnsupportedFormats: '0' })
+    expect(putSetting).toHaveBeenCalledWith('transcodeUnsupportedFormats', '')
+    expect(putSetting).not.toHaveBeenCalledWith('allowLanAccess', '')
+    expect(useSettingsStore().transcodeUnsupportedFormats).toBe('0')
   })
 
   it('migrates minimizeToTray from the database to config', async () => {

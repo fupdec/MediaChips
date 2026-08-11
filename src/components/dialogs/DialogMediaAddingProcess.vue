@@ -780,6 +780,12 @@ import {useAppShell} from '@/composable/appShell'
 import {useMediaAdding} from '@/composable/AddingMedia'
 import {deleteLocalFile} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
+import {
+  ensureModelsDownloaded,
+  isModelStatusReady,
+  MODEL_DOWNLOAD_SIZES_MB,
+  type PendingModelDownload,
+} from '@/services/modelDownloadConsent'
 import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
 import {getErrorResponseData} from '@/types/vue'
 import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
@@ -1093,7 +1099,15 @@ const clipReviewSuggestions = computed((): ClipTagSuggestion[] => {
       (raw as string[]).map((word) => ({word, mediaIds: addedMediaIds()})),
     )
   }
-  return normalizeClipSuggestions(raw as Array<{word?: string; confidence?: number; mediaIds?: Array<number | string>}>)
+  return normalizeClipSuggestions(raw as Array<{
+    word?: string
+    confidence?: number
+    mediaIds?: Array<number | string>
+    tagId?: number
+    synonyms?: string | null
+    willCreate?: boolean
+    canonical?: string
+  }>)
 })
 
 const pendingReviewTagCount = computed(() =>
@@ -1196,19 +1210,72 @@ async function preflightSmartWizardModels(trayTaskId?: string | null) {
       tasksStore.updateTask(trayTaskId, {subtitle: text, progress: 0})
     }
   }
+
+  const pending: PendingModelDownload[] = []
+
   if (smartWizard.value.faces && faceModelNeedsDownload.value) {
-    setStatus(t('media.adding.make_library_smart_downloading_face'))
-    await downloadFaceModel()
-    if (faceModelNeedsDownload.value) {
-      throw new Error(t('media.adding.download_face_model_hint'))
+    pending.push({
+      kind: 'faceDetect',
+      name: t('ai.models.face_detect'),
+      sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceDetect,
+      download: async (onProgress) => {
+        const response = await typedApi.downloadFaceModel({}, onProgress)
+        faceModelStatus.value = response.data?.status || 'downloaded'
+      },
+    })
+  }
+
+  if (smartWizard.value.faces) {
+    try {
+      const embedStatus = await typedApi.getFaceEmbedModelStatus()
+      if (!isModelStatusReady(embedStatus.data?.status)) {
+        pending.push({
+          kind: 'faceEmbed',
+          name: t('ai.models.face_embed'),
+          sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceEmbed,
+          download: async (onProgress) => {
+            await typedApi.downloadFaceEmbedModel({}, onProgress)
+          },
+        })
+      }
+    } catch (error) {
+      console.error('Failed to check face embed model status:', error)
     }
   }
+
   if (smartWizard.value.clip && clipModelNeedsDownload.value) {
-    setStatus(t('media.adding.make_library_smart_downloading_clip'))
-    await downloadClipModel()
-    if (clipModelNeedsDownload.value) {
-      throw new Error(t('media.adding.download_video_recognition_model_hint'))
-    }
+    pending.push({
+      kind: 'clip',
+      name: t('ai.models.clip'),
+      sizeMb: MODEL_DOWNLOAD_SIZES_MB.clip,
+      download: async (onProgress) => {
+        const response = await typedApi.downloadClipModel({}, onProgress)
+        clipModelStatus.value = response.data?.status || 'downloaded'
+      },
+    })
+  }
+
+  if (!pending.length) return
+
+  const consent = await ensureModelsDownloaded({
+    models: pending,
+    t,
+    onProgress: setStatus,
+  })
+  if (consent === 'cancelled') {
+    const error = new Error(t('ai.models.cancelled'))
+    ;(error as Error & {code?: string}).code = 'MODEL_DOWNLOAD_CANCELLED'
+    throw error
+  }
+  if (consent === 'error') {
+    throw new Error(t('media.adding.make_library_smart_failed'))
+  }
+
+  if (smartWizard.value.faces && faceModelNeedsDownload.value) {
+    throw new Error(t('media.adding.download_face_model_hint'))
+  }
+  if (smartWizard.value.clip && clipModelNeedsDownload.value) {
+    throw new Error(t('media.adding.download_video_recognition_model_hint'))
   }
 }
 
@@ -1565,13 +1632,23 @@ const downloadClipModel = async () => {
   clipModelStatus.value = 'loading'
 
   try {
-    const response = await typedApi.downloadClipModel()
-    clipModelStatus.value = response.data?.status || 'downloaded'
-    setNotification({
-      type: 'success',
-      title: t('media.adding.download_video_recognition_model'),
-      text: t('settings.path_parser.statuses.downloaded'),
+    const consent = await ensureModelsDownloaded({
+      models: [{
+        kind: 'clip',
+        name: t('ai.models.clip'),
+        sizeMb: MODEL_DOWNLOAD_SIZES_MB.clip,
+        download: async (onProgress) => {
+          const response = await typedApi.downloadClipModel({}, onProgress)
+          clipModelStatus.value = response.data?.status || 'downloaded'
+        },
+      }],
+      explicit: true,
+      t,
     })
+    if (consent !== 'ok') {
+      clipModelStatus.value = 'error'
+      return
+    }
   } catch (error) {
     console.error('Error downloading CLIP model:', error)
     clipModelStatus.value = 'error'
@@ -1744,13 +1821,23 @@ const downloadFaceModel = async () => {
   faceModelStatus.value = 'loading'
 
   try {
-    const response = await typedApi.downloadFaceModel()
-    faceModelStatus.value = response.data?.status || 'downloaded'
-    setNotification({
-      type: 'success',
-      title: t('media.adding.download_face_model'),
-      text: t('settings.path_parser.statuses.downloaded'),
+    const consent = await ensureModelsDownloaded({
+      models: [{
+        kind: 'faceDetect',
+        name: t('ai.models.face_detect'),
+        sizeMb: MODEL_DOWNLOAD_SIZES_MB.faceDetect,
+        download: async (onProgress) => {
+          const response = await typedApi.downloadFaceModel({}, onProgress)
+          faceModelStatus.value = response.data?.status || 'downloaded'
+        },
+      }],
+      explicit: true,
+      t,
     })
+    if (consent !== 'ok') {
+      faceModelStatus.value = 'error'
+      return
+    }
   } catch (error) {
     console.error('Error downloading face model:', error)
     faceModelStatus.value = 'error'
@@ -1964,17 +2051,24 @@ const runSmartLibraryWizard = async () => {
     try {
       await preflightSmartWizardModels(trayTaskId)
     } catch (error) {
+      const cancelled = error instanceof Error
+        && ((error as Error & {code?: string}).code === 'MODEL_DOWNLOAD_CANCELLED'
+          || error.message === t('ai.models.cancelled'))
       tasksStore.updateTask(trayTaskId, {
-        subtitle: t('media.adding.make_library_smart_failed'),
-        color: 'error',
+        subtitle: cancelled
+          ? t('ai.models.cancelled')
+          : t('media.adding.make_library_smart_failed'),
+        color: cancelled ? 'warning' : 'error',
         done: true,
         action: undefined,
       })
-      setNotification({
-        type: 'error',
-        title: t('media.adding.make_library_smart_failed'),
-        text: getErrorMessage(error),
-      })
+      if (!cancelled) {
+        setNotification({
+          type: 'error',
+          title: t('media.adding.make_library_smart_failed'),
+          text: getErrorMessage(error),
+        })
+      }
       return
     }
 

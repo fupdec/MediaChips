@@ -40,6 +40,11 @@ function unlinkQuiet(filePath: string) {
   try { fs.unlinkSync(filePath) } catch { /* ignore */ }
 }
 
+/** Resolve absolute or relative redirect targets against the request URL. */
+export function resolveDownloadRedirectUrl(currentUrl: string, location: string): string {
+  return new URL(String(location || ''), currentUrl).href
+}
+
 /**
  * Atomic HTTP(S) download to `destination` via `${destination}.download` + rename.
  */
@@ -91,7 +96,8 @@ export function downloadHttpFile(
         && response.headers.location
       ) {
         response.resume()
-        downloadHttpFile(response.headers.location, destination, {
+        const nextUrl = resolveDownloadRedirectUrl(url, response.headers.location)
+        downloadHttpFile(nextUrl, destination, {
           ...options,
           redirectDepth: redirectDepth + 1,
         }).then(resolve, reject)

@@ -1,6 +1,7 @@
 import type { FilterCondition, FilterObject, ReadableFileSize } from '@/types/common'
 import {checkColorForDarkText, hexToRgba as hexToRgbaFromHeader, isNearWhiteColor} from '@/utils/headerColorUtils'
 import {textMatchesGlobalSearchQuery, tokenMatchesQueryPart} from '@shared/globalSearchMatch'
+import {tagChipNeedsContrastText, tagChipNeedsOutlinedInk} from '@shared/tagChipColor'
 
 export {textMatchesGlobalSearchQuery} from '@shared/globalSearchMatch'
 
@@ -282,6 +283,35 @@ export function getTextColor(color: string | null | undefined, is_outlined?: boo
   }
 
   return checkColorForDarkText(color) ? 'white' : 'black'
+}
+
+/**
+ * Inline text color for colored tag chips. Only force contrast on flat/elevated
+ * (filled backgrounds). Other variants use Vuetify's color as ink/underlay —
+ * overriding it strips the custom hue (grey pills, white text).
+ */
+export function getTagChipTextColor(
+  color: string | null | undefined,
+  variant: string | null | undefined,
+): string | undefined {
+  if (!color) return undefined
+  if (tagChipNeedsContrastText(variant)) {
+    return getTextColor(color, false) || undefined
+  }
+  if (tagChipNeedsOutlinedInk(variant)) {
+    const ink = getTextColor(color, true)
+    // Same as chip color → redundant; only keep near-white → dark ink override.
+    return ink && ink !== color ? ink : undefined
+  }
+  return undefined
+}
+
+export function getTagChipTextStyle(
+  color: string | null | undefined,
+  variant: string | null | undefined,
+): {color: string} | undefined {
+  const textColor = getTagChipTextColor(color, variant)
+  return textColor ? {color: textColor} : undefined
 }
 
 export function getListCond(type: string | null | undefined): FilterCondition[] {

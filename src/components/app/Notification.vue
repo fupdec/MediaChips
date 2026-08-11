@@ -70,6 +70,20 @@
     ></div>
 
     <div
+      v-else-if="hasDownloadProgress"
+      class="notification__timeout notification__timeout--download"
+      aria-hidden="true"
+    >
+      <div
+        class="notification__timeout-bar"
+        :style="{
+          transform: `scaleX(${Math.max(0, Math.min(100, downloadProgress)) / 100})`,
+          backgroundColor: `rgb(var(--v-theme-${notification.color || 'primary'}))`,
+        }"
+      ></div>
+    </div>
+
+    <div
       v-else
       class="notification__timeout"
       aria-hidden="true"
@@ -141,6 +155,11 @@ const notificationsStore = useNotificationsStore()
 
 const isHidden = computed(() => props.notification.hidden)
 const actions = computed(() => Array.isArray(props.notification.actions) ? props.notification.actions : [])
+const hasDownloadProgress = computed(() => (
+  props.notification.progressPercent != null
+  && Number.isFinite(Number(props.notification.progressPercent))
+))
+const downloadProgress = computed(() => Number(props.notification.progressPercent) || 0)
 const notificationClick = computed(() => {
   const click = props.notification.click
   return typeof click === 'function' ? click : null
@@ -407,6 +426,10 @@ onUnmounted(() => {
     height: 2px;
     overflow: hidden;
     pointer-events: none;
+
+    &--download {
+      height: 3px;
+    }
   }
 
   &__timeout-bar {

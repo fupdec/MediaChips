@@ -37,3 +37,24 @@ export function getNextZoom(current: unknown, direction: number): number {
 
   return ZOOM_STEPS[Math.max(index - 1, 0)]
 }
+
+/**
+ * Apply CSS zoom for non-Electron browsers.
+ * Only shrink width (not height) so vertical flex / aspect-ratio thumbs stay intact.
+ */
+export function applyAppZoomStyles(
+  style: { zoom: string; width: string; height: string },
+  factor: number,
+): number {
+  const clamped = snapZoom(factor)
+  if (clamped === 1) {
+    style.zoom = ''
+    style.width = ''
+    style.height = ''
+  } else {
+    style.zoom = String(clamped)
+    style.width = `${100 / clamped}%`
+    style.height = ''
+  }
+  return clamped
+}

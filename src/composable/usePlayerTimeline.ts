@@ -9,6 +9,10 @@ import {
   getTimelinePercents,
   shouldShowTranscodeTimeline,
 } from '@/utils/playerBuffer'
+import {
+  getRemainingPlaybackSeconds,
+  shouldDisableTimelineHoverPreview,
+} from '@/composable/usePlayerTransportPlayback'
 import {computeTimelineHoverPercent} from '@/utils/playerPreviewPosition'
 import orderBy from 'lodash/orderBy'
 import type { PlayerMark } from '@/types/player'
@@ -46,6 +50,7 @@ interface UsePlayerTimelineOptions {
   emit: {
     (event: 'showControls'): void
     (event: 'removeMark', mark: PlayerMark): void
+    (event: 'playNext'): void
   }
 }
 
@@ -171,6 +176,12 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   const showPreview = (e: MouseEvent) => {
     if (!preview_show.value || !preview_event_target.value) return
 
+    const remaining = getRemainingPlaybackSeconds(playerStore.currentTime, playerStore.duration)
+    if (shouldDisableTimelineHoverPreview(remaining)) {
+      if (playerStore.progress_hover != null) playerStore.progress_hover = null
+      return
+    }
+
     previewPendingX = e.clientX
     if (previewRafId) return
 
@@ -178,6 +189,12 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
       previewRafId = null
       const clientX = previewPendingX
       if (clientX == null || !preview_event_target.value) return
+
+      const remainingNow = getRemainingPlaybackSeconds(playerStore.currentTime, playerStore.duration)
+      if (shouldDisableTimelineHoverPreview(remainingNow)) {
+        if (playerStore.progress_hover != null) playerStore.progress_hover = null
+        return
+      }
 
       const currentTargetRect = preview_event_target.value.getBoundingClientRect()
       const width = currentTargetRect.width
@@ -228,6 +245,15 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   watch(
     () => [playerStore.marksVisible, playerStore.playlistVisible],
     () => nextTick(resize),
+  )
+
+  watch(
+    () => getRemainingPlaybackSeconds(playerStore.currentTime, playerStore.duration),
+    (remaining) => {
+      if (shouldDisableTimelineHoverPreview(remaining) && playerStore.progress_hover != null) {
+        playerStore.progress_hover = null
+      }
+    },
   )
 
   return {

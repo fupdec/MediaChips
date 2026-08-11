@@ -127,14 +127,20 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
           a[i.option] = i.value
           return a
         }, {})
+        // Only non-empty DB values count — cleared migration stubs (`''`) must not
+        // re-trigger clear PUTs on every boot (multiplies with Vite HMR reloads).
         const hadOnboardingInDb = res.data.some((row) =>
-          row.option === 'onboardingCompleted'
-          || row.option === 'onboardingStep'
-          || row.option === 'onboardingPaused',
+          (row.option === 'onboardingCompleted'
+            || row.option === 'onboardingStep'
+            || row.option === 'onboardingPaused')
+          && row.value !== '',
         )
         const hadGlobalKeysInDb = res.data.reduce<Partial<Record<GlobalAppConfigKey, boolean>>>(
           (accumulator, row) => {
-            if (GLOBAL_APP_CONFIG_KEYS.includes(row.option as GlobalAppConfigKey)) {
+            if (
+              GLOBAL_APP_CONFIG_KEYS.includes(row.option as GlobalAppConfigKey)
+              && row.value !== ''
+            ) {
               accumulator[row.option as GlobalAppConfigKey] = true
             }
             return accumulator

@@ -75,14 +75,20 @@ export function applyFaceDetectStatusEvent(
   const statusUi = resolveFaceDetectStatusUi(phase)
   if (!statusUi) return null
 
-  handlers.notify({
-    type: statusUi.notificationType,
-    textKey: statusUi.i18nKey,
-  })
   if (statusUi.updateTask && handlers.updateTask) {
     handlers.updateTask({
       subtitleKey: statusUi.i18nKey,
-      progress: 0,
+      progress: typeof (event as {percent?: number}).percent === 'number'
+        ? Number((event as {percent?: number}).percent)
+        : 0,
+    })
+  }
+  // Avoid toast spam while percent ticks during model download.
+  const percent = (event as {percent?: number}).percent
+  if (percent == null || percent <= 0 || !statusUi.updateTask) {
+    handlers.notify({
+      type: statusUi.notificationType,
+      textKey: statusUi.i18nKey,
     })
   }
   return phase
@@ -114,6 +120,7 @@ export function reduceFaceDetectStreamEvent(
     processed?: unknown
     total?: unknown
     message?: unknown
+    percent?: unknown
   },
   state: FaceDetectStreamState,
   options: {defaultTotal: number},
@@ -141,16 +148,20 @@ export function reduceFaceDetectStreamEvent(
   if (event.type === 'status') {
     const statusUi = resolveFaceDetectStatusUi(event.phase)
     if (!statusUi) return {faces}
+    const percent = typeof event.percent === 'number' ? event.percent : undefined
+    const shouldNotify = percent == null || percent <= 0 || !statusUi.updateTask
     return {
       faces,
-      notification: {
-        type: statusUi.notificationType,
-        textKey: statusUi.i18nKey,
-      },
+      notification: shouldNotify
+        ? {
+          type: statusUi.notificationType,
+          textKey: statusUi.i18nKey,
+        }
+        : undefined,
       taskUpdate: statusUi.updateTask
         ? {
           subtitleKey: statusUi.i18nKey,
-          progress: 0,
+          progress: percent ?? 0,
         }
         : undefined,
     }

@@ -3,7 +3,9 @@ import {beforeEach, describe, expect, it, vi} from 'vitest'
 const {
   getFacesForMedia,
   getFaceModelStatus,
+  getFaceEmbedModelStatus,
   downloadFaceModel,
+  downloadFaceEmbedModel,
   streamFaceDetection,
   setNotification,
   setTask,
@@ -13,7 +15,9 @@ const {
 } = vi.hoisted(() => ({
   getFacesForMedia: vi.fn(),
   getFaceModelStatus: vi.fn(async () => ({data: {status: 'loaded'}})),
+  getFaceEmbedModelStatus: vi.fn(async () => ({data: {status: 'loaded'}})),
   downloadFaceModel: vi.fn(async () => ({})),
+  downloadFaceEmbedModel: vi.fn(async () => ({})),
   streamFaceDetection: vi.fn(async (_body, _opts, onEvent) => {
     onEvent({type: 'progress', processed: 1, total: 1, faces: 2})
     onEvent({type: 'complete', faces: 2})
@@ -29,7 +33,9 @@ vi.mock('@/services/typedApi', () => ({
   typedApi: {
     getFacesForMedia,
     getFaceModelStatus,
+    getFaceEmbedModelStatus,
     downloadFaceModel,
+    downloadFaceEmbedModel,
     streamFaceDetection,
   },
 }))
@@ -37,6 +43,19 @@ vi.mock('@/services/typedApi', () => ({
 vi.mock('@/services/notificationService', () => ({
   setNotification,
 }))
+
+vi.mock('@/services/modelDownloadConsent', async () => {
+  const actual = await vi.importActual<typeof import('@/services/modelDownloadConsent')>(
+    '@/services/modelDownloadConsent',
+  )
+  return {
+    ...actual,
+    ensureModelsDownloaded: vi.fn(async ({models}) => {
+      for (const model of models || []) await model.download()
+      return 'ok'
+    }),
+  }
+})
 
 vi.mock('@/stores/dialogs', () => ({
   useDialogsStore: () => ({openFaceResults}),

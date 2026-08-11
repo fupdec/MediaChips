@@ -92,6 +92,16 @@ async function applyLanAccessChange(enabled: boolean) {
     throw new Error('LAN access is controlled by MEDIA_CHIPS_ALLOW_LAN environment variable')
   }
 
+  // Idempotent: zoom / transcode / other global saves must never rebind the HTTP
+  // listener when allowLanAccess did not actually change.
+  if (lanEnabled === enabled) {
+    if (serverDeps) {
+      serverDeps.config.allowLanAccess = enabled ? '1' : '0'
+      saveConfigFile(serverDeps.configPath, serverDeps.config)
+    }
+    return
+  }
+
   lanEnabled = enabled
 
   if (!serverDeps) return
@@ -102,6 +112,11 @@ async function applyLanAccessChange(enabled: boolean) {
   await serverDeps.restartListener()
 }
 
+/** True when allowLanAccess toggles and the HTTP listener must rebind. */
+function didLanAccessChange(previousValue: unknown, nextValue: unknown): boolean {
+  return parseBooleanSetting(previousValue, true) !== parseBooleanSetting(nextValue, true)
+}
+
 export {
   initLanAccess,
   isLanAccessEnabled,
@@ -110,4 +125,5 @@ export {
   syncNetworkConfig,
   registerServerNetworkDeps,
   applyLanAccessChange,
+  didLanAccessChange,
 }

@@ -4,9 +4,11 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
+import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useBrowserLayout, isItemsGridRoute} from '@/composable/useBrowserLayout'
 import useItemContextMenu from '@/composable/ItemContextMenu'
+import {setOption} from '@/services/settingsService'
 import {findMediaTypeById} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
@@ -86,10 +88,21 @@ export function useBrowserLayoutHotkeys() {
   const router = useRouter()
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
+  const settingsStore = useSettingsStore()
   const dialogsStore = useDialogsStore()
   const playerStore = usePlayerStore()
   const contextMenuStore = useContextMenu()
   const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+
+  function toggleSidebar() {
+    const next = settingsStore.sidebarCollapsed === '1' ? '0' : '1'
+    void setOption(next, 'sidebarCollapsed')
+  }
+
+  function toggleInspector() {
+    const next = settingsStore.inspectorCollapsed === '1' ? '0' : '1'
+    void setOption(next, 'inspectorCollapsed')
+  }
 
   function focusedId(): number | null {
     if (itemsStore.selected_last != null) return Number(itemsStore.selected_last)
@@ -340,14 +353,10 @@ export function useBrowserLayoutHotkeys() {
 
   function onKeyDown(event: KeyboardEvent) {
     if (!browserLayoutActive.value) return
-    if (!isItemsGridRoute(router.currentRoute.value.path)) return
     if (playerStore.active) return
     if (contextMenuStore.show) return
     if (isBlockingOverlayOpen()) return
     if (isTypingTarget(event.target)) return
-
-    // While bulk-select is active, ItemsSelection owns keyboard handling.
-    if (itemsStore.isSelect) return
 
     const isArrow = event.code === 'ArrowLeft'
       || event.code === 'ArrowRight'
@@ -359,7 +368,14 @@ export function useBrowserLayoutHotkeys() {
       || event.code === 'End'
 
     // Shift+arrows start / extend a multi-select range from the focused card.
-    if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && isArrow) {
+    if (
+      isItemsGridRoute(router.currentRoute.value.path)
+      && event.shiftKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.altKey
+      && isArrow
+    ) {
       event.preventDefault()
       if (event.code === 'Home') {
         const page = itemsStore.itemsOnPage
@@ -394,8 +410,27 @@ export function useBrowserLayoutHotkeys() {
       return
     }
 
-    if (!canHandle(event)) return
     if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+    if (event.repeat) return
+
+    // Panel chrome toggles — work even in select mode / without a focused card.
+    if (event.code === 'KeyB') {
+      event.preventDefault()
+      toggleSidebar()
+      return
+    }
+    if (event.code === 'KeyI' && isItemsGridRoute(router.currentRoute.value.path)) {
+      event.preventDefault()
+      toggleInspector()
+      return
+    }
+
+    if (!isItemsGridRoute(router.currentRoute.value.path)) return
+
+    // While bulk-select is active, ItemsSelection owns keyboard handling.
+    if (itemsStore.isSelect) return
+
+    if (!canHandle(event)) return
 
     switch (event.code) {
       case 'ArrowLeft':

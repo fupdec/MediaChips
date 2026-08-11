@@ -151,7 +151,7 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {getTextColor} from '@/services/formatUtils'
+import {getTagChipTextStyle} from '@/services/formatUtils'
 import type {Meta} from '@/types/stores'
 
 interface DemoTag {
@@ -219,8 +219,7 @@ const chipColorFor = (tag?: DemoTag) => {
 
 const chipTextStyle = (tag?: DemoTag) => {
   if (!colorsEnabled.value || !tag?.color) return undefined
-  const textColor = getTextColor(tag.color, chipVariant.value === 'outlined')
-  return textColor ? {color: textColor} : undefined
+  return getTagChipTextStyle(tag.color, chipVariant.value)
 }
 
 const availableTags = computed(() => demoTags.value)

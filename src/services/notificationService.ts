@@ -14,6 +14,11 @@ export interface NotificationInput {
   click?: (() => void) | null
   /** Absolute path revealed when the OS toast is clicked (Electron). */
   revealPath?: string
+  /**
+   * When set (0–100), the bottom bar shows download/work progress instead of
+   * the auto-dismiss timeout animation. Use with `timeout: 0`.
+   */
+  progressPercent?: number | null
   [key: string]: unknown
 }
 

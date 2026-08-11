@@ -19,6 +19,11 @@ import {usePlayerHotkeys} from '@/composable/usePlayerHotkeys'
 import {usePlayerWindowBridge} from '@/composable/usePlayerWindowBridge'
 import {usePlayerPlayback} from '@/composable/usePlayerPlayback'
 import {handlePlayerVideoWheel} from '@/utils/playerHotkeys'
+import {
+  getRemainingPlaybackSeconds,
+  isPlaylistNavDisabled,
+  shouldShowUpNextPreview,
+} from '@/composable/usePlayerTransportPlayback'
 import {getTranscodePlayerStatus} from '@/utils/playerTranscodeStatus'
 import {setNotification} from '@/services/notificationService'
 import {openPath as openFilePath} from '@/services/shellService'
@@ -413,6 +418,18 @@ export function usePlayerSession() {
     if (playerStore.paused) return
 
     timeoutControls.value = window.setTimeout(() => {
+      const hasNext = !isPlaylistNavDisabled({
+        playlistMode: playerStore.playlistMode,
+        playlistShuffle: playerStore.playlistShuffle,
+        nowPlaying: playerStore.nowPlaying,
+        playlistLength: playerStore.playlist.length,
+        direction: 'next',
+      })
+      if (shouldShowUpNextPreview({
+        remainingSeconds: getRemainingPlaybackSeconds(playerStore.currentTime, playerStore.duration),
+        hasNext,
+      })) return
+
       playerStore.isControlsVisible = false
     }, 3000)
   }, 5)

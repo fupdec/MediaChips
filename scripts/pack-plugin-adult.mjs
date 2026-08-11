@@ -40,6 +40,7 @@ const build = spawnSync(
     '--packages=bundle',
     '--external:better-sqlite3',
     '--external:electron',
+    '--external:sharp',
     '--log-level=warning',
   ],
   {cwd: root, stdio: 'inherit'},

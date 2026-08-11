@@ -2,6 +2,11 @@ import {ref, computed, type Ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
+import {
+  ensureModelsDownloaded,
+  isModelStatusReady,
+  MODEL_DOWNLOAD_SIZES_MB,
+} from '@/services/modelDownloadConsent'
 import {typedApi} from '@/services/typedApi'
 import type {BackfillKind, BackfillStreamEvent} from '@/services/typedApi/backfill'
 
@@ -232,6 +237,28 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
   async function startBackfill(force = false) {
     if (active.value) return
     if (!force && status.value.pending === 0) return
+
+    if (config.kind === 'clipEmbedding') {
+      try {
+        const clipStatus = await typedApi.getClipModelStatus()
+        if (!isModelStatusReady(clipStatus.data?.status)) {
+          const consent = await ensureModelsDownloaded({
+            models: [{
+              kind: 'clip',
+              name: t('ai.models.clip'),
+              sizeMb: MODEL_DOWNLOAD_SIZES_MB.clip,
+              download: async (onProgress) => {
+                await typedApi.downloadClipModel({}, onProgress)
+              },
+            }],
+            t,
+          })
+          if (consent !== 'ok') return
+        }
+      } catch (error) {
+        console.error('Failed to ensure CLIP model before backfill:', error)
+      }
+    }
 
     clearRemoveTaskTimer()
     active.value = true

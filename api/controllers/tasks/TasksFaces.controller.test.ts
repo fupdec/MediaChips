@@ -10,7 +10,6 @@ const {
   getFaceMatchStatus,
   getFaceMatchSettings,
   listFacesForMedia,
-  listFacesForTag,
   detectMedia,
   matchMediaFaces,
   assignFaceToPerformer,
@@ -28,7 +27,6 @@ const {
   getFaceMatchStatus: vi.fn(),
   getFaceMatchSettings: vi.fn(),
   listFacesForMedia: vi.fn(),
-  listFacesForTag: vi.fn(),
   detectMedia: vi.fn(),
   matchMediaFaces: vi.fn(),
   assignFaceToPerformer: vi.fn(),
@@ -62,10 +60,6 @@ vi.mock('../../services/faceRecognition', () => ({
   enrollTagFaces,
   iterateEnrollFromPerformerImages: vi.fn(),
   iterateFaceMatching: vi.fn(),
-}))
-
-vi.mock('../../services/faceAppearances', () => ({
-  listFacesForTag,
 }))
 
 vi.mock('../../services/enrollmentQuality', () => ({
@@ -143,30 +137,6 @@ describe('TasksFaces.controller', () => {
     )
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([{id: 1}])
-  })
-
-  it('rejects facesForTag without tagId', async () => {
-    const res = createResponse()
-    await controller.facesForTag({query: {}, body: {}} as ApiRequest, res)
-    expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({message: 'tagId is required'})
-    expect(listFacesForTag).not.toHaveBeenCalled()
-  })
-
-  it('lists faces for tag with pagination options', async () => {
-    listFacesForTag.mockReturnValue({items: [{faceId: 1}], count: 1})
-    const res = createResponse()
-    await controller.facesForTag({
-      query: {},
-      body: {tagId: 10, sort: 'shuffle', limit: 5, offset: 2, countOnly: false},
-    } as unknown as ApiRequest, res)
-    expect(listFacesForTag).toHaveBeenCalledWith(
-      expect.anything(),
-      10,
-      {countOnly: false, sort: 'shuffle', limit: 5, offset: 2},
-    )
-    expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({items: [{faceId: 1}], count: 1})
   })
 
   it('returns 404 when detecting faces for missing media', async () => {

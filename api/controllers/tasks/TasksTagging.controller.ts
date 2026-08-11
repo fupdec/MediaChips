@@ -1,5 +1,6 @@
 import type { TagLike, AnyRecord, MetaLike } from '../../types/db'
 import type { TaskControllerShared, TagSuggestionItem } from '../../types/tasks'
+import type { ModelStatus } from '../../types/mlModels'
 import { apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
 import {
   runNdjsonAsyncGenerator,
@@ -20,6 +21,8 @@ import {
 import { suggestTagsFromMedia } from '../../services/tagSuggester'
 import { extractPathRegexTagNames } from '../../../shared/pathParser/regexMeta'
 import { resolvePathRegexTagExtracts } from '../../services/pathRegexTagResolver'
+import { prepareClipModel } from '../../services/videoClipTagger'
+import { iteratePreparedModelDownload } from '../../services/modelDownloadStream'
 
 export default function createTasksTaggingController(shared: TaskControllerShared) {
   const {
@@ -279,12 +282,15 @@ export default function createTasksTaggingController(shared: TaskControllerShare
   }
 
   const downloadClipModel = async (req: ApiRequest, res: ApiResponse) => {
-    try {
-      await getVideoClipTagger().loadModel(db)
-      sendOk(res, getVideoClipTagger().getStatus(db))
-    } catch (err) {
-      sendControllerError(res, err, "Some error occurred while downloading CLIP model.")
-    }
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while downloading CLIP model.',
+      iterate: (shouldStop) => iteratePreparedModelDownload(
+        prepareClipModel,
+        (activeDb) => getVideoClipTagger().getStatus(activeDb) as ModelStatus,
+        db,
+        {shouldStop},
+      ),
+    })
   }
 
   const parseLibraryTagsStatus = async (_req: ApiRequest, res: ApiResponse) => {

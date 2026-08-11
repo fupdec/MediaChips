@@ -24,8 +24,15 @@ import { createTagsRepository } from '../db/repositories/tags'
 import {getClipFrameTimestamps} from './videoClipFrameSample'
 import {aggregateFrameResults} from './videoClipTagAggregate'
 import {resolveProcessResourcesPath} from '../utils/resourcesPath'
+import {createXenovaDownloadTracker} from './xenovaDownloadProgress'
+import {
+  estimateDownloadEtaSeconds,
+  resolveDownloadPercent,
+} from './downloadProgress'
 
 const CLIP_MODEL = 'Xenova/clip-vit-base-patch32'
+/** Approximate download size for progress / confirm copy. */
+const CLIP_MODEL_SIZE_MB = 150
 
 let classifier: ClipClassifierModel | null = null
 let loadingPromise: Promise<ClipClassifierModel> | null = null
@@ -74,7 +81,12 @@ function hasDownloadedModel(db: ApiDb) {
   return false
 }
 
-async function loadModel(db: ApiDb): Promise<ClipClassifierModel> {
+async function loadModel(
+  db: ApiDb,
+  options: {
+    onProgress?: (progress: {loaded: number; total: number | null; percent: number}) => void
+  } = {},
+): Promise<ClipClassifierModel> {
   if (classifier) return classifier
   if (loadingPromise) return loadingPromise
 
@@ -91,8 +103,13 @@ async function loadModel(db: ApiDb): Promise<ClipClassifierModel> {
       env.allowRemoteModels = true
       env.allowLocalModels = true
 
+      const tracker = createXenovaDownloadTracker(CLIP_MODEL_SIZE_MB * 1024 * 1024)
       classifier = await pipeline('zero-shot-image-classification', CLIP_MODEL, {
         quantized: true,
+        progress_callback: (data: {status?: string; file?: string; loaded?: number; total?: number}) => {
+          tracker.handle(data)
+          options.onProgress?.(tracker.get())
+        },
       }) as ClipClassifierModel
       lastError = null
       return classifier
@@ -105,6 +122,99 @@ async function loadModel(db: ApiDb): Promise<ClipClassifierModel> {
   })()
 
   return loadingPromise
+}
+
+async function* prepareClipModel(
+  db: ApiDb,
+  options: {shouldStop?: () => boolean} = {},
+) {
+  const needsDownload = !hasDownloadedModel(db) && !classifier
+  if (!needsDownload) {
+    await loadModel(db)
+    return
+  }
+
+  const expectedBytes = CLIP_MODEL_SIZE_MB * 1024 * 1024
+  const startedAt = Date.now()
+  const state = {
+    loaded: 0,
+    total: null as number | null,
+    percent: 0,
+    done: false,
+    error: null as Error | null,
+  }
+
+  yield {
+    type: 'status' as const,
+    phase: 'downloading_clip',
+    message: 'Downloading visual search (CLIP)…',
+    percent: 0,
+    loaded: 0,
+    total: null,
+    etaSeconds: null as number | null,
+    sizeMb: CLIP_MODEL_SIZE_MB,
+  }
+
+  const promise = loadModel(db, {
+    onProgress: (progress) => {
+      state.loaded = progress.loaded
+      state.total = progress.total
+      state.percent = progress.percent
+    },
+  })
+    .then(() => {
+      state.done = true
+    })
+    .catch((error: unknown) => {
+      state.error = error instanceof Error ? error : new Error(String(error))
+      state.done = true
+    })
+
+  let lastPercent = -1
+  while (!state.done) {
+    if (options.shouldStop?.()) {
+      // Cannot abort xenova mid-download cleanly; wait out and surface abort after.
+      await promise.catch(() => undefined)
+      throw new Error('aborted')
+    }
+    const percent = resolveDownloadPercent({
+      loaded: state.loaded,
+      total: state.total,
+      expectedBytes,
+    })
+    const etaSeconds = estimateDownloadEtaSeconds({
+      loaded: state.loaded,
+      total: state.total,
+      expectedBytes,
+      elapsedMs: Date.now() - startedAt,
+    })
+    if (percent !== lastPercent) {
+      lastPercent = percent
+      yield {
+        type: 'status' as const,
+        phase: 'downloading_clip',
+        message: percent > 0
+          ? `Downloading visual search (CLIP)… ${percent}%`
+          : 'Downloading visual search (CLIP)…',
+        percent,
+        loaded: state.loaded,
+        total: state.total,
+        etaSeconds,
+        sizeMb: CLIP_MODEL_SIZE_MB,
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400))
+  }
+
+  if (state.error) throw state.error
+
+  yield {
+    type: 'status' as const,
+    phase: 'clip_ready',
+    message: 'Visual search (CLIP) model downloaded.',
+    percent: 100,
+    sizeMb: CLIP_MODEL_SIZE_MB,
+  }
 }
 
 function getStatus(db: ApiDb, enabled: boolean = true): ModelStatus {
@@ -446,11 +556,13 @@ async function labelFramesAtTimestamps(
 
 export {
   CLIP_MODEL,
+  CLIP_MODEL_SIZE_MB,
   aggregateFrameResults,
   classifyMedia,
   getStatus,
   hasDownloadedModel,
   labelFramesAtTimestamps,
   loadModel,
+  prepareClipModel,
   suggestTagsFromVideoFrames,
 }

@@ -291,11 +291,19 @@ const startUpscale = async () => {
       {signal: abortController.signal},
       (event) => {
         if (event.type === 'downloading') {
-          phaseLabel.value = t('settings_labels.database.tag_image_ai_upscale_downloading', {
-            size: event.downloadSizeMb || status.value.downloadSizeMb || 50,
-          })
+          const percent = typeof event.percent === 'number' ? event.percent : null
+          phaseLabel.value = percent != null
+            ? `${t('settings_labels.database.tag_image_ai_upscale_downloading', {
+              size: event.downloadSizeMb || status.value.downloadSizeMb || 50,
+            })} ${percent}%`
+            : t('settings_labels.database.tag_image_ai_upscale_downloading', {
+              size: event.downloadSizeMb || status.value.downloadSizeMb || 50,
+            })
           if (taskId != null) {
-            tasksStore.updateTask(taskId, {subtitle: phaseLabel.value})
+            tasksStore.updateTask(taskId, {
+              subtitle: phaseLabel.value,
+              ...(percent != null ? {progress: percent} : {}),
+            })
           }
         }
 

@@ -19,3 +19,18 @@ export function resolveTagChipColor(
   if (tagColor && !isDefaultTagColor(tagColor)) return tagColor
   return undefined
 }
+
+/**
+ * Vuetify maps `color` to background only for flat/elevated. For tonal/outlined/
+ * text/plain the same prop drives ink/underlay — forcing contrast via `style.color`
+ * washes those chips to grey pills with white text.
+ */
+export function tagChipNeedsContrastText(variant: string | null | undefined): boolean {
+  const v = variant || 'flat'
+  return v === 'flat' || v === 'elevated'
+}
+
+/** Outlined near-white chips need dark ink so the border/label stay visible. */
+export function tagChipNeedsOutlinedInk(variant: string | null | undefined): boolean {
+  return (variant || 'flat') === 'outlined'
+}

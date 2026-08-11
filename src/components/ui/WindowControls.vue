@@ -84,9 +84,11 @@ const unmaximize = () => {
 const close = () => {
   emit('close')
   if (resolvedWindowType.value === 'player') {
-    window.electronAPI?.invoke?.("closePlayer")
+    window.electronAPI?.invoke?.('closePlayer')
   } else {
-    window.electronAPI?.send?.("closeApp")
+    // Soft close: main process hides only when minimize-to-tray is on AND a
+    // tray icon exists; otherwise it force-quits (fixes Windows X black-hole).
+    window.electronAPI?.send?.('closeApp')
   }
 }
 

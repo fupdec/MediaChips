@@ -100,25 +100,6 @@ export const MarkClipsResponseSchema = z.object({
   count: z.number(),
 }).passthrough()
 
-export const FaceAppearanceItemSchema = z.object({
-  id: z.number(),
-  faceId: z.number(),
-  key: z.string(),
-  path: z.string().optional(),
-  name: z.string().optional(),
-  basename: z.string().optional(),
-  mediaTypeId: optionalNullableCoercedNumberSchema,
-  timestamp: z.string().nullable().optional(),
-  segmentStart: z.number(),
-  matchScore: z.number().nullable().optional(),
-  cropPath: z.string().nullable().optional(),
-}).passthrough()
-
-export const FaceAppearancesResponseSchema = z.object({
-  items: z.array(FaceAppearanceItemSchema),
-  count: z.number(),
-}).passthrough()
-
 export const UpdatedEntitySchema = z.object({
   id: z.number().optional(),
 }).passthrough()

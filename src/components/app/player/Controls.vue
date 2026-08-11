@@ -14,6 +14,7 @@
         :is-audio-mode="isAudioMode"
         @showControls="emit('showControls')"
         @removeMark="emit('removeMark', $event)"
+        @playNext="playNext"
       />
 
       <PlayerTransport
@@ -61,6 +62,10 @@ const transportRef = ref<InstanceType<typeof PlayerTransport> | null>(null)
 
 const jumpToMark = (type: 'prev' | 'next') => {
   timelineRef.value?.jumpToMark?.(type)
+}
+
+const playNext = () => {
+  transportRef.value?.next?.()
 }
 
 defineExpose({

@@ -840,14 +840,6 @@ export const FaceMediaIdRequestSchema = z.object({
   {message: 'mediaId is required'},
 )
 
-export const FacesForTagRequestSchema = z.object({
-  tagId: coercedId,
-  sort: z.enum(['time', 'shuffle']).optional(),
-  countOnly: optionalCoercedBoolean,
-  limit: optionalCoercedNumber,
-  offset: optionalCoercedNumber,
-}).passthrough()
-
 export const FaceAssignRequestSchema = z.object({
   faceId: coercedId,
   tagId: coercedId,

@@ -57,6 +57,24 @@ describe('shouldHideWindowOnCloseApp', () => {
     })).toBe(false)
   })
 
+  it('never hides when quitting (Dock Quit / Cmd+Q must not be aborted)', () => {
+    expect(shouldHideWindowOnCloseApp({
+      supportsTray: true,
+      minimizeToTray: true,
+      isQuitting: true,
+      trayActive: true,
+    })).toBe(false)
+  })
+
+  it('never hides when the tray icon is missing', () => {
+    expect(shouldHideWindowOnCloseApp({
+      supportsTray: true,
+      minimizeToTray: true,
+      isQuitting: false,
+      trayActive: false,
+    })).toBe(false)
+  })
+
   it('never hides when tray is disabled', () => {
     expect(shouldHideWindowOnCloseApp({
       supportsTray: true,

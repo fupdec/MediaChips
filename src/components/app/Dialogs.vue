@@ -104,7 +104,7 @@
 
     <DialogConfirm
       v-if="dialogsStore.confirm.show"
-      variant="delete"
+      :variant="dialogsStore.confirm.variant || 'delete'"
       :dialog="dialogsStore.confirm.show"
       :text="dialogsStore.confirm.text || ''"
       :check-box-text="dialogsStore.confirm.checkBoxText"
@@ -436,6 +436,7 @@ function closeConfirmDialog() {
   dialogsStore.confirm.checkBox2Text = ''
   dialogsStore.confirm.checkBox2 = false
   dialogsStore.confirm.checkBox2RequiresPrimary = false
+  dialogsStore.confirm.variant = 'delete'
 }
 
 function runConfirmDialog() {

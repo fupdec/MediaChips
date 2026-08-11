@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import {
+  applyAppZoomStyles,
   formatZoomPercent,
   getNextZoom,
   parseZoom,
@@ -15,24 +16,26 @@ function isElectron() {
     && navigator.userAgent.toLowerCase().includes(' electron/')
 }
 
+function clearCssZoomStyles() {
+  applyAppZoomStyles(document.documentElement.style, 1)
+}
+
 async function applyZoomFactor(factor: number) {
   const clamped = snapZoom(factor)
 
-  // Prefer CSS zoom over webContents.setZoomFactor. Chromium zoom shrinks the
-  // layout viewport and breaks nested flex scroll regions (settings pages get
-  // cut off). CSS zoom keeps overflow scroll ranges correct.
-  document.documentElement.style.zoom = String(clamped)
-  return clamped
-}
-
-/** Reset Chromium zoom to 1 so it cannot stack with CSS zoom. */
-async function resetChromiumZoomFactor() {
-  if (!isElectron() || !window.electronAPI?.invoke) return
-  try {
-    await window.electronAPI.invoke('setZoomFactor', 1)
-  } catch {
-    // Non-fatal
+  // Electron: Chromium zoom factor scales images, canvases, and observers correctly.
+  // CSS zoom + inverse height was clipping settings OR collapsing video thumbs.
+  if (isElectron() && window.electronAPI?.invoke) {
+    clearCssZoomStyles()
+    try {
+      await window.electronAPI.invoke('setZoomFactor', clamped)
+      return clamped
+    } catch {
+      // Fall through to CSS zoom if IPC is unavailable.
+    }
   }
+
+  return applyAppZoomStyles(document.documentElement.style, clamped)
 }
 
 export function useAppZoom() {
@@ -76,16 +79,18 @@ export function useAppZoom() {
   async function initFromSettings() {
     suppressExternalSync = true
     try {
-      await resetChromiumZoomFactor()
       await applyZoomFactor(zoom.value)
     } finally {
       suppressExternalSync = false
     }
   }
 
-  async function syncFromElectron(_factor: number) {
-    // App zoom is CSS-based; ignore Chromium zoom-changed so a leftover
-    // setZoomFactor(1) cannot reset the saved interface zoom.
+  async function syncFromElectron(factor: number) {
+    if (suppressExternalSync) return
+    const clamped = snapZoom(factor)
+    if (Math.abs(clamped - zoom.value) < 0.001) return
+    // Chromium already applied the factor; only persist / sync store.
+    await setZoom(clamped, {persist: true, apply: false})
   }
 
   function shouldHandleZoomShortcut(event: KeyboardEvent) {

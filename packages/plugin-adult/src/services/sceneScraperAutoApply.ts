@@ -86,7 +86,9 @@ function getAssignedItemByMetaId(
   metaId: number,
 ): AssignedMeta | undefined {
   return assignedItems.find(
-    (item) => Number(item.meta?.id ?? item.metaId) === Number(metaId),
+    (item) =>
+      Number(item.meta?.id ?? item.metaId) === Number(metaId)
+      || Number(getAssignedItemKey(item)) === Number(metaId),
   )
 }
 
@@ -96,6 +98,13 @@ function getStorageKeyForMetaId(
 ): string | number {
   const assignedItem = getAssignedItemByMetaId(assignedItems, metaId)
   return assignedItem ? (getAssignedItemKey(assignedItem) ?? metaId) : metaId
+}
+
+function resolveStorageKeyFromDbMetaId(
+  assignedItems: AssignedMeta[],
+  dbMetaId: string | number,
+): string | number {
+  return getStorageKeyForMetaId(assignedItems, Number(dbMetaId))
 }
 
 function normalizeEntityFieldValue(key: string, value: MediaFieldValue): MediaFieldValue {
@@ -161,11 +170,8 @@ async function loadMediaValues(
   }
 
   for (const value of valuesResponse.data as ValueInTagEntry[]) {
-    const item = assignedItems.find(
-      (entry) => Number(getAssignedItemKey(entry)) === Number(value.metaId),
-    )
-    const key = item ? getAssignedItemKey(item) : value.metaId
-    if (key == null) continue
+    const key = resolveStorageKeyFromDbMetaId(assignedItems, value.metaId)
+    const item = getAssignedItemByMetaId(assignedItems, Number(value.metaId))
 
     let val = value.value
     if (item?.meta?.type === 'rating' || item?.meta?.type === 'number') {
@@ -193,11 +199,7 @@ async function loadMediaValues(
   }
 
   for (const metaId in parsedTags) {
-    const item = assignedItems.find(
-      (entry) => String(getAssignedItemKey(entry)) === metaId,
-    )
-    const key = item ? getAssignedItemKey(item) : metaId
-    if (key == null) continue
+    const key = resolveStorageKeyFromDbMetaId(assignedItems, metaId)
     vals[key] = parsedTags[metaId]
   }
 

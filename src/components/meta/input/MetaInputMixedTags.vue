@@ -199,7 +199,7 @@ import {useAppStore} from '@/stores/app'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
 import {
   foundByChars,
-  getTextColor,
+  getTagChipTextColor,
   highlightChars,
 } from '@/services/formatUtils'
 import {resolveTagAutocompleteSearchMode} from '@shared/tagAutocompleteMatch'
@@ -425,7 +425,7 @@ function chipTextColorFor(tag?: TagOption | null) {
   if (!tag) return ''
   const color = chipColorFor(tag)
   if (!color) return ''
-  return getTextColor(color, chipVariantFor(tag.metaId) === 'outlined')
+  return getTagChipTextColor(color, chipVariantFor(tag.metaId)) || ''
 }
 
 function chipStyleFor(tag?: TagOption | null) {

@@ -4,7 +4,7 @@ import type { ScraperPinnedItem, ScraperTransferField } from '../types/scraper'
 import { areScraperValuesEqual } from './scraperValueCompare'
 import {
   buildScrapedTagEntries,
-  findTagByNameOrSynonym,
+  findTagByNameOrSynonymAnyCategory,
   normalizeScrapedTagNames,
   tagMatchesLookupName,
 } from './sceneScraperTags'
@@ -19,16 +19,15 @@ function cloneTransferValue(value: unknown): unknown {
 function areAllScrapedNamesPresent(
   assignedTagIds: number[],
   scrapedNames: string[],
-  metaId: number,
+  _metaId: number,
   tags: Tag[],
 ): boolean {
+  void _metaId
   if (!scrapedNames.length) return false
   if (!assignedTagIds.length) return false
 
-  const metaTags = tags.filter((tag) => Number(tag.metaId) === Number(metaId))
-  const assignedTags = metaTags.filter((tag) =>
-    assignedTagIds.includes(Number(tag.id)),
-  )
+  const assignedIdSet = new Set(assignedTagIds.map((id) => Number(id)))
+  const assignedTags = tags.filter((tag) => assignedIdSet.has(Number(tag.id)))
 
   return scrapedNames.every((name) =>
     assignedTags.some((tag) => tagMatchesLookupName(tag, name)),
@@ -37,12 +36,12 @@ function areAllScrapedNamesPresent(
 
 function areAnyScrapedTagsPresent(
   scrapedNames: string[],
-  metaId: number,
+  _metaId: number,
   tags: Tag[],
 ): boolean {
-  const metaTags = tags.filter((tag) => Number(tag.metaId) === Number(metaId))
+  void _metaId
   return scrapedNames.some((name) =>
-    Boolean(findTagByNameOrSynonym(metaId, name, metaTags)),
+    Boolean(findTagByNameOrSynonymAnyCategory(name, tags)),
   )
 }
 

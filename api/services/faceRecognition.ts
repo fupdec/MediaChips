@@ -104,7 +104,7 @@ export interface FaceMatchProgressEvent {
   type: 'progress' | 'complete' | 'error' | 'status'
   phase?: 'downloading_embed' | 'downloading_align' | 'embed_ready'
   processed?: number
-  total?: number
+  total?: number | null
   remaining?: number
   matched?: number
   applied?: number
@@ -115,6 +115,9 @@ export interface FaceMatchProgressEvent {
   mediaId?: number
   message?: string
   sizeMb?: number
+  percent?: number
+  loaded?: number
+  etaSeconds?: number | null
   stopped?: boolean
 }
 

@@ -3,6 +3,7 @@ import {
   buildScrapedTagEntries,
   findOrCreateTagByName,
   findTagByNameOrSynonym,
+  findTagByNameOrSynonymAnyCategory,
   tagMatchesLookupName,
 } from './sceneScraperTags'
 import type { Tag } from '@/types/stores'
@@ -80,6 +81,31 @@ describe('sceneScraperTags', () => {
     })
   })
 
+  it('treats tags as existing/assigned even when tag.metaId differs from the field', () => {
+    const mismatched: Tag[] = [
+      {
+        id: 7,
+        metaId: 99,
+        name: 'Big Butts Like It Big',
+        synonyms: undefined,
+      },
+    ]
+
+    const entries = buildScrapedTagEntries({
+      scrapedNames: ['Big Butts Like It Big'],
+      metaId: 20,
+      assignedTagIds: [7],
+      tags: mismatched,
+    })
+
+    expect(findTagByNameOrSynonym(20, 'Big Butts Like It Big', mismatched)).toBeUndefined()
+    expect(findTagByNameOrSynonymAnyCategory('Big Butts Like It Big', mismatched)?.id).toBe(7)
+    expect(entries[0]).toMatchObject({
+      exists: true,
+      alreadyAssigned: true,
+    })
+  })
+
   it('reuses a newly created tag from the shared allTags list on later lookups', async () => {
     const allTags: Tag[] = []
     const createTags = vi.fn(async () => ({
@@ -94,5 +120,43 @@ describe('sceneScraperTags', () => {
     expect(createTags).toHaveBeenCalledTimes(1)
     expect(allTags).toHaveLength(1)
     expect(allTags[0]).toMatchObject({ id: 42, name: 'Jia Lissa', metaId: 10 })
+  })
+
+  it('reuses a globally existing tag instead of creating a duplicate', async () => {
+    const allTags: Tag[] = [
+      {
+        id: 7,
+        metaId: 99,
+        name: 'Big Butts Like It Big',
+        synonyms: undefined,
+      },
+    ]
+    const createTags = vi.fn(async () => ({
+      data: [{ id: 100, name: 'Big Butts Like It Big' }],
+    }))
+
+    const id = await findOrCreateTagByName('Big Butts Like It Big', 20, allTags, createTags)
+
+    expect(id).toBe(7)
+    expect(createTags).not.toHaveBeenCalled()
+  })
+
+  it('recovers from name_conflict by reusing conflictingTagId', async () => {
+    const allTags: Tag[] = []
+    const createTags = vi.fn(async () => {
+      const error = Object.assign(new Error('Tag name already exists'), {
+        response: {
+          status: 409,
+          data: { code: 'name_conflict', conflictingTagId: 55 },
+        },
+      })
+      throw error
+    })
+
+    const id = await findOrCreateTagByName('Wife', 10, allTags, createTags)
+
+    expect(id).toBe(55)
+    expect(allTags).toHaveLength(1)
+    expect(allTags[0]).toMatchObject({ id: 55, name: 'Wife', metaId: 10 })
   })
 })

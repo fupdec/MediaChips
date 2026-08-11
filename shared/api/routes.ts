@@ -180,7 +180,6 @@ export const API_ROUTES = {
   taskFaceDetectionStatus: '/api/Task/faceDetectionStatus',
   taskFaceMatchStatus: '/api/Task/faceMatchStatus',
   taskFacesForMedia: '/api/Task/facesForMedia',
-  taskFacesForTag: '/api/Task/facesForTag',
   taskDetectFacesForMedia: '/api/Task/detectFacesForMedia',
   taskMatchFacesForMedia: '/api/Task/matchFacesForMedia',
   taskAssignFacePerformer: '/api/Task/assignFacePerformer',

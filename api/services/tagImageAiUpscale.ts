@@ -4,6 +4,10 @@ import fs from 'fs'
 import fse from 'fs-extra'
 import path from 'path'
 import {downloadHttpFileWithRetries} from './httpFileDownload'
+import {
+  estimateDownloadEtaSeconds,
+  resolveDownloadPercent,
+} from './downloadProgress'
 import {promisify} from 'util'
 import {execFile as execFileCb} from 'child_process'
 import {readdir} from 'fs/promises'
@@ -418,7 +422,11 @@ export async function getTagImageAiUpscaleStatus(db: ApiDb): Promise<TagImageAiU
   return value
 }
 
-export async function downloadFile(url: string, destination: string): Promise<void> {
+export async function downloadFile(
+  url: string,
+  destination: string,
+  onProgress?: (loaded: number, total: number | null) => void,
+): Promise<void> {
   await downloadHttpFileWithRetries(url, destination, {
     errorLabel: 'Real-ESRGAN package',
     headers: {Accept: '*/*'},
@@ -427,6 +435,7 @@ export async function downloadFile(url: string, destination: string): Promise<vo
     maxRedirects: DOWNLOAD_MAX_REDIRECTS,
     attempts: DOWNLOAD_ATTEMPTS,
     retryDelayMs: 1000,
+    onProgress,
     retryErrorMessage: (detail, attempts) => (
       `Failed to download Real-ESRGAN from GitHub after ${attempts} attempts `
       + `(VPN/proxy/TLS issues are common). Try again, or briefly disable VPN. (${detail})`
@@ -486,7 +495,13 @@ async function findUpscalerBinary(root: string): Promise<string> {
   throw new Error('Real-ESRGAN binary not found in downloaded package')
 }
 
-async function ensureUpscalerToolchain(db: ApiDb): Promise<{binaryPath: string; workDir: string; zipCacheDir: string}> {
+async function ensureUpscalerToolchain(
+  db: ApiDb,
+  options: {
+    shouldStop?: () => boolean
+    onProgress?: (loaded: number, total: number | null) => void
+  } = {},
+): Promise<{binaryPath: string; workDir: string; zipCacheDir: string}> {
   const workDir = getTagUpscaleCacheDir(db)
   const zipCacheDir = getTagUpscaleZipCacheDir(db)
   await fse.remove(workDir).catch(() => undefined)
@@ -496,7 +511,8 @@ async function ensureUpscalerToolchain(db: ApiDb): Promise<{binaryPath: string; 
   const zipName = getRealesrganZipFileName()
   const zipPath = path.join(zipCacheDir, zipName)
   if (!hasUsableZip(zipPath)) {
-    await downloadFile(getRealesrganZipUrl(), zipPath)
+    if (options.shouldStop?.()) throw new Error('aborted')
+    await downloadFile(getRealesrganZipUrl(), zipPath, options.onProgress)
   }
 
   const extractDir = path.join(workDir, 'extract')
@@ -606,13 +622,74 @@ export async function* iterateTagImageAiUpscale(
   let completed = false
 
   try {
+    const expectedBytes = TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB * 1024 * 1024
+    const startedAt = Date.now()
+    const progressState = {
+      loaded: 0,
+      total: null as number | null,
+      done: false,
+      error: null as Error | null,
+      result: null as Awaited<ReturnType<typeof ensureUpscalerToolchain>> | null,
+    }
+
     yield {
       type: 'downloading',
       message: 'Downloading Real-ESRGAN toolchain',
       downloadSizeMb: TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB,
+      percent: 0,
     }
 
-    const toolchain = await ensureUpscalerToolchain(db)
+    const toolchainPromise = ensureUpscalerToolchain(db, {
+      shouldStop,
+      onProgress: (loaded, total) => {
+        progressState.loaded = loaded
+        progressState.total = total
+      },
+    })
+      .then((result) => {
+        progressState.result = result
+        progressState.done = true
+      })
+      .catch((error: unknown) => {
+        progressState.error = error instanceof Error ? error : new Error(String(error))
+        progressState.done = true
+      })
+
+    let lastPercent = -1
+    while (!progressState.done) {
+      if (shouldStop()) {
+        aborted = true
+        yield {type: 'aborted', processed, total: pending.length, upscaled, failed}
+        await toolchainPromise.catch(() => undefined)
+        return
+      }
+      const percent = resolveDownloadPercent({
+        loaded: progressState.loaded,
+        total: progressState.total,
+        expectedBytes,
+      })
+      if (percent !== lastPercent) {
+        lastPercent = percent
+        yield {
+          type: 'downloading',
+          message: 'Downloading Real-ESRGAN toolchain',
+          downloadSizeMb: TAG_AI_UPSCALE_DOWNLOAD_SIZE_MB,
+          percent,
+          loaded: progressState.loaded,
+          total: progressState.total,
+          etaSeconds: estimateDownloadEtaSeconds({
+            loaded: progressState.loaded,
+            total: progressState.total,
+            expectedBytes,
+            elapsedMs: Date.now() - startedAt,
+          }),
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    }
+
+    if (progressState.error) throw progressState.error
+    const toolchain = progressState.result!
     workDir = toolchain.workDir
     zipCacheDir = toolchain.zipCacheDir
 

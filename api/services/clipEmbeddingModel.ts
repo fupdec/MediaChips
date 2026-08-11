@@ -152,13 +152,47 @@ function tensorToVector(data: ArrayLike<number>, dims: number[]): ClipEmbeddingV
 }
 
 async function embedClipText(db: ApiDb, text: string): Promise<ClipEmbeddingVector> {
-  const normalized = String(text || '').trim()
-  if (!normalized) return []
+  const vectors = await embedClipTexts(db, [text])
+  return vectors[0] || []
+}
 
+/** Batch-encode CLIP text strings (empty strings yield empty vectors). */
+async function embedClipTexts(db: ApiDb, texts: string[]): Promise<ClipEmbeddingVector[]> {
+  if (!texts.length) return []
   const model = await loadClipEmbeddingRuntime(db)
-  const inputs = model.tokenizer([normalized], {padding: true, truncation: true})
-  const {text_embeds} = await model.textModel(inputs)
-  return tensorToVector(text_embeds.data, text_embeds.dims)
+  const normalized = texts.map((text) => String(text || '').trim())
+  const nonEmptyIndexes: number[] = []
+  const nonEmptyTexts: string[] = []
+  for (let index = 0; index < normalized.length; index++) {
+    if (!normalized[index]) continue
+    nonEmptyIndexes.push(index)
+    nonEmptyTexts.push(normalized[index])
+  }
+
+  const out: ClipEmbeddingVector[] = texts.map(() => [])
+  if (!nonEmptyTexts.length) return out
+
+  // Keep batches modest — tokenizer padding grows with the longest string.
+  const batchSize = 32
+  for (let offset = 0; offset < nonEmptyTexts.length; offset += batchSize) {
+    const batchTexts = nonEmptyTexts.slice(offset, offset + batchSize)
+    const batchIndexes = nonEmptyIndexes.slice(offset, offset + batchSize)
+    const inputs = model.tokenizer(batchTexts, {padding: true, truncation: true})
+    const {text_embeds} = await model.textModel(inputs)
+    const dims = text_embeds.dims || []
+    const data = Array.from(text_embeds.data)
+    if (dims.length === 2) {
+      const width = dims[1]
+      for (let row = 0; row < batchTexts.length; row++) {
+        const start = row * width
+        out[batchIndexes[row]] = tensorToVector(data.slice(start, start + width), [1, width])
+      }
+    } else if (batchTexts.length === 1) {
+      out[batchIndexes[0]] = tensorToVector(text_embeds.data, text_embeds.dims)
+    }
+  }
+
+  return out
 }
 
 async function embedClipRawImage(db: ApiDb, image: ClipRawImage): Promise<ClipEmbeddingVector> {
@@ -238,6 +272,7 @@ export {
   embedClipImageFile,
   embedClipImageTiles,
   embedClipText,
+  embedClipTexts,
   getClipEmbeddingStatus,
   getModelCacheDir,
   hasDownloadedClipModel,

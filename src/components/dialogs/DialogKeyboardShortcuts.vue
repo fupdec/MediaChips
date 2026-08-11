@@ -98,6 +98,8 @@ const appRows = computed(() => [
 ])
 
 const browserRows = computed(() => [
+  {keys: 'b', label: t('keyboard_shortcuts.toggle_sidebar')},
+  {keys: 'i', label: t('keyboard_shortcuts.toggle_inspector')},
   {keys: 'arrowup arrowdown arrowleft arrowright', label: t('keyboard_shortcuts.browser_navigate')},
   {keys: 'j k', label: t('keyboard_shortcuts.browser_jk')},
   {keys: 'home end', label: t('keyboard_shortcuts.browser_ends')},

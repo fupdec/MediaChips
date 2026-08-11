@@ -14,13 +14,13 @@ import {
   type FaceGenderEstimate,
 } from './faceGenderWarp'
 import {
+  downloadCachedModelIfNeeded,
   ensureCachedModelFile,
   getOrt,
   resolveCachedModelPath,
   type OrtSession,
 } from './faceOrtRuntime'
 import {
-  buildCachedModelDownloadEvent,
   buildCachedModelReadyEvent,
 } from './faceModelStatus'
 
@@ -80,16 +80,33 @@ type GenderPrepEvent = {
   phase: 'downloading_gender' | 'gender_ready'
   message: string
   sizeMb?: number
+  percent?: number
+  loaded?: number
+  total?: number | null
+  etaSeconds?: number | null
 }
 
-async function* prepareGenderModel(db: ApiDb): AsyncGenerator<GenderPrepEvent> {
+async function* prepareGenderModel(
+  db: ApiDb,
+  options: {shouldStop?: () => boolean} = {},
+): AsyncGenerator<GenderPrepEvent> {
   const needsDownload = !hasDownloadedGenderModel(db)
   if (needsDownload) {
-    yield buildCachedModelDownloadEvent({
+    for await (const event of downloadCachedModelIfNeeded(db, {
+      modelId: GENDER_MODEL_ID,
+      filename: GENDER_MODEL_FILENAME,
+      url: GENDER_MODEL_URL,
+      errorLabel: 'face gender model',
+      expectedBytes: Math.round(GENDER_MODEL_SIZE_MB * 1024 * 1024),
+      label: 'face gender',
       phase: 'downloading_gender',
-      sizeMb: GENDER_MODEL_SIZE_MB,
-      kind: 'face gender',
-    })
+      shouldStop: options.shouldStop,
+    })) {
+      yield {
+        ...event,
+        sizeMb: GENDER_MODEL_SIZE_MB,
+      }
+    }
   }
   await loadGenderModel(db)
   if (needsDownload) {

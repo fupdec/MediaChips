@@ -9,7 +9,6 @@ import {createSettingsRepository} from '../db/repositories/settings'
 import {alignFaceRgb112} from './faceAlign'
 import {l2Normalize} from './faceMatchScoring'
 import {
-  buildCachedModelDownloadEvent,
   buildCachedModelReadyEvent,
   resolveCachedModelStatus,
 } from './faceModelStatus'
@@ -21,6 +20,7 @@ import {
   shouldAlignForEmbed,
 } from './faceEmbedPrep'
 import {
+  downloadCachedModelIfNeeded,
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -42,6 +42,10 @@ export type EmbedPrepEvent = {
   phase: 'downloading_embed' | 'downloading_align' | 'embed_ready'
   message: string
   sizeMb?: number
+  percent?: number
+  loaded?: number
+  total?: number | null
+  etaSeconds?: number | null
 }
 
 let embedSession: OrtSession | null = null
@@ -102,16 +106,29 @@ export async function loadEmbedModel(db: ApiDb): Promise<OrtSession> {
   return loadingPromise
 }
 
-export async function* prepareEmbedModel(db: ApiDb): AsyncGenerator<EmbedPrepEvent> {
+export async function* prepareEmbedModel(
+  db: ApiDb,
+  options: {shouldStop?: () => boolean} = {},
+): AsyncGenerator<EmbedPrepEvent> {
   migrateEmbedModelIfNeeded(db)
 
   const needsDownload = !hasDownloadedEmbedModel(db)
   if (needsDownload) {
-    yield buildCachedModelDownloadEvent({
+    for await (const event of downloadCachedModelIfNeeded(db, {
+      modelId: EMBED_MODEL_ID,
+      filename: EMBED_MODEL_FILENAME,
+      url: EMBED_MODEL_URL,
+      errorLabel: 'face embed model',
+      expectedBytes: EMBED_MODEL_SIZE_MB * 1024 * 1024,
+      label: 'face recognition',
       phase: 'downloading_embed',
-      sizeMb: EMBED_MODEL_SIZE_MB,
-      kind: 'face recognition',
-    })
+      shouldStop: options.shouldStop,
+    })) {
+      yield {
+        ...event,
+        sizeMb: EMBED_MODEL_SIZE_MB,
+      }
+    }
   }
   await loadEmbedModel(db)
   if (needsDownload) {

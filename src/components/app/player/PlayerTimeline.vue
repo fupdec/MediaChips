@@ -6,6 +6,20 @@
     class="timeline pa-0"
     ref="slider_progress"
   >
+    <Transition name="up-next-slide">
+      <PlayerNeighborPreview
+        v-if="showUpNext && nextItem && !isAudioMode"
+        :item="nextItem"
+        :thumb="nextThumb"
+        :label="t('player.controls.up_next')"
+        :remaining-seconds="remainingSeconds"
+        variant="up-next"
+        clickable
+        class="neighbor-preview--up-next"
+        @select="emit('playNext')"
+      />
+    </Transition>
+
     <v-slider
       :model-value="timelineTime"
       @update:model-value="handleSliderChange"
@@ -45,10 +59,13 @@
 </template>
 
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
+import {usePlayerNeighborPreview} from '@/composable/usePlayerNeighborPreview'
 import Preview from '@/components/app/player/Preview.vue'
 import Mark from '@/components/app/player/Mark.vue'
 import ControlsSetMarkTime from '@/components/app/player/ControlsSetMarkTime.vue'
+import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview.vue'
 import {usePlayerTimeline} from '@/composable/usePlayerTimeline'
 import type {PlayerMark} from '@/types/player'
 
@@ -59,9 +76,18 @@ defineProps<{
 const emit = defineEmits<{
   showControls: []
   removeMark: [mark: PlayerMark]
+  playNext: []
 }>()
 
+const {t} = useI18n()
 const dialogsStore = useDialogsStore()
+
+const {
+  nextItem,
+  nextThumb,
+  remainingSeconds,
+  showUpNext,
+} = usePlayerNeighborPreview()
 
 const {
   player,

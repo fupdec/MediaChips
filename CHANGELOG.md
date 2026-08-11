@@ -36,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auto chapters** — scene + silence detection with readable titles (heuristics / Local AI / CLIP-aware)
 - **Any-tag player marks** — favorite, bookmark/chapter, or any library tag; no separate Marks in player flag
 - **Stash / Jellyfin bidirectional sync** — pull metadata and push ratings/tags for already matched media
-- **Person timeline appearances** — seek and play appearances on performer tag pages
 - **Media merge** — keep one item and remap linked metadata; duplicates review in Database settings
 - **More like this** — visual-hash neighbors on the media list
 - **Text / audio** — in-app text preview and search; audio covers from ID3

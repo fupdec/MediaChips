@@ -64,8 +64,11 @@ function hasMeaningfulDbState(
   })
 }
 
-async function clearGlobalKeysFromDb(state: GlobalAppConfigState): Promise<void> {
-  for (const key of GLOBAL_APP_CONFIG_KEYS) {
+async function clearGlobalKeysFromDb(
+  keys: readonly GlobalAppConfigKey[],
+  state: GlobalAppConfigState,
+): Promise<void> {
+  for (const key of keys) {
     await typedApi.putSetting(key, '')
   }
 
@@ -81,7 +84,9 @@ export async function persistGlobalAppConfig(
     ...partial,
   }
 
-  await updateConfig(next)
+  // Only POST changed keys. Sending the full global blob (including allowLanAccess)
+  // on every zoom/transcode update caused the server to rebind and surface Network Error.
+  await updateConfig(partial)
 
   const appStore = useAppStore()
   appStore.config = {
@@ -92,7 +97,13 @@ export async function persistGlobalAppConfig(
   applyGlobalAppConfigToSettings(next)
 
   if (options.clearDb !== false) {
-    await clearGlobalKeysFromDb(next)
+    const keysToClear = (Object.keys(partial) as GlobalAppConfigKey[])
+      .filter((key) => isGlobalAppConfigKey(key))
+    // Fall back to all keys for full-state migrations that pass every field.
+    await clearGlobalKeysFromDb(
+      keysToClear.length > 0 ? keysToClear : GLOBAL_APP_CONFIG_KEYS,
+      next,
+    )
   }
 }
 
@@ -138,7 +149,7 @@ export async function migrateGlobalAppConfigFromDbIfNeeded(
       : false
 
     if (hadAnyInDb) {
-      await clearGlobalKeysFromDb(configState)
+      await clearGlobalKeysFromDb(GLOBAL_APP_CONFIG_KEYS, configState)
     }
 
     return

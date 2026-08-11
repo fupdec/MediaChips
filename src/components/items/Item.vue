@@ -263,7 +263,7 @@ import {useLazyInView} from '@/composable/useLazyInView'
 import {useBrowserLayout} from '@/composable/useBrowserLayout'
 import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
-import {getTextColor, hexToRgba} from '@/services/formatUtils'
+import {getTagChipTextStyle, hexToRgba} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
@@ -392,8 +392,7 @@ const tagChipColor = computed((): string | undefined => {
 const tagChipStyle = computed(() => {
   const color = tagChipColor.value
   if (!color) return undefined
-  const textColor = getTextColor(color, tagChipVariant.value === 'outlined')
-  return textColor ? {color: textColor} : undefined
+  return getTagChipTextStyle(color, tagChipVariant.value)
 })
 
 const tagChipClass = computed(() => {

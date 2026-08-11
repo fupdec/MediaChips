@@ -164,6 +164,7 @@ import {typedApi} from '@/services/typedApi'
 import {getIconDataType} from '@/services/metaTypeUtils'
 import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
+import {getApiErrorMessage} from '@/types/vue'
 import {useAppStore} from '@/stores/app'
 import {useEventBus} from '@/utils/eventBus'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
@@ -261,10 +262,13 @@ async function confirmCreateFields() {
     })
   } catch (error) {
     console.error('Failed to create scene scraper meta:', error)
+    const detail = getApiErrorMessage(error, '')
     setNotification({
       type: 'error',
       title: t('settings_labels.tools.create_scene_meta'),
-      text: t('settings_labels.tools.create_scene_meta_failed'),
+      text: detail
+        ? `${t('settings_labels.tools.create_scene_meta_failed')}: ${detail}`
+        : t('settings_labels.tools.create_scene_meta_failed'),
     })
   } finally {
     creatingFields.value = false

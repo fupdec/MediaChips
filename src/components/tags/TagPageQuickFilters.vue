@@ -134,7 +134,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {typedApi} from '@/services/typedApi'
-import {getFilterObject, getTextColor} from '@/services/formatUtils'
+import {getFilterObject, getTagChipTextColor} from '@/services/formatUtils'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {TAG_PAGE_QUICK_FILTER_NOTE} from '@/constants/tagPageQuickFilter'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -245,7 +245,7 @@ function buildChip(tag: CooccurringTag, meta: Meta): QuickFilterChip {
     label,
     variant,
     color: colored ? color : undefined,
-    textColor: colored ? getTextColor(color, variant === 'outlined') || undefined : undefined,
+    textColor: colored ? getTagChipTextColor(color, variant) : undefined,
     className: [
       colored ? 'tag-chip--colored' : undefined,
       light ? 'tag-chip--light' : undefined,

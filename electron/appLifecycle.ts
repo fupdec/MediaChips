@@ -37,12 +37,15 @@ export function shouldHideWindowOnCloseApp({
   supportsTray,
   minimizeToTray,
   isQuitting,
+  trayActive = true,
 }: {
   supportsTray: boolean
   minimizeToTray: boolean
   isQuitting: boolean
+  /** Must be true — never hide into a black hole without a tray icon. */
+  trayActive?: boolean
 }): boolean {
-  return supportsTray && minimizeToTray && !isQuitting
+  return supportsTray && minimizeToTray && Boolean(trayActive) && !isQuitting
 }
 
 export function focusExistingMainWindow(win: BrowserWindow | null): boolean {
@@ -75,6 +78,8 @@ export function createAppLifecycleController(deps: {
   getMainWindow: () => BrowserWindow | null
   setMinimizeToTray: (enabled: boolean) => void
   destroyTray: () => void
+  ensureTray?: () => boolean
+  hasTrayIcon?: () => boolean
   destroyPlayerWindow: () => void
   stopPlayerPlayback: () => void
   schedulePlayerWarmup: () => void
@@ -87,6 +92,7 @@ export function createAppLifecycleController(deps: {
   logStartup?: (message: string) => void
 }): AppLifecycleController {
   let quitting = false
+  let hardExitTimer: ReturnType<typeof setTimeout> | null = null
 
   function setIsQuitting(value: boolean) {
     quitting = value
@@ -96,16 +102,37 @@ export function createAppLifecycleController(deps: {
     return quitting
   }
 
+  function isTrayReady() {
+    return Boolean(deps.hasTrayIcon?.())
+  }
+
   function shouldHideOnClose() {
+    if (deps.getMinimizeToTray() && deps.supportsTray) {
+      deps.ensureTray?.()
+    }
     return shouldHideWindowOnCloseApp({
       supportsTray: deps.supportsTray,
       minimizeToTray: deps.getMinimizeToTray(),
       isQuitting: quitting,
+      trayActive: isTrayReady(),
     })
   }
 
   function quitApp() {
     quitting = true
+
+    // Failsafe: if cleanup hangs (Windows child kill / window destroy), still die.
+    if (!hardExitTimer) {
+      hardExitTimer = setTimeout(() => {
+        try {
+          app.exit(0)
+        } catch {
+          process.exit(0)
+        }
+      }, 2000)
+      hardExitTimer.unref?.()
+    }
+
     try { deps.destroyTray() } catch (error) {
       console.warn('destroyTray during quit failed:', error)
     }
@@ -129,7 +156,11 @@ export function createAppLifecycleController(deps: {
     }
     // Match Ctrl+Q / native Exit — app.quit() alone can stall if a hidden
     // player/loading window or hung child keeps the event loop alive.
-    app.exit(0)
+    try {
+      app.exit(0)
+    } catch {
+      process.exit(0)
+    }
   }
 
   function handleCloseAppRequest(_event?: IpcMainEvent, payload?: unknown) {
@@ -138,11 +169,7 @@ export function createAppLifecycleController(deps: {
       && typeof payload === 'object'
       && (payload as {force?: unknown}).force === true,
     )
-    if (!forceQuit && shouldHideWindowOnCloseApp({
-      supportsTray: deps.supportsTray,
-      minimizeToTray: deps.getMinimizeToTray(),
-      isQuitting: quitting,
-    })) {
+    if (!forceQuit && shouldHideOnClose()) {
       const win = deps.getMainWindow()
       if (win && !win.isDestroyed()) win.hide()
       return
@@ -220,6 +247,22 @@ export function createAppLifecycleController(deps: {
     app.on('window-all-closed', () => {
       if (process.platform !== 'darwin') {
         app.quit()
+      }
+    })
+
+    // Dock Quit / Cmd+Q / app menu Quit call app.quit(), which closes windows.
+    // If minimize-to-tray is on, the close handler would preventDefault+hide and
+    // abort that quit — mark quitting first so hide-on-close is skipped.
+    app.on('before-quit', () => {
+      quitting = true
+      try { deps.destroyTray() } catch (error) {
+        console.warn('destroyTray during before-quit failed:', error)
+      }
+      try { deps.hideLoadingWindow() } catch (error) {
+        console.warn('hideLoadingWindow during before-quit failed:', error)
+      }
+      try { deps.closeServerListener() } catch (error) {
+        console.warn('closeServerListener during before-quit failed:', error)
       }
     })
 

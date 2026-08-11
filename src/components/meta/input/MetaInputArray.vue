@@ -284,7 +284,7 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
 import {
   foundByChars,
-  getTextColor,
+  getTagChipTextColor,
   highlightChars,
 } from '@/services/formatUtils'
 import {resolveTagAutocompleteSearchMode, matchesTagAutocomplete} from '@shared/tagAutocompleteMatch'
@@ -398,7 +398,7 @@ const chipColorFor = (tag?: TagListItem | null) => {
 const chipTextColorFor = (tag?: TagListItem | null) => {
   const color = chipColorFor(tag)
   if (!color) return ''
-  return getTextColor(color, chipVariant.value === 'outlined')
+  return getTagChipTextColor(color, chipVariant.value) || ''
 }
 
 const chipStyleFor = (tag?: TagListItem | null) => {

@@ -6,7 +6,7 @@ import {
   detectMedia,
   getFaceDetectionStatus,
   getStatus,
-  loadModel,
+  prepareDetectModel,
 } from '../../services/faceDetector'
 import {iterateFaceDetection} from '../../services/faceDetectOrchestrate'
 import {
@@ -19,16 +19,16 @@ import {
   iterateEnrollFromPerformerImages,
   iterateFaceMatching,
   listFacesForMedia,
-  loadEmbedModel,
   matchMediaFaces,
+  prepareEmbedModel,
 } from '../../services/faceRecognition'
-import {listFacesForTag} from '../../services/faceAppearances'
 import {
   getEnrollmentQualityForTag,
   iterateEnrollmentQualityReport,
 } from '../../services/enrollmentQuality'
 import { createMediaRepository } from '../../db/repositories/media'
 import { resolveExistingPath } from '../../services/contentHash'
+import { iteratePreparedModelDownload } from '../../services/modelDownloadStream'
 
 export default function createTasksFacesController(shared: TaskControllerShared) {
   const {db} = shared
@@ -43,13 +43,16 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     }
   }
 
-  const downloadFaceModel = async (_req: ApiRequest, res: ApiResponse) => {
-    try {
-      await loadModel(db)
-      sendOk(res, getStatus(db))
-    } catch (err) {
-      sendControllerError(res, err, 'Some error occurred while downloading face model.')
-    }
+  const downloadFaceModel = async (req: ApiRequest, res: ApiResponse) => {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while downloading face model.',
+      iterate: (shouldStop) => iteratePreparedModelDownload(
+        prepareDetectModel,
+        getStatus,
+        db,
+        {shouldStop},
+      ),
+    })
   }
 
   const faceEmbedModelStatus = async (_req: ApiRequest, res: ApiResponse) => {
@@ -60,13 +63,16 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     }
   }
 
-  const downloadFaceEmbedModel = async (_req: ApiRequest, res: ApiResponse) => {
-    try {
-      await loadEmbedModel(db)
-      sendOk(res, getEmbedStatus(db))
-    } catch (err) {
-      sendControllerError(res, err, 'Some error occurred while downloading face embed model.')
-    }
+  const downloadFaceEmbedModel = async (req: ApiRequest, res: ApiResponse) => {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while downloading face embed model.',
+      iterate: (shouldStop) => iteratePreparedModelDownload(
+        prepareEmbedModel,
+        getEmbedStatus,
+        db,
+        {shouldStop},
+      ),
+    })
   }
 
   const faceDetectionStatus = async (_req: ApiRequest, res: ApiResponse) => {
@@ -101,26 +107,6 @@ export default function createTasksFacesController(shared: TaskControllerShared)
       sendOk(res, await listFacesForMedia(db, mediaId, {ensureCrops}))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while loading faces.')
-    }
-  }
-
-  const facesForTag = async (req: ApiRequest, res: ApiResponse) => {
-    try {
-      const tagId = Number(req.body?.tagId)
-      if (!Number.isFinite(tagId) || tagId <= 0) {
-        throw new HttpError(400, 'tagId is required')
-      }
-      const sort = req.body?.sort === 'shuffle' ? 'shuffle' : 'time'
-      const limitRaw = Number(req.body?.limit)
-      const offsetRaw = Number(req.body?.offset)
-      sendOk(res, listFacesForTag(db, tagId, {
-        countOnly: Boolean(req.body?.countOnly),
-        sort,
-        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
-        offset: Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : undefined,
-      }))
-    } catch (err) {
-      sendControllerError(res, err, 'Some error occurred while loading face appearances.')
     }
   }
 
@@ -336,7 +322,6 @@ export default function createTasksFacesController(shared: TaskControllerShared)
     faceDetectionStatus,
     faceMatchStatus,
     facesForMedia,
-    facesForTag,
     detectFacesForMedia,
     matchFacesForMedia,
     assignFacePerformer,

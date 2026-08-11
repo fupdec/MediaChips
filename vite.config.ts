@@ -165,15 +165,35 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     },
     warmup: {
       clientFiles: [
+        './src/main.ts',
+        './src/App.vue',
         './src/composable/AddingMedia.ts',
         './src/composable/Watcher.ts',
         './src/pages/PageHome.vue',
         './src/layouts/LayoutItems.vue',
+        './src/components/app/**/*.vue',
       ],
     },
   },
   optimizeDeps: {
     holdUntilCrawlEnd: true,
+    // Pre-bundle Vuetify pieces discovered via lazy routes. Without this, Vite
+    // re-optimizes mid-startup and full-reloads the Electron window (flash + spinner).
+    include: [
+      'vuetify',
+      'vuetify/components/VAppBar',
+      'vuetify/components/VBottomSheet',
+      'vuetify/components/VBtnGroup',
+      'vuetify/components/VDataIterator',
+      'vuetify/components/VRangeSlider',
+      'vuetify/components/VSkeletonLoader',
+      'vuetify/components/VSlider',
+      'vuetify/components/VSnackbar',
+      'vuetify/components/VTable',
+      'vuetify/components/VThemeProvider',
+      'vuetify/components/VTreeview',
+      'vuetify/components/VVirtualScroll',
+    ],
   },
   base: './',
   test: {

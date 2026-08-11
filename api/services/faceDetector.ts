@@ -77,7 +77,6 @@ import {mapDetectFramesWithConcurrency} from './faceDetectFrameMap'
 import {embedImage as embedImageRuntime, loadEmbedModel} from './faceEmbedRuntime'
 import {embeddingToJson} from './faceMatchScoring'
 import {
-  buildCachedModelDownloadEvent,
   buildCachedModelReadyEvent,
   resolveCachedModelStatus,
 } from './faceModelStatus'
@@ -85,6 +84,7 @@ import {buildFaceDetectionStatusSnapshot} from './faceStatusSnapshots'
 import {packLetterboxedRgbaToNchw} from './faceTensorPrep'
 import {readFaceRaster, resizeFaceRaster, type FaceRasterImage} from './faceRaster'
 import {
+  downloadCachedModelIfNeeded,
   ensureCachedModelFile,
   getFaceModelCacheDir,
   getOrt,
@@ -166,16 +166,33 @@ type DetectPrepEvent = {
   phase: 'downloading_detect' | 'detect_ready'
   message: string
   sizeMb?: number
+  percent?: number
+  loaded?: number
+  total?: number | null
+  etaSeconds?: number | null
 }
 
-async function* prepareDetectModel(db: ApiDb): AsyncGenerator<DetectPrepEvent> {
+async function* prepareDetectModel(
+  db: ApiDb,
+  options: {shouldStop?: () => boolean} = {},
+): AsyncGenerator<DetectPrepEvent> {
   const needsDownload = !hasDownloadedModel(db)
   if (needsDownload) {
-    yield buildCachedModelDownloadEvent({
+    for await (const event of downloadCachedModelIfNeeded(db, {
+      modelId: FACE_MODEL_ID,
+      filename: FACE_MODEL_FILENAME,
+      url: FACE_MODEL_URL,
+      errorLabel: 'face model',
+      expectedBytes: FACE_MODEL_SIZE_MB * 1024 * 1024,
+      label: 'face detection',
       phase: 'downloading_detect',
-      sizeMb: FACE_MODEL_SIZE_MB,
-      kind: 'face detection',
-    })
+      shouldStop: options.shouldStop,
+    })) {
+      yield {
+        ...event,
+        sizeMb: FACE_MODEL_SIZE_MB,
+      }
+    }
   }
   await loadModel(db)
   if (needsDownload) {

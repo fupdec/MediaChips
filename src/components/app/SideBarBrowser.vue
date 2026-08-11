@@ -16,10 +16,15 @@
         icon
         variant="text"
         size="small"
-        v-tooltip:end="t('browser_layout.expand_sidebar')"
         :aria-label="t('browser_layout.expand_sidebar')"
         @click="toggleCollapsed"
       >
+        <v-tooltip activator="parent" location="end">
+          <span class="d-inline-flex align-center ga-2">
+            <span>{{ t('browser_layout.expand_sidebar') }}</span>
+            <v-hotkey keys="b" variant="flat"/>
+          </span>
+        </v-tooltip>
         <v-icon size="18">mdi-chevron-right</v-icon>
       </v-btn>
 
@@ -178,10 +183,15 @@
               icon
               size="x-small"
               variant="text"
-              v-tooltip:bottom="t('browser_layout.collapse_sidebar')"
               :aria-label="t('browser_layout.collapse_sidebar')"
               @click="toggleCollapsed"
             >
+              <v-tooltip activator="parent" location="bottom">
+                <span class="d-inline-flex align-center ga-2">
+                  <span>{{ t('browser_layout.collapse_sidebar') }}</span>
+                  <v-hotkey keys="b" variant="flat"/>
+                </span>
+              </v-tooltip>
               <v-icon size="16">mdi-chevron-left</v-icon>
             </v-btn>
           </div>

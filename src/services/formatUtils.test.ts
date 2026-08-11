@@ -3,6 +3,8 @@ import {
   getReadableDuration,
   getReadableFileSize,
   getTextColor,
+  getTagChipTextColor,
+  getTagChipTextStyle,
   getHoverPreviewDimensions,
   getTagHoverPreviewDimensions,
   highlightGlobalSearchText,
@@ -27,6 +29,15 @@ describe('formatUtils', () => {
     // Short hex must expand — otherwise #fff was treated as dark and got white text.
     expect(getTextColor('#fff')).toBe('black')
     expect(getTextColor('#fff', true)).toBe('#424242')
+  })
+
+  it('forces tag chip text color only for filled variants', () => {
+    expect(getTagChipTextColor('#e91e63', 'flat')).toBe('white')
+    expect(getTagChipTextColor('#e91e63', 'elevated')).toBe('white')
+    expect(getTagChipTextColor('#e91e63', 'tonal')).toBeUndefined()
+    expect(getTagChipTextColor('#e91e63', 'outlined')).toBeUndefined()
+    expect(getTagChipTextStyle('#fff', 'outlined')).toEqual({color: '#424242'})
+    expect(getTagChipTextStyle('#e91e63', 'tonal')).toBeUndefined()
   })
 
   it('calculates hover preview dimensions', () => {

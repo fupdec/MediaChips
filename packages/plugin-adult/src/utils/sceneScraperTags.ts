@@ -62,14 +62,28 @@ export function findTagByNameOrSynonym(metaId: number, name: string, tags: Tag[]
   )
 }
 
+/** Tag names are globally unique — reuse across categories when creating. */
+export function findTagByNameOrSynonymAnyCategory(name: string, tags: Tag[]): Tag | undefined {
+  return tags.find((tag) => tagMatchesLookupName(tag, name))
+}
+
 /** @deprecated Use findTagByNameOrSynonym */
 export function findTagByName(metaId: number, name: string, tags: Tag[]): Tag | undefined {
   return findTagByNameOrSynonym(metaId, name, tags)
 }
 
+function getConflictingTagId(error: unknown): number | null {
+  const data = (error as {
+    response?: { status?: number; data?: { code?: string; conflictingTagId?: unknown } }
+  })?.response?.data
+  if (!data || data.code !== 'name_conflict') return null
+  const id = Number(data.conflictingTagId)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
 export function buildScrapedTagEntries({
   scrapedNames,
-  metaId,
+  metaId: _metaId,
   assignedTagIds,
   tags,
 }: {
@@ -78,14 +92,15 @@ export function buildScrapedTagEntries({
   assignedTagIds: number[]
   tags: Tag[]
 }): SceneScraperTagEntry[] {
-  const metaTags = tags.filter((tag) => Number(tag.metaId) === Number(metaId))
-  const assignedTags = metaTags.filter((tag) =>
-    assignedTagIds.includes(Number(tag.id)),
-  )
+  void _metaId
+  const assignedIdSet = new Set(assignedTagIds.map((id) => Number(id)))
+  // Assigned links are authoritative; do not require tag.metaId to match the field.
+  const assignedTags = tags.filter((tag) => assignedIdSet.has(Number(tag.id)))
 
   return scrapedNames.map((name) => {
     const trimmed = name.trim()
-    const exists = Boolean(findTagByNameOrSynonym(metaId, trimmed, metaTags))
+    // Names are globally unique, so "exists" spans categories.
+    const exists = Boolean(findTagByNameOrSynonymAnyCategory(trimmed, tags))
     const alreadyAssigned = assignedTags.some((tag) => tagMatchesLookupName(tag, trimmed))
 
     return {
@@ -103,17 +118,40 @@ export async function findOrCreateTagByName(
   allTags: Tag[],
   createTags: (payload: Array<{ name: string; metaId: number }>) => Promise<{ data: Array<{ id: number; name?: string | null }> }>,
 ): Promise<number> {
-  const existing = findTagByNameOrSynonym(metaId, name, allTags)
-  if (existing) return existing.id
+  const existingInCategory = findTagByNameOrSynonym(metaId, name, allTags)
+  if (existingInCategory) return existingInCategory.id
 
-  const response = await createTags([{ name, metaId }])
-  const created = response.data[0]
-  allTags.push({
-    ...created,
-    id: created.id,
-    name: created.name || name,
-    metaId,
-  } as Tag)
+  // Names are unique across categories — reuse rather than failing create with 409.
+  const existingGlobal = findTagByNameOrSynonymAnyCategory(name, allTags)
+  if (existingGlobal) return existingGlobal.id
 
-  return created.id
+  try {
+    const response = await createTags([{ name, metaId }])
+    const created = response.data[0]
+    if (!created?.id) {
+      throw new Error(`Failed to create tag "${name}"`)
+    }
+    allTags.push({
+      ...created,
+      id: created.id,
+      name: created.name || name,
+      metaId,
+    } as Tag)
+
+    return created.id
+  } catch (error) {
+    const conflictingId = getConflictingTagId(error)
+    if (conflictingId) {
+      const known = allTags.find((tag) => Number(tag.id) === conflictingId)
+      if (known) return known.id
+
+      allTags.push({
+        id: conflictingId,
+        name,
+        metaId,
+      } as Tag)
+      return conflictingId
+    }
+    throw error
+  }
 }
