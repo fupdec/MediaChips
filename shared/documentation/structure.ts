@@ -74,10 +74,10 @@ export const docs = [
           { id: 'media.adding.blind_faces', name: 'Unknown face tags', icon: 'mdi-account-question-outline' },
           { id: 'media.adding.chapters', name: 'Auto chapters', icon: 'mdi-bookmark-outline' },
           { id: 'media.adding.organize', name: 'Organize into tag folders', icon: 'mdi-folder-move-outline' },
+          { id: 'media.adding.visual_search', name: 'Visual search index', icon: 'mdi-image-search-outline' },
         ],
       },
       { id: 'media.parser', name: 'Path tag parser', icon: 'mdi-text-box-search' },
-      { id: 'media.video_object_recognition', name: 'Video object recognition', icon: 'mdi-image-search-outline' },
       {
         id: 'media.face_recognition',
         name: 'Face recognition',

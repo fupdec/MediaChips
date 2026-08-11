@@ -102,11 +102,21 @@ const PHRASE_DELIMITERS = /[,;&+|/]+/
 const STRUCTURAL_DELIMITERS = /[_\-.]+/
 
 function normalizeToken(value: unknown) {
-  return String(value || '')
+  const raw = String(value || '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-zа-яё0-9]+/giu, '')
+    // Possessives before stripping punctuation: Jmac's → jmac (not jmacs)
+    .replace(/['’]s\b/g, '')
+    .replace(/['’]/g, '')
+
+  // Path matching compares letter-only forms so punctuation/digits in
+  // filenames (1080p, First+Last, scene_01) do not block tag hits.
+  const letters = raw.replace(/[^\p{L}]+/gu, '')
+  if (letters) return letters
+
+  // Keep pure numeric tokens (Series #100 → "100").
+  return raw.replace(/[^\p{N}]+/gu, '')
 }
 
 function splitCamelCase(value: string) {
@@ -273,8 +283,9 @@ function extractPhrasesFromSegment(
 ) {
   const phrases: PathPhrase[] = []
   const seen = new Set<string>()
+  const parts = splitPhraseParts(segment)
 
-  for (const part of splitPhraseParts(segment)) {
+  for (const part of parts) {
     const structuralChunks = splitStructuralChunks(part)
 
     for (const chunk of structuralChunks) {
@@ -301,6 +312,33 @@ function extractPhrasesFromSegment(
     }
     flushJoinRun()
   }
+
+  // Recombine First+Last / First&Last across phrase delimiters
+  // (Dilyla+Bloom+09 → "Dilyla Bloom"). Multi-token parts stay boundaries.
+  let delimiterJoinRun: string[] = []
+  const flushDelimiterJoinRun = () => {
+    if (delimiterJoinRun.length >= 2) {
+      addPhrase(
+        phrases,
+        seen,
+        delimiterJoinRun.join(' '),
+        source,
+        segment,
+        minLength,
+        precisionConfig,
+      )
+    }
+    delimiterJoinRun = []
+  }
+
+  for (const part of parts) {
+    if (!STRUCTURAL_DELIMITERS.test(part) && isJoinableStructuralChunk(part)) {
+      delimiterJoinRun.push(part)
+      continue
+    }
+    flushDelimiterJoinRun()
+  }
+  flushDelimiterJoinRun()
 
   return phrases
 }
@@ -348,9 +386,14 @@ function getTagTerms(tag: TagLikeForParser) {
   return [tag.name, ...synonyms].filter(Boolean) as string[]
 }
 
-function getTagTokenGroups(tag: TagLikeForParser, _minLength: number) {
+function getTagTokenGroups(
+  tag: TagLikeForParser,
+  _minLength: number,
+  options: {reservedPrimaryKeys?: Set<string>} = {},
+) {
   const groups: string[][] = []
   const seen = new Set<string>()
+  const reservedPrimaryKeys = options.reservedPrimaryKeys
 
   const addGroup = (tokens: string[]) => {
     if (!tokens.length) return
@@ -364,15 +407,32 @@ function getTagTokenGroups(tag: TagLikeForParser, _minLength: number) {
     const tokens = tokenizeTagTerm(term)
     addGroup(tokens)
 
-    const raw = String(term || '')
-    const hasDelimiter = /[\s,/_\-.]+/.test(raw)
-    if (!hasDelimiter && tokens.length > 1) {
-      const compact = normalizeToken(raw)
-      if (compact) addGroup([compact])
+    // Index glued form so path token "jadynnstone" matches tag "Jadynn Stone"
+    // (and the same for synonyms). Skip when another tag already owns that
+    // primary key (e.g. "Isabella" vs compact of "Isa Bella").
+    if (tokens.length > 1) {
+      const compact = tokens.join('')
+      if (!compact) continue
+      const compactKey = phraseKey([compact])
+      if (reservedPrimaryKeys?.has(compactKey)) continue
+      addGroup([compact])
     }
   }
 
   return groups
+}
+
+/** Primary phrase keys for tag names/synonyms (non-compact forms only). */
+function collectPrimaryTagPhraseKeys(tags: TagLikeForParser[]) {
+  const keys = new Set<string>()
+  for (const tag of tags) {
+    for (const term of getTagTerms(tag)) {
+      const tokens = tokenizeTagTerm(term)
+      if (!tokens.length) continue
+      keys.add(phraseKey(tokens))
+    }
+  }
+  return keys
 }
 
 function tokensEqual(a: string[], b: string[]) {
@@ -429,9 +489,10 @@ function buildTagPathIndex(tags: TagLikeForParser[], options: MatchPathTagsOptio
   const minLength = options.minTokenLength ?? 2
   const byTokenKey = new Map<string, TagIndexEntry[]>()
   let termCount = 0
+  const reservedPrimaryKeys = collectPrimaryTagPhraseKeys(tags)
 
   for (const tag of tags) {
-    for (const tagTokens of getTagTokenGroups(tag, minLength)) {
+    for (const tagTokens of getTagTokenGroups(tag, minLength, {reservedPrimaryKeys})) {
       const tokenKey = phraseKey(tagTokens)
       termCount += 1
       const entry: TagIndexEntry = { tag, tagTokens, tokenKey }
@@ -497,6 +558,7 @@ function matchPathsToTagsBatch(
   const matchOptions = {
     preferLongestMatch: options.preferLongestMatch !== false,
     minTokenLength: options.minTokenLength ?? 2,
+    matchPrecision: options.matchPrecision,
   }
   const index = buildTagPathIndex(tags, matchOptions)
   const matches: PathTagMatch[] = []

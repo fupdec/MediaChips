@@ -703,26 +703,6 @@ export const tasksApi = {
     )
   },
 
-  suggestTagsFromVideoFrames(body: {
-    paths?: Array<string | {path: string}>
-    mediaTypeId?: number
-    locale?: string
-    framesPerVideo?: number
-    limit?: number
-    excludeExisting?: boolean
-  }) {
-    return apiClient.post<{
-      words?: Array<[string, number]>
-      suggestions?: Array<{
-        word?: string
-        mediaIds?: Array<number | string>
-        confidence?: number
-      }>
-      media?: number
-      frames?: number
-    }>(API_ROUTES.taskSuggestTagsFromVideoFrames, body)
-  },
-
   streamScanFolderDuplicates(
     body: {
       folders: string[]
@@ -738,22 +718,6 @@ export const tasksApi = {
         body,
         signal: options.signal,
         errorMessage: 'Folder duplicate scan failed',
-      },
-      onEvent,
-    )
-  },
-
-  streamVideoObjectRecognition(
-    body: Record<string, unknown>,
-    options: {signal?: AbortSignal},
-    onEvent: (event: GenerationStreamEvent) => void,
-  ) {
-    return postApiNdjsonStream(
-      API_ROUTES.taskStreamVideoObjectRecognition,
-      {
-        body,
-        signal: options.signal,
-        errorMessage: 'Object recognition request failed',
       },
       onEvent,
     )

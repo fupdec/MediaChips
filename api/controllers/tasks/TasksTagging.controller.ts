@@ -1,12 +1,8 @@
 import type { TagLike, AnyRecord, MetaLike } from '../../types/db'
 import type { TaskControllerShared, TagSuggestionItem } from '../../types/tasks'
 import type { ModelStatus } from '../../types/mlModels'
-import { apiErrorMessage, sendControllerError, sendOk } from '../../types/errors'
-import {
-  runNdjsonAsyncGenerator,
-  setNdjsonStreamHeaders,
-  writeNdjson,
-} from './ndjsonStreamRunner'
+import { sendControllerError, sendOk } from '../../types/errors'
+import { runNdjsonAsyncGenerator } from './ndjsonStreamRunner'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { ParsePathTagEntry } from '@shared/api/responses'
 import { createTagsRepository } from '../../db/repositories/tags'
@@ -58,137 +54,6 @@ export default function createTasksTaggingController(shared: TaskControllerShare
       })
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while suggesting tags.")
-    }
-  }
-
-  const suggestTagsFromVideoFrames = async (req: ApiRequest, res: ApiResponse) => {
-    try {
-      const requestPaths = Array.isArray(req.body?.paths) ? req.body.paths : []
-      const mediaTypeId = Number(req.body?.mediaTypeId || 1)
-      const mediaLimit = Math.max(1, Math.min(Number(req.body?.mediaLimit || 20), 100))
-      const locale = req.body?.locale || 'en'
-
-      const pathValues = requestPaths
-        .map((item: AnyRecord) => typeof item === 'string' ? item : item.path)
-        .filter(Boolean)
-
-      const media = requestPaths.length > 0
-        ? mediaRepo.findByPaths(pathValues, mediaTypeId)
-        : mediaRepo.findByMediaType(mediaTypeId, {
-          limit: mediaLimit,
-          orderByCreatedDesc: true,
-        })
-
-      const result = await getVideoClipTagger().suggestTagsFromVideoFrames(db, media, {
-        locale,
-        framesPerVideo: req.body?.framesPerVideo || 4,
-        frameWidth: req.body?.frameWidth || 384,
-        topK: req.body?.topK || 8,
-        minScore: req.body?.minScore || 0.15,
-        limit: req.body?.limit || 50,
-        excludeExisting: req.body?.excludeExisting,
-      })
-
-      sendOk(res, {
-        words: result.suggestions.map((i: TagSuggestionItem) => [i.word, i.occurrences]),
-        suggestions: result.suggestions,
-        frames: result.frames,
-        media: result.media,
-        model: result.model,
-      })
-    } catch (err) {
-      sendControllerError(res, err, "Some error occurred while suggesting tags from video frames.")
-    }
-  }
-
-  const streamVideoObjectRecognition = async (req: ApiRequest, res: ApiResponse) => {
-    const writeEvent = (event: Record<string, unknown>) => {
-      writeNdjson(res, event)
-    }
-
-    try {
-      setNdjsonStreamHeaders(res)
-
-      const requestPaths = Array.isArray(req.body?.paths) ? req.body.paths : []
-      const mediaTypeId = Number(req.body?.mediaTypeId || 1)
-      const locale = req.body?.locale || 'en'
-      const pathValues = requestPaths
-        .map((item: AnyRecord) => typeof item === 'string' ? item : item.path)
-        .filter(Boolean)
-
-      const media = pathValues.length > 0
-        ? mediaRepo.findByPaths(pathValues, mediaTypeId)
-        : []
-
-      const total = media.length
-      let processed = 0
-      let frames = 0
-      let suggestions: TagSuggestionItem[] = []
-      const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
-      const existingTags = req.body?.excludeExisting === false
-        ? []
-        : tagsRepo.findAllNames()
-
-      writeEvent({
-        type: 'progress',
-        processed,
-        total,
-        remaining: total,
-      })
-
-      for (const item of media) {
-        const result = await getVideoClipTagger().classifyMedia(db, item, {
-          locale,
-          framesPerVideo: req.body?.framesPerVideo || 4,
-          frameWidth: req.body?.frameWidth || 384,
-          topK: req.body?.topK || 8,
-          minScore: req.body?.minScore || 0.15,
-          limit: req.body?.limit || 50,
-          excludeExisting: req.body?.excludeExisting,
-          tags: existingTags,
-        })
-
-        frames += result.frames
-        suggestions = getVideoClipTagger().aggregateFrameResults([
-          ...suggestions.flatMap((item: TagSuggestionItem) => (item.samples || []).map((sample) => ({
-            key: item.key,
-            score: sample.score || item.confidence,
-            mediaId: sample.mediaId,
-            timestamp: sample.timestamp,
-          }))),
-          ...result.suggestions.flatMap((item: TagSuggestionItem) => (item.samples || []).map((sample) => ({
-            key: item.key,
-            score: sample.score || item.confidence,
-            mediaId: sample.mediaId,
-            timestamp: sample.timestamp,
-          }))),
-        ], locale, existingTags).slice(0, Number(req.body?.limit || 50))
-
-        processed += 1
-        writeEvent({
-          type: 'progress',
-          processed,
-          total,
-          remaining: Math.max(total - processed, 0),
-          current: item.path,
-        })
-      }
-
-      writeEvent({
-        type: 'complete',
-        words: suggestions.map((i: TagSuggestionItem) => [i.word, i.occurrences]),
-        suggestions,
-        frames,
-        media: total,
-        model: getVideoClipTagger().CLIP_MODEL,
-      })
-      res.end()
-    } catch (err) {
-      writeEvent({
-        type: 'error',
-        message: apiErrorMessage(err) || "Some error occurred while recognizing video objects."
-      })
-      res.end()
     }
   }
 
@@ -331,8 +196,6 @@ export default function createTasksTaggingController(shared: TaskControllerShare
 
   return {
     suggestTagsFromPaths,
-    suggestTagsFromVideoFrames,
-    streamVideoObjectRecognition,
     parsePathTags,
     parseLibraryTagsStatus,
     streamParseLibraryTagsPreview,

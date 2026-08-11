@@ -32,14 +32,8 @@ export interface MediaAddingState {
   addedMedia: AddedMediaEntry[]
   parsingTags: boolean
   suggestedTags: string[]
-  videoSuggestedTags: unknown[]
   addedMediaTypeId: number | null
   addedMediaType: string | null
-  recognizingObjects: boolean
-  objectRecognitionProgress: number
-  objectRecognitionProcessed: number
-  objectRecognitionTotal: number
-  objectRecognitionRemaining: number
   detectingFaces: boolean
   faceDetectionProgress: number
   faceDetectionProcessed: number
@@ -77,14 +71,8 @@ export const useTasksStore = defineStore('useTasksStore', {
       addedMedia: [],
       parsingTags: false,
       suggestedTags: [],
-      videoSuggestedTags: [],
       addedMediaTypeId: null,
       addedMediaType: null,
-      recognizingObjects: false,
-      objectRecognitionProgress: 0,
-      objectRecognitionProcessed: 0,
-      objectRecognitionTotal: 0,
-      objectRecognitionRemaining: 0,
       detectingFaces: false,
       faceDetectionProgress: 0,
       faceDetectionProcessed: 0,

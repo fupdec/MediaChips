@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Video frame auto-tag / object recognition tagging** — removed Enhance “Auto-tag from what’s on screen”, Recognize objects, and related APIs; CLIP visual-search indexing and chapter labeling remain
+
 ## [1.7.1] - 2026-08-11
 
 ### Fixed

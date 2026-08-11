@@ -161,14 +161,8 @@ export const useMediaAdding = () => {
     task.value.addedMedia = []
     task.value.parsingTags = false
     task.value.suggestedTags = []
-    task.value.videoSuggestedTags = []
     task.value.addedMediaTypeId = null
     task.value.addedMediaType = null
-    task.value.recognizingObjects = false
-    task.value.objectRecognitionProgress = 0
-    task.value.objectRecognitionProcessed = 0
-    task.value.objectRecognitionTotal = 0
-    task.value.objectRecognitionRemaining = 0
     task.value.detectingFaces = false
     task.value.faceDetectionProgress = 0
     task.value.faceDetectionProcessed = 0

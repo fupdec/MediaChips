@@ -339,6 +339,41 @@ describe('path tag matching', () => {
     expect(matchNames('/library/Koda_Monroe_1080p.mp4', tags)).toEqual(['Koda Monroe'])
   })
 
+  it('matches glued FirstLast filename to spaced tag name', () => {
+    const tags = [tag(1, 'Jadynn Stone')]
+
+    expect(matchNames("/downloads/Jadynnstone vs Jmac's.mp4", tags)).toEqual(['Jadynn Stone'])
+  })
+
+  it('matches First+Last path parts to spaced tag name', () => {
+    const tags = [tag(1, 'Dilyla Bloom')]
+
+    expect(matchNames('/downloads/Dilyla+Bloom+09.mp4', tags)).toEqual(['Dilyla Bloom'])
+  })
+
+  it('matches spaced synonym against glued path token', () => {
+    const tags = [tag(1, 'Kelly Melons', performerMeta, 'Kelly Tea')]
+
+    expect(matchNames('/downloads/KellyTea_scene.mp4', tags)).toEqual(['Kelly Melons'])
+  })
+
+  it('does not let compact Isa Bella steal Isabella paths', () => {
+    const tags = [
+      tag(1, 'Isabella'),
+      tag(2, 'Isa Bella'),
+    ]
+
+    expect(matchNames('/videos/Isabella/scene.mp4', tags)).toEqual(['Isabella'])
+    expect(matchNames('/videos/Isa Bella/scene.mp4', tags)).toEqual(['Isa Bella'])
+  })
+
+  it('strips non-letters from path tokens before matching', () => {
+    const tags = [tag(1, "Jmac")]
+
+    expect(matchNames("/downloads/Jmac's-scene_01.mp4", tags)).toEqual(['Jmac'])
+    expect(matchNames('/downloads/Jmac.1080p.mp4', tags)).toEqual(['Jmac'])
+  })
+
   it('batch matching matches per-path matching', () => {
     const tags = [
       tag(1, 'Usha White'),

@@ -39,7 +39,6 @@ import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {
   acceptSuggestedTagsAndAssign,
-  applyClipSuggestionsToMedia,
   applyImportPathAutoTags,
   previewImportPathTagAssignments,
 } from '@/services/importPathAutoTag'
@@ -120,21 +119,6 @@ describe('importPathAutoTag', () => {
     expect(applyParseLibraryTags).toHaveBeenCalled()
     expect(result.createdTags).toBe(1)
     expect(result.createdNames).toEqual(['BrandNew'])
-    expect(result.applied).toBe(2)
-  })
-
-  it('applies CLIP suggestions as create+assign into Tags category', async () => {
-    const result = await applyClipSuggestionsToMedia(
-      [{word: 'car', mediaIds: [101]}, {word: 'beach', mediaIds: [102]}],
-      [999],
-    )
-    expect(applyParseLibraryTags).toHaveBeenCalledWith({
-      assignments: [
-        expect.objectContaining({mediaId: 101, tagName: 'car', metaId: 10, willCreate: true}),
-        expect.objectContaining({mediaId: 102, tagName: 'beach', metaId: 10, willCreate: true}),
-      ],
-    })
-    expect(result.createdTags).toBe(2)
     expect(result.applied).toBe(2)
   })
 })

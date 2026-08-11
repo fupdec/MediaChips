@@ -169,9 +169,6 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('get', '/getMostPopularWordsFromMedia', 'getMostPopularWordsFromMedia')
   register('get', '/suggestTagsFromPaths', 'suggestTagsFromPaths', validateQuery(SuggestTagsRequestSchema))
   register('post', '/suggestTagsFromPaths', 'suggestTagsFromPaths', validateBody(SuggestTagsRequestSchema))
-  register('post', '/suggestTagsFromVideoFrames', 'suggestTagsFromVideoFrames', validateBody(SuggestTagsRequestSchema))
-  register('post', '/streamVideoObjectRecognition', 'streamVideoObjectRecognition', validateBody(SuggestTagsRequestSchema))
-
   register('get', '/clipModelStatus', 'clipModelStatus')
   register('post', '/downloadClipModel', 'downloadClipModel', validateBody(BackupNameRequestSchema))
 

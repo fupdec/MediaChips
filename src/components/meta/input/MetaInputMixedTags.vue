@@ -16,7 +16,8 @@
     hide-selected
     multiple
     no-filter
-    :menu-props="menuProps"
+    :menu-props="resolvedMenuProps"
+    @update:menu="onMenuUpdate"
     @keydown.enter="onEnter"
     @blur="onBlur"
   >
@@ -114,6 +115,10 @@
       </div>
       <v-list-item
         v-else-if="item.raw.kind === 'load-more'"
+        v-intersect="{
+          handler: (isIntersecting) => onLoadMoreRowIntersect(isIntersecting, item.raw.metaId),
+          options: menuIntersectOptions,
+        }"
         density="compact"
         class="mixed-tags__load-more-item"
         :disabled="Boolean(metaLoading[item.raw.metaId])"
@@ -197,6 +202,7 @@ import {typedApi} from '@/services/typedApi'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
+import {useAutocompleteMenuInfiniteScroll} from '@/composable/useAutocompleteMenuInfiniteScroll'
 import {
   foundByChars,
   getTagChipTextColor,
@@ -293,6 +299,40 @@ const metaPage = ref<Record<number, number>>({})
 const metaHasMore = ref<Record<number, boolean>>({})
 const metaLoading = ref<Record<number, boolean>>({})
 let fetchRequestId = 0
+
+async function loadMoreNextCategory() {
+  for (const id of normalizedMetaIds.value) {
+    if (!metaHasMore.value[id] || metaLoading.value[id]) continue
+    await loadMoreMeta(id)
+    return
+  }
+}
+
+const {
+  menuProps: infiniteMenuProps,
+  intersectOptions: menuIntersectOptions,
+  onMenuUpdate,
+  maybeFillMenu,
+} = useAutocompleteMenuInfiniteScroll({
+  canLoadMore: () => Object.values(metaHasMore.value).some(Boolean),
+  isLoading: () => Object.values(metaLoading.value).some(Boolean),
+  loadMore: () => loadMoreNextCategory(),
+  baseContentClass: computed(() => {
+    const fromProps = props.menuProps?.contentClass
+    return typeof fromProps === 'string' ? fromProps : 'custom-list mixed-tags-dropdown'
+  }),
+  maxHeight: 360,
+})
+
+const resolvedMenuProps = computed(() => ({
+  ...props.menuProps,
+  ...infiniteMenuProps.value,
+  maxHeight: props.menuProps?.maxHeight ?? infiniteMenuProps.value.maxHeight,
+}))
+
+function onLoadMoreRowIntersect(isIntersecting: boolean, metaId: number) {
+  if (isIntersecting) void loadMoreMeta(metaId)
+}
 
 function makeKey(metaId: number, tagId: number): MixedTagKey {
   return `${metaId}:${tagId}`
@@ -654,6 +694,8 @@ async function getTags(searchQuery = search.value) {
     }
 
     tagOptions.value = mergeOptions(selectedOptions, mainOptions)
+    await nextTick()
+    void maybeFillMenu()
   } catch (error) {
     if (requestId !== fetchRequestId) return
     tagOptions.value = []

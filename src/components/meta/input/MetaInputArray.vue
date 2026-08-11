@@ -10,7 +10,7 @@
     item-value="id"
     ref="field"
     :rules="[rules]"
-    :menu-props="menuProps"
+    :menu-props="resolvedMenuProps"
     :label="meta.name"
     :hint="meta.hint"
     :disabled="disabled"
@@ -19,6 +19,7 @@
     multiple
     :autofocus="autofocus"
     :class="{'meta-input-array--filter': purpose === 'filter'}"
+    @update:menu="onMenuUpdate"
     @keydown.enter="onEnter"
     @blur="onBlur"
   >
@@ -190,7 +191,7 @@
     <template #append-item>
       <div
         v-if="hasMore"
-        v-intersect="onLoadMoreIntersect"
+        v-intersect="loadMoreIntersect"
         class="d-flex justify-center pa-2"
       >
         <v-progress-circular
@@ -275,6 +276,7 @@ import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import orderBy from 'lodash/orderBy'
+import {useAutocompleteMenuInfiniteScroll} from '@/composable/useAutocompleteMenuInfiniteScroll'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -339,6 +341,32 @@ const hasMore = ref(false)
 const loadingMore = ref(false)
 const sentinelIntersecting = ref(false)
 let fetchRequestId = 0
+
+const {
+  menuProps: infiniteMenuProps,
+  intersectOptions: menuIntersectOptions,
+  onMenuUpdate,
+  maybeFillMenu,
+} = useAutocompleteMenuInfiniteScroll({
+  canLoadMore: () => hasMore.value,
+  isLoading: () => loadingMore.value,
+  loadMore: () => loadMoreTags(),
+  baseContentClass: computed(() => {
+    const fromProps = props.menuProps?.contentClass
+    return typeof fromProps === 'string' ? fromProps : 'custom-list'
+  }),
+})
+
+const resolvedMenuProps = computed(() => ({
+  ...props.menuProps,
+  ...infiniteMenuProps.value,
+  maxHeight: props.menuProps?.maxHeight ?? infiniteMenuProps.value.maxHeight,
+}))
+
+const loadMoreIntersect = computed(() => ({
+  handler: onLoadMoreIntersect,
+  options: menuIntersectOptions.value,
+}))
 
 const sortBy = computed(() => [
   {
@@ -570,6 +598,8 @@ const getTags = async (
         (selectedRes.data.items ?? []) as TagListItem[],
         mainItems,
       )
+      await nextTick()
+      void maybeFillMenu()
     }
   } catch (e) {
     if (requestId !== fetchRequestId) return

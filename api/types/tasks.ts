@@ -27,22 +27,7 @@ export interface TagSuggestionItem {
   occurrences?: number
 }
 
-export interface ClassifyMediaResult {
-  frames: number
-  suggestions: TagSuggestionItem[]
-}
-
-export interface SuggestTagsResult {
-  suggestions: TagSuggestionItem[]
-  frames: unknown
-  media: unknown
-  model: unknown
-}
-
 export interface VideoClipTaggerService {
-  suggestTagsFromVideoFrames(db: ApiDb, media: unknown, options: unknown): Promise<SuggestTagsResult>
-  classifyMedia(db: ApiDb, item: unknown, options: unknown): Promise<ClassifyMediaResult>
-  aggregateFrameResults(frames: unknown[], locale: string, existingTags: unknown): TagSuggestionItem[]
   getStatus(db: ApiDb): unknown
   loadModel(db: ApiDb): Promise<void>
   CLIP_MODEL: string

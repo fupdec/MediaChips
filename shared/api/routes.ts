@@ -140,8 +140,6 @@ export const API_ROUTES = {
   taskStreamFindMissingMedia: '/api/Task/streamFindMissingMedia',
   taskRelinkMissingMedia: '/api/Task/relinkMissingMedia',
   taskStreamScanFolderDuplicates: '/api/Task/streamScanFolderDuplicates',
-  taskStreamVideoObjectRecognition: '/api/Task/streamVideoObjectRecognition',
-  taskSuggestTagsFromVideoFrames: '/api/Task/suggestTagsFromVideoFrames',
   taskContentHashBackfillStatus: '/api/Task/contentHashBackfillStatus',
   taskStreamContentHashBackfill: '/api/Task/streamContentHashBackfill',
   taskOshashBackfillStatus: '/api/Task/oshashBackfillStatus',

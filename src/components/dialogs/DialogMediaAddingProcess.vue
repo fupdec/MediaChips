@@ -220,26 +220,7 @@
                       :disabled="smartWizardRunning || !isAddedVideo"
                       :label="t('media.adding.make_library_smart_clip')"
                     />
-                    <ButtonDocumentation id="media.video_object_recognition" dense/>
-                  </div>
-                  <div
-                    v-if="smartWizard.clip"
-                    class="smart-wizard-nested"
-                  >
-                    <div class="smart-wizard-option">
-                      <v-checkbox
-                        v-model="smartWizard.clipTags"
-                        density="compact"
-                        hide-details
-                        color="primary"
-                        :disabled="smartWizardRunning || !isAddedVideo || !clipModelReady"
-                        :label="t('media.adding.make_library_smart_clip_tags')"
-                      />
-                      <ButtonDocumentation id="media.video_object_recognition" dense/>
-                    </div>
-                    <div class="text-caption text-medium-emphasis smart-wizard-nested__hint">
-                      {{ t('media.adding.make_library_smart_clip_tags_hint') }}
-                    </div>
+                    <ButtonDocumentation id="media.adding.visual_search" dense/>
                   </div>
                   <div class="smart-wizard-option">
                     <v-checkbox
@@ -358,7 +339,7 @@
 
         <!-- Suggested tags -->
         <section
-          v-if="task.added.length > 0 && task.finished && (pendingReviewTagCount || clipReviewSuggestions.length)"
+          v-if="task.added.length > 0 && task.finished && pendingReviewTagCount"
           class="process-dialog-section process-dialog-section--panel process-dialog-section--review"
         >
           <div class="text-body-2 font-weight-medium mb-1">
@@ -385,19 +366,6 @@
             </v-btn>
 
             <v-btn
-              v-if="clipReviewSuggestions.length"
-              @click="applyClipSuggestedTags"
-              :loading="applyingClipSuggestions"
-              :disabled="applyingClipSuggestions"
-              color="primary"
-              rounded
-              variant="tonal"
-            >
-              <v-icon icon="mdi-tag-plus-outline" start/>
-              {{ t('media.adding.apply_clip_suggestions') }}
-            </v-btn>
-
-            <v-btn
               v-if="pathReviewTagNames.length"
               @click="openSuggestedTags"
               color="primary"
@@ -414,7 +382,7 @@
 
         <!-- Other actions -->
         <section
-          v-if="task.added.length > 0 && task.finished && (canReparseTags || canRecognizeObjects || canDetectFaces)"
+          v-if="task.added.length > 0 && task.finished && (canReparseTags || canDetectFaces)"
           class="process-dialog-section process-dialog-section--panel"
         >
           <div class="text-caption text-medium-emphasis text-uppercase mb-2">
@@ -440,37 +408,6 @@
             />
 
             <v-btn
-              v-if="canRecognizeObjects && clipModelNeedsDownload"
-              @click="downloadClipModel"
-              :loading="clipModelDownloading"
-              :disabled="clipModelDownloading"
-              color="secondary"
-              rounded
-              variant="outlined"
-            >
-              <v-icon icon="mdi-download" start/>
-              {{ t('media.adding.download_video_recognition_model') }}
-            </v-btn>
-
-            <v-btn
-              v-if="canRecognizeObjects && clipModelReady"
-              @click="recognizeVideoObjects"
-              :loading="task.recognizingObjects"
-              :disabled="task.recognizingObjects"
-              color="secondary"
-              rounded
-              variant="flat"
-            >
-              <v-icon icon="mdi-image-search-outline" start/>
-              {{ t('media.adding.recognize_video_objects') }}
-            </v-btn>
-            <ButtonDocumentation
-              v-if="canRecognizeObjects"
-              id="media.video_object_recognition"
-              dense
-            />
-
-            <v-btn
               v-if="canDetectFaces && faceModelNeedsDownload"
               @click="downloadFaceModel"
               :loading="faceModelDownloading"
@@ -487,7 +424,7 @@
               v-if="canDetectFaces && faceModelReady"
               @click="detectFacesInAddedVideos"
               :loading="task.detectingFaces"
-              :disabled="task.detectingFaces || task.recognizingObjects"
+              :disabled="task.detectingFaces"
               color="secondary"
               rounded
               variant="flat"
@@ -498,37 +435,10 @@
           </div>
 
           <div
-            v-if="canRecognizeObjects && clipModelNeedsDownload"
-            class="text-caption text-medium-emphasis mt-2"
-          >
-            {{ t('media.adding.download_video_recognition_model_hint') }}
-          </div>
-          <div
             v-if="canDetectFaces && faceModelNeedsDownload"
             class="text-caption text-medium-emphasis mt-2"
           >
             {{ t('media.adding.download_face_model_hint') }}
-          </div>
-
-          <div v-if="task.recognizingObjects || task.objectRecognitionTotal > 0" class="mt-3">
-            <v-progress-linear
-              v-model="task.objectRecognitionProgress"
-              color="secondary"
-              height="18"
-              rounded
-              :striped="task.recognizingObjects"
-            >
-              <template #default="{ value }">
-                <strong class="process-percents">{{ Math.ceil(value) }} %</strong>
-              </template>
-            </v-progress-linear>
-            <div class="text-caption text-medium-emphasis mt-1">
-              {{ t('media.adding.video_object_recognition_progress', {
-                processed: task.objectRecognitionProcessed,
-                total: task.objectRecognitionTotal,
-                remaining: task.objectRecognitionRemaining,
-              }) }}
-            </div>
           </div>
 
           <div v-if="task.detectingFaces || task.faceDetectionTotal > 0" class="mt-3">
@@ -791,7 +701,6 @@ import {getErrorResponseData} from '@/types/vue'
 import {getDefaultParserTagsMetaId} from '@/services/ensureStarterMeta'
 import {
   acceptSuggestedTagsAndAssign,
-  applyClipSuggestionsToMedia,
   applyImportPathAutoTags,
   applyNeighborSuggestionsToMedia,
 } from '@/services/importPathAutoTag'
@@ -801,13 +710,9 @@ import {
   loadOrganizeByTagPrefs,
 } from '@/services/organizeMediaByTag'
 import {
-  clipSuggestionLabels,
   flattenNeighborSuggestions,
   neighborSuggestionLabels,
-  normalizeClipSuggestions,
-  splitClipSuggestionsByConfidence,
   splitNeighborSuggestionsByCount,
-  type ClipTagSuggestion,
   type NeighborTagSuggestion,
 } from '@/services/smartLibrarySuggestions'
 import {checkFileExists} from '@/services/fileService'
@@ -844,16 +749,6 @@ interface MediaAddingDuplicateEntry {
   duplicate?: MediaDuplicateDetails
 }
 
-interface RecognitionEvent {
-  type: string
-  processed?: number
-  total?: number
-  remaining?: number
-  suggestions?: Array<{ word?: string }>
-  media?: number
-  message?: string
-}
-
 interface NotificationAction {
   id: string
   text: string
@@ -878,7 +773,7 @@ const emit = defineEmits(['close'])
 
 // Stores and composables
 const {xs} = useDisplay()
-const {t, locale} = useI18n()
+const {t} = useI18n()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const tasksStore = useTasksStore()
@@ -904,7 +799,6 @@ const clipModelDownloading = ref(false)
 const faceModelStatus = ref('unknown')
 const faceModelDownloading = ref(false)
 const acceptingSuggestedTags = ref(false)
-const applyingClipSuggestions = ref(false)
 const pathAutoTagSummary = ref('')
 const neighborReviewSuggestions = ref<NeighborTagSuggestion[]>([])
 const smartWizardSummary = ref<{
@@ -925,7 +819,6 @@ const smartWizard = ref({
   faces: false,
   blindFaceTags: parseMatchAutoBlindTagsForm(settingsStore['faceMatch.autoBlindTags'], false),
   clip: true,
-  clipTags: true,
   chapters: false,
   organize: false,
   neighborTags: false,
@@ -943,20 +836,10 @@ const hasFacePeopleCategory = computed(() => {
   return Number.isFinite(metaId) && metaId > 0
 })
 
-let objectRecognitionAbort: AbortController | null = null
-let objectRecognitionTaskId: string | null = null
 let faceDetectionAbort: AbortController | null = null
 let faceDetectionTaskId: string | null = null
 
 const stopBackgroundJobs = () => {
-  if (objectRecognitionAbort) {
-    objectRecognitionAbort.abort()
-    objectRecognitionAbort = null
-  }
-  if (objectRecognitionTaskId) {
-    tasksStore.removeTask(objectRecognitionTaskId)
-    objectRecognitionTaskId = null
-  }
   if (faceDetectionAbort) {
     faceDetectionAbort.abort()
     faceDetectionAbort = null
@@ -974,7 +857,6 @@ const stopBackgroundJobs = () => {
     smartWizardTaskId = null
   }
   smartWizardRunning.value = false
-  task.value.recognizingObjects = false
   task.value.detectingFaces = false
 }
 
@@ -1028,12 +910,11 @@ const task = computed(() => tasksStore.mediaAdding)
 const isAddedVideo = computed(() =>
   String(task.value.addedMediaType || '').toLowerCase() === 'video',
 )
-const canRecognizeObjects = computed(() => (
+const canDetectFaces = computed(() => (
   task.value.finished &&
   task.value.added.length > 0 &&
   isAddedVideo.value
 ))
-const canDetectFaces = canRecognizeObjects
 const canReparseTags = computed(() => (
   task.value.finished &&
   task.value.addedMedia.length > 0
@@ -1091,29 +972,9 @@ const smartEnhanceSafeHint = computed(() => (
 
 const pathReviewTagNames = computed(() => uniqueNames(task.value.suggestedTags || []))
 
-const clipReviewSuggestions = computed((): ClipTagSuggestion[] => {
-  const raw = task.value.videoSuggestedTags || []
-  if (!raw.length) return []
-  if (typeof raw[0] === 'string') {
-    return normalizeClipSuggestions(
-      (raw as string[]).map((word) => ({word, mediaIds: addedMediaIds()})),
-    )
-  }
-  return normalizeClipSuggestions(raw as Array<{
-    word?: string
-    confidence?: number
-    mediaIds?: Array<number | string>
-    tagId?: number
-    synonyms?: string | null
-    willCreate?: boolean
-    canonical?: string
-  }>)
-})
-
 const pendingReviewTagCount = computed(() =>
   pathReviewTagNames.value.length
-  + neighborReviewSuggestions.value.length
-  + clipReviewSuggestions.value.length,
+  + neighborReviewSuggestions.value.length,
 )
 
 const smartWizardSummaryLines = computed(() => {
@@ -1178,7 +1039,6 @@ function applySafeEnhancePreset() {
     faces: false,
     blindFaceTags: false,
     clip: video,
-    clipTags: video,
     chapters: false,
     organize: false,
     neighborTags: false,
@@ -1194,7 +1054,6 @@ function applyEverythingPossiblePreset() {
     faces: video,
     blindFaceTags: video && hasFacePeopleCategory.value,
     clip: video,
-    clipTags: video,
     chapters: video,
     // Disk moves stay opt-in in Advanced — never auto from Magic.
     organize: false,
@@ -1505,7 +1364,6 @@ const openSuggestedTags = () => {
   const names = uniqueNames([
     ...pathReviewTagNames.value,
     ...neighborSuggestionLabels(neighborReviewSuggestions.value),
-    ...clipSuggestionLabels(clipReviewSuggestions.value),
   ])
   appShell.openTagsAddWithNames({
     names,
@@ -1518,8 +1376,7 @@ const openSuggestedTags = () => {
 const acceptAllSuggestedTags = async () => {
   const pathNames = pathReviewTagNames.value
   const neighbors = [...neighborReviewSuggestions.value]
-  const clips = [...clipReviewSuggestions.value]
-  if (!pathNames.length && !neighbors.length && !clips.length) return
+  if (!pathNames.length && !neighbors.length) return
 
   acceptingSuggestedTags.value = true
   try {
@@ -1531,13 +1388,6 @@ const acceptAllSuggestedTags = async () => {
       const neighborResult = await applyNeighborSuggestionsToMedia(neighbors)
       applied += neighborResult.applied
       neighborReviewSuggestions.value = []
-    }
-
-    if (clips.length) {
-      const clipResult = await applyClipSuggestionsToMedia(clips, mediaIds)
-      created += clipResult.createdTags
-      applied += clipResult.applied
-      task.value.videoSuggestedTags = []
     }
 
     if (pathNames.length) {
@@ -1573,35 +1423,6 @@ const acceptAllSuggestedTags = async () => {
     })
   } finally {
     acceptingSuggestedTags.value = false
-  }
-}
-
-const applyClipSuggestedTags = async () => {
-  const suggestions = [...clipReviewSuggestions.value]
-  if (!suggestions.length) return
-  applyingClipSuggestions.value = true
-  try {
-    const mediaIds = addedMediaIds()
-    const result = await applyClipSuggestionsToMedia(suggestions, mediaIds)
-    task.value.videoSuggestedTags = []
-    listSync.getItemsFromDb({ids: mediaIds, type: 'media'})
-    setNotification({
-      type: 'success',
-      title: t('media.adding.apply_clip_suggestions'),
-      text: t('media.adding.apply_clip_suggestions_done', {
-        created: result.createdTags,
-        applied: result.applied,
-      }),
-    })
-  } catch (error) {
-    console.error('Error applying CLIP suggestions:', error)
-    setNotification({
-      type: 'error',
-      title: t('media.adding.apply_clip_suggestions'),
-      text: getErrorMessage(error),
-    })
-  } finally {
-    applyingClipSuggestions.value = false
   }
 }
 
@@ -1659,150 +1480,6 @@ const downloadClipModel = async () => {
     })
   } finally {
     clipModelDownloading.value = false
-  }
-}
-
-const recognizeVideoObjects = async () => {
-  if (!clipModelReady.value) {
-    setNotification({
-      type: 'warning',
-      title: t('media.adding.recognize_video_objects'),
-      text: t('media.adding.download_video_recognition_model_hint'),
-    })
-    return
-  }
-
-  task.value.recognizingObjects = true
-  task.value.objectRecognitionProgress = 0
-  task.value.objectRecognitionProcessed = 0
-  task.value.objectRecognitionTotal = task.value.added.length
-  task.value.objectRecognitionRemaining = task.value.added.length
-
-  const previousStatus = task.value.status
-  task.value.status = t('media.adding.recognizing_video_objects')
-  const controller = new AbortController()
-  objectRecognitionAbort = controller
-  const recognitionTaskId = tasksStore.setTask({
-    title: t('media.adding.recognizing_video_objects'),
-    subtitle: t('media.adding.video_object_recognition_progress', {
-      processed: 0,
-      total: task.value.added.length,
-      remaining: task.value.added.length,
-    }),
-    icon: 'image-search-outline',
-    progress: 0,
-    click: () => {
-      task.value.dialogProcess = true
-    },
-    action: () => {
-      controller.abort()
-    },
-  })
-  objectRecognitionTaskId = recognitionTaskId
-
-  try {
-    let names: string[] = []
-
-    await typedApi.streamVideoObjectRecognition(
-      {
-        paths: task.value.added,
-        mediaTypeId: task.value.addedMediaTypeId,
-        locale: locale.value,
-        framesPerVideo: 4,
-        limit: 50,
-        excludeExisting: true,
-      },
-      {signal: controller.signal},
-      (event: RecognitionEvent) => {
-        if (event.type === 'progress') {
-          task.value.objectRecognitionProcessed = event.processed || 0
-          task.value.objectRecognitionTotal = event.total || task.value.objectRecognitionTotal || 0
-          task.value.objectRecognitionRemaining = event.remaining ?? Math.max(task.value.objectRecognitionTotal - task.value.objectRecognitionProcessed, 0)
-          task.value.objectRecognitionProgress = task.value.objectRecognitionTotal
-            ? Math.min((task.value.objectRecognitionProcessed / task.value.objectRecognitionTotal) * 100, 100)
-            : 0
-
-          tasksStore.updateTask(recognitionTaskId, {
-            subtitle: t('media.adding.video_object_recognition_progress', {
-              processed: task.value.objectRecognitionProcessed,
-              total: task.value.objectRecognitionTotal,
-              remaining: task.value.objectRecognitionRemaining,
-            }),
-            progress: task.value.objectRecognitionProgress,
-          })
-        }
-
-        if (event.type === 'complete') {
-          names = (event.suggestions || [])
-            .map((item: { word?: string }) => item.word)
-            .filter((word): word is string => Boolean(word))
-            .slice(0, 50)
-
-          task.value.objectRecognitionProcessed = event.media || task.value.objectRecognitionTotal
-          task.value.objectRecognitionTotal = event.media || task.value.objectRecognitionTotal
-          task.value.objectRecognitionRemaining = 0
-          task.value.objectRecognitionProgress = 100
-
-          tasksStore.updateTask(recognitionTaskId, {
-            subtitle: t('media.adding.video_object_recognition_complete'),
-            progress: 100,
-            color: 'success',
-            done: true,
-            action: undefined,
-          })
-        }
-
-        if (event.type === 'error') {
-          throw new Error(event.message || 'Object recognition failed')
-        }
-      },
-    )
-
-    task.value.videoSuggestedTags = names
-    task.value.suggestedTags = uniqueNames([
-      ...(task.value.suggestedTags || []),
-      ...names,
-    ]).slice(0, 80)
-
-    if (names.length > 0) {
-      setNotification({
-        type: 'success',
-        title: t('media.adding.video_object_recognition_complete'),
-        text: t('media.adding.video_object_tags_found', {count: names.length}),
-        actions: [openProcessAction()],
-      })
-    } else {
-      setNotification({
-        type: 'info',
-        title: t('media.adding.video_object_recognition_complete'),
-        text: t('media.adding.video_object_tags_not_found'),
-        actions: [openProcessAction()],
-      })
-    }
-  } catch (error) {
-    console.error('Error recognizing video objects:', error)
-    const isAbortError = error instanceof Error && error.name === 'AbortError'
-    if (isAbortError) {
-      if (objectRecognitionTaskId === recognitionTaskId) {
-        tasksStore.removeTask(recognitionTaskId)
-      }
-    } else {
-      tasksStore.updateTask(recognitionTaskId, {
-        subtitle: t('media.adding.video_object_recognition_failed'),
-        color: 'error',
-        done: true,
-        action: undefined,
-      })
-      setNotification({
-        type: 'error',
-        title: t('media.adding.video_object_recognition_failed'),
-        text: getErrorMessage(error),
-      })
-    }
-  } finally {
-    if (objectRecognitionAbort === controller) objectRecognitionAbort = null
-    task.value.status = previousStatus
-    task.value.recognizingObjects = false
   }
 }
 
@@ -2191,7 +1868,6 @@ const runSmartLibraryWizard = async () => {
 
       if (step === 'clip') {
         smartWizardStatus.value = t('media.adding.make_library_smart_clip')
-        const clipSpan = smartWizard.value.clipTags ? span * 0.55 : span
         await typedApi.streamBackfill(
           'clipEmbedding',
           {mediaIds, signal: controller.signal},
@@ -2199,7 +1875,7 @@ const runSmartLibraryWizard = async () => {
             if (event.type === 'progress') {
               const processed = Number(event.processed || 0)
               const total = Number(event.total || mediaIds.length || 1)
-              smartWizardProgress.value = base + (processed / Math.max(total, 1)) * clipSpan
+              smartWizardProgress.value = base + (processed / Math.max(total, 1)) * span
               tasksStore.updateTask(trayTaskId, {
                 subtitle: t('media.adding.make_library_smart_clip_progress', {
                   processed,
@@ -2218,33 +1894,7 @@ const runSmartLibraryWizard = async () => {
           ...smartWizardSummary.value,
           clipIndexed: true,
         }
-
-        if (smartWizard.value.clipTags && clipModelReady.value && !controller.signal.aborted) {
-          smartWizardStatus.value = t('media.adding.make_library_smart_clip_tags')
-          tasksStore.updateTask(trayTaskId, {
-            subtitle: t('media.adding.make_library_smart_clip_tags'),
-            progress: base + clipSpan + (span - clipSpan) * 0.4,
-          })
-          const response = await typedApi.suggestTagsFromVideoFrames({
-            paths: task.value.added,
-            mediaTypeId: task.value.addedMediaTypeId ?? undefined,
-            framesPerVideo: 4,
-            limit: 50,
-            excludeExisting: true,
-          })
-          if (controller.signal.aborted) break
-          const clipSuggestions = normalizeClipSuggestions(
-            Array.isArray(response.data?.suggestions) ? response.data.suggestions : [],
-          )
-          const {high, low} = splitClipSuggestionsByConfidence(clipSuggestions)
-          if (high.length) {
-            const applied = await applyClipSuggestionsToMedia(high, mediaIds)
-            tagsAutoApplied += applied.applied
-          }
-          task.value.videoSuggestedTags = low
-          tagsPendingReview += low.length
-          smartWizardProgress.value = base + span
-        }
+        smartWizardProgress.value = base + span
       }
 
       if (step === 'chapters') {
@@ -2548,7 +2198,7 @@ watch(() => task.value?.finished, (finished) => {
   }
 })
 
-watch(canRecognizeObjects, (enabled) => {
+watch(canDetectFaces, (enabled) => {
   if (enabled) {
     fetchClipModelStatus()
     fetchFaceModelStatus()
