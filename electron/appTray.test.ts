@@ -6,6 +6,7 @@ import {getTrayMenuLabels} from '../shared/electron/trayMenuI18n'
 import {
   applyMacTrayTemplateBitmap,
   keepBlackPreserveAlpha,
+  strengthenTrayAlpha,
   buildDockMenuTemplate,
   buildTrayMenuTemplate,
   isTraySupportedPlatform,
@@ -47,6 +48,26 @@ describe('keepBlackPreserveAlpha', () => {
     const bitmap = Buffer.from([10, 20, 30, 180])
     keepBlackPreserveAlpha(bitmap, 'white')
     expect([...bitmap]).toEqual([255, 255, 255, 180])
+  })
+})
+
+describe('strengthenTrayAlpha', () => {
+  it('normalizes faint downscaled outline alpha to full opacity', () => {
+    const bitmap = Buffer.from([
+      0, 0, 0, 0,
+      0, 0, 0, 80,
+      0, 0, 0, 40,
+    ])
+    strengthenTrayAlpha(bitmap)
+    expect(bitmap[3]).toBe(0)
+    expect(bitmap[7]).toBe(255)
+    expect(bitmap[11]).toBe(128)
+  })
+
+  it('leaves already-opaque glyphs unchanged', () => {
+    const bitmap = Buffer.from([0, 0, 0, 255, 0, 0, 0, 180])
+    strengthenTrayAlpha(bitmap)
+    expect([...bitmap]).toEqual([0, 0, 0, 255, 0, 0, 0, 180])
   })
 })
 

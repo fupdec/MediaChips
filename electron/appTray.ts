@@ -141,7 +141,7 @@ function resolveTraySourcePath(appRoot: string): string {
   const png16Path = path.join(iconDir, 'favicon-16x16.png')
   const icoPath = path.join(iconDir, 'favicon.ico')
 
-  // Prefer the dedicated monochrome tray asset on every platform.
+  // Prefer the dedicated monochrome outline tray asset on every platform.
   if (fs.existsSync(templatePath)) return templatePath
   if (fs.existsSync(pngPath)) return pngPath
   if (fs.existsSync(png32Path)) return png32Path
@@ -170,8 +170,8 @@ function resolveTrayIcon(
 }
 
 /**
- * Solid silhouette with binary alpha (used before smooth downscale).
- * Accepts white-on-transparent or colored logos; dark backgrounds become transparent.
+ * Binary mask of logo pixels (used before smooth downscale).
+ * Accepts white-on-transparent outlines/fills or colored logos; dark backgrounds become transparent.
  */
 export function applyMacTrayTemplateBitmap(
   bitmap: Buffer,
@@ -206,6 +206,25 @@ export function keepBlackPreserveAlpha(
   }
 }
 
+/**
+ * Normalize alpha so thin outline strokes stay crisp after downscale
+ * (otherwise partial coverage washes out to a faint tray glyph).
+ */
+export function strengthenTrayAlpha(bitmap: Buffer): void {
+  let maxAlpha = 0
+  for (let i = 3; i < bitmap.length; i += 4) {
+    const a = bitmap[i] ?? 0
+    if (a > maxAlpha) maxAlpha = a
+  }
+  if (maxAlpha <= 0 || maxAlpha >= 250) return
+
+  const scale = 255 / maxAlpha
+  for (let i = 3; i < bitmap.length; i += 4) {
+    const a = bitmap[i] ?? 0
+    if (a > 0) bitmap[i] = Math.min(255, Math.round(a * scale))
+  }
+}
+
 function solidSmoothTraySize(
   mask: NativeImage,
   size: number,
@@ -214,6 +233,7 @@ function solidSmoothTraySize(
   const resized = mask.resize({width: size, height: size, quality: 'best'})
   const bitmap = Buffer.from(resized.toBitmap())
   keepBlackPreserveAlpha(bitmap, fill)
+  strengthenTrayAlpha(bitmap)
   return nativeImage.createFromBitmap(bitmap, {width: size, height: size})
 }
 
@@ -239,8 +259,8 @@ function buildTraySilhouetteMask(
 }
 
 /**
- * Build a Retina-ready menu-bar template: solid black fill, smooth edges via
- * hi-res mask → downscale (16@1x + 32@2x). macOS tints this automatically.
+ * Build a Retina-ready menu-bar template from the tray glyph (outline or fill),
+ * via hi-res mask → downscale (16@1x + 32@2x). macOS tints this automatically.
  */
 export function toMacMenuBarTemplateImage(source: NativeImage): NativeImage {
   const mask = buildTraySilhouetteMask(source, 'black')
@@ -268,6 +288,7 @@ export function toMacMenuBarTemplateImage(source: NativeImage): NativeImage {
 
 /**
  * Fixed-color tray glyph for Windows / Linux (no OS template tinting).
+ * Uses the same outline/fill mask as macOS, tinted for the OS theme.
  */
 export function toTraySilhouetteImage(
   source: NativeImage,
