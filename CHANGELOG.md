@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Face recognition on Windows** — temp `mediachips-faces-*` cleanup no longer fails the scan with `EPERM: operation not permitted, unlink` (read-only / locked files after frame extract)
+
 ### Removed
 
 - **Video frame auto-tag / object recognition tagging** — removed Enhance “Auto-tag from what’s on screen”, Recognize objects, and related APIs; CLIP visual-search indexing and chapter labeling remain

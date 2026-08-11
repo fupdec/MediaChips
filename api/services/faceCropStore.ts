@@ -33,9 +33,58 @@ export function ensureDir(dirPath: string) {
   }
 }
 
+/** Windows often locks freshly written temps (AV / Sharp); brief sync backoff before retry. */
+function sleepSyncMs(ms: number) {
+  if (ms <= 0) return
+  const buf = new Int32Array(new SharedArrayBuffer(4))
+  Atomics.wait(buf, 0, 0, ms)
+}
+
+/** Clear the DOS read-only bit so `rmSync` can unlink after ffmpeg/sharp writes. */
+function clearReadonlyTree(dirPath: string) {
+  if (process.platform !== 'win32') return
+  let entries: fs.Dirent[]
+  try {
+    entries = fs.readdirSync(dirPath, {withFileTypes: true})
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    const full = path.join(dirPath, entry.name)
+    try {
+      // On Windows, any mode without the owner-write bit clears FILE_ATTRIBUTE_READONLY.
+      fs.chmodSync(full, 0o666)
+    } catch {
+      // Ignore chmod races; rm may still succeed.
+    }
+    if (entry.isDirectory()) clearReadonlyTree(full)
+  }
+  try {
+    fs.chmodSync(dirPath, 0o666)
+  } catch {
+    // Ignore.
+  }
+}
+
+/**
+ * Best-effort recursive delete. Must not throw: callers use this in `finally`
+ * after face detect, and a Windows `EPERM` would replace a successful result.
+ */
 export function cleanupDir(dirPath: string | null) {
-  if (dirPath && fs.existsSync(dirPath)) {
-    fs.rmSync(dirPath, {recursive: true, force: true})
+  if (!dirPath || !fs.existsSync(dirPath)) return
+
+  const attempts = process.platform === 'win32' ? 5 : 1
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      clearReadonlyTree(dirPath)
+      fs.rmSync(dirPath, {recursive: true, force: true})
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code
+      const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'ENOTEMPTY'
+      if (!retryable || attempt >= attempts - 1) return
+      sleepSyncMs(40 * (attempt + 1))
+    }
   }
 }
 

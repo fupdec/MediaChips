@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, describe, expect, it, vi} from 'vitest'
 import {
   cleanupDir,
   ensureDir,
@@ -40,5 +40,17 @@ describe('faceCropStore paths', () => {
   it('cleanupDir no-ops on null/missing paths', () => {
     expect(() => cleanupDir(null)).not.toThrow()
     expect(() => cleanupDir(path.join(os.tmpdir(), `missing-${Date.now()}`))).not.toThrow()
+  })
+
+  it('cleanupDir swallows delete failures so finally blocks stay safe', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-crop-locked-'))
+    tmpRoots.push(root)
+    const spy = vi.spyOn(fs, 'rmSync').mockImplementation(() => {
+      const err = new Error('EPERM: operation not permitted, unlink') as NodeJS.ErrnoException
+      err.code = 'EPERM'
+      throw err
+    })
+    expect(() => cleanupDir(root)).not.toThrow()
+    spy.mockRestore()
   })
 })
