@@ -36,6 +36,22 @@ export const ExtendedStatsSchema = z.object({
   largestFiles: z.array(ExtendedStatsFileSchema).optional(),
 }).passthrough()
 
+export const ChartActivitySeriesSchema = z.object({
+  added: z.array(z.number()),
+  viewed: z.array(z.number()),
+  edited: z.array(z.number()),
+})
+
+export const ChartStatsSchema = z.object({
+  days: z.array(z.string()),
+  period: z.number(),
+  granularity: z.enum(['day', 'week', 'month']),
+  mediaTotal: z.number(),
+  tagsTotal: z.number(),
+  media: ChartActivitySeriesSchema,
+  tags: ChartActivitySeriesSchema,
+}).passthrough()
+
 export const HealthQueueItemIdSchema = z.enum([
   'visuals',
   'fingerprint',
@@ -253,6 +269,8 @@ export type ParsedHomeTagCount = z.infer<typeof HomeTagCountSchema>
 export type ParsedExtendedStatsByType = z.infer<typeof ExtendedStatsByTypeSchema>
 export type ParsedExtendedStatsFile = z.infer<typeof ExtendedStatsFileSchema>
 export type ParsedExtendedStats = z.infer<typeof ExtendedStatsSchema>
+export type ParsedChartStats = z.infer<typeof ChartStatsSchema>
+export type ParsedChartActivitySeries = z.infer<typeof ChartActivitySeriesSchema>
 export type ParsedHomeHealth = z.infer<typeof HomeHealthSchema>
 export type HealthQueueItem = NonNullable<ParsedHomeHealth['queue']>[number]
 export type HealthQueueItemId = z.infer<typeof HealthQueueItemIdSchema>

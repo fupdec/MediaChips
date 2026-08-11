@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **New database starter meta** — optional Tags category (parser-enabled, pinned to Videos/Images) when adding a database; on by default
+- **Home chart stats widget** — line chart of media/tag activity (added, viewed, edited) with 7D/30D/90D/1Y/All ranges (enabled by default)
 
 ### Fixed
 

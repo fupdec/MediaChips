@@ -1,6 +1,7 @@
 export const HOME_WIDGET_IDS = [
   'stats',
   'extendedStats',
+  'chartStats',
   'quickActions',
   'continue',
   'favorites',
@@ -31,6 +32,7 @@ export interface HomeWidgetsConfig {
 
 export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
   order: [
+    'chartStats',
     'quickActions',
     'continue',
     'favorites',
@@ -44,6 +46,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
   enabled: {
     stats: false,
     extendedStats: false,
+    chartStats: true,
     quickActions: true,
     continue: true,
     favorites: true,

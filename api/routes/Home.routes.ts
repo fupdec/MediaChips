@@ -7,6 +7,7 @@ import {
   GlobalSearchRequestSchema,
   HomeMediaQuerySchema,
   HomeMarkersQuerySchema,
+  HomeChartStatsQuerySchema,
  } from '../../shared/schemas/requests'
 import createHomeController from '../controllers/Home.controller'
 
@@ -21,6 +22,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get('/health', Home.getHealth)
   router.get('/health-lite', Home.getHealthLite)
   router.get('/extended-stats', Home.getExtendedStats)
+  router.get('/chart-stats', validateQuery(HomeChartStatsQuerySchema), Home.getChartStats)
   router.post('/search', validateBody(GlobalSearchRequestSchema), Home.searchGlobal)
   router.post('/search/media', validateBody(GlobalSearchRequestSchema), Home.searchMedia)
   router.post('/search/tags', validateBody(GlobalSearchRequestSchema), Home.searchTags)

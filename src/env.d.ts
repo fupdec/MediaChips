@@ -28,6 +28,7 @@ declare module 'vue-chartjs' {
   import type { DefineComponent } from 'vue'
   export const Line: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
   export const Bar: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
+  export const Doughnut: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
 }
 
 declare module 'chart.js' {
@@ -41,4 +42,9 @@ declare module 'chart.js' {
   export const LinearScale: unknown
   export const CategoryScale: unknown
   export const PointElement: unknown
+  export const ArcElement: unknown
+  export const BarElement: unknown
+  export const Filler: unknown
+  export type ChartData<TType = string> = Record<string, unknown>
+  export type ChartOptions<TType = string> = Record<string, unknown>
 }

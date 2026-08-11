@@ -5,6 +5,7 @@ import { getHomeMedia } from '../services/homeMedia'
 import { getRandomMarks } from '../services/homeMarkers'
 import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
+import { getHomeChartStats } from '../services/homeChartStats'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 import { parseClampedLimit } from '../utils/parseRequestNumber'
 
@@ -60,6 +61,15 @@ export default (db: ApiDb) => {
     }
   }
 
+  const getChartStats = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const data = await getHomeChartStats(db, req.query?.period)
+      sendOk(res, data)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving chart stats.')
+    }
+  }
+
   const searchMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const q = req.body?.q ?? req.body?.query
@@ -103,6 +113,7 @@ export default (db: ApiDb) => {
     getHealth,
     getHealthLite,
     getExtendedStats,
+    getChartStats,
     searchMedia,
     searchTags,
     searchGlobal: searchGlobalHandler,

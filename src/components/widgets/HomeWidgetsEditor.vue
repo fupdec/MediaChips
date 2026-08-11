@@ -81,6 +81,10 @@ const widgetMeta = computed(() => ({
     title: t('settings_labels.general.home_widget_extended_stats'),
     icon: 'mdi-chart-box-outline',
   },
+  chartStats: {
+    title: t('settings_labels.general.home_widget_chart_stats'),
+    icon: 'mdi-chart-line',
+  },
   quickActions: {
     title: t('settings_labels.general.home_widget_quick_actions'),
     icon: 'mdi-flash',

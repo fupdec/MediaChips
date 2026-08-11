@@ -15,6 +15,13 @@
   </WidgetLazyMount>
 
   <WidgetLazyMount
+    v-else-if="widgetId === 'chartStats'"
+    min-height="280px"
+  >
+    <WidgetChartStats/>
+  </WidgetLazyMount>
+
+  <WidgetLazyMount
     v-else-if="widgetId === 'quickActions'"
     min-height="120px"
   >
@@ -97,6 +104,7 @@ import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
 // Above-the-fold widgets: sync import avoids async 0-height flash / CLS.
 import WidgetTotalStats from '@/components/widgets/WidgetTotalStats.vue'
 import WidgetExtendedStats from '@/components/widgets/WidgetExtendedStats.vue'
+import WidgetChartStats from '@/components/widgets/WidgetChartStats.vue'
 import WidgetQuickActions from '@/components/widgets/WidgetQuickActions.vue'
 import WidgetMediaRow from '@/components/widgets/WidgetMediaRow.vue'
 import {useHomeMedia} from '@/composable/useHomeMedia'

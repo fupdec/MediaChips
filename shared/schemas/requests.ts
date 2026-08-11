@@ -431,6 +431,13 @@ export const HomeMarkersQuerySchema = z.object({
   limit: optionalCoercedNumber,
 }).passthrough()
 
+export const HomeChartStatsQuerySchema = z.object({
+  period: z.preprocess(
+    (value) => (value === 'all' || value === 'ALL' ? 0 : value),
+    z.coerce.number().optional(),
+  ),
+}).passthrough()
+
 export const MarkClipsRequestSchema = z.object({
   tagId: optionalCoercedNumber,
   markIds: z.array(z.coerce.number()).optional(),

@@ -4,6 +4,7 @@ import type { HomeMediaResponse } from '@shared/api/responses'
 import type { AxiosRequestConfig } from 'axios'
 import {
   parseExtendedStats,
+  parseChartStats,
   parseGlobalSearchMediaResponse,
   parseGlobalSearchTagsResponse,
   parseGlobalSearchResponse,
@@ -31,6 +32,13 @@ export const homeApi = {
     return apiClient.get(API_ROUTES.homeExtendedStats).then((res) => ({
       ...res,
       data: validated(parseExtendedStats, res.data),
+    }))
+  },
+
+  getHomeChartStats(params?: {period?: number | 'all'}) {
+    return apiClient.get(API_ROUTES.homeChartStats, {params}).then((res) => ({
+      ...res,
+      data: validated(parseChartStats, res.data),
     }))
   },
 

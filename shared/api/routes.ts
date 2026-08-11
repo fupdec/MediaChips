@@ -87,6 +87,7 @@ export const API_ROUTES = {
   tasksBackupsImportBackup: '/api/TasksBackups/importBackup',
   tasksBackupsExportBackup: '/api/TasksBackups/exportBackup',
   homeExtendedStats: '/api/home/extended-stats',
+  homeChartStats: '/api/home/chart-stats',
   mediaGetStats: '/api/Media/get-stats',
   tagCount: '/api/Tag/count',
   homeMarkers: '/api/home/markers',

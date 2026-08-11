@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseExtendedStats,
+  parseChartStats,
   parseHomeHealth,
   parseHomeMarkers,
   parseHomeMediaStats,
@@ -29,6 +30,22 @@ describe('home schemas', () => {
     })
     expect(result.total).toBe(10)
     expect(result.byType?.[0]?.mediaTypeId).toBe(1)
+  })
+
+  it('parses chart stats', () => {
+    const result = parseChartStats({
+      days: ['2026-08-01', '2026-08-02'],
+      period: 30,
+      granularity: 'day',
+      mediaTotal: 3,
+      tagsTotal: 2,
+      media: {added: [1, 0], viewed: [0, 2], edited: [0, 1]},
+      tags: {added: [0, 1], viewed: [1, 0], edited: [0, 0]},
+    })
+    expect(result.mediaTotal).toBe(3)
+    expect(result.period).toBe(30)
+    expect(result.media.added).toEqual([1, 0])
+    expect(result.tags.viewed[0]).toBe(1)
   })
 
   it('parses health and markers', () => {

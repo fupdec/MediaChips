@@ -12,6 +12,7 @@ import {
   TagSchema,
 } from './entities'
 import {
+  ChartStatsSchema,
   ExtendedStatsSchema,
   GlobalSearchMediaResponseSchema,
   GlobalSearchTagsResponseSchema,
@@ -181,6 +182,10 @@ export function parseHomeTagCount(data: unknown) {
 
 export function parseExtendedStats(data: unknown) {
   return ExtendedStatsSchema.parse(data)
+}
+
+export function parseChartStats(data: unknown) {
+  return ChartStatsSchema.parse(data)
 }
 
 export function parseHomeHealth(data: unknown) {
@@ -470,6 +475,7 @@ export {
 } from './entities'
 
 export {
+  ChartStatsSchema,
   ExtendedStatsSchema,
   HomeHealthSchema,
   HomeHealthLiteSchema,
