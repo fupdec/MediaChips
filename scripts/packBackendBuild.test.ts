@@ -45,6 +45,7 @@ describe('pack from .backend-build', () => {
     const compile = fs.readFileSync(path.join(root, 'scripts/compile.mjs'), 'utf8')
     expect(compile).toContain('bundleElectronPreload')
     expect(compile).toContain('electron/preload.ts')
+    expect(compile).toContain('buildSync')
 
     const preload = path.join(root, 'electron/preload.js')
     if (!fs.existsSync(preload)) return

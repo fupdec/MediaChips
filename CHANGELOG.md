@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Windows Electron shell** — window minimize/maximize/close and Help → DevTools work again; the preload script no longer fails inside `app.asar` looking for `shared/electron/ipc`
 - **System menu shortcuts** — accelerator labels are spaced and right-aligned in the Windows title-bar menus
+- **Windows CI / postinstall** — bundle Electron preload via the esbuild JS API so `npm ci` no longer fails spawning the esbuild binary on Windows runners
 
 ## [1.8.0] - 2026-08-11
 

@@ -143,11 +143,14 @@ function copyJsFiles(srcDir, destDir) {
 /**
  * Bundle electron/preload.ts into a single CJS file.
  * Packaged preload cannot use runMain's `.backend-build` require rewrite.
+ *
+ * Use the JS API (not spawning `esbuild/bin/esbuild`): on Windows that path is
+ * not reliably executable via spawnSync without a shell, which broke `npm ci`.
  */
 function bundleElectronPreload() {
-  let esbuildBin
+  let esbuild
   try {
-    esbuildBin = require.resolve('esbuild/bin/esbuild')
+    esbuild = require('esbuild')
   } catch {
     console.error('[compile] esbuild not found (expected via vite). Run npm install.')
     process.exit(1)
@@ -155,22 +158,25 @@ function bundleElectronPreload() {
 
   const entry = join(root, 'electron/preload.ts')
   const outfile = join(root, 'electron/preload.js')
-  const build = spawnSync(esbuildBin, [
-    entry,
-    '--bundle',
-    '--platform=node',
-    '--format=cjs',
-    `--outfile=${outfile}`,
-    '--external:electron',
-    '--log-level=warning',
-  ], {
-    cwd: root,
-    stdio: 'inherit',
-  })
-
-  if (build.status !== 0 || !existsSync(outfile)) {
+  try {
+    esbuild.buildSync({
+      entryPoints: [entry],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      outfile,
+      external: ['electron'],
+      logLevel: 'warning',
+    })
+  } catch (error) {
     console.error('[compile] Failed to bundle electron/preload.js')
-    process.exit(build.status ?? 1)
+    console.error(error)
+    process.exit(1)
+  }
+
+  if (!existsSync(outfile)) {
+    console.error('[compile] Failed to bundle electron/preload.js (outfile missing)')
+    process.exit(1)
   }
 }
 
