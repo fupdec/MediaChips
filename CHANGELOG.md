@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-08-11
+
 ### Added
 
 - **New database starter meta** — optional Tags category (parser-enabled, pinned to Videos/Images) when adding a database; on by default
