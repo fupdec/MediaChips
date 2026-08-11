@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-08-11
+
+### Added
+
+- **Player neighbor previews** — hover cards for previous/next playlist items; up-next card above the timeline in the last 5 seconds (timeline scrub preview disabled in that window)
+- **AI model download progress** — streamed progress, consent prompts, and clearer status while downloading local models
+- **Duplicate database** — copy a library database with an optional generated-cache copy
+- **Duplicate tags / categories** — duplicate actions for tag categories and tags
+- **System menus** — expanded tray / Dock / Jump List menus with locale sync and a Mac tray option
+
+### Changed
+
+- **Locales** — sync translations and replace remaining hardcoded English UI strings
+- **Adult scene scraper** — stronger tag mapping and meta ensure/apply flow
+- **Import / face / CLIP tooling** — download and tagging UX polish around model installs and face detect streams
+
+### Fixed
+
+- **Plugin settings** — persistence no longer drops values; edit-dialog thumbs stay fresh after updates
+- **Tag autocomplete** — mid-string, synonym, and character-gap matching for tag categories
+- **Tag hover cards** — no longer stale after editing a tag
+- **Hover / big preview sound** — respects the play-sound setting again
+
 ## [1.6.1] - 2026-08-10
 
 ### Fixed
