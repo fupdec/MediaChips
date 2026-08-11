@@ -103,6 +103,8 @@ export type GenerationStreamEvent = {
   phase?: string
   stage?: string
   message?: string
+  /** 0–100 download / long-running progress when phase is downloading. */
+  percent?: number
   stopped?: boolean
   downloadSizeMb?: number
   orphansDeleted?: number
