@@ -100,8 +100,9 @@ async function checkFileExistsRemote(filePath: string) {
     else rememberNegativeResult(filePath)
     return exists
   } catch {
-    rememberNegativeResult(filePath)
-    return false
+    // Transient API/cold-start failures must not paint the whole grid as missing
+    // (desaturated “black” cards) for NEGATIVE_CACHE_TTL_MS.
+    return true
   }
 }
 

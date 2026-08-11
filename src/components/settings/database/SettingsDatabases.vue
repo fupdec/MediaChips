@@ -134,6 +134,21 @@
             />
 
             <v-switch
+              v-if="dialogMode === 'add'"
+              v-model="createStarterMeta"
+              color="primary"
+              hide-details
+              class="mb-2"
+              :label="t('settings_labels.database.create_starter_meta')"
+            />
+            <p
+              v-if="dialogMode === 'add'"
+              class="text-caption text-medium-emphasis mb-4"
+            >
+              {{ t('settings_labels.database.create_starter_meta_hint') }}
+            </p>
+
+            <v-switch
               v-if="dialogMode === 'duplicate'"
               v-model="includeGeneratedCache"
               color="primary"
@@ -183,6 +198,7 @@ import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 import {updateConfig, reloadApplicationAfterDatabaseChange} from '@/services/configService'
+import {ensureStarterMeta} from '@/services/ensureStarterMeta'
 import {setNotification} from '@/services/notificationService'
 import {
   getDateFromMs,
@@ -211,6 +227,9 @@ const db = ref<DatabaseEntry | null>(null)
 const valid = ref(false)
 const dialogMode = ref<'add' | 'edit' | 'duplicate'>('add')
 const includeGeneratedCache = ref(true)
+const createStarterMeta = ref(true)
+/** Set when a newly added DB opted into starter meta; applied on first activate. */
+const pendingStarterMetaDbId = ref<string | null>(null)
 
 const dialogDb = ref(false)
 const dialogActivateConfirm = ref(false)
@@ -265,6 +284,7 @@ function openAdd() {
   dbName.value = ''
   dbIcon.value = DEFAULT_DB_ICON
   includeGeneratedCache.value = true
+  createStarterMeta.value = true
   headerText.value = t('settings_labels.database.adding_database')
   buttons.value = [
     {
@@ -346,6 +366,10 @@ async function addDb() {
   db.value = [...databases.value].sort(
     (a, b) => b.createdAt - a.createdAt,
   )[0] ?? null
+
+  pendingStarterMetaDbId.value = createStarterMeta.value && db.value
+    ? db.value.id
+    : null
 
   dialogDb.value = false
   dialogActivateConfirm.value = true
@@ -429,6 +453,29 @@ function syncActiveDatabase(databaseId: string) {
   databases.value = databasesList
 }
 
+async function applyPendingStarterMeta(databaseId: string) {
+  if (pendingStarterMetaDbId.value !== databaseId) return
+  pendingStarterMetaDbId.value = null
+
+  try {
+    const {data: mediaTypes} = await typedApi.getMediaTypes()
+    const mediaTypeIds = (mediaTypes || [])
+      .filter((mediaType) => mediaType.type === 'video' || mediaType.type === 'image')
+      .map((mediaType) => Number(mediaType.id))
+      .filter((id) => id > 0)
+
+    if (!mediaTypeIds.length) return
+
+    await ensureStarterMeta({mediaTypeIds})
+  } catch (error) {
+    console.error('Failed to create starter meta for new database:', error)
+    setNotification({
+      type: 'error',
+      text: error instanceof Error ? error.message : t('common.error'),
+    })
+  }
+}
+
 async function activateDb() {
   if (!db.value) return
 
@@ -441,6 +488,7 @@ async function activateDb() {
     syncActiveDatabase(targetId)
     await reloadApplicationAfterDatabaseChange()
     await loadDatabaseSizes()
+    await applyPendingStarterMeta(targetId)
     setNotification({
       type: 'success',
       text: t('settings_labels.database.database_activated'),

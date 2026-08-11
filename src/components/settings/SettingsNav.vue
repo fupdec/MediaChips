@@ -93,9 +93,11 @@ const selected = computed({
 }
 
 .settings-nav__item :deep(.v-list-item-title) {
-  font-weight: 400;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   line-height: 1.3;
   margin-bottom: 2px;
+  color: rgba(var(--v-theme-on-surface), 0.92);
 }
 
 .settings-nav__subtitle {

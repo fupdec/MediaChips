@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New database starter meta** — optional Tags category (parser-enabled, pinned to Videos/Images) when adding a database; on by default
+
 ### Fixed
 
+- **Library grid after API hiccups** — a failed list refresh no longer wipes an already-loaded page back to “Nothing here yet / add files”; file-existence check errors no longer mark cards as missing
 - **Face recognition on Windows** — temp `mediachips-faces-*` cleanup no longer fails the scan with `EPERM: operation not permitted, unlink` (read-only / locked files after frame extract)
+
+### Changed
+
+- **Settings sidebar** — clearer section titles (e.g. Library & tags, Database & backups) with stronger nav label weight
 
 ### Removed
 
