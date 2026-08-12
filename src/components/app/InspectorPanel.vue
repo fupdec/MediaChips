@@ -132,13 +132,6 @@
 
         <div class="inspector-panel__body">
           <div
-            class="inspector-panel__name"
-            :title="focusedItem.name"
-          >
-            {{ focusedItem.name || t('browser_layout.untitled') }}
-          </div>
-
-          <div
             v-if="mediaPath"
             class="inspector-panel__path text-medium-emphasis"
             :title="mediaPath"
@@ -146,98 +139,53 @@
             {{ mediaPath }}
           </div>
 
-          <div
-            v-if="tagSynonyms"
-            class="inspector-panel__synonyms text-medium-emphasis"
-            v-html="tagSynonyms"
+          <EditPinnedMetaValues
+            v-if="focusedMedia"
+            ref="editingRef"
+            class="inspector-panel__editor"
+            layout="inspector"
+            :show-overview="false"
+            :media="focusedMedia"
+            @dirty-change="formDirty = $event"
+            @saved="onSaved"
           />
-
-          <div
-            v-if="tagCountries.length"
-            class="inspector-panel__field"
-          >
-            <div class="inspector-panel__field-label">
-              {{ t('meta.types.country') }}
-            </div>
-            <div class="inspector-panel__chips">
-              <v-chip
-                v-for="country in tagCountries"
-                :key="country"
-                size="small"
-                class="ma-1"
-                variant="tonal"
-              >
-                {{ country }}
-              </v-chip>
-            </div>
-          </div>
-
-          <div
-            v-if="itemBookmark"
-            class="inspector-panel__field"
-          >
-            <div class="inspector-panel__field-label">
-              {{ t('meta.default_names.bookmark') }}
-            </div>
-            <div class="inspector-panel__bookmark">
-              {{ itemBookmark }}
-            </div>
-          </div>
-
-          <div
-            v-if="showMetaRow"
-            class="inspector-panel__meta-row"
-          >
-            <v-rating
-              v-if="itemsStore.type === 'media' || meta?.rating"
-              :model-value="Number(focusedItem.rating) || 0"
-              density="compact"
-              half-increments
-              readonly
-              size="small"
-              active-color="yellow-darken-2"
-            />
-            <v-icon
-              v-if="(itemsStore.type === 'media' || meta?.favorite) && focusedItem.favorite"
-              size="18"
-              color="pink"
-            >
-              mdi-heart
-            </v-icon>
-            <span
-              v-if="itemColor"
-              class="inspector-panel__color-swatch"
-              :style="{backgroundColor: itemColor}"
-              :title="itemColor"
-            />
-          </div>
-
-          <div class="inspector-panel__section-label">
-            {{ t('meta.fields.metadata') }}
-          </div>
-          <ItemPinnedMeta
-            v-if="focusedItem"
-            class="inspector-panel__pinned"
-            :item="focusedItem"
-            :tags="focusedItem.tags"
-            :values="focusedItem.values"
-            :type="isTag ? 'tag' : 'media'"
-            :is-show-all="true"
-            :show-preset="isTag"
+          <EditPinnedMetaValues
+            v-else-if="focusedTag && meta"
+            ref="editingRef"
+            class="inspector-panel__editor"
+            layout="inspector"
+            :show-overview="false"
+            :tag="focusedTag"
+            :meta="meta"
+            @dirty-change="formDirty = $event"
+            @saved="onSaved"
           />
+        </div>
 
-          <div class="inspector-panel__actions">
-            <v-btn
-              color="primary"
-              variant="tonal"
-              block
-              size="small"
-              prepend-icon="mdi-pencil-outline"
-              @click="openEdit"
-            >
-              {{ t('browser_layout.edit_item') }}
-            </v-btn>
-          </div>
+        <div class="inspector-panel__actions">
+          <v-btn
+            color="success"
+            variant="flat"
+            block
+            size="small"
+            prepend-icon="mdi-content-save"
+            :loading="saving"
+            :disabled="!formDirty || saving"
+            @click="saveEdits"
+          >
+            {{ t('common.save') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            block
+            size="small"
+            prepend-icon="mdi-pencil-outline"
+            :disabled="saving"
+            @click="openFullEdit"
+          >
+            {{ t('browser_layout.open_full_editor') }}
+          </v-btn>
         </div>
       </template>
     </div>
@@ -268,13 +216,14 @@ import {computed, ref, watch} from 'vue'
 import path from 'path-browserify'
 import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
-import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
+import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
-import {useAppPlatform} from '@/composable/useAppPlatform'
+import {useItemsListSync} from '@/composable/itemsListSync'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {setOption} from '@/services/settingsService'
 import {checkFileExists} from '@/services/fileService'
@@ -283,7 +232,6 @@ import {
   getReadableDuration,
   getReadableFileSize,
 } from '@/services/formatUtils'
-import {parseCountries} from '@/utils/country'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {
   isAudioMediaType,
@@ -301,7 +249,7 @@ import type {MediaItem, Tag} from '@/types/stores'
 withDefaults(defineProps<{
   width?: number
 }>(), {
-  width: 280,
+  width: 360,
 })
 
 const TAG_GALLERY_TYPES = ['main', 'alt', 'custom1', 'custom2'] as const
@@ -313,13 +261,18 @@ type InspectorFact = {
   value: string
 }
 
+type EditComponentInstance = {
+  save?: (options?: {itemId?: number}) => Promise<boolean>
+  isDirty?: () => boolean
+}
+
 const {t} = useI18n()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
-const {isElectron} = useAppPlatform()
+const listSync = useItemsListSync()
 const winElectronUi = isWinElectronUi()
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
@@ -337,6 +290,9 @@ const detectedHeight = ref(0)
 const galleryImages = ref<Array<{type: TagGalleryType; src: string}>>([])
 const activeGalleryType = ref<TagGalleryType | null>(null)
 const galleryLoadToken = ref(0)
+const editingRef = ref<EditComponentInstance | null>(null)
+const formDirty = ref(false)
+const saving = ref(false)
 
 const focusedItem = computed(() => {
   const id = itemsStore.selection[0] ?? itemsStore.selected_last
@@ -364,28 +320,6 @@ const mediaType = computed(() => {
 })
 
 const mediaPath = computed(() => String(focusedMedia.value?.path || ''))
-
-const tagSynonyms = computed(() => {
-  if (!focusedTag.value?.synonyms) return ''
-  return String(focusedTag.value.synonyms)
-})
-
-const tagCountries = computed(() => {
-  if (!focusedTag.value?.country) return [] as string[]
-  return parseCountries(String(focusedTag.value.country))
-})
-
-const itemBookmark = computed(() => {
-  const value = focusedItem.value?.bookmark
-  if (value == null || value === '') return ''
-  return String(value)
-})
-
-const itemColor = computed(() => {
-  const value = focusedItem.value?.color
-  if (!value) return ''
-  return String(value)
-})
 
 const mediaWidth = computed(() => {
   if (!focusedItem.value) return 0
@@ -479,13 +413,6 @@ const previewInfoLabel = computed(() => {
   return parts.join(' · ')
 })
 
-const showMetaRow = computed(() => {
-  if (!focusedItem.value) return false
-  return Boolean(focusedItem.value.rating)
-    || Boolean(focusedItem.value.favorite)
-    || Boolean(itemColor.value)
-})
-
 const fallbackIcon = computed(() => {
   if (itemsStore.type === 'tag') return 'mdi-tag-outline'
   if (isImageMediaType(mediaType.value ?? undefined)) return 'mdi-image-outline'
@@ -574,6 +501,7 @@ watch(focusedItem, (item) => {
   detectedHeight.value = 0
   galleryImages.value = []
   activeGalleryType.value = null
+  formDirty.value = false
 
   if (isTag.value && item) {
     void loadTagGallery(item as Tag)
@@ -586,12 +514,46 @@ watch(activeGalleryType, () => {
   detectedHeight.value = 0
 })
 
-function clearFocus(): void {
+async function flushEdits(): Promise<void> {
+  if (!editingRef.value?.isDirty?.() || !editingRef.value.save || saving.value) return
+  saving.value = true
+  try {
+    await editingRef.value.save()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function clearFocus(): Promise<void> {
+  await flushEdits()
   itemsStore.clearInspectorFocus()
 }
 
-function toggleCollapsed(): void {
+async function toggleCollapsed(): Promise<void> {
+  if (!collapsed.value) {
+    await flushEdits()
+  }
   void setOption(collapsed.value ? '0' : '1', 'inspectorCollapsed')
+}
+
+async function saveEdits(): Promise<void> {
+  if (!editingRef.value?.save || saving.value) return
+  saving.value = true
+  try {
+    await editingRef.value.save()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function openFullEdit(): Promise<void> {
+  if (!focusedItem.value) return
+  await flushEdits()
+  if (itemsStore.type === 'media') {
+    dialogsStore.editMedia(focusedItem.value as MediaItem, mediaType.value ?? undefined)
+  } else if (itemsStore.type === 'tag' && meta.value) {
+    dialogsStore.editTag(focusedItem.value as Tag, meta.value)
+  }
 }
 
 function openPreviewViewer(): void {
@@ -633,12 +595,14 @@ function openPreviewViewer(): void {
   })
 }
 
-function openEdit(): void {
-  if (!focusedItem.value) return
-  if (itemsStore.type === 'media') {
-    dialogsStore.editMedia(focusedItem.value as MediaItem, mediaType.value ?? undefined)
-  } else if (itemsStore.type === 'tag' && meta.value) {
-    dialogsStore.editTag(focusedItem.value as Tag, meta.value)
+function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
+  formDirty.value = false
+  listSync.getItemsFromDb({
+    ids: [payload.id],
+    type: payload.type,
+  })
+  if (payload.type === 'media' && itemsStore.type === 'media') {
+    void reloadTagsCatalog()
   }
 }
 </script>
@@ -683,7 +647,7 @@ function openEdit(): void {
   padding: 10px 12px;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background: rgb(var(--v-theme-surface));
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
   min-height: 40px;
@@ -726,7 +690,7 @@ function openEdit(): void {
 
 .inspector-panel__preview {
   width: 100%;
-  max-height: min(40vh, 360px);
+  max-height: min(32vh, 280px);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -739,7 +703,7 @@ function openEdit(): void {
 
 .inspector-panel__thumb {
   max-width: 100%;
-  max-height: min(40vh, 360px);
+  max-height: min(32vh, 280px);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -846,155 +810,34 @@ function openEdit(): void {
 }
 
 .inspector-panel__body {
-  padding: 12px;
-}
-
-.inspector-panel__name {
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.3;
-  word-break: break-word;
+  padding: 12px 12px 8px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .inspector-panel__path {
   font-size: 0.7rem;
-  margin-top: 4px;
+  margin-bottom: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.inspector-panel__synonyms {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  word-break: break-word;
-}
-
-.inspector-panel__field {
-  margin-top: 10px;
-}
-
-.inspector-panel__field-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.55;
-  margin-bottom: 2px;
-}
-
-.inspector-panel__bookmark {
-  font-size: 0.72rem;
-  line-height: 1.35;
-  white-space: pre-wrap;
-  word-break: break-word;
-  opacity: 0.85;
-}
-
-.inspector-panel__meta-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.inspector-panel__color-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
-  flex-shrink: 0;
-}
-
-.inspector-panel__section-label {
-  margin-top: 16px;
-  margin-bottom: 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.55;
-}
-
-.inspector-panel__pinned {
-  :deep(.category) {
-    margin-bottom: 6px;
-    margin-top: 0;
-    padding: 0;
-    align-items: flex-start;
-  }
-
-  :deep(.category-name) {
-    font-size: 0.68rem;
-    font-weight: 400;
-    opacity: 0.65;
-    margin-bottom: 0;
-    margin-right: 6px;
-    min-height: 22px;
-    line-height: 22px;
-
-    .v-icon {
-      font-size: 14px !important;
-      width: 14px;
-      height: 14px;
-      margin-right: 4px;
-    }
-  }
-
-  :deep(.v-chip) {
-    margin: 1px 2px !important;
-    padding: 0 !important;
-    min-height: 22px !important;
-    height: 22px !important;
-    font-size: 0.72rem !important;
-
-    .v-chip__content {
-      padding-inline: 6px !important;
-      line-height: 1.2;
-    }
-
-    &:has(.v-chip__prepend) {
-      .v-chip__prepend {
-        margin-left: 6px !important;
-        margin-right: 2px !important;
-      }
-
-      .v-chip__content {
-        padding-left: 0 !important;
-        padding-right: 6px !important;
-      }
-    }
-
-    .v-chip__close {
-      font-size: 14px;
-      margin-inline: 0 2px;
-    }
-  }
-
-  :deep(.nested-tag-chip-wrap) {
-    display: inline-flex;
-  }
-}
-
-.inspector-panel__tag-group {
-  margin-bottom: 10px;
-}
-
-.inspector-panel__tag-group-name {
-  font-size: 0.7rem;
-  font-weight: 600;
-  opacity: 0.65;
-  margin-bottom: 2px;
-}
-
-.inspector-panel__chips {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -4px;
+.inspector-panel__editor {
+  min-width: 0;
 }
 
 .inspector-panel__actions {
-  margin-top: 16px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  margin-top: auto;
+  background: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  flex-shrink: 0;
 }
 </style>

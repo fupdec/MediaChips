@@ -1,5 +1,12 @@
 <template>
-  <div class="editing" :class="{ 'show-icons': showIcons, 'editing--hero': layout === 'hero' }">
+  <div
+    class="editing"
+    :class="{
+      'show-icons': showIcons,
+      'editing--hero': layout === 'hero',
+      'editing--inspector': layout === 'inspector',
+    }"
+  >
     <div v-if="layout === 'hero'" class="edit-dialog-hero mb-1">
       <div class="edit-dialog-hero__media">
         <slot name="media"/>
@@ -62,7 +69,7 @@
 
         <v-row dense>
           <!-- Name field - only for tags -->
-          <v-col v-if="isTag && meta" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="isTag && meta" cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card rounded-xl"
               :class="fieldCardClass"
@@ -85,7 +92,7 @@
           </v-col>
 
           <!-- Synonyms - only for tags -->
-          <v-col v-if="isTag && showSynonymsField" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="isTag && showSynonymsField" cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card rounded-xl"
               :class="fieldCardClass"
@@ -109,7 +116,7 @@
           </v-col>
 
           <!-- Rating & Favorite -->
-          <v-col v-if="ratingEnabled || favoriteEnabled" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="ratingEnabled || favoriteEnabled" cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card editing-field-card--rating rounded-xl"
               :class="fieldCardClass"
@@ -128,7 +135,7 @@
                     half-increments
                     clearable
                     density="compact"
-                    size="28"
+                    :size="ratingSize"
                     hover
                   />
                 </template>
@@ -161,7 +168,7 @@
           </v-col>
 
           <!-- Number of views -->
-          <v-col v-if="viewsEnabled" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="viewsEnabled" cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card rounded-xl"
               :class="fieldCardClass"
@@ -191,7 +198,7 @@
           </v-col>
 
           <!-- Color - only for tags -->
-          <v-col v-if="isTag && meta?.color" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="isTag && meta?.color" cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card rounded-xl"
               :class="fieldCardClass"
@@ -242,7 +249,7 @@
           </v-col>
 
           <!-- Country - only for tags -->
-          <v-col v-if="isTag && showCountryField" cols="12" md="6" xl="4" class="field">
+          <v-col v-if="isTag && showCountryField" cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card rounded-xl"
               :class="fieldCardClass"
@@ -296,7 +303,9 @@
           <v-col
             v-for="item in visibleAssignedItems"
             :key="`${currentItemId}_${item.pinnedMetaId || item.metaId}`"
-            cols="12" md="6" xl="4"
+            cols="12"
+            :md="fieldMd"
+            :xl="fieldXl"
             class="field"
           >
             <v-card
@@ -431,7 +440,7 @@
           </v-col>
 
           <!-- Bookmark -->
-          <v-col cols="12" md="6" xl="4" class="field">
+          <v-col cols="12" :md="fieldMd" :xl="fieldXl" class="field">
             <v-card
               class="editing-field-card rounded-xl"
               :class="fieldCardClass"
@@ -559,7 +568,7 @@ import EditPinnedOverview from '@/components/items/EditPinnedOverview.vue'
 import ColorPicker from '@/components/elements/ColorPicker.vue'
 import EditingFieldRestoreBtn from '@/components/items/EditingFieldRestoreBtn.vue'
 
-type EditLayout = 'default' | 'hero'
+type EditLayout = 'default' | 'hero' | 'inspector'
 
 type PinnedMetaAssignment = AssignedMeta
 
@@ -630,7 +639,13 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   close: []
   'dirty-change': [dirty: boolean]
+  saved: [payload: {id: number; type: 'tag' | 'media'}]
 }>()
+
+const isInspectorLayout = computed(() => props.layout === 'inspector')
+const fieldMd = computed(() => (isInspectorLayout.value ? 12 : 6))
+const fieldXl = computed(() => (isInspectorLayout.value ? 12 : 4))
+const ratingSize = computed(() => (isInspectorLayout.value ? 22 : 28))
 
 const isTag = computed(() => !!props.tag)
 const isMedia = computed(() => !props.tag && !!props.media)
@@ -1280,8 +1295,11 @@ const buildEntityUpdateData = (): EntityUpdatePayload => {
   return updateData as EntityUpdatePayload
 }
 
-const save = async (): Promise<boolean> => {
+const save = async (options?: {itemId?: number}): Promise<boolean> => {
   if (!form.value) return false
+
+  const targetId = options?.itemId ?? currentItemId.value
+  if (targetId == null) return false
 
   const {valid: isValid} = await form.value.validate()
   if (!isValid) return false
@@ -1313,15 +1331,15 @@ const save = async (): Promise<boolean> => {
         const tagId = Number(rawTagId)
         if (!Number.isFinite(tagId) || seenTagIds.has(tagId)) continue
         seenTagIds.add(tagId)
-        if (isTag.value && currentItemId.value) {
+        if (isTag.value) {
           tags.push({
-            parentTagId: currentItemId.value,
+            parentTagId: targetId,
             tagId,
             metaId,
           })
-        } else if (isMedia.value && currentItemId.value) {
+        } else if (isMedia.value) {
           tags.push({
-            mediaId: currentItemId.value,
+            mediaId: targetId,
             tagId,
             metaId,
           })
@@ -1329,17 +1347,17 @@ const save = async (): Promise<boolean> => {
       }
     }
 
-    if (isMeta && !Array.isArray(val) && currentItemId.value) {
+    if (isMeta && !Array.isArray(val)) {
       if (isTag.value) {
         values.push({
           value: val,
-          tagId: currentItemId.value,
+          tagId: targetId,
           metaId,
         })
       } else if (isMedia.value) {
         values.push({
           value: val,
-          mediaId: currentItemId.value,
+          mediaId: targetId,
           metaId,
         })
       }
@@ -1350,32 +1368,35 @@ const save = async (): Promise<boolean> => {
 
   try {
     const endpoint = isTag.value ? 'tag' : 'media'
-    await typedApi.updateEntity(endpoint, currentItemId.value!, updateData)
+    await typedApi.updateEntity(endpoint, targetId, updateData)
 
     // Keep wall cards in sync immediately (rating/favorite overlays read from the store item).
     itemsStore.updateItem({
-      id: currentItemId.value!,
+      id: targetId,
       item: updateData as Partial<MediaItem>,
     })
 
     const tagsEndpoint = isTag.value ? 'TagsInTag' : 'TagsInMedia'
-    await typedApi.deleteItemTags(tagsEndpoint, currentItemId.value!)
+    await typedApi.deleteItemTags(tagsEndpoint, targetId)
 
     if (tags.length > 0) {
       await typedApi.postItemTags(tagsEndpoint, tags)
     }
 
     const valuesEndpoint = isTag.value ? 'ValuesInTag' : 'ValuesInMedia'
-    await typedApi.deleteItemValues(valuesEndpoint, currentItemId.value!)
+    await typedApi.deleteItemValues(valuesEndpoint, targetId)
 
     if (values.length > 0) {
       await typedApi.postItemValues(valuesEndpoint, values)
     }
 
-    if (isTag.value && props.meta && props.tag) {
-      refreshTagThumbDisplay(itemsStore, appStore.dbPath, props.meta.id, props.tag.id)
+    if (isTag.value && props.meta) {
+      refreshTagThumbDisplay(itemsStore, appStore.dbPath, props.meta.id, targetId)
     }
 
+    // Mark clean before a follow-up loadEditingState (inspector item switch).
+    old.value = cloneMetaValues(vals.value)
+    emit('saved', {id: targetId, type: isTag.value ? 'tag' : 'media'})
     return true
   } catch (error) {
     console.error('Error saving item:', error)
@@ -1542,6 +1563,10 @@ onMounted(async () => {
 
 watch(currentItemId, async (itemId, previousItemId) => {
   if (!itemId || itemId === previousItemId) return
+  // Inspector edits in-place: persist pending changes before loading the next item.
+  if (isInspectorLayout.value && previousItemId != null && getIsDirty()) {
+    await save({itemId: previousItemId})
+  }
   await loadEditingState()
   if (isMedia.value) {
     void refreshEditingMediaFileInfo()
@@ -1632,6 +1657,43 @@ defineExpose({
 
   .field {
     position: relative;
+  }
+
+  &--inspector {
+    .editing-form {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    .editing-section__toolbar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .editing-section__filters {
+      flex-wrap: wrap;
+    }
+
+    .editing-field-card--rating {
+      min-height: 40px;
+      padding: 4px 8px !important;
+    }
+
+    .editing-rating-field--identity {
+      flex-wrap: wrap;
+      row-gap: 6px;
+    }
+
+    .editing-rating-field__name {
+      font-size: 0.72rem;
+    }
+
+    .v-container {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
   }
 }
 </style>
