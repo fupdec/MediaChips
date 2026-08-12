@@ -53,6 +53,7 @@ export type GroupableItem = {
   createdAt?: string | number | Date | null
   updatedAt?: string | number | Date | null
   viewedAt?: string | number | Date | null
+  mediaCreatedAt?: string | number | Date | null
   tags?: Array<{tagId?: number; metaId?: number}>
   values?: Array<{metaId?: number; value?: unknown}>
   [key: string]: unknown
@@ -70,7 +71,7 @@ export interface BuildItemGroupsOptions {
   direction?: 'asc' | 'desc' | string | null
 }
 
-export const DATE_GROUP_SORT_FIELDS = ['createdAt', 'updatedAt', 'viewedAt'] as const
+export const DATE_GROUP_SORT_FIELDS = ['createdAt', 'updatedAt', 'viewedAt', 'mediaCreatedAt'] as const
 export type DateGroupSortField = (typeof DATE_GROUP_SORT_FIELDS)[number]
 
 export const MEDIA_ONLY_GROUP_BY = new Set<ItemsGroupBy>([

@@ -11,6 +11,7 @@ export type BackfillKind =
   | 'visualHash'
   | 'clipEmbedding'
   | 'videoCodec'
+  | 'mediaCreated'
 
 export type BackfillStatus = {
   total?: number
@@ -59,6 +60,10 @@ const BACKFILL_ROUTES: Record<BackfillKind, {status: string; stream: string}> = 
   videoCodec: {
     status: API_ROUTES.taskVideoCodecBackfillStatus,
     stream: API_ROUTES.taskStreamVideoCodecBackfill,
+  },
+  mediaCreated: {
+    status: API_ROUTES.taskMediaCreatedBackfillStatus,
+    stream: API_ROUTES.taskStreamMediaCreatedBackfill,
   },
 }
 

@@ -210,6 +210,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/streamClipEmbeddingBackfill', 'streamClipEmbeddingBackfill')
   register('get', '/videoCodecBackfillStatus', 'videoCodecBackfillStatus')
   register('post', '/streamVideoCodecBackfill', 'streamVideoCodecBackfill')
+  register('get', '/mediaCreatedBackfillStatus', 'mediaCreatedBackfillStatus')
+  register('post', '/streamMediaCreatedBackfill', 'streamMediaCreatedBackfill')
   register('get', '/videoImagesGenerationStatus', 'videoImagesGenerationStatus')
   register('post', '/streamVideoImagesGeneration', 'streamVideoImagesGeneration')
   register('get', '/visualSearchQuickSample', 'visualSearchQuickSample')

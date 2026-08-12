@@ -48,6 +48,7 @@ const MEDIA_COLUMNS = new Set([
   'contentHash',
   'oshash',
   'visualHash',
+  'mediaCreatedAt',
 ])
 
 const VIDEO_COLUMNS = new Set(['duration', 'bitrate', 'codec', 'fps', 'time'])
@@ -63,6 +64,7 @@ const SORT_COLUMNS = {
   viewedAt: 'media.viewedAt',
   createdAt: 'media.createdAt',
   updatedAt: 'media.updatedAt',
+  mediaCreatedAt: 'media.mediaCreatedAt',
   name: 'media.name',
   path: 'media.path',
   filesize: 'media.filesize',

@@ -19,6 +19,8 @@ export const media = sqliteTable('media', {
   views: integer('views').default(0),
   oldId: text('oldId').unique(),
   viewedAt: text('viewedAt'),
+  /** Capture / Media Created date (EXIF, container tags, or FS birthtime/mtime fallback). */
+  mediaCreatedAt: text('mediaCreatedAt'),
   mediaTypeId: integer('mediaTypeId'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),

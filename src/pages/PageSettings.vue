@@ -191,6 +191,8 @@
 
               <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL" :step="3"/>
 
+              <SettingsBackfillTask :config="MEDIA_CREATED_BACKFILL"/>
+
               <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL" :step="4"/>
 
               <SettingsGroupLabel
@@ -281,6 +283,7 @@ import {
   VISUAL_HASH_BACKFILL,
   CLIP_EMBEDDING_BACKFILL,
   VIDEO_CODEC_BACKFILL,
+  MEDIA_CREATED_BACKFILL,
 } from "@/composable/useSettingsBackfillStream"
 
 const SettingsWatchedFolders = defineAsyncComponent(() =>
@@ -543,6 +546,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   local_ai: "settings-local-ai",
   detect_faces: "settings-detect-faces",
   video_codec_backfill: "settings-video-codec-backfill",
+  media_created_backfill: "settings-media-created-backfill",
   oshash_backfill: "settings-fingerprint-backfill",
   fingerprint_backfill: "settings-fingerprint-backfill",
   visual_hash_backfill: "settings-visual-hash-backfill",
@@ -654,6 +658,7 @@ const DATABASE_SECTIONS = new Set([
   "generate_image_thumbs",
   "detect_faces",
   "video_codec_backfill",
+  "media_created_backfill",
   "oshash_backfill",
   "fingerprint_backfill",
   "visual_hash_backfill",

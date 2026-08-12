@@ -461,6 +461,7 @@ const mediaFacts = computed((): InspectorFact[] => {
     pushFact(facts, 'views', t('settings_labels.appearance.number_of_views'), String(views))
   }
 
+  pushFact(facts, 'mediaCreatedAt', t('editing.media_created'), formatInspectorDate(media.mediaCreatedAt))
   pushFact(facts, 'createdAt', t('editing.added'), formatInspectorDate(media.createdAt))
   pushFact(facts, 'updatedAt', t('editing.last_edit'), formatInspectorDate(media.updatedAt))
   pushFact(facts, 'viewedAt', t('editing.last_view'), formatInspectorDate(media.viewedAt))

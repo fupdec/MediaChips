@@ -43,6 +43,13 @@ const Cols = {
       "textKey": "filters.sort.date_added"
     },
     {
+      "param": "mediaCreatedAt",
+      "type": "date",
+      "icon": "calendar-star",
+      "text": "Media created",
+      "textKey": "filters.sort.media_created"
+    },
+    {
       "param": "updatedAt",
       "type": "date",
       "icon": "calendar-edit",

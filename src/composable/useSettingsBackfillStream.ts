@@ -63,6 +63,16 @@ export const VIDEO_CODEC_BACKFILL: SettingsBackfillConfig = {
   includeSkipped: false,
 }
 
+export const MEDIA_CREATED_BACKFILL: SettingsBackfillConfig = {
+  kind: 'mediaCreated',
+  elementId: 'settings-media-created-backfill',
+  icon: 'calendar-star',
+  notificationIcon: 'calendar-star',
+  i18nKey: 'media_created_backfill',
+  mode: 'codec',
+  includeSkipped: false,
+}
+
 interface BackfillStatus {
   total: number
   pending: number

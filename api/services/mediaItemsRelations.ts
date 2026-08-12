@@ -35,6 +35,7 @@ export const GROUP_SLIM_SELECT = `SELECT
   media.viewedAt,
   media.createdAt,
   media.updatedAt,
+  media.mediaCreatedAt,
   COALESCE(videoMetadata.width, imageMetadata.width) AS width,
   COALESCE(videoMetadata.height, imageMetadata.height) AS height,
   videoMetadata.duration,
@@ -57,6 +58,7 @@ type GroupSlimColumn =
   | 'viewedAt'
   | 'createdAt'
   | 'updatedAt'
+  | 'mediaCreatedAt'
   | 'width'
   | 'height'
   | 'duration'
@@ -79,6 +81,7 @@ const GROUP_SLIM_COLUMN_ORDER: GroupSlimColumn[] = [
   'viewedAt',
   'createdAt',
   'updatedAt',
+  'mediaCreatedAt',
   'width',
   'height',
   'duration',
@@ -102,6 +105,7 @@ const GROUP_SLIM_COLUMN_SQL: Record<GroupSlimColumn, string> = {
   viewedAt: 'media.viewedAt',
   createdAt: 'media.createdAt',
   updatedAt: 'media.updatedAt',
+  mediaCreatedAt: 'media.mediaCreatedAt',
   width: 'COALESCE(videoMetadata.width, imageMetadata.width) AS width',
   height: 'COALESCE(videoMetadata.height, imageMetadata.height) AS height',
   duration: 'videoMetadata.duration',
@@ -217,6 +221,7 @@ export const MEDIA_BASE_SELECT = `SELECT
   media.mediaTypeId,
   media.createdAt,
   media.updatedAt,
+  media.mediaCreatedAt,
   videoMetadata.duration,
   videoMetadata.bitrate,
   videoMetadata.codec,

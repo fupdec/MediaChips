@@ -15,6 +15,10 @@ import { createImageMetadataRepository } from '../db/repositories/imageMetadata'
 import { createTextContentRepository } from '../db/repositories/textContent'
 import { createMediaRepository } from '../db/repositories/media'
 import { extractTextIndexFromPath } from './textContentIndex'
+import {
+  resolveMediaCreatedAt,
+  type MediaCreatedKind,
+} from './mediaSystemDates'
 
 function createMediaPostProcessor({
   db,
@@ -31,6 +35,24 @@ function createMediaPostProcessor({
   const textContentRepo = createTextContentRepository(db.drizzle)
   const mediaRepo = createMediaRepository(db.drizzle)
 
+  async function applyMediaCreatedAt(
+    mediaId: unknown,
+    mediaPath: string,
+    kind: MediaCreatedKind,
+  ) {
+    if (mediaId == null || !mediaPath) return
+    try {
+      const mediaCreatedAt = await resolveMediaCreatedAt(mediaPath, kind)
+      if (!mediaCreatedAt) return
+      mediaRepo.updateById(Number(mediaId), {mediaCreatedAt})
+    } catch (error: unknown) {
+      console.error(
+        `Media created date extraction failed for ${mediaPath}:`,
+        error instanceof Error ? error.message : String(error),
+      )
+    }
+  }
+
   async function processVideoMedia(media: {id?: unknown; path?: unknown}) {
     const videoPath = String(media.path || '')
     const metadata = await getVideoMetadata(videoPath)
@@ -46,6 +68,8 @@ function createMediaPostProcessor({
         fps: metadata.fps,
       })
     }
+
+    await applyMediaCreatedAt(media.id, videoPath, 'video')
 
     try {
       await createThumbMiddle(videoPath, media.id)
@@ -73,6 +97,8 @@ function createMediaPostProcessor({
         orientation: metadata.orientation,
       })
     }
+
+    await applyMediaCreatedAt(media.id, imagePath, 'image')
 
     try {
       await withTimeout(
@@ -115,6 +141,8 @@ function createMediaPostProcessor({
       }
     }
 
+    await applyMediaCreatedAt(media.id, audioPath, 'audio')
+
     if (createAudioThumb) {
       try {
         await createAudioThumb(audioPath, media.id)
@@ -139,6 +167,8 @@ function createMediaPostProcessor({
     } catch (error: unknown) {
       console.error(`Text content indexing failed for ${textPath}:`, error)
     }
+
+    await applyMediaCreatedAt(media.id, textPath, 'other')
   }
 
   async function processNewMedia(media: {id?: unknown; path?: unknown}, mediaType: MediaTypeLike) {
@@ -175,6 +205,8 @@ function createMediaPostProcessor({
         fps: metadata.fps,
       })
     }
+
+    await applyMediaCreatedAt(mediaId, mediaPath, 'video')
   }
 
   async function refreshImageMedia(mediaId: MediaId, mediaPath: string) {
@@ -188,6 +220,8 @@ function createMediaPostProcessor({
         orientation: metadata.orientation,
       })
     }
+
+    await applyMediaCreatedAt(mediaId, mediaPath, 'image')
 
     try {
       await getImageMedia().createImageThumb(mediaPath, mediaId, dbPath)
@@ -260,6 +294,8 @@ function createMediaPostProcessor({
       })
     }
 
+    await applyMediaCreatedAt(mediaId, mediaPath, 'audio')
+
     if (createAudioThumb) {
       try {
         await createAudioThumb(mediaPath, mediaId)
@@ -283,6 +319,8 @@ function createMediaPostProcessor({
     } catch (error: unknown) {
       console.error(`Text content reindex failed for media ${mediaId}:`, error)
     }
+
+    await applyMediaCreatedAt(mediaId, mediaPath, 'other')
   }
 
   async function refreshMediaInfo(media: {id?: unknown; path?: unknown; dataValues?: {path?: string}}, mediaType: MediaTypeLike) {

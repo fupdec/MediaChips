@@ -37,6 +37,12 @@ export const MEDIA_SORT_PARAMS = [
     types: ['media', 'tag'],
   },
   {
+    param: 'mediaCreatedAt',
+    icon: 'calendar-star',
+    textKey: 'filters.sort.media_created',
+    types: ['media'],
+  },
+  {
     param: 'updatedAt',
     icon: 'calendar-edit',
     textKey: 'filters.sort.date_updated',

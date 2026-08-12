@@ -18,6 +18,10 @@ import {
   iterateVideoCodecBackfill,
 } from '../../services/videoCodecBackfill'
 import {
+  getMediaCreatedBackfillStatus,
+  iterateMediaCreatedBackfill,
+} from '../../services/mediaCreatedBackfill'
+import {
   getMissingMediaStatus,
   iterateMissingMediaSearch,
 } from '../../services/missingMediaFinder'
@@ -97,6 +101,25 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while backfilling video codecs.',
       iterate: (shouldStop) => iterateVideoCodecBackfill(db, {
+        shouldStop,
+        force: String(req.query.force || '').toLowerCase() === 'true',
+      }),
+    })
+  }
+
+  const mediaCreatedBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const status = await getMediaCreatedBackfillStatus(db)
+      sendOk(res, status)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while checking media created date status.')
+    }
+  }
+
+  const streamMediaCreatedBackfill = async (req: ApiRequest, res: ApiResponse) => {
+    await runNdjsonAsyncGenerator(req, res, {
+      errorMessage: 'Some error occurred while backfilling media created dates.',
+      iterate: (shouldStop) => iterateMediaCreatedBackfill(db, {
         shouldStop,
         force: String(req.query.force || '').toLowerCase() === 'true',
       }),
@@ -403,6 +426,8 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     streamClipEmbeddingBackfill,
     videoCodecBackfillStatus,
     streamVideoCodecBackfill,
+    mediaCreatedBackfillStatus,
+    streamMediaCreatedBackfill,
     imageThumbsGenerationStatus,
     streamImageThumbsGeneration,
     videoImagesGenerationStatus,

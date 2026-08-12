@@ -155,6 +155,13 @@
       "when": 1782825600000,
       "tag": "0021_faces_tag_id_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1782829200000,
+      "tag": "0022_media_created_at",
+      "breakpoints": true
     }
   ]
 }

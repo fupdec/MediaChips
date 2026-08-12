@@ -30,12 +30,21 @@ describe('schemaRepair', () => {
     fs.rmSync(tempDir, {recursive: true, force: true})
   })
 
-  it('adds missing meta.views column for legacy databases', () => {
+  it('adds missing media.mediaCreatedAt column for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE media (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        path text NOT NULL,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+    `)
+
     const repaired = repairSchemaColumns(sqlite)
 
-    expect(repaired).toContain('meta.views')
-    const columns = sqlite.pragma('table_info(meta)') as Array<{name: string}>
-    expect(columns.some((column) => column.name === 'views')).toBe(true)
+    expect(repaired).toContain('media.mediaCreatedAt')
+    const columns = sqlite.pragma('table_info(media)') as Array<{name: string}>
+    expect(columns.some((column) => column.name === 'mediaCreatedAt')).toBe(true)
   })
 
   it('adds missing meta.measurementUnit column for legacy databases', () => {

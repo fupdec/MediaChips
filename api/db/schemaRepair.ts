@@ -89,6 +89,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'media', column: 'views', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'oldId', definition: 'text'},
   {table: 'media', column: 'viewedAt', definition: 'text'},
+  {table: 'media', column: 'mediaCreatedAt', definition: 'text'},
   {table: 'media', column: 'mediaTypeId', definition: 'integer'},
   {table: 'tags', column: 'oldId', definition: 'text'},
   {table: 'tags', column: 'synonyms', definition: 'text'},

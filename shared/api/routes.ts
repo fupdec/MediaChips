@@ -154,6 +154,8 @@ export const API_ROUTES = {
   taskExportMarkClips: '/api/Task/exportMarkClips',
   taskVideoCodecBackfillStatus: '/api/Task/videoCodecBackfillStatus',
   taskStreamVideoCodecBackfill: '/api/Task/streamVideoCodecBackfill',
+  taskMediaCreatedBackfillStatus: '/api/Task/mediaCreatedBackfillStatus',
+  taskStreamMediaCreatedBackfill: '/api/Task/streamMediaCreatedBackfill',
   taskVideoImagesGenerationStatus: '/api/Task/videoImagesGenerationStatus',
   taskStreamVideoImagesGeneration: '/api/Task/streamVideoImagesGeneration',
   taskVisualSearchQuickSample: '/api/Task/visualSearchQuickSample',

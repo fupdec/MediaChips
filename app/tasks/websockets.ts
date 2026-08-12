@@ -34,7 +34,7 @@ export function attachWebSocketsToServer(app: Express, server: Server): ExpressW
   }
 
   closeCurrentWsServer()
-  wsHandle = expressWs(app, server) as ExpressWsHandle
+  wsHandle = expressWs(app, server)
   return wsHandle
 }
 
