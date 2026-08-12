@@ -13,6 +13,7 @@ import {findMediaTypeById} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
 import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
+import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
@@ -93,6 +94,7 @@ export function useBrowserLayoutHotkeys() {
   const playerStore = usePlayerStore()
   const contextMenuStore = useContextMenu()
   const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+  const {openReviewMode} = useReviewModeLauncher()
 
   function toggleSidebar() {
     const next = settingsStore.sidebarCollapsed === '1' ? '0' : '1'
@@ -488,6 +490,11 @@ export function useBrowserLayoutHotkeys() {
       case 'KeyT':
         event.preventDefault()
         focusTagsSearch()
+        return
+      case 'KeyR':
+        if (itemsStore.type !== 'media') return
+        event.preventDefault()
+        void openReviewMode()
         return
       default:
         break

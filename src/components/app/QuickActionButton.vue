@@ -62,6 +62,22 @@
       </span>
       </v-tooltip>
 
+      <v-tooltip location="left">
+        <template v-slot:activator="{ props }">
+          <v-btn
+            @click="openReview"
+            v-bind="props"
+            size="small"
+            icon
+          >
+            <v-icon>mdi-card-search-outline</v-icon>
+          </v-btn>
+        </template>
+        <span>
+        {{ t('review_mode.open') }}
+      </span>
+      </v-tooltip>
+
       <!-- Выборка -->
       <v-tooltip location="left">
         <template v-slot:activator="{ props }">
@@ -122,6 +138,7 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useToolbarStore} from '@/stores/toolbar'
+import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import {scrollMainTo, scrollMainToSelector} from '@/utils/mainScroll'
 
 // i18n
@@ -131,6 +148,7 @@ const {t} = useI18n()
 const filtersStore = useAppStore().filters
 const itemsStore = useItemsStore()
 const toolbarStore = useToolbarStore()
+const {openReviewMode} = useReviewModeLauncher()
 
 // Reactive data
 const direction = ref('top')
@@ -166,6 +184,11 @@ const toggleCustomizeToolbar = () => {
 
   toolbarStore.toggleAppearance()
   scheduleScrollToDeckSection('#items-control-deck-appearance')
+}
+
+const openReview = () => {
+  fab.value = false
+  void openReviewMode()
 }
 
 const scheduleScrollToDeckSection = (selector: string) => {

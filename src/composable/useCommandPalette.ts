@@ -9,6 +9,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useAppShell} from '@/composable/appShell'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
+import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import {setOption} from '@/services/settingsService'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -37,6 +38,7 @@ export function useCommandPaletteCommands(options: {
   const dialogsStore = useDialogsStore()
   const appShell = useAppShell()
   const nav = useLibraryNavItems()
+  const {openReviewMode} = useReviewModeLauncher()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -92,6 +94,16 @@ export function useCommandPaletteCommands(options: {
         run: () => {
           void router.push({path: '/settings', query: openLibrarySetupWizardQuery()})
         },
+      },
+      {
+        id: 'review-mode',
+        title: t('commandPalette.actions.review_mode'),
+        subtitle: t('commandPalette.actions.review_mode_hint'),
+        icon: 'mdi-card-search-outline',
+        group: 'actions',
+        keywords: ['review', 'inbox', 'tag', 'rate', 'keyboard'],
+        shortcut: 'r',
+        run: () => { void openReviewMode() },
       },
       {
         id: 'toggle-theme',

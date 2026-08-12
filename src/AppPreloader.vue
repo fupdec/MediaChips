@@ -24,6 +24,7 @@
 
     <component :is="Player" v-if="isShellReady || isPlayerWindow"/>
     <component :is="ImageViewer" v-if="isShellReady && !isPlayerWindow"/>
+    <component :is="ReviewMode" v-if="isShellReady && !isPlayerWindow"/>
 
     <v-main
       v-if="isShellReady && !isPlayerWindow"
@@ -135,6 +136,7 @@ const InspectorPanel = defineAsyncComponent(() => import('@/components/app/Inspe
 const Player = defineAsyncComponent(() => import('@/components/app/Player.vue'))
 const Dialogs = defineAsyncComponent(() => import('@/components/app/Dialogs.vue'))
 const ImageViewer = defineAsyncComponent(() => import('@/components/app/ImageViewer.vue'))
+const ReviewMode = defineAsyncComponent(() => import('@/components/app/ReviewMode.vue'))
 const HoverImage = defineAsyncComponent(() => import('@/components/app/HoverImage.vue'))
 const NotificationsPool = defineAsyncComponent(() => import('@/components/app/NotificationsPool.vue'))
 const ContextMenu = defineAsyncComponent(() => import('@/components/app/ContextMenu.vue'))
