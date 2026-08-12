@@ -19,7 +19,8 @@ export type MediaMissingScanRow = Pick<MediaRow, 'id' | 'path' | 'filesize' | 'o
 
 const MEDIA_MUTABLE_COLUMNS = new Set([
   'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'oshash', 'visualHash',
-  'visualHashTiles', 'rating', 'favorite', 'bookmark', 'views', 'oldId', 'viewedAt', 'mediaTypeId',
+  'visualHashTiles', 'rating', 'favorite', 'bookmark', 'views', 'oldId', 'viewedAt',
+  'mediaCreatedAt', 'deletedAt', 'trashOriginalPath', 'trashPurgeFile', 'mediaTypeId',
 ])
 
 function pickMediaFields(data: object): Partial<MediaInsert> {
@@ -437,6 +438,7 @@ export function createMediaRepository(db: DrizzleClient) {
           COUNT(*) AS total,
           COALESCE(SUM(filesize), 0) AS filesize
         FROM media
+        WHERE deletedAt IS NULL OR deletedAt = ''
       `)
 
       return {

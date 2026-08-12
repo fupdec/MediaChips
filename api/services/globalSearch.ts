@@ -28,6 +28,7 @@ import {
   type SearchGlobalOptions,
   type SearchTagsByNameOptions,
 } from './globalSearchScope'
+import { MEDIA_NOT_IN_TRASH_SQL } from '../../shared/mediaTrash'
 import {buildContentSnippet} from './textContentIndex'
 
 const MEDIA_SEARCH_SELECT = `SELECT media.id,
@@ -70,6 +71,7 @@ async function searchMediaByNameLike(
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE media.name LIKE :pattern ESCAPE '\\'
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
      LIMIT :limit`, replacements)
 }
 
@@ -90,6 +92,7 @@ async function searchMediaByNameFts(
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE media_fts MATCH :match
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
      ORDER BY bm25(media_fts)
      LIMIT :limit`, replacements)
 }
@@ -144,6 +147,7 @@ async function searchMediaByBookmark(
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE media.bookmark LIKE :pattern ESCAPE '\\'
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
      LIMIT :limit`, replacements)
 
   return rows
@@ -184,6 +188,7 @@ async function searchMediaByContent(
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
               INNER JOIN textContent ON media.id = textContent.mediaId
      WHERE textContent.content LIKE :pattern ESCAPE '\\'
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
      LIMIT :limit`, replacements)
 
   return rows
@@ -351,6 +356,7 @@ async function searchMediaByTagIds(
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
      WHERE tagsInMedia.tagId IN (:tagIds)
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
      GROUP BY media.id
      LIMIT :limit`, replacements)
 
@@ -404,6 +410,7 @@ async function searchMediaHavingAllTagIds(db: ApiDb, tagIds: number[], limit: un
               ${PINNED_MEDIA_JOIN}
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+     WHERE ${MEDIA_NOT_IN_TRASH_SQL}
      LIMIT :limit`, {
     ...pinnedTagReplacements(tagIds),
     limit: sqlLimit,

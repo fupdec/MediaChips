@@ -94,6 +94,10 @@
       v-if="dialogsStore.similarWall.show"
     />
 
+    <DialogMediaTrash
+      v-if="dialogsStore.mediaTrash.show"
+    />
+
     <DialogTextPreview
       v-if="dialogsStore.textPreview.show"
     />
@@ -315,6 +319,9 @@ const DialogDuplicateReview = defineAsyncComponent(() =>
 )
 const DialogSimilarMediaWall = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogSimilarMediaWall.vue')
+)
+const DialogMediaTrash = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogMediaTrash.vue')
 )
 const DialogTextPreview = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogTextPreview.vue')

@@ -41,11 +41,62 @@ import {
   readFirstExistingImageDataUrl,
 } from '../services/thumbEncoding'
 import { getZipArchivePath, isVirtualZipPath } from '../../shared/zipPath'
+import {
+  countTrashMedia,
+  getTrashMediaForPurge,
+  listExpiredTrashIds,
+  listTrashMedia,
+  restoreTrashMedia,
+  softDeleteMedia,
+} from '../services/mediaTrash'
+import { MEDIA_TRASH_RETENTION_DAYS } from '../../shared/mediaTrash'
 
 export default function (db: ApiDb) {
   const mediaRepo = createMediaRepository(db.drizzle)
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
   const getDbPath = () => db.path!
+
+  const hardDeleteTargets = async function (
+    targets: Array<Record<string, unknown>>,
+    body: DeleteEntityOnePayload,
+  ) {
+    const deletedIds: number[] = []
+    for (const target of targets) {
+      const targetId = Number(target.id)
+      if (!Number.isFinite(targetId) || targetId <= 0) continue
+
+      const mediaType = target.mediaTypeId
+        ? mediaTypesRepo.findById(Number(target.mediaTypeId))
+        : undefined
+
+      await deleteMediaGeneratedAssets(db, getDbPath(), target, mediaType?.type || '')
+
+      const purgePath = String(
+        target.trashOriginalPath
+        || target.path
+        || body.path
+        || '',
+      )
+      const shouldUnlinkFile = Boolean(body.with_file || target.trashPurgeFile)
+        && Boolean(purgePath)
+        && !isVirtualZipPath(purgePath)
+
+      if (shouldUnlinkFile) {
+        try {
+          const deleted = await unlinkResolvedPath(purgePath)
+          if (!deleted) {
+            console.log(`${purgePath} is unavailable.`)
+          }
+        } catch (error) {
+          console.error(`Failed to delete media file ${purgePath}:`, apiErrorMessage(error))
+        }
+      }
+
+      mediaRepo.deleteById(targetId)
+      deletedIds.push(targetId)
+    }
+    return deletedIds
+  }
 
   const getAll = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -326,6 +377,8 @@ export default function (db: ApiDb) {
       const deleteZipGallery = Boolean(body.delete_zip_gallery) && isVirtualZipPath(mediaPath)
       const zipArchivePath = deleteZipGallery ? getZipArchivePath(mediaPath) : null
       const deleteZipFile = Boolean(body.delete_zip_file) && Boolean(zipArchivePath)
+      // ZIP gallery / permanent flag keep the previous hard-delete path.
+      const permanent = Boolean(body.permanent) || deleteZipGallery
 
       const targets = (() => {
         if (!zipArchivePath) return [media]
@@ -333,34 +386,19 @@ export default function (db: ApiDb) {
         return gallery.length ? gallery : [media]
       })()
 
-      const deletedIds: number[] = []
-
-      for (const target of targets) {
-        const targetId = Number(target.id)
-        if (!Number.isFinite(targetId) || targetId <= 0) continue
-
-        const mediaType = target.mediaTypeId
-          ? mediaTypesRepo.findById(Number(target.mediaTypeId))
-          : undefined
-
-        await deleteMediaGeneratedAssets(db, getDbPath(), target, mediaType?.type || '')
-
-        // ZIP entries are read-only on disk; only unlink real files when requested.
-        if (body.with_file && !isVirtualZipPath(String(target.path || ''))) {
-          const filePath = target.path || body.path
-          try {
-            const deleted = await unlinkResolvedPath(String(filePath ?? ''))
-            if (!deleted) {
-              console.log(`${filePath} is unavailable.`)
-            }
-          } catch (error) {
-            console.error(`Failed to delete media file ${filePath}:`, apiErrorMessage(error))
-          }
+      if (!permanent) {
+        const deletedIds: number[] = []
+        for (const target of targets) {
+          const targetId = Number(target.id)
+          if (!Number.isFinite(targetId) || targetId <= 0) continue
+          softDeleteMedia(db, targetId, {purgeFile: Boolean(body.with_file)})
+          deletedIds.push(targetId)
         }
-
-        mediaRepo.deleteById(targetId)
-        deletedIds.push(targetId)
+        invalidateMediaDerivedCaches()
+        return sendOk(res, {deletedIds, softDeleted: true, zipFileDeleted: false})
       }
+
+      const deletedIds = await hardDeleteTargets(targets as Array<Record<string, unknown>>, body)
 
       let zipFileDeleted = false
       if (deleteZipFile && zipArchivePath) {
@@ -375,17 +413,92 @@ export default function (db: ApiDb) {
       }
 
       invalidateMediaDerivedCaches()
-      sendOk(res, { deletedIds, zipFileDeleted })
+      sendOk(res, { deletedIds, softDeleted: false, zipFileDeleted })
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
     }
   };
+
+  const listTrash = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const limitRaw = (req.query as {limit?: string | number} | undefined)?.limit
+      const limit = Number(limitRaw)
+      const items = listTrashMedia(db, Number.isFinite(limit) ? limit : 200)
+      sendOk(res, {
+        items,
+        count: countTrashMedia(db),
+        retentionDays: MEDIA_TRASH_RETENTION_DAYS,
+      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while listing trash.')
+    }
+  }
+
+  const restoreTrash = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const restoredIds = restoreTrashMedia(db, ids)
+      invalidateMediaDerivedCaches()
+      sendOk(res, {restoredIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while restoring trash.')
+    }
+  }
+
+  const purgeTrash = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const targets = getTrashMediaForPurge(db, ids).map((item) => ({
+        id: item.id,
+        path: item.path,
+        trashOriginalPath: item.originalPath,
+        trashPurgeFile: item.purgeFile,
+        mediaTypeId: item.mediaTypeId,
+        basename: item.basename,
+        name: item.name,
+      }))
+      const deletedIds = await hardDeleteTargets(targets, {id: 0, with_file: false})
+      invalidateMediaDerivedCaches()
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging trash.')
+    }
+  }
+
+  const purgeExpiredTrash = async function (_req: ApiRequest, res: ApiResponse) {
+    try {
+      const ids = listExpiredTrashIds(db)
+      if (!ids.length) {
+        return sendOk(res, {deletedIds: [] as number[]})
+      }
+      const targets = getTrashMediaForPurge(db, ids).map((item) => ({
+        id: item.id,
+        path: item.path,
+        trashOriginalPath: item.originalPath,
+        trashPurgeFile: item.purgeFile,
+        mediaTypeId: item.mediaTypeId,
+        basename: item.basename,
+        name: item.name,
+      }))
+      const deletedIds = await hardDeleteTargets(targets, {id: 0, with_file: false})
+      invalidateMediaDerivedCaches()
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging expired trash.')
+    }
+  }
 
   return {
     numberOfMediaWithTag,
     updatePath,
     update,
     deleteOne,
+    listTrash,
+    restoreTrash,
+    purgeTrash,
+    purgeExpiredTrash,
     getOneById,
     getAll,
     getFilteredIds,

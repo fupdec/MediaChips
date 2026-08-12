@@ -1306,6 +1306,7 @@ export default function useItemContextMenu(
       const deleted_items_names: string[] = []
       const deletedIds = new Set<number>()
       const handledZipArchives = new Set<string>()
+      let softDeleted = type === 'media'
       const itemsToDelete = type === 'media' && isSelectMode()
         ? await resolveSelectedMedia(ids)
         : ids
@@ -1340,8 +1341,11 @@ export default function useItemContextMenu(
 
         try {
           const response = await typedApi.deleteEntityOne(type, itemData)
-          const responseIds = Array.isArray((response.data as {deletedIds?: unknown} | undefined)?.deletedIds)
-            ? (response.data as {deletedIds: number[]}).deletedIds
+          const responseData = response.data as {deletedIds?: number[]; softDeleted?: boolean} | undefined
+          if (responseData?.softDeleted === false) softDeleted = false
+          if (type !== 'media') softDeleted = false
+          const responseIds = Array.isArray(responseData?.deletedIds)
+            ? responseData.deletedIds
             : [found.id]
           for (const deletedId of responseIds) {
             deletedIds.add(Number(deletedId))
@@ -1362,7 +1366,9 @@ export default function useItemContextMenu(
         const locale = settingsStore.locale as Locale
         notificationsStore.setNotification({
           type: 'info',
-          title: translate('notifications_text.items_deleted', {}, locale),
+          title: softDeleted
+            ? translate('notifications_text.items_moved_to_trash', {}, locale)
+            : translate('notifications_text.items_deleted', {}, locale),
           text: deleted_items_names.join(', '),
         })
       }
@@ -1397,9 +1403,11 @@ export default function useItemContextMenu(
       dialogsStore.confirm.checkBox2Text = translate('actions.delete_zip_file', {}, locale)
       dialogsStore.confirm.checkBox2RequiresPrimary = true
     } else {
-      dialogsStore.confirm.text = translate('media.delete_from_app_confirm', {}, locale)
+      dialogsStore.confirm.text = type === 'media'
+        ? translate('media.move_to_trash_confirm', {}, locale)
+        : translate('media.delete_from_app_confirm', {}, locale)
       dialogsStore.confirm.checkBoxText = type === 'media'
-        ? translate('actions.also_delete_files', {}, locale)
+        ? translate('actions.also_delete_files_on_purge', {}, locale)
         : ''
       dialogsStore.confirm.checkBox2Text = ''
     }

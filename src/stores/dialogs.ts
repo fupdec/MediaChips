@@ -118,8 +118,15 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       tag: null as Tag | null,
       meta: null as Meta | null,
     },
+    mediaTrash: { show: false },
   }),
   actions: {
+    openMediaTrash() {
+      this.mediaTrash.show = true
+    },
+    closeMediaTrash() {
+      this.mediaTrash.show = false
+    },
     editMedia(media: MediaItem | null, mediaType: MediaType | null = null) {
       const appStore = useAppStore()
       const itemsStore = useItemsStore()

@@ -1,6 +1,7 @@
 import type { ApiDb, AnyRecord } from '../types/db'
 import type { ParsedHomeMediaResponse } from '@shared/schemas/home'
 import { queryAll } from '../db/utils/rawQuery'
+import { MEDIA_NOT_IN_TRASH_SQL } from '../../shared/mediaTrash'
 
 const MEDIA_HOME_SELECT = `SELECT media.id,
   media.path,
@@ -61,6 +62,7 @@ async function getContinueWatching(db: ApiDb, limit = 12) {
      ${MEDIA_HOME_FROM}
      WHERE videoMetadata.time > 0
        AND media.viewedAt IS NOT NULL
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
        AND (
          videoMetadata.duration IS NULL
          OR videoMetadata.duration = 0
@@ -74,8 +76,8 @@ async function getContinueWatching(db: ApiDb, limit = 12) {
 async function getFavoriteMedia(db: ApiDb, limit = 12) {
   const bounds = queryAll(db, `
     SELECT
-      (SELECT id FROM media WHERE favorite = 1 ORDER BY id ASC LIMIT 1) AS minId,
-      (SELECT id FROM media WHERE favorite = 1 ORDER BY id DESC LIMIT 1) AS maxId
+      (SELECT id FROM media WHERE favorite = 1 AND ${MEDIA_NOT_IN_TRASH_SQL} ORDER BY id ASC LIMIT 1) AS minId,
+      (SELECT id FROM media WHERE favorite = 1 AND ${MEDIA_NOT_IN_TRASH_SQL} ORDER BY id DESC LIMIT 1) AS maxId
   `)[0] as {minId?: number | null; maxId?: number | null} | undefined
 
   const minId = Number(bounds?.minId)
@@ -88,6 +90,7 @@ async function getFavoriteMedia(db: ApiDb, limit = 12) {
   const first = queryAll(db, `${MEDIA_HOME_SELECT}
      ${MEDIA_HOME_FROM}
      WHERE media.favorite = 1
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
        AND media.id >= :pivot
      ORDER BY media.id ASC
      LIMIT :limit`, {pivot, limit})
@@ -100,6 +103,7 @@ async function getFavoriteMedia(db: ApiDb, limit = 12) {
   const wrap = queryAll(db, `${MEDIA_HOME_SELECT}
      ${MEDIA_HOME_FROM}
      WHERE media.favorite = 1
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
        AND media.id < :pivot
      ORDER BY media.id ASC
      LIMIT :limit`, {pivot, limit: remaining})
@@ -111,6 +115,7 @@ async function getTopViewedMedia(db: ApiDb, limit = 12) {
   const rows = queryAll(db, `${MEDIA_HOME_SELECT}
      ${MEDIA_HOME_FROM}
      WHERE media.views > 0
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
      ORDER BY media.views DESC, media.viewedAt DESC
      LIMIT :limit`, {limit})
   return rows.map(mapHomeItem)

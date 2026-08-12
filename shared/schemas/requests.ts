@@ -166,10 +166,20 @@ export const DeleteEntityOneRequestSchema = z.object({
   id: z.union([z.number(), z.string()]),
   metaId: z.union([z.number(), z.string()]).nullable().optional(),
   with_file: z.boolean().optional(),
+  /** Skip Trash and hard-delete immediately (also used by Trash purge). */
+  permanent: z.boolean().optional(),
   delete_zip_gallery: z.boolean().optional(),
   delete_zip_file: z.boolean().optional(),
   path: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
+}).passthrough()
+
+export const MediaTrashIdsRequestSchema = z.object({
+  ids: z.array(z.union([z.number(), z.string()])).min(1),
+}).passthrough()
+
+export const MediaTrashListQuerySchema = z.object({
+  limit: z.union([z.number(), z.string()]).optional(),
 }).passthrough()
 
 export const BulkMetaApplyRequestSchema = z.object({

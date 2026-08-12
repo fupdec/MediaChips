@@ -143,6 +143,15 @@ export function useCommandPaletteCommands(options: {
         },
       },
       {
+        id: 'media-trash',
+        title: t('commandPalette.actions.media_trash'),
+        subtitle: t('commandPalette.actions.media_trash_hint'),
+        icon: 'mdi-delete-outline',
+        group: 'actions',
+        keywords: ['trash', 'bin', 'recycle', 'restore', 'undelete'],
+        run: () => dialogsStore.openMediaTrash(),
+      },
+      {
         id: 'toggle-theme',
         title: t('commandPalette.actions.toggle_theme'),
         icon: 'mdi-theme-light-dark',

@@ -21,6 +21,12 @@ export const media = sqliteTable('media', {
   viewedAt: text('viewedAt'),
   /** Capture / Media Created date (EXIF, container tags, or FS birthtime/mtime fallback). */
   mediaCreatedAt: text('mediaCreatedAt'),
+  /** Soft-delete timestamp; null/empty means active in the library. */
+  deletedAt: text('deletedAt'),
+  /** Original path while the row sits in Trash (path itself is rewritten for uniqueness). */
+  trashOriginalPath: text('trashOriginalPath'),
+  /** When set, purge should also unlink the original file on disk. */
+  trashPurgeFile: integer('trashPurgeFile', {mode: 'boolean'}).default(false),
   mediaTypeId: integer('mediaTypeId'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),

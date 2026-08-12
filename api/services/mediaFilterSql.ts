@@ -35,6 +35,7 @@ import {
   joinFilterClauses,
   normalizeFiltersJoinMode,
 } from '../utils/filtersJoinMode'
+import {MEDIA_NOT_IN_TRASH_SQL} from '../../shared/mediaTrash'
 
 const MEDIA_COLUMNS = new Set([
   'rating',
@@ -295,7 +296,10 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
     return `:${key}`
   }
 
-  const baseClauses: string[] = ['media.mediaTypeId = :mediaTypeId']
+  const baseClauses: string[] = [
+    'media.mediaTypeId = :mediaTypeId',
+    MEDIA_NOT_IN_TRASH_SQL,
+  ]
   const filterClauses: string[] = []
   const joins: string[] = []
   let joinIndex = 0

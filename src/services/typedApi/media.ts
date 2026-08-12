@@ -86,6 +86,36 @@ export const mediaApi = {
     return apiClient.post(API_ROUTES.mediaDeleteOne, body)
   },
 
+  listMediaTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        id: number
+        name: string | null
+        basename: string | null
+        path: string | null
+        originalPath: string | null
+        mediaTypeId: number | null
+        deletedAt: string
+        purgeFile: boolean
+        filesize: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.mediaTrashList, {params})
+  },
+
+  restoreMediaTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.mediaTrashRestore, body)
+  },
+
+  purgeMediaTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.mediaTrashPurge, body)
+  },
+
+  purgeExpiredMediaTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.mediaTrashPurgeExpired, {})
+  },
+
   getMediaBasics(body: { ids: number[] }) {
     return apiClient.post<MediaListResponseData>(API_ROUTES.mediaBasics, body).then((res) => ({
       ...res,

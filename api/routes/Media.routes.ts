@@ -19,6 +19,8 @@ import {
   DeleteEntityOneRequestSchema,
   MediaTagCountQuerySchema,
   EntityUpdateRequestSchema,
+  MediaTrashIdsRequestSchema,
+  MediaTrashListQuerySchema,
 } from '../../shared/schemas/requests'
 import createMediaController from '../controllers/Media.controller'
 
@@ -41,6 +43,11 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/merge', validateBody(MergeMediaRequestSchema), Media.merge)
 
   router.get('/get-stats', Media.getStats)
+
+  router.get('/trash', validateQuery(MediaTrashListQuerySchema), Media.listTrash)
+  router.post('/trash/restore', validateBody(MediaTrashIdsRequestSchema), Media.restoreTrash)
+  router.post('/trash/purge', validateBody(MediaTrashIdsRequestSchema), Media.purgeTrash)
+  router.post('/trash/purgeExpired', Media.purgeExpiredTrash)
 
   router.post('/updatePath', validateBody(MediaPathUpdateRequestSchema), Media.updatePath)
 

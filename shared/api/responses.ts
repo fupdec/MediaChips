@@ -269,6 +269,8 @@ export interface DeleteEntityOnePayload {
   id: number
   metaId?: number | null
   with_file?: boolean
+  /** Skip Trash and hard-delete immediately (also used by Trash purge). */
+  permanent?: boolean
   /** When true and media is a ZIP virtual path, delete all media from the same archive. */
   delete_zip_gallery?: boolean
   /** When true with delete_zip_gallery, also unlink the .zip archive file from disk. */
