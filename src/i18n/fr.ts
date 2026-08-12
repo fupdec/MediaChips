@@ -2260,6 +2260,10 @@ const fr = {
       password_protection: 'Protection par mot de passe',
       password_protection_hint: 'Exiger un mot de passe lors de la saisie de l\'application',
       password: 'Mot de passe',
+      auto_lock_idle: 'Verrouillage auto en cas d’inactivité',
+      auto_lock_idle_hint: 'Verrouille l’application après une période sans souris, clavier ni tactile. Nécessite la protection par mot de passe.',
+      auto_lock_idle_off: 'Désactivé',
+      auto_lock_idle_minutes: '{count} min',
     },
     media_type_added_meta: {
       irreversible_changes: 'Les modifications sont appliquées immédiatement et sont irréversibles',

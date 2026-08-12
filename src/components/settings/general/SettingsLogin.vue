@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 
-import { ref, onMounted } from "vue";
+import {computed, ref, onMounted} from "vue";
 import {useI18n} from "vue-i18n";
 import {useSettingsStore} from "@/stores/settings";
 import SettingsCategoryDivider
   from "@/components/ui/SettingsCategoryDivider.vue";
 import {setOption} from '@/services/settingsService'
+import {
+  AUTO_LOCK_IDLE_MINUTE_OPTIONS,
+  parseAutoLockIdleMinutes,
+} from '@/composable/useIdleAutoLock'
 
 const SETTINGS = useSettingsStore();
 const {t} = useI18n();
@@ -15,6 +19,22 @@ const {t} = useI18n();
 const password = ref("");
 const hint = ref("");
 const showPassword = ref(false);
+
+const idleMinuteItems = computed(() =>
+  AUTO_LOCK_IDLE_MINUTE_OPTIONS.map((minutes) => ({
+    value: String(minutes),
+    title: minutes === 0
+      ? t('settings_labels.security.auto_lock_idle_off')
+      : t('settings_labels.security.auto_lock_idle_minutes', {count: minutes}),
+  })),
+)
+
+const idleMinutesModel = computed({
+  get: () => String(parseAutoLockIdleMinutes(SETTINGS.autoLockIdleMinutes)),
+  set: (value: string) => {
+    void setOption(String(parseAutoLockIdleMinutes(value)), 'autoLockIdleMinutes')
+  },
+})
 
 onMounted(() => {
   password.value = SETTINGS.phrase;
@@ -61,6 +81,20 @@ onMounted(() => {
           rounded
           variant="outlined"
           hide-details
+        />
+      </v-col>
+
+      <v-col cols="12" sm="6">
+        <v-select
+          v-model="idleMinutesModel"
+          :items="idleMinuteItems"
+          item-title="title"
+          item-value="value"
+          :label="t('settings_labels.security.auto_lock_idle')"
+          :hint="t('settings_labels.security.auto_lock_idle_hint')"
+          persistent-hint
+          rounded
+          variant="outlined"
         />
       </v-col>
     </v-row>

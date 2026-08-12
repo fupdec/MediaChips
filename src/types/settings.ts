@@ -103,6 +103,8 @@ export type SettingsState = {
   passwordProtection: string
   phrase: string
   passwordHint: string
+  /** Idle minutes before auto-lock; '0' disables. Requires passwordProtection. */
+  autoLockIdleMinutes: string
   videoPreviewEnabled: string
   videoPreviewStatic: string
   videoPreviewHover: string
@@ -250,6 +252,7 @@ export const defaultSettingsState = (): SettingsState => ({
   passwordProtection: '0',
   phrase: '',
   passwordHint: '',
+  autoLockIdleMinutes: '0',
   videoPreviewEnabled: '0',
   videoPreviewStatic: 'thumb',
   videoPreviewHover: 'video',

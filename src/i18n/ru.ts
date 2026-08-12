@@ -2260,6 +2260,10 @@ const ru = {
       password_protection: 'Защита паролем',
       password_protection_hint: 'Требовать пароль при входе в приложение',
       password: 'Пароль',
+      auto_lock_idle: 'Автоблокировка при бездействии',
+      auto_lock_idle_hint: 'Блокировать приложение после периода без мыши, клавиатуры или касаний. Нужна защита паролем.',
+      auto_lock_idle_off: 'Выкл.',
+      auto_lock_idle_minutes: '{count} мин',
     },
     media_type_added_meta: {
       irreversible_changes: 'Изменения применяются сразу и необратимы',

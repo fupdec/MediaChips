@@ -2260,6 +2260,10 @@ const de = {
       password_protection: 'Passwortschutz',
       password_protection_hint: 'Beim Betreten der Anwendung ist ein Passwort erforderlich',
       password: 'Passwort',
+      auto_lock_idle: 'Automatische Sperre bei Inaktivität',
+      auto_lock_idle_hint: 'App nach einer Zeit ohne Maus-, Tastatur- oder Touch-Aktivität sperren. Erfordert Passwortschutz.',
+      auto_lock_idle_off: 'Aus',
+      auto_lock_idle_minutes: '{count} Min.',
     },
     media_type_added_meta: {
       irreversible_changes: 'Änderungen werden sofort übernommen und sind irreversibel',

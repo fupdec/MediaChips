@@ -54,6 +54,7 @@ import {
 import {debounce} from '@/utils/debounce'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
+import {useIdleAutoLock} from '@/composable/useIdleAutoLock'
 
 interface UseAppBootstrapOptions {
   isPlayerWindow: Ref<boolean>
@@ -354,6 +355,10 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     void typedApi.logout().catch(() => {})
     store.isLocked = true
   }
+
+  const idleAutoLock = isPlayerWindow.value
+    ? null
+    : useIdleAutoLock({lockApp})
 
   function setupWindowFocusTracking(): void {
     if (store.isElectron) {
@@ -680,6 +685,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     unsubscribeLockApp?.()
     unsubscribeZoomChanged?.()
     teardownWindowFocusTracking()
+    idleAutoLock?.stop()
 
     if (appZoom) {
       window.removeEventListener('keydown', appZoom.handleKeydown)

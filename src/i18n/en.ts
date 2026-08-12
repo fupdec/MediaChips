@@ -2260,6 +2260,10 @@ const en = {
       password_protection: 'Password protection',
       password_protection_hint: 'Require a password when entering the application',
       password: 'Password',
+      auto_lock_idle: 'Auto-lock when idle',
+      auto_lock_idle_hint: 'Lock the app after a period without mouse, keyboard, or touch activity. Requires password protection.',
+      auto_lock_idle_off: 'Off',
+      auto_lock_idle_minutes: '{count} min',
     },
     media_type_added_meta: {
       irreversible_changes: 'Changes are applied immediately and are irreversible',
