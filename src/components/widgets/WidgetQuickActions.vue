@@ -33,6 +33,26 @@
         </v-btn>
 
         <v-btn
+          v-if="showInbox"
+          @click="openInbox()"
+          color="success"
+          rounded
+          variant="tonal"
+        >
+          <v-icon start>mdi-inbox-outline</v-icon>
+          {{ t('media_inbox.nav') }}
+          <v-chip
+            v-if="inboxBadgeCount"
+            class="ml-2"
+            size="x-small"
+            color="success"
+            variant="flat"
+          >
+            {{ inboxBadgeCount }}
+          </v-chip>
+        </v-btn>
+
+        <v-btn
           v-for="mediaType in visibleMediaTypes"
           :key="mediaType.id"
           :to="`/media?mediaTypeId=${mediaType.id}`"
@@ -85,6 +105,7 @@ import {useTasksStore} from '@/stores/tasks'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
 import {useAppShell} from '@/composable/appShell'
+import {useMediaInbox} from '@/composable/useMediaInbox'
 import {getDefaultMediaTypeId, inferMediaTypeFromPaths} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getMetaName} from '@/utils/metaI18n'
@@ -97,7 +118,11 @@ const appStore = useAppStore()
 const tasksStore = useTasksStore()
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
-  const appShell = useAppShell()
+const appShell = useAppShell()
+const mediaInbox = useMediaInbox()
+const inboxBadgeCount = mediaInbox.badgeCount
+const showInbox = computed(() => inboxBadgeCount.value > 0)
+const {openInbox} = mediaInbox
 
 const addDialogOpen = ref(false)
 const dropzoneActive = ref(false)
