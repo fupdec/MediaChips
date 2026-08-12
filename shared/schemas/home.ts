@@ -190,6 +190,20 @@ export const HomeMediaResponseSchema = z.object({
   items: z.array(MediaItemSchema).optional(),
 }).passthrough()
 
+export const HomeSimilarSeedSchema = z.object({
+  id: z.number(),
+  name: z.string().nullable().optional(),
+  basename: z.string().nullable().optional(),
+  path: z.string().nullable().optional(),
+  mediaTypeId: z.number().nullable().optional(),
+  reason: z.enum(['viewed', 'favorite', 'any']).optional(),
+}).passthrough()
+
+export const HomeSimilarResponseSchema = z.object({
+  seed: HomeSimilarSeedSchema.nullable(),
+  items: z.array(MediaItemSchema),
+}).passthrough()
+
 export const MissingMediaStatusSchema = z.object({
   total: z.number().optional(),
   missing: z.number().optional(),
@@ -276,3 +290,4 @@ export type HealthQueueItem = NonNullable<ParsedHomeHealth['queue']>[number]
 export type HealthQueueItemId = z.infer<typeof HealthQueueItemIdSchema>
 export type ParsedHomeMarkers = z.infer<typeof HomeMarkersSchema>
 export type ParsedHomeMediaResponse = z.infer<typeof HomeMediaResponseSchema>
+export type ParsedHomeSimilarResponse = z.infer<typeof HomeSimilarResponseSchema>

@@ -732,6 +732,8 @@ const ja = {
       search: '検索',
       drop_hint: 'ファイルまたはフォルダーをここにドラッグして追加します',
       continue_watching: '視聴を続ける',
+      similar: '類似',
+      similar_to: '{name} に似た作品',
       favorites: 'お気に入り',
       top_views: 'ビュー別上位',
       view_all: 'すべて見る',

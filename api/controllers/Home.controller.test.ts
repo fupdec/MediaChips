@@ -7,6 +7,7 @@ const {
   getHomeHealth,
   getHomeHealthLite,
   getHomeExtendedStats,
+  getHomeSimilar,
   searchMediaByName,
   searchTagsByName,
   searchGlobal,
@@ -16,6 +17,7 @@ const {
   getHomeHealth: vi.fn(),
   getHomeHealthLite: vi.fn(),
   getHomeExtendedStats: vi.fn(),
+  getHomeSimilar: vi.fn(),
   searchMediaByName: vi.fn(),
   searchTagsByName: vi.fn(),
   searchGlobal: vi.fn(),
@@ -36,6 +38,10 @@ vi.mock('../services/homeHealth', () => ({
 
 vi.mock('../services/homeExtendedStats', () => ({
   getHomeExtendedStats,
+}))
+
+vi.mock('../services/homeSimilar', () => ({
+  getHomeSimilar,
 }))
 
 vi.mock('../services/globalSearch', () => ({
@@ -105,6 +111,20 @@ describe('Home.controller', () => {
     expect(getRandomMarks).toHaveBeenCalledWith({}, 16)
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({marks: [{id: 1}]})
+  })
+
+  it('returns home similar media', async () => {
+    const payload = {seed: {id: 7, name: 'Seed', reason: 'viewed'}, items: [{id: 8}]}
+    getHomeSimilar.mockResolvedValue(payload)
+
+    const req = {query: {limit: '6'}} as unknown as ApiRequest
+    const res = createResponse()
+
+    await controller.getSimilar(req, res)
+
+    expect(getHomeSimilar).toHaveBeenCalledWith({}, {limit: 6})
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual(payload)
   })
 
   it('returns 500 when extended stats fail', async () => {

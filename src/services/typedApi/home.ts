@@ -12,6 +12,7 @@ import {
   parseHomeHealthLite,
   parseHomeMarkers,
   parseHomeMediaResponse,
+  parseHomeSimilarResponse,
   parseHomeMediaStats,
   parseHomeTagCount,
   parseMediaThumbsResponse,
@@ -25,6 +26,13 @@ export const homeApi = {
     return apiClient.get<HomeMediaResponse>(API_ROUTES.homeMedia, { params }).then((res) => ({
       ...res,
       data: validated(parseHomeMediaResponse, res.data),
+    }))
+  },
+
+  getHomeSimilar(params?: {limit?: number}) {
+    return apiClient.get(API_ROUTES.homeSimilar, {params}).then((res) => ({
+      ...res,
+      data: validated(parseHomeSimilarResponse, res.data),
     }))
   },
 

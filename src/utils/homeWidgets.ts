@@ -4,6 +4,7 @@ export const HOME_WIDGET_IDS = [
   'chartStats',
   'quickActions',
   'continue',
+  'similar',
   'favorites',
   'topViews',
   'markers',
@@ -15,6 +16,7 @@ export type HomeWidgetId = typeof HOME_WIDGET_IDS[number]
 
 export const HOME_WIDGETS_WITH_LIMIT = [
   'continue',
+  'similar',
   'favorites',
   'topViews',
   'markers',
@@ -35,6 +37,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     'chartStats',
     'quickActions',
     'continue',
+    'similar',
     'favorites',
     'stats',
     'extendedStats',
@@ -49,6 +52,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     chartStats: true,
     quickActions: true,
     continue: true,
+    similar: true,
     favorites: true,
     topViews: false,
     markers: false,
@@ -57,6 +61,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
   },
   limits: {
     continue: 12,
+    similar: 12,
     favorites: 12,
     topViews: 12,
     markers: 8,

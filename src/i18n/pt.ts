@@ -732,6 +732,8 @@ const pt = {
       search: 'Pesquisar',
       drop_hint: 'Arraste arquivos ou pastas aqui para adicioná-los',
       continue_watching: 'Continuar assistindo',
+      similar: 'Semelhantes',
+      similar_to: 'Semelhante a {name}',
       favorites: 'Favoritos',
       top_views: 'Principais por visualizações',
       view_all: 'Ver tudo',

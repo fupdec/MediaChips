@@ -6,6 +6,7 @@ import { getRandomMarks } from '../services/homeMarkers'
 import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
 import { getHomeChartStats } from '../services/homeChartStats'
+import { getHomeSimilar } from '../services/homeSimilar'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 import { parseClampedLimit } from '../utils/parseRequestNumber'
 
@@ -70,6 +71,16 @@ export default (db: ApiDb) => {
     }
   }
 
+  const getSimilar = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const limit = parseClampedLimit(req.query.limit, 12)
+      const data = await getHomeSimilar(db, {limit})
+      sendOk(res, data)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving home similar media.')
+    }
+  }
+
   const searchMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const q = req.body?.q ?? req.body?.query
@@ -114,6 +125,7 @@ export default (db: ApiDb) => {
     getHealthLite,
     getExtendedStats,
     getChartStats,
+    getSimilar,
     searchMedia,
     searchTags,
     searchGlobal: searchGlobalHandler,

@@ -732,6 +732,8 @@ const fr = {
       search: 'Rechercher',
       drop_hint: 'Faites glisser des fichiers ou des dossiers ici pour les ajouter',
       continue_watching: 'Continuer à regarder',
+      similar: 'Similaires',
+      similar_to: 'Similaire à {name}',
       favorites: 'Favoris',
       top_views: 'Top par vues',
       view_all: 'Voir tout',
