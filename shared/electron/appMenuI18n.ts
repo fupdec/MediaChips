@@ -29,6 +29,7 @@ export type AppMenuLabels = {
   paste: string
   selectAll: string
   globalSearch: string
+  commandPalette: string
   toggleTheme: string
   zoomIn: string
   zoomOut: string
@@ -70,6 +71,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "Paste",
     selectAll: "Select All",
     globalSearch: "Global Search",
+    commandPalette: "Command Palette",
     toggleTheme: "Toggle Theme",
     zoomIn: "Zoom In",
     zoomOut: "Zoom Out",
@@ -109,6 +111,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "Вставить",
     selectAll: "Выделить всё",
     globalSearch: "Глобальный поиск",
+    commandPalette: "Палитра команд",
     toggleTheme: "Переключить тему",
     zoomIn: "Увеличить",
     zoomOut: "Уменьшить",
@@ -148,6 +151,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "Einfügen",
     selectAll: "Alles auswählen",
     globalSearch: "Globale Suche",
+    commandPalette: "Befehlspalette",
     toggleTheme: "Thema umschalten",
     zoomIn: "Vergrößern",
     zoomOut: "Herauszoomen",
@@ -187,6 +191,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "Pegar",
     selectAll: "Seleccionar todo",
     globalSearch: "Búsqueda global",
+    commandPalette: "Paleta de comandos",
     toggleTheme: "Cambiar tema",
     zoomIn: "Acercar",
     zoomOut: "Alejar",
@@ -226,6 +231,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "Coller",
     selectAll: "Sélectionner tout",
     globalSearch: "Recherche globale",
+    commandPalette: "Palette de commandes",
     toggleTheme: "Basculer le thème",
     zoomIn: "Zoomer",
     zoomOut: "Zoom arrière",
@@ -265,6 +271,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "ペースト",
     selectAll: "すべて選択",
     globalSearch: "グローバル検索",
+    commandPalette: "コマンドパレット",
     toggleTheme: "テーマの切り替え",
     zoomIn: "ズームイン",
     zoomOut: "ズームアウト",
@@ -304,6 +311,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "Colar",
     selectAll: "Selecionar tudo",
     globalSearch: "Pesquisa global",
+    commandPalette: "Paleta de comandos",
     toggleTheme: "Alternar tema",
     zoomIn: "Ampliar",
     zoomOut: "Diminuir zoom",
@@ -343,6 +351,7 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
     paste: "粘贴",
     selectAll: "全选",
     globalSearch: "全局搜索",
+    commandPalette: "命令面板",
     toggleTheme: "切换主题",
     zoomIn: "放大",
     zoomOut: "缩小",

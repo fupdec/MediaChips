@@ -5,6 +5,8 @@ export type AppShellHandlers = {
   showGlobalSearch: () => void
   showAddMediaDialog: () => void
   showKeyboardShortcuts: () => void
+  showCommandPalette: () => void
+  toggleCommandPalette: () => void
   openTasksMenu: () => void
   openTagsAddWithNames: (payload: OpenTagsAddWithNamesEvent | string[] | undefined) => void
 }
@@ -27,6 +29,8 @@ export function useAppShell(): AppShellHandlers {
     showGlobalSearch: () => handlers.showGlobalSearch?.(),
     showAddMediaDialog: () => handlers.showAddMediaDialog?.(),
     showKeyboardShortcuts: () => handlers.showKeyboardShortcuts?.(),
+    showCommandPalette: () => handlers.showCommandPalette?.(),
+    toggleCommandPalette: () => handlers.toggleCommandPalette?.(),
     openTasksMenu: () => handlers.openTasksMenu?.(),
     openTagsAddWithNames: (payload) => handlers.openTagsAddWithNames?.(payload),
   }

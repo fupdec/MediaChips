@@ -12,6 +12,7 @@ export type SystemMenuAction =
   | 'paste'
   | 'selectAll'
   | 'globalSearch'
+  | 'commandPalette'
   | 'toggleTheme'
   | 'zoomIn'
   | 'zoomOut'
@@ -79,6 +80,7 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
     labelKey: 'systemBar.menu_view',
     items: [
       {action: 'globalSearch', icon: 'mdi-magnify', labelKey: 'systemBar.global_search', hotkey: '/'},
+      {action: 'commandPalette', icon: 'mdi-console-line', labelKey: 'systemBar.command_palette', hotkey: 'Ctrl+K'},
       {action: 'toggleTheme', icon: 'mdi-theme-light-dark', labelKey: 'systemBar.toggle_theme'},
       {divider: true},
       {action: 'zoomIn', labelKey: 'systemBar.zoom_in', hotkey: 'Ctrl++'},

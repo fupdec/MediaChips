@@ -6,6 +6,7 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {registerAppShellHandler} from '@/composable/appShell'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
+import GlobalSearchCommands from '@/components/app/appbar/GlobalSearchCommands.vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
@@ -42,6 +43,7 @@ import {
 import {VISUAL_SEARCH_QUICK_SAMPLE_SIZE} from '@shared/visualSearchQuick'
 import type { ContextMenuEntry, MediaItem, Meta, Tag } from '@/types/stores'
 import type {Locale} from '@/utils/translate'
+import type {CommandPaletteCommand} from '@/composable/commandPaletteCommands'
 
 type MatchedSearchTag = {
   id: number
@@ -99,11 +101,6 @@ type FlatResultRow =
 const {t, locale} = useI18n()
 const router = useRouter()
 const {openMediaList} = useOpenMediaList()
-
-useHotkey('slash', () => {
-  if (playerStore.active) return
-  showSearch()
-})
 
 const app = useAppStore()
 const itemsStore = useItemsStore()
@@ -236,13 +233,58 @@ const showSemanticExamples = computed(() =>
   && !semanticSetupIncomplete.value,
 )
 
-const showSemanticHealthPanel = computed(() =>
-  Boolean(semanticChecklist.value.length)
-  && (
-    Boolean(semanticHealth.value?.searched)
-    || (semanticSetupIncomplete.value && !hasActiveSearch.value)
-  ),
+const VISUAL_SETUP_HINT_DISMISS_KEY = 'mediachips.globalSearch.dismissVisualSetupHint'
+
+function readVisualSetupHintDismissed(): boolean {
+  try {
+    return localStorage.getItem(VISUAL_SETUP_HINT_DISMISS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const visualSetupHintDismissed = ref(readVisualSetupHintDismissed())
+
+const showSemanticHealthSetupHint = computed(() =>
+  semanticSetupIncomplete.value
+  && !hasActiveSearch.value
+  && !semanticHealth.value?.searched
+  && !visualSetupHintDismissed.value,
 )
+
+const showSemanticHealthSearchStatus = computed(() =>
+  Boolean(semanticChecklist.value.length)
+  && Boolean(semanticHealth.value?.searched),
+)
+
+const showSemanticHealthPanel = computed(() =>
+  showSemanticHealthSearchStatus.value || showSemanticHealthSetupHint.value,
+)
+
+const showVisualSetupHintRestore = computed(() =>
+  semanticSetupIncomplete.value
+  && !hasActiveSearch.value
+  && !semanticHealth.value?.searched
+  && visualSetupHintDismissed.value,
+)
+
+function dismissVisualSetupHint() {
+  visualSetupHintDismissed.value = true
+  try {
+    localStorage.setItem(VISUAL_SETUP_HINT_DISMISS_KEY, '1')
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function restoreVisualSetupHint() {
+  visualSetupHintDismissed.value = false
+  try {
+    localStorage.removeItem(VISUAL_SETUP_HINT_DISMISS_KEY)
+  } catch {
+    // ignore
+  }
+}
 
 function runSemanticExample(example: string) {
   query.value = String(example || '').trim()
@@ -416,11 +458,17 @@ const meta = computed(() => app.meta)
 const mediaTypes = computed(() => app.mediaTypes)
 
 const dialog = ref(false)
+const paletteMode = ref<'search' | 'commands'>('search')
 const query = ref('')
 const loading = ref(false)
 const results = ref<SearchGroup[]>([])
 const expandedGroupIds = ref<Set<string>>(new Set())
 const searchInput = ref<HTMLInputElement | null>(null)
+const commandsPanel = ref<{
+  moveActive: (delta: number) => void
+  runActive: () => Promise<void>
+  resetActive: () => void
+} | null>(null)
 const resultsScroller = ref<{ scrollToIndex: (index: number) => void } | null>(null)
 const selectedIndex = ref(-1)
 const pinnedTags = ref<PinnedSearchTag[]>([])
@@ -429,6 +477,18 @@ const localAiReady = ref(false)
 const aiBusy = ref(false)
 const aiExplanation = ref('')
 const aiError = ref('')
+
+const isCommandsMode = computed(() => paletteMode.value === 'commands')
+const isSearchMode = computed(() => paletteMode.value === 'search')
+
+const inputPlaceholder = computed(() => {
+  if (isCommandsMode.value) return t('commandPalette.placeholder')
+  return pinnedTags.value.length ? '' : t('globalSearch.enterUnified')
+})
+
+const headerTitle = computed(() =>
+  isCommandsMode.value ? t('commandPalette.title') : t('appbar.globalSearch'),
+)
 
 let abortController: AbortController | null = null
 let aiAbortController: AbortController | null = null
@@ -565,8 +625,47 @@ const canRunSemanticOnEnter = computed(() =>
   && !semanticHealth.value?.searched,
 )
 
-function showSearch() {
+function openInMode(mode: 'search' | 'commands') {
+  const switching = dialog.value && paletteMode.value !== mode
+  paletteMode.value = mode
   dialog.value = true
+  if (!switching) {
+    query.value = ''
+    pinnedTags.value = []
+    results.value = []
+    semanticHealth.value = null
+    aiExplanation.value = ''
+    aiError.value = ''
+    clearHighlightCache()
+    selectedIndex.value = -1
+  }
+  commandsPanel.value?.resetActive()
+  focusSearchField()
+  if (mode === 'search') {
+    void refreshSemanticHealth()
+    void refreshLocalAiReady()
+  }
+}
+
+function showSearch() {
+  openInMode('search')
+}
+
+function showCommands() {
+  openInMode('commands')
+}
+
+function toggleCommands() {
+  if (dialog.value && isCommandsMode.value) {
+    dialog.value = false
+    return
+  }
+  showCommands()
+}
+
+function setPaletteMode(mode: 'search' | 'commands') {
+  if (paletteMode.value === mode) return
+  paletteMode.value = mode
   query.value = ''
   pinnedTags.value = []
   results.value = []
@@ -574,10 +673,40 @@ function showSearch() {
   aiExplanation.value = ''
   aiError.value = ''
   clearHighlightCache()
+  selectedIndex.value = -1
+  commandsPanel.value?.resetActive()
   focusSearchField()
-  void refreshSemanticHealth()
-  void refreshLocalAiReady()
+  if (mode === 'search') {
+    void refreshSemanticHealth()
+    void refreshLocalAiReady()
+  }
 }
+
+function onModeToggle(mode: unknown) {
+  if (mode === 'search' || mode === 'commands') setPaletteMode(mode)
+}
+
+function toggleSearch() {
+  if (dialog.value && isSearchMode.value) {
+    dialog.value = false
+    return
+  }
+  showSearch()
+}
+
+async function onCommandRun(command: CommandPaletteCommand) {
+  dialog.value = false
+  await command.run()
+}
+
+useHotkey('slash', () => {
+  if (playerStore.active) return
+  if (dialog.value && isSearchMode.value) {
+    dialog.value = false
+    return
+  }
+  openInMode('search')
+})
 
 function isLocalAiStatusReady(status: {
   enabled?: boolean | string | number
@@ -705,14 +834,22 @@ async function runAiInterpret() {
 }
 
 let unregisterShowGlobalSearch: (() => void) | null = null
+let unregisterShowCommandPalette: (() => void) | null = null
+let unregisterToggleCommandPalette: (() => void) | null = null
 
 onMounted(() => {
   unregisterShowGlobalSearch = registerAppShellHandler('showGlobalSearch', showSearch)
+  unregisterShowCommandPalette = registerAppShellHandler('showCommandPalette', showCommands)
+  unregisterToggleCommandPalette = registerAppShellHandler('toggleCommandPalette', toggleCommands)
 })
 
 onBeforeUnmount(() => {
   unregisterShowGlobalSearch?.()
   unregisterShowGlobalSearch = null
+  unregisterShowCommandPalette?.()
+  unregisterShowCommandPalette = null
+  unregisterToggleCommandPalette?.()
+  unregisterToggleCommandPalette = null
   abortController?.abort()
   runSearch.cancel()
 })
@@ -750,6 +887,8 @@ function resetState() {
   clearHighlightCache()
   loading.value = false
   selectedIndex.value = -1
+  paletteMode.value = 'search'
+  commandsPanel.value?.resetActive()
 }
 
 function closeThenNavigate(action: () => void) {
@@ -1255,6 +1394,8 @@ async function search() {
 const runSearch = debounce(search, 250)
 
 function onQueryInput() {
+  if (isCommandsMode.value) return
+
   if (semanticHealth.value?.searched) {
     semanticHealth.value = {
       ...semanticHealth.value,
@@ -1438,6 +1579,30 @@ function clearAllSearch() {
 }
 
 function onSearchKeydown(e: KeyboardEvent) {
+  if (isCommandsMode.value) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      commandsPanel.value?.moveActive(1)
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      commandsPanel.value?.moveActive(-1)
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void commandsPanel.value?.runActive()
+      return
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      setPaletteMode('search')
+      return
+    }
+    return
+  }
+
   if (e.key === 'Escape' && aiBusy.value) {
     e.preventDefault()
     e.stopPropagation()
@@ -1484,6 +1649,11 @@ function onSearchKeydown(e: KeyboardEvent) {
     e.preventDefault()
     if (selectedIsTag.value) {
       pinSelectedTag()
+      return
+    }
+    // Switch to commands when no tag to pin.
+    if (!query.value.trim()) {
+      setPaletteMode('commands')
       return
     }
     // No tag to pin — semantic search on the current query.
@@ -1678,9 +1848,9 @@ function getNameHighlighted(text: string) {
       <div class="global-search__header pa-4 pb-2">
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="d-flex align-center ga-3 min-w-0">
-            <div class="text-h6 text-truncate">{{ t('appbar.globalSearch') }}</div>
+            <div class="text-h6 text-truncate">{{ headerTitle }}</div>
             <v-chip
-              v-if="hasActiveSearch && !loading && totalResults > 0"
+              v-if="isSearchMode && hasActiveSearch && !loading && totalResults > 0"
               size="small"
               variant="tonal"
               color="primary"
@@ -1689,7 +1859,27 @@ function getNameHighlighted(text: string) {
               {{ totalResults }}
             </v-chip>
           </div>
-          <v-hotkey keys="slash" variant="flat"/>
+          <div class="d-flex align-center ga-2 flex-shrink-0">
+            <v-btn-toggle
+              :model-value="paletteMode"
+              mandatory
+              density="compact"
+              variant="outlined"
+              divided
+              class="global-search__mode-toggle"
+              @update:model-value="onModeToggle"
+            >
+              <v-btn value="search" size="small">
+                <v-icon start size="16">mdi-magnify</v-icon>
+                {{ t('globalSearch.modeSearch') }}
+              </v-btn>
+              <v-btn value="commands" size="small">
+                <v-icon start size="16">mdi-console-line</v-icon>
+                {{ t('globalSearch.modeCommands') }}
+              </v-btn>
+            </v-btn-toggle>
+            <v-hotkey :keys="isCommandsMode ? 'meta+k' : 'slash'" variant="flat"/>
+          </div>
         </div>
 
         <div
@@ -1698,7 +1888,7 @@ function getNameHighlighted(text: string) {
           @mousedown="onInputShellMouseDown"
         >
           <v-icon class="global-search__input-icon text-medium-emphasis" size="20">
-            mdi-magnify
+            {{ isCommandsMode ? 'mdi-console-line' : 'mdi-magnify' }}
           </v-icon>
 
           <div class="global-search__input-body">
@@ -1724,7 +1914,7 @@ function getNameHighlighted(text: string) {
               type="text"
               autocomplete="off"
               spellcheck="false"
-              :placeholder="pinnedTags.length ? '' : t('globalSearch.enterUnified')"
+              :placeholder="inputPlaceholder"
               @input="onQueryInput"
               @keydown="onSearchKeydown"
               @focus="inputFocused = true"
@@ -1733,7 +1923,26 @@ function getNameHighlighted(text: string) {
           </div>
 
           <v-btn
-            v-if="localAiReady || aiBusy"
+            v-if="isSearchMode && query.trim()"
+            class="global-search__input-semantic"
+            variant="tonal"
+            color="primary"
+            density="compact"
+            size="small"
+            rounded="pill"
+            tabindex="-1"
+            prepend-icon="mdi-brain"
+            @mousedown.prevent
+            @click.stop="searchSemantic"
+          >
+            {{ t('globalSearch.findScene') }}
+            <v-tooltip activator="parent" location="top">
+              {{ t('globalSearch.findSceneTip') }}
+            </v-tooltip>
+          </v-btn>
+
+          <v-btn
+            v-if="isSearchMode && (localAiReady || aiBusy)"
             class="global-search__input-ai"
             icon
             variant="text"
@@ -1752,25 +1961,7 @@ function getNameHighlighted(text: string) {
           </v-btn>
 
           <v-btn
-            v-if="query.trim()"
-            class="global-search__input-semantic"
-            variant="tonal"
-            color="primary"
-            density="compact"
-            size="small"
-            tabindex="-1"
-            prepend-icon="mdi-brain"
-            @mousedown.prevent
-            @click.stop="searchSemantic"
-          >
-            {{ t('globalSearch.findScene') }}
-            <v-tooltip activator="parent" location="top">
-              {{ t('globalSearch.findSceneTip') }}
-            </v-tooltip>
-          </v-btn>
-
-          <v-btn
-            v-if="query.trim()"
+            v-if="isSearchMode && query.trim()"
             class="global-search__input-mix"
             icon
             variant="text"
@@ -1804,7 +1995,7 @@ function getNameHighlighted(text: string) {
         </div>
 
         <div
-          v-if="aiExplanation || aiError"
+          v-if="isSearchMode && (aiExplanation || aiError)"
           class="global-search__ai-caption text-caption px-1 pt-2"
           :class="aiError ? 'text-error' : 'text-medium-emphasis'"
         >
@@ -1814,7 +2005,14 @@ function getNameHighlighted(text: string) {
 
       <v-divider/>
 
-      <v-card-text class="global-search__body pa-0">
+      <GlobalSearchCommands
+        v-if="isCommandsMode"
+        ref="commandsPanel"
+        :query="query"
+        @run="onCommandRun"
+      />
+
+      <v-card-text v-else class="global-search__body pa-0">
         <v-progress-linear
           v-if="loading"
           color="primary"
@@ -1906,35 +2104,68 @@ function getNameHighlighted(text: string) {
           </div>
 
           <div
+            v-if="showVisualSetupHintRestore"
+            class="global-search__health-restore text-center mt-2"
+          >
+            <v-btn
+              size="x-small"
+              variant="text"
+              color="primary"
+              prepend-icon="mdi-brain"
+              @click="restoreVisualSetupHint"
+            >
+              {{ t('globalSearch.health_setup_show') }}
+            </v-btn>
+          </div>
+
+          <div
             v-if="showSemanticHealthPanel"
             class="global-search__health text-left mx-auto"
           >
             <div
               v-if="!semanticHealth?.searched"
-              class="text-caption font-weight-medium mb-2"
+              class="global-search__health-title-row"
             >
-              {{ t('globalSearch.health_setup_title') }}
-            </div>
-            <div
-              v-for="item in semanticChecklist"
-              :key="item.id"
-              class="global-search__health-row d-flex align-start ga-2 mb-2"
-            >
-              <v-icon
-                size="16"
-                :color="item.ok ? 'success' : 'warning'"
-                class="mt-0"
+              <div class="global-search__health-title text-caption font-weight-medium">
+                {{ t('globalSearch.health_setup_title') }}
+              </div>
+              <v-btn
+                class="global-search__health-dismiss"
+                icon
+                variant="text"
+                density="compact"
+                size="x-small"
+                tabindex="-1"
+                :aria-label="t('globalSearch.health_setup_dismiss')"
+                @click="dismissVisualSetupHint"
               >
-                {{ item.ok ? 'mdi-check-circle' : 'mdi-alert-circle-outline' }}
-              </v-icon>
-              <div class="text-caption">{{ item.text }}</div>
+                <v-icon size="16">mdi-close</v-icon>
+                <v-tooltip activator="parent" location="top">
+                  {{ t('globalSearch.health_setup_dismiss') }}
+                </v-tooltip>
+              </v-btn>
+            </div>
+            <div class="global-search__health-list">
+              <div
+                v-for="item in semanticChecklist"
+                :key="item.id"
+                class="global-search__health-row"
+              >
+                <v-icon
+                  size="14"
+                  :color="item.ok ? 'success' : 'warning'"
+                >
+                  {{ item.ok ? 'mdi-check-circle' : 'mdi-alert-circle-outline' }}
+                </v-icon>
+                <span class="text-caption">{{ item.text }}</span>
+              </div>
             </div>
             <div
               v-if="!semanticHasIndex || !semanticModelReady || !semanticHasPreviews || semanticPendingCount > 0"
-              class="mt-2 d-flex flex-wrap ga-2"
+              class="global-search__health-actions"
             >
               <v-btn
-                size="small"
+                size="x-small"
                 color="primary"
                 variant="flat"
                 :loading="healthFix.state.value.running"
@@ -1944,7 +2175,7 @@ function getNameHighlighted(text: string) {
                 {{ t('globalSearch.setup_visual_search_quick', {count: visualSearchQuickSampleSize}) }}
               </v-btn>
               <v-btn
-                size="small"
+                size="x-small"
                 color="primary"
                 variant="tonal"
                 :loading="healthFix.state.value.running"
@@ -1954,7 +2185,7 @@ function getNameHighlighted(text: string) {
                 {{ t('globalSearch.setup_visual_search_full') }}
               </v-btn>
               <v-btn
-                size="small"
+                size="x-small"
                 variant="text"
                 @click="openSemanticSettings"
               >
@@ -2110,39 +2341,60 @@ function getNameHighlighted(text: string) {
       <v-divider/>
 
       <v-card-actions class="global-search__footer px-4 py-2 text-caption text-medium-emphasis">
-        <v-hotkey keys="esc" variant="flat"/>
-        <span class="ml-1">{{ t('globalSearch.hintEsc') }}</span>
-        <v-spacer/>
-        <v-hotkey keys="up" variant="flat"/>
-        <v-hotkey keys="down" variant="flat" class="ml-2"/>
-        <span class="ml-1">{{ t('globalSearch.hintArrows') }}</span>
-        <v-spacer/>
-        <v-hotkey keys="enter" variant="flat"/>
-        <span class="ml-1">{{
-          canRunSemanticOnEnter
-            ? t('globalSearch.hintEnterSemantic')
-            : t('globalSearch.hintEnter')
-        }}</span>
-        <template v-if="selectedIsTag">
+        <template v-if="isCommandsMode">
+          <v-hotkey keys="esc" variant="flat"/>
+          <span class="ml-1">{{ t('commandPalette.footer_close') }}</span>
+          <v-spacer/>
+          <v-hotkey keys="up" variant="flat"/>
+          <v-hotkey keys="down" variant="flat" class="ml-2"/>
+          <span class="ml-1">{{ t('commandPalette.footer_nav') }}</span>
+          <v-spacer/>
+          <v-hotkey keys="enter" variant="flat"/>
+          <span class="ml-1">{{ t('commandPalette.footer_run') }}</span>
           <v-spacer/>
           <v-hotkey keys="tab" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintTab') }}</span>
+          <span class="ml-1">{{ t('globalSearch.hintSwitchSearch') }}</span>
         </template>
-        <template v-else-if="query.trim() && !canRunSemanticOnEnter">
+        <template v-else>
+          <v-hotkey keys="esc" variant="flat"/>
+          <span class="ml-1">{{ t('globalSearch.hintEsc') }}</span>
           <v-spacer/>
-          <v-hotkey keys="meta+enter" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintEnterSemantic') }}</span>
+          <v-hotkey keys="up" variant="flat"/>
+          <v-hotkey keys="down" variant="flat" class="ml-2"/>
+          <span class="ml-1">{{ t('globalSearch.hintArrows') }}</span>
           <v-spacer/>
-          <v-hotkey keys="tab" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
-          <v-spacer/>
-          <v-hotkey keys="shift+enter" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
-        </template>
-        <template v-else-if="canRunSemanticOnEnter">
-          <v-spacer/>
-          <v-hotkey keys="shift+enter" variant="flat"/>
-          <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
+          <v-hotkey keys="enter" variant="flat"/>
+          <span class="ml-1">{{
+            canRunSemanticOnEnter
+              ? t('globalSearch.hintEnterSemantic')
+              : t('globalSearch.hintEnter')
+          }}</span>
+          <template v-if="selectedIsTag">
+            <v-spacer/>
+            <v-hotkey keys="tab" variant="flat"/>
+            <span class="ml-1">{{ t('globalSearch.hintTab') }}</span>
+          </template>
+          <template v-else-if="query.trim() && !canRunSemanticOnEnter">
+            <v-spacer/>
+            <v-hotkey keys="meta+enter" variant="flat"/>
+            <span class="ml-1">{{ t('globalSearch.hintEnterSemantic') }}</span>
+            <v-spacer/>
+            <v-hotkey keys="tab" variant="flat"/>
+            <span class="ml-1">{{ t('globalSearch.hintTabSemantic') }}</span>
+            <v-spacer/>
+            <v-hotkey keys="shift+enter" variant="flat"/>
+            <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
+          </template>
+          <template v-else-if="canRunSemanticOnEnter">
+            <v-spacer/>
+            <v-hotkey keys="shift+enter" variant="flat"/>
+            <span class="ml-1">{{ t('globalSearch.hintPlayMix') }}</span>
+          </template>
+          <template v-else-if="!query.trim()">
+            <v-spacer/>
+            <v-hotkey keys="tab" variant="flat"/>
+            <span class="ml-1">{{ t('globalSearch.hintSwitchCommands') }}</span>
+          </template>
         </template>
       </v-card-actions>
     </v-card>
@@ -2157,15 +2409,79 @@ function getNameHighlighted(text: string) {
   background: rgb(var(--v-theme-surface));
 }
 
+.global-search__mode-toggle {
+  flex: 0 0 auto;
+}
+
 .global-search__health {
   max-width: 420px;
-  padding: 12px 14px;
+  padding: 8px 10px;
   border-radius: 10px;
   background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
+.global-search__health-title {
+  margin-bottom: 4px;
+  line-height: 1.25;
+}
+
+.global-search__health-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.global-search__health-title-row .global-search__health-title {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.global-search__health-dismiss {
+  flex: 0 0 auto;
+  margin-top: -2px;
+  margin-right: -4px;
+  opacity: 0.65;
+}
+
+.global-search__health-dismiss:hover {
+  opacity: 1;
+}
+
+.global-search__health-restore {
+  margin-inline: auto;
+}
+
+.global-search__health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .global-search__health-row {
-  line-height: 1.35;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  line-height: 1.25;
+}
+
+.global-search__health-row .v-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.global-search__health-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.global-search__input-semantic {
+  border-radius: 999px !important;
+  flex: 0 0 auto;
 }
 
 .global-search__examples {

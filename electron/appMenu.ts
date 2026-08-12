@@ -101,6 +101,7 @@ export function createAppMenuController(deps: {
     const viewMenu: MenuItemConstructorOptions = {
       label: labels.menuView,
       submenu: [
+        menuActionItem(labels.commandPalette, 'commandPalette', 'CommandOrControl+K'),
         menuActionItem(labels.toggleTheme, 'toggleTheme'),
         {type: 'separator'},
         // Use app zoom actions instead of Chromium menu roles so shortcuts stay

@@ -37,6 +37,22 @@ export function useAppHotkeys() {
   function onKeyDown(event: KeyboardEvent) {
     if (event.defaultPrevented) return
     if (playerStore.active) return
+
+    // ⌘/Ctrl+K — command palette.
+    // In Electron the app menu accelerator owns this shortcut to avoid double-toggle.
+    if (
+      !window.electronAPI
+      && (event.metaKey || event.ctrlKey)
+      && !event.altKey
+      && !event.shiftKey
+      && event.code === 'KeyK'
+      && !event.repeat
+    ) {
+      event.preventDefault()
+      appShell.toggleCommandPalette()
+      return
+    }
+
     if (isBlockingOverlayOpen()) return
     if (isTypingTarget(event.target)) return
     if (event.ctrlKey || event.metaKey || event.altKey) return

@@ -90,6 +90,7 @@ const {t} = useI18n()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 
 const appRows = computed(() => [
+  {keys: 'meta+k', label: t('keyboard_shortcuts.command_palette')},
   {keys: 'slash', label: t('keyboard_shortcuts.search')},
   {keys: 'a', label: t('keyboard_shortcuts.add_media')},
   {keys: 'f', label: t('keyboard_shortcuts.filters')},

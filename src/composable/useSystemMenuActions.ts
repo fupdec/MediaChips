@@ -90,6 +90,9 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
       case 'globalSearch':
         appShell.showGlobalSearch()
         break
+      case 'commandPalette':
+        appShell.toggleCommandPalette()
+        break
       case 'toggleTheme':
         await toggleTheme()
         break
