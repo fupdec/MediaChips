@@ -93,6 +93,7 @@ export const API_ROUTES = {
   homeMarkers: '/api/home/markers',
   homeHealth: '/api/home/health',
   homeHealthLite: '/api/home/health-lite',
+  homeSimilar: '/api/home/similar',
   globalSearchMedia: '/api/home/search/media',
   globalSearchTags: '/api/home/search/tags',
   globalSearch: '/api/home/search',

@@ -804,6 +804,8 @@ const cn = {
       search: '搜索',
       drop_hint: '将文件或文件夹拖放到此处以添加',
       continue_watching: '继续观看',
+      similar: '相似',
+      similar_to: '与 {name} 相似',
       favorites: '收藏',
       top_views: '观看最多',
       view_all: '查看全部',

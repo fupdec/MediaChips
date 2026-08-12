@@ -19,6 +19,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   router.get('/media', validateQuery(HomeMediaQuerySchema), Home.getMedia)
   router.get('/markers', validateQuery(HomeMarkersQuerySchema), Home.getMarkers)
+  router.get('/similar', validateQuery(HomeMarkersQuerySchema), Home.getSimilar)
   router.get('/health', Home.getHealth)
   router.get('/health-lite', Home.getHealthLite)
   router.get('/extended-stats', Home.getExtendedStats)

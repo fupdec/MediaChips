@@ -804,6 +804,8 @@ const de = {
       search: 'Suchen',
       drop_hint: 'Ziehen Sie Dateien oder Ordner hierher, um sie hinzuzufügen',
       continue_watching: 'Schauen Sie weiter',
+      similar: 'Ähnlich',
+      similar_to: 'Ähnlich wie {name}',
       favorites: 'Favoriten',
       top_views: 'Oben nach Ansichten',
       view_all: 'Alle anzeigen',

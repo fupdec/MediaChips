@@ -804,6 +804,8 @@ const es = {
       search: 'Buscar',
       drop_hint: 'Arrastra archivos o carpetas aquí para añadirlos',
       continue_watching: 'Continuar viendo',
+      similar: 'Similares',
+      similar_to: 'Similar a {name}',
       favorites: 'Favoritos',
       top_views: 'Más vistos',
       view_all: 'Ver todo',

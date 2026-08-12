@@ -804,6 +804,8 @@ const en = {
       search: 'Search',
       drop_hint: 'Drag files or folders here to add them',
       continue_watching: 'Continue watching',
+      similar: 'Similar',
+      similar_to: 'Similar to {name}',
       favorites: 'Favorites',
       top_views: 'Top by views',
       view_all: 'View all',

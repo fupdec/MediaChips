@@ -93,6 +93,10 @@ const widgetMeta = computed(() => ({
     title: t('home.widgets.continue_watching'),
     icon: 'mdi-history',
   },
+  similar: {
+    title: t('home.widgets.similar'),
+    icon: 'mdi-creation-outline',
+  },
   favorites: {
     title: t('home.widgets.favorites'),
     icon: 'mdi-heart',

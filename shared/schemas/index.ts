@@ -21,6 +21,7 @@ import {
   HomeHealthLiteSchema,
   HomeMarkersSchema,
   HomeMediaResponseSchema,
+  HomeSimilarResponseSchema,
   HomeMediaStatsSchema,
   HomeTagCountSchema,
   MediaThumbsResponseSchema,
@@ -202,6 +203,10 @@ export function parseHomeMarkers(data: unknown) {
 
 export function parseHomeMediaResponse(data: unknown) {
   return HomeMediaResponseSchema.parse(data)
+}
+
+export function parseHomeSimilarResponse(data: unknown) {
+  return HomeSimilarResponseSchema.parse(data)
 }
 
 export function parseMissingMediaStatus(data: unknown) {
@@ -481,6 +486,7 @@ export {
   HomeHealthLiteSchema,
   HomeMarkersSchema,
   HomeMediaResponseSchema,
+  HomeSimilarResponseSchema,
   HomeMediaStatsSchema,
   HomeTagCountSchema,
   MediaThumbsResponseSchema,

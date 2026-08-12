@@ -45,6 +45,13 @@
   </WidgetLazyMount>
 
   <WidgetLazyMount
+    v-else-if="widgetId === 'similar'"
+    min-height="220px"
+  >
+    <WidgetHomeSimilar :limit="limits?.similar ?? 12"/>
+  </WidgetLazyMount>
+
+  <WidgetLazyMount
     v-else-if="widgetId === 'favorites'"
     min-height="220px"
     @activate="ensureHomeMediaLoaded"
@@ -114,6 +121,7 @@ import type {MediaItem} from '@/types/stores'
 const WidgetTopTags = defineAsyncComponent(() => import('@/components/widgets/WidgetTopTags.vue'))
 const WidgetRandomMarkers = defineAsyncComponent(() => import('@/components/widgets/WidgetRandomMarkers.vue'))
 const WidgetHealthAlerts = defineAsyncComponent(() => import('@/components/widgets/WidgetHealthAlerts.vue'))
+const WidgetHomeSimilar = defineAsyncComponent(() => import('@/components/widgets/WidgetHomeSimilar.vue'))
 
 const props = defineProps<{
   widgetId: string

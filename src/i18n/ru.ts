@@ -804,6 +804,8 @@ const ru = {
       search: 'Поиск',
       drop_hint: 'Перетащите файлы или папки сюда для добавления',
       continue_watching: 'Продолжить просмотр',
+      similar: 'Похожее',
+      similar_to: 'Похоже на {name}',
       favorites: 'Избранное',
       top_views: 'Топ по просмотрам',
       view_all: 'Все',
