@@ -1676,9 +1676,13 @@ defineExpose({
       flex-wrap: wrap;
     }
 
+    .editing-field-card {
+      margin-bottom: 0 !important;
+    }
+
     .editing-field-card--rating {
-      min-height: 40px;
-      padding: 4px 8px !important;
+      min-height: 36px;
+      padding: 2px 8px !important;
     }
 
     .editing-rating-field--identity {
@@ -1693,6 +1697,15 @@ defineExpose({
     .v-container {
       padding-left: 0 !important;
       padding-right: 0 !important;
+    }
+
+    .v-row {
+      margin-top: 0 !important;
+    }
+
+    .field {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
     }
   }
 }

@@ -174,8 +174,8 @@
           <v-btn
             color="success"
             variant="flat"
-            block
             size="small"
+            class="inspector-panel__action-btn"
             prepend-icon="mdi-content-save"
             :loading="saving"
             :disabled="!formDirty || saving"
@@ -186,8 +186,8 @@
           <v-btn
             color="primary"
             variant="tonal"
-            block
             size="small"
+            class="inspector-panel__action-btn"
             prepend-icon="mdi-pencil-outline"
             :disabled="saving"
             @click="openFullEdit"
@@ -398,11 +398,7 @@ const mediaFacts = computed((): InspectorFact[] => {
     pushFact(facts, 'fps', t('settings_labels.appearance.framerate'), `${fps}`)
   }
 
-  const views = Number(media.views)
-  if (Number.isFinite(views) && views > 0) {
-    pushFact(facts, 'views', t('settings_labels.appearance.number_of_views'), String(views))
-  }
-
+  // Views stay editable in the form — don't duplicate them in read-only facts.
   pushFact(facts, 'mediaCreatedAt', t('editing.media_created'), formatInspectorDate(media.mediaCreatedAt))
   pushFact(facts, 'createdAt', t('editing.added'), formatInspectorDate(media.createdAt))
   pushFact(facts, 'updatedAt', t('editing.last_edit'), formatInspectorDate(media.updatedAt))
@@ -698,7 +694,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
 .inspector-panel__preview {
   width: 100%;
-  max-height: min(32vh, 280px);
+  max-height: min(26vh, 220px);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -711,7 +707,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
 .inspector-panel__thumb {
   max-width: 100%;
-  max-height: min(32vh, 280px);
+  max-height: min(26vh, 220px);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -735,33 +731,32 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 }
 
 .inspector-panel__facts {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
   padding: 8px 12px 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.7rem;
+  line-height: 1.3;
 }
 
 .inspector-panel__fact {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .inspector-panel__fact-label {
-  flex: 0 1 auto;
-  opacity: 0.55;
-  padding-right: 4px;
+  opacity: 0.5;
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .inspector-panel__fact-value {
-  flex: 1 1 auto;
   min-width: 0;
   font-variant-numeric: tabular-nums;
   word-break: break-word;
-  text-align: right;
 }
 
 .inspector-panel__gallery {
@@ -848,12 +843,18 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   bottom: 0;
   z-index: 2;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   padding: 10px 12px 12px;
   margin-top: auto;
   background: rgb(var(--v-theme-surface));
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
+}
+
+.inspector-panel__action-btn {
+  flex: 1 1 0;
+  min-width: 0;
 }
 </style>
