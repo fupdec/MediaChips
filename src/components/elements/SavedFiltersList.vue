@@ -45,13 +45,24 @@
         </v-btn>
       </div>
 
-      <div class="d-flex align-center">
+      <div class="d-flex align-center flex-wrap ga-1">
         <FiltersChips
+          v-if="(filter.filters ?? []).length"
           :key="filter.id"
           :filters="filter.filters ?? []"
           readonly
           is-tooltip
         />
+        <v-chip
+          v-for="(part, index) in layoutParts(filter)"
+          :key="`${filter.id}-layout-${index}`"
+          size="small"
+          variant="outlined"
+          color="primary"
+          class="ma-1"
+        >
+          {{ part }}
+        </v-chip>
       </div>
     </v-card>
   </div>
@@ -79,6 +90,11 @@
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
 import FiltersChips from '@/components/elements/FiltersChips.vue'
+import {
+  describeSavedViewLayout,
+  hasSavedViewLayout,
+  pickSavedViewLayout,
+} from '@/utils/savedViewLayout'
 import type { SavedFilter } from '@/types/stores'
 
 const props = defineProps({
@@ -106,6 +122,24 @@ const props = defineProps({
 
 const emit = defineEmits(['apply', 'edit', 'delete'])
 const {t} = useI18n()
+
+const SIZE_LABELS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+
+function layoutParts(filter: SavedFilter): string[] {
+  const layout = pickSavedViewLayout(filter as Record<string, unknown>)
+  if (!hasSavedViewLayout(layout)) return []
+  return describeSavedViewLayout(layout, {
+    size: (size) => {
+      const label = SIZE_LABELS[size - 1] || String(size)
+      return t('filters.saved_view_size', {size: label})
+    },
+    sort: (sortBy, sortDir) => t('filters.saved_view_sort', {
+      sort: sortBy,
+      dir: sortDir || '',
+    }),
+    group: (groupBy) => t('filters.saved_view_group', {group: groupBy}),
+  })
+}
 
 const handleClick = (filter: SavedFilter) => {
   if (!props.selectable) return

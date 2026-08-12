@@ -27,6 +27,11 @@ import {
   parseGroupBySetting,
   serializeGroupBySetting,
 } from '@/utils/itemsGroupBy'
+import {
+  hasSavedViewLayout,
+  parseSavedViewGroupBy,
+  type SavedViewLayout,
+} from '@/utils/savedViewLayout'
 
 export function useItemsPageEvents({
   props,
@@ -242,6 +247,44 @@ export function useItemsPageEvents({
     void getItemsFromDb()
   }
 
+  const handleApplySavedViewLayout = async (layout: SavedViewLayout) => {
+    if (!hasSavedViewLayout(layout)) return
+
+    const storeUpdates: Record<string, unknown> = {
+      page: 1,
+      groups: [],
+    }
+    const pageUpdates: Parameters<typeof updatePageSetting>[0] = {
+      page: 1,
+    }
+
+    if (layout.size != null) {
+      storeUpdates.size = Number(layout.size)
+      pageUpdates.size = Number(layout.size)
+    }
+    if (layout.view != null) {
+      storeUpdates.view = layout.view
+      pageUpdates.view = layout.view
+    }
+    if (layout.sortBy) {
+      storeUpdates.sortBy = layout.sortBy
+      pageUpdates.sortBy = layout.sortBy
+    }
+    if (layout.sortDir) {
+      storeUpdates.sortDir = layout.sortDir
+      pageUpdates.sortDir = layout.sortDir
+    }
+    if (layout.groupBy != null) {
+      const parsed = parseSavedViewGroupBy(layout)
+      storeUpdates.groupBy = parsed.groupBy
+      storeUpdates.groupByMetaId = parsed.groupByMetaId
+      pageUpdates.firstChar = parsed.firstChar
+    }
+
+    itemsStore.updateMultiple(storeUpdates)
+    await updatePageSetting(pageUpdates)
+  }
+
   const handleUpdateAssignedMeta = async () => {
     await getPinnedMeta()
   }
@@ -309,6 +352,7 @@ export function useItemsPageEvents({
       setSortDir: handleSetItemsSortDir,
       setView: handleSetItemsView,
       setGroupBy: handleSetItemsGroupBy,
+      applySavedViewLayout: handleApplySavedViewLayout,
       refreshAssignedMeta: handleUpdateAssignedMeta,
       refreshCurrentMeta: handleGetMeta,
       openRandomItem: handleOpenRandomItem,

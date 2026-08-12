@@ -244,6 +244,11 @@ export interface CreateSavedFilterPayload {
   metaId?: number | null
   tagId?: number | null
   tabId?: number | null
+  sortBy?: string | null
+  sortDir?: string | null
+  size?: number | null
+  view?: number | null
+  groupBy?: string | null
   [key: string]: unknown
 }
 

@@ -1,4 +1,5 @@
 import type { SetItemsFiltersEvent } from '../../shared/api/responses'
+import type { SavedViewLayout } from '@/utils/savedViewLayout'
 
 export type ItemsPageCommands = {
   setFilters: (event: SetItemsFiltersEvent) => void | Promise<void>
@@ -9,6 +10,11 @@ export type ItemsPageCommands = {
   setSortDir: (sortDir: string) => void
   setView: (view: number | string) => void
   setGroupBy: (groupBy: string) => void
+  /**
+   * Apply saved view layout (sort/group/size/view) without reloading.
+   * Callers that also change filters should reload afterwards.
+   */
+  applySavedViewLayout: (layout: SavedViewLayout) => void | Promise<void>
   refreshAssignedMeta: () => void | Promise<void>
   refreshCurrentMeta: () => void
   openRandomItem: (id: number) => void
@@ -32,6 +38,7 @@ export function useItemsPageCommands(): ItemsPageCommands {
     setSortDir: (sortDir) => active?.setSortDir(sortDir),
     setView: (view) => active?.setView(view),
     setGroupBy: (groupBy) => active?.setGroupBy(groupBy),
+    applySavedViewLayout: (layout) => active?.applySavedViewLayout(layout),
     refreshAssignedMeta: () => active?.refreshAssignedMeta(),
     refreshCurrentMeta: () => active?.refreshCurrentMeta(),
     openRandomItem: (id) => active?.openRandomItem(id),

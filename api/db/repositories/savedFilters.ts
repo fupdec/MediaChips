@@ -8,6 +8,7 @@ export type SavedFilterInsert = typeof savedFilters.$inferInsert
 
 const SAVED_FILTER_MUTABLE_COLUMNS = new Set([
   'name', 'metaId', 'mediaTypeId', 'tagId', 'tabId',
+  'sortBy', 'sortDir', 'size', 'view', 'groupBy',
 ])
 
 function pickSavedFilterFields(data: Record<string, unknown>): Partial<SavedFilterInsert> {
@@ -18,6 +19,18 @@ function pickSavedFilterFields(data: Record<string, unknown>): Partial<SavedFilt
     }
   }
   return picked
+}
+
+function nullableNumber(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function nullableText(value: unknown): string | null {
+  if (value == null) return null
+  const text = String(value)
+  return text.length ? text : null
 }
 
 export function createSavedFiltersRepository(db: DrizzleClient) {
@@ -31,6 +44,11 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
           mediaTypeId: data.mediaTypeId == null ? null : Number(data.mediaTypeId),
           tagId: data.tagId == null ? null : Number(data.tagId),
           tabId: data.tabId == null ? null : Number(data.tabId),
+          sortBy: nullableText(data.sortBy),
+          sortDir: nullableText(data.sortDir),
+          size: nullableNumber(data.size),
+          view: nullableNumber(data.view),
+          groupBy: nullableText(data.groupBy),
           createdAt: timestamp,
           updatedAt: timestamp,
         })

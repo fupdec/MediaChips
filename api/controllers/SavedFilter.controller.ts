@@ -26,6 +26,11 @@ export default function (db: ApiDb) {
         metaId: req.body.metaId ?? null,
         tagId: req.body.tagId ?? null,
         tabId: req.body.tabId ?? null,
+        sortBy: req.body.sortBy ?? null,
+        sortDir: req.body.sortDir ?? null,
+        size: req.body.size ?? null,
+        view: req.body.view ?? null,
+        groupBy: req.body.groupBy ?? null,
       }
 
       const result = payload.name

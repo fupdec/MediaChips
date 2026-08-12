@@ -7,6 +7,13 @@ export const savedFilters = sqliteTable('savedFilters', {
   mediaTypeId: integer('mediaTypeId'),
   tagId: integer('tagId'),
   tabId: integer('tabId'),
+  /** Saved view layout: sort / group / card size / view mode. */
+  sortBy: text('sortBy'),
+  sortDir: text('sortDir'),
+  size: integer('size'),
+  view: integer('view'),
+  /** Serialized group-by (`none`, `rating`, `pinnedMeta:3`, …). */
+  groupBy: text('groupBy'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 })

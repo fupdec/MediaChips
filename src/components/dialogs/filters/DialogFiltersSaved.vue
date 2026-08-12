@@ -23,8 +23,8 @@
                 v-model="createName"
                 :placeholder="t('filters.filter_name')"
                 :disabled="!canCreate"
-                :hint="canCreate ? undefined : t('filters.save_current_empty')"
-                :persistent-hint="!canCreate"
+                :hint="canCreate ? t('filters.save_current_view_hint') : t('filters.save_current_empty')"
+                :persistent-hint="true"
                 :error-messages="createError"
                 density="comfortable"
                 variant="solo-filled"
@@ -126,7 +126,6 @@ import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SavedFiltersList from '@/components/elements/SavedFiltersList.vue'
 
 import {useItemsStore} from '@/stores/items'
-import type {FilterObject} from '@/types/common'
 import type {SavedFilter} from '@/types/stores'
 
 const props = defineProps({
@@ -139,7 +138,7 @@ const props = defineProps({
 
 const emit = defineEmits<{
   close: []
-  apply: [filters: FilterObject[]]
+  apply: [savedFilter: SavedFilter]
   save: [name: string]
 }>()
 
@@ -229,11 +228,7 @@ const updateFilterName = async () => {
 }
 
 const apply = (savedFilter: SavedFilter) => {
-  const filters = (savedFilter.filters || []).map((f: FilterObject) => ({
-    ...f,
-    id: null,
-  }))
-  emit('apply', filters)
+  emit('apply', savedFilter)
 }
 
 const editButtons = computed(() => [

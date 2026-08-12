@@ -222,9 +222,9 @@
   <DialogFiltersSaved
     v-if="dialogSaved"
     :dialog="dialogSaved"
-    :can-create="hasSavableFilters"
+    :can-create="canSaveView"
     @close="dialogSaved = false"
-    @apply="loadSavedFilter"
+    @apply="applySavedView"
     @save="saveCurrentAsNamed"
   />
 
@@ -252,6 +252,12 @@ import dayjs from 'dayjs'
 import {cloneFilters, filtersEqual} from '@/utils/filterClone'
 import {typedApi} from '@/services/typedApi'
 import {getSavedFilters} from '@/services/filterService'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {
+  captureSavedViewLayout,
+  hasSavedViewLayout,
+  pickSavedViewLayout,
+} from '@/utils/savedViewLayout'
 import {
   getFilterObject,
   getListCond,
@@ -268,7 +274,6 @@ import {
 } from '@/utils/mediaType'
 import {sanitizeFiltersForMediaType} from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
-import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import FiltersPanel from '@/components/app/FiltersPanel.vue'
 import FiltersChips from '@/components/elements/FiltersChips.vue'
 
@@ -463,6 +468,9 @@ const is_filters_changed = computed(() =>
 const hasSavableFilters = computed(() =>
   filters.value.some((filter) => !filter.removed && !filter.lock),
 )
+
+/** Views can be saved with filters and/or current sort/group/card size. */
+const canSaveView = computed(() => true)
 
 // Methods
 const filterTextKeys: Record<string, string> = {
@@ -832,8 +840,9 @@ const addFilterRows = async (filterId: number | null | undefined, isSavedFilter 
 
 const saveCurrentAsNamed = async (name: string) => {
   const trimmed = String(name || '').trim()
-  if (!trimmed || !hasSavableFilters.value) return
+  if (!trimmed) return
 
+  const layout = captureSavedViewLayout(itemsStore)
   let savedFilter: SavedFilter = { id: 0 }
 
   try {
@@ -843,15 +852,20 @@ const saveCurrentAsNamed = async (name: string) => {
       metaId: ENV.value.meta_id ?? null,
       tagId: ENV.value.tag_id ?? null,
       tabId: ENV.value.tab_id ?? null,
+      sortBy: layout.sortBy,
+      sortDir: layout.sortDir,
+      size: layout.size,
+      view: layout.view == null ? null : Number(layout.view),
+      groupBy: layout.groupBy,
     })
     const data = response.data
     savedFilter = Array.isArray(data) ? data[0] : data
   } catch (error) {
-    console.error('Error saving filter:', error)
+    console.error('Error saving view:', error)
     return
   }
 
-  if (savedFilter?.id) {
+  if (savedFilter?.id && hasSavableFilters.value) {
     await addFilterRows(savedFilter.id, true)
   }
 
@@ -872,6 +886,17 @@ const loadSavedFilter = (loadedFilters: FilterObject[]) => {
   updKey.value += Date.now()
 }
 
+const applySavedView = async (savedFilter: SavedFilter) => {
+  const layout = pickSavedViewLayout(savedFilter as Record<string, unknown>)
+  if (hasSavedViewLayout(layout)) {
+    await pageCommands.applySavedViewLayout(layout)
+  }
+  loadSavedFilter(
+    (savedFilter.filters || []).map((filter) => ({...filter, id: null})),
+  )
+  await apply()
+}
+
 const pickDate = (index: number) => {
   datePicker.value.dialog = true
   datePicker.value.value = filters.value[index].val as string | null
@@ -889,6 +914,16 @@ const validate = (val: boolean) => {
 
 // Event listeners
 const handleApplySavedFilter = async (filtersPayload: unknown) => {
+  // Chips path may pass FilterObject[] (layout already applied) or a full SavedFilter.
+  if (
+    filtersPayload
+    && typeof filtersPayload === 'object'
+    && !Array.isArray(filtersPayload)
+    && 'filters' in (filtersPayload as SavedFilter)
+  ) {
+    await applySavedView(filtersPayload as SavedFilter)
+    return
+  }
   loadSavedFilter(filtersPayload as FilterObject[])
   await apply()
 }

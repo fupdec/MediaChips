@@ -34,6 +34,11 @@ export interface SavedFilter {
   name?: string
   filters?: FilterObject[]
   savedAt?: string
+  sortBy?: string | null
+  sortDir?: string | null
+  size?: number | null
+  view?: number | string | null
+  groupBy?: string | null
   [key: string]: unknown
 }
 

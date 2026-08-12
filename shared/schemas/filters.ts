@@ -6,6 +6,11 @@ export const SavedFilterSchema = z.object({
   name: z.string().optional(),
   filters: z.array(FilterObjectSchema).optional(),
   savedAt: z.string().optional(),
+  sortBy: z.string().nullable().optional(),
+  sortDir: z.string().nullable().optional(),
+  size: z.number().nullable().optional(),
+  view: z.union([z.number(), z.string()]).nullable().optional(),
+  groupBy: z.string().nullable().optional(),
 }).passthrough()
 
 export const DynamicPlaylistSummarySchema = z.object({

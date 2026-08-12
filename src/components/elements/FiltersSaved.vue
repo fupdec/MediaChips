@@ -18,21 +18,32 @@ import {computed, onBeforeUnmount} from 'vue'
 import {useRoute} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
+import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {
+  hasSavedViewLayout,
+  pickSavedViewLayout,
+} from '@/utils/savedViewLayout'
 import type { SavedFilter } from '@/types/stores'
 
 const route = useRoute()
 const itemsStore = useItemsStore()
 const filtersController = useItemsFiltersController()
+const pageCommands = useItemsPageCommands()
 
 const savedFilters = computed(() => itemsStore.filters_saved || [])
 
-const activate = (savedFilter: SavedFilter) => {
+const activate = async (savedFilter: SavedFilter) => {
+  const layout = pickSavedViewLayout(savedFilter as Record<string, unknown>)
+  if (hasSavedViewLayout(layout)) {
+    await pageCommands.applySavedViewLayout(layout)
+  }
+
   let filters = savedFilter.filters
   if (filters && Array.isArray(filters)) {
     filters = filters.map((filter) => ({...filter, id: null}))
   }
 
-  filtersController.applySaved(filters)
+  await Promise.resolve(filtersController.applySaved(filters || []))
 }
 
 onBeforeUnmount(() => {
