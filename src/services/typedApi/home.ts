@@ -5,6 +5,7 @@ import type { AxiosRequestConfig } from 'axios'
 import {
   parseExtendedStats,
   parseChartStats,
+  parseCreatedCalendarMonth,
   parseGlobalSearchMediaResponse,
   parseGlobalSearchTagsResponse,
   parseGlobalSearchResponse,
@@ -47,6 +48,13 @@ export const homeApi = {
     return apiClient.get(API_ROUTES.homeChartStats, {params}).then((res) => ({
       ...res,
       data: validated(parseChartStats, res.data),
+    }))
+  },
+
+  getHomeCreatedCalendar(params?: {year?: number; month?: number}) {
+    return apiClient.get(API_ROUTES.homeCreatedCalendar, {params}).then((res) => ({
+      ...res,
+      data: validated(parseCreatedCalendarMonth, res.data),
     }))
   },
 

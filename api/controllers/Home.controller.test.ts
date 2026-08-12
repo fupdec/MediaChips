@@ -8,6 +8,7 @@ const {
   getHomeHealthLite,
   getHomeExtendedStats,
   getHomeSimilar,
+  getCreatedCalendarMonth,
   searchMediaByName,
   searchTagsByName,
   searchGlobal,
@@ -18,6 +19,7 @@ const {
   getHomeHealthLite: vi.fn(),
   getHomeExtendedStats: vi.fn(),
   getHomeSimilar: vi.fn(),
+  getCreatedCalendarMonth: vi.fn(),
   searchMediaByName: vi.fn(),
   searchTagsByName: vi.fn(),
   searchGlobal: vi.fn(),
@@ -42,6 +44,10 @@ vi.mock('../services/homeExtendedStats', () => ({
 
 vi.mock('../services/homeSimilar', () => ({
   getHomeSimilar,
+}))
+
+vi.mock('../services/homeCreatedCalendar', () => ({
+  getCreatedCalendarMonth,
 }))
 
 vi.mock('../services/globalSearch', () => ({
@@ -123,6 +129,27 @@ describe('Home.controller', () => {
     await controller.getSimilar(req, res)
 
     expect(getHomeSimilar).toHaveBeenCalledWith({}, {limit: 6})
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual(payload)
+  })
+
+  it('returns created calendar for a month', async () => {
+    const payload = {
+      year: 2026,
+      month: 8,
+      days: [{day: '2026-08-12', count: 3}],
+      totalInMonth: 3,
+      totalWithDate: 10,
+      totalMissingDate: 2,
+    }
+    getCreatedCalendarMonth.mockReturnValue(payload)
+
+    const req = {query: {year: '2026', month: '8'}} as unknown as ApiRequest
+    const res = createResponse()
+
+    await controller.getCreatedCalendar(req, res)
+
+    expect(getCreatedCalendarMonth).toHaveBeenCalledWith({}, 2026, 8)
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual(payload)
   })

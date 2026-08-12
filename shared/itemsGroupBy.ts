@@ -221,7 +221,9 @@ export function getGroupByRequiredSort(groupBy: ItemsGroupBy): string | null {
     case 'dateMonth':
     case 'dateYear':
     case 'dateDay':
-      return 'createdAt'
+      // Prefer Media Created so calendar / browse-by-created stay coherent.
+      // Callers may keep another date sort field when already active.
+      return 'mediaCreatedAt'
     case 'rating':
       return 'rating'
     case 'filesize':

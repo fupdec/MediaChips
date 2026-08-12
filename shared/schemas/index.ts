@@ -14,6 +14,7 @@ import {
 import {
   ChartStatsSchema,
   ExtendedStatsSchema,
+  CreatedCalendarMonthSchema,
   GlobalSearchMediaResponseSchema,
   GlobalSearchTagsResponseSchema,
   GlobalSearchResponseSchema,
@@ -189,6 +190,10 @@ export function parseExtendedStats(data: unknown) {
 
 export function parseChartStats(data: unknown) {
   return ChartStatsSchema.parse(data)
+}
+
+export function parseCreatedCalendarMonth(data: unknown) {
+  return CreatedCalendarMonthSchema.parse(data)
 }
 
 export function parseHomeHealth(data: unknown) {
@@ -484,6 +489,7 @@ export {
 export {
   ChartStatsSchema,
   ExtendedStatsSchema,
+  CreatedCalendarMonthSchema,
   HomeHealthSchema,
   HomeHealthLiteSchema,
   HomeMarkersSchema,

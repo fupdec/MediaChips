@@ -7,6 +7,7 @@ import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
 import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
+import { getCreatedCalendarMonth } from '../services/homeCreatedCalendar'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 import { parseClampedLimit } from '../utils/parseRequestNumber'
 
@@ -90,6 +91,22 @@ export default (db: ApiDb) => {
     }
   }
 
+  const getCreatedCalendar = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const now = new Date()
+      const year = req.query?.year == null || req.query?.year === ''
+        ? now.getFullYear()
+        : Number(req.query.year)
+      const month = req.query?.month == null || req.query?.month === ''
+        ? now.getMonth() + 1
+        : Number(req.query.month)
+      const data = getCreatedCalendarMonth(db, year, month)
+      sendOk(res, data)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving created-at calendar.')
+    }
+  }
+
   const searchMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const q = req.body?.q ?? req.body?.query
@@ -135,6 +152,7 @@ export default (db: ApiDb) => {
     getExtendedStats,
     getChartStats,
     getSimilar,
+    getCreatedCalendar,
     searchMedia,
     searchTags,
     searchGlobal: searchGlobalHandler,

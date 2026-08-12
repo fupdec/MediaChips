@@ -446,6 +446,11 @@ export const HomeChartStatsQuerySchema = z.object({
   ),
 }).passthrough()
 
+export const HomeCreatedCalendarQuerySchema = z.object({
+  year: optionalCoercedNumber,
+  month: optionalCoercedNumber,
+}).passthrough()
+
 export const MarkClipsRequestSchema = z.object({
   tagId: optionalCoercedNumber,
   markIds: z.array(z.coerce.number()).optional(),

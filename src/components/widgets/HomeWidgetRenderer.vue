@@ -22,6 +22,13 @@
   </WidgetLazyMount>
 
   <WidgetLazyMount
+    v-else-if="widgetId === 'createdCalendar'"
+    min-height="320px"
+  >
+    <WidgetCreatedCalendar/>
+  </WidgetLazyMount>
+
+  <WidgetLazyMount
     v-else-if="widgetId === 'quickActions'"
     min-height="120px"
   >
@@ -115,6 +122,7 @@ import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
 import WidgetTotalStats from '@/components/widgets/WidgetTotalStats.vue'
 import WidgetExtendedStats from '@/components/widgets/WidgetExtendedStats.vue'
 import WidgetChartStats from '@/components/widgets/WidgetChartStats.vue'
+import WidgetCreatedCalendar from '@/components/widgets/WidgetCreatedCalendar.vue'
 import WidgetQuickActions from '@/components/widgets/WidgetQuickActions.vue'
 import WidgetMediaRow from '@/components/widgets/WidgetMediaRow.vue'
 import {useHomeMedia} from '@/composable/useHomeMedia'

@@ -85,6 +85,10 @@ const widgetMeta = computed(() => ({
     title: t('settings_labels.general.home_widget_chart_stats'),
     icon: 'mdi-chart-line',
   },
+  createdCalendar: {
+    title: t('settings_labels.general.home_widget_created_calendar'),
+    icon: 'mdi-calendar-star',
+  },
   quickActions: {
     title: t('settings_labels.general.home_widget_quick_actions'),
     icon: 'mdi-flash',

@@ -95,6 +95,7 @@ export const API_ROUTES = {
   homeHealth: '/api/home/health',
   homeHealthLite: '/api/home/health-lite',
   homeSimilar: '/api/home/similar',
+  homeCreatedCalendar: '/api/home/created-calendar',
   globalSearchMedia: '/api/home/search/media',
   globalSearchTags: '/api/home/search/tags',
   globalSearch: '/api/home/search',

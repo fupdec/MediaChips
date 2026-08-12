@@ -2,6 +2,7 @@ export const HOME_WIDGET_IDS = [
   'stats',
   'extendedStats',
   'chartStats',
+  'createdCalendar',
   'quickActions',
   'continue',
   'similar',
@@ -35,6 +36,7 @@ export interface HomeWidgetsConfig {
 export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
   order: [
     'chartStats',
+    'createdCalendar',
     'quickActions',
     'continue',
     'similar',
@@ -50,6 +52,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     stats: false,
     extendedStats: false,
     chartStats: true,
+    createdCalendar: true,
     quickActions: true,
     continue: true,
     similar: true,

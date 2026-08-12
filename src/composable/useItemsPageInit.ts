@@ -15,6 +15,7 @@ import {normalizeItemsView} from '@/utils/itemsView'
 import {
   parseGroupBySetting,
   getGroupByRequiredSort,
+  isDateGroupSortField,
 } from '@/utils/itemsGroupBy'
 import {normalizePageSettingCriteria} from '@/utils/pageSettingCriteria'
 import {clearHoverPreviewUnavailableCache} from '@/utils/hoverPreviewUnavailableCache'
@@ -173,8 +174,13 @@ export function useItemsPageInit({
       : null
     const requiredSort = getGroupByRequiredSort(parsedGroupBy.groupBy)
     const currentSort = String(updates.sortBy || '')
+    const isDateGroup = parsedGroupBy.groupBy === 'dateMonth'
+      || parsedGroupBy.groupBy === 'dateYear'
+      || parsedGroupBy.groupBy === 'dateDay'
+    const keepDateSort = isDateGroup && isDateGroupSortField(currentSort)
     if (
       parsedGroupBy.groupBy !== 'none'
+      && !keepDateSort
       && (
         currentSort === 'shuffle'
         || (requiredSort != null && currentSort !== requiredSort)

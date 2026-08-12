@@ -52,6 +52,20 @@ export const ChartStatsSchema = z.object({
   tags: ChartActivitySeriesSchema,
 }).passthrough()
 
+export const CreatedCalendarDayCountSchema = z.object({
+  day: z.string(),
+  count: z.number(),
+})
+
+export const CreatedCalendarMonthSchema = z.object({
+  year: z.number(),
+  month: z.number(),
+  days: z.array(CreatedCalendarDayCountSchema),
+  totalInMonth: z.number(),
+  totalWithDate: z.number(),
+  totalMissingDate: z.number(),
+}).passthrough()
+
 export const HealthQueueItemIdSchema = z.enum([
   'visuals',
   'fingerprint',
@@ -303,6 +317,7 @@ export type ParsedExtendedStatsFile = z.infer<typeof ExtendedStatsFileSchema>
 export type ParsedExtendedStats = z.infer<typeof ExtendedStatsSchema>
 export type ParsedChartStats = z.infer<typeof ChartStatsSchema>
 export type ParsedChartActivitySeries = z.infer<typeof ChartActivitySeriesSchema>
+export type ParsedCreatedCalendarMonth = z.infer<typeof CreatedCalendarMonthSchema>
 export type ParsedHomeHealth = z.infer<typeof HomeHealthSchema>
 export type HealthQueueItem = NonNullable<ParsedHomeHealth['queue']>[number]
 export type HealthQueueItemId = z.infer<typeof HealthQueueItemIdSchema>

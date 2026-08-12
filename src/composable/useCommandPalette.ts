@@ -11,6 +11,7 @@ import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
 import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import {useMediaInbox} from '@/composable/useMediaInbox'
+import {useOpenMediaList} from '@/utils/openMediaList'
 import {setOption} from '@/services/settingsService'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -41,6 +42,7 @@ export function useCommandPaletteCommands(options: {
   const nav = useLibraryNavItems()
   const {openReviewMode} = useReviewModeLauncher()
   const {openInbox} = useMediaInbox()
+  const {openMediaList} = useOpenMediaList()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -124,6 +126,21 @@ export function useCommandPaletteCommands(options: {
         group: 'actions',
         keywords: ['inbox', 'review', 'pending', 'triage', 'keyboard'],
         run: () => { openInbox('pending') },
+      },
+      {
+        id: 'browse-media-created',
+        title: t('commandPalette.actions.browse_media_created'),
+        subtitle: t('commandPalette.actions.browse_media_created_hint'),
+        icon: 'mdi-calendar-star',
+        group: 'actions',
+        keywords: ['calendar', 'created', 'date', 'media created', 'timeline'],
+        run: () => {
+          void openMediaList({
+            sortBy: 'mediaCreatedAt',
+            sortDir: 'desc',
+            groupBy: 'dateDay',
+          })
+        },
       },
       {
         id: 'toggle-theme',

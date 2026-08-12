@@ -270,7 +270,7 @@
       <div class="text-caption text-medium-emphasis mt-2">
         {{ t('empty_states.search_hint') }}
       </div>
-      <div class="mt-4 d-flex justify-center">
+      <div class="mt-4 d-flex justify-center flex-wrap ga-2">
         <DialogMediaAdding
           v-if="items_type === 'media'"
           button-color="success"
@@ -284,6 +284,38 @@
           button-size="large"
           button-variant="flat"
         />
+        <template v-if="items_type === 'media'">
+          <v-btn
+            color="primary"
+            variant="tonal"
+            rounded="xl"
+            size="large"
+            @click="openPrepareLibrary"
+          >
+            <v-icon start>mdi-auto-fix</v-icon>
+            {{ t('empty_states.prepare_library') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            rounded="xl"
+            size="large"
+            @click="openEmptySearch"
+          >
+            <v-icon start>mdi-magnify</v-icon>
+            {{ t('empty_states.search') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="text"
+            rounded="xl"
+            size="large"
+            @click="browseByMediaCreated"
+          >
+            <v-icon start>mdi-calendar-star</v-icon>
+            {{ t('empty_states.browse_media_created') }}
+          </v-btn>
+        </template>
       </div>
     </div>
 
@@ -374,8 +406,8 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onBeforeUnmount, nextTick} from 'vue'
-import {useDisplay} from 'vuetify'
+import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
+import {useRouter} from 'vue-router'import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -386,6 +418,9 @@ import {useItemsPage} from '@/composable/useItemsPage'
 import {useItemsPageInit} from '@/composable/useItemsPageInit'
 import {useItemsPageEvents} from '@/composable/useItemsPageEvents'
 import useVideoImageGenerator from '@/composable/GeneratingThumbsForVideos'
+import {useAppShell} from '@/composable/appShell'
+import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
+import {useOpenMediaList} from '@/utils/openMediaList'
 import type {ItemsPageProps, ItemsPageType} from '@/types/itemsPage'
 import type {MediaType} from '@/types/media'
 import type {Meta} from '@/types/stores'
@@ -442,6 +477,25 @@ const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
 const {t, locale} = useI18n()
+const router = useRouter()
+const appShell = useAppShell()
+const {openMediaList} = useOpenMediaList()
+
+function openPrepareLibrary() {
+  void router.push({path: '/settings', query: openLibrarySetupWizardQuery()})
+}
+
+function openEmptySearch() {
+  appShell.showGlobalSearch()
+}
+
+function browseByMediaCreated() {
+  void openMediaList({
+    sortBy: 'mediaCreatedAt',
+    sortDir: 'desc',
+    groupBy: 'dateDay',
+  })
+}
 
 // Константы из Vuetify
 const {xs, smAndDown} = useDisplay()

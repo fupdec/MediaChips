@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseExtendedStats,
   parseChartStats,
+  parseCreatedCalendarMonth,
   parseHomeHealth,
   parseHomeMarkers,
   parseHomeMediaStats,
@@ -46,6 +47,19 @@ describe('home schemas', () => {
     expect(result.period).toBe(30)
     expect(result.media.added).toEqual([1, 0])
     expect(result.tags.viewed[0]).toBe(1)
+  })
+
+  it('parses created calendar month', () => {
+    const result = parseCreatedCalendarMonth({
+      year: 2026,
+      month: 8,
+      days: [{day: '2026-08-12', count: 4}],
+      totalInMonth: 4,
+      totalWithDate: 20,
+      totalMissingDate: 1,
+    })
+    expect(result.month).toBe(8)
+    expect(result.days[0]).toEqual({day: '2026-08-12', count: 4})
   })
 
   it('parses health and markers', () => {

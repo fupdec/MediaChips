@@ -31,6 +31,8 @@ interface OpenMediaListOptions {
   ids?: number[]
   /** Label/kind for the scope chip when `ids` are set. */
   scope?: MediaListScope | null
+  /** Items list group-by mode (e.g. dateDay). */
+  groupBy?: string
 }
 
 async function waitForMediaPageReady() {
@@ -54,6 +56,7 @@ export function useOpenMediaList() {
     filters,
     ids,
     scope = null,
+    groupBy,
   }: OpenMediaListOptions = {}) => {
     const route = router.currentRoute.value
     const targetMediaTypeId = mediaTypeId ?? getDefaultMediaTypeId(appStore.mediaTypes)
@@ -107,6 +110,10 @@ export function useOpenMediaList() {
     if (sortBy) {
       pageCommands.setSortBy(sortBy)
       pageCommands.setSortDir(sortDir)
+    }
+
+    if (groupBy) {
+      pageCommands.setGroupBy(groupBy)
     }
 
     if (ids?.length) {

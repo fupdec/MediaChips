@@ -22,6 +22,7 @@ import type { MediaItem } from '@/types/stores'
 import { normalizeEntityIds, normalizeRemoveEntitiesEvent } from '@/utils/eventPayloads'
 import {
   getGroupByRequiredSort,
+  isDateGroupSortField,
   isSortCompatibleWithGroupBy,
   normalizeItemsGroupBy,
   parseGroupBySetting,
@@ -205,11 +206,15 @@ export function useItemsPageEvents({
     const metaId = parsed.metaId
     const preferredSort = getGroupByRequiredSort(groupBy)
     const currentSort = String(ITEMS.value.sortBy || '')
+    const isDateGroup = groupBy === 'dateMonth' || groupBy === 'dateYear' || groupBy === 'dateDay'
+    const keepDateSort = isDateGroup && isDateGroupSortField(currentSort)
     const needsSortChange = groupBy !== 'none' && (
       currentSort === 'shuffle'
-      || (preferredSort != null && currentSort !== preferredSort)
+      || (preferredSort != null && currentSort !== preferredSort && !keepDateSort)
     )
-    const sortToApply = preferredSort || (currentSort === 'shuffle' ? 'name' : null)
+    const sortToApply = keepDateSort
+      ? currentSort
+      : (preferredSort || (currentSort === 'shuffle' ? 'name' : null))
 
     itemsStore.updateMultiple({
       groupBy,
