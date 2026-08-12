@@ -58,7 +58,16 @@
             </v-btn>
           </div>
         </v-col>
-        <v-col cols="auto">
+        <v-col cols="auto" class="d-flex ga-2">
+          <v-btn
+            :color="isSessionFocused ? 'success' : undefined"
+            :variant="isSessionFocused ? 'tonal' : 'tonal'"
+            rounded
+            @click="toggleSessionFocus"
+          >
+            <v-icon start>{{ isSessionFocused ? 'mdi-bullseye-arrow' : 'mdi-bullseye' }}</v-icon>
+            {{ isSessionFocused ? t('session_focus.clear') : t('session_focus.start') }}
+          </v-btn>
           <v-btn @click="editMetaTag" color="primary" rounded variant="flat">
             <v-icon start>mdi-pencil</v-icon>
             {{ t('common.edit') }}
@@ -265,7 +274,18 @@
             <v-expansion-panels v-model="panel" multiple focusable>
               <v-expansion-panel class="rounded-xl tag-panel" :key="0">
                 <v-expansion-panel-title class="tag-panel__title" ripple hide-actions style="position: relative">
-                  <div class="buttons-right">
+                  <div class="buttons-right d-flex ga-2">
+                    <v-btn
+                      @click.stop="toggleSessionFocus"
+                      :color="isSessionFocused ? 'success' : undefined"
+                      class="pr-4"
+                      rounded
+                      size="small"
+                      variant="tonal"
+                    >
+                      <v-icon start>{{ isSessionFocused ? 'mdi-bullseye-arrow' : 'mdi-bullseye' }}</v-icon>
+                      {{ isSessionFocused ? t('session_focus.clear') : t('session_focus.start') }}
+                    </v-btn>
                     <v-btn @click.stop="editMetaTag" color="primary" class="pr-4" rounded size="small" variant="flat">
                       <v-icon start>mdi-pencil</v-icon>
                       {{ t('common.edit') }}
@@ -472,6 +492,8 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSessionFocusStore} from '@/stores/sessionFocus'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
 import {typedApi} from '@/services/typedApi'
 import {loadTagClipsForPlayback} from '@/services/tagClipsPlayback'
 import {runMarkClipsExport} from '@/services/exportMarkClipsUi'
@@ -524,6 +546,8 @@ const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
 const dialogsStore = useDialogsStore()
+const sessionFocusStore = useSessionFocusStore()
+const {startFocus, clearFocus} = useSessionFocusActions()
 const {t} = useI18n()
 
 // Refs
@@ -956,6 +980,24 @@ const getCompletionStatus = async () => {
 //     console.log(e)
 //   }
 // }
+
+const isSessionFocused = computed(() =>
+  Number(sessionFocusStore.tagId) === Number(tag.value.id) && Number(tag.value.id) > 0,
+)
+
+function toggleSessionFocus() {
+  if (isSessionFocused.value) {
+    clearFocus()
+    return
+  }
+  startFocus({
+    tagId: Number(tag.value.id),
+    metaId: Number(meta.value.id),
+    name: String(tag.value.name || ''),
+    icon: meta.value.icon ? String(meta.value.icon) : null,
+    color: tag.value.color ? String(tag.value.color) : null,
+  })
+}
 
 const editMetaTag = async () => {
   // Open with current in-memory tag/meta first so the opening click cannot race

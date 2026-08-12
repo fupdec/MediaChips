@@ -44,6 +44,8 @@ import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {isMediaPageItem, isTagPageItem, mediaPageItemPath, type PageItem} from '@/utils/pageItem'
 import {useOpenMediaList} from '@/utils/openMediaList'
+import {useSessionFocusStore} from '@/stores/sessionFocus'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
 import type { DeleteEntityOnePayload, ParsePathTagEntry } from '@shared/api/responses'
 import type { ItemContextMenuEntry } from '@/types/itemsPage'
 import type { MediaItem, Meta, Playlist, Tag } from '@/types/stores'
@@ -90,6 +92,8 @@ export default function useItemContextMenu(
   const listSync = useItemsListSync()
   const {moveTagsToCategory} = useMoveTagsToCategory()
   const {openMediaList} = useOpenMediaList()
+  const sessionFocusStore = useSessionFocusStore()
+  const {applyFocusTagToMediaIds, startFocus, clearFocus} = useSessionFocusActions()
 
   const scraperStore = useScraperStore()
   const sceneScraperStore = useSceneScraperStore()
@@ -136,6 +140,25 @@ export default function useItemContextMenu(
           type: 'item',
           icon: 'content-duplicate',
           action: duplicateTagItem,
+        })
+        const focused = Number(sessionFocusStore.tagId) === Number(item.id)
+        contextMenu.push({
+          name: focused ? t('session_focus.clear') : t('session_focus.start'),
+          type: 'item',
+          icon: focused ? 'bullseye-arrow' : 'bullseye',
+          action: () => {
+            if (focused) {
+              clearFocus()
+              return
+            }
+            startFocus({
+              tagId: Number(item.id),
+              metaId: Number(meta.id),
+              name: String(item.name || ''),
+              icon: meta.icon ? String(meta.icon) : null,
+              color: item.color ? String(item.color) : null,
+            })
+          },
         })
       }
     } else {
@@ -552,6 +575,20 @@ export default function useItemContextMenu(
           icon: 'playlist-plus',
           menu: menuPlaylists,
           disabled: isSelectMode() && itemsStore.selection.length === 0,
+        })
+      }
+
+      if (sessionFocusStore.tag) {
+        const focusTag = sessionFocusStore.tag
+        contextMenu.push({
+          name: t('session_focus.apply_menu', {name: focusTag.name}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          disabled: isSelectMode() && itemsStore.selection.length === 0,
+          action: () => {
+            const ids = isSelectMode() ? [...itemsStore.selection] : [item.id]
+            void applyFocusTagToMediaIds(ids)
+          },
         })
       }
 

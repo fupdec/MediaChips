@@ -35,6 +35,14 @@
     />
 
     <AppBarButton
+      v-if="itemsStore.type === 'media' && sessionFocusStore.tag"
+      icon="bullseye-arrow"
+      :text="t('session_focus.apply_short', {name: sessionFocusStore.tag.name})"
+      :disabled="itemsStore.selection.length === 0"
+      :action="applyFocusToSelection"
+    />
+
+    <AppBarButton
       icon="delete"
       :text="t('common.delete')"
       :disabled="itemsStore.selection.length === 0"
@@ -51,6 +59,8 @@ import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSessionFocusStore} from '@/stores/sessionFocus'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
@@ -63,6 +73,8 @@ import type {MediaItem, Tag} from '@/types/stores'
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
+const sessionFocusStore = useSessionFocusStore()
+const {applyFocusTagToMediaIds} = useSessionFocusActions()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
@@ -128,6 +140,11 @@ function openBulkEdit() {
   if (itemsStore.selection.length === 0) return
   dialogsStore.bulkEditingItems = true
   itemsStore.isSelect = false
+}
+
+function applyFocusToSelection() {
+  if (!sessionFocusStore.tag || itemsStore.selection.length === 0) return
+  void applyFocusTagToMediaIds([...itemsStore.selection])
 }
 
 function openMediaMerge() {

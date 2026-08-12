@@ -37,6 +37,7 @@
         class="main-scroll"
         :class="{'main-scroll--settings': isSettingsPage}"
       >
+        <SessionFocusBar v-if="!store.isLocked"/>
         <div
           :class="{'main-scroll-inner--settings': isSettingsPage}"
           class="main-scroll-inner"
@@ -130,6 +131,7 @@ import SystemBar from '@/components/app/SystemBar.vue'
 import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
 
 const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))
+const SessionFocusBar = defineAsyncComponent(() => import('@/components/app/SessionFocusBar.vue'))
 const SideBarBrowser = defineAsyncComponent(() => import('@/components/app/SideBarBrowser.vue'))
 const BottomBar = defineAsyncComponent(() => import('@/components/app/BottomBar.vue'))
 const InspectorPanel = defineAsyncComponent(() => import('@/components/app/InspectorPanel.vue'))

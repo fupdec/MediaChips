@@ -6,6 +6,8 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSessionFocusStore} from '@/stores/sessionFocus'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
 import {useAppShell} from '@/composable/appShell'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
@@ -38,6 +40,14 @@ export function useCommandPaletteCommands(options: {
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
   const dialogsStore = useDialogsStore()
+  const sessionFocusStore = useSessionFocusStore()
+  const {
+    clearFocus,
+    browseWithFocus,
+    browseWithoutFocus,
+    openFocusTagPage,
+    applyFocusTagToMediaIds,
+  } = useSessionFocusActions()
   const appShell = useAppShell()
   const nav = useLibraryNavItems()
   const {openReviewMode} = useReviewModeLauncher()
@@ -245,6 +255,58 @@ export function useCommandPaletteCommands(options: {
         run: () => dialogsStore.openFeedback(),
       },
     )
+
+    if (sessionFocusStore.tag) {
+      const focusName = sessionFocusStore.tag.name
+      list.push(
+        {
+          id: 'session-focus-open',
+          title: t('commandPalette.actions.session_focus_open', {name: focusName}),
+          icon: 'mdi-bullseye-arrow',
+          group: 'actions',
+          keywords: ['focus', 'session', 'tag', 'performer'],
+          run: () => openFocusTagPage(),
+        },
+        {
+          id: 'session-focus-with',
+          title: t('commandPalette.actions.session_focus_with', {name: focusName}),
+          icon: 'mdi-filter-outline',
+          group: 'actions',
+          keywords: ['focus', 'filter', 'tagged'],
+          run: () => { void browseWithFocus() },
+        },
+        {
+          id: 'session-focus-without',
+          title: t('commandPalette.actions.session_focus_without', {name: focusName}),
+          subtitle: t('commandPalette.actions.session_focus_without_hint'),
+          icon: 'mdi-tag-plus-outline',
+          group: 'actions',
+          keywords: ['focus', 'untagged', 'tagging'],
+          run: () => { void browseWithoutFocus() },
+        },
+        {
+          id: 'session-focus-apply',
+          title: t('commandPalette.actions.session_focus_apply', {name: focusName}),
+          subtitle: t('commandPalette.actions.session_focus_apply_hint'),
+          icon: 'mdi-tag-plus',
+          group: 'actions',
+          keywords: ['focus', 'apply', 'selection'],
+          run: () => {
+            if (itemsStore.selection.length) {
+              void applyFocusTagToMediaIds([...itemsStore.selection])
+            }
+          },
+        },
+        {
+          id: 'session-focus-clear',
+          title: t('commandPalette.actions.session_focus_clear'),
+          icon: 'mdi-close-circle-outline',
+          group: 'actions',
+          keywords: ['focus', 'clear', 'end'],
+          run: () => clearFocus(),
+        },
+      )
+    }
 
     if (nav.showPlaylists.value) {
       list.push({
