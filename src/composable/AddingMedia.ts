@@ -9,6 +9,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useTasksStore} from '@/stores/tasks'
 import {useWatcherStore} from '@/stores/watcher'
+import {useMediaInboxStore} from '@/stores/mediaInbox'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {removeWatcherNewPaths} from '@/utils/watcherReportUtils'
@@ -98,6 +99,7 @@ export const useMediaAdding = () => {
   const itemsStore = useItemsStore()
   const tasksStore = useTasksStore()
   const watcherStore = useWatcherStore()
+  const mediaInboxStore = useMediaInboxStore()
   const eventBus = useEventBus()
   const listSync = useItemsListSync()
   const t = i18n.global.t
@@ -146,6 +148,7 @@ export const useMediaAdding = () => {
     const skipFileScan = task.value.skipFileScan
     const directFiles = [...task.value.directFiles]
     const savedMediaTypeId = task.value.media_type_id
+    const fromInbox = Boolean(task.value.fromInbox)
 
     task.value.active = true
     task.value.status = t('media.adding.scanning_files')
@@ -172,6 +175,7 @@ export const useMediaAdding = () => {
     task.value.notificationTaskId = null
     task.value.skipFileScan = false
     task.value.directFiles = []
+    task.value.fromInbox = false
     task.value.media_type_id = savedMediaTypeId
     scheduleDesktopChromeSync()
 
@@ -450,8 +454,26 @@ export const useMediaAdding = () => {
           type: 'success',
           title: t('media.adding.complete'),
           text: t('media.adding.added_count', {count: task.value.added.length}),
-          actions: [openProcessAction()],
+          actions: fromInbox
+            ? [
+              openProcessAction(),
+              {
+                id: 'open-media-inbox-pending',
+                text: t('media_inbox.open_pending'),
+                icon: 'inbox-arrow-down',
+                action: () => mediaInboxStore.open('pending'),
+                hide: true,
+              },
+            ]
+            : [openProcessAction()],
         })
+
+        if (fromInbox) {
+          const ids = (task.value.addedMedia || [])
+            .map((entry) => Number(entry.mediaId))
+            .filter((id) => Number.isFinite(id) && id > 0)
+          if (ids.length) mediaInboxStore.enqueuePendingReview(ids)
+        }
 
         if (shouldShowOnboarding(false)) {
           await saveOnboardingStep(ONBOARDING_STEP_COUNT - 1)

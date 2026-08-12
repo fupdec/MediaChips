@@ -10,6 +10,7 @@ import {useAppShell} from '@/composable/appShell'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
 import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
+import {useMediaInbox} from '@/composable/useMediaInbox'
 import {setOption} from '@/services/settingsService'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -39,6 +40,7 @@ export function useCommandPaletteCommands(options: {
   const appShell = useAppShell()
   const nav = useLibraryNavItems()
   const {openReviewMode} = useReviewModeLauncher()
+  const {openInbox} = useMediaInbox()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -104,6 +106,15 @@ export function useCommandPaletteCommands(options: {
         keywords: ['review', 'inbox', 'tag', 'rate', 'keyboard'],
         shortcut: 'r',
         run: () => { void openReviewMode() },
+      },
+      {
+        id: 'media-inbox',
+        title: t('commandPalette.actions.media_inbox'),
+        subtitle: t('commandPalette.actions.media_inbox_hint'),
+        icon: 'mdi-inbox-outline',
+        group: 'actions',
+        keywords: ['inbox', 'watch', 'new', 'triage', 'queue'],
+        run: () => { openInbox() },
       },
       {
         id: 'toggle-theme',

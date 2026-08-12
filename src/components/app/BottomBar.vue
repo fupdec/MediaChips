@@ -22,9 +22,12 @@ const {
   allTagsLink,
   watcherFiles,
   showWatcherFolders,
+  showInbox,
+  inboxBadgeCount,
   watcherBadgeCountsByFolderId,
   watcherBusy,
   openDialogFolder,
+  openInbox,
   metaPath,
 } = useLibraryNavItems()
 
@@ -204,6 +207,33 @@ onUnmounted(() => {
         </v-btn>
       </template>
       {{ settingsLink.title }}
+    </v-tooltip>
+
+    <v-tooltip
+      v-if="showInbox"
+      location="top"
+      :disabled="mobile"
+      open-on-hover
+    >
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          class="v-btn--selected v-btn--active"
+          variant="text"
+          :disabled="watcherBusy"
+          :aria-label="t('media_inbox.nav')"
+          @click="openInbox()"
+        >
+          <v-badge
+            :content="inboxBadgeCount"
+            :model-value="inboxBadgeCount > 0"
+            color="success"
+          >
+            <v-icon>mdi-inbox-outline</v-icon>
+          </v-badge>
+        </v-btn>
+      </template>
+      {{ t('media_inbox.nav') }}
     </v-tooltip>
 
     <div

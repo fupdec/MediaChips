@@ -48,6 +48,8 @@ export interface MediaAddingState {
   is_check_duplicates: boolean
   skipFileScan: boolean
   directFiles: string[]
+  /** When true, successful adds are queued into the media Inbox pending-review list. */
+  fromInbox: boolean
 }
 
 export const useTasksStore = defineStore('useTasksStore', {
@@ -86,6 +88,7 @@ export const useTasksStore = defineStore('useTasksStore', {
       is_check_duplicates: true,
       skipFileScan: false,
       directFiles: [],
+      fromInbox: false,
     } as MediaAddingState,
   }),
   actions: {

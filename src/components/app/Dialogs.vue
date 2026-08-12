@@ -127,6 +127,7 @@
     />
 
     <DialogFolder v-if="watcherStore.dialogFolder"/>
+    <DialogMediaInbox v-if="mediaInboxStore.dialog"/>
 
     <DialogBrowseFolder
       v-if="operationsStore.moving.dialog"
@@ -203,6 +204,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useTasksStore} from '@/stores/tasks'
 import {useWatcherStore} from '@/stores/watcher'
+import {useMediaInboxStore} from '@/stores/mediaInbox'
 import {useOperationsStore} from '@/stores/operations'
 import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
@@ -326,6 +328,9 @@ const DialogBulkEditingItems = defineAsyncComponent(() =>
 const DialogFolder = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogFolder.vue')
 )
+const DialogMediaInbox = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogMediaInbox.vue')
+)
 const DialogConfirm = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogConfirm.vue')
 )
@@ -343,6 +348,7 @@ const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const tasksStore = useTasksStore()
 const watcherStore = useWatcherStore()
+const mediaInboxStore = useMediaInboxStore()
 const operationsStore = useOperationsStore()
 const itemsStore = useItemsStore()
 const pluginsStore = usePluginsStore()

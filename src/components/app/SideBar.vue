@@ -119,6 +119,28 @@
             </v-tooltip>
           </v-list-item>
 
+          <v-list-item
+            v-if="showInbox"
+            :disabled="watcherBusy"
+            prepend-icon="mdi-inbox-outline"
+            :title="t('media_inbox.nav')"
+            @click="openInbox()"
+          >
+            <template #append>
+              <v-chip
+                v-if="inboxBadgeCount"
+                size="x-small"
+                color="success"
+                variant="flat"
+              >
+                {{ inboxBadgeCount }}
+              </v-chip>
+            </template>
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ t('media_inbox.nav') }}
+            </v-tooltip>
+          </v-list-item>
+
           <div
             v-if="showWatcherFolders"
             @mouseover="folderHovered = true"
@@ -201,9 +223,12 @@ const {
   allTagsLink,
   watcherFiles,
   showWatcherFolders,
+  showInbox,
+  inboxBadgeCount,
   watcherBadgeCountsByFolderId,
   watcherBusy,
   openDialogFolder,
+  openInbox,
   metaPath,
 } = useLibraryNavItems()
 

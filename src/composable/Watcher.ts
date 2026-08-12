@@ -18,11 +18,13 @@ import {
   showWatcherScanCompleteNotification,
   showWatcherScanStartNotification,
 } from '@/utils/watcherScanNotifications'
+import {useMediaInboxStore} from '@/stores/mediaInbox'
 import uniqBy from 'lodash/uniqBy'
 
 export function useWatcher(apiUrl: string) {
   const settingsStore = useSettingsStore()
   const watcherStore = useWatcherStore()
+  const mediaInboxStore = useMediaInboxStore()
   const t = i18n.global.t
 
   const isWsReady = ref(false)
@@ -102,7 +104,21 @@ export function useWatcher(apiUrl: string) {
               break
             case 'scanComplete':
               if (isWatcherScanCompleteMessage(parsedMsg)) {
-                showWatcherScanCompleteNotification(t, parsedMsg.data, scanStartNotificationId)
+                showWatcherScanCompleteNotification(
+                  t,
+                  parsedMsg.data,
+                  scanStartNotificationId,
+                  {
+                    onOpenInbox: () => {
+                      const tab = parsedMsg.data.newCount > 0
+                        ? 'new'
+                        : parsedMsg.data.lostCount > 0
+                          ? 'lost'
+                          : 'new'
+                      mediaInboxStore.open(tab)
+                    },
+                  },
+                )
                 scanStartNotificationId = null
               }
               break
