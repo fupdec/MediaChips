@@ -11,7 +11,7 @@ const status = ref<UpdaterStatus>({ state: 'idle' })
 const lastCheckManual = ref(false)
 const isSupported = ref(false)
 
-let initialized = false
+let initPromise: Promise<void> | null = null
 let startupCheckScheduled = false
 
 function hasUpdaterApi(): boolean {
@@ -47,25 +47,37 @@ export function useAppUpdater() {
   const appStore = useAppStore()
 
   async function ensureInitialized() {
-    if (!appStore.isElectron || !hasUpdaterApi() || initialized) return
-    initialized = true
+    if (!appStore.isElectron || !hasUpdaterApi()) return
+    if (initPromise) {
+      await initPromise
+      return
+    }
 
-    const updater = window.electronAPI!.updater!
-    isSupported.value = await updater.isSupported()
+    initPromise = (async () => {
+      const updater = window.electronAPI!.updater!
+      isSupported.value = await updater.isSupported()
 
-    updater.onStatus((payload: UpdaterStatus) => {
-      applyUpdaterStatus({
-        ...payload,
-        manualCheck: lastCheckManual.value,
+      updater.onStatus((payload: UpdaterStatus) => {
+        applyUpdaterStatus({
+          ...payload,
+          manualCheck: lastCheckManual.value,
+        })
       })
-    })
 
-    const initial = await updater.getState()
-    if (initial) {
-      applyUpdaterStatus({
-        ...initial,
-        manualCheck: lastCheckManual.value,
-      })
+      const initial = await updater.getState()
+      if (initial) {
+        applyUpdaterStatus({
+          ...initial,
+          manualCheck: lastCheckManual.value,
+        })
+      }
+    })()
+
+    try {
+      await initPromise
+    } catch (error) {
+      initPromise = null
+      throw error
     }
   }
 

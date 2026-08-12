@@ -29,10 +29,13 @@ function includesChannel(channels: readonly string[], channel: string): boolean 
 }
 
 type PlayVideoListener = (event: IpcRendererEvent | null, data: unknown) => void
+type MenuActionListener = (action: string) => void
 
 const listenerSubscriptions = new Map<IpcCallback, ListenerSubscription>()
 let pendingPlayVideo: unknown = null
 const playVideoListeners = new Set<PlayVideoListener>()
+let pendingMenuAction: string | null = null
+const menuActionListeners = new Set<MenuActionListener>()
 
 ipcRenderer.on('play-video', (event: IpcRendererEvent, ...args: unknown[]) => {
   const data = args.length > 0 ? args[0] : null;
@@ -45,6 +48,18 @@ ipcRenderer.on('play-video', (event: IpcRendererEvent, ...args: unknown[]) => {
     callback(event, data);
   }
 });
+
+ipcRenderer.on('menuAction', (_event: IpcRendererEvent, ...args: unknown[]) => {
+  const action = String(args[0] ?? '')
+  if (!action) return
+  if (menuActionListeners.size === 0) {
+    pendingMenuAction = action
+    return
+  }
+  for (const callback of menuActionListeners) {
+    callback(action)
+  }
+})
 
 type FileLike = { path?: string }
 
@@ -355,7 +370,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
           playVideoListeners.delete(subscription);
           listenerSubscriptions.delete(callback);
         };
-      } else {
+      }
+
+      if (channel === 'menuAction') {
+        const subscription: MenuActionListener = (action) => {
+          callback(action)
+        }
+        menuActionListeners.add(subscription)
+        listenerSubscriptions.set(callback, {channel, subscription: subscription as never, isMenuAction: true})
+
+        if (pendingMenuAction !== null) {
+          const buffered = pendingMenuAction
+          pendingMenuAction = null
+          callback(buffered)
+        }
+
+        return () => {
+          menuActionListeners.delete(subscription)
+          listenerSubscriptions.delete(callback)
+        }
+      }
+
+      {
         // Для остальных каналов передаем как есть
         const subscription: IpcListener = (event, ...args) => {
           if (payloadObjectChannels.has(channel)) {
@@ -387,6 +423,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     if (entry && entry.channel === channel) {
       if (entry.isPlayVideo) {
         playVideoListeners.delete(entry.subscription as PlayVideoListener);
+      } else if (entry.isMenuAction) {
+        menuActionListeners.delete(entry.subscription as unknown as MenuActionListener)
       } else {
         ipcRenderer.removeListener(channel, entry.subscription as IpcListener);
       }

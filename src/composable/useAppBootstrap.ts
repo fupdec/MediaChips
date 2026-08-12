@@ -579,6 +579,14 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     // Reveal the app chrome before heavy startup work (plugins, catalogs).
     await revealAppShell()
 
+    if (store.isElectron) {
+      unsubscribeMenuAction = subscribeElectronIpc('menuAction', handleMenuAction)
+      unsubscribeAboutApp = subscribeElectronIpc('aboutApp', handleAboutApp)
+      unsubscribeShowDocumentation = subscribeElectronIpc('showDocumentation', handleShowDocumentation)
+      unsubscribeShowFeedback = subscribeElectronIpc('showFeedback', handleShowFeedback)
+      unsubscribeLockApp = subscribeElectronIpc('lockApp', handleLockApp)
+    }
+
     try {
       const {usePluginsStore} = await import('@/stores/plugins')
       await usePluginsStore().bootstrap()
@@ -638,12 +646,6 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
 
     if (store.isElectron) {
       setupPlayerElectronListeners()
-
-      unsubscribeAboutApp = subscribeElectronIpc('aboutApp', handleAboutApp)
-      unsubscribeShowDocumentation = subscribeElectronIpc('showDocumentation', handleShowDocumentation)
-      unsubscribeShowFeedback = subscribeElectronIpc('showFeedback', handleShowFeedback)
-      unsubscribeMenuAction = subscribeElectronIpc('menuAction', handleMenuAction)
-      unsubscribeLockApp = subscribeElectronIpc('lockApp', handleLockApp)
     }
   }
 

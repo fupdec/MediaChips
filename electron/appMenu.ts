@@ -15,12 +15,18 @@ export function createAppMenuController(deps: {
   getMainWindow: () => BrowserWindow | null
   onLock: () => void
   localAiEnabled?: boolean
+  /** Optional shared delivery (queues while the main window is missing/loading). */
+  sendMenuAction?: (action: string) => void
 }): AppMenuController {
   const localAiEnabled = deps.localAiEnabled ?? LOCAL_AI_UI_ENABLED
   const isMac = process.platform === 'darwin'
   let labels: AppMenuLabels = getAppMenuLabels('en')
 
   function sendMenuAction(action: string) {
+    if (deps.sendMenuAction) {
+      deps.sendMenuAction(action)
+      return
+    }
     deps.getMainWindow()?.webContents.send('menuAction', action)
   }
 

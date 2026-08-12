@@ -276,7 +276,7 @@ watch(status, (value) => {
   if (['checking', 'available', 'available-manual', 'downloading', 'downloaded', 'downloaded-manual', 'error', 'up-to-date', 'disabled'].includes(value.state)) {
     show.value = true
   }
-}, {deep: true})
+}, {deep: true, immediate: true})
 
 async function handleDownload() {
   isDownloading.value = true

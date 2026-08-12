@@ -87,6 +87,8 @@ export function createAppLifecycleController(deps: {
   closeServerListener: () => void
   initAppUpdater: () => void
   getMinimizeToTray: () => boolean
+  /** Optional: deliver Dock/tray menu actions queued while the window was missing. */
+  flushPendingMenuAction?: () => void
   /** Optional: handle Windows Jump List / second-instance CLI actions. */
   handleJumpListAction?: (action: string) => void
   logStartup?: (message: string) => void
@@ -193,6 +195,7 @@ export function createAppLifecycleController(deps: {
       if (!win || win.isDestroyed() || event.sender !== win.webContents) return
       deps.revealMainWindow()
       deps.schedulePlayerWarmup()
+      deps.flushPendingMenuAction?.()
     })
 
     app.on('second-instance', (_event, commandLine) => {

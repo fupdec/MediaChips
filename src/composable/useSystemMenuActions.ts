@@ -31,7 +31,7 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   const dialogsStore = useDialogsStore()
   const appShell = useAppShell()
   const appZoom = useAppZoom()
-  const {ensureInitialized, check, isSupported} = useAppUpdater()
+  const {check} = useAppUpdater()
   const {isWindowMaximized} = useWindowMaximizedState()
 
   function openAddMediaDialog() {
@@ -150,11 +150,8 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         appShell.showKeyboardShortcuts()
         break
       case 'checkUpdates':
-        await ensureInitialized()
-        if (!isSupported.value) {
-          await openExternal('https://github.com/fupdec/MediaChips/releases/latest')
-          break
-        }
+        // Always go through check() so AutoUpdater snackbar shows feedback
+        // (dev/disabled/up-to-date), matching Settings → About.
         await check({manual: true})
         break
       case 'versionHistory':

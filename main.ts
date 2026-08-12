@@ -10,6 +10,7 @@ import {
   isTraySupportedPlatform,
 } from './electron/appTray'
 import { createAppMenuController } from './electron/appMenu'
+import { createMenuActionDelivery } from './electron/menuActionDelivery'
 import {
   createAppLifecycleController,
   resolveElectronConfigPath,
@@ -270,9 +271,15 @@ const mainWindow = createMainWindowController({
 
 const {createWindow, showMainWindow} = mainWindow
 
+const menuActionDelivery = createMenuActionDelivery({
+  getMainWindow: () => mainWindow.getWindow(),
+  showMainWindow: () => showMainWindow(),
+})
+
 const appMenu = createAppMenuController({
   getMainWindow: () => mainWindow.getWindow(),
   onLock: () => appLifecycle.lockApp(),
+  sendMenuAction: (action) => menuActionDelivery.send(action),
 })
 appMenu.install()
 
@@ -280,9 +287,7 @@ const appTray = createAppTrayController({
   platform: process.platform,
   getMainWindow: () => mainWindow.getWindow(),
   showMainWindow: () => showMainWindow(),
-  sendMenuAction: (action) => {
-    mainWindow.getWindow()?.webContents.send('menuAction', action)
-  },
+  sendMenuAction: (action) => menuActionDelivery.send(action),
   onLock: () => appLifecycle.lockApp(),
   quitApp: () => appLifecycle.quitApp(),
   setIsQuitting: (value) => { appLifecycle.setIsQuitting(value) },
@@ -330,6 +335,7 @@ const appLifecycle = createAppLifecycleController({
   closeServerListener: () => { apiSupervisor.stop() },
   initAppUpdater: () => initAppUpdater({getWindow: () => mainWindow.getWindow()}),
   getMinimizeToTray: () => appTray.getMinimizeToTray(),
+  flushPendingMenuAction: () => menuActionDelivery.flush(),
   handleJumpListAction: (action) => appTray.handleJumpListAction(action),
   logStartup: (message) => { console.log(message) },
 })
