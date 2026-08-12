@@ -46,7 +46,13 @@ describe('task schemas', () => {
   })
 
   it('parses database sizes and watched folder links', () => {
-    expect(parseDatabaseSizesResponse({ sizes: { db1: 1024 } }).sizes?.db1).toBe(1024)
+    expect(parseDatabaseSizesResponse({
+      sizes: {db1: 1024},
+      backupCounts: {db1: 3},
+    })).toEqual({
+      sizes: {db1: 1024},
+      backupCounts: {db1: 3},
+    })
     const links = parseWatchedFolderLinks([
       {
         folderId: 1,

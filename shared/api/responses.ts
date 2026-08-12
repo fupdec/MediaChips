@@ -211,6 +211,8 @@ export interface MediaIdsResponse {
 
 export interface DatabaseSizesResponse {
   sizes?: Record<string, number>
+  /** Number of .zip backups under each database folder. */
+  backupCounts?: Record<string, number>
 }
 
 export interface DuplicateDbResponse {

@@ -6,6 +6,7 @@
       'health-section-header--done': status === 'done',
       'health-section-header--pending': status === 'pending',
       'health-section-header--optional': status === 'optional',
+      'health-section-header--error': status === 'error',
     }"
   >
     <div v-if="step != null" class="health-section-header__step">
@@ -45,7 +46,7 @@ const props = withDefaults(defineProps<{
   icon: string
   hint?: string
   step?: number | null
-  status?: 'done' | 'pending' | 'optional' | 'idle' | null
+  status?: 'done' | 'pending' | 'optional' | 'error' | 'idle' | null
   statusLabel?: string
   compact?: boolean
 }>(), {
@@ -73,6 +74,12 @@ const statusChip = computed(() => {
   if (props.status === 'optional') {
     return {
       color: 'primary',
+      label: props.statusLabel || t('settings_labels.database.health_guide_optional'),
+    }
+  }
+  if (props.status === 'error') {
+    return {
+      color: 'error',
       label: props.statusLabel || t('settings_labels.database.health_guide_optional'),
     }
   }
@@ -124,6 +131,12 @@ const statusChip = computed(() => {
   box-shadow: none;
 }
 
+.health-section-header--error .health-section-header__step {
+  background: rgb(var(--v-theme-error));
+  box-shadow: 0 0 0 4px rgba(var(--v-theme-error), 0.14);
+  color: rgb(var(--v-theme-on-error));
+}
+
 .health-section-header__icon {
   flex: 0 0 42px;
   width: 42px;
@@ -150,6 +163,13 @@ const statusChip = computed(() => {
   background:
     linear-gradient(145deg, rgba(var(--v-theme-warning), 0.18), rgba(var(--v-theme-warning), 0.05));
   border-color: rgba(var(--v-theme-warning), 0.18);
+}
+
+.health-section-header--error .health-section-header__icon {
+  color: rgb(var(--v-theme-error));
+  background:
+    linear-gradient(145deg, rgba(var(--v-theme-error), 0.2), rgba(var(--v-theme-error), 0.06));
+  border-color: rgba(var(--v-theme-error), 0.22);
 }
 
 .health-section-header__text {

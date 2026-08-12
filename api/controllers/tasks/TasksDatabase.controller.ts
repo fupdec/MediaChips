@@ -16,6 +16,16 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
 
   const rmrf = (folder: string) => rimraf(folder)
 
+  const countBackupArchives = (dbDir: string): number => {
+    const backupsPath = path.join(dbDir, 'backups')
+    if (!fs.existsSync(backupsPath)) return 0
+    try {
+      return fs.readdirSync(backupsPath).filter((file) => path.extname(file) === '.zip').length
+    } catch {
+      return 0
+    }
+  }
+
   const deleteDb = async function (req: ApiRequest, res: ApiResponse) {
     const dbDir = path.join(db.path_databases ?? '', String(req.body.id))
     try {
@@ -94,11 +104,14 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
 
     try {
       const sizes: DatabaseSizesResponse['sizes'] = {}
+      const backupCounts: NonNullable<DatabaseSizesResponse['backupCounts']> = {}
       await Promise.all(ids.map(async (id) => {
-        const dbDir = path.join(db.path_databases ?? '', String(id))
-        sizes![id] = await getDirectorySize(dbDir)
+        const key = String(id)
+        const dbDir = path.join(db.path_databases ?? '', key)
+        sizes![key] = await getDirectorySize(dbDir)
+        backupCounts[key] = countBackupArchives(dbDir)
       }))
-      const payload: DatabaseSizesResponse = { sizes }
+      const payload: DatabaseSizesResponse = { sizes, backupCounts }
       sendOk(res, payload)
     } catch (err) {
       sendAsClientError(res, err, 'Request failed')

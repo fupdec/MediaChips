@@ -17,6 +17,7 @@ export const WatchedFolderLinkSchema = z.object({
 
 export const DatabaseSizesResponseSchema = z.object({
   sizes: z.record(z.string(), z.number()).optional(),
+  backupCounts: z.record(z.string(), z.number()).optional(),
 }).passthrough()
 
 export const DuplicateDbResponseSchema = z.object({

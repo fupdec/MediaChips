@@ -10,20 +10,12 @@
         compact
       />
 
-      <div class="health-backfill__status text-body-2 mb-3">
-        {{ statusText }}
-      </div>
-
-      <v-progress-linear
-        v-if="active"
-        :model-value="progress"
-        color="primary"
-        height="8"
-        rounded
-        striped
-        class="mb-2"
+      <SettingsHealthProgress
+        :label="statusText"
+        :percent="statusPercent"
+        :active="active"
+        :striped="active"
       />
-
       <div v-if="active && currentPath" class="text-caption text-medium-emphasis mb-3 selectable">
         {{ currentPath }}
       </div>
@@ -96,6 +88,7 @@ import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
+import SettingsHealthProgress from '@/components/settings/database/SettingsHealthProgress.vue'
 import {
   useSettingsBackfillStream,
   type SettingsBackfillConfig,
@@ -124,6 +117,7 @@ const {
   startBackfill,
   stopBackfill,
   status,
+  statusLoaded,
 } = useSettingsBackfillStream(props.config)
 
 const titleKey = computed(() => `settings_labels.database.${config.i18nKey}`)
@@ -149,6 +143,20 @@ const statusChipLabel = computed(() => {
   return undefined
 })
 
+const statusPercent = computed(() => {
+  if (active.value) return Number(progress.value) || 0
+  if (!statusLoaded.value) return 0
+  const total = Number(status.value?.total || 0)
+  if (!total) return 0
+  const done = Number(status.value?.done || 0)
+  const pending = Number(status.value?.pending || 0)
+  // Prefer explicit done; fall back to total - pending if done is missing.
+  const completed = done > 0 || pending === total
+    ? done
+    : Math.max(total - pending, 0)
+  return Math.min((completed / total) * 100, 100)
+})
+
 // Status is a cheap SQL count — load automatically when the section opens.
 void refreshStatus()
 </script>
@@ -157,9 +165,5 @@ void refreshStatus()
 .selectable {
   user-select: text;
   word-break: break-all;
-}
-
-.health-backfill__status {
-  color: rgba(var(--v-theme-on-surface), 0.78);
 }
 </style>

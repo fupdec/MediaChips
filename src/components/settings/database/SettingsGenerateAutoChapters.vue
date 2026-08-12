@@ -23,18 +23,12 @@
       {{ t('common.loading') }}
     </div>
 
-    <div v-else-if="statusLoaded" class="text-body-2 text-medium-emphasis mb-3">
-      {{ t('settings_labels.database.generate_auto_chapters_status', status) }}
-    </div>
-
-    <v-progress-linear
-      v-if="running"
-      :model-value="progress"
-      color="primary"
-      height="8"
-      rounded
-      striped
-      class="mb-2"
+    <SettingsHealthProgress
+      v-else-if="statusLoaded"
+      :label="t('settings_labels.database.generate_auto_chapters_status', status)"
+      :percent="statusPercent"
+      :active="running"
+      :striped="running"
     />
 
     <div v-if="running && currentPath" class="text-caption text-medium-emphasis mb-4 selectable">
@@ -93,13 +87,14 @@
 </template>
 
 <script setup lang="ts">
-import {onBeforeUnmount, onMounted, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
+import SettingsHealthProgress from '@/components/settings/database/SettingsHealthProgress.vue'
 
 const {t, locale} = useI18n()
 const tasksStore = useTasksStore()
@@ -113,6 +108,14 @@ const progress = ref(0)
 const currentPath = ref('')
 const counters = ref({processed: 0, total: 0, created: 0, skipped: 0, failed: 0})
 const lastSummary = ref<{created: number; skipped: number; failed: number} | null>(null)
+
+const statusPercent = computed(() => {
+  if (running.value) return progress.value
+  const total = Number(status.value.total || 0)
+  const done = Number(status.value.withChapters || 0)
+  if (!total) return 0
+  return Math.min((done / total) * 100, 100)
+})
 
 let abortController: AbortController | null = null
 let taskId: string | number | null = null

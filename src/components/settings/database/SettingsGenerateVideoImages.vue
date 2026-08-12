@@ -1,136 +1,134 @@
 <template>
-  <SettingsHealthTask id="settings-generate-video-images" :status="taskStatus">
-  <div class="pb-1">
-    <SettingsHealthSectionHeader
-      :title="t('settings_labels.database.generate_video_images')"
-      icon="image-auto-adjust"
-      :hint="t('settings_labels.database.generate_video_images_hint')"
-      :status="taskStatus"
-      :status-label="statusChipLabel"
-    />
+  <SettingsHealthTask
+    v-for="item in mediaTypes"
+    :id="item.domId"
+    :key="item.id"
+    :status="taskStatusOf(item.id)"
+    compact
+  >
+    <div>
+      <SettingsHealthSectionHeader
+        :title="t(item.titleKey)"
+        :icon="item.icon"
+        :hint="t(item.hintKey)"
+        :status="taskStatusOf(item.id)"
+        :status-label="statusChipLabelOf(item.id)"
+        compact
+      />
 
-    <v-alert
-      v-if="statusError"
-      type="error"
-      variant="tonal"
-      density="compact"
-      rounded="xl"
-      class="mb-4"
-    >
-      <span class="text-caption">{{ statusError }}</span>
-    </v-alert>
+      <v-alert
+        v-if="statusError"
+        type="error"
+        variant="tonal"
+        density="compact"
+        rounded="xl"
+        class="mb-3"
+      >
+        <span class="text-caption">{{ statusError }}</span>
+      </v-alert>
 
-    <div v-if="statusLoading" class="text-body-2 text-medium-emphasis mb-4">
-      {{ t('common.loading') }}
-    </div>
+      <SettingsHealthProgress
+        v-if="statusLoaded || statusLoading"
+        :label="statusLabelOf(item)"
+        :percent="statusPercentOf(item.id)"
+        :active="activeId === item.id"
+        :striped="activeId === item.id"
+      />
 
-    <v-progress-linear
-      v-if="activeType"
-      :model-value="progress"
-      color="primary"
-      height="8"
-      rounded
-      striped
-      class="mb-2"
-    />
-
-    <div v-if="activeType && currentPath" class="text-caption text-medium-emphasis mb-4 selectable">
-      {{ activeTypeLabel }} · {{ currentPath }}
-    </div>
-
-    <div v-if="activeType" class="text-caption text-medium-emphasis mb-4">
-      {{ t('settings_labels.database.generate_video_images_progress', counters) }}
-    </div>
-
-    <div
-      v-for="imageType in imageTypes"
-      :key="imageType.id"
-      class="mb-6"
-    >
-      <div class="text-subtitle-2 mb-1">
-        {{ t(imageType.titleKey) }}
+      <div
+        v-if="activeId === item.id && currentPath"
+        class="text-caption text-medium-emphasis mb-3 selectable"
+      >
+        {{ currentPath }}
       </div>
 
-      <div class="text-body-2 text-medium-emphasis mb-3">
-        <template v-if="statusLoaded">
-          {{ t('settings_labels.database.generate_video_images_status', status[imageType.id] || emptyStatus) }}
-        </template>
-        <template v-else>
-          {{ t('settings_labels.database.status_not_loaded') }}
-        </template>
+      <div
+        v-if="activeId === item.id"
+        class="text-caption text-medium-emphasis mb-3"
+      >
+        {{ t(item.progressKey, counters) }}
       </div>
 
-      <div v-if="lastSummary[imageType.id]" class="text-body-2 mb-3">
-        {{ t('settings_labels.database.generate_video_images_complete', {
-          created: lastSummary[imageType.id]!.created,
-          skipped: lastSummary[imageType.id]!.skipped,
-          missing: lastSummary[imageType.id]!.missing,
-          failed: lastSummary[imageType.id]!.failed,
-        }) }}
+      <div
+        v-else-if="lastSummary[item.id]"
+        class="text-body-2 mb-3"
+      >
+        {{ t(item.completeKey, lastSummary[item.id]!) }}
       </div>
 
       <div class="d-flex flex-wrap ga-2">
         <v-btn
-          v-if="activeType !== imageType.id"
-          @click="startGeneration(imageType.id, false)"
-          :disabled="!statusLoaded || statusLoading || !!activeType || (status[imageType.id]?.pending || 0) === 0"
+          v-if="activeId !== item.id"
+          :disabled="!canStart(item.id, false)"
+          :loading="statusLoading && !statusLoaded"
           color="primary"
           rounded
           variant="flat"
           class="pr-4"
+          @click="startGeneration(item.id, false)"
         >
           <v-icon icon="mdi-play" start/>
-          {{ t('settings_labels.database.generate_video_images_start') }}
+          {{ t(item.startKey) }}
         </v-btn>
 
         <v-btn
-          v-if="activeType !== imageType.id"
-          @click="startGeneration(imageType.id, true)"
-          :disabled="!statusLoaded || statusLoading || !!activeType || (status[imageType.id]?.total || 0) === 0"
+          v-if="activeId !== item.id"
+          :disabled="!canStart(item.id, true)"
           color="secondary"
           rounded
           variant="outlined"
           class="pr-4"
+          @click="startGeneration(item.id, true)"
         >
           <v-icon icon="mdi-refresh" start/>
-          {{ t('settings_labels.database.generate_video_images_regenerate') }}
+          {{ t(item.regenerateKey) }}
         </v-btn>
 
         <v-btn
-          v-if="activeType === imageType.id"
-          @click="stopGeneration"
+          v-else
           color="error"
           rounded
           variant="flat"
           class="pr-4"
+          @click="stopGeneration"
         >
           <v-icon icon="mdi-stop" start/>
           {{ t('common.stop') }}
         </v-btn>
       </div>
     </div>
-  </div>
   </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted} from 'vue'
+import {ref, onMounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {typedApi} from '@/services/typedApi'
 import {getErrorStatus} from '@/types/vue'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
+import SettingsHealthProgress from '@/components/settings/database/SettingsHealthProgress.vue'
 import {setNotification} from '@/services/notificationService'
 
-type ImageTypeId = 'preview' | 'grid' | 'marks'
+type MediaTypeId = 'preview' | 'grid' | 'marks' | 'image_thumbs'
+type VideoTypeId = 'preview' | 'grid' | 'marks'
 
-interface ImageTypeConfig {
-  id: ImageTypeId
+interface MediaTypeConfig {
+  id: MediaTypeId
+  kind: 'video' | 'image'
   titleKey: string
+  hintKey: string
+  statusKey: string
+  startKey: string
+  regenerateKey: string
+  progressKey: string
+  completeKey: string
+  icon: string
+  domId: string
 }
 
-interface ImageTypeStatus {
+interface TypeStatus {
   total: number
   pending: number
   generated: number
@@ -169,27 +167,78 @@ interface GenerationEvent {
 const {t} = useI18n()
 const tasksStore = useTasksStore()
 
-const imageTypes: ImageTypeConfig[] = [
-  {id: 'preview', titleKey: 'settings_labels.database.generate_video_images_preview'},
-  {id: 'grid', titleKey: 'settings_labels.database.generate_video_images_grid'},
-  {id: 'marks', titleKey: 'settings_labels.database.generate_video_images_marks'},
+const mediaTypes: MediaTypeConfig[] = [
+  {
+    id: 'preview',
+    kind: 'video',
+    titleKey: 'settings_labels.database.generate_video_images_preview',
+    hintKey: 'settings_labels.database.generate_video_images_preview_hint',
+    statusKey: 'settings_labels.database.generate_video_images_status',
+    startKey: 'settings_labels.database.generate_video_images_start',
+    regenerateKey: 'settings_labels.database.generate_video_images_regenerate',
+    progressKey: 'settings_labels.database.generate_video_images_progress',
+    completeKey: 'settings_labels.database.generate_video_images_complete',
+    icon: 'movie-open-outline',
+    // Keep legacy deep-link id used by prepare-library / settings routes.
+    domId: 'settings-generate-video-images',
+  },
+  {
+    id: 'grid',
+    kind: 'video',
+    titleKey: 'settings_labels.database.generate_video_images_grid',
+    hintKey: 'settings_labels.database.generate_video_images_grid_hint',
+    statusKey: 'settings_labels.database.generate_video_images_status',
+    startKey: 'settings_labels.database.generate_video_images_start',
+    regenerateKey: 'settings_labels.database.generate_video_images_regenerate',
+    progressKey: 'settings_labels.database.generate_video_images_progress',
+    completeKey: 'settings_labels.database.generate_video_images_complete',
+    icon: 'view-grid-outline',
+    domId: 'settings-generate-video-images-grid',
+  },
+  {
+    id: 'marks',
+    kind: 'video',
+    titleKey: 'settings_labels.database.generate_video_images_marks',
+    hintKey: 'settings_labels.database.generate_video_images_marks_hint',
+    statusKey: 'settings_labels.database.generate_video_images_status',
+    startKey: 'settings_labels.database.generate_video_images_start',
+    regenerateKey: 'settings_labels.database.generate_video_images_regenerate',
+    progressKey: 'settings_labels.database.generate_video_images_progress',
+    completeKey: 'settings_labels.database.generate_video_images_complete',
+    icon: 'bookmark-outline',
+    domId: 'settings-generate-video-images-marks',
+  },
+  {
+    id: 'image_thumbs',
+    kind: 'image',
+    titleKey: 'settings_labels.database.generate_image_thumbs',
+    hintKey: 'settings_labels.database.generate_image_thumbs_hint',
+    statusKey: 'settings_labels.database.generate_image_thumbs_status',
+    startKey: 'settings_labels.database.generate_image_thumbs_start',
+    regenerateKey: 'settings_labels.database.generate_image_thumbs_regenerate',
+    progressKey: 'settings_labels.database.generate_image_thumbs_progress',
+    completeKey: 'settings_labels.database.generate_image_thumbs_complete',
+    icon: 'image-outline',
+    domId: 'settings-generate-image-thumbs',
+  },
 ]
 
-const emptyStatus: ImageTypeStatus = {total: 0, pending: 0, generated: 0}
+const emptyStatus: TypeStatus = {total: 0, pending: 0, generated: 0}
 
-const status = ref<Record<ImageTypeId, ImageTypeStatus>>({
+const status = ref<Record<MediaTypeId, TypeStatus>>({
   preview: {...emptyStatus},
   grid: {...emptyStatus},
   marks: {...emptyStatus},
+  image_thumbs: {...emptyStatus},
 })
 
-const activeType = ref<ImageTypeId | null>(null)
+const activeId = ref<MediaTypeId | null>(null)
 const progress = ref(0)
 const currentPath = ref('')
 const statusLoading = ref(false)
 const statusLoaded = ref(false)
 const statusError = ref('')
-const lastSummary = ref<Partial<Record<ImageTypeId, GenerationSummary | null>>>({})
+const lastSummary = ref<Partial<Record<MediaTypeId, GenerationSummary | null>>>({})
 const counters = ref<GenerationCounters>({
   processed: 0,
   total: 0,
@@ -202,40 +251,63 @@ const counters = ref<GenerationCounters>({
 let abortController: AbortController | null = null
 let taskId: string | null = null
 
-const activeTypeLabel = computed(() => {
-  const item = imageTypes.find((type) => type.id === activeType.value)
-  return item ? t(item.titleKey) : ''
-})
+function statusOf(id: MediaTypeId): TypeStatus {
+  return status.value[id] || emptyStatus
+}
 
-const pendingTotal = computed(() =>
-  imageTypes.reduce((sum, type) => sum + Number(status.value[type.id]?.pending || 0), 0),
-)
+function pendingOf(id: MediaTypeId): number {
+  return Number(statusOf(id).pending || 0)
+}
 
-const taskStatus = computed(() => {
-  if (!statusLoaded.value) return 'idle' as const
-  return pendingTotal.value > 0 ? 'pending' as const : 'done' as const
-})
+function taskStatusOf(id: MediaTypeId): 'idle' | 'pending' | 'done' {
+  if (!statusLoaded.value) return 'idle'
+  return pendingOf(id) > 0 ? 'pending' : 'done'
+}
 
-const statusChipLabel = computed(() => {
-  if (taskStatus.value === 'pending') {
-    return t('settings_labels.database.health_guide_pending', {count: pendingTotal.value})
+function statusChipLabelOf(id: MediaTypeId): string | undefined {
+  const state = taskStatusOf(id)
+  if (state === 'pending') {
+    return t('settings_labels.database.health_guide_pending', {count: pendingOf(id)})
   }
-  if (taskStatus.value === 'done') {
+  if (state === 'done') {
     return t('settings_labels.database.health_guide_done')
   }
   return undefined
-})
+}
+
+function canStart(id: MediaTypeId, force: boolean): boolean {
+  if (!statusLoaded.value || statusLoading.value || activeId.value) return false
+  const item = statusOf(id)
+  return force ? item.total > 0 : item.pending > 0
+}
+
+function statusLabelOf(item: MediaTypeConfig): string {
+  if (statusLoaded.value) return t(item.statusKey, statusOf(item.id))
+  if (statusLoading.value) return t('common.loading')
+  return t('settings_labels.database.status_not_loaded')
+}
+
+function statusPercentOf(id: MediaTypeId): number {
+  if (activeId.value === id) return progress.value
+  const item = statusOf(id)
+  if (!item.total) return 0
+  return Math.min((Number(item.generated || 0) / Number(item.total)) * 100, 100)
+}
 
 const fetchStatus = async () => {
   statusLoading.value = true
   statusError.value = ''
 
   try {
-    const {data} = await typedApi.getVideoImagesGenerationStatus()
+    const [videoRes, imageRes] = await Promise.all([
+      typedApi.getVideoImagesGenerationStatus(),
+      typedApi.getImageThumbsGenerationStatus(),
+    ])
     status.value = {
-      preview: {...emptyStatus, ...(data.preview || {})},
-      grid: {...emptyStatus, ...(data.grid || {})},
-      marks: {...emptyStatus, ...(data.marks || {})},
+      preview: {...emptyStatus, ...(videoRes.data.preview || {})},
+      grid: {...emptyStatus, ...(videoRes.data.grid || {})},
+      marks: {...emptyStatus, ...(videoRes.data.marks || {})},
+      image_thumbs: {...emptyStatus, ...(imageRes.data || {})},
     }
     statusLoaded.value = true
   } catch (error) {
@@ -255,7 +327,7 @@ const refreshStatus = async () => {
   try {
     await fetchStatus()
   } catch (error) {
-    console.error('Failed to load video images generation status:', error)
+    console.error('Failed to load media images generation status:', error)
   }
 }
 
@@ -263,17 +335,20 @@ const stopGeneration = () => {
   abortController?.abort()
 }
 
-const startGeneration = async (imageType: ImageTypeId, force = false) => {
-  if (activeType.value) return
+const startGeneration = async (id: MediaTypeId, force = false) => {
+  if (activeId.value) return
 
-  const typeStatus = status.value[imageType] || emptyStatus
+  const typeStatus = statusOf(id)
   if (!force && typeStatus.pending === 0) return
   if (force && typeStatus.total === 0) return
 
-  activeType.value = imageType
+  const config = mediaTypes.find((item) => item.id === id)
+  if (!config) return
+
+  activeId.value = id
   progress.value = 0
   currentPath.value = ''
-  lastSummary.value = {...lastSummary.value, [imageType]: null}
+  lastSummary.value = {...lastSummary.value, [id]: null}
   counters.value = {
     processed: 0,
     total: force ? typeStatus.total : typeStatus.pending,
@@ -285,13 +360,10 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
 
   abortController = new AbortController()
 
-  const typeItem = imageTypes.find((type) => type.id === imageType)
-  if (!typeItem) return
-
   taskId = tasksStore.setTask({
-    title: t(typeItem.titleKey),
-    subtitle: t('settings_labels.database.generate_video_images_progress', counters.value),
-    icon: 'image-auto-adjust',
+    title: t(config.titleKey),
+    subtitle: t(config.progressKey, counters.value),
+    icon: config.icon,
     progress: 0,
     action: stopGeneration,
   })
@@ -314,7 +386,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
           : 0
 
         tasksStore.updateTask(currentTaskId, {
-          subtitle: t('settings_labels.database.generate_video_images_progress', counters.value),
+          subtitle: t(config.progressKey, counters.value),
           progress: progress.value,
         })
       }
@@ -327,18 +399,13 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
           failed: event.failed || 0,
           stopped: event.stopped === true,
         }
-        lastSummary.value = {...lastSummary.value, [imageType]: summary}
+        lastSummary.value = {...lastSummary.value, [id]: summary}
         progress.value = 100
 
         tasksStore.updateTask(currentTaskId, {
           subtitle: event.stopped
             ? t('common.stop')
-            : t('settings_labels.database.generate_video_images_complete', {
-              created: summary.created,
-              skipped: summary.skipped,
-              missing: summary.missing,
-              failed: summary.failed,
-            }),
+            : t(config.completeKey, summary),
           progress: 100,
           color: event.stopped ? 'warning' : 'success',
           done: true,
@@ -348,36 +415,38 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
         if (!event.stopped) {
           setNotification({
             type: summary.created > 0 ? 'success' : 'info',
-            title: t(typeItem.titleKey),
-            text: t('settings_labels.database.generate_video_images_complete', {
-              created: summary.created,
-              skipped: summary.skipped,
-              missing: summary.missing,
-              failed: summary.failed,
-            }),
-            icon: 'image-auto-adjust',
+            title: t(config.titleKey),
+            text: t(config.completeKey, summary),
+            icon: config.icon,
           })
         }
       }
 
       if (event.type === 'error') {
-        throw new Error(event.message || 'Video images generation failed')
+        throw new Error(event.message || 'Media images generation failed')
       }
     }
 
-    await typedApi.streamVideoImagesGeneration(
-      {type: imageType, force, signal: abortController.signal},
-      handleEvent as (event: import('@/services/typedApi/tasks').GenerationStreamEvent) => void,
-    )
+    if (config.kind === 'image') {
+      await typedApi.streamImageThumbsGeneration(
+        {force, signal: abortController.signal},
+        handleEvent as (event: import('@/services/typedApi/tasks').GenerationStreamEvent) => void,
+      )
+    } else {
+      await typedApi.streamVideoImagesGeneration(
+        {type: id as VideoTypeId, force, signal: abortController.signal},
+        handleEvent as (event: import('@/services/typedApi/tasks').GenerationStreamEvent) => void,
+      )
+    }
 
     await fetchStatus()
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     if (err.name !== 'AbortError') {
-      console.error('Video images generation failed:', err)
+      console.error('Media images generation failed:', err)
       setNotification({
         type: 'error',
-        title: t(typeItem.titleKey),
+        title: t(config.titleKey),
         text: err.message,
       })
 
@@ -398,7 +467,7 @@ const startGeneration = async (imageType: ImageTypeId, force = false) => {
       })
     }
   } finally {
-    activeType.value = null
+    activeId.value = null
     abortController = null
     currentPath.value = ''
     await fetchStatus().catch(() => {})

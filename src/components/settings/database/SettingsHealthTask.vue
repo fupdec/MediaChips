@@ -6,6 +6,7 @@
       'health-task--done': status === 'done',
       'health-task--pending': status === 'pending',
       'health-task--optional': status === 'optional',
+      'health-task--error': status === 'error',
       'health-task--compact': compact,
     }"
   >
@@ -19,7 +20,7 @@
 <script setup lang="ts">
 withDefaults(defineProps<{
   id?: string
-  status?: 'done' | 'pending' | 'optional' | 'idle' | null
+  status?: 'done' | 'pending' | 'optional' | 'error' | 'idle' | null
   compact?: boolean
 }>(), {
   id: undefined,
@@ -72,6 +73,17 @@ withDefaults(defineProps<{
   border-color: rgba(var(--v-theme-primary), 0.28);
 }
 
+.health-task--error {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(var(--v-theme-error), 0.1) 0%,
+      rgba(var(--v-theme-surface), 0) 48%
+    ),
+    rgba(var(--v-theme-on-surface), 0.02);
+  border-color: rgba(var(--v-theme-error), 0.28);
+}
+
 .health-task__rail {
   flex: 0 0 4px;
   background: linear-gradient(
@@ -102,6 +114,14 @@ withDefaults(defineProps<{
     180deg,
     rgba(var(--v-theme-primary), 0.55) 0 6px,
     transparent 6px 12px
+  );
+}
+
+.health-task--error .health-task__rail {
+  background: linear-gradient(
+    180deg,
+    rgb(var(--v-theme-error)),
+    rgba(var(--v-theme-error), 0.3)
   );
 }
 

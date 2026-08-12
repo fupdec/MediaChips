@@ -159,6 +159,11 @@
                 <SettingsOpenDataFolder/>
               </SettingsSection>
 
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance')"
+                icon="wrench-outline"
+              />
+
               <SettingsLibraryHealthGuide/>
 
               <SettingsGroupLabel
@@ -168,8 +173,6 @@
               />
 
               <SettingsGenerateVideoImages/>
-
-              <SettingsGenerateImageThumbs/>
 
               <SettingsGenerateAutoChapters/>
 
@@ -346,9 +349,6 @@ const SettingsGenerateVideoImages = defineAsyncComponent(() =>
 )
 const SettingsGenerateAutoChapters = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateAutoChapters.vue")
-)
-const SettingsGenerateImageThumbs = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsGenerateImageThumbs.vue")
 )
 const SettingsTagImageAiUpscale = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsTagImageAiUpscale.vue")

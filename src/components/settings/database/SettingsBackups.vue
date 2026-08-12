@@ -27,8 +27,12 @@
           @close="dialog = false"
         />
 
-        <v-card-text class="pt-2 pb-4 px-4 px-sm-6">
-          <div class="backups-toolbar mt-4 mb-4">
+        <v-card-text class="backups-dialog__body pt-2 pb-5 px-4 px-sm-6">
+          <p class="backups-dialog__hint text-caption text-medium-emphasis mb-4">
+            {{ t('settings_labels.database.backups_hint') }}
+          </p>
+
+          <div class="backups-toolbar mb-4">
             <v-btn
               prepend-icon="mdi-plus"
               :text="t('settings_labels.database.create_backup')"
@@ -39,6 +43,21 @@
               @click="createBackup"
             />
 
+            <div class="backups-toolbar__meta" v-if="isLoaded && backups.length">
+              <span class="backups-toolbar__count">
+                {{ backups.length }}
+              </span>
+              <span class="text-caption text-medium-emphasis">
+                {{ formatBackupSize(totalBackupSize) }}
+              </span>
+              <span
+                v-if="selected.length"
+                class="backups-toolbar__selected text-caption"
+              >
+                {{ t('settings_labels.database.backups_selected', {count: selected.length}) }}
+              </span>
+            </div>
+
             <div class="backups-toolbar__group">
               <v-btn
                 v-tooltip:top="t('settings_labels.database.delete_backup')"
@@ -47,6 +66,7 @@
                 color="error"
                 variant="tonal"
                 rounded="pill"
+                size="small"
                 :disabled="notSelected"
                 @click="dialogDelete = true"
               />
@@ -57,6 +77,7 @@
                 color="info"
                 variant="tonal"
                 rounded="pill"
+                size="small"
                 :disabled="notSelected"
                 @click="dialogExport = true"
               />
@@ -67,30 +88,63 @@
                 color="primary"
                 variant="tonal"
                 rounded="pill"
+                size="small"
                 @click="dialogImport = true"
               />
             </div>
           </div>
 
           <div
+            v-if="isLoaded && backups.length"
+            class="backups-sort mb-3"
+          >
+            <span class="backups-sort__label text-caption text-medium-emphasis">
+              {{ t('filters.sort_by') }}
+            </span>
+            <v-btn-toggle
+              v-model="sortField"
+              mandatory
+              divided
+              density="compact"
+              color="primary"
+              rounded="pill"
+              class="backups-sort__toggle"
+            >
+              <v-btn value="date" size="small" class="px-3">
+                <v-icon icon="mdi-calendar-outline" start size="16"/>
+                {{ t('settings_labels.database.backups_sort_date') }}
+              </v-btn>
+              <v-btn value="size" size="small" class="px-3">
+                <v-icon icon="mdi-harddisk" start size="16"/>
+                {{ t('settings_labels.database.backups_sort_size') }}
+              </v-btn>
+            </v-btn-toggle>
+            <v-btn
+              v-tooltip:top="t('filters.change_direction')"
+              :icon="sortDir === 'desc' ? 'mdi-sort-descending' : 'mdi-sort-ascending'"
+              :aria-label="t('filters.change_direction')"
+              color="primary"
+              variant="tonal"
+              rounded="pill"
+              size="small"
+              @click="toggleSortDir"
+            />
+          </div>
+
+          <div
             v-if="!isLoaded"
-            class="backups-loading d-flex justify-center py-10"
+            class="backups-loading d-flex justify-center py-12"
           >
             <v-progress-circular indeterminate color="primary" size="36"/>
           </div>
 
           <div
             v-else-if="!backups.length"
-            class="backups-empty text-center py-10 px-4"
+            class="backups-empty text-center py-12 px-4"
           >
-            <v-avatar
-              color="primary"
-              variant="tonal"
-              size="56"
-              class="mb-3"
-            >
+            <div class="backups-empty__icon mb-3" aria-hidden="true">
               <v-icon icon="mdi-backup-restore" size="28"/>
-            </v-avatar>
+            </div>
             <div class="text-body-1 font-weight-medium mb-1">
               {{ t('settings_labels.database.no_backups') }}
             </div>
@@ -99,57 +153,87 @@
             </div>
           </div>
 
-          <v-list
-            v-else
-            class="px-0 settings-outlined-list backups-list mb-2"
-            density="compact"
-            rounded="xl"
-            bg-color="transparent"
-          >
-            <v-list-item
-              v-for="(backup, index) in backups"
+          <div v-else class="backups-list">
+            <div
+              v-for="backup in sortedBackups"
               :key="backup.date"
-              rounded="pill"
-              variant="outlined"
-              class="backups-row py-2"
+              class="backups-card"
               :class="{
-                'backups-row--zebra': index % 2 === 1,
-                'backups-row--selected': isBackupSelected(backup),
+                'backups-card--selected': isBackupSelected(backup),
+                'backups-card--latest': isLatestBackup(backup),
               }"
+              role="button"
+              tabindex="0"
               @click="toggleBackup(backup)"
+              @keydown.enter.prevent="toggleBackup(backup)"
+              @keydown.space.prevent="toggleBackup(backup)"
             >
-              <template #prepend>
-                <v-checkbox-btn
-                  :model-value="isBackupSelected(backup)"
-                  color="primary"
-                  class="mr-3"
-                  @click.stop="toggleBackup(backup)"
+              <div
+                class="backups-card__check"
+                :class="{ 'backups-card__check--on': isBackupSelected(backup) }"
+                aria-hidden="true"
+              >
+                <v-icon
+                  v-if="isBackupSelected(backup)"
+                  icon="mdi-check"
+                  size="16"
                 />
-              </template>
+              </div>
 
-              <v-list-item-title class="text-body-2 font-weight-medium">
-                {{ formatBackupDate(backup.date) }}
-              </v-list-item-title>
-              <v-list-item-subtitle class="text-caption">
-                {{ formatBackupSize(backup.size) }}
-              </v-list-item-subtitle>
+              <div class="backups-card__icon" aria-hidden="true">
+                <v-icon icon="mdi-archive-outline" size="20"/>
+              </div>
 
-              <template #append>
-                <div class="backups-row__actions d-flex" @click.stop>
-                  <v-btn
-                    prepend-icon="mdi-database-refresh"
-                    :text="t('settings_labels.database.restore_backup')"
-                    color="warning"
+              <div class="backups-card__meta">
+                <div class="backups-card__title-row">
+                  <span class="backups-card__title">
+                    {{ formatBackupDate(backup.date) }}
+                  </span>
+                  <v-chip
+                    v-if="isLatestBackup(backup)"
+                    size="x-small"
+                    color="success"
                     variant="tonal"
-                    rounded="pill"
-                    size="small"
-                    class="pr-3"
-                    @click="selectOnly(backup); dialogRestoreConfirm = true"
+                    class="backups-card__badge"
+                  >
+                    {{ t('settings_labels.database.backup_latest') }}
+                  </v-chip>
+                </div>
+                <div class="backups-card__size-row">
+                  <span class="backups-card__size text-caption text-medium-emphasis">
+                    {{ formatBackupSize(backup.size) }}
+                  </span>
+                  <span
+                    v-if="shareOf(backup) != null"
+                    class="backups-card__share text-caption text-medium-emphasis"
+                  >
+                    {{ Math.round(shareOf(backup)!) }}%
+                  </span>
+                </div>
+                <div
+                  v-if="shareOf(backup) != null"
+                  class="backups-card__bar"
+                  aria-hidden="true"
+                >
+                  <div
+                    class="backups-card__bar-fill"
+                    :style="{ width: `${shareOf(backup)}%` }"
                   />
                 </div>
-              </template>
-            </v-list-item>
-          </v-list>
+              </div>
+
+              <v-btn
+                prepend-icon="mdi-database-refresh"
+                :text="t('settings_labels.database.restore_backup')"
+                color="warning"
+                variant="tonal"
+                rounded="pill"
+                size="small"
+                class="pr-3 backups-card__restore"
+                @click.stop="selectOnly(backup); dialogRestoreConfirm = true"
+              />
+            </div>
+          </div>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -366,6 +450,8 @@ const showImportBrowseDialog = ref(false)
 const isLoaded = ref(false)
 const backups = ref<BackupEntry[]>([])
 const selected = ref<BackupEntry[]>([])
+const sortField = ref<'date' | 'size'>('date')
+const sortDir = ref<'asc' | 'desc'>('desc')
 
 const filePath = ref('')
 const folderPath = ref('')
@@ -379,6 +465,57 @@ const isElectron = computed(() => Boolean(appStore.isElectron) || hasElectronBri
 
 const notSelected = computed(() => selected.value.length === 0)
 const restoreCompleteText = computed(() => t('settings_labels.database.restore_complete'))
+
+function backupSizeNumber(size: BackupEntry['size']): number {
+  if (size == null || size === '') return 0
+  const num = typeof size === 'number' ? size : Number(size)
+  return Number.isFinite(num) ? num : 0
+}
+
+const totalBackupSize = computed(() =>
+  backups.value.reduce((sum, backup) => sum + backupSizeNumber(backup.size), 0),
+)
+
+const latestBackupDate = computed(() => {
+  let latest: string | null = null
+  for (const backup of backups.value) {
+    if (!latest || backup.date.localeCompare(latest) > 0) {
+      latest = backup.date
+    }
+  }
+  return latest
+})
+
+const sortedBackups = computed(() => {
+  const list = [...backups.value]
+  const direction = sortDir.value === 'asc' ? 1 : -1
+  list.sort((a, b) => {
+    if (sortField.value === 'size') {
+      const sizeDiff = backupSizeNumber(a.size) - backupSizeNumber(b.size)
+      if (sizeDiff !== 0) return sizeDiff * direction
+      return a.date.localeCompare(b.date) * direction
+    }
+    const dateDiff = a.date.localeCompare(b.date)
+    if (dateDiff !== 0) return dateDiff * direction
+    return (backupSizeNumber(a.size) - backupSizeNumber(b.size)) * direction
+  })
+  return list
+})
+
+function isLatestBackup(backup: BackupEntry) {
+  return Boolean(latestBackupDate.value) && backup.date === latestBackupDate.value
+}
+
+function toggleSortDir() {
+  sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+}
+
+function shareOf(backup: BackupEntry): number | null {
+  const total = totalBackupSize.value
+  const size = backupSizeNumber(backup.size)
+  if (total <= 0 || size <= 0) return null
+  return Math.max(0, Math.min(100, (size / total) * 100))
+}
 
 const onFilePathInput = (value: string) => {
   filePath.value = normalizePastedFilePath(value) as string
@@ -639,64 +776,257 @@ async function chooseFile() {
 .backups-dialog {
   overflow: hidden;
   background:
-    radial-gradient(120% 80% at 0% 0%, rgba(var(--v-theme-primary), 0.08), transparent 55%),
+    radial-gradient(120% 90% at 0% 0%, rgba(var(--v-theme-primary), 0.1), transparent 52%),
+    radial-gradient(90% 70% at 100% 0%, rgba(var(--v-theme-success), 0.06), transparent 48%),
     rgb(var(--v-theme-surface));
+}
+
+.backups-dialog__hint {
+  line-height: 1.45;
+  max-width: 42rem;
 }
 
 .backups-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px 12px;
+}
+
+.backups-toolbar__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.backups-toolbar__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+
+.backups-toolbar__selected {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
 }
 
 .backups-toolbar__group {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
+  gap: 6px;
+  padding: 5px;
   border-radius: 999px;
   background: rgba(var(--v-theme-on-surface), 0.04);
   border: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  margin-left: auto;
+}
+
+.backups-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.backups-sort__label {
+  flex: 0 0 auto;
+}
+
+.backups-sort__toggle {
+  flex: 0 1 auto;
 }
 
 .backups-empty {
-  border-radius: 20px;
-  border: 1px dashed rgba(var(--v-theme-on-surface), 0.12);
-  background: rgba(var(--v-theme-on-surface), 0.02);
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.backups-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
 }
 
 .backups-list {
-  gap: 6px;
+  display: grid;
+  gap: 10px;
 }
 
-.backups-row {
-  margin-bottom: 6px !important;
-  border-color: rgba(var(--v-theme-on-surface), 0.1) !important;
+.backups-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 12px 12px 10px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 18px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--v-theme-surface), 0.72);
+  box-shadow: 0 1px 0 rgba(var(--v-theme-on-surface), 0.03);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.backups-card:hover {
+  border-color: rgba(var(--v-theme-primary), 0.22);
+  background: rgba(var(--v-theme-primary), 0.04);
+  box-shadow: 0 8px 24px rgba(var(--v-theme-on-surface), 0.06);
+  transform: translateY(-1px);
+}
+
+.backups-card--selected {
+  border-color: rgba(var(--v-theme-primary), 0.42);
+  background: rgba(var(--v-theme-primary), 0.08);
+  box-shadow: 0 0 0 1px rgba(var(--v-theme-primary), 0.18);
+}
+
+.backups-card--latest:not(.backups-card--selected) {
+  border-color: rgba(var(--v-theme-success), 0.22);
+}
+
+.backups-card__check {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(var(--v-theme-on-surface), 0.22);
+  background: rgba(var(--v-theme-surface), 0.9);
+  color: #fff;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.backups-row--zebra {
-  background: rgba(var(--v-theme-on-surface), 0.02);
+.backups-card__check--on {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgb(var(--v-theme-primary));
 }
 
-.backups-row:hover {
-  background: rgba(var(--v-theme-primary), 0.04);
+.backups-card__icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.1);
 }
 
-.backups-row--selected {
-  border-color: rgba(var(--v-theme-primary), 0.35) !important;
-  background: rgba(var(--v-theme-primary), 0.06);
+.backups-card--latest .backups-card__icon {
+  color: rgb(var(--v-theme-success));
+  background: rgba(var(--v-theme-success), 0.12);
 }
 
-.backups-row__actions {
-  opacity: 0.7;
+.backups-card__meta {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.backups-row:hover .backups-row__actions {
-  opacity: 1;
+.backups-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.backups-card__title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backups-card__badge {
+  flex: 0 0 auto;
+}
+
+.backups-card__size-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.backups-card__size,
+.backups-card__share {
+  font-variant-numeric: tabular-nums;
+}
+
+.backups-card__bar {
+  margin-top: 8px;
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.backups-card__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--v-theme-primary), 0.55),
+    rgba(var(--v-theme-primary), 0.9)
+  );
+  transition: width 0.35s ease;
+}
+
+.backups-card--latest .backups-card__bar-fill {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--v-theme-success), 0.55),
+    rgba(var(--v-theme-success), 0.9)
+  );
+}
+
+.backups-card__restore {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+  .backups-card {
+    flex-wrap: wrap;
+  }
+
+  .backups-card__restore {
+    width: 100%;
+    margin-left: 34px;
+  }
+
+  .backups-toolbar__group {
+    margin-left: 0;
+  }
 }
 
 .backups-path-actions {
