@@ -395,6 +395,9 @@ const pt = {
     status_favorite_off: 'Removido dos favoritos',
     status_tag_added: 'Marcado: {name}',
     status_tag_removed: 'Tag removida: {name}',
+    from_inbox: 'Review do Inbox',
+    hint_inbox_done: 'concluído e seguinte',
+    status_inbox_done: 'Marcado como concluído no Inbox',
   },
   media_inbox: {
     nav: 'Caixa de entrada',
@@ -420,6 +423,9 @@ const pt = {
     open_in_library: 'Abrir na biblioteca',
     clear_pending: 'Marcar tudo',
     mark_done: 'Feito',
+    start_review: 'Iniciar Review',
+    start_review_hint: 'Classifique e marque com o teclado. Seguinte (→ / D) marca como concluído no Inbox.',
+    review_one: 'Rever',
   },
   validation: {
     path_required: 'O caminho é obrigatório',
@@ -472,6 +478,8 @@ const pt = {
       review_mode_hint: 'Avaliar e marcar a lista atual com o teclado',
       media_inbox: 'Caixa de media nova',
       media_inbox_hint: 'Fila de ficheiros novos e perdidos das pastas vigiadas',
+      review_inbox: 'Rever fila do Inbox',
+      review_inbox_hint: 'Abrir Para rever e iniciar triage no teclado',
       toggle_theme: 'Alternar tema',
       toggle_filters: 'Alternar filtros',
       toggle_select: 'Modo de seleção',

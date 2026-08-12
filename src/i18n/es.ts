@@ -395,6 +395,9 @@ const es = {
     status_favorite_off: 'Quitado de favoritos',
     status_tag_added: 'Etiquetado: {name}',
     status_tag_removed: 'Etiqueta quitada: {name}',
+    from_inbox: 'Review de Inbox',
+    hint_inbox_done: 'hecho y siguiente',
+    status_inbox_done: 'Marcado hecho en Inbox',
   },
   media_inbox: {
     nav: 'Bandeja',
@@ -420,6 +423,9 @@ const es = {
     open_in_library: 'Abrir en la biblioteca',
     clear_pending: 'Marcar todo',
     mark_done: 'Hecho',
+    start_review: 'Iniciar Review',
+    start_review_hint: 'Valora y etiqueta con el teclado. Siguiente (→ / D) lo marca como hecho en Inbox.',
+    review_one: 'Revisar',
   },
   validation: {
     path_required: 'La ruta es obligatoria',
@@ -472,6 +478,8 @@ const es = {
       review_mode_hint: 'Valorar y etiquetar la lista actual con el teclado',
       media_inbox: 'Bandeja de medios',
       media_inbox_hint: 'Cola de archivos nuevos y perdidos de carpetas vigiladas',
+      review_inbox: 'Revisar cola de Inbox',
+      review_inbox_hint: 'Abrir Por revisar e iniciar triage con teclado',
       toggle_theme: 'Cambiar tema',
       toggle_filters: 'Mostrar/ocultar filtros',
       toggle_select: 'Modo de selección',

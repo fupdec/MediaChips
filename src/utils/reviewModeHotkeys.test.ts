@@ -35,6 +35,11 @@ describe('resolveReviewHotkey', () => {
     expect(resolveReviewHotkey(key('KeyO'))).toEqual({type: 'tag', code: 'KeyO'})
   })
 
+  it('maps inbox done only when from inbox', () => {
+    expect(resolveReviewHotkey(key('KeyD'))).toBeNull()
+    expect(resolveReviewHotkey(key('KeyD'), {fromInbox: true})).toEqual({type: 'inboxDone'})
+  })
+
   it('ignores modified keys', () => {
     expect(resolveReviewHotkey(key('Digit1', {ctrlKey: true}))).toBeNull()
     expect(resolveReviewHotkey(key('ArrowRight', {metaKey: true}))).toBeNull()

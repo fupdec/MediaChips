@@ -395,6 +395,9 @@ const ja = {
     status_favorite_off: 'お気に入りから削除',
     status_tag_added: 'タグ追加: {name}',
     status_tag_removed: 'タグ削除: {name}',
+    from_inbox: 'Inbox Review',
+    hint_inbox_done: '完了して次へ',
+    status_inbox_done: 'Inboxで完了にしました',
   },
   media_inbox: {
     nav: '受信箱',
@@ -420,6 +423,9 @@ const ja = {
     open_in_library: 'ライブラリで開く',
     clear_pending: 'すべて完了',
     mark_done: '完了',
+    start_review: 'Reviewを開始',
+    start_review_hint: 'キーボードで評価・タグ付け。次へ（→ / D）でInboxの完了になります。',
+    review_one: 'Review',
   },
   validation: {
     path_required: 'パスは必須です',
@@ -472,6 +478,8 @@ const ja = {
       review_mode_hint: 'キーボードで現在の一覧を評価・タグ付け',
       media_inbox: '新規メディア受信箱',
       media_inbox_hint: '監視フォルダーの新規・消失ファイルのキュー',
+      review_inbox: 'InboxキューをReview',
+      review_inbox_hint: '要確認を開きキーボードでトリアージ',
       toggle_theme: 'テーマ切替',
       toggle_filters: 'フィルター切替',
       toggle_select: '選択モード切替',

@@ -395,6 +395,9 @@ const en = {
     status_favorite_off: 'Removed from favorites',
     status_tag_added: 'Tagged: {name}',
     status_tag_removed: 'Untagged: {name}',
+    from_inbox: 'Inbox review',
+    hint_inbox_done: 'done & next',
+    status_inbox_done: 'Marked done in Inbox',
   },
   media_inbox: {
     nav: 'Inbox',
@@ -420,6 +423,9 @@ const en = {
     open_in_library: 'Open in library',
     clear_pending: 'Mark all done',
     mark_done: 'Done',
+    start_review: 'Start Review',
+    start_review_hint: 'Rate and tag with the keyboard. Next (→ / D) marks the item done in Inbox.',
+    review_one: 'Review',
   },
   validation: {
     path_required: 'Path is required',
@@ -472,6 +478,8 @@ const en = {
       review_mode_hint: 'Rate and tag the current list with the keyboard',
       media_inbox: 'New media Inbox',
       media_inbox_hint: 'Triage new and lost files from watched folders',
+      review_inbox: 'Review Inbox queue',
+      review_inbox_hint: 'Open To review and start keyboard triage',
       toggle_theme: 'Toggle theme',
       toggle_filters: 'Toggle filters',
       toggle_select: 'Toggle select mode',

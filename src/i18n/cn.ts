@@ -395,6 +395,9 @@ const cn = {
     status_favorite_off: '已取消收藏',
     status_tag_added: '已标记：{name}',
     status_tag_removed: '已移除标签：{name}',
+    from_inbox: 'Inbox Review',
+    hint_inbox_done: '完成并下一个',
+    status_inbox_done: '已在 Inbox 中标记完成',
   },
   media_inbox: {
     nav: '收件箱',
@@ -420,6 +423,9 @@ const cn = {
     open_in_library: '在库中打开',
     clear_pending: '全部完成',
     mark_done: '完成',
+    start_review: '开始 Review',
+    start_review_hint: '用键盘评分和打标签。下一步（→ / D）会在 Inbox 中标记完成。',
+    review_one: 'Review',
   },
   validation: {
     path_required: '路径为必填项',
@@ -472,6 +478,8 @@ const cn = {
       review_mode_hint: '用键盘为当前列表评分和打标签',
       media_inbox: '新媒体收件箱',
       media_inbox_hint: '监视文件夹新增与丢失文件队列',
+      review_inbox: 'Review Inbox 队列',
+      review_inbox_hint: '打开待审阅并用键盘分拣',
       toggle_theme: '切换主题',
       toggle_filters: '切换筛选',
       toggle_select: '切换选择模式',

@@ -117,6 +117,15 @@ export function useCommandPaletteCommands(options: {
         run: () => { openInbox() },
       },
       {
+        id: 'review-inbox-pending',
+        title: t('commandPalette.actions.review_inbox'),
+        subtitle: t('commandPalette.actions.review_inbox_hint'),
+        icon: 'mdi-inbox-arrow-up',
+        group: 'actions',
+        keywords: ['inbox', 'review', 'pending', 'triage', 'keyboard'],
+        run: () => { openInbox('pending') },
+      },
+      {
         id: 'toggle-theme',
         title: t('commandPalette.actions.toggle_theme'),
         icon: 'mdi-theme-light-dark',

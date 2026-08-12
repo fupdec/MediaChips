@@ -395,6 +395,9 @@ const fr = {
     status_favorite_off: 'Retiré des favoris',
     status_tag_added: 'Tagué : {name}',
     status_tag_removed: 'Tag retiré : {name}',
+    from_inbox: 'Review Inbox',
+    hint_inbox_done: 'terminé & suivant',
+    status_inbox_done: 'Marqué terminé dans Inbox',
   },
   media_inbox: {
     nav: 'Boîte de réception',
@@ -420,6 +423,9 @@ const fr = {
     open_in_library: 'Ouvrir dans la bibliothèque',
     clear_pending: 'Tout marquer fait',
     mark_done: 'Fait',
+    start_review: 'Lancer Review',
+    start_review_hint: 'Noter et taguer au clavier. Suivant (→ / D) marque comme terminé dans Inbox.',
+    review_one: 'Review',
   },
   validation: {
     path_required: 'Le chemin est obligatoire',
@@ -472,6 +478,8 @@ const fr = {
       review_mode_hint: 'Noter et taguer la liste actuelle au clavier',
       media_inbox: 'Boîte des nouveaux médias',
       media_inbox_hint: 'File d’attente des fichiers nouveaux et perdus',
+      review_inbox: 'Review de la file Inbox',
+      review_inbox_hint: 'Ouvrir À revoir et démarrer le triage clavier',
       toggle_theme: 'Changer le thème',
       toggle_filters: 'Afficher/masquer les filtres',
       toggle_select: 'Mode sélection',

@@ -22,6 +22,16 @@ describe('useReviewModeStore', () => {
     expect(store.currentId).toBe(2)
   })
 
+  it('tracks inbox source', () => {
+    setActivePinia(createPinia())
+    const store = useReviewModeStore()
+    store.open([{id: 5, name: 'x'}], null, {source: 'inbox'})
+    expect(store.fromInbox).toBe(true)
+    store.close()
+    expect(store.fromInbox).toBe(false)
+    expect(store.source).toBeNull()
+  })
+
   it('rejects empty lists', () => {
     setActivePinia(createPinia())
     const store = useReviewModeStore()

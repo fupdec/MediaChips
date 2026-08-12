@@ -227,6 +227,16 @@
                 color="primary"
                 variant="flat"
                 rounded="xl"
+                prepend-icon="mdi-card-search-outline"
+                :loading="pendingLoading"
+                @click="startPendingReview()"
+              >
+                {{ t('media_inbox.start_review') }}
+              </v-btn>
+              <v-btn
+                color="primary"
+                variant="tonal"
+                rounded="xl"
                 prepend-icon="mdi-library"
                 :loading="pendingLoading"
                 @click="openPendingInLibrary"
@@ -241,6 +251,9 @@
               >
                 {{ t('media_inbox.clear_pending') }}
               </v-btn>
+            </div>
+            <div class="text-caption text-medium-emphasis mb-3 px-1">
+              {{ t('media_inbox.start_review_hint') }}
             </div>
             <div v-if="pendingLoading" class="text-center pa-6">
               <v-progress-circular indeterminate size="32"/>
@@ -262,6 +275,15 @@
                   {{ item.path }}
                 </div>
                 <div class="media-inbox__row-actions">
+                  <v-btn
+                    size="small"
+                    color="primary"
+                    variant="tonal"
+                    rounded="xl"
+                    @click="startPendingReview(item.id)"
+                  >
+                    {{ t('media_inbox.review_one') }}
+                  </v-btn>
                   <v-btn
                     size="small"
                     variant="tonal"
@@ -287,6 +309,7 @@ import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useMediaInbox} from '@/composable/useMediaInbox'
+import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
@@ -306,6 +329,7 @@ const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
+const {openReviewMode} = useReviewModeLauncher()
 
 const {
   inboxStore,
@@ -372,6 +396,18 @@ async function loadPending() {
 function markPendingDone(id: number) {
   inboxStore.removePendingReview([id])
   pendingMedia.value = pendingMedia.value.filter((item) => Number(item.id) !== id)
+}
+
+async function startPendingReview(startId?: number) {
+  await loadPending()
+  const media = [...pendingMedia.value]
+  if (!media.length) return
+  close()
+  await openReviewMode({
+    media,
+    startId: startId ?? media[0]?.id ?? null,
+    source: 'inbox',
+  })
 }
 
 async function openPendingInLibrary() {
@@ -443,7 +479,7 @@ watch(
 
 .media-inbox__name {
   font-weight: 600;
-  padding-right: 96px;
+  padding-right: 168px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

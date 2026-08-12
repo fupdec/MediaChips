@@ -9,12 +9,16 @@ export type ReviewHotkeyAction =
   | {type: 'tag'; code: string}
   | {type: 'play'}
   | {type: 'edit'}
+  | {type: 'inboxDone'}
 
 /**
  * Map a keyboard event to a review-mode action.
  * Digits = rating, Q–O = pinned tags, arrows = navigate.
  */
-export function resolveReviewHotkey(event: KeyboardEvent): ReviewHotkeyAction | null {
+export function resolveReviewHotkey(
+  event: KeyboardEvent,
+  options: {fromInbox?: boolean} = {},
+): ReviewHotkeyAction | null {
   if (!isPlainKey(event)) return null
 
   switch (event.code) {
@@ -28,6 +32,8 @@ export function resolveReviewHotkey(event: KeyboardEvent): ReviewHotkeyAction | 
     case 'KeyL':
     case 'KeyJ':
       return {type: 'next'}
+    case 'KeyD':
+      return options.fromInbox ? {type: 'inboxDone'} : null
     case 'KeyF':
       return {type: 'favorite'}
     case 'Space':

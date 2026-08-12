@@ -395,6 +395,9 @@ const ru = {
     status_favorite_off: 'Убрано из избранного',
     status_tag_added: 'Тег: {name}',
     status_tag_removed: 'Тег снят: {name}',
+    from_inbox: 'Review из Inbox',
+    hint_inbox_done: 'готово и далее',
+    status_inbox_done: 'Отмечено готовым в Inbox',
   },
   media_inbox: {
     nav: 'Inbox',
@@ -420,6 +423,9 @@ const ru = {
     open_in_library: 'Открыть в библиотеке',
     clear_pending: 'Отметить всё',
     mark_done: 'Готово',
+    start_review: 'Начать Review',
+    start_review_hint: 'Оценка и теги с клавиатуры. Далее (→ / D) отмечает файл готовым в Inbox.',
+    review_one: 'Review',
   },
   validation: {
     path_required: 'Путь обязателен',
@@ -472,6 +478,8 @@ const ru = {
       review_mode_hint: 'Оценивать и тегировать текущий список с клавиатуры',
       media_inbox: 'Inbox новых файлов',
       media_inbox_hint: 'Очередь новых и потерянных файлов из watch folders',
+      review_inbox: 'Review очереди Inbox',
+      review_inbox_hint: 'Открыть «На проверку» и начать triage с клавиатуры',
       toggle_theme: 'Переключить тему',
       toggle_filters: 'Показать/скрыть фильтры',
       toggle_select: 'Режим выбора',

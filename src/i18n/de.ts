@@ -395,6 +395,9 @@ const de = {
     status_favorite_off: 'Aus Favoriten entfernt',
     status_tag_added: 'Getaggt: {name}',
     status_tag_removed: 'Tag entfernt: {name}',
+    from_inbox: 'Inbox-Review',
+    hint_inbox_done: 'erledigt & weiter',
+    status_inbox_done: 'In Inbox als erledigt markiert',
   },
   media_inbox: {
     nav: 'Posteingang',
@@ -420,6 +423,9 @@ const de = {
     open_in_library: 'In Bibliothek öffnen',
     clear_pending: 'Alles erledigt',
     mark_done: 'Fertig',
+    start_review: 'Review starten',
+    start_review_hint: 'Mit Tastatur bewerten und taggen. Weiter (→ / D) markiert als erledigt in der Inbox.',
+    review_one: 'Review',
   },
   validation: {
     path_required: 'Pfad ist erforderlich',
@@ -472,6 +478,8 @@ const de = {
       review_mode_hint: 'Aktuelle Liste per Tastatur bewerten und taggen',
       media_inbox: 'Medien-Posteingang',
       media_inbox_hint: 'Warteschlange für neue und verlorene Dateien',
+      review_inbox: 'Inbox-Warteschlange prüfen',
+      review_inbox_hint: 'Zur Prüfung öffnen und Tastatur-Triage starten',
       toggle_theme: 'Design umschalten',
       toggle_filters: 'Filter umschalten',
       toggle_select: 'Auswahlmodus umschalten',

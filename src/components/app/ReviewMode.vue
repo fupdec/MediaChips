@@ -20,6 +20,12 @@
             {{ current?.name || t('review_mode.untitled') }}
           </div>
           <div class="review-mode__counter">{{ review.counter }}</div>
+          <div
+            v-if="review.fromInbox"
+            class="review-mode__inbox-pill text-caption"
+          >
+            {{ t('review_mode.from_inbox') }}
+          </div>
         </div>
         <v-spacer/>
         <div class="review-mode__chrome-actions">
@@ -140,6 +146,7 @@
           <span><kbd>1</kbd>–<kbd>5</kbd> {{ t('review_mode.hint_rating') }}</span>
           <span><kbd>F</kbd> {{ t('review_mode.hint_favorite') }}</span>
           <span><kbd>Space</kbd> {{ t('review_mode.hint_play') }}</span>
+          <span v-if="review.fromInbox"><kbd>D</kbd> {{ t('review_mode.hint_inbox_done') }}</span>
           <span><kbd>Esc</kbd> {{ t('common.close') }}</span>
         </div>
 
@@ -180,6 +187,7 @@ import {findMediaTypeById, getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {buildReviewTagSlots, findReviewTagSlot} from '@/utils/reviewModeTags'
 import {resolveReviewHotkey} from '@/utils/reviewModeHotkeys'
+import {completeInboxPendingIfNeeded} from '@/utils/reviewInboxHandoff'
 import {isTypingTarget} from '@/utils/keyboardTarget'
 import type {MediaItem} from '@/types/stores'
 
@@ -232,6 +240,9 @@ function onDialogToggle(value: boolean) {
 }
 
 function close() {
+  if (review.fromInbox) {
+    completeInboxPendingIfNeeded(review.currentId)
+  }
   review.close()
 }
 
@@ -240,7 +251,15 @@ function goPrev() {
 }
 
 function goNext() {
-  review.goNext()
+  const leavingId = review.currentId
+  const moved = review.goNext()
+  if (review.fromInbox) {
+    // Mark the item we left (or the last item when already at the end).
+    const doneId = moved ? leavingId : review.currentId
+    if (completeInboxPendingIfNeeded(doneId)) {
+      review.showStatus(t('review_mode.status_inbox_done'))
+    }
+  }
 }
 
 async function setRating(value: number | null | undefined) {
@@ -328,13 +347,25 @@ function editCurrent() {
   dialogsStore.editMedia(item, mediaType ?? null)
 }
 
+function markInboxDoneAndNext() {
+  if (!review.fromInbox) return
+  const id = review.currentId
+  if (completeInboxPendingIfNeeded(id)) {
+    review.showStatus(t('review_mode.status_inbox_done'))
+  }
+  if (!review.goNext()) {
+    // Last item — leave review after marking done.
+    review.close()
+  }
+}
+
 async function onKeydown(event: KeyboardEvent) {
   if (!review.active) return
   if (playerStore.active) return
   if (isTypingTarget(event.target)) return
   if (dialogsStore.mediaEditing.show) return
 
-  const action = resolveReviewHotkey(event)
+  const action = resolveReviewHotkey(event, {fromInbox: review.fromInbox})
   if (!action) return
 
   event.preventDefault()
@@ -349,6 +380,9 @@ async function onKeydown(event: KeyboardEvent) {
       break
     case 'next':
       goNext()
+      break
+    case 'inboxDone':
+      markInboxDoneAndNext()
       break
     case 'rating':
       await setRating(action.value)
@@ -423,6 +457,15 @@ onBeforeUnmount(() => {
 .review-mode__counter {
   font-size: 0.8rem;
   opacity: 0.7;
+}
+
+.review-mode__inbox-pill {
+  display: inline-flex;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-primary), 0.35);
+  opacity: 0.95;
 }
 
 .review-mode__chrome-actions {
