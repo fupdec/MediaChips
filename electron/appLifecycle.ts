@@ -56,6 +56,25 @@ export function focusExistingMainWindow(win: BrowserWindow | null): boolean {
   return true
 }
 
+/**
+ * macOS Dock click (`app` `activate`): show a hidden/minimized main window, or
+ * recreate it after the red close button destroyed it.
+ */
+export async function ensureMainWindowOnActivate(deps: {
+  getMainWindow: () => BrowserWindow | null
+  waitForBackend: (port: number, timeoutMs?: number) => Promise<void>
+  getPort: () => number
+  createWindow: () => void
+  flushPendingMenuAction?: () => void
+}): Promise<void> {
+  if (focusExistingMainWindow(deps.getMainWindow())) {
+    deps.flushPendingMenuAction?.()
+    return
+  }
+  await deps.waitForBackend(deps.getPort(), 600000)
+  deps.createWindow()
+}
+
 export type AppLifecycleController = {
   quitApp: () => void
   isQuitting: () => boolean
@@ -239,12 +258,14 @@ export function createAppLifecycleController(deps: {
     })
 
     app.on('activate', async () => {
-      // On macOS it's common to re-create a window in the app when the
-      // dock icon is clicked and there are no other windows open.
-      if (deps.getMainWindow() === null) {
-        await deps.waitForBackend(deps.getPort(), 600000)
-        deps.createWindow()
-      }
+      // Dock click: show a hidden main window, or recreate after red-close destroy.
+      await ensureMainWindowOnActivate({
+        getMainWindow: deps.getMainWindow,
+        waitForBackend: deps.waitForBackend,
+        getPort: deps.getPort,
+        createWindow: deps.createWindow,
+        flushPendingMenuAction: deps.flushPendingMenuAction,
+      })
     })
 
     app.on('window-all-closed', () => {
