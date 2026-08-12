@@ -97,7 +97,7 @@ export function makeXstackLayout(i: number, cols: number): string {
   return `${colSide.join('+')}_${rowSide.join('+')}`
 }
 
-/** Mid-slice timestamps (HH:MM:SS) for evenly sampling `tileCount` frames. */
+/** Mid-slice timestamps for evenly sampling `tileCount` frames. */
 export function planGridTileTimestamps(durationSec: number, tileCount: number): {
   durSlice: number
   timestamps: string[]
@@ -105,16 +105,30 @@ export function planGridTileTimestamps(durationSec: number, tileCount: number): 
   const durSlice = Number.parseInt(String(durationSec / tileCount), 10)
   const timestamps: string[] = []
   for (let i = 0; i < tileCount; i++) {
-    timestamps.push(
-      new Date(1000 * (i + 0.5) * durSlice).toISOString().substr(11, 8),
-    )
+    const seek = gridTileSeekSeconds(durationSec, i, tileCount)
+    timestamps.push(formatGridSeekTimestamp(seek ?? 0))
   }
   return {durSlice, timestamps}
 }
 
 /**
+ * Format seconds for ffmpeg `-ss` — whole seconds only, matching historical
+ * `toISOString().substr(11, 8)` grids (no fractional part).
+ */
+export function formatGridSeekTimestamp(seconds: number): string {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const hrs = Math.floor(total / 3600)
+  const mins = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+/**
  * Seek seconds for a contact-sheet tile — same mid-slice formula as
  * `planGridTileTimestamps` / ffmpeg grid generation.
+ *
+ * Uses whole seconds: mid-slice is `(i+0.5)*durSlice`, then floored. That matches
+ * existing sprites (ISO `HH:MM:SS` dropped the `.5`) so review trailers align.
  */
 export function gridTileSeekSeconds(
   durationSec: number,
@@ -133,9 +147,11 @@ export function gridTileSeekSeconds(
   if (!Number.isFinite(durSlice) || durSlice < 0) return null
   const raw = (index + 0.5) * durSlice
   if (!Number.isFinite(raw) || raw < 0) return null
+  // Floor to whole seconds — same lattice as historical grid JPEGs / -ss strings.
+  const seek = Math.floor(raw + 1e-9)
   // Never seek past EOF — stale/wrong DB duration or last-tile rounding can overshoot.
-  const maxSeek = Math.max(0, duration - 0.05)
-  return Math.min(raw, maxSeek)
+  const maxSeek = Math.max(0, Math.floor(duration - 0.05))
+  return Math.min(seek, maxSeek)
 }
 
 /** Paths, stream labels, and xstack layouts for combining tile PNGs. */

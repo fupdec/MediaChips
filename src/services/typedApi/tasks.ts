@@ -216,7 +216,8 @@ export const tasksApi = {
   },
 
   taskCreateGrid(body: VideoPreviewTaskPayload) {
-    return apiClient.post(API_ROUTES.taskCreateGrid, body)
+    // NAS / multi-seek grids can be slow; still fail closed so Review cannot hang forever.
+    return apiClient.post(API_ROUTES.taskCreateGrid, body, {timeout: 100_000})
   },
 
   taskCreateTimeline(body: VideoTimelineTaskPayload) {

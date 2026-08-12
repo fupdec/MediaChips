@@ -3,18 +3,16 @@ import type {
   VideoGridOptions,
 } from '../types/videoImagesGeneration'
 import fs from 'fs'
-import os from 'os'
 import path from 'path'
 import {
-  combineVideoFrames,
-  extractVideoFrame,
+  runFfmpeg,
   ffprobe,
   getVideoStreamDimensions,
 } from '../utils/ffmpeg'
 import {
   VIDEO_GRID_JPEG_QUALITY,
-  buildGridCombineInputs,
   getGridSpriteDimensions,
+  makeXstackLayout,
   planGridTileTimestamps,
 } from '../../shared/videoPreview'
 
@@ -27,9 +25,11 @@ function ensureDir(dirPath: string) {
 /**
  * Shared 3×3 (or custom) contact-sheet generator for interactive createGrid
  * and bulk video image generation.
+ *
+ * Uses a single ffmpeg process (N seeks of the same file + xstack) instead of
+ * 9 serial extract jobs + combine — critical while ffmpeg concurrency is 1.
  */
 export class VideoGrid {
-  tmpDir: string
   input: string
   output: string
   cols: number
@@ -38,7 +38,6 @@ export class VideoGrid {
   gridsPath: string
 
   constructor(opts: VideoGridOptions, dbPath: string) {
-    this.tmpDir = os.tmpdir()
     this.input = opts.input
     this.output = opts.output
     this.cols = opts.cols
@@ -58,54 +57,47 @@ export class VideoGrid {
     }
   }
 
-  ffmpegSeekP(timestamp: string, intermediateOutput: string) {
-    // Concurrency is enforced inside api/utils/ffmpeg (runWithFfmpegLimit).
-    return extractVideoFrame({
-      input: this.input,
-      output: intermediateOutput,
-      timestamp,
-    })
-  }
-
-  ffmpegCombineP(
-    inputFiles: string[],
-    streams: string[],
-    layouts: string[],
-    spriteWidth: number,
-    spriteHeight: number,
-  ) {
-    return combineVideoFrames({
-      inputs: inputFiles,
-      filterComplex: `${streams.join('')}xstack=inputs=${this.tileCount}:layout=${layouts.join('|')}[v];[v]scale=${spriteWidth}:${spriteHeight}:flags=lanczos[scaled]`,
-      output: path.join(this.gridsPath, this.output),
-      jpegQuality: VIDEO_GRID_JPEG_QUALITY,
-    })
-  }
-
   async generate(): Promise<{output: string} | false> {
     const {duration, aspectRatio} = await this.getVideoInfo(this.input)
     if (typeof duration !== 'number') return false
 
     const sprite = getGridSpriteDimensions(aspectRatio, this.cols, this.rows)
     const {timestamps} = planGridTileTimestamps(duration, this.tileCount)
+    const outPath = path.join(this.gridsPath, this.output)
+    const {tileWidth, tileHeight} = sprite
 
-    const framePromises: Promise<unknown>[] = []
-    for (let i = 0; i < this.tileCount; i++) {
-      const intermediateOutput = path.join(this.tmpDir, `thumb${i}.png`)
-      framePromises.push(this.ffmpegSeekP(timestamps[i], intermediateOutput))
+    const args: string[] = ['-hide_banner', '-loglevel', 'error', '-y']
+    for (const timestamp of timestamps) {
+      // Place -ss before -i for fast keyframe seek (same as extractVideoFrame).
+      args.push('-ss', timestamp, '-i', this.input)
     }
 
-    // Partial tile failures are tolerated; combine may still succeed.
-    await Promise.all(framePromises).catch(() => {})
+    const scales: string[] = []
+    const stackPads: string[] = []
+    const layouts: string[] = []
+    for (let i = 0; i < this.tileCount; i++) {
+      scales.push(
+        `[${i}:v]scale=${tileWidth}:${tileHeight}:force_original_aspect_ratio=decrease,` +
+          `pad=${tileWidth}:${tileHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1[v${i}]`,
+      )
+      stackPads.push(`[v${i}]`)
+      layouts.push(makeXstackLayout(i, this.cols))
+    }
 
-    const {inputFiles, streams, layouts} = buildGridCombineInputs(
-      this.tmpDir,
-      this.tileCount,
-      this.cols,
-      path.join,
+    const filterComplex =
+      `${scales.join(';')};` +
+      `${stackPads.join('')}xstack=inputs=${this.tileCount}:layout=${layouts.join('|')}[v]`
+
+    args.push(
+      '-filter_complex', filterComplex,
+      '-map', '[v]',
+      '-frames:v', '1',
+      '-q:v', String(VIDEO_GRID_JPEG_QUALITY),
+      outPath,
     )
 
-    await this.ffmpegCombineP(inputFiles, streams, layouts, sprite.width, sprite.height)
+    // runFfmpeg already holds the global ffmpeg slot (re-entrant).
+    await runFfmpeg(args)
     return {output: this.output}
   }
 }

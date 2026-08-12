@@ -74,7 +74,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
   }
 
   const createGrid = async function (req: ApiRequest, res: ApiResponse) {
-    const gridsPath = path.join(dbPath ?? '', '/media/videos/grids/')
+    const gridsPath = path.join(dbPath ?? '', 'media', 'videos', 'grids')
 
     if (!fs.existsSync(req.body.input)) {
       sendBadRequest(res, 'The video does not exist.')
@@ -110,9 +110,13 @@ export default function createTasksVideoPreviewController(shared: TaskController
       try {
         const result = await generateVideoGrid(req.body, dbPath ?? '')
         if (result) {
-          await ensureVisualHash(true)
-          await ensureClipEmbedding()
+          // Respond as soon as the sprite is on disk. Visual hash / CLIP can take
+          // much longer (and block the ffmpeg queue for the next Review item).
           sendOk(res, result)
+          void Promise.all([
+            ensureVisualHash(true),
+            ensureClipEmbedding(),
+          ]).catch(() => undefined)
         } else {
           sendBadRequest(res, 'Unable to probe video duration')
         }
@@ -121,9 +125,11 @@ export default function createTasksVideoPreviewController(shared: TaskController
       }
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
-      await ensureVisualHash(false)
-      await ensureClipEmbedding()
       sendBadRequest(res, 'Grid already exists')
+      void Promise.all([
+        ensureVisualHash(false),
+        ensureClipEmbedding(),
+      ]).catch(() => undefined)
     }
   }
 

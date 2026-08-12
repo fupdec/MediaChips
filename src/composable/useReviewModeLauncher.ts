@@ -30,7 +30,9 @@ export function useReviewModeLauncher() {
   const reviewStore = useReviewModeStore()
 
   async function ensureMediaPage(mediaTypeId?: number | null) {
-    if (itemsStore.type === 'media' && router.currentRoute.value.path.startsWith('/media')) {
+    // Tag / folder / playlist / media browse all use type=media with a live list —
+    // stay put so Review opens on the current page instead of jumping to /media.
+    if (itemsStore.type === 'media') {
       return true
     }
     const targetId = mediaTypeId

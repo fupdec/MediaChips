@@ -34,63 +34,97 @@
             variant="text"
             color="white"
             size="small"
-            :title="t('review_mode.play')"
             @click="playCurrent"
           >
             <v-icon>mdi-play</v-icon>
+            <v-tooltip activator="parent" location="bottom">
+              {{ t('review_mode.play') }}
+            </v-tooltip>
           </v-btn>
           <v-btn
             icon
             variant="text"
             color="white"
             size="small"
-            :title="t('review_mode.edit')"
             @click="editCurrent"
           >
             <v-icon>mdi-pencil</v-icon>
+            <v-tooltip activator="parent" location="bottom">
+              {{ t('review_mode.edit') }}
+            </v-tooltip>
           </v-btn>
           <v-btn
             icon
             variant="text"
             color="white"
             size="small"
-            :title="t('common.close')"
             @click="close"
           >
             <v-icon>mdi-close</v-icon>
+            <v-tooltip activator="parent" location="bottom">
+              {{ t('common.close') }}
+            </v-tooltip>
           </v-btn>
         </div>
       </div>
 
       <div class="review-mode__stage">
-        <v-btn
-          class="review-mode__nav review-mode__nav--prev"
-          icon
-          variant="tonal"
-          color="white"
-          :disabled="!review.hasPrev"
-          @click="goPrev"
-        >
-          <v-icon size="32">mdi-chevron-left</v-icon>
-        </v-btn>
+        <div class="review-mode__nav-wrap">
+          <v-progress-circular
+            v-if="prevGridWarming"
+            class="review-mode__nav-progress"
+            indeterminate
+            size="56"
+            width="3"
+            color="primary"
+          />
+          <v-btn
+            class="review-mode__nav review-mode__nav--prev"
+            icon
+            variant="tonal"
+            color="white"
+            :disabled="!review.hasPrev"
+            @click="goPrev"
+          >
+            <v-icon size="32">mdi-chevron-left</v-icon>
+          </v-btn>
+        </div>
 
         <div class="review-mode__card">
-          <div class="review-mode__media" @click="playCurrent">
-            <v-img
-              v-if="thumbUrl"
-              :src="thumbUrl"
-              cover
-              class="review-mode__thumb"
+          <div class="review-mode__media">
+            <ReviewModeMediaStage
+              :media="current"
+              :media-path="appStore.mediaPath"
+              :media-type="currentMediaType"
+              @play-full="playCurrent"
             />
-            <div v-else class="review-mode__thumb review-mode__thumb--empty">
-              <v-icon size="64" color="white">mdi-image-off-outline</v-icon>
-            </div>
-            <div v-if="review.statusText" class="review-mode__status">
+            <div
+              v-if="review.statusText"
+              class="review-mode__status"
+            >
               {{ review.statusText }}
             </div>
           </div>
 
+          <ReviewModeFacesStrip
+            :media-id="review.currentId"
+            :db-path="appStore.dbPath"
+            @open="openFaces"
+          />
+
           <div class="review-mode__meta">
+            <div class="review-mode__facts text-caption text-medium-emphasis">
+              <span v-if="mediaTypeLabel">{{ mediaTypeLabel }}</span>
+              <span v-if="durationLabel">{{ durationLabel }}</span>
+              <span
+                v-if="pathBasename"
+                class="review-mode__path"
+                :title="current?.path || ''"
+              >
+                {{ pathBasename }}
+              </span>
+            </div>
+
             <div class="review-mode__rating-row">
               <v-rating
                 :model-value="Number(current?.rating) || 0"
@@ -113,7 +147,10 @@
               </v-btn>
             </div>
 
-            <div class="review-mode__assigned" v-if="assignedTagNames.length">
+            <div
+              v-if="assignedTagNames.length"
+              class="review-mode__assigned"
+            >
               <v-chip
                 v-for="name in assignedTagNames"
                 :key="name"
@@ -128,16 +165,26 @@
           </div>
         </div>
 
-        <v-btn
-          class="review-mode__nav review-mode__nav--next"
-          icon
-          variant="tonal"
-          color="white"
-          :disabled="!review.hasNext"
-          @click="goNext"
-        >
-          <v-icon size="32">mdi-chevron-right</v-icon>
-        </v-btn>
+        <div class="review-mode__nav-wrap">
+          <v-progress-circular
+            v-if="nextGridWarming"
+            class="review-mode__nav-progress"
+            indeterminate
+            size="56"
+            width="3"
+            color="primary"
+          />
+          <v-btn
+            class="review-mode__nav review-mode__nav--next"
+            icon
+            variant="tonal"
+            color="white"
+            :disabled="!review.hasNext"
+            @click="goNext"
+          >
+            <v-icon size="32">mdi-chevron-right</v-icon>
+          </v-btn>
+        </div>
       </div>
 
       <div class="review-mode__dock">
@@ -146,11 +193,15 @@
           <span><kbd>1</kbd>–<kbd>5</kbd> {{ t('review_mode.hint_rating') }}</span>
           <span><kbd>F</kbd> {{ t('review_mode.hint_favorite') }}</span>
           <span><kbd>Space</kbd> {{ t('review_mode.hint_play') }}</span>
+          <span v-if="isVideoCurrent">{{ t('review_mode.hint_tile_clip') }}</span>
           <span v-if="review.fromInbox"><kbd>D</kbd> {{ t('review_mode.hint_inbox_done') }}</span>
           <span><kbd>Esc</kbd> {{ t('common.close') }}</span>
         </div>
 
-        <div v-if="tagSlots.length" class="review-mode__tags">
+        <div
+          v-if="tagSlots.length"
+          class="review-mode__tags"
+        >
           <button
             v-for="slot in tagSlots"
             :key="slot.tagId"
@@ -164,7 +215,10 @@
             <span>{{ slot.name }}</span>
           </button>
         </div>
-        <div v-else class="review-mode__tags-empty text-medium-emphasis">
+        <div
+          v-else
+          class="review-mode__tags-empty text-medium-emphasis"
+        >
           {{ t('review_mode.no_favorite_tags') }}
         </div>
       </div>
@@ -176,6 +230,7 @@
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {storeToRefs} from 'pinia'
+import path from 'path-browserify'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -183,13 +238,21 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useReviewModeStore, type ReviewTagSlot} from '@/stores/reviewMode'
 import {useItemsListSync} from '@/composable/itemsListSync'
-import {findMediaTypeById, getMediaDeleteAssetFolder} from '@/utils/mediaType'
-import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
+import {findMediaTypeById, isVideoMediaType} from '@/utils/mediaType'
 import {buildReviewTagSlots, findReviewTagSlot} from '@/utils/reviewModeTags'
 import {resolveReviewHotkey} from '@/utils/reviewModeHotkeys'
 import {completeInboxPendingIfNeeded} from '@/utils/reviewInboxHandoff'
 import {isTypingTarget} from '@/utils/keyboardTarget'
+import {formatReviewDuration} from '@/utils/reviewModeTrailers'
+import {
+  clearReviewGridPrefetch,
+  isReviewGridWarmupPending,
+  reviewGridStatusVersion,
+  scheduleReviewGridPrefetch,
+} from '@/utils/reviewModeGridPrefetch'
 import type {MediaItem} from '@/types/stores'
+import ReviewModeMediaStage from '@/components/app/ReviewModeMediaStage.vue'
+import ReviewModeFacesStrip from '@/components/app/ReviewModeFacesStrip.vue'
 
 const {t} = useI18n()
 const appStore = useAppStore()
@@ -204,18 +267,52 @@ const rootRef = ref<HTMLElement | null>(null)
 
 const current = computed(() => review.current)
 
-const tagSlots = computed(() => buildReviewTagSlots(appStore.tags))
+const currentMediaType = computed(() => findMediaTypeById(
+  appStore.mediaTypes,
+  current.value?.mediaTypeId ?? itemsStore.environment?.media_type_id,
+))
 
-const thumbUrl = computed(() => {
-  const item = current.value
-  if (!item?.id || !appStore.mediaPath) return null
-  const mediaType = findMediaTypeById(
-    appStore.mediaTypes,
-    item.mediaTypeId ?? itemsStore.environment?.media_type_id,
-  )
-  const folder = getMediaDeleteAssetFolder(mediaType) || 'videos'
-  return resolveMediaThumbDisplayUrl(appStore.mediaPath, folder, item.id)
+const isVideoCurrent = computed(() => isVideoMediaType(currentMediaType.value))
+
+const prevMediaId = computed(() => {
+  if (!review.hasPrev) return null
+  return review.mediaIds[review.index - 1] ?? null
 })
+
+const nextMediaId = computed(() => {
+  if (!review.hasNext) return null
+  return review.mediaIds[review.index + 1] ?? null
+})
+
+const prevGridWarming = computed(() => {
+  void reviewGridStatusVersion.value
+  return isReviewGridWarmupPending(prevMediaId.value)
+})
+
+const nextGridWarming = computed(() => {
+  void reviewGridStatusVersion.value
+  return isReviewGridWarmupPending(nextMediaId.value)
+})
+
+const mediaTypeLabel = computed(() => {
+  const mt = currentMediaType.value
+  if (!mt) return ''
+  return String(mt.name || mt.type || '').trim()
+})
+
+const durationLabel = computed(() => {
+  const duration = Number(current.value?.duration)
+  if (!Number.isFinite(duration) || duration <= 0) return ''
+  return formatReviewDuration(duration)
+})
+
+const pathBasename = computed(() => {
+  const filePath = current.value?.path
+  if (!filePath) return ''
+  return path.basename(String(filePath))
+})
+
+const tagSlots = computed(() => buildReviewTagSlots(appStore.tags))
 
 const assignedTagNames = computed(() => {
   const tags = current.value?.tags || []
@@ -243,6 +340,7 @@ function close() {
   if (review.fromInbox) {
     completeInboxPendingIfNeeded(review.currentId)
   }
+  clearReviewGridPrefetch()
   review.close()
 }
 
@@ -265,7 +363,11 @@ function goNext() {
 async function setRating(value: number | null | undefined) {
   const item = current.value
   if (!item) return
-  const rating = value == null || value === 0 ? null : Number(value)
+  let rating = value == null || value === 0 ? null : Number(value)
+  // Same digit again clears the rating (3 → 3 → 0).
+  if (rating != null && Number(item.rating) === rating) {
+    rating = null
+  }
   try {
     await typedApi.updateEntity('media', item.id, {rating})
     review.patchCurrent({rating})
@@ -340,11 +442,13 @@ function playCurrent() {
 function editCurrent() {
   const item = current.value
   if (!item) return
-  const mediaType = findMediaTypeById(
-    appStore.mediaTypes,
-    item.mediaTypeId ?? itemsStore.environment?.media_type_id,
-  )
-  dialogsStore.editMedia(item, mediaType ?? null)
+  dialogsStore.editMedia(item, currentMediaType.value ?? null)
+}
+
+function openFaces() {
+  const item = current.value
+  if (!item) return
+  dialogsStore.openFaceResults(item)
 }
 
 function markInboxDoneAndNext() {
@@ -414,11 +518,26 @@ watch(active, (isActive) => {
     focusRoot()
   } else {
     window.removeEventListener('keydown', onWindowKeydown, true)
+    clearReviewGridPrefetch()
   }
 })
 
+watch(
+  () => [review.active, review.index, review.currentId, appStore.mediaPath] as const,
+  () => {
+    if (!review.active || !appStore.mediaPath) return
+    scheduleReviewGridPrefetch({
+      mediaPath: appStore.mediaPath,
+      mediaIds: review.mediaIds,
+      index: review.index,
+      mediaById: review.mediaById,
+    })
+  },
+)
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKeydown, true)
+  clearReviewGridPrefetch()
 })
 </script>
 
@@ -486,7 +605,7 @@ onBeforeUnmount(() => {
 .review-mode__card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   max-width: 1100px;
   width: 100%;
   margin: 0 auto;
@@ -495,25 +614,8 @@ onBeforeUnmount(() => {
 
 .review-mode__media {
   position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  aspect-ratio: 16 / 9;
-  max-height: min(62vh, 720px);
-  cursor: pointer;
-}
-
-.review-mode__thumb {
-  width: 100%;
-  height: 100%;
-}
-
-.review-mode__thumb--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  opacity: 0.5;
+  /* Rounding lives on stage children so the 3×3 grid corners are not clipped. */
+  min-height: 0;
 }
 
 .review-mode__status {
@@ -526,13 +628,29 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.72);
   font-size: 0.9rem;
   pointer-events: none;
+  z-index: 2;
 }
 
 .review-mode__meta {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+}
+
+.review-mode__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  max-width: 900px;
+}
+
+.review-mode__path {
+  max-width: 42ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .review-mode__rating-row {
@@ -548,7 +666,26 @@ onBeforeUnmount(() => {
   max-width: 900px;
 }
 
+.review-mode__nav-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.review-mode__nav-progress {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .review-mode__nav {
+  position: relative;
+  z-index: 1;
   width: 48px;
   height: 48px;
 }
