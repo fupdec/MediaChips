@@ -133,6 +133,7 @@ describe('Tag.controller', () => {
       metaId: 3,
       ids: [10, 11],
       filters: [],
+      filtersJoin: 'and',
       sortBy: 'name',
       direction: 'asc',
       find_duplicates: false,

@@ -10,6 +10,7 @@ import {parseCountries} from '../utils/country'
 import {normalizeExt, parseExtList} from '../utils/ext'
 import {getItemSortIteratee} from '../utils/metaValueSort'
 import {resolveMetaId} from '../utils/metaId'
+import {normalizeFiltersJoinMode, type FiltersJoinMode} from '../utils/filtersJoinMode'
 
 export function parseItemsFromDb(items: DbItemRow[]) {
   const parseTagsAndValues = (item: DbItemRow): ParsedItemTags => {
@@ -83,12 +84,14 @@ export function filterItems(
   find_duplicates: boolean,
   duplicates_by = 'filesize',
   sortMetaType?: string | null,
+  filtersJoin: FiltersJoinMode = 'and',
 ) {
   // отсеиваем неактивные и без условий (в случае бага)
   const filters = filters_all.filter((i: FilterLike) => {
     const isActive = i.active === true || i.active === 1 || i.active === '1'
     return isActive && i.cond
   })
+  const joinMode = normalizeFiltersJoinMode(filtersJoin)
 
   const filterItem = (item: ParsedItem) => {
     const compareNumber = (sign: string | undefined, filterValue: unknown, itemValue: unknown) => {
@@ -215,7 +218,10 @@ export function filterItems(
       }
       filters_matches.push(is_match);
     }
-    return filters_matches.every(Boolean);
+    if (!filters_matches.length) return true
+    return joinMode === 'or'
+      ? filters_matches.some(Boolean)
+      : filters_matches.every(Boolean)
   }
 
   let result: ParsedItem[] = items

@@ -256,6 +256,20 @@ describe('buildMediaFilterQuery', () => {
     expect(result.joinSql).toContain('COUNT(DISTINCT CASE WHEN tagId IN')
     expect(result.whereSql).not.toContain('SELECT COUNT(*)')
   })
+
+  it('joins filter rows with OR when filtersJoin is or', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 'rating', type: 'rating', cond: '>=', val: 4 },
+      { active: true, param: 'favorite', type: 'boolean', cond: '=', val: true },
+    ], { mediaTypeId: 1, filtersJoin: 'or' })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toContain('media.mediaTypeId = :mediaTypeId')
+    expect(result.whereSql).toContain(' OR ')
+    expect(result.whereSql).not.toMatch(/media\.mediaTypeId = :mediaTypeId OR /)
+  })
 })
 
 describe('resolveMediaFilterQuery', () => {

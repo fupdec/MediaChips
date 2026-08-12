@@ -31,6 +31,7 @@ function pruneFilteredTotalsCache(): void {
 export function buildFilteredTotalsCacheKey(options: {
   mediaTypeId?: number | string | null
   filters?: FilterLike[]
+  filtersJoin?: 'and' | 'or'
   find_duplicates?: boolean
   duplicates_by?: string
 } = {}): string {
@@ -46,6 +47,7 @@ export function buildFilteredTotalsCacheKey(options: {
     mediaTypeId: options.mediaTypeId ?? null,
     find_duplicates: Boolean(options.find_duplicates),
     duplicates_by: options.duplicates_by || 'filesize',
+    filtersJoin: options.filtersJoin === 'or' ? 'or' : 'and',
     filters: activeFilters,
   })
 }

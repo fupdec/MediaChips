@@ -172,6 +172,9 @@ const hasListScope = computed(() =>
 const listScopeKind = computed(() => itemsStore.listScope?.kind || 'visualSimilar')
 
 const listScopeIcon = computed(() => {
+  if (listScopeKind.value === 'fromPlayer') {
+    return 'mdi-library'
+  }
   if (listScopeKind.value === 'semantic' || listScopeKind.value === 'clipSimilar') {
     return 'mdi-brain'
   }
@@ -180,6 +183,11 @@ const listScopeIcon = computed(() => {
 
 const listScopeLabel = computed(() => {
   const label = String(itemsStore.listScope?.label || '').trim()
+  if (listScopeKind.value === 'fromPlayer') {
+    return label
+      ? t('filters.from_player_scope_named', {name: label})
+      : t('filters.from_player_scope')
+  }
   if (listScopeKind.value === 'semantic') {
     if (label) {
       return t('filters.semantic_search_scope_query', {query: label})

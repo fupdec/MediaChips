@@ -57,6 +57,7 @@ export default function (db: ApiDb) {
         mediaTypeId: body.mediaTypeId,
         ids,
         filters: body.filters as unknown as FilterLike[] | undefined,
+        filtersJoin: body.filtersJoin === 'or' ? 'or' : 'and',
         sortBy: body.sortBy,
         direction: body.direction,
         find_duplicates: body.find_duplicates,
@@ -80,6 +81,7 @@ export default function (db: ApiDb) {
       const result = await loadFilteredMediaIds(db, {
         mediaTypeId: body.mediaTypeId,
         filters: body.filters as unknown as FilterLike[] | undefined,
+        filtersJoin: body.filtersJoin === 'or' ? 'or' : 'and',
         sortBy: body.sortBy,
         direction: body.direction,
         find_duplicates: body.find_duplicates,

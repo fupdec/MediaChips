@@ -237,6 +237,7 @@ export function useItemsPage({
     }
 
     query.filters = cloneFilters(ITEMS.value.filters)
+    query.filtersJoin = ITEMS.value.filtersJoin === 'or' ? 'or' : 'and'
     query.sortBy = normalizeSortBy(
       ITEMS.value.sortBy || 'id',
       props.items_type,

@@ -17,6 +17,7 @@ export interface RunFilterItemsOptions {
   find_duplicates: boolean
   duplicates_by?: string
   sortMetaType?: string | null
+  filtersJoin?: 'and' | 'or'
 }
 
 export interface RunFilterItemsResult {
@@ -53,6 +54,7 @@ function runFilterItemsSync(options: RunFilterItemsOptions): RunFilterItemsResul
     options.find_duplicates,
     options.duplicates_by ?? 'filesize',
     options.sortMetaType ?? null,
+    options.filtersJoin ?? 'and',
   )
 
   return {
@@ -155,6 +157,7 @@ function runFilterItemsInWorker(options: RunFilterItemsOptions): Promise<RunFilt
     find_duplicates: options.find_duplicates,
     duplicates_by: options.duplicates_by,
     sortMetaType: options.sortMetaType ?? null,
+    filtersJoin: options.filtersJoin ?? 'and',
   }
 
   return new Promise((resolve, reject) => {

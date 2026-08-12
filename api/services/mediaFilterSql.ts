@@ -31,6 +31,10 @@ import {
   buildDuplicateMatchClauses,
   buildDuplicateValuesSubquery,
 } from './mediaDuplicatesFilterSql'
+import {
+  joinFilterClauses,
+  normalizeFiltersJoinMode,
+} from '../utils/filtersJoinMode'
 
 const MEDIA_COLUMNS = new Set([
   'rating',
@@ -199,6 +203,7 @@ function buildDuplicatesFilterQuery(options: MediaFilterOptions & { duplicates_b
   const scope = buildMediaFilterQuery(options.filters || [], {
     mediaTypeId: options.mediaTypeId,
     ids: [],
+    filtersJoin: options.filtersJoin,
   })
   if (!scope.ok) return scope
 
@@ -236,6 +241,7 @@ function resolveMediaFilterQuery(options: MediaFilterOptions & {
   return buildMediaFilterQuery(options.filters || [], {
     mediaTypeId: options.mediaTypeId,
     ids: options.ids || [],
+    filtersJoin: options.filtersJoin,
   })
 }
 
@@ -272,7 +278,8 @@ function canUseSqlMediaFilters(options: MediaFilterOptions = {}) {
 }
 
 function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterOptions = {}): MediaFilterQueryResult {
-  const {mediaTypeId, ids = []} = options
+  const {mediaTypeId, ids = [], filtersJoin: filtersJoinRaw} = options
+  const filtersJoin = normalizeFiltersJoinMode(filtersJoinRaw)
 
   if (mediaTypeId == null || mediaTypeId === '') {
     return missingMediaTypeResult()
@@ -288,7 +295,8 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
     return `:${key}`
   }
 
-  const clauses: string[] = ['media.mediaTypeId = :mediaTypeId']
+  const baseClauses: string[] = ['media.mediaTypeId = :mediaTypeId']
+  const filterClauses: string[] = []
   const joins: string[] = []
   let joinIndex = 0
   // Media tag joins are unique-keyed (SELECT DISTINCT mediaId / UNION folder tags /
@@ -298,7 +306,7 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
 
   if (ids.length) {
     replacements.ids = ids
-    clauses.push('media.id IN (:ids)')
+    baseClauses.push('media.id IN (:ids)')
   }
 
   const activeFilters = normalizeActiveFilters(filters)
@@ -310,7 +318,7 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
       if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
         const join = buildTagArrayJoin(filter, `tf${joinIndex}`, nextParam)
         if (join) {
-          applyTagArrayJoinResult(join, joins, clauses)
+          applyTagArrayJoinResult(join, joins, filterClauses)
           joinIndex += 1
           continue
         }
@@ -325,8 +333,11 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
         `Unsupported SQL filter for param=${String(filter.param)} type=${String(filter.type)} cond=${String(filter.cond)}`,
       )
     }
-    clauses.push(`(${clause})`)
+    filterClauses.push(`(${clause})`)
   }
+
+  const joinedFilters = joinFilterClauses(filterClauses, filtersJoin)
+  const clauses = joinedFilters ? [...baseClauses, joinedFilters] : baseClauses
 
   return {
     ok: true,

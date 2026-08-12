@@ -19,6 +19,8 @@ import {
   resolveMediaCreatedAt,
   type MediaCreatedKind,
 } from './mediaSystemDates'
+import {findFolderThumbPath, writeFolderThumbTo} from './folderThumb'
+import path from 'path'
 
 function createMediaPostProcessor({
   db,
@@ -72,6 +74,12 @@ function createMediaPostProcessor({
     await applyMediaCreatedAt(media.id, videoPath, 'video')
 
     try {
+      const folderCover = findFolderThumbPath(videoPath)
+      if (folderCover && media.id != null) {
+        const outputPath = path.join(dbPath, 'media/videos/thumbs', `${media.id}.jpg`)
+        const wrote = await writeFolderThumbTo(folderCover, outputPath)
+        if (wrote) return
+      }
       await createThumbMiddle(videoPath, media.id)
     } catch (error: unknown) {
       console.error(`Thumbnail generation failed for ${videoPath}:`, error)
@@ -142,6 +150,17 @@ function createMediaPostProcessor({
     }
 
     await applyMediaCreatedAt(media.id, audioPath, 'audio')
+
+    try {
+      const folderCover = findFolderThumbPath(audioPath)
+      if (folderCover && media.id != null) {
+        const outputPath = path.join(dbPath, 'media/audios/thumbs', `${media.id}.jpg`)
+        const wrote = await writeFolderThumbTo(folderCover, outputPath)
+        if (wrote) return
+      }
+    } catch (error: unknown) {
+      console.error(`Folder thumb for audio failed for ${audioPath}:`, error)
+    }
 
     if (createAudioThumb) {
       try {

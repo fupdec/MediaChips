@@ -91,6 +91,7 @@ async function resolveVisualNearDuplicateFilterQuery(
     mediaTypeId,
     ids = [],
     filters = [],
+    filtersJoin,
   } = options
 
   if (mediaTypeId == null || mediaTypeId === '') {
@@ -100,7 +101,7 @@ async function resolveVisualNearDuplicateFilterQuery(
   let candidateIds: number[] | undefined
   const activeFilters = normalizeActiveFilters(filters)
   if (activeFilters.length > 0) {
-    const scope = buildMediaFilterQuery(filters, {mediaTypeId, ids: []})
+    const scope = buildMediaFilterQuery(filters, {mediaTypeId, ids: [], filtersJoin})
     if (!scope.ok) return scope
 
     const joinForFilters = requiresMetadataJoinForFilters(filters)
@@ -128,6 +129,7 @@ async function resolveMediaListFilterQuery(
     mediaTypeId: options.mediaTypeId,
     ids: options.ids || [],
     filters: options.filters || [],
+    filtersJoin: options.filtersJoin,
     find_duplicates: options.find_duplicates,
     duplicates_by: options.duplicates_by,
   })
@@ -175,6 +177,7 @@ async function loadMediaItemsLegacy(
     find_duplicates,
     duplicates_by,
     sortMetaType,
+    filtersJoin: options.filtersJoin,
   })
 
   const pageLimit = resolvePageLimit(limit)
@@ -284,6 +287,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
       ? buildMediaListGroupingCacheKey({
           mediaTypeId,
           filters,
+          filtersJoin: options.filtersJoin,
           find_duplicates: options.find_duplicates,
           duplicates_by: options.duplicates_by,
           groupBy,
@@ -456,6 +460,7 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
   const totalsCacheKey = buildFilteredTotalsCacheKey({
     mediaTypeId,
     filters,
+    filtersJoin: options.filtersJoin,
     find_duplicates: options.find_duplicates,
     duplicates_by: options.duplicates_by,
   })

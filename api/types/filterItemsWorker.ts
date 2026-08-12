@@ -10,6 +10,7 @@ export interface FilterItemsWorkerRequest {
   find_duplicates: boolean
   duplicates_by?: string
   sortMetaType?: string | null
+  filtersJoin?: 'and' | 'or'
 }
 
 export interface FilterItemsWorkerSuccess {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTagFilterQuery,
   getTagFilterSqlFallbackReason,
+  getTagSortExpression,
   resolveTagFilterQuery,
 } from './tagFilterSql'
 
@@ -146,5 +147,13 @@ describe('resolveTagFilterQuery', () => {
     if (!result.ok) return
 
     expect(result.whereSql).toBe('tags.metaId = :metaId')
+  })
+})
+
+describe('getTagSortExpression', () => {
+  it('sorts by assigned media count', () => {
+    expect(getTagSortExpression('mediaCount')).toContain('COUNT(*)')
+    expect(getTagSortExpression('mediaCount')).toContain('tagsInMedia')
+    expect(getTagSortExpression('numberOfMedia')).toContain('tagsInMedia')
   })
 })

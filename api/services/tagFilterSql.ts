@@ -17,6 +17,10 @@ import {
   buildTypedEntityColumnClause,
   buildTypedMetaValueClause,
 } from './filterTypedColumnSql'
+import {
+  joinFilterClauses,
+  normalizeFiltersJoinMode,
+} from '../utils/filtersJoinMode'
 
 const TAG_COLUMNS = new Set([
   'rating',
@@ -121,7 +125,8 @@ function missingMetaIdResult(): TagFilterQueryResult {
 }
 
 function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptions = {}): TagFilterQueryResult {
-  const {metaId, ids = []} = options
+  const {metaId, ids = [], filtersJoin: filtersJoinRaw} = options
+  const filtersJoin = normalizeFiltersJoinMode(filtersJoinRaw)
 
   if (metaId == null || metaId === '') {
     return missingMetaIdResult()
@@ -137,7 +142,8 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
     return `:${key}`
   }
 
-  const clauses = ['tags.metaId = :metaId']
+  const baseClauses = ['tags.metaId = :metaId']
+  const filterClauses: string[] = []
   const joins: string[] = []
   let joinIndex = 0
   // Tag relation joins are unique-keyed (single-tag PK equality or SELECT DISTINCT
@@ -147,7 +153,7 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
 
   if (ids.length) {
     replacements.ids = ids
-    clauses.push('tags.id IN (:ids)')
+    baseClauses.push('tags.id IN (:ids)')
   }
 
   const activeFilters = normalizeActiveFilters(filters)
@@ -159,7 +165,7 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
       if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
         const join = buildTagRelationJoin(filter, `tf${joinIndex}`, nextParam)
         if (join) {
-          applyTagArrayJoinResult(join, joins, clauses)
+          applyTagArrayJoinResult(join, joins, filterClauses)
           joinIndex += 1
           continue
         }
@@ -174,8 +180,11 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
         `Unsupported tag filter: param=${String(filter.param)} type=${String(filter.type)} cond=${String(filter.cond)}`,
       )
     }
-    clauses.push(`(${clause})`)
+    filterClauses.push(`(${clause})`)
   }
+
+  const joinedFilters = joinFilterClauses(filterClauses, filtersJoin)
+  const clauses = joinedFilters ? [...baseClauses, joinedFilters] : baseClauses
 
   return {
     ok: true,
@@ -193,6 +202,7 @@ function resolveTagFilterQuery(options: TagFilterOptions = {}): TagFilterQueryRe
   return buildTagFilterQuery(queryOptions.filters || [], {
     metaId: queryOptions.metaId,
     ids: queryOptions.ids || [],
+    filtersJoin: queryOptions.filtersJoin,
   })
 }
 
@@ -207,6 +217,9 @@ function getTagFromClause(joinSql: string = '') {
 
 function getTagSortExpression(sortBy: string, sortMetaType?: string | null) {
   if (sortBy === 'shuffle') return 'RANDOM()'
+  if (sortBy === 'mediaCount' || sortBy === 'numberOfMedia') {
+    return `(SELECT COUNT(*) FROM tagsInMedia WHERE tagsInMedia.tagId = tags.id)`
+  }
 
   const metaId = resolveMetaId(sortBy)
   if (metaId !== null && sortMetaType) {

@@ -7,7 +7,7 @@ import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {useAppStore} from '@/stores/app'
 import type {FilterObject} from '@/types/common'
 
-export type MediaListScopeKind = 'semantic' | 'visualSimilar' | 'clipSimilar'
+export type MediaListScopeKind = 'semantic' | 'visualSimilar' | 'clipSimilar' | 'fromPlayer'
 
 export type MediaListScope = {
   kind: MediaListScopeKind

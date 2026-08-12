@@ -60,6 +60,12 @@ export const MEDIA_SORT_PARAMS = [
     textKey: 'filters.sort.views',
     types: ['media', 'tag'],
   },
+  {
+    param: 'mediaCount',
+    icon: 'video-outline',
+    textKey: 'filters.sort.media_count',
+    types: ['tag'],
+  },
   {param: 'filesize', icon: 'harddisk', textKey: 'filters.sort.filesize', types: ['media']},
   {
     param: 'duration',
