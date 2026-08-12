@@ -132,6 +132,14 @@
 
         <div class="inspector-panel__body">
           <div
+            v-if="!isTag"
+            class="inspector-panel__name"
+            :title="focusedItem.name"
+          >
+            {{ focusedItem.name || t('browser_layout.untitled') }}
+          </div>
+
+          <div
             v-if="mediaPath"
             class="inspector-panel__path text-medium-emphasis"
             :title="mediaPath"
@@ -813,6 +821,14 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   padding: 12px 12px 8px;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.inspector-panel__name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+  margin-bottom: 4px;
 }
 
 .inspector-panel__path {
