@@ -8,6 +8,7 @@ import {
 } from 'electron'
 import {emitMainWindowUserFacingState} from './windowFocus'
 import type {WindowBoundsKind} from './windowBounds'
+import {resolveWindowIconPath} from './windowIcon'
 
 export type MainWindowController = {
   getWindow: () => BrowserWindow | null
@@ -55,7 +56,7 @@ export function createMainWindowController(deps: {
       titleBarStyle: (os.type() === 'Darwin' && !useWinElectronFrame ? 'hidden' : 'default') as 'hidden' | 'default',
       trafficLightPosition: os.type() === 'Darwin' && !useWinElectronFrame ? {x: 18, y: 15} : undefined,
       backgroundColor: '#333',
-      icon: path.join(appRoot, 'dist/icons', 'icon.png'),
+      icon: resolveWindowIconPath(appRoot),
       webPreferences: {
         preload: path.join(appRoot, 'electron/preload.js'),
         contextIsolation: true,

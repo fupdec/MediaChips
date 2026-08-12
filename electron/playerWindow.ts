@@ -7,6 +7,7 @@ import {
   type IpcMainEvent,
 } from 'electron'
 import type {WindowBoundsKind} from './windowBounds'
+import {resolveWindowIconPath} from './windowIcon'
 
 export type PlayerWindowController = {
   getWindow: () => BrowserWindow | null
@@ -54,7 +55,7 @@ export function createPlayerWindowController(deps: {
       titleBarStyle: 'hidden',
       trafficLightPosition: os.type() === 'Darwin' ? {x: 12, y: 8} : undefined,
       backgroundColor: '#000000',
-      icon: path.join(appRoot, 'dist/icons', 'icon.png'),
+      icon: resolveWindowIconPath(appRoot),
       webPreferences: {
         preload: path.join(appRoot, 'electron/preload.js'),
         contextIsolation: true,

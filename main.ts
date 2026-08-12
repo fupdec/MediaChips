@@ -76,6 +76,11 @@ if (
   app.disableHardwareAcceleration()
 }
 
+// Keep Portable/installer taskbar grouping on the MediaChips identity (not Electron's default).
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.mediachips.app')
+}
+
 const isWindows = os.type() === 'Windows_NT'
 // MEDIA_CHIPS_WIN_UI=1 — preview Windows frameless chrome (SystemBar) on macOS/Linux.
 const useWinElectronFrame = isWindows || process.env.MEDIA_CHIPS_WIN_UI === '1'

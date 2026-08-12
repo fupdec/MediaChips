@@ -1,5 +1,5 @@
-import path from 'path'
 import {BrowserWindow, type BrowserWindow as BrowserWindowInstance} from 'electron'
+import {resolveWindowIconPath} from './windowIcon'
 
 export type LoadingWindowController = {
   createLoadingWindow: () => void
@@ -43,6 +43,12 @@ export function createLoadingWindowController(deps: {
 
     deps.onReadyLog?.()
     hideLoadingWindow()
+    // Refresh taskbar icon after splash closes (Windows Portable often drops PNG).
+    try {
+      win.setIcon(resolveWindowIconPath(deps.getAppRoot()))
+    } catch {
+      // Ignore missing icon in incomplete/dev layouts.
+    }
     if (!win.isVisible()) win.show()
     win.focus()
   }
@@ -75,7 +81,7 @@ export function createLoadingWindowController(deps: {
       resizable: false,
       alwaysOnTop: false,
       backgroundColor: '#f3f1f8',
-      icon: path.join(deps.getAppRoot(), 'icons/icon.png'),
+      icon: resolveWindowIconPath(deps.getAppRoot()),
       webPreferences: {
         nodeIntegration: true,
         nodeIntegrationInWorker: true,

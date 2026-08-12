@@ -140,14 +140,35 @@ async function registerHeavyRoutes() {
   })
 
   try {
+    const listener = getListener()
+    if (!listener) {
+      throw new Error('HTTP listener missing when registering WebSockets')
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const registerWebSockets = require('./tasks/websockets').default as typeof import('./tasks/websockets').default
-    registerWebSockets(app, db)
+    // Pass the live server — expressWs(app) without it orphans WS on a dead http.Server.
+    registerWebSockets(app, db, listener)
   } catch (err: unknown) {
     console.log('\x1b[33m%s\x1b[0m', '⚠️ WebSocket module not found:', err instanceof Error ? apiErrorMessage(err) : String(err))
   }
 
   logStartup(`full api ready (${Date.now() - heavyStartedAt}ms heavy phase)`)
+}
+
+async function rebindWebSocketsAfterListenerRestart(): Promise<void> {
+  const listener = getListener()
+  if (!listener) return
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {attachWebSocketsToServer} = require('./tasks/websockets') as typeof import('./tasks/websockets')
+    attachWebSocketsToServer(app, listener)
+  } catch (err: unknown) {
+    console.log(
+      '\x1b[33m%s\x1b[0m',
+      '⚠️ WebSocket rebind failed:',
+      err instanceof Error ? apiErrorMessage(err) : String(err),
+    )
+  }
 }
 
 async function bootstrapServer() {
@@ -158,7 +179,10 @@ async function bootstrapServer() {
     config,
     configPath,
     ...networkHelpers,
-    restartListener: restartNetworkListener,
+    restartListener: async () => {
+      await restartNetworkListener()
+      await rebindWebSocketsAfterListenerRestart()
+    },
   })
 
   bindShutdownHandler()
