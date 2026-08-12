@@ -8,12 +8,6 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('@/composable/useWatcherBadgeCounts', () => ({
-  useWatcherBadgeCounts: () => ({
-    watcherBadgeCountsByFolderId: {value: {}},
-  }),
-}))
-
 describe('useLibraryNavItems', () => {
   beforeEach(() => {
     setActivePinia(createPinia())

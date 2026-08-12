@@ -137,10 +137,10 @@
         <span>{{ settingsLink.title }}</span>
       </v-tooltip>
 
-      <template v-if="showInbox || showWatcherFolders">
+      <template v-if="showInbox">
         <div class="sidebar-browser__rail-divider" />
 
-        <v-tooltip v-if="showInbox" location="end">
+        <v-tooltip location="end">
           <template #activator="{ props: tipProps }">
             <v-btn
               v-bind="tipProps"
@@ -153,41 +153,25 @@
               @click="openInbox()"
             >
               <v-badge
+                v-if="!watcherBusy"
                 :content="inboxBadgeCount"
                 :model-value="inboxBadgeCount > 0"
                 color="success"
                 location="top right"
               >
-                <v-icon size="20" icon="mdi-inbox-outline"/>
+                <v-badge
+                  :content="inboxLostCount"
+                  :model-value="inboxLostCount > 0"
+                  color="error"
+                  location="bottom right"
+                >
+                  <v-icon size="20" icon="mdi-inbox-outline"/>
+                </v-badge>
               </v-badge>
+              <v-icon v-else size="20" icon="mdi-inbox-outline"/>
             </v-btn>
           </template>
           <span>{{ t('media_inbox.nav') }}</span>
-        </v-tooltip>
-
-        <v-tooltip
-          v-for="entry in watcherFiles"
-          :key="`watcher-${entry.folder.id}`"
-          location="end"
-        >
-          <template #activator="{ props: tipProps }">
-            <v-btn
-              v-bind="tipProps"
-              icon
-              variant="text"
-              size="small"
-              class="sidebar-browser__rail-btn"
-              :disabled="watcherBusy"
-              :aria-label="String(entry.folder.name || '')"
-              @click="openDialogFolder(entry)"
-            >
-              <v-icon
-                size="20"
-                :icon="watcherBusy ? 'mdi-folder-sync-outline' : 'mdi-folder-outline'"
-              />
-            </v-btn>
-          </template>
-          <span>{{ entry.folder.name }}</span>
         </v-tooltip>
       </template>
     </div>
@@ -324,60 +308,33 @@
           <v-list-item
             v-if="showInbox"
             :disabled="watcherBusy"
-            prepend-icon="mdi-inbox-outline"
             :title="t('media_inbox.nav')"
             @click="openInbox()"
+            @mouseover="inboxHovered = true"
+            @mouseleave="inboxHovered = false"
           >
-            <template #append>
-              <v-chip
-                v-if="inboxBadgeCount"
-                size="x-small"
+            <template #prepend>
+              <v-badge
+                v-if="!watcherBusy"
+                :content="inboxBadgeCount"
+                :model-value="inboxBadgeCount > 0"
+                :dot="!inboxHovered"
                 color="success"
-                variant="flat"
+                location="top right"
               >
-                {{ inboxBadgeCount }}
-              </v-chip>
+                <v-badge
+                  :content="inboxLostCount"
+                  :model-value="inboxLostCount > 0"
+                  :dot="!inboxHovered"
+                  color="error"
+                  location="bottom right"
+                >
+                  <v-icon icon="mdi-inbox-outline"/>
+                </v-badge>
+              </v-badge>
+              <v-icon v-else icon="mdi-inbox-outline"/>
             </template>
           </v-list-item>
-
-          <div
-            v-if="showWatcherFolders"
-            @mouseover="folderHovered = true"
-            @mouseleave="folderHovered = false"
-          >
-            <v-list-item
-              v-for="f in watcherFiles"
-              :key="f.folder.id"
-              :disabled="watcherBusy"
-              @click="openDialogFolder(f)"
-            >
-              <template #prepend>
-                <v-badge
-                  v-if="!watcherBusy"
-                  :content="watcherBadgeCountsByFolderId[f.folder.id]?.new ?? 0"
-                  :model-value="Boolean(watcherBadgeCountsByFolderId[f.folder.id]?.new)"
-                  :dot="!folderHovered"
-                  color="success"
-                  location="top right"
-                >
-                  <v-badge
-                    v-if="!watcherBusy"
-                    :content="watcherBadgeCountsByFolderId[f.folder.id]?.lost ?? 0"
-                    :model-value="Boolean(watcherBadgeCountsByFolderId[f.folder.id]?.lost)"
-                    :dot="!folderHovered"
-                    color="error"
-                    location="bottom right"
-                  >
-                    <v-icon>mdi-folder-outline</v-icon>
-                  </v-badge>
-                </v-badge>
-                <v-icon v-else>mdi-folder-sync-outline</v-icon>
-              </template>
-              <template #title>
-                {{ f.folder.name }}
-              </template>
-            </v-list-item>
-          </div>
         </v-list>
       </div>
     </div>
@@ -397,9 +354,9 @@ import {useLibraryNavItems, type LibraryNavLink} from '@/composable/useLibraryNa
 import {typedApi} from '@/services/typedApi'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
-const folderHovered = ref(false)
 const tagsEditMode = ref(false)
 const tagsAllExpanded = ref(true)
+const inboxHovered = ref(false)
 const tagsBrowserRef = ref<{
   toggleAllCategories: () => void
 } | null>(null)
@@ -447,13 +404,10 @@ const {
   settingsLink,
   allTagsLink,
   metaLink,
-  watcherFiles,
-  showWatcherFolders,
   showInbox,
   inboxBadgeCount,
-  watcherBadgeCountsByFolderId,
+  inboxLostCount,
   watcherBusy,
-  openDialogFolder,
   openInbox,
 } = useLibraryNavItems()
 

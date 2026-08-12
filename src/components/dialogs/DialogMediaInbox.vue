@@ -2,27 +2,27 @@
   <v-dialog
     :model-value="inboxStore.dialog"
     :fullscreen="xs"
-    width="920"
+    width="640"
     scrollable
     @update:model-value="onDialogToggle"
   >
     <v-card>
       <DialogHeader
         :header="t('media_inbox.title')"
+        :subheader="t('media_inbox.subtitle')"
         icon="inbox"
         closable
+        compact
+        :buttons="inboxHeaderButtons"
         @close="close"
       />
 
-      <v-card-text class="pa-2 pa-sm-4">
-        <div class="media-inbox__intro text-medium-emphasis mb-3 px-2">
-          {{ t('media_inbox.subtitle') }}
-        </div>
-
+      <v-card-text class="pa-2 pa-sm-3 pt-1">
         <v-tabs
           v-model="tab"
           color="primary"
-          class="mb-3"
+          density="compact"
+          class="mb-2"
         >
           <v-tab value="new">
             {{ t('media_inbox.tab_new') }}
@@ -65,12 +65,13 @@
         <div v-if="tab === 'new'">
           <div
             v-if="newGroups.length"
-            class="d-flex flex-wrap ga-2 mb-3 px-1"
+            class="d-flex flex-wrap ga-2 mb-2 px-1"
           >
             <v-btn
               color="success"
               variant="flat"
               rounded="xl"
+              size="small"
               prepend-icon="mdi-plus"
               @click="addAllNew"
             >
@@ -80,6 +81,7 @@
               v-if="inboxStore.ignoredPaths.length"
               variant="tonal"
               rounded="xl"
+              size="small"
               prepend-icon="mdi-eye-outline"
               @click="inboxStore.clearIgnored()"
             >
@@ -89,28 +91,28 @@
 
           <div
             v-if="!newGroups.length"
-            class="media-inbox__empty text-center pa-8"
+            class="media-inbox__empty text-center"
           >
-            <v-icon size="64" color="success">mdi-inbox-outline</v-icon>
-            <div class="text-h6 mt-2">{{ t('media_inbox.empty_new') }}</div>
-            <div class="text-medium-emphasis mt-1">{{ t('media_inbox.empty_new_hint') }}</div>
+            <v-icon size="36" color="success">mdi-inbox-outline</v-icon>
+            <div class="text-subtitle-2 mt-1">{{ t('media_inbox.empty_new') }}</div>
+            <div class="text-caption text-medium-emphasis mt-1">{{ t('media_inbox.empty_new_hint') }}</div>
           </div>
 
-          <v-expansion-panels v-else v-model="newPanel" multiple>
+          <v-expansion-panels v-else v-model="newPanel" multiple density="compact">
             <v-expansion-panel
               v-for="group in newGroups"
               :key="group.key"
-              rounded="xl"
+              rounded="lg"
             >
-              <v-expansion-panel-title>
-                <v-icon start>mdi-{{ group.mediaTypeIcon || 'file' }}</v-icon>
+              <v-expansion-panel-title class="py-2">
+                <v-icon start size="18">mdi-{{ group.mediaTypeIcon || 'file' }}</v-icon>
                 <span class="font-weight-medium">{{ group.folderName }}</span>
-                <span class="text-medium-emphasis ml-2">
+                <span class="text-medium-emphasis ml-2 text-caption">
                   · {{ groupMediaTypeLabel(group) }}
                 </span>
                 <v-chip
                   class="ml-2"
-                  size="small"
+                  size="x-small"
                   color="success"
                   variant="flat"
                 >
@@ -118,7 +120,7 @@
                 </v-chip>
               </v-expansion-panel-title>
               <v-expansion-panel-text>
-                <div class="d-flex flex-wrap ga-2 mb-3">
+                <div class="d-flex flex-wrap ga-2 mb-2">
                   <v-btn
                     color="success"
                     variant="flat"
@@ -172,13 +174,13 @@
         <div v-else-if="tab === 'lost'">
           <div
             v-if="!lostItems.length"
-            class="media-inbox__empty text-center pa-8"
+            class="media-inbox__empty text-center"
           >
-            <v-icon size="64" color="success">mdi-folder-check-outline</v-icon>
-            <div class="text-h6 mt-2">{{ t('media_inbox.empty_lost') }}</div>
+            <v-icon size="36" color="success">mdi-folder-check-outline</v-icon>
+            <div class="text-subtitle-2 mt-1">{{ t('media_inbox.empty_lost') }}</div>
           </div>
           <template v-else>
-            <div class="text-medium-emphasis mb-3 px-1">
+            <div class="text-caption text-medium-emphasis mb-2 px-1">
               {{ t('media_inbox.lost_hint') }}
             </div>
             <div class="media-inbox__list">
@@ -198,7 +200,7 @@
                 </div>
                 <div class="media-inbox__row-actions">
                   <v-btn
-                    size="small"
+                    size="x-small"
                     color="error"
                     variant="tonal"
                     rounded="xl"
@@ -215,18 +217,19 @@
         <div v-else>
           <div
             v-if="!inboxStore.pendingCount"
-            class="media-inbox__empty text-center pa-8"
+            class="media-inbox__empty text-center"
           >
-            <v-icon size="64" color="primary">mdi-checkbox-marked-circle-outline</v-icon>
-            <div class="text-h6 mt-2">{{ t('media_inbox.empty_pending') }}</div>
-            <div class="text-medium-emphasis mt-1">{{ t('media_inbox.empty_pending_hint') }}</div>
+            <v-icon size="36" color="primary">mdi-checkbox-marked-circle-outline</v-icon>
+            <div class="text-subtitle-2 mt-1">{{ t('media_inbox.empty_pending') }}</div>
+            <div class="text-caption text-medium-emphasis mt-1">{{ t('media_inbox.empty_pending_hint') }}</div>
           </div>
           <template v-else>
-            <div class="d-flex flex-wrap ga-2 mb-3 px-1">
+            <div class="d-flex flex-wrap ga-2 mb-2 px-1">
               <v-btn
                 color="primary"
                 variant="flat"
                 rounded="xl"
+                size="small"
                 prepend-icon="mdi-card-search-outline"
                 :loading="pendingLoading"
                 @click="startPendingReview()"
@@ -237,6 +240,7 @@
                 color="primary"
                 variant="tonal"
                 rounded="xl"
+                size="small"
                 prepend-icon="mdi-library"
                 :loading="pendingLoading"
                 @click="openPendingInLibrary"
@@ -246,17 +250,18 @@
               <v-btn
                 variant="tonal"
                 rounded="xl"
+                size="small"
                 prepend-icon="mdi-check-all"
                 @click="inboxStore.clearPendingReview()"
               >
                 {{ t('media_inbox.clear_pending') }}
               </v-btn>
             </div>
-            <div class="text-caption text-medium-emphasis mb-3 px-1">
+            <div class="text-caption text-medium-emphasis mb-2 px-1">
               {{ t('media_inbox.start_review_hint') }}
             </div>
-            <div v-if="pendingLoading" class="text-center pa-6">
-              <v-progress-circular indeterminate size="32"/>
+            <div v-if="pendingLoading" class="text-center pa-4">
+              <v-progress-circular indeterminate size="28"/>
             </div>
             <div v-else class="media-inbox__list">
               <div
@@ -276,7 +281,7 @@
                 </div>
                 <div class="media-inbox__row-actions">
                   <v-btn
-                    size="small"
+                    size="x-small"
                     color="primary"
                     variant="tonal"
                     rounded="xl"
@@ -285,7 +290,7 @@
                     {{ t('media_inbox.review_one') }}
                   </v-btn>
                   <v-btn
-                    size="small"
+                    size="x-small"
                     variant="tonal"
                     rounded="xl"
                     @click="markPendingDone(item.id)"
@@ -319,12 +324,17 @@ import {basenameFromInboxPath, type MediaInboxLostItem, type MediaInboxNewGroup}
 import {findMediaTypeById, getMediaDeleteAssetFolder, isManagedMediaType} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {useAppStore} from '@/stores/app'
+import {useWatcherStore} from '@/stores/watcher'
+import {useSettingsStore} from '@/stores/settings'
 import type {MediaItem} from '@/types/stores'
+import {isFolderWatchEnabled} from '@/services/watcherUtils'
 
 const {xs} = useDisplay()
 const {t} = useI18n()
 const router = useRouter()
 const appStore = useAppStore()
+const watcherStore = useWatcherStore()
+const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const eventBus = useEventBus()
@@ -346,6 +356,28 @@ const {
 const newPanel = ref<number[]>([0])
 const pendingLoading = ref(false)
 const pendingMedia = ref<MediaItem[]>([])
+
+const canRescanFolders = computed(() =>
+  settingsStore.watchFolders === '1'
+  && watcherStore.folders.some((folder) => isFolderWatchEnabled(folder)),
+)
+
+const inboxHeaderButtons = computed(() => [
+  {
+    icon: 'folder-sync-outline',
+    text: t('media_inbox.rescan_folders'),
+    title: t('media_inbox.rescan_folders'),
+    color: 'primary',
+    outlined: true,
+    disabled: !canRescanFolders.value || watcherStore.busy,
+    function: rescanWatchedFolders,
+  },
+])
+
+function rescanWatchedFolders() {
+  if (!canRescanFolders.value || watcherStore.busy) return
+  eventBus.emit('rescan:watcher')
+}
 
 const tab = computed({
   get: () => inboxStore.tab,
@@ -465,21 +497,22 @@ watch(
 .media-inbox__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: min(52vh, 520px);
+  gap: 6px;
+  max-height: min(42vh, 360px);
   overflow: auto;
 }
 
 .media-inbox__row {
   position: relative;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
   background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
 .media-inbox__name {
   font-weight: 600;
-  padding-right: 168px;
+  font-size: 0.875rem;
+  padding-right: 148px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -497,13 +530,14 @@ watch(
 
 .media-inbox__row-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
   display: flex;
   gap: 4px;
 }
 
 .media-inbox__empty {
   opacity: 0.9;
+  padding: 16px 8px;
 }
 </style>

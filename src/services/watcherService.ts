@@ -20,9 +20,15 @@ export async function getWatchedFolders(): Promise<WatchedFolderEntry[]> {
 
     return folders.map((i): WatchedFolderEntry => {
       const folder = { ...i.watchedFolder }
+      const rawExcluded = folder.excludedPaths
+      const excludedPaths = Array.isArray(rawExcluded)
+        ? rawExcluded.filter((item): item is string => typeof item === 'string')
+        : []
       return {
         ...folder,
         path: String(folder.path ?? ''),
+        icon: typeof folder.icon === 'string' ? folder.icon : null,
+        excludedPaths,
         types: types[i.folderId] || [],
       }
     })

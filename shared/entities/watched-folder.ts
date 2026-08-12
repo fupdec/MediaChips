@@ -8,6 +8,8 @@ export interface WatchedFolderLink {
     path: string
     name?: string
     watch?: boolean
+    icon?: string | null
+    excludedPaths?: string[]
     [key: string]: unknown
   }
   [key: string]: unknown

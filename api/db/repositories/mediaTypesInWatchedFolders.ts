@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { mediaTypes } from '../schema/mediaTypes'
 import { mediaTypesInWatchedFolders, watchedFolders } from '../schema/watchedFolders'
+import { toPublicWatchedFolder } from './watchedFolders'
 
 export function createMediaTypesInWatchedFoldersRepository(db: DrizzleClient) {
   return {
@@ -10,7 +11,7 @@ export function createMediaTypesInWatchedFoldersRepository(db: DrizzleClient) {
       const folderRows = db.select().from(watchedFolders).all()
       const mediaTypeRows = db.select().from(mediaTypes).all()
 
-      const folderById = new Map(folderRows.map((row) => [row.id, row]))
+      const folderById = new Map(folderRows.map((row) => [row.id, toPublicWatchedFolder(row)]))
       const mediaTypeById = new Map(mediaTypeRows.map((row) => [row.id, row]))
 
       return links.map((link) => ({

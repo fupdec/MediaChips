@@ -7,6 +7,8 @@ export interface WatchedFolderEntry {
   watch?: boolean | number
   id?: number
   folderId?: number
+  icon?: string | null
+  excludedPaths?: string[]
 }
 
 export function isFolderWatchEnabled(folder: WatchedFolderEntry): boolean {

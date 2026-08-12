@@ -6,7 +6,7 @@ import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 
 const CONTENT_HEIGHT = 56
 
-const folderHovered = ref(false)
+const inboxHovered = ref(false)
 const hiddenMetaMenu = ref(false)
 const safeAreaBottom = ref(0)
 
@@ -20,13 +20,10 @@ const {
   libraryLinks,
   settingsLink,
   allTagsLink,
-  watcherFiles,
-  showWatcherFolders,
   showInbox,
   inboxBadgeCount,
-  watcherBadgeCountsByFolderId,
+  inboxLostCount,
   watcherBusy,
-  openDialogFolder,
   openInbox,
   metaPath,
 } = useLibraryNavItems()
@@ -216,76 +213,43 @@ onUnmounted(() => {
       open-on-hover
     >
       <template #activator="{ props }">
-        <v-btn
-          v-bind="props"
-          class="v-btn--selected v-btn--active"
-          variant="text"
-          :disabled="watcherBusy"
-          :aria-label="t('media_inbox.nav')"
-          @click="openInbox()"
+        <div
+          class="folder-wrapper"
+          @mouseover="inboxHovered = true"
+          @mouseleave="inboxHovered = false"
         >
-          <v-badge
-            :content="inboxBadgeCount"
-            :model-value="inboxBadgeCount > 0"
-            color="success"
+          <v-btn
+            v-bind="props"
+            class="v-btn--selected v-btn--active"
+            variant="text"
+            :disabled="watcherBusy"
+            :aria-label="t('media_inbox.nav')"
+            @click="openInbox()"
           >
-            <v-icon>mdi-inbox-outline</v-icon>
-          </v-badge>
-        </v-btn>
+            <v-badge
+              v-if="!watcherBusy"
+              :content="inboxBadgeCount"
+              :model-value="inboxBadgeCount > 0"
+              :dot="!inboxHovered"
+              color="success"
+              location="top right"
+            >
+              <v-badge
+                :content="inboxLostCount"
+                :model-value="inboxLostCount > 0"
+                :dot="!inboxHovered"
+                color="error"
+                location="bottom right"
+              >
+                <v-icon>mdi-inbox-outline</v-icon>
+              </v-badge>
+            </v-badge>
+            <v-icon v-else>mdi-inbox-outline</v-icon>
+          </v-btn>
+        </div>
       </template>
       {{ t('media_inbox.nav') }}
     </v-tooltip>
-
-    <div
-      v-if="showWatcherFolders"
-      class="folders"
-      @mouseover="folderHovered = true"
-      @mouseleave="folderHovered = false"
-    >
-      <v-tooltip
-        v-for="entry in watcherFiles"
-        :key="entry.folder.id"
-        location="top"
-        :disabled="mobile"
-        open-on-hover
-      >
-        <template #activator="{ props }">
-          <div class="folder-wrapper">
-            <v-btn
-              v-bind="props"
-              @click="openDialogFolder(entry)"
-              :disabled="watcherBusy"
-              :aria-label="entry.folder.name"
-              :title="entry.folder.name"
-              class="folder v-btn--selected v-btn--active"
-              variant="text"
-            >
-              <v-icon v-if="watcherBusy">mdi-folder-sync-outline</v-icon>
-              <v-icon v-else>mdi-folder-outline</v-icon>
-            </v-btn>
-
-            <v-badge
-              v-if="!watcherBusy"
-              :content="watcherBadgeCountsByFolderId[entry.folder.id]?.new ?? 0"
-              :dot="!folderHovered"
-              :offset-x="!folderHovered ? 48 : 55"
-              :offset-y="!folderHovered ? -16 : -20"
-              color="success"
-            />
-            <v-badge
-              v-if="!watcherBusy"
-              :content="watcherBadgeCountsByFolderId[entry.folder.id]?.lost ?? 0"
-              :dot="!folderHovered"
-              :offset-x="!folderHovered ? 48 : 55"
-              :offset-y="!folderHovered ? 0 : 2"
-              color="error"
-            />
-          </div>
-        </template>
-
-        <span>{{ entry.folder.name }}</span>
-      </v-tooltip>
-    </div>
   </v-bottom-navigation>
 </template>
 
@@ -346,12 +310,6 @@ onUnmounted(() => {
 .scrollable {
   overflow-x: auto;
   white-space: nowrap;
-}
-
-.folders {
-  display: flex;
-  flex: 0 0 auto;
-  height: 100%;
 }
 
 .folder-wrapper {

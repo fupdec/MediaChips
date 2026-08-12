@@ -378,6 +378,8 @@ export interface WatchedFolderUpdatePayload {
   path?: string
   name?: string
   watch?: boolean
+  icon?: string | null
+  excludedPaths?: string[]
   [key: string]: unknown
 }
 
@@ -386,6 +388,8 @@ export interface WatchedFolderCreatePayload {
     path: string
     name?: string
     watch?: boolean
+    icon?: string | null
+    excludedPaths?: string[]
     [key: string]: unknown
   }
   types: number[]

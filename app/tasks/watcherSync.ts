@@ -17,6 +17,7 @@ import {
   fileMatchesExtensions,
   parseMediaExtensions,
 } from '../../api/utils/mediaExtensions'
+import { isPathUnderExcluded } from '../../api/utils/watchedFolderExcludes'
 
 const pathsMatch = (left: string, right: string) => pathsEquivalent(left, right)
 
@@ -53,11 +54,16 @@ function findEquivalentEntry(target: string, entries: WatcherFileEntry[]): Watch
 async function findFilesRecursive(
   dir: string,
   extensions: string[],
+  excludedPaths: string[] = [],
   depth = 0,
   maxDepth = 10,
   allFiles: string[] = [],
 ): Promise<string[]> {
   if (depth > maxDepth) {
+    return allFiles
+  }
+
+  if (isPathUnderExcluded(dir, excludedPaths)) {
     return allFiles
   }
 
@@ -73,9 +79,20 @@ async function findFilesRecursive(
   for (const entry of entries) {
     const filePath = path.join(dir, entry.name)
 
+    if (isPathUnderExcluded(filePath, excludedPaths)) {
+      continue
+    }
+
     if (entry.isDirectory()) {
       subdirTasks.push(
-        findFilesRecursive(filePath, extensions, depth + 1, maxDepth, allFiles).then(() => undefined),
+        findFilesRecursive(
+          filePath,
+          extensions,
+          excludedPaths,
+          depth + 1,
+          maxDepth,
+          allFiles,
+        ).then(() => undefined),
       )
       continue
     }
@@ -196,8 +213,9 @@ class WatcherSyncEngine {
       const folderTypeIds = folderState.types.map((typeState) => typeState.type.id)
       const mediaRows = await loadMediaForFolder(this.db, folderPath, folderTypeIds)
       const unionExtensions = getUnionExtensions(folderState.folder.types || [])
+      const excludedPaths = folderState.folder.excludedPaths || []
       const filesInFolder = unionExtensions.length
-        ? await findFilesRecursive(folderPath, unionExtensions)
+        ? await findFilesRecursive(folderPath, unionExtensions, excludedPaths)
         : []
 
       for (const typeState of folderState.types) {
@@ -208,7 +226,7 @@ class WatcherSyncEngine {
           mediaRows,
           folderPath,
           typeState.type.id,
-        )
+        ).filter((entry) => !isPathUnderExcluded(String(entry.path), excludedPaths))
         recomputeDiff(typeState)
       }
     }
@@ -227,7 +245,10 @@ class WatcherSyncEngine {
           mediaRows,
           folderPath,
           typeState.type.id,
-        )
+        ).filter((entry) => !isPathUnderExcluded(
+          String(entry.path),
+          folderState.folder.excludedPaths,
+        ))
         recomputeDiff(typeState)
       }
     }
@@ -245,6 +266,10 @@ class WatcherSyncEngine {
 
     for (const folderState of this.folderStates) {
       if (!isPathInsideFolder(filePath, folderState.folder.path)) {
+        continue
+      }
+
+      if (isPathUnderExcluded(filePath, folderState.folder.excludedPaths)) {
         continue
       }
 

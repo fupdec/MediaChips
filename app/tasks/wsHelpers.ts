@@ -10,6 +10,8 @@ export function getWatcherFoldersConfigKey(folders: WatchedFolderEntry[]): strin
   return JSON.stringify(
     folders.map((folder) => ({
       path: folder.path,
+      icon: folder.icon || null,
+      excludedPaths: [...(folder.excludedPaths || [])].sort(),
       types: (folder.types || []).map((type) => ({
         id: type.id,
         extensions: type.extensions,

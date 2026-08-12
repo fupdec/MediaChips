@@ -4,7 +4,10 @@
     :fullscreen="smAndDown"
     scrollable
     width="880"
+    :z-index="overlayZIndex"
     :transition="false"
+    :persistent="persistent"
+    :retain-focus="true"
   >
     <v-card>
       <DialogHeader
@@ -131,6 +134,10 @@ const props = withDefaults(defineProps<{
   validateExists?: boolean
   /** Show native Electron directory picker button (requires pathInput). */
   showNativePicker?: boolean
+  /** Raise above parent dialogs when nested. */
+  zIndex?: number | string
+  /** Keep open on outside click (needed when nested under another dialog). */
+  persistent?: boolean
 }>(), {
   multiple: false,
   header: '',
@@ -140,6 +147,8 @@ const props = withDefaults(defineProps<{
   pathInput: false,
   validateExists: false,
   showNativePicker: false,
+  zIndex: 2500,
+  persistent: false,
 })
 
 const emit = defineEmits<{
@@ -152,6 +161,11 @@ const {smAndDown} = useDisplay()
 const {t} = useI18n()
 const appStore = useAppStore()
 const {isElectron} = storeToRefs(appStore)
+
+const overlayZIndex = computed(() => {
+  const raw = Number(props.zIndex)
+  return Number.isFinite(raw) && raw > 0 ? raw : 2700
+})
 
 const places = ref<BrowsePlace[]>([])
 const placesLoaded = ref(false)
@@ -294,7 +308,9 @@ async function confirm() {
   const paths = (props.multiple || props.fileExtensions.length)
     ? [...selectedPaths.value]
     : [browsePath.value]
-  emit('confirm', paths)
+  const normalized = paths.map((p) => String(p || '').trim()).filter(Boolean)
+  if (!normalized.length) return
+  emit('confirm', normalized)
   dialogLocal.value = false
 }
 

@@ -204,6 +204,29 @@ describe('createWatcherWsHandler', () => {
     })
   })
 
+  it('runs a full sync on explicit rescan requests', async () => {
+    const ws = createMockWebSocket()
+    createWatcherWsHandler(db)(ws, req)
+
+    await ws.emit('message', JSON.stringify({
+      type: 'start',
+      folders,
+      extensions: {'/media/movies': ['mp4']},
+    }))
+    await triggerWatcherEvent('ready')
+
+    vi.clearAllMocks()
+    fullSync.mockResolvedValue(undefined)
+    getReports.mockReturnValue([{folder: {path: '/media/movies'}, files: []}])
+
+    await ws.emit('message', JSON.stringify({type: 'rescan'}))
+
+    expect(fullSync).toHaveBeenCalledWith(folders)
+    expect(ws.messages.some((message) => message.type === 'scanStart')).toBe(true)
+    expect(ws.messages.some((message) => message.type === 'scanComplete')).toBe(true)
+    expect(ws.messages.some((message) => message.type === 'files')).toBe(true)
+  })
+
   it('ignores invalid JSON without crashing', async () => {
     const ws = createMockWebSocket()
     createWatcherWsHandler(db)(ws, req)

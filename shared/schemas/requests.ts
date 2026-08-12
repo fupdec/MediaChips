@@ -489,6 +489,9 @@ export const WatchedFolderCreateRequestSchema = z.object({
   folder: z.object({
     path: z.string().min(1),
     name: z.string().nullable().optional(),
+    icon: z.string().nullable().optional(),
+    excludedPaths: z.array(z.string()).optional(),
+    watch: z.boolean().optional(),
   }).passthrough(),
   types: z.array(z.union([z.number(), z.string()])).optional().default([]),
 }).passthrough()
@@ -497,6 +500,8 @@ export const WatchedFolderUpdateRequestSchema = z.object({
   path: z.string().min(1).optional(),
   name: z.string().nullable().optional(),
   watch: z.boolean().optional(),
+  icon: z.string().nullable().optional(),
+  excludedPaths: z.array(z.string()).optional(),
 }).passthrough()
 
 const coercedId = z.coerce.number()

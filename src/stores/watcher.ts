@@ -13,6 +13,8 @@ function buildWatcherMenuEntries(folders: WatchedFolderEntry[]): WatcherFilesEnt
         name: folder.name,
         path: folder.path,
         watch: isFolderWatchEnabled(folder),
+        icon: folder.icon || undefined,
+        excludedPaths: folder.excludedPaths || [],
       },
       files: (folder.types || []).map((type: MediaType) => ({
         type,

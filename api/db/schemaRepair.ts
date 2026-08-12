@@ -109,6 +109,8 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'videoMetadata', column: 'title', definition: 'text'},
   {table: 'videoMetadata', column: 'artist', definition: 'text'},
   {table: 'videoMetadata', column: 'album', definition: 'text'},
+  {table: 'watchedFolders', column: 'icon', definition: 'text'},
+  {table: 'watchedFolders', column: 'excludedPaths', definition: 'text'},
 ]
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {

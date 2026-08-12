@@ -4,6 +4,7 @@ import type {
 
 export type EventBusMap = {
   'update:watcher': void
+  'rescan:watcher': void
   addMedia: (() => void) | undefined
   updateVideoFrames: number
   playVideo: unknown

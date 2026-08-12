@@ -6,6 +6,8 @@ export const WatchedFolderSchema = z.object({
   path: z.string().optional(),
   name: z.string().optional(),
   watch: z.boolean().optional(),
+  icon: z.string().nullable().optional(),
+  excludedPaths: z.array(z.string()).optional(),
 }).passthrough()
 
 export const WatchedFolderLinkSchema = z.object({

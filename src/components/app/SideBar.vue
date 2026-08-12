@@ -122,69 +122,34 @@
           <v-list-item
             v-if="showInbox"
             :disabled="watcherBusy"
-            prepend-icon="mdi-inbox-outline"
             :title="t('media_inbox.nav')"
             @click="openInbox()"
           >
-            <template #append>
-              <v-chip
-                v-if="inboxBadgeCount"
-                size="x-small"
+            <template #prepend>
+              <v-badge
+                v-if="!watcherBusy"
+                :content="inboxBadgeCount"
+                :model-value="inboxBadgeCount > 0"
+                :dot="!isDrawerHovered"
                 color="success"
-                variant="flat"
+                location="top right"
               >
-                {{ inboxBadgeCount }}
-              </v-chip>
+                <v-badge
+                  :content="inboxLostCount"
+                  :model-value="inboxLostCount > 0"
+                  :dot="!isDrawerHovered"
+                  color="error"
+                  location="bottom right"
+                >
+                  <v-icon icon="mdi-inbox-outline"/>
+                </v-badge>
+              </v-badge>
+              <v-icon v-else icon="mdi-inbox-outline"/>
             </template>
             <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
               {{ t('media_inbox.nav') }}
             </v-tooltip>
           </v-list-item>
-
-          <div
-            v-if="showWatcherFolders"
-            @mouseover="folderHovered = true"
-            @mouseleave="folderHovered = false"
-          >
-            <v-list-item
-              v-for="f in watcherFiles"
-              :key="f.folder.id"
-              @click="openDialogFolder(f)"
-              :disabled="watcherBusy"
-            >
-              <template #prepend>
-                <v-badge
-                  v-if="!watcherBusy"
-                  :content="watcherBadgeCountsByFolderId[f.folder.id]?.new ?? 0"
-                  :model-value="Boolean(watcherBadgeCountsByFolderId[f.folder.id]?.new)"
-                  :dot="!folderHovered"
-                  color="success"
-                  location="top right"
-                >
-                  <v-badge
-                    v-if="!watcherBusy"
-                    :content="watcherBadgeCountsByFolderId[f.folder.id]?.lost ?? 0"
-                    :model-value="Boolean(watcherBadgeCountsByFolderId[f.folder.id]?.lost)"
-                    :dot="!folderHovered"
-                    color="error"
-                    location="bottom right"
-                  >
-                    <v-icon>mdi-folder-outline</v-icon>
-                  </v-badge>
-                </v-badge>
-
-                <v-icon v-else>mdi-folder-sync-outline</v-icon>
-              </template>
-
-              <template #title>
-                {{ f.folder.name }}
-              </template>
-
-              <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
-                {{ f.folder.name }}
-              </v-tooltip>
-            </v-list-item>
-          </div>
 
         </v-list>
       </div>
@@ -209,7 +174,6 @@ type MetaNavRow = MetaNavItem | {type: 'toggler'; id: string}
 
 const isShowHidden = ref(false)
 const isDrawerHovered = ref(false)
-const folderHovered = ref(false)
 const meta_arr = ref<MetaNavRow[]>([])
 const drag = ref(false)
 
@@ -221,13 +185,10 @@ const {
   libraryLinks,
   settingsLink,
   allTagsLink,
-  watcherFiles,
-  showWatcherFolders,
   showInbox,
   inboxBadgeCount,
-  watcherBadgeCountsByFolderId,
+  inboxLostCount,
   watcherBusy,
-  openDialogFolder,
   openInbox,
   metaPath,
 } = useLibraryNavItems()

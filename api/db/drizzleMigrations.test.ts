@@ -71,4 +71,35 @@ describe('drizzleMigrations', () => {
       reopened.close()
     }
   })
+
+  it('does not stamp new journal entries on already-baselined Sequelize databases', () => {
+    const dbPath = createTempDbPath()
+    runDrizzleMigrations(dbPath)
+
+    const sqlite = new Database(dbPath)
+    try {
+      sqlite.exec(`CREATE TABLE IF NOT EXISTS SequelizeMeta (name TEXT PRIMARY KEY)`)
+      sqlite.exec(`INSERT OR IGNORE INTO SequelizeMeta (name) VALUES ('00_initial.js')`)
+
+      // Simulate a previously baselined DB that is missing a newer column.
+      sqlite.exec(`DELETE FROM __drizzle_migrations WHERE created_at >= 1782832800000`)
+      try {
+        sqlite.exec(`ALTER TABLE watchedFolders DROP COLUMN icon`)
+      } catch {
+        // SQLite < 3.35 may not support DROP COLUMN; ignore.
+      }
+      try {
+        sqlite.exec(`ALTER TABLE watchedFolders DROP COLUMN excludedPaths`)
+      } catch {
+        // ignore
+      }
+
+      const before = sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get() as {count: number}
+      ensureLegacyDrizzleBaseline(sqlite)
+      const after = sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get() as {count: number}
+      expect(after.count).toBe(before.count)
+    } finally {
+      sqlite.close()
+    }
+  })
 })

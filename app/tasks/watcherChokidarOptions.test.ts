@@ -43,4 +43,16 @@ describe('watcherChokidarOptions', () => {
         : undefined,
     ).toBe(1000)
   })
+
+  it('ignores excluded paths via ignored callback', () => {
+    const options = buildChokidarOptions(
+      ['/Users/media/downloads'],
+      ['/Users/media/downloads/tmp'],
+    )
+    expect(typeof options.ignored).toBe('function')
+    const ignored = options.ignored as (path: string) => boolean
+    expect(ignored('/Users/media/downloads/tmp/a.mp4')).toBe(true)
+    expect(ignored('/Users/media/downloads/keep/a.mp4')).toBe(false)
+    expect(ignored('/Users/media/downloads/.hidden')).toBe(true)
+  })
 })

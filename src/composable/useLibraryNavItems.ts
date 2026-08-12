@@ -4,12 +4,10 @@ import orderBy from 'lodash/orderBy'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useWatcherStore} from '@/stores/watcher'
-import {useWatcherBadgeCounts} from '@/composable/useWatcherBadgeCounts'
 import {useMediaInbox} from '@/composable/useMediaInbox'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
-import type {WatcherFilesEntry} from '@/types/watcher'
 
 export type LibraryNavLink = {
   key: string
@@ -36,7 +34,6 @@ export function useLibraryNavItems() {
   const appStore = useAppStore()
   const settingsStore = useSettingsStore()
   const watcherStore = useWatcherStore()
-  const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
   const {badgeCount: inboxBadgeCount, openInbox, newCount: inboxNewCount, lostCount: inboxLostCount} = useMediaInbox()
 
   const mediaTypes = computed(() =>
@@ -62,11 +59,6 @@ export function useLibraryNavItems() {
   const showPlaylists = computed(() => settingsStore.showPlaylistsInNavigation === '1')
   const showMarkers = computed(() => settingsStore.showMarkersInNavigation === '1')
   const showWatchFolders = computed(() => settingsStore.watchFolders === '1')
-
-  const watcherFiles = computed(() =>
-    showWatchFolders.value ? watcherStore.menuEntries : [],
-  )
-  const showWatcherFolders = computed(() => watcherFiles.value.length > 0)
 
   const libraryLinks = computed((): LibraryNavLink[] => {
     const links: LibraryNavLink[] = [
@@ -115,11 +107,6 @@ export function useLibraryNavItems() {
     exact: true,
   }))
 
-  function openDialogFolder(folder: WatcherFilesEntry) {
-    watcherStore.folder = folder
-    watcherStore.dialogFolder = true
-  }
-
   return {
     mediaTypes,
     mediaTypesHidden,
@@ -129,18 +116,16 @@ export function useLibraryNavItems() {
     showPlaylists,
     showMarkers,
     showWatchFolders,
-    watcherFiles,
-    showWatcherFolders,
-    watcherBadgeCountsByFolderId,
     inboxBadgeCount,
     inboxNewCount,
     inboxLostCount,
-    showInbox: computed(() => showWatchFolders.value || inboxBadgeCount.value > 0),
+    showInbox: computed(() =>
+      showWatchFolders.value || inboxBadgeCount.value > 0 || inboxLostCount.value > 0
+    ),
     libraryLinks,
     settingsLink,
     allTagsLink,
     watcherBusy: computed(() => watcherStore.busy),
-    openDialogFolder,
     openInbox,
     mediaTypePath,
     metaPath,

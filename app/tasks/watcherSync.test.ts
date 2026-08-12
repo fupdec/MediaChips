@@ -61,4 +61,20 @@ describe('WatcherSyncEngine', () => {
     expect(findPathEntriesByMediaTypeIdsUnderFolder).toHaveBeenNthCalledWith(1, [10], '/folder-a')
     expect(findPathEntriesByMediaTypeIdsUnderFolder).toHaveBeenNthCalledWith(2, [11], '/folder-b')
   })
+
+  it('ignores file events under excluded paths', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([])
+
+    const engine = new WatcherSyncEngine({} as never)
+    engine.setFolders([
+      {
+        path: '/folder-a',
+        excludedPaths: ['/folder-a/tmp'],
+        types: [{id: 10, extensions: 'mp4'}],
+      },
+    ])
+
+    expect(engine.applyFileEvent('add', '/folder-a/tmp/skip.mp4')).toBe(false)
+    expect(engine.applyFileEvent('add', '/folder-a/keep.mp4')).toBe(true)
+  })
 })

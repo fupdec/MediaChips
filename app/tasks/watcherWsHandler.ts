@@ -11,7 +11,7 @@ import { errorMessage } from '../types/websockets'
 import type { Request } from 'express'
 import chokidar from 'chokidar'
 import { WatcherSyncEngine } from './watcherSync'
-import { buildChokidarOptions, needsPollingForFolders } from './watcherChokidarOptions'
+import { buildChokidarOptions, needsPollingForFolders, collectExcludedWatchPaths } from './watcherChokidarOptions'
 import {
   buildWatcherWatchPaths,
   foldersConfigUnchanged,
@@ -229,6 +229,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       const folderPaths = folders.map((folder) => folder.path)
       const usePolling = needsPollingForFolders(folderPaths)
       const watchPaths = buildWatcherWatchPaths(extensions, usePolling)
+      const excludedPaths = collectExcludedWatchPaths(folders)
 
       syncEngine.setFolders(folders)
       void syncEngine.refreshDbPaths().then(() => {
@@ -237,7 +238,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
 
       watcher = chokidar.watch(
         watchPaths,
-        buildChokidarOptions(folderPaths),
+        buildChokidarOptions(folderPaths, excludedPaths),
       )
 
       watcher
@@ -270,18 +271,8 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
         return
       }
 
-      if (watcher) {
-        const folderPaths = folders.map((folder) => folder.path)
-        const usePolling = needsPollingForFolders(folderPaths)
-        const watchPaths = buildWatcherWatchPaths(extensions, usePolling)
-        watcher.add(watchPaths)
-
-        setTimeout(() => {
-          void runFullSync()
-        }, 1000)
-      } else {
-        startWatcher(folders, extensions)
-      }
+      // Restart so chokidar `ignored` (excludes) and watch roots stay in sync.
+      startWatcher(folders, extensions)
     }
 
     ws.on('message', async (rawMsg: unknown) => {
@@ -308,6 +299,13 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
             } else {
               pendingDbRefresh = true
             }
+            break
+
+          case 'rescan':
+            if (!watcher) {
+              break
+            }
+            void runFullSync()
             break
 
           case 'stop':

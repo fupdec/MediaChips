@@ -197,6 +197,26 @@ export function useWatcher(apiUrl: string) {
     startWatcherIfEnabled()
   }
 
+  const rescanWatcher = (): void => {
+    if (settingsStore.watchFolders !== '1') {
+      return
+    }
+
+    const watched = getActiveWatchedFolders(watcherStore.folders)
+    if (!watched.length) {
+      return
+    }
+
+    const wsState = getWebSocketState()
+    if (wsState === WebSocket.OPEN && isWsReady.value && watcherStore.ws) {
+      sendMessage({type: 'rescan'})
+      return
+    }
+
+    // Connecting / restarting the watcher runs a full sync on chokidar `ready`.
+    updateWatcher(watched)
+  }
+
   const startWatcherIfEnabled = (): void => {
     const watched = getActiveWatchedFolders(watcherStore.folders)
     if (watched.length > 0) {
@@ -278,6 +298,7 @@ export function useWatcher(apiUrl: string) {
     runWatcher,
     updateWatcher,
     refreshWatcher,
+    rescanWatcher,
     stopWatcher,
     enableWatcherEvents,
   }

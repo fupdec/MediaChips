@@ -73,6 +73,17 @@ export function ensureLegacyDrizzleBaseline(sqlite: Database.Database) {
   ensureDrizzleMigrationsTable(sqlite)
   const journal = readJournal()
 
+  const appliedCount = sqlite.prepare(
+    'SELECT COUNT(*) as count FROM __drizzle_migrations',
+  ).get() as {count: number}
+
+  // Already tracked by drizzle — never stamp newer journal entries here.
+  // Stamping on every boot caused new migrations (e.g. watchedFolders.icon)
+  // to be marked applied without running their SQL on Sequelize-era DBs.
+  if (Number(appliedCount.count) > 0) {
+    return
+  }
+
   if (hasTable(sqlite, 'SequelizeMeta')) {
     const umzugCount = sqlite.prepare(
       'SELECT COUNT(*) as count FROM SequelizeMeta',
@@ -84,14 +95,6 @@ export function ensureLegacyDrizzleBaseline(sqlite: Database.Database) {
       }
       return
     }
-  }
-
-  const appliedCount = sqlite.prepare(
-    'SELECT COUNT(*) as count FROM __drizzle_migrations',
-  ).get() as {count: number}
-
-  if (Number(appliedCount.count) > 0) {
-    return
   }
 
   const initialEntry = journal.entries[0]

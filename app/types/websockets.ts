@@ -12,7 +12,7 @@ export type {
 export type WatcherExtensionsMap = Record<string, string[]>
 
 export type WatcherWsMessage = {
-  type: 'start' | 'update' | 'stop' | 'refresh'
+  type: 'start' | 'update' | 'stop' | 'refresh' | 'rescan'
   folders?: WatchedFolderEntry[]
   extensions?: WatcherExtensionsMap
 }
@@ -48,6 +48,11 @@ export interface WatchedMediaTypeEntry {
 export interface WatchedFolderEntry {
   path: string
   types?: WatchedMediaTypeEntry[]
+  icon?: string | null
+  excludedPaths?: string[]
+  name?: string
+  id?: number
+  watch?: boolean | number
 }
 
 export interface WatcherFileEntry {

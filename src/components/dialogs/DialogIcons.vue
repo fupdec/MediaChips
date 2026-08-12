@@ -3,9 +3,13 @@
     v-model="internalDialog"
     width="720"
     scrollable
+    :z-index="zIndex"
     @after-leave="resetDialog"
   >
-    <template v-slot:activator="{ props: activatorProps }">
+    <template
+      v-if="!hideActivator"
+      v-slot:activator="{ props: activatorProps }"
+    >
       <div class="text-caption mt-2 mb-1">{{ t('meta.fields.icon') }}</div>
       <div class="d-flex align-center">
         <v-icon v-bind="activatorProps" size="large" start>mdi-{{ icon }}</v-icon>
@@ -74,15 +78,15 @@
               </div>
             </template>
 
-            <template v-slot:default="props">
+            <template v-slot:default="slotProps">
               <div class="d-flex flex-wrap justify-center">
                 <div
-                  v-for="item in props.items"
+                  v-for="item in slotProps.items"
                   :key="item.raw.id"
-                  @click="applyIcon(item.raw.name)"
                   class="ma-2 pa-2 icon-container"
                   :class="{ 'icon-selected': selectedIcon === item.raw.name }"
                   :title="item.raw.name"
+                  @click="applyIcon(item.raw.name)"
                 >
                   <v-icon size="40">mdi-{{ item.raw.name }}</v-icon>
                 </div>
@@ -117,7 +121,6 @@ interface MaterialIcon {
   tags?: string[]
 }
 
-// Props
 const props = defineProps({
   icon: {
     type: String,
@@ -127,13 +130,20 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /** Hide built-in activator when parent opens the dialog via v-model (nested dialogs). */
+  hideActivator: {
+    type: Boolean,
+    default: false,
+  },
+  zIndex: {
+    type: [Number, String],
+    default: 2400,
+  },
 })
 
-// Emits
-const emit = defineEmits(['update:model-value', 'apply', 'close'])
+const emit = defineEmits(['update:modelValue', 'update:model-value', 'apply', 'close'])
 const {t} = useI18n()
 
-// Refs
 const internalDialog = ref(false)
 const search = ref('')
 const page = ref(1)
@@ -150,7 +160,6 @@ const loadIcons = async () => {
   iconsLoaded.value = true
 }
 
-// Computed
 const filteredIcons = computed(() => {
   if (!search.value) return icons.value
 
@@ -161,7 +170,6 @@ const filteredIcons = computed(() => {
   )
 })
 
-// Methods
 const applyIcon = (iconName: string) => {
   selectedIcon.value = iconName
   emit('apply', iconName)
@@ -179,27 +187,27 @@ const resetDialog = () => {
   selectedIcon.value = ''
 }
 
-// Lifecycle
 onMounted(() => {
   internalDialog.value = props.modelValue
+  if (props.modelValue) void loadIcons()
 })
 
-// Watchers
 watch(() => props.modelValue, (newVal) => {
   internalDialog.value = newVal
 
   if (newVal) {
     resetDialog()
+    selectedIcon.value = String(props.icon || '').replace(/^mdi-/, '')
     void loadIcons()
   }
 })
 
 watch(internalDialog, (newVal) => {
+  emit('update:modelValue', newVal)
   emit('update:model-value', newVal)
   if (newVal) void loadIcons()
 })
 
-// Expose methods if needed
 defineExpose({
   applyIcon,
   closeDialog

@@ -87,7 +87,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   let handleAddMedia = async (_action?: () => void): Promise<void> => {}
   let cleanupMediaAdding: (() => void) | null = null
 
-  const {updateWatcher, refreshWatcher, enableWatcherEvents} = useWatcher(store.localhost)
+  const {updateWatcher, refreshWatcher, rescanWatcher, enableWatcherEvents} = useWatcher(store.localhost)
 
   function startWatcherIfEnabled(): void {
     if (settingsStore.watchFolders !== '1') {
@@ -220,6 +220,10 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
 
   function handleUpdateWatcher(): void {
     refreshWatcher()
+  }
+
+  function handleRescanWatcher(): void {
+    rescanWatcher()
   }
 
   async function applyLocale(): Promise<void> {
@@ -512,6 +516,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     unregisterPlaylistsCatalogLoader = registerPlaylistsCatalogLoader(() => loadList('playlists'))
     unregisterMediaTypesCatalogLoader = registerMediaTypesCatalogLoader(() => loadList('mediaTypes'))
     eventBus.on('update:watcher', handleUpdateWatcher)
+    eventBus.on('rescan:watcher', handleRescanWatcher)
     eventBus.on('addMedia', handleAddMediaEvent)
     eventBus.on('updateVideoFrames', handleUpdateVideoFrames)
     eventBus.on('app:database-changed', handleDatabaseChanged)
@@ -530,6 +535,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     unregisterMediaTypesCatalogLoader?.()
     unregisterMediaTypesCatalogLoader = null
     eventBus.off('update:watcher', handleUpdateWatcher)
+    eventBus.off('rescan:watcher', handleRescanWatcher)
     eventBus.off('addMedia', handleAddMediaEvent)
     eventBus.off('updateVideoFrames', handleUpdateVideoFrames)
     eventBus.off('app:database-changed', handleDatabaseChanged)
