@@ -222,6 +222,10 @@ const metaLine = computed(() => {
     }
   }
 
+  if (props.variant === 'inbox' && props.item.createdAt) {
+    return dayjs(props.item.createdAt).fromNow()
+  }
+
   if (props.item.viewedAt) {
     dayjs.locale(dayjsLocale.value)
     const time = dayjs(props.item.viewedAt).fromNow()

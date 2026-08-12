@@ -9,7 +9,14 @@ import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
 import { getCreatedCalendarMonth } from '../services/homeCreatedCalendar'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
-import { parseClampedLimit } from '../utils/parseRequestNumber'
+import { parseClampedLimit, parseOptionalInt } from '../utils/parseRequestNumber'
+
+function parseHomeMediaLimit(value: unknown, fallbackWhenMissing: number, max = 24): number {
+  if (value === undefined || value === null || value === '') return fallbackWhenMissing
+  const parsed = parseOptionalInt(value)
+  if (parsed == null || parsed <= 0) return 0
+  return Math.min(Math.max(Math.round(parsed), 1), max)
+}
 
 /** Home media sections: 0 skips the section; otherwise clamp 1..24. */
 function parseHomeSectionLimit(value: unknown, fallback: number): number {
@@ -23,10 +30,12 @@ function parseHomeSectionLimit(value: unknown, fallback: number): number {
 export default (db: ApiDb) => {
   const getMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
+      const sharedFallback = req.query.limit
       const limits = {
-        continue: parseHomeSectionLimit(req.query.continueLimit ?? req.query.limit, 12),
-        favorites: parseHomeSectionLimit(req.query.favoritesLimit ?? req.query.limit, 12),
-        topViews: parseHomeSectionLimit(req.query.topViewsLimit ?? req.query.limit, 12),
+        continue: parseHomeSectionLimit(req.query.continueLimit ?? sharedFallback, 12),
+        favorites: parseHomeSectionLimit(req.query.favoritesLimit ?? sharedFallback, 12),
+        topViews: parseHomeSectionLimit(req.query.topViewsLimit ?? sharedFallback, 12),
+        inbox: parseHomeMediaLimit(req.query.inboxLimit, 0, 500),
       }
       const data = await getHomeMedia(db, limits)
       sendOk(res, data)

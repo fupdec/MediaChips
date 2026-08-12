@@ -129,6 +129,7 @@
       :on-open-continue-list="openContinueList"
       :on-open-favorites-list="openFavoritesList"
       :on-open-top-views-list="openTopViewsList"
+      :on-open-inbox-list="openInboxList"
     />
   </v-container>
 </template>
@@ -148,6 +149,7 @@ import {useOpenMediaList} from "@/utils/openMediaList"
 import {
   buildContinueWatchingFilters,
   buildFavoritesFilters,
+  buildInboxFilters,
 } from "@/utils/homeMediaListFilters"
 import {findMediaTypeById, isAudioMediaType, isVideoMediaType} from "@/utils/mediaType"
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
@@ -158,6 +160,7 @@ import LanPhoneAccessHints from '@/components/app/LanPhoneAccessHints.vue'
 import {setOption} from '@/services/settingsService'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import type { MediaItem } from '@/types/stores'
+import {typedApi} from '@/services/typedApi'
 
 const store = useAppStore()
 const settingsStore = useSettingsStore()
@@ -177,6 +180,7 @@ const apiUrl = computed(() =>
 )
 
 const mediaWidgetsEnabled = computed(() => ({
+  inbox: isWidgetEnabled('inbox'),
   continue: isWidgetEnabled('continue'),
   favorites: isWidgetEnabled('favorites'),
   topViews: isWidgetEnabled('topViews'),
@@ -184,7 +188,7 @@ const mediaWidgetsEnabled = computed(() => ({
 
 async function reloadHomeMediaIfNeeded() {
   const enabled = mediaWidgetsEnabled.value
-  if (!enabled.continue && !enabled.favorites && !enabled.topViews) return
+  if (!enabled.continue && !enabled.favorites && !enabled.topViews && !enabled.inbox) return
 
   invalidateHomeMediaCache()
   await loadHomeMedia({
@@ -192,6 +196,7 @@ async function reloadHomeMediaIfNeeded() {
     loadContinue: enabled.continue,
     loadFavorites: enabled.favorites,
     loadTopViews: enabled.topViews,
+    loadInbox: enabled.inbox,
   })
 }
 
@@ -257,6 +262,43 @@ function openFavoritesList() {
 
 function openTopViewsList() {
   void openMediaList({sortBy: 'views', sortDir: 'desc'})
+}
+
+async function openInboxList() {
+  try {
+    const response = await typedApi.getHomeMedia({
+      continueLimit: 0,
+      favoritesLimit: 0,
+      topViewsLimit: 0,
+      inboxLimit: 500,
+    })
+    const ids = (response.data.inbox || [])
+      .map((item) => Number(item.id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+
+    if (ids.length) {
+      void openMediaList({
+        sortBy: 'createdAt',
+        sortDir: 'desc',
+        ids,
+        scope: {kind: 'inbox', label: t('home.widgets.inbox')},
+      })
+      return
+    }
+
+    void openMediaList({
+      sortBy: 'createdAt',
+      sortDir: 'desc',
+      filters: buildInboxFilters(),
+    })
+  } catch (error) {
+    console.error(error)
+    void openMediaList({
+      sortBy: 'createdAt',
+      sortDir: 'desc',
+      filters: buildInboxFilters(),
+    })
+  }
 }
 
 function emitShowDocs() {

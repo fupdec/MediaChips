@@ -175,6 +175,9 @@ const listScopeIcon = computed(() => {
   if (listScopeKind.value === 'fromPlayer') {
     return 'mdi-library'
   }
+  if (listScopeKind.value === 'inbox') {
+    return 'mdi-inbox-arrow-down'
+  }
   if (
     listScopeKind.value === 'semantic'
     || listScopeKind.value === 'similar'
@@ -191,6 +194,9 @@ const listScopeLabel = computed(() => {
     return label
       ? t('filters.from_player_scope_named', {name: label})
       : t('filters.from_player_scope')
+  }
+  if (listScopeKind.value === 'inbox') {
+    return label || t('filters.inbox_scope')
   }
   if (listScopeKind.value === 'semantic') {
     if (label) {

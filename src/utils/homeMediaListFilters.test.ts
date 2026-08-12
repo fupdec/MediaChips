@@ -7,6 +7,7 @@ import {
   buildFavoritesFilters,
   buildMediaCreatedDayFilters,
   buildMediaCreatedMonthFilters,
+  buildInboxFilters,
   nextIsoDay,
 } from '@/utils/homeMediaListFilters'
 
@@ -77,5 +78,19 @@ describe('homeMediaListFilters', () => {
         note: 'home-created-month',
       }),
     ])
+  })
+
+  it('builds inbox filter for unrated media', () => {
+    const filters = buildInboxFilters()
+    expect(filters).toHaveLength(1)
+    expect(filters[0]).toMatchObject({
+      param: 'rating',
+      type: 'number',
+      cond: '<=',
+      val: 0,
+      active: true,
+      lock: false,
+      note: 'home-inbox',
+    })
   })
 })

@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Inspector inline editing** — edit rating, favorite, tags, and pinned metadata directly in the browser inspector; switch between view and edit with a global setting (header toggle or Appearance); changes auto-save when switching items; full editor remains available for thumbs and scrapers
+- Home **Inbox** widget: triage queue for recently added media that still lack tags and rating (daily ritual after watch-folder imports).
+- Command palette action **Open media inbox**.
+- Product UX canvas (`docs/product-ux-canvas.md`) with priorities and status mapping.
 
 ## [1.8.1] - 2026-08-11
 

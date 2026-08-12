@@ -14,6 +14,7 @@ const MEDIA_HOME_SELECT = `SELECT media.id,
   media.favorite,
   media.views,
   media.viewedAt,
+  media.createdAt,
   videoMetadata.duration,
   videoMetadata.time,
   COALESCE(videoMetadata.width, imageMetadata.width) AS width,
@@ -35,6 +36,7 @@ const mapHomeItem = (row: AnyRecord) => ({
   favorite: row.favorite,
   views: row.views,
   viewedAt: row.viewedAt,
+  createdAt: row.createdAt,
   duration: row.duration,
   time: row.time,
   width: row.width,
@@ -121,28 +123,49 @@ async function getTopViewedMedia(db: ApiDb, limit = 12) {
   return rows.map(mapHomeItem)
 }
 
-function clampHomeLimit(value: unknown, fallback: number): number {
+/**
+ * New-media inbox: recently added files that still need triage
+ * (no tags and no rating). Daily ritual after watch-folder imports.
+ */
+async function getInboxMedia(db: ApiDb, limit = 12) {
+  const rows = queryAll(db, `${MEDIA_HOME_SELECT}
+     ${MEDIA_HOME_FROM}
+     WHERE COALESCE(media.rating, 0) <= 0
+       AND ${MEDIA_NOT_IN_TRASH_SQL}
+       AND NOT EXISTS (
+         SELECT 1 FROM tagsInMedia
+         WHERE tagsInMedia.mediaId = media.id
+       )
+     ORDER BY media.createdAt DESC, media.id DESC
+     LIMIT :limit`, {limit})
+  return rows.map(mapHomeItem)
+}
+
+function clampHomeLimit(value: unknown, fallback: number, max = 24): number {
   const n = Number(value)
   if (!Number.isFinite(n) || n < 0) return fallback
   if (n === 0) return 0
-  return Math.min(Math.max(Math.floor(n), 1), 24)
+  return Math.min(Math.max(Math.floor(n), 1), max)
 }
 
 async function getHomeMedia(db: ApiDb, limits: AnyRecord = {}): Promise<ParsedHomeMediaResponse> {
   const continueLimit = clampHomeLimit(limits.continue, 12)
   const favoritesLimit = clampHomeLimit(limits.favorites, 12)
   const topViewsLimit = clampHomeLimit(limits.topViews, 12)
+  const inboxLimit = clampHomeLimit(limits.inbox, 0, 500)
 
-  const [continueWatching, favorites, topViews] = await Promise.all([
+  const [continueWatching, favorites, topViews, inbox] = await Promise.all([
     continueLimit > 0 ? getContinueWatching(db, continueLimit) : Promise.resolve([]),
     favoritesLimit > 0 ? getFavoriteMedia(db, favoritesLimit) : Promise.resolve([]),
     topViewsLimit > 0 ? getTopViewedMedia(db, topViewsLimit) : Promise.resolve([]),
+    inboxLimit > 0 ? getInboxMedia(db, inboxLimit) : Promise.resolve([]),
   ])
 
   return {
     continueWatching,
     favorites,
     topViews,
+    inbox,
   } as ParsedHomeMediaResponse
 }
 
@@ -151,4 +174,5 @@ export {
   getContinueWatching,
   getFavoriteMedia,
   getTopViewedMedia,
+  getInboxMedia,
 }

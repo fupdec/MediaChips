@@ -55,6 +55,7 @@ export interface HomeMediaResponse {
   continueWatching?: MediaItem[]
   favorites?: MediaItem[]
   topViews?: MediaItem[]
+  inbox?: MediaItem[]
   items?: MediaItem[]
   [key: string]: unknown
 }

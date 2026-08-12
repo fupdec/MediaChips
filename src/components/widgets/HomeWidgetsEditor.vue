@@ -93,6 +93,10 @@ const widgetMeta = computed(() => ({
     title: t('settings_labels.general.home_widget_quick_actions'),
     icon: 'mdi-flash',
   },
+  inbox: {
+    title: t('home.widgets.inbox'),
+    icon: 'mdi-inbox-arrow-down',
+  },
   continue: {
     title: t('home.widgets.continue_watching'),
     icon: 'mdi-history',

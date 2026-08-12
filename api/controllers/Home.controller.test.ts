@@ -83,7 +83,7 @@ describe('Home.controller', () => {
   })
 
   it('returns home media with parsed limits', async () => {
-    const payload = {continue: [], favorites: [], topViews: []}
+    const payload = {continue: [], favorites: [], topViews: [], inbox: []}
     getHomeMedia.mockResolvedValue(payload)
 
     const req = {
@@ -91,6 +91,7 @@ describe('Home.controller', () => {
         continueLimit: '5',
         favoritesLimit: '6',
         topViewsLimit: '7',
+        inboxLimit: '9',
       },
     } as unknown as ApiRequest
     const res = createResponse()
@@ -101,9 +102,33 @@ describe('Home.controller', () => {
       continue: 5,
       favorites: 6,
       topViews: 7,
+      inbox: 9,
     })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual(payload)
+  })
+
+  it('treats zero inboxLimit as skipped', async () => {
+    getHomeMedia.mockResolvedValue({inbox: []})
+
+    const req = {
+      query: {
+        continueLimit: '0',
+        favoritesLimit: '0',
+        topViewsLimit: '0',
+        inboxLimit: '0',
+      },
+    } as unknown as ApiRequest
+    const res = createResponse()
+
+    await controller.getMedia(req, res)
+
+    expect(getHomeMedia).toHaveBeenCalledWith({}, {
+      continue: 0,
+      favorites: 0,
+      topViews: 0,
+      inbox: 0,
+    })
   })
 
   it('returns random markers with a capped limit', async () => {

@@ -72,3 +72,19 @@ export function buildMediaCreatedMonthFilters(year: number, month: number): Filt
     }),
   ]
 }
+
+/**
+ * Inbox triage list: unrated media.
+ * Untagged is applied server-side for the home strip; View all scopes by inbox ids.
+ */
+export function buildInboxFilters(): FilterObject[] {
+  return [
+    getFilterObject({
+      param: 'rating',
+      type: 'number',
+      cond: '<=',
+      val: 0,
+      note: 'home-inbox',
+    }),
+  ]
+}

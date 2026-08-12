@@ -201,6 +201,7 @@ export const HomeMediaResponseSchema = z.object({
   continueWatching: z.array(MediaItemSchema).optional(),
   favorites: z.array(MediaItemSchema).optional(),
   topViews: z.array(MediaItemSchema).optional(),
+  inbox: z.array(MediaItemSchema).optional(),
   items: z.array(MediaItemSchema).optional(),
 }).passthrough()
 

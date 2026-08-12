@@ -17,6 +17,8 @@ import {useOpenMediaList} from '@/utils/openMediaList'
 import {setOption} from '@/services/settingsService'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
+import {buildInboxFilters} from '@/utils/homeMediaListFilters'
+import {typedApi} from '@/services/typedApi'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {
   filterCommandPaletteCommands,
@@ -61,6 +63,39 @@ export function useCommandPaletteCommands(options: {
     const nextValue = settingsStore.darkMode === '1' ? '0' : '1'
     await setOption(nextValue, 'darkMode')
     theme.global.name.value = nextValue === '1' ? 'dark' : 'light'
+  }
+
+  /** Home widget inbox: untagged/unrated media (distinct from watch-folder Media Inbox). */
+  async function openHomeInbox() {
+    try {
+      const response = await typedApi.getHomeMedia({
+        continueLimit: 0,
+        favoritesLimit: 0,
+        topViewsLimit: 0,
+        inboxLimit: 500,
+      })
+      const ids = (response.data.inbox || [])
+        .map((item) => Number(item.id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+
+      if (ids.length) {
+        await openMediaList({
+          sortBy: 'createdAt',
+          sortDir: 'desc',
+          ids,
+          scope: {kind: 'inbox', label: t('home.widgets.inbox')},
+        })
+        return
+      }
+    } catch (error) {
+      console.error(error)
+    }
+
+    await openMediaList({
+      sortBy: 'createdAt',
+      sortDir: 'desc',
+      filters: buildInboxFilters(),
+    })
   }
 
   function openAddMedia() {
@@ -136,6 +171,15 @@ export function useCommandPaletteCommands(options: {
         group: 'actions',
         keywords: ['inbox', 'review', 'pending', 'triage', 'keyboard'],
         run: () => { openInbox('pending') },
+      },
+      {
+        id: 'open-inbox',
+        title: t('commandPalette.actions.open_inbox'),
+        subtitle: t('commandPalette.actions.open_inbox_hint'),
+        icon: 'mdi-inbox-arrow-down',
+        group: 'actions',
+        keywords: ['inbox', 'triage', 'review', 'untagged', 'new'],
+        run: () => { void openHomeInbox() },
       },
       {
         id: 'browse-media-created',

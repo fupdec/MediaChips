@@ -4,6 +4,7 @@ export const HOME_WIDGET_IDS = [
   'chartStats',
   'createdCalendar',
   'quickActions',
+  'inbox',
   'continue',
   'similar',
   'favorites',
@@ -16,6 +17,7 @@ export const HOME_WIDGET_IDS = [
 export type HomeWidgetId = typeof HOME_WIDGET_IDS[number]
 
 export const HOME_WIDGETS_WITH_LIMIT = [
+  'inbox',
   'continue',
   'similar',
   'favorites',
@@ -38,6 +40,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     'chartStats',
     'createdCalendar',
     'quickActions',
+    'inbox',
     'continue',
     'similar',
     'favorites',
@@ -54,6 +57,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     chartStats: true,
     createdCalendar: true,
     quickActions: true,
+    inbox: true,
     continue: true,
     similar: true,
     favorites: true,
@@ -63,6 +67,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     topTags: false,
   },
   limits: {
+    inbox: 12,
     continue: 12,
     similar: 12,
     favorites: 12,

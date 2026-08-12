@@ -10,11 +10,13 @@ export interface HomeMediaLoadOptions {
   loadContinue: boolean
   loadFavorites: boolean
   loadTopViews: boolean
+  loadInbox?: boolean
 }
 
 const continueWatching = ref<MediaItem[]>([])
 const favorites = ref<MediaItem[]>([])
 const topViews = ref<MediaItem[]>([])
+const inbox = ref<MediaItem[]>([])
 const isLoading = ref(false)
 
 let loadPromise: Promise<void> | null = null
@@ -26,6 +28,7 @@ function buildOptionsKey(options: HomeMediaLoadOptions, dbPath: string) {
     options.loadContinue ? options.limits.continue ?? 12 : 0,
     options.loadFavorites ? options.limits.favorites ?? 12 : 0,
     options.loadTopViews ? options.limits.topViews ?? 12 : 0,
+    options.loadInbox ? options.limits.inbox ?? 12 : 0,
   ].join(':')
 }
 
@@ -33,6 +36,7 @@ export function invalidateHomeMediaCache() {
   continueWatching.value = []
   favorites.value = []
   topViews.value = []
+  inbox.value = []
   isLoading.value = false
   loadPromise = null
   lastOptionsKey = ''
@@ -48,12 +52,14 @@ export function useHomeMedia() {
       loadContinue,
       loadFavorites,
       loadTopViews,
+      loadInbox = false,
     } = options
 
-    if (!loadContinue && !loadFavorites && !loadTopViews) {
+    if (!loadContinue && !loadFavorites && !loadTopViews && !loadInbox) {
       continueWatching.value = []
       favorites.value = []
       topViews.value = []
+      inbox.value = []
       isLoading.value = false
       return
     }
@@ -71,17 +77,20 @@ export function useHomeMedia() {
           continueLimit: loadContinue ? (limits.continue ?? 12) : 0,
           favoritesLimit: loadFavorites ? (limits.favorites ?? 12) : 0,
           topViewsLimit: loadTopViews ? (limits.topViews ?? 12) : 0,
+          inboxLimit: loadInbox ? (limits.inbox ?? 12) : 0,
         })
         const data = response.data
 
         continueWatching.value = loadContinue ? (data.continueWatching || []) : []
         favorites.value = loadFavorites ? (data.favorites || []) : []
         topViews.value = loadTopViews ? (data.topViews || []) : []
+        inbox.value = loadInbox ? (data.inbox || []) : []
 
         const allItems = [
           ...continueWatching.value,
           ...favorites.value,
           ...topViews.value,
+          ...inbox.value,
         ]
 
         await loadHomeMediaThumbs(allItems, store.mediaTypes, store.mediaPath)
@@ -122,6 +131,7 @@ export function useHomeMedia() {
     continueWatching,
     favorites,
     topViews,
+    inbox,
     isLoading,
     favoritesLoading,
     loadHomeMedia,

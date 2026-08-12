@@ -30,7 +30,7 @@ export interface HomeWidgetEditorItem {
   limit?: number
 }
 
-export type HomeMediaCardVariant = 'continue' | 'favorite' | 'views'
+export type HomeMediaCardVariant = 'continue' | 'favorite' | 'views' | 'inbox'
 
 export interface HomeMediaSimilarity {
   score?: number
@@ -44,6 +44,7 @@ export interface HomeMediaItem extends MediaItem {
   thumb?: string
   rating?: number
   viewedAt?: string | number
+  createdAt?: string | number
   isSeed?: boolean
   similarity?: HomeMediaSimilarity
 }

@@ -36,6 +36,22 @@
   </WidgetLazyMount>
 
   <WidgetLazyMount
+    v-else-if="widgetId === 'inbox'"
+    min-height="220px"
+    @activate="ensureHomeMediaLoaded"
+  >
+    <WidgetMediaRow
+      :title="t('home.widgets.inbox')"
+      icon="mdi-inbox-arrow-down"
+      :items="inbox"
+      :loading="homeMediaLoading"
+      variant="inbox"
+      @open="onOpenMedia"
+      @view-all="onOpenInboxList"
+    />
+  </WidgetLazyMount>
+
+  <WidgetLazyMount
     v-else-if="widgetId === 'continue'"
     min-height="220px"
     @activate="ensureHomeMediaLoaded"
@@ -138,6 +154,7 @@ const props = defineProps<{
   widgetId: string
   limits?: HomeWidgetLimits
   mediaWidgetsEnabled: {
+    inbox: boolean
     continue: boolean
     favorites: boolean
     topViews: boolean
@@ -147,6 +164,7 @@ const props = defineProps<{
   onOpenContinueList: () => void
   onOpenFavoritesList: () => void
   onOpenTopViewsList: () => void
+  onOpenInboxList: () => void
 }>()
 
 const {t} = useI18n()
@@ -154,6 +172,7 @@ const {
   continueWatching,
   favorites,
   topViews,
+  inbox,
   loadHomeMedia,
   reshuffleFavorites,
   isLoading: homeMediaLoading,
@@ -166,6 +185,7 @@ function ensureHomeMediaLoaded() {
     loadContinue: props.mediaWidgetsEnabled.continue,
     loadFavorites: props.mediaWidgetsEnabled.favorites,
     loadTopViews: props.mediaWidgetsEnabled.topViews,
+    loadInbox: props.mediaWidgetsEnabled.inbox,
   })
 }
 

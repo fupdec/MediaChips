@@ -42,6 +42,7 @@ describe('mergeHomeWidgetsConfig', () => {
   it('clamps limits between 4 and 24', () => {
     const merged = mergeHomeWidgetsConfig({
       limits: {
+        inbox: 2,
         continue: 2,
         favorites: 100,
         topViews: 12.6,
@@ -49,11 +50,22 @@ describe('mergeHomeWidgetsConfig', () => {
         topTags: 8,
       },
     })
+    expect(merged.limits.inbox).toBe(4)
     expect(merged.limits.continue).toBe(4)
     expect(merged.limits.favorites).toBe(24)
     expect(merged.limits.topViews).toBe(13)
     expect(merged.limits.markers).toBe(DEFAULT_HOME_WIDGETS_CONFIG.limits.markers)
     expect(merged.limits.topTags).toBe(8)
+  })
+
+  it('includes inbox in defaults and merges unknown configs', () => {
+    const merged = mergeHomeWidgetsConfig({
+      order: ['continue'] as never,
+      enabled: {continue: true} as never,
+    })
+    expect(merged.order).toContain('inbox')
+    expect(merged.enabled.inbox).toBe(true)
+    expect(merged.limits.inbox).toBe(12)
   })
 
   it('ignores non-boolean enabled and collapsed values', () => {

@@ -15,6 +15,7 @@ export type MediaListScopeKind =
   /** @deprecated Use `similar`. Kept for in-memory sessions opened before the rename. */
   | 'clipSimilar'
   | 'fromPlayer'
+  | 'inbox'
 
 export type MediaListScope = {
   kind: MediaListScopeKind
