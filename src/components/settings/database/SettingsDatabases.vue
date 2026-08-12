@@ -1,7 +1,7 @@
 <template>
   <div class="mx-4">
     <settings-category-divider
-      :title="t('settings.tabs.database')"
+      :title="t('settings.groups.storage')"
       icon="database-outline"
     />
 

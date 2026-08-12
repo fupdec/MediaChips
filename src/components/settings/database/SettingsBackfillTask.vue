@@ -5,7 +5,6 @@
         :title="t(titleKey)"
         :icon="config.icon"
         :hint="t(hintKey)"
-        :step="step"
         :status="taskStatus"
         :status-label="statusChipLabel"
         compact
@@ -102,12 +101,9 @@ import {
   type SettingsBackfillConfig,
 } from '@/composable/useSettingsBackfillStream'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   config: SettingsBackfillConfig
-  step?: number | null
-}>(), {
-  step: null,
-})
+}>()
 
 const {t} = useI18n()
 

@@ -5,7 +5,6 @@
       :title="t('settings_labels.database.generate_image_thumbs')"
       icon="image-outline"
       :hint="t('settings_labels.database.generate_image_thumbs_hint')"
-      :step="1"
       :status="taskStatus"
       :status-label="statusChipLabel"
     />

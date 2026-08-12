@@ -5,7 +5,6 @@
       :title="t('settings_labels.database.generate_video_images')"
       icon="image-auto-adjust"
       :hint="t('settings_labels.database.generate_video_images_hint')"
-      :step="1"
       :status="taskStatus"
       :status-label="statusChipLabel"
     />

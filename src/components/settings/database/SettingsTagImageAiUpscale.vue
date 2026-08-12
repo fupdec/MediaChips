@@ -9,7 +9,6 @@
         :title="t('settings_labels.database.tag_image_ai_upscale')"
         icon="image-auto-adjust"
         :hint="t('settings_labels.database.tag_image_ai_upscale_hint', {size: status.downloadSizeMb || 50})"
-        :step="7"
         :status="taskStatus"
         :status-label="statusChipLabel"
       />

@@ -5,7 +5,6 @@
       :title="t('settings_labels.database.find_missing_media')"
       icon="file-search-outline"
       :hint="t('settings_labels.database.find_missing_media_hint')"
-      :step="8"
       status="optional"
     />
 

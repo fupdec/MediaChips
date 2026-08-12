@@ -370,15 +370,21 @@ function wizardStepForQueueItem(id: HomeHealthQueueItemUi['id']): LibrarySetupPh
   if (id === 'visuals') return 'visuals'
   if (id === 'fingerprint' || id === 'codec') return 'reliability'
   if (id === 'clip') return 'search'
-  if (id === 'faces' || id === 'duplicates' || id === 'tagUpscale' || id === 'missing') {
-    return 'optional'
-  }
   return undefined
 }
 
 function actionForQueueItem(item: HomeHealthQueueItemUi): () => void {
   if (item.id === 'clip' && item.autoFixable) {
     return () => { void fixClipIndex() }
+  }
+  // Optional / expert tools live under Experts — deep-link to the section.
+  if (
+    item.id === 'faces'
+    || item.id === 'duplicates'
+    || item.id === 'tagUpscale'
+    || item.id === 'missing'
+  ) {
+    return () => openSettingsSection(item.settingsSection)
   }
   const wizardStep = wizardStepForQueueItem(item.id)
   if (wizardStep) {

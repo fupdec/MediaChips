@@ -5,7 +5,6 @@
       :title="t('settings_labels.database.face_workflow_title')"
       icon="face-recognition"
       :hint="t('settings_labels.database.face_workflow_intro')"
-      :step="5"
       :status="taskStatus"
       :status-label="statusChipLabel"
     >

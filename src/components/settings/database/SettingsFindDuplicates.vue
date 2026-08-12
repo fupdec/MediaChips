@@ -5,7 +5,6 @@
       :title="t('settings_labels.database.find_duplicates')"
       icon="content-duplicate"
       :hint="t('settings_labels.database.find_duplicates_hint')"
-      :step="6"
       status="idle"
     />
 

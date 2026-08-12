@@ -485,7 +485,7 @@ function focusPhase(id: LibrarySetupPhaseId) {
 }
 
 function openSection(section: string) {
-  router.push({
+  void router.push({
     path: '/settings',
     query: {tab: 'database', section},
   })
@@ -567,6 +567,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+.health-guide {
+  margin-top: 20px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+
 .health-guide__hero {
   position: relative;
   overflow: hidden;

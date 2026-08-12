@@ -151,8 +151,6 @@
 
           <div v-else-if="tab === 'database'">
             <SettingsList>
-              <SettingsGroupLabel :title="t('settings.groups.storage')"/>
-
               <SettingsSection id="settings-databases">
                 <SettingsDatabases/>
               </SettingsSection>
@@ -161,88 +159,63 @@
                 <SettingsOpenDataFolder/>
               </SettingsSection>
 
-              <SettingsGroupLabel
-                :title="t('settings.groups.essential')"
-                icon="auto-fix"
-                accent
-              />
-              <p class="settings-tier-hint text-caption text-medium-emphasis mb-3 px-1">
-                {{ t('settings.groups.essential_hint') }}
-              </p>
-
               <SettingsLibraryHealthGuide/>
 
               <SettingsGroupLabel
-                :title="t('settings.groups.search_ai')"
-                icon="brain"
+                :title="t('settings_labels.database.health_guide_phase_visuals')"
+                icon="image-multiple-outline"
                 accent
               />
-              <p class="settings-tier-hint text-caption text-medium-emphasis mb-3 px-1">
-                {{ t('settings.groups.search_ai_hint') }}
-              </p>
 
-              <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL" :step="1"/>
+              <SettingsGenerateVideoImages/>
+
+              <SettingsGenerateImageThumbs/>
+
+              <SettingsGenerateAutoChapters/>
+
+              <SettingsGroupLabel
+                :title="t('settings_labels.database.health_guide_phase_reliability')"
+                icon="shield-check-outline"
+                accent
+              />
+
+              <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
+
+              <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
+
+              <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
+
+              <SettingsBackfillTask :config="MEDIA_CREATED_BACKFILL"/>
+
+              <SettingsGroupLabel
+                :title="t('settings_labels.database.health_guide_phase_search')"
+                icon="magnify-scan"
+                accent
+              />
+
+              <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL"/>
+
+              <SettingsGroupLabel
+                :title="t('settings_labels.database.health_guide_phase_optional')"
+                icon="tune-variant"
+                accent
+              />
 
               <SettingsDetectFaces/>
 
+              <SettingsFindDuplicates/>
+
               <SettingsTagImageAiUpscale/>
 
-              <v-switch
-                id="settings-database-experts"
-                v-model="databaseExperts"
-                color="primary"
-                class="mt-2 mb-2 settings-database-experts-switch"
-                inset
-                hide-details
-              >
-                <template #label>
-                  <div class="d-flex flex-column ml-4">
-                    <div class="text-body-1 text-high-emphasis">
-                      {{ t('settings.groups.experts') }}
-                    </div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ t('settings.groups.experts_hint') }}
-                    </div>
-                  </div>
-                </template>
-              </v-switch>
+              <SettingsFindMissingMedia/>
 
-              <template v-if="databaseExperts">
-                <SettingsGroupLabel
-                  :title="t('settings.groups.maintenance_media')"
-                  icon="image-multiple-outline"
-                />
+              <SettingsGroupLabel
+                :title="t('settings.groups.maintenance_cleanup')"
+                icon="broom"
+                accent
+              />
 
-                <SettingsGenerateVideoImages/>
-
-                <SettingsGenerateImageThumbs/>
-
-                <SettingsGroupLabel
-                  :title="t('settings.groups.maintenance_backfill')"
-                  icon="database-sync-outline"
-                />
-
-                <SettingsBackfillTask :config="FINGERPRINT_BACKFILL" :step="1"/>
-
-                <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
-
-                <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL" :step="2"/>
-
-                <SettingsBackfillTask :config="MEDIA_CREATED_BACKFILL"/>
-
-                <SettingsGroupLabel
-                  :title="t('settings.groups.maintenance_cleanup')"
-                  icon="broom"
-                />
-
-                <SettingsFindDuplicates/>
-
-                <SettingsFindMissingMedia/>
-
-                <SettingsGenerateAutoChapters/>
-
-                <SettingsClearGeneratedImages/>
-              </template>
+              <SettingsClearGeneratedImages/>
             </SettingsList>
           </div>
 
@@ -310,7 +283,6 @@ import {
   VIDEO_CODEC_BACKFILL,
   MEDIA_CREATED_BACKFILL,
 } from "@/composable/useSettingsBackfillStream"
-import {isDatabaseExpertsSection} from "@/utils/settingsDatabaseTiers"
 
 const SettingsWatchedFolders = defineAsyncComponent(() =>
   import("@/components/settings/tools/SettingsWatchedFolders.vue")
@@ -474,7 +446,6 @@ const tab = ref("general")
 const contentRef = ref<HTMLElement | null>(null)
 const applyingRoute = ref(false)
 const libraryAdvanced = ref(false)
-const databaseExperts = ref(false)
 const route = useRoute()
 const router = useRouter()
 const {t} = useI18n()
@@ -726,9 +697,6 @@ function applyRouteSettings() {
     tab.value = "files"
   } else if (DATABASE_SECTIONS.has(section)) {
     tab.value = "database"
-    if (isDatabaseExpertsSection(section)) {
-      databaseExperts.value = true
-    }
   } else if (PLUGINS_SECTIONS.has(section)) {
     tab.value = "plugins"
   } else if (ABOUT_SECTIONS.has(section)) {
@@ -784,15 +752,6 @@ watch(() => route.fullPath, applyRouteSettings)
 <style scoped>
 .settings-library-advanced-switch :deep(.v-label) {
   opacity: 1;
-}
-
-.settings-database-experts-switch :deep(.v-label) {
-  opacity: 1;
-}
-
-.settings-tier-hint {
-  max-width: 42rem;
-  line-height: 1.35;
 }
 
 .settings-page {
