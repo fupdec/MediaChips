@@ -307,7 +307,11 @@ function openSemanticSettings() {
   dialog.value = false
   void router.push({
     path: '/settings',
-    query: {tab: 'database', section: 'clip_embedding_backfill'},
+    query: {
+      tab: 'database',
+      section: 'library_health_guide',
+      wizardStep: 'search',
+    },
   })
 }
 

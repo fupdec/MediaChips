@@ -116,6 +116,12 @@
               >
                 {{ t('common.stop') }}
               </v-btn>
+              <span
+                v-if="actionsEtaLabel"
+                class="text-caption text-medium-emphasis"
+              >
+                {{ actionsEtaLabel }}
+              </span>
             </template>
 
             <v-btn
@@ -236,10 +242,16 @@ import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import {isHealthQueueItemSnoozed, snoozeHealthQueueItem} from '@/services/healthQueueSnooze'
 import {isStartupHealthNotificationsEnabled} from '@/composable/useStartupHealthNotifications'
+import {useLibraryHealthFixQueue} from '@/composable/useLibraryHealthFixQueue'
 import {
-  hasOnlyVisualStages,
-  useLibraryHealthFixQueue,
-} from '@/composable/useLibraryHealthFixQueue'
+  buildLibrarySetupPhases,
+  openLibrarySetupWizardQuery,
+  phaseIdFromStage,
+  primaryPrepareLibraryLabelKey,
+  totalLibrarySetupEtaSeconds,
+  type LibrarySetupPhaseId,
+} from '@/composable/useLibrarySetupWizard'
+import {formatLibrarySetupEta} from '@/composable/librarySetupEta'
 import {getReadableFileSize} from '@/services/formatUtils'
 import type {HealthAlertItem, HomeHealthData} from '@/types/widgets'
 import {emptyHomeHealthUi, toHomeHealthUi} from '@/types/widgets'
@@ -337,7 +349,15 @@ function queueText(item: HomeHealthQueueItemUi): string {
   }
 }
 
-function openSettingsSection(section?: string) {
+function openSettingsSection(section?: string, wizardStep?: LibrarySetupPhaseId) {
+  if (section === 'library_health_guide' || wizardStep) {
+    router.push({
+      path: '/settings',
+      query: openLibrarySetupWizardQuery(wizardStep),
+    })
+    return
+  }
+
   router.push({
     path: '/settings',
     query: section
@@ -346,9 +366,23 @@ function openSettingsSection(section?: string) {
   })
 }
 
+function wizardStepForQueueItem(id: HomeHealthQueueItemUi['id']): LibrarySetupPhaseId | undefined {
+  if (id === 'visuals') return 'visuals'
+  if (id === 'fingerprint' || id === 'codec') return 'reliability'
+  if (id === 'clip') return 'search'
+  if (id === 'faces' || id === 'duplicates' || id === 'tagUpscale' || id === 'missing') {
+    return 'optional'
+  }
+  return undefined
+}
+
 function actionForQueueItem(item: HomeHealthQueueItemUi): () => void {
   if (item.id === 'clip' && item.autoFixable) {
     return () => { void fixClipIndex() }
+  }
+  const wizardStep = wizardStepForQueueItem(item.id)
+  if (wizardStep) {
+    return () => openSettingsSection('library_health_guide', wizardStep)
   }
   return () => openSettingsSection(item.settingsSection)
 }
@@ -398,33 +432,60 @@ const tipAlerts = computed(() =>
 
 const nextIssue = computed(() => issueAlerts.value[0] || null)
 
+const phases = computed(() => buildLibrarySetupPhases(health.value))
 const fixStages = computed(() => healthFix.stagesFromHealth(health.value))
+const totalEtaSeconds = computed(() => totalLibrarySetupEtaSeconds(phases.value))
 
 const canFixSafe = computed(() =>
   fixStages.value.length > 0 || healthFix.state.value.running,
 )
 
-const primaryFixLabel = computed(() => {
-  if (hasOnlyVisualStages(fixStages.value)) {
-    return t('home.widgets.health_make_library_look_good')
+const primaryFixLabel = computed(() =>
+  t(primaryPrepareLibraryLabelKey(fixStages.value, phases.value)),
+)
+
+const actionsEtaLabel = computed(() => {
+  if (healthFix.state.value.running) {
+    const live = healthFix.state.value.etaSeconds
+    if (!live) return ''
+    return t('settings_labels.database.health_guide_eta_left', {
+      eta: formatLibrarySetupEta(live),
+    })
   }
-  return t('home.widgets.health_fix_safe_issues')
+  if (!totalEtaSeconds.value) return ''
+  return t('settings_labels.database.health_guide_eta', {
+    eta: formatLibrarySetupEta(totalEtaSeconds.value),
+  })
 })
 
 const fixProgressLabel = computed(() => {
   const stage = healthFix.state.value.stage
   if (!stage) return ''
-  return t('home.widgets.health_fix_safe_progress', {
+  const phaseId = phaseIdFromStage(stage)
+  const phaseLabel = phaseId
+    ? t(`settings_labels.database.health_guide_phase_${phaseId}`)
+    : t(`home.widgets.health_fix_stage_${stage}`)
+  const base = t('home.widgets.health_prepare_library_progress', {
+    phase: phaseLabel,
     stage: t(`home.widgets.health_fix_stage_${stage}`),
     processed: healthFix.state.value.processed,
     total: healthFix.state.value.total,
   })
+  const live = healthFix.state.value.etaSeconds
+  if (!live) return base
+  return `${base} · ${t('settings_labels.database.health_guide_eta_left', {
+    eta: formatLibrarySetupEta(live),
+  })}`
 })
 
 async function fixSafeIssues() {
   const ok = await healthFix.run(
     health.value,
     String(settingsStore.locale || locale.value || 'en') as Locale,
+    {
+      titleKey: primaryPrepareLibraryLabelKey(fixStages.value, phases.value),
+      doneKey: 'home.widgets.health_prepare_library_done',
+    },
   )
   if (ok) await runCheck()
 }
@@ -484,7 +545,9 @@ async function fixClipIndexFull() {
 }
 
 function openDatabaseSettings() {
-  openSettingsSection('library_health_guide')
+  openSettingsSection('library_health_guide', nextIssue.value
+    ? wizardStepForQueueItem(nextIssue.value.id as HomeHealthQueueItemUi['id'])
+    : undefined)
 }
 
 function openTasks() {

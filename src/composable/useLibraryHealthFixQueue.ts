@@ -4,6 +4,12 @@ import {useTasksStore} from '@/stores/tasks'
 import {setNotification} from '@/services/notificationService'
 import translate, {type Locale} from '@/utils/translate'
 import type {HomeHealthData} from '@/types/widgets'
+import {
+  estimateLiveEtaSeconds,
+  estimateStageEtaSeconds,
+  estimateStagesEtaSeconds,
+  formatLibrarySetupEta,
+} from '@/composable/librarySetupEta'
 
 export type LibraryHealthFixStage =
   | 'preview'
@@ -20,6 +26,8 @@ export type LibraryHealthFixState = {
   processed: number
   total: number
   progress: number
+  /** Live remaining seconds for the current stage (null when unknown). */
+  etaSeconds: number | null
 }
 
 function pendingForVisualStage(health: HomeHealthData, stage: 'preview' | 'grid' | 'marks' | 'image_thumbs'): number {
@@ -86,8 +94,10 @@ export function useLibraryHealthFixQueue() {
     processed: 0,
     total: 0,
     progress: 0,
+    etaSeconds: null,
   })
   let abortController: AbortController | null = null
+  let stageStartedAtMs = 0
 
   function stop() {
     abortController?.abort()
@@ -126,16 +136,26 @@ export function useLibraryHealthFixQueue() {
     const titleKey = options.titleKey
       || (hasOnlyVisualStages(uniqueStages)
         ? 'home.widgets.health_make_library_look_good'
-        : 'home.widgets.health_fix_safe_issues')
+        : 'home.widgets.health_prepare_library')
     const doneKey = options.doneKey
       || (hasOnlyVisualStages(uniqueStages)
         ? 'home.widgets.health_make_library_look_good_done'
-        : 'home.widgets.health_fix_safe_done')
+        : 'home.widgets.health_prepare_library_done')
     const titleParams = options.titleParams || {}
     const doneParams = options.doneParams || {}
 
     abortController = new AbortController()
-    state.value = {running: true, stage: uniqueStages[0], processed: 0, total: 0, progress: 0}
+    const remainingStagesEta = health
+      ? estimateStagesEtaSeconds(uniqueStages, health)
+      : 0
+    state.value = {
+      running: true,
+      stage: uniqueStages[0],
+      processed: 0,
+      total: 0,
+      progress: 0,
+      etaSeconds: remainingStagesEta > 0 ? remainingStagesEta : null,
+    }
 
     const taskId = tasksStore.setTask({
       title: tr(titleKey, titleParams),
@@ -148,11 +168,21 @@ export function useLibraryHealthFixQueue() {
     try {
       for (let index = 0; index < uniqueStages.length; index += 1) {
         const stage = uniqueStages[index]
+        const laterStages = uniqueStages.slice(index + 1)
+        const laterEta = health ? estimateStagesEtaSeconds(laterStages, health) : 0
+        const heuristicStageEta = health
+          ? estimateStageEtaSeconds(stage, health, scopedIds?.length)
+          : 0
+
+        stageStartedAtMs = Date.now()
         state.value.stage = stage
         state.value.processed = 0
         state.value.total = scopedIds?.length
           || (health ? pendingForStage(health, stage) : 0)
         state.value.progress = (index / uniqueStages.length) * 100
+        state.value.etaSeconds = heuristicStageEta + laterEta > 0
+          ? heuristicStageEta + laterEta
+          : null
 
         const stageLabel = tr(stageI18nKey(stage))
         tasksStore.updateTask(taskId, {
@@ -174,12 +204,25 @@ export function useLibraryHealthFixQueue() {
             state.value.total = total
             const stageProgress = total > 0 ? processed / total : 1
             state.value.progress = ((index + stageProgress) / uniqueStages.length) * 100
+
+            const elapsedSeconds = (Date.now() - stageStartedAtMs) / 1000
+            const liveStageEta = estimateLiveEtaSeconds({processed, total, elapsedSeconds})
+            const stageEta = liveStageEta > 0 ? liveStageEta : Math.max(
+              0,
+              Math.round(heuristicStageEta * (1 - stageProgress)),
+            )
+            state.value.etaSeconds = stageEta + laterEta > 0 ? stageEta + laterEta : null
+
+            const etaText = state.value.etaSeconds
+              ? ` · ~${formatLibrarySetupEta(state.value.etaSeconds)}`
+              : ''
+
             tasksStore.updateTask(taskId, {
               subtitle: tr('home.widgets.health_fix_safe_progress', {
                 stage: stageLabel,
                 processed,
                 total,
-              }),
+              }) + etaText,
               progress: state.value.progress,
             })
           }
@@ -261,12 +304,22 @@ export function useLibraryHealthFixQueue() {
     } finally {
       state.value.running = false
       state.value.stage = null
+      state.value.etaSeconds = null
       abortController = null
     }
   }
 
-  async function run(health: HomeHealthData, locale: Locale): Promise<boolean> {
-    return runStages(stagesFromHealth(health), locale, {health})
+  async function run(
+    health: HomeHealthData,
+    locale: Locale,
+    options: {
+      titleKey?: string
+      doneKey?: string
+      titleParams?: Record<string, string | number>
+      doneParams?: Record<string, string | number>
+    } = {},
+  ): Promise<boolean> {
+    return runStages(stagesFromHealth(health), locale, {health, ...options})
   }
 
   return {
