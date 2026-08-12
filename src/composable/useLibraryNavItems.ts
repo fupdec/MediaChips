@@ -5,6 +5,7 @@ import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useWatcherStore} from '@/stores/watcher'
 import {useWatcherBadgeCounts} from '@/composable/useWatcherBadgeCounts'
+import {useMediaInbox} from '@/composable/useMediaInbox'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
@@ -36,6 +37,7 @@ export function useLibraryNavItems() {
   const settingsStore = useSettingsStore()
   const watcherStore = useWatcherStore()
   const {watcherBadgeCountsByFolderId} = useWatcherBadgeCounts()
+  const {badgeCount: inboxBadgeCount, openInbox, newCount: inboxNewCount, lostCount: inboxLostCount} = useMediaInbox()
 
   const mediaTypes = computed(() =>
     (appStore.mediaTypes || []).filter((item) => !item.hidden),
@@ -130,11 +132,16 @@ export function useLibraryNavItems() {
     watcherFiles,
     showWatcherFolders,
     watcherBadgeCountsByFolderId,
+    inboxBadgeCount,
+    inboxNewCount,
+    inboxLostCount,
+    showInbox: computed(() => showWatchFolders.value || inboxBadgeCount.value > 0),
     libraryLinks,
     settingsLink,
     allTagsLink,
     watcherBusy: computed(() => watcherStore.busy),
     openDialogFolder,
+    openInbox,
     mediaTypePath,
     metaPath,
     mediaTypeTitle: (mediaType: MediaType) => getMediaTypeName(mediaType, t),

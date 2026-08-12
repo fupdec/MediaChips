@@ -137,8 +137,33 @@
         <span>{{ settingsLink.title }}</span>
       </v-tooltip>
 
-      <template v-if="showWatcherFolders">
+      <template v-if="showInbox || showWatcherFolders">
         <div class="sidebar-browser__rail-divider" />
+
+        <v-tooltip v-if="showInbox" location="end">
+          <template #activator="{ props: tipProps }">
+            <v-btn
+              v-bind="tipProps"
+              icon
+              variant="text"
+              size="small"
+              class="sidebar-browser__rail-btn"
+              :disabled="watcherBusy"
+              :aria-label="t('media_inbox.nav')"
+              @click="openInbox()"
+            >
+              <v-badge
+                :content="inboxBadgeCount"
+                :model-value="inboxBadgeCount > 0"
+                color="success"
+                location="top right"
+              >
+                <v-icon size="20" icon="mdi-inbox-outline"/>
+              </v-badge>
+            </v-btn>
+          </template>
+          <span>{{ t('media_inbox.nav') }}</span>
+        </v-tooltip>
 
         <v-tooltip
           v-for="entry in watcherFiles"
@@ -296,6 +321,25 @@
             link
           />
 
+          <v-list-item
+            v-if="showInbox"
+            :disabled="watcherBusy"
+            prepend-icon="mdi-inbox-outline"
+            :title="t('media_inbox.nav')"
+            @click="openInbox()"
+          >
+            <template #append>
+              <v-chip
+                v-if="inboxBadgeCount"
+                size="x-small"
+                color="success"
+                variant="flat"
+              >
+                {{ inboxBadgeCount }}
+              </v-chip>
+            </template>
+          </v-list-item>
+
           <div
             v-if="showWatcherFolders"
             @mouseover="folderHovered = true"
@@ -405,9 +449,12 @@ const {
   metaLink,
   watcherFiles,
   showWatcherFolders,
+  showInbox,
+  inboxBadgeCount,
   watcherBadgeCountsByFolderId,
   watcherBusy,
   openDialogFolder,
+  openInbox,
 } = useLibraryNavItems()
 
 const metaCategoryLinks = computed(() =>

@@ -44,6 +44,7 @@ describe('watcherScanNotifications', () => {
   })
 
   it('closes the start notification and shows scan results', () => {
+    const openInbox = vi.fn()
     showWatcherScanCompleteNotification(t, {
       folderCount: 1,
       newCount: 2,
@@ -54,13 +55,14 @@ describe('watcherScanNotifications', () => {
         newCount: 2,
         lostCount: 1,
       }],
-    }, 42)
+    }, 42, {onOpenInbox: openInbox})
 
     expect(closeNotification).toHaveBeenCalledWith(42)
     expect(setNotification).toHaveBeenCalledWith(expect.objectContaining({
       type: 'success',
       title: 'watcher.scan.complete_title',
       icon: 'folder-check-outline',
+      actions: [expect.objectContaining({id: 'open-media-inbox'})],
     }))
   })
 })

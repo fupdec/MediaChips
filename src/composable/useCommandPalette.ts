@@ -9,6 +9,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useAppShell} from '@/composable/appShell'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
+import {useMediaInbox} from '@/composable/useMediaInbox'
 import {setOption} from '@/services/settingsService'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -37,6 +38,7 @@ export function useCommandPaletteCommands(options: {
   const dialogsStore = useDialogsStore()
   const appShell = useAppShell()
   const nav = useLibraryNavItems()
+  const {openInbox} = useMediaInbox()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -92,6 +94,15 @@ export function useCommandPaletteCommands(options: {
         run: () => {
           void router.push({path: '/settings', query: openLibrarySetupWizardQuery()})
         },
+      },
+      {
+        id: 'media-inbox',
+        title: t('commandPalette.actions.media_inbox'),
+        subtitle: t('commandPalette.actions.media_inbox_hint'),
+        icon: 'mdi-inbox-outline',
+        group: 'actions',
+        keywords: ['inbox', 'watch', 'new', 'triage', 'queue'],
+        run: () => { openInbox() },
       },
       {
         id: 'toggle-theme',

@@ -96,12 +96,14 @@ export function showWatcherScanCompleteNotification(
   t: WatcherTranslate,
   payload: WatcherScanSummaryPayload,
   startNotificationId: number | null,
+  options: {onOpenInbox?: () => void} = {},
 ): void {
   if (startNotificationId != null) {
     useNotificationsStore().closeNotification(startNotificationId)
   }
 
   const hasChanges = payload.newCount > 0 || payload.lostCount > 0
+  const openInbox = options.onOpenInbox
 
   setNotification({
     type: payload.failed ? 'error' : hasChanges ? 'success' : 'info',
@@ -109,5 +111,17 @@ export function showWatcherScanCompleteNotification(
     text: buildScanCompleteText(t, payload),
     icon: payload.failed ? 'alert-circle-outline' : 'folder-check-outline',
     timeout: hasChanges || payload.failed ? 8000 : 5000,
+    click: !payload.failed && payload.newCount > 0 && openInbox
+      ? () => openInbox()
+      : null,
+    actions: !payload.failed && (payload.newCount > 0 || payload.lostCount > 0) && openInbox
+      ? [{
+        id: 'open-media-inbox',
+        text: t('media_inbox.open'),
+        icon: 'inbox-outline',
+        action: () => openInbox(),
+        hide: true,
+      }]
+      : undefined,
   })
 }
