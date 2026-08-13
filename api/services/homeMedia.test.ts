@@ -28,6 +28,7 @@ function createFavoriteDb() {
       favorite INTEGER,
       views INTEGER,
       viewedAt TEXT,
+      deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -139,6 +140,7 @@ function createInboxDb() {
       favorite INTEGER,
       views INTEGER,
       viewedAt TEXT,
+      deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
