@@ -407,7 +407,8 @@
 
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
-import {useRouter} from 'vue-router'import {useDisplay} from 'vuetify'
+import {useRouter} from 'vue-router'
+import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
