@@ -1272,7 +1272,7 @@ const fr = {
     },
     top_tags: {
       top_by_views: 'Top {count} par vues',
-      top_by_menu: 'Haut {count} par ordre d'ajout',
+      top_by_menu: 'Haut {count} par ordre d\'ajout',
       top_alphabet: 'Haut {count} par ordre alphabétique',
       open_tag: 'Ouvrir la balise \'{name}\'',
       show_more: 'Afficher plus de {count} de {total}',
