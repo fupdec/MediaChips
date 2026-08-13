@@ -160,7 +160,9 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
 
   for (let filterIndex = 0; filterIndex < activeFilters.length; filterIndex += 1) {
     const filter = activeFilters[filterIndex]
-    if (isTagRelationArrayFilter(filter)) {
+    // OR mode cannot use INNER JOIN relation filters: the join would AND-constrain
+    // the whole result set while only WHERE predicates get OR'd. Use IN/NOT IN.
+    if (filtersJoin !== 'or' && isTagRelationArrayFilter(filter)) {
       const tagIds = getTagArrayFilterTagIds(filter)
       if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
         const join = buildTagRelationJoin(filter, `tf${joinIndex}`, nextParam)

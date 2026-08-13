@@ -313,7 +313,9 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
 
   for (let filterIndex = 0; filterIndex < activeFilters.length; filterIndex += 1) {
     const filter = activeFilters[filterIndex]
-    if (isTagArrayFilter(filter)) {
+    // OR mode cannot use INNER JOIN tag filters: the join would AND-constrain the
+    // whole result set while only WHERE predicates get OR'd. Use IN/NOT IN clauses.
+    if (filtersJoin !== 'or' && isTagArrayFilter(filter)) {
       const tagIds = getTagArrayFilterTagIds(filter)
       if (canUseTagArrayJoin(filter, tagIds.length > 0)) {
         const join = buildTagArrayJoin(filter, `tf${joinIndex}`, nextParam)

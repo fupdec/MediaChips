@@ -438,6 +438,7 @@ export const useItemsStore = defineStore('items', {
 
     clearSavedFilters() {
       this.filters = [];
+      this.filtersJoin = 'and';
       this.savedFilter = {};
     },
 
@@ -783,6 +784,7 @@ export const useItemsStore = defineStore('items', {
     // Очистить все фильтры
     clearFilters() {
       this.filters = []
+      this.filtersJoin = 'and'
     },
 
     // Обновить фильтр по индексу
