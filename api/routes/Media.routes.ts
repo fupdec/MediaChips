@@ -11,6 +11,7 @@ import {
   MediaSuggestTagsFromSimilarRequestSchema,
   MediaSemanticSearchRequestSchema,
   MediaSimilarByClipRequestSchema,
+  MediaSimilarHybridRequestSchema,
   MediaDuplicateGroupsRequestSchema,
   MergeMediaRequestSchema,
   MediaThumbsRequestSchema,
@@ -35,6 +36,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/suggestTagsFromSimilar', validateBody(MediaSuggestTagsFromSimilarRequestSchema), Media.suggestTagsFromSimilar)
   router.post('/semanticSearch', validateBody(MediaSemanticSearchRequestSchema), Media.semanticSearch)
   router.post('/similarByClip', validateBody(MediaSimilarByClipRequestSchema), Media.similarByClip)
+  router.post('/similarHybrid', validateBody(MediaSimilarHybridRequestSchema), Media.similarHybrid)
   router.post('/duplicateGroups', validateBody(MediaDuplicateGroupsRequestSchema), Media.duplicateGroups)
   router.post('/merge', validateBody(MergeMediaRequestSchema), Media.merge)
 

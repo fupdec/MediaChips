@@ -28,6 +28,11 @@ interface TagSortableItem {
   views?: number
   name?: string
   id?: number
+  favorite?: boolean | number
+  createdAt?: string | number
+  updatedAt?: string | number
+  viewedAt?: string | number
+  [key: string]: unknown
 }
 
 type TranslateFn = (key: string) => string
@@ -55,9 +60,53 @@ export function sortMetaItems<T extends MetaSortableItem>(
   }
 }
 
+/**
+ * Sort tags using the category's saved sortBy/sortDir (meta.sortBy / meta.sortDir),
+ * same approach as MetaInputArray tag pickers.
+ */
+export function sortTagsByCategoryPreference<T extends TagSortableItem>(
+  tags: T[],
+  sortBy = 'createdAt',
+  sortDir: 'asc' | 'desc' | string = 'asc',
+): T[] {
+  const key = String(sortBy || 'createdAt')
+  const dir = sortDir === 'desc' ? 'desc' : 'asc'
+  const byName = orderBy(tags, [(tag) => String(tag.name || '').toLowerCase()], ['asc'])
+  if (key === 'favorite') {
+    return orderBy(
+      byName,
+      [(tag) => (tag.favorite ? 1 : 0), (tag) => String(tag.name || '').toLowerCase()],
+      [dir, 'asc'],
+    )
+  }
+  if (key === 'name') {
+    return orderBy(byName, [(tag) => String(tag.name || '').toLowerCase()], [dir])
+  }
+  if (key === 'views') {
+    return orderBy(
+      byName,
+      [(tag) => Number(tag.views) || 0, (tag) => String(tag.name || '').toLowerCase()],
+      [dir, 'asc'],
+    )
+  }
+  if (key === 'mediaCount' || key === 'numberOfMedia') {
+    return orderBy(
+      byName,
+      [
+        (tag) => Number(tag.mediaCount ?? tag.numberOfMedia) || 0,
+        (tag) => String(tag.name || '').toLowerCase(),
+      ],
+      [dir, 'asc'],
+    )
+  }
+  // createdAt / updatedAt / viewedAt / unknown → use field then name
+  return orderBy(byName, [key, (tag) => String(tag.name || '').toLowerCase()], [dir, 'asc'])
+}
+
 export function sortTagItems<T extends TagSortableItem>(
   tags: T[],
   mode: MetaSortMode = META_SORT_MODES.menu,
+  categorySort?: {sortBy?: string | null; sortDir?: string | null},
 ): T[] {
   switch (mode) {
     case META_SORT_MODES.popularity:
@@ -66,7 +115,11 @@ export function sortTagItems<T extends TagSortableItem>(
       return orderBy(tags, [(tag) => tag.name?.toLowerCase()], ['asc'])
     case META_SORT_MODES.menu:
     default:
-      return orderBy(tags, ['id'], ['asc'])
+      return sortTagsByCategoryPreference(
+        tags,
+        categorySort?.sortBy || 'createdAt',
+        categorySort?.sortDir || 'asc',
+      )
   }
 }
 
@@ -85,14 +138,30 @@ export function groupMetaByType<T extends MetaSortableItem>(
   return grouped
 }
 
-export function getTopTagsSubtitleKey(mode: MetaSortMode): string {
+export function getTopTagsSubtitleKey(
+  mode: MetaSortMode,
+  categorySortBy?: string | null,
+): string {
   switch (mode) {
     case META_SORT_MODES.popularity:
       return 'widgets.top_tags.top_by_views'
     case META_SORT_MODES.alphabet:
       return 'widgets.top_tags.top_alphabet'
     case META_SORT_MODES.menu:
-    default:
-      return 'widgets.top_tags.top_by_menu'
+    default: {
+      switch (String(categorySortBy || 'createdAt')) {
+        case 'name':
+          return 'widgets.top_tags.top_alphabet'
+        case 'views':
+          return 'widgets.top_tags.top_by_views'
+        case 'favorite':
+          return 'widgets.top_tags.top_by_favorite'
+        case 'updatedAt':
+          return 'widgets.top_tags.top_by_updated'
+        case 'createdAt':
+        default:
+          return 'widgets.top_tags.top_by_created'
+      }
+    }
   }
 }

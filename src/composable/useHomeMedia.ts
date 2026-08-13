@@ -40,6 +40,7 @@ export function invalidateHomeMediaCache() {
 
 export function useHomeMedia() {
   const store = useAppStore()
+  const favoritesLoading = ref(false)
 
   async function loadHomeMedia(options: HomeMediaLoadOptions) {
     const {
@@ -97,11 +98,33 @@ export function useHomeMedia() {
     return loadPromise
   }
 
+  /** Re-sample favorites from the API (random pivot) without touching other rows. */
+  async function reshuffleFavorites(limit = 12) {
+    favoritesLoading.value = true
+    try {
+      const response = await typedApi.getHomeMedia({
+        continueLimit: 0,
+        favoritesLimit: Math.min(Math.max(Number(limit) || 12, 1), 24),
+        topViewsLimit: 0,
+      })
+      const next = response.data.favorites || []
+      await loadHomeMediaThumbs(next, store.mediaTypes, store.mediaPath)
+      favorites.value = next
+    } catch (error) {
+      console.error(error)
+      throw error
+    } finally {
+      favoritesLoading.value = false
+    }
+  }
+
   return {
     continueWatching,
     favorites,
     topViews,
     isLoading,
+    favoritesLoading,
     loadHomeMedia,
+    reshuffleFavorites,
   }
 }

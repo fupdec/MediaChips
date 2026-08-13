@@ -331,6 +331,11 @@ describe('hoverPreviewPlayback', () => {
       isHovered: true,
       isPreviewVisible: true,
       isBigPreviewVisual: true,
+    })).toBe(true)
+    expect(canMarkHoverPreviewReady({
+      isHovered: false,
+      isPreviewVisible: true,
+      isBigPreviewVisual: false,
     })).toBe(false)
   })
 

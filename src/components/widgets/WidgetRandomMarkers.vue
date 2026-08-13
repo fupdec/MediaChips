@@ -111,8 +111,13 @@ watch(() => props.limit, () => loadMarks())
       display: flex;
       flex-direction: column;
       box-shadow: none !important;
-      border: 1px solid rgba(var(--v-theme-on-surface), 0.2) !important;
+      border: 1px solid rgba(var(--v-theme-on-surface), 0.12) !important;
       overflow: hidden;
+      transition: border-color 180ms ease;
+    }
+
+    :deep(.item--plain-card > .v-card.item-mark:hover) {
+      border-color: rgb(var(--v-theme-primary)) !important;
     }
 
     :deep(.item-mark) {

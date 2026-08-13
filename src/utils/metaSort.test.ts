@@ -46,9 +46,9 @@ describe('sortMetaItems', () => {
 
 describe('sortTagItems', () => {
   const tags = [
-    {id: 3, name: 'C', views: 1},
-    {id: 1, name: 'a', views: 9},
-    {id: 2, name: 'B', views: 9},
+    {id: 3, name: 'C', views: 1, favorite: false, createdAt: '2024-03-01'},
+    {id: 1, name: 'a', views: 9, favorite: true, createdAt: '2024-01-01'},
+    {id: 2, name: 'B', views: 9, favorite: false, createdAt: '2024-02-01'},
   ]
 
   it('sorts popularity and alphabet like meta', () => {
@@ -58,8 +58,21 @@ describe('sortTagItems', () => {
       .toEqual(['a', 'B', 'C'])
   })
 
-  it('defaults to id order for menu', () => {
-    expect(sortTagItems(tags).map((t) => t.id)).toEqual([1, 2, 3])
+  it('uses category sort preference in menu mode', () => {
+    expect(sortTagItems(tags, META_SORT_MODES.menu, {
+      sortBy: 'createdAt',
+      sortDir: 'asc',
+    }).map((t) => t.id)).toEqual([1, 2, 3])
+
+    expect(sortTagItems(tags, META_SORT_MODES.menu, {
+      sortBy: 'favorite',
+      sortDir: 'desc',
+    }).map((t) => t.name)).toEqual(['a', 'B', 'C'])
+
+    expect(sortTagItems(tags, META_SORT_MODES.menu, {
+      sortBy: 'name',
+      sortDir: 'desc',
+    }).map((t) => t.name)).toEqual(['C', 'B', 'a'])
   })
 })
 
@@ -80,11 +93,14 @@ describe('groupMetaByType', () => {
 
 describe('getTopTagsSubtitleKey', () => {
   it.each([
-    ['popularity', 'widgets.top_tags.top_by_views'],
-    ['alphabet', 'widgets.top_tags.top_alphabet'],
-    ['menu', 'widgets.top_tags.top_by_menu'],
-    ['other', 'widgets.top_tags.top_by_menu'],
-  ] as const)('%s → %s', (mode, key) => {
-    expect(getTopTagsSubtitleKey(mode as never)).toBe(key)
+    ['popularity', undefined, 'widgets.top_tags.top_by_views'],
+    ['alphabet', undefined, 'widgets.top_tags.top_alphabet'],
+    ['menu', 'name', 'widgets.top_tags.top_alphabet'],
+    ['menu', 'favorite', 'widgets.top_tags.top_by_favorite'],
+    ['menu', 'createdAt', 'widgets.top_tags.top_by_created'],
+    ['menu', undefined, 'widgets.top_tags.top_by_created'],
+    ['other', undefined, 'widgets.top_tags.top_by_created'],
+  ] as const)('%s/%s → %s', (mode, sortBy, key) => {
+    expect(getTopTagsSubtitleKey(mode as never, sortBy)).toBe(key)
   })
 })

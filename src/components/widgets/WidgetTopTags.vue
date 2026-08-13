@@ -19,7 +19,7 @@
                 {{ getMetaName(category.meta, t) }}
               </div>
               <div class="text-caption text-medium-emphasis">
-                {{ t(subtitleKey, {count: category.tags.length}) }}
+                {{ t(categorySubtitleKey(category), {count: category.tags.length}) }}
               </div>
             </div>
           </div>
@@ -32,7 +32,7 @@
               @click="openTagPage(category.meta, tag)"
               rounded="lg"
               variant="outlined"
-              hover
+              flat
             >
               <div class="widget-top-tags__preview">
                 <v-img
@@ -64,7 +64,7 @@
 
             <button
               v-if="category.isNotAllLoaded"
-              @click="getTagsTop(category)"
+              @click="void getTagsTop(category)"
               class="widget-top-tags__more"
               type="button"
             >
@@ -88,6 +88,7 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import groupBy from 'lodash/groupBy'
+import {typedApi} from '@/services/typedApi'
 import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
 import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {getMetaName} from '@/utils/metaI18n'
@@ -119,14 +120,35 @@ const {t} = useI18n()
 
 const tagsTop = ref<TopTagsCategory[]>([])
 const visibleCategoryCount = ref(INITIAL_VISIBLE_CATEGORIES)
+/** Page-settings sort from `/meta?metaId=` for each category. */
+const pageSortByMetaId = ref<Record<number, {sortBy: string; sortDir: string}>>({})
 
 const tags = computed(() => store.tags)
 const metas = computed(() => store.meta)
 const sortMode = computed((): MetaSortMode =>
   (settingsStore.meta_sort_mode as MetaSortMode) || META_SORT_MODES.menu,
 )
-const subtitleKey = computed(() => getTopTagsSubtitleKey(sortMode.value))
 const visibleCategories = computed(() => tagsTop.value.slice(0, visibleCategoryCount.value))
+
+function resolveCategorySort(meta: Meta): {sortBy: string; sortDir: string} {
+  const pageSort = pageSortByMetaId.value[Number(meta.id)]
+  let sortBy = String(pageSort?.sortBy || meta.sortBy || 'createdAt')
+  let sortDir = String(pageSort?.sortDir || meta.sortDir || 'asc')
+  // Widget always shows a stable list — map page shuffle to name.
+  if (sortBy === 'shuffle') {
+    sortBy = 'name'
+    sortDir = 'asc'
+  }
+  return {sortBy, sortDir}
+}
+
+function categorySubtitleKey(category: TopTagsCategory): string {
+  const {sortBy} = resolveCategorySort(category.meta)
+  return getTopTagsSubtitleKey(
+    sortMode.value,
+    sortMode.value === META_SORT_MODES.menu ? sortBy : null,
+  )
+}
 
 function resolveTagImageUrl(metaId: string, tagId: number): string {
   return resolveTagThumbDisplayUrl({
@@ -137,29 +159,67 @@ function resolveTagImageUrl(metaId: string, tagId: number): string {
   })
 }
 
-function getTagsTop(activeGroup: TopTagsCategory | null = null) {
+async function loadPageSorts(metaIds: number[]) {
+  const missing = metaIds.filter((id) => pageSortByMetaId.value[id] == null)
+  if (!missing.length) return
+
+  const entries = await Promise.all(missing.map(async (metaId) => {
+    try {
+      const res = await typedApi.fetchPageSettings({
+        metaId,
+        tagId: null,
+        mediaTypeId: null,
+        tabId: null,
+      })
+      const settings = res.data?.[0]
+      return [metaId, {
+        sortBy: String(settings?.sortBy || ''),
+        sortDir: String(settings?.sortDir || 'asc'),
+      }] as const
+    } catch {
+      return [metaId, {sortBy: '', sortDir: 'asc'}] as const
+    }
+  }))
+
+  pageSortByMetaId.value = {
+    ...pageSortByMetaId.value,
+    ...Object.fromEntries(entries),
+  }
+}
+
+async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
   if (!metas.value.length) return
 
+  // Fresh page sorts on full rebuild so home tracks the category page.
+  if (!activeGroup) {
+    pageSortByMetaId.value = {}
+  }
+
   const grouped = groupBy(tags.value, 'metaId')
-  const groups: TopTagsCategory[] = []
-  // Category order always matches the navigation menu; tag sort mode only
-  // affects items within each category.
+  // Category order always matches the navigation menu.
   const visibleMetas = sortMetaItems(
     metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
     META_SORT_MODES.menu,
   )
+  const metaIds = visibleMetas.map((meta) => Number(meta.id)).filter((id) => id > 0)
+  await loadPageSorts(metaIds)
 
+  const groups: TopTagsCategory[] = []
   for (const meta of visibleMetas) {
     const metaId = String(meta.id)
     if (!grouped[metaId]?.length) continue
 
     let limit = props.limit
-
     if (activeGroup && activeGroup.meta.id === meta.id) {
       limit = activeGroup.limit + 10
     }
 
-    const sorted = sortTagItems(grouped[metaId] as TopTagItem[], sortMode.value).slice(0, limit) as TopTagItem[]
+    const pageSort = resolveCategorySort(meta)
+    const sorted = sortTagItems(
+      grouped[metaId] as TopTagItem[],
+      sortMode.value,
+      pageSort,
+    ).slice(0, limit) as TopTagItem[]
     if (!sorted.length) continue
 
     const tagsWithImages = sorted.map((tag) => ({
@@ -168,9 +228,12 @@ function getTagsTop(activeGroup: TopTagsCategory | null = null) {
     }))
 
     const total = grouped[metaId].length
-
     groups.push({
-      meta,
+      meta: {
+        ...meta,
+        sortBy: pageSort.sortBy,
+        sortDir: pageSort.sortDir,
+      },
       tags: tagsWithImages,
       limit,
       total,
@@ -198,22 +261,26 @@ function openTagPage(meta: Meta, tag: TopTagItem) {
   router.push(`/tag?metaId=${meta.id}&tagId=${tag.id}&mediaTypeId=${getDefaultMediaTypeId(store.mediaTypes)}`)
 }
 
-watch(tags, () => getTagsTop())
-watch(metas, () => getTagsTop())
-watch(() => props.limit, () => getTagsTop())
+function refreshTagsTop() {
+  void getTagsTop()
+}
+
+watch(tags, refreshTagsTop)
+watch(metas, refreshTagsTop)
+watch(() => props.limit, refreshTagsTop)
 watch(
   () => itemsStore.thumbRefreshKeys,
-  () => getTagsTop(),
+  refreshTagsTop,
   {deep: true},
 )
 watch(sortMode, () => {
   visibleCategoryCount.value = INITIAL_VISIBLE_CATEGORIES
-  getTagsTop()
+  refreshTagsTop()
 })
 
 onMounted(() => {
   window.dispatchEvent(new CustomEvent('getTags'))
-  getTagsTop()
+  refreshTagsTop()
 })
 </script>
 
@@ -225,7 +292,7 @@ onMounted(() => {
     gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 4px;
+    padding-bottom: 2px;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
 
@@ -245,6 +312,12 @@ onMounted(() => {
     overflow: hidden;
     cursor: pointer;
     border-color: rgba(var(--v-theme-on-surface), 0.12) !important;
+    box-shadow: none !important;
+    transition: border-color 180ms ease;
+
+    &:hover {
+      border-color: rgb(var(--v-theme-primary)) !important;
+    }
   }
 
   &__preview {

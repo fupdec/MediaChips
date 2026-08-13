@@ -220,6 +220,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   }
 
   const promoteHoverToLiveFallback = () => {
+    // Don't tear down a cinema/big-preview session — live remount leaves the
+    // blurred thumb plate while timeline keeps ticking.
+    if (toValue(options.isBigPreviewVisual)) return false
     if (!tryHoverLiveFallback()) return false
     allowHoverVideoElement.value = true
     hoverPreviewPending.value = true

@@ -52,7 +52,8 @@ export function buildPreviewContainerClasses(
       input.isBigPreviewCollapsing ||
       input.isShrinking,
     'is-preview-active': input.showVideoPreview || input.showTimelinePreview,
-    'is-hover-preview-ready': input.hoverPreviewReady && !input.isFullscreenBigPreview,
+    'is-hover-preview-ready': input.hoverPreviewReady,
+    // Pending only hides video on the card; cinema/big preview must stay opaque.
     'is-hover-preview-pending': Boolean(input.hoverPreviewPending) && !input.isFullscreenBigPreview,
     'is-video-preview-enabled': input.isVideoPreviewEnabled,
     'video-preview-container--expanded': input.isFullscreenBigPreview,

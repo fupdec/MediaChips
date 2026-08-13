@@ -936,15 +936,17 @@ export default function useItemContextMenu(
     if (!Number.isFinite(seedId) || seedId <= 0) return
 
     const locale = settingsStore.locale as Locale
-    const tr = (key: string) => translate(key, {}, locale)
+    const tr = (key: string, params: Record<string, string | number> = {}) =>
+      translate(key, params, locale)
 
     try {
-      const response = await typedApi.similarByVisual({seedId})
+      // Same hybrid ranking as Home Similar (CLIP + tags, series diversity).
+      const response = await typedApi.similarHybrid({seedId, limit: 48})
       const data = response.data
-      if (!data?.hasVisualHash) {
+      if (!data?.hasSignals) {
         setNotification({
           type: 'info',
-          title: tr('context_menu.more_like_this_no_hash'),
+          title: tr('context_menu.more_like_this_none'),
           icon: 'image-search-outline',
         })
         return
@@ -961,10 +963,16 @@ export default function useItemContextMenu(
         return
       }
 
+      const seedName = String(item.name || item.basename || '').trim()
       await openMediaList({
         mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
         ids,
-        scope: {kind: 'visualSimilar'},
+        scope: {
+          kind: 'clipSimilar',
+          label: seedName
+            ? tr('home.widgets.similar_to', {name: seedName})
+            : tr('filters.more_like_this_scope'),
+        },
       })
     } catch (error) {
       console.error('Failed to find similar media:', error)

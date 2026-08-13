@@ -1,13 +1,8 @@
 import type {ApiDb, AnyRecord} from '../types/db'
 import {queryAll, queryGet} from '../db/utils/rawQuery'
-import {
-  CLIP_EMBEDDING_INDEX_KEY,
-  findSimilarByClip,
-} from './mediaClipEmbeddings'
+import {CLIP_EMBEDDING_INDEX_KEY} from './mediaClipEmbeddings'
 import {loadMediaBasicsByIds} from './mediaItemsLoader'
-import {mergeMediaSimilarityLists} from './mediaSimilarityRanking'
-import {diversifyIdsBySeriesKey, mediaSeriesKey} from './mediaSeriesDiversity'
-import {findSimilarByTags} from './mediaTagSimilarity'
+import {findSimilarHybrid} from './mediaHybridSimilarity'
 
 export type HomeSimilarSeedReason = 'viewed' | 'favorite' | 'any'
 
@@ -27,10 +22,6 @@ export type HomeSimilarResult = {
 }
 
 const SEED_CANDIDATE_LIMIT = 24
-/** Over-fetch each signal so RRF has room to promote tag/clip overlaps. */
-const SIGNAL_FETCH_MULTIPLIER = 3
-const CLIP_SIGNAL_WEIGHT = 1
-const TAG_SIGNAL_WEIGHT = 0.95
 
 function asNullableString(value: unknown): string | null {
   if (value == null || value === '') return null
@@ -128,55 +119,17 @@ async function buildSimilarForSeed(
   seed: HomeSimilarSeed,
   limit: number,
 ): Promise<HomeSimilarResult | null> {
-  const fetchLimit = Math.min(limit * SIGNAL_FETCH_MULTIPLIER + 1, 48)
-  const hasClipRow = queryGet<{mediaId?: number}>(db, `
-    SELECT mediaId
-    FROM mediaClipEmbeddings
-    WHERE mediaId = :mediaId AND model = :model
-    LIMIT 1
-  `, {mediaId: seed.id, model: CLIP_EMBEDDING_INDEX_KEY})
-
   // Do not on-demand-encode CLIP for home samples — tag-only seeds must stay cheap.
-  const [clip, tags] = await Promise.all([
-    hasClipRow
-      ? findSimilarByClip(db, seed.id, {limit: fetchLimit})
-      : Promise.resolve({
-          hasEmbedding: false,
-          hits: [] as Array<{id: number; score: number}>,
-          ids: [] as number[],
-        }),
-    Promise.resolve(findSimilarByTags(db, seed.id, {limit: fetchLimit, minShared: 1})),
-  ])
-
-  // Either CLIP neighbors or shared-tag neighbors are enough.
-  const lists = []
-  if (clip.hasEmbedding && clip.hits?.length) {
-    lists.push({
-      signal: 'clip' as const,
-      weight: CLIP_SIGNAL_WEIGHT,
-      hits: clip.hits,
-    })
-  }
-  if (tags.hasTags && tags.hits.length) {
-    lists.push({
-      signal: 'tags' as const,
-      weight: TAG_SIGNAL_WEIGHT,
-      hits: tags.hits,
-    })
-  }
-  if (!lists.length) return null
-
-  // Over-fetch so series collapse (14761_001…005) still fills the row.
-  const ranked = mergeMediaSimilarityLists(lists, {
-    limit: Math.min(Math.max(limit * 5, 24), 80),
-    excludeIds: [seed.id],
+  const hybrid = await findSimilarHybrid(db, seed.id, {
+    limit,
+    encodeSeedIfMissing: false,
   })
-  if (!ranked.length) return null
+  if (!hybrid.hasSignals || !hybrid.hits.length) return null
 
-  const rankedIds = ranked.map((hit) => hit.id)
-  const rows = await loadMediaBasicsByIds(db, [seed.id, ...rankedIds])
+  const neighborIds = hybrid.hits.map((hit) => hit.id)
+  const rows = await loadMediaBasicsByIds(db, [seed.id, ...neighborIds])
   const byId = new Map(rows.map((row: AnyRecord) => [Number(row.id), row]))
-  const scoreById = new Map(ranked.map((hit) => [hit.id, hit]))
+  const scoreById = new Map(hybrid.hits.map((hit) => [hit.id, hit]))
 
   const seedRow = byId.get(seed.id)
   if (seedRow) {
@@ -187,12 +140,6 @@ async function buildSimilarForSeed(
       ? seed.mediaTypeId
       : Number(seedRow.mediaTypeId)
   }
-
-  const neighborIds = diversifyIdsBySeriesKey(rankedIds, byId, {
-    limit,
-    reservedKeys: [mediaSeriesKey(seedRow || seed)],
-  })
-  if (!neighborIds.length) return null
 
   const seedItem = seedRow ? toHomeItem(seedRow, {isSeed: true}) : null
   const items = neighborIds

@@ -38,6 +38,22 @@ describe('buildPreviewContainerClasses', () => {
     expect(buildPreviewContainerClasses(base)['is-hover-preview-ready']).toBe(true)
   })
 
+  it('keeps hover-ready class during fullscreen big preview', () => {
+    expect(buildPreviewContainerClasses({
+      ...base,
+      isFullscreenBigPreview: true,
+      hoverPreviewReady: true,
+    })['is-hover-preview-ready']).toBe(true)
+  })
+
+  it('clears pending class during fullscreen so cinema stays opaque', () => {
+    expect(buildPreviewContainerClasses({
+      ...base,
+      isFullscreenBigPreview: true,
+      hoverPreviewPending: true,
+    })['is-hover-preview-pending']).toBe(false)
+  })
+
   it('marks pending only while seeking before first reveal', () => {
     expect(buildPreviewContainerClasses({
       ...base,

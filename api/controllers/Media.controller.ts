@@ -33,6 +33,7 @@ import {
   findSimilarByClip,
   semanticSearchMedia,
 } from '../services/mediaClipEmbeddings'
+import {findSimilarHybrid} from '../services/mediaHybridSimilarity'
 import {getClipEmbeddingStatus} from '../services/clipEmbeddingModel'
 import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
 import {
@@ -178,6 +179,21 @@ export default function (db: ApiDb) {
       sendOk(res, result)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while finding semantically similar media.')
+    }
+  }
+
+  const similarHybrid = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{seedId?: number, limit?: number}>(req)
+      const seedId = Number(body.seedId)
+      const parsedLimit = body.limit == null ? NaN : Number(body.limit)
+      const result = await findSimilarHybrid(db, seedId, {
+        encodeSeedIfMissing: true,
+        ...(Number.isFinite(parsedLimit) && parsedLimit > 0 ? {limit: parsedLimit} : {}),
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while finding similar media.')
     }
   }
 
@@ -380,6 +396,7 @@ export default function (db: ApiDb) {
     suggestTagsFromSimilar,
     semanticSearch,
     similarByClip,
+    similarHybrid,
     merge,
     duplicateGroups,
   }

@@ -130,7 +130,9 @@ export function canMarkHoverPreviewReady(input: {
   isPreviewVisible: boolean
   isBigPreviewVisual: boolean
 }): boolean {
-  return input.isHovered && input.isPreviewVisible && !input.isBigPreviewVisual
+  // Big preview must be able to re-mark ready after seek / live handoff —
+  // otherwise the plate stays on the blurred thumb while audio/timeline run.
+  return input.isHovered && input.isPreviewVisible
 }
 
 export function shouldRestartFixedPreviewClip(input: {

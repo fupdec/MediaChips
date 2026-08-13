@@ -6,17 +6,32 @@
         <span>{{ title }}</span>
       </div>
 
-      <v-btn
-        v-if="showViewAll && items.length"
-        @click="emit('view-all')"
-        color="primary"
-        variant="text"
-        rounded
-        size="small"
-      >
-        {{ t('home.widgets.view_all') }}
-        <v-icon end size="18">mdi-chevron-right</v-icon>
-      </v-btn>
+      <div class="d-flex align-center ga-1">
+        <v-btn
+          v-if="showShuffle && items.length"
+          @click="emit('shuffle')"
+          :loading="shuffleLoading"
+          color="primary"
+          icon
+          size="small"
+          variant="text"
+          :title="t('home.widgets.reshuffle')"
+        >
+          <v-icon>mdi-shuffle</v-icon>
+        </v-btn>
+
+        <v-btn
+          v-if="showViewAll && items.length"
+          @click="emit('view-all')"
+          color="primary"
+          variant="text"
+          rounded
+          size="small"
+        >
+          {{ t('home.widgets.view_all') }}
+          <v-icon end size="18">mdi-chevron-right</v-icon>
+        </v-btn>
+      </div>
     </div>
 
     <div v-if="items.length" class="home-media-row__scroll">
@@ -55,18 +70,24 @@ withDefaults(defineProps<{
   items?: HomeMediaItem[]
   variant?: HomeMediaCardVariant
   showViewAll?: boolean
+  /** Parent must reload a meaningful new sample (not local reorder). */
+  showShuffle?: boolean
+  shuffleLoading?: boolean
   loading?: boolean
 }>(), {
   icon: 'mdi-play-circle-outline',
   items: () => [],
   variant: 'views',
   showViewAll: true,
+  showShuffle: false,
+  shuffleLoading: false,
   loading: false,
 })
 
 const emit = defineEmits<{
   open: [item: HomeMediaItem]
   'view-all': []
+  shuffle: []
 }>()
 const {t} = useI18n()
 </script>
@@ -79,7 +100,7 @@ const {t} = useI18n()
     gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 4px;
+    padding-bottom: 2px;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
 

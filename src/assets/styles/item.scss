@@ -987,7 +987,7 @@
 
     video {
       pointer-events: none;
-      opacity: 1;
+      opacity: 1 !important;
       animation: none;
     }
     .duration,
@@ -1061,7 +1061,7 @@
       // <video> in Electron — round + clip the video element itself.
       video {
         display: block;
-        opacity: 1;
+        opacity: 1 !important;
         animation: none;
         transition-duration: 0s;
         background-color: transparent;
@@ -3013,6 +3013,10 @@ body > .video-preview-container.video-preview-container--expanded {
       .preview {
         z-index: 1000;
       }
+
+      .preview video {
+        opacity: 1 !important;
+      }
     }
   }
 }
@@ -3130,6 +3134,10 @@ body > .video-preview-container.video-preview-container--expanded {
 
       .preview {
         z-index: 1000;
+      }
+
+      .preview video {
+        opacity: 1 !important;
       }
     }
   }

@@ -159,6 +159,22 @@ export const mediaApi = {
     }>(API_ROUTES.mediaSimilarByClip, body)
   },
 
+  /** CLIP + tags hybrid (Home Similar ranking) for a fixed seed. */
+  similarHybrid(body: {seedId: number, limit?: number}) {
+    return apiClient.post<{
+      seedId: number
+      hasSignals: boolean
+      hasEmbedding: boolean
+      hasTags: boolean
+      ids: number[]
+      hits?: Array<{
+        id: number
+        score: number
+        signals?: Partial<Record<'clip' | 'tags', number>>
+      }>
+    }>(API_ROUTES.mediaSimilarHybrid, body)
+  },
+
   mergeMedia(body: MergeMediaPayload) {
     return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body)
   },

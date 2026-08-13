@@ -116,15 +116,22 @@ async function getTopViewedMedia(db: ApiDb, limit = 12) {
   return rows.map(mapHomeItem)
 }
 
+function clampHomeLimit(value: unknown, fallback: number): number {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return fallback
+  if (n === 0) return 0
+  return Math.min(Math.max(Math.floor(n), 1), 24)
+}
+
 async function getHomeMedia(db: ApiDb, limits: AnyRecord = {}): Promise<ParsedHomeMediaResponse> {
-  const continueLimit = Math.min(Math.max(Number(limits.continue) || 12, 1), 24)
-  const favoritesLimit = Math.min(Math.max(Number(limits.favorites) || 12, 1), 24)
-  const topViewsLimit = Math.min(Math.max(Number(limits.topViews) || 12, 1), 24)
+  const continueLimit = clampHomeLimit(limits.continue, 12)
+  const favoritesLimit = clampHomeLimit(limits.favorites, 12)
+  const topViewsLimit = clampHomeLimit(limits.topViews, 12)
 
   const [continueWatching, favorites, topViews] = await Promise.all([
-    getContinueWatching(db, continueLimit),
-    getFavoriteMedia(db, favoritesLimit),
-    getTopViewedMedia(db, topViewsLimit),
+    continueLimit > 0 ? getContinueWatching(db, continueLimit) : Promise.resolve([]),
+    favoritesLimit > 0 ? getFavoriteMedia(db, favoritesLimit) : Promise.resolve([]),
+    topViewsLimit > 0 ? getTopViewedMedia(db, topViewsLimit) : Promise.resolve([]),
   ])
 
   return {

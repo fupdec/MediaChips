@@ -61,9 +61,12 @@
       icon="mdi-heart"
       :items="favorites"
       :loading="homeMediaLoading"
+      :show-shuffle="true"
+      :shuffle-loading="favoritesLoading"
       variant="favorite"
       @open="onOpenMedia"
       @view-all="onOpenFavoritesList"
+      @shuffle="onReshuffleFavorites"
     />
   </WidgetLazyMount>
 
@@ -144,7 +147,9 @@ const {
   favorites,
   topViews,
   loadHomeMedia,
+  reshuffleFavorites,
   isLoading: homeMediaLoading,
+  favoritesLoading,
 } = useHomeMedia()
 
 function ensureHomeMediaLoaded() {
@@ -154,5 +159,9 @@ function ensureHomeMediaLoaded() {
     loadFavorites: props.mediaWidgetsEnabled.favorites,
     loadTopViews: props.mediaWidgetsEnabled.topViews,
   })
+}
+
+function onReshuffleFavorites() {
+  void reshuffleFavorites(props.limits?.favorites ?? 12)
 }
 </script>
