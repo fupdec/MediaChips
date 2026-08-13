@@ -8,10 +8,10 @@
     :rules="[rules]"
     :disabled="disabled"
     :prepend-icon="showIcons && !purpose ? 'mdi-flag' : undefined"
-    :label="purpose === 'filter' ? '' : 'Country'"
-    :hide-details="purpose ? true : false"
+    :label="fieldLabel"
+    :hide-details="fieldHideDetails"
     :rounded="view.rounded"
-    :variant="view.filled ? 'filled' : 'outlined'"
+    :variant="fieldVariant"
     :density="fieldDensity"
     :append-icon="undefined"
     :menu-props="{zIndex: 2800}"
@@ -111,6 +111,25 @@ const fieldDensity = computed(() => {
     return attrs.density
   }
   return view.value.dense ? 'compact' : 'default'
+})
+
+const fieldLabel = computed(() => {
+  if (typeof attrs.label === 'string') return attrs.label
+  return props.purpose === 'filter' ? '' : 'Country'
+})
+
+const fieldVariant = computed(() => {
+  if (attrs.variant === 'filled' || attrs.variant === 'outlined' || attrs.variant === 'solo' || attrs.variant === 'plain' || attrs.variant === 'underlined') {
+    return attrs.variant
+  }
+  return view.value.filled ? 'filled' : 'outlined'
+})
+
+const fieldHideDetails = computed(() => {
+  if (props.purpose) return true
+  const fromAttrs = attrs.hideDetails ?? attrs['hide-details']
+  if (fromAttrs === '' || fromAttrs === true) return true
+  return Boolean(fromAttrs)
 })
 
 const typingFiltersDefault = computed(() =>

@@ -11,7 +11,7 @@
     ref="field"
     :rules="[rules]"
     :menu-props="resolvedMenuProps"
-    :label="meta.name"
+    :label="fieldLabel"
     :hint="meta.hint"
     :disabled="disabled"
     :hide-no-data="purpose === 'filter' ? false : !search"
@@ -400,6 +400,11 @@ const sortBy = computed(() => [
 const showIcons = computed(() =>
   settingsStore.showIconsOfMetaInEditingDialog === '1'
 )
+
+const fieldLabel = computed(() => {
+  if (typeof attrs.label === 'string') return attrs.label
+  return meta.value?.name ?? ''
+})
 
 const showSortButton = computed(() =>
   props.purpose !== 'filter' && props.purpose !== 'bulk',

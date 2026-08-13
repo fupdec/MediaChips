@@ -37,34 +37,76 @@
     <!-- Main form -->
     <v-form v-model="valid" ref="form" @submit.prevent>
       <v-container fluid class="px-0 editing-form">
-        <div v-if="showFieldToolbar" class="editing-section__toolbar">
-          <v-text-field
-            v-model="fieldSearch"
-            :label="t('editing.search_fields')"
-            prepend-inner-icon="mdi-magnify"
-            density="compact"
-            hide-details
-            clearable
-            rounded="xl"
-            variant="outlined"
-            class="editing-section__search"
-          />
-          <v-chip-group
-            v-model="fieldFilter"
-            class="editing-section__filters"
-            selected-class="text-primary"
-            mandatory
+        <div v-if="showFieldToolbar || arrayAssignedItems.length" class="editing-section__toolbar">
+          <div
+            v-if="showFieldToolbar"
+            class="editing-section__group editing-section__group--filters"
           >
-            <v-chip value="all" filter size="small" variant="tonal">
-              {{ t('editing.filter_all') }}
-            </v-chip>
-            <v-chip value="filled" filter size="small" variant="tonal">
-              {{ t('editing.filter_filled') }}
-            </v-chip>
-            <v-chip value="empty" filter size="small" variant="tonal">
-              {{ t('editing.filter_empty', {count: emptyPinnedCount}) }}
-            </v-chip>
-          </v-chip-group>
+            <v-chip-group
+              v-model="fieldFilter"
+              class="editing-section__filters"
+              selected-class="text-primary"
+              mandatory
+            >
+              <v-chip value="all" filter :size="isInspectorLayout ? 'x-small' : 'small'" variant="tonal">
+                {{ t('editing.filter_all') }}
+              </v-chip>
+              <v-chip value="filled" filter :size="isInspectorLayout ? 'x-small' : 'small'" variant="tonal">
+                {{ t('editing.filter_filled') }}
+              </v-chip>
+              <v-chip value="empty" filter :size="isInspectorLayout ? 'x-small' : 'small'" variant="tonal">
+                {{ t('editing.filter_empty', {count: emptyPinnedCount}) }}
+              </v-chip>
+            </v-chip-group>
+          </div>
+
+          <div
+            v-if="showFieldToolbar"
+            class="editing-section__group editing-section__group--search"
+          >
+            <v-text-field
+              v-model="fieldSearch"
+              :placeholder="t('editing.search_fields')"
+              prepend-inner-icon="mdi-magnify"
+              density="compact"
+              hide-details
+              clearable
+              rounded="xl"
+              variant="outlined"
+              class="editing-section__search"
+            />
+          </div>
+
+          <div
+            v-if="arrayAssignedItems.length"
+            class="editing-section__group editing-section__group--tags"
+          >
+            <v-btn-toggle
+              :model-value="useMixedTagsInput ? 'mixed' : 'separate'"
+              class="editing-section__tags-mode"
+              density="compact"
+              variant="outlined"
+              color="primary"
+              divided
+              mandatory
+              @update:model-value="onTagsModeChange"
+            >
+              <v-btn
+                value="mixed"
+                size="small"
+                :title="t('meta.fields.tags_mode_combined_hint')"
+              >
+                {{ t('meta.fields.tags_mode_combined') }}
+              </v-btn>
+              <v-btn
+                value="separate"
+                size="small"
+                :title="t('meta.fields.tags_mode_separate_hint')"
+              >
+                {{ t('meta.fields.tags_mode_separate') }}
+              </v-btn>
+            </v-btn-toggle>
+          </div>
         </div>
 
         <v-row dense>
@@ -80,9 +122,10 @@
                 v-model="vals.name"
                 :rules="[nameRules]"
                 :prepend-icon="showIcons ? 'mdi-alphabetical-variant' : undefined"
-                :label="t('common.name')"
+                v-bind="fieldCaption(t('common.name'))"
                 density="compact"
-                variant="filled"
+                :hide-details="fieldHideDetails"
+                :variant="fieldVariant"
               >
                 <template v-if="vals.name !== old.name" #append-inner>
                   <EditingFieldRestoreBtn inline @click="restore('name')" />
@@ -102,11 +145,12 @@
               <v-text-field
                 v-model="vals.synonyms"
                 :prepend-icon="showIcons ? 'mdi-alphabetical' : undefined"
-                :label="t('filters.sort.synonyms')"
-                :hint="t('editing.synonyms_hint')"
+                v-bind="fieldCaption(t('filters.sort.synonyms'))"
+                :hint="isInspectorLayout ? undefined : t('editing.synonyms_hint')"
                 density="compact"
+                :hide-details="fieldHideDetails"
                 clearable
-                variant="filled"
+                :variant="fieldVariant"
               >
                 <template v-if="vals.synonyms !== old.synonyms" #append-inner>
                   <EditingFieldRestoreBtn inline @click="restore('synonyms')" />
@@ -177,15 +221,15 @@
             >
               <v-number-input
                 v-model="vals.views"
-                :label="t('settings_labels.appearance.number_of_views')"
+                v-bind="fieldCaption(t('settings_labels.appearance.number_of_views'))"
                 :prepend-icon="showIcons ? 'mdi-eye' : undefined"
                 :min="0"
                 :step="1"
                 :rules="[numberRules]"
                 control-variant="split"
                 density="compact"
-                hide-details="auto"
-                variant="filled"
+                :hide-details="fieldHideDetails"
+                :variant="fieldVariant"
               >
                 <template
                   v-if="!equalOld('views')"
@@ -207,10 +251,10 @@
             >
               <v-text-field
                 :model-value="vals.color || ''"
-                :label="t('meta.default_names.color')"
+                v-bind="fieldCaption(t('meta.default_names.color'))"
                 :prepend-icon="showIcons ? 'mdi-palette-outline' : undefined"
                 density="compact"
-                variant="filled"
+                :variant="fieldVariant"
                 readonly
                 hide-details
                 class="editing-color-field"
@@ -259,7 +303,9 @@
               <MetaInputCountry
                 @update:model-value="setValByKey($event, 'country')"
                 :model-value="vals.country || []"
-                variant="filled"
+                :label="isInspectorLayout ? '' : undefined"
+                :placeholder="isInspectorLayout ? t('meta.default_names.country') : undefined"
+                :variant="fieldVariant"
                 density="compact"
                 hide-details
               />
@@ -288,7 +334,8 @@
                 :meta-ids="mixedMetaIds"
                 :model-value="mixedTagsValue"
                 @update:model-value="setMixedTagsValue"
-                variant="filled"
+                :label="isInspectorLayout ? '' : undefined"
+                :variant="fieldVariant"
                 density="compact"
                 hide-details
               />
@@ -321,7 +368,11 @@
                 :meta-id="getMetaIdNumber(item)"
                 :key="`${currentItemId}_${getItemKey(item)}`"
                 :ref="el => setMetaInputRef(el, getItemKey(item))"
+                :label="isInspectorLayout ? '' : undefined"
+                :placeholder="isInspectorLayout ? metaName(item) : undefined"
+                :variant="fieldVariant"
                 density="compact"
+                :hide-details="fieldHideDetails"
                 multiple
               />
 
@@ -329,15 +380,16 @@
                 v-if="item.meta?.type === 'number'"
                 :model-value="getNumberVal(item)"
                 @update:model-value="setVal($event, getItemKey(item))"
-                :label="metaName(item)"
-                :hint="metaHint(item)"
+                v-bind="fieldCaption(metaName(item))"
+                :hint="isInspectorLayout ? undefined : metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 :rules="[numberRules]"
                 control-variant="split"
                 density="compact"
-                persistent-hint
+                :hide-details="fieldHideDetails"
+                :persistent-hint="!isInspectorLayout"
                 clearable
-                variant="filled"
+                :variant="fieldVariant"
               >
                 <template
                   v-if="!equalOld(getItemKey(item), item.meta?.type)"
@@ -351,13 +403,14 @@
                 v-if="item.meta?.type === 'string'"
                 :model-value="getStringVal(item)"
                 @update:model-value="setVal($event, getItemKey(item))"
-                :label="metaName(item)"
-                :hint="metaHint(item)"
+                v-bind="fieldCaption(metaName(item))"
+                :hint="isInspectorLayout ? undefined : metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
-                persistent-hint
+                :hide-details="fieldHideDetails"
+                :persistent-hint="!isInspectorLayout"
                 clearable
-                variant="filled"
+                :variant="fieldVariant"
               >
                 <template
                   v-if="!equalOld(getItemKey(item), item.meta?.type)"
@@ -372,24 +425,26 @@
                 :model-value="getBooleanVal(item)"
                 @update:model-value="setVal($event, getItemKey(item))"
                 :label="metaName(item)"
-                :hint="metaHint(item)"
+                :hint="isInspectorLayout ? undefined : metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
-                persistent-hint
+                :hide-details="fieldHideDetails"
+                :persistent-hint="!isInspectorLayout"
               />
 
               <v-text-field
                 v-if="item.meta?.type === 'date'"
                 @click="pickDate(getItemKey(item))"
                 :model-value="getStringVal(item)"
-                :label="metaName(item)"
-                :hint="metaHint(item)"
+                v-bind="fieldCaption(metaName(item))"
+                :hint="isInspectorLayout ? undefined : metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
-                persistent-hint
+                :hide-details="fieldHideDetails"
+                :persistent-hint="!isInspectorLayout"
                 readonly
                 clearable
-                variant="filled"
+                :variant="fieldVariant"
               >
                 <template
                   v-if="!equalOld(getItemKey(item), item.meta?.type)"
@@ -419,7 +474,7 @@
                     :active-color="metaRatingColor(item)"
                     color="grey-darken-1"
                     density="compact"
-                    size="28"
+                    :size="ratingSize"
                     clearable
                     hover
                   />
@@ -450,13 +505,13 @@
               <v-textarea
                 v-model="vals.bookmark"
                 :prepend-icon="showIcons ? 'mdi-bookmark' : undefined"
-                :label="t('meta.default_names.bookmark')"
+                v-bind="fieldCaption(t('meta.default_names.bookmark'))"
                 density="compact"
                 hide-details
                 clearable
                 auto-grow
                 rows="1"
-                variant="filled"
+                :variant="fieldVariant"
               >
                 <template v-if="vals.bookmark !== old.bookmark" #append-inner>
                   <EditingFieldRestoreBtn inline @click="restore('bookmark')" />
@@ -512,6 +567,7 @@ import {typedApi} from '@/services/typedApi'
 import {createImage, createUnavailableImage, checkFileExists} from '@/services/fileService'
 import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {setNotification} from '@/services/notificationService'
+import {setOption} from '@/services/settingsService'
 import {
   cloneMetaFieldValue,
   cloneMetaValues,
@@ -645,7 +701,9 @@ const emit = defineEmits<{
 const isInspectorLayout = computed(() => props.layout === 'inspector')
 const fieldMd = computed(() => (isInspectorLayout.value ? 12 : 6))
 const fieldXl = computed(() => (isInspectorLayout.value ? 12 : 4))
-const ratingSize = computed(() => (isInspectorLayout.value ? 22 : 28))
+const ratingSize = computed(() => (isInspectorLayout.value ? 14 : 28))
+const fieldVariant = computed(() => (isInspectorLayout.value ? 'outlined' : 'filled'))
+const fieldHideDetails = computed(() => (isInspectorLayout.value ? true : 'auto'))
 
 const isTag = computed(() => !!props.tag)
 const isMedia = computed(() => !props.tag && !!props.media)
@@ -710,10 +768,21 @@ const datePicker = ref<{
 })
 
 const settings = computed(() => settingsStore)
-const showIcons = computed(() => settings.value.showIconsOfMetaInEditingDialog === '1')
-const fieldCardClass = computed(() =>
-  showIcons.value ? 'editing-field-card--icons' : 'editing-field-card--plain',
+const showIcons = computed(() =>
+  !isInspectorLayout.value && settings.value.showIconsOfMetaInEditingDialog === '1',
 )
+
+/** In inspector: placeholder instead of floating label (filter-like density). */
+function fieldCaption(label: string) {
+  if (isInspectorLayout.value) {
+    return {label: undefined as string | undefined, placeholder: label}
+  }
+  return {label, placeholder: undefined as string | undefined}
+}
+const fieldCardClass = computed(() => {
+  if (isInspectorLayout.value) return 'editing-field-card--inspector'
+  return showIcons.value ? 'editing-field-card--icons' : 'editing-field-card--plain'
+})
 
 const ratingEnabled = computed(() => {
   if (isTag.value) return props.meta?.rating
@@ -769,6 +838,12 @@ const shouldShowPinnedField = (options: {
 }
 
 const useMixedTagsInput = computed(() => settingsStore.mixedTagsInputInEditingDialog === '1')
+
+function onTagsModeChange(mode: unknown) {
+  const next = mode === 'mixed' ? '1' : '0'
+  if (settingsStore.mixedTagsInputInEditingDialog === next) return
+  void setOption(next, 'mixedTagsInputInEditingDialog')
+}
 
 const visibleAssignedItems = computed(() =>
   assignedItems.value.filter((item) => {
@@ -1659,39 +1734,110 @@ defineExpose({
     position: relative;
   }
 
+  .editing-section__toolbar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+  }
+
+  .editing-section__group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    & + & {
+      margin-left: 10px;
+      padding-left: 10px;
+      border-left: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+    }
+  }
+
+  .editing-section__group--search {
+    flex: 1 1 auto;
+  }
+
+  .editing-section__group--tags,
+  .editing-section__group--filters {
+    flex: 0 0 auto;
+  }
+
+  .editing-section__group-label {
+    display: none;
+  }
+
+  .editing-section__search {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  .editing-section__tags-mode,
+  .editing-section__filters {
+    flex: 0 0 auto;
+  }
+
+  .editing-section__filters {
+    .v-chip-group__content {
+      flex-wrap: nowrap;
+    }
+  }
+
   &--inspector {
+    // Uniform scale-down so Vuetify controls match the rest of the inspector chrome.
+    zoom: 0.78;
+    --inspector-control-h: 24px;
+
     .editing-form {
       padding-top: 0 !important;
       padding-bottom: 0 !important;
     }
 
     .editing-section__toolbar {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 8px;
-      margin-bottom: 8px;
+      flex-wrap: nowrap;
+      gap: 0;
+      margin-bottom: 4px;
+      overflow-x: auto;
+    }
+
+    .editing-section__group--search {
+      flex: 1 1 auto;
+      min-width: 72px;
+    }
+
+    .editing-section__group--tags,
+    .editing-section__group--filters {
+      flex: 0 0 auto;
+    }
+
+    .editing-section__group-label {
+      display: none;
+    }
+
+    .editing-section__group + .editing-section__group {
+      margin-left: 6px;
+      padding-left: 6px;
     }
 
     .editing-section__filters {
-      flex-wrap: wrap;
+      .v-chip {
+        --v-chip-height: 22px;
+        height: 22px !important;
+        font-size: 0.65rem !important;
+        padding-inline: 6px !important;
+      }
     }
 
-    .editing-field-card {
-      margin-bottom: 0 !important;
-    }
-
-    .editing-field-card--rating {
-      min-height: 36px;
-      padding: 2px 8px !important;
-    }
-
-    .editing-rating-field--identity {
-      flex-wrap: wrap;
-      row-gap: 6px;
-    }
-
-    .editing-rating-field__name {
-      font-size: 0.72rem;
+    .editing-section__tags-mode {
+      .v-btn {
+        --v-btn-height: 22px;
+        min-height: 22px !important;
+        font-size: 0.65rem !important;
+        padding-inline: 6px !important;
+      }
     }
 
     .v-container {
@@ -1701,11 +1847,203 @@ defineExpose({
 
     .v-row {
       margin-top: 0 !important;
+      margin-bottom: 0 !important;
     }
 
     .field {
-      padding-top: 4px !important;
-      padding-bottom: 4px !important;
+      padding-top: 1px !important;
+      padding-bottom: 1px !important;
+    }
+
+    .editing-field-card {
+      margin: 0 !important;
+      padding: 0 !important;
+      border-radius: 6px !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .editing-field-card--inspector {
+      padding: 0 !important;
+    }
+
+    .editing-field-card--rating {
+      min-height: 22px;
+      padding: 0 !important;
+    }
+
+    .editing-field-card:has(.editing-field-restore--float) {
+      padding-inline-end: 24px !important;
+    }
+
+    .editing-rating-field {
+      gap: 4px;
+    }
+
+    .editing-rating-field--identity {
+      flex-wrap: nowrap;
+      row-gap: 0;
+      min-height: 22px;
+      gap: 4px;
+    }
+
+    .editing-rating-field__name {
+      font-size: 0.62rem;
+      line-height: 1.1;
+    }
+
+    .editing-rating-field .v-rating,
+    .editing-rating-field--identity .v-rating {
+      height: 18px;
+    }
+
+    .editing-rating-field .v-rating .v-btn,
+    .editing-rating-field--identity .v-rating .v-btn {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+    }
+
+    .editing-rating-field .v-rating .v-icon,
+    .editing-rating-field--identity .v-rating .v-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+
+    .fav-btn {
+      :deep(.v-selection-control),
+      :deep(.v-checkbox-btn) {
+        min-height: 18px !important;
+        height: 18px !important;
+      }
+
+      :deep(.v-icon) {
+        font-size: 16px !important;
+      }
+    }
+
+    :deep(.v-input),
+    :deep(.v-field) {
+      --v-input-control-height: var(--inspector-control-h) !important;
+      font-size: 0.68rem !important;
+    }
+
+    :deep(.v-field) {
+      --v-field-padding-start: 6px;
+      --v-field-padding-end: 4px;
+      min-height: var(--inspector-control-h) !important;
+      border-radius: 6px !important;
+    }
+
+    :deep(.v-field__outline) {
+      --v-field-border-width: 1px;
+      --v-field-border-opacity: 0.22;
+    }
+
+    :deep(.v-field__field) {
+      height: auto;
+      min-height: var(--inspector-control-h);
+    }
+
+    :deep(.v-field__input) {
+      min-height: var(--inspector-control-h) !important;
+      max-height: none;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      padding-inline: 6px 4px !important;
+      font-size: 0.68rem !important;
+      line-height: 1.15 !important;
+      align-items: center;
+      row-gap: 1px;
+      column-gap: 2px;
+    }
+
+    :deep(.v-field__input input),
+    :deep(.v-field__input textarea) {
+      font-size: 0.68rem !important;
+      line-height: 1.15 !important;
+    }
+
+    :deep(.v-autocomplete .v-field__input),
+    :deep(.v-combobox .v-field__input),
+    :deep(.v-select .v-field__input) {
+      min-height: var(--inspector-control-h) !important;
+      padding-top: 1px !important;
+      padding-bottom: 1px !important;
+    }
+
+    :deep(.v-textarea .v-field__input) {
+      min-height: var(--inspector-control-h) !important;
+      padding-block: 4px !important;
+      align-items: flex-start;
+    }
+
+    :deep(.v-field__append-inner),
+    :deep(.v-field__prepend-inner),
+    :deep(.v-field__clearable) {
+      padding-top: 0 !important;
+      align-self: center;
+    }
+
+    :deep(.v-field__clearable .v-icon),
+    :deep(.v-field__append-inner .v-icon),
+    :deep(.v-field__prepend-inner .v-icon) {
+      font-size: 14px !important;
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    :deep(.v-number-input .v-btn) {
+      width: 22px !important;
+      height: 22px !important;
+      min-width: 22px !important;
+      min-height: 22px !important;
+    }
+
+    :deep(.v-number-input .v-btn .v-icon) {
+      font-size: 14px !important;
+    }
+
+    :deep(.v-chip) {
+      --v-chip-height: 18px;
+      height: 18px !important;
+      font-size: 0.6rem !important;
+      margin: 0 !important;
+      padding-inline: 4px !important;
+    }
+
+    :deep(.v-chip .v-icon) {
+      font-size: 11px !important;
+      width: 11px !important;
+      height: 11px !important;
+    }
+
+    :deep(.v-chip__close) {
+      margin-inline: 0 0 !important;
+      font-size: 12px !important;
+    }
+
+    :deep(.v-checkbox .v-label),
+    :deep(.v-selection-control .v-label) {
+      font-size: 0.68rem !important;
+    }
+
+    :deep(.v-input--density-compact) {
+      --v-input-padding-top: 0;
+    }
+
+    :deep(.v-messages),
+    :deep(.v-input__details) {
+      display: none !important;
+      min-height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    :deep(.editing-field-restore) {
+      transform: scale(0.85);
+      transform-origin: center;
     }
   }
 }

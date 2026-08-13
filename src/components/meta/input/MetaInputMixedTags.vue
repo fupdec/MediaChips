@@ -9,7 +9,7 @@
     item-title="title"
     item-value="key"
     ref="field"
-    :label="label || t('meta.fields.mixed_tags_label')"
+    :label="label === undefined ? t('meta.fields.mixed_tags_label') : label"
     :placeholder="placeholder || t('meta.fields.mixed_tags_placeholder')"
     :disabled="disabled"
     :hide-no-data="!search.trim()"

@@ -5,15 +5,38 @@
     clipped
     permanent
     location="right"
-    :width="width"
+    :width="panelWidth"
     class="inspector-panel"
-    :class="{'inspector-panel--empty': !focusedItem}"
+    :class="{
+      'inspector-panel--empty': !focusedItem,
+      'inspector-panel--edit': inlineEdit,
+    }"
   >
     <div class="inspector-panel__inner">
       <div class="inspector-panel__header">
         <span class="inspector-panel__title">{{ t('browser_layout.inspector') }}</span>
 
         <div class="inspector-panel__header-actions">
+          <v-btn
+            class="inspector-panel__mode"
+            icon
+            variant="text"
+            size="x-small"
+            :aria-label="inlineEdit
+              ? t('browser_layout.inspector_mode_view')
+              : t('browser_layout.inspector_mode_edit')"
+            @click="toggleInlineEdit"
+          >
+            <v-tooltip activator="parent" location="top">
+              {{ inlineEdit
+                ? t('browser_layout.inspector_mode_view')
+                : t('browser_layout.inspector_mode_edit') }}
+            </v-tooltip>
+            <v-icon size="16">
+              {{ inlineEdit ? 'mdi-eye-outline' : 'mdi-pencil-outline' }}
+            </v-icon>
+          </v-btn>
+
           <v-btn
             v-if="focusedItem"
             class="inspector-panel__close"
@@ -59,140 +82,238 @@
           {{ t('browser_layout.inspector_empty') }}
         </div>
         <div class="text-caption text-medium-emphasis text-center mt-2">
-          {{ t('browser_layout.inspector_hint') }}
+          {{ inspectorHint }}
         </div>
       </div>
 
       <template v-else>
-        <div
-          class="inspector-panel__preview"
-          :class="{'inspector-panel__preview--clickable': Boolean(previewSrc)}"
-          @click="openPreviewViewer"
-        >
-          <img
-            v-if="previewSrc"
-            :key="previewSrc"
-            :src="previewSrc"
-            alt=""
-            class="inspector-panel__thumb"
-            @load="onThumbLoad"
-            @error="onThumbError"
-          >
+        <div class="inspector-panel__scroll">
           <div
-            v-else
-            class="inspector-panel__thumb-fallback"
-          >
-            <v-icon size="36" color="medium-emphasis">
-              {{ fallbackIcon }}
-            </v-icon>
-          </div>
-        </div>
-
-        <div
-          v-if="isTag && galleryImages.length > 1"
-          class="inspector-panel__gallery"
-        >
-          <button
-            v-for="image in galleryImages"
-            :key="image.type"
-            type="button"
-            class="inspector-panel__gallery-thumb"
-            :class="{'inspector-panel__gallery-thumb--active': activeGalleryType === image.type}"
-            :title="image.type"
-            @click="activeGalleryType = image.type"
+            class="inspector-panel__preview"
+            :class="{'inspector-panel__preview--clickable': Boolean(previewSrc)}"
+            @click="openPreviewViewer"
           >
             <img
-              :src="image.src"
+              v-if="previewSrc"
+              :key="previewSrc"
+              :src="previewSrc"
               alt=""
+              class="inspector-panel__thumb"
+              @load="onThumbLoad"
+              @error="onThumbError"
             >
-            <span>{{ image.type }}</span>
-          </button>
-        </div>
-
-        <div
-          v-if="isTag && previewInfoLabel"
-          class="inspector-panel__media-info text-medium-emphasis"
-        >
-          {{ previewInfoLabel }}
-        </div>
-
-        <div
-          v-else-if="mediaFacts.length"
-          class="inspector-panel__facts"
-        >
-          <div
-            v-for="fact in mediaFacts"
-            :key="fact.key"
-            class="inspector-panel__fact"
-          >
-            <span class="inspector-panel__fact-label">{{ fact.label }}</span>
-            <span class="inspector-panel__fact-value">{{ fact.value }}</span>
-          </div>
-        </div>
-
-        <div class="inspector-panel__body">
-          <div
-            v-if="!isTag"
-            class="inspector-panel__name"
-            :title="focusedItem.name"
-          >
-            {{ focusedItem.name || t('browser_layout.untitled') }}
+            <div
+              v-else
+              class="inspector-panel__thumb-fallback"
+            >
+              <v-icon size="36" color="medium-emphasis">
+                {{ fallbackIcon }}
+              </v-icon>
+            </div>
           </div>
 
           <div
-            v-if="mediaPath"
-            class="inspector-panel__path text-medium-emphasis"
-            :title="mediaPath"
+            v-if="isTag && galleryImages.length > 1"
+            class="inspector-panel__gallery"
           >
-            {{ mediaPath }}
+            <button
+              v-for="image in galleryImages"
+              :key="image.type"
+              type="button"
+              class="inspector-panel__gallery-thumb"
+              :class="{'inspector-panel__gallery-thumb--active': activeGalleryType === image.type}"
+              :title="image.type"
+              @click="activeGalleryType = image.type"
+            >
+              <img
+                :src="image.src"
+                alt=""
+              >
+              <span>{{ image.type }}</span>
+            </button>
           </div>
 
-          <EditPinnedMetaValues
-            v-if="focusedMedia"
-            ref="editingRef"
-            class="inspector-panel__editor"
-            layout="inspector"
-            :show-overview="false"
-            :media="focusedMedia"
-            @dirty-change="formDirty = $event"
-            @saved="onSaved"
-          />
-          <EditPinnedMetaValues
-            v-else-if="focusedTag && meta"
-            ref="editingRef"
-            class="inspector-panel__editor"
-            layout="inspector"
-            :show-overview="false"
-            :tag="focusedTag"
-            :meta="meta"
-            @dirty-change="formDirty = $event"
-            @saved="onSaved"
-          />
+          <div
+            v-if="isTag && previewInfoLabel"
+            class="inspector-panel__media-info text-medium-emphasis"
+          >
+            {{ previewInfoLabel }}
+          </div>
+
+          <div
+            v-else-if="mediaFacts.length"
+            class="inspector-panel__facts"
+          >
+            <div
+              v-for="fact in mediaFacts"
+              :key="fact.key"
+              class="inspector-panel__fact"
+            >
+              <span class="inspector-panel__fact-label">{{ fact.label }}</span>
+              <span class="inspector-panel__fact-value">{{ fact.value }}</span>
+            </div>
+          </div>
+
+          <div class="inspector-panel__body">
+            <div
+              class="inspector-panel__name"
+              :title="focusedItem.name"
+            >
+              {{ focusedItem.name || t('browser_layout.untitled') }}
+            </div>
+
+            <div
+              v-if="mediaPath"
+              class="inspector-panel__path text-medium-emphasis"
+              :title="mediaPath"
+            >
+              {{ mediaPath }}
+            </div>
+
+            <template v-if="inlineEdit">
+              <EditPinnedMetaValues
+                v-if="focusedMedia"
+                ref="editingRef"
+                class="inspector-panel__editor"
+                layout="inspector"
+                :show-overview="false"
+                :media="focusedMedia"
+                @dirty-change="formDirty = $event"
+                @saved="onSaved"
+              />
+              <EditPinnedMetaValues
+                v-else-if="focusedTag && meta"
+                ref="editingRef"
+                class="inspector-panel__editor"
+                layout="inspector"
+                :show-overview="false"
+                :tag="focusedTag"
+                :meta="meta"
+                @dirty-change="formDirty = $event"
+                @saved="onSaved"
+              />
+            </template>
+
+            <template v-else>
+              <div
+                v-if="tagSynonyms"
+                class="inspector-panel__synonyms text-medium-emphasis"
+                v-html="tagSynonyms"
+              />
+
+              <div
+                v-if="tagCountries.length"
+                class="inspector-panel__field"
+              >
+                <div class="inspector-panel__field-label">
+                  {{ t('meta.types.country') }}
+                </div>
+                <div class="inspector-panel__chips">
+                  <v-chip
+                    v-for="country in tagCountries"
+                    :key="country"
+                    size="small"
+                    class="ma-1"
+                    variant="tonal"
+                  >
+                    {{ country }}
+                  </v-chip>
+                </div>
+              </div>
+
+              <div
+                v-if="itemBookmark"
+                class="inspector-panel__field"
+              >
+                <div class="inspector-panel__field-label">
+                  {{ t('meta.default_names.bookmark') }}
+                </div>
+                <div class="inspector-panel__bookmark">
+                  {{ itemBookmark }}
+                </div>
+              </div>
+
+              <div
+                v-if="showMetaRow"
+                class="inspector-panel__meta-row"
+              >
+                <v-rating
+                  v-if="itemsStore.type === 'media' || meta?.rating"
+                  :model-value="Number(focusedItem.rating) || 0"
+                  density="compact"
+                  half-increments
+                  readonly
+                  size="small"
+                  active-color="yellow-darken-2"
+                />
+                <v-icon
+                  v-if="(itemsStore.type === 'media' || meta?.favorite) && focusedItem.favorite"
+                  size="18"
+                  color="pink"
+                >
+                  mdi-heart
+                </v-icon>
+                <span
+                  v-if="itemColor"
+                  class="inspector-panel__color-swatch"
+                  :style="{backgroundColor: itemColor}"
+                  :title="itemColor"
+                />
+              </div>
+
+              <div class="inspector-panel__section-label">
+                {{ t('meta.fields.metadata') }}
+              </div>
+              <ItemPinnedMeta
+                v-if="focusedItem"
+                class="inspector-panel__pinned"
+                :item="focusedItem"
+                :tags="focusedItem.tags"
+                :values="focusedItem.values"
+                :type="isTag ? 'tag' : 'media'"
+                :is-show-all="true"
+                :show-preset="isTag"
+              />
+            </template>
+          </div>
         </div>
 
         <div class="inspector-panel__actions">
+          <template v-if="inlineEdit">
+            <v-btn
+              color="success"
+              variant="flat"
+              size="small"
+              class="inspector-panel__action-btn"
+              prepend-icon="mdi-content-save"
+              :loading="saving"
+              :disabled="!formDirty || saving"
+              @click="saveEdits"
+            >
+              {{ t('common.save') }}
+            </v-btn>
+            <v-btn
+              color="primary"
+              variant="tonal"
+              size="small"
+              class="inspector-panel__action-btn"
+              prepend-icon="mdi-pencil-outline"
+              :disabled="saving"
+              @click="openFullEdit"
+            >
+              {{ t('browser_layout.open_full_editor') }}
+            </v-btn>
+          </template>
           <v-btn
-            color="success"
-            variant="flat"
-            size="small"
-            class="inspector-panel__action-btn"
-            prepend-icon="mdi-content-save"
-            :loading="saving"
-            :disabled="!formDirty || saving"
-            @click="saveEdits"
-          >
-            {{ t('common.save') }}
-          </v-btn>
-          <v-btn
+            v-else
             color="primary"
             variant="tonal"
+            block
             size="small"
-            class="inspector-panel__action-btn"
             prepend-icon="mdi-pencil-outline"
-            :disabled="saving"
             @click="openFullEdit"
           >
-            {{ t('browser_layout.open_full_editor') }}
+            {{ t('browser_layout.edit_item') }}
           </v-btn>
         </div>
       </template>
@@ -225,6 +346,7 @@ import path from 'path-browserify'
 import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
+import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
@@ -240,6 +362,7 @@ import {
   getReadableDuration,
   getReadableFileSize,
 } from '@/services/formatUtils'
+import {parseCountries} from '@/utils/country'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {
   isAudioMediaType,
@@ -254,10 +377,10 @@ import {
 } from '@/utils/thumbSource'
 import type {MediaItem, Tag} from '@/types/stores'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   width?: number
 }>(), {
-  width: 360,
+  width: undefined,
 })
 
 const TAG_GALLERY_TYPES = ['main', 'alt', 'custom1', 'custom2'] as const
@@ -284,6 +407,13 @@ const listSync = useItemsListSync()
 const winElectronUi = isWinElectronUi()
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
+const inlineEdit = computed(() => settingsStore.inspectorInlineEdit !== '0')
+const panelWidth = computed(() => props.width ?? (inlineEdit.value ? 360 : 300))
+const inspectorHint = computed(() => (
+  inlineEdit.value
+    ? t('browser_layout.inspector_hint_edit')
+    : t('browser_layout.inspector_hint_view')
+))
 
 const expandRailTop = computed(() => {
   let top = 48
@@ -328,6 +458,35 @@ const mediaType = computed(() => {
 })
 
 const mediaPath = computed(() => String(focusedMedia.value?.path || ''))
+
+const tagSynonyms = computed(() => {
+  if (!focusedTag.value?.synonyms) return ''
+  return String(focusedTag.value.synonyms)
+})
+
+const tagCountries = computed(() => {
+  if (!focusedTag.value?.country) return [] as string[]
+  return parseCountries(String(focusedTag.value.country))
+})
+
+const itemBookmark = computed(() => {
+  const value = focusedItem.value?.bookmark
+  if (value == null || value === '') return ''
+  return String(value)
+})
+
+const itemColor = computed(() => {
+  const value = focusedItem.value?.color
+  if (!value) return ''
+  return String(value)
+})
+
+const showMetaRow = computed(() => {
+  if (!focusedItem.value) return false
+  return Boolean(focusedItem.value.rating)
+    || Boolean(focusedItem.value.favorite)
+    || Boolean(itemColor.value)
+})
 
 const mediaWidth = computed(() => {
   if (!focusedItem.value) return 0
@@ -398,7 +557,14 @@ const mediaFacts = computed((): InspectorFact[] => {
     pushFact(facts, 'fps', t('settings_labels.appearance.framerate'), `${fps}`)
   }
 
-  // Views stay editable in the form — don't duplicate them in read-only facts.
+  // Views stay editable in the form — don't duplicate them in edit-mode facts.
+  if (!inlineEdit.value) {
+    const views = Number(media.views)
+    if (Number.isFinite(views) && views > 0) {
+      pushFact(facts, 'views', t('settings_labels.appearance.number_of_views'), String(views))
+    }
+  }
+
   pushFact(facts, 'mediaCreatedAt', t('editing.media_created'), formatInspectorDate(media.mediaCreatedAt))
   pushFact(facts, 'createdAt', t('editing.added'), formatInspectorDate(media.createdAt))
   pushFact(facts, 'updatedAt', t('editing.last_edit'), formatInspectorDate(media.updatedAt))
@@ -519,6 +685,7 @@ watch(activeGalleryType, () => {
 })
 
 async function flushEdits(): Promise<void> {
+  if (!inlineEdit.value) return
   if (!editingRef.value?.isDirty?.() || !editingRef.value.save || saving.value) return
   saving.value = true
   try {
@@ -538,6 +705,15 @@ async function toggleCollapsed(): Promise<void> {
     await flushEdits()
   }
   void setOption(collapsed.value ? '0' : '1', 'inspectorCollapsed')
+}
+
+async function toggleInlineEdit(): Promise<void> {
+  if (inlineEdit.value) {
+    await flushEdits()
+    void setOption('0', 'inspectorInlineEdit')
+    return
+  }
+  void setOption('1', 'inspectorInlineEdit')
 }
 
 async function saveEdits(): Promise<void> {
@@ -640,7 +816,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .inspector-panel__header {
@@ -649,8 +825,6 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  position: sticky;
-  top: 0;
   z-index: 2;
   background: rgb(var(--v-theme-surface));
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
@@ -812,10 +986,27 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   }
 }
 
-.inspector-panel__body {
-  padding: 12px 12px 8px;
+.inspector-panel__scroll {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+}
+
+.inspector-panel__body {
+  padding: 12px 12px 8px;
+}
+
+.inspector-panel__actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
 }
 
 .inspector-panel__name {
@@ -834,23 +1025,106 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   white-space: nowrap;
 }
 
-.inspector-panel__editor {
-  min-width: 0;
+.inspector-panel__synonyms {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  word-break: break-word;
 }
 
-.inspector-panel__actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+.inspector-panel__field {
+  margin-top: 10px;
+}
+
+.inspector-panel__field-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin-bottom: 2px;
+}
+
+.inspector-panel__chips {
   display: flex;
-  flex-direction: row;
+  flex-wrap: wrap;
+  margin: -4px;
+}
+
+.inspector-panel__bookmark {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.85;
+}
+
+.inspector-panel__meta-row {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 10px 12px 12px;
-  margin-top: auto;
-  background: rgb(var(--v-theme-surface));
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.06);
-  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.12);
+  margin-top: 8px;
+}
+
+.inspector-panel__color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
   flex-shrink: 0;
+}
+
+.inspector-panel__section-label {
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.inspector-panel__pinned {
+  :deep(.category) {
+    margin-bottom: 6px;
+    margin-top: 0;
+    padding: 0;
+    align-items: flex-start;
+  }
+
+  :deep(.category-name) {
+    font-size: 0.68rem;
+    font-weight: 400;
+    opacity: 0.65;
+    margin-bottom: 0;
+    margin-right: 6px;
+    min-height: 22px;
+    line-height: 22px;
+
+    .v-icon {
+      font-size: 14px !important;
+      width: 14px;
+      height: 14px;
+      margin-right: 4px;
+    }
+  }
+
+  :deep(.v-chip) {
+    margin: 1px 2px !important;
+    padding: 0 !important;
+    min-height: 22px !important;
+    height: 22px !important;
+    font-size: 0.72rem !important;
+
+    .v-chip__content {
+      padding-inline: 6px !important;
+      line-height: 1.2;
+    }
+  }
+}
+
+.inspector-panel__editor {
+  min-width: 0;
 }
 
 .inspector-panel__action-btn {

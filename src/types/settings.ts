@@ -130,6 +130,11 @@ export type SettingsState = {
   browserLayout: string
   /** '1' when the browser-layout inspector panel is collapsed. */
   inspectorCollapsed: string
+  /**
+   * '1' — inspector shows the inline edit form.
+   * '0' — inspector shows read-only details (classic view).
+   */
+  inspectorInlineEdit: string
   /** '1' when the browser-layout sidebar is collapsed. */
   sidebarCollapsed: string
   showPlaylistsInNavigation: string
@@ -273,6 +278,7 @@ export const defaultSettingsState = (): SettingsState => ({
   bottomBar: '0',
   browserLayout: '1',
   inspectorCollapsed: '0',
+  inspectorInlineEdit: '1',
   sidebarCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',

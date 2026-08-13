@@ -35,6 +35,12 @@ const onSlideshowIntervalChange = (val: number | number[]) => {
   ></settings-switch>
 
   <settings-switch
+    :title="t('settings_labels.appearance.inspector_inline_edit')"
+    :hint="t('settings_labels.appearance.inspector_inline_edit_hint')"
+    option="inspectorInlineEdit"
+  ></settings-switch>
+
+  <settings-switch
     :title="t('settings_labels.appearance.quick_action_button')"
     :hint="t('settings_labels.appearance.quick_action_button_hint')"
     option="show_quick_action_button"
