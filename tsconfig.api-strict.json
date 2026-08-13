@@ -3,11 +3,12 @@
   "compilerOptions": {
     "strict": true,
     "noEmit": true,
+    "resolveJsonModule": true,
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["api/**/*.ts", "shared/**/*.ts"]
+  "include": ["api/**/*.ts", "shared/**/*.ts", "chip-recipes/recipes/**/*.json"]
 }
