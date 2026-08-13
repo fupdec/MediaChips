@@ -8,6 +8,7 @@ const generatedAndVendor = [
   'dist/**',
   '.api-build/**',
   '.app-build/**',
+  '.backend-build/**',
   '.electron-build/**',
   '.main-build/**',
   '.scripts-build/**',

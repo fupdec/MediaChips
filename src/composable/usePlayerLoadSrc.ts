@@ -260,10 +260,11 @@ export function createPlayerLoadSrc({
         explicitStart,
         segmentStart,
         semanticTileIndex: hasSemanticTile ? semanticTileIndex : null,
-        durationSec: metadataDuration
-          ?? metadataNumber(playerStore.metadata, 'duration')
-          ?? Number(media.duration)
-          ?? null,
+        durationSec: (() => {
+          if (metadataDuration != null && metadataDuration > 0) return metadataDuration
+          const fromMedia = Number(media.duration)
+          return Number.isFinite(fromMedia) && fromMedia > 0 ? fromMedia : null
+        })(),
       })
       : undefined
     const targetStartTime = semanticStart != null

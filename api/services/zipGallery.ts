@@ -323,12 +323,7 @@ export async function collectFilesWithZipGalleries(options: {
   const skippedZips: ZipSkipped[] = []
   const files: string[] = []
 
-  let rootStat: fs.Stats
-  try {
-    rootStat = await fs.promises.lstat(root)
-  } catch (error) {
-    throw error
-  }
+  const rootStat = await fs.promises.lstat(root)
 
   if (rootStat.isFile()) {
     if (expandZips && isZipFilePath(root)) {

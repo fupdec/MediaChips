@@ -1431,7 +1431,7 @@ const unbindFilmstripObserver = () => {
   }
 }
 
-const scrollFilmstripToActive = async (behavior: ScrollBehavior = 'auto') => {
+const scrollFilmstripToActive = async (behavior: 'auto' | 'instant' | 'smooth' = 'auto') => {
   await nextTick()
   const root = filmstripRef.value
   if (!root || filmstripTotal.value <= 0) return
