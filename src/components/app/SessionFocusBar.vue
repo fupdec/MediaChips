@@ -15,13 +15,13 @@
           @click="openFocusTagPage"
         >
           <v-icon
-            v-if="focusStore.tag.icon"
+            v-if="focusTag?.icon"
             size="14"
             start
           >
-            mdi-{{ focusStore.tag.icon }}
+            mdi-{{ focusTag.icon }}
           </v-icon>
-          {{ focusStore.tag.name }}
+          {{ focusTag?.name }}
         </button>
         <ButtonDocumentation
           id="tags.session_focus"
@@ -87,8 +87,9 @@ const {
   openFocusTagPage,
 } = useSessionFocusActions()
 
+const focusTag = computed(() => focusStore.tag)
 const isVisible = computed(() =>
-  Boolean(focusStore.tag) && SESSION_FOCUS_ROUTE_NAMES.has(String(route.name || '')),
+  Boolean(focusTag.value) && SESSION_FOCUS_ROUTE_NAMES.has(String(route.name || '')),
 )
 </script>
 

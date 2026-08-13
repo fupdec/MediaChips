@@ -320,7 +320,7 @@ async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
     const metaIds = visibleMetas.map((meta) => Number(meta.id)).filter((id) => id > 0)
     await loadPageSorts(metaIds)
 
-    const groupResults = await Promise.all(visibleMetas.map(async (meta) => {
+    const groupResults = await Promise.all(visibleMetas.map(async (meta): Promise<TopTagsCategory | null> => {
       const metaId = String(meta.id)
       if (!grouped[metaId]?.length) return null
 

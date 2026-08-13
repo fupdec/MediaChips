@@ -40,6 +40,8 @@ jobs:
           npx tsc -p tsconfig.app-strict.json
           npx tsc -p tsconfig.api-strict.json
           npx tsc -p tsconfig.scripts.json --noEmit
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Lint
         run: npx eslint .

@@ -390,20 +390,20 @@ async function refresh() {
       filesize: item.filesize,
     }))
     const tagItems: TrashItem[] = (tags.data.items || []).map((item) => ({
-      kind: 'tag',
       ...item,
+      kind: 'tag',
     }))
     const markItems: TrashItem[] = (marks.data.items || []).map((item) => ({
-      kind: 'mark',
       ...item,
+      kind: 'mark',
     }))
     const playlistItems: TrashItem[] = (playlists.data.items || []).map((item) => ({
-      kind: 'playlist',
       ...item,
+      kind: 'playlist',
     }))
     const filterItems: TrashItem[] = (savedFilters.data.items || []).map((item) => ({
-      kind: 'savedFilter',
       ...item,
+      kind: 'savedFilter',
     }))
 
     items.value = [...mediaItems, ...tagItems, ...markItems, ...playlistItems, ...filterItems]
