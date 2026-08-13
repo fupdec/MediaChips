@@ -23,6 +23,13 @@
       </div>
     </v-btn>
 
+    <v-btn @click="showInLibrary" icon dark>
+      <v-icon>mdi-library</v-icon>
+      <div class="tip">
+        <span class="mr-2">{{ t('player.controls.show_in_library') }}</span>
+      </div>
+    </v-btn>
+
     <v-dialog
       v-if="dialog_video_edit && video_editing"
       v-model="dialog_video_edit"
@@ -123,6 +130,7 @@ const {
   xl,
   setAsThumb,
   editVideo,
+  showInLibrary,
   updateVideoInfo,
   deleteVideo,
 } = inject(PLAYER_TRANSPORT_KEY)!

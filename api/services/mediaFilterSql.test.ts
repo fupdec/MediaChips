@@ -256,6 +256,52 @@ describe('buildMediaFilterQuery', () => {
     expect(result.joinSql).toContain('COUNT(DISTINCT CASE WHEN tagId IN')
     expect(result.whereSql).not.toContain('SELECT COUNT(*)')
   })
+
+  it('joins filter rows with OR when filtersJoin is or', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 'rating', type: 'rating', cond: '>=', val: 4 },
+      { active: true, param: 'favorite', type: 'boolean', cond: '=', val: true },
+    ], { mediaTypeId: 1, filtersJoin: 'or' })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.whereSql).toContain('media.mediaTypeId = :mediaTypeId')
+    expect(result.whereSql).toContain(' OR ')
+    expect(result.whereSql).not.toMatch(/media\.mediaTypeId = :mediaTypeId OR /)
+  })
+
+  it('ORs tag filters via WHERE clauses without INNER JOIN', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'in', val: [1050] },
+      { active: true, param: 'rating', type: 'rating', cond: '>=', val: 4 },
+    ], { mediaTypeId: 1, filtersJoin: 'or' })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toBe('')
+    expect(result.whereSql).toContain(' OR ')
+    expect(result.whereSql).toMatch(/media\.id IN/)
+    expect(result.whereSql).toMatch(/media\.rating.*>=/)
+    // mediaTypeId stays AND-scoped outside the OR group
+    expect(result.whereSql).toMatch(
+      /^media\.mediaTypeId = :mediaTypeId AND \(/,
+    )
+  })
+
+  it('still uses INNER JOIN for tag filters in AND mode', () => {
+    const result = buildMediaFilterQuery([
+      { active: true, param: 17, type: 'array', cond: 'in', val: [1050] },
+      { active: true, param: 'rating', type: 'rating', cond: '>=', val: 4 },
+    ], { mediaTypeId: 1, filtersJoin: 'and' })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toContain('INNER JOIN')
+    expect(result.whereSql).not.toContain(' OR ')
+  })
 })
 
 describe('resolveMediaFilterQuery', () => {

@@ -64,4 +64,27 @@ describe('filterItems', () => {
     )
     expect(filtered.map((row) => row.id)).toEqual([1])
   })
+
+  it('ORs filter rows when filtersJoin is or', () => {
+    const items = [
+      item({id: 1, rating: 5, favorite: true}),
+      item({id: 2, rating: 1, favorite: false}),
+      item({id: 3, rating: 1, favorite: true}),
+    ]
+    const filtered = filterItems(
+      [
+        {param: 'rating', type: 'rating', cond: '>=', val: 5, active: true},
+        {param: 'favorite', type: 'boolean', cond: '=', val: true, active: true},
+      ],
+      'media',
+      items,
+      'id',
+      'asc',
+      false,
+      'filesize',
+      null,
+      'or',
+    )
+    expect(filtered.map((row) => row.id)).toEqual([1, 3])
+  })
 })

@@ -57,6 +57,7 @@ export default function (db: ApiDb) {
         metaId,
         ids,
         filters: (body.filters ?? []) as unknown as FilterLike[],
+        filtersJoin: body.filtersJoin === 'or' ? 'or' : 'and',
         sortBy: body.sortBy ?? 'id',
         direction: body.direction ?? 'desc',
         find_duplicates: body.find_duplicates ?? false,

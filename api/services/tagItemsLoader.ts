@@ -41,6 +41,8 @@ export interface TagLoadOptions {
   metaId: number
   ids?: number[]
   filters?: FilterLike[]
+  /** How active filter rows combine: all (AND, default) or any (OR). */
+  filtersJoin?: 'and' | 'or'
   sortBy?: string
   direction?: string
   find_duplicates?: boolean
@@ -231,7 +233,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
     skipTotals = false,
   } = options
 
-  const filterQuery = resolveTagFilterQuery({metaId, ids, filters})
+  const filterQuery = resolveTagFilterQuery({metaId, ids, filters, filtersJoin: options.filtersJoin})
   if (!filterQuery.ok) {
     return loadTagItemsLegacy(db, options, filterQuery.reason)
   }
@@ -390,6 +392,7 @@ async function loadTagItemsLegacy(
     direction,
     find_duplicates,
     sortMetaType,
+    filtersJoin: options.filtersJoin,
   })
 
   const totalUnfiltered = itemsAll.length

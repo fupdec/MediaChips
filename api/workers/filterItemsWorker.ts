@@ -20,6 +20,7 @@ parentPort.on('message', (request: FilterItemsWorkerRequest) => {
       request.find_duplicates,
       request.duplicates_by ?? 'filesize',
       request.sortMetaType ?? null,
+      request.filtersJoin ?? 'and',
     )
 
     const response: FilterItemsWorkerResponse = {

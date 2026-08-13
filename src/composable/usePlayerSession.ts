@@ -28,6 +28,11 @@ import {getTranscodePlayerStatus} from '@/utils/playerTranscodeStatus'
 import {setNotification} from '@/services/notificationService'
 import {openPath as openFilePath} from '@/services/shellService'
 import {
+  loadPlayerVolumePrefs,
+  persistPlayerMuted,
+  persistPlayerVolume,
+} from '@/services/playerVolumePrefs'
+import {
   abortVideoPlayback,
   cleanupOrphanedLiveTranscode,
   getMarkedLiveTranscodeMediaId,
@@ -333,6 +338,7 @@ export function usePlayerSession() {
 
     playerStore.player.volume = volume
     playerStore.volume = volume
+    persistPlayerVolume(volume)
 
     playerStore.changePlayerStatusText({
       text: (volume * 100).toFixed() + ' %',
@@ -592,6 +598,13 @@ export function usePlayerSession() {
     })
 
     await nextTick()
+    const prefs = loadPlayerVolumePrefs()
+    playerStore.volume = prefs.volume
+    playerStore.muted = prefs.muted
+    if (playerStore.player) {
+      playerStore.player.volume = prefs.volume
+      playerStore.player.muted = prefs.muted
+    }
     bindVideoElement(videoPlayer.value)
 
     eventBus.on('playVideo', handlePlayVideoEvent)
@@ -630,6 +643,16 @@ export function usePlayerSession() {
     if (newValue !== oldValue && playerStore.player) {
       playerStore.player.volume = newValue
     }
+    if (newValue !== oldValue) {
+      persistPlayerVolume(newValue)
+    }
+  })
+
+  watch(() => playerStore.muted, (muted) => {
+    if (playerStore.player) {
+      playerStore.player.muted = muted
+    }
+    persistPlayerMuted(muted)
   })
 
   return {

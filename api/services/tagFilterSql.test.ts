@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTagFilterQuery,
   getTagFilterSqlFallbackReason,
+  getTagSortExpression,
   resolveTagFilterQuery,
 } from './tagFilterSql'
 
@@ -126,6 +127,22 @@ describe('buildTagFilterQuery', () => {
     expect(result.joinSql).toContain('LEFT JOIN')
     expect(result.whereSql).toContain('tf0.parentTagId IS NULL')
   })
+
+  it('ORs relation filters via WHERE clauses without INNER JOIN', () => {
+    const result = buildTagFilterQuery([
+      { active: true, param: 3, type: 'array', cond: 'in', val: [1050] },
+      { active: true, param: 'rating', type: 'rating', cond: '>=', val: 4 },
+    ], { metaId: 17, filtersJoin: 'or' })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.joinSql).toBe('')
+    expect(result.whereSql).toContain(' OR ')
+    expect(result.whereSql).toMatch(/tags\.id IN/)
+    expect(result.whereSql).toMatch(/tags\.rating.*>=/)
+    expect(result.whereSql).toMatch(/^tags\.metaId = :metaId AND \(/)
+  })
 })
 
 describe('resolveTagFilterQuery', () => {
@@ -146,5 +163,13 @@ describe('resolveTagFilterQuery', () => {
     if (!result.ok) return
 
     expect(result.whereSql).toBe('tags.metaId = :metaId')
+  })
+})
+
+describe('getTagSortExpression', () => {
+  it('sorts by assigned media count', () => {
+    expect(getTagSortExpression('mediaCount')).toContain('COUNT(*)')
+    expect(getTagSortExpression('mediaCount')).toContain('tagsInMedia')
+    expect(getTagSortExpression('numberOfMedia')).toContain('tagsInMedia')
   })
 })

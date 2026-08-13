@@ -1,4 +1,4 @@
-import {ref, computed, watch, inject} from 'vue'
+import {ref, computed, watch, inject, nextTick} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
@@ -26,6 +26,8 @@ import {
 } from '@/composable/usePlayerTransportPlayback'
 import {PLAYER_SESSION_KEY, type PlayerSessionContext} from '@/composable/usePlayerSession'
 import {maybeRefillSimilarRadio} from '@/services/similarRadio'
+import {useOpenMediaList} from '@/utils/openMediaList'
+import {findItemElementById} from '@/composable/useBrowserLayoutHotkeys'
 import type { MediaItem } from '@/types/stores'
 import type { PlayerMark, PlayVideoSwitch } from '@/types/player'
 
@@ -57,6 +59,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const route = useRoute()
   const {xs, xl, mdAndDown, smAndDown} = useDisplay()
   const {t} = useI18n()
+  const {openMediaList} = useOpenMediaList()
 
   const editingComponent = ref<VideoEditComponentRef | null>(null)
   const speeds = ref([0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2])
@@ -163,7 +166,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     if (!player.value.player) return
 
     player.value.player.muted = !player.value.player.muted
-    playerStore.muted = !player.value.muted
+    playerStore.muted = player.value.player.muted
     let text = `${(player.value.volume * 100).toFixed()} %`
     if (player.value.muted) text = 'Muted'
     playerStore.changePlayerStatusText({
@@ -303,6 +306,37 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     dialog_video_edit.value = true
   }
 
+  const showInLibrary = async () => {
+    const current = video.value
+    if (!current?.id) return
+
+    const id = Number(current.id)
+    if (!Number.isFinite(id) || id <= 0) return
+
+    const mediaTypeId = current.mediaTypeId != null
+      ? Number(current.mediaTypeId)
+      : getDefaultMediaTypeId(appStore.mediaTypes)
+
+    emit('close')
+
+    await openMediaList({
+      mediaTypeId: mediaTypeId != null ? Number(mediaTypeId) : undefined,
+      ids: [id],
+      scope: {
+        kind: 'fromPlayer',
+        label: current.name ? String(current.name) : undefined,
+      },
+    })
+
+    itemsStore.selection = [id]
+    itemsStore.selected_last = id
+    await nextTick()
+    requestAnimationFrame(() => {
+      const el = findItemElementById(id)
+      if (el) el.scrollIntoView({block: 'center', behavior: 'smooth'})
+    })
+  }
+
   const updateVideoInfo = async () => {
     if (!editingComponent.value?.save) return
 
@@ -416,6 +450,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     removeMark,
     setAsThumb,
     editVideo,
+    showInLibrary,
     updateVideoInfo,
     deleteVideo,
     jumpToMark,

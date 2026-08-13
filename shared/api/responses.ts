@@ -71,6 +71,7 @@ export interface ItemsListRequest {
   metaId?: number
   mediaTypeId?: number
   filters?: FilterObject[]
+  filtersJoin?: 'and' | 'or'
   sortBy?: string
   direction?: string
   find_duplicates?: boolean

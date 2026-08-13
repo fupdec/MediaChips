@@ -302,6 +302,8 @@ export function createPlayerLoadSrc({
 
     playerStore.trackCurrentTime()
     videoEl.playbackRate = playerStore.speed
+    videoEl.volume = playerStore.volume
+    videoEl.muted = playerStore.muted
     if (!playerStore.usesLiveTranscode) {
       if (shouldSeekDirectOnLoadSrc({explicitStart, targetStartTime, segmentStart})) {
         await seekDirectPlaybackTo(videoEl, targetStartTime, () => isLoadSrcStale(session))

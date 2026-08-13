@@ -128,6 +128,7 @@ describe('Media.controller', () => {
       mediaTypeId: 2,
       ids: [10, 11],
       filters: undefined,
+      filtersJoin: 'and',
       sortBy: 'rating',
       direction: 'desc',
       find_duplicates: undefined,
@@ -158,6 +159,7 @@ describe('Media.controller', () => {
     expect(loadFilteredMediaIds).toHaveBeenCalledWith(db, {
       mediaTypeId: 4,
       filters: undefined,
+      filtersJoin: 'and',
       sortBy: undefined,
       direction: undefined,
       find_duplicates: true,

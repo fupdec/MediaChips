@@ -72,6 +72,20 @@
         <div v-if="!reg && x > 14"
              class="reg-block"
              v-html="'App not registered'"/>
+
+        <div
+          v-if="!isImageOnlyView && item.bookmark"
+          class="bookmark-text"
+          :title="item.bookmark"
+        >
+          <v-icon
+            icon="mdi-bookmark"
+            size="14"
+            color="red"
+            class="bookmark-text__icon"
+          />
+          <span class="bookmark-text__label">{{ item.bookmark }}</span>
+        </div>
       </div>
 
       <div
@@ -163,14 +177,6 @@
           :type="type"
         />
       </div>
-
-      <v-icon
-        v-if="!isImageOnlyView && item.bookmark"
-        :title="item.bookmark"
-        icon="mdi-bookmark"
-        class="bookmark"
-        color="red"
-      />
 
       <v-btn @mouseup="showContextMenu"
              class="item-menu-btn"

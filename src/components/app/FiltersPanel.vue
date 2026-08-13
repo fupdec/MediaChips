@@ -47,6 +47,33 @@
             </v-icon>
           </template>
         </v-switch>
+
+        <v-btn-toggle
+          v-if="filters.length >= 2"
+          :model-value="filtersJoin"
+          class="filters-join-toggle"
+          color="primary"
+          density="compact"
+          variant="outlined"
+          divided
+          mandatory
+          @update:model-value="onFiltersJoinChange"
+        >
+          <v-btn
+            value="and"
+            size="x-small"
+            :title="t('filters.join_and_hint')"
+          >
+            {{ t('filters.join_and') }}
+          </v-btn>
+          <v-btn
+            value="or"
+            size="x-small"
+            :title="t('filters.join_or_hint')"
+          >
+            {{ t('filters.join_or') }}
+          </v-btn>
+        </v-btn-toggle>
       </div>
 
       <v-spacer/>
@@ -337,6 +364,7 @@ import FilterRow from '@/components/app/FilterRow.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
 import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
+import {useItemsStore} from '@/stores/items'
 import type {FilterObject, FilterListParam} from '@/types/common'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
@@ -399,6 +427,16 @@ const emit = defineEmits([
 ])
 
 const {t} = useI18n()
+const itemsStore = useItemsStore()
+
+const filtersJoin = computed(() => itemsStore.filtersJoin === 'or' ? 'or' : 'and')
+
+const onFiltersJoinChange = (value: unknown) => {
+  const next = value === 'or' ? 'or' : 'and'
+  if (itemsStore.filtersJoin === next) return
+  itemsStore.filtersJoin = next
+  emit('apply')
+}
 
 const showAiBlock = ref(readShowAiBlock())
 
@@ -524,6 +562,18 @@ function dragItemKey(filter: FilterObject) {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+}
+
+.filters-join-toggle {
+  flex: 0 0 auto;
+  height: 28px;
+
+  :deep(.v-btn) {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
   }
 }
 

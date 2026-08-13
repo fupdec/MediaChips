@@ -76,6 +76,8 @@ function createItemsStoreState() {
     selection: [] as number[],
     savedFilter: {} as SavedFilter,
     filters: [] as FilterObject[],
+    /** How active filter rows combine: all (AND) or any (OR). */
+    filtersJoin: 'and' as 'and' | 'or',
     filters_saved: [] as SavedFilter[],
     meta: { id: 0 } as Meta,
     assigned: [] as AssignedMeta[],
@@ -87,7 +89,7 @@ function createItemsStoreState() {
     listScopeIds: null as number[] | null,
     /** Why the list is scoped — drives the filter chip label. */
     listScope: null as null | {
-      kind: 'semantic' | 'visualSimilar' | 'clipSimilar'
+      kind: 'semantic' | 'visualSimilar' | 'clipSimilar' | 'fromPlayer'
       label?: string
     },
     thumbRefreshKeys: {} as Record<number, number>,
@@ -436,6 +438,7 @@ export const useItemsStore = defineStore('items', {
 
     clearSavedFilters() {
       this.filters = [];
+      this.filtersJoin = 'and';
       this.savedFilter = {};
     },
 
@@ -781,6 +784,7 @@ export const useItemsStore = defineStore('items', {
     // Очистить все фильтры
     clearFilters() {
       this.filters = []
+      this.filtersJoin = 'and'
     },
 
     // Обновить фильтр по индексу

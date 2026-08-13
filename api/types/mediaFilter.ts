@@ -10,6 +10,8 @@ export interface MediaFilterOptions {
   find_duplicates?: boolean
   sortBy?: string
   filters?: FilterLike[]
+  /** How active filter rows combine: all (AND, default) or any (OR). */
+  filtersJoin?: 'and' | 'or'
 }
 
 export interface MediaFilterQuerySuccess {
@@ -68,6 +70,8 @@ export interface MediaLoadOptions {
   mediaTypeId?: number | string
   ids?: MediaId[]
   filters?: FilterLike[]
+  /** How active filter rows combine: all (AND, default) or any (OR). */
+  filtersJoin?: 'and' | 'or'
   sortBy?: string
   direction?: 'asc' | 'desc' | string
   page?: number

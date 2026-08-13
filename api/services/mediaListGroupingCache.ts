@@ -30,6 +30,7 @@ function pruneGroupingCache(): void {
 export function buildMediaListGroupingCacheKey(options: {
   mediaTypeId?: number | string | null
   filters?: FilterLike[]
+  filtersJoin?: 'and' | 'or'
   find_duplicates?: boolean
   duplicates_by?: string
   groupBy: string
@@ -42,6 +43,7 @@ export function buildMediaListGroupingCacheKey(options: {
     totals: buildFilteredTotalsCacheKey({
       mediaTypeId: options.mediaTypeId,
       filters: options.filters,
+      filtersJoin: options.filtersJoin,
       find_duplicates: options.find_duplicates,
       duplicates_by: options.duplicates_by,
     }),
