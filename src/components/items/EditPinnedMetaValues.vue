@@ -773,11 +773,12 @@ const showIcons = computed(() =>
 )
 
 /** In inspector: placeholder instead of floating label (filter-like density). */
-function fieldCaption(label: string) {
+function fieldCaption(label: string | undefined) {
+  const text = label || ''
   if (isInspectorLayout.value) {
-    return {label: undefined as string | undefined, placeholder: label}
+    return {label: undefined as string | undefined, placeholder: text}
   }
-  return {label, placeholder: undefined as string | undefined}
+  return {label: text, placeholder: undefined as string | undefined}
 }
 const fieldCardClass = computed(() => {
   if (isInspectorLayout.value) return 'editing-field-card--inspector'

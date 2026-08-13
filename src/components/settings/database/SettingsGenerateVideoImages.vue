@@ -282,7 +282,7 @@ function canStart(id: MediaTypeId, force: boolean): boolean {
 }
 
 function statusLabelOf(item: MediaTypeConfig): string {
-  if (statusLoaded.value) return t(item.statusKey, statusOf(item.id))
+  if (statusLoaded.value) return t(item.statusKey, {...statusOf(item.id)})
   if (statusLoading.value) return t('common.loading')
   return t('settings_labels.database.status_not_loaded')
 }

@@ -360,16 +360,17 @@ function goNext() {
   }
 }
 
-async function setRating(value: number | null | undefined) {
+async function setRating(value: string | number | null | undefined) {
   const item = current.value
   if (!item) return
-  let rating = value == null || value === 0 ? null : Number(value)
+  const numeric = value == null || value === '' ? null : Number(value)
+  let rating = numeric == null || Number.isNaN(numeric) || numeric === 0 ? null : numeric
   // Same digit again clears the rating (3 → 3 → 0).
   if (rating != null && Number(item.rating) === rating) {
     rating = null
   }
   try {
-    await typedApi.updateEntity('media', item.id, {rating})
+    await typedApi.updateEntity('media', item.id, {rating: rating ?? undefined})
     review.patchCurrent({rating})
     itemsStore.updateItemField({id: item.id, field: 'rating', value: rating})
     review.showStatus(
