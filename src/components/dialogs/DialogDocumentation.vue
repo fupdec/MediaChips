@@ -29,12 +29,14 @@
               />
 
               <v-btn
-                @click="isOpenAll = !isOpenAll"
-                :icon="`mdi-unfold-${isOpenAll?'less':'more'}-horizontal`"
+                :icon="isOpenAll ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal'"
+                :aria-label="isOpenAll ? t('documentation.collapse_all') : t('documentation.expand_all')"
+                v-tooltip:bottom="isOpenAll ? t('documentation.collapse_all') : t('documentation.expand_all')"
                 variant="text"
                 size="small"
                 class="ml-2"
-              ></v-btn>
+                @click="toggleOpenAll"
+              />
             </div>
 
             <div class="treeview-wrapper">
@@ -45,7 +47,6 @@
                 @update:activated="updateActivated"
                 :items="filteredItems"
                 :search="search"
-                :open-all="isOpenAll"
                 active-strategy="single-leaf"
                 open-on-click
                 item-title="name"
@@ -313,6 +314,31 @@ const updateActivated = (ids: string[]) => {
   selectById(ids[ids.length - 1], { scroll: false })
 }
 
+const collectOpenableIds = (nodes: DocumentationItem[]): string[] => {
+  const ids: string[] = []
+  for (const node of nodes) {
+    if (node.children?.length) {
+      ids.push(node.id)
+      ids.push(...collectOpenableIds(node.children))
+    }
+  }
+  return ids
+}
+
+const toggleOpenAll = () => {
+  if (isOpenAll.value) {
+    const currentId = selected.value?.id
+    openedIds.value = currentId
+      ? (getAncestorIds(items.value, currentId) ?? [])
+      : []
+    isOpenAll.value = false
+    return
+  }
+
+  openedIds.value = collectOpenableIds(filteredItems.value)
+  isOpenAll.value = true
+}
+
 const resetSelection = () => {
   if (keepSelectionOnClose.value) {
     keepSelectionOnClose.value = false
@@ -320,6 +346,7 @@ const resetSelection = () => {
   }
   activatedIds.value = []
   openedIds.value = []
+  isOpenAll.value = false
   selected.value = {}
 }
 
