@@ -18,6 +18,24 @@
         <div
           class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-nowrap ga-2"
         >
+          <button
+            type="button"
+            class="items-control-deck__sticky-pin"
+            :class="{'items-control-deck__sticky-pin--active': stickyControlDeck}"
+            :aria-pressed="stickyControlDeck ? 'true' : 'false'"
+            :aria-label="stickyControlDeck
+              ? t('settings_labels.appearance.sticky_control_deck_unpin')
+              : t('settings_labels.appearance.sticky_control_deck_pin')"
+            v-tooltip:top="stickyControlDeck
+              ? t('settings_labels.appearance.sticky_control_deck_unpin')
+              : t('settings_labels.appearance.sticky_control_deck_pin')"
+            @click="toggleStickyControlDeck"
+          >
+            <span class="items-control-deck__sticky-pin-glyph" aria-hidden="true">
+              <v-icon size="11" icon="mdi-pin"/>
+            </span>
+          </button>
+
           <div class="d-flex align-center items-page-header__title min-width-0">
             <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
             <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
@@ -66,19 +84,6 @@
               icon
             >
               <v-icon size="18">mdi-tune</v-icon>
-            </v-btn>
-
-            <v-btn
-              @click="toggleStickyControlDeck"
-              v-tooltip:top="stickyControlDeck
-                ? t('settings_labels.appearance.sticky_control_deck_unpin')
-                : t('settings_labels.appearance.sticky_control_deck_pin')"
-              color="primary"
-              :variant="stickyControlDeck ? 'flat' : 'tonal'"
-              size="small"
-              icon
-            >
-              <v-icon size="18">{{ stickyControlDeck ? 'mdi-pin' : 'mdi-pin-off' }}</v-icon>
             </v-btn>
 
             <v-btn
@@ -1086,6 +1091,7 @@ defineEmits<{
   }
 
   &__header {
+    position: relative;
     padding: 10px var(--deck-pad-x);
     margin: 0;
     min-height: 52px;
@@ -1104,6 +1110,78 @@ defineEmits<{
       .items-page-header__meta {
         display: none;
       }
+    }
+  }
+
+  &__sticky-pin {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 0 0 10px 0;
+    background: transparent;
+    color: rgba(var(--v-theme-on-surface), 0.32);
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 3px;
+      right: 5px;
+      height: 1px;
+      border-radius: 1px;
+      background: currentColor;
+      opacity: 0;
+      transform: scaleX(0.4);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    &:hover {
+      color: rgb(var(--v-theme-primary));
+      background: rgba(var(--v-theme-primary), 0.08);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+      outline-offset: -2px;
+    }
+
+    &--active {
+      color: rgb(var(--v-theme-primary));
+
+      &::after {
+        opacity: 0.55;
+        transform: scaleX(1);
+      }
+    }
+  }
+
+  &__sticky-pin-glyph {
+    display: inline-flex;
+    transform: rotate(42deg) translate(0.5px, -0.5px);
+    transform-origin: center 60%;
+    opacity: 0.85;
+    transition: transform 180ms cubic-bezier(0.33, 1, 0.68, 1), opacity 160ms ease;
+
+    .items-control-deck__sticky-pin--active & {
+      transform: rotate(0deg) translate(0, 0.5px);
+      opacity: 1;
+    }
+
+    .items-control-deck__sticky-pin:hover & {
+      opacity: 1;
     }
   }
 
