@@ -69,7 +69,7 @@ export default function (db: ApiDb) {
         ? mediaTypesRepo.findById(Number(target.mediaTypeId))
         : undefined
 
-      await deleteMediaGeneratedAssets(db, getDbPath(), target, mediaType?.type || '')
+      await deleteMediaGeneratedAssets(db, getDbPath(), {id: target.id}, mediaType?.type || '')
 
       const purgePath = String(
         target.trashOriginalPath

@@ -29,6 +29,11 @@ export function registerItemsPageCommands(api: ItemsPageCommands) {
   }
 }
 
+/** True once LayoutItems has mounted and registered page commands. */
+export function isItemsPageCommandsRegistered(): boolean {
+  return active != null
+}
+
 export function useItemsPageCommands(): ItemsPageCommands {
   return {
     setFilters: (event) => active?.setFilters(event),

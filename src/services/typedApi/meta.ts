@@ -16,6 +16,7 @@ import {
   apiPinnedMetaDelete,
   apiRemoveTagFromItem,
   apiTagCooccurring,
+  apiTagAssignmentCounts,
   apiTagsInMedia,
   apiTagsInFolder,
   apiTagsInTag,
@@ -62,6 +63,7 @@ import {
   parsePathTagEntries,
   parseTag,
   parseTags,
+  parseTagAssignmentCounts,
   parseTagsInMediaCreateOne,
   parseTagThumbsResponse,
   parseValueInTagEntries,
@@ -168,6 +170,13 @@ export const metaApi = {
         metaId: number
         color: string | null
       }>,
+    }))
+  },
+
+  getTagAssignmentCounts(tagId: number) {
+    return apiClient.get(apiTagAssignmentCounts(tagId)).then((res) => ({
+      ...res,
+      data: validated(parseTagAssignmentCounts, res.data),
     }))
   },
 

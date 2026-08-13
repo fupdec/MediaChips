@@ -25,6 +25,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/moveToCategory', validateBody(MoveTagsToCategoryRequestSchema), Tag.moveToCategory)
   router.post('/duplicate', validateBody(DuplicateTagRequestSchema), Tag.duplicate)
   router.get('/:id/cooccurring', Tag.getCooccurring)
+  router.get('/:id/assignmentCounts', Tag.getAssignmentCounts)
   router.get('/:id', Tag.findOne)
   router.get('/', Tag.getAll)
   router.post('/items', validateBody(TagItemsRequestSchema), Tag.getAllForItems)

@@ -15,6 +15,16 @@ export default function (db: ApiDb) {
     }
   }
 
+  /** Non-mutating lookup with full criteria (incl. nulls). Does not create defaults. */
+  const find = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const data = pageSettingsRepo.findOne(req.body) ?? null
+      sendOk(res, data)
+    } catch (err: unknown) {
+      sendControllerError(res, err, 'Some error occurred while retrieving media.')
+    }
+  }
+
   const findOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = pageSettingsRepo.findOne({
@@ -38,6 +48,7 @@ export default function (db: ApiDb) {
 
   return {
     create,
+    find,
     findOne,
     update,
   }

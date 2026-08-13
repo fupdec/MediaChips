@@ -9,19 +9,34 @@
         @activate="revealMoreCategories(index)"
       >
         <section class="widget-top-tags__section">
-          <div class="d-flex align-center mb-3 min-width-0">
-            <v-icon class="mr-2 flex-shrink-0" size="24">
-              mdi-{{ category.meta.icon || 'tag' }}
-            </v-icon>
+          <div class="d-flex align-center justify-space-between mb-3 ga-2 min-width-0">
+            <div class="d-flex align-center min-width-0">
+              <v-icon class="mr-2 flex-shrink-0" size="24">
+                mdi-{{ category.meta.icon || 'tag' }}
+              </v-icon>
 
-            <div class="min-width-0">
-              <div class="text-h6 text-truncate">
-                {{ getMetaName(category.meta, t) }}
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{ t(categorySubtitleKey(category), {count: category.tags.length}) }}
+              <div class="min-width-0">
+                <div class="text-h6 text-truncate">
+                  {{ getMetaName(category.meta, t) }}
+                </div>
+                <div class="text-caption text-medium-emphasis">
+                  {{ t(categorySubtitleKey(category), {count: category.tags.length}) }}
+                </div>
               </div>
             </div>
+
+            <v-btn
+              v-tooltip:top="t('all_tags.open_category')"
+              icon
+              size="small"
+              variant="text"
+              color="primary"
+              class="flex-shrink-0"
+              :aria-label="t('all_tags.open_category')"
+              @click="openCategoryPage(category.meta)"
+            >
+              <v-icon size="20">mdi-open-in-new</v-icon>
+            </v-btn>
           </div>
 
           <div class="widget-top-tags__scroll">
@@ -87,9 +102,15 @@
           width="24"
           height="24"
         />
-        <div class="min-width-0 flex-grow-1">
-          <v-skeleton-loader type="heading" width="42%" class="mb-1"/>
-          <v-skeleton-loader type="text" width="28%"/>
+        <div class="widget-top-tags__skel-title min-width-0 flex-grow-1">
+          <v-skeleton-loader
+            type="heading"
+            class="widget-top-tags__skel-line widget-top-tags__skel-line--title mb-1"
+          />
+          <v-skeleton-loader
+            type="text"
+            class="widget-top-tags__skel-line widget-top-tags__skel-line--subtitle"
+          />
         </div>
       </div>
       <div class="widget-top-tags__scroll">
@@ -125,6 +146,7 @@ import {
 } from '@/utils/thumbDisplayCache'
 import {getMetaName} from '@/utils/metaI18n'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
+import {metaPath} from '@/composable/useLibraryNavItems'
 import {
   sortMetaItems,
   sortTagItems,
@@ -224,19 +246,20 @@ async function loadPageSorts(metaIds: number[]) {
 
   const entries = await Promise.all(missing.map(async (metaId) => {
     try {
-      const res = await typedApi.fetchPageSettings({
+      // Lookup only — never create defaults (that forced "createdAt" on home).
+      const res = await typedApi.findPageSettings({
         metaId,
         tagId: null,
         mediaTypeId: null,
         tabId: null,
       })
-      const settings = res.data?.[0]
+      const settings = res.data
       return [metaId, {
         sortBy: String(settings?.sortBy || ''),
-        sortDir: String(settings?.sortDir || 'asc'),
+        sortDir: String(settings?.sortDir || ''),
       }] as const
     } catch {
-      return [metaId, {sortBy: '', sortDir: 'asc'}] as const
+      return [metaId, {sortBy: '', sortDir: ''}] as const
     }
   }))
 
@@ -244,6 +267,33 @@ async function loadPageSorts(metaIds: number[]) {
     ...pageSortByMetaId.value,
     ...Object.fromEntries(entries),
   }
+}
+
+async function fetchTagsForCategory(
+  meta: Meta,
+  catalogTags: TopTagItem[],
+  limit: number,
+  pageSort: {sortBy: string; sortDir: string},
+): Promise<TopTagItem[]> {
+  // Match category page SQL order (mediaCount, dates, etc.).
+  if (sortMode.value === META_SORT_MODES.menu) {
+    try {
+      const res = await typedApi.postTagItems({
+        metaId: Number(meta.id),
+        page: 1,
+        limit,
+        skipTotals: true,
+        sortBy: pageSort.sortBy,
+        direction: pageSort.sortDir,
+      })
+      const items = (res.data?.items || []) as TopTagItem[]
+      if (items.length) return items
+    } catch {
+      // Fall through to catalog sort.
+    }
+  }
+
+  return sortTagItems(catalogTags, sortMode.value, pageSort).slice(0, limit) as TopTagItem[]
 }
 
 async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
@@ -270,10 +320,9 @@ async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
     const metaIds = visibleMetas.map((meta) => Number(meta.id)).filter((id) => id > 0)
     await loadPageSorts(metaIds)
 
-    const groups: TopTagsCategory[] = []
-    for (const meta of visibleMetas) {
+    const groupResults = await Promise.all(visibleMetas.map(async (meta) => {
       const metaId = String(meta.id)
-      if (!grouped[metaId]?.length) continue
+      if (!grouped[metaId]?.length) return null
 
       let limit = props.limit
       if (activeGroup && activeGroup.meta.id === meta.id) {
@@ -281,12 +330,13 @@ async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
       }
 
       const pageSort = resolveCategorySort(meta)
-      const sorted = sortTagItems(
+      const sorted = await fetchTagsForCategory(
+        meta,
         grouped[metaId] as TopTagItem[],
-        sortMode.value,
+        limit,
         pageSort,
-      ).slice(0, limit) as TopTagItem[]
-      if (!sorted.length) continue
+      )
+      if (!sorted.length) return null
 
       const tagsWithImages = await Promise.all(sorted.map(async (tag) => ({
         ...tag,
@@ -294,7 +344,7 @@ async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
       })))
 
       const total = grouped[metaId].length
-      groups.push({
+      return {
         meta: {
           ...meta,
           sortBy: pageSort.sortBy,
@@ -304,8 +354,10 @@ async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
         limit,
         total,
         isNotAllLoaded: total > limit,
-      })
-    }
+      } satisfies TopTagsCategory
+    }))
+
+    const groups = groupResults.filter((group): group is TopTagsCategory => group != null)
 
     tagsTop.value = groups
     visibleCategoryCount.value = Math.min(
@@ -328,6 +380,10 @@ function revealMoreCategories(index: number) {
 
 function openTagPage(meta: Meta, tag: TopTagItem) {
   router.push(`/tag?metaId=${meta.id}&tagId=${tag.id}&mediaTypeId=${getDefaultMediaTypeId(store.mediaTypes)}`)
+}
+
+function openCategoryPage(meta: Meta) {
+  router.push(metaPath(meta.id))
 }
 
 function refreshTagsTop() {
@@ -454,6 +510,34 @@ onMounted(() => {
       width: 24px !important;
       height: 24px !important;
       border-radius: 6px;
+    }
+  }
+
+  &__skel-title {
+    overflow: hidden;
+    max-width: 100%;
+
+    :deep(.v-skeleton-loader) {
+      max-width: 100%;
+      background: transparent !important;
+      padding: 0 !important;
+    }
+  }
+
+  &__skel-line {
+    :deep(.v-skeleton-loader__bone) {
+      margin-block: 2px;
+      max-width: 100%;
+    }
+
+    &--title :deep(.v-skeleton-loader__bone) {
+      width: 42% !important;
+      max-width: 220px;
+    }
+
+    &--subtitle :deep(.v-skeleton-loader__bone) {
+      width: 28% !important;
+      max-width: 160px;
     }
   }
 }

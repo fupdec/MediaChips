@@ -68,19 +68,19 @@ export const SettingEntrySchema = z.object({
 })
 
 export const FilterObjectSchema = z.object({
-  id: z.number().nullable(),
-  param: z.union([z.string(), z.number()]).nullable(),
-  type: z.string().nullable(),
-  cond: z.string().nullable(),
-  val: z.unknown().default(null),
-  note: z.string().nullable(),
-  active: coercedBooleanSchema,
-  lock: coercedBooleanSchema,
+  id: z.number().nullable().optional().default(null),
+  param: z.union([z.string(), z.number()]).nullable().optional().default(null),
+  type: z.string().nullable().optional().default(null),
+  cond: z.string().nullable().optional().default(null),
+  val: z.unknown().optional().default(null),
+  note: z.string().nullable().optional().default(null),
+  active: coercedBooleanSchema.optional().default(true),
+  lock: coercedBooleanSchema.optional().default(false),
   removed: coercedBooleanSchema.optional(),
   metaId: z.number().nullable().optional(),
   order: optionalNullableCoercedNumberSchema,
   clientKey: z.string().optional(),
-})
+}).passthrough()
 
 export const MediaItemSchema = z.object({
   id: z.number(),

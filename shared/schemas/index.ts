@@ -24,6 +24,7 @@ import {
   HomeMediaResponseSchema,
   HomeSimilarMediaItemSchema,
   HomeSimilarResponseSchema,
+  HomeTagSpotlightSchema,
   MediaSimilaritySchema,
   HomeMediaStatsSchema,
   HomeTagCountSchema,
@@ -119,6 +120,7 @@ import {
   MarkForVideoSchema,
   MarkClipsResponseSchema,
   MediaCountWithTagSchema,
+  TagAssignmentCountsSchema,
   MetaSettingSchema,
   PinnedMetaLinkSchema,
   PlaylistMediaLinkSchema,
@@ -206,6 +208,10 @@ export function parseHomeHealthLite(data: unknown) {
 
 export function parseHomeMarkers(data: unknown) {
   return HomeMarkersSchema.parse(data)
+}
+
+export function parseHomeTagSpotlight(data: unknown) {
+  return HomeTagSpotlightSchema.parse(data)
 }
 
 export function parseHomeMediaResponse(data: unknown) {
@@ -350,6 +356,11 @@ export function parsePageSettingsRecord(data: unknown): PageSettingsRecord {
   return PageSettingsRecordSchema.parse(data) as PageSettingsRecord
 }
 
+export function parsePageSettingsRecordOrNull(data: unknown): PageSettingsRecord | null {
+  if (data == null) return null
+  return PageSettingsRecordSchema.parse(data) as PageSettingsRecord
+}
+
 export function parsePageSettingsFindOrCreate(
   data: unknown,
 ): [PageSettingsRecord | null, boolean?] {
@@ -442,6 +453,10 @@ export function parseMediaCountWithTag(data: unknown) {
   return MediaCountWithTagSchema.parse(data)
 }
 
+export function parseTagAssignmentCounts(data: unknown) {
+  return TagAssignmentCountsSchema.parse(data)
+}
+
 export function parseSetting(data: unknown): SettingEntry {
   return SettingEntrySchema.parse(data) as SettingEntry
 }
@@ -496,6 +511,7 @@ export {
   HomeMediaResponseSchema,
   HomeSimilarMediaItemSchema,
   HomeSimilarResponseSchema,
+  HomeTagSpotlightSchema,
   MediaSimilaritySchema,
   HomeMediaStatsSchema,
   HomeTagCountSchema,
@@ -548,6 +564,7 @@ export {
   MarkForVideoSchema,
   MarkClipsResponseSchema,
   MediaCountWithTagSchema,
+  TagAssignmentCountsSchema,
   MetaSettingSchema,
   PinnedMetaLinkSchema,
   PlaylistMediaLinkSchema,

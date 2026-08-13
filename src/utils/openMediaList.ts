@@ -1,8 +1,14 @@
 import {nextTick} from 'vue'
 import router from '@/router'
 import {useItemsStore} from '@/stores/items'
-import {useItemsPageCommands} from '@/composable/itemsPageCommands'
-import {useItemsFiltersController} from '@/composable/itemsFiltersController'
+import {
+  isItemsPageCommandsRegistered,
+  useItemsPageCommands,
+} from '@/composable/itemsPageCommands'
+import {
+  isItemsFiltersControllerRegistered,
+  useItemsFiltersController,
+} from '@/composable/itemsFiltersController'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {useAppStore} from '@/stores/app'
 import type {FilterObject} from '@/types/common'
@@ -36,10 +42,45 @@ interface OpenMediaListOptions {
   groupBy?: string
 }
 
-async function waitForMediaPageReady() {
+const CONTROLLER_WAIT_MS = 20_000
+const CONTROLLER_POLL_MS = 40
+
+async function waitUntil(
+  isReady: () => boolean,
+  timeoutMs = CONTROLLER_WAIT_MS,
+  intervalMs = CONTROLLER_POLL_MS,
+): Promise<boolean> {
+  if (isReady()) {
+    await nextTick()
+    return true
+  }
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    if (isReady()) {
+      await nextTick()
+      return true
+    }
+  }
+  return isReady()
+}
+
+/**
+ * Filters.vue mounts only after LayoutItems finishes init (can take seconds on large
+ * libraries). Page commands register earlier on mount. Always wait for what we need
+ * instead of a fixed 120ms delay after navigation.
+ */
+async function waitForMediaPageControllers(needsFilters: boolean) {
   await nextTick()
-  // Allow LayoutItems / Filters.vue to register page + filters controllers.
-  await new Promise((resolve) => setTimeout(resolve, 120))
+  const pageReady = await waitUntil(isItemsPageCommandsRegistered)
+  if (!pageReady) {
+    console.warn('Items page commands not ready; media list commands may no-op')
+  }
+  if (!needsFilters) return
+  const filtersReady = await waitUntil(isItemsFiltersControllerRegistered)
+  if (!filtersReady) {
+    console.warn('Items filters controller not ready; saved filters may not apply')
+  }
 }
 
 export function useOpenMediaList() {
@@ -64,11 +105,13 @@ export function useOpenMediaList() {
     const alreadyOnPage =
       route?.path === '/media'
       && Number(route?.query?.mediaTypeId) === Number(targetMediaTypeId)
+    const needsFilters = Boolean(filters?.length) && !ids?.length
 
     if (!alreadyOnPage) {
       await router.push(`/media?mediaTypeId=${targetMediaTypeId}`)
-      await waitForMediaPageReady()
     }
+
+    await waitForMediaPageControllers(needsFilters)
 
     if (ids?.length) {
       itemsStore.find_duplicates = false
@@ -117,7 +160,10 @@ export function useOpenMediaList() {
       pageCommands.setGroupBy(groupBy)
     }
 
-    if (ids?.length) {
+    // Scoped id lists always need an explicit reload. Filter/sort/group paths usually
+    // reload via applySaved / setSortBy / setGroupBy; reload once more when only
+    // groupBy (or filters that applied before commands were ready) changed.
+    if (ids?.length || (needsFilters && !sortBy && !groupBy)) {
       itemsStore.updateState({key: 'page', value: 1})
       await Promise.resolve(pageCommands.reloadItems())
     }

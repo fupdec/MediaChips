@@ -141,11 +141,11 @@
           </div>
 
           <div
-            v-else-if="mediaFacts.length"
+            v-if="inspectorFacts.length"
             class="inspector-panel__facts"
           >
             <div
-              v-for="fact in mediaFacts"
+              v-for="fact in inspectorFacts"
               :key="fact.key"
               class="inspector-panel__fact"
             >
@@ -357,6 +357,7 @@ import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {setOption} from '@/services/settingsService'
 import {checkFileExists} from '@/services/fileService'
+import {typedApi} from '@/services/typedApi'
 import {
   getReadableBitrate,
   getReadableDuration,
@@ -431,6 +432,8 @@ const galleryLoadToken = ref(0)
 const editingRef = ref<EditComponentInstance | null>(null)
 const formDirty = ref(false)
 const saving = ref(false)
+const tagAssignmentCounts = ref<{media: number; tags: number} | null>(null)
+const tagAssignmentLoadToken = ref(0)
 
 const focusedItem = computed(() => {
   const id = itemsStore.selection[0] ?? itemsStore.selected_last
@@ -573,6 +576,21 @@ const mediaFacts = computed((): InspectorFact[] => {
   return facts
 })
 
+const tagFacts = computed((): InspectorFact[] => {
+  if (!isTag.value || !focusedTag.value) return []
+  const counts = tagAssignmentCounts.value
+  if (!counts) return []
+
+  const facts: InspectorFact[] = []
+  pushFact(facts, 'mediaAssignments', t('browser_layout.tag_assignments_media'), String(counts.media))
+  pushFact(facts, 'tagAssignments', t('browser_layout.tag_assignments_tags'), String(counts.tags))
+  return facts
+})
+
+const inspectorFacts = computed((): InspectorFact[] => (
+  isTag.value ? tagFacts.value : mediaFacts.value
+))
+
 const previewInfoLabel = computed(() => {
   if (!isTag.value) return ''
   const parts: string[] = []
@@ -665,6 +683,29 @@ function onThumbError() {
   detectedHeight.value = 0
 }
 
+async function loadTagAssignmentCounts(tag: Tag) {
+  const tagId = Number(tag.id)
+  if (!Number.isFinite(tagId) || tagId <= 0) {
+    tagAssignmentCounts.value = null
+    return
+  }
+
+  const token = ++tagAssignmentLoadToken.value
+  tagAssignmentCounts.value = null
+  try {
+    const res = await typedApi.getTagAssignmentCounts(tagId)
+    if (token !== tagAssignmentLoadToken.value) return
+    tagAssignmentCounts.value = {
+      media: Number(res.data.media) || 0,
+      tags: Number(res.data.tags) || 0,
+    }
+  } catch (error) {
+    if (token !== tagAssignmentLoadToken.value) return
+    console.log(error)
+    tagAssignmentCounts.value = null
+  }
+}
+
 watch(focusedItem, (item) => {
   thumbFailed.value = false
   detectedWidth.value = 0
@@ -672,9 +713,11 @@ watch(focusedItem, (item) => {
   galleryImages.value = []
   activeGalleryType.value = null
   formDirty.value = false
+  tagAssignmentCounts.value = null
 
   if (isTag.value && item) {
     void loadTagGallery(item as Tag)
+    void loadTagAssignmentCounts(item as Tag)
   }
 }, {immediate: true})
 

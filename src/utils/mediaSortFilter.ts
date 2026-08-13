@@ -62,9 +62,27 @@ export const MEDIA_SORT_PARAMS = [
   },
   {
     param: 'mediaCount',
-    icon: 'video-outline',
+    icon: 'link-variant',
     textKey: 'filters.sort.media_count',
     types: ['tag'],
+  },
+  {
+    param: 'videoCount',
+    icon: 'video-outline',
+    textKey: 'filters.sort.video_count',
+    types: ['tag'],
+  },
+  {
+    param: 'imageCount',
+    icon: 'image-outline',
+    textKey: 'filters.sort.image_count',
+    types: ['tag'],
+  },
+  {
+    param: 'tagCount',
+    icon: 'tag-multiple-outline',
+    textKey: 'filters.sort.tag_count',
+    types: ['media', 'tag'],
   },
   {param: 'filesize', icon: 'harddisk', textKey: 'filters.sort.filesize', types: ['media']},
   {
@@ -222,6 +240,17 @@ export function getSortParamGroup(
   if (key === 'shuffle') return 'Other'
   if (PRESET_META_SORT_PARAMS.has(key)) return 'Preset meta'
   if (FILE_SORT_PARAMS.has(key)) return 'File'
+  if (
+    key === 'tagCount'
+    || key === 'mediaCount'
+    || key === 'assignmentCount'
+    || key === 'videoCount'
+    || key === 'numberOfVideos'
+    || key === 'imageCount'
+    || key === 'numberOfImages'
+  ) {
+    return 'Tag'
+  }
   if (key === 'name') return itemsType === 'tag' ? 'Tag' : 'File'
 
   if (IMAGE_SORT_PARAMS.has(key) && isImageMediaType(mediaType)) {

@@ -1,5 +1,4 @@
 import {computed} from 'vue'
-import {useRouter} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -86,7 +85,6 @@ export default function useItemContextMenu(
   const settingsStore = useSettingsStore()
   const registrationStore = useRegistrationStore()
   const tasksStore = useTasksStore()
-  const router = useRouter()
 
   const eventBus = useEventBus()
   const listSync = useItemsListSync()

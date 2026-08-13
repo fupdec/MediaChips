@@ -29,6 +29,7 @@ import {
   parseFilterRowResponse,
   parseFilterRowsInSavedFilter,
   parsePageSettingsFindOrCreate,
+  parsePageSettingsRecordOrNull,
   parsePlaylistCreateResponse,
   parseSavedFilterBasicList,
   parsePlaylistMediaLinks,
@@ -52,6 +53,14 @@ export const pagesApi = {
     return apiClient.post(API_ROUTES.pageSetting, query).then((res) => ({
       ...res,
       data: validated(parsePageSettingsFindOrCreate, res.data),
+    }))
+  },
+
+  /** Lookup only — never creates default page settings rows. */
+  findPageSettings(query: PageSettingWritePayload['query']) {
+    return apiClient.post(API_ROUTES.pageSettingFind, query).then((res) => ({
+      ...res,
+      data: validated(parsePageSettingsRecordOrNull, res.data),
     }))
   },
 

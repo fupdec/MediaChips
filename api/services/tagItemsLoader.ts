@@ -9,7 +9,7 @@ import { queryAllAsync } from '../db/utils/rawQuery'
 import { chunkArray } from '../db/utils/chunk'
 import {
   getTagFilterSqlFallbackReason,
-  getTagSortExpression,
+  getTagSortPlan,
   resolveTagFilterQuery,
 } from './tagFilterSql'
 import {buildFilteredCountSql} from './filteredListSql'
@@ -240,7 +240,8 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
   const sortMetaType = resolveSortMetaType(db, sortBy)
-  const sortExpr = getTagSortExpression(sortBy, sortMetaType)
+  const sortPlan = getTagSortPlan(sortBy, sortMetaType)
+  const sortExpr = sortPlan.expression
   const {
     whereClause,
     fromClause,
@@ -249,6 +250,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   } = resolveTagListSqlParts({
     whereSql,
     joinSql,
+    sortJoinSql: sortPlan.joinSql,
     needsDistinct,
     direction,
   })

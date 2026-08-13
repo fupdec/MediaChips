@@ -12,6 +12,7 @@ import {
   parseHomeHealth,
   parseHomeHealthLite,
   parseHomeMarkers,
+  parseHomeTagSpotlight,
   parseHomeMediaResponse,
   parseHomeSimilarResponse,
   parseHomeMediaStats,
@@ -34,6 +35,13 @@ export const homeApi = {
     return apiClient.get(API_ROUTES.homeSimilar, {params}).then((res) => ({
       ...res,
       data: validated(parseHomeSimilarResponse, res.data),
+    }))
+  },
+
+  getHomeTagSpotlight(params?: {excludeTagId?: number}) {
+    return apiClient.get(API_ROUTES.homeTagSpotlight, {params}).then((res) => ({
+      ...res,
+      data: validated(parseHomeTagSpotlight, res.data),
     }))
   },
 

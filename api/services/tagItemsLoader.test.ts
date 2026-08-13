@@ -17,6 +17,7 @@ vi.mock('./tagFilterSql', () => ({
   getTagFilterSqlFallbackReason: () => 'test legacy path',
   resolveTagFilterQuery: vi.fn(),
   getTagFromClause: () => 'FROM tags',
+  getTagSortPlan: () => ({expression: 'tags.id', joinSql: ''}),
   getTagSortExpression: () => 'tags.id',
   buildTagIdSelect: () => 'SELECT tags.id',
 }))

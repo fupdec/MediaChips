@@ -312,7 +312,7 @@
             size="large"
             @click="browseByMediaCreated"
           >
-            <v-icon start>mdi-calendar-star</v-icon>
+            <v-icon start>mdi-calendar-plus</v-icon>
             {{ t('empty_states.browse_media_created') }}
           </v-btn>
         </template>
@@ -492,7 +492,7 @@ function openEmptySearch() {
 
 function browseByMediaCreated() {
   void openMediaList({
-    sortBy: 'mediaCreatedAt',
+    sortBy: 'createdAt',
     sortDir: 'desc',
     groupBy: 'dateDay',
   })

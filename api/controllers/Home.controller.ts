@@ -7,6 +7,7 @@ import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
 import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
+import { getHomeTagSpotlight } from '../services/homeTagSpotlight'
 import { getCreatedCalendarMonth } from '../services/homeCreatedCalendar'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 import { parseClampedLimit, parseOptionalInt } from '../utils/parseRequestNumber'
@@ -100,6 +101,21 @@ export default (db: ApiDb) => {
     }
   }
 
+  const getTagSpotlight = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const excludeRaw = req.query?.excludeTagId
+      const excludeTagId = excludeRaw == null || excludeRaw === ''
+        ? null
+        : Number(excludeRaw)
+      const data = getHomeTagSpotlight(db, {
+        excludeTagId: Number.isFinite(excludeTagId) && excludeTagId! > 0 ? excludeTagId : null,
+      })
+      sendOk(res, data)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving tag spotlight.')
+    }
+  }
+
   const getCreatedCalendar = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const now = new Date()
@@ -161,6 +177,7 @@ export default (db: ApiDb) => {
     getExtendedStats,
     getChartStats,
     getSimilar,
+    getTagSpotlight,
     getCreatedCalendar,
     searchMedia,
     searchTags,

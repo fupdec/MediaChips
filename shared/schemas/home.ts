@@ -64,6 +64,7 @@ export const CreatedCalendarMonthSchema = z.object({
   totalInMonth: z.number(),
   totalWithDate: z.number(),
   totalMissingDate: z.number(),
+  latestMonthKey: z.string().nullable().optional(),
 }).passthrough()
 
 export const HealthQueueItemIdSchema = z.enum([
@@ -197,6 +198,67 @@ export const HomeMarkersSchema = z.object({
   marks: z.array(z.object({ id: z.number() }).passthrough()).optional(),
 }).passthrough()
 
+export const TagSpotlightTipIdSchema = z.enum([
+  'no_media',
+  'delete_unused',
+  'add_to_media',
+  'view',
+  'fill_info',
+  'add_synonyms',
+  'add_bookmark',
+  'rate',
+  'explore_media',
+  'add_related_tags',
+])
+
+export const TagSpotlightGapSchema = z.enum([
+  'synonyms',
+  'bookmark',
+  'country',
+  'rating',
+  'color',
+  'pinned_values',
+  'nested_tags',
+])
+
+export const TagSpotlightTipSchema = z.object({
+  id: TagSpotlightTipIdSchema,
+  priority: z.number(),
+  action: z.enum(['edit', 'open', 'open_media', 'delete']),
+}).passthrough()
+
+export const TagSpotlightMetaSchema = z.object({
+  id: z.number(),
+  name: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
+  synonyms: z.boolean().optional(),
+  bookmark: z.boolean().optional(),
+  country: z.boolean().optional(),
+  rating: z.boolean().optional(),
+  favorite: z.boolean().optional(),
+  color: z.boolean().optional(),
+  type: z.string().optional(),
+}).passthrough()
+
+export const TagSpotlightCooccurringSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  metaId: z.number(),
+  color: z.string().nullable().optional(),
+}).passthrough()
+
+export const HomeTagSpotlightSchema = z.object({
+  tag: TagSchema.nullable(),
+  meta: TagSpotlightMetaSchema.optional(),
+  mediaCount: z.number().optional(),
+  sampleMedia: z.array(MediaItemSchema).optional(),
+  cooccurring: z.array(TagSpotlightCooccurringSchema).optional(),
+  gaps: z.array(TagSpotlightGapSchema).optional(),
+  tips: z.array(TagSpotlightTipSchema).optional(),
+  attentionScore: z.number().optional(),
+  totalTags: z.number().optional(),
+}).passthrough()
+
 export const HomeMediaResponseSchema = z.object({
   continueWatching: z.array(MediaItemSchema).optional(),
   favorites: z.array(MediaItemSchema).optional(),
@@ -327,3 +389,6 @@ export type ParsedHomeMediaResponse = z.infer<typeof HomeMediaResponseSchema>
 export type ParsedHomeSimilarResponse = z.infer<typeof HomeSimilarResponseSchema>
 export type ParsedHomeSimilarMediaItem = z.infer<typeof HomeSimilarMediaItemSchema>
 export type ParsedMediaSimilarity = z.infer<typeof MediaSimilaritySchema>
+export type ParsedHomeTagSpotlight = z.infer<typeof HomeTagSpotlightSchema>
+export type ParsedTagSpotlightTip = z.infer<typeof TagSpotlightTipSchema>
+export type ParsedTagSpotlightGap = z.infer<typeof TagSpotlightGapSchema>

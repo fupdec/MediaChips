@@ -390,6 +390,9 @@ LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
 
 function getSortExpression(sortBy: string, sortMetaType?: string | null) {
   if (sortBy === 'shuffle') return 'RANDOM()'
+  if (sortBy === 'tagCount' || sortBy === 'numberOfTags' || sortBy === 'assignedTagCount') {
+    return `(SELECT COUNT(*) FROM tagsInMedia WHERE tagsInMedia.mediaId = media.id)`
+  }
 
   const metaId = resolveMetaId(sortBy)
   if (metaId !== null && sortMetaType) {

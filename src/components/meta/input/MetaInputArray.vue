@@ -275,7 +275,6 @@ import {ref, computed, onMounted, onUnmounted, watch, nextTick, useAttrs} from '
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import orderBy from 'lodash/orderBy'
 import {useAutocompleteMenuInfiniteScroll} from '@/composable/useAutocompleteMenuInfiniteScroll'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
@@ -294,6 +293,7 @@ import {resolveTagChipColor} from '@shared/tagChipColor'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {debounce} from '@/utils/debounce'
+import {sortTagsByCategoryPreference} from '@/utils/metaSort'
 import type { ArrayMeta, TagListItem } from '@/types/metaInput'
 
 const attrs = useAttrs()
@@ -383,6 +383,26 @@ const sortBy = computed(() => [
     title: t("meta.sorting.favorite"),
     icon: "heart",
     value: "favorite",
+  },
+  {
+    title: t("meta.sorting.assignments"),
+    icon: "link-variant",
+    value: "mediaCount",
+  },
+  {
+    title: t("meta.sorting.video_count"),
+    icon: "video-outline",
+    value: "videoCount",
+  },
+  {
+    title: t("meta.sorting.image_count"),
+    icon: "image-outline",
+    value: "imageCount",
+  },
+  {
+    title: t("meta.sorting.tag_count"),
+    icon: "tag-multiple-outline",
+    value: "tagCount",
   },
   {
     title: t("meta.sorting.date_added"),
@@ -675,11 +695,11 @@ const changeSortBy = async (param: string) => {
 }
 
 const sortTags = (tags: TagListItem[]) => {
-  const sortByParam = meta.value?.sortBy || 'createdAt'
-  const sortDir = (meta.value?.sortDir || 'asc') as 'asc' | 'desc'
-
-  const sorted = orderBy(tags, ['name'], ['asc'])
-  return orderBy(sorted, [sortByParam], [sortDir])
+  return sortTagsByCategoryPreference(
+    tags,
+    meta.value?.sortBy || 'createdAt',
+    meta.value?.sortDir || 'asc',
+  )
 }
 
 const resolveSelectedTag = (tagId: number): TagListItem => {

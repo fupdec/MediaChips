@@ -145,6 +145,19 @@ export default function (db: ApiDb) {
       sendControllerError(res, err, 'Some error occurred while retrieving co-occurring tags.')
     }
   };
+
+  const getAssignmentCounts = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const tagId = Number(req.params.id)
+      if (!Number.isFinite(tagId) || tagId <= 0) {
+        return sendBadRequest(res, 'tag id is required')
+      }
+
+      sendOk(res, tagsRepo.countAssignments(tagId))
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving assignment counts.')
+    }
+  }
   
   const getCount = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -301,6 +314,7 @@ export default function (db: ApiDb) {
     getAll,
     findOne,
     getCooccurring,
+    getAssignmentCounts,
     update,
     merge,
     moveToCategory,

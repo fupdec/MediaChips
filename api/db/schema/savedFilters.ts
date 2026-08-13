@@ -14,6 +14,8 @@ export const savedFilters = sqliteTable('savedFilters', {
   view: integer('view'),
   /** Serialized group-by (`none`, `rating`, `pinnedMeta:3`, …). */
   groupBy: text('groupBy'),
+  /** How filter rows combine: `and` (default) or `or`. */
+  filtersJoin: text('filtersJoin').default('and'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 })

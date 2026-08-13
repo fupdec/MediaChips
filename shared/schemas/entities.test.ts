@@ -118,4 +118,28 @@ describe('shared schemas', () => {
     expect(payload.filters?.[0]?.metaId).toBeNull()
     expect(payload.find_duplicates).toBe(false)
   })
+
+  it('accepts partial filter rows on list requests', () => {
+    const payload = ItemsListRequestSchema.parse({
+      mediaTypeId: 1,
+      limit: 5,
+      page: 1,
+      filters: [{
+        param: 'rating',
+        type: 'number',
+        cond: '>',
+        val: 4,
+        active: true,
+      }],
+      filtersJoin: 'or',
+    })
+    expect(payload.filters?.[0]).toMatchObject({
+      id: null,
+      note: null,
+      lock: false,
+      active: true,
+      param: 'rating',
+    })
+    expect(payload.filtersJoin).toBe('or')
+  })
 })

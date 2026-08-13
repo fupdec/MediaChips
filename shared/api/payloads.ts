@@ -249,6 +249,7 @@ export interface CreateSavedFilterPayload {
   size?: number | null
   view?: number | null
   groupBy?: string | null
+  filtersJoin?: 'and' | 'or' | null
   [key: string]: unknown
 }
 

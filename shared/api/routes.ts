@@ -19,6 +19,7 @@ export const API_ROUTES = {
   setting: '/api/Setting',
   mediaItems: '/api/Media/items',
   pageSetting: '/api/PageSetting',
+  pageSettingFind: '/api/PageSetting/find',
   savedFilter: '/api/SavedFilter',
   homeMedia: '/api/home/media',
   mark: '/api/Mark',
@@ -99,6 +100,7 @@ export const API_ROUTES = {
   homeHealth: '/api/home/health',
   homeHealthLite: '/api/home/health-lite',
   homeSimilar: '/api/home/similar',
+  homeTagSpotlight: '/api/home/tag-spotlight',
   homeCreatedCalendar: '/api/home/created-calendar',
   globalSearchMedia: '/api/home/search/media',
   globalSearchTags: '/api/home/search/tags',
@@ -256,6 +258,10 @@ export function apiTagCooccurring(tagId: number | string, mediaTypeId?: number |
   const base = `/api/Tag/${tagId}/cooccurring`
   if (mediaTypeId == null || mediaTypeId === '') return base
   return `${base}?mediaTypeId=${mediaTypeId}`
+}
+
+export function apiTagAssignmentCounts(tagId: number | string) {
+  return `/api/Tag/${tagId}/assignmentCounts`
 }
 
 export function apiValuesInTag(tagId: number | string) {

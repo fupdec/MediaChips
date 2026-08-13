@@ -2,16 +2,30 @@ import { count, eq, inArray } from 'drizzle-orm'
 import type Database from 'better-sqlite3'
 import type { DrizzleClient } from '../client'
 import { tags } from '../schema/tags'
+import { tagsInMedia } from '../schema/tagsInMedia'
+import { tagsInTags } from '../schema/tagsInTag'
 import { nowIso } from '../utils/timestamps'
 import { mapChunks } from '../utils/chunk'
 
 export type TagRow = typeof tags.$inferSelect
 export type TagInsert = typeof tags.$inferInsert
 
-/** Slim projection for GET /api/Tag bootstrap / chips catalog (drops oldId + timestamps). */
+/** Slim projection for GET /api/Tag bootstrap / chips catalog (drops oldId). */
 export type TagCatalogRow = Pick<
   TagRow,
-  'id' | 'metaId' | 'name' | 'synonyms' | 'rating' | 'favorite' | 'bookmark' | 'country' | 'color' | 'views'
+  | 'id'
+  | 'metaId'
+  | 'name'
+  | 'synonyms'
+  | 'rating'
+  | 'favorite'
+  | 'bookmark'
+  | 'country'
+  | 'color'
+  | 'views'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'viewedAt'
 >
 
 /** id/name/synonyms for marker title matching and similar lookups. */
@@ -159,6 +173,9 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         country: tags.country,
         color: tags.color,
         views: tags.views,
+        createdAt: tags.createdAt,
+        updatedAt: tags.updatedAt,
+        viewedAt: tags.viewedAt,
       }).from(tags).all()
     },
 
@@ -177,6 +194,22 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
 
     findById(id: number): TagRow | undefined {
       return db.select().from(tags).where(eq(tags.id, id)).get()
+    },
+
+    /** Assignment destinations for this tag: on media files and nested on other tags. */
+    countAssignments(tagId: number): {media: number; tags: number} {
+      const mediaRow = db.select({count: count()})
+        .from(tagsInMedia)
+        .where(eq(tagsInMedia.tagId, tagId))
+        .get()
+      const tagsRow = db.select({count: count()})
+        .from(tagsInTags)
+        .where(eq(tagsInTags.tagId, tagId))
+        .get()
+      return {
+        media: Number(mediaRow?.count ?? 0),
+        tags: Number(tagsRow?.count ?? 0),
+      }
     },
 
     countAll(): number {

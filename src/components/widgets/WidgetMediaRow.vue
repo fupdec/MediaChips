@@ -20,13 +20,14 @@
       <div class="d-flex align-center ga-1">
         <v-btn
           v-if="showShuffle && items.length"
+          v-tooltip:top="t('home.widgets.reshuffle')"
           @click="emit('shuffle')"
           :loading="shuffleLoading"
           color="primary"
           icon
           size="small"
           variant="text"
-          :title="t('home.widgets.reshuffle')"
+          :aria-label="t('home.widgets.reshuffle')"
         >
           <v-icon>mdi-shuffle</v-icon>
         </v-btn>

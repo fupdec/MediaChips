@@ -11,12 +11,13 @@
 
         <v-btn
           v-if="checked || loading"
+          v-tooltip:top="t('home.widgets.health_run_check')"
           icon
           size="small"
           variant="tonal"
           color="primary"
           :loading="loading"
-          :title="t('home.widgets.health_run_check')"
+          :aria-label="t('home.widgets.health_run_check')"
           @click="runCheck"
         >
           <v-icon>mdi-refresh</v-icon>

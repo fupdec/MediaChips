@@ -119,6 +119,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'savedFilters', column: 'size', definition: 'integer'},
   {table: 'savedFilters', column: 'view', definition: 'integer'},
   {table: 'savedFilters', column: 'groupBy', definition: 'text'},
+  {table: 'savedFilters', column: 'filtersJoin', definition: "text DEFAULT 'and'"},
 ]
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {
@@ -391,6 +392,27 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE INDEX IF NOT EXISTS "tags_in_media_meta_media_idx" ON "tagsInMedia" ("metaId", "mediaId")',
     )
     repaired.push('tags_in_media_meta_media_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInMedia') && !hasIndex(sqlite, 'tags_in_media_tag_meta_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_media_tag_meta_idx" ON "tagsInMedia" ("tagId", "metaId")',
+    )
+    repaired.push('tags_in_media_tag_meta_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInMedia') && !hasIndex(sqlite, 'tags_in_media_media_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_media_media_id_idx" ON "tagsInMedia" ("mediaId")',
+    )
+    repaired.push('tags_in_media_media_id_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInTags') && !hasIndex(sqlite, 'tags_in_tags_tag_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_tags_tag_id_idx" ON "tagsInTags" ("tagId")',
+    )
+    repaired.push('tags_in_tags_tag_id_idx')
   }
 
   if (ensureTagsNameNormalizedUniqueIndex(sqlite)) {

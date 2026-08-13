@@ -1,5 +1,4 @@
-import {useRouter} from 'vue-router'
-import {useI18n} from 'vue-i18n'
+import router from '@/router'
 import {useSessionFocusStore, type SessionFocusTag} from '@/stores/sessionFocus'
 import {useOpenMediaList} from '@/utils/openMediaList'
 import {
@@ -11,14 +10,22 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {setNotification} from '@/services/notificationService'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {useAppStore} from '@/stores/app'
+import {useSettingsStore} from '@/stores/settings'
+import translate, {type Locale} from '@/utils/translate'
 
+/**
+ * Safe to call from card context-menu handlers (outside setup): uses the router
+ * singleton and translate() instead of useRouter()/useI18n() inject.
+ */
 export function useSessionFocusActions() {
   const focusStore = useSessionFocusStore()
   const {openMediaList} = useOpenMediaList()
-  const router = useRouter()
-  const {t} = useI18n()
   const listSync = useItemsListSync()
   const appStore = useAppStore()
+  const settingsStore = useSettingsStore()
+
+  const t = (key: string, params: Record<string, string | number> = {}) =>
+    translate(key, params, settingsStore.locale as Locale)
 
   function startFocus(tag: SessionFocusTag) {
     focusStore.setFocus(tag)

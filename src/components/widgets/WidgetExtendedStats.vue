@@ -8,8 +8,11 @@
         </div>
 
         <v-btn
+          v-tooltip:top="collapsed
+            ? t('home.widgets.extended_stats_expand')
+            : t('home.widgets.extended_stats_collapse')"
           @click="toggleCollapsed"
-          :title="collapsed
+          :aria-label="collapsed
             ? t('home.widgets.extended_stats_expand')
             : t('home.widgets.extended_stats_collapse')"
           icon

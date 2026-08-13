@@ -57,6 +57,20 @@ describe('mediaSortFilter grouping', () => {
     expect(rating && getSortParamGroup(rating, 'media', null)).toBe('Preset meta')
     expect(path && getSortParamGroup(path, 'media', null)).toBe('File')
     expect(duration && getSortParamGroup(duration, 'media', {id: 1, name: 'Video', key: 'video'} as never)).toBe('Video')
+
+    const tagParams = getSortParams('tag', null)
+    const mediaCount = tagParams.find((param) => param.param === 'mediaCount')
+    const videoCount = tagParams.find((param) => param.param === 'videoCount')
+    const imageCount = tagParams.find((param) => param.param === 'imageCount')
+    const tagCount = tagParams.find((param) => param.param === 'tagCount')
+    expect(mediaCount && getSortParamGroup(mediaCount, 'tag', null)).toBe('Tag')
+    expect(videoCount && getSortParamGroup(videoCount, 'tag', null)).toBe('Tag')
+    expect(imageCount && getSortParamGroup(imageCount, 'tag', null)).toBe('Tag')
+    expect(tagCount && getSortParamGroup(tagCount, 'tag', null)).toBe('Tag')
+
+    const mediaParams = getSortParams('media', null)
+    const mediaTagCount = mediaParams.find((param) => param.param === 'tagCount')
+    expect(mediaTagCount && getSortParamGroup(mediaTagCount, 'media', null)).toBe('Tag')
   })
 
   it('builds grouped menu items with headers and dividers', () => {

@@ -208,6 +208,7 @@ export function useItemsPageInit({
     itemsStore.updateMultiple({
       filters,
       savedFilter,
+      filtersJoin: savedFilter?.filtersJoin === 'or' ? 'or' : 'and',
     })
 
     if (props.tagId) {
@@ -308,7 +309,11 @@ export function useItemsPageInit({
     }
 
     const {filters, savedFilter} = await fetchSavedFilterBundle()
-    Object.assign(storeUpdates, {filters, savedFilter})
+    Object.assign(storeUpdates, {
+      filters,
+      savedFilter,
+      filtersJoin: savedFilter?.filtersJoin === 'or' ? 'or' : 'and',
+    })
 
     if (props.tagId) {
       const existingFilters = storeUpdates.filters || []

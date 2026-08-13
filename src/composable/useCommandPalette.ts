@@ -185,12 +185,12 @@ export function useCommandPaletteCommands(options: {
         id: 'browse-media-created',
         title: t('commandPalette.actions.browse_media_created'),
         subtitle: t('commandPalette.actions.browse_media_created_hint'),
-        icon: 'mdi-calendar-star',
+        icon: 'mdi-calendar-plus',
         group: 'actions',
-        keywords: ['calendar', 'created', 'date', 'media created', 'timeline'],
+        keywords: ['calendar', 'created', 'date', 'added', 'date added', 'timeline', 'library'],
         run: () => {
           void openMediaList({
-            sortBy: 'mediaCreatedAt',
+            sortBy: 'createdAt',
             sortDir: 'desc',
             groupBy: 'dateDay',
           })

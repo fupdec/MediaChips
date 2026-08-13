@@ -8,13 +8,14 @@
 
       <div class="d-flex align-center ga-1">
         <v-btn
+          v-tooltip:top="t('home.widgets.random_markers_refresh')"
           @click="loadMarks"
           :loading="loading"
           color="primary"
           icon
           size="small"
           variant="text"
-          :title="t('home.widgets.random_markers_refresh')"
+          :aria-label="t('home.widgets.random_markers_refresh')"
         >
           <v-icon>mdi-shuffle</v-icon>
         </v-btn>

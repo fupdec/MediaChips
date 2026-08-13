@@ -30,48 +30,53 @@ export function buildFavoritesFilters(): FilterObject[] {
   ]
 }
 
-/** Media created on a specific calendar day. */
-export function buildMediaCreatedDayFilters(day: string): FilterObject[] {
+/** Media added to the library on a specific calendar day. */
+export function buildLibraryAddedDayFilters(day: string): FilterObject[] {
   const start = String(day || '').trim()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return []
   return [
     getFilterObject({
-      param: 'mediaCreatedAt',
+      param: 'createdAt',
       type: 'date',
       cond: '>=',
       val: start,
-      note: 'home-created-day',
+      note: 'home-added-day',
     }),
     getFilterObject({
-      param: 'mediaCreatedAt',
+      param: 'createdAt',
       type: 'date',
       cond: '<',
       val: nextIsoDay(start),
-      note: 'home-created-day',
+      note: 'home-added-day',
     }),
   ]
 }
 
-/** Media created within a calendar month. */
-export function buildMediaCreatedMonthFilters(year: number, month: number): FilterObject[] {
+/** Media added to the library within a calendar month. */
+export function buildLibraryAddedMonthFilters(year: number, month: number): FilterObject[] {
   const {start, end} = monthBounds(year, month)
   return [
     getFilterObject({
-      param: 'mediaCreatedAt',
+      param: 'createdAt',
       type: 'date',
       cond: '>=',
       val: start,
-      note: 'home-created-month',
+      note: 'home-added-month',
     }),
     getFilterObject({
-      param: 'mediaCreatedAt',
+      param: 'createdAt',
       type: 'date',
       cond: '<',
       val: end,
-      note: 'home-created-month',
+      note: 'home-added-month',
     }),
   ]
 }
+
+/** @deprecated Use buildLibraryAddedDayFilters */
+export const buildMediaCreatedDayFilters = buildLibraryAddedDayFilters
+/** @deprecated Use buildLibraryAddedMonthFilters */
+export const buildMediaCreatedMonthFilters = buildLibraryAddedMonthFilters
 
 /**
  * Inbox triage list: unrated media.

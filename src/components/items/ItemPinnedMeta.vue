@@ -308,13 +308,14 @@ const props = withDefaults(defineProps<{
 })
 
 const presetMetaProps: PresetMetaProps = {
-  type: props.type,
-  item: props.item,
-  isShowAll: props.isShowAll,
+  get type() { return props.type },
+  get item() { return props.item },
+  get isShowAll() { return props.isShowAll },
+  get showPreset() { return props.showPreset },
 }
 
 const {preset_meta: presetMetaSource} = usePresetMeta(presetMetaProps)
-const preset_meta = computed(() => (props.showPreset ? presetMetaSource.value : []))
+const preset_meta = computed(() => presetMetaSource.value)
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()

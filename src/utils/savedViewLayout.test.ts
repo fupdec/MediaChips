@@ -16,6 +16,7 @@ describe('savedViewLayout', () => {
       view: 1,
       groupBy: 'pinnedMeta',
       groupByMetaId: 9,
+      filtersJoin: 'or',
     })
     expect(layout).toEqual({
       sortBy: 'rating',
@@ -23,6 +24,7 @@ describe('savedViewLayout', () => {
       size: 4,
       view: 1,
       groupBy: 'pinnedMeta:9',
+      filtersJoin: 'or',
     })
     expect(hasSavedViewLayout(layout)).toBe(true)
   })
@@ -36,6 +38,7 @@ describe('savedViewLayout', () => {
       size: 2,
       view: 2,
       groupBy: 'favorite',
+      filtersJoin: 'or',
       filters: [],
     })).toEqual({
       sortBy: 'name',
@@ -43,6 +46,7 @@ describe('savedViewLayout', () => {
       size: 2,
       view: 2,
       groupBy: 'favorite',
+      filtersJoin: 'or',
     })
   })
 
@@ -53,13 +57,16 @@ describe('savedViewLayout', () => {
       firstChar: 'pinnedMeta:3',
     })
     expect(describeSavedViewLayout(
-      {size: 3, sortBy: 'rating', sortDir: 'desc', groupBy: 'rating'},
+      {size: 3, sortBy: 'rating', sortDir: 'desc', groupBy: 'rating', filtersJoin: 'or'},
       {
         size: (size) => `S${size}`,
         sort: (sortBy, dir) => `${sortBy}/${dir}`,
         group: (groupBy) => `g:${groupBy}`,
+        join: (mode) => mode.toUpperCase(),
       },
-    )).toEqual(['S3', 'rating/desc', 'g:rating'])
+    )).toEqual(['S3', 'rating/desc', 'g:rating', 'OR'])
     expect(hasSavedViewLayout({})).toBe(false)
+    expect(hasSavedViewLayout({filtersJoin: 'or'})).toBe(true)
+    expect(hasSavedViewLayout({filtersJoin: 'and'})).toBe(true)
   })
 })

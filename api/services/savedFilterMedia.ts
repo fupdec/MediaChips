@@ -22,9 +22,23 @@ import { createFilterRowsRepository } from '../db/repositories/filterRows'
 import { createTagsInFilterRowsRepository } from '../db/repositories/tagsInFilterRows'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { normalizeFilterRow } from './normalizeFilterRow'
+import {normalizeFiltersJoinMode} from '../utils/filtersJoinMode'
 
 /** Cap parallel summary queries on cold start (was unbounded Promise.all). */
 const dynamicPlaylistSummaryQueue = createConcurrencyQueue(3)
+
+function resolveSavedFilterJoin(
+  db: ApiDb,
+  savedFilterId: SavedFilterId,
+  savedFilterRow?: {filtersJoin?: string | null} | null,
+): 'and' | 'or' {
+  if (savedFilterRow) {
+    return normalizeFiltersJoinMode(savedFilterRow.filtersJoin)
+  }
+  const savedFiltersRepo = createSavedFiltersRepository(db.drizzle)
+  const row = savedFiltersRepo.findById(Number(savedFilterId))
+  return normalizeFiltersJoinMode(row?.filtersJoin)
+}
 
 async function loadSavedFilterRows(db: ApiDb, savedFilterId: SavedFilterId): Promise<FilterLike[]> {
   const filtersMap = await loadSavedFilterRowsBatch(db, [savedFilterId])
@@ -111,9 +125,11 @@ async function getFilteredMediaForSavedFilter(
   }
 
   const filters = await loadSavedFilterRows(db, savedFilterId)
+  const filtersJoin = resolveSavedFilterJoin(db, savedFilterId)
   const idsResult = await loadFilteredMediaIds(db, {
     mediaTypeId,
     filters,
+    filtersJoin,
     sortBy,
     direction,
     find_duplicates: false,
@@ -150,10 +166,12 @@ async function getSavedFilterPlaylistSummary(
   }
 
   const filters = await loadSavedFilterRows(db, savedFilterId)
+  const filtersJoin = resolveSavedFilterJoin(db, savedFilterId)
 
   return getFilteredMediaSummary(db, {
     mediaTypeId,
     filters,
+    filtersJoin,
     sortBy,
     direction,
     previewLimit: previewLimit ?? undefined,
@@ -230,12 +248,13 @@ async function getDynamicPlaylistsSummary(db: ApiDb): Promise<ParsedDynamicPlayl
       savedFilters.map((savedFilter: {id: number}) => savedFilter.id as SavedFilterId),
     )
 
-    const summaries = await Promise.all(savedFilters.map((savedFilter: {id: number; name: string | null}) => (
+    const summaries = await Promise.all(savedFilters.map((savedFilter: {id: number; name: string | null; filtersJoin?: string | null}) => (
       dynamicPlaylistSummaryQueue.enqueue(async () => {
         const filters = filtersBySavedFilterId.get(Number(savedFilter.id)) || []
         const summary = await getFilteredMediaSummary(db, {
           mediaTypeId,
           filters,
+          filtersJoin: resolveSavedFilterJoin(db, savedFilter.id, savedFilter),
           sortBy: 'id',
           direction: 'desc',
           previewLimit: 4,
@@ -272,9 +291,11 @@ async function getFilteredMediaForPlayback(
   }
 
   const filters = await loadSavedFilterRows(db, savedFilterId)
+  const filtersJoin = resolveSavedFilterJoin(db, savedFilterId)
   const idsResult = await loadFilteredMediaIds(db, {
     mediaTypeId,
     filters,
+    filtersJoin,
     sortBy,
     direction,
     find_duplicates: false,

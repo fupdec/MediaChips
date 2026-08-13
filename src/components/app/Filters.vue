@@ -809,8 +809,21 @@ const apply = async () => {
     }
   }
 
+  const join = itemsStore.filtersJoin === 'or' ? 'or' : 'and'
+  if (savedFilter?.id) {
+    try {
+      await typedApi.updateSavedFilter(Number(savedFilter.id), {filtersJoin: join})
+      itemsStore.updateState({
+        key: 'savedFilter',
+        value: {...savedFilter, filtersJoin: join},
+      })
+    } catch (error) {
+      console.error('Error saving filtersJoin:', error)
+    }
+  }
+
   itemsStore.updateState({key: "filters", value: cloneFilters(filters.value)})
-  void pageCommands.setFilters({filters: filters.value})
+  await Promise.resolve(pageCommands.setFilters({filters: filters.value}))
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {
@@ -857,6 +870,7 @@ const saveCurrentAsNamed = async (name: string) => {
       size: layout.size,
       view: layout.view == null ? null : Number(layout.view),
       groupBy: layout.groupBy,
+      filtersJoin: layout.filtersJoin,
     })
     const data = response.data
     savedFilter = Array.isArray(data) ? data[0] : data

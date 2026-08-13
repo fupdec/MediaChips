@@ -41,6 +41,15 @@ function hasTable(sqlite: Database.Database, tableName: string): boolean {
   return Boolean(row)
 }
 
+function hasColumn(sqlite: Database.Database, tableName: string, columnName: string): boolean {
+  if (!hasTable(sqlite, tableName)) {
+    return false
+  }
+
+  const columns = sqlite.pragma(`table_info(${tableName})`) as Array<{name: string}>
+  return columns.some((column) => column.name === columnName)
+}
+
 function ensureDrizzleMigrationsTable(sqlite: Database.Database) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
@@ -63,6 +72,65 @@ function stampMigrationIfMissing(sqlite: Database.Database, entry: JournalEntry)
       'INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)',
     ).run(hash, entry.when)
   }
+}
+
+function addColumnCaptureRegex(): RegExp {
+  return /ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD\s+COLUMN\s+[`"]?(\w+)[`"]?/gi
+}
+
+function addColumnStatementRegex(): RegExp {
+  return /ALTER\s+TABLE\s+[`"]?\w+[`"]?\s+ADD\s+COLUMN\s+[^;]+;?/gi
+}
+
+/**
+ * When schemaRepair (or a prior partial boot) already added columns, stamp the
+ * matching ADD COLUMN drizzle migrations so migrate() does not fail with
+ * "duplicate column name".
+ */
+export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): string[] {
+  if (!hasTable(sqlite, '__drizzle_migrations')) {
+    return []
+  }
+
+  const stamped: string[] = []
+  const journal = readJournal()
+
+  for (const entry of journal.entries) {
+    const sql = fs.readFileSync(migrationSqlPath(entry.tag), 'utf8')
+    const hash = hashMigrationSql(sql)
+    const exists = sqlite.prepare(
+      'SELECT 1 FROM __drizzle_migrations WHERE hash = ? LIMIT 1',
+    ).get(hash)
+    if (exists) {
+      continue
+    }
+
+    const matches = [...sql.matchAll(addColumnCaptureRegex())]
+    if (matches.length === 0) {
+      continue
+    }
+
+    // Only auto-stamp pure ADD COLUMN migrations (ignore CREATE INDEX / etc.).
+    const withoutBreakpoints = sql.replace(/-->\s*statement-breakpoint/g, '')
+    const withoutAddColumns = withoutBreakpoints.replace(addColumnStatementRegex(), '').trim()
+    if (withoutAddColumns.length > 0) {
+      continue
+    }
+
+    const allPresent = matches.every((match) => {
+      const table = match[1]
+      const column = match[2]
+      return Boolean(table && column && hasColumn(sqlite, table, column))
+    })
+    if (!allPresent) {
+      continue
+    }
+
+    stampMigrationIfMissing(sqlite, entry)
+    stamped.push(entry.tag)
+  }
+
+  return stamped
 }
 
 export function ensureLegacyDrizzleBaseline(sqlite: Database.Database) {
@@ -129,6 +197,14 @@ export function runDrizzleMigrations(dbPath: string) {
     const renamed = renameDuplicateTagNames(sqlite)
     if (renamed > 0) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed ${renamed} duplicate tag name(s) for global uniqueness`)
+    }
+
+    const stamped = stampSatisfiedAddColumnMigrations(sqlite)
+    if (stamped.length > 0) {
+      console.log(
+        '\x1b[33m%s\x1b[0m',
+        `⚙️ Stamped already-applied column migrations: ${stamped.join(', ')}`,
+      )
     }
 
     const db = drizzle(sqlite)

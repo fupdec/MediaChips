@@ -19,33 +19,39 @@
             @submit.prevent="submitCreate"
           >
             <div class="saved-filter-create">
-              <v-text-field
-                v-model="createName"
-                :placeholder="t('filters.filter_name')"
-                :disabled="!canCreate"
-                :hint="canCreate ? t('filters.save_current_view_hint') : t('filters.save_current_empty')"
-                :persistent-hint="true"
-                :error-messages="createError"
-                density="comfortable"
-                variant="solo-filled"
-                flat
-                rounded="xl"
-                hide-details="auto"
-                class="saved-filter-create__field"
-                @update:model-value="createError = ''"
-                @keydown.enter.prevent="submitCreate"
-              />
-              <v-btn
-                color="success"
-                variant="flat"
-                rounded="pill"
-                class="saved-filter-create__btn"
-                :disabled="!canCreate"
-                @click="submitCreate"
+              <div class="saved-filter-create__row">
+                <v-text-field
+                  v-model="createName"
+                  :placeholder="t('filters.filter_name')"
+                  :disabled="!canCreate"
+                  :error-messages="createError"
+                  density="comfortable"
+                  variant="solo-filled"
+                  flat
+                  rounded="xl"
+                  hide-details="auto"
+                  class="saved-filter-create__field"
+                  @update:model-value="createError = ''"
+                  @keydown.enter.prevent="submitCreate"
+                />
+                <v-btn
+                  color="success"
+                  variant="flat"
+                  rounded="pill"
+                  class="saved-filter-create__btn"
+                  :disabled="!canCreate"
+                  @click="submitCreate"
+                >
+                  <v-icon start>mdi-plus</v-icon>
+                  {{ t('common.create') }}
+                </v-btn>
+              </div>
+              <div
+                v-if="!createError"
+                class="saved-filter-create__hint text-caption text-medium-emphasis"
               >
-                <v-icon start>mdi-plus</v-icon>
-                {{ t('common.create') }}
-              </v-btn>
+                {{ canCreate ? t('filters.save_current_view_hint') : t('filters.save_current_empty') }}
+              </div>
             </div>
           </v-form>
 
@@ -243,19 +249,36 @@ const editButtons = computed(() => [
 
 <style lang="scss" scoped>
 .saved-filter-create {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 10px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    align-items: start;
+  }
 
   &__field {
     min-width: 0;
+
+    :deep(.v-input__control),
+    :deep(.v-field) {
+      min-height: 40px;
+    }
   }
 
   &__btn {
     flex-shrink: 0;
-    height: 40px;
+    height: 40px !important;
+    min-height: 40px;
     padding-inline: 18px;
+  }
+
+  &__hint {
+    line-height: 1.35;
+    padding-inline: 4px;
   }
 }
 </style>

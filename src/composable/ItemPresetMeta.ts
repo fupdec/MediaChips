@@ -1,4 +1,4 @@
-import {ref, computed, onBeforeMount} from 'vue'
+import {ref, computed, watch} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
@@ -22,12 +22,25 @@ export function usePresetMeta(props: PresetMetaProps) {
   const {t} = useI18n()
 
   const numberOfMedia = ref(0)
+  let mediaCountRequestToken = 0
 
   const SETTINGS = computed(() => settingsStore)
   const ENV = computed(() => itemsStore.environment)
 
+  const presetsEnabled = computed(() => (
+    props.showPreset !== false
+    && (SETTINGS.value.show_preset_metadata_in_card === '1' || Boolean(props.isShowAll))
+  ))
+
+  /** Only hit the API when the chip would actually render. */
+  const shouldFetchMediaCount = computed(() => {
+    if (props.type !== 'tag') return false
+    if (!presetsEnabled.value) return false
+    return SETTINGS.value.show_default_meta_number_media === '1' || Boolean(props.isShowAll)
+  })
+
   const preset_meta = computed((): PresetMetaParam[] => {
-    if (SETTINGS.value.show_preset_metadata_in_card !== '1' && !props.isShowAll) {
+    if (!presetsEnabled.value) {
       return []
     }
 
@@ -133,25 +146,42 @@ export function usePresetMeta(props: PresetMetaProps) {
 
   const countMediaInTag = (): void => {
     const tagId = Number(props.item?.id ?? 0)
-    if (!tagId) return
+    if (!tagId || !shouldFetchMediaCount.value) return
 
+    const token = ++mediaCountRequestToken
     typedApi
       .getMediaCountWithTag(tagId)
       .then((res) => {
+        if (token !== mediaCountRequestToken) return
         numberOfMedia.value = res.data.count
       })
       .catch((e) => {
+        if (token !== mediaCountRequestToken) return
         console.log(e)
       })
   }
 
-  onBeforeMount(() => {
-    if (props.type == "tag") countMediaInTag()
-  })
+  watch(
+    () => [
+      shouldFetchMediaCount.value,
+      props.type,
+      Number(props.item?.id ?? 0),
+    ] as const,
+    ([shouldFetch, type, tagId]) => {
+      if (!shouldFetch || type !== 'tag' || !tagId) {
+        mediaCountRequestToken += 1
+        numberOfMedia.value = 0
+        return
+      }
+      countMediaInTag()
+    },
+    {immediate: true},
+  )
 
   return {
     preset_meta,
     numberOfMedia,
     countMediaInTag,
+    shouldFetchMediaCount,
   }
 }

@@ -169,6 +169,20 @@
       "when": 1782832800000,
       "tag": "0023_watched_folders_icon_excludes",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1782836400000,
+      "tag": "0024_saved_filters_join",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1782840000000,
+      "tag": "0025_tag_assignment_sort_indexes",
+      "breakpoints": true
     }
   ]
 }

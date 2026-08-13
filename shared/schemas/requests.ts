@@ -449,6 +449,10 @@ export const HomeMarkersQuerySchema = z.object({
   limit: optionalCoercedNumber,
 }).passthrough()
 
+export const HomeTagSpotlightQuerySchema = z.object({
+  excludeTagId: optionalCoercedNumber,
+}).passthrough()
+
 export const HomeChartStatsQuerySchema = z.object({
   period: z.preprocess(
     (value) => (value === 'all' || value === 'ALL' ? 0 : value),

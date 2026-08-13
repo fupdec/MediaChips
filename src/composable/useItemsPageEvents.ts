@@ -285,6 +285,8 @@ export function useItemsPageEvents({
       storeUpdates.groupByMetaId = parsed.groupByMetaId
       pageUpdates.firstChar = parsed.firstChar
     }
+    // Always restore join mode from the saved view (defaults to AND).
+    storeUpdates.filtersJoin = layout.filtersJoin === 'or' ? 'or' : 'and'
 
     itemsStore.updateMultiple(storeUpdates)
     await updatePageSetting(pageUpdates)

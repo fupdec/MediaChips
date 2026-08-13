@@ -6,6 +6,7 @@ import {
   buildTagFilterQuery,
   getTagFilterSqlFallbackReason,
   getTagSortExpression,
+  getTagSortPlan,
   resolveTagFilterQuery,
 } from './tagFilterSql'
 
@@ -166,10 +167,52 @@ describe('resolveTagFilterQuery', () => {
   })
 })
 
+describe('getTagSortPlan', () => {
+  it('sorts by assignment count via pre-aggregated joins', () => {
+    for (const key of ['mediaCount', 'numberOfMedia', 'assignmentCount'] as const) {
+      const plan = getTagSortPlan(key)
+      expect(plan.expression).toContain('tag_sort_media_assign')
+      expect(plan.expression).toContain('tag_sort_tag_assign')
+      expect(plan.joinSql).toContain('tagsInMedia')
+      expect(plan.joinSql).toContain('tagsInTags')
+      expect(plan.joinSql).toContain('GROUP BY')
+      expect(plan.joinSql).toContain(':metaId')
+    }
+  })
+
+  it('sorts by video / image media counts via type-scoped joins', () => {
+    for (const key of ['videoCount', 'numberOfVideos'] as const) {
+      const plan = getTagSortPlan(key)
+      expect(plan.expression).toContain('tag_sort_type_count')
+      expect(plan.joinSql).toContain("mediaTypes.type = 'video'")
+      expect(plan.joinSql).toContain('GROUP BY')
+    }
+    for (const key of ['imageCount', 'numberOfImages'] as const) {
+      const plan = getTagSortPlan(key)
+      expect(plan.expression).toContain('tag_sort_type_count')
+      expect(plan.joinSql).toContain("mediaTypes.type = 'image'")
+      expect(plan.joinSql).toContain('GROUP BY')
+    }
+  })
+
+  it('sorts by nested assigned tag count via parent aggregate', () => {
+    for (const key of ['tagCount', 'numberOfTags', 'assignedTagCount'] as const) {
+      const plan = getTagSortPlan(key)
+      expect(plan.expression).toContain('tag_sort_nested_count')
+      expect(plan.joinSql).toContain('parentTagId')
+      expect(plan.joinSql).toContain('GROUP BY')
+    }
+  })
+
+  it('keeps plain column sorts without joins', () => {
+    const plan = getTagSortPlan('name')
+    expect(plan.expression).toContain('tags.name')
+    expect(plan.joinSql).toBe('')
+  })
+})
+
 describe('getTagSortExpression', () => {
-  it('sorts by assigned media count', () => {
-    expect(getTagSortExpression('mediaCount')).toContain('COUNT(*)')
-    expect(getTagSortExpression('mediaCount')).toContain('tagsInMedia')
-    expect(getTagSortExpression('numberOfMedia')).toContain('tagsInMedia')
+  it('returns the plan expression for assignment counts', () => {
+    expect(getTagSortExpression('mediaCount')).toBe(getTagSortPlan('mediaCount').expression)
   })
 })

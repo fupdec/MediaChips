@@ -8,7 +8,7 @@ export type SavedFilterInsert = typeof savedFilters.$inferInsert
 
 const SAVED_FILTER_MUTABLE_COLUMNS = new Set([
   'name', 'metaId', 'mediaTypeId', 'tagId', 'tabId',
-  'sortBy', 'sortDir', 'size', 'view', 'groupBy',
+  'sortBy', 'sortDir', 'size', 'view', 'groupBy', 'filtersJoin',
 ])
 
 function pickSavedFilterFields(data: Record<string, unknown>): Partial<SavedFilterInsert> {
@@ -33,6 +33,10 @@ function nullableText(value: unknown): string | null {
   return text.length ? text : null
 }
 
+function filtersJoinValue(value: unknown): string {
+  return value === 'or' ? 'or' : 'and'
+}
+
 export function createSavedFiltersRepository(db: DrizzleClient) {
   return {
     create(data: Partial<SavedFilterInsert>): SavedFilterRow {
@@ -49,6 +53,7 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
           size: nullableNumber(data.size),
           view: nullableNumber(data.view),
           groupBy: nullableText(data.groupBy),
+          filtersJoin: filtersJoinValue(data.filtersJoin),
           createdAt: timestamp,
           updatedAt: timestamp,
         })
@@ -125,9 +130,13 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
     },
 
     updateById(id: number, data: Record<string, unknown>): void {
+      const picked = pickSavedFilterFields(data)
+      if (Object.prototype.hasOwnProperty.call(picked, 'filtersJoin')) {
+        picked.filtersJoin = filtersJoinValue(picked.filtersJoin)
+      }
       db.update(savedFilters)
         .set({
-          ...pickSavedFilterFields(data),
+          ...picked,
           updatedAt: nowIso(),
         })
         .where(eq(savedFilters.id, id))
