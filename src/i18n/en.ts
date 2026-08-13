@@ -1004,6 +1004,8 @@ const en = {
     open: 'Open',
     show_element: 'Show element',
     nothing_to_highlight: 'There is nothing to highlight on this page.',
+    expand_all: 'Expand all',
+    collapse_all: 'Collapse all',
     no_content: 'No content available for this item.',
   },
   items: {
@@ -3653,6 +3655,7 @@ const en = {
     failed: 'Registration failed',
     activation_error: 'An error occurred while activating the application',
     unregistered_playlist_limit: 'In the unregistered version, you can only play the first 15 videos of the playlist.',
+    unregistered_items_limit: 'Items per page are limited to 15 until the app is registered.',
   },
   migration: {
     title: 'Migration',

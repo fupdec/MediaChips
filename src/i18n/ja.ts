@@ -1001,6 +1001,8 @@ const ja = {
     open: '開ける',
     show_element: '要素を表示',
     nothing_to_highlight: 'このページでは特筆すべきことは何もありません。',
+    expand_all: 'すべて展開',
+    collapse_all: 'すべて折りたたむ',
     no_content: 'このアイテムに利用できるコンテンツはありません。',
   },
   items: {
@@ -3650,6 +3652,7 @@ const ja = {
     failed: '登録に失敗しました',
     activation_error: 'アプリケーションのアクティブ化中にエラーが発生しました',
     unregistered_playlist_limit: '未登録バージョンでは、プレイリストの最初の 15 ビデオのみを再生できます。',
+    unregistered_items_limit: 'アプリを登録するまで、1ページあたりの表示件数は15件に制限されます。',
   },
   migration: {
     title: '移行',

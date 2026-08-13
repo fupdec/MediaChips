@@ -1001,6 +1001,8 @@ const cn = {
     open: '打开',
     show_element: '显示元素',
     nothing_to_highlight: '此页面上没有可高亮显示的内容。',
+    expand_all: '全部展开',
+    collapse_all: '全部折叠',
     no_content: '此项目没有可用内容。',
   },
   items: {
@@ -3650,6 +3652,7 @@ const cn = {
     failed: '注册失败',
     activation_error: '激活应用时发生错误',
     unregistered_playlist_limit: '未注册版本只能播放播放列表中的前 15 个视频。',
+    unregistered_items_limit: '未注册前，每页最多显示 15 个项目。',
   },
   migration: {
     title: '迁移',

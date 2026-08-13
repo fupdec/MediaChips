@@ -2,22 +2,35 @@
   <v-dialog
     v-model="model"
     :persistent="isPersistent"
-    width="400"
+    width="420"
     scrollable
   >
-    <v-card>
-      <v-card-text class="text-center" :class="variant === 'delete' ? '' : 'pt-8'">
-        <v-icon
-          v-if="variant === 'delete'"
-          icon="mdi-alert-outline"
-          size="48"
-          color="error"
-          class="py-6 mb-4"
-        />
+    <v-card
+      class="confirm-dialog"
+      rounded="xl"
+    >
+      <v-card-text
+        class="confirm-dialog__body text-center px-6"
+        :class="variant === 'delete' ? 'pt-6' : 'pt-8'"
+      >
         <div
+          v-if="variant === 'delete'"
+          class="confirm-dialog__icon confirm-dialog__icon--error mb-4"
+          aria-hidden="true"
+        >
+          <v-icon
+            icon="mdi-alert-outline"
+            size="28"
+            color="error"
+          />
+        </div>
+
+        <div
+          class="confirm-dialog__text text-body-1"
           :class="variant === 'delete' ? 'error-text' : undefined"
           v-html="text"
         />
+
         <v-checkbox
           v-if="checkBoxText"
           :model-value="checkBox"
@@ -25,7 +38,7 @@
           color="error"
           hide-details
           density="compact"
-          class="mt-2 text-left"
+          class="mt-4 text-left"
           @update:model-value="onPrimaryCheck(Boolean($event))"
         />
         <v-checkbox
@@ -41,14 +54,18 @@
         />
       </v-card-text>
 
-      <v-card-actions class="pb-4 px-4">
+      <v-card-actions class="confirm-dialog__actions px-5 pb-5 pt-1">
         <v-btn
           v-if="closable"
           variant="text"
+          rounded="pill"
           class="px-4"
           @click="close"
         >
-          <v-icon icon="mdi-close" start />
+          <v-icon
+            icon="mdi-close"
+            start
+          />
           {{ cancelLabel }}
         </v-btn>
 
@@ -57,10 +74,14 @@
         <v-btn
           :color="variant === 'delete' ? 'error' : 'success'"
           variant="flat"
-          class="px-4"
+          rounded="pill"
+          class="px-5"
           @click="confirm"
         >
-          <v-icon icon="mdi-check" start />
+          <v-icon
+            icon="mdi-check"
+            start
+          />
           {{ confirmLabel }}
         </v-btn>
 
@@ -171,5 +192,29 @@ pre {
 
 .text-left {
   text-align: left;
+}
+
+.confirm-dialog__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+}
+
+.confirm-dialog__icon--error {
+  color: rgb(var(--v-theme-error));
+  background: rgba(var(--v-theme-error), 0.12);
+}
+
+.confirm-dialog__text {
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.confirm-dialog__actions {
+  gap: 8px;
 }
 </style>

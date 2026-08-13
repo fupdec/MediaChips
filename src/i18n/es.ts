@@ -1001,6 +1001,8 @@ const es = {
     open: 'Abrir',
     show_element: 'Mostrar elemento',
     nothing_to_highlight: 'No hay nada que resaltar en esta página.',
+    expand_all: 'Expandir todo',
+    collapse_all: 'Contraer todo',
     no_content: 'No hay contenido disponible para este elemento.',
   },
   items: {
@@ -3650,6 +3652,7 @@ const es = {
     failed: 'Error de registro',
     activation_error: 'Se produjo un error al activar la aplicación',
     unregistered_playlist_limit: 'En la versión no registrada, solo puede reproducir los primeros 15 videos de la lista de reproducción.',
+    unregistered_items_limit: 'Hasta registrar la aplicación, la página está limitada a 15 elementos.',
   },
   migration: {
     title: 'Migración',

@@ -135,8 +135,9 @@
             </v-btn>
           </template>
           <span>
-            APP NOT REGISTERED <br/>
-            the number of items per page is limited to 15
+            {{ t('registration.application_not_registered') }}
+            <br/>
+            {{ t('registration.unregistered_items_limit') }}
           </span>
         </v-tooltip>
 

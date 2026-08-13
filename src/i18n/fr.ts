@@ -1001,6 +1001,8 @@ const fr = {
     open: 'Ouvert',
     show_element: 'Afficher l\'élément',
     nothing_to_highlight: 'Il n\'y a rien à mettre en évidence sur cette page.',
+    expand_all: 'Tout développer',
+    collapse_all: 'Tout réduire',
     no_content: 'Aucun contenu disponible pour cet élément.',
   },
   items: {
@@ -3650,6 +3652,7 @@ const fr = {
     failed: 'L\'inscription a échoué',
     activation_error: 'Une erreur s\'est produite lors de l\'activation de l\'application',
     unregistered_playlist_limit: 'Dans la version non enregistrée, vous ne pouvez lire que les 15 premières vidéos de la playlist.',
+    unregistered_items_limit: 'Tant que l’application n’est pas enregistrée, le nombre d’éléments par page est limité à 15.',
   },
   migration: {
     title: 'Migrations',

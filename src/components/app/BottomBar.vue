@@ -65,7 +65,7 @@ onUnmounted(() => {
     :mode="mobile ? undefined : 'shift'"
     density="default"
     :height="navHeight"
-    elevation="8"
+    elevation="0"
     border
     class="bottom-menu"
     :class="{'bottom-menu--mobile': mobile}"

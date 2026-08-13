@@ -1001,6 +1001,8 @@ const pt = {
     open: 'Abrir',
     show_element: 'Mostrar elemento',
     nothing_to_highlight: 'Não há nada a destacar nesta página.',
+    expand_all: 'Expandir tudo',
+    collapse_all: 'Recolher tudo',
     no_content: 'Nenhum conteúdo disponível para este item.',
   },
   items: {
@@ -3650,6 +3652,7 @@ const pt = {
     failed: 'Falha no registro',
     activation_error: 'Ocorreu um erro ao ativar o aplicativo',
     unregistered_playlist_limit: 'Na versão não cadastrada, você só pode reproduzir os 15 primeiros vídeos da playlist.',
+    unregistered_items_limit: 'Enquanto o app não estiver registrado, a página fica limitada a 15 itens.',
   },
   migration: {
     title: 'Migração',

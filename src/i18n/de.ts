@@ -1001,6 +1001,8 @@ const de = {
     open: 'Offen',
     show_element: 'Element anzeigen',
     nothing_to_highlight: 'Auf dieser Seite gibt es nichts hervorzuheben.',
+    expand_all: 'Alle aufklappen',
+    collapse_all: 'Alle zuklappen',
     no_content: 'Für dieses Element ist kein Inhalt verfügbar.',
   },
   items: {
@@ -3650,6 +3652,7 @@ const de = {
     failed: 'Die Registrierung ist fehlgeschlagen',
     activation_error: 'Beim Aktivieren der Anwendung ist ein Fehler aufgetreten',
     unregistered_playlist_limit: 'In der unregistrierten Version können Sie nur die ersten 15 Videos der Playlist abspielen.',
+    unregistered_items_limit: 'Solange die App nicht registriert ist, sind maximal 15 Einträge pro Seite sichtbar.',
   },
   migration: {
     title: 'Migration',
