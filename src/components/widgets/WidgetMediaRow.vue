@@ -1,9 +1,20 @@
 <template>
   <section v-if="items.length || loading" class="home-media-row mb-6">
     <div class="d-flex align-center justify-space-between mb-3">
-      <div class="d-flex align-center text-h6">
-        <v-icon class="mr-2" size="24">{{ icon }}</v-icon>
-        <span>{{ title }}</span>
+      <div class="d-flex align-center text-h6 min-width-0">
+        <v-icon class="mr-2 flex-shrink-0" size="24">{{ icon }}</v-icon>
+        <span class="text-truncate">{{ title }}</span>
+        <v-icon
+          v-if="hint"
+          v-tooltip:top="hint"
+          class="ml-1 flex-shrink-0 text-medium-emphasis"
+          size="18"
+          tabindex="0"
+          role="img"
+          :aria-label="hint"
+        >
+          mdi-information-outline
+        </v-icon>
       </div>
 
       <div class="d-flex align-center ga-1">
@@ -50,10 +61,10 @@
       class="home-media-row__scroll"
       aria-hidden="true"
     >
-      <div
+      <HomeCardSkeleton
         v-for="index in 4"
         :key="index"
-        class="home-media-row__skeleton"
+        variant="media"
       />
     </div>
   </section>
@@ -62,6 +73,7 @@
 <script setup lang="ts">
 import {useI18n} from 'vue-i18n'
 import WidgetMediaCard from '@/components/widgets/WidgetMediaCard.vue'
+import HomeCardSkeleton from '@/components/widgets/HomeCardSkeleton.vue'
 import type {HomeMediaCardVariant, HomeMediaItem} from '@/types/widgets'
 
 withDefaults(defineProps<{
@@ -74,6 +86,8 @@ withDefaults(defineProps<{
   showShuffle?: boolean
   shuffleLoading?: boolean
   loading?: boolean
+  /** Optional title tooltip (e.g. inbox explanation). */
+  hint?: string | null
 }>(), {
   icon: 'mdi-play-circle-outline',
   items: () => [],
@@ -82,6 +96,7 @@ withDefaults(defineProps<{
   showShuffle: false,
   shuffleLoading: false,
   loading: false,
+  hint: null,
 })
 
 const emit = defineEmits<{
@@ -107,16 +122,6 @@ const {t} = useI18n()
     & > * {
       scroll-snap-align: start;
     }
-  }
-
-  &__skeleton {
-    width: 148px;
-    flex: 0 0 148px;
-    align-self: stretch;
-    min-height: 148px;
-    border-radius: 8px;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    background: rgba(var(--v-theme-on-surface), 0.06);
   }
 }
 </style>

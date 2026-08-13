@@ -23,7 +23,7 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'createdCalendar'"
-    min-height="320px"
+    min-height="440px"
   >
     <WidgetCreatedCalendar/>
   </WidgetLazyMount>
@@ -45,6 +45,7 @@
       icon="mdi-inbox-arrow-down"
       :items="inbox"
       :loading="homeMediaLoading"
+      :hint="t('home.widgets.inbox_hint')"
       variant="inbox"
       @open="onOpenMedia"
       @view-all="onOpenInboxList"

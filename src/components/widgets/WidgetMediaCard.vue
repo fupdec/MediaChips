@@ -26,14 +26,11 @@
 
       <template v-else>
         <v-img
-          v-if="thumb"
-          :src="thumb"
+          :src="displayThumb"
           cover
           class="home-media-card__thumb"
+          @error="onThumbError"
         />
-        <div v-else class="home-media-card__placeholder">
-          <v-icon size="36" color="grey-darken-1">{{ placeholderIcon }}</v-icon>
-        </div>
       </template>
 
       <v-chip
@@ -127,7 +124,9 @@ import 'dayjs/locale/ru'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
-import {findMediaTypeById, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
+import {findMediaTypeById, isVideoMediaType} from '@/utils/mediaType'
+import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
+import {isThumbUnavailable} from '@/utils/thumbSource'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 import type { HomeMediaCardVariant, HomeMediaItem } from '@/types/widgets'
 
@@ -180,18 +179,26 @@ const mediaType = computed(() =>
 
 const isVideoMedia = computed(() => isVideoMediaType(mediaType.value))
 
+const brokenThumb = ref(false)
+
+const displayThumb = computed(() => {
+  if (brokenThumb.value) return IMAGE_UNAVAILABLE_URL
+  if (isThumbUnavailable(props.thumb)) return IMAGE_UNAVAILABLE_URL
+  return props.thumb || IMAGE_UNAVAILABLE_URL
+})
+
+function onThumbError() {
+  brokenThumb.value = true
+}
+
+watch(() => props.thumb, () => {
+  brokenThumb.value = false
+})
+
 const continuePlayTime = computed(() => {
   if (props.variant !== 'continue') return undefined
   const time = Number(props.item.time || 0)
   return time > 0 ? time : undefined
-})
-
-const placeholderIcon = computed(() => {
-  if (isImageMediaType(mediaType.value)) return 'mdi-image'
-  if (isVideoMediaType(mediaType.value)) return 'mdi-movie-open'
-  if (isAudioMediaType(mediaType.value)) return 'mdi-music'
-  if (isTextMediaType(mediaType.value)) return 'mdi-file-document-outline'
-  return 'mdi-file'
 })
 
 const progress = computed(() => {
@@ -202,12 +209,23 @@ const progress = computed(() => {
 })
 
 const metaLine = computed(() => {
+  dayjs.locale(dayjsLocale.value)
+
+  const formatAdded = () => {
+    if (!props.item.createdAt) return null
+    const time = dayjs(props.item.createdAt).fromNow()
+    return {
+      icon: 'mdi-calendar-plus',
+      text: time,
+      title: t('home.widgets.added_ago', {time}),
+    }
+  }
+
   const hasContinueProgress = props.variant === 'continue' && Number(props.item.time || 0) > 0
   if (hasContinueProgress) {
     const percent = Math.round(progress.value)
     const percentText = t('home.widgets.continue_progress_short', {percent})
     if (props.item.viewedAt) {
-      dayjs.locale(dayjsLocale.value)
       const when = dayjs(props.item.viewedAt).fromNow()
       return {
         icon: 'mdi-eye',
@@ -222,12 +240,16 @@ const metaLine = computed(() => {
     }
   }
 
-  if (props.variant === 'inbox' && props.item.createdAt) {
-    return dayjs(props.item.createdAt).fromNow()
+  // Inbox / recent adds: date added is the useful signal.
+  if (props.variant === 'inbox') {
+    return formatAdded() || {
+      icon: 'mdi-inbox-arrow-down',
+      text: t('home.widgets.inbox'),
+      title: t('home.widgets.inbox'),
+    }
   }
 
   if (props.item.viewedAt) {
-    dayjs.locale(dayjsLocale.value)
     const time = dayjs(props.item.viewedAt).fromNow()
     return {
       icon: 'mdi-eye',
@@ -235,6 +257,10 @@ const metaLine = computed(() => {
       title: t('home.widgets.viewed_ago', {time}),
     }
   }
+
+  // Never viewed: show when it was added instead of an empty/useless line.
+  const added = formatAdded()
+  if (added) return added
 
   return {
     icon: 'mdi-eye-off-outline',
@@ -336,14 +362,6 @@ function handleBodyClick() {
     :deep(.v-img__img) {
       object-fit: cover;
     }
-  }
-
-  &__placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   &__badge {

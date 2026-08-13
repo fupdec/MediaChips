@@ -1,5 +1,6 @@
 import { getMediaDeleteAssetFolder } from '@/utils/mediaType'
 import { loadMediaThumbUrls } from '@/utils/mediaThumbLoader'
+import { IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
 import type { MediaType } from '@/types/media'
 
 interface HomeMediaItem {
@@ -37,7 +38,7 @@ export async function loadHomeMediaThumbs(
     )
 
     for (const item of groupItems) {
-      item.thumb = thumbsById[item.id] ?? null
+      item.thumb = thumbsById[item.id] ?? IMAGE_UNAVAILABLE_URL
     }
   }))
 }

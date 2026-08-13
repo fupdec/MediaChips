@@ -36,14 +36,11 @@
             >
               <div class="widget-top-tags__preview">
                 <v-img
-                  v-if="tag.image"
-                  :src="tag.image"
+                  :src="tagDisplayImage(tag)"
                   cover
                   class="widget-top-tags__thumb"
+                  @error="onTagImageError(category.meta.id, tag)"
                 />
-                <div v-else class="widget-top-tags__placeholder">
-                  <v-icon color="grey-darken-1" size="28">mdi-tag-outline</v-icon>
-                </div>
 
                 <v-chip
                   v-if="tag.views && sortMode === META_SORT_MODES.popularity"
@@ -77,20 +74,55 @@
         </section>
       </WidgetLazyMount>
     </template>
+
+    <section
+      v-else-if="loading"
+      class="widget-top-tags__section mb-6"
+      aria-hidden="true"
+    >
+      <div class="d-flex align-center mb-3 min-width-0 ga-2">
+        <v-skeleton-loader
+          class="widget-top-tags__skel-avatar"
+          type="avatar"
+          width="24"
+          height="24"
+        />
+        <div class="min-width-0 flex-grow-1">
+          <v-skeleton-loader type="heading" width="42%" class="mb-1"/>
+          <v-skeleton-loader type="text" width="28%"/>
+        </div>
+      </div>
+      <div class="widget-top-tags__scroll">
+        <HomeCardSkeleton
+          v-for="index in 6"
+          :key="index"
+          variant="tag"
+        />
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import {ref, computed, watch, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
+import path from 'path-browserify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import groupBy from 'lodash/groupBy'
 import {typedApi} from '@/services/typedApi'
+import {checkFileExists} from '@/services/fileService'
 import WidgetLazyMount from '@/components/widgets/WidgetLazyMount.vue'
-import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import HomeCardSkeleton from '@/components/widgets/HomeCardSkeleton.vue'
+import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
+import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {
+  getCachedThumb,
+  setCachedThumb,
+  tagThumbKey,
+} from '@/utils/thumbDisplayCache'
 import {getMetaName} from '@/utils/metaI18n'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {
@@ -120,6 +152,7 @@ const {t} = useI18n()
 
 const tagsTop = ref<TopTagsCategory[]>([])
 const visibleCategoryCount = ref(INITIAL_VISIBLE_CATEGORIES)
+const loading = ref(true)
 /** Page-settings sort from `/meta?metaId=` for each category. */
 const pageSortByMetaId = ref<Record<number, {sortBy: string; sortDir: string}>>({})
 
@@ -150,13 +183,39 @@ function categorySubtitleKey(category: TopTagsCategory): string {
   )
 }
 
-function resolveTagImageUrl(metaId: string, tagId: number): string {
-  return resolveTagThumbDisplayUrl({
+function tagDisplayImage(tag: TopTagItem): string {
+  if (isThumbUnavailable(tag.image)) return IMAGE_UNAVAILABLE_URL
+  return tag.image || IMAGE_UNAVAILABLE_URL
+}
+
+function onTagImageError(metaId: number | string, tag: TopTagItem) {
+  tag.image = IMAGE_UNAVAILABLE_URL
+  setCachedThumb(tagThumbKey(metaId, tag.id, 'main'), IMAGE_UNAVAILABLE_URL)
+}
+
+async function resolveTagImageUrl(metaId: string, tagId: number): Promise<string> {
+  const cacheKey = tagThumbKey(metaId, tagId, 'main')
+  const cached = getCachedThumb(cacheKey)
+  if (cached) {
+    return isThumbUnavailable(cached) ? IMAGE_UNAVAILABLE_URL : cached
+  }
+
+  if (!store.dbPath) return IMAGE_UNAVAILABLE_URL
+
+  const absPath = path.join(store.dbPath, 'meta', String(metaId), `${tagId}_main.jpg`)
+  if (!await checkFileExists(absPath)) {
+    setCachedThumb(cacheKey, IMAGE_UNAVAILABLE_URL)
+    return IMAGE_UNAVAILABLE_URL
+  }
+
+  const url = resolveTagThumbDisplayUrl({
     dbPath: store.dbPath,
     metaId,
     tagId,
     type: 'main',
   })
+  setCachedThumb(cacheKey, url)
+  return url
 }
 
 async function loadPageSorts(metaIds: number[]) {
@@ -188,64 +247,74 @@ async function loadPageSorts(metaIds: number[]) {
 }
 
 async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
-  if (!metas.value.length) return
+  if (!metas.value.length) {
+    tagsTop.value = []
+    loading.value = false
+    return
+  }
+
+  loading.value = !activeGroup && !tagsTop.value.length
 
   // Fresh page sorts on full rebuild so home tracks the category page.
   if (!activeGroup) {
     pageSortByMetaId.value = {}
   }
 
-  const grouped = groupBy(tags.value, 'metaId')
-  // Category order always matches the navigation menu.
-  const visibleMetas = sortMetaItems(
-    metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
-    META_SORT_MODES.menu,
-  )
-  const metaIds = visibleMetas.map((meta) => Number(meta.id)).filter((id) => id > 0)
-  await loadPageSorts(metaIds)
+  try {
+    const grouped = groupBy(tags.value, 'metaId')
+    // Category order always matches the navigation menu.
+    const visibleMetas = sortMetaItems(
+      metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
+      META_SORT_MODES.menu,
+    )
+    const metaIds = visibleMetas.map((meta) => Number(meta.id)).filter((id) => id > 0)
+    await loadPageSorts(metaIds)
 
-  const groups: TopTagsCategory[] = []
-  for (const meta of visibleMetas) {
-    const metaId = String(meta.id)
-    if (!grouped[metaId]?.length) continue
+    const groups: TopTagsCategory[] = []
+    for (const meta of visibleMetas) {
+      const metaId = String(meta.id)
+      if (!grouped[metaId]?.length) continue
 
-    let limit = props.limit
-    if (activeGroup && activeGroup.meta.id === meta.id) {
-      limit = activeGroup.limit + 10
+      let limit = props.limit
+      if (activeGroup && activeGroup.meta.id === meta.id) {
+        limit = activeGroup.limit + 10
+      }
+
+      const pageSort = resolveCategorySort(meta)
+      const sorted = sortTagItems(
+        grouped[metaId] as TopTagItem[],
+        sortMode.value,
+        pageSort,
+      ).slice(0, limit) as TopTagItem[]
+      if (!sorted.length) continue
+
+      const tagsWithImages = await Promise.all(sorted.map(async (tag) => ({
+        ...tag,
+        image: await resolveTagImageUrl(metaId, tag.id),
+      })))
+
+      const total = grouped[metaId].length
+      groups.push({
+        meta: {
+          ...meta,
+          sortBy: pageSort.sortBy,
+          sortDir: pageSort.sortDir,
+        },
+        tags: tagsWithImages,
+        limit,
+        total,
+        isNotAllLoaded: total > limit,
+      })
     }
 
-    const pageSort = resolveCategorySort(meta)
-    const sorted = sortTagItems(
-      grouped[metaId] as TopTagItem[],
-      sortMode.value,
-      pageSort,
-    ).slice(0, limit) as TopTagItem[]
-    if (!sorted.length) continue
-
-    const tagsWithImages = sorted.map((tag) => ({
-      ...tag,
-      image: resolveTagImageUrl(metaId, tag.id),
-    }))
-
-    const total = grouped[metaId].length
-    groups.push({
-      meta: {
-        ...meta,
-        sortBy: pageSort.sortBy,
-        sortDir: pageSort.sortDir,
-      },
-      tags: tagsWithImages,
-      limit,
-      total,
-      isNotAllLoaded: total > limit,
-    })
+    tagsTop.value = groups
+    visibleCategoryCount.value = Math.min(
+      Math.max(visibleCategoryCount.value, INITIAL_VISIBLE_CATEGORIES),
+      groups.length || INITIAL_VISIBLE_CATEGORIES,
+    )
+  } finally {
+    loading.value = false
   }
-
-  tagsTop.value = groups
-  visibleCategoryCount.value = Math.min(
-    Math.max(visibleCategoryCount.value, INITIAL_VISIBLE_CATEGORIES),
-    groups.length || INITIAL_VISIBLE_CATEGORIES,
-  )
 }
 
 function revealMoreCategories(index: number) {
@@ -339,14 +408,6 @@ onMounted(() => {
     }
   }
 
-  &__placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
   &__badge {
     position: absolute;
     right: 6px;
@@ -380,6 +441,19 @@ onMounted(() => {
     &:hover {
       background: rgba(var(--v-theme-primary), 0.08);
       border-color: rgba(var(--v-theme-primary), 0.7);
+    }
+  }
+
+  &__skel-avatar {
+    flex: 0 0 auto;
+    background: transparent !important;
+    padding: 0 !important;
+
+    :deep(.v-skeleton-loader__bone) {
+      margin: 0;
+      width: 24px !important;
+      height: 24px !important;
+      border-radius: 6px;
     }
   }
 }

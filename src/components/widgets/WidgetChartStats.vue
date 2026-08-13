@@ -44,8 +44,23 @@
         </div>
       </div>
 
-      <div v-if="loading" class="widget-chart-stats__empty text-medium-emphasis text-caption">
-        {{ t('common.loading') }}
+      <div
+        v-if="loading"
+        class="widget-chart-stats__chart widget-chart-stats__skeleton"
+        aria-hidden="true"
+      >
+        <v-skeleton-loader
+          class="widget-chart-stats__skeleton-plot"
+          type="image"
+        />
+        <div class="widget-chart-stats__skeleton-legend">
+          <v-skeleton-loader
+            v-for="index in 3"
+            :key="index"
+            type="text"
+            width="72"
+          />
+        </div>
       </div>
 
       <div
@@ -102,8 +117,13 @@ const SERIES_COLORS = {
 } as const
 
 const CHART_PERIODS = [7, 30, 90, 365, 0] as const
+const CHART_SCOPES = ['media', 'tags'] as const
 type ChartPeriod = typeof CHART_PERIODS[number]
-type ChartScope = 'media' | 'tags'
+type ChartScope = typeof CHART_SCOPES[number]
+
+function pickRandom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)] as T
+}
 
 const emptySeries = (): ParsedChartActivitySeries => ({
   added: [],
@@ -126,8 +146,8 @@ const theme = useTheme()
 
 const stats = ref<ParsedChartStats>(emptyStats())
 const loading = ref(true)
-const scope = ref<ChartScope>('media')
-const period = ref<ChartPeriod>(30)
+const scope = ref<ChartScope>(pickRandom(CHART_SCOPES))
+const period = ref<ChartPeriod>(pickRandom(CHART_PERIODS))
 
 const periodOptions = computed(() => ([
   {value: 7 as ChartPeriod, label: t('home.widgets.chart_stats_period_7')},
@@ -308,6 +328,37 @@ onMounted(() => {
 
   &__chart {
     height: 240px;
+  }
+
+  &__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__skeleton-plot {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    background: transparent !important;
+
+    :deep(.v-skeleton-loader__bone) {
+      margin: 0;
+      height: 100%;
+      border-radius: 10px;
+    }
+  }
+
+  &__skeleton-legend {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex: 0 0 auto;
+
+    :deep(.v-skeleton-loader) {
+      background: transparent !important;
+      padding: 0 !important;
+    }
   }
 
   &__empty {

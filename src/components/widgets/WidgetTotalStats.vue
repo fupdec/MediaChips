@@ -1,44 +1,30 @@
 <template>
   <v-row class="mb-2 widget-total-stats" dense>
-    <v-col cols="6" md="3">
+    <v-col
+      v-for="card in cards"
+      :key="card.id"
+      cols="6"
+      md="3"
+    >
       <v-card class="rounded-lg card-total" color="primary" variant="tonal">
         <v-card-text class="card-total-content">
-          <div class="card-total-value">{{ animatedTags }}</div>
-          <div class="card-total-label">{{ t('widgets.stats.tags') }}</div>
-          <v-icon class="icon">mdi-tag</v-icon>
-        </v-card-text>
-      </v-card>
-    </v-col>
-
-    <v-col cols="6" md="3">
-      <v-card class="rounded-lg card-total" color="primary" variant="tonal">
-        <v-card-text class="card-total-content">
-          <div class="card-total-value">{{ animatedMetas }}</div>
-          <div class="card-total-label">{{ t('widgets.stats.meta') }}</div>
-          <v-icon class="icon">mdi-shape</v-icon>
-        </v-card-text>
-      </v-card>
-    </v-col>
-
-    <v-col cols="6" md="3">
-      <v-card class="rounded-lg card-total" color="primary" variant="tonal">
-        <v-card-text class="card-total-content">
-          <div class="card-total-value">{{ animatedFiles }}</div>
-          <div class="card-total-label">{{ t('widgets.stats.files') }}</div>
-          <v-icon class="icon">mdi-file</v-icon>
-        </v-card-text>
-      </v-card>
-    </v-col>
-
-    <v-col cols="6" md="3">
-      <v-card class="rounded-lg card-total" color="primary" variant="tonal">
-        <v-card-text class="card-total-content">
-          <div class="card-total-value">
-            {{ animatedFilesize }}
-            <span class="card-total-unit">{{ filesizeText }}</span>
-          </div>
-          <div class="card-total-label">{{ t('widgets.stats.disk_space') }}</div>
-          <v-icon class="icon">mdi-harddisk</v-icon>
+          <template v-if="loading">
+            <div
+              class="card-total-skel"
+              aria-hidden="true"
+            >
+              <v-skeleton-loader type="heading" width="48%"/>
+              <v-skeleton-loader type="text" width="36%" class="mt-1"/>
+            </div>
+          </template>
+          <template v-else>
+            <div class="card-total-value">
+              {{ card.value }}
+              <span v-if="card.unit" class="card-total-unit">{{ card.unit }}</span>
+            </div>
+            <div class="card-total-label">{{ card.label }}</div>
+          </template>
+          <v-icon class="icon">{{ card.icon }}</v-icon>
         </v-card-text>
       </v-card>
     </v-col>
@@ -57,6 +43,7 @@ const {t} = useI18n()
 
 /* ---------------------- State ---------------------- */
 
+const loading = ref(true)
 const numberTags = ref(0)
 const numberMetas = ref(0)
 const numberFiles = ref(0)
@@ -76,9 +63,38 @@ const animatedMetas = computed(() => tweenedMetas.value.toFixed(0))
 const animatedFiles = computed(() => tweenedFiles.value.toFixed(0))
 const animatedFilesize = computed(() => tweenedFilesize.value.toFixed(2))
 
+const cards = computed(() => [
+  {
+    id: 'tags',
+    value: animatedTags.value,
+    label: t('widgets.stats.tags'),
+    icon: 'mdi-tag',
+  },
+  {
+    id: 'metas',
+    value: animatedMetas.value,
+    label: t('widgets.stats.meta'),
+    icon: 'mdi-shape',
+  },
+  {
+    id: 'files',
+    value: animatedFiles.value,
+    label: t('widgets.stats.files'),
+    icon: 'mdi-file',
+  },
+  {
+    id: 'filesize',
+    value: animatedFilesize.value,
+    unit: filesizeText.value,
+    label: t('widgets.stats.disk_space'),
+    icon: 'mdi-harddisk',
+  },
+])
+
 /* ---------------------- API ---------------------- */
 
 async function getStats() {
+  loading.value = true
   try {
     const [mediaRes, tagsRes] = await Promise.all([
       typedApi.getMediaStats(),
@@ -93,6 +109,8 @@ async function getStats() {
     filesizeText.value = readable.text
   } catch (e) {
     console.error(e)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -165,6 +183,21 @@ onMounted(async () => {
     opacity: 0.22;
     font-size: 22px;
     pointer-events: none;
+  }
+
+  .card-total-skel {
+    position: relative;
+    z-index: 2;
+    padding-right: 28px;
+
+    :deep(.v-skeleton-loader) {
+      background: transparent !important;
+      padding: 0 !important;
+    }
+
+    :deep(.v-skeleton-loader__bone) {
+      margin-block: 2px;
+    }
   }
 }
 </style>

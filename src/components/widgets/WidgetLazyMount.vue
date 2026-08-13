@@ -10,7 +10,12 @@
       v-else
       class="widget-lazy-mount__placeholder"
       aria-hidden="true"
-    />
+    >
+      <v-skeleton-loader
+        class="widget-lazy-mount__skel"
+        type="image"
+      />
+    </div>
   </div>
 </template>
 
@@ -51,5 +56,20 @@ watch(wasInView, (visible) => {
 .widget-lazy-mount__placeholder {
   width: 100%;
   min-height: inherit;
+  display: flex;
+  align-items: stretch;
+}
+
+.widget-lazy-mount__skel {
+  width: 100%;
+  min-height: inherit;
+  background: transparent !important;
+
+  :deep(.v-skeleton-loader__bone) {
+    margin: 0;
+    min-height: inherit;
+    height: 100%;
+    border-radius: 12px;
+  }
 }
 </style>
