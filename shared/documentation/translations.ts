@@ -26,7 +26,14 @@ const playerHotkeys = {
       <tr><td>Alt + wheel</td><td>Navigate marks.</td></tr>
       <tr><td>Ctrl + wheel</td><td>Fine seek adjustment.</td></tr>
       <tr><td>Shift + wheel</td><td>Coarse seek adjustment.</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>Touch gestures</h2>
+    <table><thead><tr><th>Gesture</th><th>Behavior</th></tr></thead><tbody>
+      <tr><td>Tap</td><td>Toggle play or pause.</td></tr>
+      <tr><td>Double-tap left / right half</td><td>Seek backward or forward by 10 seconds.</td></tr>
+      <tr><td>Swipe left / right</td><td>Next or previous playlist item.</td></tr>
+    </tbody></table>
+  `,
   pt: `
     <h2>Atalhos do player</h2>
     <table><thead><tr><th>Atalho</th><th>Ação</th><th>Descrição</th></tr></thead><tbody>
@@ -54,7 +61,14 @@ const playerHotkeys = {
       <tr><td>Alt + roda</td><td>Navega pelas marcações.</td></tr>
       <tr><td>Ctrl + roda</td><td>Ajuste fino de posição.</td></tr>
       <tr><td>Shift + roda</td><td>Ajuste amplo de posição.</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>Gestos de toque</h2>
+    <table><thead><tr><th>Gesto</th><th>Comportamento</th></tr></thead><tbody>
+      <tr><td>Toque</td><td>Alterna entre reproduzir e pausar.</td></tr>
+      <tr><td>Toque duplo na metade esquerda / direita</td><td>Recua ou avança 10 segundos.</td></tr>
+      <tr><td>Deslizar para a esquerda / direita</td><td>Próximo ou item anterior da playlist.</td></tr>
+    </tbody></table>
+  `,
   fr: `
     <h2>Raccourcis du lecteur</h2>
     <table><thead><tr><th>Raccourci</th><th>Action</th><th>Description</th></tr></thead><tbody>
@@ -82,7 +96,14 @@ const playerHotkeys = {
       <tr><td>Alt + molette</td><td>Parcourt les repères.</td></tr>
       <tr><td>Ctrl + molette</td><td>Ajustement précis de la position.</td></tr>
       <tr><td>Shift + molette</td><td>Ajustement grossier de la position.</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>Gestes tactiles</h2>
+    <table><thead><tr><th>Geste</th><th>Comportement</th></tr></thead><tbody>
+      <tr><td>Appui</td><td>Bascule entre lecture et pause.</td></tr>
+      <tr><td>Double appui moitié gauche / droite</td><td>Recule ou avance de 10 secondes.</td></tr>
+      <tr><td>Balayage gauche / droite</td><td>Vidéo suivante ou précédente.</td></tr>
+    </tbody></table>
+  `,
   ru: `
     <h2>Горячие клавиши плеера</h2>
     <table><thead><tr><th>Клавиша</th><th>Действие</th><th>Описание</th></tr></thead><tbody>
@@ -110,7 +131,14 @@ const playerHotkeys = {
       <tr><td>Alt + колесо</td><td>Переход по меткам.</td></tr>
       <tr><td>Ctrl + колесо</td><td>Точная перемотка.</td></tr>
       <tr><td>Shift + колесо</td><td>Быстрая перемотка.</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>Жесты на сенсорном экране</h2>
+    <table><thead><tr><th>Жест</th><th>Поведение</th></tr></thead><tbody>
+      <tr><td>Тап</td><td>Воспроизведение или пауза.</td></tr>
+      <tr><td>Двойной тап по левой / правой половине</td><td>Перемотка назад или вперёд на 10 секунд.</td></tr>
+      <tr><td>Свайп влево / вправо</td><td>Следующее или предыдущее видео в плейлисте.</td></tr>
+    </tbody></table>
+  `,
   es: `
     <h2>Atajos del reproductor</h2>
     <table><thead><tr><th>Atajo</th><th>Acción</th><th>Descripción</th></tr></thead><tbody>
@@ -138,7 +166,14 @@ const playerHotkeys = {
       <tr><td>Alt + rueda</td><td>Navegar marcas.</td></tr>
       <tr><td>Ctrl + rueda</td><td>Búsqueda precisa.</td></tr>
       <tr><td>Shift + rueda</td><td>Búsqueda rápida.</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>Gestos táctiles</h2>
+    <table><thead><tr><th>Gesto</th><th>Comportamiento</th></tr></thead><tbody>
+      <tr><td>Toque</td><td>Alterna entre reproducir y pausa.</td></tr>
+      <tr><td>Doble toque en la mitad izquierda / derecha</td><td>Retrocede o avanza 10 segundos.</td></tr>
+      <tr><td>Deslizar izquierda / derecha</td><td>Vídeo siguiente o anterior de la lista.</td></tr>
+    </tbody></table>
+  `,
   cn: `
     <h2>播放器快捷键</h2>
     <table><thead><tr><th>快捷键</th><th>操作</th><th>说明</th></tr></thead><tbody>
@@ -166,7 +201,14 @@ const playerHotkeys = {
       <tr><td>Alt + 滚轮</td><td>导航标记。</td></tr>
       <tr><td>Ctrl + 滚轮</td><td>精细跳转。</td></tr>
       <tr><td>Shift + 滚轮</td><td>快速跳转。</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>触摸手势</h2>
+    <table><thead><tr><th>手势</th><th>行为</th></tr></thead><tbody>
+      <tr><td>轻点</td><td>播放或暂停。</td></tr>
+      <tr><td>双击左半 / 右半区域</td><td>后退或前进 10 秒。</td></tr>
+      <tr><td>向左 / 向右滑动</td><td>播放列表中的下一项或上一项。</td></tr>
+    </tbody></table>
+  `,
   de: `
     <h2>Tastaturkürzel des Players</h2>
     <table><thead><tr><th>Tastenkürzel</th><th>Aktion</th><th>Beschreibung</th></tr></thead><tbody>
@@ -194,7 +236,14 @@ const playerHotkeys = {
       <tr><td>Alt + Mausrad</td><td>Navigiert zwischen Markierungen.</td></tr>
       <tr><td>Ctrl + Mausrad</td><td>Feine Sprunganpassung.</td></tr>
       <tr><td>Shift + Mausrad</td><td>Grobe Sprunganpassung.</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>Touch-Gesten</h2>
+    <table><thead><tr><th>Geste</th><th>Verhalten</th></tr></thead><tbody>
+      <tr><td>Tippen</td><td>Wiedergabe oder Pause umschalten.</td></tr>
+      <tr><td>Doppeltippen linke / rechte Hälfte</td><td>10 Sekunden zurück oder vor.</td></tr>
+      <tr><td>Wischen nach links / rechts</td><td>Nächstes oder vorheriges Playlist-Element.</td></tr>
+    </tbody></table>
+  `,
   ja: `
     <h2>プレーヤーのショートカットキー</h2>
     <table><thead><tr><th>ショートカットキー</th><th>操作</th><th>説明</th></tr></thead><tbody>
@@ -222,7 +271,14 @@ const playerHotkeys = {
       <tr><td>Alt + ホイール</td><td>マークを移動します。</td></tr>
       <tr><td>Ctrl + ホイール</td><td>細かくシークします。</td></tr>
       <tr><td>Shift + ホイール</td><td>大きくシークします。</td></tr>
-    </tbody></table>`,
+    </tbody></table>
+    <h2>タッチジェスチャー</h2>
+    <table><thead><tr><th>ジェスチャー</th><th>動作</th></tr></thead><tbody>
+      <tr><td>タップ</td><td>再生 / 一時停止を切り替え。</td></tr>
+      <tr><td>左半分 / 右半分をダブルタップ</td><td>10 秒戻す / 進める。</td></tr>
+      <tr><td>左 / 右にスワイプ</td><td>プレイリストの次 / 前の項目。</td></tr>
+    </tbody></table>
+  `,
 }
 
 export const documentationTranslations = {

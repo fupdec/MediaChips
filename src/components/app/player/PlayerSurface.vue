@@ -43,10 +43,15 @@
         </v-btn>
 
         <div
-          @click="togglePause"
-          @dblclick="toggleFullscreen"
+          :ref="setSurfaceEl"
+          @click="onSurfaceClick"
+          @dblclick="onSurfaceDblClick"
           @click.middle="toggleFullscreen"
           @mousedown="clickOnVideo($event)"
+          @pointerdown="onSurfacePointerDown"
+          @pointermove="onSurfacePointerMove"
+          @pointerup="onSurfacePointerUp"
+          @pointercancel="onSurfacePointerCancel"
           @wheel="onVideoWheel"
           tabindex="-1"
           :class="{
@@ -192,6 +197,7 @@ import Marks from '@/components/app/player/Marks.vue'
 import SystemBarPlayer from '@/components/app/SystemBarPlayer.vue'
 import DialogMarkAdding from '@/components/dialogs/DialogMarkAdding.vue'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
+import {usePlayerSurfaceGestures} from '@/composable/usePlayerSurfaceGestures'
 import {isTranscodeBusy} from '@/utils/playerTranscodeStatus'
 
 const {t} = useI18n()
@@ -199,6 +205,7 @@ const session = inject(PLAYER_SESSION_KEY)!
 
 const {
   player,
+  playerStore,
   dialogsStore,
   isPlayerWindow,
   reg,
@@ -234,6 +241,22 @@ const {
 } = session
 
 const showTranscodeSpinner = computed(() => isTranscodeBusy(player.value))
+
+const {
+  setSurfaceEl,
+  onPointerDown: onSurfacePointerDown,
+  onPointerMove: onSurfacePointerMove,
+  onPointerUp: onSurfacePointerUp,
+  onPointerCancel: onSurfacePointerCancel,
+  onClick: onSurfaceClick,
+  onDblClick: onSurfaceDblClick,
+} = usePlayerSurfaceGestures({
+  playerStore,
+  controls,
+  togglePause,
+  toggleFullscreen,
+  showControls,
+})
 
 const setVideoPlayerRef = (el: unknown) => {
   const video = el as HTMLVideoElement | null
