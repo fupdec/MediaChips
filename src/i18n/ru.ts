@@ -1737,6 +1737,8 @@ const ru = {
       },
     },
     general: {
+      group_network: 'Сетевой доступ',
+      group_behavior: 'Поведение библиотеки',
       browser_access: 'Приложение доступно для открытия в браузере на других устройствах в той же сети.',
       browser_access_disabled: 'Доступ по локальной сети отключён. Приложение в браузере доступно только на этом компьютере.',
       allow_lan_access: 'Разрешить доступ из локальной сети',
@@ -1907,6 +1909,13 @@ const ru = {
     },
     appearance: {
       title: 'Внешний вид',
+      group_theme: 'Тема',
+      group_navigation: 'Навигация',
+      group_interface: 'Интерфейс',
+      group_editing: 'Диалоги редактирования',
+      group_layout: 'Макет списка',
+      group_card_display: 'Отображение карточек',
+      group_card_metadata: 'Метаданные по умолчанию на карточках',
       items_per_page: 'Элементов на странице',
       item_size: 'Размер элемента',
       sync_dark_mode: 'Синхронизировать темную тему с системой',

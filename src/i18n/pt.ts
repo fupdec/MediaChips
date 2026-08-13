@@ -1734,6 +1734,8 @@ const pt = {
       },
     },
     general: {
+      group_network: 'Acesso à rede',
+      group_behavior: 'Comportamento da biblioteca',
       browser_access: 'O aplicativo está disponível para abertura em navegador em outros dispositivos localizados na mesma rede.',
       browser_access_disabled: 'O acesso à rede local está desativado. Somente este computador pode abrir o aplicativo em um navegador.',
       allow_lan_access: 'Permitir acesso da rede local',
@@ -1904,6 +1906,13 @@ const pt = {
     },
     appearance: {
       title: 'Aparência',
+      group_theme: 'Tema',
+      group_navigation: 'Navegação',
+      group_interface: 'Interface',
+      group_editing: 'Diálogos de edição',
+      group_layout: 'Layout da lista',
+      group_card_display: 'Exibição dos cartões',
+      group_card_metadata: 'Metadados padrão nos cartões',
       items_per_page: 'Itens por página',
       item_size: 'Tamanho do item',
       sync_dark_mode: 'Sincronize o modo escuro com o sistema',

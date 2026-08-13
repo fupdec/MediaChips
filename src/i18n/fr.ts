@@ -1734,6 +1734,8 @@ const fr = {
       },
     },
     general: {
+      group_network: 'Accès réseau',
+      group_behavior: 'Comportement de la bibliothèque',
       browser_access: 'L\'application est disponible pour être ouverte dans un navigateur sur d\'autres appareils situés sur le même réseau.',
       browser_access_disabled: 'L\'accès au réseau local est désactivé. Seul cet ordinateur peut ouvrir l\'application dans un navigateur.',
       allow_lan_access: 'Autoriser l\'accès depuis le réseau local',
@@ -1904,6 +1906,13 @@ const fr = {
     },
     appearance: {
       title: 'Apparence',
+      group_theme: 'Thème',
+      group_navigation: 'Navigation',
+      group_interface: 'Interface',
+      group_editing: 'Dialogues d’édition',
+      group_layout: 'Mise en page de la liste',
+      group_card_display: 'Affichage des cartes',
+      group_card_metadata: 'Métadonnées par défaut sur les cartes',
       items_per_page: 'Articles par page',
       item_size: 'Taille de l\'article',
       sync_dark_mode: 'Synchroniser le mode sombre avec le système',

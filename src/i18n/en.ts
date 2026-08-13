@@ -1737,6 +1737,8 @@ const en = {
       },
     },
     general: {
+      group_network: 'Network access',
+      group_behavior: 'Library behavior',
       browser_access: 'The application is available for opening in a browser on other devices located on the same network.',
       browser_access_disabled: 'Local network access is disabled. Only this computer can open the app in a browser.',
       allow_lan_access: 'Allow access from local network',
@@ -1907,6 +1909,13 @@ const en = {
     },
     appearance: {
       title: 'Appearance',
+      group_theme: 'Theme',
+      group_navigation: 'Navigation',
+      group_interface: 'Interface',
+      group_editing: 'Editing dialogs',
+      group_layout: 'List layout',
+      group_card_display: 'Card display',
+      group_card_metadata: 'Default metadata on cards',
       items_per_page: 'Items Per Page',
       item_size: 'Item Size',
       sync_dark_mode: 'Sync dark mode with system',

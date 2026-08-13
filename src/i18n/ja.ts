@@ -1734,6 +1734,8 @@ const ja = {
       },
     },
     general: {
+      group_network: 'ネットワークアクセス',
+      group_behavior: 'ライブラリの動作',
       browser_access: 'このアプリケーションは、同じネットワーク上にある他のデバイス上のブラウザで開くことができます。',
       browser_access_disabled: 'ローカルネットワークアクセスが無効になっています。このコンピュータのみがブラウザでアプリを開くことができます。',
       allow_lan_access: 'ローカルネットワークからのアクセスを許可する',
@@ -1904,6 +1906,13 @@ const ja = {
     },
     appearance: {
       title: '外観',
+      group_theme: 'テーマ',
+      group_navigation: 'ナビゲーション',
+      group_interface: 'インターフェース',
+      group_editing: '編集ダイアログ',
+      group_layout: 'リストレイアウト',
+      group_card_display: 'カード表示',
+      group_card_metadata: 'カードのデフォルトメタデータ',
       items_per_page: 'ページごとのアイテム数',
       item_size: '商品サイズ',
       sync_dark_mode: 'ダークモードをシステムと同期する',

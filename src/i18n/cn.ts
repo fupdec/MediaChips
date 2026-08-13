@@ -1734,6 +1734,8 @@ const cn = {
       },
     },
     general: {
+      group_network: '网络访问',
+      group_behavior: '媒体库行为',
       browser_access: '该应用可在同一网络中其他设备的浏览器中打开。',
       browser_access_disabled: '已禁用局域网访问。仅本机可在浏览器中打开应用。',
       allow_lan_access: '允许局域网访问',
@@ -1904,6 +1906,13 @@ const cn = {
     },
     appearance: {
       title: '外观',
+      group_theme: '主题',
+      group_navigation: '导航',
+      group_interface: '界面',
+      group_editing: '编辑对话框',
+      group_layout: '列表布局',
+      group_card_display: '卡片显示',
+      group_card_metadata: '卡片默认元数据',
       items_per_page: '每页项目数',
       item_size: '项目大小',
       sync_dark_mode: '与系统同步深色模式',

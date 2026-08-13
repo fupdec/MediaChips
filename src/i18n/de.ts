@@ -1734,6 +1734,8 @@ const de = {
       },
     },
     general: {
+      group_network: 'Netzwerkzugriff',
+      group_behavior: 'Bibliotheksverhalten',
       browser_access: 'Die Anwendung kann in einem Browser auf anderen Geräten im selben Netzwerk geöffnet werden.',
       browser_access_disabled: 'Der lokale Netzwerkzugriff ist deaktiviert. Nur dieser Computer kann die App in einem Browser öffnen.',
       allow_lan_access: 'Zugriff aus lokalem Netzwerk erlauben',
@@ -1904,6 +1906,13 @@ const de = {
     },
     appearance: {
       title: 'Aussehen',
+      group_theme: 'Design',
+      group_navigation: 'Navigation',
+      group_interface: 'Oberfläche',
+      group_editing: 'Bearbeitungsdialoge',
+      group_layout: 'Listenlayout',
+      group_card_display: 'Kartendarstellung',
+      group_card_metadata: 'Standard-Metadaten auf Karten',
       items_per_page: 'Elemente pro Seite',
       item_size: 'Elementgröße',
       sync_dark_mode: 'Dunkelmodus mit dem System synchronisieren',
