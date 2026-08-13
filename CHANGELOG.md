@@ -7,12 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-08-14
+
 ### Added
 
-- **Inspector inline editing** — edit rating, favorite, tags, and pinned metadata directly in the browser inspector; switch between view and edit with a global setting (header toggle or Appearance); changes auto-save when switching items; full editor remains available for thumbs and scrapers
-- Home **Inbox** widget: triage queue for recently added media that still lack tags and rating (daily ritual after watch-folder imports).
-- Command palette action **Open media inbox**.
-- Product UX canvas (`docs/product-ux-canvas.md`) with priorities and status mapping.
+- **Review mode** — fullscreen keyboard cataloging: digits for rating, F for favorite, Q–O for pinned tags, arrows/HJKL to move; grid trailers, faces, and image originals; Inbox handoff (D = done & next)
+- **New media Inbox** — Home widget and sidebar for recently added files that still lack tags/rating, plus lost files from watched folders
+- **Inspector inline editing** — edit rating, favorite, tags, and pinned metadata in the browser inspector; view/edit toggle (header or Appearance); auto-save when switching items; full editor remains for thumbs and scrapers
+- **Trash** — soft-delete with 30-day restore for media, tags, markers, playlists, and saved views; optional nav entry; permanent-delete in confirm dialogs
+- **Saved views** — saved filters now also store sort, group-by, and card size
+- **Session focus** — pin a tag/performer as a workspace: browse with or without it, apply to the selection
+- **Home Similar** — CLIP-neighbor widget with hybrid ranking, series diversity, score floors, Continue exclusions, and a context-menu entry
+- **Home calendar** — Media Created calendar widget and empty-state discovery CTAs
+- **Tag spotlight** — one random tag on Home with tips for missing profile/media
+- **Command palette** — ⌘/Ctrl+K command mode in global search (Inbox, Review, Trash, navigation, settings)
+- **Library setup wizard** — Prepare library with phased steps and per-step ETA
+- **Idle auto-lock** — optional lock after idle minutes when password protection is on
+- **Media Created dates** — extract from EXIF/container/filesystem, then sort, filter, group, and backfill
+- **Watched folders** — folder icons, exclude paths, Inbox-first nav, and manual rescan
+- **Sticky control deck** — pin the sort/filter toolbar while scrolling
+- **Filter OR join** — AND/OR between filter rows (saved with views)
+- **Player → library** — jump to the current item in the library; persist volume/mute
+- **Folder sidecars** — prefer `folder.jpg` / `cover.jpg` next to media for thumbs
+- **Tag assignment counts** — inspector shows how many media vs nested tags use a tag
+- **Bookmark text on cards** — show bookmark notes in the card description
+
+### Changed
+
+- **Database settings** — Essential / Search & AI / Experts around the prepare-library wizard; backups, cleanup, and progress polish
+- **Settings** — grouped switches into panels; image viewer in its own card; clearer empty states
+- **Dialogs** — shared xl cards, headers, and outlined fields; bulk path-edit preview table
+- **Home widgets** — Vuetify skeletons while loading
+- **Adult scraper** — clearer result cards
+- **Filters / inspector** — denser chrome; clearer Find similar menu
+- **Tray icon** — outer outline with filled inner U
+- **Dependencies** — pin `tar` and `protobufjs` to clear critical CVEs
+
+### Fixed
+
+- **macOS Dock** — restore the main window when it is hidden or closed; Check for Updates works with the window closed
+- **File-move WebSockets** — reconnect after a cold start
+- **Windows Portable** — taskbar icon
+- **OR filters** — tag-join queries use WHERE so mixed AND/OR filters return the right rows
+- **Documentation tree** — expand/collapse plus a tooltip
+- **Player control tips** — wording and layout
+- **i18n** — French strings that broke the Vite dependency scan and saved-views copy
+
+### Upgrade notes
+
+- **Delete** now moves items to Trash for 30 days instead of removing them immediately; choose permanently delete in the confirm dialog to skip Trash
+- Existing libraries migrate on first launch (Media Created dates, saved-view join, Trash)
 
 ## [1.8.1] - 2026-08-11
 
