@@ -25,8 +25,9 @@
             @click:append-inner="searchScenesByText()"
             class="mb-4"
             hide-details
-            variant="filled"
+            variant="outlined"
             density="comfortable"
+            rounded="lg"
             autofocus
           />
         </form>
@@ -35,6 +36,8 @@
           v-if="matchMethodLabel"
           type="success"
           variant="tonal"
+          density="comfortable"
+          rounded="xl"
           class="mb-4"
         >
           {{ matchMethodLabel }}
@@ -44,6 +47,8 @@
           v-if="errorMessage"
           type="error"
           variant="tonal"
+          density="comfortable"
+          rounded="xl"
           class="mb-4"
         >
           {{ errorMessage }}
@@ -53,6 +58,8 @@
           v-else-if="!sceneScraperStore.searchInProgress && searched && !scenes.length"
           type="info"
           variant="tonal"
+          density="comfortable"
+          rounded="xl"
           class="mb-4"
         >
           {{ t('scene_scraper.no_results') }}
@@ -68,9 +75,11 @@
           >
             <v-card
               @click="openDataTransfer(scene)"
-              :variant="selectedScene?.id === scene.id ? 'outlined' : 'elevated'"
+              :variant="selectedScene?.id === scene.id ? 'tonal' : 'outlined'"
               :color="selectedScene?.id === scene.id ? 'primary' : undefined"
+              rounded="xl"
               height="100%"
+              class="scene-scraper-result-card"
             >
               <v-img
                 :src="getSceneImage(scene)"
@@ -78,20 +87,21 @@
                 cover
               >
                 <template #placeholder>
-                  <div class="d-flex align-center justify-center fill-height bg-grey-darken-3">
-                    <v-icon size="40" color="grey">mdi-movie-open-outline</v-icon>
+                  <div class="d-flex align-center justify-center fill-height bg-surface-variant">
+                    <v-icon size="40" color="medium-emphasis">mdi-movie-open-outline</v-icon>
                   </div>
                 </template>
               </v-img>
 
-              <v-card-title class="text-body-2 py-2">
-                {{ scene.title || t('scene_scraper.untitled') }}
-              </v-card-title>
-
-              <v-card-subtitle class="pb-2">
-                <div v-if="scene.studio?.name">{{ scene.studio.name }}</div>
-                <div>{{ formatSceneDate(scene) }}</div>
-              </v-card-subtitle>
+              <div class="pa-3">
+                <div class="text-body-2 font-weight-medium text-truncate">
+                  {{ scene.title || t('scene_scraper.untitled') }}
+                </div>
+                <div class="text-caption text-medium-emphasis mt-1">
+                  <div v-if="scene.studio?.name" class="text-truncate">{{ scene.studio.name }}</div>
+                  <div>{{ formatSceneDate(scene) }}</div>
+                </div>
+              </div>
             </v-card>
           </v-col>
         </v-row>
@@ -528,3 +538,15 @@ watch(
   },
 )
 </script>
+
+<style scoped>
+.scene-scraper-result-card {
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.scene-scraper-result-card:hover {
+  border-color: rgb(var(--v-theme-primary));
+}
+</style>

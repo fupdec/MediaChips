@@ -38,8 +38,8 @@
         <v-divider vertical></v-divider>
 
         <v-card-text class="article stylish-article pt-0">
-          <v-card-title class="px-0">
-            <div class="d-flex align-center">
+          <div class="d-flex align-center flex-wrap ga-2 px-0 py-3">
+            <div class="text-subtitle-1 font-weight-medium">
               <span>{{ selected.version }}</span>
               <span v-if="selected.name" class="ml-1">({{ selected.name }})</span>
             </div>
@@ -50,11 +50,11 @@
               <span>{{ t('versions.release_date') }} </span>
               {{ convertDate(selected.date) }}
             </span>
-          </v-card-title>
+          </div>
 
-          <div v-if="!selected.version" class="text-center">{{ t('versions.select_any') }}</div>
+          <div v-if="!selected.version" class="text-center text-medium-emphasis">{{ t('versions.select_any') }}</div>
 
-          <div v-else variant="flat" v-html="selected.content"></div>
+          <div v-else v-html="selected.content"></div>
         </v-card-text>
       </div>
     </v-card>

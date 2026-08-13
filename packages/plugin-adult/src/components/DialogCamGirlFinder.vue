@@ -20,7 +20,7 @@
           type="info"
           variant="tonal"
           density="compact"
-          rounded="lg"
+          rounded="xl"
           class="mb-4 cgf-hint"
           closable
           @click:close="hintVisible = false"
@@ -34,7 +34,7 @@
             mandatory
             density="comfortable"
             color="primary"
-            rounded
+            rounded="xl"
             divided
             class="cgf-mode-toggle"
           >
@@ -56,14 +56,14 @@
               hide-details
               density="comfortable"
               variant="outlined"
-              rounded
+              rounded="lg"
               @click:append-inner="runSearch()"
             />
           </form>
 
           <v-btn
             color="primary"
-            rounded
+            rounded="xl"
             variant="flat"
             :loading="searchInProgress"
             :disabled="!canSearch"
@@ -125,7 +125,7 @@
           type="error"
           variant="tonal"
           density="compact"
-          rounded="lg"
+          rounded="xl"
           class="mb-4"
         >
           {{ error }}
@@ -136,7 +136,7 @@
           type="warning"
           variant="tonal"
           density="compact"
-          rounded="lg"
+          rounded="xl"
           class="mb-4"
         >
           {{ emptyMessage }}
@@ -153,7 +153,7 @@
             <v-card
               height="100%"
               variant="outlined"
-              rounded="lg"
+              rounded="xl"
               class="cgf-card"
               @click="openTransfer(item)"
             >
@@ -184,12 +184,12 @@
                   </span>
                 </v-progress-circular>
               </div>
-              <v-card-title class="pa-2 text-body-2">
+              <div class="pa-2 text-body-2 text-truncate">
                 {{ item.name }}
-              </v-card-title>
-              <v-card-subtitle class="pa-2 pt-0 text-caption d-flex align-center ga-1">
+              </div>
+              <div class="px-2 pb-2 text-caption text-medium-emphasis d-flex align-center ga-1">
                 <span v-if="item.platformLabel" class="text-truncate">{{ item.platformLabel }}</span>
-              </v-card-subtitle>
+              </div>
             </v-card>
           </v-col>
         </v-row>
@@ -617,6 +617,11 @@ onMounted(() => {
 .cgf-card {
   cursor: pointer;
   overflow: hidden;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.cgf-card:hover {
+  border-color: rgb(var(--v-theme-primary));
 }
 
 .cgf-card__preview {
