@@ -527,7 +527,7 @@ async function openAsList() {
   await openMediaList({
     mediaTypeId: mediaTypeId != null ? Number(mediaTypeId) : undefined,
     ids,
-    scope: {kind: 'clipSimilar'},
+    scope: {kind: 'similar'},
   })
 }
 

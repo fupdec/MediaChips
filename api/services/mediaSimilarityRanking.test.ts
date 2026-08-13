@@ -42,6 +42,39 @@ describe('mediaSimilarityRanking', () => {
     expect(merged[1].signals.tags).toBe(0.5)
   })
 
+  it('drops weak fused scores below minScoreRatio / minScore', () => {
+    // RRF falls slowly; a high ratio keeps only the top rank.
+    const byRatio = mergeMediaSimilarityLists([
+      {
+        signal: 'clip',
+        weight: 1,
+        hits: [
+          {id: 1, score: 0.95},
+          {id: 2, score: 0.9},
+          {id: 3, score: 0.2},
+          {id: 4, score: 0.1},
+        ],
+      },
+    ], {limit: 10, rrfK: 60, minScoreRatio: 0.99})
+
+    expect(byRatio.map((hit) => hit.id)).toEqual([1])
+
+    // Absolute floor between rank-1 (~0.01639) and rank-2 (~0.01613).
+    const byFloor = mergeMediaSimilarityLists([
+      {
+        signal: 'clip',
+        weight: 1,
+        hits: [
+          {id: 1, score: 0.95},
+          {id: 2, score: 0.9},
+          {id: 99, score: 0.1},
+        ],
+      },
+    ], {limit: 10, rrfK: 60, minScore: 0.0163})
+
+    expect(byFloor.map((hit) => hit.id)).toEqual([1])
+  })
+
   it('merges plain id lists', () => {
     const merged = mergeMediaSimilarityIdLists([
       {signal: 'clip', ids: [1, 2, 3]},

@@ -49,6 +49,13 @@ export function mergeMediaSimilarityLists(
     excludeIds?: Iterable<number>
     /** RRF smoothing constant (standard default 60). */
     rrfK?: number
+    /**
+     * Drop hits whose fused score is below `topScore * minScoreRatio`.
+     * Cuts deep/weak RRF tails so rows aren't filled with near-noise.
+     */
+    minScoreRatio?: number
+    /** Absolute fused-score floor (applied after ratio, if both set). */
+    minScore?: number
   },
 ): MediaSimilarityHit[] {
   const limit = Math.max(0, Math.floor(Number(options.limit) || 0))
@@ -80,9 +87,21 @@ export function mergeMediaSimilarityLists(
     })
   }
 
-  return [...byId.values()]
+  let ranked = [...byId.values()]
     .sort((a, b) => b.score - a.score || a.id - b.id)
-    .slice(0, limit)
+
+  const ratio = Number(options.minScoreRatio)
+  if (Number.isFinite(ratio) && ratio > 0 && ranked.length) {
+    const floor = ranked[0].score * Math.min(1, ratio)
+    ranked = ranked.filter((hit) => hit.score >= floor)
+  }
+
+  const minScore = Number(options.minScore)
+  if (Number.isFinite(minScore) && minScore > 0) {
+    ranked = ranked.filter((hit) => hit.score >= minScore)
+  }
+
+  return ranked.slice(0, limit)
 }
 
 /** Convenience: ranked id arrays → RRF merge. */
@@ -96,6 +115,8 @@ export function mergeMediaSimilarityIdLists(
     limit: number
     excludeIds?: Iterable<number>
     rrfK?: number
+    minScoreRatio?: number
+    minScore?: number
   },
 ): MediaSimilarityHit[] {
   return mergeMediaSimilarityLists(

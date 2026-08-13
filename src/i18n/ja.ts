@@ -3242,6 +3242,7 @@ const ja = {
     semantic_search_scope: 'セマンティック検索',
     semantic_search_scope_query: 'セマンティック: 「{query}」',
     semantically_similar_scope: '意味的に似ている',
+    similar_scope: '類似',
     deactivate_all_filters: 'すべてのフィルターを無効にする',
     deactivate_filter: 'フィルターを無効にする',
     join_and: 'AND',

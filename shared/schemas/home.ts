@@ -199,10 +199,27 @@ export const HomeSimilarSeedSchema = z.object({
   reason: z.enum(['viewed', 'favorite', 'any']).optional(),
 }).passthrough()
 
+/** Per-signal raw scores (clip cosine / tag Jaccard) when known. */
+export const MediaSimilaritySignalsSchema = z.object({
+  clip: z.number().optional(),
+  tags: z.number().optional(),
+}).passthrough()
+
+/** Fused similarity payload attached to Home Similar neighbors. */
+export const MediaSimilaritySchema = z.object({
+  score: z.number().optional(),
+  signals: MediaSimilaritySignalsSchema.optional(),
+}).passthrough()
+
+export const HomeSimilarMediaItemSchema = MediaItemSchema.extend({
+  isSeed: z.boolean().optional(),
+  similarity: MediaSimilaritySchema.optional(),
+})
+
 export const HomeSimilarResponseSchema = z.object({
   seed: HomeSimilarSeedSchema.nullable(),
-  seedItem: MediaItemSchema.nullable().optional(),
-  items: z.array(MediaItemSchema),
+  seedItem: HomeSimilarMediaItemSchema.nullable().optional(),
+  items: z.array(HomeSimilarMediaItemSchema),
 }).passthrough()
 
 export const MissingMediaStatusSchema = z.object({
@@ -292,3 +309,5 @@ export type HealthQueueItemId = z.infer<typeof HealthQueueItemIdSchema>
 export type ParsedHomeMarkers = z.infer<typeof HomeMarkersSchema>
 export type ParsedHomeMediaResponse = z.infer<typeof HomeMediaResponseSchema>
 export type ParsedHomeSimilarResponse = z.infer<typeof HomeSimilarResponseSchema>
+export type ParsedHomeSimilarMediaItem = z.infer<typeof HomeSimilarMediaItemSchema>
+export type ParsedMediaSimilarity = z.infer<typeof MediaSimilaritySchema>

@@ -3242,6 +3242,7 @@ const es = {
     semantic_search_scope: 'búsqueda semántica',
     semantic_search_scope_query: 'Semántica: “{query}”',
     semantically_similar_scope: 'Semánticamente similar',
+    similar_scope: 'Similares',
     deactivate_all_filters: 'Desactivar todos los filtros',
     deactivate_filter: 'Desactivar filtro',
     join_and: 'AND',

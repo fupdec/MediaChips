@@ -1,5 +1,5 @@
 import {nextTick} from 'vue'
-import {useRouter, useRoute} from 'vue-router'
+import router from '@/router'
 import {useItemsStore} from '@/stores/items'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
@@ -7,7 +7,14 @@ import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {useAppStore} from '@/stores/app'
 import type {FilterObject} from '@/types/common'
 
-export type MediaListScopeKind = 'semantic' | 'visualSimilar' | 'clipSimilar' | 'fromPlayer'
+export type MediaListScopeKind =
+  | 'semantic'
+  | 'visualSimilar'
+  /** Hybrid CLIP + tag similar (Home / context menu / wall). */
+  | 'similar'
+  /** @deprecated Use `similar`. Kept for in-memory sessions opened before the rename. */
+  | 'clipSimilar'
+  | 'fromPlayer'
 
 export type MediaListScope = {
   kind: MediaListScopeKind
@@ -33,8 +40,8 @@ async function waitForMediaPageReady() {
 }
 
 export function useOpenMediaList() {
-  const router = useRouter()
-  const route = useRoute()
+  // Use the router singleton — context-menu actions are built inside click
+  // handlers where useRoute()/useRouter() inject can be undefined.
   const itemsStore = useItemsStore()
   const appStore = useAppStore()
   const pageCommands = useItemsPageCommands()
@@ -48,10 +55,11 @@ export function useOpenMediaList() {
     ids,
     scope = null,
   }: OpenMediaListOptions = {}) => {
+    const route = router.currentRoute.value
     const targetMediaTypeId = mediaTypeId ?? getDefaultMediaTypeId(appStore.mediaTypes)
     const alreadyOnPage =
-      route.path === '/media'
-      && Number(route.query.mediaTypeId) === Number(targetMediaTypeId)
+      route?.path === '/media'
+      && Number(route?.query?.mediaTypeId) === Number(targetMediaTypeId)
 
     if (!alreadyOnPage) {
       await router.push(`/media?mediaTypeId=${targetMediaTypeId}`)
@@ -65,6 +73,22 @@ export function useOpenMediaList() {
       itemsStore.listScope = scope
         ? {kind: scope.kind, ...(scope.label ? {label: scope.label} : {})}
         : {kind: 'visualSimilar'}
+      // Sync-clear active filters so chips/UI match the scoped list. Avoid relying
+      // solely on deactivateAll→apply (async) which can race reloadItems.
+      const currentFilters = Array.isArray(itemsStore.filters) ? itemsStore.filters : []
+      if (currentFilters.some((filter) => filter && filter.active !== false && !filter.removed && !filter.lock)) {
+        itemsStore.updateState({
+          key: 'filters',
+          value: currentFilters.map((filter) => (
+            filter?.lock ? filter : {...filter, active: false}
+          )),
+        })
+      }
+      try {
+        filtersController.deactivateAll()
+      } catch (error) {
+        console.warn('Failed to deactivate filters before scoped list', error)
+      }
     } else if (filters?.length) {
       // Home View-all / filter navigation should leave More-like-this scope.
       itemsStore.listScopeIds = null

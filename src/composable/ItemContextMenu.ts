@@ -939,10 +939,27 @@ export default function useItemContextMenu(
     const tr = (key: string, params: Record<string, string | number> = {}) =>
       translate(key, params, locale)
 
+    let ids: number[] = []
     try {
       // Same hybrid ranking as Home Similar (CLIP + tags, series diversity).
-      const response = await typedApi.similarHybrid({seedId, limit: 48})
-      const data = response.data
+      let data: {
+        hasSignals?: boolean
+        ids?: number[]
+      } | null = null
+      try {
+        const response = await typedApi.similarHybrid({seedId, limit: 48})
+        data = response.data
+      } catch (hybridError) {
+        // Dev HMR / older bundles may miss similarHybrid — fall back to CLIP.
+        console.warn('similarHybrid failed, falling back to similarByClip', hybridError)
+        const response = await typedApi.similarByClip({seedId, limit: 48})
+        const clip = response.data
+        data = {
+          hasSignals: Boolean(clip?.hasEmbedding && Array.isArray(clip.ids) && clip.ids.length > 1),
+          ids: clip?.ids,
+        }
+      }
+
       if (!data?.hasSignals) {
         setNotification({
           type: 'info',
@@ -951,7 +968,7 @@ export default function useItemContextMenu(
         })
         return
       }
-      const ids = Array.isArray(data.ids)
+      ids = Array.isArray(data.ids)
         ? data.ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
         : []
       if (ids.length <= 1) {
@@ -962,23 +979,35 @@ export default function useItemContextMenu(
         })
         return
       }
-
-      const seedName = String(item.name || item.basename || '').trim()
-      await openMediaList({
-        mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
-        ids,
-        scope: {
-          kind: 'clipSimilar',
-          label: seedName
-            ? tr('home.widgets.similar_to', {name: seedName})
-            : tr('filters.more_like_this_scope'),
-        },
-      })
     } catch (error) {
       console.error('Failed to find similar media:', error)
       setNotification({
         type: 'error',
         title: tr('context_menu.more_like_this_failed'),
+        text: error instanceof Error ? error.message : String(error || ''),
+        icon: 'image-search-outline',
+      })
+      return
+    }
+
+    try {
+      const seedName = String(item.name || item.basename || '').trim()
+      await openMediaList({
+        mediaTypeId: item.mediaTypeId || currentMediaType.value?.id,
+        ids,
+        scope: {
+          kind: 'similar',
+          label: seedName
+            ? tr('home.widgets.similar_to', {name: seedName})
+            : tr('filters.similar_scope'),
+        },
+      })
+    } catch (error) {
+      console.error('Failed to open similar media list:', error)
+      setNotification({
+        type: 'error',
+        title: tr('context_menu.more_like_this_failed'),
+        text: error instanceof Error ? error.message : String(error || ''),
         icon: 'image-search-outline',
       })
     }

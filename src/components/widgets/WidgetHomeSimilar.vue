@@ -173,10 +173,10 @@ function onViewAll() {
       : seedItem.value?.mediaTypeId,
     ids,
     scope: {
-      kind: 'clipSimilar',
+      kind: 'similar',
       label: seedName
         ? t('home.widgets.similar_to', {name: seedName})
-        : t('items.more_like_this_scope'),
+        : t('filters.similar_scope'),
     },
   })
 }

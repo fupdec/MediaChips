@@ -3242,6 +3242,7 @@ const cn = {
     semantic_search_scope: '语义搜索',
     semantic_search_scope_query: '语义：“{query}”',
     semantically_similar_scope: '语义相似',
+    similar_scope: '相似',
     deactivate_all_filters: '停用所有筛选器',
     deactivate_filter: '停用筛选器',
     join_and: 'AND',

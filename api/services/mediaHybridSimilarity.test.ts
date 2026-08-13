@@ -93,4 +93,46 @@ describe('findSimilarHybrid', () => {
     expect(result.hasTags).toBe(true)
     expect(result.ids).toEqual([9, 8])
   })
+
+  it('excludes extra ids and trims weak fused scores', async () => {
+    vi.mocked(queryGet).mockReturnValue({mediaId: 1})
+    vi.mocked(findSimilarByClip).mockResolvedValue({
+      seedId: 1,
+      hasEmbedding: true,
+      seedTileCount: 1,
+      ids: [1, 2, 3, 4, 5],
+      hits: [
+        {id: 2, score: 0.95},
+        {id: 3, score: 0.9},
+        {id: 4, score: 0.2},
+        {id: 5, score: 0.15},
+      ],
+    })
+    vi.mocked(findSimilarByTags).mockReturnValue({
+      seedId: 1,
+      hasTags: false,
+      seedTagCount: 0,
+      hits: [],
+      ids: [],
+    })
+    vi.mocked(loadMediaBasicsByIds).mockResolvedValue([
+      {id: 1, basename: 'seed.mp4'},
+      {id: 2, basename: 'a.mp4'},
+      {id: 3, basename: 'b.mp4'},
+      {id: 4, basename: 'c.mp4'},
+      {id: 5, basename: 'd.mp4'},
+    ] as never)
+
+    const result = await findSimilarHybrid({} as never, 1, {
+      limit: 6,
+      encodeSeedIfMissing: false,
+      excludeIds: [3],
+      // RRF decays slowly — 0.99 keeps only the top fused rank.
+      minScoreRatio: 0.99,
+    })
+
+    expect(result.ids).not.toContain(3)
+    expect(result.hits.every((hit) => hit.id !== 3)).toBe(true)
+    expect(result.ids).toEqual([1, 2])
+  })
 })

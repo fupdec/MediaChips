@@ -175,7 +175,11 @@ const listScopeIcon = computed(() => {
   if (listScopeKind.value === 'fromPlayer') {
     return 'mdi-library'
   }
-  if (listScopeKind.value === 'semantic' || listScopeKind.value === 'clipSimilar') {
+  if (
+    listScopeKind.value === 'semantic'
+    || listScopeKind.value === 'similar'
+    || listScopeKind.value === 'clipSimilar'
+  ) {
     return 'mdi-brain'
   }
   return 'mdi-image-search-outline'
@@ -194,8 +198,8 @@ const listScopeLabel = computed(() => {
     }
     return t('filters.semantic_search_scope')
   }
-  if (listScopeKind.value === 'clipSimilar') {
-    return t('filters.semantically_similar_scope')
+  if (listScopeKind.value === 'similar' || listScopeKind.value === 'clipSimilar') {
+    return label || t('filters.similar_scope')
   }
   return t('filters.more_like_this_scope')
 })

@@ -3245,6 +3245,7 @@ const ru = {
     semantic_search_scope: 'Семантический поиск',
     semantic_search_scope_query: 'Семантика: «{query}»',
     semantically_similar_scope: 'Семантически похожие',
+    similar_scope: 'Похожие',
     deactivate_all_filters: 'Отключить все фильтры',
     deactivate_filter: 'Отключить фильтр',
     join_and: 'AND',

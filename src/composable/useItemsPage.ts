@@ -236,7 +236,18 @@ export function useItemsPage({
       query.mediaTypeId = props.mediaTypeId
     }
 
-    query.filters = cloneFilters(ITEMS.value.filters)
+    // Explicit `ids` arg = card refresh path. Full list uses listScopeIds when set.
+    // For scoped lists, only request the current page of ids so we do not hydrate
+    // hundreds of Item trees at once (main post-semantic-search perf cost).
+    const explicitIds = (ids && ids.length > 0) ? ids : null
+    const scopeIds = (!explicitIds && ITEMS.value.listScopeIds?.length)
+      ? ITEMS.value.listScopeIds
+      : null
+
+    // Scoped similar/semantic results are already ranked; do not AND with library filters.
+    query.filters = scopeIds
+      ? []
+      : cloneFilters(ITEMS.value.filters)
     query.filtersJoin = ITEMS.value.filtersJoin === 'or' ? 'or' : 'and'
     query.sortBy = normalizeSortBy(
       ITEMS.value.sortBy || 'id',
@@ -251,14 +262,6 @@ export function useItemsPage({
     if (props.items_type === 'media') {
       query.duplicates_by = getDuplicatesGroupKey(mediaType.value, ITEMS.value.duplicates_by)
     }
-
-    // Explicit `ids` arg = card refresh path. Full list uses listScopeIds when set.
-    // For scoped lists, only request the current page of ids so we do not hydrate
-    // hundreds of Item trees at once (main post-semantic-search perf cost).
-    const explicitIds = (ids && ids.length > 0) ? ids : null
-    const scopeIds = (!explicitIds && ITEMS.value.listScopeIds?.length)
-      ? ITEMS.value.listScopeIds
-      : null
 
     const appendListPage = (props.items_type === 'media' || props.items_type === 'tag')
       && is_infinite_scroll.value

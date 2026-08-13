@@ -3242,6 +3242,7 @@ const pt = {
     semantic_search_scope: 'Pesquisa semântica',
     semantic_search_scope_query: 'Semântica: “{query}”',
     semantically_similar_scope: 'Semanticamente semelhante',
+    similar_scope: 'Semelhantes',
     deactivate_all_filters: 'Desative todos os filtros',
     deactivate_filter: 'Desativar filtro',
     join_and: 'AND',

@@ -16,6 +16,8 @@ const SIGNAL_FETCH_MULTIPLIER = 3
 const CLIP_SIGNAL_WEIGHT = 1
 const TAG_SIGNAL_WEIGHT = 0.95
 const DEFAULT_LIMIT = 48
+/** Drop fused RRF hits below this fraction of the top score. */
+const DEFAULT_MIN_SCORE_RATIO = 0.45
 
 export type FindSimilarHybridOptions = {
   /** Max neighbors (seed is prepended separately onto `ids`). */
@@ -25,6 +27,13 @@ export type FindSimilarHybridOptions = {
    * Home widget: false — stay cheap for random tag-only seeds.
    */
   encodeSeedIfMissing?: boolean
+  /** Extra media ids to exclude (e.g. Continue watching). Seed is always excluded. */
+  excludeIds?: Iterable<number>
+  /**
+   * Drop weak fused scores below `top * ratio` (default 0.3).
+   * Pass 0 to keep the full RRF tail.
+   */
+  minScoreRatio?: number
 }
 
 export type FindSimilarHybridResult = {
@@ -77,6 +86,9 @@ export async function findSimilarHybrid(
   const limit = clampLimit(options.limit)
   const encodeSeedIfMissing = options.encodeSeedIfMissing !== false
   const fetchLimit = Math.min(limit * SIGNAL_FETCH_MULTIPLIER + 1, 80)
+  const minScoreRatio = options.minScoreRatio == null
+    ? DEFAULT_MIN_SCORE_RATIO
+    : Math.max(0, Number(options.minScoreRatio) || 0)
 
   const hasClipRow = seedHasClipEmbedding(db, id)
   const [clip, tags] = await Promise.all([
@@ -117,10 +129,18 @@ export async function findSimilarHybrid(
     }
   }
 
-  // Over-fetch so series collapse still fills the requested limit.
+  const excludeIds = [
+    id,
+    ...[...(options.excludeIds || [])]
+      .map(Number)
+      .filter((excludeId) => Number.isFinite(excludeId) && excludeId > 0 && excludeId !== id),
+  ]
+
+  // Over-fetch so series collapse + weak-score trim still fill the requested limit.
   const ranked = mergeMediaSimilarityLists(lists, {
     limit: Math.min(Math.max(limit * 5, 24), 120),
-    excludeIds: [id],
+    excludeIds,
+    minScoreRatio: minScoreRatio > 0 ? minScoreRatio : undefined,
   })
   if (!ranked.length) {
     return {

@@ -71,10 +71,17 @@ export const typedApi: TypedApi = new Proxy(coreApi as TypedApi, {
     }
 
     return (...args: unknown[]) =>
-      loadLazyApi().then((api) => {
-        const method = api[prop as keyof LazyApi]
+      loadLazyApi().then(async (api) => {
+        let method = api[prop as keyof LazyApi]
+        // HMR can leave a stale lazy bundle in memory — retry once with a fresh load.
         if (typeof method !== 'function') {
-          throw new Error(`typedApi.${prop} is not a function`)
+          lazyApiPromise = null
+          const fresh = await loadLazyApi()
+          method = fresh[prop as keyof LazyApi]
+          if (typeof method !== 'function') {
+            throw new Error(`typedApi.${prop} is not a function`)
+          }
+          return Reflect.apply(method, fresh, args)
         }
         return Reflect.apply(method, api, args)
       })

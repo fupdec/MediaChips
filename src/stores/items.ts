@@ -89,7 +89,7 @@ function createItemsStoreState() {
     listScopeIds: null as number[] | null,
     /** Why the list is scoped — drives the filter chip label. */
     listScope: null as null | {
-      kind: 'semantic' | 'visualSimilar' | 'clipSimilar' | 'fromPlayer'
+      kind: 'semantic' | 'visualSimilar' | 'similar' | 'clipSimilar' | 'fromPlayer'
       label?: string
     },
     thumbRefreshKeys: {} as Record<number, number>,

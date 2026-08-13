@@ -3245,6 +3245,7 @@ const en = {
     semantic_search_scope: 'Semantic search',
     semantic_search_scope_query: 'Semantic: “{query}”',
     semantically_similar_scope: 'Semantically similar',
+    similar_scope: 'Similar',
     deactivate_all_filters: 'Deactivate All Filters',
     deactivate_filter: 'Deactivate filter',
     join_and: 'AND',
