@@ -32,7 +32,7 @@
             @click="toggleStickyControlDeck"
           >
             <span class="items-control-deck__sticky-pin-glyph" aria-hidden="true">
-              <v-icon size="11" icon="mdi-pin"/>
+              <v-icon size="16" icon="mdi-pin"/>
             </span>
           </button>
 
@@ -1115,38 +1115,23 @@ defineEmits<{
 
   &__sticky-pin {
     position: absolute;
-    top: 0;
-    left: 0;
+    top: -4px;
+    left: -4px;
     z-index: 2;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     border: 0;
-    border-radius: 0 0 10px 0;
+    border-radius: 50%;
     background: transparent;
-    color: rgba(var(--v-theme-on-surface), 0.32);
+    color: rgba(var(--v-theme-on-surface), 0.36);
     cursor: pointer;
     transition:
       color 160ms ease,
-      background-color 160ms ease,
-      box-shadow 160ms ease;
-
-    &::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 3px;
-      right: 5px;
-      height: 1px;
-      border-radius: 1px;
-      background: currentColor;
-      opacity: 0;
-      transform: scaleX(0.4);
-      transition: opacity 160ms ease, transform 160ms ease;
-    }
+      background-color 160ms ease;
 
     &:hover {
       color: rgb(var(--v-theme-primary));
@@ -1160,11 +1145,6 @@ defineEmits<{
 
     &--active {
       color: rgb(var(--v-theme-primary));
-
-      &::after {
-        opacity: 0.55;
-        transform: scaleX(1);
-      }
     }
   }
 
@@ -1172,7 +1152,7 @@ defineEmits<{
     display: inline-flex;
     transform: rotate(42deg) translate(0.5px, -0.5px);
     transform-origin: center 60%;
-    opacity: 0.85;
+    opacity: 0.9;
     transition: transform 180ms cubic-bezier(0.33, 1, 0.68, 1), opacity 160ms ease;
 
     .items-control-deck__sticky-pin--active & {
