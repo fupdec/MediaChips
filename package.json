@@ -114,6 +114,7 @@
     "@types/express": "^5.0.6",
     "@types/lodash": "^4.17.24",
     "@types/node": "^26.0.1",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.9",
     "drizzle-kit": "^0.31.10",
