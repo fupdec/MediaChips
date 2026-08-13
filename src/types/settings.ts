@@ -144,6 +144,8 @@ export type SettingsState = {
   sidebarCollapsed: string
   showPlaylistsInNavigation: string
   showMarkersInNavigation: string
+  /** '1' shows Trash in the app bar and sidebar / bottom navigation. */
+  showTrashInNavigation: string
   numberOfPagesLimit: string
   gapSize: string
   /** Slideshow step interval in seconds for the image viewer. */
@@ -288,6 +290,7 @@ export const defaultSettingsState = (): SettingsState => ({
   sidebarCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',
+  showTrashInNavigation: '1',
   numberOfPagesLimit: '7',
   gapSize: '2',
   imageSlideshowInterval: '4',

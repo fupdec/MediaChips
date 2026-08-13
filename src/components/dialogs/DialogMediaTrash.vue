@@ -39,6 +39,7 @@
             :value="tab.value"
             filter
             variant="tonal"
+            :prepend-icon="kindIcon(tab.value)"
           >
             {{ tab.label }}
             <span v-if="counts[tab.value]" class="ml-1 text-medium-emphasis">
@@ -92,7 +93,12 @@
           v-if="!loading && !visibleItems.length"
           class="text-center pa-8"
         >
-          <v-icon size="64" color="success">mdi-delete-empty-outline</v-icon>
+          <v-img
+            src="/images/no-data.svg"
+            max-height="160"
+            class="mx-auto mb-2"
+            contain
+          />
           <div class="text-h6 mt-2">{{ t('media_trash.empty') }}</div>
         </div>
 
@@ -116,6 +122,29 @@
               @click.stop
               @update:model-value="toggleSelect(item)"
             />
+            <div class="media-trash__thumb" aria-hidden="true">
+              <v-img
+                v-if="thumbUrl(item)"
+                :src="thumbUrl(item)!"
+                cover
+                class="media-trash__thumb-img"
+                @error="onThumbError(item)"
+              >
+                <template #placeholder>
+                  <div class="media-trash__thumb-fallback">
+                    <v-icon size="22" :icon="kindIcon(item.kind, item.mediaTypeId)" />
+                  </div>
+                </template>
+                <template #error>
+                  <div class="media-trash__thumb-fallback">
+                    <v-icon size="22" :icon="kindIcon(item.kind, item.mediaTypeId)" />
+                  </div>
+                </template>
+              </v-img>
+              <div v-else class="media-trash__thumb-fallback">
+                <v-icon size="22" :icon="kindIcon(item.kind, item.mediaTypeId)" />
+              </div>
+            </div>
             <div class="media-trash__meta min-width-0">
               <div class="media-trash__name text-truncate" :title="itemLabel(item)">
                 <span class="media-trash__kind">{{ kindLabel(item.kind) }}</span>
@@ -164,9 +193,14 @@
 import {computed, onMounted, ref} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
+import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {typedApi} from '@/services/typedApi'
+import {buildLocalFileUrl} from '@/services/fileService'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
+import {getMediaDeleteAssetFolder} from '@/utils/mediaType'
+import {resolveMediaThumbDisplayUrl, resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
+import {getMarkImagePath} from '@/utils/markThumb'
 
 type TrashKind = 'media' | 'tag' | 'mark' | 'playlist' | 'savedFilter'
 
@@ -187,6 +221,7 @@ type TrashItem = {
 
 const {t} = useI18n()
 const {xs} = useDisplay()
+const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 
 const items = ref<TrashItem[]>([])
@@ -196,6 +231,7 @@ const busy = ref(false)
 const error = ref('')
 const selected = ref(new Set<string>())
 const activeKind = ref<TrashKind>('media')
+const failedThumbs = ref(new Set<string>())
 
 const kindTabs = computed(() => [
   {value: 'media' as const, label: t('media_trash.kind_media')},
@@ -204,6 +240,60 @@ const kindTabs = computed(() => [
   {value: 'playlist' as const, label: t('media_trash.kind_playlist')},
   {value: 'savedFilter' as const, label: t('media_trash.kind_saved_filter')},
 ])
+
+function kindIcon(kind: TrashKind, mediaTypeId?: number | null) {
+  if (kind === 'media') {
+    const mediaType = appStore.mediaTypes?.find((entry) => entry.id === mediaTypeId)
+    const folder = getMediaDeleteAssetFolder(mediaType)
+    if (folder === 'images') return 'mdi-image-outline'
+    if (folder === 'audios') return 'mdi-music-note-outline'
+    return 'mdi-movie-outline'
+  }
+  switch (kind) {
+    case 'tag': return 'mdi-tag-outline'
+    case 'mark': return 'mdi-tooltip-outline'
+    case 'playlist': return 'mdi-format-list-bulleted'
+    case 'savedFilter': return 'mdi-filter-outline'
+    default: return 'mdi-movie-outline'
+  }
+}
+
+function thumbUrl(item: TrashItem): string | null {
+  const key = itemKey(item)
+  if (failedThumbs.value.has(key)) return null
+
+  if (item.kind === 'media') {
+    if (!appStore.mediaPath) return null
+    const mediaType = appStore.mediaTypes?.find((entry) => entry.id === item.mediaTypeId)
+    const folder = getMediaDeleteAssetFolder(mediaType) || 'videos'
+    return resolveMediaThumbDisplayUrl(appStore.mediaPath, folder, item.id, 'thumbs', {maxEdge: 160})
+  }
+
+  if (item.kind === 'tag') {
+    if (!appStore.dbPath || item.metaId == null) return null
+    return resolveTagThumbDisplayUrl({
+      dbPath: appStore.dbPath,
+      metaId: item.metaId,
+      tagId: item.id,
+      type: 'main',
+    })
+  }
+
+  if (item.kind === 'mark') {
+    if (!appStore.mediaPath) return null
+    return buildLocalFileUrl(getMarkImagePath(appStore.mediaPath, item.id))
+  }
+
+  return null
+}
+
+function onThumbError(item: TrashItem) {
+  const key = itemKey(item)
+  if (failedThumbs.value.has(key)) return
+  const next = new Set(failedThumbs.value)
+  next.add(key)
+  failedThumbs.value = next
+}
 
 const counts = computed(() => {
   const next: Record<TrashKind, number> = {
@@ -326,6 +416,7 @@ async function refresh() {
       || 30,
     )
     selected.value = new Set()
+    failedThumbs.value = new Set()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -436,6 +527,29 @@ onMounted(() => {
   padding: 10px 12px;
   border-radius: 12px;
   cursor: pointer;
+}
+
+.media-trash__thumb {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.media-trash__thumb-img {
+  width: 100%;
+  height: 100%;
+}
+
+.media-trash__thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(var(--v-theme-on-surface), 0.45);
 }
 
 .media-trash__row:hover,

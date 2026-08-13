@@ -120,6 +120,18 @@
           </v-list-item>
 
           <v-list-item
+            v-if="showTrash"
+            :prepend-icon="trashLink.icon"
+            :title="trashLink.title"
+            draggable="false"
+            @click="openTrash()"
+          >
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ trashLink.title }}
+            </v-tooltip>
+          </v-list-item>
+
+          <v-list-item
             v-if="showInbox"
             :disabled="watcherBusy"
             :title="t('media_inbox.nav')"
@@ -185,11 +197,14 @@ const {
   libraryLinks,
   settingsLink,
   allTagsLink,
+  trashLink,
+  showTrash,
   showInbox,
   inboxBadgeCount,
   inboxLostCount,
   watcherBusy,
   openInbox,
+  openTrash,
   metaPath,
 } = useLibraryNavItems()
 

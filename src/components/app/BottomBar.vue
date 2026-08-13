@@ -20,11 +20,14 @@ const {
   libraryLinks,
   settingsLink,
   allTagsLink,
+  trashLink,
+  showTrash,
   showInbox,
   inboxBadgeCount,
   inboxLostCount,
   watcherBusy,
   openInbox,
+  openTrash,
   metaPath,
 } = useLibraryNavItems()
 
@@ -204,6 +207,29 @@ onUnmounted(() => {
         </v-btn>
       </template>
       {{ settingsLink.title }}
+    </v-tooltip>
+
+    <v-tooltip
+      v-if="showTrash"
+      location="top"
+      :disabled="mobile"
+      open-on-hover
+    >
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          :aria-label="trashLink.title"
+          :title="trashLink.title"
+          draggable="false"
+          color="primary"
+          variant="text"
+          @click="openTrash()"
+        >
+          <v-icon>{{ trashLink.icon }}</v-icon>
+          <span>{{ trashLink.title }}</span>
+        </v-btn>
+      </template>
+      {{ trashLink.title }}
     </v-tooltip>
 
     <v-tooltip

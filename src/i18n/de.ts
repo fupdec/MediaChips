@@ -1932,6 +1932,7 @@ const de = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: 'Playlists in der Navigation anzeigen',
       show_markers: 'Markierungen in der Navigation anzeigen',
+      show_trash: 'Papierkorb anzeigen',
       page: 'Seite',
       saved_filters: 'Gespeicherte Ansichten',
       saved_filters_hint: 'Schnellchips unter der Überschrift. Jede Ansicht speichert Filter, Sortierung, Gruppierung und Kartengröße.',

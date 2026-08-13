@@ -1932,6 +1932,7 @@ const ja = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: 'ナビゲーションにプレイリストを表示',
       show_markers: 'ナビゲーションにマーカーを表示する',
+      show_trash: 'ゴミ箱を表示',
       page: 'ページ',
       saved_filters: '保存済みビュー',
       saved_filters_hint: '見出し下にクイック適用チップ。ビューはフィルターと並べ替え・グループ・サイズを保存。',

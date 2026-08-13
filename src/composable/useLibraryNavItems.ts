@@ -2,6 +2,7 @@ import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import orderBy from 'lodash/orderBy'
 import {useAppStore} from '@/stores/app'
+import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
 import {useWatcherStore} from '@/stores/watcher'
 import {useMediaInbox} from '@/composable/useMediaInbox'
@@ -32,9 +33,20 @@ function sortMetaNavItems(items: Meta[]) {
 export function useLibraryNavItems() {
   const {t} = useI18n()
   const appStore = useAppStore()
+  const dialogsStore = useDialogsStore()
   const settingsStore = useSettingsStore()
   const watcherStore = useWatcherStore()
   const {badgeCount: inboxBadgeCount, openInbox, newCount: inboxNewCount, lostCount: inboxLostCount} = useMediaInbox()
+
+  const openTrash = () => {
+    dialogsStore.openMediaTrash()
+  }
+
+  const trashLink = computed(() => ({
+    key: 'trash',
+    icon: 'mdi-delete-outline',
+    title: t('media_trash.title'),
+  }))
 
   const mediaTypes = computed(() =>
     (appStore.mediaTypes || []).filter((item) => !item.hidden),
@@ -58,6 +70,7 @@ export function useLibraryNavItems() {
 
   const showPlaylists = computed(() => settingsStore.showPlaylistsInNavigation === '1')
   const showMarkers = computed(() => settingsStore.showMarkersInNavigation === '1')
+  const showTrash = computed(() => settingsStore.showTrashInNavigation === '1')
   const showWatchFolders = computed(() => settingsStore.watchFolders === '1')
 
   const libraryLinks = computed((): LibraryNavLink[] => {
@@ -115,6 +128,7 @@ export function useLibraryNavItems() {
     metaHidden,
     showPlaylists,
     showMarkers,
+    showTrash,
     showWatchFolders,
     inboxBadgeCount,
     inboxNewCount,
@@ -125,8 +139,10 @@ export function useLibraryNavItems() {
     libraryLinks,
     settingsLink,
     allTagsLink,
+    trashLink,
     watcherBusy: computed(() => watcherStore.busy),
     openInbox,
+    openTrash,
     mediaTypePath,
     metaPath,
     mediaTypeTitle: (mediaType: MediaType) => getMediaTypeName(mediaType, t),

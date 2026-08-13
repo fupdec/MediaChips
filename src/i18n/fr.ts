@@ -1932,6 +1932,7 @@ const fr = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: 'Afficher les listes de lecture dans la navigation',
       show_markers: 'Afficher les marqueurs dans la navigation',
+      show_trash: 'Afficher la corbeille',
       page: 'Pages',
       saved_filters: 'Vues enregistrées',
       saved_filters_hint: 'Puces sous le titre. Chaque vue stocke filtres, tri, groupement et taille.',

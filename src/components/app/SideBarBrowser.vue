@@ -137,6 +137,29 @@
         <span>{{ settingsLink.title }}</span>
       </v-tooltip>
 
+      <v-tooltip
+        v-if="showTrash"
+        location="end"
+      >
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            icon
+            variant="text"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :aria-label="trashLink.title"
+            @click="openTrash()"
+          >
+            <v-icon
+              size="20"
+              :icon="trashLink.icon"
+            />
+          </v-btn>
+        </template>
+        <span>{{ trashLink.title }}</span>
+      </v-tooltip>
+
       <template v-if="showInbox">
         <div class="sidebar-browser__rail-divider" />
 
@@ -306,6 +329,13 @@
           />
 
           <v-list-item
+            v-if="showTrash"
+            :prepend-icon="trashLink.icon"
+            :title="trashLink.title"
+            @click="openTrash()"
+          />
+
+          <v-list-item
             v-if="showInbox"
             :disabled="watcherBusy"
             :title="t('media_inbox.nav')"
@@ -403,12 +433,15 @@ const {
   libraryLinks,
   settingsLink,
   allTagsLink,
+  trashLink,
   metaLink,
+  showTrash,
   showInbox,
   inboxBadgeCount,
   inboxLostCount,
   watcherBusy,
   openInbox,
+  openTrash,
 } = useLibraryNavItems()
 
 const metaCategoryLinks = computed(() =>

@@ -1935,6 +1935,7 @@ const en = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: 'Show Playlists in navigation',
       show_markers: 'Show Markers in navigation',
+      show_trash: 'Show Trash',
       page: 'Page',
       saved_filters: 'Saved views',
       saved_filters_hint: 'Show quick-apply chips under the page heading. Each view stores filters, sort, group, and card size.',

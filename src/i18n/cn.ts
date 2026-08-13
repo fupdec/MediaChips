@@ -1932,6 +1932,7 @@ const cn = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: '在导航中显示播放列表',
       show_markers: '在导航中显示标记',
+      show_trash: '显示回收站',
       page: '页面',
       saved_filters: '已保存视图',
       saved_filters_hint: '在标题下显示快捷芯片。每个视图保存筛选、排序、分组和卡片大小。',

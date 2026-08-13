@@ -85,5 +85,10 @@ async function toggleDarkMode(value: string) {
       option="showMarkersInNavigation"
       :title="t('settings_labels.appearance.show_markers')"
     />
+
+    <settings-switch
+      option="showTrashInNavigation"
+      :title="t('settings_labels.appearance.show_trash')"
+    />
   </SettingsGroupPanel>
 </template>

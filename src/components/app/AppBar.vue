@@ -144,6 +144,7 @@
         <div class="mr-1">
           <GlobalSearch/>
         </div>
+        <MediaTrash/>
         <Documentation/>
         <Notifications/>
       </div>
@@ -189,6 +190,7 @@ const AppBarButton = defineAsyncComponent(() => import('@/components/app/appbar/
 const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))
 const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
 const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
+const MediaTrash = defineAsyncComponent(() => import('@/components/app/appbar/MediaTrash.vue'))
 const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 

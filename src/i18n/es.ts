@@ -1932,6 +1932,7 @@ const es = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: 'Mostrar listas de reproducción en la navegación',
       show_markers: 'Mostrar marcadores en la navegación',
+      show_trash: 'Mostrar papelera',
       page: 'Página',
       saved_filters: 'Vistas guardadas',
       saved_filters_hint: 'Chips de aplicación rápida bajo el encabezado. Cada vista guarda filtros, orden, agrupación y tamaño.',

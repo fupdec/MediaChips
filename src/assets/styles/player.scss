@@ -440,6 +440,8 @@
     position: absolute;
     background: linear-gradient(0, rgba(0, 0, 0, 0.8), transparent);
     box-shadow: none;
+    // Vuetify .v-card defaults to overflow:hidden and clips control tips.
+    overflow: visible;
   }
 
   .controls-inner {
@@ -745,27 +747,41 @@
   }
   .buttons {
     position: relative;
+    overflow: visible;
+
     .v-chip {
       overflow: visible;
     }
+
+    .v-btn-group {
+      overflow: visible !important;
+    }
+
     .v-btn {
+      overflow: visible;
+
       &:hover {
         .tip:not(.tip--suppressed) {
           opacity: 1;
           transform: scale(1);
         }
       }
-      &:focus {
+
+      // Don't hide tips while the pointer is still over the button.
+      // Vuetify/Electron keep :focus after click, which used to kill hover tips.
+      &:focus:not(:hover) {
         .tip {
           opacity: 0;
           transform: scale(0);
         }
       }
     }
+
     .tip {
       pointer-events: none;
       position: absolute;
       background-color: rgba(49, 49, 49, 0.9);
+      color: #fff;
       padding: 7px 10px;
       border-radius: 5px;
       bottom: 55px;
@@ -773,8 +789,9 @@
       opacity: 0;
       font-size: 12px;
       letter-spacing: 1.1px;
-      transition: transform 0.3s 1s ease, opacity 0.1s ease-out;
-      z-index: 2;
+      white-space: nowrap;
+      transition: transform 0.2s 0.45s ease, opacity 0.12s ease-out;
+      z-index: 30;
 
       &--suppressed {
         opacity: 0 !important;

@@ -47,6 +47,18 @@ describe('useLibraryNavItems', () => {
     ])
   })
 
+  it('includes trash in navigation only when enabled', async () => {
+    const {useSettingsStore} = await import('@/stores/settings')
+    const settingsStore = useSettingsStore()
+
+    settingsStore.showTrashInNavigation = '0'
+    const nav = useLibraryNavItems()
+    expect(nav.showTrash.value).toBe(false)
+
+    settingsStore.showTrashInNavigation = '1'
+    expect(nav.showTrash.value).toBe(true)
+  })
+
   it('splits visible and hidden meta categories', async () => {
     const {useAppStore} = await import('@/stores/app')
     const appStore = useAppStore()

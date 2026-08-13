@@ -1932,6 +1932,7 @@ const pt = {
       sticky_control_deck_unpin: 'Unpin toolbar (scroll with page)',
       show_playlists: 'Mostrar listas de reprodução na navegação',
       show_markers: 'Mostrar marcadores na navegação',
+      show_trash: 'Mostrar lixeira',
       page: 'Página',
       saved_filters: 'Vistas guardadas',
       saved_filters_hint: 'Chips sob o título. Cada vista guarda filtros, ordenação, agrupamento e tamanho.',
