@@ -10,13 +10,22 @@ import { getHomeSimilar } from '../services/homeSimilar'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 import { parseClampedLimit } from '../utils/parseRequestNumber'
 
+/** Home media sections: 0 skips the section; otherwise clamp 1..24. */
+function parseHomeSectionLimit(value: unknown, fallback: number): number {
+  if (value == null || value === '') return fallback
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return fallback
+  if (n === 0) return 0
+  return Math.min(Math.max(Math.floor(n), 1), 24)
+}
+
 export default (db: ApiDb) => {
   const getMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const limits = {
-        continue: parseClampedLimit(req.query.continueLimit ?? req.query.limit, 12),
-        favorites: parseClampedLimit(req.query.favoritesLimit ?? req.query.limit, 12),
-        topViews: parseClampedLimit(req.query.topViewsLimit ?? req.query.limit, 12),
+        continue: parseHomeSectionLimit(req.query.continueLimit ?? req.query.limit, 12),
+        favorites: parseHomeSectionLimit(req.query.favoritesLimit ?? req.query.limit, 12),
+        topViews: parseHomeSectionLimit(req.query.topViewsLimit ?? req.query.limit, 12),
       }
       const data = await getHomeMedia(db, limits)
       sendOk(res, data)

@@ -1,10 +1,13 @@
 <template>
   <v-card
     class="home-media-card"
-    :class="{ 'home-media-card--big-preview': bigPreview }"
+    :class="{
+      'home-media-card--big-preview': bigPreview,
+      'home-media-card--seed': Boolean(badge),
+    }"
     rounded="lg"
     variant="outlined"
-    hover
+    flat
     @click="handleCardClick"
   >
     <div
@@ -34,7 +37,17 @@
       </template>
 
       <v-chip
-        v-if="variant === 'views' && item.views"
+        v-if="badge"
+        class="home-media-card__seed-badge"
+        color="primary"
+        size="x-small"
+        variant="flat"
+      >
+        {{ badge }}
+      </v-chip>
+
+      <v-chip
+        v-else-if="variant === 'views' && item.views"
         class="home-media-card__badge"
         color="primary"
         size="x-small"
@@ -75,17 +88,24 @@
     />
 
     <div
-      class="home-media-card__body pa-2"
+      class="home-media-card__body"
       @click="handleBodyClick"
     >
       <div class="text-caption text-truncate" :title="item.name">
         {{ item.name }}
       </div>
       <div
-        v-if="subtitle"
-        class="text-caption text-medium-emphasis text-truncate"
+        v-if="metaLine"
+        class="home-media-card__meta text-caption text-medium-emphasis"
+        :title="metaLine.title"
       >
-        {{ subtitle }}
+        <v-icon
+          size="12"
+          class="home-media-card__meta-icon"
+        >
+          {{ metaLine.icon }}
+        </v-icon>
+        <span class="text-truncate">{{ metaLine.text }}</span>
       </div>
     </div>
   </v-card>
@@ -96,7 +116,16 @@ import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/en'
+import 'dayjs/locale/de'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/ja'
+import 'dayjs/locale/pt-br'
+import 'dayjs/locale/es'
+import 'dayjs/locale/zh-cn'
+import 'dayjs/locale/ru'
 import {useAppStore} from '@/stores/app'
+import {useSettingsStore} from '@/stores/settings'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {findMediaTypeById, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
@@ -106,9 +135,12 @@ const props = withDefaults(defineProps<{
   item: HomeMediaItem
   thumb?: string | null
   variant?: HomeMediaCardVariant
+  /** Optional overlay badge (e.g. seed / original). */
+  badge?: string | null
 }>(), {
   thumb: null,
   variant: 'views',
+  badge: null,
 })
 
 const emit = defineEmits<{
@@ -133,6 +165,14 @@ dayjs.extend(relativeTime)
 
 const {t} = useI18n()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
+
+const dayjsLocale = computed(() => {
+  const locale = settingsStore.locale
+  if (locale === 'cn') return 'zh-cn'
+  if (locale === 'pt') return 'pt-br'
+  return locale || 'en'
+})
 
 const mediaType = computed(() =>
   findMediaTypeById(appStore.mediaTypes, props.item.mediaTypeId),
@@ -161,16 +201,42 @@ const progress = computed(() => {
   return Math.min(100, (time / duration) * 100)
 })
 
-const subtitle = computed(() => {
-  if (props.variant === 'continue' && progress.value > 0) {
-    return t('home.widgets.continue_progress', {percent: Math.round(progress.value)})
+const metaLine = computed(() => {
+  const hasContinueProgress = props.variant === 'continue' && Number(props.item.time || 0) > 0
+  if (hasContinueProgress) {
+    const percent = Math.round(progress.value)
+    const percentText = t('home.widgets.continue_progress_short', {percent})
+    if (props.item.viewedAt) {
+      dayjs.locale(dayjsLocale.value)
+      const when = dayjs(props.item.viewedAt).fromNow()
+      return {
+        icon: 'mdi-eye',
+        text: `${percentText} · ${when}`,
+        title: `${t('home.widgets.continue_progress', {percent})} · ${t('home.widgets.viewed_ago', {time: when})}`,
+      }
+    }
+    return {
+      icon: 'mdi-eye',
+      text: percentText,
+      title: t('home.widgets.continue_progress', {percent}),
+    }
   }
 
   if (props.item.viewedAt) {
-    return dayjs(props.item.viewedAt).fromNow()
+    dayjs.locale(dayjsLocale.value)
+    const time = dayjs(props.item.viewedAt).fromNow()
+    return {
+      icon: 'mdi-eye',
+      text: time,
+      title: t('home.widgets.viewed_ago', {time}),
+    }
   }
 
-  return ''
+  return {
+    icon: 'mdi-eye-off-outline',
+    text: t('home.widgets.not_viewed'),
+    title: t('home.widgets.not_viewed'),
+  }
 })
 
 function handleCardClick() {
@@ -198,6 +264,16 @@ function handleBodyClick() {
   overflow: hidden;
   cursor: pointer;
   border-color: rgba(var(--v-theme-on-surface), 0.12) !important;
+  box-shadow: none !important;
+  transition: border-color 180ms ease;
+
+  &:hover:not(.home-media-card--big-preview) {
+    border-color: rgb(var(--v-theme-primary)) !important;
+  }
+
+  &--seed {
+    border-color: rgba(var(--v-theme-primary), 0.55) !important;
+  }
 
   &--big-preview {
     position: relative;
@@ -273,6 +349,13 @@ function handleBodyClick() {
     z-index: 3;
   }
 
+  &__seed-badge {
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    z-index: 3;
+  }
+
   &__favorite {
     position: absolute;
     top: 6px;
@@ -296,11 +379,25 @@ function handleBodyClick() {
   }
 
   &__body {
-    flex: 1 1 auto;
-    min-height: 48px;
+    flex: 0 0 auto;
+    margin-top: auto;
+    min-height: 0;
+    padding: 6px 8px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  &__meta-icon {
+    flex: 0 0 auto;
+    opacity: 0.75;
   }
 }
 

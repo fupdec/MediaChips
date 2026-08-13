@@ -32,10 +32,20 @@ export interface HomeWidgetEditorItem {
 
 export type HomeMediaCardVariant = 'continue' | 'favorite' | 'views'
 
+export interface HomeMediaSimilarity {
+  score?: number
+  signals?: {
+    clip?: number
+    tags?: number
+  }
+}
+
 export interface HomeMediaItem extends MediaItem {
   thumb?: string
   rating?: number
   viewedAt?: string | number
+  isSeed?: boolean
+  similarity?: HomeMediaSimilarity
 }
 
 export type HealthAlertType = 'error' | 'info' | 'success' | 'warning'

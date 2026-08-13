@@ -173,21 +173,28 @@ export function rankByMaxCosineSimilarity(
   return rankByMaxCosineSimilarityHits(query, candidates, limit).map((row) => row.id)
 }
 
-export function rankByMaxPairwiseCosineSimilarity(
+export function rankByMaxPairwiseCosineSimilarityHits(
   seed: ClipEmbeddingVector[],
   candidates: ClipEmbeddingCandidate[],
   limit: number,
-): number[] {
+): Array<{id: number; score: number}> {
   if (!seed.length || limit <= 0) return []
-  const scored = candidates
+  return candidates
     .map((candidate) => ({
       id: candidate.id,
       score: maxPairwiseCosineSimilarity(seed, candidate.embeddings),
     }))
     .filter((row) => Number.isFinite(row.score))
     .sort((a, b) => b.score - a.score || a.id - b.id)
+    .slice(0, limit)
+}
 
-  return scored.slice(0, limit).map((row) => row.id)
+export function rankByMaxPairwiseCosineSimilarity(
+  seed: ClipEmbeddingVector[],
+  candidates: ClipEmbeddingCandidate[],
+  limit: number,
+): number[] {
+  return rankByMaxPairwiseCosineSimilarityHits(seed, candidates, limit).map((row) => row.id)
 }
 
 /** Inclusive crop boxes [x0, y0, x1, y1] for a contact-sheet grid (row-major). */

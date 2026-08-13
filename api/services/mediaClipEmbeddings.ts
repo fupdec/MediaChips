@@ -7,7 +7,7 @@ import {
   packFloat32Embeddings,
   unpackFloat32Embeddings,
   rankByMaxCosineSimilarityHits,
-  rankByMaxPairwiseCosineSimilarity,
+  rankByMaxPairwiseCosineSimilarityHits,
   type ClipEmbeddingVector,
 } from './clipEmbeddingMath'
 import {
@@ -663,7 +663,13 @@ async function findSimilarByClip(
 ) {
   const id = Number(seedId)
   if (!Number.isFinite(id) || id <= 0) {
-    return {seedId: id, hasEmbedding: false, seedTileCount: 0, ids: [] as number[]}
+    return {
+      seedId: id,
+      hasEmbedding: false,
+      seedTileCount: 0,
+      ids: [] as number[],
+      hits: [] as Array<{id: number; score: number}>,
+    }
   }
 
   const seedRow = queryGet<StoredEmbeddingRow>(db, `
@@ -690,29 +696,43 @@ async function findSimilarByClip(
   `, {mediaId: id, model: CLIP_EMBEDDING_INDEX_KEY})
 
   if (!refreshed) {
-    return {seedId: id, hasEmbedding: false, seedTileCount: 0, ids: [] as number[]}
+    return {
+      seedId: id,
+      hasEmbedding: false,
+      seedTileCount: 0,
+      ids: [] as number[],
+      hits: [] as Array<{id: number; score: number}>,
+    }
   }
 
   const seedEmbeddings = unpackFloat32Embeddings(refreshed.embedding, Number(refreshed.dims))
   if (!seedEmbeddings.length) {
-    return {seedId: id, hasEmbedding: false, seedTileCount: 0, ids: [] as number[]}
+    return {
+      seedId: id,
+      hasEmbedding: false,
+      seedTileCount: 0,
+      ids: [] as number[],
+      hits: [] as Array<{id: number; score: number}>,
+    }
   }
 
   const media = loadMediaPreviewRow(db, id)
   const candidates = loadStoredEmbeddings(db, media?.mediaTypeId ?? null)
     .filter((row) => row.id !== id)
 
-  const neighborIds = rankByMaxPairwiseCosineSimilarity(
+  const neighborHits = rankByMaxPairwiseCosineSimilarityHits(
     seedEmbeddings,
     candidates,
     Math.max(clampLimit(options.limit) - 1, 0),
   )
+  const neighborIds = neighborHits.map((hit) => hit.id)
 
   return {
     seedId: id,
     hasEmbedding: true,
     seedTileCount: seedEmbeddings.length,
     ids: [id, ...neighborIds],
+    hits: neighborHits,
   }
 }
 

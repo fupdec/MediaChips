@@ -201,6 +201,7 @@ export const HomeSimilarSeedSchema = z.object({
 
 export const HomeSimilarResponseSchema = z.object({
   seed: HomeSimilarSeedSchema.nullable(),
+  seedItem: MediaItemSchema.nullable().optional(),
   items: z.array(MediaItemSchema),
 }).passthrough()
 
