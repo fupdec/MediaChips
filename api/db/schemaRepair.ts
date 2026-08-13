@@ -109,16 +109,13 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'videoMetadata', column: 'title', definition: 'text'},
   {table: 'videoMetadata', column: 'artist', definition: 'text'},
   {table: 'videoMetadata', column: 'album', definition: 'text'},
-<<<<<<< HEAD
   {table: 'watchedFolders', column: 'icon', definition: 'text'},
   {table: 'watchedFolders', column: 'excludedPaths', definition: 'text'},
-=======
   {table: 'savedFilters', column: 'sortBy', definition: 'text'},
   {table: 'savedFilters', column: 'sortDir', definition: 'text'},
   {table: 'savedFilters', column: 'size', definition: 'integer'},
   {table: 'savedFilters', column: 'view', definition: 'integer'},
   {table: 'savedFilters', column: 'groupBy', definition: 'text'},
->>>>>>> 29739169 (Extend saved filters into Saved views with sort, group, and card size.)
 ]
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {
