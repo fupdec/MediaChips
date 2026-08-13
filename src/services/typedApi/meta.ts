@@ -488,4 +488,30 @@ export const metaApi = {
       data: validated(parseTagThumbsResponse, res.data),
     }))
   },
+
+  listTagTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'tag'
+        id: number
+        name: string | null
+        deletedAt: string
+        metaId?: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.tagTrashList, {params})
+  },
+
+  restoreTagTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.tagTrashRestore, body)
+  },
+
+  purgeTagTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.tagTrashPurge, body)
+  },
+
+  purgeExpiredTagTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.tagTrashPurgeExpired, {})
+  },
 }

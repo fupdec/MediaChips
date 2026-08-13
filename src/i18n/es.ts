@@ -524,6 +524,11 @@ const es = {
     empty_confirm: '¿Eliminar permanentemente todos los elementos de la Papelera? Esto no se puede deshacer.',
     days_left: '{days}d restantes',
     purge_file_hint: 'El archivo también se eliminará',
+    kind_media: 'Medios',
+    kind_tag: 'Etiquetas',
+    kind_mark: 'Marcadores',
+    kind_playlist: 'Listas',
+    kind_saved_filter: 'Filtros',
   },
   session_focus: {
     start: 'Foco de sesión',

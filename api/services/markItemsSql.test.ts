@@ -38,6 +38,9 @@ function createMarksTestDb(): ApiDb {
       oldId TEXT,
       viewedAt TEXT,
       mediaTypeId INTEGER,
+      deletedAt TEXT,
+      trashOriginalPath TEXT,
+      trashPurgeFile INTEGER DEFAULT 0,
       createdAt TEXT NOT NULL DEFAULT '2024-01-01',
       updatedAt TEXT NOT NULL DEFAULT '2024-01-01'
     );
@@ -54,6 +57,8 @@ function createMarksTestDb(): ApiDb {
       views INTEGER DEFAULT 0,
       viewedAt TEXT,
       metaId INTEGER,
+      deletedAt TEXT,
+      trashOriginalName TEXT,
       createdAt TEXT NOT NULL DEFAULT '2024-01-01',
       updatedAt TEXT NOT NULL DEFAULT '2024-01-01'
     );
@@ -107,7 +112,9 @@ function createMarksTestDb(): ApiDb {
       time INTEGER,
       end INTEGER,
       tagId INTEGER,
-      mediaId INTEGER
+      mediaId INTEGER,
+      icon TEXT,
+      deletedAt TEXT
     );
 
     INSERT INTO media (id, path, name, basename) VALUES

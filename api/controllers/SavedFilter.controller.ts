@@ -2,6 +2,7 @@ import type { ApiDb } from '../types/db'
 import { sendControllerError, sendCreated, sendOk, paramString } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import type { SavedFilterMediaResponse, SavedFilterSummaryResponse } from '@shared/api/responses'
+import { getRequestBody } from '../types/http'
 
 import { createSavedFiltersRepository } from '../db/repositories/savedFilters'
 import {
@@ -14,6 +15,16 @@ import {
   getFilteredMediaForSavedFilter,
 } from '../services/savedFilterMedia'
 import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
+import {
+  countTrashSavedFilters,
+  ENTITY_TRASH_RETENTION_DAYS,
+  getTrashedSavedFiltersForPurge,
+  hardDeleteSavedFilterCascade,
+  listExpiredSavedFilterIds,
+  listTrashSavedFilters,
+  restoreTrashSavedFilters,
+  softDeleteSavedFilter,
+} from '../services/entityTrash'
 
 export default function (db: ApiDb) {
   const savedFiltersRepo = createSavedFiltersRepository(db.drizzle)
@@ -78,11 +89,80 @@ export default function (db: ApiDb) {
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
-      savedFiltersRepo.deleteById(Number(req.params.id))
+      const id = Number(req.params.id)
+      const permanent = String((req.query as {permanent?: string} | undefined)?.permanent || '') === '1'
+        || Boolean((req.body as {permanent?: boolean} | undefined)?.permanent)
+
+      if (!permanent) {
+        softDeleteSavedFilter(db, id)
+        invalidateMediaDerivedCaches()
+        return sendOk(res, {deletedIds: [id], softDeleted: true})
+      }
+
+      hardDeleteSavedFilterCascade(db, id)
       invalidateMediaDerivedCaches()
-      sendOk(res)
+      sendOk(res, {deletedIds: [id], softDeleted: false})
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
+    }
+  }
+
+  const listTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const limitRaw = (req.query as {limit?: string | number} | undefined)?.limit
+      const limit = Number(limitRaw)
+      sendOk(res, {
+        items: listTrashSavedFilters(db, Number.isFinite(limit) ? limit : 200),
+        count: countTrashSavedFilters(db),
+        retentionDays: ENTITY_TRASH_RETENTION_DAYS,
+      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while listing trash.')
+    }
+  }
+
+  const restoreTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const restoredIds = restoreTrashSavedFilters(db, ids)
+      invalidateMediaDerivedCaches()
+      sendOk(res, {restoredIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while restoring trash.')
+    }
+  }
+
+  const purgeTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const targets = getTrashedSavedFiltersForPurge(db, ids)
+      const deletedIds: number[] = []
+      for (const target of targets) {
+        hardDeleteSavedFilterCascade(db, target.id)
+        deletedIds.push(target.id)
+      }
+      invalidateMediaDerivedCaches()
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging trash.')
+    }
+  }
+
+  const purgeExpiredTrash = function (_req: ApiRequest, res: ApiResponse) {
+    try {
+      const ids = listExpiredSavedFilterIds(db)
+      const targets = getTrashedSavedFiltersForPurge(db, ids)
+      const deletedIds: number[] = []
+      for (const target of targets) {
+        hardDeleteSavedFilterCascade(db, target.id)
+        deletedIds.push(target.id)
+      }
+      invalidateMediaDerivedCaches()
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging expired trash.')
     }
   }
 
@@ -167,6 +247,10 @@ export default function (db: ApiDb) {
     findOrCreateHydrated,
     update,
     deleteOne,
+    listTrash,
+    restoreTrash,
+    purgeTrash,
+    purgeExpiredTrash,
     dynamicPlaylistsBasic,
     dynamicPlaylistsSummary,
     getPlaylistSummary,

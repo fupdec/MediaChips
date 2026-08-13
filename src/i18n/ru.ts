@@ -524,6 +524,11 @@ const ru = {
     empty_confirm: 'Удалить все элементы из Корзины навсегда? Это нельзя отменить.',
     days_left: 'ещё {days} дн.',
     purge_file_hint: 'Файл тоже будет удалён',
+    kind_media: 'Медиа',
+    kind_tag: 'Теги',
+    kind_mark: 'Маркеры',
+    kind_playlist: 'Плейлисты',
+    kind_saved_filter: 'Фильтры',
   },
   session_focus: {
     start: 'Фокус сессии',

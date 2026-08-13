@@ -37,7 +37,7 @@ describe('buildTagFilterQuery', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.whereSql).toBe('tags.metaId = :metaId')
+    expect(result.whereSql).toBe("tags.metaId = :metaId AND (tags.deletedAt IS NULL OR tags.deletedAt = '')")
     expect(result.replacements).toMatchObject({ metaId: 17 })
   })
 
@@ -163,7 +163,7 @@ describe('resolveTagFilterQuery', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.whereSql).toBe('tags.metaId = :metaId')
+    expect(result.whereSql).toBe("tags.metaId = :metaId AND (tags.deletedAt IS NULL OR tags.deletedAt = '')")
   })
 })
 

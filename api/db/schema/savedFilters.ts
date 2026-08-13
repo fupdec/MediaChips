@@ -16,6 +16,7 @@ export const savedFilters = sqliteTable('savedFilters', {
   groupBy: text('groupBy'),
   /** How filter rows combine: `and` (default) or `or`. */
   filtersJoin: text('filtersJoin').default('and'),
+  deletedAt: text('deletedAt'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 })

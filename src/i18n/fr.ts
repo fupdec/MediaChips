@@ -524,6 +524,11 @@ const fr = {
     empty_confirm: 'Supprimer définitivement tous les éléments de la Corbeille ? Cette action est irréversible.',
     days_left: '{days} j restants',
     purge_file_hint: 'Le fichier sera aussi supprimé',
+    kind_media: 'Médias',
+    kind_tag: 'Tags',
+    kind_mark: 'Marqueurs',
+    kind_playlist: 'Playlists',
+    kind_saved_filter: 'Filtres',
   },
   session_focus: {
     start: 'Focus de session',

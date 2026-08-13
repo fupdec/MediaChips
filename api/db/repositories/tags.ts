@@ -1,4 +1,4 @@
-import { count, eq, inArray } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, or } from 'drizzle-orm'
 import type Database from 'better-sqlite3'
 import type { DrizzleClient } from '../client'
 import { tags } from '../schema/tags'
@@ -6,6 +6,8 @@ import { tagsInMedia } from '../schema/tagsInMedia'
 import { tagsInTags } from '../schema/tagsInTag'
 import { nowIso } from '../utils/timestamps'
 import { mapChunks } from '../utils/chunk'
+
+const notDeleted = or(isNull(tags.deletedAt), eq(tags.deletedAt, ''))
 
 export type TagRow = typeof tags.$inferSelect
 export type TagInsert = typeof tags.$inferInsert
@@ -93,7 +95,7 @@ const TAG_ITEMS_QUERY = `${TAG_ITEMS_SELECT}
                            GROUP_CONCAT(valuesInTags.value || '^' || valuesInTags.metaId) tag_values
                     FROM valuesInTags
                     GROUP BY id) AS values_in_tags ON tags.id = values_in_tags.id
-WHERE tags.metaId = ?`
+WHERE tags.metaId = ? AND (tags.deletedAt IS NULL OR tags.deletedAt = '')`
 
 /** Page hydrate: scope GROUP_CONCAT subqueries to the requested tag ids. */
 function buildTagItemsQueryForIds(ids: number[]): {sql: string; params: number[]} {
@@ -109,7 +111,7 @@ function buildTagItemsQueryForIds(ids: number[]): {sql: string; params: number[]
                     FROM valuesInTags
                     WHERE valuesInTags.tagId IN (${placeholders})
                     GROUP BY id) AS values_in_tags ON tags.id = values_in_tags.id
-WHERE tags.metaId = ? AND tags.id IN (${placeholders})`
+WHERE tags.metaId = ? AND tags.id IN (${placeholders}) AND (tags.deletedAt IS NULL OR tags.deletedAt = '')`
   // Bind order: tagsInTags IN, valuesInTags IN, metaId, tags.id IN
   return {sql, params: [...ids, ...ids]}
 }
@@ -142,12 +144,12 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
     },
 
     findAllRaw(): TagRow[] {
-      return db.select().from(tags).all()
+      return db.select().from(tags).where(notDeleted).all()
     },
 
     /** Name-only projection for exclude-existing / lookup sets. */
     findAllNames(): Array<{name: string}> {
-      return db.select({name: tags.name}).from(tags).all()
+      return db.select({name: tags.name}).from(tags).where(notDeleted).all()
         .map((row) => ({name: String(row.name || '')}))
         .filter((row) => Boolean(row.name))
     },
@@ -158,7 +160,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         id: tags.id,
         name: tags.name,
         synonyms: tags.synonyms,
-      }).from(tags).all()
+      }).from(tags).where(notDeleted).all()
     },
 
     findAllCatalog(): TagCatalogRow[] {
@@ -176,20 +178,20 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         createdAt: tags.createdAt,
         updatedAt: tags.updatedAt,
         viewedAt: tags.viewedAt,
-      }).from(tags).all()
+      }).from(tags).where(notDeleted).all()
     },
 
     findByMetaIds(metaIds: number[]): TagRow[] {
       if (!metaIds.length) return []
-      return db.select().from(tags).where(inArray(tags.metaId, metaIds)).all()
+      return db.select().from(tags).where(and(inArray(tags.metaId, metaIds), notDeleted)).all()
     },
 
     findOldIdMappings(): Array<{id: number; oldId: string | null}> {
-      return db.select({id: tags.id, oldId: tags.oldId}).from(tags).all()
+      return db.select({id: tags.id, oldId: tags.oldId}).from(tags).where(notDeleted).all()
     },
 
     findAllIds(): Array<{id: number}> {
-      return db.select({id: tags.id}).from(tags).all()
+      return db.select({id: tags.id}).from(tags).where(notDeleted).all()
     },
 
     findById(id: number): TagRow | undefined {
@@ -213,7 +215,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
     },
 
     countAll(): number {
-      const row = db.select({count: count()}).from(tags).get()
+      const row = db.select({count: count()}).from(tags).where(notDeleted).get()
       return Number(row?.count ?? 0)
     },
 

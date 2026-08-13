@@ -74,6 +74,33 @@ export const mediaApi = {
     return apiClient.delete(apiMark(id))
   },
 
+  listMarkTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'mark'
+        id: number
+        name: string | null
+        deletedAt: string
+        metaId?: number | null
+        mediaId?: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.markTrashList, {params})
+  },
+
+  restoreMarkTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.markTrashRestore, body)
+  },
+
+  purgeMarkTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.markTrashPurge, body)
+  },
+
+  purgeExpiredMarkTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.markTrashPurgeExpired, {})
+  },
+
   updateVideoMetadata(id: number, data: VideoMetadataUpdatePayload) {
     return apiClient.put(apiVideoMetadata(id), data)
   },

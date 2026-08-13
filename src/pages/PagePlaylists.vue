@@ -305,7 +305,6 @@ import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
 import {useDialogsStore} from '@/stores/dialogs'
-import {getFilters} from '@/services/filterService'
 import {
   formatNlMixSeekTime,
   nlMixSourceMessageKey,
@@ -937,11 +936,7 @@ function confirmDeletePlaylist(playlist: PagePlaylist, kind: 'manual' | 'smart')
   dialogsStore.confirm.action = async () => {
     try {
       if (kind === 'smart') {
-        const filters = await getFilters(playlist.id)
         await typedApi.deleteSavedFilter(playlist.id)
-        for (const row of filters) {
-          if (row?.id) await typedApi.deleteFilterRow(row.id)
-        }
         await loadDynamicPlaylists()
       } else {
         await typedApi.deletePlaylist(playlist.id)
@@ -994,15 +989,7 @@ const deleteSmartPlaylist = async () => {
 
   try {
     const savedFilter = smart_playlist_edit.value
-    const filters = await getFilters(savedFilter.id)
-
     await typedApi.deleteSavedFilter(savedFilter.id)
-
-    for (const row of filters) {
-      if (row?.id) {
-        await typedApi.deleteFilterRow(row.id)
-      }
-    }
   } catch (e) {
     console.log(e)
   }

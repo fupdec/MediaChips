@@ -524,6 +524,11 @@ const pt = {
     empty_confirm: 'Excluir permanentemente todos os itens da Lixeira? Isto não pode ser desfeito.',
     days_left: '{days}d restantes',
     purge_file_hint: 'O arquivo também será excluído',
+    kind_media: 'Mídia',
+    kind_tag: 'Tags',
+    kind_mark: 'Marcadores',
+    kind_playlist: 'Playlists',
+    kind_saved_filter: 'Filtros',
   },
   session_focus: {
     start: 'Foco da sessão',

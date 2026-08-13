@@ -199,12 +199,6 @@ const deleteSavedFilter = async () => {
 
   await typedApi.deleteSavedFilter(savedFilter.id)
 
-  for (const row of savedFilter.filters || []) {
-    if (row?.id) {
-      await typedApi.deleteFilterRow(row.id)
-    }
-  }
-
   await getSavedFilters()
   dialogDel.value = false
 }

@@ -1,10 +1,12 @@
-import { and, asc, count, eq, gt, inArray, isNotNull, sql } from 'drizzle-orm'
+import { and, asc, count, eq, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { marks } from '../schema/marks'
 import { media } from '../schema/media'
 import { meta } from '../schema/meta'
 import { tags } from '../schema/tags'
 import { forEachChunk } from '../utils/chunk'
+
+const notDeleted = or(isNull(marks.deletedAt), eq(marks.deletedAt, ''))
 
 export type MarkRow = typeof marks.$inferSelect
 export type MarkInsert = typeof marks.$inferInsert
@@ -156,23 +158,23 @@ export function createMarksRepository(db: DrizzleClient) {
     findIdsByMediaId(mediaId: unknown): Array<{id: number}> {
       return db.select({id: marks.id})
         .from(marks)
-        .where(eq(marks.mediaId, Number(mediaId)))
+        .where(and(eq(marks.mediaId, Number(mediaId)), notDeleted))
         .all()
     },
 
     findByIdAndMediaId(markId: number, mediaId: number): MarkRow | undefined {
       return db.select()
         .from(marks)
-        .where(and(eq(marks.id, markId), eq(marks.mediaId, mediaId)))
+        .where(and(eq(marks.id, markId), eq(marks.mediaId, mediaId), notDeleted))
         .get()
     },
 
     findAllIds(): Array<{id: number}> {
-      return db.select({id: marks.id}).from(marks).all()
+      return db.select({id: marks.id}).from(marks).where(notDeleted).all()
     },
 
     countAll(): number {
-      const row = db.select({count: count()}).from(marks).get()
+      const row = db.select({count: count()}).from(marks).where(notDeleted).get()
       return Number(row?.count ?? 0)
     },
 
@@ -215,7 +217,7 @@ export function createMarksRepository(db: DrizzleClient) {
     findIdsByTagId(tagId: unknown): Array<{id: number}> {
       return db.select({id: marks.id})
         .from(marks)
-        .where(eq(marks.tagId, Number(tagId)))
+        .where(and(eq(marks.tagId, Number(tagId)), notDeleted))
         .all()
     },
 
@@ -225,6 +227,7 @@ export function createMarksRepository(db: DrizzleClient) {
         .where(and(
           eq(marks.tagId, Number(tagId)),
           isNotNull(marks.end),
+          notDeleted,
         ))
         .get()
       return Number(row?.count ?? 0)
@@ -238,6 +241,7 @@ export function createMarksRepository(db: DrizzleClient) {
         .where(and(
           inArray(marks.id, ids),
           isNotNull(marks.end),
+          notDeleted,
         ))
         .get()
       return Number(row?.count ?? 0)
@@ -267,6 +271,7 @@ export function createMarksRepository(db: DrizzleClient) {
         .where(and(
           eq(marks.tagId, resolvedTagId),
           isNotNull(marks.end),
+          notDeleted,
         ))
 
       if (sort === 'shuffle') {
@@ -331,6 +336,7 @@ export function createMarksRepository(db: DrizzleClient) {
         .where(and(
           inArray(marks.id, orderedIds),
           isNotNull(marks.end),
+          notDeleted,
         ))
 
       if (sort === 'shuffle') {
@@ -392,7 +398,7 @@ export function createMarksRepository(db: DrizzleClient) {
     findAllForVideo(mediaId: number) {
       const rows = db.select()
         .from(marks)
-        .where(eq(marks.mediaId, mediaId))
+        .where(and(eq(marks.mediaId, mediaId), notDeleted))
         .orderBy(asc(marks.time))
         .all()
 
@@ -422,7 +428,7 @@ export function createMarksRepository(db: DrizzleClient) {
     },
 
     findAllWithRelations() {
-      const rows = db.select().from(marks).all()
+      const rows = db.select().from(marks).where(notDeleted).all()
       return hydrateMarksWithRelations(db, rows)
     },
 

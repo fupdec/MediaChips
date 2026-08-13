@@ -14,6 +14,8 @@ export const tags = sqliteTable('tags', {
   views: integer('views').default(0),
   viewedAt: text('viewedAt'),
   metaId: integer('metaId'),
+  deletedAt: text('deletedAt'),
+  trashOriginalName: text('trashOriginalName'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, () => ({

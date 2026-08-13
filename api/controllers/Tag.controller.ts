@@ -16,6 +16,15 @@ import { createMarksRepository } from '../db/repositories/marks'
 import {
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
+import {
+  countTrashTags,
+  ENTITY_TRASH_RETENTION_DAYS,
+  getTrashedTagsForPurge,
+  listExpiredTagIds,
+  listTrashTags,
+  restoreTrashTags,
+  softDeleteTag,
+} from '../services/entityTrash'
 import { findDefaultTagCategoryId } from '../services/defaultTagCategory'
 import { mergeTagsInCategory } from '../services/tagMerge'
 import {
@@ -236,29 +245,112 @@ export default function (db: ApiDb) {
 
   const deleteOne = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<DeleteEntityOnePayload>(req)
-    const id = body.id
+    const id = Number(body.id)
 
     try {
-      const tag = tagsRepo.findById(Number(id))
+      const tag = tagsRepo.findById(id)
 
       if (!tag) {
         return sendNotFound(res, 'Tag not found.')
       }
 
-      const metaId = req.body.metaId || tag.metaId
-      if (!metaId) {
+      const permanent = Boolean(body.permanent)
+      if (!permanent) {
+        softDeleteTag(db, id)
+        return sendOk(res, {deletedIds: [id], softDeleted: true})
+      }
+
+      const assetMetaId = body.metaId ?? tag.metaId
+      if (!assetMetaId) {
         return sendBadRequest(res, 'metaId is required to delete tag assets.')
       }
 
-      const tagName = typeof tag.name === 'string' ? tag.name.trim() : ''
-      marksRepo.convertMetaMarksToBookmarksByTagId(id, tagName)
+      const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
+        ? tag.trashOriginalName.trim()
+        : (typeof tag.name === 'string' ? tag.name.trim() : '')
+      marksRepo.convertMetaMarksToBookmarksByTagId(id, displayName)
 
-      await deleteTagGeneratedAssets(getDbPath(), metaId, id)
+      await deleteTagGeneratedAssets(getDbPath(), assetMetaId, id)
 
-      tagsRepo.deleteById(Number(id))
-      sendOk(res)
+      tagsRepo.deleteById(id)
+      sendOk(res, {deletedIds: [id], softDeleted: false})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
+    }
+  }
+
+  const listTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const limitRaw = (req.query as {limit?: string | number} | undefined)?.limit
+      const limit = Number(limitRaw)
+      const items = listTrashTags(db, Number.isFinite(limit) ? limit : 200)
+      sendOk(res, {
+        items,
+        count: countTrashTags(db),
+        retentionDays: ENTITY_TRASH_RETENTION_DAYS,
+      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while listing trash.')
+    }
+  }
+
+  const restoreTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const restoredIds = restoreTrashTags(db, ids)
+      sendOk(res, {restoredIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while restoring trash.')
+    }
+  }
+
+  const purgeTrash = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const targets = getTrashedTagsForPurge(db, ids)
+      const deletedIds: number[] = []
+      for (const target of targets) {
+        const tag = tagsRepo.findById(target.id)
+        if (!tag) continue
+        const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
+          ? tag.trashOriginalName.trim()
+          : (typeof tag.name === 'string' ? tag.name.trim() : '')
+        marksRepo.convertMetaMarksToBookmarksByTagId(target.id, displayName)
+        if (tag.metaId) {
+          await deleteTagGeneratedAssets(getDbPath(), tag.metaId, target.id)
+        }
+        tagsRepo.deleteById(target.id)
+        deletedIds.push(target.id)
+      }
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging trash.')
+    }
+  }
+
+  const purgeExpiredTrash = async function (_req: ApiRequest, res: ApiResponse) {
+    try {
+      const ids = listExpiredTagIds(db)
+      const targets = getTrashedTagsForPurge(db, ids)
+      const deletedIds: number[] = []
+      for (const target of targets) {
+        const tag = tagsRepo.findById(target.id)
+        if (!tag) continue
+        const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
+          ? tag.trashOriginalName.trim()
+          : (typeof tag.name === 'string' ? tag.name.trim() : '')
+        marksRepo.convertMetaMarksToBookmarksByTagId(target.id, displayName)
+        if (tag.metaId) {
+          await deleteTagGeneratedAssets(getDbPath(), tag.metaId, target.id)
+        }
+        tagsRepo.deleteById(target.id)
+        deletedIds.push(target.id)
+      }
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging expired trash.')
     }
   };
 
@@ -320,5 +412,9 @@ export default function (db: ApiDb) {
     moveToCategory,
     duplicate,
     deleteOne,
+    listTrash,
+    restoreTrash,
+    purgeTrash,
+    purgeExpiredTrash,
   }
 }

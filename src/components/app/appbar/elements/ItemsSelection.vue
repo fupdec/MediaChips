@@ -65,7 +65,6 @@ import useItemContextMenu from '@/composable/ItemContextMenu'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {typedApi} from '@/services/typedApi'
-import {getFilters} from '@/services/filterService'
 import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
 import type {MediaItem, Tag} from '@/types/stores'
@@ -232,11 +231,7 @@ function openPlaylistDelete() {
       try {
         if (id < 0) {
           const savedFilterId = Math.abs(id)
-          const filters = await getFilters(savedFilterId)
           await typedApi.deleteSavedFilter(savedFilterId)
-          for (const row of filters) {
-            if (row?.id) await typedApi.deleteFilterRow(row.id)
-          }
         } else {
           await typedApi.deletePlaylist(id)
         }

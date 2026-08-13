@@ -183,6 +183,13 @@
       "when": 1782840000000,
       "tag": "0025_tag_assignment_sort_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1782843600000,
+      "tag": "0026_entity_soft_delete",
+      "breakpoints": true
     }
   ]
 }

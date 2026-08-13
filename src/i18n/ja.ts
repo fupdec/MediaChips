@@ -524,6 +524,11 @@ const ja = {
     empty_confirm: 'ゴミ箱内のすべてのアイテムを完全に削除しますか？この操作は元に戻せません。',
     days_left: '残り {days} 日',
     purge_file_hint: 'ファイルも削除されます',
+    kind_media: 'メディア',
+    kind_tag: 'タグ',
+    kind_mark: 'マーカー',
+    kind_playlist: 'プレイリスト',
+    kind_saved_filter: 'フィルター',
   },
   session_focus: {
     start: 'セッションフォーカス',

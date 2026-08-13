@@ -142,7 +142,10 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
     return `:${key}`
   }
 
-  const baseClauses = ['tags.metaId = :metaId']
+  const baseClauses = [
+    'tags.metaId = :metaId',
+    "(tags.deletedAt IS NULL OR tags.deletedAt = '')",
+  ]
   const filterClauses: string[] = []
   const joins: string[] = []
   let joinIndex = 0

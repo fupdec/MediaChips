@@ -192,6 +192,57 @@ export const pagesApi = {
     return apiClient.delete(apiPlaylist(id))
   },
 
+  listPlaylistTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'playlist'
+        id: number
+        name: string | null
+        deletedAt: string
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.playlistTrashList, {params})
+  },
+
+  restorePlaylistTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.playlistTrashRestore, body)
+  },
+
+  purgePlaylistTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.playlistTrashPurge, body)
+  },
+
+  purgeExpiredPlaylistTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.playlistTrashPurgeExpired, {})
+  },
+
+  listSavedFilterTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'savedFilter'
+        id: number
+        name: string | null
+        deletedAt: string
+        metaId?: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.savedFilterTrashList, {params})
+  },
+
+  restoreSavedFilterTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.savedFilterTrashRestore, body)
+  },
+
+  purgeSavedFilterTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.savedFilterTrashPurge, body)
+  },
+
+  purgeExpiredSavedFilterTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.savedFilterTrashPurgeExpired, {})
+  },
+
   addMediaToPlaylist(body: { mediaId: number; playlistId: number }) {
     return apiClient.post(`${API_ROUTES.mediaInPlaylists}/`, body)
   },

@@ -25,6 +25,7 @@ export function findTagIdByNormalizedName(
     SELECT id FROM tags
     WHERE lower(trim(name)) = ?
       AND (? IS NULL OR id != ?)
+      AND (deletedAt IS NULL OR deletedAt = '')
     LIMIT 1
   `).get(key, excludeTagId ?? null, excludeTagId ?? null) as {id: number} | undefined
 

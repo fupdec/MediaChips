@@ -5,6 +5,16 @@ import { createMarksRepository } from '../db/repositories/marks'
 import { getMarkFilterMetas, loadMarkItems } from '../services/markItemsLoader'
 import { resolveMarkChaptersForPath } from '../services/markChaptersForPath'
 import { deleteMarkGeneratedAsset } from '../services/localAssetCleanup'
+import {
+  countTrashMarks,
+  ENTITY_TRASH_RETENTION_DAYS,
+  getTrashedMarksForPurge,
+  listExpiredMarkIds,
+  listTrashMarks,
+  restoreTrashMarks,
+  softDeleteMark,
+} from '../services/entityTrash'
+import { getRequestBody } from '../types/http'
 
 export default function (db: ApiDb) {
   const marksRepo = createMarksRepository(db.drizzle)
@@ -172,17 +182,80 @@ export default function (db: ApiDb) {
   }
 
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
-    const markId = req.params.id
-
-    deleteMarkGeneratedAsset(getDbPath(), markId)
+    const markId = Number(req.params.id)
+    const permanent = String((req.query as {permanent?: string} | undefined)?.permanent || '') === '1'
+      || Boolean((req.body as {permanent?: boolean} | undefined)?.permanent)
 
     try {
-      marksRepo.deleteById(Number(markId))
-      sendOk(res)
+      if (!permanent) {
+        softDeleteMark(db, markId)
+        return sendOk(res, {deletedIds: [markId], softDeleted: true})
+      }
+
+      deleteMarkGeneratedAsset(getDbPath(), markId)
+      marksRepo.deleteById(markId)
+      sendOk(res, {deletedIds: [markId], softDeleted: false})
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while performing query.")
     }
-  };
+  }
+
+  const listTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const limitRaw = (req.query as {limit?: string | number} | undefined)?.limit
+      const limit = Number(limitRaw)
+      sendOk(res, {
+        items: listTrashMarks(db, Number.isFinite(limit) ? limit : 200),
+        count: countTrashMarks(db),
+        retentionDays: ENTITY_TRASH_RETENTION_DAYS,
+      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while listing trash.')
+    }
+  }
+
+  const restoreTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      sendOk(res, {restoredIds: restoreTrashMarks(db, ids)})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while restoring trash.')
+    }
+  }
+
+  const purgeTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const targets = getTrashedMarksForPurge(db, ids)
+      const deletedIds: number[] = []
+      for (const target of targets) {
+        deleteMarkGeneratedAsset(getDbPath(), target.id)
+        marksRepo.deleteById(target.id)
+        deletedIds.push(target.id)
+      }
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging trash.')
+    }
+  }
+
+  const purgeExpiredTrash = function (_req: ApiRequest, res: ApiResponse) {
+    try {
+      const ids = listExpiredMarkIds(db)
+      const targets = getTrashedMarksForPurge(db, ids)
+      const deletedIds: number[] = []
+      for (const target of targets) {
+        deleteMarkGeneratedAsset(getDbPath(), target.id)
+        marksRepo.deleteById(target.id)
+        deletedIds.push(target.id)
+      }
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging expired trash.')
+    }
+  }
 
   return {
     create,
@@ -193,6 +266,10 @@ export default function (db: ApiDb) {
     findAll,
     getItems,
     getFilterMetas,
-    deleteOne
+    deleteOne,
+    listTrash,
+    restoreTrash,
+    purgeTrash,
+    purgeExpiredTrash,
   }
 }
