@@ -50,7 +50,9 @@
   "main": "electron/runMain.js",
   "overrides": {
     "sharp": "^0.34.5",
-    "onnxruntime-node": "$onnxruntime-node"
+    "onnxruntime-node": "$onnxruntime-node",
+    "tar": "7.5.22",
+    "protobufjs": "8.7.2"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
