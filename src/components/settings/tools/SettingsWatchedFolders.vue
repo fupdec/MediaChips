@@ -56,6 +56,21 @@
 
     <div class="watched-folders__list">
       <div
+        v-if="!watcherStore.folders.length"
+        class="settings-empty text-center py-10 px-4"
+      >
+        <div class="settings-empty__icon mb-3" aria-hidden="true">
+          <v-icon icon="mdi-folder-eye-outline" size="28"/>
+        </div>
+        <div class="text-body-1 font-weight-medium mb-1">
+          {{ t('settings_labels.tools.folders_empty') }}
+        </div>
+        <div class="text-caption text-medium-emphasis">
+          {{ t('settings_labels.tools.folders_empty_hint') }}
+        </div>
+      </div>
+
+      <div
         v-for="folder in watcherStore.folders"
         :key="folder.id"
         class="watched-folders-card"
@@ -300,12 +315,14 @@
                   </span>
                 </v-chip>
               </div>
-              <p
+              <div
                 v-else
-                class="text-caption text-medium-emphasis"
+                class="settings-empty settings-empty--compact text-center py-6 px-3"
               >
-                {{ t('settings_labels.tools.excluded_paths_empty') }}
-              </p>
+                <div class="text-caption text-medium-emphasis">
+                  {{ t('settings_labels.tools.excluded_paths_empty') }}
+                </div>
+              </div>
             </div>
           </v-form>
         </v-card-text>
@@ -763,6 +780,30 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty--compact {
+  border-radius: 16px;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+
 .watched-folders__hint {
   max-width: 52rem;
   line-height: 1.45;

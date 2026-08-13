@@ -707,14 +707,14 @@ watch(
 }
 
 .sidebar-section {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   height: 28px;
   min-height: 28px;
   padding-inline: 16px;
-  opacity: 0.55;
+  opacity: 0.65;
 }
 
 .sidebar-section--library {

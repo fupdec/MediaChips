@@ -36,7 +36,7 @@
             <v-btn
               :loading="creatingFields"
               color="primary"
-              rounded
+              rounded="xl"
               size="small"
               variant="flat"
               prepend-icon="mdi-auto-fix"
@@ -46,7 +46,7 @@
             </v-btn>
           </div>
 
-          <v-card-subtitle class="mb-2">{{ t('scraper.pinned_meta') }}</v-card-subtitle>
+          <div class="text-subtitle-2 font-weight-medium mb-2">{{ t('scraper.pinned_meta') }}</div>
 
           <div v-if="pinnedMetasFree.length" class="d-flex flex-wrap">
             <div
@@ -91,7 +91,7 @@
 
           <v-divider class="my-4"></v-divider>
 
-          <v-card-subtitle class="mb-2">{{ t('scraper.fields_title') }}</v-card-subtitle>
+          <div class="text-subtitle-2 font-weight-medium mb-2">{{ t('scraper.fields_title') }}</div>
 
           <div class="d-flex flex-wrap">
             <div

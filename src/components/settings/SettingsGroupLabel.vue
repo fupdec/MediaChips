@@ -10,7 +10,7 @@
     >
       {{ iconName }}
     </v-icon>
-    <span class="text-overline text-medium-emphasis">{{ title }}</span>
+    <span class="text-caption text-medium-emphasis font-weight-medium">{{ title }}</span>
   </div>
 </template>
 
@@ -37,7 +37,7 @@ const iconName = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   padding-inline: 4px;
   margin-bottom: 8px;
 }

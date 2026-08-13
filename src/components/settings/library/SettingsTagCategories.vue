@@ -28,9 +28,17 @@
 
     <div
       v-if="!tagCategories.length"
-      class="text-medium-emphasis text-body-2 mb-5"
+      class="settings-empty text-center py-10 px-4 mb-5"
     >
-      {{ t('settings_labels.library.tag_categories_empty') }}
+      <div class="settings-empty__icon mb-3" aria-hidden="true">
+        <v-icon icon="mdi-tag-multiple-outline" size="28"/>
+      </div>
+      <div class="text-body-1 font-weight-medium mb-1">
+        {{ t('all_tags.no_categories') }}
+      </div>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('all_tags.no_categories_hint') }}
+      </div>
     </div>
 
     <v-chip-group
@@ -393,6 +401,25 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
 </script>
 
 <style scoped>
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+
 .settings-tag-categories__chips {
   margin: -4px;
 }
