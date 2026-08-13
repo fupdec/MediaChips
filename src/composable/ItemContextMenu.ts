@@ -1326,10 +1326,12 @@ export default function useItemContextMenu(
 
     const runDelete = async ({
       withFile,
+      permanent,
       deleteZipGallery,
       deleteZipFile,
     }: {
       withFile: boolean
+      permanent: boolean
       deleteZipGallery: boolean
       deleteZipFile: boolean
     }): Promise<void> => {
@@ -1341,7 +1343,7 @@ export default function useItemContextMenu(
       const deleted_items_names: string[] = []
       const deletedIds = new Set<number>()
       const handledZipArchives = new Set<string>()
-      let softDeleted = type === 'media' || type === 'tag'
+      let softDeleted = !permanent && (type === 'media' || type === 'tag')
       const itemsToDelete = type === 'media' && isSelectMode()
         ? await resolveSelectedMedia(ids)
         : ids
@@ -1353,6 +1355,7 @@ export default function useItemContextMenu(
 
         const itemData: DeleteItemPayload = {
           with_file: withFile,
+          permanent,
           id: found.id,
         }
 
@@ -1371,13 +1374,14 @@ export default function useItemContextMenu(
             itemData.delete_zip_gallery = true
             itemData.delete_zip_file = deleteZipFile
             itemData.with_file = false
+            itemData.permanent = true
           }
         }
 
         try {
           const response = await typedApi.deleteEntityOne(type, itemData)
           const responseData = response.data as {deletedIds?: number[]; softDeleted?: boolean} | undefined
-          if (responseData?.softDeleted === false) softDeleted = false
+          if (responseData?.softDeleted === false || permanent || deleteZipGallery) softDeleted = false
           if (type !== 'media' && type !== 'tag') softDeleted = false
           const responseIds = Array.isArray(responseData?.deletedIds)
             ? responseData.deletedIds
@@ -1437,22 +1441,32 @@ export default function useItemContextMenu(
       dialogsStore.confirm.checkBoxText = translate('actions.delete_zip_gallery', {}, locale)
       dialogsStore.confirm.checkBox2Text = translate('actions.delete_zip_file', {}, locale)
       dialogsStore.confirm.checkBox2RequiresPrimary = true
-    } else {
-      dialogsStore.confirm.text = type === 'media' || type === 'tag'
-        ? translate('media.move_to_trash_confirm', {}, locale)
-        : translate('media.delete_from_app_confirm', {}, locale)
-      dialogsStore.confirm.checkBoxText = type === 'media'
-        ? translate('actions.also_delete_files_on_purge', {}, locale)
+    } else if (type === 'media' || type === 'tag') {
+      dialogsStore.confirm.text = translate('media.move_to_trash_confirm', {}, locale)
+      dialogsStore.confirm.checkBoxText = translate('actions.delete_permanently', {}, locale)
+      dialogsStore.confirm.checkBox2Text = type === 'media'
+        ? translate('actions.also_delete_files', {}, locale)
         : ''
+      dialogsStore.confirm.checkBox2RequiresPrimary = type === 'media'
+    } else {
+      dialogsStore.confirm.text = translate('media.delete_from_app_confirm', {}, locale)
+      dialogsStore.confirm.checkBoxText = ''
       dialogsStore.confirm.checkBox2Text = ''
     }
 
     dialogsStore.confirm.action = () => {
       const deleteZipGallery = hasZipGallery && dialogsStore.confirm.checkBox
       const deleteZipFile = deleteZipGallery && dialogsStore.confirm.checkBox2
+      const permanent = hasZipGallery
+        ? deleteZipGallery
+        : Boolean(dialogsStore.confirm.checkBox)
+      const withFile = hasZipGallery
+        ? false
+        : type === 'media' && Boolean(dialogsStore.confirm.checkBox2)
 
       void runDelete({
-        withFile: !hasZipGallery && dialogsStore.confirm.checkBox,
+        withFile,
+        permanent,
         deleteZipGallery,
         deleteZipFile,
       })

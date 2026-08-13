@@ -1391,6 +1391,7 @@ const de = {
     move_rename_file: 'Datei verschieben/umbenennen',
     also_delete_files: 'Dateien ebenfalls löschen',
     also_delete_files_on_purge: 'Dateien auch löschen, wenn der Papierkorb geleert wird',
+    delete_permanently: 'Endgültig löschen (Papierkorb überspringen)',
     delete_with_file: 'Mit Datei löschen',
     delete_zip_gallery: 'Löschen Sie die gesamte ZIP-Galerie',
     delete_zip_file: 'Löschen Sie außerdem das ZIP-Archiv dauerhaft von der Festplatte',

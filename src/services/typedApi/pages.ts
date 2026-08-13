@@ -117,8 +117,11 @@ export const pagesApi = {
     }))
   },
 
-  deleteSavedFilter(id: number) {
-    return apiClient.delete(apiSavedFilter(id))
+  deleteSavedFilter(id: number, options: {permanent?: boolean} = {}) {
+    return apiClient.delete(apiSavedFilter(id), {
+      data: options.permanent ? {permanent: true} : undefined,
+      params: options.permanent ? {permanent: '1'} : undefined,
+    })
   },
 
   getSavedFilterMedia(id: number, params?: Record<string, unknown>) {
@@ -188,8 +191,11 @@ export const pagesApi = {
     return apiClient.put(apiPlaylist(id), data)
   },
 
-  deletePlaylist(id: number) {
-    return apiClient.delete(apiPlaylist(id))
+  deletePlaylist(id: number, options: {permanent?: boolean} = {}) {
+    return apiClient.delete(apiPlaylist(id), {
+      data: options.permanent ? {permanent: true} : undefined,
+      params: options.permanent ? {permanent: '1'} : undefined,
+    })
   },
 
   listPlaylistTrash(params?: {limit?: number}) {

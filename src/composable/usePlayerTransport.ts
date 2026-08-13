@@ -382,6 +382,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
           type: 'videos',
           id: video_edit.id,
           with_file,
+          permanent: with_file,
           path: video_edit.path,
         })
 

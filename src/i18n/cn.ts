@@ -1391,6 +1391,7 @@ const cn = {
     move_rename_file: '移动 / 重命名文件',
     also_delete_files: '同时删除文件',
     also_delete_files_on_purge: '清空回收站时同时删除文件',
+    delete_permanently: '永久删除（跳过回收站）',
     delete_with_file: '连同文件一起删除',
     delete_zip_gallery: '删除整个 ZIP 画廊',
     delete_zip_file: '同时从磁盘中永久删除 ZIP 存档',

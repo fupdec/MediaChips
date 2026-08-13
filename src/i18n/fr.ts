@@ -1391,6 +1391,7 @@ const fr = {
     move_rename_file: 'Déplacer/renommer le fichier',
     also_delete_files: 'Supprimez également les fichiers',
     also_delete_files_on_purge: 'Supprimer aussi les fichiers lors du vidage de la Corbeille',
+    delete_permanently: 'Supprimer définitivement (ignorer la Corbeille)',
     delete_with_file: 'Supprimer avec le fichier',
     delete_zip_gallery: 'Supprimer toute la galerie ZIP',
     delete_zip_file: 'Supprimez également définitivement l\'archive ZIP du disque',

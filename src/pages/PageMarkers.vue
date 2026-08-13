@@ -435,7 +435,10 @@
       :dialog="deleteConfirmOpen"
       variant="delete"
       :text="t('markers.delete_selected_confirm', {count: selectedOrder.length})"
-      @close="deleteConfirmOpen = false"
+      :check-box-text="t('actions.delete_permanently')"
+      :check-box="deletePermanently"
+      @update:check-box="deletePermanently = $event"
+      @close="deleteConfirmOpen = false; deletePermanently = false"
       @confirm="confirmDeleteSelected"
     />
   </v-container>
@@ -514,6 +517,7 @@ const playingClips = ref(false)
 const exportingClips = ref(false)
 const deletingSelected = ref(false)
 const deleteConfirmOpen = ref(false)
+const deletePermanently = ref(false)
 
 const selectedIdSet = computed(() => new Set(selectedOrder.value))
 
@@ -685,13 +689,15 @@ async function toggleClipStudioMode() {
 async function confirmDeleteSelected() {
   const ids = [...selectedOrder.value]
   if (!ids.length || deletingSelected.value) return
+  const permanent = deletePermanently.value
   deletingSelected.value = true
   deleteConfirmOpen.value = false
+  deletePermanently.value = false
   let deleted = 0
   try {
     for (const id of ids) {
       try {
-        await typedApi.deleteMark(id)
+        await typedApi.deleteMark(id, {permanent})
         deleted += 1
       } catch (error) {
         console.warn('Failed deleting mark', id, error)
@@ -702,7 +708,9 @@ async function confirmDeleteSelected() {
     if (deleted > 0) {
       setNotification({
         type: 'success',
-        title: t('markers.delete_selected_done', {count: deleted}),
+        title: permanent
+          ? t('markers.delete_selected_done', {count: deleted})
+          : t('notifications_text.items_moved_to_trash'),
       })
     }
     if (deleted < ids.length) {

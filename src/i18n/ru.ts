@@ -1394,6 +1394,7 @@ const ru = {
     move_rename_file: 'Переместить / переименовать файл',
     also_delete_files: 'Также удалить файлы',
     also_delete_files_on_purge: 'Также удалить файлы при очистке Корзины',
+    delete_permanently: 'Удалить навсегда (минуя Корзину)',
     delete_with_file: 'Удалить вместе с файлом',
     delete_zip_gallery: 'Удалить всю ZIP-галерею',
     delete_zip_file: 'Также безвозвратно удалить ZIP-архив с диска',

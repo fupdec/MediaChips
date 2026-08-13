@@ -1391,6 +1391,7 @@ const es = {
     move_rename_file: 'Mover / renombrar archivo',
     also_delete_files: 'También eliminar archivos',
     also_delete_files_on_purge: 'También eliminar archivos al vaciar la Papelera',
+    delete_permanently: 'Eliminar permanentemente (omitir Papelera)',
     delete_with_file: 'Eliminar con el archivo',
     delete_zip_gallery: 'Eliminar toda la galería ZIP',
     delete_zip_file: 'También elimine permanentemente el archivo ZIP del disco',

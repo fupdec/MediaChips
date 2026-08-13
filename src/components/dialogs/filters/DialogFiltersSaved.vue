@@ -112,7 +112,10 @@
       variant="delete"
       :dialog="dialogDel"
       :text="t('filters.delete_saved_filter_confirm')"
-      @close="dialogDel = false"
+      :check-box-text="t('actions.delete_permanently')"
+      :check-box="deletePermanently"
+      @update:check-box="deletePermanently = $event"
+      @close="dialogDel = false; deletePermanently = false"
       @delete="deleteSavedFilter"
     />
   </div>
@@ -158,6 +161,7 @@ const dialogModel = computed({
 })
 
 const dialogDel = ref(false)
+const deletePermanently = ref(false)
 const dialogEditing = ref(false)
 const selected = ref<SavedFilter | null>(null)
 
@@ -190,6 +194,7 @@ const submitCreate = () => {
 
 const openDialogDelete = (filter: SavedFilter) => {
   selected.value = filter
+  deletePermanently.value = false
   dialogDel.value = true
 }
 
@@ -197,10 +202,11 @@ const deleteSavedFilter = async () => {
   const savedFilter = selected.value
   if (!savedFilter?.id) return
 
-  await typedApi.deleteSavedFilter(savedFilter.id)
+  await typedApi.deleteSavedFilter(savedFilter.id, {permanent: deletePermanently.value})
 
   await getSavedFilters()
   dialogDel.value = false
+  deletePermanently.value = false
 }
 
 const openDialogEditing = (filter: SavedFilter) => {

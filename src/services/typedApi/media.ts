@@ -70,8 +70,11 @@ export const mediaApi = {
     }))
   },
 
-  deleteMark(id: number) {
-    return apiClient.delete(apiMark(id))
+  deleteMark(id: number, options: {permanent?: boolean} = {}) {
+    return apiClient.delete(apiMark(id), {
+      data: options.permanent ? {permanent: true} : undefined,
+      params: options.permanent ? {permanent: '1'} : undefined,
+    })
   },
 
   listMarkTrash(params?: {limit?: number}) {

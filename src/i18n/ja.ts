@@ -1391,6 +1391,7 @@ const ja = {
     move_rename_file: 'ファイルの移動/名前変更',
     also_delete_files: 'ファイルも削除',
     also_delete_files_on_purge: 'ゴミ箱を空にする時にファイルも削除',
+    delete_permanently: '完全に削除（ゴミ箱をスキップ）',
     delete_with_file: 'ファイルと一緒に削除',
     delete_zip_gallery: 'ZIP ギャラリー全体を削除します',
     delete_zip_file: 'また、ZIP アーカイブをディスクから完全に削除します',

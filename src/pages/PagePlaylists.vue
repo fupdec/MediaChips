@@ -928,18 +928,19 @@ function confirmDeletePlaylist(playlist: PagePlaylist, kind: 'manual' | 'smart')
   dialogsStore.confirm.checkBox = false
   dialogsStore.confirm.checkBox2 = false
   dialogsStore.confirm.checkBox2RequiresPrimary = false
-  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
   dialogsStore.confirm.checkBox2Text = ''
   dialogsStore.confirm.text = kind === 'smart'
     ? t('playlists.delete_smart_playlist_confirm')
     : t('playlists.delete_confirm')
   dialogsStore.confirm.action = async () => {
+    const permanent = Boolean(dialogsStore.confirm.checkBox)
     try {
       if (kind === 'smart') {
-        await typedApi.deleteSavedFilter(playlist.id)
+        await typedApi.deleteSavedFilter(playlist.id, {permanent})
         await loadDynamicPlaylists()
       } else {
-        await typedApi.deletePlaylist(playlist.id)
+        await typedApi.deletePlaylist(playlist.id, {permanent})
         await getPlaylists()
       }
       itemsStore.selection = itemsStore.selection.filter((id) => Number(id) !== selectId)

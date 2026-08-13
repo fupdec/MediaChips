@@ -285,17 +285,20 @@ function deleteMark() {
   dialogsStore.confirm.checkBox = false
   dialogsStore.confirm.checkBox2 = false
   dialogsStore.confirm.checkBox2RequiresPrimary = false
-  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
   dialogsStore.confirm.checkBox2Text = ''
   dialogsStore.confirm.text = t('markers.delete_selected_confirm', {count: 1})
   dialogsStore.confirm.action = async () => {
+    const permanent = Boolean(dialogsStore.confirm.checkBox)
     try {
-      await typedApi.deleteMark(id)
+      await typedApi.deleteMark(id, {permanent})
       itemsStore.selection = itemsStore.selection.filter((entry) => Number(entry) !== id)
       eventBus.emit('markers:reload')
       setNotification({
         type: 'success',
-        title: t('markers.delete_selected_done', {count: 1}),
+        title: permanent
+          ? t('markers.delete_selected_done', {count: 1})
+          : t('notifications_text.items_moved_to_trash'),
       })
     } catch (error) {
       console.warn('Failed deleting mark', id, error)

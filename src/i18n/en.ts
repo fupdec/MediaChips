@@ -1394,6 +1394,7 @@ const en = {
     move_rename_file: 'Move / rename file',
     also_delete_files: 'Also delete files',
     also_delete_files_on_purge: 'Also delete files when Trash is emptied',
+    delete_permanently: 'Delete permanently (skip Trash)',
     delete_with_file: 'Delete with file',
     delete_zip_gallery: 'Delete entire ZIP gallery',
     delete_zip_file: 'Also permanently delete ZIP archive from disk',

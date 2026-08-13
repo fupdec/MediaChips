@@ -1391,6 +1391,7 @@ const pt = {
     move_rename_file: 'Mover/renomear arquivo',
     also_delete_files: 'Exclua também arquivos',
     also_delete_files_on_purge: 'Também excluir arquivos ao esvaziar a Lixeira',
+    delete_permanently: 'Excluir permanentemente (ignorar Lixeira)',
     delete_with_file: 'Excluir com arquivo',
     delete_zip_gallery: 'Exclua toda a galeria ZIP',
     delete_zip_file: 'Exclua também permanentemente o arquivo ZIP do disco',

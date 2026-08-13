@@ -184,14 +184,15 @@ function openMarkDelete() {
   dialogsStore.confirm.checkBox = false
   dialogsStore.confirm.checkBox2 = false
   dialogsStore.confirm.checkBox2RequiresPrimary = false
-  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
   dialogsStore.confirm.checkBox2Text = ''
   dialogsStore.confirm.text = t('markers.delete_selected_confirm', {count})
   dialogsStore.confirm.action = async () => {
+    const permanent = Boolean(dialogsStore.confirm.checkBox)
     let deleted = 0
     for (const id of ids) {
       try {
-        await typedApi.deleteMark(id)
+        await typedApi.deleteMark(id, {permanent})
         deleted += 1
       } catch (error) {
         console.warn('Failed deleting mark', id, error)
@@ -202,7 +203,9 @@ function openMarkDelete() {
     if (deleted > 0) {
       setNotification({
         type: 'success',
-        title: t('markers.delete_selected_done', {count: deleted}),
+        title: permanent
+          ? t('markers.delete_selected_done', {count: deleted})
+          : t('notifications_text.items_moved_to_trash'),
       })
     }
     if (deleted < ids.length) {
@@ -222,18 +225,19 @@ function openPlaylistDelete() {
   dialogsStore.confirm.checkBox = false
   dialogsStore.confirm.checkBox2 = false
   dialogsStore.confirm.checkBox2RequiresPrimary = false
-  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
   dialogsStore.confirm.checkBox2Text = ''
   dialogsStore.confirm.text = t('playlists.delete_selected_confirm', {count})
   dialogsStore.confirm.action = async () => {
+    const permanent = Boolean(dialogsStore.confirm.checkBox)
     let deleted = 0
     for (const id of ids) {
       try {
         if (id < 0) {
           const savedFilterId = Math.abs(id)
-          await typedApi.deleteSavedFilter(savedFilterId)
+          await typedApi.deleteSavedFilter(savedFilterId, {permanent})
         } else {
-          await typedApi.deletePlaylist(id)
+          await typedApi.deletePlaylist(id, {permanent})
         }
         deleted += 1
       } catch (error) {
@@ -245,7 +249,9 @@ function openPlaylistDelete() {
     if (deleted > 0) {
       setNotification({
         type: 'success',
-        title: t('playlists.delete_selected_done', {count: deleted}),
+        title: permanent
+          ? t('playlists.delete_selected_done', {count: deleted})
+          : t('notifications_text.items_moved_to_trash'),
       })
     }
     if (deleted < ids.length) {
