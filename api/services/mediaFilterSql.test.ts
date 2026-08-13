@@ -14,6 +14,7 @@ import {
   normalizeActiveFilters,
   resolveMediaFilterQuery,
 } from './mediaFilterSql'
+import {MEDIA_NOT_IN_TRASH_SQL} from '../../shared/mediaTrash'
 
 describe('normalizeActiveFilters', () => {
   it('keeps only active filters with a condition', () => {
@@ -109,7 +110,9 @@ describe('buildMediaFilterQuery', () => {
     if (!result.ok) return
 
     expect(result.joinSql).toBe('')
-    expect(result.whereSql).toBe('media.mediaTypeId = :mediaTypeId')
+    expect(result.whereSql).toBe(
+      `media.mediaTypeId = :mediaTypeId AND ${MEDIA_NOT_IN_TRASH_SQL}`,
+    )
   })
 
   it('treats empty ext in-list as no matches instead of failing', () => {
@@ -284,9 +287,11 @@ describe('buildMediaFilterQuery', () => {
     expect(result.whereSql).toContain(' OR ')
     expect(result.whereSql).toMatch(/media\.id IN/)
     expect(result.whereSql).toMatch(/media\.rating.*>=/)
-    // mediaTypeId stays AND-scoped outside the OR group
+    // mediaTypeId + not-in-trash stay AND-scoped outside the OR group
     expect(result.whereSql).toMatch(
-      /^media\.mediaTypeId = :mediaTypeId AND \(/,
+      new RegExp(
+        `^media\\.mediaTypeId = :mediaTypeId AND ${MEDIA_NOT_IN_TRASH_SQL.replace(/[()]/g, '\\$&')} AND \\(`,
+      ),
     )
   })
 
@@ -300,7 +305,9 @@ describe('buildMediaFilterQuery', () => {
     if (!result.ok) return
 
     expect(result.joinSql).toContain('INNER JOIN')
-    expect(result.whereSql).not.toContain(' OR ')
+    expect(result.whereSql).toContain(MEDIA_NOT_IN_TRASH_SQL)
+    // Filter predicates themselves are AND-joined (trash clause may contain OR).
+    expect(result.whereSql).not.toMatch(/\) OR \(/)
   })
 })
 
