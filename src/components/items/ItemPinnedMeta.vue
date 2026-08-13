@@ -245,6 +245,8 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
+import {useSessionFocusStore} from '@/stores/sessionFocus'
 import translate, {toLocale} from '@/utils/translate'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
 import {resolveTagChipColor} from '@shared/tagChipColor'
@@ -326,8 +328,10 @@ const notificationsStore = useNotificationsStore()
 const scraperStore = useScraperStore()
 
 const eventBus = useEventBus()
-  const listSync = useItemsListSync()
+const listSync = useItemsListSync()
 const filtersController = useItemsFiltersController()
+const sessionFocusStore = useSessionFocusStore()
+const {startFocus, clearFocus} = useSessionFocusActions()
 
 const itemRating = computed((): number | undefined => {
   const rating = props.item.rating
@@ -785,6 +789,26 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
       },
     },
   ]
+
+  const focused = Number(sessionFocusStore.tagId) === Number(tag.id)
+  contextMenu.push({
+    name: focused ? t('session_focus.clear') : t('session_focus.start'),
+    type: 'item',
+    icon: focused ? 'bullseye-arrow' : 'bullseye',
+    action: () => {
+      if (focused) {
+        clearFocus()
+        return
+      }
+      startFocus({
+        tagId: Number(tag.id),
+        metaId: Number(tag.metaId),
+        name: String(tag.name || ''),
+        icon: tag.meta?.icon ? String(tag.meta.icon) : null,
+        color: tag.color ? String(tag.color) : null,
+      })
+    },
+  })
 
   if (canTpdbAutoScrape || canTmdbAutoScrape) {
     contextMenu.push({type: 'divider'})

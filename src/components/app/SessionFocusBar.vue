@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="focusStore.tag"
+    v-if="isVisible"
     class="session-focus-bar"
     role="status"
   >
@@ -23,6 +23,10 @@
           </v-icon>
           {{ focusStore.tag.name }}
         </button>
+        <ButtonDocumentation
+          id="tags.session_focus"
+          dense
+        />
       </div>
 
       <div class="session-focus-bar__actions">
@@ -58,11 +62,23 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
+import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useSessionFocusStore} from '@/stores/sessionFocus'
 import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
+import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
+
+/** Pages where session focus actions (browse / apply / open tag) are meaningful. */
+const SESSION_FOCUS_ROUTE_NAMES = new Set([
+  'Home',
+  'Items',
+  'Tag',
+  'AllTags',
+])
 
 const {t} = useI18n()
+const route = useRoute()
 const focusStore = useSessionFocusStore()
 const {
   clearFocus,
@@ -70,6 +86,10 @@ const {
   browseWithoutFocus,
   openFocusTagPage,
 } = useSessionFocusActions()
+
+const isVisible = computed(() =>
+  Boolean(focusStore.tag) && SESSION_FOCUS_ROUTE_NAMES.has(String(route.name || '')),
+)
 </script>
 
 <style scoped>

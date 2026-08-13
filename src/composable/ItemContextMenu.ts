@@ -132,6 +132,18 @@ export default function useItemContextMenu(
         action: editItem,
       })
 
+      if (type === 'media' && sessionFocusStore.tag) {
+        const focusTag = sessionFocusStore.tag
+        contextMenu.push({
+          name: t('session_focus.apply_menu', {name: focusTag.name}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          action: () => {
+            void applyFocusTagToMediaIds([item.id])
+          },
+        })
+      }
+
       if (type === 'tag' && isTagPageItem(item, type) && meta) {
         contextMenu.push({
           name: t('common.duplicate'),
@@ -170,6 +182,19 @@ export default function useItemContextMenu(
           itemsStore.isSelect = false
         },
       })
+
+      if (type === 'media' && sessionFocusStore.tag) {
+        const focusTag = sessionFocusStore.tag
+        contextMenu.push({
+          name: t('session_focus.apply_menu', {name: focusTag.name}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          disabled: itemsStore.selection.length === 0,
+          action: () => {
+            void applyFocusTagToMediaIds([...itemsStore.selection])
+          },
+        })
+      }
 
       if (type === 'tag' && meta) {
         contextMenu.push({
@@ -292,11 +317,12 @@ export default function useItemContextMenu(
         contextMenu.push({type: 'divider'})
       }
     } else if (type === 'media') {
-      // Smart tools submenu (works in single-item and multi-select modes).
+      // File tools + find-similar submenus (single-item and multi-select).
       const selectionEmpty = isSelectMode() && itemsStore.selection.length === 0
-      const smartMenu: ItemContextMenuEntry[] = []
+      const toolsMenu: ItemContextMenuEntry[] = []
+      const similarMenu: ItemContextMenuEntry[] = []
 
-      smartMenu.push({
+      toolsMenu.push({
         name: t('context_menu.parse_tags_in_path'),
         type: 'item',
         icon: 'text-box-search',
@@ -305,14 +331,14 @@ export default function useItemContextMenu(
       })
 
       if (isVideoMediaType(currentMediaType.value)) {
-        smartMenu.push({
+        toolsMenu.push({
           name: t('context_menu.detect_faces'),
           type: 'item',
           icon: 'face-recognition',
           disabled: !is_file_exists || selectionEmpty,
           action: detectFacesForSelection,
         })
-        smartMenu.push({
+        toolsMenu.push({
           name: t('context_menu.generate_chapters'),
           type: 'item',
           icon: 'bookmark-multiple-outline',
@@ -321,27 +347,27 @@ export default function useItemContextMenu(
         })
 
         if (isMediaPageItem(item, type)) {
-          smartMenu.push({
-            name: t('context_menu.more_like_this'),
-            type: 'item',
-            icon: 'image-search-outline',
-            // Seed is the right-clicked item (also available while multi-selecting).
-            action: openMoreLikeThis,
-          })
-          smartMenu.push({
+          toolsMenu.push({
             name: t('context_menu.apply_tags_from_similar'),
             type: 'item',
             icon: 'tag-plus-outline',
             disabled: selectionEmpty,
             action: applyTagsFromSimilar,
           })
-          smartMenu.push({
+          similarMenu.push({
+            name: t('context_menu.more_like_this'),
+            type: 'item',
+            icon: 'image-search-outline',
+            // Seed is the right-clicked item (also available while multi-selecting).
+            action: openMoreLikeThis,
+          })
+          similarMenu.push({
             name: t('context_menu.semantically_similar'),
             type: 'item',
             icon: 'brain',
             action: openSemanticallySimilar,
           })
-          smartMenu.push({
+          similarMenu.push({
             name: t('context_menu.play_similar_radio'),
             type: 'item',
             icon: 'radio-tower',
@@ -355,7 +381,7 @@ export default function useItemContextMenu(
         isImageMediaType(currentMediaType.value)
         && isMediaPageItem(item, type)
       ) {
-        smartMenu.push({
+        similarMenu.push({
           name: t('context_menu.semantically_similar'),
           type: 'item',
           icon: 'brain',
@@ -363,13 +389,23 @@ export default function useItemContextMenu(
         })
       }
 
-      if (smartMenu.length) {
+      if (toolsMenu.length || similarMenu.length) {
         contextMenu.push({type: 'divider'})
+      }
+      if (toolsMenu.length) {
         contextMenu.push({
-          name: t('context_menu.smart_tools'),
+          name: t('context_menu.tools'),
           type: 'menu',
-          icon: 'flash',
-          menu: smartMenu,
+          icon: 'wrench',
+          menu: toolsMenu,
+        })
+      }
+      if (similarMenu.length) {
+        contextMenu.push({
+          name: t('context_menu.find_similar'),
+          type: 'menu',
+          icon: 'compare',
+          menu: similarMenu,
         })
       }
 
@@ -573,20 +609,6 @@ export default function useItemContextMenu(
           icon: 'playlist-plus',
           menu: menuPlaylists,
           disabled: isSelectMode() && itemsStore.selection.length === 0,
-        })
-      }
-
-      if (sessionFocusStore.tag) {
-        const focusTag = sessionFocusStore.tag
-        contextMenu.push({
-          name: t('session_focus.apply_menu', {name: focusTag.name}),
-          type: 'item',
-          icon: 'bullseye-arrow',
-          disabled: isSelectMode() && itemsStore.selection.length === 0,
-          action: () => {
-            const ids = isSelectMode() ? [...itemsStore.selection] : [item.id]
-            void applyFocusTagToMediaIds(ids)
-          },
         })
       }
 
