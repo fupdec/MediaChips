@@ -522,6 +522,7 @@ const cn = {
     empty_confirm: '永久删除回收站中的所有项目？此操作无法撤消。',
     days_left: '剩余 {days} 天',
     purge_file_hint: '文件也会被删除',
+  },
   session_focus: {
     start: '会话焦点',
     clear: '清除焦点',

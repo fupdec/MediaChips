@@ -522,6 +522,7 @@ const de = {
     empty_confirm: 'Alle Elemente im Papierkorb endgültig löschen? Dies kann nicht rückgängig gemacht werden.',
     days_left: 'noch {days} T.',
     purge_file_hint: 'Datei wird ebenfalls gelöscht',
+  },
   session_focus: {
     start: 'Sitzungsfokus',
     clear: 'Fokus löschen',

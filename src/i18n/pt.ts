@@ -522,6 +522,7 @@ const pt = {
     empty_confirm: 'Excluir permanentemente todos os itens da Lixeira? Isto não pode ser desfeito.',
     days_left: '{days}d restantes',
     purge_file_hint: 'O arquivo também será excluído',
+  },
   session_focus: {
     start: 'Foco da sessão',
     clear: 'Limpar foco',

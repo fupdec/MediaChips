@@ -522,6 +522,7 @@ const en = {
     empty_confirm: 'Permanently delete all items in Trash? This cannot be undone.',
     days_left: '{days}d left',
     purge_file_hint: 'File will be deleted too',
+  },
   session_focus: {
     start: 'Focus session',
     clear: 'Clear focus',
