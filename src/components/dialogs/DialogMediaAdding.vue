@@ -17,7 +17,7 @@
       />
     </template>
     <template #default>
-      <v-card>
+      <v-card rounded="xl">
         <!-- Заголовок диалога с кнопками действий -->
         <DialogHeader
           @close="isDialogVisible = false"

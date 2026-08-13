@@ -8,7 +8,7 @@
       width="830"
       content-class="dialog-position-start meta-manager-dialog"
     >
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="close"
           :header="translate('media.type.media_header', {name: getMediaTypeName(media, translate)})"

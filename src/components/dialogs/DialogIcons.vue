@@ -21,7 +21,7 @@
     </template>
 
     <template v-slot:default>
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader @close="closeDialog" :header="t('meta.fields.icon_selection')" closable/>
 
         <v-card-text>

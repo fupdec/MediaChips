@@ -5,7 +5,7 @@
     scrollable
     @update:model-value="close"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="close"
         :header="t('camgirlfinder.title')"
@@ -195,7 +195,7 @@
         </v-row>
 
         <v-dialog v-model="dialogDataTransfer" max-width="1000px" scrollable>
-          <v-card>
+          <v-card rounded="xl">
             <DialogHeader
               @close="dialogDataTransfer = false"
               :header="t('scraper.data_transfer', {name: selected?.name || ''})"

@@ -1,6 +1,6 @@
 <template>
   <v-dialog v-model="dialog.show" scrollable width="600">
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         header="Editing tab"

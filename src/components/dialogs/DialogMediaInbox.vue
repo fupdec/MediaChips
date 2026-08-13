@@ -6,7 +6,7 @@
     scrollable
     @update:model-value="onDialogToggle"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         :header="t('media_inbox.title')"
         :subheader="t('media_inbox.subtitle')"

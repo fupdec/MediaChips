@@ -5,6 +5,18 @@
       icon="file-outline"
     />
 
+    <div class="mb-4">
+      <v-btn
+        color="success"
+        rounded="pill"
+        variant="flat"
+        class="pr-4"
+        prepend-icon="mdi-plus"
+        :text="t('common.add')"
+        @click="dialogAdd = true"
+      />
+    </div>
+
     <div v-if="!mediaTypes.length" class="media-types-settings__empty text-medium-emphasis text-body-2">
       {{ t('media.type.please_add_media_first') }}
     </div>
@@ -25,7 +37,7 @@
 
     <DialogMediaTypeAdd
       v-if="dialogAdd"
-      v-model="dialogAdd"
+      :dialog="dialogAdd"
       @added="finishAdding"
       @close="dialogAdd = false"
     />

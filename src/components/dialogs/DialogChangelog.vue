@@ -7,10 +7,11 @@
     :z-index="11000"
     @after-leave="handleAfterLeave"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="dialogTitle"
+        icon="newspaper-variant-outline"
         closable
       />
 
@@ -57,9 +58,15 @@
         </v-card-text>
       </div>
 
-      <v-card-actions v-if="showWhatsNewActions" class="px-4 pb-4">
+      <v-card-actions v-if="showWhatsNewActions" class="px-5 pb-5 pt-1">
         <v-spacer></v-spacer>
-        <v-btn color="primary" variant="flat" @click="closeDialog">
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="pill"
+          class="px-5"
+          @click="closeDialog"
+        >
           {{ t('changelog.got_it') }}
         </v-btn>
       </v-card-actions>

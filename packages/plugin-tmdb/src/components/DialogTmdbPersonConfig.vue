@@ -8,7 +8,7 @@
     @update:model-value="onDialogToggle"
   >
     <template #default="{ isActive }">
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="isActive.value = false"
           header="TMDB person field mapping"

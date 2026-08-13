@@ -6,7 +6,7 @@
       max-width="640"
       scrollable
     >
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           :header="t('filters.saved_filters')"
           closable
@@ -81,7 +81,7 @@
     </v-dialog>
 
     <v-dialog v-model="dialogEditing" max-width="600" scrollable>
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           :header="t('filters.editing_filter_name')"
           closable
@@ -100,7 +100,9 @@
               :label="t('filters.filter_name')"
               :rules="[v => { const r = validateName(v); return r === true || t(r) }]"
               autofocus
-              variant="filled"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
             />
           </v-form>
         </v-card-text>

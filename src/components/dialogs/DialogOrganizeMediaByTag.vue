@@ -5,7 +5,7 @@
     scrollable
     width="600"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="operationsStore.create_folder_move_media.dialog =false"
         :header="t('media.organize.title')"

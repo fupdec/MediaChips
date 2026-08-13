@@ -7,7 +7,7 @@
       scrollable
       width="900"
     >
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="close"
           :header="t('playlists.editing_smart_playlist')"
@@ -29,7 +29,9 @@
               min-width="200"
               max-width="500"
               autofocus
-              variant="filled"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
             >
               <template #append>
                 <v-btn

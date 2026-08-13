@@ -5,7 +5,7 @@
     width="900"
     scrollable
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="t('watcher.folder.title')"

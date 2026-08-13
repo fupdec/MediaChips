@@ -7,7 +7,7 @@
     content-class="dialog-position-start meta-manager-dialog"
     @after-leave="resetDialogState"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="dialogHeader"

@@ -6,7 +6,7 @@
     width="800"
     persistent
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeProcessDialog"
         :header="t('media.adding.files')"

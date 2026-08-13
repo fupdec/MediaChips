@@ -5,7 +5,7 @@
     :model-value="dialog"
     width="800"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="close"
         :header="t('scraper.auto_scrape_multiple')"

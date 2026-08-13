@@ -7,10 +7,11 @@
     width="800"
     @after-leave="resetSelection"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="t('systemBar.version_history')"
+        icon="history"
         closable
       />
 

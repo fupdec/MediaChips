@@ -9,7 +9,7 @@
     :persistent="persistent"
     :retain-focus="true"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="dialogLocal = false"
         :header="header || t('settings_labels.database.select_folder')"

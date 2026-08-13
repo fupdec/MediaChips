@@ -8,35 +8,46 @@
       width="600"
       @after-leave="resetDialog"
     >
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="closeDialog"
-          header="Editing meta"
+          :header="t('media.type.editing_meta')"
           :buttons="buttons"
           closable
         />
 
-        <v-card-title primary-title class="d-flex justify-space-between">
-          <div>
-            <v-icon start>{{ `mdi-${meta.icon}` }}</v-icon>
-            {{ meta.name }}
+        <v-card-text class="pa-4">
+          <div class="d-flex align-center justify-space-between mb-4 flex-wrap ga-2">
+            <div class="d-flex align-center text-body-1">
+              <v-icon start>{{ `mdi-${meta.icon}` }}</v-icon>
+              {{ meta.name }}
+            </div>
+            <ChipMetaType :meta="meta"></ChipMetaType>
           </div>
-          <ChipMetaType :meta="meta"></ChipMetaType>
-        </v-card-title>
 
-        <v-card-text>
           <v-form
             v-model="valid"
             ref="form"
             class="flex-grow-1"
             @submit.prevent
           >
-            <v-text-field v-model="name" :rules="[nameRules]" label="Name"/>
+            <v-text-field
+              v-model="name"
+              :rules="[nameRules]"
+              label="Name"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+            />
             <v-text-field
               v-model="metaHint"
               label="Hint"
               hint="This text under the field is the hint"
               persistent-hint
+              class="mt-4"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
             />
 
             <DialogIcons

@@ -5,15 +5,15 @@
     scrollable
     @update:model-value="onToggle"
   >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <v-icon start>mdi-movie-search-outline</v-icon>
-        TMDB
-        <v-spacer/>
-        <v-btn icon variant="text" @click="close"><v-icon>mdi-close</v-icon></v-btn>
-      </v-card-title>
+    <v-card rounded="xl">
+      <DialogHeader
+        icon="movie-search-outline"
+        header="TMDB"
+        closable
+        @close="close"
+      />
 
-      <v-card-text>
+      <v-card-text class="pa-4">
         <div v-if="media" class="text-body-2 mb-3 text-medium-emphasis">
           File: <strong class="text-high-emphasis">{{ media.basename || media.path?.split(/[/\\]/).pop() || media.name }}</strong>
         </div>
@@ -22,7 +22,8 @@
           v-model="query"
           label="Search title, TMDB id, or IMDb id (tt…)"
           variant="outlined"
-          rounded
+          density="comfortable"
+          rounded="lg"
           hide-details
           class="mb-2"
           @keyup.enter="runSearch"
@@ -31,17 +32,33 @@
           v-model="year"
           label="Year (optional)"
           variant="outlined"
-          rounded
+          density="comfortable"
+          rounded="lg"
           hide-details
           class="mb-3"
           style="max-width: 160px"
         />
 
-        <v-btn color="primary" rounded class="mb-4" :loading="loading" :disabled="!query.trim()" @click="runSearch">
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="xl"
+          class="mb-4"
+          :loading="loading"
+          :disabled="!query.trim()"
+          @click="runSearch"
+        >
           Search
         </v-btn>
 
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-4" density="comfortable">
+        <v-alert
+          v-if="error"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          density="comfortable"
+          rounded="xl"
+        >
           {{ error }}
         </v-alert>
 
@@ -91,12 +108,13 @@
         </template>
       </v-card-text>
 
-      <v-card-actions>
+      <v-card-actions class="pa-4">
         <v-spacer/>
-        <v-btn variant="text" @click="close">Cancel</v-btn>
+        <v-btn variant="text" rounded="xl" @click="close">Cancel</v-btn>
         <v-btn
           color="success"
-          rounded
+          variant="flat"
+          rounded="xl"
           :loading="applying"
           :disabled="!extras || selectedFields.length === 0"
           @click="apply"
@@ -110,6 +128,7 @@
 
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {

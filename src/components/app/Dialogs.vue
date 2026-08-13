@@ -186,17 +186,16 @@
       width="500"
       :z-index="2400"
     >
-      <v-card>
-        <v-card-title primary-title>{{ t('aboutApp.dialog_title') }}</v-card-title>
+      <v-card rounded="xl">
+        <DialogHeader
+          :header="t('aboutApp.dialog_title')"
+          icon="information-outline"
+          closable
+          @close="dialogsStore.about.show = false"
+        />
         <v-card-text class="pa-2 pa-sm-4">
           <About/>
         </v-card-text>
-        <v-card-actions>
-          <v-spacer/>
-          <v-btn color="primary" @click="dialogsStore.about.show = false">
-            {{ t('common.close') }}
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
@@ -213,6 +212,7 @@ import {useOperationsStore} from '@/stores/operations'
 import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
 import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
 import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'

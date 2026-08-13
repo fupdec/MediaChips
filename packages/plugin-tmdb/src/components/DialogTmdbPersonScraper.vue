@@ -5,15 +5,15 @@
     scrollable
     @update:model-value="onToggle"
   >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <v-icon start>mdi-account-search-outline</v-icon>
-        TMDB person
-        <v-spacer/>
-        <v-btn icon variant="text" @click="close"><v-icon>mdi-close</v-icon></v-btn>
-      </v-card-title>
+    <v-card rounded="xl">
+      <DialogHeader
+        icon="account-search-outline"
+        header="TMDB person"
+        closable
+        @close="close"
+      />
 
-      <v-card-text>
+      <v-card-text class="pa-4">
         <div v-if="tag" class="text-body-2 mb-3 text-medium-emphasis">
           Tag: <strong class="text-high-emphasis">{{ tag.name }}</strong>
         </div>
@@ -22,7 +22,8 @@
           v-model="query"
           label="Search person name or TMDB id"
           variant="outlined"
-          rounded
+          density="comfortable"
+          rounded="lg"
           hide-details
           class="mb-3"
           @keyup.enter="runSearch"
@@ -30,7 +31,8 @@
 
         <v-btn
           color="primary"
-          rounded
+          variant="flat"
+          rounded="xl"
           class="mb-4"
           :loading="loading"
           :disabled="!query.trim()"
@@ -39,7 +41,7 @@
           Search
         </v-btn>
 
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-3" rounded="lg">
+        <v-alert v-if="error" type="error" variant="tonal" class="mb-3" rounded="xl">
           {{ error }}
         </v-alert>
 
@@ -90,11 +92,13 @@
         </div>
       </v-card-text>
 
-      <v-card-actions>
+      <v-card-actions class="pa-4">
         <v-spacer/>
-        <v-btn variant="text" @click="close">Cancel</v-btn>
+        <v-btn variant="text" rounded="xl" @click="close">Cancel</v-btn>
         <v-btn
           color="success"
+          variant="flat"
+          rounded="xl"
           :loading="applying"
           :disabled="!extras || selectedFields.length === 0"
           @click="apply"
@@ -108,6 +112,7 @@
 
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {useEventBus} from '@/utils/eventBus'

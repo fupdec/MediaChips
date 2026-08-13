@@ -1,27 +1,19 @@
 <template>
   <v-dialog
     :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
     width="560"
     scrollable
+    @update:model-value="emit('update:modelValue', $event)"
   >
     <v-card rounded="xl">
-      <v-card-title class="d-flex align-center px-6 py-4">
-        <v-icon class="mr-2" size="24">mdi-view-dashboard-outline</v-icon>
-        {{ t('settings_labels.general.home_widgets') }}
-        <v-spacer/>
-        <v-btn
-          icon
-          variant="text"
-          @click="emit('update:modelValue', false)"
-        >
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-title>
+      <DialogHeader
+        icon="view-dashboard-outline"
+        :header="t('settings_labels.general.home_widgets')"
+        closable
+        @close="emit('update:modelValue', false)"
+      />
 
-      <v-divider/>
-
-      <v-card-text class="pa-6">
+      <v-card-text class="pa-4 pa-sm-6">
         <v-alert
           type="info"
           variant="tonal"
@@ -40,6 +32,7 @@
 
 <script setup lang="ts">
 import {useI18n} from 'vue-i18n'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import HomeWidgetsEditor from '@/components/widgets/HomeWidgetsEditor.vue'
 
 defineProps({

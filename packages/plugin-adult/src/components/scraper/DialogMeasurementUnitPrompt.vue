@@ -1,10 +1,13 @@
 <template>
   <v-dialog :model-value="modelValue" max-width="640" persistent @update:model-value="emit('update:modelValue', $event)">
     <v-card rounded="xl">
-      <v-card-title class="text-h6">
-        {{ t('scraper.measurement_unit_prompt_title') }}
-      </v-card-title>
-      <v-card-text>
+      <DialogHeader
+        icon="ruler"
+        :header="t('scraper.measurement_unit_prompt_title')"
+        closable
+        @close="emit('cancel')"
+      />
+      <v-card-text class="pa-4">
         <v-alert type="info" variant="tonal" density="compact" class="mb-4 text-body-2" rounded="xl">
           {{ t('scraper.measurement_unit_prompt_intro') }}
         </v-alert>
@@ -66,6 +69,7 @@
 <script setup lang="ts">
 import {computed, reactive, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {
   MEASUREMENT_LENGTH_UNITS,
   MEASUREMENT_WEIGHT_UNITS,

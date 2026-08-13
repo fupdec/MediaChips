@@ -32,7 +32,7 @@
       />
     </template>
     <template v-slot:default="{ isActive }">
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="isActive.value = false"
           :header="t('image.editing_image')"

@@ -8,7 +8,7 @@
     @update:model-value="onDialogToggle"
   >
     <template v-slot:default="{ isActive }">
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="isActive.value = false"
           :header="t('scraper.setup')"

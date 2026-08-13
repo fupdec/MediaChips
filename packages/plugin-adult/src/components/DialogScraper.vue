@@ -6,7 +6,7 @@
     width="800"
     scrollable
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader @close="dialogsStore.scraper.show = false" :header="t('actions.scrape_info')" closable/>
 
       <v-card-text class="py-6">
@@ -66,7 +66,7 @@
         </v-row>
 
         <v-dialog v-model="dialogDataTransfer" max-width="1000px" scrollable>
-          <v-card>
+          <v-card rounded="xl">
             <DialogHeader
               @close="dialogDataTransfer = false"
               :header="t('scraper.data_transfer', {name: selected.name ?? ''})"

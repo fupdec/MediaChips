@@ -6,7 +6,7 @@
     width="900"
     scrollable
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="t('scene_scraper.title')"
@@ -97,7 +97,7 @@
         </v-row>
 
         <v-dialog v-model="dialogDataTransfer" max-width="1000px" scrollable>
-          <v-card>
+          <v-card rounded="xl">
             <DialogHeader
               @close="dialogDataTransfer = false"
               :header="t('scene_scraper.data_transfer', { name: selectedScene?.title || t('scene_scraper.untitled') })"

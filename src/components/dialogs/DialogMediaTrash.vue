@@ -7,7 +7,7 @@
     :fullscreen="xs"
     scrollable
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         :header="t('media_trash.title')"
         :subheader="t('media_trash.subtitle', {days: retentionDays})"

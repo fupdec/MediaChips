@@ -6,7 +6,7 @@
     scrollable
     width="600"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="close"
         :header="t('playlists.new_playlist')"
@@ -24,7 +24,9 @@
             v-model="name"
             :rules="[nameRules]"
             :placeholder="t('playlists.playlist_name')"
-            variant="filled"
+            variant="outlined"
+            density="comfortable"
+            rounded="lg"
             autofocus
           ></v-text-field>
         </v-card-text>
