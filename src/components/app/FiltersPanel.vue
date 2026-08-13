@@ -62,14 +62,14 @@
           <v-btn
             value="and"
             size="x-small"
-            :title="t('filters.join_and_hint')"
+            v-tooltip:top="t('filters.join_and_hint')"
           >
             {{ t('filters.join_and') }}
           </v-btn>
           <v-btn
             value="or"
             size="x-small"
-            :title="t('filters.join_or_hint')"
+            v-tooltip:top="t('filters.join_or_hint')"
           >
             {{ t('filters.join_or') }}
           </v-btn>

@@ -78,7 +78,7 @@
           </div>
 
           <div
-            v-if="arrayAssignedItems.length"
+            v-if="arrayAssignedItems.length && !isInspectorLayout"
             class="editing-section__group editing-section__group--tags"
           >
             <v-btn-toggle
@@ -479,7 +479,7 @@
                     hover
                   />
                   <div
-                    v-if="metaHint(item)"
+                    v-if="!isInspectorLayout && metaHint(item)"
                     class="editing-rating-field__hint"
                   >
                     {{ metaHint(item) }}
@@ -701,7 +701,7 @@ const emit = defineEmits<{
 const isInspectorLayout = computed(() => props.layout === 'inspector')
 const fieldMd = computed(() => (isInspectorLayout.value ? 12 : 6))
 const fieldXl = computed(() => (isInspectorLayout.value ? 12 : 4))
-const ratingSize = computed(() => (isInspectorLayout.value ? 14 : 28))
+const ratingSize = 28
 const fieldVariant = computed(() => (isInspectorLayout.value ? 'outlined' : 'filled'))
 const fieldHideDetails = computed(() => (isInspectorLayout.value ? true : 'auto'))
 
@@ -1806,10 +1806,17 @@ defineExpose({
 
     .editing-section__group--search {
       flex: 1 1 auto;
-      min-width: 72px;
+      min-width: 0;
+      width: 100%;
     }
 
-    .editing-section__group--tags,
+    .editing-section__search {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: none;
+    }
+
     .editing-section__group--filters {
       flex: 0 0 auto;
     }
@@ -1869,8 +1876,8 @@ defineExpose({
     }
 
     .editing-field-card--rating {
-      min-height: 22px;
-      padding: 0 !important;
+      min-height: 36px;
+      padding: 2px 0 !important;
     }
 
     .editing-field-card:has(.editing-field-restore--float) {
@@ -1878,49 +1885,49 @@ defineExpose({
     }
 
     .editing-rating-field {
-      gap: 4px;
+      gap: 8px;
     }
 
     .editing-rating-field--identity {
       flex-wrap: nowrap;
       row-gap: 0;
-      min-height: 22px;
-      gap: 4px;
+      min-height: 36px;
+      gap: 8px;
     }
 
     .editing-rating-field__name {
-      font-size: 0.62rem;
-      line-height: 1.1;
+      font-size: 0.72rem;
+      line-height: 1.2;
     }
 
     .editing-rating-field .v-rating,
     .editing-rating-field--identity .v-rating {
-      height: 18px;
+      height: 32px;
     }
 
     .editing-rating-field .v-rating .v-btn,
     .editing-rating-field--identity .v-rating .v-btn {
-      width: 16px;
-      height: 16px;
-      min-width: 16px;
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
     }
 
     .editing-rating-field .v-rating .v-icon,
     .editing-rating-field--identity .v-rating .v-icon {
-      font-size: 14px;
-      width: 14px;
-      height: 14px;
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
     }
 
     .fav-btn {
       :deep(.v-selection-control),
       :deep(.v-checkbox-btn) {
-        min-height: 18px !important;
-        height: 18px !important;
+        min-height: 32px !important;
+        height: 32px !important;
       }
 
       :deep(.v-icon) {
-        font-size: 16px !important;
+        font-size: 28px !important;
       }
     }
 

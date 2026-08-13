@@ -13,7 +13,7 @@
     />
     <div
       class="items-control-deck items-control-deck--browser markers-control-deck"
-      :class="{'items-control-deck--stuck': controlDeckStuck}"
+      :class="controlDeckClass"
     >
       <div class="items-control-deck__surface items-control-deck__surface--card">
         <div
@@ -453,8 +453,9 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {MARK_SORT_PARAMS} from '@/utils/markSort'
-import {scrollMainTo, getMainScrollEl} from '@/utils/mainScroll'
+import {scrollMainTo} from '@/utils/mainScroll'
 import useMarkImageGenerator from '@/composable/GeneratingThumbsForMarks'
+import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import ItemMarker from '@/components/items/ItemMarker.vue'
 import Loading from '@/components/elements/Loading.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
@@ -496,32 +497,10 @@ watch(
 
 const searchInput = ref(marksStore.search || '')
 const showInfiniteLoader = ref(false)
-const controlDeckSentinel = ref<HTMLElement | null>(null)
-const controlDeckStuck = ref(false)
-let deckStuckObserver: IntersectionObserver | null = null
-
-function teardownDeckStuckObserver() {
-  deckStuckObserver?.disconnect()
-  deckStuckObserver = null
-}
-
-function setupDeckStuckObserver() {
-  teardownDeckStuckObserver()
-  const sentinel = controlDeckSentinel.value
-  if (!sentinel) return
-  const root = getMainScrollEl()
-  deckStuckObserver = new IntersectionObserver(
-    ([entry]) => {
-      controlDeckStuck.value = Boolean(entry && !entry.isIntersecting)
-    },
-    {
-      root: root instanceof Element ? root : null,
-      threshold: 0,
-      rootMargin: '-8px 0px 0px 0px',
-    },
-  )
-  deckStuckObserver.observe(sentinel)
-}
+const {
+  controlDeckSentinel,
+  controlDeckClass,
+} = useStickyControlDeck()
 /** Selection order (first selected = first in reel). */
 const selectedOrder = ref<number[]>([])
 const selectedMarkCache = ref(new Map<number, MarkItem>())
@@ -910,7 +889,6 @@ onMounted(async () => {
   window.addEventListener('keydown', onSelectionKeydown)
   eventBus.on('markers:reload', onMarkersReload)
   await nextTick()
-  setupDeckStuckObserver()
   await marksStore.loadFilterMetas()
   await marksStore.fetchMarks()
   syncMarkersItemsStore()
@@ -923,7 +901,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onSelectionKeydown)
   eventBus.off('markers:reload', onMarkersReload)
-  teardownDeckStuckObserver()
   if (itemsStore.type === 'mark') {
     itemsStore.clearSelection()
     itemsStore.type = ''

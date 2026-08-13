@@ -135,6 +135,11 @@ export type SettingsState = {
    * '0' — inspector shows read-only details (classic view).
    */
   inspectorInlineEdit: string
+  /**
+   * '1' — items control deck stays sticky above the grid while scrolling.
+   * '0' — deck scrolls away with the page.
+   */
+  stickyControlDeck: string
   /** '1' when the browser-layout sidebar is collapsed. */
   sidebarCollapsed: string
   showPlaylistsInNavigation: string
@@ -279,6 +284,7 @@ export const defaultSettingsState = (): SettingsState => ({
   browserLayout: '1',
   inspectorCollapsed: '0',
   inspectorInlineEdit: '1',
+  stickyControlDeck: '1',
   sidebarCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',

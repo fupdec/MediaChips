@@ -75,7 +75,7 @@ function createMediaPostProcessor({
 
     try {
       const folderCover = findFolderThumbPath(videoPath)
-      if (folderCover && media.id != null) {
+      if (folderCover && media.id != null && dbPath) {
         const outputPath = path.join(dbPath, 'media/videos/thumbs', `${media.id}.jpg`)
         const wrote = await writeFolderThumbTo(folderCover, outputPath)
         if (wrote) return
@@ -153,7 +153,7 @@ function createMediaPostProcessor({
 
     try {
       const folderCover = findFolderThumbPath(audioPath)
-      if (folderCover && media.id != null) {
+      if (folderCover && media.id != null && dbPath) {
         const outputPath = path.join(dbPath, 'media/audios/thumbs', `${media.id}.jpg`)
         const wrote = await writeFolderThumbTo(folderCover, outputPath)
         if (wrote) return

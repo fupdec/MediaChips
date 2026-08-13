@@ -12,7 +12,7 @@
     <div
       id="items-control-deck"
       class="items-control-deck items-control-deck--browser"
-      :class="{'items-control-deck--stuck': controlDeckStuck}"
+      :class="controlDeckClass"
     >
       <div class="items-control-deck__surface items-control-deck__surface--card">
         <div
@@ -66,6 +66,19 @@
               icon
             >
               <v-icon size="18">mdi-tune</v-icon>
+            </v-btn>
+
+            <v-btn
+              @click="toggleStickyControlDeck"
+              v-tooltip:top="stickyControlDeck
+                ? t('settings_labels.appearance.sticky_control_deck_unpin')
+                : t('settings_labels.appearance.sticky_control_deck_pin')"
+              color="primary"
+              :variant="stickyControlDeck ? 'flat' : 'tonal'"
+              size="small"
+              icon
+            >
+              <v-icon size="18">{{ stickyControlDeck ? 'mdi-pin' : 'mdi-pin-off' }}</v-icon>
             </v-btn>
 
             <v-btn
@@ -356,7 +369,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
+import {ref, computed, watch, onBeforeUnmount, nextTick} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
@@ -371,7 +384,6 @@ import useVideoImageGenerator from '@/composable/GeneratingThumbsForVideos'
 import type {ItemsPageProps, ItemsPageType} from '@/types/itemsPage'
 import type {MediaType} from '@/types/media'
 import type {Meta} from '@/types/stores'
-import {getMainScrollEl} from '@/utils/mainScroll'
 
 // Компоненты
 import Item from '@/components/items/Item.vue'
@@ -397,6 +409,7 @@ import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -437,32 +450,12 @@ const meta = ref<Meta | null>(null)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
 const dialogEditingPinnedMeta = ref(false)
-const controlDeckSentinel = ref<HTMLElement | null>(null)
-const controlDeckStuck = ref(false)
-let deckStuckObserver: IntersectionObserver | null = null
-
-function teardownDeckStuckObserver() {
-  deckStuckObserver?.disconnect()
-  deckStuckObserver = null
-}
-
-function setupDeckStuckObserver() {
-  teardownDeckStuckObserver()
-  const sentinel = controlDeckSentinel.value
-  if (!sentinel) return
-  const root = getMainScrollEl()
-  deckStuckObserver = new IntersectionObserver(
-    ([entry]) => {
-      controlDeckStuck.value = Boolean(entry && !entry.isIntersecting)
-    },
-    {
-      root: root instanceof Element ? root : null,
-      threshold: 0,
-      rootMargin: '-8px 0px 0px 0px',
-    },
-  )
-  deckStuckObserver.observe(sentinel)
-}
+const {
+  controlDeckSentinel,
+  controlDeckClass,
+  stickyControlDeck,
+  toggleStickyControlDeck,
+} = useStickyControlDeck()
 
 const {
   isFiltersReady,
@@ -749,12 +742,7 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
   }, 0)
 }
 
-onMounted(() => {
-  void nextTick(() => setupDeckStuckObserver())
-})
-
 onBeforeUnmount(() => {
-  teardownDeckStuckObserver()
   clearVisibleItemIds()
   resetVisibilityObserver()
   void flushPageSettings()
@@ -1057,6 +1045,13 @@ defineEmits<{
     background: rgb(var(--v-theme-background));
     border-radius: var(--deck-radius, 16px);
     isolation: isolate;
+
+    &.items-control-deck--static {
+      position: static;
+      top: auto;
+      z-index: auto;
+      isolation: auto;
+    }
 
     @media (max-width: 959px) {
       --deck-pad-x: 12px;

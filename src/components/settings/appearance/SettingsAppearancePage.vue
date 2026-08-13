@@ -41,6 +41,12 @@ const onSlideshowIntervalChange = (val: number | number[]) => {
   ></settings-switch>
 
   <settings-switch
+    :title="t('settings_labels.appearance.sticky_control_deck')"
+    :hint="t('settings_labels.appearance.sticky_control_deck_hint')"
+    option="stickyControlDeck"
+  ></settings-switch>
+
+  <settings-switch
     :title="t('settings_labels.appearance.quick_action_button')"
     :hint="t('settings_labels.appearance.quick_action_button_hint')"
     option="show_quick_action_button"

@@ -10,7 +10,7 @@
     />
     <div
       class="items-control-deck items-control-deck--browser playlists-control-deck"
-      :class="{'items-control-deck--stuck': controlDeckStuck}"
+      :class="controlDeckClass"
     >
       <div class="items-control-deck__surface items-control-deck__surface--card">
         <div
@@ -289,11 +289,11 @@
 import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
-import {getMainScrollEl} from '@/utils/mainScroll'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
+import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import {typedApi} from '@/services/typedApi'
 import DialogPlaylistAdd from "@/components/dialogs/DialogPlaylistAdd.vue"
 import DialogPlaylistEdit from "@/components/dialogs/DialogPlaylistEdit.vue"
@@ -351,32 +351,10 @@ const {width, smAndDown} = useDisplay()
 const appShell = useAppShell()
 const {openMediaList} = useOpenMediaList()
 
-const controlDeckSentinel = ref<HTMLElement | null>(null)
-const controlDeckStuck = ref(false)
-let deckStuckObserver: IntersectionObserver | null = null
-
-function teardownDeckStuckObserver() {
-  deckStuckObserver?.disconnect()
-  deckStuckObserver = null
-}
-
-function setupDeckStuckObserver() {
-  teardownDeckStuckObserver()
-  const sentinel = controlDeckSentinel.value
-  if (!sentinel) return
-  const root = getMainScrollEl()
-  deckStuckObserver = new IntersectionObserver(
-    ([entry]) => {
-      controlDeckStuck.value = Boolean(entry && !entry.isIntersecting)
-    },
-    {
-      root: root instanceof Element ? root : null,
-      threshold: 0,
-      rootMargin: '-8px 0px 0px 0px',
-    },
-  )
-  deckStuckObserver.observe(sentinel)
-}
+const {
+  controlDeckSentinel,
+  controlDeckClass,
+} = useStickyControlDeck()
 
 const mixPhrase = ref('')
 const mixBusy = ref(false)
@@ -1046,14 +1024,12 @@ onMounted(async () => {
   syncPlaylistsItemsStore()
   eventBus.on('playlists:reload', onPlaylistsReload)
   await nextTick()
-  setupDeckStuckObserver()
   await loadAllPlaylists()
   syncPlaylistsItemsStore()
 })
 
 onBeforeUnmount(() => {
   eventBus.off('playlists:reload', onPlaylistsReload)
-  teardownDeckStuckObserver()
   if (itemsStore.type === 'playlist') {
     itemsStore.clearSelection()
     itemsStore.type = ''

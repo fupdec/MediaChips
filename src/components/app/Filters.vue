@@ -53,6 +53,33 @@
                   {{ t('filters.full') }}
                 </v-btn>
               </v-btn-toggle>
+
+              <v-btn-toggle
+                v-if="isPanelView && filters.length >= 2"
+                :model-value="filtersJoin"
+                class="filters-top__join"
+                color="primary"
+                density="compact"
+                variant="outlined"
+                divided
+                mandatory
+                @update:model-value="onFiltersJoinChange"
+              >
+                <v-btn
+                  value="and"
+                  size="small"
+                  v-tooltip:top="t('filters.join_and_hint')"
+                >
+                  {{ t('filters.join_and') }}
+                </v-btn>
+                <v-btn
+                  value="or"
+                  size="small"
+                  v-tooltip:top="t('filters.join_or_hint')"
+                >
+                  {{ t('filters.join_or') }}
+                </v-btn>
+              </v-btn-toggle>
             </div>
 
             <div class="filters-top__chrome-end">
@@ -399,6 +426,15 @@ const setFiltersViewMode = (mode: unknown) => {
   }
   filtersStore.visible = true
   editMode.value = mode === 'full'
+}
+
+const filtersJoin = computed(() => itemsStore.filtersJoin === 'or' ? 'or' : 'and')
+
+const onFiltersJoinChange = (value: unknown) => {
+  const next = value === 'or' ? 'or' : 'and'
+  if (itemsStore.filtersJoin === next) return
+  itemsStore.filtersJoin = next
+  apply()
 }
 
 const panelBindings = computed(() => ({
@@ -1019,6 +1055,24 @@ watch(filtersVisible, (visible) => {
     font-size: 0.75rem;
     text-transform: none;
     letter-spacing: normal;
+  }
+}
+
+.filters-top__join {
+  align-self: center;
+  height: 28px !important;
+  min-height: 28px !important;
+  flex-shrink: 0;
+
+  .v-btn {
+    height: 28px !important;
+    min-height: 28px !important;
+    min-width: 0;
+    padding-inline: 10px;
+    font-size: 0.75rem;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 600;
   }
 }
 

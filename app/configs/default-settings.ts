@@ -171,6 +171,10 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "stickyControlDeck",
+    "value": 1
+  },
+  {
     "option": "showAdultContent",
     "value": 0
   },
