@@ -2,50 +2,14 @@
  * @vitest-environment node
  */
 import fs from 'fs'
-import os from 'os'
-import path from 'path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import Database from 'better-sqlite3'
+import {createTestDb} from '../db/testUtils/createTestDb'
 import {chooseFavoriteSamplePivot, getFavoriteMedia, getInboxMedia} from './homeMedia'
 import type {ApiDb} from '../types/db'
 
 function createFavoriteDb() {
-  const dbPath = path.join(
-    os.tmpdir(),
-    `mediachips-home-fav-${Date.now()}-${Math.random()}.sqlite`,
-  )
-  const sqlite = new Database(dbPath)
-  sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY,
-      path TEXT NOT NULL,
-      name TEXT,
-      basename TEXT,
-      ext TEXT,
-      mediaTypeId INTEGER,
-      filesize INTEGER,
-      rating INTEGER,
-      favorite INTEGER,
-      views INTEGER,
-      viewedAt TEXT,
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE videoMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      duration REAL,
-      time REAL,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE imageMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE INDEX media_favorite_id_idx ON media (favorite, id);
-  `)
+  const {sqlite, dbPath} = createTestDb('home-favorite')
 
   const now = '2024-01-01T00:00:00.000Z'
   const insert = sqlite.prepare(`
@@ -122,47 +86,7 @@ describe('getFavoriteMedia', () => {
 })
 
 function createInboxDb() {
-  const dbPath = path.join(
-    os.tmpdir(),
-    `mediachips-home-inbox-${Date.now()}-${Math.random()}.sqlite`,
-  )
-  const sqlite = new Database(dbPath)
-  sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY,
-      path TEXT NOT NULL,
-      name TEXT,
-      basename TEXT,
-      ext TEXT,
-      mediaTypeId INTEGER,
-      filesize INTEGER,
-      rating INTEGER,
-      favorite INTEGER,
-      views INTEGER,
-      viewedAt TEXT,
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE videoMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      duration REAL,
-      time REAL,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE imageMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (mediaId, tagId, metaId)
-    );
-  `)
+  const {sqlite, dbPath} = createTestDb('home-inbox')
 
   const insert = sqlite.prepare(`
     INSERT INTO media (id, path, name, basename, ext, rating, favorite, views, createdAt, updatedAt)

@@ -1,10 +1,8 @@
 /**
  * @vitest-environment node
  */
-import {describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
+import {afterEach, describe, expect, it} from 'vitest'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import type {ApiDb} from '../types/db'
 import {
   buildTagSpotlightGaps,
@@ -14,99 +12,12 @@ import {
 } from './homeTagSpotlight'
 import {parseHomeTagSpotlight} from '@shared/schemas'
 
+let lastDb: {sqlite: ApiDb['sqlite']; dbPath: string} | undefined
+
 function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE meta (
-      id INTEGER PRIMARY KEY,
-      type TEXT,
-      name TEXT,
-      icon TEXT,
-      synonyms INTEGER DEFAULT 0,
-      bookmark INTEGER DEFAULT 0,
-      country INTEGER DEFAULT 0,
-      rating INTEGER DEFAULT 0,
-      favorite INTEGER DEFAULT 1,
-      color INTEGER DEFAULT 0,
-      hidden INTEGER DEFAULT 0,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating INTEGER DEFAULT 0,
-      favorite INTEGER DEFAULT 0,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY,
-      path TEXT NOT NULL UNIQUE,
-      name TEXT,
-      basename TEXT,
-      ext TEXT,
-      mediaTypeId INTEGER,
-      favorite INTEGER DEFAULT 0,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      filesize INTEGER DEFAULT 0,
-      rating REAL,
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE videoMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      duration REAL,
-      time REAL,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE imageMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (mediaId, tagId, metaId)
-    );
-    CREATE TABLE valuesInTags (
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      value TEXT,
-      PRIMARY KEY (tagId, metaId)
-    );
-    CREATE TABLE tagsInTags (
-      parentTagId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (parentTagId, tagId, metaId)
-    );
-    CREATE TABLE pinnedMetas (
-      metaId INTEGER NOT NULL,
-      pinnedMetaId INTEGER NOT NULL,
-      show INTEGER DEFAULT 1,
-      "order" INTEGER,
-      PRIMARY KEY (metaId, pinnedMetaId)
-    );
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
-  } as ApiDb
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('home-tag-spotlight')
+  lastDb = {sqlite, dbPath}
+  return {sqlite, drizzle, path: dbPath} as ApiDb
 }
 
 function seedMeta(db: ApiDb, id = 1) {
@@ -149,6 +60,13 @@ function seedTag(
 }
 
 describe('homeTagSpotlight', () => {
+  afterEach(() => {
+    if (lastDb) {
+      closeTestDb(lastDb)
+      lastDb = undefined
+    }
+  })
+
   it('scores incomplete unused tags higher', () => {
     expect(scoreTagSpotlightCandidate({
       mediaCount: 0,

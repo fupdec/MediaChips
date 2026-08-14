@@ -1,7 +1,5 @@
-import Database from 'better-sqlite3'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import * as schema from '../db/schema'
+import {createTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import type {ApiDb} from '../types/db'
 import {
   hardDeletePlaylistCascade,
@@ -14,101 +12,20 @@ import {
 } from './entityTrash'
 import {nowIso} from '../db/utils/timestamps'
 
-function makeDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  sqlite.exec(`
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating INTEGER DEFAULT 0 NOT NULL,
-      favorite INTEGER DEFAULT 0 NOT NULL,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      oldId TEXT,
-      deletedAt TEXT,
-      trashOriginalName TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE UNIQUE INDEX tags_name_normalized_unique ON tags (lower(trim(name)));
-    CREATE TABLE marks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
-      text TEXT,
-      time INTEGER,
-      end INTEGER,
-      tagId INTEGER,
-      mediaId INTEGER,
-      icon TEXT,
-      deletedAt TEXT
-    );
-    CREATE TABLE playlists (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      favorite INTEGER DEFAULT 0,
-      oldId TEXT,
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE mediaInPlaylists (
-      mediaId INTEGER NOT NULL,
-      playlistId INTEGER NOT NULL,
-      "order" INTEGER
-    );
-    CREATE TABLE savedFilters (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      metaId INTEGER,
-      mediaTypeId INTEGER,
-      tagId INTEGER,
-      tabId INTEGER,
-      sortBy TEXT,
-      sortDir TEXT,
-      size INTEGER,
-      view INTEGER,
-      groupBy TEXT,
-      filtersJoin TEXT DEFAULT 'and',
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE filterRows (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
-      "order" INTEGER DEFAULT 0
-    );
-    CREATE TABLE filterRowsInSavedFilters (
-      filterId INTEGER NOT NULL,
-      rowId INTEGER NOT NULL
-    );
-    CREATE TABLE tagsInFilterRows (
-      tagId INTEGER NOT NULL,
-      rowId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL
-    );
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-    path: '/tmp',
-  } as ApiDb
+function makeDb(): ApiDb & {dbPath: string} {
+  const {sqlite, drizzle, dbPath} = createTestDb('entity-trash')
+  return {sqlite, drizzle, path: '/tmp', dbPath} as ApiDb & {dbPath: string}
 }
 
 describe('entityTrash soft-delete', () => {
-  let db: ApiDb
+  let db: ApiDb & {dbPath: string}
 
   beforeEach(() => {
     db = makeDb()
   })
 
   afterEach(() => {
-    db.sqlite.close()
+    closeTestDb({sqlite: db.sqlite, dbPath: db.dbPath})
   })
 
   it('soft-deletes tags with name rewrite and restores them', () => {
@@ -164,8 +81,9 @@ describe('entityTrash soft-delete', () => {
     const filter = db.sqlite.prepare(`
       INSERT INTO savedFilters (name, createdAt, updatedAt) VALUES ('F', ?, ?) RETURNING id
     `).get(ts, ts) as {id: number}
-    const row = db.sqlite.prepare(`INSERT INTO filterRows (type, "order") VALUES ('rating', 0) RETURNING id`)
-      .get() as {id: number}
+    const row = db.sqlite.prepare(`
+      INSERT INTO filterRows (type, "order", createdAt, updatedAt) VALUES ('rating', 0, ?, ?) RETURNING id
+    `).get(ts, ts) as {id: number}
     db.sqlite.prepare(`INSERT INTO filterRowsInSavedFilters (filterId, rowId) VALUES (?, ?)`).run(filter.id, row.id)
     db.sqlite.prepare(`INSERT INTO tagsInFilterRows (tagId, rowId, metaId) VALUES (1, ?, 1)`).run(row.id)
 

@@ -1,40 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { applySqlitePragmas } from '../pragmas'
+import { createTestDb, closeTestDb } from '../testUtils/createTestDb'
 import { createSettingsRepository } from './settings'
-import * as schema from '../schema'
-
-function createTestDb() {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      option TEXT UNIQUE,
-      value TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    )
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-  }
-}
 
 describe('settings repository', () => {
   let sqlite: Database.Database
   let db: ReturnType<typeof createTestDb>['drizzle']
+  let dbPath: string
 
   beforeEach(() => {
-    const testDb = createTestDb()
+    const testDb = createTestDb('settings')
     sqlite = testDb.sqlite
     db = testDb.drizzle
+    dbPath = testDb.dbPath
   })
 
   afterEach(() => {
-    sqlite.close()
+    closeTestDb({sqlite, dbPath})
   })
 
   it('upserts and reads settings by option', () => {

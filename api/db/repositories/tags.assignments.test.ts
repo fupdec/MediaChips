@@ -3,40 +3,19 @@
  */
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../pragmas'
-import * as schema from '../schema'
+import {createTestDb, closeTestDb} from '../testUtils/createTestDb'
 import {createTagsRepository} from './tags'
 
 describe('tags repository countAssignments', () => {
   let sqlite: Database.Database
+  let dbPath: string
   let repo: ReturnType<typeof createTagsRepository>
 
   beforeEach(() => {
-    sqlite = new Database(':memory:')
-    applySqlitePragmas(sqlite)
-    sqlite.exec(`
-      CREATE TABLE tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-      );
-      CREATE TABLE tagsInMedia (
-        mediaId INTEGER NOT NULL,
-        tagId INTEGER NOT NULL,
-        metaId INTEGER NOT NULL,
-        PRIMARY KEY (mediaId, tagId, metaId)
-      );
-      CREATE TABLE tagsInTags (
-        parentTagId INTEGER NOT NULL,
-        tagId INTEGER NOT NULL,
-        metaId INTEGER NOT NULL,
-        PRIMARY KEY (parentTagId, tagId, metaId)
-      );
-    `)
-    const db = drizzle(sqlite, {schema})
-    repo = createTagsRepository(db, sqlite)
+    const testDb = createTestDb('tags-assignments')
+    sqlite = testDb.sqlite
+    dbPath = testDb.dbPath
+    repo = createTagsRepository(testDb.drizzle, sqlite)
 
     sqlite.exec(`
       INSERT INTO tags (id, name, createdAt, updatedAt) VALUES
@@ -53,7 +32,7 @@ describe('tags repository countAssignments', () => {
   })
 
   afterEach(() => {
-    sqlite.close()
+    closeTestDb({sqlite, dbPath})
   })
 
   it('counts media and nested-on-tag assignments separately', () => {

@@ -1,9 +1,9 @@
 /**
  * @vitest-environment node
  */
-import Database from 'better-sqlite3'
 import {describe, expect, it} from 'vitest'
 import type {ApiDb} from '../types/db'
+import {createTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {
   clampAssistantToolLimit,
   filterMediaRowsByQuery,
@@ -14,29 +14,19 @@ import {
   searchTagRowsByQuery,
 } from './assistantToolQueries'
 
-function createAssistantQueryDb(): ApiDb {
-  const sqlite = new Database(':memory:')
+function createAssistantQueryDb(): ApiDb & {dbPath: string} {
+  const {sqlite, dbPath} = createTestDb('assistant-tool-queries')
   sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL,
-      name TEXT
-    );
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      metaId INTEGER
-    );
-    INSERT INTO media (path, name) VALUES
-      ('/films/Ada.mp4', 'Ada'),
-      ('/films/Bob.mp4', 'Bob'),
-      ('/other/clip.mp4', 'Quiet');
-    INSERT INTO tags (name, metaId) VALUES
-      ('Ada', 1),
-      ('Bob', 1),
-      ('Carol%', 2);
+    INSERT INTO media (path, name, createdAt, updatedAt) VALUES
+      ('/films/Ada.mp4', 'Ada', '2024-01-01', '2024-01-01'),
+      ('/films/Bob.mp4', 'Bob', '2024-01-01', '2024-01-01'),
+      ('/other/clip.mp4', 'Quiet', '2024-01-01', '2024-01-01');
+    INSERT INTO tags (name, metaId, createdAt, updatedAt) VALUES
+      ('Ada', 1, '2024-01-01', '2024-01-01'),
+      ('Bob', 1, '2024-01-01', '2024-01-01'),
+      ('Carol%', 2, '2024-01-01', '2024-01-01');
   `)
-  return {sqlite} as ApiDb
+  return {sqlite, dbPath} as ApiDb & {dbPath: string}
 }
 
 describe('assistantToolQueries', () => {
@@ -94,5 +84,6 @@ describe('assistantToolQueries', () => {
     expect(searchTagRowsByQuery(db, 'Carol%', 10)).toEqual([
       {id: 3, name: 'Carol%', metaId: 2},
     ])
+    closeTestDb({sqlite: db.sqlite, dbPath: db.dbPath})
   })
 })

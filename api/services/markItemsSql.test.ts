@@ -2,11 +2,8 @@
  * @vitest-environment node
  */
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
 import type {ApiDb} from '../types/db'
-import {applySqlitePragmas} from '../db/pragmas'
-import * as schema from '../db/schema'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {loadMarkItems} from './markItemsLoader'
 import {
   buildMarkOrderSql,
@@ -16,114 +13,16 @@ import {
   queryMarkPageIds,
 } from './markItemsSql'
 
-function createMarksTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
+function createMarksTestDb(): ApiDb & {dbPath: string} {
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('mark-items-sql')
   sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      basename TEXT,
-      name TEXT,
-      ext TEXT,
-      filesize INTEGER DEFAULT 0,
-      contentHash TEXT,
-      oshash TEXT,
-      visualHash TEXT,
-      visualHashTiles TEXT,
-      rating INTEGER DEFAULT 0,
-      favorite INTEGER DEFAULT 0,
-      bookmark TEXT,
-      views INTEGER DEFAULT 0,
-      oldId TEXT,
-      viewedAt TEXT,
-      mediaTypeId INTEGER,
-      deletedAt TEXT,
-      trashOriginalPath TEXT,
-      trashPurgeFile INTEGER DEFAULT 0,
-      createdAt TEXT NOT NULL DEFAULT '2024-01-01',
-      updatedAt TEXT NOT NULL DEFAULT '2024-01-01'
-    );
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      oldId TEXT,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating INTEGER DEFAULT 0 NOT NULL,
-      favorite INTEGER DEFAULT 0 NOT NULL,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      deletedAt TEXT,
-      trashOriginalName TEXT,
-      createdAt TEXT NOT NULL DEFAULT '2024-01-01',
-      updatedAt TEXT NOT NULL DEFAULT '2024-01-01'
-    );
-    CREATE TABLE meta (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
-      name TEXT,
-      icon TEXT,
-      hint TEXT,
-      "order" INTEGER,
-      views INTEGER DEFAULT 0,
-      oldId TEXT,
-      synonyms INTEGER DEFAULT 0,
-      hidden INTEGER DEFAULT 0,
-      nested INTEGER DEFAULT 0,
-      marks INTEGER DEFAULT 0,
-      bookmark INTEGER DEFAULT 0,
-      parser INTEGER DEFAULT 0,
-      pathRegex TEXT,
-      pathRegexReplace TEXT,
-      pathRegexCreateTags INTEGER DEFAULT 1,
-      pathRegexEnabled INTEGER DEFAULT 0,
-      country INTEGER DEFAULT 0,
-      career INTEGER DEFAULT 0,
-      scraper INTEGER DEFAULT 0,
-      rating INTEGER DEFAULT 0,
-      favorite INTEGER DEFAULT 1,
-      chipVariant TEXT,
-      chipLabel INTEGER DEFAULT 0,
-      color INTEGER DEFAULT 0,
-      autoColorFromImage INTEGER DEFAULT 0,
-      imageAspectRatio REAL DEFAULT 1,
-      tagPageDesign TEXT,
-      measurementUnit TEXT,
-      isLink INTEGER DEFAULT 0,
-      ratingIcon TEXT,
-      ratingIconEmpty TEXT,
-      ratingIconHalf TEXT,
-      ratingMax INTEGER DEFAULT 5,
-      ratingColor TEXT,
-      ratingHalf INTEGER DEFAULT 0,
-      sortBy TEXT,
-      sortDir TEXT,
-      createdAt TEXT NOT NULL DEFAULT '2024-01-01',
-      updatedAt TEXT NOT NULL DEFAULT '2024-01-01'
-    );
-    CREATE TABLE marks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
-      text TEXT,
-      time INTEGER,
-      end INTEGER,
-      tagId INTEGER,
-      mediaId INTEGER,
-      icon TEXT,
-      deletedAt TEXT
-    );
-
-    INSERT INTO media (id, path, name, basename) VALUES
-      (1, '/a.mp4', 'Alpha Video', 'a.mp4'),
-      (2, '/b.mp4', 'Beta Clip', 'b.mp4');
-    INSERT INTO meta (id, name) VALUES (10, 'People');
-    INSERT INTO tags (id, name, metaId) VALUES
-      (100, 'Ada', 10),
-      (101, 'Bob', 10);
+    INSERT INTO media (id, path, name, basename, createdAt, updatedAt) VALUES
+      (1, '/a.mp4', 'Alpha Video', 'a.mp4', '2024-01-01', '2024-01-01'),
+      (2, '/b.mp4', 'Beta Clip', 'b.mp4', '2024-01-01', '2024-01-01');
+    INSERT INTO meta (id, name, createdAt, updatedAt) VALUES (10, 'People', '2024-01-01', '2024-01-01');
+    INSERT INTO tags (id, name, metaId, createdAt, updatedAt) VALUES
+      (100, 'Ada', 10, '2024-01-01', '2024-01-01'),
+      (101, 'Bob', 10, '2024-01-01', '2024-01-01');
     INSERT INTO marks (id, type, text, time, tagId, mediaId) VALUES
       (1, 'favorite', 'fav note', 30, NULL, 1),
       (2, 'bookmark', 'book note', 10, NULL, 2),
@@ -131,10 +30,7 @@ function createMarksTestDb(): ApiDb {
       (4, 'meta', 'other', 40, 101, 2);
   `)
 
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-  } as ApiDb
+  return {sqlite, drizzle, dbPath} as ApiDb & {dbPath: string}
 }
 
 describe('markItemsSql', () => {
@@ -175,20 +71,20 @@ describe('markItemsSql', () => {
         offset: 2,
       })).toEqual([1, 4])
     } finally {
-      db.sqlite.close()
+      closeTestDb({sqlite: db.sqlite, dbPath: db.dbPath})
     }
   })
 })
 
 describe('loadMarkItems', () => {
-  let db: ApiDb
+  let db: ApiDb & {dbPath: string}
 
   beforeEach(() => {
     db = createMarksTestDb()
   })
 
   afterEach(() => {
-    db.sqlite.close()
+    closeTestDb({sqlite: db.sqlite, dbPath: db.dbPath})
   })
 
   it('returns a hydrated page without loading every mark', async () => {
