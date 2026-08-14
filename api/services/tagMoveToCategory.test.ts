@@ -80,6 +80,8 @@ function createTestDb() {
       views INTEGER DEFAULT 0,
       viewedAt TEXT,
       metaId INTEGER,
+      deletedAt TEXT,
+      trashOriginalName TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -118,6 +120,10 @@ function createTestDb() {
       views INTEGER DEFAULT 0,
       oldId TEXT UNIQUE,
       viewedAt TEXT,
+      mediaCreatedAt TEXT,
+      deletedAt TEXT,
+      trashOriginalPath TEXT,
+      trashPurgeFile INTEGER DEFAULT 0,
       mediaTypeId INTEGER,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL

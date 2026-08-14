@@ -119,6 +119,8 @@ function createTestDb(dbPath: string): ApiDb {
       views INTEGER DEFAULT 0,
       viewedAt TEXT,
       metaId INTEGER,
+      deletedAt TEXT,
+      trashOriginalName TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -129,6 +131,13 @@ function createTestDb(dbPath: string): ApiDb {
       mediaTypeId INTEGER,
       tagId INTEGER,
       tabId INTEGER,
+      sortBy TEXT,
+      sortDir TEXT,
+      size INTEGER,
+      view INTEGER,
+      groupBy TEXT,
+      filtersJoin TEXT DEFAULT 'and',
+      deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );

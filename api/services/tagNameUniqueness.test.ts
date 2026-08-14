@@ -18,7 +18,8 @@ describe('tagNameUniqueness', () => {
     sqlite.exec(`
       CREATE TABLE tags (
         id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL
+        name TEXT NOT NULL,
+        deletedAt TEXT
       );
       INSERT INTO tags (id, name) VALUES (1, 'Alice'), (2, 'Bob');
     `)

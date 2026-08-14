@@ -18,6 +18,7 @@ function createPlaylistSummaryDb(): ApiDb {
       name TEXT,
       favorite INTEGER DEFAULT 0,
       oldId TEXT,
+      deletedAt TEXT,
       createdAt TEXT NOT NULL DEFAULT '2024-01-01',
       updatedAt TEXT NOT NULL DEFAULT '2024-01-01'
     );

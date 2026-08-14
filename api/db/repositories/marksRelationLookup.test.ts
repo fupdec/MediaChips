@@ -9,6 +9,7 @@ import Database from 'better-sqlite3'
 import {drizzle} from 'drizzle-orm/better-sqlite3'
 import {applySqlitePragmas} from '../pragmas'
 import {runDrizzleMigrations} from '../drizzleMigrations'
+import {repairSchemaColumns} from '../schemaRepair'
 import {createMarksRepository} from './marks'
 import * as schema from '../schema'
 
@@ -21,6 +22,7 @@ function createTestDb() {
 
   const sqlite = new Database(dbPath)
   applySqlitePragmas(sqlite)
+  repairSchemaColumns(sqlite)
 
   return {
     sqlite,

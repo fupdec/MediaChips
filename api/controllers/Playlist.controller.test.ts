@@ -7,12 +7,16 @@ const {
   updateById,
   deleteById,
   getManualPlaylistsSummary,
+  hardDeletePlaylistCascade,
+  softDeletePlaylist,
 } = vi.hoisted(() => ({
   create: vi.fn(),
   findAll: vi.fn(),
   updateById: vi.fn(),
   deleteById: vi.fn(),
   getManualPlaylistsSummary: vi.fn(),
+  hardDeletePlaylistCascade: vi.fn(),
+  softDeletePlaylist: vi.fn(),
 }))
 
 vi.mock('../db/repositories/playlists', () => ({
@@ -26,6 +30,17 @@ vi.mock('../db/repositories/playlists', () => ({
 
 vi.mock('../services/playlistSummary', () => ({
   getManualPlaylistsSummary,
+}))
+
+vi.mock('../services/entityTrash', () => ({
+  ENTITY_TRASH_RETENTION_DAYS: 30,
+  countTrashPlaylists: vi.fn(),
+  getTrashedPlaylistsForPurge: vi.fn(),
+  hardDeletePlaylistCascade,
+  listExpiredPlaylistIds: vi.fn(),
+  listTrashPlaylists: vi.fn(),
+  restoreTrashPlaylists: vi.fn(),
+  softDeletePlaylist,
 }))
 
 import createPlaylistController from './Playlist.controller'
@@ -52,7 +67,8 @@ function createResponse() {
 }
 
 describe('Playlist.controller', () => {
-  const controller = createPlaylistController({drizzle: {}} as never)
+  const fakeDb = {drizzle: {}} as never
+  const controller = createPlaylistController(fakeDb)
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -116,12 +132,12 @@ describe('Playlist.controller', () => {
   })
 
   it('deletes a playlist by id', () => {
-    const req = {params: {id: '9'}} as unknown as ApiRequest
+    const req = {params: {id: '9'}, query: {permanent: '1'}} as unknown as ApiRequest
     const res = createResponse()
 
     controller.deleteOne(req, res)
 
-    expect(deleteById).toHaveBeenCalledWith(9)
+    expect(hardDeletePlaylistCascade).toHaveBeenCalledWith(fakeDb, 9)
     expect(res.statusCode).toBe(200)
   })
 

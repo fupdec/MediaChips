@@ -38,7 +38,7 @@ describe('postMigrations', () => {
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='tags_name_normalized_unique'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media_fts'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tags_fts'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 21})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 27})
 
       const mediaMeta = (
         sqlite.prepare(`

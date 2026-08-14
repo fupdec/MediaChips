@@ -25,6 +25,8 @@ function createTestDb() {
       viewedAt TEXT,
       metaId INTEGER,
       oldId TEXT,
+      deletedAt TEXT,
+      trashOriginalName TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );

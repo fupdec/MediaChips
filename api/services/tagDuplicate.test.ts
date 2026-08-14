@@ -32,6 +32,8 @@ function createTestDb(dbPath: string): ApiDb {
       views INTEGER DEFAULT 0,
       viewedAt TEXT,
       metaId INTEGER,
+      deletedAt TEXT,
+      trashOriginalName TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );

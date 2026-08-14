@@ -297,12 +297,12 @@ describe('Mark.controller', () => {
   })
 
   it('deletes generated assets and mark row', () => {
-    const req = {params: {id: '8'}} as unknown as ApiRequest
+    const req = {params: {id: '8'}, query: {permanent: '1'}} as unknown as ApiRequest
     const res = createResponse()
 
     controller.deleteOne(req, res)
 
-    expect(deleteMarkGeneratedAsset).toHaveBeenCalledWith('/tmp/db', '8')
+    expect(deleteMarkGeneratedAsset).toHaveBeenCalledWith('/tmp/db', 8)
     expect(deleteById).toHaveBeenCalledWith(8)
     expect(res.statusCode).toBe(200)
   })

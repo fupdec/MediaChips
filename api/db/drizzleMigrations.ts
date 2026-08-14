@@ -82,10 +82,57 @@ function addColumnStatementRegex(): RegExp {
   return /ALTER\s+TABLE\s+[`"]?\w+[`"]?\s+ADD\s+COLUMN\s+[^;]+;?/gi
 }
 
+function createIndexCaptureRegex(): RegExp {
+  return /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?/gi
+}
+
+function createIndexStatementRegex(): RegExp {
+  return /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[^;]+;?/gi
+}
+
+function hasIndex(sqlite: Database.Database, indexName: string): boolean {
+  const row = sqlite.prepare(
+    `SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`,
+  ).get(indexName) as {name: string} | undefined
+
+  return Boolean(row)
+}
+
+function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
+  const withoutBreakpoints = sql.replace(/-->\s*statement-breakpoint/g, '')
+
+  const columnMatches = [...sql.matchAll(addColumnCaptureRegex())]
+  if (columnMatches.length > 0) {
+    const withoutAddColumns = withoutBreakpoints.replace(addColumnStatementRegex(), '').trim()
+    if (withoutAddColumns.length > 0) {
+      return false
+    }
+
+    return columnMatches.every((match) => {
+      const table = match[1]
+      const column = match[2]
+      return Boolean(table && column && hasColumn(sqlite, table, column))
+    })
+  }
+
+  const indexMatches = [...sql.matchAll(createIndexCaptureRegex())]
+  if (indexMatches.length > 0) {
+    const withoutIndexes = withoutBreakpoints.replace(createIndexStatementRegex(), '').trim()
+    if (withoutIndexes.length > 0) {
+      return false
+    }
+
+    return indexMatches.every((match) => Boolean(match[1] && hasIndex(sqlite, match[1])))
+  }
+
+  return false
+}
+
 /**
- * When schemaRepair (or a prior partial boot) already added columns, stamp the
- * matching ADD COLUMN drizzle migrations so migrate() does not fail with
- * "duplicate column name".
+ * When schemaRepair (or a prior partial boot) already added columns/indexes,
+ * stamp the matching pure ADD COLUMN / CREATE INDEX drizzle migrations so
+ * migrate() does not fail by trying to re-apply them ("duplicate column
+ * name", "index already exists").
  */
 export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): string[] {
   if (!hasTable(sqlite, '__drizzle_migrations')) {
@@ -105,25 +152,13 @@ export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): st
       continue
     }
 
-    const matches = [...sql.matchAll(addColumnCaptureRegex())]
-    if (matches.length === 0) {
-      continue
-    }
-
-    // Only auto-stamp pure ADD COLUMN migrations (ignore CREATE INDEX / etc.).
-    const withoutBreakpoints = sql.replace(/-->\s*statement-breakpoint/g, '')
-    const withoutAddColumns = withoutBreakpoints.replace(addColumnStatementRegex(), '').trim()
-    if (withoutAddColumns.length > 0) {
-      continue
-    }
-
-    const allPresent = matches.every((match) => {
-      const table = match[1]
-      const column = match[2]
-      return Boolean(table && column && hasColumn(sqlite, table, column))
-    })
-    if (!allPresent) {
-      continue
+    // drizzle's migrator only compares against the single latest recorded
+    // created_at (see SQLiteSyncDialect.migrate), so stamping a later
+    // migration while an earlier one stays unrecorded would permanently
+    // hide that earlier migration from migrate(). Stop at the first entry
+    // we can't verify so stamping never skips ahead out of order.
+    if (!isMigrationSatisfied(sqlite, sql)) {
+      break
     }
 
     stampMigrationIfMissing(sqlite, entry)

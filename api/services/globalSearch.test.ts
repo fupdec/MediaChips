@@ -23,7 +23,8 @@ function createSearchTestDb() {
       bookmark TEXT,
       mediaTypeId INTEGER,
       createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
+      updatedAt TEXT NOT NULL,
+      deletedAt TEXT
     );
 
     CREATE TABLE videoMetadata (
@@ -53,6 +54,13 @@ function createSearchTestDb() {
       tagId INTEGER NOT NULL,
       metaId INTEGER NOT NULL,
       PRIMARY KEY (mediaId, tagId, metaId)
+    );
+
+    CREATE TABLE textContent (
+      mediaId INTEGER PRIMARY KEY,
+      content TEXT DEFAULT '',
+      excerpt TEXT DEFAULT '',
+      truncated INTEGER DEFAULT 0
     );
 
     INSERT INTO media (path, name, bookmark, mediaTypeId, createdAt, updatedAt) VALUES

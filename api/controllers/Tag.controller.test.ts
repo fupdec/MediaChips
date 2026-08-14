@@ -176,7 +176,7 @@ describe('Tag.controller', () => {
   it('requires metaId before deleting tag assets', async () => {
     findById.mockReturnValue({id: 5, metaId: null})
 
-    const req = {body: {id: 5}} as ApiRequest
+    const req = {body: {id: 5, permanent: true}} as ApiRequest
     const res = createResponse()
 
     await controller.deleteOne(req, res)
@@ -189,7 +189,7 @@ describe('Tag.controller', () => {
   it('converts tag marks to bookmarks and deletes the tag record', async () => {
     findById.mockReturnValue({id: 5, metaId: 2, name: 'Action'})
 
-    const req = {body: {id: 5}} as ApiRequest
+    const req = {body: {id: 5, permanent: true}} as ApiRequest
     const res = createResponse()
 
     await controller.deleteOne(req, res)

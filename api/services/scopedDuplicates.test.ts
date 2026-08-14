@@ -26,6 +26,7 @@ function createTestDb(): ApiDb {
       visualHash TEXT,
       visualHashTiles TEXT,
       mediaTypeId INTEGER,
+      deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );

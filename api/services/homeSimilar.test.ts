@@ -25,6 +25,7 @@ function createTestDb(): ApiDb {
       viewedAt TEXT,
       filesize INTEGER DEFAULT 0,
       rating REAL,
+      deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -150,10 +151,10 @@ describe('getHomeSimilar', () => {
     expect(result.items.length).toBeGreaterThan(0)
     expect(result.items.map((item) => item.id)).toContain(2)
     expect(result.items.map((item) => item.id)).not.toContain(4)
-    expect(result.items[0].similarity?.score).toBeGreaterThan(0)
-    expect(result.items[0].similarity?.signals?.tags).toBeGreaterThan(0)
 
     const parsed = parseHomeSimilarResponse(result)
+    expect(parsed.items[0].similarity?.score).toBeGreaterThan(0)
+    expect(parsed.items[0].similarity?.signals?.tags).toBeGreaterThan(0)
     expect(parsed.seedItem?.isSeed).toBe(true)
     expect(parsed.items[0].similarity?.signals?.tags).toBeTypeOf('number')
   })
