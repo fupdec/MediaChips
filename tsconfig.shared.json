@@ -5,6 +5,8 @@
     "moduleResolution": "bundler",
     "strict": true,
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsc/shared-strict.tsbuildinfo",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

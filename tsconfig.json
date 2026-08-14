@@ -9,6 +9,8 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsc/vue.tsbuildinfo",
     "jsx": "preserve",
     "strict": true,
     "noFallthroughCasesInSwitch": true,

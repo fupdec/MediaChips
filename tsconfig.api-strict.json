@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "noEmit": true,
+    "tsBuildInfoFile": ".cache/tsc/api-strict.tsbuildinfo",
     "resolveJsonModule": true,
     "rootDir": ".",
     "baseUrl": ".",

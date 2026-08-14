@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "noEmit": true,
+    "tsBuildInfoFile": ".cache/tsc/electron-strict.tsbuildinfo",
     "rootDir": "."
   },
   "include": ["electron/**/*.ts", "shared/electron/**/*.ts"]
