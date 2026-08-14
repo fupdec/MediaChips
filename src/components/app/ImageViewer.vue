@@ -546,6 +546,7 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useImageViewerStore} from '@/stores/imageViewer'
 import {useEventBus} from '@/utils/eventBus'
+import {useImageViewerFullscreen} from '@/composable/useImageViewerFullscreen'
 import {
   loadThumbDisplayUrl,
   loadFilmstripThumbDisplayUrl,
@@ -916,6 +917,16 @@ const bumpChrome = () => {
   }, CHROME_HIDE_MS)
 }
 
+const {
+  enteredBrowserFullscreen,
+  getFullscreenElement,
+  isOurBrowserFullscreen,
+  exitBrowserFullscreen,
+  forceExitFullscreen,
+  syncFullscreenFromDocument,
+  toggleFullscreen,
+} = useImageViewerFullscreen({viewerRootRef, bumpChrome})
+
 const pinChrome = () => {
   chromePinned.value = true
   chromeVisible.value = true
@@ -1281,8 +1292,7 @@ const closeViewer = () => {
   filmstripLoadToken += 1
   unbindFilmstripObserver()
   clearObjectUrl()
-  void exitBrowserFullscreen().catch(() => {})
-  enteredBrowserFullscreen = false
+  forceExitFullscreen()
   viewer.close()
 }
 
@@ -1645,90 +1655,6 @@ const toggleFlipVertical = () => {
   deferSlideshowTick()
 }
 
-type FullscreenDocument = Document & {
-  webkitFullscreenElement?: Element | null
-  webkitExitFullscreen?: () => Promise<void> | void
-}
-
-type FullscreenElement = HTMLElement & {
-  webkitRequestFullscreen?: () => Promise<void> | void
-}
-
-let enteredBrowserFullscreen = false
-
-const getFullscreenElement = (): Element | null => {
-  const doc = document as FullscreenDocument
-  return document.fullscreenElement || doc.webkitFullscreenElement || null
-}
-
-const isOurBrowserFullscreen = () => {
-  const fsEl = getFullscreenElement()
-  const root = viewerRootRef.value
-  return Boolean(root && fsEl && (fsEl === root || root.contains(fsEl)))
-}
-
-const requestBrowserFullscreen = async (el: HTMLElement) => {
-  const target = el as FullscreenElement
-  if (target.requestFullscreen) {
-    await target.requestFullscreen()
-    return
-  }
-  if (target.webkitRequestFullscreen) {
-    await target.webkitRequestFullscreen()
-  }
-}
-
-const exitBrowserFullscreen = async () => {
-  if (!getFullscreenElement()) return
-  const doc = document as FullscreenDocument
-  if (document.exitFullscreen) {
-    await document.exitFullscreen()
-    return
-  }
-  if (doc.webkitExitFullscreen) {
-    await doc.webkitExitFullscreen()
-  }
-}
-
-const syncFullscreenFromDocument = () => {
-  if (!viewer.active) return
-
-  if (isOurBrowserFullscreen()) {
-    enteredBrowserFullscreen = true
-    viewer.setFullscreen(true)
-    return
-  }
-
-  if (enteredBrowserFullscreen) {
-    enteredBrowserFullscreen = false
-    viewer.setFullscreen(false)
-  }
-}
-
-const toggleFullscreen = async () => {
-  bumpChrome()
-  const root = viewerRootRef.value
-
-  try {
-    if (isOurBrowserFullscreen() || (enteredBrowserFullscreen && getFullscreenElement())) {
-      await exitBrowserFullscreen()
-      return
-    }
-
-    if (root) {
-      await requestBrowserFullscreen(root)
-      enteredBrowserFullscreen = true
-      viewer.setFullscreen(true)
-      return
-    }
-  } catch (error) {
-    console.error('Browser fullscreen failed, falling back to dialog fullscreen:', error)
-  }
-
-  // Fallback when Fullscreen API is blocked/unavailable (some embeds / permissions).
-  viewer.toggleFullscreen()
-}
-
 const clampScale = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 
 /** True when view is at/near fit — swipe navigates; otherwise click/trackpad pans. */
@@ -2051,7 +1977,7 @@ const onKeyDown = (event: KeyboardEvent) => {
         bumpChrome()
         break
       }
-      if (isOurBrowserFullscreen() || (enteredBrowserFullscreen && getFullscreenElement())) {
+      if (isOurBrowserFullscreen() || (enteredBrowserFullscreen.value && getFullscreenElement())) {
         void exitBrowserFullscreen()
         bumpChrome()
         break
@@ -2216,8 +2142,7 @@ onBeforeUnmount(() => {
   if (bottomPanelCloseTimer) clearTimeout(bottomPanelCloseTimer)
   if (filmstripSectionCloseTimer) clearTimeout(filmstripSectionCloseTimer)
   if (infoSectionCloseTimer) clearTimeout(infoSectionCloseTimer)
-  void exitBrowserFullscreen().catch(() => {})
-  enteredBrowserFullscreen = false
+  forceExitFullscreen()
   unbindFilmstripObserver()
   clearNeighborCache()
   clearObjectUrl()
