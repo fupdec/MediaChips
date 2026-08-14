@@ -3,60 +3,19 @@
  */
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../pragmas'
-import * as schema from '../schema'
+import {createTestDb, closeTestDb, type TestDb} from '../testUtils/createTestDb'
 import {createTagsRepository} from './tags'
-
-function createTestDb() {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating REAL DEFAULT 0,
-      favorite INTEGER DEFAULT 0,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      oldId TEXT,
-      deletedAt TEXT,
-      trashOriginalName TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE tagsInTags (
-      parentTagId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (parentTagId, tagId, metaId)
-    );
-    CREATE TABLE valuesInTags (
-      tagId INTEGER NOT NULL,
-      value TEXT NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (tagId, value, metaId)
-    );
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-  }
-}
 
 describe('tags repository getItemsForMeta', () => {
   let sqlite: Database.Database
-  let db: ReturnType<typeof createTestDb>['drizzle']
+  let db: TestDb['drizzle']
+  let dbPath: string
 
   beforeEach(() => {
-    const testDb = createTestDb()
+    const testDb = createTestDb('tags-items')
     sqlite = testDb.sqlite
     db = testDb.drizzle
+    dbPath = testDb.dbPath
     const now = '2024-01-01'
     sqlite.prepare(`
       INSERT INTO tags (id, name, metaId, createdAt, updatedAt) VALUES
@@ -82,7 +41,7 @@ describe('tags repository getItemsForMeta', () => {
   })
 
   afterEach(() => {
-    sqlite.close()
+    closeTestDb({sqlite, dbPath})
   })
 
   it('scopes nested aggregates to the requested page ids', () => {

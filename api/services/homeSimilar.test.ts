@@ -2,62 +2,17 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
 import type {ApiDb} from '../types/db'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {getHomeSimilar, orderHomeSimilarSeeds} from './homeSimilar'
 import {parseHomeSimilarResponse} from '@shared/schemas'
 
+let lastDbPath: string | undefined
+
 function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY,
-      path TEXT NOT NULL UNIQUE,
-      name TEXT,
-      basename TEXT,
-      ext TEXT,
-      mediaTypeId INTEGER,
-      favorite INTEGER DEFAULT 0,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      filesize INTEGER DEFAULT 0,
-      rating REAL,
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE videoMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      duration REAL,
-      time REAL,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE imageMetadata (
-      mediaId INTEGER PRIMARY KEY,
-      width INTEGER,
-      height INTEGER
-    );
-    CREATE TABLE mediaClipEmbeddings (
-      mediaId INTEGER NOT NULL,
-      model TEXT NOT NULL,
-      PRIMARY KEY (mediaId, model)
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (mediaId, tagId, metaId)
-    );
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
-  } as ApiDb
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('home-similar')
+  lastDbPath = dbPath
+  return {sqlite, drizzle, path: dbPath} as ApiDb
 }
 
 function insertMedia(
@@ -118,7 +73,7 @@ describe('getHomeSimilar', () => {
   let db: ApiDb
 
   afterEach(() => {
-    db?.sqlite?.close()
+    if (db?.sqlite && lastDbPath) closeTestDb({sqlite: db.sqlite, dbPath: lastDbPath})
     vi.restoreAllMocks()
   })
 

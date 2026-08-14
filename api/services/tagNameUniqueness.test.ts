@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import { afterEach, describe, expect, it } from 'vitest'
+import { createTestDb, closeTestDb } from '../db/testUtils/createTestDb'
 import {
   assertTagNameAvailable,
   assertTagNamesAvailable,
@@ -8,20 +9,20 @@ import {
 
 describe('tagNameUniqueness', () => {
   let sqlite: Database.Database
+  let dbPath: string
 
   afterEach(() => {
-    sqlite?.close()
+    if (sqlite) closeTestDb({sqlite, dbPath})
   })
 
   function openDb() {
-    sqlite = new Database(':memory:')
+    const testDb = createTestDb('tag-name-uniqueness')
+    sqlite = testDb.sqlite
+    dbPath = testDb.dbPath
     sqlite.exec(`
-      CREATE TABLE tags (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        deletedAt TEXT
-      );
-      INSERT INTO tags (id, name) VALUES (1, 'Alice'), (2, 'Bob');
+      INSERT INTO tags (id, name, createdAt, updatedAt) VALUES
+        (1, 'Alice', '2024-01-01', '2024-01-01'),
+        (2, 'Bob', '2024-01-01', '2024-01-01');
     `)
   }
 

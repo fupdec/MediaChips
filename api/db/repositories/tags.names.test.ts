@@ -3,52 +3,23 @@
  */
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../pragmas'
-import * as schema from '../schema'
+import {createTestDb, closeTestDb, type TestDb} from '../testUtils/createTestDb'
 import {createTagsRepository} from './tags'
-
-function createTestDb() {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating REAL DEFAULT 0,
-      favorite INTEGER DEFAULT 0,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      oldId TEXT,
-      deletedAt TEXT,
-      trashOriginalName TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    )
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-  }
-}
 
 describe('tags repository findAllNames', () => {
   let sqlite: Database.Database
-  let db: ReturnType<typeof createTestDb>['drizzle']
+  let db: TestDb['drizzle']
+  let dbPath: string
 
   beforeEach(() => {
-    const testDb = createTestDb()
+    const testDb = createTestDb('tags-names')
     sqlite = testDb.sqlite
     db = testDb.drizzle
+    dbPath = testDb.dbPath
   })
 
   afterEach(() => {
-    sqlite.close()
+    closeTestDb({sqlite, dbPath})
   })
 
   it('returns only non-empty names', () => {

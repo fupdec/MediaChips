@@ -2,55 +2,25 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
 import type {ApiDb} from '../types/db'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {queryAll} from '../db/utils/rawQuery'
 import {getMediaFromClause, resolveMediaFilterQuery} from './mediaFilterSql'
 import {findVisualNearDuplicateIds} from './visualHashBackfill'
 
+let lastDbPath: string | undefined
+
 function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('scoped-duplicates')
+  lastDbPath = dbPath
   sqlite.exec(`
-    CREATE TABLE mediaTypes (
-      id INTEGER PRIMARY KEY,
-      type TEXT NOT NULL
-    );
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      filesize INTEGER NOT NULL DEFAULT 0,
-      oshash TEXT,
-      visualHash TEXT,
-      visualHashTiles TEXT,
-      mediaTypeId INTEGER,
-      deletedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL
-    );
-    CREATE TABLE folderPaths (
-      id INTEGER PRIMARY KEY,
-      path TEXT NOT NULL
-    );
-    CREATE TABLE tagsInFolders (
-      folderId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL
-    );
-    INSERT INTO mediaTypes (id, type) VALUES (1, 'video');
+    INSERT INTO mediaTypes (id, type, createdAt, updatedAt) VALUES (1, 'video', '2026-01-01', '2026-01-01');
   `)
 
   return {
     sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
+    drizzle,
+    path: dbPath,
   } as ApiDb
 }
 
@@ -98,7 +68,7 @@ describe('scoped duplicate search', () => {
   let db: ApiDb
 
   afterEach(() => {
-    db?.sqlite?.close()
+    if (db?.sqlite && lastDbPath) closeTestDb({sqlite: db.sqlite, dbPath: lastDbPath})
   })
 
   it('finds oshash duplicates only among tag-scoped candidates', () => {

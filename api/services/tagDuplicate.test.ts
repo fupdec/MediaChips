@@ -2,11 +2,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
 import {eq} from 'drizzle-orm'
-import {applySqlitePragmas} from '../db/pragmas'
-import * as schema from '../db/schema'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {tags} from '../db/schema/tags'
 import {tagsInMedia} from '../db/schema/tagsInMedia'
 import {tagsInTags} from '../db/schema/tagsInTag'
@@ -15,65 +12,13 @@ import type {ApiDb} from '../types/db'
 import {HttpError} from '../types/errors'
 import {duplicateTag} from './tagDuplicate'
 
-function createTestDb(dbPath: string): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      oldId TEXT UNIQUE,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating INTEGER DEFAULT 0 NOT NULL,
-      favorite INTEGER DEFAULT 0 NOT NULL,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      deletedAt TEXT,
-      trashOriginalName TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (mediaId, tagId, metaId)
-    );
-    CREATE TABLE tagsInTags (
-      parentTagId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (parentTagId, tagId, metaId)
-    );
-    CREATE TABLE valuesInTags (
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      value TEXT,
-      PRIMARY KEY (tagId, metaId)
-    );
-    CREATE TABLE meta (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
-      name TEXT,
-      icon TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-  `)
-
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-    path: dbPath,
-  } as ApiDb
+function createTestDb(dbPath: string): ApiDb & {dbPath: string} {
+  const {sqlite, drizzle, dbPath: sqliteDbPath} = createSharedTestDb('tag-dup')
+  return {sqlite, drizzle, path: dbPath, dbPath: sqliteDbPath} as ApiDb & {dbPath: string}
 }
 
 describe('duplicateTag', () => {
-  let db: ApiDb
+  let db: ApiDb & {dbPath: string}
   let tmpDir: string
 
   beforeEach(() => {
@@ -82,7 +27,7 @@ describe('duplicateTag', () => {
   })
 
   afterEach(() => {
-    db.sqlite.close()
+    closeTestDb({sqlite: db.sqlite, dbPath: db.dbPath})
     fs.rmSync(tmpDir, {recursive: true, force: true})
   })
 

@@ -1,43 +1,18 @@
 /**
  * @vitest-environment node
  */
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../pragmas'
-import {runDrizzleMigrations} from '../drizzleMigrations'
-import {repairSchemaColumns} from '../schemaRepair'
+import {createTestDb, closeTestDb, type TestDb} from '../testUtils/createTestDb'
 import {createMarksRepository} from './marks'
-import * as schema from '../schema'
-
-function createTestDb() {
-  const dbPath = path.join(
-    os.tmpdir(),
-    `mediachips-marks-rel-${Date.now()}-${Math.random()}.sqlite`,
-  )
-  runDrizzleMigrations(dbPath)
-
-  const sqlite = new Database(dbPath)
-  applySqlitePragmas(sqlite)
-  repairSchemaColumns(sqlite)
-
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-    dbPath,
-  }
-}
 
 describe('marks relation lookups', () => {
   let sqlite: Database.Database
-  let db: ReturnType<typeof createTestDb>['drizzle']
+  let db: TestDb['drizzle']
   let dbPath: string
 
   beforeEach(() => {
-    const testDb = createTestDb()
+    const testDb = createTestDb('marks-rel')
     sqlite = testDb.sqlite
     db = testDb.drizzle
     dbPath = testDb.dbPath
@@ -60,8 +35,7 @@ describe('marks relation lookups', () => {
   })
 
   afterEach(() => {
-    sqlite.close()
-    fs.rmSync(dbPath, {force: true})
+    closeTestDb({sqlite, dbPath})
   })
 
   it('hydrates findAllForVideo tags/meta without scanning unrelated rows', () => {
