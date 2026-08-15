@@ -1100,6 +1100,7 @@ const ru = {
       chip: 'Чип',
       masonry: 'Мозаика',
       minimal: 'Минимализм',
+      list: 'Список',
     },
   },
   onboarding: {
@@ -3516,6 +3517,10 @@ const ru = {
     mark_added: 'Маркер добавлен',
     mark_updated: 'Маркер обновлён',
     marks_list: 'Список меток',
+    clip_mode: 'Режим клипов',
+    clip_mode_on: 'Выйти из режима клипов',
+    clip_mode_empty: 'Нет маркеров с диапазоном — клипу нужны начало и конец',
+    clip_mode_selected: 'Выбрано: {count}',
     studio_track_empty: 'Пока нет маркеров — добавьте через кнопку +',
     auto_chapters: 'Главы',
     generate_chapters: 'Сгенерировать главы',

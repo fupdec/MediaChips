@@ -9,6 +9,9 @@ export function normalizeItemsView(
   const value = Number(view) || 1
 
   if (itemsType === 'media') {
+    // List view is available for every media type.
+    if (value === 5) return 5
+
     if (isVideoMediaType(mediaType)) {
       if (value === 2 || value === 4) return value
       return 1

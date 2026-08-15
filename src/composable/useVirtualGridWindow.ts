@@ -16,6 +16,7 @@ interface LayoutOptions {
   imageGrid: boolean
   wideImage: boolean
   lineGrid: boolean
+  listGrid: boolean
   chipsGrid: boolean
   imageAspectRatio?: number
   lockRowHeight?: boolean
@@ -54,6 +55,7 @@ export function useVirtualGridWindow(
     imageGrid: layoutOptions.value.imageGrid,
     wideImage: layoutOptions.value.wideImage,
     lineGrid: layoutOptions.value.lineGrid,
+    listGrid: layoutOptions.value.listGrid,
     chipsGrid: layoutOptions.value.chipsGrid,
     imageAspectRatio: layoutOptions.value.imageAspectRatio,
     containerWidth: layoutRef.value?.clientWidth || 0,

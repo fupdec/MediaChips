@@ -30,6 +30,9 @@ const DESCRIPTION_HEIGHT: Record<number, number> = { 1: 72, 2: 78, 3: 82, 4: 88,
 
 const LINE_ROW_HEIGHT: Record<number, number> = { 1: 100, 2: 120, 3: 130, 4: 140, 5: 160, 6: 180 }
 
+/** Compact single-row list view: edge-to-edge thumbnail height + divider. Kept in sync with item.scss. */
+const LIST_ROW_HEIGHT: Record<number, number> = { 1: 45, 2: 53, 3: 61, 4: 69, 5: 77, 6: 85 }
+
 export const VIRTUAL_GRID_THRESHOLD = 48
 
 export const VIRTUAL_ROW_BUFFER = 2
@@ -43,6 +46,7 @@ export function getGridGap(gapSize = 'xs'): { x: number; y: number } {
 export interface GridLayoutOptions {
   size?: number
   lineGrid?: boolean
+  listGrid?: boolean
   chipsGrid?: boolean
   imageGrid?: boolean
   wideImage?: boolean
@@ -55,7 +59,7 @@ export interface GridLayoutOptions {
 export function getTargetCardWidth(options: GridLayoutOptions = {}): number {
   const size = Number(options.size) || 3
 
-  if (options.lineGrid) return options.containerWidth || 1200
+  if (options.lineGrid || options.listGrid) return options.containerWidth || 1200
 
   if (options.chipsGrid) {
     return CHIP_WIDTH[size] || CHIP_WIDTH[3]
@@ -91,7 +95,7 @@ export function getLayoutMetrics(
   containerWidth: number,
   options: GridLayoutOptions = {},
 ): LayoutMetrics {
-  if (options.lineGrid) {
+  if (options.lineGrid || options.listGrid) {
     return {
       columnCount: 1,
       cardWidth: containerWidth || getTargetCardWidth(options),
@@ -132,7 +136,7 @@ export function getColumnCount(
   gapX: number,
   options: GridLayoutOptions = {},
 ): number {
-  if (options.lineGrid) return 1
+  if (options.lineGrid || options.listGrid) return 1
 
   return getLayoutMetrics(containerWidth, {
     ...options,
@@ -145,7 +149,7 @@ export function getDistributedCardWidth(
   containerWidth: number,
   options: GridLayoutOptions = {},
 ): number {
-  if (options.lineGrid || options.chipsGrid) {
+  if (options.lineGrid || options.listGrid || options.chipsGrid) {
     return getTargetCardWidth(options)
   }
 
@@ -161,7 +165,7 @@ export function getGridLayoutStyle(options: GridLayoutOptions = {}): Record<stri
 
   if (!options.chipsGrid) {
     let cardWidth: number
-    if (options.lineGrid) {
+    if (options.lineGrid || options.listGrid) {
       cardWidth = options.containerWidth || getTargetCardWidth(options)
     } else if (options.containerWidth) {
       cardWidth = getDistributedCardWidth(options.containerWidth, options)
@@ -337,6 +341,12 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
 
   if (options.lineGrid) {
     return (LINE_ROW_HEIGHT[size] || LINE_ROW_HEIGHT[3]) + gap.y
+  }
+
+  if (options.listGrid) {
+    // Rows are divided by a 1px border, not the (much larger) grid gap —
+    // that's what keeps the list compact regardless of the gap-size setting.
+    return LIST_ROW_HEIGHT[size] || LIST_ROW_HEIGHT[3]
   }
 
   if (options.chipsGrid) {

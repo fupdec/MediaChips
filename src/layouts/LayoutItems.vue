@@ -174,6 +174,7 @@
       :image-grid="isImageGrid"
       :wide-image="isWideImage"
       :line-grid="isLineGrid"
+      :list-grid="isListGrid"
       :chips-grid="isChipsGrid"
       :image-aspect-ratio="virtualCardAspectRatio"
       class="items-page-grid"
@@ -629,6 +630,9 @@ const isWideImage = computed(() =>
   props.items_type === 'media' && isVideoMediaType(mediaType.value) && ITEMS.value.view == 2
 )
 const isLineGrid = computed(() => isWideImage.value)
+const isListGrid = computed(() =>
+  props.items_type === 'media' && ITEMS.value.view == 5
+)
 const isChipsGrid = computed(() =>
   props.items_type === 'tag' && ITEMS.value.view == 2
 )
@@ -816,6 +820,7 @@ const itemsGridClasses = computed(() => [
   {'wide-image': isWideImage.value},
   {'image-grid': isImageGrid.value},
   {'masonry-grid': isMasonryGrid.value},
+  {'list-grid': isListGrid.value},
 ])
 const itemsGridLayoutOptions = computed(() => ({
   size: ITEMS.value.size,
@@ -823,6 +828,7 @@ const itemsGridLayoutOptions = computed(() => ({
   imageGrid: isImageGrid.value || isMasonryGrid.value,
   wideImage: isWideImage.value,
   lineGrid: isLineGrid.value,
+  listGrid: isListGrid.value,
   chipsGrid: isChipsGrid.value,
   imageAspectRatio: virtualCardAspectRatio.value,
 }))
@@ -919,6 +925,11 @@ defineEmits<{
   content-visibility: auto;
   /* Prefer a tall estimate: undersized intrinsic size makes cards jump when painted. */
   contain-intrinsic-size: auto 360px;
+}
+
+.items-page-grid:not(.items-virtual-grid) :deep(.item-view-5) {
+  /* List rows are much shorter than cards — match their real height. */
+  contain-intrinsic-size: auto 90px;
 }
 
 .items-group-header {

@@ -71,7 +71,7 @@ let loadGeneration = 0
 const ITEMS = computed(() => itemsStore)
 
 const isViewCard = computed(() =>
-  Number(ITEMS.value.view) === 1
+  Number(ITEMS.value.view) === 1 || Number(ITEMS.value.view) === 5
 )
 
 const isViewTimeline = computed(() =>

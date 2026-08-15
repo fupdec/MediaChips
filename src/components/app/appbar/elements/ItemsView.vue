@@ -119,6 +119,15 @@ const initViewOptions = () => {
     })
   }
 
+  // List view is available for every media type.
+  if (itemsType === 'media') {
+    viewOptions.value.push({
+      val: 5,
+      icon: 'view-list',
+      textKey: 'items.view.list',
+    })
+  }
+
   const normalizedView = normalizeItemsView(
     currentView.value,
     itemsType,

@@ -1541,6 +1541,287 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
+// Compact single-column row list, laid out as one flex row:
+//   [preview — full row height] [name + synonym / meta, 2 lines] [rating + favorite] [menu button]
+// Rows are divided by a thin border rather than the grid gap, so the list
+// stays dense regardless of the gap-size setting. Row heights are kept in
+// sync with LIST_ROW_HEIGHT in utils/gridLayout.ts.
+.item-media.item-view-5 {
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+
+  // No pink glow border for favorited rows in the list — it doesn't read
+  // well as a thin outline around a dense row, and needed extra padding on
+  // the grid container just to avoid being clipped on the first/last row.
+  &.favorite::after {
+    display: none;
+  }
+
+  .item_wrapper {
+    // Vuetify's .v-card sets `display: block` at the same specificity as our
+    // base `.item_wrapper{display:flex}` — whichever loads last wins the tie.
+    // State it explicitly here so this row layout never depends on that race.
+    display: flex;
+    flex-direction: row;
+    // Height is fixed per size below (not auto) so the preview can stretch
+    // to exactly fill it — a description with 2 lines of text/meta no longer
+    // grows the row taller than the thumbnail.
+    align-items: stretch;
+    border-radius: 0;
+    box-shadow: none;
+    // No overflow:hidden here — this row has no radius to clip against, and
+    // clipping it squashed the menu button's hover/ripple overlay into an
+    // oval against the row's short height. The preview clips its own image.
+    transition: background-color 0.15s ease;
+  }
+
+  .item_wrapper:hover {
+    background-color: rgba(var(--v-theme-on-surface), 0.05);
+  }
+
+  // Preview fills the row's full height, flush against the edge. Rounding
+  // lives on the outer grid container instead of on individual rows.
+  .item_preview {
+    flex: 0 0 auto;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .v-progress-linear {
+    display: none;
+  }
+
+  // Name + synonym share line 1; meta is forced onto line 2 (flex-basis 100%).
+  // DOM order alone puts this after the preview and before rating/favorite —
+  // no explicit `order` needed (a stray one here previously reshuffled the row).
+  .description {
+    flex: 1 1 auto;
+    // Flex items default to min-height:auto, which refuses to shrink below
+    // content size — at small sizes that pushed 2 lines of text past the
+    // fixed row height instead of clipping. min-height:0 lets it actually
+    // stretch to (and clip at) the row height like everything else here.
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    display: flex;
+    flex-flow: row wrap;
+    align-content: center;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 2px;
+    padding: 2px 10px;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  // Name gets priority for space (flex-grow) so it's only clipped when it
+  // genuinely doesn't fit — not capped to a fraction of the row up front.
+  .item-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    line-height: 1.25;
+    font-weight: 500;
+    font-size: 0.95em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Synonym sits next to the name on line 1, but never dominates it.
+  .synonyms {
+    display: block;
+    flex: 0 1 auto;
+    max-width: 40%;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    font-size: 0.8em;
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Meta (tags/pinned values/preset meta) — forced to its own line, always
+  // clipped to one row regardless of whether the "group chips" setting is on
+  // (stacked categories) or off (flat chip list).
+  .nested-tags {
+    flex: 1 0 100%;
+    max-width: 100%;
+    overflow: hidden;
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+
+    > div {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    .category {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      width: auto;
+      max-width: 60%;
+      flex-wrap: nowrap;
+      margin-top: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .category-name {
+      flex: 0 0 auto;
+      margin-right: 0.3em;
+      font-size: 0.82em;
+      white-space: nowrap;
+    }
+
+    .v-chip {
+      flex: 0 0 auto;
+      min-height: 17px !important;
+      font-size: 0.72em !important;
+    }
+  }
+
+  // Rating + favorite: their own segment, always inline (one row), between
+  // the meta block and the menu button. Icon size is set per item__size
+  // below (CSS custom properties can't self-reference to scale an inherited
+  // value, so the scaled numbers are hardcoded per size at build time).
+  .list-rating-favorite {
+    // Sitting on the row background (not over a thumbnail), the components'
+    // own inline empty-state color (#eee) is too light to read — darken it,
+    // same override mechanism as .rating-favorite-in-description below.
+    --item-rating-favorite-muted-color: #7a7a7a;
+    --item-rating-star-gap: 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    padding: 0 6px;
+  }
+
+  .list-rating-favorite .rating,
+  .list-rating-favorite .fav-btn {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    // .fav-btn's base rule pads it 6px top/right for the absolute-over-
+    // thumbnail placement it normally has — that offset doesn't apply here
+    // and was pushing the heart down and off-center from the stars.
+    padding: 0 !important;
+    align-self: center;
+    background-color: transparent;
+    opacity: 1;
+  }
+
+  .list-rating-favorite .rating .v-btn:not(.text-yellow-darken-2) .v-icon {
+    color: var(--item-rating-favorite-muted-color) !important;
+  }
+
+  .list-rating-favorite .fav-btn .v-selection-control:not(.v-selection-control--dirty) .v-icon {
+    color: var(--item-rating-favorite-muted-color) !important;
+  }
+
+  // Quality/duration badges on the thumbnail, scaled down to match the much
+  // smaller list preview, with rounding removed (flat design, see below).
+  .duration {
+    padding: 1px 3px;
+    font-size: 0.6em;
+    border-radius: 0;
+  }
+
+  .resolution {
+    border-radius: 0;
+    transform: scale(0.75);
+    transform-origin: top left;
+  }
+
+  .bookmark {
+    top: 3px;
+    left: 3px;
+    right: auto;
+    font-size: 1.05em;
+  }
+
+  // Menu button is the last item in the row, not a floating overlay. Forced
+  // to a small fixed size so it always fits inside the row — Vuetify renders
+  // icon buttons at `--v-btn-height + 12px` (default density), so its
+  // `size="small"` (28px var) was actually a 40px button; barely fitting a
+  // compact row meant its circular hover/ripple overlay got clipped by the
+  // row's overflow:hidden, which read as a "distorted gray" hover background.
+  // 14px var here renders a 26px button, comfortably inside every size.
+  .item-menu-btn {
+    position: static;
+    align-self: center;
+    flex: 0 0 auto;
+    margin: 0 4px 0 0;
+    opacity: 0.55;
+    --v-btn-height: 14px;
+  }
+
+  &:hover .item-menu-btn {
+    opacity: 1;
+  }
+
+  // Row height is fixed here (drives the preview's stretched height via
+  // align-items:stretch above); preview width alone sets its aspect ratio.
+  // Kept in sync with LIST_ROW_HEIGHT in utils/gridLayout.ts (that table
+  // adds the 1px divider border on top of these heights). The floor is
+  // raised well above XS's old 31px — that was too tight to fit the menu
+  // button and two text lines without clipping.
+  &.item__size-1 {
+    .item_wrapper { height: 44px; }
+    .item_preview { width: 78px; }
+    .list-rating-favorite { --item-rating-icon: 12px; --item-fav-icon: 13px; }
+  }
+  &.item__size-2 {
+    .item_wrapper { height: 52px; }
+    .item_preview { width: 92px; }
+    .list-rating-favorite { --item-rating-icon: 15px; --item-fav-icon: 16px; }
+  }
+  &.item__size-3 {
+    .item_wrapper { height: 60px; }
+    .item_preview { width: 107px; }
+    .list-rating-favorite { --item-rating-icon: 19px; --item-fav-icon: 20px; }
+  }
+  &.item__size-4 {
+    .item_wrapper { height: 68px; }
+    .item_preview { width: 121px; }
+    .list-rating-favorite { --item-rating-icon: 21px; --item-fav-icon: 22px; }
+  }
+  &.item__size-5 {
+    .item_wrapper { height: 76px; }
+    .item_preview { width: 135px; }
+    .list-rating-favorite { --item-rating-icon: 22px; --item-fav-icon: 24px; }
+  }
+  &.item__size-6 {
+    .item_wrapper { height: 84px; }
+    .item_preview { width: 149px; }
+    .list-rating-favorite { --item-rating-icon: 24px; --item-fav-icon: 25px; }
+  }
+}
+
+// Rounding lives on the grid as a whole, not on individual rows: the
+// container clips its top/bottom edges, which rounds the first row's top
+// corners and the last row's bottom corners without any :first/:last-child
+// bookkeeping (works the same whether the grid is virtualized or not).
+.items-page-grid.list-grid {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .item-media.item-view-3 {
   .item_wrapper {
     position: relative;

@@ -310,7 +310,11 @@ const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
 const isCompactHost = computed(() => props.previewHost === 'compact')
 const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 const isViewCard = computed(() =>
-  isEmbeddedHost.value || isCompactHost.value || Number(itemsStore.view) === 1 || isImageOnlyView.value,
+  isEmbeddedHost.value
+  || isCompactHost.value
+  || Number(itemsStore.view) === 1
+  || Number(itemsStore.view) === 5
+  || isImageOnlyView.value,
 )
 const isViewTimeline = computed(() =>
   !isEmbeddedHost.value && Number(itemsStore.view) === 2,

@@ -1100,6 +1100,7 @@ const en = {
       chip: 'Chip',
       masonry: 'Masonry',
       minimal: 'Minimalism',
+      list: 'List',
     },
   },
   onboarding: {
@@ -3516,6 +3517,10 @@ const en = {
     mark_added: 'Mark added',
     mark_updated: 'Mark updated',
     marks_list: 'Marks List',
+    clip_mode: 'Clip mode',
+    clip_mode_on: 'Exit clip mode',
+    clip_mode_empty: 'No ranged markers — clips need a start and end',
+    clip_mode_selected: '{count} selected',
     studio_track_empty: 'No marks yet — add one with the + button',
     auto_chapters: 'Chapters',
     generate_chapters: 'Generate chapters',

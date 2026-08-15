@@ -60,12 +60,12 @@
         />
 
         <ItemRating
-          v-if="!isImageOnlyView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
+          v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
           :item="item"
           :type="type"
         ></ItemRating>
         <ItemFavorite
-          v-if="!isImageOnlyView && settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
+          v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
           :item="item"
           :type="type"
         ></ItemFavorite>
@@ -129,7 +129,7 @@
         v-ripple="{ class: `text-primary` }"
         class="description"
       >
-        <div v-if="settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
+        <div v-if="!isListView && settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
              @click.stop
              class="rating-favorite-in-description">
           <div class="rating-favorite-in-description__left">
@@ -162,6 +162,19 @@
           :values="item.values"
           :type="type"
         />
+      </div>
+
+      <div
+        v-if="isListView && (is_rating_active || is_favorite_active)"
+        @click.stop
+        class="list-rating-favorite"
+      >
+        <ItemRating v-if="is_rating_active"
+                    :item="item"
+                    :type="type"></ItemRating>
+        <ItemFavorite v-if="is_favorite_active"
+                      :item="item"
+                      :type="type"></ItemFavorite>
       </div>
 
       <v-icon
@@ -339,6 +352,8 @@ const isTextMedia = computed(() => isTextMediaType(props.mediaType ?? undefined)
 
 const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 
+const isListView = computed(() => Number(itemsStore.view) === 5)
+
 const isMasonryImage = computed(() =>
   props.type === 'media'
   && isImageMedia.value
@@ -350,6 +365,7 @@ const showCardView = computed(() => {
   if (view === 1 || isImageOnlyView.value) return true
   if (view === 2 && props.type === 'media' && isVideoMedia.value) return true
   if (view === 3 && props.type === 'media' && isImageMedia.value) return true
+  if (view === 5 && props.type === 'media') return true
   return false
 })
 
