@@ -1299,7 +1299,7 @@ const ja = {
     added: '追加した',
     media_created: 'メディア作成日',
     last_edit: '最終編集',
-    last_view: '最後のビュー',
+    last_view: '閲覧済み',
     synonyms_hint: '同義語はカンマで区切る',
     identity: '基本情報',
     details: '詳細',

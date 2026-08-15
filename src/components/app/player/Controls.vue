@@ -78,6 +78,7 @@ defineExpose({
   toggleMute: () => transportRef.value?.toggleMute?.(),
   togglePlaylist: () => transportRef.value?.togglePlaylist?.(),
   toggleMarks: () => transportRef.value?.toggleMarks?.(),
+  toggleStudioMode: () => transportRef.value?.toggleStudioMode?.(),
   jumpToMark,
   wheelSeek: (event: WheelEvent) => timelineRef.value?.wheelSeek?.(event),
   editVideo: () => transportRef.value?.editVideo?.(),

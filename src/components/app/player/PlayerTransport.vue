@@ -56,6 +56,7 @@ defineExpose({
   toggleMute: transport.toggleMute,
   togglePlaylist: transport.togglePlaylist,
   toggleMarks: transport.toggleMarks,
+  toggleStudioMode: transport.toggleStudioMode,
   jumpToMark,
   editVideo: transport.editVideo,
   deleteVideo: transport.deleteVideo,

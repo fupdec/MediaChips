@@ -6,6 +6,10 @@
   --item-fav-inset-top: 6px;
   --item-fav-inset-right: 6px;
 
+  .item-title {
+    font-size: 0.9em;
+  }
+
   // Keep native card drag-out; don't let preview <img> steal HTML5 drag.
   img,
   picture,
@@ -2028,6 +2032,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .editing-field-card {
     position: relative;
     overflow: visible;
+    border-radius: var(--edit-deck-radius, 16px) !important;
 
     &--icons {
       padding: 6px 8px !important;
@@ -2040,8 +2045,6 @@ body > .video-preview-container.video-preview-container--expanded {
     &--rating {
       display: flex !important;
       align-items: center;
-      min-height: 44px;
-      padding: 6px 10px !important;
     }
 
     // Room for the floating restore control over custom inputs.
@@ -2058,16 +2061,17 @@ body > .video-preview-container.video-preview-container--expanded {
 
 .editing-rating-field {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   min-width: 0;
+  min-height: 40px;
 
   &--identity {
     align-items: center;
     width: 100%;
     flex-wrap: nowrap;
-    gap: 8px;
-    min-height: 32px;
+    gap: 16px;
+    min-height: 40px;
 
     .editing-rating-field__name {
       margin-top: 0;
@@ -2123,7 +2127,6 @@ body > .video-preview-container.video-preview-container--expanded {
 
   &__icon {
     flex: 0 0 auto;
-    margin-top: 5px;
     margin-inline-end: 2px;
     opacity: 0.72;
   }
@@ -2153,13 +2156,12 @@ body > .video-preview-container.video-preview-container--expanded {
     flex: 0 0 auto;
     width: 1px;
     height: 20px;
-    margin-inline: 4px;
+    margin-inline: 8px;
     background: rgba(var(--v-border-color), var(--v-border-opacity));
   }
 
   &__name {
     flex: 0 0 auto;
-    margin-top: 8px;
     font-size: 0.8125rem;
     line-height: 1;
     color: rgba(var(--v-theme-on-surface), 0.6);
@@ -2167,6 +2169,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   &__hint {
+    display: none;
     max-width: 100%;
     font-size: 0.6875rem;
     line-height: 1.2;
@@ -2174,6 +2177,13 @@ body > .video-preview-container.video-preview-container--expanded {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  // Keep the resting row height in sync with other fields; reveal the hint
+  // only while interacting, matching the show-on-focus hint fields elsewhere.
+  .editing-field-card:hover &__hint,
+  .editing-field-card:focus-within &__hint {
+    display: block;
   }
 
   .v-rating {
@@ -2263,6 +2273,7 @@ body > .video-preview-container.video-preview-container--expanded {
 
     &--search {
       flex: 1 1 auto;
+      margin-right: 10px;
     }
 
     &--tags,
@@ -2333,7 +2344,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .editing-section__toolbar {
     gap: var(--edit-deck-gap);
     margin-bottom: 12px;
-    padding: 6px var(--edit-deck-pad-x);
+    padding: 2px 8px;
     border: 1px solid rgba(var(--v-theme-primary), 0.16);
     border-radius: var(--edit-deck-radius);
     background: rgb(var(--v-theme-surface));
@@ -2408,6 +2419,14 @@ body > .video-preview-container.video-preview-container--expanded {
         line-height: 1.2 !important;
       }
 
+      // Let auto-grow textareas (e.g. bookmark) expand past the shared control height.
+      // Exclude the hidden measuring sizer: it must stay height:0 to recompute
+      // shrinkage correctly, or growth gets stuck at its last measured height.
+      &.v-textarea .v-field__input:not(.v-textarea__sizer) {
+        height: var(--v-textarea-control-height, var(--edit-deck-control-h)) !important;
+        min-height: var(--edit-deck-control-h) !important;
+      }
+
       // Filled/solo: keep floating label above the value (do not zero padding).
       .v-field--variant-filled,
       .v-field--variant-solo,
@@ -2439,12 +2458,12 @@ body > .video-preview-container.video-preview-container--expanded {
     .v-autocomplete--multiple,
     .v-combobox--multiple,
     .v-select--multiple {
-      --v-input-padding-top: 22px;
-      --v-input-padding-bottom: 6px;
+      --v-input-padding-top: 14px;
+      --v-input-padding-bottom: 4px;
 
       .v-field {
-        --v-field-padding-top: 22px;
-        --v-field-padding-bottom: 6px;
+        --v-field-padding-top: 14px;
+        --v-field-padding-bottom: 4px;
         align-items: flex-start !important;
       }
 
@@ -2453,10 +2472,12 @@ body > .video-preview-container.video-preview-container--expanded {
       }
 
       .v-field__input {
-        min-height: unset !important;
+        // Match the height of a single row of chips so the card doesn't
+        // shrink when empty.
+        min-height: 42px !important;
         font-size: 0.8125rem !important;
         line-height: 1.25 !important;
-        padding-block: 22px 6px !important;
+        padding-block: 14px 4px !important;
         flex-wrap: wrap;
         align-content: flex-start !important;
         align-items: center;
@@ -2467,7 +2488,7 @@ body > .video-preview-container.video-preview-container--expanded {
       &.v-input--dirty .v-field__input,
       .v-field--dirty .v-field__input,
       .v-field--active .v-field__input {
-        padding-top: 22px !important;
+        padding-top: 14px !important;
       }
 
       .v-chip {
@@ -2495,6 +2516,21 @@ body > .video-preview-container.video-preview-container--expanded {
     .v-btn:not(.v-btn--icon):not(.restore) {
       min-height: var(--edit-deck-control-h);
       font-size: 0.8125rem;
+    }
+
+    // Match the tags-mode toggle to the filter chips beside it. The
+    // v-btn-group itself defaults to a taller compact height than its
+    // buttons, which pins them to the top instead of centering them.
+    .editing-section__tags-mode {
+      height: 24px !important;
+      align-items: center !important;
+    }
+
+    .editing-section__tags-mode .v-btn {
+      min-height: 24px !important;
+      height: 24px !important;
+      padding-inline: 6px !important;
+      font-size: 0.75rem !important;
     }
   }
 

@@ -1299,7 +1299,7 @@ const es = {
     added: 'Agregado',
     media_created: 'Medio creado',
     last_edit: 'Última edición',
-    last_view: 'Última vista',
+    last_view: 'Visto',
     synonyms_hint: 'Separe los sinónimos con una coma',
     identity: 'Identidad',
     details: 'Detalles',

@@ -1299,7 +1299,7 @@ const cn = {
     added: '已添加',
     media_created: '媒体创建日期',
     last_edit: '最后编辑',
-    last_view: '最后查看',
+    last_view: '已查看',
     synonyms_hint: '用逗号分隔同义词',
     identity: '身份信息',
     details: '详细信息',

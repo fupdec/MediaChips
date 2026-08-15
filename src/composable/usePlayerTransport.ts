@@ -162,6 +162,19 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     playerStore.marksVisible = !playerStore.marksVisible
   }
 
+  const toggleStudioMode = () => {
+    if (playerStore.studioMode) {
+      if (dialogsStore.markAdding.show && !dialogsStore.markAdding.submitting) {
+        dialogsStore.closeMarkAdding()
+      } else {
+        playerStore.studioMode = false
+      }
+    } else {
+      playerStore.studioMode = true
+      playerStore.marksVisible = true
+    }
+  }
+
   const toggleMute = () => {
     if (!player.value.player) return
 
@@ -411,6 +424,15 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
 
   watch(() => dialogsStore.markAdding.show, (value) => {
     playerStore.setKeyboardBlocked('mark', value)
+    playerStore.studioMode = value
+    if (value) playerStore.marksVisible = true
+  })
+
+  watch(() => playerStore.studioMode, (active) => {
+    if (active) return
+    playerStore.selectedMarkId = null
+    playerStore.markDraft = null
+    playerStore.creatingMarkDraft = null
   })
 
   return {
@@ -439,6 +461,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     next,
     togglePlaylist,
     toggleMarks,
+    toggleStudioMode,
     toggleMute,
     changeVolume,
     handleVolumeWheel,

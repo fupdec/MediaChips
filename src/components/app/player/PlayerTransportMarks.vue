@@ -21,7 +21,7 @@
 
       <v-btn
         @click="addMark"
-        :color="dialogsStore.markAdding.show ? 'primary' : undefined"
+        :color="dialogsStore.markAdding.show || player.studioMode ? 'primary' : undefined"
         icon
         dark
       >

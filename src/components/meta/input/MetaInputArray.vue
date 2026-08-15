@@ -164,15 +164,15 @@
         <!-- Убираем v-list-item-title и используем свой контент -->
         <template v-slot:title>
           <div class="d-flex align-center flex-grow-1">
-            <div class="d-flex align-center mr-2">
-              <span v-if="meta.favorite">
-                <v-icon v-if="item.raw.favorite" color="pink" size="small" class="mr-1">
+            <div class="d-flex align-center meta-input-array__row-icons">
+              <span v-if="meta.favorite" class="meta-input-array__heart">
+                <v-icon v-if="item.raw.favorite" color="pink" size="14">
                   mdi-heart
                 </v-icon>
-                <v-icon v-else size="small" class="mr-1">mdi-heart-outline</v-icon>
+                <v-icon v-else size="14">mdi-heart-outline</v-icon>
               </span>
               <span v-if="meta.color">
-                <v-icon :color="chipColorFor(item.raw) || ''" size="14" class="mr-1">mdi-circle</v-icon>
+                <v-icon :color="chipColorFor(item.raw) || ''" size="14">mdi-circle</v-icon>
               </span>
             </div>
             <div class="d-flex align-baseline">
@@ -296,6 +296,8 @@ import {debounce} from '@/utils/debounce'
 import {sortTagsByCategoryPreference} from '@/utils/metaSort'
 import type { ArrayMeta, TagListItem } from '@/types/metaInput'
 
+defineOptions({inheritAttrs: false})
+
 const attrs = useAttrs()
 
 const props = withDefaults(defineProps<{
@@ -310,7 +312,7 @@ const props = withDefaults(defineProps<{
   cond: null,
   autofocus: false,
   menuProps: () => ({
-    contentClass: 'custom-list',
+    contentClass: 'custom-list meta-input-array-list',
     zIndex: 2800,
   }),
 })
@@ -933,6 +935,28 @@ watch(search, (query) => {
   display: flex;
   align-items: center;
   width: 100%;
+}
+
+.meta-input-array__row-icons {
+  gap: 2px;
+  margin-right: 14px;
+}
+
+.meta-input-array__heart {
+  margin-right: 6px;
+}
+
+:deep(.meta-input-array-list .list-item) {
+  padding: 0 4px !important;
+}
+
+:deep(.meta-input-array-list .v-list-item) {
+  min-height: 12px !important;
+  font-size: 0.24em !important;
+}
+
+:deep(.meta-input-array-list .v-list-item__spacer) {
+  width: 4px !important;
 }
 
 .meta-input-array__sort-btn {

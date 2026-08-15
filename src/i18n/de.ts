@@ -1299,7 +1299,7 @@ const de = {
     added: 'Hinzugefügt',
     media_created: 'Medien erstellt',
     last_edit: 'Letzte Bearbeitung',
-    last_view: 'Letzte Ansicht',
+    last_view: 'Angesehen',
     synonyms_hint: 'Trennen Sie Synonyme durch ein Komma',
     identity: 'Identität',
     details: 'Details',

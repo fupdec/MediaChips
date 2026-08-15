@@ -745,6 +745,120 @@
       position: absolute;
     }
   }
+  .marks-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 22px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(6px);
+    overflow: visible;
+    z-index: 3;
+
+    &__hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 11px;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  }
+  .mark-clip {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    cursor: grab;
+    border-radius: 4px;
+    touch-action: none;
+
+    &--point {
+      width: 10px;
+      margin-left: -5px;
+    }
+
+    &--dragging {
+      cursor: grabbing;
+      z-index: 4;
+    }
+
+    &--creating {
+      cursor: default;
+      pointer-events: none;
+      background: rgba(244, 67, 54, 0.28);
+      border: 1.5px dashed rgba(244, 67, 54, 0.9);
+      z-index: 2;
+    }
+
+    &--adding {
+      z-index: 6;
+
+      .mark-clip__body {
+        opacity: 1;
+        outline: 2px solid #ffffff;
+        outline-offset: -1px;
+        animation: mark-clip-adding-pulse 1.4s ease-in-out infinite;
+      }
+    }
+
+    &--selected .mark-clip__body {
+      outline: 2px solid #ffffff;
+      outline-offset: -1px;
+    }
+
+    &__body {
+      position: absolute;
+      inset: 0;
+      border-radius: 4px;
+      opacity: 0.75;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: 3px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      transition: opacity 0.15s ease;
+    }
+
+    &--dimmed .mark-clip__body {
+      opacity: 0.3;
+    }
+
+    &:hover .mark-clip__body,
+    &--selected .mark-clip__body,
+    &--dragging .mark-clip__body {
+      opacity: 0.95;
+    }
+
+    &__handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      cursor: ew-resize;
+      z-index: 1;
+
+      &--start {
+        left: -2px;
+      }
+
+      &--end {
+        right: -2px;
+      }
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.35);
+        border-radius: 3px;
+      }
+    }
+  }
   .buttons {
     position: relative;
     overflow: visible;
@@ -1523,5 +1637,14 @@
 @keyframes timeline-stream {
   to {
     transform: translateX(2px);
+  }
+}
+
+@keyframes mark-clip-adding-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0);
   }
 }

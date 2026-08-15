@@ -44,17 +44,21 @@
       hide-details
     />
 
-    <controls-set-mark-time v-if="dialogsStore.markAdding.show"/>
+    <PlayerMarksTrack v-if="player.studioMode" :controls_width="controls_width"/>
+
+    <controls-set-mark-time v-if="!player.studioMode && dialogsStore.markAdding.show"/>
 
     <Preview v-if="!isAudioMode"/>
 
-    <Mark
-      v-for="mark in player.marks"
-      @removeMark="onRemoveMark"
-      :key="mark.id"
-      :mark="mark"
-      :controls_width="controls_width"
-    />
+    <template v-if="!player.studioMode">
+      <Mark
+        v-for="mark in player.marks"
+        @removeMark="onRemoveMark"
+        :key="mark.id"
+        :mark="mark"
+        :controls_width="controls_width"
+      />
+    </template>
   </v-card-actions>
 </template>
 
@@ -64,6 +68,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {usePlayerNeighborPreview} from '@/composable/usePlayerNeighborPreview'
 import Preview from '@/components/app/player/Preview.vue'
 import Mark from '@/components/app/player/Mark.vue'
+import PlayerMarksTrack from '@/components/app/player/PlayerMarksTrack.vue'
 import ControlsSetMarkTime from '@/components/app/player/ControlsSetMarkTime.vue'
 import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview.vue'
 import {usePlayerTimeline} from '@/composable/usePlayerTimeline'

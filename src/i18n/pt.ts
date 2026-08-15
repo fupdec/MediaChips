@@ -1299,7 +1299,7 @@ const pt = {
     added: 'Adicionado',
     media_created: 'Mídia criada',
     last_edit: 'Última edição',
-    last_view: 'Última visualização',
+    last_view: 'Visualizado',
     synonyms_hint: 'Separe os sinônimos com vírgula',
     identity: 'Identidade',
     details: 'Detalhes',

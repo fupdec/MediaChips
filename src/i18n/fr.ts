@@ -1299,7 +1299,7 @@ const fr = {
     added: 'Ajouté',
     media_created: 'Média créé',
     last_edit: 'Dernière modification',
-    last_view: 'Dernière vue',
+    last_view: 'Vu',
     synonyms_hint: 'Séparez les synonymes par une virgule',
     identity: 'Identité',
     details: 'Détails',

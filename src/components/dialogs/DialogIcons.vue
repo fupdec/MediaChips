@@ -1,6 +1,7 @@
 <template>
   <v-dialog
     v-model="internalDialog"
+    :attach="attach"
     width="720"
     scrollable
     :z-index="zIndex"
@@ -22,7 +23,12 @@
 
     <template v-slot:default>
       <v-card rounded="xl">
-        <DialogHeader @close="closeDialog" :header="t('meta.fields.icon_selection')" closable/>
+        <DialogHeader
+          @close="closeDialog"
+          :header="t('meta.fields.icon_selection')"
+          :buttons="headerButtons"
+          closable
+        />
 
         <v-card-text>
           <div v-if="!iconsLoaded" class="d-flex justify-center py-8">
@@ -94,17 +100,6 @@
             </template>
           </v-data-iterator>
         </v-card-text>
-
-        <v-card-actions v-if="selectedIcon" class="pa-4">
-          <v-spacer></v-spacer>
-          <div class="d-flex align-center mr-4">
-            <v-icon size="large" class="mr-2">mdi-{{ selectedIcon }}</v-icon>
-            <span class="text-body-1">{{ t('common.selected') }}: <strong>{{ selectedIcon }}</strong></span>
-          </div>
-          <v-btn @click="applyIcon(selectedIcon)" color="primary" variant="flat">
-            {{ t('meta.fields.apply_icon') }}
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </template>
   </v-dialog>
@@ -135,9 +130,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /** Above the common nesting parents (media-edit / meta-manager dialogs, which default to 2400). */
   zIndex: {
     type: [Number, String],
-    default: 2400,
+    default: 2900,
+  },
+  /** Teleport target for the overlay (e.g. '#player' so it stays visible inside native fullscreen). */
+  attach: {
+    type: [String, Boolean],
+    default: false,
   },
 })
 
@@ -169,6 +170,14 @@ const filteredIcons = computed(() => {
     (icon.tags && icon.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
   )
 })
+
+const headerButtons = computed(() => [{
+  icon: 'check',
+  text: t('meta.fields.apply_icon'),
+  color: 'primary',
+  disabled: !selectedIcon.value,
+  action: () => applyIcon(selectedIcon.value),
+}])
 
 const applyIcon = (iconName: string) => {
   selectedIcon.value = iconName

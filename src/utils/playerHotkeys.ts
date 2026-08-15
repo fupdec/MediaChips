@@ -146,6 +146,9 @@ export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyConte
       }
       return false
 
+    case event.code === 'KeyM' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey:
+      return callControl(controls, 'toggleStudioMode')
+
     case event.code === 'KeyM' && isPlainKey(event):
       return callControl(controls, 'toggleMute')
 

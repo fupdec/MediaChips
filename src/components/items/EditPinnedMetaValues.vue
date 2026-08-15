@@ -81,6 +81,11 @@
             v-if="arrayAssignedItems.length && !isInspectorLayout"
             class="editing-section__group editing-section__group--tags"
           >
+            <v-icon
+              class="editing-section__tags-icon"
+              size="18"
+              icon="mdi-tag-multiple-outline"
+            />
             <v-btn-toggle
               :model-value="useMixedTagsInput ? 'mixed' : 'separate'"
               class="editing-section__tags-mode"
@@ -172,8 +177,8 @@
                   <span class="editing-rating-field__name">{{ t('meta.default_names.rating') }}</span>
                   <v-rating
                     v-model="vals.rating"
-                    color="yellow-darken-3"
-                    background-color="grey-darken-1"
+                    active-color="yellow-darken-3"
+                    color="grey-darken-1"
                     empty-icon="mdi-star-outline"
                     half-icon="mdi-star-half-full"
                     half-increments
@@ -200,7 +205,6 @@
                     density="compact"
                     hide-details
                     class="fav-btn"
-                    v-tooltip:top="t('meta.default_names.favorite')"
                   />
                 </template>
               </div>
@@ -336,6 +340,7 @@
                 @update:model-value="setMixedTagsValue"
                 :label="isInspectorLayout ? '' : undefined"
                 :variant="fieldVariant"
+                :menu-props="mixedTagsMenuProps"
                 density="compact"
                 hide-details
               />
@@ -371,6 +376,7 @@
                 :label="isInspectorLayout ? '' : undefined"
                 :placeholder="isInspectorLayout ? metaName(item) : undefined"
                 :variant="fieldVariant"
+                :menu-props="arrayTagMenuProps"
                 density="compact"
                 :hide-details="fieldHideDetails"
                 multiple
@@ -387,7 +393,6 @@
                 control-variant="split"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
                 clearable
                 :variant="fieldVariant"
               >
@@ -408,7 +413,6 @@
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
                 clearable
                 :variant="fieldVariant"
               >
@@ -429,7 +433,6 @@
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
               />
 
               <v-text-field
@@ -441,7 +444,6 @@
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
                 readonly
                 clearable
                 :variant="fieldVariant"
@@ -556,6 +558,7 @@
 import {ref, computed, onMounted, onUnmounted, watch, reactive} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
+import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -718,6 +721,7 @@ const overviewItem = computed((): MediaItem | Tag => {
 })
 
 const appStore = useAppStore()
+const playerStore = usePlayerStore()
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const scraperStore = useScraperStore()
@@ -729,6 +733,23 @@ const {t} = useI18n()
 const locale = computed(() => settingsStore.locale == 'cn' ? 'zh-cn' : settingsStore.locale == 'pt' ? 'pt-br' : settingsStore.locale)
 dayjs.extend(relativeTime)
 dayjs.locale(locale.value)
+
+// Body-teleported menus render outside the fullscreened .player element and
+// become invisible under native browser fullscreen — attach inside it there.
+const fullscreenAttach = computed(() => playerStore.fullscreen ? '.player' : undefined)
+
+const mixedTagsMenuProps = computed(() => ({
+  contentClass: 'custom-list mixed-tags-dropdown',
+  maxHeight: 360,
+  zIndex: 2800,
+  attach: fullscreenAttach.value,
+}))
+
+const arrayTagMenuProps = computed(() => ({
+  contentClass: 'custom-list',
+  zIndex: 2800,
+  attach: fullscreenAttach.value,
+}))
 
 const form = ref<VFormInstance>(null)
 const valid = ref(false)
@@ -1758,11 +1779,18 @@ defineExpose({
 
   .editing-section__group--search {
     flex: 1 1 auto;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .editing-section__group--tags,
   .editing-section__group--filters {
     flex: 0 0 auto;
+  }
+
+  .editing-section__tags-icon {
+    flex: 0 0 auto;
+    opacity: 0.6;
   }
 
   .editing-section__group-label {
