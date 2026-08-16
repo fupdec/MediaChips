@@ -28,7 +28,11 @@
     <div class="playlist-item__info">
       <span class="playlist-item__index">{{ index + 1 }}</span>
       <div class="playlist-item__text">
-        <span class="playlist-item__name" :title="displayName" v-text="displayName"/>
+        <span
+          class="playlist-item__name"
+          v-tooltip="playerTooltip(displayName)"
+          v-text="displayName"
+        />
         <span v-if="durationLabel" class="playlist-item__duration" v-text="durationLabel"/>
       </div>
     </div>
@@ -38,6 +42,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {usePlaylistItem} from '@/composable/usePlaylistItem'
+import {playerTooltip} from '@/utils/playerOverlay'
 import {getSegmentEnd, getSegmentStart} from '@/utils/mediaItem'
 import type {MediaItem} from '@/types/stores'
 

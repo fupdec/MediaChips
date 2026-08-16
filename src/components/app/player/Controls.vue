@@ -9,11 +9,13 @@
     :ripple="false"
   >
     <div class="controls-inner px-6" @click.stop @dblclick.stop>
-      <PlayerMarkInspector
-        v-if="player.studioMode || dialogsStore.markAdding.show"
-        @saveMark="emit('saveMark', $event)"
-        @escape="transportRef?.exitStudioLayer?.()"
-      />
+      <Transition name="mark-inspector">
+        <PlayerMarkInspector
+          v-if="player.studioMode || dialogsStore.markAdding.show"
+          @saveMark="emit('saveMark', $event)"
+          @escape="transportRef?.exitStudioLayer?.()"
+        />
+      </Transition>
 
       <PlayerTimeline
         ref="timelineRef"

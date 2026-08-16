@@ -64,7 +64,7 @@ import { usePlayerStore } from '@/stores/player'
 import { useDialogsStore } from '@/stores/dialogs'
 import { usePlayerMarkStudio, type MarkDragMode } from '@/composable/usePlayerMarkStudio'
 import { assignMarkLanes } from '@/utils/playerMarkStudio'
-import { DEFAULT_BOOKMARK_ICON, isTagMarkType, normalizeMarkIcon } from '@/utils/markAdding'
+import { DEFAULT_BOOKMARK_ICON, FAVORITE_MARK_ICON, isTagMarkType, normalizeMarkIcon } from '@/utils/markAdding'
 import PlayerMarkClip from '@/components/app/player/PlayerMarkClip.vue'
 
 const props = defineProps<{
@@ -125,7 +125,7 @@ const addingEnd = computed(() => dialogsStore.markAdding.end ?? addingTime.value
 const addingColor = computed(() => dialogsStore.markAdding.color || '#f44336')
 const addingIcon = computed(() => {
   const type = dialogsStore.markAdding.type
-  if (type === 'favorite') return 'heart'
+  if (type === 'favorite') return FAVORITE_MARK_ICON
   if (isTagMarkType(String(type))) return 'tag'
   return normalizeMarkIcon(dialogsStore.markAdding.icon, DEFAULT_BOOKMARK_ICON)
 })

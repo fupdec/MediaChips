@@ -5,7 +5,7 @@
       :class="{
         'mark-menu--editing': isEditing,
         'mark-menu--compact': compact,
-        'mark-menu--bookmark': is_bookmark,
+        'mark-menu--bookmark': isNoteType,
       }"
       :style="{'--mark-accent': accentColor}"
       @keydown.enter="onEnterKey"
@@ -15,8 +15,8 @@
           <v-btn
             v-for="item in mark_types"
             :key="item.value"
-            :variant="markAdding.type == item.value ? 'flat' : 'tonal'"
-            :color="markAdding.type == item.value ? item.color : undefined"
+            :variant="isTypeSelected(item.value) ? 'flat' : 'tonal'"
+            :color="isTypeSelected(item.value) ? typeChipColor(item) : undefined"
             size="x-small"
             rounded="lg"
             class="mark-menu__type"
@@ -43,7 +43,7 @@
       </div>
 
       <div class="mark-menu__identity">
-        <v-form v-if="is_bookmark" ref="form" v-model="valid" class="mark-menu__identity-field">
+        <v-form v-if="isNoteType" ref="form" v-model="valid" class="mark-menu__identity-field">
           <v-textarea
             v-model="text"
             :rules="bookmarkTextRequired
@@ -95,19 +95,38 @@
             :aria-label="t('player.mark_dialog.start_time')"
             @update:model-value="onStartTimeChange"
           />
+          <v-btn
+            v-tooltip="formTooltip(t('player.mark_dialog.jump_to_time'))"
+            size="x-small"
+            variant="text"
+            icon
+            class="mark-menu__cue-btn"
+            @click="jumpTo(markAdding.time ?? 0)"
+          >
+            <v-icon size="16">mdi-play</v-icon>
+          </v-btn>
+          <v-btn
+            v-tooltip="formTooltip(t('player.mark_dialog.sync_with_player'))"
+            size="x-small"
+            variant="text"
+            icon
+            class="mark-menu__cue-btn"
+            @click="getCurrentTime('time')"
+          >
+            <v-icon size="16">mdi-crosshairs-gps</v-icon>
+          </v-btn>
         </div>
 
         <v-btn
-          v-tooltip:top="rangeTooltip"
-          :title="rangeTooltip"
+          v-tooltip="formTooltip(rangeTooltip)"
           :color="markAdding.is_end_time_active ? accentColor : undefined"
           :variant="markAdding.is_end_time_active ? 'flat' : 'tonal'"
-          size="small"
+          size="x-small"
           icon
           class="mark-menu__range"
           @click="toggleEndTime(!markAdding.is_end_time_active)"
         >
-          <v-icon size="16">mdi-arrow-expand-horizontal</v-icon>
+          <v-icon size="14">mdi-arrow-expand-horizontal</v-icon>
         </v-btn>
 
         <div class="mark-menu__cue" :class="{'mark-menu__cue--ghost': !markAdding.is_end_time_active}">
@@ -120,11 +139,33 @@
             :aria-label="t('player.mark_dialog.end_time')"
             @update:model-value="onEndTimeChange"
           />
+          <v-btn
+            :disabled="!markAdding.is_end_time_active"
+            v-tooltip="formTooltip(t('player.mark_dialog.jump_to_time'))"
+            size="x-small"
+            variant="text"
+            icon
+            class="mark-menu__cue-btn"
+            @click="jumpTo(markAdding.end ?? 0)"
+          >
+            <v-icon size="16">mdi-skip-forward</v-icon>
+          </v-btn>
+          <v-btn
+            :disabled="!markAdding.is_end_time_active"
+            v-tooltip="formTooltip(t('player.mark_dialog.sync_with_player'))"
+            size="x-small"
+            variant="text"
+            icon
+            class="mark-menu__cue-btn"
+            @click="getCurrentTime('end')"
+          >
+            <v-icon size="16">mdi-crosshairs-gps</v-icon>
+          </v-btn>
         </div>
       </section>
 
       <div class="mark-menu__tools">
-        <div v-if="is_bookmark" class="mark-menu__icons">
+        <div v-if="isNoteType" class="mark-menu__icons">
           <v-btn
             v-for="preset in iconPresets"
             :key="preset"
@@ -138,7 +179,7 @@
             <v-icon size="14">mdi-{{ preset }}</v-icon>
           </v-btn>
           <v-btn
-            v-tooltip:top="t('meta.fields.select_icon')"
+            v-tooltip="formTooltip(t('meta.fields.select_icon'))"
             :title="t('meta.fields.select_icon')"
             size="x-small"
             variant="tonal"
@@ -150,57 +191,10 @@
           <DialogIcons
             v-model="showIconPicker"
             :icon="markIcon"
-            :attach="playerStore.fullscreen ? '#player' : false"
+            :attach="overlayAttach"
             hide-activator
             @apply="setMarkIcon"
           />
-        </div>
-
-        <div class="mark-menu__player-controls">
-          <v-btn
-            v-tooltip:top="t('player.mark_dialog.jump_to_time')"
-            :title="t('player.mark_dialog.jump_to_time')"
-            size="x-small"
-            variant="tonal"
-            icon
-            @click="jumpTo(markAdding.time ?? 0)"
-          >
-            <v-icon size="16">mdi-play</v-icon>
-          </v-btn>
-          <v-btn
-            v-tooltip:top="t('player.mark_dialog.sync_with_player')"
-            :title="t('player.mark_dialog.sync_with_player')"
-            size="x-small"
-            variant="tonal"
-            icon
-            @click="getCurrentTime('time')"
-          >
-            <v-icon size="16">mdi-crosshairs-gps</v-icon>
-          </v-btn>
-          <template v-if="!is_bookmark || markAdding.is_end_time_active">
-            <v-btn
-              :disabled="!markAdding.is_end_time_active"
-              v-tooltip:top="t('player.mark_dialog.jump_to_time')"
-              :title="t('player.mark_dialog.jump_to_time')"
-              size="x-small"
-              variant="tonal"
-              icon
-              @click="jumpTo(markAdding.end ?? 0)"
-            >
-              <v-icon size="16">mdi-skip-forward</v-icon>
-            </v-btn>
-            <v-btn
-              :disabled="!markAdding.is_end_time_active"
-              v-tooltip:top="t('player.mark_dialog.sync_with_player')"
-              :title="t('player.mark_dialog.sync_with_player')"
-              size="x-small"
-              variant="tonal"
-              icon
-              @click="getCurrentTime('end')"
-            >
-              <v-icon size="16">mdi-crosshairs-gps</v-icon>
-            </v-btn>
-          </template>
         </div>
       </div>
 
@@ -235,15 +229,20 @@ import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
 import {
   BASE_MARK_TYPES,
   BOOKMARK_ICON_PRESETS,
+  BOOKMARK_MARK_TYPE,
   CHAPTER_MARK_ICON,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_TYPE,
   TAG_MARK_TYPE,
+  applyNoteIcon,
   buildMarkTypes,
   getAssignedArrayMetas,
+  isNoteMarkType,
   isTagMarkType,
   normalizeMarkIcon,
   normalizeMarkTime,
 } from '@/utils/markAdding'
+import {PLAYER_OVERLAY_ATTACH, playerTooltip} from '@/utils/playerOverlay'
 
 interface MarkAddingData {
   text?: string
@@ -303,8 +302,11 @@ const arrayMetaIds = computed(() => {
   return [...assignedIds, ...rest]
 })
 
+const overlayAttach = PLAYER_OVERLAY_ATTACH
+const formTooltip = (text: string) => playerTooltip(text)
+
 const tagMenuProps = computed(() => ({
-  attach: '#player',
+  attach: overlayAttach,
   contentClass: 'custom-list mixed-tags-dropdown mark-adding-tags-menu',
   maxHeight: 280,
   zIndex: 4000,
@@ -320,8 +322,14 @@ const playerDuration = computed(() => Math.floor(playerStore.duration || 0))
 const isEditing = computed(() => Number(markAdding.value.editId) > 0)
 
 const is_bookmark = computed(() => markAdding.value.type === 'bookmark')
+const is_favorite = computed(() => markAdding.value.type === 'favorite')
+const isNoteType = computed(() => isNoteMarkType(String(markAdding.value.type)))
 const is_tag = computed(() => isTagMarkType(String(markAdding.value.type)))
-const markIcon = computed(() => normalizeMarkIcon(markAdding.value.icon, DEFAULT_BOOKMARK_ICON))
+const markIcon = computed(() => (
+  is_favorite.value
+    ? FAVORITE_MARK_TYPE.icon
+    : normalizeMarkIcon(markAdding.value.icon, DEFAULT_BOOKMARK_ICON)
+))
 const isChapterIcon = computed(() => markIcon.value === CHAPTER_MARK_ICON)
 const bookmarkTextRequired = computed(() => is_bookmark.value && !isChapterIcon.value)
 const accentColor = computed(() => markAdding.value.color || '#f44336')
@@ -399,6 +407,16 @@ const getMarkTypeText = (item: MarkTypeItem) => {
   return ''
 }
 
+const isTypeSelected = (value: string) => {
+  if (value === BOOKMARK_MARK_TYPE.value) return isNoteType.value
+  return markAdding.value.type == value
+}
+
+const typeChipColor = (item: MarkTypeItem) => {
+  if (item.value === BOOKMARK_MARK_TYPE.value) return accentColor.value
+  return item.color
+}
+
 const applyTypeColor = (type: string | number) => {
   const preset = BASE_MARK_TYPES.find((item) => item.value === type)
     || (type === TAG_MARK_TYPE.value ? TAG_MARK_TYPE : null)
@@ -410,30 +428,32 @@ const applyTypeColor = (type: string | number) => {
 }
 
 const setMarkIcon = (iconName: string) => {
-  dialogsStore.markAdding.icon = normalizeMarkIcon(iconName, DEFAULT_BOOKMARK_ICON)
-  if (dialogsStore.markAdding.icon === CHAPTER_MARK_ICON) {
-    dialogsStore.markAdding.color = '#26a69a'
-  } else {
-    dialogsStore.markAdding.color = '#f44336'
-  }
+  const next = applyNoteIcon(iconName)
+  dialogsStore.markAdding.icon = next.icon
+  dialogsStore.markAdding.type = next.type
+  dialogsStore.markAdding.color = next.color
 }
 
 const changeType = (type: string | number) => {
-  dialogsStore.markAdding.type = String(type)
+  const nextType = String(type)
   validationError.value = null
-  applyTypeColor(type)
 
-  if (!isTagMarkType(String(type))) {
+  if (nextType === BOOKMARK_MARK_TYPE.value && isNoteType.value) return
+
+  if (isTagMarkType(nextType)) {
+    dialogsStore.markAdding.type = nextType
+    applyTypeColor(nextType)
     dialogsStore.markAdding.meta = {}
-    dialogsStore.markAdding.tagId = null
-    mixedTagKeys.value = []
-    if (String(type) === 'bookmark' && !markAdding.value.icon) {
-      dialogsStore.markAdding.icon = DEFAULT_BOOKMARK_ICON
-    }
     return
   }
 
+  const next = applyNoteIcon(DEFAULT_BOOKMARK_ICON)
   dialogsStore.markAdding.meta = {}
+  dialogsStore.markAdding.tagId = null
+  mixedTagKeys.value = []
+  dialogsStore.markAdding.type = next.type
+  dialogsStore.markAdding.icon = next.icon
+  dialogsStore.markAdding.color = next.color
 }
 
 const presetSelectedTag = (tagId: number | null) => {
@@ -552,7 +572,7 @@ const add = () => {
     dialogsStore.markAdding.end = null
   }
 
-  if (is_bookmark.value) {
+  if (isNoteType.value) {
     data.text = text.value.trim()
     data.icon = markIcon.value
   } else if (is_tag.value) {
@@ -696,6 +716,7 @@ watch(
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
+  justify-content: space-between;
   gap: 4px;
   margin-top: 8px;
   min-width: 0;
@@ -704,9 +725,10 @@ watch(
 .mark-menu__cue {
   display: inline-flex;
   align-items: center;
+  gap: 0;
   min-width: 0;
   min-height: 32px;
-  padding: 1px 4px;
+  padding: 1px 2px 1px 4px;
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.92);
   background: rgba(255, 255, 255, 0.1);
@@ -716,26 +738,26 @@ watch(
   }
 }
 
+.mark-menu__cue-btn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+}
+
 .mark-menu__range {
   flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
 }
 
 .mark-menu__tools {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
   margin-top: 6px;
   min-width: 0;
-}
-
-.mark-menu__player-controls {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
-  margin-left: auto;
 }
 
 .mark-menu__alert {

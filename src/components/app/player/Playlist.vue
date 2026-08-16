@@ -25,13 +25,13 @@
       <div class="player-sidebar__modes">
         <v-chip
           v-if="similarRadioActive"
+          v-tooltip="playerTooltip(t('player.similar_radio_stop'))"
           class="player-sidebar__radio-chip"
           color="primary"
           variant="tonal"
           size="small"
           closable
           close-icon="mdi-stop"
-          :title="t('player.similar_radio_stop')"
           @click:close="onStopRadio"
         >
           <v-icon start size="small">mdi-radio-tower</v-icon>
@@ -48,18 +48,22 @@
         >
           <v-btn
             value="loop"
-            :title="t('player.playlist_modes.loop')"
+            v-tooltip="playerTooltip(t('player.playlist_modes.loop'))"
             size="small"
             :disabled="similarRadioActive"
           >
             <v-icon size="small">mdi-sync</v-icon>
           </v-btn>
-          <v-btn value="autoplay" :title="t('player.playlist_modes.autoplay')" size="small">
+          <v-btn
+            value="autoplay"
+            v-tooltip="playerTooltip(t('player.playlist_modes.autoplay'))"
+            size="small"
+          >
             <v-icon size="small">mdi-play-pause</v-icon>
           </v-btn>
           <v-btn
             value="shuffle"
-            :title="t('player.playlist_modes.shuffle')"
+            v-tooltip="playerTooltip(t('player.playlist_modes.shuffle'))"
             size="small"
             :disabled="similarRadioActive"
           >
@@ -92,6 +96,7 @@
 import {useI18n} from 'vue-i18n'
 import {usePlayerPlaylist} from '@/composable/usePlayerPlaylist'
 import PlaylistItem from '@/components/app/player/PlaylistItem.vue'
+import {playerTooltip} from '@/utils/playerOverlay'
 import {similarRadioActive, stopSimilarRadio} from '@/services/similarRadio'
 import type { PlayVideoSwitch } from '@/types/player'
 

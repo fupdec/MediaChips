@@ -9,6 +9,7 @@
     <div
       ref="dockRef"
       class="mark-inspector__dock"
+      :class="{'mark-inspector__dock--ready': positioned}"
       :style="dockStyle"
     >
       <span
@@ -38,6 +39,7 @@ const hostRef = ref<HTMLElement | null>(null)
 const dockRef = ref<HTMLElement | null>(null)
 const shift = ref(0)
 const caret = ref(220)
+const positioned = ref(false)
 
 const accentColor = computed(() => dialogsStore.markAdding.color || '#f44336')
 
@@ -67,6 +69,11 @@ const layout = () => {
   })
   shift.value = next.shift
   caret.value = next.caret
+  if (!positioned.value) {
+    requestAnimationFrame(() => {
+      positioned.value = true
+    })
+  }
 }
 
 let hostObserver: ResizeObserver | null = null

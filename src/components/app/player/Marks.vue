@@ -12,8 +12,7 @@
         </div>
         <v-spacer/>
         <v-btn
-          v-tooltip:bottom="t('player.controls.add_mark')"
-          :title="t('player.controls.add_mark')"
+          v-tooltip="playerTooltip(t('player.controls.add_mark'), 'bottom')"
           variant="text"
           icon
           size="small"
@@ -23,8 +22,7 @@
           <v-icon size="small">mdi-plus</v-icon>
         </v-btn>
         <v-btn
-          v-tooltip:bottom="t('player.generate_chapters')"
-          :title="t('player.generate_chapters')"
+          v-tooltip="playerTooltip(t('player.generate_chapters'), 'bottom')"
           :loading="generatingChapters"
           :disabled="generatingChapters || !player.media?.id"
           variant="text"
@@ -36,8 +34,7 @@
           <v-icon size="small">mdi-movie-open-outline</v-icon>
         </v-btn>
         <v-btn
-          v-tooltip:bottom="t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode')"
-          :title="t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode')"
+          v-tooltip="playerTooltip(t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode'), 'bottom')"
           :color="clipMode ? 'primary' : undefined"
           variant="text"
           icon
@@ -150,8 +147,7 @@
 
       <div v-if="clipMode && selectedClipMarkIds.length > 0" class="player-sidebar__clip-bar">
         <v-btn
-          v-tooltip:top="t('player.clip_mode_on')"
-          :title="t('player.clip_mode_on')"
+          v-tooltip="playerTooltip(t('player.clip_mode_on'))"
           variant="text"
           icon
           size="small"
@@ -192,6 +188,7 @@ import PlayerMarkListItem from '@/components/app/player/PlayerMarkListItem.vue'
 import type {PlayerMark} from '@/types/player'
 import {MARK_FILTER_CHAPTER} from '@/utils/markAdding'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
+import {playerTooltip} from '@/utils/playerOverlay'
 
 const emit = defineEmits<{
   removeMark: [mark: PlayerMark]

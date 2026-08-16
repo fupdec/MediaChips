@@ -6,6 +6,7 @@ import { getCurrentMediaType } from '@/utils/mediaType'
 import {
   BASE_MARK_TYPES,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_ICON,
   TAG_MARK_TYPE,
   normalizeMarkTime,
   resolveMarkEditIcon,
@@ -313,7 +314,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.markAdding.formKey += 1
       this.markAdding.editId = null
       this.markAdding.text = ''
-      this.markAdding.icon = DEFAULT_BOOKMARK_ICON
+      this.markAdding.icon = normalizedType === 'favorite' ? FAVORITE_MARK_ICON : DEFAULT_BOOKMARK_ICON
       this.markAdding.tagId = null
       this.markAdding.time = normalizeMarkTime(time)
       this.markAdding.type = normalizedType

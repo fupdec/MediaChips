@@ -465,7 +465,28 @@
     width: 440px;
     max-width: 100%;
     position: relative;
-    transition: left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity: 0;
+    transform: translateY(20px);
+
+    &--ready {
+      opacity: 1;
+      transform: none;
+      transition:
+        left 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.2s ease;
+    }
+  }
+
+  .mark-inspector-leave-active {
+    transition:
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.16s ease;
+  }
+
+  .mark-inspector-leave-to {
+    opacity: 0;
+    transform: translateY(20px);
   }
 
   .mark-inspector__caret {
@@ -947,6 +968,7 @@
   }
   .buttons {
     position: relative;
+    z-index: 15;
     overflow: visible;
 
     .v-chip {

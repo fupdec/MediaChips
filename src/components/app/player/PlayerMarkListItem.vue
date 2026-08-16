@@ -29,15 +29,21 @@
         <span
           v-if="mark.type == 'meta'"
           class="mark-item__name"
+          v-tooltip="playerTooltip(markLabel)"
           v-html="mark['tag.name'] || mark.tag?.name"
         />
         <span
           v-else-if="mark.text"
           class="mark-item__name"
+          v-tooltip="playerTooltip(markLabel)"
           v-html="mark.text"
-          :title="mark.text"
         />
-        <span v-else class="mark-item__name" v-html="mark.name"/>
+        <span
+          v-else
+          class="mark-item__name"
+          v-tooltip="playerTooltip(markLabel)"
+          v-html="mark.name"
+        />
       </div>
       <div class="mark-item__meta">
         <span class="mark-item__time">
@@ -48,6 +54,7 @@
 
     <div v-if="!selectable" class="mark-item__actions">
       <v-btn
+        v-tooltip="playerTooltip(t('common.edit'))"
         @click.stop="edit(mark)"
         class="mark-item__edit"
         variant="text"
@@ -57,6 +64,7 @@
         <v-icon size="small">mdi-pencil-outline</v-icon>
       </v-btn>
       <v-btn
+        v-tooltip="playerTooltip(t('common.delete'))"
         @click.stop="remove(mark)"
         class="mark-item__delete"
         variant="text"
@@ -71,9 +79,12 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {PlayerMark} from '@/types/player'
+import {playerTooltip} from '@/utils/playerOverlay'
 
-defineProps<{
+const props = defineProps<{
   mark: PlayerMark
   isThumbsLoaded?: boolean
   getIcon: (mark: PlayerMark) => string
@@ -89,4 +100,13 @@ defineProps<{
 const emit = defineEmits<{
   toggleSelect: [mark: PlayerMark]
 }>()
+
+const {t} = useI18n()
+
+const markLabel = computed(() => {
+  if (props.mark.type == 'meta') {
+    return String(props.mark['tag.name'] || props.mark.tag?.name || '')
+  }
+  return String(props.mark.text || props.mark.name || '')
+})
 </script>
