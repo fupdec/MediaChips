@@ -1,71 +1,152 @@
 <template>
-  <v-card
-    class="mark-adding-card"
-    :class="{'mark-adding-card--compact': compact}"
-    rounded="xl"
-    @keydown.enter.prevent="submitIfReady"
-  >
-    <DialogHeader
-      @close="close"
-      :header="isEditing
-        ? t('player.mark_dialog.editing_marker')
-        : t('player.mark_dialog.adding_marker')"
-      :subheader="positionLabel"
-      :icon="selectedTypeIcon"
-      :buttons="buttons"
-      :compact="compact"
-      closable
-    />
-
-    <v-card-text class="mark-adding" :class="compact ? 'pa-2 pa-sm-3' : 'pa-3 pa-sm-4'">
-      <section class="mark-adding__section">
-        <div class="mark-adding__section-label">{{ t('player.mark_dialog.mark_type') }}</div>
-        <v-chip-group
-          v-model="markAdding.type"
-          @update:model-value="changeType"
-          mandatory
-          column
-          class="mark-adding__types"
-        >
-          <v-chip
+  <v-theme-provider theme="dark">
+    <div
+      class="mark-menu"
+      :class="{
+        'mark-menu--editing': isEditing,
+        'mark-menu--compact': compact,
+        'mark-menu--bookmark': is_bookmark,
+      }"
+      :style="{'--mark-accent': accentColor}"
+      @keydown.enter="onEnterKey"
+    >
+      <div class="mark-menu__top">
+        <div class="mark-menu__types" role="tablist">
+          <v-btn
             v-for="item in mark_types"
             :key="item.value"
-            :value="item.value"
-            :size="compact ? 'small' : undefined"
-            filter
-            variant="tonal"
-            :color="markAdding.type == item.value ? 'primary' : undefined"
+            :variant="markAdding.type == item.value ? 'flat' : 'tonal'"
+            :color="markAdding.type == item.value ? item.color : undefined"
+            size="x-small"
+            rounded="lg"
+            class="mark-menu__type"
+            @click="changeType(item.value)"
           >
-            <v-icon start size="small">mdi-{{ item.icon }}</v-icon>
+            <v-icon start size="16">mdi-{{ item.icon }}</v-icon>
             {{ getMarkTypeText(item) }}
-          </v-chip>
-        </v-chip-group>
+          </v-btn>
+        </div>
+
+        <v-btn
+          color="success"
+          :disabled="!canSubmit"
+          :loading="markAdding.submitting"
+          variant="flat"
+          size="small"
+          rounded="lg"
+          class="mark-menu__submit"
+          @click="add"
+        >
+          <v-icon start size="16">mdi-{{ isEditing ? 'content-save' : 'plus' }}</v-icon>
+          {{ submitLabel }}
+        </v-btn>
+      </div>
+
+      <div class="mark-menu__identity">
+        <v-form v-if="is_bookmark" ref="form" v-model="valid" class="mark-menu__identity-field">
+          <v-textarea
+            v-model="text"
+            :rules="bookmarkTextRequired
+              ? [(v) => !!v?.trim() || t('validation.value_required')]
+              : []"
+            :placeholder="isChapterIcon
+              ? t('player.mark_dialog.chapter_title')
+              : t('common.text')"
+            :required="bookmarkTextRequired"
+            density="compact"
+            autofocus
+            auto-grow
+            rows="1"
+            max-rows="6"
+            variant="outlined"
+            rounded="lg"
+            hide-details
+            class="mark-menu__textarea"
+          />
+        </v-form>
+        <MetaInputMixedTags
+          v-else-if="is_tag"
+          :meta-ids="arrayMetaIds"
+          :model-value="mixedTagKeys"
+          placeholder=""
+          label=""
+          :menu-props="tagMenuProps"
+          single
+          autofocus
+          density="compact"
+          variant="outlined"
+          rounded="lg"
+          hide-details
+          class="mark-menu__mixed-tags"
+          @update:model-value="onMixedTagsUpdate"
+        />
+        <p v-else class="mark-menu__identity-hint">
+          {{ t('player.mark_dialog.at_position', {time: formatTime(markAdding.time ?? 0)}) }}
+        </p>
+      </div>
+
+      <section class="mark-menu__timing">
+        <div class="mark-menu__cue">
+          <MarkTimeHmsInput
+            compact
+            :model-value="markAdding.time ?? 0"
+            :min="0"
+            :max="playerDuration"
+            :aria-label="t('player.mark_dialog.start_time')"
+            @update:model-value="onStartTimeChange"
+          />
+        </div>
+
+        <v-btn
+          v-tooltip:top="rangeTooltip"
+          :title="rangeTooltip"
+          :color="markAdding.is_end_time_active ? accentColor : undefined"
+          :variant="markAdding.is_end_time_active ? 'flat' : 'tonal'"
+          size="small"
+          icon
+          class="mark-menu__range"
+          @click="toggleEndTime(!markAdding.is_end_time_active)"
+        >
+          <v-icon size="16">mdi-arrow-expand-horizontal</v-icon>
+        </v-btn>
+
+        <div class="mark-menu__cue" :class="{'mark-menu__cue--ghost': !markAdding.is_end_time_active}">
+          <MarkTimeHmsInput
+            compact
+            :model-value="markAdding.end ?? markAdding.time ?? 0"
+            :min="markAdding.time || 0"
+            :max="playerDuration"
+            :disabled="!markAdding.is_end_time_active"
+            :aria-label="t('player.mark_dialog.end_time')"
+            @update:model-value="onEndTimeChange"
+          />
+        </div>
       </section>
 
-      <section v-if="is_bookmark" class="mark-adding__section">
-        <div class="mark-adding__icon-presets">
+      <div class="mark-menu__tools">
+        <div v-if="is_bookmark" class="mark-menu__icons">
           <v-btn
             v-for="preset in iconPresets"
             :key="preset"
             :variant="markIcon === preset ? 'flat' : 'tonal'"
-            :color="markIcon === preset ? 'primary' : undefined"
-            :size="compact ? 'x-small' : 'small'"
+            :color="markIcon === preset ? accentColor : undefined"
+            size="x-small"
             icon
+            tabindex="-1"
             @click="setMarkIcon(preset)"
           >
-            <v-icon :size="compact ? 12 : 'small'">mdi-{{ preset }}</v-icon>
+            <v-icon size="14">mdi-{{ preset }}</v-icon>
           </v-btn>
-
           <v-btn
             v-tooltip:top="t('meta.fields.select_icon')"
-            @click="showIconPicker = true"
-            :size="compact ? 'x-small' : 'small'"
+            :title="t('meta.fields.select_icon')"
+            size="x-small"
             variant="tonal"
             icon
+            @click="showIconPicker = true"
           >
-            <v-icon :size="compact ? 14 : 20">mdi-dots-horizontal</v-icon>
+            <v-icon size="16">mdi-dots-horizontal</v-icon>
           </v-btn>
-
           <DialogIcons
             v-model="showIconPicker"
             :icon="markIcon"
@@ -74,255 +155,67 @@
             @apply="setMarkIcon"
           />
         </div>
-      </section>
 
-      <section v-if="is_bookmark" class="mark-adding__section">
-        <v-form ref="form" v-model="valid">
-          <v-textarea
-            v-model="text"
-            :rules="bookmarkTextRequired
-              ? [(v) => !!v?.trim() || t('validation.value_required')]
-              : []"
-            :label="isChapterIcon
-              ? t('player.mark_dialog.chapter_title')
-              : t('common.text')"
-            :rows="compact ? 1 : 1"
-            :required="bookmarkTextRequired"
-            :density="compact ? 'compact' : undefined"
-            auto-grow
-            autofocus
-            variant="outlined"
-            rounded="xl"
-            hide-details="auto"
-          />
-        </v-form>
-      </section>
-
-      <section v-else-if="is_tag" class="mark-adding__section">
-        <MetaInputMixedTags
-          :meta-ids="arrayMetaIds"
-          :model-value="mixedTagKeys"
-          :label="t('player.mark_dialog.selected_tag')"
-          :placeholder="t('player.mark_dialog.search_any_tag')"
-          :menu-props="tagMenuProps"
-          single
-          autofocus
-          density="comfortable"
-          variant="outlined"
-          rounded="xl"
-          hide-details="auto"
-          class="mark-adding__mixed-tags"
-          @update:model-value="onMixedTagsUpdate"
-        />
-      </section>
-
-      <section class="mark-adding__section mark-adding__section--transport">
-        <div class="mark-adding__transport">
+        <div class="mark-menu__player-controls">
           <v-btn
-            v-for="step in seekBackSteps"
-            :key="`back-${step}`"
-            v-tooltip:top="`-${step}s`"
-            @click="seekBy(-step)"
-            class="mark-adding__transport-seek"
-            size="x-small"
-            variant="text"
-          >
-            -{{ step }}
-          </v-btn>
-
-          <v-btn
-            v-tooltip:top="t(playerStore.paused ? 'player.controls.play' : 'player.controls.pause')"
-            @click="togglePause"
-            class="mark-adding__transport-play"
+            v-tooltip:top="t('player.mark_dialog.jump_to_time')"
+            :title="t('player.mark_dialog.jump_to_time')"
             size="x-small"
             variant="tonal"
             icon
+            @click="jumpTo(markAdding.time ?? 0)"
           >
-            <v-icon size="14">mdi-{{ playerStore.paused ? 'play' : 'pause' }}</v-icon>
+            <v-icon size="16">mdi-play</v-icon>
           </v-btn>
-
           <v-btn
-            v-for="step in seekForwardSteps"
-            :key="`fwd-${step}`"
-            v-tooltip:top="`+${step}s`"
-            @click="seekBy(step)"
-            class="mark-adding__transport-seek"
+            v-tooltip:top="t('player.mark_dialog.sync_with_player')"
+            :title="t('player.mark_dialog.sync_with_player')"
             size="x-small"
-            variant="text"
-          >
-            +{{ step }}
-          </v-btn>
-        </div>
-      </section>
-
-      <section class="mark-adding__section">
-        <div class="mark-adding__time-row">
-          <div class="mark-adding__time-head">
-            <span class="mark-adding__field-label">{{ t('player.mark_dialog.start_time') }}</span>
-          </div>
-
-          <div class="mark-adding__time-controls">
-            <MarkTimeHmsInput
-              :model-value="markAdding.time ?? 0"
-              :min="0"
-              :max="playerDuration"
-              :aria-label="t('player.mark_dialog.start_time')"
-              @update:model-value="onStartTimeChange"
-            />
-            <v-btn
-              v-tooltip:top="'-1s'"
-              @click="nudgeStart(-1)"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-minus</v-icon>
-            </v-btn>
-            <v-btn
-              v-tooltip:top="'+1s'"
-              @click="nudgeStart(1)"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-plus</v-icon>
-            </v-btn>
-            <v-btn
-              v-tooltip:top="t('player.mark_dialog.sync_with_player')"
-              @click="getCurrentTime('time')"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-sync</v-icon>
-            </v-btn>
-            <v-btn
-              v-tooltip:top="t('player.mark_dialog.jump_to_time')"
-              @click="jumpTo(markAdding.time ?? 0)"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-redo</v-icon>
-            </v-btn>
-          </div>
-        </div>
-
-        <div
-          v-if="!markAdding.is_end_time_active"
-          class="mt-2"
-        >
-          <v-btn
-            size="small"
             variant="tonal"
-            rounded="xl"
-            @click="toggleEndTime(true)"
+            icon
+            @click="getCurrentTime('time')"
           >
-            <v-icon start size="small">mdi-arrow-expand-horizontal</v-icon>
-            {{ t('player.mark_dialog.set_range') }}
+            <v-icon size="16">mdi-crosshairs-gps</v-icon>
           </v-btn>
-        </div>
-
-        <div
-          v-else
-          class="mark-adding__time-row mark-adding__time-row--end"
-        >
-          <div class="mark-adding__time-head">
-            <span class="mark-adding__field-label">{{ t('player.mark_dialog.end_time') }}</span>
-          </div>
-
-          <div class="mark-adding__time-controls">
-            <MarkTimeHmsInput
-              :model-value="markAdding.end ?? 0"
-              :min="markAdding.time || 0"
-              :max="playerDuration"
-              :aria-label="t('player.mark_dialog.end_time')"
-              @update:model-value="onEndTimeChange"
-            />
+          <template v-if="!is_bookmark || markAdding.is_end_time_active">
             <v-btn
-              v-tooltip:top="'-1s'"
-              @click="nudgeEnd(-1)"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-minus</v-icon>
-            </v-btn>
-            <v-btn
-              v-tooltip:top="'+1s'"
-              @click="nudgeEnd(1)"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-plus</v-icon>
-            </v-btn>
-            <v-btn
-              v-tooltip:top="t('player.mark_dialog.sync_with_player')"
-              @click="getCurrentTime('end')"
-              :size="compact ? 'x-small' : 'small'"
-              variant="tonal"
-              icon
-            >
-              <v-icon :size="compact ? 14 : 20">mdi-sync</v-icon>
-            </v-btn>
-            <v-btn
+              :disabled="!markAdding.is_end_time_active"
               v-tooltip:top="t('player.mark_dialog.jump_to_time')"
+              :title="t('player.mark_dialog.jump_to_time')"
+              size="x-small"
+              variant="tonal"
+              icon
               @click="jumpTo(markAdding.end ?? 0)"
-              :size="compact ? 'x-small' : 'small'"
+            >
+              <v-icon size="16">mdi-skip-forward</v-icon>
+            </v-btn>
+            <v-btn
+              :disabled="!markAdding.is_end_time_active"
+              v-tooltip:top="t('player.mark_dialog.sync_with_player')"
+              :title="t('player.mark_dialog.sync_with_player')"
+              size="x-small"
               variant="tonal"
               icon
+              @click="getCurrentTime('end')"
             >
-              <v-icon :size="compact ? 14 : 20">mdi-redo</v-icon>
+              <v-icon size="16">mdi-crosshairs-gps</v-icon>
             </v-btn>
-          </div>
+          </template>
         </div>
-
-        <div
-          v-if="markAdding.is_end_time_active"
-          class="mark-adding__duration"
-        >
-          <v-btn
-            size="small"
-            variant="tonal"
-            rounded="xl"
-            @click="toggleEndTime(false)"
-          >
-            <v-icon start size="small">mdi-close</v-icon>
-            {{ t('player.mark_dialog.clear_range') }}
-          </v-btn>
-          <span
-            v-if="segmentDuration != null"
-            class="mark-adding__duration-text text-caption text-medium-emphasis"
-          >
-            {{ t('player.mark_dialog.segment_duration', {duration: formatTime(segmentDuration)}) }}
-          </span>
-        </div>
-
-        <v-alert
-          v-if="hasInvalidRange"
-          type="error"
-          variant="tonal"
-          density="compact"
-          class="mt-3 text-caption"
-          rounded="xl"
-        >
-          {{ t('player.mark_dialog.end_time_must_be_greater') }}
-        </v-alert>
-      </section>
+      </div>
 
       <v-alert
-        v-if="validationError"
+        v-if="hasInvalidRange || validationError"
         type="error"
         variant="tonal"
         density="compact"
-        class="mt-1 text-caption"
-        rounded="xl"
+        class="mark-menu__alert text-caption"
+        rounded="lg"
       >
-        {{ validationError }}
+        {{ validationError || t('player.mark_dialog.end_time_must_be_greater') }}
       </v-alert>
-    </v-card-text>
-  </v-card>
+    </div>
+  </v-theme-provider>
 </template>
 
 <script setup lang="ts">
@@ -334,7 +227,6 @@ import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {getReadableDuration} from '@/services/formatUtils'
-import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogIcons from '@/components/dialogs/DialogIcons.vue'
 import MarkTimeHmsInput from '@/components/dialogs/MarkTimeHmsInput.vue'
 import MetaInputMixedTags from '@/components/meta/input/MetaInputMixedTags.vue'
@@ -361,7 +253,7 @@ interface MarkAddingData {
 
 type MarkTypeItem = ReturnType<typeof buildMarkTypes>[number]
 
-defineProps<{
+const {compact = false} = defineProps<{
   compact?: boolean
 }>()
 
@@ -381,10 +273,7 @@ const valid = ref(false)
 const validationError = ref<string | null>(null)
 const mark_types = ref<MarkTypeItem[]>([...BASE_MARK_TYPES, TAG_MARK_TYPE])
 const iconPresets = BOOKMARK_ICON_PRESETS
-const seekBackSteps = [10, 5, 3, 1]
-const seekForwardSteps = [1, 3, 5, 10]
 
-/** Same category order as on the media/tag card (pin order), then other array metas. */
 const arrayMetaIds = computed(() => {
   const assignedIds = sortPinnedAssignmentItems(
     getAssignedArrayMetas(itemsStore.sortedAssigned),
@@ -415,15 +304,14 @@ const arrayMetaIds = computed(() => {
 })
 
 const tagMenuProps = computed(() => ({
-  // Body-teleported overlays render outside the fullscreened #player element and
-  // become invisible under native browser fullscreen — attach inside it there.
-  attach: playerStore.fullscreen ? '#player' : undefined,
+  attach: '#player',
   contentClass: 'custom-list mixed-tags-dropdown mark-adding-tags-menu',
-  maxHeight: 360,
-  zIndex: 2800,
-  location: 'bottom',
-  origin: 'top',
+  maxHeight: 280,
+  zIndex: 4000,
+  location: 'bottom start',
+  origin: 'top start',
   offset: 4,
+  scrollStrategy: 'none',
 }))
 
 const player = computed(() => playerStore.player)
@@ -436,6 +324,7 @@ const is_tag = computed(() => isTagMarkType(String(markAdding.value.type)))
 const markIcon = computed(() => normalizeMarkIcon(markAdding.value.icon, DEFAULT_BOOKMARK_ICON))
 const isChapterIcon = computed(() => markIcon.value === CHAPTER_MARK_ICON)
 const bookmarkTextRequired = computed(() => is_bookmark.value && !isChapterIcon.value)
+const accentColor = computed(() => markAdding.value.color || '#f44336')
 const selectedTagId = computed(() => {
   const key = mixedTagKeys.value[0]
   if (!key) return null
@@ -448,11 +337,11 @@ const hasInvalidRange = computed(() => {
   return (markAdding.value.end ?? 0) - (markAdding.value.time ?? 0) < 0
 })
 
-const segmentDuration = computed(() => {
-  if (!markAdding.value.is_end_time_active) return null
-  const duration = (markAdding.value.end ?? 0) - (markAdding.value.time ?? 0)
-  return duration > 0 ? duration : null
-})
+const rangeTooltip = computed(() => (
+  markAdding.value.is_end_time_active
+    ? t('player.mark_dialog.clear_range')
+    : t('player.mark_dialog.set_range')
+))
 
 const canSubmit = computed(() => {
   if (markAdding.value.submitting || hasInvalidRange.value) return false
@@ -461,27 +350,12 @@ const canSubmit = computed(() => {
   return true
 })
 
-const selectedTypeIcon = computed(() => {
-  if (is_bookmark.value) return markIcon.value
-  if (is_tag.value) return TAG_MARK_TYPE.icon
-  const current = mark_types.value.find((item) => item.value == markAdding.value.type)
-  return current?.icon || 'tooltip-plus'
+const submitLabel = computed(() => {
+  if (markAdding.value.submitting) {
+    return isEditing.value ? t('player.mark_dialog.saving') : t('player.mark_dialog.adding')
+  }
+  return isEditing.value ? t('common.save') : t('common.add')
 })
-
-const positionLabel = computed(() => t('player.mark_dialog.at_position', {
-  time: formatTime(markAdding.value.time ?? playerStore.currentTime ?? 0),
-}))
-
-const buttons = computed(() => [{
-  icon: isEditing.value ? 'content-save' : 'plus',
-  text: markAdding.value.submitting
-    ? (isEditing.value ? t('player.mark_dialog.saving') : t('player.mark_dialog.adding'))
-    : (isEditing.value ? t('common.save') : t('common.add')),
-  color: 'success',
-  outlined: false,
-  disabled: !canSubmit.value,
-  action: add,
-}])
 
 const formatTime = (seconds: number) => getReadableDuration(seconds || 0)
 
@@ -545,6 +419,7 @@ const setMarkIcon = (iconName: string) => {
 }
 
 const changeType = (type: string | number) => {
+  dialogsStore.markAdding.type = String(type)
   validationError.value = null
   applyTypeColor(type)
 
@@ -599,14 +474,6 @@ const onEndTimeChange = (time: number) => {
   dialogsStore.markAdding.end = normalizeMarkTime(time, markAdding.value.time || 0)
 }
 
-const nudgeStart = (delta: number) => {
-  onStartTimeChange((markAdding.value.time ?? 0) + delta)
-}
-
-const nudgeEnd = (delta: number) => {
-  onEndTimeChange((markAdding.value.end ?? markAdding.value.time ?? 0) + delta)
-}
-
 const toggleEndTime = (active: boolean | null) => {
   dialogsStore.markAdding.is_end_time_active = Boolean(active)
   if (!active) {
@@ -635,19 +502,6 @@ const jumpTo = (seconds: number) => {
   playerStore.playerJumpTo(normalizeMarkTime(seconds))
 }
 
-const seekBy = (delta: number) => {
-  const current = player.value?.currentTime ?? playerStore.currentTime ?? 0
-  playerStore.playerJumpTo(current + delta)
-}
-
-const togglePause = () => {
-  if (playerStore.paused) {
-    playerStore.playerPlay()
-  } else {
-    playerStore.playerPause()
-  }
-}
-
 const resetForm = () => {
   mixedTagKeys.value = []
   text.value = ''
@@ -656,9 +510,23 @@ const resetForm = () => {
   form.value?.resetValidation?.()
 }
 
-const close = () => {
-  if (markAdding.value.submitting) return
-  dialogsStore.closeMarkAdding()
+const hydrateForm = () => {
+  if (!markAdding.value.show) {
+    resetForm()
+    return
+  }
+
+  initMarkTypes()
+  applyTypeColor(markAdding.value.type)
+  validationError.value = null
+  valid.value = false
+  form.value?.resetValidation?.()
+  text.value = markAdding.value.text || ''
+  if (isTagMarkType(String(markAdding.value.type))) {
+    presetSelectedTag(markAdding.value.tagId)
+  } else {
+    mixedTagKeys.value = []
+  }
 }
 
 const add = () => {
@@ -673,7 +541,10 @@ const add = () => {
 
   if (bookmarkTextRequired.value) {
     form.value?.validate()
-    if (!valid.value || !text.value?.trim()) return
+    if (!valid.value || !text.value?.trim()) {
+      validationError.value = t('validation.value_required')
+      return
+    }
   }
 
   const data: MarkAddingData = {}
@@ -695,176 +566,197 @@ const submitIfReady = () => {
   if (canSubmit.value) add()
 }
 
-watch(() => markAdding.value.show, (show) => {
-  if (!show) {
-    resetForm()
-    return
+const onEnterKey = (event: KeyboardEvent) => {
+  const target = event.target
+  if (target instanceof HTMLTextAreaElement) {
+    if (!(event.metaKey || event.ctrlKey)) return
   }
+  event.preventDefault()
+  submitIfReady()
+}
 
-  initMarkTypes()
-  resetForm()
-  applyTypeColor(markAdding.value.type)
-
-  text.value = markAdding.value.text || ''
-  if (isTagMarkType(String(markAdding.value.type))) {
-    presetSelectedTag(markAdding.value.tagId)
-  }
-
-  dialogsStore.markAdding.time = normalizeMarkTime(
-    markAdding.value.time ?? playerStore.currentTime ?? 0
-  )
-}, {immediate: true})
+watch(
+  () => [markAdding.value.show, markAdding.value.formKey] as const,
+  () => hydrateForm(),
+  {immediate: true},
+)
 </script>
 
 <style scoped lang="scss">
-.mark-adding-card {
-  overflow: visible;
+.mark-menu {
+  width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  padding: 8px 10px;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(40, 42, 48, 0.96);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.mark-adding__section + .mark-adding__section {
-  margin-top: 20px;
+.mark-menu__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
 }
 
-.mark-adding__section-label {
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.25;
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  margin-bottom: 10px;
-}
-
-.mark-adding__field-label {
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-  white-space: nowrap;
-}
-
-.mark-adding__types {
-  :deep(.v-chip) {
-    margin: 4px;
-  }
-}
-
-.mark-adding__icon-presets {
+.mark-menu__types {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.mark-adding__time-row {
+.mark-menu__type {
+  flex: 0 0 auto;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mark-menu__icons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mark-menu__submit {
+  flex: 0 0 auto;
+}
+
+.mark-menu__identity {
+  min-height: 40px;
+  min-width: 0;
+  margin-top: 6px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 40px;
 
-  & + & {
-    margin-top: 12px;
+  :deep(.v-form),
+  :deep(.v-input) {
+    width: 100%;
+  }
+
+  :deep(.v-field) {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  :deep(.v-field__input),
+  :deep(.v-field input),
+  :deep(.v-field textarea),
+  :deep(input),
+  :deep(textarea) {
+    color: rgba(255, 255, 255, 0.92);
+    caret-color: #fff;
+  }
+
+  :deep(.v-field input::placeholder),
+  :deep(.v-field textarea::placeholder),
+  :deep(.v-field .v-label),
+  :deep(.v-field__placeholder) {
+    color: rgba(255, 255, 255, 0.48);
+    opacity: 1;
+  }
+
+  :deep(.v-field .v-field__outline) {
+    --v-field-border-opacity: 0.28;
+    color: rgba(255, 255, 255, 0.42);
   }
 }
 
-.mark-adding__time-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1 1 auto;
-  min-height: 40px;
-}
-
-.mark-adding__time-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.mark-adding__switch {
-  flex: 0 0 auto;
-}
-
-.mark-adding__duration {
-  margin-top: 12px;
-  min-height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.mark-adding__duration-text {
-  margin-left: auto;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.mark-adding__mixed-tags {
+.mark-menu__identity-field,
+.mark-menu__mixed-tags {
   width: 100%;
 }
 
-.mark-adding__section--transport {
-  display: flex;
-  justify-content: center;
+.mark-menu__textarea {
+  :deep(textarea) {
+    line-height: 1.35;
+    min-height: 24px !important;
+  }
 }
 
-.mark-adding__transport {
+.mark-menu__identity-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-variant-numeric: tabular-nums;
+}
+
+.mark-menu__timing {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.mark-menu__cue {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  min-height: 32px;
+  padding: 1px 4px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.1);
+
+  &--ghost {
+    opacity: 0.48;
+  }
+}
+
+.mark-menu__range {
+  flex: 0 0 auto;
+}
+
+.mark-menu__tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.mark-menu__player-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 2px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(var(--v-theme-on-surface), 0.05);
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
-.mark-adding__transport-seek {
-  min-width: 30px !important;
-  padding: 0 4px !important;
-  font-size: 0.6875rem;
-  opacity: 0.75;
-
-  &:hover {
-    opacity: 1;
-  }
+.mark-menu__alert {
+  margin-top: 6px;
 }
 
-.mark-adding__transport-play {
-  margin: 0 6px;
+:deep(.mark-time-hms) {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
-.mark-adding-card--compact {
-  .mark-adding__section + .mark-adding__section {
-    margin-top: 12px;
-  }
-
-  .mark-adding__section-label {
-    font-size: 0.75rem;
-    margin-bottom: 6px;
-  }
-
-  .mark-adding__field-label {
-    font-size: 0.75rem;
-  }
-
-  .mark-adding__time-row {
-    min-height: 32px;
-  }
-
-  .mark-adding__time-head {
-    min-height: 32px;
-  }
+:deep(.mark-time-hms__field) {
+  color: rgba(255, 255, 255, 0.92);
 }
 </style>
 
 <style lang="scss">
-/* Teleported into .mark-adding-dialog — must not be scoped */
-.mark-adding-dialog {
-  position: relative;
-  overflow: visible !important;
-}
-
 .mark-adding-tags-menu.v-overlay__content {
   box-sizing: border-box;
+  min-width: 240px !important;
+  width: max(240px, var(--v-overlay-anchor-width, 240px));
 }
 </style>

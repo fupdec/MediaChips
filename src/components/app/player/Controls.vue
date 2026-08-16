@@ -8,7 +8,13 @@
     theme="dark"
     :ripple="false"
   >
-    <div class="controls-inner px-6" @click.stop>
+    <div class="controls-inner px-6" @click.stop @dblclick.stop>
+      <PlayerMarkInspector
+        v-if="player.studioMode || dialogsStore.markAdding.show"
+        @saveMark="emit('saveMark', $event)"
+        @escape="transportRef?.exitStudioLayer?.()"
+      />
+
       <PlayerTimeline
         ref="timelineRef"
         :is-audio-mode="isAudioMode"
@@ -37,8 +43,10 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import {usePlayerStore} from '@/stores/player'
+import {useDialogsStore} from '@/stores/dialogs'
 import PlayerTimeline from '@/components/app/player/PlayerTimeline.vue'
 import PlayerTransport from '@/components/app/player/PlayerTransport.vue'
+import PlayerMarkInspector from '@/components/app/player/PlayerMarkInspector.vue'
 import type {PlayerMark, PlayVideoSwitch} from '@/types/player'
 
 const emit = defineEmits<{
@@ -48,12 +56,14 @@ const emit = defineEmits<{
   changeVolume: [payload: { deltaY?: number; volume?: number }]
   showControls: []
   addMark: []
+  saveMark: [data: Record<string, unknown>]
   removeMark: [mark: PlayerMark]
   close: []
   updateVideo: [id: number | string]
 }>()
 
 const playerStore = usePlayerStore()
+const dialogsStore = useDialogsStore()
 const player = computed(() => playerStore)
 const isAudioMode = computed(() => playerStore.isAudioMode)
 
@@ -79,6 +89,7 @@ defineExpose({
   togglePlaylist: () => transportRef.value?.togglePlaylist?.(),
   toggleMarks: () => transportRef.value?.toggleMarks?.(),
   toggleStudioMode: () => transportRef.value?.toggleStudioMode?.(),
+  exitStudioLayer: () => transportRef.value?.exitStudioLayer?.(),
   jumpToMark,
   wheelSeek: (event: WheelEvent) => timelineRef.value?.wheelSeek?.(event),
   editVideo: () => transportRef.value?.editVideo?.(),

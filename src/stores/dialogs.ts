@@ -77,6 +77,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       color: '#e91e63',
       is_end_time_active: false,
       submitting: false,
+      formKey: 0,
     },
     error: { show: false, text: null as string | null },
     confirm: {
@@ -309,6 +310,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       const preset = BASE_MARK_TYPES.find((item) => item.value === normalizedType)
         || (normalizedType === TAG_MARK_TYPE.value ? TAG_MARK_TYPE : null)
 
+      this.markAdding.formKey += 1
       this.markAdding.editId = null
       this.markAdding.text = ''
       this.markAdding.icon = DEFAULT_BOOKMARK_ICON
@@ -344,6 +346,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       const end = mark.end == null ? null : normalizeMarkTime(mark.end)
       const metaId = Number(mark.tag?.metaId ?? mark.metaId ?? mark.meta?.id)
 
+      this.markAdding.formKey += 1
       this.markAdding.editId = editId
       this.markAdding.text = typeof mark.text === 'string' ? mark.text : ''
       this.markAdding.icon = resolveMarkEditIcon(mark)

@@ -12,7 +12,14 @@
     @dblclick.stop="onDoubleClick"
   >
     <div class="mark-clip__body" :style="{ background: color }">
+      <img
+        v-if="hasRange && showThumb && thumb"
+        :src="thumb"
+        class="mark-clip__thumb"
+        alt=""
+      />
       <v-icon size="12" color="white">mdi-{{ icon }}</v-icon>
+      <span v-if="hasRange && showDuration" class="mark-clip__duration">{{ durationLabel }}</span>
     </div>
 
     <div
@@ -21,7 +28,6 @@
       @pointerdown="onHandlePointerDown('resize-start', $event)"
     />
     <div
-      v-if="hasRange"
       class="mark-clip__handle mark-clip__handle--end"
       @pointerdown="onHandlePointerDown('resize-end', $event)"
     />
@@ -29,20 +35,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePlayerStore } from '@/stores/player'
+import { useAppStore } from '@/stores/app'
+import { useEventBus } from '@/utils/eventBus'
 import { usePlayerMarkStudio, type MarkDragMode } from '@/composable/usePlayerMarkStudio'
 import { getMarkTimelineColor, getMarkTimelineIcon } from '@/composable/playerMarkDisplay'
+import { getReadableDuration } from '@/services/formatUtils'
+import { loadMarkImageDisplayUrl } from '@/utils/markThumb'
 import type { PlayerMark } from '@/types/player'
 
 const props = defineProps<{
   mark: PlayerMark
   controls_width: number
+  lane?: number
   dimmed?: boolean
 }>()
 
 const playerStore = usePlayerStore()
+const appStore = useAppStore()
+const eventBus = useEventBus()
 const { startDrag } = usePlayerMarkStudio()
+const thumb = ref<string | null>(null)
 
 const draft = computed(() => (
   playerStore.markDraft && playerStore.markDraft.id === props.mark.id
@@ -75,10 +89,27 @@ const widthPx = computed(() => {
   return props.controls_width / 100 * ((end - start) / duration * 100)
 })
 
+const showThumb = computed(() => widthPx.value >= 40)
+const showDuration = computed(() => widthPx.value >= 56)
+const durationLabel = computed(() => {
+  if (!hasRange.value || displayEnd.value == null) return ''
+  return getReadableDuration(Math.max(0, displayEnd.value - displayTime.value))
+})
+
 const positionStyle = computed(() => ({
   left: `${leftPercent.value}%`,
   width: hasRange.value ? `${widthPx.value}px` : undefined,
+  '--mark-clip-lane': String(props.lane ?? 0),
 }))
+
+const loadThumb = async () => {
+  if (!appStore.mediaPath || props.mark.id == null) return
+  thumb.value = await loadMarkImageDisplayUrl({
+    markId: props.mark.id,
+    mediaPath: appStore.mediaPath,
+    mediaId: playerStore.media?.id,
+  })
+}
 
 const onBodyPointerDown = (event: PointerEvent) => {
   if (event.button !== 0) return
@@ -94,4 +125,21 @@ const onDoubleClick = () => {
   playerStore.playerJumpTo(displayTime.value)
   playerStore.playerPlay()
 }
+
+onMounted(() => {
+  eventBus.on('updateMarkImage', handleUpdateMarkImage)
+  void loadThumb()
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('updateMarkImage', handleUpdateMarkImage)
+})
+
+function handleUpdateMarkImage(id: unknown) {
+  if (props.mark.id === Number(id)) void loadThumb()
+}
+
+watch(() => props.mark.time, () => {
+  void loadThumb()
+})
 </script>

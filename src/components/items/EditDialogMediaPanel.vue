@@ -2,7 +2,6 @@
   <div class="edit-dialog-media-panel">
     <v-card
       variant="flat"
-      rounded="lg"
       class="edit-dialog-media-panel__card"
       :class="{'edit-dialog-media-panel__card--video': isVideoPanel}"
     >

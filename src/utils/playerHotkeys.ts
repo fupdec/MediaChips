@@ -13,6 +13,7 @@ export function isPlainKey(event: KeyboardEvent): boolean {
 interface PlayerStoreLike {
   active?: boolean
   isKeyboardBlocked?: boolean
+  studioMode?: boolean
   currentTime?: number
   player?: { currentTime: number } | null
   playerJumpTo?: (time: number) => void
@@ -96,6 +97,9 @@ export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyConte
 
   switch (true) {
     case event.code === 'Escape':
+      if (playerStore.studioMode) {
+        return callControl(controls, 'exitStudioLayer')
+      }
       if (!playerStore.isKeyboardBlocked && typeof closePlayer === 'function') {
         closePlayer()
         return true

@@ -117,6 +117,7 @@ import type {PropType} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
+import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from '@/utils/eventBus'
@@ -191,6 +192,7 @@ const emit = defineEmits<{
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
+const playerStore = usePlayerStore()
 const contextMenuStore = useContextMenu()
 const {t} = useI18n()
 const eventBus = useEventBus()
@@ -247,6 +249,8 @@ async function openMark() {
 
 async function editMark() {
   await openMark()
+  playerStore.studioMode = true
+  playerStore.marksVisible = true
   dialogsStore.openMarkEditing({
     id: markId.value,
     type: typeof props.mark.type === 'string' ? props.mark.type : null,

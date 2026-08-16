@@ -340,11 +340,31 @@ onUnmounted(() => {
 
 .folder-wrapper {
   height: 100%;
+  // Vuetify sizes bottom-nav buttons via a direct-child selector
+  // (.v-bottom-navigation__content > .v-btn { height: 100% }). Wrapping the
+  // button in this extra div makes it a grandchild, so it misses that rule
+  // and falls back to the generic stacked-button default (72px) instead of
+  // matching its 56px siblings — that height mismatch, not centering, was
+  // why the icon looked off. Reapply it explicitly here.
+  .v-btn {
+    height: 100%;
+  }
   .v-btn__overlay,
   .v-btn__underlay {
     display: none;
   }
   .v-btn__content {
+    // This button shows only an icon, no label below it, so the true
+    // vertical center of the button IS the center of the icon — unlike
+    // siblings, which reserve space below the icon for a label and are
+    // therefore off-center by design. Pull content out of the stacked
+    // grid (which sizes the "content" row to the icon alone) and center
+    // it against the full button box instead.
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transform: none !important;
   }
 }

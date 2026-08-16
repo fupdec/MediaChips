@@ -2,7 +2,7 @@
   <v-dialog
     v-model="internalDialog"
     :attach="attach"
-    width="720"
+    width="640"
     scrollable
     :z-index="zIndex"
     @after-leave="resetDialog"
@@ -30,9 +30,9 @@
           closable
         />
 
-        <v-card-text>
-          <div v-if="!iconsLoaded" class="d-flex justify-center py-8">
-            <v-progress-circular indeterminate color="primary" />
+        <v-card-text class="icon-picker__body pt-2 pb-3 px-3">
+          <div v-if="!iconsLoaded" class="d-flex justify-center py-6">
+            <v-progress-circular indeterminate color="primary" size="28" width="3" />
           </div>
 
           <v-data-iterator
@@ -44,7 +44,7 @@
             :search="search"
           >
             <template v-slot:header="{ page, pageCount, prevPage, nextPage }">
-              <div class="d-flex justify-space-between align-center py-4">
+              <div class="d-flex justify-space-between align-center pb-2">
                 <v-text-field
                   v-model="search"
                   clearable
@@ -53,7 +53,7 @@
                   variant="outlined"
                   prepend-inner-icon="mdi-magnify"
                   :label="t('meta.fields.search_icons')"
-                  max-width="300"
+                  max-width="320"
                   color="primary"
                   autofocus
                   hide-details
@@ -61,40 +61,42 @@
                 <div class="d-flex justify-space-between align-center">
                   <v-btn
                     icon
+                    size="small"
                     :disabled="page === 1"
                     @click="prevPage"
                     variant="text"
                   >
-                    <v-icon>mdi-chevron-left</v-icon>
+                    <v-icon size="20">mdi-chevron-left</v-icon>
                   </v-btn>
 
-                  <span class="mx-2 text-caption">
+                  <span class="mx-1 text-caption">
                 {{ t('common.page_of', {page, total: pageCount}) }}
                 </span>
 
                   <v-btn
                     icon
+                    size="small"
                     :disabled="page >= pageCount"
                     @click="nextPage"
                     variant="text"
                   >
-                    <v-icon>mdi-chevron-right</v-icon>
+                    <v-icon size="20">mdi-chevron-right</v-icon>
                   </v-btn>
                 </div>
               </div>
             </template>
 
             <template v-slot:default="slotProps">
-              <div class="d-flex flex-wrap justify-center">
+              <div class="icon-picker__grid">
                 <div
                   v-for="item in slotProps.items"
                   :key="item.raw.id"
-                  class="ma-2 pa-2 icon-container"
+                  class="icon-container"
                   :class="{ 'icon-selected': selectedIcon === item.raw.name }"
                   :title="item.raw.name"
                   @click="applyIcon(item.raw.name)"
                 >
-                  <v-icon size="40">mdi-{{ item.raw.name }}</v-icon>
+                  <v-icon size="28">mdi-{{ item.raw.name }}</v-icon>
                 </div>
               </div>
             </template>
@@ -148,7 +150,7 @@ const {t} = useI18n()
 const internalDialog = ref(false)
 const search = ref('')
 const page = ref(1)
-const itemsPerPage = ref(50)
+const itemsPerPage = ref(72)
 const selectedIcon = ref('')
 const icons = ref<MaterialIcon[]>([])
 const iconsLoaded = ref(false)
@@ -224,28 +226,35 @@ defineExpose({
 </script>
 
 <style scoped>
+.icon-picker__grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
 .icon-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
+  width: 50px;
+  height: 50px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease, transform 0.15s ease;
   background-color: transparent;
 }
 
 .icon-container:hover {
   background-color: rgba(var(--v-theme-primary), 0.1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .icon-selected {
   background-color: rgba(var(--v-theme-primary), 0.2);
-  border: 2px solid rgb(var(--v-theme-primary));
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -1px;
 }
 
 .icon-selected:hover {

@@ -1,8 +1,17 @@
 <template>
   <div
-    @click="jumpTo(mark.time)"
+    @click="selectable ? emit('toggleSelect', mark) : jumpTo(mark.time)"
     class="mark-item"
+    :class="{'mark-item--selectable': selectable, 'mark-item--selected': selected}"
+    :style="{'--mark-accent': getColor(mark)}"
   >
+    <v-checkbox-btn
+      v-if="selectable"
+      :model-value="selected"
+      class="mark-item__select"
+      @click.stop="emit('toggleSelect', mark)"
+    />
+
     <div class="mark-item__thumb-wrap">
       <v-img
         v-if="isThumbsLoaded"
@@ -30,12 +39,14 @@
         />
         <span v-else class="mark-item__name" v-html="mark.name"/>
       </div>
-      <span class="mark-item__time">
-        {{ getDuration(mark.time) }}<template v-if="mark.end"> – {{ getDuration(mark.end) }}</template>
-      </span>
+      <div class="mark-item__meta">
+        <span class="mark-item__time">
+          {{ getDuration(mark.time) }}<template v-if="mark.end"> – {{ getDuration(mark.end) }}</template>
+        </span>
+      </div>
     </div>
 
-    <div class="mark-item__actions">
+    <div v-if="!selectable" class="mark-item__actions">
       <v-btn
         @click.stop="edit(mark)"
         class="mark-item__edit"
@@ -71,5 +82,11 @@ defineProps<{
   jumpTo: (time: number) => void
   edit: (mark: PlayerMark) => void
   remove: (mark: PlayerMark) => void
+  selectable?: boolean
+  selected?: boolean
+}>()
+
+const emit = defineEmits<{
+  toggleSelect: [mark: PlayerMark]
 }>()
 </script>

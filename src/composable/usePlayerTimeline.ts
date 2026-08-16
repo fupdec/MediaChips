@@ -174,6 +174,17 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   }
 
   const showPreview = (e: MouseEvent) => {
+    if (playerStore.studioMode) {
+      const target = e.target
+      if (
+        playerStore.markDraft
+        || (target instanceof Element && target.closest('.marks-track'))
+      ) {
+        if (playerStore.progress_hover != null) playerStore.progress_hover = null
+        return
+      }
+    }
+
     if (!preview_show.value || !preview_event_target.value) return
 
     const remaining = getRemainingPlaybackSeconds(playerStore.currentTime, playerStore.duration)

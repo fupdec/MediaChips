@@ -10,7 +10,7 @@
     item-value="key"
     ref="field"
     :label="label === undefined ? t('meta.fields.mixed_tags_label') : label"
-    :placeholder="placeholder || t('meta.fields.mixed_tags_placeholder')"
+    :placeholder="placeholder === undefined ? t('meta.fields.mixed_tags_placeholder') : placeholder"
     :disabled="disabled"
     :hide-no-data="!search.trim()"
     hide-selected
@@ -274,7 +274,6 @@ const props = withDefaults(defineProps<{
 }>(), {
   metaIds: () => [],
   modelValue: () => [],
-  placeholder: '',
   single: false,
   menuProps: () => ({
     contentClass: 'custom-list mixed-tags-dropdown',

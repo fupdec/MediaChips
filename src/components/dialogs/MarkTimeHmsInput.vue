@@ -1,5 +1,14 @@
 <template>
-  <div class="mark-time-hms" role="group" :aria-label="ariaLabel">
+  <div
+    class="mark-time-hms"
+    :class="{
+      'mark-time-hms--compact': compact,
+      'mark-time-hms--disabled': disabled,
+    }"
+    role="group"
+    :aria-label="ariaLabel"
+    :aria-disabled="disabled || undefined"
+  >
     <input
       class="mark-time-hms__field"
       type="number"
@@ -7,6 +16,7 @@
       min="0"
       :max="maxHours"
       :value="parts.hours"
+      :disabled="disabled"
       :aria-label="t('player.mark_dialog.hours')"
       @change="onPartChange('hours', $event)"
       @keydown.up.prevent="nudge('hours', 1)"
@@ -20,6 +30,7 @@
       min="0"
       max="59"
       :value="parts.minutes"
+      :disabled="disabled"
       :aria-label="t('player.mark_dialog.minutes')"
       @change="onPartChange('minutes', $event)"
       @keydown.up.prevent="nudge('minutes', 1)"
@@ -33,6 +44,7 @@
       min="0"
       max="59"
       :value="parts.seconds"
+      :disabled="disabled"
       :aria-label="t('player.mark_dialog.seconds')"
       @change="onPartChange('seconds', $event)"
       @keydown.up.prevent="nudge('seconds', 1)"
@@ -56,11 +68,15 @@ const props = withDefaults(defineProps<{
   min?: number
   max?: number
   ariaLabel?: string
+  compact?: boolean
+  disabled?: boolean
 }>(), {
   modelValue: 0,
   min: 0,
   max: undefined,
   ariaLabel: undefined,
+  compact: false,
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -78,6 +94,7 @@ const maxHours = computed(() => {
 })
 
 const commit = (next: MarkTimeParts) => {
+  if (props.disabled) return
   const joined = joinHmsToSeconds(next.hours, next.minutes, next.seconds, {
     maxSeconds: props.max,
   })
@@ -95,6 +112,7 @@ const onPartChange = (key: keyof MarkTimeParts, event: Event) => {
 }
 
 const nudge = (key: keyof MarkTimeParts, delta: number) => {
+  if (props.disabled) return
   const current = clampMarkSeconds(props.modelValue, props.min, props.max)
   const step = key === 'hours' ? 3600 : key === 'minutes' ? 60 : 1
   emit('update:modelValue', clampMarkSeconds(current + delta * step, props.min, props.max))
@@ -142,5 +160,21 @@ const nudge = (key: keyof MarkTimeParts, delta: number) => {
   opacity: 0.45;
   font-size: 0.875rem;
   user-select: none;
+}
+
+.mark-time-hms--compact {
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: 8px;
+
+  .mark-time-hms__field {
+    width: 1.7rem;
+    font-size: 0.8125rem;
+    padding: 2px 0;
+  }
+}
+
+.mark-time-hms--disabled {
+  pointer-events: none;
 }
 </style>

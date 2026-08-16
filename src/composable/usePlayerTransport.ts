@@ -162,17 +162,21 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     playerStore.marksVisible = !playerStore.marksVisible
   }
 
+  const exitStudioLayer = () => {
+    if (playerStore.studioMode) {
+      playerStore.studioMode = false
+    }
+  }
+
   const toggleStudioMode = () => {
     if (playerStore.studioMode) {
-      if (dialogsStore.markAdding.show && !dialogsStore.markAdding.submitting) {
-        dialogsStore.closeMarkAdding()
-      } else {
-        playerStore.studioMode = false
-      }
-    } else {
-      playerStore.studioMode = true
-      playerStore.marksVisible = true
+      playerStore.studioMode = false
+      return
     }
+    playerStore.studioMode = true
+    playerStore.marksVisible = true
+    playerStore.selectedMarkId = null
+    dialogsStore.openMarkAdding({ time: playerStore.currentTime })
   }
 
   const toggleMute = () => {
@@ -243,10 +247,9 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const addMark = () => {
-    if (dialogsStore.markAdding.show) {
-      if (!dialogsStore.markAdding.submitting) {
-        dialogsStore.closeMarkAdding()
-      }
+    if (playerStore.studioMode) {
+      playerStore.selectedMarkId = null
+      dialogsStore.openMarkAdding({ time: playerStore.currentTime })
       return
     }
     emit('addMark')
@@ -422,17 +425,30 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     playerStore.setKeyboardBlocked('edit', value)
   })
 
-  watch(() => dialogsStore.markAdding.show, (value) => {
-    playerStore.setKeyboardBlocked('mark', value)
-    playerStore.studioMode = value
-    if (value) playerStore.marksVisible = true
-  })
+  watch(
+    () => [dialogsStore.markAdding.show, playerStore.studioMode] as const,
+    ([show]) => {
+      playerStore.setKeyboardBlocked('mark', false)
+      if (show) playerStore.marksVisible = true
+    },
+  )
 
   watch(() => playerStore.studioMode, (active) => {
-    if (active) return
+    if (active) {
+      playerStore.marksVisible = true
+      if (!dialogsStore.markAdding.show) {
+        playerStore.selectedMarkId = null
+        dialogsStore.openMarkAdding({ time: playerStore.currentTime })
+      }
+      return
+    }
     playerStore.selectedMarkId = null
     playerStore.markDraft = null
     playerStore.creatingMarkDraft = null
+    playerStore.studioSnapTime = null
+    if (dialogsStore.markAdding.show && !dialogsStore.markAdding.submitting) {
+      dialogsStore.closeMarkAdding()
+    }
   })
 
   return {
@@ -462,6 +478,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     togglePlaylist,
     toggleMarks,
     toggleStudioMode,
+    exitStudioLayer,
     toggleMute,
     changeVolume,
     handleVolumeWheel,

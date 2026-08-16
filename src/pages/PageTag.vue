@@ -275,17 +275,6 @@
               <v-expansion-panel class="rounded-xl tag-panel" :key="0">
                 <v-expansion-panel-title class="tag-panel__title" ripple hide-actions style="position: relative">
                   <div class="buttons-right d-flex ga-2">
-                    <v-btn
-                      @click.stop="toggleSessionFocus"
-                      :color="isSessionFocused ? 'success' : undefined"
-                      class="pr-4"
-                      rounded
-                      size="small"
-                      variant="tonal"
-                    >
-                      <v-icon start>{{ isSessionFocused ? 'mdi-bullseye-arrow' : 'mdi-bullseye' }}</v-icon>
-                      {{ isSessionFocused ? t('session_focus.clear') : t('session_focus.start') }}
-                    </v-btn>
                     <v-btn @click.stop="editMetaTag" color="primary" class="pr-4" rounded size="small" variant="flat">
                       <v-icon start>mdi-pencil</v-icon>
                       {{ t('common.edit') }}
