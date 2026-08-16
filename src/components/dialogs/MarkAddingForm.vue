@@ -307,8 +307,8 @@ const formTooltip = (text: string) => playerTooltip(text)
 
 const tagMenuProps = computed(() => ({
   attach: overlayAttach,
-  contentClass: 'custom-list mixed-tags-dropdown mark-adding-tags-menu',
-  maxHeight: 280,
+  contentClass: 'custom-list ac-dropdown mixed-tags-dropdown mark-adding-tags-menu',
+  maxHeight: 400,
   zIndex: 4000,
   location: 'bottom start',
   origin: 'top start',
@@ -611,8 +611,9 @@ watch(
   padding: 8px 10px;
   border-radius: 14px;
   color: rgba(255, 255, 255, 0.92);
-  background: rgba(40, 42, 48, 0.96);
+  background: var(--mark-form-surface, rgba(22, 24, 28, 0.48));
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   box-shadow:
     0 10px 28px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.08);

@@ -461,6 +461,7 @@
   }
 
   .mark-inspector__dock {
+    --mark-form-surface: rgba(22, 24, 28, 0.48);
     pointer-events: auto;
     width: 440px;
     max-width: 100%;
@@ -496,7 +497,7 @@
     width: 12px;
     height: 12px;
     transform: translateX(-50%) rotate(45deg);
-    background: rgba(40, 42, 48, 0.96);
+    background: var(--mark-form-surface, rgba(22, 24, 28, 0.48));
     border-right: 1px solid rgba(255, 255, 255, 0.12);
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 0 0 2px var(--mark-accent, #f44336);
@@ -1359,8 +1360,6 @@
 
 .player-sidebar {
   --sidebar-width: 280px;
-  --sidebar-deck-radius: 16px;
-  --sidebar-deck-inset: 8px;
   flex-shrink: 0;
   width: var(--sidebar-width);
   display: flex;
@@ -1418,33 +1417,36 @@
     text-overflow: ellipsis;
   }
 
-  &__deck {
-    position: relative;
+  &__sticky {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 4;
-    flex-shrink: 0;
-    padding: var(--sidebar-deck-inset);
-    padding-bottom: 0;
-    isolation: isolate;
-    background: rgba(18, 18, 20, 0.98);
-  }
-
-  &__deck-surface {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--sidebar-deck-radius);
-    background: rgba(18, 18, 20, 0.98);
-    overflow: hidden;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.04),
-      0 10px 28px -12px rgba(0, 0, 0, 0.7),
-      0 4px 12px -6px rgba(0, 0, 0, 0.45);
-  }
-
-  &__modes {
-    padding: 8px 10px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    padding: 6px 10px 8px;
+    background: transparent;
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
+    }
+
+    .v-chip-group,
+    .v-slide-group {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+    }
+
+    .v-slide-group__container,
+    .v-slide-group__content {
+      padding: 0;
+      background: transparent;
+    }
   }
 
   &__radio-chip {
@@ -1461,20 +1463,13 @@
     }
   }
 
-  &__filters {
-    padding: 6px 10px 8px;
-  }
-
   &__body {
     position: relative;
-    z-index: 1;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    margin-top: calc(var(--sidebar-deck-radius) * -1);
-    padding-top: var(--sidebar-deck-radius);
   }
 
   &--playlist &__body,
@@ -1486,6 +1481,10 @@
     flex: 1 1 auto;
     min-height: 0;
     height: 100%;
+
+    .v-virtual-scroll__container {
+      margin-top: var(--player-sidebar-sticky-h, 0px);
+    }
   }
 
   &__clip-bar {

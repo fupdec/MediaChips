@@ -82,7 +82,7 @@ export interface MoveTagsToCategoryResult {
 
 type MoveTx = Parameters<Parameters<ApiDb['drizzle']['transaction']>[0]>[0]
 
-export function normalizeTagName(name: string | null | undefined): string {
+export function normalizeTagName(name: unknown): string {
   return normalizeTagLookupName(name)
 }
 

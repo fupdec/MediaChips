@@ -25,7 +25,7 @@
     <template #no-data>
       <div
         v-if="search.trim() && createTargets.length"
-        class="pa-2 d-flex flex-column ga-1"
+        class="pa-1 d-flex flex-column ga-1"
       >
         <v-btn
           v-for="target in createTargets"
@@ -34,7 +34,8 @@
           :color="target.isDefault ? 'success' : undefined"
           :variant="target.isDefault ? 'flat' : 'tonal'"
           block
-          size="large"
+          size="small"
+          class="text-none"
         >
           <v-icon start>mdi-{{ target.icon }}</v-icon>
           <span class="text-truncate">
@@ -99,7 +100,7 @@
         class="mixed-tags__category"
       >
         <v-icon
-          size="18"
+          size="14"
           class="mixed-tags__category-icon"
         >
           mdi-{{ item.raw.icon || 'tag-multiple-outline' }}
@@ -160,15 +161,15 @@
         <template #title>
           <div class="d-flex align-center flex-grow-1">
             <v-icon
-              size="14"
-              class="mr-2 text-medium-emphasis"
+              size="12"
+              class="mr-1 text-medium-emphasis"
             >
               mdi-{{ item.raw.metaIcon }}
             </v-icon>
             <v-icon
               v-if="item.raw.favorite"
               color="pink"
-              size="14"
+              size="12"
               class="mr-1"
             >
               mdi-heart
@@ -277,8 +278,7 @@ const props = withDefaults(defineProps<{
   modelValue: () => [],
   single: false,
   menuProps: () => ({
-    contentClass: 'custom-list mixed-tags-dropdown',
-    maxHeight: 360,
+    contentClass: 'custom-list ac-dropdown mixed-tags-dropdown',
     zIndex: 2800,
   }),
 })
@@ -322,9 +322,9 @@ const {
   loadMore: () => loadMoreNextCategory(),
   baseContentClass: computed(() => {
     const fromProps = props.menuProps?.contentClass
-    return typeof fromProps === 'string' ? fromProps : 'custom-list mixed-tags-dropdown'
+    return typeof fromProps === 'string' ? fromProps : 'custom-list ac-dropdown mixed-tags-dropdown'
   }),
-  maxHeight: 360,
+  maxHeight: 400,
 })
 
 const resolvedMenuProps = computed(() => ({
@@ -946,20 +946,20 @@ defineExpose({
 }
 
 .synonyms {
-  font-size: 0.85em;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  margin-left: 0.35rem;
+  font-size: 0.72em;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  margin-left: 0.25rem;
 }
 
 .mixed-tags__category {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 6px 8px 4px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: rgba(var(--v-theme-primary), 0.1);
-  border: 1px solid rgba(var(--v-theme-primary), 0.2);
+  gap: 6px;
+  margin: 2px 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
   pointer-events: none;
   user-select: none;
 }
@@ -967,17 +967,17 @@ defineExpose({
 .mixed-tags__category-icon {
   flex-shrink: 0;
   color: rgb(var(--v-theme-primary));
-  opacity: 0.95;
+  opacity: 0.9;
 }
 
 .mixed-tags__category-title {
   flex: 1;
   min-width: 0;
-  font-size: 0.72rem;
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.85);
+  color: rgba(var(--v-theme-on-surface), 0.78);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

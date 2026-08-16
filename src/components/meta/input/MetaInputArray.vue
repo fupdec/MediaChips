@@ -313,7 +313,7 @@ const props = withDefaults(defineProps<{
   cond: null,
   autofocus: false,
   menuProps: () => ({
-    contentClass: 'custom-list meta-input-array-list',
+    contentClass: 'custom-list ac-dropdown meta-input-array-list',
     zIndex: 2800,
   }),
 })
@@ -356,7 +356,7 @@ const {
   loadMore: () => loadMoreTags(),
   baseContentClass: computed(() => {
     const fromProps = props.menuProps?.contentClass
-    return typeof fromProps === 'string' ? fromProps : 'custom-list'
+    return typeof fromProps === 'string' ? fromProps : 'custom-list ac-dropdown'
   }),
 })
 

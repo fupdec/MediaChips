@@ -55,21 +55,16 @@
         </v-btn>
       </div>
 
-      <div v-if="!clipMode" class="player-sidebar__deck">
-        <div class="player-sidebar__deck-surface">
-          <div class="player-sidebar__filters">
-            <PlayerMarksFilters
-              v-model="marksType"
-              :assigned="assigned as any"
-              :has-favorite="hasFavoriteMarks"
-              :has-bookmark="hasBookmarkMarks"
-              :has-chapter="hasChapterMarks"
-            />
-          </div>
+      <div class="player-sidebar__body" :style="bodyStyle">
+        <div v-if="!clipMode" ref="stickyEl" class="player-sidebar__sticky">
+          <PlayerMarksFilters
+            v-model="marksType"
+            :assigned="assigned as any"
+            :has-favorite="hasFavoriteMarks"
+            :has-bookmark="hasBookmarkMarks"
+            :has-chapter="hasChapterMarks"
+          />
         </div>
-      </div>
-
-      <div class="player-sidebar__body">
         <template v-if="clipMode">
           <v-virtual-scroll
             v-if="clipModeMarks.length > 0"
@@ -208,6 +203,7 @@ import type {PlayerMark} from '@/types/player'
 import {MARK_FILTER_CHAPTER} from '@/utils/markAdding'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
 import {playerTooltip} from '@/utils/playerOverlay'
+import {usePlayerSidebarSticky} from '@/composable/usePlayerSidebarSticky'
 
 const MARK_ROW_HEIGHT = 57
 
@@ -223,6 +219,7 @@ const clipMode = ref(false)
 const selectedClipMarkIds = ref<number[]>([])
 const exportingClips = ref(false)
 const marksScroll = ref<{scrollToIndex: (index: number) => void} | null>(null)
+const {stickyEl, bodyStyle} = usePlayerSidebarSticky()
 
 const {
   player,

@@ -22,61 +22,56 @@
         </v-btn>
       </div>
 
-      <div class="player-sidebar__deck">
-        <div class="player-sidebar__deck-surface">
-          <div class="player-sidebar__modes">
-            <v-chip
-              v-if="similarRadioActive"
-              v-tooltip="playerTooltip(t('player.similar_radio_stop'))"
-              class="player-sidebar__radio-chip"
-              color="primary"
-              variant="tonal"
+      <div class="player-sidebar__body" :style="bodyStyle">
+        <div ref="stickyEl" class="player-sidebar__sticky">
+          <v-chip
+            v-if="similarRadioActive"
+            v-tooltip="playerTooltip(t('player.similar_radio_stop'))"
+            class="player-sidebar__radio-chip"
+            color="primary"
+            variant="tonal"
+            size="small"
+            closable
+            close-icon="mdi-stop"
+            @click:close="onStopRadio"
+          >
+            <v-icon start size="small">mdi-radio-tower</v-icon>
+            {{ t('player.similar_radio') }}
+          </v-chip>
+          <v-btn-toggle
+            v-model="player.playlistMode"
+            color="primary"
+            class="player-sidebar__mode-toggle"
+            multiple
+            rounded="pill"
+            density="compact"
+            variant="outlined"
+          >
+            <v-btn
+              value="loop"
+              v-tooltip="playerTooltip(t('player.playlist_modes.loop'))"
               size="small"
-              closable
-              close-icon="mdi-stop"
-              @click:close="onStopRadio"
+              :disabled="similarRadioActive"
             >
-              <v-icon start size="small">mdi-radio-tower</v-icon>
-              {{ t('player.similar_radio') }}
-            </v-chip>
-            <v-btn-toggle
-              v-model="player.playlistMode"
-              color="primary"
-              class="player-sidebar__mode-toggle"
-              multiple
-              rounded="pill"
-              density="compact"
-              variant="outlined"
+              <v-icon size="small">mdi-sync</v-icon>
+            </v-btn>
+            <v-btn
+              value="autoplay"
+              v-tooltip="playerTooltip(t('player.playlist_modes.autoplay'))"
+              size="small"
             >
-              <v-btn
-                value="loop"
-                v-tooltip="playerTooltip(t('player.playlist_modes.loop'))"
-                size="small"
-                :disabled="similarRadioActive"
-              >
-                <v-icon size="small">mdi-sync</v-icon>
-              </v-btn>
-              <v-btn
-                value="autoplay"
-                v-tooltip="playerTooltip(t('player.playlist_modes.autoplay'))"
-                size="small"
-              >
-                <v-icon size="small">mdi-play-pause</v-icon>
-              </v-btn>
-              <v-btn
-                value="shuffle"
-                v-tooltip="playerTooltip(t('player.playlist_modes.shuffle'))"
-                size="small"
-                :disabled="similarRadioActive"
-              >
-                <v-icon size="small">mdi-shuffle-variant</v-icon>
-              </v-btn>
-            </v-btn-toggle>
-          </div>
+              <v-icon size="small">mdi-play-pause</v-icon>
+            </v-btn>
+            <v-btn
+              value="shuffle"
+              v-tooltip="playerTooltip(t('player.playlist_modes.shuffle'))"
+              size="small"
+              :disabled="similarRadioActive"
+            >
+              <v-icon size="small">mdi-shuffle-variant</v-icon>
+            </v-btn>
+          </v-btn-toggle>
         </div>
-      </div>
-
-      <div class="player-sidebar__body">
         <v-virtual-scroll
           v-if="playerStore.playlistVisible && player.playlist.length > 0"
           ref="playlistScroll"
@@ -109,6 +104,7 @@
 import {ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {usePlayerPlaylist} from '@/composable/usePlayerPlaylist'
+import {usePlayerSidebarSticky} from '@/composable/usePlayerSidebarSticky'
 import PlaylistItem from '@/components/app/player/PlaylistItem.vue'
 import {playerTooltip} from '@/utils/playerOverlay'
 import {similarRadioActive, stopSimilarRadio} from '@/services/similarRadio'
@@ -122,6 +118,7 @@ const emit = defineEmits<{
 const {t} = useI18n()
 
 const playlistScroll = ref<{scrollToIndex: (index: number) => void} | null>(null)
+const {stickyEl, bodyStyle} = usePlayerSidebarSticky()
 
 const {
   playerStore,

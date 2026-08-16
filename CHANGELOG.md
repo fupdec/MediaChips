@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **LowDB migration / restore** — 0.11.x allowed the same tag name in different categories; 1.5+ requires globally unique names. Restore now renames collisions instead of failing with `tags_name_normalized_unique` (which left videos imported and tags missing). Failed restores also show an error instead of appearing to do nothing.
+
 ## [1.9.0] - 2026-08-14
 
 ### Added

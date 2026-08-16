@@ -307,8 +307,7 @@
               <MetaInputCountry
                 @update:model-value="setValByKey($event, 'country')"
                 :model-value="vals.country || []"
-                :label="isInspectorLayout ? '' : undefined"
-                :placeholder="isInspectorLayout ? t('meta.default_names.country') : undefined"
+                v-bind="fieldCaption(t('meta.default_names.country'))"
                 :variant="fieldVariant"
                 density="compact"
                 hide-details
@@ -747,14 +746,15 @@ dayjs.locale(locale.value)
 const fullscreenAttach = computed(() => playerStore.fullscreen ? '.player' : undefined)
 
 const mixedTagsMenuProps = computed(() => ({
-  contentClass: 'custom-list mixed-tags-dropdown',
-  maxHeight: 360,
+  contentClass: 'custom-list ac-dropdown mixed-tags-dropdown',
+  maxHeight: isInspectorLayout.value ? 240 : 280,
   zIndex: 2800,
   attach: fullscreenAttach.value,
 }))
 
 const arrayTagMenuProps = computed(() => ({
-  contentClass: 'custom-list',
+  contentClass: 'custom-list ac-dropdown meta-input-array-list',
+  maxHeight: 280,
   zIndex: 2800,
   attach: fullscreenAttach.value,
 }))
@@ -2058,6 +2058,21 @@ defineExpose({
       font-size: 0.6rem !important;
       margin: 0 !important;
       padding-inline: 4px !important;
+    }
+
+    :deep(.v-chip.editing-tag-chip),
+    :deep(.v-chip.country-field-chip) {
+      --v-chip-height: 10px;
+      height: 10px !important;
+      font-size: 0.5rem !important;
+      padding-inline: 2px !important;
+    }
+
+    :deep(.v-chip.editing-tag-chip .v-icon),
+    :deep(.v-chip.country-field-chip .v-icon) {
+      font-size: 7px !important;
+      width: 7px !important;
+      height: 7px !important;
     }
 
     :deep(.v-chip .v-icon) {

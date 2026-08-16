@@ -366,6 +366,101 @@ header {
   }
 }
 
+.v-chip.editing-tag-chip,
+.v-chip.country-field-chip {
+  --v-chip-height: 19px;
+  height: 19px !important;
+  font-size: 0.7rem !important;
+  padding-inline: 6px !important;
+
+  .v-icon {
+    font-size: 10px !important;
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  .v-chip__close {
+    font-size: 10px !important;
+    margin-inline-end: 0 !important;
+  }
+
+  .lang-flag {
+    transform: scale(0.43);
+    transform-origin: center center;
+  }
+}
+
+/* Shared compact scale for tag/country autocomplete menus (teleported overlays). */
+.v-overlay__content.ac-dropdown {
+  font-size: 14px;
+
+  .v-list {
+    padding: 3px 0 !important;
+  }
+
+  .v-list-item {
+    min-height: 28px !important;
+    padding-block: 0 !important;
+    padding-inline: 8px !important;
+    align-items: center;
+    font-size: 14px !important;
+  }
+
+  .v-list-item-title,
+  .v-list-item-title * {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  .list-item {
+    padding: 1px 8px !important;
+    min-height: 28px;
+  }
+
+  .synonyms {
+    margin-left: 8px !important;
+    max-width: 196px;
+    font-size: 11px !important;
+    font-weight: 400;
+  }
+
+  .v-icon {
+    font-size: 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .mixed-tags__category {
+    margin: 3px 6px !important;
+    padding: 3px 8px !important;
+    gap: 6px !important;
+  }
+
+  .mixed-tags__category-title {
+    font-size: 11px !important;
+  }
+}
+
+.mixed-tags-dropdown .synonyms {
+  color: rgba(var(--v-theme-on-surface), 0.55);
+}
+
+.country-dropdown {
+  .v-list-item-title {
+    font-weight: 400;
+  }
+
+  .lang-flag {
+    transform: scale(0.63);
+    transform-origin: center center;
+    box-shadow: none;
+    display: block;
+    line-height: 0;
+  }
+}
+
 .filters-add-menu {
   .filters-add-menu__category {
     display: flex;
