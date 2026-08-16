@@ -631,7 +631,7 @@ const isWideImage = computed(() =>
 )
 const isLineGrid = computed(() => isWideImage.value)
 const isListGrid = computed(() =>
-  props.items_type === 'media' && ITEMS.value.view == 5
+  (props.items_type === 'media' || props.items_type === 'tag') && ITEMS.value.view == 5
 )
 const isChipsGrid = computed(() =>
   props.items_type === 'tag' && ITEMS.value.view == 2

@@ -56,6 +56,20 @@
       </template>
   </div>
 
+  <!-- LIST VIEW -->
+  <div
+    v-else-if="Number(ITEMS.view) === 5"
+    class="tag-list-thumb"
+  >
+    <v-img
+      :src="mainImageSrc"
+      class="main-img"
+      cover
+      @click="openTagPage"
+      @error="onImageError('main')"
+    />
+  </div>
+
   <!-- CHIP VIEW -->
   <span
     v-else-if="Number(ITEMS.view) === 2"
@@ -159,7 +173,7 @@ function getImageTypes(): TagImageType[] {
   if (Number(ITEMS.value.view) === 2) {
     return ['avatar', 'main']
   }
-  if (Number(ITEMS.value.view) === 4) {
+  if (Number(ITEMS.value.view) === 4 || Number(ITEMS.value.view) === 5) {
     return ['main']
   }
   return ['main', 'alt', 'custom1', 'custom2']

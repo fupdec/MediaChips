@@ -25,7 +25,7 @@ export function normalizeItemsView(
   }
 
   if (itemsType === 'tag') {
-    if (value === 2 || value === 4) return value
+    if (value === 2 || value === 4 || value === 5) return value
     return 1
   }
 

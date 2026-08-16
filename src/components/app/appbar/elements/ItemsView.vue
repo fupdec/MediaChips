@@ -119,8 +119,8 @@ const initViewOptions = () => {
     })
   }
 
-  // List view is available for every media type.
-  if (itemsType === 'media') {
+  // List view is available for every media type and the tag grid.
+  if (itemsType === 'media' || itemsType === 'tag') {
     viewOptions.value.push({
       val: 5,
       icon: 'view-list',

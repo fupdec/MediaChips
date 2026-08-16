@@ -189,6 +189,7 @@
              class="item-menu-btn"
              size="small"
              variant="text"
+             :ripple="false"
              icon>
         <v-icon size="x-large"
                 icon="mdi-dots-vertical"></v-icon>
@@ -365,7 +366,7 @@ const showCardView = computed(() => {
   if (view === 1 || isImageOnlyView.value) return true
   if (view === 2 && props.type === 'media' && isVideoMedia.value) return true
   if (view === 3 && props.type === 'media' && isImageMedia.value) return true
-  if (view === 5 && props.type === 'media') return true
+  if (view === 5 && (props.type === 'media' || props.type === 'tag')) return true
   return false
 })
 
@@ -579,7 +580,9 @@ const is_context_target = computed(() => {
 
 const card_color = computed(() => {
   // Media cards must stay uncolored; only tag category cards may use a tint.
+  // List view rows are uniform (edge-to-edge with a divider) — no tint there.
   if (props.type !== 'tag' || !props.meta?.color) return ''
+  if (isListView.value) return ''
   const color = tagChipColor.value
   return color ? hexToRgba(color, 9) : ''
 })

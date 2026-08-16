@@ -7,7 +7,7 @@
   --item-fav-inset-right: 6px;
 
   .item-title {
-    font-size: 0.9em;
+    font-size: 1.05em;
   }
 
   // Keep native card drag-out; don't let preview <img> steal HTML5 drag.
@@ -220,7 +220,7 @@
   }
   .rating-favorite-in-description {
     --item-rating-favorite-muted-color: #b5b5b5;
-    --item-rating-favorite-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --item-rating-favorite-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1546,15 +1546,46 @@ body > .video-preview-container.video-preview-container--expanded {
 // Rows are divided by a thin border rather than the grid gap, so the list
 // stays dense regardless of the gap-size setting. Row heights are kept in
 // sync with LIST_ROW_HEIGHT in utils/gridLayout.ts.
-.item-media.item-view-5 {
+// Available for media items and the tag grid (view 5).
+.item-media.item-view-5,
+.item-tag.item-view-5 {
   margin-bottom: 0;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 
-  // No pink glow border for favorited rows in the list — it doesn't read
-  // well as a thin outline around a dense row, and needed extra padding on
-  // the grid container just to avoid being clipped on the first/last row.
+  // Media rows use an opaque v-card that fills the item and paints over the
+  // parent outline — so the primary ring vanished on the sides (only the
+  // 1px divider gap leaked a sliver of top/bottom). Tag rows already had a
+  // transparent wrapper, which is why their selection looked correct.
+  // Draw the ring as an overlay instead, matching tags: rectangular, primary,
+  // inset to the inner edge of the row.
+  &.item--inspector-focused,
+  &.item--keyboard-cursor {
+    border-radius: 0;
+    outline: none;
+    outline-offset: 0;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      border: 2px solid rgb(var(--v-theme-primary));
+      border-radius: 0;
+      pointer-events: none;
+    }
+  }
+
+  // The selection overlay's 14px radius is sized for the rounded card view —
+  // on a flat, edge-to-edge row it read as a floating rounded pill that
+  // swallowed the row's own divider border. Flatten it to match.
+  // Same for the favorite glow: the card-sized 16px radius read as rounded
+  // corners hanging off a rectangular list row.
+  .item-select-overlay {
+    border-radius: 0;
+  }
+
   &.favorite::after {
-    display: none;
+    border-radius: 0;
   }
 
   .item_wrapper {
@@ -1569,10 +1600,15 @@ body > .video-preview-container.video-preview-container--expanded {
     align-items: stretch;
     border-radius: 0;
     box-shadow: none;
+    background-color: transparent;
     // No overflow:hidden here — this row has no radius to clip against, and
     // clipping it squashed the menu button's hover/ripple overlay into an
     // oval against the row's short height. The preview clips its own image.
     transition: background-color 0.15s ease;
+  }
+
+  .item_wrapper > .v-card__underlay {
+    display: none;
   }
 
   .item_wrapper:hover {
@@ -1587,6 +1623,32 @@ body > .video-preview-container.video-preview-container--expanded {
     margin: 0;
     border-radius: 0;
     overflow: hidden;
+  }
+
+  // Tag thumbnails get the same treatment as media previews: fill the row's
+  // full height. The tag card normally tints its whole card background with
+  // the meta color — drop it in list view so all rows read uniformly.
+  .tag-list-thumb {
+    width: 100%;
+    height: 100%;
+
+    .v-img,
+    .main-img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &.item-tag {
+    // No hover zoom on a small row thumbnail.
+    .main-img:not(.static) {
+      &:hover {
+        .v-image__image,
+        .v-img__img {
+          transform: none;
+        }
+      }
+    }
   }
 
   .v-progress-linear {
@@ -1616,10 +1678,11 @@ body > .video-preview-container.video-preview-container--expanded {
     overflow: hidden;
   }
 
-  // Name gets priority for space (flex-grow) so it's only clipped when it
-  // genuinely doesn't fit — not capped to a fraction of the row up front.
+  // Name stays content-sized so the synonym sits immediately after it,
+  // not flush against the right of the row. Both can still shrink so a
+  // long name doesn't shove the synonym onto line 2.
   .item-title {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
     padding: 0;
@@ -1726,12 +1789,38 @@ body > .video-preview-container.video-preview-container--expanded {
     opacity: 1;
   }
 
+  // Extra breathing room before the heart, on top of the container's gap.
+  .list-rating-favorite .fav-btn {
+    margin-left: 6px !important;
+  }
+
   .list-rating-favorite .rating .v-btn:not(.text-yellow-darken-2) .v-icon {
     color: var(--item-rating-favorite-muted-color) !important;
   }
 
-  .list-rating-favorite .fav-btn .v-selection-control:not(.v-selection-control--dirty) .v-icon {
+  // Match the star's muted gray unconditionally, then restore Vuetify's
+  // pink only once actually favorited (via the item's own .favorite class,
+  // rather than relying on a v-selection-control internal state class) —
+  // that state is already reliably set elsewhere (the row's favorite glow).
+  // Vuetify also dims the unchecked checkbox icon to opacity:0.6 — the star
+  // renders at full opacity, so without this override the same color still
+  // reads as a lighter gray.
+  .list-rating-favorite .fav-btn .v-icon {
     color: var(--item-rating-favorite-muted-color) !important;
+    opacity: 1 !important;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  &.favorite .list-rating-favorite .fav-btn .v-icon {
+    color: #e91e63 !important;
+  }
+
+  .list-rating-favorite .fav-btn:hover .v-icon {
+    transform: scale(1.2);
+  }
+
+  &.favorite .list-rating-favorite .fav-btn:hover .v-icon {
+    color: #ff4081 !important;
   }
 
   // Quality/duration badges on the thumbnail, scaled down to match the much
@@ -1763,12 +1852,32 @@ body > .video-preview-container.video-preview-container--expanded {
   // row's overflow:hidden, which read as a "distorted gray" hover background.
   // 14px var here renders a 26px button, comfortably inside every size.
   .item-menu-btn {
-    position: static;
+    // relative, not static: it must stay a positioning context for its own
+    // absolutely-positioned children. static let Vuetify's overlay resolve
+    // against `.item` (the whole row) as its nearest positioned ancestor and
+    // stretch into a huge misshapen gray blob on hover.
+    position: relative;
+    inset: auto;
     align-self: center;
     flex: 0 0 auto;
     margin: 0 4px 0 0;
     opacity: 0.55;
     --v-btn-height: 14px;
+    // Hover feedback is drawn on the button itself (a small circular fill
+    // matching the icon button's 50% radius) so it can never escape the
+    // button bounds the way Vuetify's overlay did. Vuetify's own overlay is
+    // kept hidden below to avoid double-highlighting.
+    background-color: transparent;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .item-menu-btn .v-btn__overlay {
+    display: none;
+  }
+
+  .item-menu-btn:hover {
+    background-color: rgba(var(--v-theme-on-surface), 0.08);
+    opacity: 1;
   }
 
   &:hover .item-menu-btn {
@@ -1811,15 +1920,6 @@ body > .video-preview-container.video-preview-container--expanded {
     .item_preview { width: 149px; }
     .list-rating-favorite { --item-rating-icon: 24px; --item-fav-icon: 25px; }
   }
-}
-
-// Rounding lives on the grid as a whole, not on individual rows: the
-// container clips its top/bottom edges, which rounds the first row's top
-// corners and the last row's bottom corners without any :first/:last-child
-// bookkeeping (works the same whether the grid is virtualized or not).
-.items-page-grid.list-grid {
-  border-radius: 12px;
-  overflow: hidden;
 }
 
 .item-media.item-view-3 {
@@ -2554,7 +2654,8 @@ body > .video-preview-container.video-preview-container--expanded {
 
     &--search {
       flex: 1 1 auto;
-      margin-right: 10px;
+      margin-left: 0;
+      margin-right: 0;
     }
 
     &--tags,
@@ -3028,7 +3129,11 @@ body > .video-preview-container.video-preview-container--expanded {
 .edit-dialog-media-panel {
   &__card {
     overflow: hidden;
-    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    // Vuetify's own .v-card rule sets border-width/color via longhand
+    // properties at equal specificity and loads after this file, so the
+    // shorthand `border` here loses the cascade without !important.
+    border: 1px solid rgba(var(--v-theme-primary), 0.16) !important;
+    border-radius: var(--edit-deck-radius, 16px) !important;
     background: rgb(var(--v-theme-surface));
     box-shadow:
       0 1px 0 rgba(var(--v-theme-primary), 0.04),
