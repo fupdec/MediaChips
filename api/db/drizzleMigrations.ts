@@ -90,6 +90,14 @@ function createIndexStatementRegex(): RegExp {
   return /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[^;]+;?/gi
 }
 
+function createTableCaptureRegex(): RegExp {
+  return /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?/gi
+}
+
+function createTableStatementRegex(): RegExp {
+  return /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^;]+;?/gi
+}
+
 function hasIndex(sqlite: Database.Database, indexName: string): boolean {
   const row = sqlite.prepare(
     `SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`,
@@ -125,14 +133,23 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
     return indexMatches.every((match) => Boolean(match[1] && hasIndex(sqlite, match[1])))
   }
 
+  const tableMatches = [...sql.matchAll(createTableCaptureRegex())]
+  if (tableMatches.length > 0) {
+    const withoutTables = withoutBreakpoints.replace(createTableStatementRegex(), '').trim()
+    if (withoutTables.length > 0) {
+      return false
+    }
+
+    return tableMatches.every((match) => Boolean(match[1] && hasTable(sqlite, match[1])))
+  }
+
   return false
 }
 
 /**
- * When schemaRepair (or a prior partial boot) already added columns/indexes,
- * stamp the matching pure ADD COLUMN / CREATE INDEX drizzle migrations so
- * migrate() does not fail by trying to re-apply them ("duplicate column
- * name", "index already exists").
+ * When schemaRepair (or a prior partial boot) already added columns/indexes/tables,
+ * stamp the matching pure ADD COLUMN / CREATE INDEX / CREATE TABLE drizzle migrations
+ * so migrate() does not fail by trying to re-apply them.
  */
 export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): string[] {
   if (!hasTable(sqlite, '__drizzle_migrations')) {

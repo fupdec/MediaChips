@@ -241,6 +241,7 @@ function registerBuiltinRoutes({
       ...(typeof config.onboardingPaused === 'string' ? { onboardingPaused: config.onboardingPaused } : {}),
       ...(typeof config.lastSeenVersion === 'string' ? { lastSeenVersion: config.lastSeenVersion } : {}),
       ...(typeof config.skippedUpdateVersions === 'string' ? { skippedUpdateVersions: config.skippedUpdateVersions } : {}),
+      ...(typeof config.seenFeatureHints === 'string' ? { seenFeatureHints: config.seenFeatureHints } : {}),
     }
 
     res.json(responseConfig)

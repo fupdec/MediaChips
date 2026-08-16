@@ -19,6 +19,7 @@ export interface ServerConfig {
   onboardingPaused?: string
   lastSeenVersion?: string
   skippedUpdateVersions?: string
+  seenFeatureHints?: string
   minimizeToTray?: string
   allowLanAccess?: string
   checkForUpdatesAtStartup?: string

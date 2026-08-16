@@ -6,6 +6,9 @@
     @contextmenu.stop="showContextMenu"
     @mousedown="onItemMouseDown"
     @dragstart="onMediaDragStart"
+    @dragover="onMediaTagDragOver"
+    @dragleave="onMediaTagDragLeave"
+    @drop="onMediaTagDrop"
     :class="[
       {favorite: is_favorite_active && item.favorite},
       {'big-preview': big_preview},
@@ -15,6 +18,7 @@
       {'item--inspector-focused': isInspectorFocused},
       {'item--keyboard-cursor': isKeyboardCursor},
       {'item--context-target': is_context_target},
+      {'item--tag-drop-target': isTagDropTarget},
       `item__size-${itemsStore.size}`,
       `item-view-${itemsStore.view}`,
     ]"
@@ -290,6 +294,15 @@ import {
   startNativeMediaDragOut,
 } from '@/utils/mediaDragOut'
 import {buildMediaDragGhostDataUrl} from '@/utils/mediaDragGhost'
+import {
+  clearMediaTagDrag,
+  isMediaTagDragActive,
+  isMediaTagDragEvent,
+  onMediaTagDragChange,
+  readMediaTagDragPayload,
+} from '@/utils/mediaTagDrag'
+import {useMediaTagTransfer} from '@/composable/useMediaTagTransfer'
+import {setNotification} from '@/services/notificationService'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {bumpMountedItems} from '@/utils/galleryPerfCounters'
@@ -333,6 +346,7 @@ const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
+const {transferTagToMedia} = useMediaTagTransfer()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 const {t} = useI18n()
 
@@ -342,7 +356,14 @@ const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
 const checkedFilePath = ref<string | null>(null)
+const isTagDropTarget = ref(false)
+const mediaTagDragActive = ref(isMediaTagDragActive())
 const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '400px 0px' })
+
+let unsubscribeMediaTagDrag: (() => void) | null = onMediaTagDragChange((active) => {
+  mediaTagDragActive.value = active
+  if (!active) isTagDropTarget.value = false
+})
 
 const showPreview = computed(() => props.eagerPreview || isInView.value)
 
@@ -558,6 +579,64 @@ const onMediaDragStart = (event: DragEvent) => {
   })
 }
 
+const canAcceptMediaTagDrop = (event: DragEvent): boolean => {
+  if (props.type !== 'media' || !mediaItem.value) return false
+  if (!mediaTagDragActive.value && !isMediaTagDragEvent(event)) return false
+  return true
+}
+
+const onMediaTagDragOver = (event: DragEvent) => {
+  if (!canAcceptMediaTagDrop(event)) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = event.shiftKey ? 'move' : 'copy'
+  }
+  isTagDropTarget.value = true
+}
+
+const onMediaTagDragLeave = (event: DragEvent) => {
+  if (!isTagDropTarget.value) return
+  const next = event.relatedTarget
+  if (next instanceof Node && itemRootRef.value?.contains(next)) return
+  isTagDropTarget.value = false
+}
+
+const onMediaTagDrop = async (event: DragEvent) => {
+  if (!canAcceptMediaTagDrop(event) || !mediaItem.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  isTagDropTarget.value = false
+
+  const payload = readMediaTagDragPayload(event)
+  clearMediaTagDrag()
+  if (!payload) return
+
+  const mode = event.shiftKey ? 'move' : 'copy'
+  const result = await transferTagToMedia(payload, mediaItem.value.id, mode)
+  if (result.ok) {
+    setNotification({
+      type: 'success',
+      text: mode === 'move'
+        ? t('items.tag_moved', {name: payload.name || ''})
+        : t('items.tag_copied', {name: payload.name || ''}),
+    })
+    return
+  }
+  if (result.reason === 'already_had') {
+    setNotification({
+      type: 'info',
+      text: t('items.tag_already_on_card', {name: payload.name || ''}),
+    })
+    return
+  }
+  if (result.reason === 'same_card') return
+  setNotification({
+    type: 'error',
+    text: t('items.tag_transfer_failed'),
+  })
+}
+
 const isInspectorFocused = computed(() =>
   browserLayoutActive.value
   && !itemsStore.isSelect
@@ -710,6 +789,8 @@ onBeforeUnmount(() => {
   bumpMountedItems(-1)
   markItemHidden(Number(props.item.id))
   clearEditClickSuppress()
+  unsubscribeMediaTagDrag?.()
+  unsubscribeMediaTagDrag = null
 })
 
 watch(

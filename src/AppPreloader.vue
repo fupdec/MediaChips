@@ -94,6 +94,11 @@
 
     <ContextMenu v-if="isShellReady && !isPlayerWindow"/>
     <ElementSpotlight v-if="isShellReady && !isPlayerWindow"/>
+    <FeatureHintOverlay
+      v-if="isShellReady && !isPlayerWindow"
+      :is-player-window="isPlayerWindow"
+      :is-shell-ready="isShellReady"
+    />
 
     <div
       v-if="isElectron && !isPlayerWindow"
@@ -143,6 +148,7 @@ const HoverImage = defineAsyncComponent(() => import('@/components/app/HoverImag
 const NotificationsPool = defineAsyncComponent(() => import('@/components/app/NotificationsPool.vue'))
 const ContextMenu = defineAsyncComponent(() => import('@/components/app/ContextMenu.vue'))
 const ElementSpotlight = defineAsyncComponent(() => import('@/components/app/ElementSpotlight.vue'))
+const FeatureHintOverlay = defineAsyncComponent(() => import('@/components/app/FeatureHintOverlay.vue'))
 const AutoUpdater = defineAsyncComponent(() => import('@/components/app/AutoUpdater.vue'))
 
 const settingsStore = useSettingsStore()

@@ -820,6 +820,11 @@ const pt = {
     release_date: 'Data de lançamento: {date}',
     empty: 'Nenhum changelog disponível para esta versão.',
   },
+  feature_hints: {
+    got_it: 'Entendi',
+    drag_tags_title: 'Arrastar tags entre cartões',
+    drag_tags_body: 'Arraste uma tag para outro cartão para copiá-la. Segure Shift ao soltar para mover a tag.',
+  },
   home: {
     welcome: 'Bem-vindo ao aplicativo MediaChips!',
     documentation_hint: 'Confira a documentação para saber mais sobre os recursos do aplicativo.',
@@ -1091,6 +1096,11 @@ const pt = {
     chips_show_more: '+{count}',
     chips_show_less: 'Mostrar menos',
     tag_from_folder: 'Da pasta',
+    drag_tag_hint: 'Arraste para outro cartão para copiar · Shift para mover',
+    tag_copied: 'Tag “{name}” copiada',
+    tag_moved: 'Tag “{name}” movida',
+    tag_already_on_card: 'A tag “{name}” já está neste cartão',
+    tag_transfer_failed: 'Não foi possível transferir a tag',
     view: {
       card: 'Cartão',
       timeline: 'Linha do tempo',
@@ -3513,6 +3523,8 @@ const pt = {
     mark_added: 'Marca adicionada',
     mark_updated: 'Marca atualizada',
     marks_list: 'Lista de Marcas',
+    studio_mode: 'Estúdio de marcadores',
+    studio_mode_on: 'Sair do estúdio',
     auto_chapters: 'Capítulos',
     generate_chapters: 'Gerar capítulos',
     generate_chapters_done: 'Capítulos {count} criados',

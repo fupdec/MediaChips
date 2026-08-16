@@ -820,6 +820,11 @@ const ru = {
     release_date: 'Дата релиза: {date}',
     empty: 'Для этой версии нет описания изменений.',
   },
+  feature_hints: {
+    got_it: 'Понятно',
+    drag_tags_title: 'Перетаскивание тегов',
+    drag_tags_body: 'Перетащите тег на другую карточку, чтобы скопировать его. Удерживайте Shift при отпускании, чтобы переместить тег.',
+  },
   home: {
     welcome: 'Добро пожаловать в MediaChips!',
     documentation_hint: 'Ознакомьтесь с документацией, чтобы узнать о возможностях приложения.',
@@ -1094,6 +1099,11 @@ const ru = {
     chips_show_more: '+{count}',
     chips_show_less: 'Свернуть',
     tag_from_folder: 'Из папки',
+    drag_tag_hint: 'Перетащите на другую карточку, чтобы скопировать · Shift — переместить',
+    tag_copied: 'Тег «{name}» скопирован',
+    tag_moved: 'Тег «{name}» перемещён',
+    tag_already_on_card: 'Тег «{name}» уже есть на этой карточке',
+    tag_transfer_failed: 'Не удалось перенести тег',
     view: {
       card: 'Карточка',
       timeline: 'Таймлайн',
@@ -3522,6 +3532,8 @@ const ru = {
     clip_mode_empty: 'Нет маркеров с диапазоном — клипу нужны начало и конец',
     clip_mode_selected: 'Выбрано: {count}',
     studio_track_empty: 'Пока нет маркеров — добавьте через кнопку +',
+    studio_mode: 'Студия маркеров',
+    studio_mode_on: 'Выйти из студии',
     auto_chapters: 'Главы',
     generate_chapters: 'Сгенерировать главы',
     generate_chapters_done: 'Создано глав: {count}',

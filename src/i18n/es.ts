@@ -820,6 +820,11 @@ const es = {
     release_date: 'Fecha de lanzamiento: {date}',
     empty: 'No hay registro de cambios para esta versión.',
   },
+  feature_hints: {
+    got_it: 'Entendido',
+    drag_tags_title: 'Arrastrar etiquetas entre tarjetas',
+    drag_tags_body: 'Arrastre una etiqueta a otra tarjeta para copiarla. Mantenga Mayús al soltar para moverla.',
+  },
   home: {
     welcome: '¡Bienvenido a MediaChips!',
     documentation_hint: 'Consulte la documentación para conocer las capacidades de la aplicación.',
@@ -1091,6 +1096,11 @@ const es = {
     chips_show_more: '+{count}',
     chips_show_less: 'Mostrar menos',
     tag_from_folder: 'De la carpeta',
+    drag_tag_hint: 'Arrastre a otra tarjeta para copiar · Mayús para mover',
+    tag_copied: 'Etiqueta «{name}» copiada',
+    tag_moved: 'Etiqueta «{name}» movida',
+    tag_already_on_card: 'La etiqueta «{name}» ya está en esta tarjeta',
+    tag_transfer_failed: 'No se pudo transferir la etiqueta',
     view: {
       card: 'Tarjeta',
       timeline: 'Línea de tiempo',
@@ -3513,6 +3523,8 @@ const es = {
     mark_added: 'Marcador agregado',
     mark_updated: 'Marcador actualizado',
     marks_list: 'Lista de marcas',
+    studio_mode: 'Estudio de marcadores',
+    studio_mode_on: 'Salir del estudio',
     auto_chapters: 'Capítulos',
     generate_chapters: 'Generar capítulos',
     generate_chapters_done: 'Capítulos {count} creados',

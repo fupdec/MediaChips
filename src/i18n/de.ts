@@ -820,6 +820,11 @@ const de = {
     release_date: 'Erscheinungsdatum: {date}',
     empty: 'Für diese Version ist kein Änderungsprotokoll verfügbar.',
   },
+  feature_hints: {
+    got_it: 'Verstanden',
+    drag_tags_title: 'Tags zwischen Karten ziehen',
+    drag_tags_body: 'Ziehen Sie einen Tag auf eine andere Karte, um ihn zu kopieren. Halten Sie beim Ablegen die Umschalttaste, um den Tag zu verschieben.',
+  },
   home: {
     welcome: 'Willkommen in der MediaChips-App!',
     documentation_hint: 'Sehen Sie sich die Dokumentation an, um mehr über die Funktionen der App zu erfahren.',
@@ -1091,6 +1096,11 @@ const de = {
     chips_show_more: '+{count}',
     chips_show_less: 'Weniger anzeigen',
     tag_from_folder: 'Aus Ordner',
+    drag_tag_hint: 'Auf eine andere Karte ziehen zum Kopieren · Umschalt zum Verschieben',
+    tag_copied: 'Tag „{name}“ kopiert',
+    tag_moved: 'Tag „{name}“ verschoben',
+    tag_already_on_card: 'Tag „{name}“ ist bereits auf dieser Karte',
+    tag_transfer_failed: 'Tag konnte nicht übertragen werden',
     view: {
       card: 'Karte',
       timeline: 'Zeitleiste',
@@ -3513,6 +3523,8 @@ const de = {
     mark_added: 'Mark fügte hinzu',
     mark_updated: 'Markierung aktualisiert',
     marks_list: 'Markierungsliste',
+    studio_mode: 'Markierungsstudio',
+    studio_mode_on: 'Studio beenden',
     auto_chapters: 'Kapitel',
     generate_chapters: 'Kapitel generieren',
     generate_chapters_done: '{count}-Kapitel erstellt',

@@ -820,6 +820,11 @@ const ja = {
     release_date: '発売日: {date}',
     empty: 'このバージョンでは利用可能な変更ログがありません。',
   },
+  feature_hints: {
+    got_it: 'わかった',
+    drag_tags_title: 'カード間でタグをドラッグ',
+    drag_tags_body: 'タグを別のカードにドラッグするとコピーできます。Shift を押しながらドロップすると移動します。',
+  },
   home: {
     welcome: 'MediaChips アプリへようこそ!',
     documentation_hint: 'アプリの機能については、ドキュメントを参照してください。',
@@ -1091,6 +1096,11 @@ const ja = {
     chips_show_more: '+{count}',
     chips_show_less: '少なく表示',
     tag_from_folder: 'フォルダーから',
+    drag_tag_hint: '別のカードにドラッグしてコピー · Shift で移動',
+    tag_copied: 'タグ「{name}」をコピーしました',
+    tag_moved: 'タグ「{name}」を移動しました',
+    tag_already_on_card: 'タグ「{name}」はこのカードに既にあります',
+    tag_transfer_failed: 'タグを転送できませんでした',
     view: {
       card: 'カード',
       timeline: 'タイムライン',
@@ -3513,6 +3523,8 @@ const ja = {
     mark_added: 'マークを追加しました',
     mark_updated: 'マークを更新しました',
     marks_list: 'マークリスト',
+    studio_mode: 'マーカースタジオ',
+    studio_mode_on: 'スタジオを終了',
     auto_chapters: '章',
     generate_chapters: 'チャプターを生成する',
     generate_chapters_done: '{count} 章を作成しました',

@@ -1,5 +1,8 @@
 <template>
-  <div class="nested-tags">
+  <div
+    class="nested-tags"
+    :data-feature-hint="featureHintAttr"
+  >
 
     <!-- TAG PAGE -->
     <div v-if="tagPage" class="tag-page-params">
@@ -63,7 +66,11 @@
               :class="{
                 'nested-tag-chip-wrap--active': isNestedTagContextTarget(tag.id),
                 'nested-tag-chip-wrap--label': getMetaChipLabel(tag.meta),
+                'nested-tag-chip-wrap--draggable': canDragTag(tag),
               }"
+              :draggable="canDragTag(tag)"
+              @dragstart.stop="onTagDragStart($event, tag)"
+              @dragend="onTagDragEnd"
             >
               <v-chip
                 v-bind="getTagChipBind(tag)"
@@ -132,7 +139,11 @@
             :class="{
               'nested-tag-chip-wrap--active': isNestedTagContextTarget(tag.id),
               'nested-tag-chip-wrap--label': getMetaChipLabel(tag.meta),
+              'nested-tag-chip-wrap--draggable': canDragTag(tag),
             }"
+            :draggable="canDragTag(tag)"
+            @dragstart.stop="onTagDragStart($event, tag)"
+            @dragend="onTagDragEnd"
           >
             <v-chip
               v-bind="getTagChipBind(tag)"
@@ -190,7 +201,11 @@
           :class="{
             'nested-tag-chip-wrap--active': isNestedTagContextTarget(entry.data.id),
             'nested-tag-chip-wrap--label': getMetaChipLabel(entry.data.meta),
+            'nested-tag-chip-wrap--draggable': canDragTag(entry.data),
           }"
+          :draggable="canDragTag(entry.data)"
+          @dragstart.stop="onTagDragStart($event, entry.data)"
+          @dragend="onTagDragEnd"
         >
           <v-chip
             v-bind="getTagChipBind(entry.data)"
@@ -257,6 +272,10 @@ import {getFilterObject, getTagChipTextColor} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
+import {
+  clearMediaTagDrag,
+  writeMediaTagDragPayload,
+} from '@/utils/mediaTagDrag'
 import {
   formatMeasurementDisplay,
   normalizeMeasurementUnit,
@@ -347,6 +366,41 @@ const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
   return typeof label === 'boolean' ? label : undefined
 }
 
+const canDragTag = (tag: TagWithMeta): boolean => {
+  return props.type === 'media' && !tag.fromFolder && Number(tag.id) > 0 && Number(tag.metaId) > 0
+}
+
+const featureHintAttr = computed((): string | undefined => {
+  if (props.type !== 'media') return undefined
+  const hasDraggableTag = (props.tags || []).some((entry) => !entry.fromFolder && Number(entry.tagId) > 0)
+  return hasDraggableTag ? 'drag-tags' : undefined
+})
+
+const onTagDragStart = (event: DragEvent, tag: TagWithMeta): void => {
+  if (!canDragTag(tag)) {
+    event.preventDefault()
+    return
+  }
+  hideHoverImage()
+  const ok = writeMediaTagDragPayload(event, {
+    tagId: Number(tag.id),
+    metaId: Number(tag.metaId),
+    sourceMediaId: Number(props.item.id),
+    name: tag.name,
+  })
+  if (!ok) {
+    event.preventDefault()
+    return
+  }
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+const onTagDragEnd = (): void => {
+  clearMediaTagDrag()
+}
+
 const isNestedTagContextTarget = (tagId: number): boolean => {
   return contextMenuStore.show
     && contextMenuStore.targetNestedTagId != null
@@ -368,6 +422,9 @@ const getTagChipBind = (tag: TagWithMeta) => {
   const fromFolderTitle = tag.fromFolder
     ? translate('items.tag_from_folder', {}, locale)
     : undefined
+  const dragTitle = canDragTag(tag)
+    ? translate('items.drag_tag_hint', {}, locale)
+    : undefined
 
   return {
     variant,
@@ -375,7 +432,7 @@ const getTagChipBind = (tag: TagWithMeta) => {
     // Flat/elevated only — see getTagChipTextStyle.
     style: textColor ? {color: textColor} : undefined,
     label: getMetaChipLabel(tag.meta),
-    title: fromFolderTitle || tag.name || undefined,
+    title: fromFolderTitle || dragTitle || tag.name || undefined,
     size: active ? 'large' : undefined,
     filter: active || undefined,
     prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
@@ -899,5 +956,13 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
 .tag-chip--from-folder {
   opacity: 0.92;
   border-style: dashed !important;
+}
+
+.nested-tag-chip-wrap--draggable {
+  cursor: grab;
+}
+
+.nested-tag-chip-wrap--draggable:active {
+  cursor: grabbing;
 }
 </style>

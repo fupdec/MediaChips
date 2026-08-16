@@ -820,6 +820,11 @@ const en = {
     release_date: 'Release date: {date}',
     empty: 'No changelog available for this version.',
   },
+  feature_hints: {
+    got_it: 'Got it',
+    drag_tags_title: 'Drag tags between cards',
+    drag_tags_body: 'Drag a tag onto another card to copy it. Hold Shift while dropping to move the tag instead.',
+  },
   home: {
     welcome: 'Welcome to the MediaChips app!',
     documentation_hint: 'Check out the documentation to learn about the app\'s capabilities.',
@@ -1094,6 +1099,11 @@ const en = {
     chips_show_more: '+{count}',
     chips_show_less: 'Show less',
     tag_from_folder: 'From folder',
+    drag_tag_hint: 'Drag onto another card to copy · Shift to move',
+    tag_copied: 'Tag “{name}” copied',
+    tag_moved: 'Tag “{name}” moved',
+    tag_already_on_card: 'Tag “{name}” is already on this card',
+    tag_transfer_failed: 'Could not transfer the tag',
     view: {
       card: 'Card',
       timeline: 'Timeline',
@@ -3522,6 +3532,8 @@ const en = {
     clip_mode_empty: 'No ranged markers — clips need a start and end',
     clip_mode_selected: '{count} selected',
     studio_track_empty: 'No marks yet — add one with the + button',
+    studio_mode: 'Markers Studio',
+    studio_mode_on: 'Exit studio',
     auto_chapters: 'Chapters',
     generate_chapters: 'Generate chapters',
     generate_chapters_done: 'Created {count} chapters',

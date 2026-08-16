@@ -121,4 +121,22 @@ describe('drizzleMigrations', () => {
       sqlite.close()
     }
   })
+
+  it('stamps CREATE TABLE migrations when schemaRepair already created the table', () => {
+    const dbPath = createTempDbPath()
+    runDrizzleMigrations(dbPath)
+
+    const sqlite = new Database(dbPath)
+    try {
+      sqlite.exec(`DELETE FROM __drizzle_migrations WHERE created_at >= 1782822000000`)
+      const stamped = stampSatisfiedAddColumnMigrations(sqlite)
+      expect(stamped).toContain('0020_media_clip_embeddings')
+      expect(() => runDrizzleMigrations(dbPath)).not.toThrow()
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({
+        count: getMigrationCount(),
+      })
+    } finally {
+      sqlite.close()
+    }
+  })
 })

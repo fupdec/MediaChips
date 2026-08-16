@@ -820,6 +820,11 @@ const cn = {
     release_date: '发布日期：{date}',
     empty: '此版本暂无更新日志。',
   },
+  feature_hints: {
+    got_it: '知道了',
+    drag_tags_title: '在卡片间拖放标签',
+    drag_tags_body: '将标签拖到另一张卡片即可复制。按住 Shift 再放下可移动标签。',
+  },
   home: {
     welcome: '欢迎使用 MediaChips！',
     documentation_hint: '查看文档以了解应用功能。',
@@ -1091,6 +1096,11 @@ const cn = {
     chips_show_more: '+{count}',
     chips_show_less: '收起',
     tag_from_folder: '来自文件夹',
+    drag_tag_hint: '拖到另一张卡片可复制 · 按住 Shift 可移动',
+    tag_copied: '已复制标签“{name}”',
+    tag_moved: '已移动标签“{name}”',
+    tag_already_on_card: '标签“{name}”已在此卡片上',
+    tag_transfer_failed: '无法转移标签',
     view: {
       card: '卡片',
       timeline: '时间轴',
@@ -3513,6 +3523,8 @@ const cn = {
     mark_added: '标记已添加',
     mark_updated: '标记已更新',
     marks_list: '标记列表',
+    studio_mode: '标记工作室',
+    studio_mode_on: '退出工作室',
     auto_chapters: '章节',
     generate_chapters: '生成章节',
     generate_chapters_done: '创建了 {count} 章节',

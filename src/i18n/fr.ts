@@ -820,6 +820,11 @@ const fr = {
     release_date: 'Date de sortie : {date}',
     empty: 'Aucun journal des modifications disponible pour cette version.',
   },
+  feature_hints: {
+    got_it: 'Compris',
+    drag_tags_title: 'Glisser des tags entre cartes',
+    drag_tags_body: 'Glissez un tag sur une autre carte pour le copier. Maintenez Maj en relâchant pour le déplacer.',
+  },
   home: {
     welcome: 'Bienvenue sur l\'application MediaChips !',
     documentation_hint: 'Consultez la documentation pour en savoir plus sur les capacités de l\'application.',
@@ -1091,6 +1096,11 @@ const fr = {
     chips_show_more: '+{count}',
     chips_show_less: 'Afficher moins',
     tag_from_folder: 'Depuis le dossier',
+    drag_tag_hint: 'Glissez sur une autre carte pour copier · Maj pour déplacer',
+    tag_copied: 'Tag « {name} » copié',
+    tag_moved: 'Tag « {name} » déplacé',
+    tag_already_on_card: 'Le tag « {name} » est déjà sur cette carte',
+    tag_transfer_failed: 'Impossible de transférer le tag',
     view: {
       card: 'Carte',
       timeline: 'Chronologie',
@@ -3513,6 +3523,8 @@ const fr = {
     mark_added: 'Marque ajoutée',
     mark_updated: 'Marque mise à jour',
     marks_list: 'Liste des marques',
+    studio_mode: 'Studio de marqueurs',
+    studio_mode_on: 'Quitter le studio',
     auto_chapters: 'Chapitres',
     generate_chapters: 'Générer des chapitres',
     generate_chapters_done: 'Création de chapitres {count}',
