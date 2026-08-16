@@ -304,7 +304,7 @@ export function showHoverImage(
       previewWidth: HOVER_CARD_WIDTH,
       previewHeight: Math.max(
         TAG_HOVER_ESTIMATED_HEIGHT,
-        formatUtils.getTagHoverPreviewDimensions('avatar', tagAspectRatio, HOVER_CARD_WIDTH).previewHeight,
+        formatUtils.getTagHoverPreviewDimensions('main', tagAspectRatio, HOVER_CARD_WIDTH).previewHeight,
       ),
     }
 

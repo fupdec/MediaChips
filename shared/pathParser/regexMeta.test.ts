@@ -119,6 +119,29 @@ describe('pathParser/regexMeta', () => {
     expect(results).toEqual([])
   })
 
+  it('extracts every square-bracket capture on the path', () => {
+    const results = extractPathRegexTagNames('/Media/[One][Two]clip.mp4', [{
+      id: 7,
+      type: 'array',
+      parser: true,
+      pathRegex: '\\[([^\\]]+)\\]',
+      pathRegexReplace: '$1',
+    }])
+    expect(results.map((hit) => hit.tagName)).toEqual(['One', 'Two'])
+  })
+
+  it('uses the first non-empty capture group from an alternation', () => {
+    const meta = {
+      id: 8,
+      type: 'array',
+      parser: true,
+      pathRegex: '(Watch later)|(Favorites)|(Rewatch)',
+    }
+    expect(extractPathRegexTagName('/Media/Favorites.mp4', meta)).toBe('Favorites')
+    expect(extractPathRegexTagName('/Media/Rewatch.mp4', meta)).toBe('Rewatch')
+    expect(extractPathRegexTagName('/Media/Watch later.mp4', meta)).toBe('Watch later')
+  })
+
   it('returns createTags flag from meta setting', () => {
     const [hit] = extractPathRegexTagNames('/Media/Library/[StudioName]clip.mp4', [{
       id: 5,

@@ -139,7 +139,7 @@ export function useItemPreviewContextMenu(options: ItemPreviewContextMenuOptions
       if (options.getStaticPreviewSubfolder() === 'grids') {
         options.loadThumb('grids', {bust: true})
       }
-      options.refreshThumb(media.id, {regenerate: true})
+      options.refreshThumb(media.id)
       options.syncMediaItem(media.id)
       void options.refreshGridPreviewIfNeeded?.()
       options.setNotification({

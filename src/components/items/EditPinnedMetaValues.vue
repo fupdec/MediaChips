@@ -713,7 +713,15 @@ const isMedia = computed(() => !props.tag && !!props.media)
 const mediaOverride = ref<MediaItem | null>(null)
 const currentItem = computed((): MediaItem | Tag | null => {
   if (isTag.value) return props.tag ?? null
-  return mediaOverride.value || props.media
+  const media = props.media ?? null
+  if (
+    mediaOverride.value
+    && media
+    && Number(mediaOverride.value.id) === Number(media.id)
+  ) {
+    return mediaOverride.value
+  }
+  return media
 })
 const currentItemId = computed(() => currentItem.value?.id)
 const overviewItem = computed((): MediaItem | Tag => {
@@ -1663,6 +1671,9 @@ watch(currentItemId, async (itemId, previousItemId) => {
   // Inspector edits in-place: persist pending changes before loading the next item.
   if (isInspectorLayout.value && previousItemId != null && getIsDirty()) {
     await save({itemId: previousItemId})
+  }
+  if (mediaOverride.value && Number(mediaOverride.value.id) !== Number(itemId)) {
+    mediaOverride.value = null
   }
   await loadEditingState()
   if (isMedia.value) {

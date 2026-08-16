@@ -74,7 +74,7 @@ function phrasePassesPrecision(
   if (config.folderOnlySingleTokens) {
     if (kind === 'subtoken') return false
     if (phrase.source === 'file') {
-      return kind === 'single' && phrase.raw === token
+      return kind === 'single' && normalizeToken(phrase.raw) === token
     }
   }
 

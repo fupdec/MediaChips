@@ -17,6 +17,7 @@
     :hide-no-data="purpose === 'filter' ? false : !search"
     hide-selected
     multiple
+    auto-select-first
     :autofocus="autofocus"
     :class="{'meta-input-array--filter': purpose === 'filter'}"
     @update:menu="onMenuUpdate"
@@ -803,14 +804,25 @@ const create = async () => {
 
 const onEnter = (event: KeyboardEvent) => {
   const searchText = search.value?.trim()
-  const isExists = listTags.value.some(
-    (i) => i.name.toLowerCase() === searchText?.toLowerCase()
+  if (!searchText) return
+
+  const lower = searchText.toLowerCase()
+  const exact = listTags.value.find((tag) => tag.name.toLowerCase() === lower)
+  const mode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
+  const match = exact ?? listTags.value.find((tag) =>
+    matchesTagAutocomplete(tag, searchText, mode),
   )
 
-  if (searchText && !isExists) {
+  if (match?.id != null) {
     event.preventDefault()
-    create()
+    const next = [...normalizeIds(val.value), Number(match.id)]
+    setVal(next)
+    search.value = ''
+    return
   }
+
+  event.preventDefault()
+  create()
 }
 const setVal = (newVal: unknown, options: {allowClear?: boolean} = {}) => {
   const normalized = [...new Set(normalizeIds(newVal))]

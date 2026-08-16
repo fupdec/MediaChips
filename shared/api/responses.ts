@@ -209,6 +209,9 @@ export interface SavedFilterSummaryResponse {
 
 export interface MediaIdsResponse {
   ids?: number[]
+  totalFiltered?: number
+  totalFilesize?: number
+  navigation?: MediaItem[]
 }
 
 export interface DatabaseSizesResponse {

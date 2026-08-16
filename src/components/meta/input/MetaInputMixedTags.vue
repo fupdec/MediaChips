@@ -16,6 +16,7 @@
     hide-selected
     multiple
     no-filter
+    auto-select-first
     :menu-props="resolvedMenuProps"
     @update:menu="onMenuUpdate"
     @keydown.enter="onEnter"
@@ -211,7 +212,7 @@ import {
   getTagChipTextColor,
   highlightChars,
 } from '@/services/formatUtils'
-import {resolveTagAutocompleteSearchMode} from '@shared/tagAutocompleteMatch'
+import {resolveTagAutocompleteSearchMode, matchesTagAutocomplete} from '@shared/tagAutocompleteMatch'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -869,13 +870,24 @@ function onEnter(event: KeyboardEvent) {
   const searchText = search.value?.trim()
   if (!searchText) return
 
-  const existsAnywhere = tagOptions.value.some(
-    (option) => option.name.toLowerCase() === searchText.toLowerCase(),
+  const lower = searchText.toLowerCase()
+  const exact = tagOptions.value.find((option) => option.name.toLowerCase() === lower)
+  const mode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
+  const match = exact ?? tagOptions.value.find((option) =>
+    matchesTagAutocomplete(option, searchText, mode),
   )
-  if (!existsAnywhere) {
+
+  if (match) {
     event.preventDefault()
-    void create(searchText)
+    if (!normalizeKeys(val.value).includes(match.key)) {
+      setVal([...normalizeKeys(val.value), match.key])
+    }
+    search.value = ''
+    return
   }
+
+  event.preventDefault()
+  void create(searchText)
 }
 
 async function focusField() {

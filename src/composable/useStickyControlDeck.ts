@@ -34,14 +34,19 @@ export function useStickyControlDeck() {
     if (!sentinel) return
 
     const root = getMainScrollEl()
+    const rootEl = root instanceof Element ? root : null
+    const focusBar = rootEl?.querySelector('.session-focus-bar')
+    const stickyTop = focusBar instanceof HTMLElement
+      ? Math.max(8, Math.round(focusBar.getBoundingClientRect().height) + 8)
+      : 8
     deckStuckObserver = new IntersectionObserver(
       ([entry]) => {
         controlDeckStuck.value = Boolean(entry && !entry.isIntersecting)
       },
       {
-        root: root instanceof Element ? root : null,
+        root: rootEl,
         threshold: 0,
-        rootMargin: '-8px 0px 0px 0px',
+        rootMargin: `-${stickyTop}px 0px 0px 0px`,
       },
     )
     deckStuckObserver.observe(sentinel)

@@ -3531,7 +3531,7 @@ const en = {
     clip_mode_on: 'Exit clip mode',
     clip_mode_empty: 'No ranged markers — clips need a start and end',
     clip_mode_selected: '{count} selected',
-    studio_track_empty: 'No marks yet — add one with the + button',
+    studio_track_empty: 'Click the track to add a mark',
     studio_mode: 'Markers Studio',
     studio_mode_on: 'Exit studio',
     auto_chapters: 'Chapters',

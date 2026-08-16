@@ -55,35 +55,46 @@
         </v-btn>
       </div>
 
-      <div v-if="!clipMode" class="player-sidebar__filters">
-        <PlayerMarksFilters
-          v-model="marksType"
-          :assigned="assigned as any"
-          :has-favorite="hasFavoriteMarks"
-          :has-bookmark="hasBookmarkMarks"
-          :has-chapter="hasChapterMarks"
-        />
+      <div v-if="!clipMode" class="player-sidebar__deck">
+        <div class="player-sidebar__deck-surface">
+          <div class="player-sidebar__filters">
+            <PlayerMarksFilters
+              v-model="marksType"
+              :assigned="assigned as any"
+              :has-favorite="hasFavoriteMarks"
+              :has-bookmark="hasBookmarkMarks"
+              :has-chapter="hasChapterMarks"
+            />
+          </div>
+        </div>
       </div>
 
       <div class="player-sidebar__body">
         <template v-if="clipMode">
-          <template v-if="clipModeMarks.length > 0">
-            <PlayerMarkListItem
-              v-for="mark in clipModeMarks"
-              :key="mark.id"
-              :mark="mark"
-              :is-thumbs-loaded="is_thumbs_loaded"
-              :get-icon="getIcon"
-              :get-color="getColor"
-              :get-duration="getDuration"
-              :jump-to="jumpTo"
-              :edit="edit"
-              :remove="remove"
-              selectable
-              :selected="selectedClipMarkIds.includes(Number(mark.id))"
-              @toggle-select="toggleClipSelection"
-            />
-          </template>
+          <v-virtual-scroll
+            v-if="clipModeMarks.length > 0"
+            :items="clipModeMarks"
+            :item-height="MARK_ROW_HEIGHT"
+            item-key="id"
+            :bench="12"
+            height="100%"
+            class="player-sidebar__virtual-scroll"
+          >
+            <template #default="{ item }">
+              <PlayerMarkListItem
+                :mark="item"
+                :is-thumbs-loaded="is_thumbs_loaded"
+                :get-icon="getIcon"
+                :get-color="getColor"
+                :get-duration="getDuration"
+                :jump-to="jumpTo"
+                :remove="remove"
+                selectable
+                :selected="selectedClipMarkIds.includes(Number(item.id))"
+                @toggle-select="toggleClipSelection"
+              />
+            </template>
+          </v-virtual-scroll>
 
           <div v-else class="player-sidebar__empty">
             <img
@@ -96,21 +107,29 @@
         </template>
 
         <template v-else>
-          <template v-if="marks.length > 0">
-            <PlayerMarkListItem
-              v-for="mark in marks"
-              :key="mark.id"
-              :mark="mark"
-              :is-thumbs-loaded="is_thumbs_loaded"
-              :get-icon="getIcon"
-              :get-color="getColor"
-              :get-duration="getDuration"
-              :jump-to="(time: number) => onMarkActivate(mark, time)"
-              :edit="edit"
-              :remove="remove"
-              :selected="player.studioMode && player.selectedMarkId === mark.id"
-            />
-          </template>
+          <v-virtual-scroll
+            v-if="marks.length > 0"
+            ref="marksScroll"
+            :items="marks"
+            :item-height="MARK_ROW_HEIGHT"
+            item-key="id"
+            :bench="12"
+            height="100%"
+            class="player-sidebar__virtual-scroll"
+          >
+            <template #default="{ item }">
+              <PlayerMarkListItem
+                :mark="item"
+                :is-thumbs-loaded="is_thumbs_loaded"
+                :get-icon="getIcon"
+                :get-color="getColor"
+                :get-duration="getDuration"
+                :jump-to="(time: number) => onMarkActivate(item, time)"
+                :remove="remove"
+                :selected="player.studioMode && player.selectedMarkId === item.id"
+              />
+            </template>
+          </v-virtual-scroll>
 
           <div v-else-if="player.marks.length == 0" class="player-sidebar__empty">
             <img
@@ -190,6 +209,8 @@ import {MARK_FILTER_CHAPTER} from '@/utils/markAdding'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
 import {playerTooltip} from '@/utils/playerOverlay'
 
+const MARK_ROW_HEIGHT = 57
+
 const emit = defineEmits<{
   removeMark: [mark: PlayerMark]
   editMark: [mark: PlayerMark]
@@ -201,6 +222,7 @@ const generatingChapters = ref(false)
 const clipMode = ref(false)
 const selectedClipMarkIds = ref<number[]>([])
 const exportingClips = ref(false)
+const marksScroll = ref<{scrollToIndex: (index: number) => void} | null>(null)
 
 const {
   player,
@@ -233,8 +255,8 @@ const onMarkActivate = (mark: PlayerMark, time: number) => {
 watch(() => playerStore.selectedMarkId, async (id) => {
   if (!id || !playerStore.studioMode) return
   await nextTick()
-  document.querySelector('.player-sidebar--marks .mark-item--selected')
-    ?.scrollIntoView({ block: 'nearest' })
+  const index = marks.value.findIndex((mark) => Number(mark.id) === Number(id))
+  if (index >= 0) marksScroll.value?.scrollToIndex(index)
 })
 
 const toggleClipMode = () => {

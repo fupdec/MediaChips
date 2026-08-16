@@ -138,6 +138,8 @@ export default function (db: ApiDb) {
         direction: body.direction,
         find_duplicates: body.find_duplicates,
         duplicates_by: body.duplicates_by || 'filesize',
+        includeNavigation: body.includeNavigation === true,
+        skipTotals: body.skipTotals === true,
       })
 
       sendOk(res, result)

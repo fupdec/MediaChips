@@ -164,6 +164,8 @@ describe('Media.controller', () => {
       direction: undefined,
       find_duplicates: true,
       duplicates_by: 'path',
+      includeNavigation: false,
+      skipTotals: false,
     })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({ids: [1, 2, 3]})

@@ -314,6 +314,26 @@ describe('path tag matching', () => {
     })).toEqual(['Love'])
   })
 
+  it('matches starter queue tags in filenames at balanced precision', () => {
+    const tags = [
+      tag(1, 'Watch later'),
+      tag(2, 'Favorites'),
+      tag(3, 'Rewatch'),
+    ]
+
+    expect(matchNames('/library/Watch later.mp4', tags)).toEqual(['Watch later'])
+    expect(matchNames('/library/Favorites.mp4', tags)).toEqual(['Favorites'])
+    expect(matchNames('/library/Rewatch.mp4', tags)).toEqual(['Rewatch'])
+  })
+
+  it('matches whole-filename Favorites even in strict precision', () => {
+    const tags = [tag(1, 'Favorites')]
+
+    expect(matchNames('/library/Favorites.mp4', tags, performerMeta, {
+      matchPrecision: 0.15,
+    })).toEqual(['Favorites'])
+  })
+
   it('T18: matches dotted First.Last performer in adult release filename', () => {
     const tags = [
       tag(1, 'Koda Monroe'),

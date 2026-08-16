@@ -108,8 +108,8 @@
         :key="meta.name"
         class="category"
       >
-        <div class="category-name d-flex align-center ga-2">
-          <v-icon start>mdi-{{ meta.icon }}</v-icon>
+        <div class="category-name d-flex align-center ga-1">
+          <v-icon>mdi-{{ meta.icon }}</v-icon>
           {{ meta.text }}
         </div>
 
@@ -126,8 +126,8 @@
         :key="`${category.kind}_${category.metaId}_${item.id}`"
         class="category"
       >
-        <div class="category-name d-flex align-center ga-2">
-          <v-icon start>mdi-{{ category.kind === 'tags' ? category.items[0].meta.icon : category.items[0].icon }}</v-icon>
+        <div class="category-name d-flex align-center ga-1">
+          <v-icon>mdi-{{ category.kind === 'tags' ? category.items[0].meta.icon : category.items[0].icon }}</v-icon>
           {{ category.kind === 'tags' ? category.items[0].meta.name : category.items[0].name }}
         </div>
 

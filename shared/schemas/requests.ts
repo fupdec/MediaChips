@@ -36,6 +36,8 @@ export const MediaIdsRequestSchema = z.object({
   direction: z.string().optional(),
   find_duplicates: optionalCoercedBoolean,
   duplicates_by: z.string().optional(),
+  includeNavigation: optionalCoercedBoolean,
+  skipTotals: optionalCoercedBoolean,
 }).passthrough()
 
 export const MediaBasicsRequestSchema = z.object({

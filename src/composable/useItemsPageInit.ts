@@ -48,10 +48,11 @@ export function useItemsPageInit({
   const apiUrl = computed(() => appStore.localhost)
 
   const updatePageSetting = async (data: PageSettingData): Promise<void> => {
+    const query = normalizePageSettingCriteria(props)
     const run = async () => {
       await typedApi.putPageSetting({
         data,
-        query: normalizePageSettingCriteria(props),
+        query,
       })
     }
     pageSettingWriteChain = pageSettingWriteChain.then(run, run)

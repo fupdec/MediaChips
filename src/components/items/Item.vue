@@ -24,6 +24,7 @@
     ]"
     class="item"
     :data-item-id="item.id"
+    :style="tagPreviewAspectStyle"
   >
     <v-card
       v-if="showCardView"
@@ -415,6 +416,14 @@ const tagMetaId = computed((): number | null => {
 })
 
 const previewMeta = computed((): Meta => props.meta ?? { id: 0 })
+
+const tagPreviewAspectStyle = computed(() => {
+  if (props.type !== 'tag') return undefined
+  const ratio = Number(previewMeta.value.imageAspectRatio)
+  return {
+    '--tag-preview-aspect': String(ratio > 0 ? ratio : 1),
+  }
+})
 
 type ChipVariant = import('@/utils/chipVariant').ChipVariant
 

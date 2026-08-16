@@ -662,12 +662,15 @@
     margin-right: 0.5em;
     font-size: 0.9em;
     .v-icon {
-      margin-right: 0.3em;
+      margin-right: 0;
     }
   }
   .v-icon {
     margin-right: 0.2em;
     font-size: 1.2em;
+  }
+  .category-name .v-icon {
+    margin-right: 0;
   }
   .nested-tags__toggle {
     cursor: pointer;
@@ -1636,9 +1639,8 @@ body > .video-preview-container.video-preview-container--expanded {
     overflow: hidden;
   }
 
-  // Tag thumbnails get the same treatment as media previews: fill the row's
-  // full height. The tag card normally tints its whole card background with
-  // the meta color — drop it in list view so all rows read uniformly.
+  // Tag thumbs use the category's imageAspectRatio (--tag-preview-aspect)
+  // instead of the 16:9-ish media list column.
   .tag-list-thumb {
     width: 100%;
     height: 100%;
@@ -1757,6 +1759,10 @@ body > .video-preview-container.video-preview-container--expanded {
       margin-right: 0.3em;
       font-size: 0.82em;
       white-space: nowrap;
+
+      .v-icon {
+        margin-right: 0;
+      }
     }
 
     .v-chip {
@@ -1930,6 +1936,16 @@ body > .video-preview-container.video-preview-container--expanded {
     .item_wrapper { height: 84px; }
     .item_preview { width: 149px; }
     .list-rating-favorite { --item-rating-icon: 24px; --item-fav-icon: 25px; }
+  }
+}
+
+.item-tag.item-view-5 {
+  @for $i from 1 through 6 {
+    &.item__size-#{$i} .item_preview {
+      width: auto;
+      height: 100%;
+      aspect-ratio: var(--tag-preview-aspect, 1);
+    }
   }
 }
 

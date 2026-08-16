@@ -205,7 +205,7 @@
           </div>
           <Item
             v-for="(i, x) in section.items"
-            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey]"
+            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey, ITEMS.thumbRefreshKeys[i.id]]"
             :key="String(i.id)"
             :type="listItemType"
             :item="i"
@@ -219,7 +219,7 @@
       <template v-else>
         <Item
           v-for="(i, x) in ITEMS.itemsOnPage"
-          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey]"
+          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey, ITEMS.thumbRefreshKeys[i.id]]"
           :key="String(i.id)"
           :type="listItemType"
           :item="i"
@@ -1140,11 +1140,6 @@ defineEmits<{
       0 8px 22px -16px rgba(0, 0, 0, 0.22);
     overflow: hidden;
     transition: box-shadow 180ms ease, border-color 180ms ease;
-
-    /* No leftover divider under the header when appearance/filters are collapsed. */
-    &:not(:has(.items-control-deck__section)):not(:has(.filters-top__shell)) {
-      border-bottom-color: transparent;
-    }
   }
 
   &--stuck &__surface--card {

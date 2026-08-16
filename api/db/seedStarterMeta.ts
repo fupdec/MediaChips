@@ -175,7 +175,7 @@ const STARTER_TAGS = [
   },
   {
     name: 'Favorites',
-    synonyms: 'Fav, Best',
+    synonyms: 'Favorite, Favourite, Fav, Best',
     rating: 5,
     favorite: 1,
     bookmark: 'favorite',

@@ -62,26 +62,27 @@ export function useItemsPageEvents({
 
   const ITEMS = computed(() => itemsStore)
   let initPromise: Promise<void> | null = null
+  let initGeneration = 0
   const pageInitialized = ref(false)
   const itemsRenderKey = ref(0)
 
   const runInitSafely = async (): Promise<void> => {
-    if (initPromise) {
-      return initPromise
-    }
-
+    const generation = ++initGeneration
     pageInitialized.value = false
 
     initPromise = (async () => {
       try {
         await init()
+        if (generation !== initGeneration) return
         loadSavedFilters()
       } catch (error) {
         console.error('Failed to initialize items page:', error)
       } finally {
-        loader.value.is_busy = false
-        pageInitialized.value = true
-        initPromise = null
+        if (generation === initGeneration) {
+          loader.value.is_busy = false
+          pageInitialized.value = true
+          initPromise = null
+        }
       }
     })()
 
@@ -424,12 +425,14 @@ export function useItemsPageEvents({
 
   watch(() => ITEMS.value.size, (val, old) => {
     if (val === old) return
+    if (!pageInitialized.value) return
     void updatePageSetting({size: val})
   })
 
   watch(() => ITEMS.value.view, (val, old) => {
     if (val === old) return
     if (val == null) return
+    if (!pageInitialized.value) return
     void updatePageSetting({view: val})
   })
 

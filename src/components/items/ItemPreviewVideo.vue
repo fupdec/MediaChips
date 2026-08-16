@@ -9,6 +9,7 @@
     >
       <v-img
         v-if="showThumbImage"
+        :key="thumbDisplayKey"
         :src="thumb || undefined"
         cover
         class="video-preview-host__anchor-thumb"

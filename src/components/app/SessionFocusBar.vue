@@ -97,7 +97,7 @@ const isVisible = computed(() =>
 .session-focus-bar {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: 960;
   background: rgba(var(--v-theme-surface), 0.92);
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   backdrop-filter: blur(8px);

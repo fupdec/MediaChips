@@ -9,6 +9,7 @@
       v-if="playerStore.marks.length === 0 && !playerStore.creatingMarkDraft"
       class="marks-track__hint"
     >
+      <v-icon size="14">mdi-plus</v-icon>
       {{ t('player.studio_track_empty') }}
     </span>
 

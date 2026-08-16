@@ -15,7 +15,7 @@
           :key="src"
           :src="src"
           alt=""
-          class="item-hover-card__image"
+          class="item-hover-card__image item-hover-card__image--tag"
           @load="onImageLoad"
           @error="onImageError"
         />
@@ -177,14 +177,12 @@ const hasPinnedMeta = computed(() =>
 )
 
 const resolvedImageRatio = computed(() => {
-  if (imageNaturalRatio.value && imageNaturalRatio.value > 0) {
-    return imageNaturalRatio.value
-  }
-
-  if (activeThumbType.value === 'avatar') return 1
-
   if (props.imageAspectRatio && props.imageAspectRatio > 0) {
     return props.imageAspectRatio
+  }
+
+  if (imageNaturalRatio.value && imageNaturalRatio.value > 0) {
+    return imageNaturalRatio.value
   }
 
   return 1
@@ -212,7 +210,7 @@ const imageDisplaySize = computed(() => {
 
 const mediaStyle = computed(() => ({
   width: `${imageDisplaySize.value.width}px`,
-  minHeight: `${imageDisplaySize.value.height}px`,
+  height: `${imageDisplaySize.value.height}px`,
 }))
 
 function emitPreviewSize() {

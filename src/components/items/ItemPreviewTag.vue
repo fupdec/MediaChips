@@ -63,6 +63,7 @@
   >
     <v-img
       :src="mainImageSrc"
+      :aspect-ratio="meta?.imageAspectRatio"
       class="main-img"
       cover
       @click="openTagPage"

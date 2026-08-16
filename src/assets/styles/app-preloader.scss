@@ -183,6 +183,10 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+.main-scroll:has(.session-focus-bar) .items-control-deck--browser {
+  --deck-sticky-top: 48px;
+}
+
 /* Browser layout: keep cards/sidebar/inspector from highlighting text while navigating. */
 .app-main-layout.has-browser-layout {
   .main-scroll,

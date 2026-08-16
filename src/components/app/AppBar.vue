@@ -178,6 +178,7 @@ import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {typedApi} from '@/services/typedApi'
 import {getTabUrl} from '@/services/routeService'
 import {reloadTabsCatalog} from '@/composable/appCatalogs'
+import {copyCurrentPageSettingsToTab} from '@/utils/tabPageSettings'
 import type { TabLike } from '@/types/common'
 
 /* Components */
@@ -269,6 +270,11 @@ async function createTab() {
       mediaTypeId: itemsStore.environment.media_type_id,
       metaId: itemsStore.environment.meta_id,
     })
+
+    const tabId = Number((data as TabLike)?.id)
+    if (Number.isFinite(tabId) && tabId > 0) {
+      await copyCurrentPageSettingsToTab(tabId)
+    }
 
     const url = getTabUrl(data as TabLike)
     router.push(url)

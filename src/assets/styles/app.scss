@@ -542,6 +542,14 @@ header {
     display: block;
     border-radius: 6px;
     background-color: rgba(var(--v-theme-surface-variant), 0.35);
+
+    &--tag {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      object-fit: cover;
+    }
   }
 
   &__placeholder {

@@ -3531,7 +3531,7 @@ const ru = {
     clip_mode_on: 'Выйти из режима клипов',
     clip_mode_empty: 'Нет маркеров с диапазоном — клипу нужны начало и конец',
     clip_mode_selected: 'Выбрано: {count}',
-    studio_track_empty: 'Пока нет маркеров — добавьте через кнопку +',
+    studio_track_empty: 'Кликните по дорожке, чтобы добавить маркер',
     studio_mode: 'Студия маркеров',
     studio_mode_on: 'Выйти из студии',
     auto_chapters: 'Главы',

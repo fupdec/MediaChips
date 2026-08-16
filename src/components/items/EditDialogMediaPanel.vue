@@ -273,7 +273,7 @@ async function createVideoThumb(mode: 'random' | 'default') {
       seekRatio: mode === 'random' ? Math.random() : 0.5,
     })
     invalidateVideoThumbCaches(media.id)
-    itemsStore.refreshThumb(media.id, {regenerate: true})
+    itemsStore.refreshThumb(media.id)
     emit('edited')
     setNotification({
       title: t('player.video_thumb_updated'),

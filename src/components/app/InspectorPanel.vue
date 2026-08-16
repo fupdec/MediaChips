@@ -706,7 +706,10 @@ async function loadTagAssignmentCounts(tag: Tag) {
   }
 }
 
-watch(focusedItem, (item) => {
+watch(focusedItem, async (item, previous) => {
+  if (previous && previous.id !== item?.id) {
+    await flushEdits()
+  }
   thumbFailed.value = false
   detectedWidth.value = 0
   detectedHeight.value = 0
@@ -1148,7 +1151,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
       font-size: 14px !important;
       width: 14px;
       height: 14px;
-      margin-right: 4px;
+      margin-right: 0;
     }
   }
 

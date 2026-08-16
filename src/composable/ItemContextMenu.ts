@@ -938,8 +938,8 @@ export default function useItemContextMenu(
     const added: number[] = []
     for (const val of vals) {
       await typedApi.createTagsInMediaOne(val)
-        .then((res) => {
-          if (res.data?.[1]) added.push(1)
+        .then(() => {
+          added.push(1)
         })
         .catch((e) => {
           console.log(e)
@@ -953,7 +953,8 @@ export default function useItemContextMenu(
       icon: 'text-box-search',
     })
 
-    if (added.length > 0) {
+    await reloadTagsCatalog()
+    if (updated.length > 0) {
       listSync.getItemsFromDb({
         ids: updated,
         type: 'media',
@@ -1324,15 +1325,13 @@ export default function useItemContextMenu(
     const locale = settingsStore.locale as Locale
 
     const previewCandidates: Array<MediaItem | Tag> = []
-    if (type === 'media') {
-      if (isSelectMode()) {
-        for (const id of itemsStore.selection) {
-          const found = resolveItemById(id)
-          if (found) previewCandidates.push(found)
-        }
-      } else {
-        previewCandidates.push(item)
+    if (isSelectMode()) {
+      for (const id of itemsStore.selection) {
+        const found = resolveItemById(id)
+        if (found) previewCandidates.push(found)
       }
+    } else {
+      previewCandidates.push(item)
     }
 
     const zipArchiveNames = [...new Set(
@@ -1450,6 +1449,16 @@ export default function useItemContextMenu(
     }
 
     const archives = zipArchiveNames.join(', ')
+    const previewNames = previewCandidates
+      .map((entry) => String(entry.name ?? '').trim())
+      .filter(Boolean)
+    const previewLabel = previewNames.length
+      ? previewNames.length > 5
+        ? `${previewNames.slice(0, 5).join(', ')}… (${previewNames.length})`
+        : `${previewNames.join(', ')}${previewNames.length > 1 ? ` (${previewNames.length})` : ''}`
+      : isSelectMode()
+        ? String(itemsStore.selection.length)
+        : ''
     dialogsStore.confirm.checkBox = false
     dialogsStore.confirm.checkBox2 = false
     dialogsStore.confirm.checkBox2RequiresPrimary = false
@@ -1464,14 +1473,16 @@ export default function useItemContextMenu(
       dialogsStore.confirm.checkBox2Text = translate('actions.delete_zip_file', {}, locale)
       dialogsStore.confirm.checkBox2RequiresPrimary = true
     } else if (type === 'media' || type === 'tag') {
-      dialogsStore.confirm.text = translate('media.move_to_trash_confirm', {}, locale)
+      const base = translate('media.move_to_trash_confirm', {}, locale)
+      dialogsStore.confirm.text = previewLabel ? `${base}\n${previewLabel}` : base
       dialogsStore.confirm.checkBoxText = translate('actions.delete_permanently', {}, locale)
       dialogsStore.confirm.checkBox2Text = type === 'media'
         ? translate('actions.also_delete_files', {}, locale)
         : ''
       dialogsStore.confirm.checkBox2RequiresPrimary = type === 'media'
     } else {
-      dialogsStore.confirm.text = translate('media.delete_from_app_confirm', {}, locale)
+      const base = translate('media.delete_from_app_confirm', {}, locale)
+      dialogsStore.confirm.text = previewLabel ? `${base}\n${previewLabel}` : base
       dialogsStore.confirm.checkBoxText = ''
       dialogsStore.confirm.checkBox2Text = ''
     }

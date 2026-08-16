@@ -54,16 +54,6 @@
 
     <div v-if="!selectable" class="mark-item__actions">
       <v-btn
-        v-tooltip="playerTooltip(t('common.edit'))"
-        @click.stop="edit(mark)"
-        class="mark-item__edit"
-        variant="text"
-        size="x-small"
-        icon
-      >
-        <v-icon size="small">mdi-pencil-outline</v-icon>
-      </v-btn>
-      <v-btn
         v-tooltip="playerTooltip(t('common.delete'))"
         @click.stop="remove(mark)"
         class="mark-item__delete"
@@ -91,7 +81,6 @@ const props = defineProps<{
   getColor: (mark: PlayerMark) => string
   getDuration: (time: number) => string
   jumpTo: (time: number) => void
-  edit: (mark: PlayerMark) => void
   remove: (mark: PlayerMark) => void
   selectable?: boolean
   selected?: boolean
