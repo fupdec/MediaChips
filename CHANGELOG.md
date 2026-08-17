@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-08-17
+
+### Added
+
+- **Markers Timeline Studio** — edit marks directly on the player timeline: drag to move, edge handles to resize, and draw a new range mark on empty track; a live draft clip mirrors the add/edit dialog while other marks dim
+- **Compact List view** — dense single-column row list (thumbnail, name, one-line meta summary, rating/favorite, menu) alongside Card/Timeline/Masonry/Minimal; works for any media type and on the tag grid
+- **Drag-to-copy tags** — drag a tag onto another media card to copy it (Shift moves); first-run feature hints
+- **Library folder browse** — browse folders in a grid with a cinematic big-preview HUD (equal insets, click-to-seek timeline, Escape to close) and folder hotkeys
+- **Library sidebar edit mode** — reorder and show/hide Home, media types, Folders, Playlists, and Markers via a pencil control
+- **Theme & gradient editor** — derive theme colors; redesigned gradient editor with full-width preview, color swatch rows, and unified apply/cancel; refined theme color dialog
+
+### Changed
+
+- **Control deck** — updated appearance and pinned-meta icons; added Review mode to the app-bar menu
+- **Grid view** — hide the image resolution overlay in card and masonry views; square 1:1 previews for non-video list items
+- **Player sidebars** — pin mark/playlist filters over scrolling lists; glass mark form; compact autocompletes and chips
+- **Markers Studio** — consolidate mark editing into the player inspector; merge favorite into the bookmark icon row; attach jump/sync controls to time fields
+- **Dependencies** — update Pinia to v4 and override `sharp`/`esbuild` to clear high-severity npm audit advisories
+
 ### Fixed
 
+- **Inspector tag chips** — show names instead of IDs after values hydrate; tighten country chip spacing
+- **1.9.0 catalog bugs** — tabs, inspector, tag entry, path parse, thumbs, and hover keep their own state; player playlists load the full gallery instead of the current page
 - **LowDB migration / restore** — 0.11.x allowed the same tag name in different categories; 1.5+ requires globally unique names. Restore now renames collisions instead of failing with `tags_name_normalized_unique` (which left videos imported and tags missing). Failed restores also show an error instead of appearing to do nothing.
 
 ## [1.9.0] - 2026-08-14
