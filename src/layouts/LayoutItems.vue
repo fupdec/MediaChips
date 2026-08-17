@@ -113,6 +113,18 @@
             id="items-control-deck-appearance"
             class="items-control-deck__appearance items-control-deck__section"
           >
+            <div class="items-control-deck__appearance-close">
+              <v-btn
+                @click="toggleCustomization"
+                size="x-small"
+                icon
+                variant="text"
+                color="primary"
+                :aria-label="t('common.close')"
+              >
+                <v-icon size="16">mdi-close</v-icon>
+              </v-btn>
+            </div>
             <ToolbarAppearance embedded/>
           </div>
         </v-expand-transition>

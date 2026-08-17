@@ -1017,7 +1017,7 @@ watch(filtersVisible, (visible) => {
 
 .filters-top__shell {
   width: 100%;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--v-theme-primary), 0.18);
   border-radius: 16px;
   background: rgb(var(--v-theme-surface));
   overflow: hidden;
@@ -1031,7 +1031,7 @@ watch(filtersVisible, (visible) => {
   border: 0;
   border-radius: 0;
   background: transparent;
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-top: 1px solid rgba(var(--v-theme-primary), 0.18);
 }
 
 .filters-top__chrome {

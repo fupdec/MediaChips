@@ -203,6 +203,14 @@
 
   &__appearance {
     min-width: 0;
+    position: relative;
+  }
+
+  &__appearance-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 2;
   }
 
   &__filters-host {
