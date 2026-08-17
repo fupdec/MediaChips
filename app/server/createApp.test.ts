@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import express from 'express'
 import { createServer } from 'node:http'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { setupStaticApp } from './createApp'
 
 async function fetchText(url: string) {
@@ -14,10 +17,26 @@ async function fetchText(url: string) {
   }
 }
 
+let staticDir = ''
+
+beforeEach(() => {
+  staticDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediachips-static-'))
+  fs.mkdirSync(path.join(staticDir, 'assets'), {recursive: true})
+  fs.writeFileSync(
+    path.join(staticDir, 'index.html'),
+    '<!DOCTYPE html><html><body><div id="app">MediaChips</div><script src="./assets/app.js"></script></body></html>',
+  )
+  fs.writeFileSync(path.join(staticDir, 'assets', 'app.js'), 'console.log("app")')
+})
+
+afterEach(() => {
+  fs.rmSync(staticDir, {recursive: true, force: true})
+})
+
 describe('setupStaticApp', () => {
   it('serves index.html for client-side routes', async () => {
     const app = express()
-    setupStaticApp(app)
+    setupStaticApp(app, staticDir)
 
     const server = createServer(app)
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -47,7 +66,7 @@ describe('setupStaticApp', () => {
     app.get('/api/get-file', (req, res) => {
       res.json({url: req.query.url ?? null})
     })
-    setupStaticApp(app)
+    setupStaticApp(app, staticDir)
 
     const server = createServer(app)
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -71,7 +90,7 @@ describe('setupStaticApp', () => {
 
   it('serves built assets without SPA fallback', async () => {
     const app = express()
-    setupStaticApp(app)
+    setupStaticApp(app, staticDir)
 
     const server = createServer(app)
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))

@@ -4,15 +4,57 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ParsedItem } from '../../app/types/items'
 
-const { filterItemsMock } = vi.hoisted(() => ({
+const { filterItemsMock, workerPathMock } = vi.hoisted(() => ({
   filterItemsMock: vi.fn(
     (_filters: unknown, _type: unknown, items: ParsedItem[]) => items,
   ),
+  workerPathMock: vi.fn(),
 }))
 
 vi.mock('./filterItems', () => ({
   filterItems: filterItemsMock,
 }))
+
+// The compiled worker script (api/workers/filterItemsWorker.js) is a gitignored
+// build artifact, so a clean checkout has no .js for Worker to spawn. Mock the
+// Worker constructor to exercise the offload branch without a real worker thread.
+vi.mock('worker_threads', () => {
+  class MockWorker {
+    private listeners: Record<string, ((payload: unknown) => void) | undefined> = {}
+
+    constructor(scriptPath: string) {
+      workerPathMock(scriptPath)
+    }
+
+    on(event: string, cb: (payload: unknown) => void) {
+      this.listeners[event] = cb
+      return this
+    }
+
+    postMessage(request: { items: ParsedItem[] }) {
+      const message = this.listeners.message
+      queueMicrotask(() => {
+        message?.({
+          ok: true,
+          items: request.items,
+          totalFiltered: request.items.length,
+          totalFilesize: request.items.reduce(
+            (sum, item) => sum + (Number(item.filesize) || 0),
+            0,
+          ),
+        })
+      })
+    }
+
+    terminate() {
+      return Promise.resolve(0)
+    }
+
+    removeAllListeners() {}
+  }
+
+  return { Worker: MockWorker }
+})
 
 import { runFilterItemsAsync, terminateFilterItemsWorker } from './filterItemsWorkerRunner'
 
@@ -91,5 +133,6 @@ describe('filterItemsWorkerRunner', () => {
     expect(result.totalFiltered).toBe(3)
     expect(result.totalFilesize).toBe(600)
     expect(filterItemsMock).not.toHaveBeenCalled()
+    expect(workerPathMock).toHaveBeenCalledTimes(1)
   })
 })
