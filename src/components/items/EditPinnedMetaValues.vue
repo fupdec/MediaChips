@@ -992,7 +992,13 @@ const getItemKey = (item: PinnedMetaAssignment): string | number => {
   return item.pinnedMetaId ?? item.metaId ?? item.id ?? ''
 }
 
-const getMetaIdNumber = (item: PinnedMetaAssignment): number => Number(getItemKey(item))
+/** Category id for tag API lookups (not the assignment storage key). */
+const getMetaIdNumber = (item: PinnedMetaAssignment): number => {
+  const fromMeta = Number(item.meta?.id ?? item.metaId)
+  if (Number.isFinite(fromMeta) && fromMeta > 0) return fromMeta
+  const fallback = Number(getItemKey(item))
+  return Number.isFinite(fallback) ? fallback : 0
+}
 
 const getArrayVal = (item: PinnedMetaAssignment): number[] | undefined => {
   const val = vals.value[getItemKey(item)]

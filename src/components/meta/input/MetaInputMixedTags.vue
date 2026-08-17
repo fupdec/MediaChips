@@ -81,7 +81,7 @@
         :class="['editing-tag-chip', chipClassFor(item.raw)]"
         size="small"
       >
-        <span>{{ item.raw.name }}</span>
+        <span>{{ item.raw.name || findKeyLabel(item.value) }}</span>
       </v-chip>
       <v-chip
         v-else
@@ -497,6 +497,62 @@ function findKeyLabel(key: string) {
   if (!parsed) return key
   const storeTag = appStore.getTagById(parsed.tagId)
   return storeTag?.name ?? key
+}
+
+async function hydrateSelectedKeys(keys: MixedTagKey[]) {
+  const missing = keys.filter((key) => !tagByKey.value.has(key))
+  if (!missing.length) return
+
+  const fromStore: TagOption[] = []
+  const byMeta = new Map<number, number[]>()
+
+  for (const key of missing) {
+    const parsed = parseKey(key)
+    if (!parsed) continue
+    const storeTag = appStore.getTagById(parsed.tagId) as TagListItem | undefined
+    if (storeTag?.name) {
+      const option = toTagOption(storeTag, parsed.metaId)
+      if (option) fromStore.push(option)
+      continue
+    }
+    const list = byMeta.get(parsed.metaId) || []
+    list.push(parsed.tagId)
+    byMeta.set(parsed.metaId, list)
+  }
+
+  if (fromStore.length) {
+    tagOptions.value = mergeOptions(tagOptions.value, fromStore)
+  }
+
+  if (!byMeta.size) return
+
+  try {
+    const selectedResults = await Promise.all(
+      [...byMeta.entries()].map(([metaId, ids]) =>
+        typedApi.postTagItems({
+          metaId,
+          ids,
+          filters: [],
+          skipTotals: true,
+        }).then((res) => ({
+          metaId,
+          items: (res.data.items ?? []) as TagListItem[],
+        })),
+      ),
+    )
+    const options: TagOption[] = []
+    for (const result of selectedResults) {
+      for (const tag of result.items) {
+        const option = toTagOption(tag, result.metaId)
+        if (option) options.push(option)
+      }
+    }
+    if (options.length) {
+      tagOptions.value = mergeOptions(tagOptions.value, options)
+    }
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 function showHoverFor(tag: TagOption, event: MouseEvent) {
@@ -921,7 +977,9 @@ onUnmounted(() => {
 })
 
 watch(() => props.modelValue, (newVal) => {
-  val.value = normalizeKeys(newVal)
+  const next = normalizeKeys(newVal)
+  val.value = next
+  void hydrateSelectedKeys(next)
 })
 
 watch(() => props.metaIds?.join(','), () => {
@@ -989,7 +1047,7 @@ defineExpose({
 }
 
 .mixed-tags__tag--zebra {
-  background: rgba(var(--v-theme-on-surface), 0.03);
+  background-color: rgba(var(--v-theme-on-surface), 0.03);
 }
 
 .mixed-tags__load-more-item {

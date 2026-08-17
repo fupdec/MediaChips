@@ -87,7 +87,7 @@
           v-if="index < filterCollapsedVisible"
           @click:close="removeTag(item.value)"
           @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
-            label: item.raw?.name || item.title,
+            label: selectionLabel(item),
             imageAspectRatio: meta.imageAspectRatio,
           })"
           @mouseleave.stop="hideHoverImage"
@@ -101,7 +101,7 @@
           :class="item.raw ? chipClassFor(item.raw) : undefined"
           size="x-small"
         >
-          <span>{{ item.raw?.name || item.title || findTagName(item.value) }}</span>
+          <span>{{ selectionLabel(item) }}</span>
         </v-chip>
         <v-chip
           v-else-if="index === filterCollapsedVisible && selectedCount > filterCollapsedVisible"
@@ -117,36 +117,25 @@
 
       <template v-else>
         <v-chip
-          v-if="item.raw"
           @click:close="removeTag(item.value)"
           @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
-            label: item.raw?.name || item.title,
+            label: selectionLabel(item),
             imageAspectRatio: meta.imageAspectRatio,
           })"
           @mouseleave.stop="hideHoverImage"
           :label="meta?.chipLabel"
           :variant="chipVariant"
-          :color="chipColorFor(item.raw)"
-          :style="chipStyleFor(item.raw)"
+          :color="item.raw ? chipColorFor(item.raw) : undefined"
+          :style="item.raw ? chipStyleFor(item.raw) : undefined"
           closable
           close-icon="mdi-close"
           :class="[
             purpose === 'bulk' ? 'ma-0 filter-form-chip' : 'editing-tag-chip',
-            chipClassFor(item.raw),
+            item.raw ? chipClassFor(item.raw) : undefined,
           ]"
           :size="purpose === 'bulk' ? 'x-small' : 'small'"
         >
-          <span>{{ item.raw.name || item.title }}</span>
-        </v-chip>
-        <v-chip
-          v-else
-          @click:close="removeTag(item.value)"
-          :class="purpose === 'bulk' ? 'ma-0 filter-form-chip' : 'editing-tag-chip'"
-          closable
-          close-icon="mdi-close"
-          :size="purpose === 'bulk' ? 'x-small' : 'small'"
-        >
-          <span>{{ findTagName(item.value) }}</span>
+          <span>{{ selectionLabel(item) }}</span>
         </v-chip>
       </template>
     </template>
@@ -556,6 +545,14 @@ const findTagName = (tagId: number | string) => {
   return storeTag?.name ?? String(tagId)
 }
 
+const selectionLabel = (item: {raw?: TagListItem | null; title?: string; value?: number | string}) => {
+  const fromRaw = item.raw?.name
+  if (fromRaw) return fromRaw
+  const fromTitle = item.title
+  if (fromTitle && !/^\d+$/.test(String(fromTitle))) return String(fromTitle)
+  return findTagName(item.value ?? '')
+}
+
 const mergeTagLists = (...lists: TagListItem[][]) => {
   const byId = new Map<number, TagListItem>()
   for (const list of lists) {
@@ -564,6 +561,55 @@ const mergeTagLists = (...lists: TagListItem[][]) => {
     }
   }
   return [...byId.values()]
+}
+
+const hydrateSelectedTags = async (ids: number[]) => {
+  if (!props.metaId || !ids.length) return
+
+  const missing = ids.filter((id) =>
+    !listTags.value.some((tag) => Number(tag.id) === id),
+  )
+  if (!missing.length) return
+
+  const fromStore = missing
+    .map((id) => {
+      const storeTag = appStore.getTagById(id) as TagListItem | undefined
+      if (!storeTag?.name) return null
+      return {
+        id,
+        name: storeTag.name,
+        favorite: Number(storeTag.favorite) || 0,
+        color: storeTag.color,
+        synonyms: storeTag.synonyms,
+        createdAt: storeTag.createdAt,
+        updatedAt: storeTag.updatedAt,
+      } as TagListItem
+    })
+    .filter((tag): tag is TagListItem => tag != null)
+
+  if (fromStore.length) {
+    listTags.value = mergeTagLists(listTags.value, fromStore)
+  }
+
+  const stillMissing = missing.filter((id) =>
+    !listTags.value.some((tag) => Number(tag.id) === id),
+  )
+  if (!stillMissing.length) return
+
+  try {
+    const selectedRes = await typedApi.postTagItems({
+      metaId: props.metaId,
+      ids: stillMissing,
+      filters: [],
+      skipTotals: true,
+    })
+    const items = (selectedRes.data.items ?? []) as TagListItem[]
+    if (items.length) {
+      listTags.value = mergeTagLists(listTags.value, items)
+    }
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 const getTags = async (
@@ -934,7 +980,15 @@ defineExpose({focus: focusField})
 
 // Watchers
 watch(() => props.modelValue, (newVal: number[] | number | undefined) => {
-  val.value = normalizeIds(newVal)
+  const next = normalizeIds(newVal)
+  val.value = next
+  void hydrateSelectedTags(next)
+})
+
+watch(() => props.metaId, async (metaId) => {
+  if (!metaId) return
+  await getMeta()
+  await getTags(search.value)
 })
 
 watch(search, (query) => {

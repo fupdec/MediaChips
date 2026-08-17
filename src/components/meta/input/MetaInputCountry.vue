@@ -30,7 +30,7 @@
     <template v-slot:chip="{ item }">
       <v-chip
         @click:close="remove(item)"
-        :class="purpose === 'filter' ? 'pl-0 ma-0 filter-form-chip' : 'pl-0 ma-1 country-field-chip'"
+        :class="purpose === 'filter' ? 'pl-0 ma-0 filter-form-chip' : 'pl-0 country-field-chip'"
         label
         :size="purpose === 'filter' ? 'x-small' : 'small'"
         closable
