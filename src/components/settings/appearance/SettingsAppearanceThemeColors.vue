@@ -74,6 +74,15 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
   setOption(values.gradient, key);
 }
 
+function getFirstGradientColor(gradient: string): string {
+  try {
+    const match = gradient.match(/#[0-9a-fA-F]{3,8}/)
+    return match ? match[0] : '#777777'
+  } catch {
+    return '#777777'
+  }
+}
+
 function openGenerateTheme() {
   generateBaseColor.value = SETTINGS.appColorLightPrimary;
   dialogGenerateTheme.value = true;
@@ -117,6 +126,20 @@ function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
       option="headerGradient"
     ></settings-switch>
 
+    <!-- Generate theme from single color -->
+    <div class="d-flex align-center flex-wrap mb-4 mt-2">
+      <v-btn
+        @click="openGenerateTheme"
+        variant="tonal"
+        rounded
+        color="primary"
+        class="mb-2"
+      >
+        <v-icon start>mdi-auto-fix</v-icon>
+        {{ t('settings_labels.appearance.generate_theme') }}
+      </v-btn>
+    </div>
+
     <!-- Light Theme -->
     <div class="d-flex flex-wrap align-center mb-4">
       <div class="mr-6 mb-2">
@@ -127,7 +150,7 @@ function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
       <v-btn
         v-if="SETTINGS.headerGradient === '1'"
         @click="openDialogHeaderGradientLight"
-        :style="{ background: SETTINGS.headerGradientLight }"
+        :color="getFirstGradientColor(SETTINGS.headerGradientLight)"
         class="mr-2 mb-2"
         rounded
         variant="flat"
@@ -182,9 +205,9 @@ function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
       <v-btn
         v-if="SETTINGS.headerGradient === '1'"
         @click="openDialogHeaderGradientDark"
-        :style="{ background: SETTINGS.headerGradientDark }"
+        :color="getFirstGradientColor(SETTINGS.headerGradientDark)"
         class="mr-2 mb-2"
-        variant="tonal"
+        variant="flat"
         theme="dark"
         rounded
       >
@@ -224,20 +247,6 @@ function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
       >
         <v-icon start>mdi-brush-variant</v-icon>
         {{ t('settings_labels.appearance.secondary') }}
-      </v-btn>
-    </div>
-
-    <!-- Generate theme from single color -->
-    <div class="d-flex align-center flex-wrap mb-4 mt-2">
-      <v-btn
-        @click="openGenerateTheme"
-        variant="tonal"
-        rounded
-        color="primary"
-        class="mb-2"
-      >
-        <v-icon start>mdi-auto-fix</v-icon>
-        {{ t('settings_labels.appearance.generate_theme') }}
       </v-btn>
     </div>
 

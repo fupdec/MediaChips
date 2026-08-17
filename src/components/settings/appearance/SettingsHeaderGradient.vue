@@ -1,34 +1,22 @@
 <template>
   <div>
     <!-- Main Dialog for Gradient Editor -->
-    <v-dialog v-model="dialogHeaderGradient" width="600" scrollable persistent>
-      <v-card rounded="lg">
-        <v-card
-          class="d-flex justify-space-between"
-          :style="{ background: gradient }"
-          :light="!themeDark"
-          :dark="themeDark"
-          elevation="0"
-        >
-          <div class="text-h6 ma-4">
-            {{ t('settings_labels.appearance.gradient_for_theme', {theme: themeDark ? t('settings_labels.appearance.dark_theme').toLowerCase() : t('settings_labels.appearance.light_theme').toLowerCase()}) }}
-          </div>
-          <div
-            class="d-flex flex-sm-row flex-column-reverse justify-end ma-sm-4 ma-2"
-          >
-            <v-btn @click="close" variant="outlined">
-              <v-icon start>mdi-close</v-icon>
-              {{ t('common.cancel') }}
-            </v-btn>
-            <v-spacer class="ma-sm-2 ma-1"></v-spacer>
-            <v-btn @click="apply" color="success" variant="flat">
-              <v-icon start>mdi-check</v-icon>
-              {{ t('common.apply') }}
-            </v-btn>
-          </div>
-        </v-card>
+    <v-dialog v-model="dialogHeaderGradient" width="420" scrollable persistent>
+      <v-card rounded="xl" class="pa-0">
 
-        <v-card-text class="py-4">
+        <!-- Gradient preview strip (full-width) -->
+        <div
+          class="gradient-preview-strip"
+          :style="{ background: gradient }"
+          :class="themeDark ? 'theme-dark' : 'theme-light'"
+        >
+          <span class="gradient-preview-label">
+            {{ t('settings_labels.appearance.gradient_for_theme', {theme: themeDark ? t('settings_labels.appearance.dark_theme').toLowerCase() : t('settings_labels.appearance.light_theme').toLowerCase()}) }}
+          </span>
+        </div>
+
+        <!-- Color list -->
+        <div class="gradient-color-wrap">
           <draggable
             v-model="colors"
             v-bind="dragOptions"
@@ -36,88 +24,120 @@
             tag="div"
           >
             <template #item="{ element: color, index }">
-              <div class="d-flex justify-center align-center mb-4">
-                <v-tooltip location="top">
-                  <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" size="x-small" icon class="mr-4">
-                      <v-icon>mdi-drag</v-icon>
-                    </v-btn>
-                  </template>
-                  <span>{{ t('settings_labels.appearance.drag_to_change_order') }}</span>
-                </v-tooltip>
+              <div class="gradient-color-row">
+                <div
+                  class="color-swatch"
+                  :style="{ background: color.hex }"
+                  @click="openDialogPalette(index)"
+                />
+
+                <span class="color-hex text-caption text-medium-emphasis ml-3">
+                  {{ color.hex }}
+                </span>
+
+                <v-spacer/>
 
                 <v-btn
-                  @click="openDialogPalette(index)"
-                  variant="tonal"
-                  rounded
+                  @click="lockColor(index)"
+                  size="x-small"
+                  icon
+                  :color="color.disabled ? 'warning' : undefined"
+                  variant="text"
+                  class="lock-btn"
                 >
-                  <v-icon start :color="color.hex">mdi-circle</v-icon>
-                  {{ t('settings_labels.appearance.change_color') }}
+                  <v-icon v-if="color.disabled" size="16">mdi-lock</v-icon>
+                  <v-icon v-else size="16">mdi-lock-open-variant</v-icon>
                 </v-btn>
 
-                <v-tooltip location="top">
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      @click="lockColor(index)"
-                      size="x-small"
-                      class="ml-4"
-                      icon
-                    >
-                      <v-icon v-if="color.disabled">mdi-lock</v-icon>
-                      <v-icon v-else>mdi-lock-open-variant</v-icon>
-                    </v-btn>
-                  </template>
-                  <span>{{ t('settings_labels.appearance.exclude_from_randomization') }}</span>
-                </v-tooltip>
+                <v-icon size="16" class="drag-handle ml-1" color="text-disabled">mdi-drag-horizontal-variant</v-icon>
               </div>
             </template>
           </draggable>
-        </v-card-text>
+        </div>
 
-        <v-card-actions class="pa-4 pt-0">
-          <v-btn @click="addColor" icon size="x-small" variant="tonal" color="success">
+        <!-- Gradient tools -->
+        <div class="d-flex align-center ga-2 pa-3 pt-1">
+          <v-btn
+            @click="addColor"
+            icon
+            size="small"
+            variant="tonal"
+            color="primary"
+            rounded="xl"
+          >
             <v-icon>mdi-plus</v-icon>
           </v-btn>
 
-          <transition name="fade">
-            <v-btn
-              @click="removeColor"
-              v-if="colors.length > 2"
-              size="x-small"
-              variant="tonal"
-              color="error"
-              icon
-            >
-              <v-icon>mdi-minus</v-icon>
-            </v-btn>
-          </transition>
-
-          <v-spacer></v-spacer>
-
-          <v-btn @click="generateGradient" variant="outlined" class="px-4" rounded>
-            <v-icon start>mdi-dice-5</v-icon>
+          <v-btn
+            @click="generateGradient"
+            variant="tonal"
+            rounded="xl"
+            size="small"
+            color="primary"
+          >
+            <v-icon start size="small">mdi-dice-5</v-icon>
             {{ t('settings_labels.appearance.launch_randomizer') }}
           </v-btn>
-        </v-card-actions>
+        </div>
+
+        <v-divider class="gradient-divider"/>
+
+        <!-- Bottom actions -->
+        <div class="d-flex ga-2 pa-4">
+          <v-btn
+            @click="apply"
+            rounded="xl"
+            color="primary"
+            variant="flat"
+            class="flex-1"
+          >
+            <v-icon start>mdi-check</v-icon>
+            {{ t('common.apply') }}
+          </v-btn>
+          <v-btn
+            @click="close"
+            variant="outlined"
+            rounded="xl"
+          >
+            {{ t('common.cancel') }}
+          </v-btn>
+        </div>
       </v-card>
     </v-dialog>
 
     <!-- Color Picker Dialog -->
-    <v-dialog v-model="dialogPalette" width="300">
-      <v-card rounded="lg">
-        <div class="pa-2">
-          <v-btn @click="applyColor" color="success" block variant="flat">
+    <v-dialog v-model="dialogPalette" width="360">
+      <v-card rounded="xl" class="pa-0">
+        <div class="palette-dialog-picker-wrap">
+          <v-color-picker
+            v-model="palette"
+            @update:model-value="changeColor"
+            mode="hex"
+            hide-mode-switch
+            elevation="0"
+            class="palette-dialog-picker"
+          />
+        </div>
+        <v-divider class="palette-divider"/>
+        <div class="d-flex ga-2 pa-4">
+          <v-btn
+            @click="applyColor"
+            rounded="xl"
+            color="primary"
+            variant="flat"
+            class="flex-1"
+          >
             <v-icon start>mdi-check</v-icon>
             {{ t('common.apply') }}
           </v-btn>
+          <v-btn
+            @click="dialogPalette = false"
+            variant="outlined"
+            rounded="xl"
+          >
+            {{ t('common.cancel') }}
+          </v-btn>
         </div>
-        <v-color-picker
-          v-model="palette"
-          @update:model-value="changeColor"
-          mode="hex"
-          hide-mode-switch
-        />
       </v-card>
     </v-dialog>
   </div>
@@ -298,3 +318,148 @@ onMounted(() => {
   })
 })
 </script>
+
+<style scoped lang="scss">
+.gradient-preview-strip {
+  height: 56px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+
+  &.theme-light {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  &.theme-dark {
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.gradient-preview-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.gradient-color-wrap {
+  margin: 8px 12px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+  border-radius: 14px;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+  overflow: hidden;
+}
+
+.gradient-color-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 0;
+  cursor: default;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  }
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.04);
+  }
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.08);
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+.color-hex {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  user-select: none;
+}
+
+.lock-btn {
+  opacity: 0.5;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.drag-handle {
+  cursor: grab;
+  opacity: 0.4;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.gradient-divider {
+  opacity: 0.35;
+}
+
+.palette-dialog-picker-wrap {
+  margin: 12px;
+  padding: 4px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  border-radius: 18px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow:
+    0 1px 0 rgba(var(--v-theme-primary), 0.04),
+    0 8px 22px -16px rgba(0, 0, 0, 0.22);
+}
+
+.palette-dialog-picker {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+
+  :deep(.v-color-picker) {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  :deep(.v-color-picker__canvas) {
+    border-radius: 12px;
+    max-width: 280px;
+    width: 100%;
+    margin: 12px auto 8px;
+    overflow: hidden;
+  }
+
+  :deep(.v-color-picker__controls) {
+    max-width: 280px;
+    margin: 0 auto;
+    padding: 4px 12px 8px;
+  }
+
+  :deep(.v-color-picker__preview) {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  :deep(.v-color-picker__input) {
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}
+
+.palette-divider {
+  margin: 0 16px;
+  opacity: 0.55;
+}
+</style>
