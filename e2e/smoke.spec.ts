@@ -18,6 +18,6 @@ test('opens the settings route', async ({ page }) => {
 test('settings API responds for a fresh server', async ({ request }) => {
   const response = await request.get('/api/Setting')
 
-  expect(response.status()).toBe(201)
+  expect(response.status()).toBe(200)
   expect(Array.isArray(await response.json())).toBe(true)
 })

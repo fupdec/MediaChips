@@ -111,8 +111,8 @@ const resolutionLabel = computed(() =>
 
 const showResolution = computed(() =>
   mediaWidth.value > 0 && mediaHeight.value > 0
-  && !isViewCard
-  && !isViewMasonry
+  && !isViewCard.value
+  && !isViewMasonry.value
 )
 
 const onThumbLoad = () => {

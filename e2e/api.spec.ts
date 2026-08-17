@@ -51,7 +51,7 @@ test.describe('API', () => {
 
   test('backups list is empty on fresh server', async ({ request }) => {
     const response = await request.get('/api/TasksBackups/getBackups')
-    expect(response.status()).toBe(201)
+    expect(response.status()).toBe(200)
 
     const body = await response.json()
     expect(Array.isArray(body)).toBe(true)
