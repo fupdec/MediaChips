@@ -50,6 +50,7 @@ export const MediaFolderBrowseFolderSchema = z.object({
   path: z.string(),
   name: z.string(),
   mediaCount: z.number(),
+  coverMediaIds: z.array(z.number()).optional(),
 }).passthrough()
 
 export const MediaFolderBrowseBreadcrumbSchema = z.object({
@@ -65,4 +66,5 @@ export const MediaFolderBrowseResponseSchema = z.object({
   media: z.array(z.object({
     id: z.number(),
   }).passthrough()).default([]),
+  coverMediaTypeById: z.record(z.string(), z.number()).optional(),
 }).passthrough()

@@ -6,23 +6,26 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
-import {useBrowserLayout, isItemsGridRoute, isInspectorRoute} from '@/composable/useBrowserLayout'
+import {useBrowserLayout, isItemsGridRoute, isInspectorRoute, isFoldersRoute} from '@/composable/useBrowserLayout'
 import useItemContextMenu from '@/composable/ItemContextMenu'
+import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
+import {resolveFoldersHotkey} from '@/utils/foldersHotkeys'
 import {setOption} from '@/services/settingsService'
 import {findMediaTypeById} from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
+import {useEventBus} from '@/utils/eventBus'
 import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
 import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
 
-/** Card roots currently rendered in the items grid / masonry. */
+/** Card roots currently rendered in the items grid / masonry / folders browser. */
 export function queryVisibleItemElements(): HTMLElement[] {
   return Array.from(
     document.querySelectorAll<HTMLElement>(
-      '.items-page-grid .item[data-item-id], .items-masonry-grid .item[data-item-id]',
+      '.items-page-grid .item[data-item-id], .items-masonry-grid .item[data-item-id], .items-page-grid [data-folder-path]',
     ),
   )
 }
@@ -95,6 +98,20 @@ export function useBrowserLayoutHotkeys() {
   const contextMenuStore = useContextMenu()
   const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
   const {openReviewMode} = useReviewModeLauncher()
+  const {focused: foldersFocus, setFocus: setFoldersFocus} = useFoldersBrowserFocus()
+  const eventBus = useEventBus()
+
+  function emitFoldersGoUp() {
+    eventBus.emit('folders:go-up')
+  }
+
+  function emitFoldersOpenPath(folderPath: string) {
+    eventBus.emit('folders:open-path', folderPath)
+  }
+
+  function emitFoldersOpenTags() {
+    eventBus.emit('folders:open-tags')
+  }
 
   function toggleSidebar() {
     const next = settingsStore.sidebarCollapsed === '1' ? '0' : '1'
@@ -129,6 +146,7 @@ export function useBrowserLayoutHotkeys() {
     const item = itemsStore.entities.find((entry) => Number(entry.id) === id)
       ?? itemsStore.itemsOnPage.find((entry) => Number(entry.id) === id)
     if (!item) return
+    setFoldersFocus({kind: 'media', id})
     itemsStore.focusForInspector(item)
     requestAnimationFrame(() => {
       const el = findItemElementById(id)
@@ -136,13 +154,47 @@ export function useBrowserLayoutHotkeys() {
     })
   }
 
+  function focusFolderPath(folderPath: string) {
+    setFoldersFocus({kind: 'folder', path: folderPath})
+    itemsStore.clearInspectorFocus()
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-folder-path="${CSS.escape(folderPath)}"]`,
+      )
+      if (el) scrollItemIntoView(el)
+    })
+  }
+
+  function applyFocusFromElement(el: HTMLElement) {
+    const folderPath = el.dataset.folderPath
+    if (folderPath) {
+      focusFolderPath(folderPath)
+      return true
+    }
+    const nextId = Number(el.dataset.itemId)
+    if (Number.isFinite(nextId)) {
+      focusById(nextId)
+      return true
+    }
+    return false
+  }
+
   function focusFirstVisible() {
+    // On the folders page, use the visible DOM elements which include both folders and media.
+    if (isFoldersRoute(router.currentRoute.value.path)) {
+      const visible = queryVisibleItemElements()
+      if (visible.length && applyFocusFromElement(visible[0])) return
+    }
     const page = itemsStore.itemsOnPage
     if (!page.length) return
     focusById(Number(page[0].id))
   }
 
   function focusLastVisible() {
+    if (isFoldersRoute(router.currentRoute.value.path)) {
+      const visible = queryVisibleItemElements()
+      if (visible.length && applyFocusFromElement(visible[visible.length - 1])) return
+    }
     const page = itemsStore.itemsOnPage
     if (!page.length) return
     focusById(Number(page[page.length - 1].id))
@@ -150,27 +202,25 @@ export function useBrowserLayoutHotkeys() {
 
   function moveFocus(direction: BrowserNavDirection) {
     const page = itemsStore.itemsOnPage
-    if (!page.length) return
+    const visible = queryVisibleItemElements()
+    if (!page.length && !visible.length) return
 
     const id = focusedId()
-    if (id == null) {
-      focusFirstVisible()
+    const folderPath = foldersFocus.value?.kind === 'folder' ? foldersFocus.value.path : null
+    const currentEl = folderPath
+      ? document.querySelector<HTMLElement>(`[data-folder-path="${CSS.escape(folderPath)}"]`)
+      : id != null ? findItemElementById(id) : null
+
+    if (!currentEl) {
+      if (visible[0] && applyFocusFromElement(visible[0])) return
+      if (page.length) focusFirstVisible()
       return
     }
 
-    const currentEl = findItemElementById(id)
-    if (currentEl) {
-      const neighbor = findNeighborItemElement(currentEl, direction)
-      if (neighbor) {
-        const nextId = Number(neighbor.dataset.itemId)
-        if (Number.isFinite(nextId)) {
-          focusById(nextId)
-          return
-        }
-      }
-    }
+    const neighbor = findNeighborItemElement(currentEl, direction, visible)
+    if (neighbor && applyFocusFromElement(neighbor)) return
 
-    // Fallback: flat list order when geometry fails (e.g. item not mounted).
+    if (!page.length) return
     const index = page.findIndex((item) => Number(item.id) === id)
     if (index < 0) {
       focusFirstVisible()
@@ -412,6 +462,60 @@ export function useBrowserLayoutHotkeys() {
       return
     }
 
+    if (isFoldersRoute(router.currentRoute.value.path) && !event.repeat) {
+      const foldersAction = resolveFoldersHotkey({
+        code: event.code,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        focusedKind: foldersFocus.value?.kind || (focusedId() != null ? 'media' : null),
+      })
+      if (foldersAction === 'history-back') {
+        event.preventDefault()
+        router.back()
+        return
+      }
+      if (foldersAction === 'history-forward') {
+        event.preventDefault()
+        router.forward()
+        return
+      }
+      if (foldersAction === 'go-up') {
+        event.preventDefault()
+        emitFoldersGoUp()
+        return
+      }
+      if (foldersAction === 'open-tags') {
+        event.preventDefault()
+        emitFoldersOpenTags()
+        return
+      }
+      if (foldersAction === 'open-folder' && foldersFocus.value?.kind === 'folder') {
+        event.preventDefault()
+        emitFoldersOpenPath(foldersFocus.value.path)
+        return
+      }
+      if (foldersAction === 'delete-media') {
+        if (!focusedId()) return
+        event.preventDefault()
+        openDelete()
+        return
+      }
+      if (foldersAction === 'edit-media') {
+        if (!focusedId()) return
+        event.preventDefault()
+        openEdit()
+        return
+      }
+      if (foldersAction === 'play-media') {
+        if (!focusedId()) return
+        event.preventDefault()
+        playFocused()
+        return
+      }
+    }
+
     if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
     if (event.repeat) return
 
@@ -463,6 +567,11 @@ export function useBrowserLayoutHotkeys() {
         return
       case 'Enter':
       case 'KeyE':
+        if (isFoldersRoute(router.currentRoute.value.path) && foldersFocus.value?.kind === 'folder') {
+          event.preventDefault()
+          emitFoldersOpenPath(foldersFocus.value.path)
+          return
+        }
         if (!focusedId()) return
         event.preventDefault()
         openEdit()
@@ -477,17 +586,27 @@ export function useBrowserLayoutHotkeys() {
         toggleFocusedSelection()
         return
       case 'Escape':
-        if (!focusedId()) return
+        if (!focusedId() && foldersFocus.value?.kind !== 'folder') return
         event.preventDefault()
+        setFoldersFocus(null)
         itemsStore.clearInspectorFocus()
         return
       case 'Delete':
       case 'Backspace':
+        if (isFoldersRoute(router.currentRoute.value.path)) {
+          // Handled above via resolveFoldersHotkey.
+          return
+        }
         if (!focusedId()) return
         event.preventDefault()
         openDelete()
         return
       case 'KeyT':
+        if (isFoldersRoute(router.currentRoute.value.path)) {
+          event.preventDefault()
+          emitFoldersOpenTags()
+          return
+        }
         event.preventDefault()
         focusTagsSearch()
         return

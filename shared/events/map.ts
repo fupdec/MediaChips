@@ -30,6 +30,9 @@ export type EventBusMap = {
   'app:database-changed': void
   'markers:reload': void
   'playlists:reload': void
+  'folders:go-up': void
+  'folders:open-path': string
+  'folders:open-tags': void
 } & Record<string, unknown>
 
 export type EventBusEvent = keyof EventBusMap

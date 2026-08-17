@@ -13,6 +13,7 @@ import {
   libraryFolderParentPath,
   normalizeLibraryFolderPath,
 } from '../../shared/libraryFolderBrowse'
+import {mergeCoverMediaIds} from '../../shared/libraryFolderBrowseUi'
 import {getItemDiskRoot} from '../../shared/itemsGroupBy'
 
 export type MediaFolderBrowseOptions = {
@@ -24,6 +25,7 @@ export type MediaFolderBrowseFolder = {
   path: string
   name: string
   mediaCount: number
+  coverMediaIds?: number[]
 }
 
 export type MediaFolderBrowseResult = {
@@ -32,11 +34,23 @@ export type MediaFolderBrowseResult = {
   breadcrumbs: Array<{path: string; name: string}>
   folders: MediaFolderBrowseFolder[]
   media: LoadedMediaItem[]
+  coverMediaTypeById?: Record<string, number>
 }
 
 const ACTIVE_MEDIA_SQL = `(media.deletedAt IS NULL OR media.deletedAt = '')`
 const NON_ZIP_SQL = `INSTR(REPLACE(media.path, '\\', '/'), '.zip!/') = 0`
 const PATH_SQL = `REPLACE(media.path, '\\', '/')`
+
+function coverTypeMap(rows: Array<{id: number; mediaTypeId?: number}>): Record<string, number> {
+  const map: Record<string, number> = {}
+  for (const row of rows) {
+    const id = Number(row.id)
+    const mediaTypeId = Number(row.mediaTypeId)
+    if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(mediaTypeId) || mediaTypeId <= 0) continue
+    map[String(id)] = mediaTypeId
+  }
+  return map
+}
 
 function mediaTypeClause(mediaTypeId: number | null | undefined): {
   sql: string
@@ -93,12 +107,38 @@ async function browseRoots(
     .filter((row): row is MediaFolderBrowseFolder => Boolean(row))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base'}))
 
+  const coverRows = await queryAllAsync<{rootPath: string; id: number; mediaTypeId: number}>(db, `
+    SELECT rootPath, id, mediaTypeId FROM (
+      SELECT
+        mc_group_disk_root(media.path) AS rootPath,
+        media.id AS id,
+        media.mediaTypeId AS mediaTypeId,
+        ROW_NUMBER() OVER (
+          PARTITION BY mc_group_disk_root(media.path)
+          ORDER BY media.name COLLATE NOCASE ASC, media.id ASC
+        ) AS rn
+      FROM media
+      WHERE ${ACTIVE_MEDIA_SQL}
+        AND ${NON_ZIP_SQL}
+        AND mc_group_disk_root(media.path) != '#'
+        ${type.sql}
+    ) AS ranked
+    WHERE rn <= 4
+  `, type.replacements)
+
   return {
     currentPath: null,
     parentPath: null,
     breadcrumbs: [],
-    folders,
+    folders: mergeCoverMediaIds(
+      folders,
+      coverRows.map((row) => ({
+        folderKey: String(row.rootPath || ''),
+        id: Number(row.id),
+      })),
+    ),
     media: [],
+    coverMediaTypeById: coverTypeMap(coverRows),
   }
 }
 
@@ -118,7 +158,7 @@ async function browseFolder(
     ...type.replacements,
   }
 
-  const [folderRows, idRows] = await Promise.all([
+  const [folderRows, idRows, coverRows] = await Promise.all([
     queryAllAsync<{childName: string; mediaCount: number}>(db, `
       SELECT
         SUBSTR(rel, 1, INSTR(rel, '/') - 1) AS childName,
@@ -144,6 +184,28 @@ async function browseFolder(
         ${type.sql}
       ORDER BY media.name COLLATE NOCASE ASC, media.id ASC
     `, replacements),
+    queryAllAsync<{childName: string; id: number; mediaTypeId: number}>(db, `
+      SELECT childName, id, mediaTypeId FROM (
+        SELECT
+          SUBSTR(rel, 1, INSTR(rel, '/') - 1) AS childName,
+          nested.id AS id,
+          nested.mediaTypeId AS mediaTypeId,
+          ROW_NUMBER() OVER (
+            PARTITION BY SUBSTR(rel, 1, INSTR(rel, '/') - 1)
+            ORDER BY nested.name COLLATE NOCASE ASC, nested.id ASC
+          ) AS rn
+        FROM (
+          SELECT media.id, media.name, media.mediaTypeId, SUBSTR(${PATH_SQL}, :prefixStart) AS rel
+          FROM media
+          WHERE ${ACTIVE_MEDIA_SQL}
+            AND ${NON_ZIP_SQL}
+            AND ${PATH_SQL} LIKE :likePrefix
+            AND INSTR(SUBSTR(${PATH_SQL}, :prefixStart), '/') > 0
+            ${type.sql}
+        ) AS nested
+      ) AS ranked
+      WHERE rn <= 4
+    `, replacements),
   ])
 
   const folders: MediaFolderBrowseFolder[] = folderRows
@@ -161,6 +223,14 @@ async function browseFolder(
     .filter((row): row is MediaFolderBrowseFolder => Boolean(row))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base'}))
 
+  const foldersWithCovers = mergeCoverMediaIds(
+    folders,
+    coverRows.map((row) => ({
+      folderKey: `${folder}/${String(row.childName || '')}`,
+      id: Number(row.id),
+    })),
+  )
+
   const directIds = idRows
     .map((row) => Number(row.id))
     .filter((id) => Number.isFinite(id) && id > 0)
@@ -171,8 +241,9 @@ async function browseFolder(
     currentPath: folder,
     parentPath: libraryFolderParentPath(folder),
     breadcrumbs: buildLibraryFolderBreadcrumbs(folder),
-    folders,
+    folders: foldersWithCovers,
     media,
+    coverMediaTypeById: coverTypeMap(coverRows),
   }
 }
 

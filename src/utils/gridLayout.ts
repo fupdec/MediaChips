@@ -32,7 +32,7 @@ const DESCRIPTION_HEIGHT: Record<number, number> = { 1: 72, 2: 78, 3: 82, 4: 88,
 const LINE_ROW_HEIGHT: Record<number, number> = { 1: 100, 2: 120, 3: 130, 4: 140, 5: 160, 6: 180 }
 
 /** Compact single-row list view: edge-to-edge thumbnail height + divider. Kept in sync with item.scss. */
-const LIST_ROW_HEIGHT: Record<number, number> = { 1: 45, 2: 53, 3: 61, 4: 69, 5: 77, 6: 85 }
+export const LIST_ROW_HEIGHT: Record<number, number> = { 1: 45, 2: 53, 3: 61, 4: 69, 5: 77, 6: 85 }
 
 export const VIRTUAL_GRID_THRESHOLD = 48
 

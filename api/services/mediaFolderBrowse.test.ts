@@ -40,6 +40,8 @@ describe('browseLibraryFolders', () => {
     vi.mocked(queryAllAsync).mockResolvedValueOnce([
       {rootPath: '/Volumes/Disk', mediaCount: 3},
       {rootPath: '/Users', mediaCount: 1},
+    ]).mockResolvedValueOnce([
+      {rootPath: '/Volumes/Disk', id: 11},
     ])
 
     const result = await browseLibraryFolders(mockDb, {})
@@ -56,6 +58,10 @@ describe('browseLibraryFolders', () => {
         {childName: 'Comedy', mediaCount: 1},
       ])
       .mockResolvedValueOnce([{id: 1}])
+      .mockResolvedValueOnce([
+        {childName: 'Action', id: 2},
+        {childName: 'Action', id: 3},
+      ])
 
     const result = await browseLibraryFolders(mockDb, {path: '/Volumes/Disk/Movies'})
     expect(result.currentPath).toBe('/Volumes/Disk/Movies')
@@ -65,9 +71,10 @@ describe('browseLibraryFolders', () => {
       '/Volumes/Disk/Movies/Comedy',
     ])
     expect(result.folders.find((f) => f.path.endsWith('/Action'))?.mediaCount).toBe(2)
+    expect(result.folders.find((f) => f.path.endsWith('/Action'))?.coverMediaIds).toEqual([2, 3])
     expect(result.media.map((m) => m.id)).toEqual([1])
     expect(result.breadcrumbs.map((b) => b.name)).toEqual(['Disk', 'Movies'])
     expect(fetchBaseMediaRows).toHaveBeenCalledWith(mockDb, null, [1])
-    expect(queryAllAsync).toHaveBeenCalledTimes(2)
+    expect(queryAllAsync).toHaveBeenCalledTimes(3)
   })
 })

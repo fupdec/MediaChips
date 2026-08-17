@@ -270,7 +270,7 @@ const showIconPicker = ref(false)
 const text = ref('')
 const valid = ref(false)
 const validationError = ref<string | null>(null)
-const mark_types = ref<MarkTypeItem[]>([...BASE_MARK_TYPES, TAG_MARK_TYPE])
+const mark_types = ref<MarkTypeItem[]>([...BASE_MARK_TYPES, TAG_MARK_TYPE] as unknown as MarkTypeItem[])
 const iconPresets = BOOKMARK_ICON_PRESETS
 
 const arrayMetaIds = computed(() => {

@@ -685,9 +685,7 @@ const is_context_target = computed(() => {
 
 const card_color = computed(() => {
   // Media cards must stay uncolored; only tag category cards may use a tint.
-  // List view rows are uniform (edge-to-edge with a divider) — no tint there.
   if (props.type !== 'tag' || !props.meta?.color) return ''
-  if (isListView.value) return ''
   const color = tagChipColor.value
   return color ? hexToRgba(color, 9) : ''
 })

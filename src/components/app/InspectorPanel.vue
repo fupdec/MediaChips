@@ -341,7 +341,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, onUnmounted, ref, watch} from 'vue'
 import path from 'path-browserify'
 import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
@@ -421,6 +421,20 @@ const expandRailTop = computed(() => {
   if (winElectronUi) top += 32
   if (appStore.tabs.length) top += 28
   return top
+})
+
+/** Horizontal space (px) the inspector occupies on the right edge, used by
+  * floating elements (e.g. quick-action button) to avoid overlapping it. */
+const inspectorRightEdge = computed(() =>
+  collapsed.value ? 32 : panelWidth.value,
+)
+
+watch(inspectorRightEdge, (px) => {
+  document.documentElement.style.setProperty('--app-inspector-width', `${px}px`)
+}, {immediate: true})
+
+onUnmounted(() => {
+  document.documentElement.style.removeProperty('--app-inspector-width')
 })
 
 const thumbFailed = ref(false)

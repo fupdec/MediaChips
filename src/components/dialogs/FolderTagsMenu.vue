@@ -194,7 +194,7 @@ const {t} = useI18n()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
 
-const menuOpen = ref(false)
+const menuOpen = defineModel<boolean>('open', {default: false})
 const loading = ref(false)
 const saving = ref(false)
 const search = ref('')

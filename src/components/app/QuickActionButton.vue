@@ -229,7 +229,7 @@ const selectAll = async () => {
 .speed-dial-container {
   position: fixed;
   bottom: 60px;
-  right: 20px;
+  right: calc(var(--app-inspector-width, 0px) + 20px);
   width: 56px;
   height: 56px;
   // Above card hover states (.item.big-preview uses z-index: 1010) so the
