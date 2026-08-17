@@ -90,6 +90,13 @@
               :title="t('appbar.buttons.open_random')"
               @click="openRandomItem"
             />
+            <v-list-item
+              :disabled="itemsStore.entities.length == 0"
+              link
+              prepend-icon="mdi-card-search-outline"
+              :title="t('review_mode.open')"
+              @click="openReviewFromMenu"
+            />
           </v-list>
         </v-menu>
 
@@ -173,6 +180,7 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {isFoldersRoute} from '@/composable/useBrowserLayout'
+import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
@@ -202,6 +210,7 @@ const dialogsStore = useDialogsStore()
 const app = useAppStore()
 const registrationStore = useRegistrationStore()
 const pageCommands = useItemsPageCommands()
+const {openReviewMode} = useReviewModeLauncher()
 
 /* Router & i18n */
 const route = useRoute()
@@ -256,6 +265,10 @@ function openRandomItem() {
     const rand = Math.floor(Math.random() * ids.length)
     pageCommands.openRandomItem(ids[rand])
   }
+}
+
+function openReviewFromMenu() {
+  void openReviewMode()
 }
 
 function editMetaFromMenu() {

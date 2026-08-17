@@ -54,11 +54,11 @@
             size="small"
             icon
           >
-            <v-icon>mdi-tune</v-icon>
+            <v-icon>mdi-eye-settings-outline</v-icon>
           </v-btn>
         </template>
         <span>
-        {{ t('appbar.buttons.customize') }}
+        {{ t('appbar.buttons.customize_appearance') }}
       </span>
       </v-tooltip>
 

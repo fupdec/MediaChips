@@ -75,7 +75,7 @@
           rounded="xl"
           class="toolbar-appearance__edit-btn"
         >
-          <v-icon start>mdi-pencil-outline</v-icon>
+          <v-icon start>mdi-card-bulleted-settings</v-icon>
           {{ t('meta.settings.edit_pinned_meta') }}
         </v-btn>
       </div>

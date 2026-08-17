@@ -9,6 +9,7 @@ const ru = {
       filter: 'Фильтровать',
       sort: 'Сортировать',
       customize: 'Настроить',
+      customize_appearance: 'Настроить внешний вид',
       select: 'Выбрать',
       unselect: 'Отменить',
       selectVisible: 'Выбрать видимые',

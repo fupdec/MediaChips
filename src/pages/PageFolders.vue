@@ -64,13 +64,13 @@
 
             <v-btn
               @click="showAppearancePanel = !showAppearancePanel"
-              v-tooltip:top="t('appbar.buttons.customize')"
+              v-tooltip:top="t('appbar.buttons.customize_appearance')"
               color="primary"
               :variant="showAppearancePanel ? 'flat' : 'tonal'"
               size="small"
               icon
             >
-              <v-icon size="18">mdi-tune</v-icon>
+              <v-icon size="18">mdi-eye-settings-outline</v-icon>
             </v-btn>
           </div>
         </div>

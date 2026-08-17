@@ -9,6 +9,7 @@ const en = {
       filter: 'Filter',
       sort: 'Sort',
       customize: 'Customize',
+      customize_appearance: 'Customize appearance',
       select: 'Select',
       unselect: 'Unselect',
       selectVisible: 'Select visible',

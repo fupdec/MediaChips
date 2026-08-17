@@ -72,18 +72,18 @@
               size="small"
               icon
             >
-              <v-icon size="18">mdi-pencil-outline</v-icon>
+              <v-icon size="18">mdi-card-bulleted-settings</v-icon>
             </v-btn>
 
             <v-btn
               @click="toggleCustomization"
-              v-tooltip:top="t('appbar.buttons.customize')"
+              v-tooltip:top="t('appbar.buttons.customize_appearance')"
               color="primary"
               :variant="toolbarStore.appearance.show ? 'flat' : 'tonal'"
               size="small"
               icon
             >
-              <v-icon size="18">mdi-tune</v-icon>
+              <v-icon size="18">mdi-eye-settings-outline</v-icon>
             </v-btn>
 
             <v-btn
