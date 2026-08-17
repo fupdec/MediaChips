@@ -18,6 +18,7 @@ export const API_ROUTES = {
   playlist: '/api/Playlist',
   setting: '/api/Setting',
   mediaItems: '/api/Media/items',
+  mediaFolderBrowse: '/api/Media/folderBrowse',
   pageSetting: '/api/PageSetting',
   pageSettingFind: '/api/PageSetting/find',
   savedFilter: '/api/SavedFilter',

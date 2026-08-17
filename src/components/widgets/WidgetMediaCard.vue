@@ -4,6 +4,8 @@
     :class="{
       'home-media-card--big-preview': bigPreview,
       'home-media-card--seed': Boolean(badge),
+      'home-media-card--fluid': fluid,
+      'home-media-card--compact': compact,
     }"
     rounded="lg"
     variant="outlined"
@@ -88,11 +90,15 @@
       class="home-media-card__body"
       @click="handleBodyClick"
     >
-      <div class="text-caption text-truncate" :title="item.name">
-        {{ item.name }}
+      <div
+        class="home-media-card__title"
+        :class="{ 'text-caption text-truncate': !compact }"
+        :title="displayTitle"
+      >
+        {{ displayTitle }}
       </div>
       <div
-        v-if="metaLine"
+        v-if="metaLine && !compact"
         class="home-media-card__meta text-caption text-medium-emphasis"
         :title="metaLine.title"
       >
@@ -136,10 +142,19 @@ const props = withDefaults(defineProps<{
   variant?: HomeMediaCardVariant
   /** Optional overlay badge (e.g. seed / original). */
   badge?: string | null
+  /** Fill the parent cell instead of the home-row 148px width. */
+  fluid?: boolean
+  /** Tighter caption — filename only, less padding. */
+  compact?: boolean
+  /** Override the caption (e.g. filesystem basename). */
+  title?: string | null
 }>(), {
   thumb: null,
   variant: 'views',
   badge: null,
+  fluid: false,
+  compact: false,
+  title: null,
 })
 
 const emit = defineEmits<{
@@ -178,6 +193,10 @@ const mediaType = computed(() =>
 )
 
 const isVideoMedia = computed(() => isVideoMediaType(mediaType.value))
+
+const displayTitle = computed(() =>
+  (props.title && String(props.title).trim()) || props.item.name || '',
+)
 
 const brokenThumb = ref(false)
 
@@ -299,6 +318,60 @@ function handleBodyClick() {
 
   &:hover:not(.home-media-card--big-preview) {
     border-color: rgb(var(--v-theme-primary)) !important;
+  }
+
+  &--fluid {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &--compact {
+    border-radius: 8px !important;
+    background: rgb(var(--v-theme-surface)) !important;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.12) !important;
+    height: auto;
+    min-height: 0;
+    align-self: flex-start;
+    overflow: hidden;
+
+    .home-media-card__preview {
+      flex: 0 0 auto;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      height: auto;
+    }
+
+    .home-media-card__body {
+      box-sizing: border-box;
+      flex: 0 0 22px;
+      height: 22px;
+      min-height: 22px;
+      padding: 0 8px;
+      margin-top: 0;
+      justify-content: center;
+      align-items: center;
+      text-align: left;
+      background: rgb(var(--v-theme-surface));
+    }
+
+    .home-media-card__title {
+      width: 100%;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 16px;
+      letter-spacing: 0;
+      color: inherit;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .home-media-card__favorite {
+      top: 4px;
+      right: 4px;
+    }
   }
 
   &--seed {

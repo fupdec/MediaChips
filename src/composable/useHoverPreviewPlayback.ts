@@ -18,6 +18,7 @@ import {
   isIgnorablePreviewError,
   playHoverPreviewVideo,
   pointerRatioToPreviewTime,
+  resolveCinemaTimelineSeekTime,
   resolveHoverPreviewMuted,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewTargetTime,
@@ -415,7 +416,40 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     hoverSeekCoalescer.schedule(e.clientX)
   }
 
+  const timelineScrubbing = ref(false)
+
+  const seekPreviewFromTimeline = (
+    e: Pick<MouseEvent, 'clientX'>,
+    track: HTMLElement | null,
+    isCinemaPreview: boolean,
+  ) => {
+    const time = resolveCinemaTimelineSeekTime({
+      isCinemaPreview,
+      isFileExists: toValue(options.isFileExists),
+      playbackError: playbackError.value,
+      mediaDuration: toValue(options.mediaDuration),
+      clientX: e.clientX,
+      trackRect: track?.getBoundingClientRect() ?? {left: 0, width: 0},
+    })
+    if (time == null) return
+
+    progress.value = time
+    playbackTime.value = time
+    if (!hoverPreviewReady.value) return
+    hoverSeekCoalescer.clear()
+    void syncPreviewVideoPosition(time, {allowLiveChunkSwitch: true})
+  }
+
+  const beginTimelineScrub = () => {
+    timelineScrubbing.value = true
+  }
+
+  const endTimelineScrub = () => {
+    timelineScrubbing.value = false
+  }
+
   const handleVideoTimeUpdate = () => {
+    if (timelineScrubbing.value) return
     const previewEndTime = toValue(options.previewEndTime)
     const previewStartTime = toValue(options.previewStartTime)
     if (shouldRestartFixedPreviewClip({
@@ -735,6 +769,9 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     handleVideoLoaded,
     handleVideoTimeUpdate,
     applyPreviewTimeFromPointer,
+    seekPreviewFromTimeline,
+    beginTimelineScrub,
+    endTimelineScrub,
     applyFixedPreviewTime,
     scheduleHoverPreviewUi,
     syncPreviewVideoPosition,

@@ -10,6 +10,7 @@ import {
   isIgnorablePreviewError,
   playHoverPreviewVideo,
   pointerRatioToPreviewTime,
+  resolveCinemaTimelineSeekTime,
   resetHoverPreviewCooldownForTests,
   resolveAbsolutePreviewTime,
   resolveHoverPreviewMuted,
@@ -380,6 +381,20 @@ describe('hoverPreviewPlayback', () => {
     expect(pointerRatioToPreviewTime(50, {left: 0, width: 100}, 200)).toBe(100)
     expect(pointerRatioToPreviewTime(0, {left: 0, width: 100}, 200)).toBe(0)
     expect(pointerRatioToPreviewTime(10, {left: 0, width: 0}, 200)).toBeNull()
+  })
+
+  it('seeks cinema timeline from the track rect only', () => {
+    const base = {
+      isCinemaPreview: true,
+      isFileExists: true,
+      playbackError: false,
+      mediaDuration: 200,
+      clientX: 50,
+      trackRect: {left: 0, width: 100},
+    }
+    expect(resolveCinemaTimelineSeekTime(base)).toBe(100)
+    expect(resolveCinemaTimelineSeekTime({...base, isCinemaPreview: false})).toBeNull()
+    expect(resolveCinemaTimelineSeekTime({...base, playbackError: true})).toBeNull()
   })
 
   it('resolves absolute playhead for live streams', () => {

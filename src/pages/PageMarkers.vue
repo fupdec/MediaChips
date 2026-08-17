@@ -19,6 +19,24 @@
         <div
           class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-nowrap ga-2"
         >
+          <button
+            type="button"
+            class="items-control-deck__sticky-pin"
+            :class="{'items-control-deck__sticky-pin--active': stickyControlDeck}"
+            :aria-pressed="stickyControlDeck ? 'true' : 'false'"
+            :aria-label="stickyControlDeck
+              ? t('settings_labels.appearance.sticky_control_deck_unpin')
+              : t('settings_labels.appearance.sticky_control_deck_pin')"
+            v-tooltip:top="stickyControlDeck
+              ? t('settings_labels.appearance.sticky_control_deck_unpin')
+              : t('settings_labels.appearance.sticky_control_deck_pin')"
+            @click="toggleStickyControlDeck"
+          >
+            <span class="items-control-deck__sticky-pin-glyph" aria-hidden="true">
+              <v-icon size="16" icon="mdi-pin"/>
+            </span>
+          </button>
+
           <div class="d-flex align-center items-page-header__title min-width-0">
             <v-icon class="items-page-header__icon" start>mdi-tooltip-outline</v-icon>
             <span class="items-page-header__name text-truncate">{{ t('navigation.markers') }}</span>
@@ -110,29 +128,47 @@
               <v-icon size="18" :start="!smAndDown">mdi-movie-open-outline</v-icon>
               <span v-if="!smAndDown">{{ t('markers.clip_studio_mode') }}</span>
             </v-btn>
+          </div>
+        </div>
 
-            <template v-if="clipStudioMode">
+        <v-expand-transition>
+          <div
+            v-if="clipStudioMode"
+            class="items-control-deck__section markers-control-deck__studio"
+          >
+            <div class="markers-control-deck__studio-hint text-caption text-medium-emphasis">
+              {{ t('markers.clip_studio_subtitle') }}
+              · {{ t('markers.select_ranged_hint') }}
+              <span class="ml-1">{{ t('markers.select_range_hint') }}</span>
+            </div>
+            <div class="markers-control-deck__studio-row d-flex align-center flex-wrap ga-2">
               <v-btn
                 :variant="clipSort === 'selection' ? 'flat' : 'tonal'"
                 color="primary"
                 size="small"
-                icon
+                :icon="smAndDown"
+                :rounded="smAndDown ? undefined : 'xl'"
+                class="markers-control-deck__studio-action"
                 v-tooltip:top="t('tags.play_clips_in_order')"
                 @click="setReelOrderMode"
               >
-                <v-icon size="18">mdi-sort-clock-ascending-outline</v-icon>
+                <v-icon size="18" :start="!smAndDown">mdi-sort-clock-ascending-outline</v-icon>
+                <span v-if="!smAndDown">{{ t('tags.play_clips_in_order') }}</span>
               </v-btn>
               <v-btn
                 :variant="clipSort === 'shuffle' ? 'flat' : 'tonal'"
                 color="primary"
                 size="small"
-                icon
+                :icon="smAndDown"
+                :rounded="smAndDown ? undefined : 'xl'"
+                class="markers-control-deck__studio-action"
                 v-tooltip:top="t('tags.play_clips_shuffle')"
                 @click="shuffleReelOrder"
               >
-                <v-icon size="18">mdi-shuffle-variant</v-icon>
+                <v-icon size="18" :start="!smAndDown">mdi-shuffle-variant</v-icon>
+                <span v-if="!smAndDown">{{ t('tags.play_clips_shuffle') }}</span>
               </v-btn>
-
+              <v-spacer/>
               <v-btn
                 color="secondary"
                 variant="tonal"
@@ -149,9 +185,9 @@
                   {{ t('markers.select_all_clips', {count: rangedIdsOnPage.length}) }}
                 </span>
               </v-btn>
-            </template>
+            </div>
           </div>
-        </div>
+        </v-expand-transition>
 
         <div class="items-control-deck__section markers-control-deck__filters">
           <v-chip-group
@@ -194,16 +230,6 @@
               :text="String(meta.name ?? '')"
             />
           </v-chip-group>
-          <div class="markers-control-deck__hint text-caption text-medium-emphasis">
-            <template v-if="clipStudioMode">
-              {{ t('markers.clip_studio_subtitle') }}
-              · {{ t('markers.select_ranged_hint') }}
-              <span class="ml-1">{{ t('markers.select_range_hint') }}</span>
-            </template>
-            <template v-else>
-              {{ t('markers.clip_studio_mode_hint') }}
-            </template>
-          </div>
         </div>
       </div>
     </div>
@@ -503,6 +529,8 @@ const showInfiniteLoader = ref(false)
 const {
   controlDeckSentinel,
   controlDeckClass,
+  stickyControlDeck,
+  toggleStickyControlDeck,
 } = useStickyControlDeck()
 /** Selection order (first selected = first in reel). */
 const selectedOrder = ref<number[]>([])
@@ -933,7 +961,7 @@ onBeforeUnmount(() => {
   --markers-deck-control-h: 40px;
 
   &__controls {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     justify-content: flex-end;
     align-items: center;
     min-width: 0;
@@ -1032,15 +1060,27 @@ onBeforeUnmount(() => {
     padding: 8px var(--deck-pad-x, 14px) 10px;
   }
 
+  &__studio {
+    padding: 10px var(--deck-pad-x, 14px) 12px;
+  }
+
+  &__studio-hint {
+    margin-bottom: 8px;
+    line-height: 1.35;
+  }
+
+  &__studio-row {
+    min-width: 0;
+  }
+
+  &__studio-action {
+    flex: 0 0 auto;
+    font-size: 0.75rem !important;
+  }
+
   &__clips-locked {
     cursor: default;
     opacity: 1 !important;
-  }
-
-  &__hint {
-    margin-top: 4px;
-    font-size: 0.75rem;
-    line-height: 1.3;
   }
 
   &__studio-toggle {
@@ -1050,16 +1090,13 @@ onBeforeUnmount(() => {
   @media (max-width: 959px) {
     &__controls {
       flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     &__search {
       flex: 1 1 140px;
       width: auto;
       max-width: none;
-    }
-
-    &__hint {
-      display: none;
     }
   }
 }

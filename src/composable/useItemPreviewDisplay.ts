@@ -30,6 +30,7 @@ export type PreviewContainerClassesInput = {
   isGridCollapsing: boolean
   collapsePreviewFading: boolean
   bigPreviewSize: BigVideoPreviewSize
+  chromeHidden?: boolean
 }
 
 export function buildPreviewHostClasses(
@@ -61,6 +62,11 @@ export function buildPreviewContainerClasses(
     'video-preview-container--collapsing': input.isGridCollapsing,
     'video-preview-container--preview-fading':
       input.isGridCollapsing && input.collapsePreviewFading,
+    'video-preview-container--chrome-hidden':
+      input.isFullscreenBigPreview &&
+      Boolean(input.chromeHidden) &&
+      !input.isGridExpanding &&
+      !input.isGridCollapsing,
   }
 
   if (input.isFullscreenBigPreview && !input.isGridCollapsing) {
@@ -207,6 +213,12 @@ export function useItemPreviewDisplay(options: ItemPreviewDisplayOptions) {
     }),
   )
 
+  const showBigPreviewChrome = computed(() =>
+    options.gridBigPreview.isVisual.value &&
+    !options.gridBigPreview.isExpanding.value &&
+    !options.gridBigPreview.isCollapsing.value,
+  )
+
   const showEmbeddedPlayHint = computed(() =>
     toValue(options.isEmbeddedHost) &&
     toValue(options.isFileExists) &&
@@ -258,6 +270,7 @@ export function useItemPreviewDisplay(options: ItemPreviewDisplayOptions) {
     hostClasses,
     previewContainerClasses,
     showEmbeddedPlayHint,
+    showBigPreviewChrome,
     showPlaybackTimeline,
     playbackTimelinePercent,
     playbackTimelineTimeLabel,

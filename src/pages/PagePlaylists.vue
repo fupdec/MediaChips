@@ -16,6 +16,24 @@
         <div
           class="items-page-header items-control-deck__header items-page-header--deck d-flex align-center justify-space-between flex-nowrap ga-2"
         >
+          <button
+            type="button"
+            class="items-control-deck__sticky-pin"
+            :class="{'items-control-deck__sticky-pin--active': stickyControlDeck}"
+            :aria-pressed="stickyControlDeck ? 'true' : 'false'"
+            :aria-label="stickyControlDeck
+              ? t('settings_labels.appearance.sticky_control_deck_unpin')
+              : t('settings_labels.appearance.sticky_control_deck_pin')"
+            v-tooltip:top="stickyControlDeck
+              ? t('settings_labels.appearance.sticky_control_deck_unpin')
+              : t('settings_labels.appearance.sticky_control_deck_pin')"
+            @click="toggleStickyControlDeck"
+          >
+            <span class="items-control-deck__sticky-pin-glyph" aria-hidden="true">
+              <v-icon size="16" icon="mdi-pin"/>
+            </span>
+          </button>
+
           <div class="d-flex align-center items-page-header__title min-width-0">
             <v-icon class="items-page-header__icon" start>mdi-format-list-bulleted</v-icon>
             <span class="items-page-header__name text-truncate">{{ t('navigation.playlists') }}</span>
@@ -56,10 +74,18 @@
         </div>
 
         <div class="items-control-deck__section playlists-control-deck__mix">
-          <div class="playlists-control-deck__mix-label text-caption text-medium-emphasis">
+          <div
+            class="playlists-control-deck__mix-label text-caption text-medium-emphasis"
+            v-tooltip:top="t('playlists.mix_hint')"
+          >
             <v-icon size="14" class="mr-1">mdi-playlist-music</v-icon>
             {{ t('playlists.mix_title') }}
-            <span class="ml-1 opacity-70">— {{ t('playlists.mix_hint') }}</span>
+            <v-icon
+              size="14"
+              class="ml-1 opacity-70"
+              icon="mdi-information-outline"
+              aria-hidden="true"
+            />
           </div>
           <div class="d-flex align-center flex-wrap ga-2 playlists-control-deck__mix-row">
             <v-text-field
@@ -353,6 +379,8 @@ const {openMediaList} = useOpenMediaList()
 const {
   controlDeckSentinel,
   controlDeckClass,
+  stickyControlDeck,
+  toggleStickyControlDeck,
 } = useStickyControlDeck()
 
 const mixPhrase = ref('')
@@ -1039,8 +1067,11 @@ onBeforeUnmount(() => {
   }
 
   &__mix-label {
+    display: inline-flex;
+    align-items: center;
     margin-bottom: 8px;
     line-height: 1.35;
+    cursor: help;
   }
 
   &__mix-row {

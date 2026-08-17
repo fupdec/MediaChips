@@ -5,6 +5,7 @@ import {
   resolveMediaClickAction,
   resolvePreviewClickAction,
   resolvePreviewDblClickAction,
+  resolvePreviewKeyAction,
   resolvePreviewPlayer,
   useItemPreviewCardActions,
 } from './useItemPreviewCardActions'
@@ -58,6 +59,34 @@ describe('resolvePreviewDblClickAction', () => {
       isShrinking: false,
       isBigPreviewVisual: true,
     })).toBe('dismiss-big-preview')
+  })
+})
+
+describe('resolvePreviewKeyAction', () => {
+  it('dismisses cinema preview on Escape', () => {
+    expect(resolvePreviewKeyAction({
+      key: 'Escape',
+      isCollapsing: false,
+      isBigPreviewVisual: true,
+    })).toBe('dismiss-big-preview')
+  })
+
+  it('ignores other keys and collapse', () => {
+    expect(resolvePreviewKeyAction({
+      key: 'Enter',
+      isCollapsing: false,
+      isBigPreviewVisual: true,
+    })).toBe('ignore')
+    expect(resolvePreviewKeyAction({
+      key: 'Escape',
+      isCollapsing: true,
+      isBigPreviewVisual: true,
+    })).toBe('ignore')
+    expect(resolvePreviewKeyAction({
+      key: 'Escape',
+      isCollapsing: false,
+      isBigPreviewVisual: false,
+    })).toBe('ignore')
   })
 })
 

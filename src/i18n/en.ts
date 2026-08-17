@@ -2829,6 +2829,8 @@ const en = {
       drop_video_or_folder: 'Drop video or files to add them',
       mute: 'Mute',
       unmute: 'Unmute',
+      close_hint: 'Click to close',
+      options_hint: 'Right-click for options',
       big_preview_size: {
         title: 'Preview size',
         original: 'Original',

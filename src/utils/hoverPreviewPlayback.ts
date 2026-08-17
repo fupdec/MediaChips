@@ -579,6 +579,18 @@ export function pointerRatioToPreviewTime(
   return Math.floor(durationSeconds * ratio)
 }
 
+export function resolveCinemaTimelineSeekTime(input: {
+  isCinemaPreview: boolean
+  isFileExists: boolean
+  playbackError: boolean
+  mediaDuration: number
+  clientX: number
+  trackRect: Pick<DOMRect, 'left' | 'width'>
+}): number | null {
+  if (!input.isCinemaPreview || !input.isFileExists || input.playbackError) return null
+  return pointerRatioToPreviewTime(input.clientX, input.trackRect, input.mediaDuration)
+}
+
 export function resolveAbsolutePreviewTime(
   videoCurrentTime: number,
   options: {live: boolean; streamUrl?: string | null},

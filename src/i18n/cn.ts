@@ -2816,6 +2816,8 @@ const cn = {
       drop_video_or_folder: '拖放视频、文件或文件夹以添加',
       mute: '静音',
       unmute: '取消静音',
+      close_hint: '点击关闭',
+      options_hint: '右键打开选项',
       big_preview_size: {
         title: '预览大小',
         original: '原始',

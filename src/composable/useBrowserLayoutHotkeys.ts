@@ -6,7 +6,7 @@ import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
 import {useContextMenu} from '@/stores/contextMenu'
-import {useBrowserLayout, isItemsGridRoute} from '@/composable/useBrowserLayout'
+import {useBrowserLayout, isItemsGridRoute, isInspectorRoute} from '@/composable/useBrowserLayout'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {setOption} from '@/services/settingsService'
 import {findMediaTypeById} from '@/utils/mediaType'
@@ -421,7 +421,7 @@ export function useBrowserLayoutHotkeys() {
       toggleSidebar()
       return
     }
-    if (event.code === 'KeyI' && isItemsGridRoute(router.currentRoute.value.path)) {
+    if (event.code === 'KeyI' && isInspectorRoute(router.currentRoute.value.path)) {
       event.preventDefault()
       toggleInspector()
       return

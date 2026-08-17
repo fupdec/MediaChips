@@ -172,6 +172,7 @@ import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
 import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {isFoldersRoute} from '@/composable/useBrowserLayout'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
@@ -225,11 +226,14 @@ const showDarwinTrafficLightSpacer = computed(() => (
 ))
 
 const isMediaOrTagPage = computed(() =>
-  itemsStore.type === 'media' || itemsStore.type === 'tag',
+  (itemsStore.type === 'media' || itemsStore.type === 'tag')
+  && !isFoldersRoute(route.path),
 )
 
 const isCardSelectPage = computed(() =>
-  itemsStore.type === 'mark' || itemsStore.type === 'playlist',
+  itemsStore.type === 'mark'
+  || itemsStore.type === 'playlist'
+  || isFoldersRoute(route.path),
 )
 
 function openAddPlaylist() {

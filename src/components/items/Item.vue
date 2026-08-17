@@ -108,9 +108,9 @@
 
         <div
           class="masonry-meta-overlay__title"
-          :title="item.name"
+          :title="cardTitle"
         >
-          {{ item.name }}
+          {{ cardTitle }}
         </div>
 
         <ItemPinnedMeta
@@ -152,8 +152,10 @@
           v-if="!(itemsStore.view == 2 && type === 'media' && isVideoMedia)"
           class="item-title"
         >
-          <span v-text="item.name"
-                :title="item.name"/>
+          <span
+            v-text="cardTitle"
+            :title="cardTitle"
+          />
         </div>
         <div
           v-if="meta?.synonyms && item.synonyms"
@@ -265,6 +267,7 @@
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -279,7 +282,7 @@ import ItemRating from '@/components/items/ItemRating.vue'
 import ItemFavorite from '@/components/items/ItemFavorite.vue'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useLazyInView} from '@/composable/useLazyInView'
-import {useBrowserLayout} from '@/composable/useBrowserLayout'
+import {useBrowserLayout, isInspectorRoute} from '@/composable/useBrowserLayout'
 import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getTagChipTextStyle, hexToRgba} from '@/services/formatUtils'
@@ -326,11 +329,14 @@ const props = withDefaults(defineProps<{
    * waiting on IntersectionObserver (avoids blank posters after scrollbar seeks).
    */
   eagerPreview?: boolean
+  /** Prefer filesystem basename over library title (folder browse). */
+  preferFilename?: boolean
 }>(), {
   reg: true,
   x: 0,
   type: 'media',
   eagerPreview: false,
+  preferFilename: false,
 })
 
 const emit = defineEmits<{
@@ -349,7 +355,12 @@ const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 const {transferTagToMedia} = useMediaTagTransfer()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+const route = useRoute()
 const {t} = useI18n()
+
+const inspectorClickMode = computed(() =>
+  browserLayoutActive.value && isInspectorRoute(route.path),
+)
 
 const contextMenu = computed(() => contextMenuStore)
 
@@ -408,6 +419,12 @@ const minimalFilename = computed(() => {
   }
   return props.item.name || ''
 })
+
+const cardTitle = computed(() =>
+  props.preferFilename && props.type === 'media'
+    ? minimalFilename.value
+    : (props.item.name || ''),
+)
 
 const tagMetaId = computed((): number | null => {
   if (props.meta?.id) return props.meta.id
@@ -647,7 +664,7 @@ const onMediaTagDrop = async (event: DragEvent) => {
 }
 
 const isInspectorFocused = computed(() =>
-  browserLayoutActive.value
+  inspectorClickMode.value
   && !itemsStore.isSelect
   && itemsStore.selection.length === 1
   && is_selected.value,
@@ -738,7 +755,7 @@ const handleCardActivate = (e?: MouseEvent) => {
     return
   }
 
-  if (browserLayoutActive.value) {
+  if (inspectorClickMode.value) {
     if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) {
       itemsStore.toggleSelect(e, props.item)
       return

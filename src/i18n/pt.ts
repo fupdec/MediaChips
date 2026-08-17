@@ -2816,6 +2816,8 @@ const pt = {
       drop_video_or_folder: 'Solte vídeos ou arquivos para adicioná-los',
       mute: 'Mudo',
       unmute: 'Ativar som',
+      close_hint: 'Clique para fechar',
+      options_hint: 'Clique com o botão direito para opções',
       big_preview_size: {
         title: 'Tamanho de visualização',
         original: 'Originais',

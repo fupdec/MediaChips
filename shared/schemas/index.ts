@@ -58,6 +58,7 @@ import {
 import {
   BrowseDirectoryResultSchema,
   BrowsePlacesResponseSchema,
+  MediaFolderBrowseResponseSchema,
   MediaRootsResponseSchema,
 } from './browse'
 import {
@@ -589,6 +590,9 @@ export {
   BrowseDirectoryResultSchema,
   BrowsePlaceSchema,
   BrowsePlacesResponseSchema,
+  MediaFolderBrowseBreadcrumbSchema,
+  MediaFolderBrowseFolderSchema,
+  MediaFolderBrowseResponseSchema,
   MediaRootEntrySchema,
   MediaRootsResponseSchema,
 } from './browse'
@@ -656,6 +660,10 @@ export function parseBrowsePlacesResponse(data: unknown) {
 
 export function parseBrowseDirectoryResult(data: unknown) {
   return BrowseDirectoryResultSchema.parse(data)
+}
+
+export function parseMediaFolderBrowseResponse(data: unknown) {
+  return MediaFolderBrowseResponseSchema.parse(data)
 }
 
 export function parseMediaRootsResponse(data: unknown) {

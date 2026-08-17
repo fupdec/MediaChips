@@ -21,6 +21,7 @@ import {
   EntityUpdateRequestSchema,
   MediaTrashIdsRequestSchema,
   MediaTrashListQuerySchema,
+  MediaFolderBrowseRequestSchema,
 } from '../../shared/schemas/requests'
 import createMediaController from '../controllers/Media.controller'
 
@@ -31,6 +32,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get('/numberOfMediaWithTag', validateQuery(MediaTagCountQuerySchema), Media.numberOfMediaWithTag)
 
   router.post('/items', validateBody(ItemsListRequestSchema), Media.getAll)
+  router.post('/folderBrowse', validateBody(MediaFolderBrowseRequestSchema), Media.folderBrowse)
   router.post('/ids', validateBody(MediaIdsRequestSchema), Media.getFilteredIds)
   router.post('/basics', validateBody(MediaBasicsRequestSchema), Media.getBasicsByIds)
   router.post('/thumbs', validateBody(MediaThumbsRequestSchema), Media.getThumbs)

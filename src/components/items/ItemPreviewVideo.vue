@@ -23,7 +23,7 @@
         v-ripple="gridBigPreview.isExpanded.value ? false : { class: `text-primary` }"
         :aspect-ratio="16 / 9"
         class="video-preview-container"
-        :class="previewContainerClasses"
+        :class="[previewContainerClasses, { 'video-preview-container--chrome-hidden': chromeHidden }]"
         :style="previewAppearStyle"
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
@@ -104,28 +104,82 @@
       </div>
 
       <div
+        v-if="showBigPreviewChrome"
+        class="big-preview-chrome"
+      >
+        <div class="big-preview-chrome__top">
+          <div
+            v-if="bigPreviewTitle"
+            class="big-preview-chrome__title"
+            :title="bigPreviewTitle"
+          >
+            {{ bigPreviewTitle }}
+          </div>
+          <div class="big-preview-chrome__meta">
+            <span
+              class="big-preview-chrome__quality"
+              :class="quality.toLowerCase()"
+            >{{ quality }}</span>
+            <span class="big-preview-chrome__height">{{ height }}</span>
+          </div>
+        </div>
+        <div class="big-preview-chrome__hint">
+          {{ t('media.preview.close_hint') }}
+          <span aria-hidden="true"> · </span>
+          {{ t('media.preview.options_hint') }}
+        </div>
+      </div>
+
+      <div
         v-if="showPlaybackTimeline"
         class="preview-playback-timeline"
+        :class="{ 'preview-playback-timeline--cinema': showBigPreviewChrome }"
         @click.stop
         @mousedown.stop
+        @mousemove.stop="revealChrome"
+        @mouseenter="holdChrome"
+        @mouseleave="releaseChrome"
       >
-        <div class="preview-playback-timeline__track">
-          <div
-            class="preview-playback-timeline__fill"
-            :style="{ width: `${playbackTimelinePercent}%` }"
-          />
-        </div>
-        <div class="preview-playback-timeline__time">
-          <v-chip
-            class="preview-playback-timeline__chip"
-            color="black"
-            density="compact"
-            size="small"
-            theme="dark"
+        <div class="preview-playback-timeline__row">
+          <v-btn
+            v-if="showBigPreviewChrome"
+            class="preview-mute-btn"
+            icon
             variant="flat"
+            size="small"
+            :aria-label="muted ? t('media.preview.unmute') : t('media.preview.mute')"
+            @click.stop="togglePreviewMute"
           >
-            {{ playbackTimelineTimeLabel }}
-          </v-chip>
+            <v-icon>{{ muted ? 'mdi-volume-off' : 'mdi-volume-high' }}</v-icon>
+          </v-btn>
+          <div
+            ref="timelineTrackRef"
+            class="preview-playback-timeline__track"
+            @click.stop="onTimelineTrackClick"
+            @mousedown.stop="onTimelineTrackMouseDown"
+          >
+            <div
+              class="preview-playback-timeline__fill"
+              :style="{ width: `${playbackTimelinePercent}%` }"
+            >
+              <span
+                v-if="showBigPreviewChrome"
+                class="preview-playback-timeline__knob"
+              />
+            </div>
+          </div>
+          <div class="preview-playback-timeline__time">
+            <v-chip
+              class="preview-playback-timeline__chip"
+              color="black"
+              density="compact"
+              size="small"
+              theme="dark"
+              variant="flat"
+            >
+              {{ playbackTimelineTimeLabel }}
+            </v-chip>
+          </div>
         </div>
       </div>
 
@@ -245,7 +299,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import type {ComponentPublicInstance} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -263,6 +317,7 @@ import {setOption} from '@/services/settingsService'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useHoverPreviewPlayback} from '@/composable/useHoverPreviewPlayback'
+import {useBigPreviewChromeIdle} from '@/composable/useBigPreviewChrome'
 import {useItemPreviewBigPreviewSession} from '@/composable/useItemPreviewBigPreviewSession'
 import {useItemPreviewCardActions} from '@/composable/useItemPreviewCardActions'
 import {useItemPreviewContextMenu} from '@/composable/useItemPreviewContextMenu'
@@ -357,6 +412,7 @@ const showThumbImage = computed(() => props.previewActive && Boolean(thumb.value
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
+const timelineTrackRef = ref<HTMLElement | null>(null)
 const storyRef = ref<HTMLElement | null>(null)
 const storyWrapperRef = ref<HTMLElement | null>(null)
 const isHovered = ref(false)
@@ -388,6 +444,9 @@ const {
   handleVideoLoaded,
   handleVideoTimeUpdate,
   applyPreviewTimeFromPointer,
+  seekPreviewFromTimeline,
+  beginTimelineScrub,
+  endTimelineScrub,
   applyFixedPreviewTime,
   scheduleHoverPreviewUi,
   syncPreviewVideoPosition,
@@ -496,11 +555,6 @@ const {
   },
 })
 
-const onPreviewMouseMove = (e: MouseEvent) => {
-  handleMouseMove(e)
-  changePreviewTime(e)
-}
-
 const {
   muted,
   bigPreviewSize,
@@ -517,6 +571,7 @@ const {
   hostClasses,
   previewContainerClasses,
   showEmbeddedPlayHint,
+  showBigPreviewChrome,
   showPlaybackTimeline,
   playbackTimelinePercent,
   playbackTimelineTimeLabel,
@@ -546,6 +601,48 @@ const {
   isBigPreviewOpen: () => isBigPreviewOpen.value,
   gridBigPreview,
 })
+
+const bigPreviewTitle = computed(() => String(props.media.name || '').trim())
+
+const {
+  chromeHidden,
+  revealChrome,
+  holdChrome,
+  releaseChrome,
+} = useBigPreviewChromeIdle(showBigPreviewChrome)
+
+const onPreviewMouseMove = (e: MouseEvent) => {
+  handleMouseMove(e)
+  changePreviewTime(e)
+  revealChrome()
+}
+
+const seekCinemaTimeline = (e: Pick<MouseEvent, 'clientX'>) => {
+  seekPreviewFromTimeline(e, timelineTrackRef.value, showBigPreviewChrome.value)
+}
+
+const onTimelineTrackClick = (e: MouseEvent) => {
+  seekCinemaTimeline(e)
+}
+
+const onTimelineScrubMove = (e: MouseEvent) => {
+  seekCinemaTimeline(e)
+}
+
+const stopTimelineScrub = () => {
+  endTimelineScrub()
+  window.removeEventListener('mousemove', onTimelineScrubMove)
+  window.removeEventListener('mouseup', stopTimelineScrub)
+}
+
+const onTimelineTrackMouseDown = (e: MouseEvent) => {
+  if (!showBigPreviewChrome.value || e.button !== 0) return
+  e.preventDefault()
+  beginTimelineScrub()
+  seekCinemaTimeline(e)
+  window.addEventListener('mousemove', onTimelineScrubMove)
+  window.addEventListener('mouseup', stopTimelineScrub)
+}
 
 const {
   getGridFrameDuration,
@@ -605,6 +702,7 @@ const refreshGridPreviewIfNeeded = async () => {
 }
 
 const {
+  togglePreviewMute,
   handlePreviewContextMenu,
   handlePreviewMouseDown,
 } = useItemPreviewContextMenu({
@@ -639,6 +737,7 @@ const {
   handlePreviewClick,
   handleMediaClick,
   handlePreviewDblClick,
+  handlePreviewKeydown,
   handlePreviewBlur,
   play,
   restartImageGeneration,
@@ -657,6 +756,19 @@ const {
   syncMediaItem: (mediaId) => {
     listSync.getItemsFromDb({ids: [mediaId], type: 'media'})
   },
+})
+
+watch(() => gridBigPreview.isVisual.value, (visual) => {
+  if (visual) {
+    window.addEventListener('keydown', handlePreviewKeydown)
+    return
+  }
+  window.removeEventListener('keydown', handlePreviewKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handlePreviewKeydown)
+  stopTimelineScrub()
 })
 
 useItemPreviewLifecycle({

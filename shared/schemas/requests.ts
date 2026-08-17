@@ -81,6 +81,11 @@ export const MediaDuplicateGroupsRequestSchema = z.object({
   mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),
 })
 
+export const MediaFolderBrowseRequestSchema = z.object({
+  path: z.string().nullable().optional(),
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+}).passthrough()
+
 export const MediaThumbsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).optional(),
   mediaType: z.string().optional(),

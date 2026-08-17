@@ -2829,6 +2829,8 @@ const ru = {
       drop_video_or_folder: 'Перетащите видео, файлы или папку, чтобы добавить их',
       mute: 'Выключить звук',
       unmute: 'Включить звук',
+      close_hint: 'Нажмите, чтобы закрыть',
+      options_hint: 'ПКМ — звук и размер',
       big_preview_size: {
         title: 'Размер превью',
         original: 'Оригинал',

@@ -33,15 +33,28 @@ import {
   parseMediaCountWithTag,
   parseMediaIdsResponse,
   parseMediaListResponse,
+  parseMediaFolderBrowseResponse,
   parseVideoMetadata,
 } from '@shared/schemas'
 import { validated } from './validate'
+
+export type MediaFolderBrowseRequest = {
+  path?: string | null
+  mediaTypeId?: number | null
+}
 
 export const mediaApi = {
   getMediaItems(body: ItemsListRequest) {
     return apiClient.post<MediaListResponseData>(API_ROUTES.mediaItems, body).then((res) => ({
       ...res,
       data: validated(parseMediaListResponse, res.data),
+    }))
+  },
+
+  folderBrowse(body: MediaFolderBrowseRequest = {}) {
+    return apiClient.post(API_ROUTES.mediaFolderBrowse, body).then((res) => ({
+      ...res,
+      data: validated(parseMediaFolderBrowseResponse, res.data),
     }))
   },
 

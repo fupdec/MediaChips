@@ -363,6 +363,15 @@ export function useCommandPaletteCommands(options: {
       })
     }
 
+    list.push({
+      id: 'nav-folders',
+      title: t('navigation.folders'),
+      icon: 'mdi-folder-outline',
+      group: 'navigation',
+      keywords: ['folder', 'directory', 'finder', 'explorer', 'path'],
+      run: () => { void router.push('/folders') },
+    })
+
     if (nav.showMarkers.value) {
       list.push({
         id: 'nav-markers',

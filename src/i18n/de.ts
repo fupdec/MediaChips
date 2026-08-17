@@ -2816,6 +2816,8 @@ const de = {
       drop_video_or_folder: 'Legen Sie Videos oder Dateien ab, um sie hinzuzufügen',
       mute: 'Stumm',
       unmute: 'Stummschaltung aufheben',
+      close_hint: 'Klicken zum Schließen',
+      options_hint: 'Rechtsklick für Optionen',
       big_preview_size: {
         title: 'Vorschaugröße',
         original: 'Original',

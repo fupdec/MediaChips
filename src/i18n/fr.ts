@@ -2816,6 +2816,8 @@ const fr = {
       drop_video_or_folder: 'Déposez des vidéos ou des fichiers pour les ajouter',
       mute: 'Muet',
       unmute: 'Activer le son',
+      close_hint: 'Cliquer pour fermer',
+      options_hint: 'Clic droit pour les options',
       big_preview_size: {
         title: 'Taille de l\'aperçu',
         original: 'Originale',

@@ -19,6 +19,7 @@ const CHIP_ROW_HEIGHT: Record<number, number> = {
 }
 
 const GAP_SIZE: Record<string, { x: number; y: number }> = {
+  compact: { x: 8, y: 8 },
   xs: { x: 10, y: 15 },
   s: { x: 15, y: 20 },
   m: { x: 20, y: 25 },

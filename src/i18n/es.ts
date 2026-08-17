@@ -2816,6 +2816,8 @@ const es = {
       drop_video_or_folder: 'Suelte un video, archivos o carpeta para agregarlos',
       mute: 'Silenciar',
       unmute: 'Activar sonido',
+      close_hint: 'Clic para cerrar',
+      options_hint: 'Clic derecho para opciones',
       big_preview_size: {
         title: 'Tamaño de vista previa',
         original: 'Original',

@@ -2816,6 +2816,8 @@ const ja = {
       drop_video_or_folder: 'ビデオまたはファイルをドロップして追加します',
       mute: 'ミュート',
       unmute: 'ミュートを解除する',
+      close_hint: 'クリックで閉じる',
+      options_hint: '右クリックでオプション',
       big_preview_size: {
         title: 'プレビューサイズ',
         original: 'オリジナル',
