@@ -58,6 +58,19 @@
         <span class="toolbar-appearance__deck-label">{{ t('items.view_type') }}</span>
         <ItemsView dense/>
       </div>
+
+      <v-spacer/>
+
+      <v-btn
+        @click="closePanel"
+        size="small"
+        icon
+        variant="text"
+        color="primary"
+        class="toolbar-appearance__close-btn"
+      >
+        <v-icon size="18">mdi-close</v-icon>
+      </v-btn>
     </div>
 
     <!-- Classic / standalone card layout -->
@@ -168,6 +181,7 @@ import {useItemsStore} from '@/stores/items'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
+import {useToolbarStore} from '@/stores/toolbar'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ItemsView from '@/components/app/appbar/elements/ItemsView.vue'
@@ -186,6 +200,7 @@ defineProps({
 
 const itemsStore = useItemsStore()
 const mediaTypesStore = useAppStore().mediaTypes
+const toolbarStore = useToolbarStore()
 const metaStore = useAppStore().meta
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
@@ -224,6 +239,10 @@ const updatePinnedMeta = () => {
 const closePinnedMetaDialog = () => {
   dialogEditingPinnedMeta.value = false
   updatePinnedMeta()
+}
+
+const closePanel = () => {
+  toolbarStore.appearance.show = false
 }
 </script>
 
@@ -277,6 +296,18 @@ const closePinnedMetaDialog = () => {
     gap: 12px 14px;
     padding: 10px 14px;
     background: rgba(var(--v-theme-primary), 0.03);
+    border: 1px solid rgba(var(--v-theme-primary), 0.18);
+    border-radius: 14px;
+    margin: 6px 10px 8px;
+  }
+
+  &__close-btn {
+    align-self: flex-start;
+    opacity: 0.6;
+
+    &:hover {
+      opacity: 1;
+    }
   }
 
   &__deck-group {
@@ -288,7 +319,7 @@ const closePinnedMetaDialog = () => {
 
     & + & {
       padding-left: 14px;
-      border-left: 1px solid rgba(var(--v-theme-primary), 0.12);
+      border-left: 1px solid rgba(var(--v-theme-primary), 0.22);
     }
 
     &--view {
@@ -313,7 +344,7 @@ const closePinnedMetaDialog = () => {
     padding: 2px;
     border-radius: 999px;
     background: rgba(var(--v-theme-surface), 0.9);
-    border: 1px solid rgba(var(--v-theme-primary), 0.12);
+    border: 1px solid rgba(var(--v-theme-primary), 0.22);
   }
 
   &__deck-opt {
