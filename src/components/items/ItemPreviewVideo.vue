@@ -23,7 +23,7 @@
         v-ripple="gridBigPreview.isExpanded.value ? false : { class: `text-primary` }"
         :aspect-ratio="16 / 9"
         class="video-preview-container"
-        :class="[previewContainerClasses, { 'video-preview-container--chrome-hidden': chromeHidden }]"
+        :class="[previewContainerClasses, { 'video-preview-container--chrome-hidden': chromeHidden, 'video-preview-container--darwin-electron': isDarwinElectron && !isDarwinFullscreen }]"
         :style="previewAppearStyle"
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
@@ -299,7 +299,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onBeforeUnmount} from 'vue'
+import {ref, computed, watch, onBeforeUnmount, onMounted} from 'vue'
 import type {ComponentPublicInstance} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -327,6 +327,8 @@ import {useItemPreviewLifecycle} from '@/composable/useItemPreviewLifecycle'
 import {useItemPreviewTimelineFrames} from '@/composable/useItemPreviewTimelineFrames'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
+import {subscribeElectronIpc} from '@/utils/electronIpc'
+import {detectAppPlatform} from '@/composable/useAppPlatform'
 import type {MediaItem} from '@/types/stores'
 import type {HoverSessionTimeoutMap} from '@/composable/useItemPreviewHoverSession'
 
@@ -360,6 +362,27 @@ const eventBus = useEventBus()
 const listSync = useItemsListSync()
 const {t} = useI18n()
 const gridBigPreview = useVideoBigPreview()
+
+/* macOS — avoid overlapping traffic-light window controls in Electron */
+const platform = detectAppPlatform()
+const isDarwinElectron = computed(() => platform.isMac && platform.isElectron)
+const isDarwinFullscreen = ref(false)
+
+let unsubscribeEnterFs: (() => void) | undefined
+let unsubscribeLeaveFs: (() => void) | undefined
+
+async function syncDarwinFullscreen() {
+  if (!platform.isElectron || !window.electronAPI?.invoke) return
+  try {
+    const value = await window.electronAPI.invoke('isMainFullscreen')
+    isDarwinFullscreen.value = value === true
+  } catch {
+    // keep last known state
+  }
+}
+
+const handleEnterFullScreen = () => { isDarwinFullscreen.value = true }
+const handleLeaveFullScreen = () => { isDarwinFullscreen.value = false }
 
 const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
@@ -766,9 +789,17 @@ watch(() => gridBigPreview.isVisual.value, (visual) => {
   window.removeEventListener('keydown', handlePreviewKeydown)
 })
 
+onMounted(() => {
+  void syncDarwinFullscreen()
+  unsubscribeEnterFs = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
+  unsubscribeLeaveFs = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
+})
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handlePreviewKeydown)
   stopTimelineScrub()
+  unsubscribeEnterFs?.()
+  unsubscribeLeaveFs?.()
 })
 
 useItemPreviewLifecycle({

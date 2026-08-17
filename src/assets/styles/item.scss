@@ -1721,6 +1721,13 @@ body > .video-preview-container.video-preview-container--expanded {
   z-index: 3000;
 }
 
+/* macOS Electron: push chrome-top right past traffic-light window controls */
+.video-preview-container--darwin-electron.video-preview-container--expanded {
+  .big-preview-chrome__top {
+    padding-left: calc(var(--big-preview-pad-x) + 70px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .video-preview-container.video-preview-container--expanded {
     &::before,
