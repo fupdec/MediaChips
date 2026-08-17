@@ -2216,6 +2216,24 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
+// Non-video media list previews: square, sized from the row height just like
+// tags below. Video keeps its wider 16:9 column.
+.item-media.item-view-5 {
+  @for $i from 1 through 6 {
+    &.item__size-#{$i} .item_preview {
+      width: auto;
+      height: 100%;
+      aspect-ratio: 1;
+    }
+  }
+
+  // Video: keep 16:9.
+  .item_preview:has(.video-preview-container),
+  .item_preview:has(.video-preview-host) {
+    aspect-ratio: 16 / 9;
+  }
+}
+
 .item-tag.item-view-5 {
   @for $i from 1 through 6 {
     &.item__size-#{$i} .item_preview {
@@ -2224,6 +2242,11 @@ body > .video-preview-container.video-preview-container--expanded {
       aspect-ratio: var(--tag-preview-aspect, 1);
     }
   }
+}
+
+// Give tag list rows a visible surface background (view-5 item_wrapper is transparent by default).
+.item-tag.item-view-5 .item_wrapper {
+  background: rgb(var(--v-theme-surface));
 }
 
 .item-media.item-view-3 {
