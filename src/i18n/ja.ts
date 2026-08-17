@@ -456,6 +456,7 @@ const ja = {
   navigation: {
     home: '家',
     playlists: 'プレイリスト',
+    folders: 'フォルダー',
     markers: 'マーカー',
     settings: '設定',
     all_tags: 'すべてのタグ',
@@ -464,6 +465,10 @@ const ja = {
     section_system: 'システム',
     hidden: '隠れた',
     show_hidden: '非表示を表示 ({count})',
+    edit_library: 'ライブラリを編集',
+    done_editing_library: '完了',
+    reorder_library_hint: 'ドラッグして並べ替えます。目のアイコンでナビゲーションから非表示にできます。',
+    reorder_library_item: 'ドラッグして並べ替え',
   },
   commandPalette: {
     title: 'コマンドパレット',
@@ -822,6 +827,8 @@ const ja = {
   },
   feature_hints: {
     got_it: 'わかった',
+    edit_library_nav_title: 'ライブラリメニューをカスタマイズ',
+    edit_library_nav_body: '鉛筆アイコンでライブラリ項目の並べ替えや非表示ができます。',
     drag_tags_title: 'カード間でタグをドラッグ',
     drag_tags_body: 'タグを別のカードにドラッグするとコピーできます。Shift を押しながらドロップすると移動します。',
   },

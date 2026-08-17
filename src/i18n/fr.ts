@@ -456,6 +456,7 @@ const fr = {
   navigation: {
     home: 'Accueil',
     playlists: 'Listes de lecture',
+    folders: 'Dossiers',
     markers: 'Marqueurs',
     settings: 'Paramètres',
     all_tags: 'Tous les tags',
@@ -464,6 +465,10 @@ const fr = {
     section_system: 'Système',
     hidden: 'Caché',
     show_hidden: 'Afficher masqué ({count})',
+    edit_library: 'Modifier la bibliothèque',
+    done_editing_library: 'Terminé',
+    reorder_library_hint: 'Faites glisser pour réorganiser. Utilisez l’icône en forme d’œil pour masquer de la navigation.',
+    reorder_library_item: 'Faire glisser pour réorganiser',
   },
   commandPalette: {
     title: 'Palette de commandes',
@@ -822,6 +827,8 @@ const fr = {
   },
   feature_hints: {
     got_it: 'Compris',
+    edit_library_nav_title: 'Personnaliser le menu Bibliothèque',
+    edit_library_nav_body: 'Utilisez le crayon pour réordonner les éléments et masquer ceux dont vous n’avez pas besoin.',
     drag_tags_title: 'Glisser des tags entre cartes',
     drag_tags_body: 'Glissez un tag sur une autre carte pour le copier. Maintenez Maj en relâchant pour le déplacer.',
   },

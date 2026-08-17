@@ -95,6 +95,10 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "library_nav_config",
+    "value": ""
+  },
+  {
     "option": "numberOfPagesLimit",
     "value": 7
   },

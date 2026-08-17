@@ -456,6 +456,7 @@ const ru = {
   navigation: {
     home: 'Главная',
     playlists: 'Плейлисты',
+    folders: 'Папки',
     markers: 'Маркеры',
     settings: 'Настройки',
     all_tags: 'Все теги',
@@ -464,6 +465,19 @@ const ru = {
     section_system: 'Система',
     hidden: 'Скрытые',
     show_hidden: 'Показать скрытые ({count})',
+    edit_library: 'Редактировать библиотеку',
+    done_editing_library: 'Готово',
+    reorder_library_hint: 'Перетащите, чтобы изменить порядок. Глаз скрывает из навигации.',
+    reorder_library_item: 'Перетянуть для смены порядка',
+  },
+  folders_browser: {
+    roots: 'Папки библиотеки',
+    up: 'Наверх',
+    all_types: 'Все',
+    empty_library: 'В библиотеке пока нет медиа. Добавьте файлы, чтобы смотреть по папкам.',
+    empty_folder: 'В этой папке нет индексированных файлов или подпапок.',
+    media_count: '{count} файлов',
+    loading: 'Загрузка…',
   },
   commandPalette: {
     title: 'Палитра команд',
@@ -822,6 +836,8 @@ const ru = {
   },
   feature_hints: {
     got_it: 'Понятно',
+    edit_library_nav_title: 'Настройте меню Библиотека',
+    edit_library_nav_body: 'Нажмите карандаш, чтобы менять порядок пунктов и скрывать ненужные.',
     drag_tags_title: 'Перетаскивание тегов',
     drag_tags_body: 'Перетащите тег на другую карточку, чтобы скопировать его. Удерживайте Shift при отпускании, чтобы переместить тег.',
   },

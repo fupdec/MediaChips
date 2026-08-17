@@ -456,6 +456,7 @@ const pt = {
   navigation: {
     home: 'Página inicial',
     playlists: 'Listas de reprodução',
+    folders: 'Pastas',
     markers: 'Marcadores',
     settings: 'Configurações',
     all_tags: 'Todas as tags',
@@ -464,6 +465,10 @@ const pt = {
     section_system: 'Sistema',
     hidden: 'Oculto',
     show_hidden: 'Mostrar oculto ({count})',
+    edit_library: 'Editar biblioteca',
+    done_editing_library: 'Concluído',
+    reorder_library_hint: 'Arraste para reordenar. Use o ícone de olho para ocultar da navegação.',
+    reorder_library_item: 'Arraste para reordenar',
   },
   commandPalette: {
     title: 'Paleta de comandos',
@@ -822,6 +827,8 @@ const pt = {
   },
   feature_hints: {
     got_it: 'Entendi',
+    edit_library_nav_title: 'Personalize o menu Biblioteca',
+    edit_library_nav_body: 'Use o lápis para reordenar os itens da Biblioteca e ocultar os que não precisa.',
     drag_tags_title: 'Arrastar tags entre cartões',
     drag_tags_body: 'Arraste uma tag para outro cartão para copiá-la. Segure Shift ao soltar para mover a tag.',
   },

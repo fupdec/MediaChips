@@ -456,6 +456,7 @@ const es = {
   navigation: {
     home: 'Inicio',
     playlists: 'Listas de reproducción',
+    folders: 'Carpetas',
     markers: 'Marcadores',
     settings: 'Configuración',
     all_tags: 'Todas las etiquetas',
@@ -464,6 +465,10 @@ const es = {
     section_system: 'Sistema',
     hidden: 'Ocultos',
     show_hidden: 'Mostrar ocultos ({count})',
+    edit_library: 'Editar biblioteca',
+    done_editing_library: 'Hecho',
+    reorder_library_hint: 'Arrastra para reordenar. Usa el icono de ojo para ocultar de la navegación.',
+    reorder_library_item: 'Arrastra para reordenar',
   },
   commandPalette: {
     title: 'Paleta de comandos',
@@ -822,6 +827,8 @@ const es = {
   },
   feature_hints: {
     got_it: 'Entendido',
+    edit_library_nav_title: 'Personaliza el menú Biblioteca',
+    edit_library_nav_body: 'Usa el lápiz para reordenar los elementos e ocultar los que no necesites.',
     drag_tags_title: 'Arrastrar etiquetas entre tarjetas',
     drag_tags_body: 'Arrastre una etiqueta a otra tarjeta para copiarla. Mantenga Mayús al soltar para moverla.',
   },

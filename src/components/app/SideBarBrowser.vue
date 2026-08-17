@@ -211,40 +211,110 @@
         >
           <div class="sidebar-section sidebar-section--actions sidebar-section--library">
             <span class="sidebar-section__label">{{ t('navigation.section_library') }}</span>
-            <v-btn
-              icon
-              size="x-small"
-              variant="text"
-              :aria-label="t('browser_layout.collapse_sidebar')"
-              @click="toggleCollapsed"
-            >
-              <v-tooltip activator="parent" location="bottom">
-                <span class="d-inline-flex align-center ga-2">
-                  <span>{{ t('browser_layout.collapse_sidebar') }}</span>
-                  <v-hotkey keys="b" variant="flat"/>
-                </span>
-              </v-tooltip>
-              <v-icon size="16">mdi-chevron-left</v-icon>
-            </v-btn>
+            <div class="sidebar-section__actions">
+              <v-btn
+                icon
+                size="x-small"
+                data-feature-hint="edit-library-nav"
+                :variant="libraryEditMode ? 'flat' : 'text'"
+                :color="libraryEditMode ? 'primary' : undefined"
+                :aria-label="libraryEditMode
+                  ? t('navigation.done_editing_library')
+                  : t('navigation.edit_library')"
+                :title="libraryEditMode
+                  ? t('navigation.done_editing_library')
+                  : t('navigation.edit_library')"
+                @click="libraryEditMode = !libraryEditMode"
+              >
+                <v-icon size="16">
+                  {{ libraryEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="t('browser_layout.collapse_sidebar')"
+                @click="toggleCollapsed"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  <span class="d-inline-flex align-center ga-2">
+                    <span>{{ t('browser_layout.collapse_sidebar') }}</span>
+                    <v-hotkey keys="b" variant="flat"/>
+                  </span>
+                </v-tooltip>
+                <v-icon size="16">mdi-chevron-left</v-icon>
+              </v-btn>
+            </div>
           </div>
 
-          <v-list-item
-            v-for="link in libraryLinks"
-            :key="link.key"
-            :to="link.to"
-            :prepend-icon="link.icon"
-            :title="link.title"
-            :exact="link.exact"
-            color="primary"
-            link
+          <Draggable
+            v-model="libraryEditRows"
+            item-key="key"
+            handle=".sidebar-browser__library-drag"
+            :animation="200"
+            ghost-class="sidebar-browser__library-ghost"
+            :disabled="!libraryEditMode"
+            @start="libraryDragging = true"
+            @end="onLibraryReorderEnd"
           >
-            <template
-              v-if="navCount(link.key) != null"
-              #append
-            >
-              <span class="sidebar-browser__nav-count">{{ navCount(link.key) }}</span>
+            <template #item="{element: link}">
+              <v-list-item
+                v-show="libraryEditMode || !link.hidden"
+                :to="libraryEditMode ? undefined : link.to"
+                :title="link.title"
+                :exact="link.exact"
+                :ripple="!libraryEditMode"
+                color="primary"
+                :link="!libraryEditMode"
+                class="sidebar-browser__library-item"
+                :class="{
+                  'sidebar-browser__library-item--editing': libraryEditMode,
+                  'sidebar-browser__library-item--hidden': link.hidden,
+                }"
+              >
+                <template #prepend>
+                  <v-icon
+                    v-if="libraryEditMode"
+                    size="16"
+                    class="sidebar-browser__library-drag text-medium-emphasis"
+                    :aria-label="t('navigation.reorder_library_item')"
+                  >
+                    mdi-drag-vertical
+                  </v-icon>
+                  <v-icon
+                    :icon="link.icon"
+                    size="24"
+                  />
+                </template>
+                <template
+                  v-if="!libraryEditMode && navCount(link.key) != null"
+                  #append
+                >
+                  <span class="sidebar-browser__nav-count">{{ navCount(link.key) }}</span>
+                </template>
+                <template
+                  v-else-if="libraryEditMode"
+                  #append
+                >
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    :aria-label="link.hidden
+                      ? t('meta.settings.show_in_navigation')
+                      : t('meta.settings.hide_in_navigation')"
+                    :disabled="togglingLibraryKey === link.key"
+                    @click.stop="onToggleLibraryHidden(link.key)"
+                  >
+                    <v-icon size="16">
+                      {{ link.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
+                    </v-icon>
+                  </v-btn>
+                </template>
+              </v-list-item>
             </template>
-          </v-list-item>
+          </Draggable>
 
           <template v-if="metaArray.length">
             <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
@@ -372,7 +442,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, onMounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -380,11 +450,21 @@ import {useItemsStore} from '@/stores/items'
 import {useMarksStore} from '@/stores/marks'
 import {useSettingsStore} from '@/stores/settings'
 import {setOption} from '@/services/settingsService'
-import {useLibraryNavItems, type LibraryNavLink} from '@/composable/useLibraryNavItems'
+import {
+  useLibraryNavItems,
+  type LibraryNavEditItem,
+  type LibraryNavLink,
+} from '@/composable/useLibraryNavItems'
 import {typedApi} from '@/services/typedApi'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
+
 const tagsEditMode = ref(false)
+const libraryEditMode = ref(false)
+const libraryDragging = ref(false)
+const libraryEditRows = ref<LibraryNavEditItem[]>([])
+const togglingLibraryKey = ref<string | null>(null)
 const tagsAllExpanded = ref(true)
 const inboxHovered = ref(false)
 const tagsBrowserRef = ref<{
@@ -431,6 +511,7 @@ const {
   metaVisible,
   mediaTypes,
   libraryLinks,
+  libraryEditItems,
   settingsLink,
   allTagsLink,
   trashLink,
@@ -442,11 +523,49 @@ const {
   watcherBusy,
   openInbox,
   openTrash,
+  setLibraryNavOrder,
+  toggleLibraryNavHidden,
 } = useLibraryNavItems()
 
 const metaCategoryLinks = computed(() =>
   metaVisible.value.map((meta) => metaLink(meta)),
 )
+
+function libraryEditItemsEqual(a: LibraryNavEditItem[], b: LibraryNavEditItem[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].key !== b[i].key) return false
+    if (a[i].hidden !== b[i].hidden) return false
+    if (a[i].title !== b[i].title) return false
+    if (a[i].icon !== b[i].icon) return false
+  }
+  return true
+}
+
+watch(
+  libraryEditItems,
+  (items) => {
+    if (libraryDragging.value) return
+    if (libraryEditItemsEqual(libraryEditRows.value, items)) return
+    libraryEditRows.value = items.map((item) => ({...item}))
+  },
+  {immediate: true},
+)
+
+async function onLibraryReorderEnd(): Promise<void> {
+  libraryDragging.value = false
+  await setLibraryNavOrder(libraryEditRows.value.map((item) => item.key))
+}
+
+async function onToggleLibraryHidden(key: string): Promise<void> {
+  if (togglingLibraryKey.value === key) return
+  togglingLibraryKey.value = key
+  try {
+    await toggleLibraryNavHidden(key)
+  } finally {
+    togglingLibraryKey.value = null
+  }
+}
 
 const isAllTagsActive = computed(() => route.path === '/tags')
 
@@ -723,6 +842,35 @@ watch(
 
 .sidebar-section--tags {
   margin-top: 12px;
+}
+
+.sidebar-browser__library-item--hidden {
+  opacity: 0.55;
+}
+
+.sidebar-browser__library-item--editing {
+  :deep(.v-list-item__prepend) {
+    width: auto;
+    column-gap: 2px;
+  }
+
+  :deep(.v-list-item__spacer) {
+    width: 8px;
+  }
+
+  :deep(.v-list-item__append) {
+    margin-inline-start: 4px;
+  }
+}
+
+.sidebar-browser__library-drag {
+  flex-shrink: 0;
+  cursor: grab;
+  margin-inline-end: 2px;
+}
+
+.sidebar-browser__library-ghost {
+  opacity: 0.55;
 }
 
 .sidebar-section--actions {

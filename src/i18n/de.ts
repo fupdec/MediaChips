@@ -456,6 +456,7 @@ const de = {
   navigation: {
     home: 'Zuhause',
     playlists: 'Wiedergabelisten',
+    folders: 'Ordner',
     markers: 'Markierungen',
     settings: 'Einstellungen',
     all_tags: 'Alle Tags',
@@ -464,6 +465,10 @@ const de = {
     section_system: 'System',
     hidden: 'Versteckt',
     show_hidden: 'Versteckt anzeigen ({count})',
+    edit_library: 'Bibliothek bearbeiten',
+    done_editing_library: 'Fertig',
+    reorder_library_hint: 'Zum Neuanordnen ziehen. Mit dem Auge aus der Navigation ausblenden.',
+    reorder_library_item: 'Zum Neuanordnen ziehen',
   },
   commandPalette: {
     title: 'Befehlspalette',
@@ -822,6 +827,8 @@ const de = {
   },
   feature_hints: {
     got_it: 'Verstanden',
+    edit_library_nav_title: 'Bibliotheksmenü anpassen',
+    edit_library_nav_body: 'Mit dem Stift können Sie Bibliothekseinträge neu anordnen und ausblenden.',
     drag_tags_title: 'Tags zwischen Karten ziehen',
     drag_tags_body: 'Ziehen Sie einen Tag auf eine andere Karte, um ihn zu kopieren. Halten Sie beim Ablegen die Umschalttaste, um den Tag zu verschieben.',
   },

@@ -144,6 +144,11 @@ export type SettingsState = {
   sidebarCollapsed: string
   showPlaylistsInNavigation: string
   showMarkersInNavigation: string
+  /**
+   * JSON order/visibility for Library sidebar items
+   * (`home`, `folders`, `playlists`, `markers`, `media-{id}`).
+   */
+  library_nav_config: string
   /** '1' shows Trash in the app bar and sidebar / bottom navigation. */
   showTrashInNavigation: string
   numberOfPagesLimit: string
@@ -290,6 +295,7 @@ export const defaultSettingsState = (): SettingsState => ({
   sidebarCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',
+  library_nav_config: '',
   showTrashInNavigation: '1',
   numberOfPagesLimit: '7',
   gapSize: '2',

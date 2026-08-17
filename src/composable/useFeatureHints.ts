@@ -4,6 +4,8 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useElementSpotlightStore} from '@/stores/elementSpotlight'
 import {useItemsStore} from '@/stores/items'
+import {useSettingsStore} from '@/stores/settings'
+import {setOption} from '@/services/settingsService'
 import {FEATURE_HINTS, type FeatureHintDefinition} from '@/services/featureHints'
 import {
   getSeenFeatureHints,
@@ -84,11 +86,24 @@ function findNextHint(routeType: string | undefined): FeatureHintDefinition | nu
   return null
 }
 
+async function ensureSidebarExpandedForHint(hint: FeatureHintDefinition): Promise<void> {
+  if (!hint.ensureSidebarExpanded) return
+
+  const settingsStore = useSettingsStore()
+  if (settingsStore.sidebarCollapsed !== '1') return
+
+  await setOption('0', 'sidebarCollapsed')
+  // Wait for SideBarBrowser to leave rail mode and mount the edit control.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  await new Promise<void>((resolve) => setTimeout(resolve, 320))
+}
+
 export function useFeatureHints(options: {isPlayerWindow: Ref<boolean>; isShellReady: Ref<boolean>}) {
   const route = useRoute()
   const appStore = useAppStore()
   const dialogsStore = useDialogsStore()
   const itemsStore = useItemsStore()
+  const settingsStore = useSettingsStore()
   const spotlight = useElementSpotlightStore()
 
   async function dismissActiveHint(markSeen = true) {
@@ -110,6 +125,8 @@ export function useFeatureHints(options: {isPlayerWindow: Ref<boolean>; isShellR
     let presented = false
 
     try {
+      await ensureSidebarExpandedForHint(hint)
+
       const matched = await spotlight.spotlight(hint.selector, {
         durationMs: 0,
         pad: 10,
@@ -164,7 +181,11 @@ export function useFeatureHints(options: {isPlayerWindow: Ref<boolean>; isShellR
     if (!hint) return
 
     const selector = Array.isArray(hint.selector) ? hint.selector[0] : hint.selector
-    const hasTarget = document.querySelector(selector)
+    let hasTarget = Boolean(document.querySelector(selector))
+    if (!hasTarget && hint.ensureSidebarExpanded && settingsStore.sidebarCollapsed === '1') {
+      await ensureSidebarExpandedForHint(hint)
+      hasTarget = Boolean(document.querySelector(selector))
+    }
     if (!hasTarget) {
       // Media list still loading — retry once items appear (watch also covers length changes).
       if (routeType === 'media' && itemsStore.itemsOnPage.length === 0) {
@@ -185,6 +206,7 @@ export function useFeatureHints(options: {isPlayerWindow: Ref<boolean>; isShellR
       itemsStore.itemsOnPage.length,
       dialogsStore.onboarding?.show,
       dialogsStore.changelog?.show,
+      settingsStore.sidebarCollapsed,
       route.fullPath,
     ],
     () => {

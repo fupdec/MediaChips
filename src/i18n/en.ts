@@ -456,6 +456,7 @@ const en = {
   navigation: {
     home: 'Home',
     playlists: 'Playlists',
+    folders: 'Folders',
     markers: 'Markers',
     settings: 'Settings',
     all_tags: 'All tags',
@@ -464,6 +465,19 @@ const en = {
     section_system: 'System',
     hidden: 'Hidden',
     show_hidden: 'Show hidden ({count})',
+    edit_library: 'Edit library',
+    done_editing_library: 'Done',
+    reorder_library_hint: 'Drag to reorder. Use the eye to hide from navigation.',
+    reorder_library_item: 'Drag to reorder',
+  },
+  folders_browser: {
+    roots: 'Library folders',
+    up: 'Go up',
+    all_types: 'All',
+    empty_library: 'No media in the library yet. Add files to browse by folder.',
+    empty_folder: 'This folder has no indexed files or subfolders.',
+    media_count: '{count} files',
+    loading: 'Loading…',
   },
   commandPalette: {
     title: 'Command palette',
@@ -822,6 +836,8 @@ const en = {
   },
   feature_hints: {
     got_it: 'Got it',
+    edit_library_nav_title: 'Customize the Library menu',
+    edit_library_nav_body: 'Use the pencil to reorder Library items and hide the ones you do not need.',
     drag_tags_title: 'Drag tags between cards',
     drag_tags_body: 'Drag a tag onto another card to copy it. Hold Shift while dropping to move the tag instead.',
   },

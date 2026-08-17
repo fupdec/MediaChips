@@ -456,6 +456,7 @@ const cn = {
   navigation: {
     home: '首页',
     playlists: '播放列表',
+    folders: '文件夹',
     markers: '标记',
     settings: '设置',
     all_tags: '全部标签',
@@ -464,6 +465,10 @@ const cn = {
     section_system: '系统',
     hidden: '已隐藏',
     show_hidden: '显示隐藏 ({count})',
+    edit_library: '编辑媒体库',
+    done_editing_library: '完成',
+    reorder_library_hint: '拖动以重新排序。使用眼睛图标可从导航中隐藏。',
+    reorder_library_item: '拖动以重新排序',
   },
   commandPalette: {
     title: '命令面板',
@@ -822,6 +827,8 @@ const cn = {
   },
   feature_hints: {
     got_it: '知道了',
+    edit_library_nav_title: '自定义媒体库菜单',
+    edit_library_nav_body: '点击铅笔图标可调整媒体库项目顺序，并隐藏不需要的项。',
     drag_tags_title: '在卡片间拖放标签',
     drag_tags_body: '将标签拖到另一张卡片即可复制。按住 Shift 再放下可移动标签。',
   },
