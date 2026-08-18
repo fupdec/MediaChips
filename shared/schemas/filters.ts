@@ -12,6 +12,7 @@ export const SavedFilterSchema = z.object({
   view: z.union([z.number(), z.string()]).nullable().optional(),
   groupBy: z.string().nullable().optional(),
   filtersJoin: z.enum(['and', 'or']).nullable().optional(),
+  icon: z.string().nullable().optional(),
 }).passthrough()
 
 export const DynamicPlaylistSummarySchema = z.object({

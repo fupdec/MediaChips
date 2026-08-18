@@ -40,6 +40,7 @@ export interface SavedFilter {
   view?: number | string | null
   groupBy?: string | null
   filtersJoin?: 'and' | 'or' | null
+  icon?: string | null
   [key: string]: unknown
 }
 

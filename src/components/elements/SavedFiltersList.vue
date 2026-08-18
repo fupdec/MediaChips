@@ -12,7 +12,7 @@
       @keydown.space.prevent="handleClick(filter)"
     >
       <div class="saved-filter-card__icon" aria-hidden="true">
-        <v-icon size="20" icon="mdi-bookmark-outline"/>
+        <v-icon size="20" :icon="`mdi-${filter.icon || 'bookmark'}`"/>
       </div>
 
       <div class="saved-filter-card__meta">
@@ -156,12 +156,6 @@ function translateSortBy(sortBy: string): string {
   return found?.textKey ? t(found.textKey) : sortBy
 }
 
-function translateSortDir(sortDir: string | null | undefined): string {
-  if (sortDir === 'asc') return t('filters.sort.ascending')
-  if (sortDir === 'desc') return t('filters.sort.descending')
-  return String(sortDir || '').trim()
-}
-
 function translateGroupBy(groupBy: string): string {
   const parsed = parseGroupBySetting(groupBy)
   const found = BASE_GROUP_BY_OPTIONS.find((option) => option.groupBy === parsed.groupBy)
@@ -197,7 +191,6 @@ function layoutMeta(filter: SavedFilter): LayoutMetaPart[] {
       icon: 'mdi-sort-variant',
       label: t('filters.saved_view_sort', {
         sort: translateSortBy(layout.sortBy),
-        dir: translateSortDir(layout.sortDir),
       }),
     })
   }

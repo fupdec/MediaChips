@@ -851,7 +851,7 @@ const addFilterRows = async (filterId: number | null | undefined, isSavedFilter 
   }
 }
 
-const saveCurrentAsNamed = async (name: string) => {
+const saveCurrentAsNamed = async (name: string, icon?: string) => {
   const trimmed = String(name || '').trim()
   if (!trimmed) return
 
@@ -871,6 +871,7 @@ const saveCurrentAsNamed = async (name: string) => {
       view: layout.view == null ? null : Number(layout.view),
       groupBy: layout.groupBy,
       filtersJoin: layout.filtersJoin,
+      icon: icon ?? null,
     })
     const data = response.data
     savedFilter = Array.isArray(data) ? data[0] : data

@@ -10,7 +10,7 @@ export type SavedFilterInsert = typeof savedFilters.$inferInsert
 
 const SAVED_FILTER_MUTABLE_COLUMNS = new Set([
   'name', 'metaId', 'mediaTypeId', 'tagId', 'tabId',
-  'sortBy', 'sortDir', 'size', 'view', 'groupBy', 'filtersJoin',
+  'sortBy', 'sortDir', 'size', 'view', 'groupBy', 'filtersJoin', 'icon',
 ])
 
 function pickSavedFilterFields(data: Record<string, unknown>): Partial<SavedFilterInsert> {
@@ -56,6 +56,7 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
           view: nullableNumber(data.view),
           groupBy: nullableText(data.groupBy),
           filtersJoin: filtersJoinValue(data.filtersJoin),
+          icon: nullableText(data.icon),
           createdAt: timestamp,
           updatedAt: timestamp,
         })

@@ -3365,7 +3365,7 @@ const fr = {
     filter_row_inactive: 'État inactif',
     saved_filters_load_hint: 'Puces remplies : filtres actifs. Contournées : mise en page (tri/groupe/taille).',
     saved_view_size: 'Taille {size}',
-    saved_view_sort: 'Tri : {sort} · {dir}',
+    saved_view_sort: 'Tri : {sort}',
     saved_view_group: 'Groupe : {group}',
     find_duplicates: 'Trouver les doublons',
     find_duplicates_within_filtered: 'Doublons dans le filtre',

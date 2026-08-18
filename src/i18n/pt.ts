@@ -3365,7 +3365,7 @@ const pt = {
     filter_row_inactive: 'Condição inativa',
     saved_filters_load_hint: 'Chips preenchidos: filtros ativos. Contornados: layout (ord./grupo/tamanho).',
     saved_view_size: 'Tamanho {size}',
-    saved_view_sort: 'Ord.: {sort} · {dir}',
+    saved_view_sort: 'Ord.: {sort}',
     saved_view_group: 'Grupo: {group}',
     find_duplicates: 'Encontrar duplicatas',
     find_duplicates_within_filtered: 'Duplicatas no filtro atual',

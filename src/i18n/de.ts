@@ -3365,7 +3365,7 @@ const de = {
     filter_row_inactive: 'Inaktiver Zustand',
     saved_filters_load_hint: 'Gefüllte Chips sind aktive Filter. Umrissene zeigen Layout (Sort./Gruppe/Größe).',
     saved_view_size: 'Größe {size}',
-    saved_view_sort: 'Sort.: {sort} · {dir}',
+    saved_view_sort: 'Sort.: {sort}',
     saved_view_group: 'Gruppe: {group}',
     find_duplicates: 'Duplikate finden',
     find_duplicates_within_filtered: 'Duplikate im Filter',

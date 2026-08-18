@@ -3365,7 +3365,7 @@ const cn = {
     filter_row_inactive: '非活动条件',
     saved_filters_load_hint: '实心芯片为活动筛选。轮廓芯片为布局（排序/分组/大小）。',
     saved_view_size: '大小 {size}',
-    saved_view_sort: '排序：{sort} · {dir}',
+    saved_view_sort: '排序：{sort}',
     saved_view_group: '分组：{group}',
     find_duplicates: '查找重复项',
     find_duplicates_within_filtered: '筛选结果中的重复项',

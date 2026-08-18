@@ -3365,7 +3365,7 @@ const es = {
     filter_row_inactive: 'Condición inactiva',
     saved_filters_load_hint: 'Chips rellenos: filtros activos. Contorneados: diseño guardado (orden/grupo/tamaño).',
     saved_view_size: 'Tamaño {size}',
-    saved_view_sort: 'Orden: {sort} · {dir}',
+    saved_view_sort: 'Orden: {sort}',
     saved_view_group: 'Grupo: {group}',
     find_duplicates: 'Buscar duplicados',
     find_duplicates_within_filtered: 'Duplicados dentro del filtrado',

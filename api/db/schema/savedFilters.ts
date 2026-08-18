@@ -16,6 +16,8 @@ export const savedFilters = sqliteTable('savedFilters', {
   groupBy: text('groupBy'),
   /** How filter rows combine: `and` (default) or `or`. */
   filtersJoin: text('filtersJoin').default('and'),
+  /** Custom icon name (without `mdi-` prefix). */
+  icon: text('icon'),
   deletedAt: text('deletedAt'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),

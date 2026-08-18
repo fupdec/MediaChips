@@ -3365,7 +3365,7 @@ const ja = {
     filter_row_inactive: '非アクティブ状態',
     saved_filters_load_hint: '塗りつぶしチップは有効なフィルター。枠線はレイアウト（並べ替え/グループ/サイズ）。',
     saved_view_size: 'サイズ {size}',
-    saved_view_sort: '並べ替え: {sort} · {dir}',
+    saved_view_sort: '並べ替え: {sort}',
     saved_view_group: 'グループ: {group}',
     find_duplicates: '重複を検索',
     find_duplicates_within_filtered: 'フィルター内の重複',

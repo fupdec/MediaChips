@@ -43,6 +43,7 @@ export default function (db: ApiDb) {
         view: req.body.view ?? null,
         groupBy: req.body.groupBy ?? null,
         filtersJoin: req.body.filtersJoin ?? null,
+        icon: req.body.icon ?? null,
       }
 
       const result = payload.name

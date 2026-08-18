@@ -250,6 +250,7 @@ export interface CreateSavedFilterPayload {
   view?: number | null
   groupBy?: string | null
   filtersJoin?: 'and' | 'or' | null
+  icon?: string | null
   [key: string]: unknown
 }
 
