@@ -90,7 +90,10 @@
         <div class="inspector-panel__scroll">
           <div
             class="inspector-panel__preview"
-            :class="{'inspector-panel__preview--clickable': Boolean(previewSrc)}"
+            :class="{
+              'inspector-panel__preview--clickable': Boolean(previewSrc),
+              'inspector-panel__preview--video': isVideoInspectorItem,
+            }"
             @click="openPreviewViewer"
           >
             <img
@@ -109,6 +112,53 @@
               <v-icon size="36" color="medium-emphasis">
                 {{ fallbackIcon }}
               </v-icon>
+            </div>
+
+            <!-- Overlay buttons for video thumbnail -->
+            <div
+              v-if="isVideoInspectorItem && previewSrc"
+              class="inspector-panel__thumb-overlay"
+              @click.stop
+            >
+              <div class="inspector-panel__thumb-overlay-actions">
+                <DialogImageEditing
+                  detached
+                  compact
+                  variant="flat"
+                  size="x-small"
+                  :icon-size="16"
+                  :image="previewSrc"
+                  :options="{aspectRatio: 16 / 9}"
+                  :image-path="videoThumbPath"
+                  :min-width="500"
+                  :min-height="281"
+                  @edited="onThumbEdited"
+                />
+                <v-btn
+                  size="x-small"
+                  variant="flat"
+                  color="primary"
+                  icon
+                  v-tooltip:top="t('image.create_thumb_random')"
+                  :loading="isCreatingThumb === 'random'"
+                  :disabled="!canCreateThumb || isCreatingThumb != null"
+                  @click="createVideoThumb('random')"
+                >
+                  <v-icon size="16">mdi-dice-5-outline</v-icon>
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  variant="flat"
+                  color="primary"
+                  icon
+                  v-tooltip:top="t('image.create_thumb_default')"
+                  :loading="isCreatingThumb === 'default'"
+                  :disabled="!canCreateThumb || isCreatingThumb != null"
+                  @click="createVideoThumb('default')"
+                >
+                  <v-icon size="16">mdi-image-frame</v-icon>
+                </v-btn>
+              </div>
             </div>
           </div>
 
@@ -341,7 +391,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onUnmounted, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, onUnmounted, ref, watch} from 'vue'
 import path from 'path-browserify'
 import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
@@ -356,7 +406,7 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {setOption} from '@/services/settingsService'
-import {checkFileExists} from '@/services/fileService'
+import {checkFileExists, buildLocalFileUrl} from '@/services/fileService'
 import {typedApi} from '@/services/typedApi'
 import {
   getReadableBitrate,
@@ -376,6 +426,8 @@ import {
   resolveTagThumbDisplayUrl,
   isThumbUnavailable,
 } from '@/utils/thumbSource'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
+import {setNotification} from '@/services/notificationService'
 import type {MediaItem, Tag} from '@/types/stores'
 
 const props = withDefaults(defineProps<{
@@ -406,6 +458,10 @@ const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
 const winElectronUi = isWinElectronUi()
+
+const DialogImageEditing = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogImageEditing.vue'),
+)
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
 const inlineEdit = computed(() => settingsStore.inspectorInlineEdit !== '0')
@@ -475,6 +531,52 @@ const mediaType = computed(() => {
 })
 
 const mediaPath = computed(() => String(focusedMedia.value?.path || ''))
+
+const isVideoInspectorItem = computed(() =>
+  !isTag.value &&
+  focusedMedia.value != null &&
+  isVideoMediaType(mediaType.value ?? undefined),
+)
+
+const isCreatingThumb = ref<'random' | 'default' | null>(null)
+
+const canCreateThumb = computed(() =>
+  Boolean(focusedMedia.value?.id != null && focusedMedia.value?.path),
+)
+
+async function createVideoThumb(mode: 'random' | 'default') {
+  const media = focusedMedia.value
+  if (!media?.id || !media.path || isCreatingThumb.value) return
+
+  isCreatingThumb.value = mode
+  try {
+    await typedApi.taskCreateThumbForVideo({
+      path: media.path,
+      id: media.id,
+      seekRatio: mode === 'random' ? Math.random() : 0.5,
+    })
+    invalidateVideoThumbCaches(media.id)
+    thumbFailed.value = false
+    itemsStore.refreshThumb(media.id)
+  } catch (e) {
+    console.error(e)
+    setNotification({
+      title: t('player.video_thumb_not_updated'),
+      text: String(e),
+      icon: 'image',
+      type: 'error',
+    })
+  } finally {
+    isCreatingThumb.value = null
+  }
+}
+
+function onThumbEdited() {
+  if (!focusedMedia.value) return
+  invalidateVideoThumbCaches(focusedMedia.value.id)
+  thumbFailed.value = false
+  itemsStore.refreshThumb(focusedMedia.value.id)
+}
 
 const tagSynonyms = computed(() => {
   if (!focusedTag.value?.synonyms) return ''
@@ -627,14 +729,33 @@ const mediaThumbSrc = computed(() => {
   if (!focusedMedia.value || thumbFailed.value) return null
   if (!appStore.mediaPath) return null
 
+  const id = focusedMedia.value.id
+  // Reactive dependency: recompute when a thumbnail is regenerated/edited.
+  const bust = itemsStore.thumbRefreshKeys[Number(id)] ?? 0
+
   let folder = 'videos'
   if (isImageMediaType(mediaType.value ?? undefined)) folder = 'images'
   else if (isAudioMediaType(mediaType.value ?? undefined)) folder = 'audio'
   else if (isTextMediaType(mediaType.value ?? undefined)) folder = 'text'
   else if (!isVideoMediaType(mediaType.value ?? undefined)) folder = 'videos'
 
-  const url = resolveMediaThumbDisplayUrl(appStore.mediaPath, folder, focusedMedia.value.id)
+  if (isVideoMediaType(mediaType.value ?? undefined)) {
+    return buildLocalFileUrl(
+      path.join(appStore.mediaPath, folder, 'thumbs', `${id}.jpg`),
+      false,
+      bust,
+    )
+  }
+
+  const url = resolveMediaThumbDisplayUrl(appStore.mediaPath, folder, id)
   return url && !isThumbUnavailable(url) ? url : null
+})
+
+/** Absolute path to the video's thumbnail file, used by the image editor. */
+const videoThumbPath = computed(() => {
+  const media = focusedMedia.value
+  if (!media?.id || !appStore.mediaPath) return ''
+  return path.join(appStore.mediaPath, 'videos', 'thumbs', `${media.id}.jpg`)
 })
 
 const previewSrc = computed(() => {
@@ -936,6 +1057,38 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
   &--clickable {
     cursor: zoom-in;
+  }
+
+  &--video {
+    position: relative;
+    background: #000;
+  }
+}
+
+.inspector-panel__thumb-overlay {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.inspector-panel__thumb-overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+
+  :deep(.v-btn) {
+    background: rgba(var(--v-theme-primary), 0.55) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :deep(.v-btn:hover) {
+    background: rgba(var(--v-theme-primary), 0.75) !important;
   }
 }
 
