@@ -69,6 +69,7 @@
         :prepend-icon="showIcons ? `mdi-${field.icon}` : ''"
         :disabled="disabled"
         :rules="[numberRules]"
+        :precision="null"
         control-variant="split"
         hide-details="auto"
         clearable

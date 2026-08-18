@@ -389,6 +389,7 @@
                 :hint="isInspectorLayout ? undefined : metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 :rules="[numberRules]"
+                :precision="null"
                 control-variant="split"
                 density="compact"
                 :hide-details="fieldHideDetails"

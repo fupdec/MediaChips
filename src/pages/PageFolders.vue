@@ -222,6 +222,33 @@
             {{ mediaTypeTitle(mediaType) }}
           </v-chip>
 
+          <div
+            v-if="uniqueFolderTagChips.length"
+            class="ml-2 d-flex align-center ga-1"
+          >
+            <v-chip
+              size="x-small"
+              label
+              :color="tagFilterId == null ? 'primary' : undefined"
+              :variant="tagFilterId == null ? 'flat' : 'tonal'"
+              prepend-icon="mdi-tag-multiple-outline"
+              @click="tagFilterId = null"
+            >
+              {{ t('folders_browser.all_tags') }}
+            </v-chip>
+            <v-chip
+              v-for="chip in uniqueFolderTagChips"
+              :key="chip.tagId"
+              size="x-small"
+              label
+              :color="tagFilterId === chip.tagId ? 'primary' : undefined"
+              :variant="tagFilterId === chip.tagId ? 'flat' : 'tonal'"
+              @click="tagFilterId = tagFilterId === chip.tagId ? null : chip.tagId"
+            >
+              {{ chip.name }}
+            </v-chip>
+          </div>
+
           <template v-if="currentPath">
             <div class="folders-page__actions d-flex align-center flex-nowrap ga-1">
               <FolderTagsMenu
@@ -298,7 +325,7 @@
     </div>
 
     <div
-      v-if="!loading && !folders.length && !media.length && !searchQuery"
+      v-if="!loading && !folders.length && !media.length && !searchQuery && tagFilterId == null"
       class="folders-page__status text-medium-emphasis"
     >
       <div class="mb-3">
@@ -317,7 +344,7 @@
     </div>
 
     <div
-      v-else-if="!loading && !visibleFolders.length && !visibleMedia.length && searchQuery"
+      v-else-if="!loading && !visibleFolders.length && !visibleMedia.length && (searchQuery || tagFilterId != null)"
       class="folders-page__status text-medium-emphasis"
     >
       {{ t('folders_browser.search_empty') }}
@@ -373,12 +400,14 @@ import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useRegistrationStore} from '@/stores/registration'
 import {useContextMenu} from '@/stores/contextMenu'
+import {useDialogsStore} from '@/stores/dialogs'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
 import {useAppShell} from '@/composable/appShell'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useEventBus} from '@/utils/eventBus'
 import {typedApi} from '@/services/typedApi'
+import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -408,6 +437,7 @@ const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
 const registrationStore = useRegistrationStore()
 const contextMenuStore = useContextMenu()
+const dialogsStore = useDialogsStore()
 const appShell = useAppShell()
 const eventBus = useEventBus()
 const {setFocus, clearFocus} = useFoldersBrowserFocus()
@@ -430,6 +460,7 @@ const sort = ref<FolderBrowseSort>('name-asc')
 const listMode = ref(false)
 const showAppearancePanel = ref(false)
 const folderTagsByPath = ref<Record<string, FolderBrowseTagChip[]>>({})
+const tagFilterId = ref<number | null>(null)
 const coverUrlByMediaId = ref<Record<number, string>>({})
 const coverMediaTypeById = ref<Record<string, number>>({})
 const currentTagsMenuOpen = ref(false)
@@ -468,11 +499,25 @@ const pathFromQuery = computed((): string | null => {
 
 const canGoUp = computed(() => Boolean(currentPath.value))
 
-const filtered = computed(() => filterAndSortFolderBrowse(
-  folders.value,
-  media.value,
-  {query: searchQuery.value, sort: sort.value},
-))
+const filtered = computed(() => {
+  let result = filterAndSortFolderBrowse(
+    folders.value,
+    media.value,
+    {query: searchQuery.value, sort: sort.value},
+  )
+
+  if (tagFilterId.value != null) {
+    result = {
+      ...result,
+      folders: result.folders.filter((folder) =>
+        (folderTagsByPath.value[canonicalizeFolderTagPath(folder.path)] || [])
+          .some((chip) => chip.tagId === tagFilterId.value),
+      ),
+    }
+  }
+
+  return result
+})
 
 const visibleFolders = computed(() => filtered.value.folders)
 const visibleMedia = computed(() => filtered.value.media as MediaItem[])
@@ -487,6 +532,17 @@ const pageTitle = computed(() => {
 const currentFolderTags = computed(() => {
   if (!currentPath.value) return []
   return folderTagsByPath.value[canonicalizeFolderTagPath(currentPath.value)] || []
+})
+
+const uniqueFolderTagChips = computed(() => {
+  const byId = new Map<number, FolderBrowseTagChip>()
+  for (const folder of folders.value) {
+    const chips = folderTagsByPath.value[canonicalizeFolderTagPath(folder.path)] || []
+    for (const chip of chips) {
+      if (!byId.has(chip.tagId)) byId.set(chip.tagId, chip)
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
 })
 
 const prefetchMediaType = computed(() => {
@@ -682,28 +738,43 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
   const content: ContextMenuEntry[] = [
     {
       name: t('folders_browser.open_folder'),
+      type: 'item',
       icon: 'folder-open',
       action: () => navigateTo(folderPath),
     },
     {
       name: t('folders_browser.reveal'),
+      type: 'item',
       icon: 'folder-outline',
       action: () => revealPath(folderPath),
     },
     {
       name: t('context_menu.copy_path'),
+      type: 'item',
       icon: 'content-copy',
       action: () => { void copyToClipboard(folderPath) },
     },
     {
       name: t('media.adding.folder_tags_edit'),
+      type: 'item',
       icon: 'tag-multiple-outline',
       action: () => openTagsForPath(folderPath),
     },
     {
       name: t('folders_browser.play_all'),
+      type: 'item',
       icon: 'play',
       action: () => { void playAllInPath(folderPath) },
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
+      name: t('folders_browser.delete_folder'),
+      type: 'item',
+      icon: 'delete',
+      color: 'error',
+      action: () => { void deleteFolderWithConfirm(folderPath) },
     },
   ]
   contextMenuStore.showContextMenu({
@@ -731,6 +802,90 @@ async function openTagsForPath(folderPath: string) {
   contextTagsActivator.value?.click()
 }
 
+async function deleteFolderWithConfirm(folderPath: string) {
+  try {
+    const filter = {
+      id: null,
+      active: true,
+      lock: false,
+      note: null,
+      param: 'path',
+      type: 'string',
+      cond: 'under folder',
+      val: folderPath,
+    }
+
+    const allIds: number[] = []
+    const mediaTypesToCollect = mediaTypeId.value != null
+      ? [mediaTypeId.value]
+      : visibleMediaTypes.value.map((mt) => mt.id)
+
+    for (const mtId of mediaTypesToCollect) {
+      try {
+        const {data} = await typedApi.getMediaIds({
+          mediaTypeId: mtId,
+          filters: [filter],
+        })
+        for (const rawId of data.ids || []) {
+          const id = Number(rawId)
+          if (Number.isFinite(id) && id > 0 && !allIds.includes(id)) {
+            allIds.push(id)
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to query media for type ${mtId}`, error)
+      }
+    }
+    if (!allIds.length) {
+      setNotification({
+        type: 'info',
+        title: t('folders_browser.delete_folder_empty'),
+      })
+      return
+    }
+
+    const count = allIds.length
+    dialogsStore.confirm.variant = 'delete'
+    dialogsStore.confirm.checkBox = false
+    dialogsStore.confirm.checkBox2 = false
+    dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
+    dialogsStore.confirm.checkBox2Text = t('actions.also_delete_files')
+    dialogsStore.confirm.checkBox2RequiresPrimary = true
+    dialogsStore.confirm.text = t('folders_browser.delete_folder_confirm', {count, path: folderPath})
+    dialogsStore.confirm.action = async () => {
+      const permanent = Boolean(dialogsStore.confirm.checkBox)
+      const withFile = Boolean(dialogsStore.confirm.checkBox2)
+      let deleted = 0
+      for (const id of allIds) {
+        try {
+          await typedApi.deleteEntityOne('media', {
+            id,
+            with_file: withFile,
+            permanent,
+          })
+          deleted += 1
+        } catch (error) {
+          console.error('Failed to delete media', id, error)
+        }
+      }
+      setNotification({
+        type: 'success',
+        title: permanent
+          ? t('folders_browser.delete_folder_done', {count: deleted})
+          : t('notifications_text.items_moved_to_trash'),
+      })
+      await loadFolder()
+    }
+    dialogsStore.confirm.show = true
+  } catch (error) {
+    console.error('Failed to query folder media', error)
+    setNotification({
+      type: 'error',
+      title: t('folders_browser.delete_folder_error'),
+    })
+  }
+}
+
 watch(
   () => [pathFromQuery.value, mediaTypeId.value, appStore.is_app_ready] as const,
   () => {
@@ -738,6 +893,12 @@ watch(
   },
   {immediate: true},
 )
+
+watch(uniqueFolderTagChips, (chips) => {
+  if (tagFilterId.value != null && !chips.some((chip) => chip.tagId === tagFilterId.value)) {
+    tagFilterId.value = null
+  }
+})
 
 watch(visibleMedia, (items) => {
   syncPlaylist(items)

@@ -30,6 +30,7 @@
         :label="fieldName"
         :hint="fieldHint"
         :prepend-icon="fieldIcon"
+        :precision="null"
         control-variant="split"
         persistent-hint
         clearable
