@@ -151,7 +151,7 @@ export async function checkFileExists(filePath: string) {
 
 // Bump when /api/get-file caching semantics change so browsers drop stale
 // responses previously stored under older Cache-Control policies.
-const GET_FILE_CACHE_VERSION = '3'
+const GET_FILE_CACHE_VERSION = '4'
 
 export function buildLocalFileUrl(
   imgPath: string,

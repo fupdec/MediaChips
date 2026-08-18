@@ -35,12 +35,6 @@ const VIEWER_RESIZE_EXTS = new Set([
   '.jpg', '.jpeg', '.png', '.webp', '.tif', '.tiff', '.avif', '.heic', '.heif', '.gif',
 ])
 
-/** Generated media thumbs/grids use stable id-based names; safe to cache briefly. */
-function isLongLivedMediaThumbPath(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/')
-  return /\/(?:images|videos)\/(?:thumbs|grids)\/\d+\.jpe?g$/i.test(normalized)
-}
-
 function getFileRequestPath(req: ApiRequest): string | null {
   const bodyPath = req.body?.url
   if (typeof bodyPath === 'string' && bodyPath) return bodyPath
@@ -167,12 +161,10 @@ export function registerGetFileRoutes({
         ? `W/"v${maxEdge}-${stats.size}-${Math.trunc(stats.mtimeMs)}"`
         : `W/"${stats.size}-${Math.trunc(stats.mtimeMs)}"`
 
-      // Media thumbs/grids are id-stable; tag/meta images stay must-revalidate.
-      const cacheControl = (
-        isLongLivedMediaThumbPath(originalFilePath) || isLongLivedMediaThumbPath(resolvedPath)
-          ? 'public, max-age=86400, stale-while-revalidate=604800'
-          : 'public, max-age=0, must-revalidate'
-      )
+      // Media thumbs/grids can be overwritten by scraped posters (TPDB etc.),
+      // so they must revalidate with the server via ETag on every request.
+      // Unchanged files get a cheap 304; changed files get a fresh 200.
+      const cacheControl = 'public, max-age=0, must-revalidate'
 
       const ifNoneMatch = req.headers['if-none-match']
       if (typeof ifNoneMatch === 'string') {
