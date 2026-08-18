@@ -432,13 +432,13 @@
   width: 100%;
   z-index: 2;
   overflow: visible;
-  background: linear-gradient(0, rgba(0, 0, 0, 0.8), transparent);
+  background: linear-gradient(0, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.01));
   transition: 0.3s all;
   animation: appearing 0.2s;
 
   &.v-card {
     position: absolute;
-    background: linear-gradient(0, rgba(0, 0, 0, 0.8), transparent);
+    background: linear-gradient(0, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.01));
     box-shadow: none;
     // Vuetify .v-card defaults to overflow:hidden and clips control tips.
     overflow: visible;
@@ -1433,6 +1433,11 @@
 
     > * {
       pointer-events: auto;
+    }
+
+    .v-chip {
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
     }
 
     .v-chip-group,
