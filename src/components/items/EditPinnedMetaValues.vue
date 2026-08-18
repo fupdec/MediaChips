@@ -1204,18 +1204,35 @@ const applyMediaFileInfo = (fileInfo: Partial<MediaItem> | null) => {
 
   mediaOverride.value = {...base, ...fileInfo}
 
-  const mediaId = Number(base.id)
-  if (mediaId) {
-    // Bust thumb caches so the dialog reloads after image probe/thumb regen.
-    itemsStore.refreshThumb(mediaId)
-  }
+  // Thumb refresh is deferred to refreshEditingMediaFileInfo so the caller
+  // can capture pre-refresh dimensions (updateItem mutates items in-place).
 }
 
 const refreshEditingMediaFileInfo = async () => {
   if (!isMedia.value || currentItemId.value == null) return
 
+  const base = mediaOverride.value || props.media
+  // Capture dimensions before the async call — syncMediaFileInfo inside
+  // refreshMediaFileInfo mutates the store item in-place via updateItem.
+  const prevW = base ? (Number(base.width) || 0) : 0
+  const prevH = base ? (Number(base.height) || 0) : 0
+
   const fileInfo = await refreshMediaFileInfo(Number(currentItemId.value))
   applyMediaFileInfo(fileInfo)
+
+  if (!fileInfo) return
+
+  const nextW = Number(fileInfo.width) || 0
+  const nextH = Number(fileInfo.height) || 0
+  // Only bust the card thumb when width/height were resolved for the first time
+  // or actually changed.  Blind refreshThumb on every inspector focus bumps the
+  // VImg :key and causes a visible blank flash on unchanged thumbs.
+  if (prevW !== nextW || prevH !== nextH) {
+    const mediaId = Number(base?.id ?? currentItemId.value)
+    if (mediaId) {
+      itemsStore.refreshThumb(mediaId)
+    }
+  }
 }
 
 const onMediaPathUpdate = (updatedMedia: MediaItem) => {
