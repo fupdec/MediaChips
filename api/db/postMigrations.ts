@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { applySqlitePragmas } from './pragmas'
 import { seedDefaults } from './seedDefaults'
-import { seedStarterMeta } from './seedStarterMeta'
+import { seedStarterMeta, seedStarterSavedFilters } from './seedStarterMeta'
 import { runLegacyUpgrades } from './legacyUpgrades'
 import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from './schemaRepair'
 import { ensureSearchFtsIndex } from './searchFts'
@@ -24,6 +24,9 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
     const repairedColumns = repairSchemaColumns(sqlite)
     if (repairedColumns.length) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema columns: ${repairedColumns.join(', ')}`)
+    }
+    if (seedDemo) {
+      seedStarterSavedFilters(sqlite)
     }
     const repairedTables = repairMissingTables(sqlite)
     if (repairedTables.length) {
