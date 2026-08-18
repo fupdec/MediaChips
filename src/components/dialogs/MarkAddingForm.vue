@@ -27,19 +27,45 @@
           </v-btn>
         </div>
 
-        <v-btn
-          color="success"
-          :disabled="!canSubmit"
-          :loading="markAdding.submitting"
-          variant="flat"
-          size="small"
-          rounded="lg"
-          class="mark-menu__submit"
-          @click="add"
-        >
-          <v-icon start size="16">mdi-{{ isEditing ? 'content-save' : 'plus' }}</v-icon>
-          {{ submitLabel }}
-        </v-btn>
+        <div class="mark-menu__actions">
+          <v-btn
+            v-if="isEditing"
+            v-tooltip="formTooltip(t('common.delete'))"
+            color="error"
+            :disabled="markAdding.submitting"
+            :loading="deleting"
+            variant="tonal"
+            size="x-small"
+            icon
+            class="mark-menu__delete"
+            @click="remove"
+          >
+            <v-icon size="16">mdi-delete-outline</v-icon>
+          </v-btn>
+          <v-btn
+            color="success"
+            :disabled="!canSubmit"
+            :loading="markAdding.submitting"
+            variant="flat"
+            size="small"
+            rounded="lg"
+            class="mark-menu__submit"
+            @click="add"
+          >
+            <v-icon start size="16">mdi-{{ isEditing ? 'content-save' : 'plus' }}</v-icon>
+            {{ submitLabel }}
+          </v-btn>
+          <v-btn
+            v-tooltip="formTooltip(t('common.close'))"
+            variant="text"
+            size="x-small"
+            icon
+            class="mark-menu__close"
+            @click="closeStudio"
+          >
+            <v-icon size="16">mdi-close</v-icon>
+          </v-btn>
+        </div>
       </div>
 
       <div class="mark-menu__identity">
@@ -220,6 +246,7 @@ import {useAppStore} from '@/stores/app'
 import {usePlayerStore} from '@/stores/player'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
+import {typedApi} from '@/services/typedApi'
 import {getReadableDuration} from '@/services/formatUtils'
 import DialogIcons from '@/components/dialogs/DialogIcons.vue'
 import MarkTimeHmsInput from '@/components/dialogs/MarkTimeHmsInput.vue'
@@ -270,6 +297,7 @@ const showIconPicker = ref(false)
 const text = ref('')
 const valid = ref(false)
 const validationError = ref<string | null>(null)
+const deleting = ref(false)
 const mark_types = ref<MarkTypeItem[]>([...BASE_MARK_TYPES, TAG_MARK_TYPE] as unknown as MarkTypeItem[])
 const iconPresets = BOOKMARK_ICON_PRESETS
 
@@ -582,6 +610,25 @@ const add = () => {
   emit('addMark', data)
 }
 
+const closeStudio = () => {
+  playerStore.studioMode = false
+}
+
+const remove = async () => {
+  const editId = dialogsStore.markAdding.editId
+  if (!editId || deleting.value) return
+  deleting.value = true
+  try {
+    await typedApi.deleteMark(editId)
+    playerStore.marks = playerStore.marks.filter((mark) => mark.id !== editId)
+    playerStore.studioMode = false
+  } catch (error) {
+    console.warn('Failed deleting mark', error)
+  } finally {
+    deleting.value = false
+  }
+}
+
 const submitIfReady = () => {
   if (canSubmit.value) add()
 }
@@ -652,6 +699,27 @@ watch(
 
 .mark-menu__submit {
   flex: 0 0 auto;
+}
+
+.mark-menu__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.mark-menu__close {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  margin-left: 4px;
+}
+
+.mark-menu__delete {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  margin-right: 4px;
 }
 
 .mark-menu__identity {

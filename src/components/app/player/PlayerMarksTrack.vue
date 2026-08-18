@@ -64,7 +64,6 @@ import { useI18n } from 'vue-i18n'
 import { usePlayerStore } from '@/stores/player'
 import { useDialogsStore } from '@/stores/dialogs'
 import { usePlayerMarkStudio, type MarkDragMode } from '@/composable/usePlayerMarkStudio'
-import { assignMarkLanes } from '@/utils/playerMarkStudio'
 import { DEFAULT_BOOKMARK_ICON, FAVORITE_MARK_ICON, isTagMarkType, normalizeMarkIcon } from '@/utils/markAdding'
 import PlayerMarkClip from '@/components/app/player/PlayerMarkClip.vue'
 
@@ -88,15 +87,11 @@ const isAddingNew = computed(() => (
   dialogsStore.markAdding.show && !Number(dialogsStore.markAdding.editId)
 ))
 
-const layout = computed(() => assignMarkLanes(visibleMarks.value))
-
 const trackStyle = computed(() => ({
-  '--marks-track-lanes': String(layout.value.laneCount),
+  '--marks-track-lanes': '1',
 }))
 
-const laneOf = (id?: number | null) => (
-  id == null ? 0 : layout.value.lanes.get(id) ?? 0
-)
+const laneOf = (_id?: number | null) => 0
 
 const creatingStyle = computed(() => {
   const draft = playerStore.creatingMarkDraft

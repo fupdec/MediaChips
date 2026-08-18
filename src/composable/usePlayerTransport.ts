@@ -174,7 +174,6 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
       return
     }
     playerStore.studioMode = true
-    playerStore.marksVisible = true
     playerStore.selectedMarkId = null
     dialogsStore.openMarkAdding({ time: playerStore.currentTime })
   }
@@ -427,15 +426,13 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
 
   watch(
     () => [dialogsStore.markAdding.show, playerStore.studioMode] as const,
-    ([show]) => {
+    () => {
       playerStore.setKeyboardBlocked('mark', false)
-      if (show) playerStore.marksVisible = true
     },
   )
 
   watch(() => playerStore.studioMode, (active) => {
     if (active) {
-      playerStore.marksVisible = true
       if (!dialogsStore.markAdding.show) {
         playerStore.selectedMarkId = null
         dialogsStore.openMarkAdding({ time: playerStore.currentTime })
