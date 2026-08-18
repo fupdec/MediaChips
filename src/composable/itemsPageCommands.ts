@@ -17,7 +17,7 @@ export type ItemsPageCommands = {
   applySavedViewLayout: (layout: SavedViewLayout) => void | Promise<void>
   refreshAssignedMeta: () => void | Promise<void>
   refreshCurrentMeta: () => void
-  openRandomItem: (id: number) => void
+  openRandomItem: (id: number) => void | Promise<void>
 }
 
 let active: ItemsPageCommands | null = null

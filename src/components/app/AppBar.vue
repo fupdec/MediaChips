@@ -84,7 +84,7 @@
               @click="editMetaFromMenu"
             />
             <v-list-item
-              :disabled="itemsStore.entities.length == 0"
+              :disabled="randomItemLoading || itemsStore.totalFiltered == 0"
               link
               prepend-icon="mdi-dice-5"
               :title="t('appbar.buttons.open_random')"
@@ -185,6 +185,7 @@ import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {typedApi} from '@/services/typedApi'
+import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import {getTabUrl} from '@/services/routeService'
 import {reloadTabsCatalog} from '@/composable/appCatalogs'
 import {copyCurrentPageSettingsToTab} from '@/utils/tabPageSettings'
@@ -259,7 +260,51 @@ async function syncFullscreenState() {
   }
 }
 
-function openRandomItem() {
+const randomItemLoading = ref(false)
+
+async function openRandomItem() {
+  // If already loading, skip to avoid double-clicks.
+  if (randomItemLoading.value) return
+
+  randomItemLoading.value = true
+  try {
+    if (itemsStore.type === 'media') {
+      // Use the full filtered list when scoped (semantic / more-like-this).
+      if (itemsStore.listScopeIds?.length) {
+        const ids = itemsStore.listScopeIds
+        const rand = Math.floor(Math.random() * ids.length)
+        await pageCommands.openRandomItem(ids[rand])
+        return
+      }
+
+      // Fetch ALL filtered IDs so the random truly spans
+      // the entire filtered set, not just the loaded page.
+      const mediaTypeId = itemsStore.environment.media_type_id
+      const mediaType = app.mediaTypes?.find((item) => item.id === mediaTypeId)
+
+      const response = await typedApi.getMediaIds({
+        mediaTypeId,
+        filters: itemsStore.filters,
+        sortBy: itemsStore.sortBy,
+        direction: itemsStore.sortDir,
+        find_duplicates: itemsStore.find_duplicates,
+        duplicates_by: getDuplicatesGroupKey(mediaType, itemsStore.duplicates_by),
+      })
+
+      const ids = response.data.ids || []
+      if (ids.length > 0) {
+        const rand = Math.floor(Math.random() * ids.length)
+        await pageCommands.openRandomItem(ids[rand])
+        return
+      }
+    }
+  } catch {
+    // Fall through to frontend entities fallback on error.
+  } finally {
+    randomItemLoading.value = false
+  }
+
+  // Fallback for non-media pages (tags) or when the API returns empty.
   const ids = itemsStore.entities.map(i => i.id)
   if (ids.length > 0) {
     const rand = Math.floor(Math.random() * ids.length)
