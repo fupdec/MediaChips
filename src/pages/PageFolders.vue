@@ -48,6 +48,30 @@
           </div>
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
+            <div
+              class="folders-page__mode-track"
+              v-tooltip:top="t('folders_browser.mode_tooltip')"
+            >
+              <button
+                type="button"
+                class="folders-page__mode-opt"
+                :class="{'folders-page__mode-opt--active': browseMode === 'library'}"
+                @click="browseMode = 'library'"
+              >
+                <v-icon size="14" icon="mdi-bookshelf"/>
+                <span>{{ t('folders_browser.mode_library') }}</span>
+              </button>
+              <button
+                type="button"
+                class="folders-page__mode-opt"
+                :class="{'folders-page__mode-opt--active': browseMode === 'filesystem'}"
+                @click="browseMode = 'filesystem'"
+              >
+                <v-icon size="14" icon="mdi-monitor-screenshot"/>
+                <span>{{ t('folders_browser.mode_filesystem') }}</span>
+              </button>
+            </div>
+
             <v-select
               v-model="sort"
               :items="sortOptions"
@@ -124,68 +148,7 @@
           </div>
         </v-expand-transition>
 
-        <div class="folders-page__nav d-flex align-center ga-2 flex-nowrap min-width-0">
-          <v-btn
-            icon="mdi-arrow-left"
-            size="x-small"
-            color="primary"
-            variant="tonal"
-            :aria-label="t('folders_browser.back')"
-            @click="router.back()"
-          />
-          <v-btn
-            icon="mdi-arrow-right"
-            size="x-small"
-            color="primary"
-            variant="tonal"
-            :aria-label="t('folders_browser.forward')"
-            @click="router.forward()"
-          />
-          <v-btn
-            icon="mdi-arrow-up"
-            size="x-small"
-            color="primary"
-            variant="tonal"
-            :disabled="loading || !canGoUp"
-            :aria-label="t('folders_browser.up')"
-            @click="goUp"
-          />
-          <div class="folders-page__crumbs d-flex align-center ga-1 flex-nowrap min-width-0 overflow-x-auto">
-            <v-chip
-              size="small"
-              label
-              :color="!currentPath ? 'primary' : undefined"
-              :variant="!currentPath ? 'flat' : 'tonal'"
-              prepend-icon="mdi-folder-outline"
-              :disabled="loading"
-              @click="navigateTo(null)"
-            >
-              {{ t('folders_browser.roots') }}
-            </v-chip>
-            <template
-              v-for="crumb in breadcrumbs"
-              :key="crumb.path"
-            >
-              <v-icon
-                icon="mdi-chevron-right"
-                size="14"
-                class="text-medium-emphasis flex-shrink-0"
-              />
-              <v-chip
-                size="small"
-                label
-                :color="crumb.path === currentPath ? 'primary' : undefined"
-                :variant="crumb.path === currentPath ? 'flat' : 'tonal'"
-                :disabled="loading"
-                class="flex-shrink-0"
-                @click="navigateTo(crumb.path)"
-              >
-                {{ crumb.name }}
-              </v-chip>
-            </template>
-          </div>
-        </div>
-
+        <!-- Filters + Actions combined row -->
         <div class="folders-page__filters d-flex align-center flex-wrap ga-2">
           <v-text-field
             v-model="searchQuery"
@@ -200,57 +163,89 @@
             @keydown.esc.stop="searchQuery = ''"
           />
 
-          <v-chip
-            size="small"
-            label
-            :color="mediaTypeId == null ? 'primary' : undefined"
-            :variant="mediaTypeId == null ? 'flat' : 'tonal'"
-            @click="setMediaTypeFilter(null)"
-          >
-            {{ t('folders_browser.all_types') }}
-          </v-chip>
-          <v-chip
-            v-for="mediaType in visibleMediaTypes"
-            :key="mediaType.id"
-            size="small"
-            label
-            :color="mediaTypeId === mediaType.id ? 'primary' : undefined"
-            :variant="mediaTypeId === mediaType.id ? 'flat' : 'tonal'"
-            :prepend-icon="`mdi-${mediaType.icon || 'file'}`"
-            @click="setMediaTypeFilter(mediaType.id)"
-          >
-            {{ mediaTypeTitle(mediaType) }}
-          </v-chip>
-
-          <div
-            v-if="uniqueFolderTagChips.length"
-            class="ml-2 d-flex align-center ga-1"
-          >
+          <template v-if="browseMode === 'library'">
             <v-chip
-              size="x-small"
+              size="small"
               label
-              :color="tagFilterId == null ? 'primary' : undefined"
-              :variant="tagFilterId == null ? 'flat' : 'tonal'"
-              prepend-icon="mdi-tag-multiple-outline"
-              @click="tagFilterId = null"
+              :color="mediaTypeId == null ? 'primary' : undefined"
+              :variant="mediaTypeId == null ? 'flat' : 'tonal'"
+              @click="setMediaTypeFilter(null)"
             >
-              {{ t('folders_browser.all_tags') }}
+              {{ t('folders_browser.all_types') }}
             </v-chip>
             <v-chip
-              v-for="chip in uniqueFolderTagChips"
-              :key="chip.tagId"
-              size="x-small"
+              v-for="mediaType in visibleMediaTypes"
+              :key="mediaType.id"
+              size="small"
               label
-              :color="tagFilterId === chip.tagId ? 'primary' : undefined"
-              :variant="tagFilterId === chip.tagId ? 'flat' : 'tonal'"
-              @click="tagFilterId = tagFilterId === chip.tagId ? null : chip.tagId"
+              :color="mediaTypeId === mediaType.id ? 'primary' : undefined"
+              :variant="mediaTypeId === mediaType.id ? 'flat' : 'tonal'"
+              :prepend-icon="`mdi-${mediaType.icon || 'file'}`"
+              @click="setMediaTypeFilter(mediaType.id)"
             >
-              {{ chip.name }}
+              {{ mediaTypeTitle(mediaType) }}
             </v-chip>
-          </div>
 
-          <template v-if="currentPath">
-            <div class="folders-page__actions d-flex align-center flex-nowrap ga-1">
+            <div
+              v-if="uniqueFolderTagChips.length"
+              class="ml-2 d-flex align-center ga-1"
+            >
+              <v-chip
+                size="x-small"
+                label
+                :color="tagFilterId == null ? 'primary' : undefined"
+                :variant="tagFilterId == null ? 'flat' : 'tonal'"
+                prepend-icon="mdi-tag-multiple-outline"
+                @click="tagFilterId = null"
+              >
+                {{ t('folders_browser.all_tags') }}
+              </v-chip>
+              <v-chip
+                v-for="chip in uniqueFolderTagChips"
+                :key="chip.tagId"
+                size="x-small"
+                label
+                :color="tagFilterId === chip.tagId ? 'primary' : undefined"
+                :variant="tagFilterId === chip.tagId ? 'flat' : 'tonal'"
+                @click="tagFilterId = tagFilterId === chip.tagId ? null : chip.tagId"
+              >
+                {{ chip.name }}
+              </v-chip>
+            </div>
+          </template>
+
+          <v-checkbox
+            v-if="browseMode === 'filesystem'"
+            v-model="showHidden"
+            density="compact"
+            hide-details
+            :label="t('folders_browser.show_hidden')"
+            class="mt-0 folders-page__filter-check"
+          />
+
+          <!-- Action buttons inline -->
+          <div class="d-flex align-center ga-1 ml-auto">
+            <template v-if="browseMode === 'filesystem' && currentFsPath">
+              <v-btn
+                size="small"
+                variant="tonal"
+                @click="selectAllAddableFiles"
+              >
+                <v-icon size="16" icon="mdi-checkbox-multiple-marked" class="mr-1"/>
+                {{ t('folders_browser.select_all_addable') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                variant="tonal"
+                color="success"
+                prepend-icon="mdi-plus"
+                :disabled="loading || !currentFsPath"
+                @click="addCurrentFsFolder"
+              >
+                {{ t('folders_browser.add_to_library') }}
+              </v-btn>
+            </template>
+            <template v-if="browseMode === 'library' && currentPath">
               <FolderTagsMenu
                 :folder-path="currentPath"
                 v-model:open="currentTagsMenuOpen"
@@ -294,12 +289,109 @@
               >
                 {{ t('folders_browser.play_all') }}
               </v-btn>
-            </div>
-          </template>
+            </template>
+          </div>
+        </div>
+
+        <!-- Places chips (above breadcrumbs) -->
+        <div
+          v-if="browseMode === 'filesystem' && places.length"
+          class="folders-page__places"
+        >
+          <div class="d-flex flex-wrap ga-1">
+            <v-chip
+              v-for="place in places"
+              :key="place.id"
+              size="small"
+              label
+              :color="activePlaceId === place.id ? 'primary' : undefined"
+              :variant="activePlaceId === place.id ? 'flat' : 'tonal'"
+              :prepend-icon="place.icon || 'mdi-folder'"
+              @click="onSelectPlace(place.path)"
+            >
+              {{ placeLabel(place) }}
+            </v-chip>
+          </div>
+        </div>
+
+        <!-- Path / breadcrumbs (third, one line) -->
+        <div class="folders-page__nav d-flex align-center ga-2 flex-nowrap min-width-0">
+          <v-btn
+            icon="mdi-arrow-left"
+            size="x-small"
+            color="primary"
+            variant="tonal"
+            :aria-label="t('folders_browser.back')"
+            @click="router.back()"
+          />
+          <v-btn
+            icon="mdi-arrow-right"
+            size="x-small"
+            color="primary"
+            variant="tonal"
+            :aria-label="t('folders_browser.forward')"
+            @click="router.forward()"
+          />
+          <v-btn
+            icon="mdi-arrow-up"
+            size="x-small"
+            color="primary"
+            variant="tonal"
+            :disabled="loading || !canGoUp"
+            :aria-label="t('folders_browser.up')"
+            @click="goUp"
+          />
+          <div class="folders-page__crumbs d-flex align-center ga-1 flex-nowrap min-width-0 overflow-x-auto">
+            <v-chip
+              v-if="browseMode === 'library'"
+              size="small"
+              label
+              :color="!currentPath ? 'primary' : undefined"
+              :variant="!currentPath ? 'flat' : 'tonal'"
+              prepend-icon="mdi-folder-outline"
+              :disabled="loading"
+              @click="navigateTo(null)"
+            >
+              {{ t('folders_browser.roots') }}
+            </v-chip>
+            <v-chip
+              v-else-if="browseMode === 'filesystem' && fsRootPath"
+              size="small"
+              label
+              :color="currentFsPath === fsRootPath ? 'primary' : undefined"
+              :variant="currentFsPath === fsRootPath ? 'flat' : 'tonal'"
+              prepend-icon="mdi-folder-outline"
+              :disabled="loading"
+              @click="navigateToFs(fsRootPath)"
+            >
+              {{ fsRootName }}
+            </v-chip>
+            <template
+              v-for="crumb in browseMode === 'filesystem' ? fsBreadcrumbs : breadcrumbs"
+              :key="crumb.path"
+            >
+              <v-icon
+                icon="mdi-chevron-right"
+                size="14"
+                class="text-medium-emphasis flex-shrink-0"
+              />
+              <v-chip
+                size="small"
+                label
+                :color="crumb.path === (browseMode === 'filesystem' ? currentFsPath : currentPath) ? 'primary' : undefined"
+                :variant="crumb.path === (browseMode === 'filesystem' ? currentFsPath : currentPath) ? 'flat' : 'tonal'"
+                :disabled="loading"
+                class="flex-shrink-0"
+                @click="browseMode === 'filesystem' ? navigateToFs(crumb.path) : navigateTo(crumb.path)"
+              >
+                {{ crumb.name }}
+              </v-chip>
+            </template>
+          </div>
         </div>
 
         <div
-          v-if="currentPath && currentFolderTags.length"
+          v-if="browseMode === 'library' && currentPath && currentFolderTags.length"
           class="folders-page__current-tags d-flex flex-wrap ga-1"
         >
           <v-chip
@@ -321,18 +413,42 @@
           height="2"
           class="mt-2"
         />
+
+        <v-alert
+          v-if="browseMode === 'filesystem' && fsError"
+          type="error"
+          variant="tonal"
+          density="compact"
+          rounded="lg"
+          class="ma-2 text-caption"
+        >
+          {{ fsError }}
+        </v-alert>
+
+        <v-alert
+          v-if="browseMode === 'filesystem' && fsTruncated"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          rounded="lg"
+          class="ma-2 text-caption"
+        >
+          {{ t('folders_browser.browser_truncated', {limit: 2000}) }}
+        </v-alert>
       </div>
     </div>
 
     <div
-      v-if="!loading && !folders.length && !media.length && !searchQuery && tagFilterId == null"
+      v-if="!loading && !fsEntries.length && !folders.length && !media.length && !searchQuery && (browseMode === 'library' || tagFilterId == null)"
       class="folders-page__status text-medium-emphasis"
     >
       <div class="mb-3">
-        {{ currentPath ? t('folders_browser.empty_folder') : t('folders_browser.empty_library') }}
+        {{ browseMode === 'filesystem'
+          ? t('folders_browser.browser_empty')
+          : currentPath ? t('folders_browser.empty_folder') : t('folders_browser.empty_library') }}
       </div>
       <v-btn
-        v-if="!currentPath"
+        v-if="browseMode === 'library' && !currentPath"
         color="success"
         variant="flat"
         rounded="xl"
@@ -344,26 +460,34 @@
     </div>
 
     <div
-      v-else-if="!loading && !visibleFolders.length && !visibleMedia.length && (searchQuery || tagFilterId != null)"
+      v-else-if="!loading && !visibleFolders.length && !visibleMedia.length && browseMode === 'library' && (searchQuery || tagFilterId != null)"
       class="folders-page__status text-medium-emphasis"
     >
       {{ t('folders_browser.search_empty') }}
     </div>
 
     <FoldersVirtualGrid
-      v-else-if="visibleFolders.length || visibleMedia.length"
+      v-else-if="visibleFolders.length || visibleMedia.length || fsFiles.length"
       :folders="visibleFolders"
       :media="visibleMedia"
+      :fs-files="fsFiles"
+      :browse-mode="browseMode"
       :size="itemsStore.size"
       :gap-size="settingsStore.gapSize"
       :list="listMode"
       :folder-tags="folderTagsByPath"
       :cover-url-by-media-id="coverUrlByMediaId"
       :reg="registrationStore.reg"
+      :select-mode="fsSelection.isSelectMode"
+      :selected-folder-paths="fsSelectionSelectedFolderPaths"
+      :selected-fs-file-paths="fsSelectionSelectedFsFilePaths"
       class="items-page-grid"
-      @open-folder="navigateTo"
+      @open-folder="browseMode === 'filesystem' ? navigateToFs($event) : navigateTo($event)"
       @folder-contextmenu="onFolderContextMenu"
       @media-contextmenu="onMediaContextMenu"
+      @fsfile-contextmenu="onFsFileContextMenu"
+      @toggle-folder-select="onToggleFolderSelect"
+      @toggle-fsfile-select="onToggleFsFileSelect"
     />
 
     <FolderTagsMenu
@@ -385,6 +509,133 @@
     </FolderTagsMenu>
 
     <DialogFolderTagsManager v-model="folderTagsManagerOpen"/>
+
+    <DialogBrowseFolder
+      v-model="folderPickerOpen"
+      :header="folderPickerOperation === 'copy'
+        ? t('folders_browser.copy_selected')
+        : t('folders_browser.move_selected')"
+      :confirm-text="folderPickerOperation === 'copy'
+        ? t('folders_browser.copy_selected')
+        : t('folders_browser.move_selected')"
+      @confirm="onFolderPickerConfirm"
+    />
+
+    <!-- Clipboard / Selection buffer -->
+    <v-slide-y-transition>
+      <div
+        v-if="fsSelection.isSelectMode"
+        class="folders-page__clipboard-bar"
+        :class="{'folders-page__clipboard-bar--bottom-nav': useBottomBar}"
+      >
+        <div class="folders-page__clipboard-bar-inner">
+          <div class="folders-page__clipboard-bar-left">
+            <v-icon size="16" icon="mdi-clipboard-text-outline" class="mr-1"/>
+            <span class="folders-page__clipboard-bar-title">{{ t('folders_browser.clipboard_title') }}</span>
+            <v-chip
+              size="x-small"
+              color="primary"
+              variant="tonal"
+              label
+              class="ml-2"
+            >
+              {{ t('folders_browser.selected_count', {count: fsSelection.selectedCount}) }}
+            </v-chip>
+          </div>
+          <div ref="clipboardEntriesContainerRef" class="folders-page__clipboard-bar-entries">
+            <span
+              v-if="!fsSelection.selectedCount"
+              class="folders-page__clipboard-bar-empty"
+            >
+              {{ t('folders_browser.clipboard_empty') }}
+            </span>
+            <template v-else>
+              <v-chip
+                v-for="entry in fsSelection.selectedEntries"
+                :key="entry.path"
+                size="x-small"
+                variant="tonal"
+                label
+                class="folders-page__clipboard-entry"
+                :prepend-icon="entry.kind === 'folder' ? 'mdi-folder-outline' : 'mdi-file-outline'"
+              >
+                {{ entry.name }}
+              </v-chip>
+              <v-chip
+                size="x-small"
+                variant="tonal"
+                label
+                class="folders-page__clipboard-entry folders-page__clipboard-entry--more"
+                :class="{'folders-page__clipboard-entry--more-hidden': clipboardOverflowCount <= 0}"
+              >
+                +{{ clipboardOverflowCount || '0' }}
+              </v-chip>
+            </template>
+          </div>
+          <div class="folders-page__clipboard-bar-actions">
+            <v-btn
+              size="x-small"
+              variant="tonal"
+              icon="mdi-content-copy"
+              v-tooltip:top="t('folders_browser.copy_names')"
+              @click="onCopyNames"
+            />
+            <v-btn
+              v-if="browseMode === 'filesystem'"
+              size="x-small"
+              variant="tonal"
+              icon="mdi-content-copy"
+              v-tooltip:top="t('folders_browser.copy_selected')"
+              @click="onCopySelectedTo"
+            />
+            <v-btn
+              v-if="browseMode === 'filesystem'"
+              size="x-small"
+              variant="tonal"
+              icon="mdi-file-move-outline"
+              v-tooltip:top="t('folders_browser.move_selected')"
+              @click="onMoveSelectedTo"
+            />
+            <div
+              v-if="browseMode === 'filesystem'"
+              class="folders-page__clipboard-bar-divider"
+            />
+            <v-btn
+              v-if="browseMode === 'filesystem'"
+              size="x-small"
+              variant="tonal"
+              color="error"
+              icon="mdi-delete-outline"
+              v-tooltip:top="t('folders_browser.delete_selected')"
+              @click="onDeleteSelected"
+            />
+            <v-btn
+              size="x-small"
+              variant="tonal"
+              icon="mdi-close"
+              v-tooltip:top="t('folders_browser.clipboard_clear')"
+              @click="fsSelection.clearSelection()"
+            />
+          </div>
+        </div>
+
+        <!-- Queue indicator -->
+        <div
+          v-if="fsQueue.totalPending > 0"
+          class="folders-page__queue-bar"
+        >
+          <v-icon size="14" icon="mdi-progress-clock" class="mr-1"/>
+          <span class="folders-page__queue-text">
+            <template v-if="fsQueue.activeEntry">
+              {{ fsQueue.activeEntry.label }}…
+            </template>
+            <template v-if="fsQueue.pendingCount > 0">
+              {{ fsQueue.activeEntry ? ' +' : '' }}{{ fsQueue.pendingCount }} queued
+            </template>
+          </span>
+        </div>
+      </div>
+    </v-slide-y-transition>
   </v-container>
 </template>
 
@@ -395,6 +646,7 @@ import {useRoute, useRouter} from 'vue-router'
 import FoldersVirtualGrid from '@/components/folders/FoldersVirtualGrid.vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
 import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -403,6 +655,9 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
+import {useNavigationLayout} from '@/composable/useNavigationLayout'
+import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
+import {useFsOperationsQueue} from '@/stores/fsOperationsQueue'
 import {useAppShell} from '@/composable/appShell'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useEventBus} from '@/utils/eventBus'
@@ -411,7 +666,7 @@ import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import {findMediaTypeById, getMediaDeleteAssetFolder, isVideoMediaType} from '@/utils/mediaType'
+import {findMediaTypeById, getMediaDeleteAssetFolder, isVideoMediaType, parseMediaTypeExtensions} from '@/utils/mediaType'
 import {CARD_THUMB_MAX_EDGE, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {
@@ -423,6 +678,8 @@ import {
 import type {MediaType} from '@/types/media'
 import type {ContextMenuEntry, MediaItem} from '@/types/stores'
 import type {FolderBrowseTagChip, FolderBrowseTileModel} from '@/components/folders/FolderBrowseTile.vue'
+import type {BrowsePlace} from '@/services/typedApi/browse'
+import type {FsBrowseEntry} from '@/components/folders/FsBrowseEntry'
 
 type Breadcrumb = {
   path: string
@@ -441,6 +698,9 @@ const dialogsStore = useDialogsStore()
 const appShell = useAppShell()
 const eventBus = useEventBus()
 const {setFocus, clearFocus} = useFoldersBrowserFocus()
+const fsSelection = useFsBrowseSelection()
+const fsQueue = useFsOperationsQueue()
+const {useBottomBar} = useNavigationLayout()
 
 const {
   controlDeckSentinel,
@@ -469,6 +729,51 @@ const contextTagsPath = ref('')
 const folderTagsManagerOpen = ref(false)
 const contextTagsActivator = ref<HTMLButtonElement | null>(null)
 
+// Filesystem browse mode state
+const browseMode = ref<'library' | 'filesystem'>('library')
+const showHidden = ref(false)
+const places = ref<BrowsePlace[]>([])
+const currentFsPath = ref('')
+const fsParentPath = ref<string | null>(null)
+const fsRootPath = ref<string | null>(null)
+const fsBreadcrumbs = ref<Breadcrumb[]>([])
+const fsEntries = ref<FsBrowseEntry[]>([])
+const fsError = ref('')
+const fsTruncated = ref(false)
+
+// Folder-picker dialog state
+const folderPickerOpen = ref(false)
+const folderPickerOperation = ref<'copy' | 'move'>('copy')
+const folderPickerEntries = ref<{path: string; name: string}[]>([])
+
+const clipboardEntriesContainerRef = ref<HTMLElement | null>(null)
+const clipboardOverflowCount = ref(0)
+
+function recalcClipboardOverflow() {
+  const el = clipboardEntriesContainerRef.value
+  if (!el) return
+  const chips = el.querySelectorAll<HTMLElement>(':scope > .folders-page__clipboard-entry:not(.folders-page__clipboard-entry--more)')
+  if (!chips.length) {
+    clipboardOverflowCount.value = 0
+    return
+  }
+  const containerWidth = el.clientWidth
+  const gap = 4
+  // Measure the actual overflow chip width
+  const overflowChip = el.querySelector<HTMLElement>('.folders-page__clipboard-entry--more')
+  const overflowWidth = overflowChip ? overflowChip.offsetWidth + gap : 48
+  const limit = containerWidth - overflowWidth
+  let used = 0
+  let visible = 0
+  for (const chip of chips) {
+    if (visible > 0) used += gap
+    if (used + chip.offsetWidth > limit) break
+    used += chip.offsetWidth
+    visible++
+  }
+  clipboardOverflowCount.value = visible >= chips.length ? 0 : chips.length - visible
+}
+
 const sizeLabels = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 const sortOptions = computed(() => [
@@ -481,6 +786,17 @@ const sortOptions = computed(() => [
 const visibleMediaTypes = computed(() =>
   (appStore.mediaTypes || []).filter((item) => !item.hidden),
 )
+
+/** All file extensions accepted by any non-hidden media type, as a comma-separated string. */
+const allMediaExtensions = computed(() => {
+  const parts = new Set<string>()
+  for (const mt of visibleMediaTypes.value) {
+    for (const ext of parseMediaTypeExtensions(mt.extensions)) {
+      parts.add(ext)
+    }
+  }
+  return [...parts].join(',')
+})
 
 const mediaTypeId = computed((): number | null => {
   const raw = route.query.mediaTypeId
@@ -497,7 +813,20 @@ const pathFromQuery = computed((): string | null => {
   return String(value)
 })
 
-const canGoUp = computed(() => Boolean(currentPath.value))
+const canGoUp = computed(() => {
+  if (browseMode.value === 'filesystem') return Boolean(fsParentPath.value)
+  return Boolean(currentPath.value)
+})
+
+const fsFiles = computed(() => {
+  if (browseMode.value !== 'filesystem') return []
+  return fsEntries.value.filter((entry) => !entry.isDirectory)
+})
+
+const fsFolders = computed(() => {
+  if (browseMode.value !== 'filesystem') return []
+  return fsEntries.value.filter((entry) => entry.isDirectory)
+})
 
 const filtered = computed(() => {
   let result = filterAndSortFolderBrowse(
@@ -519,14 +848,58 @@ const filtered = computed(() => {
   return result
 })
 
-const visibleFolders = computed(() => filtered.value.folders)
-const visibleMedia = computed(() => filtered.value.media as MediaItem[])
-const entryCount = computed(() => visibleFolders.value.length + visibleMedia.value.length)
+const visibleFolders = computed(() => {
+  if (browseMode.value === 'filesystem') {
+    return fsFolders.value
+      .filter((f) => {
+        if (!searchQuery.value) return true
+        return f.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      })
+      .map((f) => ({
+        path: f.path,
+        name: f.name,
+        mediaCount: 0,
+      }))
+  }
+  return filtered.value.folders
+})
+
+const visibleMedia = computed(() => {
+  if (browseMode.value === 'filesystem') return []
+  return filtered.value.media as MediaItem[]
+})
+
+const entryCount = computed(() => {
+  if (browseMode.value === 'filesystem') {
+    return fsEntries.value.length
+  }
+  return visibleFolders.value.length + visibleMedia.value.length
+})
 
 const pageTitle = computed(() => {
+  if (browseMode.value === 'filesystem' && currentFsPath.value) {
+    const last = fsBreadcrumbs.value[fsBreadcrumbs.value.length - 1]
+    return last?.name || t('navigation.folders')
+  }
   if (!currentPath.value) return t('navigation.folders')
   const last = breadcrumbs.value[breadcrumbs.value.length - 1]
   return last?.name || t('navigation.folders')
+})
+
+const fsSelectionSelectedFolderPaths = computed(() => {
+  const s = new Set<string>()
+  for (const e of fsSelection.selectedEntries) {
+    if (e.kind === 'folder') s.add(e.path)
+  }
+  return s
+})
+
+const fsSelectionSelectedFsFilePaths = computed(() => {
+  const s = new Set<string>()
+  for (const e of fsSelection.selectedEntries) {
+    if (e.kind === 'fs-file') s.add(e.path)
+  }
+  return s
 })
 
 const currentFolderTags = computed(() => {
@@ -564,6 +937,7 @@ function mediaTypeTitle(mediaType: MediaType) {
 function navigateTo(path: string | null) {
   itemsStore.clearSelection()
   clearFocus()
+  fsSelection.clearSelection()
   const query: Record<string, string> = {}
   if (path) query.path = path
   if (mediaTypeId.value != null) query.mediaTypeId = String(mediaTypeId.value)
@@ -578,6 +952,17 @@ function setMediaTypeFilter(id: number | null) {
 }
 
 function goUp() {
+  if (browseMode.value === 'filesystem') {
+    if (fsParentPath.value) {
+      navigateToFs(fsParentPath.value)
+      return
+    }
+    if (currentFsPath.value) {
+      navigateToFs('')
+      return
+    }
+    return
+  }
   if (parentPath.value) {
     navigateTo(parentPath.value)
     return
@@ -591,6 +976,130 @@ function openAddMedia() {
 
 function revealPath(folderPath: string) {
   void openPath(folderPath, true)
+}
+
+// Filesystem browse mode functions
+
+const knownPlaceIds = new Set([
+  'home', 'desktop', 'documents', 'downloads',
+  'videos', 'pictures', 'music', 'computer', 'network',
+])
+
+function placeLabel(place: BrowsePlace): string {
+  if (knownPlaceIds.has(place.id)) {
+    return t(`media.adding.place_${place.id}`)
+  }
+  return place.name || place.path
+}
+
+const activePlaceId = computed(() => {
+  const current = currentFsPath.value
+  if (!current) return null
+  const matches = places.value
+    .filter((place) => {
+      if (current === place.path) return true
+      const prefix = place.path.endsWith('/') || place.path.endsWith('\\')
+        ? place.path
+        : `${place.path}/`
+      const prefixWin = place.path.endsWith('\\') ? place.path : `${place.path}\\`
+      return current.startsWith(prefix) || current.startsWith(prefixWin)
+    })
+    .sort((a, b) => b.path.length - a.path.length)
+  return matches[0]?.id ?? null
+})
+
+const fsRootName = computed(() => {
+  if (!fsRootPath.value) return ''
+  const parts = fsRootPath.value.replace(/[/\\]+$/, '').split(/[/\\]/).filter(Boolean)
+  return parts[parts.length - 1] || fsRootPath.value
+})
+
+function onSelectPlace(path: string) {
+  navigateToFs(path)
+}
+
+function navigateToFs(targetPath: string | null | undefined) {
+  if (!targetPath || loading.value) return
+  currentFsPath.value = targetPath
+  fsSelection.clearSelection()
+  void loadFsDirectory(targetPath)
+}
+
+async function loadPlaces() {
+  try {
+    const {data} = await typedApi.listBrowsePlaces()
+    places.value = data.places
+  } catch {
+    places.value = []
+  }
+}
+
+async function loadFsDirectory(targetPath: string) {
+  loading.value = true
+  fsError.value = ''
+  try {
+    const {data} = await typedApi.listBrowseDirectory({
+      path: targetPath,
+      extensions: allMediaExtensions.value,
+      showHidden: showHidden.value,
+    })
+    currentFsPath.value = data.currentPath
+    fsParentPath.value = data.parentPath
+    fsRootPath.value = data.rootPath
+    fsTruncated.value = data.truncated
+
+    const dirs: FsBrowseEntry[] = []
+    const files: FsBrowseEntry[] = []
+    for (const entry of data.entries) {
+      const fsEntry: FsBrowseEntry = {
+        name: entry.name,
+        path: entry.path,
+        isDirectory: entry.isDirectory,
+        size: entry.size,
+        mtimeMs: entry.mtimeMs,
+        extension: entry.extension,
+        inLibrary: entry.inLibrary,
+        addable: entry.addable,
+      }
+      if (entry.isDirectory) dirs.push(fsEntry)
+      else files.push(fsEntry)
+    }
+    fsEntries.value = [...dirs, ...files]
+
+    // Build breadcrumbs from rootPath
+    if (data.rootPath && data.currentPath) {
+      const separator = data.rootPath.includes('\\') ? '\\' : '/'
+      const relative = data.currentPath === data.rootPath
+        ? ''
+        : data.currentPath.slice(data.rootPath.length).replace(/^[/\\]+/, '')
+      const parts = relative ? relative.split(/[/\\]/).filter(Boolean) : []
+      const items: Breadcrumb[] = []
+      let cursor = data.rootPath
+      for (const part of parts) {
+        cursor = cursor.endsWith('/') || cursor.endsWith('\\')
+          ? `${cursor}${part}`
+          : `${cursor}${separator}${part}`
+        items.push({name: part, path: cursor})
+      }
+      fsBreadcrumbs.value = items
+    } else {
+      fsBreadcrumbs.value = []
+    }
+  } catch (err: unknown) {
+    const message = (err as {response?: {data?: {message?: string}}; message?: string})
+      ?.response?.data?.message
+      || (err as {message?: string})?.message
+      || t('folders_browser.browser_load_error')
+    fsError.value = message
+    fsEntries.value = []
+    fsBreadcrumbs.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function addCurrentFsFolder() {
+  appShell.showAddMediaDialog()
 }
 
 async function playAllInPath(folderPath: string) {
@@ -735,6 +1244,55 @@ async function loadFolder() {
 
 function onFolderContextMenu(event: MouseEvent, folderPath: string) {
   setFocus({kind: 'folder', path: folderPath})
+
+  // In filesystem select mode, show multi-select context menu
+  if (browseMode.value === 'filesystem' && fsSelection.isSelectMode) {
+    const selected = fsSelection.selectedEntries
+    if (!selected.length) {
+      contextMenuStore.showContextMenu({
+        content: [{name: t('folders_browser.clipboard_empty'), type: 'item', disabled: true}],
+        x: event.clientX,
+        y: event.clientY,
+      })
+      return
+    }
+    const content: ContextMenuEntry[] = [
+      {
+        name: t('folders_browser.copy_names'),
+        type: 'item',
+        icon: 'content-copy',
+        action: () => { void onCopyNames() },
+      },
+      {type: 'divider' as const},
+      {
+        name: t('folders_browser.copy_selected'),
+        type: 'item',
+        icon: 'content-copy',
+        action: () => { void onCopySelectedTo() },
+      },
+      {
+        name: t('folders_browser.move_selected'),
+        type: 'item',
+        icon: 'file-move-outline',
+        action: () => { void onMoveSelectedTo() },
+      },
+      {type: 'divider' as const},
+      {
+        name: t('folders_browser.delete_selected'),
+        type: 'item',
+        icon: 'delete',
+        color: 'error',
+        action: () => { void onDeleteSelected() },
+      },
+    ]
+    contextMenuStore.showContextMenu({
+      content,
+      x: event.clientX,
+      y: event.clientY,
+    })
+    return
+  }
+
   const content: ContextMenuEntry[] = [
     {
       name: t('folders_browser.open_folder'),
@@ -743,10 +1301,20 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
       action: () => navigateTo(folderPath),
     },
     {
-      name: t('folders_browser.reveal'),
+      name: t('folders_browser.play_all'),
       type: 'item',
-      icon: 'folder-outline',
-      action: () => revealPath(folderPath),
+      icon: 'play',
+      action: () => { void playAllInPath(folderPath) },
+    },
+    {type: 'divider' as const},
+    {
+      name: t('folders_browser.copy_names'),
+      type: 'item',
+      icon: 'content-copy',
+      action: () => {
+        const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath
+        void copyToClipboard(folderName, {successText: t('folders_browser.copy_names_done', {count: 1})})
+      },
     },
     {
       name: t('context_menu.copy_path'),
@@ -754,21 +1322,32 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
       icon: 'content-copy',
       action: () => { void copyToClipboard(folderPath) },
     },
+    {type: 'divider' as const},
     {
       name: t('media.adding.folder_tags_edit'),
       type: 'item',
       icon: 'tag-multiple-outline',
       action: () => openTagsForPath(folderPath),
     },
+    {type: 'divider' as const},
     {
-      name: t('folders_browser.play_all'),
+      name: t('folders_browser.reveal'),
       type: 'item',
-      icon: 'play',
-      action: () => { void playAllInPath(folderPath) },
+      icon: 'folder-outline',
+      action: () => revealPath(folderPath),
     },
-    {
-      type: 'divider' as const,
-    },
+    ...(browseMode.value === 'filesystem' ? [{type: 'divider' as const}, {
+      name: t('folders_browser.select_mode'),
+      type: 'item',
+      icon: 'checkbox-multiple-outline',
+      action: () => {
+        fsSelection.toggleSelectMode(true)
+        // Select the path that was built from folderBrowse model
+        const found = folders.value.find((f) => f.path === folderPath)
+        if (found) fsSelection.selectFolder(found)
+      },
+    }] : []),
+    {type: 'divider' as const},
     {
       name: t('folders_browser.delete_folder'),
       type: 'item',
@@ -782,6 +1361,194 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
     x: event.clientX,
     y: event.clientY,
   })
+}
+
+function onFsFileContextMenu(_event: MouseEvent, entry: FsBrowseEntry) {
+  if (fsSelection.isSelectMode) {
+    return
+  }
+  const content: ContextMenuEntry[] = [
+    {
+      name: t('context_menu.copy_path'),
+      type: 'item',
+      icon: 'content-copy',
+      action: () => { void copyToClipboard(entry.path) },
+    },
+    {
+      name: t('folders_browser.copy_names'),
+      type: 'item',
+      icon: 'content-copy',
+      action: () => { void copyToClipboard(entry.name, {successText: t('folders_browser.copy_names_done', {count: 1})}) },
+    },
+    {type: 'divider' as const},
+    {
+      name: t('folders_browser.select_mode'),
+      type: 'item',
+      icon: 'checkbox-multiple-outline',
+      action: () => {
+        fsSelection.toggleSelectMode(true)
+        fsSelection.selectFsFile(entry)
+      },
+    },
+  ]
+  contextMenuStore.showContextMenu({
+    content,
+    x: _event.clientX,
+    y: _event.clientY,
+  })
+}
+
+function onToggleFolderSelect(folder: FolderBrowseTileModel) {
+  fsSelection.toggleFolder(folder)
+}
+
+function onToggleFsFileSelect(entry: FsBrowseEntry) {
+  fsSelection.toggleFsFile(entry)
+}
+
+async function onCopyNames() {
+  const names = fsSelection.clipboardNames
+  if (!names) return
+  await copyToClipboard(names, {
+    successText: t('folders_browser.copy_names_done', {count: fsSelection.selectedCount}),
+  })
+}
+
+function selectAllAddableFiles() {
+  const addable = fsFiles.value.filter((entry) => entry.addable)
+  if (!addable.length) {
+    setNotification({type: 'info', title: t('folders_browser.no_addable_files')})
+    return
+  }
+  fsSelection.selectAllAddable(addable)
+}
+
+async function onDeleteSelected() {
+  const entries = fsSelection.selectedEntries.map((e) => ({
+    path: e.path,
+    name: e.name,
+  }))
+  if (!entries.length) return
+
+  dialogsStore.confirm.variant = 'delete'
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.text = t('folders_browser.delete_selected_confirm', {count: entries.length})
+  dialogsStore.confirm.action = async () => {
+    await fsQueue.enqueue(
+      {label: `Delete ${entries.length} items`, kind: 'delete', entryCount: entries.length},
+      async () => {
+        const {data} = await typedApi.deleteEntries(entries)
+        const deleted = data.deleted?.length || 0
+        const failed = data.failed?.length || 0
+        if (deleted > 0) {
+          setNotification({
+            type: 'success',
+            title: t('folders_browser.delete_selected_done', {count: deleted}),
+          })
+        }
+        if (failed > 0) {
+          setNotification({
+            type: 'error',
+            title: t('folders_browser.delete_selected_failed', {count: failed}),
+          })
+        }
+        if (browseMode.value === 'filesystem' && currentFsPath.value) {
+          await loadFsDirectory(currentFsPath.value)
+        }
+      },
+    )
+    fsSelection.clearSelection()
+  }
+  dialogsStore.confirm.show = true
+}
+
+async function doFsOperation(
+  operation: 'copy' | 'move',
+) {
+  const entries = fsSelection.selectedEntries.map((e) => ({
+    path: e.path,
+    name: e.name,
+  }))
+  if (!entries.length) return
+
+  // First try Electron native dialog
+  try {
+    const {getElectronOperable} = await import('@/services/electronBridge')
+    const operable = getElectronOperable()
+    if (operable?.showOpenDialog) {
+      const result = await operable.showOpenDialog({
+        properties: ['openDirectory'],
+      })
+      if (result?.canceled || !result?.filePaths?.length) return
+      const destination = result.filePaths[0]
+      await executeFsOperation(operation, entries, destination)
+      return
+    }
+  } catch {
+    // Electron dialog not available
+  }
+
+  // Fallback: built-in folder picker dialog
+  folderPickerOperation.value = operation
+  folderPickerEntries.value = entries
+  folderPickerOpen.value = true
+}
+
+async function onFolderPickerConfirm(paths: string[]) {
+  folderPickerOpen.value = false
+  const destination = paths[0]
+  if (!destination || !folderPickerEntries.value.length) return
+  await executeFsOperation(folderPickerOperation.value, folderPickerEntries.value, destination)
+  folderPickerEntries.value = []
+}
+
+async function executeFsOperation(
+  operation: 'copy' | 'move',
+  entries: {path: string; name: string}[],
+  destination: string,
+) {
+
+  const opLabel = `${operation === 'copy' ? 'Copy' : 'Move'} ${entries.length} items to ${destination.split(/[/\\]/).pop() || destination}`
+  const opKind = operation === 'copy' ? 'copy' as const : 'move' as const
+
+  await fsQueue.enqueue(
+    {label: opLabel, kind: opKind, entryCount: entries.length},
+    async () => {
+      if (operation === 'copy') {
+        const {data} = await typedApi.copyEntries(entries, destination)
+        const copied = data.copied?.length || 0
+        const failed = data.failed?.length || 0
+        if (copied > 0) {
+          setNotification({type: 'success', title: `Copied ${copied} item(s)`})
+        }
+        if (failed > 0) {
+          setNotification({type: 'error', title: `Failed to copy ${failed} item(s)`})
+        }
+      } else {
+        const {data} = await typedApi.moveEntries(entries, destination)
+        const moved = data.moved?.length || 0
+        const failed = data.failed?.length || 0
+        if (moved > 0) {
+          setNotification({type: 'success', title: `Moved ${moved} item(s)`})
+        }
+        if (failed > 0) {
+          setNotification({type: 'error', title: `Failed to move ${failed} item(s)`})
+        }
+      }
+      if (browseMode.value === 'filesystem' && currentFsPath.value) {
+        await loadFsDirectory(currentFsPath.value)
+      }
+    },
+  )
+  fsSelection.clearSelection()
+}
+
+function onCopySelectedTo() {
+  void doFsOperation('copy')
+}
+
+function onMoveSelectedTo() {
+  void doFsOperation('move')
 }
 
 function onMediaContextMenu(event: MouseEvent, item: MediaItem) {
@@ -855,26 +1622,35 @@ async function deleteFolderWithConfirm(folderPath: string) {
     dialogsStore.confirm.action = async () => {
       const permanent = Boolean(dialogsStore.confirm.checkBox)
       const withFile = Boolean(dialogsStore.confirm.checkBox2)
-      let deleted = 0
-      for (const id of allIds) {
-        try {
-          await typedApi.deleteEntityOne('media', {
-            id,
-            with_file: withFile,
-            permanent,
+      await fsQueue.enqueue(
+        {
+          label: `Delete ${allIds.length} media from ${folderPath.split(/[/\\]/).pop() || folderPath}`,
+          kind: 'delete',
+          entryCount: allIds.length,
+        },
+        async () => {
+          let deleted = 0
+          for (const id of allIds) {
+            try {
+              await typedApi.deleteEntityOne('media', {
+                id,
+                with_file: withFile,
+                permanent,
+              })
+              deleted += 1
+            } catch (error) {
+              console.error('Failed to delete media', id, error)
+            }
+          }
+          setNotification({
+            type: 'success',
+            title: permanent
+              ? t('folders_browser.delete_folder_done', {count: deleted})
+              : t('notifications_text.items_moved_to_trash'),
           })
-          deleted += 1
-        } catch (error) {
-          console.error('Failed to delete media', id, error)
-        }
-      }
-      setNotification({
-        type: 'success',
-        title: permanent
-          ? t('folders_browser.delete_folder_done', {count: deleted})
-          : t('notifications_text.items_moved_to_trash'),
-      })
-      await loadFolder()
+          await loadFolder()
+        },
+      )
     }
     dialogsStore.confirm.show = true
   } catch (error) {
@@ -889,10 +1665,44 @@ async function deleteFolderWithConfirm(folderPath: string) {
 watch(
   () => [pathFromQuery.value, mediaTypeId.value, appStore.is_app_ready] as const,
   () => {
-    void loadFolder()
+    if (browseMode.value === 'library') {
+      void loadFolder()
+    }
   },
   {immediate: true},
 )
+
+watch(browseMode, (mode) => {
+  fsSelection.clearSelection()
+  if (mode === 'filesystem') {
+    fsSelection.toggleSelectMode(true)
+    if (!places.value.length) {
+      void loadPlaces()
+    }
+    if (currentFsPath.value) {
+      void loadFsDirectory(currentFsPath.value)
+    } else {
+      // Default to home or first place
+      void loadPlaces().then(() => {
+        if (places.value.length && !currentFsPath.value) {
+          const home = places.value.find((p) => p.id === 'home')
+          const first = home || places.value[0]
+          if (first) {
+            navigateToFs(first.path)
+          }
+        }
+      })
+    }
+  } else {
+    fsSelection.toggleSelectMode(false)
+  }
+})
+
+watch(showHidden, () => {
+  if (browseMode.value === 'filesystem' && currentFsPath.value) {
+    void loadFsDirectory(currentFsPath.value)
+  }
+})
 
 watch(uniqueFolderTagChips, (chips) => {
   if (tagFilterId.value != null && !chips.some((chip) => chip.tagId === tagFilterId.value)) {
@@ -904,6 +1714,8 @@ watch(visibleMedia, (items) => {
   syncPlaylist(items)
 })
 
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   eventBus.on('folders:go-up', goUp)
   eventBus.on('folders:open-path', navigateTo)
@@ -914,11 +1726,29 @@ onMounted(() => {
     }
     if (folders.value[0]) openTagsForPath(folders.value[0].path)
   })
+  if (clipboardEntriesContainerRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      recalcClipboardOverflow()
+    })
+    resizeObserver.observe(clipboardEntriesContainerRef.value)
+  }
+})
+
+watch(() => fsSelection.selectedEntries.length, () => {
+  void nextTick().then(recalcClipboardOverflow)
+})
+
+watch(browseMode, () => {
+  void nextTick().then(recalcClipboardOverflow)
 })
 
 onBeforeUnmount(() => {
   eventBus.clearAll()
   clearFocus()
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 </script>
 
@@ -1098,12 +1928,6 @@ onBeforeUnmount(() => {
   padding: 0 var(--deck-pad-x, 14px) 10px;
 }
 
-.folders-page__actions {
-  flex: 0 0 auto;
-  margin-left: auto;
-  max-width: 100%;
-  overflow-x: auto;
-}
 
 .folders-page__status {
   padding: 32px 8px;
@@ -1116,5 +1940,170 @@ onBeforeUnmount(() => {
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+.folders-page__mode-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-surface), 0.9);
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
+}
+
+.folders-page__mode-opt {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(var(--v-theme-primary), 0.72);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.folders-page__mode-opt:hover {
+  background: rgba(var(--v-theme-primary), 0.08);
+  color: rgb(var(--v-theme-primary));
+}
+
+.folders-page__mode-opt--active {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.folders-page__mode-opt--active:hover {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.folders-page__places {
+  padding: 0 var(--deck-pad-x, 14px) 8px;
+}
+
+.folders-page__filter-check :deep(.v-label) {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+/* Clipboard / Selection buffer bar */
+.folders-page__clipboard-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: var(--container-max-width, 1184px);
+  z-index: 1005;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 0 rgba(var(--v-theme-primary), 0.04),
+    0 10px 30px -12px rgba(0, 0, 0, 0.28);
+  padding: 0 16px;
+}
+
+.folders-page__clipboard-bar--bottom-nav {
+  bottom: 72px;
+}
+
+.folders-page__clipboard-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  max-height: 56px;
+  overflow: hidden;
+}
+
+.folders-page__clipboard-bar-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.folders-page__clipboard-bar-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.folders-page__clipboard-bar-entries {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  position: relative;
+}
+
+.folders-page__clipboard-entry--more {
+  flex-shrink: 0;
+  opacity: 0.7;
+  font-weight: 600;
+  position: sticky;
+  right: 0;
+  z-index: 1;
+}
+
+.folders-page__clipboard-entry--more-hidden {
+  visibility: hidden;
+}
+
+.folders-page__clipboard-bar-empty {
+  font-size: 0.7rem;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  white-space: nowrap;
+}
+
+.folders-page__clipboard-entry {
+  flex-shrink: 0;
+}
+
+.folders-page__clipboard-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.folders-page__clipboard-bar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(var(--v-theme-on-surface), 0.15);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.folders-page__queue-bar {
+  display: flex;
+  align-items: center;
+  padding: 2px 0 6px;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.folders-page__queue-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

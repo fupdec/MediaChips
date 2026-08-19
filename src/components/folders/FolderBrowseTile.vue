@@ -1,93 +1,125 @@
 <template>
-  <button
-    type="button"
-    class="folder-browse-tile"
-    :class="{
-      'folder-browse-tile--list': list,
-      'folder-browse-tile--focused': focused,
-    }"
-    :data-folder-path="folder.path"
-    :aria-label="folder.name"
-    :title="folder.path"
-    @click="emit('open', folder.path)"
-    @dblclick="emit('open', folder.path)"
-    @contextmenu.prevent.stop="emit('contextmenu', $event, folder.path)"
+  <div
+    class="folder-browse-tile-wrapper"
+    :class="{'folder-browse-tile-wrapper--selecting': selectMode}"
   >
-    <div class="folder-browse-tile__preview">
-      <div
-        v-if="coverUrls.length"
-        class="folder-browse-tile__mosaic"
-        :class="`folder-browse-tile__mosaic--${Math.min(coverUrls.length, 4)}`"
-      >
-        <img
-          v-for="(url, index) in coverUrls.slice(0, 4)"
-          :key="`${folder.path}:${index}`"
-          :src="url"
-          alt=""
-          class="folder-browse-tile__cover"
+    <button
+      type="button"
+      class="folder-browse-tile"
+      :class="{
+        'folder-browse-tile--list': list,
+        'folder-browse-tile--compact': compact,
+        'folder-browse-tile--focused': focused,
+        'folder-browse-tile--selected': selected,
+      }"
+      :data-folder-path="folder.path"
+      :aria-label="folder.name"
+      :title="folder.path"
+      @click="onClick"
+      @dblclick="emit('open', folder.path)"
+      @contextmenu.prevent.stop="emit('contextmenu', $event, folder.path)"
+    >
+      <div class="folder-browse-tile__preview">
+        <div
+          v-if="!compact && coverUrls.length"
+          class="folder-browse-tile__mosaic"
+          :class="`folder-browse-tile__mosaic--${Math.min(coverUrls.length, 4)}`"
         >
-      </div>
-      <v-icon
-        v-else
-        icon="mdi-folder"
-        :size="list ? 28 : 44"
-        color="primary"
-      />
-      <span
-        v-if="folder.mediaCount > 0 && !list"
-        class="folder-browse-tile__badge"
-      >
-        {{ folder.mediaCount }}
-      </span>
-      <span
-        v-if="coverUrls.length && !list"
-        class="folder-browse-tile__folder-mark"
-        aria-hidden="true"
-      >
-        <v-icon size="12" icon="mdi-folder"/>
-      </span>
-      <span
-        v-if="list"
-        class="folder-browse-tile__media-type-badge"
-        aria-hidden="true"
-      >
-        <v-icon size="12" icon="mdi-folder"/>
-      </span>
-    </div>
-    <div class="folder-browse-tile__body">
-      <div
-        class="folder-browse-tile__name"
-        :title="folder.name"
-      >
-        {{ folder.name }}
-      </div>
-      <div
-        v-if="visibleChips.length || list"
-        class="folder-browse-tile__meta"
-      >
+          <img
+            v-for="(url, index) in coverUrls.slice(0, 4)"
+            :key="`${folder.path}:${index}`"
+            :src="url"
+            alt=""
+            class="folder-browse-tile__cover"
+          >
+        </div>
+        <v-icon
+          v-else
+          icon="mdi-folder"
+          :size="list ? 18 : compact ? 28 : 44"
+          color="primary"
+        />
+        <span
+          v-if="folder.mediaCount > 0 && !list && !compact"
+          class="folder-browse-tile__badge"
+        >
+          {{ folder.mediaCount }}
+        </span>
+        <span
+          v-if="coverUrls.length && !list && !compact"
+          class="folder-browse-tile__folder-mark"
+          aria-hidden="true"
+        >
+          <v-icon size="12" icon="mdi-folder"/>
+        </span>
         <span
           v-if="list && folder.mediaCount > 0"
           class="folder-browse-tile__count"
         >
           {{ folder.mediaCount }}
         </span>
-        <span
-          v-for="chip in visibleChips"
-          :key="chip.tagId"
-          class="folder-browse-tile__chip"
-          :style="chip.color ? {background: chip.color} : undefined"
-        >
-          {{ chip.name }}
-        </span>
-        <span
-          v-if="overflowCount > 0"
-          class="folder-browse-tile__chip folder-browse-tile__chip--more"
-        >
-          +{{ overflowCount }}
-        </span>
       </div>
+      <div class="folder-browse-tile__body">
+        <div
+          class="folder-browse-tile__name"
+          :title="folder.name"
+        >
+          {{ folder.name }}
+        </div>
+        <div
+          v-if="(visibleChips.length || list) && !compact"
+          class="folder-browse-tile__meta"
+        >
+          <span
+            v-if="list && folder.mediaCount > 0"
+            class="folder-browse-tile__count"
+          >
+            {{ folder.mediaCount }}
+          </span>
+          <span
+            v-for="chip in visibleChips"
+            :key="chip.tagId"
+            class="folder-browse-tile__chip"
+            :style="chip.color ? {background: chip.color} : undefined"
+          >
+            {{ chip.name }}
+          </span>
+          <span
+            v-if="overflowCount > 0"
+            class="folder-browse-tile__chip folder-browse-tile__chip--more"
+          >
+            +{{ overflowCount }}
+          </span>
+        </div>
+      </div>
+    </button>
+    <div
+      v-if="selectMode"
+      class="folder-browse-tile__select-overlay"
+      :class="{
+        'folder-browse-tile__select-overlay--on': selected,
+        'folder-browse-tile__select-overlay--list': list || selectMode,
+      }"
+      @click.stop="emit('toggle-select', folder)"
+    >
+      <button
+        type="button"
+        class="folder-browse-tile__select-btn"
+        :class="{
+          'folder-browse-tile__select-btn--on': selected,
+          'folder-browse-tile__select-btn--list': list || selectMode,
+        }"
+        :aria-pressed="selected"
+        :aria-label="selected ? 'Deselect folder' : 'Select folder'"
+        tabindex="-1"
+      >
+        <v-icon
+          size="18"
+          :icon="selected ? 'mdi-check' : 'mdi-plus'"
+        />
+      </button>
     </div>
-  </button>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -112,23 +144,47 @@ const props = withDefaults(defineProps<{
   tags?: FolderBrowseTagChip[]
   focused?: boolean
   list?: boolean
+  compact?: boolean
+  selectMode?: boolean
+  selected?: boolean
 }>(), {
   coverUrls: () => [],
   tags: () => [],
   focused: false,
   list: false,
+  compact: false,
+  selectMode: false,
+  selected: false,
 })
 
 const emit = defineEmits<{
   open: [path: string]
   contextmenu: [event: MouseEvent, path: string]
+  'toggle-select': [folder: FolderBrowseTileModel]
 }>()
 
 const visibleChips = computed(() => (props.tags || []).slice(0, 3))
 const overflowCount = computed(() => Math.max(0, (props.tags || []).length - visibleChips.value.length))
+
+function onClick() {
+  if (props.selectMode) {
+    emit('toggle-select', props.folder)
+  } else {
+    emit('open', props.folder.path)
+  }
+}
 </script>
 
 <style scoped>
+.folder-browse-tile-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.folder-browse-tile-wrapper--selecting {
+  cursor: default;
+}
+
 .folder-browse-tile {
   display: flex;
   flex-direction: column;
@@ -159,11 +215,51 @@ const overflowCount = computed(() => Math.max(0, (props.tags || []).length - vis
   box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.35);
 }
 
+.folder-browse-tile--selected {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.25);
+}
+
 .folder-browse-tile--list {
   flex-direction: row;
   align-items: center;
   border-radius: 8px;
   height: var(--list-card-height, 48px);
+  padding: 0 10px;
+}
+
+/* Compact mode — unified row matching fs-file appearance */
+.folder-browse-tile--compact {
+  flex-direction: row;
+  align-items: center;
+  border-radius: 8px;
+  height: var(--list-card-height, auto);
+  border-color: rgba(var(--v-theme-on-surface), 0.1);
+  padding: 4px 8px;
+}
+
+.folder-browse-tile--compact .folder-browse-tile__preview {
+  flex: 0 0 auto;
+  width: 28px;
+  min-width: 28px;
+  aspect-ratio: auto;
+  height: 28px;
+  background: none;
+  overflow: visible;
+}
+
+.folder-browse-tile--compact .folder-browse-tile__body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.folder-browse-tile--compact .folder-browse-tile__name {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  font-size: var(--list-font-size, 13px);
 }
 
 .folder-browse-tile__preview {
@@ -180,10 +276,12 @@ const overflowCount = computed(() => Math.max(0, (props.tags || []).length - vis
 }
 
 .folder-browse-tile--list .folder-browse-tile__preview {
-  width: var(--list-preview-width, 56px);
-  min-width: var(--list-preview-width, 56px);
+  width: 28px;
+  min-width: 28px;
   aspect-ratio: auto;
-  height: var(--list-card-height, 48px);
+  height: 28px;
+  background: none;
+  overflow: visible;
 }
 
 .folder-browse-tile__mosaic {
@@ -234,21 +332,6 @@ const overflowCount = computed(() => Math.max(0, (props.tags || []).length - vis
   position: absolute;
   left: 4px;
   top: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  pointer-events: none;
-}
-
-.folder-browse-tile--list .folder-browse-tile__media-type-badge {
-  position: absolute;
-  top: 2px;
-  left: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -329,5 +412,76 @@ const overflowCount = computed(() => Math.max(0, (props.tags || []).length - vis
 .folder-browse-tile__chip--more {
   max-width: none;
   background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+/* Selection overlay */
+.folder-browse-tile__select-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.04);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.folder-browse-tile-wrapper:hover .folder-browse-tile__select-overlay,
+.folder-browse-tile__select-overlay--on {
+  opacity: 1;
+}
+
+.folder-browse-tile__select-btn {
+  pointer-events: auto;
+  appearance: none;
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.3);
+  border-radius: 6px;
+  background: rgba(var(--v-theme-surface), 0.95);
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.folder-browse-tile__select-btn:hover {
+  border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-primary));
+}
+
+.folder-browse-tile__select-btn--on {
+  background: rgb(var(--v-theme-primary));
+  border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.folder-browse-tile__select-btn--on:hover {
+  background: rgb(var(--v-theme-primary-darken-1, var(--v-theme-primary)));
+  border-color: rgb(var(--v-theme-primary-darken-1, var(--v-theme-primary)));
+}
+
+/* List mode — select on the left, round */
+.folder-browse-tile__select-overlay--list {
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0 0 0 10px;
+}
+
+.folder-browse-tile__select-btn--list {
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+.folder-browse-tile__select-btn--list .v-icon {
+  font-size: 14px !important;
 }
 </style>

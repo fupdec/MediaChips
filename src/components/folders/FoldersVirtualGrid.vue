@@ -30,9 +30,27 @@
           :tags="tagsFor(entry.folder.path)"
           :focused="isFolderFocused(entry.folder.path)"
           :list="list"
+          :compact="browseMode === 'filesystem'"
+          :select-mode="selectMode"
+          :selected="isFolderSelected(entry.folder.path)"
           @open="emit('open-folder', $event)"
           @contextmenu="(event, path) => emit('folder-contextmenu', event, path)"
+          @toggle-select="emit('toggle-folder-select', $event)"
         />
+        <div
+          v-else-if="entry.kind === 'fs-file'"
+          class="folders-virtual-grid__cell folders-virtual-grid__cell--fs-file"
+          :class="{'folders-virtual-grid__cell--list': list}"
+        >
+          <FsBrowseFileRow
+            :entry="entry.entry"
+            :list="list"
+            :select-mode="selectMode"
+            :selected="isFsFileSelected(entry.entry.path)"
+            @contextmenu="(event, e) => emit('fsfile-contextmenu', event, e)"
+            @toggle-select="emit('toggle-fsfile-select', $event)"
+          />
+        </div>
         <div
           v-else
           class="folders-virtual-grid__cell folders-virtual-grid__cell--media item"
@@ -130,6 +148,8 @@ import FolderBrowseTile, {
   type FolderBrowseTagChip,
   type FolderBrowseTileModel,
 } from '@/components/folders/FolderBrowseTile.vue'
+import type {FsBrowseEntry} from '@/components/folders/FsBrowseEntry'
+import FsBrowseFileRow from '@/components/folders/FsBrowseFileRow.vue'
 import WidgetMediaCard from '@/components/widgets/WidgetMediaCard.vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -154,31 +174,47 @@ const CARD_BORDER_Y = 2
 type FolderBrowseEntry =
   | {kind: 'folder'; key: string; folder: FolderBrowseTileModel}
   | {kind: 'media'; key: string; item: MediaItem}
+  | {kind: 'fs-file'; key: string; entry: FsBrowseEntry}
 
 const props = withDefaults(defineProps<{
   folders?: FolderBrowseTileModel[]
   media?: MediaItem[]
+  fsFiles?: FsBrowseEntry[]
+  browseMode?: 'library' | 'filesystem'
   size?: number | string
   gapSize?: string
   list?: boolean
   folderTags?: Record<string, FolderBrowseTagChip[]>
   coverUrlByMediaId?: Record<number, string>
   reg?: boolean
+  selectMode?: boolean
+  /** Map of selected folder paths -> true */
+  selectedFolderPaths?: Set<string>
+  /** Map of selected fs-file paths -> true */
+  selectedFsFilePaths?: Set<string>
 }>(), {
   folders: () => [],
   media: () => [],
+  fsFiles: () => [],
+  browseMode: 'library',
   size: 3,
   gapSize: 'default',
   list: false,
   folderTags: () => ({}),
   coverUrlByMediaId: () => ({}),
   reg: true,
+  selectMode: false,
+  selectedFolderPaths: () => new Set(),
+  selectedFsFilePaths: () => new Set(),
 })
 
 const emit = defineEmits<{
   'open-folder': [path: string]
   'folder-contextmenu': [event: MouseEvent, path: string]
   'media-contextmenu': [event: MouseEvent, item: MediaItem]
+  'toggle-folder-select': [folder: FolderBrowseTileModel]
+  'fsfile-contextmenu': [event: MouseEvent, entry: FsBrowseEntry]
+  'toggle-fsfile-select': [entry: FsBrowseEntry]
 }>()
 
 const {t} = useI18n()
@@ -198,7 +234,12 @@ const entriesSource = computed((): FolderBrowseEntry[] => {
     key: `media:${item.id}`,
     item,
   }))
-  return [...folders, ...media]
+  const fsFiles = (props.fsFiles || []).map((entry) => ({
+    kind: 'fs-file' as const,
+    key: `fs-file:${entry.path}`,
+    entry,
+  }))
+  return [...folders, ...media, ...fsFiles]
 })
 
 const sizeNumber = computed(() => {
@@ -215,6 +256,7 @@ const resolvedLayoutOptions = computed<GridLayoutOptions>(() => ({
 const {gridStyle, containerWidth} = useResponsiveGridLayout(layoutRef, resolvedLayoutOptions)
 
 const folderCardLayout = computed(() => {
+  const inFilesystem = props.browseMode === 'filesystem'
   if (props.list) {
     const listCardHeight = LIST_ROW_HEIGHT[sizeNumber.value] || LIST_ROW_HEIGHT[3]
     return {
@@ -232,11 +274,22 @@ const folderCardLayout = computed(() => {
     : 150
   const previewHeight = (cardWidth - CARD_BORDER_Y) / (16 / 9)
   const cardHeight = Math.round(previewHeight + WIDGET_CARD_BODY + CARD_BORDER_Y)
+  const rowStride = cardHeight + getGridGap(gapSize).y
+  if (inFilesystem) {
+    // Compact row height matching file rows, card grid column count preserved
+    const compactHeight = LIST_ROW_HEIGHT[size] || LIST_ROW_HEIGHT[3]
+    return {
+      size,
+      gapSize,
+      cardHeight: compactHeight,
+      rowStride: compactHeight + getGridGap(gapSize).x,
+    }
+  }
   return {
     size,
     gapSize,
     cardHeight,
-    rowStride: cardHeight + getGridGap(gapSize).y,
+    rowStride,
   }
 })
 
@@ -351,6 +404,14 @@ function isFolderFocused(folderPath: string) {
   return focused.value?.kind === 'folder' && focused.value.path === folderPath
 }
 
+function isFolderSelected(folderPath: string) {
+  return (props.selectedFolderPaths || new Set()).has(folderPath)
+}
+
+function isFsFileSelected(entryPath: string) {
+  return (props.selectedFsFilePaths || new Set()).has(entryPath)
+}
+
 function onMediaClick(item: MediaItem) {
   if (itemsStore.isSelect) {
     itemsStore.toggleSelect(null, item)
@@ -424,7 +485,7 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 0;
+  padding: 0 10px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   border-radius: 8px;
   background: rgb(var(--v-theme-surface));
@@ -465,21 +526,6 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
   display: block;
 }
 
-.folders-virtual-grid__cell--media .folder-browse-tile--list .folder-browse-tile__media-type-badge {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  pointer-events: none;
-}
-
 .folders-virtual-grid__cell--media .folder-browse-tile--list .folder-browse-tile__body {
   box-sizing: border-box;
   flex: 1;
@@ -515,5 +561,13 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
 .folders-virtual-grid__cell--media .folder-browse-tile--list .folder-browse-tile__count {
   font-size: 11px;
   color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.folders-virtual-grid__cell--fs-file {
+  position: relative;
+}
+
+.folders-virtual-grid__cell--fs-file.folders-virtual-grid__cell--list {
+  width: 100%;
 }
 </style>
