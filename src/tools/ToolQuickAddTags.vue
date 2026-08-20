@@ -47,17 +47,20 @@ async function openSuggestedTags() {
   loading.value = true
   message.value = ''
 
-  try {
+  const fetchAndSlice = async (): Promise<string[]> => {
     const res = await typedApi.suggestTagsFromPaths({
-      limit: 150,
+      limit: 1000,
       maxWords: 3,
       excludeExisting: true,
     })
-
-    const names = (res.data?.suggestions || [])
+    return (res.data?.suggestions || [])
       .map((item) => item.word)
       .filter((word): word is string => Boolean(word))
-      .slice(0, 150)
+      .slice(0, 1000)
+  }
+
+  try {
+    const names = await fetchAndSlice()
 
     if (names.length === 0) {
       messageType.value = 'info'
@@ -68,6 +71,7 @@ async function openSuggestedTags() {
     appShell.openTagsAddWithNames({
       names,
       title: t('notifications_text.suggested_tags_title'),
+      refreshCallback: fetchAndSlice,
     })
 
     messageType.value = 'success'
