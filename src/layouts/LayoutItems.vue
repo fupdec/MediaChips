@@ -136,6 +136,24 @@
       </div>
     </div>
 
+    <div
+      v-if="items_type === 'tag'"
+      class="items-alphabet"
+    >
+      <button
+        v-for="letter in alphabetLetters"
+        :key="letter"
+        type="button"
+        class="items-alphabet__btn"
+        :class="{
+          'items-alphabet__btn--active': letterFilter === letter,
+        }"
+        @click="toggleLetterFilter(letter)"
+      >
+        {{ letter }}
+      </button>
+    </div>
+
     <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
 
     <!-- Filters: top panel in the control deck -->
@@ -154,7 +172,7 @@
     />
 
     <ItemsMasonryGrid
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && isMasonryGrid"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
       :key="`masonry-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -167,6 +185,7 @@
       :grid-classes="itemsGridClasses"
       :grid-layout-options="itemsGridLayoutOptions"
       :virtual="useVirtualMasonry"
+      :square-items="isSquaresGrid"
       class="items-page-grid"
     />
 
@@ -477,6 +496,7 @@ import {
   type ItemsGroupSection,
 } from '@/utils/itemsGroupBy'
 import {getFilterObject} from '@/services/formatUtils'
+import {getTagFirstLetter} from '@shared/transliterate'
 import type { MediaItem } from '@/types/stores'
 
 // Пропсы
@@ -523,6 +543,7 @@ const meta = ref<Meta | null>(null)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
 const dialogEditingPinnedMeta = ref(false)
+const letterFilter = ref<string | null>(null)
 const {
   controlDeckSentinel,
   controlDeckClass,
@@ -638,6 +659,9 @@ const isImageGrid = computed(() =>
 const isMasonryGrid = computed(() =>
   props.items_type === 'media' && mediaType.value?.type === 'image' && ITEMS.value.view == 3
 )
+const isSquaresGrid = computed(() =>
+  props.items_type === 'media' && mediaType.value?.type === 'image' && ITEMS.value.view == 6
+)
 const isWideImage = computed(() =>
   props.items_type === 'media' && isVideoMediaType(mediaType.value) && ITEMS.value.view == 2
 )
@@ -664,6 +688,7 @@ const listItemType = computed((): ItemsPageType =>
 const useVirtualGrid = computed(() =>
   isGroupByOff.value
   && !isMasonryGrid.value
+  && !isSquaresGrid.value
   && !isChipsGrid.value
   && shouldUseVirtualGrid(
     ITEMS.value.itemsOnPage.length,
@@ -673,7 +698,7 @@ const useVirtualGrid = computed(() =>
   ),
 )
 const useVirtualMasonry = computed(() =>
-  isMasonryGrid.value
+  (isMasonryGrid.value || isSquaresGrid.value)
   && shouldUseVirtualMasonry(
     ITEMS.value.itemsOnPage.length,
     is_infinite_scroll.value,
@@ -686,7 +711,7 @@ const useVirtualMasonry = computed(() =>
 )
 
 const groupedSections = computed(() => {
-  if (isMasonryGrid.value) return null
+  if (isMasonryGrid.value || isSquaresGrid.value) return null
   const groupBy = resolveActiveItemsGroupBy(
     ITEMS.value.groupBy,
     ITEMS.value.sortBy,
@@ -837,7 +862,7 @@ const itemsGridClasses = computed(() => [
 const itemsGridLayoutOptions = computed(() => ({
   size: ITEMS.value.size,
   gapSize: SETTINGS.value.gapSize,
-  imageGrid: isImageGrid.value || isMasonryGrid.value,
+  imageGrid: isImageGrid.value || isMasonryGrid.value || isSquaresGrid.value,
   wideImage: isWideImage.value,
   lineGrid: isLineGrid.value,
   listGrid: isListGrid.value,
@@ -847,6 +872,23 @@ const itemsGridLayoutOptions = computed(() => ({
 const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(itemsGridRef, itemsGridLayoutOptions)
 const reg = computed(() => registrationStore.reg)
 const ENV = computed(() => ITEMS.value.environment)
+
+const alphabetLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+function toggleLetterFilter(letter: string): void {
+  if (letterFilter.value === letter) {
+    letterFilter.value = null
+  } else {
+    letterFilter.value = letter
+  }
+}
+
+watch(letterFilter, (val) => {
+  if (itemsStore.type !== 'tag') return
+  itemsStore.updateState({key: 'page', value: 1})
+  itemsStore.namePrefix = val
+  void getItemsFromDb()
+})
 
 useItemsThumbPrefetch({
   items: computed(() => ITEMS.value.itemsOnPage),
@@ -1038,5 +1080,38 @@ defineEmits<{
   height: 1px;
   pointer-events: none;
   overflow-anchor: none;
+}
+
+.items-alphabet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.items-alphabet__btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-on-surface), 0.1);
+    color: rgba(var(--v-theme-on-surface), 0.9);
+  }
+
+  &--active {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+  }
 }
 </style>

@@ -31,8 +31,8 @@ const DESCRIPTION_HEIGHT: Record<number, number> = { 1: 72, 2: 78, 3: 82, 4: 88,
 
 const LINE_ROW_HEIGHT: Record<number, number> = { 1: 100, 2: 120, 3: 130, 4: 140, 5: 160, 6: 180 }
 
-/** Compact single-row list view: edge-to-edge thumbnail height + divider. Kept in sync with item.scss. */
-export const LIST_ROW_HEIGHT: Record<number, number> = { 1: 45, 2: 53, 3: 61, 4: 69, 5: 77, 6: 85 }
+/** Compact single-row list view: tight row height for filesystem browser. */
+export const LIST_ROW_HEIGHT: Record<number, number> = { 1: 36, 2: 40, 3: 44, 4: 48, 5: 52, 6: 56 }
 
 export const VIRTUAL_GRID_THRESHOLD = 48
 
@@ -282,6 +282,13 @@ export function estimateMasonryItemHeight(
 ): number {
   const aspect = getMediaAspectRatio(media)
   return colWidth / aspect
+}
+
+export function estimateSquareItemHeight(
+  _media: { width?: number | null; height?: number | null },
+  colWidth: number,
+): number {
+  return colWidth
 }
 
 export interface MasonryPlacement<T> {

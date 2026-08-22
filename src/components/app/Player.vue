@@ -46,6 +46,12 @@ onBeforeUnmount(() => stopPlayerUiSync())
   }
 }
 
+// Darken the VDialog overlay scrim for the player so the background
+// behind the video is less distracting. Default is 0.32.
+.v-overlay:has(.dialog-player) .v-overlay__scrim {
+  opacity: 0.72 !important;
+}
+
 .player-standalone {
   position: fixed;
   inset: 0;

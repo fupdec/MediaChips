@@ -106,6 +106,11 @@ const initViewOptions = () => {
       icon: 'view-dashboard',
       textKey: 'items.view.masonry',
     })
+    viewOptions.value.push({
+      val: 6,
+      icon: 'view-grid-outline',
+      textKey: 'items.view.squares',
+    })
   } else if (itemsType === 'tag') {
     viewOptions.value.push({
       val: 2,

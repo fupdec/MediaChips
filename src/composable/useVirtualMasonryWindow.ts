@@ -11,6 +11,7 @@ import { getMainScrollEl } from '@/utils/mainScroll'
 import {
   buildMasonryLayout,
   estimateMasonryItemHeight,
+  estimateSquareItemHeight,
   findVisibleMasonryItems,
   getGridGap,
   getLayoutMetrics,
@@ -30,6 +31,7 @@ export function useVirtualMasonryWindow(
   layoutRef: Ref<HTMLElement | null>,
   layoutOptions: Ref<MasonryLayoutOptions>,
   virtualEnabled: Ref<boolean>,
+  squareItems: Ref<boolean> = ref(false),
 ) {
   const columnCount = ref(1)
   const columnWidth = ref(200)
@@ -79,7 +81,7 @@ export function useVirtualMasonryWindow(
       columnWidth.value,
       gap.value.x,
       gap.value.y,
-      estimateMasonryItemHeight,
+      squareItems.value ? estimateSquareItemHeight : estimateMasonryItemHeight,
     )
     totalHeight.value = masonryLayout.value?.totalHeight ?? 0
     // Do not ratio-scale scrollTop here: append/loadMore grows height below the

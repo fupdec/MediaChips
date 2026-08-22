@@ -1113,6 +1113,7 @@ const de = {
       timeline: 'Zeitleiste',
       chip: 'Chip',
       masonry: 'Mauerwerk',
+      squares: 'Quadrate',
       minimal: 'Minimalismus',
     },
   },

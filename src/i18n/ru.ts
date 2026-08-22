@@ -1169,6 +1169,7 @@ const ru = {
       timeline: 'Таймлайн',
       chip: 'Чип',
       masonry: 'Мозаика',
+      squares: 'Квадраты',
       minimal: 'Минимализм',
       list: 'Список',
     },

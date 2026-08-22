@@ -1113,6 +1113,7 @@ const fr = {
       timeline: 'Chronologie',
       chip: 'Puce',
       masonry: 'Maçonnerie',
+      squares: 'Carrés',
       minimal: 'Minimalisme',
     },
   },

@@ -15,8 +15,8 @@
         :src="thumb || undefined"
         :aspect-ratio="previewAspectRatio"
         class="thumb"
-        :cover="isViewMasonry || isListView"
-        :contain="!isViewMasonry && !isListView"
+        :cover="isViewMasonry || isViewSquares || isListView"
+        :contain="!isViewMasonry && !isViewSquares && !isListView"
         @load="onThumbLoad"
         @error="onThumbError"
       />
@@ -82,18 +82,22 @@ const isViewMasonry = computed(() =>
   Number(ITEMS.value.view) === 3
 )
 
+const isViewSquares = computed(() =>
+  Number(ITEMS.value.view) === 6
+)
+
 const isListView = computed(() =>
   Number(ITEMS.value.view) === 5
 )
 
 const showsPreview = computed(() =>
-  isViewCard.value || isViewTimeline.value || isViewMasonry.value
+  isViewCard.value || isViewTimeline.value || isViewMasonry.value || isViewSquares.value
 )
 
 const previewAspectRatio = computed(() => {
   const view = Number(ITEMS.value.view)
   if (view === 1) return 16 / 9
-  if (view === 5) return 1
+  if (view === 5 || isViewSquares.value) return 1
   return getMediaAspectRatio(props.media)
 })
 
@@ -113,6 +117,7 @@ const showResolution = computed(() =>
   mediaWidth.value > 0 && mediaHeight.value > 0
   && !isViewCard.value
   && !isViewMasonry.value
+  && !isViewSquares.value
 )
 
 const onThumbLoad = () => {

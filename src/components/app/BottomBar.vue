@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
@@ -12,6 +13,12 @@ const safeAreaBottom = ref(0)
 
 const {mobile} = useDisplay()
 const {t} = useI18n()
+const route = useRoute()
+
+function linkActive(link: {to: string; exact?: boolean}): boolean {
+  if (link.exact) return route.fullPath === link.to
+  return route.fullPath.startsWith(link.to)
+}
 
 const {
   mediaTypesHidden,
@@ -85,6 +92,7 @@ onUnmounted(() => {
           v-bind="props"
           :to="link.to"
           :exact="link.exact"
+          :active="linkActive(link)"
           :aria-label="link.title"
           :title="link.title"
           draggable="false"
@@ -108,6 +116,7 @@ onUnmounted(() => {
           v-bind="props"
           :to="allTagsLink.to"
           :exact="allTagsLink.exact"
+          :active="linkActive(allTagsLink)"
           :aria-label="allTagsLink.title"
           :title="allTagsLink.title"
           draggable="false"
@@ -132,6 +141,7 @@ onUnmounted(() => {
         <v-btn
           v-bind="props"
           :to="metaPath(item.id)"
+          :active="route.fullPath === metaPath(item.id)"
           :aria-label="item.name"
           :title="item.name"
           draggable="false"
@@ -196,6 +206,7 @@ onUnmounted(() => {
         <v-btn
           v-bind="props"
           :to="settingsLink.to"
+          :active="linkActive(settingsLink)"
           :aria-label="settingsLink.title"
           :title="settingsLink.title"
           draggable="false"
@@ -218,6 +229,7 @@ onUnmounted(() => {
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
+          :active="false"
           :aria-label="trashLink.title"
           :title="trashLink.title"
           draggable="false"
@@ -246,7 +258,7 @@ onUnmounted(() => {
         >
           <v-btn
             v-bind="props"
-            class="v-btn--selected v-btn--active"
+            class=""
             variant="text"
             :disabled="watcherBusy"
             :aria-label="t('media_inbox.nav')"
@@ -316,6 +328,11 @@ onUnmounted(() => {
   flex: 0 0 auto;
   color: rgba(var(--v-theme-on-surface), 0.72) !important;
   opacity: 1;
+}
+
+.bottom-menu .folder-wrapper .v-btn.v-btn--selected,
+.bottom-menu .folder-wrapper .v-btn.v-btn--active {
+  color: rgba(var(--v-theme-on-surface), 0.72) !important;
 }
 
 .bottom-menu .v-btn.v-btn--selected,

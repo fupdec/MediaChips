@@ -1113,6 +1113,7 @@ const ja = {
       timeline: 'タイムライン',
       chip: 'チップ',
       masonry: '石積み',
+      squares: '正方形',
       minimal: 'ミニマリズム',
     },
   },

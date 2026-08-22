@@ -1113,6 +1113,7 @@ const cn = {
       timeline: '时间轴',
       chip: '标签块',
       masonry: '瀑布流',
+      squares: '正方形',
       minimal: '极简',
     },
   },

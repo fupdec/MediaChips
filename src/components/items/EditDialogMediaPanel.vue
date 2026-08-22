@@ -275,12 +275,6 @@ async function createVideoThumb(mode: 'random' | 'default') {
     invalidateVideoThumbCaches(media.id)
     itemsStore.refreshThumb(media.id)
     emit('edited')
-    setNotification({
-      title: t('player.video_thumb_updated'),
-      text: media.path,
-      icon: 'image',
-      type: 'success',
-    })
   } catch (e) {
     console.error(e)
     setNotification({

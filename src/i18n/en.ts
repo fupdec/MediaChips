@@ -1175,6 +1175,7 @@ const en = {
       timeline: 'Timeline',
       chip: 'Chip',
       masonry: 'Masonry',
+      squares: 'Squares',
       minimal: 'Minimalism',
       list: 'List',
     },

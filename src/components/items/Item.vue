@@ -80,7 +80,7 @@
       </div>
 
       <div
-        v-if="isMasonryImage && showPreview"
+        v-if="isMasonryOrSquaresImage && showPreview"
         class="masonry-meta-overlay"
         @click.stop="handleCardActivate"
         @dblclick.stop="editItem"
@@ -128,7 +128,7 @@
       />
 
       <div
-        v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && itemsStore.view == 3)"
+        v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && (itemsStore.view == 3 || itemsStore.view == 6))"
         @click="handleCardActivate"
         @dblclick="editItem"
         v-ripple="{ class: `text-primary` }"
@@ -388,17 +388,23 @@ const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 
 const isListView = computed(() => Number(itemsStore.view) === 5)
 
-const isMasonryImage = computed(() =>
+const isMasonryOrSquaresImage = computed(() =>
   props.type === 'media'
   && isImageMedia.value
-  && Number(itemsStore.view) === 3
+  && (Number(itemsStore.view) === 3 || Number(itemsStore.view) === 6)
+)
+
+const isSquaresGrid = computed(() =>
+  props.type === 'media'
+  && isImageMedia.value
+  && Number(itemsStore.view) === 6
 )
 
 const showCardView = computed(() => {
   const view = Number(itemsStore.view)
   if (view === 1 || isImageOnlyView.value) return true
   if (view === 2 && props.type === 'media' && isVideoMedia.value) return true
-  if (view === 3 && props.type === 'media' && isImageMedia.value) return true
+  if ((view === 3 || view === 6) && props.type === 'media' && isImageMedia.value) return true
   if (view === 5 && (props.type === 'media' || props.type === 'tag')) return true
   return false
 })

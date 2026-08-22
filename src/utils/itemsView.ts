@@ -18,7 +18,8 @@ export function normalizeItemsView(
     }
 
     if (isImageMediaType(mediaType)) {
-      return value === 3 ? 3 : 1
+      if (value === 3 || value === 6) return value
+      return 1
     }
 
     return 1

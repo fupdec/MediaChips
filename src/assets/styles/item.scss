@@ -2256,7 +2256,8 @@ body > .video-preview-container.video-preview-container--expanded {
   background: rgb(var(--v-theme-surface));
 }
 
-.item-media.item-view-3 {
+.item-media.item-view-3,
+.item-media.item-view-6 {
   .item_wrapper {
     position: relative;
     overflow: hidden;

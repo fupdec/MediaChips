@@ -1113,6 +1113,7 @@ const es = {
       timeline: 'Línea de tiempo',
       chip: 'Chip',
       masonry: 'Mosaico',
+      squares: 'Cuadrados',
       minimal: 'Minimalismo',
     },
   },
