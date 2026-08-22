@@ -1245,36 +1245,75 @@ async function loadFolder() {
 function onFolderContextMenu(event: MouseEvent, folderPath: string) {
   setFocus({kind: 'folder', path: folderPath})
 
-  // In filesystem select mode, show multi-select context menu
-  if (browseMode.value === 'filesystem' && fsSelection.isSelectMode) {
+  // In filesystem mode, select the clicked folder and show appropriate menu
+  if (browseMode.value === 'filesystem') {
+    const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath
+    fsSelection.selectFolder({path: folderPath, name: folderName, mediaCount: 0})
+    if (!fsSelection.isSelectMode) {
+      fsSelection.toggleSelectMode(true)
+    }
+
     const selected = fsSelection.selectedEntries
-    if (!selected.length) {
+    if (selected.length > 1) {
+      const content: ContextMenuEntry[] = [
+        {
+          name: t('folders_browser.copy_names'),
+          type: 'item',
+          icon: 'content-copy',
+          action: () => { void onCopyNames() },
+        },
+        {type: 'divider' as const},
+        {
+          name: t('folders_browser.copy_selected'),
+          type: 'item',
+          icon: 'content-copy',
+          action: () => { void onCopySelectedTo() },
+        },
+        {
+          name: t('folders_browser.move_selected'),
+          type: 'item',
+          icon: 'file-move-outline',
+          action: () => { void onMoveSelectedTo() },
+        },
+        {type: 'divider' as const},
+        {
+          name: t('folders_browser.delete_selected'),
+          type: 'item',
+          icon: 'delete',
+          color: 'error',
+          action: () => { void onDeleteSelected() },
+        },
+      ]
       contextMenuStore.showContextMenu({
-        content: [{name: t('folders_browser.clipboard_empty'), type: 'item', disabled: true}],
+        content,
         x: event.clientX,
         y: event.clientY,
       })
       return
     }
+
     const content: ContextMenuEntry[] = [
+      {
+        name: t('folders_browser.open_folder'),
+        type: 'item',
+        icon: 'folder-open',
+        action: () => navigateToFs(folderPath),
+      },
+      {type: 'divider' as const},
       {
         name: t('folders_browser.copy_names'),
         type: 'item',
         icon: 'content-copy',
-        action: () => { void onCopyNames() },
+        action: () => {
+          const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath
+          void copyToClipboard(folderName, {successText: t('folders_browser.copy_names_done', {count: 1})})
+        },
       },
-      {type: 'divider' as const},
       {
-        name: t('folders_browser.copy_selected'),
+        name: t('context_menu.copy_path'),
         type: 'item',
         icon: 'content-copy',
-        action: () => { void onCopySelectedTo() },
-      },
-      {
-        name: t('folders_browser.move_selected'),
-        type: 'item',
-        icon: 'file-move-outline',
-        action: () => { void onMoveSelectedTo() },
+        action: () => { void copyToClipboard(folderPath) },
       },
       {type: 'divider' as const},
       {
@@ -1293,6 +1332,7 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
     return
   }
 
+  // Library mode — original menu
   const content: ContextMenuEntry[] = [
     {
       name: t('folders_browser.open_folder'),
@@ -1336,17 +1376,6 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
       icon: 'folder-outline',
       action: () => revealPath(folderPath),
     },
-    ...(browseMode.value === 'filesystem' ? [{type: 'divider' as const}, {
-      name: t('folders_browser.select_mode'),
-      type: 'item',
-      icon: 'checkbox-multiple-outline',
-      action: () => {
-        fsSelection.toggleSelectMode(true)
-        // Select the path that was built from folderBrowse model
-        const found = folders.value.find((f) => f.path === folderPath)
-        if (found) fsSelection.selectFolder(found)
-      },
-    }] : []),
     {type: 'divider' as const},
     {
       name: t('folders_browser.delete_folder'),
@@ -1364,9 +1393,51 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
 }
 
 function onFsFileContextMenu(_event: MouseEvent, entry: FsBrowseEntry) {
-  if (fsSelection.isSelectMode) {
+  // Select the right-clicked entry
+  fsSelection.selectFsFile(entry)
+  if (!fsSelection.isSelectMode) {
+    fsSelection.toggleSelectMode(true)
+  }
+
+  const selected = fsSelection.selectedEntries
+  if (selected.length > 1) {
+    const content: ContextMenuEntry[] = [
+      {
+        name: t('folders_browser.copy_names'),
+        type: 'item',
+        icon: 'content-copy',
+        action: () => { void onCopyNames() },
+      },
+      {type: 'divider' as const},
+      {
+        name: t('folders_browser.copy_selected'),
+        type: 'item',
+        icon: 'content-copy',
+        action: () => { void onCopySelectedTo() },
+      },
+      {
+        name: t('folders_browser.move_selected'),
+        type: 'item',
+        icon: 'file-move-outline',
+        action: () => { void onMoveSelectedTo() },
+      },
+      {type: 'divider' as const},
+      {
+        name: t('folders_browser.delete_selected'),
+        type: 'item',
+        icon: 'delete',
+        color: 'error',
+        action: () => { void onDeleteSelected() },
+      },
+    ]
+    contextMenuStore.showContextMenu({
+      content,
+      x: _event.clientX,
+      y: _event.clientY,
+    })
     return
   }
+
   const content: ContextMenuEntry[] = [
     {
       name: t('context_menu.copy_path'),
@@ -1382,13 +1453,11 @@ function onFsFileContextMenu(_event: MouseEvent, entry: FsBrowseEntry) {
     },
     {type: 'divider' as const},
     {
-      name: t('folders_browser.select_mode'),
+      name: t('folders_browser.delete_selected'),
       type: 'item',
-      icon: 'checkbox-multiple-outline',
-      action: () => {
-        fsSelection.toggleSelectMode(true)
-        fsSelection.selectFsFile(entry)
-      },
+      icon: 'delete',
+      color: 'error',
+      action: () => { void onDeleteSelected() },
     },
   ]
   contextMenuStore.showContextMenu({

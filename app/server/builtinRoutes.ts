@@ -21,6 +21,7 @@ import { pickPublicHost } from './publicHost'
 import { listMediaRoots } from '../../api/services/mediaRoots'
 import { listBrowseDirectory } from '../../api/services/browseDirectory'
 import { listSystemPlaces } from '../../api/services/systemPlaces'
+import { deleteEntries, copyEntries, moveEntries, validateEntries, createFolder, renameEntry } from '../../api/services/browseOperations'
 import { getBestLocalIp, getAllIps } from './network'
 import { saveConfigFile } from './configFile'
 import { safeJsonError } from './fileResolver'
@@ -205,6 +206,81 @@ function registerBuiltinRoutes({
     }
 
     res.json({container: false, places: listSystemPlaces()})
+  })
+
+  app.post('/api/browse/deleteEntries', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      validateEntries(req.body?.entries)
+      const result = await deleteEntries(req.body.entries)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to delete entries'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/copyEntries', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      validateEntries(req.body?.entries)
+      const destination = String(req.body?.destination || '').trim()
+      if (!destination) {
+        throw Object.assign(new Error('Destination path is required'), {status: 400})
+      }
+      const result = await copyEntries(req.body.entries, destination)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to copy entries'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/moveEntries', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      validateEntries(req.body?.entries)
+      const destination = String(req.body?.destination || '').trim()
+      if (!destination) {
+        throw Object.assign(new Error('Destination path is required'), {status: 400})
+      }
+      const result = await moveEntries(req.body.entries, destination)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to move entries'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/createFolder', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const targetPath = String(req.body?.path || '').trim()
+      if (!targetPath) {
+        throw Object.assign(new Error('Path is required'), {status: 400})
+      }
+      const result = await createFolder(targetPath)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to create folder'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/renameEntry', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const oldPath = String(req.body?.path || '').trim()
+      const newName = String(req.body?.name || '').trim()
+      if (!oldPath || !newName) {
+        throw Object.assign(new Error('Path and name are required'), {status: 400})
+      }
+      const result = await renameEntry(oldPath, newName)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to rename entry'
+      res.status(status).json({message})
+    }
   })
 
   app.get('/api/config', (req: ApiRequest, res: ApiResponse) => {

@@ -87,6 +87,8 @@ export interface ItemsListRequest {
   /** Tag autocomplete / name+synonym search. */
   search?: string
   query?: string
+  /** Filter tags by first letter (A-Z). */
+  namePrefix?: string
 }
 
 export type ItemsPageListQuery = ItemsListRequest

@@ -335,14 +335,22 @@ export const useOperationsStore = defineStore('useOperationsStore', {
       notifyOnComplete?: boolean
       notifyOnError?: boolean
     }) {
-      return this._runMovingWebSocket(
-        { type: 'rename', old_path: oldPath, new_path: newPath },
-        {
-          taskTitle: this.t('operations.moving.rename_title'),
-          notifyOnComplete,
-          notifyOnError,
-          onMessage: onProgress,
-        },
+      // Lazy-import to avoid circular deps
+      const {useFsOperationsQueue} = await import('@/stores/fsOperationsQueue')
+      const queue = useFsOperationsQueue()
+
+      const fileName = oldPath.split(/[/\\]/).pop() || oldPath
+      return queue.enqueue(
+        {label: `Rename ${fileName}`, kind: 'move', entryCount: 1},
+        () => this._runMovingWebSocket(
+          {type: 'rename', old_path: oldPath, new_path: newPath},
+          {
+            taskTitle: this.t('operations.moving.rename_title'),
+            notifyOnComplete,
+            notifyOnError,
+            onMessage: onProgress,
+          },
+        ),
       )
     },
 
@@ -353,16 +361,21 @@ export const useOperationsStore = defineStore('useOperationsStore', {
 
       if (!items.length) return
 
-      const result = await this._runMovingWebSocket(
-        { type: 'move', items },
-        {
-          onFinish: () => {
-            this.moving.items = null
-          },
-        },
-      )
+      // Lazy-import to avoid circular deps
+      const {useFsOperationsQueue} = await import('@/stores/fsOperationsQueue')
+      const queue = useFsOperationsQueue()
 
-      return result
+      return queue.enqueue(
+        {label: `Move ${items.length} item(s)`, kind: 'move', entryCount: items.length},
+        () => this._runMovingWebSocket(
+          {type: 'move', items},
+          {
+            onFinish: () => {
+              this.moving.items = null
+            },
+          },
+        ),
+      )
     },
   },
 })
