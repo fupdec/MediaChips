@@ -84,6 +84,18 @@
 
             <div class="filters-top__chrome-end">
               <v-btn
+                v-if="showTopChips"
+                class="filters-top__chrome-btn filters-top__chrome-btn--text"
+                variant="text"
+                size="small"
+                density="compact"
+                color="primary"
+                @click="handleDeactivateAllFilters"
+              >
+                {{ t('filters.deactivate_all_filters') }}
+              </v-btn>
+
+              <v-btn
                 v-if="isPanelView"
                 :color="is_filters_changed ? 'success' : 'primary'"
                 class="filters-top__chrome-btn"
@@ -100,18 +112,6 @@
                   mdi-check
                 </v-icon>
                 {{ t('common.apply') }}
-              </v-btn>
-
-              <v-btn
-                v-if="showTopChips"
-                class="filters-top__chrome-btn filters-top__chrome-btn--text"
-                variant="text"
-                size="small"
-                density="compact"
-                color="primary"
-                @click="handleDeactivateAllFilters"
-              >
-                {{ t('filters.deactivate_all_filters') }}
               </v-btn>
 
               <v-btn
