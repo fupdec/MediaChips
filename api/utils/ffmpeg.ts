@@ -3,6 +3,7 @@ import {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
   runWithRemuxLimit,
+  runWithConversionLimit,
 } from '../services/mediaPostProcessQueue'
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
 import {
@@ -22,25 +23,70 @@ export {
   resolveThumbnailSeekSeconds,
 } from './ffprobeMath'
 
-function runProcess(binary: string, args: string[]): Promise<{stdout: string; stderr: string}> {
+type RunProcessOptions = {
+  signal?: AbortSignal
+  duration?: number
+  onProgress?: (progress: number) => void
+}
+
+function runProcess(binary: string, args: string[], options: RunProcessOptions = {}): Promise<{stdout: string; stderr: string}> {
   return new Promise((resolve, reject) => {
     const proc = spawn(binary, args, {stdio: ['ignore', 'pipe', 'pipe']})
     let stdout = ''
     let stderr = ''
+    let settled = false
+    let aborted = false
+    let killTimer: ReturnType<typeof setTimeout> | undefined
+
+    const finishReject = (error: Error) => {
+      if (settled) return
+      settled = true
+      if (killTimer) clearTimeout(killTimer)
+      reject(error)
+    }
+    const abort = () => {
+      if (settled || aborted) return
+      aborted = true
+      proc.kill('SIGTERM')
+      killTimer = setTimeout(() => {
+        if (!settled) proc.kill('SIGKILL')
+      }, 2_000)
+    }
+
+    if (options.signal?.aborted) {
+      abort()
+      return
+    }
+    options.signal?.addEventListener('abort', abort, {once: true})
 
     proc.stdout?.on('data', (chunk: Buffer | string) => {
       stdout += chunk.toString()
     })
     proc.stderr?.on('data', (chunk: Buffer | string) => {
-      stderr += chunk.toString()
+      const text = chunk.toString()
+      stderr += text
+      for (const match of text.matchAll(/out_time_(?:us|ms)=(\d+)/g)) {
+        const value = Number(match[1]) / (match[0].includes('out_time_us') ? 1_000_000 : 1_000)
+        if (options.duration && options.duration > 0) {
+          options.onProgress?.(Math.max(0, Math.min(99, value / options.duration * 100)))
+        }
+      }
     })
-    proc.on('error', reject)
+    proc.on('error', (error) => finishReject(error))
     proc.on('close', (code: number | null) => {
+      options.signal?.removeEventListener('abort', abort)
+      if (settled) return
+      settled = true
+      if (killTimer) clearTimeout(killTimer)
+      if (aborted) {
+        reject(new Error('Conversion cancelled'))
+        return
+      }
       if (code === 0) {
+        options.onProgress?.(100)
         resolve({stdout, stderr})
         return
       }
-
       reject(new Error(stderr.trim() || `${binary} exited with code ${code}`))
     })
   })
@@ -198,8 +244,8 @@ async function ffprobePlayability(filePath: string) {
   })
 }
 
-async function runFfmpeg(args: string[]) {
-  return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args))
+async function runFfmpeg(args: string[], options: RunProcessOptions = {}) {
+  return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args, options))
 }
 
 /** Progressive remux / background copy — must not block live playback ffmpeg. */
@@ -442,6 +488,64 @@ async function concatVideoSegments({
     ])
     return outputPath
   }
+}
+
+
+export type ConversionResolution = 'original' | 2160 | 1080 | 720 | 480
+export type ConversionQuality = 'economy' | 'balanced' | 'quality'
+export type ConversionCodec = 'hevc' | 'h264'
+
+const QUALITY_OPTIONS: Record<ConversionQuality, {crf: number; preset: string}> = {
+  economy: {crf: 28, preset: 'medium'},
+  balanced: {crf: 24, preset: 'slow'},
+  quality: {crf: 20, preset: 'slow'},
+}
+
+/** Builds a capped scale expression. It never enlarges a source video. */
+export function buildConversionScale(resolution: ConversionResolution): string | null {
+  if (resolution === 'original') return null
+  const height = Number(resolution)
+  if (![2160, 1080, 720, 480].includes(height)) throw new Error('Unsupported conversion resolution')
+  return `scale=-2:min(${height}\\,ih):force_original_aspect_ratio=decrease`
+}
+
+export function buildConversionArgs(input: string, output: string, options: {
+  codec: ConversionCodec
+  resolution: ConversionResolution
+  quality: ConversionQuality
+  duration?: number
+}): string[] {
+  const profile = QUALITY_OPTIONS[options.quality]
+  if (!profile) throw new Error('Unsupported conversion quality')
+  const args = ['-hide_banner', '-y']
+  if (options.duration != null) args.push('-t', String(Math.max(0.1, options.duration)))
+  args.push('-progress', 'pipe:2', '-nostats', '-i', input, '-map', '0:v:0', '-map', '0:a?', '-sn', '-dn')
+  const scale = buildConversionScale(options.resolution)
+  if (scale) args.push('-vf', scale)
+  args.push('-c:v', options.codec === 'hevc' ? 'libx265' : 'libx264', '-preset', profile.preset, '-crf', String(profile.crf), '-pix_fmt', 'yuv420p')
+  args.push('-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-movflags', '+faststart', output)
+  return args
+}
+
+export async function convertVideoFile(input: string, output: string, options: {
+  codec: ConversionCodec
+  resolution: ConversionResolution
+  quality: ConversionQuality
+  duration?: number
+  onProgress?: (progress: number) => void
+  signal?: AbortSignal
+}): Promise<string> {
+  if (options.signal?.aborted) throw new Error('Conversion cancelled')
+  return runWithConversionLimit(async () => {
+    const args = buildConversionArgs(input, output, options)
+    await runFfmpeg(args, {
+      signal: options.signal,
+      duration: options.duration,
+      onProgress: options.onProgress,
+    })
+    if (options.signal?.aborted) throw new Error('Conversion cancelled')
+    return output
+  })
 }
 
 export {

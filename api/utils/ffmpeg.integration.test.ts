@@ -13,6 +13,7 @@ import {
   extractVideoThumbnail,
   ffprobe,
   runFfmpeg,
+  convertVideoFile,
 } from './ffmpeg'
 
 function ffmpegBinariesAvailable(): boolean {
@@ -46,6 +47,21 @@ describeIntegration('ffmpeg integration', () => {
   afterAll(() => {
     if (tmpDir) fs.rmSync(tmpDir, {recursive: true, force: true})
   })
+
+  it('converts a short clip to HEVC MP4 with AAC audio', async () => {
+    const out = path.join(tmpDir, 'converted-hevc.mp4')
+    await convertVideoFile(sampleMp4, out, {
+      codec: 'hevc',
+      resolution: 480,
+      quality: 'economy',
+      duration: 1,
+    })
+    const probe = await ffprobe(out)
+    expect(fs.statSync(out).size).toBeGreaterThan(0)
+    expect(probe.streams?.find((stream) => stream.codec_type === 'video')?.codec_name).toBe('hevc')
+    expect(probe.streams?.find((stream) => stream.codec_type === 'audio')?.codec_name ?? 'aac').toBe('aac')
+    expect(Number(probe.format.duration)).toBeGreaterThan(0)
+  }, 60_000)
 
   it('ffprobe reports a short video stream', async () => {
     const probe = await ffprobe(sampleMp4)
