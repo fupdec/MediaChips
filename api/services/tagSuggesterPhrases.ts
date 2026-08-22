@@ -1,7 +1,8 @@
-import type {MediaLike, TagLike} from '../types/db'
+import type {MediaLike} from '../types/db'
 import type {PathToken, TokenizeOptions} from '../types/pathTokenizer'
-import {tokenizeFilePath} from './pathTokenizer'
-import {normalizeTagLookupName} from '../../shared/tagLookupName'
+import {tokenizeFilePath, cleanComparable} from './pathTokenizer'
+import {normalizeTagLookupName, getTagLookupNames} from '../../shared/tagLookupName'
+import type {TagLookupLike} from '../../shared/tagLookupName'
 
 export interface TagPhraseCandidate {
   word: string
@@ -90,12 +91,15 @@ export function suggestionScore(item: Pick<PathTokenCount, 'word' | 'occurrences
   const occ = Number(item.occurrences) || 0
   const docs = Math.max(1, Number(item.docs) || 1)
 
-  const multiBoost = words > 1
-    ? (1.8 + 0.35 * (words - 1)) * (docs >= 2 ? 1.35 : 1)
+  // Multi-word phrases that appear in 2+ paths get a strong boost so they
+  // outrank high-frequency single-word tokens (e.g. "Cheryl blossom" over "Cheryl").
+  const multiDocBoost = words > 1 && docs >= 2
+    ? 2.0 + 0.75 * Math.min(docs - 2, 8)
     : 1
+  const multiBase = words > 1 ? (2.5 + 0.5 * (words - 1)) : 1
   const numericPenalty = words === 1 && /^\d+$/.test(item.word) ? 0.3 : 1
 
-  return occ * multiBoost * numericPenalty
+  return occ * multiBase * multiDocBoost * numericPenalty
 }
 
 export function compareSuggestions(
@@ -112,40 +116,16 @@ export function compareSuggestions(
 }
 
 /**
- * Keep strong multi-word phrases in the top-N even when singles dominate by raw count.
+ * Pick the top `limit` candidates purely by score. Multi-word and single-word
+ * tags compete on the same ranking so single-word tags are not suppressed.
  */
 export function pickTopSuggestions(candidates: PathTokenCount[], limit: number): PathTokenCount[] {
   const capped = Math.max(0, Math.floor(Number(limit) || 0))
   if (!capped || !candidates.length) return []
 
-  const sorted = [...candidates].sort(compareSuggestions)
-  if (sorted.length <= capped) return sorted
-
-  const multi = sorted.filter((item) => (item.words || 1) > 1)
-  const recurringMulti = multi.filter((item) => (item.docs || 0) >= 2)
-  const preferredMulti = recurringMulti.length ? recurringMulti : multi
-
-  const reserved = Math.min(
-    preferredMulti.length,
-    Math.max(Math.ceil(capped * 0.4), Math.min(preferredMulti.length, 8)),
-  )
-
-  const chosen: PathTokenCount[] = []
-  const seen = new Set<string>()
-
-  for (const item of preferredMulti.slice(0, reserved)) {
-    chosen.push(item)
-    seen.add(item.word)
-  }
-
-  for (const item of sorted) {
-    if (chosen.length >= capped) break
-    if (seen.has(item.word)) continue
-    chosen.push(item)
-    seen.add(item.word)
-  }
-
-  return chosen.sort(compareSuggestions)
+  return [...candidates]
+    .sort(compareSuggestions)
+    .slice(0, capped)
 }
 
 export function countPathTokens(
@@ -181,7 +161,48 @@ export function countPathTokens(
     .sort(compareSuggestions)
 }
 
-export function filterExistingTags(candidates: PathTokenCount[], tags: TagLike[] = []) {
-  const existing = new Set(tags.map((tag) => normalizeTagLookupName(tag.name)).filter(Boolean))
-  return candidates.filter((candidate) => !existing.has(normalizeTagLookupName(candidate.word)))
+export function filterExistingTags(candidates: PathTokenCount[], tags: TagLookupLike[] = []) {
+  const existingCompact = new Set<string>()
+
+  for (const tag of tags) {
+    for (const name of getTagLookupNames(tag)) {
+      if (!name) continue
+      existingCompact.add(cleanComparable(name))
+    }
+  }
+
+  return candidates.filter((candidate) => {
+    const normalized = normalizeTagLookupName(candidate.word)
+    if (!normalized) return false
+    if (existingCompact.has(cleanComparable(normalized))) return false
+    return true
+  })
+}
+
+/**
+ * Remove candidates whose word (or cleanCompact form) matches an entry in the
+ * user's ban list. The ban list is a JSON array of strings stored as a setting.
+ */
+export function filterBannedCandidates(candidates: PathTokenCount[], banListRaw: string): PathTokenCount[] {
+  if (!candidates.length || !banListRaw) return candidates
+
+  let banned: string[]
+  try {
+    banned = JSON.parse(banListRaw)
+  } catch {
+    return candidates
+  }
+  if (!Array.isArray(banned) || !banned.length) return candidates
+
+  const bannedCompact = new Set<string>()
+  for (const entry of banned) {
+    const phrase = String(entry || '').trim()
+    if (!phrase) continue
+    bannedCompact.add(cleanComparable(phrase))
+  }
+
+  return candidates.filter((candidate) => {
+    if (bannedCompact.has(cleanComparable(candidate.word))) return false
+    return true
+  })
 }

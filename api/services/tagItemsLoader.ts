@@ -36,6 +36,9 @@ import {
   type GroupableItem,
   type ItemsGroupSummary,
 } from '../../shared/itemsGroupBy'
+import {
+  getTagFirstLetter,
+} from '../../shared/transliterate'
 
 export interface TagLoadOptions {
   metaId: number
@@ -53,6 +56,8 @@ export interface TagLoadOptions {
   search?: string
   /** Typing-filter mode: substring (=exact) or chars with gaps (default). */
   searchMode?: TagAutocompleteSearchMode
+  /** Filter tags by first letter (A-Z, Cyrillic transliterated to Latin). */
+  namePrefix?: string | null
   groupBy?: string
   groupByMetaType?: string | null
 }
@@ -470,6 +475,50 @@ async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
     }
 
     resolvedOptions = {...options, ids}
+  }
+
+  const namePrefix = (typeof options.namePrefix === 'string'
+    ? options.namePrefix.trim().toUpperCase()
+    : '') || null
+
+  if (namePrefix && namePrefix.length === 1 && /^[A-Z]$/.test(namePrefix)) {
+    const allRows = await queryAllAsync<{id: number; name: string | null}>(db,
+      `SELECT id, name FROM tags WHERE metaId = :metaId`,
+      {metaId: options.metaId},
+    )
+
+    const prefixMatchedIds: number[] = []
+    for (const row of allRows) {
+      const letter = getTagFirstLetter(String(row.name ?? ''))
+      if (letter === namePrefix) {
+        prefixMatchedIds.push(Number(row.id))
+      }
+    }
+
+    if (!prefixMatchedIds.length) {
+      let totalUnfiltered: number | null = null
+      if (!options.skipTotals) {
+        const rows = await queryAllAsync<{totalUnfiltered: number}>(db,
+          `SELECT COUNT(*) AS totalUnfiltered FROM tags WHERE tags.metaId = :metaId`,
+          {metaId: options.metaId})
+        totalUnfiltered = Number(rows[0]?.totalUnfiltered) || 0
+      }
+      return emptyTagItemsResult(options, totalUnfiltered)
+    }
+
+    const existingIds = Array.isArray(resolvedOptions.ids) && resolvedOptions.ids.length
+      ? resolvedOptions.ids
+      : null
+    const prefixSet = new Set(prefixMatchedIds)
+    const ids = existingIds
+      ? existingIds.filter((id) => prefixSet.has(Number(id)))
+      : prefixMatchedIds
+
+    if (!ids.length) {
+      return emptyTagItemsResult(options)
+    }
+
+    resolvedOptions = {...resolvedOptions, ids}
   }
 
   const fallbackReason = getTagFilterSqlFallbackReason({

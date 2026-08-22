@@ -36,11 +36,22 @@ export default function createTasksTaggingController(shared: TaskControllerShare
         useML: req.query.useML ?? req.body?.settings?.useML,
       })
       const requestPaths = Array.isArray(req.body?.paths) ? req.body.paths : []
-      const media = requestPaths.length > 0
-        ? requestPaths.map((item: AnyRecord) => ({
-          path: typeof item === 'string' ? item : item.path,
-        })).filter((item: AnyRecord) => item.path)
-        : mediaRepo.findPaths().map((path) => ({path}))
+      const requested = requestPaths.map((item: AnyRecord) => ({
+        path: typeof item === 'string' ? item : item.path,
+      })).filter((item: AnyRecord) => item.path)
+
+      // Always merge DB paths so multi-word phrases that already appear in the
+      // library get a higher docs count and receive stronger multi-word boost.
+      const dbPaths = mediaRepo.findPaths().map((path) => ({path}))
+      const seen = new Set(dbPaths.map((item) => String(item.path).toLowerCase()))
+      for (const item of requested) {
+        if (!seen.has(String(item.path).toLowerCase())) {
+          dbPaths.push(item)
+          seen.add(String(item.path).toLowerCase())
+        }
+      }
+      const media = dbPaths
+
       const suggestions = await suggestTagsFromMedia(db, media, {
         ...settings,
         limit: req.query.limit ?? req.body?.limit,

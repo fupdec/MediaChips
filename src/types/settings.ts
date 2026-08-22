@@ -251,6 +251,7 @@ export type SettingsState = {
   'pathParser.preferLongestMatch': string
   'pathParser.matchPrecision': string
   defaultTagCategoryId: string
+  tagSuggestionBanList: string
   'faceMatch.performerMetaId': string
   'faceMatch.minConfidence': string
   'faceMatch.candidateLimit': string
@@ -392,6 +393,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'pathParser.preferLongestMatch': 'true',
   'pathParser.matchPrecision': '0.5',
   defaultTagCategoryId: '',
+  tagSuggestionBanList: '[]',
   'faceMatch.performerMetaId': '',
   'faceMatch.minConfidence': '0.55',
   'faceMatch.candidateLimit': '10',

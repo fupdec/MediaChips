@@ -98,6 +98,14 @@ describe('tokenizeFilePath', () => {
     expect(result.tokens.find((t) => t.token === 'ef')?.weight).toBe(2)
   })
 
+  it('treats zip archive as folder and entry as file without leaking zip token', () => {
+    const result = tokenizeFilePath('/media/Nature/album.zip!/nested/DSC_001.jpg')
+    expect(result.folders).toEqual(['media', 'Nature', 'album', 'nested'])
+    expect(result.file).toBe('DSC_001')
+    expect(result.uniqueTokens).toEqual(expect.arrayContaining(['nature', 'album']))
+    expect(result.uniqueTokens).not.toEqual(expect.arrayContaining(['zip']))
+  })
+
   it('returns empty tokens for blank paths', () => {
     expect(tokenizeFilePath('')).toEqual({
       folders: [],

@@ -79,6 +79,7 @@ export default function (db: ApiDb) {
         searchMode: body.searchMode === 'substring' || body.searchMode === 'chars'
           ? body.searchMode
           : undefined,
+        namePrefix: typeof body.namePrefix === 'string' ? body.namePrefix : undefined,
         groupBy: body.groupBy,
       })
       sendOk(res, result)

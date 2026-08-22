@@ -842,6 +842,7 @@ export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
   search: z.string().optional(),
   query: z.string().optional(),
   searchMode: z.enum(['substring', 'chars']).optional(),
+  namePrefix: z.string().optional(),
   find_duplicates: optionalCoercedBoolean,
 })
 

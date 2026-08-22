@@ -96,6 +96,8 @@ function createItemsStoreState() {
     thumbRefreshKeys: {} as Record<number, number>,
     thumbRegenerateKeys: {} as Record<number, number>,
     viewerLoadMoreHandler: null as (() => Promise<boolean>) | null,
+    /** Filter tags by first letter (A-Z). */
+    namePrefix: null as string | null,
   }
 }
 
