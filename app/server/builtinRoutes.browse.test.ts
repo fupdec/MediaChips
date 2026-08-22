@@ -159,6 +159,27 @@ describe.sequential('builtin browse operation routes', () => {
     }
   })
 
+  it.each(['copyEntries', 'moveEntries'] as const)('returns 409 for a single conflicting %s request', async (operation) => {
+    const server = await startServer()
+    const source = path.join(mediaRoot, 'source.txt')
+    const destination = path.join(mediaRoot, 'destination')
+    fs.writeFileSync(source, 'source')
+    fs.mkdirSync(destination)
+    fs.writeFileSync(path.join(destination, 'source.txt'), 'existing')
+    try {
+      const response = await post(server, `/api/browse/${operation}`, {
+        entries: [{path: source, name: 'source.txt'}],
+        destination,
+      })
+      expect(response.status).toBe(409)
+      await expect(response.json()).resolves.toMatchObject({message: expect.stringMatching(/already exists/)})
+      expect(fs.readFileSync(path.join(destination, 'source.txt'), 'utf8')).toBe('existing')
+      expect(fs.existsSync(source)).toBe(true)
+    } finally {
+      await server.close()
+    }
+  })
+
   it('returns 409 when renaming over an existing entry', async () => {
     const server = await startServer()
     const source = path.join(mediaRoot, 'source.txt')

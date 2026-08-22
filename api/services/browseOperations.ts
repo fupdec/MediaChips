@@ -15,14 +15,20 @@ export type FsDeleteResult = {
   failed: Array<{path: string; reason: string}>
 }
 
+export type FsOperationFailure = {
+  path: string
+  reason: string
+  status?: number
+}
+
 export type FsCopyResult = {
   copied: string[]
-  failed: Array<{path: string; reason: string}>
+  failed: FsOperationFailure[]
 }
 
 export type FsMoveResult = {
   moved: string[]
-  failed: Array<{path: string; reason: string}>
+  failed: FsOperationFailure[]
 }
 
 function accessError(resolved: string): Error {
@@ -95,9 +101,48 @@ async function removeRecursive(targetPath: string): Promise<void> {
 async function copyRecursive(src: string, dest: string): Promise<void> {
   const stat = await fsp.stat(src)
   if (stat.isDirectory()) {
-    await fsp.cp(src, dest, {recursive: true})
+    await fsp.cp(src, dest, {recursive: true, force: false, errorOnExist: true})
   } else {
-    await fsp.cp(src, dest)
+    await fsp.cp(src, dest, {force: false, errorOnExist: true})
+  }
+}
+
+function targetConflictError(target: string): Error {
+  return Object.assign(
+    new Error(`A file or folder already exists at destination: ${target}`),
+    {status: 409},
+  )
+}
+
+/**
+ * Prevent copy/move operations from replacing any existing filesystem entry.
+ * lstat treats symlinks (including dangling ones) as existing; access closes
+ * the small gap where a path appears between the lstat check and use.
+ */
+async function preflightTarget(target: string): Promise<void> {
+  try {
+    await fsp.lstat(target)
+    throw targetConflictError(target)
+  } catch (err: unknown) {
+    if ((err as {status?: number})?.status === 409) throw err
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') throw err
+  }
+
+  try {
+    await fsp.access(target)
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return
+    throw err
+  }
+
+  throw targetConflictError(target)
+}
+
+function toOperationFailure(entryPath: string, err: unknown): FsOperationFailure {
+  return {
+    path: entryPath,
+    reason: (err as Error)?.message || 'Unknown error',
+    ...((err as {status?: number})?.status === 409 ? {status: 409} : {}),
   }
 }
 
@@ -142,13 +187,11 @@ export async function copyEntries(
         throw new Error('Cannot copy a directory into itself')
       }
       const target = path.join(dest, basename)
+      await preflightTarget(target)
       await copyRecursive(src, target)
       copied.push(entry.path)
     } catch (err: unknown) {
-      failed.push({
-        path: entry.path,
-        reason: (err as Error)?.message || 'Unknown error',
-      })
+      failed.push(toOperationFailure(entry.path, err))
     }
   }
 
@@ -173,13 +216,11 @@ export async function moveEntries(
         throw new Error('Cannot move a directory into itself')
       }
       const target = path.join(dest, basename)
+      await preflightTarget(target)
       await fsp.rename(src, target)
       moved.push(entry.path)
     } catch (err: unknown) {
-      failed.push({
-        path: entry.path,
-        reason: (err as Error)?.message || 'Unknown error',
-      })
+      failed.push(toOperationFailure(entry.path, err))
     }
   }
 

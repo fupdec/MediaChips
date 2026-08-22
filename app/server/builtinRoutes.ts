@@ -228,6 +228,9 @@ function registerBuiltinRoutes({
         throw Object.assign(new Error('Destination path is required'), {status: 400})
       }
       const result = await copyEntries(req.body.entries, destination)
+      if (req.body.entries.length === 1 && result.failed[0]?.status === 409) {
+        throw Object.assign(new Error(result.failed[0].reason), {status: 409})
+      }
       res.json(result)
     } catch (error: unknown) {
       const status = Number((error as {status?: number})?.status) || 500
@@ -244,6 +247,9 @@ function registerBuiltinRoutes({
         throw Object.assign(new Error('Destination path is required'), {status: 400})
       }
       const result = await moveEntries(req.body.entries, destination)
+      if (req.body.entries.length === 1 && result.failed[0]?.status === 409) {
+        throw Object.assign(new Error(result.failed[0].reason), {status: 409})
+      }
       res.json(result)
     } catch (error: unknown) {
       const status = Number((error as {status?: number})?.status) || 500
