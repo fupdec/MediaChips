@@ -2,7 +2,7 @@ import fs from 'fs'
 import fsp from 'fs/promises'
 import path from 'path'
 import {normalizeMediaPath} from '../utils/normalizeUserPath'
-import {isPathInsideMediaRoots} from './mediaRoots'
+import {isPathInsideMediaRoots, isPathInsideRoot, listMediaRoots} from './mediaRoots'
 import type {BrowseDirectoryEntry, BrowseDirectoryResult} from './browseDirectory'
 
 export type FsOperationEntry = {
@@ -25,15 +25,62 @@ export type FsMoveResult = {
   failed: Array<{path: string; reason: string}>
 }
 
-function checkAccess(entryPath: string, envValue?: string) {
-  const resolved = path.resolve(normalizeMediaPath(entryPath))
-  if (!isPathInsideMediaRoots(resolved, envValue)) {
-    throw Object.assign(
-      new Error(`Path is outside configured media roots: ${resolved}`),
-      {status: 403},
-    )
+function accessError(resolved: string): Error {
+  return Object.assign(
+    new Error(`Path is outside configured media roots: ${resolved}`),
+    {status: 403},
+  )
+}
+
+async function physicalPath(resolved: string): Promise<string> {
+  let existing = resolved
+  while (true) {
+    try {
+      const canonicalExisting = await fsp.realpath(existing)
+      return path.join(canonicalExisting, path.relative(existing, resolved))
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') throw err
+      const parent = path.dirname(existing)
+      if (parent === existing) throw err
+      existing = parent
+    }
   }
-  return resolved
+}
+
+async function checkAccess(entryPath: string, envValue?: string, allowMissing = false) {
+  const resolved = path.resolve(normalizeMediaPath(entryPath))
+  if (!isPathInsideMediaRoots(resolved, envValue)) throw accessError(resolved)
+
+  let physical: string
+  try {
+    physical = allowMissing ? await physicalPath(resolved) : await fsp.realpath(resolved)
+  } catch (err: unknown) {
+    // Preserve normal filesystem errors for existing sources, while allowing
+    // callers that create destinations to validate their physical parent.
+    if (!allowMissing || (err as NodeJS.ErrnoException)?.code !== 'ENOENT') throw err
+    physical = await physicalPath(resolved)
+  }
+  if (!await isPhysicalPathInsideMediaRoots(physical, envValue)) throw accessError(resolved)
+  return {resolved, physical}
+}
+
+function isPathInside(parent: string, child: string): boolean {
+  const relative = path.relative(parent, child)
+  return relative === '' || (!path.isAbsolute(relative) && !relative.startsWith('..'))
+}
+
+async function isPhysicalPathInsideMediaRoots(target: string, envValue?: string): Promise<boolean> {
+  const configuredRoots = envValue?.trim()
+    ? envValue.split(',').map((root) => path.resolve(normalizeMediaPath(root.trim()))).filter(Boolean)
+    : listMediaRoots().map((root) => root.path)
+  const physicalRoots = await Promise.all(configuredRoots.map(async (root) => {
+    try {
+      return await fsp.realpath(root)
+    } catch {
+      return null
+    }
+  }))
+  return physicalRoots.some((root) => root != null && isPathInsideRoot(target, root))
 }
 
 async function removeRecursive(targetPath: string): Promise<void> {
@@ -63,7 +110,7 @@ export async function deleteEntries(
 
   for (const entry of entries) {
     try {
-      const resolved = checkAccess(entry.path, envValue)
+      const {resolved} = await checkAccess(entry.path, envValue)
       await removeRecursive(resolved)
       deleted.push(entry.path)
     } catch (err: unknown) {
@@ -85,12 +132,15 @@ export async function copyEntries(
   const copied: string[] = []
   const failed: FsCopyResult['failed'] = []
 
-  const dest = checkAccess(destination, envValue)
+  const {resolved: dest, physical: physicalDest} = await checkAccess(destination, envValue, true)
 
   for (const entry of entries) {
     try {
-      const src = checkAccess(entry.path, envValue)
+      const {resolved: src, physical: physicalSrc} = await checkAccess(entry.path, envValue)
       const basename = path.basename(src)
+      if ((await fsp.stat(src)).isDirectory() && isPathInside(physicalSrc, physicalDest)) {
+        throw new Error('Cannot copy a directory into itself')
+      }
       const target = path.join(dest, basename)
       await copyRecursive(src, target)
       copied.push(entry.path)
@@ -113,12 +163,15 @@ export async function moveEntries(
   const moved: string[] = []
   const failed: FsMoveResult['failed'] = []
 
-  const dest = checkAccess(destination, envValue)
+  const {resolved: dest, physical: physicalDest} = await checkAccess(destination, envValue, true)
 
   for (const entry of entries) {
     try {
-      const src = checkAccess(entry.path, envValue)
+      const {resolved: src, physical: physicalSrc} = await checkAccess(entry.path, envValue)
       const basename = path.basename(src)
+      if ((await fsp.stat(src)).isDirectory() && isPathInside(physicalSrc, physicalDest)) {
+        throw new Error('Cannot move a directory into itself')
+      }
       const target = path.join(dest, basename)
       await fsp.rename(src, target)
       moved.push(entry.path)
@@ -159,7 +212,7 @@ export async function createFolder(
   targetPath: string,
   envValue?: string,
 ): Promise<{created: string}> {
-  const resolved = checkAccess(targetPath, envValue)
+  const {resolved} = await checkAccess(targetPath, envValue, true)
   await fsp.mkdir(resolved, {recursive: false})
   return {created: targetPath}
 }
@@ -169,7 +222,7 @@ export async function renameEntry(
   newName: string,
   envValue?: string,
 ): Promise<{renamed: string}> {
-  const resolvedOld = checkAccess(oldPath, envValue)
+  const {resolved: resolvedOld} = await checkAccess(oldPath, envValue)
   const dir = path.dirname(resolvedOld)
   const resolvedNew = path.join(dir, newName)
 
@@ -182,7 +235,7 @@ export async function renameEntry(
   }
 
   // Check the new path is also inside media roots
-  checkAccess(resolvedNew, envValue)
+  await checkAccess(resolvedNew, envValue, true)
 
   // Check target doesn't already exist
   try {
