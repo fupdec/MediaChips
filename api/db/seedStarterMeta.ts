@@ -486,11 +486,11 @@ export function seedStarterSavedFilters(sqlite: Database.Database) {
  * Idempotent for non-empty libraries; backfills starter tags when Tags exists but has none.
  * Built-in media.rating / media.favorite cover rating and favorites — no duplicate meta fields.
  */
-export function seedStarterMeta(sqlite: Database.Database) {
+export function seedStarterMeta(sqlite: Database.Database): boolean {
   const row = sqlite.prepare('SELECT COUNT(*) as count FROM meta').get() as {count: number}
   if (Number(row.count) > 0) {
     ensureStarterTagsIfEmpty(sqlite)
-    return
+    return false
   }
 
   const timestamp = nowIso()
@@ -528,6 +528,8 @@ export function seedStarterMeta(sqlite: Database.Database) {
   if (tagsMetaId != null) {
     insertStarterTags(sqlite, tagsMetaId, timestamp)
   }
+
+  return true
 }
 
 /** @deprecated Use seedStarterMeta */

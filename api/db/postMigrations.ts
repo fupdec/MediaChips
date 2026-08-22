@@ -18,14 +18,15 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
   try {
     applySqlitePragmas(sqlite)
     seedDefaults(sqlite)
+    let freshlySeeded = false
     if (seedDemo) {
-      seedStarterMeta(sqlite)
+      freshlySeeded = seedStarterMeta(sqlite)
     }
     const repairedColumns = repairSchemaColumns(sqlite)
     if (repairedColumns.length) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema columns: ${repairedColumns.join(', ')}`)
     }
-    if (seedDemo) {
+    if (seedDemo && freshlySeeded) {
       seedStarterSavedFilters(sqlite)
     }
     const repairedTables = repairMissingTables(sqlite)
