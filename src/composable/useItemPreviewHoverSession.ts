@@ -97,6 +97,8 @@ export type ItemPreviewHoverSessionOptions = {
   resetPreviewContainer: () => void
   shouldKeepBigPreviewOpen: () => boolean
   hasActivePreviewState: () => boolean
+  /** Ensure the static poster is available when the pointer reaches a card. */
+  requestThumb?: () => void
   /** True when hover <video> is mounted or ready — skip reschedule on leave-grace cancel. */
   isHoverVideoArmed?: MaybeRefOrGetter<boolean>
   /** When set, leave-grace re-entry can restore the thumb→video crossfade. */
@@ -207,6 +209,7 @@ export function useItemPreviewHoverSession(options: ItemPreviewHoverSessionOptio
     }
 
     options.playbackError.value = false
+    options.requestThumb?.()
 
     if (toValue(options.hasFixedPreviewTime)) {
       options.applyFixedPreviewTime()

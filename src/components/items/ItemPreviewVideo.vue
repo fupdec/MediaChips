@@ -23,7 +23,7 @@
         v-ripple="gridBigPreview.isExpanded.value ? false : { class: `text-primary` }"
         :aspect-ratio="16 / 9"
         class="video-preview-container"
-        :class="[previewContainerClasses, { 'video-preview-container--chrome-hidden': chromeHidden, 'video-preview-container--darwin-electron': isDarwinElectron && !isDarwinFullscreen }]"
+        :class="[previewContainerClasses, { 'timeline-preview-active': showTimelinePreview, 'video-preview-container--chrome-hidden': chromeHidden, 'video-preview-container--darwin-electron': isDarwinElectron && !isDarwinFullscreen }]"
         :style="previewAppearStyle"
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
@@ -191,19 +191,13 @@
         @click.stop="handleMediaClick"
         @dblclick.stop="handlePreviewDblClick"
       >
-        <div v-if="isFrameLost"
+        <div v-if="isFrameLost && (isTaskRunning || gridLoading)"
           class="text-gen">
-          <v-progress-circular v-if="isTaskRunning"
+          <v-progress-circular
             indeterminate
             color="white">
             <v-icon size="small">mdi-image</v-icon>
           </v-progress-circular>
-          <v-btn v-else
-            @click.stop="restartImageGeneration"
-            style="z-index: 1">
-            <v-icon start>mdi-cogs</v-icon>
-            Generate images
-          </v-btn>
         </div>
 
         <div
@@ -555,6 +549,7 @@ const {
   collapsePreviewFading,
   timeouts,
   hasFixedPreviewTime: () => hasFixedPreviewTime.value,
+  requestThumb,
   getPreviewEl,
   clearCinemaTimeout,
   clearPreviewDelayTimer,
@@ -672,6 +667,7 @@ const {
   hoverGridFrameStyle,
   storyFrameStyles,
   isFrameLost,
+  gridLoading,
   showFramesInProgressMessage,
   setHoverFrameIndex,
   scrollStory,
@@ -695,6 +691,7 @@ const {
   resolveThumbFallback,
   getImg,
   runImageProbe,
+  createGrid: (input, output) => typedApi.taskCreateGrid(buildVideoGridTaskParams(input, output)),
   getStoryEl: () => storyRef.value,
   getStoryWrapperEl: () => storyWrapperRef.value,
   onUpdateVideoFrames: (handler) => eventBus.on('updateVideoFrames', handler),

@@ -1563,6 +1563,22 @@
     }
   }
 
+  // Timeline hover is a grid-sprite layer, not a zoomed poster. Keep this
+  // explicit because the poster has its own generic :hover transform rules.
+  &.timeline-preview-active:not(.video-preview-container--expanded) {
+    .thumb {
+      pointer-events: none;
+      transform: none !important;
+      z-index: 1;
+    }
+
+    .timeline {
+      opacity: 1 !important;
+      z-index: 2;
+      pointer-events: auto;
+    }
+  }
+
   &.is-hover-preview-ready:not(.video-preview-container--expanded) {
     .thumb {
       // Stay painted under the fading video (do not hide — that caused flashes).
@@ -3741,6 +3757,20 @@ body > .video-preview-container.video-preview-container--expanded {
     }
 
     /* Ready without pending: reveal video. Pending keeps thumb until seek settles. */
+    &.timeline-preview-active:not(.video-preview-container--expanded) {
+      .thumb {
+        pointer-events: none;
+        transform: none !important;
+        z-index: 1;
+      }
+
+      .timeline {
+        opacity: 1 !important;
+        z-index: 2;
+        pointer-events: auto;
+      }
+    }
+
     &.is-hover-preview-ready:not(.is-hover-preview-pending):not(.video-preview-container--expanded) {
       .thumb {
         pointer-events: none;

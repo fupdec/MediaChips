@@ -19,6 +19,7 @@ import {
   getGridFramePercent,
 } from '@/utils/gridSprite'
 import {resolveGridSpriteDisplayUrl} from '@/utils/thumbSource'
+import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import type {MediaItem} from '@/types/stores'
 
 export function getGridFrameDurationLabel(
@@ -70,6 +71,7 @@ export type ItemPreviewTimelineFramesOptions = {
   resolveThumbFallback: () => string | null | undefined
   getImg: () => Promise<void>
   runImageProbe: (url: string) => Promise<boolean>
+  createGrid?: (input: string, output: string) => Promise<unknown>
   getStoryEl: () => HTMLElement | null
   getStoryWrapperEl: () => HTMLElement | null
   onUpdateVideoFrames?: (handler: Handler) => void
@@ -81,14 +83,17 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
   const hoverFrameIndex = ref(0)
   const gridSpriteUrl = ref<string | null>(null)
   const storyUsesThumbFallback = ref(false)
+  const gridLoading = ref(false)
 
   let initFramesToken = 0
+  let gridGenerationPromise: Promise<unknown> | null = null
 
   const clearTimelineFrames = () => {
     initFramesToken += 1
     gridSpriteUrl.value = null
     hoverFrameIndex.value = 0
     storyUsesThumbFallback.value = false
+    gridLoading.value = false
   }
 
   const getGridFrameDuration = (frameIndex: number) =>
@@ -167,40 +172,60 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     const media = toValue(options.media)
     if (!media?.id) return false
 
-    const gridUrl = resolveGridSpriteDisplayUrl(toValue(options.mediaPath), media.id)
-    if (!gridUrl) {
-      storyUsesThumbFallback.value = true
-      gridSpriteUrl.value = null
-      return false
-    }
+    gridLoading.value = true
+    try {
+      const gridUrl = resolveGridSpriteDisplayUrl(toValue(options.mediaPath), media.id)
+      if (!gridUrl) {
+        storyUsesThumbFallback.value = true
+        gridSpriteUrl.value = null
+        return false
+      }
 
-    const hasGrid = await options.runImageProbe(gridUrl)
-    if (!hasGrid) {
-      storyUsesThumbFallback.value = true
-      gridSpriteUrl.value = null
-      return false
-    }
+      let hasGrid = await options.runImageProbe(gridUrl)
+      if (!hasGrid) {
+        // Keep the poster visible while the on-demand grid is generated.
+        storyUsesThumbFallback.value = true
+        gridSpriteUrl.value = null
+      }
+      if (!hasGrid && options.createGrid && media.path && !gridGenerationPromise) {
+        gridGenerationPromise = options.createGrid(String(media.path), `${media.id}.jpg`)
+          .catch(() => undefined)
+          .finally(() => {
+            gridGenerationPromise = null
+          })
+        await gridGenerationPromise
+        hasGrid = await options.runImageProbe(gridUrl)
+      }
+      if (!hasGrid) {
+        storyUsesThumbFallback.value = true
+        gridSpriteUrl.value = null
+        return false
+      }
 
-    storyUsesThumbFallback.value = false
-    gridSpriteUrl.value = gridUrl
-    setCachedThumb(mediaThumbKey('videos', media.id, 'grids'), gridUrl)
-    return true
+      storyUsesThumbFallback.value = false
+      gridSpriteUrl.value = gridUrl
+      setCachedThumb(mediaThumbKey('videos', media.id, 'grids'), gridUrl)
+      return true
+    } finally {
+      gridLoading.value = false
+    }
   }
 
   const initFrames = async () => {
     const token = ++initFramesToken
-    if (!toValue(options.isMounted) || !toValue(options.media)?.id || !toValue(options.isViewTimeline)) {
+    const timelineActive = toValue(options.isViewTimeline) || toValue(options.showTimelinePreview)
+    if (!toValue(options.isMounted) || !toValue(options.media)?.id || !timelineActive) {
       return
     }
 
     await options.getImg()
-    if (token !== initFramesToken || !toValue(options.isViewTimeline)) return
+    if (token !== initFramesToken || !(toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) return
     await ensureGridSpriteLoaded()
   }
 
   const handleUpdateVideoFrames: Handler = (event) => {
     const id = Number(event)
-    if (Number(toValue(options.media).id) === id && toValue(options.isViewTimeline)) {
+    if (Number(toValue(options.media).id) === id && (toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) {
       void initFrames()
     }
   }
@@ -217,13 +242,15 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     () => [
       toValue(options.isMounted),
       toValue(options.isViewTimeline),
+      toValue(options.showTimelinePreview),
       toValue(options.previewActive),
     ] as const,
-    ([mounted, timeline, active], previous) => {
+    ([mounted, viewTimeline, hoverTimeline, active], previous) => {
+      const timeline = viewTimeline || hoverTimeline
       if (!active || !timeline) {
-        if (previous?.[2] && !active) {
+        if (previous?.[3] && !active) {
           clearTimelineFrames()
-        } else if (previous?.[1] && !timeline) {
+        } else if (previous?.[1] && !viewTimeline && !hoverTimeline) {
           initFramesToken += 1
           options.onViewLeaveTimeline?.()
         }
@@ -238,13 +265,13 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
   )
 
   watch(() => toValue(options.isTaskRunning), (running, wasRunning) => {
-    if (wasRunning && !running && toValue(options.isViewTimeline)) {
+    if (wasRunning && !running && (toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) {
       void initFrames()
     }
   })
 
   watch(() => toValue(options.thumb), () => {
-    if (!toValue(options.isViewTimeline)) return
+    if (!(toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) return
     if (!gridSpriteUrl.value && storyUsesThumbFallback.value) {
       void initFrames()
     }
@@ -263,6 +290,7 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     hoverFrameIndex,
     gridSpriteUrl,
     storyUsesThumbFallback,
+    gridLoading,
     getGridFrameDuration,
     hoverGridFrameStyle,
     storyFrameStyles,
