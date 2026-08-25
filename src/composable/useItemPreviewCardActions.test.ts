@@ -131,7 +131,7 @@ describe('useItemPreviewCardActions', () => {
     handleMediaClick()
     expect(playVideo).not.toHaveBeenCalled()
     vi.advanceTimersByTime(PREVIEW_PLAY_CLICK_DELAY_MS)
-    expect(playVideo).toHaveBeenCalledWith({video: media, player: 'builtin', time: 12})
+    expect(playVideo).toHaveBeenCalledWith({video: media, player: 'default', time: 12})
   })
 
   it('cancels builtin play and opens system player on double-click', () => {

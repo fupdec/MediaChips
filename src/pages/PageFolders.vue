@@ -1109,7 +1109,7 @@ async function playAllInPath(folderPath: string) {
       isVideoMediaType(findMediaTypeById(appStore.mediaTypes, item.mediaTypeId)),
     )
     if (localVideos.length) {
-      await itemsStore.playVideo({video: localVideos[0], videos: localVideos, player: 'builtin'})
+      await itemsStore.playVideo({video: localVideos[0], videos: localVideos, player: 'default'})
       return
     }
   }
@@ -1137,7 +1137,7 @@ async function playAllInPath(folderPath: string) {
     if (!videos.length) return
     itemsStore.entities = videos
     itemsStore.navigationItems = videos
-    await itemsStore.playVideo({video: videos[0], videos, player: 'builtin'})
+    await itemsStore.playVideo({video: videos[0], videos, player: 'default'})
   } catch (error) {
     console.error('Failed to play folder videos', error)
   }

@@ -108,7 +108,7 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     })
   }
 
-  const schedulePlay = (player: PreviewPlayer = 'builtin') => {
+  const schedulePlay = (player: PreviewPlayer = 'default') => {
     clearPlayClickTimer()
     playClickTimer = setTimeout(() => {
       playClickTimer = undefined
@@ -124,7 +124,7 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     }
     // Second click of a double-click — wait for dblclick handler.
     if (event && event.detail > 1) return
-    schedulePlay('builtin')
+    schedulePlay('default')
   }
 
   const handlePreviewClick = (event?: MouseEvent) => {

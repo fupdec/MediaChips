@@ -58,10 +58,19 @@ export const useNotificationsStore = defineStore('notifications', {
     setNotification(notification: NotificationInput): number {
       const typeSettings = notification.type ? this.types[notification.type] || {} : {}
 
+      const filePath = typeof notification.filePath === 'string'
+        ? notification.filePath.trim()
+        : ''
+      const notificationText = typeof notification.text === 'string'
+        ? notification.text
+        : ''
       const newNotification: Notification = {
         ...this.options,
         ...typeSettings,
         ...notification,
+        ...(filePath
+          ? {text: notificationText ? `${notificationText}\n${filePath}` : filePath}
+          : {}),
         id: nextNotificationId(),
         timestamp: Date.now(),
       }

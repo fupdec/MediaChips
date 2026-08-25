@@ -377,7 +377,7 @@ export function useBrowserLayoutHotkeys() {
     if (kind === 'play-av') {
       void itemsStore.playVideo({
         video: media,
-        player: 'builtin',
+        player: 'default',
       })
     }
   }

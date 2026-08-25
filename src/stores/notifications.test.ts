@@ -24,6 +24,22 @@ describe('notifications store', () => {
     expect(store.notifications.some(n => n.id === id && !n.hidden)).toBe(true)
   })
 
+  it('adds a related database file path to notification text', () => {
+    setActivePinia(createPinia())
+    const store = useNotificationsStore()
+
+    const id = store.setNotification({
+      type: 'error',
+      title: 'Operation failed',
+      text: 'Could not process the file',
+      filePath: '/videos/example.mp4',
+    })
+
+    const notification = store.notifications.find(n => n.id === id)
+    expect(notification?.title).toBe('Operation failed')
+    expect(notification?.text).toBe('Could not process the file\n/videos/example.mp4')
+  })
+
   it('hideNotification archives toast without removing it', () => {
     setActivePinia(createPinia())
     const store = useNotificationsStore()

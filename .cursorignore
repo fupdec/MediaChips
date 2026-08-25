@@ -1,0 +1,35 @@
+# Cursor-only exclusions: generated artifacts, local data, and build output.
+
+node_modules/
+dist/
+release/
+build/
+.api-build/
+.app-build/
+.backend-build/
+.electron-build/
+.main-build/
+.scripts-build/
+.shared-build/
+.cache/
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+app_storage/
+docker-data/
+models/
+databases/
+videos/
+
+# Generated/runtime files
+*.log
+*.tsbuildinfo
+*.map
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.docker.example
+.DS_Store

@@ -339,6 +339,13 @@ export default function useItemContextMenu(
           action: detectFacesForSelection,
         })
         toolsMenu.push({
+          name: t('context_menu.convert_video'),
+          type: 'item',
+          icon: 'video-outline',
+          disabled: !is_file_exists || selectionEmpty,
+          action: openVideoConversion,
+        })
+        toolsMenu.push({
           name: t('context_menu.generate_chapters'),
           type: 'item',
           icon: 'bookmark-multiple-outline',
@@ -962,6 +969,15 @@ export default function useItemContextMenu(
     }
   }
 
+  const openVideoConversion = async (): Promise<void> => {
+    const videos = isSelectMode()
+      ? await resolveSelectedMediaItems(itemsStore.selection)
+      : (isMediaPageItem(item, type) ? [item] : [])
+    const valid = videos.filter((video) => Boolean(video.path))
+    if (!valid.length) return
+    dialogsStore.openVideoConversion(valid)
+  }
+
   const updateFileInfo = async (): Promise<void> => {
     let ids: number[] = []
     if (isSelectMode()) {
@@ -1511,7 +1527,7 @@ export default function useItemContextMenu(
     if (!isMediaPageItem(item, type)) return
     itemsStore.playVideo({
       video: item,
-      player: forceSystem ? 'system' : 'builtin',
+      player: forceSystem ? 'system' : 'default',
     })
   }
 
@@ -1540,6 +1556,7 @@ export default function useItemContextMenu(
         type: 'error',
         title: playerLabel,
         text: err.response?.data?.message || err.message || String(error),
+        filePath: mediaPath,
       })
     }
   }

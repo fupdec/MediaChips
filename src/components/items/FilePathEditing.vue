@@ -344,6 +344,7 @@ const savePathToDb = async (filePath: string, { notify = true } = {}) => {
         type: "success",
         title: t("media.file_path.updated"),
         text: basename,
+        filePath,
         icon: 'folder-edit',
       })
     }
@@ -355,6 +356,7 @@ const savePathToDb = async (filePath: string, { notify = true } = {}) => {
         type: "error",
         title: t("media.file_path.already_exists"),
         text: basename,
+        filePath,
         icon: 'folder-edit',
       })
     }

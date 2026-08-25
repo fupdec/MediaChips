@@ -288,6 +288,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
       setNotification({
         title: t('player.video_thumb_not_updated'),
         text: String(e),
+        filePath: video.value.path,
         icon: 'image',
         type: 'error',
       })

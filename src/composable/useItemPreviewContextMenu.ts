@@ -83,6 +83,7 @@ export type ItemPreviewContextMenuOptions = {
   setNotification: (payload: {
     title: string
     text?: string
+    filePath?: string
     icon?: string
     type?: any
   }) => unknown
@@ -153,6 +154,7 @@ export function useItemPreviewContextMenu(options: ItemPreviewContextMenuOptions
       options.setNotification({
         title: options.translate('player.video_thumb_not_updated'),
         text: String(error),
+        filePath: media.path,
         icon: 'image',
         type: 'error',
       })

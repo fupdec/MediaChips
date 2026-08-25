@@ -652,6 +652,7 @@ const onMediaTagDrop = async (event: DragEvent) => {
       text: mode === 'move'
         ? t('items.tag_moved', {name: payload.name || ''})
         : t('items.tag_copied', {name: payload.name || ''}),
+      filePath: mediaItem.value.path,
     })
     return
   }
@@ -659,6 +660,7 @@ const onMediaTagDrop = async (event: DragEvent) => {
     setNotification({
       type: 'info',
       text: t('items.tag_already_on_card', {name: payload.name || ''}),
+      filePath: mediaItem.value.path,
     })
     return
   }
@@ -666,6 +668,7 @@ const onMediaTagDrop = async (event: DragEvent) => {
   setNotification({
     type: 'error',
     text: t('items.tag_transfer_failed'),
+    filePath: mediaItem.value.path,
   })
 }
 

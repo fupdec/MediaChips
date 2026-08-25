@@ -7,6 +7,7 @@ import os from 'os'
 import { loadConfigFile, createDefaultConfig, saveConfigFile } from './configFile'
 import { resolveListenPort } from './ports'
 import { pickPublicHost } from './publicHost'
+import { discoverDatabaseEntries } from './databaseDiscovery'
 
 /** Prefer MEDIA_CHIPS_DATA_DIR so Electron-spawned Node children never need process.electron_app. */
 export function resolveServerAppFolder(options: {
@@ -108,15 +109,6 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
   // Keep a previously saved Electron port override; fall back to the default.
   config.port = resolveListenPort(config.port)
 
-  const activeDb = config.databases.find((db: ServerDatabaseEntry) => db.active)
-  if (!activeDb) {
-    console.error('\x1b[31m%s\x1b[0m', '❌ No active database!')
-    if (config.databases.length > 0) {
-      config.databases[0].active = true
-      console.log('\x1b[33m%s\x1b[0m', `Activated first database: ${config.databases[0].name}`)
-    }
-  }
-
   const configDir = path.dirname(configPath)
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, {recursive: true})
@@ -127,6 +119,18 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
     databasesPath = path.join(app_folder, 'app_storage')
   } else {
     databasesPath = projectPath('app_storage')
+  }
+
+  const discoveredDatabases = discoverDatabaseEntries(databasesPath, config.databases)
+  if (discoveredDatabases.length > 0) {
+    config.databases.push(...discoveredDatabases)
+    console.log('\x1b[33m%s\x1b[0m', `Discovered ${discoveredDatabases.length} database(s) on disk`)
+  }
+
+  const activeDb = config.databases.find((db: ServerDatabaseEntry) => db.active)
+  if (!activeDb && config.databases.length > 0) {
+    config.databases[0].active = true
+    console.log('\x1b[33m%s\x1b[0m', `Activated first database: ${config.databases[0].name}`)
   }
 
   const currentActiveDb = config.databases.find((db: ServerDatabaseEntry) => db.active)

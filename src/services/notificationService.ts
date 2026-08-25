@@ -12,6 +12,8 @@ export interface NotificationInput {
   desktop?: boolean
   /** Invoked when the user clicks the notification body. */
   click?: (() => void) | null
+  /** File path related to this notification; rendered in the notification text. */
+  filePath?: string
   /** Absolute path revealed when the OS toast is clicked (Electron). */
   revealPath?: string
   /**

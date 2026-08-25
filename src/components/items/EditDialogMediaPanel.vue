@@ -280,6 +280,7 @@ async function createVideoThumb(mode: 'random' | 'default') {
     setNotification({
       title: t('player.video_thumb_not_updated'),
       text: String(e),
+      filePath: media.path,
       icon: 'image',
       type: 'error',
     })
