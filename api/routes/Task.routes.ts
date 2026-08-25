@@ -25,6 +25,8 @@ import {
   CreateImageRequestSchema,
   CreateMarkThumbRequestSchema,
   VideoPreviewTaskRequestSchema,
+  ConvertVideosRequestSchema,
+  TestVideoSegmentRequestSchema,
   SuggestTagsRequestSchema,
   BackupNameRequestSchema,
   FaceMediaIdRequestSchema,
@@ -131,6 +133,12 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     }
     routeHandler(route, ...middlewares, lazyHandler)
   }
+
+  register('post', '/convertVideos', 'convertVideos', validateBody(ConvertVideosRequestSchema))
+  register('post', '/createTestVideoSegment', 'createTestVideoSegment', validateBody(TestVideoSegmentRequestSchema))
+  register('get', '/conversion/:jobId', 'conversionStatus')
+  register('post', '/conversion/cancel-all', 'cancelAllConversions')
+  register('post', '/conversion/:jobId/cancel', 'cancelConversion')
 
   register('post', '/checkFileExists', 'checkFileExists', validateBody(PathPayloadSchema))
   register('post', '/checkFilesExists', 'checkFilesExists', validateBody(CheckFilesPayloadSchema))

@@ -8,6 +8,7 @@ import {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
   runWithRemuxLimit,
+  runWithConversionLimit,
 } from './mediaPostProcessQueue'
 
 const delay = (ms: number) => new Promise<void>((resolve) => {
@@ -63,6 +64,22 @@ describe('mediaPostProcessQueue', () => {
     })))
 
     expect(maxActive).toBeLessThanOrEqual(2)
+  })
+
+
+  it('limits user conversion work independently to 1', async () => {
+    let active = 0
+    let maxActive = 0
+
+    await Promise.all(Array.from({length: 4}, () => runWithConversionLimit(async () => {
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await delay(15)
+      active -= 1
+    })))
+
+    expect(maxActive).toBe(1)
+    expect(getMediaPostProcessQueueStats().conversion.active).toBe(0)
   })
 
   it('keeps remux work off the live ffmpeg queue', async () => {

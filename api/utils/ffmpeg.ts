@@ -23,10 +23,25 @@ export {
   resolveThumbnailSeekSeconds,
 } from './ffprobeMath'
 
+export type ConversionProgressDetails = {
+  mediaSeconds: number
+  speed?: number
+  etaSeconds?: number
+}
+
 type RunProcessOptions = {
   signal?: AbortSignal
   duration?: number
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number, details?: ConversionProgressDetails) => void
+}
+
+/** FFmpeg's out_time_ms field is historically expressed in microseconds. */
+export function parseFfmpegProgressTime(line: string): number | null {
+  const match = line.match(/^out_time_(?:us|ms)=(\d+)/)
+  if (match) return Number(match[1]) / 1_000_000
+  const timestamp = line.match(/^out_time=(\d+):(\d+):(\d+(?:\.\d+)?)/)
+  if (timestamp) return Number(timestamp[1]) * 3600 + Number(timestamp[2]) * 60 + Number(timestamp[3])
+  return null
 }
 
 function runProcess(binary: string, args: string[], options: RunProcessOptions = {}): Promise<{stdout: string; stderr: string}> {
@@ -34,9 +49,12 @@ function runProcess(binary: string, args: string[], options: RunProcessOptions =
     const proc = spawn(binary, args, {stdio: ['ignore', 'pipe', 'pipe']})
     let stdout = ''
     let stderr = ''
+    let progressBuffer = ''
     let settled = false
     let aborted = false
     let killTimer: ReturnType<typeof setTimeout> | undefined
+    let lastMediaSeconds = 0
+    const startedAt = Date.now()
 
     const finishReject = (error: Error) => {
       if (settled) return
@@ -65,11 +83,22 @@ function runProcess(binary: string, args: string[], options: RunProcessOptions =
     proc.stderr?.on('data', (chunk: Buffer | string) => {
       const text = chunk.toString()
       stderr += text
-      for (const match of text.matchAll(/out_time_(?:us|ms)=(\d+)/g)) {
-        const value = Number(match[1]) / (match[0].includes('out_time_us') ? 1_000_000 : 1_000)
-        if (options.duration && options.duration > 0) {
-          options.onProgress?.(Math.max(0, Math.min(99, value / options.duration * 100)))
-        }
+      progressBuffer += text
+      const lines = progressBuffer.split(/\r?\n/)
+      progressBuffer = lines.pop() || ''
+      let mediaSeconds = lastMediaSeconds
+      let speed: number | undefined
+      for (const line of lines) {
+        const parsedTime = parseFfmpegProgressTime(line)
+        if (parsedTime != null) mediaSeconds = parsedTime
+        const speedMatch = line.match(/^speed=([0-9.]+)x/)
+        if (speedMatch) speed = Number(speedMatch[1])
+      }
+      if (mediaSeconds > lastMediaSeconds && options.duration && options.duration > 0) {
+        lastMediaSeconds = mediaSeconds
+        const measuredSpeed = speed && speed > 0 ? speed : (mediaSeconds / Math.max(0.001, (Date.now() - startedAt) / 1000))
+        const etaSeconds = measuredSpeed > 0 ? Math.max(0, (options.duration - mediaSeconds) / measuredSpeed) : undefined
+        options.onProgress?.(Math.max(0, Math.min(98, mediaSeconds / options.duration * 100)), {mediaSeconds, speed: measuredSpeed, etaSeconds})
       }
     })
     proc.on('error', (error) => finishReject(error))
@@ -87,7 +116,10 @@ function runProcess(binary: string, args: string[], options: RunProcessOptions =
         resolve({stdout, stderr})
         return
       }
-      reject(new Error(stderr.trim() || `${binary} exited with code ${code}`))
+      const lines = stderr.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      const meaningful = lines.filter((line) => !line.startsWith('frame=') && !line.includes('out_time_') && !line.startsWith('progress='))
+      const detail = meaningful.slice(-8).join('\n') || `${binary} exited with code ${code}`
+      reject(new Error(detail))
     })
   })
 }
@@ -495,10 +527,22 @@ export type ConversionResolution = 'original' | 2160 | 1080 | 720 | 480
 export type ConversionQuality = 'economy' | 'balanced' | 'quality'
 export type ConversionCodec = 'hevc' | 'h264'
 
-const QUALITY_OPTIONS: Record<ConversionQuality, {crf: number; preset: string}> = {
-  economy: {crf: 28, preset: 'medium'},
-  balanced: {crf: 24, preset: 'slow'},
-  quality: {crf: 20, preset: 'slow'},
+const QUALITY_OPTIONS: Record<ConversionQuality, {crf: number; preset: string; hardwareQuality: number}> = {
+  economy: {crf: 28, preset: 'veryfast', hardwareQuality: 70},
+  balanced: {crf: 24, preset: 'fast', hardwareQuality: 55},
+  quality: {crf: 20, preset: 'medium', hardwareQuality: 40},
+}
+
+/** Hardware encoding is opt-in because availability varies by OS, GPU, driver, and FFmpeg build. */
+export function shouldUseHardwareVideoEncoder(): boolean {
+  return process.env.MEDIA_CHIPS_USE_HARDWARE_VIDEO_ENCODING === '1'
+}
+
+export function resolveConversionVideoEncoder(codec: ConversionCodec): 'libx265' | 'libx264' | 'hevc_videotoolbox' | 'h264_videotoolbox' {
+  if (shouldUseHardwareVideoEncoder() && process.platform === 'darwin') {
+    return codec === 'hevc' ? 'hevc_videotoolbox' : 'h264_videotoolbox'
+  }
+  return codec === 'hevc' ? 'libx265' : 'libx264'
 }
 
 /** Builds a capped scale expression. It never enlarges a source video. */
@@ -522,8 +566,17 @@ export function buildConversionArgs(input: string, output: string, options: {
   args.push('-progress', 'pipe:2', '-nostats', '-i', input, '-map', '0:v:0', '-map', '0:a?', '-sn', '-dn')
   const scale = buildConversionScale(options.resolution)
   if (scale) args.push('-vf', scale)
-  args.push('-c:v', options.codec === 'hevc' ? 'libx265' : 'libx264', '-preset', profile.preset, '-crf', String(profile.crf), '-pix_fmt', 'yuv420p')
-  args.push('-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-movflags', '+faststart', output)
+  const encoder = resolveConversionVideoEncoder(options.codec)
+  args.push('-c:v', encoder)
+  if (encoder.endsWith('videotoolbox')) {
+    args.push('-q:v', String(profile.hardwareQuality))
+    if (options.codec === 'h264') args.push('-profile:v', 'high')
+    if (options.codec === 'hevc') args.push('-tag:v', 'hvc1')
+  } else {
+    args.push('-preset', profile.preset, '-crf', String(profile.crf))
+  }
+  args.push('-pix_fmt', 'yuv420p')
+  args.push('-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-movflags', '+faststart', '-f', 'mp4', output)
   return args
 }
 
@@ -532,7 +585,7 @@ export async function convertVideoFile(input: string, output: string, options: {
   resolution: ConversionResolution
   quality: ConversionQuality
   duration?: number
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number, details?: ConversionProgressDetails) => void
   signal?: AbortSignal
 }): Promise<string> {
   if (options.signal?.aborted) throw new Error('Conversion cancelled')

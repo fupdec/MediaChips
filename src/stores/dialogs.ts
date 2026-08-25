@@ -121,8 +121,17 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       meta: null as Meta | null,
     },
     mediaTrash: { show: false },
+    videoConversion: { show: false, items: [] as MediaItem[] },
   }),
   actions: {
+    openVideoConversion(items: MediaItem[]) {
+      this.videoConversion.items = items.map((item) => ({...item}))
+      this.videoConversion.show = true
+    },
+    closeVideoConversion() {
+      this.videoConversion.show = false
+      this.videoConversion.items = []
+    },
     openMediaTrash() {
       this.mediaTrash.show = true
     },

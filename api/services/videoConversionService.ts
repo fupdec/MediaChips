@@ -10,8 +10,9 @@ import type { ApiDb } from '../types/db'
 type Input = { id: number; path: string }
 type RequestedCodec = ConversionCodec | 'auto'
 type Options = { codec: RequestedCodec; resolution: ConversionResolution; quality: ConversionQuality; destination: string; deleteOriginal?: boolean }
-export type ConversionItem = Input & { status: string; progress: number; outputPath?: string; codec?: ConversionCodec; fallback?: boolean; error?: string; warning?: string }
+export type ConversionItem = Input & { status: string; progress: number; etaSeconds?: number; speed?: number; estimatedSizeBytes?: number; outputSizeBytes?: number; outputPath?: string; codec?: ConversionCodec; fallback?: boolean; error?: string; warning?: string }
 export type ConversionJob = { id: string; status: string; items: ConversionItem[]; createdAt: number }
+export type ConversionOptions = Options
 const jobs = new Map<string, ConversionJob>()
 const controllers = new Map<string, AbortController>()
 
@@ -31,6 +32,14 @@ async function probeInput(source: string) {
   return {probe}
 }
 
+function estimateOutputSizeBytes(sourceSizeBytes: number, sourceHeight: number, resolution: ConversionResolution, codec: ConversionCodec, quality: ConversionQuality): number {
+  const targetHeight = resolution === 'original' ? sourceHeight : Math.min(sourceHeight, Number(resolution))
+  const dimensionFactor = sourceHeight > 0 ? Math.min(1, (targetHeight / sourceHeight) ** 1.5) : 1
+  const codecFactor = codec === 'hevc' ? 0.62 : 0.82
+  const qualityFactor = {economy: 0.72, balanced: 1, quality: 1.35}[quality]
+  return Math.max(1, Math.round(sourceSizeBytes * dimensionFactor * codecFactor * qualityFactor))
+}
+
 function validateOutput(filePath: string, probe: Awaited<ReturnType<typeof ffprobe>>, codec: ConversionCodec) {
   const video = probe.streams?.find((stream) => stream.codec_type === 'video')
   const audio = probe.streams?.find((stream) => stream.codec_type === 'audio')
@@ -46,10 +55,28 @@ async function processItem(db: ApiDb, job: ConversionJob, item: ConversionItem, 
   item.status = 'running'; item.progress = 0
   const source = item.path
   if (!fs.existsSync(source)) throw new Error('Source file not found')
+  try {
+    fs.accessSync(source, fs.constants.R_OK)
+  } catch {
+    throw new Error('Source file is not readable. On macOS, grant the server terminal or Node Full Disk Access / Files and Folders permission.')
+  }
   const inputProbe = await probeInput(source)
   const duration = await resolveFfprobeDuration(source, inputProbe.probe.format?.duration)
   if (!duration || duration <= 0) throw new Error('Source has no usable duration')
+  const sourceVideo = inputProbe.probe.streams?.find((stream) => stream.codec_type === 'video')
+  item.estimatedSizeBytes = estimateOutputSizeBytes(
+    fs.statSync(source).size,
+    Number(sourceVideo?.height) || 0,
+    options.resolution,
+    options.codec === 'auto' ? 'h264' : options.codec,
+    options.quality,
+  )
   fs.mkdirSync(options.destination, {recursive: true})
+  try {
+    fs.accessSync(options.destination, fs.constants.W_OK)
+  } catch {
+    throw new Error('Destination folder is not writable. Check the folder permissions and macOS Files and Folders access.')
+  }
 
   const codecs: ConversionCodec[] = options.codec === 'auto' ? ['hevc', 'h264'] : [options.codec]
   let lastError: unknown = null
@@ -63,20 +90,29 @@ async function processItem(db: ApiDb, job: ConversionJob, item: ConversionItem, 
         resolution: options.resolution,
         quality: options.quality,
         duration,
-        onProgress: (progress) => { item.progress = progress },
+        onProgress: (progress, details) => { item.progress = progress; item.etaSeconds = details?.etaSeconds; item.speed = details?.speed },
         signal,
       })
       const probe = await ffprobe(temp)
       validateOutput(temp, probe, codec)
       fs.renameSync(temp, output)
-      const repo = createMediaRepository(db.drizzle)
-      const parsed = parseMediaFilePath(output)
-      repo.updateById(item.id, parsed, {silent: true})
-      invalidateMediaDerivedCaches()
+      let originalDeleted = false
       if (options.deleteOriginal) {
-        try { fs.unlinkSync(source) } catch { item.warning = 'Converted, but original could not be deleted' }
+        try {
+          fs.unlinkSync(source)
+          originalDeleted = true
+        } catch {
+          item.warning = 'Converted, but original could not be deleted'
+        }
+      }
+      if (originalDeleted) {
+        const repo = createMediaRepository(db.drizzle)
+        const parsed = parseMediaFilePath(output)
+        repo.updateById(item.id, parsed, {silent: true})
+        invalidateMediaDerivedCaches()
       }
       item.outputPath = output
+      item.outputSizeBytes = fs.statSync(output).size
       item.codec = codec
       item.fallback = attempt > 0
       item.progress = 100
@@ -114,4 +150,9 @@ export function startVideoConversion(db: ApiDb, inputs: Input[], options: Option
 }
 export function getVideoConversionJob(id: string) { return jobs.get(id) || null }
 export function cancelVideoConversion(id: string) { const c = controllers.get(id); if (!c) return false; c.abort(); return true }
+export function cancelAllVideoConversions() {
+  let cancelled = 0
+  for (const controller of controllers.values()) { controller.abort(); cancelled += 1 }
+  return cancelled
+}
 export { uniqueOutput }

@@ -210,6 +210,12 @@ export type SettingsState = {
   transcodeUnsupportedFormats: string
   transcodeMaxHeight: string
   transcodeCacheMaxGb: string
+  conversionCodec: string
+  conversionResolution: string
+  conversionQuality: string
+  conversionDestination: string
+  conversionDeleteOriginal: string
+  conversionCompatibilityTest: string
   ratingAndFavoriteInCard: string
   group_chips_in_card_description: string
   show_preset_metadata_in_card: string
@@ -353,6 +359,12 @@ export const defaultSettingsState = (): SettingsState => ({
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',
   transcodeCacheMaxGb: '5',
+  conversionCodec: 'auto',
+  conversionResolution: '1080',
+  conversionQuality: 'balanced',
+  conversionDestination: '',
+  conversionDeleteOriginal: '0',
+  conversionCompatibilityTest: '',
   ratingAndFavoriteInCard: '1',
   group_chips_in_card_description: '1',
   show_preset_metadata_in_card: '1',

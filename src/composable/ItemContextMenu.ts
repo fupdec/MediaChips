@@ -341,7 +341,7 @@ export default function useItemContextMenu(
         toolsMenu.push({
           name: t('context_menu.convert_video'),
           type: 'item',
-          icon: 'video-outline',
+          icon: 'sync',
           disabled: !is_file_exists || selectionEmpty,
           action: openVideoConversion,
         })

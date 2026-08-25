@@ -98,6 +98,10 @@
       v-if="dialogsStore.mediaTrash.show"
     />
 
+    <DialogVideoConversion
+      v-if="dialogsStore.videoConversion.show"
+    />
+
     <DialogTextPreview
       v-if="dialogsStore.textPreview.show"
     />
@@ -322,6 +326,9 @@ const DialogSimilarMediaWall = defineAsyncComponent(() =>
 )
 const DialogMediaTrash = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaTrash.vue')
+)
+const DialogVideoConversion = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogVideoConversion.vue')
 )
 const DialogTextPreview = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogTextPreview.vue')

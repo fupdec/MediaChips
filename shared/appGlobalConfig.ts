@@ -6,6 +6,12 @@ export const GLOBAL_APP_CONFIG_KEYS = [
   'transcodeUnsupportedFormats',
   'transcodeMaxHeight',
   'transcodeCacheMaxGb',
+  'conversionCodec',
+  'conversionResolution',
+  'conversionQuality',
+  'conversionDestination',
+  'conversionDeleteOriginal',
+  'conversionCompatibilityTest',
   'zoom',
 ] as const
 
@@ -19,6 +25,12 @@ export const DEFAULT_GLOBAL_APP_CONFIG: Record<GlobalAppConfigKey, string> = {
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',
   transcodeCacheMaxGb: '5',
+  conversionCodec: 'auto',
+  conversionResolution: '1080',
+  conversionQuality: 'balanced',
+  conversionDestination: '',
+  conversionDeleteOriginal: '0',
+  conversionCompatibilityTest: '',
   zoom: '1',
 }
 

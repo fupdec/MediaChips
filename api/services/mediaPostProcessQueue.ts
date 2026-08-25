@@ -6,6 +6,9 @@ const ffmpegQueue = createConcurrencyQueue(1)
 const ffprobeQueue = createConcurrencyQueue(2)
 /** Progressive layout remux — separate so copy-remux cannot block live streams. */
 const remuxQueue = createConcurrencyQueue(1)
+/** User-requested conversions are isolated from playback and remux work. */
+const conversionQueue = createConcurrencyQueue(1)
+const conversionHeld = new AsyncLocalStorage<true>()
 
 /** Prevents deadlock when callers wrap work that itself calls runWith*Limit. */
 const ffmpegHeld = new AsyncLocalStorage<true>()
@@ -27,11 +30,17 @@ function runWithRemuxLimit<T>(task: () => Promise<T>): Promise<T> {
   return remuxQueue.enqueue(() => remuxHeld.run(true, task))
 }
 
+function runWithConversionLimit<T>(task: () => Promise<T>): Promise<T> {
+  if (conversionHeld.getStore()) return task()
+  return conversionQueue.enqueue(() => conversionHeld.run(true, task))
+}
+
 function getMediaPostProcessQueueStats() {
   return {
     ffmpeg: ffmpegQueue.getStats(),
     ffprobe: ffprobeQueue.getStats(),
     remux: remuxQueue.getStats(),
+    conversion: conversionQueue.getStats(),
   }
 }
 
@@ -39,12 +48,14 @@ function resetMediaPostProcessQueues(): void {
   ffmpegQueue.reset()
   ffprobeQueue.reset()
   remuxQueue.reset()
+  conversionQueue.reset()
 }
 
 export {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
   runWithRemuxLimit,
+  runWithConversionLimit,
   getMediaPostProcessQueueStats,
   resetMediaPostProcessQueues,
 }

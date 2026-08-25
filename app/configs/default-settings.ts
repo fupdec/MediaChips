@@ -237,7 +237,13 @@ const Settings = [  {
   {
     "option": "transcodeCacheMaxGb",
     "value": "5"
-  }
+  },
+  { "option": "conversionCodec", "value": "auto" },
+  { "option": "conversionResolution", "value": "1080" },
+  { "option": "conversionQuality", "value": "balanced" },
+  { "option": "conversionDestination", "value": "" },
+  { "option": "conversionDeleteOriginal", "value": "0" },
+  { "option": "conversionCompatibilityTest", "value": "" }
 ]
 
 export default Settings

@@ -363,3 +363,34 @@ export interface SqlQueryPayload {
   metaId?: number
   [key: string]: unknown
 }
+
+export type ConversionCodec = 'auto' | 'hevc' | 'h264'
+export type ConversionResolution = 'original' | 2160 | 1080 | 720 | 480
+export type ConversionQuality = 'economy' | 'balanced' | 'quality'
+export interface TestVideoSegmentPayload {
+  id: number
+  path: string
+  destination: string
+}
+
+export interface TestVideoSegmentResponse {
+  outputPath: string
+  durationSeconds: number
+}
+
+export interface ConvertVideosPayload {
+  items: Array<{id: number; path: string}>
+  options: {
+    codec: ConversionCodec
+    resolution: ConversionResolution
+    quality: ConversionQuality
+    destination: string
+    deleteOriginal?: boolean
+  }
+}
+export interface ConversionJobResponse {
+  id: string
+  status: string
+  createdAt: number
+  items: Array<{id: number; path: string; status: string; progress: number; etaSeconds?: number; speed?: number; estimatedSizeBytes?: number; outputSizeBytes?: number; outputPath?: string; codec?: 'hevc' | 'h264'; fallback?: boolean; error?: string; warning?: string}>
+}

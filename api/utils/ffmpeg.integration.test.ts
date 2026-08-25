@@ -33,11 +33,17 @@ describeIntegration('ffmpeg integration', () => {
   beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-ffmpeg-int-'))
     sampleMp4 = path.join(tmpDir, 'sample.mp4')
-    // Synthetic 1s H.264 clip — no checked-in media fixture required.
+    // Synthetic 5s H.264/AAC clip — no checked-in media fixture required.
     await runFfmpeg([
       '-f', 'lavfi',
-      '-i', 'testsrc=duration=1:size=320x240:rate=10',
+      '-i', 'testsrc=duration=5:size=320x240:rate=10',
+      '-f', 'lavfi',
+      '-i', 'sine=frequency=1000:duration=5',
+      '-shortest',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
       '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac',
       '-c:v', 'libx264',
       '-y',
       sampleMp4,
@@ -54,7 +60,7 @@ describeIntegration('ffmpeg integration', () => {
       codec: 'hevc',
       resolution: 480,
       quality: 'economy',
-      duration: 1,
+      duration: 5,
     })
     const probe = await ffprobe(out)
     expect(fs.statSync(out).size).toBeGreaterThan(0)
@@ -65,12 +71,13 @@ describeIntegration('ffmpeg integration', () => {
 
   it('ffprobe reports a short video stream', async () => {
     const probe = await ffprobe(sampleMp4)
-    expect(Number(probe.format.duration)).toBeGreaterThan(0.5)
-    expect(Number(probe.format.duration)).toBeLessThan(2)
+    expect(Number(probe.format.duration)).toBeGreaterThan(4)
+    expect(Number(probe.format.duration)).toBeLessThan(6)
     const video = (probe.streams || []).find((stream) => stream.codec_type === 'video')
     expect(video).toBeTruthy()
     expect(Number(video?.width)).toBe(320)
     expect(Number(video?.height)).toBe(240)
+    expect(probe.streams?.find((stream) => stream.codec_type === 'audio')?.codec_name).toBe('aac')
   })
 
   it('extractVideoThumbnail writes a non-empty jpeg', async () => {

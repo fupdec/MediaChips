@@ -11,6 +11,7 @@ import type {
   VideoTimelineTaskPayload,
 } from '@shared/api/responses'
 import type {
+  ConversionJobResponse,
   AddMediaPayload,
   BackupNamePayload,
   BulkMetaApplyPayload,
@@ -28,6 +29,9 @@ import type {
   TabUpdatePayload,
   UpdateMediaMultiplePayload,
   VideoPreviewTaskPayload,
+  ConvertVideosPayload,
+  TestVideoSegmentPayload,
+  TestVideoSegmentResponse,
 } from '@shared/api/payloads'
 import {
   parseAddMediaResponse,
@@ -190,6 +194,38 @@ export const tasksApi = {
 
   openInExternalPlayer(body: { path: string; player: 'mpv' | 'iina'; mediaId?: number }) {
     return apiClient.post(API_ROUTES.taskOpenInExternalPlayer, body)
+  },
+
+  convertVideos(body: ConvertVideosPayload) {
+    return apiClient.post<{data: ConversionJobResponse}>(API_ROUTES.taskConvertVideos, body).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  createTestVideoSegment(body: TestVideoSegmentPayload) {
+    return apiClient.post<{data: TestVideoSegmentResponse}>(API_ROUTES.taskCreateTestVideoSegment, body).then((res) => ({...res, data: res.data.data}))
+  },
+
+  getConversionJob(jobId: string) {
+    return apiClient.get<{data: ConversionJobResponse | null}>(`${API_ROUTES.taskConversion}/${encodeURIComponent(jobId)}`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  cancelConversion(jobId: string) {
+    return apiClient.post<{data: {cancelled: boolean}}>(`${API_ROUTES.taskConversion}/${encodeURIComponent(jobId)}/cancel`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  cancelAllConversions() {
+    return apiClient.post<{data: {cancelled: number}}>(`${API_ROUTES.taskConversion}/cancel-all`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
   },
 
   updateConfig(data: ConfigUpdatePayload) {

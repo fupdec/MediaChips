@@ -7,7 +7,7 @@ import {
   parseTags,
 } from '@shared/schemas'
 import { FilterObjectSchema } from '@shared/schemas/entities'
-import { ItemsListRequestSchema } from '@shared/schemas/requests'
+import { ItemsListRequestSchema, ConvertVideosRequestSchema } from '@shared/schemas/requests'
 
 describe('shared schemas', () => {
   it('parses media types', () => {
@@ -91,6 +91,16 @@ describe('shared schemas', () => {
     })
     expect(filter.active).toBe(true)
     expect(filter.lock).toBe(false)
+  })
+
+  it('validates video conversion requests and coerces ids/resolution', () => {
+    const request = ConvertVideosRequestSchema.parse({
+      items: [{id: '7', path: '/videos/clip.mp4'}],
+      options: {codec: 'auto', resolution: 720, quality: 'balanced', destination: '/videos/out', deleteOriginal: false},
+    })
+    expect(request.items[0].id).toBe(7)
+    expect(request.options.resolution).toBe(720)
+    expect(() => ConvertVideosRequestSchema.parse({...request, options: {...request.options, codec: 'vp9'}})).toThrow()
   })
 
   it('accepts items list requests with legacy filter values', () => {
