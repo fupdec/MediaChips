@@ -765,6 +765,43 @@ const valid = ref(false)
 const vals = ref<PinnedMetaValues>({})
 const old = ref<PinnedMetaValues>({})
 const assignedItems = ref<PinnedMetaAssignment[]>([])
+
+// Keep the card and inspector summary in sync with unsaved identity edits.
+// The full form is still persisted together by save(), but rating/favorite
+// should be visible everywhere immediately while the form is dirty.
+watch(
+  () => [currentItemId.value, vals.value.rating, vals.value.favorite] as const,
+  ([itemId, rating, favorite]) => {
+    if (itemId == null) return
+    if (rating !== undefined) {
+      itemsStore.updateItemField({id: Number(itemId), field: 'rating', value: rating})
+    }
+    if (favorite !== undefined) {
+      itemsStore.updateItemField({id: Number(itemId), field: 'favorite', value: favorite})
+    }
+  },
+  {flush: 'sync'},
+)
+
+// Also accept changes made directly on the card while this editor is open.
+// Do not reload the whole form: other unsaved fields must remain untouched.
+watch(
+  () => [props.media?.rating, props.media?.favorite, props.tag?.rating, props.tag?.favorite] as const,
+  ([mediaRating, mediaFavorite, tagRating, tagFavorite]) => {
+    const rating = isMedia.value ? mediaRating : tagRating
+    const favorite = isMedia.value ? mediaFavorite : tagFavorite
+    if (rating !== undefined && rating !== vals.value.rating) {
+      vals.value.rating = Number(rating) || 0
+      old.value.rating = vals.value.rating
+    }
+    const normalizedFavorite = Number(favorite) ? 1 : 0
+    if (favorite !== undefined && normalizedFavorite !== vals.value.favorite) {
+      vals.value.favorite = normalizedFavorite
+      old.value.favorite = vals.value.favorite
+    }
+  },
+  {flush: 'sync'},
+)
 const metaInputRefs = ref<Record<string | number, MetaInputArrayInstance>>({})
 const mixedTagsInputRef = ref<MetaInputMixedTagsInstance | null>(null)
 
