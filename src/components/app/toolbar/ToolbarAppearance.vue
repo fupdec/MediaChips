@@ -58,6 +58,17 @@
         <span class="toolbar-appearance__deck-label">{{ t('items.view_type') }}</span>
         <ItemsView dense/>
       </div>
+
+      <div class="toolbar-appearance__deck-group toolbar-appearance__deck-group--edit-pinned">
+        <v-btn
+          color="primary"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-pencil"
+          :text="t('meta.settings.pinned_meta_short')"
+          @click="dialogEditingPinnedMeta = true"
+        />
+      </div>
     </div>
 
     <!-- Classic / standalone card layout -->

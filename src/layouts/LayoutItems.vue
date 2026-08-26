@@ -65,17 +65,6 @@
             />
 
             <v-btn
-              @click="dialogEditingPinnedMeta = true"
-              v-tooltip:top="t('meta.settings.edit_pinned_meta')"
-              color="primary"
-              variant="tonal"
-              size="small"
-              icon
-            >
-              <v-icon size="18">mdi-card-bulleted-settings</v-icon>
-            </v-btn>
-
-            <v-btn
               @click="toggleCustomization"
               v-tooltip:top="t('appbar.buttons.customize_appearance')"
               color="primary"
