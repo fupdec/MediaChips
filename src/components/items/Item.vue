@@ -283,7 +283,7 @@ import ItemFavorite from '@/components/items/ItemFavorite.vue'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useLazyInView} from '@/composable/useLazyInView'
 import {useBrowserLayout, isInspectorRoute} from '@/composable/useBrowserLayout'
-import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
+import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder, findMediaTypeById} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getTagChipTextStyle, hexToRgba} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
@@ -379,10 +379,16 @@ let unsubscribeMediaTagDrag: (() => void) | null = onMediaTagDragChange((active)
 
 const showPreview = computed(() => props.eagerPreview || isInView.value)
 
-const isVideoMedia = computed(() => isVideoMediaType(props.mediaType ?? undefined))
-const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefined))
-const isAudioMedia = computed(() => isAudioMediaType(props.mediaType ?? undefined))
-const isTextMedia = computed(() => isTextMediaType(props.mediaType ?? undefined))
+const resolvedMediaType = computed(() => {
+  if (props.mediaType) return props.mediaType
+  if (props.type !== 'media') return null
+  return findMediaTypeById(appStore.mediaTypes, (props.item as MediaItem).mediaTypeId)
+})
+
+const isVideoMedia = computed(() => isVideoMediaType(resolvedMediaType.value))
+const isImageMedia = computed(() => isImageMediaType(resolvedMediaType.value))
+const isAudioMedia = computed(() => isAudioMediaType(resolvedMediaType.value))
+const isTextMedia = computed(() => isTextMediaType(resolvedMediaType.value))
 
 const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 
@@ -592,7 +598,7 @@ const onMediaDragStart = (event: DragEvent) => {
 
   // Hand off to Electron native file drag; do not use HTML5 Files transfer.
   event.preventDefault()
-  const folder = getMediaDeleteAssetFolder(props.mediaType ?? undefined) || 'videos'
+  const folder = getMediaDeleteAssetFolder(resolvedMediaType.value ?? undefined) || 'videos'
   const thumbPath = appStore.mediaPath
     ? path.join(appStore.mediaPath, folder, 'thumbs', `${mediaItem.value.id}.jpg`)
     : null
@@ -750,7 +756,7 @@ const onItemMouseDown = (event: MouseEvent) => {
 const editItem = () => {
   if (suppressEditClicks) return
   if (isMediaPageItem(props.item, props.type)) {
-    dialogsStore.editMedia(props.item, props.mediaType ?? undefined)
+    dialogsStore.editMedia(props.item, resolvedMediaType.value ?? undefined)
   } else if (isTagPageItem(props.item, props.type) && props.meta) {
     dialogsStore.editTag(props.item, props.meta)
   }

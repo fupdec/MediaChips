@@ -53,7 +53,7 @@
         </div>
         <div
           v-else
-          class="folders-virtual-grid__cell folders-virtual-grid__cell--media item"
+          class="folders-virtual-grid__cell folders-virtual-grid__cell--media"
           :class="{
             'item--selecting': itemsStore.isSelect,
             'item--inspector-focused': isInspectorFocused(entry.item),
@@ -61,16 +61,17 @@
             'folders-virtual-grid__cell--list': list,
           }"
           :data-item-id="entry.item.id"
-          @contextmenu.prevent.stop="emit('media-contextmenu', $event, entry.item)"
+          @contextmenu.prevent.stop="onMediaCellContextMenu($event, entry.item)"
         >
-          <WidgetMediaCard
+          <Item
             v-if="!list"
-            fluid
-            compact
+            class="folders-virtual-grid__media-item"
+            type="media"
             :item="entry.item"
-            :thumb="mediaThumb(entry.item)"
-            :title="mediaTitle(entry.item)"
-            @click="onMediaClick(entry.item)"
+            :media-type="resolveMediaType(entry.item.mediaTypeId)"
+            :reg="reg"
+            prefer-filename
+            eager-preview
           />
           <button
             v-else
@@ -107,7 +108,7 @@
             </div>
           </button>
           <div
-            v-if="itemsStore.isSelect"
+            v-if="list && itemsStore.isSelect"
             class="item-select-overlay"
             :class="{ 'item-select-overlay--selected': isSelected(entry.item) }"
             @click.stop="toggleSelect(entry.item, $event)"
@@ -150,7 +151,7 @@ import FolderBrowseTile, {
 } from '@/components/folders/FolderBrowseTile.vue'
 import type {FsBrowseEntry} from '@/components/folders/FsBrowseEntry'
 import FsBrowseFileRow from '@/components/folders/FsBrowseFileRow.vue'
-import WidgetMediaCard from '@/components/widgets/WidgetMediaCard.vue'
+import Item from '@/components/items/Item.vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
@@ -160,16 +161,13 @@ import {setVisibleItemIds, clearVisibleItemIds} from '@/utils/visibleItemsWindow
 import {getMediaDeleteAssetFolder} from '@/utils/mediaType'
 import {CARD_THUMB_MAX_EDGE, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {
-  getDistributedCardWidth,
+  estimateRowHeight,
   getGridGap,
   LIST_ROW_HEIGHT,
   type GridLayoutOptions,
 } from '@/utils/gridLayout'
 import type {MediaType} from '@/types/media'
 import type {MediaItem} from '@/types/stores'
-
-const WIDGET_CARD_BODY = 22
-const CARD_BORDER_Y = 2
 
 type FolderBrowseEntry =
   | {kind: 'folder'; key: string; folder: FolderBrowseTileModel}
@@ -269,12 +267,6 @@ const folderCardLayout = computed(() => {
   const gapSize = props.gapSize || 'default'
   const size = sizeNumber.value
   const width = containerWidth.value || 0
-  const cardWidth = width
-    ? getDistributedCardWidth(width, {size, gapSize})
-    : 150
-  const previewHeight = (cardWidth - CARD_BORDER_Y) / (16 / 9)
-  const cardHeight = Math.round(previewHeight + WIDGET_CARD_BODY + CARD_BORDER_Y)
-  const rowStride = cardHeight + getGridGap(gapSize).y
   if (inFilesystem) {
     // Compact row height matching file rows, card grid column count preserved
     const compactHeight = LIST_ROW_HEIGHT[size] || LIST_ROW_HEIGHT[3]
@@ -285,6 +277,18 @@ const folderCardLayout = computed(() => {
       rowStride: compactHeight + getGridGap(gapSize).x,
     }
   }
+
+  // Library media uses Item cards — match the main media grid row estimate.
+  const rowStride = estimateRowHeight({
+    size,
+    gapSize,
+    containerWidth: width,
+    imageAspectRatio: 16 / 9,
+  })
+  const cardHeight = Math.max(
+    1,
+    rowStride - getGridGap(gapSize).y,
+  )
   return {
     size,
     gapSize,
@@ -421,6 +425,12 @@ function onMediaClick(item: MediaItem) {
   itemsStore.focusForInspector(item)
 }
 
+function onMediaCellContextMenu(event: MouseEvent, item: MediaItem) {
+  // Card mode: Item handles its own media context menu.
+  if (!props.list) return
+  emit('media-contextmenu', event, item)
+}
+
 function toggleSelect(item: MediaItem, event: MouseEvent) {
   itemsStore.toggleSelect(event, item)
 }
@@ -468,13 +478,18 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
   position: relative;
 }
 
+.folders-virtual-grid__media-item {
+  width: 100%;
+  min-width: 0;
+}
+
 .folders-virtual-grid__cell--media.item--inspector-focused,
 .folders-virtual-grid__cell--media.item--keyboard-cursor {
   border-radius: 8px;
   outline-offset: 1px;
 }
 
-.folders-virtual-grid__cell--media :deep(.home-media-card) {
+.folders-virtual-grid__cell--media :deep(.item) {
   width: 100%;
   height: auto;
   min-height: 0;

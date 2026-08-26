@@ -40,8 +40,9 @@
         :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
         :src="thumb || undefined"
         class="thumb"
-        :contain="!isCompactHost && !gridBigPreview.isVisual.value"
-        :cover="isCompactHost || gridBigPreview.isVisual.value"
+        :class="{'thumb--cover': useCoverThumb}"
+        :contain="!useCoverThumb"
+        :cover="useCoverThumb"
         @click.stop="handleMediaClick"
         @dblclick.stop="handlePreviewDblClick"
         @load="onThumbLoad"
@@ -204,7 +205,13 @@
           v-if="hoverGridFrameStyle"
           class="grid-sprite-frame"
           :style="hoverGridFrameStyle"
-        />
+        >
+          <div
+            v-if="hoverGridSheetStyle"
+            class="grid-sprite-sheet"
+            :style="hoverGridSheetStyle"
+          />
+        </div>
 
         <div class="sections">
           <div
@@ -305,7 +312,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {typedApi} from '@/services/typedApi'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
-import {GRID_FRAME_INDEXES} from '@/utils/gridSprite'
+import {GRID_FRAME_INDEXES, isNearPreviewContainerAspect} from '@/utils/gridSprite'
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
@@ -620,6 +627,13 @@ const {
   gridBigPreview,
 })
 
+// Fill near-16:9 cards edge-to-edge; letterbox portrait / ultrawide.
+const useCoverThumb = computed(() =>
+  isCompactHost.value
+  || gridBigPreview.isVisual.value
+  || isNearPreviewContainerAspect(mediaAspectRatio.value),
+)
+
 const bigPreviewTitle = computed(() => String(props.media.name || '').trim())
 
 const {
@@ -665,6 +679,7 @@ const onTimelineTrackMouseDown = (e: MouseEvent) => {
 const {
   getGridFrameDuration,
   hoverGridFrameStyle,
+  hoverGridSheetStyle,
   storyFrameStyles,
   isFrameLost,
   gridLoading,

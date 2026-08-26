@@ -778,15 +778,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    width: 100%;
-    background-color: #000;
+    // Same oversample as `.thumb { inset: -1px }` so the sprite tile covers the poster.
     position: absolute;
-    left: 0;
-    top: 0;
+    inset: -1px;
+    width: auto;
+    height: auto;
+    background-color: #000;
     animation: appearing 0.3s both;
     .grid-sprite-frame {
       flex-shrink: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .grid-sprite-sheet {
+      position: absolute;
+      pointer-events: none;
     }
     img {
       height: 100%;
@@ -1476,21 +1482,32 @@
   .thumb {
     // Oversample slightly on both axes — width-only 101% + top:-0.5% left a
     // 1px black gap along the bottom edge of the card thumb.
+    // v-responsive defaults to max-width/height 100%, which cancelled the
+    // oversample and left the poster short of the card width.
     position: absolute;
     inset: -1px;
     width: auto;
     height: auto;
     min-width: 0;
+    max-width: none;
+    max-height: none;
+    flex: none;
     background-color: #000;
     // Under the hover <video>: always painted so leave fades never expose the
     // card underlay (gray≈white) or a blank video frame (black).
     z-index: 1;
     opacity: 1;
 
-    // Keep vertical letterboxing black while the container stays gray
-    // for missing / loading / unavailable placeholders.
     .v-img__img {
+      width: 100%;
+      height: 100%;
+      // Default contain so portrait / ultrawide are not stretched.
+      object-fit: contain;
       background-color: #000;
+    }
+
+    &.thumb--cover .v-img__img {
+      object-fit: cover;
     }
   }
   .preview-unavailable-notice {
@@ -3738,6 +3755,9 @@ body > .video-preview-container.video-preview-container--expanded {
       opacity: 0;
       z-index: 2;
       transition: opacity 320ms ease;
+      inset: -1px;
+      width: auto;
+      height: auto;
     }
 
 
@@ -3874,6 +3894,9 @@ body > .video-preview-container.video-preview-container--expanded {
       opacity: 0;
       z-index: 2;
       transition: opacity 320ms ease;
+      inset: -1px;
+      width: auto;
+      height: auto;
     }
 
 

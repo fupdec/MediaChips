@@ -3,9 +3,13 @@ import {
   GRID_FRAME_INDEXES,
   GRID_SPRITE,
   buildGridSpriteFrameStyle,
+  buildGridSpriteSheetStyle,
+  buildGridSpriteViewportStyle,
+  getContainedFrameBoxStyle,
   getContainedFrameSizePercents,
   getGridFramePercent,
   gridFrameBackgroundPosition,
+  isNearPreviewContainerAspect,
   pickGridFrameIndex,
 } from './gridSprite'
 
@@ -44,6 +48,70 @@ describe('gridSprite', () => {
       backgroundSize: '300% 300%',
       backgroundPosition: '50% 50%',
       backgroundRepeat: 'no-repeat',
+    })
+  })
+
+  it('contains landscape tiles with aspect-ratio instead of theoretical percents', () => {
+    expect(getContainedFrameBoxStyle(16 / 9)).toEqual({
+      width: '100%',
+      height: 'auto',
+      aspectRatio: String(16 / 9),
+    })
+  })
+
+  it('contains portrait tiles by height', () => {
+    expect(getContainedFrameBoxStyle(9 / 16)).toEqual({
+      height: '100%',
+      width: 'auto',
+      aspectRatio: String(9 / 16),
+    })
+  })
+
+  it('fills near-16:9 hover viewport edge-to-edge', () => {
+    expect(buildGridSpriteViewportStyle(16 / 9)).toEqual({
+      width: '100%',
+      height: '100%',
+      flexShrink: '0',
+      overflow: 'hidden',
+      position: 'relative',
+    })
+  })
+
+  it('letterboxes portrait hover viewport inside the card', () => {
+    expect(buildGridSpriteViewportStyle(9 / 16)).toEqual({
+      height: '100%',
+      width: 'auto',
+      aspectRatio: String(9 / 16),
+      flexShrink: '0',
+      overflow: 'hidden',
+      position: 'relative',
+    })
+  })
+
+  it('treats near-16:9 as a fill match', () => {
+    expect(isNearPreviewContainerAspect(16 / 9)).toBe(true)
+    expect(isNearPreviewContainerAspect(1.78)).toBe(true)
+    expect(isNearPreviewContainerAspect(9 / 16)).toBe(false)
+    expect(isNearPreviewContainerAspect(21 / 9)).toBe(false)
+  })
+
+  it('places the inner sheet by tile-box percentages', () => {
+    expect(buildGridSpriteSheetStyle('/grid.jpg', 0)).toEqual({
+      backgroundImage: 'url("/grid.jpg")',
+      backgroundSize: '100% 100%',
+      backgroundRepeat: 'no-repeat',
+      width: '300%',
+      height: '300%',
+      left: '0%',
+      top: '0%',
+    })
+    expect(buildGridSpriteSheetStyle('/grid.jpg', 5)).toMatchObject({
+      left: '-200%',
+      top: '-100%',
+    })
+    expect(buildGridSpriteSheetStyle('/grid.jpg', 8)).toMatchObject({
+      left: '-200%',
+      top: '-200%',
     })
   })
 

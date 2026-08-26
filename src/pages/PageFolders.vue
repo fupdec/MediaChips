@@ -1,6 +1,7 @@
 <template>
   <v-container
     v-if="appStore.localhost && appStore.is_app_ready"
+    ref="foldersPageRef"
     class="folders-page items-layout-container"
   >
     <div
@@ -226,6 +227,15 @@
           <!-- Action buttons inline -->
           <div class="d-flex align-center ga-1 ml-auto">
             <template v-if="browseMode === 'filesystem' && currentFsPath">
+              <v-btn
+                size="small"
+                variant="tonal"
+                prepend-icon="mdi-folder-plus-outline"
+                :disabled="loading || !currentFsPath"
+                @click="openCreateFolderDialog"
+              >
+                {{ t('folders_browser.new_folder') }}
+              </v-btn>
               <v-btn
                 size="small"
                 variant="tonal"
@@ -457,6 +467,16 @@
       >
         {{ t('commandPalette.actions.add_media') }}
       </v-btn>
+      <v-btn
+        v-else-if="browseMode === 'filesystem' && currentFsPath"
+        color="primary"
+        variant="tonal"
+        rounded="xl"
+        prepend-icon="mdi-folder-plus-outline"
+        @click="openCreateFolderDialog"
+      >
+        {{ t('folders_browser.new_folder') }}
+      </v-btn>
     </div>
 
     <div
@@ -466,29 +486,33 @@
       {{ t('folders_browser.search_empty') }}
     </div>
 
-    <FoldersVirtualGrid
+    <div
       v-else-if="visibleFolders.length || visibleMedia.length || fsFiles.length"
-      :folders="visibleFolders"
-      :media="visibleMedia"
-      :fs-files="fsFiles"
-      :browse-mode="browseMode"
-      :size="itemsStore.size"
-      :gap-size="settingsStore.gapSize"
-      :list="listMode"
-      :folder-tags="folderTagsByPath"
-      :cover-url-by-media-id="coverUrlByMediaId"
-      :reg="registrationStore.reg"
-      :select-mode="fsSelection.isSelectMode"
-      :selected-folder-paths="fsSelectionSelectedFolderPaths"
-      :selected-fs-file-paths="fsSelectionSelectedFsFilePaths"
-      class="items-page-grid"
-      @open-folder="browseMode === 'filesystem' ? navigateToFs($event) : navigateTo($event)"
-      @folder-contextmenu="onFolderContextMenu"
-      @media-contextmenu="onMediaContextMenu"
-      @fsfile-contextmenu="onFsFileContextMenu"
-      @toggle-folder-select="onToggleFolderSelect"
-      @toggle-fsfile-select="onToggleFsFileSelect"
-    />
+      ref="foldersGridRef"
+      class="items-page-grid items-virtual-grid"
+    >
+      <FoldersVirtualGrid
+        :folders="visibleFolders"
+        :media="visibleMedia"
+        :fs-files="fsFiles"
+        :browse-mode="browseMode"
+        :size="itemsStore.size"
+        :gap-size="settingsStore.gapSize"
+        :list="listMode"
+        :folder-tags="folderTagsByPath"
+        :cover-url-by-media-id="coverUrlByMediaId"
+        :reg="registrationStore.reg"
+        :select-mode="fsSelection.isSelectMode"
+        :selected-folder-paths="fsSelectionSelectedFolderPaths"
+        :selected-fs-file-paths="fsSelectionSelectedFsFilePaths"
+        @open-folder="browseMode === 'filesystem' ? navigateToFs($event) : navigateTo($event)"
+        @folder-contextmenu="onFolderContextMenu"
+        @media-contextmenu="onMediaContextMenu"
+        @fsfile-contextmenu="onFsFileContextMenu"
+        @toggle-folder-select="onToggleFolderSelect"
+        @toggle-fsfile-select="onToggleFsFileSelect"
+      />
+    </div>
 
     <FolderTagsMenu
       v-if="contextTagsPath"
@@ -521,11 +545,60 @@
       @confirm="onFolderPickerConfirm"
     />
 
+    <v-dialog
+      v-model="createFolderOpen"
+      width="420"
+      @after-enter="focusCreateFolderInput"
+    >
+      <v-card rounded="xl">
+        <v-card-title class="text-subtitle-1 font-weight-medium px-5 pt-5">
+          {{ t('folders_browser.new_folder') }}
+        </v-card-title>
+        <v-card-text class="px-5 pb-2">
+          <v-text-field
+            ref="createFolderInputRef"
+            v-model="createFolderName"
+            density="compact"
+            variant="outlined"
+            hide-details="auto"
+            rounded="lg"
+            autofocus
+            :label="t('folders_browser.new_folder_prompt')"
+            :disabled="createFolderBusy"
+            :error-messages="createFolderError ? [createFolderError] : []"
+            @keydown.enter.prevent="submitCreateFolder"
+          />
+        </v-card-text>
+        <v-card-actions class="px-5 pb-5">
+          <v-spacer/>
+          <v-btn
+            variant="text"
+            rounded="pill"
+            :disabled="createFolderBusy"
+            @click="createFolderOpen = false"
+          >
+            {{ t('common.cancel') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            rounded="pill"
+            :loading="createFolderBusy"
+            :disabled="!createFolderName.trim()"
+            @click="submitCreateFolder"
+          >
+            {{ t('common.create') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Clipboard / Selection buffer -->
     <v-slide-y-transition>
       <div
         v-if="fsSelection.isSelectMode"
         class="folders-page__clipboard-bar"
+        :style="clipboardBarStyle"
         :class="{'folders-page__clipboard-bar--bottom-nav': useBottomBar}"
       >
         <div class="folders-page__clipboard-bar-inner">
@@ -717,7 +790,39 @@ const folders = ref<FolderBrowseTileModel[]>([])
 const media = ref<MediaItem[]>([])
 const searchQuery = ref('')
 const sort = ref<FolderBrowseSort>('name-asc')
-const listMode = ref(false)
+const foldersPageStorageKey = 'mediachips:folders-page-state'
+
+type FoldersPageState = {
+  browseMode?: 'library' | 'filesystem'
+  listMode?: boolean
+  libraryPath?: string | null
+  filesystemPath?: string
+}
+
+function readFoldersPageState(): FoldersPageState {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(foldersPageStorageKey)
+    if (!raw) return {}
+    const value = JSON.parse(raw) as FoldersPageState
+    return value && typeof value === 'object' ? value : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeFoldersPageState(patch: Partial<FoldersPageState>) {
+  if (typeof window === 'undefined') return
+  try {
+    const current = readFoldersPageState()
+    window.localStorage.setItem(foldersPageStorageKey, JSON.stringify({...current, ...patch}))
+  } catch {
+    // Storage can be unavailable in restricted browser contexts.
+  }
+}
+
+const savedFoldersPageState = readFoldersPageState()
+const listMode = ref(savedFoldersPageState.listMode === true)
 const showAppearancePanel = ref(false)
 const folderTagsByPath = ref<Record<string, FolderBrowseTagChip[]>>({})
 const tagFilterId = ref<number | null>(null)
@@ -730,10 +835,12 @@ const folderTagsManagerOpen = ref(false)
 const contextTagsActivator = ref<HTMLButtonElement | null>(null)
 
 // Filesystem browse mode state
-const browseMode = ref<'library' | 'filesystem'>('library')
+const browseMode = ref<'library' | 'filesystem'>(
+  savedFoldersPageState.browseMode === 'filesystem' ? 'filesystem' : 'library',
+)
 const showHidden = ref(false)
 const places = ref<BrowsePlace[]>([])
-const currentFsPath = ref('')
+const currentFsPath = ref(savedFoldersPageState.filesystemPath || '')
 const fsParentPath = ref<string | null>(null)
 const fsRootPath = ref<string | null>(null)
 const fsBreadcrumbs = ref<Breadcrumb[]>([])
@@ -746,8 +853,42 @@ const folderPickerOpen = ref(false)
 const folderPickerOperation = ref<'copy' | 'move'>('copy')
 const folderPickerEntries = ref<{path: string; name: string}[]>([])
 
+const createFolderOpen = ref(false)
+const createFolderName = ref('')
+const createFolderBusy = ref(false)
+const createFolderError = ref('')
+const createFolderInputRef = ref<{focus?: () => void} | null>(null)
+
+type ElementRef = HTMLElement | { $el?: HTMLElement | null } | null
+
+const foldersPageRef = ref<ElementRef>(null)
+const foldersGridRef = ref<HTMLElement | null>(null)
 const clipboardEntriesContainerRef = ref<HTMLElement | null>(null)
 const clipboardOverflowCount = ref(0)
+const clipboardBarLeft = ref<number | null>(null)
+const clipboardBarWidth = ref<number | null>(null)
+const clipboardBarStyle = computed(() => {
+  if (clipboardBarLeft.value == null || clipboardBarWidth.value == null) return {}
+  return {
+    left: `${clipboardBarLeft.value}px`,
+    width: `${clipboardBarWidth.value}px`,
+    maxWidth: 'none',
+    transform: 'none',
+  }
+})
+
+function asDomElement(value: ElementRef): HTMLElement | null {
+  if (value instanceof HTMLElement) return value
+  return value?.$el instanceof HTMLElement ? value.$el : null
+}
+
+function syncClipboardBarBounds() {
+  const el = foldersGridRef.value || asDomElement(foldersPageRef.value)
+  if (!el) return
+  const {left, width} = el.getBoundingClientRect()
+  clipboardBarLeft.value = left
+  clipboardBarWidth.value = width
+}
 
 function recalcClipboardOverflow() {
   const el = clipboardEntriesContainerRef.value
@@ -935,6 +1076,7 @@ function mediaTypeTitle(mediaType: MediaType) {
 }
 
 function navigateTo(path: string | null) {
+  writeFoldersPageState({libraryPath: path})
   itemsStore.clearSelection()
   clearFocus()
   fsSelection.clearSelection()
@@ -1020,9 +1162,65 @@ function onSelectPlace(path: string) {
 
 function navigateToFs(targetPath: string | null | undefined) {
   if (!targetPath || loading.value) return
+  writeFoldersPageState({filesystemPath: targetPath})
   currentFsPath.value = targetPath
   fsSelection.clearSelection()
   void loadFsDirectory(targetPath)
+}
+
+function joinFsPath(parent: string, name: string) {
+  const separator = parent.includes('\\') ? '\\' : '/'
+  return parent.endsWith('/') || parent.endsWith('\\')
+    ? `${parent}${name}`
+    : `${parent}${separator}${name}`
+}
+
+function openCreateFolderDialog() {
+  if (!currentFsPath.value) return
+  createFolderName.value = ''
+  createFolderError.value = ''
+  createFolderOpen.value = true
+}
+
+function focusCreateFolderInput() {
+  void nextTick(() => {
+    createFolderInputRef.value?.focus?.()
+  })
+}
+
+async function submitCreateFolder() {
+  const name = createFolderName.value.trim()
+  const parent = currentFsPath.value
+  if (!parent || createFolderBusy.value) return
+
+  if (!name) {
+    createFolderError.value = t('folders_browser.new_folder_prompt')
+    return
+  }
+  if (/[/\\]/.test(name) || name === '.' || name === '..') {
+    createFolderError.value = t('folders_browser.new_folder_invalid')
+    return
+  }
+
+  createFolderBusy.value = true
+  createFolderError.value = ''
+  try {
+    await typedApi.createFolder(joinFsPath(parent, name))
+    createFolderOpen.value = false
+    createFolderName.value = ''
+    setNotification({
+      type: 'success',
+      title: t('folders_browser.new_folder_done', {name}),
+    })
+    await loadFsDirectory(parent)
+  } catch (err: unknown) {
+    createFolderError.value = (err as {response?: {data?: {message?: string}}; message?: string})
+      ?.response?.data?.message
+      || (err as {message?: string})?.message
+      || t('folders_browser.new_folder_error')
+  } finally {
+    createFolderBusy.value = false
+  }
 }
 
 async function loadPlaces() {
@@ -1044,6 +1242,7 @@ async function loadFsDirectory(targetPath: string) {
       showHidden: showHidden.value,
     })
     currentFsPath.value = data.currentPath
+    writeFoldersPageState({filesystemPath: currentFsPath.value})
     fsParentPath.value = data.parentPath
     fsRootPath.value = data.rootPath
     fsTruncated.value = data.truncated
@@ -1146,7 +1345,9 @@ async function playAllInPath(folderPath: string) {
 function syncPlaylist(items: MediaItem[]) {
   itemsStore.type = 'media'
   itemsStore.environment.media_type_id = mediaTypeId.value
-  if (itemsStore.view !== 1 && itemsStore.view !== 4 && itemsStore.view !== 5) {
+  // Card grid needs standard media view so Item hover/big preview work.
+  // Folders list mode uses a custom list row, not itemsStore view 5.
+  if (!listMode.value) {
     itemsStore.view = 1
   }
   itemsStore.entities = items
@@ -1220,6 +1421,7 @@ async function loadFolder() {
       mediaTypeId: mediaTypeId.value,
     })
     currentPath.value = data.currentPath ?? null
+    writeFoldersPageState({libraryPath: currentPath.value})
     parentPath.value = data.parentPath ?? null
     breadcrumbs.value = Array.isArray(data.breadcrumbs) ? data.breadcrumbs : []
     folders.value = Array.isArray(data.folders) ? data.folders : []
@@ -1742,6 +1944,7 @@ watch(
 )
 
 watch(browseMode, (mode) => {
+  writeFoldersPageState({browseMode: mode})
   fsSelection.clearSelection()
   if (mode === 'filesystem') {
     fsSelection.toggleSelectMode(true)
@@ -1765,6 +1968,13 @@ watch(browseMode, (mode) => {
   } else {
     fsSelection.toggleSelectMode(false)
   }
+}, {immediate: true})
+
+watch(listMode, (value) => {
+  writeFoldersPageState({listMode: value})
+  if (!value && browseMode.value === 'library') {
+    itemsStore.view = 1
+  }
 })
 
 watch(showHidden, () => {
@@ -1784,9 +1994,29 @@ watch(visibleMedia, (items) => {
 })
 
 let resizeObserver: ResizeObserver | null = null
+let pageResizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
   eventBus.on('folders:go-up', goUp)
+  if (browseMode.value === 'library' && !pathFromQuery.value && savedFoldersPageState.libraryPath) {
+    void router.replace({
+      path: '/folders',
+      query: {
+        path: savedFoldersPageState.libraryPath,
+        ...(mediaTypeId.value != null ? {mediaTypeId: String(mediaTypeId.value)} : {}),
+      },
+    })
+  }
+  syncClipboardBarBounds()
+  window.addEventListener('resize', syncClipboardBarBounds)
+  const pageElement = asDomElement(foldersPageRef.value)
+  if (pageElement) {
+    pageResizeObserver = new ResizeObserver(syncClipboardBarBounds)
+    pageResizeObserver.observe(pageElement)
+  }
+  if (foldersGridRef.value && pageResizeObserver) {
+    pageResizeObserver.observe(foldersGridRef.value)
+  }
   eventBus.on('folders:open-path', navigateTo)
   eventBus.on('folders:open-tags', () => {
     if (currentPath.value) {
@@ -1804,7 +2034,14 @@ onMounted(() => {
 })
 
 watch(() => fsSelection.selectedEntries.length, () => {
-  void nextTick().then(recalcClipboardOverflow)
+  void nextTick().then(() => {
+    syncClipboardBarBounds()
+    recalcClipboardOverflow()
+  })
+})
+
+watch(() => visibleFolders.value.length + visibleMedia.value.length + fsFiles.value.length, () => {
+  void nextTick().then(syncClipboardBarBounds)
 })
 
 watch(browseMode, () => {
@@ -1818,6 +2055,11 @@ onBeforeUnmount(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
+  if (pageResizeObserver) {
+    pageResizeObserver.disconnect()
+    pageResizeObserver = null
+  }
+  window.removeEventListener('resize', syncClipboardBarBounds)
 })
 </script>
 
@@ -2070,6 +2312,7 @@ onBeforeUnmount(() => {
 /* Clipboard / Selection buffer bar */
 .folders-page__clipboard-bar {
   position: fixed;
+  box-sizing: border-box;
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);

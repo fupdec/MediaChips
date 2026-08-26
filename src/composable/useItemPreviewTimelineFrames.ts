@@ -13,7 +13,8 @@ import {mediaThumbKey, setCachedThumb} from '@/utils/thumbDisplayCache'
 import {
   GRID_FRAME_INDEXES,
   buildContainedThumbFallbackStyle,
-  buildGridSpriteFrameStyle,
+  buildGridSpriteSheetStyle,
+  buildGridSpriteViewportStyle,
   buildStoryGridSpriteFrameStyle,
   buildStoryThumbFallbackStyle,
   getGridFramePercent,
@@ -111,11 +112,12 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     }
 
     if (!gridSpriteUrl.value) return null
-    return buildGridSpriteFrameStyle(
-      gridSpriteUrl.value,
-      hoverFrameIndex.value,
-      toValue(options.mediaAspectRatio),
-    )
+    return buildGridSpriteViewportStyle(toValue(options.mediaAspectRatio))
+  })
+
+  const hoverGridSheetStyle = computed(() => {
+    if (storyUsesThumbFallback.value || !gridSpriteUrl.value) return null
+    return buildGridSpriteSheetStyle(gridSpriteUrl.value, hoverFrameIndex.value)
   })
 
   const storyFrameStyles = computed(() => {
@@ -293,6 +295,7 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     gridLoading,
     getGridFrameDuration,
     hoverGridFrameStyle,
+    hoverGridSheetStyle,
     storyFrameStyles,
     isFrameLost,
     showFramesInProgressMessage,

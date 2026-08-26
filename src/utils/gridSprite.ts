@@ -6,7 +6,20 @@ export const GRID_SPRITE = {
 
 export const PREVIEW_CONTAINER_ASPECT_RATIO = 16 / 9
 
+/** Relative AR slack: near-16:9 cards fill edge-to-edge; others letterbox. */
+export const PREVIEW_ASPECT_MATCH_EPSILON = 0.03
+
 export type GridFrameIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
+export function isNearPreviewContainerAspect(
+  mediaAspectRatio: number,
+  containerAspectRatio = PREVIEW_CONTAINER_ASPECT_RATIO,
+  epsilon = PREVIEW_ASPECT_MATCH_EPSILON,
+): boolean {
+  if (!Number.isFinite(mediaAspectRatio) || mediaAspectRatio <= 0) return true
+  if (!Number.isFinite(containerAspectRatio) || containerAspectRatio <= 0) return false
+  return Math.abs(mediaAspectRatio - containerAspectRatio) / containerAspectRatio <= epsilon
+}
 
 export function getGridFramePercent(index: number): number {
   return ((index + 0.5) / GRID_SPRITE.tileCount) * 100
@@ -28,9 +41,15 @@ export function pickGridFrameIndex(hoverPercent: number): GridFrameIndex {
   return nearest as GridFrameIndex
 }
 
+export function gridFrameCell(index: number): {col: number; row: number} {
+  return {
+    col: index % GRID_SPRITE.cols,
+    row: Math.floor(index / GRID_SPRITE.cols),
+  }
+}
+
 export function gridFrameBackgroundPosition(index: number): string {
-  const col = index % GRID_SPRITE.cols
-  const row = Math.floor(index / GRID_SPRITE.cols)
+  const {col, row} = gridFrameCell(index)
   const x = col === 0 ? '0%' : col === 1 ? '50%' : '100%'
   const y = row === 0 ? '0%' : row === 1 ? '50%' : '100%'
   return `${x} ${y}`
@@ -51,6 +70,79 @@ export function getContainedFrameSizePercents(
 
   const widthPercent = (mediaAspectRatio / containerAspectRatio) * 100
   return {width: `${widthPercent}%`, height: '100%'}
+}
+
+/**
+ * Contain a tile in the actual preview box (same model as v-img contain).
+ * Percentage height against a theoretical 16:9 box misses the 1px thumb oversample.
+ */
+export function getContainedFrameBoxStyle(
+  mediaAspectRatio: number,
+  containerAspectRatio = PREVIEW_CONTAINER_ASPECT_RATIO,
+): Record<string, string> {
+  const ratio = Number.isFinite(mediaAspectRatio) && mediaAspectRatio > 0
+    ? mediaAspectRatio
+    : containerAspectRatio
+
+  if (ratio >= containerAspectRatio) {
+    return {
+      width: '100%',
+      height: 'auto',
+      aspectRatio: String(ratio),
+    }
+  }
+
+  return {
+    height: '100%',
+    width: 'auto',
+    aspectRatio: String(ratio),
+  }
+}
+
+export function buildGridSpriteViewportStyle(
+  mediaAspectRatio = PREVIEW_CONTAINER_ASPECT_RATIO,
+  containerAspectRatio = PREVIEW_CONTAINER_ASPECT_RATIO,
+): Record<string, string> {
+  const shell = {
+    flexShrink: '0',
+    overflow: 'hidden',
+    position: 'relative',
+  } as const
+
+  // Near 16:9: fill the oversampled thumb box. Other ratios letterbox like contain.
+  if (isNearPreviewContainerAspect(mediaAspectRatio, containerAspectRatio)) {
+    return {
+      width: '100%',
+      height: '100%',
+      ...shell,
+    }
+  }
+
+  return {
+    ...getContainedFrameBoxStyle(mediaAspectRatio, containerAspectRatio),
+    ...shell,
+  }
+}
+
+/**
+ * Inner 3×3 sheet. `left`/`top` percentages are of the tile box, so one step
+ * is exactly one frame — unlike background-position % which rounds against
+ * (container − 300% image) and shows a sliver of the neighbor tile.
+ */
+export function buildGridSpriteSheetStyle(
+  spriteUrl: string,
+  frameIndex: number,
+): Record<string, string> {
+  const {col, row} = gridFrameCell(frameIndex)
+  return {
+    backgroundImage: `url("${spriteUrl}")`,
+    backgroundSize: '100% 100%',
+    backgroundRepeat: 'no-repeat',
+    width: `${GRID_SPRITE.cols * 100}%`,
+    height: `${GRID_SPRITE.rows * 100}%`,
+    left: `${-col * 100}%`,
+    top: `${-row * 100}%`,
+  }
 }
 
 export function buildGridSpriteBackgroundStyle(
