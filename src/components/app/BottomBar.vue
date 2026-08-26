@@ -4,6 +4,7 @@ import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
+import {isLibraryNavLinkActive} from '@/utils/libraryNavActive'
 
 const CONTENT_HEIGHT = 56
 
@@ -16,8 +17,7 @@ const {t} = useI18n()
 const route = useRoute()
 
 function linkActive(link: {to: string; exact?: boolean}): boolean {
-  if (link.exact) return route.fullPath === link.to
-  return route.fullPath.startsWith(link.to)
+  return isLibraryNavLinkActive(link, route)
 }
 
 const {
@@ -35,8 +35,11 @@ const {
   watcherBusy,
   openInbox,
   openTrash,
+  metaLink,
   metaPath,
 } = useLibraryNavItems()
+
+const metaVisibleLinks = computed(() => metaVisible.value.map((item) => metaLink(item)))
 
 function readSafeAreaBottom() {
   if (typeof document === 'undefined') return 0
@@ -131,8 +134,8 @@ onUnmounted(() => {
     </v-tooltip>
 
     <v-tooltip
-      v-for="item in metaVisible"
-      :key="item.id"
+      v-for="link in metaVisibleLinks"
+      :key="link.key"
       location="top"
       :disabled="mobile"
       open-on-hover
@@ -140,20 +143,20 @@ onUnmounted(() => {
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
-          :to="metaPath(item.id)"
-          :active="route.fullPath === metaPath(item.id)"
-          :aria-label="item.name"
-          :title="item.name"
+          :to="link.to"
+          :exact="link.exact"
+          :active="linkActive(link)"
+          :aria-label="link.title"
+          :title="link.title"
           draggable="false"
           variant="text"
           color="primary"
-          exact
         >
-          <v-icon>{{ `mdi-${item.icon}` }}</v-icon>
-          <span>{{ item.name }}</span>
+          <v-icon>{{ link.icon }}</v-icon>
+          <span>{{ link.title }}</span>
         </v-btn>
       </template>
-      {{ item.name }}
+      {{ link.title }}
     </v-tooltip>
 
     <v-menu
@@ -165,6 +168,7 @@ onUnmounted(() => {
         <div class="folder-wrapper">
           <v-btn
             v-bind="props"
+            :active="false"
             @click.prevent
             class="folder btn-hidden"
             variant="text"
@@ -258,7 +262,7 @@ onUnmounted(() => {
         >
           <v-btn
             v-bind="props"
-            class=""
+            :active="false"
             variant="text"
             :disabled="watcherBusy"
             :aria-label="t('media_inbox.nav')"
@@ -330,12 +334,8 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-.bottom-menu .folder-wrapper .v-btn.v-btn--selected,
-.bottom-menu .folder-wrapper .v-btn.v-btn--active {
-  color: rgba(var(--v-theme-on-surface), 0.72) !important;
-}
-
-.bottom-menu .v-btn.v-btn--selected,
+/* Highlight only route-driven :active — not Vuetify group --selected
+   (inbox / more / trash can become selected on click without being a page). */
 .bottom-menu .v-btn.v-btn--active {
   color: rgb(var(--v-theme-primary)) !important;
 }

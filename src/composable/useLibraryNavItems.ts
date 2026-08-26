@@ -127,7 +127,6 @@ export function useLibraryNavItems() {
           to: '/folders',
           icon: 'mdi-folder-outline',
           title: t('navigation.folders'),
-          exact: true,
         }
       case 'playlists':
         return {

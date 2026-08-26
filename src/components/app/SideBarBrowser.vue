@@ -264,6 +264,7 @@
                 :to="libraryEditMode ? undefined : link.to"
                 :title="link.title"
                 :exact="link.exact"
+                :active="!libraryEditMode && isNavLinkActive(link)"
                 :ripple="!libraryEditMode"
                 color="primary"
                 :link="!libraryEditMode"
@@ -394,6 +395,7 @@
             :to="settingsLink.to"
             :prepend-icon="settingsLink.icon"
             :title="settingsLink.title"
+            :active="isSettingsActive"
             color="primary"
             link
           />
@@ -455,6 +457,7 @@ import {
   type LibraryNavEditItem,
   type LibraryNavLink,
 } from '@/composable/useLibraryNavItems'
+import {isLibraryNavLinkActive} from '@/utils/libraryNavActive'
 import {typedApi} from '@/services/typedApi'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
@@ -492,16 +495,7 @@ function toggleCollapsed(): void {
 }
 
 function isNavLinkActive(link: LibraryNavLink): boolean {
-  const targetPath = link.to.split('?')[0]
-  const targetQuery = new URL(link.to, 'http://local').searchParams
-
-  if (route.path !== targetPath) return false
-  if (!link.to.includes('?')) return link.exact ? route.path === targetPath : true
-
-  for (const [key, value] of targetQuery.entries()) {
-    if (String(route.query[key] ?? '') !== value) return false
-  }
-  return true
+  return isLibraryNavLinkActive(link, route)
 }
 
 const isSettingsActive = computed(() => route.path.startsWith('/settings'))
