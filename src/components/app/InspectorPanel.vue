@@ -508,7 +508,11 @@ const tagAssignmentLoadToken = ref(0)
 const focusedItem = computed(() => {
   const id = itemsStore.selection[0] ?? itemsStore.selected_last
   if (id == null) return null
-  return itemsStore.entities.find((item) => item.id === id) ?? null
+  // Cards are rendered from itemsOnPage; use that same live object first so
+  // inline card changes (rating/favorite) are reflected immediately here.
+  return itemsStore.itemsOnPage.find((item) => item.id === id)
+    ?? itemsStore.entities.find((item) => item.id === id)
+    ?? null
 })
 
 const isTag = computed(() => itemsStore.type === 'tag')

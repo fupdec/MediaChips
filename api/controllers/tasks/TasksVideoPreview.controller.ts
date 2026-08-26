@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk } from '../../types/errors'
+import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk, sendCreated } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -174,7 +174,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         sizes,
       })
-      sendOk(res, {outputPath: result})
+      sendCreated(res, {outputPath: result})
     } catch (e) {
       console.log(e)
       const message = e instanceof Error
