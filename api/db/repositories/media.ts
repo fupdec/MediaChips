@@ -102,6 +102,17 @@ export function createMediaRepository(db: DrizzleClient) {
         .all()
     },
 
+    findIdAndPathByLikePatterns(patterns: string[]): Array<{id: number; path: string}> {
+      if (!patterns.length) return []
+      return db.select({
+        id: media.id,
+        path: media.path,
+      })
+        .from(media)
+        .where(or(...patterns.map((pattern) => like(media.path, pattern))))
+        .all()
+    },
+
     findByMediaTypeIds(typeIds: number[]): MediaRow[] {
       if (!typeIds.length) return []
 

@@ -22,6 +22,8 @@ import { listMediaRoots } from '../../api/services/mediaRoots'
 import { listBrowseDirectory } from '../../api/services/browseDirectory'
 import { listSystemPlaces } from '../../api/services/systemPlaces'
 import { deleteEntries, copyEntries, moveEntries, validateEntries, createFolder, renameEntry } from '../../api/services/browseOperations'
+import { syncMediaPathsForMoves } from '../../api/services/browseMediaPathSync'
+import { invalidateMediaDerivedCaches } from '../../api/services/mediaCacheInvalidation'
 import { getBestLocalIp, getAllIps } from './network'
 import { saveConfigFile } from './configFile'
 import { safeJsonError } from './fileResolver'
@@ -63,6 +65,33 @@ function resolveMediaVideoPath(
   }
 
   return Promise.resolve({video, videoPath})
+}
+
+function syncMovedMediaPaths(
+  db: ApiDb,
+  movedFrom: string[],
+  destinationDir: string,
+  explicitTo?: string,
+) {
+  if (!movedFrom.length) return
+  try {
+    const repo = createMediaRepository(db.drizzle)
+    const moves = movedFrom.map((from) => ({
+      from,
+      to: explicitTo || path.join(destinationDir, path.basename(from)),
+    }))
+    const updated = syncMediaPathsForMoves({
+      findByPaths: (paths) => repo.findByPaths(paths).map((row) => ({
+        id: row.id,
+        path: row.path,
+      })),
+      findIdAndPathByLikePatterns: (patterns) => repo.findIdAndPathByLikePatterns(patterns),
+      updateById: (id, data, options) => repo.updateById(id, data, options),
+    }, moves)
+    if (updated > 0) invalidateMediaDerivedCaches()
+  } catch (error) {
+    console.error('Failed to sync media paths after filesystem move', error)
+  }
 }
 
 function registerBuiltinRoutes({
@@ -250,6 +279,7 @@ function registerBuiltinRoutes({
       if (req.body.entries.length === 1 && result.failed[0]?.status === 409) {
         throw Object.assign(new Error(result.failed[0].reason), {status: 409})
       }
+      syncMovedMediaPaths(db, result.moved, destination)
       res.json(result)
     } catch (error: unknown) {
       const status = Number((error as {status?: number})?.status) || 500
@@ -281,6 +311,9 @@ function registerBuiltinRoutes({
         throw Object.assign(new Error('Path and name are required'), {status: 400})
       }
       const result = await renameEntry(oldPath, newName)
+      if (result.renamed && result.renamed !== oldPath) {
+        syncMovedMediaPaths(db, [oldPath], path.dirname(result.renamed), result.renamed)
+      }
       res.json(result)
     } catch (error: unknown) {
       const status = Number((error as {status?: number})?.status) || 500
