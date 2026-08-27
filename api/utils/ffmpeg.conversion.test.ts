@@ -1,6 +1,6 @@
 /** @vitest-environment node */
 import {describe, expect, it} from 'vitest'
-import {buildConversionArgs, buildConversionScale, parseFfmpegProgressTime, resolveConversionVideoEncoder, shouldUseHardwareVideoEncoder} from './ffmpeg'
+import {buildConversionArgs, buildConversionScale, buildTrimCopyArgs, parseFfmpegProgressTime, resolveConversionVideoEncoder, shouldUseHardwareVideoEncoder} from './ffmpeg'
 
 describe('FFmpeg progress parsing', () => {
   it('treats both FFmpeg out_time fields as microseconds', () => {
@@ -38,5 +38,20 @@ describe('video conversion ffmpeg arguments', () => {
   it('rejects unsupported quality and resolution', () => {
     expect(() => buildConversionArgs('in', 'out', {codec: 'hevc', resolution: 720, quality: 'bad' as never})).toThrow()
     expect(() => buildConversionScale(999 as never)).toThrow()
+  })
+})
+
+describe('video trim ffmpeg arguments', () => {
+  it('stream-copies with input seek and faststart for mp4', () => {
+    const args = buildTrimCopyArgs('/in.mkv', '/out.mp4', 12, 30)
+    expect(args).toEqual(expect.arrayContaining([
+      '-ss', '12',
+      '-i', '/in.mkv',
+      '-t', '30',
+      '-c', 'copy',
+      '-avoid_negative_ts', 'make_zero',
+      '-movflags', '+faststart',
+    ]))
+    expect(args.indexOf('-ss')).toBeLessThan(args.indexOf('-i'))
   })
 })

@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import fs from 'fs'
 import {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
@@ -281,8 +282,92 @@ async function runFfmpeg(args: string[], options: RunProcessOptions = {}) {
 }
 
 /** Progressive remux / background copy — must not block live playback ffmpeg. */
-async function runFfmpegBackground(args: string[]) {
-  return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args))
+async function runFfmpegBackground(args: string[], options: RunProcessOptions = {}) {
+  return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args, options))
+}
+
+function isFaststartContainer(filePath: string): boolean {
+  return /\.(mp4|m4v|mov)$/i.test(filePath)
+}
+
+export function buildTrimCopyArgs(
+  input: string,
+  output: string,
+  startSeconds: number,
+  durationSeconds: number,
+): string[] {
+  const args = [
+    '-y',
+    '-ss', String(startSeconds),
+    '-i', input,
+    '-t', String(durationSeconds),
+    '-c', 'copy',
+    '-avoid_negative_ts', 'make_zero',
+    '-progress', 'pipe:2',
+    '-nostats',
+  ]
+  if (isFaststartContainer(output)) {
+    args.push('-movflags', '+faststart')
+  }
+  args.push(output)
+  return args
+}
+
+export function buildTrimEncodeArgs(
+  input: string,
+  output: string,
+  startSeconds: number,
+  durationSeconds: number,
+): string[] {
+  return [
+    '-y',
+    '-ss', String(startSeconds),
+    '-i', input,
+    '-t', String(durationSeconds),
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-movflags', '+faststart',
+    '-progress', 'pipe:2',
+    '-nostats',
+    output,
+  ]
+}
+
+export async function trimVideoFile(input: string, output: string, options: {
+  startSeconds: number
+  durationSeconds: number
+  onProgress?: (progress: number, details?: ConversionProgressDetails) => void
+  signal?: AbortSignal
+}): Promise<{outputPath: string; fallback: boolean}> {
+  const start = Math.max(0, Number(options.startSeconds) || 0)
+  const duration = Math.max(0.05, Number(options.durationSeconds) || 0)
+  const runOptions: RunProcessOptions = {
+    signal: options.signal,
+    duration,
+    onProgress: options.onProgress,
+  }
+
+  try {
+    await runFfmpegBackground(buildTrimCopyArgs(input, output, start, duration), runOptions)
+    return {outputPath: output, fallback: false}
+  } catch (error) {
+    if (options.signal?.aborted) throw error
+    if (fs.existsSync(output)) {
+      try { fs.unlinkSync(output) } catch { /* ignore partial copy */ }
+    }
+    const encodeOutput = isFaststartContainer(output)
+      ? output
+      : `${output.replace(/\.[^.]+$/, '')}.mp4`
+    await runWithConversionLimit(() => runProcess(
+      getFfmpegPath(),
+      buildTrimEncodeArgs(input, encodeOutput, start, duration),
+      runOptions,
+    ))
+    return {outputPath: encodeOutput, fallback: true}
+  }
 }
 
 const SINGLE_IMAGE_EXT = /\.(jpe?g|png|webp|bmp|gif)$/i

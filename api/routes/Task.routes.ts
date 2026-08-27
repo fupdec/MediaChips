@@ -27,6 +27,8 @@ import {
   VideoPreviewTaskRequestSchema,
   ConvertVideosRequestSchema,
   TestVideoSegmentRequestSchema,
+  TrimVideoRequestSchema,
+  TrimVideoDeleteOriginalRequestSchema,
   SuggestTagsRequestSchema,
   BackupNameRequestSchema,
   FaceMediaIdRequestSchema,
@@ -136,6 +138,10 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   register('post', '/convertVideos', 'convertVideos', validateBody(ConvertVideosRequestSchema))
   register('post', '/createTestVideoSegment', 'createTestVideoSegment', validateBody(TestVideoSegmentRequestSchema))
+  register('post', '/trimVideo', 'trimVideo', validateBody(TrimVideoRequestSchema))
+  register('post', '/trimDeleteOriginal', 'trimDeleteOriginal', validateBody(TrimVideoDeleteOriginalRequestSchema))
+  register('get', '/trim/:jobId', 'trimStatus')
+  register('post', '/trim/:jobId/cancel', 'cancelTrim')
   register('get', '/conversion/:jobId', 'conversionStatus')
   register('post', '/conversion/cancel-all', 'cancelAllConversions')
   register('post', '/conversion/:jobId/cancel', 'cancelConversion')

@@ -25,6 +25,7 @@ import {
   resolvePlaylistIndex,
 } from '@/composable/usePlayerTransportPlayback'
 import {PLAYER_SESSION_KEY, type PlayerSessionContext} from '@/composable/usePlayerSession'
+import {usePlayerTrim} from '@/composable/usePlayerTrim'
 import {maybeRefillSimilarRadio} from '@/services/similarRadio'
 import {useOpenMediaList} from '@/utils/openMediaList'
 import {findItemElementById} from '@/composable/useBrowserLayoutHotkeys'
@@ -60,6 +61,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const {xs, xl, mdAndDown, smAndDown} = useDisplay()
   const {t} = useI18n()
   const {openMediaList} = useOpenMediaList()
+  const trim = usePlayerTrim(session)
 
   const editingComponent = ref<VideoEditComponentRef | null>(null)
   const speeds = ref([0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2])
@@ -163,6 +165,10 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const exitStudioLayer = () => {
+    if (playerStore.trimMode) {
+      trim.exitTrimMode()
+      return
+    }
     if (playerStore.studioMode) {
       playerStore.studioMode = false
     }
@@ -493,5 +499,12 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     updateVideoInfo,
     deleteVideo,
     jumpToMark,
+    canTrim: trim.canTrim,
+    canOpenTrim: trim.canOpenTrim,
+    trimDuration: trim.trimDuration,
+    toggleTrimMode: trim.toggleTrimMode,
+    exitTrimMode: trim.exitTrimMode,
+    setTrimPoint: trim.setTrimPoint,
+    applyTrim: trim.applyTrim,
   }
 }

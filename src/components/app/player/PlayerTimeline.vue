@@ -4,7 +4,7 @@
     @mousemove.capture="saveEvent($event); showPreview($event)"
     @mouseleave="clearPreviewHover"
     class="timeline pa-0"
-    :class="{'timeline--studio': player.studioMode}"
+    :class="{'timeline--studio': player.studioMode, 'timeline--trim': player.trimMode}"
     ref="slider_progress"
   >
     <Transition name="up-next-slide">
@@ -35,6 +35,7 @@
         {
           'timeline-slider--transcode': showTranscodeTimeline,
           'timeline-slider--stream': showTranscodeTimeline && timelineDisplay.showStream,
+          'timeline-slider--trim': player.trimMode,
         },
       ]"
       :style="timelineTrackStyle"
@@ -45,11 +46,13 @@
       hide-details
     />
 
+    <PlayerTrimRange :controls-width="controls_width"/>
+
     <PlayerMarksTrack v-if="player.studioMode" :controls_width="controls_width"/>
 
     <Preview v-if="!isAudioMode"/>
 
-    <template v-if="!player.studioMode">
+    <template v-if="!player.studioMode && !player.trimMode">
       <Mark
         v-for="mark in player.marks"
         @removeMark="onRemoveMark"
@@ -68,6 +71,7 @@ import Preview from '@/components/app/player/Preview.vue'
 import Mark from '@/components/app/player/Mark.vue'
 import PlayerMarksTrack from '@/components/app/player/PlayerMarksTrack.vue'
 import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview.vue'
+import PlayerTrimRange from '@/components/app/player/PlayerTrimRange.vue'
 import {usePlayerTimeline} from '@/composable/usePlayerTimeline'
 import type {PlayerMark} from '@/types/player'
 

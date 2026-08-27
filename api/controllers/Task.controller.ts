@@ -10,9 +10,10 @@ import createTasksFacesController from './tasks/TasksFaces.controller'
 import createTasksMaintenanceController from './tasks/TasksMaintenance.controller'
 import createTasksLocalAiController from './tasks/TasksLocalAi.controller'
 import { startVideoConversion, getVideoConversionJob, cancelVideoConversion, cancelAllVideoConversions } from '../services/videoConversionService'
+import { startVideoTrim, getVideoTrimJob, cancelVideoTrim, deleteTrimOriginal } from '../services/videoTrimService'
 import { sendBadRequest, sendNotFound, sendOk } from '../types/errors'
 import { createMediaRepository } from '../db/repositories/media'
-import type { ConvertVideosPayload, TestVideoSegmentPayload } from '@shared/api/payloads'
+import type { ConvertVideosPayload, TestVideoSegmentPayload, TrimVideoPayload, TrimVideoDeleteOriginalPayload } from '@shared/api/payloads'
 import fs from 'fs'
 import path from 'path'
 import { cutVideoSegment, ffprobe, resolveFfprobeDuration } from '../utils/ffmpeg'
@@ -55,6 +56,28 @@ export default function createTaskController(db: ApiDb) {
     } catch (error) { return sendBadRequest(res, error instanceof Error ? error.message : String(error)) }
   }
 
+  const trimVideo = (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const body = req.body as unknown as TrimVideoPayload
+      const mediaRepo = createMediaRepository(db.drizzle)
+      const media = mediaRepo.findById(body.id)
+      if (!media) return sendBadRequest(res, `Media ${body.id} not found`)
+      if (String(media.path) !== body.path) return sendBadRequest(res, `Media path mismatch for ${body.id}`)
+      return sendOk(res, {data: startVideoTrim(db, body)})
+    } catch (error) { return sendBadRequest(res, error instanceof Error ? error.message : String(error)) }
+  }
+  const trimStatus = (req: ApiRequest, res: ApiResponse) => {
+    const job = getVideoTrimJob(String(req.params.jobId))
+    return job ? sendOk(res, {data: job}) : sendNotFound(res, 'Trim job not found')
+  }
+  const cancelTrim = (req: ApiRequest, res: ApiResponse) => sendOk(res, {data: {cancelled: cancelVideoTrim(String(req.params.jobId))}})
+  const trimDeleteOriginal = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const body = req.body as unknown as TrimVideoDeleteOriginalPayload
+      return sendOk(res, {data: await deleteTrimOriginal(db, body)})
+    } catch (error) { return sendBadRequest(res, error instanceof Error ? error.message : String(error)) }
+  }
+
   const conversionStatus = (req: ApiRequest, res: ApiResponse) => {
     const job = getVideoConversionJob(String(req.params.jobId))
     return job ? sendOk(res, {data: job}) : sendNotFound(res, 'Conversion job not found')
@@ -70,6 +93,10 @@ export default function createTaskController(db: ApiDb) {
     importSavedFilters,
     convertVideos,
     createTestVideoSegment,
+    trimVideo,
+    trimStatus,
+    cancelTrim,
+    trimDeleteOriginal,
     conversionStatus,
     cancelConversion,
     cancelAllConversions,

@@ -32,6 +32,10 @@ import type {
   ConvertVideosPayload,
   TestVideoSegmentPayload,
   TestVideoSegmentResponse,
+  TrimVideoPayload,
+  TrimVideoJobResponse,
+  TrimVideoDeleteOriginalPayload,
+  TrimVideoDeleteOriginalResponse,
 } from '@shared/api/payloads'
 import {
   parseAddMediaResponse,
@@ -205,6 +209,34 @@ export const tasksApi = {
 
   createTestVideoSegment(body: TestVideoSegmentPayload) {
     return apiClient.post<{data: TestVideoSegmentResponse}>(API_ROUTES.taskCreateTestVideoSegment, body).then((res) => ({...res, data: res.data.data}))
+  },
+
+  trimVideo(body: TrimVideoPayload) {
+    return apiClient.post<{data: TrimVideoJobResponse}>(API_ROUTES.taskTrimVideo, body).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  getTrimJob(jobId: string) {
+    return apiClient.get<{data: TrimVideoJobResponse | null}>(`${API_ROUTES.taskTrim}/${encodeURIComponent(jobId)}`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  cancelTrim(jobId: string) {
+    return apiClient.post<{data: {cancelled: boolean}}>(`${API_ROUTES.taskTrim}/${encodeURIComponent(jobId)}/cancel`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  trimDeleteOriginal(body: TrimVideoDeleteOriginalPayload) {
+    return apiClient.post<{data: TrimVideoDeleteOriginalResponse}>(API_ROUTES.taskTrimVideoDeleteOriginal, body).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
   },
 
   getConversionJob(jobId: string) {

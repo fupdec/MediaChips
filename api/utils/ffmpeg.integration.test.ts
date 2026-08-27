@@ -14,6 +14,7 @@ import {
   ffprobe,
   runFfmpeg,
   convertVideoFile,
+  trimVideoFile,
 } from './ffmpeg'
 
 function ffmpegBinariesAvailable(): boolean {
@@ -110,4 +111,18 @@ describeIntegration('ffmpeg integration', () => {
     expect(fs.statSync(out).size).toBeGreaterThan(500)
     expect(fs.statSync(out).size).not.toBe(firstSize)
   })
+
+  it('trims a clip with stream copy', async () => {
+    const out = path.join(tmpDir, 'trimmed.mp4')
+    const result = await trimVideoFile(sampleMp4, out, {
+      startSeconds: 1,
+      durationSeconds: 2,
+    })
+    expect(result.fallback).toBe(false)
+    expect(fs.statSync(result.outputPath).size).toBeGreaterThan(0)
+    const probe = await ffprobe(result.outputPath)
+    const duration = Number(probe.format.duration)
+    expect(duration).toBeGreaterThan(1)
+    expect(duration).toBeLessThan(3.5)
+  }, 30_000)
 })

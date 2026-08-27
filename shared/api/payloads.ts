@@ -378,6 +378,43 @@ export interface TestVideoSegmentResponse {
   durationSeconds: number
 }
 
+export interface TrimVideoPayload {
+  id: number
+  path: string
+  startSeconds: number
+  endSeconds: number
+}
+
+export interface TrimVideoJobResponse {
+  id: string
+  status: string
+  mediaId: number
+  originalPath: string
+  outputPath?: string
+  startSeconds: number
+  endSeconds: number
+  progress: number
+  fallback?: boolean
+  error?: string
+  createdAt: number
+}
+
+export interface TrimVideoDeleteOriginalPayload {
+  id: number
+  originalPath: string
+  trimmedPath: string
+}
+
+export interface TrimVideoDeleteOriginalResponse {
+  id: number
+  path: string
+  basename: string
+  name: string
+  ext: string
+  duration?: number
+  filesize?: number
+}
+
 export interface ConvertVideosPayload {
   items: Array<{id: number; path: string}>
   options: {

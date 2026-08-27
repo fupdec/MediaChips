@@ -14,6 +14,7 @@ interface PlayerStoreLike {
   active?: boolean
   isKeyboardBlocked?: boolean
   studioMode?: boolean
+  trimMode?: boolean
   currentTime?: number
   player?: { currentTime: number } | null
   playerJumpTo?: (time: number) => void
@@ -97,6 +98,9 @@ export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyConte
 
   switch (true) {
     case event.code === 'Escape':
+      if (playerStore.trimMode) {
+        return callControl(controls, 'exitTrimMode')
+      }
       if (playerStore.studioMode) {
         return callControl(controls, 'exitStudioLayer')
       }
@@ -159,8 +163,20 @@ export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyConte
     case event.code === 'KeyP' && isPlainKey(event):
       return callControl(controls, 'togglePlaylist')
 
+    case event.code === 'KeyT' && isPlainKey(event):
+      return callControl(controls, 'toggleTrimMode')
+
     case event.code === 'KeyI' && isPlainKey(event):
+      if (playerStore.trimMode) return callControl(controls, 'setTrimIn')
       return callControl(controls, 'toggleMarks')
+
+    case event.code === 'KeyO' && isPlainKey(event):
+      if (playerStore.trimMode) return callControl(controls, 'setTrimOut')
+      return false
+
+    case event.code === 'Enter' && isPlainKey(event):
+      if (playerStore.trimMode) return callControl(controls, 'applyTrim')
+      return false
 
     case event.code === 'Comma' && isPlainKey(event):
       if (typeof controls?.jumpToMark === 'function') {

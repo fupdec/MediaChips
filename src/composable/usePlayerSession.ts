@@ -421,7 +421,7 @@ export function usePlayerSession() {
     if (!e.movementX && !e.movementY) return
     showControls()
     if (!playerStore.fullscreen || playerStore.mouseOverControls) return
-    if (playerStore.paused) return
+    if (playerStore.paused || playerStore.trimMode) return
 
     timeoutControls.value = window.setTimeout(() => {
       const hasNext = !isPlaylistNavDisabled({

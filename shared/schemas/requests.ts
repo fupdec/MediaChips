@@ -358,6 +358,19 @@ export const TestVideoSegmentRequestSchema = z.object({
   destination: z.string().trim().min(1).max(4096),
 })
 
+export const TrimVideoRequestSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  path: z.string().trim().min(1).max(4096),
+  startSeconds: z.coerce.number().min(0),
+  endSeconds: z.coerce.number().min(0),
+})
+
+export const TrimVideoDeleteOriginalRequestSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  originalPath: z.string().trim().min(1).max(4096),
+  trimmedPath: z.string().trim().min(1).max(4096),
+})
+
 export const ConvertVideosRequestSchema = z.object({
   items: z.array(ConversionItemRequestSchema).min(1).max(500),
   options: ConversionOptionsRequestSchema,
