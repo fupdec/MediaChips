@@ -1,4 +1,3 @@
-import path from 'path-browserify'
 import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -106,8 +105,9 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         await router.push({path: '/settings', query: {tab: 'database', section: 'backups'}})
         break
       case 'openDataFolder':
+        // dbPath is already the active database directory (app_storage/<id>).
         if (appStore.dbPath) {
-          await openPath(path.dirname(appStore.dbPath), false)
+          await openPath(appStore.dbPath, false)
         }
         break
       case 'undo':

@@ -9,6 +9,7 @@ import {
 import {normalizeMediaPath} from '../api/utils/normalizeUserPath'
 import {resolveExistingPath} from '../api/services/contentHash'
 import {apiErrorMessage} from '../api/types/errors'
+import {openExistingPath} from './openExistingPath'
 
 export function parseExternalUrl(rawUrl: unknown): {ok: true; url: string} | {ok: false; error: string} {
   const url = String(rawUrl || '').trim()
@@ -56,44 +57,11 @@ export function registerShellIpc(deps: {
       const existingPath = await resolveExistingPath(entryPath)
       if (!existingPath) return {error: 'Path does not exist'}
 
-      // Reveal the file in Finder/Explorer instead of only opening the parent folder.
-      if (typeof data === 'object' && data !== null && data.isDir) {
-        try {
-          shell.showItemInFolder(existingPath)
-          return {success: true}
-        } catch (error) {
-          console.warn('showItemInFolder failed, falling back to openPath:', error)
-          // Fall through to shell.openPath on the parent directory.
-          const parent = existingPath.replace(/[/\\][^/\\]+$/, '') || existingPath
-          const openPromise = shell.openPath(parent)
-          const errorMessage = await openPromise
-          if (errorMessage) return {error: String(errorMessage)}
-          return {success: true}
-        }
-      }
-
-      // shell.openPath can hang on some platforms/Launch Services states.
-      // Reply after a short wait so IPC never stalls; keep the open running.
-      const OPEN_PATH_REPLY_MS = 2_500
-      let timeoutId: ReturnType<typeof setTimeout> | undefined
-      const openPromise = shell.openPath(existingPath)
-      try {
-        const error = await Promise.race([
-          openPromise,
-          new Promise<string>((resolve) => {
-            timeoutId = setTimeout(() => resolve(''), OPEN_PATH_REPLY_MS)
-          }),
-        ])
-        if (error) return {error: String(error)}
-        return {success: true}
-      } finally {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
-        void openPromise.then((error) => {
-          if (error) console.warn('openPath deferred error:', error)
-        }).catch((error) => {
-          console.warn('openPath deferred rejection:', error)
-        })
-      }
+      const revealInFolder = typeof data === 'object' && data !== null && Boolean(data.isDir)
+      return await openExistingPath(existingPath, revealInFolder, {
+        openPath: (target) => shell.openPath(target),
+        showItemInFolder: (target) => shell.showItemInFolder(target),
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error || 'Failed to open path')
       return {error: message || 'Failed to open path'}
