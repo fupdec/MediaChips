@@ -106,7 +106,12 @@ export function createWatchedFoldersRepository(db: DrizzleClient) {
     },
 
     deleteById(id: number): void {
-      db.delete(watchedFolders).where(eq(watchedFolders.id, id)).run()
+      db.transaction((tx) => {
+        tx.delete(mediaTypesInWatchedFolders)
+          .where(eq(mediaTypesInWatchedFolders.folderId, id))
+          .run()
+        tx.delete(watchedFolders).where(eq(watchedFolders.id, id)).run()
+      })
     },
 
     replaceMediaTypes(folderId: number, mediaTypeIds: number[]): void {

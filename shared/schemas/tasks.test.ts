@@ -63,6 +63,17 @@ describe('task schemas', () => {
     expect(links[0]?.folderId).toBe(1)
   })
 
+  it('parses watched folder links with a missing folder', () => {
+    const links = parseWatchedFolderLinks([
+      {
+        folderId: 99,
+        mediaType: { id: 2, type: 'video', name: 'Videos' },
+        watchedFolder: null,
+      },
+    ])
+    expect(links[0]?.watchedFolder).toBeNull()
+  })
+
   it('parses media path search and add media responses', () => {
     const files = parseMediaPathSearchResults([{ id: 1, path: '/videos/a.mp4' }])
     expect(files[0]?.path).toBe('/videos/a.mp4')

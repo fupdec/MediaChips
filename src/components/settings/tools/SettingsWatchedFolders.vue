@@ -72,7 +72,7 @@
 
       <div
         v-for="folder in watcherStore.folders"
-        :key="folder.id"
+        :key="folder.id ?? folder.path"
         class="watched-folders-card"
         :class="{
           'watched-folders-card--watching': isFolderWatchEnabled(folder),
