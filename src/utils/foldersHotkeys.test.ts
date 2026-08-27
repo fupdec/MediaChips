@@ -20,7 +20,12 @@ describe('resolveFoldersHotkey', () => {
   it('opens folder on Enter and tags on T', () => {
     expect(resolveFoldersHotkey({code: 'Enter', focusedKind: 'folder'})).toBe('open-folder')
     expect(resolveFoldersHotkey({code: 'Enter', focusedKind: 'media'})).toBe('edit-media')
+    expect(resolveFoldersHotkey({code: 'Enter', focusedKind: 'pending'})).toBe('edit-media')
     expect(resolveFoldersHotkey({code: 'KeyT', focusedKind: 'folder'})).toBe('open-tags')
+  })
+
+  it('plays pending files with Space', () => {
+    expect(resolveFoldersHotkey({code: 'Space', focusedKind: 'pending'})).toBe('play-media')
   })
 
   it('maps history and alt-up', () => {

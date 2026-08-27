@@ -8,7 +8,7 @@
     :width="panelWidth"
     class="inspector-panel"
     :class="{
-      'inspector-panel--empty': !focusedItem,
+      'inspector-panel--empty': !focusedItem && !pendingDraft,
       'inspector-panel--edit': inlineEdit,
     }"
   >
@@ -38,7 +38,7 @@
           </v-btn>
 
           <v-btn
-            v-if="focusedItem"
+            v-if="focusedItem || pendingDraft"
             class="inspector-panel__close"
             icon
             variant="text"
@@ -69,7 +69,60 @@
       </div>
 
       <div
-        v-if="!focusedItem"
+        v-if="pendingDraft && !focusedItem"
+        class="inspector-panel__pending"
+      >
+        <v-icon
+          size="40"
+          class="mb-3"
+          color="success"
+        >
+          mdi-file-plus-outline
+        </v-icon>
+        <div class="inspector-panel__name text-center">
+          {{ pendingDraft.name }}
+        </div>
+        <div class="inspector-panel__path text-medium-emphasis text-center mt-1">
+          {{ pendingDraft.path }}
+        </div>
+        <div
+          v-if="pendingDraft.size != null"
+          class="text-caption text-medium-emphasis mt-1"
+        >
+          {{ pendingSizeLabel }}
+        </div>
+        <v-chip
+          class="mt-3"
+          size="small"
+          color="success"
+          variant="tonal"
+          label
+        >
+          {{ t('media.adding.browser_addable') }}
+        </v-chip>
+        <div class="d-flex flex-column ga-2 mt-4" style="width: 100%">
+          <v-btn
+            color="success"
+            variant="flat"
+            rounded="lg"
+            prepend-icon="mdi-plus"
+            @click="eventBus.emit('folders:pending-add', pendingDraft.path)"
+          >
+            {{ t('folders_browser.add_to_library') }}
+          </v-btn>
+          <v-btn
+            variant="tonal"
+            rounded="lg"
+            prepend-icon="mdi-pencil-outline"
+            @click="eventBus.emit('folders:pending-edit', pendingDraft.path)"
+          >
+            {{ t('common.editing') }}
+          </v-btn>
+        </div>
+      </div>
+
+      <div
+        v-else-if="!focusedItem"
         class="inspector-panel__empty"
       >
         <v-icon
@@ -427,6 +480,7 @@ import {
   isThumbUnavailable,
 } from '@/utils/thumbSource'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
+import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
 import {setNotification} from '@/services/notificationService'
 import type {MediaItem, Tag} from '@/types/stores'
 
@@ -457,6 +511,7 @@ const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
+const {focused: foldersFocus, clearFocus: clearFoldersFocus} = useFoldersBrowserFocus()
 const winElectronUi = isWinElectronUi()
 
 const DialogImageEditing = defineAsyncComponent(() =>
@@ -513,6 +568,16 @@ const focusedItem = computed(() => {
   return itemsStore.itemsOnPage.find((item) => item.id === id)
     ?? itemsStore.entities.find((item) => item.id === id)
     ?? null
+})
+
+const pendingDraft = computed(() => (
+  foldersFocus.value?.kind === 'pending' ? foldersFocus.value : null
+))
+
+const pendingSizeLabel = computed(() => {
+  const size = pendingDraft.value?.size
+  if (size == null) return ''
+  return getReadableFileSize(size)
 })
 
 const isTag = computed(() => itemsStore.type === 'tag')
@@ -883,6 +948,7 @@ async function flushEdits(): Promise<void> {
 async function clearFocus(): Promise<void> {
   await flushEdits()
   itemsStore.clearInspectorFocus()
+  clearFoldersFocus()
 }
 
 async function toggleCollapsed(): Promise<void> {
@@ -893,6 +959,11 @@ async function toggleCollapsed(): Promise<void> {
 }
 
 async function toggleInlineEdit(): Promise<void> {
+  if (pendingDraft.value && !focusedItem.value && !inlineEdit.value) {
+    void setOption('1', 'inspectorInlineEdit')
+    eventBus.emit('folders:pending-edit', pendingDraft.value.path)
+    return
+  }
   if (inlineEdit.value) {
     await flushEdits()
     void setOption('0', 'inspectorInlineEdit')
@@ -1041,7 +1112,8 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex-shrink: 0;
 }
 
-.inspector-panel__empty {
+.inspector-panel__empty,
+.inspector-panel__pending {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1049,6 +1121,11 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex: 1;
   padding: 24px 16px;
   min-height: 220px;
+}
+
+.inspector-panel__pending {
+  justify-content: flex-start;
+  padding-top: 32px;
 }
 
 .inspector-panel__preview {

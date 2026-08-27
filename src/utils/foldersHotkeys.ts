@@ -9,7 +9,7 @@ export type FoldersHotkeyAction =
   | 'edit-media'
   | null
 
-export type FoldersFocusKind = 'folder' | 'media' | null
+export type FoldersFocusKind = 'folder' | 'media' | 'pending' | null
 
 export function resolveFoldersHotkey(input: {
   code: string
@@ -43,11 +43,13 @@ export function resolveFoldersHotkey(input: {
 
   if (input.code === 'Enter' || input.code === 'KeyE') {
     if (input.focusedKind === 'folder') return 'open-folder'
-    if (input.focusedKind === 'media') return 'edit-media'
+    if (input.focusedKind === 'media' || input.focusedKind === 'pending') return 'edit-media'
     return null
   }
 
-  if (input.code === 'Space' && input.focusedKind === 'media') return 'play-media'
+  if (input.code === 'Space' && (input.focusedKind === 'media' || input.focusedKind === 'pending')) {
+    return 'play-media'
+  }
 
   return null
 }

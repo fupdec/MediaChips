@@ -21,17 +21,55 @@ import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
 
+const VISIBLE_GRID_SELECTOR = [
+  '.items-page-grid .item[data-item-id]',
+  '.items-masonry-grid .item[data-item-id]',
+  '.items-page-grid [data-folder-path]',
+  '.folders-virtual-grid__cell--media[data-item-id]',
+  '.folders-virtual-grid [data-pending-path]',
+].join(', ')
+
+/** Deduplicate folder tiles / media cards that share the same id in the DOM. */
+export function uniqueVisibleGridElements(nodes: Iterable<HTMLElement>): HTMLElement[] {
+  const seen = new Set<string>()
+  const result: HTMLElement[] = []
+  for (const el of nodes) {
+    const folderPath = el.dataset.folderPath
+    const pendingPath = el.dataset.pendingPath
+    const itemId = el.dataset.itemId
+    const key = folderPath
+      ? `folder:${folderPath}`
+      : pendingPath
+        ? `pending:${pendingPath}`
+        : itemId
+          ? `item:${itemId}`
+          : null
+    if (key == null || seen.has(key)) continue
+    seen.add(key)
+    result.push(el)
+  }
+  return result
+}
+
 /** Card roots currently rendered in the items grid / masonry / folders browser. */
 export function queryVisibleItemElements(): HTMLElement[] {
-  return Array.from(
-    document.querySelectorAll<HTMLElement>(
-      '.items-page-grid .item[data-item-id], .items-masonry-grid .item[data-item-id], .items-page-grid [data-folder-path]',
-    ),
+  return uniqueVisibleGridElements(
+    document.querySelectorAll<HTMLElement>(VISIBLE_GRID_SELECTOR),
   )
 }
 
+/** Media cards only — used while bulk-selecting so folder tiles are skipped. */
+export function queryVisibleMediaItemElements(): HTMLElement[] {
+  return queryVisibleItemElements().filter((el) => {
+    const id = Number(el.dataset.itemId)
+    return Number.isFinite(id)
+  })
+}
+
 export function findItemElementById(id: number): HTMLElement | null {
-  return document.querySelector(`.item[data-item-id="${id}"]`)
+  return document.querySelector(
+    `.folders-virtual-grid__cell--media[data-item-id="${id}"], .item[data-item-id="${id}"]`,
+  )
 }
 
 /**
@@ -165,10 +203,26 @@ export function useBrowserLayoutHotkeys() {
     })
   }
 
+  function focusPendingPath(pendingPath: string) {
+    setFoldersFocus({kind: 'pending', path: pendingPath})
+    itemsStore.clearInspectorFocus()
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-pending-path="${CSS.escape(pendingPath)}"]`,
+      )
+      if (el) scrollItemIntoView(el)
+    })
+  }
+
   function applyFocusFromElement(el: HTMLElement) {
     const folderPath = el.dataset.folderPath
     if (folderPath) {
       focusFolderPath(folderPath)
+      return true
+    }
+    const pendingPath = el.dataset.pendingPath
+    if (pendingPath) {
+      focusPendingPath(pendingPath)
       return true
     }
     const nextId = Number(el.dataset.itemId)
@@ -207,9 +261,12 @@ export function useBrowserLayoutHotkeys() {
 
     const id = focusedId()
     const folderPath = foldersFocus.value?.kind === 'folder' ? foldersFocus.value.path : null
+    const pendingPath = foldersFocus.value?.kind === 'pending' ? foldersFocus.value.path : null
     const currentEl = folderPath
       ? document.querySelector<HTMLElement>(`[data-folder-path="${CSS.escape(folderPath)}"]`)
-      : id != null ? findItemElementById(id) : null
+      : pendingPath
+        ? document.querySelector<HTMLElement>(`[data-pending-path="${CSS.escape(pendingPath)}"]`)
+        : id != null ? findItemElementById(id) : null
 
     if (!currentEl) {
       if (visible[0] && applyFocusFromElement(visible[0])) return
@@ -249,7 +306,7 @@ export function useBrowserLayoutHotkeys() {
   function resolveNeighborId(fromId: number, direction: BrowserNavDirection): number | null {
     const currentEl = findItemElementById(fromId)
     if (currentEl) {
-      const neighbor = findNeighborItemElement(currentEl, direction)
+      const neighbor = findNeighborItemElement(currentEl, direction, queryVisibleMediaItemElements())
       if (neighbor) {
         const nextId = Number(neighbor.dataset.itemId)
         if (Number.isFinite(nextId)) return nextId
@@ -263,10 +320,38 @@ export function useBrowserLayoutHotkeys() {
     return next ? Number(next.id) : null
   }
 
+  function mediaNeighborFromFolder(direction: BrowserNavDirection): number | null {
+    const folderPath = foldersFocus.value?.kind === 'folder' ? foldersFocus.value.path : null
+    if (!folderPath) return null
+    const folderEl = document.querySelector<HTMLElement>(
+      `[data-folder-path="${CSS.escape(folderPath)}"]`,
+    )
+    if (!folderEl) return null
+    const neighbor = findNeighborItemElement(folderEl, direction, queryVisibleMediaItemElements())
+    if (!neighbor) return null
+    const nextId = Number(neighbor.dataset.itemId)
+    return Number.isFinite(nextId) ? nextId : null
+  }
+
   /** Enter select mode and extend a range with Shift+arrows from the focused card. */
   function extendSelection(direction: BrowserNavDirection) {
     const page = itemsStore.itemsOnPage
     if (!page.length) return
+
+    if (foldersFocus.value?.kind === 'folder') {
+      const nextId = mediaNeighborFromFolder(direction) ?? Number(page[0].id)
+      if (!Number.isFinite(nextId)) return
+      itemsStore.isSelect = true
+      itemsStore.selection = [nextId]
+      itemsStore.selectionAnchor = nextId
+      itemsStore.selected_last = nextId
+      setFoldersFocus({kind: 'media', id: nextId})
+      requestAnimationFrame(() => {
+        const el = findItemElementById(nextId)
+        if (el) scrollItemIntoView(el)
+      })
+      return
+    }
 
     let current = focusedId()
     if (current == null) {
@@ -298,6 +383,11 @@ export function useBrowserLayoutHotkeys() {
   }
 
   function toggleFocusedSelection() {
+    if (foldersFocus.value?.kind === 'folder') {
+      itemsStore.isSelect = true
+      return
+    }
+
     const page = itemsStore.itemsOnPage
     let id = focusedId()
     if (id == null) {
@@ -471,48 +561,63 @@ export function useBrowserLayoutHotkeys() {
         shiftKey: event.shiftKey,
         focusedKind: foldersFocus.value?.kind || (focusedId() != null ? 'media' : null),
       })
-      if (foldersAction === 'history-back') {
-        event.preventDefault()
-        router.back()
-        return
-      }
-      if (foldersAction === 'history-forward') {
-        event.preventDefault()
-        router.forward()
-        return
-      }
-      if (foldersAction === 'go-up') {
-        event.preventDefault()
-        emitFoldersGoUp()
-        return
-      }
-      if (foldersAction === 'open-tags') {
-        event.preventDefault()
-        emitFoldersOpenTags()
-        return
-      }
-      if (foldersAction === 'open-folder' && foldersFocus.value?.kind === 'folder') {
-        event.preventDefault()
-        emitFoldersOpenPath(foldersFocus.value.path)
-        return
-      }
-      if (foldersAction === 'delete-media') {
-        if (!focusedId()) return
-        event.preventDefault()
-        openDelete()
-        return
-      }
-      if (foldersAction === 'edit-media') {
-        if (!focusedId()) return
-        event.preventDefault()
-        openEdit()
-        return
-      }
-      if (foldersAction === 'play-media') {
-        if (!focusedId()) return
-        event.preventDefault()
-        playFocused()
-        return
+      const allowFoldersAction = !itemsStore.isSelect
+        || foldersAction === 'history-back'
+        || foldersAction === 'history-forward'
+      if (allowFoldersAction) {
+        if (foldersAction === 'history-back') {
+          event.preventDefault()
+          eventBus.emit('folders:history-back')
+          return
+        }
+        if (foldersAction === 'history-forward') {
+          event.preventDefault()
+          eventBus.emit('folders:history-forward')
+          return
+        }
+        if (foldersAction === 'go-up') {
+          event.preventDefault()
+          emitFoldersGoUp()
+          return
+        }
+        if (foldersAction === 'open-tags') {
+          event.preventDefault()
+          emitFoldersOpenTags()
+          return
+        }
+        if (foldersAction === 'open-folder' && foldersFocus.value?.kind === 'folder') {
+          event.preventDefault()
+          emitFoldersOpenPath(foldersFocus.value.path)
+          return
+        }
+        if (foldersAction === 'delete-media') {
+          if (!focusedId()) return
+          event.preventDefault()
+          openDelete()
+          return
+        }
+        if (foldersAction === 'edit-media') {
+          if (foldersFocus.value?.kind === 'pending') {
+            event.preventDefault()
+            eventBus.emit('folders:pending-edit', foldersFocus.value.path)
+            return
+          }
+          if (!focusedId()) return
+          event.preventDefault()
+          openEdit()
+          return
+        }
+        if (foldersAction === 'play-media') {
+          if (foldersFocus.value?.kind === 'pending') {
+            event.preventDefault()
+            eventBus.emit('folders:pending-play', foldersFocus.value.path)
+            return
+          }
+          if (!focusedId()) return
+          event.preventDefault()
+          playFocused()
+          return
+        }
       }
     }
 

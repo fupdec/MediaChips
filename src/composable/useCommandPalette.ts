@@ -20,6 +20,8 @@ import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {buildInboxFilters} from '@/utils/homeMediaListFilters'
 import {typedApi} from '@/services/typedApi'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
+import {isFoldersRoute} from '@/composable/useBrowserLayout'
+import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import {
   filterCommandPaletteCommands,
   type CommandPaletteCommand,
@@ -55,6 +57,7 @@ export function useCommandPaletteCommands(options: {
   const {openReviewMode} = useReviewModeLauncher()
   const {openInbox} = useMediaInbox()
   const {openMediaList} = useOpenMediaList()
+  const fsSelection = useFsBrowseSelection()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -236,7 +239,9 @@ export function useCommandPaletteCommands(options: {
         keywords: ['selection', 'multi'],
         shortcut: 's',
         run: () => {
-          if (!isItemsLibraryRoute(router.currentRoute.value.path)) {
+          const path = router.currentRoute.value.path
+          if (isFoldersRoute(path) && fsSelection.isSelectMode) return
+          if (!isItemsLibraryRoute(path) && !isFoldersRoute(path)) {
             const id = getDefaultMediaTypeId(appStore.mediaTypes)
             if (id != null) void router.push(`/media?mediaTypeId=${id}`)
           }

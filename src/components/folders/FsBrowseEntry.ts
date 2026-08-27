@@ -7,4 +7,5 @@ export type FsBrowseEntry = {
   extension: string | null
   inLibrary: boolean
   addable: boolean
+  mediaId: number | null
 }

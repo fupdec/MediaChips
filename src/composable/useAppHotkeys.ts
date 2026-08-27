@@ -6,6 +6,8 @@ import { usePlayerStore } from '@/stores/player'
 import { registerAppShellHandler, useAppShell } from '@/composable/appShell'
 import { getDefaultMediaTypeId } from '@/utils/mediaType'
 import { isBlockingOverlayOpen, isTypingTarget } from '@/utils/keyboardTarget'
+import { isFoldersRoute } from '@/composable/useBrowserLayout'
+import { useFsBrowseSelection } from '@/stores/fsBrowseSelection'
 
 function isItemsLibraryRoute(path: string): boolean {
   return path === '/media' || path.startsWith('/media/')
@@ -18,6 +20,7 @@ export function useAppHotkeys() {
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
   const playerStore = usePlayerStore()
+  const fsSelection = useFsBrowseSelection()
   const appShell = useAppShell()
   const showShortcuts = ref(false)
 
@@ -81,7 +84,10 @@ export function useAppHotkeys() {
     }
 
     if (event.code === 'KeyS') {
-      if (!isItemsLibraryRoute(router.currentRoute.value.path)) return
+      const path = router.currentRoute.value.path
+      if (!isItemsLibraryRoute(path) && !isFoldersRoute(path)) return
+      // Filesystem browse has its own selection buffer; S is for library media.
+      if (isFoldersRoute(path) && fsSelection.isSelectMode) return
       event.preventDefault()
       itemsStore.isSelect = !itemsStore.isSelect
       if (!itemsStore.isSelect) {

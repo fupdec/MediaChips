@@ -3,6 +3,7 @@ import {ref} from 'vue'
 export type FoldersBrowserFocus =
   | {kind: 'folder'; path: string}
   | {kind: 'media'; id: number}
+  | {kind: 'pending'; path: string; name?: string; size?: number | null; extension?: string | null}
   | null
 
 const focused = ref<FoldersBrowserFocus>(null)

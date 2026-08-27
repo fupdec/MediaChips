@@ -5,10 +5,11 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {
   findItemElementById,
   findNeighborItemElement,
-  queryVisibleItemElements,
+  queryVisibleMediaItemElements,
   type BrowserNavDirection,
 } from '@/composable/useBrowserLayoutHotkeys'
 import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
+import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
 
 function scrollItemIntoView(el: HTMLElement) {
   el.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'})
@@ -28,6 +29,7 @@ export function useItemsSelectionHotkeys(options?: {
   const itemsStore = useItemsStore()
   const playerStore = usePlayerStore()
   const contextMenuStore = useContextMenu()
+  const {setFocus: setFoldersFocus} = useFoldersBrowserFocus()
 
   function cursorId(): number | null {
     if (itemsStore.selected_last != null) return Number(itemsStore.selected_last)
@@ -37,6 +39,7 @@ export function useItemsSelectionHotkeys(options?: {
 
   function setCursor(id: number) {
     itemsStore.selected_last = id
+    setFoldersFocus({kind: 'media', id})
     requestAnimationFrame(() => {
       const el = findItemElementById(id)
       if (el) scrollItemIntoView(el)
@@ -71,7 +74,7 @@ export function useItemsSelectionHotkeys(options?: {
   function resolveNeighborId(fromId: number, direction: BrowserNavDirection): number | null {
     const currentEl = findItemElementById(fromId)
     if (currentEl) {
-      const neighbor = findNeighborItemElement(currentEl, direction, queryVisibleItemElements())
+      const neighbor = findNeighborItemElement(currentEl, direction, queryVisibleMediaItemElements())
       if (neighbor) {
         const nextId = Number(neighbor.dataset.itemId)
         if (Number.isFinite(nextId)) return nextId

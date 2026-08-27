@@ -37,6 +37,8 @@
     <DialogMediaAdding
       v-model="addMediaDialogOpen"
       hide-activator
+      :initial-paths="addMediaInitialPaths"
+      :initial-browse-path="addMediaInitialBrowsePath"
     />
 
     <DialogError v-if="dialogsStore.error.show"/>
@@ -206,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import {defineAsyncComponent, computed, ref, onMounted, onBeforeUnmount} from 'vue'
+import {defineAsyncComponent, computed, ref, onMounted, onBeforeUnmount, watch} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useTasksStore} from '@/stores/tasks'
@@ -418,10 +420,20 @@ useItemsSelectionHotkeys({
 })
 
 const addMediaDialogOpen = ref(false)
+const addMediaInitialPaths = ref('')
+const addMediaInitialBrowsePath = ref('')
 
-function openAddMediaDialog() {
+function openAddMediaDialog(options?: {paths?: string; browsePath?: string}) {
+  addMediaInitialPaths.value = options?.paths || ''
+  addMediaInitialBrowsePath.value = options?.browsePath || ''
   addMediaDialogOpen.value = true
 }
+
+watch(addMediaDialogOpen, (open) => {
+  if (open) return
+  addMediaInitialPaths.value = ''
+  addMediaInitialBrowsePath.value = ''
+})
 
 let unregisterShowAddMediaDialog: (() => void) | null = null
 

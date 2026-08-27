@@ -222,6 +222,14 @@ const props = defineProps({
     type: Boolean,
     default: undefined,
   },
+  initialPaths: {
+    type: String,
+    default: '',
+  },
+  initialBrowsePath: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -417,12 +425,16 @@ watch(isDialogVisible, (newValue) => {
  */
 const resetDialogState = () => {
   syncMediaTypeFromContext()
-  tasksStore.mediaAdding.paths = ''
+  tasksStore.mediaAdding.paths = props.initialPaths || ''
   tasksStore.mediaAdding.excluded = ''
-  tasksStore.mediaAdding.skipFileScan = false
-  tasksStore.mediaAdding.directFiles = []
+  tasksStore.mediaAdding.skipFileScan = Boolean(props.initialPaths)
+  tasksStore.mediaAdding.directFiles = props.initialPaths
+    ? props.initialPaths.split('\n').map((row) => row.trim()).filter(Boolean)
+    : []
   selectedBrowserPaths.value = []
-  if (browsePlaces.value.length) {
+  if (props.initialBrowsePath) {
+    browsePath.value = props.initialBrowsePath
+  } else if (browsePlaces.value.length) {
     browsePath.value = defaultBrowsePath(browsePlaces.value)
   } else {
     browsePath.value = ''
@@ -430,6 +442,10 @@ const resetDialogState = () => {
   if (mediaForm.value) {
     mediaForm.value.reset()
   }
+  tasksStore.mediaAdding.paths = props.initialPaths || ''
+  tasksStore.mediaAdding.directFiles = props.initialPaths
+    ? props.initialPaths.split('\n').map((row) => row.trim()).filter(Boolean)
+    : []
 }
 
 const syncMediaTypeFromContext = () => {

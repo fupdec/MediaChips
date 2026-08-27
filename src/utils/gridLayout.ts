@@ -29,6 +29,11 @@ const GAP_SIZE: Record<string, { x: number; y: number }> = {
 
 const DESCRIPTION_HEIGHT: Record<number, number> = { 1: 72, 2: 78, 3: 82, 4: 88, 5: 96, 6: 108 }
 
+export function getCardDescriptionHeight(size = 3): number {
+  const key = Number(size)
+  return DESCRIPTION_HEIGHT[key] || DESCRIPTION_HEIGHT[3]
+}
+
 const LINE_ROW_HEIGHT: Record<number, number> = { 1: 100, 2: 120, 3: 130, 4: 140, 5: 160, 6: 180 }
 
 /** Compact single-row list view: tight row height for filesystem browser. */
