@@ -86,7 +86,7 @@
           class="folders-virtual-grid__cell folders-virtual-grid__cell--media"
           :class="{
             item: !isCards,
-            'item--selecting': itemsStore.isSelect,
+            'item--selecting': selectMode,
             'item--inspector-focused': isInspectorFocused(entry.item),
             'item--keyboard-cursor': isMediaFocused(entry.item),
             'folders-virtual-grid__cell--list': isList,
@@ -183,7 +183,7 @@
             </div>
           </button>
           <div
-            v-if="!isCards && itemsStore.isSelect"
+            v-if="!isCards && selectMode"
             class="item-select-overlay"
             :class="{ 'item-select-overlay--selected': isSelected(entry.item) }"
             @click.stop="toggleSelect(entry.item, $event)"
@@ -550,13 +550,13 @@ function isSelected(item: MediaItem) {
 }
 
 function isInspectorFocused(item: MediaItem) {
-  return !itemsStore.isSelect
+  return !props.selectMode
     && itemsStore.selection.length === 1
     && Number(itemsStore.selection[0]) === Number(item.id)
 }
 
 function isMediaFocused(item: MediaItem) {
-  if (itemsStore.isSelect) {
+  if (props.selectMode) {
     return itemsStore.selected_last != null
       && Number(itemsStore.selected_last) === Number(item.id)
   }
@@ -584,7 +584,7 @@ function isFsFileSelected(entryPath: string) {
 }
 
 function onMediaClick(item: MediaItem) {
-  if (itemsStore.isSelect) {
+  if (props.selectMode) {
     itemsStore.toggleSelect(null, item)
     return
   }
@@ -665,7 +665,7 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
 
 .folders-virtual-grid__cell--media.item--inspector-focused,
 .folders-virtual-grid__cell--media.item--keyboard-cursor {
-  border-radius: 8px;
+  border-radius: 17px;
   outline-offset: 1px;
 }
 

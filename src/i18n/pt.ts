@@ -2653,6 +2653,7 @@ const pt = {
       browser_hide_in_library: 'Ocultar já na biblioteca',
       browser_hide_non_media: 'Ocultar não-mídia',
       browser_show_hidden: 'Mostrar arquivos ocultos',
+      browser_view_options: 'Opções de exibição',
       browser_places: 'Acesso rápido',
       browser_selected_count: 'Selecionado: {count}',
       paths_section: 'Caminhos selecionados',

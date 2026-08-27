@@ -10,13 +10,20 @@ import {
 } from './folderNavHistory'
 
 describe('folderNavHistory', () => {
-  it('disables back and forward on the first recorded path', () => {
-    const history = recordFolderNavPath(emptyFolderNavHistory(), '/Downloads')
+  it('disables back and forward on the first recorded library root', () => {
+    const history = recordFolderNavPath(emptyFolderNavHistory(), null)
     expect(canGoFolderHistoryBack(history)).toBe(false)
     expect(canGoFolderHistoryForward(history)).toBe(false)
   })
 
-  it('does not treat a restored path as a back destination', () => {
+  it('allows back to library roots when landing on a concrete path', () => {
+    const history = recordFolderNavPath(emptyFolderNavHistory(), '/Downloads')
+    expect(history.entries).toEqual([null, '/Downloads'])
+    expect(canGoFolderHistoryBack(history)).toBe(true)
+    expect(canGoFolderHistoryForward(history)).toBe(false)
+  })
+
+  it('does not treat a restored single path as a back destination', () => {
     const history = seedFolderNavHistory('/Downloads')
     expect(history.entries).toEqual(['/Downloads'])
     expect(canGoFolderHistoryBack(history)).toBe(false)
@@ -60,6 +67,12 @@ describe('canGoFolderUp', () => {
   it('is disabled at the library root and at a folder with no parent', () => {
     expect(canGoFolderUp({parentPath: null, fsParentPath: null})).toBe(false)
     expect(canGoFolderUp({})).toBe(false)
+    expect(canGoFolderUp({
+      parentPath: null,
+      fsParentPath: null,
+      hasFsRoot: true,
+      currentPath: null,
+    })).toBe(false)
   })
 
   it('is enabled when a library or filesystem parent exists', () => {
@@ -67,16 +80,18 @@ describe('canGoFolderUp', () => {
     expect(canGoFolderUp({parentPath: null, fsParentPath: '/Users'})).toBe(true)
   })
 
-  it('stops at the filesystem browse root even if the library has a parent', () => {
+  it('stops at the filesystem browse root by going to library folders', () => {
     expect(canGoFolderUp({
       parentPath: '/Users/vit',
       fsParentPath: null,
       hasFsRoot: true,
-    })).toBe(false)
+      currentPath: '/Users/vit',
+    })).toBe(true)
     expect(canGoFolderUp({
       parentPath: '/Users/vit',
       fsParentPath: '/Users/vit/Downloads',
       hasFsRoot: true,
+      currentPath: '/Users/vit/Downloads/a',
     })).toBe(true)
   })
 })

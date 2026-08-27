@@ -184,7 +184,6 @@
                 class="folders-page__nav-btn"
                 :disabled="!canGoBack"
                 :aria-label="t('folders_browser.back')"
-                v-tooltip:top="t('folders_browser.back')"
                 @click="goHistoryBack"
               >
                 <v-icon size="16" icon="mdi-arrow-left"/>
@@ -194,7 +193,6 @@
                 class="folders-page__nav-btn"
                 :disabled="!canGoForward"
                 :aria-label="t('folders_browser.forward')"
-                v-tooltip:top="t('folders_browser.forward')"
                 @click="goHistoryForward"
               >
                 <v-icon size="16" icon="mdi-arrow-right"/>
@@ -204,33 +202,40 @@
                 class="folders-page__nav-btn"
                 :disabled="!canGoUp"
                 :aria-label="t('folders_browser.up')"
-                v-tooltip:top="t('folders_browser.up')"
                 @click="goUp"
               >
                 <v-icon size="16" icon="mdi-arrow-up"/>
               </button>
-              <template v-if="places.length">
-                <span
-                  class="folders-page__nav-divider"
-                  aria-hidden="true"
-                />
-                <v-menu
-                  location="bottom start"
-                  content-class="folders-page__more-menu folders-page__places-menu"
-                >
-                  <template #activator="{props: menuProps}">
-                    <button
-                      v-bind="menuProps"
-                      type="button"
-                      class="folders-page__nav-btn"
-                      :class="{'folders-page__nav-btn--on': Boolean(activePlaceId)}"
-                      :aria-label="t('media.adding.browser_places')"
-                      v-tooltip:top="t('media.adding.browser_places')"
-                    >
-                      <v-icon size="16" icon="mdi-dots-horizontal"/>
-                    </button>
-                  </template>
-                  <v-list density="compact">
+              <span
+                class="folders-page__nav-divider"
+                aria-hidden="true"
+              />
+              <v-menu
+                location="bottom start"
+                content-class="folders-page__more-menu folders-page__places-menu"
+              >
+                <template #activator="{props: menuProps}">
+                  <button
+                    v-bind="menuProps"
+                    type="button"
+                    class="folders-page__nav-btn"
+                    :class="{'folders-page__nav-btn--on': Boolean(activePlaceId)}"
+                    :aria-label="t('media.adding.browser_places')"
+                    v-tooltip:top="t('media.adding.browser_places')"
+                  >
+                    <v-icon size="16" icon="mdi-dots-horizontal"/>
+                  </button>
+                </template>
+                <v-list density="compact">
+                  <v-list-item
+                    prepend-icon="mdi-folder-home-outline"
+                    :title="t('folders_browser.roots')"
+                    :active="activePlaceId === LIBRARY_PLACE_ID"
+                    slim
+                    @click="onSelectPlace(null)"
+                  />
+                  <template v-if="places.length">
+                    <v-divider class="my-1"/>
                     <v-list-item
                       v-for="place in places"
                       :key="place.id"
@@ -240,33 +245,21 @@
                       slim
                       @click="onSelectPlace(place.path)"
                     />
-                  </v-list>
-                </v-menu>
-              </template>
+                  </template>
+                </v-list>
+              </v-menu>
             </div>
 
             <nav
               class="folders-page__path"
-              :aria-label="t('folders_browser.roots')"
+              :aria-label="t('navigation.folders')"
             >
-              <button
-                type="button"
-                class="folders-page__path-seg"
-                :class="{'folders-page__path-seg--current': !currentPath}"
-                :disabled="loading"
-                @click="navigateTo(null)"
-              >
-                <v-icon
-                  size="14"
-                  icon="mdi-folder-home-outline"
-                />
-                <span>{{ t('folders_browser.roots') }}</span>
-              </button>
               <template
-                v-for="crumb in breadcrumbs"
+                v-for="(crumb, index) in breadcrumbs"
                 :key="crumb.path"
               >
                 <v-icon
+                  v-if="index > 0"
                   icon="mdi-chevron-right"
                   size="14"
                   class="folders-page__path-sep"
@@ -618,7 +611,7 @@
         :folder-tags="folderTagsByPath"
         :cover-url-by-media-id="coverUrlByMediaId"
         :reg="registrationStore.reg"
-        :select-mode="true"
+        :select-mode="itemsStore.isSelect"
         :selected-folder-paths="fsSelectionSelectedFolderPaths"
         :selected-fs-file-paths="fsSelectionSelectedFsFilePaths"
         :ingesting-paths="ingestingPaths"
@@ -716,7 +709,7 @@
     <!-- Clipboard / Selection buffer -->
     <v-slide-y-transition>
       <div
-        v-if="fsSelection.selectedCount > 0"
+        v-if="clipboardTotalCount > 0"
         class="folders-page__clipboard-bar"
         :style="clipboardBarStyle"
         :class="{'folders-page__clipboard-bar--bottom-nav': useBottomBar}"
@@ -737,27 +730,28 @@
               label
               class="ml-2"
             >
-              {{ t('folders_browser.selected_count', {count: fsSelection.selectedCount}) }}
+              {{ t('folders_browser.selected_count', {count: clipboardTotalCount}) }}
             </v-chip>
           </div>
           <div ref="clipboardEntriesContainerRef" class="folders-page__clipboard-bar-entries">
             <span
-              v-if="!fsSelection.selectedCount"
+              v-if="!clipboardTotalCount"
               class="folders-page__clipboard-bar-empty"
             >
               {{ t('folders_browser.clipboard_empty') }}
             </span>
             <template v-else>
               <v-chip
-                v-for="entry in fsSelection.selectedEntries"
-                :key="entry.path"
+                v-for="entry in clipboardChips"
+                :key="entry.key"
                 size="x-small"
                 variant="tonal"
                 label
                 class="folders-page__clipboard-entry"
-                :prepend-icon="entry.kind === 'folder' ? 'mdi-folder-outline' : 'mdi-file-outline'"
+                :prepend-icon="entry.icon"
+                :title="entry.name"
               >
-                {{ entry.name }}
+                <span class="folders-page__clipboard-entry-name">{{ entry.name }}</span>
               </v-chip>
               <v-chip
                 size="x-small"
@@ -792,6 +786,7 @@
               variant="tonal"
               icon="mdi-content-copy"
               v-tooltip:top="t('folders_browser.copy_selected')"
+              :disabled="!fsSelection.selectedCount"
               @click="onCopySelectedTo"
             />
             <v-btn
@@ -799,6 +794,7 @@
               variant="tonal"
               icon="mdi-file-move-outline"
               v-tooltip:top="t('folders_browser.move_selected')"
+              :disabled="!fsSelection.selectedCount"
               @click="onMoveSelectedTo"
             />
             <div
@@ -817,7 +813,7 @@
               variant="tonal"
               icon="mdi-close"
               v-tooltip:top="t('folders_browser.clipboard_clear')"
-              @click="fsSelection.clearSelection()"
+              @click="clearClipboardSelection"
             />
           </div>
         </div>
@@ -875,7 +871,6 @@ import {
   canGoFolderUp,
   emptyFolderNavHistory,
   recordFolderNavPath,
-  seedFolderNavHistory,
   stepFolderNavHistory,
 } from '@/utils/folderNavHistory'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
@@ -1063,17 +1058,44 @@ function syncClipboardBarBounds() {
 function recalcClipboardOverflow() {
   const el = clipboardEntriesContainerRef.value
   if (!el) return
-  const chips = el.querySelectorAll<HTMLElement>(':scope > .folders-page__clipboard-entry:not(.folders-page__clipboard-entry--more)')
+
+  const chips = Array.from(
+    el.querySelectorAll<HTMLElement>(':scope > .folders-page__clipboard-entry:not(.folders-page__clipboard-entry--more)'),
+  )
+  const overflowChip = el.querySelector<HTMLElement>('.folders-page__clipboard-entry--more')
+
   if (!chips.length) {
     clipboardOverflowCount.value = 0
     return
   }
+
+  // Measure with every entry chip visible so widths are accurate.
+  for (const chip of chips) {
+    chip.classList.remove('folders-page__clipboard-entry--overflow-hidden')
+  }
+
   const containerWidth = el.clientWidth
   const gap = 4
-  // Measure the actual overflow chip width
-  const overflowChip = el.querySelector<HTMLElement>('.folders-page__clipboard-entry--more')
-  const overflowWidth = overflowChip ? overflowChip.offsetWidth + gap : 48
-  const limit = containerWidth - overflowWidth
+
+  let usedAll = 0
+  for (let i = 0; i < chips.length; i++) {
+    if (i > 0) usedAll += gap
+    usedAll += chips[i].offsetWidth
+  }
+
+  if (usedAll <= containerWidth) {
+    clipboardOverflowCount.value = 0
+    return
+  }
+
+  let overflowWidth = 40 + gap
+  if (overflowChip) {
+    overflowChip.classList.add('folders-page__clipboard-entry--more-measure')
+    overflowWidth = overflowChip.offsetWidth + gap
+    overflowChip.classList.remove('folders-page__clipboard-entry--more-measure')
+  }
+
+  const limit = Math.max(0, containerWidth - overflowWidth)
   let used = 0
   let visible = 0
   for (const chip of chips) {
@@ -1082,7 +1104,11 @@ function recalcClipboardOverflow() {
     used += chip.offsetWidth
     visible++
   }
-  clipboardOverflowCount.value = visible >= chips.length ? 0 : chips.length - visible
+
+  for (let i = 0; i < chips.length; i++) {
+    chips[i].classList.toggle('folders-page__clipboard-entry--overflow-hidden', i >= visible)
+  }
+  clipboardOverflowCount.value = chips.length - visible
 }
 
 const sizeLabels = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -1143,6 +1169,7 @@ const canGoUp = computed(() => canGoFolderUp({
   parentPath: parentPath.value,
   fsParentPath: fsParentPath.value,
   hasFsRoot: Boolean(fsRootPath.value),
+  currentPath: currentPath.value,
 }))
 const folderHistory = ref(emptyFolderNavHistory())
 let suppressFolderHistory = false
@@ -1159,6 +1186,7 @@ function recordFolderHistory(path: string | null) {
 }
 
 function goHistoryBack() {
+  if (!canGoBack.value) return
   const stepped = stepFolderNavHistory(folderHistory.value, -1)
   if (!stepped) return
   suppressFolderHistory = true
@@ -1167,6 +1195,7 @@ function goHistoryBack() {
 }
 
 function goHistoryForward() {
+  if (!canGoForward.value) return
   const stepped = stepFolderNavHistory(folderHistory.value, 1)
   if (!stepped) return
   suppressFolderHistory = true
@@ -1243,6 +1272,62 @@ const fsSelectionSelectedFsFilePaths = computed(() => {
   return s
 })
 
+type ClipboardChip = {
+  key: string
+  name: string
+  icon: string
+}
+
+function clipboardMediaLabel(item: MediaItem): string {
+  if (item.basename) return String(item.basename)
+  if (item.path) {
+    const parts = String(item.path).split(/[/\\]/).filter(Boolean)
+    return parts[parts.length - 1] || String(item.path)
+  }
+  return item.name || `#${item.id}`
+}
+
+const clipboardMediaById = computed(() => {
+  const map = new Map<number, MediaItem>()
+  for (const item of visibleMedia.value) map.set(Number(item.id), item)
+  for (const item of (itemsStore.entities || []) as MediaItem[]) {
+    const id = Number(item.id)
+    if (!map.has(id)) map.set(id, item)
+  }
+  return map
+})
+
+const clipboardChips = computed<ClipboardChip[]>(() => {
+  const chips: ClipboardChip[] = []
+  for (const entry of fsSelection.selectedEntries) {
+    chips.push({
+      key: `fs:${entry.path}`,
+      name: entry.name,
+      icon: entry.kind === 'folder' ? 'mdi-folder-outline' : 'mdi-file-outline',
+    })
+  }
+  for (const rawId of itemsStore.selection) {
+    const id = Number(rawId)
+    if (!Number.isFinite(id)) continue
+    const item = clipboardMediaById.value.get(id)
+    chips.push({
+      key: `media:${id}`,
+      name: item ? clipboardMediaLabel(item) : `#${id}`,
+      icon: 'mdi-play-box-outline',
+    })
+  }
+  return chips
+})
+
+const clipboardTotalCount = computed(() => clipboardChips.value.length)
+
+function clearClipboardSelection() {
+  fsSelection.clearSelection()
+  itemsStore.selection = []
+  itemsStore.selected_last = null
+  itemsStore.selectionAnchor = null
+}
+
 const currentFolderTags = computed(() => {
   if (!currentPath.value) return []
   return folderTagsByPath.value[canonicalizeFolderTagPath(currentPath.value)] || []
@@ -1294,9 +1379,19 @@ function setMediaTypeFilter(id: number | null) {
 }
 
 function goUp() {
-  const next = fsRootPath.value
-    ? fsParentPath.value
-    : (fsParentPath.value || parentPath.value)
+  if (!canGoUp.value) return
+  if (fsRootPath.value) {
+    if (fsParentPath.value) {
+      navigateTo(fsParentPath.value)
+      return
+    }
+    // Filesystem browse root → library folders list
+    if (currentPath.value) {
+      navigateTo(null)
+    }
+    return
+  }
+  const next = fsParentPath.value || parentPath.value
   if (!next) return
   navigateTo(next)
 }
@@ -1318,6 +1413,8 @@ const knownPlaceIds = new Set([
   'videos', 'pictures', 'music', 'computer', 'network',
 ])
 
+const LIBRARY_PLACE_ID = 'library'
+
 function placeLabel(place: BrowsePlace): string {
   if (knownPlaceIds.has(place.id)) {
     return t(`media.adding.place_${place.id}`)
@@ -1327,7 +1424,7 @@ function placeLabel(place: BrowsePlace): string {
 
 const activePlaceId = computed(() => {
   const current = currentPath.value
-  if (!current) return null
+  if (!current) return LIBRARY_PLACE_ID
   const matches = places.value
     .filter((place) => {
       if (current === place.path) return true
@@ -1341,7 +1438,7 @@ const activePlaceId = computed(() => {
   return matches[0]?.id ?? null
 })
 
-function onSelectPlace(path: string) {
+function onSelectPlace(path: string | null) {
   navigateTo(path)
 }
 
@@ -2155,10 +2252,10 @@ function onToggleFsFileSelect(entry: FsBrowseEntry) {
 }
 
 async function onCopyNames() {
-  const names = fsSelection.clipboardNames
-  if (!names) return
-  await copyToClipboard(names, {
-    successText: t('folders_browser.copy_names_done', {count: fsSelection.selectedCount}),
+  const names = clipboardChips.value.map((chip) => chip.name).filter(Boolean)
+  if (!names.length) return
+  await copyToClipboard(names.join('\n'), {
+    successText: t('folders_browser.copy_names_done', {count: names.length}),
   })
 }
 
@@ -2443,8 +2540,7 @@ onMounted(() => {
     || savedFoldersPageState.filesystemPath
     || null
   if (!pathFromQuery.value && restoredPath) {
-    folderHistory.value = seedFolderNavHistory(restoredPath)
-    suppressFolderHistory = true
+    // Keep the library-roots entry from the immediate path watch so Back works.
     void router.replace({
       path: '/folders',
       query: {
@@ -2488,11 +2584,33 @@ onMounted(() => {
   }
 })
 
-watch(() => fsSelection.selectedEntries.length, () => {
+watch(clipboardEntriesContainerRef, (el) => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+  if (!el) return
+  resizeObserver = new ResizeObserver(() => {
+    recalcClipboardOverflow()
+  })
+  resizeObserver.observe(el)
   void nextTick().then(() => {
     syncClipboardBarBounds()
     recalcClipboardOverflow()
   })
+})
+
+watch(() => fsSelection.selectedEntries.length + itemsStore.selection.length, () => {
+  void nextTick().then(() => {
+    syncClipboardBarBounds()
+    recalcClipboardOverflow()
+  })
+})
+
+watch(() => itemsStore.isSelect, (enabled) => {
+  if (!enabled) {
+    fsSelection.clearSelection()
+  }
 })
 
 watch(() => visibleFolders.value.length + visibleMedia.value.length + fsFiles.value.length + missingMedia.value.length, () => {
@@ -3069,15 +3187,13 @@ onBeforeUnmount(() => {
   width: calc(100% - 32px);
   max-width: var(--container-max-width, 1184px);
   z-index: 1005;
-  background: rgba(var(--v-theme-surface), 0.86);
+  background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-primary), 0.18);
   border-radius: 18px;
   box-shadow:
     0 1px 0 rgba(var(--v-theme-primary), 0.06),
     0 16px 40px -18px rgba(0, 0, 0, 0.42);
   padding: 0 14px;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
 
 .folders-page__clipboard-bar--bottom-nav {
@@ -3124,33 +3240,55 @@ onBeforeUnmount(() => {
   gap: 4px;
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  position: relative;
+  overflow: hidden;
+}
+
+.folders-page__clipboard-entry {
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+}
+
+.folders-page__clipboard-entry :deep(.v-chip__content) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.folders-page__clipboard-entry-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folders-page__clipboard-entry--overflow-hidden {
+  display: none !important;
 }
 
 .folders-page__clipboard-entry--more {
   flex-shrink: 0;
-  opacity: 0.7;
+  min-width: 2.25rem;
+  justify-content: center;
   font-weight: 600;
-  position: sticky;
-  right: 0;
-  z-index: 1;
 }
 
 .folders-page__clipboard-entry--more-hidden {
+  display: none !important;
+}
+
+.folders-page__clipboard-entry--more-measure {
+  display: inline-flex !important;
+  position: absolute;
   visibility: hidden;
+  pointer-events: none;
 }
 
 .folders-page__clipboard-bar-empty {
   font-size: 0.7rem;
   color: rgba(var(--v-theme-on-surface), 0.4);
   white-space: nowrap;
-}
-
-.folders-page__clipboard-entry {
-  flex-shrink: 0;
 }
 
 .folders-page__clipboard-bar-actions {

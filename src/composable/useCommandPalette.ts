@@ -240,7 +240,6 @@ export function useCommandPaletteCommands(options: {
         shortcut: 's',
         run: () => {
           const path = router.currentRoute.value.path
-          if (isFoldersRoute(path) && fsSelection.isSelectMode) return
           if (!isItemsLibraryRoute(path) && !isFoldersRoute(path)) {
             const id = getDefaultMediaTypeId(appStore.mediaTypes)
             if (id != null) void router.push(`/media?mediaTypeId=${id}`)
@@ -250,6 +249,7 @@ export function useCommandPaletteCommands(options: {
             itemsStore.selection = []
             itemsStore.selected_last = null
             itemsStore.selectionAnchor = null
+            if (isFoldersRoute(path)) fsSelection.clearSelection()
           }
         },
       },

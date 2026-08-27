@@ -86,14 +86,13 @@ export function useAppHotkeys() {
     if (event.code === 'KeyS') {
       const path = router.currentRoute.value.path
       if (!isItemsLibraryRoute(path) && !isFoldersRoute(path)) return
-      // Filesystem browse has its own selection buffer; S is for library media.
-      if (isFoldersRoute(path) && fsSelection.isSelectMode) return
       event.preventDefault()
       itemsStore.isSelect = !itemsStore.isSelect
       if (!itemsStore.isSelect) {
         itemsStore.selection = []
         itemsStore.selected_last = null
         itemsStore.selectionAnchor = null
+        if (isFoldersRoute(path)) fsSelection.clearSelection()
       }
     }
   }

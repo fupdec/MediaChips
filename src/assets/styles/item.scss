@@ -22,18 +22,22 @@
     overflow: hidden;
   }
 
+  &--selecting:not(.item-view-5) {
+    border-radius: 17px;
+  }
+
   &--inspector-focused,
   &--keyboard-cursor {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
-    border-radius: 14px;
+    border-radius: 17px;
     z-index: 1;
   }
 
   &--tag-drop-target {
     outline: 2px dashed rgb(var(--v-theme-primary));
     outline-offset: 2px;
-    border-radius: 14px;
+    border-radius: 17px;
     z-index: 2;
 
     .item_wrapper {
@@ -46,7 +50,7 @@
     inset: 0;
     z-index: 4;
     cursor: pointer;
-    border-radius: 14px;
+    border-radius: 17px;
     pointer-events: auto;
 
     &::before {
@@ -1906,7 +1910,11 @@ body > .video-preview-container.video-preview-container--expanded {
     }
   }
 
-  // The selection overlay's 14px radius is sized for the rounded card view —
+  &.item--selecting {
+    border-radius: 0;
+  }
+
+  // The selection overlay's 17px radius is sized for the rounded card view —
   // on a flat, edge-to-edge row it read as a floating rounded pill that
   // swallowed the row's own divider border. Flatten it to match.
   // Same for the favorite glow: the card-sized 16px radius read as rounded

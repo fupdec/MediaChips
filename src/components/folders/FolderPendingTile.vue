@@ -62,6 +62,7 @@
       </div>
     </button>
     <button
+      v-if="!selectMode"
       type="button"
       class="folder-pending-tile__add"
       :aria-label="t('folders_browser.add_to_library')"
@@ -146,6 +147,10 @@ function formatSize(bytes: number): string {
 }
 
 function onClick() {
+  if (props.selectMode) {
+    emit('toggle-select', props.entry)
+    return
+  }
   emit('focus', props.entry)
 }
 
@@ -401,6 +406,7 @@ function onTagDrop(event: DragEvent) {
 }
 
 .folder-pending-tile-wrapper:hover .folder-pending-tile__select-overlay,
+.folder-pending-tile-wrapper--selecting .folder-pending-tile__select-overlay,
 .folder-pending-tile__select-overlay--on {
   opacity: 1;
 }

@@ -2653,6 +2653,7 @@ const ja = {
       browser_hide_in_library: 'すでにライブラリにあるものを非表示にする',
       browser_hide_non_media: 'メディア以外を非表示にする',
       browser_show_hidden: '隠しファイルを表示',
+      browser_view_options: '表示オプション',
       browser_places: 'クイックアクセス',
       browser_selected_count: '選択済み: {count}',
       paths_section: '選択されたパス',

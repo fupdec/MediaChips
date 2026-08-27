@@ -250,6 +250,10 @@ const objectsCountLabel = computed(() => mediaCountLabel.value)
 const iconGlyphSize = computed(() => 'var(--folder-icon-size, 88px)')
 
 function onClick() {
+  if (props.selectMode) {
+    emit('toggle-select', props.folder)
+    return
+  }
   emit('open', props.folder.path)
 }
 </script>
@@ -713,6 +717,7 @@ function onClick() {
 }
 
 .folder-browse-tile-wrapper:hover .folder-browse-tile__select-overlay,
+.folder-browse-tile-wrapper--selecting .folder-browse-tile__select-overlay,
 .folder-browse-tile__select-overlay--on {
   opacity: 1;
 }

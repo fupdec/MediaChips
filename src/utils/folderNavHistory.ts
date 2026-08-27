@@ -23,8 +23,13 @@ export function canGoFolderUp(options: {
   parentPath?: string | null
   fsParentPath?: string | null
   hasFsRoot?: boolean
+  /** When set, Up from a filesystem browse root returns to library folders. */
+  currentPath?: string | null
 }): boolean {
-  if (options.hasFsRoot) return Boolean(options.fsParentPath)
+  if (options.hasFsRoot) {
+    if (options.fsParentPath) return true
+    return Boolean(options.currentPath)
+  }
   return Boolean(options.parentPath || options.fsParentPath)
 }
 
@@ -33,6 +38,10 @@ export function recordFolderNavPath(
   path: string | null,
 ): FolderNavHistory {
   if (history.index >= 0 && history.entries[history.index] === path) return history
+  // Landing on a concrete path with an empty stack: allow Back to library roots.
+  if (history.entries.length === 0 && path !== null) {
+    return {entries: [null, path], index: 1}
+  }
   const entries = history.entries.slice(0, history.index + 1)
   entries.push(path)
   return {entries, index: entries.length - 1}
