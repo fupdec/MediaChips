@@ -3,8 +3,11 @@ export const MEDIA_TAG_DRAG_MIME = 'application/x-mediachips-media-tag'
 export type MediaTagDragPayload = {
   tagId: number
   metaId: number
-  sourceMediaId: number
+  /** 0 / omitted when the tag is dragged from the session-focus tray or a tag card. */
+  sourceMediaId?: number
   name?: string
+  icon?: string | null
+  color?: string | null
 }
 
 let mediaTagDragActive = false
@@ -38,8 +41,10 @@ export function encodeMediaTagDragPayload(payload: MediaTagDragPayload): string 
   return JSON.stringify({
     tagId: Number(payload.tagId),
     metaId: Number(payload.metaId),
-    sourceMediaId: Number(payload.sourceMediaId),
+    sourceMediaId: Number(payload.sourceMediaId) > 0 ? Number(payload.sourceMediaId) : 0,
     name: payload.name ? String(payload.name) : undefined,
+    icon: payload.icon == null || payload.icon === '' ? undefined : String(payload.icon),
+    color: payload.color == null || payload.color === '' ? undefined : String(payload.color),
   })
 }
 
@@ -52,12 +57,14 @@ export function parseMediaTagDragPayload(raw: string | null | undefined): MediaT
     const sourceMediaId = Number(data.sourceMediaId)
     if (!Number.isFinite(tagId) || tagId <= 0) return null
     if (!Number.isFinite(metaId) || metaId <= 0) return null
-    if (!Number.isFinite(sourceMediaId) || sourceMediaId <= 0) return null
+    const fromMedia = Number.isFinite(sourceMediaId) && sourceMediaId > 0
     return {
       tagId,
       metaId,
-      sourceMediaId,
+      sourceMediaId: fromMedia ? sourceMediaId : 0,
       name: data.name ? String(data.name) : undefined,
+      icon: data.icon == null || data.icon === '' ? undefined : String(data.icon),
+      color: data.color == null || data.color === '' ? undefined : String(data.color),
     }
   } catch {
     return null

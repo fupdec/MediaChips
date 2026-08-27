@@ -25,6 +25,8 @@ describe('mediaTagDrag', () => {
       metaId: 3,
       sourceMediaId: 99,
       name: 'Action',
+      icon: undefined,
+      color: undefined,
     })
   })
 
@@ -32,6 +34,14 @@ describe('mediaTagDrag', () => {
     expect(parseMediaTagDragPayload('')).toBeNull()
     expect(parseMediaTagDragPayload('{')).toBeNull()
     expect(parseMediaTagDragPayload(JSON.stringify({tagId: 0, metaId: 1, sourceMediaId: 2}))).toBeNull()
+    expect(parseMediaTagDragPayload(JSON.stringify({tagId: 3, metaId: 1}))).toEqual({
+      tagId: 3,
+      metaId: 1,
+      sourceMediaId: 0,
+      name: undefined,
+      icon: undefined,
+      color: undefined,
+    })
   })
 
   it('detects mime type on drag events', () => {

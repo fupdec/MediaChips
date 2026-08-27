@@ -30,7 +30,7 @@
           <div class="text-subtitle-2 mb-2">{{ t('keyboard_shortcuts.browser') }}</div>
           <v-table density="compact" class="mb-4">
             <tbody>
-              <tr v-for="row in browserRows" :key="row.keys">
+              <tr v-for="row in browserRows" :key="`${row.keys}:${row.label}`">
                 <td class="text-medium-emphasis">{{ row.label }}</td>
                 <td class="text-right">
                   <v-hotkey :keys="row.keys" variant="flat"/>
@@ -110,6 +110,8 @@ const browserRows = computed(() => [
   {keys: 'x', label: t('keyboard_shortcuts.browser_select')},
   {keys: 'shift+arrowup shift+arrowdown shift+arrowleft shift+arrowright', label: t('keyboard_shortcuts.browser_select_range')},
   {keys: 't', label: t('keyboard_shortcuts.browser_tags')},
+  {keys: 't', label: t('keyboard_shortcuts.session_focus_apply')},
+  {keys: 'shift+t', label: t('keyboard_shortcuts.session_focus_remove')},
   {keys: 'r', label: t('keyboard_shortcuts.review_mode')},
   {keys: 'delete', label: t('keyboard_shortcuts.browser_delete')},
   {keys: 'esc', label: t('keyboard_shortcuts.browser_clear')},

@@ -39,7 +39,7 @@ export function useMediaTagTransfer() {
     if (!Number.isFinite(targetId) || targetId <= 0) {
       return {ok: false, reason: 'failed'}
     }
-    if (targetId === sourceId) {
+    if (sourceId > 0 && targetId === sourceId) {
       return {ok: false, reason: 'same_card'}
     }
     if (mediaHasTag(targetId, tagId)) {
@@ -53,7 +53,7 @@ export function useMediaTagTransfer() {
         metaId,
       })
 
-      if (mode === 'move') {
+      if (mode === 'move' && sourceId > 0) {
         await typedApi.removeTagFromItem('media', {
           mediaId: sourceId,
           tagId,
@@ -61,7 +61,7 @@ export function useMediaTagTransfer() {
         itemsStore.removeTagFromItem({itemId: sourceId, tagId})
       }
 
-      const ids = mode === 'move' ? [targetId, sourceId] : [targetId]
+      const ids = mode === 'move' && sourceId > 0 ? [targetId, sourceId] : [targetId]
       listSync.getItemsFromDb({ids, type: 'media'})
 
       return {ok: true, mode, alreadyHad: false}

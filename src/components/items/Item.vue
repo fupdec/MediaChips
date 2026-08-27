@@ -2,10 +2,11 @@
   <div
     ref="itemRootRef"
     :disabled="!reg && x > 14"
-    :draggable="isMediaDragEnabled"
+    :draggable="isCardDragEnabled"
     @contextmenu.stop="showContextMenu"
     @mousedown="onItemMouseDown"
-    @dragstart="onMediaDragStart"
+    @dragstart="onCardDragStart"
+    @dragend="onCardDragEnd"
     @dragover="onMediaTagDragOver"
     @dragleave="onMediaTagDragLeave"
     @drop="onMediaTagDrop"
@@ -306,6 +307,9 @@ import {
   readMediaTagDragPayload,
 } from '@/utils/mediaTagDrag'
 import {useMediaTagTransfer} from '@/composable/useMediaTagTransfer'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
+import {writeSessionFocusTagsDrag} from '@/utils/sessionFocusDrag'
+import {normalizeSessionFocusTag} from '@/stores/sessionFocus'
 import {setNotification} from '@/services/notificationService'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
@@ -354,6 +358,7 @@ const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
 const {transferTagToMedia} = useMediaTagTransfer()
+const {applyTagToItem} = useSessionFocusActions()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
 const route = useRoute()
 const {t} = useI18n()
@@ -491,6 +496,14 @@ const isMediaDragEnabled = computed(() => (
   && is_file_exists.value !== false
 ))
 
+const isTagCardDragEnabled = computed(() => (
+  props.type === 'tag'
+  && Number(props.item.id) > 0
+  && Number(tagMetaId.value) > 0
+))
+
+const isCardDragEnabled = computed(() => isMediaDragEnabled.value || isTagCardDragEnabled.value)
+
 /** Suppress the synthetic click that fires when a native drag ends over the card. */
 let suppressEditClicks = false
 let suppressEditClickListener: ((event: MouseEvent) => void) | null = null
@@ -565,6 +578,33 @@ function armEditClickSuppress() {
   window.addEventListener('mouseup', suppressEditMouseUpListener, true)
 }
 
+const onTagCardDragStart = (event: DragEvent) => {
+  const tag = normalizeSessionFocusTag({
+    tagId: Number(props.item.id),
+    metaId: Number(tagMetaId.value),
+    name: String(props.item.name || ''),
+    icon: props.meta?.icon ? String(props.meta.icon) : null,
+    color: props.item.color ? String(props.item.color) : null,
+  })
+  if (!tag) {
+    event.preventDefault()
+    return
+  }
+  writeSessionFocusTagsDrag(event, [tag])
+}
+
+const onCardDragStart = (event: DragEvent) => {
+  if (props.type === 'tag') {
+    onTagCardDragStart(event)
+    return
+  }
+  onMediaDragStart(event)
+}
+
+const onCardDragEnd = () => {
+  if (props.type === 'tag') clearMediaTagDrag()
+}
+
 const onMediaDragStart = (event: DragEvent) => {
   // Suppress drop-in overlay immediately — dragenter can race with this handler.
   // On macOS startDrag returns early; keep this flag until mouseup/blur.
@@ -618,9 +658,10 @@ const onMediaDragStart = (event: DragEvent) => {
 }
 
 const canAcceptMediaTagDrop = (event: DragEvent): boolean => {
-  if (props.type !== 'media' || !mediaItem.value) return false
   if (!mediaTagDragActive.value && !isMediaTagDragEvent(event)) return false
-  return true
+  if (props.type === 'media' && mediaItem.value) return true
+  if (props.type === 'tag' && tagItem.value) return true
+  return false
 }
 
 const onMediaTagDragOver = (event: DragEvent) => {
@@ -628,7 +669,7 @@ const onMediaTagDragOver = (event: DragEvent) => {
   event.preventDefault()
   event.stopPropagation()
   if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = event.shiftKey ? 'move' : 'copy'
+    event.dataTransfer.dropEffect = props.type === 'tag' || !event.shiftKey ? 'copy' : 'move'
   }
   isTagDropTarget.value = true
 }
@@ -641,7 +682,7 @@ const onMediaTagDragLeave = (event: DragEvent) => {
 }
 
 const onMediaTagDrop = async (event: DragEvent) => {
-  if (!canAcceptMediaTagDrop(event) || !mediaItem.value) return
+  if (!canAcceptMediaTagDrop(event)) return
   event.preventDefault()
   event.stopPropagation()
   isTagDropTarget.value = false
@@ -650,7 +691,35 @@ const onMediaTagDrop = async (event: DragEvent) => {
   clearMediaTagDrag()
   if (!payload) return
 
-  const mode = event.shiftKey ? 'move' : 'copy'
+  if (props.type === 'tag' && tagItem.value) {
+    if (Number(payload.tagId) === Number(tagItem.value.id)) return
+    const alreadyHad = (tagItem.value.tags || []).some((entry) => Number(entry.tagId) === Number(payload.tagId))
+    if (alreadyHad) {
+      setNotification({
+        type: 'info',
+        text: t('items.tag_already_on_card', {name: payload.name || ''}),
+      })
+      return
+    }
+    const ok = await applyTagToItem({
+      tagId: payload.tagId,
+      metaId: payload.metaId,
+      name: payload.name || '',
+      icon: payload.icon ?? null,
+      color: payload.color ?? null,
+    }, tagItem.value.id, 'tag')
+    setNotification({
+      type: ok ? 'success' : 'error',
+      text: ok
+        ? t('items.tag_copied', {name: payload.name || ''})
+        : t('items.tag_transfer_failed'),
+    })
+    return
+  }
+
+  if (!mediaItem.value) return
+
+  const mode = event.shiftKey && Number(payload.sourceMediaId) > 0 ? 'move' : 'copy'
   const result = await transferTagToMedia(payload, mediaItem.value.id, mode)
   if (result.ok) {
     setNotification({

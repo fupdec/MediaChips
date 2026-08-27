@@ -35,9 +35,11 @@
     />
 
     <AppBarButton
-      v-if="itemsStore.type === 'media' && sessionFocusStore.tag"
+      v-if="(itemsStore.type === 'media' || itemsStore.type === 'tag') && sessionFocusStore.isActive"
       icon="bullseye-arrow"
-      :text="t('session_focus.apply_short', {name: sessionFocusStore.tag.name})"
+      :text="sessionFocusStore.tags.length === 1
+        ? t('session_focus.apply_short', {name: sessionFocusStore.tag?.name || ''})
+        : t('session_focus.apply_all_short')"
       :disabled="itemsStore.selection.length === 0"
       :action="applyFocusToSelection"
     />
@@ -73,7 +75,7 @@ const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 const sessionFocusStore = useSessionFocusStore()
-const {applyFocusTagToMediaIds} = useSessionFocusActions()
+const {applyFocusTagToMediaIds, applyTrayToItems} = useSessionFocusActions()
 const eventBus = useEventBus()
 const {t} = useI18n()
 
@@ -142,7 +144,11 @@ function openBulkEdit() {
 }
 
 function applyFocusToSelection() {
-  if (!sessionFocusStore.tag || itemsStore.selection.length === 0) return
+  if (!sessionFocusStore.isActive || itemsStore.selection.length === 0) return
+  if (itemsStore.type === 'tag') {
+    void applyTrayToItems([...itemsStore.selection], 'tag')
+    return
+  }
   void applyFocusTagToMediaIds([...itemsStore.selection])
 }
 

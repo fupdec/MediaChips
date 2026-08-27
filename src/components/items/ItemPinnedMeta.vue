@@ -276,6 +276,7 @@ import {
   clearMediaTagDrag,
   writeMediaTagDragPayload,
 } from '@/utils/mediaTagDrag'
+import {writeSessionFocusTagsDrag} from '@/utils/sessionFocusDrag'
 import {
   formatMeasurementDisplay,
   normalizeMeasurementUnit,
@@ -350,7 +351,7 @@ const eventBus = useEventBus()
 const listSync = useItemsListSync()
 const filtersController = useItemsFiltersController()
 const sessionFocusStore = useSessionFocusStore()
-const {startFocus, clearFocus} = useSessionFocusActions()
+const {toggleInTray} = useSessionFocusActions()
 
 const itemRating = computed((): number | undefined => {
   const rating = props.item.rating
@@ -367,7 +368,8 @@ const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
 }
 
 const canDragTag = (tag: TagWithMeta): boolean => {
-  return props.type === 'media' && !tag.fromFolder && Number(tag.id) > 0 && Number(tag.metaId) > 0
+  return !tag.fromFolder && Number(tag.id) > 0 && Number(tag.metaId) > 0
+    && (props.type === 'media' || props.type === 'tag')
 }
 
 const featureHintAttr = computed((): string | undefined => {
@@ -382,11 +384,25 @@ const onTagDragStart = (event: DragEvent, tag: TagWithMeta): void => {
     return
   }
   hideHoverImage()
-  const ok = writeMediaTagDragPayload(event, {
+  const focusTag = {
     tagId: Number(tag.id),
     metaId: Number(tag.metaId),
+    name: String(tag.name || ''),
+    icon: tag.meta?.icon ? String(tag.meta.icon) : null,
+    color: tag.color ? String(tag.color) : null,
+  }
+  if (props.type === 'tag') {
+    const ok = writeSessionFocusTagsDrag(event, [focusTag])
+    if (!ok) event.preventDefault()
+    return
+  }
+  const ok = writeMediaTagDragPayload(event, {
+    tagId: focusTag.tagId,
+    metaId: focusTag.metaId,
     sourceMediaId: Number(props.item.id),
-    name: tag.name,
+    name: focusTag.name,
+    icon: focusTag.icon,
+    color: focusTag.color,
   })
   if (!ok) {
     event.preventDefault()
@@ -847,17 +863,13 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
     },
   ]
 
-  const focused = Number(sessionFocusStore.tagId) === Number(tag.id)
+  const inTray = sessionFocusStore.hasTag(Number(tag.id))
   contextMenu.push({
-    name: focused ? t('session_focus.clear') : t('session_focus.start'),
+    name: inTray ? t('session_focus.remove_from_tray') : t('session_focus.add_to_tray'),
     type: 'item',
-    icon: focused ? 'bullseye-arrow' : 'bullseye',
+    icon: inTray ? 'bullseye-arrow' : 'bullseye',
     action: () => {
-      if (focused) {
-        clearFocus()
-        return
-      }
-      startFocus({
+      toggleInTray({
         tagId: Number(tag.id),
         metaId: Number(tag.metaId),
         name: String(tag.name || ''),

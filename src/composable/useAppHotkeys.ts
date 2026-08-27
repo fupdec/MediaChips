@@ -6,8 +6,10 @@ import { usePlayerStore } from '@/stores/player'
 import { registerAppShellHandler, useAppShell } from '@/composable/appShell'
 import { getDefaultMediaTypeId } from '@/utils/mediaType'
 import { isBlockingOverlayOpen, isTypingTarget } from '@/utils/keyboardTarget'
-import { isFoldersRoute } from '@/composable/useBrowserLayout'
+import { isFoldersRoute, isItemsGridRoute } from '@/composable/useBrowserLayout'
 import { useFsBrowseSelection } from '@/stores/fsBrowseSelection'
+import { useSessionFocusStore } from '@/stores/sessionFocus'
+import { useSessionFocusActions } from '@/composable/useSessionFocusActions'
 
 function isItemsLibraryRoute(path: string): boolean {
   return path === '/media' || path.startsWith('/media/')
@@ -22,6 +24,8 @@ export function useAppHotkeys() {
   const playerStore = usePlayerStore()
   const fsSelection = useFsBrowseSelection()
   const appShell = useAppShell()
+  const sessionFocusStore = useSessionFocusStore()
+  const {applyTrayToCurrentTargets, removeTrayFromCurrentTargets} = useSessionFocusActions()
   const showShortcuts = ref(false)
 
   function openAddMedia() {
@@ -60,6 +64,23 @@ export function useAppHotkeys() {
     if (isTypingTarget(event.target)) return
     if (event.ctrlKey || event.metaKey || event.altKey) return
     if (event.repeat) return
+
+    // Tag tray: T applies, Shift+T removes. Skipped while review-mode overlay is open
+    // (Q–O stay review tag slots). When the tray is empty, T still focuses tags search.
+    if (
+      event.code === 'KeyT'
+      && sessionFocusStore.isActive
+      && isItemsGridRoute(router.currentRoute.value.path)
+      && !isFoldersRoute(router.currentRoute.value.path)
+    ) {
+      const hasTarget = itemsStore.selection.length > 0 || Number(itemsStore.selected_last) > 0
+      if (hasTarget) {
+        event.preventDefault()
+        if (event.shiftKey) void removeTrayFromCurrentTargets()
+        else void applyTrayToCurrentTargets()
+        return
+      }
+    }
 
     // Use event.code so hotkeys work on non-Latin keyboard layouts.
     if (event.code === 'Slash' && event.shiftKey) {

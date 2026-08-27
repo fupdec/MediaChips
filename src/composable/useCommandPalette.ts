@@ -51,6 +51,7 @@ export function useCommandPaletteCommands(options: {
     browseWithoutFocus,
     openFocusTagPage,
     applyFocusTagToMediaIds,
+    applyTrayToItems,
   } = useSessionFocusActions()
   const appShell = useAppShell()
   const nav = useLibraryNavItems()
@@ -305,15 +306,24 @@ export function useCommandPaletteCommands(options: {
       },
     )
 
-    if (sessionFocusStore.tag) {
-      const focusName = sessionFocusStore.tag.name
+    if (sessionFocusStore.isActive) {
+      const focusName = sessionFocusStore.namesLabel
+      const applyToSelection = () => {
+        if (!itemsStore.selection.length) return
+        const type = itemsStore.type === 'tag' ? 'tag' : 'media'
+        if (type === 'tag') {
+          void applyTrayToItems([...itemsStore.selection], 'tag')
+          return
+        }
+        void applyFocusTagToMediaIds([...itemsStore.selection])
+      }
       list.push(
         {
           id: 'session-focus-open',
           title: t('commandPalette.actions.session_focus_open', {name: focusName}),
           icon: 'mdi-bullseye-arrow',
           group: 'actions',
-          keywords: ['focus', 'session', 'tag', 'performer'],
+          keywords: ['focus', 'session', 'tag', 'performer', 'tray'],
           run: () => openFocusTagPage(),
         },
         {
@@ -321,7 +331,7 @@ export function useCommandPaletteCommands(options: {
           title: t('commandPalette.actions.session_focus_with', {name: focusName}),
           icon: 'mdi-filter-outline',
           group: 'actions',
-          keywords: ['focus', 'filter', 'tagged'],
+          keywords: ['focus', 'filter', 'tagged', 'tray'],
           run: () => { void browseWithFocus() },
         },
         {
@@ -330,7 +340,7 @@ export function useCommandPaletteCommands(options: {
           subtitle: t('commandPalette.actions.session_focus_without_hint'),
           icon: 'mdi-tag-plus-outline',
           group: 'actions',
-          keywords: ['focus', 'untagged', 'tagging'],
+          keywords: ['focus', 'untagged', 'tagging', 'tray'],
           run: () => { void browseWithoutFocus() },
         },
         {
@@ -339,19 +349,15 @@ export function useCommandPaletteCommands(options: {
           subtitle: t('commandPalette.actions.session_focus_apply_hint'),
           icon: 'mdi-tag-plus',
           group: 'actions',
-          keywords: ['focus', 'apply', 'selection'],
-          run: () => {
-            if (itemsStore.selection.length) {
-              void applyFocusTagToMediaIds([...itemsStore.selection])
-            }
-          },
+          keywords: ['focus', 'apply', 'selection', 'tray'],
+          run: applyToSelection,
         },
         {
           id: 'session-focus-clear',
           title: t('commandPalette.actions.session_focus_clear'),
           icon: 'mdi-close-circle-outline',
           group: 'actions',
-          keywords: ['focus', 'clear', 'end'],
+          keywords: ['focus', 'clear', 'end', 'tray'],
           run: () => clearFocus(),
         },
       )

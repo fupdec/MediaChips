@@ -91,7 +91,7 @@ export default function useItemContextMenu(
   const {moveTagsToCategory} = useMoveTagsToCategory()
   const {openMediaList} = useOpenMediaList()
   const sessionFocusStore = useSessionFocusStore()
-  const {applyFocusTagToMediaIds, startFocus, clearFocus} = useSessionFocusActions()
+  const {applyFocusTagToMediaIds, applyTrayToItems, toggleInTray, addTagsToTray} = useSessionFocusActions()
 
   const scraperStore = useScraperStore()
   const sceneScraperStore = useSceneScraperStore()
@@ -132,10 +132,11 @@ export default function useItemContextMenu(
         action: editItem,
       })
 
-      if (type === 'media' && sessionFocusStore.tag) {
-        const focusTag = sessionFocusStore.tag
+      if (type === 'media' && sessionFocusStore.isActive) {
         contextMenu.push({
-          name: t('session_focus.apply_menu', {name: focusTag.name}),
+          name: sessionFocusStore.tags.length === 1
+            ? t('session_focus.apply_menu', {name: sessionFocusStore.tag?.name || ''})
+            : t('session_focus.apply_all_menu', {count: sessionFocusStore.tags.length}),
           type: 'item',
           icon: 'bullseye-arrow',
           action: () => {
@@ -151,17 +152,13 @@ export default function useItemContextMenu(
           icon: 'content-duplicate',
           action: duplicateTagItem,
         })
-        const focused = Number(sessionFocusStore.tagId) === Number(item.id)
+        const inTray = sessionFocusStore.hasTag(Number(item.id))
         contextMenu.push({
-          name: focused ? t('session_focus.clear') : t('session_focus.start'),
+          name: inTray ? t('session_focus.remove_from_tray') : t('session_focus.add_to_tray'),
           type: 'item',
-          icon: focused ? 'bullseye-arrow' : 'bullseye',
+          icon: inTray ? 'bullseye-arrow' : 'bullseye',
           action: () => {
-            if (focused) {
-              clearFocus()
-              return
-            }
-            startFocus({
+            toggleInTray({
               tagId: Number(item.id),
               metaId: Number(meta.id),
               name: String(item.name || ''),
@@ -183,15 +180,49 @@ export default function useItemContextMenu(
         },
       })
 
-      if (type === 'media' && sessionFocusStore.tag) {
-        const focusTag = sessionFocusStore.tag
+      if (type === 'media' && sessionFocusStore.isActive) {
         contextMenu.push({
-          name: t('session_focus.apply_menu', {name: focusTag.name}),
+          name: sessionFocusStore.tags.length === 1
+            ? t('session_focus.apply_menu', {name: sessionFocusStore.tag?.name || ''})
+            : t('session_focus.apply_all_menu', {count: sessionFocusStore.tags.length}),
           type: 'item',
           icon: 'bullseye-arrow',
           disabled: itemsStore.selection.length === 0,
           action: () => {
             void applyFocusTagToMediaIds([...itemsStore.selection])
+          },
+        })
+      }
+
+      if (type === 'tag' && sessionFocusStore.isActive) {
+        contextMenu.push({
+          name: t('session_focus.apply_all_menu', {count: sessionFocusStore.tags.length}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          disabled: itemsStore.selection.length === 0,
+          action: () => {
+            void applyTrayToItems([...itemsStore.selection], 'tag')
+          },
+        })
+      }
+
+      if (type === 'tag' && meta) {
+        contextMenu.push({
+          name: t('session_focus.add_to_tray'),
+          type: 'item',
+          icon: 'bullseye',
+          disabled: itemsStore.selection.length === 0,
+          action: () => {
+            const selected = itemsStore.selection
+              .map((id) => itemsStore.entities.find((entry) => Number(entry.id) === Number(id)))
+              .filter((entry): entry is Tag => Boolean(entry))
+            addTagsToTray(selected.map((entry) => ({
+              tagId: Number(entry.id),
+              metaId: Number(entry.metaId || meta.id),
+              name: String(entry.name || ''),
+              icon: meta.icon ? String(meta.icon) : null,
+              color: entry.color ? String(entry.color) : null,
+            })))
           },
         })
       }
@@ -1456,7 +1487,7 @@ export default function useItemContextMenu(
       })
 
       if (type === 'tag') {
-        void reloadTagsCatalog()
+        await reloadTagsCatalog()
       }
 
       if (type === 'media') {
