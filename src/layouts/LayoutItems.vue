@@ -36,17 +36,29 @@
             </span>
           </button>
 
-          <div class="d-flex align-center items-page-header__title min-width-0">
-            <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
-            <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
-            <span
-              v-if="!loader.is_busy && total > 0"
-              class="items-page-header__meta"
+          <div class="items-page-header__title min-width-0">
+            <div class="items-page-header__heading min-width-0">
+              <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
+              <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
+            </div>
+            <div
+              v-if="!loader.is_busy && (total > 0 || filesize_all)"
+              class="items-page-header__badges"
             >
-              <span v-if="total != totalInDb">({{ total }} of {{ totalInDb }})</span>
-              <span v-else>({{ total }})</span>
-              <span v-if="filesize_all"> · {{ filesize_all }}</span>
-            </span>
+              <span
+                v-if="total > 0"
+                class="items-page-header__meta"
+              >
+                <template v-if="total != totalInDb">{{ total }} of {{ totalInDb }}</template>
+                <template v-else>{{ total }}</template>
+              </span>
+              <span
+                v-if="filesize_all"
+                class="items-page-header__meta"
+              >
+                {{ filesize_all }}
+              </span>
+            </div>
           </div>
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">

@@ -37,20 +37,24 @@
             </span>
           </button>
 
-          <div class="d-flex align-center items-page-header__title min-width-0">
-            <v-icon class="items-page-header__icon" start>mdi-tooltip-outline</v-icon>
-            <span class="items-page-header__name text-truncate">{{ t('navigation.markers') }}</span>
-            <span
+          <div class="items-page-header__title min-width-0">
+            <div class="items-page-header__heading min-width-0">
+              <v-icon class="items-page-header__icon" start>mdi-tooltip-outline</v-icon>
+              <span class="items-page-header__name text-truncate">{{ t('navigation.markers') }}</span>
+            </div>
+            <div
               v-if="!marksStore.isLoading && marksStore.totalFiltered > 0"
-              class="items-page-header__meta"
+              class="items-page-header__badges"
             >
-              <template v-if="marksStore.totalFiltered !== marksStore.total">
-                ({{ marksStore.totalFiltered }} of {{ marksStore.total }})
-              </template>
-              <template v-else>
-                ({{ marksStore.totalFiltered }})
-              </template>
-            </span>
+              <span class="items-page-header__meta">
+                <template v-if="marksStore.totalFiltered !== marksStore.total">
+                  {{ marksStore.totalFiltered }} of {{ marksStore.total }}
+                </template>
+                <template v-else>
+                  {{ marksStore.totalFiltered }}
+                </template>
+              </span>
+            </div>
           </div>
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls markers-control-deck__controls">
