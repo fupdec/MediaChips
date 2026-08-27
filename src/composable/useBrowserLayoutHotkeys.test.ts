@@ -1,5 +1,10 @@
 import {describe, expect, it} from 'vitest'
-import {findNeighborItemElement, uniqueVisibleGridElements} from './useBrowserLayoutHotkeys'
+import {
+  cursorFromGridElement,
+  findNeighborItemElement,
+  pathBasename,
+  uniqueVisibleGridElements,
+} from './useBrowserLayoutHotkeys'
 
 function makeItem(id: number, left: number, top: number, width = 100, height = 120): HTMLElement {
   const el = {
@@ -21,8 +26,23 @@ function makeItem(id: number, left: number, top: number, width = 100, height = 1
   return el as unknown as HTMLElement
 }
 
-function makeFolder(path: string): HTMLElement {
-  const el = {dataset: {folderPath: path}}
+function makeFolder(path: string, left = 0, top = 0, width = 100, height = 120): HTMLElement {
+  const el = {
+    dataset: {folderPath: path},
+    getBoundingClientRect: () => ({
+      x: left,
+      y: top,
+      left,
+      top,
+      right: left + width,
+      bottom: top + height,
+      width,
+      height,
+      toJSON() {
+        return {}
+      },
+    }),
+  }
   return el as unknown as HTMLElement
 }
 
@@ -48,6 +68,31 @@ describe('findNeighborItemElement', () => {
     const candidates = [center, alignedRight, farDiagonal]
 
     expect(findNeighborItemElement(center, 'right', candidates)?.dataset.itemId).toBe('2')
+  })
+
+  it('moves between folder tiles and media cards', () => {
+    const folder = makeFolder('/movies', 40, 200)
+    const media = makeItem(9, 200, 200)
+    const candidates = [folder, media]
+
+    expect(findNeighborItemElement(folder, 'right', candidates)?.dataset.itemId).toBe('9')
+    expect(findNeighborItemElement(media, 'left', candidates)?.dataset.folderPath).toBe('/movies')
+  })
+})
+
+describe('cursorFromGridElement', () => {
+  it('reads folder, pending, and media dataset keys', () => {
+    expect(cursorFromGridElement(makeFolder('/a/b'))).toEqual({kind: 'folder', path: '/a/b'})
+    expect(cursorFromGridElement(makeItem(12, 0, 0))).toEqual({kind: 'media', id: 12})
+    const pending = {dataset: {pendingPath: '/tmp/file.mp4'}} as unknown as HTMLElement
+    expect(cursorFromGridElement(pending)).toEqual({kind: 'pending', path: '/tmp/file.mp4'})
+  })
+})
+
+describe('pathBasename', () => {
+  it('returns the last segment for posix and windows paths', () => {
+    expect(pathBasename('/Users/me/Movies')).toBe('Movies')
+    expect(pathBasename('C:\\Users\\me\\Downloads')).toBe('Downloads')
   })
 })
 

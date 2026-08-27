@@ -17,6 +17,7 @@ import {openTextMedia} from '@/utils/openTextMedia'
 import {useEventBus} from '@/utils/eventBus'
 import {isBlockingOverlayOpen, isTypingTarget} from '@/utils/keyboardTarget'
 import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
+import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import type {MediaItem, Meta, Tag} from '@/types/stores'
 
 export type BrowserNavDirection = 'left' | 'right' | 'up' | 'down'
@@ -25,6 +26,7 @@ const VISIBLE_GRID_SELECTOR = [
   '.items-page-grid .item[data-item-id]',
   '.items-masonry-grid .item[data-item-id]',
   '.items-page-grid [data-folder-path]',
+  '.folders-virtual-grid [data-folder-path]',
   '.folders-virtual-grid__cell--media[data-item-id]',
   '.folders-virtual-grid [data-pending-path]',
 ].join(', ')
@@ -70,6 +72,81 @@ export function findItemElementById(id: number): HTMLElement | null {
   return document.querySelector(
     `.folders-virtual-grid__cell--media[data-item-id="${id}"], .item[data-item-id="${id}"]`,
   )
+}
+
+export type GridNavCursor =
+  | {kind: 'folder'; path: string}
+  | {kind: 'media'; id: number}
+  | {kind: 'pending'; path: string}
+
+export function pathBasename(path: string): string {
+  return path.split(/[/\\]/).filter(Boolean).pop() || path
+}
+
+export function cursorFromGridElement(el: HTMLElement): GridNavCursor | null {
+  const folderPath = el.dataset.folderPath
+  if (folderPath) return {kind: 'folder', path: folderPath}
+  const pendingPath = el.dataset.pendingPath
+  if (pendingPath) return {kind: 'pending', path: pendingPath}
+  const itemId = Number(el.dataset.itemId)
+  if (Number.isFinite(itemId)) return {kind: 'media', id: itemId}
+  return null
+}
+
+function matchDatasetPath(attr: 'folderPath' | 'pendingPath', path: string): HTMLElement | null {
+  const selector = attr === 'folderPath' ? '[data-folder-path]' : '[data-pending-path]'
+  for (const el of document.querySelectorAll<HTMLElement>(selector)) {
+    if (el.dataset[attr] === path) return el
+  }
+  return null
+}
+
+export function findFolderElementByPath(folderPath: string): HTMLElement | null {
+  return matchDatasetPath('folderPath', folderPath)
+}
+
+export function findPendingElementByPath(pendingPath: string): HTMLElement | null {
+  return matchDatasetPath('pendingPath', pendingPath)
+}
+
+export function findGridElement(cursor: GridNavCursor): HTMLElement | null {
+  if (cursor.kind === 'folder') return findFolderElementByPath(cursor.path)
+  if (cursor.kind === 'pending') return findPendingElementByPath(cursor.path)
+  return findItemElementById(cursor.id)
+}
+
+/** Select every folder / pending file / media card between two visible grid nodes. */
+export function applyMixedGridRange(fromEl: HTMLElement, toEl: HTMLElement, visible: HTMLElement[]) {
+  const itemsStore = useItemsStore()
+  const fsSelection = useFsBrowseSelection()
+  const fromIndex = visible.indexOf(fromEl)
+  const toIndex = visible.indexOf(toEl)
+  if (fromIndex < 0 || toIndex < 0) return
+  const start = Math.min(fromIndex, toIndex)
+  const end = Math.max(fromIndex, toIndex)
+  const mediaIds: number[] = []
+  const fsEntries: {kind: 'folder' | 'fs-file'; path: string; name: string}[] = []
+  for (const el of visible.slice(start, end + 1)) {
+    const cursor = cursorFromGridElement(el)
+    if (!cursor) continue
+    if (cursor.kind === 'media') {
+      mediaIds.push(cursor.id)
+      continue
+    }
+    fsEntries.push({
+      kind: cursor.kind === 'folder' ? 'folder' : 'fs-file',
+      path: cursor.path,
+      name: pathBasename(cursor.path),
+    })
+  }
+  itemsStore.selection = mediaIds
+  fsSelection.setSelectedEntries(fsEntries)
+}
+
+let mixedGridAnchor: GridNavCursor | null = null
+
+export function clearMixedGridAnchor() {
+  mixedGridAnchor = null
 }
 
 /**
@@ -137,6 +214,7 @@ export function useBrowserLayoutHotkeys() {
   const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
   const {openReviewMode} = useReviewModeLauncher()
   const {focused: foldersFocus, setFocus: setFoldersFocus} = useFoldersBrowserFocus()
+  const fsSelection = useFsBrowseSelection()
   const eventBus = useEventBus()
 
   function emitFoldersGoUp() {
@@ -194,22 +272,26 @@ export function useBrowserLayoutHotkeys() {
 
   function focusFolderPath(folderPath: string) {
     setFoldersFocus({kind: 'folder', path: folderPath})
-    itemsStore.clearInspectorFocus()
+    if (itemsStore.isSelect) {
+      itemsStore.selected_last = null
+    } else {
+      itemsStore.clearInspectorFocus()
+    }
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(
-        `[data-folder-path="${CSS.escape(folderPath)}"]`,
-      )
+      const el = findFolderElementByPath(folderPath)
       if (el) scrollItemIntoView(el)
     })
   }
 
   function focusPendingPath(pendingPath: string) {
     setFoldersFocus({kind: 'pending', path: pendingPath})
-    itemsStore.clearInspectorFocus()
+    if (itemsStore.isSelect) {
+      itemsStore.selected_last = null
+    } else {
+      itemsStore.clearInspectorFocus()
+    }
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(
-        `[data-pending-path="${CSS.escape(pendingPath)}"]`,
-      )
+      const el = findPendingElementByPath(pendingPath)
       if (el) scrollItemIntoView(el)
     })
   }
@@ -263,9 +345,9 @@ export function useBrowserLayoutHotkeys() {
     const folderPath = foldersFocus.value?.kind === 'folder' ? foldersFocus.value.path : null
     const pendingPath = foldersFocus.value?.kind === 'pending' ? foldersFocus.value.path : null
     const currentEl = folderPath
-      ? document.querySelector<HTMLElement>(`[data-folder-path="${CSS.escape(folderPath)}"]`)
+      ? findFolderElementByPath(folderPath)
       : pendingPath
-        ? document.querySelector<HTMLElement>(`[data-pending-path="${CSS.escape(pendingPath)}"]`)
+        ? findPendingElementByPath(pendingPath)
         : id != null ? findItemElementById(id) : null
 
     if (!currentEl) {
@@ -320,38 +402,70 @@ export function useBrowserLayoutHotkeys() {
     return next ? Number(next.id) : null
   }
 
-  function mediaNeighborFromFolder(direction: BrowserNavDirection): number | null {
-    const folderPath = foldersFocus.value?.kind === 'folder' ? foldersFocus.value.path : null
-    if (!folderPath) return null
-    const folderEl = document.querySelector<HTMLElement>(
-      `[data-folder-path="${CSS.escape(folderPath)}"]`,
-    )
-    if (!folderEl) return null
-    const neighbor = findNeighborItemElement(folderEl, direction, queryVisibleMediaItemElements())
-    if (!neighbor) return null
-    const nextId = Number(neighbor.dataset.itemId)
-    return Number.isFinite(nextId) ? nextId : null
+  function currentGridCursor(): GridNavCursor | null {
+    if (foldersFocus.value?.kind === 'folder') {
+      return {kind: 'folder', path: foldersFocus.value.path}
+    }
+    if (foldersFocus.value?.kind === 'pending') {
+      return {kind: 'pending', path: foldersFocus.value.path}
+    }
+    if (foldersFocus.value?.kind === 'media') {
+      return {kind: 'media', id: foldersFocus.value.id}
+    }
+    const id = focusedId()
+    if (id != null) return {kind: 'media', id}
+    return null
   }
 
-  /** Enter select mode and extend a range with Shift+arrows from the focused card. */
-  function extendSelection(direction: BrowserNavDirection) {
-    const page = itemsStore.itemsOnPage
-    if (!page.length) return
-
-    if (foldersFocus.value?.kind === 'folder') {
-      const nextId = mediaNeighborFromFolder(direction) ?? Number(page[0].id)
-      if (!Number.isFinite(nextId)) return
-      itemsStore.isSelect = true
-      itemsStore.selection = [nextId]
-      itemsStore.selectionAnchor = nextId
-      itemsStore.selected_last = nextId
-      setFoldersFocus({kind: 'media', id: nextId})
+  function setGridCursor(cursor: GridNavCursor) {
+    if (cursor.kind === 'folder') {
+      focusFolderPath(cursor.path)
+      return
+    }
+    if (cursor.kind === 'pending') {
+      focusPendingPath(cursor.path)
+      return
+    }
+    if (itemsStore.isSelect) {
+      itemsStore.selected_last = cursor.id
+      setFoldersFocus({kind: 'media', id: cursor.id})
       requestAnimationFrame(() => {
-        const el = findItemElementById(nextId)
+        const el = findItemElementById(cursor.id)
         if (el) scrollItemIntoView(el)
       })
       return
     }
+    focusById(cursor.id)
+  }
+
+  function toggleFsCursor(cursor: Extract<GridNavCursor, {kind: 'folder' | 'pending'}>) {
+    const name = pathBasename(cursor.path)
+    if (cursor.kind === 'folder') {
+      fsSelection.toggleFolder({path: cursor.path, name, mediaCount: 0})
+      return
+    }
+    fsSelection.toggleFsFile({
+      path: cursor.path,
+      name,
+      isDirectory: false,
+      size: null,
+      mtimeMs: null,
+      extension: null,
+      inLibrary: false,
+      addable: true,
+      mediaId: null,
+    })
+  }
+
+  /** Enter select mode and extend a range with Shift+arrows from the focused card. */
+  function extendSelection(direction: BrowserNavDirection) {
+    if (isFoldersRoute(router.currentRoute.value.path)) {
+      extendFoldersGridSelection(direction)
+      return
+    }
+
+    const page = itemsStore.itemsOnPage
+    if (!page.length) return
 
     let current = focusedId()
     if (current == null) {
@@ -382,9 +496,59 @@ export function useBrowserLayoutHotkeys() {
     })
   }
 
-  function toggleFocusedSelection() {
-    if (foldersFocus.value?.kind === 'folder') {
+  function extendFoldersGridSelection(direction: BrowserNavDirection) {
+    const visible = queryVisibleItemElements()
+    if (!visible.length) return
+
+    let current = currentGridCursor()
+    let currentEl = current ? findGridElement(current) : null
+    if (!currentEl) {
+      currentEl = visible[0]
+      current = cursorFromGridElement(currentEl)
+      if (!current) return
       itemsStore.isSelect = true
+      setGridCursor(current)
+    }
+
+    const neighbor = findNeighborItemElement(currentEl, direction, visible)
+    if (!neighbor) return
+    const next = cursorFromGridElement(neighbor)
+    if (!next || !current) return
+
+    if (!itemsStore.isSelect) {
+      mixedGridAnchor = null
+      itemsStore.isSelect = true
+    }
+    if (!mixedGridAnchor) mixedGridAnchor = current
+    const anchorEl = findGridElement(mixedGridAnchor) ?? currentEl
+    applyMixedGridRange(anchorEl, neighbor, visible)
+    setGridCursor(next)
+  }
+
+  function jumpFoldersGridSelection(to: 'first' | 'last') {
+    const visible = queryVisibleItemElements()
+    if (!visible.length) return
+    const targetEl = to === 'first' ? visible[0] : visible[visible.length - 1]
+    const next = cursorFromGridElement(targetEl)
+    if (!next) return
+
+    let current = currentGridCursor()
+    if (!current) current = next
+    if (!itemsStore.isSelect) {
+      mixedGridAnchor = null
+      itemsStore.isSelect = true
+    }
+    if (!mixedGridAnchor) mixedGridAnchor = current
+    const anchorEl = findGridElement(mixedGridAnchor) ?? targetEl
+    applyMixedGridRange(anchorEl, targetEl, visible)
+    setGridCursor(next)
+  }
+
+  function toggleFocusedSelection() {
+    const cursor = currentGridCursor()
+    if (cursor?.kind === 'folder' || cursor?.kind === 'pending') {
+      if (!itemsStore.isSelect) itemsStore.isSelect = true
+      toggleFsCursor(cursor)
       return
     }
 
@@ -519,7 +683,11 @@ export function useBrowserLayoutHotkeys() {
       && isArrow
     ) {
       event.preventDefault()
-      if (event.code === 'Home') {
+      if (event.code === 'Home' || event.code === 'End') {
+        if (isFoldersRoute(router.currentRoute.value.path)) {
+          jumpFoldersGridSelection(event.code === 'Home' ? 'first' : 'last')
+          return
+        }
         const page = itemsStore.itemsOnPage
         if (!page.length) return
         const current = focusedId() ?? Number(page[0].id)
@@ -528,19 +696,10 @@ export function useBrowserLayoutHotkeys() {
           itemsStore.selection = [current]
         }
         if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
-        selectRangeOnPage(Number(itemsStore.selectionAnchor), Number(page[0].id))
-        return
-      }
-      if (event.code === 'End') {
-        const page = itemsStore.itemsOnPage
-        if (!page.length) return
-        const current = focusedId() ?? Number(page[0].id)
-        if (!itemsStore.isSelect) {
-          itemsStore.isSelect = true
-          itemsStore.selection = [current]
-        }
-        if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
-        selectRangeOnPage(Number(itemsStore.selectionAnchor), Number(page[page.length - 1].id))
+        const targetId = event.code === 'Home'
+          ? Number(page[0].id)
+          : Number(page[page.length - 1].id)
+        selectRangeOnPage(Number(itemsStore.selectionAnchor), targetId)
         return
       }
       const direction: BrowserNavDirection =

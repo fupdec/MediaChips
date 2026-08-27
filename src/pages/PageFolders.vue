@@ -855,7 +855,7 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
-import {useNavigationLayout} from '@/composable/useNavigationLayout'
+import {useFixedGridBarBounds} from '@/composable/useFixedGridBarBounds'
 import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import {useFsOperationsQueue} from '@/stores/fsOperationsQueue'
 import {useAppShell} from '@/composable/appShell'
@@ -923,7 +923,6 @@ const {transferTagToMedia} = useMediaTagTransfer()
 const {setFocus, clearFocus} = useFoldersBrowserFocus()
 const fsSelection = useFsBrowseSelection()
 const fsQueue = useFsOperationsQueue()
-const {useBottomBar} = useNavigationLayout()
 
 const {
   controlDeckSentinel,
@@ -1030,30 +1029,20 @@ const foldersPageRef = ref<ElementRef>(null)
 const foldersGridRef = ref<HTMLElement | null>(null)
 const clipboardEntriesContainerRef = ref<HTMLElement | null>(null)
 const clipboardOverflowCount = ref(0)
-const clipboardBarLeft = ref<number | null>(null)
-const clipboardBarWidth = ref<number | null>(null)
-const clipboardBarStyle = computed(() => {
-  if (clipboardBarLeft.value == null || clipboardBarWidth.value == null) return {}
-  return {
-    left: `${clipboardBarLeft.value}px`,
-    width: `${clipboardBarWidth.value}px`,
-    maxWidth: 'none',
-    transform: 'none',
-  }
-})
 
 function asDomElement(value: ElementRef): HTMLElement | null {
   if (value instanceof HTMLElement) return value
   return value?.$el instanceof HTMLElement ? value.$el : null
 }
 
-function syncClipboardBarBounds() {
-  const el = foldersGridRef.value || asDomElement(foldersPageRef.value)
-  if (!el) return
-  const {left, width} = el.getBoundingClientRect()
-  clipboardBarLeft.value = left
-  clipboardBarWidth.value = width
-}
+const {
+  barStyle: clipboardBarStyle,
+  useBottomBar,
+  syncBounds: syncClipboardBarBounds,
+  observeGrid: observeClipboardBar,
+} = useFixedGridBarBounds({
+  getAnchor: () => foldersGridRef.value || asDomElement(foldersPageRef.value),
+})
 
 function recalcClipboardOverflow() {
   const el = clipboardEntriesContainerRef.value
@@ -1848,13 +1837,34 @@ async function loadBrowse() {
   }
 }
 
+function toggleFolderSelectFromMenu(folder: FolderBrowseTileModel) {
+  if (!itemsStore.isSelect) {
+    itemsStore.isSelect = true
+  }
+  fsSelection.toggleFolder(folder)
+}
+
+function folderSelectMenuEntry(
+  folder: FolderBrowseTileModel,
+  wasSelected: boolean,
+): ContextMenuEntry {
+  return {
+    name: wasSelected ? t('appbar.buttons.unselect') : t('appbar.buttons.select'),
+    icon: wasSelected ? 'checkbox-blank-outline' : 'checkbox-marked-outline',
+    type: 'item',
+    action: () => toggleFolderSelectFromMenu(folder),
+  }
+}
+
 function onFolderContextMenu(event: MouseEvent, folderPath: string) {
   setFocus({kind: 'folder', path: folderPath})
   const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath
-  fsSelection.selectFolder({path: folderPath, name: folderName, mediaCount: 0})
+  const folder: FolderBrowseTileModel = {path: folderPath, name: folderName, mediaCount: 0}
+  const wasSelected = fsSelection.isSelected(folderPath)
+  const contextEntries = [{path: folderPath, name: folderName}]
 
   const selected = fsSelection.selectedEntries
-  if (selected.length > 1) {
+  if (itemsStore.isSelect && wasSelected && selected.length > 1) {
     const content: ContextMenuEntry[] = [
       {
         name: t('folders_browser.copy_names'),
@@ -1881,6 +1891,8 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
         icon: 'file-move-outline',
         action: () => { void onMoveSelectedTo() },
       },
+      {type: 'divider' as const},
+      folderSelectMenuEntry(folder, wasSelected),
       {type: 'divider' as const},
       {
         name: t('folders_browser.delete_selected'),
@@ -1944,14 +1956,16 @@ function onFolderContextMenu(event: MouseEvent, folderPath: string) {
       name: t('folders_browser.copy_selected'),
       type: 'item',
       icon: 'content-copy',
-      action: () => { void onCopySelectedTo() },
+      action: () => { void onCopySelectedTo(contextEntries) },
     },
     {
       name: t('folders_browser.move_selected'),
       type: 'item',
       icon: 'file-move-outline',
-      action: () => { void onMoveSelectedTo() },
+      action: () => { void onMoveSelectedTo(contextEntries) },
     },
+    {type: 'divider' as const},
+    folderSelectMenuEntry(folder, wasSelected),
     {type: 'divider' as const},
     {
       name: t('folders_browser.delete_folder'),
@@ -2298,8 +2312,9 @@ async function onDeleteSelected() {
 
 async function doFsOperation(
   operation: 'copy' | 'move',
+  entriesOverride?: {path: string; name: string}[],
 ) {
-  const entries = fsSelection.selectedEntries.map((e) => ({
+  const entries = entriesOverride ?? fsSelection.selectedEntries.map((e) => ({
     path: e.path,
     name: e.name,
   }))
@@ -2375,12 +2390,12 @@ async function executeFsOperation(
   fsSelection.clearSelection()
 }
 
-function onCopySelectedTo() {
-  void doFsOperation('copy')
+function onCopySelectedTo(entries?: {path: string; name: string}[]) {
+  void doFsOperation('copy', entries)
 }
 
-function onMoveSelectedTo() {
-  void doFsOperation('move')
+function onMoveSelectedTo(entries?: {path: string; name: string}[]) {
+  void doFsOperation('move', entries)
 }
 
 function onMediaContextMenu(event: MouseEvent, item: MediaItem) {
@@ -2529,7 +2544,6 @@ watch(visibleMedia, (items) => {
 })
 
 let resizeObserver: ResizeObserver | null = null
-let pageResizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
   eventBus.on('folders:go-up', goUp)
@@ -2549,16 +2563,8 @@ onMounted(() => {
       },
     })
   }
+  observeClipboardBar()
   syncClipboardBarBounds()
-  window.addEventListener('resize', syncClipboardBarBounds)
-  const pageElement = asDomElement(foldersPageRef.value)
-  if (pageElement) {
-    pageResizeObserver = new ResizeObserver(syncClipboardBarBounds)
-    pageResizeObserver.observe(pageElement)
-  }
-  if (foldersGridRef.value && pageResizeObserver) {
-    pageResizeObserver.observe(foldersGridRef.value)
-  }
   eventBus.on('folders:open-path', navigateTo)
   eventBus.on('folders:open-tags', () => {
     if (currentPath.value) {
@@ -2628,11 +2634,6 @@ onBeforeUnmount(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
-  if (pageResizeObserver) {
-    pageResizeObserver.disconnect()
-    pageResizeObserver = null
-  }
-  window.removeEventListener('resize', syncClipboardBarBounds)
 })
 </script>
 
@@ -3182,10 +3183,13 @@ onBeforeUnmount(() => {
   position: fixed;
   box-sizing: border-box;
   bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  max-width: var(--container-max-width, 1184px);
+  /* Stay inside the grid column: drawers set --v-layout-*, v-container adds 16px. */
+  left: calc(var(--v-layout-left, 0px) + 16px);
+  right: calc(var(--v-layout-right, 0px) + 16px);
+  margin-inline: auto;
+  transform: none;
+  width: auto;
+  max-width: min(100%, var(--container-max-width, 1184px));
   z-index: 1005;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-primary), 0.18);

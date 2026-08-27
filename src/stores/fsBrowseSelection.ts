@@ -22,6 +22,14 @@ export const useFsBrowseSelection = defineStore('fsBrowseSelection', () => {
     selectedMap.value = new Map()
   }
 
+  function setSelectedEntries(entries: SelectedFsEntry[]) {
+    const next = new Map<string, SelectedFsEntry>()
+    for (const entry of entries) {
+      next.set(entry.path, entry)
+    }
+    selectedMap.value = next
+  }
+
   function isSelected(path: string): boolean {
     return selectedMap.value.has(path)
   }
@@ -93,6 +101,7 @@ export const useFsBrowseSelection = defineStore('fsBrowseSelection', () => {
     clipboardPaths,
     toggleSelectMode,
     clearSelection,
+    setSelectedEntries,
     isSelected,
     toggleSelected,
     toggleFolder,
