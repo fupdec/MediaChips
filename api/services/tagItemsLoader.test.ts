@@ -181,4 +181,135 @@ describe('loadTagItems', () => {
     expect(result.total).toBe(12)
     expect(getItemsForMeta).not.toHaveBeenCalled()
   })
+
+  it('narrows tag items by color hex (case-insensitive)', async () => {
+    queryAllAsync.mockResolvedValueOnce([
+      {id: 2, color: '#ff0000'},
+      {id: 5, color: '#FF0000'},
+      {id: 9, color: '#0000ff'},
+    ])
+    getItemsForMeta.mockReturnValue([
+      {id: 2, metaId: 17, color: '#ff0000'},
+      {id: 5, metaId: 17, color: '#FF0000'},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      colorFilter: '#FF0000',
+      skipTotals: true,
+    })
+
+    expect(queryAllAsync).toHaveBeenCalledWith(
+      {} as never,
+      expect.stringContaining('SELECT id, color FROM tags'),
+      {metaId: 17},
+    )
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [2, 5])
+    expect(result.items).toHaveLength(2)
+  })
+
+  it('groups similar hex colors into one filter', async () => {
+    queryAllAsync.mockResolvedValueOnce([
+      {id: 1, color: '#ff0000'},
+      {id: 2, color: '#ee1111'},
+      {id: 3, color: '#0000ff'},
+    ])
+    getItemsForMeta.mockReturnValue([
+      {id: 1, metaId: 17, color: '#ff0000'},
+      {id: 2, metaId: 17, color: '#ee1111'},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      colorFilter: '#ff0000',
+      skipTotals: true,
+    })
+
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [1, 2])
+    expect(result.items).toHaveLength(2)
+  })
+
+  it('narrows tag items with no color', async () => {
+    queryAllAsync.mockResolvedValueOnce([{id: 8}])
+    getItemsForMeta.mockReturnValue([
+      {id: 8, metaId: 17, color: null},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      colorFilter: 'none',
+      skipTotals: true,
+    })
+
+    expect(queryAllAsync).toHaveBeenCalledWith(
+      {} as never,
+      expect.stringContaining('color IS NULL'),
+      {metaId: 17},
+    )
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [8])
+    expect(result.items).toHaveLength(1)
+  })
+
+  it('combines color filter with namePrefix (AND)', async () => {
+    queryAllAsync
+      .mockResolvedValueOnce([
+        {id: 1, name: 'Alpha red'},
+        {id: 2, name: 'Alpha blue'},
+        {id: 3, name: 'Beta red'},
+      ])
+      .mockResolvedValueOnce([
+        {id: 1, color: '#ff0000'},
+        {id: 2, color: '#0000ff'},
+        {id: 3, color: '#ff0000'},
+      ])
+    getItemsForMeta.mockReturnValue([
+      {id: 1, metaId: 17, name: 'Alpha red', color: '#ff0000'},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      namePrefix: 'A',
+      colorFilter: '#ff0000',
+      skipTotals: true,
+    })
+
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [1])
+    expect(result.items).toHaveLength(1)
+    expect((result.items as Array<{id: number}>)[0].id).toBe(1)
+  })
+
+  it('returns empty items when color filter matches nothing', async () => {
+    queryAllAsync
+      .mockResolvedValueOnce([
+        {id: 1, color: '#ff0000'},
+      ])
+      .mockResolvedValueOnce([{totalUnfiltered: 9}])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      colorFilter: '#0000ff',
+    })
+
+    expect(result.items).toEqual([])
+    expect(result.totalFiltered).toBe(0)
+    expect(result.total).toBe(9)
+    expect(getItemsForMeta).not.toHaveBeenCalled()
+  })
+
+  it('ignores invalid color filter values', async () => {
+    getItemsForMeta.mockReturnValue([
+      {id: 1, metaId: 17},
+      {id: 2, metaId: 17},
+    ])
+
+    const result = await loadTagItems({} as never, {
+      metaId: 17,
+      colorFilter: 'red',
+      skipTotals: true,
+    })
+
+    expect(queryAllAsync).not.toHaveBeenCalled()
+    expect(getItemsForMeta).toHaveBeenCalledWith(17, [])
+    expect(result.items).toHaveLength(2)
+  })
 })

@@ -98,6 +98,8 @@ function createItemsStoreState() {
     viewerLoadMoreHandler: null as (() => Promise<boolean>) | null,
     /** Filter tags by first letter (A-Z). */
     namePrefix: null as string | null,
+    /** Filter tags by color (`#rrggbb`) or `none`. */
+    colorFilter: null as string | null,
   }
 }
 

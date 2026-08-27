@@ -80,6 +80,7 @@ export default function (db: ApiDb) {
           ? body.searchMode
           : undefined,
         namePrefix: typeof body.namePrefix === 'string' ? body.namePrefix : undefined,
+        colorFilter: typeof body.colorFilter === 'string' ? body.colorFilter : undefined,
         groupBy: body.groupBy,
       })
       sendOk(res, result)

@@ -883,6 +883,7 @@ export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
   query: z.string().optional(),
   searchMode: z.enum(['substring', 'chars']).optional(),
   namePrefix: z.string().optional(),
+  colorFilter: z.string().optional(),
   find_duplicates: optionalCoercedBoolean,
 })
 

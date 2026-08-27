@@ -89,6 +89,8 @@ export interface ItemsListRequest {
   query?: string
   /** Filter tags by first letter (A-Z). */
   namePrefix?: string
+  /** Filter tags by color (`#rrggbb`) or `none` (no color). */
+  colorFilter?: string
 }
 
 export type ItemsPageListQuery = ItemsListRequest

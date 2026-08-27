@@ -26,6 +26,18 @@ const {t} = useI18n()
     />
 
     <settings-switch
+      :title="t('settings_labels.appearance.alphabet_filter')"
+      :hint="t('settings_labels.appearance.alphabet_filter_hint')"
+      option="showAlphabetFilter"
+    />
+
+    <settings-switch
+      :title="t('settings_labels.appearance.color_filter')"
+      :hint="t('settings_labels.appearance.color_filter_hint')"
+      option="showColorFilter"
+    />
+
+    <settings-switch
       :title="t('settings_labels.appearance.inspector_inline_edit')"
       :hint="t('settings_labels.appearance.inspector_inline_edit_hint')"
       option="inspectorInlineEdit"

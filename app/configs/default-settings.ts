@@ -175,6 +175,14 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "showAlphabetFilter",
+    "value": 1
+  },
+  {
+    "option": "showColorFilter",
+    "value": 1
+  },
+  {
     "option": "stickyControlDeck",
     "value": 1
   },

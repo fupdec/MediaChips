@@ -138,7 +138,7 @@
     </div>
 
     <div
-      v-if="items_type === 'tag'"
+      v-if="items_type === 'tag' && settingsStore.showAlphabetFilter == '1'"
       class="items-alphabet"
     >
       <button
@@ -153,6 +153,33 @@
       >
         {{ letter }}
       </button>
+    </div>
+
+    <div
+      v-if="showColorFilterBar"
+      class="items-color-filter"
+    >
+      <button
+        type="button"
+        class="items-color-filter__swatch items-color-filter__swatch--none"
+        :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
+        :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
+        :aria-label="t('items.color_filter_none')"
+        v-tooltip:top="t('items.color_filter_none')"
+        @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
+      />
+      <button
+        v-for="color in categoryTagColors"
+        :key="color"
+        type="button"
+        class="items-color-filter__swatch"
+        :class="{'items-color-filter__swatch--active': colorFilter === color}"
+        :style="{backgroundColor: color}"
+        :aria-pressed="colorFilter === color ? 'true' : 'false'"
+        :aria-label="color"
+        v-tooltip:top="color"
+        @click="toggleColorFilter(color)"
+      />
     </div>
 
     <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
@@ -498,6 +525,11 @@ import {
 } from '@/utils/itemsGroupBy'
 import {getFilterObject} from '@/services/formatUtils'
 import {getTagFirstLetter} from '@shared/transliterate'
+import {
+  approximateTagColor,
+  compareTagColorSwatches,
+  TAG_COLOR_FILTER_NONE,
+} from '@shared/tagColorFilter'
 import type { MediaItem } from '@/types/stores'
 
 // Пропсы
@@ -544,7 +576,18 @@ const meta = ref<Meta | null>(null)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
 const dialogEditingPinnedMeta = ref(false)
-const letterFilter = ref<string | null>(null)
+const letterFilter = ref<string | null>(
+  settingsStore.showAlphabetFilter === '1' ? itemsStore.namePrefix : null,
+)
+if (settingsStore.showAlphabetFilter !== '1' && itemsStore.namePrefix) {
+  itemsStore.namePrefix = null
+}
+const colorFilter = ref<string | null>(
+  settingsStore.showColorFilter === '1' ? itemsStore.colorFilter : null,
+)
+if (settingsStore.showColorFilter !== '1' && itemsStore.colorFilter) {
+  itemsStore.colorFilter = null
+}
 const {
   controlDeckSentinel,
   controlDeckClass,
@@ -891,6 +934,78 @@ watch(letterFilter, (val) => {
   void getItemsFromDb()
 })
 
+watch(() => settingsStore.showAlphabetFilter, (val) => {
+  if (val === '1') return
+  if (letterFilter.value) {
+    letterFilter.value = null
+    return
+  }
+  if (!itemsStore.namePrefix) return
+  itemsStore.namePrefix = null
+  if (itemsStore.type === 'tag') {
+    itemsStore.updateState({key: 'page', value: 1})
+    void getItemsFromDb()
+  }
+})
+
+const categoryTagColors = computed(() => {
+  const metaId = Number(props.metaId)
+  if (!Number.isFinite(metaId) || metaId <= 0) return [] as string[]
+  const unique = new Set<string>()
+  for (const tag of appStore.tags) {
+    if (Number(tag.metaId) !== metaId) continue
+    const bucket = approximateTagColor(tag.color)
+    if (!bucket) continue
+    unique.add(bucket)
+  }
+  return [...unique].sort(compareTagColorSwatches)
+})
+
+const showColorFilterBar = computed(() => (
+  props.items_type === 'tag'
+  && settingsStore.showColorFilter === '1'
+  && !!meta.value?.color
+))
+
+function toggleColorFilter(value: string): void {
+  if (colorFilter.value === value) {
+    colorFilter.value = null
+  } else {
+    colorFilter.value = value
+  }
+}
+
+function clearColorFilter(): void {
+  if (colorFilter.value) {
+    colorFilter.value = null
+    return
+  }
+  if (!itemsStore.colorFilter) return
+  itemsStore.colorFilter = null
+  if (itemsStore.type === 'tag') {
+    itemsStore.updateState({key: 'page', value: 1})
+    void getItemsFromDb()
+  }
+}
+
+watch(colorFilter, (val) => {
+  if (itemsStore.type !== 'tag') return
+  itemsStore.updateState({key: 'page', value: 1})
+  itemsStore.colorFilter = val
+  void getItemsFromDb()
+})
+
+watch(() => settingsStore.showColorFilter, (val) => {
+  if (val === '1') return
+  clearColorFilter()
+})
+
+watch(() => meta.value?.color, (enabled) => {
+  if (meta.value == null) return
+  if (enabled) return
+  clearColorFilter()
+})
+
 useItemsThumbPrefetch({
   items: computed(() => ITEMS.value.itemsOnPage),
   itemsType: listItemType,
@@ -1113,6 +1228,51 @@ defineEmits<{
   &--active {
     background: rgb(var(--v-theme-primary));
     color: rgb(var(--v-theme-on-primary));
+  }
+}
+
+.items-color-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.items-color-filter__swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.18);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.08);
+  }
+
+  &--none {
+    position: relative;
+    background: rgba(var(--v-theme-on-surface), 0.04);
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 18%;
+      right: 18%;
+      top: 50%;
+      height: 2px;
+      background: rgba(var(--v-theme-on-surface), 0.5);
+      transform: rotate(-45deg);
+    }
+  }
+
+  &--active {
+    border-color: rgb(var(--v-theme-primary));
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary));
   }
 }
 </style>

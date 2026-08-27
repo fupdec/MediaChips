@@ -39,6 +39,11 @@ import {
 import {
   getTagFirstLetter,
 } from '../../shared/transliterate'
+import {
+  approximateTagColor,
+  normalizeTagColorFilter,
+  TAG_COLOR_FILTER_NONE,
+} from '../../shared/tagColorFilter'
 
 export interface TagLoadOptions {
   metaId: number
@@ -58,6 +63,8 @@ export interface TagLoadOptions {
   searchMode?: TagAutocompleteSearchMode
   /** Filter tags by first letter (A-Z, Cyrillic transliterated to Latin). */
   namePrefix?: string | null
+  /** Filter tags by color bucket (`#rrggbb`) or `none` (color IS NULL). Combines with namePrefix (AND). */
+  colorFilter?: string | null
   groupBy?: string
   groupByMetaType?: string | null
 }
@@ -199,6 +206,42 @@ function emptyTagItemsResult(options: TagLoadOptions, totalUnfiltered: number | 
     pageLimit,
     skipTotals: options.skipTotals,
   })
+}
+
+async function countTagsInMeta(db: ApiDb, metaId: number): Promise<number> {
+  const rows = await queryAllAsync<{totalUnfiltered: number}>(db,
+    `SELECT COUNT(*) AS totalUnfiltered FROM tags WHERE tags.metaId = :metaId`,
+    {metaId})
+  return Number(rows[0]?.totalUnfiltered) || 0
+}
+
+async function intersectResolvedTagIds(
+  db: ApiDb,
+  options: TagLoadOptions,
+  resolvedOptions: TagLoadOptions,
+  matchedIds: number[],
+): Promise<{resolvedOptions: TagLoadOptions} | {emptyResult: ReturnType<typeof emptyTagItemsResult>}> {
+  if (!matchedIds.length) {
+    let totalUnfiltered: number | null = null
+    if (!options.skipTotals) {
+      totalUnfiltered = await countTagsInMeta(db, options.metaId)
+    }
+    return {emptyResult: emptyTagItemsResult(options, totalUnfiltered)}
+  }
+
+  const existingIds = Array.isArray(resolvedOptions.ids) && resolvedOptions.ids.length
+    ? resolvedOptions.ids
+    : null
+  const matchedSet = new Set(matchedIds.map((id) => Number(id)))
+  const ids = existingIds
+    ? existingIds.filter((id) => matchedSet.has(Number(id)))
+    : matchedIds
+
+  if (!ids.length) {
+    return {emptyResult: emptyTagItemsResult(options)}
+  }
+
+  return {resolvedOptions: {...resolvedOptions, ids}}
 }
 
 async function resolveSearchTagIds(
@@ -495,30 +538,39 @@ async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
       }
     }
 
-    if (!prefixMatchedIds.length) {
-      let totalUnfiltered: number | null = null
-      if (!options.skipTotals) {
-        const rows = await queryAllAsync<{totalUnfiltered: number}>(db,
-          `SELECT COUNT(*) AS totalUnfiltered FROM tags WHERE tags.metaId = :metaId`,
+    const prefixNarrowed = await intersectResolvedTagIds(
+      db, options, resolvedOptions, prefixMatchedIds,
+    )
+    if ('emptyResult' in prefixNarrowed) return prefixNarrowed.emptyResult
+    resolvedOptions = prefixNarrowed.resolvedOptions
+  }
+
+  const colorFilter = normalizeTagColorFilter(options.colorFilter)
+  if (colorFilter) {
+    let colorMatchedIds: number[] = []
+    if (colorFilter === TAG_COLOR_FILTER_NONE) {
+      const colorRows = await queryAllAsync<{id: number}>(db,
+        `SELECT id FROM tags WHERE metaId = :metaId AND color IS NULL`,
+        {metaId: options.metaId})
+      colorMatchedIds = colorRows.map((row) => Number(row.id))
+    } else {
+      const wanted = approximateTagColor(colorFilter)
+      if (wanted) {
+        const colorRows = await queryAllAsync<{id: number; color: string | null}>(db,
+          `SELECT id, color FROM tags WHERE metaId = :metaId`,
           {metaId: options.metaId})
-        totalUnfiltered = Number(rows[0]?.totalUnfiltered) || 0
+        for (const row of colorRows) {
+          if (approximateTagColor(row.color) === wanted) {
+            colorMatchedIds.push(Number(row.id))
+          }
+        }
       }
-      return emptyTagItemsResult(options, totalUnfiltered)
     }
-
-    const existingIds = Array.isArray(resolvedOptions.ids) && resolvedOptions.ids.length
-      ? resolvedOptions.ids
-      : null
-    const prefixSet = new Set(prefixMatchedIds)
-    const ids = existingIds
-      ? existingIds.filter((id) => prefixSet.has(Number(id)))
-      : prefixMatchedIds
-
-    if (!ids.length) {
-      return emptyTagItemsResult(options)
-    }
-
-    resolvedOptions = {...resolvedOptions, ids}
+    const colorNarrowed = await intersectResolvedTagIds(
+      db, options, resolvedOptions, colorMatchedIds,
+    )
+    if ('emptyResult' in colorNarrowed) return colorNarrowed.emptyResult
+    resolvedOptions = colorNarrowed.resolvedOptions
   }
 
   const fallbackReason = getTagFilterSqlFallbackReason({

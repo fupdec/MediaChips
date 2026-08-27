@@ -175,6 +175,16 @@ export type SettingsState = {
   showHeaderImageAboveProfile: string
   showExperimentalFeatures: string
   showSavedFilters: string
+  /**
+   * '1' shows the A–Z first-letter bar on tag pages.
+   * '0' hides it (and clears an active letter filter).
+   */
+  showAlphabetFilter: string
+  /**
+   * '1' shows the color swatch bar on tag pages whose category has colors enabled.
+   * '0' hides it (and clears an active color filter).
+   */
+  showColorFilter: string
   showAdultContent: string
   enabledPlugins: string
   /** One-shot migration marker for default enabledPlugins upgrades. */
@@ -324,6 +334,8 @@ export const defaultSettingsState = (): SettingsState => ({
   showHeaderImageAboveProfile: '1',
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
+  showAlphabetFilter: '1',
+  showColorFilter: '1',
   showAdultContent: '0',
   enabledPlugins: '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby","mediachips.tmdb"]',
   /** '0' until first bootstrap migration persists the current schema. */
