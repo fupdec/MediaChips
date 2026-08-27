@@ -51,6 +51,48 @@ describe('entityTrash soft-delete', () => {
     expect(active.deletedAt).toBeNull()
   })
 
+  it('rewrites leftover trashed names so the original name can be reused', () => {
+    const ts = nowIso()
+    const tag = db.sqlite.prepare(`
+      INSERT INTO tags (name, metaId, createdAt, updatedAt)
+      VALUES ('Alice', 1, ?, ?)
+      RETURNING id
+    `).get(ts, ts) as {id: number}
+
+    db.sqlite.prepare(`UPDATE tags SET deletedAt = ? WHERE id = ?`).run(ts, tag.id)
+    expect(softDeleteTag(db, tag.id)).toBe(true)
+
+    const trashed = db.sqlite.prepare('SELECT name, trashOriginalName FROM tags WHERE id = ?')
+      .get(tag.id) as {name: string; trashOriginalName: string}
+    expect(trashed.trashOriginalName).toBe('Alice')
+    expect(trashed.name).toContain('__mediachips_trash__')
+
+    const created = db.sqlite.prepare(`
+      INSERT INTO tags (name, metaId, createdAt, updatedAt)
+      VALUES ('Alice', 1, ?, ?)
+      RETURNING id
+    `).get(ts, ts) as {id: number}
+    expect(created.id).toBeGreaterThan(tag.id)
+  })
+
+  it('allows recreating a tag name after a normal soft-delete', () => {
+    const ts = nowIso()
+    const tag = db.sqlite.prepare(`
+      INSERT INTO tags (name, metaId, createdAt, updatedAt)
+      VALUES ('Bob', 1, ?, ?)
+      RETURNING id
+    `).get(ts, ts) as {id: number}
+
+    expect(softDeleteTag(db, tag.id)).toBe(true)
+
+    const created = db.sqlite.prepare(`
+      INSERT INTO tags (name, metaId, createdAt, updatedAt)
+      VALUES ('Bob', 1, ?, ?)
+      RETURNING id
+    `).get(ts, ts) as {id: number}
+    expect(created.id).toBeGreaterThan(tag.id)
+  })
+
   it('soft-deletes marks, playlists, and saved filters', () => {
     const ts = nowIso()
     const mark = db.sqlite.prepare(`INSERT INTO marks (type, text) VALUES ('bookmark', 'x') RETURNING id`)

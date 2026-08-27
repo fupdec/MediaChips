@@ -207,6 +207,7 @@ import {typedApi} from '@/services/typedApi'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {useAutocompleteMenuInfiniteScroll} from '@/composable/useAutocompleteMenuInfiniteScroll'
 import {
   foundByChars,
@@ -895,11 +896,11 @@ async function create(name?: string, metaId?: number) {
   }
 
   try {
-    const res = await typedApi.createTags([{
+    const createdTags = await createTagsInteractive([{
       name: searchText,
       metaId: targetMetaId,
     }])
-    const created = res.data?.[0]
+    const created = createdTags?.[0]
     const tagId = Number(created?.id)
     if (!tagId) return
 

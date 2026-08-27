@@ -314,7 +314,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {registerAppShellHandler} from '@/composable/appShell'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
-import {typedApi} from '@/services/typedApi'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {acceptSuggestedTagsAndAssign} from '@/services/importPathAutoTag'
@@ -347,7 +347,6 @@ const settingsStore = useSettingsStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
-const tagsStore = app.tags
 
 /* ---------------- STATE ---------------- */
 
@@ -407,7 +406,8 @@ const dialogSubheader = computed(() => {
 
 const existingTagNames = computed(() => {
   const set = new Set<string>()
-  for (const tag of tagsStore || []) {
+  // Read from the store each time — a snapshot of `app.tags` would keep deleted names.
+  for (const tag of app.tags || []) {
     const name = String(tag?.name || '').trim().toLowerCase()
     if (name) set.add(name)
   }
@@ -577,7 +577,7 @@ async function addSingle(original: string) {
   }
   selectedMetaId.value = metaId
 
-  const exists = tagsStore.find(
+  const exists = app.tags.find(
     (i) => i.name?.toLowerCase() === name.toLowerCase(),
   )
   if (exists) {
@@ -610,7 +610,8 @@ async function addSingle(original: string) {
         applied: result.applied,
       })
     } else {
-      await typedApi.createTags([{name, metaId}])
+      const created = await createTagsInteractive([{name, metaId}])
+      if (!created) return
       notificationsStore.setNotification({
         type: 'success',
         title: t('meta.dialogs.adding_tags_complete'),
@@ -667,7 +668,7 @@ async function add() {
   added.value = []
 
   arr.forEach(n => {
-    const exists = tagsStore.find(
+    const exists = app.tags.find(
       i => i.name?.toLowerCase() === n.toLowerCase(),
     )
     if (exists) dups.value.push(n)
@@ -712,12 +713,13 @@ async function add() {
         applied: result.applied,
       })
     } else if (added.value.length > 0) {
-      await typedApi.createTags(
+      const created = await createTagsInteractive(
         added.value.map(i => ({
           name: i,
           metaId,
         })),
       )
+      if (!created) return
 
       notificationsStore.setNotification({
         type: 'success',

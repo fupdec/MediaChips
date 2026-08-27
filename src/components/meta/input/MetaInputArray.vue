@@ -273,6 +273,7 @@ import {getApiErrorMessage} from '@/types/vue'
 import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {
   foundByChars,
   getTagChipTextColor,
@@ -808,13 +809,14 @@ const create = async () => {
   }
 
   try {
-    const res = await typedApi.createTags([{
+    const created = await createTagsInteractive([{
       name: searchText,
       metaId: props.metaId,
     }])
+    if (!created?.[0]?.id) return
 
     search.value = ''
-    let newVal = [res.data[0].id]
+    let newVal = [created[0].id]
 
     if (Array.isArray(val.value)) {
       newVal = [...normalizeIds(val.value), ...newVal]

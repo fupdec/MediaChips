@@ -19,5 +19,7 @@ export const tags = sqliteTable('tags', {
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, () => ({
-  nameNormalizedUnique: uniqueIndex('tags_name_normalized_unique').on(sql`lower(trim("name"))`),
+  nameNormalizedUnique: uniqueIndex('tags_name_normalized_unique')
+    .on(sql`lower(trim("name"))`)
+    .where(sql`"deletedAt" IS NULL OR "deletedAt" = ''`),
 }))

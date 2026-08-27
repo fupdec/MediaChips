@@ -66,7 +66,7 @@
             @click="toggleSessionFocus"
           >
             <v-icon start>{{ isSessionFocused ? 'mdi-bullseye-arrow' : 'mdi-bullseye' }}</v-icon>
-            {{ isSessionFocused ? t('session_focus.clear') : t('session_focus.start') }}
+            {{ isSessionFocused ? t('session_focus.remove_from_tray') : t('session_focus.add_to_tray') }}
           </v-btn>
           <v-btn @click="editMetaTag" color="primary" rounded variant="flat">
             <v-icon start>mdi-pencil</v-icon>
@@ -536,7 +536,7 @@ const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
 const dialogsStore = useDialogsStore()
 const sessionFocusStore = useSessionFocusStore()
-const {startFocus, clearFocus} = useSessionFocusActions()
+const {toggleInTray} = useSessionFocusActions()
 const {t} = useI18n()
 
 // Refs
@@ -971,15 +971,11 @@ const getCompletionStatus = async () => {
 // }
 
 const isSessionFocused = computed(() =>
-  Number(sessionFocusStore.tagId) === Number(tag.value.id) && Number(tag.value.id) > 0,
+  sessionFocusStore.hasTag(Number(tag.value.id)) && Number(tag.value.id) > 0,
 )
 
 function toggleSessionFocus() {
-  if (isSessionFocused.value) {
-    clearFocus()
-    return
-  }
-  startFocus({
+  toggleInTray({
     tagId: Number(tag.value.id),
     metaId: Number(meta.value.id),
     name: String(tag.value.name || ''),

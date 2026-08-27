@@ -128,6 +128,8 @@
       @confirm="runConfirmDialog"
     />
 
+    <DialogTagTrashConflict v-if="dialogsStore.tagTrashConflict.show" />
+
     <DialogPlaylistAdd
       v-if="dialogsStore.playlistAdd.show"
       :dialog="dialogsStore.playlistAdd.show"
@@ -349,6 +351,9 @@ const DialogMediaInbox = defineAsyncComponent(() =>
 )
 const DialogConfirm = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogConfirm.vue')
+)
+const DialogTagTrashConflict = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogTagTrashConflict.vue')
 )
 const DialogBrowseFolder = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogBrowseFolder.vue')

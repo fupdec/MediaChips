@@ -4,6 +4,7 @@ import {
   assignUniqueNormalizedTagNames,
   ensureTagsNameNormalizedUniqueIndex,
   renameDuplicateTagNames,
+  rewriteTrashedTagNames,
   TAGS_NAME_NORMALIZED_UNIQUE_INDEX,
 } from './ensureGlobalUniqueTagNames'
 
@@ -109,5 +110,87 @@ describe('ensureGlobalUniqueTagNames', () => {
     expect(() => {
       sqlite.prepare('INSERT INTO tags (id, name, metaId) VALUES (99, ?, 2)').run('ALICE')
     }).toThrow()
+  })
+
+  it('does not rename live tags to resolve collisions with trashed names', () => {
+    sqlite = new Database(':memory:')
+    sqlite.exec(`
+      CREATE TABLE tags (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        metaId INTEGER,
+        deletedAt TEXT,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO tags (id, name, metaId, deletedAt) VALUES
+        (1, 'Alice', 1, '2024-01-01'),
+        (2, 'Alice', 1, NULL);
+    `)
+
+    expect(renameDuplicateTagNames(sqlite)).toBe(0)
+    const rows = sqlite.prepare('SELECT id, name FROM tags ORDER BY id').all() as Array<{id: number; name: string}>
+    expect(rows).toEqual([
+      {id: 1, name: 'Alice'},
+      {id: 2, name: 'Alice'},
+    ])
+  })
+
+  it('rewrites leftover trashed names and uses an active-only unique index', () => {
+    sqlite = new Database(':memory:')
+    sqlite.exec(`
+      CREATE TABLE tags (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        metaId INTEGER,
+        deletedAt TEXT,
+        trashOriginalName TEXT,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO tags (id, name, metaId, deletedAt) VALUES
+        (1, 'Alice', 1, '2024-01-01');
+    `)
+
+    expect(rewriteTrashedTagNames(sqlite)).toBe(1)
+    const trashed = sqlite.prepare('SELECT name, trashOriginalName FROM tags WHERE id = 1')
+      .get() as {name: string; trashOriginalName: string}
+    expect(trashed.trashOriginalName).toBe('Alice')
+    expect(trashed.name).toContain('__mediachips_trash__')
+
+    expect(ensureTagsNameNormalizedUniqueIndex(sqlite)).toBe(true)
+    const index = sqlite.prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
+    ).get(TAGS_NAME_NORMALIZED_UNIQUE_INDEX) as {sql: string}
+    expect(index.sql).toMatch(/deletedAt/i)
+
+    sqlite.prepare('INSERT INTO tags (id, name, metaId) VALUES (2, ?, 1)').run('Alice')
+    const live = sqlite.prepare('SELECT name FROM tags WHERE id = 2').get() as {name: string}
+    expect(live.name).toBe('Alice')
+  })
+
+  it('upgrades a legacy full unique index so deleted tags do not block names', () => {
+    sqlite = new Database(':memory:')
+    sqlite.exec(`
+      CREATE TABLE tags (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        metaId INTEGER,
+        deletedAt TEXT,
+        trashOriginalName TEXT,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE UNIQUE INDEX "${TAGS_NAME_NORMALIZED_UNIQUE_INDEX}" ON "tags" (lower(trim("name")));
+      INSERT INTO tags (id, name, metaId, deletedAt) VALUES
+        (1, 'Alice', 1, '2024-01-01');
+    `)
+
+    expect(() => {
+      sqlite.prepare('INSERT INTO tags (id, name, metaId) VALUES (2, ?, 1)').run('Alice')
+    }).toThrow()
+
+    expect(ensureTagsNameNormalizedUniqueIndex(sqlite)).toBe(true)
+    sqlite.prepare('INSERT INTO tags (id, name, metaId) VALUES (2, ?, 1)').run('Alice')
+    expect(
+      sqlite.prepare('SELECT name FROM tags WHERE id = 2').get() as {name: string},
+    ).toEqual({name: 'Alice'})
   })
 })

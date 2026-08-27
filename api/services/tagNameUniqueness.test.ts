@@ -4,7 +4,9 @@ import { createTestDb, closeTestDb } from '../db/testUtils/createTestDb'
 import {
   assertTagNameAvailable,
   assertTagNamesAvailable,
+  findTrashedTagsByNormalizedNames,
   TagNameConflictError,
+  TagNameInTrashError,
 } from './tagNameUniqueness'
 
 describe('tagNameUniqueness', () => {
@@ -35,5 +37,27 @@ describe('tagNameUniqueness', () => {
   it('rejects duplicates within the same request batch', () => {
     openDb()
     expect(() => assertTagNamesAvailable(sqlite, ['New', 'new'])).toThrow(TagNameConflictError)
+  })
+
+  it('ignores soft-deleted tags when checking availability', () => {
+    openDb()
+    sqlite.prepare(`UPDATE tags SET deletedAt = ? WHERE id = 1`).run('2024-01-01')
+    expect(() => assertTagNameAvailable(sqlite, 'Alice')).not.toThrow()
+  })
+
+  it('finds trashed tags by original name', () => {
+    openDb()
+    sqlite.prepare(`
+      UPDATE tags
+      SET deletedAt = ?, trashOriginalName = name, name = ?
+      WHERE id = 1
+    `).run('2024-01-01', '__mediachips_trash__/1/Alice')
+
+    const matches = findTrashedTagsByNormalizedNames(sqlite, ['alice'])
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toMatchObject({id: 1, originalName: 'Alice'})
+    expect(() => {
+      throw new TagNameInTrashError(matches)
+    }).toThrow(TagNameInTrashError)
   })
 })

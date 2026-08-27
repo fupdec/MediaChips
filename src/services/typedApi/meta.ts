@@ -29,6 +29,7 @@ import type { Meta, Tag, MarkFilterMeta, MetaWritePayload } from '@shared/entiti
 import type {
   CreateTagPayload,
   CreateTagsInMediaOnePayload,
+  CreateTagsInTagOnePayload,
   DuplicateCategoryPayload,
   DuplicateTagPayload,
   MediaTypeWritePayload,
@@ -316,12 +317,23 @@ export const metaApi = {
     }))
   },
 
+  createTagsInTagOne(body: CreateTagsInTagOnePayload) {
+    return apiClient.post(API_ROUTES.tagsInTagCreateOne, body).then((res) => ({
+      ...res,
+      data: Array.isArray(res.data) ? res.data as [unknown, boolean?] : res.data,
+    }))
+  },
+
   postTagsInMedia(body: unknown[]) {
     return apiClient.post(API_ROUTES.tagsInMedia, body)
   },
 
-  createTags(body: CreateTagPayload[]) {
-    return apiClient.post<Tag[]>(API_ROUTES.tag, body).then((res) => ({
+  createTags(body: CreateTagPayload[], options?: {onTrashNameConflict?: 'restore' | 'purge' | 'create'}) {
+    return apiClient.post<Tag[]>(API_ROUTES.tag, body, {
+      params: options?.onTrashNameConflict
+        ? {onTrashNameConflict: options.onTrashNameConflict}
+        : undefined,
+    }).then((res) => ({
       ...res,
       data: validated(parseTags, res.data),
     }))

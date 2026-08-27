@@ -116,7 +116,10 @@ export async function findOrCreateTagByName(
   name: string,
   metaId: number,
   allTags: Tag[],
-  createTags: (payload: Array<{ name: string; metaId: number }>) => Promise<{ data: Array<{ id: number; name?: string | null }> }>,
+  createTags: (
+    payload: Array<{ name: string; metaId: number }>,
+    options?: { onTrashNameConflict?: 'create' | 'restore' | 'purge' },
+  ) => Promise<{ data: Array<{ id: number; name?: string | null }> }>,
 ): Promise<number> {
   const existingInCategory = findTagByNameOrSynonym(metaId, name, allTags)
   if (existingInCategory) return existingInCategory.id
@@ -126,7 +129,7 @@ export async function findOrCreateTagByName(
   if (existingGlobal) return existingGlobal.id
 
   try {
-    const response = await createTags([{ name, metaId }])
+    const response = await createTags([{ name, metaId }], { onTrashNameConflict: 'create' })
     const created = response.data[0]
     if (!created?.id) {
       throw new Error(`Failed to create tag "${name}"`)

@@ -1,7 +1,11 @@
 import type Database from 'better-sqlite3'
+import { buildTrashTagName, isTrashTagName } from '../../shared/entityTrash'
 import { normalizeTagName } from '../services/tagMoveToCategory'
 
 export const TAGS_NAME_NORMALIZED_UNIQUE_INDEX = 'tags_name_normalized_unique'
+
+export const TAGS_NAME_NORMALIZED_UNIQUE_INDEX_WHERE =
+  `"deletedAt" IS NULL OR "deletedAt" = ''`
 
 export type TagNameOwner = {
   name?: unknown
@@ -84,13 +88,12 @@ export function assignUniqueNormalizedTagNames<T extends TagNameOwner>(
  * Keep both tags when names collide across categories: the lowest id keeps the
  * bare name; others become "Name (Category)" (with numeric suffixes if needed).
  * Idempotent once names are unique under normalizeTagName.
+ * Soft-deleted tags are ignored so trash rows cannot rename live names.
  */
 export function renameDuplicateTagNames(sqlite: Database.Database): number {
   if (!hasTable(sqlite, 'tags')) return 0
 
-  const rows = sqlite.prepare(
-    `SELECT id, name, metaId FROM tags ORDER BY id ASC`,
-  ).all() as TagNameRow[]
+  const rows = sqlite.prepare(selectActiveTagNamesSql(sqlite)).all() as TagNameRow[]
 
   if (rows.length < 2) return 0
 
@@ -122,15 +125,75 @@ export function renameDuplicateTagNames(sqlite: Database.Database): number {
   return renamed
 }
 
+/** Move leftover trashed tags off the live name so recreating the original name works. */
+export function rewriteTrashedTagNames(sqlite: Database.Database): number {
+  if (!hasTable(sqlite, 'tags') || !hasColumn(sqlite, 'tags', 'deletedAt')) return 0
+
+  const hasTrashOriginalName = hasColumn(sqlite, 'tags', 'trashOriginalName')
+  const rows = sqlite.prepare(`
+    SELECT id, name${hasTrashOriginalName ? ', trashOriginalName' : ''}
+    FROM tags
+    WHERE deletedAt IS NOT NULL AND deletedAt != ''
+  `).all() as Array<{id: number; name: string; trashOriginalName?: string | null}>
+
+  if (!rows.length) return 0
+
+  const update = hasTrashOriginalName
+    ? sqlite.prepare(`
+        UPDATE tags SET name = ?, trashOriginalName = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?
+      `)
+    : sqlite.prepare(`
+        UPDATE tags SET name = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?
+      `)
+
+  let rewritten = 0
+  const run = sqlite.transaction(() => {
+    for (const row of rows) {
+      if (isTrashTagName(row.name)) continue
+      const originalName = String(row.trashOriginalName || row.name || '')
+      const trashName = buildTrashTagName(row.id, originalName)
+      if (hasTrashOriginalName) update.run(trashName, originalName || null, row.id)
+      else update.run(trashName, row.id)
+      rewritten += 1
+    }
+  })
+  run()
+  return rewritten
+}
+
 export function ensureTagsNameNormalizedUniqueIndex(sqlite: Database.Database): boolean {
   if (!hasTable(sqlite, 'tags')) return false
-  if (hasIndex(sqlite, TAGS_NAME_NORMALIZED_UNIQUE_INDEX)) return false
+
+  rewriteTrashedTagNames(sqlite)
+
+  const wantsPartial = hasColumn(sqlite, 'tags', 'deletedAt')
+  const existingSql = getIndexSql(sqlite, TAGS_NAME_NORMALIZED_UNIQUE_INDEX)
+  const isPartial = Boolean(existingSql && /deletedAt/i.test(existingSql))
+  if (existingSql && (!wantsPartial || isPartial)) return false
+
+  if (existingSql) {
+    sqlite.exec(`DROP INDEX IF EXISTS "${TAGS_NAME_NORMALIZED_UNIQUE_INDEX}"`)
+  }
 
   renameDuplicateTagNames(sqlite)
-  sqlite.exec(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "${TAGS_NAME_NORMALIZED_UNIQUE_INDEX}" ON "tags" (lower(trim("name")))`,
-  )
+  sqlite.exec(buildTagsNameNormalizedUniqueIndexSql(wantsPartial))
   return true
+}
+
+export function buildTagsNameNormalizedUniqueIndexSql(partial: boolean): string {
+  const whereClause = partial ? ` WHERE ${TAGS_NAME_NORMALIZED_UNIQUE_INDEX_WHERE}` : ''
+  return `CREATE UNIQUE INDEX IF NOT EXISTS "${TAGS_NAME_NORMALIZED_UNIQUE_INDEX}" ON "tags" (lower(trim("name")))${whereClause}`
+}
+
+function selectActiveTagNamesSql(sqlite: Database.Database): string {
+  if (!hasColumn(sqlite, 'tags', 'deletedAt')) {
+    return `SELECT id, name, metaId FROM tags ORDER BY id ASC`
+  }
+  return `
+    SELECT id, name, metaId FROM tags
+    WHERE deletedAt IS NULL OR deletedAt = ''
+    ORDER BY id ASC
+  `
 }
 
 function hasTable(sqlite: Database.Database, tableName: string): boolean {
@@ -140,9 +203,15 @@ function hasTable(sqlite: Database.Database, tableName: string): boolean {
   return Boolean(row)
 }
 
-function hasIndex(sqlite: Database.Database, indexName: string): boolean {
+function hasColumn(sqlite: Database.Database, tableName: string, columnName: string): boolean {
+  if (!hasTable(sqlite, tableName)) return false
+  const columns = sqlite.pragma(`table_info(${tableName})`) as Array<{name: string}>
+  return columns.some((column) => column.name === columnName)
+}
+
+function getIndexSql(sqlite: Database.Database, indexName: string): string | null {
   const row = sqlite.prepare(
-    `SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`,
-  ).get(indexName) as {name: string} | undefined
-  return Boolean(row)
+    `SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`,
+  ).get(indexName) as {sql: string | null} | undefined
+  return row?.sql ?? null
 }

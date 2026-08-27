@@ -153,7 +153,7 @@ export async function acceptSuggestedTagsAndAssign(
   const toCreate = unique.filter((name) => !existing.has(name.toLowerCase()))
 
   if (toCreate.length > 0) {
-    await typedApi.createTags(toCreate.map((name) => ({name, metaId})))
+    await typedApi.createTags(toCreate.map((name) => ({name, metaId})), {onTrashNameConflict: 'create'})
     await reloadTagsCatalog()
   }
 

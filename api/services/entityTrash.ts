@@ -6,6 +6,7 @@ import {
   ENTITY_TRASH_RETENTION_DAYS,
   inTrashSql,
   isPastTrashRetention,
+  isTrashTagName,
   type TrashEntityKind,
 } from '../../shared/entityTrash'
 
@@ -109,14 +110,16 @@ export function softDeleteTag(db: ApiDb, tagId: number): boolean {
   const id = Number(tagId)
   if (!Number.isFinite(id) || id <= 0) return false
   const row = queryGet<AnyRecord>(db, `
-    SELECT id, name, deletedAt FROM tags WHERE id = :id LIMIT 1
+    SELECT id, name, deletedAt, trashOriginalName FROM tags WHERE id = :id LIMIT 1
   `, {id})
   if (!row) return false
-  if (row.deletedAt) return true
 
-  const originalName = String(row.name || '')
+  const currentName = String(row.name || '')
+  const originalName = String(row.trashOriginalName || currentName || '')
+  if (row.deletedAt && isTrashTagName(currentName)) return true
+
   const trashName = buildTrashTagName(id, originalName)
-  const deletedAt = nowIso()
+  const deletedAt = row.deletedAt ? String(row.deletedAt) : nowIso()
   db.sqlite.prepare(`
     UPDATE tags
     SET deletedAt = ?,

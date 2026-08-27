@@ -90,6 +90,12 @@ export type CreateTagsInMediaOnePayload = {
   [key: string]: unknown
 }
 
+export type CreateTagsInTagOnePayload = {
+  parentTagId: number
+  tagId: number
+  metaId: number
+}
+
 export interface FilterTagsPayload {
   metaId?: number
   page?: number
@@ -430,4 +436,36 @@ export interface ConversionJobResponse {
   status: string
   createdAt: number
   items: Array<{id: number; path: string; status: string; progress: number; etaSeconds?: number; speed?: number; estimatedSizeBytes?: number; outputSizeBytes?: number; outputPath?: string; codec?: 'hevc' | 'h264'; fallback?: boolean; error?: string; warning?: string}>
+}
+
+export interface LibraryResetMediaPayload {
+  mediaTypeId: number | 'all'
+  permanent?: boolean
+  withFile?: boolean
+}
+
+export interface LibraryResetTagsPayload {
+  metaId: number | 'all'
+  permanent?: boolean
+}
+
+export interface LibraryResetCounts {
+  mediaByType: Record<number, number>
+  mediaTotal: number
+  tagsByMeta: Record<number, number>
+  tagsTotal: number
+}
+
+export interface LibraryResetStreamEvent {
+  type: 'progress' | 'complete' | 'error'
+  processed?: number
+  total?: number
+  deleted?: number
+  failed?: number
+  mediaDeleted?: number
+  tagsDeleted?: number
+  metaDeleted?: number
+  current?: string
+  message?: string
+  stopped?: boolean
 }

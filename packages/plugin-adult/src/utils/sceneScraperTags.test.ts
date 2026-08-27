@@ -118,6 +118,10 @@ describe('sceneScraperTags', () => {
     expect(firstId).toBe(42)
     expect(secondId).toBe(42)
     expect(createTags).toHaveBeenCalledTimes(1)
+    expect(createTags).toHaveBeenCalledWith(
+      [{ name: 'Jia Lissa', metaId: 10 }],
+      { onTrashNameConflict: 'create' },
+    )
     expect(allTags).toHaveLength(1)
     expect(allTags[0]).toMatchObject({ id: 42, name: 'Jia Lissa', metaId: 10 })
   })

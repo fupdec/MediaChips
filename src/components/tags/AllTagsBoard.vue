@@ -357,6 +357,9 @@ import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {useSettingsStore} from '@/stores/settings'
 import {typedApi} from '@/services/typedApi'
 import type {Meta, Tag} from '@/types/stores'
+import {clearMediaTagDrag} from '@/utils/mediaTagDrag'
+import {writeSessionFocusTagsMime} from '@/utils/sessionFocusDrag'
+import {normalizeSessionFocusTag} from '@/stores/sessionFocus'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
@@ -545,8 +548,22 @@ function onTagDragStart(tag: Tag, event: DragEvent) {
     : [tag.id]
   draggingTagIds.value = ids
 
+  const trayTags = resolveTagsByIds(ids)
+    .map((entry) => {
+      const meta = appStore.getMetaById(Number(entry.metaId))
+      return normalizeSessionFocusTag({
+        tagId: Number(entry.id),
+        metaId: Number(entry.metaId),
+        name: String(entry.name || ''),
+        icon: meta?.icon ? String(meta.icon) : null,
+        color: entry.color ? String(entry.color) : null,
+      })
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+  writeSessionFocusTagsMime(event, trayTags)
+
   if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.effectAllowed = 'copyMove'
     event.dataTransfer.setData('text/plain', ids.join(','))
   }
 }
@@ -554,6 +571,7 @@ function onTagDragStart(tag: Tag, event: DragEvent) {
 function onTagDragEnd() {
   dropTargetMetaId.value = null
   draggingTagIds.value = []
+  clearMediaTagDrag()
 }
 
 function onCategoryDragOver(category: Meta, event: DragEvent) {

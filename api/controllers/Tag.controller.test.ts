@@ -63,7 +63,10 @@ vi.mock('../services/thumbEncoding', () => ({
 vi.mock('../services/tagNameUniqueness', () => ({
   assertTagNameAvailable: vi.fn(),
   assertTagNamesAvailable: vi.fn(),
+  findTrashedTagsByNormalizedNames: vi.fn(() => []),
+  summarizeTrashedNameMatches: vi.fn(() => ({newest: [], extraIds: [], ids: [], tags: []})),
   TagNameConflictError: class TagNameConflictError extends Error {},
+  TagNameInTrashError: class TagNameInTrashError extends Error {},
 }))
 
 import createTagController from './Tag.controller'

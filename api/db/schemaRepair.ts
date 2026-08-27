@@ -127,6 +127,27 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'savedFilters', column: 'filtersJoin', definition: "text DEFAULT 'and'"},
 ]
 
+/** Drop join rows left behind after a watched folder or media type was deleted. */
+export function repairOrphanedWatchedFolderLinks(sqlite: Database.Database): number {
+  if (!hasTable(sqlite, 'mediaTypesInWatchedFolders')) return 0
+
+  const conditions: string[] = []
+  if (hasTable(sqlite, 'watchedFolders')) {
+    conditions.push('"folderId" NOT IN (SELECT "id" FROM "watchedFolders")')
+  }
+  if (hasTable(sqlite, 'mediaTypes')) {
+    conditions.push('"mediaTypeId" NOT IN (SELECT "id" FROM "mediaTypes")')
+  }
+  if (!conditions.length) return 0
+
+  const result = sqlite.prepare(`
+    DELETE FROM "mediaTypesInWatchedFolders"
+    WHERE ${conditions.join(' OR ')}
+  `).run()
+
+  return Number(result.changes ?? 0)
+}
+
 export function repairSchemaColumns(sqlite: Database.Database): string[] {
   const repaired: string[] = []
 

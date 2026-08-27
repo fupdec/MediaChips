@@ -121,6 +121,11 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       meta: null as Meta | null,
     },
     mediaTrash: { show: false },
+    tagTrashConflict: {
+      show: false,
+      tags: [] as Array<{id: number; name: string; metaId?: number | null}>,
+      resolve: null as ((action: 'restore' | 'purge' | 'cancel') => void) | null,
+    },
     videoConversion: { show: false, items: [] as MediaItem[] },
   }),
   actions: {
@@ -137,6 +142,23 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     },
     closeMediaTrash() {
       this.mediaTrash.show = false
+    },
+    promptTagTrashConflict(
+      tags: Array<{id: number; name: string; metaId?: number | null}>,
+    ): Promise<'restore' | 'purge' | 'cancel'> {
+      this.closeTagTrashConflict('cancel')
+      return new Promise((resolve) => {
+        this.tagTrashConflict.tags = tags
+        this.tagTrashConflict.resolve = resolve
+        this.tagTrashConflict.show = true
+      })
+    },
+    closeTagTrashConflict(action: 'restore' | 'purge' | 'cancel' = 'cancel') {
+      const resolve = this.tagTrashConflict.resolve
+      this.tagTrashConflict.show = false
+      this.tagTrashConflict.tags = []
+      this.tagTrashConflict.resolve = null
+      resolve?.(action)
     },
     editMedia(media: MediaItem | null, mediaType: MediaType | null = null) {
       const appStore = useAppStore()

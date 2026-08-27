@@ -359,7 +359,7 @@ const deleteTag = async () => {
       type: 'tag',
     })
 
-    void reloadTagsCatalog()
+    await reloadTagsCatalog()
 
     forceClose()
 

@@ -45,6 +45,125 @@ export function assertTagNameAvailable(
   )
 }
 
+export class TagNameInTrashError extends HttpError {
+  code = 'name_in_trash' as const
+  tags: TrashedTagConflictTag[]
+  ids: number[]
+
+  constructor(matches: TrashedTagNameMatch[]) {
+    const summary = summarizeTrashedNameMatches(matches)
+    const names = summary.newest.map((match) => match.originalName)
+    const label = names.length === 1 ? names[0] : names.join(', ')
+    super(409, `Tag name "${label}" is in Trash`, {
+      code: 'name_in_trash',
+      tags: summary.tags,
+      ids: summary.ids,
+    })
+    this.name = 'TagNameInTrashError'
+    this.tags = summary.tags
+    this.ids = summary.ids
+  }
+}
+
+export type TrashedTagNameMatch = {
+  id: number
+  name: string
+  originalName: string
+  metaId: number | null
+  deletedAt: string
+}
+
+export type TrashedTagConflictTag = {
+  id: number
+  name: string
+  metaId: number | null
+  deletedAt: string
+}
+
+export function summarizeTrashedNameMatches(matches: TrashedTagNameMatch[]): {
+  newest: TrashedTagNameMatch[]
+  extraIds: number[]
+  ids: number[]
+  tags: TrashedTagConflictTag[]
+} {
+  const newest: TrashedTagNameMatch[] = []
+  const extraIds: number[] = []
+  const seen = new Set<string>()
+
+  const sorted = [...matches].sort((left, right) => {
+    const byDate = String(right.deletedAt || '').localeCompare(String(left.deletedAt || ''))
+    return byDate !== 0 ? byDate : right.id - left.id
+  })
+
+  for (const match of sorted) {
+    const key = normalizeTagName(match.originalName)
+    if (!key) continue
+    if (seen.has(key)) {
+      extraIds.push(match.id)
+      continue
+    }
+    seen.add(key)
+    newest.push(match)
+  }
+
+  return {
+    newest,
+    extraIds,
+    ids: [...new Set(matches.map((match) => match.id))],
+    tags: newest.map((match) => ({
+      id: match.id,
+      name: match.originalName,
+      metaId: match.metaId,
+      deletedAt: match.deletedAt,
+    })),
+  }
+}
+
+export function findTrashedTagsByNormalizedNames(
+  sqlite: Database.Database,
+  names: string[],
+): TrashedTagNameMatch[] {
+  const keys = [...new Set(names.map((name) => normalizeTagName(name)).filter(Boolean))]
+  if (!keys.length) return []
+
+  const stmt = sqlite.prepare(`
+    SELECT id, name, trashOriginalName, metaId, deletedAt
+    FROM tags
+    WHERE deletedAt IS NOT NULL AND deletedAt != ''
+      AND (
+        lower(trim(COALESCE(trashOriginalName, ''))) = ?
+        OR (
+          (trashOriginalName IS NULL OR trashOriginalName = '')
+          AND lower(trim(name)) = ?
+        )
+      )
+  `)
+
+  const byId = new Map<number, TrashedTagNameMatch>()
+  for (const key of keys) {
+    const rows = stmt.all(key, key) as Array<{
+      id: number
+      name: string | null
+      trashOriginalName: string | null
+      metaId: number | null
+      deletedAt: string | null
+    }>
+    for (const row of rows) {
+      const originalName = String(row.trashOriginalName || row.name || '').trim()
+      if (!originalName) continue
+      byId.set(row.id, {
+        id: row.id,
+        name: String(row.name || ''),
+        originalName,
+        metaId: row.metaId == null ? null : Number(row.metaId),
+        deletedAt: String(row.deletedAt || ''),
+      })
+    }
+  }
+
+  return [...byId.values()]
+}
+
 export function assertTagNamesAvailable(
   sqlite: Database.Database,
   names: string[],

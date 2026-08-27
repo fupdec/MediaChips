@@ -14,10 +14,16 @@ export function inTrashSql(tableAlias: string): string {
   return `(${tableAlias}.deletedAt IS NOT NULL AND ${tableAlias}.deletedAt != '')`
 }
 
+export const TRASH_TAG_NAME_PREFIX = '__mediachips_trash__/'
+
+export function isTrashTagName(name: string | null | undefined): boolean {
+  return String(name || '').startsWith(TRASH_TAG_NAME_PREFIX)
+}
+
 /** Free unique name indexes while a tag is in trash (mirrors media path rewrite). */
 export function buildTrashTagName(tagId: number, originalName?: string | null): string {
   const safe = String(originalName || 'tag').replace(/[\\/]/g, '_').trim() || 'tag'
-  return `__mediachips_trash__/${Number(tagId)}/${safe}`
+  return `${TRASH_TAG_NAME_PREFIX}${Number(tagId)}/${safe}`
 }
 
 export function isPastTrashRetention(

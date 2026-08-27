@@ -36,9 +36,14 @@ describe('postMigrations', () => {
       expect(sqlite.prepare(`SELECT COUNT(*) as count FROM tags`).get()).toEqual({count: 24})
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='media_media_type_id_idx'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='tags_name_normalized_unique'`).get()).toBeTruthy()
+      expect(
+        (sqlite.prepare(
+          `SELECT sql FROM sqlite_master WHERE type='index' AND name='tags_name_normalized_unique'`,
+        ).get() as {sql: string}).sql,
+      ).toMatch(/deletedAt/i)
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media_fts'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tags_fts'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 27})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 29})
 
       const mediaMeta = (
         sqlite.prepare(`
@@ -205,6 +210,37 @@ describe('postMigrations', () => {
         after.prepare(`SELECT name FROM tags ORDER BY name`).all() as Array<{name: string}>
       ).map((row) => row.name)
       expect(tagNames).toEqual(['Favorites', 'Rewatch', 'Watch later'])
+    } finally {
+      after.close()
+    }
+  })
+
+  it('removes orphaned mediaTypesInWatchedFolders rows on boot', async () => {
+    const dbPath = createTempDbPath()
+    await bootstrapDatabase(dbPath)
+
+    const sqlite = new Database(dbPath)
+    try {
+      const mediaTypeId = (
+        sqlite.prepare(`SELECT id FROM mediaTypes ORDER BY id LIMIT 1`).get() as {id: number}
+      ).id
+      sqlite.prepare(
+        `INSERT INTO mediaTypesInWatchedFolders (folderId, mediaTypeId) VALUES (999, ?)`,
+      ).run(mediaTypeId)
+      expect(
+        sqlite.prepare(`SELECT COUNT(*) as count FROM mediaTypesInWatchedFolders`).get(),
+      ).toEqual({count: 1})
+    } finally {
+      sqlite.close()
+    }
+
+    runPostMigrations(dbPath)
+
+    const after = new Database(dbPath)
+    try {
+      expect(
+        after.prepare(`SELECT COUNT(*) as count FROM mediaTypesInWatchedFolders`).get(),
+      ).toEqual({count: 0})
     } finally {
       after.close()
     }

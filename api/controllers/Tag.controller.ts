@@ -29,11 +29,15 @@ import { findDefaultTagCategoryId } from '../services/defaultTagCategory'
 import { mergeTagsInCategory } from '../services/tagMerge'
 import {
   moveTagsToCategory,
+  normalizeTagName,
 } from '../services/tagMoveToCategory'
 import { duplicateTag } from '../services/tagDuplicate'
 import {
   assertTagNameAvailable,
   assertTagNamesAvailable,
+  findTrashedTagsByNormalizedNames,
+  summarizeTrashedNameMatches,
+  TagNameInTrashError,
 } from '../services/tagNameUniqueness'
 import { loadTagItems } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
@@ -47,6 +51,25 @@ export default function (db: ApiDb) {
   const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
   const marksRepo = createMarksRepository(db.drizzle)
   const getDbPath = () => db.path!
+
+  async function purgeTrashedTagIds(ids: number[]): Promise<number[]> {
+    const targets = getTrashedTagsForPurge(db, ids)
+    const deletedIds: number[] = []
+    for (const target of targets) {
+      const tag = tagsRepo.findById(target.id)
+      if (!tag) continue
+      const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
+        ? tag.trashOriginalName.trim()
+        : (typeof tag.name === 'string' ? tag.name.trim() : '')
+      marksRepo.convertMetaMarksToBookmarksByTagId(target.id, displayName)
+      if (tag.metaId) {
+        await deleteTagGeneratedAssets(getDbPath(), tag.metaId, target.id)
+      }
+      tagsRepo.deleteById(target.id)
+      deletedIds.push(target.id)
+    }
+    return deletedIds
+  }
 
   const getAllForItems = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<TagItemsListRequest>(req)
@@ -90,7 +113,7 @@ export default function (db: ApiDb) {
     }
   };
 
-  const create = function (req: ApiRequest, res: ApiResponse) {
+  const create = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<CreateTagPayload[]>(req)
       if (!Array.isArray(body) || !body.length) {
@@ -117,6 +140,35 @@ export default function (db: ApiDb) {
         db.sqlite,
         items.map((item) => String(item.name ?? '')),
       )
+
+      const trashMatches = findTrashedTagsByNormalizedNames(
+        db.sqlite,
+        items.map((item) => String(item.name ?? '')),
+      )
+      const trashMode = parseTrashNameConflictMode(req)
+      if (trashMatches.length && trashMode == null) {
+        throw new TagNameInTrashError(trashMatches)
+      }
+
+      if (trashMatches.length && trashMode === 'restore') {
+        const summary = summarizeTrashedNameMatches(trashMatches)
+        if (summary.extraIds.length) {
+          await purgeTrashedTagIds(summary.extraIds)
+        }
+        const restoredIds = restoreTrashTags(db, summary.newest.map((match) => match.id))
+        const restored = restoredIds
+          .map((id) => tagsRepo.findById(id))
+          .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag))
+        const restoredKeys = new Set(restored.map((tag) => normalizeTagName(tag.name)))
+        const remaining = items.filter((item) => !restoredKeys.has(normalizeTagName(item.name)))
+        const created = remaining.length ? tagsRepo.bulkCreate(remaining) : []
+        sendCreated(res, alignTagsToRequestedNames(items, [...restored, ...created]))
+        return
+      }
+
+      if (trashMatches.length && trashMode === 'purge') {
+        await purgeTrashedTagIds(trashMatches.map((match) => match.id))
+      }
 
       const data = tagsRepo.bulkCreate(items)
       sendCreated(res, data)
@@ -311,21 +363,7 @@ export default function (db: ApiDb) {
     try {
       const body = getRequestBody<{ids?: Array<number | string>}>(req)
       const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
-      const targets = getTrashedTagsForPurge(db, ids)
-      const deletedIds: number[] = []
-      for (const target of targets) {
-        const tag = tagsRepo.findById(target.id)
-        if (!tag) continue
-        const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
-          ? tag.trashOriginalName.trim()
-          : (typeof tag.name === 'string' ? tag.name.trim() : '')
-        marksRepo.convertMetaMarksToBookmarksByTagId(target.id, displayName)
-        if (tag.metaId) {
-          await deleteTagGeneratedAssets(getDbPath(), tag.metaId, target.id)
-        }
-        tagsRepo.deleteById(target.id)
-        deletedIds.push(target.id)
-      }
+      const deletedIds = await purgeTrashedTagIds(ids)
       sendOk(res, {deletedIds})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while purging trash.')
@@ -335,21 +373,7 @@ export default function (db: ApiDb) {
   const purgeExpiredTrash = async function (_req: ApiRequest, res: ApiResponse) {
     try {
       const ids = listExpiredTagIds(db)
-      const targets = getTrashedTagsForPurge(db, ids)
-      const deletedIds: number[] = []
-      for (const target of targets) {
-        const tag = tagsRepo.findById(target.id)
-        if (!tag) continue
-        const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
-          ? tag.trashOriginalName.trim()
-          : (typeof tag.name === 'string' ? tag.name.trim() : '')
-        marksRepo.convertMetaMarksToBookmarksByTagId(target.id, displayName)
-        if (tag.metaId) {
-          await deleteTagGeneratedAssets(getDbPath(), tag.metaId, target.id)
-        }
-        tagsRepo.deleteById(target.id)
-        deletedIds.push(target.id)
-      }
+      const deletedIds = await purgeTrashedTagIds(ids)
       sendOk(res, {deletedIds})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while purging expired trash.')
@@ -419,4 +443,28 @@ export default function (db: ApiDb) {
     purgeTrash,
     purgeExpiredTrash,
   }
+}
+
+type TrashNameConflictMode = 'restore' | 'purge' | 'create'
+
+function parseTrashNameConflictMode(req: ApiRequest): TrashNameConflictMode | null {
+  const raw = (req.query as {onTrashNameConflict?: unknown} | undefined)?.onTrashNameConflict
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (value === 'restore' || value === 'purge' || value === 'create') return value
+  return null
+}
+
+function alignTagsToRequestedNames<T extends {name?: string | null}>(
+  items: Array<{name?: unknown}>,
+  tags: T[],
+): T[] {
+  const byKey = new Map<string, T>()
+  for (const tag of tags) {
+    const key = normalizeTagName(tag.name)
+    if (!key || byKey.has(key)) continue
+    byKey.set(key, tag)
+  }
+  return items
+    .map((item) => byKey.get(normalizeTagName(item.name)))
+    .filter((tag): tag is T => Boolean(tag))
 }

@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from './schemaRepair'
+import { repairSchemaColumns, repairMissingTables, repairMissingIndexes, repairOrphanedWatchedFolderLinks } from './schemaRepair'
 
 describe('schemaRepair', () => {
   let tempDir: string
@@ -143,6 +143,35 @@ describe('schemaRepair', () => {
     expect(repairMissingIndexes(sqlite)).not.toContain('tags_name_normalized_unique')
   })
 
+  it('upgrades a full tag-name unique index to ignore soft-deleted rows', () => {
+    sqlite.exec(`
+      CREATE TABLE tags (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        metaId INTEGER,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE UNIQUE INDEX tags_name_normalized_unique ON tags (lower(trim(name)));
+      INSERT INTO tags (id, name, metaId) VALUES (1, 'Alice', 1);
+    `)
+
+    repairSchemaColumns(sqlite)
+    sqlite.prepare(`UPDATE tags SET deletedAt = ? WHERE id = 1`).run('2024-01-01')
+
+    const repaired = repairMissingIndexes(sqlite)
+    expect(repaired).toContain('tags_name_normalized_unique')
+
+    const index = sqlite.prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'tags_name_normalized_unique'`,
+    ).get() as {sql: string}
+    expect(index.sql).toMatch(/deletedAt/i)
+
+    sqlite.prepare(`INSERT INTO tags (id, name, metaId, updatedAt) VALUES (2, 'Alice', 1, 't')`).run()
+    expect(
+      sqlite.prepare('SELECT name FROM tags WHERE id = 2').get() as {name: string},
+    ).toEqual({name: 'Alice'})
+  })
+
   it('adds folder/media tag filter indexes for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE tagsInFolders (
@@ -242,5 +271,43 @@ describe('schemaRepair', () => {
     expect(repaired).toContain('filterRows.order')
     const columns = sqlite.pragma('table_info(filterRows)') as Array<{name: string}>
     expect(columns.some((column) => column.name === 'order')).toBe(true)
+  })
+
+  it('removes orphaned mediaTypesInWatchedFolders rows', () => {
+    sqlite.exec(`
+      CREATE TABLE mediaTypes (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name text,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+      CREATE TABLE watchedFolders (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        path text,
+        name text,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+      CREATE TABLE mediaTypesInWatchedFolders (
+        folderId integer NOT NULL,
+        mediaTypeId integer NOT NULL,
+        PRIMARY KEY (folderId, mediaTypeId)
+      );
+    `)
+    sqlite.prepare(
+      `INSERT INTO mediaTypes (id, name, createdAt, updatedAt) VALUES (1, 'Videos', 't', 't')`,
+    ).run()
+    sqlite.prepare(
+      `INSERT INTO watchedFolders (id, path, name, createdAt, updatedAt) VALUES (1, '/media', 'Media', 't', 't')`,
+    ).run()
+    sqlite.prepare(
+      `INSERT INTO mediaTypesInWatchedFolders (folderId, mediaTypeId) VALUES (1, 1), (99, 1), (1, 99)`,
+    ).run()
+
+    expect(repairOrphanedWatchedFolderLinks(sqlite)).toBe(2)
+    expect(
+      sqlite.prepare('SELECT folderId, mediaTypeId FROM mediaTypesInWatchedFolders').all(),
+    ).toEqual([{folderId: 1, mediaTypeId: 1}])
+    expect(repairOrphanedWatchedFolderLinks(sqlite)).toBe(0)
   })
 })

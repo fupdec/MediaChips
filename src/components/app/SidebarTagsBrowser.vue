@@ -272,6 +272,7 @@ import {metaPath, useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {setNotification} from '@/services/notificationService'
@@ -530,8 +531,9 @@ async function createTagInCategory(metaId: number): Promise<void> {
 
   creatingTag.value = true
   try {
-    const res = await typedApi.createTags([{name, metaId}])
-    const created = res.data?.[0]
+    const createdTags = await createTagsInteractive([{name, metaId}])
+    const created = createdTags?.[0]
+    if (!created) return
     await reloadTagsCatalog()
 
     setNotification({
