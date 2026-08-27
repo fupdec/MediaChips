@@ -31,7 +31,7 @@ export const homeApi = {
     }))
   },
 
-  getHomeSimilar(params?: {limit?: number}) {
+  getHomeSimilar(params?: {limit?: number; excludeSeedId?: number}) {
     return apiClient.get(API_ROUTES.homeSimilar, {params}).then((res) => ({
       ...res,
       data: validated(parseHomeSimilarResponse, res.data),

@@ -64,16 +64,30 @@ function insertClipEmbedding(db: ApiDb, mediaId: number, vectors: ClipEmbeddingV
 }
 
 describe('orderHomeSimilarSeeds', () => {
-  it('fills early slots from viewed with the configured bias', () => {
+  it('fills early slots from viewed when rng stays below the bias', () => {
     const viewed = [1, 2, 3, 4].map((id) => ({id, reason: 'viewed' as const}))
     const randomPool = [10, 11, 12, 13, 14, 15].map((id) => ({id, reason: 'any' as const}))
-    // random() always 0 → shuffle is a deterministic rotate; bias 0.5 of 8 → 4 viewed first
+    // random() always 0 → shuffle is a deterministic rotate; 0 < 0.5 → viewed first
     const ordered = orderHomeSimilarSeeds(viewed, randomPool, {
       limit: 8,
       viewedBias: 0.5,
       random: () => 0,
     })
     expect(ordered.slice(0, 4).every((seed) => seed.reason === 'viewed')).toBe(true)
+    expect(ordered.length).toBe(8)
+    expect(new Set(ordered.map((seed) => seed.id)).size).toBe(8)
+  })
+
+  it('draws first attempts from the random pool when rng is above the bias', () => {
+    const viewed = [1, 2, 3, 4].map((id) => ({id, reason: 'viewed' as const}))
+    const randomPool = [10, 11, 12, 13, 14, 15].map((id) => ({id, reason: 'any' as const}))
+    // 0.99 → identity shuffle and 0.99 < 0.4 is false, so random pool first
+    const ordered = orderHomeSimilarSeeds(viewed, randomPool, {
+      limit: 8,
+      viewedBias: 0.4,
+      random: () => 0.99,
+    })
+    expect(ordered.slice(0, 4).every((seed) => seed.reason === 'any')).toBe(true)
     expect(ordered.length).toBe(8)
     expect(new Set(ordered.map((seed) => seed.id)).size).toBe(8)
   })
@@ -176,5 +190,29 @@ describe('getHomeSimilar', () => {
 
     const parsed = parseHomeSimilarResponse(result)
     expect(parsed.items.find((item) => item.id === 2)?.similarity?.tileIndex).toBe(7)
+  })
+
+  it('skips an excluded seed so reshuffle can pick a different original', async () => {
+    db = createTestDb()
+    insertMedia(db, {id: 1, name: 'old-seed', viewedAt: '2026-08-10'})
+    linkTag(db, 1, 1)
+    linkTag(db, 1, 2)
+
+    insertMedia(db, {id: 2, name: 'old-neighbor'})
+    linkTag(db, 2, 1)
+    linkTag(db, 2, 2)
+
+    insertMedia(db, {id: 10, name: 'next-seed'})
+    linkTag(db, 10, 3)
+    linkTag(db, 10, 4)
+
+    insertMedia(db, {id: 11, name: 'next-neighbor'})
+    linkTag(db, 11, 3)
+    linkTag(db, 11, 4)
+
+    const result = await getHomeSimilar(db, {limit: 6, random: () => 0, excludeSeedId: 1})
+    expect(result.seed?.id).not.toBe(1)
+    expect(result.items.map((item) => item.id)).not.toContain(1)
+    expect(result.seed?.id).toBeTruthy()
   })
 })

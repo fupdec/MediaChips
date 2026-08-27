@@ -94,7 +94,11 @@ export default (db: ApiDb) => {
   const getSimilar = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const limit = parseClampedLimit(req.query.limit, 12)
-      const data = await getHomeSimilar(db, {limit})
+      const excludeSeedId = parseOptionalInt(req.query.excludeSeedId)
+      const data = await getHomeSimilar(db, {
+        limit,
+        ...(excludeSeedId && excludeSeedId > 0 ? {excludeSeedId} : {}),
+      })
       sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving home similar media.')

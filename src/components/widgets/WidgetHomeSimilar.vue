@@ -12,7 +12,7 @@
       <div class="d-flex align-center ga-1">
         <v-btn
           v-tooltip:top="t('home.widgets.reshuffle')"
-          @click="loadSimilar"
+          @click="reshuffle"
           :loading="loading"
           color="primary"
           icon
@@ -114,10 +114,13 @@ const payload = ref<ParsedHomeSimilarResponse>({seed: null, seedItem: null, item
 const seedItem = ref<HomeMediaItem | null>(null)
 const items = ref<HomeMediaItem[]>([])
 
-async function loadSimilar() {
+async function loadSimilar(excludeSeedId?: number | null) {
   loading.value = true
   try {
-    const res = await typedApi.getHomeSimilar({limit: props.limit})
+    const res = await typedApi.getHomeSimilar({
+      limit: props.limit,
+      ...(excludeSeedId && excludeSeedId > 0 ? {excludeSeedId} : {}),
+    })
     payload.value = res.data
     const nextSeed = (res.data.seedItem || null) as HomeMediaItem | null
     const nextItems = (res.data.items || []) as HomeMediaItem[]
@@ -181,6 +184,11 @@ function onViewAll() {
         : t('filters.similar_scope'),
     },
   })
+}
+
+function reshuffle() {
+  const currentId = Number(seedItem.value?.id)
+  void loadSimilar(Number.isFinite(currentId) && currentId > 0 ? currentId : null)
 }
 
 watch(() => props.limit, () => {
