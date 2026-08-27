@@ -96,7 +96,7 @@ export async function findSimilarHybrid(
       ? findSimilarByClip(db, id, {limit: fetchLimit})
       : Promise.resolve({
           hasEmbedding: false,
-          hits: [] as Array<{id: number; score: number}>,
+          hits: [] as Array<{id: number; score: number; tileIndex?: number | null}>,
           ids: [] as number[],
         }),
     Promise.resolve(findSimilarByTags(db, id, {limit: fetchLimit, minShared: 1})),

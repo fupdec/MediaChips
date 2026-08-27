@@ -34,8 +34,25 @@
         @mousemove="onPreviewMouseMove"
         @mouseenter="handleMouseEnter"
       >
+      <div
+        v-if="showStaticGridPoster"
+        class="thumb thumb--grid-frame"
+        :class="{'thumb--cover': useCoverThumb}"
+        @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
+      >
+        <div
+          class="grid-sprite-frame"
+          :style="staticGridFrameStyle"
+        >
+          <div
+            class="grid-sprite-sheet"
+            :style="staticGridSheetStyle"
+          />
+        </div>
+      </div>
       <v-img
-        v-if="showThumbImage"
+        v-else-if="showThumbImage"
         :key="thumbDisplayKey"
         :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
         :src="thumb || undefined"
@@ -326,6 +343,7 @@ import {useItemPreviewDisplay} from '@/composable/useItemPreviewDisplay'
 import {useItemPreviewHoverSession} from '@/composable/useItemPreviewHoverSession'
 import {useItemPreviewLifecycle} from '@/composable/useItemPreviewLifecycle'
 import {useItemPreviewTimelineFrames} from '@/composable/useItemPreviewTimelineFrames'
+import {useStaticGridPoster} from '@/composable/useStaticGridPoster'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
@@ -633,6 +651,18 @@ const useCoverThumb = computed(() =>
   || gridBigPreview.isVisual.value
   || isNearPreviewContainerAspect(mediaAspectRatio.value),
 )
+
+const {
+  frameStyle: staticGridFrameStyle,
+  sheetStyle: staticGridSheetStyle,
+  showStaticGridPoster,
+} = useStaticGridPoster({
+  media: () => props.media,
+  mediaPath: () => store.mediaPath,
+  mediaAspectRatio: () => mediaAspectRatio.value,
+  previewActive: () => props.previewActive,
+  isMounted: () => isMounted.value,
+})
 
 const bigPreviewTitle = computed(() => String(props.media.name || '').trim())
 

@@ -244,6 +244,7 @@ export const mediaApi = {
         id: number
         score: number
         signals?: Partial<Record<'clip' | 'tags', number>>
+        tileIndex?: number | null
       }>
     }>(API_ROUTES.mediaSimilarHybrid, body)
   },

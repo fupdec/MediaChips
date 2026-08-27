@@ -286,11 +286,14 @@ export const MediaSimilaritySignalsSchema = z.object({
 export const MediaSimilaritySchema = z.object({
   score: z.number().optional(),
   signals: MediaSimilaritySignalsSchema.optional(),
+  /** CLIP grid tile shown as the card poster when similarity is scene-based. */
+  tileIndex: z.number().int().min(0).max(8).optional(),
 }).passthrough()
 
 export const HomeSimilarMediaItemSchema = MediaItemSchema.extend({
   isSeed: z.boolean().optional(),
   similarity: MediaSimilaritySchema.optional(),
+  semanticTileIndex: z.number().int().min(0).max(8).optional(),
 })
 
 export const HomeSimilarResponseSchema = z.object({

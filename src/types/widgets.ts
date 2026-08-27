@@ -38,6 +38,7 @@ export interface HomeMediaSimilarity {
     clip?: number
     tags?: number
   }
+  tileIndex?: number
 }
 
 export interface HomeMediaItem extends MediaItem {

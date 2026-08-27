@@ -3,6 +3,7 @@ import {queryAll, queryGet} from '../db/utils/rawQuery'
 import {getContinueWatching} from './homeMedia'
 import {CLIP_EMBEDDING_INDEX_KEY} from './mediaClipEmbeddings'
 import {loadMediaBasicsByIds} from './mediaItemsLoader'
+import {parseGridTileIndex} from '../../shared/videoPreview'
 import {findSimilarHybrid} from './mediaHybridSimilarity'
 
 export type HomeSimilarSeedReason = 'viewed' | 'favorite' | 'any'
@@ -206,11 +207,14 @@ async function buildSimilarForSeed(
       const row = byId.get(id)
       if (!row) return null
       const hit = scoreById.get(id)
+      const tileIndex = parseGridTileIndex(hit?.tileIndex)
       return toHomeItem(row, {
+        ...(tileIndex != null ? {semanticTileIndex: tileIndex} : {}),
         similarity: hit
           ? {
               score: hit.score,
               signals: hit.signals,
+              ...(tileIndex != null ? {tileIndex} : {}),
             }
           : undefined,
       })

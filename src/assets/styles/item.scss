@@ -1513,6 +1513,24 @@
     &.thumb--cover .v-img__img {
       object-fit: cover;
     }
+
+    &.thumb--grid-frame {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+
+      .grid-sprite-frame {
+        flex-shrink: 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .grid-sprite-sheet {
+        position: absolute;
+        pointer-events: none;
+      }
+    }
   }
   .preview-unavailable-notice {
     position: absolute;
@@ -3878,6 +3896,13 @@ body > .video-preview-container.video-preview-container--expanded {
 
       .v-img__img {
         object-fit: cover;
+      }
+
+      &.thumb--grid-frame {
+        .grid-sprite-frame {
+          width: 100%;
+          height: 100%;
+        }
       }
     }
 

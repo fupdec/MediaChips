@@ -47,6 +47,24 @@
       </v-chip>
 
       <v-chip
+        v-else-if="similarMatchKinds.length"
+        v-tooltip:top="similarMatchTooltip"
+        class="home-media-card__badge home-media-card__match-badge"
+        color="primary"
+        size="x-small"
+        variant="flat"
+        :aria-label="similarMatchTooltip"
+      >
+        <v-icon
+          v-for="kind in similarMatchKinds"
+          :key="kind"
+          size="14"
+        >
+          {{ SIMILAR_MATCH_ICONS[kind] }}
+        </v-icon>
+      </v-chip>
+
+      <v-chip
         v-else-if="variant === 'views' && item.views"
         class="home-media-card__badge"
         color="primary"
@@ -136,6 +154,11 @@ import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
 import {isThumbUnavailable} from '@/utils/thumbSource'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 import {openItemContextMenu} from '@/composable/openItemContextMenu'
+import {
+  SIMILAR_MATCH_ICONS,
+  listSimilarMatchKinds,
+  similarMatchTooltipKey,
+} from '@/utils/similarMatchBadge'
 import type { HomeMediaCardVariant, HomeMediaItem } from '@/types/widgets'
 
 const props = withDefaults(defineProps<{
@@ -214,6 +237,13 @@ function onThumbError() {
 
 watch(() => props.thumb, () => {
   brokenThumb.value = false
+})
+
+const similarMatchKinds = computed(() => listSimilarMatchKinds(props.item))
+
+const similarMatchTooltip = computed(() => {
+  const key = similarMatchTooltipKey(similarMatchKinds.value)
+  return key ? t(key) : ''
 })
 
 const continuePlayTime = computed(() => {
@@ -401,7 +431,8 @@ function handleBodyClick() {
     &.no-file {
       .home-media-card__thumb,
       :deep(.v-img__img),
-      :deep(.thumb .v-img__img) {
+      :deep(.thumb .v-img__img),
+      :deep(.thumb--grid-frame) {
         filter: saturate(0.1) opacity(50%);
       }
     }
@@ -429,6 +460,14 @@ function handleBodyClick() {
         object-fit: cover;
         border-radius: inherit;
       }
+
+      &.thumb--grid-frame {
+        .grid-sprite-frame {
+          width: 100%;
+          height: 100%;
+          border-radius: inherit;
+        }
+      }
     }
   }
 
@@ -448,6 +487,18 @@ function handleBodyClick() {
     right: 6px;
     bottom: 6px;
     z-index: 3;
+  }
+
+  &__match-badge {
+    min-width: 0;
+    padding-inline: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+    :deep(.v-chip__content) {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
   }
 
   &__seed-badge {

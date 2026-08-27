@@ -19,7 +19,7 @@ describe('mediaSimilarityRanking', () => {
         signal: 'clip',
         weight: 1,
         hits: [
-          {id: 10, score: 0.91},
+          {id: 10, score: 0.91, tileIndex: 7},
           {id: 20, score: 0.8},
           {id: 30, score: 0.7},
         ],
@@ -38,8 +38,10 @@ describe('mediaSimilarityRanking', () => {
     expect(merged.map((hit) => hit.id)).toEqual([10, 30, 20, 40])
     expect(merged[0].signals.clip).toBe(0.91)
     expect(merged[0].signals.tags).toBe(0.2)
+    expect(merged[0].tileIndex).toBe(7)
     expect(merged[1].signals.clip).toBe(0.7)
     expect(merged[1].signals.tags).toBe(0.5)
+    expect(merged[1].tileIndex).toBeUndefined()
   })
 
   it('drops weak fused scores below minScoreRatio / minScore', () => {

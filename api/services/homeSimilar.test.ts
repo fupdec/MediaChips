@@ -6,6 +6,8 @@ import type {ApiDb} from '../types/db'
 import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {getHomeSimilar, orderHomeSimilarSeeds} from './homeSimilar'
 import {parseHomeSimilarResponse} from '@shared/schemas'
+import {CLIP_EMBEDDING_INDEX_KEY} from './clipEmbeddingModel'
+import {l2Normalize, packFloat32Embeddings, type ClipEmbeddingVector} from './clipEmbeddingMath'
 
 let lastDbPath: string | undefined
 
@@ -51,6 +53,14 @@ function setContinue(db: ApiDb, mediaId: number, time = 30, duration = 120) {
     INSERT INTO videoMetadata (mediaId, duration, time, width, height)
     VALUES (?, ?, ?, 1920, 1080)
   `).run(mediaId, duration, time)
+}
+
+function insertClipEmbedding(db: ApiDb, mediaId: number, vectors: ClipEmbeddingVector[]) {
+  const embedding = packFloat32Embeddings(vectors)
+  db.sqlite.prepare(`
+    INSERT INTO mediaClipEmbeddings (mediaId, embedding, dims, model, updatedAt)
+    VALUES (?, ?, ?, ?, '2026-01-01')
+  `).run(mediaId, embedding, vectors[0].length, CLIP_EMBEDDING_INDEX_KEY)
 }
 
 describe('orderHomeSimilarSeeds', () => {
@@ -134,5 +144,37 @@ describe('getHomeSimilar', () => {
     expect(result.seed?.id).toBe(1)
     expect(result.items.map((item) => item.id)).toContain(3)
     expect(result.items.map((item) => item.id)).not.toContain(2)
+  })
+
+  it('attaches the matching CLIP grid tile for scene-similar neighbors', async () => {
+    db = createTestDb()
+    insertMedia(db, {id: 1, name: 'seed', viewedAt: '2026-08-01'})
+    insertMedia(db, {id: 2, name: 'grid-match'})
+    insertMedia(db, {id: 3, name: 'thumb-only'})
+
+    const unique = (salt: number, index: number) => l2Normalize([0, salt, index + 1])
+    const scene = l2Normalize([1, 0, 0])
+    const grid = (salt: number, matchIndex: number) => Array.from({length: 9}, (_, index) => (
+      index === matchIndex ? scene : unique(salt, index)
+    ))
+
+    insertClipEmbedding(db, 1, grid(1, 2))
+    insertClipEmbedding(db, 2, grid(2, 7))
+    insertClipEmbedding(db, 3, [scene])
+
+    const result = await getHomeSimilar(db, {limit: 6, random: () => 0})
+    expect(result.seed?.id).toBe(1)
+
+    const gridMatch = result.items.find((item) => Number(item.id) === 2)
+    expect(gridMatch?.semanticTileIndex).toBe(7)
+    expect(gridMatch?.similarity?.tileIndex).toBe(7)
+    expect(gridMatch?.similarity?.signals?.clip).toBeGreaterThan(0.9)
+
+    const thumbOnly = result.items.find((item) => Number(item.id) === 3)
+    expect(thumbOnly?.semanticTileIndex).toBeUndefined()
+    expect(thumbOnly?.similarity?.tileIndex).toBeUndefined()
+
+    const parsed = parseHomeSimilarResponse(result)
+    expect(parsed.items.find((item) => item.id === 2)?.similarity?.tileIndex).toBe(7)
   })
 })

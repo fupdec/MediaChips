@@ -18,17 +18,28 @@ import {
   getClipEmbeddingStatus,
 } from './clipEmbeddingModel'
 import {translateQueryToEnglish} from './semanticQueryTranslate'
-import {VIDEO_GRID_SPRITE, gridTileSeekSeconds} from '../../shared/videoPreview'
+import {VIDEO_GRID_SPRITE, VIDEO_GRID_TILE_COUNT, gridTileSeekSeconds, parseGridTileIndex} from '../../shared/videoPreview'
 import {clampVisualSearchQuickSampleSize} from '../../shared/visualSearchQuick'
 
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
-const VIDEO_GRID_TILE_COUNT = VIDEO_GRID_SPRITE.cols * VIDEO_GRID_SPRITE.rows
 
 export type SemanticSearchHit = {
   id: number
   tileIndex: number | null
   time: number | null
+}
+
+export type ClipSimilarHit = {
+  id: number
+  score: number
+  /** Matching 3×3 grid tile, or null when the neighbor is thumb-only CLIP. */
+  tileIndex: number | null
+}
+
+function clipGridMatchTileIndex(tileCount: number, tileIndex: number): number | null {
+  if (tileCount !== VIDEO_GRID_TILE_COUNT) return null
+  return parseGridTileIndex(tileIndex)
 }
 
 type MediaPreviewRow = {
@@ -668,7 +679,7 @@ async function findSimilarByClip(
       hasEmbedding: false,
       seedTileCount: 0,
       ids: [] as number[],
-      hits: [] as Array<{id: number; score: number}>,
+      hits: [] as ClipSimilarHit[],
     }
   }
 
@@ -701,7 +712,7 @@ async function findSimilarByClip(
       hasEmbedding: false,
       seedTileCount: 0,
       ids: [] as number[],
-      hits: [] as Array<{id: number; score: number}>,
+      hits: [] as ClipSimilarHit[],
     }
   }
 
@@ -712,7 +723,7 @@ async function findSimilarByClip(
       hasEmbedding: false,
       seedTileCount: 0,
       ids: [] as number[],
-      hits: [] as Array<{id: number; score: number}>,
+      hits: [] as ClipSimilarHit[],
     }
   }
 
@@ -732,7 +743,11 @@ async function findSimilarByClip(
     hasEmbedding: true,
     seedTileCount: seedEmbeddings.length,
     ids: [id, ...neighborIds],
-    hits: neighborHits,
+    hits: neighborHits.map((hit) => ({
+      id: hit.id,
+      score: hit.score,
+      tileIndex: clipGridMatchTileIndex(hit.tileCount, hit.tileIndex),
+    })),
   }
 }
 
