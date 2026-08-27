@@ -456,6 +456,13 @@ export const docs = [
             selector: ['#settings-doc-tab-database', '#settings-clear-generated-images'],
             navigate: '/settings?tab=database&section=clear_generated',
           },
+          {
+            id: 'settings.database.library_reset',
+            name: 'Library reset',
+            icon: 'mdi-database-remove-outline',
+            selector: ['#settings-doc-tab-database', '#settings-library-reset'],
+            navigate: '/settings?tab=database&section=library_reset',
+          },
         ],
       },
       {

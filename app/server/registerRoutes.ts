@@ -26,6 +26,7 @@ import registerSetting from '../../api/routes/Setting.routes'
 import registerPlugin from '../../api/routes/Plugin.routes'
 import registerTab from '../../api/routes/Tab.routes'
 import registerBulkMeta from '../../api/routes/BulkMeta.routes'
+import registerLibraryReset from '../../api/routes/LibraryReset.routes'
 import registerTasksBackups from '../../api/routes/tasks/TasksBackups.routes'
 import registerValuesInTag from '../../api/routes/ValuesInTag.routes'
 import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
@@ -148,6 +149,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'Plugin.routes', register: registerPlugin },
     { routeFile: 'Tab.routes', register: registerTab },
     { routeFile: 'BulkMeta.routes', register: registerBulkMeta },
+    { routeFile: 'LibraryReset.routes', register: registerLibraryReset },
     { routeFile: 'tasks/TasksBackups.routes', register: registerTasksBackups },
     { routeFile: 'ValuesInTag.routes', register: registerValuesInTag },
     { routeFile: 'ValuesInMedia.routes', register: registerValuesInMedia },

@@ -52,6 +52,20 @@
           class="mt-1 text-left"
           @update:model-value="onSecondaryCheck(Boolean($event))"
         />
+
+        <v-text-field
+          v-if="confirmPhrase"
+          v-model="typedPhrase"
+          :label="confirmPhraseLabel || t('common.type_to_confirm', {phrase: confirmPhrase})"
+          :placeholder="confirmPhrase"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="mt-4 text-left"
+          autocomplete="off"
+          spellcheck="false"
+          @keydown.enter.prevent="confirm"
+        />
       </v-card-text>
 
       <v-card-actions class="confirm-dialog__actions px-5 pb-5 pt-1">
@@ -76,6 +90,7 @@
           variant="flat"
           rounded="pill"
           class="px-5"
+          :disabled="!phraseMatches"
           @click="confirm"
         >
           <v-icon
@@ -92,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 const {t} = useI18n()
@@ -119,6 +134,9 @@ const props = withDefaults(defineProps<{
   checkBox2?: boolean
   /** When true, secondary checkbox is disabled until primary is checked. */
   checkBox2RequiresPrimary?: boolean
+  /** When set, confirm stays disabled until this phrase is typed. */
+  confirmPhrase?: string
+  confirmPhraseLabel?: string
 }>(), {
   text: '',
   persistent: false,
@@ -129,6 +147,20 @@ const props = withDefaults(defineProps<{
   checkBox2Text: '',
   checkBox2: false,
   checkBox2RequiresPrimary: false,
+  confirmPhrase: '',
+  confirmPhraseLabel: '',
+})
+
+const typedPhrase = ref('')
+
+watch(() => props.dialog, (open) => {
+  if (open) typedPhrase.value = ''
+})
+
+const phraseMatches = computed(() => {
+  const expected = props.confirmPhrase.trim()
+  if (!expected) return true
+  return typedPhrase.value.trim().toLocaleLowerCase() === expected.toLocaleLowerCase()
 })
 
 const isPersistent = computed(() =>
@@ -170,6 +202,7 @@ function close() {
 }
 
 function confirm() {
+  if (!phraseMatches.value) return
   emit('confirm')
   if (props.variant === 'delete') {
     emit('delete')

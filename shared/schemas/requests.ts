@@ -181,6 +181,23 @@ export const DeleteEntityOneRequestSchema = z.object({
   type: z.string().nullable().optional(),
 }).passthrough()
 
+const LibraryResetScopeIdSchema = z.union([
+  z.literal('all'),
+  z.number().int().positive(),
+  z.string().regex(/^\d+$/).transform((value) => Number(value)),
+])
+
+export const LibraryResetMediaRequestSchema = z.object({
+  mediaTypeId: LibraryResetScopeIdSchema,
+  permanent: z.boolean().optional(),
+  withFile: z.boolean().optional(),
+}).passthrough()
+
+export const LibraryResetTagsRequestSchema = z.object({
+  metaId: LibraryResetScopeIdSchema,
+  permanent: z.boolean().optional(),
+}).passthrough()
+
 export const MediaTrashIdsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).min(1),
 }).passthrough()

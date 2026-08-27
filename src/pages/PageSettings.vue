@@ -166,6 +166,7 @@
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance')"
                 icon="wrench-outline"
+                large
               />
 
               <SettingsLibraryHealthGuide/>
@@ -220,9 +221,12 @@
                 :title="t('settings.groups.maintenance_cleanup')"
                 icon="broom"
                 accent
+                error
               />
 
               <SettingsClearGeneratedImages/>
+
+              <SettingsLibraryReset/>
             </SettingsList>
           </div>
 
@@ -367,6 +371,9 @@ const SettingsDetectFaces = defineAsyncComponent(() =>
 )
 const SettingsClearGeneratedImages = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsClearGeneratedImages.vue")
+)
+const SettingsLibraryReset = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsLibraryReset.vue")
 )
 const SettingsGeneral = defineAsyncComponent(() =>
   import("@/components/settings/general/SettingsGeneral.vue")
@@ -543,6 +550,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   watched_folders: "settings-watched-folders",
   open_data_folder: "settings-open-data-folder",
   databases: "settings-databases",
+  library_reset: "settings-library-reset",
   library_health_guide: "settings-library-health-guide",
   generate_video_images: "settings-generate-video-images",
   generate_auto_chapters: "settings-generate-auto-chapters",
@@ -658,6 +666,7 @@ const DATABASE_SECTIONS = new Set([
   "open_data_folder",
   "databases",
   "database_add",
+  "library_reset",
   "library_health_guide",
   "generate_video_images",
   "generate_auto_chapters",
