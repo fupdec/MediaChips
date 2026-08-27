@@ -14,6 +14,7 @@
         :menu="menu"
         :open-menu-id="openMenuId"
         :is-action-disabled="isActionDisabled"
+        :is-action-checked="isActionChecked"
         @update:open-menu-id="openMenuId = $event"
         @action="handleMenuAction"
       />
@@ -43,8 +44,10 @@ import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useSystemMenuActions} from '@/composable/useSystemMenuActions'
+import {useAppMenuCheckedState} from '@/composable/useAppMenuState'
 import {SYSTEM_MENUS} from '@/types/systemMenu'
 import type {SystemMenuAction} from '@/types/systemMenu'
+import {isAppMenuActionChecked} from '@shared/electron/appMenuState'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import SystemMenuDropdown from '@/components/app/SystemMenuDropdown.vue'
 const WindowControls = defineAsyncComponent(() => import('@/components/ui/WindowControls.vue'))
@@ -65,6 +68,11 @@ const appStore = useAppStore()
 const {runSystemMenuAction, isActionDisabled} = useSystemMenuActions({
   onLock: () => emit('lock'),
 })
+const menuState = useAppMenuCheckedState()
+
+function isActionChecked(action: SystemMenuAction) {
+  return isAppMenuActionChecked(action, menuState.value)
+}
 const {colorRGBA, gradient} = useHeaderBarStyle('system')
 
 const app_title = computed(() => appStore.app_title || 'MediaChips')
@@ -223,6 +231,10 @@ onUnmounted(() => {
       flex: 0 0 auto;
       margin-left: auto;
     }
+  }
+
+  .system-menu-check--off {
+    opacity: 0;
   }
 }
 

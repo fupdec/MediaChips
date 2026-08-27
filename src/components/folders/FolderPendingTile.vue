@@ -29,7 +29,7 @@
       <div class="folder-pending-tile__preview">
         <v-icon
           :icon="typeIcon"
-          :size="icons ? undefined : (list ? 20 : 36)"
+          :size="icons ? undefined : (list ? 18 : 36)"
           :style="icons ? {fontSize: 'var(--folder-icon-size, 88px)'} : undefined"
           color="primary"
         />
@@ -231,7 +231,23 @@ function onTagDrop(event: DragEvent) {
   align-items: center;
   height: var(--list-card-height, 48px);
   padding: 0 10px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: none;
+}
+
+.folder-pending-tile--list:hover,
+.folder-pending-tile--list:focus-visible {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: none;
+}
+
+.folder-pending-tile--list.folder-pending-tile--focused,
+.folder-pending-tile--list.folder-pending-tile--selected {
+  border-color: rgb(var(--v-theme-primary));
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.25);
 }
 
 .folder-pending-tile--icons {
@@ -262,8 +278,9 @@ function onTagDrop(event: DragEvent) {
 }
 
 .folder-pending-tile--list .folder-pending-tile__preview {
-  width: var(--list-preview-width, 56px);
-  height: var(--list-card-height, 48px);
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
 }
 
 .folder-pending-tile__body {
@@ -275,9 +292,11 @@ function onTagDrop(event: DragEvent) {
 .folder-pending-tile--list .folder-pending-tile__body {
   flex: 1;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 0;
   padding: 0 10px;
 }
 
@@ -292,6 +311,19 @@ function onTagDrop(event: DragEvent) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.folder-pending-tile--list .folder-pending-tile__name {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  font-family: inherit;
+  font-size: var(--list-font-size, 13px);
+  font-weight: 400;
+  letter-spacing: normal;
+  padding: 0;
+  line-height: 16px;
+  text-align: left;
 }
 
 .folder-pending-tile--icons .folder-pending-tile__name {
@@ -318,7 +350,13 @@ function onTagDrop(event: DragEvent) {
 
 .folder-pending-tile--list .folder-pending-tile__meta {
   margin-top: 0;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+}
+
+.folder-pending-tile--list .folder-pending-tile__chip {
+  font-size: 0.72em;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .folder-pending-tile__size {
@@ -415,6 +453,7 @@ function onTagDrop(event: DragEvent) {
   justify-content: flex-start;
   align-items: center;
   padding: 0 0 0 10px;
+  border-radius: 8px;
 }
 
 .folder-pending-tile__select-btn {

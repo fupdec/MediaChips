@@ -11,6 +11,7 @@
     variant="outlined"
     flat
     @click="handleCardClick"
+    @contextmenu="showItemContextMenu"
   >
     <div
       class="home-media-card__preview"
@@ -134,6 +135,7 @@ import {findMediaTypeById, isVideoMediaType} from '@/utils/mediaType'
 import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
 import {isThumbUnavailable} from '@/utils/thumbSource'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
+import {openItemContextMenu} from '@/composable/openItemContextMenu'
 import type { HomeMediaCardVariant, HomeMediaItem } from '@/types/widgets'
 
 const props = withDefaults(defineProps<{
@@ -292,6 +294,10 @@ function handleCardClick() {
   if (!isVideoMedia.value) {
     emit('click')
   }
+}
+
+function showItemContextMenu(event: MouseEvent) {
+  openItemContextMenu(event, props.item, 'media', null, isFileExists.value)
 }
 
 function handleBodyClick() {

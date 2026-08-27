@@ -407,6 +407,8 @@ function onClick() {
   width: auto;
   min-width: 0;
   font-size: var(--list-font-size, 13px);
+  font-weight: 400;
+  letter-spacing: normal;
   padding: 0;
   line-height: 16px;
   text-align: left;
@@ -610,6 +612,8 @@ function onClick() {
   width: auto;
   min-width: 0;
   font-size: var(--list-font-size, 13px);
+  font-weight: 400;
+  letter-spacing: normal;
   padding: 0;
   line-height: 16px;
   text-align: left;

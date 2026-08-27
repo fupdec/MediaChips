@@ -45,6 +45,7 @@
               :key="tag.id"
               class="widget-top-tags__card"
               @click="openTagPage(category.meta, tag)"
+              @contextmenu="showTagContextMenu($event, category.meta, tag)"
               rounded="lg"
               variant="outlined"
               flat
@@ -154,6 +155,7 @@ import {
   META_SORT_MODES,
   type MetaSortMode,
 } from '@/utils/metaSort'
+import {openItemContextMenu} from '@/composable/openItemContextMenu'
 import type {TopTagsCategory, TopTagItem} from '@/types/widgets'
 import type {Meta} from '@/types/stores'
 
@@ -380,6 +382,11 @@ function revealMoreCategories(index: number) {
 
 function openTagPage(meta: Meta, tag: TopTagItem) {
   router.push(`/tag?metaId=${meta.id}&tagId=${tag.id}&mediaTypeId=${getDefaultMediaTypeId(store.mediaTypes)}`)
+}
+
+function showTagContextMenu(event: MouseEvent, meta: Meta, tag: TopTagItem) {
+  const fullTag = store.getTagById(Number(tag.id)) || tag
+  openItemContextMenu(event, fullTag, 'tag', meta)
 }
 
 function openCategoryPage(meta: Meta) {

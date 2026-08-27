@@ -287,6 +287,7 @@ const appMenu = createAppMenuController({
   sendMenuAction: (action) => menuActionDelivery.send(action),
 })
 appMenu.install()
+appMenu.registerIpc()
 
 const appTray = createAppTrayController({
   platform: process.platform,

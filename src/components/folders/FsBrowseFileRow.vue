@@ -199,7 +199,7 @@ function onClick() {
 .fs-browse-file-row__name {
   font-family: inherit;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 16px;
   color: inherit;
   white-space: nowrap;

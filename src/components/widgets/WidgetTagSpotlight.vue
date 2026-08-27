@@ -109,7 +109,10 @@
       v-else
       class="widget-tag-spotlight__card"
     >
-      <div class="widget-tag-spotlight__layout">
+      <div
+        class="widget-tag-spotlight__layout"
+        @contextmenu="showSpotlightTagContextMenu"
+      >
         <button
           type="button"
           class="widget-tag-spotlight__thumb"
@@ -325,6 +328,7 @@
             variant="outlined"
             :style="related.color ? {borderColor: related.color} : undefined"
             @click="openRelatedTag(related)"
+            @contextmenu="showRelatedTagContextMenu($event, related)"
           >
             {{ related.name }}
           </v-chip>
@@ -347,6 +351,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import WidgetMediaCard from '@/components/widgets/WidgetMediaCard.vue'
 import HomeCardSkeleton from '@/components/widgets/HomeCardSkeleton.vue'
+import {openItemContextMenu} from '@/composable/openItemContextMenu'
 import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
 import {loadHomeMediaThumbs} from '@/utils/homeMediaThumbs'
 import {getDefaultMediaTypeId, findMediaTypeById} from '@/utils/mediaType'
@@ -587,6 +592,29 @@ function openRelatedTag(related: {id: number; metaId: number}) {
   router.push(
     `/tag?metaId=${related.metaId}&tagId=${related.id}&mediaTypeId=${getDefaultMediaTypeId(store.mediaTypes)}`,
   )
+}
+
+function showSpotlightTagContextMenu(event: MouseEvent) {
+  const tag = spotlight.value?.tag
+  if (!tag?.id) return
+  const fullTag = store.getTagById(Number(tag.id)) || tag as Tag
+  const meta = resolveMetaForTag(tag.metaId)
+  openItemContextMenu(event, fullTag, 'tag', meta)
+}
+
+function showRelatedTagContextMenu(
+  event: MouseEvent,
+  related: {id: number; metaId: number; name: string; color: string | null},
+) {
+  if (!related.id) return
+  const fullTag = store.getTagById(related.id) || {
+    id: related.id,
+    name: related.name,
+    metaId: related.metaId,
+    color: related.color || undefined,
+  } as Tag
+  const meta = resolveMetaForTag(related.metaId)
+  openItemContextMenu(event, fullTag, 'tag', meta)
 }
 
 async function openMedia(item: MediaItem) {

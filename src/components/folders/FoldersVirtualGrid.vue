@@ -680,6 +680,11 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
   box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.25);
 }
 
+.folders-virtual-grid__cell--media.folders-virtual-grid__cell--list.item--selecting {
+  overflow: hidden;
+  border-radius: 8px;
+}
+
 .folders-virtual-grid__cell--media.folders-virtual-grid__cell--icons.item--selecting {
   overflow: visible;
 }
@@ -692,11 +697,7 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
   box-shadow: inset 0 0 0 2px rgba(var(--v-theme-primary), 0.45);
 }
 
-.folders-virtual-grid__cell--media.folders-virtual-grid__cell--list :deep(.item-select-overlay) {
-  border-radius: 8px;
-}
-
-.folders-virtual-grid__cell--media.folders-virtual-grid__cell--list :deep(.item-select-overlay) {
+.folders-virtual-grid__cell--media.folders-virtual-grid__cell--list .item-select-overlay {
   border-radius: 8px;
 }
 
@@ -743,14 +744,15 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
 .folders-virtual-grid__cell--media .folder-browse-tile--list .folder-browse-tile__preview {
   position: relative;
   flex: 0 0 auto;
-  width: var(--list-preview-width, 56px);
-  min-width: var(--list-preview-width, 56px);
-  height: var(--list-card-height, 48px);
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: none;
   overflow: hidden;
+  border-radius: 4px;
 }
 
 .folders-virtual-grid__cell--media .folder-browse-tile--list .folder-browse-tile__cover {
@@ -774,7 +776,7 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
 .folders-virtual-grid__cell--media .folder-browse-tile--list .folder-browse-tile__name {
   font-family: inherit;
   font-size: var(--list-font-size, 13px);
-  font-weight: 500;
+  font-weight: 400;
   line-height: 16px;
   color: inherit;
   white-space: nowrap;
@@ -836,7 +838,7 @@ function toggleSelect(item: MediaItem, event: MouseEvent) {
   flex: 1;
   min-width: 0;
   font-size: var(--list-font-size, 13px);
-  font-weight: 500;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

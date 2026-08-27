@@ -1,6 +1,5 @@
 import path from 'path-browserify'
 import {useRouter} from 'vue-router'
-import {useTheme} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -8,13 +7,24 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useAppShell} from '@/composable/appShell'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useAppUpdater} from '@/composable/useAppUpdater'
+import {useAppTheme} from '@/composable/useAppTheme'
+import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {setOption} from '@/services/settingsService'
 import {openPath, openExternal} from '@/services/shellService'
+import {applyAppUiLocale} from '@/services/appLocale'
+import {persistMinimizeToTray, readMinimizeToTrayFromStore} from '@/services/globalAppConfig'
 import {useWindowMaximizedState} from '@/utils/windowMaximizedState'
 import {openOnboarding, saveOnboardingStep} from '@/composable/useOnboarding'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import type {SystemMenuAction} from '@/types/systemMenu'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
+import {
+  parseGapMenuAction,
+  parseLocaleMenuAction,
+  parseThemeMenuAction,
+  type AppMenuThemeMode,
+} from '@shared/electron/appMenuState'
+import type {SettingsState} from '@/types/settings'
 
 const WEBSITE_URL = 'https://mediachips.app/'
 
@@ -24,7 +34,6 @@ function runEditCommand(command: string) {
 
 export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   const router = useRouter()
-  const theme = useTheme()
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
@@ -32,6 +41,8 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   const appShell = useAppShell()
   const appZoom = useAppZoom()
   const {check} = useAppUpdater()
+  const {applyTheme} = useAppTheme()
+  const {syncLibraryNavFromLegacyFlags} = useLibraryNavItems()
   const {isWindowMaximized} = useWindowMaximizedState()
 
   function openAddMediaDialog() {
@@ -43,17 +54,47 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
     appShell.showAddMediaDialog()
   }
 
+  async function setThemeMode(mode: AppMenuThemeMode) {
+    if (mode === 'system') {
+      await setOption('1', 'system_dark_mode')
+    } else {
+      await setOption('0', 'system_dark_mode')
+      await setOption(mode === 'dark' ? '1' : '0', 'darkMode')
+    }
+    applyTheme()
+  }
+
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
       await setOption('0', 'system_dark_mode')
     }
-
     const nextValue = settingsStore.darkMode === '1' ? '0' : '1'
     await setOption(nextValue, 'darkMode')
-    theme.global.name.value = nextValue === '1' ? 'dark' : 'light'
+    applyTheme()
+  }
+
+  async function toggleSettingFlag(option: keyof SettingsState) {
+    const next = settingsStore[option] === '1' ? '0' : '1'
+    await setOption(next, option)
   }
 
   async function runSystemMenuAction(action: SystemMenuAction) {
+    const themeMode = parseThemeMenuAction(action)
+    if (themeMode) {
+      await setThemeMode(themeMode)
+      return
+    }
+    const locale = parseLocaleMenuAction(action)
+    if (locale) {
+      await applyAppUiLocale(locale)
+      return
+    }
+    const gapSize = parseGapMenuAction(action)
+    if (gapSize) {
+      await setOption(gapSize, 'gapSize')
+      return
+    }
+
     switch (action) {
       case 'addMedia':
         openAddMediaDialog()
@@ -95,6 +136,42 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
         break
       case 'toggleTheme':
         await toggleTheme()
+        break
+      case 'toggleSfwMode':
+        await toggleSettingFlag('sfwMode')
+        break
+      case 'toggleMinimizeToTray':
+        await persistMinimizeToTray(!readMinimizeToTrayFromStore())
+        break
+      case 'toggleSystemPlayer':
+        await toggleSettingFlag('isPlayVideoInSystemPlayer')
+        break
+      case 'toggleSeparatePlayerWindow':
+        if (settingsStore.isPlayVideoInSystemPlayer === '1') break
+        await toggleSettingFlag('open_player_in_separate_window')
+        break
+      case 'togglePreviewSound':
+        await toggleSettingFlag('play_sound_on_video_preview')
+        break
+      case 'toggleBottomBar':
+        await toggleSettingFlag('bottomBar')
+        break
+      case 'toggleNavPlaylists':
+        await toggleSettingFlag('showPlaylistsInNavigation')
+        await syncLibraryNavFromLegacyFlags()
+        break
+      case 'toggleNavMarkers':
+        await toggleSettingFlag('showMarkersInNavigation')
+        await syncLibraryNavFromLegacyFlags()
+        break
+      case 'toggleNavTrash':
+        await toggleSettingFlag('showTrashInNavigation')
+        break
+      case 'toggleSidebar':
+        await toggleSettingFlag('sidebarCollapsed')
+        break
+      case 'toggleInspector':
+        await toggleSettingFlag('inspectorCollapsed')
         break
       case 'zoomIn':
         await appZoom.zoomIn()
@@ -175,6 +252,9 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   function isActionDisabled(action: SystemMenuAction) {
     if (action === 'lock') {
       return settingsStore.passwordProtection !== '1'
+    }
+    if (action === 'toggleSeparatePlayerWindow') {
+      return settingsStore.isPlayVideoInSystemPlayer === '1'
     }
     return false
   }

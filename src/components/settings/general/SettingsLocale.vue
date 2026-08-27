@@ -49,17 +49,14 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {loadLocale} from '@/i18n/loadLocale'
-import {syncShellLocale} from '@/services/electronBridge'
-import {isDesktopElectronUi} from '@/utils/electronUi'
 import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
 import {useSettingsStore} from '@/stores/settings'
-import {setOption} from '@/services/settingsService'
+import {applyAppUiLocale} from '@/services/appLocale'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 
 const settingsStore = useSettingsStore()
 
-const {locale, t} = useI18n()
+const {t} = useI18n()
 
 const locales = [
   {
@@ -120,15 +117,7 @@ const selectedLocale = computed((): LocaleEntry =>
 
 const changeLanguage = async (langCode: string | LocaleEntry) => {
   const code = typeof langCode === 'string' ? langCode : langCode.code
-  const next = await loadLocale(code)
-  locale.value = next
-
-  setOption(next, 'locale')
-
-  document.documentElement.lang = next
-  if (isDesktopElectronUi()) {
-    void syncShellLocale(next)
-  }
+  await applyAppUiLocale(code)
 }
 </script>
 

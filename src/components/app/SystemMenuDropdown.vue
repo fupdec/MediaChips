@@ -5,7 +5,7 @@
     offset-y
     :offset="[1, -1]"
     :transition="false"
-    min-width="220"
+    min-width="240"
     content-class="system-menu-dropdown context-menu"
     class="system-menu"
     :z-index="2000"
@@ -35,42 +35,12 @@
       rounded="lg"
     >
       <div class="wrapper">
-        <template
-          v-for="(item, index) in menu.items"
-          :key="`${menu.id}-${index}`"
-        >
-          <v-divider
-            v-if="item.divider"
-            class="ma-1"
-          />
-
-          <v-list-item
-            v-else-if="item.action"
-            link
-            class="pr-3"
-            :disabled="isActionDisabled(item.action)"
-            @mouseup.stop="handleItemClick(item.action)"
-          >
-            <v-list-item-title
-              :class="{'system-menu-item-with-hotkey': item.hotkey}"
-            >
-              <span>
-                <v-icon
-                  v-if="item.icon"
-                  class="mr-3"
-                >
-                  {{ item.icon }}
-                </v-icon>
-                {{ t(item.labelKey || '') }}
-              </span>
-              <v-hotkey
-                v-if="item.hotkey"
-                :keys="item.hotkey"
-                inline
-              />
-            </v-list-item-title>
-          </v-list-item>
-        </template>
+        <SystemMenuList
+          :items="menu.items"
+          :is-action-disabled="isActionDisabled"
+          :is-action-checked="isActionChecked"
+          @action="handleItemClick"
+        />
       </div>
     </v-list>
   </v-menu>
@@ -80,10 +50,12 @@
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {SystemMenuConfig, SystemMenuAction} from '@/types/systemMenu'
+import SystemMenuList from '@/components/app/SystemMenuList.vue'
 
 const props = defineProps<{
   menu: SystemMenuConfig
   isActionDisabled: (action: SystemMenuAction) => boolean
+  isActionChecked: (action: SystemMenuAction) => boolean
   openMenuId: string | null
 }>()
 
