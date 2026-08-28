@@ -9,6 +9,25 @@ export interface PathPhrase {
   kind?: 'full' | 'subtoken' | 'single'
 }
 
+/** CJKV ideographs plus unsegmented East-Asian letters (kana, hangul, bopomofo, yi). */
+const CJK_CHAR_CLASS = String.raw`\p{Ideographic}\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script_Extensions=Hangul}\p{Script_Extensions=Bopomofo}\p{Script_Extensions=Yi}`
+const CJK_CHAR_RE = new RegExp(`[${CJK_CHAR_CLASS}]`, 'u')
+const CJK_RUN_RE = new RegExp(`[${CJK_CHAR_CLASS}]+`, 'gu')
+const CJK_ONLY_RE = new RegExp(`^[${CJK_CHAR_CLASS}]+$`, 'u')
+const CJK_MIN_TOKEN_LENGTH = 2
+
+function isCjkOnly(token: string) {
+  return Boolean(token) && CJK_ONLY_RE.test(token)
+}
+
+function hasCjkChar(token: string) {
+  return Boolean(token) && CJK_CHAR_RE.test(token)
+}
+
+function compactTokens(tokens: string[]) {
+  return tokens.join('')
+}
+
 export interface PathPhraseParseResult {
   folders: string[]
   file: string
@@ -64,6 +83,10 @@ function phrasePassesPrecision(
 ) {
   if (tagTokens.length > 1) return true
 
+  const tagCompact = compactTokens(tagTokens)
+  // CJK words are typically 2–3 characters and are not English-style noise.
+  if (isCjkOnly(tagCompact) && tagCompact.length >= CJK_MIN_TOKEN_LENGTH) return true
+
   const token = phrase.tokens[0]
   if (!token || token.length < config.singleTokenMinLength) return false
 
@@ -91,6 +114,7 @@ export interface TagPathIndex {
   byTokenKey: Map<string, TagIndexEntry[]>
   tagCount: number
   termCount: number
+  hasCjkTags: boolean
 }
 
 /** @deprecated Prefer PATH_STOP_WORDS; kept for existing pathParser callers. */
@@ -126,7 +150,9 @@ function splitCamelCase(value: string) {
 }
 
 function isNoiseToken(token: string, minLength = 2) {
-  if (!token || token.length < minLength) return true
+  if (!token) return true
+  const requiredLength = isCjkOnly(token) ? CJK_MIN_TOKEN_LENGTH : minLength
+  if (token.length < requiredLength) return true
   if (PATH_STOP_WORDS.has(token)) return true
   return matchesPathNoise(token, NOISE_PATTERNS)
 }
@@ -444,6 +470,18 @@ function isTokenPrefixPrefix(shorter: string[], longer: string[]) {
   return shorter.every((token, index) => token === longer[index])
 }
 
+function isCjkCompactPrefix(shorter: string[], longer: string[]) {
+  const a = compactTokens(shorter)
+  const b = compactTokens(longer)
+  if (a.length >= b.length) return false
+  if (!isCjkOnly(a) || !isCjkOnly(b)) return false
+  return b.startsWith(a)
+}
+
+function isShorterPrefixOf(shorter: string[], longer: string[]) {
+  return isTokenPrefixPrefix(shorter, longer) || isCjkCompactPrefix(shorter, longer)
+}
+
 function applyLongestMatch(matches: PathTagMatch[], preferLongestMatch: boolean) {
   if (!preferLongestMatch || matches.length < 2) return matches
 
@@ -456,15 +494,27 @@ function applyLongestMatch(matches: PathTagMatch[], preferLongestMatch: boolean)
 
   const result: PathTagMatch[] = []
   for (const group of byMeta.values()) {
-    const sorted = [...group].sort((a, b) => b.tagTokens.length - a.tagTokens.length)
+    const sorted = [...group].sort((a, b) => {
+      const tokenDiff = b.tagTokens.length - a.tagTokens.length
+      if (tokenDiff) return tokenDiff
+      return compactTokens(b.tagTokens).length - compactTokens(a.tagTokens).length
+    })
     const kept: PathTagMatch[] = []
 
     for (const match of sorted) {
-      const suppressed = kept.some((existing) => isTokenPrefixPrefix(match.tagTokens, existing.tagTokens))
+      const suppressed = kept.some((existing) => isShorterPrefixOf(match.tagTokens, existing.tagTokens))
       if (!suppressed) kept.push(match)
     }
 
-    result.push(...kept)
+    const keptKeys = new Set(kept.map((match) => `${match.mediaId}:${match.metaId}:${match.tagId}`))
+    result.push(
+      ...group.filter((match) => {
+        const key = `${match.mediaId}:${match.metaId}:${match.tagId}`
+        if (!keptKeys.has(key)) return false
+        keptKeys.delete(key)
+        return true
+      }),
+    )
   }
 
   return result
@@ -489,6 +539,7 @@ function buildTagPathIndex(tags: TagLikeForParser[], options: MatchPathTagsOptio
   const minLength = options.minTokenLength ?? 2
   const byTokenKey = new Map<string, TagIndexEntry[]>()
   let termCount = 0
+  let hasCjkTags = false
   const reservedPrimaryKeys = collectPrimaryTagPhraseKeys(tags)
 
   for (const tag of tags) {
@@ -498,6 +549,9 @@ function buildTagPathIndex(tags: TagLikeForParser[], options: MatchPathTagsOptio
       const entry: TagIndexEntry = { tag, tagTokens, tokenKey }
       if (!byTokenKey.has(tokenKey)) byTokenKey.set(tokenKey, [])
       byTokenKey.get(tokenKey)!.push(entry)
+      if (!hasCjkTags && tagTokens.length === 1 && isCjkOnly(tagTokens[0]) && tagTokens[0].length >= CJK_MIN_TOKEN_LENGTH) {
+        hasCjkTags = true
+      }
     }
   }
 
@@ -505,6 +559,52 @@ function buildTagPathIndex(tags: TagLikeForParser[], options: MatchPathTagsOptio
     byTokenKey,
     tagCount: tags.length,
     termCount,
+    hasCjkTags,
+  }
+}
+
+function collectCjkSubstringKeys(token: string) {
+  const keys: string[] = []
+  if (!hasCjkChar(token) || token.length < CJK_MIN_TOKEN_LENGTH) return keys
+
+  CJK_RUN_RE.lastIndex = 0
+  const runs = token.match(CJK_RUN_RE)
+  if (!runs) return keys
+
+  for (const run of runs) {
+    if (run.length < CJK_MIN_TOKEN_LENGTH) continue
+    for (let len = run.length; len >= CJK_MIN_TOKEN_LENGTH; len -= 1) {
+      for (let start = 0; start <= run.length - len; start += 1) {
+        const sub = run.slice(start, start + len)
+        if (sub === token) continue
+        keys.push(phraseKey([sub]))
+      }
+    }
+  }
+
+  return keys
+}
+
+function pushIndexMatches(
+  matches: PathTagMatch[],
+  phrase: PathPhrase,
+  entries: TagIndexEntry[] | undefined,
+  mediaId: unknown,
+  precisionConfig: MatchPrecisionConfig,
+  source: string,
+) {
+  if (!entries) return
+  for (const entry of entries) {
+    if (!phrasePassesPrecision(phrase, entry.tagTokens, precisionConfig)) continue
+    matches.push({
+      tagId: entry.tag.id,
+      metaId: entry.tag.metaId,
+      mediaId,
+      score: 1,
+      source,
+      tagTokens: entry.tagTokens,
+      phrase,
+    })
   }
 }
 
@@ -519,21 +619,31 @@ function matchPathToTagsFromPhrasesWithIndex(
   const matches: PathTagMatch[] = []
 
   for (const phrase of parsed.phrases) {
-    const entries = index.byTokenKey.get(phraseKey(phrase.tokens))
-    if (!entries) continue
+    pushIndexMatches(
+      matches,
+      phrase,
+      index.byTokenKey.get(phraseKey(phrase.tokens)),
+      mediaId,
+      precisionConfig,
+      'exact',
+    )
 
-    for (const entry of entries) {
-      if (!phrasePassesPrecision(phrase, entry.tagTokens, precisionConfig)) continue
+    if (!index.hasCjkTags) continue
 
-      matches.push({
-        tagId: entry.tag.id,
-        metaId: entry.tag.metaId,
-        mediaId,
-        score: 1,
-        source: 'exact',
-        tagTokens: entry.tagTokens,
-        phrase,
-      })
+    const seenSubKeys = new Set<string>()
+    for (const token of phrase.tokens) {
+      for (const subKey of collectCjkSubstringKeys(token)) {
+        if (seenSubKeys.has(subKey)) continue
+        seenSubKeys.add(subKey)
+        pushIndexMatches(
+          matches,
+          phrase,
+          index.byTokenKey.get(subKey),
+          mediaId,
+          precisionConfig,
+          'cjk-sub',
+        )
+      }
     }
   }
 

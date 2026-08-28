@@ -412,4 +412,102 @@ describe('path tag matching', () => {
     expect(batchMatches.map((match) => `${match.mediaId}:${match.tagId}`).sort())
       .toEqual(singleMatches.map((match) => `${match.mediaId}:${match.tagId}`).sort())
   })
+
+  it('matches 2-character Chinese tags at balanced precision', () => {
+    const tags = [tag(1, '重生')]
+
+    expect(matchNames('/library/重生.mp4', tags)).toEqual(['重生'])
+    expect(matchNames('/library/重生/scene.mp4', tags)).toEqual(['重生'])
+  })
+
+  it('matches 3-character Chinese tags at balanced precision', () => {
+    const tags = [tag(1, '女主角')]
+
+    expect(matchNames('/library/女主角.mp4', tags)).toEqual(['女主角'])
+  })
+
+  it('matches Chinese tags inside undelimited titles', () => {
+    const tags = [tag(1, '重生')]
+
+    expect(matchNames('/library/重生之我在xxx.mp4', tags)).toEqual(['重生'])
+    expect(matchNames('/library/重生之我在xxx/scene.mp4', tags)).toEqual(['重生'])
+  })
+
+  it('matches Chinese tags inside mixed CJK and latin filenames', () => {
+    const tags = [tag(1, '重生')]
+
+    expect(matchNames('/library/重生之我在MyStory.mp4', tags)).toEqual(['重生'])
+  })
+
+  it('prefers the longer Chinese tag over a shorter prefix', () => {
+    const tags = [
+      tag(1, '重生'),
+      tag(2, '重生之我在'),
+    ]
+
+    expect(matchNames('/library/重生之我在xxx.mp4', tags)).toEqual(['重生之我在'])
+    expect(matchNames('/library/重生/重生之我在xxx.mp4', tags)).toEqual(['重生之我在'])
+  })
+
+  it('does not match a 1-character Chinese tag inside a longer title', () => {
+    const tags = [tag(1, '猫')]
+
+    expect(matchNames('/library/猫咪.mp4', tags)).toEqual([])
+  })
+
+  it('does not substring-match latin tags without delimiters', () => {
+    const tags = [tag(1, 'ABCD')]
+
+    expect(matchNames('/library/ABCD.mp4', tags)).toEqual(['ABCD'])
+    expect(matchNames('/library/ABCDEFG.mp4', tags)).toEqual([])
+  })
+
+  it('matches Chinese synonyms inside undelimited titles', () => {
+    const tags = [tag(1, 'Reborn', performerMeta, '重生')]
+
+    expect(matchNames('/library/重生之我在xxx.mp4', tags)).toEqual(['Reborn'])
+  })
+
+  it('matches spaced Chinese tags against concatenated path text', () => {
+    const tags = [tag(1, '都市 传说')]
+
+    expect(matchNames('/library/都市传说.mp4', tags)).toEqual(['都市 传说'])
+  })
+
+  it('matches Japanese kanji and kana tags inside undelimited titles', () => {
+    const tags = [
+      tag(1, '東京'),
+      tag(2, 'アニメ'),
+      tag(3, 'ラーメン'),
+    ]
+
+    expect(matchNames('/library/東京物語.mp4', tags)).toEqual(['東京'])
+    expect(matchNames('/library/アニメーション.mp4', tags)).toEqual(['アニメ'])
+    expect(matchNames('/library/ラーメン屋.mp4', tags)).toEqual(['ラーメン'])
+    expect(matchNames('/library/君の名は.mp4', [tag(1, '君の名は')])).toEqual(['君の名は'])
+  })
+
+  it('prefers the longer Japanese tag over a shorter kanji prefix', () => {
+    const tags = [
+      tag(1, '東京'),
+      tag(2, '東京物語'),
+    ]
+
+    expect(matchNames('/library/東京物語.mp4', tags)).toEqual(['東京物語'])
+  })
+
+  it('matches Korean hangul tags inside undelimited titles', () => {
+    const tags = [tag(1, '사랑')]
+
+    expect(matchNames('/library/사랑.mp4', tags)).toEqual(['사랑'])
+    expect(matchNames('/library/사랑과전쟁.mp4', tags)).toEqual(['사랑'])
+    expect(matchNames('/library/한글/scene.mp4', [tag(1, '한글')])).toEqual(['한글'])
+  })
+
+  it('matches bopomofo tags at balanced precision', () => {
+    const tags = [tag(1, 'ㄅㄆ')]
+
+    expect(matchNames('/library/ㄅㄆ.mp4', tags)).toEqual(['ㄅㄆ'])
+    expect(matchNames('/library/ㄅㄆㄇ.mp4', tags)).toEqual(['ㄅㄆ'])
+  })
 })
