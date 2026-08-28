@@ -37,6 +37,7 @@
         class="main-scroll"
         :class="{'main-scroll--settings': isSettingsPage}"
       >
+        <FloatingBottomDock v-if="!store.isLocked"/>
         <SessionFocusBar v-if="!store.isLocked"/>
         <div
           :class="{'main-scroll-inner--settings': isSettingsPage}"
@@ -133,6 +134,7 @@ import {isPlayerUiActive} from '@/utils/playerShellState'
 import {isWinElectronUi} from '@/utils/electronUi'
 
 import SystemBar from '@/components/app/SystemBar.vue'
+import FloatingBottomDock from '@/components/app/FloatingBottomDock.vue'
 import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
 
 const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))

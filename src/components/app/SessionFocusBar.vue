@@ -1,28 +1,30 @@
 <template>
-  <v-slide-y-transition>
+  <Teleport
+    defer
+    :to="dockHost"
+  >
     <div
       v-if="isVisible"
-      class="session-focus-tray"
+      class="floating-bottom-dock-lane session-focus-tray"
       :class="{
-        'session-focus-tray--bottom-nav': useBottomBar,
         'session-focus-tray--drop-target': isDropTarget,
         'session-focus-tray--empty': !focusTags.length,
       }"
-      :style="barStyle"
+      data-dock-order="tray"
       role="status"
       @dragover.prevent="onTrayDragOver"
       @dragleave="onTrayDragLeave"
       @drop.prevent="onTrayDrop"
     >
-      <div class="session-focus-tray__inner">
-        <div class="session-focus-tray__left">
+      <div class="floating-bottom-dock-lane__row">
+        <div class="floating-bottom-dock-lane__left">
           <span
-            class="session-focus-tray__glyph"
+            class="floating-bottom-dock-lane__glyph"
             aria-hidden="true"
           >
             <v-icon size="16" icon="mdi-bullseye-arrow"/>
           </span>
-          <span class="session-focus-tray__title">{{ t('session_focus.bar_label') }}</span>
+          <span class="floating-bottom-dock-lane__title">{{ t('session_focus.bar_label') }}</span>
           <v-chip
             v-if="focusTags.length"
             size="x-small"
@@ -41,11 +43,11 @@
 
         <div
           ref="entriesContainerRef"
-          class="session-focus-tray__entries"
+          class="floating-bottom-dock-lane__entries"
         >
           <span
             v-if="!focusTags.length"
-            class="session-focus-tray__empty"
+            class="floating-bottom-dock-lane__empty"
           >
             {{ t('session_focus.drop_here') }}
           </span>
@@ -83,7 +85,7 @@
 
         <div
           v-if="focusTags.length"
-          class="session-focus-tray__actions"
+          class="floating-bottom-dock-lane__actions"
         >
           <v-btn
             size="x-small"
@@ -108,7 +110,7 @@
             v-tooltip:top="t('session_focus.browse_without')"
             @click="browseWithoutFocus()"
           />
-          <div class="session-focus-tray__divider"/>
+          <div class="floating-bottom-dock-lane__divider"/>
           <v-btn
             size="x-small"
             variant="tonal"
@@ -119,19 +121,19 @@
         </div>
       </div>
     </div>
-  </v-slide-y-transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useSessionFocusStore} from '@/stores/sessionFocus'
 import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
-import {useFixedGridBarBounds} from '@/composable/useFixedGridBarBounds'
 import {useItemsStore} from '@/stores/items'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {recalcChipBarOverflow} from '@/utils/chipBarOverflow'
+import {FLOATING_BOTTOM_DOCK_HOST} from '@/utils/floatingBottomDock'
 import {
   clearMediaTagDrag,
   isMediaTagDragActive,
@@ -143,12 +145,13 @@ import {
   writeSessionFocusTagsDrag,
 } from '@/utils/sessionFocusDrag'
 
-/** Pages where the tray is meaningful (media / tags grids). */
+/** Pages where the tray is meaningful (media / tags grids, folders browse). */
 const SESSION_FOCUS_ROUTE_NAMES = new Set([
   'Home',
   'Items',
   'Tag',
   'AllTags',
+  'Folders',
 ])
 
 const {t} = useI18n()
@@ -164,8 +167,8 @@ const {
   addTagsToTray,
   applyTrayToCurrentTargets,
 } = useSessionFocusActions()
-const {barStyle, useBottomBar, syncBounds, observeGrid} = useFixedGridBarBounds()
 
+const dockHost = FLOATING_BOTTOM_DOCK_HOST
 const entriesContainerRef = ref<HTMLElement | null>(null)
 const overflowCount = ref(0)
 const isDropTarget = ref(false)
@@ -232,11 +235,6 @@ let unsubscribeDrag: (() => void) | null = onMediaTagDragChange((active) => {
 
 let overflowObserver: ResizeObserver | null = null
 
-onMounted(() => {
-  observeGrid()
-  syncBounds()
-})
-
 onBeforeUnmount(() => {
   unsubscribeDrag?.()
   unsubscribeDrag = null
@@ -252,102 +250,20 @@ watch(entriesContainerRef, (el) => {
     recalcOverflow()
   })
   overflowObserver.observe(el)
-  void nextTick().then(() => {
-    syncBounds()
-    recalcOverflow()
-  })
+  void nextTick().then(recalcOverflow)
 })
 
 watch(
   () => [focusTags.value.length, route.fullPath, isVisible.value] as const,
   () => {
-    void nextTick().then(() => {
-      observeGrid()
-      syncBounds()
-      recalcOverflow()
-    })
+    void nextTick().then(recalcOverflow)
   },
 )
 </script>
 
 <style scoped>
-.session-focus-tray {
-  position: fixed;
-  box-sizing: border-box;
-  bottom: 16px;
-  /* Stay inside the grid column: drawers set --v-layout-*, v-container adds 16px. */
-  left: calc(var(--v-layout-left, 0px) + 16px);
-  right: calc(var(--v-layout-right, 0px) + 16px);
-  margin-inline: auto;
-  transform: none;
-  width: auto;
-  max-width: min(100%, var(--container-max-width, 1184px));
-  z-index: 1005;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-primary), 0.18);
-  border-radius: 18px;
-  box-shadow:
-    0 0 0 1px rgba(var(--v-theme-primary), 0.06),
-    0 -6px 18px -4px rgba(0, 0, 0, 0.16),
-    0 0 20px -2px rgba(0, 0, 0, 0.14),
-    0 10px 28px -8px rgba(0, 0, 0, 0.28);
-  padding: 0 14px;
-}
-
-.session-focus-tray--bottom-nav {
-  bottom: 72px;
-}
-
 .session-focus-tray--drop-target {
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow:
-    0 0 0 2px rgba(var(--v-theme-primary), 0.28),
-    0 -6px 18px -4px rgba(0, 0, 0, 0.16),
-    0 0 20px -2px rgba(0, 0, 0, 0.14),
-    0 10px 28px -8px rgba(0, 0, 0, 0.28);
-}
-
-.session-focus-tray__inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  max-height: 56px;
-  overflow: hidden;
-}
-
-.session-focus-tray__left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-.session-focus-tray__glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: rgba(var(--v-theme-primary), 0.12);
-  color: rgb(var(--v-theme-primary));
-}
-
-.session-focus-tray__title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.session-focus-tray__entries {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
+  background: rgba(var(--v-theme-primary), 0.08);
 }
 
 .session-focus-tray__entry {
@@ -392,26 +308,5 @@ watch(
   position: absolute;
   visibility: hidden;
   pointer-events: none;
-}
-
-.session-focus-tray__empty {
-  font-size: 0.7rem;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  white-space: nowrap;
-}
-
-.session-focus-tray__actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.session-focus-tray__divider {
-  width: 1px;
-  height: 20px;
-  background: rgba(var(--v-theme-on-surface), 0.15);
-  margin: 0 2px;
-  flex-shrink: 0;
 }
 </style>

@@ -1,7 +1,6 @@
 <template>
   <v-container
     v-if="appStore.localhost && appStore.is_app_ready"
-    ref="foldersPageRef"
     class="folders-page items-layout-container"
   >
     <div
@@ -596,7 +595,6 @@
 
     <div
       v-else-if="visibleFolders.length || visibleMedia.length || fsFiles.length || missingMedia.length"
-      ref="foldersGridRef"
       class="items-page-grid items-virtual-grid"
     >
       <FoldersVirtualGrid
@@ -706,23 +704,25 @@
       </v-card>
     </v-dialog>
 
-    <!-- Clipboard / Selection buffer -->
-    <v-slide-y-transition>
+    <!-- Clipboard / Selection buffer — shares the bottom dock with the tag tray -->
+    <Teleport
+      defer
+      :to="dockHost"
+    >
       <div
         v-if="clipboardTotalCount > 0"
-        class="folders-page__clipboard-bar"
-        :style="clipboardBarStyle"
-        :class="{'folders-page__clipboard-bar--bottom-nav': useBottomBar}"
+        class="floating-bottom-dock-lane folders-page__clipboard-bar"
+        data-dock-order="clipboard"
       >
-        <div class="folders-page__clipboard-bar-inner">
-          <div class="folders-page__clipboard-bar-left">
+        <div class="floating-bottom-dock-lane__row">
+          <div class="floating-bottom-dock-lane__left">
             <span
-              class="folders-page__clipboard-bar-glyph"
+              class="floating-bottom-dock-lane__glyph"
               aria-hidden="true"
             >
               <v-icon size="16" icon="mdi-checkbox-multiple-marked-outline"/>
             </span>
-            <span class="folders-page__clipboard-bar-title">{{ t('folders_browser.clipboard_title') }}</span>
+            <span class="floating-bottom-dock-lane__title">{{ t('folders_browser.clipboard_title') }}</span>
             <v-chip
               size="x-small"
               color="primary"
@@ -733,10 +733,10 @@
               {{ t('folders_browser.selected_count', {count: clipboardTotalCount}) }}
             </v-chip>
           </div>
-          <div ref="clipboardEntriesContainerRef" class="folders-page__clipboard-bar-entries">
+          <div ref="clipboardEntriesContainerRef" class="floating-bottom-dock-lane__entries">
             <span
               v-if="!clipboardTotalCount"
-              class="folders-page__clipboard-bar-empty"
+              class="floating-bottom-dock-lane__empty"
             >
               {{ t('folders_browser.clipboard_empty') }}
             </span>
@@ -764,7 +764,7 @@
               </v-chip>
             </template>
           </div>
-          <div class="folders-page__clipboard-bar-actions">
+          <div class="floating-bottom-dock-lane__actions">
             <v-btn
               size="x-small"
               variant="tonal"
@@ -797,9 +797,7 @@
               :disabled="!fsSelection.selectedCount"
               @click="onMoveSelectedTo"
             />
-            <div
-              class="folders-page__clipboard-bar-divider"
-            />
+            <div class="floating-bottom-dock-lane__divider"/>
             <v-btn
               size="x-small"
               variant="tonal"
@@ -818,7 +816,6 @@
           </div>
         </div>
 
-        <!-- Queue indicator -->
         <div
           v-if="fsQueue.totalPending > 0"
           class="folders-page__queue-bar"
@@ -834,7 +831,7 @@
           </span>
         </div>
       </div>
-    </v-slide-y-transition>
+    </Teleport>
   </v-container>
 </template>
 
@@ -855,7 +852,6 @@ import {useContextMenu} from '@/stores/contextMenu'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
 import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
-import {useFixedGridBarBounds} from '@/composable/useFixedGridBarBounds'
 import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import {useFsOperationsQueue} from '@/stores/fsOperationsQueue'
 import {useAppShell} from '@/composable/appShell'
@@ -865,6 +861,8 @@ import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
+import {recalcChipBarOverflow} from '@/utils/chipBarOverflow'
+import {FLOATING_BOTTOM_DOCK_HOST} from '@/utils/floatingBottomDock'
 import {
   canGoFolderHistoryBack,
   canGoFolderHistoryForward,
@@ -1023,81 +1021,15 @@ const createFolderBusy = ref(false)
 const createFolderError = ref('')
 const createFolderInputRef = ref<{focus?: () => void} | null>(null)
 
-type ElementRef = HTMLElement | { $el?: HTMLElement | null } | null
-
-const foldersPageRef = ref<ElementRef>(null)
-const foldersGridRef = ref<HTMLElement | null>(null)
 const clipboardEntriesContainerRef = ref<HTMLElement | null>(null)
 const clipboardOverflowCount = ref(0)
-
-function asDomElement(value: ElementRef): HTMLElement | null {
-  if (value instanceof HTMLElement) return value
-  return value?.$el instanceof HTMLElement ? value.$el : null
-}
-
-const {
-  barStyle: clipboardBarStyle,
-  useBottomBar,
-  syncBounds: syncClipboardBarBounds,
-  observeGrid: observeClipboardBar,
-} = useFixedGridBarBounds({
-  getAnchor: () => foldersGridRef.value || asDomElement(foldersPageRef.value),
-})
+const dockHost = FLOATING_BOTTOM_DOCK_HOST
 
 function recalcClipboardOverflow() {
-  const el = clipboardEntriesContainerRef.value
-  if (!el) return
-
-  const chips = Array.from(
-    el.querySelectorAll<HTMLElement>(':scope > .folders-page__clipboard-entry:not(.folders-page__clipboard-entry--more)'),
-  )
-  const overflowChip = el.querySelector<HTMLElement>('.folders-page__clipboard-entry--more')
-
-  if (!chips.length) {
-    clipboardOverflowCount.value = 0
-    return
-  }
-
-  // Measure with every entry chip visible so widths are accurate.
-  for (const chip of chips) {
-    chip.classList.remove('folders-page__clipboard-entry--overflow-hidden')
-  }
-
-  const containerWidth = el.clientWidth
-  const gap = 4
-
-  let usedAll = 0
-  for (let i = 0; i < chips.length; i++) {
-    if (i > 0) usedAll += gap
-    usedAll += chips[i].offsetWidth
-  }
-
-  if (usedAll <= containerWidth) {
-    clipboardOverflowCount.value = 0
-    return
-  }
-
-  let overflowWidth = 40 + gap
-  if (overflowChip) {
-    overflowChip.classList.add('folders-page__clipboard-entry--more-measure')
-    overflowWidth = overflowChip.offsetWidth + gap
-    overflowChip.classList.remove('folders-page__clipboard-entry--more-measure')
-  }
-
-  const limit = Math.max(0, containerWidth - overflowWidth)
-  let used = 0
-  let visible = 0
-  for (const chip of chips) {
-    if (visible > 0) used += gap
-    if (used + chip.offsetWidth > limit) break
-    used += chip.offsetWidth
-    visible++
-  }
-
-  for (let i = 0; i < chips.length; i++) {
-    chips[i].classList.toggle('folders-page__clipboard-entry--overflow-hidden', i >= visible)
-  }
-  clipboardOverflowCount.value = chips.length - visible
+  clipboardOverflowCount.value = recalcChipBarOverflow(clipboardEntriesContainerRef.value, {
+    chipSelector: ':scope > .folders-page__clipboard-entry:not(.folders-page__clipboard-entry--more)',
+    moreSelector: '.folders-page__clipboard-entry--more',
+  })
 }
 
 const sizeLabels = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -2563,8 +2495,6 @@ onMounted(() => {
       },
     })
   }
-  observeClipboardBar()
-  syncClipboardBarBounds()
   eventBus.on('folders:open-path', navigateTo)
   eventBus.on('folders:open-tags', () => {
     if (currentPath.value) {
@@ -2600,27 +2530,17 @@ watch(clipboardEntriesContainerRef, (el) => {
     recalcClipboardOverflow()
   })
   resizeObserver.observe(el)
-  void nextTick().then(() => {
-    syncClipboardBarBounds()
-    recalcClipboardOverflow()
-  })
+  void nextTick().then(recalcClipboardOverflow)
 })
 
 watch(() => fsSelection.selectedEntries.length + itemsStore.selection.length, () => {
-  void nextTick().then(() => {
-    syncClipboardBarBounds()
-    recalcClipboardOverflow()
-  })
+  void nextTick().then(recalcClipboardOverflow)
 })
 
 watch(() => itemsStore.isSelect, (enabled) => {
   if (!enabled) {
     fsSelection.clearSelection()
   }
-})
-
-watch(() => visibleFolders.value.length + visibleMedia.value.length + fsFiles.value.length + missingMedia.value.length, () => {
-  void nextTick().then(syncClipboardBarBounds)
 })
 
 watch(presenceFilter, () => {
@@ -3179,74 +3099,6 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-primary));
 }
 
-.folders-page__clipboard-bar {
-  position: fixed;
-  box-sizing: border-box;
-  bottom: 16px;
-  /* Stay inside the grid column: drawers set --v-layout-*, v-container adds 16px. */
-  left: calc(var(--v-layout-left, 0px) + 16px);
-  right: calc(var(--v-layout-right, 0px) + 16px);
-  margin-inline: auto;
-  transform: none;
-  width: auto;
-  max-width: min(100%, var(--container-max-width, 1184px));
-  z-index: 1005;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-primary), 0.18);
-  border-radius: 18px;
-  box-shadow:
-    0 1px 0 rgba(var(--v-theme-primary), 0.06),
-    0 16px 40px -18px rgba(0, 0, 0, 0.42);
-  padding: 0 14px;
-}
-
-.folders-page__clipboard-bar--bottom-nav {
-  bottom: 72px;
-}
-
-.folders-page__clipboard-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  max-height: 56px;
-  overflow: hidden;
-}
-
-.folders-page__clipboard-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-.folders-page__clipboard-bar-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: rgba(var(--v-theme-primary), 0.12);
-  color: rgb(var(--v-theme-primary));
-}
-
-.folders-page__clipboard-bar-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.folders-page__clipboard-bar-entries {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
 .folders-page__clipboard-entry {
   flex-shrink: 0;
   max-width: 160px;
@@ -3267,7 +3119,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.folders-page__clipboard-entry--overflow-hidden {
+.folders-page__clipboard-entry.chip-bar-entry--overflow-hidden {
   display: none !important;
 }
 
@@ -3282,32 +3134,11 @@ onBeforeUnmount(() => {
   display: none !important;
 }
 
-.folders-page__clipboard-entry--more-measure {
+.folders-page__clipboard-entry--more.chip-bar-entry--more-measure {
   display: inline-flex !important;
   position: absolute;
   visibility: hidden;
   pointer-events: none;
-}
-
-.folders-page__clipboard-bar-empty {
-  font-size: 0.7rem;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  white-space: nowrap;
-}
-
-.folders-page__clipboard-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.folders-page__clipboard-bar-divider {
-  width: 1px;
-  height: 20px;
-  background: rgba(var(--v-theme-on-surface), 0.15);
-  margin: 0 2px;
-  flex-shrink: 0;
 }
 
 .folders-page__queue-bar {
