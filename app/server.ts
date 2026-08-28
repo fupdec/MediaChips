@@ -11,6 +11,7 @@ import { createExpressApp, setupStaticApp } from './server/createApp'
 import { initAuthService, getAuthService } from './server/authRegistry'
 import { createAuthMiddleware, registerAuthRoutes } from './server/auth'
 import { registerPingRoute } from './server/pingRoute'
+import { registerConfigRoute } from './server/configRoute'
 import { createServerStarter } from './server/startup'
 import {
   initLanAccess,
@@ -45,9 +46,10 @@ const authService = initAuthService(db)
 app.use(createAuthMiddleware(authService))
 registerAuthRoutes(app, authService)
 
-// Answer Electron waitForBackend before loading Task/face/transcode graphs.
+// Answer Electron waitForBackend / SPA boot before loading Task/face/transcode graphs.
 registerPingRoute(app, config)
-logStartup('ping ready')
+registerConfigRoute(app, config, databasesPath)
+logStartup('ping+config ready')
 
 const {startServer, restartNetworkListener, bindShutdownHandler, getListener} = createServerStarter({
   app,

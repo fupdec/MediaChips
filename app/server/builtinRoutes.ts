@@ -6,25 +6,22 @@ import type {
   FileResolverResult,
   ResolveFilePathFn,
 } from '../types/builtinRoutes'
-import type { ServerConfig, ServerDatabaseEntry } from '../types/server'
+import type { ServerDatabaseEntry } from '../types/server'
 import path from 'path'
 import fs from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import { normalizeMediaPath } from '../../api/utils/normalizeUserPath'
 import {
-  isLanAccessEnabled,
   isLanAccessEnvLocked,
   applyLanAccessChange,
   didLanAccessChange,
 } from './lanAccess'
-import { pickPublicHost } from './publicHost'
 import { listMediaRoots } from '../../api/services/mediaRoots'
 import { listBrowseDirectory } from '../../api/services/browseDirectory'
 import { listSystemPlaces } from '../../api/services/systemPlaces'
 import { deleteEntries, copyEntries, moveEntries, validateEntries, createFolder, renameEntry } from '../../api/services/browseOperations'
 import { syncMediaPathsForMoves } from '../../api/services/browseMediaPathSync'
 import { invalidateMediaDerivedCaches } from '../../api/services/mediaCacheInvalidation'
-import { getBestLocalIp, getAllIps } from './network'
 import { saveConfigFile } from './configFile'
 import { safeJsonError } from './fileResolver'
 import { streamVideoFile } from '../../api/services/transcode/streamVideoFile'
@@ -33,21 +30,6 @@ import { getDatabaseManager } from './databaseRegistry'
 import { createStorageDirectories } from './serverConfig'
 import packageJson from '../../package.json'
 import { parseBooleanSetting } from '../../shared/parseBooleanSetting'
-import {
-  GLOBAL_APP_CONFIG_KEYS,
-  readGlobalConfigString,
-  readMinimizeToTrayConfig,
-} from '../../shared/appGlobalConfig'
-function buildGlobalSettingsPayload(config: ServerConfig) {
-  const source = config as unknown as Record<string, unknown>
-  const payload: Record<string, string> = {}
-
-  for (const key of GLOBAL_APP_CONFIG_KEYS) {
-    payload[key] = readGlobalConfigString(source, key)
-  }
-
-  return payload
-}
 
 function resolveMediaVideoPath(
   db: ApiDb,
@@ -320,46 +302,6 @@ function registerBuiltinRoutes({
       const message = apiErrorMessage(error) || 'Failed to rename entry'
       res.status(status).json({message})
     }
-  })
-
-  app.get('/api/config', (req: ApiRequest, res: ApiResponse) => {
-    console.log('Config request from:', req.headers.origin || 'unknown origin')
-
-    const activeDb = config.databases.find((dbEntry: ServerDatabaseEntry) => dbEntry.active)
-    const frontendIp = pickPublicHost(
-      {getBestLocalIp, getAllIps},
-      {requestHostname: req.hostname},
-    )
-
-    const responseConfig = {
-      ip: frontendIp,
-      ips: config.ips,
-      hostname: config.hostname,
-      port: config.port,
-      appVersion: (packageJson.version || '1.0.0').replace(/(-beta)+$/i, '-beta'),
-      path: activeDb ? path.join(databasesPath, activeDb.id) : '',
-      databases: config.databases || [],
-      activeDatabase: activeDb,
-      serverInfo: {
-        webUrl: `http://${frontendIp}:${config.port}`,
-        apiUrl: `http://${frontendIp}:${config.port}/api`,
-        wsUrl: `ws://${frontendIp}:${config.port}`,
-        detectedAt: new Date().toISOString(),
-      },
-      allowLanAccess: isLanAccessEnabled(),
-      allowLanAccessEnvLocked: isLanAccessEnvLocked(),
-      registration: typeof config.registration === 'string' ? config.registration : '',
-      minimizeToTray: readMinimizeToTrayConfig(config as unknown as Record<string, unknown>),
-      ...buildGlobalSettingsPayload(config),
-      ...(typeof config.onboardingCompleted === 'string' ? { onboardingCompleted: config.onboardingCompleted } : {}),
-      ...(typeof config.onboardingStep === 'string' ? { onboardingStep: config.onboardingStep } : {}),
-      ...(typeof config.onboardingPaused === 'string' ? { onboardingPaused: config.onboardingPaused } : {}),
-      ...(typeof config.lastSeenVersion === 'string' ? { lastSeenVersion: config.lastSeenVersion } : {}),
-      ...(typeof config.skippedUpdateVersions === 'string' ? { skippedUpdateVersions: config.skippedUpdateVersions } : {}),
-      ...(typeof config.seenFeatureHints === 'string' ? { seenFeatureHints: config.seenFeatureHints } : {}),
-    }
-
-    res.json(responseConfig)
   })
 
   app.post('/api/update-config', async (req: ApiRequest, res: ApiResponse) => {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens (not after heavy routes) and no longer requires a login session, so phones and other devices stop spinning forever on a blank page
+
 ## [1.10.0] - 2026-08-17
 
 ### Added
