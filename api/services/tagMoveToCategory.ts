@@ -17,11 +17,7 @@ import {mergeTagsInCategoryTx} from './tagMerge'
 import type {TagRow} from '../db/repositories/tags'
 import {uniquePositiveIds} from '../utils/uniqueIds'
 import {normalizeTagLookupName} from '../../shared/tagLookupName'
-import {
-  assertMetaIsTagLeaf,
-  clearParentIfInsideSet,
-  collectTagSubtreeIds,
-} from './tagCategoryTree'
+import {assertMetaIsTagLeaf} from './tagCategoryTree'
 import {
   buildExistingNameIndex,
   detectTagNameConflicts,
@@ -269,11 +265,15 @@ function moveTagMetaId(
   if (!tagIds.length) return
   remapLinksForTags(tx, tagIds, sourceMetaId, targetMetaId)
   tx.update(tags)
-    .set({metaId: targetMetaId, updatedAt: nowIso()})
+    .set({metaId: targetMetaId, parentTagId: null, updatedAt: nowIso()})
     .where(and(
       inArray(tags.id, tagIds),
       eq(tags.metaId, sourceMetaId),
     ))
+    .run()
+  tx.update(tags)
+    .set({parentTagId: null, updatedAt: nowIso()})
+    .where(inArray(tags.parentTagId, tagIds))
     .run()
 }
 
@@ -334,9 +334,7 @@ export async function moveTagsToCategory(
     }
     assertMetaIsTagLeaf(tx, targetMetaId)
 
-    const requestedIds = uniquePositiveIds(input.tagIds)
-    const expandedIds = collectTagSubtreeIds(tx, requestedIds)
-    const tagIds = expandedIds.length ? expandedIds : requestedIds
+    const tagIds = uniquePositiveIds(input.tagIds)
 
     const tagRows = tx.select().from(tags).where(inArray(tags.id, tagIds)).all()
     if (tagRows.length !== tagIds.length) {
@@ -464,19 +462,6 @@ export async function moveTagsToCategory(
         }
       }
     }
-
-    const remainingMoved = new Set(
-      tx.select({id: tags.id})
-        .from(tags)
-        .where(inArray(tags.id, tagIds))
-        .all()
-        .map((row) => row.id),
-    )
-    clearParentIfInsideSet(
-      tx,
-      requestedIds.filter((id) => remainingMoved.has(id)),
-      remainingMoved,
-    )
 
     return {movedIds, mergedIds, targetMetaId, survivors}
   })

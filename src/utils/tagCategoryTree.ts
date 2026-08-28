@@ -1,48 +1,20 @@
 import {
   MAX_META_TREE_DEPTH,
-  MAX_TAG_TREE_DEPTH,
   ancestorIds,
   breadcrumbIds,
   buildChildrenMap,
   buildForest,
   buildParentMap,
-  collectDescendantIds,
   flattenForest,
   nodeDepth,
   normalizeParentId,
   subtreeHeight,
 } from '@shared/hierarchyTree'
 import type {Meta} from '@/types/stores'
-import type {Tag} from '@shared/entities/meta'
 
-export {MAX_META_TREE_DEPTH, MAX_TAG_TREE_DEPTH, normalizeParentId}
+export {MAX_META_TREE_DEPTH, normalizeParentId}
 
-export type TagLike = Pick<Tag, 'id' | 'parentTagId' | 'name' | 'metaId'>
 export type MetaLike = Pick<Meta, 'id' | 'parentMetaId' | 'name' | 'type' | 'hidden' | 'order' | 'icon'>
-
-export function tagParentMap(tags: TagLike[]) {
-  return buildParentMap(tags.map((tag) => ({
-    id: Number(tag.id),
-    parentId: tag.parentTagId as number | null | undefined,
-  })))
-}
-
-export function tagDepth(tagId: number, tags: TagLike[]): number {
-  return nodeDepth(tagId, tagParentMap(tags))
-}
-
-export function tagBreadcrumbIds(tagId: number, tags: TagLike[]): number[] {
-  return breadcrumbIds(tagId, tagParentMap(tags))
-}
-
-export function tagDescendantIds(tagId: number, tags: TagLike[]): number[] {
-  return collectDescendantIds(tagId, buildChildrenMap(tagParentMap(tags)))
-}
-
-export function isValidTagParent(tagId: number, parentId: number, tags: TagLike[]): boolean {
-  if (tagId === parentId) return false
-  return !tagDescendantIds(tagId, tags).includes(parentId)
-}
 
 export function isTagCategoryGroup(meta: MetaLike, all: MetaLike[]): boolean {
   const id = Number(meta.id)
@@ -106,16 +78,22 @@ export function isValidCategoryParent(
   return !categoryAncestorIds(parentId, all).includes(metaId)
 }
 
+function categoryDisplayName(id: number, byId: Map<number, MetaLike>): string {
+  return String(byId.get(id)?.name ?? '').trim()
+}
+
 export function categoryPathLabel(metaId: number, all: MetaLike[]): string {
   const byId = new Map(all.map((item) => [Number(item.id), item]))
-  return breadcrumbIds(metaId, buildParentMap(all
+  const names = breadcrumbIds(metaId, buildParentMap(all
     .filter((item) => item.type === 'array')
     .map((item) => ({
       id: Number(item.id),
       parentId: item.parentMetaId as number | null | undefined,
     }))))
-    .map((id) => String(byId.get(id)?.name || id))
-    .join(' › ')
+    .map((id) => categoryDisplayName(id, byId))
+    .filter(Boolean)
+  if (names.length) return names.join(' › ')
+  return categoryDisplayName(metaId, byId)
 }
 
 export function leafCategoryOptions(all: MetaLike[]): Array<MetaLike & {pickerTitle: string}> {
@@ -136,17 +114,15 @@ export function canNestCategoryUnder(
   return Number(tagsInParent) === 0
 }
 
-export function canReparentTag(
-  tagId: number,
-  parentId: number | null,
-  tags: TagLike[],
+/** Empty or already-grouped categories that can receive a nested child. */
+export function hasEmptyCategoryNestTarget(
+  all: MetaLike[],
+  tagCountByMetaId: Record<number, number>,
 ): boolean {
-  if (parentId == null) return true
-  if (!isValidTagParent(tagId, parentId, tags)) return false
-  const parentById = tagParentMap(tags)
-  parentById.set(tagId, parentId)
-  const children = buildChildrenMap(parentById)
-  return nodeDepth(tagId, parentById) + subtreeHeight(tagId, children) <= MAX_TAG_TREE_DEPTH
+  return all.some((category) =>
+    category.type === 'array'
+    && canNestCategoryUnder(category, all, tagCountByMetaId[Number(category.id)] || 0),
+  )
 }
 
 export function canReparentCategory(
@@ -169,34 +145,4 @@ export function canReparentCategory(
   parentById.set(metaId, parentId)
   const children = buildChildrenMap(parentById)
   return nodeDepth(metaId, parentById) + subtreeHeight(metaId, children) <= MAX_META_TREE_DEPTH
-}
-
-export type FlatTag = {
-  tag: TagLike
-  depth: number
-  isGroup: boolean
-}
-
-export function flattenTagsInCategory(tags: TagLike[]): FlatTag[] {
-  const forest = buildForest(
-    tags,
-    (item) => Number(item.id),
-    (item) => normalizeParentId(item.parentTagId),
-  )
-  const sortNodes = (nodes: typeof forest) => {
-    nodes.sort((a, b) => String(a.node.name || '').localeCompare(String(b.node.name || '')))
-    for (const node of nodes) sortNodes(node.children)
-  }
-  sortNodes(forest)
-  return flattenForest(forest).map((node) => ({
-    tag: node.node,
-    depth: node.depth,
-    isGroup: node.children.length > 0,
-  }))
-}
-
-export function validTagParents(tagId: number, tags: TagLike[]): TagLike[] {
-  return flattenTagsInCategory(tags)
-    .filter((row) => isValidTagParent(tagId, Number(row.tag.id), tags))
-    .map((row) => row.tag)
 }

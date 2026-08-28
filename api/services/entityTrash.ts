@@ -110,7 +110,7 @@ export function softDeleteTag(db: ApiDb, tagId: number): boolean {
   const id = Number(tagId)
   if (!Number.isFinite(id) || id <= 0) return false
   const row = queryGet<AnyRecord>(db, `
-    SELECT id, name, deletedAt, trashOriginalName, parentTagId FROM tags WHERE id = :id LIMIT 1
+    SELECT id, name, deletedAt, trashOriginalName FROM tags WHERE id = :id LIMIT 1
   `, {id})
   if (!row) return false
 
@@ -120,15 +120,9 @@ export function softDeleteTag(db: ApiDb, tagId: number): boolean {
 
   const trashName = buildTrashTagName(id, originalName)
   const deletedAt = row.deletedAt ? String(row.deletedAt) : nowIso()
-  const parentTagId = row.parentTagId == null || row.parentTagId === ''
-    ? null
-    : Number(row.parentTagId)
-  const nextParentId = parentTagId != null && Number.isFinite(parentTagId) && parentTagId > 0
-    ? parentTagId
-    : null
   db.sqlite.prepare(`
-    UPDATE tags SET parentTagId = ? WHERE parentTagId = ?
-  `).run(nextParentId, id)
+    UPDATE tags SET parentTagId = NULL WHERE parentTagId = ?
+  `).run(id)
   db.sqlite.prepare(`
     UPDATE tags
     SET deletedAt = ?,

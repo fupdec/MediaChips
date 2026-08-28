@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it} from 'vitest'
-import {eq} from 'drizzle-orm'
 import {createTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {meta} from '../db/schema/meta'
 import {metaInMediaTypes} from '../db/schema/metaInMediaTypes'
@@ -11,9 +10,7 @@ import {nowIso} from '../db/utils/timestamps'
 import {
   TagCategoryTreeError,
   assertMetaIsTagLeaf,
-  collectTagSubtreeIds,
   reparentMeta,
-  reparentTag,
 } from './tagCategoryTree'
 
 function stamp() {
@@ -35,47 +32,6 @@ describe('tagCategoryTree', () => {
     dbs.push(created)
     return created
   }
-
-  it('reparents tags, rejects cycles, and expands subtrees', () => {
-    const {drizzle} = db()
-    const category = drizzle.insert(meta).values({
-      type: 'array',
-      name: 'Studios',
-      ...stamp(),
-    }).returning().get()
-
-    const parent = drizzle.insert(tags).values({
-      name: 'Network',
-      metaId: category.id,
-      ...stamp(),
-    }).returning().get()
-    const child = drizzle.insert(tags).values({
-      name: 'Site A',
-      metaId: category.id,
-      ...stamp(),
-    }).returning().get()
-    const grand = drizzle.insert(tags).values({
-      name: 'Site A Extra',
-      metaId: category.id,
-      ...stamp(),
-    }).returning().get()
-
-    drizzle.transaction((tx) => {
-      reparentTag(tx, child.id, parent.id)
-      reparentTag(tx, grand.id, child.id)
-    })
-
-    expect(drizzle.select().from(tags).where(eq(tags.id, child.id)).get()?.parentTagId).toBe(parent.id)
-    expect(collectTagSubtreeIds(drizzle as never, [parent.id]).sort()).toEqual(
-      [parent.id, child.id, grand.id].sort(),
-    )
-
-    expect(() => {
-      drizzle.transaction((tx) => {
-        reparentTag(tx, parent.id, grand.id)
-      })
-    }).toThrow(TagCategoryTreeError)
-  })
 
   it('blocks tags on a parent category and media assignment to groups', () => {
     const {drizzle} = db()

@@ -14,7 +14,7 @@
       class="settings-default-tag-category__field"
       :items="arrayMetas"
       item-value="id"
-      item-title="pickerTitle"
+      item-title="name"
       :placeholder="t('settings_labels.library.default_tag_category_placeholder')"
       return-object
       variant="outlined"
@@ -25,10 +25,10 @@
     >
       <template #selection="{ item }">
         <v-icon start size="18">mdi-{{ item.raw.icon || 'tag-multiple-outline' }}</v-icon>
-        <span class="text-truncate">{{ item.raw.pickerTitle || item.raw.name }}</span>
+        <span class="text-truncate">{{ item.raw.name }}</span>
       </template>
       <template #item="{ item, props: itemProps }">
-        <v-list-item v-bind="itemProps">
+        <v-list-item v-bind="itemProps" :title="item.raw.pickerTitle || item.raw.name">
           <template #title>
             <v-icon start size="18">mdi-{{ item.raw.icon || 'tag-multiple-outline' }}</v-icon>
             <span>{{ item.raw.pickerTitle || item.raw.name }}</span>

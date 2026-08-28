@@ -92,7 +92,7 @@ export function duplicateTag(
     country: source.country ?? null,
     color: source.color ?? null,
     views: 0,
-    parentTagId: source.parentTagId ?? null,
+    parentTagId: null,
   }])
 
   if (!created) {

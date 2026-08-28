@@ -15,7 +15,6 @@ import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import type {TagRow} from '../db/repositories/tags'
 import {uniqueByKey, uniquePositiveIds} from '../utils/uniqueIds'
 import {mergeSynonymLists} from './tagSynonymMerge'
-import {collectTagSubtreeIds, reparentTagChildrenTo} from './tagCategoryTree'
 import {
   planNestedNameDedupeDeletes,
   planTagValuesToInsert,
@@ -161,16 +160,14 @@ export function mergeTagsInCategoryTx(
   const survivor = tagRows.find((row) => row.id === survivorId)!
   const sources = tagRows.filter((row) => row.id !== survivorId)
 
-  for (const source of sources) {
-    const subtree = collectTagSubtreeIds(tx, [source.id])
-    if (subtree.includes(survivorId)) {
-      tx.update(tags)
-        .set({parentTagId: source.parentTagId ?? null, updatedAt: nowIso()})
-        .where(eq(tags.id, survivorId))
-        .run()
-    }
-  }
-  reparentTagChildrenTo(tx, sourceIds, survivorId)
+  tx.update(tags)
+    .set({parentTagId: null, updatedAt: nowIso()})
+    .where(inArray(tags.id, allIds))
+    .run()
+  tx.update(tags)
+    .set({parentTagId: null, updatedAt: nowIso()})
+    .where(inArray(tags.parentTagId, allIds))
+    .run()
 
   const migrated = {
     mediaLinks: 0,

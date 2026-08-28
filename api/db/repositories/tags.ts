@@ -138,7 +138,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
           views: item.views ?? 0,
           viewedAt: item.viewedAt ?? null,
           metaId: item.metaId ?? null,
-          parentTagId: item.parentTagId ?? null,
+          parentTagId: null,
           createdAt: timestamp,
           updatedAt: timestamp,
         }))

@@ -1,7 +1,10 @@
 <template>
   <div
     class="sidebar-tags-browser"
-    :class="{'sidebar-tags-browser--editing': editMode}"
+    :class="{
+      'sidebar-tags-browser--editing': editMode,
+      'sidebar-tags-browser--nest-drag': canDragCategoryToNest,
+    }"
   >
     <div class="sidebar-tags-browser__toolbar">
       <v-text-field
@@ -153,7 +156,7 @@
         >
           <div
             class="sidebar-tags-browser__category-header"
-            :draggable="!editMode && !search.trim()"
+            :draggable="canDragCategoryToNest"
             @dragstart.stop="onCategoryItemDragStart(category, $event)"
             @dragend="onHierarchyDragEnd"
           >
@@ -184,7 +187,7 @@
               class="sidebar-tags-browser__category-link"
               :class="{'sidebar-tags-browser__category-link--active': isCategoryPageActive(category.id)}"
               :title="t('all_tags.open_category')"
-              :draggable="!editMode && !search.trim()"
+              :draggable="canDragCategoryToNest"
               @click="openCategoryPage(category.id)"
               @dragstart.stop="onCategoryItemDragStart(category, $event)"
               @dragend="onHierarchyDragEnd"
@@ -305,6 +308,7 @@ import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {
   canReparentCategory,
   flattenTagCategories,
+  hasEmptyCategoryNestTarget,
   isTagCategoryGroup,
   isTagCategoryLeaf,
 } from '@/utils/tagCategoryTree'
@@ -494,6 +498,12 @@ const tagCountByMetaId = computed(() => {
   return counts
 })
 
+const canDragCategoryToNest = computed(() =>
+  !props.editMode
+  && !searchTrimmed.value
+  && hasEmptyCategoryNestTarget(categoryRows.value, tagCountByMetaId.value),
+)
+
 function onHierarchyDragEnd() {
   draggingTagIds.value = []
   draggingMetaId.value = null
@@ -514,7 +524,7 @@ function onTagDragStart(tag: Tag, event: DragEvent) {
 }
 
 function onCategoryItemDragStart(category: Meta, event: DragEvent) {
-  if (props.editMode || search.value.trim()) {
+  if (!canDragCategoryToNest.value) {
     event.preventDefault()
     return
   }
@@ -916,7 +926,7 @@ async function onMetaCreated(): Promise<void> {
   opacity: 0.45;
 }
 
-.sidebar-tags-browser:not(.sidebar-tags-browser--editing) .sidebar-tags-browser__category-header {
+.sidebar-tags-browser--nest-drag:not(.sidebar-tags-browser--editing) .sidebar-tags-browser__category-header {
   cursor: grab;
 }
 

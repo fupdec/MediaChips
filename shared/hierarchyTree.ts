@@ -1,4 +1,3 @@
-export const MAX_TAG_TREE_DEPTH = 8
 export const MAX_META_TREE_DEPTH = 3
 
 export type HierarchyParentMap = Map<number, number | null>
