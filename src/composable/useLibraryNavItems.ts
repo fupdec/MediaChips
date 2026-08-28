@@ -10,8 +10,7 @@ import {reloadMediaTypesCatalog} from '@/composable/appCatalogs'
 import {setOption} from '@/services/settingsService'
 import {typedApi} from '@/services/typedApi'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
-import {
-  isLibraryNavItemHidden,
+import {isLibraryNavItemHidden,
   mediaTypeNavKey,
   parseLibraryNavConfig,
   parseMediaTypeNavKey,
@@ -19,6 +18,7 @@ import {
   type LibraryNavConfig,
   type LibraryNavKey,
 } from '@/utils/libraryNavConfig'
+import {isTagCategoryLeaf} from '@/utils/tagCategoryTree'
 import type {Meta} from '@/types/stores'
 import type {MediaType} from '@/types/media'
 
@@ -105,6 +105,14 @@ export function useLibraryNavItems() {
 
   const metaHidden = computed(() =>
     metaArray.value.filter((item) => item.hidden),
+  )
+
+  const metaVisibleLeaves = computed(() =>
+    metaVisible.value.filter((item) => isTagCategoryLeaf(item, metaArray.value)),
+  )
+
+  const metaHiddenLeaves = computed(() =>
+    metaHidden.value.filter((item) => isTagCategoryLeaf(item, metaArray.value)),
   )
 
   const showPlaylists = computed(() => !isLibraryNavItemHidden(libraryNavConfig.value, 'playlists'))
@@ -306,6 +314,8 @@ export function useLibraryNavItems() {
     metaArray,
     metaVisible,
     metaHidden,
+    metaVisibleLeaves,
+    metaHiddenLeaves,
     showPlaylists,
     showMarkers,
     showTrash,

@@ -415,6 +415,7 @@ const showIcons = computed(() =>
 )
 
 const fieldLabel = computed(() => {
+  if (props.purpose === 'filter' || attrs.label === false) return undefined
   if (typeof attrs.label === 'string') return attrs.label
   return meta.value?.name ?? ''
 })

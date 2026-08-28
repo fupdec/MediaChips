@@ -204,6 +204,20 @@
       "when": 1782850800000,
       "tag": "0028_tags_name_unique_active",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1782854400000,
+      "tag": "0029_tag_category_parent",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1782858000000,
+      "tag": "0030_tag_category_parent_indexes",
+      "breakpoints": true
     }
   ]
 }

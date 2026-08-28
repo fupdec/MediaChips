@@ -7,6 +7,7 @@ import type { MetaAssignmentOrderPayload, PinMetaAssignmentPayload } from '@shar
 import { createMetaInMediaTypesRepository } from '../db/repositories/metaInMediaTypes'
 import { createMetaRepository } from '../db/repositories/meta'
 import { parseOptionalInt } from '../utils/parseRequestNumber'
+import { assertMetaIsTagLeaf } from '../services/tagCategoryTree'
 
 function isParserEnabled(value: unknown): boolean {
   return value === true || value === 1 || value === '1'
@@ -21,6 +22,12 @@ export default function (db: ApiDb) {
       const body = getRequestBody<PinMetaAssignmentPayload>(req)
       const metaId = Number(body.metaId)
       const mediaTypeId = Number(body.mediaTypeId)
+      const metaRow = metaRepo.findById(metaId)
+      if (metaRow?.type === 'array') {
+        db.drizzle.transaction((tx) => {
+          assertMetaIsTagLeaf(tx, metaId, 'Parent tag categories cannot be assigned to media')
+        })
+      }
       const hadAssignments = metaInMediaTypesRepo.findByMetaId(metaId).length > 0
 
       const data = metaInMediaTypesRepo.create({

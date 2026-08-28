@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const tags = sqliteTable('tags', {
   id: integer('id').primaryKey({autoIncrement: true}),
@@ -14,12 +14,14 @@ export const tags = sqliteTable('tags', {
   views: integer('views').default(0),
   viewedAt: text('viewedAt'),
   metaId: integer('metaId'),
+  parentTagId: integer('parentTagId'),
   deletedAt: text('deletedAt'),
   trashOriginalName: text('trashOriginalName'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
-}, () => ({
+}, (table) => ({
   nameNormalizedUnique: uniqueIndex('tags_name_normalized_unique')
     .on(sql`lower(trim("name"))`)
     .where(sql`"deletedAt" IS NULL OR "deletedAt" = ''`),
+  parentTagIdx: index('tags_parent_tag_id_idx').on(table.parentTagId),
 }))

@@ -316,70 +316,77 @@
               </v-list-item>
             </template>
           </Draggable>
-
-          <template v-if="metaArray.length">
-            <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
-              <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
-              <div class="sidebar-section__actions">
-                <v-btn
-                  icon
-                  size="x-small"
-                  variant="text"
-                  :aria-label="tagsAllExpanded
-                    ? t('browser_layout.collapse_all_categories')
-                    : t('browser_layout.expand_all_categories')"
-                  :title="tagsAllExpanded
-                    ? t('browser_layout.collapse_all_categories')
-                    : t('browser_layout.expand_all_categories')"
-                  @click="toggleAllTagCategories"
-                >
-                  <v-icon size="16">
-                    {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
-                  </v-icon>
-                </v-btn>
-                <v-btn
-                  icon
-                  size="x-small"
-                  :variant="tagsEditMode ? 'flat' : 'text'"
-                  :color="tagsEditMode ? 'primary' : undefined"
-                  :aria-label="tagsEditMode
-                    ? t('all_tags.done_editing_categories')
-                    : t('all_tags.edit_categories')"
-                  :title="tagsEditMode
-                    ? t('all_tags.done_editing_categories')
-                    : t('all_tags.edit_categories')"
-                  @click="tagsEditMode = !tagsEditMode"
-                >
-                  <v-icon size="16">
-                    {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
-                  </v-icon>
-                </v-btn>
-                <v-btn
-                  icon
-                  size="x-small"
-                  :to="allTagsLink.to"
-                  :exact="allTagsLink.exact"
-                  :variant="isAllTagsActive ? 'flat' : 'text'"
-                  :color="isAllTagsActive ? 'primary' : undefined"
-                  :aria-label="allTagsLink.title"
-                  :title="allTagsLink.title"
-                >
-                  <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
-                </v-btn>
-              </div>
-            </div>
-          </template>
         </v-list>
 
-        <div
-          v-if="metaArray.length"
-          class="sidebar-browser__tags-panel"
-        >
-          <SidebarTagsBrowser
-            ref="tagsBrowserRef"
-            :edit-mode="tagsEditMode"
-            @all-expanded-change="tagsAllExpanded = $event"
-          />
+        <div class="sidebar-browser__tags">
+          <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
+            <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
+            <div class="sidebar-section__actions">
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="tagsAllExpanded
+                  ? t('browser_layout.collapse_all_categories')
+                  : t('browser_layout.expand_all_categories')"
+                :title="tagsAllExpanded
+                  ? t('browser_layout.collapse_all_categories')
+                  : t('browser_layout.expand_all_categories')"
+                @click="toggleAllTagCategories"
+              >
+                <v-icon size="16">
+                  {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                :variant="tagsEditMode ? 'flat' : 'text'"
+                :color="tagsEditMode ? 'primary' : undefined"
+                :aria-label="tagsEditMode
+                  ? t('all_tags.done_editing_categories')
+                  : t('all_tags.edit_categories')"
+                :title="tagsEditMode
+                  ? t('all_tags.done_editing_categories')
+                  : t('all_tags.edit_categories')"
+                @click="tagsEditMode = !tagsEditMode"
+              >
+                <v-icon size="16">
+                  {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="t('all_tags.add_category')"
+                :title="t('all_tags.add_category')"
+                @click="openCreateCategoryFromSidebar"
+              >
+                <v-icon size="16">mdi-plus</v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                :to="allTagsLink.to"
+                :exact="allTagsLink.exact"
+                :variant="isAllTagsActive ? 'flat' : 'text'"
+                :color="isAllTagsActive ? 'primary' : undefined"
+                :aria-label="allTagsLink.title"
+                :title="allTagsLink.title"
+              >
+                <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
+              </v-btn>
+            </div>
+          </div>
+
+          <div class="sidebar-browser__tags-panel">
+            <SidebarTagsBrowser
+              ref="tagsBrowserRef"
+              :edit-mode="tagsEditMode"
+              @all-expanded-change="tagsAllExpanded = $event"
+            />
+          </div>
         </div>
 
         <v-list
@@ -472,6 +479,7 @@ const tagsAllExpanded = ref(true)
 const inboxHovered = ref(false)
 const tagsBrowserRef = ref<{
   toggleAllCategories: () => void
+  openCreateCategory: () => void
 } | null>(null)
 const baseNavCounts = ref<Record<string, number>>({})
 /** Filtered media-type counts kept after leaving /media until filters are cleared. */
@@ -502,7 +510,7 @@ const isSettingsActive = computed(() => route.path.startsWith('/settings'))
 
 const {
   metaArray,
-  metaVisible,
+  metaVisibleLeaves,
   mediaTypes,
   libraryLinks,
   libraryEditItems,
@@ -522,7 +530,7 @@ const {
 } = useLibraryNavItems()
 
 const metaCategoryLinks = computed(() =>
-  metaVisible.value.map((meta) => metaLink(meta)),
+  metaVisibleLeaves.value.map((meta) => metaLink(meta)),
 )
 
 function libraryEditItemsEqual(a: LibraryNavEditItem[], b: LibraryNavEditItem[]): boolean {
@@ -565,6 +573,10 @@ const isAllTagsActive = computed(() => route.path === '/tags')
 
 function toggleAllTagCategories() {
   tagsBrowserRef.value?.toggleAllCategories()
+}
+
+function openCreateCategoryFromSidebar() {
+  tagsBrowserRef.value?.openCreateCategory()
 }
 
 const activeMediaTypeKey = computed(() => {
@@ -766,7 +778,7 @@ watch(
   }
 
   :deep(.sidebar-browser__nav) {
-    padding-bottom: 0;
+    padding-bottom: 8px;
   }
 }
 
@@ -834,10 +846,6 @@ watch(
   margin-top: 4px;
 }
 
-.sidebar-section--tags {
-  margin-top: 12px;
-}
-
 .sidebar-browser__library-item--hidden {
   opacity: 0.55;
 }
@@ -893,7 +901,7 @@ watch(
 }
 
 .sidebar-browser__tags-panel {
-  margin: 2px 0 4px;
+  margin: 0 0 4px;
   padding-inline: 8px;
 }
 

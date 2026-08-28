@@ -1,11 +1,13 @@
 import type { FilterLike } from '../types/db'
 import type { SqlParamBinder } from '../types/mediaFilter'
+import {
+  descendantLinkSubquery,
+  descendantTagIdsSql,
+  shouldExpandTagFilter,
+  type TagLinkContext,
+} from './tagDescendantSql'
 
-export interface TagLinkContext {
-  table: string
-  idColumn: string
-  entityRef: string
-}
+export type { TagLinkContext }
 
 export const MEDIA_TAG_LINK: TagLinkContext = {
   table: 'tagsInMedia',
@@ -73,6 +75,27 @@ export function buildTagArrayJoinResult(
   }
 
   if (!tagIds.length) return null
+
+  if (shouldExpandTagFilter(filter)) {
+    if (cond === 'not in') {
+      const tagsKey = nextParam(tagIds)
+      return {
+        join: `LEFT JOIN ${descendantLinkSubquery(ctx, metaKey, tagsKey, `${alias}_tree`)} ${alias} ON ${alias}.${ctx.idColumn} = ${ctx.entityRef}`,
+        where: `${alias}.${ctx.idColumn} IS NULL`,
+      }
+    }
+
+    if (cond === 'in all' && tagIds.length > 1) {
+      return tagIds.map((tagId, index) => {
+        const tagsKey = nextParam(tagId)
+        const partAlias = `${alias}_${index}`
+        return `INNER JOIN ${descendantLinkSubquery(ctx, metaKey, tagsKey, `${partAlias}_tree`)} ${partAlias} ON ${partAlias}.${ctx.idColumn} = ${ctx.entityRef}`
+      }).join('\n')
+    }
+
+    const tagsKey = nextParam(tagIds.length === 1 ? tagIds[0] : tagIds)
+    return `INNER JOIN ${descendantLinkSubquery(ctx, metaKey, tagsKey, `${alias}_tree`)} ${alias} ON ${alias}.${ctx.idColumn} = ${ctx.entityRef}`
+  }
 
   if (cond === 'not in') {
     const tagsKey = nextParam(tagIds)
@@ -183,6 +206,34 @@ export function buildTagArrayFilterClause(
   }
 
   const tagsKey = nextParam(tagIds)
+
+  if (shouldExpandTagFilter(filter)) {
+    if (cond === 'in' || (cond === 'in all' && tagIds.length === 1)) {
+      return `${ctx.entityRef} IN (
+        SELECT DISTINCT ${ctx.idColumn}
+        FROM ${ctx.table}
+        WHERE metaId = ${metaKey} AND tagId IN ${descendantTagIdsSql(tagsKey, `${ctx.table}_tree`)}
+      )`
+    }
+    if (cond === 'not in') {
+      return `${ctx.entityRef} NOT IN (
+        SELECT DISTINCT ${ctx.idColumn}
+        FROM ${ctx.table}
+        WHERE metaId = ${metaKey} AND tagId IN ${descendantTagIdsSql(tagsKey, `${ctx.table}_tree`)}
+      )`
+    }
+    if (cond === 'in all') {
+      const parts = tagIds.map((tagId, index) => {
+        const oneKey = nextParam(tagId)
+        return `${ctx.entityRef} IN (
+          SELECT DISTINCT ${ctx.idColumn}
+          FROM ${ctx.table}
+          WHERE metaId = ${metaKey} AND tagId IN ${descendantTagIdsSql(oneKey, `${ctx.table}_tree_${index}`)}
+        )`
+      })
+      return parts.join(' AND ')
+    }
+  }
 
   if (cond === 'in') {
     return `${ctx.entityRef} IN (

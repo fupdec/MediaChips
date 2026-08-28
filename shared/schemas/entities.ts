@@ -27,6 +27,7 @@ export const MediaTypeSchema = z.object({
 export const TagSchema = z.object({
   id: z.number(),
   metaId: optionalNullableCoercedNumberSchema,
+  parentTagId: optionalNullableCoercedNumberSchema,
   name: optionalNullableStringSchema,
   synonyms: optionalNullableStringSchema,
   favorite: optionalCoercedBooleanSchema,
@@ -48,6 +49,7 @@ export const MetaSchema = z.object({
   tagPageDesign: optionalNullableStringSchema,
   hidden: z.boolean().optional(),
   order: optionalNullableCoercedNumberSchema,
+  parentMetaId: optionalNullableCoercedNumberSchema,
   type: optionalNullableStringSchema,
 }).passthrough()
 
@@ -80,6 +82,7 @@ export const FilterObjectSchema = z.object({
   metaId: z.number().nullable().optional(),
   order: optionalNullableCoercedNumberSchema,
   clientKey: z.string().optional(),
+  includeDescendants: optionalCoercedBooleanSchema,
 }).passthrough()
 
 export const MediaItemSchema = z.object({

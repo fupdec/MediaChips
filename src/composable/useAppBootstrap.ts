@@ -203,6 +203,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
           store.tags = res.data.map((tag) => ({
             ...tag,
             metaId: tag.metaId ?? undefined,
+            parentTagId: tag.parentTagId ?? null,
             name: tag.name ?? undefined,
             synonyms: tag.synonyms ?? undefined,
             color: tag.color ?? undefined,

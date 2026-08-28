@@ -110,6 +110,23 @@
       {{ search.trim() ? t('browser_layout.no_matching_tags') : t('browser_layout.tags_empty') }}
     </div>
 
+    <button
+      v-if="!categoryRows.length"
+      type="button"
+      class="sidebar-tags-browser__create-btn sidebar-tags-browser__add-category"
+      @click="openCreateCategory"
+    >
+      <v-icon
+        size="14"
+        class="mr-1"
+      >
+        mdi-plus
+      </v-icon>
+      <span class="sidebar-tags-browser__create-label">
+        {{ t('all_tags.add_category') }}
+      </span>
+    </button>
+
     <Draggable
       v-model="categoryRows"
       item-key="id"
@@ -127,9 +144,19 @@
           :class="{
             'sidebar-tags-browser__category--hidden': category.hidden,
             'sidebar-tags-browser__category--editing': editMode,
+            'sidebar-tags-browser__category--drop': dropTargetMetaId === category.id,
           }"
+          :style="{paddingInlineStart: `${categoryTreeDepth(category) * 12}px`}"
+          @dragover.prevent="onCategoryDragOver(category, $event)"
+          @dragleave="onCategoryDragLeave(category, $event)"
+          @drop.prevent="onDropToCategory(category)"
         >
-          <div class="sidebar-tags-browser__category-header">
+          <div
+            class="sidebar-tags-browser__category-header"
+            :draggable="!editMode && !search.trim()"
+            @dragstart.stop="onCategoryItemDragStart(category, $event)"
+            @dragend="onHierarchyDragEnd"
+          >
             <v-icon
               v-if="editMode"
               size="16"
@@ -157,7 +184,10 @@
               class="sidebar-tags-browser__category-link"
               :class="{'sidebar-tags-browser__category-link--active': isCategoryPageActive(category.id)}"
               :title="t('all_tags.open_category')"
+              :draggable="!editMode && !search.trim()"
               @click="openCategoryPage(category.id)"
+              @dragstart.stop="onCategoryItemDragStart(category, $event)"
+              @dragend="onHierarchyDragEnd"
             >
               <v-icon
                 v-if="category.icon"
@@ -167,7 +197,10 @@
                 mdi-{{ category.icon }}
               </v-icon>
               <span class="sidebar-tags-browser__category-name">{{ category.name }}</span>
-              <span class="sidebar-tags-browser__category-count">
+              <span
+                v-if="!editMode"
+                class="sidebar-tags-browser__category-count"
+              >
                 {{ tagsForMeta(category.id).length }}
               </span>
             </button>
@@ -191,15 +224,6 @@
                   {{ category.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
                 </v-icon>
               </v-btn>
-              <v-btn
-                icon
-                size="x-small"
-                variant="text"
-                :aria-label="t('all_tags.edit_category')"
-                @click="openEditCategory(category)"
-              >
-                <v-icon size="16">mdi-cog-outline</v-icon>
-              </v-btn>
             </div>
           </div>
 
@@ -217,9 +241,12 @@
                 'sidebar-tags-browser__tag--favorite': tag.favorite,
               }"
               :title="tag.name"
+              draggable="true"
               @click="onTagClick(tag, $event)"
               @mouseenter="onTagHover($event, tag, category)"
               @mouseleave="hideHoverImage"
+              @dragstart.stop="onTagDragStart(tag, $event)"
+              @dragend="onHierarchyDragEnd"
             >
               <span
                 v-if="tag.color"
@@ -249,12 +276,12 @@
     </Draggable>
 
     <DialogMetaManager
-      :edit-mode="true"
+      :edit-mode="metaEditMode"
       :meta="metaForDialog"
       :dialog="metaDialog"
       :allowed-types="['array']"
       @updated="onMetaUpdated"
-      @created="onMetaUpdated"
+      @created="onMetaCreated"
       @close="closeMetaDialog"
       @delete="onMetaUpdated"
     />
@@ -275,6 +302,14 @@ import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
+import {
+  canReparentCategory,
+  flattenTagCategories,
+  isTagCategoryGroup,
+  isTagCategoryLeaf,
+} from '@/utils/tagCategoryTree'
+import {useMoveTagsToCategory} from '@/composable/useMoveTagsToCategory'
+import {useHierarchyReparent} from '@/composable/useHierarchyReparent'
 import {setNotification} from '@/services/notificationService'
 import {typedApi} from '@/services/typedApi'
 import type {Meta, Tag} from '@/types/stores'
@@ -300,15 +335,22 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const {metaArray} = useLibraryNavItems()
 const {isTagFilterActive, filterByTag} = useBrowserTagFilter()
+const {moveTagsToCategory} = useMoveTagsToCategory()
+const {reparentCategory} = useHierarchyReparent()
 
 const search = ref('')
 const expanded = reactive<Record<number, boolean>>({})
 const categoryRows = ref<Meta[]>([])
 const categoryDragging = ref(false)
+const draggingTagIds = ref<number[]>([])
+const draggingMetaId = ref<number | null>(null)
+const dropTargetMetaId = ref<number | null>(null)
+const suppressNextClick = ref(false)
 const togglingHiddenId = ref<number | null>(null)
-const metaDialog = ref(false)
-const metaForDialog = ref<Meta | null>(null)
 const creatingTag = ref(false)
+const metaDialog = ref(false)
+const metaEditMode = ref(false)
+const metaForDialog = ref<Meta | null>(null)
 
 function onSearchInput(value: string | null): void {
   search.value = value ?? ''
@@ -321,7 +363,10 @@ function clearSearch(): void {
 const searchTrimmed = computed(() => search.value.trim())
 
 const createCategories = computed(() => {
-  return categoryRows.value.filter((category) => props.editMode || !category.hidden)
+  return categoryRows.value.filter((category) =>
+    (props.editMode || !category.hidden)
+    && isTagCategoryLeaf(category, categoryRows.value),
+  )
 })
 
 const exactTagExists = computed(() => {
@@ -378,12 +423,16 @@ function categoriesEqual(a: Meta[], b: Meta[]): boolean {
     if (Boolean(a[i].hidden) !== Boolean(b[i].hidden)) return false
     if (a[i].name !== b[i].name) return false
     if (a[i].icon !== b[i].icon) return false
+    if (Number(a[i].parentMetaId ?? 0) !== Number(b[i].parentMetaId ?? 0)) return false
   }
   return true
 }
 
 function syncCategoryRows(items: Meta[]): void {
-  categoryRows.value = items.map((item) => ({...item}))
+  categoryRows.value = flattenTagCategories(items).map((row) => ({
+    ...row.meta,
+    treeDepth: row.depth,
+  })) as Meta[]
 }
 
 loadExpanded()
@@ -406,13 +455,9 @@ const tagsByMetaId = computed(() => {
   const map = new Map<number, Tag[]>()
 
   for (const category of categoryRows.value) {
-    let tags = appStore.getTagsByMetaId(category.id) as Tag[]
-    tags = [...tags].sort((a, b) => {
-      if (Boolean(a.favorite) !== Boolean(b.favorite)) {
-        return a.favorite ? -1 : 1
-      }
-      return String(a.name || '').localeCompare(String(b.name || ''), undefined, {sensitivity: 'base'})
-    })
+    let tags = [...(appStore.getTagsByMetaId(category.id) as Tag[])].sort((a, b) =>
+      String(a.name || '').localeCompare(String(b.name || '')),
+    )
     if (query) {
       tags = tags.filter((tag) => {
         const name = String(tag.name || '').toLowerCase()
@@ -439,8 +484,122 @@ const hasVisibleCategories = computed(() =>
   categoryRows.value.some((category) => shouldShowCategory(category)),
 )
 
+const tagCountByMetaId = computed(() => {
+  const counts: Record<number, number> = {}
+  for (const tag of appStore.tags || []) {
+    const metaId = Number(tag.metaId)
+    if (!Number.isFinite(metaId)) continue
+    counts[metaId] = (counts[metaId] || 0) + 1
+  }
+  return counts
+})
+
+function onHierarchyDragEnd() {
+  draggingTagIds.value = []
+  draggingMetaId.value = null
+  dropTargetMetaId.value = null
+  window.setTimeout(() => {
+    suppressNextClick.value = false
+  }, 250)
+}
+
+function onTagDragStart(tag: Tag, event: DragEvent) {
+  suppressNextClick.value = true
+  draggingTagIds.value = [Number(tag.id)]
+  draggingMetaId.value = null
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(tag.id))
+  }
+}
+
+function onCategoryItemDragStart(category: Meta, event: DragEvent) {
+  if (props.editMode || search.value.trim()) {
+    event.preventDefault()
+    return
+  }
+  draggingMetaId.value = Number(category.id)
+  draggingTagIds.value = []
+  suppressNextClick.value = true
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `meta:${category.id}`)
+  }
+}
+
+function onCategoryDragOver(category: Meta, event: DragEvent) {
+  if (draggingMetaId.value != null) {
+    if (
+      canReparentCategory(
+        draggingMetaId.value,
+        Number(category.id),
+        categoryRows.value,
+        tagCountByMetaId.value[Number(category.id)] || 0,
+      )
+    ) {
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+      dropTargetMetaId.value = category.id
+    } else {
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
+      dropTargetMetaId.value = null
+    }
+    return
+  }
+
+  if (!draggingTagIds.value.length) return
+  if (isTagCategoryGroup(category, categoryRows.value)) {
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
+    dropTargetMetaId.value = null
+    return
+  }
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  dropTargetMetaId.value = category.id
+}
+
+function onCategoryDragLeave(category: Meta, event: DragEvent) {
+  const related = event.relatedTarget as Node | null
+  const current = event.currentTarget as HTMLElement | null
+  if (current && related && current.contains(related)) return
+  if (dropTargetMetaId.value === category.id) dropTargetMetaId.value = null
+}
+
+function onDropToCategory(category: Meta) {
+  if (draggingMetaId.value != null) {
+    const source = categoryRows.value.find((item) => Number(item.id) === draggingMetaId.value)
+    onHierarchyDragEnd()
+    if (!source) return
+    void reparentCategory(
+      source,
+      Number(category.id),
+      categoryRows.value,
+      tagCountByMetaId.value[Number(category.id)] || 0,
+    )
+    return
+  }
+
+  const ids = [...draggingTagIds.value]
+  onHierarchyDragEnd()
+  if (!ids.length) return
+  if (isTagCategoryGroup(category, categoryRows.value)) return
+
+  const byId = new Map((appStore.tags || []).map((tag) => [Number(tag.id), tag]))
+  const tagsToMove = ids
+    .map((id) => byId.get(id))
+    .filter((tag): tag is Tag => Boolean(tag) && Number(tag.metaId) !== Number(category.id))
+  if (!tagsToMove.length) return
+  moveTagsToCategory(tagsToMove, Number(category.id), String(category.name ?? ''), {
+    clearSelection: false,
+    syncItemsList: false,
+    allowOpenCategoryAction: false,
+  })
+}
+
 function tagsForMeta(metaId: number): Tag[] {
   return tagsByMetaId.value.get(metaId) || []
+}
+
+function categoryTreeDepth(category: Meta): number {
+  return Number((category as Meta & {treeDepth?: number}).treeDepth || 0)
 }
 
 function isExpanded(metaId: number): boolean {
@@ -448,6 +607,7 @@ function isExpanded(metaId: number): boolean {
 }
 
 function toggleCategory(metaId: number): void {
+  if (suppressNextClick.value) return
   expanded[metaId] = !isExpanded(metaId)
   persistExpanded()
 }
@@ -485,6 +645,7 @@ defineExpose({
   allCategoriesExpanded,
   toggleAllCategories,
   setAllCategoriesExpanded,
+  openCreateCategory,
 })
 
 function isCategoryPageActive(metaId: number): boolean {
@@ -492,6 +653,12 @@ function isCategoryPageActive(metaId: number): boolean {
 }
 
 function openCategoryPage(metaId: number): void {
+  if (suppressNextClick.value) return
+  const category = categoryRows.value.find((item) => Number(item.id) === Number(metaId))
+  if (category && isTagCategoryGroup(category, categoryRows.value)) {
+    toggleCategory(metaId)
+    return
+  }
   hideHoverImage()
   void router.push(metaPath(metaId))
 }
@@ -505,6 +672,7 @@ function onTagHover(event: MouseEvent, tag: Tag, category: Meta): void {
 }
 
 async function onTagClick(tag: Tag, event?: MouseEvent): Promise<void> {
+  if (suppressNextClick.value) return
   hideHoverImage()
   if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
     await filterByTag(tag)
@@ -588,8 +756,9 @@ async function toggleCategoryHidden(category: Meta): Promise<void> {
   }
 }
 
-function openEditCategory(category: Meta): void {
-  metaForDialog.value = category
+function openCreateCategory(): void {
+  metaEditMode.value = false
+  metaForDialog.value = null
   metaDialog.value = true
 }
 
@@ -599,6 +768,11 @@ function closeMetaDialog(): void {
 }
 
 async function onMetaUpdated(): Promise<void> {
+  await reloadMetaCatalog()
+  closeMetaDialog()
+}
+
+async function onMetaCreated(): Promise<void> {
   await reloadMetaCatalog()
   closeMetaDialog()
 }
@@ -715,6 +889,10 @@ async function onMetaUpdated(): Promise<void> {
   white-space: nowrap;
 }
 
+.sidebar-tags-browser__add-category {
+  margin-top: 6px;
+}
+
 .sidebar-tags-browser__empty {
   padding: 8px 4px;
   font-size: 0.75rem;
@@ -722,14 +900,24 @@ async function onMetaUpdated(): Promise<void> {
 
 .sidebar-tags-browser__category {
   margin-bottom: 2px;
+  border-radius: 8px;
 
   &--hidden {
     opacity: 0.55;
+  }
+
+  &--drop {
+    outline: 2px dashed rgb(var(--v-theme-primary));
+    outline-offset: -2px;
   }
 }
 
 .sidebar-tags-browser__category-ghost {
   opacity: 0.45;
+}
+
+.sidebar-tags-browser:not(.sidebar-tags-browser--editing) .sidebar-tags-browser__category-header {
+  cursor: grab;
 }
 
 .sidebar-tags-browser__category-header {
@@ -836,7 +1024,7 @@ async function onMetaUpdated(): Promise<void> {
   border: 0;
   background: transparent;
   color: inherit;
-  cursor: pointer;
+  cursor: grab;
   border-radius: 6px;
   font-size: 0.8rem;
   line-height: 1.35;

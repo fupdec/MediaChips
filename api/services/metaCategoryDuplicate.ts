@@ -65,6 +65,7 @@ function buildCategoryPayload(source: MetaRow, name: string): Record<string, unk
     ratingHalf: source.ratingHalf,
     sortBy: source.sortBy,
     sortDir: source.sortDir,
+    parentMetaId: source.parentMetaId,
   }
 }
 

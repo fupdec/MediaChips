@@ -406,7 +406,7 @@ export function useCommandPaletteCommands(options: {
       })
     }
 
-    for (const meta of nav.metaVisible.value) {
+    for (const meta of nav.metaVisibleLeaves.value) {
       list.push({
         id: `nav-meta-${meta.id}`,
         title: meta.name || String(meta.id),

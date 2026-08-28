@@ -33,6 +33,7 @@ function createTestDb() {
       views INTEGER DEFAULT 0,
       viewedAt TEXT,
       metaId INTEGER,
+      parentTagId INTEGER,
       deletedAt TEXT,
       trashOriginalName TEXT,
       createdAt TEXT NOT NULL,
@@ -104,6 +105,7 @@ function createTestDb() {
       view INTEGER,
       groupBy TEXT,
       filtersJoin TEXT DEFAULT 'and',
+      icon TEXT,
       deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL

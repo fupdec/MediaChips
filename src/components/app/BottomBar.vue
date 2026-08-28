@@ -22,8 +22,8 @@ function linkActive(link: {to: string; exact?: boolean}): boolean {
 
 const {
   mediaTypesHidden,
-  metaVisible,
-  metaHidden,
+  metaVisibleLeaves,
+  metaHiddenLeaves,
   libraryLinks,
   settingsLink,
   allTagsLink,
@@ -39,7 +39,7 @@ const {
   metaPath,
 } = useLibraryNavItems()
 
-const metaVisibleLinks = computed(() => metaVisible.value.map((item) => metaLink(item)))
+const metaVisibleLinks = computed(() => metaVisibleLeaves.value.map((item) => metaLink(item)))
 
 function readSafeAreaBottom() {
   if (typeof document === 'undefined') return 0
@@ -160,7 +160,7 @@ onUnmounted(() => {
     </v-tooltip>
 
     <v-menu
-      v-if="mediaTypesHidden.length || metaHidden.length"
+      v-if="mediaTypesHidden.length || metaHiddenLeaves.length"
       v-model="hiddenMetaMenu"
       location="top"
     >
@@ -182,7 +182,7 @@ onUnmounted(() => {
 
       <v-list density="compact">
         <v-list-item
-          v-for="item in metaHidden"
+          v-for="item in metaHiddenLeaves"
           :key="item.id"
           :to="metaPath(item.id)"
           color="primary"

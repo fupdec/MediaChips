@@ -12,6 +12,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {useMoveTagsToCategory} from '@/composable/useMoveTagsToCategory'
+import {flattenTagCategories} from '@/utils/tagCategoryTree'
 import path from 'path-browserify'
 import {
   getCurrentMediaType,
@@ -25,6 +26,7 @@ import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
 import {isInAppTextPreviewPath} from '@/utils/textPreview'
 import {setNotification} from '@/services/notificationService'
+import {getApiErrorMessage} from '@/types/vue'
 import {refreshMediaFileInfoMany} from '@/services/mediaFileInfoService'
 import {runFaceDetectionForMediaIds} from '@/composable/useFaceDetectionTask'
 import {openPath} from '@/services/shellService'
@@ -291,10 +293,9 @@ export default function useItemContextMenu(
         meta?.id
           ?? (isTagPageItem(item, type) ? item.metaId : 0),
       )
-      const targetCategories = (store.meta || []).filter((category: Meta) =>
-        category.type === 'array'
-        && Number(category.id) !== currentMetaId,
-      )
+      const targetCategories = flattenTagCategories(store.meta || [])
+        .filter((row) => !row.isGroup && Number(row.meta.id) !== currentMetaId)
+        .map((row) => row.meta)
 
       if (targetCategories.length > 0) {
         contextMenu.push({

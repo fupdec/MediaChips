@@ -18,17 +18,11 @@
     >
       <v-row align="center">
         <v-col cols="12">
-          <v-btn
-            @click="openMetaPage"
-            :title="t('actions.open_page')"
-            class="tag-meta-link"
-            rounded
-            variant="tonal"
-          >
-            <v-icon start>mdi-{{ meta.icon }}</v-icon>
-            <div class="text">{{ meta.name }}</div>
-            <v-icon end>mdi-arrow-left</v-icon>
-          </v-btn>
+          <TagPageHierarchy
+            :tag="tag"
+            :meta="meta"
+            @open-meta="openMetaPage"
+          />
         </v-col>
       </v-row>
 
@@ -208,17 +202,11 @@
       >
         <v-row align="center">
           <v-col cols="12">
-            <v-btn
-              @click="openMetaPage"
-              :title="t('actions.open_page')"
-              class="tag-meta-link"
-              rounded
-              variant="tonal"
-            >
-              <v-icon start>mdi-{{ meta.icon }}</v-icon>
-              <div class="text">{{ meta.name }}</div>
-              <v-icon end>mdi-arrow-left</v-icon>
-            </v-btn>
+            <TagPageHierarchy
+              :tag="tag"
+              :meta="meta"
+              @open-meta="openMetaPage"
+            />
           </v-col>
         </v-row>
 
@@ -491,6 +479,7 @@ import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
 import TagPageQuickFilters from '@/components/tags/TagPageQuickFilters.vue'
+import TagPageHierarchy from '@/components/tags/TagPageHierarchy.vue'
 import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
 import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import path from 'path-browserify';

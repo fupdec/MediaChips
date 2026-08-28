@@ -42,6 +42,9 @@ import {
 import { loadTagItems } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
 import {
+  assertMetaCanHoldTags,
+} from '../services/tagCategoryTree'
+import {
   mapWithConcurrency,
   readImageAsDataUrl,
 } from '../services/thumbEncoding'
@@ -128,13 +131,21 @@ export default function (db: ApiDb) {
           : defaultMetaId
         return {
           ...item,
+          name: String(item.name ?? ''),
           metaId: metaId != null && Number(metaId) > 0 ? Number(metaId) : null,
+          parentTagId: null,
         }
       })
 
       if (items.some((item) => item.metaId == null)) {
         return sendBadRequest(res, 'Tag category is required. Create a Tags category first.')
       }
+
+      db.drizzle.transaction((tx) => {
+        for (const item of items) {
+          assertMetaCanHoldTags(tx, Number(item.metaId))
+        }
+      })
 
       assertTagNamesAvailable(
         db.sqlite,
@@ -246,6 +257,9 @@ export default function (db: ApiDb) {
       const body = getRequestBody<EntityUpdatePayload>(req)
       const { silent, ...updates } = body
       const tagId = Number(req.params.id)
+      if (Object.prototype.hasOwnProperty.call(updates, 'parentTagId')) {
+        delete (updates as {parentTagId?: unknown}).parentTagId
+      }
       if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
         assertTagNameAvailable(db.sqlite, String((updates as {name?: unknown}).name ?? ''), tagId)
       }

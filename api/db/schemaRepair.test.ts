@@ -64,6 +64,23 @@ describe('schemaRepair', () => {
     expect(column).toBeTruthy()
   })
 
+  it('adds missing savedFilters.icon column for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE savedFilters (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name text,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+    `)
+
+    const repaired = repairSchemaColumns(sqlite)
+
+    expect(repaired).toContain('savedFilters.icon')
+    const columns = sqlite.pragma('table_info(savedFilters)') as Array<{name: string}>
+    expect(columns.some((column) => column.name === 'icon')).toBe(true)
+  })
+
   it('adds missing meta.synonyms column for legacy databases', () => {
     const repaired = repairSchemaColumns(sqlite)
 

@@ -12,6 +12,8 @@ export interface FilterObject {
   order?: number | null
   /** UI-only stable key for drag-and-drop before the row has a DB id. */
   clientKey?: string
+  /** When true, array filters match the tag and its parentTagId descendants. */
+  includeDescendants?: boolean
 }
 
 export interface FilterListParam {

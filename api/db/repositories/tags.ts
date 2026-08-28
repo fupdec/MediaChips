@@ -17,6 +17,7 @@ export type TagCatalogRow = Pick<
   TagRow,
   | 'id'
   | 'metaId'
+  | 'parentTagId'
   | 'name'
   | 'synonyms'
   | 'rating'
@@ -44,6 +45,7 @@ const TAG_MUTABLE_COLUMNS = new Set([
   'views',
   'viewedAt',
   'metaId',
+  'parentTagId',
   'oldId',
 ])
 
@@ -56,6 +58,7 @@ function coerceTagField(key: string, value: unknown): unknown {
     case 'favorite':
       return value === true || value === 1 || value === '1'
     case 'metaId':
+    case 'parentTagId':
       return value == null || value === '' ? null : Number(value) || null
     case 'name':
       return value == null ? '' : String(value)
@@ -135,6 +138,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
           views: item.views ?? 0,
           viewedAt: item.viewedAt ?? null,
           metaId: item.metaId ?? null,
+          parentTagId: item.parentTagId ?? null,
           createdAt: timestamp,
           updatedAt: timestamp,
         }))
@@ -167,6 +171,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
       return db.select({
         id: tags.id,
         metaId: tags.metaId,
+        parentTagId: tags.parentTagId,
         name: tags.name,
         synonyms: tags.synonyms,
         rating: tags.rating,

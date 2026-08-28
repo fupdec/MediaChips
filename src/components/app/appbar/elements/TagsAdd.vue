@@ -27,7 +27,7 @@
             v-model:menu="metaMenuOpen"
             :items="metas"
             :rules="[(v) => !!v || t('validation.meta_required')]"
-            item-title="name"
+            item-title="pickerTitle"
             item-value="id"
             :label="t('meta.fields.tags_category')"
             variant="outlined"
@@ -317,6 +317,7 @@ import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
+import {leafCategoryOptions} from '@/utils/tagCategoryTree'
 import {acceptSuggestedTagsAndAssign} from '@/services/importPathAutoTag'
 import {setOption} from '@/services/settingsService'
 
@@ -392,7 +393,7 @@ const buttons = computed(() => [
 
 /* ---------------- COMPUTED ---------------- */
 
-const metas = computed(() => app.meta?.filter(i => i.type === 'array') || [])
+const metas = computed(() => leafCategoryOptions(app.meta || []))
 const fixedMetaId = computed(() => props.meta_id || (route.query.metaId ? Number(route.query.metaId) : null))
 
 const dialogTitle = computed(() => (

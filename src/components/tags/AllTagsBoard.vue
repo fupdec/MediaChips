@@ -97,9 +97,14 @@
                 'all-tags-board__category--drop': dropTargetMetaId === category.id,
                 'all-tags-board__category--hidden': category.hidden,
                 'all-tags-board__category--editing': categoriesEditMode,
+                'all-tags-board__category--group': isCategoryGroup(category),
               }"
+              :style="{paddingInlineStart: `${categoryTreeDepth(category) * 16}px`}"
               :data-meta-id="category.id"
+              :draggable="!categoriesEditMode && !categorySearch.trim()"
               @click="selectCategory(category.id)"
+              @dragstart="onCategoryItemDragStart(category, $event)"
+              @dragend="onCategoryItemDragEnd"
               @dragover.prevent="onCategoryDragOver(category, $event)"
               @dragleave="onCategoryDragLeave(category, $event)"
               @drop.prevent="onDropToCategory(category)"
@@ -119,7 +124,10 @@
                   <span class="text-body-2 font-weight-medium text-truncate">
                     {{ category.name }}
                   </span>
-                  <span class="all-tags-board__category-count text-caption text-medium-emphasis">
+                  <span
+                    v-if="!categoriesEditMode"
+                    class="all-tags-board__category-count text-caption text-medium-emphasis"
+                  >
                     ({{ tagCountByMetaId[category.id] || 0 }})
                   </span>
                   <v-icon
@@ -151,20 +159,20 @@
                       {{ category.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
                     </v-icon>
                   </v-btn>
-                  <v-btn
-                    icon
-                    size="x-small"
-                    variant="text"
-                    :aria-label="t('all_tags.edit_category')"
-                    @click="openEditCategory(category)"
-                  >
-                    <v-icon size="16">mdi-cog-outline</v-icon>
-                  </v-btn>
                 </div>
               </div>
             </div>
           </template>
         </Draggable>
+
+        <button
+          type="button"
+          class="all-tags-board__add-category"
+          @click="openCreateCategory"
+        >
+          <v-icon size="16" start>mdi-plus</v-icon>
+          {{ t('all_tags.add_category') }}
+        </button>
       </div>
     </aside>
 
@@ -180,6 +188,7 @@
           </div>
           <div class="d-flex align-center ga-2">
             <v-btn
+              v-if="!isCategoryGroup(selectedCategory)"
               v-tooltip:top="t('all_tags.open_category')"
               icon
               size="small"
@@ -198,6 +207,7 @@
               <v-icon>mdi-cog-outline</v-icon>
             </v-btn>
             <TagsAdd
+              v-if="!isCategoryGroup(selectedCategory)"
               :meta_id="selectedCategory.id"
               button-color="primary"
               button-size="small"
@@ -245,10 +255,20 @@
           ref="tagListRef"
           class="all-tags-board__tag-list"
         >
-          <div
-            v-if="!filteredTags.length"
-            class="all-tags-board__empty text-center pa-8"
-          >
+        <div
+          v-if="isCategoryGroup(selectedCategory)"
+          class="all-tags-board__empty text-center pa-8"
+        >
+          <v-icon size="40" class="mb-2 text-medium-emphasis">mdi-folder-outline</v-icon>
+          <div class="text-body-2 text-medium-emphasis">
+            {{ t('all_tags.group_empty') }}
+          </div>
+        </div>
+
+        <div
+          v-else-if="!filteredTags.length"
+          class="all-tags-board__empty text-center pa-8"
+        >
             <v-icon size="40" class="mb-2 text-medium-emphasis">mdi-tag-off-outline</v-icon>
             <div class="text-body-2 text-medium-emphasis">
               {{ tagSearch.trim() ? t('all_tags.no_tags_filtered') : t('all_tags.no_tags') }}
@@ -274,7 +294,9 @@
             <template #default="{ item: tag }">
               <div
                 class="all-tags-board__tag"
-                :class="{'all-tags-board__tag--selected': selectedIds.includes(tag.id)}"
+                :class="{
+                  'all-tags-board__tag--selected': selectedIds.includes(tag.id),
+                }"
                 draggable="true"
                 @click="onTagClick(tag, $event)"
                 @dblclick.stop="editTag(tag)"
@@ -344,13 +366,13 @@
 <script setup lang="ts">
 import {computed, defineAsyncComponent, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import orderBy from 'lodash/orderBy'
 import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
 import DialogMetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {metaPath} from '@/composable/useLibraryNavItems'
 import {useMoveTagsToCategory} from '@/composable/useMoveTagsToCategory'
+import {useHierarchyReparent} from '@/composable/useHierarchyReparent'
 import {useAutoListHeight} from '@/composable/useAutoListHeight'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
@@ -360,6 +382,10 @@ import type {Meta, Tag} from '@/types/stores'
 import {clearMediaTagDrag} from '@/utils/mediaTagDrag'
 import {writeSessionFocusTagsMime} from '@/utils/sessionFocusDrag'
 import {normalizeSessionFocusTag} from '@/stores/sessionFocus'
+import {
+  canReparentCategory,
+  flattenTagCategories,
+} from '@/utils/tagCategoryTree'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
@@ -370,6 +396,7 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const {moveTagsToCategory} = useMoveTagsToCategory()
+const {reparentCategory} = useHierarchyReparent()
 
 const categorySearch = ref('')
 const tagSearch = ref('')
@@ -377,6 +404,7 @@ const selectedMetaId = ref<number | null>(null)
 const selectedIds = ref<number[]>([])
 const dropTargetMetaId = ref<number | null>(null)
 const draggingTagIds = ref<number[]>([])
+const draggingMetaId = ref<number | null>(null)
 const categoryDragging = ref(false)
 const categoriesEditMode = ref(false)
 const categoryRows = ref<Meta[]>([])
@@ -389,13 +417,19 @@ const metaDialog = ref(false)
 const metaEditMode = ref(false)
 const metaForDialog = ref<Meta | null>(null)
 
-const categories = computed(() =>
-  orderBy(
-    appStore.meta.filter((item) => item.type === 'array'),
-    ['order', 'name'],
-    ['asc', 'asc'],
-  ),
+const categoryTree = computed(() =>
+  flattenTagCategories(appStore.meta.filter((item) => item.type === 'array')),
 )
+
+const categories = computed(() => categoryTree.value.map((row) => row.meta))
+
+const categoryDepthById = computed(() => {
+  const map = new Map<number, {depth: number; isGroup: boolean}>()
+  for (const row of categoryTree.value) {
+    map.set(Number(row.meta.id), {depth: row.depth, isGroup: row.isGroup})
+  }
+  return map
+})
 
 function categoriesEqual(a: Meta[], b: Meta[]): boolean {
   if (a.length !== b.length) return false
@@ -405,6 +439,7 @@ function categoriesEqual(a: Meta[], b: Meta[]): boolean {
     if (Boolean(a[i].hidden) !== Boolean(b[i].hidden)) return false
     if (a[i].name !== b[i].name) return false
     if (a[i].icon !== b[i].icon) return false
+    if (Number(a[i].parentMetaId ?? 0) !== Number(b[i].parentMetaId ?? 0)) return false
   }
   return true
 }
@@ -453,11 +488,8 @@ const selectedCategory = computed(() =>
 
 const categoryTags = computed(() => {
   if (!selectedMetaId.value) return [] as Tag[]
-  return orderBy(
-    (appStore.tags || []).filter((tag) => Number(tag.metaId) === selectedMetaId.value),
-    [(tag) => String(tag.name ?? '').toLowerCase()],
-    ['asc'],
-  )
+  return [...(appStore.tags || []).filter((tag) => Number(tag.metaId) === selectedMetaId.value)]
+    .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
 })
 
 const filteredTags = computed(() => {
@@ -506,6 +538,15 @@ function tagSynonymsText(tag: Tag): string {
   return String(raw)
 }
 
+function isCategoryGroup(category: Meta | null | undefined): boolean {
+  if (!category) return false
+  return Boolean(categoryDepthById.value.get(Number(category.id))?.isGroup)
+}
+
+function categoryTreeDepth(category: Meta): number {
+  return categoryDepthById.value.get(Number(category.id))?.depth ?? 0
+}
+
 function selectCategory(metaId: number) {
   selectedMetaId.value = metaId
 }
@@ -547,6 +588,7 @@ function onTagDragStart(tag: Tag, event: DragEvent) {
     ? [...selectedIds.value]
     : [tag.id]
   draggingTagIds.value = ids
+  draggingMetaId.value = null
 
   const trayTags = resolveTagsByIds(ids)
     .map((entry) => {
@@ -571,12 +613,49 @@ function onTagDragStart(tag: Tag, event: DragEvent) {
 function onTagDragEnd() {
   dropTargetMetaId.value = null
   draggingTagIds.value = []
+  draggingMetaId.value = null
   clearMediaTagDrag()
 }
 
+function onCategoryItemDragStart(category: Meta, event: DragEvent) {
+  if (categoriesEditMode.value || categorySearch.value.trim()) {
+    event.preventDefault()
+    return
+  }
+  draggingMetaId.value = Number(category.id)
+  draggingTagIds.value = []
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `meta:${category.id}`)
+  }
+}
+
+function onCategoryItemDragEnd() {
+  draggingMetaId.value = null
+  dropTargetMetaId.value = null
+}
+
 function onCategoryDragOver(category: Meta, event: DragEvent) {
+  if (draggingMetaId.value != null) {
+    if (
+      canReparentCategory(
+        draggingMetaId.value,
+        Number(category.id),
+        categories.value,
+        tagCountByMetaId.value[Number(category.id)] || 0,
+      )
+    ) {
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+      dropTargetMetaId.value = category.id
+    } else {
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
+      dropTargetMetaId.value = null
+    }
+    return
+  }
+
   if (!draggingTagIds.value.length) return
-  if (Number(category.id) === Number(selectedMetaId.value)) {
+  if (isCategoryGroup(category)) {
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
     dropTargetMetaId.value = null
     return
@@ -602,12 +681,26 @@ function resolveTagsByIds(ids: number[]): Tag[] {
 }
 
 function onDropToCategory(category: Meta) {
+  if (draggingMetaId.value != null) {
+    const source = categoryRows.value.find((item) => Number(item.id) === draggingMetaId.value)
+    draggingMetaId.value = null
+    dropTargetMetaId.value = null
+    if (!source) return
+    void reparentCategory(
+      source,
+      Number(category.id),
+      categories.value,
+      tagCountByMetaId.value[Number(category.id)] || 0,
+    )
+    return
+  }
+
   const ids = [...draggingTagIds.value]
   dropTargetMetaId.value = null
   draggingTagIds.value = []
 
   if (!ids.length) return
-  if (Number(category.id) === Number(selectedMetaId.value)) return
+  if (isCategoryGroup(category)) return
 
   const tagsToMove = resolveTagsByIds(ids).filter(
     (tag) => Number(tag.metaId) !== Number(category.id),
@@ -738,6 +831,27 @@ async function onMetaDeleted() {
   overflow: auto;
 }
 
+.all-tags-board__add-category {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px dashed rgba(var(--v-theme-primary), 0.45);
+  border-radius: 12px;
+  background: rgba(var(--v-theme-primary), 0.06);
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.12);
+  }
+}
+
 .all-tags-board__tag-list {
   flex: 1;
   min-height: 0;
@@ -753,6 +867,10 @@ async function onMetaDeleted() {
   border-radius: 12px;
   transition: background-color 0.15s ease, outline-color 0.15s ease, opacity 0.15s ease;
   cursor: pointer;
+
+  &:not(.all-tags-board__category--editing) {
+    cursor: grab;
+  }
 
   &:hover {
     background: rgba(var(--v-theme-on-surface), 0.04);

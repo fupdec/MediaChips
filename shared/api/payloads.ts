@@ -34,6 +34,7 @@ export interface MediaTypeWritePayload {
 export interface CreateTagPayload {
   name: string
   metaId?: number
+  parentTagId?: number | null
   color?: string
   synonyms?: string
   [key: string]: unknown

@@ -238,12 +238,10 @@ function getTagSortPlan(sortBy: string, sortMetaType?: string | null): TagSortPl
   if (sortBy === 'mediaCount' || sortBy === 'numberOfMedia' || sortBy === 'assignmentCount') {
     return {
       expression: '(COALESCE(tag_sort_media_assign.cnt, 0) + COALESCE(tag_sort_tag_assign.cnt, 0))',
-      joinSql: `LEFT JOIN (
-  SELECT tim.tagId AS id, COUNT(*) AS cnt
-  FROM tagsInMedia tim
-  INNER JOIN tags scoped ON scoped.id = tim.tagId AND scoped.metaId = :metaId
-  GROUP BY tim.tagId
-) AS tag_sort_media_assign ON tag_sort_media_assign.id = tags.id
+      joinSql: `${descendantMediaCountJoinSql({
+        linkTable: 'tagsInMedia',
+        alias: 'tag_sort_media_assign',
+      })}
 LEFT JOIN (
   SELECT tit.tagId AS id, COUNT(*) AS cnt
   FROM tagsInTags tit
@@ -256,30 +254,26 @@ LEFT JOIN (
   if (sortBy === 'videoCount' || sortBy === 'numberOfVideos') {
     return {
       expression: 'COALESCE(tag_sort_type_count.cnt, 0)',
-      joinSql: `LEFT JOIN (
-  SELECT tim.tagId AS id, COUNT(*) AS cnt
-  FROM tagsInMedia tim
-  INNER JOIN tags scoped ON scoped.id = tim.tagId AND scoped.metaId = :metaId
-  INNER JOIN media ON media.id = tim.mediaId
-  INNER JOIN mediaTypes ON mediaTypes.id = media.mediaTypeId
-  WHERE mediaTypes.type = 'video'
-  GROUP BY tim.tagId
-) AS tag_sort_type_count ON tag_sort_type_count.id = tags.id`,
+      joinSql: descendantMediaCountJoinSql({
+        linkTable: 'tagsInMedia',
+        alias: 'tag_sort_type_count',
+        extraJoins: `INNER JOIN media ON media.id = tagsInMedia.mediaId
+  INNER JOIN mediaTypes ON mediaTypes.id = media.mediaTypeId`,
+        extraWhere: `mediaTypes.type = 'video'`,
+      }),
     }
   }
 
   if (sortBy === 'imageCount' || sortBy === 'numberOfImages') {
     return {
       expression: 'COALESCE(tag_sort_type_count.cnt, 0)',
-      joinSql: `LEFT JOIN (
-  SELECT tim.tagId AS id, COUNT(*) AS cnt
-  FROM tagsInMedia tim
-  INNER JOIN tags scoped ON scoped.id = tim.tagId AND scoped.metaId = :metaId
-  INNER JOIN media ON media.id = tim.mediaId
-  INNER JOIN mediaTypes ON mediaTypes.id = media.mediaTypeId
-  WHERE mediaTypes.type = 'image'
-  GROUP BY tim.tagId
-) AS tag_sort_type_count ON tag_sort_type_count.id = tags.id`,
+      joinSql: descendantMediaCountJoinSql({
+        linkTable: 'tagsInMedia',
+        alias: 'tag_sort_type_count',
+        extraJoins: `INNER JOIN media ON media.id = tagsInMedia.mediaId
+  INNER JOIN mediaTypes ON mediaTypes.id = media.mediaTypeId`,
+        extraWhere: `mediaTypes.type = 'image'`,
+      }),
     }
   }
 
@@ -308,6 +302,7 @@ function getTagSortExpression(sortBy: string, sortMetaType?: string | null) {
 }
 
 import {buildTagIdSelect} from './filteredListSql'
+import {descendantMediaCountJoinSql} from './tagDescendantSql'
 
 export {
   buildTagFilterQuery,

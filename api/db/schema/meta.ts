@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const meta = sqliteTable('meta', {
   id: integer('id').primaryKey({autoIncrement: true}),
@@ -9,6 +9,7 @@ export const meta = sqliteTable('meta', {
   order: integer('order'),
   views: integer('views').default(0),
   oldId: text('oldId'),
+  parentMetaId: integer('parentMetaId'),
   synonyms: integer('synonyms', {mode: 'boolean'}).default(false),
   hidden: integer('hidden', {mode: 'boolean'}).default(false),
   nested: integer('nested', {mode: 'boolean'}).default(false),
@@ -42,4 +43,6 @@ export const meta = sqliteTable('meta', {
   sortDir: text('sortDir').default('asc'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
-})
+}, (table) => ({
+  parentMetaIdx: index('meta_parent_meta_id_idx').on(table.parentMetaId),
+}))

@@ -25,7 +25,7 @@
     ]"
     class="item"
     :data-item-id="item.id"
-    :style="tagPreviewAspectStyle"
+    :style="itemRootStyle"
   >
     <v-card
       v-if="showCardView"
@@ -457,6 +457,8 @@ const tagPreviewAspectStyle = computed(() => {
     '--tag-preview-aspect': String(ratio > 0 ? ratio : 1),
   }
 })
+
+const itemRootStyle = computed(() => tagPreviewAspectStyle.value)
 
 type ChipVariant = import('@/utils/chipVariant').ChipVariant
 

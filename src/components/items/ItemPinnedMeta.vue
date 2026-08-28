@@ -272,6 +272,7 @@ import {getFilterObject, getTagChipTextColor} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
+import {getApiErrorMessage} from '@/types/vue'
 import {
   clearMediaTagDrag,
   writeMediaTagDragPayload,

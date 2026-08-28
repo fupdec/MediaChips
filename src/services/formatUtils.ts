@@ -55,7 +55,7 @@ export function getRandomId(): string {
 }
 
 export function getFilterObject(obj: Partial<FilterObject> = {}): FilterObject {
-  return {
+  const result: FilterObject = {
     id: null,
     param: null,
     type: null,
@@ -68,6 +68,7 @@ export function getFilterObject(obj: Partial<FilterObject> = {}): FilterObject {
     clientKey: Math.random().toString(16).slice(2),
     ...obj,
   }
+  return result
 }
 
 export function getReadableFileSize(bytes: number, isObject?: false): string
