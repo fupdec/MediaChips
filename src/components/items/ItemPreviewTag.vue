@@ -78,7 +78,7 @@
   >
     <v-avatar
       class="tag-chip-avatar"
-      :rounded="meta?.chipLabel ? 0 : 'circle'"
+      rounded="circle"
       @click="openTagPage"
     >
       <v-img
