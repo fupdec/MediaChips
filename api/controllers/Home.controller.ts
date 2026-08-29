@@ -166,6 +166,7 @@ export default (db: ApiDb) => {
       const data = await searchGlobal(db, String(q || ''), {
         limit: req.body?.limit,
         tagIds: req.body?.tagIds,
+        deep: req.body?.deep === true,
       })
       sendOk(res, data)
     } catch (err) {

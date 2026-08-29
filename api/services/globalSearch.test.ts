@@ -212,11 +212,23 @@ describe('globalSearch FTS', () => {
     }
   })
 
-  it('includes bookmark matches in global search and merges with name hits', async () => {
+  it('skips bookmark scans on the default (fast) global search path', async () => {
     const { sqlite, db, dbPath } = createSearchTestDb()
 
     try {
       const byBookmark = await searchGlobal(db, 'vacation', 10)
+      expect(byBookmark.media.some((item) => (item as {name?: string}).name === 'Quiet Film')).toBe(false)
+      expect(byBookmark.tags.some((tag) => tag.name === 'Director')).toBe(false)
+    } finally {
+      closeTestDb({sqlite, dbPath})
+    }
+  })
+
+  it('includes bookmark matches when deep search is enabled', async () => {
+    const { sqlite, db, dbPath } = createSearchTestDb()
+
+    try {
+      const byBookmark = await searchGlobal(db, 'vacation', {limit: 10, deep: true})
       expect(byBookmark.media.some((item) => (item as {name?: string}).name === 'Quiet Film')).toBe(true)
       expect(byBookmark.tags.some((tag) => tag.name === 'Director')).toBe(true)
 
@@ -227,7 +239,7 @@ describe('globalSearch FTS', () => {
       expect(quiet?.matchSource).toBe('bookmark')
       expect(quiet?.matchedBookmark).toContain('vacation')
 
-      const byBoth = await searchGlobal(db, 'favorite', 10)
+      const byBoth = await searchGlobal(db, 'favorite', {limit: 10, deep: true})
       const action = byBoth.media.find((item) => (item as {name?: string}).name === 'Action Hero') as {
         matchSource?: string
         matchedBookmark?: string
@@ -235,7 +247,7 @@ describe('globalSearch FTS', () => {
       expect(action?.matchSource).toBe('bookmark')
       expect(action?.matchedBookmark).toBe('favorite scene notes')
 
-      const byNameAndBookmark = await searchGlobal(db, 'action', 10)
+      const byNameAndBookmark = await searchGlobal(db, 'action', {limit: 10, deep: true})
       const actionByName = byNameAndBookmark.media.find((item) => (item as {name?: string}).name === 'Action Hero') as {
         matchSource?: string
         matchedBookmark?: string
@@ -247,14 +259,14 @@ describe('globalSearch FTS', () => {
     }
   })
 
-  it('reports both when media name and bookmark match the same query', async () => {
+  it('reports both when media name and bookmark match the same query (deep)', async () => {
     const { sqlite, db, dbPath } = createSearchTestDb()
 
     try {
       sqlite.prepare(`UPDATE media SET bookmark = 'action notes' WHERE name = 'Action Hero'`).run()
       ensureSearchFtsIndex(sqlite)
 
-      const results = await searchGlobal(db, 'action', 10)
+      const results = await searchGlobal(db, 'action', {limit: 10, deep: true})
       const action = results.media.find((item) => (item as {name?: string}).name === 'Action Hero') as {
         matchSource?: string
         matchedBookmark?: string

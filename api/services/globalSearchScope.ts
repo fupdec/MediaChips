@@ -5,6 +5,12 @@ import {normalizeSearchTagIds} from './globalSearchMerge'
 export interface SearchGlobalOptions {
   limit?: unknown
   tagIds?: unknown
+  /**
+   * Also search bookmark notes and text-file content via LIKE.
+   * Off by default — those paths scan large tables and dominate cold-start
+   * latency on big libraries (~10 GB DB). Name + tag FTS stay on the hot path.
+   */
+  deep?: boolean
 }
 
 export interface SearchTagsByNameOptions {

@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Global search** — default text search uses name/tag FTS only; bookmark notes and text-file content scans are opt-in (`deep`) so large libraries no longer stall on the first keystroke
+
 ### Fixed
 
 - **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens (not after heavy routes) and no longer requires a login session, so phones and other devices stop spinning forever on a blank page

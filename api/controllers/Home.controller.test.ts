@@ -216,6 +216,7 @@ describe('Home.controller', () => {
     expect(searchGlobal).toHaveBeenCalledWith({}, 'matrix', {
       limit: undefined,
       tagIds: undefined,
+      deep: false,
     })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({media: [], tags: []})
