@@ -77,7 +77,7 @@ describe('globalSearch FTS', () => {
     }
   })
 
-  it('matches tags by synonyms while rejecting incidental name prefixes', async () => {
+  it('matches tags by name LIKE and by synonyms', async () => {
     const { sqlite, db, dbPath } = createSearchTestDb()
 
     try {
@@ -90,7 +90,7 @@ describe('globalSearch FTS', () => {
 
       expect(names).toContain('Anal Gape')
       expect(names).toContain('YasmiButt')
-      expect(names).not.toContain('Lana Analise')
+      expect(names).toContain('Lana Analise')
 
       const yasmi = results.find((tag) => tag.name === 'YasmiButt')
       expect(yasmi?.matchSource).toBe('synonym')
