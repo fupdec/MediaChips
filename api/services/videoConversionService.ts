@@ -121,7 +121,11 @@ async function processItem(db: ApiDb, job: ConversionJob, item: ConversionItem, 
     } catch (error) {
       lastError = error
       if (fs.existsSync(temp)) fs.unlinkSync(temp)
-      if (signal.aborted) throw new Error('Conversion cancelled', {cause: error})
+      if (signal.aborted) {
+        const cancellationError = new Error('Conversion cancelled')
+        cancellationError.cause = error
+        throw cancellationError
+      }
       if (attempt + 1 >= codecs.length) throw error
     }
   }
