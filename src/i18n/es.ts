@@ -3724,6 +3724,7 @@ const es = {
     thumbnail: 'Miniatura',
     create_thumb_random: 'Tiempo aleatorio',
     create_thumb_default: 'Por defecto',
+    create_thumb_source_missing: 'El archivo no existe: no hay de dónde tomar la imagen.',
     slot_exists: 'Guardado: {type}',
     slot_missing: 'No guardado: {type}',
     edit_image: 'Editar',

@@ -3823,6 +3823,7 @@ const ru = {
     thumbnail: 'Миниатюра',
     create_thumb_random: 'Случайное время',
     create_thumb_default: 'По умолчанию',
+    create_thumb_source_missing: 'Файл не существует, неоткуда взять картинку.',
     slot_exists: 'Есть в БД: {type}',
     slot_missing: 'Нет в БД: {type}',
     edit_image: 'Редактировать',

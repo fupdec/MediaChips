@@ -3724,6 +3724,7 @@ const fr = {
     thumbnail: 'Miniature',
     create_thumb_random: 'Heure aléatoire',
     create_thumb_default: 'Par défaut',
+    create_thumb_source_missing: 'Le fichier n\'existe pas — aucune image disponible.',
     slot_exists: 'Enregistré : {type}',
     slot_missing: 'Non enregistré : {type}',
     edit_image: 'Modifier',

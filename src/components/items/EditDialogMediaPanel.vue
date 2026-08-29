@@ -35,29 +35,43 @@
                 @edited="$emit('edited', $event)"
               />
               <v-btn
+                v-if="!isFileExists"
                 size="small"
                 variant="tonal"
-                color="primary"
+                color="error"
                 icon
-                v-tooltip:top="t('image.create_thumb_random')"
-                :loading="isCreatingThumb === 'random'"
-                :disabled="!canCreateThumb || isCreatingThumb != null"
-                @click="createVideoThumb('random')"
+                v-tooltip:top="t('image.create_thumb_source_missing')"
+                tabindex="-1"
+                @click.stop
               >
-                <v-icon size="18">mdi-dice-5-outline</v-icon>
+                <v-icon size="18">mdi-file-alert</v-icon>
               </v-btn>
-              <v-btn
-                size="small"
-                variant="tonal"
-                color="primary"
-                icon
-                v-tooltip:top="t('image.create_thumb_default')"
-                :loading="isCreatingThumb === 'default'"
-                :disabled="!canCreateThumb || isCreatingThumb != null"
-                @click="createVideoThumb('default')"
-              >
-                <v-icon size="18">mdi-image-frame</v-icon>
-              </v-btn>
+              <template v-else>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  icon
+                  v-tooltip:top="t('image.create_thumb_random')"
+                  :loading="isCreatingThumb === 'random'"
+                  :disabled="!canCreateThumb || isCreatingThumb != null"
+                  @click="createVideoThumb('random')"
+                >
+                  <v-icon size="18">mdi-dice-5-outline</v-icon>
+                </v-btn>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  icon
+                  v-tooltip:top="t('image.create_thumb_default')"
+                  :loading="isCreatingThumb === 'default'"
+                  :disabled="!canCreateThumb || isCreatingThumb != null"
+                  @click="createVideoThumb('default')"
+                >
+                  <v-icon size="18">mdi-image-frame</v-icon>
+                </v-btn>
+              </template>
             </div>
           </div>
         </div>

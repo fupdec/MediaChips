@@ -3724,6 +3724,7 @@ const de = {
     thumbnail: 'Miniaturansicht',
     create_thumb_random: 'Zufällige Zeit',
     create_thumb_default: 'Standardmäßig',
+    create_thumb_source_missing: 'Datei existiert nicht — kein Bild verfügbar.',
     slot_exists: 'Gespeichert: {type}',
     slot_missing: 'Nicht gespeichert: {type}',
     edit_image: 'Bearbeiten',

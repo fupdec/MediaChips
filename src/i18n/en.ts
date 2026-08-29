@@ -3823,6 +3823,7 @@ const en = {
     thumbnail: 'Thumbnail',
     create_thumb_random: 'Random time',
     create_thumb_default: 'By default',
+    create_thumb_source_missing: 'File doesn\'t exist — nowhere to get an image from.',
     slot_exists: 'Saved: {type}',
     slot_missing: 'Not saved: {type}',
     edit_image: 'Edit',

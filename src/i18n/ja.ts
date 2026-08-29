@@ -3724,6 +3724,7 @@ const ja = {
     thumbnail: 'サムネイル',
     create_thumb_random: 'ランダムな時間',
     create_thumb_default: 'デフォルトでは',
+    create_thumb_source_missing: 'ファイルが存在しないため、画像を取得できません。',
     slot_exists: '保存済み: {type}',
     slot_missing: '未保存: {type}',
     edit_image: '編集',

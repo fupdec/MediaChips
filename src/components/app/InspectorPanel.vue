@@ -167,14 +167,15 @@
               </v-icon>
             </div>
 
-            <!-- Overlay buttons for video thumbnail -->
+            <!-- Overlay: crop always OK; recreate-from-video needs the source file -->
             <div
-              v-if="isVideoInspectorItem && previewSrc"
+              v-if="isVideoInspectorItem && (previewSrc || !isFileExists)"
               class="inspector-panel__thumb-overlay"
               @click.stop
             >
               <div class="inspector-panel__thumb-overlay-actions">
                 <DialogImageEditing
+                  v-if="previewSrc"
                   detached
                   compact
                   variant="flat"
@@ -188,29 +189,44 @@
                   @edited="onThumbEdited"
                 />
                 <v-btn
+                  v-if="!isFileExists"
                   size="x-small"
                   variant="flat"
-                  color="primary"
+                  color="error"
                   icon
-                  v-tooltip:top="t('image.create_thumb_random')"
-                  :loading="isCreatingThumb === 'random'"
-                  :disabled="!canCreateThumb || isCreatingThumb != null"
-                  @click="createVideoThumb('random')"
+                  class="inspector-panel__thumb-overlay-missing"
+                  v-tooltip:top="t('image.create_thumb_source_missing')"
+                  tabindex="-1"
+                  @click.stop
                 >
-                  <v-icon size="16">mdi-dice-5-outline</v-icon>
+                  <v-icon size="16">mdi-file-alert</v-icon>
                 </v-btn>
-                <v-btn
-                  size="x-small"
-                  variant="flat"
-                  color="primary"
-                  icon
-                  v-tooltip:top="t('image.create_thumb_default')"
-                  :loading="isCreatingThumb === 'default'"
-                  :disabled="!canCreateThumb || isCreatingThumb != null"
-                  @click="createVideoThumb('default')"
-                >
-                  <v-icon size="16">mdi-image-frame</v-icon>
-                </v-btn>
+                <template v-else>
+                  <v-btn
+                    size="x-small"
+                    variant="flat"
+                    color="primary"
+                    icon
+                    v-tooltip:top="t('image.create_thumb_random')"
+                    :loading="isCreatingThumb === 'random'"
+                    :disabled="!canCreateThumb || isCreatingThumb != null"
+                    @click="createVideoThumb('random')"
+                  >
+                    <v-icon size="16">mdi-dice-5-outline</v-icon>
+                  </v-btn>
+                  <v-btn
+                    size="x-small"
+                    variant="flat"
+                    color="primary"
+                    icon
+                    v-tooltip:top="t('image.create_thumb_default')"
+                    :loading="isCreatingThumb === 'default'"
+                    :disabled="!canCreateThumb || isCreatingThumb != null"
+                    @click="createVideoThumb('default')"
+                  >
+                    <v-icon size="16">mdi-image-frame</v-icon>
+                  </v-btn>
+                </template>
               </div>
             </div>
           </div>
@@ -609,14 +625,31 @@ const isVideoInspectorItem = computed(() =>
 )
 
 const isCreatingThumb = ref<'random' | 'default' | null>(null)
+const isFileExists = ref(true)
 
 const canCreateThumb = computed(() =>
-  Boolean(focusedMedia.value?.id != null && focusedMedia.value?.path),
+  Boolean(isFileExists.value && focusedMedia.value?.id != null && focusedMedia.value?.path),
+)
+
+watch(
+  mediaPath,
+  (filePath) => {
+    if (!filePath) {
+      isFileExists.value = false
+      return
+    }
+    void checkFileExists(filePath).then((exists) => {
+      if (mediaPath.value === filePath) {
+        isFileExists.value = exists
+      }
+    })
+  },
+  {immediate: true},
 )
 
 async function createVideoThumb(mode: 'random' | 'default') {
   const media = focusedMedia.value
-  if (!media?.id || !media.path || isCreatingThumb.value) return
+  if (!media?.id || !media.path || !isFileExists.value || isCreatingThumb.value) return
 
   isCreatingThumb.value = mode
   try {
@@ -1171,6 +1204,16 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
   :deep(.v-btn:hover) {
     background: rgba(var(--v-theme-primary), 0.75) !important;
+  }
+
+  :deep(.inspector-panel__thumb-overlay-missing) {
+    background: rgba(var(--v-theme-error), 0.55) !important;
+    pointer-events: auto;
+    cursor: default;
+  }
+
+  :deep(.inspector-panel__thumb-overlay-missing:hover) {
+    background: rgba(var(--v-theme-error), 0.55) !important;
   }
 }
 

@@ -3724,6 +3724,7 @@ const cn = {
     thumbnail: '缩略图',
     create_thumb_random: '随机时间',
     create_thumb_default: '默认',
+    create_thumb_source_missing: '文件不存在，无法获取图片。',
     slot_exists: '已保存：{type}',
     slot_missing: '未保存：{type}',
     edit_image: '编辑',

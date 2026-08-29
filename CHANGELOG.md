@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Inspector media refresh** — skip metadata/filesize re-probe when the source file is missing, so opening the side panel no longer spams ffprobe errors; show a file-missing icon instead of thumbnail replace actions
 - **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens (not after heavy routes) and no longer requires a login session, so phones and other devices stop spinning forever on a blank page
 
 ## [1.10.0] - 2026-08-17
