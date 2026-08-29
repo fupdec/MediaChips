@@ -778,7 +778,7 @@ watch(
   }
 
   :deep(.sidebar-browser__nav) {
-    padding-bottom: 8px;
+    padding-bottom: 12px;
   }
 }
 
