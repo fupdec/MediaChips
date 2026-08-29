@@ -490,6 +490,8 @@ const fr = {
     show_hidden: 'Afficher masqué ({count})',
     edit_library: 'Modifier la bibliothèque',
     done_editing_library: 'Terminé',
+    edit_menu_items: 'Modifier les éléments du menu',
+    done_editing_menu: 'Terminé',
     reorder_library_hint: 'Faites glisser pour réorganiser. Utilisez l’icône en forme d’œil pour masquer de la navigation.',
     reorder_library_item: 'Faire glisser pour réorganiser',
   },

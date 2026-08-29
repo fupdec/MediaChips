@@ -491,6 +491,8 @@ const ru = {
     show_hidden: 'Показать скрытые ({count})',
     edit_library: 'Редактировать библиотеку',
     done_editing_library: 'Готово',
+    edit_menu_items: 'Редактировать пункты меню',
+    done_editing_menu: 'Готово',
     reorder_library_hint: 'Перетащите, чтобы изменить порядок. Глаз скрывает из навигации.',
     reorder_library_item: 'Перетянуть для смены порядка',
   },

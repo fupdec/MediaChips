@@ -491,6 +491,8 @@ const en = {
     show_hidden: 'Show hidden ({count})',
     edit_library: 'Edit library',
     done_editing_library: 'Done',
+    edit_menu_items: 'Edit menu items',
+    done_editing_menu: 'Done',
     reorder_library_hint: 'Drag to reorder. Use the eye to hide from navigation.',
     reorder_library_item: 'Drag to reorder',
   },

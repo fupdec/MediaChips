@@ -490,6 +490,8 @@ const es = {
     show_hidden: 'Mostrar ocultos ({count})',
     edit_library: 'Editar biblioteca',
     done_editing_library: 'Hecho',
+    edit_menu_items: 'Editar elementos del menú',
+    done_editing_menu: 'Hecho',
     reorder_library_hint: 'Arrastra para reordenar. Usa el icono de ojo para ocultar de la navegación.',
     reorder_library_item: 'Arrastra para reordenar',
   },

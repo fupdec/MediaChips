@@ -490,6 +490,8 @@ const ja = {
     show_hidden: '非表示を表示 ({count})',
     edit_library: 'ライブラリを編集',
     done_editing_library: '完了',
+    edit_menu_items: 'メニュー項目を編集',
+    done_editing_menu: '完了',
     reorder_library_hint: 'ドラッグして並べ替えます。目のアイコンでナビゲーションから非表示にできます。',
     reorder_library_item: 'ドラッグして並べ替え',
   },

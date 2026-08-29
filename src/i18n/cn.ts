@@ -490,6 +490,8 @@ const cn = {
     show_hidden: '显示隐藏 ({count})',
     edit_library: '编辑媒体库',
     done_editing_library: '完成',
+    edit_menu_items: '编辑菜单项',
+    done_editing_menu: '完成',
     reorder_library_hint: '拖动以重新排序。使用眼睛图标可从导航中隐藏。',
     reorder_library_item: '拖动以重新排序',
   },

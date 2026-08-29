@@ -490,6 +490,8 @@ const de = {
     show_hidden: 'Versteckt anzeigen ({count})',
     edit_library: 'Bibliothek bearbeiten',
     done_editing_library: 'Fertig',
+    edit_menu_items: 'Menüpunkte bearbeiten',
+    done_editing_menu: 'Fertig',
     reorder_library_hint: 'Zum Neuanordnen ziehen. Mit dem Auge aus der Navigation ausblenden.',
     reorder_library_item: 'Zum Neuanordnen ziehen',
   },

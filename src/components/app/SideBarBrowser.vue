@@ -219,13 +219,15 @@
                 :variant="libraryEditMode ? 'flat' : 'text'"
                 :color="libraryEditMode ? 'primary' : undefined"
                 :aria-label="libraryEditMode
-                  ? t('navigation.done_editing_library')
-                  : t('navigation.edit_library')"
-                :title="libraryEditMode
-                  ? t('navigation.done_editing_library')
-                  : t('navigation.edit_library')"
+                  ? t('navigation.done_editing_menu')
+                  : t('navigation.edit_menu_items')"
                 @click="libraryEditMode = !libraryEditMode"
               >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ libraryEditMode
+                    ? t('navigation.done_editing_menu')
+                    : t('navigation.edit_menu_items') }}
+                </v-tooltip>
                 <v-icon size="16">
                   {{ libraryEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
                 </v-icon>
@@ -329,11 +331,13 @@
                 :aria-label="tagsAllExpanded
                   ? t('browser_layout.collapse_all_categories')
                   : t('browser_layout.expand_all_categories')"
-                :title="tagsAllExpanded
-                  ? t('browser_layout.collapse_all_categories')
-                  : t('browser_layout.expand_all_categories')"
                 @click="toggleAllTagCategories"
               >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ tagsAllExpanded
+                    ? t('browser_layout.collapse_all_categories')
+                    : t('browser_layout.expand_all_categories') }}
+                </v-tooltip>
                 <v-icon size="16">
                   {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
                 </v-icon>
@@ -344,13 +348,15 @@
                 :variant="tagsEditMode ? 'flat' : 'text'"
                 :color="tagsEditMode ? 'primary' : undefined"
                 :aria-label="tagsEditMode
-                  ? t('all_tags.done_editing_categories')
-                  : t('all_tags.edit_categories')"
-                :title="tagsEditMode
-                  ? t('all_tags.done_editing_categories')
-                  : t('all_tags.edit_categories')"
+                  ? t('navigation.done_editing_menu')
+                  : t('navigation.edit_menu_items')"
                 @click="tagsEditMode = !tagsEditMode"
               >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ tagsEditMode
+                    ? t('navigation.done_editing_menu')
+                    : t('navigation.edit_menu_items') }}
+                </v-tooltip>
                 <v-icon size="16">
                   {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
                 </v-icon>
@@ -360,9 +366,11 @@
                 size="x-small"
                 variant="text"
                 :aria-label="t('all_tags.add_category')"
-                :title="t('all_tags.add_category')"
                 @click="openCreateCategoryFromSidebar"
               >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ t('all_tags.add_category') }}
+                </v-tooltip>
                 <v-icon size="16">mdi-plus</v-icon>
               </v-btn>
               <v-btn
@@ -373,8 +381,10 @@
                 :variant="isAllTagsActive ? 'flat' : 'text'"
                 :color="isAllTagsActive ? 'primary' : undefined"
                 :aria-label="allTagsLink.title"
-                :title="allTagsLink.title"
               >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ allTagsLink.title }}
+                </v-tooltip>
                 <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
               </v-btn>
             </div>
