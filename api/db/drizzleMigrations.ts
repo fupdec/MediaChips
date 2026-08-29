@@ -75,11 +75,11 @@ function stampMigrationIfMissing(sqlite: Database.Database, entry: JournalEntry)
 }
 
 function addColumnCaptureRegex(): RegExp {
-  return /ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD\s+COLUMN\s+[`"]?(\w+)[`"]?/gi
+  return /ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD(?:\s+COLUMN)?\s+[`"]?(\w+)[`"]?/gi
 }
 
 function addColumnStatementRegex(): RegExp {
-  return /ALTER\s+TABLE\s+[`"]?\w+[`"]?\s+ADD\s+COLUMN\s+[^;]+;?/gi
+  return /ALTER\s+TABLE\s+[`"]?\w+[`"]?\s+ADD(?:\s+COLUMN)?\s+[^;]+;?/gi
 }
 
 function createIndexCaptureRegex(): RegExp {
@@ -125,7 +125,13 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
 
   const indexMatches = [...sql.matchAll(createIndexCaptureRegex())]
   if (indexMatches.length > 0) {
-    const withoutIndexes = withoutBreakpoints.replace(createIndexStatementRegex(), '').trim()
+    // Some idempotent index migrations first remove an older definition.
+    // That DROP is part of the migration's normal replay-safe procedure and
+    // should not prevent recognizing the resulting indexes as satisfied.
+    const withoutIndexes = withoutBreakpoints
+      .replace(createIndexStatementRegex(), '')
+      .replace(/DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?[`"]?\w+[`"]?\s*;?/gi, '')
+      .trim()
     if (withoutIndexes.length > 0) {
       return false
     }

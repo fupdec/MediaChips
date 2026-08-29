@@ -52,6 +52,12 @@ describe('globalAppConfig', () => {
       transcodeUnsupportedFormats: '1',
       transcodeMaxHeight: '1080',
       transcodeCacheMaxGb: '5',
+      conversionCodec: 'auto',
+      conversionResolution: '1080',
+      conversionQuality: 'balanced',
+      conversionDestination: '',
+      conversionDeleteOriginal: '0',
+      conversionCompatibilityTest: '',
       zoom: '1',
     })
   })

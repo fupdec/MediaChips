@@ -444,14 +444,14 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('tags_in_tags_tag_id_idx')
   }
 
-  if (hasTable(sqlite, 'tags') && !hasIndex(sqlite, 'tags_parent_tag_id_idx')) {
+  if (hasTable(sqlite, 'tags') && hasColumn(sqlite, 'tags', 'parentTagId') && !hasIndex(sqlite, 'tags_parent_tag_id_idx')) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "tags_parent_tag_id_idx" ON "tags" ("parentTagId")',
     )
     repaired.push('tags_parent_tag_id_idx')
   }
 
-  if (hasTable(sqlite, 'meta') && !hasIndex(sqlite, 'meta_parent_meta_id_idx')) {
+  if (hasTable(sqlite, 'meta') && hasColumn(sqlite, 'meta', 'parentMetaId') && !hasIndex(sqlite, 'meta_parent_meta_id_idx')) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "meta_parent_meta_id_idx" ON "meta" ("parentMetaId")',
     )

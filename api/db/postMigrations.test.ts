@@ -43,7 +43,7 @@ describe('postMigrations', () => {
       ).toMatch(/deletedAt/i)
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media_fts'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tags_fts'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 29})
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 31})
 
       const mediaMeta = (
         sqlite.prepare(`
