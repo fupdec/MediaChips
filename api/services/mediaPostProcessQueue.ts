@@ -1,8 +1,12 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createConcurrencyQueue } from './concurrencyQueue'
 
-/** Live playback / thumbs / grids — keep responsive; remux must not share this. */
-const ffmpegQueue = createConcurrencyQueue(1)
+/**
+ * Live playback / thumbs / grids — keep responsive; remux must not share this.
+ * Concurrency 2 lets infinite-scroll thumb storms overlap without saturating Linux CPUs.
+ */
+export const FFMPEG_QUEUE_CONCURRENCY = 2
+const ffmpegQueue = createConcurrencyQueue(FFMPEG_QUEUE_CONCURRENCY)
 const ffprobeQueue = createConcurrencyQueue(2)
 /** Progressive layout remux — separate so copy-remux cannot block live streams. */
 const remuxQueue = createConcurrencyQueue(1)

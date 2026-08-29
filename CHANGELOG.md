@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Inspector media refresh** — skip metadata/filesize re-probe when the source file is missing, so opening the side panel no longer spams ffprobe errors; show a file-missing icon instead of thumbnail replace actions
 - **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens (not after heavy routes) and no longer requires a login session, so phones and other devices stop spinning forever on a blank page
+- **Linux black card thumbs** — reject empty/corrupt on-disk JPEG stubs (failed FFmpeg 6 writes) and regenerate on demand instead of serving them forever
+- **Infinite-scroll thumb storms** — allow two concurrent ffmpeg thumb/preview jobs so appending a page is less likely to stall behind a single worker
 
 ## [1.10.0] - 2026-08-17
 
